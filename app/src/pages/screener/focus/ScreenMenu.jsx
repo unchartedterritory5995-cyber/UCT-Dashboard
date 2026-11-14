@@ -69,7 +69,11 @@ export default function ScreenMenu({ currentName, currentId, isEdited, count, co
     ...starters.map(s => ({ ...s, kind: 'starter' })),
     ...saved.map(s => ({ ...s, id: s.id, kind: 'saved', description: s.description || '' })),
   ], [starters, saved])
-  const match = it => !q || norm(it.name).includes(norm(q)) || norm(it.description).includes(norm(q))
+  // A starter may carry `aliases` (saved_screens.py): names members already know a setup by
+  // ("RSNHBP", "blue dot"). They are searched and never shown. Anything but a list of strings
+  // is ignored, so a bad payload cannot match every query or throw.
+  const aliasesOf = it => (Array.isArray(it.aliases) ? it.aliases.filter(a => typeof a === 'string') : [])
+  const match = it => !q || norm(it.name).includes(norm(q)) || norm(it.description).includes(norm(q)) || aliasesOf(it).some(a => norm(a).includes(norm(q)))
   const pinnedIds = [...new Set(pinned.map(String))]
   const pinnedItems = pinnedIds.map(id => all.find(it => String(it.id) === String(id))).filter(Boolean).filter(match)
   // A pinned screen is listed ONCE, under Pinned, never again inside its group (P3).

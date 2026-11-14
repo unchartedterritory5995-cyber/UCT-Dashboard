@@ -37,6 +37,42 @@ test('search filters items', () => {
   expect(screen.getByText('Semis on watch')).toBeInTheDocument()
   expect(screen.queryByText('UCT 50')).toBeNull()
 })
+// 2026-11-14: a starter may carry `aliases`, the names members already know a setup by. The
+// search reads them; the menu never prints them.
+const RSNHBP = { id: 'starter_rs_nh_before_price', name: 'RS new high before price', group: 'Relative strength', spec: { filters: [] },
+  description: 'Stocks whose RS line made a 52-week high while price has not', aliases: ['RSNHBP', 'RS new high before price', 'blue dot'] }
+test.each(['RSNHBP', 'rsnhbp', 'blue dot', 'Blue Do'])('typing the alias "%s" finds the screen that carries it, and only that screen', q => {
+  render(<ScreenMenu {...props} starters={[...starters, RSNHBP]} />)
+  fireEvent.click(screen.getByRole('button', { name: /Leaders/ }))
+  const dlg = screen.getByRole('dialog', { name: 'Screens' })
+  fireEvent.change(screen.getByRole('searchbox', { name: 'Search screens' }), { target: { value: q } })
+  expect(within(dlg).getAllByRole('button', { name: /^Open / })).toHaveLength(1)
+  expect(within(dlg).getByRole('button', { name: 'Open RS new high before price' })).toBeInTheDocument()
+})
+test('aliases are never shown, with or without a search; a pinned screen is found by its alias too', () => {
+  render(<ScreenMenu {...props} starters={[...starters, RSNHBP]} pinned={['starter_rs_nh_before_price']} />)
+  fireEvent.click(screen.getByRole('button', { name: /Leaders/ }))
+  const dlg = screen.getByRole('dialog', { name: 'Screens' })
+  expect(dlg).not.toHaveTextContent(/RSNHBP|blue dot/i)
+  fireEvent.change(screen.getByRole('searchbox', { name: 'Search screens' }), { target: { value: 'blue dot' } })
+  expect(within(within(dlg).getByRole('region', { name: 'Pinned' })).getByRole('button', { name: 'Open RS new high before price' })).toBeInTheDocument()
+  expect(dlg).not.toHaveTextContent(/RSNHBP|blue dot/i)
+  // a word that is in no name, description or alias still finds nothing
+  fireEvent.change(screen.getByRole('searchbox', { name: 'Search screens' }), { target: { value: 'red dot' } })
+  expect(within(dlg).queryAllByRole('button', { name: /^Open / })).toHaveLength(0)
+})
+test('a screen with no aliases, or with a malformed list, is searched by name and description as before', () => {
+  render(<ScreenMenu {...props} starters={[...starters, { ...RSNHBP, aliases: 'blue dot' }, { id: 'starter_x', name: 'Tight closes', spec: { filters: [] }, aliases: [null, 7] }]} />)
+  fireEvent.click(screen.getByRole('button', { name: /Leaders/ }))
+  const dlg = screen.getByRole('dialog', { name: 'Screens' })
+  fireEvent.change(screen.getByRole('searchbox', { name: 'Search screens' }), { target: { value: 'tight' } })
+  expect(within(dlg).getAllByRole('button', { name: /^Open / })).toHaveLength(1)
+  fireEvent.change(screen.getByRole('searchbox', { name: 'Search screens' }), { target: { value: 'rs rank 90' } })
+  expect(within(dlg).getByRole('button', { name: /^Open Leaders/ })).toBeInTheDocument()
+  // a string is not a list of aliases: it is not searched letter by letter or as a word
+  fireEvent.change(screen.getByRole('searchbox', { name: 'Search screens' }), { target: { value: 'blue dot' } })
+  expect(within(dlg).queryAllByRole('button', { name: /^Open / })).toHaveLength(0)
+})
 test('picking applies and closes', () => {
   render(<ScreenMenu {...props} />)
   fireEvent.click(screen.getByRole('button', { name: /Leaders/ }))

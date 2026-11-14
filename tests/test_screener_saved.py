@@ -412,3 +412,61 @@ def test_every_valid_op_declares_its_operands():
     for op, operands in scr_filters.OP_OPERANDS.items():
         assert isinstance(operands, tuple) and all(isinstance(o, str) for o in operands), \
             (op, operands)
+
+
+# ── SEARCH ALIASES (2026-11-14) ─────────────────────────────────────────────
+# A starter may carry `aliases`: extra words the screen picker's search matches
+# (ScreenMenu.jsx `match`) and never shows. Members type the names they already
+# know a setup by ("RSNHBP", "blue dot"), and the picker read only the name and
+# the description.
+
+RSNHBP_ALIASES = ["RSNHBP", "RS new high before price", "blue dot"]
+
+
+def test_starter_aliases_survive_starters_and_are_plain_search_words(tmp_path, monkeypatch):
+    """`starters()` rebuilds every starter through `_stocks_only`; the aliases
+    must come out the other side on the screen they were written for. Derived
+    from `starters()` itself for the rest: every list that exists is a list of
+    non-empty words, and a search word belongs to ONE screen (an alias two
+    screens share finds neither on its own)."""
+    ss = _svc(tmp_path, monkeypatch)
+    _rs_v2_on(monkeypatch)
+    starters = ss.starters()
+    by_id = {s["id"]: s for s in starters}
+    assert by_id["starter_rs_nh_before_price"]["aliases"] == RSNHBP_ALIASES
+    assert by_id["starter_rs_nh_before_price"]["spec"]["filters"][-1]["key"] == ss.STOCKS_ONLY["key"]
+    owner = {}
+    for s in starters:
+        if "aliases" not in s:
+            continue
+        words = s["aliases"]
+        assert isinstance(words, list) and words, s["id"]
+        assert all(isinstance(w, str) and w.strip() == w and w for w in words), (s["id"], words)
+        for w in words:
+            assert owner.setdefault(w.lower(), s["id"]) == s["id"], (w, owner[w.lower()], s["id"])
+        assert len({w.lower() for w in words}) == len(words), (s["id"], words)
+    # optional: a starter with no search words has no key at all (never an empty
+    # list or a null the client would have to guard)
+    assert any("aliases" not in s for s in starters)
+
+
+def test_starter_aliases_reach_the_client_through_the_saved_screens_route(tmp_path, monkeypatch):
+    """The picker gets its starters from GET /api/screener/saved-screens; the
+    aliases have to be in that answer or the client clause matches nothing."""
+    ss = _svc(tmp_path, monkeypatch)
+    _rs_v2_on(monkeypatch)
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from api.middleware.auth_middleware import get_current_user, get_current_user_with_plan
+    from api.routers import screener as screener_mod
+    monkeypatch.setattr(screener_mod, "scr_saved", ss)
+    paid = {"id": "u1", "role": "member", "plan": "pro"}
+    app = FastAPI()
+    app.include_router(screener_mod.router)
+    app.dependency_overrides[get_current_user] = lambda: dict(paid)
+    app.dependency_overrides[get_current_user_with_plan] = lambda: dict(paid)
+    r = TestClient(app).get("/api/screener/saved-screens")
+    assert r.status_code == 200, r.text[:200]
+    by_id = {s["id"]: s for s in r.json()["starters"]}
+    assert by_id["starter_rs_nh_before_price"]["aliases"] == RSNHBP_ALIASES
+    assert any("aliases" not in s for s in by_id.values())

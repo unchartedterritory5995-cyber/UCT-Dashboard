@@ -550,8 +550,14 @@ def rs_starters():
              {"key": "rs_new_high", "op": "eq", "value": 1},
              *liquid()],
           "view": "relative_strength", "sort": {"key": "rs_rank", "dir": "desc"}}},
+        # `aliases` (optional, any starter): extra words the screen picker's search
+        # matches and never shows (ScreenMenu.jsx `match`). Members look for this
+        # screen by the names it already has elsewhere: "RSNHBP", and the blue dot
+        # that marks it on a chart. The key rides through `_stocks_only` and the
+        # saved-screens route untouched; a starter without search words has no key.
         {"id": "starter_rs_nh_before_price", "name": "RS new high before price",
          "group": RS_STARTER_GROUP,
+         "aliases": ["RSNHBP", "RS new high before price", "blue dot"],
          "description": "Stocks whose RS line made a 52-week high on the last session while price is still more than 2% below its own 52-week high, $10M+ traded, price $5+",
          "spec": {"filters": [
              {"key": "rs_nh_before_price", "op": "eq", "value": 1},
