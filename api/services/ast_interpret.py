@@ -1135,10 +1135,8 @@ def _window_percentile_nearest(series: Sequence[float], lo: int, hi: int,
     return vals[rank - 1]
 
 
-#: ``interpret.js::RCI_NA_WINDOW`` / ``STOCH_FLAT_WINDOW`` (engine 57) -- the per-bar
-#: withholding codes of ``ta.rci`` and ``ta.stoch``; the JS lane owns the sentences
-#: (``CHART_CLOCK_WITHHELD``).
-RCI_NA_WINDOW = "rci:na-window"
+#: ``interpret.js::STOCH_FLAT_WINDOW`` (engine 57) -- the per-bar withholding code of
+#: ``ta.stoch``; the JS lane owns the sentence (``CHART_CLOCK_WITHHELD``).
 STOCH_FLAT_WINDOW = "stoch:flat-window"
 
 
@@ -1150,13 +1148,13 @@ def _rci_at(series: Sequence[float], lo: int, hi: int) -> float:
     """``ta.rci`` over ``series[lo..hi]`` (engine 57, MEASURED) -- ``interpret.js::rciAt``, the
     same arithmetic in the same order: the Pearson correlation of the time ranks (newest = 1)
     with the price ranks (highest = 1, ties sharing the AVERAGE rank), x 100; an ``na`` of the
-    source ranks as 0; ``NaN`` on a flat window. Read the JS docstring for the captures."""
+    source ranks LOWEST, tied with every other ``na``; ``NaN`` on a flat window. Read the JS docstring for the captures."""
     n = hi - lo + 1
     m = (n + 1) / 2
 
     def at(j: int) -> float:
         v = series[j]
-        return v if _finite(v) else 0.0
+        return v if _finite(v) else -math.inf
 
     cov = 0.0
     vp = 0.0
@@ -1175,22 +1173,6 @@ def _rci_at(series: Sequence[float], lo: int, hi: int) -> float:
         vp += (p - m) * (p - m)
     vt = (n * (n * n - 1)) / 12
     return (100 * cov) / math.sqrt(vt * vp) if vp > 0 else NAN
-
-
-def rci_withheld_code(series: Sequence[float], n: int, i: int) -> Optional[str]:
-    """``interpret.js::rciWithheldCode`` -- ``rci:na-window`` where the window holds an ``na``
-    of the source beside a value at or below 0, else None."""
-    if i < n or n < 2:
-        return None
-    hole = False
-    non_positive = False
-    for j in range(i - n + 1, i + 1):
-        v = series[j]
-        if not _finite(v):
-            hole = True
-        elif v <= 0:
-            non_positive = True
-    return RCI_NA_WINDOW if hole and non_positive else None
 
 
 def _rci_col(series: Sequence[float], n: int) -> List[float]:
@@ -4758,26 +4740,9 @@ from api.services.ast_bar_index_shift import (  # noqa: E402,F401
 
 
 #: ``interpret.js::BUILTIN_WITNESS_CODES`` (engine 57).
-_BUILTIN_WITNESS_CODES = {"rci": RCI_NA_WINDOW, "stochPine": STOCH_FLAT_WINDOW}
+_BUILTIN_WITNESS_CODES = {"stochPine": STOCH_FLAT_WINDOW}
 #: ``interpret.js::WITNESS_CARRIED_CALLS``.
 _WITNESS_CARRIED_CALLS = frozenset(("ema", "rma", "rsi", "atr", "atrPine", "adx", "plusDI", "minusDI", "macd"))
-
-
-def _positive_on_every_bar(node: Any) -> bool:
-    """``interpret.js::positiveOnEveryBar`` -- True is a proof the tree is a positive number on
-    every bar the chart holds; False is only "not proved"."""
-    if not isinstance(node, dict):
-        return False
-    t = node.get("type")
-    if t == "num":
-        v = node.get("value")
-        return isinstance(v, (int, float)) and not isinstance(v, bool) and v > 0
-    if t == "series":
-        return node.get("name") in ("open", "high", "low", "close")
-    if t == "op" and node.get("name") in ("+", "*", "/"):
-        args = node.get("args")
-        return isinstance(args, list) and len(args) == 2 and all(_positive_on_every_bar(a) for a in args)
-    return False
 
 
 def builtin_witness_mask(tree: Any, bars: List[dict],
@@ -4785,8 +4750,8 @@ def builtin_witness_mask(tree: Any, bars: List[dict],
                          budget: Optional[Mapping[str, Any]] = None,
                          scalars: Optional[Mapping[str, Any]] = None,
                          opts: Optional[Mapping[str, Any]] = None) -> Optional[List[int]]:
-    """``interpret.js::builtinWitnessMask`` (engine 57) -- the bars where a ``ta.rci`` or a
-    Pine ``ta.stoch`` reads a window no capture pins (1 = withheld), or None. Read the JS
+    """``interpret.js::builtinWitnessMask`` (engine 57) -- the bars where a Pine ``ta.stoch``
+    reads a window no capture pins (1 = withheld), or None. Read the JS
     docstring for the rule; this is the same decision, node for node."""
     n = len(bars)
     found: List[tuple] = []
@@ -4825,21 +4790,13 @@ def builtin_witness_mask(tree: Any, bars: List[dict],
         args = node.get("args") or []
         name = node.get("name")
         if nested or _reads_recurrence_binding(node):
-            if name == "rci" and not _positive_on_every_bar(args[0]):
-                codes.add(_BUILTIN_WITNESS_CODES["rci"])
-                mask = [1] * n
-                held = held or n > 0
             continue
-        length = col_of(args[1] if name == "rci" else args[3])
+        length = col_of(args[3])
         w = length[-1] if length else NAN
         if not (_finite(w) and w >= 1 and w == int(w)):
             continue
         w = int(w)
-        if name == "rci":
-            src = col_of(args[0])
-            flagged = [rci_withheld_code(src, w, i) is not None for i in range(n)]
-        else:
-            flagged = [f == 1 for f in _stoch_pine_scan(col_of(args[0]), col_of(args[1]), col_of(args[2]), w)[1]]
+        flagged = [f == 1 for f in _stoch_pine_scan(col_of(args[0]), col_of(args[1]), col_of(args[2]), w)[1]]
         reach = max(0, root_reach - max_lookback(node))
         last = -math.inf
         for i in range(n):

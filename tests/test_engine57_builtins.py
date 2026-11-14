@@ -10,7 +10,7 @@ committed bars and are graded against numbers read off the captures.
 * ``stochPine`` (Pine's ``ta.stoch``): K = sma(stochPine(rsi, rsi, rsi, 14), 3) from bar 17, D = sma(K, 3)
   from bar 19; probe P2's holes (held) and flat run (held 0); a flat run after another value withheld.
 * ``rci``: the Pearson correlation of average ranks, first value on bar ``length``; probe P1's
-  warm-up ``na`` ranked as 0 and flat window ``na``; an ``na`` beside a value <= 0 withheld.
+  warm-up ``na`` ranked lowest and flat window ``na``.
 * ``supertrend``: this lane runs the bounded window (it has no listing pass); its published bars
   equal Pine's full-history reference, and the trees are the JS lane's node for node
   (``tests/test_call_expansions_parity.py``).
@@ -191,13 +191,23 @@ def test_rci_probe_p1_na_ranks_as_zero_and_flat_is_na():
     assert sink == {}
 
 
-def test_rci_na_beside_a_non_positive_value_withholds_by_name():
+def test_rci_na_ranks_lowest_whatever_the_source():
+    """The coordinator's S1 ruling: an ``na`` ranks below every value (ties with other ``na``s),
+    on a source with negative values too, and nothing is withheld."""
     sink = {}
     col = _run(C("rci", C("change", C("sma", S("close"), N(5))), N(10)), sink=sink)
-    assert list(sink) == [ast_interpret.RCI_NA_WINDOW]
-    # bars 10..13 hold the change's warm-up `na` beside negative changes; bar 14's window is whole
-    assert all(v is None for v in col[:14])
-    assert all(v is not None for v in col[14:])
+    assert sink == {}
+    assert _first(col) == 10
+    c = [b["c"] for b in _bars()]
+    sma = [math.nan if i < 4 else sum(c[i - 4:i + 1]) / 5 for i in range(len(c))]
+    ch = [math.nan if i < 5 else sma[i] - sma[i - 1] for i in range(len(c))]
+    w = [v if math.isfinite(v) else -math.inf for v in ch[1:11]]
+    n, m = 10, 5.5
+    rank = lambda v: 1 + sum(1 for x in w if x > v) + (sum(1 for x in w if x == v) - 1) / 2  # noqa: E731
+    cov = sum((k + 1 - m) * (rank(w[n - 1 - k]) - m) for k in range(n))
+    vp = sum((rank(w[n - 1 - k]) - m) ** 2 for k in range(n))
+    assert abs(col[10] - 100 * cov / math.sqrt(n * (n * n - 1) / 12 * vp)) < 1e-9
+    assert any(v < 0 for v in ch[5:11])
 
 
 def test_rci_by_hand():

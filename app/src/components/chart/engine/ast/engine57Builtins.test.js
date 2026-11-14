@@ -15,11 +15,11 @@
 //   STOCHASTIC  `ta.stoch` lands on `stochPine`: the last n FINITE highs / lows, the previous
 //               value held where the formula has none: K from bar 17, D from bar 19 (the house
 //               column started 10 bars late); probe P2 pins holes and flat runs.
-//   RCI         Pearson of AVERAGE ranks, first value on bar `length`, an `na` ranked as 0, a
+//   RCI         Pearson of AVERAGE ranks, first value on bar `length`, an `na` ranked lowest, a
 //               flat window `na` (probe P1); the no-ties shortcut differed on windows with ties.
-// What no capture pins is withheld BY NAME on the bars it touches (`rci:na-window`,
-// `stoch:flat-window`), and the four doors (screen, pane strict, `buildRuntimeIr`,
-// `memberPaneDefinition`) and both lanes (host, runtime) are asked of each.
+// What no capture pins is withheld BY NAME on the bars it touches (`stoch:flat-window`), and
+// the four doors (screen, pane strict, `buildRuntimeIr`, `memberPaneDefinition`) and both lanes
+// (host, runtime) are asked of it.
 // Probe captures (S1, licence-held like the rest): `vw-cs1-rci-p1-rddt-1d-2026-11-14`,
 // `vw-cs1-stoch-p2-rddt-1d-2026-11-14`; the scripts below are written here, not copied.
 import { describe, it, expect, beforeEach } from 'vitest'
@@ -27,7 +27,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { translatePine } from './pine.js'
 import {
-  interpret, FN, CHART_CLOCK_WITHHELD, RCI_NA_WINDOW, STOCH_FLAT_WINDOW,
+  interpret, FN, CHART_CLOCK_WITHHELD, STOCH_FLAT_WINDOW,
   rciCol, stochPineCol,
 } from './interpret.js'
 import { buildRuntimeIr } from './pineRuntimeFrontend.js'
@@ -334,7 +334,7 @@ const P1_SRC = [
   'plot(ta.rci(ta.sma(close, 5), 10), "sma5")',
   'plot(ta.rci(math.round(close / 1000), 10), "flat")',
 ].join('\n')
-// read off probe P1: the windows of bars 10..12 still hold the `sma`'s warm-up, ranked as 0
+// read off probe P1: the windows of bars 10..12 still hold the `sma`'s warm-up, ranked lowest
 const P1_SMA = { 10: 30.0636128378526, 11: -1.2158110873601293, 12: -44.24242424242424, 13: -98.78787878787878 }
 
 describe('ta.rci is the Pearson correlation of average ranks (S6 `rank-correlation-index`, `rci-ribbon`; S1 probe P1)', () => {
@@ -347,7 +347,7 @@ describe('ta.rci is the Pearson correlation of average ranks (S6 `rank-correlati
     expect(clock).toEqual([])
   })
 
-  it('probe P1: a warm-up `na` in the window ranks as 0 (bars 10..12 drawn), a flat window is na', () => {
+  it('probe P1: a warm-up `na` in the window ranks lowest (bars 10..12 drawn), a flat window is na', () => {
     const sma = hostColumn(P1_SRC, 0)
     expect(firstDrawn(sma.col)).toBe(10)
     expect(drawn(sma.col)).toBe(656)
@@ -387,43 +387,48 @@ describe('ta.rci is the Pearson correlation of average ranks (S6 `rank-correlati
     expect(rciCol(Float64Array.from([9, 2, 1, 1]), 3)[3]).toBeCloseTo(-100 * 1.5 / Math.sqrt(3), 12)
   })
 
-  it('an `na` beside a value at or below 0 is withheld by name; the runtime declines by the same code', () => {
-    const src = '//@version=6\nindicator("e57 rci na")\nplot(ta.rci(ta.change(ta.sma(close, 5)), 10))'
+  it('an `na` ranks below every value, ties with every other `na`, whatever the source (the coordinator\'s S1 ruling)', () => {
+    // a source with negative values and a leading `na`: the change of a 5-bar average
+    const src = '//@version=6\nindicator("e57 rci na lowest")\nplot(ta.rci(ta.change(ta.sma(close, 5)), 10))'
     const { col, clock } = hostColumn(src)
-    expect(clock).toEqual([RCI_NA_WINDOW])
-    // the change of the sma is `na` on bars 0..4 and has negative values: bars 10..13 hold both;
-    // bar 14's window (5..14) is whole
-    expect(col.slice(0, 14).every(Number.isNaN)).toBe(true)
-    expect(col.slice(14).every(Number.isFinite)).toBe(true)
-    const [screen, pane, runtime, door] = doors(src)
-    expect([screen, pane, door]).toEqual(['OK', 'OK', 'OK'])
-    expect(runtime).toBe(RCI_NA_WINDOW)
-    expect(doorColumns(src).clock).toEqual([RCI_NA_WINDOW])
-    expect(CHART_CLOCK_WITHHELD[RCI_NA_WINDOW]()).toMatch(/at or below 0/)
-  })
-
-  it('downstream of a named bar: a finite window withholds its reach, a smoother that never forgets every later bar', () => {
-    const wma = hostColumn('//@version=6\nindicator("e57 rci wma")\nplot(ta.wma(ta.rci(ta.change(ta.sma(close, 5)), 10), 3))')
-    expect(wma.clock).toEqual([RCI_NA_WINDOW])
-    expect(wma.col.slice(0, 16).every(Number.isNaN)).toBe(true)
-    expect(wma.col.slice(20).every(Number.isFinite)).toBe(true)
-    const ema = hostColumn('//@version=6\nindicator("e57 rci ema")\nplot(ta.ema(ta.rci(ta.change(ta.sma(close, 5)), 10), 3))')
-    expect(ema.clock).toEqual([RCI_NA_WINDOW])
-    expect(ema.col.every(Number.isNaN)).toBe(true)
+    expect(clock).toEqual([])
+    expect(firstDrawn(col)).toBe(10)
+    // by hand, bar 10: window bars 1..10, bars 1..4 `na` (lowest, tied), 5..10 the changes
+    const sma = RDDT.map((_, i) => (i < 4 ? NaN : RDDT.slice(i - 4, i + 1).reduce((a, b) => a + b.c, 0) / 5))
+    const ch = sma.map((v, i) => (i < 5 ? NaN : v - sma[i - 1]))
+    const w = ch.slice(1, 11).map((v) => (Number.isFinite(v) ? v : -Infinity))   // oldest first
+    const n = 10
+    const m = (n + 1) / 2
+    const rank = (v) => 1 + w.filter((x) => x > v).length + (w.filter((x) => x === v).length - 1) / 2
+    let cov = 0
+    let vp = 0
+    for (let k = 0; k < n; k += 1) {
+      const p = rank(w[n - 1 - k])
+      cov += (k + 1 - m) * (p - m)
+      vp += (p - m) * (p - m)
+    }
+    expect(col[10]).toBeCloseTo((100 * cov) / Math.sqrt(((n * (n * n - 1)) / 12) * vp), 10)
+    expect(ch.slice(5, 11).some((v) => v < 0)).toBe(true)          // non-vacuity: negatives present
+    expect(doors(src)).toEqual(['OK', 'OK', 'OK', 'OK'])
   })
 })
 
-// ─── a site this pass cannot evaluate on the chart's bars ───────────────────────────────
-describe('a witness site inside a read of other bars', () => {
-  it('`ta.rci` of a computed source inside `request.security` is withheld whole BY NAME', () => {
-    const src = '//@version=6\nindicator("e57 rci htf")\nplot(request.security(syminfo.tickerid, "W", ta.rci(ta.change(close), 10)))'
-    const { col, clock } = hostColumn(src)
-    expect(col.every(Number.isNaN)).toBe(true)
-    expect(clock).toEqual([RCI_NA_WINDOW])
+// ─── downstream of a withheld bar ───────────────────────────────────────────────────────
+describe('a withheld stochastic bar reaches every root bar that reads it', () => {
+  const FLAT = 'float y = bar_index >= 100 and bar_index < 120 ? 1000.0 : close'
+  it('a finite window withholds its reach; a smoother that never forgets withholds every later bar', () => {
+    const wma = hostColumn(`//@version=6\nindicator("e57 stoch wma")\n${FLAT}\nplot(ta.wma(ta.stoch(y, y, y, 10), 3))`)
+    expect(wma.clock).toEqual([STOCH_FLAT_WINDOW])
+    for (let i = 109; i <= 121; i += 1) expect(Number.isNaN(wma.col[i]), `bar ${i}`).toBe(true)
+    expect(wma.col.slice(125).every(Number.isFinite)).toBe(true)
+    const ema = hostColumn(`//@version=6\nindicator("e57 stoch ema")\n${FLAT}\nplot(ta.ema(ta.stoch(y, y, y, 10), 3))`)
+    expect(ema.clock).toEqual([STOCH_FLAT_WINDOW])
+    expect(ema.col.slice(109).every(Number.isNaN)).toBe(true)
+    expect(Number.isFinite(ema.col[108])).toBe(true)
   })
 
-  it('`ta.rci(close, …)` inside `request.security` cannot flag (a positive price, never `na`) and is drawn', () => {
-    const src = '//@version=6\nindicator("e57 rci close htf")\nplot(request.security(syminfo.tickerid, "W", ta.rci(close, 10)))'
+  it('a stochastic inside `request.security` is not analysed and is drawn (the stated residual)', () => {
+    const src = '//@version=6\nindicator("e57 stoch htf")\nplot(request.security(syminfo.tickerid, "W", ta.stoch(close, high, low, 14)))'
     const { col, clock } = hostColumn(src)
     expect(clock).toEqual([])
     expect(drawn(col)).toBeGreaterThan(400)

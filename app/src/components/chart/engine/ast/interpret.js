@@ -1833,20 +1833,20 @@ function windowPercentileNearest(series, lo, hi, percentage) {
  *  mismatches on all four columns over 666 bars):
  *    - the first value is on bar `length` (`bar_index >= length`), never `length - 1` — the
  *      control `ta.rci(close, 10)` starts on bar 10 though its window is whole on bar 9;
- *    - an `na` of the source inside the window ranks as `0` (below every positive price,
- *      tied with any other `na`): `ta.rci(ta.sma(close, 5), 10)` draws 30.06 / -1.22 / -44.24
- *      on bars 10..12, whose windows still hold the `sma`'s warm-up;
+ *    - an `na` of the source inside the window ranks as the LOWEST price, every `na` tied
+ *      with the others (average ranks): `ta.rci(ta.sma(close, 5), 10)` draws 30.06 / -1.22 /
+ *      -44.24 on bars 10..12, whose windows still hold the `sma`'s warm-up;
  *    - a window whose prices are all equal (Σ(p − m)² = 0) is `na`:
  *      `ta.rci(math.round(close / 1000), 10)` (0 on every RDDT bar) draws nothing.
- *  ⛔ ONE CASE THE PROBE DOES NOT PIN, WITHHELD BY NAME (`rciWithheldCode`,
- *  `builtinWitnessMask`, `rci:na-window`): an `na` in a window that also holds a value at or
- *  below 0. Over the positive prices the probe ran, "an `na` is 0" and "an `na` sorts below
- *  everything" are the same ranks; there they are not.
+ *  ⚠️ THE PROBE'S SOURCE IS POSITIVE, so "an `na` ranks lowest" and "an `na` ranks as 0" are the
+ *  same ranks there. The coordinator ruled the first (S1 rules, 2026-11-14) and it is served on
+ *  every source; a source with values at or below 0 beside an `na` is where the two would part.
  *  Python twin: `ast_interpret._rci_col`. */
 export function rciAt(series, lo, hi) {
   const n = hi - lo + 1
   const m = (n + 1) / 2
-  const at = (j) => (Number.isFinite(series[j]) ? series[j] : 0)
+  // an `na` ranks below every price, tied with every other `na`
+  const at = (j) => (Number.isFinite(series[j]) ? series[j] : -Infinity)
   let cov = 0
   let vp = 0
   for (let k = 0; k < n; k++) {
@@ -1864,19 +1864,6 @@ export function rciAt(series, lo, hi) {
   }
   const vt = (n * (n * n - 1)) / 12
   return vp > 0 ? (100 * cov) / Math.sqrt(vt * vp) : NaN
-}
-
-/** The withholding code for `ta.rci(source, n)` on bar `i`, or null (see `rciAt`): the
- *  window holds an `na` of the source AND a value at or below 0. */
-export function rciWithheldCode(series, n, i) {
-  if (i < n || n < 2) return null
-  let hole = false
-  let nonPositive = false
-  for (let j = i - n + 1; j <= i; j++) {
-    if (!Number.isFinite(series[j])) hole = true
-    else if (series[j] <= 0) nonPositive = true
-  }
-  return hole && nonPositive ? RCI_NA_WINDOW : null
 }
 
 /** `ta.rci` as a column: `rciAt` over `source[i − n + 1 .. i]` on every bar `i >= n`. */
@@ -5325,10 +5312,9 @@ const periodCloseInner = (node) => (node.args[1].type === 'tf_live' ? node.args[
 const ANCHOR_SPELLED = '`time("W")`, `time("M")`, `time("3M")` and `time("12M")`'
 const CLOSE_SPELLED = '`time_close("W")` and `time_close("M")`'
 const tfSpelled = (tf) => (typeof tf === 'string' && tf ? `\`${tf}\`` : 'not stated')
-/** ⭐⭐ ENGINE 57 — the per-bar withholding codes of two measured built-ins, ONE spelling each:
+/** ⭐⭐ ENGINE 57 — the per-bar withholding code of a measured built-in, ONE spelling:
  *  the chart-clock channel names them (`CHART_CLOCK_WITHHELD`, `builtinWitnessMask`), the
  *  runtime lane declines by the same string, and the member door shows it. */
-export const RCI_NA_WINDOW = 'rci:na-window'
 export const STOCH_FLAT_WINDOW = 'stoch:flat-window'
 export const CHART_CLOCK_WITHHELD = Object.freeze({
   'time-anchor:not-daily': (tf) => `${ANCHOR_SPELLED} — the opening time of the bar's week, month, `
@@ -5465,14 +5451,7 @@ export const CHART_CLOCK_WITHHELD = Object.freeze({
     + 'no such bar; a count that has not reset yet) it is not known here, and what this indicator draws from it '
     + 'is withheld on those bars rather than drawn wrong. On a chart whose bars start at the symbol\'s listing '
     + 'it draws. What would settle it: nothing to capture — bars reaching the listing.',
-  // ⭐⭐ ENGINE 57 — `ta.rci` and `ta.stoch` (`builtinWitnessMask`).
-  [RCI_NA_WINDOW]: () => 'TradingView\'s `ta.rci` ranks an `na` of its source inside the window as 0 — measured '
-    + 'on NYSE:RDDT 1D from the listing (`ta.rci(ta.sma(close, 5), 10)`, whose first windows still hold the '
-    + 'average\'s warm-up), which is drawn. Over those positive prices "an `na` is 0" and "an `na` ranks below '
-    + 'every value" give the same answer; on a window that also holds a value at or below 0 they do not, and no '
-    + 'capture says which TradingView reads, so what this indicator draws from it on those bars is withheld '
-    + 'rather than guessed; every other bar is drawn. What would settle it: `ta.rci` over a source with an `na` '
-    + 'beside negative values captured on TradingView.',
+  // ⭐⭐ ENGINE 57 — `ta.stoch` (`builtinWitnessMask`).
   [STOCH_FLAT_WINDOW]: () => 'Where TradingView\'s `ta.stoch` has no number — an `na` source bar, or a window '
     + 'whose high and low are equal — it keeps its previous value (measured on NYSE:RDDT 1D from the listing: '
     + 'the builtin Stochastic RSI and a probe with a hole and a flat run), which is drawn. The flat run measured '
@@ -6359,42 +6338,25 @@ export function withheldReadMask(tree, bars, inputs, budget, scalars, opts) {
 /** ⭐⭐ ENGINE 57 — the calls whose bars `builtinWitnessMask` asks about, and the code each
  *  names. */
 const BUILTIN_WITNESS_CODES = Object.freeze({
-  rci: RCI_NA_WINDOW,
   stochPine: STOCH_FLAT_WINDOW,
 })
 /** Table functions that carry state with no end (a value read once moves every later answer):
  *  a withheld bar under one withholds every later bar, whatever the declared lookback. */
 const WITNESS_CARRIED_CALLS = new Set(['ema', 'rma', 'rsi', 'atr', 'atrPine', 'adx', 'plusDI', 'minusDI', 'macd'])
-/** ⭐⭐ ENGINE 57 — IS THIS TREE A POSITIVE NUMBER ON EVERY BAR THE CHART HOLDS? `true` is a
- *  proof (open / high / low / close, positive literals, and `+`, `*`, `/` over them — `hl2`,
- *  `hlc3`, `ohlc4` as the door builds them); `false` is only "not proved". */
-function positiveOnEveryBar(node) {
-  if (!node || typeof node !== 'object') return false
-  if (node.type === 'num') return Number(node.value) > 0
-  if (node.type === 'series') return node.name === 'open' || node.name === 'high' || node.name === 'low' || node.name === 'close'
-  if (node.type === 'op' && (node.name === '+' || node.name === '*' || node.name === '/')) {
-    return Array.isArray(node.args) && node.args.length === 2 && node.args.every(positiveOnEveryBar)
-  }
-  return false
-}
-
-/** ⭐⭐ ENGINE 57 — THE BARS WHERE A `ta.rci` OR A PINE `ta.stoch` READS A WINDOW NO CAPTURE
- *  PINS, as a 0/1 column (1 = withheld), or null when no bar is.
+/** ⭐⭐ ENGINE 57 — THE BARS WHERE A PINE `ta.stoch` READS A WINDOW NO CAPTURE PINS, as a 0/1
+ *  column (1 = withheld), or null when no bar is.
  *
- *  Per call site (`rci(source, n)`, `stochPine(high, low, close, n)`), each bar is asked of
- *  the site's own argument columns: `rci:na-window` (`rciWithheldCode`: an `na` beside a value
- *  at or below 0) and `stoch:flat-window` (`stochPineScan`: a flat window holding a value other
- *  than 0). Every root bar within the tree's reach of a flagged bar is withheld —
- *  `barIndexMask`'s rule: `maxLookback(tree) − maxLookback(site)` bars forward, or every later
- *  bar when the site sits under a call that carries state.
+ *  Per call site (`stochPine(high, low, close, n)`), each bar is asked of the site's own argument
+ *  columns: `stoch:flat-window` (`stochPineScan`: a flat window whose kept value is not 0). Every
+ *  root bar within the tree's reach of a flagged bar is withheld — `barIndexMask`'s rule:
+ *  `maxLookback(tree) − maxLookback(site)` bars forward, or every later bar when the site sits
+ *  under a call that carries state.
  *  ⛔ A site this pass cannot evaluate on the chart's bars — inside a read of other bars (`tf`,
- *  `tf_live`, `tf_merge`, `sym`) or reading a recurrence's own value — withholds the WHOLE tree
- *  for an `rci` whose source is not provably a positive price (`positiveOnEveryBar`: then it
- *  cannot flag). A `stochPine` there is NOT withheld: a flat window after a value other than 0
- *  needs `n` bars of one price after a different one, and blanking every higher-timeframe
- *  stochastic for it would withhold plots that draw exactly — the residual is stated in the
- *  engine-57 evidence rather than hidden.
- *  Each code is named in the chart-clock channel (`CHART_CLOCK_WITHHELD`).
+ *  `tf_live`, `tf_merge`, `sym`) or reading a recurrence's own value — is NOT withheld: a flat
+ *  window after a value other than 0 needs `n` bars of one price after a different one, and
+ *  blanking every higher-timeframe stochastic for it would withhold plots that draw exactly —
+ *  the residual is stated in the engine-57 evidence rather than hidden.
+ *  The code is named in the chart-clock channel (`CHART_CLOCK_WITHHELD`).
  *  Python twin: `ast_interpret.builtin_witness_mask`. */
 export function builtinWitnessMask(tree, bars, inputs, budget, scalars, opts) {
   const n = Array.isArray(bars) ? bars.length : 0
@@ -6421,25 +6383,12 @@ export function builtinWitnessMask(tree, bars, inputs, budget, scalars, opts) {
   const colOf = (node) => toColumn(interpretOnce(node, bars, inputs, budget, scalars, inner), n)
   for (const { node, nested, unbounded } of found) {
     const args = node.args || []
-    if (nested || readsRecurrenceBinding(node)) {
-      if (node.name === 'rci' && !positiveOnEveryBar(args[0])) {
-        codes.add(BUILTIN_WITNESS_CODES.rci)
-        mask.fill(1)
-        any = n > 0
-      }
-      continue
-    }
-    const lenCol = colOf(args[node.name === 'rci' ? 1 : 3])
+    if (nested || readsRecurrenceBinding(node)) continue
+    const lenCol = colOf(args[3])
     const w = lenCol.length ? lenCol[lenCol.length - 1] : NaN
     if (!(w >= 1) || !Number.isInteger(w)) continue
-    let flagged
-    if (node.name === 'rci') {
-      const src = colOf(args[0])
-      flagged = (i) => rciWithheldCode(src, w, i) !== null
-    } else {
-      const { flags } = stochPineScan(colOf(args[0]), colOf(args[1]), colOf(args[2]), w)
-      flagged = (i) => flags[i] === 1
-    }
+    const { flags } = stochPineScan(colOf(args[0]), colOf(args[1]), colOf(args[2]), w)
+    const flagged = (i) => flags[i] === 1
     const reach = Math.max(0, rootReach - maxLookback(node))
     let last = -Infinity
     for (let i = 0; i < n; i++) {

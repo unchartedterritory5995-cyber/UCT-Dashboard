@@ -54,19 +54,41 @@ over 666 bars: Stoch RSI K and D, S6; P2's `ta.stoch(x, x, x, 10)`, `ta.stoch(x,
 - the Pearson correlation of time ranks and AVERAGE price ranks (0 mismatches over 2,564 S6 values; the
   `1 - 6 Σd² / n(n²-1)` shortcut differed on windows with ties);
 - first value on bar `length` (all S6 columns; P1's control `ta.rci(close, 10)` starts on bar 10);
-- P1 (0 mismatches on all its columns): an `na` of the source inside the window ranks as 0
-  (`ta.rci(ta.sma(close, 5), 10)` draws 30.06 / -1.22 / -44.24 on bars 10..12); a flat window is `na`
-  (`ta.rci(math.round(close / 1000), 10)` draws nothing);
-- one case not pinned, withheld by name: an `na` in a window that also holds a value at or below 0, where
-  "an `na` is 0" and "an `na` ranks below everything" differ (`rci:na-window`).
+- P1 (0 mismatches on all its columns): an `na` of the source inside the window ranks as the
+  LOWEST price, tied with every other `na` (`ta.rci(ta.sma(close, 5), 10)` draws 30.06 / -1.22 / -44.24
+  on bars 10..12); a flat window is `na` (`ta.rci(math.round(close / 1000), 10)` draws nothing);
+- P1's source is positive, so "an `na` ranks lowest" and "an `na` ranks as 0" give the same ranks there.
+  This branch first withheld the case where they part (an `na` beside a value at or below 0); the
+  coordinator's S1 ruling (`S1-RULES-2026-11-14.md`: "a na inside the window ranks as the LOWEST price")
+  settled it, so it is served on every source and nothing is withheld for RCI.
 
 ### Withholding by name (both lanes, four doors)
-`interpret.js::builtinWitnessMask` / `ast_interpret.builtin_witness_mask`: per call site, the flagged bars,
-spread to every root bar within the tree's reach (`barIndexMask`'s rule; every later bar under a call that
-carries state). Codes in the chart-clock channel with a sentence each (`CHART_CLOCK_WITHHELD`). A site inside
-a read of other bars: an `rci` whose source is not provably a positive price withholds the whole tree; a
-`stochPine` there is not withheld (stated residual: blanking every higher-timeframe stochastic for a flat
-run after a non-zero value would withhold plots that draw exactly). The runtime lane declines a column
-withheld by either code (`RuntimeRefusal(code)`), and the VM kernel stops by `stoch:flat-window`.
+`interpret.js::builtinWitnessMask` / `ast_interpret.builtin_witness_mask`: per `stochPine` site, the bars of
+a flat window whose kept value is not 0, spread to every root bar within the tree's reach (`barIndexMask`'s
+rule; every later bar under a call that carries state), named `stoch:flat-window` in the chart-clock channel
+with a sentence. A site inside a read of other bars is not analysed (stated residual: withholding every
+higher-timeframe stochastic for a flat run after a non-zero value would blank plots that draw exactly). The
+runtime lane declines a column withheld by the code (`RuntimeRefusal`), and the VM kernel stops by it.
+
+### The coordinator's S1 rules, checked against the captures
+- RCI: served exactly as ruled (above).
+- Stoch, "hh == ll gives 0": does NOT reproduce the S6 Stoch RSI. Its first bar (bar 14) has one RSI value,
+  so its window is flat; answering 0 there starts K on bar 16, where TradingView's K starts on bar 17
+  (1 mismatch on K, 1 on D). "Keep the previous value" reproduces P2 AND S6 with 0 mismatches on all five
+  columns, and on P2's flat run (which follows a 0) the two readings are the same number. So the rule
+  served is "keep", and the one case where "keep" and "0" differ (a flat window after a value other than 0)
+  is withheld by name. Checked variants (P01/P02/P03/K/D mismatches): last-n-finite + keep 0/0/0/0/0;
+  + "flat = 0" 0/0/0/1/1; + "na source = na" 13/13/0/0/0; RESTART windows 84/13/11/...; in-window finite
+  values 36/0/0/0/0.
+- `ta.highest` / `ta.lowest`: P2's `ta.highest(x, 10)` reads the last 10 finite values (0 mismatches),
+  which contradicts the 2026-09-08 SPY capture behind this table's RESTART rule
+  (`finite-window-na-policy-by-member-spy-1d-2026-09-08`, probe B: `highest` `na` on every hole bar and
+  `highest == lowest ==` the lone observation the bar after, 346 ok / 0 bad). Both are v6 and both are
+  direct reads, so one of them is not the whole rule (a TradingView change between the dates, or a
+  context difference: P2's `ta.highest(x, 10)` sits beside a `ta.stoch(x, x, x, 10)` over the same series).
+  NOT changed here: flipping the table on one witness against another would move every `highest` /
+  `lowest` over a holed source (and the runtime window) on contested evidence. `stochPine` keeps its own
+  last-n-finite windows, which P2's stoch columns pin regardless. What would settle it: `ta.highest(x, n)`
+  alone on a holed source, and again beside a `ta.stoch` of the same series, captured the same day.
 
 MEASUREMENTS_PLACEHOLDER
