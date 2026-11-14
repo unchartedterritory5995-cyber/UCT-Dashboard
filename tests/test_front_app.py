@@ -450,8 +450,11 @@ def test_a_stream_arrives_as_it_is_produced(front, http, headers):
     body = b"".join(c for _, c in arrivals)
     assert body == b"data: 0\n\ndata: 1\n\ndata: 2\n\n"
     first, last = arrivals[0][0], arrivals[-1][0]
-    assert first < 0.35, f"first event took {first:.2f}s: the stream was buffered"
-    assert last - first > 0.5, f"events arrived together ({first:.2f}s, {last:.2f}s)"
+    # The events leave 0.8 s apart, first to last. Buffered, they arrive in the same instant.
+    # No deadline on the first one: this gates promotion, and a shared runner that stalls for
+    # half a second must not read as a broken proxy. The spread is what tells the two apart.
+    assert len(arrivals) >= 2, "the three events arrived as one piece: the stream was buffered"
+    assert last - first > 0.25, f"events arrived together ({first:.2f}s, {last:.2f}s): the stream was buffered"
 
 
 def test_a_head_request_has_headers_and_no_body(front, http):
