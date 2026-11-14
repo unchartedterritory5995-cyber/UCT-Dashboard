@@ -285,8 +285,10 @@ export function registerChartReplayCapabilities() {
     // last render's state, so a step pressed before the replay is on would be ignored), and stops at the first that does not
     // land. Undo runs the steps' own ways back in reverse (none if any step has none).
     apply(st, args = {}) {
-      const r = st.view.replay
-      const a = { ...args, bars: args.op === 'forward' || args.op === 'back' ? (args.bars ?? 1) : args.bars }
+      // no replay read-out (a chart whose view has none, or apply run without its check — the chart-rail census): nothing to plan
+      const r = st.view?.replay
+      if (!r || !r.can) return st
+      const a ={ ...args, bars: args.op === 'forward' || args.op === 'back' ? (args.bars ?? 1) : args.bars }
       if (alreadyThere(r, a)) return st
       const p = plan(r, a)
       if (!p) return st
