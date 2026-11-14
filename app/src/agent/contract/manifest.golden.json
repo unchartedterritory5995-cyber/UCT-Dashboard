@@ -2386,7 +2386,7 @@
    "domain": "indicatorAlert",
    "target": "indicatorAlertLibrary",
    "summary": "Create ONE indicator alert on an indicator that is ON a chart (RSI above 70, MACD crossing a level, price touching a band, the 9 EMA crossing the 20 EMA, the member's own yes/no signal turning on), as the Indicator Alerts popover does. It watches that chart's symbol with the instance's own settings, on the chart's timeframe or another native one. Undo deletes it.",
-   "hints": "target = the ref of the indicatorAlertLibrary entry; instance = the id of the indicator from that chart's indicators entry (never a name); chart = the ref of the chart it is on; plot = null, or for several lines the address the catalog names (macd.signal) — not sure which line: ask. condition = above | below | cross_above | cross_below | cross_zero | touch_upper | touch_lower (\"crosses above 70\" = cross_above; \"is over 70\" = above); threshold = the level, else null. MA cross: instance = the 9, crossWith = the 20 (ids), cross_above|cross_below, threshold null; crossWith = null otherwise. The member's own yes/no signal: trigger = becomes_true (\"turns on\") | becomes_false (\"turns off\") | is_true, condition and threshold null; trigger = null otherwise. timeframe = null for the chart's own, or 1 | 5 | 15 | 30 | 60 | D | W | M (\"alert on the weekly RSI\" = W). A PRICE level (\"when NVDA hits 150\") is alert.create. Always proposed (disposition propose). Not on any chart: say to add it first.",
+   "hints": "target = the ref of the indicatorAlertLibrary entry; instance = the id of the indicator from that chart's indicators entry (never a name); chart = the ref of the chart it is on; plot = null, or the catalog address of one line (macd.signal); unsure: ask. condition = above | below | cross_above | cross_below | cross_zero | touch_upper | touch_lower (\"crosses above 70\" = cross_above; \"is over 70\" = above); threshold = the level, else null. MA cross: instance = the 9, crossWith = the 20 (ids), cross_above|cross_below, threshold null; crossWith = null otherwise. The member's own yes/no signal: trigger = becomes_true (\"turns on\") | becomes_false (\"turns off\") | is_true, condition and threshold null; trigger = null otherwise. timeframe = null for the chart's own, or 1 | 5 | 15 | 30 | 60 | D | W | M (\"weekly RSI\" = W). chartOnly = true only for \"this chart only\", else null. A PRICE level (\"NVDA hits 150\") is alert.create. Always propose. Not on a chart: say add it first.",
    "args": {
     "type": "object",
     "properties": {
@@ -2440,6 +2440,12 @@
        "string",
        "null"
       ]
+     },
+     "chartOnly": {
+      "type": [
+       "boolean",
+       "null"
+      ]
      }
     },
     "required": [
@@ -2450,7 +2456,8 @@
      "crossWith",
      "chart",
      "trigger",
-     "timeframe"
+     "timeframe",
+     "chartOnly"
     ],
     "additionalProperties": false
    },
