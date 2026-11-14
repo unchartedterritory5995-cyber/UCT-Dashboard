@@ -43,6 +43,7 @@ import time
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi.responses import JSONResponse
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
 from api.services.cache import cache
@@ -1119,9 +1120,42 @@ def server_columns(
     parsed = _columns_inputs_or_422(inputs)
     rs_provider.timing_reset()
     try:
-        return _serve_columns(defId, s, tf, parsed)
+        body = _serve_columns(defId, s, tf, parsed)
     finally:
         _rs_server_timing(response)
+    return _columns_response(body, response)
+
+
+def _columns_response(body: dict, sub: Response):
+    """``body`` as the response the framework would have built from it, without the walk.
+
+    ⚰️ MEASURED 2026-11-14. Returned as a dict, a column answer goes through FastAPI's
+    `jsonable_encoder` before it is serialised: a Python-level visit of every number in every
+    column. For one chart's five RS definitions (344 KB) that is 20 ms with nothing else
+    running, against 3 ms for the `json.dumps` that follows it and 4 ms for the lane itself.
+    On the web pod, where a dozen threads want the GIL, production's own captures showed the
+    browser waiting a median 300 ms beyond the server's own time for an answer that was
+    already in memory, and 370 ms around a 21 ms read from the envelope store.
+
+    A column answer is plain JSON already (dicts, lists, strings, numbers, booleans, null),
+    for which the walk changes nothing: the bytes are the same with it and without it
+    (`tests/test_signature_columns_response.py` holds every RS definition and the batch to
+    that). So the response is built here, and the framework sends a `Response` as it is.
+
+    ⛔ THE SAME ANSWER FOR EVERYTHING ELSE. If the body holds something `json.dumps` will
+    not take (a date, a set, a NaN the wire forbids), the dict is returned and the framework
+    does exactly what it did before. And what the framework merges into the response it
+    builds itself, it does not merge into one it is handed: the headers and the status the
+    dependencies and the route put on the temporal response (`Server-Timing` is one) are
+    copied here, in the framework's own way."""
+    try:
+        out = JSONResponse(content=body)
+    except (TypeError, ValueError):
+        return body
+    out.headers.raw.extend(sub.headers.raw)
+    if sub.status_code:
+        out.status_code = sub.status_code
+    return out
 
 
 def _columns_inputs_or_422(inputs) -> dict | None:
@@ -1228,7 +1262,7 @@ def server_columns_batch(
         if rec is not None:
             timings.append(rec)
     _rs_batch_server_timing(response, timings)
-    return {"sym": s, "tf": tf, "results": results}
+    return _columns_response({"sym": s, "tf": tf, "results": results}, response)
 
 
 def _rs_batch_server_timing(response, timings: list) -> None:
