@@ -56,7 +56,8 @@ STOCKS = {"key": "security_type", "op": "not_in", "values": ["ETF"]}
 NO_BUYOUT = {"key": "rs_flag", "op": "not_in", "values": ["buyout_pending"]}
 LIST_SCREENS = ("starter_rs_top_rating", "starter_rs_new_high", "starter_rs_nh_before_price",
                 "starter_rs_leaders")
-CAPTION_PARTS = {"setup", "group", "rs_high_age", "below_high", "moving"}
+#: "exit_warning" joined the vocabulary in unit U7 (RS exit warnings names its warning).
+CAPTION_PARTS = {"setup", "group", "rs_high_age", "below_high", "moving", "exit_warning"}
 TAG_ORDER = ["before_price", "down_day", "flag", "new"]
 #: Words the contract bans from member-facing copy. "buy point" is the plan's own term
 #: for the Setup label's "Near a buy point"; a bare "buy" is not allowed.
@@ -316,13 +317,33 @@ def test_the_rows_are_the_contracts(on):
         # unit U7: the ranked screen names its own order (`sort_label`)
         "starter_rs_leaders": {"place": "index", "caption": ["setup", "group"], "tags": ["flag", "new"],
                                "sort_label": "RS Rating"},
-        "starter_rs_exit_warning_5": {"place": None, "caption": ["group"], "tags": ["new"]}}
+        # unit U7: each warning row says which warning and how old (`exit_warning`)
+        "starter_rs_exit_warning_5": {"place": None, "caption": ["exit_warning", "group"],
+                                      "tags": ["new"]}}
     for s in _five():
         row = s["row"]
         assert row["place"] in (None, "index") or row["place"] in snapshot_db.COLUMNS
         assert set(row["caption"]) <= CAPTION_PARTS
         assert row["tags"] == [t for t in TAG_ORDER if t in row["tags"]], "tags in priority order"
     assert [i for i in FIVE if "empty" in by[i]] == ["starter_rs_nh_before_price"]
+
+
+def test_the_exit_warning_caption_is_only_where_every_row_has_a_warning_to_name(on):
+    """Unit U7. The caption part ``exit_warning`` is worded by the client from two columns:
+    ``rs_exit_last`` (the warning's name) and ``rs_exit_bars_ago`` (its age). It belongs
+    only on a screen that requires a warning, where it leads the caption so a narrow list
+    cuts the group and never the warning. The names the client may print are the
+    writer's own, the same three the Type control and the filter offer."""
+    with_part = [s for s in _five() if "exit_warning" in s["row"]["caption"]]
+    assert [s["id"] for s in with_part] == ["starter_rs_exit_warning_5"]
+    s = with_part[0]
+    assert s["row"]["caption"][0] == "exit_warning"
+    assert {"rs_exit_last", "rs_exit_bars_ago"} <= set(snapshot_db.COLUMNS)
+    assert any(f["key"] == "rs_exit_bars_ago" and f["op"] == "between" and f["min"] == 0
+               for f in s["spec"]["filters"]), "a row with no warning would carry an empty caption part"
+    from api.services.screener import rs_columns
+    kinds = [o["label"] for o in s["controls"][0]["options"] if not o.get("default")]
+    assert kinds == list(rs_columns.EXIT_NAMES) == ["Quick Break", "Quicksand", "Grateful Dead Break"]
 
 
 def test_a_sort_label_is_only_on_a_ranked_screen_and_says_what_it_ranks_by(on):

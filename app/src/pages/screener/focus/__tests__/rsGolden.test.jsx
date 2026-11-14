@@ -26,7 +26,7 @@ const FIVE = ['starter_rs_top_rating', 'starter_rs_new_high', 'starter_rs_nh_bef
 // The operands the client compares, per operator (rsScreens.js `sig`; FocusScreener `normalSpec`).
 const OPERANDS = { gte: ['min'], gt: ['min'], lte: ['max'], lt: ['max'], between: ['max', 'min'], eq: ['value'], in: ['values'], not_in: ['values'] }
 // What rsRows.js can draw (its PARTS and TAGS tables).
-const CAPTION_PARTS = ['setup', 'group', 'rs_high_age', 'below_high', 'moving']
+const CAPTION_PARTS = ['setup', 'group', 'rs_high_age', 'below_high', 'moving', 'exit_warning'] // exit_warning: unit U7
 const TAGS = ['before_price', 'down_day', 'flag', 'new']
 const clausesOf = st => [...st.spec.filters, ...st.controls.flatMap(c => c.options.flatMap(o => o.filters))]
 const everyOption = RS_STARTERS.flatMap(st => controlsOf(st).flatMap(c => c.options.map(o => [`${st.name} / ${c.label} / ${o.label}`, st, c, o])))

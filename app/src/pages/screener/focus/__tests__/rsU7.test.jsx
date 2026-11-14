@@ -11,8 +11,9 @@ vi.mock('../../../../utils/prefetchBars', () => ({ prefetchBars: () => {}, prefe
 import { __resetCountCache } from '../useLazyCounts'
 import { __resetRevisionStateForTests } from '../../../../hooks/usePreferences'
 import { rankLabelOf } from '../rsScreens'
-import { net, resetNet, installFetch, mount, pin } from './rsHarness'
-import { LEADERS, TOP_RATING, STARTERS_ON } from './rsScreensFixture'
+import { exitWarningWords, captionOf, rowConfigOf, rowColumns, EXIT_WARNING_NAMES } from '../rsRows'
+import { net, resetNet, installFetch, mount, pin, scanBodies } from './rsHarness'
+import { LEADERS, TOP_RATING, EXIT_WARNINGS, RS_STARTERS, RS_ROWS, SERVED, STARTERS_ON } from './rsScreensFixture'
 
 beforeEach(() => {
   __resetCountCache()
@@ -81,5 +82,70 @@ describe('P1: the list head names the order of a ranked screen', () => {
     expect(rankLabelOf(null, own)).toBeNull()
     // and any starter that carries one is read the same way
     expect(rankLabelOf({ ...UCT50, row: { sort_label: 'UCT score' } }, UCT50.spec.rank)).toBe('UCT score')
+  })
+})
+
+// ── P2: RS exit warnings rows say which warning and how old ─────────────────
+describe('P2: an RS exit warnings row names its warning and its age', () => {
+  test('the words: the name of the warning, then today, yesterday or N sessions ago', () => {
+    expect(exitWarningWords({ rs_exit_last: 'Quick Break', rs_exit_bars_ago: 0 })).toBe('Quick Break today')
+    expect(exitWarningWords({ rs_exit_last: 'Quicksand', rs_exit_bars_ago: 1 })).toBe('Quicksand yesterday')
+    expect(exitWarningWords({ rs_exit_last: 'Grateful Dead Break', rs_exit_bars_ago: 3 })).toBe('Grateful Dead Break 3 sessions ago')
+    expect(exitWarningWords({ rs_exit_last: 'Quicksand', rs_exit_bars_ago: 2 })).toBe('Quicksand 2 sessions ago')
+  })
+
+  test.each([
+    ['no warning', { rs_exit_last: null, rs_exit_bars_ago: 2 }],
+    ['no age', { rs_exit_last: 'Quicksand', rs_exit_bars_ago: null }],
+    ['neither column on the row', {}],
+    ['an age that is not a number', { rs_exit_last: 'Quicksand', rs_exit_bars_ago: '2' }],
+    ['an age before today', { rs_exit_last: 'Quicksand', rs_exit_bars_ago: -1 }],
+    ['a name the server does not offer', { rs_exit_last: 'Sell now', rs_exit_bars_ago: 0 }],
+    ['an empty name', { rs_exit_last: '', rs_exit_bars_ago: 0 }],
+  ])('nothing is said with %s, and no separator is left behind', (_n, over) => {
+    const row = { industry: 'Banks', ...over }
+    expect(exitWarningWords(row)).toBe('')
+    expect(captionOf(row, rowConfigOf(EXIT_WARNINGS))).toBe('Banks')
+  })
+  test('nothing at all for no row', () => { expect(exitWarningWords(null)).toBe('') })
+
+  test('the names the client may print are the ones the server offers for the filter, in its order', () => {
+    const served = SERVED.meta.filters.find(f => f.key === 'rs_exit_last').presets.filter(p => p.op === 'eq')
+    expect(served.map(p => p.value)).toEqual(EXIT_WARNING_NAMES)
+    expect(served.map(p => p.label)).toEqual(EXIT_WARNING_NAMES)
+    // and the Type control of the screen offers the same three
+    expect(EXIT_WARNINGS.controls[0].options.filter(o => !o.default).map(o => o.label)).toEqual(EXIT_WARNING_NAMES)
+  })
+
+  test('the server puts the part on RS exit warnings only, ahead of the group, and the screen asks for both columns', () => {
+    expect(RS_STARTERS.filter(s => s.row.caption.includes('exit_warning')).map(s => s.id)).toEqual(['starter_rs_exit_warning_5'])
+    expect(EXIT_WARNINGS.row.caption).toEqual(['exit_warning', 'group'])
+    const cols = rowColumns(rowConfigOf(EXIT_WARNINGS))
+    expect(cols).toContain('rs_exit_last')
+    expect(cols).toContain('rs_exit_bars_ago')
+    // a screen without the part asks for neither on its row's account
+    expect(rowColumns(rowConfigOf(LEADERS))).not.toContain('rs_exit_last')
+    expect(rowColumns(rowConfigOf(LEADERS))).not.toContain('rs_exit_bars_ago')
+  })
+
+  test('on the page: the scan asks for the two columns and each row reads its warning', async () => {
+    const [nvda, mu, lly, xom, amd] = RS_ROWS
+    net.rows = [
+      { ...nvda, rs_exit_last: 'Quicksand', rs_exit_bars_ago: 1 },
+      { ...mu, rs_exit_last: 'Grateful Dead Break', rs_exit_bars_ago: 3 },
+      { ...lly, rs_exit_last: 'Quick Break', rs_exit_bars_ago: 0 },
+      { ...xom, rs_exit_last: null, rs_exit_bars_ago: null },
+      { ...amd, rs_exit_last: 'Quicksand', rs_exit_bars_ago: null },
+    ]
+    pin(['starter_rs_exit_warning_5'])
+    mount()
+    await landedOn('RS exit warnings')
+    const caption = t => screen.getByTestId(`focus-row-${t}`).querySelector('[data-testid="rs-caption"]')
+    await waitFor(() => expect(caption('NVDA')).toHaveTextContent('Quicksand yesterday · Semiconductors'))
+    expect(caption('MU')).toHaveTextContent('Grateful Dead Break 3 sessions ago · Semiconductors')
+    expect(caption('LLY')).toHaveTextContent('Quick Break today · Drug makers')
+    expect(caption('XOM').textContent).toBe('Oil and gas')
+    expect(caption('AMD').textContent).toBe('Semiconductors')
+    expect(scanBodies()[0].columns).toEqual(expect.arrayContaining(['rs_exit_last', 'rs_exit_bars_ago']))
   })
 })

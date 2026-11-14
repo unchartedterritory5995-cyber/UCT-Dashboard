@@ -913,6 +913,7 @@
     "row": {
       "place": null,
       "caption": [
+        "exit_warning",
         "group"
       ],
       "tags": [

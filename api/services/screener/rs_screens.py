@@ -318,7 +318,10 @@ def exit_warnings() -> dict:
                  "view": "relative_strength",
                  "sort": _sort("rs_exit_bars_ago", "asc")},
         "controls": [kind],
-        "row": {"place": None, "caption": ["group"], "tags": ["new"]},
+        # `exit_warning` (unit U7): the caption was the group only, so a member could not
+        # tell which warning a row had, or how old it was, without opening the Table.
+        # The client words it from the row's `rs_exit_last` and `rs_exit_bars_ago`.
+        "row": {"place": None, "caption": ["exit_warning", "group"], "tags": ["new"]},
     }
 
 

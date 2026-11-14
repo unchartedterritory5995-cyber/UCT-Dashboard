@@ -149,12 +149,13 @@ describe('what a member reads on each screen as it opens', () => {
     ])
     for (const r of rowsOf(LEADERS)) expect(r.rs_rank).toBeGreaterThanOrEqual(80)
   })
-  test('RS exit warnings: the RS number and the group', () => {
+  // unit U7: the caption leads with which warning and how old (it was the group only)
+  test('RS exit warnings: the RS number, the warning with its age, and the group', () => {
     expect(read(EXIT_WARNINGS)).toEqual([
-      ['SLIP2', null, 'RS 58', 'Banks', ''],
-      ['SLIP5', null, 'RS 17', 'Drug makers', ''],
-      ['FALL3', null, 'RS 14', 'Drug makers', ''],
-      ['SLIP4', null, 'RS 13', 'Semiconductors', ''],
+      ['SLIP2', null, 'RS 58', 'Quick Break today · Banks', ''],
+      ['SLIP5', null, 'RS 17', 'Quick Break today · Drug makers', ''],
+      ['FALL3', null, 'RS 14', 'Grateful Dead Break yesterday · Drug makers', ''],
+      ['SLIP4', null, 'RS 13', 'Quicksand yesterday · Semiconductors', ''],
     ])
   })
 })
