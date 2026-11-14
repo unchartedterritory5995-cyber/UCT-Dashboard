@@ -254,6 +254,17 @@ def test_a_class_share_is_accepted_with_a_hyphen_or_a_dot():
     assert n.clean_ticker_option("not a ticker") is None and n.clean_ticker_option("") is None
 
 
+def test_the_pickers_own_label_is_accepted_as_the_ticker():
+    """Measured in Discord 2026-11-14: pick "NVDA - Nvidia Corp", click back into the field, and
+    Discord sends the LABEL. /news answered "Give me one ticker"."""
+    from api.services import discord_tx_news as n
+    assert n.clean_ticker_option("NVDA - Nvidia Corp") == "NVDA"
+    assert n.clean_ticker_option("NET - Cloudflare, Inc. Class A common stock, par value $0.001 per share") == "NET"
+    assert n.clean_ticker_option("BRK.B - Berkshire Hathaway Inc.") == "BRK.B"
+    assert n.clean_ticker_option("BRK-B") == "BRK.B", "a class-share hyphen is not a label separator"
+    assert n.clean_ticker_option("Nvidia Corp - NVDA") is None, "only the picker's own shape is read"
+
+
 def test_the_news_picker_offers_tickers_only_and_only_ones_the_command_accepts(route, monkeypatch):
     """⚰️ /news borrowed /chart's picker, so it offered breadth chart series (not stocks),
     a "NVDX - chart it" label, and BRK-B, which the command then refused."""
