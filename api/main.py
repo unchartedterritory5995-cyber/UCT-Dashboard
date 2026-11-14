@@ -1685,6 +1685,8 @@ def _start_cold_path_boot_preload() -> None:
     if manifest is not None:
         for row in cold_path_manifest.above_threshold_modules(manifest):
             mod_name = row["module"]
+            if not cold_path_manifest.module_present(mod_name):
+                continue    # archived since the scan (onenote_html, 11/04): not preloaded, not an error
 
             def _import_it(_mod=mod_name):
                 import importlib
