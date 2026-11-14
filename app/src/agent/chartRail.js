@@ -26,6 +26,7 @@
 // Pure: reads the plan, the words and the live board through `host`; never writes.
 import { tickersIn } from './multiChart'
 import { matchPosition } from './fastPath'
+import { readCopyIntent } from './copyIntent'
 
 export const RAIL_MARK = 'chart-rail'
 const up = (s) => String(s || '').trim().toUpperCase()
@@ -242,88 +243,99 @@ export function chartRailRefusal(plan, { words = '', host = null, mode = 'apply'
   if (want && have != null && have < want) {
     return `I didn’t change anything: you asked for a ${want}-chart grid, but this would leave ${have} chart${have === 1 ? '' : 's'}. Tell me the ticker for each chart and I’ll set up all ${want}.`
   }
-  // FINAL BOARD (KEEP ≠ RE-CREATE): the planned final chart set must be the charts kept (the SAME panels) ∪ the new tickers —
-  // a ticker already on the board, or one the plan creates twice, is never created again unless the words ask for another copy
+  // FINAL BOARD (KEEP ≠ RE-CREATE, D18 item 3): the planned final chart set must be the charts kept (the SAME panels) ∪ the new
+  // tickers — a symbol a chart already shows (on the timeframe asked, or none asked) is never created again, and none is created
+  // twice, beyond the copies the words attach to it structurally (copyIntent.readCopyIntent)
   const fin = finalBoard(plan, host)
   if (fin) {
     const kept = keptCharts(w, host)
     if (fin.unknown && (kept.all || kept.refs.size || kept.symbols.size)) {
       return 'I didn’t change anything: I can’t tell which charts this would add, so I can’t check it keeps the ones you asked to keep. Name the tickers for the new charts.'
     }
-    const keepSet = keepTickers(w, host, fin.created)
-    const dup = fin.created.filter((s0, i) => s0 && ((fin.kept.some(c => c.symbol === s0) && keepSet.has(s0)) || fin.created.indexOf(s0) !== i) && !asksAnother(w, s0))
-    if (dup.length) {
-      const d = [...new Set(dup)]
-      return dupSentence(d)
-    }
+    const dup = duplicatesIn(fin, w, host)
+    if (dup.length) return dupSentence(dup)
     // (a kept chart stays the SAME panel: closing it — even to re-create it on its ticker — is a KEPT 'remove' effect, refused above)
   }
   return null
 }
 
-// a copy asked for in words: "another SPY chart", "a second NVDA", "duplicate the SPY chart", "SPY twice"
-const ANOTHER = /\b(?:another|second|2nd|duplicate|copy|clone|again|twice|extra|more)\b/i
 /** The duplicate refusal: WHICH ticker, and how to ask for a second copy. */
 export const dupSentence = (syms) => `I didn’t change anything: ${listOf(syms)} ${syms.length === 1 ? 'is' : 'are'} already on your board. Say “add another ${syms[0]} chart” if you want a second one.`
-// words that ask for NEW charts outright ("on a new chart", "4 more charts")
-const NEW_CHART_WORDS = /\b(?:new|another|second|2nd|more|extra|copy|duplicate|clone|again|twice)\b/i
-// "open (daily) charts for AAPL, MSFT and NVDA": a chart per named ticker, asked outright (golden GW-19)
-const OPEN_CHARTS = /\bopen\b[^.;!?]*\bcharts?\b/i
-const mentions = (words, sym) => new RegExp(`(^|[^A-Za-z])\\$?${String(sym).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![A-Za-z])`, 'i').test(words)
+
+// ── D18 item 3: what is DISPLAYED, and how many new charts of a symbol the request allows ───────────────────────────────────────
+const tfOk = (chartTf, wantTf) => !wantTf || String(chartTf || '') === String(wantTf)
+/** The charts on the board showing `sym` on a compatible timeframe (reading order). */
+export const displayedAs = (host, sym, tf = null) => liveCharts(host).filter(c => up(c.symbol) === up(sym) && tfOk(c.tf, tf))
+  .sort((a, b) => ((a.cell?.y ?? 0) - (b.cell?.y ?? 0)) || ((a.cell?.x ?? 0) - (b.cell?.x ?? 0)))
 /**
- * ⛔ KEEP ≠ RE-CREATE: the tickers already on the board that THIS request keeps as they are —
- *   - named as kept ("but keep SPY and NVDA", "leave the left one", "plus my existing SPY"), or
- *   - when the words name the tickers to add ("add AAPL and MSFT"): every board ticker they do NOT name, unless a word asks
- *     for new charts outright ("4 more charts", "on a new chart") — a plan that also lists those is re-creating the board.
- * A request that names no ticker it creates ("bring up what remains", "same but weekly") keeps nothing by silence: its tickers
- * come from a reference. `created`: the tickers the plan would create. A plan that lists a kept ticker among the charts to create
- * means the chart already there (planChartGrid `keep`); the FINAL BOARD rail refuses re-creating one.
+ * The symbols a plan's creations would map onto charts already displayed — REUSED, not created (planChartGrid `keep`, the
+ * reuse screen): each requested symbol a chart shows on the timeframe asked (or none asked), with no copy intent attached, and
+ * each symbol the words name as KEPT. `created`: [{ symbol, tf }] or symbols.
  */
 export function keepTickers(words, host, created = []) {
   const w = String(words || '')
-  const k = keptCharts(w, host)
-  const namesNew = (created || []).some(t => t && mentions(w, t))
+  const list = (created || []).map(c => (typeof c === 'string' ? { symbol: up(c), tf: null } : { symbol: up(c.symbol), tf: c.tf || null })).filter(c => c.symbol)
+  const shown = Object.fromEntries(list.map(c => [c.symbol, displayedAs(host, c.symbol, c.tf).length]))
+  const copies = readCopyIntent(w, list.map(c => c.symbol), shown)
   const out = new Set()
-  for (const c of liveCharts(host)) {
-    const s0 = up(c.symbol)
-    if (!s0) continue
-    // (a board ticker the words NAME among the ones to add — "add SPY and AAPL" on a SPY board — is that chart too, never a
-    // second one, unless a word asks for a copy or for charts outright)
-    const asksNew = NEW_CHART_WORDS.test(w) || OPEN_CHARTS.test(w) || CHART_COUNT.test(w)
-    if (k.all || k.refs.has(c.ref) || k.symbols.has(s0) || (!asksNew && (mentions(w, s0) ? true : namesNew))) out.add(s0)
+  for (const c of list) if (shown[c.symbol] && !copies[c.symbol]) out.add(c.symbol)
+  const k = keptCharts(w, host)
+  for (const c of liveCharts(host)) if (k.all || k.refs.has(c.ref) || k.symbols.has(up(c.symbol))) out.add(up(c.symbol))
+  return out
+}
+/** The creations of a list of ops: [{ symbol, tf }] (chartGrid.set / widget.addCharts literal lists, widget.add + setSymbol). */
+export function createdTickers(ops) {
+  const out = []
+  const aliasTf = new Map((ops || []).filter(o => o?.action === 'chart.setTimeframe').map(o => [String(o.target), o.args?.timeframe || null]))
+  for (const o of ops || []) {
+    if ((o?.action === 'chartGrid.set' || o?.action === 'widget.addCharts') && Array.isArray(o.args?.symbols)) out.push(...o.args.symbols.map(s0 => ({ symbol: up(s0), tf: o.args.timeframe || null })))
+    if (o?.action === 'chart.setSymbol' && (ops || []).some(a => a?.action === 'widget.add' && String(a.args?.as) === String(o.target))) out.push({ symbol: up(o.args?.symbol), tf: aliasTf.get(String(o.target)) || null })
+  }
+  return out.filter(c => c.symbol)
+}
+/** The symbols a final board would show once too often: per symbol, created > (displayed-compatible ? 0 : 1) + copies. */
+export function duplicatesIn(fin, words, host) {
+  const by = new Map()
+  for (const c of fin.createdTf) { const k = `${c.symbol}`; by.set(k, [...(by.get(k) || []), c]) }
+  const shownCount = Object.fromEntries([...by.keys()].map(S => [S, displayedAs(host, S, by.get(S)[0].tf).length]))
+  const copies = readCopyIntent(words, [...by.keys()], shownCount)
+  const kept = keptCharts(words, host)
+  const out = []
+  for (const [S, cs] of by) {
+    // shown in the FINAL board (after the plan's own symbol changes: a grid that re-symbols NVDA's chart and creates NVDA elsewhere
+    // has moved it, not duplicated it), on a compatible timeframe
+    const shownHere = cs.some(c => fin.kept.some(k => k.symbol === S && (!c.tf || !k.tf || String(k.tf) === String(c.tf)))) || kept.symbols.has(S)
+    const allowed = (shownHere ? 0 : 1) + (copies[S] || 0)
+    if (cs.length > allowed) out.push(S)
   }
   return out
 }
-/** The tickers a list of ops would create as charts (chartGrid.set / widget.addCharts literal lists). */
-export const createdTickers = (ops) => (ops || []).flatMap(o => ((o?.action === 'chartGrid.set' || o?.action === 'widget.addCharts') && Array.isArray(o.args?.symbols) ? o.args.symbols : [])).map(up).filter(Boolean)
-const asksAnother = (words, sym) => ANOTHER.test(words) && mentions(words, sym)
 
-/** The board as the plan leaves it: { kept: [{ ref, symbol }] (existing charts still there), removed, created: [symbol|null], unknown }
- *  — null when the plan creates no chart (nothing to compare). Duplicating a chart ON PURPOSE (board.duplicateChart) is not a creation. */
 export function finalBoard(plan, host) {
   const plans = plan?.plans || []
   const created = []
   let unknown = false
   for (const p of plans) {
-    if (p.kind === 'board' && p.after?.grid && !p.after.grid.dup) for (const a of p.after.grid.add || []) if (!a.type || a.type === 'chart') created.push(up(a.symbol) || null)
-    if (p.kind === 'chart' && p.virtual) created.push(up(p.after?.symbol) || null)
+    if (p.kind === 'board' && p.after?.grid && !p.after.grid.dup) for (const a of p.after.grid.add || []) if (!a.type || a.type === 'chart') created.push({ symbol: up(a.symbol) || null, tf: a.tf || null })
+    if (p.kind === 'chart' && p.virtual) created.push({ symbol: up(p.after?.symbol) || null, tf: p.after?.tf !== p.before?.tf ? p.after?.tf || null : null })
     if (p.kind === 'workspace') {
       for (const pc of p.after?.pendingCharts || []) {
-        if (Array.isArray(pc.symbols)) created.push(...pc.symbols.map(s0 => up(s0) || null))
+        if (Array.isArray(pc.symbols)) created.push(...pc.symbols.map(s0 => ({ symbol: up(s0) || null, tf: pc.timeframe || null })))
         else unknown = true
       }
     }
   }
   if (!created.length && !unknown) return null
-  if (created.includes(null)) unknown = true
+  if (created.some(c => !c.symbol)) unknown = true
   const effects = chartEffects(plan, host)
   const gone = new Set(effects.filter(e => e.type === 'remove').map(e => e.ref))
   const now = new Map(effects.filter(e => e.type === 'symbol' && e.to).map(e => [e.ref, e.to]))
   const live = liveCharts(host)
   return {
-    kept: live.filter(c => !gone.has(c.ref)).map(c => ({ ref: c.ref, symbol: now.get(c.ref) || up(c.symbol) })),
+    kept: live.filter(c => !gone.has(c.ref)).map(c => ({ ref: c.ref, symbol: now.get(c.ref) || up(c.symbol), tf: c.tf || null })),
     removed: live.filter(c => gone.has(c.ref)).map(c => ({ ref: c.ref, symbol: up(c.symbol) })),
-    created: created.filter(Boolean),
+    created: created.map(c => c.symbol).filter(Boolean),
+    createdTf: created.filter(c => c.symbol),
     unknown,
   }
 }

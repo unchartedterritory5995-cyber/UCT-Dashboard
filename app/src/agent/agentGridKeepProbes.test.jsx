@@ -42,8 +42,8 @@ const BOARD_SYMS = ['SPY', 'NVDA', 'AMD']
 const boardOf = (n, h = 20) => [Array.from({ length: n }, (_, i) => ({ id: `c${i + 1}`, type: 'chart', x: i * Math.floor(24 / n), y: 0, w: Math.floor(24 / n), h, color: 'N', opts: settings() })),
   Object.fromEntries(Array.from({ length: n }, (_, i) => [`N:c${i + 1}`, BOARD_SYMS[i]]))]
 const idle = () => waitFor(() => expect(screen.queryByTestId('agent-typing')).toBeNull(), { timeout: 10000 })
-function mount(n, h = 20) {
-  const b = makeBoard(...boardOf(n, h))
+function mount(n, height = 20) {
+  const b = makeBoard(...boardOf(n, height))
   const h = { ...b.host, charts: { ...b.host.charts, canManageIndicators: () => true, canCreateIndicator: () => true, previewHost: () => null, selected: () => null }, persist: async () => ({ ok: true }) }
   render(<AuthContext.Provider value={{ user: { id: 1, role: 'admin' } }}><AgentPanel host={h} onClose={() => {}} /></AuthContext.Provider>)
   const box = screen.getByLabelText('Message UCT Agent')

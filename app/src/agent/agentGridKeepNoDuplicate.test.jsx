@@ -139,12 +139,13 @@ describe('KEEP ≠ RE-CREATE · the rail alone refuses a plan that re-creates a 
     const plan = planOps(collectTargets(bd.host, ['workspace']), [{ action: 'widget.addCharts', target: 'workspace', args: { symbols: ['SPY', 'AAPL', 'MSFT'], timeframe: null, chart_type: null, exact: null } }], {}, { surface: 'charts' })
     expect(chartRailRefusal(plan, { words: 'add AAPL and MSFT', host: bd.host, mode: 'apply' })).toMatch(/SPY is already on your board/)
   })
-  it('CONTROL: a ticker NAMED as new ("open daily charts for AAPL and SPY") or from a reference ("bring up what remains") is created', () => {
+  it('D18 item 3: a displayed ticker is created again only on copy intent bound to it ("…and a second SPY"); named or by reference it is refused here (the reuse screen maps it first)', () => {
     const bd = makeBoard(...boardOf(['SPY', 'NVDA'], 10))
     const plan = planOps(collectTargets(bd.host, ['workspace']), [{ action: 'widget.addCharts', target: 'workspace', args: { symbols: ['AAPL', 'SPY'], timeframe: null, chart_type: null, exact: null } }], {}, { surface: 'charts' })
-    expect(chartRailRefusal(plan, { words: 'open daily charts for AAPL and SPY', host: bd.host, mode: 'apply' })).toBe(null)
+    expect(chartRailRefusal(plan, { words: 'open daily charts for AAPL and a second SPY', host: bd.host, mode: 'apply' })).toBe(null)
+    expect(chartRailRefusal(plan, { words: 'open daily charts for AAPL and SPY', host: bd.host, mode: 'apply' })).toMatch(/SPY is already on your board/)
     const p2 = planOps(collectTargets(bd.host, ['workspace']), [{ action: 'widget.addCharts', target: 'workspace', args: { symbols: ['SPY'], timeframe: null, chart_type: null, exact: null } }], {}, { surface: 'charts' })
-    expect(chartRailRefusal(p2, { words: 'prune amd out of Momentum and bring up what remains', host: bd.host, mode: 'apply' })).toBe(null)
+    expect(chartRailRefusal(p2, { words: 'prune amd out of Momentum and bring up what remains', host: bd.host, mode: 'apply' })).toMatch(/SPY is already on your board/)
   })
   it('CONTROL: "add another SPY chart" — a copy asked for in words is allowed', () => {
     const bd = makeBoard(...boardOf(['SPY', 'NVDA'], 10))

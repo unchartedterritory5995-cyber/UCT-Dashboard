@@ -94,7 +94,10 @@ export function planChartGrid({ board, charts, symbols, timeframe = null, layout
     if (!railMove) railAdd = { type: rail.type, rect: { x: rx, y: 0, w: rw, h: rows } }
   }
   const chartWs = onGrid.filter(w => w.type === 'chart' && charts.has(String(w.id))).sort(readingOrder)
+  const keepSet = keep instanceof Set ? keep : new Set(keep || [])
   // live train 4: a kept chart that already shows one of the tickers keeps it (no ticker swapped between charts)
+  // (D18 item 3 leaves the plain reused grid as it is: "make a 2x2 of …" already shows every requested ticker exactly once —
+  // goldens GW-10 / GW-16 pin its cell order)
   if (replace === 'charts') {
     const own = chartWs.slice(0, n).map(w => String(charts.get(String(w.id))?.symbol || '').toUpperCase())
     const placed = own.map(s => (syms.includes(s) ? s : null))
@@ -108,7 +111,6 @@ export function planChartGrid({ board, charts, symbols, timeframe = null, layout
   // kept, or never ask for it at all — chartRail.keepTickers) that a chart on the grid already shows IS that chart: it keeps its
   // panel (the same widget, arranged with the others) and is never created again. A ticker the words ask for as a new chart
   // ("open daily charts for … NVDA", "another SPY") is still created. The final board: the existing charts ∪ the new tickers.
-  const keepSet = keep instanceof Set ? keep : new Set(keep || [])
   const showing = new Set(chartWs.map(w => String(charts.get(String(w.id))?.symbol || '').toUpperCase()).filter(s0 => s0 && keepSet.has(s0)))
   const shown = newCharts ? syms.filter(s0 => showing.has(s0)) : []
   if (newCharts && shown.length) syms = syms.filter(s0 => !showing.has(s0))
