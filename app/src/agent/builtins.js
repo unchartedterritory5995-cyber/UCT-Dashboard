@@ -41,6 +41,7 @@ import { registerBreadthHistoryCapability } from './capabilities/breadthHistory'
 import { registerGuideCapabilities } from './capabilities/guide'
 import { registerMarketDataCapabilities } from './capabilities/marketDataQuote'
 import { registerMarketFactsCapabilities } from './capabilities/marketDataFacts'
+import { registerCotCapability } from './capabilities/cot'
 import { registerKnowledgeCapabilities } from './capabilities/knowledge'
 import { registerResearchCapability } from './capabilities/research'
 import { registerHistoryCapability } from './capabilities/history'
@@ -117,4 +118,5 @@ export function registerServerGatedBuiltins() {
   registerHistoryCapability()            // W2-B2: history.afterEvent while the server serves `history.eventStudy`
   registerChartDescribeCapability()      // W2-B3: chart.describeSetup while the server serves `bars.daily`
   registerCoachCapabilities()            // Wave 3 (W3-1..4): coach.* / journal.* while the server serves `coach` (UCT_AGENT_COACH)
+  registerCotCapability()                // Phase 2: cot.positioning while the server serves `cot.positioning`
 }

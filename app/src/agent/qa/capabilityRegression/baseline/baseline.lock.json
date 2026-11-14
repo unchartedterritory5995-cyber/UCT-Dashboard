@@ -3417,6 +3417,31 @@
     }
    }
   },
+  "cot.positioning": {
+   "digest": "0894466d212c1648",
+   "phrasings": {
+    "where are large speculators positioned in gold": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "what does the COT report say about gold": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "are specs net long gold at a 3-year extreme": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show me the commitments of traders for gold": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
   "history.breakout": {
    "digest": "d15f33781be224ac",
    "phrasings": {

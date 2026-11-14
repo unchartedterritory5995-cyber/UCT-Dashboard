@@ -7782,6 +7782,51 @@
       ]
     },
     {
+      "id": "cot.positioning",
+      "source": "Phase 2 COT research (11-13): CFTC Commitments of Traders positioning, owner-style phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "cot.positioning"
+      ],
+      "board": "ONE",
+      "needs": [
+        "cot.positioning"
+      ],
+      "ownWords": [
+        "cot"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "cot.positioning",
+            "target": "$stockData",
+            "args": {
+              "markets": [
+                "gold"
+              ],
+              "group": "large_specs",
+              "change_weeks": null,
+              "lookback_years": 3
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*cot\\.positioning.*\"symbols\":\\[\"gold\"\\],\"weeks\":163"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "where are large speculators positioned in gold",
+        "what does the COT report say about gold",
+        "are specs net long gold at a 3-year extreme",
+        "show me the commitments of traders for gold"
+      ]
+    },
+    {
       "id": "history.breakout",
       "source": "PKG2 (11-04): conversational scanning + historical analysis, owner-style phrasings",
       "kinds": "ALL",

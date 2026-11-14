@@ -486,6 +486,12 @@ export const GROUPS = [
     words: [/\bperiod[\s-]?sort\b|\bcustom[\s-]period\b/,
       /\b(?:rank|ranking|sort)\b.*\b(?:from|since|between)\b.*(?:\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.? \d{1,2}\b|\b\d{4}-\d{2}-\d{2}\b|\b\d{1,2}\/\d{1,2}\b)/,
       /\bdock\b.*\b(?:ranking|sort|sorted results)\b/] },
+  // Phase 2 COT research (cot.positioning): CFTC Commitments of Traders positioning in its OWN group, WORDS-ONLY and fillLast (as
+  // indicatorCalc / chartMenu): never a filler, so no existing group and no unrecognised request changes. `words` stays EMPTY here:
+  // capabilities/cot.js arms them only while the capability is registered (the server serves the `cot.positioning` kind), so on a
+  // dark server this group never matches and routing is byte-identical to the base (as playbook / coach). Last in the catalog.
+  { id: 'cot', title: 'CFTC COT futures positioning (specs, commercials, open interest): changes, N-year extremes, comparisons', domains: ['cot'], fillLast: true, wordsOnly: true,
+    words: [] },
 ]
 
 const SYMBOL_VERB = /\b(switch|change|put|show|pull up|load|open|chart)\b/

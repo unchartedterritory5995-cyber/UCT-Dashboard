@@ -1,41 +1,41 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 208,
+  "all": 209,
   "withProductionKinds": 199,
-  "darkGated": 9
+  "darkGated": 10
  },
  "totals": {
-  "capabilities": 208,
-  "withAnyRegressionCase": 156,
+  "capabilities": 209,
+  "withAnyRegressionCase": 157,
   "perProtection": {
    "nl": {
-    "covered": 153,
-    "applicable": 208
+    "covered": 154,
+    "applicable": 209
    },
    "routing": {
-    "covered": 150,
-    "applicable": 208
+    "covered": 151,
+    "applicable": 209
    },
    "args": {
-    "covered": 156,
-    "applicable": 208
+    "covered": 157,
+    "applicable": 209
    },
    "execution": {
-    "covered": 153,
-    "applicable": 208
+    "covered": 154,
+    "applicable": 209
    },
    "receipt": {
-    "covered": 125,
-    "applicable": 208
+    "covered": 126,
+    "applicable": 209
    },
    "refusal": {
     "covered": 35,
-    "applicable": 208
+    "applicable": 209
    },
    "permission": {
-    "covered": 201,
-    "applicable": 208
+    "covered": 202,
+    "applicable": 209
    },
    "undo": {
     "covered": 79,
@@ -43,11 +43,11 @@
    },
    "multiStep": {
     "covered": 40,
-    "applicable": 208
+    "applicable": 209
    },
    "phrasings": {
-    "covered": 149,
-    "applicable": 208
+    "covered": 150,
+    "applicable": 209
    }
   }
  },
@@ -3234,6 +3234,60 @@
     "multiStep": [
      "compare.openView.overlay: after an earlier turn"
     ],
+    "phrasings": []
+   }
+  },
+  "cot.positioning": {
+   "domain": "cot",
+   "group": "cot",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "cot.positioning: \"where are large speculators positioned in gold\"",
+     "cot.positioning: \"what does the COT report say about gold\"",
+     "cot.positioning: \"are specs net long gold at a 3-year extreme\"",
+     "cot.positioning: \"show me the commitments of traders for gold\""
+    ],
+    "routing": [
+     "cot.positioning: \"where are large speculators positioned in gold\"",
+     "cot.positioning: \"what does the COT report say about gold\"",
+     "cot.positioning: \"are specs net long gold at a 3-year extreme\"",
+     "cot.positioning: \"show me the commitments of traders for gold\""
+    ],
+    "args": [
+     "corpus cot.positioning"
+    ],
+    "execution": [
+     "cot.positioning (c)"
+    ],
+    "receipt": [
+     "cot.positioning (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
     "phrasings": []
    }
   },

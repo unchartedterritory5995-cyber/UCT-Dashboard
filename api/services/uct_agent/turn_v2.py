@@ -81,6 +81,7 @@ _DOMAIN_OF = {
     "drawing": "drawing", "alert": "alert", "indicatorAlert": "alert", "screener": "screener",
     "stock": "data", "index": "data", "commodity": "data", "crypto": "data", "news": "news", "research": "research",
     "playbook": "data",                                   # KN-1 knowledge capabilities
+    "cot": "data",                                        # Phase 2: CFTC Commitments of Traders positioning (cot.positioning)
     "uctIntelligence": "chart",                           # the UCT Intelligence chart indicator: add / remove it, its layers on / off
     "multiChart": "board",                                # the Multi Chart grid: the workspace as a whole (#1030)
 }

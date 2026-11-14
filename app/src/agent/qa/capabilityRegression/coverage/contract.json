@@ -756,6 +756,19 @@
    ],
    "fast": false
   },
+  "cot.positioning": {
+   "domain": "cot",
+   "group": "cot",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
   "definition.delete": {
    "domain": "definition",
    "group": "definitions",
