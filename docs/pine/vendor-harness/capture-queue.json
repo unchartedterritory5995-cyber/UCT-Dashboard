@@ -60,7 +60,7 @@
   ],
   "coverageMeasuredOn": "2026-11-05",
   "coverageMasterSha": "3ca4b0d358",
-  "fixtures": 354,
+  "fixtures": 355,
   "ledgerRows": 37
  },
  "definitions": {
@@ -83,17 +83,17 @@
  "counts": {
   "targets": 301,
   "byStatus": {
-   "CAPTURED": 79,
+   "CAPTURED": 80,
    "NEEDS_CHART": 39,
    "NEEDS_LIVE": 2,
-   "QUEUED": 181
+   "QUEUED": 180
   },
   "byPlanWave": {
    "E": {
-    "CAPTURED": 66,
+    "CAPTURED": 67,
     "NEEDS_CHART": 37,
     "NEEDS_LIVE": 2,
-    "QUEUED": 148
+    "QUEUED": 147
    },
    "W1": {
     "QUEUED": 6
@@ -119,9 +119,9 @@
     "QUEUED": 167
    },
    "1-2": {
-    "CAPTURED": 18,
+    "CAPTURED": 19,
     "NEEDS_CHART": 1,
-    "QUEUED": 14
+    "QUEUED": 13
    }
   },
   "byDocWave": {
@@ -134,8 +134,8 @@
     "NEEDS_CHART": 2
    },
    "E-census": {
-    "CAPTURED": 7,
-    "QUEUED": 4
+    "CAPTURED": 8,
+    "QUEUED": 3
    },
    "b1-paints": {
     "CAPTURED": 2
@@ -1705,8 +1705,10 @@
   },
   {
    "id": "pivot-high-low-points__hoTsDQRY3L@NYSE:RDDT@D",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/pivot-high-low-points-rddt-1d-2026-11-14.json"
+   ],
    "source": "corpus/committed/pivot-high-low-points__hoTsDQRY3L.pine",
    "sourceKind": "corpus",
    "sha256": "157699de27f04cd391d0def8bec9d1854fa3414c0477af4d8049d5133e70a223",
@@ -1719,7 +1721,9 @@
    "chartDefaulted": false,
    "chartSource": "census",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "NYSE:RDDT D"
+   ],
    "licence": "corpus",
    "needsLive": false,
    "priority": 1,
