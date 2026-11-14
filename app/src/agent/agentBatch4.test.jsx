@@ -26,10 +26,10 @@ const HERE = path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z
 const ROOT = path.resolve(HERE, '..', '..', '..')
 
 function makeHost(defs) {
-  const st = new Map(defs.map(d => [d.ref, { stored: d.stored ?? null, tf: d.tf || 'D', symbol: d.symbol || 'SPY', label: d.ref }]))
+  const st = new Map(defs.map(d => [d.ref, { stored: d.stored ?? null, tf: d.tf || 'D', symbol: d.symbol || 'SPY', label: d.ref, canvasTheme: d.canvasTheme ?? null }]))
   const read = (ref) => {
     const s = st.get(ref)
-    return s ? { ref, label: s.label, symbol: s.symbol, tf: s.tf, stored: s.stored, cs: mergeChartSettings(s.stored || { chartType: 'candles' }), linkedCount: 0 } : null
+    return s ? { ref, label: s.label, symbol: s.symbol, tf: s.tf, stored: s.stored, cs: mergeChartSettings(s.stored || { chartType: 'candles' }), linkedCount: 0, ...(s.canvasTheme ? { canvasTheme: s.canvasTheme } : {}) } : null
   }
   return {
     charts: {
@@ -160,8 +160,24 @@ describe('chart.setSetting — one capability over the product descriptor table'
     expect(p.ok).toBe(true)
   })
   it('KNOWING ≠ DOING: a known-but-not-eligible setting is not even an option', () => {
-    expect(shapeError('chart.setSetting', { setting: 'volume.plotStyle', value: 'line' }, CTX)).toMatch(/isn't an option/)          // W1-B: watermark.opacity is eligible now; chartShare (11-13): theme too
+    expect(shapeError('chart.setSetting', { setting: 'volume.plotStyle', value: 'line' }, CTX)).toMatch(/isn't an option/)          // W1-B: watermark.opacity is eligible now
     expect(shapeError('chart.setSetting', { setting: 'indicatorInstances', value: 'x' }, CTX)).toMatch(/isn't an option/)
+  })
+  it('chartShare family (11-13): theme left KNOWN — the Shift+T palette is ELIGIBLE: dark / light written, each Undo exact; Sunrise refused', async () => {
+    expect(shapeError('chart.setSetting', { setting: 'theme', value: 'light' }, CTX)).toBeNull()
+    const host = makeHost([{ ref: 'c1', stored: { chartType: 'candles', theme: 'dark' } }])
+    for (const [from, to] of [['dark', 'light'], ['light', 'dark']]) {
+      const before = JSON.stringify(host.raw('c1').stored)
+      expect(host.raw('c1').stored.theme).toBe(from)
+      const res = await commitPlan(host, plan(host, [op('chart.setSetting', { setting: 'theme', value: to })]))
+      expect(res.ok).toBe(true)
+      expect(host.raw('c1').stored).toMatchObject({ theme: to, preset: 'custom' })
+      expect((await undoEntry(host, res.undo)).ok).toBe(true)
+      expect(JSON.stringify(host.raw('c1').stored)).toBe(before)             // exact Undo
+      host.raw('c1').stored = { ...host.raw('c1').stored, theme: to }        // the next round starts from the other palette
+    }
+    const sun = makeHost([{ ref: 'c1', canvasTheme: 'sunrise' }])
+    expect(plan(sun, [op('chart.setSetting', { setting: 'theme', value: 'light' })]).refusals[0].reason).toMatch(/Sunrise theme/)
   })
   it('fast path: "turn off the grid", "crosshair off", "hide the watermark", "show swing labels" — and "hide volume" stays Volume', () => {
     expect(fastParse('turn off the grid').ops[0]).toEqual({ action: 'chart.setSetting', args: { setting: 'grid.visible', value: false } })

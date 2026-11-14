@@ -38,7 +38,7 @@ export function registerChartShareCapabilities() {
     ...chartCommon,
     name: CHART_SHARE_ACTION,
     summary: 'Download ONE chart as a PNG (its Share → Download PNG) and/or open its Share menu, where Copy Share URL copies its link — a browser lets only a click copy, so the Agent never copies. Nothing on the chart changes; no Undo.',
-    hints: 'target = the chart. output: image = download a PNG / screenshot; link = a share link (opens the Share menu); both. Sending a chart to the Journal is widget.sendToJournal.',
+    hints: 'target = the chart. output: image = download a PNG / screenshot; link = a share link (opens the Share menu); both. For the Journal, use widget.sendToJournal.',
     args: { type: 'object', properties: { output: { type: 'string', enum: SHARE_OUTPUTS } }, required: ['output'], additionalProperties: false },
     undo: 'none',
     undoNote: SHARE_NO_UNDO,

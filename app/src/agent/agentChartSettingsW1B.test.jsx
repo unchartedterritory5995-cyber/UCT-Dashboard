@@ -30,10 +30,25 @@ describe('KNOWN → ELIGIBLE rows (W1-B)', () => {
       expect(ids, id).toContain(id)
       expect(settingDescriptor(id).agent, id).toBe('eligible')
     }
-    for (const id of ['header.showMarketCap', 'header.showNextEarnings', 'header.showUctRating', 'volume.plotStyle', 'hideDrawings']) expect(ids, id).not.toContain(id)   // 'theme' left this list: Shift+T's palette is eligible since the chartShare family (11-13)
+    for (const id of ['header.showMarketCap', 'header.showNextEarnings', 'header.showUctRating', 'volume.plotStyle', 'hideDrawings']) expect(ids, id).not.toContain(id)
+    // chartShare family (11-13): 'theme' left the not-an-option list — Shift+T's palette is a chart.setSetting option now (dark | light)
+    expect(ids).toContain('theme')
+    expect(settingDescriptor('theme')).toMatchObject({ agent: 'eligible', options: ['dark', 'light'], fixedBy: ['sunrise'] })
     expect(ELIGIBLE_SETTINGS.filter(d => d.type === 'number').map(d => d.id).sort()).toEqual(['positionCalc.accountSize', 'positionCalc.riskPct', 'volume.maPeriod', 'volume.paneHeightPct', 'watermark.opacity', 'watermark.x', 'watermark.y'])
   })
 
+  it('the Shift+T palette through the real panel (scripted): light then dark, each Undo restores the stored blob byte for byte (Sunrise: agentBatch4)', async () => {
+    const { say, board } = p.mount(...ONE('NVDA'))
+    for (const v of ['light', 'dark']) {
+      const before = stored(board)
+      p.st.envelopes.push(set('theme', v))
+      expect(await say(`make this chart ${v}`)).toContain(`Light/dark palette (Shift+T): ${v}`)
+      expect(settings(board).theme).toBe(v)
+      await say('undo')
+      expect(stored(board)).toBe(before)
+      if (v === 'light') { p.st.envelopes.push(set('theme', 'light')); await say('make this chart light') }   // dark is then a real change
+    }
+  }, 40000)
   it('"turn on dark pool" → the fast path (0 model turns): the dialog\'s own write (section spread, preset custom); receipt; Undo restores the stored blob byte for byte', async () => {
     const { say, board } = p.mount(...ONE('NVDA'))
     const before = stored(board)

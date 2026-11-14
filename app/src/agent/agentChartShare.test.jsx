@@ -12,8 +12,9 @@ import { registerBuiltins } from './builtins'
 import { setupPanel, bareSettings } from './testing/panelHarness'
 import { getCapability, manifestFor, MANIFEST_CONTRACT } from './capabilities'
 import { wordsSelect, groupOfAction, GROUPS } from './routing'
-import { CHART_SHARE_ACTION, NO_SHARE } from './capabilities/chartShare'
+import { CHART_SHARE_ACTION, NO_SHARE, SHARE_NO_UNDO } from './capabilities/chartShare'
 import { settingDescriptor } from '../components/chart/chartSettingsDescriptors'
+import { lexiconFor, correctTypos } from './nl/lexicon'
 
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
 registerBuiltins()
@@ -115,6 +116,47 @@ describe('chartShare.export: the share link is the member\'s own click — never
   }, 40000)
 })
 
+describe('chartShare.export: never undoable, and it says so', () => {
+  it.each([['image', 'take a screenshot of this chart'], ['link', 'share this chart'], ['both', 'screenshot this chart and share it']])(
+    'output %s: the receipt says plainly there is nothing to undo; no Undo is offered; "undo" changes nothing', async (output, t) => {
+      const { say, board: b, downloads } = mountOn('c2')
+      p.st.envelopes.push(plan(['c2', SH, { output }]))
+      await say(t)
+      const receipt = screen.getAllByTestId('agent-receipt').at(-1)
+      expect(receipt.textContent).toContain(SHARE_NO_UNDO)              // the undoNote on the receipt card itself
+      expect(receipt.getAttribute('data-undoable')).toBeNull()
+      const before = JSON.stringify(b.state.widgets), n = downloads.length
+      await say('undo')
+      expect(JSON.stringify(b.state.widgets)).toBe(before)
+      expect(downloads).toHaveLength(n)
+    }, 40000)
+})
+
+describe('HARD CONSTRAINT: the export path never writes the clipboard and never mints a server share link', () => {
+  it.each(['image', 'link', 'both'])('output %s: no clipboard write of any kind; the only requests are the Agent\'s own', async (output) => {
+    const writeText = vi.fn(() => Promise.resolve()), write = vi.fn(() => Promise.resolve())
+    Object.defineProperty(window.navigator, 'clipboard', { value: { writeText, write }, configurable: true })
+    const execCommand = vi.fn(() => true)
+    const prevExec = document.execCommand
+    document.execCommand = execCommand
+    try {
+      const { say, downloads, opened } = mountOn('c1')
+      p.st.envelopes.push(plan(['c1', SH, { output }]))
+      await say('share this chart as a screenshot')
+      expect(downloads.length + opened.length).toBeGreaterThan(0)       // the export ran
+      expect(writeText).not.toHaveBeenCalled()
+      expect(write).not.toHaveBeenCalled()
+      expect(execCommand.mock.calls.filter(c => c[0] === 'copy')).toEqual([])
+      const urls = p.st.calls.map(c => c[1])
+      expect(urls.filter(u => /share|shorten|short-?link|permalink|snapshot|upload/i.test(u))).toEqual([])
+      // the reads the panel makes anyway (saved screens, live prices…) are GETs; the only WRITES are the Agent's own turn / record
+      expect(p.st.calls.filter(([m, u]) => m !== 'GET' && !/^\/api\/agent\//.test(u)).map(c => `${c[0]} ${c[1]}`)).toEqual([])
+      // and no request anywhere carries a share-state link or an image
+      expect(p.st.calls.filter(([, , body]) => body && /\?state=|data:image/i.test(JSON.stringify(body))).map(c => c[1])).toEqual([])
+    } finally { document.execCommand = prevExec }
+  }, 40000)
+})
+
 describe('chartShare.export: targeting and additive requests', () => {
   it('#988: "the one next to this" (clicked c2) captures TSLA, never the clicked chart', async () => {
     const { say, downloads } = mountOn('c2')
@@ -189,6 +231,13 @@ describe('chartShare.export: contract and routing', () => {
     expect(m.summary.length).toBeLessThanOrEqual(L.maxSummary)
     expect((m.hints || '').length).toBeLessThanOrEqual(L.maxHints)
     expect(manifestFor({ surface: 'charts' }).find(x => x.name === 'chart.setSetting').hints.length).toBeLessThanOrEqual(L.maxHints)
+  })
+  // AUDIT #1234 (reach rail, C3-170): a hint once said "Sending a chart to the Journal"; 'sending' entered the typo lexicon and
+  // read "sort the themes ascending" as "… sending" (boardEdit instead of lists: agentExecReach widget tune v2 21 → 22). Never again.
+  it('its words add no typo reading to an unrelated request (C3-170: "ascending" is never read as "sending")', () => {
+    const readings = correctTypos('sort the themes ascending', lexiconFor({})) || []
+    expect(readings.map(r => r.text)).not.toContain('sort the themes sending')
+    expect(getCapability(SH).hints).not.toMatch(/sending/i)
   })
   it('its own words-only, fill-last group', () => {
     const g = GROUPS.find(x => x.id === 'chartShare')

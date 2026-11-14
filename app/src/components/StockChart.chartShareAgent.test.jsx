@@ -176,6 +176,20 @@ describe('chartShare.export through the host and the runtime, on this chart', ()
     expect(writeText).not.toHaveBeenCalled()
     expect(shot.downloads).toEqual([])
   })
+  it.each(['image', 'link', 'both'])('HARD CONSTRAINT (%s): no clipboard write and no network share call on the real chart', async (output) => {
+    const writeText = vi.fn(() => Promise.resolve()), write = vi.fn(() => Promise.resolve())
+    Object.defineProperty(window.navigator, 'clipboard', { value: { writeText, write }, configurable: true })
+    await mount()
+    const n0 = fetch.mock.calls.length
+    const res = await agentShares(output)
+    expect(res.ok, JSON.stringify(res)).toBe(true)
+    expect(writeText).not.toHaveBeenCalled()
+    expect(write).not.toHaveBeenCalled()
+    const during = fetch.mock.calls.slice(n0).map(c => String(c[0]))
+    expect(during.filter(u => /share|shorten|short-?link|permalink|snapshot|upload|state=/i.test(u))).toEqual([])
+    // the PNG never leaves the browser: whatever the chart fetched meanwhile carried no image body
+    expect(fetch.mock.calls.slice(n0).filter(c => c[1]?.body instanceof Blob || c[1]?.body instanceof FormData)).toEqual([])
+  })
   it('image with no PNG made: the runtime reports the failure', async () => {
     await mount()
     shot.blob = null
