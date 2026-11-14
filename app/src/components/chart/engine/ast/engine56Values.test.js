@@ -471,6 +471,23 @@ describe('finding 2 - the runtime lane declines a mutable `bool` that can be `na
     const body = ['float x = 0.0', 'x := close - open', 'b = x > 0 and close > 0', 'plot(b == true ? 1 : 0)']
     const built = buildRuntimeIr(['//@version=5', 'indicator("r6")', ...body].join('\n'), { bars: RDDT, inputs: {}, pane: true, historyFromListing: true })
     expect(built.ok, built.refusal && `${built.refusal.guard}: ${built.refusal.message}`).toBe(true)
+    // and at `!=` (decided at the site, not by the deferred `==` check): a named `and`, and one written inline
+    for (const plot of ['plot(b != true ? 1 : 0)', 'plot((x > 0 and close > 0) != true ? 1 : 0)']) {
+      const ne = buildRuntimeIr(['//@version=5', 'indicator("r6")', ...body.slice(0, 3), plot].join('\n'), { bars: RDDT, inputs: {}, pane: true, historyFromListing: true })
+      expect(ne.ok, `${plot}: ${ne.refusal && ne.refusal.guard}`).toBe(true)
+    }
+  })
+  it('finding 1 (this lane): a `valuewhen` of a comparison meeting `!= false` written inline declines by name', () => {
+    const src = '//@version=4\nstudy("r1")\nplot(valuewhen(close > open, close > sma(close, 20), 0) != false ? 1 : 0)'
+    const b = buildRuntimeIr(src, { bars: RDDT, inputs: {}, pane: true, historyFromListing: true })
+    expect(b.ok).toBe(false)
+    expect(b.refusal.guard).toBe(BOOL_NA_UNWITNESSED)
+  })
+  it('round 2: a comparison over a SLOT that can be `na` (`s := ta.sma(…)`, `up := close > s`) declines at `== false`', () => {
+    const src = '//@version=5\nindicator("r2d")\nfloat s = na\ns := ta.sma(close, 20)\nbool up = false\nup := close > s\nplot(up == false ? 1 : 0)'
+    const b = buildRuntimeIr(src, { bars: RDDT, inputs: {}, pane: true, historyFromListing: true })
+    expect(b.ok).toBe(false)
+    expect(b.refusal.guard).toBe(BOOL_NA_UNWITNESSED)
   })
   it('finding 6: a variable whose every write is a bar price (`float h = na; h := high`) takes the newest tie rule on this lane', () => {
     const src = '//@version=5\nindicator("r6")\nfloat h = na\nh := high\nplot(ta.highestbars(h, 11))'
@@ -520,6 +537,15 @@ describe('finding 3 -a witness site under a read on other bars is withheld (TF_M
 describe('finding 5 - the withholding ENDS once the answer no longer depends on the unknown bars', () => {
   it('`ta.barssince(up != up[1])` withholds only its warm-up (it withheld 666 of 666 bars)', () => {
     const { col, held } = doorOn('//@version=5\nindicator("r5")\nup = close > ta.sma(close, 20)\nplot(ta.barssince(up != up[1]))')
+    expect(held).toBeLessThan(40)
+    expect(col.slice(40).every((x) => Number.isFinite(x))).toBe(true)
+  })
+  it('the BOUNDED form (`ta.barssince(…) < 30`, which is `barssince(c, 30)`) withholds only its warm-up too', () => {
+    // a bare `ta.barssince(c)` is `bar_index - valuewhen(c, bar_index, 0)`; the bounded one is the table's own
+    const src = '//@version=5\nindicator("r5")\nup = close > ta.sma(close, 20)\nplot(ta.barssince(up != up[1]) < 30 ? 1 : 0)'
+    const { col, held, formula } = doorOn(src)
+    expect(formula).toMatch(/barssince\(/)
+    expect(held).toBeGreaterThan(0)
     expect(held).toBeLessThan(40)
     expect(col.slice(40).every((x) => Number.isFinite(x))).toBe(true)
   })
