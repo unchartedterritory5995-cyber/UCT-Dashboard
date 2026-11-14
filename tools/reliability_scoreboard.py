@@ -32,6 +32,7 @@ import argparse
 import datetime as dt
 import json
 import os
+import re
 import sys
 import urllib.error
 import urllib.request
@@ -73,7 +74,47 @@ def build_query(zone: str, since: str, until: str) -> str:
     )
 
 
+def build_endpoint_query(zone: str, since: str, until: str) -> str:
+    """Per-path request counts and average origin time for uncached requests in one window."""
+    span = f'datetime_geq:"{since}", datetime_lt:"{until}", requestSource:"eyeball", cacheStatus:"dynamic"'
+    return ("{viewer{zones(filter:{zoneTag:\"" + zone + "\"}){"
+            f" endpoints: httpRequestsAdaptiveGroups(limit:1000, filter:{{{span}}}, orderBy:[count_DESC])"
+            "{count dimensions{clientRequestPath} avg{originResponseDurationMs}}"
+            "}}}")
+
+
 # ── pure: turning Cloudflare's rows into the report ───────────────────────────
+
+_SYMBOL = re.compile(r"^[A-Z0-9.^-]{1,8}$")
+
+
+def path_class(path: str) -> str:
+    """`/api/bars/NVDA?tf=D` -> `/api/bars/:sym`. Tickers, ids and tokens never reach the report."""
+    parts = [p for p in path.split("?")[0].split("/") if p]
+    if not parts or parts[0] != "api":
+        return "(pages and files)"
+    out = []
+    for part in parts[:3]:
+        if part.isdigit() or len(part) > 24:
+            out.append(":id")
+        elif _SYMBOL.match(part) and part.upper() == part and not part.isdigit():
+            out.append(":sym")
+        else:
+            out.append(part)
+    return "/" + "/".join(out)
+
+
+def endpoint_breakdown(rows: list[dict], top: int = 12) -> list[dict]:
+    """Endpoints ranked by their share of all origin time in the window."""
+    agg: dict[str, list[float]] = {}
+    for r in rows:
+        e = agg.setdefault(path_class(r["dimensions"]["clientRequestPath"]), [0, 0.0])
+        e[0] += r["count"]
+        e[1] += r["count"] * ((r.get("avg") or {}).get("originResponseDurationMs") or 0)
+    total = sum(ms for _, ms in agg.values()) or 1.0
+    ranked = sorted(agg.items(), key=lambda kv: kv[1][1], reverse=True)[:top]
+    return [{"endpoint": k, "requests": n, "avg_ms": round(ms / n) if n else 0, "share_pct": round(100 * ms / total, 1)}
+            for k, (n, ms) in ranked]
 
 def _minute(stamp: str) -> int:
     return int(dt.datetime.strptime(stamp[:16], "%Y-%m-%dT%H:%M").replace(tzinfo=dt.timezone.utc).timestamp() // 60)
@@ -147,6 +188,9 @@ def render(s: dict) -> str:
     if s["gap_list"]:
         lines.append("  gaps (start UTC, minutes, gateway errors):")
         lines += [f"    {g['start']}  {g['minutes']:>2}  {g['errors']:,}" for g in s["gap_list"][:40]]
+    if s.get("slow_endpoints"):
+        lines.append("  where the server's time went in the slowest hour (endpoint, requests, avg ms, share):")
+        lines += [f"    {e['endpoint']:<40} {e['requests']:>6}  {e['avg_ms']:>6,}  {e['share_pct']:>5}%" for e in s["slow_endpoints"]]
     slow_hours = [h for h in s["hours"] if h["minutes_over_1s"] >= 10]
     if slow_hours:
         lines.append("  hours with 10 or more minutes over 1 s (hour UTC, minutes, p95 ms):")
@@ -202,6 +246,13 @@ def self_check(out=print) -> int:
         ("errors inside gaps: 130 of 133", s["gateway_errors_inside_gaps_pct"] == 97.7),
         ("minutes over one second are counted", s["minutes_over_1s"] == 20),
         ("the slow hour is named", s["worst_hour"]["hour"] == "2026-11-13 15:00" and s["worst_hour"]["minutes_over_1s"] == 20),
+        ("tickers and ids never reach the report", [path_class(x) for x in ("/api/bars/NVDA?tf=D", "/api/j2/notes/12345", "/api/auth/me", "/charts")]
+         == ["/api/bars/:sym", "/api/j2/notes", "/api/auth/me", "(pages and files)"]),
+        ("endpoints are ranked by share of server time", [e["endpoint"] for e in endpoint_breakdown([
+            {"count": 10, "dimensions": {"clientRequestPath": "/api/auth/me"}, "avg": {"originResponseDurationMs": 100}},
+            {"count": 2, "dimensions": {"clientRequestPath": "/api/bars/AAPL"}, "avg": {"originResponseDurationMs": 2000}},
+            {"count": 3, "dimensions": {"clientRequestPath": "/api/bars/MSFT"}, "avg": {"originResponseDurationMs": 2000}}])]
+         == ["/api/bars/:sym", "/api/auth/me"]),
         ("a quiet window says so", "no requests" in render(summarize({}, "a", "b"))),
         ("the window is whole hours", window(24, dt.datetime(2026, 11, 14, 10, 37, tzinfo=dt.timezone.utc))
          == ("2026-11-13T10:00:00Z", "2026-11-14T10:00:00Z")),
@@ -234,12 +285,18 @@ def main(argv=None) -> int:
         return 2
     try:
         summary = summarize(fetch(build_query(zone, since, until), token), since, until)
+        worst = summary.get("worst_hour")
+        if worst and worst["minutes_over_1s"]:
+            start = worst["hour"].replace(" ", "T") + ":00Z"
+            end = (dt.datetime.strptime(start, "%Y-%m-%dT%H:%M:%SZ") + dt.timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+            summary["slow_endpoints"] = endpoint_breakdown(fetch(build_endpoint_query(zone, start, end), token).get("endpoints") or [])
     except CouldNotMeasure as exc:
         print(f"COULD NOT MEASURE: {exc}")
         return 2
     print(json.dumps(summary, indent=1) if args.json else render(summary))
     if args.history:
-        line = {k: v for k, v in summary.items() if k not in ("gap_list", "hours")}
+        line = {k: v for k, v in summary.items() if k not in ("gap_list", "hours", "slow_endpoints")}
+        line["slowest_endpoints"] = [e["endpoint"] for e in summary.get("slow_endpoints", [])[:3]]
         line["measured_at"] = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         with open(args.history, "a", encoding="utf-8") as f:
             f.write(json.dumps(line) + "\n")
