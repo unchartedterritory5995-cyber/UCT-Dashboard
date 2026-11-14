@@ -66,6 +66,15 @@ def test_the_compare_panel_view_is_a_BOARD_action_withheld_bare():
         assert guard.suspicious(text) is False, text
 
 
+def test_the_board_version_history_is_a_LAYOUT_action_withheld_bare():
+    # layoutHistory.list / .restore read and restore Layouts -> Version history (the board's saved versions), never history
+    for name in ("layoutHistory.list", "layoutHistory.restore"):
+        assert v2.domain_for(name) == "layout"
+        assert guard.suspicious(_bare(name)) is True
+    for text in ("Restore your layout to how it looked before the open.", "Version history keeps every save of the board."):
+        assert guard.suspicious(text) is False, text
+
+
 def test_an_UNLISTED_prefix_is_misfiled_under_history_not_refused():
     # today's behaviour for any prefix the server does not know: silently filed under history
     assert v2.domain_for("someFutureFamily.doThing") == "history"

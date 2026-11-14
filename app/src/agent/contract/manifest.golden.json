@@ -7915,6 +7915,103 @@
    "shape": null
   },
   {
+   "name": "layoutHistory.list",
+   "domain": "layoutHistory",
+   "target": "layoutHistory",
+   "summary": "List the Charts board’s saved versions (Layouts → Version history), newest first. Answered from the server.",
+   "hints": "count = how many to show (default 10), else null.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "count": {
+      "type": [
+       "integer",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "count"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "argAliases": {
+    "count": [
+     "limit",
+     "n"
+    ]
+   },
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "layoutHistory.restore",
+   "domain": "layoutHistory",
+   "target": "layoutHistory",
+   "summary": "Restore an earlier saved version of the Charts board (Layouts → Version history). Shown first with what it changes; added back as a new version. Undo restores the prior one.",
+   "hints": "One of: version = its number; stepsBack = saves back (1 = the previous); before = \"YYYY-MM-DD[THH:MM]\" ET, the board as it was then. Others null.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "version": {
+      "type": [
+       "integer",
+       "null"
+      ]
+     },
+     "stepsBack": {
+      "type": [
+       "integer",
+       "null"
+      ]
+     },
+     "before": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "version",
+     "stepsBack",
+     "before"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": {
+    "version": [
+     "versionNumber",
+     "v"
+    ],
+    "stepsBack": [
+     "back",
+     "steps",
+     "savesBack"
+    ],
+    "before": [
+     "at",
+     "asOf",
+     "date",
+     "when"
+    ]
+   },
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
    "name": "multiChart.set",
    "domain": "multiChart",
    "target": "multiChart",

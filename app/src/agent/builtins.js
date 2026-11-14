@@ -54,6 +54,8 @@ import { registerCoachCapabilities } from './capabilities/coach'
 import { registerPeriodSortCapabilities } from './capabilities/periodSort'
 // Tools → Compare Symbols: open the panel on its Rotation (RRG-style) or Overlay tab, switch between them
 import { registerComparePanelCapabilities } from './capabilities/comparePanel'
+// Layouts → Version history: list the board's saved versions, restore one (shown first; Undo restores the prior head)
+import { registerLayoutHistoryCapabilities } from './capabilities/layoutHistory'
 
 let done = false
 export function registerBuiltins() {
@@ -100,6 +102,7 @@ export function registerBuiltins() {
   registerJournalCapabilities()
   registerPeriodSortCapabilities()
   registerComparePanelCapabilities()        // compare.openView: the Compare panel's Rotation / Overlay view (a view, not saved)
+  registerLayoutHistoryCapabilities()       // layoutHistory.list / .restore: Layouts → Version history (restore = a new version)
   registerMultiChartCapabilities()   // pl-grid: the Multi Chart grid itself (C3-042..061)
 }
 

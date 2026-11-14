@@ -1727,6 +1727,22 @@ def test_guard_still_passes_ordinary_prose_about_comparing_and_rotation(text):
     assert guard.suspicious(text) is False
 
 
+# ── Board version history (Layouts → Version history): layoutHistory.* is withheld when a passage names it bare ──────
+@pytest.mark.parametrize("name", ["layoutHistory.list", "layoutHistory.restore"])
+def test_guard_withholds_the_layout_history_action_names_bare(name):
+    assert guard.suspicious(f"Next, {name} with the default settings.") is True
+
+
+@pytest.mark.parametrize("text", [
+    "Restore your layout to the way it was yesterday if a change goes wrong.",
+    "Version history keeps every save of the board for 30 days.",
+    "Roll back to an earlier version of the layout, then rebuild.",
+    "The layout history. Restore. Review.",
+])
+def test_guard_still_passes_ordinary_prose_about_layout_history(text):
+    assert guard.suspicious(text) is False
+
+
 # ── #1110 drawing extras: its action names are withheld when a passage names them bare ──────────────────────────────
 @pytest.mark.parametrize("name", ["drawing.favoriteTool", "drawing.positionCalculator", "drawing.saveDefaults"])
 def test_guard_withholds_the_drawing_extras_action_names_bare(name):

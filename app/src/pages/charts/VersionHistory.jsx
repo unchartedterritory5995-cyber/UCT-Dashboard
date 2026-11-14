@@ -25,78 +25,14 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import UIcon from '../../components/ui/UIcon'
 import styles from './VersionHistory.module.css'
 
-export const WORKSPACE_DOC_URL = '/api/workspace/doc'
-const BOARD = 'charts'
-const LIST_LIMIT = 50
+import {
+  WORKSPACE_DOC_URL, BOARD, LIST_LIMIT, KEY_LABELS, keyLabel, sourceLabel, formatVersionTime, diffPrefs, requestJson,
+  listWorkspaceVersions, readWorkspaceVersion, restoreWorkspaceVersion,
+} from './versionHistoryApi'
 
-/** Member-facing names for the board's stored keys (`WORKSPACE_PREF_KEYS`).
- *  A key missing here is shown by its raw name rather than hidden. */
-// Member-facing names for the board's persisted keys. The WORDS are written here; the
-// KEY SET is not ours to choose -- `VersionHistory.keyLabels.test.js` holds it equal to
-// `WORKSPACE_PREF_KEYS` in api/services/workspace_doc_store.py, both directions.
-export const KEY_LABELS = {
-  charts_workspace_layout: 'Board layout',
-  charts_workspace_groups: 'Linked symbols',
-  chart_settings: 'Chart settings',
-  charts_theme: 'Charts theme',
-  charts_merged: 'Merged widgets',
-  charts_vol_pane_pct: 'Volume pane size',
-  charts_active_template: 'Open layout name',
-  watchlist_settings: 'Watchlist settings',
-  watchlist_columns: 'Watchlist columns',
-  theme_tracker_settings: 'Theme Tracker settings',
-  fundamentals_settings: 'Fundamentals settings',
-  breadth_widget_settings: 'Breadth settings',
-  aisearch_settings: 'AI Search settings',
-}
-
-export function keyLabel(key) {
-  return KEY_LABELS[key] || key
-}
-
-/** How a version came to exist, in the member's words. */
-export function sourceLabel(v) {
-  switch (v?.source) {
-    case 'migration': return 'First saved copy of your board'
-    case 'mirror': return 'Board saved'
-    case 'write': return 'Board saved'
-    case 'restore': return v.restored_from != null ? `Restored from version ${v.restored_from}` : 'Restored'
-    case 'delete': return 'Board history cleared'
-    default: return 'Saved'
-  }
-}
-
-export function formatVersionTime(epochSeconds) {
-  const d = new Date(Number(epochSeconds) * 1000)
-  if (Number.isNaN(d.getTime())) return ''
-  return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
-}
-
-/** Which stored keys a restore of `target` would change, against `head`.
- *
- *  `changes` — keys the version holds with a value different from the head's.
- *  `kept`    — keys the head holds that the version does not; the restore route
- *              leaves those exactly as they are (it never deletes a key). */
-export function diffPrefs(targetPrefs, headPrefs) {
-  const t = targetPrefs || {}
-  const h = headPrefs || {}
-  const changes = Object.keys(t).sort().filter(k => h[k] !== t[k])
-  const kept = Object.keys(h).sort().filter(k => !(k in t))
-  return { changes, kept }
-}
-
-async function requestJson(url, init) {
-  if (typeof fetch !== 'function') return { status: 0, ok: false, body: null }
-  try {
-    const res = await fetch(url, { credentials: 'include', ...(init || {}) })
-    if (!res) return { status: 0, ok: false, body: null }
-    let body = null
-    try { body = await res.json() } catch { body = null }
-    return { status: res.status, ok: !!res.ok, body }
-  } catch {
-    return { status: 0, ok: false, body: null }
-  }
-}
+// The routes and the member-facing words live in versionHistoryApi.js (shared with UCT Agent's layoutHistory.*);
+// every name this module exported before is still exported from here.
+export { WORKSPACE_DOC_URL, KEY_LABELS, keyLabel, sourceLabel, formatVersionTime, diffPrefs }
 
 /** True only when the versions route answers with a list — i.e. the store is
  *  armed and this member can use it. Any other answer (404 dark, an error, no
@@ -151,7 +87,7 @@ export default function VersionHistoryPanel({ onClose, onRestored, onUnavailable
   useEffect(() => () => { aliveRef.current = false }, [])
 
   const load = useCallback(async () => {
-    const r = await requestJson(`${WORKSPACE_DOC_URL}/versions?board=${BOARD}&limit=${LIST_LIMIT}`)
+    const r = await listWorkspaceVersions(LIST_LIMIT)
     if (!aliveRef.current) return false
     if (r.status === 404) { setPhase('dark'); onUnavailable?.(); return false }
     if (!r.ok || !Array.isArray(r.body?.versions)) { setPhase('error'); return false }
@@ -175,7 +111,7 @@ export default function VersionHistoryPanel({ onClose, onRestored, onUnavailable
 
   const readDoc = useCallback(async (version) => {
     if (docsRef.current.has(version)) return docsRef.current.get(version)
-    const r = await requestJson(`${WORKSPACE_DOC_URL}/versions/${version}?board=${BOARD}`)
+    const r = await readWorkspaceVersion(version)
     if (!r.ok || !r.body) return undefined
     const doc = r.body.tombstone ? null : (r.body.doc || null)
     docsRef.current.set(version, doc)
@@ -205,11 +141,7 @@ export default function VersionHistoryPanel({ onClose, onRestored, onUnavailable
     if (selected == null || restoring) return
     setRestoring(true)
     setPanelNote('')
-    const r = await requestJson(`${WORKSPACE_DOC_URL}/restore`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ version: selected, base_version: headVersion, board: BOARD }),
-    })
+    const r = await restoreWorkspaceVersion(selected, headVersion)
     if (!aliveRef.current) return
     setRestoring(false)
     if (r.ok && r.body) { onRestored?.(r.body); return }

@@ -1770,6 +1770,32 @@
    ],
    "fast": true
   },
+  "layoutHistory.list": {
+   "domain": "layoutHistory",
+   "group": "layoutHistory",
+   "target": "layoutHistory",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
+  "layoutHistory.restore": {
+   "domain": "layoutHistory",
+   "group": "layoutHistory",
+   "target": "layoutHistory",
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
   "multiChart.cell": {
    "domain": "multiChart",
    "group": "multiChart",

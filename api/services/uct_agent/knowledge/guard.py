@@ -53,6 +53,9 @@ _INJECTION = re.compile(
     # Charts family (2026-11-12): the UCT Intelligence chart indicator (uctIntelligence.set as a bare name), on its own line; stricter only
     # (never the site's own domain: "uctintelligence.com" is prose)
     r"|\buctIntelligence\.(?!(?:com|net|org|io|co|ai|app|dev|us)\b)[a-z][A-Za-z]*\b"
+    # Charts family (2026-11-14): Layouts → Version history (layoutHistory.list / layoutHistory.restore as bare names), on its
+    # own line; stricter only
+    r"|\blayoutHistory\.[a-z][A-Za-z]*\b"
     r"|\b(call|use|invoke)\s+the\s+\w+\s+tool\b|\btool_use\b|\bfunction_call\b",
     re.I)
 _CTRL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")

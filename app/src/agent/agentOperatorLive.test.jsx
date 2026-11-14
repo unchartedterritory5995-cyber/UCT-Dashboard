@@ -225,7 +225,9 @@ describe('L3 · destructive / permanent changes still need approval', () => {
       'definition.delete', 'definition.duplicate', 'drawing.clear', 'drawing.deleteBoard', 'drawing.setAlert', 'drawing.setPositionAlerts', 'indicator.discardDraft', 'indicator.remove', 'indicator.saveDraft',
       // W1-B B-03 (owner's Wave 1 directive: create = risk 'confirm'; delete is a hard delete in the product)
       'indicatorAlert.create', 'indicatorAlert.delete', 'indicatorTemplate.delete', 'layout.create',
-      'layout.delete', 'layout.duplicate', 'layout.rename', 'layout.saveAs', 'layout.saveCurrent', 'screener.deleteSaved', 'screener.duplicateSaved',
+      'layout.delete', 'layout.duplicate', 'layout.rename', 'layout.saveAs', 'layout.saveCurrent',
+      // Layouts → Version history: a restore replaces the whole board (a server write) — always shown first
+      'layoutHistory.restore', 'screener.deleteSaved', 'screener.duplicateSaved',
       'screener.renameSaved', 'screener.saveAs', 'watchlist.clear', 'watchlist.create', 'watchlist.delete', 'watchlist.keepOnly', 'watchlist.rename', 'widget.sendToJournal'])
     // the new grid is an ordinary, reversible workspace change (exact Undo)
     expect(getCapability('chartGrid.set')).toMatchObject({ target: 'board' })
