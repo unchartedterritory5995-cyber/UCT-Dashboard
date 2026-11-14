@@ -67,10 +67,15 @@ def test_the_family_holds_every_column_the_pass_writes():
     own, all in the same dark family; `tests/test_rs_screens_u4_registration.py` holds the
     whole of it. What still holds here: every column the pass writes is in the family, and
     the nine lead it."""
-    assert set(pp.OWNED_COLUMNS) == set(snapshot_db.POST_PASS_COLUMNS) == set(NINE) | {"rs_rating_prev20"}
-    assert set(pp.OWNED_COLUMNS) <= set(F.RS_SCREENS_KEYS)
+    # Pin moved 2026-11-14 (unit U12): the pass also writes UCT RS Leaders' two list columns
+    # (`pp.LEADERS_COLUMNS`), so the schema's set is `pp.PASS_COLUMNS`.
+    assert set(pp.OWNED_COLUMNS) == set(NINE) | {"rs_rating_prev20"}
+    assert set(pp.PASS_COLUMNS) == set(snapshot_db.POST_PASS_COLUMNS)
+    assert set(pp.PASS_COLUMNS) <= set(F.RS_SCREENS_KEYS)
     assert tuple(F.RS_SCREENS_KEYS[:9]) == NINE
-    assert len(F.RS_SCREENS_KEYS) == len(set(F.RS_SCREENS_KEYS)) == 23
+    # 23 -> 25 on 2026-11-14 (unit U12): the two weekly RS new high columns the build writes
+    # 25 -> 27 on 2026-11-14 (unit U12): UCT RS Leaders' two list columns the pass writes
+    assert len(F.RS_SCREENS_KEYS) == len(set(F.RS_SCREENS_KEYS)) == 27
 
 
 def test_every_screens_key_is_dark_while_the_flag_is_off_whatever_the_other_flags_say():

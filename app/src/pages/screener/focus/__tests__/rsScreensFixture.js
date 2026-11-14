@@ -54,6 +54,20 @@ export const BEFORE_PRICE = byId('starter_rs_nh_before_price')
 export const LEADERS = byId('starter_rs_leaders')
 export const EXIT_WARNINGS = byId('starter_rs_exit_warning_5')
 
+// A RANKED starter with quick controls, a row and a named order: the shape UCT RS Leaders had
+// until unit U12. The server keeps that list itself now (a membership column and a plain sort),
+// so no served starter ranks any more; the page still supports one, and the tests that hold the
+// ranked paths read this. DERIVED from the served Leaders (its rules without the membership
+// clause, its controls, its view, its row), never typed: the only thing written here is the rank
+// it used to carry.
+export const RANKED_LEADERS = freeze({
+  ...LEADERS, id: 'starter_ranked_leaders', name: 'Ranked leaders',
+  spec: { filters: LEADERS.spec.filters.filter(f => f.key !== 'rs_leaders_member'), view: LEADERS.spec.view,
+    rank: { criteria: [{ key: 'rs_rating_score', weight: 1 }], top_n: 50 } },
+  // `list`: a list screen like the one it is derived from, so it has "Why isn't a stock here?".
+  row: { place: LEADERS.row.place, caption: LEADERS.row.caption, tags: LEADERS.row.tags, sort_label: LEADERS.row.sort_label, list: LEADERS.row.list },
+})
+
 // What is served around the five (see the header): `hidden`, `words`, `method`.
 export const SERVED = freeze(readServerFixture('rs_screens_served.json'))
 // `hidden: true` while the flag is on: out of the picker's groups and search, still resolvable by id.

@@ -84,6 +84,8 @@ function RsScreensSection({ doc, sectionRef }) {
       {text(doc.floor) && <p className={styles.how}>{doc.floor}</p>}
       {/* Unit U8: when a row's earnings tag is shown, and that a missing one is not "none soon". */}
       {text(doc.earnings) && <p className={styles.how} data-testid="rs-method-earnings">{doc.earnings}</p>}
+      {/* Unit U12: what the "Weekly RS high" tag and the Weekly choice of When read. */}
+      {text(doc.weekly) && <p className={styles.how} data-testid="rs-method-weekly">{doc.weekly}</p>}
       {screens.map((s) => (
         <article key={s.id || s.name} className={styles.card}>
           <h4 className={styles.label}>{s.name}</h4>

@@ -6,7 +6,8 @@
 // ⛔ FAIL CLOSED. A value the row does not carry (null, absent, not a finite number) prints
 // nothing. No part is ever guessed from another, and a missing part leaves no separator behind.
 
-import { shortDay } from './dates'
+import { shortDay, isoDay } from './dates'
+import { etCalendarDaysBetween } from '../../../lib/marketClock/etTime'
 
 const isNum = v => typeof v === 'number' && Number.isFinite(v)
 const fmtInt = n => Math.round(n).toLocaleString('en-US')
@@ -26,6 +27,11 @@ export function rowConfigOf(starter, place = null) {
     place: own && own !== INDEX_PLACE && typeof place === 'string' && place ? place : own,
     caption: Array.isArray(r.caption) ? r.caption.filter(p => typeof p === 'string') : [],
     tags: Array.isArray(r.tags) ? r.tags.filter(t => typeof t === 'string') : [],
+    // A LIST screen (unit U12, `row.list`): one a stock qualifies for by passing rules. The
+    // first-visit line and "Why isn't a stock here?" are shown only there, never on RS exit warnings.
+    list: r.list === true,
+    // Notes for the why strip only (unit U12), in the starter's order; [] on every other screen.
+    facts: Array.isArray(r.facts) ? r.facts.filter(p => typeof p === 'string') : [],
   }
 }
 
@@ -107,16 +113,42 @@ export function captionOf(row, cfg, theme = null) {
   return (cfg?.caption || []).map(p => (PARTS[p] ? PARTS[p](row, theme, cfg) : '')).filter(Boolean).join(' · ')
 }
 
-// A report inside the week (unit U8): `days_to_earnings` is whole calendar days from the build's
-// date to the stock's next earnings report. The server knows that date for under half the names
-// (43% on 2026-11-14), so a row without one says NOTHING: no tag is never "no earnings soon".
-// Past this many days nothing is said either (tests/test_rs_screens_u8_earnings.py holds this
-// number against the one the method page states, rs_screens.EARNINGS_TAG_DAYS).
+// A report inside the week (unit U8). The server knows the next report's date for under half the
+// names (43% on 2026-11-14), so a row without one says NOTHING: no tag is never "no earnings
+// soon". Past this many days nothing is said either (tests/test_rs_screens_u8_earnings.py holds
+// this number against the one the method page states, rs_screens.EARNINGS_TAG_DAYS).
 export const EARNINGS_TAG_MAX_DAYS = 5
-export function earningsWords(row) {
+// Whole calendar days from TODAY IN NEW YORK to the report (unit U12). `days_to_earnings` is
+// counted from the build's date, so on a Saturday or a Sunday (and all of Monday before the
+// 03:00 ET build) it was one or two days too many, and a report on Monday read "in 3 days" all
+// weekend. The row's own `next_earnings_date` is counted from today instead. A row that does
+// not carry the date falls back to the stored count; a date already past says nothing, and is
+// never replaced by that count (the count was right only on the day it was stored).
+export function earningsDays(row, now = Date.now()) {
+  const day = isoDay(row?.next_earnings_date)
+  if (day) {
+    const n = etCalendarDaysBetween(typeof now === 'number' ? now : now.getTime(), day)
+    return Number.isInteger(n) ? n : null
+  }
   const n = row?.days_to_earnings
-  if (!Number.isInteger(n) || n < 0 || n > EARNINGS_TAG_MAX_DAYS) return ''
+  return Number.isInteger(n) ? n : null
+}
+export function earningsWords(row, now = Date.now()) {
+  const n = earningsDays(row, now)
+  if (n === null || n < 0 || n > EARNINGS_TAG_MAX_DAYS) return ''
   return n === 0 ? 'Earnings today' : n === 1 ? 'Earnings tomorrow' : `Earnings in ${n} days`
+}
+
+// `rs_nh_weekly` (unit U12): 1 when the weekly RS line (weekly close / SPY's) finished the last
+// completed week at or above its highest value of the 52 weeks before.
+export const weeklyWords = row => (row?.rs_nh_weekly === 1 ? 'Weekly RS high' : '')
+
+// `rs_leaders_days` (unit U12): consecutive sessions the stock has been on UCT RS Leaders,
+// counting today. A why strip fact, never a caption part: the caption says what the stock is
+// doing, and how long it has been listed is a quieter thing to know.
+export function daysWords(row) {
+  const n = row?.rs_leaders_days
+  return Number.isInteger(n) && n >= 1 ? `Day ${fmtInt(n)} on this list` : ''
 }
 
 // ── tags: ONE per row, the first of the starter's list that applies ────────
@@ -124,6 +156,10 @@ export const NEW_TAG = 'New'
 const TAGS = {
   // First on every list screen: a report inside the week changes what a setup means.
   earnings: row => earningsWords(row),
+  // The WEEKLY RS line closed its last finished week at a 52-week high (unit U12): the house
+  // lesson is the weekly line, so it is said before the daily readings. Only a stored 1 says it;
+  // a 0, a blank (under 53 finished weeks, or off the liquid floor) says nothing.
+  weekly: row => weeklyWords(row),
   // The RS line made its high while price was still at least 3% under its own.
   before_price: row => (isNum(row?.rs_nhbp_age) && isNum(row.px_below_high_pct) && row.px_below_high_pct <= -3 ? 'Before price' : ''),
   // The newest RS high came on a session the market fell.
@@ -158,8 +194,12 @@ const PART_COLUMNS = {
   moving: ['rs_rating_pos_prev20', 'rs_rating_pos', 'rs_rating_chg_5'],
   exit_warning: ['rs_exit_last', 'rs_exit_bars_ago'],
 }
+// The why strip's own facts a starter may ask for (`row.facts`, unit U12).
+const FACTS = { days: row => daysWords(row) }
+const FACT_COLUMNS = { days: ['rs_leaders_days'] }
 const TAG_COLUMNS = {
-  earnings: ['days_to_earnings'],
+  earnings: ['days_to_earnings', 'next_earnings_date'],
+  weekly: ['rs_nh_weekly'],
   before_price: ['rs_nhbp_age', 'px_below_high_pct'],
   down_day: ['rs_nh_red_bars_ago', 'rs_nh_bars_ago'],
   flag: ['rs_flag'],
@@ -175,6 +215,7 @@ export function rowColumns(cfg) {
     ...(cfg.place && cfg.place !== INDEX_PLACE ? [cfg.place] : []),
     ...cfg.caption.flatMap(p => PART_COLUMNS[p] || []),
     ...cfg.tags.flatMap(t => TAG_COLUMNS[t] || []),
+    ...(cfg.facts || []).flatMap(p => FACT_COLUMNS[p] || []),
   ])]
 }
 
@@ -215,9 +256,13 @@ export function sectorShare(rows) {
 // ── the why strip's fact notes ─────────────────────────────────────────────
 // Facts about the row the screen did NOT test, so each is a note (an open circle), never a
 // tick. Most distinctive first; the strip's own cap decides how many are shown.
-export function rowFacts(row) {
+// `cfg` (unit U12): the screen's row recipe. The facts it asks for by name (`row.facts`, "Day 12
+// on this list" on UCT RS Leaders) lead, because the strip shows only its first two on a screen
+// with many filters and these are said nowhere else on the row.
+export function rowFacts(row, cfg = null) {
   const pos = row?.rs_rating_pos
   const n = row?.rs_rating_pos_n
   const place = isNum(pos) ? `RS Rating place ${fmtInt(pos)}${isNum(n) ? ` of ${fmtInt(n)}` : ''}` : ''
-  return [setupWords(row), rsHighAgeWords(row), belowHighWords(row), place].filter(Boolean).map(label => ({ kind: 'note', label }))
+  const own = (cfg?.facts || []).map(p => (FACTS[p] ? FACTS[p](row) : ''))
+  return [...own, setupWords(row), rsHighAgeWords(row), belowHighWords(row), place].filter(Boolean).map(label => ({ kind: 'note', label }))
 }

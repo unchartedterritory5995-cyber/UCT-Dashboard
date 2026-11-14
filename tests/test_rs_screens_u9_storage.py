@@ -336,7 +336,10 @@ def test_flag_off_the_post_pass_is_the_one_it_was(monkeypatch):
     before = _tables()
     r = pp.run(S)
     assert r["ok"] and r["ranked"] == 16
-    assert _tables() - before == {pp.POS_TABLE, pp.RUNS_TABLE}
+    # Pin moved 2026-11-14 (unit U12): the pass also keeps UCT RS Leaders' record
+    # (`rs_leaders_list.TABLE`; this seed holds stocks that qualify). Still no shadow table.
+    from api.services.screener import rs_leaders_list
+    assert _tables() - before == {pp.POS_TABLE, pp.RUNS_TABLE, rs_leaders_list.TABLE}
     assert sh.TABLE not in _tables() and sh.HISTORY_TABLE not in _tables()
 
 

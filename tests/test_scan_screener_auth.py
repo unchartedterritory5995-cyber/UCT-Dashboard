@@ -99,7 +99,10 @@ ROOT = Path(__file__).resolve().parents[1]
 #: `paid`, which is what it must be: it returns the full criteria library
 #: including verbatim source quotes.
 EXPECTED_SCANS_ROUTES = 16
-EXPECTED_SCREENER_ROUTES = 28  # +1 2026-11-14: GET /api/screener/row/{ticker} (RS screens unit
+EXPECTED_SCREENER_ROUTES = 29  # +1 2026-11-14: GET /api/screener/rows (RS screens unit U12, the
+#   "N dropped" popover's reasons: the single-row read below, batched, at most 25 names).
+#   PAID like /scan; 404 while RS_SCREENS_ENABLED is off.
+#                              # +1 2026-11-14: GET /api/screener/row/{ticker} (RS screens unit
 #   U8, "Why isn't a stock here?": one stock's row for named columns). PAID like /scan,
 #   whose stored numbers it returns; 404 while RS_SCREENS_ENABLED is off.
 #                              # +1 2026-10-16: GET /api/screener/sparks (~3 months of daily

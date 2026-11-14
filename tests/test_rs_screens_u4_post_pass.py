@@ -281,6 +281,7 @@ def test_rs_rating_prev20_is_carried_too_and_blank_on_an_unverified_row():
 
 def test_the_pass_owns_ten_columns_and_the_new_one_is_an_integer():
     assert "rs_rating_prev20" in pp.OWNED_COLUMNS and len(pp.OWNED_COLUMNS) == 10
-    assert set(pp.OWNED_COLUMNS) == set(snapshot_db.POST_PASS_COLUMNS)
+    # unit U12: with UCT RS Leaders' two list columns the pass writes twelve in all
+    assert set(pp.PASS_COLUMNS) == set(snapshot_db.POST_PASS_COLUMNS) and len(pp.PASS_COLUMNS) == 12
     assert snapshot_db._coldef("rs_rating_prev20") == "rs_rating_prev20 INTEGER"
     assert snapshot_db.COLUMNS.count("rs_rating_prev20") == 1

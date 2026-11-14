@@ -61,15 +61,24 @@ BANNED = re.compile(r"\b(buys|buying|buyable|sell|sells|selling|RSI)\b|\bbuy\b(?
 
 def test_the_fourteen_are_the_contracts_columns_from_their_two_writers():
     assert set(FOURTEEN) == {"rs_rating_prev20"} | set(BUILD) and len(BUILD) == 13
-    assert set(rs_post_pass.OWNED_COLUMNS) == set(snapshot_db.POST_PASS_COLUMNS) == \
-        set(U1_NINE) | {"rs_rating_prev20"}
+    assert set(rs_post_pass.OWNED_COLUMNS) == set(U1_NINE) | {"rs_rating_prev20"}
+    # unit U12: the pass also writes UCT RS Leaders' two list columns
+    assert set(rs_post_pass.PASS_COLUMNS) == set(snapshot_db.POST_PASS_COLUMNS)
     assert tuple(F.RS_SCREENS_KEYS[:9]) == U1_NINE
-    assert set(F.RS_SCREENS_KEYS) == set(U1_NINE) | set(FOURTEEN)
-    assert len(F.RS_SCREENS_KEYS) == len(set(F.RS_SCREENS_KEYS)) == 23
+    # Pin moved 2026-11-14 (unit U12): the family gained the two weekly RS new high columns
+    # (`rs_columns.WEEKLY_COLUMNS`, the build's `bars_rs_weekly` step), after this unit's
+    # fourteen. tests/test_rs_screens_u12_weekly.py holds those two.
+    # ... and UCT RS Leaders' two list columns (`rs_post_pass.LEADERS_COLUMNS`), held by
+    # tests/test_rs_screens_u12_leaders.py.
+    assert set(F.RS_SCREENS_KEYS) == set(U1_NINE) | set(FOURTEEN) | set(rs_columns.WEEKLY_COLUMNS) \
+        | set(rs_post_pass.LEADERS_COLUMNS)
+    assert set(F.RS_SCREENS_KEYS[9:23]) == set(FOURTEEN)
+    assert len(F.RS_SCREENS_KEYS) == len(set(F.RS_SCREENS_KEYS)) == 27
     for key in FOURTEEN:
         assert snapshot_db.COLUMNS.count(key) == 1, key
     # the build loop writes thirteen; only the rating a month ago is the pass's
     assert set(BUILD) & set(snapshot_db.POST_PASS_COLUMNS) == set()
+    assert set(FOURTEEN) & set(snapshot_db.POST_PASS_COLUMNS) == {"rs_rating_prev20"}
 
 
 def test_each_is_a_relative_strength_control_kept_from_the_agent():

@@ -165,7 +165,9 @@ test('a first open that lands on a pinned RS screen applies the remembered choic
   mount()
   await landedOn('UCT RS Leaders \\(edited\\)')
   expect(clauseOf(scanBodies().at(-1), 'rs_rank')).toEqual({ op: 'gte', min: 90 })
-  expect(scanBodies().at(-1).rank).toEqual(LEADERS.spec.rank)
+  // unit U12: the screen is sorted by the score, and sends no rank
+  expect(scanBodies().at(-1).rank).toBeUndefined()
+  expect(scanBodies().at(-1).sort).toEqual(LEADERS.spec.sort)
   expect(checked(group(/^Min RS Rating/))).toEqual(['90'])
 })
 

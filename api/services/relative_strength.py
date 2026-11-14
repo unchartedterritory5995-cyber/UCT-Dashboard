@@ -1503,6 +1503,59 @@ def close_below_high_pct_last(closes: Column, window: int = DEFAULT_LOOKBACK) ->
     return (seg[-1] / max(seg) - 1.0) * 100.0
 
 
+# ── The WEEKLY RS new high (RS screens unit U12, 2026-11-14) ─────────────────
+#
+# The house lesson is the WEEKLY RS line making a new high before price does; the
+# daily event series above is the faster, noisier reading of the same idea. The
+# rule is the daily one on weekly bars, so the two cannot drift: the weekly RS
+# line is the weekly close over the benchmark's weekly close joined by bar time
+# (`rs_line`), a new high is `rolling_extreme_event` (a tie counts, as on the
+# daily dot), and "before price" is `and_not` against the same event asked of the
+# weekly close with a tolerance, exactly the shape of `rsNHbeforePx`.
+#
+# ⛔ COMPLETED WEEKS ONLY, AND THAT IS THE CALLER'S JOB. A week still in progress
+# has no weekly close; `screener.rs_columns.weekly_fields` drops it before asking.
+
+#: The prior weeks a weekly RS new high is measured against: a year of weeks.
+WEEKLY_NH_LOOKBACK = 52
+#: "Before price" on weekly bars: the weekly close is MORE than this far under the
+#: highest weekly close of the prior `WEEKLY_NH_LOOKBACK` weeks, percent. Wider
+#: than the daily 2% because a week's close moves further than a day's.
+WEEKLY_NHBP_BELOW_PCT = 3.0
+
+
+def weekly_rs_high_last(week_bars: Sequence[dict], bench_week_bars: Sequence[dict],
+                        lookback: int = WEEKLY_NH_LOOKBACK,
+                        below_pct: float = WEEKLY_NHBP_BELOW_PCT) -> Dict[str, MaybeNum]:
+    """``{"rsNH", "rsNHbeforePx"}`` for the NEWEST of ``week_bars``, each ``1.0`` /
+    ``0.0`` / ``None``.
+
+    * ``rsNH``: the newest week's RS value (weekly close / benchmark weekly close)
+      is at or above the highest of the prior ``lookback`` weeks. A tie is a new
+      high (`rolling_extreme_event`'s rule, the daily dot's).
+    * ``rsNHbeforePx``: that, while the weekly close is more than ``below_pct``
+      percent below the highest weekly close of the same prior weeks. A close
+      exactly ``below_pct`` under it is NOT before price.
+
+    ``None`` for both under ``lookback + 1`` weeks, when the benchmark has no bar
+    for the newest week, and when any of the prior ``lookback`` weeks has no RS
+    reading (a window with a hole has no honest maximum). Both arguments are
+    weekly bar dicts on one calendar (the same ``t`` names the same week)."""
+    out: Dict[str, MaybeNum] = {"rsNH": None, "rsNHbeforePx": None}
+    lookback = operator.index(lookback)
+    if lookback <= 0 or len(week_bars) < lookback + 1:
+        return out
+    # The newest value reads its own bar and the `lookback` before it, no more.
+    tail = list(week_bars[-(lookback + 1):])
+    line = rs_line(tail, bench_week_bars)
+    rs_nh = rolling_extreme_event(line, lookback, high=True)
+    closes: Column = [float(b["c"]) if _is_num(b.get("c")) else None for b in tail]
+    px_near = rolling_extreme_event(closes, lookback, high=True, tolerance_pct=below_pct)
+    out["rsNH"] = rs_nh[-1]
+    out["rsNHbeforePx"] = and_not(rs_nh, px_near)[-1]
+    return out
+
+
 # ── The Leader score's "Steady" input (RS screens unit U9, 2026-11-14) ───────
 #
 # Plan 2026-11-14 v2, section 8: "Steady: sign(return) x (share of up days - share

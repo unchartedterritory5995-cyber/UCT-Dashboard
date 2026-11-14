@@ -776,9 +776,53 @@ def _rs_screens_build_methods(s: dict) -> list:
             "how": (f"(close minus the {n}-day EMA) divided by the EMA, x 100, to two decimals. "
                     f"Blank until the average exists, and {contradicts}. " + note),
             "caveat": f"The {n}-day EMA {speed}."})
+    out.extend(_rs_weekly_methods(s, note))
+    out.extend(_rs_leaders_methods(pass_note))
     for m in out:
         m["label"] = label(m["column"])
     return out
+
+
+def _rs_weekly_words() -> dict:
+    """The weekly RS new high's numbers, read from the writer (`rs_columns`): one copy
+    for the two column methods and for the screens' page."""
+    from api.services.screener import rs_columns as _rc             # noqa: PLC0415
+    return {"weeks": _rc.WEEKLY_LOOKBACK, "need": _rc.WEEKLY_MIN_WEEKS,
+            "below": f"{_rc.WEEKLY_BELOW_PCT:g}%"}
+
+
+def _rs_weekly_methods(s: dict, note: str) -> list:
+    """The two weekly RS new high columns (unit U12), which the build's
+    `bars_rs_weekly` step writes for rows on the liquid floor."""
+    w = _rs_weekly_words()
+    flag = "0 or 1 (1 = yes)"
+    weekly = (f"A week is its last session's close, and the weekly RS line is that close "
+              f"divided by SPY's close for the same week. Only finished weeks count: the "
+              f"current week joins once its last session has closed, so the answer changes "
+              f"once a week.")
+    blank = (f"Blank until the stock has {w['need']} finished weeks of bars, for a stock under "
+             f"a price of {s['price']} or under {s['dollar_vol']} traded a day, for a fund, "
+             f"and for a stock whose price history contradicts itself.")
+    return [
+        {"column": "rs_nh_weekly",
+         "one_line": (f"Yes when the weekly RS line against SPY closed the last finished week "
+                      f"at a {w['weeks']}-week high."),
+         "scale": flag,
+         "how": (f"{weekly} Yes when the last finished week's value is at or above the highest "
+                 f"of the {w['weeks']} weeks before it. {blank} " + note),
+         "caveat": ("The weekly reading is slower and steadier than the daily one. It is "
+                    "still a description of the past year, not a forecast.")},
+        {"column": "rs_nhbp_weekly",
+         "one_line": (f"Yes when the weekly RS line is at a {w['weeks']}-week high while the "
+                      f"weekly close is still more than {w['below']} below its own."),
+         "scale": flag,
+         "how": (f"{weekly} Yes when the last finished week's value is at or above the highest "
+                 f"of the {w['weeks']} weeks before it and that week's close is more than "
+                 f"{w['below']} below the highest weekly close of the same {w['weeks']} weeks. "
+                 f"{blank} " + note),
+         "caveat": ("The RS line leading price is a trader's rule with no published test. "
+                    "Price may never follow.")},
+    ]
 
 
 def _pct_words(fraction: float) -> str:
@@ -827,7 +871,8 @@ def rs_screens_section() -> dict:
              f"{week} sessions, and the stock closed above its 200-day average. Newest first; "
              f"stocks whose RS high came on the same session are ordered by RS Rating score."),
          "controls": (
-             f"When: today, the last {week} sessions, or the last {month}. Min RS Rating. "
+             f"When: today, the last {week} sessions, the last {month}, or Weekly, which "
+             f"reads finished weeks in place of sessions. Min RS Rating. "
              f"Market: Down days only keeps a stock whose RS line made that high within the "
              f"last {down} sessions on a day SPY closed down {_red_day_words()} or more."),
          "caveat": (
@@ -840,7 +885,8 @@ def rs_screens_section() -> dict:
              f"{far}% below that high, and above its 200-day average. Closest to its high "
              f"first. A stock leaves the list once price makes its high."),
          "controls": (
-             f"When: today, the last {week} sessions, or the last {month}. Below its high by: "
+             f"When: today, the last {week} sessions, the last {month}, or Weekly, which "
+             f"reads finished weeks in place of sessions. Below its high by: "
              f"at least {', '.join(f'{n}%' for n in _sc.BELOW_HIGH_CHOICES[:-1])} or "
              f"{_sc.BELOW_HIGH_CHOICES[-1]}%. Min RS Rating."),
          "caveat": (
@@ -852,8 +898,8 @@ def rs_screens_section() -> dict:
              f"{_sc.LEADERS_MIN_ADR_PCT}% or more, a market value of {cap} or more, RS Rating "
              f"{_sc.LEADERS_MIN_RATING} or higher, the RS line above its 21-day average, a "
              f"close above a rising 200-day average, and price within "
-             f"{-_sc.LEADERS_MAX_BELOW_HIGH}% of its 52-week high. The {_sc.LEADERS_TOP_N} "
-             f"with the highest RS Rating score are shown, strongest first."),
+             f"{-_sc.LEADERS_MAX_BELOW_HIGH}% of its 52-week high. "
+             + _rs_leaders_list_words()),
          "controls": (
              "Show: all, only stocks near a buy point, or everything except Extended and "
              "Below its 50-day line. Min RS Rating: "
@@ -889,6 +935,9 @@ def rs_screens_section() -> dict:
             f"A row says when the stock next reports earnings only when that date is known "
             f"to us and is {_sc.EARNINGS_TAG_DAYS} days away or less, so a row without the "
             f"tag may still have a report coming."),
+        # Unit U12: the weekly reading behind the "Weekly RS high" tag and the Weekly
+        # choice of When. One sentence, every number the writer's.
+        "weekly": _rs_weekly_sentence(),
         "ratings_as_of": (
             "Ratings as of names the market session the RS Rating numbers on a row describe. "
             "The rating job scores each completed session at 04:15 ET the next morning. "
@@ -900,6 +949,59 @@ def rs_screens_section() -> dict:
                     "stocks to study, not what will happen next, and none of them is a "
                     "forecast or a recommendation."),
     }
+
+
+def _ordinal(n: int) -> str:
+    """`65` -> `65th`, `51` -> `51st`: a rank, in words a member reads."""
+    n = int(n)
+    if 10 <= n % 100 <= 20:
+        return f"{n}th"
+    return f"{n}{ {1: 'st', 2: 'nd', 3: 'rd'}.get(n % 10, 'th') }"
+
+
+def _rs_leaders_list_words() -> str:
+    """How UCT RS Leaders keeps its list (unit U12), every number read from
+    `rs_screens`: one copy for the screen's rule and for the two column methods."""
+    from api.services.screener import rs_screens as _sc            # noqa: PLC0415
+    top, hold = _sc.LEADERS_TOP_N, _sc.LEADERS_HOLD_RANK
+    return (f"A stock joins the list when it ranks in the top {top} of these by RS Rating score "
+            f"and a place is free, and stays until it falls past {_ordinal(hold)} or stops passing "
+            f"a rule, so a stock at the edge does not come and go from one day to the next. The "
+            f"list holds at most {top}, strongest first, and is decided once a session.")
+
+
+def _rs_leaders_methods(note: str) -> list:
+    """The two UCT RS Leaders list columns (unit U12), which `rs_leaders_list.run`
+    writes inside the rating pass."""
+    rule = _rs_leaders_list_words()
+    return [
+        {"column": "rs_leaders_member",
+         "one_line": "Yes when the stock is on the UCT RS Leaders list today.",
+         "scale": "0 or 1 (1 = yes)",
+         "how": (f"The stocks that pass every rule of the UCT RS Leaders screen are ordered by RS "
+                 f"Rating score, highest first. {rule} Blank on a row the build has just rewritten "
+                 f"until the pass runs, and when the list could not be computed. " + note),
+         "caveat": ("The list says which stocks to study. A place on it is a rank of past "
+                    "return, not a forecast.")},
+        {"column": "rs_leaders_days",
+         "one_line": "How many sessions in a row the stock has been on UCT RS Leaders.",
+         "scale": "sessions, 1 = joined today",
+         "how": ("Counts back through the stored record of the list, one session at a time, and "
+                 "stops at the first session the stock was not on it or where the record ends. "
+                 "Today counts. Blank for a stock that is not on the list. " + note),
+         "caveat": ("A long run says the stock kept its place among the strongest. It does not "
+                    "say the run will go on.")},
+    ]
+
+
+def _rs_weekly_sentence() -> str:
+    """The method page's one sentence on the weekly reading (unit U12)."""
+    w = _rs_weekly_words()
+    return (f"The Weekly RS high tag and the Weekly choice of When read weekly closes in "
+            f"place of daily ones: the stock's weekly RS line finished its last full week at "
+            f"or above its highest value of the {w['weeks']} weeks before, and on RS New High "
+            f"Before Price the Weekly choice also needs that week's close more than "
+            f"{w['below']} below its highest weekly close of those {w['weeks']} weeks.")
 
 
 def _left_out_words() -> str:
@@ -1416,7 +1518,11 @@ def rs_columns_section() -> dict:
             "names the session the rating columns on a row describe. Thirteen more (six "
             "measures of the RS line's recent highs, the Setup label with its tight tag, flag "
             "and near answer, and three of the label's own inputs) are computed in the same "
-            "03:00 ET build from the same bars, only while the RS screens are switched on."),
+            "03:00 ET build from the same bars, only while the RS screens are switched on. "
+            "Two more (the weekly RS new high and its before-price reading) are computed in "
+            "that build from the same bars grouped into finished weeks, for liquid stocks only. "
+            "Two more (whether a stock is on the UCT RS Leaders list and for how many sessions) "
+            "are filled by the same pass that fills the places."),
         "notes": [
             # U9 (RS split): these two notes no longer name a chart Reading. The slim UCT RS
             # Line draws no Mansfield line and no sensitivity row (map §(a) U7); the screener

@@ -266,6 +266,22 @@ COLUMNS = [
     "rs_setup", "rs_tight", "rs_flag", "rs_near_buy",
     "atr_ext_ema21", "pct_vs_ema8", "pct_vs_ema21",
     "rs_rating_prev20",
+    # ⭐ UCT RS SCREENS, the WEEKLY RS new high (unit U12, 2026-11-14). Written by the
+    # build LOOP's `bars_rs_weekly` step (`rs_columns.weekly_fields`), only while
+    # RS_SCREENS_ENABLED is on and only for a row on the RS liquid floor: INTEGER
+    # 0/1, on completed weeks. `rs_nh_weekly`: the last completed week's RS value
+    # (weekly close / SPY's) is at or above the highest of the prior 52 weeks.
+    # `rs_nhbp_weekly`: that, while the weekly close is more than 3% under its own
+    # highest weekly close of those weeks. NULL under 53 completed weeks and off
+    # the floor, never a guess. Additive: ALTER-added on init.
+    "rs_nh_weekly", "rs_nhbp_weekly",
+    # ⭐ UCT RS SCREENS, the steadier UCT RS Leaders list (unit U12, 2026-11-14). ONE
+    # writer, `rs_leaders_list.run`, inside `rs_post_pass.run` (`POST_PASS_COLUMNS`),
+    # dark behind RS_SCREENS_ENABLED. `rs_leaders_member` INTEGER: 1 on the list, 0 for
+    # every other row the pass answered. `rs_leaders_days` INTEGER: consecutive stored
+    # sessions on the list counting today, NULL off it. Both NULL on a row the build
+    # has rewritten until the pass runs, and when the pass could not compute the list.
+    "rs_leaders_member", "rs_leaders_days",
     # meta
     "snapshot_date", "bars_asof", "built_at",
 ]
@@ -284,7 +300,9 @@ POST_PASS_COLUMNS = frozenset({
     "rs_rating_session", "rs_rating_score", "rs_rating_pos", "rs_rating_pos_n",
     "rs_pos_1m", "rs_pos_3m", "rs_pos_6m", "rs_pos_12m", "rs_rating_pos_prev20",
     # unit U4: the RS Rating 20 stored sessions earlier
-    "rs_rating_prev20"})
+    "rs_rating_prev20",
+    # unit U12: UCT RS Leaders' list, written inside the pass by `rs_leaders_list.run`
+    "rs_leaders_member", "rs_leaders_days"})
 
 _TEXT = {"ticker", "company", "sector", "industry", "exchange", "security_type", "ma_stack",
          "candle_type", "candle_label", "candle_matches", "candle_trend",
@@ -368,7 +386,10 @@ _INT = {"uct_composite", "rs_rank", "inside_bar_run", "higher_lows_run",
         # ages, a span), two 0/1 flags, and the rating 20 stored sessions earlier.
         # `px_below_high_pct`, `atr_ext_ema21` and the two `pct_vs_ema*` are REAL.
         "rs_nh_count_20", "rs_nh_quiet", "rs_nh_red_bars_ago", "rs_nhbp_age", "rs_nh_span",
-        "rs_tight", "rs_near_buy", "rs_rating_prev20"}
+        "rs_tight", "rs_near_buy", "rs_rating_prev20",
+        # UCT RS screens (U12): the two weekly RS new high flags, 0/1, and UCT RS
+        # Leaders' list: a 0/1 flag and a count of sessions.
+        "rs_nh_weekly", "rs_nhbp_weekly", "rs_leaders_member", "rs_leaders_days"}
 
 
 # ---------------------------------------------------------------------------

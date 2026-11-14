@@ -3,14 +3,21 @@
 // (GET /api/screener/row/{ticker}) and checks the open screen's rules against it (whyNot.js),
 // then lists each rule with a tick or a cross and the stock's own value.
 //
-// Rendered by FocusScreener only on a screen whose starter has `row`; every other screen never
-// mounts it, and nothing here is asked of the server until a member submits a ticker.
+// Rendered by FocusScreener only on a LIST screen (a starter whose `row.list` is true: a list a
+// stock qualifies for by passing rules; unit U12). RS exit warnings is not one: a warning is
+// something that happened to a stock, so "why is it not here" has no rule to point at. Every
+// other screen never mounts it, and nothing here is asked of the server until a member submits
+// a ticker.
+//
+// `steady` (unit U12; rsScreens.steadyOf): the open starter keeps its own list (UCT RS Leaders).
+// The membership clause is then left out of the rules, and a stock that passes every rule and is
+// not listed is told its rank among the qualifiers and how the list is kept.
 //
 // Keyboard: Enter submits, Escape closes and hands focus back to the button that opened it.
 // The box sits outside the results listbox, so the list's own keys (W, Shift+F, "/") are not
 // heard while typing a ticker.
 import { useEffect, useId, useRef, useState } from 'react'
-import { cleanTicker, evaluateRules, whyNotColumns, rankAheadSpec, whyNotHeadline, NO_SUCH_STOCK, NOT_A_TICKER, COULD_NOT_CHECK } from './whyNot'
+import { cleanTicker, evaluateRules, whyNotColumns, rankAheadSpec, steadyAheadSpec, rulesWithout, whyNotHeadline, NO_SUCH_STOCK, NOT_A_TICKER, COULD_NOT_CHECK } from './whyNot'
 import focus from './FocusScreener.module.css'
 import styles from './RsScreens.module.css'
 
@@ -42,7 +49,7 @@ async function countAhead(spec) {
 // `screenKey`: the screen on view; a different screen forgets the last answer (it was about
 // the other screen's rules). `rows` are the loaded rows, `listRows` the ones on screen (fewer
 // while "New only" is on). `onFound(i)` selects row i of `listRows`, which scrolls to it.
-export default function WhyNotHere({ screenKey, filters, logic = null, rank = null, filterList = [], metaFilters = [], rows = [], listRows = [], hasMore = false, onFound }) {
+export default function WhyNotHere({ screenKey, filters, logic = null, rank = null, filterList = [], metaFilters = [], rows = [], listRows = [], hasMore = false, onFound, steady = null }) {
   const [open, setOpen] = useState(false)
   const [text, setText] = useState('')
   // What was last asked, filed under the screen it was asked of: { key, busy, answer }, where
@@ -70,19 +77,31 @@ export default function WhyNotHere({ screenKey, filters, logic = null, rank = nu
     const mine = ++seq.current
     setAsked({ key: screenKey, busy: true, answer: null })
     try {
-      const got = await fetchRow(ticker, whyNotColumns(filters, rank))
+      // A list that keeps its own members: its membership clause is the answer, not a rule.
+      const memberKey = steady && filters?.[steady.key] ? steady.key : null
+      const rules = memberKey ? rulesWithout(filters, memberKey) : filters
+      const columns = [...new Set([...whyNotColumns(rules, rank), ...(memberKey ? [memberKey, steady.by] : [])])]
+      const got = await fetchRow(ticker, columns)
       if (mine !== seq.current) return
       if (got.missing) { setAnswer({ message: NO_SUCH_STOCK }); return }
-      const ev = evaluateRules({ filters, logic, metaFilters, row: got.row })
+      const ev = evaluateRules({ filters: rules, logic, metaFilters, row: got.row })
       const topN = typeof rank?.top_n === 'number' ? rank.top_n : null
-      // Its place in the ranking, asked only when that place is what keeps it off the list.
+      const clean = !ev.failed && !ev.unknown && !got.stale
+      // Its place, asked only when that place is what keeps it off the list: its rank among the
+      // qualifiers of a list that keeps its own members, or its place in a capped ranking.
       let position = null
-      if (!ev.failed && !ev.unknown && !got.stale && topN != null) {
+      let kept = null
+      if (clean && memberKey && got.row[memberKey] !== 1) {
+        kept = steady
+        const ahead = await countAhead(steadyAheadSpec({ steady, row: got.row }))
+        if (mine !== seq.current) return
+        position = ahead == null ? null : ahead + 1
+      } else if (clean && topN != null) {
         const ahead = await countAhead(rankAheadSpec({ filterList, logic, rank, row: got.row }))
         if (mine !== seq.current) return
         position = ahead == null ? null : ahead + 1
       }
-      setAnswer({ headline: whyNotHeadline({ ticker, failed: ev.failed, unknown: ev.unknown, stale: got.stale, position, topN, hasMore }), items: ev.items })
+      setAnswer({ headline: whyNotHeadline({ ticker, failed: ev.failed, unknown: ev.unknown, stale: got.stale, position, topN, hasMore, steady: kept }), items: ev.items })
     } catch {
       if (mine === seq.current) setAnswer({ message: COULD_NOT_CHECK })
     }

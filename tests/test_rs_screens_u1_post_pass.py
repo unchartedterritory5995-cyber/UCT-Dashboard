@@ -161,9 +161,11 @@ def test_a_session_not_stored_yet_rewrites_no_rating_and_stamps_only_what_it_can
     assert after["AAA"]["rs_rating_session"] == PREV
     assert after["OLD"]["rs_rating_session"] is None, "a stamp the numbers do not match"
     assert after["NONE"]["rs_rating_session"] is None
+    # Pin moved 2026-11-14 (unit U12): the pass also writes UCT RS Leaders' two list columns
+    # (`pp.LEADERS_COLUMNS`), so "nothing else moved" is read over `pp.PASS_COLUMNS`.
     for t in before:
-        assert {k: v for k, v in after[t].items() if k not in pp.OWNED_COLUMNS} == \
-               {k: v for k, v in before[t].items() if k not in pp.OWNED_COLUMNS}, t
+        assert {k: v for k, v in after[t].items() if k not in pp.PASS_COLUMNS} == \
+               {k: v for k, v in before[t].items() if k not in pp.PASS_COLUMNS}, t
     assert (after["AAA"]["rs_rating_pos"], after["AAA"]["rs_rating_score"]) == (1, 1.3)
     assert all(after[t][c] is None for t in ("OLD", "NONE") for c in pp.OWNED_COLUMNS)
     assert pp.POS_TABLE not in _tables()
@@ -375,8 +377,11 @@ def test_the_receipt_is_stored_and_served_on_the_snapshot_status():
     assert r["populated"] == {"rs_rating_session": 1, "rs_rating_score": 1, "rs_rating_pos": 1,
                               "rs_rating_pos_n": 1, "rs_pos_1m": 1, "rs_pos_3m": 1, "rs_pos_6m": 1,
                               "rs_pos_12m": 1, "rs_rating_pos_prev20": 0,
-                              "rs_rating_prev20": 0}     # the tenth column (unit U4)
-    assert set(r["populated"]) == set(pp.OWNED_COLUMNS) == set(snapshot_db.POST_PASS_COLUMNS)
+                              "rs_rating_prev20": 0,     # the tenth column (unit U4)
+                              # unit U12: UCT RS Leaders' list. Both rows are answered (neither
+                              # qualifies, so each reads 0) and no row is on the list.
+                              "rs_leaders_member": 2, "rs_leaders_days": 0}
+    assert set(r["populated"]) == set(pp.PASS_COLUMNS) == set(snapshot_db.POST_PASS_COLUMNS)
     last = pp.last_run()
     assert last["session"] == S and last["source"] == "test" and last["ranked"] == 1
     assert snapshot_db.status()["rs_post_pass"] == last

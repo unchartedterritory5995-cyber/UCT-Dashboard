@@ -103,6 +103,12 @@ export const PLAIN_COLUMN_LABELS = {
   atr_ext_ema21: 'ATRs from 21-day exp. avg',
   pct_vs_ema8: 'vs 8-day exp. avg',
   pct_vs_ema21: 'vs 21-day exp. avg',
+  // UCT RS screens (unit U12): the weekly RS new high.
+  rs_nh_weekly: 'Weekly RS line at a 52-week high',
+  rs_nhbp_weekly: 'Weekly RS high ahead of price',
+  // UCT RS screens (unit U12): UCT RS Leaders' list.
+  rs_leaders_member: 'On the UCT RS Leaders list',
+  rs_leaders_days: 'Sessions on the UCT RS Leaders list',
 }
 
 export const plainColumnLabel = key => PLAIN_COLUMN_LABELS[key] || null

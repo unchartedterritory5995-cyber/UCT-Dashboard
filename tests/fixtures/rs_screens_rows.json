@@ -288,6 +288,7 @@
      "rs_rating_pos": 1,
      "rs_rating_pos_n": 62,
      "days_to_earnings": null,
+     "rs_nh_weekly": 1,
      "rs_nhbp_age": null,
      "rs_nh_red_bars_ago": 1,
      "rs_rating_score": 1.817316,
@@ -321,6 +322,7 @@
      "rs_rating_pos": 2,
      "rs_rating_pos_n": 62,
      "days_to_earnings": null,
+     "rs_nh_weekly": 1,
      "rs_nhbp_age": null,
      "rs_nh_red_bars_ago": 1,
      "rs_rating_score": 1.552571,
@@ -354,6 +356,7 @@
      "rs_rating_pos": 3,
      "rs_rating_pos_n": 62,
      "days_to_earnings": null,
+     "rs_nh_weekly": 1,
      "rs_nhbp_age": null,
      "rs_nh_red_bars_ago": 1,
      "rs_rating_score": 1.550208,
@@ -387,6 +390,7 @@
      "rs_rating_pos": 4,
      "rs_rating_pos_n": 62,
      "days_to_earnings": null,
+     "rs_nh_weekly": 1,
      "rs_nhbp_age": null,
      "rs_nh_red_bars_ago": 1,
      "rs_rating_score": 1.5204,
@@ -420,6 +424,7 @@
      "rs_rating_pos": 6,
      "rs_rating_pos_n": 62,
      "days_to_earnings": null,
+     "rs_nh_weekly": 1,
      "rs_nhbp_age": null,
      "rs_nh_red_bars_ago": 1,
      "rs_rating_score": 1.469931,
@@ -453,6 +458,7 @@
      "rs_rating_pos": 7,
      "rs_rating_pos_n": 62,
      "days_to_earnings": null,
+     "rs_nh_weekly": 1,
      "rs_nhbp_age": null,
      "rs_nh_red_bars_ago": 1,
      "rs_rating_score": 1.443241,
@@ -486,6 +492,7 @@
      "rs_rating_pos": 11,
      "rs_rating_pos_n": 62,
      "days_to_earnings": null,
+     "rs_nh_weekly": 1,
      "rs_nhbp_age": null,
      "rs_nh_red_bars_ago": 1,
      "rs_rating_score": 1.401511,
@@ -519,6 +526,7 @@
      "rs_rating_pos": 12,
      "rs_rating_pos_n": 62,
      "days_to_earnings": null,
+     "rs_nh_weekly": 1,
      "rs_nhbp_age": 0,
      "rs_nh_red_bars_ago": null,
      "rs_rating_score": 1.392682,
@@ -559,6 +567,7 @@
      "rs_rating_pos": 28,
      "rs_rating_pos_n": 62,
      "days_to_earnings": null,
+     "rs_nh_weekly": 1,
      "rs_nh_red_bars_ago": 1,
      "rs_rating_score": 1.235589,
      "base_bias": "neutral"
@@ -592,6 +601,7 @@
      "rs_rating_pos": 37,
      "rs_rating_pos_n": 62,
      "days_to_earnings": null,
+     "rs_nh_weekly": 1,
      "rs_nh_red_bars_ago": 1,
      "rs_rating_score": 1.170998,
      "base_bias": "bearish"
@@ -625,6 +635,7 @@
      "rs_rating_pos": 46,
      "rs_rating_pos_n": 62,
      "days_to_earnings": null,
+     "rs_nh_weekly": 1,
      "rs_nh_red_bars_ago": 1,
      "rs_rating_score": 1.098626,
      "base_bias": "neutral"
@@ -658,6 +669,7 @@
      "rs_rating_pos": 51,
      "rs_rating_pos_n": 62,
      "days_to_earnings": null,
+     "rs_nh_weekly": 1,
      "rs_nh_red_bars_ago": 1,
      "rs_rating_score": 1.061937,
      "base_bias": "bearish"
@@ -691,6 +703,7 @@
      "rs_rating_pos": 30,
      "rs_rating_pos_n": 62,
      "days_to_earnings": null,
+     "rs_nh_weekly": 1,
      "rs_nh_red_bars_ago": 1,
      "rs_rating_score": 1.226622,
      "base_bias": "bearish"
@@ -724,6 +737,7 @@
      "rs_rating_pos": 45,
      "rs_rating_pos_n": 62,
      "days_to_earnings": null,
+     "rs_nh_weekly": 1,
      "rs_nh_red_bars_ago": 1,
      "rs_rating_score": 1.106025,
      "base_bias": "neutral"
@@ -757,6 +771,7 @@
      "rs_rating_pos": 33,
      "rs_rating_pos_n": 62,
      "days_to_earnings": null,
+     "rs_nh_weekly": 1,
      "rs_nh_red_bars_ago": 1,
      "rs_rating_score": 1.198031,
      "base_bias": "bearish"
@@ -790,6 +805,7 @@
      "rs_rating_pos": 48,
      "rs_rating_pos_n": 62,
      "days_to_earnings": null,
+     "rs_nh_weekly": 1,
      "rs_nh_red_bars_ago": 1,
      "rs_rating_score": 1.07712,
      "base_bias": "bullish"
@@ -822,6 +838,7 @@
      "dist_52w_high_pct": -1.96,
      "rs_line_above_ma": 1,
      "rs_flag": null,
+     "rs_leaders_member": 1,
      "security_type": "Stock",
      "rs_rating_session": "2026-02-27",
      "rs_setup": "pullback_8",
@@ -831,8 +848,8 @@
      "rs_rating_pos": 1,
      "rs_rating_pos_n": 62,
      "days_to_earnings": null,
-     "uct_composite": null,
-     "rank_score": 100.0,
+     "rs_leaders_days": 21,
+     "rs_rating_score": 1.817316,
      "base_bias": "bullish"
     },
     {
@@ -857,6 +874,7 @@
      "dist_52w_high_pct": -1.96,
      "rs_line_above_ma": 1,
      "rs_flag": null,
+     "rs_leaders_member": 1,
      "security_type": "Stock",
      "rs_rating_session": "2026-02-27",
      "rs_setup": "pullback_8",
@@ -866,8 +884,8 @@
      "rs_rating_pos": 2,
      "rs_rating_pos_n": 62,
      "days_to_earnings": null,
-     "uct_composite": null,
-     "rank_score": 90.91,
+     "rs_leaders_days": 21,
+     "rs_rating_score": 1.552571,
      "base_bias": "bullish"
     },
     {
@@ -892,6 +910,7 @@
      "dist_52w_high_pct": -1.96,
      "rs_line_above_ma": 1,
      "rs_flag": null,
+     "rs_leaders_member": 1,
      "security_type": "Stock",
      "rs_rating_session": "2026-02-27",
      "rs_setup": "extended",
@@ -901,8 +920,8 @@
      "rs_rating_pos": 3,
      "rs_rating_pos_n": 62,
      "days_to_earnings": null,
-     "uct_composite": null,
-     "rank_score": 81.82,
+     "rs_leaders_days": 5,
+     "rs_rating_score": 1.550208,
      "base_bias": "bullish"
     },
     {
@@ -927,6 +946,7 @@
      "dist_52w_high_pct": -1.96,
      "rs_line_above_ma": 1,
      "rs_flag": null,
+     "rs_leaders_member": 1,
      "security_type": "Stock",
      "rs_rating_session": "2026-02-27",
      "rs_setup": "pullback_8",
@@ -936,8 +956,8 @@
      "rs_rating_pos": 4,
      "rs_rating_pos_n": 62,
      "days_to_earnings": null,
-     "uct_composite": null,
-     "rank_score": 72.73,
+     "rs_leaders_days": 21,
+     "rs_rating_score": 1.5204,
      "base_bias": "bullish"
     },
     {
@@ -962,6 +982,7 @@
      "dist_52w_high_pct": -6.86,
      "rs_line_above_ma": 1,
      "rs_flag": null,
+     "rs_leaders_member": 1,
      "security_type": "Stock",
      "rs_rating_session": "2026-02-27",
      "rs_setup": "pullback_21",
@@ -971,8 +992,8 @@
      "rs_rating_pos": 5,
      "rs_rating_pos_n": 62,
      "days_to_earnings": null,
-     "uct_composite": null,
-     "rank_score": 63.64,
+     "rs_leaders_days": 21,
+     "rs_rating_score": 1.470482,
      "base_bias": "neutral"
     },
     {
@@ -997,6 +1018,7 @@
      "dist_52w_high_pct": -1.96,
      "rs_line_above_ma": 1,
      "rs_flag": null,
+     "rs_leaders_member": 1,
      "security_type": "Stock",
      "rs_rating_session": "2026-02-27",
      "rs_setup": "pullback_8",
@@ -1006,8 +1028,8 @@
      "rs_rating_pos": 6,
      "rs_rating_pos_n": 62,
      "days_to_earnings": null,
-     "uct_composite": null,
-     "rank_score": 54.55,
+     "rs_leaders_days": 10,
+     "rs_rating_score": 1.469931,
      "base_bias": "bullish"
     },
     {
@@ -1032,6 +1054,7 @@
      "dist_52w_high_pct": -1.96,
      "rs_line_above_ma": 1,
      "rs_flag": null,
+     "rs_leaders_member": 1,
      "security_type": "Stock",
      "rs_rating_session": "2026-02-27",
      "rs_setup": "extended",
@@ -1041,8 +1064,8 @@
      "rs_rating_pos": 7,
      "rs_rating_pos_n": 62,
      "days_to_earnings": null,
-     "uct_composite": null,
-     "rank_score": 45.45,
+     "rs_leaders_days": 3,
+     "rs_rating_score": 1.443241,
      "base_bias": "bullish"
     },
     {
@@ -1067,6 +1090,7 @@
      "dist_52w_high_pct": -1.96,
      "rs_line_above_ma": 1,
      "rs_flag": null,
+     "rs_leaders_member": 1,
      "security_type": "Stock",
      "rs_rating_session": "2026-02-27",
      "rs_setup": "pullback_8",
@@ -1076,8 +1100,8 @@
      "rs_rating_pos": 8,
      "rs_rating_pos_n": 62,
      "days_to_earnings": null,
-     "uct_composite": null,
-     "rank_score": 36.36,
+     "rs_leaders_days": 18,
+     "rs_rating_score": 1.437978,
      "base_bias": "bullish"
     }
    ]

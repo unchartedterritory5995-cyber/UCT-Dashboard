@@ -723,6 +723,7 @@
      "rs_rating_pos",
      "rs_rating_pos_n",
      "days_to_earnings",
+     "rs_nh_weekly",
      "rs_nhbp_age",
      "rs_nh_red_bars_ago"
     ]
@@ -810,6 +811,7 @@
      "rs_rating_pos",
      "rs_rating_pos_n",
      "days_to_earnings",
+     "rs_nh_weekly",
      "rs_nhbp_age",
      "rs_nh_red_bars_ago"
     ]
@@ -893,6 +895,94 @@
      "rs_rating_session",
      "rs_setup",
      "rs_tight",
+     "px_below_high_pct",
+     "rs_rating_pos",
+     "rs_rating_pos_n",
+     "days_to_earnings",
+     "rs_nh_weekly",
+     "rs_nhbp_age",
+     "rs_nh_red_bars_ago"
+    ]
+   }
+  },
+  {
+   "starter": "starter_rs_new_high",
+   "choices": {
+    "when": "weekly"
+   },
+   "body": {
+    "filters": [
+     {
+      "key": "price",
+      "op": "gte",
+      "min": 10
+     },
+     {
+      "key": "dollar_vol_30d",
+      "op": "gte",
+      "min": 20000000
+     },
+     {
+      "key": "pct_vs_sma200",
+      "op": "gt",
+      "min": 0
+     },
+     {
+      "key": "rs_flag",
+      "op": "not_in",
+      "values": [
+       "buyout_pending"
+      ]
+     },
+     {
+      "key": "security_type",
+      "op": "not_in",
+      "values": [
+       "ETF"
+      ]
+     },
+     {
+      "key": "rs_nh_weekly",
+      "op": "eq",
+      "value": 1
+     }
+    ],
+    "sort": {
+     "key": "rs_nh_bars_ago",
+     "dir": "asc",
+     "then": {
+      "key": "rs_rating_score",
+      "dir": "desc"
+     }
+    },
+    "view": "rs_new_highs",
+    "page": 1,
+    "page_size": 100,
+    "columns": [
+     "ticker",
+     "company",
+     "price",
+     "chg_pct_1d",
+     "base_render",
+     "base_pivot_px",
+     "vol_ratio",
+     "rvol_live",
+     "rs_rank",
+     "market_cap",
+     "adr_pct",
+     "industry",
+     "sector",
+     "next_earnings_date",
+     "bars_asof",
+     "dollar_vol_30d",
+     "pct_vs_sma200",
+     "rs_flag",
+     "security_type",
+     "rs_nh_weekly",
+     "rs_rating_session",
+     "rs_setup",
+     "rs_tight",
+     "rs_nh_bars_ago",
      "px_below_high_pct",
      "rs_rating_pos",
      "rs_rating_pos_n",
@@ -989,6 +1079,7 @@
      "rs_rating_pos",
      "rs_rating_pos_n",
      "days_to_earnings",
+     "rs_nh_weekly",
      "rs_nhbp_age",
      "rs_nh_red_bars_ago"
     ]
@@ -1081,6 +1172,7 @@
      "rs_rating_pos",
      "rs_rating_pos_n",
      "days_to_earnings",
+     "rs_nh_weekly",
      "rs_nhbp_age",
      "rs_nh_red_bars_ago"
     ]
@@ -1173,6 +1265,7 @@
      "rs_rating_pos",
      "rs_rating_pos_n",
      "days_to_earnings",
+     "rs_nh_weekly",
      "rs_nhbp_age",
      "rs_nh_red_bars_ago"
     ]
@@ -1267,6 +1360,7 @@
      "rs_rating_pos",
      "rs_rating_pos_n",
      "days_to_earnings",
+     "rs_nh_weekly",
      "rs_nhbp_age"
     ]
    }
@@ -1358,6 +1452,7 @@
      "rs_rating_pos",
      "rs_rating_pos_n",
      "days_to_earnings",
+     "rs_nh_weekly",
      "rs_nh_red_bars_ago"
     ]
    }
@@ -1451,6 +1546,7 @@
      "rs_rating_pos",
      "rs_rating_pos_n",
      "days_to_earnings",
+     "rs_nh_weekly",
      "rs_nh_red_bars_ago"
     ]
    }
@@ -1544,6 +1640,100 @@
      "rs_rating_pos",
      "rs_rating_pos_n",
      "days_to_earnings",
+     "rs_nh_weekly",
+     "rs_nh_red_bars_ago"
+    ]
+   }
+  },
+  {
+   "starter": "starter_rs_nh_before_price",
+   "choices": {
+    "when": "weekly"
+   },
+   "body": {
+    "filters": [
+     {
+      "key": "price",
+      "op": "gte",
+      "min": 10
+     },
+     {
+      "key": "dollar_vol_30d",
+      "op": "gte",
+      "min": 20000000
+     },
+     {
+      "key": "pct_vs_sma200",
+      "op": "gt",
+      "min": 0
+     },
+     {
+      "key": "px_below_high_pct",
+      "op": "between",
+      "min": -25,
+      "max": -3
+     },
+     {
+      "key": "rs_flag",
+      "op": "not_in",
+      "values": [
+       "buyout_pending"
+      ]
+     },
+     {
+      "key": "security_type",
+      "op": "not_in",
+      "values": [
+       "ETF"
+      ]
+     },
+     {
+      "key": "rs_nhbp_weekly",
+      "op": "eq",
+      "value": 1
+     }
+    ],
+    "sort": {
+     "key": "px_below_high_pct",
+     "dir": "desc",
+     "then": {
+      "key": "rs_rating_score",
+      "dir": "desc"
+     }
+    },
+    "view": "rs_before_price",
+    "page": 1,
+    "page_size": 100,
+    "columns": [
+     "ticker",
+     "company",
+     "price",
+     "chg_pct_1d",
+     "base_render",
+     "base_pivot_px",
+     "vol_ratio",
+     "rvol_live",
+     "rs_rank",
+     "market_cap",
+     "adr_pct",
+     "industry",
+     "sector",
+     "next_earnings_date",
+     "bars_asof",
+     "dollar_vol_30d",
+     "pct_vs_sma200",
+     "px_below_high_pct",
+     "rs_flag",
+     "security_type",
+     "rs_nhbp_weekly",
+     "rs_rating_session",
+     "rs_setup",
+     "rs_tight",
+     "rs_nh_bars_ago",
+     "rs_rating_pos",
+     "rs_rating_pos_n",
+     "days_to_earnings",
+     "rs_nh_weekly",
      "rs_nh_red_bars_ago"
     ]
    }
@@ -1637,6 +1827,7 @@
      "rs_rating_pos",
      "rs_rating_pos_n",
      "days_to_earnings",
+     "rs_nh_weekly",
      "rs_nh_red_bars_ago"
     ]
    }
@@ -1730,6 +1921,7 @@
      "rs_rating_pos",
      "rs_rating_pos_n",
      "days_to_earnings",
+     "rs_nh_weekly",
      "rs_nh_red_bars_ago"
     ]
    }
@@ -1828,6 +2020,7 @@
      "rs_rating_pos",
      "rs_rating_pos_n",
      "days_to_earnings",
+     "rs_nh_weekly",
      "rs_nh_red_bars_ago"
     ]
    }
@@ -1926,6 +2119,7 @@
      "rs_rating_pos",
      "rs_rating_pos_n",
      "days_to_earnings",
+     "rs_nh_weekly",
      "rs_nh_red_bars_ago"
     ]
    }
@@ -1988,6 +2182,11 @@
       ]
      },
      {
+      "key": "rs_leaders_member",
+      "op": "eq",
+      "value": 1
+     },
+     {
       "key": "security_type",
       "op": "not_in",
       "values": [
@@ -1996,19 +2195,10 @@
      }
     ],
     "sort": {
-     "key": "uct_composite",
+     "key": "rs_rating_score",
      "dir": "desc"
     },
     "view": "rs_leaders",
-    "rank": {
-     "criteria": [
-      {
-       "key": "rs_rating_score",
-       "weight": 1
-      }
-     ],
-     "top_n": 50
-    },
     "page": 1,
     "page_size": 100,
     "columns": [
@@ -2033,6 +2223,7 @@
      "dist_52w_high_pct",
      "rs_line_above_ma",
      "rs_flag",
+     "rs_leaders_member",
      "security_type",
      "rs_rating_session",
      "rs_setup",
@@ -2041,7 +2232,8 @@
      "px_below_high_pct",
      "rs_rating_pos",
      "rs_rating_pos_n",
-     "days_to_earnings"
+     "days_to_earnings",
+     "rs_leaders_days"
     ]
    }
   },
@@ -2105,6 +2297,11 @@
       ]
      },
      {
+      "key": "rs_leaders_member",
+      "op": "eq",
+      "value": 1
+     },
+     {
       "key": "security_type",
       "op": "not_in",
       "values": [
@@ -2118,19 +2315,10 @@
      }
     ],
     "sort": {
-     "key": "uct_composite",
+     "key": "rs_rating_score",
      "dir": "desc"
     },
     "view": "rs_leaders",
-    "rank": {
-     "criteria": [
-      {
-       "key": "rs_rating_score",
-       "weight": 1
-      }
-     ],
-     "top_n": 50
-    },
     "page": 1,
     "page_size": 100,
     "columns": [
@@ -2155,6 +2343,7 @@
      "dist_52w_high_pct",
      "rs_line_above_ma",
      "rs_flag",
+     "rs_leaders_member",
      "security_type",
      "rs_near_buy",
      "rs_rating_session",
@@ -2164,7 +2353,8 @@
      "px_below_high_pct",
      "rs_rating_pos",
      "rs_rating_pos_n",
-     "days_to_earnings"
+     "days_to_earnings",
+     "rs_leaders_days"
     ]
    }
   },
@@ -2228,6 +2418,11 @@
       ]
      },
      {
+      "key": "rs_leaders_member",
+      "op": "eq",
+      "value": 1
+     },
+     {
       "key": "security_type",
       "op": "not_in",
       "values": [
@@ -2244,19 +2439,10 @@
      }
     ],
     "sort": {
-     "key": "uct_composite",
+     "key": "rs_rating_score",
      "dir": "desc"
     },
     "view": "rs_leaders",
-    "rank": {
-     "criteria": [
-      {
-       "key": "rs_rating_score",
-       "weight": 1
-      }
-     ],
-     "top_n": 50
-    },
     "page": 1,
     "page_size": 100,
     "columns": [
@@ -2281,6 +2467,7 @@
      "dist_52w_high_pct",
      "rs_line_above_ma",
      "rs_flag",
+     "rs_leaders_member",
      "security_type",
      "rs_setup",
      "rs_rating_session",
@@ -2289,7 +2476,8 @@
      "px_below_high_pct",
      "rs_rating_pos",
      "rs_rating_pos_n",
-     "days_to_earnings"
+     "days_to_earnings",
+     "rs_leaders_days"
     ]
    }
   },
@@ -2348,6 +2536,11 @@
       ]
      },
      {
+      "key": "rs_leaders_member",
+      "op": "eq",
+      "value": 1
+     },
+     {
       "key": "security_type",
       "op": "not_in",
       "values": [
@@ -2361,19 +2554,10 @@
      }
     ],
     "sort": {
-     "key": "uct_composite",
+     "key": "rs_rating_score",
      "dir": "desc"
     },
     "view": "rs_leaders",
-    "rank": {
-     "criteria": [
-      {
-       "key": "rs_rating_score",
-       "weight": 1
-      }
-     ],
-     "top_n": 50
-    },
     "page": 1,
     "page_size": 100,
     "columns": [
@@ -2398,6 +2582,7 @@
      "dist_52w_high_pct",
      "rs_line_above_ma",
      "rs_flag",
+     "rs_leaders_member",
      "security_type",
      "rs_rating_session",
      "rs_setup",
@@ -2406,7 +2591,8 @@
      "px_below_high_pct",
      "rs_rating_pos",
      "rs_rating_pos_n",
-     "days_to_earnings"
+     "days_to_earnings",
+     "rs_leaders_days"
     ]
    }
   },
@@ -2465,6 +2651,11 @@
       ]
      },
      {
+      "key": "rs_leaders_member",
+      "op": "eq",
+      "value": 1
+     },
+     {
       "key": "security_type",
       "op": "not_in",
       "values": [
@@ -2478,19 +2669,10 @@
      }
     ],
     "sort": {
-     "key": "uct_composite",
+     "key": "rs_rating_score",
      "dir": "desc"
     },
     "view": "rs_leaders",
-    "rank": {
-     "criteria": [
-      {
-       "key": "rs_rating_score",
-       "weight": 1
-      }
-     ],
-     "top_n": 50
-    },
     "page": 1,
     "page_size": 100,
     "columns": [
@@ -2515,6 +2697,7 @@
      "dist_52w_high_pct",
      "rs_line_above_ma",
      "rs_flag",
+     "rs_leaders_member",
      "security_type",
      "rs_rating_session",
      "rs_setup",
@@ -2523,7 +2706,8 @@
      "px_below_high_pct",
      "rs_rating_pos",
      "rs_rating_pos_n",
-     "days_to_earnings"
+     "days_to_earnings",
+     "rs_leaders_days"
     ]
    }
   },
@@ -2582,6 +2766,11 @@
       ]
      },
      {
+      "key": "rs_leaders_member",
+      "op": "eq",
+      "value": 1
+     },
+     {
       "key": "security_type",
       "op": "not_in",
       "values": [
@@ -2595,19 +2784,10 @@
      }
     ],
     "sort": {
-     "key": "uct_composite",
+     "key": "rs_rating_score",
      "dir": "desc"
     },
     "view": "rs_leaders",
-    "rank": {
-     "criteria": [
-      {
-       "key": "rs_rating_score",
-       "weight": 1
-      }
-     ],
-     "top_n": 50
-    },
     "page": 1,
     "page_size": 100,
     "columns": [
@@ -2632,6 +2812,7 @@
      "dist_52w_high_pct",
      "rs_line_above_ma",
      "rs_flag",
+     "rs_leaders_member",
      "security_type",
      "rs_rating_session",
      "rs_setup",
@@ -2640,7 +2821,8 @@
      "px_below_high_pct",
      "rs_rating_pos",
      "rs_rating_pos_n",
-     "days_to_earnings"
+     "days_to_earnings",
+     "rs_leaders_days"
     ]
    }
   },

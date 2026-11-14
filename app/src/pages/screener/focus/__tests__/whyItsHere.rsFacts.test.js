@@ -3,7 +3,7 @@
 import { expect, test } from 'vitest'
 import { whyItsHere, FACT_SLOTS } from '../whyItsHere'
 import { rowFacts } from '../rsRows'
-import { TOP_RATING, LEADERS, RS_ROWS } from './rsScreensFixture'
+import { TOP_RATING, LEADERS, RANKED_LEADERS, RS_ROWS } from './rsScreensFixture'
 
 const META = [
   { key: 'price', label: 'Price', type: 'range', unit: '$', presets: [] },
@@ -46,13 +46,18 @@ test('the strip never holds more than five, and facts keep the last places when 
   expect(top.items.map(i => i.kind)).toEqual(['check', 'check', 'check', 'note', 'note'])
   expect(top.items.slice(3).map(i => i.label)).toEqual(FACTS.slice(0, 2))
   expect(top.more).toBe(2)
-  // UCT RS Leaders: eleven filters and a rank note. Still five on the strip, two of them facts.
-  const lead = whyItsHere({ filters: keyed(LEADERS.spec), rank: LEADERS.spec.rank, metaFilters: META, row: mu, facts: rowFacts(mu) })
+  // A ranked screen (the shape UCT RS Leaders had until unit U12): eleven filters and a rank note.
+  // Still five on the strip, two of them facts.
+  const lead = whyItsHere({ filters: keyed(RANKED_LEADERS.spec), rank: RANKED_LEADERS.spec.rank, metaFilters: META, row: mu, facts: rowFacts(mu) })
   expect(lead.items).toHaveLength(5)
   expect(lead.items.slice(3).map(i => i.label)).toEqual(FACTS.slice(0, 2))
   // `more` counts only what the Filters drawer holds: the displaced filters and the rank note, never a fact
-  const plain = whyItsHere({ filters: keyed(LEADERS.spec), rank: LEADERS.spec.rank, metaFilters: META, row: mu })
+  const plain = whyItsHere({ filters: keyed(RANKED_LEADERS.spec), rank: RANKED_LEADERS.spec.rank, metaFilters: META, row: mu })
   expect(lead.more).toBe(plain.items.length + plain.more - 3)
+  // UCT RS Leaders itself (unit U12): twelve filters, no rank note, and the same two places for facts
+  const own = whyItsHere({ filters: keyed(LEADERS.spec), metaFilters: META, row: mu, facts: rowFacts(mu) })
+  expect(own.items).toHaveLength(5)
+  expect(own.items.slice(3).map(i => i.label)).toEqual(FACTS.slice(0, 2))
 })
 
 test('a row with one fact gives up one place, a row with none gives up nothing', () => {

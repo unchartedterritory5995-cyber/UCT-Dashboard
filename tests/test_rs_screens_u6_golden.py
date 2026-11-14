@@ -162,11 +162,20 @@ def test_every_clause_carries_only_the_operands_the_client_compares(on):
 
 
 def test_a_ranked_screen_has_no_option_that_sets_a_sort(on):
+    """Pin moved 2026-11-14 (unit U12): UCT RS Leaders was the one ranked screen. The
+    rating pass keeps its list now, so none of the five carries a rank; the rule stands for
+    any that does again, and Leaders' own controls still set no sort (its order is the
+    score, whatever a control narrows)."""
     ranked = [s for s in _five() if s["spec"].get("rank")]
-    assert [s["id"] for s in ranked] == ["starter_rs_leaders"]
+    assert [s["id"] for s in ranked] == []
     for s in ranked:
         assert "sort" not in s["spec"], s["id"]
         assert not [o["id"] for c in s["controls"] for o in c["options"] if "sort" in o], s["id"]
+    leaders = next(s for s in _five() if s["id"] == "starter_rs_leaders")
+    assert leaders["spec"]["sort"] == {"key": "rs_rating_score", "dir": "desc"}
+    assert not [o["id"] for c in leaders["controls"] for o in c["options"] if "sort" in o]
+    # no quick control owns the membership clause, so none can take it off
+    assert "rs_leaders_member" not in [k for c in leaders["controls"] for k in c["keys"]]
 
 
 def test_the_client_fixture_reads_these_two_files_and_types_no_starter():

@@ -68,13 +68,14 @@ import { whyItsHere, whyColumns } from './whyItsHere'
 import { describeEmptying } from './emptyUndo'
 import { migratePinned } from './screenGroups'
 import QuickControls from './QuickControls'
-import { RS_CONTROLS_PREF, RS_NOTE_PREF, RS_LEADERS_ID, RS_SCREENS_COLUMNS, controlsOf, applyOption, specWithChoices, choicesFor, withChoice, withoutChoices, controlStarterFor, placeOverride, rankLabelOf, offeredChoices } from './rsScreens'
+import { RS_CONTROLS_PREF, RS_NOTE_PREF, RS_LEADERS_ID, RS_SCREENS_COLUMNS, controlsOf, applyOption, specWithChoices, choicesFor, withChoice, withoutChoices, controlStarterFor, placeOverride, offeredChoices, sortLabelOf, steadyOf } from './rsScreens'
 import { rowConfigOf, rowColumns, ratingsAsOf, sectorShare, rowFacts } from './rsRows'
 import { RsHeaderLine, RsFirstVisit, RsEmptyState, RsMarketLine } from './RsScreenParts'
 import { marketLineOf, readMarketHidden, writeMarketHidden } from './rsMarket'
 import RsAlertToggle from './RsAlertToggle'
 import { rsAlertsOf } from './rsAlerts'
 import WhyNotHere from './WhyNotHere'
+import { droppedReasons } from './droppedReasons'
 import { useNameDialog } from './useNameDialog'
 import { useShortcutsSheet } from './useShortcutsSheet'
 import lazy from '../../../utils/lazyWithRetry'
@@ -217,6 +218,9 @@ function FocusList({ mode, onMode }) {
   // null, read from the working spec, so the memo below moves only when the column does.
   const rsPlace = placeOverride(rsControls, { filters: s.filters, sort: s.sort, rank: s.rank })
   const rsRow = useMemo(() => rowConfigOf(rsStarter, rsPlace), [rsStarter, rsPlace])
+  // How the open starter keeps its own list, when it does (unit U12: UCT RS Leaders), for
+  // "Why isn't a stock here?".
+  const rsSteady = useMemo(() => steadyOf(rsStarter), [rsStarter])
   // ⛔ Asked ONLY for a starter that carries `row`: the scan refuses a column the server does not
   // have with a 400, and these exist only where the RS screens do. Keyed on the names, so the
   // live payload replacing a remembered copy of the same starter asks nothing again.
@@ -864,7 +868,7 @@ function FocusList({ mode, onMode }) {
   const snapshotDate = listed?.snapshot_date
   // RS screens: facts about the selected row the screen did not test (its Setup words, the age of
   // its RS high, how far it is below its own high, its place), as notes after the filter checks.
-  const rsFacts = useMemo(() => (rsRow && selected ? rowFacts(selected) : null), [rsRow, selected])
+  const rsFacts = useMemo(() => (rsRow && selected ? rowFacts(selected, rsRow) : null), [rsRow, selected])
   const why = useMemo(() => whyItsHere({ filters: shown.filters, logic: shown.logic, rank: shown.rank, metaFilters: meta?.filters,
     row: selected || {}, live: selected ? livePriceOf(selected, Number.isFinite(selPx) ? { price: selPx, change_pct: selChg } : null) : null, snapshotDate, facts: rsFacts }),
   [shown.filters, shown.logic, shown.rank, meta, selected, selPx, selChg, snapshotDate, rsFacts])
@@ -879,9 +883,10 @@ function FocusList({ mode, onMode }) {
     [shown.filters, meta])
   const colLabel = k => plainColumnLabel(k) || (meta?.filters || []).find(f => f.key === k || f.column === k)?.label || COLUMN_DEFS[k]?.label || k
   const sortArrow = s.sort?.dir === 'asc' ? '↑' : '↓'
-  // A ranked screen is "Your ranking", unless the open starter names its own order and the
-  // working spec still carries that rank (unit U7: UCT RS Leaders reads "RS Rating").
-  const sortLabel = s.rank ? rankLabelOf(rsStarter, s.rank) || 'Your ranking' : `${colLabel(sortKey) || 'Default'} ${sortArrow}`
+  // A ranked screen is "Your ranking" and a sorted one names its column, unless the open starter
+  // names its own order and the working spec still carries it (unit U7: UCT RS Leaders reads
+  // "RS Rating"; unit U12: from its plain sort, now that the server keeps the list).
+  const sortLabel = sortLabelOf(rsStarter, { sort: s.sort, rank: s.rank }) || (s.rank ? 'Your ranking' : `${colLabel(sortKey) || 'Default'} ${sortArrow}`)
   // The sortable set is the view's columns from meta (the server sorts by any snapshot column),
   // restricted to NUMERIC ones: a text column sorts alphabetically, so "Structure ↓" ran Z→A.
   // A column is numeric when meta carries a range filter over it — the type is the server's,
@@ -942,11 +947,21 @@ function FocusList({ mode, onMode }) {
   const rsAsOf = useMemo(() => (rsHeadOn ? ratingsAsOf(rows) : ''), [rsHeadOn, rows])
   const rsShare = useMemo(() => (rsHeadOn && !pending && String(rsStarter?.id) === RS_LEADERS_ID ? sectorShare(rows) : ''), [rsHeadOn, pending, rsStarter, rows])
   // On an RS screen the list's new/dropped line moves up into that header line (one copy, never two).
-  const newLine = <NewTodayLine nt={nt} newOnly={newOnlyOn} onToggleNewOnly={() => setNewOnly(v => !v)} />
+  // Unit U12: on an RS screen each dropped name says the first rule it now fails. One batched row
+  // read, asked only when the popover opens (NewTodayLine), judged against the screen the rows on
+  // view answer. A screen without `row` passes no asker and its popover is the one it was.
+  const reasonFilters = shown.filters
+  const metaFiltersAll = meta?.filters
+  const reasonsFor = useMemo(() => (rsRow
+    ? names => droppedReasons(names, { filters: reasonFilters, metaFilters: metaFiltersAll, steady: rsSteady })
+    : null), [rsRow, reasonFilters, metaFiltersAll, rsSteady])
+  const newLine = <NewTodayLine nt={nt} newOnly={newOnlyOn} onToggleNewOnly={() => setNewOnly(v => !v)} reasonsFor={reasonsFor} />
   const newLineShows = nt?.state === 'ok' || nt?.state === 'live_screen'
   // Shown until dismissed, and only once the preferences have answered, so it never flashes at a
   // member who dismissed it (a refused read says nothing either way, so it stays hidden).
-  const rsNoteOn = !!rsRow && !prefsLoading && !prefsReadFailed && !parsePref(prefs[RS_NOTE_PREF], null)
+  // Unit U12: only on a LIST screen (`row.list`). Its sentence is "The strongest liquid stocks,
+  // ranked...", which is not what RS exit warnings shows.
+  const rsNoteOn = !!rsRow?.list && !prefsLoading && !prefsReadFailed && !parsePref(prefs[RS_NOTE_PREF], null)
   // The market caution line (unit U8): the state the saved-screens payload carries, on a screen
   // whose starter has `row`, until the member hides it for today (rsMarket.js says how that is
   // kept). `normal`, no state and a payload without the key draw nothing.
@@ -1021,13 +1036,14 @@ function FocusList({ mode, onMode }) {
           livePrices={prices} radar={radar} sortLabel={sortLabel} sortMenu={sortMenu} total={newOnlyOn ? listRows.length : shownTotal} hasMore={listHasMore}
           onLoadMore={s.loadMore} isLoading={isLoading} showCompany={showCompany} pending={pending} structures={structures}
           newSet={newSet} rsRow={rsRowShown} themes={rsRow ? themeData : null}
-          // "Why isn't a stock here?" (unit U8), only on a screen whose starter has `row`. It reads the
-          // screen the rows on view ANSWER (`shown`), so its rules are the list's own while a new answer
-          // is on its way; `hasMore` is the list's, whatever "New only" is hiding.
-          headBelow={rsRow ? (
+          // "Why isn't a stock here?" (unit U8), only on a LIST screen (unit U12, `row.list`: RS exit
+          // warnings is not a list a stock qualifies for). It reads the screen the rows on view ANSWER
+          // (`shown`), so its rules are the list's own while a new answer is on its way; `hasMore` is
+          // the list's, whatever "New only" is hiding.
+          headBelow={rsRow?.list ? (
             <WhyNotHere screenKey={rowsKey} filters={shown.filters} logic={shown.logic} rank={shown.rank}
               filterList={shown.baseSpec?.filters || s.baseSpec.filters} metaFilters={meta?.filters}
-              rows={rows} listRows={listRows} hasMore={hasMore} onFound={selectRow} />
+              rows={rows} listRows={listRows} hasMore={hasMore} onFound={selectRow} steady={rsSteady} />
           ) : null}
           headExtra={<>{!rsRow && newLine}<FlaggedActions /></>} />
         {/* S5: primitives and stable callbacks only, so a tick for another ticker skips the pane.

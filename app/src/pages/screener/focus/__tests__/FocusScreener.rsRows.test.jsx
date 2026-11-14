@@ -61,8 +61,11 @@ test('a screen without `row` asks for none of them, before and after an RS scree
   expect(plain.slice(0, LEGACY.length)).toEqual(LEGACY)
   await openScreen('UCT RS Leaders')
   await waitFor(() => expect(scanBodies().at(-1).columns).toContain('rs_setup'))
-  // every scan that asked for an RS column was for the RS screen (it is the ranked one)
-  for (const b of scanBodies()) expect(b.columns.some(c => RS_ONLY.includes(c))).toBe(!!b.rank)
+  // every scan that asked for an RS column was for the RS screen (unit U12: told apart by its
+  // membership clause; until then it was the ranked one)
+  const forLeaders = b => b.filters.some(f => f.key === 'rs_leaders_member')
+  expect(scanBodies().filter(forLeaders).length).toBeGreaterThan(0)
+  for (const b of scanBodies()) expect(b.columns.some(c => RS_ONLY.includes(c))).toBe(forLeaders(b))
   await openScreen('Power plays')
   await landedOn('Power plays')
   expect(screen.queryByTestId('rs-controls')).toBeNull()

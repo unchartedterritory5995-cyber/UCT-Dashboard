@@ -41,7 +41,7 @@ from pathlib import Path
 
 import pytest
 
-from api.services.screener import filters, rs_columns, rs_post_pass, rs_setup, snapshot_db
+from api.services.screener import filters, rs_columns, rs_leaders_list, rs_post_pass, rs_setup, snapshot_db
 from tests import rs_screens_e2e_universe as market
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
@@ -54,16 +54,16 @@ FIVE = ("starter_rs_top_rating", "starter_rs_new_high", "starter_rs_nh_before_pr
 LIST_SCREENS = FIVE[:4]
 #: Rows of each screen's opening answer kept for the client's tests.
 ROWS_KEPT = 8
-#: The 23 columns that exist only for the RS screens (`filters.RS_SCREENS_KEYS`).
+#: The columns that exist only for the RS screens (`filters.RS_SCREENS_KEYS`; 27 since unit U12).
 RS_COLUMNS = tuple(filters.RS_SCREENS_KEYS)
 
 # ── what the client reads off a row, and how (app/src/pages/screener/focus/rsRows.js) ──
 #: `=== 1` in the client: a JSON `true` would not be 1.
-INT_01 = ("rs_tight", "rs_near_buy")
+INT_01 = ("rs_tight", "rs_near_buy", "rs_nh_weekly", "rs_nhbp_weekly", "rs_leaders_member")   # the last three: unit U12
 #: `typeof v === 'number'`, printed as whole numbers.
 INTS = ("rs_rating_pos", "rs_rating_pos_n", "rs_rating_pos_prev20", "rs_rating_prev20",
         "rs_rating_chg_5", "rs_rating_chg_20", "rs_pos_1m", "rs_pos_3m", "rs_pos_6m", "rs_pos_12m",
-        "rs_nh_bars_ago", "rs_nh_red_bars_ago", "rs_nhbp_age", "rs_exit_bars_ago")
+        "rs_nh_bars_ago", "rs_nh_red_bars_ago", "rs_nhbp_age", "rs_exit_bars_ago", "rs_leaders_days")
 FLOATS = ("price", "chg_pct_1d", "px_below_high_pct", "rs_rating_score", "pct_vs_sma200",
           "pct_vs_sma50", "dist_52w_high_pct", "adr_pct", "dollar_vol_30d", "market_cap")
 ISO_DAY = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -295,7 +295,62 @@ def test_the_measures_agree_with_each_other_the_way_the_client_assumes(on):
             assert str(r["px_below_high_pct"]) != "-0.0", t
         if r["rs_near_buy"] == 1:
             assert r["rs_setup"] not in rs_setup.NOT_BUY_POINT_SETUPS, t
+        # unit U12: the weekly reading. Before price is a weekly RS high first, and only a
+        # liquid stock is read at all (the build skips the rest).
+        if r["rs_nhbp_weekly"] == 1:
+            assert r["rs_nh_weekly"] == 1, t
+        if r["rs_nh_weekly"] is not None:
+            assert r["price"] >= 10 and r["dollar_vol_30d"] >= 20_000_000 and r["security_type"] != "ETF", t
+            seen["weekly_" + str(r["rs_nh_weekly"])] = seen.get("weekly_" + str(r["rs_nh_weekly"]), 0) + 1
     assert min(seen.values()) >= 1, seen
+    assert seen.get("weekly_1") and seen.get("weekly_0"), "the market holds a weekly RS high and a stock without one"
+
+
+# ───────────────────────── UCT RS Leaders' list (unit U12) ─────────────────────────
+
+def test_the_leaders_list_is_the_rule_over_the_stored_sessions(on):
+    """The rating job's pass ran once per stored session, so the list has a history. Read
+    back independently of `rs_leaders_list`: the newest record's ranks are the oracle's own
+    ranking of the screen's qualifying rules over the table, and every pair of consecutive
+    records obeys the rule (stay to 65, join at 50 or better, at most 50)."""
+    with closing(snapshot_db.connect()) as conn:
+        record = {}
+        for s, t, rank in conn.execute(
+                f"SELECT session, ticker, rank FROM {rs_leaders_list.TABLE} ORDER BY session, rank"):
+            record.setdefault(s, {})[t] = rank
+    assert sorted(record) == sorted(market.RATED_SESSIONS), "one record per rated session"
+    table = on["table"]
+    # 1. the qualifiers and their order, from the golden starter's own clauses (the oracle)
+    gate = [f for f in _starters()["starter_rs_leaders"]["spec"]["filters"] if f["key"] != "rs_leaders_member"]
+    ranked = sorted((r for r in table.values() if all(_passes(r, f) for f in gate)
+                     and r["rs_rating_score"] is not None),
+                    key=lambda r: (-r["rs_rating_score"], r["ticker"]))
+    rank_of = {r["ticker"]: i for i, r in enumerate(ranked, 1)}
+    newest = record[market.SESSION]
+    assert newest == {t: rank_of[t] for t in newest}, "a stored rank is not the oracle's"
+    assert {t for t, r in table.items() if r["rs_leaders_member"] == 1} == set(newest)
+    assert all(r["rs_leaders_member"] in (0, 1) for r in table.values()), "every row is answered"
+    # 2. the rule, session over session
+    sessions = sorted(record)
+    for prev, cur in zip(sessions, sessions[1:]):
+        assert len(record[cur]) <= 50, cur
+        for t, rank in record[cur].items():
+            assert rank <= (65 if t in record[prev] else 50), (cur, t, rank)
+    assert len(record[sessions[0]]) <= 50 and max(record[sessions[0]].values()) <= 50, "the first is the plain top"
+    # 3. days on the list: the run of consecutive records ending today
+    for t, r in table.items():
+        if r["rs_leaders_member"] == 1:
+            run = 0
+            for s in reversed(sessions):
+                if t not in record[s]:
+                    break
+                run += 1
+            assert r["rs_leaders_days"] == run >= 1, t
+        else:
+            assert r["rs_leaders_days"] is None, t
+    # 4. this market holds fewer than 50 qualifiers, so every one of them is listed. The hold
+    #    band and the cap are driven on a deeper table in tests/test_rs_screens_u12_leaders.py.
+    assert 10 <= len(ranked) < 50 and len(newest) == len(ranked), (len(ranked), len(newest))
 
 
 # ───────────────────────── every request the client makes ─────────────────────────
@@ -509,7 +564,7 @@ def test_the_flag_off_application_serves_none_of_it(tmp_path):
             ten = conn.execute(f"SELECT COUNT({rs_columns.COLUMNS[0]}) FROM screener_rows").fetchone()[0]
         assert len(rows) == len(built["universe"])
         assert not [(r["ticker"], c) for r in rows for c in RS_COLUMNS if r[c] is not None]
-        assert not ({rs_post_pass.POS_TABLE, rs_post_pass.RUNS_TABLE} & tables)
+        assert not ({rs_post_pass.POS_TABLE, rs_post_pass.RUNS_TABLE, rs_leaders_list.TABLE} & tables)
         assert ten > 0, "control: the RS_V2 columns were written, so the build itself ran"
 
         client = _client(mp)

@@ -221,7 +221,8 @@
         "earnings",
         "flag",
         "new"
-      ]
+      ],
+      "list": true
     }
   },
   {
@@ -282,7 +283,8 @@
         "id": "when",
         "label": "When",
         "keys": [
-          "rs_nh_bars_ago"
+          "rs_nh_bars_ago",
+          "rs_nh_weekly"
         ],
         "options": [
           {
@@ -319,6 +321,17 @@
                 "op": "between",
                 "min": 0,
                 "max": 20
+              }
+            ]
+          },
+          {
+            "id": "weekly",
+            "label": "Weekly",
+            "filters": [
+              {
+                "key": "rs_nh_weekly",
+                "op": "eq",
+                "value": 1
               }
             ]
           }
@@ -408,11 +421,13 @@
       ],
       "tags": [
         "earnings",
+        "weekly",
         "before_price",
         "down_day",
         "flag",
         "new"
-      ]
+      ],
+      "list": true
     }
   },
   {
@@ -484,7 +499,8 @@
         "id": "when",
         "label": "When",
         "keys": [
-          "rs_nhbp_age"
+          "rs_nhbp_age",
+          "rs_nhbp_weekly"
         ],
         "options": [
           {
@@ -521,6 +537,17 @@
                 "op": "between",
                 "min": 0,
                 "max": 20
+              }
+            ]
+          },
+          {
+            "id": "weekly",
+            "label": "Weekly",
+            "filters": [
+              {
+                "key": "rs_nhbp_weekly",
+                "op": "eq",
+                "value": 1
               }
             ]
           }
@@ -618,10 +645,12 @@
       ],
       "tags": [
         "earnings",
+        "weekly",
         "down_day",
         "flag",
         "new"
-      ]
+      ],
+      "list": true
     },
     "empty": {
       "text": "No RS line made a 52-week high ahead of price this week. That is normal in a weak market.",
@@ -698,6 +727,11 @@
           ]
         },
         {
+          "key": "rs_leaders_member",
+          "op": "eq",
+          "value": 1
+        },
+        {
           "key": "security_type",
           "op": "not_in",
           "values": [
@@ -706,14 +740,9 @@
         }
       ],
       "view": "rs_leaders",
-      "rank": {
-        "criteria": [
-          {
-            "key": "rs_rating_score",
-            "weight": 1
-          }
-        ],
-        "top_n": 50
+      "sort": {
+        "key": "rs_rating_score",
+        "dir": "desc"
       }
     },
     "controls": [
@@ -824,7 +853,17 @@
         "flag",
         "new"
       ],
-      "sort_label": "RS Rating"
+      "sort_label": "RS Rating",
+      "facts": [
+        "days"
+      ],
+      "steady": {
+        "key": "rs_leaders_member",
+        "by": "rs_rating_score",
+        "enter": 50,
+        "hold": 65
+      },
+      "list": true
     }
   },
   {

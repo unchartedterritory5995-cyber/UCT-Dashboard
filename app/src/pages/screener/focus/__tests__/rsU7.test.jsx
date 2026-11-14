@@ -13,7 +13,7 @@ import { __resetRevisionStateForTests } from '../../../../hooks/usePreferences'
 import { rankLabelOf } from '../rsScreens'
 import { exitWarningWords, captionOf, rowConfigOf, rowColumns, EXIT_WARNING_NAMES } from '../rsRows'
 import { net, resetNet, installFetch, mount, pin, scanBodies } from './rsHarness'
-import { LEADERS, TOP_RATING, EXIT_WARNINGS, RS_STARTERS, RS_ROWS, SERVED, STARTERS_ON } from './rsScreensFixture'
+import { LEADERS, RANKED_LEADERS, TOP_RATING, EXIT_WARNINGS, RS_STARTERS, RS_ROWS, SERVED, STARTERS_ON } from './rsScreensFixture'
 
 beforeEach(() => {
   __resetCountCache()
@@ -54,8 +54,9 @@ describe('P1: the list head names the order of a ranked screen', () => {
     await waitFor(() => expect(sortButton()).toHaveAccessibleName('Sort: Your ranking'))
   })
 
-  test('a member\'s saved copy of UCT RS Leaders is their ranking', async () => {
-    net.saved = [{ id: 9, name: 'My leaders', spec: LEADERS.spec }]
+  test('a member\'s saved copy of a ranked starter is their ranking', async () => {
+    // RANKED_LEADERS: the ranked shape UCT RS Leaders had until unit U12 (rsScreensFixture).
+    net.saved = [{ id: 9, name: 'My leaders', spec: RANKED_LEADERS.spec }]
     pin(['9'])
     mount()
     await landedOn('My leaders')
@@ -63,6 +64,9 @@ describe('P1: the list head names the order of a ranked screen', () => {
   })
 
   test('the label is the starter\'s only while the working rank is the starter\'s own', () => {
+    // Unit U12: UCT RS Leaders is sorted now, not ranked (rsU12Leaders.test.jsx holds its label).
+    // The rule for a RANKED starter stands, read here on the shape Leaders had until then.
+    const LEADERS = RANKED_LEADERS
     const own = LEADERS.spec.rank
     expect(rankLabelOf(LEADERS, own)).toBe('RS Rating')
     // the same rank rebuilt (a URL round trip hands back a new object)

@@ -61,8 +61,21 @@ LEADERS_MIN_ADR_PCT = 3
 LEADERS_MIN_MARKET_CAP = 300_000_000
 LEADERS_MAX_BELOW_HIGH = -25
 LEADERS_TOP_N = 50
-#: What the list head calls the order of UCT RS Leaders (unit U7): its one rank
-#: criterion, `rs_rating_score`, is the RS Rating before rounding.
+#: The steadier list (unit U12, `rs_leaders_list`): a stock joins UCT RS Leaders at
+#: `LEADERS_TOP_N` or better among the qualifiers and, once on it, keeps its place
+#: until it ranks past this or stops qualifying. Fifteen places of slack, because a
+#: stock at 50 today and 52 tomorrow left the list and came back the day after.
+LEADERS_HOLD_RANK = 65
+#: The two columns the rating pass writes for the list (`rs_leaders_list.COLUMNS`):
+#: 1 on the list / 0 off it, and the consecutive stored sessions a stock has been on it.
+LEADERS_MEMBER_KEY = "rs_leaders_member"
+LEADERS_DAYS_KEY = "rs_leaders_days"
+#: The column the qualifiers are ranked by and the list is sorted by: the RS Rating
+#: before rounding, so stocks that share a rating are told apart.
+LEADERS_ORDER_KEY = "rs_rating_score"
+#: What the list head calls the order of UCT RS Leaders (unit U7): `rs_rating_score`
+#: is the RS Rating before rounding. Since unit U12 the order is a plain sort, and the
+#: client prints this while the working sort is still the starter's own.
 LEADERS_SORT_LABEL = "RS Rating"
 #: RS exit warnings: a warning in the last five sessions.
 EXIT_AGE = 4
@@ -78,16 +91,34 @@ EXCLUDED_FLAGS = ("buyout_pending",)
 #: The four screens that carry the exclusion, by id (the method page reads this).
 NO_BUYOUT_SCREENS = ("starter_rs_top_rating", "starter_rs_new_high",
                      "starter_rs_nh_before_price", "starter_rs_leaders")
+#: ``row.list`` (unit U12): true on the four LIST screens, the ones a stock qualifies
+#: for by passing rules. The client shows two things only there: the first-visit line
+#: ("The strongest liquid stocks, ranked...", which is not what RS exit warnings is)
+#: and "Why isn't a stock here?" (a warning is something that happened to a stock, not
+#: a list it can qualify for). Sent as data so the client never reads a screen's id.
+LIST_SCREENS = NO_BUYOUT_SCREENS
 #: The row tag ``earnings`` (unit U8): a report inside the week changes what a setup
-#: means, so it is the FIRST tag on the four list screens. The client words it from
-#: ``days_to_earnings`` (whole calendar days from the build's date to the next report):
-#: "Earnings today", "Earnings tomorrow", "Earnings in N days", for 0 to this many days.
+#: means, so it is the FIRST tag on the four list screens. The client words it
+#: "Earnings today", "Earnings tomorrow", "Earnings in N days", for 0 to this many days,
+#: counted from TODAY IN NEW YORK to the row's ``next_earnings_date`` (unit U12:
+#: ``days_to_earnings`` is counted from the build's date, so it ran a day or two long
+#: over a weekend; it is the fallback for a row that does not carry the date).
 #: The date is known for under half the names (43% on 2026-11-14), so a row without one
 #: gets no tag, and no tag is never "no earnings soon" (the method page says so).
 #: RS exit warnings does not carry it: that screen is a prompt to review a holding, and
 #: its one tag stays the list's own "New".
 EARNINGS_TAG = "earnings"
 EARNINGS_TAG_DAYS = 5
+#: The row tag ``weekly`` (unit U12): the house lesson is the WEEKLY RS line making a
+#: new high, so RS New Highs and RS New High Before Price say when a row's weekly
+#: line did, right after the earnings tag. The client words it "Weekly RS high" from
+#: the row's ``rs_nh_weekly`` (1 = the last completed week closed at a 52-week RS
+#: high). The same two screens offer it as the fourth choice of When (`_when`).
+WEEKLY_TAG = "weekly"
+#: When -> Weekly filters on these: the weekly RS high on RS New Highs, the weekly RS
+#: high with the weekly close still under its own high on RS New High Before Price.
+WEEKLY_NH_KEY = "rs_nh_weekly"
+WEEKLY_NHBP_KEY = "rs_nhbp_weekly"
 
 
 # ── clause and control builders ─────────────────────────────────────────────
@@ -174,13 +205,22 @@ def _min_rating(levels, default=None):
     return _control("min", "Min RS Rating", ["rs_rank"], options)
 
 
-def _when(key, default="week"):
-    """The "When" control over an age column: today, this week, this month."""
+def _when(key, default="week", weekly=None):
+    """The "When" control over an age column: today, this week, this month.
+
+    ``weekly`` (unit U12) names a 0/1 weekly column and adds a fourth choice,
+    "Weekly": that column equal to 1 and NO daily age clause. The control owns both
+    keys, so choosing Weekly takes the age clause off and choosing a daily span takes
+    the weekly clause off (the contract's control semantics); the two never stack."""
     spans = (("today", "Today", 0), ("week", "This week", WEEK_AGE),
              ("month", "This month", MONTH_AGE))
-    return _control("when", "When", [key],
-                    [_option(i, label, [_between(key, 0, hi)], default=(i == default))
-                     for i, label, hi in spans])
+    options = [_option(i, label, [_between(key, 0, hi)], default=(i == default))
+               for i, label, hi in spans]
+    keys = [key]
+    if weekly:
+        options.append(_option("weekly", "Weekly", [_eq(weekly, 1)]))
+        keys.append(weekly)
+    return _control("when", "When", keys, options)
 
 
 # ── the five ────────────────────────────────────────────────────────────────
@@ -232,7 +272,7 @@ def new_highs() -> dict:
                  "view": "rs_new_highs",
                  "sort": _sort("rs_nh_bars_ago", "asc", then=("rs_rating_score", "desc"))},
         "controls": [
-            _when("rs_nh_bars_ago"),
+            _when("rs_nh_bars_ago", weekly=WEEKLY_NH_KEY),
             _min_rating((70, 80, 90)),
             _control("down", "Market", ["rs_nh_red_bars_ago"],
                      [_option("all", "Any day", default=True),
@@ -240,7 +280,7 @@ def new_highs() -> dict:
                               [_between("rs_nh_red_bars_ago", 0, DOWN_DAY_AGE)])]),
         ],
         "row": {"place": None, "caption": ["rs_high_age", "group"],
-                "tags": [EARNINGS_TAG, "before_price", "down_day", "flag", "new"]},
+                "tags": [EARNINGS_TAG, WEEKLY_TAG, "before_price", "down_day", "flag", "new"]},
     }
 
 
@@ -262,9 +302,10 @@ def before_price() -> dict:
                              no_buyouts()],
                  "view": "rs_before_price",
                  "sort": _sort("px_below_high_pct", "desc", then=("rs_rating_score", "desc"))},
-        "controls": [_when("rs_nhbp_age"), below, _min_rating((70, 80))],
+        "controls": [_when("rs_nhbp_age", weekly=WEEKLY_NHBP_KEY), below,
+                     _min_rating((70, 80))],
         "row": {"place": None, "caption": ["below_high", "group"],
-                "tags": [EARNINGS_TAG, "down_day", "flag", "new"]},
+                "tags": [EARNINGS_TAG, WEEKLY_TAG, "down_day", "flag", "new"]},
         "empty": {
             "text": ("No RS line made a 52-week high ahead of price this week. "
                      "That is normal in a weak market."),
@@ -277,7 +318,15 @@ def before_price() -> dict:
 
 def leaders() -> dict:
     """4. UCT RS Leaders: the gate written as ordinary filters, so the controls and the
-    Filters drawer can adjust it (plan 1.4 and 9); ordered by the unrounded score."""
+    Filters drawer can adjust it (plan 1.4 and 9); ordered by the unrounded score.
+
+    ⭐ A STEADIER LIST (unit U12). The spec no longer ranks and cuts at 50 on every
+    scan. The rating pass decides who is on the list once a session
+    (`rs_leaders_list`: join at 50 or better, stay to 65, at most 50) and stores
+    ``rs_leaders_member``; the screen is these filters plus that column equal to 1,
+    sorted by the score. The pass reads its qualifying rules off THIS starter (every
+    clause but the membership one), so the two cannot drift.
+    """
     show = _control(
         "show", "Show", ["rs_near_buy", "rs_setup"],
         [_option("all", "All", default=True),
@@ -296,18 +345,25 @@ def leaders() -> dict:
                              _eq("sma200_rising", 1),
                              _gte("dist_52w_high_pct", LEADERS_MAX_BELOW_HIGH),
                              _eq("rs_line_above_ma", 1),
-                             no_buyouts()],
+                             no_buyouts(),
+                             _eq(LEADERS_MEMBER_KEY, 1)],
                  "view": "rs_leaders",
-                 "rank": {"criteria": [{"key": "rs_rating_score", "weight": 1}],
-                          "top_n": LEADERS_TOP_N}},
+                 "sort": _sort(LEADERS_ORDER_KEY, "desc")},
         "controls": [show, _min_rating(LEADERS_RATING_CHOICES, default=LEADERS_MIN_RATING)],
         # `sort_label` (unit U7): the list head said "Sort: Your ranking", the wording for
-        # any ranked screen. This ranking is ours and it is the RS Rating, so the screen
-        # says so. The client prints it only while the working spec still carries this
-        # rank; every other ranked screen (UCT 50) keeps "Your ranking".
+        # any ranked screen. This order is ours and it is the RS Rating, so the screen
+        # says so. Since unit U12 it names a plain sort: the client prints it only while
+        # the working sort is still this one.
+        # `facts` (unit U12): notes for the why strip only, never the caption. "days" is
+        # "Day N on this list", from `rs_leaders_days`.
+        # `steady` (unit U12): how the list is kept, for "Why isn't a stock here?": the
+        # membership column, the column it is ranked by, and the two ranks of the rule.
         "row": {"place": "index", "caption": ["setup", "group"],
                 "tags": [EARNINGS_TAG, "flag", "new"],
-                "sort_label": LEADERS_SORT_LABEL},
+                "sort_label": LEADERS_SORT_LABEL,
+                "facts": ["days"],
+                "steady": {"key": LEADERS_MEMBER_KEY, "by": LEADERS_ORDER_KEY,
+                           "enter": LEADERS_TOP_N, "hold": LEADERS_HOLD_RANK}},
     }
 
 
@@ -337,8 +393,13 @@ def exit_warnings() -> dict:
 
 
 def screens() -> list:
-    """The five, in the picker's order."""
-    return [top_rating(), new_highs(), before_price(), leaders(), exit_warnings()]
+    """The five, in the picker's order. The four list screens carry ``row.list``
+    (:data:`LIST_SCREENS`); RS exit warnings does not carry the key at all."""
+    five = [top_rating(), new_highs(), before_price(), leaders(), exit_warnings()]
+    for s in five:
+        if s["id"] in LIST_SCREENS:
+            s["row"]["list"] = True
+    return five
 
 
 def retire(starter: dict) -> dict:

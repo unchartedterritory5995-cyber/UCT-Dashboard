@@ -31,7 +31,7 @@ from pathlib import Path
 import pytest
 
 from api.services.screener import filters as F
-from api.services.screener import logic, membership, query, rs_post_pass, rs_screens, rs_setup
+from api.services.screener import logic, membership, query, rs_leaders_list, rs_post_pass, rs_screens, rs_setup
 from api.services.screener import saved_screens as ss
 from api.services.screener import snapshot_db
 
@@ -60,7 +60,9 @@ LIST_SCREENS = ("starter_rs_top_rating", "starter_rs_new_high", "starter_rs_nh_b
 CAPTION_PARTS = {"setup", "group", "rs_high_age", "below_high", "moving", "exit_warning"}
 #: "earnings" joined the vocabulary in unit U8, first: a report inside the week changes
 #: what a setup means (tests/test_rs_screens_u8_earnings.py).
-TAG_ORDER = ["earnings", "before_price", "down_day", "flag", "new"]
+#: "weekly" joined in unit U12, second: the weekly RS line's high is the house lesson, so it
+#: leads the daily readings (tests/test_rs_screens_u12_weekly.py).
+TAG_ORDER = ["earnings", "weekly", "before_price", "down_day", "flag", "new"]
 #: Words the contract bans from member-facing copy. "buy point" is the plan's own term
 #: for the Setup label's "Near a buy point"; a bare "buy" is not allowed.
 BANNED = re.compile(r"\b(buys|buying|buyable|sells|selling|lens|gate|red day|ADR|RSI)\b|"
@@ -216,9 +218,14 @@ def test_the_specs_are_the_contracts(on):
         {"key": "sma200_rising", "op": "eq", "value": 1},
         {"key": "dist_52w_high_pct", "op": "gte", "min": -25},
         {"key": "rs_line_above_ma", "op": "eq", "value": 1},
-        NO_BUYOUT]
-    assert ld["rank"] == {"criteria": [{"key": "rs_rating_score", "weight": 1}], "top_n": 50}
-    assert ld["view"] == "rs_leaders" and "sort" not in ld, "the rank owns the order"
+        NO_BUYOUT,
+        # unit U12: the pass keeps the list (`rs_leaders_list`); the screen filters on it
+        {"key": "rs_leaders_member", "op": "eq", "value": 1}]
+    # Pin moved 2026-11-14 (unit U12): this was a rank of the top 50 by the score with no
+    # sort. The list is now decided once a session by the pass, so the screen is a plain
+    # sort by the same score over the members it stored.
+    assert "rank" not in ld and ld["sort"] == {"key": "rs_rating_score", "dir": "desc"}
+    assert ld["view"] == "rs_leaders"
 
     ex = by["starter_rs_exit_warning_5"]["spec"]
     assert clauses("starter_rs_exit_warning_5") == [
@@ -245,14 +252,17 @@ def test_the_controls_are_the_contracts(on):
                      ("rising", "Rising fastest")]),
         "show": ("Show", ["rs_rank", "rs_rating_prev20"],
                  [("all", "All"), ("r90", "90 and up"), ("new90", "New to 90+")])}
+    # unit U12: When owns the weekly flag as well and offers it as a fourth choice
     assert shape("starter_rs_new_high") == {
-        "when": ("When", ["rs_nh_bars_ago"],
-                 [("today", "Today"), ("week", "This week"), ("month", "This month")]),
+        "when": ("When", ["rs_nh_bars_ago", "rs_nh_weekly"],
+                 [("today", "Today"), ("week", "This week"), ("month", "This month"),
+                  ("weekly", "Weekly")]),
         "min": ("Min RS Rating", ["rs_rank"], [("any", "Any"), ("r70", "70"), ("r80", "80"), ("r90", "90")]),
         "down": ("Market", ["rs_nh_red_bars_ago"], [("all", "Any day"), ("down", "Down days only")])}
     assert shape("starter_rs_nh_before_price") == {
-        "when": ("When", ["rs_nhbp_age"],
-                 [("today", "Today"), ("week", "This week"), ("month", "This month")]),
+        "when": ("When", ["rs_nhbp_age", "rs_nhbp_weekly"],
+                 [("today", "Today"), ("week", "This week"), ("month", "This month"),
+                  ("weekly", "Weekly")]),
         "below": ("Below its high by", ["px_below_high_pct"], [("p3", "3%"), ("p5", "5%"), ("p10", "10%")]),
         "min": ("Min RS Rating", ["rs_rank"], [("any", "Any"), ("r70", "70"), ("r80", "80")])}
     assert shape("starter_rs_leaders") == {
@@ -311,15 +321,24 @@ def test_the_rows_are_the_contracts(on):
     by = _by_id()
     assert {i: by[i]["row"] for i in FIVE} == {
         # unit U8: the four list screens lead their tags with `earnings`
+        # unit U12: the four LIST screens say so (`list`); RS exit warnings carries no such key
         "starter_rs_top_rating": {"place": "rs_rating_pos", "caption": ["setup", "moving"],
-                                  "tags": ["earnings", "flag", "new"]},
+                                  "tags": ["earnings", "flag", "new"], "list": True},
+        # unit U12: the two RS high screens say a weekly RS high right after earnings
         "starter_rs_new_high": {"place": None, "caption": ["rs_high_age", "group"],
-                                "tags": ["earnings", "before_price", "down_day", "flag", "new"]},
+                                "tags": ["earnings", "weekly", "before_price", "down_day", "flag", "new"],
+                                "list": True},
         "starter_rs_nh_before_price": {"place": None, "caption": ["below_high", "group"],
-                                       "tags": ["earnings", "down_day", "flag", "new"]},
-        # unit U7: the ranked screen names its own order (`sort_label`)
+                                       "tags": ["earnings", "weekly", "down_day", "flag", "new"],
+                                       "list": True},
+        # unit U7: the screen names its own order (`sort_label`); unit U12: a why strip fact
+        # of its own (`facts`) and how its list is kept (`steady`)
         "starter_rs_leaders": {"place": "index", "caption": ["setup", "group"],
-                               "tags": ["earnings", "flag", "new"], "sort_label": "RS Rating"},
+                               "tags": ["earnings", "flag", "new"], "sort_label": "RS Rating",
+                               "facts": ["days"],
+                               "steady": {"key": "rs_leaders_member", "by": "rs_rating_score",
+                                          "enter": 50, "hold": 65},
+                               "list": True},
         # unit U7: each warning row says which warning and how old (`exit_warning`)
         "starter_rs_exit_warning_5": {"place": None, "caption": ["exit_warning", "group"],
                                       "tags": ["new"]}}
@@ -349,20 +368,28 @@ def test_the_exit_warning_caption_is_only_where_every_row_has_a_warning_to_name(
     assert kinds == list(rs_columns.EXIT_NAMES) == ["Quick Break", "Quicksand", "Grateful Dead Break"]
 
 
-def test_a_sort_label_is_only_on_a_ranked_screen_and_says_what_it_ranks_by(on):
-    """Unit U7. The list head of a ranked screen reads "Sort: Your ranking". A starter may
-    name the order instead (``row.sort_label``), and the name has to be true: only a screen
-    the server itself ranks may carry one, and "RS Rating" is honest only while the one
-    thing UCT RS Leaders ranks by is the RS Rating's own score."""
+def test_a_sort_label_is_only_on_a_screen_the_server_orders_and_says_what_it_orders_by(on):
+    """Unit U7. A starter may name its order (``row.sort_label``) in place of the list
+    head's own words, and the name has to be true: "RS Rating" is honest only while the
+    one thing UCT RS Leaders is ordered by is the RS Rating's own score.
+
+    Pin moved 2026-11-14 (unit U12): the label used to require a RANK. The pass keeps the
+    list now, so the order is the starter's plain sort; the label is held to that sort's
+    key (and still to a rank's one criterion, should a starter carry a rank again)."""
     labelled = {s["id"]: s["row"]["sort_label"] for s in ss.starters() if "sort_label" in (s.get("row") or {})}
     assert labelled == {"starter_rs_leaders": "RS Rating"}
     for s in ss.starters():
         if "sort_label" in (s.get("row") or {}):
-            assert s["spec"].get("rank") and "sort" not in s["spec"], s["id"]
+            spec = s["spec"]
+            assert bool(spec.get("rank")) != bool(spec.get("sort")), f"{s['id']}: exactly one order"
+            ordered_by = ([c["key"] for c in spec["rank"]["criteria"]] if spec.get("rank")
+                          else [spec["sort"]["key"]])
+            assert ordered_by == ["rs_rating_score"], s["id"]
+            assert "then" not in (spec.get("sort") or {}), "a second key would not be the label's"
             label = s["row"]["sort_label"]
             assert label and label.strip() == label and label.isascii() and not BANNED.search(label)
     lead = _by_id()["starter_rs_leaders"]
-    assert [c["key"] for c in lead["spec"]["rank"]["criteria"]] == ["rs_rating_score"]
+    assert lead["spec"]["sort"] == {"key": rs_screens.LEADERS_ORDER_KEY, "dir": "desc"}
     assert F.FILTERS["rs_rating_score"]["label"].startswith(lead["row"]["sort_label"])
 
 
@@ -460,25 +487,26 @@ ROWS = [
          rs_pos_6m=1, rs_pos_12m=1, rs_rating_chg_20=2, pct_vs_sma50=5, rs_rank=99,
          rs_rating_prev20=97, pct_vs_sma200=20, rs_nh_bars_ago=0, rs_rating_score=2.0,
          rs_nh_red_bars_ago=0, px_below_high_pct=0.0, adr_pct=4, market_cap=5e9, sma200_rising=1,
-         dist_52w_high_pct=0, rs_line_above_ma=1, rs_near_buy=0, rs_setup="extended"),
+         dist_52w_high_pct=0, rs_line_above_ma=1, rs_near_buy=0, rs_setup="extended",
+         rs_nh_weekly=1),
     dict(ticker="RISE", price=50, dollar_vol_30d=5e7, rs_rating_pos=2, rs_pos_1m=1, rs_pos_3m=2,
          rs_pos_6m=3, rs_pos_12m=3, rs_rating_chg_20=30, pct_vs_sma50=8, rs_rank=95,
          rs_rating_prev20=65, pct_vs_sma200=15, rs_nh_bars_ago=2, rs_rating_score=1.8,
          rs_nh_red_bars_ago=7, rs_nhbp_age=2, px_below_high_pct=-4.0, adr_pct=5, market_cap=1e9,
          sma200_rising=1, dist_52w_high_pct=-4, rs_line_above_ma=1, rs_near_buy=1, rs_setup="at_pivot",
-         rs_flag="one_day_move"),
+         rs_flag="one_day_move", rs_nh_weekly=0, rs_nhbp_weekly=0),
     dict(ticker="BASE", price=30, dollar_vol_30d=3e7, rs_rating_pos=3, rs_pos_1m=2, rs_pos_3m=3,
          rs_pos_6m=2, rs_pos_12m=2, rs_rating_chg_20=2, pct_vs_sma50=1, rs_rank=88,
          rs_rating_prev20=88, pct_vs_sma200=10, rs_nh_bars_ago=0, rs_rating_score=1.5,
          rs_nhbp_age=0, px_below_high_pct=-4.0, adr_pct=3.5, market_cap=8e8, sma200_rising=1,
          dist_52w_high_pct=-4, rs_line_above_ma=1, rs_near_buy=1, rs_setup="pullback_21",
-         rs_flag="new_issue"),
+         rs_flag="new_issue", rs_nhbp_weekly=1),
     dict(ticker="SLIP", price=20, dollar_vol_30d=2.5e7, rs_rating_pos=4, rs_pos_1m=4, rs_pos_3m=4,
          rs_pos_6m=4, rs_pos_12m=4, rs_rating_chg_20=-10, pct_vs_sma50=-3, rs_rank=75,
          rs_rating_prev20=92, pct_vs_sma200=5, rs_nh_bars_ago=15, rs_rating_score=1.2,
          rs_nhbp_age=3, px_below_high_pct=-7.0, adr_pct=3, market_cap=4e8, sma200_rising=1,
          dist_52w_high_pct=-7, rs_line_above_ma=0, rs_near_buy=0, rs_setup="below_50",
-         rs_exit_bars_ago=1, rs_exit_last="Quicksand"),
+         rs_exit_bars_ago=1, rs_exit_last="Quicksand", rs_nh_weekly=1),
     # exactly on the floor ($20M traded): the floor is inclusive
     dict(ticker="WARN", price=15, dollar_vol_30d=2e7, rs_rating_pos=5, rs_pos_1m=6, rs_pos_3m=6,
          rs_pos_6m=5, rs_pos_12m=5, rs_rating_chg_20=-20, pct_vs_sma50=-8, rs_rank=40,
@@ -488,7 +516,7 @@ ROWS = [
     # under a year of history: no overall place, on the 1- and 3-month boards
     dict(ticker="YOUNG", price=40, dollar_vol_30d=4e7, rs_pos_1m=5, rs_pos_3m=5, pct_vs_sma50=4,
          rs_rank=91, pct_vs_sma200=3, rs_nhbp_age=10, px_below_high_pct=-8.0, market_cap=2e9,
-         dist_52w_high_pct=-8, rs_line_above_ma=1),
+         dist_52w_high_pct=-8, rs_line_above_ma=1, rs_nhbp_weekly=1),
     # a leader whose Setup label could not be computed
     dict(ticker="NOLBL", price=60, dollar_vol_30d=6e7, pct_vs_sma50=2, rs_rank=85, pct_vs_sma200=8,
          rs_rating_score=1.4, px_below_high_pct=-10.0, adr_pct=3, market_cap=5e8, sma200_rising=1,
@@ -501,20 +529,23 @@ ROWS = [
          rs_rating_prev20=39, pct_vs_sma200=30, rs_nh_bars_ago=0, rs_rating_score=3.5,
          rs_nh_red_bars_ago=0, rs_nhbp_age=0, px_below_high_pct=-4.0, adr_pct=5, market_cap=2e10,
          sma200_rising=1, dist_52w_high_pct=-4, rs_line_above_ma=1, rs_near_buy=1,
-         rs_setup="at_pivot", rs_flag="buyout_pending", rs_exit_bars_ago=2, rs_exit_last="Quick Break"),
+         rs_setup="at_pivot", rs_flag="buyout_pending", rs_exit_bars_ago=2, rs_exit_last="Quick Break",
+         rs_nh_weekly=1, rs_nhbp_weekly=1),
     # a fund that would top every list, and a stock under the floor that would join four
     dict(ticker="FUND", security_type="ETF", price=400, dollar_vol_30d=1e9, rs_rating_pos=1,
          rs_pos_1m=1, rs_pos_3m=1, rs_pos_6m=1, rs_pos_12m=1, rs_rating_chg_20=50, pct_vs_sma50=9,
          rs_rank=99, rs_rating_prev20=10, pct_vs_sma200=10, rs_nh_bars_ago=0, rs_rating_score=3.0,
          rs_nh_red_bars_ago=0, rs_nhbp_age=0, px_below_high_pct=-5.0, adr_pct=3, market_cap=1e10,
          sma200_rising=1, dist_52w_high_pct=-5, rs_line_above_ma=1, rs_near_buy=1,
-         rs_setup="at_pivot", rs_exit_bars_ago=0, rs_exit_last="Quick Break"),
+         rs_setup="at_pivot", rs_exit_bars_ago=0, rs_exit_last="Quick Break",
+         rs_nh_weekly=1, rs_nhbp_weekly=1),
     dict(ticker="THIN", price=8, dollar_vol_30d=5e6, rs_rating_pos=2, rs_pos_1m=2, rs_pos_3m=2,
          rs_pos_6m=2, rs_pos_12m=2, rs_rating_chg_20=40, pct_vs_sma50=9, rs_rank=97,
          rs_rating_prev20=20, pct_vs_sma200=5, rs_nh_bars_ago=0, rs_rating_score=2.5,
          rs_nh_red_bars_ago=0, rs_nhbp_age=1, px_below_high_pct=-5.0, adr_pct=6, market_cap=1e9,
          sma200_rising=1, dist_52w_high_pct=-5, rs_line_above_ma=1, rs_near_buy=1,
-         rs_setup="at_pivot", rs_exit_bars_ago=0, rs_exit_last="Quick Break"),
+         rs_setup="at_pivot", rs_exit_bars_ago=0, rs_exit_last="Quick Break",
+         rs_nh_weekly=1, rs_nhbp_weekly=1),
 ]
 
 #: ``(starter, {control: option, ...})`` -> the tickers, in the order served.
@@ -536,6 +567,10 @@ EXPECT = [
     ("starter_rs_new_high", {"when": "today"}, ["LEAD", "BASE"]),
     ("starter_rs_new_high", {"when": "week"}, ["LEAD", "BASE", "RISE"]),
     ("starter_rs_new_high", {"when": "month"}, ["LEAD", "BASE", "RISE", "SLIP"]),
+    # unit U12: Weekly lists a weekly RS high whatever its daily age. SLIP's daily high is
+    # 15 sessions old (not on the week); RISE has a fresh daily high and no weekly one. The
+    # buyout name, the fund and the thin stock carry the weekly flag and stay out.
+    ("starter_rs_new_high", {"when": "weekly"}, ["LEAD", "SLIP"]),
     ("starter_rs_new_high", {"min": "any"}, ["LEAD", "BASE", "RISE"]),
     ("starter_rs_new_high", {"min": "r70"}, ["LEAD", "BASE", "RISE"]),
     ("starter_rs_new_high", {"min": "r80"}, ["LEAD", "BASE", "RISE"]),
@@ -547,6 +582,9 @@ EXPECT = [
     ("starter_rs_nh_before_price", {"when": "today"}, ["BASE"]),
     ("starter_rs_nh_before_price", {"when": "week"}, ["RISE", "BASE", "SLIP"]),
     ("starter_rs_nh_before_price", {"when": "month"}, ["RISE", "BASE", "SLIP", "YOUNG"]),
+    # unit U12: the weekly reading, closest to its high first. YOUNG's daily state is 10
+    # sessions old (not on the week); RISE is on the week and has no weekly one.
+    ("starter_rs_nh_before_price", {"when": "weekly"}, ["BASE", "YOUNG"]),
     ("starter_rs_nh_before_price", {"below": "p3"}, ["RISE", "BASE", "SLIP"]),
     ("starter_rs_nh_before_price", {"below": "p5"}, ["SLIP"]),
     ("starter_rs_nh_before_price", {"below": "p10"}, []),
@@ -578,6 +616,9 @@ def table(on, tmp_path, monkeypatch):
     snapshot_db.init_db()
     snapshot_db.upsert_rows([{**_BASE, **r} for r in ROWS])
     monkeypatch.setattr(query, "stale_gate", lambda conn: None)
+    # unit U12: UCT RS Leaders lists the stocks the rating pass put on it, so the table is
+    # left as that pass leaves it (`rs_leaders_list.run`, the screen's own rules over ROWS)
+    assert rs_leaders_list.run(_BASE["snapshot_date"], record=False)["members"] == 4
     membership._CURRENT.clear()
     return _by_id()
 
@@ -647,18 +688,25 @@ def test_buyout_names_are_left_out_of_the_four_lists_and_a_blank_flag_stays(tabl
         assert "DEAL" not in with_it and with_it, sid
         assert {"RISE", "BASE"} <= set(with_it), f"{sid}: another flag was left out too"
         assert [t for t in with_it if flags[t] is None], f"{sid}: no blank-flag row survived"
-        bare = {**spec, "filters": [f for f in spec["filters"] if f != NO_BUYOUT]}
-        without = [r["ticker"] for r in query.run_scan(bare)["rows"]]
-        assert "DEAL" in without, f"{sid}: the buyout row was never a candidate"
-        assert [t for t in without if t != "DEAL"] == with_it, sid
+        # UCT RS Leaders is checked on its qualifying rules below: its served spec also
+        # filters on the list the pass stored, which a buyout name is never put on (unit U12)
+        if sid != "starter_rs_leaders":
+            bare = {**spec, "filters": [f for f in spec["filters"] if f != NO_BUYOUT]}
+            without = [r["ticker"] for r in query.run_scan(bare)["rows"]]
+            assert "DEAL" in without, f"{sid}: the buyout row was never a candidate"
+            assert [t for t in without if t != "DEAL"] == with_it, sid
         # every option of every control keeps it out as well
         for c in table[sid]["controls"]:
             for o in c["options"]:
                 got = [r["ticker"] for r in query.run_scan(_apply(spec, c, o))["rows"]]
                 assert "DEAL" not in got, (sid, c["id"], o["id"])
-    # the highest score in the table, so without the clause it is the first leader
-    bare = {**table["starter_rs_leaders"]["spec"]}
-    bare["filters"] = [f for f in bare["filters"] if f != NO_BUYOUT]
+    # the highest score in the table, so without the clause it would be the first leader
+    # (unit U12: read on the list's own qualifying rules, which is where the clause now acts)
+    gate = rs_leaders_list.qualifier_filters()
+    assert NO_BUYOUT in gate
+    order = {"key": "rs_rating_score", "dir": "desc"}
+    assert "DEAL" not in [r["ticker"] for r in query.run_scan({"filters": gate, "sort": order})["rows"]]
+    bare = {"filters": [f for f in gate if f != NO_BUYOUT], "sort": order}
     assert query.run_scan(bare)["rows"][0]["ticker"] == "DEAL"
     # SQL drops a NULL under a plain "is not", which is why the clause is an exclude list:
     # written as != it would keep only the rows that carry some OTHER flag
@@ -670,11 +718,19 @@ def test_buyout_names_are_left_out_of_the_four_lists_and_a_blank_flag_stays(tabl
     assert "DEAL" in [r["ticker"] for r in query.run_scan(table["starter_rs_exit_warning_5"]["spec"])["rows"]]
 
 
-def test_the_leaders_list_is_capped_and_ranked_by_the_score(table):
+def test_the_leaders_list_is_the_stored_members_ordered_by_the_score(table):
+    """Pin moved 2026-11-14 (unit U12): this ran the screen's own rank and cut it at 2.
+    The cut is the pass's now (`rs_leaders_list`, tests/test_rs_screens_u12_leaders.py);
+    the screen lists exactly the rows the pass marked, strongest first."""
     spec = table["starter_rs_leaders"]["spec"]
-    out = query.run_scan({**spec, "rank": {**spec["rank"], "top_n": 2}})
-    assert [r["ticker"] for r in out["rows"]] == ["LEAD", "RISE"]
-    assert query.preview_count(spec)["top_n"] == 50
+    out = query.run_scan(spec)
+    assert [r["ticker"] for r in out["rows"]] == ["LEAD", "RISE", "BASE", "NOLBL"]
+    assert out["rank"] is None and query.preview_count(spec)["count"] == 4
+    # a row the pass did not put on the list is not listed, however strong it is
+    with snapshot_db.connect() as conn:
+        conn.execute("UPDATE screener_rows SET rs_leaders_member = 0 WHERE ticker = 'LEAD'")
+        conn.commit()
+    assert [r["ticker"] for r in query.run_scan(spec)["rows"]] == ["RISE", "BASE", "NOLBL"]
 
 
 # ───────────────────────── the hidden seven ─────────────────────────
@@ -828,8 +884,10 @@ def test_the_method_page_states_each_rule_from_the_constants_that_apply_it(on):
     for sid in FIVE:
         said = "Stocks flagged Buyout pending are left out." in rules[sid]
         assert said == (sid in LIST_SCREENS), sid
+    # unit U12: "The 50 with the highest RS Rating score" became the steadier list's rule
     for words in ("average daily range of 3% or more", "$300M or more", "RS Rating 80 or higher",
-                  "within 25% of its 52-week high", "The 50 with the highest RS Rating score"):
+                  "within 25% of its 52-week high", "ranks in the top 50 of these by RS Rating score",
+                  "stays until it falls past 65th", "The list holds at most 50"):
         assert words in rules["starter_rs_leaders"], words
     assert doc["floor"].count("$10 or more") == 1 and "$20M or more traded a day" in doc["floor"]
     labels = {x["key"]: x for x in doc["setup"]["labels"]}
@@ -890,7 +948,8 @@ def test_the_method_page_follows_a_changed_threshold(on, monkeypatch):
     doc = M.rs_screens_section()
     assert doc["setup"]["labels"][1]["rule"].startswith("6 or more ATRs above the 50-day average")
     assert "at least 9 sessions ago" in doc["setup"]["flags"][0]["rule"]
-    assert "The 25 with the highest" in doc["screens"][3]["rule"]
+    assert "in the top 25 of these" in doc["screens"][3]["rule"]
+    assert "holds at most 25" in doc["screens"][3]["rule"]
     assert "$12 or more" in doc["floor"]
 
 
