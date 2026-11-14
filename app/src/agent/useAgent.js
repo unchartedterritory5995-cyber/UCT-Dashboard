@@ -17,7 +17,7 @@
 
 import { protectionRefusal, undoProtectionRefusal, protectedOpenLayout, isProtected, protectedRenameRefusal } from './protectedLayouts'
 import { chartRailRefusal, RAIL_MARK, chartEffects } from './chartRail'
-import { stateRailRefusal, STATE_RAIL_MARK, notDoneAdds, notDoneLine, subjectIdsOf, nextTurnSubjects } from './stateRail'
+import { stateRailDecision, noteApplied, STATE_RAIL_MARK, notDoneAdds, notDoneLine, subjectIdsOf, nextTurnSubjects } from './stateRail'
 import { lastTouchedDrawing } from './capabilities/drawings'
 import { lastCreatedList } from './capabilities/watchlist'
 import { replyRelation, QUESTION_TTL_MS, CONTINUE_CHOICES, continueQuestion } from './pendingTask'
@@ -67,7 +67,7 @@ import { planCompound, resolveStep, chartsShowing, MAX_STEP_OPS, workspaceConfli
 import { screenDuplicateAdds, wantsCopy } from './duplicates'
 import { nl1Enabled, exactLane, buildNl1Request, correctionPlan, preflightRefusals, repairedDisposition, withoutWordingApprovals } from './nl1/interpreter'
 import { NL1_MAX_NEED } from './nl1/selection'
-import { takeIndicatorTouches, takeIndicatorMentions, canonicalIndicatorAdds } from './capabilities/indicatorEdits'
+import { takeIndicatorTouches, takeIndicatorMentions, canonicalIndicatorAdds, indicatorRowsOf } from './capabilities/indicatorEdits'
 import { correctTypos, lexiconFor, plainSymbolWord } from './nl/lexicon'
 import { agentTurn, agentTurnStream, serverStreams, serverPlanner, loadAgentConfig, agentRecord, agentConversation, noteConversation, unknownSymbols } from './agentClient'
 import { createStepRunner } from './steps'
@@ -453,6 +453,8 @@ function rememberChange(memory, host, ops, undoId = null, created = null) {
     // ⭐ PHASE 2: every one this plan confirmed, in order (the last is the subject, as before)
     for (const t of takeIndicatorTouches()) memory?.noteIndicator({ chart: t.chartRef, instanceId: t.instanceId, defId: t.defId, label: t.name, epoch: epochOf(host) })
     for (const t of takeIndicatorMentions()) memory?.noteMention({ chart: t.chartRef, instanceId: t.instanceId, epoch: epochOf(host) })
+    // (D19) how what this turn made / changed stands now: a later "it" binds to it only while it is unchanged
+    noteApplied(memory, epochOf(host), lastTouchedDrawing(), host)
   } catch { /* memory is best-effort */ }
 }
 // session memory → the refs the model was given (subject chart; ⭐ PHASE 2: each recent indicator's chart as its
@@ -807,6 +809,9 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
   // ⛔ STATE RAIL (owner principle 11-13, stateRail.js): the same hook — an additive request never removes, replaces or
   // overwrites the member's indicators, drawings, watchlists, widgets, layouts, boards or templates. Either rail refuses.
   const railMarkRef = useRef(RAIL_MARK)     // which rail refused last (telemetry)
+  const railCardRef = useRef(false)         // (D19) the state rail sends this plan to its approval card
+  const railAskRef = useRef(null)           // (D19) what the state rail asks, with choices (the refusal's question)
+  const railPickedRef = useRef(null)        // (D19) the object the member picked from those choices (exact id)
   // the conversation's CURRENT subject (AUDIT #1247): the exact objects a pointer at the start of a message means — the
   // indicator(s) the latest changes touched, the drawing last drawn or changed. Only these may be restyled by "make it …"
   // (what the subject was when the member SPOKE joins it: a step of this turn that already ran never narrows "them all")
@@ -823,7 +828,31 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     const chartPos = (id) => { try { return id.startsWith('ind:') ? host?.charts?.read?.(id.split(':')[1])?.position || null : null } catch { return null } }
     let made = new Set()
     try { const lc = lastCreatedList(); if (lc?.id) made = new Set([`list:${lc.id}`]) } catch { /* none */ }
-    return { previous: ts.previous, previousSet: (ts.previousAll || []).map(id => ({ id, position: chartPos(id) })), made }
+    const info = new Map((ts.candidates || []).map(c => [c.id, c]))
+    return { previous: ts.previous, previousSet: (ts.previousAll || []).map(id => ({ id, position: chartPos(id), defId: info.get(id)?.defId, inputs: info.get(id)?.inputs })), made, views: ts.views || [] }
+  }
+  // (D19) the choices the state rail asks with — each an exact object and the ops that act on exactly it
+  const railChoicesOf = (ask, ops) => {
+    try {
+      if (ask.kind === 'previous') {
+        return (turnSubjectsRef.current.candidates || []).filter(x => x.remove).map((x, i) => ({ ref: `rail:${i}`, id: x.id, label: x.label, ops: [x.remove] }))
+      }
+      if (ask.kind === 'demo' && String(ask.effect?.id || '').startsWith('ind:')) {
+        const chart = String(ask.effect.id).split(':')[1]
+        const rows = indicatorRowsOf(host?.charts?.read?.(chart)?.cs)
+        const mine = (ops || []).filter(o => o?.args && typeof o.args.instance === 'string')
+        if (!mine.length || rows.length < 1) return null
+        return rows.map((r, i) => ({ ref: `rail:${i}`, id: `ind:${chart}:${r.instanceId}`, label: r.name, ops: mine.map(o => ({ ...o, args: { ...o.args, instance: r.instanceId } })) }))
+      }
+      if (ask.kind === 'label') {
+        const out = [{ ref: 'rail:0', id: ask.effect.id, label: `your saved look “${ask.label}”`, ops }]
+        const lists = (() => { try { return getTargetKind('watchlist')?.list?.(host) || [] } catch { return [] } })()
+        const wl = lists.find(l => String(l.name || l.label || '').toLowerCase() === String(ask.label).toLowerCase())
+        if (wl) out.push({ ref: 'rail:1', id: `list:${wl.ref}`, label: `your watchlist “${ask.label}”`, ops: [{ action: 'watchlist.delete', target: wl.ref, args: {} }] })
+        return out
+      }
+    } catch { /* no choices: refused, as before */ }
+    return null
   }
   // stateMode: an APPROVED run's own steps (deferred, split parts) are approved for the state rail too (the card named them);
   // the chart rail keeps reading them as 'apply'
@@ -831,7 +860,15 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     // a refused bundle names its add parts as NOT done too (AUDIT #1247): the chart rail's refusal, with the plans it did not block
     const c0 = chartRailRefusal(plan, { words: railWordsRef.current, host, mode })
     const c = c0 && `${c0}${notDoneLine(notDoneAdds(plan, (p) => { try { return chartEffects({ ok: true, plans: [p] }, host).length > 0 } catch { return true } }))}`
-    const r = c || stateRailRefusal(plan, { words: railWordsRef.current, mode: stateMode, subjects: subjectIds(), ...railMemoryOf() })
+    railCardRef.current = false
+    railAskRef.current = null
+    let r = c
+    if (!c) {
+      const d = stateRailDecision(plan, { words: railWordsRef.current, mode: stateMode, subjects: subjectIds(), picked: railPickedRef.current, ...railMemoryOf() })
+      // (D19) an irreversible save-over: its approval CARD is the confirmation (the plan runs as a proposal)
+      if (d?.card) railCardRef.current = true
+      else if (d?.text) { r = d.text; railAskRef.current = d.ask ? { ...d.ask, plan } : null }
+    }
 
     railMarkRef.current = c ? RAIL_MARK : STATE_RAIL_MARK
     return r
@@ -1355,6 +1392,14 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     const railed = railOf(plan, suggested === 'approved' ? 'approved' : decideMode(suggested, plan))
     if (railed) {
       mark(railMarkRef.current, 'refused')
+      // (D19) the state rail asks WITH CHOICES: each is the exact object, and a pick re-plans on exactly that one
+      const ch = railMarkRef.current === STATE_RAIL_MARK && railAskRef.current ? railChoicesOf(railAskRef.current, ops) : null
+      if (ch?.length) {
+        pendingRef.current = { kind: 'target', ops: [], path, mode: suggested, member, voice, epoch: epochOf(host), railChoice: ch }
+        push({ role: 'question', text: `${railed.replace(/ — say what to replace, remove or change, by name \(for example “remove the RSI”\), if that is what you want\./, '')} Which one do you mean?`, choices: ch.map(x => ({ ref: x.ref, label: x.label })), local: true })
+        record({ member, outcome: railed, outcomeData: { kind: 'clarify-target', actions, reason: STATE_RAIL_MARK }, telemetry: { path, clarified: true, actions, voice } })
+        return
+      }
       refusalPush(railed)
       record({ member, outcome: railed, outcomeData: { kind: 'refused', actions, reason: railMarkRef.current }, telemetry: { path, refused: true, actions, voice } })
       return
@@ -1402,7 +1447,8 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     }
     // ⭐ AUTO-APPLY (live test 2026-10-28): an expansion ("add 4 charts on SPY, QQQ, …") the member asked for is
     // applied like any explicit change — the policy (decideMode) still sends anything confirm-risk to a card.
-    const mode = (repeatOfInterrupted || freshCard) ? 'propose' : (suggested === 'approved' ? 'apply' : decideMode(suggested, plan))
+    // (D19) a save-over the state rail sends to its card is proposed, never applied at once
+    const mode = (repeatOfInterrupted || freshCard || (railCardRef.current && suggested !== 'approved')) ? 'propose' : (suggested === 'approved' ? 'apply' : decideMode(suggested, plan))
     // Any write to the board is preceded by the cross-session check (once per Apply).
     if (mode !== 'propose' && !composed && !(await boardStillOurs(ops, earlySync))) return
     if (mode === 'propose') {
@@ -2049,6 +2095,16 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       push({ role: 'refusal', text: "A different layout is open now, so I didn't change anything. Ask again." })
       return
     }
+    if (p.railChoice) {
+      // (D19) a pick from the state rail's choices: exactly that object, re-planned on it — and only it
+      const pick = p.railChoice.find(x => x.ref === ref)
+      if (!pick) return
+      railPickedRef.current = new Set([pick.id])
+      try {
+        lastActionsRef.current = pick.ops.map(o => o.action)
+        return await execute(pick.ops, { path: p.path, mode: p.mode === 'propose' ? 'propose' : 'apply', member: `${p.member || ''} → ${label}`, voice: p.voice })
+      } finally { railPickedRef.current = null }
+    }
     if (p.setChoice) {
       // #988 (option 2): the whole "every chart except …" set, exactly — or nothing
       if (ref !== p.setChoice.ref) return
@@ -2086,16 +2142,20 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       const r = resolvePicked(p.follow.words, ref, { host, memory: memoryRef.current, epoch: epochOf(host) })
       if (r?.ops?.length) {
         memoryRef.current.notePick(r.ids)
-        await execute(r.ops, { path: p.path, mode: 'apply', member: `${p.member || ''} → ${label}`, voice: p.voice })
+        // (D19) the indicator the member picked is the exact object the state rail lets through
+        railPickedRef.current = new Set(r.ops.filter(o => typeof o.args?.instance === 'string' && typeof o.target === 'string').map(o => `ind:${String(o.target).replace(/^ixe:/, '')}:${o.args.instance}`))
+        try { await execute(r.ops, { path: p.path, mode: 'apply', member: `${p.member || ''} → ${label}`, voice: p.voice }) } finally { railPickedRef.current = null }
       } else push({ role: 'refusal', text: r?.say || 'That indicator isn’t on the chart any more, so nothing changed.' })
       return
     }
     if (p.pickArg) {
       const { action, arg, then } = p.pickArg
       const filled = p.ops.map(o => (o.action === action ? { ...o, args: { ...o.args, [arg]: ref } } : o))
+      // (D19) the instance the member picked is the exact object the state rail lets through
+      if (arg === 'instance') railPickedRef.current = new Set(filled.filter(o => o.action === action && typeof o.target === 'string').map(o => `ind:${String(o.target).replace(/^ixe:/, '')}:${ref}`))
       // the chart picked for an indicator the member asked to CREATE: built, saved and added there (createWithSave)
       const ops = typeof then === 'function' ? then(filled, ref) : filled
-      await execute(ops, { path: p.path, mode: p.mode === 'propose' && !explicitIndicatorCreate(ops) ? 'propose' : 'apply', member: `${p.member || ''} → ${label}`, voice: p.voice })
+      try { await execute(ops, { path: p.path, mode: p.mode === 'propose' && !explicitIndicatorCreate(ops) ? 'propose' : 'apply', member: `${p.member || ''} → ${label}`, voice: p.voice }) } finally { railPickedRef.current = null }
       return
     }
     if (p.draft) {
@@ -2314,7 +2374,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     if (echo) push({ role: 'member', text, voice })
     setBusy(true)
     // ⭐ PHASE 2: everything this message commits is one turn of session memory ("do the same on the others")
-    turnSubjectsRef.current = nextTurnSubjects(turnSubjectsRef.current, memoryRef.current, epochOf(host), lastTouchedDrawing())
+    turnSubjectsRef.current = nextTurnSubjects(turnSubjectsRef.current, memoryRef.current, epochOf(host), lastTouchedDrawing(), host)
     memoryRef.current.beginTurn()
     try {
       // a layout opened since the last turn drops the board's refs — on BOTH paths: NL-1 sends memory to the model
@@ -2540,10 +2600,23 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         record({ member: text, outcome: follow.text, outcomeData: { kind: 'clarify-target', actions: follow.ops.map(o => o.action) }, telemetry: { path: 'fast', clarified: true, voice } })
         return
       }
+      // (D19) "do the same on the other charts" where ONE chart has two matching instances: asked about that chart only
+      if (follow?.kind === 'askArg') {
+        pendingRef.current = { kind: 'target', ops: follow.ops, path: 'fast', mode: 'apply', member: text, voice, epoch: epochOf(host), pickArg: { action: follow.ops[0].action, arg: follow.arg } }
+        push({ role: 'question', text: follow.text, choices: follow.choices, local: true })
+        record({ member: text, outcome: follow.text, outcomeData: { kind: 'clarify-target', actions: follow.ops.map(o => o.action) }, telemetry: { path: 'fast', clarified: true, voice } })
+        return
+      }
       if (follow?.kind === 'ops') {
         if (follow.pick) memoryRef.current.notePick(follow.pick)
         lastActionsRef.current = follow.ops.map(o => o.action)
-        return await execute(follow.ops, { path: 'fast', mode: 'apply', member: text, voice })
+        // (D19) the charts it is not on are NAMED in the receipt; a chart with two matches is asked about after the rest ran
+        const done = await execute(follow.ops, { path: 'fast', mode: 'apply', member: text, voice, onTarget: follow.note || null })
+        if (follow.then) {
+          pendingRef.current = { kind: 'target', ops: follow.then.ops, path: 'fast', mode: 'apply', member: text, voice, epoch: epochOf(host), pickArg: { action: follow.then.ops[0].action, arg: 'instance' } }
+          push({ role: 'question', text: follow.then.text, choices: follow.then.choices, local: true })
+        }
+        return done
       }
       let fast = fast0
       if (fast?.kind === 'ops' && !(await typedSymbolsKnown(fast.ops, text))) { mark('fast:symbol-to-model'); fast = null }

@@ -15,7 +15,7 @@ import { AuthContext } from '../context/AuthContext'
 import { planOps, collectTargets, prepareOps } from './executor'
 import { buildContext } from './capabilities'
 import { commitPlan, undoEntry } from './runtime'
-import { stateRailRefusal, stateEffects, permits, nextTurnSubjects, previousObjectOf } from './stateRail'
+import { stateRailRefusal, stateRailDecision, stateEffects, permits, nextTurnSubjects, previousObjectOf } from './stateRail'
 import { createMemory } from './memory'
 import { stateFixture } from './__fixtures__/stateBoard'
 import { buildDrawingSource } from './host'
@@ -141,12 +141,23 @@ async function planOf(fx, ops) {
   return planOps(collectTargets(fx.host, kinds), ops, { boundDrawingIds: new Set(), boundAlerts: [], ...(await prepareOps(ops)) }, { surface: 'charts' })
 }
 
+// (D19, AUDIT #1247) an irreversible save-over is never refused: unless the words say the save outright it goes to its APPROVAL
+// CARD (the card is the confirmation — never a bare ask, never a silent save)
+const saveOverOnly = (plan) => { const e = stateEffects(plan); return e.length > 0 && e.every(x => x.via === 'save') }
+function expectSaveCard(plan) {
+  for (const w of ['add a layout', 'gimme a widget', 'do it', 'Save it.', 'save', 'add aapl, and delete my swing layout', 'Add RSI. Delete nothing.'])
+    expect(stateRailDecision(plan, { words: w }), w).toEqual({ card: true })
+  for (const w of ['save my layout', 'save the layout', 'keep this arrangement in my current layout'])
+    expect(stateRailDecision(plan, { words: w }), w).toBe(null)
+  expect(stateRailDecision(plan, { words: 'add a layout', mode: 'approved' })).toBe(null)
+}
 // ── layer 1 — the rail alone, generated ──
 describe('STATE RAIL · layer 1: every kind’s destroying plan × additive verbs × casing — refused; its explicit words — allowed', () => {
   for (const [kind, plans] of Object.entries(WRONG)) for (const [pname, ops] of Object.entries(plans)) {
     it(`${kind} · ${pname}`, async () => {
       const fx = stateFixture()
       const plan = await planOf(fx, ops)
+      if (saveOverOnly(plan)) return expectSaveCard(plan)
       expect(plan.ok, JSON.stringify(plan.refusals)).toBe(true)
       expect(stateEffects(plan).length, pname).toBeGreaterThan(0)
       for (const [c, words] of additive(kind)) expect(stateRailRefusal(plan, { words }), `${c} "${words}"`).toMatch(/^I didn’t change anything: you asked to add/)
@@ -205,6 +216,7 @@ describe('STATE RAIL · kind-matched: a permit for one class never licenses a de
     it(`${kind} · ${pname}`, async () => {
       const fx = stateFixture()
       const plan = await planOf(fx, ops)
+      if (saveOverOnly(plan)) return expectSaveCard(plan)
       expect(plan.ok).toBe(true)
       const classes = new Set(stateEffects(plan).flatMap(e => e.classes || [e.state]))
       let cross = 0
@@ -386,6 +398,7 @@ describe('STATE RAIL · probe 38: slang additive, negated destroy words, destroy
     it(`${kind} · ${pname}`, async () => {
       const fx = stateFixture()
       const plan = await planOf(fx, ops)
+      if (saveOverOnly(plan)) return expectSaveCard(plan)
       expect(plan.ok).toBe(true)
       for (const [shape, list] of [['slang', SLANG], ['negated', NEGATED_WORDS], ['non-command', NON_COMMAND], ['plain', additive(kind).map(([, w]) => w).concat(PLAIN(OBJECT[kind]).flatMap(w => Object.values(CASES).map(f => f(w))))]])
         for (const w of list) expect(stateRailRefusal(plan, { words: w }) || 'LET THROUGH', `${shape} "${w}"`).toMatch(/^I didn’t change anything/)
@@ -431,13 +444,13 @@ describe('STATE RAIL · a pointer at the start of a message restyles EXACTLY the
     const rm = await planOf(fx, WRONG.indicator['indicator.remove (the RSI)'])
     expect(stateRailRefusal(rm, { words: 'remove it', subjects: new Set(['ind:c1:inst:rsi:1']) }) || 'LET THROUGH').toMatch(/^I didn’t change anything/)
   })
-  it('"save it" at the start never saves over a layout (it has no exact Undo); "save my layout" / "save it to my layout" do', async () => {
+  it('(D19) "save it" at the start goes to the save-over CARD (no exact Undo); "save my layout" / "save it to my layout" run', async () => {
     const fx = stateFixture()
     const save = await planOf(fx, WRONG.layout['layout.saveCurrent (saved over Mine)'])
     for (const w of ['save it', 'Save it.', 'save', 'save that'])
-      expect(stateRailRefusal(save, { words: w, subjects: new Set(['layout:11']) }) || 'LET THROUGH', w).toMatch(/^I didn’t change anything/)
+      expect(stateRailDecision(save, { words: w, subjects: new Set(['layout:11']) }), w).toEqual({ card: true })
     for (const w of ['save my layout', 'make this chart weekly and save it to my layout', 'save the layout'])
-      expect(stateRailRefusal(save, { words: w }), w).toBe(null)
+      expect(stateRailDecision(save, { words: w }), w).toBe(null)
   })
 })
 
@@ -615,9 +628,9 @@ describe('STATE RAIL · bindings: position of what the previous turn made, the l
   it('"keep this arrangement in my current layout" saves over the layout it names; "keep my rsi" never does', async () => {
     const fx = stateFixture()
     const save = await planOf(fx, WRONG.layout['layout.saveCurrent (saved over Mine)'])
-    expect(stateRailRefusal(save, { words: 'keep this arrangement in my current layout' })).toBe(null)
+    expect(stateRailDecision(save, { words: 'keep this arrangement in my current layout' })).toBe(null)
     for (const w of ['keep my rsi', 'keep it as it is', 'keep this arrangement'])
-      expect(stateRailRefusal(save, { words: w }) || 'LET THROUGH', w).toMatch(/^I didn’t change anything/)
+      expect(stateRailDecision(save, { words: w }), w).toEqual({ card: true })
   })
   it('"stretch the box to 130": only when the symbol holds exactly ONE box', () => {
     const plan = (n) => ({ ok: true, plans: [{ kind: 'drawing', ref: 'SPY', before: { symbol: 'SPY', drawings: Array.from({ length: n }, (_, i) => ({ id: `r${i}`, type: 'rect', points: [] })) },
@@ -666,6 +679,11 @@ describe('STATE RAIL · layer 2: through the real panel — a destroying model p
       await say(said)
       expect(calls.some(c => c[1] === '/api/agent/turn'), `${said}: the model was reached`).toBe(true)
       expect(stateOf(fx), said).toBe(before)
+      if (pname.startsWith('layout.saveCurrent')) {
+        // (D19) a save-over goes to its card — nothing saved until Apply
+        expect(screen.queryByRole('button', { name: 'Apply' }), said).toBeTruthy()
+        return
+      }
       expect(transcript(), said).toMatch(/didn’t change anything: you asked to add/)
       // a destroying change that would have needed a card never reached one either
       expect(screen.queryByRole('button', { name: 'Apply' }), said).toBeNull()

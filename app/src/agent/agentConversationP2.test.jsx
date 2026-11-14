@@ -141,13 +141,15 @@ describe('S · "my other charts", "the same", "match this one"', () => {
     await say('add the 9 and 20 ema to the top left chart')
     await say('now put those on my other charts')
     await say('make the 20 ema on the top left chart red')
-    // ⛔ AUDIT #1247 (owner D16): "do the same on the other charts" names no command of its own — ASKS, nothing written
+    // ⛔ AUDIT #1247 (D19 rule ii): "the other charts" = every chart but the one just changed; on each, the EMA 20 with the same
+    // definition and settings — acted on, by exact id; Undo puts each back exactly
     const was = ['c1', 'c2', 'c3'].map(id => colorOf(board, id, 'EMA 20'))
-    const out = await say('do the same on the other charts')
+    await say('do the same on the other charts')
+    for (const id of ['c0', 'c1', 'c2', 'c3']) expect(colorOf(board, id, 'EMA 20'), id).toBe(RED)
+    expect(p.turns()).toBe(0)
+    await say('undo')
+    await waitFor(() => expect(['c1', 'c2', 'c3'].map(id => colorOf(board, id, 'EMA 20'))).toEqual(was))
     expect(colorOf(board, 'c0', 'EMA 20')).toBe(RED)
-    expect(out).toMatch(/didn’t change anything/)
-    expect(['c1', 'c2', 'c3'].map(id => colorOf(board, id, 'EMA 20'))).toEqual(was)
-    expect(p.proposals()).toHaveLength(0)
   }, 60000)
 
   it('S3 "make the top left chart weekly" → "make all my charts match this one" — ONE proposal for the three others (a look copy is approved first); nothing changed yet', async () => {

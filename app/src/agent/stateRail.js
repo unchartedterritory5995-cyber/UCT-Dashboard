@@ -52,11 +52,13 @@ const OVERWRITE_OPS = new Set(['setInputs', 'setAppearance', 'setPlotStyle', 'se
 function indicatorOfRequest(req, rows, chartRef = null) {
   const op = req?.op
   const id = req?.instanceId
-  const name = (rows || []).find(r => r.instanceId === id)?.name || 'an indicator'
+  const row = (rows || []).find(r => r.instanceId === id)
+  const name = row?.name || 'an indicator'
+  const what = row ? { defId: row.defId, inputs: row.inputs } : {}
   // id: the exact instance (a pointer at the conversation's subject may restyle only that one)
   const oid = chartRef && id ? `ind:${chartRef}:${id}` : null
-  if (op === 'remove') return [{ state: 'indicator', type: 'remove', name, label: name, id: oid }]
-  if (OVERWRITE_OPS.has(op)) return [{ state: 'indicator', type: 'overwrite', name, label: name, id: oid }]
+  if (op === 'remove') return [{ state: 'indicator', type: 'remove', name, label: name, id: oid, ...what }]
+  if (OVERWRITE_OPS.has(op)) return [{ state: 'indicator', type: 'overwrite', name, label: name, id: oid, ...what }]
   // add / duplicate / copyFrom (a template's indicators) add; setVisible / movePane / setPaneSize / setDisplayTarget /
   // setVisibility / setCalculationTimeframe arrange, show, or pick the bars it computes on — its settings are kept
   if (['add', 'duplicate', 'copyFrom', 'setVisible', 'movePane', 'setPaneSize', 'setDisplayTarget', 'setVisibility', 'setCalculationTimeframe'].includes(op)) return []
@@ -171,7 +173,7 @@ const READERS = {
       }
     }
     for (const o of pt.itemOps || []) {
-      if (o.op === 'delete') out.push({ state: 'widget', type: 'remove', name: `“${nm(o.name || o.label)}” in the ${nm(was.get(String(o.widget))?.type) || 'widget'}` })
+      if (o.op === 'delete') out.push({ state: 'widget', type: 'remove', name: `“${nm(o.name || o.label)}” in the ${nm(was.get(String(o.widget))?.type) || 'widget'}`, id: `item:${o.widget}:${o.key}:${nm(o.name || o.label)}`, itemName: nm(o.name || o.label), itemKey: o.key })
       else if (o.op === 'rename') out.push({ state: 'widget', type: 'overwrite', name: `“${nm(o.was || o.label)}” in the ${nm(was.get(String(o.widget))?.type) || 'widget'}` })
     }
     return out
@@ -265,10 +267,15 @@ const has = (clause, label) => { const p = phrase(label); return !!p && ` ${phra
 // the member's own name for the thing (a list "Tech", a layout "Swing", "RSI (14)") — quoted in the effect, or its label
 const labelOf = (e) => e.label || (/“([^”]+)”/.exec(e.name || '') || [])[1] || null
 /** Does this clause name the effect's object — its class, or (when it names no OTHER class) its own name? */
-export function namesObject(e, clause) {
+export function namesObject(e, clause, why = null) {
   const mine = classesOf(e)
   if (mine.some(c => CLASS[c]?.test(clause))) return true
-  if (Object.keys(CLASS).some(c => !mine.includes(c) && CLASS[c].test(clause))) return false
+  if (Object.keys(CLASS).some(c => !mine.includes(c) && CLASS[c].test(clause))) {
+    // its OWN name beside another class ("delete the Paper watchlist look"): which is meant is asked, with both as choices
+    const label = labelOf(e) || e.itemName
+    if (why && label && has(clause, label)) why.labelOther = { label, classes: Object.keys(CLASS).filter(c => !mine.includes(c) && CLASS[c].test(clause)) }
+    return false
+  }
   const label = labelOf(e)
   return !!label && (has(clause, label) || phrase(label).split(' ').filter(t => t.length >= 3 && /[a-z]/.test(t)).some(t => has(clause, t)))
 }
@@ -335,6 +342,8 @@ const STYLE_VALUE = String.raw`(?:red|green|blue|yellow|orange|purple|pink|white
 const VERBLESS = new RegExp(String.raw`(?:^|\s)(?:the\s+)?(?:\w+\s+){0,2}?(?:ones?|\d{1,3}|emas?|smas?|rsi|macd|lines?|fib|trendline|vwap)\s+(?:a\s+)?${STYLE_VALUE}\b`, 'i')
 const strengthOf = (verb, e) => {
   if (e.type === 'replace' && e.state === 'widget') return DISPLAY.test(verb) || MODIFY_ANY.test(verb)
+  // a save-over is asked for by a SAVE (or "overwrite / replace my layout"), never by a delete of something else
+  if (e.via === 'save') return SAVE.test(verb) || /^(?:overwrit\w*|replac\w*)$/i.test(verb)
   if (DESTROY_ANY.test(verb)) return true
   if (e.type === 'replace') return /^(?:apply|applies|applied|applying|use|using|load\w*)$/i.test(verb) && classesOf(e).includes('template')
   if (e.type === 'overwrite') return MODIFY_ANY.test(verb) || PICK.test(verb) || (e.via === 'save' && SAVE.test(verb))
@@ -382,7 +391,21 @@ const atPosition = (pos, words) => !!pos && words.some(w => matchPosition([{ pos
 const JUST_MADE = /\b(?:the )?(?:one|list|watchlist)\s+(?:that\s+)?I\s+(?:just\s+)?(?:made|created|built)\b/i
 // "keep this arrangement in my current layout": a save over the layout it names (as "save my layout")
 const KEEP_IN_LAYOUT = /\bkeep\b[^.;!?]*\b(?:in|into|to)\s+(?:my|the|this)\s+(?:current\s+|open\s+)?layout\b/i
-export function permits(e, words, subjects = null, previous = null, previousSet = null, made = null) {
+// (D19) a COUNT the words give ("all five") and the rows an earlier view showed ("the top three")
+const NUMBER = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12 }
+const countOf = (w) => (/^\d{1,3}$/.test(w) ? Number(w) : NUMBER[String(w).toLowerCase()] ?? null)
+const ALL_N = /\b(?:all|every one of|each of)\s+(?:the\s+|those\s+|these\s+)?(\d{1,3}|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\b/i
+const TOP_N = /\b(top|first|bottom|last)\s+(\d{1,3}|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\b/i
+const sameSet = (a, b) => a.length === b.length && [...a].sort().join('|') === [...b].sort().join('|')
+// the rows a recorded view showed for THIS list (same members as the list holds now: any edit since → no view)
+const viewOfList = (views, listSyms) => (views || []).find(v => Array.isArray(v.rows) && v.rows.length && sameSet(v.rows.map(x => String(x).toUpperCase()), listSyms || []))
+// "do the same on the other charts": the previous turn's ONE indicator change, repeated on another chart's matching instance
+const SAME_OTHER = /\b(?:do|make|apply)?\s*(?:the\s+)?same(?:\s+thing)?\b[^.;!?]*\b(?:other|rest)\b/i
+const chartOfId = (id) => String(id || '').split(':')[1] || null
+export function permits(e, words, subjects = null, previous = null, previousSet = null, made = null, extra = null) {
+  const why = extra?.why || {}
+  // a PICK the member made from the choices this rail asked with: exactly that object
+  if (e.id && extra?.picked && extra.picked.has(e.id)) return true
   // before / prev: the classes and the clause the latest earlier clause NAMED; spoke: an earlier clause said anything of
   // substance (named a thing, or asked for something) — then a pointer speaks of THAT, never of the conversation before
   let before = [], prev = '', spoke = false
@@ -393,6 +416,28 @@ export function permits(e, words, subjects = null, previous = null, previousSet 
     // a display switch named by the list it shows (never a symbol; a homograph is asked: stateRailRefusal)
     if (!negated && e.type === 'replace' && e.to && PUT_IN.test(c) && has(c, e.to) && (SAID_LIST(c, e.to) || !tickersIn(c).includes(String(e.to).toUpperCase()))) return true
     if (!negated && e.via === 'save' && KEEP_IN_LAYOUT.test(c)) return true
+    if (!negated && e.state === 'watchlist' && e.syms && e.listSyms) {
+      // "remove all five": the count IS the list's size, and the change removes every one
+      const an = ALL_N.exec(c)
+      if (an && countOf(an[1]) === e.listSyms.length && sameSet(e.syms, e.listSyms)) return true
+      // "remove the top three" / "keep only the top two": the rows the recorded view showed, the list unchanged since
+      const tn = TOP_N.exec(c)
+      if (tn) {
+        const n = countOf(tn[2]), v = viewOfList(extra?.views, e.listSyms)
+        if (v && n) {
+          const rows = v.rows.map(x => String(x).toUpperCase())
+          const pick = /^(?:bottom|last)$/i.test(tn[1]) ? rows.slice(-n) : rows.slice(0, n)
+          const keeps = /\bkeep\b/i.test(c)
+          if (keeps ? sameSet(e.syms, rows.filter(r => !pick.includes(r))) : sameSet(e.syms, pick)) return true
+          why.rows = pick
+        } else why.rowsUnknown = true
+      }
+    }
+    if (!negated && e.state === 'indicator' && e.type === 'overwrite' && SAME_OTHER.test(c) && e.defId) {
+      // the ONE indicator the previous turn changed, on ANOTHER chart: the instance with the same definition and settings
+      const src = (previousSet || []).filter(o => String(o.id).startsWith('ind:'))
+      if (src.length === 1 && chartOfId(src[0].id) !== chartOfId(e.id) && src[0].defId === e.defId && sameJson(settingsOf(src[0].inputs), settingsOf(e.inputs))) return true
+    }
     if (!negated && JUST_MADE.test(c) && e.id && made && made.has(e.id)) return true
     if (!negated) {
       // a verbless style command ("the 9 green") changes the look of what it names or points at — an overwrite only
@@ -421,21 +466,27 @@ export function permits(e, words, subjects = null, previous = null, previousSet 
         if (!obj) { if (e.type === 'replace' && e.state === 'widget' && displayNamed(e, c)) return true; continue }
         // (a NEW value for one of the change's own settings — "use a large arrow size" — names that setting)
         if (INDEFINITE.test(obj) && !(e.type === 'replace' && e.state === 'widget') && !(e.type === 'overwrite' && e.state === 'drawing' && settingNamed(e, obj))) continue
-        if (POINTS.test(obj)) {
-          const rest = obj.replace(POINTS, '')
+        // (D19) "that indicator" / "this line" / "those emas": a demonstrative + class noun POINTS at the conversation's subject
+        const demo = /^(?:that|this|these|those)\s+/i.test(obj) && Object.keys(CLASS).some(k => CLASS[k].test(obj.split(/\s+/).slice(0, 3).join(' ')))
+        if (demo || POINTS.test(obj)) {
+          const rest = demo ? obj.replace(/^(?:that|this|these|those)\s+/i, '') : obj.replace(POINTS, '')
           // "make it orange on the QQQ chart": a pointer narrowed by a class named after it must be that class
           if (named.length && !classesOf(e).some(k => named.includes(k)) && Object.keys(CLASS).some(k => CLASS[k].test(rest))) continue
+          if (demo && !classesOf(e).some(k => CLASS[k]?.test(rest))) continue
           // a save names its container after the pointer ("save it to my layout")
           if (saving && namesObject(e, rest)) return true
           if (!spoke) {
             // the message's first words point at the conversation's CURRENT subject ("make it thicker"): an overwrite of
             // EXACTLY that object (never another of its class); a destroy, a replace or a save-over is asked, never assumed
             if (e.type === 'overwrite' && !saving && isSubject()) return true
+            if (demo && e.type === 'overwrite') why.demo = true
             // a destroy right after: only the ONE object the immediately previous turn made or changed (AUDIT #1247 A)
             if (e.type !== 'overwrite' && !saving && e.id && previous && e.id === previous) return true
             // "remove it from the right one": among what the previous turn made, exactly the one(s) at those positions
             const pw = c.match(POS_WORDS)
             if (e.type !== 'overwrite' && !saving && e.id && pw && (previousSet || []).some(o => o.id === e.id && atPosition(o.position, pw))) return true
+            // several made: which one is asked, with them as the choices (never acted on as a guess)
+            if (e.type !== 'overwrite' && !saving && (previousSet || []).length > 1 && (previousSet || []).some(o => o.id === e.id)) why.previousMany = true
             continue
           }
           // after words of its own: an overwrite takes the class they named; a destroy / replace only the very object they
@@ -446,6 +497,7 @@ export function permits(e, words, subjects = null, previous = null, previousSet 
           continue
         }
         if (namesOwn(e, obj)) return true
+        if (e.type !== 'overwrite') namesObject(e, obj, why)
       }
     }
     if (named.length) { before = named; prev = c }
@@ -490,7 +542,33 @@ export const notDoneLine = (adds) => (adds.length
  * a pending question carried). Every mode (apply / propose / approved): an additive request never reaches a card that
  * destroys either. Fails closed: anything that throws while reading an additive request's plan refuses it.
  */
-export function stateRailRefusal(plan, { words = '', mode = 'apply', subjects = null, previous = null, previousSet = null, made = null } = {}) {
+/**
+ * (D19) What the rail decides for a plan: null (it may run), { card: true } (an irreversible save-over: its approval card IS the
+ * confirmation — never a bare ask, never a silent save), or { text, ask? } — refused, with what to ask: `previous` (which of
+ * the objects the previous turn made), `demo` (which instance a demonstrative means), `label` (which kind of thing a name
+ * means), `rows` (the rows an earlier view showed).
+ */
+export function stateRailDecision(plan, ctx = {}) {
+  const { mode = 'apply' } = ctx
+  if (!plan?.ok || mode === 'approved') return null
+  let effects
+  try { effects = stateEffects(plan) } catch { return { text: 'I didn’t change anything: I couldn’t check what this would remove or change. Ask again, or say exactly what to replace or remove.' } }
+  if (!effects.length) return null
+  const text = stateRailRefusal(plan, ctx)
+  // a save-over the words do not ask for in so many words goes to its CARD (as before the state rail)
+  const saves = effects.filter(e => e.via === 'save')
+  const ok = (e) => permits(e, String(ctx.words || ''), ctx.subjects, ctx.previous, ctx.previousSet, ctx.made, ctx)
+  // (said in so many words — "save my layout" — it runs as it always has; otherwise its card asks first)
+  if (saves.length && effects.every(e => e.via === 'save' || ok(e))) return saves.every(ok) ? null : { card: true }
+  if (!text) return null
+  const why = {}
+  for (const e of effects) if (e.via !== 'save') permits(e, String(ctx.words || ''), ctx.subjects, ctx.previous, ctx.previousSet, ctx.made, { ...ctx, why })
+  const first = effects.find(e => e.via !== 'save' && !permits(e, String(ctx.words || ''), ctx.subjects, ctx.previous, ctx.previousSet, ctx.made, ctx)) || effects[0]
+  const ask = why.previousMany ? { kind: 'previous' } : why.demo ? { kind: 'demo', effect: first } : why.labelOther ? { kind: 'label', effect: first, ...why.labelOther } : why.rows ? { kind: 'rows', rows: why.rows } : null
+  if (ask?.kind === 'rows') return { text: `I didn’t change anything: your list has changed since I showed it, so I can’t be sure which ones you mean. The top ones it showed were ${listOf(ask.rows)} — say them by name (for example “remove ${listOf(ask.rows)}”).`, ask }
+  return { text, ask }
+}
+export function stateRailRefusal(plan, { words = '', mode = 'apply', subjects = null, previous = null, previousSet = null, made = null, views = null, picked = null } = {}) {
   if (!plan?.ok) return null
   // an APPROVED card was shown, naming what it removes or changes, to the member who approved it (and its binding is checked
   // before it runs): the card is the permit. Every other path — instant, model, proposal, composed, deferred — needs the words.
@@ -501,7 +579,8 @@ export function stateRailRefusal(plan, { words = '', mode = 'apply', subjects = 
     if (!effects.length) return null
     const amb = effects.map(e => homograph(e, w)).find(Boolean)
     if (amb) return `Do you mean your “${amb}” list, or the ticker ${String(amb).toUpperCase()}? Nothing was changed — say “show my ${amb} list” to switch the widget to it, or “add ${String(amb).toUpperCase()} to my watchlist” to add the symbol.${notDoneLine(notDoneAdds(plan))}`
-    const bad = effects.filter(e => !permits(e, w, subjects, previous, previousSet, made))
+    // (a save-over is never refused here: it goes to its card — stateRailDecision)
+    const bad = effects.filter(e => e.via !== 'save' && !permits(e, w, subjects, previous, previousSet, made, { views, picked }))
     if (!bad.length) return null
     const what = listOf([...new Set(bad.map(said))])
     const lead = isStateAdditive(w) ? `you asked to add, but this would ${what}. Adding never replaces or removes what you already have` : `this would ${what}, and you didn’t ask for that`
@@ -544,7 +623,90 @@ export function previousObjectOf(memory, epoch = null, drawing = null) {
   return all.length === 1 ? all[0] : null
 }
 /** What the member's NEW turn starts from: the subject as it is when they speak — never an earlier turn's carried over. */
-export const turnStartOf = (memory, epoch = null, drawing = null) => ({ ids: subjectIdsOf(memory, epoch, drawing), previous: previousObjectOf(memory, epoch, drawing), previousAll: previousObjectsOf(memory, epoch, drawing) })
+export const turnStartOf = (memory, epoch = null, drawing = null, host = null) => {
+  if (!host) return { ids: subjectIdsOf(memory, epoch, drawing), previous: previousObjectOf(memory, epoch, drawing), previousAll: previousObjectsOf(memory, epoch, drawing), candidates: [] }
+  // (D19) with the board: only what the previous APPLIED turn made / changed and is still there, unchanged
+  const candidates = previousCandidatesOf(memory, epoch, drawing, host)
+  return { ids: subjectIdsOf(memory, epoch, drawing), previous: candidates.length === 1 ? candidates[0].id : null, previousAll: candidates.map(c => c.id), candidates, views: appliedViewsOf(memory) }
+}
 /** The next turn's start, given the last one's: the subject NOW only — what an earlier turn's start held never carries over
  *  ("copies from an earlier turn" are not the subject; only what the latest turns touched). */
-export const nextTurnSubjects = (prevStart, memory, epoch = null, drawing = null) => { void prevStart; return turnStartOf(memory, epoch, drawing) }
+export const nextTurnSubjects = (prevStart, memory, epoch = null, drawing = null, host = null) => { void prevStart; return turnStartOf(memory, epoch, drawing, host) }
+
+// ── (D19) WHAT THE PREVIOUS APPLIED TURN MADE OR CHANGED — still present and unchanged since, ref-matched (AUDIT rule i) ──
+// noteApplied is called when a turn's change lands (useAgent rememberChange): each object it made / changed is recorded with a
+// fingerprint of how it stood then. At the member's next message, previousCandidatesOf keeps only those whose fingerprint is
+// the same NOW (a member edit, or a delete, since → not that object any more). With `host` (the board) — pure otherwise.
+const APPLIED = new WeakMap()
+const rowFp = (host, chart, instanceId) => { try { const r = indicatorRowsOf(host?.charts?.read?.(chart)?.cs).find(x => x.instanceId === instanceId); return r ? JSON.stringify([r.defId, r.inputs, r.presentation, r.hidden]) : null } catch { return null } }
+const indicatorRowsOf = (cs) => { try { return instancesOf(cs, nativeRegistry).filter(r => !r.setting) } catch { return [] } }
+const chartFp = (host, ref) => { try { const c = host?.charts?.read?.(ref); return c ? JSON.stringify([c.ref, c.symbol]) : null } catch { return null } }
+const drawFp = (host, sym, id) => { try { const d = host?.drawings?.read?.(sym)?.drawings?.find(x => x.id === id); return d ? JSON.stringify(d) : null } catch { return null } }
+/** Every object the previous turn made or changed, as { id, label, kind, remove (the op that removes exactly it), fp() }. */
+function rawCandidates(memory, epoch, drawing, host) {
+  const out = []
+  try {
+    const t = memory?.lastTurn?.(epoch)
+    if (!t?.ops?.length) return out
+    const acts = t.ops.map(o => String(o.action))
+    // charts a widget add made
+    for (const o of t.ops) {
+      if (!/^widget\.add/.test(String(o.action))) continue
+      const c = host?.charts?.read?.(String(o.target))
+      if (c) out.push({ id: `chart:${c.ref}`, label: `the ${c.symbol || ''} chart`.replace(/\s+/g, ' '), remove: { action: 'widget.remove', target: 'board', args: { widget: c.ref } }, fp: () => chartFp(host, c.ref) })
+    }
+    // indicators: the exact instance each op of the turn changed, and what its adds made (the memory's set for that turn)
+    const seen = new Set()
+    for (const o of t.ops) {
+      const chart = String(o.target || '').replace(/^ixe:/, '')
+      if (!/^(?:indicator|indicatorStyle|indicatorCopy|pane)\./.test(String(o.action)) || typeof o.args?.instance !== 'string') continue
+      const rows = indicatorRowsOf(host?.charts?.read?.(chart)?.cs)
+      // by id, or by the portable form an instant edit names it with ("#20:ema": the ONE average of that length and type)
+      const pm = /^#(\d{1,4})(?::(\w+))?$/.exec(o.args.instance)
+      const byLen = pm ? rows.filter(r => r.defId === 'movingAverage' && Number(r.inputs?.period) === Number(pm[1]) && (!pm[2] || String(r.inputs?.maType) === pm[2])) : []
+      const row = rows.find(r => r.instanceId === o.args.instance) || (byLen.length === 1 ? byLen[0] : null)
+      if (!row || seen.has(`${chart}:${row.instanceId}`)) continue
+      seen.add(`${chart}:${row.instanceId}`)
+      out.push({ id: `ind:${chart}:${row.instanceId}`, label: `the ${row.name}`, defId: row.defId, inputs: row.inputs,
+        remove: { action: 'indicator.remove', target: `ixe:${chart}`, args: { instance: row.instanceId } }, fp: () => rowFp(host, chart, row.instanceId) })
+    }
+    if (acts.some(a => a === 'indicator.add' || a.startsWith('indicatorCopy.'))) {
+      for (const x of (memory.indicatorSet?.(epoch) || []).filter(x => !seen.has(`${x.chart}:${x.instanceId}`))) {
+        const row = indicatorRowsOf(host?.charts?.read?.(x.chart)?.cs).find(r => r.instanceId === x.instanceId)
+        out.push({ id: `ind:${x.chart}:${x.instanceId}`, label: `the ${row?.name || x.label || 'indicator'}`, defId: row?.defId, inputs: row?.inputs,
+          remove: { action: 'indicator.remove', target: `ixe:${x.chart}`, args: { instance: x.instanceId } }, fp: () => rowFp(host, x.chart, x.instanceId) })
+      }
+    }
+    if (acts.every(a => a.startsWith('drawing.')) && t.ops.length === 1 && drawing?.sym && drawing.id) {
+      out.push({ id: `draw:${drawing.sym}:${drawing.id}`, label: 'that drawing', remove: { action: 'drawing.remove', target: drawing.sym, args: { drawing: drawing.id } }, fp: () => drawFp(host, drawing.sym, drawing.id) })
+    }
+    if (acts.every(a => a.startsWith('watchlist.') && a !== 'watchlist.create')) {
+      const refs = [...new Set(t.ops.map(o => String(o.target)))]
+      if (refs.length === 1) out.push({ id: `list:${refs[0]}`, label: 'that list', remove: null, fp: () => 'list' })
+    }
+  } catch { /* none */ }
+  return out
+}
+/** Record how the objects of the turn that just landed stand now (the bar a later "it" is checked against). */
+export function noteApplied(memory, epoch = null, drawing = null, host = null) {
+  if (!memory || !host) return
+  try {
+    const t = memory.lastTurn?.(epoch)
+    const fps = new Map(rawCandidates(memory, epoch, drawing, host).map(c => [c.id, c.fp()]))
+    // …and the rows each list view shows now ("the top three" next turn means THESE rows)
+    let views = []
+    try { views = (host.listViews?.snapshot?.() || []).map(v => ({ ref: v.ref, rows: [...(v.rows || [])] })) } catch { views = [] }
+    APPLIED.set(memory, { turn: t?.id ?? null, fps, views })
+  } catch { /* best effort */ }
+}
+/** The previous turn's objects that are STILL PRESENT and UNCHANGED since it landed (no host: the old, memory-only reading). */
+export function previousCandidatesOf(memory, epoch = null, drawing = null, host = null) {
+  const all = rawCandidates(memory, epoch, drawing, host)
+  if (!host) return all
+  const rec = APPLIED.get(memory)
+  const t = memory?.lastTurn?.(epoch)
+  if (!rec || rec.turn !== (t?.id ?? null)) return []
+  return all.filter(c => { const was = rec.fps.get(c.id); const now = c.fp(); return was != null && now != null && was === now })
+}
+/** The list rows the last applied turn left on screen. */
+export const appliedViewsOf = (memory) => APPLIED.get(memory)?.views || []

@@ -130,11 +130,16 @@ describe('C3-104: looks — save, apply, delete — through the ⚙ panel\'s Tem
     const was = JSON.stringify(optsOf(m))
     const out = await m.say(text, setOption(c.args))
     if (c.deletes) {
-      // ⛔ AUDIT #1247 (owner D16): "delete the Paper watchlist look" names the look only beside ANOTHER class (watchlist) —
-      // the state rail ASKS: no card, nothing deleted
-      expect(out).toMatch(/didn’t change anything/)
+      // ⛔ AUDIT #1247 (D19): "delete the Paper watchlist look" names "Paper" beside ANOTHER class (watchlist) — ASKED WITH
+      // CHOICES (the saved look "Paper"; a watchlist "Paper" when there is one), nothing deleted; the pick is the look → its card
+      expect(out).toMatch(/Which one do you mean\?/)
       expect(proposalsNow()).toHaveLength(0)
       expect(templates()).toEqual([PAPER])
+      fireEvent.click(screen.getAllByRole('button', { name: /saved look “Paper”/ }).at(-1))
+      await waitFor(() => expect(proposalsNow()).toHaveLength(1))
+      expect(templates()).toEqual([PAPER])
+      await m.apply()
+      await waitFor(() => expect(templates()).toEqual([]))
       expect(JSON.stringify(optsOf(m))).toBe(was)
       return
     }

@@ -13,7 +13,7 @@ import { registerBuiltins } from './builtins'
 import { stateFixture, drawingIds, SCAN } from './__fixtures__/stateBoard'
 import { allCapabilityNames, getCapability, getTargetKind } from './capabilities'
 import { planOps, collectTargets, prepareOps } from './executor'
-import { stateEffects, stateRailRefusal, STATE_KINDS } from './stateRail'
+import { stateEffects, stateRailRefusal, stateRailDecision, STATE_KINDS } from './stateRail'
 import { RAIL_KINDS } from './chartRail'
 
 vi.stubEnv('VITE_INDICATOR_TEMPLATES_ENABLED', '1')
@@ -174,6 +174,11 @@ describe('STATE RAIL census — by tool, from the registry', () => {
     for (const r of hits()) {
       expect(r.samples.length, r.name).toBeGreaterThan(0)
       for (const { plan, args } of r.samples) {
+        // (D19) an irreversible save-over goes to its APPROVAL CARD for every such wording — never refused, never silent
+        if (stateEffects(plan).every(e => e.via === 'save')) {
+          for (const w of ADDITIVE_WORDS) { n++; expect(stateRailDecision(plan, { words: w }), `${r.name} · "${w}"`).toEqual({ card: true }) }
+          continue
+        }
         for (const w of ADDITIVE_WORDS) {
           n++
           expect(stateRailRefusal(plan, { words: w }), `${r.name} ${JSON.stringify(args)} · "${w}"`).toMatch(/^I didn’t change anything/)

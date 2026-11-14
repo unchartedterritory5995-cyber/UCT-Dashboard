@@ -538,15 +538,19 @@ describe('5. several at once, including everything except these', () => {
     await m.say('undo')
     await waitFor(() => expect(server(m, 'Momentum')).toEqual(SAVED))
   })
-  // ⛔ AUDIT #1247 (owner D16): a COUNT ("all five", "twelve") names no list and no symbol — the state rail ASKS, nothing written
-  it('"remove all five" (a count, no list or symbol named): asks, nothing written, no card', async () => {
+  // ⛔ AUDIT #1247 (D19): "all five" names the whole list when it holds exactly five — acted on (its clear card, as before)
+  it('listing EVERY ticker is a clear by another name, so it is proposed', async () => {
     const m = board()
-    const out = await m.say('remove all five', (c) => [op('watchlist.remove', listRef(c, 'Momentum'), { symbols: SAVED })])
-    expect(out).toMatch(/didn’t change anything/)
-    expect(proposalsNow()).toHaveLength(0)
+    await m.say('remove all five', (c) => [op('watchlist.remove', listRef(c, 'Momentum'), { symbols: SAVED })])
+    expect(proposalsNow()).toHaveLength(1)
     expect(server(m, 'Momentum')).toEqual(SAVED)
+    await m.apply()
+    await waitFor(() => expect(server(m, 'Momentum')).toEqual([]))
+    await m.say('undo')
+    await waitFor(() => expect(server(m, 'Momentum')).toEqual(SAVED))
   })
-  it('"remove twelve" (a count): asks, nothing written, no card', async () => {
+  // ⛔ AUDIT #1247 (D19): "twelve" of fourteen — which twelve the words do not fix: ASKS, nothing written, no card
+  it('"remove twelve" (12 of 14: which twelve is not fixed by the words): asks, nothing written, no card', async () => {
     const big = Array.from({ length: 14 }, (_, i) => `T${i}`)
     const m = board(ON_MOMENTUM(), { lists: [{ id: 'w1', name: 'Momentum', symbols: big }] })
     const out = await m.say('remove twelve', (c) => [op('watchlist.remove', listRef(c, 'Momentum'), { symbols: big.slice(0, 12) })])
@@ -576,15 +580,13 @@ describe('7. what a list shows, so a follow-up can act on "the top three"', () =
     expect(out).toContain(`“Momentum” (5, sorted by RVOL, high to low): ${RVOL_ORDER.join(', ')}`)
     expect(out).not.toMatch(/\$\d/)
   })
-  // ⛔ AUDIT #1247 (owner D16): a position in an earlier answer ("the top three") names no list and no symbol — ASKS, nothing written
-  it('"remove the top three": asks, nothing written, no card', async () => {
+  // ⛔ AUDIT #1247 (D19): "the top three" = the rows the earlier view showed, the list unchanged since — acted on
+  it('"remove the top three": the three on SCREEN, not the first three saved', async () => {
     const m = board()
     await sortRvol(m)
     await waitFor(() => expect(rowsOf()).toEqual(RVOL_ORDER))
-    const out = await m.say('remove the top three', (c) => [op('watchlist.remove', listRef(c, 'Momentum'), { symbols: top(c, 3) })])
-    expect(out).toMatch(/didn’t change anything/)
-    expect(proposalsNow()).toHaveLength(0)
-    expect(server(m, 'Momentum')).toEqual(SAVED)
+    await m.say('remove the top three', (c) => [op('watchlist.remove', listRef(c, 'Momentum'), { symbols: top(c, 3) })])
+    await waitFor(() => expect(server(m, 'Momentum')).toEqual(['NVDA', 'AMD']))
   })
   it('"flag the top two" and "keep the top two"', async () => {
     const m = board()
@@ -592,11 +594,9 @@ describe('7. what a list shows, so a follow-up can act on "the top three"', () =
     await waitFor(() => expect(rowsOf()).toEqual(RVOL_ORDER))
     await m.say('flag the top two', (c) => [op('watchlist.setFlag', flagRef(c), { symbols: top(c, 2), flagged: true })])
     await waitFor(() => expect(flags()).toEqual(['TSLA', 'AAPL']))
-    // "keep only the top two" removes the rest by a position — ASKS, nothing written (owner D16)
-    const out = await m.say('keep only the top two', (c) => [op('watchlist.keepOnly', listRef(c, 'Momentum'), { symbols: top(c, 2) })])
-    expect(out).toMatch(/didn’t change anything/)
-    expect(proposalsNow()).toHaveLength(0)
-    expect(server(m, 'Momentum')).toEqual(SAVED)
+    await m.say('keep only the top two', (c) => [op('watchlist.keepOnly', listRef(c, 'Momentum'), { symbols: top(c, 2) })])
+    await m.apply()
+    await waitFor(() => expect([...server(m, 'Momentum')].sort()).toEqual(['AAPL', 'TSLA']))
   })
   it('"add the top two of this list to Earnings" in one request: read at apply, in the on-screen order', async () => {
     const m = board()

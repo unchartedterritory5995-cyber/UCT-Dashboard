@@ -1471,12 +1471,24 @@ describe('NLM1-G2 · review gaps: only an indicator ON the created chart makes t
     const { board, say } = await g2()
     const raw = JSON.stringify(board.state.widgets)
     const { own, defaults } = turnInstance(amdOf(board))
-    // ⛔ AUDIT #1247 (owner D16): the G2 turn made TWO objects (a chart and its SMA) — "it" is not one: ASKS, nothing written
-    void own; void defaults
+    // ⛔ AUDIT #1247 (D19): the G2 turn made TWO objects (the AMD chart and its SMA 50) — "it" is ASKED WITH CHOICES, nothing
+    // written; the pick (the SMA) re-plans on exactly that instance: its removal card, then "do it"
     await say('remove it')
-    await waitFor(() => expect(transcript()).toMatch(/didn’t change anything/), { timeout: 8000 })
+    await waitFor(() => expect(transcript()).toMatch(/Which one do you mean\?/), { timeout: 8000 })
+    const choices = screen.getAllByRole('button').map(b => b.textContent)
+    expect(choices.some(t => /AMD chart/.test(t))).toBe(true)
+    expect(choices.some(t => /SMA 50/.test(t))).toBe(true)
     expect(screen.queryAllByTestId('agent-proposal')).toHaveLength(0)
     expect(JSON.stringify(board.state.widgets)).toBe(raw)
+    fireEvent.click(screen.getAllByRole('button').filter(b => /SMA 50/.test(b.textContent)).at(-1))
+    await waitFor(() => expect(screen.queryAllByTestId('agent-proposal').length).toBeGreaterThan(0), { timeout: 8000 })
+    expect(screen.queryAllByTestId('agent-proposal').map(n => n.textContent).join(' ')).toMatch(/SMA 50/)
+    expect(JSON.stringify(board.state.widgets)).toBe(raw)
+    await say('do it')
+    await waitFor(() => expect(transcript()).toMatch(/Removed SMA 50 on Chart w-chart-1/), { timeout: 8000 })
+    const after = amdOf(board).opts.settings.indicatorInstances
+    expect(after.filter(i => i.instanceId === own.instanceId && !i.deleted)).toHaveLength(0)
+    for (const d of defaults) expect(JSON.stringify(after.find(i => i.instanceId === d.instanceId))).toBe(JSON.stringify(d))
     expect(chartsOf(board)).toHaveLength(2)
   }, 40000)
 })
