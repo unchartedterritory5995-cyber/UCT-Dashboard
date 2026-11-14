@@ -316,11 +316,6 @@ export const STYLES = '/api/j2/journal-styles'
 /** The Templates tab's three lists, keyed by the router's `?view=`. */
 export const TEMPLATE_VIEWS = Object.freeze(['live', 'archived', 'deleted'])
 
-function put(url, raw) {
-  const body = bodyOf(raw)
-  if (body === null) return Promise.resolve(fail('network'))
-  return call(() => fetch(url, { method: 'PUT', credentials: 'include', headers: JSON_HEADERS, body }))
-}
 const styleUrl = (id, tail = '') => `${STYLES}/${enc(id)}${tail}`
 
 /** One of the three lists: `{kinds, styles}` (each style with `usedIn`, `credit`, `fromLibrary`, Task 11.13). */
@@ -329,22 +324,8 @@ export function listTemplates(view) {
   return call(() => fetch(`${STYLES}?view=${view}`, { method: 'GET', credentials: 'include' }))
 }
 
-/** One template, whole (its outline too): `{style}`. */
-export function getTemplate(id) {
-  if (!isId(id)) return Promise.resolve(fail('unavailable'))
-  return call(() => fetch(styleUrl(id), { method: 'GET', credentials: 'include' }))
-}
-
-/** Rename: the name only (`PUT /journal-styles/{id}` is a patch). */
-export function renameTemplate(id, name) {
-  if (!isId(id) || typeof name !== 'string' || !name.trim()) return Promise.resolve(fail('unavailable'))
-  return put(styleUrl(id), { name: name.trim() })
-}
-
-export function duplicateTemplate(id) {
-  if (!isId(id)) return Promise.resolve(fail('unavailable'))
-  return post(styleUrl(id, '/duplicate'), {})
-}
+// Final fix M6: `getTemplate`, `renameTemplate` and `duplicateTemplate` (and the `put` helper only rename used) went
+// with My tools' old Templates list, their only caller; the manager's Edit, Rename and Duplicate use lib/journalStyles.
 
 export function archiveTemplate(id) {
   if (!isId(id)) return Promise.resolve(fail('unavailable'))

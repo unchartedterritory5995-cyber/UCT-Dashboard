@@ -2388,9 +2388,10 @@ export default function NotebookTab() {
       openingTodayRef.current = false
     }
   }
-  // ⛔ Both take NO arguments, on purpose: they are click handlers and the shortcut's callback, so an event can never be
-  // read as options. `openToday` opens the note (the list's button, Ctrl+Alt+D, the phone row); `startTodayHere` is the
-  // Daily brief's Start (final fix I4).
+  // ⛔ None of these takes an argument, on purpose: they are click handlers and the shortcut's callback, so an event can
+  // never be read as options. Each door is its own handler, naming itself: `openToday` (the list's button),
+  // `openTodayFromRow` (the phone row), `openTodayFromBrief` (the Daily brief's Open), `startTodayHere` (the brief's
+  // Start, final fix I4) and `openTodayRef` (Ctrl+Alt+D).
   // Follow-up A: each door names itself (`today_door_used`, sent by openDailyNote when the note is there).
   const openToday = () => startToday({ door: 'list_button' })
   const openTodayFromRow = () => startToday({ door: 'phone_row' })
