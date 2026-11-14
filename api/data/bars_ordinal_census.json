@@ -7,7 +7,7 @@
     "get_bars_before",
     "get_bars_since"
   ],
-  "modules_scanned": 2294,
+  "modules_scanned": 2295,
   "summary": {
     "named_access_count": 2,
     "positional_count": 53,
@@ -159,11 +159,11 @@
       "calls": [
         {
           "function": "get_bars",
-          "line": 242
+          "line": 243
         }
       ],
       "evidence": {
-        "line": 246,
+        "line": 247,
         "pattern": "int-subscript",
         "index": 0
       }
