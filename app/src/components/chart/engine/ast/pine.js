@@ -137,7 +137,7 @@ import {
 } from './objectProgram.js'
 import { wholeTransparency, unpackColor } from '../colorInt.js'
 import { hexToPacked, byteTransparency, gradientChannelTree, objectHexToPacked, GRADIENT_ZERO_COLOUR, fromGradient, packedToObjectHex } from '../runtime/colours.js'
-import { THEME_NAMES } from '../objectTheme.js'
+import { THEME_NAMES, themeColourWithTransparency } from '../objectTheme.js'
 import { POINT_SIZE_ANCHORS } from '../objectPointSizes.js'
 import { VERSIONS_WITH_OBJECT_DEFAULTS } from '../objectDefaults.js'
 
@@ -29165,9 +29165,10 @@ export function isBareSource(node) {
  *  outside a scope, so a colour resolved where no script's version is known is a
  *  loud defect, never a silent v5.
  *
- *  ⚠️ `null` (no `//@version=`), v1 and v2 are UNMEASURED and keep the table this
- *  file always used (v5) — `pinePalette.UNMEASURED_FALLBACK` says so where the
- *  choice lives. */
+ *  ⭐ ENGINE 58 — `null` (no `//@version=`), v1 and v2 draw the v3 table (409
+ *  captures, 0 contradictions; `pinePalette.js` header). `null` is passed through
+ *  as `null` and `pinePalette.paletteFor` reads it as v1, the one place that rule
+ *  lives. */
 const NO_PALETTE_SCOPE = Symbol('no palette scope')
 let PALETTE_VERSION = NO_PALETTE_SCOPE
 
@@ -29987,6 +29988,14 @@ function colourHelperTransparency(node, env, ctx, depth = 0) {
     const arm = openBoundArm(node, env)
     return arm ? colourHelperTransparency(arm.node, arm.env, ctx, depth + 1) : null
   }
+  // ⭐ ENGINE 58 (C4) — THE LEAVES, for a caller that asks what a colour PAINTS
+  // (`colourTransparencyOf`), not only what a helper WRITES: `#RRGGBBAA`'s last
+  // byte is OPACITY, and Pine's `color.t` answers the inverse.
+  if (ctx && ctx.paintLeaves && node.type === 'colour') {
+    ctx.paintLeaves.leaf = true
+    const m = /^#[0-9a-f]{6}([0-9a-f]{2})$/i.exec(String(node.value))
+    return m ? Math.round((1 - parseInt(m[1], 16) / 255) * 100) : 0
+  }
   // ⭐⭐ A NAME AND AN `input.color` DEFAULT ARE OPENED, exactly as
   // `staticColourOf` opens them — otherwise the two readers disagree about the
   // same colour. ⚰️ Measured on a live TradingView capture (cc-yata, 2026-09-27):
@@ -30001,8 +30010,13 @@ function colourHelperTransparency(node, env, ctx, depth = 0) {
       const v = a && a.value !== undefined ? a.value : a
       return colourHelperTransparency(v, ctx.inline.callerEnv || env, { ...ctx, inline: null }, depth + 1)
     }
-    return bound && bound.kind === 'expr'
-      ? colourHelperTransparency(bound.node, bound.env || env, ctx, depth + 1) : null
+    if (bound && bound.kind === 'expr') return colourHelperTransparency(bound.node, bound.env || env, ctx, depth + 1)
+    // ⭐ ENGINE 58 (C4) — a bare Pine colour name (`color.teal`, v3/v4 `teal`) paints OPAQUE.
+    if (!bound && ctx && ctx.paintLeaves && isColourName(node)) {
+      ctx.paintLeaves.leaf = true
+      return 0
+    }
+    return null
   }
   // ⭐ 2026-09-28 (ruling 1) — the same door `staticColourOf` opens, so a
   // constant-selected branch keeps its own transparency.
@@ -30086,40 +30100,27 @@ function colourTransparencyOf(node, env, depth = 0, exact = false) {
   // ⛔ THE GATE: no static colour, no static transparency. Same question, one
   // authority, so the two answers cannot disagree about what counts as a colour.
   if (staticColourOf(node, env, depth) === null) return null
-
-  if (node.type === 'name') {
-    const bound = env && typeof env.get === 'function' ? env.get(node.name) : null
-    if (bound && bound.kind === 'expr') {
-      return colourTransparencyOf(bound.node, bound.env || env, depth + 1, exact)
-    }
-    // A bare Pine colour name (`color.teal`, or v3/v4 `teal`) is OPAQUE.
-    return 0
-  }
-  if (node.type === 'colour') {
-    // ⭐ `#RRGGBBAA`'s last byte is OPACITY, not transparency — Pine's `color.t`
-    // answers the inverse, so the conversion belongs here rather than at a call
-    // site that would have to remember which way round it goes.
-    const v = String(node.value)
-    const m = /^#[0-9a-f]{6}([0-9a-f]{2})$/i.exec(v)
-    if (m) return Math.round((1 - parseInt(m[1], 16) / 255) * 100)
-    return 0
-  }
-  if (node.type === 'call' && node.name === 'input.color') {
-    // ⚠️ THE DISCLOSURE RIDES HERE: this reads the input's DEFAULT. A member who
-    // moves the colour picker's alpha still gets the default rendering, and for
-    // Uncharted Clouds that governs the entire cloud opacity.
-    return colourTransparencyOf(inputColourDefaultNode(node), env, depth + 1, exact)
-  }
-  if (node.type === 'call' && (node.name === 'color.new' || node.name === 'color.rgb')) {
-    const opacity = colourHelperAlpha(node, env, null)
-    // ⭐ C29 — what `color.t` ANSWERS is a WHOLE transparency, truncated
-    // (`color.t(color.new(c, 70.5))` reads 70, measured). The paint keeps the
-    // exact float (`colourHelperAlpha`); this is the read-back, so it truncates.
-    // `exact`: what the colour PAINTS (an object's own `#RRGGBBAA`), never truncated.
-    if (opacity === null) return null
-    return exact ? (1 - opacity) * 100 : wholeTransparency((1 - opacity) * 100)
-  }
-  return null
+  // ⭐⭐ ENGINE 58 (C4) — ONE READER OF A COLOUR'S TRANSPARENCY, the plot lane's
+  // (`colourHelperTransparency`), asked with its LEAVES on (`paintLeaves`: a bare
+  // colour name is 0, a `#RRGGBBAA` literal its own byte). ⚰️ This function was a
+  // second walk of the same question and lacked the generic `input(<colour>)` the
+  // plot lane opens: `z = input(color.new(#ff5d00, 50), '')` then `box.new(…,
+  // bgcolor = z)` painted `#ff5d00` OPAQUE where TradingView paints `#ff5d0080`
+  // (ict-ifvg; 15 of 679 scripts in the class). One walk now: bindings, a
+  // constant-selected branch, `input.color` / `input(…)` defaults, a colour helper,
+  // `color.new` / `color.rgb`'s transparency, and the two leaves.
+  const probe = { leaf: false }
+  const raw = colourHelperTransparency(node, env, { paintLeaves: probe }, depth)
+  if (raw === null || !Number.isFinite(raw)) return null
+  // A leaf's answer is already the whole number Pine reads back (a literal's byte,
+  // rounded; a name's 0), and it is what an object paints, so it is kept as is.
+  if (probe.leaf) return raw
+  // ⭐ C29 — what `color.t` ANSWERS is a WHOLE transparency, truncated
+  // (`color.t(color.new(c, 70.5))` reads 70, measured). The paint keeps the
+  // exact float (`colourHelperAlpha`); this is the read-back, so it truncates.
+  // `exact`: what the colour PAINTS (an object's own `#RRGGBBAA`), never truncated.
+  const opacity = opacityOfTransparency(raw)
+  return exact ? (1 - opacity) * 100 : wholeTransparency((1 - opacity) * 100)
 }
 
 /** ⭐⭐ THE COLOUR A DRAWING OBJECT PAINTS: `staticColourOf`'s hex WITH its
@@ -30503,6 +30504,49 @@ function securityColourRule(node, env, depth, ctx) {
   return inner
 }
 
+/** ⭐⭐ ENGINE 58 — `color.new(<a colour rule>, T)` WITH `T` FIXED BEFORE BAR 0 IS
+ *  THE RULE, EVERY LEAF AT TRANSPARENCY `T`. Pine's `color.new` SETS a colour's
+ *  transparency (it never stacks onto the base's), so each leaf the rule picks is
+ *  painted at `1 − T/100`, whatever alpha the leaf carried; an `na` leaf stays the
+ *  absent colour. ⚰️ The walker followed a name and a helper to a conditional but
+ *  stopped at `color.new`, so the plot drew in the pane's gold — measured on
+ *  `uptrick-volatility-weighted-cloud` (`color.new(barCol, 0)`) and
+ *  `volume-weighted-bands` (`color.new(trendCol, 60)`: TradingView `#5cf0d766`).
+ *  `T` is read by the one alpha reader (`alphaNumberOf`): a literal, an input's
+ *  default, arithmetic on them. Returns `undefined` for a call that is not
+ *  `color.new` (the caller goes on), else the rule or null. Never mints (R36). */
+function colourNewOverRule(node, env, depth, ctx) {
+  if (node.name !== 'color.new') return undefined
+  const args = node.args || []
+  const positional = args.filter((a) => a && !a.name)
+  const base = ((args.find((a) => a && a.name === 'color')) || positional[0] || {}).value
+  const tNode = ((args.find((a) => a && a.name === 'transp')) || positional[1] || {}).value
+  if (base === undefined || tNode === undefined) return null
+  const t = alphaNumberOf(tNode, env, ctx)
+  if (t === null || !Number.isFinite(t)) return null
+  // ⛔ On the legacy pass, a colour whose constant selectors fold (owner ruling 1:
+  // `color.new(thA, 0)` over an `input.string` theme chain) is left to the folding
+  // pass, which reads it as the one colour (or rule) the default takes — so every
+  // colour that pass already carried keeps its shape.
+  if (!(ctx && ctx.foldSelectors) && ctx && ctx.resolver && env) {
+    const probe = { ...ctx, foldSelectors: { n: 0 } }
+    let folds = false
+    try { folds = !!staticColourOf(node, env, 0, probe) || probe.foldSelectors.n > 0 } catch { folds = false }
+    if (folds) return null
+  }
+  const inner = colourConditional(base, env, depth + 1, ctx)
+  if (!inner || (!inner.indexTree && !inner.test)) return null
+  const alpha = opacityOfTransparency(t)
+  const plain = (h) => (typeof h === 'string' && /^#[0-9a-f]{8}$/i.test(h) ? h.slice(0, 7) : h)
+  const out = { ...inner, opacity: alpha >= 1 ? null : alpha, withholdMint: true }
+  if (inner.test) {
+    out.up = plain(inner.up)
+    out.down = plain(inner.down)
+  }
+  if (Array.isArray(inner.palette)) out.palette = inner.palette.map((e) => (e === TRANSPARENT_PALETTE_ENTRY ? e : plain(e)))
+  return out
+}
+
 function colourConditional(node, env, depth = 0, ctx = null) {
   if (!node || depth > 8) return null
   if (node.type === 'bound') {
@@ -30542,6 +30586,8 @@ function colourConditional(node, env, depth = 0, ctx = null) {
     if (ctx && ctx.inline) return null
     const requested = securityColourRule(node, env, depth, ctx)
     if (requested !== undefined) return requested
+    const setAlpha = colourNewOverRule(node, env, depth, ctx)
+    if (setAlpha !== undefined) return setAlpha
     const helper = openColourHelper(node, env, ctx)
     if (!helper) return null
     const inner = colourConditional(helper.node, helper.env, depth + 1, { ...ctx, inline: helper.inline })
@@ -30800,9 +30846,9 @@ function colourGradientRule(node, env, ctx, depth = 0) {
  *  (fvg-trend) and v5 (btc-charlie), static / two-colour / chain / `na`-gated /
  *  palette-less colours on both calls. NOT WITNESSED, so withheld by name with
  *  `tools/visual_conformance/probes/vw-bgcolor-barcolor.pine` queued: a non-zero
- *  or `na` `offset`, `show_last`, any other `display`, `overlay` / `force_overlay`,
- *  and a v3/v4 `bgcolor` with no `transp` (its documented default of 90 has no
- *  capture).
+ *  or `na` `offset`, `show_last`, any other `display`, `overlay` / `force_overlay`.
+ *  (A v1-v4 `bgcolor` with no `transp` takes 90: v4 by CAP round 4, v1-v3 and
+ *  unannotated by the S1 probes `vw-cs1-transp-v{1,2,3}`, engine 58.)
  *
  *  ⛔ NOTHING MINTS. Every rule resolves with the resolver's `paramMint` held at
  *  null (R36): a paint added to a script must not create a parameter and renumber
@@ -30834,6 +30880,39 @@ export function isLegacyPineVersion(version) {
  *  `f2-fill-v4`: `filledAreasStyle.transparency` 90, painted alpha byte 26). */
 const V4_FILL_DEFAULT_TRANSP = 90
 
+/** ⭐⭐ ENGINE 58 — IS THIS A v1-v3 SCRIPT (or one with no `//@version`)? The ONE
+ *  predicate the legacy PLOT default reads (`legacyPlotDefault`). A missing version is
+ *  v1 (TradingView compiles it so), never "modern". */
+export function isPreV4PineVersion(version) {
+  return !Number.isInteger(version) || version <= 3
+}
+
+/** ⭐⭐ ENGINE 58 — THE TRANSPARENCY A v1-v3 `plot` / `plotshape` / `plotchar`
+ *  TAKES WITH NO `transp`: 35 (`styleState.transparency` 35, alpha byte `a6`).
+ *  Derived from 409 TradingView captures of v1/v2/v3/unannotated scripts
+ *  (sessions S2-S6, licence-held, verdicts in the evidence ledger), 0
+ *  contradictions, on every colour form: a named colour, a per-bar (colorer)
+ *  colour and no colour at all (the `#2962FF` default), over the styles line,
+ *  linebr, histogram, area, circles, cross, shapes and chars; and PROBED (session
+ *  S1, `tests/fixtures/vendor/transparency-defaults-by-version-rddt-1d-2026-11-14.json`,
+ *  probes `vw-cs1-transp-v{1,2,3}`): line, `columns` and `stepline` 35, `plotarrow`
+ *  35, `bgcolor` 90, `fill` 90 (plot-plot and hline-hline), `hline` no
+ *  transparency at all (opaque). An explicit `transp = N` draws N exactly (a v2
+ *  Bollinger band's `transp = 0`: `#008080ff`); `barcolor` draws 0; v4+ plots draw
+ *  0 (unchanged).
+ *  ⛔ NOT WITNESSED, so withheld by name (`COLOUR_DEFAULT_UNWITNESSED`): the
+ *  default over a colour that carries its own alpha. */
+export const LEGACY_PLOT_DEFAULT_TRANSP = 35
+const LEGACY_DEFAULT_KINDS = Object.freeze(new Set(['plot', 'plotshape', 'plotchar']))
+
+/** ⭐⭐ ENGINE 58 — THE TWO NAMES A PLOT'S COLOUR IS WITHHELD UNDER (never drawn in
+ *  a stand-in colour; `memberPaneDefinition` draws such a row in no colour and
+ *  says why). `pine:colour-unread`: the author wrote a colour (or a `transp`) this
+ *  door cannot read. `pine:colour-default-unwitnessed`: the colour is read, and
+ *  the transparency TradingView puts on it by default has no capture. */
+export const COLOUR_UNREAD = 'pine:colour-unread'
+export const COLOUR_DEFAULT_UNWITNESSED = 'pine:colour-default-unwitnessed'
+
 /** ⭐⭐ A STYLE TRANSPARENCY (`transp =`, a v4 default) → the opacity whose exact
  *  byte TradingView paints: `round((100 − t) × 255 / 100)`, half-up. Stored as the
  *  decimal `(100 − t) / 100`, which `designTokens.withAlphaByte` rounds to exactly
@@ -30864,7 +30943,9 @@ function plainColourExpr(n, depth = 0) {
   if (!n || depth > 32) return false
   if (n.type === 'colour') return true
   if (isNaColourLeaf(n)) return true
-  if (n.type === 'name') return /^color\.[a-z_]+$/.test(String(n.name))
+  // ⭐ ENGINE 58 — and a v1-v3 bare name (`lime`), the spelling those versions use
+  // (S1 `vw-cs1-transp-v{1,2,3}`: `bgcolor(close > open ? lime : maroon)` reads 90).
+  if (n.type === 'name') return /^color\.[a-z_]+$/.test(String(n.name)) || isBareColourSpelling(n.name)
   if (n.type === 'ternary') return plainColourExpr(n.yes, depth + 1) && plainColourExpr(n.no, depth + 1)
   return false
 }
@@ -30998,6 +31079,8 @@ function resolvePaint(p, ctx) {
   // joined by `?:`): a colour with its own alpha (`color.new`) under the default is
   // not witnessed, and stays withheld by name.
   const v4DefaultTransp = legacy && p.kind === 'bgcolor' && !named.has('transp') && !isNaColourLeaf(colour)
+  // ⭐ ENGINE 58 — the 90 holds at v1-v3 and unannotated too (S1 probes
+  // `vw-cs1-transp-v{1,2,3}`, `tests/fixtures/vendor/transparency-defaults-by-version-rddt-1d-2026-11-14.json`: `bgcolor` transparency 90).
   if (v4DefaultTransp && !plainColourExpr(colour)) {
     return withhold('paint:v4-default-transp',
       `a v${ctx.version} \`bgcolor\` with no \`transp\` over a colour with its own alpha has no capture (${PAINT_PROBE})`)
@@ -31253,6 +31336,8 @@ function resolveFillHandles(fills, outputs, resolved, ctx) {
     // keeps exactly what it says. ⚠️ A CONDITIONAL fill keeps today's rule (its
     // colours are the paint): set F measured static colours only.
     const stated = !pair && pres.color && !Number.isFinite(pres.opacity)
+    // ⭐ ENGINE 58 — the 90 holds at v1-v3 and unannotated too (S1 probes
+    // `vw-cs1-transp-v{1,2,3}`: `filledAreasStyle` 90 between two plots and two hlines).
     const staticOpacity = stated
       ? (isLegacyPineVersion(ctx && ctx.version) ? styleTransparencyOpacity(V4_FILL_DEFAULT_TRANSP) : 1)
       : pres.opacity
@@ -31329,15 +31414,28 @@ function resolveColourTree(resolver, cond, tree) {
  *  this door used to read names only — the colour was dropped and the row drew
  *  in the engine's default, measured on a live capture.
  *
- *  ⛔ ONLY THE POSITIONS EVERY MEASURED VERSION AGREES ON. Index 5 is `transp`
- *  in v4 and `trackprice` in v5 (`plot`), so it is left out rather than guessed
- *  per version; a script passing six positionals keeps the first five. Index 0
- *  is the series itself and is never presentation. */
+ *  ⭐⭐ ENGINE 58 — INDEX 5 IS READ PER VERSION. It is `transp` in v1-v4 (every
+ *  one of the three calls: `plot(series, title, color, linewidth, style, transp,
+ *  …)`, `plotshape(series, title, style, location, color, transp, …)`,
+ *  `plotchar(series, title, char, location, color, transp, …)`) and the next
+ *  parameter in v5/v6 (`trackprice` / `offset`), which is not presentation. ⚰️ It
+ *  was left out of every version, so a v1-v4 `plot(x, "T", red, 1, line, 70)`
+ *  drew opaque where TradingView draws 70. The runtime lane reads the same slot
+ *  (`pineRuntimeFrontend.js::TRANSP_POSITION_LEGACY`). Index 0 is the series
+ *  itself and is never presentation. */
 const POSITIONAL_PRESENTATION = Object.freeze({
   plot: Object.freeze([null, 'title', 'color', 'linewidth', 'style']),
   plotshape: Object.freeze([null, 'title', 'style', 'location', 'color']),
   plotchar: Object.freeze([null, 'title', 'char', 'location', 'color']),
 })
+const POSITIONAL_PRESENTATION_LEGACY = Object.freeze(Object.fromEntries(
+  Object.entries(POSITIONAL_PRESENTATION).map(([k, sig]) => [k, Object.freeze([...sig, 'transp'])])))
+
+/** The positional signature of a series output at a script's version. */
+function seriesPositionalSignature(kind, version) {
+  if (!Object.hasOwn(POSITIONAL_PRESENTATION, kind || '')) return null
+  return isLegacyPineVersion(version) ? POSITIONAL_PRESENTATION_LEGACY[kind] : POSITIONAL_PRESENTATION[kind]
+}
 
 /** ⭐⭐ A `fill`'s positional colour (and v4's positional `transp`).
  *
@@ -31395,6 +31493,11 @@ function displacedPresentation(pres, shift) {
   for (const k of ['colorCondition', 'colorIndex', 'colorGradient']) {
     const rule = pres[k]
     if (!rule || !rule.ast) continue
+    // ⭐⭐ ENGINE 58 — A RULE THAT READS NO BAR NEEDS NO DISPLACEMENT: it answers
+    // the same on every bar, so bar j-N's colour IS bar j's. ⚰️ `barOffsetNode` on
+    // a constant palette index (`fikira-pivots`: `Show_last ? color.purple : na`,
+    // `offset = -ofs`) threw, the rule was declined, and the plot drew in gold.
+    if (!readsBars(rule.ast)) continue
     try {
       const ast = barOffsetNode(rule.ast, shift, null, null, null)
       const formula = printFormula(ast)
@@ -31415,9 +31518,14 @@ function outputPresentation(args, ctx) {
   const pres = {}
   const kind = ctx && ctx.kind
   const positional = args.filter((a) => !a.name)
+  // ⭐ ENGINE 58 — the script's version, for the series outputs' per-version
+  // positional `transp` and the v1-v3 default (`legacyPlotDefault`). The palette
+  // scope holds it for every output a translation reads.
+  const seriesVersion = Object.hasOwn(POSITIONAL_PRESENTATION, kind || '')
+    ? (ctx && ctx.version !== undefined ? ctx.version : activePaletteVersion()) : undefined
   const signature = kind === 'fill'
     ? fillPositionalSignature(args, ctx && ctx.version)
-    : (Object.hasOwn(POSITIONAL_PRESENTATION, kind || '') ? POSITIONAL_PRESENTATION[kind] : null)
+    : seriesPositionalSignature(kind, seriesVersion)
   // ⭐ A NAMED argument wins; a positional one answers only where the signature
   // places that name. Pine refuses both at once, so the order is never a choice
   // between two values the author wrote.
@@ -31476,6 +31584,14 @@ function outputPresentation(args, ctx) {
         pres.opacity = opacityOfTransparency(t)
         stampTransparency(pres, t, 'color')
       }
+    } else if (kind === 'plot' && themePlotColourOf(c.value, ctx && ctx.env, ctx)) {
+      // ⭐⭐ ENGINE 58 — `chart.fg_color` / `chart.bg_color` (optionally through
+      // `color.new(…, T)`) on a PLOT is a THEME REFERENCE, carried as the Pine name
+      // (`chart.fg_color@85`) and resolved against the chart it is drawn on
+      // (`objectTheme.js`, the C37 rule the object lane already follows; the plot
+      // pool resolves it, `pool.planBindings`). ⚰️ It was "a colour this door cannot
+      // say" and drew in gold (`smart-money`: `color.new(chart.fg_color, 85)`).
+      pres.color = themePlotColourOf(c.value, ctx && ctx.env, ctx)
     } else {
       // ⭐⭐ C1-A: A CONDITIONAL BETWEEN TWO STATIC COLOURS IS NOW CARRIED.
       // The condition is resolved into an ordinary canonical tree and travels as
@@ -31669,14 +31785,91 @@ function outputPresentation(args, ctx) {
     else pres.styleUncarried = st.value.name
   }
 
-  const tr = numberValue((arg('transp') || {}).value)
+  const trArg = arg('transp')
+  let tr = numberValue((trArg || {}).value)
+  const absentColour = !!(c && isNaColourLeaf(c.value)) || settledNa
+  // ⭐⭐ ENGINE 58 — A SERIES OUTPUT'S `transp` THAT IS NOT A LITERAL is folded by
+  // the one alpha reader (`alphaNumberOf`: an input's default, arithmetic on
+  // literals), and when it does not fold the colour is WITHHELD by name — it was
+  // dropped, and the plot drew opaque where TradingView draws the transparency.
+  if (trArg && tr === null && LEGACY_DEFAULT_KINDS.has(kind) && !absentColour) {
+    let folded = null
+    try { folded = alphaNumberOf(trArg.value, ctx && ctx.env, ctx) } catch { folded = null }
+    if (folded !== null && Number.isFinite(folded)) tr = folded
+    else if (!pres.colorDynamic) {
+      pres.colorWithheld = { code: COLOUR_UNREAD, reason: 'its `transp` is not a number this door can read' }
+    }
+  }
   // ⛔ A `transp=` never makes an absent colour visible: `color = na` stays at
   // opacity 0 whatever transparency the author also wrote.
-  if (tr !== null && !(c && isNaColourLeaf(c.value)) && !settledNa) {
+  if (tr !== null && !absentColour) {
     pres.opacity = styleTransparencyOpacity(tr)
     stampTransparency(pres, tr, 'transp')
   }
+  // ⭐⭐ ENGINE 58 — …AND WITH NO `transp` AT ALL, A v1-v3 SERIES OUTPUT TAKES 35.
+  if (!trArg && LEGACY_DEFAULT_KINDS.has(kind) && isPreV4PineVersion(seriesVersion) && !absentColour) {
+    legacyPlotDefault(pres)
+  }
   return pres
+}
+
+/** ⭐⭐ ENGINE 58 — a plot colour that is `chart.fg_color` / `chart.bg_color`, or
+ *  `color.new` of one with a whole transparency fixed before bar 0, as the theme
+ *  reference string (`objectTheme.themeColourWithTransparency`); null otherwise.
+ *  ⛔ A script's own binding of the name wins, as it does for a colour name. */
+function themePlotColourOf(node, env, ctx, depth = 0) {
+  if (!node || depth > 8) return null
+  if (node.type === 'name') {
+    const bound = env && typeof env.get === 'function' ? env.get(node.name) : null
+    if (bound && bound.kind === 'expr') return themePlotColourOf(bound.node, bound.env || env, ctx, depth + 1)
+    if (bound) return null
+    return THEME_NAMES.includes(node.name) ? node.name : null
+  }
+  if (node.type === 'call' && node.name === 'color.new') {
+    const args = node.args || []
+    const positional = args.filter((a) => a && !a.name)
+    const base = themePlotColourOf(((args.find((a) => a && a.name === 'color')) || positional[0] || {}).value, env, ctx, depth + 1)
+    if (!base) return null
+    const tNode = ((args.find((a) => a && a.name === 'transp')) || positional[1] || {}).value
+    if (tNode === undefined) return base
+    const t = alphaNumberOf(tNode, env, ctx)
+    return Number.isInteger(t) ? themeColourWithTransparency(base, t) : null
+  }
+  return null
+}
+
+/** ⭐⭐ ENGINE 58 — `LEGACY_PLOT_DEFAULT_TRANSP` on a v1-v3 series output with no
+ *  `transp`, or the colour withheld by name where the default is not witnessed.
+ *
+ *  ⭐ ONE AUTHORITY, HERE. The member door used to add 35% to a v3 row with NO
+ *  colour (`memberPaneDefinition::tradingViewDefaultColour`, `version === 3`), the
+ *  only case its probe measured; the captures since show the same 35 on every
+ *  colour form and v1/v2/unannotated too, so the rule moved here and the door's
+ *  copy was deleted. The door still supplies the `#2962FF` hue of a colourless
+ *  row (a rendering default); the transparency is the translation's.
+ *
+ *  ⛔ A colour the door cannot read (`colorDynamic`) is left to its own withhold.
+ *  ⭐ Every plot style takes it (S1 probed `columns` and `stepline`: 35).
+ *  ⛔ What has no capture is never guessed: the default over a colour with its own
+ *  alpha (a `#RRGGBBAA` literal, a helper transparency, a rule whose leaves carry
+ *  one, a gradient). */
+function legacyPlotDefault(pres) {
+  if (pres.colorDynamic) return
+  const unwitnessed = (why) => {
+    pres.colorWithheld = { code: COLOUR_DEFAULT_UNWITNESSED, reason: `${why}: the transparency TradingView gives it with no \`transp\` is not captured for a v1-v3 script` }
+  }
+  const ownAlpha = (h) => typeof h === 'string' && /^#[0-9a-f]{6}([0-9a-f]{2})$/i.test(h)
+    && !/ff$/i.test(h)
+  if (Number.isFinite(pres.opacity)) return unwitnessed('its colour carries its own transparency')
+  if (ownAlpha(pres.color) || ownAlpha(pres.colorUp) || ownAlpha(pres.colorDown)) {
+    return unwitnessed('its colour carries its own transparency')
+  }
+  if (Array.isArray(pres.colorPalette) && pres.colorPalette.some((e) => e !== TRANSPARENT_PALETTE_ENTRY && ownAlpha(e))) {
+    return unwitnessed('one of its colours carries its own transparency')
+  }
+  if (pres.colorGradient) return unwitnessed('its colour is a gradient')
+  pres.opacity = styleTransparencyOpacity(LEGACY_PLOT_DEFAULT_TRANSP)
+  stampTransparency(pres, LEGACY_PLOT_DEFAULT_TRANSP, 'default')
 }
 
 /** `indicator(..., overlay = true)` — the author's own statement about WHICH

@@ -37,7 +37,7 @@ import {
   OUTPUT_CALLS as PINE_OUTPUT_CALLS, BAR_SERIES_DEFAULTS, paramDefaultShapeOk,
   declarationWordsOf, pineConstIntValue, constIntWritesOf, pineTupleBuiltinCallParts, pineNamespacedName,
   legacyBarsSignUnstated, LEGACY_BARS_SIGN_SENTENCE, REFUSALS, selfReferenceSentence,
-  selfReferencingDeclaration, blockDeclarationReadsOwnHistory,
+  selfReferencingDeclaration, blockDeclarationReadsOwnHistory, isLegacyPineVersion,
 } from './pine.js'
 import { CLOCK_REALTIME } from '../../indicators.js'
 // ⭐⭐ L1 — an imported library's exports are linked in as the script's own.
@@ -9574,7 +9574,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
   }
   /** `transp` as written: absent, a whole literal, or unreadable (`'unread'`). */
   const transpOf = (callName, args) => {
-    const legacy = Number.isInteger(pineVersion) && pineVersion <= 4
+    // ⭐ ENGINE 58 — the ONE legacy predicate (`pine.js::isLegacyPineVersion`): a
+    // script with no `//@version` compiles as v1, so its positional `transp` is read
+    // too. ⚰️ This excluded `null`, and the host lane did not: two answers.
+    const legacy = isLegacyPineVersion(pineVersion)
     const pos = legacy ? TRANSP_POSITION_LEGACY[callName] : undefined
     const node = callArg(args, 'transp', pos)
     if (!node) return null

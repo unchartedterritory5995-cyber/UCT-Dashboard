@@ -11567,7 +11567,7 @@
       "key": "out3Color",
       "type": "color",
       "label": "Baseline colour",
-      "default": "#c9a84c"
+      "default": "#00000000"
      },
      {
       "key": "out3Width",
@@ -11780,7 +11780,12 @@
       },
       "forward": 0,
       "colorMode": "column:out6",
-      "colorPacked": {}
+      "colorPacked": {},
+      "colorWithheld": {
+       "code": "pine:colour-unread",
+       "reason": "on a bar where its colour rule gives no colour, nothing is drawn",
+       "points": true
+      }
      },
      {
       "key": "out4",

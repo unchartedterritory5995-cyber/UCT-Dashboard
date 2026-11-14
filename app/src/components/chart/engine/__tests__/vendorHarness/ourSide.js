@@ -45,7 +45,8 @@ import { otherSymbolRequestsOf, storeTickerOf } from '../../otherSymbols'
 import { lowerTfCodesOf, LOWER_TF_SOURCE } from '../../lowerTf'
 import SYMBOL_SCOPE from '../../ast/symbolScope.json'
 import { createFakeChart } from '../fakeChart'
-import { normalizeColor } from '../../../../../../../tools/vendor_harness/compare.mjs'
+import { normalizeColor, COLOUR_WITHHELD_POINT } from '../../../../../../../tools/vendor_harness/compare.mjs'
+import { isThemeColour } from '../../objectTheme'
 import { validateCapture } from '../../../../../../../tools/vendor_harness/schema.mjs'
 import { fullBarsFor } from '../../../../../utils/barsBackfill'
 import fs from 'node:fs'
@@ -621,11 +622,16 @@ function drawnColours(def, bars, ctx) {
     // (`undefined`, which the comparator skips), not a "none".
     // ⛔ The shift is the binder's OWN `drawShiftOf`, never re-derived here.
     const shift = drawShiftOf(plot)
+    // ⭐ ENGINE 58 — a colour-rule row whose series colour is withheld by name
+    // (`plots[].colorWithheld.points`): a point the renderer was handed no colour of
+    // its own for draws in none, by name — `COLOUR_WITHHELD_POINT`, not a colour.
+    const pointsWithheld = !!(plot.colorWithheld && plot.colorWithheld.points)
     const colors = bars.map((_bar, i) => {
       const at = i + shift
       if (at < 0) return undefined
       const p = at < bars.length ? byTime.get(String(bars[at].t)) : null
       if (!p || !Number.isFinite(p.value)) return null
+      if (pointsWithheld && !p.color) return COLOUR_WITHHELD_POINT
       // ⭐⭐ WHAT THE RENDERER WAS HANDED IS FINAL. The pool already folded the
       // plot's opacity into a point colour and a series colour (`withAlpha`,
       // which MULTIPLIES through); re-applying `opacity` here REPLACED the
@@ -1154,6 +1160,8 @@ function runOurSideOnTheParityClock(capture) {
     // they are the plot's warm-up region here, exactly as a tree's own lookback is.
     const curtain = built.lane === 'runtime' ? runtimeWarmupOf(cols) : null
     const plots = []
+    const defPlotByKey = new Map((def.plots || []).map((p) => [p.key, p]))
+    const defInputByKey = new Map((def.inputs || []).map((x) => [x.key, x]))
     for (const [index, o] of (built.translation.outputs || []).entries()) {
       if (o && o.kind === 'alertcondition') continue
       const row = built.lane === 'runtime'
@@ -1181,6 +1189,16 @@ function runOurSideOnTheParityClock(capture) {
         missingReason = `computeFor returned no column for ${row.key}`
           + (why && why.guard ? ` (${why.guard})` : '')
       }
+      // ⭐⭐ ENGINE 58 — what the door said about this row's colour: withheld whole
+      // by name (graded "not compared", INCONCLUSIVE with the name), withheld on the
+      // bars its rule gives no colour (`COLOUR_WITHHELD_POINT`, counted), or a THEME
+      // reference (`chart.fg_color@85`: our chart's own colour, theme-relative).
+      const defPlot = row ? defPlotByKey.get(row.key) : null
+      const cw = defPlot && defPlot.colorWithheld && typeof defPlot.colorWithheld.code === 'string' ? defPlot.colorWithheld : null
+      const wholeWithheld = !!(cw && !cw.points)
+      const rawColour = defPlot && typeof defPlot.color === 'string' && defPlot.color.startsWith('$')
+        ? ((defInputByKey.get(defPlot.color.slice(1)) || {}).default) : (defPlot && defPlot.color)
+      const themeRelative = isThemeColour(rawColour)
       plots.push({
         title: o ? o.title : null,
         formula: o ? o.formula : null,
@@ -1195,13 +1213,16 @@ function runOurSideOnTheParityClock(capture) {
         historyReplayed: replay ? { bars: replayPre, file: replaySupply.file } : null,
         // ⭐ F2 — the colour rule's own reach (`compare.mjs::colourWarmupOf`).
         colorLookback: colourRuleLookback(o),
-        colors: row && colours.byKey.has(row.key) ? colours.byKey.get(row.key) : null,
+        colors: !wholeWithheld && row && colours.byKey.has(row.key) ? colours.byKey.get(row.key) : null,
+        ...(themeRelative ? { colorsThemeRelative: true } : {}),
+        ...(cw && cw.points ? { colorsWithheldBy: cw.code } : {}),
         // A positive `offset = N` the translator wrote INTO the tree as `x[N]`
         // (its `_treeShift` hand-off) — see compare.mjs `leadBy`.
         treeShift: o && Number.isInteger(o._treeShift) && o._treeShift > 0 ? o._treeShift : 0,
         // Why there are no colours, when there are none — so the verdict names the
         // cause instead of "could not be resolved".
-        colorsReason: row && !colours.byKey.has(row.key)
+        colorsReason: wholeWithheld ? `withheld by name (${cw.code}) — ${cw.reason}`
+          : row && !colours.byKey.has(row.key)
           ? (o && o.hidden
             ? `our pane draws no series for this row — hidden (${o.hiddenReason || 'unstated'})`
             : (colours.ok ? 'the binder bound no series for this row' : colours.reason))
