@@ -110,11 +110,40 @@ def test_headlines_match_however_tx_wrote_the_ticker_and_keep_co_tickers():
         "AMDpartners with NVDA on racks", "Both rally on AI capex (NVDA)"]
 
 
-def test_today_starts_at_4am_et_and_before_4am_means_yesterdays():
+def test_today_starts_at_the_previous_sessions_close():
+    """⚰️ It started at 4:00 AM ET, which hid exactly what a member opens /news for: before
+    the bell it left out last night's after-hours earnings, and on a Saturday it left out
+    all of Friday. "Today" is the news cycle of the current session: everything since the
+    session before it closed."""
     from api.services import discord_tx_news as n
     et = n.ET
-    assert n.window_start("today", dt.datetime(2026, 10, 27, 9, 30, tzinfo=et)) == dt.datetime(2026, 10, 27, 4, tzinfo=et)
-    assert n.window_start("today", dt.datetime(2026, 10, 27, 2, 0, tzinfo=et)) == dt.datetime(2026, 10, 26, 4, tzinfo=et)
+
+    def start(*when):
+        return n.window_start("today", dt.datetime(*when, tzinfo=et))
+    assert start(2026, 10, 27, 9, 30) == dt.datetime(2026, 10, 26, 16, tzinfo=et)     # Tue morning: since Mon's close
+    assert start(2026, 10, 27, 17, 0) == dt.datetime(2026, 10, 26, 16, tzinfo=et)     # Tue evening: same cycle
+    assert start(2026, 10, 27, 2, 0) == dt.datetime(2026, 10, 23, 16, tzinfo=et)      # before 4 AM it is still Monday's
+    assert start(2026, 10, 26, 7, 0) == dt.datetime(2026, 10, 23, 16, tzinfo=et)      # Mon morning: since Fri's close
+    assert start(2026, 10, 31, 12, 0) == dt.datetime(2026, 10, 29, 16, tzinfo=et)     # Saturday: all of Friday too
+    assert start(2026, 11, 1, 23, 0) == dt.datetime(2026, 10, 29, 16, tzinfo=et)      # Sunday night: the same
+    # a holiday is not a session, and a half-day closes at 1 PM (Thanksgiving week 2026)
+    assert start(2026, 11, 27, 8, 0) == dt.datetime(2026, 11, 25, 16, tzinfo=et)      # Fri after the holiday
+    assert start(2026, 11, 30, 8, 0) == dt.datetime(2026, 11, 27, 13, tzinfo=et)      # Mon after the half-day
+    # the other windows are rolling and did not change
+    now = dt.datetime(2026, 10, 27, 9, 30, tzinfo=et)
+    assert n.window_start("3d", now) == now - dt.timedelta(days=3)
+    assert n.window_start("1w", now) == now - dt.timedelta(days=7)
+
+
+def test_the_window_never_reaches_past_what_the_cache_keeps():
+    """`feed_since` keeps WINDOW_MAX_DAYS. A "today" that started before that would be
+    answered from a cache that has already dropped its first day."""
+    from api.services import discord_tx_news as n
+    day = dt.datetime(2026, 1, 1, 12, 0, tzinfo=n.ET)
+    for i in range(400):                                   # every day of a year, holidays included
+        now = day + dt.timedelta(days=i)
+        back = now - n.window_start("today", now)
+        assert dt.timedelta(0) < back < dt.timedelta(days=n.WINDOW_MAX_DAYS), f"{now:%Y-%m-%d}: {back}"
 
 
 class _FakeDiscord:
@@ -155,6 +184,88 @@ def test_the_cache_backfills_once_then_asks_only_for_newer_messages():
     assert got[-1][1] == "NVDA - fresh" and len(fake.calls) == 1, "a warm cache is one page after the newest id"
     older = n.feed_since(now - dt.timedelta(hours=20), client=fake)
     assert len(older) == 20
+
+
+def test_a_quiet_first_read_does_not_leave_a_hole_behind_it():
+    """⚰️ With nothing cached, the next read resumed from ITS OWN start while the cache went
+    on claiming it covered the earlier one. Anything that arrived in between was never read,
+    and a later, wider request was answered without it: no error, just missing headlines."""
+    from api.services import discord_tx_news as n
+    n._reset_for_tests()
+    now = dt.datetime.now(UTC)
+    fake = _FakeDiscord([])
+    assert n.feed_since(now - dt.timedelta(hours=40), client=fake) == []          # a quiet stretch
+    fake.msgs += [_msg(now - dt.timedelta(hours=20), "NVDA - arrived later"),
+                  _msg(now - dt.timedelta(hours=1), "NVDA - fresh")]
+    assert [t for _, t in n.feed_since(now - dt.timedelta(hours=2), client=fake)] == ["NVDA - fresh"]
+    assert [t for _, t in n.feed_since(now - dt.timedelta(hours=30), client=fake)] == [
+        "NVDA - arrived later", "NVDA - fresh"]
+
+
+def test_the_embed_says_what_today_covers_and_what_to_do_when_it_is_empty():
+    from api.services import discord_tx_news as n
+    now = dt.datetime(2026, 10, 27, 15, 0, tzinfo=UTC)                  # Tue 11:00 AM ET
+    e = n.build_embed("NVDA", "today", [(now, "NVDA highs")], now)
+    assert e["title"] == "$NVDA · UCT News · Since Mon 4:00 PM ET", "the member sees how far back it looked"
+    empty = n.build_embed("NVDA", "today", [], now)
+    assert empty["description"].startswith("No UCT News headlines on **$NVDA** since Mon 4:00 PM ET.")
+    assert "Last 3 days" in empty["description"], "an empty today points at the wider window"
+    assert "spelling" not in empty["description"]
+    wide = n.build_embed("NVDA", "1w", [], now)
+    assert "Last 3 days" not in wide["description"], "nothing wider to suggest"
+    # a symbol no company answers to: a typo and "no news" must not read the same
+    typo = n.build_embed("NVDAA", "today", [], now, known=False)
+    assert "No UCT News headlines on **$NVDAA**" in typo["description"] and "spelling" in typo["description"]
+    # ⛔ but never when there ARE headlines: an unnamed symbol with news is simply answered
+    found = n.build_embed("XYZQ", "today", [(now, "XYZQ - halted")], now, known=False)
+    assert "spelling" not in found["description"]
+
+
+def test_the_job_tells_the_embed_whether_the_symbol_is_a_known_company():
+    from api.services import discord_tx_news as n
+    edits = []
+    now = dt.datetime(2026, 10, 27, 15, 0, tzinfo=UTC)
+    for name in (None, "NVIDIA Corporation"):
+        n.run_news_job("1", "t", "NVDA", "today", now=now, edit_fn=lambda a, t, p: edits.append(p),
+                       feed_fn=lambda start: [], name_fn=lambda t, _n=name: _n)
+    assert "spelling" in edits[0]["embeds"][0]["description"]
+    assert "spelling" not in edits[1]["embeds"][0]["description"]
+
+
+def test_a_class_share_is_accepted_with_a_hyphen_or_a_dot():
+    """TX writes class shares with a dot (BRK.B); the dashboard's symbol list, which the
+    picker reads, writes a hyphen (BRK-B). Picking the suggestion answered "Give me one
+    ticker"."""
+    from api.services import discord_tx_news as n
+    assert n.clean_ticker_option("BRK-B") == "BRK.B" and n.clean_ticker_option("$brk.b") == "BRK.B"
+    assert n.clean_ticker_option("nvda") == "NVDA"
+    assert n.clean_ticker_option("not a ticker") is None and n.clean_ticker_option("") is None
+
+
+def test_the_news_picker_offers_tickers_only_and_only_ones_the_command_accepts(route, monkeypatch):
+    """⚰️ /news borrowed /chart's picker, so it offered breadth chart series (not stocks),
+    a "NVDX - chart it" label, and BRK-B, which the command then refused."""
+    client, sk, rt = route
+    from api.routers import ticker_search as ts
+    monkeypatch.setattr(ts, "ticker_search", lambda q, limit, type: {"results": [
+        {"ticker": "BRK-B", "name": "Berkshire Hathaway Inc."}, {"ticker": "BR", "name": None},
+        {"ticker": "", "name": "blank"}]})
+    monkeypatch.setattr(rt, "breadth_choices", lambda q: [{"name": "UCTA5 · breadth", "value": "UCTA5"}])
+
+    def complete(typed):
+        body = {"type": 4, "application_id": "123", "token": "tok", "guild_id": UT_GUILD, "channel_id": "555",
+                "member": {"user": {"id": "900"}, "roles": [VIP], "permissions": "0"},
+                "data": {"name": "news", "options": [{"name": "ticker", "type": 3, "value": typed, "focused": True}]}}
+        r = _post(client, sk, body).json()
+        assert r["type"] == 8
+        return r["data"]["choices"]
+    assert complete("br") == [{"name": "BRK.B - Berkshire Hathaway Inc.", "value": "BRK.B"},
+                              {"name": "BR", "value": "BR"}]
+    assert complete("") == []
+    # nothing matched: offer what was typed, as a ticker, with no chart wording
+    monkeypatch.setattr(ts, "ticker_search", lambda q, limit, type: {"results": []})
+    assert complete("$nvdx") == [{"name": "NVDX", "value": "NVDX"}]
+    assert complete("not a ticker") == []
 
 
 def test_the_embed_names_the_window_and_says_so_when_there_is_nothing():
