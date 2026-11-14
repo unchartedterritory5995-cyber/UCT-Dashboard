@@ -65,6 +65,16 @@ LEADERS_TOP_N = 50
 EXIT_AGE = 4
 #: "New to 90+" and "90 and up" on Top RS Rating.
 TOP_RATING_LINE = 90
+#: Setup flags the four LIST screens leave out (coordinator decision, unit U6,
+#: 2026-11-14): a stock pinned at a deal price ranks near the top on relative strength
+#: and has nowhere left to go, so it is not a name to study. Written as an ordinary
+#: exclude clause (`no_buyouts`), so the Filters drawer shows it and a member can take
+#: it off. RS exit warnings does NOT carry it: a warning on a stock a member holds is
+#: worth seeing whatever the stock is.
+EXCLUDED_FLAGS = ("buyout_pending",)
+#: The four screens that carry the exclusion, by id (the method page reads this).
+NO_BUYOUT_SCREENS = ("starter_rs_top_rating", "starter_rs_new_high",
+                     "starter_rs_nh_before_price", "starter_rs_leaders")
 
 
 # ── clause and control builders ─────────────────────────────────────────────
@@ -126,6 +136,16 @@ def floor() -> list:
             _gte("dollar_vol_30d", _whole(f["dollar_vol_30d_min"]))]
 
 
+def no_buyouts() -> dict:
+    """The clause that leaves :data:`EXCLUDED_FLAGS` out of a list screen.
+
+    ⛔ A ROW WITH NO FLAG STAYS. Nearly every row's ``rs_flag`` is NULL (no flag
+    applies), and the scan keeps a NULL under an exclude list (`query.build_where`,
+    ``not_in``: ``col NOT IN (...) OR col IS NULL``). A plain ``!=`` would have emptied
+    all four screens. `tests/test_rs_screens_u4_starters.py` runs it both ways."""
+    return _not_in("rs_flag", EXCLUDED_FLAGS)
+
+
 def _min_rating(levels, default=None):
     """The "Min RS Rating" control over `rs_rank`. ``default=None`` leads with "Any"."""
     options = [] if default is not None else [_option("any", "Any", default=True)]
@@ -173,7 +193,7 @@ def top_rating() -> dict:
         "id": "starter_rs_top_rating", "name": "Top RS Rating", "group": GROUP,
         "description": ("Every liquid stock ranked by RS Rating, strongest first, "
                         "with its exact place"),
-        "spec": {"filters": [*floor(), place], "view": "rs_top_rating",
+        "spec": {"filters": [*floor(), place, no_buyouts()], "view": "rs_top_rating",
                  "sort": _sort("rs_rating_pos", "asc")},
         "controls": [rank_by, show],
         "row": {"place": "rs_rating_pos", "caption": ["setup", "moving"],
@@ -187,7 +207,7 @@ def new_highs() -> dict:
         "id": "starter_rs_new_high", "name": "RS New Highs", "group": GROUP,
         "description": "Stocks whose RS line (price against SPY) hit a 52-week high this week",
         "spec": {"filters": [*floor(), _gt("pct_vs_sma200", 0),
-                             _between("rs_nh_bars_ago", 0, WEEK_AGE)],
+                             _between("rs_nh_bars_ago", 0, WEEK_AGE), no_buyouts()],
                  "view": "rs_new_highs",
                  "sort": _sort("rs_nh_bars_ago", "asc", then=("rs_rating_score", "desc"))},
         "controls": [
@@ -217,7 +237,8 @@ def before_price() -> dict:
                         "high. Often an early sign"),
         "spec": {"filters": [*floor(), _gt("pct_vs_sma200", 0),
                              _between("rs_nhbp_age", 0, WEEK_AGE),
-                             _between("px_below_high_pct", BELOW_HIGH_FAR, BELOW_HIGH_NEAR)],
+                             _between("px_below_high_pct", BELOW_HIGH_FAR, BELOW_HIGH_NEAR),
+                             no_buyouts()],
                  "view": "rs_before_price",
                  "sort": _sort("px_below_high_pct", "desc", then=("rs_rating_score", "desc"))},
         "controls": [_when("rs_nhbp_age"), below, _min_rating((70, 80))],
@@ -253,7 +274,8 @@ def leaders() -> dict:
                              _gt("pct_vs_sma200", 0),
                              _eq("sma200_rising", 1),
                              _gte("dist_52w_high_pct", LEADERS_MAX_BELOW_HIGH),
-                             _eq("rs_line_above_ma", 1)],
+                             _eq("rs_line_above_ma", 1),
+                             no_buyouts()],
                  "view": "rs_leaders",
                  "rank": {"criteria": [{"key": "rs_rating_score", "weight": 1}],
                           "top_n": LEADERS_TOP_N}},

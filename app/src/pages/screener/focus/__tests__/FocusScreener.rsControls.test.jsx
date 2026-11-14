@@ -65,7 +65,8 @@ test('choosing an option edits exactly its clause in the scan, and the Filters c
   await landedOn('RS New Highs')
   await waitFor(() => expect(clauseOf(scanBodies().at(-1), 'rs_nh_bars_ago')).toEqual({ op: 'between', min: 0, max: 4 }))
   const before = scanBodies().at(-1)
-  expect(screen.getByRole('button', { name: 'Filters, 5 active' })).toBeInTheDocument()
+  // six clauses: the floor's two, above the 200-day, the RS high's age, no buyouts (U6), stocks only
+  expect(screen.getByRole('button', { name: 'Filters, 6 active' })).toBeInTheDocument()
   choose('When', 'This month')
   await waitFor(() => expect(clauseOf(scanBodies().at(-1), 'rs_nh_bars_ago')).toEqual({ op: 'between', min: 0, max: 20 }))
   const after = scanBodies().at(-1)
@@ -73,15 +74,15 @@ test('choosing an option edits exactly its clause in the scan, and the Filters c
   for (const f of before.filters.filter(x => x.key !== 'rs_nh_bars_ago')) expect(after.filters.find(x => x.key === f.key)).toEqual(f)
   expect(after.sort).toEqual(NEW_HIGHS.spec.sort)
   // same key, so the count of filters is the same; the screen now reads as edited
-  expect(screen.getByRole('button', { name: 'Filters, 5 active' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Filters, 6 active' })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: /^RS New Highs \(edited\)/ })).toBeInTheDocument()
   // an option that ADDS a clause moves the Filters count with it
   choose('Min RS Rating', '80')
   await waitFor(() => expect(clauseOf(scanBodies().at(-1), 'rs_rank')).toEqual({ op: 'gte', min: 80 }))
-  expect(screen.getByRole('button', { name: 'Filters, 6 active' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Filters, 7 active' })).toBeInTheDocument()
   // and back to "Any" removes it
   choose(/^Min RS Rating/, 'Any')
-  await waitFor(() => expect(screen.getByRole('button', { name: 'Filters, 5 active' })).toBeInTheDocument())
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Filters, 6 active' })).toBeInTheDocument())
   await waitFor(() => expect(urlSpec().filters.rs_rank).toBeUndefined(), { timeout: 2000 })
   expect(urlSpec().filters.rs_nh_bars_ago).toEqual({ op: 'between', min: 0, max: 20 })
 })

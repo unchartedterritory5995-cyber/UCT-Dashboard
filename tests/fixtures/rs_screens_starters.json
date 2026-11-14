@@ -22,6 +22,13 @@
           "min": 1
         },
         {
+          "key": "rs_flag",
+          "op": "not_in",
+          "values": [
+            "buyout_pending"
+          ]
+        },
+        {
           "key": "security_type",
           "op": "not_in",
           "values": [
@@ -241,6 +248,13 @@
           "max": 4
         },
         {
+          "key": "rs_flag",
+          "op": "not_in",
+          "values": [
+            "buyout_pending"
+          ]
+        },
+        {
           "key": "security_type",
           "op": "not_in",
           "values": [
@@ -433,6 +447,13 @@
           "op": "between",
           "min": -25,
           "max": -3
+        },
+        {
+          "key": "rs_flag",
+          "op": "not_in",
+          "values": [
+            "buyout_pending"
+          ]
         },
         {
           "key": "security_type",
@@ -661,6 +682,13 @@
           "key": "rs_line_above_ma",
           "op": "eq",
           "value": 1
+        },
+        {
+          "key": "rs_flag",
+          "op": "not_in",
+          "values": [
+            "buyout_pending"
+          ]
         },
         {
           "key": "security_type",

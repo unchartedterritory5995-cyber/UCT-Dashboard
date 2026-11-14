@@ -23,7 +23,8 @@ test('without facts the strip is what it was', () => {
   const c = whyItsHere({ filters: keyed(TOP_RATING.spec), metaFilters: META, row: mu, facts: [] })
   expect(b).toEqual(a)
   expect(c).toEqual(a)
-  expect(a.items).toHaveLength(4)
+  // five clauses since unit U6 (the buyout exclusion): price, dollar volume, place, flag, type
+  expect(a.items).toHaveLength(5)
   expect(a.more).toBe(0)
 })
 
@@ -39,13 +40,13 @@ test('facts follow the filter checks, most distinctive first, as notes', () => {
 
 test('the strip never holds more than five, and facts keep the last places when checks would fill it', () => {
   expect(FACT_SLOTS).toBe(2)
-  // Top RS Rating: four checks. Three stay, the two most distinctive facts follow, one check is "+1 more".
+  // Top RS Rating: five checks. Three stay, the two most distinctive facts follow, two checks are "+2 more".
   const top = whyItsHere({ filters: keyed(TOP_RATING.spec), metaFilters: META, row: mu, facts: rowFacts(mu) })
   expect(top.items).toHaveLength(5)
   expect(top.items.map(i => i.kind)).toEqual(['check', 'check', 'check', 'note', 'note'])
   expect(top.items.slice(3).map(i => i.label)).toEqual(FACTS.slice(0, 2))
-  expect(top.more).toBe(1)
-  // UCT RS Leaders: ten filters and a rank note. Still five on the strip, two of them facts.
+  expect(top.more).toBe(2)
+  // UCT RS Leaders: eleven filters and a rank note. Still five on the strip, two of them facts.
   const lead = whyItsHere({ filters: keyed(LEADERS.spec), rank: LEADERS.spec.rank, metaFilters: META, row: mu, facts: rowFacts(mu) })
   expect(lead.items).toHaveLength(5)
   expect(lead.items.slice(3).map(i => i.label)).toEqual(FACTS.slice(0, 2))
@@ -57,9 +58,10 @@ test('the strip never holds more than five, and facts keep the last places when 
 test('a row with one fact gives up one place, a row with none gives up nothing', () => {
   const one = whyItsHere({ filters: keyed(TOP_RATING.spec), metaFilters: META, row: mu, facts: [{ kind: 'note', label: 'Extended' }] })
   expect(one.items.map(i => i.kind)).toEqual(['check', 'check', 'check', 'check', 'note'])
-  expect(one.more).toBe(0)
+  expect(one.more).toBe(1)
   const none = whyItsHere({ filters: keyed(TOP_RATING.spec), metaFilters: META, row: mu, facts: rowFacts({}) })
-  expect(none.items.map(i => i.kind)).toEqual(['check', 'check', 'check', 'check'])
+  expect(none.items.map(i => i.kind)).toEqual(['check', 'check', 'check', 'check', 'check'])
+  expect(none.more).toBe(0)
 })
 
 test('a fact is never passed off as a check, whatever kind it arrives with', () => {

@@ -12,9 +12,9 @@ export const NOT_CHECKABLE_KEYS = new Set([
 const CHECK_OPS = new Set(['gte', 'lte', 'gt', 'lt', 'between', 'eq', 'in', 'not_in'])
 const MAX = 5
 // RS screens (unit U5): the strip's places kept for fact notes when the screen's own filter
-// checks would fill it. ⭐ An assumption, not the brief's wording ("after the existing filter
-// checks ... capped by the strip's existing maximum"): every RS screen has four or more filters,
-// so facts appended after them under a cap of five would almost never be seen.
+// checks would fill it. Every RS screen has five or more filters, so facts appended after them
+// under a cap of five would never be seen. Decided 2026-11-14 (coordinator, unit U6): two of
+// the five places stay with the RS facts.
 export const FACT_SLOTS = 2
 
 const isCheckable = (key, spec) =>

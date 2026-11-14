@@ -327,28 +327,28 @@
       {
         "id": "starter_rs_top_rating",
         "name": "Top RS Rating",
-        "rule": "Every stock on the liquidity floor that holds an RS Rating place, strongest first. The order is the unrounded score behind the rating, so stocks that share a rating are told apart and no two share a place. The overall list needs a full year of price history. The 1, 3, 6 and 12-month lists need only a value for that window, so a newer listing appears on the shorter lists.",
+        "rule": "Every stock on the liquidity floor that holds an RS Rating place, strongest first. The order is the unrounded score behind the rating, so stocks that share a rating are told apart and no two share a place. The overall list needs a full year of price history. The 1, 3, 6 and 12-month lists need only a value for that window, so a newer listing appears on the shorter lists. Stocks flagged Buyout pending are left out.",
         "controls": "Rank by chooses the list: overall, one window, or Rising fastest (the largest gain in RS Rating over 20 stored sessions, among stocks above their 50-day line). Show narrows it to RS Rating 90 and up, or to stocks at 90 or higher now that were under 90 20 stored sessions ago.",
         "caveat": "A rating is a rank of past return, not a forecast. Rising fastest is partly stocks bouncing back, so read it as a list to study."
       },
       {
         "id": "starter_rs_new_high",
         "name": "RS New Highs",
-        "rule": "The RS line (the stock's price divided by SPY's, daily closes) closed above its highest close of the prior 252 sessions within the last 5 sessions, and the stock closed above its 200-day average. Newest first; stocks whose RS high came on the same session are ordered by RS Rating score.",
+        "rule": "The RS line (the stock's price divided by SPY's, daily closes) closed above its highest close of the prior 252 sessions within the last 5 sessions, and the stock closed above its 200-day average. Newest first; stocks whose RS high came on the same session are ordered by RS Rating score. Stocks flagged Buyout pending are left out.",
         "controls": "When: today, the last 5 sessions, or the last 21. Min RS Rating. Market: Down days only keeps a stock whose RS line made that high within the last 10 sessions on a day SPY closed down 0.5% or more.",
         "caveat": "An RS line can rise while the stock falls, when SPY falls faster. The market down day reading is a house method with no published test."
       },
       {
         "id": "starter_rs_nh_before_price",
         "name": "RS New High Before Price",
-        "rule": "The RS line made a 52-week high within the last 5 sessions and price has not made its own 52-week closing high since, the stock closed 3% to 25% below that high, and above its 200-day average. Closest to its high first. A stock leaves the list once price makes its high.",
+        "rule": "The RS line made a 52-week high within the last 5 sessions and price has not made its own 52-week closing high since, the stock closed 3% to 25% below that high, and above its 200-day average. Closest to its high first. A stock leaves the list once price makes its high. Stocks flagged Buyout pending are left out.",
         "controls": "When: today, the last 5 sessions, or the last 21. Below its high by: at least 3%, 5% or 10%. Min RS Rating.",
         "caveat": "The RS line leading price is a trader's rule with no published test. An empty list is normal in a weak market."
       },
       {
         "id": "starter_rs_leaders",
         "name": "UCT RS Leaders",
-        "rule": "Stocks on the liquidity floor with an average daily range of 3% or more, a market value of $300M or more, RS Rating 80 or higher, the RS line above its 21-day average, a close above a rising 200-day average, and price within 25% of its 52-week high. The 50 with the highest RS Rating score are shown, strongest first.",
+        "rule": "Stocks on the liquidity floor with an average daily range of 3% or more, a market value of $300M or more, RS Rating 80 or higher, the RS line above its 21-day average, a close above a rising 200-day average, and price within 25% of its 52-week high. The 50 with the highest RS Rating score are shown, strongest first. Stocks flagged Buyout pending are left out.",
         "controls": "Show: all, only stocks near a buy point, or everything except Extended and Below its 50-day line. Min RS Rating: 80, 85, 90, 95.",
         "caveat": "RS Rating 80 is a convention, not a tested threshold. The list says which stocks to study, and the Setup label says where each one sits against its own averages."
       },
@@ -499,6 +499,34 @@
           }
         ],
         "allow_custom": true,
+        "unit": null
+      },
+      {
+        "key": "rs_flag",
+        "label": "Setup flag",
+        "category": "relative_strength",
+        "type": "enum",
+        "presets": [
+          {
+            "label": "Any"
+          },
+          {
+            "label": "Buyout pending",
+            "op": "eq",
+            "value": "buyout_pending"
+          },
+          {
+            "label": "One-day move",
+            "op": "eq",
+            "value": "one_day_move"
+          },
+          {
+            "label": "New issue",
+            "op": "eq",
+            "value": "new_issue"
+          }
+        ],
+        "allow_custom": false,
         "unit": null
       },
       {

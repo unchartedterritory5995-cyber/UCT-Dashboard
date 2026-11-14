@@ -9,8 +9,8 @@ suite pins:
   * ``tests/fixtures/rs_screens_starters.json``: the five screens as served (pinned by
     ``tests/test_rs_screens_u4_starters.py``);
   * ``tests/fixtures/rs_screens_served.json``: what is served AROUND the five and the
-    client also reads: the seven hidden starters, the Setup label's member-facing words
-    and the method page (pinned here).
+    client also reads: the seven hidden starters, the Setup label's member-facing words,
+    the method page, and the registry entries and views the five use (pinned here).
 
 Refresh both on a deliberate change with ``UPDATE_RS_SCREENS_GOLDEN=1``.
 
@@ -117,7 +117,8 @@ def served_around_the_five() -> dict:
 def test_what_is_served_around_the_five_matches_the_golden(on):
     served = served_around_the_five()
     if os.environ.get("UPDATE_RS_SCREENS_GOLDEN") == "1":
-        SERVED_GOLDEN.write_text(json.dumps(served, indent=2) + "\n", encoding="utf-8")
+        # newline="\n": the fixture is LF in the repository on every platform
+        SERVED_GOLDEN.write_text(json.dumps(served, indent=2) + "\n", encoding="utf-8", newline="\n")
     assert json.loads(SERVED_GOLDEN.read_text(encoding="utf-8")) == served
     assert json.loads(json.dumps(served)) == served, "it survives the route's own encoding"
     assert [s["id"] for s in served["hidden"]][0] == "starter_momentum_leaders"
@@ -175,3 +176,26 @@ def test_the_client_fixture_reads_these_two_files_and_types_no_starter():
     assert STARTERS_GOLDEN.name in src and SERVED_GOLDEN.name in src
     assert not re.search(r"\bid:\s*['\"]starter_rs_", src), "an RS starter is typed in the client fixture"
     assert STARTERS_GOLDEN.is_file() and SERVED_GOLDEN.is_file()
+
+
+# ───────────────────────── the two preferences (part 2) ─────────────────────────
+
+def test_the_two_rs_preferences_are_accepted_declared_and_the_keys_the_client_writes():
+    """A quick-control choice and the dismissed first-visit line are stored as account
+    preferences. The server refuses a key that is not on its allow list (a choice would
+    answer 400 and be forgotten), and the Settings card "What syncs across your devices"
+    is drawn from the manifest. Both are read as the manifest's own server rail reads
+    them (`tests/test_persistence_manifest_server_keys.py`), never by importing the app."""
+    from tests.test_persistence_manifest_server_keys import _manifest, _server_keys
+    src = (ROOT / "app" / "src" / "pages" / "screener" / "focus" / "rsScreens.js").read_text(encoding="utf-8")
+    client = dict(re.findall(r"export const (RS_CONTROLS_PREF|RS_NOTE_PREF) = '([a-z_]+)'", src))
+    assert client == {"RS_CONTROLS_PREF": "screener_rs_controls", "RS_NOTE_PREF": "screener_rs_note_seen"}
+    allowed = _server_keys()
+    entries = {e["key"]: e for e in _manifest()["entries"]}
+    for key in client.values():
+        assert key in allowed, f"{key}: the server would refuse this preference with a 400"
+        entry = entries.get(key)
+        assert entry, f"{key}: not declared in the persistence manifest"
+        assert entry["store"] == "server-preference" and entry["scope"] == "cross-device", entry
+        assert entry["serverAllowlisted"] is True and entry["surface"] == "Screener", entry
+        assert all((ROOT / f).is_file() for f in entry["files"]), entry["files"]

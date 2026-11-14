@@ -316,3 +316,41 @@ describe('every clause the five carry reads as words, never as a stored code', (
     }
   })
 })
+
+// ── buyout names are left out of the four list screens (coordinator decision, U6) ─────────────
+describe('the buyout exclusion, as a member meets it', () => {
+  const defs = Object.fromEntries(SERVED.meta.filters.map(f => [f.key, f]))
+  const NO_BUYOUT = { key: 'rs_flag', op: 'not_in', values: ['buyout_pending'] }
+  const LISTS = [TOP_RATING, NEW_HIGHS, BEFORE_PRICE, LEADERS]
+
+  test('the four list screens carry the clause once, RS exit warnings does not, and no quick control owns it', () => {
+    for (const st of LISTS) {
+      expect(st.spec.filters.filter(f => f.key === 'rs_flag'), st.id).toEqual([NO_BUYOUT])
+      // a control replaces every clause on its keys: one that owned `rs_flag` would drop the exclusion
+      for (const c of controlsOf(st)) expect(c.keys, `${st.id}/${c.id}`).not.toContain('rs_flag')
+    }
+    expect(EXIT_WARNINGS.spec.filters.some(f => f.key === 'rs_flag')).toBe(false)
+  })
+  test('it survives every option of every control, through the real editor', () => {
+    for (const st of LISTS) {
+      for (const c of controlsOf(st)) for (const o of c.options) {
+        const { result, unmount } = open(st)
+        act(() => applyOption(result.current, c, o))
+        expect(result.current.filters.rs_flag, `${st.id}/${c.id}/${o.id}`).toEqual({ op: 'not_in', values: ['buyout_pending'] })
+        unmount()
+      }
+    }
+  })
+  test('it reads "Setup flag: not Buyout pending", and a row with no flag is a tick', () => {
+    const { key, ...spec } = NO_BUYOUT
+    expect(focusChipLabel(defs[key], spec)).toBe('Setup flag: not Buyout pending')
+    const why = row => whyItsHere({ filters: { rs_flag: spec }, metaFilters: SERVED.meta.filters, row }).items
+    expect(why({ rs_flag: null })).toEqual([{ kind: 'check', label: 'Setup flag not Buyout pending', value: 'None' }])
+    expect(why({ rs_flag: 'new_issue' })).toEqual([{ kind: 'check', label: 'Setup flag not Buyout pending', value: 'New issue' }])
+    // the drawer's pills for the whole screen name nothing by a stored code
+    for (const f of TOP_RATING.spec.filters) {
+      const { key: k, ...v } = f
+      expect(focusChipLabel(defs[k], v), k).not.toMatch(/[a-z0-9]+_[a-z0-9_]+/)
+    }
+  })
+})

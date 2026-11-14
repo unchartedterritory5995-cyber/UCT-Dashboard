@@ -870,6 +870,12 @@ def rs_screens_section() -> dict:
          "controls": "Type keeps one kind of warning.",
          "caveat": "A warning is a prompt to review a position, not an order to sell."},
     ]
+    # The setup flags the list screens leave out (unit U6): said on each screen that
+    # carries the clause, from the clause's own values and the flag's own words.
+    left_out = _left_out_words()
+    for screen in screens:
+        if left_out and screen["id"] in _sc.NO_BUYOUT_SCREENS:
+            screen["rule"] = f"{screen['rule']} {left_out}"
     return {
         "label": "Relative Strength screens",
         "screens": screens,
@@ -888,6 +894,19 @@ def rs_screens_section() -> dict:
                     "stocks to study, not what will happen next, and none of them is a "
                     "forecast or a recommendation."),
     }
+
+
+def _left_out_words() -> str:
+    """"Stocks flagged Buyout pending are left out." The flags are `rs_screens.
+    EXCLUDED_FLAGS` (the values of the screens' own exclude clause) and the words are
+    the Setup flag's (`rs_setup.SETUP_LABELS`), so the sentence follows the clause.
+    Empty when the screens exclude nothing."""
+    from api.services.screener import rs_screens as _sc            # noqa: PLC0415
+    from api.services.screener import rs_setup as _st              # noqa: PLC0415
+    names = [_st.SETUP_LABELS[k] for k in _sc.EXCLUDED_FLAGS]
+    if not names:
+        return ""
+    return f"Stocks flagged {' or '.join(names)} are left out."
 
 
 def _rs_setup_rules() -> dict:

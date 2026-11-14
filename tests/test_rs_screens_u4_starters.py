@@ -51,6 +51,11 @@ NEW_KEYS = ("controls", "row", "empty", "hidden")
 FLOOR = [{"key": "price", "op": "gte", "min": 10},
          {"key": "dollar_vol_30d", "op": "gte", "min": 20000000}]
 STOCKS = {"key": "security_type", "op": "not_in", "values": ["ETF"]}
+#: Unit U6 (2026-11-14, coordinator decision): the four list screens leave buyout names
+#: out with one exclude clause. RS exit warnings does not carry it.
+NO_BUYOUT = {"key": "rs_flag", "op": "not_in", "values": ["buyout_pending"]}
+LIST_SCREENS = ("starter_rs_top_rating", "starter_rs_new_high", "starter_rs_nh_before_price",
+                "starter_rs_leaders")
 CAPTION_PARTS = {"setup", "group", "rs_high_age", "below_high", "moving"}
 TAG_ORDER = ["before_price", "down_day", "flag", "new"]
 #: Words the contract bans from member-facing copy. "buy point" is the plan's own term
@@ -171,13 +176,15 @@ def test_the_specs_are_the_contracts(on):
         return [f for f in by[sid]["spec"]["filters"] if f not in FLOOR and f != STOCKS]
 
     top = by["starter_rs_top_rating"]["spec"]
-    assert clauses("starter_rs_top_rating") == [{"key": "rs_rating_pos", "op": "gte", "min": 1}]
+    assert clauses("starter_rs_top_rating") == [{"key": "rs_rating_pos", "op": "gte", "min": 1},
+                                                NO_BUYOUT]
     assert top["sort"] == {"key": "rs_rating_pos", "dir": "asc"} and top["view"] == "rs_top_rating"
 
     nh = by["starter_rs_new_high"]["spec"]
     assert clauses("starter_rs_new_high") == [
         {"key": "pct_vs_sma200", "op": "gt", "min": 0},
-        {"key": "rs_nh_bars_ago", "op": "between", "min": 0, "max": 4}]
+        {"key": "rs_nh_bars_ago", "op": "between", "min": 0, "max": 4},
+        NO_BUYOUT]
     assert nh["sort"] == {"key": "rs_nh_bars_ago", "dir": "asc",
                           "then": {"key": "rs_rating_score", "dir": "desc"}}
     assert nh["view"] == "rs_new_highs"
@@ -186,7 +193,8 @@ def test_the_specs_are_the_contracts(on):
     assert clauses("starter_rs_nh_before_price") == [
         {"key": "pct_vs_sma200", "op": "gt", "min": 0},
         {"key": "rs_nhbp_age", "op": "between", "min": 0, "max": 4},
-        {"key": "px_below_high_pct", "op": "between", "min": -25, "max": -3}]
+        {"key": "px_below_high_pct", "op": "between", "min": -25, "max": -3},
+        NO_BUYOUT]
     assert bp["spec"]["sort"] == {"key": "px_below_high_pct", "dir": "desc",
                                   "then": {"key": "rs_rating_score", "dir": "desc"}}
     assert bp["spec"]["view"] == "rs_before_price"
@@ -204,7 +212,8 @@ def test_the_specs_are_the_contracts(on):
         {"key": "pct_vs_sma200", "op": "gt", "min": 0},
         {"key": "sma200_rising", "op": "eq", "value": 1},
         {"key": "dist_52w_high_pct", "op": "gte", "min": -25},
-        {"key": "rs_line_above_ma", "op": "eq", "value": 1}]
+        {"key": "rs_line_above_ma", "op": "eq", "value": 1},
+        NO_BUYOUT]
     assert ld["rank"] == {"criteria": [{"key": "rs_rating_score", "weight": 1}], "top_n": 50}
     assert ld["view"] == "rs_leaders" and "sort" not in ld, "the rank owns the order"
 
@@ -212,6 +221,11 @@ def test_the_specs_are_the_contracts(on):
     assert clauses("starter_rs_exit_warning_5") == [
         {"key": "rs_exit_bars_ago", "op": "between", "min": 0, "max": 4}]
     assert ex["sort"] == {"key": "rs_exit_bars_ago", "dir": "asc"}
+    # the exclusion is on the four list screens, once each, and not on the warnings
+    assert [i for i in FIVE if NO_BUYOUT in by[i]["spec"]["filters"]] == list(LIST_SCREENS)
+    assert tuple(rs_screens.NO_BUYOUT_SCREENS) == LIST_SCREENS
+    assert NO_BUYOUT == rs_screens.no_buyouts() and rs_screens.EXCLUDED_FLAGS == ("buyout_pending",)
+    assert set(rs_screens.EXCLUDED_FLAGS) <= set(rs_setup.FLAGS), "an excluded flag no row can carry"
 
 
 def test_the_controls_are_the_contracts(on):
@@ -392,12 +406,14 @@ ROWS = [
          rs_pos_6m=3, rs_pos_12m=3, rs_rating_chg_20=30, pct_vs_sma50=8, rs_rank=95,
          rs_rating_prev20=65, pct_vs_sma200=15, rs_nh_bars_ago=2, rs_rating_score=1.8,
          rs_nh_red_bars_ago=7, rs_nhbp_age=2, px_below_high_pct=-4.0, adr_pct=5, market_cap=1e9,
-         sma200_rising=1, dist_52w_high_pct=-4, rs_line_above_ma=1, rs_near_buy=1, rs_setup="at_pivot"),
+         sma200_rising=1, dist_52w_high_pct=-4, rs_line_above_ma=1, rs_near_buy=1, rs_setup="at_pivot",
+         rs_flag="one_day_move"),
     dict(ticker="BASE", price=30, dollar_vol_30d=3e7, rs_rating_pos=3, rs_pos_1m=2, rs_pos_3m=3,
          rs_pos_6m=2, rs_pos_12m=2, rs_rating_chg_20=2, pct_vs_sma50=1, rs_rank=88,
          rs_rating_prev20=88, pct_vs_sma200=10, rs_nh_bars_ago=0, rs_rating_score=1.5,
          rs_nhbp_age=0, px_below_high_pct=-4.0, adr_pct=3.5, market_cap=8e8, sma200_rising=1,
-         dist_52w_high_pct=-4, rs_line_above_ma=1, rs_near_buy=1, rs_setup="pullback_21"),
+         dist_52w_high_pct=-4, rs_line_above_ma=1, rs_near_buy=1, rs_setup="pullback_21",
+         rs_flag="new_issue"),
     dict(ticker="SLIP", price=20, dollar_vol_30d=2.5e7, rs_rating_pos=4, rs_pos_1m=4, rs_pos_3m=4,
          rs_pos_6m=4, rs_pos_12m=4, rs_rating_chg_20=-10, pct_vs_sma50=-3, rs_rank=75,
          rs_rating_prev20=92, pct_vs_sma200=5, rs_nh_bars_ago=15, rs_rating_score=1.2,
@@ -418,6 +434,15 @@ ROWS = [
     dict(ticker="NOLBL", price=60, dollar_vol_30d=6e7, pct_vs_sma50=2, rs_rank=85, pct_vs_sma200=8,
          rs_rating_score=1.4, px_below_high_pct=-10.0, adr_pct=3, market_cap=5e8, sma200_rising=1,
          dist_52w_high_pct=-10, rs_line_above_ma=1),
+    # a stock pinned at a deal price (unit U6): the highest score and the largest rating
+    # gain in the table, liquid, in an uptrend, an RS high today. It would lead all four
+    # list screens; it is on none of them, and RS exit warnings still lists it.
+    dict(ticker="DEAL", price=80, dollar_vol_30d=2e8, rs_rating_pos=6, rs_pos_1m=7, rs_pos_3m=7,
+         rs_pos_6m=6, rs_pos_12m=6, rs_rating_chg_20=60, pct_vs_sma50=20, rs_rank=99,
+         rs_rating_prev20=39, pct_vs_sma200=30, rs_nh_bars_ago=0, rs_rating_score=3.5,
+         rs_nh_red_bars_ago=0, rs_nhbp_age=0, px_below_high_pct=-4.0, adr_pct=5, market_cap=2e10,
+         sma200_rising=1, dist_52w_high_pct=-4, rs_line_above_ma=1, rs_near_buy=1,
+         rs_setup="at_pivot", rs_flag="buyout_pending", rs_exit_bars_ago=2, rs_exit_last="Quick Break"),
     # a fund that would top every list, and a stock under the floor that would join four
     dict(ticker="FUND", security_type="ETF", price=400, dollar_vol_30d=1e9, rs_rating_pos=1,
          rs_pos_1m=1, rs_pos_3m=1, rs_pos_6m=1, rs_pos_12m=1, rs_rating_chg_20=50, pct_vs_sma50=9,
@@ -478,9 +503,10 @@ EXPECT = [
     ("starter_rs_leaders", {"min": "r85"}, ["LEAD", "RISE", "BASE", "NOLBL"]),
     ("starter_rs_leaders", {"min": "r90"}, ["LEAD", "RISE"]),
     ("starter_rs_leaders", {"min": "r95"}, ["LEAD", "RISE"]),
-    ("starter_rs_exit_warning_5", {}, ["SLIP", "WARN"]),
-    ("starter_rs_exit_warning_5", {"type": "any"}, ["SLIP", "WARN"]),
-    ("starter_rs_exit_warning_5", {"type": "quick_break"}, []),
+    # the buyout name is NOT left out of the warnings (it is left out of the four lists)
+    ("starter_rs_exit_warning_5", {}, ["SLIP", "DEAL", "WARN"]),
+    ("starter_rs_exit_warning_5", {"type": "any"}, ["SLIP", "DEAL", "WARN"]),
+    ("starter_rs_exit_warning_5", {"type": "quick_break"}, ["DEAL"]),
     ("starter_rs_exit_warning_5", {"type": "quicksand"}, ["SLIP"]),
     ("starter_rs_exit_warning_5", {"type": "grateful_dead_break"}, ["WARN"]),
 ]
@@ -546,6 +572,43 @@ def test_every_option_alone_and_in_pairs_is_a_spec_the_scan_accepts(table):
                         (sid, c1["id"], o1["id"], c2["id"], o2["id"])
                 n += 1
     assert n > 60
+
+
+def test_buyout_names_are_left_out_of_the_four_lists_and_a_blank_flag_stays(table):
+    """Unit U6. The clause is an exclude list, and the scan keeps a NULL under one, so
+    the rows with no flag (nearly all of them) stay; so do the other two flags. Without
+    the clause the buyout name is on each list, which is what makes its absence the
+    clause's doing and not an accident of the table."""
+    flags = {r["ticker"]: r.get("rs_flag") for r in ROWS}
+    assert flags["DEAL"] == "buyout_pending" and flags["LEAD"] is None
+    assert (flags["RISE"], flags["BASE"]) == ("one_day_move", "new_issue")
+    for sid in LIST_SCREENS:
+        spec = table[sid]["spec"]
+        with_it = [r["ticker"] for r in query.run_scan(spec)["rows"]]
+        assert "DEAL" not in with_it and with_it, sid
+        assert {"RISE", "BASE"} <= set(with_it), f"{sid}: another flag was left out too"
+        assert [t for t in with_it if flags[t] is None], f"{sid}: no blank-flag row survived"
+        bare = {**spec, "filters": [f for f in spec["filters"] if f != NO_BUYOUT]}
+        without = [r["ticker"] for r in query.run_scan(bare)["rows"]]
+        assert "DEAL" in without, f"{sid}: the buyout row was never a candidate"
+        assert [t for t in without if t != "DEAL"] == with_it, sid
+        # every option of every control keeps it out as well
+        for c in table[sid]["controls"]:
+            for o in c["options"]:
+                got = [r["ticker"] for r in query.run_scan(_apply(spec, c, o))["rows"]]
+                assert "DEAL" not in got, (sid, c["id"], o["id"])
+    # the highest score in the table, so without the clause it is the first leader
+    bare = {**table["starter_rs_leaders"]["spec"]}
+    bare["filters"] = [f for f in bare["filters"] if f != NO_BUYOUT]
+    assert query.run_scan(bare)["rows"][0]["ticker"] == "DEAL"
+    # SQL drops a NULL under a plain "is not", which is why the clause is an exclude list:
+    # written as != it would keep only the rows that carry some OTHER flag
+    with snapshot_db.connect() as conn:
+        kept = [r[0] for r in conn.execute(
+            "SELECT ticker FROM screener_rows WHERE rs_flag != 'buyout_pending'")]
+    assert sorted(kept) == ["BASE", "RISE"]
+    assert "starter_rs_exit_warning_5" not in LIST_SCREENS
+    assert "DEAL" in [r["ticker"] for r in query.run_scan(table["starter_rs_exit_warning_5"]["spec"])["rows"]]
 
 
 def test_the_leaders_list_is_capped_and_ranked_by_the_score(table):
@@ -702,6 +765,10 @@ def test_the_method_page_states_each_rule_from_the_constants_that_apply_it(on):
     assert "prior 252 sessions within the last 5 sessions" in rules["starter_rs_new_high"]
     assert "within the last 10 sessions on a day SPY closed down 0.5% or more" in rules["starter_rs_new_high"]
     assert "closed 3% to 25% below that high" in rules["starter_rs_nh_before_price"]
+    # unit U6: the four list screens say which flagged stocks they leave out; the warnings do not
+    for sid in FIVE:
+        said = "Stocks flagged Buyout pending are left out." in rules[sid]
+        assert said == (sid in LIST_SCREENS), sid
     for words in ("average daily range of 3% or more", "$300M or more", "RS Rating 80 or higher",
                   "within 25% of its 52-week high", "The 50 with the highest RS Rating score"):
         assert words in rules["starter_rs_leaders"], words
