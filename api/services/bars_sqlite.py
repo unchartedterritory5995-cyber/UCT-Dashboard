@@ -1907,8 +1907,18 @@ def _get_bars_rows(ticker: str, tf: str, max_bars: int) -> list[tuple]:
 # Bystander beside eight chunked readers: p99 7 ms). The rows are the same either way, bit
 # for bit: only the time differs.
 #
+# ⚰️ AND THE WATCH ITSELF MUST NOT WAIT IN THE CONVOY IT IS LOOKING FOR. Measured on
+# production the night this shipped (the `get_bars` stage of `/api/bars`' own Server-Timing,
+# 183 reads after against 2,665 before): p99 1,229 -> 109 ms and no read over a second (31
+# before), but ONE read of 600 rows still took 739 ms. That was the first watched batch: 128
+# rows handed over at 5 ms each, timed only once all 128 had arrived. So the first two
+# watched batches are small (`_WATCH_FIRST`): eight rows at that pace is 44 ms, and eight
+# rows that take over the budget are stronger evidence of a convoy than 128 that do. After
+# them the batch is `_WATCH_ROWS`, so an uncontended read still makes few calls.
+#
 # Knob: `BARS_PACKED_READS` (docs/feature_flags.json). `0` reads row by row always.
 _WATCH_ROWS = 128
+_WATCH_FIRST = (8, 32)
 _WATCH_BUDGET_S = 0.002
 
 
@@ -1917,18 +1927,22 @@ def _packed_default_on() -> bool:
 
 
 def _rows_while_fast(cur, clock=time.perf_counter) -> list[tuple] | None:
-    """Every row of `cur`, or None the moment a batch of `_WATCH_ROWS` runs over
-    `_WATCH_BUDGET_S` (the first row is not timed: it carries the query's own work)."""
+    """Every row of `cur`, or None the moment a FULL watched batch runs over
+    `_WATCH_BUDGET_S`. The first row is not timed (it carries the query's own work); the
+    watched batches are `_WATCH_FIRST` in turn, then `_WATCH_ROWS` each."""
     out = cur.fetchmany(1)
     if not out:
         return out
+    step = 0
     while True:
+        size = _WATCH_FIRST[step] if step < len(_WATCH_FIRST) else _WATCH_ROWS
+        step += 1
         t0 = clock()
-        batch = cur.fetchmany(_WATCH_ROWS)
+        batch = cur.fetchmany(size)
         if not batch:
             return out
         out.extend(batch)
-        if len(batch) == _WATCH_ROWS and clock() - t0 > _WATCH_BUDGET_S:
+        if len(batch) == size and clock() - t0 > _WATCH_BUDGET_S:
             return None
 
 

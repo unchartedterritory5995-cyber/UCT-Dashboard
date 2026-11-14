@@ -120,10 +120,31 @@ class Cur:
 
 
 def test_the_first_row_is_not_timed_and_every_fast_batch_is_kept():
-    cur = Cur(1 + 3 * b._WATCH_ROWS + 5)
-    out = b._rows_while_fast(cur, clock=Clock([0.0, 0.0, 0.0, 0.0]))
-    assert out == [(i,) for i in range(1 + 3 * b._WATCH_ROWS + 5)]
-    assert cur.calls[0] == 1 and set(cur.calls[1:]) == {b._WATCH_ROWS}
+    n = 1 + sum(b._WATCH_FIRST) + 3 * b._WATCH_ROWS + 5
+    cur = Cur(n)
+    out = b._rows_while_fast(cur, clock=Clock([0.0] * 8))
+    assert out == [(i,) for i in range(n)]
+    # the first row alone, the small watched batches in turn, then full ones (the last finds nothing)
+    assert cur.calls == [1, *b._WATCH_FIRST, *([b._WATCH_ROWS] * 5)]
+
+
+def test_a_convoy_is_noticed_within_the_first_eight_rows():
+    """Measured on production 2026-11-14: one 600-row read took 739 ms, all of it the first
+    watched batch of 128 rows arriving at 5 ms each. Eight rows at that pace is 44 ms."""
+    assert b._WATCH_FIRST[0] <= 8 and list(b._WATCH_FIRST) == sorted(b._WATCH_FIRST) and b._WATCH_FIRST[-1] < b._WATCH_ROWS
+    cur = Cur(5000)
+    assert b._rows_while_fast(cur, clock=Clock([b._WATCH_BUDGET_S * 2])) is None
+    assert cur.calls == [1, b._WATCH_FIRST[0]], "given up after the first small batch: nothing more was waited for"
+    assert sum(cur.calls) <= 9
+
+
+def test_a_convoy_that_starts_later_is_noticed_in_the_batch_it_starts_in():
+    for slow_at in range(0, 5):
+        clock = Clock([0.0] * slow_at + [b._WATCH_BUDGET_S * 3])
+        cur = Cur(5000)
+        assert b._rows_while_fast(cur, clock=clock) is None
+        sizes = [*b._WATCH_FIRST, *([b._WATCH_ROWS] * 5)]
+        assert cur.calls == [1, *sizes[:slow_at + 1]], slow_at
 
 
 def test_a_full_batch_over_its_budget_ends_the_read_at_once():
@@ -131,17 +152,21 @@ def test_a_full_batch_over_its_budget_ends_the_read_at_once():
     out = b._rows_while_fast(cur, clock=Clock([0.0, b._WATCH_BUDGET_S * 1.01]))
     assert out is None
     assert len(cur.calls) == 3, "the first row, one fast batch, the slow batch: nothing after it"
+    assert cur.calls == [1, *b._WATCH_FIRST[:2]]
 
 
 def test_a_batch_exactly_at_its_budget_is_not_a_convoy():
-    cur = Cur(1 + 2 * b._WATCH_ROWS)
-    assert b._rows_while_fast(cur, clock=Clock([b._WATCH_BUDGET_S, b._WATCH_BUDGET_S])) is not None
+    cur = Cur(1 + sum(b._WATCH_FIRST) + 2 * b._WATCH_ROWS)
+    assert b._rows_while_fast(cur, clock=Clock([b._WATCH_BUDGET_S] * 6)) is not None
 
 
 def test_a_short_last_batch_is_not_judged_there_is_nothing_left_to_save():
-    cur = Cur(1 + b._WATCH_ROWS + 7)
-    out = b._rows_while_fast(cur, clock=Clock([0.0, 99.0]))
-    assert out is not None and len(out) == 1 + b._WATCH_ROWS + 7
+    n = 1 + sum(b._WATCH_FIRST) + b._WATCH_ROWS + 7
+    cur = Cur(n)
+    out = b._rows_while_fast(cur, clock=Clock([0.0] * (len(b._WATCH_FIRST) + 1) + [99.0]))
+    assert out is not None and len(out) == n
+    # and a short SMALL batch is not judged either: a series of five rows read slowly is whole
+    assert b._rows_while_fast(Cur(1 + 4), clock=Clock([99.0])) == [(i,) for i in range(5)]
 
 
 def test_no_rows_is_an_empty_answer():
