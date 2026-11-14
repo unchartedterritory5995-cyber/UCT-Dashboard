@@ -47,6 +47,18 @@ export function activeOption(control, { filters, sort, rank = null } = {}) {
   return (control?.options || []).find(o => filtersMatch(control, o, filters) && (!o.sort || !!rank || sameSort(o.sort, sort))) || null
 }
 
+// The column the place numeral reads on the screen AS IT STANDS, or null for the starter's own
+// (`row.place`). An option may name its own (`place`, unit U6): on Top RS Rating the 1-month
+// board is ordered by `rs_pos_1m`, and a row numbered by its OVERALL place there read 3, 7, 29,
+// 1 down the list. Read from the working spec like everything else here: no state.
+export function placeOverride(controls, spec) {
+  for (const control of controls || []) {
+    const option = activeOption(control, spec)
+    if (option && typeof option.place === 'string' && option.place) return option.place
+  }
+  return null
+}
+
 // CHANGED: the active option is not the default (a Custom reading is changed too).
 export function isChanged(control, spec) {
   return (activeOption(control, spec)?.id ?? null) !== (defaultOption(control)?.id ?? null)

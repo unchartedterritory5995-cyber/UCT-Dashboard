@@ -11,12 +11,19 @@ import { shortDay } from './dates'
 const isNum = v => typeof v === 'number' && Number.isFinite(v)
 const fmtInt = n => Math.round(n).toLocaleString('en-US')
 
+// The column a row's place and its "was #N a month ago" are both about: the overall order.
+export const OVERALL_PLACE = 'rs_rating_pos'
+
 // A starter's row description, or null when it has none (then the row is today's).
-export function rowConfigOf(starter) {
+// `place` (unit U6): the column the chosen quick-control option numbers the rows by, when it
+// names one (rsScreens.placeOverride); it stands in for the starter's own. Only a screen that
+// already shows a place column takes it.
+export function rowConfigOf(starter, place = null) {
   const r = starter?.row
   if (!r || typeof r !== 'object' || Array.isArray(r)) return null
+  const own = typeof r.place === 'string' && r.place ? r.place : null
   return {
-    place: typeof r.place === 'string' && r.place ? r.place : null,
+    place: own && own !== INDEX_PLACE && typeof place === 'string' && place ? place : own,
     caption: Array.isArray(r.caption) ? r.caption.filter(p => typeof p === 'string') : [],
     tags: Array.isArray(r.tags) ? r.tags.filter(t => typeof t === 'string') : [],
   }
@@ -59,9 +66,12 @@ export function belowHighWords(row) {
 }
 
 // Where the rating is going: the place a month ago when it differs, else this week's change.
-export function movingWords(row) {
+// `overall` false (unit U6): the numeral beside this caption is NOT the overall place (a period
+// board numbers its rows by its own column), so "was #N a month ago", which is the overall
+// place a month ago, would be read against the wrong number. The week's change is said instead.
+export function movingWords(row, { overall = true } = {}) {
   const prev = row?.rs_rating_pos_prev20
-  if (isNum(prev) && prev !== row.rs_rating_pos) return `was #${fmtInt(prev)} a month ago`
+  if (overall && isNum(prev) && prev !== row.rs_rating_pos) return `was #${fmtInt(prev)} a month ago`
   const chg = row?.rs_rating_chg_5
   if (isNum(chg) && chg !== 0) return `RS Rating ${chg > 0 ? 'up' : 'down'} ${fmtInt(Math.abs(chg))} this week`
   return ''
@@ -76,12 +86,12 @@ const PARTS = {
   group: (row, theme) => groupWords(row, theme),
   rs_high_age: row => rsHighAgeWords(row),
   below_high: row => belowHighWords(row),
-  moving: row => movingWords(row),
+  moving: (row, _theme, cfg) => movingWords(row, { overall: !cfg?.place || cfg.place === OVERALL_PLACE || cfg.place === INDEX_PLACE }),
 }
 // The caption under the ticker: the starter's parts in its order, joined with " · ". The Setup
 // words come first on the screens that have them, so a narrow list truncates the group.
 export function captionOf(row, cfg, theme = null) {
-  return (cfg?.caption || []).map(p => (PARTS[p] ? PARTS[p](row, theme) : '')).filter(Boolean).join(' · ')
+  return (cfg?.caption || []).map(p => (PARTS[p] ? PARTS[p](row, theme, cfg) : '')).filter(Boolean).join(' · ')
 }
 
 // ── tags: ONE per row, the first of the starter's list that applies ────────

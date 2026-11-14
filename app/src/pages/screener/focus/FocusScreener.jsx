@@ -68,7 +68,7 @@ import { whyItsHere, whyColumns } from './whyItsHere'
 import { describeEmptying } from './emptyUndo'
 import { migratePinned } from './screenGroups'
 import QuickControls from './QuickControls'
-import { RS_CONTROLS_PREF, RS_NOTE_PREF, RS_LEADERS_ID, RS_SCREENS_COLUMNS, controlsOf, applyOption, specWithChoices, choicesFor, withChoice, withoutChoices, controlStarterFor } from './rsScreens'
+import { RS_CONTROLS_PREF, RS_NOTE_PREF, RS_LEADERS_ID, RS_SCREENS_COLUMNS, controlsOf, applyOption, specWithChoices, choicesFor, withChoice, withoutChoices, controlStarterFor, placeOverride } from './rsScreens'
 import { rowConfigOf, rowColumns, ratingsAsOf, sectorShare, rowFacts } from './rsRows'
 import { RsHeaderLine, RsFirstVisit, RsEmptyState } from './RsScreenParts'
 import { useNameDialog } from './useNameDialog'
@@ -208,7 +208,11 @@ function FocusList({ mode, onMode }) {
     return current.controls || current.row || current.empty ? current : null
   }, [current, starters, savedLoaded, savedError])
   const rsControls = useMemo(() => controlsOf(rsStarter), [rsStarter])
-  const rsRow = useMemo(() => rowConfigOf(rsStarter), [rsStarter])
+  // The place column follows the chosen option when it names one (unit U6: the period boards of
+  // Top RS Rating are numbered by their own place, never by the overall one). A column name or
+  // null, read from the working spec, so the memo below moves only when the column does.
+  const rsPlace = placeOverride(rsControls, { filters: s.filters, sort: s.sort, rank: s.rank })
+  const rsRow = useMemo(() => rowConfigOf(rsStarter, rsPlace), [rsStarter, rsPlace])
   // ⛔ Asked ONLY for a starter that carries `row`: the scan refuses a column the server does not
   // have with a 400, and these exist only where the RS screens do. Keyed on the names, so the
   // live payload replacing a remembered copy of the same starter asks nothing again.
@@ -298,6 +302,11 @@ function FocusList({ mode, onMode }) {
   const pending = !!result && rowsKey !== screenSig
   const listed = error ? null : answered.listed
   const shown = answered.shown || { filters: s.filters, logic: s.logic, rank: s.rank }
+  // RS screens: the rows on view answer `shown`, which is the screen before this one while a new
+  // answer is on its way. Their place numeral is read by the option THAT screen had chosen, so a
+  // board being left is never renumbered by the column of the board being opened.
+  const rsPlaceShown = placeOverride(rsControls, { filters: shown.filters, sort: shown.baseSpec?.sort || s.sort, rank: shown.rank })
+  const rsRowShown = useMemo(() => rowConfigOf(rsStarter, rsPlaceShown), [rsStarter, rsPlaceShown])
   // S2: a ranked screen lists at most its top_n; every count shown for the list says so.
   const shownTotal = capToTopN(total, shown)
   const hasMore = shownTotal != null && rows.length < shownTotal && !exhausted && !pending
@@ -980,7 +989,7 @@ function FocusList({ mode, onMode }) {
         <ResultList ref={hubResultsRef} itemProps={hubOn ? hubCursor.itemProps : undefined} rows={listRows} index={sel.index} onSelect={onRowSelect} onKeyDown={onListKeyDown}
           livePrices={prices} radar={radar} sortLabel={sortLabel} sortMenu={sortMenu} total={newOnlyOn ? listRows.length : shownTotal} hasMore={listHasMore}
           onLoadMore={s.loadMore} isLoading={isLoading} showCompany={showCompany} pending={pending} structures={structures}
-          newSet={newSet} rsRow={rsRow} themes={rsRow ? themeData : null}
+          newSet={newSet} rsRow={rsRowShown} themes={rsRow ? themeData : null}
           headExtra={<>{!rsRow && newLine}<FlaggedActions /></>} />
         {/* S5: primitives and stable callbacks only, so a tick for another ticker skips the pane.
             ONE chart on a phone: while the sheet shows the chart, the side pane (hidden there by

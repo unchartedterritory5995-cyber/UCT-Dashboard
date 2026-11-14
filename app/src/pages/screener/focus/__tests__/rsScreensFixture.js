@@ -13,8 +13,17 @@
 // day it was written, and nothing would have said so on the day it stopped.
 // tests/test_rs_screens_u6_golden.py fails if an RS starter is typed here again.
 //
+// Two more files join the halves in the other direction (both in tests/fixtures/):
+//   rs_screens_scan_requests.json   what THIS client asks the scan route, captured from the
+//                                   mounted page (rsScanRequests.test.jsx) and replayed by the
+//                                   server's end-to-end test
+//   rs_screens_rows.json            the rows the route answered those requests with, over a
+//                                   synthetic market (tests/test_rs_screens_u6_e2e.py), read by
+//                                   rsServedRows.test.jsx
+//
 // Hand-written on purpose: PLAIN_STARTERS (starters that carry none of the new fields; the RS
-// screens read nothing of theirs) and RS_ROWS (sample rows, one per caption and tag rule).
+// screens read nothing of theirs) and RS_ROWS (sample rows, one per caption and tag rule; every
+// key is a column the server has, held by rsServedRows.test.jsx).
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'

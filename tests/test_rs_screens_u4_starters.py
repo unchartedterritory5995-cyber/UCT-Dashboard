@@ -278,7 +278,15 @@ def test_the_controls_are_the_contracts(on):
         "sort": {"key": "rs_rating_chg_20", "dir": "desc", "then": {"key": "rs_rating_pos", "dir": "asc"}}}
     assert option("starter_rs_top_rating", "rank_by", "m3") == {
         "id": "m3", "label": "3M", "filters": [{"key": "rs_pos_3m", "op": "gte", "min": 1}],
-        "sort": {"key": "rs_pos_3m", "dir": "asc"}}
+        "sort": {"key": "rs_pos_3m", "dir": "asc"}, "place": "rs_pos_3m"}
+    # unit U6: the four period boards number their rows by their own column, and no other
+    # option of any screen overrides the place
+    assert {(sid, c["id"], o["id"]): o["place"] for sid in FIVE for c in by[sid]["controls"]
+            for o in c["options"] if "place" in o} == {
+        ("starter_rs_top_rating", "rank_by", "m1"): "rs_pos_1m",
+        ("starter_rs_top_rating", "rank_by", "m3"): "rs_pos_3m",
+        ("starter_rs_top_rating", "rank_by", "m6"): "rs_pos_6m",
+        ("starter_rs_top_rating", "rank_by", "m12"): "rs_pos_12m"}
     assert option("starter_rs_top_rating", "show", "new90")["filters"] == [
         {"key": "rs_rank", "op": "gte", "min": 90}, {"key": "rs_rating_prev20", "op": "lt", "max": 90}]
     assert option("starter_rs_new_high", "when", "month")["filters"] == [
@@ -355,7 +363,15 @@ def test_every_control_has_one_default_and_it_is_the_spec(on):
                 assert defaults[0]["sort"] == spec["sort"], (s["id"], c["id"])
             for o in c["options"]:
                 assert {f["key"] for f in o["filters"]} <= set(c["keys"]), (s["id"], c["id"], o["id"])
-                assert set(o) <= {"id", "label", "default", "filters", "sort"}, (s["id"], o)
+                assert set(o) <= {"id", "label", "default", "filters", "sort", "place"}, (s["id"], o)
+                if "place" in o:
+                    # unit U6: an option that numbers the rows by its own column names a
+                    # column it also requires and sorts by, on a screen that shows a place
+                    assert o["place"] in c["keys"] and o["place"] in snapshot_db.COLUMNS, (s["id"], o["id"])
+                    assert o["sort"] == {"key": o["place"], "dir": "asc"}, (s["id"], o["id"])
+                    assert {"key": o["place"], "op": "gte", "min": 1} in o["filters"], (s["id"], o["id"])
+                    assert isinstance(s["row"]["place"], str) and s["row"]["place"] != "index", s["id"]
+                    assert o["place"] != s["row"]["place"], "the screen's own place needs no override"
                 # no two options of a control are the same choice
             choices = [json.dumps([o["filters"], o.get("sort")], sort_keys=True) for o in c["options"]]
             assert len(set(choices)) == len(choices), f"{s['id']}/{c['id']}: two options are the same"

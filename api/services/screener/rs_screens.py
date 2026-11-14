@@ -115,13 +115,20 @@ def _sort(key, direction, then=None):
     return out
 
 
-def _option(option_id, label, filters=(), *, default=False, sort=None):
+def _option(option_id, label, filters=(), *, default=False, sort=None, place=None):
+    """One option of a control. ``place`` (unit U6) names the column the row's place
+    numeral reads WHILE THIS OPTION IS CHOSEN, when it is not the screen's own
+    (``row.place``): the 1-month board of Top RS Rating numbers its rows by
+    ``rs_pos_1m``. Without it a list ordered by the 1-month place printed each row's
+    OVERALL place beside it (3, 7, 29, 1, ...), which reads as a list out of order."""
     out = {"id": option_id, "label": label}
     if default:
         out["default"] = True
     out["filters"] = [dict(f) for f in filters]
     if sort:
         out["sort"] = sort
+    if place:
+        out["place"] = place
     return out
 
 
@@ -176,7 +183,8 @@ def top_rating() -> dict:
          "rs_rating_chg_20", "pct_vs_sma50"],
         [_option("overall", "Overall", [place], default=True,
                  sort=_sort("rs_rating_pos", "asc")),
-         *[_option(i, label, [_gte(col, 1)], sort=_sort(col, "asc"))
+         # each period board is numbered by its own place column (`place`, unit U6)
+         *[_option(i, label, [_gte(col, 1)], sort=_sort(col, "asc"), place=col)
            for i, label, col in periods],
          # Rising fastest is partly names bouncing back (plan 1.1), so it is held to
          # stocks above their 50-day line, and ties fall to the overall place.

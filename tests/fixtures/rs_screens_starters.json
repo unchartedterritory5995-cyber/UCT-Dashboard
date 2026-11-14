@@ -85,7 +85,8 @@
             "sort": {
               "key": "rs_pos_1m",
               "dir": "asc"
-            }
+            },
+            "place": "rs_pos_1m"
           },
           {
             "id": "m3",
@@ -100,7 +101,8 @@
             "sort": {
               "key": "rs_pos_3m",
               "dir": "asc"
-            }
+            },
+            "place": "rs_pos_3m"
           },
           {
             "id": "m6",
@@ -115,7 +117,8 @@
             "sort": {
               "key": "rs_pos_6m",
               "dir": "asc"
-            }
+            },
+            "place": "rs_pos_6m"
           },
           {
             "id": "m12",
@@ -130,7 +133,8 @@
             "sort": {
               "key": "rs_pos_12m",
               "dir": "asc"
-            }
+            },
+            "place": "rs_pos_12m"
           },
           {
             "id": "rising",

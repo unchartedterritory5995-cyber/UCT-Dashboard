@@ -20,21 +20,22 @@ export const META = {
   views: [{ key: 'overview', columns: ['ticker', 'price'] }],
 }
 
-// What a test can move. `scan(body)` may return rows, or {rows, total}.
+// What a test can move. `scan(body)` may return rows, or {rows, total}. `meta` replaces the small
+// registry above (the request-capture test hands the page the server's own entries).
 export const net = {
   starters: STARTERS_ON, saved: [], prefs: {}, rows: RS_ROWS, scan: null, savedDelay: 0, prefsDelay: 0,
-  diff: null, methodology: { methods: [] }, themes: {}, prefsFail: false,
+  diff: null, methodology: { methods: [] }, themes: {}, prefsFail: false, meta: null,
 }
 export function resetNet() {
   Object.assign(net, { starters: STARTERS_ON, saved: [], prefs: {}, rows: RS_ROWS, scan: null, savedDelay: 0, prefsDelay: 0,
-    diff: null, methodology: { methods: [] }, themes: {}, prefsFail: false })
+    diff: null, methodology: { methods: [] }, themes: {}, prefsFail: false, meta: null })
 }
 const later = (body, ms) => (ms ? new Promise(r => setTimeout(() => r(body), ms)) : body)
 
 export function installFetch() {
   globalThis.fetch = vi.fn(async (u, o) => {
     const url = String(u)
-    if (url.startsWith('/api/screener/meta')) return { ok: true, json: async () => META }
+    if (url.startsWith('/api/screener/meta')) return { ok: true, json: async () => net.meta || META }
     if (url === '/api/screener/scan') {
       const body = JSON.parse(o.body)
       const out = net.scan ? net.scan(body) : net.rows
