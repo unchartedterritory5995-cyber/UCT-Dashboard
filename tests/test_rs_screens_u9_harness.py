@@ -39,6 +39,13 @@ HOLD_K = list(range(DEV + (-DEV) % 5, fx.RATED, 5))
 HOLD_K_21 = [k for k in HOLD_K if k + 21 <= fx.RATED - 1]
 
 
+def _stored(*args, **kw):
+    """The test with the ratings READ FROM THE STORE: this file's markets are told apart
+    by the stored rating score alone. The computed-ratings mode (the default) has its
+    own file, ``test_rs_screens_u9_harness_computed.py``."""
+    return run.run_test(*args, ratings="stored", **kw)
+
+
 def _strip(result):
     """A result without the one field that is a clock."""
     return {k: v for k, v in result.items() if k != "generated_at"}
@@ -55,12 +62,12 @@ def ordered(tmp_path_factory):
 
 @pytest.fixture(scope="module")
 def ordered_run(ordered):
-    return run.run_test(*ordered)
+    return _stored(*ordered)
 
 
 @pytest.fixture(scope="module")
 def ordered_unlocked(ordered):
-    return run.run_test(*ordered, unlock_holdout=True)
+    return _stored(*ordered, unlock_holdout=True)
 
 
 @pytest.fixture(scope="module")
@@ -233,7 +240,7 @@ def test_leave_one_out_reports_and_changes_nothing(ordered_run):
 def test_a_date_with_fewer_than_25_qualifiers_is_skipped_and_said(tmp_path):
     """For 50 sessions half the leaders are rated 70: 20 qualifiers, under the floor."""
     dbs = fx.build(tmp_path, "ordered", extras=False, weak_sessions=range(100, 150))
-    dev = run.run_test(*dbs)["development"]
+    dev = _stored(*dbs)["development"]
     weak = [d for d in dev["dates"] if d["date"] in {fx.SESSIONS[k] for k in range(100, 150, 5)}]
     assert len(weak) == 10
     assert all(d["qualifiers"] == 20 and d["scored"] == 20 and d["spread_pct"] is None
@@ -283,10 +290,10 @@ def test_locked_the_holdout_is_not_read(ordered, ordered_run, tmp_path):
                          "WHERE ts > ?", (data.ymd(cutoff),)).rowcount
         conn.commit()
     assert n > 10_000 and m > 10_000, "the holdout was really ruined"
-    assert _strip(run.run_test(bars_db, screener_db)) == _strip(ordered_run)
+    assert _strip(_stored(bars_db, screener_db)) == _strip(ordered_run)
     # ... and unlocked, the ruin shows: the control for the line above
-    ruined = run.run_test(bars_db, screener_db, unlock_holdout=True)
-    assert ruined["holdout"] != run.run_test(*ordered, unlock_holdout=True)["holdout"]
+    ruined = _stored(bars_db, screener_db, unlock_holdout=True)
+    assert ruined["holdout"] != _stored(*ordered, unlock_holdout=True)["holdout"]
     assert ruined["development"] == ordered_run["development"], "and still not in development"
 
 
@@ -311,7 +318,7 @@ def test_with_no_development_sessions_nothing_is_read_and_the_test_fails(tmp_pat
     with sqlite3.connect(str(screener_db)) as conn:
         conn.execute("DELETE FROM rs_rating_history WHERE session < ?", (fx.SESSIONS[-252],))
         conn.commit()
-    r = run.run_test(bars_db, screener_db)
+    r = _stored(bars_db, screener_db)
     assert r["sessions"]["development"] == {"count": 0, "first": None, "last": None}
     assert r["sessions"]["holdout"]["count"] == 252 and r["sessions"]["last_date_read"] is None
     assert r["development"]["formation_dates"] == 0 and r["counts"] == {}
@@ -325,7 +332,7 @@ def test_with_no_development_sessions_nothing_is_read_and_the_test_fails(tmp_pat
 # ───────────────────────── noise, and holdout-only ──────────────────────────
 
 def test_the_noise_market_fails(noise):
-    r = run.run_test(*noise)
+    r = _stored(*noise)
     assert r["verdict"] == "FAIL" and r["judgement"]["passed"] is False
     c1 = r["judgement"]["criteria"]["1_spread_positive_interval_off_zero"]
     assert not c1["met"] and c1["interval"]["low"] < 0, "the interval does not exclude zero"
@@ -336,12 +343,12 @@ def test_the_noise_market_fails(noise):
 
 
 def test_a_score_that_works_only_in_the_holdout_fails_and_the_holdout_stays_unread(holdout_only):
-    locked = run.run_test(*holdout_only)
+    locked = _stored(*holdout_only)
     assert locked["verdict"] == "FAIL" and locked["holdout"] is None
     assert not locked["judgement"]["criteria"]["1_spread_positive_interval_off_zero"]["met"]
     assert locked["judgement"]["criteria"]["4_same_sign_in_holdout"]["asked"] is False
     assert abs(locked["development"]["primary"]["top_minus_bottom_pct"]) < 0.3
-    unlocked = run.run_test(*holdout_only, unlock_holdout=True)
+    unlocked = _stored(*holdout_only, unlock_holdout=True)
     # in the holdout the score does order returns ...
     assert unlocked["holdout"]["primary"]["top_minus_bottom_pct"] == pytest.approx(
         _mean(fx.expected_spread(k) for k in HOLD_K_21), abs=1e-9)
@@ -365,7 +372,7 @@ def test_nothing_after_a_dates_own_window_can_change_it(ordered, ordered_run, tm
         conn.execute("UPDATE ohlcv SET c = c * 0.7, h = h * 0.7, l = l * 0.7, o = o * 0.7 "
                      "WHERE ts > ? AND ticker LIKE 'L3%'", (data.ymd(fx.SESSIONS[line]),))
         conn.commit()
-    ruined = run.run_test(bars_db, screener_db)["development"]
+    ruined = _stored(bars_db, screener_db)["development"]
     clean = ordered_run["development"]
     by_r = {p["date"]: p["spread_pct"] for p in ruined["primary"]["by_date"]}
     by_c = {p["date"]: p["spread_pct"] for p in clean["primary"]["by_date"]}
@@ -391,7 +398,7 @@ def test_todays_screener_rows_give_three_facts_and_no_number(ordered, ordered_ru
     with sqlite3.connect(str(screener_db)) as conn:
         conn.execute("UPDATE screener_rows SET is_etf = 1 WHERE ticker = 'L39'")
         conn.commit()
-    r = run.run_test(bars_db, screener_db)
+    r = _stored(bars_db, screener_db)
     assert all((d["floor"], d["qualifiers"]) == (51, 39) for d in r["development"]["dates"])
     assert r["counts"]["symbols_not_a_stock_or_unknown"] == 4
 
@@ -430,7 +437,7 @@ def test_the_run_opens_everything_read_only_and_writes_only_out(ordered, tmp_pat
     monkeypatch.setattr(sqlite3, "connect", _connect)
     monkeypatch.setattr(builtins, "open", _open)
     code = cli.main(["--bars-db", str(ordered[0]), "--screener-db", str(ordered[1]),
-                     "--out", str(out), "--max-formation-dates", "30"])
+                     "--out", str(out), "--ratings", "stored", "--max-formation-dates", "30"])
     monkeypatch.undo()
     assert code in (0, 1)
     assert len(opened) == 2, opened
@@ -444,19 +451,32 @@ def test_the_run_opens_everything_read_only_and_writes_only_out(ordered, tmp_pat
 
 def test_the_command_line_writes_the_file_and_prints_the_verdict_last(ordered, tmp_path, capsys):
     out = tmp_path / "r.json"
-    code = cli.main(["--bars-db", str(ordered[0]), "--screener-db", str(ordered[1]), "--out", str(out)])
+    code = cli.main(["--bars-db", str(ordered[0]), "--screener-db", str(ordered[1]), "--out", str(out), "--ratings", "stored"])
     printed = capsys.readouterr().out.strip().splitlines()
     assert code == 0
     assert printed[-1] == spec.CAVEAT
     assert printed[-2] == "VERDICT: PASS on development data (the holdout has not been read)"
-    assert printed[0] == "Leader score test (pre-registered 2026-11-14)"
-    assert [l.split()[0] for l in printed[2:6]] == ["PASS", "PASS", "PASS", "NOT"]
-    assert "HOLDOUT" not in printed[0] and not any("UNLOCKED" in l for l in printed)
+    # the plan is printed up front, before anything is read: where the ratings come from,
+    # the session range, the holdout, the formation dates and the non-overlapping windows
+    assert printed[:4] == [
+        "Ratings: read from the stored rating history.",
+        f"Development sessions: 1,008 ({fx.SESSIONS[0]} to {fx.SESSIONS[DEV - 1]}).",
+        f"Holdout: the newest 252 sessions ({fx.SESSIONS[DEV]} to {fx.SESSIONS[-1]}), not read.",
+        f"Formation dates: 202 in development ({fx.SESSIONS[0]} to {fx.SESSIONS[DEV_K[-1]]}), "
+        "spanning 41 non-overlapping 21-session windows."]
+    verdict = printed[4:]
+    assert verdict[0] == "Leader score test (pre-registered 2026-11-14)"
+    assert verdict[2] == "Ratings: read from the stored rating history."
+    assert [l.split()[0] for l in verdict[3:7]] == ["PASS", "PASS", "PASS", "NOT"]
+    assert not any("UNLOCKED" in l for l in printed)
 
     def _no_nan(token):
         raise AssertionError(f"{token} in the output file")
     result = json.loads(out.read_text(encoding="utf-8"), parse_constant=_no_nan)
-    assert result["verdict"] == "PASS" and result["verdict_lines"] == printed
+    assert result["verdict"] == "PASS" and result["verdict_lines"] == verdict
+    assert result["plan"]["formation_dates"] == {"development": 202, "holdout": 0}
+    assert result["plan"]["independent_blocks"] == {"development": 41, "holdout": 0}
+    assert result["ratings"] == {"mode": "stored"} and result["ratings_cross_check"] is None
     assert result["caveat"] == spec.CAVEAT and result["preregistered"] == "2026-11-14"
     for key in ("constants", "seed", "sessions", "counts", "development", "judgement", "score", "universe"):
         assert key in result, key
@@ -465,13 +485,14 @@ def test_the_command_line_writes_the_file_and_prints_the_verdict_last(ordered, t
 def test_unlocking_is_said_loudly_before_and_after(holdout_only, tmp_path, capsys):
     out = tmp_path / "r.json"
     code = cli.main(["--bars-db", str(holdout_only[0]), "--screener-db", str(holdout_only[1]),
-                     "--out", str(out), "--unlock-holdout"])
+                     "--out", str(out), "--ratings", "stored", "--unlock-holdout"])
     printed = capsys.readouterr().out
     assert code == 1, "a failed test exits 1"
-    assert printed.count("HOLDOUT UNLOCKED. This run READS the newest 252 rating sessions") == 2
+    assert printed.count("HOLDOUT UNLOCKED. This run READS the newest 252 sessions") == 2
     lines = printed.strip().splitlines()
     assert lines[0].startswith("=====") and lines[1].startswith("HOLDOUT UNLOCKED")
-    assert any(l.startswith("HOLDOUT UNLOCKED: the newest 252 rating sessions were read") for l in lines)
+    assert any(l.startswith("HOLDOUT UNLOCKED: the newest 252 sessions were read") for l in lines)
+    assert any(l.endswith("READ in this run.") and l.startswith("Holdout: the newest 252 sessions") for l in lines)
     assert lines[-1] == spec.CAVEAT and lines[-2] == "VERDICT: FAIL"
     assert any(l.split()[0] in ("PASS", "FAIL") and "4. Same sign in the holdout" in l for l in lines)
     assert json.loads(out.read_text(encoding="utf-8"))["holdout_unlocked"] is True
@@ -480,12 +501,13 @@ def test_unlocking_is_said_loudly_before_and_after(holdout_only, tmp_path, capsy
 def test_a_quick_run_is_marked_and_reads_only_the_newest_dates(ordered, tmp_path, capsys):
     out = tmp_path / "q.json"
     code = cli.main(["--bars-db", str(ordered[0]), "--screener-db", str(ordered[1]),
-                     "--out", str(out), "--max-formation-dates", "12"])
+                     "--out", str(out), "--ratings", "stored", "--max-formation-dates", "12"])
     printed = capsys.readouterr().out.strip().splitlines()
     result = json.loads(out.read_text(encoding="utf-8"))
     assert result["quick_run"] is True and result["max_formation_dates"] == 12
     assert [d["date"] for d in result["development"]["dates"]] == [fx.SESSIONS[k] for k in DEV_K[-12:]]
-    assert printed[1].startswith("QUICK RUN") and "NOT a test record" in printed[1]
+    quick = result["verdict_lines"][1]
+    assert quick in printed and quick.startswith("QUICK RUN") and "NOT a test record" in quick
     # 12 dates are fewer than one bootstrap block: no interval, so no pass
     assert code == 1 and result["verdict"] == "FAIL"
     assert result["judgement"]["criteria"]["1_spread_positive_interval_off_zero"]["interval"] is None
@@ -494,9 +516,9 @@ def test_a_quick_run_is_marked_and_reads_only_the_newest_dates(ordered, tmp_path
 def test_bad_arguments_and_unreadable_databases_exit_2_and_write_nothing(ordered, tmp_path, capsys):
     out = tmp_path / "x.json"
     assert cli.main(["--bars-db", str(tmp_path / "missing.db"), "--screener-db", str(ordered[1]),
-                     "--out", str(out)]) == 2
+                     "--out", str(out), "--ratings", "stored"]) == 2
     assert cli.main(["--bars-db", str(ordered[0]), "--screener-db", str(ordered[1]),
-                     "--out", str(out), "--max-formation-dates", "0"]) == 2
+                     "--out", str(out), "--ratings", "stored", "--max-formation-dates", "0"]) == 2
     with pytest.raises(SystemExit):
         cli.main(["--bars-db", str(ordered[0])])
     assert not out.exists() and not (tmp_path / "missing.db").exists()
@@ -544,4 +566,5 @@ def test_the_package_runs_as_a_module():
     assert importlib.util.find_spec("api.services.rs_leader_test.__main__") is not None
     assert cli._parser().prog == "python -m api.services.rs_leader_test"
     assert {a.dest for a in cli._parser()._actions} >= {
-        "bars_db", "screener_db", "out", "max_formation_dates", "unlock_holdout"}
+        "bars_db", "screener_db", "out", "max_formation_dates", "unlock_holdout",
+        "ratings", "from_date", "industry_db"}

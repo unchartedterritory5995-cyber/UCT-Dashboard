@@ -115,11 +115,24 @@ def _scores(scenario: str, seed: int) -> dict:
     return out
 
 
+FILLER_DRIFT = 0.0001
+
+
+def filler(i):
+    return f"F{i:03d}"
+
+
 def build(directory, scenario: str = "ordered", *, seed: int = 11, extras: bool = True,
-          weak_sessions=()):
+          weak_sessions=(), fillers: int = 0):
     """Write ``bars.db`` and ``screener.db`` under ``directory``; returns their paths.
     On the rated sessions at the positions in ``weak_sessions`` the faster half of the
-    leaders is rated 70, so only 20 stocks qualify there."""
+    leaders is rated 70, so only 20 stocks qualify there.
+
+    ``fillers`` adds that many slow symbols (``F000`` ..) to the BARS STORE ONLY, with no
+    row today: the wider population a real rating is a percentile of. With 240 of them
+    every leader's rating COMPUTED from the bars is 80 or more (the 40 leaders are the
+    top of about 300 names), which is what the computed-ratings mode needs to form
+    quintiles on this market."""
     assert scenario in ("ordered", "noise", "holdout_only"), scenario
     bars_db, screener_db = directory / "bars.db", directory / "screener.db"
     series = {"SPY": bars(closes(BENCH_DRIFT, 300.0), spread=0.005, volume=50_000_000)}
@@ -143,6 +156,9 @@ def build(directory, scenario: str = "ordered", *, seed: int = 11, extras: bool 
         classes["THIN"] = (0, "Leaders", "Growth")              # under $20M a day
         series["NOLIST"] = bars(strong)                         # bars, but no row today
         classes["NOBARS"] = (0, "Leaders", "Growth")            # a row today, but no bars
+    slow = bars(closes(FILLER_DRIFT), spread=0.005) if fillers else None
+    for i in range(fillers):
+        series[filler(i)] = slow
     with sqlite3.connect(str(bars_db)) as conn:
         conn.execute("CREATE TABLE ohlcv (ticker TEXT NOT NULL, tf TEXT NOT NULL, ts INTEGER NOT NULL, "
                      "o REAL, h REAL, l REAL, c REAL, v INTEGER, PRIMARY KEY (ticker, tf, ts)) WITHOUT ROWID")
@@ -178,7 +194,12 @@ def expected_spread(k_session: int, h: int = 21) -> float:
     session at position ``k_session``: the eight fastest leaders' mean return minus the
     eight slowest's, from the next open (the formation close) to the close ``h``
     sessions on. The cost is the same on both sides and cancels."""
-    k = WARMUP + k_session
+    return expected_spread_at(WARMUP + k_session, h)
+
+
+def expected_spread_at(k: int, h: int = 21) -> float:
+    """:func:`expected_spread` for the session at BAR position ``k`` (the computed
+    mode's calendar is every bar date, not only the rated ones)."""
     top = sum(growth(leader_drift(i), k, h) for i in range(32, 40)) / 8
     bottom = sum(growth(leader_drift(i), k, h) for i in range(0, 8)) / 8
     return (top - bottom) * 100.0
