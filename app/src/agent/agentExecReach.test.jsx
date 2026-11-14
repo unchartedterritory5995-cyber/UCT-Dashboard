@@ -61,7 +61,7 @@ const PINNED = {
   // options flow" now reaches the model, widget.setOption and the Options Flow control list (master 0a0737665a: 23/20/20, misses
   // C3-170, C3-166, C3-151, C3-152; this head: 24/21/21, misses C3-170, C3-151, C3-152; no other row dropped)
   'widget held-out v1': { model: '24/24', action: '21/24', list: '21/24' }, 'widget held-out v2': { model: '24/24', action: '21/24', list: '21/24' },
-  'widget tune v1': { model: '24/24', action: '20/24', list: '21/24' }, 'widget tune v2': { model: '24/24', action: '21/24', list: '21/24' },
+  'widget tune v1': { model: '24/24', action: '20/24', list: '21/24' }, 'widget tune v2': { model: '24/24', action: '22/24', list: '22/24' },   // a RISE re-pinned (chartShare branch, 2026-11-13: 21 → 22; the same with its routing group removed — C3-170 / C3-171 now reach)
   'list held-out v1': { model: '8/8', action: '7/8' }, 'list held-out v2': { model: '8/8', action: '8/8' },
   // round 2 (before the word-based names: name held-out2 list 4/6 both; journal held-out2 action 3/4 both)
   // after the routing gate (a name routes only beside a word of its controls): "on the new-highs/new-lows widget add the S&P 500" says

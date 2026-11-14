@@ -160,7 +160,7 @@ describe('chart.setSetting — one capability over the product descriptor table'
     expect(p.ok).toBe(true)
   })
   it('KNOWING ≠ DOING: a known-but-not-eligible setting is not even an option', () => {
-    expect(shapeError('chart.setSetting', { setting: 'theme', value: 'light' }, CTX)).toMatch(/isn't an option/)          // W1-B: watermark.opacity is eligible now
+    expect(shapeError('chart.setSetting', { setting: 'volume.plotStyle', value: 'line' }, CTX)).toMatch(/isn't an option/)          // W1-B: watermark.opacity is eligible now; chartShare (11-13): theme too
     expect(shapeError('chart.setSetting', { setting: 'indicatorInstances', value: 'x' }, CTX)).toMatch(/isn't an option/)
   })
   it('fast path: "turn off the grid", "crosshair off", "hide the watermark", "show swing labels" — and "hide volume" stays Volume', () => {

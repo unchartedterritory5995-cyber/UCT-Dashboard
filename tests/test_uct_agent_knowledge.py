@@ -1743,6 +1743,21 @@ def test_guard_still_passes_ordinary_prose_about_position_and_favorites(text):
     assert guard.suspicious(text) is False
 
 
+# ── Charts family (2026-11-13): the chart Share popover's action name is withheld when a passage names it bare ──────────────
+def test_guard_withholds_the_chart_share_action_name_bare():
+    assert guard.suspicious("Next, chartShare.export with the default settings.") is True
+
+
+@pytest.mark.parametrize("text", [
+    "Take a screenshot of the chart and share it after the close.",
+    "Download the chart as a PNG from the Share menu.",
+    "Copy the share link to send the same chart to a friend.",
+    "Export your chart image before you post the trade review.",
+])
+def test_guard_still_passes_ordinary_prose_about_sharing_a_chart(text):
+    assert guard.suspicious(text) is False
+
+
 # ── Charts family (2026-11-12): the UCT Intelligence chart indicator's action name is withheld when a passage names it bare ──
 def test_guard_withholds_the_uct_intelligence_action_name_bare():
     assert guard.suspicious("Next, uctIntelligence.set with the default settings.") is True

@@ -114,7 +114,8 @@ describe('chart settings descriptors — UI-equivalent writes', () => {
     expect(settingUnavailable(settingDescriptor('volume.paneHeightPct'), withSetting(mergeChartSettings({}), settingDescriptor('volume.visible'), false))).toMatch(/Show Volume first/)
     expect(settingUnavailable(settingDescriptor('markers.ipoColor'), mergeChartSettings({}))).toBe(null)   // ipo marker is on by default
     // the header Info-row flags stay known (header.fields is the stored truth) — KNOWING ≠ DOING
-    for (const id of ['header.showMarketCap', 'header.showNextEarnings', 'header.showUctRating', 'volume.plotStyle', 'theme']) expect(settingDescriptor(id).agent, id).toBe('known')
+    for (const id of ['header.showMarketCap', 'header.showNextEarnings', 'header.showUctRating', 'volume.plotStyle']) expect(settingDescriptor(id).agent, id).toBe('known')
+    expect(settingDescriptor('theme').agent).toBe('eligible')   // Shift+T's palette: KNOWN → ELIGIBLE (chartShare family, 2026-11-13)
   })
 
   it('the UI prerequisite holds: thin bars only on Bars/HLC charts', () => {
