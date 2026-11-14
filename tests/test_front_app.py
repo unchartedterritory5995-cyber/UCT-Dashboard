@@ -470,7 +470,23 @@ def test_the_service_config_starts_this_app_with_no_disk_and_two_copies():
     with open(os.path.join(root, "front", "service.json"), encoding="utf-8") as f:
         cfg = json.load(f)
     deploy, build = cfg["deploy"], cfg["build"]
-    assert deploy["startCommand"].startswith("uvicorn api.front_app:app --host 0.0.0.0 --port $PORT")
+    # ⚰️ The first version was a bare `uvicorn ... --port $PORT`. For a Dockerfile service Railway runs
+    # the start command in EXEC form: no shell, so `$PORT` stays the literal text "$PORT" and uvicorn
+    # refuses to start (Railway docs, "Build and Start Commands"). The command must go through a shell,
+    # and `exec` hands the process over so uvicorn receives the stop signal itself.
+    import shlex
+
+    argv = shlex.split(deploy["startCommand"])
+    assert argv[:2] == ["/bin/sh", "-c"] and len(argv) == 3, argv
+    assert argv[2].startswith("exec uvicorn api.front_app:app --host 0.0.0.0 --port ${PORT:-8080}"), argv[2]
+    import shutil
+    import subprocess
+
+    sh = shutil.which("sh")
+    if sh:   # run the real line in a real shell, with uvicorn replaced by echo: the port must be a number
+        script = argv[2].replace("exec uvicorn ", "echo ")
+        out = subprocess.run([sh, "-c", script], capture_output=True, text=True, env={"PORT": "9123", "PATH": os.environ.get("PATH", "")}).stdout
+        assert "--port 9123" in out and "$" not in out, out
     assert "--proxy-headers" not in deploy["startCommand"], "the front door forwards the edge's headers, it does not interpret them"
     assert "--no-access-log" in deploy["startCommand"], "uvicorn's access log prints raw URLs (tickers, share tokens)"
     assert deploy["numReplicas"] >= 2
