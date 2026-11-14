@@ -33,6 +33,8 @@ import time
 from bisect import bisect_left
 from typing import Callable, Iterable, Optional
 
+from api.services import ingest_core
+
 _logger = logging.getLogger(__name__)
 
 _WS_URL = os.environ.get("MASSIVE_WS_URL", "wss://socket.massive.com/stocks")
@@ -154,75 +156,10 @@ OnBarCallback = Callable[[str, dict, str], None]  # (symbol, payload_dict, kind)
 # For AM/A: payload is a bar dict {t, o, h, l, c, v}
 # For T: payload is a trade dict {t, p, s}
 
-_AGGREGATE_EVENT_TYPES = frozenset({"AM", "A"})
-_TRADE_EVENT_TYPE = "T"
-
-
-def parse_aggregate_event(raw: dict) -> Optional[dict]:
-    """Validate + normalize a Massive AM, A, or T event or return None.
-
-    For AM/A events: returns {sym, bar: {t, o, h, l, c, v}, kind: "AM"|"A"}.
-    For T events:   returns {sym, trade: {t, p, s}, kind: "T"}.
-
-    Returns None for non-aggregate/non-trade events (status, Q, etc.) and events
-    missing required fields. Caller should treat None as "skip silently".
-
-    Phase 4.5: accepts ev=AM and ev=A (same OHLCV field layout).
-    Phase 4.6: accepts ev=T (per-trade ticks); extracts p, s, t fields.
-    """
-    if not isinstance(raw, dict):
-        return None
-    ev = raw.get("ev")
-
-    # T-event path (Phase 4.6)
-    if ev == _TRADE_EVENT_TYPE:
-        sym = raw.get("sym")
-        if not sym:
-            return None
-        # Required: p (price), s (size), t (ms timestamp)
-        if any(raw.get(k) is None for k in ("p", "s", "t")):
-            return None
-        return {
-            "sym": sym,
-            "trade": {
-                "t": raw["t"],
-                "p": raw["p"],
-                "s": raw["s"],
-                # SIP sale-condition codes (Polygon `c`). Carried so the broadcaster
-                # can drop ghost prints (odd-lot / out-of-sequence / form-T / average-
-                # priced) from the developing candle's high/low + last — matching how
-                # TC2000/TradingView filter the consolidated tape. Absent on some feeds
-                # → treated as a plain regular trade (fully eligible).
-                "c": raw.get("c"),
-            },
-            "kind": "T",
-        }
-
-    # AM/A aggregate path (Phase 4.5)
-    if ev not in _AGGREGATE_EVENT_TYPES:
-        return None
-    sym = raw.get("sym")
-    if not sym:
-        return None
-    required = ("o", "h", "l", "c", "v", "s")
-    if any(raw.get(k) is None for k in required):
-        return None
-    return {
-        "sym": sym,
-        "bar": {
-            "t": raw["s"],
-            "o": raw["o"],
-            "h": raw["h"],
-            "l": raw["l"],
-            "c": raw["c"],
-            "v": raw["v"],
-            # av = today's ACCUMULATED (cumulative day) volume — authoritative,
-            # unlike summing T-tick sizes (which drifts on reconnects). Carried so
-            # the quote feed can serve a live-ticking Volume column. May be absent.
-            "av": raw.get("av"),
-        },
-        "kind": ev,  # "AM" or "A"
-    }
+# The AM/A/T event parser lives in ingest_core (shared with the stream-ingest
+# service); re-exported here so existing imports keep working.
+from api.services.ingest_core import (  # noqa: E402
+    _AGGREGATE_EVENT_TYPES, _TRADE_EVENT_TYPE, parse_aggregate_event)
 
 
 def parse_am_event(raw: dict) -> Optional[dict]:
@@ -408,6 +345,14 @@ async def _run_websocket(on_bar: OnBarCallback) -> None:
                 _running = True
                 backoff = 1
 
+                # One frame -> the same calls, through the code the stream-ingest
+                # service shares (ingest_core; golden tapes pin its output).
+                frame_ctx = ingest_core.FrameContext(
+                    on_bar=on_bar, active=_active, trade_listeners=_trade_listeners,
+                    universe=universe,
+                    on_universe_am=(bars_live_ingest.on_am if universe else None),
+                    count_event=_count_event, note_am_lag=_note_am_lag, logger=_logger)
+
                 # Concurrent tasks: drain pending sub/unsub queue + read messages
                 drain_task = asyncio.create_task(_drain_pending_queue(ws))
                 live_task = asyncio.create_task(_liveness_watch(ws))
@@ -419,61 +364,7 @@ async def _run_websocket(on_bar: OnBarCallback) -> None:
                             _feed_frames += 1
                         except Exception:
                             pass
-                        try:
-                            payload = json.loads(raw_msg)
-                        except json.JSONDecodeError:
-                            continue
-                        # Massive frames messages as a JSON array of events
-                        events = payload if isinstance(payload, list) else [payload]
-                        for ev in events:
-                            if isinstance(ev, dict):
-                                _ec = ev.get("ev")
-                                if _ec in _feed_counts:
-                                    _feed_counts[_ec] += 1
-                                    _note_ingest_event(_ec, ev)
-                            parsed = parse_aggregate_event(ev)
-                            if parsed is None:
-                                # Status events: routine per-subscription "success"
-                                # acks arrive in bursts of up to ~133 (one per active
-                                # symbol) on every resubscribe, and each _logger.info
-                                # is a SYNCHRONOUS write on this WS EVENT-LOOP task —
-                                # 10+/ms of it added latency to every request the pod
-                                # served (seen in a congestion diagnosis). Log routine
-                                # acks at DEBUG; keep real problems (auth/error) at INFO.
-                                if isinstance(ev, dict) and ev.get("ev") == "status":
-                                    _st = ev.get("status")
-                                    if _st in ("success", "connected", "auth_success"):
-                                        _logger.debug("[bar_stream] status: %s", _st)
-                                    else:
-                                        _logger.info("[bar_stream] status: %s (%s)",
-                                                     _st, ev.get("message"))
-                                continue
-                            kind = parsed["kind"]
-                            # T events carry "trade" dict; AM/A events carry "bar" dict
-                            payload_dict = parsed["trade"] if kind == "T" else parsed["bar"]
-                            if kind == "AM":
-                                _note_am_lag(ev.get("e"))
-                            if universe and kind == "AM":
-                                try:
-                                    bars_live_ingest.on_am(parsed["sym"], payload_dict)
-                                except Exception as ing_err:
-                                    _logger.debug("[bar_stream] universe ingest error: %s", ing_err)
-                                # The wildcard delivers every ticker; only the ones a
-                                # chart or owner subscribed reach the broadcaster.
-                                if parsed["sym"] not in _active:
-                                    continue
-                            try:
-                                on_bar(parsed["sym"], payload_dict, kind)
-                            except Exception as cb_err:
-                                _logger.warning("[bar_stream] on_bar callback error: %s", cb_err)
-                            # Fan T. prints to any extra listeners (NH/NL print tap).
-                            # Guard keeps this zero-cost when none are registered.
-                            if kind == "T" and _trade_listeners:
-                                for _lst in _trade_listeners:
-                                    try:
-                                        _lst(parsed["sym"], payload_dict)
-                                    except Exception:
-                                        pass
+                        ingest_core.apply_frame(raw_msg, frame_ctx)
                 finally:
                     _running = False
                     drain_task.cancel()
@@ -484,6 +375,12 @@ async def _run_websocket(on_bar: OnBarCallback) -> None:
             _ws_connection = None
             await asyncio.sleep(backoff)
             backoff = min(backoff * 2, 60)
+
+
+def _count_event(ec, ev) -> None:
+    """Feed counters + ingest telemetry for one AM/A/T event (ingest_core hook)."""
+    _feed_counts[ec] += 1
+    _note_ingest_event(ec, ev)
 
 
 def _note_am_lag(end_ms) -> None:
