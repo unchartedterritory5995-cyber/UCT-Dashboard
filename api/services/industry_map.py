@@ -339,35 +339,67 @@ def get_industries(tickers: list[str]) -> dict[str, Optional[str]]:
 
 
 # ── READ-ONLY peeks (the UCT Agent's MD-1 kinds) ─────────────────────────────────────────────────────────────────
-# FAIL CLOSED, NO SIDE EFFECT: these never call _ensure_init (which creates the file / table) or _connect (whose
-# `PRAGMA journal_mode=WAL` writes the header). They open the database READ-ONLY (sqlite `mode=ro`); a missing file,
-# a missing table or an unreadable database answers EMPTY — the caller reports "not covered", never a guess.
-# No straggler fallback warm (a provider call), no self-heal refresh. The readers above are unchanged.
+# NO WRITE PATH: these never call _ensure_init (which creates the file / table) or _connect (whose
+# `PRAGMA journal_mode=WAL` writes the header). They open the database READ-ONLY (sqlite `mode=ro`). No straggler
+# fallback warm (a provider call), no self-heal refresh. The readers above are unchanged.
+#
+# TWO DIFFERENT EMPTY ANSWERS, never confused (AUDIT #1236):
+#   * ABSENT     — no database file, or no `industry_map` table: the map does not exist here;
+#   * UNREADABLE — the file exists but SQLite would not open / read it read-only. The production map is WAL-mode: a
+#                  read-only open needs the `-shm` index, and SQLite creates the `-wal` / `-shm` sidecars itself when the
+#                  directory is writable (an ordinary reader's behaviour; no row and no header byte is written). Where it
+#                  cannot (sidecars gone and no write access), the open fails with "unable to open database file".
+#                  There is NO fallback read: `immutable=1` / `nolock=1` would read a file another process may be writing
+#                  without its lock (SQLite: "incorrect query results or SQLITE_CORRUPT"), so the answer is UNREADABLE.
+# Default (strict=False): both answer empty, as before. strict=True raises MapUnavailable(state) so a caller can say
+# which — "UCT's group map could not be read" is never reported as "no industry matches".
 
-def _ro_rows(sql: str, args: tuple = ()) -> Optional[list]:
-    """Rows of one read-only query, or None when the map's database or table is absent / unreadable."""
+ABSENT = "absent"
+UNREADABLE = "unreadable"
+
+
+class MapUnavailable(Exception):
+    """The persisted map could not answer: `state` is ABSENT or UNREADABLE."""
+
+    def __init__(self, state: str, detail: str = ""):
+        super().__init__(f"industry map {state}" + (f": {detail}" if detail else ""))
+        self.state = state
+
+
+def _ro_rows(sql: str, args: tuple = ()) -> list:
+    """Rows of one read-only query; raises MapUnavailable(ABSENT | UNREADABLE)."""
     if not os.path.isfile(_DB_PATH):
-        return None
+        raise MapUnavailable(ABSENT, "no database file")
     try:
         uri = pathlib.Path(_DB_PATH).resolve().as_uri() + "?mode=ro"
         with contextlib.closing(sqlite3.connect(uri, uri=True, timeout=10.0)) as c:
             c.row_factory = sqlite3.Row
             if c.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'industry_map'").fetchone() is None:
-                return None
+                raise MapUnavailable(ABSENT, "no industry_map table")
             return c.execute(sql, args).fetchall()
-    except sqlite3.Error:
+    except sqlite3.Error as e:
+        logger.warning("[industry_map] read-only peek failed: %s", e)
+        raise MapUnavailable(UNREADABLE, type(e).__name__) from None
+
+
+def _peek(sql: str, args: tuple, strict: bool) -> Optional[list]:
+    try:
+        return _ro_rows(sql, args)
+    except MapUnavailable:
+        if strict:
+            raise
         return None
 
 
-def peek_groups(tickers: list[str]) -> dict[str, dict]:
+def peek_groups(tickers: list[str], *, strict: bool = False) -> dict[str, dict]:
     """{TICKER: {"sector", "industry"}} for the tickers the persisted map holds (absent tickers are absent, never a
-    fabricated None row); {} when the map is missing. Read-only: see the block comment above."""
+    fabricated None row); {} when the map is absent or unreadable (strict=True: MapUnavailable). Read-only."""
     want = sorted({str(t).strip().upper() for t in (tickers or ()) if t and str(t).strip()})
     out: dict[str, dict] = {}
     for i in range(0, len(want), 400):
         chunk = want[i:i + 400]
-        rows = _ro_rows("SELECT ticker, sector, industry FROM industry_map WHERE ticker IN (%s)" % (
-            ",".join("?" * len(chunk))), tuple(chunk))
+        rows = _peek("SELECT ticker, sector, industry FROM industry_map WHERE ticker IN (%s)" % (
+            ",".join("?" * len(chunk))), tuple(chunk), strict)
         if rows is None:
             return {}
         for row in rows:
@@ -375,18 +407,18 @@ def peek_groups(tickers: list[str]) -> dict[str, dict]:
     return out
 
 
-def peek_industries() -> list[str]:
-    """Every distinct non-blank industry in the persisted map, sorted; [] when the map is missing. Read-only."""
-    rows = _ro_rows("SELECT DISTINCT industry FROM industry_map WHERE industry IS NOT NULL AND industry != '' "
-                    "ORDER BY industry")
+def peek_industries(*, strict: bool = False) -> list[str]:
+    """Every distinct non-blank industry in the persisted map, sorted; [] when absent / unreadable (strict: raises)."""
+    rows = _peek("SELECT DISTINCT industry FROM industry_map WHERE industry IS NOT NULL AND industry != '' "
+                 "ORDER BY industry", (), strict)
     return [r["industry"] for r in rows or ()]
 
 
-def peek_members(industry: str) -> list[str]:
-    """Every mapped ticker in one industry, sorted; [] for a blank industry or a missing map. Read-only."""
+def peek_members(industry: str, *, strict: bool = False) -> list[str]:
+    """Every mapped ticker in one industry, sorted; [] for a blank industry or an absent / unreadable map (strict: raises)."""
     if not industry:
         return []
-    rows = _ro_rows("SELECT ticker FROM industry_map WHERE industry = ? ORDER BY ticker", (industry,))
+    rows = _peek("SELECT ticker FROM industry_map WHERE industry = ? ORDER BY ticker", (industry,), strict)
     return [r["ticker"] for r in rows or ()]
 
 

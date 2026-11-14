@@ -355,20 +355,106 @@ def test_peeks_read_a_populated_map_read_only(tmp_path, monkeypatch):
     assert im.peek_members("") == []
 
 
-def test_a_missing_map_makes_the_kind_say_not_covered(tmp_path, monkeypatch):
-    """The kind over the REAL peeks (its group seams unpatched): no map → the industry is not covered, no figure."""
-    from api.services import industry_map as im
-    db = tmp_path / "absent.db"
-    monkeypatch.setattr(im, "_DB_PATH", str(db))
-    _no_init(monkeypatch, im)
+def _kind_over_real_peeks(monkeypatch):
     reads = []
     monkeypatch.setattr(rl, "_ratings", lambda t, f: reads.append(t) or {})
     monkeypatch.setattr(rl, "_closes", lambda *a: [])
     monkeypatch.setattr(rl, "_expected_session", lambda: EXPECTED)
+    return reads
+
+
+def _wal_db(path, rows):
+    """A populated WAL-mode map, closed cleanly: SQLite deletes the -wal / -shm sidecars on the last close."""
+    import sqlite3
+    from api.services import industry_map as im
+    c = sqlite3.connect(path)
+    assert c.execute("PRAGMA journal_mode=WAL").fetchone()[0] == "wal"
+    c.executescript(im._SCHEMA)
+    c.executemany("INSERT INTO industry_map VALUES (?,?,?,'t',1)", rows)
+    c.commit()
+    c.close()
+    for side in ("-wal", "-shm"):
+        p = path.parent / (path.name + side)
+        if p.exists():
+            p.unlink()
+    assert path.read_bytes()[18:20] == b"\x02\x02"           # the header still says WAL (read/write version 2)
+
+
+def test_a_missing_map_is_ABSENT_not_no_industry_matches(tmp_path, monkeypatch):
+    """The kind over the REAL peeks (its group seams unpatched): no map file → "not present", never "no industry matches"."""
+    from api.services import industry_map as im
+    db = tmp_path / "absent.db"
+    monkeypatch.setattr(im, "_DB_PATH", str(db))
+    _no_init(monkeypatch, im)
+    reads = _kind_over_real_peeks(monkeypatch)
     out = _read({"scope": "industry", "industry": "semis"})
     assert env.validate_envelope(out) == [] and out["status"] == "partial" and out["as_of"] is None
-    assert out["data"]["industry"] is None and out["data"]["candidates"] == []
-    assert rl.NOTE_INDUSTRY_NOT_COVERED.format(word="semis") in out["notes"] and reads == []
+    assert out["data"]["group_map"] == im.ABSENT and out["data"]["industry"] is None and out["data"]["candidates"] == []
+    assert rl.NOTE_MAP_ABSENT in out["notes"] and not any(n.startswith("no industry in UCT") for n in out["notes"])
+    assert reads == []
     sym = _read({"scope": "symbols", "symbols": ["NVDA"]}, turn_id="t2")
-    assert rl.NOTE_NO_GROUP.format(syms="NVDA") in sym["notes"] and "industry_context" not in sym["data"]["rows"][0]
+    assert sym["data"]["group_map"] == im.ABSENT and rl.NOTE_MAP_ABSENT in sym["notes"]
+    assert rl.NOTE_NO_GROUP.format(syms="NVDA") not in sym["notes"] and "industry_context" not in sym["data"]["rows"][0]
     assert not db.exists()
+
+
+def test_a_wal_map_with_its_sidecars_removed_is_still_read(tmp_path, monkeypatch):
+    """Right after a deploy the WAL map may have no -wal / -shm: the read-only open still returns the rows (SQLite builds the
+    -shm index itself where the directory is writable; no row, no table and no header byte changes)."""
+    import sqlite3
+    from api.services import industry_map as im
+    db = tmp_path / "im.db"
+    _wal_db(db, [("NVDA", "Technology", "Semiconductors"), ("AMD", "Technology", "Semiconductors")])
+    before = db.read_bytes()[:100]
+    monkeypatch.setattr(im, "_DB_PATH", str(db))
+    _no_init(monkeypatch, im)
+    assert im.peek_groups(["NVDA"], strict=True) == {"NVDA": {"sector": "Technology", "industry": "Semiconductors"}}
+    assert im.peek_industries(strict=True) == ["Semiconductors"] and im.peek_members("Semiconductors", strict=True) == ["AMD", "NVDA"]
+    assert db.read_bytes()[:100] == before
+    with sqlite3.connect(db) as c:
+        assert c.execute("SELECT COUNT(*) FROM industry_map").fetchone()[0] == 2
+    _kind_over_real_peeks(monkeypatch)
+    out = _read({"scope": "industry", "industry": "semis"})
+    assert out["data"]["industry"] == "Semiconductors" and out["data"]["group_map"] == "ok"
+
+
+def test_when_sqlite_refuses_the_read_only_open_the_answer_says_UNREADABLE(tmp_path, monkeypatch):
+    """The WAL case where SQLite cannot open read-only (sidecars gone, no write access): "unable to open database file".
+    No fallback read (immutable / nolock would ignore a writer's lock): the kind says it couldn't read the map."""
+    import sqlite3
+    from api.services import industry_map as im
+    db = tmp_path / "im.db"
+    _wal_db(db, [("NVDA", "Technology", "Semiconductors")])
+    monkeypatch.setattr(im, "_DB_PATH", str(db))
+    _no_init(monkeypatch, im)
+    real = sqlite3.connect
+    opened = []
+
+    def refuse(target, *a, **k):
+        opened.append(str(target))
+        if k.get("uri") and "mode=ro" in str(target):
+            raise sqlite3.OperationalError("unable to open database file")
+        return real(target, *a, **k)
+    monkeypatch.setattr(im.sqlite3, "connect", refuse)
+    assert im.peek_groups(["NVDA"]) == {} and im.peek_industries() == []            # default: empty, as before
+    with pytest.raises(im.MapUnavailable) as e:
+        im.peek_industries(strict=True)
+    assert e.value.state == im.UNREADABLE
+    assert all("immutable" not in t and "nolock" not in t for t in opened)          # never a lock-ignoring retry
+    _kind_over_real_peeks(monkeypatch)
+    out = _read({"scope": "industry", "industry": "semis"})
+    assert out["data"]["group_map"] == im.UNREADABLE and rl.NOTE_MAP_UNREADABLE in out["notes"]
+    assert rl.NOTE_MAP_ABSENT not in out["notes"] and not any(n.startswith("no industry in UCT") for n in out["notes"])
+    sym = _read({"scope": "symbols", "symbols": ["NVDA"]}, turn_id="t2")
+    assert sym["status"] == "partial" and sym["data"]["group_map"] == im.UNREADABLE and rl.NOTE_MAP_UNREADABLE in sym["notes"]
+
+
+def test_a_corrupt_map_file_is_UNREADABLE_not_absent(tmp_path, monkeypatch):
+    from api.services import industry_map as im
+    db = tmp_path / "im.db"
+    db.write_bytes(b"this is not a sqlite database" * 10)
+    monkeypatch.setattr(im, "_DB_PATH", str(db))
+    _no_init(monkeypatch, im)
+    with pytest.raises(im.MapUnavailable) as e:
+        im.peek_groups(["NVDA"], strict=True)
+    assert e.value.state == im.UNREADABLE

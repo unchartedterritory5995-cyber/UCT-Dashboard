@@ -96,8 +96,14 @@ function componentsText(c) {
   const p = [['m1', '1M'], ['m3', '3M'], ['m6', '6M'], ['m12', '12M']].filter(([k]) => fin(c[k])).map(([k, l]) => `${l} ${c[k]}`)
   return p.length ? `RS components (percentile): ${p.join(', ')}` : ''
 }
-function industryText(f) {
+// the group map's own state (industry_map ABSENT / UNREADABLE): never reported as "not in the map" / "no industry matches"
+export const MAP_SAYS = {
+  absent: 'UCT\'s group map is not available on this server',
+  unreadable: 'I couldn\'t read UCT\'s group map just now',
+}
+function industryText(f, mapState) {
   const c = f.industry_context
+  if (!f.industry && MAP_SAYS[mapState]) return f.is_etf ? '' : `Industry: ${MAP_SAYS[mapState]}, so no industry figure is stated`
   if (!f.industry) return f.is_etf ? '' : 'Industry: not in UCT\'s group map'
   if (!c || !c.rated) return `Industry: ${f.industry} (no rated members stored)`
   const rank = c.focus ? `ranks ${ordinal(c.focus.rank)} of ${c.rated} rated members` : `is not rated among its ${c.rated} rated members`
@@ -130,7 +136,8 @@ export function answerFromRs(envl, { breadth = [] } = {}) {
   if (d.scope === 'industry') {
     if (!d.industry) {
       const cands = Array.isArray(d.candidates) ? d.candidates : []
-      facts.industry = null; facts.candidates = cands
+      facts.industry = null; facts.candidates = cands; facts.group_map = d.group_map || 'ok'
+      if (MAP_SAYS[d.group_map]) return { text: `${MAP_SAYS[d.group_map]}, so no figure is stated for "${d.asked}".`, facts }
       lines.push(cands.length
         ? `"${d.asked}" matches several industries in UCT's group map: ${cands.join('; ')}. Which one? No figure is stated.`
         : `UCT's group map has no industry matching "${d.asked}", so no figure is stated.`)
@@ -154,7 +161,7 @@ export function answerFromRs(envl, { breadth = [] } = {}) {
       const segs = [ratingLine(f)]
       if (f.rated) { const comp = componentsText(f.components); if (comp) segs.push(comp) }
       segs.push(returnText(f, period))
-      const ind = industryText(f)
+      const ind = industryText(f, d.group_map)
       if (ind) segs.push(ind)
       if (f.bars_stale) segs.push(`bars only through ${dayText(f.bars_through)}`)
       lines.push(`• ${f.symbol} (${asOf}): ${segs.join('. ')}.`)

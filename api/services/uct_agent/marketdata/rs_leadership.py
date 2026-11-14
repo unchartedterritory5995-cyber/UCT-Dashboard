@@ -72,6 +72,9 @@ NOTE_NO_BARS = "no completed daily bars are held for: {syms}"
 NOTE_INDUSTRY_NOT_COVERED = "no industry in UCT's group map matches: {word}"
 NOTE_INDUSTRY_AMBIGUOUS = "several industries match {word}: {names}"
 NOTE_NO_GROUP = "not in UCT's group map: {syms}"
+#: the map itself could not answer (industry_map.MapUnavailable) — never reported as "no industry matches"
+NOTE_MAP_ABSENT = "UCT's group map is not present on this server, so no industry or group figure is stated"
+NOTE_MAP_UNREADABLE = "couldn't read UCT's group map just now, so no industry or group figure is stated"
 
 #: member words → a Finviz industry name; used only when the map really holds that name
 INDUSTRY_ALIASES: dict[str, str] = {
@@ -94,17 +97,17 @@ def _ratings(tickers: list[str], failures: list) -> dict:
 
 def _groups(tickers: list[str]) -> dict:
     from api.services import industry_map
-    return industry_map.peek_groups(tickers)
+    return industry_map.peek_groups(tickers, strict=True)
 
 
 def _industries() -> list[str]:
     from api.services import industry_map
-    return industry_map.peek_industries()
+    return industry_map.peek_industries(strict=True)
 
 
 def _members(industry: str) -> list[str]:
     from api.services import industry_map
-    return industry_map.peek_members(industry)
+    return industry_map.peek_members(industry, strict=True)
 
 
 def _expected_session() -> int:
@@ -302,28 +305,48 @@ def read_rs_leadership(params: dict, ctx: dict) -> dict:  # noqa: ARG001 — no 
     else:
         syms = []
 
+    # the group map's own state: "ok", or industry_map's ABSENT / UNREADABLE (unreadable wins: it is the louder truth)
+    from api.services.industry_map import MapUnavailable, UNREADABLE
+    map_state = {"v": "ok"}
+
+    def _guard(fn, default):
+        try:
+            return fn()
+        except MapUnavailable as e:
+            if map_state["v"] != UNREADABLE:
+                map_state["v"] = e.state
+            return default
+    map_note = lambda: NOTE_MAP_UNREADABLE if map_state["v"] == UNREADABLE else NOTE_MAP_ABSENT  # noqa: E731
+
     industry = None
     if scope == "industry":
         word = params["industry"].strip()
-        industry, candidates = resolve_industry(word, [i for i in _industries() if i != etf_ind])
+        names = _guard(_industries, [])
+        if map_state["v"] != "ok":
+            data.update({"industry": None, "asked": word, "candidates": [], "ambiguous": False, "group_map": map_state["v"]})
+            return env.make_envelope(KIND, params, status="partial", freshness="periodic", as_of=None, source=SOURCE,
+                                     data=data, notes=notes + [map_note()], provider_calls=0,
+                                     coverage={"requested": 1, "answered": 0})
+        industry, candidates = resolve_industry(word, [i for i in names if i != etf_ind])
         if industry is None:
             note = (NOTE_INDUSTRY_AMBIGUOUS.format(word=word, names="; ".join(candidates)) if candidates
                     else NOTE_INDUSTRY_NOT_COVERED.format(word=word))
-            data.update({"industry": None, "asked": word, "candidates": candidates, "ambiguous": bool(candidates)})
+            data.update({"industry": None, "asked": word, "candidates": candidates, "ambiguous": bool(candidates),
+                         "group_map": "ok"})
             return env.make_envelope(KIND, params, status="partial", freshness="periodic", as_of=None, source=SOURCE,
                                      data=data, notes=notes + [note], provider_calls=0,
                                      coverage={"requested": 1, "answered": 0})
 
     # 2) groups (symbols scope: each stock's industry cohort)
-    groups = _groups(syms) if syms else {}
+    groups = _guard(lambda: _groups(syms), {}) if syms else {}
     cohorts: dict[str, list[str]] = {}
     if scope == "symbols":
         for s in syms:
             ind = (groups.get(s) or {}).get("industry")
             if ind and ind != etf_ind and ind not in cohorts:
-                cohorts[ind] = _members(ind)[:MAX_COHORT]
+                cohorts[ind] = _guard(lambda ind=ind: _members(ind), [])[:MAX_COHORT]
     elif scope == "industry":
-        cohorts[industry] = _members(industry)[:MAX_COHORT]
+        cohorts[industry] = _guard(lambda: _members(industry), [])[:MAX_COHORT]
 
     # 3) ratings: ONE read for every ticker involved (the asked symbols, SPY, every cohort member)
     failures: list = []
@@ -373,6 +396,11 @@ def read_rs_leadership(params: dict, ctx: dict) -> dict:  # noqa: ARG001 — no 
         notes.append(NOTE_NO_BARS.format(syms=", ".join(no_bars)))
     if not_rated and session is not None:
         notes.append(NOTE_NOT_RATED.format(syms=", ".join(not_rated)))
+    data["group_map"] = map_state["v"]
+    if map_state["v"] != "ok":
+        if scope in ("symbols", "industry"):
+            notes.append(map_note())               # the map could not answer: never "not in the map"
+        no_group = []
     if no_group:
         notes.append(NOTE_NO_GROUP.format(syms=", ".join(no_group)))
     bars_stale = any(r["bars_stale"] for r in rows) or bench["bars_stale"]
@@ -386,7 +414,7 @@ def read_rs_leadership(params: dict, ctx: dict) -> dict:  # noqa: ARG001 — no 
     # as_of: the RS session's close; without ratings, the oldest newest-bar among the rows read
     through = [r["bars_through"] for r in rows if r["bars_through"]]
     as_of_day = session or (min(through) if through else None)
-    partial = bool(no_bars or not_rated or no_group) and scope == "symbols"
+    partial = bool(no_bars or not_rated or no_group or map_state["v"] != "ok") and scope == "symbols"
     return env.make_envelope(KIND, params, status="partial" if partial else "ok", freshness="periodic",
                              as_of=_session_close_utc(as_of_day) if as_of_day else None, source=SOURCE, data=data,
                              stale=stale or bars_stale, notes=notes, provider_calls=0,

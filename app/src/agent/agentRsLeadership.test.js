@@ -290,3 +290,21 @@ describe('the manifest entry fits the server caps (server-gated: agentManifestCa
     if (process.env.RS_MANIFEST_OUT) (await import('node:fs')).writeFileSync(process.env.RS_MANIFEST_OUT, JSON.stringify(c))
   })
 })
+
+describe('the group map\'s own state: absent and unreadable are said as such, never "no industry matches"', () => {
+  it('industry scope, map absent / unreadable: one honest line each, no figure, never the not-covered wording', () => {
+    for (const [state, want] of [['absent', "UCT's group map is not available on this server"], ['unreadable', "I couldn't read UCT's group map just now"]]) {
+      const a = answerFromRs(envelope({ scope: 'industry', industry: null, asked: 'semis', candidates: [], ambiguous: false, group_map: state }, { status: 'partial', as_of: null }))
+      expect(a.text).toBe(`${want}, so no figure is stated for "semis".`)
+      expect(a.text).not.toMatch(/has no industry matching/)
+      expect(ungrounded(a.text, a.facts)).toEqual([])
+    }
+  })
+  it('symbols scope, map unreadable: the industry line says so instead of "not in UCT\'s group map"', () => {
+    const a = answerFromRs(envelope({ scope: 'symbols', group_map: 'unreadable', rows: [row('NVDA', { rating: 95, pct: 1 })] }, { status: 'partial' }))
+    expect(a.text).toMatch(/Industry: I couldn't read UCT's group map just now, so no industry figure is stated\./)
+    expect(a.text).not.toMatch(/not in UCT's group map/)
+    const b = answerFromRs(envelope({ scope: 'symbols', group_map: 'ok', rows: [row('NVDA', { rating: 95, pct: 1 })] }))
+    expect(b.text).toMatch(/Industry: not in UCT's group map\./)
+  })
+})
