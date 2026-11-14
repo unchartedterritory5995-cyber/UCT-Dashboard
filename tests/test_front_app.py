@@ -24,6 +24,9 @@ Mutation proof (run before calling these done):
    11. let the layers see an OPTIONS            -> test_every_options_request_goes_to_web RED (preflight cases)
    12. drop the OPTIONS_TO_WEB_PREFIXES routes  -> test_every_options_request_goes_to_web RED (folder cases)
    13. drop the CORS layer                      -> test_local_answers_carry_the_cors_header_web_adds RED
+   14. /__front/edge reports the TCP peer       -> test_front_edge_reads_the_callers_address_the_way_web_does RED
+   15. /__front/edge drops `no-store`           -> test_front_edge_reads_the_callers_address_the_way_web_does RED
+   16. proxy drops X-Real-IP                    -> test_front_edge_and_web_are_handed_the_same_three_headers RED
 """
 from __future__ import annotations
 
@@ -550,6 +553,49 @@ def test_every_options_request_goes_to_web(front, http, path, preflight):
     r = http.request("OPTIONS", front + path, headers=headers)
     assert r.status_code == 200 and r.json()["from"] == "upstream" and r.json()["method"] == "OPTIONS"
     assert "access-control-allow-origin" not in r.headers and "access-control-allow-methods" not in r.headers
+
+
+# ── /__front/edge: what the edge said about the caller, read the way `web` reads it ─
+#
+# `web` limits by client address, derived from three headers Railway's edge writes. The
+# front door forwards them untouched (test_the_request_arrives_unchanged). This endpoint
+# applies `web`'s own function to them HERE, so one request without a login shows what
+# `web` will see for traffic that comes through this service.
+
+CF_EDGE = "173.245.48.5"        # inside Cloudflare's published ranges
+RAILWAY_PROXY = "100.64.0.9"
+
+
+@pytest.mark.parametrize("headers,expected", [
+    # through Cloudflare: the edge that connected is Cloudflare's, so CF-Connecting-IP is the member
+    ({"X-Forwarded-For": f"{CF_EDGE}, {RAILWAY_PROXY}", "X-Real-IP": "198.51.100.7", "CF-Connecting-IP": "198.51.100.7"},
+     {"client_ip": "198.51.100.7", "edge_wrote_x_forwarded_for": True, "x_forwarded_for_entries": 2,
+      "connecting_address_in_cloudflare": True, "x_real_ip_present": True, "cf_connecting_ip_present": True}),
+    # straight at the origin with a forged CF-Connecting-IP: Railway's X-Real-IP wins
+    ({"X-Forwarded-For": f"203.0.113.50, {RAILWAY_PROXY}", "X-Real-IP": "203.0.113.50", "CF-Connecting-IP": "8.8.4.4"},
+     {"client_ip": "203.0.113.50", "edge_wrote_x_forwarded_for": True, "x_forwarded_for_entries": 2,
+      "connecting_address_in_cloudflare": False, "x_real_ip_present": True, "cf_connecting_ip_present": True}),
+    # no edge in front at all (this test): the peer, and the endpoint says so
+    ({},
+     {"client_ip": "127.0.0.1", "edge_wrote_x_forwarded_for": False, "x_forwarded_for_entries": 0,
+      "connecting_address_in_cloudflare": False, "x_real_ip_present": False, "cf_connecting_ip_present": False}),
+])
+def test_front_edge_reads_the_callers_address_the_way_web_does(front, http, headers, expected):
+    r = http.get(front + "/__front/edge", headers=headers)
+    assert r.status_code == 200 and r.json() == expected
+    assert r.headers["cache-control"] == "no-store", "one caller's address must never be cached for another"
+
+
+def test_front_edge_and_web_are_handed_the_same_three_headers(front, http):
+    """The endpoint is only evidence about `web` if `web` gets the same headers. Same request,
+    once to the endpoint and once passed through: the stand-in for `web` echoes what arrived."""
+    sent = {"X-Forwarded-For": f"{CF_EDGE}, {RAILWAY_PROXY}", "X-Real-IP": "198.51.100.7",
+            "CF-Connecting-IP": "198.51.100.7"}
+    here = http.get(front + "/__front/edge", headers=sent).json()
+    arrived = _headers(http.get(front + "/api/echo", headers=sent).json())
+    for name, value in sent.items():
+        assert arrived[name.lower()] == [value], name
+    assert here["client_ip"] == arrived["cf-connecting-ip"][0]
 
 
 # ── when `web` is not there ───────────────────────────────────────────────────

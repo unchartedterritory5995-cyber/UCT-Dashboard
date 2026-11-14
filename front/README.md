@@ -47,6 +47,16 @@ cannot be reached on the private network.
 `GET /__front/health` answers 200 from this app alone. It does not depend on `web`: a
 restart of `web` must not take the front door out of rotation with it.
 
+`GET /__front/edge` shows what Railway's edge told this app about the caller, read with
+`web`'s own function (`api/services/request_ip.py`). `web` limits requests by client
+address and this app forwards the edge's headers untouched, so this is the address `web`
+will see for a request that comes through here. Check it from two places after any change
+to how traffic reaches this service: through Cloudflare (`client_ip` must be your own
+address and `connecting_address_in_cloudflare` true) and straight at the Railway hostname
+with a forged `CF-Connecting-IP` (`client_ip` must still be your own address). If
+`edge_wrote_x_forwarded_for` is ever false in production, STOP: `web` would see every
+member as one address and its rate limits would throttle them together.
+
 ## When `web` is restarting
 
 The app shell and assets keep loading. Passed-through requests get a 502 within 5 seconds
