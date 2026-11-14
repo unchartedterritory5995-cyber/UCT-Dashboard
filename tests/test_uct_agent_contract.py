@@ -174,6 +174,15 @@ def test_catalog_contract_distinguishes_catalog_from_request():
     assert cat["maxGroupSize"] < CONTRACT["routingThreshold"] <= CONTRACT["limits"]["maxCapabilities"]
 
 
+def test_v2_capability_cap_equals_client_catalog_cap():
+    """Planner v2 sends the WHOLE available catalog in one request and REFUSES the request whole when it is over
+    MAX_CAPABILITIES_V2 (turn_v2 -> turn.validate_manifest). The browser's catalog is bounded by
+    catalog.maxRegistered (agentContracts.test.js, against the MAX-ARMED catalog). A split between the two would
+    make v2 refuse every request once the catalog outgrows the smaller one, so they move TOGETHER."""
+    from api.services.uct_agent import turn_v2
+    assert turn_v2.MAX_CAPABILITIES_V2 == CONTRACT["catalog"]["maxRegistered"]
+
+
 def _union_enum_nodes(node, path="", out=None):
     out = [] if out is None else out
     if isinstance(node, dict):

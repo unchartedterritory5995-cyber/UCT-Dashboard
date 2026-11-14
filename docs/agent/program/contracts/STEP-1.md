@@ -3,7 +3,7 @@
 Scope: the contract between the server's tool-use loop (`run_turn_v2`, `api/services/uct_agent/turn_v2.py`, served only when `UCT_AGENT_PLANNER=v2`) and the browser executor (`app/src/agent/steps.js`). Everything downstream of a step (planOps → decideMode → commitPlan → receipts → Undo) is unchanged. With the flag unset the v1 path is byte-identical: `turn.run_turn` only dispatches, `/api/agent/config` reports `planner: "v1"`.
 
 ## Request
-`POST /api/agent/turn/stream` with v1's `TurnIn` (message, context + conversation_memory, pending, reference, conversationId). v2 differences: `capabilities` = the FULL available manifest (no routing; the browser sends it only when `config.planner === "v2"`), limit `MAX_CAPABILITIES_V2` (200), `routing` ignored. v1's `/api/agent/turn` (non-stream) is never used for v2 (its answer would carry no steps).
+`POST /api/agent/turn/stream` with v1's `TurnIn` (message, context + conversation_memory, pending, reference, conversationId). v2 differences: `capabilities` = the FULL available manifest (no routing; the browser sends it only when `config.planner === "v2"`), limit `MAX_CAPABILITIES_V2` (300, = `catalog.maxRegistered`), `routing` ignored. v1's `/api/agent/turn` (non-stream) is never used for v2 (its answer would carry no steps).
 
 ## Tools the model sees (built from the manifest; nothing is named in server code)
 - `tool_search_tool_regex_20251119` (its name is fixed by the API: `tool_search_tool_regex`), non-deferred.

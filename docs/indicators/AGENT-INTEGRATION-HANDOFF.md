@@ -133,7 +133,7 @@ turns and alerts stay in the studio.
 1. Indicators: `instancesOf`, `instanceFingerprint`, 422 refusal passthrough.
 2. Agent: routing group + `indicator.list`; golden manifest update. **Manifest budget (updated
    after master `e74817ec91`, "Gate C", which landed after this branch's base):** `maxCapabilities`
-   60 is now a PER-REQUEST limit and the catalog may register up to 200 (`catalog.maxRegistered`);
+   60 is now a PER-REQUEST limit and the catalog may register up to 300 (`catalog.maxRegistered`);
    routing packs whole groups under `routingThreshold` 55, and no group may exceed
    `maxGroupSize` 40. So M1 needs an `indicators` routing group small enough to pack beside the
    always-on group — not a freed slot. (On this branch's base the full manifest was 59/60.)
