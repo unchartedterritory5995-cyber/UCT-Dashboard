@@ -1,53 +1,53 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 207,
-  "withProductionKinds": 198,
+  "all": 208,
+  "withProductionKinds": 199,
   "darkGated": 9
  },
  "totals": {
-  "capabilities": 207,
-  "withAnyRegressionCase": 155,
+  "capabilities": 208,
+  "withAnyRegressionCase": 156,
   "perProtection": {
    "nl": {
-    "covered": 152,
-    "applicable": 207
+    "covered": 153,
+    "applicable": 208
    },
    "routing": {
-    "covered": 149,
-    "applicable": 207
+    "covered": 150,
+    "applicable": 208
    },
    "args": {
-    "covered": 155,
-    "applicable": 207
+    "covered": 156,
+    "applicable": 208
    },
    "execution": {
-    "covered": 152,
-    "applicable": 207
+    "covered": 153,
+    "applicable": 208
    },
    "receipt": {
-    "covered": 124,
-    "applicable": 207
+    "covered": 125,
+    "applicable": 208
    },
    "refusal": {
     "covered": 35,
-    "applicable": 207
+    "applicable": 208
    },
    "permission": {
-    "covered": 200,
-    "applicable": 207
+    "covered": 201,
+    "applicable": 208
    },
    "undo": {
-    "covered": 78,
-    "applicable": 137
+    "covered": 79,
+    "applicable": 138
    },
    "multiStep": {
     "covered": 40,
-    "applicable": 207
+    "applicable": 208
    },
    "phrasings": {
-    "covered": 148,
-    "applicable": 207
+    "covered": 149,
+    "applicable": 208
    }
   }
  },
@@ -9243,6 +9243,70 @@
     "permission": [],
     "undo": [
      "volume.hide: undo restores"
+    ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "volumeProfile.set": {
+   "domain": "volumeProfile",
+   "group": "volumeProfile",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 6,
+   "evidence": {
+    "nl": [
+     "volumeProfile.set: \"turn on volume profile\"",
+     "volumeProfile.set: \"add the volume profile to this chart\"",
+     "volumeProfile.set: \"show vpvr\"",
+     "volumeProfile.set.bins: \"turn on volume profile with 40 bins\"",
+     "volumeProfile.set.bins: \"add a volume profile with 40 rows\"",
+     "volumeProfile.set.bins: \"show the volume profile using 40 bins please\""
+    ],
+    "routing": [
+     "volumeProfile.set: \"turn on volume profile\"",
+     "volumeProfile.set: \"add the volume profile to this chart\"",
+     "volumeProfile.set: \"show vpvr\"",
+     "volumeProfile.set.bins: \"turn on volume profile with 40 bins\"",
+     "volumeProfile.set.bins: \"add a volume profile with 40 rows\"",
+     "volumeProfile.set.bins: \"show the volume profile using 40 bins please\""
+    ],
+    "args": [
+     "corpus volumeProfile.set",
+     "corpus volumeProfile.set.bins"
+    ],
+    "execution": [
+     "volumeProfile.set (c)",
+     "volumeProfile.set.bins (c)"
+    ],
+    "receipt": [
+     "volumeProfile.set (c)",
+     "volumeProfile.set.bins (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "volumeProfile.set: undo restores",
+     "volumeProfile.set.bins: undo restores"
     ],
     "multiStep": [],
     "phrasings": []

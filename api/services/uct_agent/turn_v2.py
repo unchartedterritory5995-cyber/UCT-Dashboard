@@ -77,6 +77,7 @@ _DOMAIN_OF = {
     "compare": "board",                                   # Tools → Compare Symbols: the panel's Rotation / Overlay view (a workspace tool)
     "watchlist": "watchlist", "layout": "layout",
     "indicator": "indicator", "indicatorCopy": "indicator", "indicatorStyle": "indicator", "indicatorTemplate": "indicator", "definition": "indicator",
+    "volumeProfile": "indicator",                       # a chart's Volume Profile overlay (Chart Settings → Indicators; the carved-out key)
     "drawing": "drawing", "alert": "alert", "indicatorAlert": "alert", "screener": "screener",
     "stock": "data", "index": "data", "commodity": "data", "crypto": "data", "news": "news", "research": "research",
     "playbook": "data",                                   # KN-1 knowledge capabilities

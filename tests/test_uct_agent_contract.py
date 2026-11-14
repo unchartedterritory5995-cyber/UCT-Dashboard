@@ -28,6 +28,8 @@ _GROUP_OF = {"chart": "charts", "volume": "charts", "widget": "workspace", "layo
              "guide": "guide",
              # W1-B (2026-11-02): indicator alerts in their own fillLast group (app/src/agent/routing.js)
              "indicatorAlert": "indicatorAlerts",
+             # Charts family (2026-11-12): a chart's Volume Profile overlay, its own words-only group (app/src/agent/routing.js)
+             "volumeProfile": "volumeProfile",
              "indicatorTemplate": "chartSetup",
              # Charts family (2026-11-12): the UCT Intelligence chart indicator, its own words-only group (app/src/agent/routing.js)
              "uctIntelligence": "uctIntelligence",

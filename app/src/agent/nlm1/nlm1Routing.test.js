@@ -194,6 +194,8 @@ describe('routing v2: a words-only group never rides the fill, and is still sent
     // pl-zoom (C1-028): chartSetup.zoom's own words — zoom + a direction, closer / tighter on the chart, a wider view of it, more / fewer bars
     chartView: ['zoom in on this chart', 'zoom the AMD chart out', 'zoom out a lot', 'zoom all the way in', 'get a closer look at the candles', 'give me a wider view of the chart', 'show me fewer bars'],
     // #1082 (C3-205..207): Custom-Period Sort's own words — the tool's name, a rank / sort over dates, a Dock of the ranking
+    // Charts family (2026-11-12): volumeProfile.set's own words — the profile named (volume profile / VPVR), or VP with an on / off verb
+    volumeProfile: ['turn on volume profile', 'set the vpvr bins to 30', 'hide vp on this chart'],
     periodSort: ['open the period sort for themes', 'rank stocks between 2026-01-02 and 2026-03-31', 'sort sectors from mar 3 to jun 30', 'dock the ranking as a widget'],
     // uctIntelligence.set: the chart INDICATOR by name (never "… with UCT Intelligence" authoring), or one of its panel's switches
     uctIntelligence: ['add uct intelligence to this chart', 'turn off auto patterns', 'turn on the setups layer', 'show candlestick patterns on this chart'],
