@@ -2188,6 +2188,12 @@ def best_moment(row: dict, pats: list) -> tuple[Optional[float], str]:
     part's text the words are (a part is five minutes long), less a short
     lead-in. Never earlier than the part's own start."""
     segs = [s for s in _json_list(row.get("segments")) if isinstance(s, (list, tuple)) and len(s) == 2]
+    if not segs and float(row.get("duration_s") or 0) > 0 and str(row.get("transcript") or "").strip():
+        # A lesson transcribed before part timings were kept (they arrived with library
+        # v2, 2026-10-18) has the words and the length but no parts. Read it as ONE part
+        # spanning the whole video: the same proportional placement locate_moments uses
+        # when it has no parts. ⚰️ Without this, older lessons never got a "Watch from".
+        segs = [[0, str(row.get("transcript"))]]
     best, best_hits = None, 0
     for i, (start, text) in enumerate(segs):
         low = str(text or "").lower()
@@ -2308,6 +2314,35 @@ def format_search_reply(query: str, hits: list[dict]) -> str:
                      else (f"At {h['at']} — " if h.get("at") else ""))
             lines.append(f"   ▸ {where}“{h['quote']}”")
     return "\n".join(lines)[:1900]
+
+
+def search_card(query: str, hits: list[dict]) -> dict:
+    """The /lesson reply as a card in the bot's one style (api/services/discord_cards.py),
+    the same frame as /news and /buzz: one entry per lesson, its title linking to the
+    recap, then the moment in the video that says it.
+
+    An embed shows no link previews, so the links need no <> wrapping here."""
+    from api.services import discord_cards
+    q = re.sub(r"\s+", " ", str(query or "")).strip()[:80]
+    title = f"Lessons on “{q}”"
+    if not hits:
+        return discord_cards.card("lessons", title=title, description=(
+            "Nothing in the lesson library says anything about that yet. "
+            "Try fewer or different words, or a ticker like `NVDA`."),
+            footer=["0 lessons", "TSDR & Bracco video lessons"])
+    blocks = []
+    for i, h in enumerate(hits, 1):
+        name = h["title"][:90]
+        head = f"**{i}. [{name}]({h['url']})**" if h.get("url") else f"**{i}. {name}**"
+        meta = " · ".join(x for x in (h.get("level", "").capitalize(), h.get("section"), h.get("day")) if x)
+        lines = [head] + ([meta] if meta else [])
+        if h.get("quote"):
+            where = (f"[▶ Watch from {h['at']}]({h['watch']})" if h.get("watch")
+                     else (f"At {h['at']}" if h.get("at") else ""))
+            lines.append(f"{where} — “{h['quote']}”" if where else f"“{h['quote']}”")
+        blocks.append("\n".join(lines))
+    return discord_cards.card("lessons", title=title, description="\n\n".join(blocks),
+                              footer=[discord_cards.plural(len(hits), "lesson"), "TSDR & Bracco video lessons"])
 
 
 def related_lessons(lesson: dict, limit: int = RELATED_MAX) -> list[dict]:
