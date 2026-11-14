@@ -747,12 +747,29 @@ function _importBatch(db, batch, replaceIfNewer = false) {
  * waits for the full pack). Batched + quota-safe like idbImportPack; never
  * throws. Returns { updated, skipped, aborted }.
  */
-export async function idbApplyDelta(entries, { batchSize = 250 } = {}) {
+// ⚡ THE DAILY DELTA WRITES IN SMALL BATCHES AND YIELDS BETWEEN THEM (2026-11-14).
+//
+// ⚰️ MEASURED ON PRODUCTION 2026-11-14 (bench member, every IndexedDB transaction traced during a
+// 40-chart scan, the pack's new day applying as a delta): 154 transactions of 250 series each
+// (250 gets + 250 whole-series puts), each holding the 'bars' store for ~0.4 s, back to back for
+// 36 s. Every chart read slower than 100 ms in that scan (7 of 7) was waiting behind one of them,
+// up to 273 ms. It runs on every member's first open after each new daily pack.
+//
+// A chart's read queues behind at most the ONE readwrite transaction in progress when it is asked,
+// so the batch size is the read's worst wait: `DELTA_BATCH_SIZE` series (~40 ms) instead of 250
+// (~400 ms). Between batches the delta gives the page a turn (a macrotask) so the chart's own work
+// runs too. The full ingest has worked this way since 2026-08 (`ingestBatchSize`/`ingestYield`).
+// What is written is unchanged: the same merge, the same entries, the same order.
+export const DELTA_BATCH_SIZE = 25
+const _yieldTurn = () => new Promise((r) => setTimeout(r, 0))
+
+export async function idbApplyDelta(entries, { batchSize = DELTA_BATCH_SIZE } = {}) {
   if (!entries?.length) return { updated: 0, skipped: 0, aborted: false }
   let db
   try { db = await _open() } catch { return { updated: 0, skipped: 0, aborted: true } }
   let updated = 0, skipped = 0, aborted = false
   for (let i = 0; i < entries.length && !aborted; i += batchSize) {
+    if (i > 0) await _yieldTurn()
     const res = await _deltaBatch(db, entries.slice(i, i + batchSize))
     updated += res.updated
     skipped += res.skipped
