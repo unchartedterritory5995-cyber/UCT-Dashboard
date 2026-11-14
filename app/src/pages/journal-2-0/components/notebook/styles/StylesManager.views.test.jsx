@@ -281,6 +281,34 @@ describe('the manager is the one room: its views', () => {
     expect(sent('POST', 'journal-styles/s2/archive')).toHaveLength(1)
   })
 
+  it('(final 2a) while the template\'s own notes are being read, the panel\'s Archive is off and pressing it sends nothing', async () => {
+    let releaseList
+    let releaseUsed
+    const listGate = new Promise((r) => { releaseList = r })
+    const usedGate = new Promise((r) => { releaseUsed = r })
+    server = installServer({
+      'GET journal-styles?view=live': async () => { await listGate; return json(200, { kinds: KINDS, styles: [] }) },
+      'GET journal-styles/s1/used-in': async () => { await usedGate; return json(200, { notes: USED_IN.s1 }) },
+    })
+    open()
+    const row = await activeRow('Morning prep')
+    fireEvent.click(within(row).getByRole('button', { name: 'Archive Morning prep' }))
+    expect(await screen.findByTestId('archive-sentence')).toHaveTextContent('Checking which notes use it…')
+    const confirm = within(screen.getByTestId('my-tools-archive')).getByRole('button', { name: 'Archive' })
+    expect(confirm).toHaveAttribute('aria-disabled', 'true')
+    fireEvent.click(confirm)
+    await new Promise((r) => setTimeout(r, 0))
+    expect(sent('POST', 'journal-styles/s1/archive')).toHaveLength(0)          // nothing sent while checking
+    // CONTROL: the read answers, the sentence has its count, and the same button now archives
+    releaseUsed()
+    expect(await screen.findByText("It stays in your 3 notes. New notes can't use it until you restore it.")).toBeInTheDocument()
+    expect(confirm).not.toHaveAttribute('aria-disabled')
+    fireEvent.click(confirm)
+    await screen.findByText('Archived “Morning prep”. Restore it from Archived.')
+    expect(sent('POST', 'journal-styles/s1/archive')).toHaveLength(1)
+    releaseList()
+  })
+
   it('(1) CONTROL: a KNOWN zero archives at once, as before (no panel, no extra read)', async () => {
     open()
     const row = await activeRow('Gap plan')
