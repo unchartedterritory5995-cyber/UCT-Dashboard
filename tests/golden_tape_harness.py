@@ -22,6 +22,7 @@ intended behaviour change: python -m tests.fixtures._gen_golden_tapes --regen
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import heapq
 import itertools
 import json
@@ -62,13 +63,40 @@ def tape_names() -> list[str]:
     return sorted(p.name[: -len(".tape.jsonl")] for p in TAPE_DIR.glob("*.tape.jsonl"))
 
 
-def run_tape(name: str) -> list[str]:
-    """Replay one tape; return its output lines (see module doc)."""
+def run_tape(name: str, via: str = "apply_frame") -> list[str]:
+    """Replay one tape; return its output lines (see module doc).
+
+    via="apply_frame": frames go straight into ingest_core.apply_frame.
+    via="reader":      frames go through the REAL bar_stream._run_websocket over a
+                       fake socket (auth, resubscribe, timed frames, frame_ctx wiring),
+                       so a wiring mistake in the in-web reader shows up as a diff.
+    """
     tape = load_tape(name)
-    return asyncio.run(_run(tape))
+    with _pinned_condition_rules():
+        return asyncio.run(_run(tape, via))
 
 
-async def _run(tape: dict) -> list[str]:
+@contextlib.contextmanager
+def _pinned_condition_rules():
+    """The goldens use SIP codes 15/30/37/12. Pin the ghost-print filter to its static
+    fallback table for the run: a provider rules load (trade_conditions.load_from_provider,
+    e.g. from an app-lifespan test with a key set) must not change the goldens."""
+    from api.services import trade_conditions as tc
+    saved = (tc.FILTER_ENABLED, tc._hl_ineligible, tc._last_ineligible)
+    tc.FILTER_ENABLED = True
+    tc._hl_ineligible = set(tc._HL_INELIGIBLE_FALLBACK) - tc._SESSION_CODES
+    tc._last_ineligible = set(tc._LAST_INELIGIBLE_FALLBACK) - tc._SESSION_CODES
+    try:
+        yield
+    finally:
+        tc.FILTER_ENABLED, tc._hl_ineligible, tc._last_ineligible = saved
+
+
+class _TapeEnd(BaseException):
+    """Ends the reader replay (BaseException: _run_websocket retries every Exception)."""
+
+
+async def _run(tape: dict, via: str) -> list[str]:
     header, rows = tape["header"], tape["rows"]
     out: list[str] = []
     now = [rows[0]["at"] if rows else 0]
@@ -98,13 +126,9 @@ async def _run(tape: dict) -> list[str]:
         bb.push_aggregate(sym, payload, kind)
 
     active = set(header.get("active", header["symbols"]))
-    ctx = ingest_core.FrameContext(
-        on_bar=on_bar,
-        active=active,
-        trade_listeners=[lambda s, p: record_call("listener", s, "T", p)],
-        universe=bool(header.get("universe")),
-        on_universe_am=(lambda s, p: record_call("universe", s, "AM", p)) if header.get("universe") else None,
-    )
+    universe = bool(header.get("universe"))
+    listeners = [lambda s, p: record_call("listener", s, "T", p)]
+    on_universe_am = (lambda s, p: record_call("universe", s, "AM", p)) if universe else None
 
     async def drain() -> None:
         # Let call_soon_threadsafe deliveries run, then empty every queue in a fixed order.
@@ -120,16 +144,94 @@ async def _run(tape: dict) -> list[str]:
             now[0] = max(now[0], due)
             fn()
 
-    await drain()   # subscribe-time snapshots (none on a fresh broadcaster)
-    for row in rows:
-        fire_timers_until(row["at"])
+    async def frames():
+        await drain()   # subscribe-time snapshots (none on a fresh broadcaster)
+        for row in rows:
+            fire_timers_until(row["at"])
+            await drain()
+            now[0] = row["at"]
+            yield row["frame"]
+            await drain()
+        fire_timers_until(now[0] + DRAIN_MS)
         await drain()
-        now[0] = row["at"]
-        ingest_core.apply_frame(row["frame"], ctx)
-        await drain()
-    fire_timers_until(now[0] + DRAIN_MS)
-    await drain()
+
+    if via == "apply_frame":
+        ctx = ingest_core.FrameContext(on_bar=on_bar, active=active, trade_listeners=listeners,
+                                       universe=universe, on_universe_am=on_universe_am)
+        async for raw in frames():
+            ingest_core.apply_frame(raw, ctx)
+    elif via == "reader":
+        await _run_reader(frames, on_bar, active, listeners, universe, on_universe_am)
+    else:
+        raise ValueError(via)
     return out
+
+
+async def _run_reader(frames, on_bar, active, listeners, universe, on_universe_am) -> None:
+    """Drive the real bar_stream._run_websocket over a fake socket that plays `frames`.
+    Every module global it touches is restored afterwards."""
+    import sys
+    import types
+    from unittest import mock
+
+    import websockets
+
+    import api.services as services_pkg
+    from api.services import bar_stream as bs
+
+    class FakeSocket:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *exc):
+            return False
+
+        async def send(self, msg):
+            pass
+
+        async def recv(self):
+            return '[{"ev":"status","status":"auth_success"}]'
+
+        async def ping(self):
+            return asyncio.get_running_loop().create_future()   # never answered: fine
+
+        async def close(self):
+            pass
+
+        def __aiter__(self):
+            return self._gen()
+
+        async def _gen(self):
+            async for raw in frames():
+                yield raw
+            raise _TapeEnd()
+
+    fake_bli = types.SimpleNamespace(mark_connected=lambda: None, start_flusher=lambda loop: None,
+                                     on_am=on_universe_am)
+    saved_active, saved_listeners = set(bs._active), list(bs._trade_listeners)
+    saved_channels = {k: set(v) for k, v in bs._active_channels.items()}
+    bs._active.clear()
+    bs._active.update(active)
+    bs._active_channels.clear()
+    bs._trade_listeners[:] = listeners
+    try:
+        with mock.patch.object(bs, "_API_KEY", "golden-tape"), \
+             mock.patch.object(bs, "_universe_stream_enabled", lambda: universe), \
+             mock.patch.object(websockets, "connect", lambda *a, **k: FakeSocket()), \
+             mock.patch.dict(sys.modules, {"api.services.bars_live_ingest": fake_bli}), \
+             mock.patch.object(services_pkg, "bars_live_ingest", fake_bli, create=True):
+            try:
+                await bs._run_websocket(on_bar)
+            except _TapeEnd:
+                pass
+    finally:
+        bs._active.clear()
+        bs._active.update(saved_active)
+        bs._active_channels.clear()
+        bs._active_channels.update(saved_channels)
+        bs._trade_listeners[:] = saved_listeners
+        bs._running = False
+        bs._ws_connection = None
 
 
 def golden_path(name: str) -> Path:

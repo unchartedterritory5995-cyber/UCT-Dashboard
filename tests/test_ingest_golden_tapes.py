@@ -72,3 +72,21 @@ def test_ingest_core_has_no_web_or_socket_imports():
     src = inspect.getsource(ingest_core)
     for banned in ("api.main", "fastapi", "websockets", "bar_stream import", "from api.services import bar_stream"):
         assert banned not in src, banned
+
+
+@pytest.mark.parametrize("name", H.tape_names())
+def test_the_real_reader_loop_matches_golden(name):
+    """End to end through bar_stream._run_websocket over a fake socket: the in-web
+    reader's wiring (frame_ctx, universe hook, counters) yields the same output."""
+    assert H.run_tape(name, via="reader") == H.read_golden(name)
+
+
+def test_pinned_rules_survive_a_provider_rules_load():
+    from api.services import trade_conditions as tc
+    saved = (tc._hl_ineligible, tc._last_ineligible)
+    try:
+        tc._hl_ineligible, tc._last_ineligible = set(), set()     # as if a provider load said "nothing"
+        assert H.run_tape("conditions_and_noise") == H.read_golden("conditions_and_noise")
+        assert (tc._hl_ineligible, tc._last_ineligible) == (set(), set())   # restored after the run
+    finally:
+        tc._hl_ineligible, tc._last_ineligible = saved
