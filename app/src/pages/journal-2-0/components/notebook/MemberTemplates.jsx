@@ -44,7 +44,7 @@ export const PLAIN_COPY = Object.freeze({
   lead: 'Copies of a note made with Save as template. They start a note as plain text, without live blocks or a note type.',
   empty: "No plain templates yet. Open a note's More menu and choose Save as template.",
   dailyHint: 'Daily notes can start from a plain template.',
-  none: 'None',
+  none: 'A blank page',                    // final fix M3: the select's own words for no template, one name everywhere
   dailyDelete: 'Daily notes start from this template. After deleting it they start from a blank page.',
 })
 
@@ -251,7 +251,7 @@ export function DailyTemplateSelect({ templates, selectRef = null, hintId = 'js-
           aria-describedby={hintId}
           onChange={(e) => writeDaily(setPref, e.target.value)}
         >
-          <option value="">A blank page</option>
+          <option value="">{PLAIN_COPY.none}</option>
           {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
         </select>
       </label>

@@ -198,8 +198,8 @@ BOARD_BACK_FROM_BRIEF = re.search(r"\{fromBrief \? '([^']+)' : 'Back to Notebook
 # Follow-up C: the New note sheet's link into Manage templates at the daily control, and its "Manage" link
 # (MemberTemplates.jsx aria-labels).
 _MEMBER_TEMPLATES = (_J2 / "components" / "notebook" / "MemberTemplates.jsx").read_text(encoding="utf-8")
-DAILY_CHANGE_LINK = re.search(r"onManage\('daily', e\.currentTarget\)\}\s*aria-label=\"([^\"]+)\"", _MEMBER_TEMPLATES).group(1)
-PLAIN_MANAGE_LINK = re.search(r"onManage\('plain', e\.currentTarget\)\}\s*aria-label=\"([^\"]+)\"", _MEMBER_TEMPLATES).group(1)
+DAILY_CHANGE_LINK = re.search(r"onManage\('daily'\)\}\s*aria-label=\"([^\"]+)\"", _MEMBER_TEMPLATES).group(1)
+PLAIN_MANAGE_LINK = re.search(r"onManage\('plain'\)\}\s*aria-label=\"([^\"]+)\"", _MEMBER_TEMPLATES).group(1)
 MORE_VIEWS_ROW = re.search(r"key: 'more-views', label: '([^']+)'", (_J2 / "tabs" / "NotebookTab.jsx").read_text(encoding="utf-8")).group(1)
 
 
@@ -4585,7 +4585,7 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
             chose, err0 = False, None
             try:
                 # Follow-up C: the control lives in Manage templates' Plain templates group; the New note sheet's "Your
-                # templates" says "Daily notes start from: None. Change", and Change opens the manager at the control.
+                # templates" says "Daily notes start from: A blank page. Change", and Change opens the manager at the control.
                 open_templates(pR)
                 pR.get_by_role("button", name=DAILY_CHANGE_LINK, exact=True).first.click(timeout=20000)
                 pick = pR.get_by_role("dialog", name="Manage templates").get_by_label("Daily notes start from")

@@ -66,13 +66,13 @@ describe('the daily template, from the New note sheet', () => {
     expect(screen.queryByRole('combobox', { name: 'Daily notes start from' })).toBeNull()
   })
 
-  it('"None" when nothing is chosen, or when the chosen template is gone', async () => {
+  it('"A blank page" (the words of the manager select) when nothing is chosen, or when the chosen template is gone', async () => {
     const { unmount } = renderPicker({ onManageTemplates: vi.fn() })
-    expect(await screen.findByText(/^Daily notes start from: None\./)).toBeInTheDocument()
+    expect(await screen.findByText(/^Daily notes start from: A blank page\./)).toBeInTheDocument()
     unmount()
     prefs = { notebook_daily_template: 'deleted-long-ago' }
     renderPicker({ onManageTemplates: vi.fn() })
-    expect(await screen.findByText(/^Daily notes start from: None\./)).toBeInTheDocument()
+    expect(await screen.findByText(/^Daily notes start from: A blank page\./)).toBeInTheDocument()
   })
 
   it('Change opens the manager at the daily control; Manage opens it at the Plain templates group', async () => {

@@ -58,8 +58,8 @@ MANAGER_VIEWS = [lbl for _k, lbl in re.findall(r"\['(\w+)', '([^']+)'\]",
 assert MANAGER_VIEWS == ["Active", "Archived", "Recently deleted"], MANAGER_VIEWS
 PLAIN_TITLE = _grab(r"title: '([^']+)',", _NB / "MemberTemplates.jsx")
 DAILY_DELETE_SENTENCE = _grab(r"dailyDelete: '([^']+)',", _NB / "MemberTemplates.jsx")
-DAILY_CHANGE_LINK = _grab(r"onManage\('daily', e\.currentTarget\)\}\s*aria-label=\"([^\"]+)\"", _NB / "MemberTemplates.jsx")
-PLAIN_MANAGE_LINK = _grab(r"onManage\('plain', e\.currentTarget\)\}\s*aria-label=\"([^\"]+)\"", _NB / "MemberTemplates.jsx")
+DAILY_CHANGE_LINK = _grab(r"onManage\('daily'\)\}\s*aria-label=\"([^\"]+)\"", _NB / "MemberTemplates.jsx")
+PLAIN_MANAGE_LINK = _grab(r"onManage\('plain'\)\}\s*aria-label=\"([^\"]+)\"", _NB / "MemberTemplates.jsx")
 OPEN_MANAGER = _grab(r"export const OPEN_MANAGER = '([^']+)'", _NB / "myTools" / "TemplatesTab.jsx")
 INSERT_LOADING = _grab(r"export const INSERT_LOADING = '([^']+)'", _NB / "EditorToolSlots.jsx")
 SAVED_WORDS = _grab(r"export const SAVED_WORDS = '([^']+)'", _J2 / "lib" / "offline" / "unsyncedCopy.js")

@@ -86,7 +86,7 @@ describe('D-4 -- the search box filters the built-in catalog', () => {
     expect(screen.getByRole('button', { name: 'Risk audit' })).toBeInTheDocument()
     // the daily line (follow-up C: the control moved to Manage templates; the picker keeps its link) stays, search
     // or not, and so does Manage
-    expect(screen.getByText(/^Daily notes start from: None\./)).toBeInTheDocument()
+    expect(screen.getByText(/^Daily notes start from: A blank page\./)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Change what daily notes start from' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Manage your plain templates' })).toBeInTheDocument()
   })
