@@ -179,8 +179,12 @@ describe('STATE RAIL census — by tool, from the registry', () => {
           expect(stateRailRefusal(plan, { words: w }), `${r.name} ${JSON.stringify(args)} · "${w}"`).toMatch(/^I didn’t change anything/)
         }
         // the explicit word for its kind of change lets it through (and a request with no additive word is never read)
-        const types = stateEffects(plan).map(e => e.type)
-        const explicit = types.every(t => t === 'overwrite') ? 'add AAPL and change it' : types.every(t => t === 'replace') ? 'also show that one instead' : 'add AAPL and remove it'
+        // (kind-matched: the explicit clause names each effect's own class)
+        const eff = stateEffects(plan)
+        const nouns = [...new Set(eff.map(e => NOUN[e.state]))].join(' and the ')
+        const explicit = eff.every(e => e.type === 'overwrite') ? `add AAPL, and change the ${nouns}` : eff.every(e => e.type === 'replace') ? `add AAPL, and replace the ${nouns}` : `add AAPL, and remove the ${nouns}`
+        // …and the same permit for ANOTHER class licenses nothing here
+        for (const [st, noun] of Object.entries(NOUN)) if (!eff.some(e => (e.classes || [e.state]).includes(st))) expect(stateRailRefusal(plan, { words: `add AAPL, and remove the ${noun}` }), `${r.name} cross-kind ${noun}`).toBeTruthy()
         expect(stateRailRefusal(plan, { words: explicit }), `${r.name} explicit "${explicit}"`).toBe(null)
         expect(stateRailRefusal(plan, { words: 'do it' }), `${r.name} not additive`).toBe(null)
       }
@@ -190,12 +194,13 @@ describe('STATE RAIL census — by tool, from the registry', () => {
   })
 })
 
+const NOUN = { indicator: 'indicators', drawing: 'drawings', drawingBoard: 'drawing board', watchlist: 'watchlist', widget: 'widget', layout: 'layout', layoutBar: 'layout bar', template: 'template' }
 const ADDITIVE_WORDS = ['add AAPL', 'ADD an RSI', 'Add a trendline', 'adding one', 'put a new one on', 'PUT ANOTHER LINE', 'include MSFT', 'another one', 'Another RSI',
   'one more please', 'also MSFT', 'AAPL as well', 'TSLA too', 'a new layout', 'Insert a widget', 'more indicators', 'extra line', 'additional watchlist',
   'add it, don’t remove anything', 'add AAPL without deleting anything', 'put AAPL on — never replace']
 // every capability that can destroy, replace or overwrite existing state, and how (read by stateRail.stateEffects)
 const EXPECTED = {
-  'chart.applyTemplate': ['indicator:remove'],
+  'chart.applyTemplate': ['indicator:replace'],
   'chartSetup.deleteTemplate': ['template:delete'],
   'chartSetup.saveTemplate': ['template:overwrite'],
   'drawing.clear': ['drawing:clear', 'drawing:remove'],

@@ -51,8 +51,8 @@ function indicatorOfRequest(req, rows) {
   const op = req?.op
   const id = req?.instanceId
   const name = (rows || []).find(r => r.instanceId === id)?.name || 'an indicator'
-  if (op === 'remove') return [{ state: 'indicator', type: 'remove', name }]
-  if (OVERWRITE_OPS.has(op)) return [{ state: 'indicator', type: 'overwrite', name }]
+  if (op === 'remove') return [{ state: 'indicator', type: 'remove', name, label: name }]
+  if (OVERWRITE_OPS.has(op)) return [{ state: 'indicator', type: 'overwrite', name, label: name }]
   // add / duplicate / copyFrom (a template's indicators) add; setVisible / movePane / setPaneSize / setDisplayTarget /
   // setVisibility / setCalculationTimeframe arrange, show, or pick the bars it computes on — its settings are kept
   if (['add', 'duplicate', 'copyFrom', 'setVisible', 'movePane', 'setPaneSize', 'setDisplayTarget', 'setVisibility', 'setCalculationTimeframe'].includes(op)) return []
@@ -65,14 +65,14 @@ function indicatorOfSettings(before, after) {
   const out = []
   const gone = was.filter(r => !now.has(r.instanceId))
   if (gone.length) {
-    // gone and others in their place: the chart's indicators REPLACED (a chart template); gone alone: removed
-    const added = [...now.keys()].some(id => !was.some(r => r.instanceId === id))
-    for (const r of gone) out.push({ state: 'indicator', type: added ? 'replace' : 'remove', name: r.name })
+    // a whole settings blob written that drops instances: the chart's indicator set REPLACED (a chart template) — named by
+    // the indicator or by the template that replaces it
+    for (const r of gone) out.push({ state: 'indicator', type: 'replace', name: r.name, label: r.name, classes: ['indicator', 'template'] })
   }
   for (const r of was) {
     const n = now.get(r.instanceId)
     // its SETTINGS (inputs) — never its colours: a chart theme repaints the indicators on purpose (chart.applyTheme)
-    if (n && !sameJson(settingsOf(r.inputs), settingsOf(n.inputs))) out.push({ state: 'indicator', type: 'overwrite', name: r.name })
+    if (n && !sameJson(settingsOf(r.inputs), settingsOf(n.inputs))) out.push({ state: 'indicator', type: 'overwrite', name: r.name, label: r.name })
   }
   return out
 }
@@ -157,7 +157,7 @@ const READERS = {
         for (const t of tabIds(w)) if (!now.has(t)) out.push({ state: 'widget', type: 'remove', name: `a tab of the ${nm(w.type)} widget` })
       }
       if ('opts' in d && contentOf(w.opts) != null && contentOf(d.opts) !== contentOf(w.opts)) {
-        out.push({ state: 'widget', type: 'replace', name: `what the ${nm(w.type)} widget shows (${nm(w.opts.watchName || w.opts.scanName || contentOf(w.opts))})` })
+        out.push({ state: 'widget', type: 'replace', to: nm(d.opts?.watchName || d.opts?.scanName || contentOf(d.opts)), name: `what the ${nm(w.type)} widget shows (${nm(w.opts.watchName || w.opts.scanName || contentOf(w.opts))})` })
       }
     }
     for (const o of pt.itemOps || []) {
@@ -230,20 +230,54 @@ function DESTROY_SRC() { return '(?:replac\\w*|instead|swap\\w*|remov\\w*|delet\
 function MODIFY_SRC() { return '(?:chang\\w*|set|sets|setting|make|makes|making|made|turn\\w*|switch\\w*|updat\\w*|edit\\w*|modif\\w*|renam\\w*|adjust\\w*|bump\\w*|increas\\w*|decreas\\w*|tweak\\w*|recolou?r\\w*|colou?r(?:s|ed|ing)?|paint\\w*|restyl\\w*|move|moves|moved|moving|shift\\w*)' }
 const DESTROY = new RegExp(`\\b${DESTROY_SRC()}`, 'i')
 const MODIFY = new RegExp(`\\b${MODIFY_SRC()}\\b`, 'i')
-// the words that pick what is SHOWN or applied (a widget's list, a chart template) — "put X in / on / up in the widget"
-// names what that widget is to show (the picker's own wording) — for a widget's content only, never an overwrite
-const PUT_IN = /\bput\b[^.;!?]*\b(?:in|into|on|up in|up on)\s+(?:the|my|that|this)\b[^.;!?]*\b(?:watch ?lists?|widgets?|scanner)\b/i
+// the words that pick what is SHOWN or applied (a widget's list, a chart template)
 const PICK = /\b(?:apply|applies|applied|applying|show|shows|showing|display\w*|load\w*|open|opens|use|using|view|switch\w*|change\w*)\b/i
 const SAVE = /\b(?:save|saves|saved|saving|update|updates|updated)\b/i
 const NEW_ONE = /\b(?:new|another|second|copy|duplicate|as (?:a|an)\b|called|named)\b/i
 
-/** Do this turn's words ask for that kind of change to existing state? */
+// ⛔ KIND-MATCHED (AUDIT #1247): a permit word licenses an effect only on the CLASS its own clause names — never every kind.
+// "add a 20 EMA, and clear up the layout name confusion" licenses nothing on drawings. A permit word whose clause names no
+// class (and not the thing itself by its name) licenses nothing.
+export const CLASS = {
+  indicator: /\b(?:indicators?|studies|study|emas?|smas?|wmas?|rsi|macd|vwap|atr|adx|bollinger\w*|stoch\w*|moving averages?|averages?|mas?|obv|cci|keltner|ichimoku|length|period|lookback|the \d{1,3})\b/i,
+  drawing: /\b(?:drawings?(?! boards?\b)|lines?|trend ?lines?|fib\w*|rays?|rectangles?|texts?|labels?|positions?|avwaps?|levels?|arrows?|channels?|circles?|shapes?|annotations?|horizontals?|verticals?|pitchforks?|measures?)\b/i,
+  drawingBoard: /\b(?:drawing )?boards?\b/i,
+  watchlist: /\b(?:watch ?lists?(?! widgets?\b)|lists?|flagged|flags?|notes?)\b/i,
+  widget: /\b(?:widgets?|panels?|tabs?|scanners?|news)\b/i,
+  layout: /\b(?:layouts?(?! bar)|arrangements?|workspaces?)\b/i,
+  layoutBar: /\b(?:layout bar|the bar|bar)\b/i,
+  template: /\btemplates?\b/i,
+}
+const classesOf = (e) => e.classes || [e.state]
+const phrase = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+const has = (clause, label) => { const p = phrase(label); return !!p && ` ${phrase(clause)} `.includes(` ${p} `) }
+// the member's own name for the thing (a list "Tech", a layout "Swing", "RSI (14)") — quoted in the effect, or its label
+const labelOf = (e) => e.label || (/“([^”]+)”/.exec(e.name || '') || [])[1] || null
+/** Does this clause name the effect's object — its class, or (when it names no OTHER class) its own name? */
+export function namesObject(e, clause) {
+  const mine = classesOf(e)
+  if (mine.some(c => CLASS[c]?.test(clause))) return true
+  if (Object.keys(CLASS).some(c => !mine.includes(c) && CLASS[c].test(clause))) return false
+  const label = labelOf(e)
+  return !!label && (has(clause, label) || phrase(label).split(' ').filter(t => t.length >= 3 && /[a-z]/.test(t)).some(t => has(clause, t)))
+}
+// clauses: punctuation, "then", "but", and an "and" that starts a new request ("…, and clear …", "add X and remove Y")
+const CLAUSES = /[.;,!?]|\bthen\b|\bbut\b|\band (?=(?:then |also )?(?:add|put|include|insert|remove|delete|clear|replace|change|set|make|rename|save|show|swap|keep|move|turn|switch|get rid|erase|wipe|reset|overwrite|unpin|colou?r|apply|use|load|open)\b)/i
+export const clausesOf = (words) => strip(words).split(CLAUSES).map(c => c.trim()).filter(Boolean)
+// "put Momentum up in my watchlist" / "put the Flagged list in my watchlist widget": a clause that names the LIST a widget is to
+// show (its own name) and where — never "put AAPL on my watchlist" (adding a symbol never switches what a widget shows)
+const PUT_IN = /\bput\b[^.;!?]*\b(?:in|into|on|up in|up on)\s+(?:the|my|that|this|your)\b[^.;!?]*\b(?:watch ?lists?|widgets?|scanner)\b/i
+
+/** Do this turn's words ask for that kind of change to THAT kind of existing state? (per clause, kind-matched) */
 export function permits(e, words) {
-  const w = strip(words)
-  if (DESTROY.test(w)) return true
-  if (e.type === 'replace') return PICK.test(w) || MODIFY.test(w) || PUT_IN.test(w)
-  if (e.type === 'overwrite') return MODIFY.test(w) || PICK.test(w) || (e.via === 'save' && SAVE.test(w) && !NEW_ONE.test(w))
-  return false                                                  // remove / clear / delete / unreadable
+  for (const c of clausesOf(words)) {
+    if (e.type === 'replace' && e.to && PUT_IN.test(c) && has(c, e.to)) return true
+    const strong = DESTROY.test(c)
+      || (e.type === 'replace' && (PICK.test(c) || MODIFY.test(c)))
+      || (e.type === 'overwrite' && (MODIFY.test(c) || PICK.test(c) || (e.via === 'save' && SAVE.test(c) && !NEW_ONE.test(c))))
+    if (strong && namesObject(e, c)) return true
+  }
+  return false                                                  // remove / clear / delete / unreadable without both
 }
 export const isStateAdditive = (words) => STATE_ADDITIVE.test(String(words || ''))
 

@@ -77,7 +77,7 @@ const EXPLICIT = {
   'drawing.deleteBoard (Swing board)': 'delete my swing board', 'watchlist.keepOnly (Tech → SPY)': 'keep only spy in my tech watchlist',
   'watchlist.clear (Tech)': 'clear my tech watchlist', 'watchlist.delete (Swing)': 'delete my swing watchlist', 'watchlist.remove (NVDA)': 'remove nvda from tech',
   'watchlist.setNote (SPY note overwritten)': 'change the note on spy', 'widget.remove (the Watchlist widget)': 'remove the watchlist widget',
-  'widget.showList (Tech → Swing)': 'show my swing list in the watchlist widget', 'widget.closeTab (the News tab)': 'close the news tab and remove it',
+  'widget.showList (Tech → Swing)': 'show my swing list in the watchlist widget', 'widget.closeTab (the News tab)': 'remove the news tab',
   'layout.saveCurrent (saved over Mine)': 'save my layout', 'layout.delete (Swing)': 'delete my swing layout', 'layout.rename (Swing)': 'rename swing to renamed',
   'chartSetup.deleteTemplate (Dark)': 'delete my dark template',
 }
@@ -152,6 +152,7 @@ describe('STATE RAIL · layer 1: every kind’s destroying plan × additive verb
       // the other kinds' additive words too (the rail reads the effect, never the noun)
       for (const k of Object.keys(OBJECT)) expect(stateRailRefusal(plan, { words: `add ${OBJECT[k]}` }), `add ${OBJECT[k]}`).toBeTruthy()
       expect(stateRailRefusal(plan, { words: EXPLICIT[pname] }), EXPLICIT[pname]).toBe(null)
+      expect(stateRailRefusal(plan, { words: `add ${OBJECT[kind]}, and ${EXPLICIT[pname]}` }), `additive + ${EXPLICIT[pname]}`).toBe(null)
       // a negated destroy word never permits ("add an rsi, don't remove anything")
       expect(stateRailRefusal(plan, { words: `add ${OBJECT[kind]}, don't remove or change anything` })).toBeTruthy()
     })
@@ -189,6 +190,87 @@ describe('STATE RAIL · layer 1: every kind’s destroying plan × additive verb
       expect(stateRailRefusal(plan, { words: 'add another one as well' }), ops[0].action).toBe(null)
     }
   })
+})
+
+// ── KIND-MATCHED permits (AUDIT #1247): a permit word licenses only the class its own clause names ──
+// one explicit permit clause per class (what a member says to change THAT kind of thing)
+const PERMIT = {
+  indicator: 'remove the rsi', drawing: 'delete the trendline', drawingBoard: 'delete the swing board', watchlist: 'remove nvda from my watchlist',
+  widget: 'remove the news tab', layout: 'delete my swing layout', template: 'delete my dark template',
+}
+const PERMIT_FORMS = (p) => [`add aapl, and ${p}`, `ADD AAPL. ${p.toUpperCase()}`, `add aapl then ${p}`, `add a 20 ema and ${p}`]
+describe('STATE RAIL · kind-matched: a permit for one class never licenses a destroying plan on another (every A≠B), and the same class still works', () => {
+  for (const [kind, plans] of Object.entries(WRONG)) for (const [pname, ops] of Object.entries(plans)) {
+    it(`${kind} · ${pname}`, async () => {
+      const fx = stateFixture()
+      const plan = await planOf(fx, ops)
+      expect(plan.ok).toBe(true)
+      const classes = new Set(stateEffects(plan).flatMap(e => e.classes || [e.state]))
+      let cross = 0
+      for (const [a, p] of Object.entries(PERMIT)) {
+        if (classes.has(a)) continue
+        for (const w of PERMIT_FORMS(p)) { cross++; expect(stateRailRefusal(plan, { words: w }), `${a} permit "${w}" on ${pname}`).toMatch(/^I didn’t change anything/) }
+      }
+      expect(cross).toBeGreaterThan(0)
+      // the same class, said in its own clause, still licenses it — and a permit word with no class in its clause licenses nothing
+      expect(stateRailRefusal(plan, { words: `add aapl, and ${EXPLICIT[pname]}` }), EXPLICIT[pname]).toBe(null)
+      for (const w of ['add aapl and remove it', 'add aapl, and clear up the confusion', 'add aapl, then delete that', 'add aapl and change it'])
+        expect(stateRailRefusal(plan, { words: w }), `no class: "${w}"`).toMatch(/^I didn’t change anything/)
+    })
+  }
+  it('the AUDIT example: "add a 20 EMA, and clear up the layout name confusion" never clears drawings (nor touches indicators)', async () => {
+    const fx = stateFixture()
+    const w = 'add a 20 EMA, and clear up the layout name confusion'
+    for (const ops of [WRONG.drawing['drawing.clear (SPY)'], WRONG.indicator['indicator.remove (the RSI)'], WRONG.watchlist['watchlist.clear (Tech)']]) {
+      expect(stateRailRefusal(await planOf(fx, ops), { words: w }), ops[0].action).toMatch(/^I didn’t change anything/)
+    }
+  })
+  it('a shared NAME never crosses kinds: "delete my swing layout" never licenses deleting the Swing watchlist', async () => {
+    const fx = stateFixture()
+    expect(stateRailRefusal(await planOf(fx, WRONG.watchlist['watchlist.delete (Swing)']), { words: 'add aapl, and delete my swing layout' })).toMatch(/^I didn’t change anything/)
+    expect(stateRailRefusal(await planOf(fx, WRONG.watchlist['watchlist.delete (Swing)']), { words: 'add aapl, and delete swing' })).toBe(null)
+  })
+})
+
+// ── ADDING TO A LIST NEVER SWITCHES WHAT A WIDGET SHOWS (AUDIT #1247 ii) ──
+describe('STATE RAIL · adding to a list leaves the displayed list unchanged unless the words ask to show it', () => {
+  const show = WRONG.widget['widget.showList (Tech → Swing)']
+  for (const w of ['put AAPL on my watchlist', 'put AAPL in my watchlist widget', 'add AAPL to my watchlist', 'put AAPL and MSFT on the watchlist too', 'include AAPL in my list', 'PUT TSLA ON MY WATCHLIST'])
+    it(`"${w}" + a plan switching the widget to Swing → refused`, async () => {
+      const fx = stateFixture()
+      expect(stateRailRefusal(await planOf(fx, show), { words: w })).toMatch(/^I didn’t change anything/)
+    })
+  for (const w of ['put my Swing list in the watchlist widget', 'put Swing up in my watchlist', 'add AAPL, and show my swing list in the watchlist widget', 'also switch the watchlist widget to swing'])
+    it(`"${w}" names the list to show → allowed`, async () => {
+      const fx = stateFixture()
+      expect(stateRailRefusal(await planOf(fx, show), { words: w })).toBe(null)
+    })
+  it('through the panel: "put AAPL on my watchlist" with the model switching the widget — the widget still shows Tech', async () => {
+    const { fx, say } = mount()
+    envelopes.push(env('apply', show))
+    await say('put AAPL on my watchlist')
+    expect(fx.b.state.widgets.find(w => w.id === 'wl').opts.watchKey).toBe('user:wl1')
+  }, 30000)
+})
+
+// ── A DRAWING BOARD SWITCH (AUDIT #1247 iii, accepted residual): the receipt names the board now shown; Undo is exact ──
+describe('STATE RAIL · a Drawing Board switch says which board is shown, and Undo puts the previous board back exactly', () => {
+  it('drawing.setActiveBoard → "Swing board": receipt names it; Undo restores Board 1 and every drawing on it', async () => {
+    const fx = stateFixture()
+    const first = store.getActiveTracingId()
+    const was = ['SPY', 'NVDA'].map(s => store.peekDrawings(s))
+    const p = await planOf(fx, [op('drawing.setActiveBoard', 'drawingBoards', { board: 'Swing board' })])
+    expect(p.ok, JSON.stringify(p.refusals)).toBe(true)
+    // never refused (nothing is destroyed: Board 1's drawings stay on Board 1)
+    expect(stateRailRefusal(p, { words: 'add a new board' })).toBe(null)
+    const res = await commitPlan(fx.host, p, { env: {} })
+    expect(res.ok, JSON.stringify(res.failed)).toBe(true)
+    expect(res.lines.join(' ')).toMatch(/Swing board/)
+    expect(store.getActiveTracingId()).toBe(fx.boards.second)
+    expect((await undoEntry(fx.host, res.undo)).ok).toBe(true)
+    expect(store.getActiveTracingId()).toBe(first)
+    expect(['SPY', 'NVDA'].map(s => store.peekDrawings(s))).toEqual(was)
+  }, 30000)
 })
 
 // ── layer 2 — through the panel, the model scripted DESTRUCTIVE ──
