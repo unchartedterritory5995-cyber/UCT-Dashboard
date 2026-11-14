@@ -56,8 +56,10 @@ class FakeConn:
             self.closed = (code, reason)
             self._closed_evt.set()
         # A real websockets close() awaits the closing handshake: yield like it does,
-        # so other handlers run in between (the supersede race needs this to show).
-        for _ in range(3):
+        # long enough for the peer handler's whole wakeup chain (event -> wait future
+        # -> task -> its finally) to run in between. 3 yields was too few to expose
+        # the supersede race (mutation-checked); 20 is ample and still instant.
+        for _ in range(20):
             await asyncio.sleep(0)
 
 
@@ -272,7 +274,7 @@ def test_shutdown_is_concurrent_and_bounded_by_one_deadline():
             c = Hung([hello(f"web-{i}"), desired()])
             tasks.append(await run_until(c, srv, lambda i=i: f"web-{i}" in srv.clients))
         t0 = asyncio.get_running_loop().time()
-        await srv.shutdown(deadline_s=0.3)
+        await asyncio.wait_for(srv.shutdown(deadline_s=0.3), 3)   # fails fast, never hangs
         assert asyncio.get_running_loop().time() - t0 < 1.5     # not 5 x (send + close) serially
         assert srv.clients == {}
         for t in tasks:

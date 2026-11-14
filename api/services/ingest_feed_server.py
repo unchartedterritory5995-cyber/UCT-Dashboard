@@ -223,7 +223,13 @@ class IngestFeedServer:
                 sender.cancel()
                 try:
                     await sender
-                except BaseException:  # noqa: BLE001 - cancelled, or already reported
+                except asyncio.CancelledError:
+                    # The sender's own cancellation is expected; a cancellation of
+                    # handle() itself must keep propagating.
+                    task = asyncio.current_task()
+                    if task is not None and task.cancelling():
+                        raise
+                except Exception:  # noqa: BLE001 - already reported by _sender_done
                     pass
             if client is not None and self.clients.get(client.client_id) is client:
                 del self.clients[client.client_id]
