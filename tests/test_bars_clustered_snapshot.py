@@ -27,6 +27,7 @@ import random
 import re
 import shutil
 import sqlite3
+import time
 import tarfile
 from pathlib import Path
 
@@ -698,6 +699,63 @@ def test_catch_up_rounds_shrink_a_busy_pods_remainder_before_the_lock(adoption, 
     c = sqlite3.connect(str(local))
     assert c.execute("SELECT COUNT(*) FROM ohlcv WHERE ticker IN ('B07','Z2')").fetchone()[0] == 2
     c.close()
+
+
+def _hold_read_txn(path, seconds):
+    """Open a read transaction on `path` (pins the WAL) and keep it `seconds`."""
+    import threading
+    ready = threading.Event()
+
+    def run():
+        c = sqlite3.connect(str(path), check_same_thread=False)
+        c.execute("BEGIN")
+        c.execute("SELECT COUNT(*) FROM ohlcv").fetchone()
+        ready.set()
+        time.sleep(seconds)
+        c.rollback(); c.close()
+    th = threading.Thread(target=run, daemon=True)
+    th.start()
+    assert ready.wait(5)
+    return th
+
+
+def _wal_frames(path):
+    c = sqlite3.connect(str(path))
+    c.execute("PRAGMA journal_mode=WAL")
+    c.execute("INSERT OR REPLACE INTO ohlcv VALUES ('WALX','D',20210106,1,2,0.5,1.5,1)")
+    c.commit(); c.close()
+
+
+def test_truncate_checkpoint_waits_out_a_long_reader(tmp_path):
+    """One 30 s wait was not enough on the worker; the swap now retries within a budget."""
+    import api.services.data_sync as ds
+    db = tmp_path / "x.db"
+    c = sqlite3.connect(str(db)); c.execute(
+        "CREATE TABLE ohlcv (ticker TEXT, tf TEXT, ts INTEGER, o REAL, h REAL, l REAL, "
+        "c REAL, v INTEGER, PRIMARY KEY (ticker, tf, ts))"); c.commit(); c.close()
+    _wal_frames(db)
+    th = _hold_read_txn(db, 2.5)
+    _wal_frames(db)                                     # frames the reader pins
+    t0 = time.monotonic()
+    assert ds._truncate_checkpoint(str(db), 20) is True
+    assert time.monotonic() - t0 >= 1.5, "it must have waited for the reader"
+    th.join(5)
+    assert (not os.path.exists(str(db) + "-wal")) or os.path.getsize(str(db) + "-wal") == 0
+
+
+def test_truncate_checkpoint_gives_up_at_its_budget(tmp_path):
+    import api.services.data_sync as ds
+    db = tmp_path / "x.db"
+    c = sqlite3.connect(str(db)); c.execute(
+        "CREATE TABLE ohlcv (ticker TEXT, tf TEXT, ts INTEGER, o REAL, h REAL, l REAL, "
+        "c REAL, v INTEGER, PRIMARY KEY (ticker, tf, ts))"); c.commit(); c.close()
+    _wal_frames(db)
+    th = _hold_read_txn(db, 6)
+    _wal_frames(db)
+    t0 = time.monotonic()
+    assert ds._truncate_checkpoint(str(db), 1.0) is False
+    assert time.monotonic() - t0 < 5
+    th.join(8)
 
 
 def test_swap_write_tracking_has_no_gap(data_sync_at):

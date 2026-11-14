@@ -228,6 +228,28 @@ export function asSubjectWords(text, created = null, changed = null) {
   NEW_ONE.lastIndex = 0
   return { text: out, subject }
 }
+// ⭐ MULTI-STEP CONTINUITY (11-14): the SET of charts the latest creating request made (createdRef) — "make the new charts weekly",
+// "add RSI to the new ones", "both new charts", "the four new charts", "the charts you just added" — read as "them" bound to
+// exactly those charts (references.pluralTarget over that set, never by the last change's tickers). Fail-closed: only with two or
+// more created charts, every one still on the board, and any count said matching it; otherwise null (the words go on as typed —
+// to the model, as before). A determiner is required, so "add two new charts" (a creation) is never read as a reference.
+const NEW_MANY = /\b(?:the|those|these|both(?: of)?(?: the)?|all(?: of)?(?: the)?|my)\s+(?:(two|three|four|five|six|seven|eight|[2-9])\s+)?new\s+(?:charts|ones)\b|\b(?:the|those) (?:charts|ones) (?:you )?(?:just )?(?:added|made|created|opened)\b/i
+const MANY_COUNT = { two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8 }
+export function asCreatedSetWords(text, created, host) {
+  const t = String(text || '')
+  const m = NEW_MANY.exec(t)
+  const refs = Array.isArray(created) ? [...new Set(created.map(String))] : []
+  if (!m || refs.length < 2) return null
+  const n = m[1] ? (MANY_COUNT[m[1].toLowerCase()] || Number(m[1])) : null
+  if (n != null && n !== refs.length) return null
+  if (/^both\b/i.test(m[0]) && refs.length !== 2) return null
+  try { if (!refs.every(r => host?.charts?.read?.(r))) return null } catch { return null }
+  return { text: `${t.slice(0, m.index)}them${t.slice(m.index + m[0].length)}`.replace(/\s+/g, ' ').trim(), refs }
+}
+// the session memory with "them" bound to exactly `refs` for this one message (the created set — no tickers to match by)
+const withCreatedSet = (memory, refs) => (memory
+  ? { ...memory, lastTurn: (epoch) => ({ ...(memory.lastTurn?.(epoch) || {}), charts: refs, ops: [] }) }
+  : memory)
 // the session memory with "it" bound to `subject` for this one message (the created chart)
 const withSubject = (memory, subject) => (subject && memory
   ? { ...memory, subject: (kind, epoch) => (kind === 'chart' ? { ref: subject, symbol: null, at: Date.now(), epoch } : memory.subject(kind, epoch)) }
@@ -774,6 +796,10 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
   const askedAtRef = useRef(0)              // hotfix 11-13: when the model's open question was asked (pendingTask QUESTION_TTL_MS)
   // ⛔ CHART RAIL (hotfix 11-13, chartRail.js): this turn's words — the message, plus the request an answered question carried
   const railWordsRef = useRef('')
+  // ⛔ PENDING-TASK CONSTRAINTS (multi-step continuity 11-14): the request an ANSWERED question carried (null otherwise). Its
+  // exclusions ("…except the TSLA one") still hold on the reply turn: the excluded-chart gate and every card it stores read it
+  const carriedWordsRef = useRef(null)
+  const turnWords = (member) => [member, saidRef.current, carriedWordsRef.current]
   const resumeRef = useRef(null)            // pendingTask: restores (yes) or withdraws (no) a held reply's pending task
   const railOf = (plan, mode) => chartRailRefusal(plan, { words: railWordsRef.current, host, mode })
   if (!memoryRef.current) memoryRef.current = createMemory()
@@ -1209,7 +1235,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         return { followUps: fan }
       }
       const pid = nid()
-      pendingRef.current = { kind: 'proposal', id: pid, ops: fan, epoch: boardEpoch(host, fan), card: plines, expiresAt: Date.now() + PROPOSAL_TTL_MS, binding: binds, words: [member, saidRef.current] }
+      pendingRef.current = { kind: 'proposal', id: pid, ops: fan, epoch: boardEpoch(host, fan), card: plines, expiresAt: Date.now() + PROPOSAL_TTL_MS, binding: binds, words: turnWords(member) }
       push({ id: pid, role: 'proposal', lines: plines, status: 'pending' })
       record({ member, outcome: `Proposed: ${plines.join(' · ')}`, outcomeData: { kind: 'proposed', actions }, telemetry: { path, disposition: 'propose', actions, voice } })
       return
@@ -1312,7 +1338,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     if (composing && !composed) {
       const pid = nid()
       pendingRef.current = { kind: 'proposal', id: pid, ops: [...allOps, ...deferred], epoch: boardEpoch(host, [...allOps, ...deferred]),
-        binding: approvalBinding(plan, host), expiresAt: Date.now() + PROPOSAL_TTL_MS, words: [member, saidRef.current] }
+        binding: approvalBinding(plan, host), expiresAt: Date.now() + PROPOSAL_TTL_MS, words: turnWords(member) }
       // a proposal says what WILL happen (proposalWording.js), never a success not yet written
       const lines = pendingWording([...pendingLines(allOps, host), ...plan.lines, ...deferredLines])
       push({ id: pid, role: 'proposal', lines, status: 'pending' })
@@ -1341,7 +1367,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       const plines = pendingWording([...(wholly ? expansion.proposal : (plan.lines.length ? plan.lines : plan.noops)), ...deferredLines])
       const seals = sealsOf(plan)
       pendingRef.current = { kind: 'proposal', id: pid, ops: keep, epoch: boardEpoch(host, keep),
-        binding: approvalBinding(plan, host), expiresAt: Date.now() + PROPOSAL_TTL_MS, words: [member, saidRef.current],
+        binding: approvalBinding(plan, host), expiresAt: Date.now() + PROPOSAL_TTL_MS, words: turnWords(member),
         ...(seals.length ? { seals, card: plines, expiresAt: Math.min(Date.now() + PROPOSAL_TTL_MS, ...seals.map(x => x.expiresAt)) } : {}) }
       push({ id: pid, role: 'proposal', lines: plines, status: 'pending' })
       record({ member, outcome: `Proposed: ${plines.join(' · ')}`, outcomeData: { kind: 'proposed', actions }, telemetry: { path, disposition: 'propose', actions, voice } })
@@ -1473,7 +1499,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     // from (its proposal stored them): "do it" / "yes" / the Apply click name no chart, so they could never re-check it.
     // (merge with #1029) `proposedWords` is its own option: #1029's `words` is the turn's message string for resolveArgs
     // (the which-widget guard); the two never share one name, so neither reads the other's shape.
-    const gateWords = Array.isArray(proposedWords) ? proposedWords : [member, saidRef.current]
+    const gateWords = Array.isArray(proposedWords) ? proposedWords : turnWords(member)
     // ⭐ Multi Chart: one gate for the instant, model and approved paths — what cannot run on the grid is said, and nothing runs
     const onGrid = gridMode ? screenGridOps(opsIn, host) : null
     if (onGrid?.refuse) {
@@ -2219,6 +2245,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     const askedFor = setAside ? null : askedFor0
     askedForRef.current = null
     railWordsRef.current = [carryAsked ? askedFor0 : null, text].filter(Boolean).join(' . ')
+    carriedWordsRef.current = carryAsked ? askedFor0 : null
     if (relation === 'unclear') {
       // asked, never guessed: the reply and the pending task are both held; nothing runs until the member picks
       if (echo) push({ role: 'member', text, voice })
@@ -2437,8 +2464,12 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       // name that chart — read as "it" (the conversation's subject chart, which a creation now sets: rememberChange)
       const subj = asSubjectWords(text, createdRef.current?.refs || null, gridChanged(host))
       // "make this one weekly" with a chart clicked is "this chart"; no model call is needed to say so
-      const refText = selectedChart(host) ? subj.text.replace(/\bthis one\b/gi, 'this chart') : subj.text
-      const memNow = withSubject(memoryRef.current, subj.subject)
+      // ⭐ 11-14: "the new charts" / "the new ones" — the set the latest creating request made, as "them" (asCreatedSetWords)
+      const many = subj.text === text && !subj.changed ? asCreatedSetWords(text, createdRef.current?.refs || null, host) : null
+      if (many) mark('subject', 'created-set')
+      const subjText = many ? many.text : subj.text
+      const refText = selectedChart(host) ? subjText.replace(/\bthis one\b/gi, 'this chart') : subjText
+      const memNow = many ? withCreatedSet(memoryRef.current, many.refs) : withSubject(memoryRef.current, subj.subject)
       // "the one I just changed" names a cell outright, so a clicked chart does not outrank it here (it does outrank a bare "it")
       const subjHost = subj.changed ? { ...host, charts: { ...host.charts, selected: () => null } } : host
       const fast00 = answering || followFirst ? null : pluralTarget(subjectTarget(memRef || fastParse(refText, { host }), refText, { host: subjHost, memory: memNow, epoch: epochNow }), { host, memory: memNow, epoch: epochNow })
