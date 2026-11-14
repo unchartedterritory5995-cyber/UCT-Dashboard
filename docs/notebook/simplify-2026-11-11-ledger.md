@@ -669,3 +669,16 @@ First open 2,252,797 B to 2,253,325 B (+528 B). Full record: `.superpowers/follo
 - Undo: My tools > Templates lists templates again; the picker manages plain templates again (revert the follow-up C commits).
 
 First open 2,254,673 B to 2,254,602 B (-71 B). Full record: `.superpowers/followups/C-report.md` (local).
+
+## Follow-up E (2026-11-13/14): the acceptance instruments, the full walk and its record, base `651d8897fe`
+
+No product change: the full walk found no row a member would hit.
+
+- Walkers re-pointed at the doors the follow-ups moved (`1f0e91c9ef`): the setups board reached from the brief is "Back to Daily brief" and returns to the brief; "Daily notes start from" is reached through the New note sheet's Change link (fin walk) or More > Manage templates (wave 8 W9); the wave 6/7 tag-rename notice is waited for (its bulk library loads on demand); the tours walker records a step's `noBack` and checks its card draws no Back; door row 41's way back names "Back to Daily brief".
+- New c2 step `followups` (`b846ca27ef`, `tools/notebook_fin_walk_followups.py`): 30 rows over the template room, the day-page doors, the held modules with their chunks held back, a cold bulk trash, the save label and the usage events (with a check that no telemetry body carries a note title), plus a coverage row; rail `tests/test_notebook_fin_walk_followups.py`.
+- Full c2 run at `b846ca27ef` (product `651d8897fe`): 369 steps, 346 PASS, 5 FAIL, 11 INFO, 7 NOT RUN. The five: `smart.screenshot-tag` x3 (no OCR in c2, configuration) and two INSTRUMENT rows re-pointed and re-walked green (`31c40d1a6c`): the gallery's Share now lives in Manage templates; the Daily brief's quiet line is correctly absent after 16:05 ET, when the recap card is drawn. Record `docs/notebook/fin-walk.md` section 11.
+- Door audit at `dc52cfd130`: EASY 7, OK 13, HARD 12, HIDDEN 0, exit 0. Two rows added for doors follow-up C moved.
+- Ruling recorded (follow-up C's one-room design, measured here): the "Daily notes start from" control is HARD (3 clicks and a scroll inside Manage templates, where the Plain templates group sits below the note-type lists; it was 3 clicks in the New note sheet, not measured then). The sheet's "Daily notes start from: <name>. Change" link opens the manager at it for a member who has a plain template, the only case it does anything. Costs a member who wants to set it from the manager a scroll; owner call: accept, or move the group above the note-type lists.
+- Ruling recorded: My tools > Templates' "Open Manage templates" is HARD (4 clicks), a forwarding door; the list it drew is now Manage templates' Archived and Recently deleted views, 3 clicks (EASIER than the old tab's 4 to a row). Costs nothing a member had.
+- Row 46 (the Notices box on the Daily brief) read OK at 390 (was HARD); it may differ by hour, since the brief draws different cards through the day.
+- Undo: revert the follow-up E commits (walkers, the step, the rail, the door rows and the records); nothing in the product changes.
