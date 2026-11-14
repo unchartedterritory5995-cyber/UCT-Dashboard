@@ -51,6 +51,11 @@ describe('StockChart wires the indicator window', () => {
     const sig = CODE.slice(at, CODE.indexOf('} catch', at))
     expect(sig).toContain(`plotWin: ${START}`)
   })
+  it('the window reaches the view the chart already has (the geometry of the outgoing frame)', () => {
+    expect(CODE).toContain('const _geom = paintedGeomRef.current')
+    expect(CODE).toMatch(/const _left = _geom && Number\.isFinite\(_geom\.width\) && Number\.isFinite\(_geom\.ro\) \? _geom\.width - _geom\.ro : 0/)
+    expect(CODE).toContain('_pw.rows = plotWindowRows(_span, _left)')
+  })
   it('the window is decided before the signature is built', () => {
     const decided = CODE.indexOf(`${START} = _whole ? 0 : plotWindowStart(`)
     expect(decided).toBeGreaterThan(0)

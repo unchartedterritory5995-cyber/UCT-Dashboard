@@ -23,6 +23,25 @@ describe('how many rows the window holds', () => {
   it('reads an unknown zoom as the floor, never as nothing', () => {
     for (const v of [undefined, null, NaN, -5, 0, Infinity]) expect(plotWindowRows(v)).toBe(PLOT_WINDOW_MIN_BARS)
   })
+  it('reaches a margin past a view that is scrolled back, so the chart does not open windowed and then widen', () => {
+    // 200 bars across, its left edge 3,000 bars left of the newest bar
+    const rows = plotWindowRows(200, 3000)
+    expect(rows).toBe(3000 + PLOT_WINDOW_MARGIN_BARS + 1)
+    // ... and the chart that opens with that window is not too narrow for that view
+    for (const n of [5000, 7422, 11762]) {
+      const start = plotWindowStart(n, rows)
+      expect(plotWindowTooNarrow({ start, fromIndex: n - 1 - 3000, toIndex: n - 1 - 2800 })).toBe(false)
+    }
+    // a zoomed-out view scrolled back: the margin is its own screen
+    expect(plotWindowRows(900, 5000)).toBe(5000 + 900 + 1)
+    const s2 = plotWindowStart(11762, plotWindowRows(900, 5000))
+    expect(plotWindowTooNarrow({ start: s2, fromIndex: 11761 - 5000, toIndex: 11761 - 4100 })).toBe(false)
+  })
+  it('a view at the present is the floor or four screens, as before', () => {
+    expect(plotWindowRows(208, 210)).toBe(PLOT_WINDOW_MIN_BARS)
+    expect(plotWindowRows(900, 905)).toBe(900 * PLOT_WINDOW_SCREENS)
+    for (const v of [undefined, null, NaN, -40, 0]) expect(plotWindowRows(208, v)).toBe(PLOT_WINDOW_MIN_BARS)
+  })
 })
 
 describe('where the window starts', () => {

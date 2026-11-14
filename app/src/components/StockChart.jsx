@@ -10901,8 +10901,13 @@ export default function StockChart({
           const _r0 = chartRef.current?.timeScale().getVisibleLogicalRange()
           if (_r0 && _r0.to > _r0.from) _span = _r0.to - _r0.from
         } catch { /* no chart yet: the floor */ }
+        // Where the view's left edge sits, in bars left of the newest bar: the outgoing
+        // frame's own geometry, measured at the top of this pass (`paintedGeomRef`), which
+        // is the geometry a symbol switch carries when it keeps a scrolled-back view.
+        const _geom = paintedGeomRef.current
+        const _left = _geom && Number.isFinite(_geom.width) && Number.isFinite(_geom.ro) ? _geom.width - _geom.ro : 0
         _pw.key = _pwKey
-        _pw.rows = plotWindowRows(_span)
+        _pw.rows = plotWindowRows(_span, _left)
       }
       const _whole = _plotWindowFullKey === _pwKey || _pinnedFull || _overlayActive || _hasOverride
         || replayMode || plotWindowDisabled()

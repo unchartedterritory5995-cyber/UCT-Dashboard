@@ -15,7 +15,9 @@
 // changes only if they could see the window's left edge, and they cannot:
 //
 //   * the window is at least `PLOT_WINDOW_MIN_BARS` rows, or `PLOT_WINDOW_SCREENS`
-//     screens of the zoom the chart opened at, whichever is more;
+//     screens of the zoom the chart opened at, whichever is more, and it always reaches
+//     a screen past wherever the view already is (a chart that carries a scrolled-back
+//     view from one symbol to the next opens with its lines under that view);
 //   * the chart watches its own visible range, and the moment the view comes within a
 //     screen of the window start it draws everything (`plotWindowTooNarrow`), and
 //     stays whole for that symbol and timeframe;
@@ -46,11 +48,20 @@ export function plotWindowDisabled() {
 
 /**
  * How many rows the window holds, decided ONCE per (symbol, timeframe) load from the
- * zoom the chart had when it opened (`visibleSpan` bars across; unknown reads as 0).
+ * view the chart had when it opened: `visibleSpan` bars across, its left edge
+ * `leftFromNewest` bars left of the newest bar (unknown reads as 0 for either). A view
+ * at the present has its left edge one screen back; a view scrolled back in history has
+ * it further, and the window then reaches the view's own margin past it, so the chart
+ * does not open windowed only to be drawn whole a frame later.
  */
-export function plotWindowRows(visibleSpan) {
+export function plotWindowRows(visibleSpan, leftFromNewest) {
   const span = Number.isFinite(visibleSpan) && visibleSpan > 0 ? visibleSpan : 0
-  return Math.max(PLOT_WINDOW_MIN_BARS, Math.ceil(span * PLOT_WINDOW_SCREENS))
+  const left = Number.isFinite(leftFromNewest) && leftFromNewest > 0 ? leftFromNewest : 0
+  return Math.max(
+    PLOT_WINDOW_MIN_BARS,
+    Math.ceil(span * PLOT_WINDOW_SCREENS),
+    Math.ceil(left + Math.max(PLOT_WINDOW_MARGIN_BARS, span)) + 1,
+  )
 }
 
 /** The index of the first row drawn. 0: everything. */
