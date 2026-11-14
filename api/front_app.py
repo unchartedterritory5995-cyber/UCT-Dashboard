@@ -48,6 +48,8 @@ import time
 import httpx
 from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response, StreamingResponse
+from starlette.middleware.cors import CORSMiddleware
+from starlette.middleware.gzip import GZipMiddleware
 from starlette.staticfiles import StaticFiles
 
 from api.services import build_manifest
@@ -95,6 +97,9 @@ PUBLIC_NOTE_PATH_PREFIXES = ("/share/n", "/p")
 PUBLIC_NOTE_HEADERS = {"X-Robots-Tag": "noindex, nofollow", "Referrer-Policy": "no-referrer"}
 
 ALL_METHODS = ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+#: Folders this app serves through a mount. A mount answers any method itself, so OPTIONS
+#: under each is routed to `web` explicitly, ahead of the mount.
+OPTIONS_TO_WEB_PREFIXES = ("/assets", "/fonts", LIVE_TRADING_ROOM_PATH)
 NON_READ_METHODS = ["POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
 
 #: RFC 9110 hop-by-hop headers: meaningful for one connection only, never forwarded.
@@ -123,6 +128,75 @@ def path_class(path: str) -> str:
     """The first two path segments, for logs. Paths carry tickers and share tokens; logs must not."""
     parts = [p for p in path.split("/") if p][:2]
     return "/" + "/".join(parts) if parts else "/"
+
+
+#: What `web` wraps every answer in, outermost first (api/main.py): gzip, then CORS. The
+#: front door wraps what it answers ITSELF in the same two library classes with the same
+#: settings, so neither a browser nor Cloudflare can tell which of the two sent an answer.
+#: Measured 2026-11-14 without them: 46 of 192 comparisons differed (Railway's edge was
+#: compressing in the front door's place, and never a PNG or a 91-byte file), and no answer
+#: to a request carrying `Origin` had `Access-Control-Allow-Origin`.
+#: `tests/test_front_app_parity.py` reads both settings out of `api.main:app`.
+GZIP_LEVEL = 5
+#: `web` declares a 1000-byte floor and it never applies: the layers inside its gzip layer
+#: hand every answer on as a stream, and the gzip class has no floor for a stream. What `web`
+#: really does is compress every answer that HAS a body. Measured on production 2026-11-14:
+#: a 91-byte /build.json arrives gzip-encoded; an empty 301 and a HEAD do not. Answers are
+#: not streams here, so a floor of one byte is that same rule.
+GZIP_MINIMUM_SIZE = 1
+CORS_OPTIONS = {"allow_origins": ["*"], "allow_methods": ["*"], "allow_headers": ["*"]}
+
+_PASSED_THROUGH = "uct.front.passed_through"
+_RAW_SEND = "uct.front.raw_send"
+
+
+def is_gzip_exempt(path: str) -> bool:
+    """Hashed assets and fonts are not compressed here, as on `web`: they ship precompressed."""
+    return path.startswith("/assets/") or path.startswith("/fonts/")
+
+
+class _GZipLocal(GZipMiddleware):
+    async def __call__(self, scope, receive, send):
+        if is_gzip_exempt(scope.get("path") or ""):
+            await self.app(scope, receive, send)
+        else:
+            await super().__call__(scope, receive, send)
+
+
+class LocalAnswerLayers:
+    """gzip and CORS for what the front door answers itself, and for nothing else.
+
+    A passed-through answer is never touched. `web` has already compressed it and added its
+    own CORS headers; a compressor in front of a stream holds events back, and a second CORS
+    layer would overwrite the origin `web` chose to allow.
+
+    Which answers are passed through is NOT restated here as a list of paths: `proxy` marks
+    the request, and this reads the mark when the first message of the answer is sent.
+
+    An OPTIONS request is never answered here. Every one goes to `web`, whose own CORS layer
+    answers a preflight.
+    """
+
+    def __init__(self, app):
+        self.app = app
+
+        async def answered(scope, receive, layered_send):
+            raw_send = scope[_RAW_SEND]
+
+            async def send(message):
+                await (raw_send if scope.get(_PASSED_THROUGH) else layered_send)(message)
+
+            await app(scope, receive, send)
+
+        self.layers = _GZipLocal(CORSMiddleware(answered, **CORS_OPTIONS),
+                                 minimum_size=GZIP_MINIMUM_SIZE, compresslevel=GZIP_LEVEL)
+
+    async def __call__(self, scope, receive, send):
+        if scope.get("type") != "http" or scope.get("method") == "OPTIONS":
+            await self.app(scope, receive, send)
+            return
+        scope[_RAW_SEND] = send
+        await self.layers(scope, receive, send)
 
 
 def create_app(dist: str | None = None, upstream: str | None = None,
@@ -159,6 +233,7 @@ def create_app(dist: str | None = None, upstream: str | None = None,
             await app.state.client.aclose()
 
     app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
+    app.add_middleware(LocalAnswerLayers)
 
     def commit() -> str:
         return os.environ.get("RAILWAY_GIT_COMMIT_SHA") or ""
@@ -185,6 +260,7 @@ def create_app(dist: str | None = None, upstream: str | None = None,
     async def proxy(request: Request) -> Response:
         client: httpx.AsyncClient = request.app.state.client
         scope = request.scope
+        scope[_PASSED_THROUGH] = True   # read by LocalAnswerLayers: this answer is `web`'s, leave it alone
         raw_path = scope.get("raw_path") or scope["path"].encode("utf-8")
         target = request.app.state.upstream + raw_path.decode("latin-1")
         if scope.get("query_string"):
@@ -234,6 +310,11 @@ def create_app(dist: str | None = None, upstream: str | None = None,
     app.add_api_route("/api/{rest:path}", proxy, methods=ALL_METHODS, include_in_schema=False)
     for _path in PROXY_PATHS:
         app.add_api_route(_path, proxy, methods=ALL_METHODS, include_in_schema=False)
+
+    # Every OPTIONS goes to `web`. A folder mount below would otherwise answer one itself (405),
+    # where `web`'s CORS layer answers a preflight.
+    for _prefix in OPTIONS_TO_WEB_PREFIXES:
+        app.add_api_route(_prefix + "/{rest:path}", proxy, methods=["OPTIONS"], include_in_schema=False)
 
     # ── the built frontend, declared the way api/main.py declares it ──────────
     assets_dir = os.path.join(dist, "assets")
