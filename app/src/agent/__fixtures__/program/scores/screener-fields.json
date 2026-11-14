@@ -1208,6 +1208,78 @@
    "agent_omit": true
   },
   {
+   "key": "rs_rating_pos",
+   "label": "RS Rating place",
+   "type": "range",
+   "unit": null,
+   "category": "relative_strength",
+   "agent_omit": true
+  },
+  {
+   "key": "rs_rating_pos_prev20",
+   "label": "Place a month ago",
+   "type": "range",
+   "unit": null,
+   "category": "relative_strength",
+   "agent_omit": true
+  },
+  {
+   "key": "rs_pos_1m",
+   "label": "1M place",
+   "type": "range",
+   "unit": null,
+   "category": "relative_strength",
+   "agent_omit": true
+  },
+  {
+   "key": "rs_pos_3m",
+   "label": "3M place",
+   "type": "range",
+   "unit": null,
+   "category": "relative_strength",
+   "agent_omit": true
+  },
+  {
+   "key": "rs_pos_6m",
+   "label": "6M place",
+   "type": "range",
+   "unit": null,
+   "category": "relative_strength",
+   "agent_omit": true
+  },
+  {
+   "key": "rs_pos_12m",
+   "label": "12M place",
+   "type": "range",
+   "unit": null,
+   "category": "relative_strength",
+   "agent_omit": true
+  },
+  {
+   "key": "rs_rating_session",
+   "label": "Ratings as of",
+   "type": "range",
+   "unit": null,
+   "category": "relative_strength",
+   "agent_omit": true
+  },
+  {
+   "key": "rs_rating_pos_n",
+   "label": "Stocks ranked",
+   "type": "range",
+   "unit": null,
+   "category": "relative_strength",
+   "agent_omit": true
+  },
+  {
+   "key": "rs_rating_score",
+   "label": "RS Rating score",
+   "type": "range",
+   "unit": null,
+   "category": "relative_strength",
+   "agent_omit": true
+  },
+  {
    "key": "atr_pct",
    "label": "ATR % of Price",
    "type": "range",
