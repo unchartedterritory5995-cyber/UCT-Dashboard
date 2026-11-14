@@ -774,3 +774,14 @@ Templates' button, HARD (4 clicks); both carry a written HARD reason and a ledge
 went HARD -> OK at 390 (3 clicks, now above the fold; the brief draws different cards by hour and member state, so this reading may not hold at every hour); row
 41's way back reads "Back to Daily brief" (same OK / HARD). The Daily brief's new doors (Journal Today's Quick actions,
 the palette) start outside the Notebook list the audit starts from and are measured by the walk instead.
+
+### 11.5 After the whole-branch review and the final fix pass (2026-11-14, `5d693ef8aa`)
+
+Master was merged in at `2c6c9bd32d` and a final fix pass in two rounds followed (ledger: "Follow-ups, the whole-branch review and the final fix pass"). Not a new full run: the fix pass touched Manage templates, the drain's carrier, the Discard branch and the AI actions frame, so the steps that read those were re-walked on a held c2 sandbox built at `5d693ef8aa` from an empty data root:
+
+| step | rows | result |
+|---|---|---|
+| `followups` (the 30 follow-up rows and coverage) | 32 | 0 FAIL |
+| `styles` (Manage templates' main paths) | 12 | 0 FAIL |
+
+The save layer's cases the walk does not hold (the unseen landing, the held label, Discard and its refusal, typing under the banner, two tabs, reopening a note the list's drain just sent) were run by the controller's own scripts against the same sandbox: 24 of 24 and 35 of 35. First-open bytes: 2,255,872 B of 2,260,793 B, PASS.
