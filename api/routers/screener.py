@@ -1149,6 +1149,14 @@ def screener_saved_list(user=Depends(require_paid)):
     if scr_saved.rs_screens_served(user):
         from api.services.screener import rs_market_state
         out["rs_market"] = rs_market_state.served()
+    # RS screens unit U13: "Tell me what joins and leaves". `{available, subscribed}`
+    # for the toggle in the list head, riding this payload for the same reason. The
+    # KEY exists only while RS_SCREEN_ALERTS_ENABLED is on and the RS screens are on
+    # for this member: otherwise the payload is the one it was.
+    from api.services.screener import rs_screen_alerts
+    rs_alerts = rs_screen_alerts.payload(user)
+    if rs_alerts is not None:
+        out["rs_alerts"] = rs_alerts
     return out
 
 

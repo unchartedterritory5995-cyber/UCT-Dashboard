@@ -2698,8 +2698,33 @@ def _run_rs_post_pass(source: str) -> None:
             from api.services.screener import membership
             mr = membership.rerecord_all()
             print(f"[scheduler] rs post-pass ({source}): screener membership re-recorded: {mr}")
+            _run_rs_screen_alerts(source, r)
     except Exception as e:  # noqa: BLE001
         print(f"[scheduler] rs post-pass ({source}) error: {type(e).__name__}: {e}")
+
+
+def _run_rs_screen_alerts(source: str, pass_receipt: dict) -> None:
+    """The RS screens' daily joined-and-left message (RS screens unit U13). Never raises.
+
+    Called by `_run_rs_post_pass` only, straight after membership was recorded again
+    for a pass that MOVED the ratings: the message describes the record that pass just
+    took, for the session it rated. So it has no cron of its own, and it comes through
+    every door that pass does (04:15 rating, 04:40 lists, the rating catch-up); the
+    module's (member, screen, session) row is what makes those say it once.
+
+    Off (`RS_SCREEN_ALERTS_ENABLED` unset or not "1"): returns before touching
+    anything. `recorded_after` is the pass's own finish time: a membership record older
+    than it was taken on the previous ratings (the nightly refused to record, or the
+    re-record failed) and is not described."""
+    try:
+        from api.services.screener import rs_screen_alerts
+        if not rs_screen_alerts.enabled():
+            return
+        ar = rs_screen_alerts.run_nightly(session=pass_receipt.get("rating_session"),
+                                          recorded_after=pass_receipt.get("finished_at"))
+        print(f"[scheduler] rs screen alerts ({source}): {ar}")
+    except Exception as e:  # noqa: BLE001
+        print(f"[scheduler] rs screen alerts ({source}) error: {type(e).__name__}: {e}")
 
 
 def _run_rs_lists() -> None:

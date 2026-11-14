@@ -12,9 +12,10 @@ export const FIRST_VISIT_TEXT = 'The strongest liquid stocks, ranked. The line u
 // `showNewLine`: the new/dropped line will draw something (it draws nothing for most answers,
 // and a separator must not be left hanging in front of the next part).
 // `pending`: the rows on view answer the previous screen; the line dims with the list.
-export function RsHeaderLine({ newLine = null, showNewLine = false, asOf = '', share = '', pending = false }) {
+// `alerts` (unit U13): the "Tell me what joins and leaves" switch, last on the line, or null.
+export function RsHeaderLine({ newLine = null, showNewLine = false, asOf = '', share = '', pending = false, alerts = null }) {
   const parts = [showNewLine ? ['new', newLine] : null, asOf ? ['asof', <span key="asof" data-testid="rs-asof">{asOf}</span>] : null,
-    share ? ['share', <span key="share" data-testid="rs-share">{share}</span>] : null].filter(Boolean)
+    share ? ['share', <span key="share" data-testid="rs-share">{share}</span>] : null, alerts ? ['alerts', alerts] : null].filter(Boolean)
   if (!parts.length) return null
   return (
     <div className={`${styles.head} ${pending ? styles.headPending : ''}`} data-testid="rs-head" data-pending={pending ? '' : undefined}>
