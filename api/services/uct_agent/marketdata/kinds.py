@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from api.services.uct_agent.marketdata import (asset_classes, bars_daily, breadth, commodity_quote, crypto_quote, earnings,
                                               index_quote, instruments, news_company, quotes, ratings, statements, themes)
-from api.services.uct_agent.marketdata import history_event_study
+from api.services.uct_agent.marketdata import catalysts_board, history_event_study
 from api.services.uct_agent.research import rs1
 
 # Symbols one read may name. A request-shape bound per kind, not a toolkit cap: the cap numbers live only
@@ -138,6 +138,20 @@ def register(registry) -> None:
         owner="agent-md", max_symbols=ONE_SYMBOL, model_isolated=True,
         description="UCT Ratings: UCT's own composite 0-99 and component scores (not an analyst rating); "
                     "as_of is the price data's last session. Shown to the member only. Params: {symbol}.",
+    ))
+    # Phase 2 (market-moving news + catalysts): UCT's catalyst board from the catalyst engine's own store, opened
+    # READ-ONLY (no _init_db, no WAL pragma, no self-heal refresh, no provider). MODEL-ISOLATED: stored headlines are
+    # third-party text and the grade / write-up are UCT-derived AI output; the reading capability (news.movers) is
+    # local-only (turn.LOCAL_ONLY_ACTIONS), so a co-occurring headline never becomes a model's stated cause.
+    registry.register(Kind(
+        name=catalysts_board.KIND, fn=catalysts_board.read_catalysts_board, validate=catalysts_board.validate,
+        freshness="periodic", owner="agent-md", max_symbols=catalysts_board.MAX_SYMBOLS, model_isolated=True,
+        description="UCT's catalyst board: the stocks UCT's catalyst engine flagged on a market date (type, tag, grade, "
+                    "gap, new vs continuing, first-news time, the engine's write-up, stored headlines with source and "
+                    "time), optionally only some symbols or one stored sector, over the last 1-"
+                    f"{catalysts_board.MAX_DAYS} stored boards; as_of is the newest board's last refresh. Co-occurring "
+                    "headlines, never established causes. Shown to the member only. "
+                    f"Params: {{date?, days?, symbols?, sector?, limit (1-{catalysts_board.MAX_LIMIT})}}.",
     ))
     # W2-B1 (agent-rs, RS-1 v1): a COMPOSED kind. It reads the served kinds above (purpose "research", so a
     # model-isolated kind refuses before admission) and the turn's one web search; every fact's figures come from

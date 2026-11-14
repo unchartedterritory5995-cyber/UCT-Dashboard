@@ -202,7 +202,9 @@ def test_MIRROR_the_servers_local_only_set_is_every_localOnly_capability():
             if "localOnly: true" in src[m.end(): nxt if nxt != -1 else len(src)]:
                 found.add(m.group(1))
     # W2-B2: history.afterEvent; journal.reviewTrades (W3 review B3): the member's own journal review is shown, never replayed to a model
-    assert found == set(turn.LOCAL_ONLY_ACTIONS) == {"breadth.show", "breadth.history", "history.afterEvent", "journal.reviewTrades"}
+    # Phase 2 catalysts: news.movers (UCT's catalyst board: stored headlines + engine write-ups; catalysts.board is model-isolated)
+    assert found == set(turn.LOCAL_ONLY_ACTIONS) == {"breadth.show", "breadth.history", "history.afterEvent", "journal.reviewTrades",
+                                                     "news.movers"}
 
 
 # ═══ 3. the one door: what a stored row may say to a model ══════════════════════════════════════════
