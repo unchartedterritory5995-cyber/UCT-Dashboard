@@ -381,7 +381,7 @@
   {
    "id": "e20.orderly",
    "field": "pattern",
-   "statement": "Orderly: no down day in the pullback larger than 2 ATR, and no down day on more than 1.5 times the 50-day average volume.",
+   "statement": "Orderly: no down day in the pullback larger than 2 ATR. A down day on more than 1.5 times the 50-day average volume is a distribution day to be mindful of and lowers the grade; it does not end the setup.",
    "measure": {
     "what": "largest down day's range / ATR(14), and the largest down day's volume / 50-day average volume",
     "op": "<=",
@@ -390,15 +390,27 @@
     "and": "down-day volume <= 1.5x the 50-day average",
     "timeframe": "daily"
    },
-   "basis": "my proposal",
+   "basis": "UCT",
    "sources": [
     "S10"
    ],
-   "status": "proposed",
+   "status": "settled",
    "gate": true,
    "grade_cue": true,
    "dossier_ref": "8.1 The pullback",
-   "evidence": "By analogy with the owner's Oops ruling against a random big red day, and Shannon on volume contracting during pullbacks (dossier 3.5). The scan enforced both; no example needed the exception."
+   "evidence": "By analogy with the owner's Oops ruling against a random big red day, and Shannon on volume contracting during pullbacks (dossier 3.5). The scan enforced both; no example needed the exception.",
+   "superseded": [
+    {
+     "statement": "Orderly: no down day in the pullback larger than 2 ATR, and no down day on more than 1.5 times the 50-day average volume.",
+     "field": "pattern",
+     "gate": true,
+     "grade_cue": true,
+     "status": "proposed",
+     "on": "2026-11-14",
+     "by": "HEAVY-DOWN"
+    }
+   ],
+   "ruling": "HEAVY-DOWN"
   },
   {
    "id": "e20.pullback_volume",
@@ -1212,8 +1224,8 @@
   },
   {
    "id": "e20.inv_heavy_down",
-   "field": "invalidation",
-   "statement": "Before entry: a down day into the line on more than 1.5 times the 50-day average volume. That is distribution, not a pullback.",
+   "field": "pattern",
+   "statement": "A down day into the line on more than 1.5 times the 50-day average volume is a distribution day to be mindful of: a warning and a lower grade, not an invalidation.",
    "measure": {
     "what": "the down day's volume / 50-day average volume",
     "op": ">",
@@ -1221,15 +1233,27 @@
     "unit": "x",
     "timeframe": "daily"
    },
-   "basis": "my proposal",
+   "basis": "UCT",
    "sources": [
     "S10"
    ],
-   "status": "proposed",
-   "gate": true,
-   "grade_cue": false,
+   "status": "settled",
+   "gate": false,
+   "grade_cue": true,
    "dossier_ref": "8.5 Before entry",
-   "evidence": "Shannon on volume contracting during pullbacks (dossier 3.5). The scan excluded such pullbacks."
+   "evidence": "Shannon on volume contracting during pullbacks (dossier 3.5). The scan excluded such pullbacks.",
+   "superseded": [
+    {
+     "statement": "Before entry: a down day into the line on more than 1.5 times the 50-day average volume. That is distribution, not a pullback.",
+     "field": "invalidation",
+     "gate": true,
+     "grade_cue": false,
+     "status": "proposed",
+     "on": "2026-11-14",
+     "by": "HEAVY-DOWN"
+    }
+   ],
+   "ruling": "HEAVY-DOWN"
   },
   {
    "id": "e20.inv_50_break",

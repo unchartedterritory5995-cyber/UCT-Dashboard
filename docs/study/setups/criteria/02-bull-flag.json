@@ -539,7 +539,7 @@
   {
    "id": "bf.no_heavy_red",
    "field": "pattern",
-   "statement": "No flag session closes red with volume of 1.5 times its 50-day average or more. One such day drops the grade; two end the flag.",
+   "statement": "A flag session that closes red on 1.5 times its 50-day volume or more is a distribution day to be mindful of: it drops the grade, but it does not end the flag.",
    "measure": {
     "what": "flag sessions closing below their open with volume >= 1.5 x the 50-day average volume",
     "op": "==",
@@ -547,16 +547,28 @@
     "unit": "sessions",
     "timeframe": "daily"
    },
-   "basis": "my proposal",
+   "basis": "UCT",
    "dossier_basis": "Edwards and Magee for the warning day (any day of notably increased volume, red or not); my proposal for the 1.5x and the red-close condition",
    "sources": [
     "S1"
    ],
-   "status": "proposed",
-   "gate": true,
+   "status": "settled",
+   "gate": false,
    "grade_cue": true,
    "dossier_ref": "8.1 rule 8; 8.5",
-   "evidence": "Edwards and Magee: any increase of volume during the formation casts suspicion on the entire pattern, and high or irregular volume marks a reversal area, not a rest. The dossier's rule 8 forbids one heavy red day while 8.5 invalidates on two; the card keeps both as written (conflicts)."
+   "evidence": "Edwards and Magee: any increase of volume during the formation casts suspicion on the entire pattern, and high or irregular volume marks a reversal area, not a rest. The dossier's rule 8 forbids one heavy red day while 8.5 invalidates on two; the card keeps both as written (conflicts).",
+   "superseded": [
+    {
+     "statement": "No flag session closes red with volume of 1.5 times its 50-day average or more. One such day drops the grade; two end the flag.",
+     "field": "pattern",
+     "gate": true,
+     "grade_cue": true,
+     "status": "proposed",
+     "on": "2026-11-14",
+     "by": "HEAVY-DOWN"
+    }
+   ],
+   "ruling": "HEAVY-DOWN"
   },
   {
    "id": "bf.holds_21ema",
@@ -1337,8 +1349,8 @@
   },
   {
    "id": "bf.inv_heavy_red",
-   "field": "invalidation",
-   "statement": "Before entry: two or more heavy red days in the flag, each on 1.5 times average volume or more. Distribution, not a rest.",
+   "field": "pattern",
+   "statement": "Two or more heavy red days in the flag, each on 1.5 times average volume or more, are a warning to be mindful of and grade it down; they are not an invalidation by themselves.",
    "measure": {
     "what": "flag sessions closing below their open with volume >= 1.5 x the 50-day average volume",
     "op": ">=",
@@ -1346,15 +1358,27 @@
     "unit": "sessions",
     "timeframe": "daily"
    },
-   "basis": "my proposal",
+   "basis": "UCT",
    "dossier_basis": "Edwards and Magee + my proposal for the count and the number",
    "sources": [
     "S1"
    ],
-   "status": "proposed",
-   "gate": true,
-   "grade_cue": false,
-   "dossier_ref": "8.5; 8.8 mistake 3"
+   "status": "settled",
+   "gate": false,
+   "grade_cue": true,
+   "dossier_ref": "8.5; 8.8 mistake 3",
+   "superseded": [
+    {
+     "statement": "Before entry: two or more heavy red days in the flag, each on 1.5 times average volume or more. Distribution, not a rest.",
+     "field": "invalidation",
+     "gate": true,
+     "grade_cue": false,
+     "status": "proposed",
+     "on": "2026-11-14",
+     "by": "HEAVY-DOWN"
+    }
+   ],
+   "ruling": "HEAVY-DOWN"
   },
   {
    "id": "bf.inv_wedge_up",

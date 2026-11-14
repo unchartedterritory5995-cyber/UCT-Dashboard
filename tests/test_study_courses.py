@@ -127,6 +127,7 @@ def _first(doc, key):
     (lambda d: d["sources"][0].update(url="http://insecure.example"), "url must be https"),
     (lambda d: _first(d, "q01").update(q="Is the tape strong today?"), "untaught house word"),
     (lambda d: _first(d, "q01").update(why="That's the firm's rule."), "never 'the firm'"),
+    (lambda d: _first(d, "q01").update(q="In stock talk, which price is the bid?"), "banned phrase"),
     (lambda d: _first(d, "q01").update(why="That's the bid. It is 42 cents."), "number 42 is not in a cited quote"),
     (lambda d: _first(d, "q01").update(q="It's important to know: which price is the bid?"), "importer: voice"),
     (lambda d: _first(d, "q01").update(lesson_line=" ".join(["w"] * 23)), "lesson_line is 23 words"),

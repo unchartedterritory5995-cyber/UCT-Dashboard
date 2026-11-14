@@ -1069,6 +1069,30 @@
    "source": "h2",
    "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
    "claim": "D-013: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
+  },
+  {
+   "id": "hd1",
+   "source": "h2",
+   "quote": "Does not void the setup, just more mindful of the distribution day but by no means invalid",
+   "claim": "Our ruling: a heavy-volume down day does not void the setup. Be mindful of the distribution day, but it is by no means invalid."
+  },
+  {
+   "id": "hd2",
+   "source": "h2",
+   "quote": "does not void the setup. Treat it as a distribution day to be mindful of, a warning and a lower grade, never an invalidation.",
+   "claim": "Our rule: a heavy-volume down day in a pullback is a distribution day to be mindful of, a warning and a lower grade, never an invalidation."
+  },
+  {
+   "id": "cn1",
+   "source": "c1",
+   "quote": "A flag session that closes red on 1.5 times its 50-day volume or more is a distribution day to be mindful of: it drops the grade, but it does not end the flag.",
+   "claim": "A heavy red day in the flag is a distribution day to be mindful of: it drops the grade, but it does not end the flag."
+  },
+  {
+   "id": "cn2",
+   "source": "c1",
+   "quote": "Two or more heavy red days in the flag, each on 1.5 times average volume or more, are a warning to be mindful of and grade it down; they are not an invalidation by themselves.",
+   "claim": "Two or more heavy red days in the flag are a warning and a lower grade, not an invalidation by themselves."
   }
  ],
  "walkthroughs": [
@@ -2571,36 +2595,38 @@
    "criterion": "bf.no_heavy_red",
    "q": "What do those two days do to the flag?",
    "choices": [
+    "They lower the grade; it stays valid",
     "They end it; it is distribution",
-    "They drop it a grade, no more",
     "Nothing; only break volume counts",
     "They raise it; weak holders sold out"
    ],
-   "answer": "They end it; it is distribution",
-   "why": "They end it. A red close on 1.5 times the 50-day average volume or more is a heavy red day, and 1.8 is over that line. One such day drops the grade. Two end the flag as distribution, not a rest.",
-   "lesson_line": "One heavy red day is a mark against. Two is supply, and the rest is over.",
+   "answer": "They lower the grade; it stays valid",
+   "why": "They lower the grade. A red close on 1.5 times the 50-day average volume or more is heavy, and 1.8 is over that line. It is a distribution day to be mindful of: a warning and a lower grade. It does not end the flag.",
+   "lesson_line": "A heavy red day is a warning and a lower grade, not a veto.",
    "facts": [
-    "c09",
-    "c15",
+    "cn1",
+    "cn2",
+    "hd1",
+    "hd2",
     "z3"
    ],
    "wrong": {
     "Nothing; only break volume counts": "Volume is read inside the flag too. Zanger: it should contract during the pause.",
-    "They drop it a grade, no more": "One such day drops the grade. A second ends the flag.",
-    "They raise it; weak holders sold out": "Heavy red volume is selling. Two or more such days are distribution, not a rest."
+    "They raise it; weak holders sold out": "Heavy red volume is selling. It lowers the grade and never raises it.",
+    "They end it; it is distribution": "Heavy red days are a distribution warning. They lower the grade, but they do not end the flag by themselves."
    },
    "house": true,
    "story": "Days three and five of a flag each close red on 1.8 times the 50-day average volume. Every other day was quiet.",
-   "simple": "Two heavy red days end the flag. It is distribution, not a rest.",
+   "simple": "Two heavy red days lower the grade and warn of distribution, but they do not end the flag.",
    "tier": "extended",
    "risk": {
-    "score": 3,
+    "score": 2,
     "reasons": [
-     "+2 rests on the card's proposed volume thresholds",
-     "+1 fixed before (a choice was shortened)"
+     "rests on the settled HEAVY-DOWN ruling (2026-11-14)",
+     "the 1.5x line is a card number"
     ]
    },
-   "batch": "wave1"
+   "batch": "heavy"
   },
   {
    "key": "q40",
@@ -4079,37 +4105,39 @@
    "q": "Is the flag still a buy?",
    "story": "A tight flag rests on the 21-day EMA. On two of its days the stock closed red on 1.6 times its 50-day average volume. Today is quiet.",
    "choices": [
+    "Yes; two heavy days lower the grade",
     "No; that is distribution, not a rest",
-    "Yes; the flag held the 21-day EMA",
     "Yes; heavy red days are normal in flags",
     "No; any red close ends a flag"
    ],
-   "answer": "No; that is distribution, not a rest",
-   "why": "No. Two or more heavy red days in the flag is distribution, not a rest. Each closed red on 1.6 times its 50-day average volume, past the 1.5 line. Holding the 21-day EMA does not rescue it.",
-   "lesson_line": "Two heavy red days is selling, not resting.",
+   "answer": "Yes; two heavy days lower the grade",
+   "why": "Yes, at a lower grade. Two heavy red days in the flag, each on 1.6 times its 50-day average volume, are a warning to be mindful of. They lower the grade and do not end the flag. Holding the 21-day EMA still counts.",
+   "lesson_line": "Two heavy red days are a warning and a lower grade, not the end of the flag.",
    "facts": [
-    "c15",
-    "c09"
+    "cn2",
+    "cn1",
+    "hd1",
+    "hd2"
    ],
    "wrong": {
-    "Yes; the flag held the 21-day EMA": "Holding the 21-day EMA is a separate test. Two heavy red days end the flag anyway.",
-    "Yes; heavy red days are normal in flags": "Heavy red days are selling, not resting. Two or more of them in the flag is distribution.",
-    "No; any red close ends a flag": "Only a heavy red day counts: red on 1.5 times average volume or more. A plain red close does not end a flag."
+    "Yes; heavy red days are normal in flags": "Heavy red days are not normal. They are selling to be mindful of, and they lower the grade.",
+    "No; any red close ends a flag": "A plain red close does not end a flag. Even a heavy red day only lowers the grade.",
+    "No; that is distribution, not a rest": "Heavy red days are a distribution warning. They lower the grade, but they do not void the flag."
    },
    "house": true,
-   "simple": "Two heavy red days mean heavy selling, so this is distribution, not a rest, and the flag ends.",
+   "simple": "Yes, but at a lower grade, because two heavy red days are a warning and do not end the flag.",
    "deeper": {
-    "trap": "Holding the 21-day EMA is a separate test. A flag can sit on the line and still be sold into. Count the heavy red days: one drops the grade, two end the flag. A quiet day today does not erase them."
+    "trap": "Do not read heavy red days as a veto, and do not ignore them either. Each one is a warning and lowers the grade. The flag still ends on a close under the 21-day EMA that is not reclaimed, not on volume."
    },
    "tier": "extended",
    "risk": {
-    "score": 3,
+    "score": 2,
     "reasons": [
-     "rests on the card's 1.5x line",
-     "a number that may change"
+     "rests on the settled HEAVY-DOWN ruling (2026-11-14)",
+     "the 1.5x line is a card number"
     ]
    },
-   "batch": "wave1"
+   "batch": "heavy"
   },
   {
    "key": "q77",
@@ -4128,25 +4156,24 @@
     },
     "round": 1
    },
-   "why": "1.5 times. Divide the day's volume of 2,700,000 by the average of 1,800,000. That is right on the line: on our card, a red day on 1.5 times average volume or more is heavy.",
-   "lesson_line": "Divide the day's volume by the average. 1.5 times or more is heavy.",
+   "why": "1.5 times. Divide the day's volume of 2,700,000 by the average of 1,800,000. That is right on the line: on our card, a red day on 1.5 times average volume or more is heavy. A heavy red day is a warning that lowers the grade.",
+   "lesson_line": "Divide the day's volume by the average. 1.5 times or more is heavy, a warning.",
    "facts": [
-    "c15",
-    "c09"
+    "cn1",
+    "cn2"
    ],
    "suffix": " times",
    "house": true,
    "simple": "Divide the day's volume by the average to get 1.5 times, which is right at the heavy line.",
    "tier": "core",
    "risk": {
-    "score": 3,
+    "score": 2,
     "reasons": [
      "a computed key",
-     "rests on the card's 1.5x line",
-     "a number that may change"
+     "the 1.5x line is a card number"
     ]
    },
-   "batch": "tomcq",
+   "batch": "heavy",
    "choices": [
     "0.5 times",
     "0.7 times",
@@ -4529,8 +4556,8 @@
   "q39": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "c09 and c15 agree that two heavy red days end the flag; 1.8 is over the 1.5 line. Leans on a card grade row for the one-day case (E50 owner flag). Note: q05's leak of this answer is fixed under q05."
+   "fixed": true,
+   "notes": "Re-key right: two heavy red days (1.8x) are a warning and a lower grade, the flag stays valid, per bf.inv_heavy_red. Facts hd1/hd2/cn1/cn2 quote the ruling and card verbatim. Stale 'drop a grade, no more' choice replaced. Only fix: one 23-word sentence in why cut to 21."
   },
   "q40": {
    "status": "pass",
@@ -4753,16 +4780,16 @@
    "notes": "Breakeven kept."
   },
   "q76": {
-   "status": "cut",
+   "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "q39's key text 'Drops the grade; a second ends it' already gives this answer (two heavy red days end the flag), and both test c09/c15. Same fact tested twice; q39 and q77 cover the criterion."
+   "fixed": true,
+   "notes": "Not on the list but the same fact; re-keyed to yes at a lower grade, correct under bf.inv_heavy_red; the 21-day EMA close rule is left standing (agrees with q27/q51). Fix: right answer was the only choice with a comma and 'stay wary', so it stood out; reworded to the Yes; pattern."
   },
   "q77": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "2.7/1.8=1.5; 0.5 excess; 0.7 flipped; 15 slip. Why fine."
+   "notes": "Arithmetic unchanged (2,700,000 / 1,800,000 = 1.5). Stale c09/c15 facts swapped for cn1/cn2, which match the updated card word for word. Added line keeps heavy as a warning, no over-reach."
   },
   "q78": {
    "status": "pass",

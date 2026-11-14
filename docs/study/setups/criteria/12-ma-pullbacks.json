@@ -1019,8 +1019,8 @@
   },
   {
    "id": "map.inv_heavy_close",
-   "field": "invalidation",
-   "statement": "Before entry: the touch day closes under the line on more than 1.5 times the 50-day volume. That is distribution, not a pullback.",
+   "field": "pattern",
+   "statement": "A touch day that closes under the line is not the hold yet. Heavy volume on it, more than 1.5 times the 50-day, is a distribution day to be mindful of, not an invalidation by itself.",
    "measure": {
     "what": "touch-day volume / 50-day average volume, with the close under the line",
     "op": ">",
@@ -1028,15 +1028,27 @@
     "unit": "x",
     "timeframe": "daily"
    },
-   "basis": "my proposal",
+   "basis": "UCT",
    "sources": [
     "S16"
    ],
-   "status": "proposed",
-   "gate": true,
-   "grade_cue": false,
+   "status": "settled",
+   "gate": false,
+   "grade_cue": true,
    "dossier_ref": "8.5",
-   "evidence": "The scanners reject a touch bar over 1.1x to 1.5x the prior 20 bars' volume; the quiet-pullback consensus of 8.1."
+   "evidence": "The scanners reject a touch bar over 1.1x to 1.5x the prior 20 bars' volume; the quiet-pullback consensus of 8.1.",
+   "superseded": [
+    {
+     "statement": "Before entry: the touch day closes under the line on more than 1.5 times the 50-day volume. That is distribution, not a pullback.",
+     "field": "invalidation",
+     "gate": true,
+     "grade_cue": false,
+     "status": "proposed",
+     "on": "2026-11-14",
+     "by": "HEAVY-DOWN"
+    }
+   ],
+   "ruling": "HEAVY-DOWN"
   },
   {
    "id": "map.inv_line_flat",

@@ -4236,8 +4236,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Right answer re-derived from the cited quotes and matches the key; no second defensible answer, tell or ungrounded number found.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Keep is right: recovering undercut shakeout is a grade cue; no heavy pullback volume content."
   },
   "q50": {
    "status": "cut",

@@ -7167,19 +7167,19 @@
  },
  {
   "answer_json": {
-   "answer": "They end it; it is distribution"
+   "answer": "They lower the grade; it stays valid"
   },
   "difficulty": 2,
   "id": "si_449e03b9eb63",
   "lesson_origin": "session",
-  "lesson_text": "They end it. A red close on 1.5 times the 50-day average volume or more is a heavy red day, and 1.8 is over that line. One such day drops the grade. Two end the flag as distribution, not a rest. One heavy red day is a mark against. Two is supply, and the rest is over.",
+  "lesson_text": "They lower the grade. A red close on 1.5 times the 50-day average volume or more is heavy, and 1.8 is over that line. It is a distribution day to be mindful of: a warning and a lower grade. It does not end the flag. A heavy red day is a warning and a lower grade, not a veto.",
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "They end it; it is distribution",
+    "They lower the grade; it stays valid",
     "They raise it; weak holders sold out",
     "Nothing; only break volume counts",
-    "They drop it a grade, no more"
+    "They end it; it is distribution"
    ],
    "kind": "mcq",
    "q": "What do those two days do to the flag?",
@@ -7192,16 +7192,30 @@
      {
       "accessed": "2026-11-10",
       "name": "UCT setup criteria card: Bull Flag criteria card (docs/study/setups/criteria/02-bull-flag.json, as of 2026-11-09)",
-      "quote": "No flag session closes red with volume of 1.5 times its 50-day average or more. One such day drops the grade; two end the flag.",
+      "quote": "A flag session that closes red on 1.5 times its 50-day volume or more is a distribution day to be mindful of: it drops the grade, but it does not end the flag.",
       "tier": 3,
       "url": "repo:docs/study/setups/criteria/02-bull-flag.json"
      },
      {
       "accessed": "2026-11-10",
       "name": "UCT setup criteria card: Bull Flag criteria card (docs/study/setups/criteria/02-bull-flag.json, as of 2026-11-09)",
-      "quote": "Before entry: two or more heavy red days in the flag, each on 1.5 times average volume or more. Distribution, not a rest.",
+      "quote": "Two or more heavy red days in the flag, each on 1.5 times average volume or more, are a warning to be mindful of and grade it down; they are not an invalidation by themselves.",
       "tier": 3,
       "url": "repo:docs/study/setups/criteria/02-bull-flag.json"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "Does not void the setup, just more mindful of the distribution day but by no means invalid",
+      "tier": 3,
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "does not void the setup. Treat it as a distribution day to be mindful of, a warning and a lower grade, never an invalidation.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      },
      {
       "accessed": "2026-11-09",
@@ -7211,20 +7225,20 @@
       "url": "https://www.chartpattern.com/flags-pennants.cfm"
      }
     ],
-    "summary": "One heavy red day in the flag drops the grade; two end the flag. Two or more heavy red days in the flag is distribution, not a rest. Zanger: volume contracts in the pause and rises on the breakout."
+    "summary": "A heavy red day in the flag is a distribution day to be mindful of: it drops the grade, but it does not end the flag. Two or more heavy red days in the flag are a warning and a lower grade, not an invalidation by themselves. Our ruling: a heavy-volume down day does not void the setup. Be mindful of the distribution day, but it is by no means invalid. Our rule: a heavy-volume down day in a pullback is a distribution day to be mindful of, a warning and a lower grade, never an invalidation. Zanger: volume contracts in the pause and rises on the breakout."
    },
    "facts": {
-    "given": "What do those two days do to the flag? Days three and five of a flag each close red on 1.8 times the 50-day average volume. Every other day was quiet. They end it; it is distribution They drop it a grade, no more Nothing; only break volume counts They raise it; weak holders sold out"
+    "given": "What do those two days do to the flag? Days three and five of a flag each close red on 1.8 times the 50-day average volume. Every other day was quiet. They lower the grade; it stays valid They end it; it is distribution Nothing; only break volume counts They raise it; weak holders sold out"
    },
-   "lesson_line": "One heavy red day is a mark against. Two is supply, and the rest is over.",
-   "simple": "Two heavy red days end the flag. It is distribution, not a rest.",
+   "lesson_line": "A heavy red day is a warning and a lower grade, not a veto.",
+   "simple": "Two heavy red days lower the grade and warn of distribution, but they do not end the flag.",
    "tier": "extended",
    "unit": "SET.08",
-   "why": "They end it. A red close on 1.5 times the 50-day average volume or more is a heavy red day, and 1.8 is over that line. One such day drops the grade. Two end the flag as distribution, not a rest.",
+   "why": "They lower the grade. A red close on 1.5 times the 50-day average volume or more is heavy, and 1.8 is over that line. It is a distribution day to be mindful of: a warning and a lower grade. It does not end the flag.",
    "wrong": {
     "Nothing; only break volume counts": "Volume is read inside the flag too. Zanger: it should contract during the pause.",
-    "They drop it a grade, no more": "One such day drops the grade. A second ends the flag.",
-    "They raise it; weak holders sold out": "Heavy red volume is selling. Two or more such days are distribution, not a rest."
+    "They end it; it is distribution": "Heavy red days are a distribution warning. They lower the grade, but they do not end the flag by themselves.",
+    "They raise it; weak holders sold out": "Heavy red volume is selling. It lowers the grade and never raises it."
    }
   },
   "review_status": "draft",
@@ -9520,12 +9534,91 @@
  },
  {
   "answer_json": {
+   "answer": "Yes; two heavy days lower the grade"
+  },
+  "difficulty": 3,
+  "id": "si_607374c63c33",
+  "lesson_origin": "session",
+  "lesson_text": "Yes, at a lower grade. Two heavy red days in the flag, each on 1.6 times its 50-day average volume, are a warning to be mindful of. They lower the grade and do not end the flag. Holding the 21-day EMA still counts. Two heavy red days are a warning and a lower grade, not the end of the flag.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "No; that is distribution, not a rest",
+    "Yes; two heavy days lower the grade",
+    "No; any red close ends a flag",
+    "Yes; heavy red days are normal in flags"
+   ],
+   "kind": "mcq",
+   "q": "Is the flag still a buy?",
+   "story": "A tight flag rests on the 21-day EMA. On two of its days the stock closed red on 1.6 times its 50-day average volume. Today is quiet.",
+   "subject": "SET.08#q76"
+  },
+  "reveal_json": {
+   "deeper": {
+    "trap": "Do not read heavy red days as a veto, and do not ignore them either. Each one is a warning and lowers the grade. The flag still ends on a close under the 21-day EMA that is not reclaimed, not on volume."
+   },
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Bull Flag criteria card (docs/study/setups/criteria/02-bull-flag.json, as of 2026-11-09)",
+      "quote": "Two or more heavy red days in the flag, each on 1.5 times average volume or more, are a warning to be mindful of and grade it down; they are not an invalidation by themselves.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/02-bull-flag.json"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: Bull Flag criteria card (docs/study/setups/criteria/02-bull-flag.json, as of 2026-11-09)",
+      "quote": "A flag session that closes red on 1.5 times its 50-day volume or more is a distribution day to be mindful of: it drops the grade, but it does not end the flag.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/02-bull-flag.json"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "Does not void the setup, just more mindful of the distribution day but by no means invalid",
+      "tier": 3,
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "does not void the setup. Treat it as a distribution day to be mindful of, a warning and a lower grade, never an invalidation.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
+     }
+    ],
+    "summary": "Two or more heavy red days in the flag are a warning and a lower grade, not an invalidation by themselves. A heavy red day in the flag is a distribution day to be mindful of: it drops the grade, but it does not end the flag. Our ruling: a heavy-volume down day does not void the setup. Be mindful of the distribution day, but it is by no means invalid. Our rule: a heavy-volume down day in a pullback is a distribution day to be mindful of, a warning and a lower grade, never an invalidation."
+   },
+   "facts": {
+    "given": "Is the flag still a buy? A tight flag rests on the 21-day EMA. On two of its days the stock closed red on 1.6 times its 50-day average volume. Today is quiet. Yes; two heavy days lower the grade No; that is distribution, not a rest Yes; heavy red days are normal in flags No; any red close ends a flag"
+   },
+   "lesson_line": "Two heavy red days are a warning and a lower grade, not the end of the flag.",
+   "simple": "Yes, but at a lower grade, because two heavy red days are a warning and do not end the flag.",
+   "tier": "extended",
+   "unit": "SET.08",
+   "why": "Yes, at a lower grade. Two heavy red days in the flag, each on 1.6 times its 50-day average volume, are a warning to be mindful of. They lower the grade and do not end the flag. Holding the 21-day EMA still counts.",
+   "wrong": {
+    "No; any red close ends a flag": "A plain red close does not end a flag. Even a heavy red day only lowers the grade.",
+    "No; that is distribution, not a rest": "Heavy red days are a distribution warning. They lower the grade, but they do not void the flag.",
+    "Yes; heavy red days are normal in flags": "Heavy red days are not normal. They are selling to be mindful of, and they lower the grade."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.bull_flag",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.08.json#q76",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
    "answer": "1.5 times"
   },
   "difficulty": 2,
   "id": "si_3cdf991a678a",
   "lesson_origin": "session",
-  "lesson_text": "1.5 times. Divide the day's volume of 2,700,000 by the average of 1,800,000. That is right on the line: on our card, a red day on 1.5 times average volume or more is heavy. Divide the day's volume by the average. 1.5 times or more is heavy.",
+  "lesson_text": "1.5 times. Divide the day's volume of 2,700,000 by the average of 1,800,000. That is right on the line: on our card, a red day on 1.5 times average volume or more is heavy. A heavy red day is a warning that lowers the grade. Divide the day's volume by the average. 1.5 times or more is heavy, a warning.",
   "module": "SET",
   "prompt_json": {
    "choices": [
@@ -9544,19 +9637,19 @@
      {
       "accessed": "2026-11-10",
       "name": "UCT setup criteria card: Bull Flag criteria card (docs/study/setups/criteria/02-bull-flag.json, as of 2026-11-09)",
-      "quote": "Before entry: two or more heavy red days in the flag, each on 1.5 times average volume or more. Distribution, not a rest.",
+      "quote": "A flag session that closes red on 1.5 times its 50-day volume or more is a distribution day to be mindful of: it drops the grade, but it does not end the flag.",
       "tier": 3,
       "url": "repo:docs/study/setups/criteria/02-bull-flag.json"
      },
      {
       "accessed": "2026-11-10",
       "name": "UCT setup criteria card: Bull Flag criteria card (docs/study/setups/criteria/02-bull-flag.json, as of 2026-11-09)",
-      "quote": "No flag session closes red with volume of 1.5 times its 50-day average or more. One such day drops the grade; two end the flag.",
+      "quote": "Two or more heavy red days in the flag, each on 1.5 times average volume or more, are a warning to be mindful of and grade it down; they are not an invalidation by themselves.",
       "tier": 3,
       "url": "repo:docs/study/setups/criteria/02-bull-flag.json"
      }
     ],
-    "summary": "Two or more heavy red days in the flag is distribution, not a rest. One heavy red day in the flag drops the grade; two end the flag."
+    "summary": "A heavy red day in the flag is a distribution day to be mindful of: it drops the grade, but it does not end the flag. Two or more heavy red days in the flag are a warning and a lower grade, not an invalidation by themselves."
    },
    "facts": {
     "calc": {
@@ -9570,11 +9663,11 @@
     },
     "given": "The 50-day average volume is 1,800,000 shares. A red flag day trades 2,700,000. How many times average is that? 0.5 times 0.7 times 1.5 times 15 times"
    },
-   "lesson_line": "Divide the day's volume by the average. 1.5 times or more is heavy.",
+   "lesson_line": "Divide the day's volume by the average. 1.5 times or more is heavy, a warning.",
    "simple": "Divide the day's volume by the average to get 1.5 times, which is right at the heavy line.",
    "tier": "core",
    "unit": "SET.08",
-   "why": "1.5 times. Divide the day's volume of 2,700,000 by the average of 1,800,000. That is right on the line: on our card, a red day on 1.5 times average volume or more is heavy.",
+   "why": "1.5 times. Divide the day's volume of 2,700,000 by the average of 1,800,000. That is right on the line: on our card, a red day on 1.5 times average volume or more is heavy. A heavy red day is a warning that lowers the grade.",
    "wrong": {
     "0.5 times": "Counted only the extra volume above average.",
     "0.7 times": "Flipped the division: average over the day's volume.",
@@ -36390,7 +36483,7 @@
   "difficulty": 1,
   "id": "si_22f1268020b8",
   "lesson_origin": "session",
-  "lesson_text": "Small red days on quiet volume. Orderly means no down day larger than 2 ATR and none on more than 1.5 times the 50-day average volume. Shannon: volume contracts during pullbacks. TraderLion: a slow drift into the EMAs is ideal. Orderly means small bars and quiet volume. A big red day is selling, not resting.",
+  "lesson_text": "Small red days on quiet volume. Orderly means no down day larger than 2 ATR. A down day on more than 1.5 times the 50-day volume is a warning and a lower grade, not a veto. Shannon: volume contracts during pullbacks. TraderLion: a slow drift into the EMAs is ideal. A quiet drift of small bars grades best. A heavy red day is a warning and a lower grade, not a veto.",
   "module": "SET",
   "prompt_json": {
    "choices": [
@@ -36400,7 +36493,7 @@
     "Small red days on quiet volume"
    ],
    "kind": "mcq",
-   "q": "Which pullback into the 20 EMA is orderly by our card?",
+   "q": "Which pullback into the 20 EMA grades best by our card?",
    "subject": "SET.14#q10"
   },
   "reveal_json": {
@@ -36409,9 +36502,23 @@
      {
       "accessed": "2026-11-10",
       "name": "UCT setup criteria card: 20 EMA Pullback criteria card (docs/study/setups/criteria/11-ema20-pullback.json, as of 2026-11-09)",
-      "quote": "Orderly: no down day in the pullback larger than 2 ATR, and no down day on more than 1.5 times the 50-day average volume.",
+      "quote": "Orderly: no down day in the pullback larger than 2 ATR.",
       "tier": 3,
       "url": "repo:docs/study/setups/criteria/11-ema20-pullback.json"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: 20 EMA Pullback criteria card (docs/study/setups/criteria/11-ema20-pullback.json, as of 2026-11-09)",
+      "quote": "A down day into the line on more than 1.5 times the 50-day average volume is a distribution day to be mindful of: a warning and a lower grade, not an invalidation.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/11-ema20-pullback.json"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "Does not void the setup, just more mindful of the distribution day but by no means invalid",
+      "tier": 3,
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      },
      {
       "accessed": "2026-11-09",
@@ -36428,19 +36535,19 @@
       "url": "https://web.archive.org/web/20250702020000/https://traderlion.com/technical-analysis/trading-the-ema-crossback/"
      }
     ],
-    "summary": "Orderly: no down day larger than 2 ATR and none on more than 1.5 times the 50-day average volume. Shannon looks for volume contracting during pullbacks. TraderLion: a slow drift into the EMAs is the ideal pullback."
+    "summary": "Orderly means no down day in the pullback larger than 2 ATR. A down day into the line on more than 1.5 times the 50-day volume is a warning and a lower grade, not an invalidation. Our ruling: a heavy-volume down day does not void the setup. Be mindful of the distribution day, but it is by no means invalid. Shannon looks for volume contracting during pullbacks. TraderLion: a slow drift into the EMAs is the ideal pullback."
    },
    "facts": {
-    "given": "Which pullback into the 20 EMA is orderly by our card? Small red days on quiet volume One huge red day to the line A red day on heavy volume A gap down past the 50-day"
+    "given": "Which pullback into the 20 EMA grades best by our card? Small red days on quiet volume One huge red day to the line A red day on heavy volume A gap down past the 50-day"
    },
-   "lesson_line": "Orderly means small bars and quiet volume. A big red day is selling, not resting.",
-   "simple": "A quiet drift of small red days is orderly, while big or heavy-volume down days are selling.",
+   "lesson_line": "A quiet drift of small bars grades best. A heavy red day is a warning and a lower grade, not a veto.",
+   "simple": "A quiet drift of small red days grades best, while a heavy-volume down day is a warning that lowers the grade.",
    "tier": "core",
    "unit": "SET.14",
-   "why": "Small red days on quiet volume. Orderly means no down day larger than 2 ATR and none on more than 1.5 times the 50-day average volume. Shannon: volume contracts during pullbacks. TraderLion: a slow drift into the EMAs is ideal.",
+   "why": "Small red days on quiet volume. Orderly means no down day larger than 2 ATR. A down day on more than 1.5 times the 50-day volume is a warning and a lower grade, not a veto. Shannon: volume contracts during pullbacks. TraderLion: a slow drift into the EMAs is ideal.",
    "wrong": {
     "A gap down past the 50-day": "That broke the 50-day. The 20 EMA pullback is off.",
-    "A red day on heavy volume": "A down day on more than 1.5 times the 50-day volume is distribution, not a rest.",
+    "A red day on heavy volume": "A down day on more than 1.5 times the 50-day volume is a distribution day. It lowers the grade but does not end the setup.",
     "One huge red day to the line": "Orderly allows no down day larger than 2 ATR. One huge red bar breaks that."
    }
   },
@@ -37153,6 +37260,71 @@
   "skill_id": "setup.ema20_pullback",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.14.json#q21",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "1.5"
+  },
+  "difficulty": 1,
+  "id": "si_8cb8738f1bfd",
+  "lesson_origin": "session",
+  "lesson_text": "1.5. A down day into the line on more than 1.5 times the 50-day volume is a distribution day to be mindful of. It is a warning and a lower grade, not an invalidation. Shannon looks for volume contracting during pullbacks. Quiet into the line is a rest. Loud into the line is a warning and a lower grade.",
+  "module": "SET",
+  "prompt_json": {
+   "bank": [
+    "1.5",
+    "1.2",
+    "2",
+    "3",
+    "1"
+   ],
+   "kind": "fill",
+   "q": "Tap the number that fits the blank.",
+   "sentence": "A down day into the line on more than ___ times the 50-day volume is a distribution day to be mindful of.",
+   "subject": "SET.14#q22"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: 20 EMA Pullback criteria card (docs/study/setups/criteria/11-ema20-pullback.json, as of 2026-11-09)",
+      "quote": "A down day into the line on more than 1.5 times the 50-day average volume is a distribution day to be mindful of: a warning and a lower grade, not an invalidation.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/11-ema20-pullback.json"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "Does not void the setup, just more mindful of the distribution day but by no means invalid",
+      "tier": 3,
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "AlphaTrends (Brian Shannon, CMT): New to Alphatrends? (FAQ, undated)",
+      "quote": "Brian looks for volume expanding in the direction of the primary trend and contracting during pullbacks.",
+      "tier": 2,
+      "url": "https://alphatrends.net/new-visitors/"
+     }
+    ],
+    "summary": "A down day into the line on more than 1.5 times the 50-day volume is a warning and a lower grade, not an invalidation. Our ruling: a heavy-volume down day does not void the setup. Be mindful of the distribution day, but it is by no means invalid. Shannon looks for volume contracting during pullbacks."
+   },
+   "facts": {
+    "given": "Tap the number that fits the blank. A down day into the line on more than ___ times the 50-day volume is a distribution day to be mindful of."
+   },
+   "lesson_line": "Quiet into the line is a rest. Loud into the line is a warning and a lower grade.",
+   "simple": "It is 1.5 times the 50-day average volume. A down day above that is a warning and lowers the grade.",
+   "tier": "core",
+   "unit": "SET.14",
+   "why": "1.5. A down day into the line on more than 1.5 times the 50-day volume is a distribution day to be mindful of. It is a warning and a lower grade, not an invalidation. Shannon looks for volume contracting during pullbacks."
+  },
+  "review_status": "draft",
+  "skill_id": "setup.ema20_pullback",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.14.json#q22",
   "type": "recall",
   "version": 1
  },
@@ -39024,44 +39196,58 @@
  },
  {
   "answer_json": {
-   "answer": "No; distribution into the line"
+   "answer": "Yes; the volume lowers its grade"
   },
   "difficulty": 3,
   "id": "si_00ed74fab4ce",
   "lesson_origin": "session",
-  "lesson_text": "No. A down day into the line on more than 1.5 times the 50-day average volume is distribution, not a pullback. This one ran on 2.3 times, so the setup is off even though the hold closed above the line. INTC showed this in November 2017. One loud red day into the line is the sellers' tell. The hold does not erase it.",
+  "lesson_text": "Yes, at a lower grade. A down day on more than 1.5 times the 50-day volume is a distribution day: a warning, not an invalidation. This one ran on 2.3 times, but the hold closed above the line, so the setup stands. INTC had one in November 2017. One loud red day into the line is a warning and a lower grade. It does not void the setup.",
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "Yes; the hold looks clean",
-    "No; distribution into the line",
-    "Yes; red-day volume is good",
-    "No; five days is too long"
+    "No; heavy selling voids the setup",
+    "Yes; the volume lowers its grade",
+    "Yes; heavy red-day volume is good",
+    "No; five days is too long a pullback"
    ],
    "kind": "mcq",
-   "q": "Take it?",
+   "q": "Is it still a valid setup?",
    "story": "A five-day pullback to the 20 EMA holds and closes above the line. One of its down days ran on 2.3x the 50-day volume.",
    "subject": "SET.14#q54"
   },
   "reveal_json": {
    "deeper": {
-    "trap": "The hold candle looks clean, so the eye skips the days before it. The test covers the whole pullback: one down day on more than 1.5 times the 50-day volume ends the setup. INTC in 2017 had one on 2.3 times."
+    "trap": "The loud red day is easy to read as a veto. Our rule: a heavy down day is a warning and a lower grade, never an invalidation. Do not wave it through either. Grade it down. INTC in 2017 had one on 2.3 times."
    },
    "depth": {
     "sources": [
      {
       "accessed": "2026-11-10",
       "name": "UCT setup criteria card: 20 EMA Pullback criteria card (docs/study/setups/criteria/11-ema20-pullback.json, as of 2026-11-09)",
-      "quote": "Orderly: no down day in the pullback larger than 2 ATR, and no down day on more than 1.5 times the 50-day average volume.",
+      "quote": "A down day into the line on more than 1.5 times the 50-day average volume is a distribution day to be mindful of: a warning and a lower grade, not an invalidation.",
       "tier": 3,
       "url": "repo:docs/study/setups/criteria/11-ema20-pullback.json"
      },
      {
       "accessed": "2026-11-10",
       "name": "UCT setup criteria card: 20 EMA Pullback criteria card (docs/study/setups/criteria/11-ema20-pullback.json, as of 2026-11-09)",
-      "quote": "Before entry: a down day into the line on more than 1.5 times the 50-day average volume. That is distribution, not a pullback.",
+      "quote": "Orderly: no down day in the pullback larger than 2 ATR.",
       "tier": 3,
       "url": "repo:docs/study/setups/criteria/11-ema20-pullback.json"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "Does not void the setup, just more mindful of the distribution day but by no means invalid",
+      "tier": 3,
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "does not void the setup. Treat it as a distribution day to be mindful of, a warning and a lower grade, never an invalidation.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      },
      {
       "accessed": "2026-11-10",
@@ -39085,20 +39271,20 @@
       "url": "repo:docs/study/setups/criteria/11-ema20-pullback.json"
      }
     ],
-    "summary": "Orderly: no down day larger than 2 ATR and none on more than 1.5 times the 50-day average volume. A down day into the line on more than 1.5 times the 50-day average volume is distribution, not a pullback. INTC 2017-11-20 near-miss: a down day in the pullback on 2.3x the 50-day volume against the 1.5x rule; distribution into the line. Stopped at 0R. Shannon looks for volume contracting during pullbacks. The pullback lasts 2 to 15 sessions from the swing high to the hold session."
+    "summary": "A down day into the line on more than 1.5 times the 50-day volume is a warning and a lower grade, not an invalidation. Orderly means no down day in the pullback larger than 2 ATR. Our ruling: a heavy-volume down day does not void the setup. Be mindful of the distribution day, but it is by no means invalid. Our rule: a heavy-volume down day in a pullback is a distribution day to be mindful of, a warning and a lower grade, never an invalidation. INTC 2017-11-20 near-miss: a down day in the pullback on 2.3x the 50-day volume against the 1.5x rule; distribution into the line. Stopped at 0R. Shannon looks for volume contracting during pullbacks. The pullback lasts 2 to 15 sessions from the swing high to the hold session."
    },
    "facts": {
-    "given": "Take it? A five-day pullback to the 20 EMA holds and closes above the line. One of its down days ran on 2.3x the 50-day volume. No; distribution into the line Yes; the hold looks clean Yes; red-day volume is good No; five days is too long"
+    "given": "Is it still a valid setup? A five-day pullback to the 20 EMA holds and closes above the line. One of its down days ran on 2.3x the 50-day volume. Yes; the volume lowers its grade No; heavy selling voids the setup Yes; heavy red-day volume is good No; five days is too long a pullback"
    },
-   "lesson_line": "One loud red day into the line is the sellers' tell. The hold does not erase it.",
-   "simple": "No, because a down day on 2.3x the 50-day volume is selling into the line, and the limit is 1.5x.",
+   "lesson_line": "One loud red day into the line is a warning and a lower grade. It does not void the setup.",
+   "simple": "Yes, but at a lower grade, because a down day on 2.3x the 50-day volume is a warning and not a veto.",
    "tier": "extended",
    "unit": "SET.14",
-   "why": "No. A down day into the line on more than 1.5 times the 50-day average volume is distribution, not a pullback. This one ran on 2.3 times, so the setup is off even though the hold closed above the line. INTC showed this in November 2017.",
+   "why": "Yes, at a lower grade. A down day on more than 1.5 times the 50-day volume is a distribution day: a warning, not an invalidation. This one ran on 2.3 times, but the hold closed above the line, so the setup stands. INTC had one in November 2017.",
    "wrong": {
-    "No; five days is too long": "A pullback may last 2 to 15 sessions, so five days is fine. The problem is the heavy down day.",
-    "Yes; red-day volume is good": "Heavy volume on a down day into the line is selling. Shannon wants volume contracting on pullbacks.",
-    "Yes; the hold looks clean": "The hold candle is clean, but the heavy down day before it already ended the setup."
+    "No; five days is too long a pullback": "A pullback may last 2 to 15 sessions, so five days is fine. The heavy down day only lowers the grade.",
+    "No; heavy selling voids the setup": "It lowers the grade. It does not void the setup.",
+    "Yes; heavy red-day volume is good": "Heavy volume on a down day is selling. Shannon wants volume contracting on pullbacks, so it lowers the grade."
    }
   },
   "review_status": "draft",
@@ -40221,6 +40407,96 @@
   "skill_id": "setup.ema20_pullback",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.14.json#q98",
+  "type": "scenario",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Keep it; the heavy day lowers the grade"
+  },
+  "difficulty": 1,
+  "id": "si_0a84432de8e2",
+  "lesson_origin": "session",
+  "lesson_text": "Keep it, at a lower grade. The card calls a down day on more than 1.5 times the 50-day average volume a distribution day to be mindful of. We treat volume as a grade, not a requirement. So this is a B- cue, not a veto. A quiet drift is an A+ cue. The hold session and the trigger still decide the buy. Volume grades the setup. It does not gate it.",
+  "module": "SET",
+  "prompt_json": {
+   "choices": [
+    "Grade it higher; volume shows interest",
+    "Keep it; the heavy day lowers the grade",
+    "Drop it; heavy selling voids the setup",
+    "Ignore it; volume has no effect on grade"
+   ],
+   "kind": "mcq",
+   "q": "How do you treat that heavy red day?",
+   "story": "A leader drifts six sessions into its rising 20 EMA. One red day on the way down traded 1.7 times its 50-day average volume. Today a session holds the line.",
+   "subject": "SET.14#q99"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: 20 EMA Pullback criteria card (docs/study/setups/criteria/11-ema20-pullback.json, as of 2026-11-09)",
+      "quote": "e20.pullback_volume: heavy selling into the line",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/11-ema20-pullback.json"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "Volume raises the grade; it is not a requirement for the setup to count (except where volume IS the setup, as proposed: HVE and the burst setups).",
+      "tier": 3,
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: 20 EMA Pullback criteria card (docs/study/setups/criteria/11-ema20-pullback.json, as of 2026-11-09)",
+      "quote": "A down day into the line on more than 1.5 times the 50-day average volume is a distribution day to be mindful of: a warning and a lower grade, not an invalidation.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/11-ema20-pullback.json"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "Does not void the setup, just more mindful of the distribution day but by no means invalid",
+      "tier": 3,
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "AlphaTrends (Brian Shannon, CMT): New to Alphatrends? (FAQ, undated)",
+      "quote": "Brian looks for volume expanding in the direction of the primary trend and contracting during pullbacks.",
+      "tier": 2,
+      "url": "https://alphatrends.net/new-visitors/"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup criteria card: 20 EMA Pullback criteria card (docs/study/setups/criteria/11-ema20-pullback.json, as of 2026-11-09)",
+      "quote": "e20.pullback_volume: a quiet pullback, lower volume each day, small bars, or a sideways drift that lets the line catch up",
+      "tier": 3,
+      "url": "repo:docs/study/setups/criteria/11-ema20-pullback.json"
+     }
+    ],
+    "summary": "The B- cue: heavy selling into the line. Volume raises the grade; it is not a requirement for the setup to count (D-006). A down day into the line on more than 1.5 times the 50-day volume is a warning and a lower grade, not an invalidation. Our ruling: a heavy-volume down day does not void the setup. Be mindful of the distribution day, but it is by no means invalid. Shannon looks for volume contracting during pullbacks. The A+ cue: a quiet pullback, lower volume each day, small bars, or a sideways drift."
+   },
+   "facts": {
+    "given": "How do you treat that heavy red day? A leader drifts six sessions into its rising 20 EMA. One red day on the way down traded 1.7 times its 50-day average volume. Today a session holds the line. Keep it; the heavy day lowers the grade Drop it; heavy selling voids the setup Grade it higher; volume shows interest Ignore it; volume has no effect on grade"
+   },
+   "lesson_line": "Volume grades the setup. It does not gate it.",
+   "simple": "Keep it, but grade it lower, because heavy selling into the line hurts the grade and does not end the setup.",
+   "tier": "core",
+   "unit": "SET.14",
+   "why": "Keep it, at a lower grade. The card calls a down day on more than 1.5 times the 50-day average volume a distribution day to be mindful of. We treat volume as a grade, not a requirement. So this is a B- cue, not a veto. A quiet drift is an A+ cue. The hold session and the trigger still decide the buy.",
+   "wrong": {
+    "Drop it; heavy selling voids the setup": "Volume is not a requirement for the setup to count. A heavy red day lowers the grade. It does not void the setup.",
+    "Grade it higher; volume shows interest": "Heavy selling into the line is a B- cue. Volume that raises the grade is quiet on the way down and heavier on the way up.",
+    "Ignore it; volume has no effect on grade": "Volume does move the grade. A quiet pullback is an A+ cue and heavy selling into the line is a B- cue."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "setup.ema20_pullback",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/SET/SET.14.json#q99",
   "type": "scenario",
   "version": 1
  },
@@ -151493,42 +151769,49 @@
  },
  {
   "answer_json": {
-   "answer": "No, a heavy close under the line"
+   "answer": "It lowers the grade; it is no veto"
   },
   "difficulty": 3,
   "id": "si_51ef6b50a528",
   "lesson_origin": "session",
-  "lesson_text": "No. A close under the line on more than 1.5 times the 50-day volume is distribution, not a pullback. This close came on 4.5 times, far past that. The card drops it before entry, and a reclaim tomorrow does not bring it back. A heavy close under the line is selling. Skip it.",
+  "lesson_text": "It lowers the grade, and it is no veto. A close under the line on more than 1.5 times the 50-day volume is a distribution day, so be mindful of it. This one came on 4.5 times. It is a warning, not an invalidation, and the close under the line is not the hold yet. Heavy selling into the line lowers the grade. It does not void the setup.",
   "module": "SET",
   "prompt_json": {
    "choices": [
-    "No, the 50-day is too deep",
-    "Yes, it just tests the 50-day",
-    "No, a heavy close under the line",
-    "Yes, if it reclaims it tomorrow"
+    "It changes nothing; volume is ignored",
+    "It voids the setup; no trade at all",
+    "It lowers the grade; it is no veto",
+    "It raises the grade; buyers stepped in"
    ],
    "kind": "mcq",
-   "q": "Is this a pullback to buy?",
+   "q": "How should the 4.5 times volume change your view?",
    "story": "TSM, 2025. A stock sits on its 50-day, then closes under it on 4.5 times its 50-day volume.",
    "subject": "SET.43#q56"
   },
   "reveal_json": {
    "deeper": {
-    "trap": "Not every close under the line is a skip. A pullback allows at most two, the second reclaimed at once. What makes this one a skip is the volume, 4.5 times the 50-day average."
+    "trap": "Trap: heavy volume feels like a veto. It is a distribution day to be mindful of, so the grade drops. A pullback also allows at most two closes under the line, the second reclaimed at once. The close is what still needs repair, not the volume."
    },
    "depth": {
     "sources": [
      {
-      "accessed": "2026-11-10",
-      "name": "UCT setup research (examples read from our own daily bars): Pullbacks to the moving averages dossier, sections 13 and 14: examples, failures and near-misses from our data",
-      "quote": "TSM 2025-02-05 (a close under the 50-day on 4.5x the 50-day volume, map.inv_heavy_close)",
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "A heavy-volume down day during a pullback (for example 1.5 times the 50-day volume into the line) does not void the setup.",
       "tier": 3,
-      "url": "repo:docs/study/setups/research/12-ma-pullbacks.md#13-examples-from-our-data"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "Treat it as a distribution day to be mindful of, a warning and a lower grade, never an invalidation.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      },
      {
       "accessed": "2026-11-10",
       "name": "UCT setup criteria card: Pullback to the Moving Averages criteria card (docs/study/setups/criteria/12-ma-pullbacks.json, as of 2026-11-09)",
-      "quote": "Before entry: the touch day closes under the line on more than 1.5 times the 50-day volume. That is distribution, not a pullback.",
+      "quote": "A touch day that closes under the line is not the hold yet. Heavy volume on it, more than 1.5 times the 50-day, is a distribution day to be mindful of, not an invalidation by itself.",
       "tier": 3,
       "url": "repo:docs/study/setups/criteria/12-ma-pullbacks.json"
      },
@@ -151541,26 +151824,26 @@
      },
      {
       "accessed": "2026-11-10",
-      "name": "UCT setup criteria card: Pullback to the Moving Averages criteria card (docs/study/setups/criteria/12-ma-pullbacks.json, as of 2026-11-09)",
-      "quote": "this card's own trades are the 10-day in a fast leader that has ridden its 10 EMA, and the 50-day when the low reaches it with the 200-day far below.",
+      "name": "UCT setup research (examples read from our own daily bars): Pullbacks to the moving averages dossier, sections 13 and 14: examples, failures and near-misses from our data",
+      "quote": "TSM 2025-02-05 (a close under the 50-day on 4.5x the 50-day volume, map.inv_heavy_close)",
       "tier": 3,
-      "url": "repo:docs/study/setups/criteria/12-ma-pullbacks.json"
+      "url": "repo:docs/study/setups/research/12-ma-pullbacks.md#13-examples-from-our-data"
      }
     ],
-    "summary": "TSM 2025-02-05: a close under the 50-day on 4.5x the 50-day volume. Card: a close under the line on more than 1.5 times the 50-day volume is distribution. Card: a pullback allows at most two closes under the line, the second reclaimed at once. Card: this card's trades are the 10-day in a fast leader and the 50-day with the 200-day far below."
+    "summary": "Owner: a heavy-volume down day in a pullback, such as 1.5 times the 50-day volume, does not void the setup. Owner: treat it as a distribution day to be mindful of, a warning and a lower grade, never an invalidation. Card: a close under the line is not the hold yet; heavy volume on it is a distribution day to be mindful of, not an invalidation. Card: a pullback allows at most two closes under the line, the second reclaimed at once. TSM 2025-02-05: a close under the 50-day on 4.5x the 50-day volume."
    },
    "facts": {
-    "given": "Is this a pullback to buy? TSM, 2025. A stock sits on its 50-day, then closes under it on 4.5 times its 50-day volume. Yes, it just tests the 50-day No, a heavy close under the line Yes, if it reclaims it tomorrow No, the 50-day is too deep"
+    "given": "How should the 4.5 times volume change your view? TSM, 2025. A stock sits on its 50-day, then closes under it on 4.5 times its 50-day volume. It voids the setup; no trade at all It lowers the grade; it is no veto It raises the grade; buyers stepped in It changes nothing; volume is ignored"
    },
-   "lesson_line": "A heavy close under the line is selling. Skip it.",
-   "simple": "No. A close under the line on more than 1.5 times the 50-day volume is selling, not a pullback.",
+   "lesson_line": "Heavy selling into the line lowers the grade. It does not void the setup.",
+   "simple": "Heavy volume on a close under the line is a distribution warning. It lowers the grade but does not void the setup.",
    "tier": "extended",
    "unit": "SET.43",
-   "why": "No. A close under the line on more than 1.5 times the 50-day volume is distribution, not a pullback. This close came on 4.5 times, far past that. The card drops it before entry, and a reclaim tomorrow does not bring it back.",
+   "why": "It lowers the grade, and it is no veto. A close under the line on more than 1.5 times the 50-day volume is a distribution day, so be mindful of it. This one came on 4.5 times. It is a warning, not an invalidation, and the close under the line is not the hold yet.",
    "wrong": {
-    "No, the 50-day is too deep": "This card does buy the 50-day, when the low reaches it with the 200-day far below. The heavy close is the problem, not the line.",
-    "Yes, if it reclaims it tomorrow": "The card drops it before entry. Heavy selling is not a pullback.",
-    "Yes, it just tests the 50-day": "A close under the line on more than 1.5 times the 50-day volume is distribution."
+    "It changes nothing; volume is ignored": "Volume is a grade cue on our card. Heavy selling into the line lowers the grade.",
+    "It raises the grade; buyers stepped in": "A close under the line on heavy volume is selling. It lowers the grade, it does not raise it.",
+    "It voids the setup; no trade at all": "Heavy selling is a warning and a lower grade. It never voids the setup by itself."
    }
   },
   "review_status": "draft",

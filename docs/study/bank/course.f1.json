@@ -6814,7 +6814,7 @@
     "Shares the public can trade"
    ],
    "kind": "mcq",
-   "q": "In stock talk, what is a company's float?",
+   "q": "What is a company's float?",
    "subject": "float"
   },
   "reveal_json": {
@@ -6852,7 +6852,7 @@
     "summary": "The float is the outstanding shares the public can trade, leaving out insiders' holdings and restricted stock. The public float is the shares everyday investors can trade, and pump-and-dump schemes try to buy up a big part of it. The float is the shares available for trading; short interest is often measured against it. Buying, selling or shorting a stock does not change its float."
    },
    "facts": {
-    "given": "In stock talk, what is a company's float? Shares the public can trade Every share the company issued Shares sold short right now Shares traded in one day"
+    "given": "What is a company's float? Shares the public can trade Every share the company issued Shares sold short right now Shares traded in one day"
    },
    "lesson_line": "The float is the supply you and I can actually buy and sell.",
    "simple": "The float is the shares the public can trade, because insiders' shares and restricted stock are left out.",

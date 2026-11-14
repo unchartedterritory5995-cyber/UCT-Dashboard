@@ -3923,7 +3923,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc pct_change(56.50, 60.00) = 6.19 -> 6.2, past h11's 4%. Void choice correctly ruled out by c14. h12 quoted verbatim in the why; deeper's 'distance grows by everything paid above 56.50' is right. Half-size choice ruled out by C28 (never). No second answer."
+   "notes": "Correct keep. False match: about chasing 6.2% past the trigger on a news gap (4% rule). No volume content."
   },
   "q44": {
    "status": "pass",
@@ -3935,8 +3935,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Derived 'void' from c14 first; matches. The 5-session note separates the two void tests; the 50-day note rests on c10 (setup 12). Choices 25-27 chars, no tell. q66's restatement of this rule is fixed there.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Correct keep. A close under the 50-day before the trigger voids the Holy Grail (hg.setup_void). That is the close-under-the-line rule, which HEAVY-DOWN explicitly leaves unchanged; no volume is mentioned."
   },
   "q46": {
    "status": "pass",

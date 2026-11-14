@@ -46,3 +46,10 @@ rule names the evidence.
 14. **Show where to find it.** "Explain how you can find the move on our app or how you can calculate it yourself." When a
     question uses a number a trader looks up (implied move, float, earnings date, relative strength), the explanation
     says where to find it in the UCT app or how to work it out by hand.
+15. **Examples obey our own rules.** "I would never trade something that only trades 15K shares a day. We have liquidity
+    minimums." A scenario must not put the member in a trade our rules forbid (under $10, under $20 million a day, thin
+    names), unless the question is about spotting that rule. Use stocks we would actually trade.
+16. **Never write "stock talk".** "Don't use the word stock talk, that's the name of a dude that I hate on Twitter." The
+    validator now rejects it (courses_lib.BANNED_PHRASES).
+17. **Our universe is mostly $1 billion and up.** "I don't really trade small caps though. Very rarely under $1B but
+    sometimes." Examples should use the kinds of stocks we trade; a small-cap is the exception, labelled as one.

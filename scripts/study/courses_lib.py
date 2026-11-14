@@ -42,6 +42,9 @@ HOUSE_WORDS = re.compile(r"\b(the dial|the band|heat|the tape|the loop|regime)\b
 BANNED_CHOICES = re.compile(r"\b(all of the above|none of the above|both a and b)\b", re.I)
 #: OWNER_PRINCIPLES rule 11: "quit calling us THE FIRM". Checked in every member-facing field of every track.
 OUR_NAME = re.compile(r"\bthe firm('s)?\b", re.I)
+#: phrases the owner has banned from member text (2026-11-14: "don't use the word stock talk, that's the name of a
+#: dude that I hate on Twitter").
+BANNED_PHRASES = re.compile(r"\bstock ?talk\b", re.I)
 VERIFY_STATUSES = ("pass", "fix", "cut")
 
 # ── the overbuild fields (docs/study/OVERBUILD_PLAN.md): all optional, all additive ──────────────────────────────
@@ -440,6 +443,12 @@ def question_problems(q: dict, *, unit: dict, facts: dict, sources: dict, skills
     for c in list(q.get("choices") or []) + list((q.get("wrong") or {}).values()):
         if OUR_NAME.search(str(c)):
             out.append(f"{str(c)[:30]!r}: never 'the firm' (say UCT or we)")
+    texts = [q.get(f) for f in ("q", "story", "why", "lesson_line", "sentence", "simple")] + list(q.get("choices") or []) \
+        + list((q.get("wrong") or {}).values()) + list((q.get("deeper") or {}).values())
+    for t in texts:
+        m = BANNED_PHRASES.search(str(t or ""))
+        if m:
+            out.append(f"banned phrase {m.group(0)!r} (owner, 2026-11-14)")
     ans = q.get("answer")
     if fmt in ("mcq", "scenario"):
         ch = q.get("choices") or []

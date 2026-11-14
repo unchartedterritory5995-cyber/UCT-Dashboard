@@ -903,6 +903,24 @@
    "source": "h2",
    "quote": "A gap up past 3R at the open is not an automatic sell. Selling part at the open on a big gap is one choice he may make by judgment, never a rule",
    "claim": "Owner: a gap past 3R is not an automatic sell. Selling part at the open is a judgment, never a rule."
+  },
+  {
+   "id": "hv1",
+   "source": "h2",
+   "quote": "A heavy-volume down day during a pullback (for example 1.5 times the 50-day volume into the line) does not void the setup.",
+   "claim": "Owner: a heavy-volume down day in a pullback, such as 1.5 times the 50-day volume, does not void the setup."
+  },
+  {
+   "id": "hv2",
+   "source": "h2",
+   "quote": "Treat it as a distribution day to be mindful of, a warning and a lower grade, never an invalidation.",
+   "claim": "Owner: treat it as a distribution day to be mindful of, a warning and a lower grade, never an invalidation."
+  },
+  {
+   "id": "c28n",
+   "source": "c1",
+   "quote": "A touch day that closes under the line is not the hold yet. Heavy volume on it, more than 1.5 times the 50-day, is a distribution day to be mindful of, not an invalidation by itself.",
+   "claim": "Card: a close under the line is not the hold yet; heavy volume on it is a distribution day to be mindful of, not an invalidation."
   }
  ],
  "walkthroughs": [
@@ -3018,42 +3036,43 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "map.inv_heavy_close",
-   "q": "Is this a pullback to buy?",
+   "q": "How should the 4.5 times volume change your view?",
    "choices": [
-    "Yes, it just tests the 50-day",
-    "No, a heavy close under the line",
-    "Yes, if it reclaims it tomorrow",
-    "No, the 50-day is too deep"
+    "It voids the setup; no trade at all",
+    "It lowers the grade; it is no veto",
+    "It raises the grade; buyers stepped in",
+    "It changes nothing; volume is ignored"
    ],
-   "answer": "No, a heavy close under the line",
-   "why": "No. A close under the line on more than 1.5 times the 50-day volume is distribution, not a pullback. This close came on 4.5 times, far past that. The card drops it before entry, and a reclaim tomorrow does not bring it back.",
-   "lesson_line": "A heavy close under the line is selling. Skip it.",
+   "answer": "It lowers the grade; it is no veto",
+   "why": "It lowers the grade, and it is no veto. A close under the line on more than 1.5 times the 50-day volume is a distribution day, so be mindful of it. This one came on 4.5 times. It is a warning, not an invalidation, and the close under the line is not the hold yet.",
+   "lesson_line": "Heavy selling into the line lowers the grade. It does not void the setup.",
    "facts": [
-    "dTSM",
-    "c28",
+    "hv1",
+    "hv2",
+    "c28n",
     "l2",
-    "l1b"
+    "dTSM"
    ],
    "wrong": {
-    "Yes, it just tests the 50-day": "A close under the line on more than 1.5 times the 50-day volume is distribution.",
-    "Yes, if it reclaims it tomorrow": "The card drops it before entry. Heavy selling is not a pullback.",
-    "No, the 50-day is too deep": "This card does buy the 50-day, when the low reaches it with the 200-day far below. The heavy close is the problem, not the line."
+    "It voids the setup; no trade at all": "Heavy selling is a warning and a lower grade. It never voids the setup by itself.",
+    "It raises the grade; buyers stepped in": "A close under the line on heavy volume is selling. It lowers the grade, it does not raise it.",
+    "It changes nothing; volume is ignored": "Volume is a grade cue on our card. Heavy selling into the line lowers the grade."
    },
    "house": true,
    "story": "TSM, 2025. A stock sits on its 50-day, then closes under it on 4.5 times its 50-day volume.",
-   "simple": "No. A close under the line on more than 1.5 times the 50-day volume is selling, not a pullback.",
+   "simple": "Heavy volume on a close under the line is a distribution warning. It lowers the grade but does not void the setup.",
    "deeper": {
-    "trap": "Not every close under the line is a skip. A pullback allows at most two, the second reclaimed at once. What makes this one a skip is the volume, 4.5 times the 50-day average."
+    "trap": "Trap: heavy volume feels like a veto. It is a distribution day to be mindful of, so the grade drops. A pullback also allows at most two closes under the line, the second reclaimed at once. The close is what still needs repair, not the volume."
    },
    "tier": "extended",
    "risk": {
-    "score": 4,
+    "score": 3,
     "reasons": [
-     "+2 proposed card number (1.5x, map.inv_heavy_close)",
-     "+2 the TSM example comes from the scan's not-charted list, owner to confirm"
+     "rests on the owner's HEAVY-DOWN ruling of 2026-11-14 (a heavy down day is a warning and a lower grade, never an invalidation)",
+     "the TSM example comes from the scan's not-charted list, owner to confirm"
     ]
    },
-   "batch": "wave4"
+   "batch": "heavy"
   },
   {
    "key": "q57",
@@ -4589,8 +4608,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c28 verbatim: close under the line on more than 1.5x 50-day volume is distribution; 4.5x is from dTSM. 50-day wrong note rests on l1b. TSM name flagged for the owner.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Edit agrees with HEAVY-DOWN without over-reaching: 4.5x close under the line is a distribution warning and a lower grade, not a veto; 'close under the line is not the hold yet' and 'at most two closes, second reclaimed at once' are kept (l2 and c28n support them). Right answer right; the three wrong ones are wrong and their 'wrong' keys match the choice texts exactly. hv1 and hv2 quotes are word for word from the HEAVY-DOWN reading (DECISIONS.md line 2771, source h2 already in lesson); c28n quote matches statement of map.inv_heavy_close in 12-ma-pullbacks.json word for word. Style ok (q 54 cha"
   },
   "q57": {
    "status": "cut",

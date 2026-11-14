@@ -912,6 +912,30 @@
    "source": "h2",
    "quote": "Volume raises the grade; it is not a requirement for the setup to count (except where volume IS the setup, as proposed: HVE and the burst setups).",
    "claim": "Volume raises the grade; it is not a requirement for the setup to count (D-006)."
+  },
+  {
+   "id": "hd1",
+   "source": "h2",
+   "quote": "Does not void the setup, just more mindful of the distribution day but by no means invalid",
+   "claim": "Our ruling: a heavy-volume down day does not void the setup. Be mindful of the distribution day, but it is by no means invalid."
+  },
+  {
+   "id": "hd2",
+   "source": "h2",
+   "quote": "does not void the setup. Treat it as a distribution day to be mindful of, a warning and a lower grade, never an invalidation.",
+   "claim": "Our rule: a heavy-volume down day in a pullback is a distribution day to be mindful of, a warning and a lower grade, never an invalidation."
+  },
+  {
+   "id": "cn3",
+   "source": "c1",
+   "quote": "Orderly: no down day in the pullback larger than 2 ATR.",
+   "claim": "Orderly means no down day in the pullback larger than 2 ATR."
+  },
+  {
+   "id": "cn4",
+   "source": "c1",
+   "quote": "A down day into the line on more than 1.5 times the 50-day average volume is a distribution day to be mindful of: a warning and a lower grade, not an invalidation.",
+   "claim": "A down day into the line on more than 1.5 times the 50-day volume is a warning and a lower grade, not an invalidation."
   }
  ],
  "walkthroughs": [
@@ -1305,7 +1329,7 @@
    "rung": 2,
    "format": "mcq",
    "criterion": "e20.orderly",
-   "q": "Which pullback into the 20 EMA is orderly by our card?",
+   "q": "Which pullback into the 20 EMA grades best by our card?",
    "choices": [
     "Small red days on quiet volume",
     "One huge red day to the line",
@@ -1313,28 +1337,31 @@
     "A gap down past the 50-day"
    ],
    "answer": "Small red days on quiet volume",
-   "why": "Small red days on quiet volume. Orderly means no down day larger than 2 ATR and none on more than 1.5 times the 50-day average volume. Shannon: volume contracts during pullbacks. TraderLion: a slow drift into the EMAs is ideal.",
-   "lesson_line": "Orderly means small bars and quiet volume. A big red day is selling, not resting.",
+   "why": "Small red days on quiet volume. Orderly means no down day larger than 2 ATR. A down day on more than 1.5 times the 50-day volume is a warning and a lower grade, not a veto. Shannon: volume contracts during pullbacks. TraderLion: a slow drift into the EMAs is ideal.",
+   "lesson_line": "A quiet drift of small bars grades best. A heavy red day is a warning and a lower grade, not a veto.",
    "facts": [
-    "c05",
+    "cn3",
+    "cn4",
+    "hd1",
     "a02",
     "t01"
    ],
    "wrong": {
     "One huge red day to the line": "Orderly allows no down day larger than 2 ATR. One huge red bar breaks that.",
-    "A red day on heavy volume": "A down day on more than 1.5 times the 50-day volume is distribution, not a rest.",
+    "A red day on heavy volume": "A down day on more than 1.5 times the 50-day volume is a distribution day. It lowers the grade but does not end the setup.",
     "A gap down past the 50-day": "That broke the 50-day. The 20 EMA pullback is off."
    },
    "house": true,
-   "simple": "A quiet drift of small red days is orderly, while big or heavy-volume down days are selling.",
+   "simple": "A quiet drift of small red days grades best, while a heavy-volume down day is a warning that lowers the grade.",
    "tier": "core",
    "risk": {
     "score": 2,
     "reasons": [
-     "the 2 ATR and 1.5x limits are proposed card numbers"
+     "rests on the settled HEAVY-DOWN ruling (2026-11-14)",
+     "the 1.5x line is a card number"
     ]
    },
-   "batch": "wave2"
+   "batch": "heavy"
   },
   {
    "key": "q11",
@@ -1727,7 +1754,7 @@
    "format": "fill",
    "criterion": "e20.inv_heavy_down",
    "q": "Tap the number that fits the blank.",
-   "sentence": "A down day into the line on more than ___ times the 50-day average volume is distribution, not a pullback.",
+   "sentence": "A down day into the line on more than ___ times the 50-day volume is a distribution day to be mindful of.",
    "bank": [
     "1.5",
     "1.2",
@@ -1736,22 +1763,24 @@
     "1"
    ],
    "answer": "1.5",
-   "why": "1.5. A down day into the line on more than 1.5 times the 50-day average volume is distribution, not a pullback. The setup is off before any trigger. Shannon looks for volume contracting during pullbacks.",
-   "lesson_line": "Quiet into the line is a rest. Loud into the line is selling.",
+   "why": "1.5. A down day into the line on more than 1.5 times the 50-day volume is a distribution day to be mindful of. It is a warning and a lower grade, not an invalidation. Shannon looks for volume contracting during pullbacks.",
+   "lesson_line": "Quiet into the line is a rest. Loud into the line is a warning and a lower grade.",
    "facts": [
-    "c16",
+    "cn4",
+    "hd1",
     "a02"
    ],
    "house": true,
-   "simple": "It is 1.5 times the 50-day average volume, and a red day above that is heavy selling, not a rest.",
+   "simple": "It is 1.5 times the 50-day average volume. A down day above that is a warning and lowers the grade.",
    "tier": "core",
    "risk": {
     "score": 2,
     "reasons": [
-     "the 1.5x limit is a proposed card number"
+     "rests on the settled HEAVY-DOWN ruling (2026-11-14)",
+     "the 1.5x line is a card number"
     ]
    },
-   "batch": "wave2"
+   "batch": "heavy"
   },
   {
    "key": "q23",
@@ -2947,43 +2976,45 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "e20.orderly",
-   "q": "Take it?",
+   "q": "Is it still a valid setup?",
    "choices": [
-    "No; distribution into the line",
-    "Yes; the hold looks clean",
-    "Yes; red-day volume is good",
-    "No; five days is too long"
+    "Yes; the volume lowers its grade",
+    "No; heavy selling voids the setup",
+    "Yes; heavy red-day volume is good",
+    "No; five days is too long a pullback"
    ],
-   "answer": "No; distribution into the line",
-   "why": "No. A down day into the line on more than 1.5 times the 50-day average volume is distribution, not a pullback. This one ran on 2.3 times, so the setup is off even though the hold closed above the line. INTC showed this in November 2017.",
-   "lesson_line": "One loud red day into the line is the sellers' tell. The hold does not erase it.",
+   "answer": "Yes; the volume lowers its grade",
+   "why": "Yes, at a lower grade. A down day on more than 1.5 times the 50-day volume is a distribution day: a warning, not an invalidation. This one ran on 2.3 times, but the hold closed above the line, so the setup stands. INTC had one in November 2017.",
+   "lesson_line": "One loud red day into the line is a warning and a lower grade. It does not void the setup.",
    "facts": [
-    "c05",
-    "c16",
+    "cn4",
+    "cn3",
+    "hd1",
+    "hd2",
     "d18",
     "a02",
     "c04"
    ],
    "wrong": {
-    "Yes; red-day volume is good": "Heavy volume on a down day into the line is selling. Shannon wants volume contracting on pullbacks.",
-    "Yes; the hold looks clean": "The hold candle is clean, but the heavy down day before it already ended the setup.",
-    "No; five days is too long": "A pullback may last 2 to 15 sessions, so five days is fine. The problem is the heavy down day."
+    "No; heavy selling voids the setup": "It lowers the grade. It does not void the setup.",
+    "Yes; heavy red-day volume is good": "Heavy volume on a down day is selling. Shannon wants volume contracting on pullbacks, so it lowers the grade.",
+    "No; five days is too long a pullback": "A pullback may last 2 to 15 sessions, so five days is fine. The heavy down day only lowers the grade."
    },
    "house": true,
    "story": "A five-day pullback to the 20 EMA holds and closes above the line. One of its down days ran on 2.3x the 50-day volume.",
-   "simple": "No, because a down day on 2.3x the 50-day volume is selling into the line, and the limit is 1.5x.",
+   "simple": "Yes, but at a lower grade, because a down day on 2.3x the 50-day volume is a warning and not a veto.",
    "deeper": {
-    "trap": "The hold candle looks clean, so the eye skips the days before it. The test covers the whole pullback: one down day on more than 1.5 times the 50-day volume ends the setup. INTC in 2017 had one on 2.3 times."
+    "trap": "The loud red day is easy to read as a veto. Our rule: a heavy down day is a warning and a lower grade, never an invalidation. Do not wave it through either. Grade it down. INTC in 2017 had one on 2.3 times."
    },
    "tier": "extended",
    "risk": {
-    "score": 3,
+    "score": 2,
     "reasons": [
-     "the 1.5x volume line is a proposed number",
-     "fixed before by the checker"
+     "rests on the settled HEAVY-DOWN ruling (2026-11-14)",
+     "the 1.5x line is a card number"
     ]
    },
-   "batch": "wave2"
+   "batch": "heavy"
   },
   {
    "key": "q55",
@@ -3726,6 +3757,41 @@
    "house": true,
    "tier": "core",
    "batch": "cover"
+  },
+  {
+   "key": "q99",
+   "skill": "setup.ema20_pullback",
+   "rung": 3,
+   "format": "scenario",
+   "criterion": "e20.inv_heavy_down",
+   "story": "A leader drifts six sessions into its rising 20 EMA. One red day on the way down traded 1.7 times its 50-day average volume. Today a session holds the line.",
+   "q": "How do you treat that heavy red day?",
+   "choices": [
+    "Keep it; the heavy day lowers the grade",
+    "Drop it; heavy selling voids the setup",
+    "Grade it higher; volume shows interest",
+    "Ignore it; volume has no effect on grade"
+   ],
+   "answer": "Keep it; the heavy day lowers the grade",
+   "why": "Keep it, at a lower grade. The card calls a down day on more than 1.5 times the 50-day average volume a distribution day to be mindful of. We treat volume as a grade, not a requirement. So this is a B- cue, not a veto. A quiet drift is an A+ cue. The hold session and the trigger still decide the buy.",
+   "simple": "Keep it, but grade it lower, because heavy selling into the line hurts the grade and does not end the setup.",
+   "lesson_line": "Volume grades the setup. It does not gate it.",
+   "wrong": {
+    "Drop it; heavy selling voids the setup": "Volume is not a requirement for the setup to count. A heavy red day lowers the grade. It does not void the setup.",
+    "Grade it higher; volume shows interest": "Heavy selling into the line is a B- cue. Volume that raises the grade is quiet on the way down and heavier on the way up.",
+    "Ignore it; volume has no effect on grade": "Volume does move the grade. A quiet pullback is an A+ cue and heavy selling into the line is a B- cue."
+   },
+   "facts": [
+    "c25",
+    "r58",
+    "cn4",
+    "hd1",
+    "a02",
+    "c24"
+   ],
+   "house": true,
+   "tier": "core",
+   "batch": "heavy"
   }
  ],
  "conflicts": [
@@ -3827,9 +3893,8 @@
   "q10": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key c05. Only the key is a clean rest; distractors are plain failures. Acceptable.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "Re-keyed to 'grades best' (A+ cue quiet pullback), heavy day stays a wrong answer as a lower grade; the 2 ATR orderly rule untouched. cn3/cn4/hd1 verbatim. Fix: a 24-word sentence in why cut to 21."
   },
   "q11": {
    "status": "cut",
@@ -3900,10 +3965,10 @@
    "notes": "Key h14 (C31). Bonde line is colour only."
   },
   "q22": {
-   "status": "cut",
-   "by": "writer",
-   "fixed": false,
-   "notes": "cut in fills: see the resolver's notes"
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Answer 1.5 unchanged; stem and why now say warning and lower grade, matching e20.inv_heavy_down verbatim. Fix: one 23-word sentence trimmed to 22 (dropped 'average' in why and stem)."
   },
   "q23": {
    "status": "pass",
@@ -4097,9 +4162,8 @@
   "q54": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "c16 and d18 verbatim (2.3x against 1.5x); five days sits inside c04's 2 to 15. Overlaps q22 on the 1.5x line but tests an application, not the same ask.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "Re-keyed to yes at a lower grade: right under e20.inv_heavy_down and the HEAVY-DOWN ruling; hold close above the line stays required (nothing else loosened). hd1/hd2/cn4 verbatim, no 'the owner'. d18 INTC fact kept as the real 2.3x example. Fix: a 25-word sentence in why cut to 19."
   },
   "q55": {
    "status": "cut",
@@ -4216,6 +4280,12 @@
    "by": "checker",
    "fixed": true,
    "notes": "e20.pullback_length: 22 sessions is past 2 to 15 (c04, c30) and past the 2-8 and 2-10 other dossiers proposed, so no number dispute decides it. Fixed: the story said \"sideways to lower\" with a RISING 20 EMA, which a sharp trader would doubt, so it is now a sideways loose range; removed the unsupported \"long sideways base\" claim and the odd \"limit not a target\" line; simple no longer claims a base."
+  },
+  "q99": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Follows the ruling; text says 'we', no 'the owner'; no contradiction with q10/q22/q37/q54 (all: heavy day = warning and lower grade). cn4/hd1/c24/c25/r58 cited. Fix: the right answer broke the 'Verb it; reason' pattern of the other three choices and stood out; reworded to match."
   }
  }
 }

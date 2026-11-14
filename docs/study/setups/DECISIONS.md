@@ -2767,3 +2767,5 @@ Still open (he asked what these mean; the defaults stand until he answers):
   Rule: A gap up past 3R at the open is not an automatic sell. Selling part at the open on a big gap is one choice he may make by judgment, never a rule; questions must not key it as required.
 - **Short entry (chat, 2026-11-12).** His answer: "Through the trigger"
   Rule: Shorts enter like buys: as price trades through the trigger, never at the close.
+- **Heavy-volume down day in a pullback (chat, 2026-11-14).** His words: "Does not void the setup, just more mindful of the distribution day but by no means invalid"
+  Rule: A heavy-volume down day during a pullback (for example 1.5 times the 50-day volume into the line) does not void the setup. Treat it as a distribution day to be mindful of, a warning and a lower grade, never an invalidation.

@@ -669,7 +669,7 @@
    "rung": 1,
    "format": "mcq",
    "term": "float",
-   "q": "In stock talk, what is a company's float?",
+   "q": "What is a company's float?",
    "choices": [
     "Shares the public can trade",
     "Every share the company issued",

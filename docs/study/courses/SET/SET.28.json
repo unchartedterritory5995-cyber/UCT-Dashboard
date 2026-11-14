@@ -4309,7 +4309,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "keep: buys as price trades over the high, never the close"
+   "notes": "Correct keep. False match: heavy volume is only the Remount premise (how the 50-day was lost); the question is a light-volume retake, which lowers/does not boost the grade and is no veto. No heavy-down-day invalidation, so HEAVY-DOWN does not touch it."
   },
   "q41": {
    "status": "pass",

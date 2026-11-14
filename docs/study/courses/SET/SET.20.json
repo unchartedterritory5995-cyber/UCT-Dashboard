@@ -4059,7 +4059,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "re-key to volume raises grade, no veto, matches D-006; quote verbatim"
+   "notes": "Correct keep. False match: about the volume grade on a news gap, which raises the grade and is never a gate; nothing on heavy selling in a pullback. Left untouched."
   },
   "q53": {
    "status": "pass",
