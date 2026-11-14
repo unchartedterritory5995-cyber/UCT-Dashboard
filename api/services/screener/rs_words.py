@@ -26,6 +26,8 @@ carry prints nothing, and a missing part leaves no separator behind.
 from __future__ import annotations
 
 import math
+from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from . import rs_columns, rs_screens, rs_setup
 
@@ -104,6 +106,9 @@ def row_config(starter, place=None):
         "place": over if (own and own != INDEX_PLACE and over) else own,
         "caption": [p for p in (r.get("caption") or []) if isinstance(p, str)],
         "tags": [t for t in (r.get("tags") or []) if isinstance(t, str)],
+        # unit U12: the why strip's own notes a starter asks for ("days" on UCT RS Leaders).
+        # They add columns to the row's read; they are never part of the caption or the tag.
+        "facts": [p for p in (r.get("facts") or []) if isinstance(p, str)],
     }
 
 
@@ -196,12 +201,64 @@ def caption_of(row, cfg, theme=None) -> str:
 
 # ── the tag: ONE per row, the first of the starter's list that applies ──────
 
-def earnings_words(row) -> str:
-    n = (row or {}).get("days_to_earnings")
-    if not _num(n) or n != int(n) or n < 0 or n > rs_screens.EARNINGS_TAG_DAYS:
+_NEW_YORK = ZoneInfo("America/New_York")
+
+
+def _day_number(v):
+    """A calendar day as a whole number of days, or None (``dates.isoDay`` then the page's
+    ``etCalendarDaysBetween``): ``"2026-11-17"`` or ``"20261117"``, and an impossible day
+    of a real month rolls over as JavaScript's ``Date.UTC`` rolls it, so both sides count
+    the same number whatever the row carries."""
+    t = str(v).strip() if isinstance(v, (str, int)) and not isinstance(v, bool) else ""
+    if len(t) >= 10 and t[4] == "-" and t[7] == "-":
+        y, m, d = t[:4], t[5:7], t[8:10]
+    elif len(t) == 8:
+        y, m, d = t[:4], t[4:6], t[6:8]
+    else:
+        return None
+    if not (y.isdigit() and m.isdigit() and d.isdigit()):
+        return None
+    if not (1 <= int(m) <= 12 and 1 <= int(d) <= 31) or int(y) < 1:
+        return None
+    return (date(int(y), int(m), 1) + timedelta(days=int(d) - 1)).toordinal()
+
+
+def today_in_new_york() -> date:
+    return datetime.now(_NEW_YORK).date()
+
+
+def earnings_days(row, today=None):
+    """Whole calendar days from TODAY IN NEW YORK to the stock's next report, or None
+    (``rsRows.earningsDays``, unit U12). The row's own ``next_earnings_date`` is counted
+    from today; ``days_to_earnings`` (counted from the build's date, so a day or two too
+    many over a weekend) is read only when the row carries no date. A date already past
+    is a negative number here and says nothing; it is never replaced by the stored count."""
+    row = row or {}
+    day = _day_number(row.get("next_earnings_date"))
+    if day is not None:
+        return day - (today or today_in_new_york()).toordinal()
+    n = row.get("days_to_earnings")
+    return int(n) if _num(n) and n == int(n) else None
+
+
+def earnings_words(row, today=None) -> str:
+    n = earnings_days(row, today)
+    if n is None or n < 0 or n > rs_screens.EARNINGS_TAG_DAYS:
         return ""
-    n = int(n)
     return "Earnings today" if n == 0 else "Earnings tomorrow" if n == 1 else f"Earnings in {n} days"
+
+
+def weekly_words(row) -> str:
+    """``rs_nh_weekly`` (unit U12): only a stored 1 says it (``rsRows.weeklyWords``)."""
+    v = (row or {}).get("rs_nh_weekly")
+    return "Weekly RS high" if _num(v) and v == 1 else ""
+
+
+def days_words(row) -> str:
+    """``rs_leaders_days`` (unit U12): sessions in a row on UCT RS Leaders, today included
+    (``rsRows.daysWords``). A note about the row, never a caption part."""
+    n = (row or {}).get("rs_leaders_days")
+    return f"Day {_int_words(n)} on this list" if _num(n) and n == int(n) and n >= 1 else ""
 
 
 def _before_price(row) -> str:
@@ -215,17 +272,20 @@ def _down_day(row) -> str:
 
 
 _TAGS = {
-    rs_screens.EARNINGS_TAG: lambda row, is_new: earnings_words(row),
-    "before_price": lambda row, is_new: _before_price(row),
-    "down_day": lambda row, is_new: _down_day(row),
-    "flag": lambda row, is_new: flag_words(row),
-    "new": lambda row, is_new: NEW_TAG if is_new else "",
+    rs_screens.EARNINGS_TAG: lambda row, is_new, today: earnings_words(row, today),
+    rs_screens.WEEKLY_TAG: lambda row, is_new, today: weekly_words(row),
+    "before_price": lambda row, is_new, today: _before_price(row),
+    "down_day": lambda row, is_new, today: _down_day(row),
+    "flag": lambda row, is_new, today: flag_words(row),
+    "new": lambda row, is_new, today: NEW_TAG if is_new else "",
 }
 
 
-def tag_of(row, cfg, is_new=False) -> str:
+def tag_of(row, cfg, is_new=False, today=None) -> str:
+    """``today``: the New York calendar date the earnings tag counts from (now, when not
+    given). Passed by a caller that words many rows so they all count from one day."""
     for t in (cfg or {}).get("tags") or []:
-        words = _TAGS[t](row, is_new) if t in _TAGS else ""
+        words = _TAGS[t](row, is_new, today) if t in _TAGS else ""
         if words:
             return words
     return ""
@@ -242,10 +302,10 @@ def place_of(row, cfg, index):
     return v if _num(v) else None
 
 
-def row_display(row, cfg, *, index=0, theme=None, is_new=False) -> dict:
+def row_display(row, cfg, *, index=0, theme=None, is_new=False, today=None) -> dict:
     """What one row shows: ``{place, caption, tag}``."""
     return {"place": place_of(row, cfg, index), "caption": caption_of(row, cfg, theme),
-            "tag": tag_of(row, cfg, is_new)}
+            "tag": tag_of(row, cfg, is_new, today)}
 
 
 # ── the columns a row's words read ──────────────────────────────────────────
@@ -259,12 +319,22 @@ _PART_COLUMNS = {
     "exit_warning": ("rs_exit_last", "rs_exit_bars_ago"),
 }
 _TAG_COLUMNS = {
-    rs_screens.EARNINGS_TAG: ("days_to_earnings",),
+    rs_screens.EARNINGS_TAG: ("days_to_earnings", "next_earnings_date"),
+    rs_screens.WEEKLY_TAG: ("rs_nh_weekly",),
     "before_price": ("rs_nhbp_age", "px_below_high_pct"),
     "down_day": ("rs_nh_red_bars_ago", "rs_nh_bars_ago"),
     "flag": ("rs_flag",),
     "new": (),
 }
+#: The why strip's own notes (``row.facts``, unit U12) and the column each reads.
+_FACTS = {"days": days_words}
+_FACT_COLUMNS = {"days": ("rs_leaders_days",)}
+
+
+def facts_of(row, cfg) -> list:
+    """The notes this screen asks for by name, in its order, blanks left out."""
+    words = [_FACTS[p](row) if p in _FACTS else "" for p in (cfg or {}).get("facts") or []]
+    return [w for w in words if w]
 #: Read on every RS screen whatever its caption (``rsRows.RS_ROW_BASE_COLUMNS``).
 BASE_COLUMNS = ("rs_rank", "rs_rating_session", "rs_setup", "rs_tight", "rs_nh_bars_ago",
                 "px_below_high_pct", "rs_rating_pos", "rs_rating_pos_n")
@@ -282,6 +352,8 @@ def row_columns(cfg) -> list:
         out.extend(_PART_COLUMNS.get(p, ()))
     for t in cfg.get("tags") or []:
         out.extend(_TAG_COLUMNS.get(t, ()))
+    for p in cfg.get("facts") or []:
+        out.extend(_FACT_COLUMNS.get(p, ()))
     return list(dict.fromkeys(out))
 
 

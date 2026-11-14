@@ -474,3 +474,35 @@ def test_the_market_line_rides_the_saved_screens_payload_only_for_a_served_user(
     assert "rs_market" not in json.loads(served("admin", MEMBER)[route])
     assert "rs_market" in json.loads(served("admin", ADMIN)[route])
     assert "rs_market" in json.loads(served("1", MEMBER)[route])
+
+
+def test_the_batch_rows_route_exists_only_for_a_user_the_screens_are_shown_to(monkeypatch):
+    """`GET /api/screener/rows` (unit U12, the dropped names' reasons) follows the one-row
+    route: under `admin` a member gets 404 and the table is never read for them."""
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from api.middleware.auth_middleware import get_current_user, get_current_user_with_plan
+    from api.routers import screener as screener_mod
+    read = []
+    monkeypatch.setattr(screener_mod.scr_query, "rows_for",
+                        lambda tickers, columns, user=None:
+                        read.append(list(tickers)) or
+                        {t: {"row": {"ticker": t}, "stale": False} for t in tickers})
+    who = {}
+    app = FastAPI()
+    app.include_router(screener_mod.router)
+    app.dependency_overrides[get_current_user] = lambda: dict(who["user"])
+    app.dependency_overrides[get_current_user_with_plan] = lambda: dict(who["user"])
+    client = TestClient(app)
+
+    def status(value, user):
+        _set(monkeypatch, value)
+        who["user"] = user
+        return client.get("/api/screener/rows?tickers=AAPL,MSFT&columns=ticker").status_code
+
+    assert status(None, ADMIN) == 404 and status(None, MEMBER) == 404
+    assert status("admin", MEMBER) == 404
+    assert read == [], "a route that does not exist for this user read the table"
+    assert status("admin", ADMIN) == 200
+    assert status("1", MEMBER) == 200
+    assert len(read) == 2

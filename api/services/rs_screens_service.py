@@ -385,9 +385,11 @@ def _list(name, starter, choices, user, limit) -> dict:
                          user_id=user.get("id"), user=user)
     served = out.get("rows") or []
     rows = []
+    # one New York date for the whole list: the earnings tag counts from it (unit U12)
+    today = rs_words.today_in_new_york()
     for i, r in enumerate(served):
         theme = _theme_of(r.get("ticker"))
-        shown = rs_words.row_display(r, cfg, index=i, theme=theme)
+        shown = rs_words.row_display(r, cfg, index=i, theme=theme, today=today)
         rank = r.get("rs_rank")
         rows.append({
             "ticker": r.get("ticker"), "company": r.get("company"),
@@ -514,6 +516,9 @@ def _check_columns(starters) -> list:
         spec = s["spec"]
         keys = [f.get("key") for f in spec.get("filters") or []]
         keys += [c.get("key") for c in (spec.get("rank") or {}).get("criteria") or []]
+        steady = _steady(s)
+        if steady:
+            keys += [steady["key"], steady["by"]]
         for key in keys:
             column = filters.column_for(key) if key in filters.FILTERS else None
             if column:
@@ -535,6 +540,63 @@ def _ranked_place(starter, ticker, user):
     return (listed.index(ticker) + 1 if ticker in listed else None), receipt.get("ranked"), top_n
 
 
+def _steady(starter) -> Optional[dict]:
+    """How a list that keeps its own members is kept (``row.steady``, unit U12: UCT RS
+    Leaders), or None for every other screen: ``{key, by, enter, hold}``, the membership
+    column, the column the qualifiers are ranked by, and the two ranks of the rule."""
+    st = (starter.get("row") or {}).get("steady")
+    if not isinstance(st, dict) or not all(isinstance(st.get(k), str) and st.get(k) for k in ("key", "by")):
+        return None
+    return st
+
+
+def _ordinal(n: int) -> str:
+    """1 -> "1st", 22 -> "22nd", 63 -> "63rd", 111 -> "111th" (the page's ``whyNot.ordinal``)."""
+    k = abs(n) % 100
+    return f"{n:,}" + ("th" if 11 <= k <= 13 else {1: "st", 2: "nd", 3: "rd"}.get(k % 10, "th"))
+
+
+def _count(filters_, user) -> Optional[int]:
+    """How many stocks pass these rules, asked of the scan itself."""
+    from api.services.screener import query                 # noqa: PLC0415 - lazy
+    out = query.run_scan({"filters": list(filters_), "columns": ["ticker"], "page": 1, "page_size": 1},
+                         user_id=user.get("id"), user=user)
+    total = out.get("total")
+    return total if isinstance(total, int) and not isinstance(total, bool) else None
+
+
+def _steady_place(starter, steady, row, user, *, member: bool):
+    """Where a stock that passes the rules of a KEPT list stands: ``(place, of)``.
+
+    A member: its place on the list as the screen shows it (the list is sorted by
+    ``steady.by``, highest first) and how many the list holds. A stock that is not a
+    member: its rank among every stock that passes the rules, and how many do. The
+    membership clause is the list's answer, never one of the rules, so it is counted
+    only on the member's side. ``(None, None)`` when the row holds no value to rank by."""
+    from api.services.screener import filters               # noqa: PLC0415 - lazy
+    by = steady["by"]
+    v = row.get(filters.column_for(by)) if by in filters.FILTERS else None
+    if not _is_number(v):
+        return None, None
+    rules = [f for f in starter["spec"].get("filters") or []
+             if f.get("key") != by and (member or f.get("key") != steady["key"])]
+    ahead = _count([*rules, {"key": by, "op": "gt", "min": v}], user)
+    return (ahead + 1 if ahead is not None else None), _count(rules, user)
+
+
+def steady_words(steady, rank) -> str:
+    """Why a stock that passes every rule of a kept list is not on it: the page's own
+    sentence (``whyNot.whyNotHeadline``)."""
+    enter, hold = steady.get("enter"), steady.get("hold")
+    if not (_is_number(enter) and _is_number(hold)):
+        return "Passes every rule, but it is not on the list today."
+    kept = (f"the list holds the top {int(enter):,} (a listed stock stays until it falls "
+            f"past {_ordinal(int(hold))})")
+    if isinstance(rank, int):
+        return f"Passes every rule; ranked {_ordinal(rank)}, {kept}."
+    return f"Passes every rule and is not on the list today: {kept}."
+
+
 def check_ticker(ticker, *, user) -> dict:
     """Which of the five screens one stock is on, as each opens, and for UCT RS Leaders
     the first rule it misses.
@@ -545,7 +607,10 @@ def check_ticker(ticker, *, user) -> dict:
     Returns ``{ok, ticker, company, rs_rank, asof, stale, on, screens, note}``; ``on``
     is the names of the screens it is on. Each of ``screens``: ``{screen, name, on}``,
     plus ``place`` and ``of`` on a ranked screen and ``misses`` (``rule_words``) on UCT
-    RS Leaders when it is not on it. Never raises."""
+    RS Leaders when it is not on it. UCT RS Leaders keeps its own members (unit U12): a
+    member carries its ``place`` on the list and ``of`` (how many it holds); a stock
+    that passes every rule and is not a member carries ``rank`` (among the stocks that
+    pass), ``of`` (how many pass) and ``why``, the page's own sentence. Never raises."""
     try:
         if not _screens_on(user):
             return _refuse(NOT_AVAILABLE)
@@ -574,7 +639,11 @@ def _check(ticker, user) -> dict:
     screens = []
     for name, starter in starters.items():
         spec = starter["spec"]
-        verdicts = [(f, clause_passes(f, row)) for f in spec.get("filters") or []]
+        steady = _steady(starter)
+        # a kept list's membership clause is its ANSWER, never one of the rules a stock
+        # passes or misses (unit U12)
+        rules = [f for f in spec.get("filters") or [] if not (steady and f.get("key") == steady["key"])]
+        verdicts = [(f, clause_passes(f, row)) for f in rules]
         missed = next((f for f, ok in verdicts if ok is False), None)
         unsure = any(ok is None for _f, ok in verdicts) or bool(spec.get("logic"))
         item = {"screen": name, "name": starter.get("name")}
@@ -583,6 +652,14 @@ def _check(ticker, user) -> dict:
         elif unsure:
             # a rule one row cannot settle is never counted as passed
             item["on"] = None
+        elif steady:
+            member = clause_passes({"key": steady["key"], "op": "eq", "value": 1}, row) is True
+            place, of = _steady_place(starter, steady, row, user, member=member)
+            item["on"] = member
+            item["place"], item["of"] = (place if member else None), of
+            if not member:
+                item["rank"] = place
+                item["why"] = steady_words(steady, place)
         elif spec.get("rank"):
             place, ranked, top_n = _ranked_place(starter, sym, user)
             item["on"] = place is not None
