@@ -3417,6 +3417,68 @@
     }
    }
   },
+  "history.monthlyReturns": {
+   "digest": "46b9c0a2068ebf2e",
+   "phrasings": {
+    "monthly returns for NVDA in 2024": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [
+      "a"
+     ],
+     "modes": {
+      "a": "\"monthly returns for NVDA in 2024\" → stock.dailyBars"
+     }
+    },
+    "NVDA's monthly performance in 2024": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [
+      "a"
+     ],
+     "modes": {
+      "a": "\"NVDA's monthly performance in 2024\" → stock.dailyBars"
+     }
+    },
+    "show me the monthly closes for NVDA in 2024": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [
+      "a"
+     ],
+     "modes": {
+      "a": "\"show me the monthly closes for NVDA in 2024\" → stock.dailyBars"
+     }
+    }
+   }
+  },
+  "history.weeklyCompare": {
+   "digest": "771c2395b0113429",
+   "phrasings": {
+    "compare AAPL and MSFT weekly over the last year": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "AAPL vs MSFT weekly performance over the past year": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "history.dayMove": {
+   "digest": "962f45c7d4ef036f",
+   "phrasings": {
+    "what happened to SPY after the last 5 times it fell 3% in a day": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "what happened to SPY after the last 5 times it dropped 3% in one day": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
   "history.breakout": {
    "digest": "d15f33781be224ac",
    "phrasings": {

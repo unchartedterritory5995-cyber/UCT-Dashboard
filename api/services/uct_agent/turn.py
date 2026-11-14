@@ -129,6 +129,9 @@ MAX_CAPABILITIES_NL1 = MAX_CAPABILITIES
 NL1_ENV = "UCT_AGENT_NL1"
 MAX_CAP_BYTES = 6000
 MAX_HINTS = 1000
+#: a capability's summary is cut to this on every request (validate_manifest). Named so the browser's rail
+#: (app/src/agent/capabilityTextLimits.test.js) reads the limit from HERE, never a retyped copy.
+MAX_SUMMARY = 400
 MAX_SHAPE = 600          # W1.1: a capability's exact-shape example (manifest `shape`), printed under its catalog line
 _CAP_NAME = re.compile(r"^[a-z][a-zA-Z0-9]*(\.[a-z][a-zA-Z0-9]*)+$")
 _SCHEMA_KEYS = {"type", "properties", "required", "additionalProperties", "enum", "const",
@@ -273,12 +276,12 @@ def validate_manifest(caps: Any, limit: int = MAX_CAPABILITIES) -> list[dict]:
         if len(json.dumps(c)) > MAX_CAP_BYTES:
             log.warning("[uct-agent] capability %s is over %d bytes and was left out", name, MAX_CAP_BYTES)
             continue
-        if len(str(c.get("hints") or "")) > MAX_HINTS or len(str(c.get("summary") or "")) > 400:
+        if len(str(c.get("hints") or "")) > MAX_HINTS or len(str(c.get("summary") or "")) > MAX_SUMMARY:
             log.warning("[uct-agent] capability %s has its summary/hints cut", name)
         seen.add(name)
         out.append({
             "name": name,
-            "summary": str(c.get("summary") or "")[:400],
+            "summary": str(c.get("summary") or "")[:MAX_SUMMARY],
             # 1000, not 400: a capability's hints carry its usage rules (widget.add's alias
             # rule, screener.run's field/refine rules); a cut there silently changes behaviour.
             "hints": str(c.get("hints"))[:MAX_HINTS] if c.get("hints") else None,

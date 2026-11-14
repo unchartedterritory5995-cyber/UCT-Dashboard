@@ -53,6 +53,36 @@
  },
  "knownGaps": [
   {
+   "id": "GAP-HISTORY-PERIODS-ROUTE",
+   "router": "v1+v2",
+   "owner": "hist-builder",
+   "reason": "the fast path answers these with no model (det: required); a MODEL-routed paraphrase of weekly / monthly returns names no data-group word, and Phase 2 adds no words to an existing group (stock.dailyBars lives in data) — the model reaches it by need_groups",
+   "mode": "\"monthly returns for NVDA in 2024\" → stock.dailyBars",
+   "level": "a",
+   "intent": "history.monthlyReturns",
+   "phrasing": "monthly returns for NVDA in 2024"
+  },
+  {
+   "id": "GAP-HISTORY-PERIODS-ROUTE",
+   "router": "v1+v2",
+   "owner": "hist-builder",
+   "reason": "the fast path answers these with no model (det: required); a MODEL-routed paraphrase of weekly / monthly returns names no data-group word, and Phase 2 adds no words to an existing group (stock.dailyBars lives in data) — the model reaches it by need_groups",
+   "mode": "\"NVDA's monthly performance in 2024\" → stock.dailyBars",
+   "level": "a",
+   "intent": "history.monthlyReturns",
+   "phrasing": "NVDA's monthly performance in 2024"
+  },
+  {
+   "id": "GAP-HISTORY-PERIODS-ROUTE",
+   "router": "v1+v2",
+   "owner": "hist-builder",
+   "reason": "the fast path answers these with no model (det: required); a MODEL-routed paraphrase of weekly / monthly returns names no data-group word, and Phase 2 adds no words to an existing group (stock.dailyBars lives in data) — the model reaches it by need_groups",
+   "mode": "\"show me the monthly closes for NVDA in 2024\" → stock.dailyBars",
+   "level": "a",
+   "intent": "history.monthlyReturns",
+   "phrasing": "show me the monthly closes for NVDA in 2024"
+  },
+  {
    "id": "GAP-WIDGET-READ-ROUTE",
    "router": "v1",
    "reason": "v1 ONLY (the kill-switch fallback): boardEdit has no v1 words in this message (workspace + agent only); the model can still ask for the group (need_groups). Routing v2 (production) reaches it since the budget-cut tie rule (routingV2.js TIE)",
@@ -5141,25 +5171,26 @@
     "multiStep": true,
     "phrasings": true
    },
-   "phrasings": 17,
+   "phrasings": 19,
    "evidence": {
     "nl": [
+     "history.dayMove: \"what happened to SPY after the last 5 times it fell 3% in a day\"",
+     "history.dayMove: \"what happened to SPY after the last 5 times it dropped 3% in one day\"",
      "history.breakout: \"how does SPY do after new 50-day highs\"",
      "history.breakout: \"what happens to SPY after a 50-day breakout\"",
      "history.breakout: \"how has SPY performed after making a new 50-day high\"",
-     "history.breakout: \"how did SPY do after 50 day breakouts\"",
-     "history.gap: \"how has NVDA behaved after 5%+ gaps\"",
-     "history.gap: \"what happens to NVDA after a 5% gap up\""
+     "history.breakout: \"how did SPY do after 50 day breakouts\""
     ],
     "routing": [
+     "history.dayMove: \"what happened to SPY after the last 5 times it fell 3% in a day\"",
+     "history.dayMove: \"what happened to SPY after the last 5 times it dropped 3% in one day\"",
      "history.breakout: \"how does SPY do after new 50-day highs\"",
      "history.breakout: \"what happens to SPY after a 50-day breakout\"",
      "history.breakout: \"how has SPY performed after making a new 50-day high\"",
-     "history.breakout: \"how did SPY do after 50 day breakouts\"",
-     "history.gap: \"how has NVDA behaved after 5%+ gaps\"",
-     "history.gap: \"what happens to NVDA after a 5% gap up\""
+     "history.breakout: \"how did SPY do after 50 day breakouts\""
     ],
     "args": [
+     "corpus history.dayMove",
      "corpus history.breakout",
      "corpus history.gap",
      "corpus history.ma-cross",
@@ -5167,20 +5198,20 @@
      "corpus history.model-planned"
     ],
     "execution": [
+     "history.dayMove (c)",
      "history.breakout (c)",
      "history.gap (c)",
      "history.ma-cross (c)",
      "history.rsi (c)",
-     "history.model-planned (c)",
-     "GW-26.history-questions"
+     "history.model-planned (c)"
     ],
     "receipt": [
+     "history.dayMove (c)",
      "history.breakout (c)",
      "history.gap (c)",
      "history.ma-cross (c)",
      "history.rsi (c)",
-     "history.model-planned (c)",
-     "GW-26.history-questions"
+     "history.model-planned (c)"
     ],
     "refusal": [],
     "permission": [],
@@ -8860,7 +8891,7 @@
     "multiStep": false,
     "phrasings": true
    },
-   "phrasings": 7,
+   "phrasings": 12,
    "evidence": {
     "nl": [
      "stock.pullbacks: \"show me NVDA's recent pullbacks\"",
@@ -8880,15 +8911,21 @@
     ],
     "args": [
      "corpus stock.pullbacks",
-     "corpus stock.offHigh"
+     "corpus stock.offHigh",
+     "corpus history.monthlyReturns",
+     "corpus history.weeklyCompare"
     ],
     "execution": [
      "stock.pullbacks (c)",
-     "stock.offHigh (c)"
+     "stock.offHigh (c)",
+     "history.monthlyReturns (c)",
+     "history.weeklyCompare (c)"
     ],
     "receipt": [
      "stock.pullbacks (c)",
-     "stock.offHigh (c)"
+     "stock.offHigh (c)",
+     "history.monthlyReturns (c)",
+     "history.weeklyCompare (c)"
     ],
     "refusal": [],
     "permission": [],

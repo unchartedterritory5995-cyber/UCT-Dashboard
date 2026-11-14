@@ -7782,6 +7782,230 @@
       ]
     },
     {
+      "id": "history.monthlyReturns",
+      "source": "Phase 2 history (11-13): weekly / monthly bars, relative performance, one-day-move studies, owner-style phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.dailyBars"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.dailyBars"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "stock.dailyBars",
+            "args": {
+              "symbol": "NVDA",
+              "measure": "periods",
+              "timeframe": "M",
+              "from": "2024-01-01",
+              "date": "2024-12-31"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "stock.dailyBars",
+            "target": "$stockData",
+            "args": {
+              "symbol": "NVDA",
+              "measure": "periods",
+              "sessions": null,
+              "date": "2024-12-31",
+              "from": "2024-01-01",
+              "timeframe": "M",
+              "symbols": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*bars\\.daily.*\"symbol\":\"NVDA\",\"tf\":\"M\",\"from\":\"2024-01-01\",\"to\":\"2024-12-31\""
+        ],
+        "unchanged": true,
+        "modelTurns": 0,
+        "refusal": false
+      },
+      "phrasings": [
+        {
+          "text": "monthly returns for NVDA in 2024",
+          "det": "required",
+          "gaps": {
+            "a": {
+              "id": "GAP-HISTORY-PERIODS-ROUTE",
+              "router": "v1+v2",
+              "owner": "hist-builder",
+              "reason": "the fast path answers these with no model (det: required); a MODEL-routed paraphrase of weekly / monthly returns names no data-group word, and Phase 2 adds no words to an existing group (stock.dailyBars lives in data) — the model reaches it by need_groups",
+              "mode": "\"monthly returns for NVDA in 2024\" → stock.dailyBars"
+            }
+          }
+        },
+        {
+          "text": "NVDA's monthly performance in 2024",
+          "det": "required",
+          "gaps": {
+            "a": {
+              "id": "GAP-HISTORY-PERIODS-ROUTE",
+              "router": "v1+v2",
+              "owner": "hist-builder",
+              "reason": "the fast path answers these with no model (det: required); a MODEL-routed paraphrase of weekly / monthly returns names no data-group word, and Phase 2 adds no words to an existing group (stock.dailyBars lives in data) — the model reaches it by need_groups",
+              "mode": "\"NVDA's monthly performance in 2024\" → stock.dailyBars"
+            }
+          }
+        },
+        {
+          "text": "show me the monthly closes for NVDA in 2024",
+          "det": "required",
+          "gaps": {
+            "a": {
+              "id": "GAP-HISTORY-PERIODS-ROUTE",
+              "router": "v1+v2",
+              "owner": "hist-builder",
+              "reason": "the fast path answers these with no model (det: required); a MODEL-routed paraphrase of weekly / monthly returns names no data-group word, and Phase 2 adds no words to an existing group (stock.dailyBars lives in data) — the model reaches it by need_groups",
+              "mode": "\"show me the monthly closes for NVDA in 2024\" → stock.dailyBars"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "history.weeklyCompare",
+      "source": "Phase 2 history (11-13): weekly / monthly bars, relative performance, one-day-move studies, owner-style phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.dailyBars"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.dailyBars"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "stock.dailyBars",
+            "args": {
+              "symbol": "AAPL",
+              "measure": "compare",
+              "timeframe": "W",
+              "sessions": 52,
+              "symbols": [
+                "MSFT"
+              ]
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "stock.dailyBars",
+            "target": "$stockData",
+            "args": {
+              "symbol": "AAPL",
+              "measure": "compare",
+              "sessions": 52,
+              "date": null,
+              "from": null,
+              "timeframe": "W",
+              "symbols": [
+                "MSFT"
+              ]
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*bars\\.daily.*\"symbol\":\"AAPL\",\"tf\":\"W\",\"bars\":53",
+          "^POST /api/agent/data .*bars\\.daily.*\"symbol\":\"MSFT\",\"tf\":\"W\",\"bars\":53"
+        ],
+        "unchanged": true,
+        "modelTurns": 0,
+        "refusal": false
+      },
+      "phrasings": [
+        {
+          "text": "compare AAPL and MSFT weekly over the last year",
+          "det": "required"
+        },
+        {
+          "text": "AAPL vs MSFT weekly performance over the past year",
+          "det": "required"
+        }
+      ]
+    },
+    {
+      "id": "history.dayMove",
+      "source": "Phase 2 history (11-13): weekly / monthly bars, relative performance, one-day-move studies, owner-style phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "history.afterEvent"
+      ],
+      "board": "ONE",
+      "needs": [
+        "history.afterEvent"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "history.afterEvent",
+            "args": {
+              "symbol": "SPY",
+              "indicator": "day_pct",
+              "op": "below",
+              "threshold": -3,
+              "last": 5
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "history.afterEvent",
+            "target": "$stockData",
+            "args": {
+              "symbol": "SPY",
+              "indicator": "day_pct",
+              "period": null,
+              "op": "below",
+              "threshold": -3,
+              "horizons": [
+                1,
+                5,
+                21
+              ],
+              "since": null,
+              "last": 5
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*history\\.eventStudy.*\"indicator\":\"day_pct\",\"period\":null,\"op\":\"below\",\"threshold\":-3.*\"last\":5"
+        ],
+        "unchanged": true,
+        "modelTurns": 0,
+        "refusal": false
+      },
+      "phrasings": [
+        {
+          "text": "what happened to SPY after the last 5 times it fell 3% in a day",
+          "det": "required"
+        },
+        {
+          "text": "what happened to SPY after the last 5 times it dropped 3% in one day",
+          "det": "required"
+        }
+      ]
+    },
+    {
       "id": "history.breakout",
       "source": "PKG2 (11-04): conversational scanning + historical analysis, owner-style phrasings",
       "kinds": "ALL",

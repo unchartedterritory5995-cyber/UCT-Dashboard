@@ -18,10 +18,13 @@ Catalog: **208** capabilities (every server-gated kind on; 199 with production's
 | multiStep | 40 / 208 |
 | phrasings | 149 / 208 |
 
-## Known gaps (3)
+## Known gaps (6)
 
 | id | level | intent | phrasing | owner | reason |
 |---|---|---|---|---|---|
+| GAP-HISTORY-PERIODS-ROUTE | a | history.monthlyReturns | "monthly returns for NVDA in 2024" | hist-builder | the fast path answers these with no model (det: required); a MODEL-routed paraphrase of weekly / monthly returns names no data-group word, and Phase 2 adds no words to an existing group (stock.dailyBars lives in data) — the model reaches it by need_groups |
+| GAP-HISTORY-PERIODS-ROUTE | a | history.monthlyReturns | "NVDA's monthly performance in 2024" | hist-builder | the fast path answers these with no model (det: required); a MODEL-routed paraphrase of weekly / monthly returns names no data-group word, and Phase 2 adds no words to an existing group (stock.dailyBars lives in data) — the model reaches it by need_groups |
+| GAP-HISTORY-PERIODS-ROUTE | a | history.monthlyReturns | "show me the monthly closes for NVDA in 2024" | hist-builder | the fast path answers these with no model (det: required); a MODEL-routed paraphrase of weekly / monthly returns names no data-group word, and Phase 2 adds no words to an existing group (stock.dailyBars lives in data) — the model reaches it by need_groups |
 | GAP-WIDGET-READ-ROUTE | a | widget.readOptions | "how is that one set right now" | agent-lead | v1 ONLY (the kill-switch fallback): boardEdit has no v1 words in this message (workspace + agent only); the model can still ask for the group (need_groups). Routing v2 (production) reaches it since the budget-cut tie rule (routingV2.js TIE) |
 | CG-13 | collision | routing data | "how does NVDA stack up against AMD" | nlfix builder (routing.js) | the charts compare words select 'against' |
 | CG-4 | collision | routing indicators | "add the relative strength index" | nlfix builder (routing.js) | 'relative strength' is a screener strength word (SUBTRACTIVE: indicators not named) |
