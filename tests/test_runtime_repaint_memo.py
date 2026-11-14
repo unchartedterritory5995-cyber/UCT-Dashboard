@@ -15,6 +15,7 @@ Rails (each mutation-proved, `docs/pine/evidence/2026-11-13-capability-admission
 """
 from __future__ import annotations
 
+import ast
 import copy
 import json
 import pathlib
@@ -197,15 +198,123 @@ def test_M5_an_unreadable_source_is_answered_the_same_cold_and_warm(lexes):
 
 # ── M6 ─────────────────────────────────────────────────────────────────────────
 
+_PRIVATE = {"lex", "_classify"}
+
+
+def _bypasses(tree: ast.AST) -> list:
+    """Every use of `runtime_repaint.lex` / `_classify` outside the module: an import of either name
+    (`from ...runtime_repaint import lex as L`), or an attribute of any name bound to the module
+    (`import api.services.runtime_repaint as R`, `from api.services import runtime_repaint as R`)."""
+    aliases, found = set(), []
+    for n in ast.walk(tree):
+        if isinstance(n, ast.ImportFrom):
+            mod = n.module or ""
+            if mod.endswith("runtime_repaint"):
+                found += [a.name for a in n.names if a.name in _PRIVATE or a.name == "*"]
+            for a in n.names:
+                if a.name == "runtime_repaint":
+                    aliases.add(a.asname or a.name)
+        elif isinstance(n, ast.Import):
+            for a in n.names:
+                if a.name.endswith("runtime_repaint"):
+                    aliases.add(a.asname or a.name.split(".")[0])
+    for n in ast.walk(tree):
+        if isinstance(n, ast.Attribute) and n.attr in _PRIVATE:
+            base = n.value
+            while isinstance(base, ast.Attribute) and base.attr != "runtime_repaint":
+                base = base.value
+            if (isinstance(base, ast.Attribute) and base.attr == "runtime_repaint") or \
+                    (isinstance(base, ast.Name) and base.id in aliases):
+                found.append(n.attr)
+        if isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id == "getattr" and \
+                len(n.args) >= 2 and isinstance(n.args[1], ast.Constant) and n.args[1].value in _PRIVATE:
+            found.append("getattr:" + n.args[1].value)
+    return found
+
+
 def test_M6_nothing_else_lexes_a_runtime_script_or_bypasses_the_memo():
     offenders = []
-    for path in (REPO / "api").rglob("*.py"):
-        text = path.read_text(encoding="utf-8")
-        if path.name == "runtime_repaint.py":
-            # inside the module only `runtime_repaint_of` calls `_classify`, and only `_classify` lexes
-            assert len(re.findall(r"\b_classify\(", text)) == 2, "def + the one call in runtime_repaint_of"
-            assert len(re.findall(r"(?<![\w.])lex\(", text)) == 2, "def + the one call in _classify"
-            continue
-        if re.search(r"runtime_repaint\.(lex|_classify)\b", text):
-            offenders.append(str(path.relative_to(REPO)))
+    for root in ("api", "tools", "scripts"):
+        for path in (REPO / root).rglob("*.py"):
+            text = path.read_text(encoding="utf-8", errors="replace")
+            if path.name == "runtime_repaint.py":
+                # inside the module only `runtime_repaint_of` calls `_classify`, and only `_classify` lexes
+                assert len(re.findall(r"\b_classify\(", text)) == 2, "def + the one call in runtime_repaint_of"
+                assert len(re.findall(r"(?<![\w.])lex\(", text)) == 2, "def + the one call in _classify"
+                continue
+            try:
+                tree = ast.parse(text)
+            except SyntaxError:
+                continue
+            hit = _bypasses(tree)
+            if hit:
+                offenders.append((str(path.relative_to(REPO)), hit))
     assert offenders == []
+
+
+NL = chr(10)
+
+
+@pytest.mark.parametrize("src", [
+    "from api.services.runtime_repaint import lex" + NL,
+    "from api.services.runtime_repaint import _classify as c" + NL,
+    "import api.services.runtime_repaint as R" + NL + "R.lex('x')" + NL,
+    "from api.services import runtime_repaint as rp" + NL + "rp._classify('x')" + NL,
+    "import api.services.runtime_repaint" + NL + "api.services.runtime_repaint.lex('x')" + NL,
+    "from api.services import runtime_repaint" + NL + "getattr(runtime_repaint, 'lex')('x')" + NL,
+])
+def test_M6_the_scan_sees_every_spelling_of_a_bypass(src):
+    assert _bypasses(ast.parse(src))
+
+
+def test_M6_the_scan_passes_the_memoised_door():
+    src = "from api.services import runtime_repaint" + NL + "runtime_repaint.runtime_repaint_of('x')" + NL
+    assert _bypasses(ast.parse(src)) == []
+
+
+# -- M3 (review of #1226): hostile sources never enter the memo ----------------------------------
+
+def test_M3_a_script_with_many_identifiers_is_answered_but_never_memoised(lexes):
+    src = '//@version=6' + NL + 'indicator("t")' + NL + "".join(f"x{i} = request.q{i}" + NL for i in range(3000))
+    a = rr.runtime_repaint_of(src)
+    assert len(a["reads"]) == 3000                      # the answer is whole (the JS module's)
+    assert len(rr._MEMO) == 0 and rr._MEMO_BYTES[0] == 0
+    assert rr.runtime_repaint_of(src) == a and len(lexes) == 2   # recomputed, never held
+
+
+def test_M3_a_giant_identifier_is_answered_but_never_memoised(lexes):
+    src = '//@version=6' + NL + 'indicator("t")' + NL + "x = request." + "a" * 130000 + NL
+    a = rr.runtime_repaint_of(src)
+    assert len(a["reads"]) == 1 and len(a["reads"][0]["name"]) > 130000
+    assert len(rr._MEMO) == 0 and rr._MEMO_BYTES[0] == 0
+
+
+def test_M3_the_answer_caps_hold_at_their_edges(monkeypatch):
+    src = ADX["compute"]["source"] + REQUEST_LINE
+    monkeypatch.setattr(rr, "REPAINT_MEMO_MAX_READS", 0)
+    rr.runtime_repaint_of(src)
+    assert len(rr._MEMO) == 0
+    monkeypatch.setattr(rr, "REPAINT_MEMO_MAX_READS", 64)
+    monkeypatch.setattr(rr, "REPAINT_MEMO_MAX_ANSWER_BYTES", 10)
+    rr.runtime_repaint_of(src)
+    assert len(rr._MEMO) == 0
+    monkeypatch.setattr(rr, "REPAINT_MEMO_MAX_ANSWER_BYTES", 4096)
+    rr.runtime_repaint_of(src)
+    assert len(rr._MEMO) == 1                           # CONTROL: a real answer is memoised
+
+
+def test_M3_the_memo_is_bounded_in_bytes(monkeypatch):
+    srcs = [ADX["compute"]["source"] + REQUEST_LINE + f"{NL}// v{k}{NL}" for k in range(6)]
+    one = rr._memoisable(rr._classify(srcs[0]))
+    assert one > 0
+    monkeypatch.setattr(rr, "REPAINT_MEMO_MAX_BYTES", one * 2 + 1)
+    for s_ in srcs:
+        rr.runtime_repaint_of(s_)
+    assert len(rr._MEMO) == 2 and rr._MEMO_BYTES[0] <= one * 2 + 1
+    assert rr._MEMO_BYTES[0] == sum(size for _a, size in rr._MEMO.values())
+
+
+def test_the_rules_fingerprint_is_whole_at_import():
+    held = rr._RULES_FP
+    assert isinstance(held, tuple) and held[0] is rr.RULES and re.fullmatch(r"[0-9a-f]{64}", held[1])
+    assert rr._rules_fingerprint() == held[1]

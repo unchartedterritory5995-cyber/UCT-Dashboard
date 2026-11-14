@@ -426,6 +426,20 @@ the source, and every call returns a deep copy, so a caller cannot mutate what t
 (it is a function of the text, this module's rules and its table; the clock leaves' reach is the
 host linter's per-process constant, `_HOST_CLOCK`). A rule change bumps `CLASSIFIER_VERSION`.
 
+**Bounded in bytes (review of #1226).** The answer's `reads` carry identifier text from the source,
+so a hostile 128 KiB script answers with megabytes. The review measured 10,922 distinct identifiers
+at 3.64 MB per entry, and one 128 KiB identifier at 263 KB. The verdict door lets any paid member
+ask about a fresh source.
+- An answer over `REPAINT_MEMO_MAX_ANSWER_BYTES` (4 KiB serialised), or with more than
+  `REPAINT_MEMO_MAX_READS` (64) reads, is never memoised: it is computed, returned and forgotten,
+  the cost before the memo.
+- The LRU is bounded by `REPAINT_MEMO_MAX_BYTES` (32 MiB) as well as by entries, so it holds at
+  most ~8 MiB in practice.
+- No identifier text is truncated: the answer stays the JS module's, byte for byte.
+- `_RULES_FP` is one tuple computed at import and swapped whole.
+- Rail M6 now walks `api/`, `tools/` and `scripts/` by AST and sees every way of reaching `lex`
+  or `_classify`: a `from ... import` of the name, a module alias, a dotted path or `getattr`.
+
 **Measured** (50 distinct near-cap 100 KiB runtime rows; `stamp_served` + `server_lanes_stamp`
 per row, as the list serves them; flag OFF; one heavy-lock hold, A/B interleaved, two rounds; the
 box was shared, so the spread is load):

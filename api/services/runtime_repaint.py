@@ -229,20 +229,42 @@ def clock_leaf_reach(key: str, table: Optional[Dict[str, Any]] = None) -> Any:
 #: The cache holds no source text, only the small answer, and every call returns a deep COPY of it,
 #: so a caller can never mutate what the next caller reads.
 CLASSIFIER_VERSION = 1
-#: The LRU's bound (entries). An answer is a few hundred bytes; the source is never held.
+#: ⛔⛔ THE MEMO IS BOUNDED IN BYTES, NOT ONLY IN ENTRIES (review of #1226). An answer's `reads`
+#: list carries one `{name, why}` per distinct `request.*` / flag identifier, and both carry
+#: identifier text FROM THE SOURCE: a hostile 128 KiB script answers with megabytes (10,922 distinct
+#: identifiers = 3.64 MB; one 128 KiB identifier = 263 KB), and `POST /runtime-admission` lets any
+#: paid member ask about a fresh source each call. So:
+#:   (a) an answer larger than `REPAINT_MEMO_MAX_ANSWER_BYTES` serialised, or with more than
+#:       `REPAINT_MEMO_MAX_READS` reads, is NEVER memoised (it is computed, returned, forgotten:
+#:       exactly the cost before the memo, for exactly the scripts no real member writes);
+#:   (b) the whole memo is bounded by `REPAINT_MEMO_MAX_BYTES` as well as `REPAINT_MEMO_MAX`.
+#: (c) No identifier text is truncated: the answer is the JS module's, byte for byte (railed per
+#: corpus script), and (a) already keeps every large answer out of the cache.
 REPAINT_MEMO_MAX = 2048
-_MEMO: "OrderedDict[tuple, Dict[str, Any]]" = OrderedDict()
+REPAINT_MEMO_MAX_BYTES = 32 * 1024 * 1024
+REPAINT_MEMO_MAX_ANSWER_BYTES = 4096
+REPAINT_MEMO_MAX_READS = 64
+_MEMO: "OrderedDict[tuple, tuple]" = OrderedDict()   # key -> (answer, its serialised size)
+_MEMO_BYTES = [0]
 _MEMO_LOCK = threading.Lock()
-_RULES_FP: List[Any] = [None, ""]   # [the RULES object fingerprinted, its fingerprint]
+
+
+def _fingerprint(rules: Any) -> tuple:
+    return (rules, hashlib.sha256(json.dumps(rules, sort_keys=True).encode("utf-8")).hexdigest())
+
+
+#: (the RULES object fingerprinted, its fingerprint): ONE tuple, swapped whole, computed at import,
+#: so a reader can never see the object of one table beside the fingerprint of another (or none).
+_RULES_FP: tuple = _fingerprint(RULES)
 
 
 def _rules_fingerprint() -> str:
     """sha256 of `RULES` (canonical JSON), recomputed only when `RULES` is a different object."""
-    rules = RULES
-    if _RULES_FP[0] is not rules:
-        fp = hashlib.sha256(json.dumps(rules, sort_keys=True).encode("utf-8")).hexdigest()
-        _RULES_FP[0], _RULES_FP[1] = rules, fp
-    return _RULES_FP[1]
+    held = _RULES_FP
+    if held[0] is not RULES:
+        held = _fingerprint(RULES)
+        globals()["_RULES_FP"] = held
+    return held[1]
 
 
 def memo_key(text: str) -> tuple:
@@ -255,6 +277,15 @@ def _reset_repaint_memo() -> None:
     """Empty the memo (a fresh process; rails)."""
     with _MEMO_LOCK:
         _MEMO.clear()
+        _MEMO_BYTES[0] = 0
+
+
+def _memoisable(answer: Dict[str, Any]) -> int:
+    """The answer's serialised size when it may be memoised, else 0 (see (a) above)."""
+    if len(answer.get("reads") or ()) > REPAINT_MEMO_MAX_READS:
+        return 0
+    size = len(json.dumps(answer, ensure_ascii=False).encode("utf-8"))
+    return size if size <= REPAINT_MEMO_MAX_ANSWER_BYTES else 0
 
 
 def runtime_repaint_of(source: Any) -> Dict[str, Any]:
@@ -264,21 +295,28 @@ def runtime_repaint_of(source: Any) -> Dict[str, Any]:
     Memoised per source (`_MEMO`, above): the lex runs once per distinct source per process,
     and the caller always receives its own copy. Two threads asking a NEW source at the same
     moment may both lex it (the lex is not run under the lock, so one slow script never stalls
-    another's serve); both store the same answer."""
+    another's serve); both store the same answer. A large answer is never memoised."""
     text = "" if source is None else str(source)
     key = memo_key(text)
     with _MEMO_LOCK:
-        hit = _MEMO.get(key)
-        if hit is not None:
+        held = _MEMO.get(key)
+        if held is not None:
             _MEMO.move_to_end(key)
-    if hit is None:
-        hit = _classify(text)
+    if held is not None:
+        return copy.deepcopy(held[0])
+    answer = _classify(text)
+    size = _memoisable(answer)
+    if size:
         with _MEMO_LOCK:
-            _MEMO[key] = hit
-            _MEMO.move_to_end(key)
-            while len(_MEMO) > REPAINT_MEMO_MAX:
-                _MEMO.popitem(last=False)
-    return copy.deepcopy(hit)
+            old = _MEMO.pop(key, None)
+            if old is not None:
+                _MEMO_BYTES[0] -= old[1]
+            _MEMO[key] = (answer, size)
+            _MEMO_BYTES[0] += size
+            while len(_MEMO) > REPAINT_MEMO_MAX or _MEMO_BYTES[0] > REPAINT_MEMO_MAX_BYTES:
+                _k, (_a, gone) = _MEMO.popitem(last=False)
+                _MEMO_BYTES[0] -= gone
+    return copy.deepcopy(answer)
 
 
 def _classify(source: str) -> Dict[str, Any]:
