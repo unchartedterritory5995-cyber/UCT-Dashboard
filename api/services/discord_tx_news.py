@@ -32,6 +32,7 @@ import threading
 import time
 from zoneinfo import ZoneInfo
 
+from api.services import discord_cards
 from api.services import tx_headline_match as match
 
 log = logging.getLogger(__name__)
@@ -55,9 +56,10 @@ EMBED_LIMIT = 4000
 #: The reply plus up to three private follow-ups: about 120 headlines of ordinary length.
 MAX_PAGES = 4
 EPHEMERAL = 64           # Discord message flag: only the member who ran the command sees it
-GOLD = 0xDCBB5E          # UCT gold: the UCT News cards and recaps use the same
-#: The UCT mark, served by the dashboard as a real PNG (the /UCT_logo_*.png paths return the SPA's HTML).
-MARK_URL = "https://uctintelligence.com/live-trading-room/mark-256.png"
+# The brand (gold, the UCT mark, the footer) lives in api/services/discord_cards.py, shared by
+# every text answer the bot gives. These names stay for the code and tests that read them.
+GOLD = discord_cards.GOLD
+MARK_URL = discord_cards.MARK_URL
 NOT_VIP_MESSAGE = "`/news` reads UCT News (the TradeXchange feed), which is part of Exclusive VIP Access."
 
 _TICKER = re.compile(r"^[A-Z][A-Z0-9.]{0,6}$")
@@ -538,16 +540,14 @@ def build_embeds(ticker: str, window: str, rows, now: dt.datetime, *, known: boo
             lines.append(f"*+{len(rows) - shown} older headline(s) not shown*")
         pages.append(lines)
     n, total = len(rows), len(pages)
-    # Same brand as the UCT News cards: the UCT mark + "UCT INTELLIGENCE · NEWS" header, UCT gold.
-    return [{
-        "author": {"name": "UCT INTELLIGENCE · NEWS", "icon_url": MARK_URL},
-        "title": f"${ticker} · UCT News · {label}" + (f" ({i} of {total})" if total > 1 else ""),
-        "description": "\n".join(page),
-        "color": GOLD,
-        "footer": {"text": f"{n} headline{'s' if n != 1 else ''} · times ET · source TradeXchange · uctintelligence.com",
-                   "icon_url": MARK_URL},
-        "timestamp": now.astimezone(dt.timezone.utc).isoformat(),
-    } for i, page in enumerate(pages, 1)]
+    # The bot's one card style (discord_cards): the UCT mark + "UCT INTELLIGENCE · NEWS", UCT gold.
+    return [discord_cards.card(
+        "news",
+        title=f"${ticker} · UCT News · {label}" + (f" ({i} of {total})" if total > 1 else ""),
+        description="\n".join(page),
+        footer=[discord_cards.plural(n, "headline"), "times ET", "source TradeXchange"],
+        now=now,
+    ) for i, page in enumerate(pages, 1)]
 
 
 def build_embed(ticker: str, window: str, rows, now: dt.datetime, *, known: bool = True) -> dict:
