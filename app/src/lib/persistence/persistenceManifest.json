@@ -3115,6 +3115,17 @@
       ]
     },
     {
+      "key": "uct.screener.rsMarketHidden",
+      "store": "sessionStorage",
+      "scope": "device-local",
+      "surface": "Screener",
+      "kind": "state",
+      "label": "RS screens market note hidden for today",
+      "files": [
+        "app/src/pages/screener/focus/rsMarket.js"
+      ]
+    },
+    {
       "key": "uct.terminal.revertLayout",
       "store": "sessionStorage",
       "scope": "device-local",

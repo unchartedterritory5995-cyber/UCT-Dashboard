@@ -384,6 +384,47 @@ def screener_scan(spec: ScanSpec, user=Depends(require_paid)):
         scr_ctrace.record(_ctrace_total_ms, scr_ctrace.pop_stages())
 
 
+#: What "Why isn't a stock here?" says of a ticker the Screener holds no row for.
+NO_SUCH_STOCK = "No such stock in the Screener."
+
+
+@router.get("/api/screener/row/{ticker}")
+def screener_row(ticker: str, columns: str = "", user=Depends(require_paid)):
+    """One stock's screener row, for the columns named: ``{ticker, row, stale}``.
+
+    RS screens unit U8: "Why isn't a stock here?" in the Focus screener asks for the
+    one row and checks the open screen's rules against it in the page. The scan's own
+    ticker scope (`{key: "tickers"}`) is dark behind FT-029 v2's flag, so it cannot
+    serve this (`query.rows_for` says why this is not a scan).
+
+    ⛔ PAID, like `/scan`: it returns the same stored numbers the scan returns, one
+    stock at a time. Declared on the handler, as on every route in this file.
+    ⛔ `columns` IS CHECKED AGAINST THE SCHEMA before any statement exists: a name the
+    snapshot does not declare is a 400 that names it, never a column read off the
+    request. The ticker is only ever a bound parameter.
+    ⛔ 404 WHILE `RS_SCREENS_ENABLED` IS OFF, before anything is read: the route is
+    part of the RS screens and does not exist without them.
+
+    `stale: true` means the scan leaves this row out of every screen because its own
+    bars stopped arriving (`query.stale_gate`); the page says so instead of calling
+    the stock a match. A ticker with no row is a 404 with the member-facing sentence.
+    """
+    if not scr_saved.rs_screens_enabled():
+        raise HTTPException(status_code=404, detail="Not Found")
+    syms = scr_query.row_tickers(ticker)[:1]
+    cols = [c.strip() for c in columns.split(",") if c.strip()]
+    try:
+        found = scr_query.rows_for(syms, cols, user=user)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    hit = found.get(syms[0]) if syms else None
+    if hit is None:
+        raise HTTPException(status_code=404, detail=NO_SUCH_STOCK)
+    # A stored inf or NaN is a blank cell, never a 500 (the scan route's own rule).
+    from api.services.json_finite import scrub
+    return scrub({"ticker": syms[0], **hit})
+
+
 def _rs_history_block() -> dict:
     """The UCT RS rating-history side table's state (engineering map unit 2a-04):
     `rs_history.status()` -- `table`, `rows`, `sessions`, `latest_session`, `last_run`
@@ -1095,7 +1136,15 @@ def screener_earnings_context_status(user=Depends(require_admin)):
 @router.get("/api/screener/saved-screens")
 def screener_saved_list(user=Depends(require_paid)):
     scr_saved.init()
-    return {"saved": scr_saved.list_for(user["id"]), "starters": scr_saved.starters(user)}
+    out = {"saved": scr_saved.list_for(user["id"]), "starters": scr_saved.starters(user)}
+    # RS screens unit U8: the market caution state the RS screens print above their
+    # lists, `{state, text, asof}` from the newest post-pass receipt, or null when no
+    # state can be claimed. It rides this payload so the page asks nothing new. The KEY
+    # exists only while RS_SCREENS_ENABLED is on: off, the payload is the one it was.
+    if scr_saved.rs_screens_enabled():
+        from api.services.screener import rs_market_state
+        out["rs_market"] = rs_market_state.served()
+    return out
 
 
 @router.post("/api/screener/saved-screens")

@@ -58,7 +58,9 @@ LIST_SCREENS = ("starter_rs_top_rating", "starter_rs_new_high", "starter_rs_nh_b
                 "starter_rs_leaders")
 #: "exit_warning" joined the vocabulary in unit U7 (RS exit warnings names its warning).
 CAPTION_PARTS = {"setup", "group", "rs_high_age", "below_high", "moving", "exit_warning"}
-TAG_ORDER = ["before_price", "down_day", "flag", "new"]
+#: "earnings" joined the vocabulary in unit U8, first: a report inside the week changes
+#: what a setup means (tests/test_rs_screens_u8_earnings.py).
+TAG_ORDER = ["earnings", "before_price", "down_day", "flag", "new"]
 #: Words the contract bans from member-facing copy. "buy point" is the plan's own term
 #: for the Setup label's "Near a buy point"; a bare "buy" is not allowed.
 BANNED = re.compile(r"\b(buys|buying|buyable|sells|selling|lens|gate|red day|ADR|RSI)\b|"
@@ -308,15 +310,16 @@ def test_the_controls_are_the_contracts(on):
 def test_the_rows_are_the_contracts(on):
     by = _by_id()
     assert {i: by[i]["row"] for i in FIVE} == {
+        # unit U8: the four list screens lead their tags with `earnings`
         "starter_rs_top_rating": {"place": "rs_rating_pos", "caption": ["setup", "moving"],
-                                  "tags": ["flag", "new"]},
+                                  "tags": ["earnings", "flag", "new"]},
         "starter_rs_new_high": {"place": None, "caption": ["rs_high_age", "group"],
-                                "tags": ["before_price", "down_day", "flag", "new"]},
+                                "tags": ["earnings", "before_price", "down_day", "flag", "new"]},
         "starter_rs_nh_before_price": {"place": None, "caption": ["below_high", "group"],
-                                       "tags": ["down_day", "flag", "new"]},
+                                       "tags": ["earnings", "down_day", "flag", "new"]},
         # unit U7: the ranked screen names its own order (`sort_label`)
-        "starter_rs_leaders": {"place": "index", "caption": ["setup", "group"], "tags": ["flag", "new"],
-                               "sort_label": "RS Rating"},
+        "starter_rs_leaders": {"place": "index", "caption": ["setup", "group"],
+                               "tags": ["earnings", "flag", "new"], "sort_label": "RS Rating"},
         # unit U7: each warning row says which warning and how old (`exit_warning`)
         "starter_rs_exit_warning_5": {"place": None, "caption": ["exit_warning", "group"],
                                       "tags": ["new"]}}

@@ -70,7 +70,9 @@ import { migratePinned } from './screenGroups'
 import QuickControls from './QuickControls'
 import { RS_CONTROLS_PREF, RS_NOTE_PREF, RS_LEADERS_ID, RS_SCREENS_COLUMNS, controlsOf, applyOption, specWithChoices, choicesFor, withChoice, withoutChoices, controlStarterFor, placeOverride, rankLabelOf } from './rsScreens'
 import { rowConfigOf, rowColumns, ratingsAsOf, sectorShare, rowFacts } from './rsRows'
-import { RsHeaderLine, RsFirstVisit, RsEmptyState } from './RsScreenParts'
+import { RsHeaderLine, RsFirstVisit, RsEmptyState, RsMarketLine } from './RsScreenParts'
+import { marketLineOf, readMarketHidden, writeMarketHidden } from './rsMarket'
+import WhyNotHere from './WhyNotHere'
 import { useNameDialog } from './useNameDialog'
 import { useShortcutsSheet } from './useShortcutsSheet'
 import lazy from '../../../utils/lazyWithRetry'
@@ -191,7 +193,7 @@ function FocusList({ mode, onMode }) {
   const [retryNonce, setRetryNonce] = useState(0)
   // ── screen identity (which starter or saved screen is applied). Read BEFORE the scan is built:
   // the columns the list asks for depend on the open starter (RS screens, below).
-  const { saved, starters, error: savedError, loaded: savedLoaded, refresh } = useSavedScreens()
+  const { saved, starters, rsMarket, error: savedError, loaded: savedLoaded, refresh } = useSavedScreens()
   const [current, setCurrent] = useState(() => (arrivedBare.current ? null : readNamed()[normalSpec(s.baseSpec)] || null))
   // ── RS screens (unit U5): what the open screen's STARTER adds to it ──────
   // The starter on view, from the live starters payload by id; it may carry `controls`, `row`
@@ -937,6 +939,13 @@ function FocusList({ mode, onMode }) {
   // Shown until dismissed, and only once the preferences have answered, so it never flashes at a
   // member who dismissed it (a refused read says nothing either way, so it stays hidden).
   const rsNoteOn = !!rsRow && !prefsLoading && !prefsReadFailed && !parsePref(prefs[RS_NOTE_PREF], null)
+  // The market caution line (unit U8): the state the saved-screens payload carries, on a screen
+  // whose starter has `row`, until the member hides it for today (rsMarket.js says how that is
+  // kept). `normal`, no state and a payload without the key draw nothing.
+  const marketLine = useMemo(() => marketLineOf(rsMarket), [rsMarket])
+  const [marketHidden, setMarketHidden] = useState(readMarketHidden)
+  const rsMarketOn = !!rsRow && !!marketLine && marketHidden !== marketLine.key
+  const hideMarketLine = () => { writeMarketHidden(marketLine.key); setMarketHidden(marketLine.key) }
   // The starter's own words for "nothing today", while the screen is still the starter's: once the
   // member has changed it, the sentence is no longer about what they asked, and today's state
   // (which filter to drop) is the honest one.
@@ -996,6 +1005,14 @@ function FocusList({ mode, onMode }) {
           livePrices={prices} radar={radar} sortLabel={sortLabel} sortMenu={sortMenu} total={newOnlyOn ? listRows.length : shownTotal} hasMore={listHasMore}
           onLoadMore={s.loadMore} isLoading={isLoading} showCompany={showCompany} pending={pending} structures={structures}
           newSet={newSet} rsRow={rsRowShown} themes={rsRow ? themeData : null}
+          // "Why isn't a stock here?" (unit U8), only on a screen whose starter has `row`. It reads the
+          // screen the rows on view ANSWER (`shown`), so its rules are the list's own while a new answer
+          // is on its way; `hasMore` is the list's, whatever "New only" is hiding.
+          headBelow={rsRow ? (
+            <WhyNotHere screenKey={rowsKey} filters={shown.filters} logic={shown.logic} rank={shown.rank}
+              filterList={shown.baseSpec?.filters || s.baseSpec.filters} metaFilters={meta?.filters}
+              rows={rows} listRows={listRows} hasMore={hasMore} onFound={selectRow} />
+          ) : null}
           headExtra={<>{!rsRow && newLine}<FlaggedActions /></>} />
         {/* S5: primitives and stable callbacks only, so a tick for another ticker skips the pane.
             ONE chart on a phone: while the sheet shows the chart, the side pane (hidden there by
@@ -1045,6 +1062,7 @@ function FocusList({ mode, onMode }) {
       {/* RS screens: the quick controls row, only for a starter that declares controls. */}
       {rsControls.length > 0 && <QuickControls controls={rsControls} filters={s.filters} sort={s.sort} rank={s.rank} onChoose={chooseOption} onReset={resetControls} />}
       {rsHeadOn && <RsHeaderLine newLine={newLine} showNewLine={newLineShows} asOf={rsAsOf} share={rsShare} pending={pending} />}
+      {rsMarketOn && <RsMarketLine text={marketLine.text} state={marketLine.state} onHide={hideMarketLine} />}
       {rsNoteOn && <RsFirstVisit onHow={openRsHelp} onDismiss={() => setPref(RS_NOTE_PREF, '1')} />}
       {metaError && !meta && (
         // The list still renders with the current screen; only the filter registry is missing.

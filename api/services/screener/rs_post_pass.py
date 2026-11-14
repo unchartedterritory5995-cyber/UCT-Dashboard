@@ -48,6 +48,12 @@ whole rows with INSERT OR REPLACE, so a single nightly pass would be wiped by th
 build) and after the rating job and its catch-up (``api.main._run_rs_post_pass``),
 where screen membership is then re-recorded on the new ratings.
 
+THE MARKET STATE RIDES ALONG (unit U8). Every pass also asks ``rs_market_state.compute``
+for the market caution state and keeps the answer in its receipt as ``market``
+(``{state, text, asof}``, or None when no state can be claimed). It is a fact about SPY
+and QQQ, not about any row, so it is asked whether or not the rating half of the pass
+succeeded, and a failure there never costs the pass.
+
 DARK BY DEFAULT. ``RS_SCREENS_ENABLED`` is read per call (only the literal ``1`` arms
 it). Off, :func:`run` returns before it opens the database: no column is written, no
 table is created and no receipt is stored.
@@ -250,15 +256,31 @@ def _rank_ibd_on() -> bool:
         return False
 
 
-def run(session=None, *, source: str = "manual", now=None) -> dict:
+def _market_state(spy_bars, now):
+    """The market caution state for this pass's receipt (unit U8), or None. Never
+    raises: ``rs_market_state.compute`` already answers None for anything it cannot
+    read, and an import that fails is the same answer."""
+    try:
+        from . import rs_market_state                        # noqa: PLC0415 - lazy: no cycle
+        return rs_market_state.compute(spy_bars=spy_bars, now=now)
+    except Exception as e:                                   # noqa: BLE001
+        log.warning("[rs_post_pass] market state not computed: %s", e)
+        return None
+
+
+def run(session=None, *, source: str = "manual", now=None, spy_bars=None) -> dict:
     """One pass over ``screener_rows`` (module docstring). Returns its receipt and
     never raises.
 
     ``session`` defaults to the screener's settled session. The receipt carries
     ``session`` (the one asked for), ``rating_session`` (the one the rows now say, or
     None), ``rewritten`` (were the rating columns moved onto ``session``),
-    ``reason`` when nothing was rewritten, the row counts, and ``populated``: the
-    non-null count of every column this pass owns, for the build's own receipt."""
+    ``reason`` when nothing was rewritten, the row counts, ``populated``: the
+    non-null count of every column this pass owns, for the build's own receipt, and
+    ``market``: the market caution state (unit U8; None when none can be claimed).
+
+    ``spy_bars`` is the build's own SPY read, handed on so the market state does not
+    read SPY a second time; every other caller leaves it out."""
     t0 = time.time()
     receipt = {"ok": False, "enabled": enabled(), "source": source, "session": None,
                "rating_session": None, "rewritten": False, "reason": None, "rows": 0,
@@ -272,6 +294,7 @@ def run(session=None, *, source: str = "manual", now=None) -> dict:
         log.warning("[rs_post_pass] failed: %s: %s", type(e).__name__, e)
         receipt["ok"] = False
         receipt["error"] = f"{type(e).__name__}: {e}"[:300]
+    receipt["market"] = _market_state(spy_bars, now)
     receipt["finished_at"] = time.time()
     receipt["duration_ms"] = round((receipt["finished_at"] - t0) * 1000, 1)
     _record(receipt)

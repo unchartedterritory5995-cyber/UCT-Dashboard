@@ -34,6 +34,7 @@
      "rs_rating_pos_n": 62,
      "rs_rating_pos_prev20": 1,
      "rs_rating_chg_5": 0,
+     "days_to_earnings": null,
      "base_bias": "bullish"
     },
     {
@@ -64,6 +65,7 @@
      "rs_rating_pos_n": 62,
      "rs_rating_pos_prev20": 6,
      "rs_rating_chg_5": 1,
+     "days_to_earnings": null,
      "base_bias": "bullish"
     },
     {
@@ -94,6 +96,7 @@
      "rs_rating_pos_n": 62,
      "rs_rating_pos_prev20": 28,
      "rs_rating_chg_5": 18,
+     "days_to_earnings": null,
      "base_bias": "bullish"
     },
     {
@@ -124,6 +127,7 @@
      "rs_rating_pos_n": 62,
      "rs_rating_pos_prev20": 8,
      "rs_rating_chg_5": 2,
+     "days_to_earnings": null,
      "base_bias": "bullish"
     },
     {
@@ -154,6 +158,7 @@
      "rs_rating_pos_n": 62,
      "rs_rating_pos_prev20": 7,
      "rs_rating_chg_5": -3,
+     "days_to_earnings": null,
      "base_bias": "neutral"
     },
     {
@@ -184,6 +189,7 @@
      "rs_rating_pos_n": 62,
      "rs_rating_pos_prev20": 13,
      "rs_rating_chg_5": 2,
+     "days_to_earnings": null,
      "base_bias": "bullish"
     },
     {
@@ -214,6 +220,7 @@
      "rs_rating_pos_n": 62,
      "rs_rating_pos_prev20": 43,
      "rs_rating_chg_5": 16,
+     "days_to_earnings": null,
      "base_bias": "bullish"
     },
     {
@@ -244,6 +251,7 @@
      "rs_rating_pos_n": 62,
      "rs_rating_pos_prev20": 10,
      "rs_rating_chg_5": 2,
+     "days_to_earnings": null,
      "base_bias": "bullish"
     }
    ]
@@ -279,6 +287,7 @@
      "px_below_high_pct": 0.0,
      "rs_rating_pos": 1,
      "rs_rating_pos_n": 62,
+     "days_to_earnings": null,
      "rs_nhbp_age": null,
      "rs_nh_red_bars_ago": 1,
      "rs_rating_score": 1.817316,
@@ -311,6 +320,7 @@
      "px_below_high_pct": 0.0,
      "rs_rating_pos": 2,
      "rs_rating_pos_n": 62,
+     "days_to_earnings": null,
      "rs_nhbp_age": null,
      "rs_nh_red_bars_ago": 1,
      "rs_rating_score": 1.552571,
@@ -343,6 +353,7 @@
      "px_below_high_pct": 0.0,
      "rs_rating_pos": 3,
      "rs_rating_pos_n": 62,
+     "days_to_earnings": null,
      "rs_nhbp_age": null,
      "rs_nh_red_bars_ago": 1,
      "rs_rating_score": 1.550208,
@@ -375,6 +386,7 @@
      "px_below_high_pct": 0.0,
      "rs_rating_pos": 4,
      "rs_rating_pos_n": 62,
+     "days_to_earnings": null,
      "rs_nhbp_age": null,
      "rs_nh_red_bars_ago": 1,
      "rs_rating_score": 1.5204,
@@ -407,6 +419,7 @@
      "px_below_high_pct": 0.0,
      "rs_rating_pos": 6,
      "rs_rating_pos_n": 62,
+     "days_to_earnings": null,
      "rs_nhbp_age": null,
      "rs_nh_red_bars_ago": 1,
      "rs_rating_score": 1.469931,
@@ -439,6 +452,7 @@
      "px_below_high_pct": 0.0,
      "rs_rating_pos": 7,
      "rs_rating_pos_n": 62,
+     "days_to_earnings": null,
      "rs_nhbp_age": null,
      "rs_nh_red_bars_ago": 1,
      "rs_rating_score": 1.443241,
@@ -471,6 +485,7 @@
      "px_below_high_pct": -1.31,
      "rs_rating_pos": 11,
      "rs_rating_pos_n": 62,
+     "days_to_earnings": null,
      "rs_nhbp_age": null,
      "rs_nh_red_bars_ago": 1,
      "rs_rating_score": 1.401511,
@@ -503,6 +518,7 @@
      "px_below_high_pct": -6.45,
      "rs_rating_pos": 12,
      "rs_rating_pos_n": 62,
+     "days_to_earnings": null,
      "rs_nhbp_age": 0,
      "rs_nh_red_bars_ago": null,
      "rs_rating_score": 1.392682,
@@ -542,6 +558,7 @@
      "rs_nh_bars_ago": 1,
      "rs_rating_pos": 28,
      "rs_rating_pos_n": 62,
+     "days_to_earnings": null,
      "rs_nh_red_bars_ago": 1,
      "rs_rating_score": 1.235589,
      "base_bias": "neutral"
@@ -574,6 +591,7 @@
      "rs_nh_bars_ago": 1,
      "rs_rating_pos": 37,
      "rs_rating_pos_n": 62,
+     "days_to_earnings": null,
      "rs_nh_red_bars_ago": 1,
      "rs_rating_score": 1.170998,
      "base_bias": "bearish"
@@ -606,6 +624,7 @@
      "rs_nh_bars_ago": 1,
      "rs_rating_pos": 46,
      "rs_rating_pos_n": 62,
+     "days_to_earnings": null,
      "rs_nh_red_bars_ago": 1,
      "rs_rating_score": 1.098626,
      "base_bias": "neutral"
@@ -638,6 +657,7 @@
      "rs_nh_bars_ago": 1,
      "rs_rating_pos": 51,
      "rs_rating_pos_n": 62,
+     "days_to_earnings": null,
      "rs_nh_red_bars_ago": 1,
      "rs_rating_score": 1.061937,
      "base_bias": "bearish"
@@ -670,6 +690,7 @@
      "rs_nh_bars_ago": 1,
      "rs_rating_pos": 30,
      "rs_rating_pos_n": 62,
+     "days_to_earnings": null,
      "rs_nh_red_bars_ago": 1,
      "rs_rating_score": 1.226622,
      "base_bias": "bearish"
@@ -702,6 +723,7 @@
      "rs_nh_bars_ago": 1,
      "rs_rating_pos": 45,
      "rs_rating_pos_n": 62,
+     "days_to_earnings": null,
      "rs_nh_red_bars_ago": 1,
      "rs_rating_score": 1.106025,
      "base_bias": "neutral"
@@ -734,6 +756,7 @@
      "rs_nh_bars_ago": 0,
      "rs_rating_pos": 33,
      "rs_rating_pos_n": 62,
+     "days_to_earnings": null,
      "rs_nh_red_bars_ago": 1,
      "rs_rating_score": 1.198031,
      "base_bias": "bearish"
@@ -766,6 +789,7 @@
      "rs_nh_bars_ago": 0,
      "rs_rating_pos": 48,
      "rs_rating_pos_n": 62,
+     "days_to_earnings": null,
      "rs_nh_red_bars_ago": 1,
      "rs_rating_score": 1.07712,
      "base_bias": "bullish"
@@ -806,6 +830,7 @@
      "px_below_high_pct": 0.0,
      "rs_rating_pos": 1,
      "rs_rating_pos_n": 62,
+     "days_to_earnings": null,
      "uct_composite": null,
      "rank_score": 100.0,
      "base_bias": "bullish"
@@ -840,6 +865,7 @@
      "px_below_high_pct": 0.0,
      "rs_rating_pos": 2,
      "rs_rating_pos_n": 62,
+     "days_to_earnings": null,
      "uct_composite": null,
      "rank_score": 90.91,
      "base_bias": "bullish"
@@ -874,6 +900,7 @@
      "px_below_high_pct": 0.0,
      "rs_rating_pos": 3,
      "rs_rating_pos_n": 62,
+     "days_to_earnings": null,
      "uct_composite": null,
      "rank_score": 81.82,
      "base_bias": "bullish"
@@ -908,6 +935,7 @@
      "px_below_high_pct": 0.0,
      "rs_rating_pos": 4,
      "rs_rating_pos_n": 62,
+     "days_to_earnings": null,
      "uct_composite": null,
      "rank_score": 72.73,
      "base_bias": "bullish"
@@ -942,6 +970,7 @@
      "px_below_high_pct": -5.0,
      "rs_rating_pos": 5,
      "rs_rating_pos_n": 62,
+     "days_to_earnings": null,
      "uct_composite": null,
      "rank_score": 63.64,
      "base_bias": "neutral"
@@ -976,6 +1005,7 @@
      "px_below_high_pct": 0.0,
      "rs_rating_pos": 6,
      "rs_rating_pos_n": 62,
+     "days_to_earnings": null,
      "uct_composite": null,
      "rank_score": 54.55,
      "base_bias": "bullish"
@@ -1010,6 +1040,7 @@
      "px_below_high_pct": 0.0,
      "rs_rating_pos": 7,
      "rs_rating_pos_n": 62,
+     "days_to_earnings": null,
      "uct_composite": null,
      "rank_score": 45.45,
      "base_bias": "bullish"
@@ -1044,6 +1075,7 @@
      "px_below_high_pct": 0.0,
      "rs_rating_pos": 8,
      "rs_rating_pos_n": 62,
+     "days_to_earnings": null,
      "uct_composite": null,
      "rank_score": 36.36,
      "base_bias": "bullish"
@@ -1206,6 +1238,7 @@
     "rs_rating_pos_n": 62,
     "rs_rating_pos_prev20": 57,
     "rs_rating_chg_5": 57,
+    "days_to_earnings": null,
     "base_bias": "bullish"
    },
    {
@@ -1237,6 +1270,7 @@
     "rs_rating_pos_n": 62,
     "rs_rating_pos_prev20": 28,
     "rs_rating_chg_5": 18,
+    "days_to_earnings": null,
     "base_bias": "bullish"
    },
    {
@@ -1268,6 +1302,7 @@
     "rs_rating_pos_n": 62,
     "rs_rating_pos_prev20": 43,
     "rs_rating_chg_5": 16,
+    "days_to_earnings": null,
     "base_bias": "bullish"
    },
    {
@@ -1299,6 +1334,7 @@
     "rs_rating_pos_n": 62,
     "rs_rating_pos_prev20": 40,
     "rs_rating_chg_5": 6,
+    "days_to_earnings": null,
     "base_bias": "bullish"
    },
    {
@@ -1330,6 +1366,7 @@
     "rs_rating_pos_n": 62,
     "rs_rating_pos_prev20": 1,
     "rs_rating_chg_5": 0,
+    "days_to_earnings": null,
     "base_bias": "bullish"
    },
    {
@@ -1361,6 +1398,7 @@
     "rs_rating_pos_n": 62,
     "rs_rating_pos_prev20": 52,
     "rs_rating_chg_5": 5,
+    "days_to_earnings": null,
     "base_bias": "bullish"
    },
    {
@@ -1392,6 +1430,7 @@
     "rs_rating_pos_n": 62,
     "rs_rating_pos_prev20": 53,
     "rs_rating_chg_5": 9,
+    "days_to_earnings": null,
     "base_bias": "bullish"
    },
    {
@@ -1423,6 +1462,7 @@
     "rs_rating_pos_n": 62,
     "rs_rating_pos_prev20": 38,
     "rs_rating_chg_5": 12,
+    "days_to_earnings": null,
     "base_bias": "bullish"
    },
    {
@@ -1454,6 +1494,7 @@
     "rs_rating_pos_n": null,
     "rs_rating_pos_prev20": null,
     "rs_rating_chg_5": null,
+    "days_to_earnings": null,
     "base_bias": null
    }
   ]

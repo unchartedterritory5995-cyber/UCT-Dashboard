@@ -426,6 +426,7 @@
       "blank": "A label is blank when one of the measures it needs cannot be computed, and for a stock whose price history contradicts itself. A blank is never replaced by the next label down."
     },
     "floor": "Every screen here is stocks only, no funds, with a price of $10 or more and $20M or more traded a day on a 30-day average. The benchmark is SPY, on daily closing prices.",
+    "earnings": "A row says when the stock next reports earnings only when that date is known to us and is 5 days away or less, so a row without the tag may still have a report coming.",
     "ratings_as_of": "Ratings as of names the market session the RS Rating numbers on a row describe. The rating job scores each completed session at 04:15 ET the next morning. Between the 03:00 ET screener build and that job the screens keep the previous session's ratings and places, and this date says so.",
     "rating_note": "Our RS Rating is our own calculation. It follows IBD's published method and can differ from IBD's number by a few points.",
     "honesty": "Every screen and label here describes the past. Each one says which stocks to study, not what will happen next, and none of them is a forecast or a recommendation."

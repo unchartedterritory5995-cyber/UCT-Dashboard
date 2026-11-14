@@ -82,6 +82,8 @@ function RsScreensSection({ doc, sectionRef }) {
     <section className={styles.rsSection} ref={sectionRef} aria-labelledby={headId} data-testid="rs-screens-method">
       <h3 className={styles.rsTitle} id={headId}>{text(doc.label) || 'Relative Strength screens'}</h3>
       {text(doc.floor) && <p className={styles.how}>{doc.floor}</p>}
+      {/* Unit U8: when a row's earnings tag is shown, and that a missing one is not "none soon". */}
+      {text(doc.earnings) && <p className={styles.how} data-testid="rs-method-earnings">{doc.earnings}</p>}
       {screens.map((s) => (
         <article key={s.id || s.name} className={styles.card}>
           <h4 className={styles.label}>{s.name}</h4>

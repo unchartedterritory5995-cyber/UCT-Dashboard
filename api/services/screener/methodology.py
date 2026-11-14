@@ -883,6 +883,12 @@ def rs_screens_section() -> dict:
         "floor": (f"Every screen here is stocks only, no funds, with a price of {s['price']} "
                   f"or more and {s['dollar_vol']} or more traded a day on a 30-day average. "
                   f"The benchmark is SPY, on daily closing prices."),
+        # Unit U8: the row's earnings tag. One sentence, because a missing tag reads
+        # as "no report soon" unless the page says it does not mean that.
+        "earnings": (
+            f"A row says when the stock next reports earnings only when that date is known "
+            f"to us and is {_sc.EARNINGS_TAG_DAYS} days away or less, so a row without the "
+            f"tag may still have a report coming."),
         "ratings_as_of": (
             "Ratings as of names the market session the RS Rating numbers on a row describe. "
             "The rating job scores each completed session at 04:15 ET the next morning. "
