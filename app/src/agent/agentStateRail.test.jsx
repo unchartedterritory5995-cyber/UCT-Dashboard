@@ -163,6 +163,18 @@ describe('STATE RAIL · layer 1: every kind’s destroying plan × additive verb
     expect(stateRailRefusal(broken, { words: 'add AAPL' })).toMatch(/didn’t change anything/)
     expect(stateRailRefusal(broken, { words: 'show me AAPL' })).toBe(null)            // not additive: the rail has nothing to say
   })
+  it('kinds the fixture cannot drive to a destroying plan (no saved indicator of the member’s own; a new widget only adds): their readers still refuse the shape', () => {
+    // definition.delete — the plan Indicators' planDefinitionAction returns for one of the member's saved indicators
+    const del = { ok: true, plans: [{ kind: 'definitionLibrary', ref: 'definitions', patch: { action: { plan: { op: 'delete', defId: 'u_0123456789ab', preview: { name: 'Volume Thrust' } } } } }] }
+    expect(stateRailRefusal(del, { words: 'add a new indicator' })).toMatch(/delete your saved indicator “Volume Thrust”/)
+    expect(stateRailRefusal(del, { words: 'delete my volume thrust indicator' })).toBe(null)
+    const dup = { ok: true, plans: [{ kind: 'definitionLibrary', ref: 'definitions', patch: { action: { plan: { op: 'duplicate', defId: 'rsi' } } } }] }
+    expect(stateRailRefusal(dup, { words: 'add another copy' })).toBe(null)
+    // a workspace patch that removes a widget (only an Undo has that shape) is read as a removal
+    const rm = { ok: true, plans: [{ kind: 'workspace', ref: 'workspace', patch: { remove: ['wl'] } }] }
+    expect(stateRailRefusal(rm, { words: 'add a widget' })).toMatch(/remove a widget/)
+    expect(stateRailRefusal({ ok: true, plans: [{ kind: 'workspace', ref: 'workspace', patch: { add: [{ type: 'news' }] } }] }, { words: 'add a widget' })).toBe(null)
+  })
   it('adds, shows, hides, moves and reorders are never refused (nothing the member had is lost)', async () => {
     const fx = stateFixture()
     for (const ops of [
