@@ -13,7 +13,7 @@ import { addableRows } from './capabilities/indicatorEdits'
 import { resolvedTicker, isReservedWord, PRONOUNS } from './nl/tickers'
 import { sanitizeChartTabs } from '../pages/charts/chartTabs'
 import { CLICK_ACT_NP } from './clickRef'
-import { namedAnchorRelation, wholeLinesNamed, clickLineMatch, clickLineHits, activeText, relationAnchor, blankStated, negatedClick, withoutExclusions, excludedCharts, LOWER_STOP } from './spatialCheck'
+import { namedAnchorRelation, wholeLinesNamed, clickLineMatch, clickLineHits, activeText, relationAnchor, blankStated, negatedClick, withoutExclusions, excludedCharts } from './spatialCheck'
 
 // Words that point at "the chart in front of me". "it" counts only for a CHART-kind op ("make it
 // weekly"), never on its own ("put it in Momentum", "what is it" are not about a chart).
@@ -752,7 +752,7 @@ function tickerAntecedentOf(text, charts, sel, ex) {
 // a chart the plan WRITES shows a symbol other than every ticker the change words carry, nothing runs: asked. That covers a
 // one-chart board ("the only chart"), the click, and "the one left". (No phrase list decides it: a ticker is a ticker.)
 // Never a target: a ticker in an exclusion or a keep clause (changeWords), a relation's ANCHOR ("the one below the QQQ one"),
-// an indicator / session acronym (NOT_TICKER_CAPS, RESERVED_WORDS), an ordinary word typed in capitals (LOWER_STOP, PRONOUNS),
+// an indicator / session acronym (NOT_TICKER_CAPS, RESERVED_WORDS), an ordinary word typed in capitals (ORDINARY, PRONOUNS, the app lexicon), a token with a digit,
 // a single letter, and a ticker that is a VALUE of the plan (the carve-out, in targetTickerConflict).
 // CASING: a token typed in capitals is a ticker; one NOT in capitals is a ticker only when the client already knows it as one —
 // a symbol on the board, or a word the ticker search grounded (`known`: lowercase word → ticker, filled by useAgent).
@@ -767,6 +767,14 @@ function changeWords(text) {
   return withoutExclusions(change)
 }
 const TGT_ANCHOR_BEFORE = /\b(?:above|below|under|underneath|beneath|over|beside|alongside|near|nearest|by|next\s+(?:door\s+)?to|left\s+of|right\s+of|across\s+from|opposite|adjacent\s+to|diagonal(?:ly)?(?:\s+(?:from|to|across\s+from))?|kitty[\s-]?corner\s+(?:from|to)|catty[\s-]?corner\s+(?:from|to))\s+(?:the\s+|my\s+)?\$?$/i
+// ordinary words — typed in capitals for emphasis, or not in capitals at all — are words, never tickers (unless on the board):
+// the ticker pronouns and the short words of an ordinary request (spatialCheck's negated-ticker stop list among them)
+const ORDINARY = new Set(('all now one out any are for the and low big key fun run see has two new top it on be so or go me us we my an a to in at ' +
+  'by of up is no do own way day bar bars log this that them these those rest else time week line axis grid row rows both each mine here there ' +
+  'today again chart ones as if he she you your our its his her who why how what when then than also just only even back from into onto ' +
+  'with over more most less some such very well were was been had did can may let get got put set add take bump move make show load turn ' +
+  'flip swap keep leave give need want like look open use say yes yet too off via per pls plz thx ok okay sure hey hi please thank thanks').split(' '))
+const isOrdinary = (lower, extra) => ORDINARY.has(lower) || PRONOUNS.has(lower) || !!extra?.has?.(lower)
 const TICKER_TOKEN = /(?:^|[^A-Za-z0-9$.'’])(\$?[A-Za-z][A-Za-z0-9]{0,4}(?:\.[A-Za-z])?)(?![A-Za-z0-9])/g
 /** Every word of the change words that may be a ticker, with its casing: [{ raw, upper, caps, index }] (anchors left out). */
 export function tickerTokens(text) {
@@ -778,12 +786,15 @@ export function tickerTokens(text) {
     if (TGT_ANCHOR_BEFORE.test(w.slice(0, index))) continue
     const stem = upper.replace(/\d+$/, '')                             // "EMA20" is the EMA
     if (!raw.startsWith('$') && (NOT_TICKER_CAPS.has(upper) || NOT_TICKER_CAPS.has(stem) || isReservedWord(bare))) continue
+    // a token with a digit ("P5", "Q3", "EMA20") is a label or a setting, never a ticker typed bare
+    if (!raw.startsWith('$') && /[0-9]/.test(bare)) continue
     out.push({ raw, upper, dollar: raw.startsWith('$'), caps: bare === upper && /[A-Z]/.test(bare), index })
   }
   return out
 }
 /** The tickers the change words carry (structural: any position). `known`: lowercase word → ticker the client already knows. */
-export function targetTickers(text, charts = [], known = new Map()) {
+// (`ordinary`: the app's own words — useAgent passes the lexicon: "Chart IQ", "AI Chips" are names here, not tickers)
+export function targetTickers(text, charts = [], known = new Map(), ordinary = null) {
   const on = new Set((charts || []).map(c => String(c?.symbol || '').toUpperCase()).filter(Boolean))
   const out = []
   const add = (t) => { if (t && !out.includes(t)) out.push(t) }
@@ -793,12 +804,12 @@ export function targetTickers(text, charts = [], known = new Map()) {
     if (t.caps) {
       // an ordinary word in capitals ("ALL", "NOW", "IT") is a word — unless it is a symbol on this board
       if (on.has(t.upper)) { add(t.upper); continue }
-      if (t.upper.length < 2 || LOWER_STOP.test(lower) || PRONOUNS.has(lower)) continue
+      if (t.upper.length < 2 || isOrdinary(lower, ordinary)) continue
       add(t.upper)
       continue
     }
     // not in capitals: a symbol on the board ("take spy to weekly"), or a word the ticker search knows as one
-    if (on.has(t.upper) && t.upper.length >= 2 && !LOWER_STOP.test(lower) && !PRONOUNS.has(lower)) { add(t.upper); continue }
+    if (on.has(t.upper) && t.upper.length >= 2 && !isOrdinary(lower)) { add(t.upper); continue }
     const k = known instanceof Map ? known.get(lower) : null
     if (k) add(String(k).toUpperCase())
   }
@@ -808,24 +819,30 @@ export function targetTickers(text, charts = [], known = new Map()) {
 export function lowerTickerCandidates(text, charts = [], isSymbolWord = () => true) {
   const on = new Set((charts || []).map(c => String(c?.symbol || '').toUpperCase()).filter(Boolean))
   return [...new Set(tickerTokens(text).filter(t => !t.caps && !t.dollar && !on.has(t.upper)).map(t => t.upper.toLowerCase())
-    .filter(w => w.length >= 2 && !LOWER_STOP.test(w) && !PRONOUNS.has(w) && isSymbolWord(w)))]
+    .filter(w => w.length >= 2 && !isOrdinary(w) && isSymbolWord(w)))]
 }
 const valuesOf = (ops) => {
   const out = new Set()
   const walk = (v) => {
-    if (typeof v === 'string') { const t = v.trim().replace(/^\$/, ''); if (/^[A-Za-z][A-Za-z0-9.]{0,9}$/.test(t)) out.add(t.toUpperCase()) } else if (Array.isArray(v)) v.forEach(walk)
-    else if (v && typeof v === 'object') Object.values(v).forEach(walk)
+    if (typeof v === 'string') {
+      const t = v.trim().replace(/^\$/, '')
+      if (/^[A-Za-z][A-Za-z0-9.]{0,9}$/.test(t)) out.add(t.toUpperCase())
+      // …and every word of a name the plan carries ("AI Chips", "showChartIq"): a word the plan SETS is part of the change,
+      // never the identity of the chart it lands on
+      for (const part of t.replace(/([a-z])([A-Z])/g, '$1 $2').split(/[^A-Za-z0-9.]+/)) if (part) out.add(part.toUpperCase())
+    } else if (Array.isArray(v)) v.forEach(walk)
+    else if (v && typeof v === 'object') { for (const [k, x] of Object.entries(v)) { walk(k); walk(x) } }
   }
   for (const o of ops || []) walk(o?.args)
   return out
 }
 /** → { ask: { text }, ticker, shown } when a chart the plan writes shows a symbol other than the TARGET ticker the words name. */
-export function targetTickerConflict({ host, ops, text, pickedRefs = [], getTargetKind, getCapability, known = new Map() }) {
+export function targetTickerConflict({ host, ops, text, pickedRefs = [], getTargetKind, getCapability, known = new Map(), ordinary = null }) {
   try {
     const charts = host?.charts?.list?.() || []
     if (!charts.length || (pickedRefs || []).some(Boolean)) return null
     const values = valuesOf(ops)
-    const targets = targetTickers(text, charts, known).filter(t => !values.has(t))
+    const targets = targetTickers(text, charts, known, ordinary).filter(t => !values.has(t))
     if (!targets.length) return null
     // a chart the words identify by place / order / relation (not by symbol) is named there in its own right
     const w = changeWords(text)

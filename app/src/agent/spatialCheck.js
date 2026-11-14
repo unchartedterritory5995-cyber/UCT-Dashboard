@@ -502,7 +502,7 @@ const NEG_ANY_RE = new RegExp(String.raw`\b(without|with\s+the\s+exception\s+of)
 const NEG_STAY_RE = new RegExp(String.raw`${NEG_START}()(${NEG_REFS})\s+(?:${NEG_STAY})${NEG_END}`, 'gi')
 // the loose form for the UNPLACED net: a cue and whatever it governs to the clause's end ("leave SPY's neighbour alone")
 const NEG_NET_RE = new RegExp(String.raw`${NEG_START}(${NEG_CUE}|without|with\s+the\s+exception\s+of)\s+([^,;:.!?—–]{1,60}?)${NEG_TAIL}${NEG_END}`, 'gi')
-export const LOWER_STOP = /^(?:all|now|one|out|any|are|for|the|and|low|big|key|fun|run|see|has|two|new|top|it|on|be|so|or|go|me|us|we|my|an|a|to|in|at|by|of|up|is|no|do|own|way|day|bar|bars|log|this|that|them|these|those|rest|else|time|week|line|axis|grid|row|rows|both|each|mine|here|there|today|again|weekly|daily|monthly|hourly|chart|charts|ones)$/i
+const LOWER_STOP = /^(?:all|now|one|out|any|are|for|the|and|low|big|key|fun|run|see|has|two|new|top|it|on|be|so|or|go|me|us|we|my|an|a|to|in|at|by|of|up|is|no|do|own|way|day|bar|bars|log|this|that|them|these|those|rest|else|time|week|line|axis|grid|row|rows|both|each|mine|here|there|today|again|weekly|daily|monthly|hourly|chart|charts|ones)$/i
 /** Each ticker reference a negated-ticker clause governs → [{ phrase, tok, poss, index, input }]. */
 export function negTickerRefs(text, charts = []) {
   const s = String(text || '')

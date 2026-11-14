@@ -3187,7 +3187,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
           await nameSearchAll(lower)
           for (const w of lower) { const v = groundingOf(w); if (v && (v.kind === 'ticker' || v.kind === 'name') && v.ticker) known.set(w, v.ticker) }
         }
-        tgtTicker = targetTickerConflict({ host, ops: screened.ops, text, pickedRefs: answeredRefs, getTargetKind, getCapability, known })
+        tgtTicker = targetTickerConflict({ host, ops: screened.ops, text, pickedRefs: answeredRefs, getTargetKind, getCapability, known, ordinary: lexiconFor(host).words })
       } catch {
         tgtTicker = { failed: true, ask: { text: TARGET_CHECK_FAILED } }        // ⛔ fail closed: an unread check never writes
       }
