@@ -426,6 +426,11 @@ async def handle(interaction: dict, received: float) -> dict | None:
                         {"type": 5}, received)
 
     if itype == 2 and name == di.BUZZ_COMMAND and command_enabled("buzz"):
+        # Held to the command channel like /chart and /flow above (owner ruling 2026-11-13:
+        # "just in UCT Intelligence"). The pre-V2 branch carries the same check; both are
+        # needed because only one of the two ever runs for a given interaction.
+        if not di.cmd_channel_ok(interaction):
+            return router._channel_nudge("/buzz")
         limited = _rate_limited(di.interaction_user_id(interaction), noun="boards")
         if limited:
             return limited

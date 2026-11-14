@@ -145,7 +145,9 @@ def test_the_reader_loop_runs_through_the_timer():
     import inspect
     src = inspect.getsource(bs._run_websocket)
     assert "async for raw_msg in _timed_frames(ws)" in src
-    assert "_note_ingest_event(_ec, ev)" in src
+    assert "ingest_core.apply_frame(raw_msg, frame_ctx)" in src
+    assert "count_event=_count_event" in src
+    assert "_note_ingest_event(ec, ev)" in inspect.getsource(bs._count_event)
 
 
 def test_a_mid_update_read_never_raises():
