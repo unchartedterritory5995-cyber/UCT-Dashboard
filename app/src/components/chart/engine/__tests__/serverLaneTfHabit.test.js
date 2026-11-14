@@ -11,12 +11,23 @@
 // on. For the ONE symbol a member rests on, the pre-load asks at such a timeframe with what
 // the board's other daily-family charts are drawing (`habitAsks`). These rails pin the habit,
 // its bounds, and everything that must NOT borrow.
+//
+// ⚰️ THE FIRST CUT WAS GREEN HERE AND NEVER RAN FOR A MEMBER. It answered from the habit only
+// for one symbol asked for BY PRIORITY, and these tests called the warmer that way. The
+// announcement it was built for is the watchlist's `prefetchAllTimeframes(sym)` once a
+// selection rests, which tells one symbol at each timeframe WITHOUT priority. Measured on
+// production with that cut live: the first switch to weekly 1,000 and 1,833 ms behind its
+// candles, and no weekly request before the click. The last block below drives that call
+// itself, through the bars prefetch's own registry.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import {
   ASK_TTL_MS, TF_HABIT_KEY, TF_HABIT_MS, TF_HABIT_WRITE_MS,
   clearServerColumns, liveAsks, habitAsks, serverColumnsFor, __setServerBatchFetcherForTests,
 } from '../serverCompute'
-import { warmSymbols, __resetServerWarm } from '../serverWarm'
+import { warmSymbols, armServerWarm, serverWarmStats, __resetServerWarm, ACTIVE_MAX, ACTIVE_MAX_NEAR } from '../serverWarm'
+import { prefetchAllTimeframes, prefetchBarsToIDB } from '../../../../utils/prefetchBars'
+
+vi.mock('../../../../hooks/useTickerMeta', () => ({ prefetchTickerMeta: vi.fn() }))
 
 const never = () => new Promise(() => {})
 const def = (id) => ({ id, compute: { kind: 'server' }, plots: [], meta: {} })
@@ -40,12 +51,16 @@ const asked = () => urls.map((u) => { const q = new URL(u, 'http://x').searchPar
 beforeEach(() => {
   vi.useFakeTimers()
   localStorage.removeItem(TF_HABIT_KEY)
+  localStorage.setItem('barspack.version', 'x')          // the bars pack is held: background rows are not parked
   clearServerColumns()
+  vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('no network in this suite') }))
 })
 afterEach(() => {
   __setServerBatchFetcherForTests(null)
   clearServerColumns()
+  __resetServerWarm()
   localStorage.removeItem(TF_HABIT_KEY)
+  vi.unstubAllGlobals()
   vi.useRealTimers()
 })
 
@@ -191,17 +206,18 @@ describe('⭐ the pre-load asks at a habit timeframe for the ONE symbol the memb
     expect(asked()).toEqual([])
   })
 
-  it('⛔ rows ahead and a whole list are never warmed from a habit: only one symbol, by priority', async () => {
+  it('⛔ rows ahead and a whole list are never warmed from a habit: only ONE symbol, however it was announced', async () => {
     usedWeekly()
     armWarm()
     paint('rsLine', 'D')
     expect(warmSymbols(['NVDA', 'AAPL'], 'W', { priority: true }), 'two rows ahead').toBe(0)
-    expect(warmSymbols(['NVDA'], 'W', {}), 'one symbol, not by priority').toBe(0)
+    expect(warmSymbols(['NVDA', 'AAPL'], 'W', {}), 'two symbols, in the background').toBe(0)
     expect(warmSymbols(['NVDA', 'AAPL', 'MSFT'], 'W', { visible: true }), 'a list opening').toBe(0)
     expect(warmSymbols(Array.from({ length: 40 }, (_, i) => `S${i}`), 'W', {}), 'the rest of a list').toBe(0)
     await vi.advanceTimersByTimeAsync(1000)
     expect(asked()).toEqual([])
-    expect(warmSymbols(['NVDA'], 'W', { priority: true }), 'control: the rested symbol').toBe(1)
+    expect(warmSymbols(['NVDA'], 'W', {}), 'control: the rested symbol, as the bars prefetch announces it').toBe(1)
+    expect(warmSymbols(['AAPL'], 'W', { priority: true }), 'control: a hovered or typed one').toBe(1)
   })
 
   it('a timeframe a chart really draws is warmed exactly as before, for any call', async () => {
@@ -223,5 +239,74 @@ describe('⭐ the pre-load asks at a habit timeframe for the ONE symbol the memb
     await vi.advanceTimersByTimeAsync(1000)
     expect(warmSymbols(['NVDA'], 'W', { priority: true }), 'on its way').toBe(0)
     expect(asked().length).toBe(1)
+  })
+})
+
+describe('⭐ reached by the announcement the app really makes', () => {
+  /** as the chart module does at load: the warmer is on the bars prefetch's registry */
+  const armed = () => { armServerWarm(); armWarm() }
+
+  it('the watchlist\'s own call once a selection rests gets the rested symbol its weekly columns', async () => {
+    usedWeekly()
+    armed()
+    paint('rsLine', 'D')
+    paint('rsPhases', 'D')
+    prefetchAllTimeframes('NVDA')                         // pages/Watchlists.jsx, SCAN_DWELL_MS after the last key
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(asked()).toEqual(['NVDA@W:rsLine+rsPhases'])
+  })
+
+  it('CONTROL: the same call for a member with no weekly habit asks the server for nothing', async () => {
+    armed()
+    paint('rsLine', 'D')
+    prefetchAllTimeframes('NVDA')
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(asked()).toEqual([])
+  })
+
+  it('CONTROL: a list announced at weekly through the same door is not warmed from the habit', async () => {
+    usedWeekly()
+    armed()
+    paint('rsLine', 'D')
+    prefetchBarsToIDB(['NVDA', 'AAPL', 'MSFT'], 'W')
+    prefetchBarsToIDB(['NVDA', 'AAPL'], 'W', { priority: true })
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(asked()).toEqual([])
+  })
+
+  it('it does not wait behind a list\'s background rows: it is the symbol on screen', async () => {
+    usedWeekly()
+    armed()
+    paint('rsLine', 'D')
+    warmSymbols(Array.from({ length: 40 }, (_, i) => `S${i}`), 'D', {})     // the rest of a list, in the background
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(asked().length, 'the background rows hold their two slots').toBe(ACTIVE_MAX)
+    prefetchAllTimeframes('NVDA')
+    await vi.advanceTimersByTimeAsync(0)
+    expect(asked().length).toBe(ACTIVE_MAX_NEAR)
+    expect(asked()[ACTIVE_MAX_NEAR - 1], 'sent at once, on the slot kept for a near row').toBe('NVDA@W:rsLine')
+  })
+
+  it('the rows ahead stay "near": the rested symbol\'s ask goes in front of them without demoting them', async () => {
+    usedWeekly()
+    armed()
+    paint('rsLine', 'D')
+    warmSymbols(['R1', 'R2', 'R3', 'R4'], 'D', { priority: true })           // three go out, R4 waits as a near row
+    expect(serverWarmStats()).toMatchObject({ active: ACTIVE_MAX_NEAR, queued: 1, near: 1 })
+    prefetchAllTimeframes('NVDA')
+    expect(serverWarmStats()).toMatchObject({ active: ACTIVE_MAX_NEAR, queued: 2, near: 2 })
+  })
+
+  it('a timeframe a chart on the board really draws keeps its place in the queue, as before', async () => {
+    armed()
+    paint('rsLine', 'D')
+    paint('rsVsEma', 'W', { benchmark: 'SPY' }, 'SPY')                        // another chart draws at weekly
+    warmSymbols(Array.from({ length: 40 }, (_, i) => `S${i}`), 'D', {})
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(asked().length).toBe(ACTIVE_MAX)
+    prefetchAllTimeframes('NVDA')
+    await vi.advanceTimersByTimeAsync(0)
+    expect(asked().length, 'a background row like any other: it waits its turn').toBe(ACTIVE_MAX)
+    expect(serverWarmStats().near).toBe(0)
   })
 })

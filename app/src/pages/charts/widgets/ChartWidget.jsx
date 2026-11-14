@@ -13,7 +13,7 @@ import LeverageInverseControl from './LeverageInverseControl'
 import ViewHoldingsControl from './ViewHoldingsControl'
 import ChartDateNav from './ChartDateNav'
 import { WidgetChromeContext } from '../widgetChromeContext'
-import useSingleStockEtfs from '../../../hooks/useSingleStockEtfs'
+import { useChartSingleStockEtfs as useSingleStockEtfs } from '../../../components/chart/restedReaders'
 import { singleStockEtfsKey, singleStockEtfsFetcher } from '../../../hooks/singleStockEtfsKey'
 import { useSymbolResource } from '../../../lib/symbolResourceWarm'
 import useEtfSymbols from '../../../hooks/useEtfSymbols'
@@ -370,6 +370,9 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
         openIndicatorDoor: (door) => !!paneRef.current?.openIndicatorDoor?.(door),
         // INDICATORS M2 (AGENT-INTEGRATION-HANDOFF §15.6): the Indicators button's own predicate.
         canManageIndicators: () => !!paneRef.current?.canManageIndicators?.(),
+        // UCT Agent (uctIntelligence.set): the UCT Intelligence library row / panel gates of THIS chart, as StockChart
+        // computes them (ChartPane → StockChart); its settings are this chart's own blob, written by `commit` below
+        uctIntelligence: () => paneRef.current?.uctIntelligence?.() ?? null,
         // INDICATORS M3 (AGENT-M3-CONTRACT §3.3): the tab's one authoring preview on THIS chart.
         showAuthoringPreview: (def, o) => paneRef.current?.showAuthoringPreview?.(def, o) ?? { ok: false, reason: 'readonly' },
         clearAuthoringPreview: () => !!paneRef.current?.clearAuthoringPreview?.(),

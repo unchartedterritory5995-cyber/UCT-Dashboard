@@ -46,7 +46,7 @@ Owner design, 2026-10-15:
   * A post whose title is only a link or a mention is renamed in place
     (run_title_repair: the YouTube video's own name, else "Quick clip, <date>").
   * /lesson <words> in Discord searches the library (titles, tickers, tags,
-    recaps, transcripts) and answers the member privately with the best two or
+    recaps, transcripts) and answers in the channel with the best two or
     three lessons and the moment in each video that says it
     (search_lessons / format_search_reply; the command itself lives with the
     other slash commands in discord_interactions).
@@ -2043,8 +2043,9 @@ def lesson_url(row: dict) -> str:
 
 # ── /lesson: search the library ──────────────────────────────────────────────
 # A member types a few words in Discord and gets the two or three lessons that
-# answer, each with the moment in the video where the words are said. Private
-# to the member (the reply is ephemeral), so the channels stay as they are.
+# answer, each with the moment in the video where the words are said. The reply
+# is posted in the channel for everyone (owner ruling 2026-11-13; it was
+# private to the member before that). The route decides that, not this module.
 
 _SEARCH_STOP = frozenset("""a an the and or of to in on for is are was be how what why when do does
 did i my me we you your it its this that with about from at as can should would could will

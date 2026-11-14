@@ -504,6 +504,13 @@ def test_adoption_never_runs_outside_the_quiet_window(adoption, tmp_path, monkey
     assert fake.downloads == 0 and _dump(local) == before
 
 
+def test_the_owner_override_adopts_outside_the_quiet_window(adoption, tmp_path, monkeypatch):
+    ds, fake, local, snap = adoption
+    monkeypatch.setattr(ds, "in_quiet_window", lambda now=None: False)
+    monkeypatch.setenv("BARS_ADOPT_IGNORE_WINDOW", "1")
+    assert ds.adopt_clustered_store(str(tmp_path)) == "adopted"
+
+
 @pytest.mark.parametrize("utc,quiet", [
     ("2026-11-11T14:30", False), ("2026-11-11T09:00", False), ("2026-11-12T00:59", False),
     ("2026-11-12T01:30", True), ("2026-11-12T08:00", True), ("2026-11-12T08:50", False),

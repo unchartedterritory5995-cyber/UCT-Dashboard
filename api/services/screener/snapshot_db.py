@@ -218,6 +218,16 @@ COLUMNS = [
     # history is short or the maths has no answer, never a guessed value.
     # Additive: ALTER-added on init.
     "rrg_quadrant", "clenow_score", "vars_state",
+    # ⭐ UCT RS EXIT WARNINGS (2026-11-13; the chart's `rsExit`, PR #1136). ONE
+    # writer, `rs_columns.collect_one` inside the same RS_V2-gated `bars_rs` step
+    # (`rs_columns.EXIT_COLUMNS`): Mike Webster's Quick Break / Quicksand /
+    # Grateful Dead Break on the RS line vs SPY, daily 21 / 50 simple averages.
+    # `rs_exit_last` TEXT names the newest warning (the worse one on a shared
+    # bar), the four ages are INTEGER sessions since a warning (0 = the newest
+    # bar). NULL when no such warning fired inside the window or the window is
+    # under 51 bars. Additive: ALTER-added on init, NULL until the next build.
+    "rs_exit_last", "rs_exit_bars_ago", "rs_quick_break_bars_ago",
+    "rs_quicksand_bars_ago", "rs_dead_break_bars_ago",
     # meta
     "snapshot_date", "bars_asof", "built_at",
 ]
@@ -242,6 +252,8 @@ _TEXT = {"ticker", "company", "sector", "industry", "exchange", "security_type",
          "accdis", "rs_line_trend", "theme",
          # UCT RS Phase 3 (3-10): the two classification names
          "rrg_quadrant", "vars_state",
+         # UCT RS Exit Warnings: the newest warning's name
+         "rs_exit_last",
          # Wave 2
          "ipo_date", "country", "next_earnings_date", "earnings_session",
          "earnings_setup_grade", "analyst_consensus", "sponsorship",
@@ -291,7 +303,10 @@ _INT = {"uct_composite", "rs_rank", "inside_bar_run", "higher_lows_run",
         # UCT RS, history-derived (2a-06): the 1-99 rating, two signed deltas
         # of it, four 1-99 component percentiles. Whole numbers, all seven.
         "rs_rating_ibd", "rs_rating_chg_5", "rs_rating_chg_20",
-        "rs_rating_1m", "rs_rating_3m", "rs_rating_6m", "rs_rating_9m", "rs_rating_12m"}
+        "rs_rating_1m", "rs_rating_3m", "rs_rating_6m", "rs_rating_9m", "rs_rating_12m",
+        # UCT RS Exit Warnings: four ages in sessions (`rs_exit_last` is TEXT).
+        "rs_exit_bars_ago", "rs_quick_break_bars_ago", "rs_quicksand_bars_ago",
+        "rs_dead_break_bars_ago"}
 
 
 # ---------------------------------------------------------------------------

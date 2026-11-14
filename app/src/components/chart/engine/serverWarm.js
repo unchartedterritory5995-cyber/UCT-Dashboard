@@ -54,7 +54,7 @@
 //     asks per symbol in its place (`fetchColumnsBatch` refuses for a warm).
 //
 // Kill switch, per browser, no deploy: localStorage['uct.indwarm.off'] = '1'.
-import { liveAsks, habitAsks, hasColumns, fetchColumnsBatch, batchAvailable, chartsNeedTheLane } from './serverCompute'
+import { liveAsks, habitAsks, hasColumns, fetchColumnsBatch, batchAvailable, chartsNeedTheLane, readAhead } from './serverCompute'
 import { isAppVisible } from '../../../lib/deskVisibility'
 import { afterFirstChartPaint } from '../../../lib/barsPackClient'
 import { registerSymbolWarmer, _packStillIngesting } from '../../../utils/prefetchBars'
@@ -95,9 +95,10 @@ function _symOf(raw) {
   return s && s.length <= 24 && !/\s/.test(s) ? s : ''
 }
 
-// What to replay at `tf`: the asks charts are drawing there now. For the ONE symbol a member
-// rests on (`habit`), when nothing is drawn at `tf` yet, the asks of a timeframe this member
-// uses (`serverCompute.habitAsks`): the first switch to weekly used to wait a round trip.
+// What to replay at `tf`: the asks charts are drawing there now. For ONE announced symbol
+// (`habit`: the one a member rests on), when nothing is drawn at `tf` yet, the asks of a
+// timeframe this member uses (`serverCompute.habitAsks`): the first switch to weekly used to
+// wait a round trip.
 function _asksAt(tf, habit) {
   const live = liveAsks(tf)
   return live.length || !habit ? live : habitAsks(tf)
@@ -180,11 +181,29 @@ function _pump() {
 export function warmSymbols(syms, tf, opts = {}) {
   if (!Array.isArray(syms) || !syms.length) return 0
   const T = String(tf == null ? 'D' : tf)
-  // ONE symbol, asked for by priority: the symbol the member rests on, at its other
-  // timeframes. Only that call may be answered from the member's habit (`_asksAt`).
-  const habit = !!opts.priority && syms.length === 1
+  // ONE symbol announced: the symbol the member selected (rests on, opened, hovers, typed), at
+  // one of its timeframes. Only such a call may be answered from the member's habit
+  // (`_asksAt`); two symbols are rows, and rows are warmed only where a chart really draws.
+  //
+  // ⚰️ THIS ALSO REQUIRED `opts.priority`, AND THE CALL IT WAS BUILT FOR IS NOT A PRIORITY
+  // CALL. The watchlist announces a rested selection's other timeframes with
+  // `prefetchAllTimeframes(sym)`: one symbol per timeframe, in the background. Measured on
+  // production 2026-11-13 with the first cut live: the first switch to weekly still drew its
+  // RS lines 1,000 and 1,833 ms behind its candles, and no weekly request left before the
+  // click. Its tests had called this function by priority, as no caller does.
+  const habit = syms.length === 1
   if (!_asksAt(T, habit).length || !batchAvailable() || warmDisabled()) return 0
   const near = !!opts.priority && syms.length <= NEAR_MAX
+  // An ask answered from the habit (nothing draws at `tf` yet) is for the symbol ON SCREEN,
+  // the likeliest next paint after the rows ahead already in flight: it goes to the front as
+  // a near row (never parked, the third slot), and the rows ahead keep their own standing. A
+  // timeframe a chart really draws is queued exactly as before.
+  const rested = habit && !liveAsks(T).length
+  // The rows a member is about to reach (and the symbol on screen at a timeframe it uses) are
+  // read from this browser's store now, so their first paint has them (`readAhead`). Before
+  // any of the queue's own rules: a disk read is not a request, and it is the answer a member
+  // gets when the server is slow or the lane is yielding. Never for a list: only near rows.
+  if (near || rested) for (const raw of syms) { const sym = _symOf(raw); if (sym) readAhead(sym, T) }
   const bulk = !near && !opts.visible
   const take = bulk ? syms.slice(0, BULK_HEAD) : syms
   // ⭐ WHICH CALLS ARE "A LIST OPENED". The on-screen rows of a list (`visible`) are a new
@@ -211,7 +230,7 @@ export function warmSymbols(syms, tf, opts = {}) {
       if (!near) continue                              // already waiting; keep its place
       _queue.splice(at, 1)                             // re-queued at the front below
     }
-    fresh.push({ sym, tf: T, near, habit })
+    fresh.push({ sym, tf: T, near: near || rested, habit })
   }
   if (!fresh.length) {
     if (_backlog) _kickSoon()                          // the head was warm already; the tail still waits
@@ -220,11 +239,13 @@ export function warmSymbols(syms, tf, opts = {}) {
   if (near) {
     for (const j of _queue) j.near = false             // the previous near rows are behind the member now
     _queue.unshift(...fresh)
+  } else if (rested) {
+    _queue.unshift(...fresh)                           // in front, and the rows ahead stay near
   } else {
     _queue.push(...fresh)
   }
   if (_queue.length > QUEUE_MAX) _queue.length = QUEUE_MAX
-  if (near) _pump()
+  if (near || rested) _pump()
   else _kickSoon()
   return fresh.length
 }

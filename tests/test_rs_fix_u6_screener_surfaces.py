@@ -28,7 +28,8 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 SCREEN_GROUPS_JS = ROOT / "app" / "src" / "pages" / "screener" / "focus" / "screenGroups.js"
 COLUMN_DEFS_JS = ROOT / "app" / "src" / "pages" / "screener" / "columnDefs.js"
 
-BARS = frozenset(rs_columns.COLUMNS)
+# the RS_V2 bar family: the ten plus the five RS Exit Warning columns (2026-11-13), one writer, one gate
+BARS = frozenset(rs_columns.COLUMNS) | frozenset(rs_columns.EXIT_COLUMNS)
 RATINGS = frozenset(snapshot_builder._RS_HISTORY_COLUMNS)
 #: Unit 3-11 (2026-11-07): the third family, written by the same step only while
 #: RS_V3 is armed too (`filters.rs_dark_keys`).
@@ -109,7 +110,7 @@ def test_every_starter_group_resolves_to_its_own_GROUPS_key(tmp_path, monkeypatc
     unresolved = sorted(lab for lab in labels if _client_group_of(lab, groups) is None)
     assert not unresolved, f"starter groups with no GROUPS row (fall back to momentum): {unresolved}"
     rs = [s for s in starters if s.get("group") == ss.RS_STARTER_GROUP]
-    assert len(rs) == 7
+    assert len(rs) == 9      # 7 -> 9 on 2026-11-13: the two RS Exit Warning starters
     assert {_client_group_of(s["group"], groups) for s in rs} == {"relative_strength"}
     # and only Momentum-labelled starters land in momentum
     for s in starters:
@@ -134,7 +135,7 @@ def test_rs_starters_ship_when_RS_V2_is_on(tmp_path, monkeypatch):
     ss = _svc(tmp_path, monkeypatch)
     monkeypatch.setattr(registry_defs, "RS_V2_ENABLED", True)
     rs = [s for s in ss.starters() if s["id"].startswith("starter_rs_")]
-    assert len(rs) == 7
+    assert len(rs) == 9      # 7 -> 9 on 2026-11-13: the two RS Exit Warning starters
     assert {s["group"] for s in rs} == {ss.RS_STARTER_GROUP}
 
 
@@ -154,7 +155,7 @@ def _served(m):
 
 
 def test_the_two_families_are_the_writers_and_the_category_split_matches():
-    assert len(BARS) == 10 and len(RATINGS) == 8 and len(PHASE3) == 3
+    assert len(BARS) == 15 and len(RATINGS) == 8 and len(PHASE3) == 3
     assert not (BARS & RATINGS) and not (PHASE3 & (BARS | RATINGS))
     family = {k for k, f in filters.FILTERS.items() if f["category"] == "relative_strength"}
     assert family == BARS | RATINGS | PHASE3

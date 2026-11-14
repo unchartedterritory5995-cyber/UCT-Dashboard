@@ -13,12 +13,13 @@ export { volumeCurveKey }
 // per watchlist — never one per row and never per tick (the key is the sorted symbol set,
 // so a re-render with the same symbols is the same request). A symbol without its own
 // curve reads the market curve in the same payload.
-export default function useVolumeCurve(enabled = true, tickers = []) {
+export default function useVolumeCurve(enabled = true, tickers = [], isPaused) {
   const { data } = useSWR(enabled ? volumeCurveKey(tickers) : null, fetchCurve, {
     refreshInterval: 10 * 60 * 1000,
     dedupingInterval: 5 * 60 * 1000,
     revalidateOnFocus: false,
     keepPreviousData: true,
+    ...(isPaused && { isPaused }),   // (optional: a chart's rest gate, components/chart/restedReaders.js)
   })
   return data || null
 }

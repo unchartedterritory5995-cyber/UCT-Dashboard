@@ -36,7 +36,7 @@ import { snapshotBatchKey, watchlistMetaFetcher as postFetcher } from './watchli
 // live-fundamentals fresh where the snapshot is nightly.
 const CAP = 100
 
-export default function useWatchlistMeta(tickers = []) {
+export default function useWatchlistMeta(tickers = [], isPaused) {
   const sorted = useMemo(() => [...new Set(tickers)].sort(), [tickers])
   const isLarge = sorted.length > CAP
 
@@ -55,10 +55,13 @@ export default function useWatchlistMeta(tickers = []) {
   )
 
   const key = snapshotBatchKey(perSymbol)
+  // `isPaused` (optional): a chart passes its rest gate, so a symbol the member is racing past is not
+  // asked for (components/chart/restedReaders.js). Without it this is an ordinary read.
   const { data, error } = useSWR(key, postFetcher, {
     refreshInterval: 10 * 60 * 1000,
     dedupingInterval: 60 * 1000,
     revalidateOnFocus: false,
+    ...(isPaused && { isPaused }),
   })
 
   const accRef = useRef({})

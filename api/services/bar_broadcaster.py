@@ -319,7 +319,19 @@ class BarBroadcaster:
         or AM), `ts` that minute's start (ms; kept for existing callers),
         `trade_ts` the unix-ms TRADE time of that close when a trade set it (else
         the newest trade seen in that minute, else None), and `volume` the
-        cumulative day volume (Massive `av`, may be None)."""
+        cumulative day volume (Massive `av`, may be None).
+
+        FRESHNESS CONTRACT. Per-trade freshness is promised ONLY for a symbol
+        with registered interest here (`add_interest`, released with
+        `remove_interest` when done) or a live chart subscriber: that is what
+        holds the symbol on the T channel upstream (owner "bars"). For any other
+        symbol the answer rides whichever bar_stream owner happens to hold it, and
+        an A event never moves the price (D5). Under STREAM_SCOPED_CHANNELS=1 a
+        symbol held only by the volume owner (A/AM, no T) moves once a minute, on
+        AM; a symbol no owner holds returns None or a stale minute. A caller that
+        cannot register (a one-shot read inside one request) must treat the result
+        as best-effort and label it with `ts`. Every caller is listed, by kind, in
+        tests/test_get_last_price_consumers.py."""
         su = sym.upper()
         with self._lock:
             mins = self._minutes.get(su)

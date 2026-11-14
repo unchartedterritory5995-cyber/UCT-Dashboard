@@ -533,7 +533,8 @@ def rs_v2_enabled() -> bool:
 
 
 def rs_starters():
-    """The seven RS starters, or none while RS_V2_ENABLED is off (see above)."""
+    """The nine RS starters (seven, plus the two RS Exit Warning screens), or
+    none while RS_V2_ENABLED is off (see above)."""
     if not rs_v2_enabled():
         return []
 
@@ -602,6 +603,24 @@ def rs_starters():
              {"key": "rs_line_above_ma", "op": "eq", "value": 1},
              *liquid()],
           "view": "relative_strength", "sort": {"key": "rs_rank", "dir": "desc"}}},
+        # RS Exit Warnings (2026-11-13; the chart's rsExit, Mike Webster's method).
+        # An age is 0 on the newest session, so "the last 5 sessions" is 0-4.
+        # A warning is a prompt to review a position, never an order to sell,
+        # and the descriptions say so.
+        {"id": "starter_rs_exit_warning_5", "name": "RS exit warning in the last 5 sessions",
+         "group": RS_STARTER_GROUP,
+         "description": "Stocks whose RS line against SPY flashed a Quick Break, Quicksand or Grateful Dead Break (Mike Webster's warnings, daily 21/50-day averages of the RS line) in the last 5 sessions, $10M+ traded, price $5+. A warning to review the position, not an order to sell",
+         "spec": {"filters": [
+             {"key": "rs_exit_bars_ago", "op": "between", "min": 0, "max": 4},
+             *liquid()],
+          "view": "relative_strength", "sort": {"key": "rs_exit_bars_ago", "dir": "asc"}}},
+        {"id": "starter_rs_quicksand_5", "name": "Quicksand in the last 5 sessions",
+         "group": RS_STARTER_GROUP,
+         "description": "Stocks whose RS line against SPY, after breaking below its 21-day average, closed below the level of that break in the last 5 sessions (Mike Webster's Quicksand), $10M+ traded, price $5+. A warning to review the position, not an order to sell",
+         "spec": {"filters": [
+             {"key": "rs_quicksand_bars_ago", "op": "between", "min": 0, "max": 4},
+             *liquid()],
+          "view": "relative_strength", "sort": {"key": "rs_quicksand_bars_ago", "dir": "asc"}}},
     ]
 
 

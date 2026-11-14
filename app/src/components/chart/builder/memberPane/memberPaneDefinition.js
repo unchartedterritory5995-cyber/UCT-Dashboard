@@ -22,7 +22,7 @@
 // where the product can call it. That test is the reason this is a productised
 // path rather than a first attempt: the rows, the manifest placements and the
 // `buildDefinition` call are the shapes it already proved land a valid document.
-import { translatePine, lexPine, blockStatements, parseWholeExpression, findTop, isPunct, boundName, PAINT_RUNTIME_COLOUR, strippedForScan } from '../../engine/ast/pine'
+import { translatePine, lexPine, blockStatements, parseWholeExpression, findTop, isPunct, boundName, PAINT_RUNTIME_COLOUR, strippedForScan, OBJECT_SITE_SOURCES } from '../../engine/ast/pine'
 import { withAlphaByte } from '../../designTokens'
 import { DEFAULT_SERIES_COLOUR, V3_DEFAULT_SERIES_OPACITY } from '../../engine/pinePalette'
 import { paneGate, paneObjectsGate, runtimeRouteOf, runtimeFallbackOf } from '../../engine/ast/paneGate'
@@ -47,7 +47,8 @@ import { runtimeKillOf, runtimeNotGradedOf, runtimeSourceHash } from '../../engi
 import { objectLossNote, RUN_HALF_DRAWING_SENTENCE } from '../../engine/ast/objectLoss'
 // ⭐ ENGINE 53 — the run half's door reads the store's cap as the save door counts it.
 import { DOCUMENT_BYTE_BUDGET } from '../../engine/ast/graphDocument'
-import { storedBytesOf } from './storedBytes'
+import { storedBytesOf, sentDocument } from './storedBytes'
+import { runHalfProgramDigest, isGraphForm, RUN_HALF_PROGRAM_STAMP, RUN_HALF_PROGRAM_GRAPH_STAMP } from '../../engine/runHalfProgram'
 import { declaredCalcBarsOf } from '../../engine/runtime/objectStore'
 import { objectsOnlyPaneEnabled } from '../../engine/objectsOnlyPaneGate'
 import { memberInputTranslation, pineLineWidth } from '../builderInputs'
@@ -986,7 +987,9 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
   let docOut = definition
   let notesOut = notes
   if (runHalf && runHalf.runtimeObjects) {
-    const bytes = storedBytesOf(definition)
+    // ⭐⭐ ENGINE 54 — the program the run half rides beside, stamped (`runHalfProgram.js`)
+    docOut = withRunHalfProgramStamps(definition)
+    const bytes = storedBytesOf(docOut)
     if (bytes > DOCUMENT_BYTE_BUDGET) {
       docOut = withoutRunHalf(definition)
       notesOut = notes.map(withoutRunHalfSentence)
@@ -1090,9 +1093,60 @@ function hostPartialRunHalf({ source, id, t, objectsGate, drawable, definition, 
     }
     outputs[keyAt(i)] = run
   }
+  // ⭐⭐ ENGINE 54 — EVERY HOST CREATE SITE, BY THE SOURCE CALL BOTH LANES NAME IT BY
+  // (`objectProgram.js::objectSiteKey`). The bind's object rail pairs a host object with a run
+  // object only through this map, so a host site with no source call, or whose call the run did
+  // not lower as a drawing of the same family, declines the run half here: that site could
+  // never be compared, and a run half that cannot be compared is not drawn.
+  const sites = runHalfSites(t, definition.objects, probe.objectSites)
+  if (!sites.ok) return declined('run-half:site-unpaired', sites.why)
   // ⛔ The store's 64 KiB cap is asked of the FINISHED document, as the store will count it
   // (`storedBytes.js`), at the end of `memberPaneDefinition` (`runHalfOverCap`).
-  return { runtimeObjects: { source, outputs, ...runtimeVersionStamp(probe.outputs) } }
+  return { runtimeObjects: { source, outputs, sites: sites.sites, ...runtimeVersionStamp(probe.outputs) } }
+}
+
+/** ⭐⭐ ENGINE 54 — `{host site id: source call}` for every create op of the host object program
+ *  (loop bodies included), each proved to be a call the run lowered as a drawing of the same
+ *  family: `{ok, sites}` or `{ok: false, why}`. A program with no create op maps nothing. */
+export function runHalfSites(t, program, runSites) {
+  const sources = (t && t.objectDiagnostics && t.objectDiagnostics[OBJECT_SITE_SOURCES]) || {}
+  const lowered = new Set((runSites || []).map((r) => `${r.site}|${r.fn}`))
+  const sites = {}
+  let why = null
+  const walk = (ops) => {
+    for (const op of ops || []) {
+      if (why || !op) continue
+      if (op.k === 'create') {
+        const key = Object.prototype.hasOwnProperty.call(sources, op.site) ? sources[op.site] : null
+        if (typeof key !== 'string') { why = `the host's ${op.family} at site ${op.site} names no source call`; return }
+        if (!lowered.has(`${key}|${op.family}.new`)) {
+          why = `the ${op.family} made at line ${key.split(':')[0]} is not a drawing the run makes at the same call`
+          return
+        }
+        sites[op.site] = key
+      }
+      if (Array.isArray(op.body)) walk(op.body)
+    }
+  }
+  walk(program && program.ops)
+  return why ? { ok: false, why } : { ok: true, sites }
+}
+
+/** ⭐⭐ ENGINE 54 — the run half's program stamps (`runHalfProgram.js`), on the FINISHED document:
+ *  `programSha256` over the trees form, and `programGraphSha256` over the graph form when the
+ *  save will send the document as a graph (`storedBytes.sentDocument`). The form is decided with
+ *  both stamps present (each is 64 characters, so the bytes the decision reads are final); a
+ *  document that stays inline drops the graph stamp, which only makes it smaller. */
+function withRunHalfProgramStamps(definition) {
+  const zero = '0'.repeat(64)
+  const ro0 = definition.compute.runtimeObjects
+  const placeholder = { ...definition, compute: { ...definition.compute,
+    runtimeObjects: { ...ro0, [RUN_HALF_PROGRAM_STAMP]: zero, [RUN_HALF_PROGRAM_GRAPH_STAMP]: zero } } }
+  const sent = sentDocument(placeholder)
+  const graphSent = isGraphForm(sent)
+  const ro = { ...ro0, [RUN_HALF_PROGRAM_STAMP]: runHalfProgramDigest(placeholder) }
+  if (graphSent) ro[RUN_HALF_PROGRAM_GRAPH_STAMP] = runHalfProgramDigest(sent)
+  return { ...definition, compute: { ...definition.compute, runtimeObjects: ro } }
 }
 
 /** ⭐ ENGINE 53 — the document with its run half taken out again: the compute key, the

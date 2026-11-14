@@ -1866,24 +1866,119 @@ def get_count(ticker: str, tf: str) -> int:
     return row[0] if row else 0
 
 
-def get_bars(ticker: str, tf: str, max_bars: int) -> list[tuple]:
-    """Return up to max_bars rows as (ts, o, h, l, c, v), oldest-first."""
-    return _conn().execute(
-        """SELECT ts,o,h,l,c,v FROM (
+_ROWS_SQL = """SELECT ts,o,h,l,c,v FROM (
                SELECT ts,o,h,l,c,v FROM ohlcv
                WHERE ticker=? AND tf=?
                ORDER BY ts DESC LIMIT ?
-           ) ORDER BY ts ASC""",
-        (ticker.upper(), tf, max_bars),
-    ).fetchall()
+           ) ORDER BY ts ASC"""
 
 
-#: The row reader, by identity. A caller that offers the one-step read below does so only
-#: while `get_bars` IS this function: a test (or a host) that swaps the reader keeps every
-#: row it serves on the reader it swapped in.
+def _get_bars_rows(ticker: str, tf: str, max_bars: int) -> list[tuple]:
+    """Up to max_bars rows as (ts, o, h, l, c, v), oldest-first, ONE `sqlite3_step` PER ROW.
+
+    The fastest read there is while nothing else in the process runs Python, and the slowest
+    while something does (see "THE SAME ROWS IN A FEW STEPS" below). `get_bars` is the reader
+    to call; this is the one it starts with and the one every other read is held equal to."""
+    return _conn().execute(_ROWS_SQL, (ticker.upper(), tf, max_bars)).fetchall()
+
+
+# ── THE STORE'S READER NOTICES A CONVOY AND LEAVES IT ────────────────────────
+#
+# ⚰️ MEASURED ON PRODUCTION 2026-11-13 (the web pod's own thread report, sampled 60 times in
+# 25 s): on average TWELVE threads were inside the row reader at once (the gainers scan, the
+# theme index, background refreshes, the bars API itself) and four more queued to write. Each
+# of them gives the GIL up and takes it back once per row, so each waits on all the others,
+# once per row. A member's `/api/bars` for a symbol not in memory read its 5,000 rows that
+# way: 1 to 7 s in those stretches. On a desk with the pod's own switch interval, beside
+# eight busy threads: 1,390 to 1,606 ms row by row, 65 ms in chunks (below).
+#
+# The cure for one lane (the RS columns, the split label) was to read in one step,
+# unconditionally. That is the wrong default for EVERY reader:
+#   * alone, the row reader is the fastest (4.8 ms for 5,000 rows against 18.8 ms);
+#   * the one-step read parses one long string with the GIL held, and eight background jobs
+#     doing that back to back made a bystander's small request wait 30 to 46 ms (p90 to p99).
+#     Row by row it waited 2 ms.
+#
+# So `get_bars` reads rows and WATCHES them. sqlite does the whole query in the first step;
+# every later step only hands a row over, which takes about a microsecond unless somebody
+# else holds the GIL. A batch of `_WATCH_ROWS` rows that takes longer than `_WATCH_BUDGET_S`
+# is a convoy: the read stops and starts over in chunks (`get_bars_packed`, `_PACK_CHUNK_ROWS`
+# rows a step: about ten handoffs for 5,000 rows, and no parse long enough to hold anybody up.
+# Bystander beside eight chunked readers: p99 7 ms). The rows are the same either way, bit
+# for bit: only the time differs.
+#
+# ⚰️ AND THE WATCH ITSELF MUST NOT WAIT IN THE CONVOY IT IS LOOKING FOR. Measured on
+# production the night this shipped (the `get_bars` stage of `/api/bars`' own Server-Timing,
+# 183 reads after against 2,665 before): p99 1,229 -> 109 ms and no read over a second (31
+# before), but ONE read of 600 rows still took 739 ms. That was the first watched batch: 128
+# rows handed over at 5 ms each, timed only once all 128 had arrived. So the first two
+# watched batches are small (`_WATCH_FIRST`): eight rows at that pace is 44 ms, and eight
+# rows that take over the budget are stronger evidence of a convoy than 128 that do. After
+# them the batch is `_WATCH_ROWS`, so an uncontended read still makes few calls.
+#
+# Knob: `BARS_PACKED_READS` (docs/feature_flags.json). `0` reads row by row always.
+_WATCH_ROWS = 128
+_WATCH_FIRST = (8, 32)
+_WATCH_BUDGET_S = 0.002
+
+
+def _packed_default_on() -> bool:
+    return os.environ.get("BARS_PACKED_READS", "1").strip() != "0"
+
+
+def _rows_while_fast(cur, clock=time.perf_counter) -> list[tuple] | None:
+    """Every row of `cur`, or None the moment a FULL watched batch runs over
+    `_WATCH_BUDGET_S`. The first row is not timed (it carries the query's own work); the
+    watched batches are `_WATCH_FIRST` in turn, then `_WATCH_ROWS` each."""
+    out = cur.fetchmany(1)
+    if not out:
+        return out
+    step = 0
+    while True:
+        size = _WATCH_FIRST[step] if step < len(_WATCH_FIRST) else _WATCH_ROWS
+        step += 1
+        t0 = clock()
+        batch = cur.fetchmany(size)
+        if not batch:
+            return out
+        out.extend(batch)
+        if len(batch) == size and clock() - t0 > _WATCH_BUDGET_S:
+            return None
+
+
+def get_bars(ticker: str, tf: str, max_bars: int) -> list[tuple]:
+    """Return up to max_bars rows as (ts, o, h, l, c, v), oldest-first.
+
+    Row by row while the rows come at once; in chunks from the moment they do not (the block
+    above). The answer is the row reader's, value for value, whichever way it was read."""
+    if not _packed_default_on():
+        return _get_bars_rows(ticker, tf, max_bars)
+    cur = _conn().execute(_ROWS_SQL, (ticker.upper(), tf, max_bars))
+    try:
+        rows = _rows_while_fast(cur)
+    except AttributeError:                    # a stand-in connection without `fetchmany`: its rows, its way
+        return cur.fetchall()
+    if rows is not None:
+        return rows
+    try:
+        cur.close()
+    except Exception:                         # noqa: BLE001 — nothing depends on the abandoned cursor
+        pass
+    packed = get_bars_packed(ticker, tf, max_bars)
+    return packed if packed is not None else _get_bars_rows(ticker, tf, max_bars)
+
+
+#: The store's own reader, by identity. A caller that goes around it to the packed read does
+#: so only while `get_bars` IS this function: a test (or a host) that swaps the reader keeps
+#: every row it serves on the reader it swapped in. (The name is from when the store's reader
+#: read rows and nothing else.)
 ROW_READER = get_bars
 
-# ── THE SAME ROWS IN ONE STEP ────────────────────────────────────────────────
+# ── THE SAME ROWS IN A FEW STEPS ─────────────────────────────────────────────
+#
+# (Read "one step" below as "one step per `_PACK_CHUNK_ROWS` rows": since 2026-11-13 the
+# aggregate is grouped, so that no single string is long enough for its parse to hold the GIL
+# against a bystander. sqlite still does the whole walk in the first step.)
 #
 # ⚰️ WHY (measured on production 2026-11-12/13). `get_bars` hands rows to Python one
 # `sqlite3_step` at a time, and CPython's sqlite3 releases the GIL around every step. A
@@ -1928,39 +2023,44 @@ def _packed_sql() -> str:
     exact = " AND ".join(
         f"({x} IS NULL OR (typeof({x}) = 'real' AND abs({x}) < {limit} AND {x}_q = CAST({x}_q AS INTEGER)))"
         for x in _PACK_PRICES)
+    # Parameters: (rows per chunk, ticker, tf, max_bars). One result row per chunk.
     return (
         f"SELECT json_group_array(json_array(ts, {cells}, v)),"
         f" min(({exact}) AND typeof(v) IN ('integer', 'null')), count(*) "
         f"FROM (SELECT *, {rest} FROM (SELECT *, {mid} FROM (SELECT *, {frac} FROM ("
-        f"SELECT ts, o, h, l, c, v, {whole} FROM ("
-        "SELECT ts, o, h, l, c, v FROM ohlcv WHERE ticker=? AND tf=? ORDER BY ts DESC LIMIT ?)))))"
+        f"SELECT ts, o, h, l, c, v, {whole}, (row_number() OVER (ORDER BY ts DESC) - 1) / ? AS g FROM ("
+        "SELECT ts, o, h, l, c, v FROM ohlcv WHERE ticker=? AND tf=? ORDER BY ts DESC LIMIT ?))))) GROUP BY g"
     )
 
 
 _PACKED_SQL = _packed_sql()
+#: Rows per result row of the packed read. Parsing one chunk holds the GIL for well under a
+#: millisecond; one string for a whole 5,000-bar series held it for several.
+_PACK_CHUNK_ROWS = 512
 
 
 def _packed_ts(row: tuple) -> int:
     return row[0]
 
 
-def _unpack(result: tuple) -> list[tuple] | None:
-    """The one-step statement's single result row, as `get_bars`' tuples (None: not exact)."""
-    text, exact, count = result
-    if not count:
-        return []
-    if exact != 1:
-        return None
+def _unpack(results) -> list[tuple] | None:
+    """The packed statement's result rows (one per chunk; a cursor is read as it goes, so the
+    GIL changes hands between chunks), as `get_bars`' tuples. None: not exact."""
     inv = _PACK_INV
     out = []
-    for ts, oa, ob, oc, ha, hb, hc, la, lb, lc, ca, cb, cc, v in json.loads(text):
-        out.append((ts,
-                    None if oa is None else oa + (ob + oc * inv) * inv,
-                    None if ha is None else ha + (hb + hc * inv) * inv,
-                    None if la is None else la + (lb + lc * inv) * inv,
-                    None if ca is None else ca + (cb + cc * inv) * inv,
-                    v))
-    out.sort(key=_packed_ts)        # an aggregate's input order is not promised: ts is the order
+    for text, exact, count in results:
+        if not count:
+            continue
+        if exact != 1:
+            return None
+        for ts, oa, ob, oc, ha, hb, hc, la, lb, lc, ca, cb, cc, v in json.loads(text):
+            out.append((ts,
+                        None if oa is None else oa + (ob + oc * inv) * inv,
+                        None if ha is None else ha + (hb + hc * inv) * inv,
+                        None if la is None else la + (lb + lc * inv) * inv,
+                        None if ca is None else ca + (cb + cc * inv) * inv,
+                        v))
+    out.sort(key=_packed_ts)        # neither the groups nor an aggregate's input come in a promised order
     return out
 
 
@@ -1995,6 +2095,10 @@ def _same_bits(a, b) -> bool:
     return struct.pack("<d", a) == struct.pack("<d", b)
 
 
+#: The proof reads its ~275 values in chunks this small, so it crosses chunk edges as a real read does.
+_PROOF_CHUNK_ROWS = 16
+
+
 def _packed_self_test() -> bool:
     """True when this sqlite reproduces `_proof_values` bit for bit through `_PACKED_SQL`."""
     try:
@@ -2004,7 +2108,7 @@ def _packed_self_test() -> bool:
             rows = [("T", "D", i, x, x / 3, x * 0.7, x / 2 + 0.1, i) for i, x in enumerate(_proof_values())]
             mem.executemany("INSERT INTO ohlcv(ticker, tf, ts, o, h, l, c, v) VALUES (?,?,?,?,?,?,?,?)", rows)
             want = mem.execute("SELECT ts,o,h,l,c,v FROM ohlcv WHERE ticker='T' AND tf='D' ORDER BY ts").fetchall()
-            got = _unpack(mem.execute(_PACKED_SQL, ("T", "D", len(rows))).fetchone())
+            got = _unpack(mem.execute(_PACKED_SQL, (_PROOF_CHUNK_ROWS, "T", "D", len(rows))))
         finally:
             mem.close()
     except Exception:                                     # noqa: BLE001 — any failure is "not proven"
@@ -2041,10 +2145,9 @@ def get_bars_packed(ticker: str, tf: str, max_bars: int) -> list[tuple] | None:
     if not packed_reads_proven():
         return None
     try:
-        result = _conn().execute(_PACKED_SQL, (ticker.upper(), tf, max_bars)).fetchone()
+        return _unpack(_conn().execute(_PACKED_SQL, (_PACK_CHUNK_ROWS, ticker.upper(), tf, max_bars)))
     except sqlite3.OperationalError:
         return None
-    return _unpack(result)
 
 
 def get_bars_fast(ticker: str, tf: str, max_bars: int) -> list[tuple]:
@@ -2061,11 +2164,13 @@ def get_bars_fast(ticker: str, tf: str, max_bars: int) -> list[tuple]:
     ⛔ ONLY WHILE THE STORE'S READER IS ITS OWN. A reader somebody swapped in (a test's, a
     host's) serves every row itself: the one-step read would go around it to the database.
     `RS_PACKED_READS=0` turns the one-step read off here too (docs/feature_flags.json, knobs)."""
-    if get_bars is ROW_READER and os.environ.get("RS_PACKED_READS", "1").strip() != "0":
+    if get_bars is not ROW_READER:
+        return get_bars(ticker, tf, max_bars)
+    if os.environ.get("RS_PACKED_READS", "1").strip() != "0":
         rows = get_bars_packed(ticker, tf, max_bars)
         if rows is not None:
             return rows
-    return get_bars(ticker, tf, max_bars)
+    return _get_bars_rows(ticker, tf, max_bars)
 
 
 def get_bars_before(ticker: str, tf: str, max_bars: int, to_key: int) -> list[tuple]:

@@ -39,8 +39,7 @@ import { crosshairModeOf } from './chart/crosshairMode'
 const LEGEND_MODE_MENU_LABELS = { always: 'Always', hold: 'Hold to peek', off: 'Off' }
 import { createWatermarkPrimitive, composeWatermarkLines, DEFAULT_BOX_W } from './chart/watermarkPrimitive'
 import { clusterDarkPoolPrints } from './chart/darkPoolCluster'
-import useTickerMeta from '../hooks/useTickerMeta'
-import useTickerIpo from '../hooks/useTickerIpo'
+import { useChartTickerMeta as useTickerMeta, useChartTickerIpo as useTickerIpo } from './chart/restedReaders'
 import useStrategyHistoryWindow from '../hooks/useStrategyHistoryWindow'
 import { isStrategyWindowDefinition } from './chart/engine/strategyWindow'
 import { historyFromListingOf, listingReferenceDate } from './chart/engine/listingSeed'
@@ -1610,6 +1609,7 @@ import { archiveHref } from '../utils/traderArchive'
 import { createAdaptiveFrameLoop } from './chart/adaptiveFrameLoop'
 import { markFirstChartPaint, afterFirstChartPaint } from '../lib/barsPackClient'
 import { armSymbolResourceWarm, useSymbolResource } from '../lib/symbolResourceWarm'
+import { useRestedSWR } from '../lib/symbolPace'
 import { useLegacyChartBars } from './chart/useLegacyChartBars'
 import { useBarSnapshotBars } from './chart/useBarSnapshotBars'
 import { BARSTORE } from './chart/barStoreSwitch'
@@ -4143,7 +4143,8 @@ export default function StockChart({
     } catch { /* ignore */ }
   }, [])
 
-  const { data: markersData } = useSWR(
+  // (through the rest gate: a symbol the member is racing past is not asked for, lib/symbolPace.js)
+  const { data: markersData } = useRestedSWR(
     // Request the full window so earnings markers load back to inception alongside
     // the deep price history (backend caps + post-filters; badges cull off-screen).
     markersEnabled && sym && !_econId && !_study ? markersKeyOf(sym) : null,
@@ -5097,6 +5098,10 @@ export default function StockChart({
   // ⚠️ `lastBarSymRef` below already stamps the DEVELOPING bar for the same reason;
   // this is the same guard for the BASE bar, which that one never covered.
   const prevBarsSymRef = useRef(null)
+  // ⛔ …AND OF WHICH TIMEFRAME. The readout shows the newest bar of the CURRENT key or
+  // nothing: during a timeframe-switch hold the series still holds the OUTGOING timeframe's
+  // bars (updateChart keeps them on screen), and they are not the new key's newest bar.
+  const prevBarsTfRef = useRef(null)
   // A2: the bars actually PAINTED at the last setData (i.e. displayBars, which carries
   // the session-preview candle). Distinct from prevBarsRef (pure regular-session bars):
   // the no-op/incremental render plan must be measured against what's on screen, or a
@@ -5918,6 +5923,9 @@ export default function StockChart({
     // `_legendSymOk` below guards only the DEVELOPING bar and the live-price
     // overlay; the base o/h/l/c was taken from this array unconditionally.
     if (prevBarsSymRef.current !== symRef.current) return null
+    // The same identity, for the timeframe: a held switch (the outgoing tf's bars still on
+    // screen) prints nothing until the new key's own bars are painted.
+    if (prevBarsTfRef.current !== resolvedTfRef.current) return null
     const last = bars[bars.length - 1]
     let o = last.o, h = last.h, l = last.l
     let c = last.c
@@ -6567,6 +6575,8 @@ export default function StockChart({
   // Imperative handle to ChartToolbar so a menu item can open its settings
   // panel. Refs are stable, so the builder below can stay pure-ish.
   const toolbarRef = useRef(null)
+  // UCT Agent (uctIntelligence.set): the UCT Intelligence row/panel gates, filled where they are computed (below)
+  const uctIntelAgentRef = useRef(null)
 
   // Publish the toolbar's imperative API to a host-supplied ref (see the
   // toolbarApiRef prop). toolbarRef is read at CALL time, so the entries stay
@@ -6577,6 +6587,9 @@ export default function StockChart({
       openIndicatorLibrary: () => {
         try { return toolbarRef.current?.openIndicatorLibrary?.() ?? false } catch { return false }
       },
+      // UCT Agent (uctIntelligence.set): what the Indicators library row and the UCT Intelligence panel offer NOW
+      // ({ available, known, availability }), read at call time; null before the first render reached the pattern block
+      uctIntelligence: () => (uctIntelAgentRef.current ? { ...uctIntelAgentRef.current } : null),
       // ⭐ 4-11 — a first add of a toured definition made OUTSIDE this chart's own
       // library (Chart Settings → Indicators, held by the pane until its modal
       // closes): the same handler the library's `onFirstAdd` reaches, with the same
@@ -7573,6 +7586,7 @@ export default function StockChart({
   const {
     detections: patternDetections, drawn: patternDrawn, dealStatus: patternDealStatus,
     levelsSr: patternLevelsSr, candleMarks: patternCandleMarks, setupDraws: patternSetupDraws,
+    isLoading: patternsLoading, error: patternsError,
   } = usePatternDetections(
     sym, resolvedTf, patternsFetch, 50,
     { includeStructures: autoStructuresScope === 'trusted' || (autoStructuresOn && ['D', 'W', 'M'].includes(resolvedTf)) },
@@ -7582,6 +7596,13 @@ export default function StockChart({
     levelsSr: patternLevelsSr, candleMarks: patternCandleMarks, setupsReleased, setupDraws: patternSetupDraws,
   })
   const uctIntelLayers = effectiveLayers(cs, uctIntelAvailability)
+  // UCT Agent (uctIntelligence.set) reads these gates, never its own copy: `available` = the library row is offered;
+  // `known` = the patterns response has answered, so a gated layer it does not carry is NOT released (not "not loaded yet")
+  uctIntelAgentRef.current = {
+    available: uctIntelAvailable, known: !!patternsFetch && !patternsLoading && !patternsError, availability: uctIntelAvailability,
+    // a patterns request IN FLIGHT right now: only then may the Agent say "still loading" (AUDIT #1172)
+    loading: !!patternsFetch && !!patternsLoading,
+  }
   // The confirmed-setup LIST is the Technical tab's, released with it; the setup-drawing lines can light the same
   // toggle on their own, and must not pull a list that is not released to this viewer.
   const uctIntelSetups = useChartSetups(sym, uctIntelOn && uctIntelLayers.setups && setupsReleased === true)
@@ -10833,6 +10854,7 @@ export default function StockChart({
       // its own feedback-loop history — this fix is about data identity, not framing.
       prevBarsRef.current = null
       prevBarsSymRef.current = null
+      prevBarsTfRef.current = null
       return
     }
 
@@ -14029,6 +14051,7 @@ export default function StockChart({
     // `symRef` is mirrored, which stamped B's bars as A — the readout then saw a
     // mismatch and printed NOTHING (the A → blank → B legend flicker).
     prevBarsSymRef.current = sym   // whose bars these are — see the ref's note
+    prevBarsTfRef.current = resolvedTf   // …and of which timeframe (the same render's own tf)
     // Baseline for the next render plan — the bars this paint actually put on screen.
     prevPaintBarsRef.current = displayBars
     // ⚠️ `userDefsGeneration` IS A DEPENDENCY ON MODULE STATE, AND IT IS
@@ -18222,6 +18245,7 @@ export default function StockChart({
         lastCfgSigRef.current = null
         prevBarsRef.current = null
         prevBarsSymRef.current = null           // the stamp goes with the bars it names
+        prevBarsTfRef.current = null
         prevPaintBarsRef.current = null
         lastBarCountRef.current = 0
         zoomKeyRef.current = null

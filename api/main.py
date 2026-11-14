@@ -1685,6 +1685,8 @@ def _start_cold_path_boot_preload() -> None:
     if manifest is not None:
         for row in cold_path_manifest.above_threshold_modules(manifest):
             mod_name = row["module"]
+            if not cold_path_manifest.module_present(mod_name):
+                continue    # archived since the scan (onenote_html, 11/04): not preloaded, not an error
 
             def _import_it(_mod=mod_name):
                 import importlib
@@ -11337,12 +11339,21 @@ def health_cache(_admin: dict = Depends(require_admin)):
     comment above `/api/health/threads`."""
     from api.services.data_sync import get_local_sync_state
     state = get_local_sync_state()
-    return {
+    out = {
         "use_remote_bars": os.environ.get("USE_REMOTE_BARS") == "1",
         "snapshot_ts": state["snapshot_ts"],
         "synced_at": state["synced_at"],
         "seconds_since_sync": state["seconds_since_sync"],
     }
+    # 2026-11-13: the RS envelope store's counters since boot (hits, misses, writes,
+    # dropped, skipped, evicted, and the volume's free bytes at its last sweep). In-memory
+    # counters only: this read opens no file.
+    try:
+        from api.services.signature import rs_store
+        out["rs_envelope_store"] = rs_store.stats()
+    except Exception:                                  # noqa: BLE001 — a health read never fails on a counter
+        pass
+    return out
 
 from api import debug_dump_router as _debug_dump_router
 app.include_router(_debug_dump_router.router)

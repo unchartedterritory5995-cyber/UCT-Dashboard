@@ -51,8 +51,9 @@ def measured_problems(allow, verdicts):
                 need(c.get("id"), f"script {s.get('slug')}")
     for name, row in allow.get("capabilities", {}).items():
         if row.get("status") == "conformant":
-            for cid in row.get("evidence", []):
-                need(cid, f"capability {name}")
+            for e in row.get("evidence", []):
+                # WS-I Part 2 (2026-11-13): an evidence entry is {capture, script, verdict, runtimePane}
+                need(e.get("capture") if isinstance(e, dict) else e, f"capability {name}")
     return out
 
 

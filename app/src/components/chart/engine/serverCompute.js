@@ -29,7 +29,8 @@
 // overlay — never a retry storm and never a client-side "are you paid?" branch
 // that could disagree with the server.
 
-import { withDerivedColumns } from './derivedColumns'
+import { withDerivedColumns, withDerivedScalars } from './derivedColumns'
+import { readoutConditionOpen } from './readoutSchema'
 // ⭐ U2b — the forming bar's live value for a `plots[].liveTail` (`liveTail.js`):
 // the one cell of a cached envelope that moves with price, recomputed where the
 // envelope is aligned. The module imports nothing of this one.
@@ -596,6 +597,25 @@ function _hydrateWhenSettled(sym, tf) {
   }, hold))
 }
 
+/**
+ * A row the member is about to reach: what this browser last had for it, read NOW.
+ *
+ * ⚰️ The store was read when a chart ARRIVED on a symbol, so its columns reached the chart 0.1
+ * to 0.2 s after the candles (the read is asynchronous, and it finished behind the flip's own
+ * work), and after the hold when the member had been racing. Measured on production
+ * 2026-11-13 with the pod answering in 7 to 23 s: the store saved every chart, 117 ms late on
+ * 21 of 24. Read when the row is ANNOUNCED, the columns are in memory before the member gets
+ * there and the first paint draws them, whatever the server is doing.
+ *
+ * Local disk, no request: it is not held back while a chart is racing (the newest rows are
+ * the ones about to be shown), and each (symbol, timeframe) is read once per page load. A
+ * page that draws no server-lane definition reads nothing.
+ */
+export function readAhead(sym, tf) {
+  if (!_everAsked || typeof sym !== 'string' || !sym) return
+  _hydrate(sym, String(tf == null ? 'D' : tf))
+}
+
 /** Test seam + a symbol/timeframe change escape hatch. */
 export function clearServerColumns() {
   _cache.clear()
@@ -955,7 +975,14 @@ const _held = new Map()       // `${sym}|${tf}` -> { g, timer }
 // the two (`_stride`): a hold of 1.3 x a 180 ms step ends before a 290 ms step does, and
 // that chart's ask went out for nobody. (The old 250 ms ceiling on the hold was under the
 // 260 to 300 ms a deep chart takes to draw, for the same result; it is 500 now.)
+//
+// ⭐ A STEP TAKEN AFTER A PAUSE IS NOT PART OF THE RUN BEFORE IT (2026-11-13). The pace above
+// read "200 ms, then 5 s, then a step" as 200 ms: the first chart a member moved to after
+// holding the key and stopping had its own ask held for the full ceiling. A gap longer than
+// the longest hold means the chart before it had rested (its ask was sent), so the run is
+// over and this step is a reader's.
 function _pace(s) {
+  if (s.gap > SETTLE_MAX_MS) return s.gap
   return Math.min(s.gap, s.prev)
 }
 function _stride(s) {
@@ -1068,6 +1095,12 @@ function _ownSettled() {
 export function chartsNeedTheLane() {
   const now = Date.now()
   if (_ownOut > 0 && now - _ownSentAt < OWN_PRIORITY_MS) return true
+  // ⭐ ...or is about to be (2026-11-13). An own ask HELD for a chart that just stopped counts
+  // from the moment it is held, not from the moment it is sent. Measured on production: the
+  // landing chart stopped counting as flying after 0.35 s, its ask left after 0.49 s, and in
+  // between the pre-load sent three cold requests that the ask then queued behind for 3.0 s.
+  // (A hold is at most `SETTLE_MAX_MS`, and ends by sending or by dropping: it cannot stick.)
+  if (_held.size > 0) return true
   // (flying lasts until the chart has rested for a whole step at that threshold)
   const fly = flyingMs(now)
   const rest = Math.max(RAPID_MS, fly)
@@ -1380,8 +1413,40 @@ export function scalarsFor(def, inputs, ctx) {
   // says "Scaled to 6M: 90 on Nov 11" or why the line is drawn unscaled. The same
   // object every paint (memoised per envelope), the payload itself while off.
   const e = rescaleEntry(def, parsed, inputs, ctx.tf)
-  if (e) return e.scalars || null
-  return parsed.payload || null
+  const base = e ? (e.scalars || null) : (parsed.payload || null)
+  // ⭐ 2026-11-13 — plus each declared derived average's reading (`plots[].derive`
+  // kind 'ma' with a `scalar`, `derivedColumns.withDerivedScalars`): the UCT RS
+  // Line's second average prints "above its 50 SMA by 2.1%" beside the server's
+  // first. Read off the envelope's own columns; memoised per (envelope, base
+  // scalars, length, type) so the readout's identity memo still hits.
+  return derivedScalarsFor(def, parsed, base, inputs)
+}
+
+const _derivedScalarsMemo = new WeakMap()   // parsed -> Map(signature -> {base, out})
+
+function derivedScalarsFor(def, parsed, base, inputs) {
+  const specs = (def && Array.isArray(def.plots) ? def.plots : [])
+    .filter((p) => p && p.derive && p.derive.kind === 'ma' && typeof p.derive.scalar === 'string')
+  if (!specs.length || !base || typeof base !== 'object') return base
+  const sig = specs.map((p) => {
+    const d = p.derive
+    const read = (s) => (typeof s === 'string' && s.startsWith('input:') ? readInputValue(def, inputs, s.slice(6)) : s)
+    const open = d.activeWhen === undefined ? true : readoutConditionOpen(d.activeWhen, def, inputs || {})
+    return `${p.key}:${open ? 1 : 0}:${String(read(d.length))}:${String(read(d.type))}`
+  }).join('|')
+  let byKey = _derivedScalarsMemo.get(parsed)
+  if (!byKey) { byKey = new Map(); _derivedScalarsMemo.set(parsed, byKey) }
+  const hit = byKey.get(sig)
+  if (hit && hit.base === base) return hit.out
+  const out = withDerivedScalars(def, base, parsed.columns, inputs)
+  byKey.set(sig, { base, out })
+  return out
+}
+
+function readInputValue(def, inputs, key) {
+  if (inputs && Object.prototype.hasOwnProperty.call(inputs, key)) return inputs[key]
+  const inp = def && Array.isArray(def.inputs) ? def.inputs.find((i) => i && i.key === key) : null
+  return inp ? inp.default : undefined
 }
 
 // ─── WHAT THE LIVE SERVER DECLARES (UCT RS Phase 3, unit 3-01) ───────────────
