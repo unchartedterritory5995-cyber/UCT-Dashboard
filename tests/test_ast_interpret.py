@@ -332,7 +332,11 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     # `ta.percentile_nearest_rank`, `ta.rci`) plus `accum2`, `accum3`, `accum4`
     # (`_functions_multi_state`). No new node type, argument kind or lookback form.
     # The scalar half is untouched.
-    assert len(ast_table.bar_names()) == 138, len(ast_table.bar_names())
+    # (2026-11-14, engine 56 A3) 138 -> 139: `boolNaWithheld(operand, flag)`, the marker the
+    # Pine door writes where a v1-v5 `bool` that is `na` meets an unwitnessed operator: its
+    # operand on every bar, withheld by `bool_na_mask` where `flag`. Ordinary pointwise entry,
+    # `lookback: 0`, two `series` arguments. The scalar half is untouched.
+    assert len(ast_table.bar_names()) == 139, len(ast_table.bar_names())
     # +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     # +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     # ⭐ 111 -> 137 (2026-09-02): the TWENTY-SIX Wave-1 screener columns promoted
@@ -396,7 +400,9 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     # The bar half moved 131 -> 138, the scalar half is untouched at 138; this is their sum.
     # 276 -> 287 (2026-11-06, UCT RS 2a-01 + 2a-07): the scalar half moved 138 -> 149
     # (base_pivot_px, then the ten bar-derived RS columns); the bar half is untouched at 138.
-    assert len(declared) == 287, f"the table declares {len(declared)} names, not 287"
+    # 287 -> 288 (2026-11-14, engine 56 A3): `boolNaWithheld`; the bar half moved 138 -> 139,
+    # the scalar half is untouched at 149; this is their sum.
+    assert len(declared) == 288, f"the table declares {len(declared)} names, not 288"
     # +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     # +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     leaked = sorted(_string_constants(pathlib.Path(ast_table.__file__)) & declared)

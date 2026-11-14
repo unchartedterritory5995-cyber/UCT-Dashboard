@@ -91,10 +91,12 @@ export function tolerancePolicy(capture) {
 
 const isNa = (v) => v === null || v === undefined || (typeof v === 'number' && !Number.isFinite(v))
 
-export function valuesAgree(ours, vendor, tol) {
+export function valuesAgree(ours, vendor, tol, floor = 0) {
   if (isNa(ours) || isNa(vendor)) return isNa(ours) && isNa(vendor)
   const d = Math.abs(ours - vendor)
-  return d <= tol.abs || d <= tol.rel * Math.abs(vendor)
+  // ⭐ ENGINE 56 (S4-4) — `floor`: the float-order floor of a plot a running total feeds
+  // (`ourSide.js::floatOrderFloorOf`, 8 ulps of the total's magnitude so far), 0 elsewhere
+  return d <= tol.abs || d <= tol.rel * Math.abs(vendor) || (floor > 0 && d <= floor)
 }
 
 /** A colour to `#rrggbbaa`, lowercase, or null when it cannot be read.
@@ -349,13 +351,19 @@ export function mapPlots(vendorValuePlots, ourPlots) {
  *                                   See `colourWarmupOf`.
  * @param {object} a.tol             from `tolerancePolicy`
  */
-export function comparePlot({ times, vendor, ours, vendorColors = null, ourColors = null, warmupBars = 0, colorWarmupBars = warmupBars, tol, oursUnreadAfter = null }) {
+export function comparePlot({ times, vendor, ours, vendorColors = null, ourColors = null, warmupBars = 0, colorWarmupBars = warmupBars, tol, oursUnreadAfter = null, withheldBars = null, floatOrderFloor = null }) {
   const n = times.length
   const res = {
     bars: n,
     compared: 0,
     // Bars our side cannot report the vendor's quantity for (see `leadBy`).
     oursUnread: 0,
+    // ⭐ ENGINE 56 — bars our side withheld BY NAME on this plot (a per-bar witness code):
+    // not compared, and counted with how many of them TradingView drew a value on
+    withheldBars: 0,
+    withheldVendorValued: 0,
+    withheldWarmupVendorValued: 0,
+    floatOrderFloorUsed: 0,
     matching: 0,
     vendorRowsMissing: 0,
     naMismatches: 0,
@@ -388,6 +396,13 @@ export function comparePlot({ times, vendor, ours, vendorColors = null, ourColor
     }
     firstRowSeen = true
     if (Number.isInteger(oursUnreadAfter) && i >= oursUnreadAfter) { res.oursUnread += 1; continue }
+    if (withheldBars && withheldBars[i]) {
+      res.withheldBars += 1
+      // only a steady-state bar weighs on the verdict; a warm-up bar is reported, as a warm-up
+      // divergence is (`warmup.divergent`)
+      if (!isNa(v)) { if (i >= warmupBars) res.withheldVendorValued += 1; else res.withheldWarmupVendorValued += 1 }
+      continue
+    }
     const o = ours[i]
     res.compared += 1
     if (!isNa(v)) res.valued += 1
@@ -400,7 +415,11 @@ export function comparePlot({ times, vendor, ours, vendorColors = null, ourColor
       const rel = d / Math.max(Math.abs(v), Number.MIN_VALUE)
       if (d > res.maxAbs) res.maxAbs = d
       if (Math.abs(v) > 0 && rel > res.maxRel) res.maxRel = rel
-      if (!valuesAgree(o, v, tol)) { kind = 'value'; res.valueMismatches += 1 }
+      const floor = floatOrderFloor && Number.isFinite(floatOrderFloor[i]) ? floatOrderFloor[i] : 0
+      if (!valuesAgree(o, v, tol)) {
+        if (floor > 0 && valuesAgree(o, v, tol, floor)) res.floatOrderFloorUsed += 1
+        else { kind = 'value'; res.valueMismatches += 1 }
+      }
     }
     if (vendorColors && !isNa(v) && vendorColors[i] !== undefined && vendorColors[i] !== null) res.colorComparable += 1
     if (!kind && vendorColors && ourColors && !isNa(v) && i >= colorWarmupBars) {
@@ -509,6 +528,11 @@ export function plotVerdict(r, { colorMeasured, colorResolvable, vendorColorReas
   }
   if (r.steady.compared === 0) {
     return { verdict: 'INCONCLUSIVE', reason: r.compared === 0 ? 'no bar was compared' : 'every compared bar is inside the warm-up region — nothing in steady state to judge' }
+  }
+  // ⭐ ENGINE 56 — a bar our side withheld BY NAME where TradingView drew a value is not a
+  // wrong value and not a match: the plot is INCONCLUSIVE, with the count, until it is served
+  if (r.withheldVendorValued > 0) {
+    return { verdict: 'INCONCLUSIVE', reason: `${r.steady.compared} compared bars agree; ${r.withheldVendorValued} bar(s) where TradingView draws a value are withheld by name on our side (not compared)` }
   }
   // ⛔ A COLOUR THE CAPTURE HOLDS BUT THE HARNESS COULD NOT DECODE IS NOT A MATCH.
   // ⚰️ It was: a palette-less colorer read `colors: null`, our side had colours,
@@ -773,7 +797,8 @@ export function compareCapture(capture, ours, opts = {}) {
     const metaStyle = (capture.study && capture.study.styles && capture.study.styles[v.id]) || null
     const emptyGlyph = v.type === 'chars' && !!metaStyle && metaStyle.char === '' && !metaStyle.text
     const colourUngraded = hiddenOnVendor || emptyGlyph
-    const r = comparePlot({ times, vendor: vendorVals, ours: oursCol, vendorColors: colourUngraded ? null : vc.colors, ourColors: colourUngraded ? null : ourColors, warmupBars, colorWarmupBars, tol, oursUnreadAfter: treeShift ? times.length - treeShift : null })
+    const r = comparePlot({ times, vendor: vendorVals, ours: oursCol, vendorColors: colourUngraded ? null : vc.colors, ourColors: colourUngraded ? null : ourColors, warmupBars, colorWarmupBars, tol, oursUnreadAfter: treeShift ? times.length - treeShift : null,
+      withheldBars: leadBy(o.withheldBars, treeShift) || null, floatOrderFloor: leadBy(o.floatOrderFloor, treeShift) || null })
     const pv = plotVerdict(r, {
       colorMeasured: vc.measured && !colourUngraded,
       colorResolvable: !!ourColors,

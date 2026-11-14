@@ -4381,7 +4381,8 @@ class Resolver {
     const spec = this.table.functions.accum
     const args = []
     args[spec.recurrence.seed] = parts.seed
-    args[spec.recurrence.body] = parts.update
+    // ⭐ ENGINE 56 (A1) — the step as written (`if IsNaN(x[1]) then …` kept), as `pine.js`
+    args[spec.recurrence.body] = parts.step
     args[spec.recurrence.warmup] = { type: 'num', value: TS_STATE_WARMUP }
     return { type: 'call', name: 'accum', args }
   }

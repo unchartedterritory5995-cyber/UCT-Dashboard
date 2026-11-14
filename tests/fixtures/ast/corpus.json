@@ -5424,6 +5424,61 @@
       }
     },
     {
+      "id": "pine_bool_na_withheld_is_its_operand",
+      "source": "boolNaWithheld(close > sma(close, 20), na(sma(close, 20)))",
+      "why": "(2026-11-14, engine 56 A3) the marker the Pine door writes where a v1-v5 `bool` that is `na` meets an operator no capture has witnessed: it is its OPERAND on every bar, and the bars it withholds (where the flag is not 0) are the masks' business (`interpret.js::boolNaMask`, `ast_interpret.bool_na_mask`). The first 19 bars hold a `na` `sma`, so both lanes must withhold exactly those, and agree on every other bar.",
+      "ast": {
+        "type": "call",
+        "name": "boolNaWithheld",
+        "args": [
+          {
+            "type": "op",
+            "name": ">",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "call",
+                "name": "sma",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "close"
+                  },
+                  {
+                    "type": "num",
+                    "value": 20
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "call",
+            "name": "na",
+            "args": [
+              {
+                "type": "call",
+                "name": "sma",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "close"
+                  },
+                  {
+                    "type": "num",
+                    "value": 20
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
       "id": "pine_rci_close_10",
       "source": "rci(close, 10)",
       "why": "(2026-10-30, Pine coverage Phase 1) Pine's `ta.rci`: Spearman's rank correlation between the bars' time order (newest = 1) and price order (highest = 1), x100. These 5-minute closes repeat prices often enough that the TIE rule (average rank) is exercised on many windows, so a lane that broke ties differently moves this digest.",

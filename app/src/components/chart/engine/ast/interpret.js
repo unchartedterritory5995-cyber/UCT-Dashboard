@@ -1446,9 +1446,22 @@ function windowExtreme(series, lo, hi, better) {
  *  the NaN rule (*"NaN does not lose a comparison"*) is inherited rather than
  *  restated — a second scan with its own comparison would be a second authority
  *  over one window. `ast_interpret._window_arg_extreme` is the same two steps. */
-function windowArgExtreme(series, lo, hi, better) {
+function windowArgExtreme(series, lo, hi, better, newest = false) {
   const best = windowExtreme(series, lo, hi, better)
   if (Number.isNaN(best)) return NaN
+  // ⭐⭐ ENGINE 56 (S4-2) — OVER A PRICE THE BAR ITSELF HOLDS THE NEWEST TIED BAR WINS
+  // (`newest`, chosen per call by `isBarPriceTree` on the call's own source). WITNESSED
+  // twice, from the listing (NYSE:RDDT 1D, 2026-11-14): the builtin `aroon` (v6) reads
+  // 100 on bar 116, where `ta.highestbars(high, 15)` ties the current bar with the bar 4
+  // back (the oldest-wins answer was 71.43), and `pivot-high-low-points` (v4) draws no
+  // marker on bar 117, where `highestbars(11)` ties bars 112 and 116 (60.41 both).
+  // ⛔ The measurement below (oldest wins) is a two-valued COMPUTED source; the two
+  // readings are not reconciled, so a computed source keeps it and is WITHHELD by name
+  // on every bar whose window holds a tie (`argExtremeTieMask`, `pine:tie-unwitnessed`).
+  if (newest) {
+    for (let i = hi; i >= lo; i--) if (series[i] === best) return hi - i
+    return NaN
+  }
   // ⭐⭐ FORWARD FROM THE OLDEST BAR IN THE WINDOW: on a TIE the vendor returns
   // the OLDER occurrence — the LARGER distance back. Measured 2026-09-08 on a
   // two-valued source built to force ties: `ties -> OLDEST` is 380ok/0bad and
@@ -1521,6 +1534,13 @@ function pivotCol(series, left, right, beats) {
       // because it guards anything today (`lesson_gate_that_cannot_fail`).
       // a tie on the LEFT still pivots (the plateau's last bar); one on the RIGHT
       // does not
+      // ⭐⭐ ENGINE 56 (S4-1) — AN `na` ON THE LEFT IS IGNORED, NOT A HOLE. TradingView's
+      // `pivothigh` / `pivotlow` skip a left-side `na`: `obv-macd-ao-pivdiv-3` (v4, NYSE:RDDT
+      // 1D from the listing, 2026-11-14) draws its first Bear Div L/M/S markers on bars
+      // 73, 58 and 54 over oscillators whose warm-up `na` sits inside the left span, and
+      // all six of its pivot columns recompute with 0 differences under this rule. A
+      // right-side `na` and a bar with fewer than `left` bars before it stay not computable.
+      if (j < i && Number.isNaN(w)) continue
       if (Number.isNaN(w) || !(beats(v, w) || (j < i && v === w))) { ok = false; break }
     }
     if (ok) out[i] = v
@@ -1908,7 +1928,15 @@ function percentrankAt(series, i, length) {
   let count = 0
   for (let k = 1; k <= length; k++) {
     const v = series[i - k]
-    if (Number.isNaN(v)) return NaN
+    // ⭐⭐ ENGINE 56 (A2) — AN `na` PRIOR VALUE IS COUNTED AS "NOT <=", NEVER A HOLE IN
+    // THE ANSWER. WITNESSED twice, from the listing (NYSE:RDDT 1D, 2026-11-14):
+    // `uptrick-volatility-weighted-cloud` (v6) draws its percent-rank bands from
+    // bar 100 (0.49 on bar 100, 0.53 on 101, 0 on 120, 0.47 on 141) where this
+    // returned `na` until bar 141, and the builtin `connors-rsi` (v6) draws CRSI
+    // 68.606 on bar 100 over `ta.percentrank(ta.roc(close, 1), 100)`, whose window
+    // holds the `na` of bar 0. The divisor stays `length` (a divisor of the finite
+    // count reads 0.845 where TradingView reads 0.49).
+    if (Number.isNaN(v)) continue
     if (v <= cur) count++
   }
   return (100 * count) / length
@@ -2364,6 +2392,9 @@ const POINTWISE = Object.freeze({
   // built entirely around NaN meaning "we do not know" declares them anyway.
   na: (x) => (Number.isNaN(x) ? 1 : 0),
   nz: (x, y) => (Number.isNaN(x) ? y : x),
+  // ⭐ ENGINE 56 (A3) — the marker is its value on every bar; WHICH bars a member is not
+  // shown is `boolNaMask`'s, over the whole tree (see `boolNaWithheld` in the table).
+  boolNaWithheld: (x, _flag) => x,
 
   // ── pure math ────────────────────────────────────────────────────────────
   // ⭐⭐ EVERY DOMAIN REFUSAL ANSWERS NaN, AND THAT IS THE WHOLE DESIGN. JS hands
@@ -2531,8 +2562,12 @@ export const FINITE_WINDOW = Object.freeze({
   // the restarted window's only candidate is this bar, so the OFFSET is defined
   // even though the VALUE is not. PART Z measured the difference (36 of 36 vs 0
   // of 36) and could not explain it; this is the explanation.
-  highestbars: { reduce: (s, lo, hi) => windowArgExtreme(s, lo, hi, (v, b) => v > b), span: (n) => n, na: NA.RESTART, naCurrent: 0 },
-  lowestbars: { reduce: (s, lo, hi) => windowArgExtreme(s, lo, hi, (v, b) => v < b), span: (n) => n, na: NA.RESTART, naCurrent: 0 },
+  // ⭐ ENGINE 56 (S4-2) — `reduceNewest`: the same window over a price the bar holds
+  // (`isBarPriceTree`), where the NEWEST tied bar wins (see `windowArgExtreme`).
+  // `holdsTie`: 1 where the window holds its extreme twice (the runtime lane stops by name there
+  // over a computed source, as `argExtremeTieMask` withholds the bar).
+  highestbars: { reduce: (s, lo, hi) => windowArgExtreme(s, lo, hi, (v, b) => v > b), reduceNewest: (s, lo, hi) => windowArgExtreme(s, lo, hi, (v, b) => v > b, true), holdsTie: (s, lo, hi) => windowHoldsTie(s, lo, hi, (v, b) => v > b), span: (n) => n, na: NA.RESTART, naCurrent: 0 },
+  lowestbars: { reduce: (s, lo, hi) => windowArgExtreme(s, lo, hi, (v, b) => v < b), reduceNewest: (s, lo, hi) => windowArgExtreme(s, lo, hi, (v, b) => v < b, true), holdsTie: (s, lo, hi) => windowHoldsTie(s, lo, hi, (v, b) => v < b), span: (n) => n, na: NA.RESTART, naCurrent: 0 },
   // ⚰️ `rising` AND `falling` LEFT THIS TABLE 2026-09-08. They are carried
   // counters, not windows — see `monotoneStep`. They are in `CARRIED` now, and
   // the reason they were ever here is that a strict monotone run LOOKS like a
@@ -2546,6 +2581,44 @@ export const FINITE_WINDOW = Object.freeze({
 const windowFn = (name) => (series, n) =>
   rolling(series, FINITE_WINDOW[name].span(n), FINITE_WINDOW[name].reduce,
     FINITE_WINDOW[name].na, FINITE_WINDOW[name].naCurrent)
+/** ⭐ ENGINE 56 (S4-2) — the same member with its `reduceNewest` (a bar-price source). */
+const windowFnNewest = (name) => (series, n) =>
+  rolling(series, FINITE_WINDOW[name].span(n), FINITE_WINDOW[name].reduceNewest,
+    FINITE_WINDOW[name].na, FINITE_WINDOW[name].naCurrent)
+export const FN_BAR_PRICE_NEWEST = Object.freeze({
+  highestbars: windowFnNewest('highestbars'),
+  lowestbars: windowFnNewest('lowestbars'),
+})
+
+/** ⭐⭐ ENGINE 56 (S4-2) — IS THIS CANONICAL SOURCE A PRICE THE BAR ITSELF HOLDS? `open`,
+ *  `high`, `low`, `close`, or one of Pine's means of them exactly as `pine.js`'s
+ *  `derivedSeriesTree` builds them (`hl2`, `hlc3`, `ohlc4`, `hlcc4`: a left-nested `+`
+ *  of the fields over their count). Structural, so an `input.source(close)` reads as
+ *  `close`. `volume` is not on it (a bar may carry none). The arg-extreme tie rule reads
+ *  it: newest wins over such a source (witnessed), a tie over anything else is withheld.
+ *  Python twin: `ast_interpret.py::is_bar_price_tree`. */
+const BAR_PRICE_FIELDS = ['open', 'high', 'low', 'close']
+const BAR_PRICE_MEANS = [['high', 'low'], ['high', 'low', 'close'], ['open', 'high', 'low', 'close'],
+  ['high', 'low', 'close', 'close']]
+export function isBarPriceTree(t) {
+  if (!t || typeof t !== 'object') return false
+  if (t.type === 'series') return BAR_PRICE_FIELDS.includes(t.name)
+  if (t.type !== 'op' || t.name !== '/' || !Array.isArray(t.args) || t.args.length !== 2) return false
+  const [sum, k] = t.args
+  if (!k || k.type !== 'num') return false
+  const names = []
+  let at = sum
+  while (at && at.type === 'op' && at.name === '+' && Array.isArray(at.args) && at.args.length === 2) {
+    const r = at.args[1]
+    if (!r || r.type !== 'series') return false
+    names.unshift(r.name)
+    at = at.args[0]
+  }
+  if (!at || at.type !== 'series') return false
+  names.unshift(at.name)
+  return names.length === k.value
+    && BAR_PRICE_MEANS.some((m) => m.length === names.length && m.every((x, i) => x === names[i]))
+}
 
 /** ⭐⭐⭐ THE CARRIED-STATE FAMILY (2F-2C) — `FINITE_WINDOW`'S COUNTERPART.
  *
@@ -2642,6 +2715,8 @@ const pivotPineStep = (beats) => (st, off, v, n, _k, right) => {
   for (let j = 0; j < n; j += 1) {
     if (j === centreAt) continue
     const x = st[off + ((next + j) % n)]
+    // ⭐ ENGINE 56 (S4-1) — a left-side `na` is ignored, as `pivotCol` (one rule, two shapes)
+    if (j < centreAt && Number.isNaN(x)) continue
     if (Number.isNaN(x) || !(beats(c, x) || (j < centreAt && c === x))) return NaN
   }
   return c
@@ -3125,6 +3200,7 @@ export const FN = Object.freeze({
     return out
   },
   nz: (a, b) => elementwise2(a, b, POINTWISE.nz),
+  boolNaWithheld: (a, b) => elementwise2(a, b, POINTWISE.boolNaWithheld),
   crossOver: (a, b) => crossing(a, b, CROSS_OVER_FIRED),
   crossUnder: (a, b) => crossing(a, b, CROSS_UNDER_FIRED),
 
@@ -3465,7 +3541,10 @@ function aroonCol(bars, n, field, wantMax) {
   const out = new Array(bars.length)
   for (let i = 0; i < bars.length; i++) out[i] = { time: bars[i] ? bars[i].t : i, value: NaN }
   for (let i = n; i < bars.length; i++) {
-    const days = windowArgExtreme(values, i - n, i, better)
+    // ⭐ ENGINE 56 (S4-2) — `high` / `low` are prices the bar holds: the NEWEST tied bar
+    // wins (the builtin `aroon` capture, RDDT 1D bar 116; see `windowArgExtreme`), which is
+    // also the published "days since the most recent extreme".
+    const days = windowArgExtreme(values, i - n, i, better, true)
     if (Number.isNaN(days)) continue
     out[i].value = (100 * (n - days)) / n
   }
@@ -5200,6 +5279,11 @@ const periodCloseInner = (node) => (node.args[1].type === 'tf_live' ? node.args[
 const ANCHOR_SPELLED = '`time("W")`, `time("M")`, `time("3M")` and `time("12M")`'
 const CLOSE_SPELLED = '`time_close("W")` and `time_close("M")`'
 const tfSpelled = (tf) => (typeof tf === 'string' && tf ? `\`${tf}\`` : 'not stated')
+/** ⭐⭐ ENGINE 56 — the two per-bar withholding codes this engine adds, ONE spelling each:
+ *  the chart-clock channel names them (`CHART_CLOCK_WITHHELD`), the runtime lane refuses by
+ *  the same string, and the member door shows it. */
+export const BOOL_NA_UNWITNESSED = 'pine:bool-na-unwitnessed'
+export const TIE_UNWITNESSED = 'pine:tie-unwitnessed'
 export const CHART_CLOCK_WITHHELD = Object.freeze({
   'time-anchor:not-daily': (tf) => `${ANCHOR_SPELLED} — the opening time of the bar's week, month, `
     + 'quarter or year — are read here on 5-minute, 15-minute, 60-minute, 1D, 1W and 1M charts, the '
@@ -5335,6 +5419,22 @@ export const CHART_CLOCK_WITHHELD = Object.freeze({
     + 'no such bar; a count that has not reset yet) it is not known here, and what this indicator draws from it '
     + 'is withheld on those bars rather than drawn wrong. On a chart whose bars start at the symbol\'s listing '
     + 'it draws. What would settle it: nothing to capture — bars reaching the listing.',
+  // ⭐⭐ ENGINE 56 (A3) — a Pine v1-v5 `bool` that is `na` meeting an operator no capture
+  // has witnessed for it (`boolNaWithheld`, `boolNaMask`).
+  [BOOL_NA_UNWITNESSED]: () => 'In Pine v1 to v5 a comparison with `na` is itself `na` — a `bool` that is '
+    + 'neither true nor false — and TradingView reads `na == true` and `na == false` as false (measured on a '
+    + 'v1 script and stated for v5 by the v6 migration guide), which is drawn. What `!=` answers for '
+    + 'it, what `==` answers when both sides can be `na`, and, before v4, what `and`, `or` and `not` answer for '
+    + 'it are not measured, so on the bars where this indicator meets one of those with an `na` operand what it '
+    + 'draws from it is withheld rather than guessed; every other bar is drawn. What would settle it: the A3 '
+    + '`bool`-`na` probe captured on TradingView.',
+  // ⭐⭐ ENGINE 56 (S4-2) — a tie in a `highestbars` / `lowestbars` window over a computed source.
+  [TIE_UNWITNESSED]: () => 'When two bars of a `highestbars` / `lowestbars` window hold the same extreme, '
+    + 'TradingView names the NEWEST of them over a price the bar itself holds (`high`, `low`, `close`, `open`, '
+    + '`hl2`, … — measured on the builtin Aroon and on a v4 pivot script), which is drawn. Over a computed '
+    + 'source the one measurement names the OLDEST, and the two readings are not reconciled, so on the bars '
+    + 'whose window holds such a tie what this indicator draws from it is withheld rather than guessed; '
+    + 'every other bar is drawn. What would settle it: the tie probe captured on TradingView.',
 })
 export const CHART_CLOCK_WHOLE = Object.freeze(['time-anchor:other-bars', 'time-clock:unreadable',
   'time-anchor:not-daily', 'time-anchor:weekend-bars', 'time-own:chart-unwitnessed', 'time-close:not-daily',
@@ -6202,11 +6302,135 @@ export function withheldReadMask(tree, bars, inputs, budget, scalars, opts) {
     historyReadMask(tree, bars, inputs, budget, scalars, opts),
     barIndexMask(tree, bars, inputs, budget, scalars, opts),
     varOriginMask(tree, bars, inputs, budget, scalars, opts),
+    // ⭐⭐ ENGINE 56 — the two per-bar witness masks (A3, S4-2)
+    boolNaMask(tree, bars, inputs, budget, scalars, opts),
+    argExtremeTieMask(tree, bars, inputs, budget, scalars, opts),
   ].filter(Boolean)
   if (masks.length <= 1) return masks[0] || null
   const out = new Float64Array(Math.max(...masks.map((m) => m.length)))
   for (let i = 0; i < out.length; i++) out[i] = masks.some((m) => m[i]) ? 1 : 0
   return out
+}
+
+/** ⭐⭐ ENGINE 56 — THE NODES A PER-BAR WITNESS MASK ASKS ABOUT, with the two facts its
+ *  reach needs: read under `tf` / `sym` (`nested`: other bars, so the whole tree), or
+ *  under a function whose memory is unbounded or a recurrence (`unbounded`: every bar
+ *  from the first withheld one on). The walk `historyReadMask` makes, for any predicate. */
+function witnessSites(tree, want) {
+  const sites = []
+  const stack = [[tree, false, false]]
+  const seen = new Set()
+  while (stack.length) {
+    const [node, nested, unbounded] = stack.pop()
+    if (!node || typeof node !== 'object' || seen.has(node)) continue
+    seen.add(node)
+    if (want(node)) sites.push({ node, nested, unbounded })
+    const into = nested || node.type === 'sym' || node.type === 'tf' || node.type === 'tf_live'
+    const spec = node.type === 'call' && own(TABLE.functions, node.name) ? TABLE.functions[node.name] : null
+    const open = unbounded || !!(spec && (spec.lookback === SERIES_LOOKBACK || isStatefulCall(node)))
+    if (Array.isArray(node.args)) for (const a of node.args) stack.push([a, into, open])
+  }
+  return sites
+}
+
+/** ⭐⭐ ENGINE 56 — spread each site's own withheld bars (`flagged(site)` → a 0/1 column,
+ *  or null = every bar) to the root bars that read them, name the code, and record the
+ *  mask in `opts.withheldBarsSink` (code → 0/1 column; the vendor harness reads it: a bar
+ *  withheld by name is not a value and is not graded as one). Null when no bar is. */
+function spreadWitnessMask(tree, bars, sites, flagged, code, opts) {
+  const n = Array.isArray(bars) ? bars.length : 0
+  if (!sites.length) return null
+  const mask = new Float64Array(n)
+  let any = false
+  const rootReach = maxLookback(tree)
+  for (const site of sites) {
+    // ⛔ no `try` here (this file holds none: `budget.test.js`): a site `flagged` cannot answer
+    // returns null, and a refusal inside it is the tree's refusal, as `historyReadMask`'s is
+    const col = site.nested ? null : flagged(site)
+    if (!col) { mask.fill(1); any = n > 0; break }
+    const reach = Math.max(0, rootReach - maxLookback(site.node))
+    let last = -Infinity
+    for (let i = 0; i < n; i++) {
+      if (col[i]) last = site.unbounded && last !== -Infinity ? last : i
+      if (last !== -Infinity && (site.unbounded || i - last <= reach)) { mask[i] = 1; any = true }
+    }
+  }
+  if (!any) return null
+  nameChartClock(opts, [code], opts && opts.tf)
+  const sink = opts && opts.withheldBarsSink
+  if (sink && typeof sink.set === 'function') {
+    const had = sink.get(code)
+    if (had && had.length === n) for (let i = 0; i < n; i++) had[i] = had[i] || mask[i]
+    else sink.set(code, Float64Array.from(mask))
+  }
+  return mask
+}
+
+const witnessOpts = (opts) => ({ ...(opts || {}), crossMemo: undefined, probeBase: undefined,
+  chartClockSink: undefined, withheldBarsSink: undefined })
+
+/** ⭐⭐ ENGINE 56 (A3) — THE BARS WHERE A PINE v1-v5 `bool` THAT IS `na` MEETS AN OPERATOR
+ *  NO CAPTURE HAS WITNESSED FOR IT, as a 0/1 column (1 = withheld), or null.
+ *
+ *  The translator (`pine.js::boolNaOperator`) writes `boolNaWithheld(operand, flag)` at
+ *  each such operator: `!=` with a `bool` side that can be `na`; `==` whose sides can both
+ *  be `na`, or whose `na`-able side meets a side that is not a written literal; and before
+ *  v4 `and`, `or` and `not` over one. The marker is its operand on every bar; `flag` is 1
+ *  on the bars where an operand is `na` (a `NaN` flag reads as withheld: fail closed).
+ *  Every root bar within the tree's reach of such a bar is withheld (`historyReadMask`'s
+ *  rule); a flag that reads a recurrence's own value withholds the whole tree. */
+export function boolNaMask(tree, bars, inputs, budget, scalars, opts) {
+  const sites = witnessSites(tree, (nd) => nd.type === 'call' && nd.name === 'boolNaWithheld')
+  if (!sites.length) return null
+  const n = Array.isArray(bars) ? bars.length : 0
+  return spreadWitnessMask(tree, bars, sites, (site) => {
+    const f = site.node.args && site.node.args[1]
+    if (readsRecurrenceBinding(f)) return null
+    const col = toColumn(interpretOnce(f, bars, inputs, budget, scalars, witnessOpts(opts)), n)
+    const out = new Float64Array(n)
+    for (let i = 0; i < n; i++) out[i] = col[i] === 0 ? 0 : 1
+    return out
+  }, BOOL_NA_UNWITNESSED, opts)
+}
+
+/** Does the window `[lo, hi]` hold its extreme on two or more bars? 1 / 0, `NaN` when it
+ *  has no extreme (a hole: `windowExtreme`'s rule). */
+function windowHoldsTie(series, lo, hi, better) {
+  const best = windowExtreme(series, lo, hi, better)
+  if (Number.isNaN(best)) return NaN
+  let k = 0
+  for (let i = lo; i <= hi; i++) if (series[i] === best && ++k > 1) return 1
+  return 0
+}
+
+/** ⭐⭐ ENGINE 56 (S4-2) — THE BARS WHERE A `highestbars` / `lowestbars` OVER A COMPUTED
+ *  SOURCE NAMES ONE OF TWO TIED BARS, as a 0/1 column (1 = withheld), or null.
+ *
+ *  Over a price the bar itself holds (`isBarPriceTree`) TradingView names the NEWEST tied
+ *  bar, and that is served (`windowArgExtreme`, witnessed by the builtin Aroon at v6 and a
+ *  v4 pivot script). Over anything else the one measurement
+ *  (`divergences.json::argextreme-ties-resolve-to-the-newest-bar`, a two-valued computed
+ *  source at v6) names the OLDEST: the two readings are not reconciled, so a computed
+ *  source's tied windows are withheld by name, never guessed. The window is the call's own
+ *  (`FINITE_WINDOW`'s span and `restart` policy). */
+export function argExtremeTieMask(tree, bars, inputs, budget, scalars, opts) {
+  const sites = witnessSites(tree, (nd) => nd.type === 'call'
+    && (nd.name === 'highestbars' || nd.name === 'lowestbars')
+    && Array.isArray(nd.args) && nd.args.length === 2 && !isBarPriceTree(nd.args[0]))
+  if (!sites.length) return null
+  const n = Array.isArray(bars) ? bars.length : 0
+  return spreadWitnessMask(tree, bars, sites, (site) => {
+    const node = site.node
+    if (readsRecurrenceBinding(node.args[0]) || !node.args[1] || node.args[1].type !== 'num') return null
+    const len = windowLiteral(node, 1)
+    const src = toColumn(interpretOnce(node.args[0], bars, inputs, budget, scalars, witnessOpts(opts)), n)
+    const better = node.name === 'highestbars' ? (v, b) => v > b : (v, b) => v < b
+    const spec = FINITE_WINDOW[node.name]
+    const ties = rolling(src, spec.span(len), (sr, lo, hi) => windowHoldsTie(sr, lo, hi, better), spec.na)
+    const out = new Float64Array(n)
+    for (let i = 0; i < n; i++) out[i] = ties[i] === 1 ? 1 : 0
+    return out
+  }, TIE_UNWITNESSED, opts)
 }
 
 /** Withhold (`NaN`) the bars `withheldReadMask` names. A COPY. */
@@ -6846,6 +7070,8 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
         if (own(BAR_FN, n.name)) return barColumn(n.name, bars, args, length, opts)
         // ⭐ P0G — owner decision C: under definition semantics 2 the Wilder
         // family HOLDS across a hole instead of restarting after it (`FN_V2`).
+        // ⭐ ENGINE 56 (S4-2) — over a price the bar holds, the newest tied bar wins
+        if (own(FN_BAR_PRICE_NEWEST, n.name) && isBarPriceTree(n.args[0])) return FN_BAR_PRICE_NEWEST[n.name](...args)
         return (v2Fn && own(FN_V2, n.name) ? FN_V2 : FN)[n.name](...args)
       }
       case 'str':

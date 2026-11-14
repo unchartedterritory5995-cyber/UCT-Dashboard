@@ -4160,7 +4160,13 @@ function ternarySeedAndUpdate(body, table) {
   if (!containsFreeSelfSeries(test, table)) return null
   if (containsFreeSelfSeries(seed, table)) return null
   if (!containsFreeSelfSeries(update, table)) return null
-  return { seed, update }
+  // ⭐⭐ ENGINE 56 (A1) — `step` IS THE WHOLE `?:`, `na(self…)` TEST KEPT. The accumulator
+  // fills its lag history with the seed before the first step, so the test is false on
+  // bar 0 and the step equals `update` there; but an update that answers `na` mid-series
+  // (`x = na(x[1]) ? 0 : x[1] + close - sma(close, 20)`, `sma` warming up) makes `x[1]`
+  // `na` on the next bar, where Pine takes the SEED arm again and the bare update carried
+  // `na` forever. `update` (the arm alone) is still what the convergence gates ask.
+  return { seed, update, step: body }
 }
 
 /** ⭐⭐ THE SECOND SPELLING OF ONE FIRST-BAR VALUE: `nz(self…, SEED)` IN PLACE.
@@ -4231,6 +4237,14 @@ function nzSeedAndUpdate(body, table) {
   const want = printFormula(seed)
   for (const w of wrappers) if (printFormula(w.args[1]) !== want) return null
 
+  // ⭐⭐ ENGINE 56 (A1) — THE `nz` WRAPPERS STAY IN THE STEP. "Inside the built body
+  // `self[k]` is never unknown" (above) is true on bar 0 and false after an update that
+  // answers `na`: `atr-trailing-stops-sylvain-vervoort` (v1, NYSE:RDDT 1D from the
+  // listing, 2026-11-14) reads `nz(x[1], 0)` while `nLoss` is `na` on bars 0-3, so
+  // `max(0, na)` makes `x` `na` and Pine's `nz` reads 0 on bar 4 — TradingView draws
+  // 16.49 there, and the stripped step drew 99.01 off a bare `na` self. The stripped
+  // copy (`update`) is kept for the convergence gates, which ask about the update's
+  // shape, and `step` (the body as written) is what the accumulator runs.
   const seen = new Set(wrappers)
   const substitute = (n) => {
     if (!n || typeof n !== 'object') return n
@@ -4240,7 +4254,7 @@ function nzSeedAndUpdate(body, table) {
     // ⭐ C45 — a copied `?:` keeps its arm stamp (`carryArmRuns`)
     return next.every((v, i) => v === n.args[i]) ? n : carryArmRuns(n, { ...n, args: next })
   }
-  return { seed, update: substitute(body) }
+  return { seed, update: substitute(body), step: body }
 }
 
 /** Does this tree read a `self` that NOTHING HAS BOUND?
@@ -6109,6 +6123,14 @@ export function constantValueOf(node, budget = { left: MAX_FOLD_NODES }) {
     // stops a malformed tree reaching an implementation that would read
     // `undefined` and answer NaN rather than refusing.
     if (!spec || !isPointwise(spec) || typeof FN[node.name] !== 'function') return null
+    // ⛔ ENGINE 56 — the A3 marker is its operand where its flag is 0 and WITHHELD elsewhere
+    // (`interpret.js::boolNaMask`): a constant flag that is not 0 withholds every bar, so it
+    // folds only where the flag folds to 0
+    if (node.name === 'boolNaWithheld') {
+      const marked = node.args || []
+      if (marked.length !== 2 || constantValueOf(marked[1], budget) !== 0) return null
+      return constantValueOf(marked[0], budget)
+    }
     const args = node.args || []
     if (args.length !== spec.args.length) return null
     const cols = []
@@ -6761,6 +6783,158 @@ export function constantTestValue(tree) {
  *  unreadable while its label beside it read. The plot lane keeps 4: see
  *  `Resolver.objectPass`. */
 const TF_READ_HOPS = 16
+
+/* ─── ⭐⭐ ENGINE 56 (A3) — A PINE v1-v5 `bool` CAN BE `na`, AND `==` READS IT ─────────────
+ *
+ *  Pine v1 to v5: a comparison with `na` is itself `na` — a `bool` that is neither true nor
+ *  false — and `na == true` and `na == false` are both FALSE ("Boolean values and na",
+ *  TradingView's v6 migration guide, for v5; MEASURED for v1 on
+ *  `accumulation-distribution-with-markers`, NYSE:RDDT 1D from the listing, 2026-11-14:
+ *  `adSmaller == true and adSmaller[1] == false` is `na` on bar 14, where `adSmaller[1]` is
+ *  the comparison of bar 13 with a warming-up `sma`; this engine drew -11152358.65 there).
+ *  v6 bools are never `na` and keep the shared rule.
+ *
+ *  This engine keeps a comparison's VALUE as it was (`cmp` answers 0 for an `na` operand,
+ *  which every condition context reads exactly as Pine casts `na`: false) and tracks
+ *  WHERE a `bool` is `na` beside it (`naInfo`). An operator that reads the difference
+ *  between `na` and false is then rewritten:
+ *    - `==` against a written `true` / `false`: false where the other side is `na` —
+ *      SERVED, the two witnesses above;
+ *    - `==` whose two sides can both be `na`, or whose `na`-able side meets a side that is
+ *      not a written literal; `!=` with a side that can be `na`; and, before v4 (and with
+ *      no `//@version`), `or` and `not` over a `bool` that can be `na`: no capture says
+ *      what TradingView answers, so the operand is wrapped `boolNaWithheld(operand, flag)`
+ *      and every bar where it meets an `na` operand is WITHHELD by name
+ *      (`interpret.js::boolNaMask`, `pine:bool-na-unwitnessed`). A v1-v3 `and` over an
+ *      `na` operand is false or `na` (unwitnessed which), and every condition reads both
+ *      as false, so it is served where it is tested and tracked as `maybe` for the
+ *      operators above. v4/v5 `and` / `or` / `not` read an `na` operand as false
+ *      (`rt3-na-logic` v4 and v5, witnessed): unchanged.
+ *  A tree whose `na` cannot be tracked (a recurrence's own value, a numeric operand used
+ *  as a bool) keeps the value it had: the residual is stated in the engine-56 EVIDENCE. */
+const PINE_BAR_PRICES = new Set(['open', 'high', 'low', 'close'])
+const NA_NEVER = Object.freeze({ type: 'num', value: 0 })
+const isNaNever = (m) => m === NA_NEVER || (!!m && m.type === 'num' && m.value === 0)
+const naOr = (a, b) => (isNaNever(a) ? b : isNaNever(b) ? a : cOp('||', [a, b]))
+const isBoolLiteralNode = (t) => !!t && t.type === 'num' && (t.value === 0 || t.value === 1)
+const BOOL_NA_RANGE = new Set(['<', '<=', '>', '>='])
+const NA_KEEPING_OPS = new Set(['+', '-', '*', 'u-'])
+const NA_KEEPING_CALLS = new Set(['abs', 'max', 'min', 'sign'])
+const naInfoOf = (na, maybe) => ({ na, maybe })
+const NA_INFO_NEVER = Object.freeze(naInfoOf(NA_NEVER, NA_NEVER))
+/** 1 where the NUMBER `x` is `na`, or `NA_NEVER` for a value known on every bar (a finite
+ *  literal, a bar price, a member's input, `nz(_, known)`, and `+ - *`, `abs`, `max`, `min`
+ *  over known values). Anything else is asked on the bar (`na(x)`). */
+function naOfNumber(x, version) {
+  if (!x || typeof x !== 'object') return cCall('na', [x])
+  if (x.type === 'num') return Number.isFinite(x.value) ? NA_NEVER : cCall('na', [x])
+  if (x.type === 'series' && (PINE_BAR_PRICES.has(x.name)
+    || (x.inputName !== undefined && Number.isFinite(x.inputDefault)))) return NA_NEVER
+  if (x.type === 'call' && x.name === 'nz' && Array.isArray(x.args) && x.args.length === 2
+    && isNaNever(naOfNumber(x.args[1], version))) return NA_NEVER
+  const known = Array.isArray(x.args) && x.args.length > 0
+    && ((x.type === 'op' && NA_KEEPING_OPS.has(x.name)) || (x.type === 'call' && NA_KEEPING_CALLS.has(x.name)))
+  if (known && x.args.every((a) => isNaNever(naOfNumber(a, version)))) return NA_NEVER
+  const asBool = naInfo(x, version)
+  if (asBool !== null) return naOr(asBool.na, asBool.maybe)
+  return cCall('na', [x])
+}
+/** ⭐⭐ ENGINE 56 (A3) — where this resolved `bool` tree is Pine's `na`: `{na, maybe}`, each a
+ *  0/1 tree or `NA_NEVER`, or null when the tree is not one this engine tracks as a `bool`.
+ *  `na` is where it IS `na`; `maybe` is where it is false or `na` and no capture says which:
+ *  a v1-v3 `and` over an `na` operand (read as false it is false; carried through, `na`).
+ *  A condition reads both as false, so only an operator that tells `na` from false
+ *  (`boolNaOperator`) asks. */
+const NA_INFO_MEMO = new WeakMap()
+export function naInfo(t, version) {
+  if (!t || typeof t !== 'object') return null
+  const v = version === null || version === undefined ? 1 : Number(version)
+  // ⭐ memoised per node and version: trees here share subtrees, and `==` asks its operands twice
+  let byVersion = NA_INFO_MEMO.get(t)
+  if (!byVersion) { byVersion = new Map(); NA_INFO_MEMO.set(t, byVersion) }
+  if (byVersion.has(v)) return byVersion.get(v)
+  const info = naInfoUncached(t, v)
+  byVersion.set(v, info)
+  return info
+}
+function naInfoUncached(t, v) {
+  if (t.type === 'op' && Array.isArray(t.args)) {
+    const [a, b] = t.args
+    if (BOOL_NA_RANGE.has(t.name)) return naInfoOf(naOr(naOfNumber(a, v), naOfNumber(b, v)), NA_NEVER)
+    if (t.name === '==' || t.name === '!=') {
+      // a comparison OF bools is rewritten by `boolNaOperator` (served false, or withheld)
+      if (naInfo(a, v) !== null || naInfo(b, v) !== null) return NA_INFO_NEVER
+      return naInfoOf(naOr(naOfNumber(a, v), naOfNumber(b, v)), NA_NEVER)
+    }
+    if (t.name === '&&' && v <= 3) {
+      const operands = t.args.map((x) => naInfo(x, v)).filter(Boolean)
+      return naInfoOf(NA_NEVER, operands.reduce((m, o) => naOr(m, naOr(o.na, o.maybe)), NA_NEVER))
+    }
+    if (t.name === '&&' || t.name === '||' || t.name === '!') return NA_INFO_NEVER
+    if (t.name === '?:' && t.args.length === 3) {
+      const arm = (x) => (isBoolLiteralNode(x) ? NA_INFO_NEVER : isStaticNa(x) ? naInfoOf(cNum(1), NA_NEVER) : naInfo(x, v))
+      const x = arm(t.args[1])
+      const y = arm(t.args[2])
+      if (x === null || y === null) return null
+      // two numbers written as `1` / `0` / `na` are a `bool` only beside a tracked `bool` arm,
+      // or as `true : false`, or as `true : na`
+      const typed = (n) => !isBoolLiteralNode(n) && !isStaticNa(n)
+      if (!(typed(t.args[1]) || typed(t.args[2])
+        || (isBoolLiteralNode(t.args[1]) && isBoolLiteralNode(t.args[2])))
+        && !(isStaticNa(t.args[1]) !== isStaticNa(t.args[2]) && (isBoolLiteralNode(t.args[1]) || isBoolLiteralNode(t.args[2])))) return null
+      const tree = (m) => (isNaNever(m) ? cNum(0) : m)
+      const pick = (mx, my) => (isNaNever(mx) && isNaNever(my) ? NA_NEVER : cOp('?:', [t.args[0], tree(mx), tree(my)]))
+      return naInfoOf(pick(x.na, y.na), pick(x.maybe, y.maybe))
+    }
+    return null
+  }
+  if (t.type === 'offset' && Array.isArray(t.args) && t.args[0]) {
+    const inner = naInfo(t.args[0], v)
+    if (inner === null) return null
+    // a read before the first bar is `na` too
+    const back = (m, before) => cCall('nz', [{ type: 'offset', value: t.value, args: [m] }, cNum(before)])
+    return naInfoOf(isNaNever(inner.na) ? cCall('na', [t]) : back(inner.na, 1),
+      isNaNever(inner.maybe) ? NA_NEVER : back(inner.maybe, 0))
+  }
+  if (t.type === 'call' && (t.name === 'crossOver' || t.name === 'crossUnder' || t.name === 'na'
+    || t.name === 'rising' || t.name === 'falling')) return NA_INFO_NEVER
+  return null
+}
+/** ⭐⭐ ENGINE 56 (A3) — `out` (the operator as built) rewritten for a v1-v5 `bool` that can
+ *  be `na`, or `out` unchanged. `right` is null for `!`. See the block above. */
+function boolNaOperator(op, left, right, pineVersion, out = undefined) {
+  const built = out === undefined ? cOp(op, right === null ? [left] : [left, right]) : out
+  const v = pineVersion === null || pineVersion === undefined ? 1 : Number(pineVersion)
+  if (!(v <= 5)) return built
+  if (!built || built.type !== 'op' || built.name !== op) return built
+  const before4 = v <= 3
+  const flagOf = (info) => (info === null ? NA_NEVER : naOr(info.na, info.maybe))
+  if (op === '!' || op === '||') {
+    if (!before4) return built
+    const flag = op === '!' ? flagOf(naInfo(left, v)) : naOr(flagOf(naInfo(left, v)), flagOf(naInfo(right, v)))
+    if (isNaNever(flag)) return built
+    return cOp(op, op === '!' ? [cCall('boolNaWithheld', [left, flag])] : [cCall('boolNaWithheld', [left, flag]), right])
+  }
+  // a v1-v3 `and` is false or `na` where an operand is `na`, and every condition reads both
+  // as false: it is served as built (it falls through the `==` / `!=` test below), tracked as
+  // `naInfo`'s `maybe`, and withheld only where an operator tells the two apart
+  if (op !== '==' && op !== '!=') return built
+  const il = naInfo(left, v)
+  const ir = naInfo(right, v)
+  if (il === null && ir === null) return built
+  const litL = isBoolLiteralNode(left) && il === null
+  const litR = isBoolLiteralNode(right) && ir === null
+  const sideL = il !== null ? il : naInfoOf(litL ? NA_NEVER : naOfNumber(left, v), NA_NEVER)
+  const sideR = ir !== null ? ir : naInfoOf(litR ? NA_NEVER : naOfNumber(right, v), NA_NEVER)
+  const flag = naOr(flagOf(sideL), flagOf(sideR))
+  if (isNaNever(flag)) return built
+  if (op === '==' && (litL || litR)) {
+    const other = litL ? sideR : sideL
+    // SERVED: `na == true` and `na == false` are false (the v1 capture, the v5 guide)
+    if (isNaNever(other.maybe)) return cOp('?:', [other.na, cNum(0), built])
+  }
+  return cOp(op, [cCall('boolNaWithheld', [left, flag]), right])
+}
 
 function foldLogicalIdentity(op, left, right, table) {
   const isNum = (n, v) => n && n.type === 'num' && n.value === v
@@ -8669,7 +8843,9 @@ export class Resolver {
         const args = []
         args[spec.recurrence.seed] = selfCounter ? switchedVarSeed(readingSeed(parts.seed, 'seed'))
           : switchedState ? switchedVarSeed(parts.seed) : parts.seed
-        args[spec.recurrence.body] = parts.update
+        // ⭐ ENGINE 56 (A1) — the step as written (`seedAndUpdateOf`'s `step`), never the
+        // update with its `na(self)` test or `nz(self, S)` wrappers taken out
+        args[spec.recurrence.body] = parts.step
         args[spec.recurrence.warmup] = cNum(PINE_STATE_WARMUP)
         const built = cCall('accum', args)
         this.recurrenceColumns.set(name, built)
@@ -10447,7 +10623,7 @@ export class Resolver {
       case 'unary': {
         const inner = this.resolve(node.arg)
         // ⭐ `not` IS A BOOL CONTEXT — see `implicitBoolCast`. `-x` is not.
-        if (node.op === 'not') return cOp('!', [this.condition(inner, 'not', node.tok)])
+        if (node.op === 'not') return boolNaOperator('!', this.condition(inner, 'not', node.tok), null, this.pineVersion)
         return cOp('u-', [inner])
       }
       case 'binary': {
@@ -10670,11 +10846,11 @@ export class Resolver {
           // addresses); only a right side that REFUSES is skipped, because the
           // left has already decided the answer on every bar.
           if (!this.objectPass) {
-            const out = foldLogicalIdentity(mapped, decidedBy,
-              this.condition(this.resolve(node.right), node.op, node.tok), this.table)
+            const rightCast = this.condition(this.resolve(node.right), node.op, node.tok)
+            const out = foldLogicalIdentity(mapped, decidedBy, rightCast, this.table)
             // ⭐⭐ C45 — a v6 right side that runs only where the left has not decided
             this.stampLogicRight(out, node, decidedBy, mapped)
-            return out
+            return boolNaOperator(mapped, decidedBy, rightCast, this.pineVersion, out)
           }
           let right
           try {
@@ -10687,14 +10863,17 @@ export class Resolver {
           // ⭐ C41 — …and a right side that READS BELOW THE CHART is skipped the
           // same way (`deadLowerTfRead`): the left has decided every bar.
           if (deadLowerTfRead(right) && constantTestValue(decidedBy) === annihilator) return cNum(annihilator)
-          return foldLogicalIdentity(mapped, decidedBy, right, this.table)
+          return boolNaOperator(mapped, decidedBy, right, this.pineVersion,
+            foldLogicalIdentity(mapped, decidedBy, right, this.table))
         }
         if (probed) {
-          return foldLogicalIdentity(mapped,
-            this.resolveProbed(node.left, probed), this.resolveProbed(node.right, probed), this.table)
+          const pl = this.resolveProbed(node.left, probed)
+          const pr = this.resolveProbed(node.right, probed)
+          return boolNaOperator(mapped, pl, pr, this.pineVersion, foldLogicalIdentity(mapped, pl, pr, this.table))
         }
-        return foldLogicalIdentity(mapped,
-          this.resolve(node.left), this.resolve(node.right), this.table)
+        const rl = this.resolve(node.left)
+        const rr = this.resolve(node.right)
+        return boolNaOperator(mapped, rl, rr, this.pineVersion, foldLogicalIdentity(mapped, rl, rr, this.table))
       }
       case 'ternary': {
         // ⭐ THE TEST IS A BOOL CONTEXT — `if` chains fold to this node too, so

@@ -284,14 +284,16 @@ const FORMS = [
   // working, not friction: this oracle is hand-typed precisely so a wording
   // change has to be made twice by a human who agrees with it, instead of being
   // inherited from the renderer and proving nothing.
+  // ⭐ ENGINE 56 (2026-11-14): and the rule now depends on the source — the newest tied bar over a
+  // bar price (the builtin Aroon and a v4 pivot script, measured), withheld over anything else.
   { kind: 'call',
     name: 'highestbars',
-    parts: ['the number of bars back to the oldest bar holding the highest ', 0,
-            ' of the last ', 1, ' bars'] },
+    parts: ['the number of bars back to the bar holding the highest ', 0,
+            ' of the last ', 1, ' bars, the newest of a tie over a bar price and withheld on a tie over anything else'] },
   { kind: 'call',
     name: 'lowestbars',
-    parts: ['the number of bars back to the oldest bar holding the lowest ', 0,
-            ' of the last ', 1, ' bars'] },
+    parts: ['the number of bars back to the bar holding the lowest ', 0,
+            ' of the last ', 1, ' bars, the newest of a tie over a bar price and withheld on a tie over anything else'] },
   // ⭐ THE PIVOTS (2026-08-27). Hand-typed from the manifest's words like every
   // row here — deriving them would make the oracle agree with the renderer by
   // construction and the round trip would prove nothing.
@@ -438,6 +440,8 @@ const FORMS = [
     parts: ['the ', 1, '-bar Arnaud Legoux average of ', 0, ' at offset ', 2, ' and sigma ', 3] },
   { kind: 'call', name: 'na', parts: [0, ' being unknown'] },
   { kind: 'call', name: 'nz', parts: [0, ' where it is known, and ', 1, ' where it is not'] },
+  // ⭐ ENGINE 56 (A3) — hand-typed from closedTable.json's words, as every row above
+  { kind: 'call', name: 'boolNaWithheld', parts: [0, ', withheld wherever ', 1] },
 
   { kind: 'op', name: '+', parts: [0, ' plus ', 1] },
   { kind: 'op', name: '-', parts: [0, ' minus ', 1] },
@@ -1156,6 +1160,8 @@ describe('totality over the closed table — derived from the manifest, never ha
       // `_functions_vendor_parity_resolutions`), not asserted from
       // documentation alone. Four named entries, not a bumped count.
       'function:bbw',
+      // ⭐ ENGINE 56 (A3): the Pine door's marker for a v1-v5 `bool` `na` meeting an unwitnessed operator
+      'function:boolNaWithheld',
       'function:bop',
       'function:cci',
       'function:ceil',
@@ -1270,7 +1276,8 @@ describe('totality over the closed table — derived from the manifest, never ha
     // ⭐ 130 -> 131 (2026-10-02, H3): `vwapOf`, Pine's `ta.vwap(source)` for a bar price.
     // ⭐ 131 -> 138 (2026-10-30): Pine coverage Phase 1's `acos`, `alma`,
     // `percentileNearestRank`, `rci`, plus `accum2`, `accum3`, `accum4` (`_functions_multi_state`).
-    expect(entries.length).toBe(138)
+    // ⭐ 138 -> 139 (2026-11-14, engine 56 A3): `boolNaWithheld`, the Pine door's bool-na marker.
+    expect(entries.length).toBe(139)
     // ⭐ +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     // +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
   })
@@ -1293,7 +1300,8 @@ describe('totality over the closed table — derived from the manifest, never ha
     // ⭐ 129 -> 130 (2026-09-30, C38): `barsAgo`, Pine's `x[e]` with a per-bar index.
     // ⭐ 130 -> 131 (2026-10-02, H3): `vwapOf`.
     // ⭐ 131 -> 138 (2026-10-30): Phase 1's four plus `accum2`, `accum3`, `accum4`.
-    expect(subjects.length).toBe(138)
+    // ⭐ 138 -> 139 (2026-11-14, engine 56 A3): `boolNaWithheld`.
+    expect(subjects.length).toBe(139)
     // ⭐ +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     // +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     for (const { entry, ast: tree } of subjects) {
@@ -2650,6 +2658,8 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       'pine_acos_of_the_body_share_of_the_range',
       'pine_alma_9_085_6',
       'pine_percentile_nearest_rank_of_the_range',
+      // (2026-11-14, engine 56 A3) the bool-na marker is its operand
+      'pine_bool_na_withheld_is_its_operand',
       'pine_rci_close_10',
       // ⭐⭐ `timenow` + its five calendar fields (2026-09-20) — the real
       // "is_today" idiom measured across six corpus scripts, split into TWO
@@ -2743,7 +2753,8 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
     // ⭐ 129 -> 130 (2026-09-30, C38): `barsAgo`, Pine's `x[e]` with a per-bar index.
     // ⭐ 130 -> 131 (2026-10-02, H3): `vwapOf`.
     // ⭐ 131 -> 138 (2026-10-30): Phase 1's four plus `accum2`, `accum3`, `accum4`.
-    expect(sentences.length).toBe(CORPUS.cases.length + 138)
+    // ⭐ + 138 -> + 139 (2026-11-14, engine 56 A3): `boolNaWithheld`.
+    expect(sentences.length).toBe(CORPUS.cases.length + 139)
     // ⭐ +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     // +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     for (const s of sentences) {

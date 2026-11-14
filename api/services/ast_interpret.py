@@ -884,7 +884,7 @@ def _window_extreme(series: Sequence[float], lo: int, hi: int,
 
 
 def _window_arg_extreme(series: Sequence[float], lo: int, hi: int,
-                        better: Callable[[float, float], bool]) -> float:
+                        better: Callable[[float, float], bool], newest: bool = False) -> float:
     """WHICH BAR holds the window's extreme, as an offset back from ``hi``.
 
     ⛔⛔ THE TIE-BREAK IS THE MOST RECENT BAR, AND IT IS THE MANIFEST'S RULING,
@@ -913,6 +913,15 @@ def _window_arg_extreme(series: Sequence[float], lo: int, hi: int,
     """
     best = _window_extreme(series, lo, hi, better)
     if math.isnan(best):
+        return NAN
+    # ENGINE 56 (S4-2) -- over a price the bar itself holds (``is_bar_price_tree``) the
+    # NEWEST tied bar wins (``interpret.js::windowArgExtreme`` carries the aroon v6 and
+    # pivot-high-low-points v4 witnesses); a computed source keeps the measurement below
+    # and is withheld on a tied window (``arg_extreme_tie_mask``).
+    if newest:
+        for i in range(hi, lo - 1, -1):
+            if series[i] == best:
+                return float(hi - i)
         return NAN
     # ⭐⭐ FORWARD FROM THE OLDEST BAR IN THE WINDOW: on a TIE the vendor returns
     # the OLDER occurrence -- the LARGER distance back. Measured 2026-09-08 on a
@@ -986,6 +995,11 @@ def _pivot_col(series: Sequence[float], left: int, right: int,
             # nobody reads it as a live guard -- `lesson_gate_that_cannot_fail`.
             # a tie on the LEFT still pivots (the plateau's last bar); one on the
             # RIGHT does not
+            # ENGINE 56 (S4-1) -- an ``na`` on the LEFT is ignored, not a hole
+            # (``interpret.js::pivotCol`` carries the obv-macd-ao-pivdiv-3 witness); a
+            # right-side ``na`` still blanks the bar.
+            if j < i and math.isnan(w):
+                continue
             if math.isnan(w) or not (beats(v, w) or (j < i and v == w)):
                 ok = False
                 break
@@ -1217,8 +1231,11 @@ def _percentrank_at(series: Sequence[float], i: int, length: int) -> float:
     count = 0
     for k in range(1, length + 1):
         v = series[i - k]
+        # ENGINE 56 (A2) -- an ``na`` PRIOR value counts as "not <=", never a hole in the
+        # answer (``interpret.js::percentrankAt`` carries the two RDDT 1D witnesses:
+        # uptrick-volatility-weighted-cloud bars 100..141, connors-rsi bar 100).
         if _isnan(v):
-            return NAN
+            continue
         if v <= cur:
             count += 1
     return 100.0 * count / length
@@ -1830,6 +1847,9 @@ _POINTWISE: Mapping[str, Callable[..., float]] = {
     "ceil": _guarded_ceil,
     "na": _guarded_na,
     "nz": _guarded_nz,
+    # ENGINE 56 (A3) -- the marker is its operand on every bar; which bars are not shown is
+    # ``bool_na_mask``'s (the twin of ``interpret.js::POINTWISE.boolNaWithheld``).
+    "boolNaWithheld": lambda x, _flag: x,
     "sqrt": _guarded_sqrt,
     "ln": _guarded_ln,
     "log10": _guarded_log10,
@@ -2445,6 +2465,48 @@ def _donchian(h, l, n, index):  # noqa: E741
                          lambda bars: compute_donchian_raw(bars, n)[index])
 
 
+#: ENGINE 56 (S4-2) -- the arg-extremes over a price the bar holds (``is_bar_price_tree``):
+#: the same window with the NEWEST tied bar winning. The twin of
+#: ``interpret.js::FN_BAR_PRICE_NEWEST``.
+FN_BAR_PRICE_NEWEST: Dict[str, Callable[..., List[float]]] = {
+    "highestbars": _window_fn("highestbars", lambda s, lo, hi: _window_arg_extreme(s, lo, hi, lambda v, b: v > b, True)),
+    "lowestbars": _window_fn("lowestbars", lambda s, lo, hi: _window_arg_extreme(s, lo, hi, lambda v, b: v < b, True)),
+}
+
+_BAR_PRICE_FIELDS = ("open", "high", "low", "close")
+_BAR_PRICE_MEANS = (("high", "low"), ("high", "low", "close"), ("open", "high", "low", "close"),
+                    ("high", "low", "close", "close"))
+
+
+def is_bar_price_tree(t: Any) -> bool:
+    """ENGINE 56 (S4-2) -- is this canonical source a price the bar itself holds?
+    ``open``/``high``/``low``/``close`` or Pine's ``hl2``/``hlc3``/``ohlc4``/``hlcc4`` as
+    ``pine.js::derivedSeriesTree`` builds them. The twin of ``interpret.js::isBarPriceTree``."""
+    if not isinstance(t, dict):
+        return False
+    if t.get("type") == "series":
+        return t.get("name") in _BAR_PRICE_FIELDS
+    args = t.get("args")
+    if t.get("type") != "op" or t.get("name") != "/" or not isinstance(args, list) or len(args) != 2:
+        return False
+    total, k = args
+    if not isinstance(k, dict) or k.get("type") != "num":
+        return False
+    names: List[str] = []
+    at = total
+    while (isinstance(at, dict) and at.get("type") == "op" and at.get("name") == "+"
+           and isinstance(at.get("args"), list) and len(at["args"]) == 2):
+        r = at["args"][1]
+        if not isinstance(r, dict) or r.get("type") != "series":
+            return False
+        names.insert(0, r.get("name"))
+        at = at["args"][0]
+    if not isinstance(at, dict) or at.get("type") != "series":
+        return False
+    names.insert(0, at.get("name"))
+    return len(names) == k.get("value") and tuple(names) in _BAR_PRICE_MEANS
+
+
 #: name → implementation. THE KEY SET IS ``TABLE['functions']``'s, both directions.
 #:
 #: ⛔ AN IMPLEMENTED-BUT-UNDECLARED KEY HERE IS A CALLABLE OUTSIDE THE CLOSED
@@ -2540,6 +2602,7 @@ FN: Dict[str, Callable[..., List[float]]] = {
     "ceil": lambda series: [_guarded_ceil(v) for v in series],
     "na": lambda series: [_guarded_na(v) for v in series],
     "nz": lambda a, b: _elementwise2(a, b, _guarded_nz),
+    "boolNaWithheld": lambda a, b: _elementwise2(a, b, lambda x, _flag: x),
     "crossOver": lambda a, b: _crossing(a, b, lambda an, bn, ap, bp: an > bn and ap <= bp),
     "crossUnder": lambda a, b: _crossing(a, b, lambda an, bn, ap, bp: an < bn and ap >= bp),
     # ── the indicators, bound to the server's own maths ────────────────────
@@ -3028,7 +3091,8 @@ def _aroon_col(bars: List[dict], n: int, field: str, want_max: bool) -> List[May
     better = (lambda v, w: v > w) if want_max else (lambda v, w: v < w)
     out: List[MaybeNum] = [None] * len(bars)
     for i in range(n, len(bars)):
-        days = _window_arg_extreme(values, i - n, i, better)
+        # ENGINE 56 (S4-2) -- ``high`` / ``low`` are bar prices: the newest tied bar wins
+        days = _window_arg_extreme(values, i - n, i, better, True)
         if math.isnan(days):
             continue
         out[i] = 100.0 * (n - days) / n
@@ -4465,6 +4529,13 @@ def interpret(ast: Any, bars: List[dict],
         varied = var_origin_mask(ast, bars, inputs, budget, scalars, opts)
         if varied is not None:
             column = [math.nan if varied[i] else v for i, v in enumerate(column)]
+        # ENGINE 56 -- ...and the two per-bar witness masks (``interpret.js::withheldReadMask``):
+        # a v1-v5 ``bool`` ``na`` meeting an unwitnessed operator (A3), a tie in a
+        # ``highestbars``/``lowestbars`` window over a computed source (S4-2).
+        for witness in (bool_na_mask, arg_extreme_tie_mask):
+            held_w = witness(ast, bars, inputs, budget, scalars, opts)
+            if held_w is not None:
+                column = [math.nan if held_w[i] else v for i, v in enumerate(column)]
     # C30 / C36 -- the port of ``interpret.js::withPeriodAnchorWithheld``: a tree
     # that reads ``time("W"|"M"|"3M"|"12M")`` (or ``time(timeframe.period)`` /
     # ``time("60")``) is withheld on the bars ``period_anchor_mask`` names.
@@ -4636,6 +4707,120 @@ def history_read_mask(tree: Any, bars: List[dict],
                 mask[i] = 1
                 held = True
     return mask if held else None
+
+
+def _witness_sites(tree: Any, want: Callable[[dict], bool]) -> List[tuple]:
+    """ENGINE 56 -- the nodes a per-bar witness mask asks about, with ``nested`` (read under
+    ``tf``/``sym``) and ``unbounded`` (under a ``series``-lookback function or a recurrence).
+    The walk ``history_read_mask`` makes; the twin of ``interpret.js::witnessSites``."""
+    sites: List[tuple] = []
+    stack = [(tree, False, False)]
+    seen = set()
+    functions = TABLE[FUNCTIONS_SECTION]
+    while stack:
+        node, nested, unbounded = stack.pop()
+        if not isinstance(node, dict) or id(node) in seen:
+            continue
+        seen.add(id(node))
+        if want(node):
+            sites.append((node, nested, unbounded))
+        name = node.get("name")
+        is_call = node.get("type") == "call" and isinstance(name, str)
+        into = nested or node.get("type") in ("tf", "tf_live", "sym")
+        spec = functions.get(name) if is_call else None
+        opened = unbounded or bool(
+            spec is not None and (spec.get("lookback") == SERIES_LOOKBACK or _is_stateful_call(node)))
+        args = node.get("args")
+        if isinstance(args, list):
+            for a in args:
+                stack.append((a, into, opened))
+    return sites
+
+
+def _spread_witness_mask(tree: Any, n: int, sites: List[tuple],
+                         flagged: Callable[[dict], Optional[List[int]]]) -> Optional[List[int]]:
+    """ENGINE 56 -- each site's withheld bars (``flagged`` -> 0/1, or ``None`` = every bar)
+    spread to the root bars that read them. The twin of ``interpret.js::spreadWitnessMask``."""
+    if not sites:
+        return None
+    mask = [0] * n
+    hit = False
+    root_reach = max_lookback(tree)
+    for node, nested, unbounded in sites:
+        col = None if nested else flagged(node)
+        if col is None:
+            return [1] * n if n else None
+        reach = max(0, root_reach - max_lookback(node))
+        last = -math.inf
+        for i in range(n):
+            if col[i]:
+                last = last if (unbounded and last != -math.inf) else i
+            if last != -math.inf and (unbounded or i - last <= reach):
+                mask[i] = 1
+                hit = True
+    return mask if hit else None
+
+
+def bool_na_mask(tree: Any, bars: List[dict],
+                 inputs: Optional[Mapping[str, Any]] = None,
+                 budget: Optional[Mapping[str, Any]] = None,
+                 scalars: Optional[Mapping[str, Any]] = None,
+                 opts: Optional[Mapping[str, Any]] = None) -> Optional[List[int]]:
+    """ENGINE 56 (A3) -- ``interpret.js::boolNaMask``: the bars where a Pine v1-v5 ``bool``
+    that is ``na`` meets an operator no capture has witnessed for it (the translator's
+    ``boolNaWithheld(operand, flag)``), spread to the root; a ``NaN`` flag withholds."""
+    n = len(bars)
+    sites = _witness_sites(tree, lambda nd: nd.get("type") == "call" and nd.get("name") == "boolNaWithheld")
+
+    def flagged(node: dict) -> Optional[List[int]]:
+        f = node["args"][1]
+        if _reads_recurrence_binding(f):
+            return None
+        col = _to_column(_interpret_column(f, bars, inputs, budget, scalars, opts), n)
+        return [0 if v == 0 else 1 for v in col]
+    return _spread_witness_mask(tree, n, sites, flagged)
+
+
+def _window_holds_tie(series: Sequence[float], lo: int, hi: int,
+                      better: Callable[[float, float], bool]) -> float:
+    best = _window_extreme(series, lo, hi, better)
+    if math.isnan(best):
+        return NAN
+    k = 0
+    for i in range(lo, hi + 1):
+        if series[i] == best:
+            k += 1
+            if k > 1:
+                return 1.0
+    return 0.0
+
+
+def arg_extreme_tie_mask(tree: Any, bars: List[dict],
+                         inputs: Optional[Mapping[str, Any]] = None,
+                         budget: Optional[Mapping[str, Any]] = None,
+                         scalars: Optional[Mapping[str, Any]] = None,
+                         opts: Optional[Mapping[str, Any]] = None) -> Optional[List[int]]:
+    """ENGINE 56 (S4-2) -- ``interpret.js::argExtremeTieMask``: the bars where a
+    ``highestbars``/``lowestbars`` over a COMPUTED source (not ``is_bar_price_tree``) names
+    one of two tied bars, spread to the root. A non-literal length withholds every bar."""
+    n = len(bars)
+    sites = _witness_sites(tree, lambda nd: (
+        nd.get("type") == "call" and nd.get("name") in ("highestbars", "lowestbars")
+        and isinstance(nd.get("args"), list) and len(nd["args"]) == 2
+        and not is_bar_price_tree(nd["args"][0])))
+
+    def flagged(node: dict) -> Optional[List[int]]:
+        src_tree, len_tree = node["args"]
+        if _reads_recurrence_binding(src_tree) or not (
+                isinstance(len_tree, dict) and len_tree.get("type") == "num"):
+            return None
+        length = _window_literal(node, 1)
+        src = _to_column(_interpret_column(src_tree, bars, inputs, budget, scalars, opts), n)
+        better = (lambda v, b: v > b) if node["name"] == "highestbars" else (lambda v, b: v < b)
+        ties = _rolling(src, length, lambda sr, lo, hi: _window_holds_tie(sr, lo, hi, better),
+                        WINDOW_NA[node["name"]])
+        return [1 if t == 1 else 0 for t in ties]
+    return _spread_witness_mask(tree, n, sites, flagged)
 
 
 def _reads_recurrence_binding(tree: Any) -> bool:
@@ -6387,6 +6572,9 @@ def _interpret_column(ast: Any, bars: List[dict],
             # ⭐ P0G -- owner decision C (``FN_V2``), semantics 2 only.
             if v2_fn and n["name"] in FN_V2:
                 return FN_V2[n["name"]](*args)
+            # ENGINE 56 (S4-2) -- over a price the bar holds, the newest tied bar wins
+            if n["name"] in FN_BAR_PRICE_NEWEST and is_bar_price_tree(n["args"][0]):
+                return FN_BAR_PRICE_NEWEST[n["name"]](*args)
             return FN[n["name"]](*args)
         if kind in BIND_TIME_NODE_TYPES:
             # ⭐⭐ R-K -- BIND-TIME TEXT REFUSES BY NAME, NEVER AS "UNKNOWN".
