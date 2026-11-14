@@ -98,7 +98,7 @@ describe('answerFromRs — every scope, grounded', () => {
       { status: 'refused', data: null }]
     const a = answerFromRs(envelope({ scope: 'backdrop', sectors, indices }), { breadth })
     expect(a.text).toMatch(/^Market backdrop — historical, 1-month window \(Oct 14, 2026 → Nov 12, 2026, completed sessions\):\n• Index ETFs: SPY \+2\.43%, RS 61; QQQ \+3\.10% \(\+0\.67 pts vs SPY\), RS 70\./)
-    expect(a.text).toMatch(/• Sector leaders: K \(XLK\) \+4\.00%, I \(XLI\) \+3\.00%, F \(XLF\) \+2\.00%; laggards: U \(XLU\) \+0\.00%, V \(XLV\) \+1\.00%, F \(XLF\) \+2\.00%/)
+    expect(a.text).toMatch(/• Sector leaders: K \(XLK\) \+4\.00%, I \(XLI\) \+3\.00%, F \(XLF\) \+2\.00%; laggards: U \(XLU\) 0\.00%, V \(XLV\) \+1\.00% \(SPDR/)
     expect(a.text).toMatch(/• US breadth \(UCT breadth\): 61\.4% of stocks above their 50-day SMA \(Intraday · 11:52 AM ET\)\./)
     expect(ungrounded(a.text, a.facts)).toEqual([])
   })
@@ -260,5 +260,21 @@ describe('served vs dark', () => {
     ENVS[KIND] = envelope({ scope: 'symbols', rows: [] })
     await inTurn(() => getCapability(CAPABILITY).answer(null, { scope: 'symbols', symbols: ['nvda', '$NVDA', 'amd', 'a', 'b', 'c', 'd', 'e'], industry: null, period: '3M' }))
     expect(reads()[0].params).toEqual({ scope: 'symbols', period: '3M', symbols: ['NVDA', 'AMD', 'A', 'B', 'C', 'D'] })
+  })
+})
+
+describe('the manifest entry fits the server caps (server-gated: agentManifestCaps.test.js cannot see it)', () => {
+  beforeEach(() => { _resetAgentConfig(); _resetRsForTest(); ENVS = {} })
+  afterEach(() => { _resetRsForTest() })
+  it('summary ≤ maxSummary, hints ≤ maxHints, entry ≤ maxCapBytes', async () => {
+    wire([KIND])
+    await loadAgentConfig()
+    registerServerGatedBuiltins()
+    const c = manifestFor({ surface: 'charts', createIndicator: true, manageIndicators: true }).find(x => x.name === CAPABILITY)
+    const L = MANIFEST_CONTRACT.limits
+    expect(c.summary.length).toBeLessThanOrEqual(L.maxSummary)
+    expect(c.hints.length).toBeLessThanOrEqual(L.maxHints)
+    expect(JSON.stringify(c).length).toBeLessThanOrEqual(L.maxCapBytes)
+    if (process.env.RS_MANIFEST_OUT) (await import('node:fs')).writeFileSync(process.env.RS_MANIFEST_OUT, JSON.stringify(c))
   })
 })

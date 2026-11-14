@@ -1926,6 +1926,19 @@
    ],
    "fast": true
   },
+  "rs.compare": {
+   "domain": "rs",
+   "group": "rs",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
   "screener.deleteSaved": {
    "domain": "screener",
    "group": "screener",

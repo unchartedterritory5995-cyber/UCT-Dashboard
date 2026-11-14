@@ -118,7 +118,9 @@ export function answerFromRs(envl, { breadth = [] } = {}) {
   const d = envl.data
   const period = PERIODS.includes(d.period) ? d.period : '1M'
   const session = d.rating_session || null
-  const method = { change_sessions: [5, 20], leader_rating: d.leader_rating ?? 80, period_n: PERIOD_N[period], sessions: d.sessions, components: [1, 3, 6, 12] }
+  // the method's own constants, so the grounding rail can tell every number in the text (METHOD / LIMITS included) from a fact
+  const method = { change_sessions: [5, 20], leader_rating: d.leader_rating ?? 80, period_n: PERIOD_N[period], sessions: d.sessions, components: [1, 3, 6, 12],
+    scale: [1, 99], terms_months: [3, 6, 9, 12], sector_etfs: 11 }
   const lines = []
   const facts = { scope: d.scope, period, rating_session: session, ratings_stale: !!d.ratings_stale, stale: !!envl.stale,
     latest_completed_session: d.latest_completed_session || null, method }
@@ -169,8 +171,9 @@ export function answerFromRs(envl, { breadth = [] } = {}) {
       lines.push(`Market backdrop — historical, ${PERIOD_WORD[period]} window${winText}:`)
       if (idx.length) lines.push(`• Index ETFs: ${idx.map(f => `${f.symbol} ${f.return ? `${sgn(f.return.pct)}%` : 'n/a'}${f.vs_spy != null ? ` (${sgn(f.vs_spy)} pts vs SPY)` : ''}${f.rated ? `, RS ${f.rating}` : ''}`).join('; ')}.`)
       const ranked = sect.filter(f => f.return)
+      const lag = ranked.slice(Math.max(3, ranked.length - 3)).reverse()          // never a leader listed again as a laggard
       if (ranked.length) {
-        lines.push(`• Sector leaders: ${ranked.slice(0, 3).map(f => `${nameOf(f)} ${sgn(f.return.pct)}%`).join(', ')}; laggards: ${ranked.slice(-3).reverse().map(f => `${nameOf(f)} ${sgn(f.return.pct)}%`).join(', ')} (SPDR sector ETFs, ${asOf} for ratings).`)
+        lines.push(`• Sector leaders: ${ranked.slice(0, 3).map(f => `${nameOf(f)} ${sgn(f.return.pct)}%`).join(', ')}; laggards: ${lag.length ? lag.map(f => `${nameOf(f)} ${sgn(f.return.pct)}%`).join(', ') : 'none beyond the leaders'} (SPDR sector ETFs, ${asOf} for ratings).`)
       } else lines.push('• Sector leadership: no sector returns are held for this window.')
     } else {
       lines.push(`Sector leadership — the ${sect.length} SPDR sector ETFs ranked by ${PERIOD_WORD[period]} return${winText}, with their UCT RS Rating (${asOf}):`)

@@ -103,8 +103,8 @@ def test_cohort_stats_median_pairs_rank_and_top():
     assert st["members"] == 6 and st["rated"] == 5 and st["median"] == 80.0
     assert st["paired_20"] == 4
     assert st["median_paired_now"] == 85.0                        # A 90, B 80, C 70, F 90
-    assert st["median_paired_20_ago"] == 77.5                     # 80, 85, 70, 70
-    assert st["median_change_20"] == 7.5
+    assert st["median_paired_20_ago"] == 75.0                     # 80, 85, 70, 70
+    assert st["median_change_20"] == 10.0
     assert st["at_or_above_80"] == 3 and st["rising_20"] == 2 and st["falling_20"] == 1
     assert st["top"][:3] == [{"symbol": "A", "rating": 90}, {"symbol": "F", "rating": 90}, {"symbol": "B", "rating": 80}]
     assert st["focus"] == {"symbol": "B", "rating": 80, "rank": 3}
@@ -149,9 +149,9 @@ def test_symbols_scope_rating_change_return_vs_spy_and_industry_rank(store):
     row = d["rows"][0]
     assert row["symbol"] == "NVDA" and row["rating"] == 95 and row["d5"] == 1 and row["d20"] == 4 and row["m3"] == 92
     spy = rl.period_return(store["bars"]["SPY"], 21)
-    assert row["return"] == rl.period_return(store["bars"]["NVDA"], 21) and row["vs_spy"] == round(row["return"]["pct"] - spy["pct"], 2)
+    assert row["return"] == {**rl.period_return(store["bars"]["NVDA"], 21), "isolated": True}   # the gateway stamps every dict (ADR-005 F-21) and row["vs_spy"] == round(row["return"]["pct"] - spy["pct"], 2)
     ctx = row["industry_context"]
-    assert ctx["rated"] == 3 and ctx["members"] == 4 and ctx["focus"] == {"symbol": "NVDA", "rating": 95, "rank": 1}
+    assert ctx["rated"] == 3 and ctx["members"] == 4 and ctx["focus"] == {"symbol": "NVDA", "rating": 95, "rank": 1, "isolated": True}
     assert d["rating_session"] == SESSION and d["benchmark_row"]["rating"] == 60
     assert ("ratings", ("NVDA", "SPY", "AMD", "INTC", "ZZZ")) in store["calls"]   # ONE ratings read for every ticker
     assert rl.NOTE_HISTORICAL in out["notes"]
@@ -222,7 +222,7 @@ def test_industry_scope_cohort_distribution(store):
     assert c["rated"] == 3 and c["median"] == 70.0 and c["paired_20"] == 3
     assert c["median_paired_now"] == 70.0 and c["median_paired_20_ago"] == 76.0 and c["median_change_20"] == -6.0
     assert c["rising_20"] == 2 and c["falling_20"] == 1 and c["at_or_above_80"] == 1
-    assert c["top"][0] == {"symbol": "NVDA", "rating": 95}
+    assert c["top"][0] == {"symbol": "NVDA", "rating": 95, "isolated": True}
 
 
 def test_ambiguous_industry_lists_candidates_and_reads_no_ratings(store):
