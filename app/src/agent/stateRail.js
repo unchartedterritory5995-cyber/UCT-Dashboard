@@ -181,7 +181,7 @@ const READERS = {
   },
   layoutDock(p) {
     const op = p.patch
-    return op?.op === 'unpin' ? [{ state: 'layoutBar', type: 'remove', name: `“${nm(op.name)}” from the Layout bar` }] : []
+    return op?.op === 'unpin' ? [{ state: 'layoutBar', classes: ['layoutBar', 'layout'], type: 'remove', name: `“${nm(op.name)}” from the Layout bar` }] : []
   },
   chartTemplates(p) {
     const pt = p.patch
@@ -241,8 +241,8 @@ const NEW_ONE = /\b(?:new|another|second|copy|duplicate|as (?:a|an)\b|called|nam
 // class (and not the thing itself by its name) licenses nothing.
 export const CLASS = {
   // (an indicator draws LINES too: "add the 50 sma then make that line purple")
-  indicator: /\b(?:indicators?|lines?|plots?|studies|study|emas?|smas?|wmas?|rsi|macd|vwap|atr|adx|bollinger\w*|stoch\w*|moving averages?|averages?|mas?|obv|cci|keltner|ichimoku|length|period|lookback|the \d{1,3})\b/i,
-  drawing: /\b(?:drawings?(?! boards?\b)|lines?|trend ?lines?|fib\w*|rays?|rectangles?|texts?|labels?|positions?|avwaps?|levels?|arrows?|channels?|circles?|shapes?|annotations?|horizontals?|verticals?|pitchforks?|measures?|points?|anchors?)\b/i,
+  indicator: /\b(?:indicators?|lines?|plots?|studies|study|emas?|smas?|wmas?|rsi|macd|vwap|atr|adx|bollinger\w*|stoch\w*|moving averages?|averages?|mas?|obv|cci|keltner|ichimoku|length|period|lookback|(?:the|my|that) \d{1,3}|\d{1,3}[- ]?(?:day|period|bar|ema|sma))\b/i,
+  drawing: /\b(?:drawings?(?! boards?\b)|lines?|trend ?lines?|fib\w*|rays?|rectangles?|texts?|labels?|positions?|avwaps?|levels?|arrows?|channels?|circles?|shapes?|annotations?|horizontals?|verticals?|pitchforks?|measures?|points?|anchors?|0?\.\d{3}|\d{2}\.\d)\b/i,
   drawingBoard: /\b(?:drawing )?boards?\b/i,
   watchlist: /\b(?:watch ?lists?(?! widgets?\b)|lists?|flagged|flags?|notes?)\b/i,
   widget: /\b(?:widgets?|panels?|tabs?|scanners?|news)\b/i,
@@ -265,7 +265,7 @@ export function namesObject(e, clause) {
 }
 // clauses: punctuation, "then", "but", and an "and" that starts a new request ("…, and clear …", "add X and remove Y")
 const CLAUSES = /[.;,!?]|\bthen\b|\bbut\b|\band (?=(?:then |also )?(?:add|put|include|insert|remove|delete|clear|replace|change|set|make|rename|save|show|swap|keep|move|turn|switch|get rid|erase|wipe|reset|overwrite|unpin|colou?r|apply|use|load|open)\b)/i
-export const clausesOf = (words) => strip(words).split(CLAUSES).map(c => c.trim()).filter(Boolean)
+export const clausesOf = (words) => String(words || '').split(CLAUSES).map(c => c.trim()).filter(Boolean)
 // "put Momentum up in my watchlist" / "put the Flagged list in my watchlist widget": a clause that names the LIST a widget is to
 // show (its own name) and where — never "put AAPL on my watchlist" (adding a symbol never switches what a widget shows)
 const PUT_IN = /\bput\b[^.;!?]*\b(?:in|into|on|up in|up on)\s+(?:the|my|that|this|your)\b[^.;!?]*\b(?:watch ?lists?|widgets?|scanner)\b/i
@@ -289,27 +289,93 @@ export function homograph(e, words) {
   return null
 }
 
-/** Do this turn's words ask for that kind of change to THAT kind of existing state? (per clause, kind-matched) */
+// ⛔ A PERMIT IS A COMMAND ON A NAMED OBJECT (AUDIT #1247 probe 38 — structural, never a phrase list of what "adding" sounds like):
+//   · every destroy / replace / overwrite effect needs one, whatever else the words say (the gate is no longer "the words
+//     look additive": slang — "throw an rsi on there", "gimme a widget" — reaches the same wall)
+//   · NEGATION voids it: a clause with no / not / nothing / never / without / n't … permits nothing ("delete nothing",
+//     "no deleting", "don't remove anything")
+//   · the verb's OBJECT must be the thing: a class noun or the instance's own name right after the verb, before any
+//     "how / why / what / because / so / if / when" ("clear my drawings" ✓; "clear my head", "delete that thought", "replace
+//     my bad habits", "clear up how to add an ema" ✗)
+//   · an object that only POINTS ("it", "them", "that one", "the fast one"): an overwrite takes the class the clause before it
+//     named; a destroy / replace takes only the very object that clause named or made ("add a 20 EMA, then remove it")
+const NEG = /\b(?:no|not|nothing|none|never|without|neither|nor|don['’]?t|dont|doesn['’]?t|didn['’]?t|won['’]?t|can['’]?t|cannot|shouldn['’]?t|mustn['’]?t)\b|n['’]t\b/i
+// destroy verbs the member uses for their own things (beyond DESTROY): "drop TSLA from Momentum", "take TSLA off the list",
+// "empty the watchlist", "unflag", "close the news tab" — each only with an EXISTING object of the right class after it
+const MORE_DESTROY = String.raw`drop|drops|dropped|dropping|take (?:\S+ ){0,3}?(?:off|out|away|down)|empty|emptied|unflag\w*|close|closes|closing`
+// modify verbs (beyond MODIFY): hide / show a part, drag an anchor, flatten, call it something, thicken
+const MORE_MODIFY = String.raw`hide|hides|hid|hidden|unhide|drag|drags|dragged|flatten\w*|call|thick\w*|thin\w*|widen\w*|narrow\w*|darken\w*|lighten\w*|bold|italic\w*|move|nudge\w*|bump\w*|raise|lower`
+// what picks a widget's CONTENT (its list / scan): show, switch, open, load, go / take back to the picker, pick, exit, leave
+const DISPLAY = /^(?:show\w*|switch\w*|open\w*|load\w*|view\w*|display\w*|use|using|apply|change\w*|go(?:es)? back|take (?:\S+ ){0,3}?back|pick\w*|exit\w*|leave\w*|replac\w*|swap\w*|instead)$/i
+const VERBS = new RegExp(String.raw`\b(?:${DESTROY_SRC().slice(3, -1)}|${MORE_DESTROY}|${MODIFY_SRC().slice(3, -1)}|${MORE_MODIFY}|apply|applies|applied|applying|show|shows|showing|display\w*|load\w*|open|opens|use|using|view|save|saves|saved|saving|update|updates|updated|go(?:es)? back|pick\w*|exit\w*|leave\w*)\b`, 'gi')
+const DESTROY_ANY = new RegExp(String.raw`^(?:${DESTROY_SRC().slice(3, -1)}|${MORE_DESTROY})$`, 'i')
+const MODIFY_ANY = new RegExp(String.raw`^(?:${MODIFY_SRC().slice(3, -1)}|${MORE_MODIFY})$`, 'i')
+const CUT = /\b(?:how|why|what|whether|because|since|so|if|when|while|once|until|unless|in order)\b/i
+// an object that only POINTS back at something already there ("it", "them", "that one", "the fast one", "the 20")
+const POINTS = /^(?:it|them|those|these|both|all of them|(?:the|that|this) (?:\w+ )?ones?|(?:that|this)(?=\s*$|\s+(?:to|on|in|into|at|from|with|up|down|over|a|an|the)\b)|(?:the )?(?:first|second|third|fourth|last|other|fast|slow|left|right|top|bottom)\b)/i
+// the object ends where its sentence goes elsewhere ("my life WITH an rsi", "the rsi length TO 20"); a container after it stays
+// ("nvda FROM my tech watchlist", "spy IN my list")
+const OBJ_END = /\s(?:with|for|by|using|like|as|and|onto|into|to|at|than)\s/i
+// a NEW object ("a 20 ema", "another line", "some notes"): never an existing one to destroy or change
+const INDEFINITE = /^(?:a|an|another|some|any|new|one more|more|extra)\b/i
+// a VERBLESS style command on a named / pointed-at object: "the 9 green, the 20 yellow", "fast one green and the slow one yellow"
+const STYLE_VALUE = String.raw`(?:red|green|blue|yellow|orange|purple|pink|white|black|gr[ae]y|teal|cyan|gold|brown|thicker|thinner|dashed|dotted|solid|bolder|bigger|smaller|hidden|visible|\d{1,4})`
+const VERBLESS = new RegExp(String.raw`(?:^|\s)(?:the\s+)?(?:\w+\s+){0,2}?(?:ones?|\d{1,3}|emas?|smas?|rsi|macd|lines?|fib|trendline|vwap)\s+(?:a\s+)?${STYLE_VALUE}\b`, 'i')
+const strengthOf = (verb, e) => {
+  if (e.type === 'replace' && e.state === 'widget') return DISPLAY.test(verb) || MODIFY_ANY.test(verb)
+  if (DESTROY_ANY.test(verb)) return true
+  if (e.type === 'replace') return /^(?:apply|applies|applied|applying|use|using|load\w*)$/i.test(verb) && classesOf(e).includes('template')
+  if (e.type === 'overwrite') return MODIFY_ANY.test(verb) || PICK.test(verb) || (e.via === 'save' && SAVE.test(verb))
+  return false
+}
+// a widget's content is named by the widget, or by the list / scan it shows ("show my Momentum list in the watchlist")
+const DISPLAY_OBJECT = /\b(?:widgets?|panels?|watch ?lists?|lists?|scanners?|scans?|picker|flagged)\b/i
+/** Do this turn's words COMMAND that kind of change on THAT existing object? (per clause, kind-matched, never negated) */
 export function permits(e, words) {
-  // a clause that names no class ("…, colour the fast one green", "then make it red") speaks of what the clause before it
-  // named — ONLY that class, and (AUDIT #1247) for a destroy / replace only the OBJECT that clause named or made: "add a
-  // 20 EMA, then remove it" removes that EMA, never the RSI already there; "add a trendline. clear it" never clears all
-  let before = [], prev = ''
+  // before / prev: the classes and the clause the latest earlier clause NAMED; spoke: an earlier clause said anything of
+  // substance (named a thing, or asked for something) — then a pointer speaks of THAT, never of the conversation before
+  let before = [], prev = '', spoke = false
   for (const c of clausesOf(words)) {
     const named = Object.keys(CLASS).filter(k => CLASS[k].test(c))
-    const about = named.length ? named : before
-    const ref = named.length ? '' : prev
-    if (named.length) { before = named; prev = c }
+    const negated = NEG.test(c)
     // a display switch named by the list it shows (never a symbol; a homograph is asked: stateRailRefusal)
-    if (e.type === 'replace' && e.to && PUT_IN.test(c) && has(c, e.to) && (SAID_LIST(c, e.to) || !tickersIn(c).includes(String(e.to).toUpperCase()))) return true
-    const strong = DESTROY.test(c)
-      || (e.type === 'replace' && (PICK.test(c) || MODIFY.test(c)))
-      || (e.type === 'overwrite' && (MODIFY.test(c) || PICK.test(c) || (e.via === 'save' && SAVE.test(c) && !NEW_ONE.test(c))))
-    if (!strong) continue
-    if (namesObject(e, c)) return true
-    if (!named.length && classesOf(e).some(k => about.includes(k)) && (e.type === 'overwrite' || namesThatObject(e, ref))) return true
+    if (!negated && e.type === 'replace' && e.to && PUT_IN.test(c) && has(c, e.to) && (SAID_LIST(c, e.to) || !tickersIn(c).includes(String(e.to).toUpperCase()))) return true
+    if (!negated) {
+      // a verbless style command ("the 9 green") changes the look of what it names — an overwrite only
+      if (e.type === 'overwrite' && VERBLESS.test(c) && (named.length ? namesObject(e, c) : !spoke || classesOf(e).some(k => before.includes(k)))) return true
+      for (const m of c.matchAll(VERBS)) {
+        if (!strengthOf(m[0], e)) continue
+        if (e.via === 'save' && SAVE.test(m[0]) && NEW_ONE.test(c)) continue          // "save a new layout" never saves over one
+        let obj = c.slice(m.index + m[0].length)
+        const cut = obj.search(CUT)
+        if (cut >= 0) obj = obj.slice(0, cut)
+        const end = obj.search(OBJ_END)
+        if (end >= 0) obj = obj.slice(0, end)
+        obj = obj.trim().replace(/^(?:up|out|off|away|over|down|of|rid of)\s+/i, '')
+        if (!obj) { if (e.via === 'save' && SAVE.test(m[0])) return true; continue }   // "save" alone: the open layout
+        if (INDEFINITE.test(obj)) continue
+        if (POINTS.test(obj)) {
+          const rest = obj.replace(POINTS, '')
+          // "make it orange on the QQQ chart": a pointer narrowed by a class named after it must be that class
+          if (named.length && !classesOf(e).some(k => named.includes(k)) && Object.keys(CLASS).some(k => CLASS[k].test(rest))) continue
+          if (!spoke) {
+            // the message's first words point at what the conversation was about ("make it thicker", "save it"): a change of
+            // look / settings / a save is reversible with an exact Undo — allowed; a destroy / replace is asked, never assumed
+            if (e.type === 'overwrite' || e.via === 'save') return true
+            continue
+          }
+          // after words of its own: an overwrite takes the class they named; a destroy / replace only the very object they
+          // named or made ("add a 20 EMA, then remove it")
+          if (classesOf(e).some(k => before.includes(k)) && (e.type === 'overwrite' || namesThatObject(e, prev))) return true
+          continue
+        }
+        if (e.type === 'replace' && e.state === 'widget' ? DISPLAY_OBJECT.test(obj) || namesObject(e, obj) : namesObject(e, obj)) return true
+      }
+    }
+    if (named.length) { before = named; prev = c }
+    if (named.length || STATE_ADDITIVE.test(c) || new RegExp(VERBS.source, 'i').test(c)) spoke = true
   }
-  return false                                                  // remove / clear / delete / unreadable without both
+  return false
 }
 export const isStateAdditive = (words) => STATE_ADDITIVE.test(String(words || ''))
 
@@ -348,18 +414,23 @@ export const notDoneLine = (adds) => (adds.length
  * a pending question carried). Every mode (apply / propose / approved): an additive request never reaches a card that
  * destroys either. Fails closed: anything that throws while reading an additive request's plan refuses it.
  */
-export function stateRailRefusal(plan, { words = '' } = {}) {
+export function stateRailRefusal(plan, { words = '', mode = 'apply' } = {}) {
   if (!plan?.ok) return null
+  // an APPROVED card was shown, naming what it removes or changes, to the member who approved it (and its binding is checked
+  // before it runs): the card is the permit. Every other path — instant, model, proposal, composed, deferred — needs the words.
+  if (mode === 'approved') return null
   const w = String(words || '')
-  if (!isStateAdditive(w)) return null
   try {
     const effects = stateEffects(plan)
+    if (!effects.length) return null
     const amb = effects.map(e => homograph(e, w)).find(Boolean)
     if (amb) return `Do you mean your “${amb}” list, or the ticker ${String(amb).toUpperCase()}? Nothing was changed — say “show my ${amb} list” to switch the widget to it, or “add ${String(amb).toUpperCase()} to my watchlist” to add the symbol.${notDoneLine(notDoneAdds(plan))}`
     const bad = effects.filter(e => !permits(e, w))
     if (!bad.length) return null
-    return `I didn’t change anything: you asked to add, but this would ${listOf([...new Set(bad.map(said))])}. Adding never replaces or removes what you already have — say “replace”, “remove” or “change” if that is what you want.${notDoneLine(notDoneAdds(plan))}`
+    const what = listOf([...new Set(bad.map(said))])
+    const lead = isStateAdditive(w) ? `you asked to add, but this would ${what}. Adding never replaces or removes what you already have` : `this would ${what}, and you didn’t ask for that`
+    return `I didn’t change anything: ${lead} — say what to replace, remove or change, by name (for example “remove the RSI”), if that is what you want.${notDoneLine(notDoneAdds(plan))}`
   } catch {
-    return 'I didn’t change anything: I couldn’t check that this only adds to what you already have. Ask again, or say exactly what to replace or remove.'
+    return 'I didn’t change anything: I couldn’t check what this would remove or change. Ask again, or say exactly what to replace or remove.'
   }
 }

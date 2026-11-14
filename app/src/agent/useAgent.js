@@ -809,7 +809,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     // a refused bundle names its add parts as NOT done too (AUDIT #1247): the chart rail's refusal, with the plans it did not block
     const c0 = chartRailRefusal(plan, { words: railWordsRef.current, host, mode })
     const c = c0 && `${c0}${notDoneLine(notDoneAdds(plan, (p) => { try { return chartEffects({ ok: true, plans: [p] }, host).length > 0 } catch { return true } }))}`
-    const r = c || stateRailRefusal(plan, { words: railWordsRef.current })
+    const r = c || stateRailRefusal(plan, { words: railWordsRef.current, mode })
     railMarkRef.current = c ? RAIL_MARK : STATE_RAIL_MARK
     return r
   }

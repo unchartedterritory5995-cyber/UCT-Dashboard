@@ -186,7 +186,8 @@ describe('STATE RAIL census — by tool, from the registry', () => {
         // …and the same permit for ANOTHER class licenses nothing here
         for (const [st, noun] of Object.entries(NOUN)) if (!eff.some(e => (e.classes || [e.state]).includes(st))) expect(stateRailRefusal(plan, { words: `add AAPL, and remove the ${noun}` }), `${r.name} cross-kind ${noun}`).toBeTruthy()
         expect(stateRailRefusal(plan, { words: explicit }), `${r.name} explicit "${explicit}"`).toBe(null)
-        expect(stateRailRefusal(plan, { words: 'do it' }), `${r.name} not additive`).toBe(null)
+        // (the gate is inverted: words that are not additive at all still need the permit — AUDIT #1247 probe 38)
+        expect(stateRailRefusal(plan, { words: 'do it' }), `${r.name} no permit`).toMatch(/^I didn’t change anything/)
       }
     }
     // eslint-disable-next-line no-console

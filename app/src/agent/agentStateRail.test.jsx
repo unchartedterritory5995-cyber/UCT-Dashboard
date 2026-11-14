@@ -162,7 +162,7 @@ describe('STATE RAIL · layer 1: every kind’s destroying plan × additive verb
     expect(stateRailRefusal(plan, { words: 'add an rsi' })).toMatch(/didn’t change anything/)
     const broken = { ok: true, plans: [{ kind: 'watchlist', get patch() { throw new Error('unreadable') } }] }
     expect(stateRailRefusal(broken, { words: 'add AAPL' })).toMatch(/didn’t change anything/)
-    expect(stateRailRefusal(broken, { words: 'show me AAPL' })).toBe(null)            // not additive: the rail has nothing to say
+    expect(stateRailRefusal(broken, { words: 'show me AAPL' })).toMatch(/didn’t change anything/)   // any words: fail closed
   })
   it('kinds the fixture cannot drive to a destroying plan (no saved indicator of the member’s own; a new widget only adds): their readers still refuse the shape', () => {
     // definition.delete — the plan Indicators' planDefinitionAction returns for one of the member's saved indicators
@@ -367,6 +367,45 @@ describe('STATE RAIL · a refused bundle names the adds that were not done too',
     expect(fx.b.state.server.lists.find(l => l.id === 'wl1').items.map(i => i.sym)).toContain('AAPL')
     expect(fx.b.state.widgets.find(w => w.id === 'wl').opts.watchKey).toBe('user:wl1')
   }, 30000)
+})
+
+// ── AUDIT #1247 probe 38 — the gate is INVERTED and the permit is STRUCTURAL: every destroying plan needs a COMMAND on a NAMED
+// object, never negated — whatever the words look like (AUDIT's three shapes, in our own phrasings, over every destroy plan) ──
+const SLANG = ['throw an indicator on there', 'slap a drawing on SPY', 'gimme a widget', 'toss AAPL into Tech', 'drop a 20 ema on it', 'I want an rsi on this',
+  'chuck a trendline on NVDA', 'pop a macd up there', 'stick a fib on spy', 'lemme get a scanner', 'bung a line on it', 'whack an ema on there', 'I’d like a news panel', 'could use a vwap']
+const NEGATED_WORDS = ['Add RSI. Delete nothing.', 'add rsi and wipe nothing', 'add a trendline, no deleting', 'add a macd but don’t remove anything', 'put a line on, never clear',
+  'add aapl without removing a thing', 'add a fib, not replacing anything', 'add an ema; nothing gets deleted', 'add rsi, I don’t want anything changed', 'include tsla, no changes to the rest',
+  'remove nothing and add an rsi', 'DON’T CLEAR MY DRAWINGS, ADD A LINE', 'never delete the rsi, add a macd', 'add a 20 ema and do not change the rsi']
+const NON_COMMAND = ['clear up how to add an ema', 'add a 20 ema to replace my bad habits', 'add rsi, I want to clear my head', 'add a trendline and delete that thought',
+  'add a macd to remove the guesswork', 'add a line so I can reset my focus', 'add aapl to clear the confusion', 'add a fib to wipe away the doubt',
+  'put an ema on to switch up my routine', 'add rsi, then clear up why my list is slow', 'I want to change my life with an rsi', 'add a scanner to remove the noise']
+const PLAIN = (o) => [o, `what about ${o}`, `look at ${o}`, `${o} please`, `can you handle ${o}`, 'thanks', 'ok', 'do it', 'go ahead', 'sounds good', `hmm ${o}`, `explain ${o}`, `${o}?`, `the ${o} one`]
+describe('STATE RAIL · probe 38: slang additive, negated destroy words, destroy words that are not commands, plain words — every destroy plan REFUSED', () => {
+  for (const [kind, plans] of Object.entries(WRONG)) for (const [pname, ops] of Object.entries(plans)) {
+    it(`${kind} · ${pname}`, async () => {
+      const fx = stateFixture()
+      const plan = await planOf(fx, ops)
+      expect(plan.ok).toBe(true)
+      for (const [shape, list] of [['slang', SLANG], ['negated', NEGATED_WORDS], ['non-command', NON_COMMAND], ['plain', additive(kind).map(([, w]) => w).concat(PLAIN(OBJECT[kind]).flatMap(w => Object.values(CASES).map(f => f(w))))]])
+        for (const w of list) expect(stateRailRefusal(plan, { words: w }) || 'LET THROUGH', `${shape} "${w}"`).toMatch(/^I didn’t change anything/)
+      // the explicit command on the named object still works, said plainly or after an add
+      expect(stateRailRefusal(plan, { words: EXPLICIT[pname] }), EXPLICIT[pname]).toBe(null)
+      // an approved card is its own permit (the member saw what it removes)
+      expect(stateRailRefusal(plan, { words: 'gimme a widget', mode: 'approved' })).toBe(null)
+    })
+  }
+  it('through the panel: slang additive + a destroying model plan writes nothing (the model was reached)', async () => {
+    for (const [said, ops] of [['could you throw an indicator on there for me', WRONG.indicator['indicator.remove (the RSI)']], ['can you slap a drawing on SPY for me', WRONG.drawing['drawing.clear (SPY)']], ['gimme a widget please', WRONG.widget['widget.remove (the Watchlist widget)']]]) {
+      cleanup()
+      const { fx, say, transcript } = mount()
+      const before = stateOf(fx)
+      envelopes.push(env('apply', ops))
+      await say(said)
+      expect(calls.some(c => c[1] === '/api/agent/turn'), said).toBe(true)
+      expect(stateOf(fx), said).toBe(before)
+      expect(transcript(), said).toMatch(/didn’t change anything/)
+    }
+  }, 90000)
 })
 
 // ── A DRAWING BOARD SWITCH (AUDIT #1247 iii, accepted residual): the receipt names the board now shown; Undo is exact ──
