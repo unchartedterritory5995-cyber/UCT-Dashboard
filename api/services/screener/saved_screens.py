@@ -689,6 +689,14 @@ def starters_to_record():
     return member + [_stocks_only(s) for s in _starter_defs(True)]
 
 
+def starters_with_the_rs_screens() -> list:
+    """The starter list as it is served to a user the RS screens are shown to, whoever
+    asks: the five screens with their controls, the retired seven marked hidden. The
+    nightly jobs that speak about the five (the join/leave messages) read this, because
+    under RS_SCREENS_ENABLED=admin `starters()` with no user is the members' list."""
+    return [_stocks_only(s) for s in _starter_defs(True)]
+
+
 def _live_volume_or_nightly(min_x):
     """Heavy volume TODAY in the session, LAST SESSION'S otherwise, as one group.
 

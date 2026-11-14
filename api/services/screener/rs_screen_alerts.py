@@ -70,6 +70,10 @@ MAX_NAMED = screen_alerts.MAX_NAMED
 #: share is the larger of: today's names that are new, over today's list; and the
 #: previous session's names that are gone, over the previous list.
 TOO_MUCH_SHARE = 0.60
+#: A short list is always itemised: two new names on a three-name list is an ordinary day
+#: (RS New High Before Price often holds a handful), not the data event the share rule is
+#: for. The rule applies only when today's or the previous list holds at least this many.
+TOO_MUCH_MIN_NAMES = 10
 #: What a (member, screen, session) row records was done.
 KIND_MESSAGE, KIND_NOTE, KIND_SUSPENDED = "message", "note", "suspended"
 
@@ -115,7 +119,9 @@ def screens_on(user) -> bool:
     never offered, or sent, a message about it. ``user`` is the member's own record
     (the routes pass the signed-in user, the nightly job `_member`)."""
     from . import rs_post_pass                               # noqa: PLC0415 - lazy: no cycle
-    return bool(user) and rs_post_pass.enabled()  # U10-SWAP: rs_post_pass.surfaces_on(user)
+    # Unit U10: the member-facing reader. Under RS_SCREENS_ENABLED=admin only an admin is
+    # shown the screens, so only an admin is offered, or sent, a message about them.
+    return bool(user) and rs_post_pass.surfaces_on(user)
 
 
 def _ensure() -> None:
@@ -136,11 +142,15 @@ def screens() -> dict:
     order. The served copy (`saved_screens.starters`) is the one `membership.record_all`
     records, so the spec read here is the spec the record is filed under. A screen that
     is not served, or is served hidden, is not here."""
-    from . import rs_screens, saved_screens                  # noqa: PLC0415 - lazy: no cycle
-    if not saved_screens.rs_screens_enabled():
+    from . import rs_post_pass, rs_screens, saved_screens    # noqa: PLC0415 - lazy: no cycle
+    if not rs_post_pass.enabled():
         # Off, three of the five ids belong to the earlier single-rule starters.
         return {}
-    served = {s.get("id"): s for s in saved_screens.starters() if not s.get("hidden")}
+    # The DATA gate, and the list as a shown user is served it (unit U10): under the
+    # owner-only value the five are recorded nightly although a member is not served them,
+    # and WHO is told is decided per member by `screens_on`.
+    served = {s.get("id"): s for s in saved_screens.starters_with_the_rs_screens()
+              if not s.get("hidden")}
     return {s["id"]: served[s["id"]] for s in rs_screens.screens() if s["id"] in served}
 
 
@@ -253,6 +263,8 @@ def too_much(n_joined: int, n_left: int, n_now: int, n_before: int) -> bool:
     """Did more than :data:`TOO_MUCH_SHARE` of the list change? The larger of the share
     of today's list that is new and the share of the previous list that is gone. A list
     that was empty and is not (or the reverse) changed entirely."""
+    if max(n_now, n_before) < TOO_MUCH_MIN_NAMES:
+        return False
     new_share = (n_joined / n_now) if n_now else 0.0
     gone_share = (n_left / n_before) if n_before else 0.0
     return max(new_share, gone_share) > TOO_MUCH_SHARE

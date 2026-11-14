@@ -332,13 +332,18 @@ def test_the_twelve_name_cap_says_how_many_more(armed):
     (0, 31, 19, 50, True),       # most of the previous list is gone
     (3, 2, 50, 49, False),
     (0, 0, 50, 50, False),
-    (2, 0, 2, 0, True),          # a list that was empty and is not
-    (0, 4, 0, 4, True),          # a list that emptied
+    (12, 0, 12, 0, True),        # a list that was empty and is not
+    (0, 14, 0, 14, True),        # a list that emptied
     (0, 0, 0, 0, False),
+    (2, 0, 3, 1, False),         # a short list is always itemised, however much of it changed
+    (2, 0, 2, 0, False),
+    (0, 4, 0, 4, False),
+    (7, 7, 9, 9, False),         # nine names on both days: still short
+    (7, 0, 10, 3, True),         # ten today: the share rule applies
 ])
 def test_too_much_is_more_than_sixty_percent_of_either_list(joined, left, now, before, expected):
     assert A.too_much(joined, left, now, before) is expected
-    assert A.TOO_MUCH_SHARE == 0.60
+    assert A.TOO_MUCH_SHARE == 0.60 and A.TOO_MUCH_MIN_NAMES == 10
 
 
 def test_a_list_that_changed_too_much_gets_one_in_app_note_and_no_names(armed):
@@ -924,3 +929,24 @@ def test_a_payload_read_that_fails_never_costs_the_screens_menu(armed, monkeypat
 def test_both_tables_are_in_the_account_purge():
     from api.services import alert_erasure
     assert {"rs_screen_alert_subs", "rs_screen_alerts_fired"} <= set(alert_erasure.SCREENER_TABLES)
+
+
+# ───────────────────────── the owner-only value (unit U10) ─────────────────────────
+
+def test_under_the_owner_only_value_only_an_admin_is_offered_or_sent_a_message(armed, monkeypatch):
+    """`RS_SCREENS_ENABLED=admin`: the five are recorded nightly for everyone, but a member is
+    not shown the screens, so a member is not offered the switch and is sent nothing; the
+    owner is. A subscription a member made while the screens were on stays stored and silent."""
+    A.subscribe("u1", LEADERS)
+    A.subscribe("boss", LEADERS)
+    armed("2026-11-13", THU, **{LEADERS: names(20, "OLD")})
+    armed("2026-11-14", FRI, **{LEADERS: names(20, "OLD") + ["NEW1"]})
+    monkeypatch.setenv("RS_SCREENS_ENABLED", "admin")
+    monkeypatch.setattr(A, "_member", lambda uid: {"id": uid, "role": "admin" if uid == "boss" else "member"})
+    assert A.payload({"id": "u1", "role": "member", "plan": "pro"}) is None
+    assert A.payload({"id": "boss", "role": "admin", "plan": "pro"})["available"] is True
+    sent = Sent()
+    r = run(sent)
+    assert r["sent"] == 1 and len(sent) == 1, r
+    assert [row[0] for row in fired()] == ["boss"]
+    assert A.screens(), "the five are still the five under the owner-only value"
