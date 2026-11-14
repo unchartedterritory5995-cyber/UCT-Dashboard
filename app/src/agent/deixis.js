@@ -680,7 +680,10 @@ export const leftOut = (text, charts, sel) => excludedCharts(text, charts, sel)
 // ⛔ (11-13) …but never when the CHANGE words name a ticker the board does not show ("change AMD to 1-hour, leave my NVDA alone"
 // with SPY and NVDA): the chart they mean is not here, so the one left is no stand-in for it — asked, as with no exclusion at all
 const NOT_TICKER_CAPS = new Set(['I', 'A', 'UCT', 'ETF', 'ADR', 'RS', 'RSI', 'MACD', 'EMA', 'SMA', 'WMA', 'ATR', 'VWAP', 'AVWAP', 'ET', 'AM', 'PM', 'OK', 'US',
-  'NYSE', 'HLC', 'OHLC', 'MA', 'D', 'W', 'M', 'H', 'AND', 'VS', 'ADX', 'OBV', 'CCI', 'EPS', 'PE', 'BB', 'VCP', 'ATH', 'YTD', 'NOT', 'DONT', 'TF'])
+  'NYSE', 'HLC', 'OHLC', 'MA', 'D', 'W', 'M', 'H', 'AND', 'VS', 'ADX', 'OBV', 'CCI', 'EPS', 'PE', 'BB', 'VCP', 'ATH', 'YTD', 'NOT', 'DONT', 'TF',
+  // indicator / session acronyms a member types in capitals (never a chart's ticker for the target reader below)
+  'HMA', 'DEMA', 'TEMA', 'VWMA', 'ZLEMA', 'KC', 'DMI', 'MFI', 'ROC', 'PSAR', 'SAR', 'RVOL', 'ATRP', 'STOCH', 'CMF', 'PVT', 'TRIX', 'LRC',
+  'HV', 'IV', 'ORB', 'PDH', 'PDL', 'PMH', 'PML', 'HTF', 'LTF', 'MTF', 'RTH', 'EST', 'UTC', 'PNL', 'IPO', 'OI', 'TTM', 'SMI', 'KST', 'PPO', 'MAS'])
 export function offBoardTicker(text, charts = []) {
   const on = new Set(charts.map(c => String(c?.symbol || '').toUpperCase()).filter(Boolean))
   const words = withoutExclusions(text)
@@ -749,6 +752,10 @@ export function tickerAntecedent(text, charts = [], sel = null, ex = new Set()) 
 const TGT_VERB = /\b(?:[Cc]hange|[Ss]witch|[Ss]et|[Mm]ake|[Pp]ut|[Tt]urn|[Ff]lip|[Mm]ove|[Cc]onvert|[Gg]ive|[Zz]oom|[Rr]eset|[Ss]croll)\s+(?:[Tt]he\s+|[Mm]y\s+)?(\$?[A-Z][A-Z0-9]{0,4}(?:\.[A-Z])?)(?=\s+(?:to|on|onto|into|in|at|from|with|over|back|and|chart|one|graph|weekly|daily|monthly|hourly)\b|['’]s\b|\s*[,.;!?]|\s*$)/g
 const TGT_PREP = /\b(?:to|on|onto|for|of|in)\s+(?:[Tt]he\s+|[Mm]y\s+)?(\$?[A-Z][A-Z0-9]{0,4}(?:\.[A-Z])?)(?=\s+(?:chart|one|graph|and|but|too|please|as\s+well)\b|['’]s\b|\s*[,.;!?]|\s*$)/g
 const TGT_NOUN = /(?:^|[\s(])(\$?[A-Z][A-Z0-9]{0,4}(?:\.[A-Z])?)(?:['’]s)?\s+(?:chart|one|graph)\b/g
+// (AUDIT held-out t1/t2) a ticker as the SUBJECT of a change in ANY verb position: "take / bring / get / move AMD to weekly", a
+// verb-less "AMD on weekly please", "AMD weekly", "AMD to 1h", "AMD with a 20 EMA" — the ticker followed by the change it gets.
+// (A ticker at the END of a clause — "switch to AMD", "make this one AMD", "flip it to AMD" — is the VALUE shape, never this one.)
+const TGT_SUBJ = /(?:^|[\s,;:(])(\$?[A-Z][A-Z0-9]{0,4}(?:\.[A-Z])?)(?=\s+(?:to|on|onto|into|in|at|with|over|back|weekly|daily|monthly|hourly|intraday|log|linear|bars|candles|heikin|\d{1,3}\s*(?:m|min|mins|minutes?|h|hr|hrs|hours?|d|day|w|wk|week)\b))/g
 function changeWords(text) {
   const s = String(text || '')
   const cuts = [0, ...[...s.matchAll(ANA_SPLIT)].flatMap(m => [m.index, m.index + m[0].length]), s.length].sort((a, b) => a - b)
@@ -765,7 +772,7 @@ export function targetTickers(text) {
   const w = changeWords(text)
   if (!/[a-z]/.test(w)) return []
   const out = []
-  for (const re of [TGT_VERB, TGT_PREP, TGT_NOUN]) for (const m of w.matchAll(re)) {
+  for (const re of [TGT_VERB, TGT_PREP, TGT_NOUN, TGT_SUBJ]) for (const m of w.matchAll(re)) {
     const t = m[1].replace(/^\$/, '').toUpperCase()
     if (NOT_TICKER_CAPS.has(t) || (!m[1].startsWith('$') && isReservedWord(t)) || out.includes(t)) continue
     // the ANCHOR of a relation ("the one below the QQQ one", "next to the SPY chart") is a reference point, never the target
