@@ -7782,6 +7782,49 @@
       ]
     },
     {
+      "id": "rs.compare",
+      "source": "Phase 2 market intelligence (11-13): relative strength + sector / industry leadership, owner-style phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "rs.compare"
+      ],
+      "board": "ONE",
+      "needs": [
+        "rs.compare"
+      ],
+      "ownWords": [
+        "rs"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "rs.compare",
+            "target": "$stockData",
+            "args": {
+              "scope": "sectors",
+              "symbols": null,
+              "industry": null,
+              "period": "1M"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*rs\\.leadership.*\"scope\":\"sectors\",\"period\":\"1M\""
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "which sectors are leading this month",
+        "what are the strongest sectors over the last month",
+        "which sectors are lagging this month",
+        "show me sector leadership for the past month"
+      ]
+    },
+    {
       "id": "history.breakout",
       "source": "PKG2 (11-04): conversational scanning + historical analysis, owner-style phrasings",
       "kinds": "ALL",

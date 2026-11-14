@@ -2160,6 +2160,228 @@
       "flags": {}
     },
     {
+      "id": "rs-sectors",
+      "category": "periodic",
+      "kind": "rs.leadership",
+      "purpose": "answer",
+      "question": "Which sectors are leading right now?",
+      "envelope": {
+        "contract": "MD-1.0",
+        "kind": "rs.leadership",
+        "params_echo": {},
+        "status": "ok",
+        "freshness": "periodic",
+        "as_of": "2026-10-30T20:00:00Z",
+        "fetched_at": "2026-11-02T16:55:00Z",
+        "delay_s": null,
+        "stale": false,
+        "source": "uct-rs",
+        "coverage": null,
+        "data": {
+          "scope": "sectors",
+          "period": "1M",
+          "sessions": 21,
+          "benchmark": "SPY",
+          "latest_completed_session": "2026-10-30",
+          "leader_rating": 80,
+          "sectors": [
+            {
+              "symbol": "XLK",
+              "label": "Technology",
+              "is_etf": true,
+              "rated": true,
+              "rating": 50,
+              "d5": 1,
+              "d20": 2,
+              "m1": 50,
+              "m3": 50,
+              "m6": null,
+              "m12": null,
+              "return": {
+                "from": "2026-10-01",
+                "to": "2026-10-30",
+                "pct": 1.0
+              },
+              "vs_spy": 0.5,
+              "bars_through": "2026-10-30",
+              "bars_stale": false,
+              "sector": null,
+              "industry": null
+            }
+          ],
+          "indices": [],
+          "rating_session": "2026-10-30",
+          "ratings_stale": false
+        },
+        "notes": [
+          "RS Rating: UCT's nightly IBD-style relative strength rating, 1-99, from weighted 3/6/9/12-month price performance ranked against every rated US stock (ETFs are placed on the same scale); change = the rating minus the rating 5 or 20 stored sessions earlier",
+          "returns: completed daily sessions from UCT's bars store; vs SPY only over the identical window",
+          "historical observation of stored data, not a forecast"
+        ],
+        "provider_calls": 0
+      },
+      "expect": {
+        "freshness_class": "periodic",
+        "as_of_renderings": [
+          "2026-10-30",
+          "Oct 30",
+          "October 30"
+        ],
+        "may_claim_live": false,
+        "must_disclose_stale": false,
+        "must_say_unavailable": false,
+        "must_not_state_a_value": false,
+        "must_disclose": [
+          "not a forecast"
+        ],
+        "as_of_null_reason_required": false
+      },
+      "expect_refusal": false,
+      "flags": {
+        "UCT_AGENT_ISOLATED": "1"
+      }
+    },
+    {
+      "id": "rs-stale",
+      "category": "periodic-stale",
+      "kind": "rs.leadership",
+      "purpose": "answer",
+      "question": "Is semis RS improving now?",
+      "envelope": {
+        "contract": "MD-1.0",
+        "kind": "rs.leadership",
+        "params_echo": {},
+        "status": "ok",
+        "freshness": "periodic",
+        "as_of": "2026-10-27T20:00:00Z",
+        "fetched_at": "2026-11-02T16:55:00Z",
+        "delay_s": null,
+        "stale": true,
+        "source": "uct-rs",
+        "coverage": null,
+        "data": {
+          "scope": "sectors",
+          "period": "1M",
+          "sessions": 21,
+          "benchmark": "SPY",
+          "latest_completed_session": "2026-10-30",
+          "leader_rating": 80,
+          "sectors": [
+            {
+              "symbol": "XLK",
+              "label": "Technology",
+              "is_etf": true,
+              "rated": true,
+              "rating": 50,
+              "d5": 1,
+              "d20": 2,
+              "m1": 50,
+              "m3": 50,
+              "m6": null,
+              "m12": null,
+              "return": {
+                "from": "2026-10-01",
+                "to": "2026-10-30",
+                "pct": 1.0
+              },
+              "vs_spy": 0.5,
+              "bars_through": "2026-10-30",
+              "bars_stale": false,
+              "sector": null,
+              "industry": null
+            }
+          ],
+          "indices": [],
+          "rating_session": "2026-10-27",
+          "ratings_stale": true
+        },
+        "notes": [
+          "RS Rating: UCT's nightly IBD-style relative strength rating, 1-99, from weighted 3/6/9/12-month price performance ranked against every rated US stock (ETFs are placed on the same scale); change = the rating minus the rating 5 or 20 stored sessions earlier",
+          "returns: completed daily sessions from UCT's bars store; vs SPY only over the identical window",
+          "historical observation of stored data, not a forecast",
+          "the newest stored RS Rating session is 2026-10-27, older than the ratings' own freshness rule allows"
+        ],
+        "provider_calls": 0
+      },
+      "expect": {
+        "freshness_class": "periodic",
+        "as_of_renderings": [
+          "2026-10-27",
+          "Oct 27",
+          "October 27"
+        ],
+        "may_claim_live": false,
+        "must_disclose_stale": true,
+        "must_say_unavailable": false,
+        "must_not_state_a_value": false,
+        "must_disclose": [
+          "older than the ratings' own freshness rule"
+        ],
+        "as_of_null_reason_required": false
+      },
+      "expect_refusal": false,
+      "flags": {
+        "UCT_AGENT_ISOLATED": "1"
+      }
+    },
+    {
+      "id": "rs-industry-ambiguous",
+      "category": "partial",
+      "kind": "rs.leadership",
+      "purpose": "answer",
+      "question": "How is the software industry's RS today?",
+      "envelope": {
+        "contract": "MD-1.0",
+        "kind": "rs.leadership",
+        "params_echo": {},
+        "status": "partial",
+        "freshness": "periodic",
+        "as_of": null,
+        "fetched_at": "2026-11-02T16:55:00Z",
+        "delay_s": null,
+        "stale": false,
+        "source": "uct-rs",
+        "coverage": {
+          "requested": 1,
+          "answered": 0
+        },
+        "data": {
+          "scope": "industry",
+          "period": "1M",
+          "industry": null,
+          "asked": "software",
+          "ambiguous": true,
+          "candidates": [
+            "Software - Application",
+            "Software - Infrastructure"
+          ]
+        },
+        "notes": [
+          "RS Rating: UCT's nightly IBD-style relative strength rating, 1-99, from weighted 3/6/9/12-month price performance ranked against every rated US stock (ETFs are placed on the same scale); change = the rating minus the rating 5 or 20 stored sessions earlier",
+          "returns: completed daily sessions from UCT's bars store; vs SPY only over the identical window",
+          "historical observation of stored data, not a forecast",
+          "several industries match software: Software - Application; Software - Infrastructure"
+        ],
+        "provider_calls": 0
+      },
+      "expect": {
+        "freshness_class": "periodic",
+        "as_of_renderings": [],
+        "may_claim_live": false,
+        "must_disclose_stale": false,
+        "must_say_unavailable": false,
+        "must_not_state_a_value": false,
+        "must_disclose": [
+          "several industries match"
+        ],
+        "as_of_null_reason_required": true
+      },
+      "expect_refusal": false,
+      "flags": {
+        "UCT_AGENT_ISOLATED": "1"
+      }
+    },
+    {
       "id": "br-research-refused",
       "category": "isolation",
       "kind": "breadth.current",

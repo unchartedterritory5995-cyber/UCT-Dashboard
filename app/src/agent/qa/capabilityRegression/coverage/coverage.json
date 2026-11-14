@@ -1,41 +1,41 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 207,
+  "all": 208,
   "withProductionKinds": 198,
-  "darkGated": 9
+  "darkGated": 10
  },
  "totals": {
-  "capabilities": 207,
-  "withAnyRegressionCase": 155,
+  "capabilities": 208,
+  "withAnyRegressionCase": 156,
   "perProtection": {
    "nl": {
-    "covered": 152,
-    "applicable": 207
+    "covered": 153,
+    "applicable": 208
    },
    "routing": {
-    "covered": 149,
-    "applicable": 207
+    "covered": 150,
+    "applicable": 208
    },
    "args": {
-    "covered": 155,
-    "applicable": 207
+    "covered": 156,
+    "applicable": 208
    },
    "execution": {
-    "covered": 152,
-    "applicable": 207
+    "covered": 153,
+    "applicable": 208
    },
    "receipt": {
-    "covered": 124,
-    "applicable": 207
+    "covered": 125,
+    "applicable": 208
    },
    "refusal": {
     "covered": 35,
-    "applicable": 207
+    "applicable": 208
    },
    "permission": {
-    "covered": 200,
-    "applicable": 207
+    "covered": 201,
+    "applicable": 208
    },
    "undo": {
     "covered": 78,
@@ -43,11 +43,11 @@
    },
    "multiStep": {
     "covered": 40,
-    "applicable": 207
+    "applicable": 208
    },
    "phrasings": {
-    "covered": 148,
-    "applicable": 207
+    "covered": 149,
+    "applicable": 208
    }
   }
  },
@@ -7993,6 +7993,60 @@
     "args": [],
     "execution": [],
     "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "rs.compare": {
+   "domain": "rs",
+   "group": "rs",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "rs.compare: \"which sectors are leading this month\"",
+     "rs.compare: \"what are the strongest sectors over the last month\"",
+     "rs.compare: \"which sectors are lagging this month\"",
+     "rs.compare: \"show me sector leadership for the past month\""
+    ],
+    "routing": [
+     "rs.compare: \"which sectors are leading this month\"",
+     "rs.compare: \"what are the strongest sectors over the last month\"",
+     "rs.compare: \"which sectors are lagging this month\"",
+     "rs.compare: \"show me sector leadership for the past month\""
+    ],
+    "args": [
+     "corpus rs.compare"
+    ],
+    "execution": [
+     "rs.compare (c)"
+    ],
+    "receipt": [
+     "rs.compare (c)"
+    ],
     "refusal": [],
     "permission": [],
     "undo": [],

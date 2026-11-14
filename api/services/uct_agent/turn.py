@@ -1093,7 +1093,8 @@ _OUTCOME_LABEL = {
 #: Actions whose results are local only. Decided by NAME on the server (never trusted from the
 #: browser alone); the browser's `localOnly` flag on the same capabilities is a second signal.
 # journal.reviewTrades (W3 review B3): the member's own journal stats are shown, never replayed to a model
-LOCAL_ONLY_ACTIONS = frozenset({"breadth.show", "breadth.history", "history.afterEvent", "journal.reviewTrades"})
+# rs.compare (Phase 2 market intelligence): UCT's RS Ratings / leadership are UCT-derived (rs.leadership is model-isolated)
+LOCAL_ONLY_ACTIONS = frozenset({"breadth.show", "breadth.history", "history.afterEvent", "journal.reviewTrades", "rs.compare"})
 #: ⛔ DATA-READ ANSWERS (hotfix 2026-11-03, live: "when does nvda report" got a reply inventing a date and a
 #: beat while the stock.earnings card said the date was not in UCT's data). These read-only actions (manifest
 #: `query: true`, market / screen data) answer with UCT's own deterministic card; the model's `reply` is written

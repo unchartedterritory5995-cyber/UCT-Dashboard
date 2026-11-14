@@ -35,7 +35,8 @@ _INJECTION = re.compile(
     # #1106 right-click parity: the chartMenu domain (chartMenu.askAi / chartMenu.resetWatermark as bare names); stricter only
     # chartFeatures (Company Info panel + Earnings Strip): chartFeatures.companyPanel / earningsStrip as bare names; stricter only
     r"|drawing|widget|board|settings|definition|pane|volume|app|guide|stock|news|breadth|playbook|research|multiChart|periodSort|chartMenu"
-    r"|chartFeatures)"
+    # Phase 2 market intelligence: the rs domain (rs.compare as a bare name; verb "compare" is already withheld); stricter only
+    r"|chartFeatures|rs)"
     r"\.(add|remove|delete|create|clear|rename|open|set|run|save|apply|show|hide|update|move|resize|toggle|swap|duplicate"
     # #1030 ratchet: master actions added by #1077/#1073/#1027 (chartSetup.stepBars/autoScale/compareGroup,
     # watchlist.arrangeColumns/exportList): their verbs join the withheld set (stricter only)

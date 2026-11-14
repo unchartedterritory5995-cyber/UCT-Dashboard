@@ -144,3 +144,18 @@ def test_the_guard_still_passes_ordinary_company_and_earnings_prose():
     for text in ("The company reported earnings after the close.", "Open the company panel on the chart to read the profile.",
                  "The earnings strip shows quarterly EPS and revenue.", "Check the stock's earnings date before entering."):
         assert guard.suspicious(text) is False, text
+
+
+# ── Phase 2 market intelligence: rs.compare is SERVER-GATED (registered only while the server serves `rs.leadership`), so it is
+#    not in manifest.golden.json and the ratchets above cannot see it — pinned by name here instead ──
+def test_the_rs_compare_capability_is_a_DATA_action_withheld_bare_and_local_only():
+    assert v2.domain_for("rs.compare") == "data"
+    assert guard.suspicious(_bare("rs.compare")) is True
+    assert "rs.compare" in turn.LOCAL_ONLY_ACTIONS             # the model never sees a rating or a return (ADR-005)
+    assert "rs.compare" not in turn.DATA_READ_ACTIONS          # the two sets are disjoint (test_uct_agent_data_reply.py)
+
+
+def test_the_guard_still_passes_ordinary_relative_strength_prose():
+    for text in ("NVDA's RS rating is near the top of its industry.", "Relative strength in semis improved over 20 sessions.",
+                 "Mrs. Smith compared sectors.", "The RS line made a new high before price.", "XLK vs XLF over three months."):
+        assert guard.suspicious(text) is False, text
