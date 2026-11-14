@@ -26,6 +26,9 @@ export function rowConfigOf(starter, place = null) {
     place: own && own !== INDEX_PLACE && typeof place === 'string' && place ? place : own,
     caption: Array.isArray(r.caption) ? r.caption.filter(p => typeof p === 'string') : [],
     tags: Array.isArray(r.tags) ? r.tags.filter(t => typeof t === 'string') : [],
+    // A LIST screen (unit U12, `row.list`): one a stock qualifies for by passing rules. The
+    // first-visit line and "Why isn't a stock here?" are shown only there, never on RS exit warnings.
+    list: r.list === true,
     // Notes for the why strip only (unit U12), in the starter's order; [] on every other screen.
     facts: Array.isArray(r.facts) ? r.facts.filter(p => typeof p === 'string') : [],
   }

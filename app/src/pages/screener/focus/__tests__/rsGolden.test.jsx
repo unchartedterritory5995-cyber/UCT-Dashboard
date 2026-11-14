@@ -137,7 +137,8 @@ describe('what the client assumes about the payload', () => {
       // Every row has these three. Unit U7 let a screen name its order (`sort_label`); unit U12 added
       // the why strip's own facts (`facts`) and how a list is kept (`steady`). All three are on UCT
       // RS Leaders only.
-      const own = st.id === LEADERS.id ? ['facts', 'sort_label', 'steady'] : []
+      // `list` (unit U12) marks the four screens a stock qualifies for; RS exit warnings has no such key.
+      const own = [...(st.id === LEADERS.id ? ['facts', 'sort_label', 'steady'] : []), ...(st.id === EXIT_WARNINGS.id ? [] : ['list'])]
       expect(Object.keys(st.row).sort(), st.id).toEqual(['caption', 'place', 'tags', ...own].sort())
       for (const p of st.row.caption) expect(CAPTION_PARTS, `${st.id} caption`).toContain(p)
       for (const t of st.row.tags) expect(TAGS, `${st.id} tag`).toContain(t)

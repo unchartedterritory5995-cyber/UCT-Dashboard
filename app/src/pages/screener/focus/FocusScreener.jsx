@@ -939,7 +939,9 @@ function FocusList({ mode, onMode }) {
   const newLineShows = nt?.state === 'ok' || nt?.state === 'live_screen'
   // Shown until dismissed, and only once the preferences have answered, so it never flashes at a
   // member who dismissed it (a refused read says nothing either way, so it stays hidden).
-  const rsNoteOn = !!rsRow && !prefsLoading && !prefsReadFailed && !parsePref(prefs[RS_NOTE_PREF], null)
+  // Unit U12: only on a LIST screen (`row.list`). Its sentence is "The strongest liquid stocks,
+  // ranked...", which is not what RS exit warnings shows.
+  const rsNoteOn = !!rsRow?.list && !prefsLoading && !prefsReadFailed && !parsePref(prefs[RS_NOTE_PREF], null)
   // The market caution line (unit U8): the state the saved-screens payload carries, on a screen
   // whose starter has `row`, until the member hides it for today (rsMarket.js says how that is
   // kept). `normal`, no state and a payload without the key draw nothing.

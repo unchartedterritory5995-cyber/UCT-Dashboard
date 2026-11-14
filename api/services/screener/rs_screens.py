@@ -91,6 +91,12 @@ EXCLUDED_FLAGS = ("buyout_pending",)
 #: The four screens that carry the exclusion, by id (the method page reads this).
 NO_BUYOUT_SCREENS = ("starter_rs_top_rating", "starter_rs_new_high",
                      "starter_rs_nh_before_price", "starter_rs_leaders")
+#: ``row.list`` (unit U12): true on the four LIST screens, the ones a stock qualifies
+#: for by passing rules. The client shows two things only there: the first-visit line
+#: ("The strongest liquid stocks, ranked...", which is not what RS exit warnings is)
+#: and "Why isn't a stock here?" (a warning is something that happened to a stock, not
+#: a list it can qualify for). Sent as data so the client never reads a screen's id.
+LIST_SCREENS = NO_BUYOUT_SCREENS
 #: The row tag ``earnings`` (unit U8): a report inside the week changes what a setup
 #: means, so it is the FIRST tag on the four list screens. The client words it from
 #: ``days_to_earnings`` (whole calendar days from the build's date to the next report):
@@ -385,8 +391,13 @@ def exit_warnings() -> dict:
 
 
 def screens() -> list:
-    """The five, in the picker's order."""
-    return [top_rating(), new_highs(), before_price(), leaders(), exit_warnings()]
+    """The five, in the picker's order. The four list screens carry ``row.list``
+    (:data:`LIST_SCREENS`); RS exit warnings does not carry the key at all."""
+    five = [top_rating(), new_highs(), before_price(), leaders(), exit_warnings()]
+    for s in five:
+        if s["id"] in LIST_SCREENS:
+            s["row"]["list"] = True
+    return five
 
 
 def retire(starter: dict) -> dict:

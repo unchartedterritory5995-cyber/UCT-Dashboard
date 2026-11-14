@@ -321,20 +321,24 @@ def test_the_rows_are_the_contracts(on):
     by = _by_id()
     assert {i: by[i]["row"] for i in FIVE} == {
         # unit U8: the four list screens lead their tags with `earnings`
+        # unit U12: the four LIST screens say so (`list`); RS exit warnings carries no such key
         "starter_rs_top_rating": {"place": "rs_rating_pos", "caption": ["setup", "moving"],
-                                  "tags": ["earnings", "flag", "new"]},
+                                  "tags": ["earnings", "flag", "new"], "list": True},
         # unit U12: the two RS high screens say a weekly RS high right after earnings
         "starter_rs_new_high": {"place": None, "caption": ["rs_high_age", "group"],
-                                "tags": ["earnings", "weekly", "before_price", "down_day", "flag", "new"]},
+                                "tags": ["earnings", "weekly", "before_price", "down_day", "flag", "new"],
+                                "list": True},
         "starter_rs_nh_before_price": {"place": None, "caption": ["below_high", "group"],
-                                       "tags": ["earnings", "weekly", "down_day", "flag", "new"]},
+                                       "tags": ["earnings", "weekly", "down_day", "flag", "new"],
+                                       "list": True},
         # unit U7: the screen names its own order (`sort_label`); unit U12: a why strip fact
         # of its own (`facts`) and how its list is kept (`steady`)
         "starter_rs_leaders": {"place": "index", "caption": ["setup", "group"],
                                "tags": ["earnings", "flag", "new"], "sort_label": "RS Rating",
                                "facts": ["days"],
                                "steady": {"key": "rs_leaders_member", "by": "rs_rating_score",
-                                          "enter": 50, "hold": 65}},
+                                          "enter": 50, "hold": 65},
+                               "list": True},
         # unit U7: each warning row says which warning and how old (`exit_warning`)
         "starter_rs_exit_warning_5": {"place": None, "caption": ["exit_warning", "group"],
                                       "tags": ["new"]}}

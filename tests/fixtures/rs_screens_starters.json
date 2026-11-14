@@ -221,7 +221,8 @@
         "earnings",
         "flag",
         "new"
-      ]
+      ],
+      "list": true
     }
   },
   {
@@ -425,7 +426,8 @@
         "down_day",
         "flag",
         "new"
-      ]
+      ],
+      "list": true
     }
   },
   {
@@ -647,7 +649,8 @@
         "down_day",
         "flag",
         "new"
-      ]
+      ],
+      "list": true
     },
     "empty": {
       "text": "No RS line made a 52-week high ahead of price this week. That is normal in a weak market.",
@@ -859,7 +862,8 @@
         "by": "rs_rating_score",
         "enter": 50,
         "hold": 65
-      }
+      },
+      "list": true
     }
   },
   {
