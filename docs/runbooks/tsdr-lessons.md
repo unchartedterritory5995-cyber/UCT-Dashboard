@@ -39,6 +39,18 @@ A healthy job writes one line every 15 minutes (the counts here are placeholders
 | `removed` | Taken out of the library: its post was deleted in Discord, or it was taken down. |
 | `failed` | Used up its three attempts. See below. |
 
+`links_waiting` (in the same `library` block) is the number of lessons that came from a
+YouTube LINK and are posted under their title only, because the server is refused YouTube's
+captions. They become full recaps once their captions are sent in from an ordinary
+connection. When the number is above zero, run this from a current checkout, on a PC:
+
+```sh
+PUSH_SECRET=<the site push secret> python tools/tsdr_link_transcripts.py
+```
+
+It lists the waiting videos, reads each one's captions and posts them back. The job rewrites
+those lessons on its next runs. Safe to run again. Zero means there is nothing to do.
+
 ## A failed video
 
 A video gets three attempts, one per run. After the third it is `failed`. A day later it is
