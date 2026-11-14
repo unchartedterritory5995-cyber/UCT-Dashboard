@@ -385,13 +385,13 @@
         {
           "key": "pullback_8",
           "label": "Pullback to the 8-day",
-          "rule": "The stock closed at a 20-session high within the last 15 sessions, and today its low came within 0.5 ATR of a rising 8-day EMA while its close is no more than 0.5 ATR under it. An EMA is rising when it stands above its value 5 sessions earlier. Named ahead of the 21-day when both hold.",
+          "rule": "The stock made a 20-session high within the last 15 sessions and is now trading at its rising 8-day average. In numbers: the high is a closing high, and today its low came within 0.5 ATR of a rising 8-day EMA while its close is no more than 0.5 ATR under it. An EMA is rising when it stands above its value 5 sessions earlier. Named ahead of the 21-day when both hold. It marks where the stock is, not what to do.",
           "source": "The 8-day and 21-day EMAs are the house teaching averages. The half-ATR band is a house threshold with no published test."
         },
         {
           "key": "pullback_21",
           "label": "Pullback to the 21-day",
-          "rule": "The stock closed at a 20-session high within the last 15 sessions, and today its low came within 0.5 ATR of a rising 21-day EMA while its close is no more than 0.5 ATR under it. An EMA is rising when it stands above its value 5 sessions earlier.",
+          "rule": "The stock made a 20-session high within the last 15 sessions and is now trading at its rising 21-day average. In numbers: the high is a closing high, and today its low came within 0.5 ATR of a rising 21-day EMA while its close is no more than 0.5 ATR under it. An EMA is rising when it stands above its value 5 sessions earlier. It marks where the stock is, not what to do.",
           "source": "The same house rule, on the 21-day EMA."
         },
         {

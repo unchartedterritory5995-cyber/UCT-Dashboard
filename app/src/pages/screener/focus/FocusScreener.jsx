@@ -68,7 +68,7 @@ import { whyItsHere, whyColumns } from './whyItsHere'
 import { describeEmptying } from './emptyUndo'
 import { migratePinned } from './screenGroups'
 import QuickControls from './QuickControls'
-import { RS_CONTROLS_PREF, RS_NOTE_PREF, RS_LEADERS_ID, RS_SCREENS_COLUMNS, controlsOf, applyOption, specWithChoices, choicesFor, withChoice, withoutChoices, controlStarterFor, placeOverride } from './rsScreens'
+import { RS_CONTROLS_PREF, RS_NOTE_PREF, RS_LEADERS_ID, RS_SCREENS_COLUMNS, controlsOf, applyOption, specWithChoices, choicesFor, withChoice, withoutChoices, controlStarterFor, placeOverride, rankLabelOf } from './rsScreens'
 import { rowConfigOf, rowColumns, ratingsAsOf, sectorShare, rowFacts } from './rsRows'
 import { RsHeaderLine, RsFirstVisit, RsEmptyState } from './RsScreenParts'
 import { useNameDialog } from './useNameDialog'
@@ -869,7 +869,9 @@ function FocusList({ mode, onMode }) {
     [shown.filters, meta])
   const colLabel = k => plainColumnLabel(k) || (meta?.filters || []).find(f => f.key === k || f.column === k)?.label || COLUMN_DEFS[k]?.label || k
   const sortArrow = s.sort?.dir === 'asc' ? '↑' : '↓'
-  const sortLabel = s.rank ? 'Your ranking' : `${colLabel(sortKey) || 'Default'} ${sortArrow}`
+  // A ranked screen is "Your ranking", unless the open starter names its own order and the
+  // working spec still carries that rank (unit U7: UCT RS Leaders reads "RS Rating").
+  const sortLabel = s.rank ? rankLabelOf(rsStarter, s.rank) || 'Your ranking' : `${colLabel(sortKey) || 'Default'} ${sortArrow}`
   // The sortable set is the view's columns from meta (the server sorts by any snapshot column),
   // restricted to NUMERIC ones: a text column sorts alphabetically, so "Structure ↓" ran Z→A.
   // A column is numeric when meta carries a range filter over it — the type is the server's,

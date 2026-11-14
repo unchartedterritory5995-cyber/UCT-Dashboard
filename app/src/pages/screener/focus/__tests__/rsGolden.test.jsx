@@ -26,7 +26,7 @@ const FIVE = ['starter_rs_top_rating', 'starter_rs_new_high', 'starter_rs_nh_bef
 // The operands the client compares, per operator (rsScreens.js `sig`; FocusScreener `normalSpec`).
 const OPERANDS = { gte: ['min'], gt: ['min'], lte: ['max'], lt: ['max'], between: ['max', 'min'], eq: ['value'], in: ['values'], not_in: ['values'] }
 // What rsRows.js can draw (its PARTS and TAGS tables).
-const CAPTION_PARTS = ['setup', 'group', 'rs_high_age', 'below_high', 'moving']
+const CAPTION_PARTS = ['setup', 'group', 'rs_high_age', 'below_high', 'moving', 'exit_warning'] // exit_warning: unit U7
 const TAGS = ['before_price', 'down_day', 'flag', 'new']
 const clausesOf = st => [...st.spec.filters, ...st.controls.flatMap(c => c.options.flatMap(o => o.filters))]
 const everyOption = RS_STARTERS.flatMap(st => controlsOf(st).flatMap(c => c.options.map(o => [`${st.name} / ${c.label} / ${o.label}`, st, c, o])))
@@ -131,7 +131,8 @@ describe('what the client assumes about the payload', () => {
   })
   test('each row recipe names only parts and tags the row can draw; a null place is sent as null', () => {
     for (const st of RS_STARTERS) {
-      expect(Object.keys(st.row).sort(), st.id).toEqual(['caption', 'place', 'tags'])
+      // unit U7: a ranked screen may also name its order (`sort_label`); a screen that is not ranked never does
+      expect(Object.keys(st.row).sort(), st.id).toEqual(st.spec.rank ? ['caption', 'place', 'sort_label', 'tags'] : ['caption', 'place', 'tags'])
       for (const p of st.row.caption) expect(CAPTION_PARTS, `${st.id} caption`).toContain(p)
       for (const t of st.row.tags) expect(TAGS, `${st.id} tag`).toContain(t)
       const cfg = rowConfigOf(st)

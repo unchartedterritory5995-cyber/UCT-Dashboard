@@ -77,6 +77,18 @@ export function movingWords(row, { overall = true } = {}) {
   return ''
 }
 
+// The newest RS exit warning and how old it is (unit U7): "Quicksand yesterday". `rs_exit_last`
+// holds the warning's own name, the same three the filter and the Type control offer
+// (rs_columns.EXIT_NAMES; rsU7.test.jsx holds this copy against what the server serves). A name
+// this list does not know prints nothing, and so does a warning with no age: neither is guessed.
+export const EXIT_WARNING_NAMES = ['Quick Break', 'Quicksand', 'Grateful Dead Break']
+export function exitWarningWords(row) {
+  const name = row?.rs_exit_last
+  const n = row?.rs_exit_bars_ago
+  if (!EXIT_WARNING_NAMES.includes(name) || !isNum(n) || n < 0) return ''
+  return `${name} ${n === 0 ? 'today' : n === 1 ? 'yesterday' : `${fmtInt(n)} sessions ago`}`
+}
+
 // The row's theme when it has one (the Watchlist's theme read, one batched request per list),
 // else its industry.
 export const groupWords = (row, theme) => (typeof theme === 'string' && theme) || row?.industry || ''
@@ -87,6 +99,7 @@ const PARTS = {
   rs_high_age: row => rsHighAgeWords(row),
   below_high: row => belowHighWords(row),
   moving: (row, _theme, cfg) => movingWords(row, { overall: !cfg?.place || cfg.place === OVERALL_PLACE || cfg.place === INDEX_PLACE }),
+  exit_warning: row => exitWarningWords(row),
 }
 // The caption under the ticker: the starter's parts in its order, joined with " · ". The Setup
 // words come first on the screens that have them, so a narrow list truncates the group.
@@ -129,6 +142,7 @@ const PART_COLUMNS = {
   rs_high_age: ['rs_nh_bars_ago'],
   below_high: ['px_below_high_pct'],
   moving: ['rs_rating_pos_prev20', 'rs_rating_pos', 'rs_rating_chg_5'],
+  exit_warning: ['rs_exit_last', 'rs_exit_bars_ago'],
 }
 const TAG_COLUMNS = {
   before_price: ['rs_nhbp_age', 'px_below_high_pct'],

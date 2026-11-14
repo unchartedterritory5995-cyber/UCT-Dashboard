@@ -13,6 +13,7 @@
 
 import { registerCapability, registerTargetKind, registerContextProvider } from '../capabilities'
 import { matchName } from '../nl/match'
+import { offeredStarters } from '../../pages/screener/focus/screenGroups'
 
 const REF = 'screenerPage'
 const norm = (s) => String(s || '').toLowerCase().replace(/[“”"'`‘’]/g, '').replace(/\s+/g, ' ').trim()
@@ -27,6 +28,9 @@ function snap(host) {
     filters: p.filters, loading: p.loading, edited: p.edited, saved: lib.saved, starters: lib.starters, canOpen: !!src.apply,
   }
 }
+// The names a sentence may LIST: the member's own and the starters the picker offers. A hidden starter still opens
+// by its id or its exact name (the lookups below read `s.starters` whole); it is only never offered.
+const offeredNames = (s) => [...(s?.saved || []), ...offeredStarters(s?.starters)].map(x => x.name)
 const nameOf = (s) => (s.current ? `${s.current.name}${s.edited ? ' (edited)' : ''}` : (s.filters?.length ? 'an unsaved screen' : 'no screen'))
 
 export const screenerPageKind = {
@@ -119,14 +123,15 @@ export function registerScreenerPageCapabilities() {
       if (!hit) {
         const exact = all.filter(x => norm(x.name) === norm(want))
         if (exact.length === 1) hit = exact[0]
-        else if (exact.length > 1) return `You have more than one screen called “${want}” — say which (your screens: ${all.map(x => x.name).join(', ')}).`
+        else if (exact.length > 1) return `You have more than one screen called “${want}” — say which (your screens: ${offeredNames(s).join(', ')}).`
         else {
           const f = matchName(want, all.map(x => x.name))
           const one = f.kind === 'fuzzy' ? all.filter(x => x.name === f.name) : []
           if (one.length === 1) hit = one[0]
         }
       }
-      if (!hit) return `I couldn't find a saved screen called “${want}”${all.length ? ` (your screens: ${all.slice(0, 12).map(x => x.name).join(', ')})` : ''}.`
+      const offered = offeredNames(s)
+      if (!hit) return `I couldn't find a saved screen called “${want}”${offered.length ? ` (your screens: ${offered.slice(0, 12).join(', ')})` : ''}.`
       if (st.pick) return 'One screen at a time.'
       return null
     },

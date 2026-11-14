@@ -1080,6 +1080,7 @@
      "px_below_high_pct": -12.91,
      "rs_rating_pos": 26,
      "rs_rating_pos_n": 62,
+     "rs_exit_last": "Quick Break",
      "base_bias": "bearish"
     },
     {
@@ -1108,6 +1109,7 @@
      "px_below_high_pct": -15.36,
      "rs_rating_pos": 52,
      "rs_rating_pos_n": 62,
+     "rs_exit_last": "Quick Break",
      "base_bias": "bullish"
     },
     {
@@ -1136,6 +1138,7 @@
      "px_below_high_pct": -21.92,
      "rs_rating_pos": 54,
      "rs_rating_pos_n": 62,
+     "rs_exit_last": "Grateful Dead Break",
      "base_bias": "bearish"
     },
     {
@@ -1164,6 +1167,7 @@
      "px_below_high_pct": -22.62,
      "rs_rating_pos": 55,
      "rs_rating_pos_n": 62,
+     "rs_exit_last": "Quicksand",
      "base_bias": "bearish"
     }
    ]

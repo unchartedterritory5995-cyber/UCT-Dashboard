@@ -56,7 +56,8 @@ STOCKS = {"key": "security_type", "op": "not_in", "values": ["ETF"]}
 NO_BUYOUT = {"key": "rs_flag", "op": "not_in", "values": ["buyout_pending"]}
 LIST_SCREENS = ("starter_rs_top_rating", "starter_rs_new_high", "starter_rs_nh_before_price",
                 "starter_rs_leaders")
-CAPTION_PARTS = {"setup", "group", "rs_high_age", "below_high", "moving"}
+#: "exit_warning" joined the vocabulary in unit U7 (RS exit warnings names its warning).
+CAPTION_PARTS = {"setup", "group", "rs_high_age", "below_high", "moving", "exit_warning"}
 TAG_ORDER = ["before_price", "down_day", "flag", "new"]
 #: Words the contract bans from member-facing copy. "buy point" is the plan's own term
 #: for the Setup label's "Near a buy point"; a bare "buy" is not allowed.
@@ -313,14 +314,53 @@ def test_the_rows_are_the_contracts(on):
                                 "tags": ["before_price", "down_day", "flag", "new"]},
         "starter_rs_nh_before_price": {"place": None, "caption": ["below_high", "group"],
                                        "tags": ["down_day", "flag", "new"]},
-        "starter_rs_leaders": {"place": "index", "caption": ["setup", "group"], "tags": ["flag", "new"]},
-        "starter_rs_exit_warning_5": {"place": None, "caption": ["group"], "tags": ["new"]}}
+        # unit U7: the ranked screen names its own order (`sort_label`)
+        "starter_rs_leaders": {"place": "index", "caption": ["setup", "group"], "tags": ["flag", "new"],
+                               "sort_label": "RS Rating"},
+        # unit U7: each warning row says which warning and how old (`exit_warning`)
+        "starter_rs_exit_warning_5": {"place": None, "caption": ["exit_warning", "group"],
+                                      "tags": ["new"]}}
     for s in _five():
         row = s["row"]
         assert row["place"] in (None, "index") or row["place"] in snapshot_db.COLUMNS
         assert set(row["caption"]) <= CAPTION_PARTS
         assert row["tags"] == [t for t in TAG_ORDER if t in row["tags"]], "tags in priority order"
     assert [i for i in FIVE if "empty" in by[i]] == ["starter_rs_nh_before_price"]
+
+
+def test_the_exit_warning_caption_is_only_where_every_row_has_a_warning_to_name(on):
+    """Unit U7. The caption part ``exit_warning`` is worded by the client from two columns:
+    ``rs_exit_last`` (the warning's name) and ``rs_exit_bars_ago`` (its age). It belongs
+    only on a screen that requires a warning, where it leads the caption so a narrow list
+    cuts the group and never the warning. The names the client may print are the
+    writer's own, the same three the Type control and the filter offer."""
+    with_part = [s for s in _five() if "exit_warning" in s["row"]["caption"]]
+    assert [s["id"] for s in with_part] == ["starter_rs_exit_warning_5"]
+    s = with_part[0]
+    assert s["row"]["caption"][0] == "exit_warning"
+    assert {"rs_exit_last", "rs_exit_bars_ago"} <= set(snapshot_db.COLUMNS)
+    assert any(f["key"] == "rs_exit_bars_ago" and f["op"] == "between" and f["min"] == 0
+               for f in s["spec"]["filters"]), "a row with no warning would carry an empty caption part"
+    from api.services.screener import rs_columns
+    kinds = [o["label"] for o in s["controls"][0]["options"] if not o.get("default")]
+    assert kinds == list(rs_columns.EXIT_NAMES) == ["Quick Break", "Quicksand", "Grateful Dead Break"]
+
+
+def test_a_sort_label_is_only_on_a_ranked_screen_and_says_what_it_ranks_by(on):
+    """Unit U7. The list head of a ranked screen reads "Sort: Your ranking". A starter may
+    name the order instead (``row.sort_label``), and the name has to be true: only a screen
+    the server itself ranks may carry one, and "RS Rating" is honest only while the one
+    thing UCT RS Leaders ranks by is the RS Rating's own score."""
+    labelled = {s["id"]: s["row"]["sort_label"] for s in ss.starters() if "sort_label" in (s.get("row") or {})}
+    assert labelled == {"starter_rs_leaders": "RS Rating"}
+    for s in ss.starters():
+        if "sort_label" in (s.get("row") or {}):
+            assert s["spec"].get("rank") and "sort" not in s["spec"], s["id"]
+            label = s["row"]["sort_label"]
+            assert label and label.strip() == label and label.isascii() and not BANNED.search(label)
+    lead = _by_id()["starter_rs_leaders"]
+    assert [c["key"] for c in lead["spec"]["rank"]["criteria"]] == ["rs_rating_score"]
+    assert F.FILTERS["rs_rating_score"]["label"].startswith(lead["row"]["sort_label"])
 
 
 # ───────────────────────── the control invariants ─────────────────────────
@@ -806,6 +846,35 @@ def test_the_method_page_states_each_rule_from_the_constants_that_apply_it(on):
     assert "04:15 ET" in doc["ratings_as_of"] and "previous session" in doc["ratings_as_of"]
     assert doc["rating_note"] == ("Our RS Rating is our own calculation. It follows IBD's published "
                                   "method and can differ from IBD's number by a few points.")
+
+
+def test_a_pullback_label_is_said_in_plain_words_and_as_a_place_not_an_instruction(on, monkeypatch):
+    """Unit U7. "Pullback to the 8-day" and "Pullback to the 21-day" open with the plain
+    sentence (a 20-session high within the last 15 sessions, now trading at its rising
+    average) and end with "It marks where the stock is, not what to do." The numbers still
+    come from the code that applies them, and the Setup column's own method (the other
+    place the words are explained) says the same."""
+    from api.services.screener import methodology as M
+    from api.services.screener import technicals
+    note = "It marks where the stock is, not what to do."
+    labels = {x["key"]: x["rule"] for x in M.rs_screens_section()["setup"]["labels"]}
+    for n in (8, 21):
+        rule = labels[f"pullback_{n}"]
+        assert rule.startswith(f"The stock made a 20-session high within the last 15 sessions and is "
+                               f"now trading at its rising {n}-day average. "), rule
+        assert rule.endswith(note) and rule.count(note) == 1, rule
+        assert f"the high is a closing high, and today its low came within 0.5 ATR of a rising {n}-day EMA" in rule
+    assert labels["pullback_8"].endswith("Named ahead of the 21-day when both hold. " + note)
+    assert [k for k, rule in labels.items() if note in rule] == ["pullback_8", "pullback_21"]
+    how = next(m for m in M._rs_screens_methods() if m["column"] == "rs_setup")["how"]
+    for n in (8, 21):
+        assert f"{rs_setup.SETUP_LABELS[f'pullback_{n}']}: {labels[f'pullback_{n}']}" in how
+    # read, not typed: move the two windows and the plain sentence moves with them
+    monkeypatch.setattr(rs_setup, "PULLBACK_HIGH_MAX_AGE", 10)
+    monkeypatch.setattr(technicals, "HIGH20_WINDOW", 30)
+    moved = {x["key"]: x["rule"] for x in M.rs_screens_section()["setup"]["labels"]}
+    assert moved["pullback_21"].startswith("The stock made a 30-session high within the last 10 sessions and is "
+                                           "now trading at its rising 21-day average. ")
 
 
 def test_the_method_page_follows_a_changed_threshold(on, monkeypatch):

@@ -179,7 +179,7 @@ describe('the columns a row reads', () => {
     ['RS New Highs', NEW_HIGHS, ['rs_nh_bars_ago', 'industry', 'rs_nhbp_age', 'px_below_high_pct', 'rs_nh_red_bars_ago', 'rs_flag']],
     ['RS New High Before Price', BEFORE_PRICE, ['px_below_high_pct', 'industry', 'rs_nh_red_bars_ago', 'rs_nh_bars_ago', 'rs_flag']],
     ['UCT RS Leaders', LEADERS, ['rs_setup', 'rs_tight', 'industry', 'rs_flag']],
-    ['RS exit warnings', EXIT_WARNINGS, ['industry']],
+    ['RS exit warnings', EXIT_WARNINGS, ['rs_exit_last', 'rs_exit_bars_ago', 'industry']], // unit U7: the warning and its age
   ])('%s asks for its parts, its tags and the shared base, each once', (_n, st, own) => {
     const cols = rowColumns(cfg(st))
     for (const c of [...own, ...RS_ROW_BASE_COLUMNS]) expect(cols).toContain(c)

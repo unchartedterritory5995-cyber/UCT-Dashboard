@@ -47,6 +47,7 @@
 
 import { registerCapability, registerTargetKind, registerContextProvider, registerWarmup, registerOutputSource, SYMBOLS } from '../capabilities'
 import { encodeSpec } from '../../pages/screener/shell/specUrl'
+import { offeredStarters } from '../../pages/screener/focus/screenGroups'
 import { matchName } from '../nl/match'
 import { serverServesScan, serverDataKinds, activeConversationId } from '../agentClient'
 import { readData } from '../marketdata/client'
@@ -243,7 +244,10 @@ export async function loadSaved({ force = false } = {}) {
   const b = await json(await req('/api/screener/saved-screens'), 'Reading your screens')
   cache.saved = {
     saved: (b.saved || []).map(s => ({ id: String(s.id), name: s.name, spec: s.spec, kind: 'yours' })),
-    starters: (b.starters || []).map(s => ({ id: String(s.id), name: s.name, spec: s.spec, kind: 'starter' })),
+    // `hidden` (RS screens, unit U7): a starter the server retired from the picker. It is kept here so an id or a
+    // name the member gives still resolves, and every list the Agent SHOWS or OFFERS leaves it out
+    // (`offeredStarters`, the picker's own rule). A starter that is not hidden is the object it always was.
+    starters: (b.starters || []).map(s => ({ id: String(s.id), name: s.name, spec: s.spec, kind: 'starter', ...(s.hidden ? { hidden: true } : {}) })),
   }
   cache.savedAt = Date.now()
   return cache.saved
@@ -1124,7 +1128,7 @@ export function registerScreenerCapabilities() {
         ...(notes ? { fieldNotes: notes.notes, fieldNotesKey: notes.key } : {}),
         ...(full ? { compose: `${COMPOSE_RULES}${cache.meta?.logic === false ? ` ${LOGIC_OFF_RULE}` : ''}` } : {}),
         ...(last ? { lastScreen: { ref: 'lastScreen', filters: specParts(last.spec), sort: last.spec.sort ? `${last.spec.sort.key} ${last.spec.sort.dir}` : null, ...(last.spec.rank ? { rank: rankWords(last.spec.rank) } : {}), matches: last.total, name: last.name } } : {}),
-        ...(cache.saved ? { savedScreens: [...cache.saved.saved, ...cache.saved.starters].slice(0, 40).map(s => ({ id: s.id, name: s.name, kind: s.kind })) } : {}),
+        ...(cache.saved ? { savedScreens: [...cache.saved.saved, ...offeredStarters(cache.saved.starters)].slice(0, 40).map(s => ({ id: s.id, name: s.name, kind: s.kind })) } : {}),
       }]
     },
     // Over the context budget the field notes go first: the keys and labels still let every screen be asked for
@@ -1283,7 +1287,7 @@ export function registerScreenerCapabilities() {
     const f = exact.length ? { kind: 'none' } : matchName(words, all.map(x => x.name))
     const one = f.kind === 'fuzzy' ? all.filter(x => x.name === f.name) : []
     if (one.length === 1) return { s: one[0] }
-    const names = all.map(x => x.name)
+    const names = [...lib.saved, ...offeredStarters(lib.starters)].map(x => x.name)   // offered, so never a hidden starter
     return { s: null, why: `I couldn't find one saved screen called “${words}”${names.length ? ` (your screens: ${names.slice(0, 12).join(', ')})` : ''}` }
   }
   registerCapability({
@@ -1362,7 +1366,7 @@ export function registerScreenerCapabilities() {
       if (servesKind('screen.saved')) return listSavedViaGateway()
       const lib = await loadSaved()
       const mine = lib.saved.map(s => s.name)
-      const starters = lib.starters.map(s => s.name)
+      const starters = offeredStarters(lib.starters).map(s => s.name)
       return [mine.length ? `Your screens: ${mine.join(', ')}` : "You haven't saved any screens yet.", starters.length ? `UCT starters: ${starters.join(', ')}` : ''].filter(Boolean).join('\n')
     },
   })

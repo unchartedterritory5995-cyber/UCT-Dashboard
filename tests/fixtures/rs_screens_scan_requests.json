@@ -2677,7 +2677,8 @@
      "rs_nh_bars_ago",
      "px_below_high_pct",
      "rs_rating_pos",
-     "rs_rating_pos_n"
+     "rs_rating_pos_n",
+     "rs_exit_last"
     ]
    }
   },

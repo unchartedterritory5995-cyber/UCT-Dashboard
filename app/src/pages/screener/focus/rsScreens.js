@@ -59,6 +59,19 @@ export function placeOverride(controls, spec) {
   return null
 }
 
+// What the list head calls a RANKED screen's order (unit U7): the starter's own name for it
+// (`row.sort_label`, "RS Rating" on UCT RS Leaders) while the working spec still carries the
+// starter's own rank, else null and the head says "Your ranking" as on every ranked screen.
+// Read from the starter's data, never from its id; compared by what a rank IS (its criteria
+// and its cap), so a rank a member changed is theirs again.
+const rankSig = r => (r ? JSON.stringify([(Array.isArray(r.criteria) ? r.criteria : []).map(c => [c?.key ?? null, c?.weight ?? null]), r.top_n ?? null]) : '')
+export function rankLabelOf(starter, rank) {
+  const label = starter?.row?.sort_label
+  if (typeof label !== 'string' || !label.trim()) return null
+  const own = starter?.spec?.rank
+  return own && rank && rankSig(own) === rankSig(rank) ? label.trim() : null
+}
+
 // CHANGED: the active option is not the default (a Custom reading is changed too).
 export function isChanged(control, spec) {
   return (activeOption(control, spec)?.id ?? null) !== (defaultOption(control)?.id ?? null)
