@@ -115,6 +115,15 @@ def test_the_guard_still_passes_ordinary_multi_chart_prose():
         assert guard.suspicious(text) is False, text
 
 
+def test_the_volume_profile_family_is_an_INDICATOR_action_withheld_bare():
+    # volumeProfile.set turns ONE chart's Volume Profile overlay on / off (Chart Settings → Indicators), never history
+    assert v2.domain_for("volumeProfile.set") == "indicator"
+    assert guard.suspicious(_bare("volumeProfile.set")) is True
+    for text in ("Turn on the volume profile and watch the point of control.", "A VPVR with 24 bins shows the high-volume nodes.",
+                 "Set the volume profile bins to 30 before the open."):
+        assert guard.suspicious(text) is False, text
+
+
 def test_the_chart_menu_family_is_a_CHART_action_not_history():
     # #1106: the chart's right-click Ask AI and watermark Reset act on ONE chart (the chart domain), never history
     assert v2.domain_for("chartMenu.askAi") == "chart"
