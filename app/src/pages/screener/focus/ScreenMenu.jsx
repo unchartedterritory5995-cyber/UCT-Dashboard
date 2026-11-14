@@ -69,17 +69,26 @@ export default function ScreenMenu({ currentName, currentId, isEdited, count, co
     ...starters.map(s => ({ ...s, kind: 'starter' })),
     ...saved.map(s => ({ ...s, id: s.id, kind: 'saved', description: s.description || '' })),
   ], [starters, saved])
+  // A starter may carry `aliases` (RS screens contract): other names a member types for it
+  // ("RSNHBP", "blue dot"). They are searched, never shown.
   const match = it => !q || norm(it.name).includes(norm(q)) || norm(it.description).includes(norm(q))
+    || (Array.isArray(it.aliases) && it.aliases.some(a => norm(a).includes(norm(q))))
   const pinnedIds = [...new Set(pinned.map(String))]
   const pinnedItems = pinnedIds.map(id => all.find(it => String(it.id) === String(id))).filter(Boolean).filter(match)
   // A pinned screen is listed ONCE, under Pinned, never again inside its group (P3).
   const notPinned = it => !pinnedIds.includes(String(it.id))
-  const groups = GROUPS.map(g => ({ ...g, items: starters.filter(s => groupOf(s) === g.key).map(s => ({ ...s, kind: 'starter' })).filter(notPinned).filter(match) }))
+  // A `hidden` starter (RS screens contract) is in no group and no search result. It still
+  // resolves by id, so a member who pinned it keeps it under Pinned, above.
+  const groups = GROUPS.map(g => ({ ...g, items: starters.filter(s => !s.hidden && groupOf(s) === g.key).map(s => ({ ...s, kind: 'starter' })).filter(notPinned).filter(match) }))
     .filter(g => g.items.length)
   const mine = saved.map(s => ({ ...s, kind: 'saved' })).filter(notPinned).filter(match)
 
   // Each screen is counted where it would run: in the member's universe/list when it names none.
-  const specs = useMemo(() => Object.fromEntries(all.map(it => [String(it.id), withPool(it.spec, pool)])), [all, pool])
+  // A hidden starter nobody pinned is never on the menu, so it is never counted.
+  // (Keyed on the pinned HIDDEN ids only, so pinning an ordinary screen rebuilds nothing, as before.)
+  const pinnedHidden = all.filter(it => it.hidden && pinnedIds.includes(String(it.id))).map(it => String(it.id)).join('|')
+  const specs = useMemo(() => Object.fromEntries(all.filter(it => !it.hidden || pinnedHidden.split('|').includes(String(it.id)))
+    .map(it => [String(it.id), withPool(it.spec, pool)])), [all, pool, pinnedHidden])
   const counts = useLazyCounts(specs, open)
   // Only the screens that came back 0 are asked why: one presence count per column they read.
   const zeroIds = all.map(it => String(it.id)).filter(id => capToTopN(counts[id], specs[id]) === 0)

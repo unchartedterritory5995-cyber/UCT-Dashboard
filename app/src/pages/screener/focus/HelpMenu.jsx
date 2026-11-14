@@ -9,7 +9,10 @@ import { useShortcutsSheet } from './useShortcutsSheet'
 // puts `onKeyDown` on its root); only then does the item carry the "?" hint, because only then
 // is the hint true. Without one, Help keeps a sheet of its own. `onShortcuts` is the older
 // prop: it still decides whether the item is offered, but the item opens the sheet.
-export default function HelpMenu({ onHowTo, onMethodology, onLibrary, onGlossary, onShortcuts, shortcuts }) {
+//
+// `onRsHelp` (RS screens, unit U5): offered only while the starters payload carries the RS
+// screens; it opens the Methodology sheet at their section.
+export default function HelpMenu({ onHowTo, onMethodology, onLibrary, onGlossary, onShortcuts, shortcuts, onRsHelp }) {
   const own = useShortcutsSheet({ keyBound: false })
   const sheet = shortcuts || own
   const offer = !!shortcuts || typeof onShortcuts === 'function'
@@ -18,6 +21,7 @@ export default function HelpMenu({ onHowTo, onMethodology, onLibrary, onGlossary
       <Menu label="Help" trigger="Help ▾" align="right" testId="focus-help-menu" width={260}>
         {typeof onHowTo === 'function' && <MenuItem onSelect={onHowTo}>How to use this screen</MenuItem>}
         {typeof onMethodology === 'function' && <MenuItem onSelect={onMethodology}>Methodology</MenuItem>}
+        {typeof onRsHelp === 'function' && <MenuItem onSelect={onRsHelp}>How the RS screens work</MenuItem>}
         {typeof onLibrary === 'function' && <MenuItem onSelect={onLibrary}>Structure library</MenuItem>}
         {typeof onGlossary === 'function' && <MenuItem onSelect={onGlossary}>What each filter means</MenuItem>}
         {offer && <MenuDivider />}

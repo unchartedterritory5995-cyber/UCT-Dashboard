@@ -11,6 +11,11 @@ export const NOT_CHECKABLE_KEYS = new Set([
 ])
 const CHECK_OPS = new Set(['gte', 'lte', 'gt', 'lt', 'between', 'eq', 'in', 'not_in'])
 const MAX = 5
+// RS screens (unit U5): the strip's places kept for fact notes when the screen's own filter
+// checks would fill it. ⭐ An assumption, not the brief's wording ("after the existing filter
+// checks ... capped by the strip's existing maximum"): every RS screen has four or more filters,
+// so facts appended after them under a cap of five would almost never be seen.
+export const FACT_SLOTS = 2
 
 const isCheckable = (key, spec) =>
   !NOT_CHECKABLE_KEYS.has(key) && CHECK_OPS.has(spec?.op) && !String(spec?.op || '').endsWith('_col')
@@ -118,7 +123,12 @@ export function archiveNote(row) {
   return { kind: 'note', label: `${head} · ${n} call${n === 1 ? '' : 's'}` }
 }
 
-export function whyItsHere({ filters = {}, logic = null, rank = null, metaFilters = [], row = {}, live = null, snapshotDate = null } = {}) {
+// `facts` (RS screens only, rsRows.rowFacts): notes about the row the screen did not test. They
+// follow the filter checks, most distinctive first, inside the strip's maximum. When the checks
+// alone would leave them fewer than FACT_SLOTS places, the last places go to the facts and the
+// checks they displace are counted into `more` (which opens the Filters drawer, where they are).
+// A fact that does not fit is simply not shown: it is no filter, so it is never counted there.
+export function whyItsHere({ filters = {}, logic = null, rank = null, metaFilters = [], row = {}, live = null, snapshotDate = null, facts = null } = {}) {
   const defs = Object.fromEntries((metaFilters || []).map(f => [f.key, f]))
   const all = []
   // The close the row's numbers describe: its own bars_asof, else the session before the build.
@@ -154,5 +164,11 @@ export function whyItsHere({ filters = {}, logic = null, rank = null, metaFilter
   if (rank) all.push({ kind: 'note', label: rank.top_n ? `Ranked in the top ${rank.top_n} by your weights` : 'Ranked by your weights' })
   const team = archiveNote(row)
   if (team) all.push(team)
+  const notes = (facts || []).filter(f => f && f.label).map(f => ({ kind: 'note', label: f.label }))
+  if (notes.length) {
+    const shown = notes.slice(0, Math.min(MAX, Math.max(MAX - all.length, FACT_SLOTS)))
+    const kept = all.slice(0, MAX - shown.length)
+    return { items: [...kept, ...shown], more: all.length - kept.length }
+  }
   return { items: all.slice(0, MAX), more: Math.max(0, all.length - MAX) }
 }
