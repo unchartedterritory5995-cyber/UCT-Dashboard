@@ -711,3 +711,50 @@ def screen_fields(bars, spy_bars, *, session=None, phase1=None) -> dict:
     if nh[-1] == 1.0:
         values["rs_nh_span"] = rs.level_span_last(line)
     return values
+
+
+# ── The Leader score's two bar inputs (RS screens unit U9, 2026-11-14) ──────
+#
+# Plan 2026-11-14 v2, section 8: the Leader score is computed nightly, stored and
+# SHOWN TO NOBODY until it passes its pre-registered test. These two feed it.
+#
+# NOT `screener_rows` COLUMNS, ON PURPOSE. A scan answers `SELECT *` over that
+# table (`query.build_scan_sql`), so every column of it reaches every member's
+# browser whatever `meta()` lists. The builder hands these to
+# `rs_leader_shadow.write_inputs`, which keeps them in a side table no request
+# path reads. NO MATHS HERE EITHER: each value is a `relative_strength` helper.
+SHADOW_COLUMNS = (
+    "rs_steady",                # sign(return) x (share of up days - share of down days), t-252 .. t-21
+    "rs_line_below_high_pct",   # RS line vs its highest value of 252 sessions, percent, <= 0
+)
+#: `rs_steady` is a share difference between -1 and 1; four places keeps a single
+#: day of a 231-day window (0.0043) visible.
+STEADY_DP = 4
+
+
+def shadow_fields(bars, spy_bars, *, session=None, phase1=None) -> dict:
+    """The two :data:`SHADOW_COLUMNS` for ONE ticker's newest bar, every key present.
+    ``bars`` / ``spy_bars`` / ``session`` / ``phase1`` are `screen_fields`'s.
+
+    ``rs_steady`` reads the stock's closes alone (`rs.steady_last`: at least
+    `rs.STEADY_MIN_SESSIONS` closes of the window, no hole in it).
+    ``rs_line_below_high_pct`` is `rs.close_below_high_pct_last` asked of the RS
+    line instead of the close, so it is the same closing-basis measure as
+    ``px_below_high_pct``: ``None`` under 252 bars, when SPY has no bar at the
+    newest time, and when a bar of the window has no RS reading."""
+    values = {c: None for c in SHADOW_COLUMNS}
+    win = _clip(_as_bars(bars), session)
+    if not win:
+        return values
+    values["rs_steady"] = _real(rs.steady_last([b.get("c") for b in win]), STEADY_DP)
+
+    spy_all = _as_bars(spy_bars, like=win)
+    if not spy_all:
+        return values
+    p1 = phase1
+    if not (isinstance(p1, dict) and len(p1.get("rsLine") or ()) == len(win)):
+        p1 = rs.compute_phase1_columns(win, _trim_to(spy_all, _times_of(win)))
+    below = _real(rs.close_below_high_pct_last(p1["rsLine"], LOOKBACK), PX_BELOW_HIGH_DP)
+    # `+ 0.0`: a line a hair under its high rounds to 0.0, never a stored "-0.0".
+    values["rs_line_below_high_pct"] = None if below is None else below + 0.0
+    return values
