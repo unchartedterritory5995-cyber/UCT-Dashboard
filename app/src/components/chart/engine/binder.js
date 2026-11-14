@@ -119,6 +119,7 @@ import { setObjectRenderDrops, renderDroppedCount, renderHeldCount } from './obj
 import { runtimeWithheldWhy, stoppedRunSentence, STOPPED_KEY, runHalfRefusedSentence, RUN_HALF_WHY_KEY } from './ast/objectLoss'
 import { ThinVolumeSeries } from '../thinVolumeSeries'
 import { isRthBar } from '../barTime'
+import { windowedPoints } from './plotWindow'
 
 /** RTH filter for an intraday FRAME on a chart that hides extended hours — the same
  *  regular-session window (09:30 to the day's close, half-days included: barTime.isRthBar)
@@ -2776,7 +2777,14 @@ export function createBinder({ chart, LWC, scope = '' }) {
       const gapBreak = isConnectedPool(b.poolKey)
         && (hasPitLineage(b.inst, instances) || (b.plot && b.plot.sparse === true))
       const split = gapBreak ? splitFor(points) : null
-      const drawn = split ? split.primary : points
+      // ⭐ 2026-11-13 — ONLY THE ROWS FROM THE WINDOW START ARE HANDED TO THE RENDERER
+      // (`plotWindow.js`; `ctx.plotWindowFrom`, a bar time, absent = every row). The
+      // column, the legend's `lastValue` / `valueAt` below and every other reader keep
+      // the whole series: this is what is DRAWN, never what is known. The primary series
+      // only; a gap-run series is one valid run and stays whole.
+      // ⛔ THE SAME ARRAY when there is no window (`windowedPoints` returns its argument),
+      // so every chart without one makes exactly the calls it always made.
+      const drawn = windowedPoints(split ? split.primary : points, ctx.plotWindowFrom)
       if (firstBindNeedsSetData(b, planMode)) {
         attempt(() => series.setData(drawn))
       } else if (typeof ctx.applyData === 'function') {
