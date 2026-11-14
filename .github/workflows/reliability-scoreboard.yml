@@ -1,0 +1,49 @@
+# promotion-gate: no
+#
+# `tools/reliability_scoreboard.py` turns a day of Cloudflare's request counts into the numbers
+# the reliability work is measured by: how many requests succeeded, the gaps when the server was
+# not there, and how slow it was hour by hour. This job runs its tests (what a gap is, what
+# counts as an error, that it says "could not measure" with no token) and its own self-check.
+#
+# It needs no Cloudflare access. The request text was run against the live API on 2026-11-14.
+# Advisory: a red here is a broken report, never a broken deploy.
+name: Reliability scoreboard
+
+on:
+  push:
+    paths:
+      - 'tools/reliability_scoreboard.py'
+      - 'tests/test_reliability_scoreboard.py'
+      - '.github/workflows/reliability-scoreboard.yml'
+  pull_request:
+    paths:
+      - 'tools/reliability_scoreboard.py'
+      - 'tests/test_reliability_scoreboard.py'
+      - '.github/workflows/reliability-scoreboard.yml'
+
+# CI COST (2026-11-06, owner): a newer push to the same PR cancels that PR's older run of this
+# workflow. Every other event (master push, dispatch, schedule) is grouped by its own commit SHA and
+# is never cancelled: promotion reads the master runs for a SHA. tests/test_ci_cost_rails.py pins this.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  scoreboard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pytest
+        run: python -m pip install --quiet 'pytest==8.3.4' 'pytest-timeout==2.4.0'
+      - name: The tool's own self-check
+        run: python tools/reliability_scoreboard.py --self-check
+      - name: tests/test_reliability_scoreboard.py
+        # An empty ini file, not the repo's pytest.ini: the repo's conftest and plugins need the
+        # whole application installed, and this tool needs nothing.
+        run: |
+          echo "[pytest]" > "$RUNNER_TEMP/empty.ini"
+          python -m pytest tests/test_reliability_scoreboard.py -q --noconftest -c "$RUNNER_TEMP/empty.ini" --rootdir . -p no:cacheprovider --timeout 120 -rs
