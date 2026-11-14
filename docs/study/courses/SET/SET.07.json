@@ -1740,7 +1740,7 @@
    "rung": 3,
    "format": "scenario",
    "criterion": "fb.trim_1",
-   "q": "16 with the stop at 72.24. One R is the fill minus the stop. Where is 3R?",
+   "q": "One R is the fill minus the stop. Where is 3R?",
    "answer": "$75.92",
    "calc": {
     "fn": "arith",
@@ -1787,7 +1787,7 @@
     "window": 120,
     "forward": 30
    },
-   "story": "Hidden ticker, bought on the breakout at 73."
+   "story": "Hidden ticker, bought on the breakout at 73.16 with the stop at 72.24."
   },
   {
    "key": "q21",
@@ -2029,7 +2029,7 @@
    "rung": 4,
    "format": "scenario",
    "criterion": "fb.stop_width",
-   "q": "20 with the stop at 70.70. How far below the fill is the stop, in percent?",
+   "q": "How far below the fill is the stop, in percent?",
    "answer": "2.08%",
    "calc": {
     "fn": "arith",
@@ -2081,7 +2081,7 @@
     "window": 150,
     "forward": 20
    },
-   "story": "Hidden ticker, bought on the breakout at 72."
+   "story": "Hidden ticker, bought on the breakout at 72.20 with the stop at 70.70."
   },
   {
    "key": "q28",
@@ -2089,7 +2089,7 @@
    "rung": 4,
    "format": "scenario",
    "criterion": "fb.trim_2",
-   "q": "28, stop 29.79. Later it trades to 32.73. How many R is that?",
+   "q": "How many R is that?",
    "answer": "5R",
    "calc": {
     "fn": "r_multiple",
@@ -2135,7 +2135,7 @@
     "window": 150,
     "forward": 60
    },
-   "story": "Hidden ticker, bought on the breakout at 30."
+   "story": "Hidden ticker, bought on the breakout at 30.28, stop 29.79. Later it trades to 32.73."
   },
   {
    "key": "q29",

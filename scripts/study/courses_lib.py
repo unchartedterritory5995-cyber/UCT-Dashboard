@@ -450,6 +450,15 @@ def question_problems(q: dict, *, unit: dict, facts: dict, sources: dict, skills
         if m:
             out.append(f"banned phrase {m.group(0)!r} (owner, 2026-11-14)")
     ans = q.get("answer")
+    # build_items puts the story on the screen only for a scenario; on any other format a member never sees it
+    # (2026-11-14: two live questions asked about a bar their hidden story described)
+    story = (q.get("story") or "").strip()
+    if fmt != "scenario" and story:
+        out.append("a story only reaches the member on a scenario (make it a scenario, or fold it into the question)")
+    # a number split across the story and the question (2026-11-14: "bought at 73." then "16 with the stop at 72.24"):
+    # the story ends on a whole number and a full stop, and the question opens on digits
+    if re.search(r"(?<![\d.,])\d+\.$", story) and re.match(r"\d+[ ,%]", (q.get("q") or "").strip()):
+        out.append("a number is cut between the story and the question (keep the whole number in one place)")
     if fmt in ("mcq", "scenario"):
         ch = q.get("choices") or []
         if not 3 <= len(ch) <= 4:
@@ -466,12 +475,8 @@ def question_problems(q: dict, *, unit: dict, facts: dict, sources: dict, skills
         missing = [c for c in ch if c != ans and not (q.get("wrong") or {}).get(c)]
         if missing:
             out.append(f"`wrong` must explain every wrong choice (missing {missing})")
-        if fmt == "scenario" and not (q.get("story") or "").strip():
+        if fmt == "scenario" and not story:
             out.append("scenario needs a story")
-    # build_items puts the story on the screen only for a scenario; on any other format a member never sees it
-    # (2026-11-14: two live questions asked about a bar their hidden story described)
-    if fmt != "scenario" and (q.get("story") or "").strip():
-        out.append("a story only reaches the member on a scenario (make it a scenario, or fold it into the question)")
     elif fmt == "tf":
         if ans not in ("True", "False"):
             out.append('tf answer must be "True" or "False"')

@@ -129,6 +129,8 @@ def _first(doc, key):
     (lambda d: _first(d, "q01").update(why="That's the firm's rule."), "never 'the firm'"),
     (lambda d: _first(d, "q01").update(q="In stock talk, which price is the bid?"), "banned phrase"),
     (lambda d: _first(d, "q01").update(story="A stock trades at 20.00 bid, 20.02 ask."), "a story only reaches the member on a scenario"),
+    (lambda d: _first(d, "q04").update(story="Hidden ticker, bought on the breakout at 73.", q="16 with the stop at 72.24. Where is 3R?"),
+     "a number is cut between the story and the question"),
     (lambda d: _first(d, "q01").update(why="That's the bid. It is 42 cents."), "number 42 is not in a cited quote"),
     (lambda d: _first(d, "q01").update(q="It's important to know: which price is the bid?"), "importer: voice"),
     (lambda d: _first(d, "q01").update(lesson_line=" ".join(["w"] * 23)), "lesson_line is 23 words"),

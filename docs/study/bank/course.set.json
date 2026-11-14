@@ -1160,8 +1160,8 @@
     "$75.92"
    ],
    "kind": "mcq",
-   "q": "16 with the stop at 72.24. One R is the fill minus the stop. Where is 3R?",
-   "story": "Hidden ticker, bought on the breakout at 73.",
+   "q": "One R is the fill minus the stop. Where is 3R?",
+   "story": "Hidden ticker, bought on the breakout at 73.16 with the stop at 72.24.",
    "subject": "SET.07#q20"
   },
   "reveal_json": {
@@ -1201,7 +1201,7 @@
      "fn": "arith",
      "result": 75.92
     },
-    "given": "16 with the stop at 72.24. One R is the fill minus the stop. Where is 3R? Hidden ticker, bought on the breakout at 73. $75.00 $70.40 $74.08 $75.92"
+    "given": "One R is the fill minus the stop. Where is 3R? Hidden ticker, bought on the breakout at 73.16 with the stop at 72.24. $75.00 $70.40 $74.08 $75.92"
    },
    "lesson_line": "Know your 3R before the open. It is a measuring mark, not an automatic sell.",
    "simple": "3R is the fill plus three times the gap between the fill and the stop, which is 75.92.",
@@ -1553,8 +1553,8 @@
     "20.80%"
    ],
    "kind": "mcq",
-   "q": "20 with the stop at 70.70. How far below the fill is the stop, in percent?",
-   "story": "Hidden ticker, bought on the breakout at 72.",
+   "q": "How far below the fill is the stop, in percent?",
+   "story": "Hidden ticker, bought on the breakout at 72.20 with the stop at 70.70.",
    "subject": "SET.07#q27"
   },
   "reveal_json": {
@@ -1604,7 +1604,7 @@
      "fn": "arith",
      "result": 2.08
     },
-    "given": "20 with the stop at 70.70. How far below the fill is the stop, in percent? Hidden ticker, bought on the breakout at 72. 1.50% 20.80% 0.02% 2.08%"
+    "given": "How far below the fill is the stop, in percent? Hidden ticker, bought on the breakout at 72.20 with the stop at 70.70. 1.50% 20.80% 0.02% 2.08%"
    },
    "lesson_line": "Stop first, distance second, size last.",
    "simple": "The stop sits 2.08% below the fill, inside the 3% it usually stays within.",
@@ -1655,8 +1655,8 @@
     "50R"
    ],
    "kind": "mcq",
-   "q": "28, stop 29.79. Later it trades to 32.73. How many R is that?",
-   "story": "Hidden ticker, bought on the breakout at 30.",
+   "q": "How many R is that?",
+   "story": "Hidden ticker, bought on the breakout at 30.28, stop 29.79. Later it trades to 32.73.",
    "subject": "SET.07#q28"
   },
   "reveal_json": {
@@ -1689,7 +1689,7 @@
      "fn": "r_multiple",
      "result": 5.0
     },
-    "given": "28, stop 29.79. Later it trades to 32.73. How many R is that? Hidden ticker, bought on the breakout at 30. 6R 10R 50R 5R"
+    "given": "How many R is that? Hidden ticker, bought on the breakout at 30.28, stop 29.79. Later it trades to 32.73. 6R 10R 50R 5R"
    },
    "lesson_line": "Count in R, not dollars. 5R is a mark on the ruler.",
    "simple": "The gain is five times the fill-to-stop gap, so it is 5R, a mark worth watching.",
