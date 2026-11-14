@@ -69,6 +69,11 @@ only through `resolve_share`; the routers importing the store read only the call
 
 ## Open, owner call: runtime documents
 
+**DECIDED 2026-11-13: shares carry the source, and say so.** The xfail below is now a normal
+rail (`test_a_runtime_document_share_carries_its_script_AND_says_so`): the source is carried AND
+the answer carries `includesSource: true`, which the share panel shows the author before a link
+is made. See `docs/pine/evidence/2026-11-13-share-privacy/EVIDENCE.md`. The original note:
+
 A **runtime document** (`compute.kind == "runtime"`) IS its Pine: `compute.source` is the whole
 script, and WS-H S4 (2026-10-31) deliberately previews and installs it whole. `SharedFormula.jsx`
 then renders `compute.source` under "What it computes". It is not a run-read part, and stripping it

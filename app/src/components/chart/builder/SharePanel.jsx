@@ -39,9 +39,17 @@ import styles from './SharePanel.module.css'
  *  because there is no longer a second place to disagree in. */
 export const shareUrlFor = sharedFormulaUrl
 
+/** ⭐ DECIDED 2026-11-13: a shared script document carries its Pine source (the runtime lane cannot
+ *  draw it without the script). The server says when a link does (`includesSource`, on the share
+ *  read, the mint and the library publish); the panel says it to the AUTHOR before a link exists,
+ *  beside the button that would make one, and again while the link is live. */
+export const SHARE_SOURCE_SENTENCE =
+  'Sharing this script shares its Pine source code with anyone who has the link.'
+
 
 export default function SharePanel({ defId, defName, onInstalled }) {
   const [token, setToken] = useState(null)
+  const [includesSource, setIncludesSource] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [copied, setCopied] = useState(false)
@@ -65,7 +73,7 @@ export default function SharePanel({ defId, defName, onInstalled }) {
     if (!defId) { setToken(null); return undefined }
     readShareLink(defId).then((r) => {
       if (!live) return
-      if (r.ok) setToken(r.token)
+      if (r.ok) { setToken(r.token); setIncludesSource(!!r.includesSource) }
       else setError(r.error)
     })
     return () => { live = false }
@@ -86,7 +94,7 @@ export default function SharePanel({ defId, defName, onInstalled }) {
     setBusy(true); setError('')
     const r = await createShareLink(defId)
     setBusy(false)
-    if (r.ok) setToken(r.token)
+    if (r.ok) { setToken(r.token); if (r.includesSource) setIncludesSource(true) }
     else setError(r.error)
   }, [defId])
 
@@ -164,6 +172,13 @@ export default function SharePanel({ defId, defName, onInstalled }) {
     if (!r.ok) setError(r.error)
   }, [defId])
 
+  // ⛔ ONE LINE, read from the server's flag, never inferred here from the document's shape.
+  const sourceLine = includesSource ? (
+    <p className={styles.note} data-testid="share-source-disclosure" role="note">
+      {SHARE_SOURCE_SENTENCE}
+    </p>
+  ) : null
+
   return (
     <div className={styles.panel}>
       <section className={styles.block}>
@@ -174,6 +189,7 @@ export default function SharePanel({ defId, defName, onInstalled }) {
               Anyone with this link can install their own copy. Yours stays yours —
               their edits never reach it.
             </p>
+            {sourceLine}
             <div className={styles.linkRow}>
               <input
                 className={styles.link}
@@ -195,6 +211,7 @@ export default function SharePanel({ defId, defName, onInstalled }) {
             <p className={styles.note}>
               This formula is private. Nothing is shared until you create a link.
             </p>
+            {sourceLine}
             <button type="button" className={styles.btn} onClick={mint} disabled={busy || !defId}>
               <UIcon name="link" size={14} /> Create a share link
             </button>
@@ -234,6 +251,7 @@ export default function SharePanel({ defId, defName, onInstalled }) {
                 ? 'This was in the library, but your share link is off — so nothing can open it. Publishing again will turn the link back on.'
                 : 'Nothing is listed until you say so. A share link is private to whoever you send it to; the library is public to every member.'}
             </p>
+            {sourceLine}
             <button
               type="button"
               className={styles.btn}

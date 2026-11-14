@@ -708,7 +708,9 @@ async function shareCall(method, defId) {
   }
   let body = null
   try { body = await r.json() } catch { /* not JSON */ }
-  if (r.ok) return { ok: true, token: (body && body.token) || null }
+  // ⭐ `includesSource` (2026-11-13): the server's answer to "does a link to this carry the
+  // script's Pine source?" -- a runtime document's does. The panel says so BEFORE a link exists.
+  if (r.ok) return { ok: true, token: (body && body.token) || null, includesSource: !!(body && body.includesSource) }
   const detail = typeof body?.detail === 'string' ? body.detail.trim() : ''
   return { ok: false, error: detail || `The server refused that (${r.status}).` }
 }
