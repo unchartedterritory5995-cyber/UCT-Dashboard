@@ -341,6 +341,32 @@ export async function _ingestFull(cfg, version, shards) {
   return !aborted && shardFailures === 0 && totalWritten > 0
 }
 
+// ⚡ A DELTA LEFT HALFWAY RESUMES WHERE IT STOPPED (2026-11-14). The version stamp is written only
+// when the whole delta has applied, so a page closed mid-delta used to start the next one from the
+// first entry. Since the delta writes in small yielding batches (barsIDB DELTA_BATCH_SIZE) it takes
+// longer (measured: ~300 series/s against ~1,000), and on a short visit it never finished, so every
+// visit re-applied it from the top. `DELTA_PROGRESS_KEY` keeps, per pack, how many entries of which
+// version's delta (of what length) have committed; the next run of the SAME delta skips them.
+// Anything that does not match exactly (another version, another length, unreadable) starts at 0,
+// and re-applying an entry is harmless (`mergeDelta` is idempotent): a wrong count costs a repeat,
+// never a skipped bar the stamp would vouch for (a count can only fall short of the truth).
+export const DELTA_PROGRESS_KEY = 'uct.barspack.deltaProgress'
+function _readDeltaProgress() {
+  try {
+    const p = JSON.parse(localStorage.getItem(DELTA_PROGRESS_KEY) || 'null')
+    return p && typeof p === 'object' ? p : {}
+  } catch { return {} }
+}
+function _writeDeltaProgress(versionKey, rec) {
+  try {
+    const all = _readDeltaProgress()
+    if (rec) all[versionKey] = rec
+    else delete all[versionKey]
+    if (Object.keys(all).length) localStorage.setItem(DELTA_PROGRESS_KEY, JSON.stringify(all))
+    else localStorage.removeItem(DELTA_PROGRESS_KEY)
+  } catch { /* storage unavailable: the delta just starts at 0 next time */ }
+}
+
 // Delta: one small file, merged into existing entries + re-stamps savedAt.
 async function _ingestDelta(cfg, version) {
   let entries
@@ -350,8 +376,14 @@ async function _ingestDelta(cfg, version) {
     entries = decodeShardPayload(await r.json())
   } catch { return false }
   if (!entries.length) return true  // nothing to apply, still "current"
+  const len = entries.length
+  const had = _readDeltaProgress()[cfg.versionKey]
+  const start = (had && had.v === version && had.len === len && Number.isInteger(had.n) && had.n > 0 && had.n < len) ? had.n : 0
   try {
-    const res = await idbApplyDelta(entries)
+    const res = await idbApplyDelta(start ? entries.slice(start) : entries, {
+      onBatch: (done) => _writeDeltaProgress(cfg.versionKey, { v: version, len, n: start + done }),
+    })
+    if (!res.aborted) _writeDeltaProgress(cfg.versionKey, null)   // done: the version stamp takes over
     return !res.aborted
   } catch { return false }
 }
