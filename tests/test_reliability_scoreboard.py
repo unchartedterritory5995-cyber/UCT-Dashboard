@@ -204,3 +204,57 @@ def test_a_run_appends_one_compact_line_to_the_history(monkeypatch, tmp_path, ca
 def test_self_check_passes():
     lines = []
     assert rs.self_check(lines.append) == 0, lines
+
+
+# ── where the server's time went in the slowest hour ──────────────────────────
+
+@pytest.mark.parametrize("path,cls", [
+    ("/api/bars/NVDA?tf=D", "/api/bars/:sym"),
+    ("/api/adjustment-basis/BRK.B", "/api/adjustment-basis/:sym"),
+    ("/api/j2/notes/123456", "/api/j2/notes"),
+    ("/api/share/n/" + "x" * 30, "/api/share/n"),
+    ("/api/77/accounts", "/api/:id/accounts"),
+    ("/api/j2/accounts/77/coach", "/api/j2/accounts"),
+    ("/api/auth/me", "/api/auth/me"),
+    ("/charts", "(pages and files)"),
+])
+def test_paths_are_grouped_without_tickers_or_ids(path, cls):
+    assert rs.path_class(path) == cls
+
+
+def test_endpoints_are_ranked_by_share_of_server_time():
+    rows = [{"count": 100, "dimensions": {"clientRequestPath": "/api/auth/me"}, "avg": {"originResponseDurationMs": 50}},
+            {"count": 10, "dimensions": {"clientRequestPath": "/api/bars/AAPL"}, "avg": {"originResponseDurationMs": 3000}},
+            {"count": 10, "dimensions": {"clientRequestPath": "/api/bars/MSFT"}, "avg": {"originResponseDurationMs": 1000}}]
+    out = rs.endpoint_breakdown(rows)
+    assert [e["endpoint"] for e in out] == ["/api/bars/:sym", "/api/auth/me"]
+    assert out[0] == {"endpoint": "/api/bars/:sym", "requests": 20, "avg_ms": 2000, "share_pct": 88.9}
+
+
+def test_a_slow_day_also_reports_the_endpoints_of_its_slowest_hour(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("CLOUDFLARE_ANALYTICS_TOKEN", "token")
+    monkeypatch.setenv("CLOUDFLARE_ZONE_ID", "zone-id")
+    asked = []
+
+    def fake(query, token):
+        asked.append(query)
+        if "endpoints:" in query:
+            return {"endpoints": [{"count": 5, "dimensions": {"clientRequestPath": "/api/auth/preferences"},
+                                   "avg": {"originResponseDurationMs": 2500}}]}
+        return day()
+    monkeypatch.setattr(rs, "fetch", fake)
+    history = tmp_path / "h.jsonl"
+    assert rs.main(["--hours", "2", "--history", str(history)]) == 0
+    assert len(asked) == 2 and 'datetime_geq:"2026-11-13T15:00:00Z", datetime_lt:"2026-11-13T16:00:00Z"' in asked[1]
+    assert "/api/auth/preferences" in capsys.readouterr().out
+    assert json.loads(history.read_text(encoding="utf-8"))["slowest_endpoints"] == ["/api/auth/preferences"]
+
+
+def test_a_day_with_no_slow_minutes_asks_once(monkeypatch, capsys):
+    monkeypatch.setenv("CLOUDFLARE_ANALYTICS_TOKEN", "token")
+    monkeypatch.setenv("CLOUDFLARE_ZONE_ID", "zone-id")
+    quiet = day()
+    quiet["slow"] = [row(m, 400, 200) for m in range(120)]
+    asked = []
+    monkeypatch.setattr(rs, "fetch", lambda q, t: asked.append(q) or quiet)
+    assert rs.main(["--hours", "2"]) == 0 and len(asked) == 1
