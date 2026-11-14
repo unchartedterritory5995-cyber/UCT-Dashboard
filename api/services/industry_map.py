@@ -19,6 +19,7 @@ import csv
 import io
 import logging
 import os
+import pathlib
 import sqlite3
 import threading
 import time
@@ -337,24 +338,56 @@ def get_industries(tickers: list[str]) -> dict[str, Optional[str]]:
     return out
 
 
+# ── READ-ONLY peeks (the UCT Agent's MD-1 kinds) ─────────────────────────────────────────────────────────────────
+# FAIL CLOSED, NO SIDE EFFECT: these never call _ensure_init (which creates the file / table) or _connect (whose
+# `PRAGMA journal_mode=WAL` writes the header). They open the database READ-ONLY (sqlite `mode=ro`); a missing file,
+# a missing table or an unreadable database answers EMPTY — the caller reports "not covered", never a guess.
+# No straggler fallback warm (a provider call), no self-heal refresh. The readers above are unchanged.
+
+def _ro_rows(sql: str, args: tuple = ()) -> Optional[list]:
+    """Rows of one read-only query, or None when the map's database or table is absent / unreadable."""
+    if not os.path.isfile(_DB_PATH):
+        return None
+    try:
+        uri = pathlib.Path(_DB_PATH).resolve().as_uri() + "?mode=ro"
+        with contextlib.closing(sqlite3.connect(uri, uri=True, timeout=10.0)) as c:
+            c.row_factory = sqlite3.Row
+            if c.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'industry_map'").fetchone() is None:
+                return None
+            return c.execute(sql, args).fetchall()
+    except sqlite3.Error:
+        return None
+
+
 def peek_groups(tickers: list[str]) -> dict[str, dict]:
-    """{TICKER: {"sector", "industry"}} from the persisted map ONLY — the read half of :func:`get_groups`
-    with NO side effect: no straggler fallback warm (a provider call) and no self-heal refresh. A ticker
-    the map does not hold is absent from the result (never a fabricated None row). For readers that must
-    make zero provider calls (the UCT Agent's MD-1 kinds)."""
+    """{TICKER: {"sector", "industry"}} for the tickers the persisted map holds (absent tickers are absent, never a
+    fabricated None row); {} when the map is missing. Read-only: see the block comment above."""
     want = sorted({str(t).strip().upper() for t in (tickers or ()) if t and str(t).strip()})
-    if not want:
-        return {}
-    _ensure_init()
     out: dict[str, dict] = {}
-    with contextlib.closing(_connect()) as c:
-        for i in range(0, len(want), 400):
-            chunk = want[i:i + 400]
-            q = "SELECT ticker, sector, industry FROM industry_map WHERE ticker IN (%s)" % (
-                ",".join("?" * len(chunk)))
-            for row in c.execute(q, chunk).fetchall():
-                out[row["ticker"]] = {"sector": row["sector"], "industry": row["industry"]}
+    for i in range(0, len(want), 400):
+        chunk = want[i:i + 400]
+        rows = _ro_rows("SELECT ticker, sector, industry FROM industry_map WHERE ticker IN (%s)" % (
+            ",".join("?" * len(chunk))), tuple(chunk))
+        if rows is None:
+            return {}
+        for row in rows:
+            out[row["ticker"]] = {"sector": row["sector"], "industry": row["industry"]}
     return out
+
+
+def peek_industries() -> list[str]:
+    """Every distinct non-blank industry in the persisted map, sorted; [] when the map is missing. Read-only."""
+    rows = _ro_rows("SELECT DISTINCT industry FROM industry_map WHERE industry IS NOT NULL AND industry != '' "
+                    "ORDER BY industry")
+    return [r["industry"] for r in rows or ()]
+
+
+def peek_members(industry: str) -> list[str]:
+    """Every mapped ticker in one industry, sorted; [] for a blank industry or a missing map. Read-only."""
+    if not industry:
+        return []
+    rows = _ro_rows("SELECT ticker FROM industry_map WHERE industry = ? ORDER BY ticker", (industry,))
+    return [r["ticker"] for r in rows or ()]
 
 
 def tickers_in_industry(industry: str) -> list[str]:

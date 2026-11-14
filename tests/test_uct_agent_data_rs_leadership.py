@@ -312,14 +312,63 @@ def test_an_admin_reads_it_through_the_gateway(store):
 
 
 # ── the side-effect-free group read ──────────────────────────────────────────────────────────────
-def test_peek_groups_reads_the_map_only_and_never_queues_a_fallback(tmp_path, monkeypatch):
+def _no_init(monkeypatch, im):
+    """Any init / connect / fallback / self-heal from a peek fails the test."""
+    boom = lambda *a, **k: (_ for _ in ()).throw(AssertionError("a peek touched the writer path"))  # noqa: E731
+    for name in ("_ensure_init", "_init_db", "_connect", "_enqueue_fallback", "_maybe_self_heal"):
+        monkeypatch.setattr(im, name, boom)
+
+
+def test_peeks_fail_closed_when_the_map_file_is_missing_and_create_nothing(tmp_path, monkeypatch):
     from api.services import industry_map as im
-    monkeypatch.setattr(im, "_DB_PATH", str(tmp_path / "im.db"))
-    monkeypatch.setattr(im, "_INIT_DONE", False)
-    im._ensure_init()
-    with im.contextlib.closing(im._connect()) as c:
-        c.execute("INSERT INTO industry_map VALUES ('NVDA','Technology','Semiconductors','t',1)")
-        c.commit()
-    monkeypatch.setattr(im, "_enqueue_fallback", lambda t: (_ for _ in ()).throw(AssertionError("fallback queued")))
-    monkeypatch.setattr(im, "_maybe_self_heal", lambda: (_ for _ in ()).throw(AssertionError("self-heal kicked")))
+    db = tmp_path / "absent" / "im.db"
+    monkeypatch.setattr(im, "_DB_PATH", str(db))
+    _no_init(monkeypatch, im)
+    assert im.peek_groups(["NVDA"]) == {} and im.peek_industries() == [] and im.peek_members("Semiconductors") == []
+    assert not db.exists() and not db.parent.exists()
+
+
+def test_peeks_fail_closed_when_the_table_is_missing_and_create_no_table(tmp_path, monkeypatch):
+    import sqlite3
+    from api.services import industry_map as im
+    db = tmp_path / "im.db"
+    sqlite3.connect(db).close()                                 # an empty database file: no industry_map table
+    monkeypatch.setattr(im, "_DB_PATH", str(db))
+    _no_init(monkeypatch, im)
+    assert im.peek_groups(["NVDA"]) == {} and im.peek_industries() == [] and im.peek_members("Semiconductors") == []
+    with sqlite3.connect(db) as c:
+        assert c.execute("SELECT COUNT(*) FROM sqlite_master").fetchone()[0] == 0     # still no table
+
+
+def test_peeks_read_a_populated_map_read_only(tmp_path, monkeypatch):
+    import sqlite3
+    from api.services import industry_map as im
+    db = tmp_path / "im.db"
+    with sqlite3.connect(db) as c:
+        c.executescript(im._SCHEMA)
+        c.executemany("INSERT INTO industry_map VALUES (?,?,?,'t',1)",
+                      [("NVDA", "Technology", "Semiconductors"), ("AMD", "Technology", "Semiconductors"), ("JPM", "Financial", "")])
+    monkeypatch.setattr(im, "_DB_PATH", str(db))
+    _no_init(monkeypatch, im)
     assert im.peek_groups(["nvda", "ZZZZ", ""]) == {"NVDA": {"sector": "Technology", "industry": "Semiconductors"}}
+    assert im.peek_industries() == ["Semiconductors"] and im.peek_members("Semiconductors") == ["AMD", "NVDA"]
+    assert im.peek_members("") == []
+
+
+def test_a_missing_map_makes_the_kind_say_not_covered(tmp_path, monkeypatch):
+    """The kind over the REAL peeks (its group seams unpatched): no map → the industry is not covered, no figure."""
+    from api.services import industry_map as im
+    db = tmp_path / "absent.db"
+    monkeypatch.setattr(im, "_DB_PATH", str(db))
+    _no_init(monkeypatch, im)
+    reads = []
+    monkeypatch.setattr(rl, "_ratings", lambda t, f: reads.append(t) or {})
+    monkeypatch.setattr(rl, "_closes", lambda *a: [])
+    monkeypatch.setattr(rl, "_expected_session", lambda: EXPECTED)
+    out = _read({"scope": "industry", "industry": "semis"})
+    assert env.validate_envelope(out) == [] and out["status"] == "partial" and out["as_of"] is None
+    assert out["data"]["industry"] is None and out["data"]["candidates"] == []
+    assert rl.NOTE_INDUSTRY_NOT_COVERED.format(word="semis") in out["notes"] and reads == []
+    sym = _read({"scope": "symbols", "symbols": ["NVDA"]}, turn_id="t2")
+    assert rl.NOTE_NO_GROUP.format(syms="NVDA") in sym["notes"] and "industry_context" not in sym["data"]["rows"][0]
+    assert not db.exists()

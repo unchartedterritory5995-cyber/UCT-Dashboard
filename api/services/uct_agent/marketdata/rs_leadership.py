@@ -22,7 +22,7 @@ SOURCES (no provider call, no write, no refresh — `provider_calls` is always 0
     bars_fetch._fmt_sqlite_bars under bars_sanitize.suppress_meta_warm: no cold metadata fetch), completed sessions
     only. A return is close[-1] / close[-1-n] - 1 over n stored sessions; "vs SPY" is given ONLY when SPY's window has
     the same first and last session (never mixed windows).
-  * groups: `industry_map.peek_groups` / `tickers_in_industry` / `list_industries` — the persisted map only (the
+  * groups: `industry_map.peek_groups` / `peek_industries` / `peek_members` — the persisted map only, READ-ONLY and fail closed (the
     side-effect-free read; get_groups would queue provider fallbacks).
 
 An industry word is resolved against the map's OWN industry names (exact, a short alias table, or a unique contained
@@ -99,12 +99,12 @@ def _groups(tickers: list[str]) -> dict:
 
 def _industries() -> list[str]:
     from api.services import industry_map
-    return industry_map.list_industries()
+    return industry_map.peek_industries()
 
 
 def _members(industry: str) -> list[str]:
     from api.services import industry_map
-    return industry_map.tickers_in_industry(industry)
+    return industry_map.peek_members(industry)
 
 
 def _expected_session() -> int:
