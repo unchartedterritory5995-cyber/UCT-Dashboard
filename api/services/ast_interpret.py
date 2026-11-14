@@ -4540,6 +4540,7 @@ def tf_merge_mask(tree: Any, bars: List[dict],
     if not found or n == 0:
         return None
     if any(not _iso_day(b.get("t") if isinstance(b, Mapping) else None) for b in bars):
+        _name_chart_clock(opts, [TF_MERGE_NEWEST_CODE])
         return [1] * n
     mask = [0] * n
     forming = (opts or {}).get("newest_bar_is_forming") is True
@@ -4560,7 +4561,10 @@ def tf_merge_mask(tree: Any, bars: List[dict],
             key = b.get("t") if isinstance(b, Mapping) else None
             if key is not None and _key_kind(key) == _key_kind(last) and key >= last:
                 mask[i] = 1
-    return mask if any(mask) else None
+    if not any(mask):
+        return None
+    _name_chart_clock(opts, [TF_MERGE_NEWEST_CODE])
+    return mask
 
 
 def _tree_reads_sym(tree: Any) -> bool:
@@ -5342,6 +5346,8 @@ SESSION_CLOCK_LEAVES = ("time", "hour", "minute", "timeclose", "dayopentime",
 CHART_CLOCK_WITHHELD_CODES = CHART_CLOCK_WHOLE + (
     "time-anchor:period-open-missing", "time-anchor:utc-day-clock",
     "bar-index:early-bars", "running-total:early-bars", "bar-index:first-bar", "var-origin:bars",
+    # ENGINE 55 -- the newest bar of a ``tf_merge`` read (``tf_merge_mask``)
+    "request:htf-newest-unconfirmed",
 )
 
 

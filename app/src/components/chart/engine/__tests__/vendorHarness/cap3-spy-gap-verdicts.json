@@ -1069,7 +1069,13 @@
         "plots": [],
         "objects": [
           "DIVERGE",
-          []
+          [
+            [
+              "tableCells",
+              30,
+              3
+            ]
+          ]
         ],
         "paints": null
       }
@@ -1176,11 +1182,11 @@
       "script": "corpus/committed/k-clustering__8e82f5aa4b.pine",
       "state": "on",
       "signature": {
-        "verdict": "DIVERGE",
-        "reason": null,
+        "verdict": "INCONCLUSIVE",
+        "reason": "1 of 1 items could not be compared",
         "plots": [],
         "objects": [
-          "DIVERGE",
+          "INCONCLUSIVE",
           [
             [
               "lines",
@@ -1188,9 +1194,14 @@
               null
             ],
             [
+              "tables",
+              1,
+              null
+            ],
+            [
               "tableCells",
               8,
-              5
+              null
             ]
           ]
         ],
@@ -1705,83 +1716,11 @@
       "script": "corpus/committed/mcclellan-indicators__29fdf0235d.pine",
       "state": "on",
       "signature": {
-        "verdict": "DIVERGE",
-        "reason": null,
-        "plots": [
-          [
-            "Osc",
-            "DIVERGE",
-            39,
-            "na",
-            1761,
-            "persistent"
-          ],
-          [
-            "MSI",
-            "MATCH",
-            1800
-          ],
-          [
-            "MSI EMA",
-            "MATCH",
-            1800
-          ],
-          [
-            "MSI Cross Up",
-            "MATCH",
-            1800
-          ],
-          [
-            "MSI Cross Down",
-            "MATCH",
-            1800
-          ],
-          [
-            "MSI RSI",
-            "MATCH",
-            1800
-          ],
-          [
-            "RSI Hook Down",
-            "MATCH",
-            1800
-          ],
-          [
-            "RSI Hook Up",
-            "MATCH",
-            1800
-          ],
-          [
-            "MACD",
-            "MATCH",
-            1800
-          ],
-          [
-            "MACD Signal Line",
-            "MATCH",
-            1800
-          ],
-          [
-            "MACD Histogram",
-            "MATCH",
-            1800
-          ],
-          [
-            "MACD Cross Up",
-            "MATCH",
-            1800
-          ],
-          [
-            "MACD Cross Down",
-            "MATCH",
-            1800
-          ]
-        ],
-        "objects": [
-          "MATCH",
-          []
-        ],
-        "paints": "MATCH"
+        "verdict": "INCONCLUSIVE",
+        "reason": "refused on our side: member door refused (pine:request): this request could not ",
+        "plots": [],
+        "objects": null,
+        "paints": null
       }
     },
     {
@@ -2358,23 +2297,9 @@
       "state": "on",
       "signature": {
         "verdict": "INCONCLUSIVE",
-        "reason": "1 of 1 items could not be compared",
+        "reason": "refused on our side: member door refused (pine:request): this request could not ",
         "plots": [],
-        "objects": [
-          "INCONCLUSIVE",
-          [
-            [
-              "lines",
-              504,
-              null
-            ],
-            [
-              "labels",
-              504,
-              null
-            ]
-          ]
-        ],
+        "objects": null,
         "paints": null
       }
     },

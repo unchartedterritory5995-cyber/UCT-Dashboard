@@ -263,11 +263,10 @@ export function beginObjects(program, ctx) {
     return false
   }
   let withheldUnknown = 0
-  /** ⭐⭐ ENGINE 55 — creates withheld for a reason OTHER than the chart clock, per family
-   *  (booked where `famUnknownOther` is marked, `taintOutputs`): an object TradingView may
-   *  hold that this run does not. A family partly drawn with such a create is NAMED
-   *  (`objects:not-computable`, with the count), not left to read as the whole picture. */
-  const unknownCreatesByFam = new Map()
+  /** ⭐⭐ ENGINE 55 — the table cells a WITHHELD write marked (`taintOutputs`): `<id>|<col>,<row>`.
+   *  A cell held for another, already-named reason (a colour this run could not carry, C45,
+   *  marks the cell on a write that RAN) is not one of these. */
+  const cellWriteWithheld = new Set()
   /** ⭐ C45 — of those, ops held because a bar index reached them as a value. */
   let withheldBarIndex = 0
   /** ⭐ C22 — properties marked because their value read an unmeasured reduction. */
@@ -1449,10 +1448,7 @@ export function beginObjects(program, ctx) {
           if (op.once) onceUnknown.add(op.site)
           siteTaint.add(op.site)
           famUnknown.add(op.family)
-          if (taintCause !== 'clock') {
-            famUnknownOther.add(op.family)
-            unknownCreatesByFam.set(op.family, (unknownCreatesByFam.get(op.family) || 0) + 1)
-          }
+          if (taintCause !== 'clock') famUnknownOther.add(op.family)
           break
         case 'update':
           for (const id of targetsOf(op.target)) taintInst(id, Object.keys(op.props || {}))
@@ -1466,7 +1462,15 @@ export function beginObjects(program, ctx) {
           const c = known ? Number(value(op.col)) : NaN
           const r = known ? Number(value(op.row)) : NaN
           const key = Number.isInteger(c) && Number.isInteger(r) ? `${c},${r}` : '*'
-          for (const id of targetsOf(op.target)) taintCell(id, key)
+          // ⭐ ENGINE 55 — booked for the partly-drawn note only when the write CERTAINLY ran
+          // (no guard, or a guard known true on this bar): its cell then exists on TradingView
+          // with a value this run could not compute. A write whose guard is itself unknown may
+          // not have run there at all — the cell's existence is the unknown, as for a create.
+          const ran = op.when == null || (!valueUnknown(op.when) && truthy(value(op.when)))
+          for (const id of targetsOf(op.target)) {
+            taintCell(id, key)
+            if (key !== '*' && ran) cellWriteWithheld.add(`${id}|${key}`)
+          }
           break
         }
         case 'mergecells':
@@ -2350,19 +2354,23 @@ export function beginObjects(program, ctx) {
   // knows (`runtimeUnknownSentence`: e.g. the last-bar calculation is too heavy to run yet).
   const unknownBecause = ctx && typeof ctx.unknownBecause === 'string' && ctx.unknownBecause ? ctx.unknownBecause : null
   if (!stopped) {
-    // ⭐ ONLY WHAT REACHES THE FINAL PICTURE. A drawn table's cells whose LATEST write was
+    // ⭐ ONLY WHAT REACHES THE FINAL PICTURE: a drawn table's cells whose LATEST write was
     // withheld (`cellTaint`: a later clean `table.cell` clears the mark, so a warm-up write
-    // that was overwritten is not counted); any other drawn family's creates withheld for
-    // a non-clock reason (`famUnknownOther`, booked in `taintOutputs`).
+    // that was overwritten is not counted). Such a cell EXISTS on TradingView, holding a
+    // value this run could not compute.
+    // ⛔ NOT a withheld CREATE of a partly drawn family: whether that object exists on
+    // TradingView at all is the unknown (its guard may have been false there), and the
+    // collector rulings (W-C22-DEL) already count those. Measured on the engine-55 suite:
+    // naming them took captures where TradingView drew exactly what this run drew
+    // (ict-killzones, vdubus) off MATCH.
     const missing = new Map()
     // (a table marked only by the chart clock is the clock note's to name: `taintOtherSeen`)
     for (const o of (taintOtherSeen ? ordered : [])) {
       if (o.family !== 'table') continue
       const ct = cellTaint.get(o.id)
-      if (ct && ct !== '*' && ct.size) missing.set('table', (missing.get('table') || 0) + ct.size)
-    }
-    for (const [fam, n] of unknownCreatesByFam) {
-      if (n && famUnknownOther.has(fam)) missing.set(fam, (missing.get(fam) || 0) + n)
+      // only cells whose LATEST write was WITHHELD (a C45 held colour is named on its own)
+      const n = ct && ct !== '*' ? [...ct].filter((k) => cellWriteWithheld.has(`${o.id}|${k}`)).length : 0
+      if (n) missing.set('table', (missing.get('table') || 0) + n)
     }
     for (const [fam, n] of missing) {
       if (!drawnFams.has(fam) || withheldFams.has(fam) || notShown[NOT_SHOWN.NOT_COMPUTABLE].includes(fam)

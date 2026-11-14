@@ -9,7 +9,7 @@
 // `objects:not-computable` with HOW MANY, and only for what reaches the FINAL picture:
 //   * a table: cells whose LATEST write was withheld (a later clean write clears the mark,
 //     so a warm-up write that was overwritten is not counted);
-//   * any other family: creates withheld for a reason other than the chart clock.
+//   ⛔ NOT a withheld create of a partly drawn family: whether it exists on TradingView is unknown.
 import { describe, it, expect } from 'vitest'
 import { evaluateObjects } from '../objectRuntime'
 import { partlyNotComputableSentence, NOT_SHOWN } from '../ast/objectLoss'
@@ -62,6 +62,15 @@ describe('⭐⭐ a TABLE: only cells whose LATEST write was withheld are counted
     expect(r.withheldBy && r.withheldBy[NC]).toBeUndefined()
   })
 
+  it('⛔ a cell write whose GUARD is unknown may not have run on TradingView: not named (its existence is the unknown)', () => {
+    const n = 5
+    const prog = TABLE(1)
+    prog.ops[2] = { ...prog.ops[2], when: { v: 'graph', node: 2 } }
+    const r = evaluateObjects(prog, ctxOf(n, { 0: onBars(n, [0]), 1: [1, 2, 3, 4, 5], 2: onBars(n, [0, 1, 2, 3, 4]) },
+      { 2: onBars(n, [4]) }))
+    expect(r.withheldBy && r.withheldBy[NC]).toBeUndefined()
+  })
+
   it('the control: nothing unknown, nothing named', () => {
     const n = 5
     const r = evaluateObjects(TABLE(1), ctxOf(n, { 0: onBars(n, [0]), 1: [1, 2, 3, 4, 5] }, {}))
@@ -69,27 +78,20 @@ describe('⭐⭐ a TABLE: only cells whose LATEST write was withheld are counted
   })
 })
 
-describe('⭐⭐ another family: creates withheld for a non-clock reason are counted', () => {
+describe('⛔ a withheld CREATE of a partly drawn family is NOT named here (whether it exists on TradingView is the unknown)', () => {
   const LABELS = P({ ops: [{ k: 'create', family: 'label', site: 'l', into: null, when: { v: 'graph', node: 0 },
     props: { x: { v: 'bar' }, y: { v: 'const', value: 1 } } }] })
 
-  it('two early creates read an unknown guard → labels are drawn (the later ones) AND named, with 2', () => {
+  it('two early creates read an unknown guard: the later labels are drawn, nothing is named, the withholding is counted', () => {
     const n = 6
     const r = evaluateObjects(LABELS, ctxOf(n, { 0: onBars(n, [0, 1, 3, 5]) }, { 0: onBars(n, [0, 1]) }))
     expect(r.live.filter((o) => o.family === 'label').map((o) => o.props.x)).toEqual([3, 5])
-    expect(r.withheldBy && r.withheldBy[NC]).toEqual(['label'])
-    expect(r.stats.withheldUnknownPartial).toEqual({ label: 2 })
-    expect(r.withheldWhy.label).toBe(partlyNotComputableSentence('label', 2))
-  })
-
-  it('⛔ withheld ONLY by the chart clock: the clock note names it, not this one', () => {
-    const n = 6
-    const r = evaluateObjects(LABELS, ctxOf(n, { 0: onBars(n, [0, 1, 3, 5]) }, { 0: onBars(n, [0, 1]) },
-      { readUnknownOther: () => false }))
     expect(r.withheldBy && r.withheldBy[NC]).toBeUndefined()
+    expect(r.stats.withheldUnknown).toBe(2)
+    expect(r.stats.withheldUnknownPartial).toBeUndefined()
   })
 
-  it('a family NOTHING of which is drawn keeps OZ\'s whole sentence (unchanged)', () => {
+  it('a family NOTHING of which is drawn keeps OZ\u2019s whole sentence (unchanged)', () => {
     const n = 3
     const r = evaluateObjects(LABELS, ctxOf(n, { 0: onBars(n, [0, 1]) }, { 0: onBars(n, [0, 1]) }))
     expect(r.live.filter((o) => o.family === 'label')).toEqual([])

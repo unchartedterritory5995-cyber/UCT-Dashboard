@@ -161,6 +161,15 @@ const NEVER_INSTALLED = Object.freeze({
   'corpus/committed/pivot-high-low-points__hoTsDQRY3L.pine': 'the length of ta.highestbars was unfolded (resolve:window at install)',
 })
 
+/** ⭐⭐ ENGINE 55 — A COMPUTATION AN ENGINE CHANGE MOVED ON PURPOSE, by name. The script's
+ *  MANIFEST (ids, inputs, places) and the values replayed by id are still held exactly; only the
+ *  saved computation's digest is not, because the translator now writes a different — correct —
+ *  tree, and a bumped `SCRIPT_ENGINE_VERSION` re-translates the member's saved copy from its script. */
+const MOVED_BY_ENGINE = Object.freeze({
+  'corpus/committed/support-and-resistance-multi-time-frame__Ph230jpfC9.pine':
+    'engine 55: request.security(…, "W"|"M") with look-ahead off is tf_merge (TradingView\'s merge), no longer tf',
+})
+
 const scripts = Object.keys(SAVED).filter((k) => k !== '_about' && fs.existsSync(path.join(REPO, k))
   && !Object.prototype.hasOwnProperty.call(NEVER_INSTALLED, k))
 
@@ -176,6 +185,16 @@ describe('C46 — the documents that never installed are exempt only while they 
     } finally {
       for (const d of installed) uninstallUserDefinition(d.id)
     }
+  })
+})
+
+describe('ENGINE 55 — a computation moved on purpose is named, and the move is the one claimed', () => {
+  it.each(Object.keys(MOVED_BY_ENGINE))('%s: its saved digest differs AND today\'s tree carries tf_merge', (script) => {
+    expect(SAVED[script], `${script} is not in the saved fixture — drop it from MOVED_BY_ENGINE`).toBeTruthy()
+    const built = build(script)
+    expect(built.ok, built.reason).toBe(true)
+    expect(sha(JSON.stringify(asSaved(built.definition)))).not.toBe(SAVED[script].computeSha)
+    expect(JSON.stringify(built.definition.compute)).toContain('"tf_merge"')
   })
 })
 
@@ -209,7 +228,9 @@ describe('C46 — documents saved under the walk-order ids', () => {
         if (!same) moved.push({ script, id, was: a.sourceName, now: b.sourceName, locators: [a.locators, (b.locators || []).length] })
       }
       // …and the document around the manifest is the same document.
-      if (sha(JSON.stringify(asSaved(built.definition))) !== was.computeSha) moved.push({ script, problem: 'the saved computation changed' })
+      if (sha(JSON.stringify(asSaved(built.definition))) !== was.computeSha && !Object.prototype.hasOwnProperty.call(MOVED_BY_ENGINE, script)) {
+        moved.push({ script, problem: 'the saved computation changed' })
+      }
     }
     expect(moved, `saved documents no longer round-trip:\n${JSON.stringify(moved, null, 2)}`).toEqual([])
   }, 900000)
@@ -234,7 +255,8 @@ describe('C46 — documents saved under the walk-order ids', () => {
         wrong.push({ script, was: was.editedState, now: valuesOf(doc) })
       }
       // the edited document is byte-for-byte the one the old assignment saved
-      if (sha(JSON.stringify(asSaved(doc, built.definition.compute.fn, built.definition))) !== was.editedComputeSha) wrong.push({ script, problem: 'the edited document differs' })
+      if (sha(JSON.stringify(asSaved(doc, built.definition.compute.fn, built.definition))) !== was.editedComputeSha
+        && !Object.prototype.hasOwnProperty.call(MOVED_BY_ENGINE, script)) wrong.push({ script, problem: 'the edited document differs' })
     }
     expect(wrong, `saved values landed elsewhere:\n${JSON.stringify(wrong, null, 2)}`).toEqual([])
   }, 900000)

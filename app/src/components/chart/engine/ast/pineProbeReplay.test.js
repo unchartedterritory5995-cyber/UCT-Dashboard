@@ -203,7 +203,10 @@ describe('C24 — the comparison probe is replayed, not resolved twice', () => {
         // 'be0be63b6616ba55'] both.
         // ⭐ Engine 52: its colours read through a `bound` binding cost 12 more Resolvers and
         // steps per lane; plot outputs byte-identical. Pre: [836, 7154, '8441e633c5739170'].
-        plain: [848, 7166, '42633e7b31f8d177'], manifest: [848, 7166, '42633e7b31f8d177'] },
+        // ⭐ ENGINE 55: its bare FX requests (`AUDUSD`, ...) are refused at translate now
+        // (`other-symbol:bare`); the drawing steps that read them are dropped by that guard
+        // and walked further — 60 more Resolvers, 660 more steps. Pre: [848, 7166, '42633e7b31f8d177'].
+        plain: [908, 7826, '1375f6a6079fe119'], manifest: [908, 7826, '1375f6a6079fe119'] },
       'pro-trading-art-double-top-bottom-with-alert__5321f25fcb': {
         plain: [85, 356778, '9fcabbf403bf29e0'], manifest: [85, 356778, '9fcabbf403bf29e0'] },
       // ⭐ WAVE 16 (H5 B, 2026-10-03) moved adaptive-trend: default parameters now

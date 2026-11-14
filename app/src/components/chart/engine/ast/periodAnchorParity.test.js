@@ -588,10 +588,17 @@ describe('C36 · the fixture is not vacuous', () => {
     expect(col('reqD · weekdays · D')).toEqual(closes('weekdays'))
     expect(col('reqD · weekdays · no tf')).toEqual(closes('weekdays'))
     expect(codes('reqD · weekdays · D').concat(codes('reqD · weekdays · no tf'))).toEqual([])
-    // the weekly one there is the last closed week (`nz` of the first partial week is Pine's 0)
-    expect(col('nz(reqW) · weekdays · D').slice(0, 2)).toEqual([0, 0])
-    expect(col('nz(reqW) · weekdays · D')[2]).toBe(PARITY.bars.weekdays[1].c)
-    expect(col('nz(reqW) · weekdays · no tf')).toEqual(col('nz(reqW) · weekdays · D'))
+    // ⭐⭐ ENGINE 55 — the weekly one is `tf_merge`, TradingView's merge: the week's close on the
+    // bar that CLOSES the week (Friday 2024-10-11, bar 1), the last closed week on the bars after
+    // it; `nz` of the first partial week's open is Pine's 0; the newest finished bar is withheld
+    // by name (`request:htf-newest-unconfirmed`), never `nz`'s confident 0.
+    // ⚰️ It was `tf`: [0, 0] and bar 2 = Friday's close — one bar late on every week's close.
+    const w = col('nz(reqW) · weekdays · D')
+    expect(w.slice(0, 3)).toEqual([0, PARITY.bars.weekdays[1].c, PARITY.bars.weekdays[1].c])
+    expect(w[6]).toBe(PARITY.bars.weekdays[6].c)
+    expect(w[w.length - 1]).toBe(null)
+    expect(codes('nz(reqW) · weekdays · D')).toEqual(['request:htf-newest-unconfirmed'])
+    expect(col('nz(reqW) · weekdays · no tf')).toEqual(w)
     // ⛔ on a 15-minute and a weekly chart both are withheld on every bar — never a 15-minute
     // close under the name of the daily one, never `nz`'s confident 0
     for (const k of ['reqD', 'nz(reqW)']) {

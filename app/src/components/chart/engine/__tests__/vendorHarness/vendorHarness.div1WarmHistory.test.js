@@ -150,14 +150,22 @@ describe('DIV-1 — SPY 1D, replayed over the listing', () => {
 })
 
 describe('DIV-1 — honesty: no supplier, or bars whose prehistory is not supplied, stay cold', () => {
-  it('⛔ a script that reads ANOTHER SYMBOL stays cold although SPY\'s supplier exists: htf-liquidity-dashboard-tfo SPY (AUDUSD / GBPUSD)', () => {
-    const { ours, verdict } = grade(load('htf-liquidity-dashboard-tfo-spy-1d-2026-10-03'))
+  // ⭐ ENGINE 55 — the honesty case moved to sector-rotation (`CNXIT`, a bare US-shaped ticker the
+  // bind decides): htf-liquidity-dashboard's bare FX reads (`AUDUSD`, `GBPUSD`) are refused AT
+  // TRANSLATE now (`other-symbol:bare`), so that document reads no other symbol any more and is
+  // replayed like any other daily SPY capture (the case below).
+  it('⛔ a script that reads ANOTHER SYMBOL stays cold although the SPY supplier exists: sector-rotation SPY (CNXIT)', () => {
+    const { ours } = grade(load('sector-rotation-spy-1d-2026-10-03'))
     expect(ours.historyReplay).toMatchObject({ kind: 'cold', bars: 0, file: null })
     expect(ours.historyReplay.reason).toMatch(/prehistory is not supplied/)
     expect(ours.notes.some((n) => /^plots\/objects: cold: a proved supplier exists .* reads another symbol/.test(n))).toBe(true)
     expect(ours.plots.every((p) => p.historyReplayed === null)).toBe(true)
-    // so its `var` drawing list is still withheld off the listing, by name
-    expect(verdict.objects.withheld).toBe('objects:off-listing')
+  })
+
+  it('ENGINE 55 — htf-liquidity-dashboard SPY reads no other symbol once its bare FX reads are refused at translate, so it is replayed', () => {
+    const { ours } = grade(load('htf-liquidity-dashboard-tfo-spy-1d-2026-10-03'))
+    expect(ours.historyReplay.kind).toBe('replayed')
+    expect(ours.notes.some((n) => /reads another symbol/.test(n))).toBe(false)
   })
 
   it('⛔ an INTRADAY chart stays cold although a supplier exists (the chart first-paints a shallow window): vw-time-tf SPY 30m', () => {

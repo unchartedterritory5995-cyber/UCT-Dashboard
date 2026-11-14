@@ -41,7 +41,7 @@ import { validateCapture, sealCapture, sha256Hex } from '../../../../../../../to
 import { translatePine } from '../../ast/pine.js'
 import {
   chartClockRegime, periodAnchorNode, periodAnchorGatePeriod, chartSixtyTimeNode, isChartSixtyTime,
-  CHART_CLOCK_WITHHELD, CHART_CLOCK_WHOLE, PERIOD_ANCHOR_WITNESSED_TF, PERIOD_CLOSE_WITNESSED_TF,
+  CHART_CLOCK_WITHHELD, CHART_CLOCK_WHOLE, TF_MERGE_NEWEST_CODE, PERIOD_ANCHOR_WITNESSED_TF, PERIOD_CLOSE_WITNESSED_TF,
   SIXTY_WITNESSED_TF, requestBaseNode, requestBaseOf, interpret, periodAnchorMask,
 } from '../../ast/interpret.js'
 import {
@@ -761,11 +761,16 @@ describe('C49 · 8 — packet #3: `request.security(tickerid, "D", close)` on AM
       expect(noteCodes(ours), cap.id).toEqual(['request:other-timeframe'])
     }
     const daily = on(CAP.D900, src)
-    expect(noteCodes(daily)).toEqual([])
+    // ⭐⭐ ENGINE 55 — the request is `tf_merge` (TradingView's merge): on a daily chart whose
+    // newest bar is not known to be forming, that ONE bar is withheld by name
+    // (`request:htf-newest-unconfirmed`); every other bar is served.
+    const forming = CAP.D900.newestBarIsForming === true
+    expect(noteCodes(daily)).toEqual(forming ? [] : [TF_MERGE_NEWEST_CODE])
     // ⭐ DIV-1 RE-PIN (2026-11-09): was 1 (the first partial week had no closed week before
     // it). The daily capture is now replayed over SPY's proved history from its listing, as
     // the member's daily chart computes it, so the week before the window IS closed: 0.
-    expect(column(daily, 0).filter(Number.isNaN).length).toBe(0)
+    const held = column(daily, 0).map((v, i) => (Number.isNaN(v) ? i : -1)).filter((i) => i >= 0)
+    expect(held).toEqual(forming ? [] : [column(daily, 0).length - 1])
     // ⚠️ WHY the intraday resample was not the answer: on the 60-minute chart its "weekly close" is the last
     // HOURLY bar's close, which is not the daily bar's — the same gap the 5-minute capture shows for the day
     const h = CAP.I60.bars.rows
@@ -793,13 +798,14 @@ describe('C49 · 8 — packet #3: `request.security(tickerid, "D", close)` on AM
     const f = (body, opts = { strict: true }) => { const t = S(body, opts); return t.ok ? t.outputs[t.selected].formula : `${t.refusal.guard}` }
     expect(f('plot(request.security(syminfo.tickerid, "D", close))')).toBe('86400 != periodseconds ? 0 / 0 : close')
     expect(f('plot(request.security(syminfo.tickerid, "D", close[1], lookahead = barmerge.lookahead_on))')).toBe('86400 != periodseconds ? 0 / 0 : close[1]')
-    expect(f('plot(request.security(syminfo.tickerid, "W", close))')).toBe("86400 != periodseconds ? 0 / 0 : tf(close, 'W')")
+    // ⭐ ENGINE 55 — look-ahead off is `tf_merge` (TradingView's merge), no longer `tf`
+    expect(f('plot(request.security(syminfo.tickerid, "W", close))')).toBe("86400 != periodseconds ? 0 / 0 : tf_merge(close, 'W')")
     expect(f('plot(request.security(syminfo.tickerid, "M", high, lookahead = barmerge.lookahead_on))')).toBe("86400 != periodseconds ? 0 / 0 : tf_live(high, 'M')")
     // the chart's own timeframe: no gate
     expect(f('plot(request.security(syminfo.tickerid, timeframe.period, close))')).toBe('close')
     // a screen evaluates stored daily bars: the bare tree, as before
     expect(f('plot(request.security(syminfo.tickerid, "D", close))', {})).toBe('close')
-    expect(f('plot(request.security(syminfo.tickerid, "W", close))', {})).toBe("tf(close, 'W')")
+    expect(f('plot(request.security(syminfo.tickerid, "W", close))', {})).toBe("tf_merge(close, 'W')")
     // ANOTHER symbol at a literal timeframe: the same gate, OUTSIDE its `sym` (which hands that
     // listing's bars at the chart's own timeframe); at the chart's own timeframe, none
     expect(f('plot(request.security("AMEX:SPY", "D", close))')).toBe("86400 != periodseconds ? 0 / 0 : sym('SPY', close)")
@@ -852,11 +858,17 @@ describe('C49 · 9 — ONE answer for `request.security(syminfo.tickerid, <tf>, 
       const lower = /lower-tf:[a-z-]+/.exec(text)
       return lower ? lower[0] : `refused:${(/\((pine:[a-z-]+)\)/.exec(text) || [])[1]}`
     }
-    const codes = noteCodes(ours)
+    const all = noteCodes(ours)
     const col = column(ours)
+    // ⭐ ENGINE 55 — `request:htf-newest-unconfirmed` withholds ONE bar (the newest, finished),
+    // never the series: a served cell, with only that bar blank
+    const codes = all.filter((c) => c !== TF_MERGE_NEWEST_CODE)
     if (codes.length) {
       expect(col.every(Number.isNaN), `${tf}: a named withholding draws nothing`).toBe(true)
       return codes.join(' + ')
+    }
+    if (all.length) {
+      expect(col.slice(0, -1).some((v) => !Number.isNaN(v)) && Number.isNaN(col[col.length - 1]), `${tf}: only the newest bar`).toBe(true)
     }
     return 'served'
   }

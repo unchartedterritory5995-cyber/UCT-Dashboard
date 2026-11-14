@@ -106,8 +106,10 @@ describe('B1 — paints graded against the captures that record them', () => {
     'inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-10-03.json': ['refused pine:state'],
     'kalman-price-filter-backquant-rddt-1d-2026-10-03.json': ['refused pine:block'],
     'artemis-oscillator-pro-rddt-1d-2026-09-28.json': ['supply bar0 warmup=0', 'plot_32 naBoth 632/632 painted=0'],
-    'mcclellan-indicators-rddt-1d-2026-09-28.json': ['supply bar0 warmup=0', 'plot_4 naBoth 632/632 painted=0', 'plot_15 naBoth 632/632 painted=0'],
-    'mcclellan-indicators-spy-1d-2026-10-03.json': ['supply warm vw-clock-close-tfchange-spy-1d-2026-09-28.json 6677 notReplayed', 'plot_4 naBoth 1800/1800 painted=0', 'plot_15 naBoth 1800/1800 painted=0'],
+    // ⭐ ENGINE 55: its bare breadth reads (`ADVN`, `DECN`) are refused by name at the door
+    // (`pine:request`, `other-symbol:bare`) — every plot and paint reads them
+    'mcclellan-indicators-rddt-1d-2026-09-28.json': ['refused pine:request'],
+    'mcclellan-indicators-spy-1d-2026-10-03.json': ['refused pine:request'],
     'renko-candles-overlay-rddt-1d-2026-10-03.json': ['refused pine:collection'],
     'renko-candles-overlay-spy-1d-2026-10-03.json': ['refused pine:collection'],
     'supertrend-strategy-rddt-1d-2026-10-02.json': ['supply bar0 warmup=0', 'plot_9 withheld'],
