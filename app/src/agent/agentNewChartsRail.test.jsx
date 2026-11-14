@@ -69,6 +69,30 @@ describe('a known created set: a plan that writes an old chart under "new charts
   }, 40000)
 })
 
+describe('a BOARD write (a chart removed) is a write of that chart too', () => {
+  // widget = the board entry's widget id (the real id; fixture charts' refs are their widget ids)
+  const idOf = (m, sym) => m.board.state.widgets.find(w => w.type === 'chart' && m.h.charts.read(w.id)?.symbol === sym)?.id
+  const removing = (m, syms) => () => p.env('apply', syms.map(s => ({ action: 'widget.remove', target: 'board', args: { widget: idOf(m, s) } })))
+  it('2 created · "close the charts you just opened" · the plan also removes SPY → refused, nothing removed', async () => {
+    const m = await setUp(2)
+    const before = JSON.stringify(m.board.state.widgets)
+    p.st.envelopes.push(removing(m, ['AAPL', 'MSFT', 'SPY']))
+    const out = await m.say('close the charts you just opened')
+    expect(out).toMatch(REFUSED)
+    expect(out).toContain('Chart (SPY)')
+    expect(p.proposals()).toHaveLength(0)
+    expect(JSON.stringify(m.board.state.widgets)).toBe(before)
+  }, 40000)
+  it('control: "close the charts you just opened" removing only them → they go', async () => {
+    const m = await setUp(2)
+    p.st.envelopes.push(removing(m, ['AAPL', 'MSFT']))
+    const out = await m.say('close the charts you just opened')
+    expect(out).not.toMatch(REFUSED)
+    await approveIfCarded(m)
+    expect(Object.keys(tfOf(m)), p.transcript()).toEqual(['SPY', 'QQQ'])
+  }, 40000)
+})
+
 describe('one created chart: the plan on it is asked about first (deictic screen); the member\'s own pick is honoured', () => {
   it.each([['Chart (AAPL)', 'AAPL'], ['Chart (SPY)', 'SPY']])('"make the new chart weekly" → asked → picks %s → only that chart changes', async (label, sym) => {
     const m = await setUp(1)
