@@ -45,7 +45,7 @@ const nm = (x) => (x == null ? '' : String(x))
 
 // ── what a plan does to the member's existing state, by target kind ─────────────────────────────────────────────────────
 // each effect: { state, type: 'remove' | 'clear' | 'delete' | 'replace' | 'overwrite', name, via? }
-const OVERWRITE_OPS = new Set(['setInputs', 'setAppearance', 'setPlotStyle', 'setColor', 'setDotSize', 'setCalculationTimeframe'])
+const OVERWRITE_OPS = new Set(['setInputs', 'setAppearance', 'setPlotStyle', 'setColor', 'setDotSize'])
 // an indicator change read from the Indicators interface's own request (indicatorEdits: `change.request`)
 function indicatorOfRequest(req, rows) {
   const op = req?.op
@@ -54,8 +54,8 @@ function indicatorOfRequest(req, rows) {
   if (op === 'remove') return [{ state: 'indicator', type: 'remove', name }]
   if (OVERWRITE_OPS.has(op)) return [{ state: 'indicator', type: 'overwrite', name }]
   // add / duplicate / copyFrom (a template's indicators) add; setVisible / movePane / setPaneSize / setDisplayTarget /
-  // setVisibility arrange or show — nothing the member had is lost
-  if (['add', 'duplicate', 'copyFrom', 'setVisible', 'movePane', 'setPaneSize', 'setDisplayTarget', 'setVisibility'].includes(op)) return []
+  // setVisibility / setCalculationTimeframe arrange, show, or pick the bars it computes on — its settings are kept
+  if (['add', 'duplicate', 'copyFrom', 'setVisible', 'movePane', 'setPaneSize', 'setDisplayTarget', 'setVisibility', 'setCalculationTimeframe'].includes(op)) return []
   return [{ state: 'indicator', type: 'unreadable', name: `an indicator change (${nm(op) || 'unknown'})` }]
 }
 // a chart's whole settings blob written (chart kind): its indicator instances before and after
@@ -227,10 +227,12 @@ export const STATE_ADDITIVE = /\b(?:add|adds|added|adding|include|includes|inclu
 const NEGATED = /\b(?:do not|don['’]?t|dont|never|without|no need to|not)\b[^.;,!?]*/gi
 const strip = (w) => String(w || '').replace(NEGATED, ' ')
 function DESTROY_SRC() { return '(?:replac\\w*|instead|swap\\w*|remov\\w*|delet\\w*|clear\\w*|eras\\w*|wip(?:e|es|ed|ing)\\b|get rid|gets rid|getting rid|overwrit\\w*|keep only|only keep|keep just|just keep|reset\\w*|trash\\w*|discard\\w*|unpin\\w*|take (?:off|out|away))' }
-function MODIFY_SRC() { return '(?:chang\\w*|set|sets|setting|make|makes|making|made|turn\\w*|switch\\w*|updat\\w*|edit\\w*|modif\\w*|renam\\w*|adjust\\w*|bump\\w*|increas\\w*|decreas\\w*|tweak\\w*|recolou?r\\w*|restyl\\w*|move|moves|moved|moving|shift\\w*)' }
+function MODIFY_SRC() { return '(?:chang\\w*|set|sets|setting|make|makes|making|made|turn\\w*|switch\\w*|updat\\w*|edit\\w*|modif\\w*|renam\\w*|adjust\\w*|bump\\w*|increas\\w*|decreas\\w*|tweak\\w*|recolou?r\\w*|colou?r(?:s|ed|ing)?|paint\\w*|restyl\\w*|move|moves|moved|moving|shift\\w*)' }
 const DESTROY = new RegExp(`\\b${DESTROY_SRC()}`, 'i')
 const MODIFY = new RegExp(`\\b${MODIFY_SRC()}\\b`, 'i')
-// the words that pick what is SHOWN or applied (a widget's list, a chart template)
+// the words that pick what is SHOWN or applied (a widget's list, a chart template) — "put X in / on / up in the widget"
+// names what that widget is to show (the picker's own wording) — for a widget's content only, never an overwrite
+const PUT_IN = /\bput\b[^.;!?]*\b(?:in|into|on|up in|up on)\s+(?:the|my|that|this)\b[^.;!?]*\b(?:watch ?lists?|widgets?|scanner)\b/i
 const PICK = /\b(?:apply|applies|applied|applying|show|shows|showing|display\w*|load\w*|open|opens|use|using|view|switch\w*|change\w*)\b/i
 const SAVE = /\b(?:save|saves|saved|saving|update|updates|updated)\b/i
 const NEW_ONE = /\b(?:new|another|second|copy|duplicate|as (?:a|an)\b|called|named)\b/i
@@ -239,7 +241,7 @@ const NEW_ONE = /\b(?:new|another|second|copy|duplicate|as (?:a|an)\b|called|nam
 export function permits(e, words) {
   const w = strip(words)
   if (DESTROY.test(w)) return true
-  if (e.type === 'replace') return PICK.test(w) || MODIFY.test(w)
+  if (e.type === 'replace') return PICK.test(w) || MODIFY.test(w) || PUT_IN.test(w)
   if (e.type === 'overwrite') return MODIFY.test(w) || PICK.test(w) || (e.via === 'save' && SAVE.test(w) && !NEW_ONE.test(w))
   return false                                                  // remove / clear / delete / unreadable
 }

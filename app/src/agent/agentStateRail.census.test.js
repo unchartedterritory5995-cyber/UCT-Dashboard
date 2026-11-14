@@ -210,7 +210,6 @@ const EXPECTED = {
   'indicator.remove': ['indicator:remove'],
   'indicator.update': ['indicator:overwrite'],
   'indicatorStyle.set': ['indicator:overwrite'],
-  'indicatorStyle.setCalcTimeframe': ['indicator:overwrite'],
   'indicatorTemplate.delete': ['template:delete'],
   'indicatorTemplate.save': ['template:overwrite'],
   'layout.delete': ['layout:delete'],
