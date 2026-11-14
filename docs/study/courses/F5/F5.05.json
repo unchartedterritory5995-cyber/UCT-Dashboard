@@ -663,7 +663,8 @@
      "stable definition"
     ]
    },
-   "batch": "wave6"
+   "batch": "wave6",
+   "order": "fixed"
   },
   {
    "key": "q02",
@@ -981,8 +982,8 @@
    "key": "q11",
    "skill": "fund.expected_move",
    "rung": 5,
-   "format": "mcq",
-   "q": "HXLR closed at $50 before earnings. Its at-the-money straddle cost $2. It closed at $55 after. Realized move divided by implied move?",
+   "format": "scenario",
+   "q": "What is the realized move divided by the implied move?",
    "answer": "2.5x",
    "calc": {
     "fn": "arith",
@@ -1024,7 +1025,8 @@
     "6.0x": "You subtracted the 4% from the 10% instead of dividing.",
     "14.0x": "You added the 4% and the 10% instead of dividing.",
     "0.4x": "You flipped it and divided the priced 4% by the realized 10%. Put the realized move on top."
-   }
+   },
+   "story": "HXLR closed at $50 before earnings. Its at-the-money straddle cost $2. It closed at $55 after."
   },
   {
    "key": "q12",
@@ -1558,8 +1560,8 @@
    "key": "q91",
    "skill": "fund.expected_move",
    "rung": 2,
-   "format": "mcq",
-   "q": "Tonight's report is on a stock you hold. Where does the UCT app show its implied move?",
+   "format": "scenario",
+   "q": "Where does the UCT app show its implied move?",
    "choices": [
     "Calendar page, beside each report",
     "Journal page, your trade list",
@@ -1591,7 +1593,8 @@
      "hand method rests on two Tier 2 publishers"
     ]
    },
-   "batch": "review5"
+   "batch": "review5",
+   "story": "A stock you hold reports after the close tonight. You want to know how big a move options are pricing."
   },
   {
    "key": "q92",

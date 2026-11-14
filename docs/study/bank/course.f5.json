@@ -7495,10 +7495,10 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "How far it moved after its last report",
     "How far options price it to move",
-    "Where analysts expect the price to go",
-    "Which way it is most likely to move"
+    "Which way it is most likely to move",
+    "How far it moved after its last report",
+    "Where analysts expect the price to go"
    ],
    "kind": "mcq",
    "q": "Before a report, what does the stock's implied move tell you?",
@@ -7767,9 +7767,9 @@
   "prompt_json": {
    "choices": [
     "The longest-dated puts",
+    "Nearest at-the-money straddle",
     "Far out-of-the-money calls",
-    "The call with most volume",
-    "Nearest at-the-money straddle"
+    "The call with most volume"
    ],
    "kind": "mcq",
    "q": "Which options give the quickest read of the implied move?",
@@ -8202,7 +8202,8 @@
     "14.0x"
    ],
    "kind": "mcq",
-   "q": "HXLR closed at $50 before earnings. Its at-the-money straddle cost $2. It closed at $55 after. Realized move divided by implied move?",
+   "q": "What is the realized move divided by the implied move?",
+   "story": "HXLR closed at $50 before earnings. Its at-the-money straddle cost $2. It closed at $55 after.",
    "subject": "F5.05#q11"
   },
   "reveal_json": {
@@ -8270,7 +8271,7 @@
      "fn": "arith",
      "result": 2.5
     },
-    "given": "HXLR closed at $50 before earnings. Its at-the-money straddle cost $2. It closed at $55 after. Realized move divided by implied move? 2.5x 0.4x 6.0x 14.0x"
+    "given": "What is the realized move divided by the implied move? HXLR closed at $50 before earnings. Its at-the-money straddle cost $2. It closed at $55 after. 2.5x 0.4x 6.0x 14.0x"
    },
    "lesson_line": "Straddle over price gives the priced move. Realized over implied tells you how it compared.",
    "simple": "It is 2.5, because the stock moved two and a half times what the straddle priced.",
@@ -8287,7 +8288,7 @@
   "skill_id": "fund.expected_move",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F5/F5.05.json#q11",
-  "type": "recall",
+  "type": "scenario",
   "version": 1
  },
  {
@@ -8369,9 +8370,9 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "The buyers of the straddle",
     "The sellers of the straddle",
     "Neither side, it's about even",
+    "The buyers of the straddle",
     "Depends on implied volatility"
    ],
    "kind": "mcq",
@@ -8467,9 +8468,9 @@
   "prompt_json": {
    "choices": [
     "Nothing, the stock decides",
+    "Took value out of them",
     "Added value to them",
-    "Shifted value to the puts",
-    "Took value out of them"
+    "Shifted value to the puts"
    ],
    "kind": "mcq",
    "q": "After a report, implied volatility on the calls fell from 92.88% to 49.69%. All else equal, what did that do to the calls?",
@@ -8551,9 +8552,9 @@
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "Yes, the size was about as priced",
     "No, it went down instead of up",
     "No, a drop that big is a shock",
+    "Yes, the size was about as priced",
     "Yes, they priced a drop of 8.4%"
    ],
    "kind": "mcq",
@@ -8818,8 +8819,8 @@
    "choices": [
     "The move will reverse the next day",
     "The options were priced too high",
-    "Implied volatility will now rise",
-    "The report surprised the options market"
+    "The report surprised the options market",
+    "Implied volatility will now rise"
    ],
    "kind": "mcq",
    "q": "A stock moves twice its implied move after the report. What does that tell you?",
@@ -8966,12 +8967,13 @@
   "prompt_json": {
    "choices": [
     "Community page, member posts",
-    "Calendar page, beside each report",
     "Breadth page, advancing stock counts",
-    "Journal page, your trade list"
+    "Journal page, your trade list",
+    "Calendar page, beside each report"
    ],
    "kind": "mcq",
-   "q": "Tonight's report is on a stock you hold. Where does the UCT app show its implied move?",
+   "q": "Where does the UCT app show its implied move?",
+   "story": "A stock you hold reports after the close tonight. You want to know how big a move options are pricing.",
    "subject": "F5.05#q91"
   },
   "reveal_json": {
@@ -9023,7 +9025,7 @@
     "summary": "The UCT app shows each name's implied move on its Calendar page. The Calendar page's earnings list has an Impl. Move column that you can sort by. The quickest read of the expected move is the nearest-expiry, at-the-money straddle. The straddle's midpoint, less any intrinsic value, is a quick guide to the implied move. Option traders often use the straddle price as the expected move after earnings. MSFT's straddle priced a $9.48 move on a $209.58 stock: about 4.5%."
    },
    "facts": {
-    "given": "Tonight's report is on a stock you hold. Where does the UCT app show its implied move? Calendar page, beside each report Journal page, your trade list Breadth page, advancing stock counts Community page, member posts"
+    "given": "Where does the UCT app show its implied move? A stock you hold reports after the close tonight. You want to know how big a move options are pricing. Calendar page, beside each report Journal page, your trade list Breadth page, advancing stock counts Community page, member posts"
    },
    "lesson_line": "Find the implied move on the Calendar page, or work it out from the nearest at-the-money straddle.",
    "simple": "The Calendar page, because its Impl. Move column shows each name's implied move.",
@@ -9040,7 +9042,7 @@
   "skill_id": "fund.expected_move",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F5/F5.05.json#q91",
-  "type": "recall",
+  "type": "scenario",
   "version": 1
  },
  {
