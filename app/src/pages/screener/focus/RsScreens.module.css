@@ -68,6 +68,26 @@
 .noteLink { flex: none; color: var(--ut-gold); text-decoration: underline; text-underline-offset: 3px; }
 .noteBtn { flex: none; }
 .noteLink:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 2px; }
+/* ── "Why isn't a stock here?" (WhyNotHere.jsx, unit U8): a quiet text button under the list head; open,
+   a ticker box and the answer, one rule per line. The tick is the why strip's ink; a miss is the bright
+   ink, never red (red means price fell). */
+.whyNot { flex: none; padding: 4px 16px; border-bottom: 1px solid var(--border); font-size: var(--text-sm); }
+.whyNotToggle { font-size: var(--text-sm); min-height: 24px; text-decoration: underline; text-underline-offset: 3px; }
+.whyNotToggle:focus-visible, .whyNotClose:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 2px; }
+.whyNotPanel { display: flex; flex-direction: column; gap: 6px; padding: 4px 0 6px; }
+.whyNotForm { display: flex; align-items: center; gap: 8px; }
+.whyNotInput { flex: 1 1 0; min-width: 0; width: 100%; text-transform: uppercase; }
+.whyNotInput::placeholder { text-transform: none; }
+.whyNotClose { font-size: var(--text-sm); }
+.whyNotAnswer { max-height: 190px; overflow-y: auto; }
+.whyNotHead { margin: 0; color: var(--text); line-height: var(--lh-snug); }
+.whyNotList { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.whyNotItem { display: flex; gap: 6px; align-items: baseline; color: var(--text-muted); }
+.whyNotMark { flex: none; width: 1em; text-align: center; }
+.whyNotItem[data-kind='pass'] .whyNotMark { color: var(--success-ink); }
+.whyNotItem[data-kind='fail'] { color: var(--text-bright); }
+.whyNotItem[data-kind='fail'] .whyNotMark { font-weight: 700; }
+.whyNotValue { color: var(--text-bright); font-weight: 600; font-variant-numeric: tabular-nums; }
 /* the empty state's words (the list's own .stateBox centres them) */
 .status { display: flex; flex-direction: column; align-items: center; gap: 10px; }
 
@@ -83,6 +103,6 @@
 /* Touch (phone AND tablet, breakpoints.css): every control here is a 44 px finger target. Declared
    for the whole touch tier, never the phone alone (styles/tapFloor.test.js). */
 @media (max-width: 1024px) {
-  .opt, .custom, .adjust, .reset, .sheetReset, .noteLink, .noteBtn { min-height: var(--tap-min); }
+  .opt, .custom, .adjust, .reset, .sheetReset, .noteLink, .noteBtn, .whyNotToggle, .whyNotClose { min-height: var(--tap-min); }
   .opt { min-width: var(--tap-min); }
 }

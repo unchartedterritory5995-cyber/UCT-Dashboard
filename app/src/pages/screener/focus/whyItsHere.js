@@ -17,7 +17,9 @@ const MAX = 5
 // the five places stay with the RS facts.
 export const FACT_SLOTS = 2
 
-const isCheckable = (key, spec) =>
+// (Exported with the four wording helpers below for whyNot.js, unit U8: "Why isn't a stock
+// here?" words each rule exactly as this strip does, so the two can never read differently.)
+export const isCheckable = (key, spec) =>
   !NOT_CHECKABLE_KEYS.has(key) && CHECK_OPS.has(spec?.op) && !String(spec?.op || '').endsWith('_col')
 
 export function whyColumns(filters) {
@@ -26,14 +28,14 @@ export function whyColumns(filters) {
 
 // A row value we cannot read: absent, empty, or a non-finite number. Such a
 // filter cannot be backed by the row, so it is a note, never a ✓.
-const isMissing = v =>
+export const isMissing = v =>
   v === null || v === undefined || v === '' || (typeof v === 'number' && !Number.isFinite(v))
 
 // Bool row value: only 1 / true / 'true' / '1' read Yes; 0 / false / '0' read No.
-const isYes = v => Number(v) === 1 || v === true || v === 'true'
+export const isYes = v => Number(v) === 1 || v === true || v === 'true'
 
 // A bool filter requires the state named by its spec value; falsy means "Not …".
-const requiresFalse = v => v === 0 || v === false || v === '0'
+export const requiresFalse = v => v === 0 || v === false || v === '0'
 
 // Compact only at |v| >= 10000. The unit is chosen AFTER rounding to one
 // decimal, so 999999 steps up to 1M instead of reading 1000K.
@@ -49,7 +51,7 @@ export function compact(n) {
 // Labels from the shared chipLabel carry raw numbers; any run of 5+ digits reads compactly.
 export const compactDigits = s => String(s).replace(/\d{5,}(?:\.\d+)?/g, m => compact(Number(m)) ?? m)
 
-function fmtValue(def, v) {
+export function fmtValue(def, v) {
   if (isMissing(v)) return '—'
   if (def?.type === 'bool') return isYes(v) ? 'Yes' : 'No'
   // A stored code of the RS screens' label enums reads as its word ("At pivot", never "at_pivot").
@@ -64,7 +66,7 @@ function fmtValue(def, v) {
 // chipLabel says "RS Rank: ≥ 80"; the strip reads "RS Rank ≥ 80".
 const stripColon = s => s.replace(/:\s*/, ' ').replace(/\s+/g, ' ').trim()
 
-function checkLabel(def, spec) {
+export function checkLabel(def, spec) {
   // Mid-sentence after "Not" a word drops its capital ("Not above 50-day avg"); an acronym keeps it ("Not HVC").
   if (def.type === 'bool') return requiresFalse(spec.value) ? `Not ${/^[A-Z][a-z]/.test(def.label) ? def.label[0].toLowerCase() + def.label.slice(1) : def.label}` : def.label
   if ((spec.op === 'in' || spec.op === 'not_in') && Array.isArray(spec.values) && spec.values.length) {
@@ -93,7 +95,7 @@ const LIVE_FIELDS = { price: 'price', chg_pct_1d: 'chg' }
 // P10: a structure filter reads as what the stock has or is doing ("Has a short boxy base",
 // "In a downtrend: lower highs and lows"), from the preset names in plain words (plainWords
 // structureSentence); any other filter that cannot be checked per row reads its chip.
-function noteLabel(key, def, spec) {
+export function noteLabel(key, def, spec) {
   const chip = stripColon(lowerOperator(chipLabel(def, spec) || ''))
   const preset = (def.presets || []).find(o => o.op === spec.op && o.value === spec.value && o.label && o.label !== 'Any')
   if (key === 'base_structure' && preset) {

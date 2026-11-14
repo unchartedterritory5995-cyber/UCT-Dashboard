@@ -2150,3 +2150,97 @@ def run_scan(spec, user_id=None, user=None):
             "scan_joins": plan["scan_joins"],
             "list_joins": plan["list_joins"],
             "rank": rank_receipt}
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# ONE STOCK'S ROW, BY TICKER (RS screens unit U8, "Why isn't a stock here?")
+#
+# The Focus screener lets a member name a ticker and see which of the open
+# screen's rules it misses. The page evaluates the rules itself; what it needs
+# from here is that one stock's row, for the columns the rules read.
+#
+# ⛔ NOT A SCAN, AND NOT THE DARK TICKER SCOPE. `{key: "tickers"}` (FT-029 v2)
+# would do this through `run_scan`, and it is refused while its own flag is
+# off (`build_where`), which is today. This reader takes no spec at all: no
+# filter, no pool, no sort, no rank, so nothing a member types can widen it
+# past "these named rows, these registered columns".
+#
+# ⭐ THE VALUES ARE THE ONES THE SCAN SERVES. Every column goes through the same
+# `_Overlay.select_item` as a scan's, over the same FROM, so during the session
+# a live-tier column answers with its live value here exactly as it does on the
+# list the member is comparing against.
+#
+# ⭐ `stale` SAYS WHAT THE SCAN WOULD HAVE DONE WITH THE ROW. A row whose own
+# bars stopped is left out of every scan (`stale_gate`); returned bare, the page
+# would call it "passes every rule" beside a list it can never be on.
+# ═══════════════════════════════════════════════════════════════════════════
+
+#: How many rows one request may name.
+MAX_ROW_TICKERS = 25
+_ROW_TICKER_CHARS = frozenset("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-")
+_ROW_TICKER_MAX_LEN = 12
+
+
+def row_tickers(raw) -> list:
+    """The tickers a row request names: upper-cased, each once, in the order given.
+
+    ``raw`` is one ticker or a comma-separated list. A name that cannot be a ticker
+    (empty, too long, a character outside letters, digits, dot and dash, or not
+    starting with a letter or digit) is DROPPED: it names no row, and it never
+    reaches the statement even as a bound parameter."""
+    out = []
+    for part in str(raw or "").split(","):
+        t = part.strip().upper()
+        if (t and len(t) <= _ROW_TICKER_MAX_LEN and set(t) <= _ROW_TICKER_CHARS
+                and t[0] not in ".-" and t not in out):
+            out.append(t)
+    return out
+
+
+def rows_for(tickers, columns, user=None) -> dict:
+    """``{TICKER: {"row": {...}, "stale": bool}}`` for each named ticker that has a
+    screener row. A ticker with no row is simply absent.
+
+    ``tickers`` come from :func:`row_tickers` (at most :data:`MAX_ROW_TICKERS`, or
+    ``ValueError``). ``columns`` are snapshot COLUMN names; ``ticker`` always leads
+    the row. Refused exactly as an explicit ``columns=`` on a scan is: an
+    undeclared name is ``ValueError("unknown columns: ...")``, and a declared one
+    this pod's table does not carry yet is the readiness refusal.
+
+    ``stale`` is True when the stale-row gate would leave the row out of every
+    scan; False otherwise, and always False when the gate does not bite."""
+    syms = list(dict.fromkeys(str(t).upper() for t in (tickers or [])))
+    if len(syms) > MAX_ROW_TICKERS:
+        raise ValueError(f"a row request can name at most {MAX_ROW_TICKERS} tickers")
+    cols = list(dict.fromkeys(["ticker", *[str(c) for c in (columns or [])]]))
+    declared = set(snapshot_db.COLUMNS)
+    bad = [c for c in cols if c not in declared]
+    if bad:
+        raise ValueError(f"unknown columns: {', '.join(sorted(bad))}")
+    with snapshot_db.connect() as conn:
+        known = _known_columns(conn)
+        unready = [c for c in cols if c not in known]
+        if unready:
+            raise _readiness_refusal(_member_label(unready[0]))
+        if not syms:
+            return {}
+        overlay = _overlay(conn, user)
+        tick = overlay.col_expr("ticker")
+        named = f"UPPER({tick}) IN ({','.join('?' for _ in syms)})"
+        select_sql = ", ".join(overlay.select_item(c) for c in cols)
+        rows = conn.execute(
+            f"SELECT {select_sql} FROM {overlay.from_sql()} WHERE {named}",
+            [*overlay.join_params, *syms]).fetchall()
+        kept = None
+        stale = stale_gate(conn)
+        if stale:
+            kept = {str(r[0]).upper() for r in conn.execute(
+                f"SELECT {tick} FROM {overlay.from_sql()} WHERE {named} AND {stale['sql']}",
+                [*overlay.join_params, *syms, *stale["params"]])}
+    out = {}
+    for r in rows:
+        row = dict(r)
+        t = str(row.get("ticker") or "").upper()
+        if t:
+            out[t] = {"row": row, "stale": kept is not None and t not in kept}
+    return out

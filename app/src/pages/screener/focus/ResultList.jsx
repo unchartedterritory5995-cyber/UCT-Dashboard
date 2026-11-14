@@ -45,7 +45,7 @@ const NO_STRUCTURES = {}
 export const LOOKAHEAD_ROWS = 2
 
 const ResultList = forwardRef(function ResultList(
-  { rows, index, onSelect, onKeyDown, livePrices = {}, radar = new Set(), sortLabel, onSort, total, hasMore, onLoadMore, isLoading, itemProps, showCompany = false, sortMenu, pending = false, structures = NO_STRUCTURES, headExtra = null, newSet = null, rsRow = null, themes = null },
+  { rows, index, onSelect, onKeyDown, livePrices = {}, radar = new Set(), sortLabel, onSort, total, hasMore, onLoadMore, isLoading, itemProps, showCompany = false, sortMenu, pending = false, structures = NO_STRUCTURES, headExtra = null, newSet = null, rsRow = null, themes = null, headBelow = null },
   ref,
 ) {
   const listRef = useRef(null)
@@ -138,6 +138,9 @@ const ResultList = forwardRef(function ResultList(
           <span>{rows.length ? `${index + 1} of ${total ?? rows.length}` : ''}</span>
         </span>
       </div>
+      {/* RS screens (unit U8): "Why isn't a stock here?", under the list head and outside the listbox,
+          so the list's own keys are not heard while a ticker is typed. Nothing on any other screen. */}
+      {headBelow}
       <div ref={listRef} id="focus-results" role="listbox" aria-label="Screen results" tabIndex={0} aria-busy={pending}
         aria-activedescendant={rows[index] ? `focus-opt-${rows[index].ticker}` : undefined}
         className={styles.list} data-focus-list=""
