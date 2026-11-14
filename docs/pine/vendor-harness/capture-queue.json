@@ -60,8 +60,8 @@
   ],
   "coverageMeasuredOn": "2026-11-05",
   "coverageMasterSha": "3ca4b0d358",
-  "fixtures": 353,
-  "ledgerRows": 0
+  "fixtures": 354,
+  "ledgerRows": 37
  },
  "definitions": {
   "priority": "|firm ∪ named ∪ direct| — firm: non-transferring sample scripts whose every host wall is a guard the target's rows name; named: non-transferring scripts the rows name; direct: the target IS a transferring, never-MATCHed sample script (its capture verifies it)",
@@ -83,17 +83,17 @@
  "counts": {
   "targets": 301,
   "byStatus": {
-   "CAPTURED": 78,
+   "CAPTURED": 79,
    "NEEDS_CHART": 39,
    "NEEDS_LIVE": 2,
-   "QUEUED": 182
+   "QUEUED": 181
   },
   "byPlanWave": {
    "E": {
-    "CAPTURED": 65,
+    "CAPTURED": 66,
     "NEEDS_CHART": 37,
     "NEEDS_LIVE": 2,
-    "QUEUED": 149
+    "QUEUED": 148
    },
    "W1": {
     "QUEUED": 6
@@ -119,9 +119,9 @@
     "QUEUED": 167
    },
    "1-2": {
-    "CAPTURED": 17,
+    "CAPTURED": 18,
     "NEEDS_CHART": 1,
-    "QUEUED": 15
+    "QUEUED": 14
    }
   },
   "byDocWave": {
@@ -134,8 +134,8 @@
     "NEEDS_CHART": 2
    },
    "E-census": {
-    "CAPTURED": 6,
-    "QUEUED": 5
+    "CAPTURED": 7,
+    "QUEUED": 4
    },
    "b1-paints": {
     "CAPTURED": 2
@@ -2014,8 +2014,10 @@
   },
   {
    "id": "support-and-resistance__1505@NYSE:RDDT@D",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/support-and-resistance-5f95e90f-rddt-1d-2026-11-13.json"
+   ],
    "source": "corpus/committed/support-and-resistance__1505.pine",
    "sourceKind": "corpus",
    "sha256": "5f95e90f1714bc164b2982b9ce1eb447218c8b830dbcb5e0374ec3f4d0416a84",
@@ -2028,7 +2030,9 @@
    "chartDefaulted": false,
    "chartSource": "census",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "NYSE:RDDT D"
+   ],
    "licence": "corpus",
    "needsLive": false,
    "priority": 1,
