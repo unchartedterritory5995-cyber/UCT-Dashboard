@@ -25,9 +25,13 @@ import { mountedWidgetDoor } from '../pages/charts/widgetDoors'
 // ⭐ W1-B B-03 (announced to Indicators): the indicator-alert product's OWN writers, called — never modified
 import { createIndicatorAlert, toggleIndicatorAlert, deleteIndicatorAlert, alertsKey } from '../hooks/useIndicatorAlerts'
 import { chartTabList } from '../pages/charts/chartTabs'
+import { alertScopeId } from '../components/chart/alertScope'
 import { GRID_BOARD_KEY, gridCellKey } from '../pages/charts/grid/gridAgentAdapter'
 
 const refOf = (r) => (r.tabId ? `${r.chartId}~${r.tabId}` : r.chartId)
+/** The indicator-alert scope id ("Only on this chart") of the chart with this ref — the id ChartWidget / GridChartCell hand
+ *  IndicatorAlertPopover (components/chart/alertScope.js): widget id, `${widgetId}:${tabId}` for an extra tab, a grid cell's id. */
+export const alertScopeOfRef = (ref) => { const [chartId, tabId] = String(ref || '').split('~'); return alertScopeId(chartId || null, tabId || null) }
 
 // One axis of a position word. The midline is the middle of the area these items cover: three charts across beside a Watchlist
 // rail fill 18 of the 24 columns, and a fixed midline of 12 called the middle one "left". Three clean lines (no item straddling

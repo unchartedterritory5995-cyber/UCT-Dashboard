@@ -44,6 +44,7 @@ import { WORKSPACE_PICKER_TYPES, labelMap, catalogMeta } from '../../../widgets/
 import { nextGroup, isSuspendedGroup } from '../colorGroups'
 import { resolveThemeColor } from '../../../lib/theme'
 import useExtraGroupsEnabled from '../useExtraGroupsEnabled'
+import { alertScopeId } from '../../../components/chart/alertScope'
 
 // Same widget roster + labels the workspace "Widgets ▾ → Add" menu uses, so the
 // chart's right-click "Add widget" submenu never drifts from it.
@@ -105,9 +106,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   //
   // ⚠️ A HOST THAT PASSES NONE STAYS GLOBAL, which is what every alert created
   // before this producer existed already is.
-  const paneChartId = !chartId
-    ? null
-    : (isMainTab || !activeExtra ? chartId : `${chartId}:${activeExtra.id}`)
+  const paneChartId = alertScopeId(chartId, isMainTab || !activeExtra ? null : activeExtra.id)
 
   // The settled request: which symbol the member has landed on. A single switch
   // applies in the same commit; a burst of arrow keys resolves to the last one
