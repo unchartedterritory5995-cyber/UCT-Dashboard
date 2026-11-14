@@ -900,6 +900,9 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         open_templates(pg)
         sent, perr = False, None
         try:
+            # Follow-up C: a plain template's Share lives in Manage templates' Plain templates group; the New note
+            # sheet's "Your templates" keeps Use and Preview and links there ("Manage your plain templates").
+            pg.get_by_role("button", name=PLAIN_MANAGE_LINK, exact=True).first.click(timeout=20000)
             share = pg.get_by_role("button", name=f"Share {name} to the Template library")   # S7 (was "to the community gallery")
             share.first.wait_for(state="visible", timeout=20000)
             share.first.click()
@@ -4434,8 +4437,15 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
             today_body = tr.json() if tr.status == 200 else {"status": tr.status}
             quiet = C.vis_loc(pB.get_by_text(BRIEF_NOTHING_YET, exact=True), 3000)
             made_nothing = notes1 == notes0 and folders1 == folders0
-            C.step(pB, iB, "discover.daily-brief", "opening the Daily brief makes no note and no folder; its one header button is Start today's note; a member with nothing sees the quiet line",
-                   "PASS" if made_nothing and (after or {}).get("buttons") == [BRIEF_START] and quiet else "FAIL",
+            # The quiet line says "nothing yet" only when no card is drawn (TodayHome.jsx `nothingYet`). From 16:05 ET the
+            # server opens the recap (`session.recap`) and the brief draws its Today's recap card even for a member with
+            # nothing, so the line must then be ABSENT. The walk reads which case the server answered and checks that one
+            # (measured: a run at 9 PM ET drew the recap card; the earlier records ran before the close).
+            recap_open = bool(((today_body or {}).get("session") or {}).get("recap"))
+            recap_card = pB.locator('[data-today-card="recap"]').count() > 0
+            quiet_ok = (not quiet and recap_card) if recap_open else quiet
+            C.step(pB, iB, "discover.daily-brief", "opening the Daily brief makes no note and no folder; its one header button is Start today's note; a member with nothing sees the quiet line (after 16:05 ET: the recap card instead)",
+                   "PASS" if made_nothing and (after or {}).get("buttons") == [BRIEF_START] and quiet_ok else "FAIL", recap_open=recap_open, recap_card=recap_card,
                    notes_before=notes0, notes_after=notes1, folders_before=folders0, folders_after=folders1,
                    today_read=today_body, header_buttons=(after or {}).get("buttons"), expected_button=BRIEF_START,
                    nothing_yet_line=quiet, scope=["[data-today-home]"])
