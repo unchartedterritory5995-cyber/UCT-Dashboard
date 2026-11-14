@@ -5503,6 +5503,15 @@ board image. **Live: seven posts a session, mon-fri**, into a ~750-member room.
   on every shape it builds (`NO_MENTIONS`; rail
   `tests/test_discord_public_replies_cannot_ping.py`, which reads the wire).
   Never remove it, and give any new public reply door the same field.
+  ⭐ **Watch-coverage classification for that change (required by
+  `docs/runbooks/deploy-windows.md`): INERT STRAND, no flow-worker deploy.** The
+  rail names `api/routers/discord_interactions.py`,
+  `api/services/discord_interactions.py`, `api/services/discord_render/commands.py`
+  and `api/services/tsdr_lessons.py`. flow-worker imports them and never runs
+  what changed: Discord POSTs interactions to `web` only
+  (`api/main.py` mounts the router; `api/flow_worker_main.py` does not), and
+  `edit_original` is called only from those reply paths. A flow-worker on the
+  older files behaves exactly as before.
   ⛔⛔ **The scheduled post must NEVER become
   ephemeral** — it IS what the room is meant to see, and an ephemeral one would
   leave every check green (job ran, `posted` stamped, attachment exists) while
