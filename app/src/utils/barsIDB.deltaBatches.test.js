@@ -110,6 +110,20 @@ describe('idbApplyDelta', () => {
     expect(rw.map((t) => t.puts)).toEqual([250, 10])
   })
 
+  it('reports progress after each committed batch, as a running count of entries done', async () => {
+    seed(60)
+    const done = []
+    const res = await mod.idbApplyDelta(delta(60), { onBatch: (n) => done.push(n) })
+    expect(res.aborted).toBe(false)
+    expect(done).toEqual([25, 50, 60])
+  })
+
+  it("a throwing progress callback never stops the delta", async () => {
+    seed(60)
+    const res = await mod.idbApplyDelta(delta(60), { onBatch: () => { throw new Error('storage full') } })
+    expect(res).toEqual({ updated: 60, skipped: 0, aborted: false })
+  })
+
   it('still skips a series it never seeded', async () => {
     seed(10)
     const res = await mod.idbApplyDelta([...delta(10), { sym: 'NEW', tf: 'D', bars: [{ t: '2026-11-14', c: 9 }] }])

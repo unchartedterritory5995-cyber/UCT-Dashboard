@@ -763,17 +763,21 @@ function _importBatch(db, batch, replaceIfNewer = false) {
 export const DELTA_BATCH_SIZE = 25
 const _yieldTurn = () => new Promise((r) => setTimeout(r, 0))
 
-export async function idbApplyDelta(entries, { batchSize = DELTA_BATCH_SIZE } = {}) {
+// `onBatch(done)`: called after each batch has COMMITTED, with how many entries are now done (the
+// caller keeps it so a page left mid-delta resumes there: barsPackClient `_ingestDelta`).
+export async function idbApplyDelta(entries, { batchSize = DELTA_BATCH_SIZE, onBatch = null } = {}) {
   if (!entries?.length) return { updated: 0, skipped: 0, aborted: false }
   let db
   try { db = await _open() } catch { return { updated: 0, skipped: 0, aborted: true } }
   let updated = 0, skipped = 0, aborted = false
   for (let i = 0; i < entries.length && !aborted; i += batchSize) {
     if (i > 0) await _yieldTurn()
-    const res = await _deltaBatch(db, entries.slice(i, i + batchSize))
+    const batch = entries.slice(i, i + batchSize)
+    const res = await _deltaBatch(db, batch)
     updated += res.updated
     skipped += res.skipped
     if (res.aborted) aborted = true
+    else if (onBatch) { try { onBatch(i + batch.length) } catch { /* the caller's bookkeeping never stops the delta */ } }
   }
   return { updated, skipped, aborted }
 }
