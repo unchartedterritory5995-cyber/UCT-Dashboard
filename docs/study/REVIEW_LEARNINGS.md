@@ -40,3 +40,6 @@ rule names the evidence.
     And on Palantir's 500% EPS growth off one cent: "the flip to profitability is big". Earnings questions should teach
     what actually moves a stock (guidance vs consensus, the quality of a beat, a turn to profitability), with the
     nuance, not a single headline fact.
+13. **Great traders' principles are high value.** "Test questions on O'Neil principles and principles of great traders
+    and us as well are very valuable." Questions that test the principles of O'Neil, the other great traders the course
+    quotes, and our own rules are worth keeping and adding to.
