@@ -121,7 +121,10 @@ def as_card(text: str, window: str = "open", *, image: str | None = None) -> dic
     else:
         title = f"Buzz · {label[:1].upper()}{label[1:]}"
         description = "\n".join(lines).strip()
-    return discord_cards.card("buzz", title=title, description=description or "​",
+    # "1 mention(s) from 1 member(s)" is the text board's shorthand; a card says it properly.
+    description = re.sub(r"\b(\d+) (mention|member)\(s\)",
+                         lambda m: discord_cards.plural(int(m.group(1)), m.group(2)), description)
+    return discord_cards.card("buzz", title=title, description=description,
                               footer=footer_bits + ["from the room's chat"], image=image)
 
 

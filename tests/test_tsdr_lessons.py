@@ -2181,6 +2181,28 @@ def test_an_older_lesson_with_no_part_timings_still_gets_its_moment(monkeypatch)
     assert hit2["at"] == "" and hit2["watch"] == "" and hit2["quote"] == ""
 
 
+def test_a_quote_starts_and_ends_on_whole_words(monkeypatch):
+    """"…ow of 318.20" (seen in Discord 2026-11-14) read as a typo."""
+    monkeypatch.setenv("TSDR_LESSONS_THREADS_ENABLED", "1")
+    said = ("the stock opened at the low of 318.20 and I bought it at 320 with the low of the day as my "
+            "stop loss, so ten dollars of risk on the position, and then Friday it made an inside day "
+            "and never came near my stop, and that is the whole idea of a stop that respects structure")
+    # Eight different lengths of words just BEFORE the match, so the raw cut slides across
+    # the text and lands inside a word for most of them: one fixed text can pass by sitting
+    # on a space. (Padding the start moves the match and the cut together; it proves nothing.)
+    for k in range(8):
+        text = said.replace("as my stop loss", "as my " + "z" * (k + 1) + " stop loss")
+        if k:
+            tl._update(f"q{k - 1}", status="skipped")            # one candidate at a time
+        _searchable(f"q{k}", 1, "Stops", transcript=text, segments=[[0, text]], youtube_id="YTVID00010")
+        quote = next(h for h in tl.search_lessons("stop loss") if h["attachment_id"] == f"q{k}")["quote"]
+        assert "stop loss" in quote
+        body = quote.strip("…")
+        first, last = body.split()[0], body.split()[-1]
+        assert f" {first} " in f" {text} " and f" {last} " in f" {text} ", f"cut mid-word: {quote!r}"
+        assert quote.startswith("…") and quote.endswith("…"), "a cut is still marked as one"
+
+
 def test_a_lesson_whose_post_was_deleted_is_not_offered_by_search_or_see_also(monkeypatch):
     """⚰️ run_regroup marks a lesson whose old post was deleted by hand with the section
     "removed" and leaves it `posted`. /lesson and "See also" both read `posted`, so they

@@ -83,7 +83,8 @@ def test_every_command_answers_in_the_same_frame(buzz, monkeypatch, tmp_path):
                               "uctintelligence.com")
     assert {cards[k]["author"]["name"] for k in cards} == {
         "UCT INTELLIGENCE · NEWS", "UCT INTELLIGENCE · LESSONS", "UCT INTELLIGENCE · BUZZ"}
-    assert all(e["title"] and e["description"] for e in cards.values()), "no card is blank"
+    assert all(e["title"] for e in cards.values())
+    assert all(e.get("description") for k, e in cards.items() if k != "buzz-board-image"), "no card is blank"
 
 
 # ── /buzz ────────────────────────────────────────────────────────────────────
@@ -103,15 +104,21 @@ def test_with_the_image_the_card_shows_the_picture_instead_of_the_table(buzz):
     reply, now = buzz
     e = reply.as_card(reply.build_board_text(now, "open"), "open", image="buzz.png")
     assert e["image"] == {"url": "attachment://buzz.png"}
-    assert "```" not in e["description"] and "NVDA" not in e["description"]
-    assert e["description"], "an empty description reads as a broken card"
+    assert "description" not in e, "no heat line: no body, not a blank line under the title"
+    board = "\n".join(["**Most talked about — since the open**", "```", "NVDA  ███  6", "```",
+                       "🔥 **Heating up today** — NVDA 3.1x", "_counted through 1:12p_"])
+    hot = reply.as_card(board, "open", image="buzz.png")
+    assert hot["description"] == "🔥 **Heating up today** — NVDA 3.1x" and "```" not in hot["description"]
 
 
 def test_a_ticker_card_names_the_stock_the_window_and_the_count(buzz):
     reply, now = buzz
     e = reply.as_card(reply.build_ticker_text("NVDA", "open", now), "open")
     assert e["title"] == "$NVDA · Buzz · Since the open"
-    assert e["description"].startswith("6 mention(s) from 6 member(s)")
+    assert e["description"].startswith("6 mentions from 6 members"), "the card says it properly"
+    one = reply.as_card("\n".join(["**AMD** — 1 mention(s) from 1 member(s)", "`▁`",
+                                   "_counted through 1:12p_"]), "open")
+    assert one["description"].startswith("1 mention from 1 member")
     assert e["footer"]["text"].startswith("counted through ")
     empty = reply.as_card(reply.build_ticker_text("ZZZZ", "open", now), "open")
     assert empty["title"] == "$ZZZZ · Buzz · Since the open"
@@ -222,3 +229,11 @@ def test_a_reply_without_a_card_is_byte_for_byte_what_it_was():
     c = httpx.Client(transport=httpx.MockTransport(lambda r: (seen.append(r), httpx.Response(200, json={}))[1]))
     di.edit_original("A", "T", content="No bars for X (Daily).", client=c)
     assert _payload(seen[-1]) == {"content": "No bars for X (Daily).", "allowed_mentions": {"parse": []}}
+
+
+def test_a_card_with_no_body_has_no_description_at_all():
+    """A placeholder character drew an empty line under the title (seen on the /buzz board
+    card in Discord, 2026-11-14)."""
+    for empty in ("", "​", " \n"):
+        assert "description" not in discord_cards.card("buzz", title="T", description=empty, footer=[], now=NOW)
+    assert discord_cards.card("buzz", title="T", description="x", footer=[], now=NOW)["description"] == "x"
