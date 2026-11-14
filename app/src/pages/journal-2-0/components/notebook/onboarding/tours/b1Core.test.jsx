@@ -71,7 +71,8 @@ describe.each(TOURS.map((t) => [t.id, t]))('tour %s', (id, entry) => {
     for (const s of steps) {
       // W14-C1: a step may also declare `waitFor` (a later step's anchor, railed in tourRegistry.test.js)
       // Go-live wave 1: a step may also declare `tier` (the screen tier it belongs to, tourTiers.js, railed in tourRegistry.test.js)
-      expect(Object.keys(s).filter((k) => k !== 'waitFor' && k !== 'tier').sort()).toEqual(['anchor', 'file', 'id'])
+      // Follow-up B fix round 1: and `noBack` (its card draws no Back, railed in tourRegistry.test.js)
+      expect(Object.keys(s).filter((k) => k !== 'waitFor' && k !== 'tier' && k !== 'noBack').sort()).toEqual(['anchor', 'file', 'id'])
       const c = copy[s.id]
       expect(c?.title?.trim(), `${id}.${s.id} title`).toBeTruthy()
       expect(c?.body?.trim(), `${id}.${s.id} body`).toBeTruthy()

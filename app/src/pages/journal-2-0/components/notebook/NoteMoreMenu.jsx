@@ -48,9 +48,23 @@ import { createContext, useCallback, useEffect, useId, useLayoutEffect, useMemo,
 import UIcon from '../../../../components/ui/UIcon'
 import { MQ } from '../../../../styles/breakpoints'
 import useDisclosureFocus from '../../lib/useDisclosureFocus'
+import { trackMenuRow } from '../../lib/notebookTelemetry'
 import styles from './NoteMoreMenu.module.css'
 
 export const MORE_NOTE_ACTIONS = 'More note actions'
+
+/** Follow-up A (usage counting): a press on a row of this panel counts once as `menu_row_used` ('note_more'), by the
+ *  `data-row` id the row carries where it is defined. A control inside a row's own form (a template name, the
+ *  Open-beside search) carries none and counts nothing. */
+function countRow(e) {
+  const row = e.target?.closest?.('[data-row]')
+  if (!row || !e.currentTarget.contains(row)) return
+  // Fix round 1 (M2): only a press that does something. A row that is busy (`aria-disabled`, Lock or Archive while one
+  // runs) does nothing, and a row pressed to CLOSE what it opened (Export's formats, the Open-beside search, the
+  // outline: `aria-expanded="true"` as the press lands) is not a use of it.
+  if (row.getAttribute('aria-disabled') === 'true' || row.getAttribute('aria-expanded') === 'true') return
+  trackMenuRow('note_more', row.getAttribute('data-row'))
+}
 
 /** Lane KEYS3: lets an action INSIDE the panel open the panel it lives in (the Export menu,
  *  asked for from the command palette): `open()`; `shown` says whether it is open. Simplify pass 2 (C3): and swap
@@ -173,6 +187,7 @@ export default function NoteMoreMenu({ children, buttonClassName = '', phoneItem
         hidden={!open}
         data-export-exclude
         {...disclosureProps}
+        onClick={countRow}
       >
         <div className={styles.view} hidden={Boolean(sub)}>
           {onPhone && phoneItems && (

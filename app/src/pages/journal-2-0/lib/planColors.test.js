@@ -48,6 +48,7 @@ describe('every surface that draws or lists a plan uses the one authority', () =
     'pages/journal-2-0/components/notebook/BoardCard.jsx',
     'pages/journal-2-0/components/trade/TradeBeforeAfter.jsx',
     'pages/journal-2-0/lib/tradeCanvas.js',
+    'pages/journal-2-0/lib/tradeCanvasModel.js',
   ])('%s imports lib/planColors and keeps no hand-written plan colour', (file) => {
     const src = read(file)
     expect(src).toMatch(/from '[./]*(lib\/)?planColors'/)

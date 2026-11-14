@@ -36,6 +36,9 @@ const LAZY = [
   '../lib/reviewDraftRun',
   // Wave 7 Task 7.3: the bulk bar, mounted on the first selection through `lazyView` (null fallback).
   '../components/notebook/BulkActionBar',
+  // Follow-up A (first-open bytes): the bulk actions' library, fetched on idle or on the first selection
+  // (`noteBatchLoader`, importWithOneRetry). It shipped without this entry (commit 8a5550bd89); follow-up C named it.
+  '../lib/noteBatch',
   // Wave 7 Task 7.4: the template picker (and the catalog it loads), through `lazyView` with its skeleton fallback.
   '../components/notebook/TemplatePicker',
   '../components/notebook/import/ImportWizard',

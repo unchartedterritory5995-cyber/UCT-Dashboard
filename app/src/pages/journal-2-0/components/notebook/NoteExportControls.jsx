@@ -60,7 +60,7 @@ import whenIdle from '../../lib/whenIdle'
 const loadExport = () => importWithOneRetry(() => import('../../lib/exportNote'), undefined,
   (m) => typeof m?.exportNoteAsPng === 'function' && typeof m?.printNote === 'function')
 import { noteExportUrl, saveResponse } from './export/exportFormats'
-import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../../lib/notebookTelemetry'
+import { NOTEBOOK_EVENTS, trackMenuRow, trackNotebookEvent } from '../../lib/notebookTelemetry'
 import editorStyles from './NoteEditorPage.module.css'
 import styles from './NoteExportControls.module.css'
 
@@ -223,7 +223,12 @@ export default function NoteExportControls({ noteId, title, columnRef, onMessage
     return true
   }), [more, exportBusy, openMenu])
 
-  const pick = (id) => (id === 'png' ? savePng() : id === 'print' ? print() : download(id))
+  // Follow-up A: in the note's More panel a format row is `menu_row_used` 'export_<format>' (the format ids are the
+  // menu's own, export/exportFormats.js plus png and print).
+  const pick = (id) => {
+    if (more) trackMenuRow('note_more', `export_${id}`)
+    return id === 'png' ? savePng() : id === 'print' ? print() : download(id)
+  }
   const menu = menuOpen && ExportMenu && (
     <ExportMenu id={menuId} inPanel={Boolean(more)} triggerRef={triggerRef} onPick={pick} onClose={closeMenu} />
   )
@@ -240,6 +245,7 @@ export default function NoteExportControls({ noteId, title, columnRef, onMessage
         aria-busy={waiting || undefined}
         disabled={exportBusy}
         onClick={() => (menuOpen ? setMenuOpen(false) : openMenu())}
+        data-row="export"
         onPointerEnter={exportMenuModule.warm}
         onFocus={exportMenuModule.warm}
         onKeyDown={(e) => {

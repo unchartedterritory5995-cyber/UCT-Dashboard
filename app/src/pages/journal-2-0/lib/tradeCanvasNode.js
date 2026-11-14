@@ -1,5 +1,5 @@
 import { Node, mergeAttributes } from '@tiptap/core'
-import { readStoredBoard, sortedLevels, fmtPrice, tfLabel } from './tradeCanvas'
+import { readStoredBoard, sortedLevels, fmtPrice, tfLabel } from './tradeCanvasModel'
 
 /**
  * Wave 11 lane 11D — the `tradeCanvas` node: a trade-plan canvas's whole board,
