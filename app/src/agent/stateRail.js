@@ -116,7 +116,7 @@ const READERS = {
       const keys = Object.keys(u.set || {}).filter(k => !HARMLESS_DRAWING_KEYS.has(k))
       const d = all.find(x => x.id === u.id) || {}
       // its own target: which settings / levels of WHICH drawing (a fib level value binds only to that fib)
-      if (keys.length) out.push({ state: 'drawing', type: 'overwrite', name: dname(d), id: `draw:${p.ref}:${u.id}`, dtype: d.type, keys, levels: Object.keys(u.set.levels || {}) })
+      if (keys.length) out.push({ state: 'drawing', type: 'overwrite', name: dname(d), id: `draw:${p.ref}:${u.id}`, dtype: d.type, keys, levels: [...Object.keys(u.set.levels || {}), ...Object.keys(u.set.fills || {}).flatMap(f => f.split('>'))] })
     }
     return out
   },
@@ -310,7 +310,7 @@ export function homograph(e, words) {
 const NEG = /\b(?:no|not|nothing|none|never|without|neither|nor|don['’]?t|dont|doesn['’]?t|didn['’]?t|won['’]?t|can['’]?t|cannot|shouldn['’]?t|mustn['’]?t)\b|n['’]t\b/i
 // destroy verbs the member uses for their own things (beyond DESTROY): "drop TSLA from Momentum", "take TSLA off the list",
 // "empty the watchlist", "unflag", "close the news tab" — each only with an EXISTING object of the right class after it
-const MORE_DESTROY = String.raw`drop|drops|dropped|dropping|take (?:\S+ ){0,3}?(?:off|out|away|down)|empty|emptied|unflag\w*|close|closes|closing`
+const MORE_DESTROY = String.raw`retire\w*|prune\w*|trim\w*|ditch\w*|scrap\w*|purge\w*|axe|axed|drop|drops|dropped|dropping|take (?:\S+ ){0,3}?(?:off|out|away|down)|empty|emptied|unflag\w*|close|closes|closing`
 // modify verbs (beyond MODIFY): hide / show a part, drag an anchor, flatten, call it something, thicken
 const MORE_MODIFY = String.raw`hide|hides|hid|hidden|unhide|drag|drags|dragged|flatten\w*|call|thick\w*|thin\w*|widen\w*|narrow\w*|darken\w*|lighten\w*|bold|italic\w*|move|nudge\w*|bump\w*|raise|lower`
 // what picks a widget's CONTENT (its list / scan): show, switch, open, load, go / take back to the picker, pick, exit, leave
@@ -351,8 +351,11 @@ const levelNamed = (e, obj) => {
 }
 // a drawing SETTING ("the arrow size", "its price label", "the font", "the end point") names only a key THIS change sets
 const KEY_WORDS = (k) => (k === 'points' ? ['point', 'points', 'anchor', 'corner', 'end', 'start', 'date', 'price', 'top', 'bottom']
-  : k === 'levels' ? ['level', 'levels'] : k === 'bands' ? ['band', 'bands', 'fill'] : String(k).replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase().split(' ').filter(w => w.length >= 3))
-const settingNamed = (e, obj) => { const got = new Set(tokens(obj)); return (e.keys || []).some(k => KEY_WORDS(k).some(w => got.has(w))) }
+  : k === 'levels' ? ['level', 'levels'] : (k === 'bands' || k === 'fills') ? ['band', 'bands', 'fill', 'shade', 'shading', 'shaded']
+  // a fill is said as shade / shading too ("shade that box blue")
+  : /fill/i.test(k) ? [...String(k).replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase().split(' ').filter(w => w.length >= 3), 'shade', 'shading', 'shaded'] : String(k).replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase().split(' ').filter(w => w.length >= 3))
+// (a word said in the plural names the same setting: "the dollars" → showDollar)
+const settingNamed = (e, obj) => { const got = new Set(tokens(obj).flatMap(t => [t, t.replace(/s$/, '')])); return (e.keys || []).some(k => KEY_WORDS(k).some(w => got.has(w))) }
 // a ticker said for a list counts only if it is IN that list, and the change removes one of them
 const symbolsNamed = (e, obj) => {
   if (!e.syms) return false
@@ -364,7 +367,7 @@ const namesOwn = (e, obj) => (e.state === 'widget' && e.type === 'replace' ? dis
 
 /** Do this turn's words COMMAND that kind of change on THAT existing object? (per clause, kind-matched, never negated).
  *  `subjects`: the conversation's current subject (exact object ids) — what a pointer at the start of a message means. */
-export function permits(e, words, subjects = null) {
+export function permits(e, words, subjects = null, previous = null) {
   // before / prev: the classes and the clause the latest earlier clause NAMED; spoke: an earlier clause said anything of
   // substance (named a thing, or asked for something) — then a pointer speaks of THAT, never of the conversation before
   let before = [], prev = '', spoke = false
@@ -376,6 +379,9 @@ export function permits(e, words, subjects = null) {
     if (!negated && e.type === 'replace' && e.to && PUT_IN.test(c) && has(c, e.to) && (SAID_LIST(c, e.to) || !tickersIn(c).includes(String(e.to).toUpperCase()))) return true
     if (!negated) {
       // a verbless style command ("the 9 green") changes the look of what it names or points at — an overwrite only
+      // the conversation's drawing, named by a setting / level / anchor its change sets ("big arrow", "the top was 150",
+      // "shade 0.5 to 0.618"): an overwrite of EXACTLY that drawing, never another (the subject bar)
+      if (e.type === 'overwrite' && e.state === 'drawing' && !spoke && isSubject() && !named.some(k => k !== 'drawing') && (settingNamed(e, c) || levelNamed(e, c))) return true
       if (e.type === 'overwrite' && VERBLESS.test(c) && (named.length ? namesObject(e, c) : spoke ? classesOf(e).some(k => before.includes(k)) : isSubject())) return true
       for (const m of c.matchAll(VERBS)) {
         if (!strengthOf(m[0], e)) continue
@@ -384,6 +390,9 @@ export function permits(e, words, subjects = null) {
         // "take NVDA off …" / "take the watchlist back to …": the object sits INSIDE the verb
         const inner = /^take\s+(.*?)\s+(?:off|out|away|down|back)$/i.exec(m[0])?.[1] || ''
         let obj = `${inner} ${c.slice(m.index + m[0].length)}`
+        // "use a hull average FOR the 20" / "apply X TO the rsi": a new VALUE, then the object it is for
+        const forObj = /^\s*(?:a|an|another|some)\b[^.;!?]*?\s(?:for|to|on)\s+(.*)$/i.exec(obj)
+        if (forObj && /^(?:use|using|apply|applies|applied|applying|set|make|change\w*|switch\w*|turn\w*)$/i.test(m[0]) && e.type === 'overwrite') obj = forObj[1]
         const cut = obj.search(CUT)
         if (cut >= 0) obj = obj.slice(0, cut)
         // a display verb's object is where it goes ("go back TO the list picker", "take the watchlist back TO its picker")
@@ -405,6 +414,8 @@ export function permits(e, words, subjects = null) {
             // the message's first words point at the conversation's CURRENT subject ("make it thicker"): an overwrite of
             // EXACTLY that object (never another of its class); a destroy, a replace or a save-over is asked, never assumed
             if (e.type === 'overwrite' && !saving && isSubject()) return true
+            // a destroy right after: only the ONE object the immediately previous turn made or changed (AUDIT #1247 A)
+            if (e.type !== 'overwrite' && !saving && e.id && previous && e.id === previous) return true
             continue
           }
           // after words of its own: an overwrite takes the class they named; a destroy / replace only the very object they
@@ -459,7 +470,7 @@ export const notDoneLine = (adds) => (adds.length
  * a pending question carried). Every mode (apply / propose / approved): an additive request never reaches a card that
  * destroys either. Fails closed: anything that throws while reading an additive request's plan refuses it.
  */
-export function stateRailRefusal(plan, { words = '', mode = 'apply', subjects = null } = {}) {
+export function stateRailRefusal(plan, { words = '', mode = 'apply', subjects = null, previous = null } = {}) {
   if (!plan?.ok) return null
   // an APPROVED card was shown, naming what it removes or changes, to the member who approved it (and its binding is checked
   // before it runs): the card is the permit. Every other path — instant, model, proposal, composed, deferred — needs the words.
@@ -470,7 +481,7 @@ export function stateRailRefusal(plan, { words = '', mode = 'apply', subjects = 
     if (!effects.length) return null
     const amb = effects.map(e => homograph(e, w)).find(Boolean)
     if (amb) return `Do you mean your “${amb}” list, or the ticker ${String(amb).toUpperCase()}? Nothing was changed — say “show my ${amb} list” to switch the widget to it, or “add ${String(amb).toUpperCase()} to my watchlist” to add the symbol.${notDoneLine(notDoneAdds(plan))}`
-    const bad = effects.filter(e => !permits(e, w, subjects))
+    const bad = effects.filter(e => !permits(e, w, subjects, previous))
     if (!bad.length) return null
     const what = listOf([...new Set(bad.map(said))])
     const lead = isStateAdditive(w) ? `you asked to add, but this would ${what}. Adding never replaces or removes what you already have` : `this would ${what}, and you didn’t ask for that`

@@ -808,8 +808,10 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
   const railMarkRef = useRef(RAIL_MARK)     // which rail refused last (telemetry)
   // the conversation's CURRENT subject (AUDIT #1247): the exact objects a pointer at the start of a message means — the
   // indicator(s) the latest changes touched, the drawing last drawn or changed. Only these may be restyled by "make it …"
-  const subjectIds = () => {
-    const out = new Set()
+  // (what the subject was when the member SPOKE joins it: a step of this turn that already ran never narrows "them all")
+  const turnSubjectsRef = useRef({ ids: new Set(), previous: null })
+  const subjectIds = (withTurnStart = true) => {
+    const out = new Set(withTurnStart ? turnSubjectsRef.current.ids : [])
     try {
       const m = memoryRef.current, ep = epochOf(host)
       const ind = (x) => { if (x?.chart && x.instanceId) out.add(`ind:${x.chart}:${x.instanceId}`) }
@@ -819,13 +821,27 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     try { const d = lastTouchedDrawing(); if (d?.sym && d.id) out.add(`draw:${d.sym}:${d.id}`) } catch { /* none */ }
     return out
   }
+  // ⛔ AUDIT #1247 (A): the ONE object the immediately previous turn created or changed — "remove it" / "delete it" right after
+  // may destroy exactly that object (two or more → asks; another id → refused)
+  const previousObject = () => {
+    try {
+      const m = memoryRef.current, ep = epochOf(host)
+      const t = m?.lastTurn?.(ep)
+      if (!t?.ops?.length) return null
+      const acts = t.ops.map(o => String(o.action))
+      if (acts.every(a => a.startsWith('indicator.'))) { const set = m.indicatorSet?.(ep) || []; return set.length === 1 ? `ind:${set[0].chart}:${set[0].instanceId}` : null }
+      if (acts.every(a => a.startsWith('drawing.')) && t.ops.length === 1) { const d = lastTouchedDrawing(); return d?.sym && d.id ? `draw:${d.sym}:${d.id}` : null }
+    } catch { /* none */ }
+    return null
+  }
   // stateMode: an APPROVED run's own steps (deferred, split parts) are approved for the state rail too (the card named them);
   // the chart rail keeps reading them as 'apply'
   const railOf = (plan, mode, stateMode = mode) => {
     // a refused bundle names its add parts as NOT done too (AUDIT #1247): the chart rail's refusal, with the plans it did not block
     const c0 = chartRailRefusal(plan, { words: railWordsRef.current, host, mode })
     const c = c0 && `${c0}${notDoneLine(notDoneAdds(plan, (p) => { try { return chartEffects({ ok: true, plans: [p] }, host).length > 0 } catch { return true } }))}`
-    const r = c || stateRailRefusal(plan, { words: railWordsRef.current, mode: stateMode, subjects: subjectIds() })
+    const r = c || stateRailRefusal(plan, { words: railWordsRef.current, mode: stateMode, subjects: subjectIds(), previous: turnSubjectsRef.current.previous })
+
     railMarkRef.current = c ? RAIL_MARK : STATE_RAIL_MARK
     return r
   }
@@ -2296,6 +2312,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     if (echo) push({ role: 'member', text, voice })
     setBusy(true)
     // ⭐ PHASE 2: everything this message commits is one turn of session memory ("do the same on the others")
+    turnSubjectsRef.current = { ids: subjectIds(false), previous: previousObject() }
     memoryRef.current.beginTurn()
     try {
       // a layout opened since the last turn drops the board's refs — on BOTH paths: NL-1 sends memory to the model

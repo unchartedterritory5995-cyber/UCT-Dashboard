@@ -507,6 +507,87 @@ describe('STATE RAIL · a typed approval runs the pending card approved — and 
   }, 30000)
 })
 
+// ── AUDIT #1247 (e2d3cabbda): copies join the subject only from the turn that MADE them; "remove it" right after ──
+describe('STATE RAIL · the subject through the real panel: copies the latest turn made, never earlier ones; "delete it" right after one add', () => {
+  const rowsOn = (fx, chart) => indicatorRowsOf(fx.host.charts.read(chart).cs)
+  const macdOn = (fx, chart) => rowsOn(fx, chart).find(r => r.defId === 'macd')
+  const vwapOn = (fx, chart) => rowsOn(fx, chart).find(r => r.defId === 'vwap')
+  it('copies made by the LATEST turn are restyled by "make them all green"; copies from an EARLIER turn are not', async () => {
+    const { fx, say } = mount()
+    envelopes.push(env('apply', [op('indicator.add', 'ixe:c1', { defId: 'vwap', inputs: null })]))
+    await say('could you put a vwap on the left chart for me')
+    envelopes.length = 0                                      // (the instant reader may have read it itself)
+    const orig = vwapOn(fx, 'c1')
+    expect(orig).toBeTruthy()
+    // (the instant reader copies it itself; if it reaches the model, the model plans the same copy)
+    envelopes.push(env('apply', [op('indicatorCopy.copyTo', 'ixe:c2', { from: 'c1', instances: [orig.instanceId] })]))
+    await say('could you copy that over to the right chart for me')
+    envelopes.length = 0
+    const copy = vwapOn(fx, 'c2')
+    expect(copy).toBeTruthy()
+    // an unrelated adding turn in between: the copy is no longer what the conversation is about
+    envelopes.push(env('apply', [op('indicator.add', 'ixe:c1', { defId: 'macd', inputs: null })]))
+    await say('could you put a macd on the left chart for me')
+    envelopes.length = 0                                      // (the instant reader may have read it itself)
+    const was = JSON.stringify(rowsOn(fx, 'c2'))
+    envelopes.push(env('apply', [op('indicatorStyle.set', 'ixe:c2', { instance: copy.instanceId, property: 'color', value: 'green', output: null })]))
+    await say('make them all green')
+    envelopes.length = 0                                      // (the instant reader may have read it itself)
+    expect(JSON.stringify(rowsOn(fx, 'c2')), 'an earlier turn’s copy never joins the subject').toBe(was)
+  }, 60000)
+  it('right after the copy turn, its copies ARE the subject ("make them all green" restyles the copy)', async () => {
+    const { fx, say } = mount()
+    envelopes.push(env('apply', [op('indicator.add', 'ixe:c1', { defId: 'vwap', inputs: null })]))
+    await say('could you put a vwap on the left chart for me')
+    envelopes.length = 0                                      // (the instant reader may have read it itself)
+    const orig = vwapOn(fx, 'c1')
+    // (the instant reader copies it itself; if it reaches the model, the model plans the same copy)
+    envelopes.push(env('apply', [op('indicatorCopy.copyTo', 'ixe:c2', { from: 'c1', instances: [orig.instanceId] })]))
+    await say('could you copy that over to the right chart for me')
+    envelopes.length = 0
+    const copy = vwapOn(fx, 'c2')
+    const was = JSON.stringify(rowsOn(fx, 'c2'))
+    envelopes.push(env('apply', [op('indicatorStyle.set', 'ixe:c2', { instance: copy.instanceId, property: 'color', value: 'green', output: null })]))
+    await say('make them all green')
+    envelopes.length = 0                                      // (the instant reader may have read it itself)
+    expect(JSON.stringify(rowsOn(fx, 'c2'))).not.toBe(was)
+  }, 60000)
+})
+
+describe('STATE RAIL · "remove it" right after: only the ONE object the previous turn made', () => {
+  const macdOn = (fx, chart) => indicatorRowsOf(fx.host.charts.read(chart).cs).find(r => r.defId === 'macd')
+  it('rail: previous = that object → allowed; previous = another id, or none (two made) → asks', async () => {
+    const fx = stateFixture()
+    const rm = await planOf(fx, WRONG.indicator['indicator.remove (the RSI)'])
+    expect(stateRailRefusal(rm, { words: 'remove it', previous: 'ind:c1:inst:rsi:1' })).toBe(null)
+    expect(stateRailRefusal(rm, { words: 'delete it', previous: 'ind:c1:ovl:0' }) || 'LET THROUGH').toMatch(/^I didn’t change anything/)
+    expect(stateRailRefusal(rm, { words: 'remove it', previous: null }) || 'LET THROUGH').toMatch(/^I didn’t change anything/)
+    // only at the start of a message: after words of its own, "it" is what those words named
+    expect(stateRailRefusal(rm, { words: 'add a macd, then remove it', previous: 'ind:c1:inst:rsi:1' }) || 'LET THROUGH').toMatch(/^I didn’t change anything/)
+  })
+  it('panel: one add, then "remove it" removes exactly that one; after a turn that added TWO, "remove it" asks', async () => {
+    const { fx, say } = mount()
+    envelopes.push(env('apply', [op('indicator.add', 'ixe:c1', { defId: 'macd', inputs: null })]))
+    await say('could you put a macd on the left chart for me')
+    envelopes.length = 0                                      // (the instant reader may have read it itself)
+    const macd = macdOn(fx, 'c1')
+    envelopes.push(env('apply', [op('indicator.remove', 'ixe:c1', { instance: macd.instanceId })]))
+    await say('could you remove it for me')
+    envelopes.length = 0                                      // (the instant reader may have read it itself)
+    const apply = screen.queryByRole('button', { name: 'Apply' })
+    if (apply) { await waitFor(() => expect(apply.disabled).toBe(false)); fireEvent.click(apply); await idle() }
+    expect(macdOn(fx, 'c1')).toBeFalsy()
+    // two in one turn → "remove it" is not one object
+    envelopes.push(env('apply', [op('indicator.add', 'ixe:c1', { defId: 'macd', inputs: null }), op('indicator.add', 'ixe:c1', { defId: 'vwap', inputs: null })]))
+    await say('could you put a macd and a vwap on the left chart for me')
+    const m2 = macdOn(fx, 'c1')
+    envelopes.push(env('apply', [op('indicator.remove', 'ixe:c1', { instance: m2.instanceId })]))
+    await say('could you remove it for me')
+    envelopes.length = 0                                      // (the instant reader may have read it itself)
+    expect(macdOn(fx, 'c1')).toBeTruthy()
+  }, 60000)
+})
+
 // ── A DRAWING BOARD SWITCH (AUDIT #1247 iii, accepted residual): the receipt names the board now shown; Undo is exact ──
 describe('STATE RAIL · a Drawing Board switch says which board is shown, and Undo puts the previous board back exactly', () => {
   it('drawing.setActiveBoard → "Swing board": receipt names it; Undo restores Board 1 and every drawing on it', async () => {
