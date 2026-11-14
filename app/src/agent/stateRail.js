@@ -36,6 +36,7 @@
 // Pure: reads the plan and the words; never writes. It never loosens the chart rail — both run, either refuses.
 import { instancesOf } from '../components/chart/builder/agentSeams'
 import * as nativeRegistry from '../components/chart/engine/nativeRegistry'
+import { tickersIn } from './multiChart'
 
 export const STATE_RAIL_MARK = 'state-rail'
 
@@ -269,20 +270,44 @@ export const clausesOf = (words) => strip(words).split(CLAUSES).map(c => c.trim(
 // show (its own name) and where — never "put AAPL on my watchlist" (adding a symbol never switches what a widget shows)
 const PUT_IN = /\bput\b[^.;!?]*\b(?:in|into|on|up in|up on)\s+(?:the|my|that|this|your)\b[^.;!?]*\b(?:watch ?lists?|widgets?|scanner)\b/i
 
+// the OBJECT a clause names or creates, matched against an effect's own name ("a 20 EMA" names EMA 20, never RSI (14))
+const tokens = (s) => phrase(s).split(' ').filter(Boolean)
+const namesThatObject = (e, clause) => { const want = tokens(labelOf(e)); const got = new Set(tokens(clause)); return want.length > 0 && want.every(t => got.has(t)) }
+// "the Flagged list" / "my Swing list" / "list Swing": the words say it is a LIST
+const SAID_LIST = (c, name) => {
+  const n = phrase(name).replace(/ /g, '\\s+')
+  return new RegExp(`\\b(?:the|my|your)\\s+(?:public\\s+)?${n}\\s+(?:watch ?)?list\\b|\\blist\\s+${n}\\b`, 'i').test(phrase(c))
+}
+/** A display switch named by a word that is BOTH the list's name and a ticker ("put AI up in my watchlist", a list called
+ *  "AI"): which one is meant is asked — never guessed. → the list name, or null. */
+export function homograph(e, words) {
+  if (e.type !== 'replace' || !e.to) return null
+  for (const c of clausesOf(words)) {
+    if (!PUT_IN.test(c) || !has(c, e.to) || SAID_LIST(c, e.to)) continue
+    if (tickersIn(c).includes(String(e.to).toUpperCase())) return e.to
+  }
+  return null
+}
+
 /** Do this turn's words ask for that kind of change to THAT kind of existing state? (per clause, kind-matched) */
 export function permits(e, words) {
   // a clause that names no class ("…, colour the fast one green", "then make it red") speaks of what the clause before it
-  // named — ONLY that class (never every kind)
-  let before = []
+  // named — ONLY that class, and (AUDIT #1247) for a destroy / replace only the OBJECT that clause named or made: "add a
+  // 20 EMA, then remove it" removes that EMA, never the RSI already there; "add a trendline. clear it" never clears all
+  let before = [], prev = ''
   for (const c of clausesOf(words)) {
     const named = Object.keys(CLASS).filter(k => CLASS[k].test(c))
     const about = named.length ? named : before
-    if (named.length) before = named
-    if (e.type === 'replace' && e.to && PUT_IN.test(c) && has(c, e.to)) return true
+    const ref = named.length ? '' : prev
+    if (named.length) { before = named; prev = c }
+    // a display switch named by the list it shows (never a symbol; a homograph is asked: stateRailRefusal)
+    if (e.type === 'replace' && e.to && PUT_IN.test(c) && has(c, e.to) && (SAID_LIST(c, e.to) || !tickersIn(c).includes(String(e.to).toUpperCase()))) return true
     const strong = DESTROY.test(c)
       || (e.type === 'replace' && (PICK.test(c) || MODIFY.test(c)))
       || (e.type === 'overwrite' && (MODIFY.test(c) || PICK.test(c) || (e.via === 'save' && SAVE.test(c) && !NEW_ONE.test(c))))
-    if (strong && (namesObject(e, c) || (!named.length && classesOf(e).some(k => about.includes(k))))) return true
+    if (!strong) continue
+    if (namesObject(e, c)) return true
+    if (!named.length && classesOf(e).some(k => about.includes(k)) && (e.type === 'overwrite' || namesThatObject(e, ref))) return true
   }
   return false                                                  // remove / clear / delete / unreadable without both
 }
@@ -302,7 +327,10 @@ export function stateRailRefusal(plan, { words = '' } = {}) {
   const w = String(words || '')
   if (!isStateAdditive(w)) return null
   try {
-    const bad = stateEffects(plan).filter(e => !permits(e, w))
+    const effects = stateEffects(plan)
+    const amb = effects.map(e => homograph(e, w)).find(Boolean)
+    if (amb) return `Do you mean your “${amb}” list, or the ticker ${String(amb).toUpperCase()}? Nothing was changed — say “show my ${amb} list” to switch the widget to it, or “add ${String(amb).toUpperCase()} to my watchlist” to add the symbol.`
+    const bad = effects.filter(e => !permits(e, w))
     if (!bad.length) return null
     return `I didn’t change anything: you asked to add, but this would ${listOf([...new Set(bad.map(said))])}. Adding never replaces or removes what you already have — say “replace”, “remove” or “change” if that is what you want.`
   } catch {

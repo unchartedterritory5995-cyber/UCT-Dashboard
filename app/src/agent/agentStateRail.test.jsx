@@ -271,6 +271,55 @@ describe('STATE RAIL · adding to a list leaves the displayed list unchanged unl
   }, 30000)
 })
 
+// ── AUDIT #1247 rulings: a carried-over clause DESTROYS only the object the clause before it named or made ──
+describe('STATE RAIL · an inherited destroy / replace licence binds to the OBJECT the previous clause named — never the whole class', () => {
+  it('"add a 20 EMA, then remove it": removing RSI (14) → refused; removing that 20 EMA → allowed', async () => {
+    const fx = stateFixture()
+    const rsi = await planOf(fx, WRONG.indicator['indicator.remove (the RSI)'])
+    const ema20 = await planOf(fx, [op('indicator.remove', 'ixe:c1', { instance: 'ovl:1' })])
+    expect(ema20.ok, JSON.stringify(ema20.refusals)).toBe(true)
+    expect(stateEffects(ema20)[0].label).toMatch(/EMA 20/)
+    for (const w of ['add a 20 EMA, then remove it', 'Add a 20 ema. Remove it', 'add a 20 EMA and remove it']) {
+      expect(stateRailRefusal(rsi, { words: w }), w).toMatch(/^I didn’t change anything/)
+      expect(stateRailRefusal(ema20, { words: w }), w).toBe(null)
+    }
+  })
+  it('"add a trendline. clear it": a plan clearing all drawings → refused (and deleting the existing trendline too)', async () => {
+    const fx = stateFixture()
+    for (const k of ['drawing.clear (SPY)', 'drawing.remove (the trendline)']) {
+      for (const w of ['add a trendline. clear it', 'add a trendline, then delete it', 'Add a fib and remove them'])
+        expect(stateRailRefusal(await planOf(fx, WRONG.drawing[k]), { words: w }), `${k} · ${w}`).toMatch(/^I didn’t change anything/)
+    }
+  })
+  it('an OVERWRITE still inherits the class ("add the 9 ema. Colour the fast one green")', async () => {
+    const fx = stateFixture()
+    expect(stateRailRefusal(await planOf(fx, WRONG.indicator['indicator.update (RSI 14 → 20)']), { words: 'add the 9 ema. make it 20' })).toBe(null)
+  })
+})
+
+// ── AUDIT #1247 (ii): the OBJECT decides — a LIST name switches the display; a SYMBOL is added and the display stays; a word
+// that is both is asked, nothing written ──
+describe('STATE RAIL · "put X in my watchlist": a list switches the display, a symbol never does, a homograph is asked', () => {
+  // a Watchlist widget showing Tech, and a plan switching it to a list whose name is `to`
+  const switchTo = (to) => ({ ok: true, plans: [{ kind: 'board', ref: 'board',
+    before: { board: [{ id: 'wl', type: 'watchlist', opts: { watchKey: 'user:wl1', watchName: 'Tech' } }] },
+    patch: { set: { wl: { opts: { watchKey: 'user:wl9', watchName: to, watchTab: 'mine' } } } } }] })
+  for (const [w, to] of [['put Swing up in my watchlist', 'Swing'], ['put the Flagged list in my watchlist widget', 'Flagged'], ['put Long Term on the Swing watchlist widget', 'Long Term'],
+    ['put the AI list in my watchlist', 'AI'], ['put my NOW list on the watchlist widget', 'NOW']])
+    it(`a LIST: "${w}" → the display switch is allowed`, () => expect(stateRailRefusal(switchTo(to), { words: w })).toBe(null))
+  for (const [w, to] of [['put AAPL on my watchlist', 'Swing'], ['put TSLA in my watchlist widget', 'Swing']])
+    it(`a SYMBOL: "${w}" + a switch → refused (the display stays)`, () => expect(stateRailRefusal(switchTo(to), { words: w })).toMatch(/^I didn’t change anything/))
+  for (const [w, to] of [['put AI up in my watchlist', 'AI'], ['put NOW in my watchlist widget', 'NOW'], ['PUT AI ON MY WATCHLIST', 'AI']])
+    it(`a HOMOGRAPH: "${w}" (a list called ${to}, and the ticker ${to}) → asked which, nothing written`, () => {
+      expect(stateRailRefusal(switchTo(to), { words: w })).toMatch(new RegExp(`^Do you mean your “${to}” list, or the ticker ${to}\\? Nothing was changed`))
+    })
+  it('through the panel: "put AAPL on my watchlist" (model inert) — AAPL is added to the list shown; the widget still shows Tech', async () => {
+    const { fx, say } = mount()
+    await say('put AAPL on my watchlist')
+    expect(fx.b.state.widgets.find(w => w.id === 'wl').opts.watchKey).toBe('user:wl1')
+  }, 30000)
+})
+
 // ── A DRAWING BOARD SWITCH (AUDIT #1247 iii, accepted residual): the receipt names the board now shown; Undo is exact ──
 describe('STATE RAIL · a Drawing Board switch says which board is shown, and Undo puts the previous board back exactly', () => {
   it('drawing.setActiveBoard → "Swing board": receipt names it; Undo restores Board 1 and every drawing on it', async () => {
