@@ -22,14 +22,26 @@ WHAT ONE PASS DOES (:func:`run`), over ``screener_rows``
   mapping (``snapshot_builder._RS_HISTORY_COLUMNS``), ``rs_rating_session`` says S, and
   the exact places are filled. A row with no history row in S gets NULL ratings and a
   NULL stamp, never another session's number.
-* S NOT STORED YET (every 03:00 build; the rating job has not run): NOTHING is
-  rewritten. A row is stamped with the newest stored session only when its rating
+* S NOT STORED YET (every 03:00 build; the rating job has not run): no RATING column
+  is rewritten. A row is stamped with the newest stored session only when its rating
   columns equal that session's (checked column by column), otherwise the stamp is
   NULL: a stamp is a statement about the numbers beside it, never a guess. The receipt
   says ``reason = session_not_stored``.
-* The places are taken among rows on the RS LIQUID FLOOR (:data:`LIQUID_FLOOR`),
+  ⭐ NO BLANK WINDOW (unit U4, 2026-11-14): the stamped rows still get their score,
+  their places and their rating a month ago, from the session they are stamped with.
+  Before, every place was NULL from the 03:00 build until the 04:15 rating job (and
+  all day when that job failed), so a screen that filters on a place was empty. These
+  carried places are written to the rows only: ``rs_pos_history`` keeps the ranking
+  the rating job's own pass stored for that session.
+* The OVERALL place is taken among rows on the RS LIQUID FLOOR (:data:`LIQUID_FLOOR`),
   ordered by the unrounded score, highest first; ties by the 3-month value, then
   dollar volume, then ticker, so no two rows share a place.
+* Each PERIOD place (1, 3, 6, 12 months) needs only liquidity and that period's own
+  stored value (unit U4): a stock listed under a year ago has no overall place and is
+  still ranked on the boards its history covers. A period board can therefore be
+  longer than the overall one.
+* ``rs_rating_prev20`` is the RS Rating 20 stored sessions earlier (the rating minus
+  the 20-session change the same history read returned), NULL when either is unknown.
 
 WHEN IT RUNS. At the end of EVERY ``snapshot_builder.run_build`` (the build upserts
 whole rows with INSERT OR REPLACE, so a single nightly pass would be wiped by the next
@@ -70,7 +82,8 @@ LIQUID_FLOOR = {
 #: copy of the same set; the build's ``empty_columns`` receipt leaves them to this
 #: pass's own receipt).
 OWNED_COLUMNS = ("rs_rating_session", "rs_rating_score", "rs_rating_pos", "rs_rating_pos_n",
-                 "rs_pos_1m", "rs_pos_3m", "rs_pos_6m", "rs_pos_12m", "rs_rating_pos_prev20")
+                 "rs_pos_1m", "rs_pos_3m", "rs_pos_6m", "rs_pos_12m", "rs_rating_pos_prev20",
+                 "rs_rating_prev20")
 #: ``place column -> the stored per-period value it is ordered by`` (``rs_rating_history``
 #: ``v1/v3/v6/v12``: the numbers the 1 to 99 ranks were taken over).
 PERIOD_PLACES = (("rs_pos_1m", "v1"), ("rs_pos_3m", "v3"),
@@ -116,10 +129,13 @@ def _num(v):
     return float(v) if isinstance(v, (int, float)) and not isinstance(v, bool) else None
 
 
-def on_liquid_floor(row: dict) -> bool:
+def on_liquid_floor(row: dict, *, full_year: bool = True) -> bool:
     """Is this screener row on :data:`LIQUID_FLOOR`? ``row`` carries ``is_etf``,
     ``price``, ``dollar_vol_30d`` and the full-year column. A missing price or volume
-    is off the floor (no value is not a pass)."""
+    is off the floor (no value is not a pass).
+
+    ``full_year=False`` asks for liquidity alone (unit U4): the per-period boards take
+    a stock with under a year of history, the overall board does not."""
     if LIQUID_FLOOR["exclude_etfs"] and row.get("is_etf"):
         return False
     price, dv = _num(row.get("price")), _num(row.get("dollar_vol_30d"))
@@ -127,7 +143,7 @@ def on_liquid_floor(row: dict) -> bool:
         return False
     if dv is None or dv < LIQUID_FLOOR["dollar_vol_30d_min"]:
         return False
-    return row.get(LIQUID_FLOOR["full_year_column"]) is not None
+    return (not full_year) or row.get(LIQUID_FLOOR["full_year_column"]) is not None
 
 
 def exact_places(candidates: list, value_key: str) -> dict:
@@ -291,7 +307,7 @@ def _run(receipt: dict, session, now) -> None:
     tickers = [r["ticker"] for r in rows]
     fields = rs_history.read_fields(tickers, session=key) or {}
     if not fields:
-        _stamp_only(receipt, rows, rating_map, rs_history.read_fields(tickers) or {})
+        _carry(receipt, rows, rating_map, rs_history.read_fields(tickers) or {})
         return
     _rewrite(receipt, key, rows, rating_map, fields)
 
@@ -303,65 +319,120 @@ def _mapped(rating_map: dict, f: dict) -> dict:
     return {col: (f or {}).get(src) for col, src in rating_map.items()}
 
 
-def _stamp_only(receipt: dict, rows: list, rating_map: dict, newest: dict) -> None:
-    """The asked session is not stored yet: rewrite nothing, and stamp a row with the
-    newest stored session only when its rating columns ARE that session's."""
+def _sourced(rating_map: dict, f: dict, session) -> dict:
+    """One row's values FROM ONE history row: the mapped rating columns, the session
+    stamp, the unrounded score and the rating 20 stored sessions earlier. ``f`` empty
+    (no history row, or a row whose numbers are not this session's) is all NULL."""
+    vals = _mapped(rating_map, f)
+    vals["rs_rating_session"] = session if f else None
+    vals["rs_rating_score"] = _num(f.get("score"))
+    ibd, d20 = _num(f.get("ibd")), _num(f.get("d20"))
+    vals["rs_rating_prev20"] = None if ibd is None or d20 is None else int(ibd - d20)
+    return vals
+
+
+def _candidates(rows: list, merged: dict, fields_of) -> tuple:
+    """``(overall, periods)``: the rows that may hold an overall place (the full
+    floor and a score) and the rows that may hold a period place (liquidity alone;
+    `exact_places` then drops a row with no value for the period)."""
+    overall, periods = [], []
+    for r in rows:
+        t = r["ticker"]
+        vals, f = merged[t], fields_of(t)
+        if not f or not on_liquid_floor({**r, **vals}, full_year=False):
+            continue
+        c = {"ticker": t, "dollar_vol_30d": r.get("dollar_vol_30d"),
+             "score": vals["rs_rating_score"], **{v: f.get(v) for _c, v in PERIOD_PLACES}}
+        periods.append(c)
+        if c["score"] is not None and on_liquid_floor({**r, **vals}):
+            overall.append(c)
+    return overall, periods
+
+
+def _earlier_places(conn, session) -> tuple:
+    """``(session, {ticker: place})`` stored :data:`PREV_SESSIONS` sessions before
+    ``session``, or ``(None, {})``. Creates nothing."""
+    if session is None or not _table_exists(conn, POS_TABLE):
+        return None, {}
+    prev_session = _earlier_session(conn, session)
+    if prev_session is None:
+        return None, {}
+    return prev_session, {r[0]: r[1] for r in conn.execute(
+        f"SELECT ticker, pos FROM {POS_TABLE} WHERE session = ?", (prev_session,))}
+
+
+def _place_values(vals: dict, t, places: dict, n: int, period: dict, prev: dict) -> None:
+    pos = places.get(t)
+    vals.update(rs_rating_pos=pos, rs_rating_pos_n=n if pos is not None else None,
+                rs_rating_pos_prev20=prev.get(t) if pos is not None else None,
+                **{col: period[col].get(t) for col, _v in PERIOD_PLACES})
+
+
+def _carry(receipt: dict, rows: list, rating_map: dict, newest: dict) -> None:
+    """The asked session is not stored yet (every 03:00 ET build). No rating column is
+    rewritten. A row whose rating columns ARE the newest stored session's is stamped
+    with that session and given its score, its places and its rating a month ago from
+    that session; every other row gets NULL in all of them, so nothing an earlier pass
+    wrote stays beside a date it is not from.
+
+    The places are computed on the floor as the rows stand NOW and written to the rows
+    only: the stored ranking for that session (``rs_pos_history``) is the rating job's
+    record and is not replaced by a later build's view of it."""
     receipt["reason"] = "session_not_stored"
     asof = next((f.get("asof") for f in newest.values() if f), None)
-    stamps, verified = [], 0
+    merged, own = {}, {}
     for r in rows:
-        f = newest.get(str(r["ticker"]).upper()) or {}
-        ok = bool(f) and all(r.get(c) == v for c, v in _mapped(rating_map, f).items())
-        verified += 1 if ok else 0
-        stamps.append((asof if ok else None, r["ticker"]))
+        t = r["ticker"]
+        f = newest.get(str(t).upper()) or {}
+        if not (f and all(r.get(c) == v for c, v in _mapped(rating_map, f).items())):
+            f = {}
+        own[t] = f
+        merged[t] = _sourced(rating_map, f, asof)
+    overall, periods = _candidates(rows, merged, own.get)
+    places = exact_places(overall, "score")
+    n = len(places)
+    period = {col: exact_places(periods, v) for col, v in PERIOD_PLACES}
+    sql = (f"UPDATE screener_rows SET {', '.join(c + ' = ?' for c in OWNED_COLUMNS)} "
+           "WHERE ticker = ?")
     with snapshot_db._WRITE_LOCK, closing(snapshot_db.connect()) as conn:
-        conn.executemany("UPDATE screener_rows SET rs_rating_session = ? WHERE ticker = ?", stamps)
+        prev_session, prev = _earlier_places(conn, asof)
+        payload = []
+        for t, vals in merged.items():
+            _place_values(vals, t, places, n, period, prev)
+            payload.append([vals[c] for c in OWNED_COLUMNS] + [t])
+        conn.executemany(sql, payload)
         conn.commit()
-    receipt["rating_session"] = asof if verified else None
-    receipt["stamped"] = verified
-    receipt["unstamped"] = len(rows) - verified
-    receipt["populated"] = {"rs_rating_session": verified}
+    verified = sum(1 for f in own.values() if f)
+    receipt.update(
+        rating_session=asof if verified else None, stamped=verified,
+        unstamped=len(rows) - verified, ranked=n, prev20_session=prev_session,
+        populated={c: sum(1 for v in merged.values() if v.get(c) is not None)
+                   for c in OWNED_COLUMNS})
     receipt["ok"] = True
 
 
 def _rewrite(receipt: dict, key: str, rows: list, rating_map: dict, fields: dict) -> None:
     rating_cols = tuple(rating_map)
     rank_ibd = _rank_ibd_on()
-    merged, candidates = {}, []
-    for r in rows:
-        t = r["ticker"]
-        f = fields.get(str(t).upper()) or {}
-        vals = _mapped(rating_map, f)
-        vals["rs_rating_session"] = key if f else None
-        vals["rs_rating_score"] = _num(f.get("score"))
-        merged[t] = vals
-        if vals["rs_rating_score"] is not None and on_liquid_floor({**r, **vals}):
-            candidates.append({"ticker": t, "dollar_vol_30d": r.get("dollar_vol_30d"),
-                               "score": vals["rs_rating_score"],
-                               **{v: f.get(v) for _c, v in PERIOD_PLACES}})
-    places = exact_places(candidates, "score")
+    merged = {r["ticker"]: _sourced(rating_map, fields.get(str(r["ticker"]).upper()) or {}, key)
+              for r in rows}
+    overall, periods = _candidates(rows, merged,
+                                   lambda t: fields.get(str(t).upper()) or {})
+    places = exact_places(overall, "score")
     n = len(places)
-    period = {col: exact_places(candidates, v) for col, v in PERIOD_PLACES}
+    period = {col: exact_places(periods, v) for col, v in PERIOD_PLACES}
     set_cols = rating_cols + OWNED_COLUMNS
     sql = (f"UPDATE screener_rows SET {', '.join(c + ' = ?' for c in set_cols)}"
            + (", rs_rank = COALESCE(?, rs_rank)" if rank_ibd else "") + " WHERE ticker = ?")
     with snapshot_db._WRITE_LOCK, closing(snapshot_db.connect()) as conn:
-        prev_session, prev = None, {}
         if n:
             # An empty ranking never replaces a stored one (a table with no liquid row
             # is a broken table, not a market with no leaders).
             _store_places(conn, key, places)
-        if _table_exists(conn, POS_TABLE):
-            prev_session = _earlier_session(conn, key)
-            if prev_session is not None:
-                prev = {r[0]: r[1] for r in conn.execute(
-                    f"SELECT ticker, pos FROM {POS_TABLE} WHERE session = ?", (prev_session,))}
+        prev_session, prev = _earlier_places(conn, key)
         payload = []
         for t, vals in merged.items():
-            pos = places.get(t)
-            vals.update(rs_rating_pos=pos, rs_rating_pos_n=n if pos is not None else None,
-                        rs_rating_pos_prev20=prev.get(t) if pos is not None else None,
-                        **{col: period[col].get(t) for col, _v in PERIOD_PLACES})
+            _place_values(vals, t, places, n, period, prev)
             args = [vals[c] for c in set_cols]
             if rank_ibd:
                 # One reader for both columns: a rated row's `rs_rank` IS this session's

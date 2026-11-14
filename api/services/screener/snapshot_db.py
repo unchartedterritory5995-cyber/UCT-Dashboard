@@ -282,7 +282,9 @@ LIVE_ONLY_COLUMNS = frozenset({"rvol_live", "premarket_price", "premarket_chg_pc
 #: case where the rating session is not stored yet and they are blank by design.
 POST_PASS_COLUMNS = frozenset({
     "rs_rating_session", "rs_rating_score", "rs_rating_pos", "rs_rating_pos_n",
-    "rs_pos_1m", "rs_pos_3m", "rs_pos_6m", "rs_pos_12m", "rs_rating_pos_prev20"})
+    "rs_pos_1m", "rs_pos_3m", "rs_pos_6m", "rs_pos_12m", "rs_rating_pos_prev20",
+    # unit U4: the RS Rating 20 stored sessions earlier
+    "rs_rating_prev20"})
 
 _TEXT = {"ticker", "company", "sector", "industry", "exchange", "security_type", "ma_stack",
          "candle_type", "candle_label", "candle_matches", "candle_trend",

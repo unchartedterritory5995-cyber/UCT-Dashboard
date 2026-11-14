@@ -148,18 +148,10 @@ _CASES: dict[str, tuple[dict, dict]] = {
     "rs_rating_pos_n_ge_rs_rating_pos": (
         {"rs_rating_pos_n": 1931, "rs_rating_pos": 1931},
         {"rs_rating_pos_n": 1931, "rs_rating_pos": 1932}),
-    "rs_rating_pos_n_ge_rs_pos_1m": (
-        {"rs_rating_pos_n": 1931, "rs_pos_1m": 14},
-        {"rs_rating_pos_n": 50, "rs_pos_1m": 51}),
-    "rs_rating_pos_n_ge_rs_pos_3m": (
-        {"rs_rating_pos_n": 1931, "rs_pos_3m": 1},
-        {"rs_rating_pos_n": 50, "rs_pos_3m": 60}),
-    "rs_rating_pos_n_ge_rs_pos_6m": (
-        {"rs_rating_pos_n": 2, "rs_pos_6m": 2},
-        {"rs_rating_pos_n": 2, "rs_pos_6m": 3}),
-    "rs_rating_pos_n_ge_rs_pos_12m": (
-        {"rs_rating_pos_n": 1931, "rs_pos_12m": 400},
-        {"rs_rating_pos_n": 399, "rs_pos_12m": 400}),
+    # Four cases left with their identities on 2026-11-14 (unit U4): the per-period
+    # places against `rs_rating_pos_n`. A period board now takes a liquid stock with
+    # under a year of history, so it can be longer than the overall count and the
+    # identity is no longer true (`identities.py` says so beside the one that stays).
 
     # size ───────────────────────────────────────────────────────────────
     "dollar_volume_is_price_times_volume": (

@@ -32,6 +32,8 @@ RATING_COLS = ("rs_rating_ibd", "rs_rating_chg_5", "rs_rating_chg_20", "rs_ratin
                "rs_rating_3m", "rs_rating_6m", "rs_rating_9m", "rs_rating_12m")
 PLACE_COLS = ("rs_rating_pos", "rs_rating_pos_n", "rs_pos_1m", "rs_pos_3m", "rs_pos_6m",
               "rs_pos_12m", "rs_rating_pos_prev20")
+OVERALL_COLS = ("rs_rating_pos", "rs_rating_pos_n", "rs_rating_pos_prev20")
+PERIOD_COLS = ("rs_pos_1m", "rs_pos_3m", "rs_pos_6m", "rs_pos_12m")
 
 
 @pytest.fixture(autouse=True)
@@ -129,10 +131,15 @@ def test_the_session_defaults_to_the_screeners_settled_session(monkeypatch):
     assert r["ok"] is False and r["reason"] == "no_session"
 
 
-def test_a_session_not_stored_yet_rewrites_nothing_and_stamps_only_what_it_can_verify():
+def test_a_session_not_stored_yet_rewrites_no_rating_and_stamps_only_what_it_can_verify():
     """03:00 ET: the build has just read the newest stored session (PREV) and the rating
     job for S has not run. AAA holds PREV's numbers and is stamped PREV; OLD holds an
-    older session's and gets no stamp; no rating, score or place is written."""
+    older session's and gets no stamp; no rating column is written on any row.
+
+    Pin moved 2026-11-14 (unit U4, "no blank window"): this said no score or place is
+    written either. A stamped row now gets its score and places from the session it is
+    stamped with (`tests/test_rs_screens_u4_post_pass.py` holds that); what still must
+    not move is every column the pass does not own."""
     rh.store_rows(PREV, {"AAA": _hist(70, 1.3), "OLD": _hist(40, 0.9)})
     snapshot_db.upsert_rows([
         _row("AAA", rs_rating_ibd=70, rs_rating_1m=41, rs_rating_3m=43, rs_rating_6m=46,
@@ -151,8 +158,10 @@ def test_a_session_not_stored_yet_rewrites_nothing_and_stamps_only_what_it_can_v
     assert after["OLD"]["rs_rating_session"] is None, "a stamp the numbers do not match"
     assert after["NONE"]["rs_rating_session"] is None
     for t in before:
-        assert {k: v for k, v in after[t].items() if k != "rs_rating_session"} == \
-               {k: v for k, v in before[t].items() if k != "rs_rating_session"}, t
+        assert {k: v for k, v in after[t].items() if k not in pp.OWNED_COLUMNS} == \
+               {k: v for k, v in before[t].items() if k not in pp.OWNED_COLUMNS}, t
+    assert (after["AAA"]["rs_rating_pos"], after["AAA"]["rs_rating_score"]) == (1, 1.3)
+    assert all(after[t][c] is None for t in ("OLD", "NONE") for c in pp.OWNED_COLUMNS)
     assert pp.POS_TABLE not in _tables()
 
 
@@ -187,8 +196,14 @@ def test_places_run_1_to_n_on_the_floor_with_no_ties_and_are_null_off_it():
     on = [t for t in rows if rows[t]["rs_rating_pos"] is not None]
     assert sorted(rows[t]["rs_rating_pos"] for t in on) == [1, 2, 3], "dense, no ties"
     assert {rows[t]["rs_rating_pos_n"] for t in on} == {3} and r["ranked"] == 3
-    for t in ("FUND", "CHEAP", "THIN", "YOUNG", "NOSCORE", "UNRATED", "NOPRICE", "NOVOL"):
+    for t in ("FUND", "CHEAP", "THIN", "UNRATED", "NOPRICE", "NOVOL"):
         assert [rows[t][c] for c in PLACE_COLS] == [None] * len(PLACE_COLS), t
+    # Pin moved 2026-11-14 (unit U4): a liquid stock with under a year of history
+    # (YOUNG) or no score (NOSCORE) still has no OVERALL place, and is now ranked on
+    # each period board it holds a value for.
+    for t in ("YOUNG", "NOSCORE"):
+        assert [rows[t][c] for c in OVERALL_COLS] == [None] * 3, t
+        assert all(isinstance(rows[t][c], int) for c in PERIOD_COLS), t
     # off the floor is not unrated: the rating and the score still land
     assert rows["CHEAP"]["rs_rating_ibd"] == 99 and rows["CHEAP"]["rs_rating_score"] == 2.40
     assert rows["FUND"]["rs_rating_session"] == S
@@ -355,7 +370,8 @@ def test_the_receipt_is_stored_and_served_on_the_snapshot_status():
     r = pp.run(S, source="test")
     assert r["populated"] == {"rs_rating_session": 1, "rs_rating_score": 1, "rs_rating_pos": 1,
                               "rs_rating_pos_n": 1, "rs_pos_1m": 1, "rs_pos_3m": 1, "rs_pos_6m": 1,
-                              "rs_pos_12m": 1, "rs_rating_pos_prev20": 0}
+                              "rs_pos_12m": 1, "rs_rating_pos_prev20": 0,
+                              "rs_rating_prev20": 0}     # the tenth column (unit U4)
     assert set(r["populated"]) == set(pp.OWNED_COLUMNS) == set(snapshot_db.POST_PASS_COLUMNS)
     last = pp.last_run()
     assert last["session"] == S and last["source"] == "test" and last["ranked"] == 1
@@ -434,10 +450,10 @@ def test_a_pass_that_fails_never_fails_the_build(monkeypatch):
 
 # ───────────────────────── the schema ─────────────────────────
 
-def test_the_nine_columns_are_declared_with_their_types():
+def test_the_ten_columns_are_declared_with_their_types():
     kinds = {"rs_rating_session": "TEXT", "rs_rating_score": "REAL"}
     for c in pp.OWNED_COLUMNS:
         assert snapshot_db.COLUMNS.count(c) == 1, c
         assert snapshot_db._coldef(c) == f"{c} {kinds.get(c, 'INTEGER')}", c
-    assert len(pp.OWNED_COLUMNS) == 9
+    assert len(pp.OWNED_COLUMNS) == 10      # 9 -> 10 on 2026-11-14 (unit U4): rs_rating_prev20
     assert not (snapshot_db.POST_PASS_COLUMNS & snapshot_db.LIVE_ONLY_COLUMNS)
