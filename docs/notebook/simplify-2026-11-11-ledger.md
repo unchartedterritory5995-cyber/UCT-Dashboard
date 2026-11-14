@@ -656,3 +656,16 @@ First open 2,252,797 B to 2,253,325 B (+528 B). Full record: `.superpowers/follo
 - Every member-facing sentence in `note_kinds.py` (name length, duplicate, limit, built-in change and delete, in use) and two gallery sentences (`EXAMPLE_KIND_SENTENCE`, the share report's note type line) say "note type"; contract fixtures regenerated. Undo: revert the strings.
 - The Insert palette (`EditorToolSlots.jsx` `WidgetPaletteSlot`) and "Or tell Notebook what to change" (`NotebookAiPanel.jsx` `AiActionsSlot`) are held modules: warmed on idle and from their doors, drawn in the press's own commit, a focused frame on a cold press (nothing typed reaches the note), a failure sentence with a member-pressed Reload. Undo: back to `lazyChunk` + Suspense in each file.
 - Minors: `FIRST_RUN_PENDING` is two string constants (`FIRST_RUN_DUE`, `FIRST_RUN_UNDECIDED`); `builderCatalog.js` no longer relabels "Note kind" (dead since 5a); a NotebookTab comment quotes "Choose a note type.".
+
+## Follow-up C (2026-11-13): one room for templates, base `0c2ff723ce`
+
+"Manage templates" is the one place a member manages every template they own. No server change, no schema change, no data migration, nothing deleted that was not deletable before.
+
+- Moved in: Archived and Recently deleted (Restore, Delete permanently with the name typed, "Kept until") are views of the manager (a tablist: Active, Archived, Recently deleted, while wave 11 is on), drawn by the same list My tools drew (`myTools/TemplateList.jsx`, one implementation).
+- Moved in: a member's own template row in Active gains Archive (with the hint that its notes keep it) and "Used in N notes" with its list. Delete's Undo line now names the template and says "Moved to Recently deleted."
+- Moved in: the "Save as template" copies, as a "Plain templates" group below the per-note-type lists (Use, Preview, Rename, Delete, Share), with the "Daily notes start from" control at its top (same preference, plain templates only). Their rows and handlers stay in `MemberTemplates.jsx`, shared with the picker.
+- The New note sheet's "Your templates" keeps Use and Preview; Rename, Delete, Share and the daily control became "Manage" and "Daily notes start from: {name}. Change", which open the manager at that group or control.
+- My tools > Templates is one sentence and an "Open Manage templates" button (the tab stays in the row). `?styles=1&show=archived|deleted|plain` opens the manager at a view or group; any other `show` opens Active.
+- Undo: My tools > Templates lists templates again; the picker manages plain templates again (revert the follow-up C commits).
+
+First open 2,254,673 B to 2,254,602 B (-71 B). Full record: `.superpowers/followups/C-report.md` (local).
