@@ -274,6 +274,14 @@ the hour.**
 
 ## Current state — LITERAL watch patterns, read from Railway 2026-09-12 03:4x UTC
 
+> ⚰️ **The `web` row below is out of date, and so is "no filter".** `web`'s watch list has come
+> from `railway.web.json` since that file gained one, and on 2026-11-14 Railway's STORED list for
+> `web` was written to match the file (eight patterns), because Railway stops reading config files
+> on 2026-12-01. `worker`'s stored list is empty today and does not matter while its auto deploy is
+> off. Read the live values, do not trust this table:
+> `python tools/railway_watch_patterns.py`, and for every setting a config file supplies,
+> `python tools/railway_stored_settings.py`. Runbook: `docs/runbooks/railway-config-cutoff.md`.
+
 These are the **literal patterns Railway returns**, not inferences. Re-read any time
 with `python tools/railway_watch_patterns.py` — it authenticates from the railway
 CLI's own session when no token is set, so it needs no provisioning.
