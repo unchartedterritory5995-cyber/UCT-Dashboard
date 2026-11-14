@@ -6,7 +6,8 @@
 // ⛔ FAIL CLOSED. A value the row does not carry (null, absent, not a finite number) prints
 // nothing. No part is ever guessed from another, and a missing part leaves no separator behind.
 
-import { shortDay } from './dates'
+import { shortDay, isoDay } from './dates'
+import { etCalendarDaysBetween } from '../../../lib/marketClock/etTime'
 
 const isNum = v => typeof v === 'number' && Number.isFinite(v)
 const fmtInt = n => Math.round(n).toLocaleString('en-US')
@@ -112,15 +113,29 @@ export function captionOf(row, cfg, theme = null) {
   return (cfg?.caption || []).map(p => (PARTS[p] ? PARTS[p](row, theme, cfg) : '')).filter(Boolean).join(' · ')
 }
 
-// A report inside the week (unit U8): `days_to_earnings` is whole calendar days from the build's
-// date to the stock's next earnings report. The server knows that date for under half the names
-// (43% on 2026-11-14), so a row without one says NOTHING: no tag is never "no earnings soon".
-// Past this many days nothing is said either (tests/test_rs_screens_u8_earnings.py holds this
-// number against the one the method page states, rs_screens.EARNINGS_TAG_DAYS).
+// A report inside the week (unit U8). The server knows the next report's date for under half the
+// names (43% on 2026-11-14), so a row without one says NOTHING: no tag is never "no earnings
+// soon". Past this many days nothing is said either (tests/test_rs_screens_u8_earnings.py holds
+// this number against the one the method page states, rs_screens.EARNINGS_TAG_DAYS).
 export const EARNINGS_TAG_MAX_DAYS = 5
-export function earningsWords(row) {
+// Whole calendar days from TODAY IN NEW YORK to the report (unit U12). `days_to_earnings` is
+// counted from the build's date, so on a Saturday or a Sunday (and all of Monday before the
+// 03:00 ET build) it was one or two days too many, and a report on Monday read "in 3 days" all
+// weekend. The row's own `next_earnings_date` is counted from today instead. A row that does
+// not carry the date falls back to the stored count; a date already past says nothing, and is
+// never replaced by that count (the count was right only on the day it was stored).
+export function earningsDays(row, now = Date.now()) {
+  const day = isoDay(row?.next_earnings_date)
+  if (day) {
+    const n = etCalendarDaysBetween(typeof now === 'number' ? now : now.getTime(), day)
+    return Number.isInteger(n) ? n : null
+  }
   const n = row?.days_to_earnings
-  if (!Number.isInteger(n) || n < 0 || n > EARNINGS_TAG_MAX_DAYS) return ''
+  return Number.isInteger(n) ? n : null
+}
+export function earningsWords(row, now = Date.now()) {
+  const n = earningsDays(row, now)
+  if (n === null || n < 0 || n > EARNINGS_TAG_MAX_DAYS) return ''
   return n === 0 ? 'Earnings today' : n === 1 ? 'Earnings tomorrow' : `Earnings in ${n} days`
 }
 
@@ -183,7 +198,7 @@ const PART_COLUMNS = {
 const FACTS = { days: row => daysWords(row) }
 const FACT_COLUMNS = { days: ['rs_leaders_days'] }
 const TAG_COLUMNS = {
-  earnings: ['days_to_earnings'],
+  earnings: ['days_to_earnings', 'next_earnings_date'],
   weekly: ['rs_nh_weekly'],
   before_price: ['rs_nhbp_age', 'px_below_high_pct'],
   down_day: ['rs_nh_red_bars_ago', 'rs_nh_bars_ago'],

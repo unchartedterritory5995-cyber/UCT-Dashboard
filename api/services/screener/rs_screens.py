@@ -98,9 +98,11 @@ NO_BUYOUT_SCREENS = ("starter_rs_top_rating", "starter_rs_new_high",
 #: a list it can qualify for). Sent as data so the client never reads a screen's id.
 LIST_SCREENS = NO_BUYOUT_SCREENS
 #: The row tag ``earnings`` (unit U8): a report inside the week changes what a setup
-#: means, so it is the FIRST tag on the four list screens. The client words it from
-#: ``days_to_earnings`` (whole calendar days from the build's date to the next report):
-#: "Earnings today", "Earnings tomorrow", "Earnings in N days", for 0 to this many days.
+#: means, so it is the FIRST tag on the four list screens. The client words it
+#: "Earnings today", "Earnings tomorrow", "Earnings in N days", for 0 to this many days,
+#: counted from TODAY IN NEW YORK to the row's ``next_earnings_date`` (unit U12:
+#: ``days_to_earnings`` is counted from the build's date, so it ran a day or two long
+#: over a weekend; it is the fallback for a row that does not carry the date).
 #: The date is known for under half the names (43% on 2026-11-14), so a row without one
 #: gets no tag, and no tag is never "no earnings soon" (the method page says so).
 #: RS exit warnings does not carry it: that screen is a prompt to review a holding, and

@@ -82,7 +82,9 @@ def test_the_client_applies_the_window_the_method_page_states():
     assert m, "rsRows.js no longer declares EARNINGS_TAG_MAX_DAYS"
     assert int(m.group(1)) == rs_screens.EARNINGS_TAG_DAYS
     # the tag asks the scan for exactly the column above
-    assert re.search(r"earnings:\s*\['days_to_earnings'\]", src), "the earnings tag's column moved"
+    # unit U12: the list also asks for the report's date, which the tag is now counted from
+    assert re.search(r"earnings:\s*\['days_to_earnings', 'next_earnings_date'\]", src), \
+        "the earnings tag's columns moved"
 
 
 def test_the_method_page_says_the_date_is_shown_only_when_known(on):
