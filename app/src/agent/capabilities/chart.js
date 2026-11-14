@@ -29,6 +29,9 @@ import { breadthRecord } from '../../hooks/useBreadthSymbols'
 import { isEconomicId } from '../../components/chart/engine/econMark'
 import { getExtSessionCached } from '../../utils/extSession'
 import { unknownSymbols } from '../agentClient'
+
+/** Strip trailing . , ! ? ; : and closing quotes/brackets (and spaces) — never a symbol's inner dot ("BRK.B." → "BRK.B"). */
+export function stripTrailingPunct(t) { return String(t ?? '').replace(/[\s.,!?;:'"’”)\]}]+$/u, '') }
 import { watermarkSpot } from '../derivedOpts'
 import { mergeChartSettings, CHART_TYPE_OPTIONS } from '../../components/chart/chartDefaults'
 import { NATIVE_TFS, tfLabel as productTfLabel } from '../../components/chart/timeframes'
@@ -660,7 +663,10 @@ const CAPABILITIES = [
     args: { type: 'object', properties: { symbol: { type: 'string' } }, required: ['symbol'], additionalProperties: false },
     // "$NVDA", or chart|open|show|load|pull up + an UPPERCASE ticker in the RAW
     // text (so "show volume" can never read as the ticker VOLUME).
-    fast: ({ raw: said, host }) => {
+    fast: ({ raw: said0, host }) => {
+      // Trailing sentence punctuation and closing quotes/brackets are never part of a ticker ("switch to AMD."
+      // was refused as “AMD.”); a dot INSIDE a symbol is kept ("BRK.B." → BRK.B).
+      const said = stripTrailingPunct(said0)
       // Phase 2: the VERB may be capitalised ("Open NVDA") and "on the main chart" adds nothing on a
       // one-chart board (several charts → the orchestrator asks which). The TICKER keeps its case.
       // Only these verbs ("Chart SPY." is left exactly as before — it may mean a NEW chart).
