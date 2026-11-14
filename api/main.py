@@ -2672,6 +2672,11 @@ def _run_rs_post_pass(source: str) -> None:
     "New today" was taken on the previous session's ratings. `membership.rerecord_all`
     replaces that record and never creates one the nightly refused to take. A pass that
     found the session not stored yet changed no rating, so nothing is recorded again.
+
+    The screener panel's measured bands are dropped and measured again first: they are
+    cached per snapshot fingerprint (row count, newest `built_at`, date), the pass moves
+    none of those, and the bands taken after the 03:00 build saw the nine pass-written
+    columns blank. `distribution.invalidate` exists for a rewrite that keeps the fingerprint.
     """
     try:
         from api.services.screener import rs_post_pass
@@ -2683,6 +2688,12 @@ def _run_rs_post_pass(source: str) -> None:
               f"reason={r.get('reason')} rows={r.get('rows')} ranked={r.get('ranked')} "
               f"ms={r.get('duration_ms')}")
         if r.get("rewritten"):
+            try:
+                from api.services.screener import distribution
+                distribution.invalidate()
+                distribution.distributions()
+            except Exception as e:  # noqa: BLE001 - bands are an aid; never cost the record below
+                print(f"[scheduler] rs post-pass ({source}): bands not refreshed: {e}")
             from api.services.screener import membership
             mr = membership.rerecord_all()
             print(f"[scheduler] rs post-pass ({source}): screener membership re-recorded: {mr}")

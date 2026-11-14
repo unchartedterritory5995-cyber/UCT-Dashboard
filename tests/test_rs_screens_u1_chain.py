@@ -22,11 +22,14 @@ import pytest
 
 import api.main as m
 from api.services import rs_lists
-from api.services.screener import membership, rs_history as rh, rs_post_pass as pp, snapshot_db
+from api.services.screener import (distribution, membership, rs_history as rh,
+                                   rs_post_pass as pp, snapshot_db)
 from tests.test_rs_history_catchup import OK_RECEIPT, OLDER, TARGET, _register
 
-#: The real function, held before the fixture below replaces it on the module.
+#: The real functions, held before the fixture below replaces them on their modules.
 REAL_RERECORD_ALL = membership.rerecord_all
+REAL_PASS = pp.run
+REAL_INVALIDATE, REAL_DISTRIBUTIONS = distribution.invalidate, distribution.distributions
 
 PASS_OK = {"ok": True, "enabled": True, "rewritten": True, "session": TARGET,
            "rating_session": TARGET, "ranked": 3}
@@ -53,12 +56,16 @@ def chain(tmp_path, monkeypatch):
     monkeypatch.setattr(pp, "run", _pass)
     monkeypatch.setattr(membership, "rerecord_all", lambda: events.append("membership") or {"recorded": 3})
     monkeypatch.setattr(rs_lists, "nightly_job", lambda: events.append("lists") or {"enabled": False})
-    return {"events": events, "state": state}
+    bands = []
+    monkeypatch.setattr(distribution, "invalidate", lambda: bands.append("dropped"))
+    monkeypatch.setattr(distribution, "distributions", lambda: bands.append("measured") or {})
+    return {"events": events, "state": state, "bands": bands}
 
 
 def test_the_0415_rating_job_is_followed_by_the_pass_and_a_membership_re_record(chain):
     m._run_rs_history()
     assert chain["events"] == ["rating", "pass:rating", "membership"]
+    assert chain["bands"] == ["dropped", "measured"]
 
 
 def test_the_0440_lists_job_runs_the_pass_before_the_lists(chain):
@@ -99,6 +106,34 @@ def test_membership_is_re_recorded_only_when_the_pass_moved_the_ratings(chain):
     chain["state"]["pass"] = {**PASS_OK, "rewritten": False, "reason": "session_not_stored"}
     m._run_rs_lists()
     assert chain["events"] == ["pass:lists", "lists"]
+    assert chain["bands"] == [], "nothing moved, so the measured bands still describe the table"
+
+
+def test_a_band_refresh_that_fails_does_not_cost_the_membership_record(chain, monkeypatch):
+    def boom():
+        raise OSError("disk")
+    monkeypatch.setattr(distribution, "invalidate", boom)
+    m._run_rs_lists()
+    assert chain["events"] == ["pass:lists", "membership", "lists"]
+
+
+def test_the_panels_measured_bands_follow_the_pass_for_real(monkeypatch):
+    """Nothing stubbed but the rating job: a real table, a real pass, the real bands. The
+    pass moves no row count, build stamp or date, so the cached bands keep saying the
+    place column is empty unless the chain drops them."""
+    monkeypatch.setattr(distribution, "invalidate", REAL_INVALIDATE)
+    monkeypatch.setattr(distribution, "distributions", REAL_DISTRIBUTIONS)
+    snapshot_db.init_db()
+    row = {"price": 50.0, "dollar_vol_30d": 5e7, "is_etf": 0, "snapshot_date": "2026-11-12", "built_at": 1}
+    snapshot_db.upsert_rows([{"ticker": "AAA", **row}, {"ticker": "BBB", **row}])
+    hist = {"ibd": 90, "m12": 50, "score": 1.5, "bars": 260}
+    rh.store_rows(TARGET, {"AAA": hist, "BBB": {**hist, "score": 1.4}})
+    monkeypatch.setattr(pp, "run", lambda *a, **k: REAL_PASS(TARGET, source=k.get("source", "test")))
+    distribution.invalidate()
+    assert distribution.distributions()["columns"]["rs_rating_pos"]["non_null"] == 0
+    m._run_rs_post_pass("rating")
+    assert distribution.distributions()["columns"]["rs_rating_pos"]["non_null"] == 2
+    distribution.invalidate()
 
 
 def test_a_pass_that_raises_never_stops_the_lists_or_the_rating_job(chain):
