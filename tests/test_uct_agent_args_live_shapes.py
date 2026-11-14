@@ -40,7 +40,7 @@ def expand(name: str, args_json: str) -> dict:
 
 
 def refuses(name: str, args_json: str) -> None:
-    with pytest.raises(turn.TurnError, match="couldn.t fill in the details of one of the steps"):
+    with pytest.raises(turn.TurnError, match=r"couldn.t (?:read the [a-z]|fill in one of the steps).*nothing was changed"):
         expand(name, args_json)
 
 
@@ -367,7 +367,7 @@ def test_a_real_messages_unreadable_plan_keeps_its_own_sentence_never_the_clarif
     assert turn.compact_ops(many)
     bad = {"disposition": "apply", "reply": "", "question": None, "unsupported_category": None, "research": None,
            "ops": [{"action": "chart.setSetting", "target": "c1", "args_json": '{"setting":"bgGradient.enabled","value":false}'}]}
-    with pytest.raises(turn.TurnError, match="couldn.t fill in the details") as e:
+    with pytest.raises(turn.TurnError, match=r"couldn.t (?:read the [a-z]|fill in one of the steps).*nothing was changed" ) as e:
         turn.run_turn(message="turn the gradient off on this chart", context=CTX, history=[], capabilities=many, caller=lambda **kw: _resp(bad))
     assert e.value.reason == "unreadable:args_schema"
     empty = {"disposition": "answer", "reply": "  ", "question": None, "unsupported_category": None, "research": None, "ops": []}
