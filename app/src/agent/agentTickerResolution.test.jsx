@@ -61,9 +61,11 @@ describe('LOWERCASE tickers in a ticker slot → asked, 0 writes', () => {
 // ── HOMOGRAPH tickers in a ticker slot ─────────────────────────────────────────────────────────────────────────────────
 // (pronoun-class words — all, it, one, this — are read as pronouns in lowercase: "change all to weekly" is every chart)
 const HOMOGRAPHS = ['on', 'now', 'go', 'are', 'be', 'as']
-const HOMO_SLOTS = [(h) => `change ${h} to weekly`, (h) => `the ${h} chart on weekly`, (h) => `${h}: weekly`, (h) => `take ${h} to 1h`]
+// (the chart-name slot "the X chart" reads a lowercase English word as the chart's adjective — "my own chart", "the new one" —
+// so it is held in capitals only: "the ON chart")
+const HOMO_SLOTS = [(h) => `change ${h} to weekly`, (h, up) => (up ? `the ${h} chart on weekly` : `switch ${h} to the hourly`), (h) => `${h}: weekly`, (h) => `take ${h} to 1h`]
 describe('HOMOGRAPH tickers in a ticker slot → asked, 0 writes; lowercase names both readings', () => {
-  const CASES = HOMOGRAPHS.flatMap(h => HOMO_SLOTS.flatMap(say => [['lower', say(h)], ['upper', say(h.toUpperCase())]])
+  const CASES = HOMOGRAPHS.flatMap(h => HOMO_SLOTS.flatMap(say => [['lower', say(h, false)], ['upper', say(h.toUpperCase(), true)]])
     .flatMap(([cn, t]) => BOARDS.slice(0, 2).map(([bn, syms, sel]) => [t, `${cn} · ${bn}`, syms, sel, cn])))
   it('generated: 6 homographs × 4 slots × 2 casings × 2 boards', () => expect(CASES).toHaveLength(96))
   it.each(CASES)('"%s" (%s)', async (t, label, syms, sel, cn) => {
@@ -105,7 +107,7 @@ describe('resolveTickerTokens: slot decides a homograph; membership and casing a
   it.each([
     ['show all charts weekly', []], ['turn it on', []], ['switch it on please', []], ['make it weekly NOW', []], ['put this one on weekly', []],
     ['go weekly', []], ['put the 20 EMA on and go weekly', []], ['take it to weekly', []], ['add rsi to all', []], ['make ALL charts weekly', []],
-    ['change on to weekly', ['ON:ambiguous']], ['change ON to weekly', ['ON:ticker']], ['the on chart', ['ON:ambiguous']], ['ON: weekly', ['ON:ticker']],
+    ['change on to weekly', ['ON:ambiguous']], ['change ON to weekly', ['ON:ticker']], ['the on chart', []], ['the ON chart', ['ON:ticker']], ['my own chart weekly', []], ['ON: weekly', ['ON:ticker']],
     ['take amd to weekly', ['AMD:ticker']], ['CHANGE AMD TO WEEKLY', ['AMD:ticker']], ['the IT chart to weekly', ['IT:ticker']],
   ])('"%s" → %j', (t, want) => expect(read(t)).toEqual(want))
   it('a ticker-slot word the search has not answered is unresolved (asked), never a word', () => {

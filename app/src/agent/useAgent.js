@@ -2768,7 +2768,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       const tickerWords = (() => {
         try {
           const lex = lexiconFor(host)
-          return tickerGroundingCandidates(text, { charts: host?.charts?.list?.() || [], lists: lex.symbols, ordinary: lex.words, cached: (w) => groundingOf(w), isSymbolWord: (w) => plainSymbolWord(w, host) })
+          return tickerGroundingCandidates(text, { charts: host?.charts?.list?.() || [], lists: lex.symbols, ordinary: lex.words, cached: (w) => groundingOf(w), isSymbolWord: (w) => plainSymbolWord(w, host), slotsOnly: true })
         } catch { return null }                                                    // a lookup that cannot even start: fail closed below
       })()
       const tickerPrefetch = tickerWords?.length ? groundSymbols(tickerWords).catch(() => null) : null
@@ -3223,9 +3223,13 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         // the prefetch started with the model call; what is still out gets the rest of one bound (NAME_SEARCH_MS) — a word the
         // search never answered is 'pending': in a ticker slot that is ASKED, never a stand-in chart
         if (writesChart && tickerWords === null) throw new Error('ticker lookup could not start')
-        if (writesChart && tickerPrefetch) await boundedWait(tickerPrefetch, NAME_SEARCH_MS)
         const lex = lexiconFor(host)
-        const asked = new Set(tickerWords || [])
+        // the plan writes a chart: a lowercase word OUTSIDE a ticker slot is asked about now too (#1213), with what is still out
+        const later = writesChart ? tickerGroundingCandidates(text, { charts: host?.charts?.list?.() || [], lists: lex.symbols, ordinary: lex.words, cached: (w) => groundingOf(w), isSymbolWord: (w) => plainSymbolWord(w, host) })
+          .filter(w => !(tickerWords || []).includes(w)) : []
+        const outstanding = [tickerPrefetch, later.length ? groundSymbols(later).catch(() => null) : null].filter(Boolean)
+        if (writesChart && outstanding.length) await boundedWait(Promise.all(outstanding), NAME_SEARCH_MS)
+        const asked = new Set([...(tickerWords || []), ...later])
         // a word this turn asked about: its verdict, or 'pending' (a failing lookup throws → the catch below asks); any other
         // word: a verdict an earlier turn already cached, if any
         const verdict = (w) => (asked.has(w) ? groundingOf(w) || 'pending' : (() => { try { return groundingOf(w) } catch { return null } })())

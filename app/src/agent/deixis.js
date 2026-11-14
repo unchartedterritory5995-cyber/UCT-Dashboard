@@ -805,27 +805,33 @@ export function tickerTokens(text) {
 //   'unresolved' (a ticker slot whose word the search did not answer in time: ASKED, never a stand-in chart) | 'word'.
 const CHART_NOUN = /^(?:chart|one|graph|pane|panel)$/i
 const CHART_PLURAL = /^(?:charts|ones|graphs|panes|panels|the|my|of|these|those|your)$/i
-const COMPLEMENT = /^(?:to|on|onto|into|in|at|with|up|down|back|over|should|is|gets|goes|weekly|daily|hourly|monthly|intraday|log|linear|bars|candles|heikin|[0-9]{1,3}(?:m|min|mins|h|hr|hrs|d|w|wk))$/i
+const COMPLEMENT = /^(?:to|on|onto|into|in|with|up|down|back|over|should|is|gets|goes|weekly|daily|hourly|monthly|intraday|log|linear|bars|candles|heikin|[0-9]{1,3}(?:m|min|mins|h|hr|hrs|d|w|wk))$/i
 const OBJECT_PREP = /^(?:to|on|onto|for|of|into)$/i
 const WORDS = /\$?[A-Za-z0-9][A-Za-z0-9.]*(?:['’]s)?|[,;:!?—–]|\s-\s/g
 // a preposition doing a preposition's job — followed by its object ("on weekly", "to the 1-hour"), not by another preposition
 const PREPOSITION = /^(?:to|on|onto|into|in|at|with|up|down|back|over|for|of|by|from)$/i
 const PARTICLE = /^(?:on|up|down|back|over|in|off)$/i
-function slotOf(stream, i, { caps = false, homograph = false } = {}) {
+function slotOf(stream, i, { caps = false, homograph = false, english = false } = {}) {
   const at = stream[i], prev = stream[i - 1], next = stream[i + 1]
   const isWord = (x) => !!x && x.word
   // the change that follows the word: a complement word — a particle ("on", "up") only when ITS object follows ("on weekly")
   const after = stream[i + 2]
   // …and never when what follows is a chart ("add the RSI study to that one", "put the 50 on this chart"): the word is then the
   // thing put ON a chart, not the chart
-  const ontoChart = OBJECT_PREP.test(next?.text || '') && isWord(after) && (PRONOUNS.has(after.text.toLowerCase()) || /^(?:the|this|that|my|each|every)$/i.test(after.text))
+  const nounAhead = [stream[i + 3], stream[i + 4]].some(x => x && x.word && CHART_NOUN.test(x.text))
+  const ontoChart = OBJECT_PREP.test(next?.text || '') && isWord(after) && ((PRONOUNS.has(after.text.toLowerCase()) && !/^(?:the)$/i.test(after.text)) || (/^(?:the|this|that|my|each|every)$/i.test(after.text) && nounAhead))
   const changeNext = isWord(next) && COMPLEMENT.test(next.text) && (!PARTICLE.test(next.text) || isWord(after)) && !ontoChart
   const nx = (next?.text || '').replace(/['’]s$/, '')
   if (/['’]s$/.test(at.raw)) return 'ticker'                                     // "ON's chart"
   if (!caps && (CHART_NOUN.test(at.text) || CHART_PLURAL.test(at.text))) return 'ordinary'   // the chart noun itself
   // a lowercase word after a modal / auxiliary is its verb ("it should be on weekly", "can go weekly")
   if (!caps && isWord(prev) && /^(?:should|would|could|can|will|must|may|might|do|does|did|not|cannot|won['’]t)$/i.test(prev.text)) return 'ordinary'
-  if (isWord(next) && CHART_NOUN.test(nx)) return 'ticker'                       // "the ON chart"
+  if (isWord(next) && CHART_NOUN.test(nx) && (caps || !isWord(prev) || /^(?:the|my|this|that|your|our)$/i.test(prev.text))) {
+    // "the ON chart" — but an English word there in lowercase is the chart's adjective ("my own chart", "the new one")
+    return !caps && english ? 'ordinary' : 'ticker'
+  }
+  // a lowercase word right after the chart noun is what the chart does ("the top-left chart take up the grid")
+  if (!caps && isWord(prev) && (CHART_NOUN.test(prev.text) || /^(?:charts|ones|graphs|panes|panels)$/i.test(prev.text))) return 'ordinary'
   if (isWord(next) && CHART_PLURAL.test(nx)) return 'ordinary'                   // "all charts", "all the charts"
   const clauseStart = !isWord(prev)
   const clauseEnd = !isWord(next)
@@ -838,7 +844,7 @@ function slotOf(stream, i, { caps = false, homograph = false } = {}) {
   // likely the verb ("go weekly"): only capitals make that opening a ticker slot
   if (clauseStart && changeNext) return caps || !homograph ? 'ticker' : 'neutral'
   if (isWord(prev) && !OBJECT_PREP.test(prev.text) && changeNext) return 'ticker'                                                    // "take ON to weekly"
-  if (clauseEnd && isWord(prev) && OBJECT_PREP.test(prev.text)) return 'ticker'                                                      // "switch to ON"
+  if (clauseEnd && isWord(prev) && /^(?:to|on|onto|into)$/i.test(prev.text)) return 'ticker'                                       // "switch to ON"
   return 'neutral'
 }
 /** Read every word of the change words: [{ raw, upper, ticker, decision, homograph, slot, name }] (see above). */
@@ -855,8 +861,13 @@ export function resolveTickerTokens(text, { charts = [], lists = null, verdict =
     const i = stream.findIndex(s => s.index <= t.index && t.index < s.index + s.raw.length)
     const caps = t.caps && lowerInMessage
     const lower = t.upper.toLowerCase()
-    const homograph = isOrdinary(lower, ordinary) || (!t.caps && !!plainWord && !plainWord(lower))
-    const slot = i >= 0 ? slotOf(stream, i, { caps: caps || t.dollar, homograph }) : 'neutral'
+    // two kinds of "also a word": an ENGLISH homograph ("on", "now", "go" — ORDINARY / pronouns), which may still be the ticker
+    // in a ticker slot (asked), and an APP word (the lexicon, or a word plainSymbolWord rules out: "left", "study", "grid"),
+    // which typed in lowercase is the app's word — never searched, never a ticker unless it is on the board / in the lists
+    const english = isOrdinary(lower, null)
+    const appWord = !!ordinary?.has?.(lower) || (!!plainWord && !plainWord(lower))
+    const homograph = english || appWord
+    const slot = i >= 0 ? slotOf(stream, i, { caps: caps || t.dollar, homograph, english }) : 'neutral'
     const pronoun = PRONOUNS.has(lower)
     const v = verdict(lower)
     const pending = v === 'pending'
@@ -868,6 +879,7 @@ export function resolveTickerTokens(text, { charts = [], lists = null, verdict =
     if (t.dollar) { put('ticker'); continue }
     if (slot === 'ordinary') { put('word'); continue }
     if (pronoun && !caps) { put('word'); continue }                              // "make it weekly": a pronoun typed as one
+    if (!t.caps && appWord && !english && !member) { put('word'); continue }     // "the left chart", "the rsi study"
     if (homograph) {
       if (slot !== 'ticker') { put(caps && on.has(t.upper) ? 'ticker' : 'word'); continue }
       if (member || grounded) { put(caps ? 'ticker' : 'ambiguous'); continue }
@@ -889,15 +901,20 @@ export function targetTickers(text, charts = [], known = new Map(), ordinary = n
 }
 /** Words the ticker search should answer for: a ticker-slot word not yet known, or a neutral non-homograph word typed lowercase
  *  (never one on the board, in the member's lists, or already answered). */
-export function tickerGroundingCandidates(text, { charts = [], lists = null, ordinary = null, cached = () => null, isSymbolWord = () => true } = {}) {
+export function tickerGroundingCandidates(text, { charts = [], lists = null, ordinary = null, cached = () => null, isSymbolWord = () => true, slotsOnly = false } = {}) {
   const res = resolveTickerTokens(text, { charts, lists, ordinary, plainWord: isSymbolWord, verdict: () => null })
   const on = new Set((charts || []).map(c => String(c?.symbol || '').toUpperCase()))
   return [...new Set(res.filter(r => {
     const lower = r.upper.toLowerCase()
     if (on.has(r.upper) || lists?.has?.(lower) || r.slot === 'ordinary' || r.raw.startsWith('$')) return false
     if (r.raw === lower && PRONOUNS.has(lower)) return false                     // "make it weekly": a pronoun typed as one
-    // a ticker slot is always worth an answer (a homograph there may be the ticker); elsewhere only a lowercase non-word
-    if (!(r.slot === 'ticker' || (!r.homograph && r.raw !== r.upper))) return false
+    // only a word NOT in capitals (capitals are read as typed); an English homograph only in a ticker slot (it may be the ticker
+    // there); an app word never; any other lowercase word anywhere (#1213)
+    if (r.raw === r.upper) return false                                          // capitals are read as typed
+    const english = isOrdinary(lower, null)
+    const appWord = !!ordinary?.has?.(lower) || !isSymbolWord(lower)
+    if (english ? r.slot !== 'ticker' : appWord) return false
+    if (slotsOnly && r.slot !== 'ticker') return false
     return !cached(lower)                                                        // (already answered: no second call)
   }).map(r => r.upper.toLowerCase()))]
 }
