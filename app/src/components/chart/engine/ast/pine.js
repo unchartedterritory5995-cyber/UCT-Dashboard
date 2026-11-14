@@ -6916,8 +6916,8 @@ function boolNaOperator(op, left, right, pineVersion, out = undefined) {
     return cOp(op, op === '!' ? [cCall('boolNaWithheld', [left, flag])] : [cCall('boolNaWithheld', [left, flag]), right])
   }
   // a v1-v3 `and` is false or `na` where an operand is `na`, and every condition reads both
-  // as false: it is tracked (`naInfo`'s `maybe`), and withheld only where told apart
-  if (op === '&&') return built
+  // as false: it is served as built (it falls through the `==` / `!=` test below), tracked as
+  // `naInfo`'s `maybe`, and withheld only where an operator tells the two apart
   if (op !== '==' && op !== '!=') return built
   const il = naInfo(left, v)
   const ir = naInfo(right, v)

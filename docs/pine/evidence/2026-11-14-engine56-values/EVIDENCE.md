@@ -157,3 +157,31 @@ clean on every one). Each source through the screen translation, the pane (`stri
   `ehlers-instantaneous-trend`, `cm-williams-vix-fix`, `16-smacd`, …) and the v1-v5 bool forms
   (`accumulation-distribution-with-markers`, `ytc-swing-highs-lows`, `mcclellan-oscillator`,
   `onchart-wavetrend-divergence-with-pivots`, `qqe-mod-ssl-hybrid`, …). No translation errors appeared.
+
+## Vendor harness, both lanes (BEFORE = `origin/master`'s files swapped in, as the census)
+Committed fixtures (`tests/fixtures/vendor`, 376 files after the merge of `origin/master`) and the
+licence-held store (`runs/{ext,probes,probes2,s2,s3,s4,s5,s6}`, 246 captures; verdicts only, nothing
+committed). M/D/I counted per capture id.
+
+| set | lane | before M/D/I | after M/D/I | moves |
+|---|---|---|---|---|
+| fixtures | production (`RUNTIME_ON=0`) | 155/50/166 | 156/49/166 | pivot-high-low-points D -> M |
+| fixtures | runtime-on (`=1`, upper bound) | 181/50/140 | 182/49/140 | pivot-high-low-points D -> M |
+| held store | production | 136/78/27 | 140/73/28 | aroon, connors-rsi, pivot-high-low-points, rsi-divergence-indicator D -> M; obv-macd-ao-pivdiv-3 D -> I |
+| held store | runtime-on | 145/80/16 | 149/75/17 | the same five |
+
+**0 MATCH -> DIVERGE, 0 new DIVERGE, in every set and lane.** pivdiv-3's only remaining item is its
+hidden constant `0 line` (colour not resolvable on our side), as before; all 29 of its value plots MATCH.
+
+Value level (bars where the value or its `na` differs, summed over a capture's plots), held store, both
+lanes identical: accumulation-distribution-with-markers 1 -> 0, average-true-range-trailing-stops 31 -> 0,
+uptrick-volatility-weighted-cloud 84 -> 0, accdist-macd SPY 2 -> 0 (the S4-4 floor, used on 2 Histogram
+bars), obv-macd-ao-pivdiv-3 3 -> 0, pivot-high-low-points 1 -> 0, aroon 4 -> 0, connors-rsi 1 -> 0,
+rsi-divergence-indicator 4 -> 0; **0 captures got worse**. accumulation-distribution, the ATR trailing
+stop, uptrick, accdist-macd and bill-williams AO stay DIVERGE on COLOUR only (the v1-v3 palette and
+default transparency: engine 57's lane, not this one).
+
+Per-bar withholding in the graded sets: `pivot-points-high-low-extension` (v4, `pine:bool-na-unwitnessed`,
+44 and 11 bars on four plots, every one a bar where TradingView draws nothing) and
+`squeeze-momentum-indicator-lazybear` (named on one plot); no capture has a withheld bar where TradingView
+draws a value. No `pine:tie-unwitnessed` bar occurs in any capture.
