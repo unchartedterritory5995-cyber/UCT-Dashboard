@@ -18,6 +18,18 @@ VIP = "1001324657804325046"
 UTC = dt.timezone.utc
 
 
+@pytest.fixture(autouse=True)
+def _a_private_feed_cache(tmp_path, monkeypatch):
+    """The feed cache is kept on disk. A test must never read or write the real one, and
+    must never wait out a retry."""
+    from api.services import discord_tx_news as n
+    monkeypatch.setenv("TX_NEWS_CACHE_PATH", str(tmp_path / "tx_news_cache.db"))
+    monkeypatch.setattr(n, "_sleep", lambda s: None, raising=False)
+    n._reset_for_tests()
+    yield
+    n._reset_for_tests()
+
+
 # ── the command ──────────────────────────────────────────────────────────────
 
 def test_news_is_registered_once_guild_only_with_a_required_autocompleted_ticker():
@@ -285,7 +297,9 @@ def test_a_long_list_is_cut_to_the_embed_limit_and_counts_the_rest():
     now = dt.datetime(2026, 10, 27, 15, 0, tzinfo=UTC)
     rows = [(now - dt.timedelta(minutes=i), "x" * 120) for i in range(80)]
     e = n.build_embed("NVDA", "today", rows, now)
-    assert len(e["description"]) <= 4096 and "older headline(s) not shown" in e["description"]
+    # the first page is full and the rest CONTINUES on later pages (it used to be cut here)
+    assert 3000 < len(e["description"]) <= 4096 and "not shown" not in e["description"]
+    assert e["title"].endswith(" of 3)") and len(n.build_embeds("NVDA", "today", rows, now)) == 3
 
 
 def test_the_job_edits_the_reply_with_the_embed_and_never_raises():
@@ -331,3 +345,290 @@ def test_txs_own_tag_finds_a_ticker_the_matcher_reads_as_a_word(text, body):
     now = dt.datetime(2026, 10, 28, 15, 0, tzinfo=UTC)
     rows = n.headlines_for("ADP", [(now, text), (now, "ADP Employment Change: ACTUAL 120K")], None)
     assert [r[1] for r in rows] == [body]
+
+
+# ── what was read is kept across restarts ────────────────────────────────────
+# The web service restarts on every deploy (every 20 to 25 minutes on a busy night). The
+# cache lived in the process, so most requests began by re-reading the whole window from
+# Discord, 100 messages a page.
+
+def test_what_was_read_survives_a_restart():
+    from api.services import discord_tx_news as n
+    now = dt.datetime.now(UTC)
+    msgs = [_msg(now - dt.timedelta(hours=h), f"NVDA - item {h}") for h in range(30, 0, -1)]
+    fake = _FakeDiscord(msgs)
+    assert len(n.feed_since(now - dt.timedelta(hours=10), client=fake)) == 9
+    newest = max(int(m["id"]) for m in msgs)
+    n._reset_for_tests(disk=False)                           # the process restarts; the disk does not
+    fake.calls.clear()
+    fake.msgs.append(_msg(now - dt.timedelta(minutes=1), "NVDA - fresh"))
+    got = n.feed_since(now - dt.timedelta(hours=10), client=fake)
+    assert [t for _, t in got][-1] == "NVDA - fresh" and len(got) == 10
+    assert fake.calls == [newest], "after a restart it re-read the window instead of resuming"
+
+
+def test_a_full_reset_forgets_the_disk_too():
+    """Control for the row above: if the restart were not what kept the items, a full
+    reset would resume as well."""
+    from api.services import discord_tx_news as n
+    now = dt.datetime.now(UTC)
+    msgs = [_msg(now - dt.timedelta(hours=h), f"NVDA - item {h}") for h in range(5, 0, -1)]
+    fake = _FakeDiscord(msgs)
+    n.feed_since(now - dt.timedelta(hours=10), client=fake)
+    n._reset_for_tests()
+    fake.calls.clear()
+    n.feed_since(now - dt.timedelta(hours=10), client=fake)
+    assert fake.calls[0] == n.snowflake(now - dt.timedelta(hours=10)), "a full reset must start over"
+
+
+def test_a_cache_that_cannot_be_written_never_breaks_the_command(tmp_path, monkeypatch):
+    from api.services import discord_tx_news as n
+    blocker = tmp_path / "a-file"
+    blocker.write_text("not a directory")
+    monkeypatch.setenv("TX_NEWS_CACHE_PATH", str(blocker / "tx_news_cache.db"))
+    n._reset_for_tests()
+    now = dt.datetime.now(UTC)
+    fake = _FakeDiscord([_msg(now - dt.timedelta(hours=1), "NVDA - item")])
+    assert [t for _, t in n.feed_since(now - dt.timedelta(hours=5), client=fake)] == ["NVDA - item"]
+    assert [t for _, t in n.feed_since(now - dt.timedelta(hours=5), client=fake)] == ["NVDA - item"]
+
+
+def test_the_disk_copy_is_pruned_with_the_memory_copy(tmp_path, monkeypatch):
+    """Bounded growth: the file holds what the cache holds, not everything ever read."""
+    import contextlib
+    import sqlite3
+    from api.services import discord_tx_news as n
+    now = dt.datetime.now(UTC)
+    fake = _FakeDiscord([_msg(now - dt.timedelta(hours=40), "NVDA - old"), _msg(now - dt.timedelta(hours=1), "NVDA - new")])
+    n.feed_since(now - dt.timedelta(hours=50), client=fake)
+    path = str(tmp_path / "tx_news_cache.db")
+
+    def on_disk():
+        with contextlib.closing(sqlite3.connect(path)) as c:
+            return [r[0] for r in c.execute("SELECT text FROM items ORDER BY id")]
+    assert on_disk() == ["NVDA - old", "NVDA - new"]
+    monkeypatch.setattr(n, "WINDOW_MAX_DAYS", 0)             # the cache now keeps one day
+    n.feed_since(now - dt.timedelta(hours=2), client=fake)
+    assert on_disk() == ["NVDA - new"]
+
+
+# ── a brief failure is retried; one that cannot change is named ──────────────
+
+class _Reply:
+    def __init__(self, status, page=()):
+        self.status_code, self._page = status, list(page)
+
+    def raise_for_status(self):
+        if self.status_code >= 400:
+            import httpx
+            raise httpx.HTTPStatusError(f"HTTP {self.status_code}", request=None, response=None)
+
+    def json(self):
+        return list(reversed(self._page))
+
+
+class _ScriptedDiscord:
+    """Answers each read with the next scripted step: an exception to raise, a status
+    to return, or "ok" for the real page."""
+
+    def __init__(self, msgs, script):
+        self.msgs, self.script, self.calls = msgs, list(script), 0
+
+    def get(self, url, params):
+        self.calls += 1
+        step = self.script.pop(0) if self.script else "ok"
+        if isinstance(step, Exception):
+            raise step
+        if step != "ok":
+            return _Reply(step)
+        after = int(params["after"])
+        return _Reply(200, sorted((m for m in self.msgs if int(m["id"]) > after), key=lambda m: int(m["id"]))[:100])
+
+
+def test_a_brief_discord_failure_is_retried_and_the_member_never_sees_it():
+    import httpx
+    from api.services import discord_tx_news as n
+    now = dt.datetime.now(UTC)
+    msgs = [_msg(now - dt.timedelta(hours=1), "NVDA - item")]
+    for script in ([httpx.ReadTimeout("timed out")], [503], [502, httpx.ConnectError("reset")]):
+        n._reset_for_tests()
+        fake = _ScriptedDiscord(msgs, script)
+        assert [t for _, t in n.feed_since(now - dt.timedelta(hours=5), client=fake)] == ["NVDA - item"]
+
+
+def test_a_failure_that_does_not_clear_is_raised_as_temporary():
+    import httpx
+    from api.services import discord_tx_news as n
+    now = dt.datetime.now(UTC)
+    fake = _ScriptedDiscord([], [httpx.ReadTimeout("timed out")] * 10)
+    with pytest.raises(RuntimeError) as e:
+        n.feed_since(now - dt.timedelta(hours=5), client=fake)
+    assert not isinstance(e.value, n.NewsUnavailable) and fake.calls == 4
+
+
+def test_a_refusal_that_cannot_change_is_not_retried_and_is_named():
+    """403 = the bot lost access to the channel; 401 = its token is dead. Asking again
+    changes nothing, and telling the member to try again in a minute is false."""
+    from api.services import discord_tx_news as n
+    now = dt.datetime.now(UTC)
+    for status in (401, 403, 404):
+        n._reset_for_tests()
+        fake = _ScriptedDiscord([], [status] * 10)
+        with pytest.raises(n.NewsUnavailable):
+            n.feed_since(now - dt.timedelta(hours=5), client=fake)
+        assert fake.calls == 1
+
+
+def test_the_member_is_told_which_kind_of_failure_it_was():
+    from api.services import discord_tx_news as n
+    edits = []
+    now = dt.datetime(2026, 10, 27, 15, 0, tzinfo=UTC)
+
+    def run(error):
+        def boom(start):
+            raise error
+        n.run_news_job("1", "t", "NVDA", "today", now=now, edit_fn=lambda a, t, p: edits.append(p), feed_fn=boom,
+                       name_fn=lambda t: None)
+        return edits[-1]["content"]
+    assert "Try again in a minute" in run(RuntimeError("discord read failed after 4 tries"))
+    fix = run(n.NewsUnavailable("discord refused the read: HTTP 403"))
+    assert "Try again" not in fix and "our side" in fix
+    assert "our side" in run(n.NewsUnavailable("DISCORD_BOT_TOKEN is not set"))
+
+
+def test_a_failed_edit_is_tried_once_more():
+    """The reply is the only thing that ends the thinking line the member is watching."""
+    from api.services import discord_tx_news as n
+    now = dt.datetime(2026, 10, 27, 15, 0, tzinfo=UTC)
+    sent, answers = [], [False, True]
+
+    def edit(a, t, p):
+        sent.append(p)
+        return answers.pop(0)
+    n.run_news_job("1", "t", "NVDA", "today", now=now, edit_fn=edit,
+                   feed_fn=lambda start: [(now, "NVDA - beat and raise")], name_fn=lambda t: None)
+    assert len(sent) == 2 and sent[0] == sent[1]
+    sent.clear()
+    n.run_news_job("1", "t", "NVDA", "today", now=now, edit_fn=lambda a, t, p: sent.append(p) or True,
+                   feed_fn=lambda start: [(now, "NVDA - beat and raise")], name_fn=lambda t: None)
+    assert len(sent) == 1, "a reply that landed is not sent twice"
+
+
+# ── a long list continues, privately ─────────────────────────────────────────
+
+def _many(now, count, step_minutes=1):
+    return [(now - dt.timedelta(minutes=i * step_minutes), f"headline {i:03d} " + "x" * 104) for i in range(count)]
+
+
+def test_a_long_list_continues_on_more_pages_instead_of_being_cut():
+    """⚰️ One embed holds about 30 headlines of this length. A busy stock over a week has
+    hundreds; everything past the first embed was "not shown" and could not be reached."""
+    from api.services import discord_tx_news as n
+    now = dt.datetime(2026, 10, 27, 15, 0, tzinfo=UTC)
+    pages = n.build_embeds("NVDA", "1w", _many(now, 100, step_minutes=90), now)      # six days of them
+    assert 1 < len(pages) <= n.MAX_PAGES
+    assert all(len(p["description"]) <= 4096 for p in pages)
+    shown = [ln for p in pages for ln in p["description"].split("\n") if "headline " in ln and "not shown" not in ln]
+    assert len(shown) == 100 and "headline 000" in shown[0] and "headline 099" in shown[-1], "newest first, none lost"
+    assert not any("not shown" in p["description"] for p in pages)
+    total = len(pages)
+    assert [p["title"] for p in pages] == [f"$NVDA · UCT News · Last week ({i} of {total})" for i in range(1, total + 1)]
+    assert all(p["description"].startswith("**") for p in pages), "each page opens with its day"
+
+
+def test_past_the_page_cap_it_says_how_many_were_left_out():
+    from api.services import discord_tx_news as n
+    now = dt.datetime(2026, 10, 27, 15, 0, tzinfo=UTC)
+    pages = n.build_embeds("NVDA", "1w", _many(now, 600), now)
+    assert len(pages) == n.MAX_PAGES
+    shown = sum(1 for p in pages for ln in p["description"].split("\n") if "headline " in ln and "not shown" not in ln)
+    assert 0 < shown < 600
+    assert pages[-1]["description"].endswith(f"*+{600 - shown} older headline(s) not shown*")
+    assert all(len(p["description"]) <= 4096 for p in pages)
+
+
+def test_a_short_list_is_one_page_with_the_plain_title():
+    from api.services import discord_tx_news as n
+    now = dt.datetime(2026, 10, 27, 15, 0, tzinfo=UTC)
+    pages = n.build_embeds("NVDA", "3d", _many(now, 3), now)
+    assert len(pages) == 1 and pages[0]["title"] == "$NVDA · UCT News · Last 3 days"
+    assert pages[0] == n.build_embed("NVDA", "3d", _many(now, 3), now)
+
+
+@pytest.fixture()
+def wire(monkeypatch):
+    """Every request the job makes with its own client, captured off the wire."""
+    import httpx
+    seen: list = []
+    real = httpx.Client
+
+    def fake_client(*a, **k):
+        k.pop("timeout", None)
+        return real(transport=httpx.MockTransport(
+            lambda request: (seen.append(request), httpx.Response(200, json={"id": "1"}))[1]))
+    monkeypatch.setattr(httpx, "Client", fake_client)
+    return seen
+
+
+def test_every_extra_page_is_sent_privately(wire):
+    """⛔ THE ONE THAT MATTERS. The feed is a paid channel. The first page is an edit of the
+    deferred reply, which is private because the DEFER was. A follow-up is a NEW message
+    and is public unless it says otherwise, in whatever channel the member typed in."""
+    import json
+    from api.services import discord_tx_news as n
+    now = dt.datetime(2026, 10, 27, 15, 0, tzinfo=UTC)
+    rows = [(ts, "NVDA - " + line) for ts, line in _many(now, 100)]
+    n.run_news_job("APP", "TOK", "NVDA", "1w", now=now, feed_fn=lambda start: rows, name_fn=lambda t: "NVIDIA Corporation")
+    pages = n.build_embeds("NVDA", "1w", n.headlines_for("NVDA", rows, "NVIDIA Corporation"), now)
+    assert len(pages) > 1, "the list fits one page, so this proved nothing"
+    first, extra = wire[0], wire[1:]
+    assert first.method == "PATCH" and str(first.url).endswith("/webhooks/APP/TOK/messages/@original")
+    assert len(extra) == len(pages) - 1
+    for req, page in zip(extra, pages[1:]):
+        body = json.loads(req.content)
+        assert req.method == "POST" and str(req.url).endswith("/webhooks/APP/TOK")
+        assert body["flags"] == EPHEMERAL, "a page of the paid feed was posted for the whole channel"
+        assert body["embeds"][0]["title"] == page["title"]
+
+
+def test_a_failed_follow_up_never_replaces_the_page_that_already_landed():
+    from api.services import discord_tx_news as n
+    now = dt.datetime(2026, 10, 27, 15, 0, tzinfo=UTC)
+    edits = []
+
+    def followup(a, t, p):
+        raise RuntimeError("discord down")
+    n.run_news_job("1", "t", "NVDA", "1w", now=now, edit_fn=lambda a, t, p: edits.append(p) or True,
+                   followup_fn=followup, feed_fn=lambda start: [(ts, "NVDA - " + line) for ts, line in _many(now, 100)],
+                   name_fn=lambda t: None)
+    assert len(edits) == 1 and edits[0]["embeds"], "the first page was overwritten by an error message"
+
+
+# ── a ticker that is also a word ─────────────────────────────────────────────
+
+def test_a_ticker_that_is_also_a_word_needs_more_than_the_word_in_capitals():
+    """⚰️ /news NET listed every "... REPORTS Q3 NET INCOME ..." in the feed: in an all-caps
+    headline the bare word was accepted as the ticker. When the company has a NAME to go by
+    (Cloudflare, Costco), the word alone is no longer enough."""
+    from api.services import discord_tx_news as n
+    t0 = dt.datetime(2026, 10, 27, 14, 0, tzinfo=UTC)
+    items = [(t0, "ACME CORP REPORTS Q3 NET INCOME OF $5M"),
+             (t0 + dt.timedelta(minutes=1), "NET - Cloudflare launches new AI gateway"),
+             (t0 + dt.timedelta(minutes=2), "CLOUDFLARE SEES Q4 REVENUE ABOVE ESTIMATES"),
+             (t0 + dt.timedelta(minutes=3), "Analysts lift $NET targets after the print")]
+    assert [line for _, line in n.headlines_for("NET", items, "Cloudflare, Inc.")] == [
+        "Analysts lift $NET targets after the print",
+        "CLOUDFLARE SEES Q4 REVENUE ABOVE ESTIMATES",
+        "Cloudflare launches new AI gateway"]
+    cost = [(t0, "RETAILER SEES HIGHER COST PRESSURE IN Q4"), (t0, "COSTCO SEPTEMBER COMPARABLE SALES +5.7%")]
+    assert [line for _, line in n.headlines_for("COST", cost, "Costco Wholesale Corporation")] == [
+        "COSTCO SEPTEMBER COMPARABLE SALES +5.7%"]
+
+
+def test_the_word_rule_never_costs_a_stock_its_only_evidence():
+    """Control. An ordinary ticker keeps the all-caps match, and so does a word ticker when
+    there is NO company name to find it by: dropping the word there would drop the stock."""
+    from api.services import discord_tx_news as n
+    t0 = dt.datetime(2026, 10, 27, 14, 0, tzinfo=UTC)
+    assert n.headlines_for("NBIS", [(t0, "DEAL SIGNED WITH NBIS FOR GPU CAPACITY")], "Nebius Group N.V.")
+    assert n.headlines_for("NET", [(t0, "ACME CORP REPORTS Q3 NET INCOME OF $5M")], None), "no name: keep the word"
