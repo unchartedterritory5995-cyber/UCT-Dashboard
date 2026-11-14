@@ -20,6 +20,7 @@ import { toProductBars } from './ourSide'
 import { memberPaneDefinition } from '../../../builder/memberPane/memberPaneDefinition'
 import { objectReaderFor } from '../../objectColumns'
 import { evaluateObjects } from '../../objectRuntime'
+import { hostObjectRun, hostObjectReaderOpts } from '../../runHalfObjectRail'
 import { runtimeUnknownSentence, partlyNotComputableSentence, RUNTIME_UNKNOWN_KEY } from '../../ast/objectLoss'
 import { TF_MERGE_NEWEST_CODE } from '../../ast/interpret'
 
@@ -91,6 +92,16 @@ describe('3 — K-clustering: the partly drawn table is NAMED, with the run half
     expect(run.withheldWhy[RUNTIME_UNKNOWN_KEY]).toBe('This script’s last-bar calculation is too heavy to run yet.')
     // the table is still DRAWN (the header) — partly, and said so
     expect((run.live || []).some((o) => o.family === 'table')).toBe(true)
+  }, 120000)
+
+  it('the BINDER evaluation path (`hostObjectRun`) says the run-half reason too', () => {
+    const cap = loadCapture(path.join(H, 'k-clustering-rddt-1d-2026-09-28.json')).capture
+    const bars = toProductBars(cap)
+    const d = memberPaneDefinition({ source: cap.source.text, id: 'u_e55kc', name: 'kc' })
+    const host = hostObjectRun(d.definition, bars, hostObjectReaderOpts({ tf: 'D', symbol: { ticker: 'RDDT', exchange: 'NYSE' },
+      newestBarIsForming: false, historyFromListing: true }, undefined))
+    expect(host.run.withheldWhy[RUNTIME_UNKNOWN_KEY]).toBe(runtimeUnknownSentence(host.reader.runtime))
+    expect(host.run.withheldBy['objects:not-computable']).toContain('table')
   }, 120000)
 
   it('without a run-half reason nothing extra is said (the key is absent)', () => {
