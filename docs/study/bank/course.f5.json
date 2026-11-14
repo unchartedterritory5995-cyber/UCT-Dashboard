@@ -7594,7 +7594,7 @@
   "difficulty": 1,
   "id": "si_d76bdabdf011",
   "lesson_origin": "session",
-  "lesson_text": "False. The implied move is a size, not a direction. Cboe notes that option pricing generally does not imply which way a stock will react. It shows how much it may move either way. OIC says the same: the result describes magnitude, not direction. It does not mean the stock will sit still either. It can move the full amount, up or down. The implied move is a size. It says nothing about up or down.",
+  "lesson_text": "False. The implied move is a size, not a direction. A straddle is a call and a put, so it pays on a big move either way. That is why its price carries no direction. Cboe notes that option pricing generally does not imply which way a stock will react. OIC says the same: the result describes magnitude, not direction. It does not mean the stock will sit still either. It can move the full amount, up or down. The implied move is a size. It says nothing about up or down.",
   "module": "F5",
   "prompt_json": {
    "choices": [
@@ -7642,9 +7642,16 @@
       "quote": "The result describes magnitude of expected movement, not direction.",
       "tier": 1,
       "url": "https://www.optionseducation.org/news/may-keytakeaways"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "The Options Industry Council (OCC): Long Straddle",
+      "quote": "A long straddle is a combination of buying a call and buying a put, both with the same strike price and expiration.",
+      "tier": 1,
+      "url": "https://www.optionseducation.org/strategies/all-strategies/long-straddle"
      }
     ],
-    "summary": "Option prices generally do not say which way the stock will react. Option prices say how far the stock may move, up or down. A higher expected swing, in either direction, generally makes both calls and puts cost more. The options priced no direction for either stock, so one up and one down was no surprise. A move worked out from implied volatility describes how big the expected move is, not which way."
+    "summary": "Option prices generally do not say which way the stock will react. Option prices say how far the stock may move, up or down. A higher expected swing, in either direction, generally makes both calls and puts cost more. The options priced no direction for either stock, so one up and one down was no surprise. A move worked out from implied volatility describes how big the expected move is, not which way. A straddle is a call and a put bought together at the same strike and expiry."
    },
    "facts": {
     "given": "The implied move tells you which way the stock should go after the report."
@@ -7653,7 +7660,7 @@
    "simple": "False, because option prices show how big a move may be, not which way the stock will go.",
    "tier": "core",
    "unit": "F5.05",
-   "why": "False. The implied move is a size, not a direction. Cboe notes that option pricing generally does not imply which way a stock will react. It shows how much it may move either way. OIC says the same: the result describes magnitude, not direction. It does not mean the stock will sit still either. It can move the full amount, up or down."
+   "why": "False. The implied move is a size, not a direction. A straddle is a call and a put, so it pays on a big move either way. That is why its price carries no direction. Cboe notes that option pricing generally does not imply which way a stock will react. OIC says the same: the result describes magnitude, not direction. It does not mean the stock will sit still either. It can move the full amount, up or down."
   },
   "review_status": "draft",
   "skill_id": "fund.expected_move",
@@ -7755,7 +7762,7 @@
   "difficulty": 1,
   "id": "si_333a8816d955",
   "lesson_origin": "session",
-  "lesson_text": "The nearest at-the-money straddle. Use the nearest expiry that covers the report and the strike nearest the stock price, then add the call and the put. Sosnick at Interactive Brokers calls this the simplest way to see the anticipated move. Fidelity says traders often use the straddle price as the expected move. Sosnick also takes out any intrinsic value, and Cboe's note used a different method. Treat the result as a quick read, not an exact number. Nearest expiry, strike nearest the price, call plus put. That's your quick read.",
+  "lesson_text": "The nearest at-the-money straddle. At the money means the strike closest to the stock price. A straddle is a call and a put at that one strike. Add their prices for the market's quick read of the move priced for the report. Use the nearest expiry that covers the report, so no extra weeks of other risk creep in. Sosnick at Interactive Brokers calls this the simplest way to see the anticipated move. Fidelity says traders often use the straddle price as the expected move. Methods differ a little, so treat it as a quick read, not an exact number. Nearest expiry, strike nearest the price, call plus put. That's your quick read.",
   "module": "F5",
   "prompt_json": {
    "choices": [
@@ -7823,7 +7830,7 @@
    "simple": "The nearest at-the-money straddle, because a call plus a put at the strike nearest the price shows the move priced.",
    "tier": "core",
    "unit": "F5.05",
-   "why": "The nearest at-the-money straddle. Use the nearest expiry that covers the report and the strike nearest the stock price, then add the call and the put. Sosnick at Interactive Brokers calls this the simplest way to see the anticipated move. Fidelity says traders often use the straddle price as the expected move. Sosnick also takes out any intrinsic value, and Cboe's note used a different method. Treat the result as a quick read, not an exact number.",
+   "why": "The nearest at-the-money straddle. At the money means the strike closest to the stock price. A straddle is a call and a put at that one strike. Add their prices for the market's quick read of the move priced for the report. Use the nearest expiry that covers the report, so no extra weeks of other risk creep in. Sosnick at Interactive Brokers calls this the simplest way to see the anticipated move. Fidelity says traders often use the straddle price as the expected move. Methods differ a little, so treat it as a quick read, not an exact number.",
    "wrong": {
     "Far out-of-the-money calls": "Those only pay on a big move up. The at-the-money straddle prices a move either way.",
     "The call with most volume": "Volume shows activity, not the priced move. Read the at-the-money straddle.",
@@ -7844,7 +7851,7 @@
   "difficulty": 1,
   "id": "si_7e40f47f33dd",
   "lesson_origin": "session",
-  "lesson_text": "False. A straddle buyer owns a call and a put at one strike. OIC says it only breaks even at expiry when the stock ends the full premium above or below the strike. A smaller move, either way, loses money. The most the buyer can lose is the two premiums paid. The straddle price is the hurdle. The move has to clear it.",
+  "lesson_text": "False. The buyer paid $4 for a call and a put at the same strike. To break even, the stock must end $4 away from the strike, on either side. To make money, it must end more than $4 away. At $102 it is only $2 away, so the straddle is worth $2 and the buyer is down. The straddle price is the hurdle the move has to clear. The most the buyer can lose is the two premiums paid. The straddle price is the hurdle. The move has to clear it.",
   "module": "F5",
   "prompt_json": {
    "choices": [
@@ -7852,7 +7859,7 @@
     "False"
    ],
    "kind": "tf",
-   "q": "A straddle buyer makes money at expiry as long as the stock moves.",
+   "q": "A $100 stock's $100-strike straddle costs $4. At expiry the stock is at $102, $2 above the strike. The buyer made money.",
    "subject": "F5.05#q05"
   },
   "reveal_json": {
@@ -7890,13 +7897,13 @@
     "summary": "At expiry, a straddle buyer breaks even only when the stock ends the full premium away from the strike. A straddle profits from a big move either way only if the move beats the total premium paid. The straddle buyer's worst case is a stock that sits still while implied volatility falls. A straddle is a call and a put bought together at the same strike and expiry."
    },
    "facts": {
-    "given": "A straddle buyer makes money at expiry as long as the stock moves."
+    "given": "A $100 stock's $100-strike straddle costs $4. At expiry the stock is at $102, $2 above the strike. The buyer made money."
    },
    "lesson_line": "The straddle price is the hurdle. The move has to clear it.",
-   "simple": "False, because at expiry the stock must move more than the full price paid for the straddle before the buyer makes money.",
+   "simple": "False, because the stock must end more than the $4 paid away from the strike, and $102 is only $2 away.",
    "tier": "core",
    "unit": "F5.05",
-   "why": "False. A straddle buyer owns a call and a put at one strike. OIC says it only breaks even at expiry when the stock ends the full premium above or below the strike. A smaller move, either way, loses money. The most the buyer can lose is the two premiums paid."
+   "why": "False. The buyer paid $4 for a call and a put at the same strike. To break even, the stock must end $4 away from the strike, on either side. To make money, it must end more than $4 away. At $102 it is only $2 away, so the straddle is worth $2 and the buyer is down. The straddle price is the hurdle the move has to clear. The most the buyer can lose is the two premiums paid."
   },
   "review_status": "draft",
   "skill_id": "fund.expected_move",
@@ -7970,78 +7977,6 @@
   "skill_id": "fund.expected_move",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F5/F5.05.json#q06",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "premium"
-  },
-  "difficulty": 1,
-  "id": "si_a0f3f2d34015",
-  "lesson_origin": "session",
-  "lesson_text": "Premium. OIC says the straddle seller's maximum gain is limited to the premiums received at the outset. The seller generally profits when the stock and volatility stay steady. A move past the premium, either way, is a loss for the seller instead. The strike is where the move is measured from, not what the seller keeps. The seller's best case is keeping the premium. The buyer's hurdle is that same premium.",
-  "module": "F5",
-  "prompt_json": {
-   "bank": [
-    "premium",
-    "strike",
-    "spread",
-    "volume",
-    "dividend"
-   ],
-   "kind": "fill",
-   "q": "Fill the blank with the right word.",
-   "sentence": "A straddle seller can make at most the ___ collected.",
-   "subject": "F5.05#q08"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-08",
-      "name": "The Options Industry Council (OCC): Short Straddle",
-      "quote": "The maximum gain is limited to the premiums received at the outset.",
-      "tier": 1,
-      "url": "https://www.optionseducation.org/strategies/all-strategies/short-straddle"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "The Options Industry Council (OCC): Short Straddle",
-      "quote": "This strategy involves selling a call option and a put option with the same expiration and strike price. It generally profits if the stock price and volatility remain steady.",
-      "tier": 1,
-      "url": "https://www.optionseducation.org/strategies/all-strategies/short-straddle"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "The Options Industry Council (OCC): Long Straddle",
-      "quote": "This strategy breaks even if, at expiration, the stock price is either above or below the strike price by the amount of premium paid.",
-      "tier": 1,
-      "url": "https://www.optionseducation.org/strategies/all-strategies/long-straddle"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "Cboe Global Markets (Cboe Insights): Why Trade Options Around Earnings Season (October 19, 2026)",
-      "quote": "strategies like straddles and strangles can profit from a large price move in either direction, provided the underlying's price move surpasses the total premium paid for the position.",
-      "tier": 2,
-      "url": "https://www.cboe.com/insights/posts/why-trade-options-around-earnings-season"
-     }
-    ],
-    "summary": "The straddle seller's best case is keeping the premium collected. The straddle seller generally profits when the stock and volatility stay steady. At expiry, a straddle buyer breaks even only when the stock ends the full premium away from the strike. A straddle profits from a big move either way only if the move beats the total premium paid."
-   },
-   "facts": {
-    "given": "Fill the blank with the right word. A straddle seller can make at most the ___ collected."
-   },
-   "lesson_line": "The seller's best case is keeping the premium. The buyer's hurdle is that same premium.",
-   "simple": "Premium, because the most a straddle seller can make is the premium collected up front.",
-   "tier": "core",
-   "unit": "F5.05",
-   "why": "Premium. OIC says the straddle seller's maximum gain is limited to the premiums received at the outset. The seller generally profits when the stock and volatility stay steady. A move past the premium, either way, is a loss for the seller instead. The strike is where the move is measured from, not what the seller keeps."
-  },
-  "review_status": "draft",
-  "skill_id": "fund.expected_move",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F5/F5.05.json#q08",
   "type": "recall",
   "version": 1
  },
@@ -8522,167 +8457,6 @@
  },
  {
   "answer_json": {
-   "answer": "The seller of the straddle"
-  },
-  "difficulty": 2,
-  "id": "si_b30651316d9c",
-  "lesson_origin": "session",
-  "lesson_text": "The seller of the straddle. It cost $3.69 before the report and was worth $2.81 after, so whoever bought it lost and whoever sold it gained. In Fidelity's example the buyer lost $88 on one straddle and the seller made $54. Whatever the stock did, it was not enough to cover what was paid. Cboe warns that even a big earnings move may not cover the high cost of the options. A stock can move and the straddle still lose. The move has to beat what was paid.",
-  "module": "F5",
-  "prompt_json": {
-   "choices": [
-    "The seller of the straddle",
-    "Both, since the stock moved",
-    "No way to tell without the move",
-    "The buyer of the straddle"
-   ],
-   "kind": "mcq",
-   "q": "Who came out ahead on that straddle?",
-   "story": "From a Fidelity options webinar: before a report, the at-the-money straddle cost $3.69. After the report it was worth $2.81.",
-   "subject": "F5.05#q14"
-  },
-  "reveal_json": {
-   "deeper": {
-    "example": "Fidelity's numbers: after the report the call was worth $0.04 and the put $2.77, $2.81 in all. Against $3.69 paid, that is $0.88 a share, or $88 on one straddle of 100 shares. The seller's prices were different: the seller collected $3.54 and paid $3.04 to close, a $54 gain. The two sides do not mirror exactly, but the verdict is the same."
-   },
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-08",
-      "name": "Fidelity Investments: Trading Options Around Earnings (Trading Strategy Desk webinar slides, 2016)",
-      "quote": "Long Straddle: Cost: $369 Maximum Gain = Unlimited Maximum Loss = $369 Results: Value: $0.04 + $2.77 = $2.81 * 100 shares = $281 Gain/Loss = $2.81 - $3.69 = $0.88 * 100 = $(88)",
-      "tier": 2,
-      "url": "https://fidelity.com/bin-public/060_www_fidelity_com/documents/TradingOptionsandEarnings_Webinar.pdf"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "Fidelity Investments: Trading Options Around Earnings (Trading Strategy Desk webinar slides, 2016)",
-      "quote": "Short Straddle: Credit: $354 Maximum Gain = $354 Maximum Loss = Unlimited Results: Value: $0.05 + $2.99 = $3.04 * 100 shares = $304 Gain/Loss = $3.54 - $3.04 = $0.54 * 100 = $54",
-      "tier": 2,
-      "url": "https://fidelity.com/bin-public/060_www_fidelity_com/documents/TradingOptionsandEarnings_Webinar.pdf"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "The Options Industry Council (OCC): Long Straddle",
-      "quote": "The maximum loss is limited to the two premiums paid. The worst that can happen is for the stock price to hold steady and implied volatility to decline.",
-      "tier": 1,
-      "url": "https://www.optionseducation.org/strategies/all-strategies/long-straddle"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "Cboe Global Markets (Cboe Insights): Why Trade Options Around Earnings Season (October 19, 2026)",
-      "quote": "A trader buying a straddle on an individual stock may find that even a significant move in the stock doesn't cover the elevated cost of the options.",
-      "tier": 2,
-      "url": "https://www.cboe.com/insights/posts/why-trade-options-around-earnings-season"
-     }
-    ],
-    "summary": "In Fidelity's earnings example, a straddle bought for $3.69 was worth $2.81 after the report: a loss of $88 per straddle. In the same example, the straddle seller collected $3.54, bought it back for $3.04 and made $54 per straddle. The straddle buyer's worst case is a stock that sits still while implied volatility falls. Even a big earnings move may not cover the high cost of a straddle."
-   },
-   "facts": {
-    "given": "Who came out ahead on that straddle? From a Fidelity options webinar: before a report, the at-the-money straddle cost $3.69. After the report it was worth $2.81. The seller of the straddle The buyer of the straddle Both, since the stock moved No way to tell without the move"
-   },
-   "lesson_line": "A stock can move and the straddle still lose. The move has to beat what was paid.",
-   "simple": "The seller came out ahead, because the straddle was worth less after the report than the buyer paid for it.",
-   "tier": "extended",
-   "unit": "F5.05",
-   "why": "The seller of the straddle. It cost $3.69 before the report and was worth $2.81 after, so whoever bought it lost and whoever sold it gained. In Fidelity's example the buyer lost $88 on one straddle and the seller made $54. Whatever the stock did, it was not enough to cover what was paid. Cboe warns that even a big earnings move may not cover the high cost of the options.",
-   "wrong": {
-    "Both, since the stock moved": "A move smaller than the premium hands the win to the seller. The buyer lost.",
-    "No way to tell without the move": "The straddle's own prices settle it. It cost $3.69 and was worth $2.81 after, so the buyer lost and the seller gained.",
-    "The buyer of the straddle": "The straddle was worth less after the report than it cost. That's a loss for the buyer."
-   }
-  },
-  "review_status": "draft",
-  "skill_id": "fund.expected_move",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F5/F5.05.json#q14",
-  "type": "scenario",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "Options priced a smaller move than usual"
-  },
-  "difficulty": 2,
-  "id": "si_39ec1c285cd3",
-  "lesson_origin": "session",
-  "lesson_text": "Options priced a smaller move than usual. In August 2025, NVDA's at-the-money near-term options implied about 6%, below the 7.39% average of its past six post-earnings moves, Sosnick wrote. That says the market expected a calmer reaction than its history, nothing more. It gives no direction. Below average alone does not show mispricing. Cboe found the big tech options it studied generally priced moves slightly below their historical averages. Hold the implied move up against the stock's past reactions. That tells you if options expect a big one.",
-  "module": "F5",
-  "prompt_json": {
-   "choices": [
-    "The stock likely rises on the report",
-    "Options priced a smaller move than usual",
-    "The options are mispriced and too cheap",
-    "Options priced a bigger move than usual"
-   ],
-   "kind": "mcq",
-   "q": "NVDA, August 2025: options priced about 6%. Its last six reactions averaged 7.39%. What does that tell you?",
-   "subject": "F5.05#q15"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-08",
-      "name": "Interactive Brokers (IBKR Campus, Traders' Insight): Prepping for NVDA Earnings (Steve Sosnick, August 27, 2025)",
-      "quote": "At-money, near-term options are implying a roughly 6% post-earnings move for NVDA. That is below the 7.39% average of the stock's past 6 post-earnings moves",
-      "tier": 2,
-      "url": "https://www.interactivebrokers.com/campus/traders-insight/securities/stocks/prepping-for-nvda-earnings/"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "Cboe Global Markets (Cboe Insights): What Options Data May Indicate About Mag 7 Earnings (July 30, 2025)",
-      "quote": "The simplest way to estimate the magnitude of the reaction is by comparing the straddle price to historic moves.",
-      "tier": 2,
-      "url": "https://www.cboe.com/insights/posts/what-options-data-may-indicate-about-mag-7-earnings"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "Cboe Global Markets (Cboe Insights): What Options Data May Indicate About Mag 7 Earnings (July 30, 2025)",
-      "quote": "Note that options pricing generally does not imply the direction of a reaction",
-      "tier": 2,
-      "url": "https://www.cboe.com/insights/posts/what-options-data-may-indicate-about-mag-7-earnings"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "The Options Industry Council (OCC): May Key Takeaways: The Rule of 16 and the 0DTE Risk Profile (June 2026, instructor Mat Cashman)",
-      "quote": "The result describes magnitude of expected movement, not direction.",
-      "tier": 1,
-      "url": "https://www.optionseducation.org/news/may-keytakeaways"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "Cboe Global Markets (Cboe Insights): What Options Data May Indicate About Mag 7 Earnings (July 30, 2025)",
-      "quote": "Generally, these single stock options price in moves slightly below historical averages, suggesting traders are not expecting any major impact to the stock price based on earnings results.",
-      "tier": 2,
-      "url": "https://www.cboe.com/insights/posts/what-options-data-may-indicate-about-mag-7-earnings"
-     }
-    ],
-    "summary": "In August 2025 NVDA options priced about 6%, below the 7.39% average of its last six reactions. Compare the straddle price with the stock's past reactions to size up the expected move. Option prices generally do not say which way the stock will react. A move worked out from implied volatility describes how big the expected move is, not which way. Cboe found the Mag 7 options generally priced moves slightly below their historical averages ahead of earnings."
-   },
-   "facts": {
-    "given": "NVDA, August 2025: options priced about 6%. Its last six reactions averaged 7.39%. What does that tell you? Options priced a smaller move than usual Options priced a bigger move than usual The stock likely rises on the report The options are mispriced and too cheap"
-   },
-   "lesson_line": "Hold the implied move up against the stock's past reactions. That tells you if options expect a big one.",
-   "simple": "Options priced a smaller move than usual, because about 6% is below the 7.39% average of its last six reactions.",
-   "tier": "extended",
-   "unit": "F5.05",
-   "why": "Options priced a smaller move than usual. In August 2025, NVDA's at-the-money near-term options implied about 6%, below the 7.39% average of its past six post-earnings moves, Sosnick wrote. That says the market expected a calmer reaction than its history, nothing more. It gives no direction. Below average alone does not show mispricing. Cboe found the big tech options it studied generally priced moves slightly below their historical averages.",
-   "wrong": {
-    "Options priced a bigger move than usual": "6% is below the 7.39% average, so it's smaller, not bigger.",
-    "The options are mispriced and too cheap": "Below average alone doesn't make them wrong. Cboe found big tech options generally price moves slightly below their history.",
-    "The stock likely rises on the report": "The implied move has no direction. It can't tell you up or down."
-   }
-  },
-  "review_status": "draft",
-  "skill_id": "fund.expected_move",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F5/F5.05.json#q15",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
    "answer": "Took value out of them"
   },
   "difficulty": 2,
@@ -8764,108 +8538,6 @@
   "source_kind": "course",
   "source_ref": "docs/study/courses/F5/F5.05.json#q16",
   "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "About 0.46x, smaller than priced"
-  },
-  "difficulty": 3,
-  "id": "si_393c31e7c06a",
-  "lesson_origin": "session",
-  "lesson_text": "About 0.46x, smaller than priced. Divide the realized move by the implied move: 3.25 divided by 7 is about 0.46. Options priced about 7% for NVDA's May 28, 2025 report, and the stock rose 3.25%, Sosnick wrote. Under one means a smaller move than priced. OIC says the options are then sometimes called underperforming expectations. The rise itself is not the point: options price size, not direction. A reaction well under the priced move tells you something too. The market braced for more than it got.",
-  "module": "F5",
-  "prompt_json": {
-   "choices": [
-    "About 1x, right on the price",
-    "About 0.54x, smaller than priced",
-    "About 0.46x, smaller than priced",
-    "About 2.15x, bigger than priced"
-   ],
-   "kind": "mcq",
-   "q": "What is the realized move divided by the implied move, and what does it say?",
-   "story": "NVDA reported on May 28, 2025. Options priced about a 7% move. The stock rose 3.25%.",
-   "subject": "F5.05#q17"
-  },
-  "reveal_json": {
-   "deeper": {
-    "trap": "Two traps. Dividing the wrong way turns a move under half the priced one into one that looks twice as big. Subtracting first gives the shortfall, not the ratio. Put the realized move on top and divide. Under one is smaller than priced, over one is bigger."
-   },
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-08",
-      "name": "Interactive Brokers (IBKR Campus, Traders' Insight): Prepping for NVDA Earnings (Steve Sosnick, August 27, 2025)",
-      "quote": "NVDA 1-Year Daily Candles with Arrows Pointing to the Days Following Prior Earnings Reports (November 20, 2024; February 26, 2025; May 28, 2025)",
-      "tier": 2,
-      "url": "https://www.interactivebrokers.com/campus/traders-insight/securities/stocks/prepping-for-nvda-earnings/"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "Interactive Brokers (IBKR Campus, Traders' Insight): Prepping for NVDA Earnings (Steve Sosnick, August 27, 2025)",
-      "quote": "The most recent report led to a +3.25% gain",
-      "tier": 2,
-      "url": "https://www.interactivebrokers.com/campus/traders-insight/securities/stocks/prepping-for-nvda-earnings/"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "Interactive Brokers (IBKR Campus, Traders' Insight): Prepping for NVDA Earnings (Steve Sosnick, August 27, 2025)",
-      "quote": "It is also below the 7% that was expected last quarter, and the 8.4% that was priced in two quarters ago.",
-      "tier": 2,
-      "url": "https://www.interactivebrokers.com/campus/traders-insight/securities/stocks/prepping-for-nvda-earnings/"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "Cboe Global Markets (Cboe Insights): What Options Data May Indicate About Mag 7 Earnings (July 30, 2025)",
-      "quote": "The simplest way to estimate the magnitude of the reaction is by comparing the straddle price to historic moves.",
-      "tier": 2,
-      "url": "https://www.cboe.com/insights/posts/what-options-data-may-indicate-about-mag-7-earnings"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "The Options Industry Council (OCC): May Key Takeaways: The Rule of 16 and the 0DTE Risk Profile (June 2026, instructor Mat Cashman)",
-      "quote": "When the underlying delivers less movement than implied volatility suggested, the options are sometimes referred to as “underperforming expectations”; when it delivers more, the options are sometimes referred to as “outperforming expectations”.",
-      "tier": 1,
-      "url": "https://www.optionseducation.org/news/may-keytakeaways"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "Cboe Global Markets (Cboe Insights): What Options Data May Indicate About Mag 7 Earnings (July 30, 2025)",
-      "quote": "just how much the stock is expected to move in either direction.",
-      "tier": 2,
-      "url": "https://www.cboe.com/insights/posts/what-options-data-may-indicate-about-mag-7-earnings"
-     }
-    ],
-    "summary": "NVDA's three reports before August 2025 were on November 20, 2024, February 26, 2025 and May 28, 2025. After its May 28, 2025 report, NVDA rose 3.25%. Options priced about 7% for NVDA's May 2025 report and about 8.4% for its February 2025 report. Compare the straddle price with the stock's past reactions to size up the expected move. A stock that moves less than implied fell short of what options expected; one that moves more beat it. Option prices say how far the stock may move, up or down."
-   },
-   "facts": {
-    "calc": {
-     "args": {
-      "expr": "realised / implied",
-      "implied": 7,
-      "realised": 3.25
-     },
-     "fn": "arith",
-     "result": 0.46
-    },
-    "given": "What is the realized move divided by the implied move, and what does it say? NVDA reported on May 28, 2025. Options priced about a 7% move. The stock rose 3.25%. About 2.15x, bigger than priced About 0.46x, smaller than priced About 0.54x, smaller than priced About 1x, right on the price"
-   },
-   "lesson_line": "A reaction well under the priced move tells you something too. The market braced for more than it got.",
-   "simple": "About 0.46x, because the 3.25% rise was less than half of the 7% move options priced.",
-   "tier": "extended",
-   "unit": "F5.05",
-   "why": "About 0.46x, smaller than priced. Divide the realized move by the implied move: 3.25 divided by 7 is about 0.46. Options priced about 7% for NVDA's May 28, 2025 report, and the stock rose 3.25%, Sosnick wrote. Under one means a smaller move than priced. OIC says the options are then sometimes called underperforming expectations. The rise itself is not the point: options price size, not direction.",
-   "wrong": {
-    "About 0.54x, smaller than priced": "That's the shortfall, 7 minus 3.25, over 7. The ratio is 3.25 divided by 7, about 0.46.",
-    "About 1x, right on the price": "Right on would need a move near 7%. The stock moved 3.25%.",
-    "About 2.15x, bigger than priced": "That divides the wrong way: 7 over 3.25. Put the realized move on top: 3.25 over 7."
-   }
-  },
-  "review_status": "draft",
-  "skill_id": "fund.expected_move",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F5/F5.05.json#q17",
-  "type": "scenario",
   "version": 1
  },
  {
@@ -8968,7 +8640,7 @@
   "difficulty": 3,
   "id": "si_a27e8007537c",
   "lesson_origin": "session",
-  "lesson_text": "True. There is more than one method. Fidelity's presenter uses the full straddle price as the expected move. Sosnick at Interactive Brokers subtracts any intrinsic value from the straddle's midpoint. Cboe's note turned the implied standard deviation into an expected move with a 2/3 rule of thumb. Each is an estimate, so two sites can show different numbers for one report. Know which method your tool uses before you compare. Check how your tool works out the implied move before you compare numbers across sites.",
+  "lesson_text": "True. There is no single official formula, so two tools can differ a little and both be fair. Here is a proper way to work it out by hand, using Sosnick's MSFT read. Take the nearest expiry that covers the report and the strike closest to the price. MSFT was $209.58 and the strike was 210. The two options cost 4.75 and 5.15. Add them, then subtract the gap between the 210 strike and the 209.58 price. That leaves 9.48. Divide by the stock price: 9.48 over 209.58 is about 4.5%. A tool that keeps the full sum of the two prices shows a slightly higher number. In the UCT app, the Calendar page shows it in the Impl. Move column. Check which method your tool uses before you compare. Check how your tool works out the implied move before you compare numbers across sites.",
   "module": "F5",
   "prompt_json": {
    "choices": [
@@ -8981,7 +8653,7 @@
   },
   "reveal_json": {
    "deeper": {
-    "example": "Sosnick's MSFT read, July 2020: the two 210 options cost 4.75 and 5.15, with the stock at 209.58. With the strike above the stock, the put had intrinsic value. He took it out and got $9.48, about 4.5%. Fidelity's full-straddle read would come out a little higher on the same options. Same options, two fair numbers."
+    "trap": "The trap is comparing two numbers without asking how each was built. One tool keeps the full straddle. Another subtracts intrinsic value, as Sosnick does. Cboe's note used a different step again: it turned the implied standard deviation into an expected move with a two-thirds rule of thumb. Three methods, three fair answers."
    },
    "depth": {
     "sources": [
@@ -9019,9 +8691,23 @@
       "quote": "The data used are from Wednesday, July 22, 2020, a few hours before the company's earnings release after the markets closed.",
       "tier": 2,
       "url": "https://www.interactivebrokers.com/campus/traders-insight/securities/options/use-your-tws-to-see-what-the-options-market-thinks-about-earnings-expectations/"
+     },
+     {
+      "accessed": "2026-11-14",
+      "name": "UCT app: The UCT app's own guide: where the Calendar page shows implied moves",
+      "quote": "estimates, implied moves and reactions (read them on the Calendar page)",
+      "tier": 3,
+      "url": "repo:app/src/agent/discovery.js"
+     },
+     {
+      "accessed": "2026-11-14",
+      "name": "UCT app: The UCT app's Calendar widget: the sortable Impl. Move column",
+      "quote": "title=\"Sort by implied move\"",
+      "tier": 3,
+      "url": "repo:app/src/pages/charts/widgets/CalendarWidget.jsx"
      }
     ],
-    "summary": "Cboe's note turned the implied standard deviation into an expected move with a two-thirds rule of thumb: one of several conventions. Option traders often use the straddle price as the expected move after earnings. The straddle's midpoint, less any intrinsic value, is a quick guide to the implied move. MSFT's straddle priced a $9.48 move on a $209.58 stock: about 4.5%. The MSFT example uses prices from July 22, 2020, hours before an after-the-close report."
+    "summary": "Cboe's note turned the implied standard deviation into an expected move with a two-thirds rule of thumb: one of several conventions. Option traders often use the straddle price as the expected move after earnings. The straddle's midpoint, less any intrinsic value, is a quick guide to the implied move. MSFT's straddle priced a $9.48 move on a $209.58 stock: about 4.5%. The MSFT example uses prices from July 22, 2020, hours before an after-the-close report. The UCT app shows each name's implied move on its Calendar page. The Calendar page's earnings list has an Impl. Move column that you can sort by."
    },
    "facts": {
     "given": "Two websites can show different implied moves for the same report without either one being wrong."
@@ -9030,115 +8716,13 @@
    "simple": "True, because tools work out the implied move in different ways, so their numbers can differ and both be fair.",
    "tier": "extended",
    "unit": "F5.05",
-   "why": "True. There is more than one method. Fidelity's presenter uses the full straddle price as the expected move. Sosnick at Interactive Brokers subtracts any intrinsic value from the straddle's midpoint. Cboe's note turned the implied standard deviation into an expected move with a 2/3 rule of thumb. Each is an estimate, so two sites can show different numbers for one report. Know which method your tool uses before you compare."
+   "why": "True. There is no single official formula, so two tools can differ a little and both be fair. Here is a proper way to work it out by hand, using Sosnick's MSFT read. Take the nearest expiry that covers the report and the strike closest to the price. MSFT was $209.58 and the strike was 210. The two options cost 4.75 and 5.15. Add them, then subtract the gap between the 210 strike and the 209.58 price. That leaves 9.48. Divide by the stock price: 9.48 over 209.58 is about 4.5%. A tool that keeps the full sum of the two prices shows a slightly higher number. In the UCT app, the Calendar page shows it in the Impl. Move column. Check which method your tool uses before you compare."
   },
   "review_status": "draft",
   "skill_id": "fund.expected_move",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F5/F5.05.json#q19",
   "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
-   "answer": "About 1.4x, bigger than priced"
-  },
-  "difficulty": 3,
-  "id": "si_093836af6c6f",
-  "lesson_origin": "session",
-  "lesson_text": "About 1.4x, bigger than priced. Divide the realized move by the implied move: about 10 divided by about 7 is about 1.4. AMD options priced about 7% for its late October 2024 report. The next morning the stock was about 10% lower, Sosnick wrote. Bigger than the market expected, but well short of twice. Sosnick's own read: the market wasn't too far off. Both figures are approximate, and the 10% was a morning price, not a close. Read the ratio, not the headline. Bigger than priced, but not a shock.",
-  "module": "F5",
-  "prompt_json": {
-   "choices": [
-    "About 0.7x, smaller than priced",
-    "About -1.4x, opposite to priced",
-    "About 1.4x, bigger than priced",
-    "About 1x, right on the price"
-   ],
-   "kind": "mcq",
-   "q": "How big was the reaction against what was priced?",
-   "story": "AMD reported in late October 2024. Options priced about a 7% move. The next morning the stock was about 10% lower.",
-   "subject": "F5.05#q20"
-  },
-  "reveal_json": {
-   "deeper": {
-    "trap": "A headline that says a stock fell 10% sounds like options missed. Against about 7% priced it is about 1.4x: bigger than expected, not a shock. Check the basis too. Sosnick's 10% was a morning-after price, not the day's close, so the ratio could shift by the close."
-   },
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-08",
-      "name": "Interactive Brokers (IBKR Campus, Traders' Insight): Microsoft and Meta Step Up to the Plate (Steve Sosnick, October 30, 2024)",
-      "quote": "For AMD, however, “only” a 7% move was priced in. It is currently about -10% lower.",
-      "tier": 2,
-      "url": "https://www.interactivebrokers.com/campus/traders-insight/securities/stocks/microsoft-and-meta-step-up-to-the-plate/"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "Interactive Brokers (IBKR Campus, Traders' Insight): Microsoft and Meta Step Up to the Plate (Steve Sosnick, October 30, 2024)",
-      "quote": "Yesterday we highlighted options market expectations for Alphabet (GOOG, GOOGL) and Advanced Micro Devices (AMD)",
-      "tier": 2,
-      "url": "https://www.interactivebrokers.com/campus/traders-insight/securities/stocks/microsoft-and-meta-step-up-to-the-plate/"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "Interactive Brokers (IBKR Campus, Traders' Insight): Microsoft and Meta Step Up to the Plate (Steve Sosnick, October 30, 2024)",
-      "quote": "Neither stock was pricing in a directional move, so the fact that we have one up and one down is not unexpected.",
-      "tier": 2,
-      "url": "https://www.interactivebrokers.com/campus/traders-insight/securities/stocks/microsoft-and-meta-step-up-to-the-plate/"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "Cboe Global Markets (Cboe Insights): What Options Data May Indicate About Mag 7 Earnings (July 30, 2025)",
-      "quote": "The simplest way to estimate the magnitude of the reaction is by comparing the straddle price to historic moves.",
-      "tier": 2,
-      "url": "https://www.cboe.com/insights/posts/what-options-data-may-indicate-about-mag-7-earnings"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "Interactive Brokers (IBKR Campus, Traders' Insight): Microsoft and Meta Step Up to the Plate (Steve Sosnick, October 30, 2024)",
-      "quote": "the market got one of them correct and wasn't too far off on the other.",
-      "tier": 2,
-      "url": "https://www.interactivebrokers.com/campus/traders-insight/securities/stocks/microsoft-and-meta-step-up-to-the-plate/"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "Cboe Global Markets (Cboe Insights): What Options Data May Indicate About Mag 7 Earnings (July 30, 2025)",
-      "quote": "just how much the stock is expected to move in either direction.",
-      "tier": 2,
-      "url": "https://www.cboe.com/insights/posts/what-options-data-may-indicate-about-mag-7-earnings"
-     }
-    ],
-    "summary": "AMD options priced about 7%, and the stock was about 10% lower the next morning. The AMD and GOOGL expectations were written up the day before the October 30, 2024 post, ahead of their reports. The options priced no direction for either stock, so one up and one down was no surprise. Compare the straddle price with the stock's past reactions to size up the expected move. Sosnick judged the options right on GOOGL and not too far off on AMD. Option prices say how far the stock may move, up or down."
-   },
-   "facts": {
-    "calc": {
-     "args": {
-      "expr": "realised / implied",
-      "implied": 7,
-      "realised": 10
-     },
-     "fn": "arith",
-     "result": 1.4
-    },
-    "given": "How big was the reaction against what was priced? AMD reported in late October 2024. Options priced about a 7% move. The next morning the stock was about 10% lower. About 1.4x, bigger than priced About 0.7x, smaller than priced About 1x, right on the price About -1.4x, opposite to priced"
-   },
-   "lesson_line": "Read the ratio, not the headline. Bigger than priced, but not a shock.",
-   "simple": "About 1.4x, because a drop of about 10% is bigger than the 7% options priced, but well short of double.",
-   "tier": "expert",
-   "unit": "F5.05",
-   "why": "About 1.4x, bigger than priced. Divide the realized move by the implied move: about 10 divided by about 7 is about 1.4. AMD options priced about 7% for its late October 2024 report. The next morning the stock was about 10% lower, Sosnick wrote. Bigger than the market expected, but well short of twice. Sosnick's own read: the market wasn't too far off. Both figures are approximate, and the 10% was a morning price, not a close.",
-   "wrong": {
-    "About -1.4x, opposite to priced": "Options priced about 7% either way, with no direction. Use the size of the drop, not its sign.",
-    "About 0.7x, smaller than priced": "That flips the ratio. Divide the realized move by the implied move, not the other way round.",
-    "About 1x, right on the price": "Right on would be close to 7%. About 10% is clearly bigger."
-   }
-  },
-  "review_status": "draft",
-  "skill_id": "fund.expected_move",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F5/F5.05.json#q20",
-  "type": "scenario",
   "version": 1
  },
  {
@@ -9367,6 +8951,263 @@
   "skill_id": "fund.expected_move",
   "source_kind": "course",
   "source_ref": "docs/study/courses/F5/F5.05.json#q25",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "Calendar page, beside each report"
+  },
+  "difficulty": 1,
+  "id": "si_d633f88b57c4",
+  "lesson_origin": "session",
+  "lesson_text": "The Calendar page, in the Impl. Move column. The UCT app lists each name's implied move there, and you can sort the column. To find it by hand, use the nearest at-the-money straddle: the call and put at the strike closest to the price. Add the two prices, take off any intrinsic value, and divide by the stock price. Sosnick's MSFT read: 4.75 plus 5.15, less the gap between the 210 strike and the 209.58 price, leaves 9.48. Divide by 209.58 and you get about 4.5%. The other pages do other jobs. Find the implied move on the Calendar page, or work it out from the nearest at-the-money straddle.",
+  "module": "F5",
+  "prompt_json": {
+   "choices": [
+    "Community page, member posts",
+    "Calendar page, beside each report",
+    "Breadth page, advancing stock counts",
+    "Journal page, your trade list"
+   ],
+   "kind": "mcq",
+   "q": "Tonight's report is on a stock you hold. Where does the UCT app show its implied move?",
+   "subject": "F5.05#q91"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-14",
+      "name": "UCT app: The UCT app's own guide: where the Calendar page shows implied moves",
+      "quote": "estimates, implied moves and reactions (read them on the Calendar page)",
+      "tier": 3,
+      "url": "repo:app/src/agent/discovery.js"
+     },
+     {
+      "accessed": "2026-11-14",
+      "name": "UCT app: The UCT app's Calendar widget: the sortable Impl. Move column",
+      "quote": "title=\"Sort by implied move\"",
+      "tier": 3,
+      "url": "repo:app/src/pages/charts/widgets/CalendarWidget.jsx"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Interactive Brokers (IBKR Campus, Traders' Insight): Use Your TWS to See What the Options Market Thinks About Earnings Expectations (Steve Sosnick, Chief Strategist, July 24, 2020)",
+      "quote": "The simplest way to see that anticipated move is to look at the nearest term, at-money straddle.",
+      "tier": 2,
+      "url": "https://www.interactivebrokers.com/campus/traders-insight/securities/options/use-your-tws-to-see-what-the-options-market-thinks-about-earnings-expectations/"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Interactive Brokers (IBKR Campus, Traders' Insight): Use Your TWS to See What the Options Market Thinks About Earnings Expectations (Steve Sosnick, Chief Strategist, July 24, 2020)",
+      "quote": "The midpoint of those options, minus any intrinsic value, is a quick guide to the implied move of the stock.",
+      "tier": 2,
+      "url": "https://www.interactivebrokers.com/campus/traders-insight/securities/options/use-your-tws-to-see-what-the-options-market-thinks-about-earnings-expectations/"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Fidelity Investments: Options trading around earnings (webinar transcript, Trading Strategy Desk, presenter Konstantin Vrandopulo, 2022)",
+      "quote": "And option traders would frequently use the price of a straddle as the expected move of a stock post-earnings event.",
+      "tier": 2,
+      "url": "https://www.fidelity.com/bin-public/060_www_fidelity_com/documents/learning-center/options-around-earnings-transcript.pdf"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Interactive Brokers (IBKR Campus, Traders' Insight): Use Your TWS to See What the Options Market Thinks About Earnings Expectations (Steve Sosnick, Chief Strategist, July 24, 2020)",
+      "quote": "In this case, that is $9.48 (4.75 + 5.15 – (210 – 209.58)), or about 4.5% (9.48 / 209.58).",
+      "tier": 2,
+      "url": "https://www.interactivebrokers.com/campus/traders-insight/securities/options/use-your-tws-to-see-what-the-options-market-thinks-about-earnings-expectations/"
+     }
+    ],
+    "summary": "The UCT app shows each name's implied move on its Calendar page. The Calendar page's earnings list has an Impl. Move column that you can sort by. The quickest read of the expected move is the nearest-expiry, at-the-money straddle. The straddle's midpoint, less any intrinsic value, is a quick guide to the implied move. Option traders often use the straddle price as the expected move after earnings. MSFT's straddle priced a $9.48 move on a $209.58 stock: about 4.5%."
+   },
+   "facts": {
+    "given": "Tonight's report is on a stock you hold. Where does the UCT app show its implied move? Calendar page, beside each report Journal page, your trade list Breadth page, advancing stock counts Community page, member posts"
+   },
+   "lesson_line": "Find the implied move on the Calendar page, or work it out from the nearest at-the-money straddle.",
+   "simple": "The Calendar page, because its Impl. Move column shows each name's implied move.",
+   "tier": "core",
+   "unit": "F5.05",
+   "why": "The Calendar page, in the Impl. Move column. The UCT app lists each name's implied move there, and you can sort the column. To find it by hand, use the nearest at-the-money straddle: the call and put at the strike closest to the price. Add the two prices, take off any intrinsic value, and divide by the stock price. Sosnick's MSFT read: 4.75 plus 5.15, less the gap between the 210 strike and the 209.58 price, leaves 9.48. Divide by 209.58 and you get about 4.5%. The other pages do other jobs.",
+   "wrong": {
+    "Breadth page, advancing stock counts": "Breadth counts how many stocks are rising or falling across the market. It says nothing about one report.",
+    "Community page, member posts": "Community is where members talk. It does not show a stock's option prices.",
+    "Journal page, your trade list": "The Journal is where you log and review your own trades. It does not price options."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "fund.expected_move",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F5/F5.05.json#q91",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "$1.00"
+  },
+  "difficulty": 2,
+  "id": "si_6d8aa4c02671",
+  "lesson_origin": "session",
+  "lesson_text": "$1.00. Implied volatility is quoted for a whole year. The Rule of 16 turns it into one day. Multiply the price by the volatility, then divide by 16. Here 32% of $50 is $16, and $16 divided by 16 is $1.00. OIC's own example: a $100 stock at 20% implied volatility implies about $1.25 of daily movement. The result is a size, not a direction. A report's priced move is a one-day jump, so set it beside this ordinary day. Price times implied volatility, divided by 16, is the move options expect on an ordinary day.",
+  "module": "F5",
+  "prompt_json": {
+   "choices": [
+    "$1.00",
+    "$2.20",
+    "$4.60",
+    "$16.00"
+   ],
+   "kind": "mcq",
+   "q": "A $50 stock has 32% implied volatility. About how much does that imply it moves on an ordinary day?",
+   "subject": "F5.05#q92"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-09",
+      "name": "The Options Industry Council (OCC): May Key Takeaways: The Rule of 16 and the 0DTE Risk Profile (June 2026, instructor Mat Cashman)",
+      "quote": "A $100 stock with 20% implied volatility implies approximately $1.25 of daily movement.",
+      "tier": 1,
+      "url": "https://www.optionseducation.org/news/may-keytakeaways"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "The Options Industry Council (OCC): May Key Takeaways: The Rule of 16 and the 0DTE Risk Profile (June 2026, instructor Mat Cashman)",
+      "quote": "The Rule of 16 converts that annual figure into a daily standard deviation expressed in dollar terms.",
+      "tier": 1,
+      "url": "https://www.optionseducation.org/news/may-keytakeaways"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "The Options Industry Council (OCC): May Key Takeaways: The Rule of 16 and the 0DTE Risk Profile (June 2026, instructor Mat Cashman)",
+      "quote": "The result describes magnitude of expected movement, not direction.",
+      "tier": 1,
+      "url": "https://www.optionseducation.org/news/may-keytakeaways"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "The Options Industry Council (OCC): May Key Takeaways: The Rule of 16 and the 0DTE Risk Profile (June 2026, instructor Mat Cashman)",
+      "quote": "The Rule of 16 provides context for evaluating realized price moves relative to what option prices were implying",
+      "tier": 1,
+      "url": "https://www.optionseducation.org/news/may-keytakeaways"
+     }
+    ],
+    "summary": "OIC's example: a $100 stock at 20% implied volatility implies about $1.25 of movement a day. The Rule of 16 turns annual implied volatility into a daily move in dollars. A move worked out from implied volatility describes how big the expected move is, not which way. You judge the move that really happened against what option prices were implying."
+   },
+   "facts": {
+    "calc": {
+     "args": {
+      "expr": "price * iv / 100 / 16",
+      "iv": 32,
+      "price": 50
+     },
+     "fn": "arith",
+     "result": 1.0
+    },
+    "given": "A $50 stock has 32% implied volatility. About how much does that imply it moves on an ordinary day? $1.00 $2.20 $4.60 $16.00"
+   },
+   "lesson_line": "Price times implied volatility, divided by 16, is the move options expect on an ordinary day.",
+   "simple": "$1.00, because 32% of $50 is $16 for the year, and dividing by 16 gives one day.",
+   "tier": "extended",
+   "unit": "F5.05",
+   "why": "$1.00. Implied volatility is quoted for a whole year. The Rule of 16 turns it into one day. Multiply the price by the volatility, then divide by 16. Here 32% of $50 is $16, and $16 divided by 16 is $1.00. OIC's own example: a $100 stock at 20% implied volatility implies about $1.25 of daily movement. The result is a size, not a direction. A report's priced move is a one-day jump, so set it beside this ordinary day.",
+   "wrong": {
+    "$16.00": "That is 32% of $50, the move for a whole year. Divide it by 16 to get one day.",
+    "$2.20": "That is a week's move. Dividing by a week's factor instead of 16 gives a week, not one day.",
+    "$4.60": "That is a month's move. Dividing by a month's factor instead of 16 gives a month, not one day."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "fund.expected_move",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F5/F5.05.json#q92",
+  "type": "recall",
+  "version": 1
+ },
+ {
+  "answer_json": {
+   "answer": "$184 to $216"
+  },
+  "difficulty": 1,
+  "id": "si_797fc387ace6",
+  "lesson_origin": "session",
+  "lesson_text": "$184 to $216. The implied move is a size either way, so apply it above and below the price. Take 8% of $200. Subtract it for the low, $184, and add it for the high, $216. The range is an estimate of how far the reaction may reach. It is not a limit, and it does not say which end the stock will hit. In the UCT app, the Calendar page shows the percent. Multiply it by the price yourself to get the dollars. Turn the implied move into dollars: price times the percent, added above and subtracted below.",
+  "module": "F5",
+  "prompt_json": {
+   "choices": [
+    "$168 to $232",
+    "$184 to $216",
+    "$192 to $208",
+    "$184 to $200"
+   ],
+   "kind": "mcq",
+   "q": "Cboe's example: a $200 stock, and options imply about 8% either way. What price range is that?",
+   "subject": "F5.05#q93"
+  },
+  "reveal_json": {
+   "depth": {
+    "sources": [
+     {
+      "accessed": "2026-11-08",
+      "name": "Cboe Global Markets (Cboe Insights): Why Trade Options Around Earnings Season (October 19, 2026)",
+      "quote": "Example A stock is trading at $200 ahead of earnings and the options market is implying a move of around 8% in either direction.",
+      "tier": 2,
+      "url": "https://www.cboe.com/insights/posts/why-trade-options-around-earnings-season"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Cboe Global Markets (Cboe Insights): What Options Data May Indicate About Mag 7 Earnings (July 30, 2025)",
+      "quote": "just how much the stock is expected to move in either direction.",
+      "tier": 2,
+      "url": "https://www.cboe.com/insights/posts/what-options-data-may-indicate-about-mag-7-earnings"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Cboe Global Markets (Cboe Insights): What Options Data May Indicate About Mag 7 Earnings (July 30, 2025)",
+      "quote": "Note that options pricing generally does not imply the direction of a reaction",
+      "tier": 2,
+      "url": "https://www.cboe.com/insights/posts/what-options-data-may-indicate-about-mag-7-earnings"
+     },
+     {
+      "accessed": "2026-11-14",
+      "name": "UCT app: The UCT app's own guide: where the Calendar page shows implied moves",
+      "quote": "estimates, implied moves and reactions (read them on the Calendar page)",
+      "tier": 3,
+      "url": "repo:app/src/agent/discovery.js"
+     }
+    ],
+    "summary": "Cboe's example: a $200 stock with options implying about an 8% move either way. Option prices say how far the stock may move, up or down. Option prices generally do not say which way the stock will react. The UCT app shows each name's implied move on its Calendar page."
+   },
+   "facts": {
+    "calc": {
+     "args": {
+      "expr": "price * (1 - pct / 100)",
+      "pct": 8,
+      "price": 200
+     },
+     "fn": "arith",
+     "result": 184.0
+    },
+    "given": "Cboe's example: a $200 stock, and options imply about 8% either way. What price range is that? $184 to $216 $168 to $232 $192 to $208 $184 to $200"
+   },
+   "lesson_line": "Turn the implied move into dollars: price times the percent, added above and subtracted below.",
+   "simple": "$184 to $216, because the move can be 8% of $200 either way.",
+   "tier": "core",
+   "unit": "F5.05",
+   "why": "$184 to $216. The implied move is a size either way, so apply it above and below the price. Take 8% of $200. Subtract it for the low, $184, and add it for the high, $216. The range is an estimate of how far the reaction may reach. It is not a limit, and it does not say which end the stock will hit. In the UCT app, the Calendar page shows the percent. Multiply it by the price yourself to get the dollars.",
+   "wrong": {
+    "$168 to $232": "You doubled the move. The 8% applies on each side of $200, not across the whole range.",
+    "$184 to $200": "That is the downside only. The implied move is a size either way, so the range runs above $200 too.",
+    "$192 to $208": "You used half the move. Take the full 8% of $200 each way."
+   }
+  },
+  "review_status": "draft",
+  "skill_id": "fund.expected_move",
+  "source_kind": "course",
+  "source_ref": "docs/study/courses/F5/F5.05.json#q93",
   "type": "recall",
   "version": 1
  },

@@ -173,6 +173,22 @@
    "title": "The house sizing rule, section 9: The account rulebook (the owner, 2026-11-09)",
    "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "s21",
+   "tier": 3,
+   "publisher": "UCT app",
+   "title": "The UCT app's own guide: where the Calendar page shows implied moves",
+   "url": "repo:app/src/agent/discovery.js",
+   "accessed": "2026-11-14"
+  },
+  {
+   "id": "s22",
+   "tier": 3,
+   "publisher": "UCT app",
+   "title": "The UCT app's Calendar widget: the sortable Impl. Move column",
+   "url": "repo:app/src/pages/charts/widgets/CalendarWidget.jsx",
+   "accessed": "2026-11-14"
   }
  ],
  "facts": [
@@ -517,6 +533,30 @@
    "source": "s20",
    "quote": "No new buys in the 3 days before an earnings report; hold through a report only if the trade is up 5R.",
    "claim": "Rule B22: no new buys in the 3 days before earnings, and hold through a report only if the trade is up 5R."
+  },
+  {
+   "id": "f58",
+   "source": "s19",
+   "quote": "A $100 stock with 20% implied volatility implies approximately $1.25 of daily movement.",
+   "claim": "OIC's example: a $100 stock at 20% implied volatility implies about $1.25 of movement a day."
+  },
+  {
+   "id": "f59",
+   "source": "s19",
+   "quote": "The Rule of 16 converts that annual figure into a daily standard deviation expressed in dollar terms.",
+   "claim": "The Rule of 16 turns annual implied volatility into a daily move in dollars."
+  },
+  {
+   "id": "f60",
+   "source": "s21",
+   "quote": "estimates, implied moves and reactions (read them on the Calendar page)",
+   "claim": "The UCT app shows each name's implied move on its Calendar page."
+  },
+  {
+   "id": "f61",
+   "source": "s22",
+   "quote": "title=\"Sort by implied move\"",
+   "claim": "The Calendar page's earnings list has an Impl. Move column that you can sort by."
   }
  ],
  "walkthroughs": [
@@ -632,14 +672,15 @@
    "format": "tf",
    "q": "The implied move tells you which way the stock should go after the report.",
    "answer": "False",
-   "why": "False. The implied move is a size, not a direction. Cboe notes that option pricing generally does not imply which way a stock will react. It shows how much it may move either way. OIC says the same: the result describes magnitude, not direction. It does not mean the stock will sit still either. It can move the full amount, up or down.",
+   "why": "False. The implied move is a size, not a direction. A straddle is a call and a put, so it pays on a big move either way. That is why its price carries no direction. Cboe notes that option pricing generally does not imply which way a stock will react. OIC says the same: the result describes magnitude, not direction. It does not mean the stock will sit still either. It can move the full amount, up or down.",
    "lesson_line": "The implied move is a size. It says nothing about up or down.",
    "facts": [
     "f19",
     "f20",
     "f6",
     "f40",
-    "f52"
+    "f52",
+    "f7"
    ],
    "simple": "False, because option prices show how big a move may be, not which way the stock will go.",
    "tier": "core",
@@ -649,7 +690,7 @@
      "fixed before (f52 added)"
     ]
    },
-   "batch": "wave6"
+   "batch": "review5"
   },
   {
    "key": "q03",
@@ -700,7 +741,7 @@
     "The call with most volume"
    ],
    "answer": "Nearest at-the-money straddle",
-   "why": "The nearest at-the-money straddle. Use the nearest expiry that covers the report and the strike nearest the stock price, then add the call and the put. Sosnick at Interactive Brokers calls this the simplest way to see the anticipated move. Fidelity says traders often use the straddle price as the expected move. Sosnick also takes out any intrinsic value, and Cboe's note used a different method. Treat the result as a quick read, not an exact number.",
+   "why": "The nearest at-the-money straddle. At the money means the strike closest to the stock price. A straddle is a call and a put at that one strike. Add their prices for the market's quick read of the move priced for the report. Use the nearest expiry that covers the report, so no extra weeks of other risk creep in. Sosnick at Interactive Brokers calls this the simplest way to see the anticipated move. Fidelity says traders often use the straddle price as the expected move. Methods differ a little, so treat it as a quick read, not an exact number.",
    "lesson_line": "Nearest expiry, strike nearest the price, call plus put. That's your quick read.",
    "facts": [
     "f35",
@@ -724,16 +765,16 @@
      "key rests on two Tier 2 publishers plus Cboe"
     ]
    },
-   "batch": "wave6"
+   "batch": "review5"
   },
   {
    "key": "q05",
    "skill": "fund.expected_move",
    "rung": 2,
    "format": "tf",
-   "q": "A straddle buyer makes money at expiry as long as the stock moves.",
+   "q": "A $100 stock's $100-strike straddle costs $4. At expiry the stock is at $102, $2 above the strike. The buyer made money.",
    "answer": "False",
-   "why": "False. A straddle buyer owns a call and a put at one strike. OIC says it only breaks even at expiry when the stock ends the full premium above or below the strike. A smaller move, either way, loses money. The most the buyer can lose is the two premiums paid.",
+   "why": "False. The buyer paid $4 for a call and a put at the same strike. To break even, the stock must end $4 away from the strike, on either side. To make money, it must end more than $4 away. At $102 it is only $2 away, so the straddle is worth $2 and the buyer is down. The straddle price is the hurdle the move has to clear. The most the buyer can lose is the two premiums paid.",
    "lesson_line": "The straddle price is the hurdle. The move has to clear it.",
    "facts": [
     "f8",
@@ -741,7 +782,7 @@
     "f9",
     "f7"
    ],
-   "simple": "False, because at expiry the stock must move more than the full price paid for the straddle before the buyer makes money.",
+   "simple": "False, because the stock must end more than the $4 paid away from the strike, and $102 is only $2 away.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -750,7 +791,7 @@
      "stable"
     ]
    },
-   "batch": "wave6"
+   "batch": "review5"
   },
   {
    "key": "q06",
@@ -1267,18 +1308,20 @@
    "format": "tf",
    "q": "Two websites can show different implied moves for the same report without either one being wrong.",
    "answer": "True",
-   "why": "True. There is more than one method. Fidelity's presenter uses the full straddle price as the expected move. Sosnick at Interactive Brokers subtracts any intrinsic value from the straddle's midpoint. Cboe's note turned the implied standard deviation into an expected move with a 2/3 rule of thumb. Each is an estimate, so two sites can show different numbers for one report. Know which method your tool uses before you compare.",
+   "why": "True. There is no single official formula, so two tools can differ a little and both be fair. Here is a proper way to work it out by hand, using Sosnick's MSFT read. Take the nearest expiry that covers the report and the strike closest to the price. MSFT was $209.58 and the strike was 210. The two options cost 4.75 and 5.15. Add them, then subtract the gap between the 210 strike and the 209.58 price. That leaves 9.48. Divide by the stock price: 9.48 over 209.58 is about 4.5%. A tool that keeps the full sum of the two prices shows a slightly higher number. In the UCT app, the Calendar page shows it in the Impl. Move column. Check which method your tool uses before you compare.",
    "lesson_line": "Check how your tool works out the implied move before you compare numbers across sites.",
    "facts": [
     "f21",
     "f26",
     "f36",
     "f37",
-    "f33"
+    "f33",
+    "f60",
+    "f61"
    ],
    "simple": "True, because tools work out the implied move in different ways, so their numbers can differ and both be fair.",
    "deeper": {
-    "example": "Sosnick's MSFT read, July 2020: the two 210 options cost 4.75 and 5.15, with the stock at 209.58. With the strike above the stock, the put had intrinsic value. He took it out and got $9.48, about 4.5%. Fidelity's full-straddle read would come out a little higher on the same options. Same options, two fair numbers."
+    "trap": "The trap is comparing two numbers without asking how each was built. One tool keeps the full straddle. Another subtracts intrinsic value, as Sosnick does. Cboe's note used a different step again: it turned the implied standard deviation into an expected move with a two-thirds rule of thumb. Three methods, three fair answers."
    },
    "tier": "extended",
    "risk": {
@@ -1288,7 +1331,7 @@
      "statement says can"
     ]
    },
-   "batch": "wave6"
+   "batch": "review5"
   },
   {
    "key": "q20",
@@ -1510,6 +1553,135 @@
     ]
    },
    "batch": "wave6"
+  },
+  {
+   "key": "q91",
+   "skill": "fund.expected_move",
+   "rung": 2,
+   "format": "mcq",
+   "q": "Tonight's report is on a stock you hold. Where does the UCT app show its implied move?",
+   "choices": [
+    "Calendar page, beside each report",
+    "Journal page, your trade list",
+    "Breadth page, advancing stock counts",
+    "Community page, member posts"
+   ],
+   "answer": "Calendar page, beside each report",
+   "why": "The Calendar page, in the Impl. Move column. The UCT app lists each name's implied move there, and you can sort the column. To find it by hand, use the nearest at-the-money straddle: the call and put at the strike closest to the price. Add the two prices, take off any intrinsic value, and divide by the stock price. Sosnick's MSFT read: 4.75 plus 5.15, less the gap between the 210 strike and the 209.58 price, leaves 9.48. Divide by 209.58 and you get about 4.5%. The other pages do other jobs.",
+   "lesson_line": "Find the implied move on the Calendar page, or work it out from the nearest at-the-money straddle.",
+   "facts": [
+    "f60",
+    "f61",
+    "f35",
+    "f36",
+    "f26",
+    "f37"
+   ],
+   "wrong": {
+    "Journal page, your trade list": "The Journal is where you log and review your own trades. It does not price options.",
+    "Breadth page, advancing stock counts": "Breadth counts how many stocks are rising or falling across the market. It says nothing about one report.",
+    "Community page, member posts": "Community is where members talk. It does not show a stock's option prices."
+   },
+   "simple": "The Calendar page, because its Impl. Move column shows each name's implied move.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "app location read from the UCT app's own code (two repo quotes)",
+     "hand method rests on two Tier 2 publishers"
+    ]
+   },
+   "batch": "review5"
+  },
+  {
+   "key": "q92",
+   "skill": "fund.expected_move",
+   "rung": 5,
+   "format": "mcq",
+   "q": "A $50 stock has 32% implied volatility. About how much does that imply it moves on an ordinary day?",
+   "choices": [
+    "$1.00",
+    "$2.20",
+    "$4.60",
+    "$16.00"
+   ],
+   "answer": "$1.00",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "price * iv / 100 / 16",
+     "price": 50,
+     "iv": 32
+    }
+   },
+   "why": "$1.00. Implied volatility is quoted for a whole year. The Rule of 16 turns it into one day. Multiply the price by the volatility, then divide by 16. Here 32% of $50 is $16, and $16 divided by 16 is $1.00. OIC's own example: a $100 stock at 20% implied volatility implies about $1.25 of daily movement. The result is a size, not a direction. A report's priced move is a one-day jump, so set it beside this ordinary day.",
+   "lesson_line": "Price times implied volatility, divided by 16, is the move options expect on an ordinary day.",
+   "facts": [
+    "f58",
+    "f59",
+    "f52",
+    "f53"
+   ],
+   "wrong": {
+    "$2.20": "That is a week's move. Dividing by a week's factor instead of 16 gives a week, not one day.",
+    "$4.60": "That is a month's move. Dividing by a month's factor instead of 16 gives a month, not one day.",
+    "$16.00": "That is 32% of $50, the move for a whole year. Divide it by 16 to get one day."
+   },
+   "simple": "$1.00, because 32% of $50 is $16 for the year, and dividing by 16 gives one day.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key",
+     "single Tier 1 source (OIC, June 2026)"
+    ]
+   },
+   "batch": "review5"
+  },
+  {
+   "key": "q93",
+   "skill": "fund.expected_move",
+   "rung": 3,
+   "format": "mcq",
+   "q": "Cboe's example: a $200 stock, and options imply about 8% either way. What price range is that?",
+   "choices": [
+    "$184 to $216",
+    "$168 to $232",
+    "$192 to $208",
+    "$184 to $200"
+   ],
+   "answer": "$184 to $216",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "price * (1 - pct / 100)",
+     "price": 200,
+     "pct": 8
+    }
+   },
+   "why": "$184 to $216. The implied move is a size either way, so apply it above and below the price. Take 8% of $200. Subtract it for the low, $184, and add it for the high, $216. The range is an estimate of how far the reaction may reach. It is not a limit, and it does not say which end the stock will hit. In the UCT app, the Calendar page shows the percent. Multiply it by the price yourself to get the dollars.",
+   "lesson_line": "Turn the implied move into dollars: price times the percent, added above and subtracted below.",
+   "facts": [
+    "f25",
+    "f20",
+    "f19",
+    "f60"
+   ],
+   "wrong": {
+    "$168 to $232": "You doubled the move. The 8% applies on each side of $200, not across the whole range.",
+    "$192 to $208": "You used half the move. Take the full 8% of $200 each way.",
+    "$184 to $200": "That is the downside only. The implied move is a size either way, so the range runs above $200 too."
+   },
+   "simple": "$184 to $216, because the move can be 8% of $200 either way.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "computed key",
+     "Cboe's own example figures"
+    ]
+   },
+   "batch": "review5"
   }
  ],
  "conflicts": [
@@ -1548,9 +1720,9 @@
   },
   "q02": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "Why now defines the straddle as a call plus a put and ties it to no direction (rule 3). Cboe f19 and OIC f52 quotes match. Question text and answer unchanged, so the id holds."
   },
   "q03": {
    "status": "pass",
@@ -1562,14 +1734,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: nearest at-the-money straddle (f35 IBKR, f26 Fidelity: two Tier 2 publishers agree; Cboe f18 also uses the straddle). Choices similar lengths, key not longest. Why no longer overreaches on 'scale'; f21 Cboe re-fetched verbatim. Longest sentence exactly 22 words.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Defines at the money and straddle in plain words; Sosnick f35 and Fidelity f26 are quoted correctly; hedged as a quick read. Choices unchanged and already de-tell-ed."
   },
   "q05": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Own answer False (f8 OIC long straddle, re-fetched verbatim). Before-expiry IV clause gone, f7 cited for the call+put. Does not give away q08 or q13."
+   "fixed": true,
+   "notes": "Concrete $100 / $4 / $102 example is right (value $2 vs $4 paid, a loss). The why said 'to break even, the stock must end MORE than $4 away', which is wrong: break-even is exactly $4 away, profit needs more. Fixed. Note: the stem text changed, so the question id changes and the integrator must add a lineage entry."
   },
   "q06": {
    "status": "pass",
@@ -1584,10 +1755,10 @@
    "by": "track auditor"
   },
   "q08": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Own answer premium (f11 OIC short straddle, re-fetched verbatim). No other bank word is defensible. No longer restates q05's key. Lesson line's buyer-hurdle half rests on f8/f22 and is reveal-only."
+   "notes": "cut in review5: see the resolver's notes"
   },
   "q09": {
    "status": "pass",
@@ -1620,17 +1791,16 @@
    "notes": "Owner said good; untouched by the upgrade."
   },
   "q14": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Own answer: seller ($3.69 paid, $2.81 after). f30/f31 found verbatim in the Fidelity slides PDF text; f24 Cboe re-fetched. 'The stock did move' removed. Minor: 'Both, since the stock moved' leans weak for a zero-sum trade, but it is a beginner misconception and its note teaches the hurdle."
+   "notes": "cut in review5: see the resolver's notes"
   },
   "q15": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Own answer: smaller move than usual (6% vs 7.39%, f46). Cboe f56 re-fetched verbatim and the why now says 'alone'. Choices 39-40 chars, balanced; longest sentence 22 words. IBKR s16 unreachable by WebFetch (403).",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "cut in review5: see the resolver's notes"
   },
   "q16": {
    "status": "pass",
@@ -1639,10 +1809,10 @@
    "notes": "Own answer: took value out (f5 OIC re-fetched, f32 found in Fidelity slides text: 92.88% to 49.69%, about $0.83). Bare $.75 removed. Puts distractor taught by f6."
   },
   "q17": {
-   "status": "pass",
-   "by": "checker",
-   "fixed": true,
-   "notes": "Key right: 3.25 / 7 = 0.464 (calc). f42/f43/f45 re-fetched from the IBKR page with a plain client: '+3.25% gain', 'May 28, 2025)', 'the 7% that was expected last quarter' all present; NVDA did report May 28, 2025. Breaks: (1) after the earlier cut, only one choice says 'smaller' and the other three are ruled out by seeing 3.25 < 7, so the ratio skill is never tested; and 0.46x is the lone precise number beside round 1x/2x, a precision tell. (2) deeper.trap opens 'Two traps.' but now describes one trap and an instruction. (3) the stem 'How did ... compare' does not name the divide. Fix: stem na"
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in review5: see the resolver's notes"
   },
   "q18": {
    "status": "pass",
@@ -1654,14 +1824,14 @@
   "q19": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Deeper no longer assigns 4.75/5.15 to a leg; put intrinsic value follows from strike 210 above 209.58 (f37). 'A little higher' is qualitative and follows from 4.75 + 5.15 being above 9.48. True statement, three methods (f26, f36, f21)."
+   "fixed": true,
+   "notes": "Answers his note: the why now walks MSFT by hand (4.75 + 5.15 = 9.90, less 0.42 = 9.48, over 209.58 is about 4.5%), with the Calendar page Impl. Move column named as where to look. Arithmetic checked: 9.48/209.58 = 4.52%, full straddle 9.90/209.58 = 4.72%. Quotes f37 and f60/f61 verified. Fixes: cite f61 (the Impl. Move column claim) and soften the trap line 'same options, three fair answers' (Cboe's note used different data, so it is three methods, not the same options)."
   },
   "q20": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Own answer 1.4x (calc, round 1). 'approximate' fixed. '-1.4x, opposite to priced' kept: f39 itself reads '-10% lower' and the note teaches 'either way' (f20). f55 for 'not too far off'. IBKR s15 unreachable by WebFetch (403)."
+   "notes": "cut in review5: see the resolver's notes"
   },
   "q21": {
    "status": "pass",
@@ -1692,6 +1862,24 @@
    "by": "checker",
    "fixed": false,
    "notes": "Own answer True: B22 (sizing_rule.md section 9, line 149, quote f57 verbatim) holds through a report only at 5R, so a 2R trade is out before the report whatever the priced move. Key teaches the rulebook, not a web view. f27/f28 back 'can move more than priced'. Watch: it uses R (2R, 5R) that F5.05 never defines; R is taught in F9, so check the unit order puts F9's R lesson first or the reveal assumes it. Also a lead outside this unit: F5.06 q08 teaches a pre-report trim as 'the middle answer' and has no 5R rule; under B22 any shares held through a report need the trade up 5R."
+  },
+  "q91": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Good new question (rule 14, where to find it). Quotes verified in the repo: app/src/agent/discovery.js line 173 'estimates, implied moves and reactions (read them on the Calendar page)'; CalendarWidget.jsx has title=\"Sort by implied move\" and an 'Impl.<br />Move' header; the page shows the percent. Hand method matches f35/f36/f37. Fix: the right choice repeated the question's own words ('Impl. Move'), a giveaway; all four choices now follow one pattern (page, what it holds)."
+  },
+  "q92": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Math right: 32% of $50 = $16, /16 = $1.00; OIC quotes f58/f59 verified word for word on the OIC page (weekly sqrt 52 and monthly sqrt 12 also on that page, so $2.20 and $4.60 are the weekly and monthly results). Different skill from the ratio drills (rule 18). Fix: the wrong notes said 'the weekly figure' and 'the monthly figure' with no explanation, which a member cannot follow; reworded plainly."
+  },
+  "q93": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Cboe's own $200 / 8% example (f25 verified in the lesson). 8% of 200 = 16, range 184 to 216. Wrong ranges are real slips (doubled, halved, downside only). Turns the percent into dollars, a what-to-do-with-it skill (not a ratio drill)."
   }
  }
 }
