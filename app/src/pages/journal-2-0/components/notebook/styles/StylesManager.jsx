@@ -107,7 +107,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [], show
   const inRouter = useInRouterContext()
   const { data, error, isLoading, mutate } = useJournalStyles({ enabled: open })
   // The member's own templates with their "Used in" counts (the picker's list has none): My tools' live list.
-  const { data: usage, mutate: refreshUsage } = useSWR(open && on && viewsOn ? 'journal-styles:usage' : null,
+  const { data: usage, error: usageError, mutate: refreshUsage } = useSWR(open && on && viewsOn ? 'journal-styles:usage' : null,
     async () => {
       const got = await listTemplates('live')
       return got.ok && Array.isArray(got.data.styles) ? got.data.styles : []
@@ -150,10 +150,30 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [], show
     )
     return () => { live = false }
   }, [linkedUpdate, refreshUpdates])
-  const { data: offerData } = useSWR(
+  const { data: offerData, error: offerError } = useSWR(
     open && on ? 'journal-styles:mapping-offer' : null, () => getMappingOffer(), { shouldRetryOnError: false })
   const { prefs, setPref } = usePreferences()
   const starter = useStarterPackOffer(open ? data : undefined, open)
+  // Round 2, B2: opened at the Plain templates group (`show` 'plain' or 'daily'), its heading is brought into view once
+  // everything drawn ABOVE it has arrived: the note-type lists, their "Used in" lines, the starter-pack card and the
+  // Research Type offer. The group's own focus landing scrolls when ITS list answers, which can be before those, and a
+  // list arriving above then pushed the heading out of view (1530 px down a 844 px phone screen). Once per ask, and
+  // not at all when focus has already left the group (the member moved on). scrollIntoView scrolls every scrolling
+  // ancestor: the sheet's body on a phone, the dialog's on a desktop.
+  const plainInView = useRef(-1)
+  const plainAsk = show === 'plain' || show === 'daily'
+  const aboveDrawn = Boolean(data) && starter.settled && (!viewsOn || usage !== undefined || usageError !== undefined)
+    && (offerData !== undefined || offerError !== undefined)
+  useEffect(() => {
+    if (!open || !plainAsk || !aboveDrawn || plainInView.current === showKey) return
+    plainInView.current = showKey
+    const head = titleRef.current?.closest('[role="dialog"]')?.querySelector('#js-plain-templates')
+    if (!head) return
+    const group = head.closest('[data-plain-templates]')
+    if (plainServed === showKey && group && !group.contains(document.activeElement)) return
+    head.scrollIntoView?.({ block: 'start' })
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `plainServed` is read, not watched
+  }, [open, plainAsk, aboveDrawn, showKey])
   const userId = useContext(AuthContext)?.user?.id
 
   const [editing, setEditing] = useState(null)          // { style, seq } while the editor is open

@@ -255,6 +255,57 @@ describe('Manage templates: the Plain templates group', () => {
     await swrMutate(() => true, undefined, { revalidate: false })
   })
 
+  // Round 2, B2: jsdom has no layout, so these hold WHEN the heading is scrolled into view (after the note-type lists
+  // above it arrived, once per ask, not after the member moved on); that it ends up on screen at 390 px is the
+  // controller's browser look.
+  const headScrolls = () => Element.prototype.scrollIntoView.mock.contexts
+    .filter((el) => el?.id === 'js-plain-templates').length
+  it('(round 2 B2) opened at the group, the heading is scrolled into view again once the lists above it have arrived, and only once', async () => {
+    let release
+    const gate = new Promise((r) => { release = r })
+    installFetch({ styles: async () => { await gate; return json(200, STYLE_LIST) } })
+    const { rerender } = render(tree({ show: 'plain', showKey: 1 }))
+    const head = await screen.findByRole('heading', { name: 'Plain templates', level: 3 })
+    await waitFor(() => expect(head).toHaveFocus())
+    expect(headScrolls()).toBe(1)                                            // the group's own landing, lists not in yet
+    release()
+    await screen.findByRole('heading', { name: 'Trade plan', level: 3 })
+    await waitFor(() => expect(headScrolls()).toBe(2))                       // after the lists above it rendered
+    expect(head).toHaveFocus()
+    rerender(tree({ show: 'plain', showKey: 1 }))                            // later renders of the same ask: no more
+    await swrMutate(() => true, undefined, { revalidate: false })
+    await new Promise((r) => setTimeout(r, 20))
+    expect(headScrolls()).toBe(2)
+    // the same ask seen again (hidden and shown with the same `showKey`): still once; a door's new ask is a new key
+    rerender(tree({ open: false, show: 'plain', showKey: 1 }))
+    rerender(tree({ show: 'plain', showKey: 1 }))
+    await screen.findByRole('heading', { name: 'Trade plan', level: 3 })
+    await new Promise((r) => setTimeout(r, 20))
+    expect(headScrolls()).toBe(2)
+  })
+
+  it('(round 2 B2) when focus has left the group before the lists arrive, the page is left where the member put it', async () => {
+    let release
+    const gate = new Promise((r) => { release = r })
+    installFetch({ styles: async () => { await gate; return json(200, STYLE_LIST) } })
+    render(tree({ show: 'plain', showKey: 1 }))
+    const head = await screen.findByRole('heading', { name: 'Plain templates', level: 3 })
+    await waitFor(() => expect(head).toHaveFocus())
+    screen.getAllByRole('button', { name: 'Close' })[0].focus()               // the member moved on
+    release()
+    await screen.findByRole('heading', { name: 'Trade plan', level: 3 })
+    await new Promise((r) => setTimeout(r, 20))
+    expect(headScrolls()).toBe(1)
+  })
+
+  it('(round 2 B2) CONTROL: opened with no place, the heading is never scrolled into view', async () => {
+    render(tree())
+    await screen.findByRole('heading', { name: 'Trade plan', level: 3 })
+    await waitFor(() => expect(item('Morning plan')).toBeTruthy())
+    await new Promise((r) => setTimeout(r, 20))
+    expect(headScrolls()).toBe(0)
+  })
+
   it('(final M2) deleting a plain template that is NOT the last one puts focus on the group heading', async () => {
     render(tree())
     await group()
