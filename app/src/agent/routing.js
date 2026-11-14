@@ -253,7 +253,9 @@ export const GROUPS = [
   { id: 'drawings', title: 'Chart drawings: horizontal price levels (draw, move to a price), move any drawing\'s anchors, restyle, every setting in a drawing\'s menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list', domains: ['drawing'],
     // W2 (CG-7): a stock's "drawdowns" are price history (data), never a drawing
     // CG-28 family: "the lines on here" may be the member's drawn levels as much as their averages — both groups ride
-    words: [/\bdraw(?![\s-]?downs?\b)\w*\b/, /\b(?:what|which|any|my|the|all) (?:[a-z-]+ ){0,2}lines\b.*\b(?:on|in) (?:here|this chart|the chart|my chart|it)\b/, /\b(a |the )?line at \$?\d/, /\b(horizontal (line|level)s?|levels?|price lines?|rays?|trend ?lines?|fib\w*|rectangles?|annotat\w+|support|resistance)\b/] },
+    // typo rail (AUDIT #1234): "drag the line / the arrow's end point" reached this group only because correctTypos misread
+    // "drag" as "draw"; a real word is never corrected now, so dragging a DRAWING names it by its own words
+    words: [/\bdraw(?![\s-]?downs?\b)\w*\b/, /\bdrag(?:ged|ging)?\s+(?:the\s+|that\s+|this\s+|my\s+)?(?:[\w']+\s+){0,2}?(?:line|level|arrow|ray|trend ?line|fib\w*|channel|rectangle|drawing|point|anchor|end)s?\b/, /\b(?:what|which|any|my|the|all) (?:[a-z-]+ ){0,2}lines\b.*\b(?:on|in) (?:here|this chart|the chart|my chart|it)\b/, /\b(a |the )?line at \$?\d/, /\b(horizontal (line|level)s?|levels?|price lines?|rays?|trend ?lines?|fib\w*|rectangles?|annotat\w+|support|resistance)\b/] },
   // drawing extras (C1-144 / C1-160 / C1-165): the Position Calculator with entry / stop / target, a drawing's "Save as
   // default", and a drawing tool's ★ — their OWN group, WORDS-ONLY (as #1027's watchlistShow / #1073's compareGroups), so
   // `drawings` keeps master's exact size and the nothing-recognised fill (exactly at the 55-action budget) does not move.
