@@ -490,3 +490,35 @@ export function stateRailRefusal(plan, { words = '', mode = 'apply', subjects = 
     return 'I didn’t change anything: I couldn’t check what this would remove or change. Ask again, or say exactly what to replace or remove.'
   }
 }
+
+// ── THE CONVERSATION'S SUBJECT (AUDIT #1247): exact object ids, read from the conversation memory (agent/memory.js) and the
+// drawing last drawn or changed — what a pointer at the start of a message may restyle, and the one object "remove it"
+// right after may destroy. Pure: useAgent hands in its memory, the board epoch and the last-touched drawing ──
+/** The subject NOW: the indicator(s) the latest adding / editing turns touched, what the latest turn acted on (its copies
+ *  included), the drawing last touched. */
+export function subjectIdsOf(memory, epoch = null, drawing = null) {
+  const out = new Set()
+  try {
+    const ind = (x) => { if (x?.chart && x.instanceId) out.add(`ind:${x.chart}:${x.instanceId}`) }
+    ind(memory?.subject?.('indicator', epoch))
+    for (const x of [...(memory?.indicatorSet?.(epoch) || []), ...(memory?.priorIndicatorSet?.(epoch) || []), ...(memory?.mentioned?.(epoch) || [])]) ind(x)
+  } catch { /* no subject */ }
+  if (drawing?.sym && drawing.id) out.add(`draw:${drawing.sym}:${drawing.id}`)
+  return out
+}
+/** The ONE object the immediately previous turn made or changed (null when it made two or more, or none). */
+export function previousObjectOf(memory, epoch = null, drawing = null) {
+  try {
+    const t = memory?.lastTurn?.(epoch)
+    if (!t?.ops?.length) return null
+    const acts = t.ops.map(o => String(o.action))
+    if (acts.every(a => a.startsWith('indicator.'))) { const set = memory.indicatorSet?.(epoch) || []; return set.length === 1 ? `ind:${set[0].chart}:${set[0].instanceId}` : null }
+    if (acts.every(a => a.startsWith('drawing.')) && t.ops.length === 1) return drawing?.sym && drawing.id ? `draw:${drawing.sym}:${drawing.id}` : null
+  } catch { /* none */ }
+  return null
+}
+/** What the member's NEW turn starts from: the subject as it is when they speak — never an earlier turn's carried over. */
+export const turnStartOf = (memory, epoch = null, drawing = null) => ({ ids: subjectIdsOf(memory, epoch, drawing), previous: previousObjectOf(memory, epoch, drawing) })
+/** The next turn's start, given the last one's: the subject NOW only — what an earlier turn's start held never carries over
+ *  ("copies from an earlier turn" are not the subject; only what the latest turns touched). */
+export const nextTurnSubjects = (prevStart, memory, epoch = null, drawing = null) => { void prevStart; return turnStartOf(memory, epoch, drawing) }

@@ -17,7 +17,7 @@
 
 import { protectionRefusal, undoProtectionRefusal, protectedOpenLayout, isProtected, protectedRenameRefusal } from './protectedLayouts'
 import { chartRailRefusal, RAIL_MARK, chartEffects } from './chartRail'
-import { stateRailRefusal, STATE_RAIL_MARK, notDoneAdds, notDoneLine } from './stateRail'
+import { stateRailRefusal, STATE_RAIL_MARK, notDoneAdds, notDoneLine, subjectIdsOf, nextTurnSubjects } from './stateRail'
 import { lastTouchedDrawing } from './capabilities/drawings'
 import { replyRelation, QUESTION_TTL_MS, CONTINUE_CHOICES, continueQuestion } from './pendingTask'
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
@@ -811,28 +811,9 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
   // (what the subject was when the member SPOKE joins it: a step of this turn that already ran never narrows "them all")
   const turnSubjectsRef = useRef({ ids: new Set(), previous: null })
   const subjectIds = (withTurnStart = true) => {
-    const out = new Set(withTurnStart ? turnSubjectsRef.current.ids : [])
-    try {
-      const m = memoryRef.current, ep = epochOf(host)
-      const ind = (x) => { if (x?.chart && x.instanceId) out.add(`ind:${x.chart}:${x.instanceId}`) }
-      ind(m?.subject?.('indicator', ep))
-      for (const x of [...(m?.indicatorSet?.(ep) || []), ...(m?.priorIndicatorSet?.(ep) || []), ...(m?.mentioned?.(ep) || [])]) ind(x)
-    } catch { /* no subject */ }
-    try { const d = lastTouchedDrawing(); if (d?.sym && d.id) out.add(`draw:${d.sym}:${d.id}`) } catch { /* none */ }
+    const out = subjectIdsOf(memoryRef.current, epochOf(host), lastTouchedDrawing())
+    if (withTurnStart) for (const id of turnSubjectsRef.current.ids) out.add(id)
     return out
-  }
-  // ⛔ AUDIT #1247 (A): the ONE object the immediately previous turn created or changed — "remove it" / "delete it" right after
-  // may destroy exactly that object (two or more → asks; another id → refused)
-  const previousObject = () => {
-    try {
-      const m = memoryRef.current, ep = epochOf(host)
-      const t = m?.lastTurn?.(ep)
-      if (!t?.ops?.length) return null
-      const acts = t.ops.map(o => String(o.action))
-      if (acts.every(a => a.startsWith('indicator.'))) { const set = m.indicatorSet?.(ep) || []; return set.length === 1 ? `ind:${set[0].chart}:${set[0].instanceId}` : null }
-      if (acts.every(a => a.startsWith('drawing.')) && t.ops.length === 1) { const d = lastTouchedDrawing(); return d?.sym && d.id ? `draw:${d.sym}:${d.id}` : null }
-    } catch { /* none */ }
-    return null
   }
   // stateMode: an APPROVED run's own steps (deferred, split parts) are approved for the state rail too (the card named them);
   // the chart rail keeps reading them as 'apply'
@@ -2312,7 +2293,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     if (echo) push({ role: 'member', text, voice })
     setBusy(true)
     // ⭐ PHASE 2: everything this message commits is one turn of session memory ("do the same on the others")
-    turnSubjectsRef.current = { ids: subjectIds(false), previous: previousObject() }
+    turnSubjectsRef.current = nextTurnSubjects(turnSubjectsRef.current, memoryRef.current, epochOf(host), lastTouchedDrawing())
     memoryRef.current.beginTurn()
     try {
       // a layout opened since the last turn drops the board's refs — on BOTH paths: NL-1 sends memory to the model

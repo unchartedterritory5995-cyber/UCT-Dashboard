@@ -15,7 +15,8 @@ import { AuthContext } from '../context/AuthContext'
 import { planOps, collectTargets, prepareOps } from './executor'
 import { buildContext } from './capabilities'
 import { commitPlan, undoEntry } from './runtime'
-import { stateRailRefusal, stateEffects, permits } from './stateRail'
+import { stateRailRefusal, stateEffects, permits, nextTurnSubjects, previousObjectOf } from './stateRail'
+import { createMemory } from './memory'
 import { stateFixture } from './__fixtures__/stateBoard'
 import { buildDrawingSource } from './host'
 import * as store from '../components/chart/drawingsStore'
@@ -507,51 +508,53 @@ describe('STATE RAIL · a typed approval runs the pending card approved — and 
   }, 30000)
 })
 
-// ── AUDIT #1247 (e2d3cabbda): copies join the subject only from the turn that MADE them; "remove it" right after ──
-describe('STATE RAIL · the subject through the real panel: copies the latest turn made, never earlier ones; "delete it" right after one add', () => {
-  const rowsOn = (fx, chart) => indicatorRowsOf(fx.host.charts.read(chart).cs)
-  const macdOn = (fx, chart) => rowsOn(fx, chart).find(r => r.defId === 'macd')
-  const vwapOn = (fx, chart) => rowsOn(fx, chart).find(r => r.defId === 'vwap')
-  it('copies made by the LATEST turn are restyled by "make them all green"; copies from an EARLIER turn are not', async () => {
-    const { fx, say } = mount()
-    envelopes.push(env('apply', [op('indicator.add', 'ixe:c1', { defId: 'vwap', inputs: null })]))
-    await say('could you put a vwap on the left chart for me')
-    envelopes.length = 0                                      // (the instant reader may have read it itself)
-    const orig = vwapOn(fx, 'c1')
-    expect(orig).toBeTruthy()
-    // (the instant reader copies it itself; if it reaches the model, the model plans the same copy)
-    envelopes.push(env('apply', [op('indicatorCopy.copyTo', 'ixe:c2', { from: 'c1', instances: [orig.instanceId] })]))
-    await say('could you copy that over to the right chart for me')
-    envelopes.length = 0
-    const copy = vwapOn(fx, 'c2')
-    expect(copy).toBeTruthy()
-    // an unrelated adding turn in between: the copy is no longer what the conversation is about
-    envelopes.push(env('apply', [op('indicator.add', 'ixe:c1', { defId: 'macd', inputs: null })]))
-    await say('could you put a macd on the left chart for me')
-    envelopes.length = 0                                      // (the instant reader may have read it itself)
-    const was = JSON.stringify(rowsOn(fx, 'c2'))
-    envelopes.push(env('apply', [op('indicatorStyle.set', 'ixe:c2', { instance: copy.instanceId, property: 'color', value: 'green', output: null })]))
-    await say('make them all green')
-    envelopes.length = 0                                      // (the instant reader may have read it itself)
-    expect(JSON.stringify(rowsOn(fx, 'c2')), 'an earlier turn’s copy never joins the subject').toBe(was)
-  }, 60000)
-  it('right after the copy turn, its copies ARE the subject ("make them all green" restyles the copy)', async () => {
-    const { fx, say } = mount()
-    envelopes.push(env('apply', [op('indicator.add', 'ixe:c1', { defId: 'vwap', inputs: null })]))
-    await say('could you put a vwap on the left chart for me')
-    envelopes.length = 0                                      // (the instant reader may have read it itself)
-    const orig = vwapOn(fx, 'c1')
-    // (the instant reader copies it itself; if it reaches the model, the model plans the same copy)
-    envelopes.push(env('apply', [op('indicatorCopy.copyTo', 'ixe:c2', { from: 'c1', instances: [orig.instanceId] })]))
-    await say('could you copy that over to the right chart for me')
-    envelopes.length = 0
-    const copy = vwapOn(fx, 'c2')
-    const was = JSON.stringify(rowsOn(fx, 'c2'))
-    envelopes.push(env('apply', [op('indicatorStyle.set', 'ixe:c2', { instance: copy.instanceId, property: 'color', value: 'green', output: null })]))
-    await say('make them all green')
-    envelopes.length = 0                                      // (the instant reader may have read it itself)
-    expect(JSON.stringify(rowsOn(fx, 'c2'))).not.toBe(was)
-  }, 60000)
+// ── AUDIT #1247 (e2d3cabbda): the subject a turn starts from — copies join from the turn that MADE them, never later ──
+// (on the conversation's own memory, agent/memory.js; useAgent takes exactly nextTurnSubjects at every member message)
+describe('STATE RAIL · the subject a turn starts from: the latest turn’s copies join; an earlier turn’s never carry over', () => {
+  // one member turn: what it changed (ops), the indicators it added / edited, and what it acted on (its copies)
+  const turn = (m, ops, { touched = [], mentioned = [] } = {}) => {
+    m.beginTurn()
+    m.noteChange({ ops, epoch: null, undoId: null })
+    for (const [chart, instanceId] of touched) m.noteIndicator({ chart, instanceId })
+    for (const [chart, instanceId] of mentioned) m.noteMention({ chart, instanceId })
+  }
+  it('right after a copy turn, the copies ARE the subject; two adding turns later they are not', () => {
+    const m = createMemory()
+    let start = { ids: new Set(), previous: null }
+    turn(m, [{ action: 'indicator.add', target: 'c1' }], { touched: [['c1', 'inst:vwap:1']], mentioned: [['c1', 'inst:vwap:1']] })
+    start = nextTurnSubjects(start, m)
+    turn(m, [{ action: 'indicatorCopy.copyTo', target: 'c2' }], { mentioned: [['c2', 'inst:vwap:1']] })
+    start = nextTurnSubjects(start, m)
+    expect([...start.ids]).toContain('ind:c2:inst:vwap:1')                         // "make them all green" now: the copy too
+    turn(m, [{ action: 'indicator.add', target: 'c1' }], { touched: [['c1', 'inst:macd:1']], mentioned: [['c1', 'inst:macd:1']] })
+    start = nextTurnSubjects(start, m)
+    turn(m, [{ action: 'indicator.add', target: 'c1' }], { touched: [['c1', 'inst:atr:1']], mentioned: [['c1', 'inst:atr:1']] })
+    start = nextTurnSubjects(start, m)
+    expect([...start.ids]).not.toContain('ind:c2:inst:vwap:1')                     // an earlier turn's copy never carries over
+  })
+  it('the rail with that subject: the copy restyled right after → allowed; the same copy two turns later → refused', async () => {
+    const fx = stateFixture()
+    const plan = await planOf(fx, WRONG.indicator['indicator.update (RSI 14 → 20)'])
+    const m = createMemory()
+    turn(m, [{ action: 'indicatorCopy.copyTo', target: 'c1' }], { mentioned: [['c1', 'inst:rsi:1']] })
+    let start = nextTurnSubjects({ ids: new Set(), previous: null }, m)
+    expect(stateRailRefusal(plan, { words: 'make it 20', subjects: start.ids })).toBe(null)
+    turn(m, [{ action: 'indicator.add', target: 'c2' }], { touched: [['c2', 'inst:macd:1']], mentioned: [['c2', 'inst:macd:1']] })
+    start = nextTurnSubjects(start, m)
+    turn(m, [{ action: 'indicator.add', target: 'c2' }], { touched: [['c2', 'inst:atr:1']], mentioned: [['c2', 'inst:atr:1']] })
+    start = nextTurnSubjects(start, m)
+    expect(stateRailRefusal(plan, { words: 'make it 20', subjects: start.ids }) || 'LET THROUGH').toMatch(/^I didn’t change anything/)
+  })
+  it('the ONE object the previous turn made: one add → it; two adds → none; a non-indicator turn → none', () => {
+    const m = createMemory()
+    turn(m, [{ action: 'indicator.add', target: 'c1' }], { touched: [['c1', 'inst:macd:1']] })
+    expect(previousObjectOf(m)).toBe('ind:c1:inst:macd:1')
+    turn(m, [{ action: 'indicator.add', target: 'c1' }, { action: 'indicator.add', target: 'c1' }], { touched: [['c1', 'inst:macd:2'], ['c1', 'inst:vwap:1']] })
+    expect(previousObjectOf(m)).toBe(null)
+    turn(m, [{ action: 'chart.setTimeframe', target: 'c1' }])
+    expect(previousObjectOf(m)).toBe(null)
+    expect(previousObjectOf(createMemory(), null, { sym: 'SPY', id: 'dr-t' })).toBe(null)
+  })
 })
 
 describe('STATE RAIL · "remove it" right after: only the ONE object the previous turn made', () => {
@@ -584,7 +587,9 @@ describe('STATE RAIL · "remove it" right after: only the ONE object the previou
     envelopes.push(env('apply', [op('indicator.remove', 'ixe:c1', { instance: m2.instanceId })]))
     await say('could you remove it for me')
     envelopes.length = 0                                      // (the instant reader may have read it itself)
+    // nothing removed, and no card offering to: two were made, so "it" is not one object
     expect(macdOn(fx, 'c1')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Apply' })).toBeNull()
   }, 60000)
 })
 
