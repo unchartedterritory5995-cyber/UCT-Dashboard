@@ -25,6 +25,8 @@ export const PAST_TO_PENDING = Object.freeze({
   Calculated: 'Calculate',
   // chartFeatures.companyPanel ('Expanded the Company Info panel …' / 'Collapsed the Company Info panel …')
   Expanded: 'Expand', Collapsed: 'Collapse',
+  // chartReplay.playback ('Started the bar replay …' / 'Paused …' / 'Stepped …')
+  Started: 'Start', Paused: 'Pause', Stepped: 'Step',
 })
 // phrases that state a RESULT as already true
 const PHRASES = [

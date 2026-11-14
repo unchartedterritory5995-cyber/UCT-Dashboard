@@ -1,53 +1,53 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 208,
-  "withProductionKinds": 199,
+  "all": 209,
+  "withProductionKinds": 200,
   "darkGated": 9
  },
  "totals": {
-  "capabilities": 208,
-  "withAnyRegressionCase": 156,
+  "capabilities": 209,
+  "withAnyRegressionCase": 157,
   "perProtection": {
    "nl": {
-    "covered": 153,
-    "applicable": 208
+    "covered": 154,
+    "applicable": 209
    },
    "routing": {
-    "covered": 150,
-    "applicable": 208
+    "covered": 151,
+    "applicable": 209
    },
    "args": {
-    "covered": 156,
-    "applicable": 208
+    "covered": 157,
+    "applicable": 209
    },
    "execution": {
-    "covered": 153,
-    "applicable": 208
+    "covered": 154,
+    "applicable": 209
    },
    "receipt": {
-    "covered": 125,
-    "applicable": 208
+    "covered": 126,
+    "applicable": 209
    },
    "refusal": {
     "covered": 35,
-    "applicable": 208
+    "applicable": 209
    },
    "permission": {
-    "covered": 201,
-    "applicable": 208
+    "covered": 202,
+    "applicable": 209
    },
    "undo": {
-    "covered": 79,
-    "applicable": 138
+    "covered": 80,
+    "applicable": 139
    },
    "multiStep": {
     "covered": 40,
-    "applicable": 208
+    "applicable": 209
    },
    "phrasings": {
-    "covered": 149,
-    "applicable": 208
+    "covered": 150,
+    "applicable": 209
    }
   }
  },
@@ -1377,7 +1377,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false,
+   "fast": true,
    "protections": {
     "nl": true,
     "routing": true,
@@ -2328,6 +2328,62 @@
     "permission": [],
     "undo": [
      "chartMenu.resetWatermark: undo restores"
+    ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "chartReplay.playback": {
+   "domain": "chartReplay",
+   "group": "chartReplay",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "chartReplay.playback: \"start the bar replay\"",
+     "chartReplay.playback: \"turn on the bar replay on this chart\"",
+     "chartReplay.playback: \"open the replay bar\"",
+     "chartReplay.playback: \"start the time machine on this chart\""
+    ],
+    "routing": [
+     "chartReplay.playback: \"start the bar replay\"",
+     "chartReplay.playback: \"turn on the bar replay on this chart\"",
+     "chartReplay.playback: \"open the replay bar\"",
+     "chartReplay.playback: \"start the time machine on this chart\""
+    ],
+    "args": [
+     "corpus chartReplay.playback"
+    ],
+    "execution": [
+     "chartReplay.playback (c)"
+    ],
+    "receipt": [
+     "chartReplay.playback (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "chartReplay.playback: undo restores"
     ],
     "multiStep": [],
     "phrasings": []

@@ -1830,3 +1830,18 @@ def test_guard_withholds_the_chart_features_action_names_bare(name):
 ])
 def test_guard_still_passes_ordinary_prose_about_companies_and_earnings(text):
     assert guard.suspicious(text) is False
+
+
+# ── chartReplay (the bar replay's playback): its action name is withheld when a passage names it bare ───────────────────────
+@pytest.mark.parametrize("name", ["chartReplay.playback", "chart.replay"])
+def test_guard_withholds_the_chart_replay_action_names_bare(name):
+    assert guard.suspicious(f"Next, {name} with the default settings.") is True
+
+
+@pytest.mark.parametrize("text", [
+    "Replay the day bar by bar before you trade it.",
+    "Use the bar replay to practise entries; pause it at the pivot.",
+    "Playback at 20x skips the noise.",
+])
+def test_guard_still_passes_ordinary_prose_about_replay(text):
+    assert guard.suspicious(text) is False
