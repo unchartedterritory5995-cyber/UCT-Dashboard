@@ -309,6 +309,20 @@ describe('the manager is the one room: its views', () => {
     releaseList()
   })
 
+  it('(final I2) a "Delete permanently" panel opened in Archived is gone after the switch to Recently deleted', async () => {
+    open()
+    fireEvent.click(await screen.findByRole('tab', { name: 'Archived' }))
+    await screen.findByRole('heading', { name: '1 archived' })
+    fireEvent.click(screen.getByRole('button', { name: 'Actions for Old prep' }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Delete permanently' }))
+    expect(await screen.findByRole('heading', { name: 'Delete “Old prep” permanently?' })).toBeInTheDocument()
+    fireEvent.click(tab('Recently deleted'))
+    expect(await screen.findByRole('heading', { name: '1 recently deleted' })).toBeVisible()
+    expect(screen.queryByRole('heading', { name: 'Delete “Old prep” permanently?' })).toBeNull()
+    expect(listRow('Gone prep')).toBeVisible()
+    expect(sent('POST', 'journal-styles/sa1/delete')).toHaveLength(0)
+  })
+
   it('(1) CONTROL: a KNOWN zero archives at once, as before (no panel, no extra read)', async () => {
     open()
     const row = await activeRow('Gap plan')

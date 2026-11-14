@@ -508,8 +508,10 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [], show
         )}
         <div className={styles.viewPanel} id="js-view-panel" role={viewsOn ? 'tabpanel' : undefined}
           aria-labelledby={viewsOn ? `js-view-${shownView}` : undefined}>
+        {/* Final fix I2: keyed by the view, so a panel opened in Archived ("Delete permanently", "Used in") never
+            survives the switch to Recently deleted: each view starts on its own list. */}
         {shownView !== 'live' ? (
-          <TemplateList filter={shownView} phone={phone} onCloseAll={finish}
+          <TemplateList key={shownView} filter={shownView} phone={phone} onCloseAll={finish}
             onChanged={() => { mutate(); refreshUsage() }} />
         ) : (
         <>
