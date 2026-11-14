@@ -11130,12 +11130,11 @@ def _bundle_build_id() -> str:
         return cached
     result = ""
     try:
-        import json as _json
+        # The manifest has ONE reader (api/services/build_manifest.py), shared with any
+        # process that serves the built frontend without running this API.
+        from api.services import build_manifest as _build_manifest
 
-        with open(os.path.join(DIST, ".vite", "manifest.json"), encoding="utf-8") as f:
-            row = _json.load(f).get("index.html")
-        if isinstance(row, dict) and row.get("isEntry") and isinstance(row.get("file"), str):
-            result = row["file"].lstrip("/")
+        result = _build_manifest.entry_build_id(DIST)
     except Exception:
         result = ""
     _BUILD_ID_CACHE = result
@@ -11162,22 +11161,35 @@ def early_hint_link_header() -> str:
         return cached
     result = ""
     try:
-        import json as _json
+        from api.services import build_manifest as _build_manifest
 
-        with open(os.path.join(DIST, ".vite", "manifest.json"), encoding="utf-8") as f:
-            manifest = _json.load(f)
-        entry = manifest.get("index.html")
-        if isinstance(entry, dict) and entry.get("isEntry") and isinstance(entry.get("file"), str):
-            scripts = [entry["file"]] + [manifest[k]["file"] for k in entry.get("imports", [])
-                                         if isinstance(manifest.get(k), dict) and isinstance(manifest[k].get("file"), str)]
-            styles = [c for c in entry.get("css", []) if isinstance(c, str)]
-            parts = [f"</{f.lstrip('/')}>; rel=preload; as=script; crossorigin" for f in scripts]
-            parts += [f"</{c.lstrip('/')}>; rel=preload; as=style; crossorigin" for c in styles]
-            result = ", ".join(parts)
+        result = _build_manifest.early_hint_link(DIST)
     except Exception:
         result = ""
     _EARLY_HINTS_CACHE = result
     return result
+
+
+def _deployed_commit() -> str:
+    """The commit this process was deployed from (Railway sets it), or ""."""
+    return os.environ.get("RAILWAY_GIT_COMMIT_SHA") or ""
+
+
+@app.get("/build.json", include_in_schema=False)
+def build_json():
+    """The FRONTEND's identity: `{"build_id": "assets/index-<hash>.js", "commit": "<sha>"}`.
+
+    The page's update watcher asks this, not `/api/health`, which build is current
+    (`fetchBuildSafe`, app/src/lib/buildVersion.js). Today both answers name the same
+    build, because this process serves the frontend it was built with. They are separate
+    questions so that they can have separate answers: whichever process serves the built
+    frontend answers this one. `no-store` because a cached answer is a wrong answer, and
+    registered here, ahead of the SPA catch-all, which would otherwise hand back index.html.
+    """
+    return JSONResponse(
+        {"build_id": _bundle_build_id(), "commit": _deployed_commit()},
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 @app.get("/api/health")
@@ -11193,8 +11205,11 @@ def health():
         # Pod resource observability (2026-06-09 thread-exhaustion incident).
         "thread_count": threading.active_count(),
         "rss_mb": _process_rss_mb(),
-        # Bundle identity for the "new version available" watcher.
+        # The frontend this process was built with. The update watcher reads /build.json
+        # first and falls back to this.
         "build_id": _bundle_build_id(),
+        # The commit this process runs, so a frontend release can wait for its backend.
+        "commit": _deployed_commit(),
     }
 
 
