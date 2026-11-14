@@ -3417,6 +3417,31 @@
     }
    }
   },
+  "news.movers": {
+   "digest": "0fc07180c92d22c5",
+   "phrasings": {
+    "what's moving the market today": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "what is driving stocks this morning": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show me the catalyst board": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "what are today's catalysts": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
   "history.breakout": {
    "digest": "d15f33781be224ac",
    "phrasings": {

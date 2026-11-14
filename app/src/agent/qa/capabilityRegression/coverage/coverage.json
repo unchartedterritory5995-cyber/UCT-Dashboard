@@ -1,41 +1,41 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 207,
+  "all": 208,
   "withProductionKinds": 198,
-  "darkGated": 9
+  "darkGated": 10
  },
  "totals": {
-  "capabilities": 207,
-  "withAnyRegressionCase": 155,
+  "capabilities": 208,
+  "withAnyRegressionCase": 156,
   "perProtection": {
    "nl": {
-    "covered": 152,
-    "applicable": 207
+    "covered": 153,
+    "applicable": 208
    },
    "routing": {
-    "covered": 149,
-    "applicable": 207
+    "covered": 150,
+    "applicable": 208
    },
    "args": {
-    "covered": 155,
-    "applicable": 207
+    "covered": 156,
+    "applicable": 208
    },
    "execution": {
-    "covered": 152,
-    "applicable": 207
+    "covered": 153,
+    "applicable": 208
    },
    "receipt": {
-    "covered": 124,
-    "applicable": 207
+    "covered": 125,
+    "applicable": 208
    },
    "refusal": {
     "covered": 35,
-    "applicable": 207
+    "applicable": 208
    },
    "permission": {
-    "covered": 200,
-    "applicable": 207
+    "covered": 201,
+    "applicable": 208
    },
    "undo": {
     "covered": 78,
@@ -43,11 +43,11 @@
    },
    "multiStep": {
     "covered": 40,
-    "applicable": 207
+    "applicable": 208
    },
    "phrasings": {
-    "covered": 148,
-    "applicable": 207
+    "covered": 149,
+    "applicable": 208
    }
   }
  },
@@ -7650,6 +7650,60 @@
     ],
     "receipt": [
      "news.latest (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "news.movers": {
+   "domain": "news",
+   "group": "catalysts",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "news.movers: \"what's moving the market today\"",
+     "news.movers: \"what is driving stocks this morning\"",
+     "news.movers: \"show me the catalyst board\"",
+     "news.movers: \"what are today's catalysts\""
+    ],
+    "routing": [
+     "news.movers: \"what's moving the market today\"",
+     "news.movers: \"what is driving stocks this morning\"",
+     "news.movers: \"show me the catalyst board\"",
+     "news.movers: \"what are today's catalysts\""
+    ],
+    "args": [
+     "corpus news.movers"
+    ],
+    "execution": [
+     "news.movers (c)"
+    ],
+    "receipt": [
+     "news.movers (c)"
     ],
     "refusal": [],
     "permission": [],
