@@ -2,7 +2,7 @@
 // comparison; pools read "In …"; everything that cannot be checked per row
 // (scan joins, logic trees, ranks, field-to-field, structure contains) is a
 // plain sentence. Never a ✓ we cannot back with the row's own value.
-import { chipLabel } from '../chipLabel'
+import { chipLabel, codeWord, CODE_ENUM_KEYS } from '../chipLabel'
 import { plainColumnLabel, structureSentence, patternEngineSentence, lowerOperator } from './plainWords'
 import { sessionCloseLabel } from './dates'
 
@@ -11,6 +11,11 @@ export const NOT_CHECKABLE_KEYS = new Set([
 ])
 const CHECK_OPS = new Set(['gte', 'lte', 'gt', 'lt', 'between', 'eq', 'in', 'not_in'])
 const MAX = 5
+// RS screens (unit U5): the strip's places kept for fact notes when the screen's own filter
+// checks would fill it. Every RS screen has five or more filters, so facts appended after them
+// under a cap of five would never be seen. Decided 2026-11-14 (coordinator, unit U6): two of
+// the five places stay with the RS facts.
+export const FACT_SLOTS = 2
 
 const isCheckable = (key, spec) =>
   !NOT_CHECKABLE_KEYS.has(key) && CHECK_OPS.has(spec?.op) && !String(spec?.op || '').endsWith('_col')
@@ -47,7 +52,8 @@ export const compactDigits = s => String(s).replace(/\d{5,}(?:\.\d+)?/g, m => co
 function fmtValue(def, v) {
   if (isMissing(v)) return '—'
   if (def?.type === 'bool') return isYes(v) ? 'Yes' : 'No'
-  if (typeof v !== 'number') return String(v)
+  // A stored code of the RS screens' label enums reads as its word ("At pivot", never "at_pivot").
+  if (typeof v !== 'number') return codeWord(def, v) ?? String(v)
   const big = compact(v)
   const n = big ?? (Math.abs(v) >= 100 ? v.toFixed(2).replace(/\.00$/, '') : String(Math.round(v * 100) / 100))
   if (def?.unit === '$') return `$${n}`
@@ -62,7 +68,7 @@ function checkLabel(def, spec) {
   // Mid-sentence after "Not" a word drops its capital ("Not above 50-day avg"); an acronym keeps it ("Not HVC").
   if (def.type === 'bool') return requiresFalse(spec.value) ? `Not ${/^[A-Z][a-z]/.test(def.label) ? def.label[0].toLowerCase() + def.label.slice(1) : def.label}` : def.label
   if ((spec.op === 'in' || spec.op === 'not_in') && Array.isArray(spec.values) && spec.values.length) {
-    const list = spec.values.join(', ')
+    const list = spec.values.map(v => codeWord(def, v) ?? v).join(', ')
     return stripColon(spec.op === 'not_in' ? `${def.label}: not ${list}` : `${def.label}: ${list}`)
   }
   return compactDigits(stripColon(lowerOperator(chipLabel(def, spec))))
@@ -118,7 +124,12 @@ export function archiveNote(row) {
   return { kind: 'note', label: `${head} · ${n} call${n === 1 ? '' : 's'}` }
 }
 
-export function whyItsHere({ filters = {}, logic = null, rank = null, metaFilters = [], row = {}, live = null, snapshotDate = null } = {}) {
+// `facts` (RS screens only, rsRows.rowFacts): notes about the row the screen did not test. They
+// follow the filter checks, most distinctive first, inside the strip's maximum. When the checks
+// alone would leave them fewer than FACT_SLOTS places, the last places go to the facts and the
+// checks they displace are counted into `more` (which opens the Filters drawer, where they are).
+// A fact that does not fit is simply not shown: it is no filter, so it is never counted there.
+export function whyItsHere({ filters = {}, logic = null, rank = null, metaFilters = [], row = {}, live = null, snapshotDate = null, facts = null } = {}) {
   const defs = Object.fromEntries((metaFilters || []).map(f => [f.key, f]))
   const all = []
   // The close the row's numbers describe: its own bars_asof, else the session before the build.
@@ -145,7 +156,14 @@ export function whyItsHere({ filters = {}, logic = null, rank = null, metaFilter
       all.push({ kind: 'note', label, value: `${fmtValue(def, v)} now${asOfClose ? ` (matched at ${asOfClose})` : ''}` })
       continue
     }
-    if (isMissing(row[key])) { all.push({ kind: 'note', label, value: '—' }); continue }
+    if (isMissing(row[key])) {
+      // RS screens (unit U6): a blank PASSES an exclude list on the server (query.py keeps a NULL
+      // under not_in), and for the Setup label and its flag a blank is the ordinary answer (no
+      // label, no flag). The row is here because it holds none of the excluded ones: a check.
+      // Every other filter keeps its rule: a value the row does not carry is never a tick.
+      if (spec.op === 'not_in' && CODE_ENUM_KEYS.has(key)) { all.push({ kind: 'check', label, value: 'None' }); continue }
+      all.push({ kind: 'note', label, value: '—' }); continue
+    }
     const value = fmtValue(def, row[key])
     // No live price: the value is the snapshot's, and says which close it is.
     all.push({ kind: 'check', label, value: field && asOfClose ? `${value} at ${asOfClose}` : value })
@@ -154,5 +172,11 @@ export function whyItsHere({ filters = {}, logic = null, rank = null, metaFilter
   if (rank) all.push({ kind: 'note', label: rank.top_n ? `Ranked in the top ${rank.top_n} by your weights` : 'Ranked by your weights' })
   const team = archiveNote(row)
   if (team) all.push(team)
+  const notes = (facts || []).filter(f => f && f.label).map(f => ({ kind: 'note', label: f.label }))
+  if (notes.length) {
+    const shown = notes.slice(0, Math.min(MAX, Math.max(MAX - all.length, FACT_SLOTS)))
+    const kept = all.slice(0, MAX - shown.length)
+    return { items: [...kept, ...shown], more: all.length - kept.length }
+  }
   return { items: all.slice(0, MAX), more: Math.max(0, all.length - MAX) }
 }

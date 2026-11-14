@@ -198,6 +198,36 @@ def diff(spec: dict) -> dict:
             "new_since_label": _label(prev["session_date"], prev["snapshot_date"])}
 
 
+def rerecord_all() -> dict | None:
+    """Record every screen AGAIN for the build already recorded, or ``None`` when there
+    is nothing to redo (RS screens unit U1).
+
+    The nightly records at 03:00 ET; the rating job stores that session at 04:15 ET and
+    the RS post-pass then moves every row's rating columns onto it, so a screen that
+    reads a rating was recorded on the previous session's numbers. ``record`` is INSERT
+    OR REPLACE on (screen, build date): this replaces that record, it never adds a date.
+
+    ⛔ IT NEVER CREATES A RECORD THE NIGHTLY DID NOT TAKE. The nightly records only
+    after a COMPLETE build (a short build's record would mark real names as dropped
+    tomorrow); a build with no record for its date is left without one. Asking creates
+    no table. The remembered current tickers (``_CURRENT``) predate the pass and are
+    dropped, so the next diff reads the new ratings at once."""
+    if not job_enabled():
+        return None
+    snapshot_date, _session = _build_identity()
+    if not snapshot_date:
+        return None
+    with snapshot_db.connect() as conn:
+        if conn.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND "
+                        "name = 'screen_membership'").fetchone() is None:
+            return None
+        if conn.execute("SELECT 1 FROM screen_membership WHERE snapshot_date = ? LIMIT 1",
+                        (snapshot_date,)).fetchone() is None:
+            return None
+    _CURRENT.clear()
+    return record_all()
+
+
 FLAG = "SCREENER_NEW_TODAY_ENABLED"
 
 

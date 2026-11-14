@@ -78,6 +78,31 @@ export const PLAIN_COLUMN_LABELS = {
   rs_quicksand_bars_ago: 'Sessions since a Quicksand',
   rs_quick_break_bars_ago: 'Sessions since a Quick Break',
   rs_dead_break_bars_ago: 'Sessions since a Grateful Dead Break',
+  // UCT RS screens (unit U1): a place is a position in the liquid-stock ranking, 1 = strongest.
+  rs_rating_pos: 'RS Rating place',
+  rs_rating_pos_n: 'Stocks ranked',
+  rs_rating_pos_prev20: 'Place a month ago',
+  rs_pos_1m: '1-month place',
+  rs_pos_3m: '3-month place',
+  rs_pos_6m: '6-month place',
+  rs_pos_12m: '12-month place',
+  rs_rating_session: 'Ratings as of',
+  rs_rating_score: 'RS Rating score',
+  // UCT RS screens (unit U4): the rating a month ago, the RS line's recent highs, the Setup label.
+  rs_rating_prev20: 'RS Rating a month ago',
+  rs_nh_count_20: 'RS highs in the last 20 sessions',
+  rs_nh_quiet: 'Sessions between the last two RS highs',
+  rs_nh_red_bars_ago: 'Sessions since an RS high on a market down day',
+  rs_nhbp_age: 'Sessions since an RS high ahead of price',
+  rs_nh_span: 'How long a high the RS line made',
+  px_below_high_pct: 'Below its 52-week closing high',
+  rs_setup: 'Setup',
+  rs_tight: 'Tight range',
+  rs_flag: 'Setup flag',
+  rs_near_buy: 'Near a buy point',
+  atr_ext_ema21: 'ATRs from 21-day exp. avg',
+  pct_vs_ema8: 'vs 8-day exp. avg',
+  pct_vs_ema21: 'vs 21-day exp. avg',
 }
 
 export const plainColumnLabel = key => PLAIN_COLUMN_LABELS[key] || null

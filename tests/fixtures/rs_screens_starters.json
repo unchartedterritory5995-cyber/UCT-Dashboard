@@ -1,0 +1,924 @@
+[
+  {
+    "id": "starter_rs_top_rating",
+    "name": "Top RS Rating",
+    "group": "Relative strength",
+    "description": "Every liquid stock ranked by RS Rating, strongest first, with its exact place",
+    "spec": {
+      "filters": [
+        {
+          "key": "price",
+          "op": "gte",
+          "min": 10
+        },
+        {
+          "key": "dollar_vol_30d",
+          "op": "gte",
+          "min": 20000000
+        },
+        {
+          "key": "rs_rating_pos",
+          "op": "gte",
+          "min": 1
+        },
+        {
+          "key": "rs_flag",
+          "op": "not_in",
+          "values": [
+            "buyout_pending"
+          ]
+        },
+        {
+          "key": "security_type",
+          "op": "not_in",
+          "values": [
+            "ETF"
+          ]
+        }
+      ],
+      "view": "rs_top_rating",
+      "sort": {
+        "key": "rs_rating_pos",
+        "dir": "asc"
+      }
+    },
+    "controls": [
+      {
+        "id": "rank_by",
+        "label": "Rank by",
+        "keys": [
+          "rs_rating_pos",
+          "rs_pos_1m",
+          "rs_pos_3m",
+          "rs_pos_6m",
+          "rs_pos_12m",
+          "rs_rating_chg_20",
+          "pct_vs_sma50"
+        ],
+        "options": [
+          {
+            "id": "overall",
+            "label": "Overall",
+            "default": true,
+            "filters": [
+              {
+                "key": "rs_rating_pos",
+                "op": "gte",
+                "min": 1
+              }
+            ],
+            "sort": {
+              "key": "rs_rating_pos",
+              "dir": "asc"
+            }
+          },
+          {
+            "id": "m1",
+            "label": "1M",
+            "filters": [
+              {
+                "key": "rs_pos_1m",
+                "op": "gte",
+                "min": 1
+              }
+            ],
+            "sort": {
+              "key": "rs_pos_1m",
+              "dir": "asc"
+            },
+            "place": "rs_pos_1m"
+          },
+          {
+            "id": "m3",
+            "label": "3M",
+            "filters": [
+              {
+                "key": "rs_pos_3m",
+                "op": "gte",
+                "min": 1
+              }
+            ],
+            "sort": {
+              "key": "rs_pos_3m",
+              "dir": "asc"
+            },
+            "place": "rs_pos_3m"
+          },
+          {
+            "id": "m6",
+            "label": "6M",
+            "filters": [
+              {
+                "key": "rs_pos_6m",
+                "op": "gte",
+                "min": 1
+              }
+            ],
+            "sort": {
+              "key": "rs_pos_6m",
+              "dir": "asc"
+            },
+            "place": "rs_pos_6m"
+          },
+          {
+            "id": "m12",
+            "label": "12M",
+            "filters": [
+              {
+                "key": "rs_pos_12m",
+                "op": "gte",
+                "min": 1
+              }
+            ],
+            "sort": {
+              "key": "rs_pos_12m",
+              "dir": "asc"
+            },
+            "place": "rs_pos_12m"
+          },
+          {
+            "id": "rising",
+            "label": "Rising fastest",
+            "filters": [
+              {
+                "key": "rs_rating_pos",
+                "op": "gte",
+                "min": 1
+              },
+              {
+                "key": "rs_rating_chg_20",
+                "op": "gte",
+                "min": 1
+              },
+              {
+                "key": "pct_vs_sma50",
+                "op": "gt",
+                "min": 0
+              }
+            ],
+            "sort": {
+              "key": "rs_rating_chg_20",
+              "dir": "desc",
+              "then": {
+                "key": "rs_rating_pos",
+                "dir": "asc"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": "show",
+        "label": "Show",
+        "keys": [
+          "rs_rank",
+          "rs_rating_prev20"
+        ],
+        "options": [
+          {
+            "id": "all",
+            "label": "All",
+            "default": true,
+            "filters": []
+          },
+          {
+            "id": "r90",
+            "label": "90 and up",
+            "filters": [
+              {
+                "key": "rs_rank",
+                "op": "gte",
+                "min": 90
+              }
+            ]
+          },
+          {
+            "id": "new90",
+            "label": "New to 90+",
+            "filters": [
+              {
+                "key": "rs_rank",
+                "op": "gte",
+                "min": 90
+              },
+              {
+                "key": "rs_rating_prev20",
+                "op": "lt",
+                "max": 90
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "row": {
+      "place": "rs_rating_pos",
+      "caption": [
+        "setup",
+        "moving"
+      ],
+      "tags": [
+        "flag",
+        "new"
+      ]
+    }
+  },
+  {
+    "id": "starter_rs_new_high",
+    "name": "RS New Highs",
+    "group": "Relative strength",
+    "description": "Stocks whose RS line (price against SPY) hit a 52-week high this week",
+    "spec": {
+      "filters": [
+        {
+          "key": "price",
+          "op": "gte",
+          "min": 10
+        },
+        {
+          "key": "dollar_vol_30d",
+          "op": "gte",
+          "min": 20000000
+        },
+        {
+          "key": "pct_vs_sma200",
+          "op": "gt",
+          "min": 0
+        },
+        {
+          "key": "rs_nh_bars_ago",
+          "op": "between",
+          "min": 0,
+          "max": 4
+        },
+        {
+          "key": "rs_flag",
+          "op": "not_in",
+          "values": [
+            "buyout_pending"
+          ]
+        },
+        {
+          "key": "security_type",
+          "op": "not_in",
+          "values": [
+            "ETF"
+          ]
+        }
+      ],
+      "view": "rs_new_highs",
+      "sort": {
+        "key": "rs_nh_bars_ago",
+        "dir": "asc",
+        "then": {
+          "key": "rs_rating_score",
+          "dir": "desc"
+        }
+      }
+    },
+    "controls": [
+      {
+        "id": "when",
+        "label": "When",
+        "keys": [
+          "rs_nh_bars_ago"
+        ],
+        "options": [
+          {
+            "id": "today",
+            "label": "Today",
+            "filters": [
+              {
+                "key": "rs_nh_bars_ago",
+                "op": "between",
+                "min": 0,
+                "max": 0
+              }
+            ]
+          },
+          {
+            "id": "week",
+            "label": "This week",
+            "default": true,
+            "filters": [
+              {
+                "key": "rs_nh_bars_ago",
+                "op": "between",
+                "min": 0,
+                "max": 4
+              }
+            ]
+          },
+          {
+            "id": "month",
+            "label": "This month",
+            "filters": [
+              {
+                "key": "rs_nh_bars_ago",
+                "op": "between",
+                "min": 0,
+                "max": 20
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "min",
+        "label": "Min RS Rating",
+        "keys": [
+          "rs_rank"
+        ],
+        "options": [
+          {
+            "id": "any",
+            "label": "Any",
+            "default": true,
+            "filters": []
+          },
+          {
+            "id": "r70",
+            "label": "70",
+            "filters": [
+              {
+                "key": "rs_rank",
+                "op": "gte",
+                "min": 70
+              }
+            ]
+          },
+          {
+            "id": "r80",
+            "label": "80",
+            "filters": [
+              {
+                "key": "rs_rank",
+                "op": "gte",
+                "min": 80
+              }
+            ]
+          },
+          {
+            "id": "r90",
+            "label": "90",
+            "filters": [
+              {
+                "key": "rs_rank",
+                "op": "gte",
+                "min": 90
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "down",
+        "label": "Market",
+        "keys": [
+          "rs_nh_red_bars_ago"
+        ],
+        "options": [
+          {
+            "id": "all",
+            "label": "Any day",
+            "default": true,
+            "filters": []
+          },
+          {
+            "id": "down",
+            "label": "Down days only",
+            "filters": [
+              {
+                "key": "rs_nh_red_bars_ago",
+                "op": "between",
+                "min": 0,
+                "max": 9
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "row": {
+      "place": null,
+      "caption": [
+        "rs_high_age",
+        "group"
+      ],
+      "tags": [
+        "before_price",
+        "down_day",
+        "flag",
+        "new"
+      ]
+    }
+  },
+  {
+    "id": "starter_rs_nh_before_price",
+    "name": "RS New High Before Price",
+    "group": "Relative strength",
+    "aliases": [
+      "RSNHBP",
+      "RS new high before price",
+      "blue dot"
+    ],
+    "description": "RS line at a 52-week high while price is still below its own high. Often an early sign",
+    "spec": {
+      "filters": [
+        {
+          "key": "price",
+          "op": "gte",
+          "min": 10
+        },
+        {
+          "key": "dollar_vol_30d",
+          "op": "gte",
+          "min": 20000000
+        },
+        {
+          "key": "pct_vs_sma200",
+          "op": "gt",
+          "min": 0
+        },
+        {
+          "key": "rs_nhbp_age",
+          "op": "between",
+          "min": 0,
+          "max": 4
+        },
+        {
+          "key": "px_below_high_pct",
+          "op": "between",
+          "min": -25,
+          "max": -3
+        },
+        {
+          "key": "rs_flag",
+          "op": "not_in",
+          "values": [
+            "buyout_pending"
+          ]
+        },
+        {
+          "key": "security_type",
+          "op": "not_in",
+          "values": [
+            "ETF"
+          ]
+        }
+      ],
+      "view": "rs_before_price",
+      "sort": {
+        "key": "px_below_high_pct",
+        "dir": "desc",
+        "then": {
+          "key": "rs_rating_score",
+          "dir": "desc"
+        }
+      }
+    },
+    "controls": [
+      {
+        "id": "when",
+        "label": "When",
+        "keys": [
+          "rs_nhbp_age"
+        ],
+        "options": [
+          {
+            "id": "today",
+            "label": "Today",
+            "filters": [
+              {
+                "key": "rs_nhbp_age",
+                "op": "between",
+                "min": 0,
+                "max": 0
+              }
+            ]
+          },
+          {
+            "id": "week",
+            "label": "This week",
+            "default": true,
+            "filters": [
+              {
+                "key": "rs_nhbp_age",
+                "op": "between",
+                "min": 0,
+                "max": 4
+              }
+            ]
+          },
+          {
+            "id": "month",
+            "label": "This month",
+            "filters": [
+              {
+                "key": "rs_nhbp_age",
+                "op": "between",
+                "min": 0,
+                "max": 20
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "below",
+        "label": "Below its high by",
+        "keys": [
+          "px_below_high_pct"
+        ],
+        "options": [
+          {
+            "id": "p3",
+            "label": "3%",
+            "default": true,
+            "filters": [
+              {
+                "key": "px_below_high_pct",
+                "op": "between",
+                "min": -25,
+                "max": -3
+              }
+            ]
+          },
+          {
+            "id": "p5",
+            "label": "5%",
+            "filters": [
+              {
+                "key": "px_below_high_pct",
+                "op": "between",
+                "min": -25,
+                "max": -5
+              }
+            ]
+          },
+          {
+            "id": "p10",
+            "label": "10%",
+            "filters": [
+              {
+                "key": "px_below_high_pct",
+                "op": "between",
+                "min": -25,
+                "max": -10
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "min",
+        "label": "Min RS Rating",
+        "keys": [
+          "rs_rank"
+        ],
+        "options": [
+          {
+            "id": "any",
+            "label": "Any",
+            "default": true,
+            "filters": []
+          },
+          {
+            "id": "r70",
+            "label": "70",
+            "filters": [
+              {
+                "key": "rs_rank",
+                "op": "gte",
+                "min": 70
+              }
+            ]
+          },
+          {
+            "id": "r80",
+            "label": "80",
+            "filters": [
+              {
+                "key": "rs_rank",
+                "op": "gte",
+                "min": 80
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "row": {
+      "place": null,
+      "caption": [
+        "below_high",
+        "group"
+      ],
+      "tags": [
+        "down_day",
+        "flag",
+        "new"
+      ]
+    },
+    "empty": {
+      "text": "No RS line made a 52-week high ahead of price this week. That is normal in a weak market.",
+      "actions": [
+        {
+          "label": "Show this month",
+          "control": "when",
+          "option": "month"
+        },
+        {
+          "label": "Open RS New Highs",
+          "open": "starter_rs_new_high"
+        }
+      ]
+    }
+  },
+  {
+    "id": "starter_rs_leaders",
+    "name": "UCT RS Leaders",
+    "group": "Relative strength",
+    "description": "The strongest liquid stocks in real uptrends, each labelled extended or near a buy point",
+    "spec": {
+      "filters": [
+        {
+          "key": "price",
+          "op": "gte",
+          "min": 10
+        },
+        {
+          "key": "dollar_vol_30d",
+          "op": "gte",
+          "min": 20000000
+        },
+        {
+          "key": "adr_pct",
+          "op": "gte",
+          "min": 3
+        },
+        {
+          "key": "market_cap",
+          "op": "gte",
+          "min": 300000000
+        },
+        {
+          "key": "rs_rank",
+          "op": "gte",
+          "min": 80
+        },
+        {
+          "key": "pct_vs_sma200",
+          "op": "gt",
+          "min": 0
+        },
+        {
+          "key": "sma200_rising",
+          "op": "eq",
+          "value": 1
+        },
+        {
+          "key": "dist_52w_high_pct",
+          "op": "gte",
+          "min": -25
+        },
+        {
+          "key": "rs_line_above_ma",
+          "op": "eq",
+          "value": 1
+        },
+        {
+          "key": "rs_flag",
+          "op": "not_in",
+          "values": [
+            "buyout_pending"
+          ]
+        },
+        {
+          "key": "security_type",
+          "op": "not_in",
+          "values": [
+            "ETF"
+          ]
+        }
+      ],
+      "view": "rs_leaders",
+      "rank": {
+        "criteria": [
+          {
+            "key": "rs_rating_score",
+            "weight": 1
+          }
+        ],
+        "top_n": 50
+      }
+    },
+    "controls": [
+      {
+        "id": "show",
+        "label": "Show",
+        "keys": [
+          "rs_near_buy",
+          "rs_setup"
+        ],
+        "options": [
+          {
+            "id": "all",
+            "label": "All",
+            "default": true,
+            "filters": []
+          },
+          {
+            "id": "near",
+            "label": "Near a buy point",
+            "filters": [
+              {
+                "key": "rs_near_buy",
+                "op": "eq",
+                "value": 1
+              }
+            ]
+          },
+          {
+            "id": "noext",
+            "label": "Hide extended",
+            "filters": [
+              {
+                "key": "rs_setup",
+                "op": "not_in",
+                "values": [
+                  "extended",
+                  "below_50"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "min",
+        "label": "Min RS Rating",
+        "keys": [
+          "rs_rank"
+        ],
+        "options": [
+          {
+            "id": "r80",
+            "label": "80",
+            "default": true,
+            "filters": [
+              {
+                "key": "rs_rank",
+                "op": "gte",
+                "min": 80
+              }
+            ]
+          },
+          {
+            "id": "r85",
+            "label": "85",
+            "filters": [
+              {
+                "key": "rs_rank",
+                "op": "gte",
+                "min": 85
+              }
+            ]
+          },
+          {
+            "id": "r90",
+            "label": "90",
+            "filters": [
+              {
+                "key": "rs_rank",
+                "op": "gte",
+                "min": 90
+              }
+            ]
+          },
+          {
+            "id": "r95",
+            "label": "95",
+            "filters": [
+              {
+                "key": "rs_rank",
+                "op": "gte",
+                "min": 95
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "row": {
+      "place": "index",
+      "caption": [
+        "setup",
+        "group"
+      ],
+      "tags": [
+        "flag",
+        "new"
+      ],
+      "sort_label": "RS Rating"
+    }
+  },
+  {
+    "id": "starter_rs_exit_warning_5",
+    "name": "RS exit warnings",
+    "group": "Relative strength",
+    "description": "RS line just broke down. A prompt to review a position, not an order to sell",
+    "spec": {
+      "filters": [
+        {
+          "key": "rs_exit_bars_ago",
+          "op": "between",
+          "min": 0,
+          "max": 4
+        },
+        {
+          "key": "price",
+          "op": "gte",
+          "min": 10
+        },
+        {
+          "key": "dollar_vol_30d",
+          "op": "gte",
+          "min": 20000000
+        },
+        {
+          "key": "security_type",
+          "op": "not_in",
+          "values": [
+            "ETF"
+          ]
+        }
+      ],
+      "view": "relative_strength",
+      "sort": {
+        "key": "rs_exit_bars_ago",
+        "dir": "asc"
+      }
+    },
+    "controls": [
+      {
+        "id": "type",
+        "label": "Type",
+        "keys": [
+          "rs_exit_last"
+        ],
+        "options": [
+          {
+            "id": "any",
+            "label": "Any",
+            "default": true,
+            "filters": []
+          },
+          {
+            "id": "quick_break",
+            "label": "Quick Break",
+            "filters": [
+              {
+                "key": "rs_exit_last",
+                "op": "eq",
+                "value": "Quick Break"
+              }
+            ]
+          },
+          {
+            "id": "quicksand",
+            "label": "Quicksand",
+            "filters": [
+              {
+                "key": "rs_exit_last",
+                "op": "eq",
+                "value": "Quicksand"
+              }
+            ]
+          },
+          {
+            "id": "grateful_dead_break",
+            "label": "Grateful Dead Break",
+            "filters": [
+              {
+                "key": "rs_exit_last",
+                "op": "eq",
+                "value": "Grateful Dead Break"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "row": {
+      "place": null,
+      "caption": [
+        "exit_warning",
+        "group"
+      ],
+      "tags": [
+        "new"
+      ]
+    }
+  }
+]

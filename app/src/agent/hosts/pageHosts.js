@@ -63,7 +63,9 @@ export function buildScreenerPageHost({ read, saved, applyScreen, refreshSaved, 
       },
       saved() {
         const lib = readSaved() || {}
-        const one = (s, kind) => ({ id: str(s?.id), name: str(s?.name), kind, spec: s?.spec || null })
+        // `hidden` rides along (RS screens, unit U7): the page still serves a retired starter so its id resolves; the
+        // Agent's lists leave it out (capabilities/screenerPage.js, guide.js), as the page's own Screen menu does
+        const one = (s, kind) => ({ id: str(s?.id), name: str(s?.name), kind, spec: s?.spec || null, ...(s?.hidden ? { hidden: true } : {}) })
         return {
           saved: (lib.saved || []).map(s => one(s, 'saved')),
           starters: (lib.starters || []).map(s => one(s, 'starter')),

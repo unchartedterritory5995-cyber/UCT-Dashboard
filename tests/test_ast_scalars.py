@@ -367,7 +367,16 @@ def test_the_scalar_section_PARTITIONS_snapshot_db_COLUMNS_exactly():
     # (`rs_exit_bars_ago`, `rs_quick_break_bars_ago`, `rs_quicksand_bars_ago`,
     # `rs_dead_break_bars_ago`) joined COLUMNS, NULL until the first build after deploy (R8);
     # the ages are re-admitted once the artifact shows them filled. The declared half did not move.
-    assert (len(declared), len(excluded)) == (149, 121)
+    # ⭐ (149, 121) → (149, 130) on 2026-11-14 (UCT RS screens, unit U1): the nine columns
+    # `rs_post_pass.run` writes (`rs_rating_session`, `rs_rating_score`, `rs_rating_pos`,
+    # `rs_rating_pos_n`, `rs_pos_1m/3m/6m/12m`, `rs_rating_pos_prev20`) joined COLUMNS, DARK
+    # behind RS_SCREENS_ENABLED and so NULL on every row (R8). The declared half did not move.
+    # ⭐ (149, 130) → (149, 144) on 2026-11-14 (UCT RS screens, unit U4): fourteen more columns
+    # joined COLUMNS (`rs_rating_prev20` from the rating pass; the six RS-line measures and the
+    # seven Setup label columns from the build's `bars_rs_screens` / `bars_rs_setup` steps), all
+    # DARK behind RS_SCREENS_ENABLED and so NULL on every row (R8); `rs_setup` and `rs_flag` are
+    # TEXT and stay excluded. The declared half did not move.
+    assert (len(declared), len(excluded)) == (149, 144)
 
 
 def test_a_scalar_tree_is_non_repainting_AND_as_of_snapshot__both_verdicts_or_neither():

@@ -144,7 +144,8 @@ def test_the_alter_adds_m9_once_and_existing_rows_stay_null(tmp_db):
     with snapshot_db.connect() as c:
         rh.ensure_schema(c)
         rh.ensure_schema(c)                                  # idempotent: no second ALTER
-    assert _cols(tmp_db)[-1] == "m9" and _cols(tmp_db).count("m9") == 1
+    # Pin moved 2026-11-14 (RS screens U1): the same ALTER now also adds v1..v12 after m9.
+    assert _cols(tmp_db)[-6:] == ["m9", "v1", "v3", "v6", "v9", "v12"] and _cols(tmp_db).count("m9") == 1
     assert _rows(tmp_db) == before, "the ALTER rewrites no existing value"
     assert _query(tmp_db, f"SELECT m9 FROM {rh.TABLE}") == [{"m9": None}]
     assert _query(tmp_db, "SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'idx_rsh_ticker'")

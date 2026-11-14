@@ -229,6 +229,43 @@ COLUMNS = [
     # under 51 bars. Additive: ALTER-added on init, NULL until the next build.
     "rs_exit_last", "rs_exit_bars_ago", "rs_quick_break_bars_ago",
     "rs_quicksand_bars_ago", "rs_dead_break_bars_ago",
+    # ⭐ UCT RS SCREENS (unit U1, 2026-11-14). ONE writer, `rs_post_pass.run`, and it is
+    # NOT the build loop: the pass runs at the end of every build and again after the
+    # 04:15 ET rating job, because the build's INSERT OR REPLACE writes these NULL on
+    # every row it rebuilds (`POST_PASS_COLUMNS` below). Dark behind RS_SCREENS_ENABLED:
+    # NULL on every row until it is armed. `rs_rating_session` TEXT is the stored rating
+    # session the row's `rs_rating_*` columns describe; `rs_rating_score` REAL is the
+    # unrounded score behind `rs_rating_ibd` (`rs_rating_history.score`); the rest are
+    # INTEGER places, 1 = strongest, among the rows on the RS liquid floor
+    # (`rs_post_pass.LIQUID_FLOOR`): overall, the size of that ranking, the 1/3/6/12
+    # month orders, and the overall place 20 stored sessions earlier. NULL off the
+    # floor or where the session holds no value, never a guessed place. Additive:
+    # ALTER-added on init.
+    "rs_rating_session", "rs_rating_score", "rs_rating_pos", "rs_rating_pos_n",
+    "rs_pos_1m", "rs_pos_3m", "rs_pos_6m", "rs_pos_12m", "rs_rating_pos_prev20",
+    # ⭐ UCT RS SCREENS, the build's own columns (unit U4, 2026-11-14). Written by the
+    # build LOOP, only while RS_SCREENS_ENABLED is on (NULL on every row until then):
+    #   * six last-bar measures of the RS line from `rs_columns.screen_fields`, in the
+    #     RS_V2-gated `bars_rs_screens` step: RS new highs in 20 sessions, the gap
+    #     before the newest one, the age of the newest on a market down day, the age
+    #     of an RS new high price has not followed, the span of today's RS high (all
+    #     INTEGER) and the close against its own 252-session closing high
+    #     (`px_below_high_pct` REAL, a percent, never above 0);
+    #   * the Setup label from `rs_setup.label` over `technicals.setup_inputs`, in
+    #     the `bars_rs_setup` step: `rs_setup` TEXT (one of `rs_setup.SETUPS`),
+    #     `rs_tight` INTEGER 0/1, `rs_flag` TEXT (one of `rs_setup.FLAGS`),
+    #     `rs_near_buy` INTEGER 0/1, and three of the label's own inputs so a row can
+    #     show why it reads as it does: `atr_ext_ema21` REAL (ATRs above the 21-day
+    #     EMA), `pct_vs_ema8` / `pct_vs_ema21` REAL (percent from the 8- and 21-day
+    #     EMAs).
+    # `rs_rating_prev20` INTEGER is the post-pass's (`POST_PASS_COLUMNS`): the RS
+    # Rating 20 stored sessions earlier. NULL where the maths has no answer, never a
+    # guess. Additive: ALTER-added on init.
+    "rs_nh_count_20", "rs_nh_quiet", "rs_nh_red_bars_ago", "px_below_high_pct",
+    "rs_nhbp_age", "rs_nh_span",
+    "rs_setup", "rs_tight", "rs_flag", "rs_near_buy",
+    "atr_ext_ema21", "pct_vs_ema8", "pct_vs_ema21",
+    "rs_rating_prev20",
     # meta
     "snapshot_date", "bars_asof", "built_at",
 ]
@@ -237,6 +274,17 @@ COLUMNS = [
 #: them). The build's `empty_columns` receipt does not name these: a column that
 #: is meant to be empty at 03:00 is not a column that "came out 0/N".
 LIVE_ONLY_COLUMNS = frozenset({"rvol_live", "premarket_price", "premarket_chg_pct"})
+
+#: Columns the build LOOP never fills: `rs_post_pass.run` writes them over the whole
+#: table once the loop is done (the `sector_rs_pct` shape). The build's `empty_columns`
+#: receipt does not name them; the pass's own receipt (`stats["rs_post_pass"]`, and
+#: `status()["rs_post_pass"]`) says what happened to them, including the every-night
+#: case where the rating session is not stored yet and they are blank by design.
+POST_PASS_COLUMNS = frozenset({
+    "rs_rating_session", "rs_rating_score", "rs_rating_pos", "rs_rating_pos_n",
+    "rs_pos_1m", "rs_pos_3m", "rs_pos_6m", "rs_pos_12m", "rs_rating_pos_prev20",
+    # unit U4: the RS Rating 20 stored sessions earlier
+    "rs_rating_prev20"})
 
 _TEXT = {"ticker", "company", "sector", "industry", "exchange", "security_type", "ma_stack",
          "candle_type", "candle_label", "candle_matches", "candle_trend",
@@ -255,6 +303,10 @@ _TEXT = {"ticker", "company", "sector", "industry", "exchange", "security_type",
          "rrg_quadrant", "vars_state",
          # UCT RS Exit Warnings: the newest warning's name
          "rs_exit_last",
+         # UCT RS screens (U1): the rating session, a YYYY-MM-DD key
+         "rs_rating_session",
+         # UCT RS screens (U4): the Setup label and the flag, `rs_setup`'s own keys
+         "rs_setup", "rs_flag",
          # Wave 2
          "ipo_date", "country", "next_earnings_date", "earnings_session",
          "earnings_setup_grade", "analyst_consensus", "sponsorship",
@@ -307,7 +359,16 @@ _INT = {"uct_composite", "rs_rank", "inside_bar_run", "higher_lows_run",
         "rs_rating_1m", "rs_rating_3m", "rs_rating_6m", "rs_rating_9m", "rs_rating_12m",
         # UCT RS Exit Warnings: four ages in sessions (`rs_exit_last` is TEXT).
         "rs_exit_bars_ago", "rs_quick_break_bars_ago", "rs_quicksand_bars_ago",
-        "rs_dead_break_bars_ago"}
+        "rs_dead_break_bars_ago",
+        # UCT RS screens (U1): seven whole-number places and counts. `rs_rating_score`
+        # is deliberately NOT here: it is the unrounded REAL score.
+        "rs_rating_pos", "rs_rating_pos_n", "rs_pos_1m", "rs_pos_3m", "rs_pos_6m",
+        "rs_pos_12m", "rs_rating_pos_prev20",
+        # UCT RS screens (U4): five whole-number measures of the RS line (a count, three
+        # ages, a span), two 0/1 flags, and the rating 20 stored sessions earlier.
+        # `px_below_high_pct`, `atr_ext_ema21` and the two `pct_vs_ema*` are REAL.
+        "rs_nh_count_20", "rs_nh_quiet", "rs_nh_red_bars_ago", "rs_nhbp_age", "rs_nh_span",
+        "rs_tight", "rs_near_buy", "rs_rating_prev20"}
 
 
 # ---------------------------------------------------------------------------
@@ -1127,7 +1188,8 @@ def status() -> dict:
     return {**prov, "latest_built_at": built,
             "latest_snapshot_date": prov["newest_snapshot_date"],
             "last_build": last_build_run(),
-            "rs_lists": _rs_lists_last_run()}
+            "rs_lists": _rs_lists_last_run(),
+            "rs_post_pass": _rs_post_pass_last_run()}
 
 
 def _rs_lists_last_run() -> dict | None:
@@ -1136,6 +1198,16 @@ def _rs_lists_last_run() -> dict | None:
     try:
         from api.services import rs_lists                    # noqa: PLC0415 - lazy, no cycle
         return rs_lists.last_run()
+    except Exception:                                        # noqa: BLE001
+        return None
+
+
+def _rs_post_pass_last_run() -> dict | None:
+    """The newest `rs_post_pass` receipt (RS screens unit U1), or None. Read-only (a pod
+    whose pass never ran past its flag carries no table) and never raises."""
+    try:
+        from api.services.screener import rs_post_pass       # noqa: PLC0415 - lazy, no cycle
+        return rs_post_pass.last_run()
     except Exception:                                        # noqa: BLE001
         return None
 

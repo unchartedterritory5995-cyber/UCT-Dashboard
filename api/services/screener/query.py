@@ -401,6 +401,39 @@ def _sort_expr(overlay, sort_key):
     return f"COALESCE({overlay.col_expr(sort_key)}, {overlay.col_expr(fb)})"
 
 
+#: The directions a SECOND sort key may name. (The first key's rule is older and
+#: looser: anything but "asc" reads as descending, and saved screens rely on it.)
+_SORT_DIRS = {"asc": "ASC", "desc": "DESC"}
+
+
+def _then_sort(sort, known):
+    """``(column, "ASC" | "DESC")`` for the ONE secondary sort key a spec may carry
+    (``sort.then = {key, dir}``, RS screens unit U4), or ``None`` when it carries none.
+
+    RS New Highs orders by the age of the RS high, and dozens of names share "today";
+    without a second key they came out in ticker order.
+
+    ⛔ VALIDATED EXACTLY LIKE THE FIRST KEY, because it reaches ``col_expr`` through the
+    same door: a name that is not a snapshot column is refused by name, and a declared
+    column this pod's table does not hold yet is the readiness refusal (X27 F1), never
+    a silent no-op. A direction is "asc", "desc" or absent (descending, the first
+    key's default); anything else is refused rather than read as descending."""
+    then = sort.get("then")
+    if then is None:
+        return None
+    if not isinstance(then, dict) or then.get("then") is not None:
+        raise ValueError("the second sort key must be one object with a key and a direction")
+    key = then.get("key")
+    if not isinstance(key, str) or key not in _SORTABLE:
+        raise ValueError(f"unknown sort key: {key}")
+    if key not in known:
+        raise _readiness_refusal(_member_label(key))
+    raw_dir = then.get("dir", "desc")
+    if not isinstance(raw_dir, str) or raw_dir not in _SORT_DIRS:
+        raise ValueError(f"unknown sort direction: {raw_dir!r} (use asc or desc)")
+    return key, _SORT_DIRS[raw_dir]
+
+
 def _overlay(conn, user=None) -> _Overlay:
     """The live decision (`_live_overlay`, unchanged) plus the extended-hours one.
 
@@ -1503,6 +1536,11 @@ def build_scan_sql(spec, overlay=None, *, user_id=None, conn=None) -> dict:
         # the member reads an unsorted list as "the screen answered this way".
         raise _readiness_refusal(_member_label(sort_key))
     sort_dir = "ASC" if (sort.get("dir") == "asc") else "DESC"
+    # The optional second key (unit U4). Checked here, before any SQL exists and
+    # whether or not a rank will own the order, so a malformed one is always refused.
+    then = _then_sort(sort, known)
+    if then is not None and then[0] == sort_key:
+        then = None                 # the same column twice orders nothing further
     page = max(int(spec.get("page", 1)), 1)
     page_size = min(max(int(spec.get("page_size", 50)), 1), _MAX_PAGE)
     offset = (page - 1) * page_size
@@ -1523,7 +1561,7 @@ def build_scan_sql(spec, overlay=None, *, user_id=None, conn=None) -> dict:
         # the client can always show why the rows are in this order. Dedupe
         # preserves first position.
         seen, select_cols = set(), []
-        for c in ["ticker", *cols_req, sort_key]:
+        for c in ["ticker", *cols_req, sort_key, *([then[0]] if then else [])]:
             if c not in seen:
                 seen.add(c)
                 select_cols.append(c)
@@ -1595,11 +1633,15 @@ def build_scan_sql(spec, overlay=None, *, user_id=None, conn=None) -> dict:
         # through `col_expr` because with the overlay joined a bare `ticker`
         # is ambiguous between the two tables. (Sorting BY ticker needs no
         # second key — it is unique.)
-        tiebreak = ("" if sort_key == "ticker"
+        # The second key (unit U4) sits after the first and before the ticker; with
+        # none, `then_sql` is empty and this is the statement it always was.
+        then_sql = (f", {_sort_expr(overlay, then[0])} {then[1]} NULLS LAST"
+                    if then else "")
+        tiebreak = ("" if "ticker" in (sort_key, then[0] if then else None)
                     else f", {overlay.col_expr('ticker')} ASC")
         sql = (f"SELECT {select_sql} FROM {overlay.from_sql()}{where} "
                f"ORDER BY {_sort_expr(overlay, sort_key)} {sort_dir} NULLS LAST"
-               f"{tiebreak} LIMIT ? OFFSET ?")
+               f"{then_sql}{tiebreak} LIMIT ? OFFSET ?")
     # The join's own parameter (the in-session freshness cutoff) binds BEFORE
     # the where clause's, because the ON clause is earlier in the statement.
     describe_params = [*overlay.join_params, *where_params]

@@ -1,0 +1,2905 @@
+{
+ "about": "Captured by app/src/pages/screener/focus/__tests__/rsScanRequests.test.jsx (UPDATE_RS_SCAN_REQUESTS=1 rewrites): the body of POST /api/screener/scan the Focus page sends for each RS screen as it opens and with each quick-control option chosen. Replayed by tests/test_rs_screens_u6_e2e.py.",
+ "requests": [
+  {
+   "starter": "starter_rs_top_rating",
+   "choices": {},
+   "body": {
+    "filters": [
+     {
+      "key": "price",
+      "op": "gte",
+      "min": 10
+     },
+     {
+      "key": "dollar_vol_30d",
+      "op": "gte",
+      "min": 20000000
+     },
+     {
+      "key": "rs_rating_pos",
+      "op": "gte",
+      "min": 1
+     },
+     {
+      "key": "rs_flag",
+      "op": "not_in",
+      "values": [
+       "buyout_pending"
+      ]
+     },
+     {
+      "key": "security_type",
+      "op": "not_in",
+      "values": [
+       "ETF"
+      ]
+     }
+    ],
+    "sort": {
+     "key": "rs_rating_pos",
+     "dir": "asc"
+    },
+    "view": "rs_top_rating",
+    "page": 1,
+    "page_size": 100,
+    "columns": [
+     "ticker",
+     "company",
+     "price",
+     "chg_pct_1d",
+     "base_render",
+     "base_pivot_px",
+     "vol_ratio",
+     "rvol_live",
+     "rs_rank",
+     "market_cap",
+     "adr_pct",
+     "industry",
+     "sector",
+     "next_earnings_date",
+     "bars_asof",
+     "dollar_vol_30d",
+     "rs_rating_pos",
+     "rs_flag",
+     "security_type",
+     "rs_rating_session",
+     "rs_setup",
+     "rs_tight",
+     "rs_nh_bars_ago",
+     "px_below_high_pct",
+     "rs_rating_pos_n",
+     "rs_rating_pos_prev20",
+     "rs_rating_chg_5"
+    ]
+   }
+  },
+  {
+   "starter": "starter_rs_top_rating",
+   "choices": {
+    "rank_by": "m1"
+   },
+   "body": {
+    "filters": [
+     {
+      "key": "price",
+      "op": "gte",
+      "min": 10
+     },
+     {
+      "key": "dollar_vol_30d",
+      "op": "gte",
+      "min": 20000000
+     },
+     {
+      "key": "rs_flag",
+      "op": "not_in",
+      "values": [
+       "buyout_pending"
+      ]
+     },
+     {
+      "key": "security_type",
+      "op": "not_in",
+      "values": [
+       "ETF"
+      ]
+     },
+     {
+      "key": "rs_pos_1m",
+      "op": "gte",
+      "min": 1
+     }
+    ],
+    "sort": {
+     "key": "rs_pos_1m",
+     "dir": "asc"
+    },
+    "view": "rs_top_rating",
+    "page": 1,
+    "page_size": 100,
+    "columns": [
+     "ticker",
+     "company",
+     "price",
+     "chg_pct_1d",
+     "base_render",
+     "base_pivot_px",
+     "vol_ratio",
+     "rvol_live",
+     "rs_rank",
+     "market_cap",
+     "adr_pct",
+     "industry",
+     "sector",
+     "next_earnings_date",
+     "bars_asof",
+     "dollar_vol_30d",
+     "rs_flag",
+     "security_type",
+     "rs_pos_1m",
+     "rs_rating_session",
+     "rs_setup",
+     "rs_tight",
+     "rs_nh_bars_ago",
+     "px_below_high_pct",
+     "rs_rating_pos",
+     "rs_rating_pos_n",
+     "rs_rating_pos_prev20",
+     "rs_rating_chg_5"
+    ]
+   }
+  },
+  {
+   "starter": "starter_rs_top_rating",
+   "choices": {
+    "rank_by": "m3"
+   },
+   "body": {
+    "filters": [
+     {
+      "key": "price",
+      "op": "gte",
+      "min": 10
+     },
+     {
+      "key": "dollar_vol_30d",
+      "op": "gte",
+      "min": 20000000
+     },
+     {
+      "key": "rs_flag",
+      "op": "not_in",
+      "values": [
+       "buyout_pending"
+      ]
+     },
+     {
+      "key": "security_type",
+      "op": "not_in",
+      "values": [
+       "ETF"
+      ]
+     },
+     {
+      "key": "rs_pos_3m",
+      "op": "gte",
+      "min": 1
+     }
+    ],
+    "sort": {
+     "key": "rs_pos_3m",
+     "dir": "asc"
+    },
+    "view": "rs_top_rating",
+    "page": 1,
+    "page_size": 100,
+    "columns": [
+     "ticker",
+     "company",
+     "price",
+     "chg_pct_1d",
+     "base_render",
+     "base_pivot_px",
+     "vol_ratio",
+     "rvol_live",
+     "rs_rank",
+     "market_cap",
+     "adr_pct",
+     "industry",
+     "sector",
+     "next_earnings_date",
+     "bars_asof",
+     "dollar_vol_30d",
+     "rs_flag",
+     "security_type",
+     "rs_pos_3m",
+     "rs_rating_session",
+     "rs_setup",
+     "rs_tight",
+     "rs_nh_bars_ago",
+     "px_below_high_pct",
+     "rs_rating_pos",
+     "rs_rating_pos_n",
+     "rs_rating_pos_prev20",
+     "rs_rating_chg_5"
+    ]
+   }
+  },
+  {
+   "starter": "starter_rs_top_rating",
+   "choices": {
+    "rank_by": "m6"
+   },
+   "body": {
+    "filters": [
+     {
+      "key": "price",
+      "op": "gte",
+      "min": 10
+     },
+     {
+      "key": "dollar_vol_30d",
+      "op": "gte",
+      "min": 20000000
+     },
+     {
+      "key": "rs_flag",
+      "op": "not_in",
+      "values": [
+       "buyout_pending"
+      ]
+     },
+     {
+      "key": "security_type",
+      "op": "not_in",
+      "values": [
+       "ETF"
+      ]
+     },
+     {
+      "key": "rs_pos_6m",
+      "op": "gte",
+      "min": 1
+     }
+    ],
+    "sort": {
+     "key": "rs_pos_6m",
+     "dir": "asc"
+    },
+    "view": "rs_top_rating",
+    "page": 1,
+    "page_size": 100,
+    "columns": [
+     "ticker",
+     "company",
+     "price",
+     "chg_pct_1d",
+     "base_render",
+     "base_pivot_px",
+     "vol_ratio",
+     "rvol_live",
+     "rs_rank",
+     "market_cap",
+     "adr_pct",
+     "industry",
+     "sector",
+     "next_earnings_date",
+     "bars_asof",
+     "dollar_vol_30d",
+     "rs_flag",
+     "security_type",
+     "rs_pos_6m",
+     "rs_rating_session",
+     "rs_setup",
+     "rs_tight",
+     "rs_nh_bars_ago",
+     "px_below_high_pct",
+     "rs_rating_pos",
+     "rs_rating_pos_n",
+     "rs_rating_pos_prev20",
+     "rs_rating_chg_5"
+    ]
+   }
+  },
+  {
+   "starter": "starter_rs_top_rating",
+   "choices": {
+    "rank_by": "m12"
+   },
+   "body": {
+    "filters": [
+     {
+      "key": "price",
+      "op": "gte",
+      "min": 10
+     },
+     {
+      "key": "dollar_vol_30d",
+      "op": "gte",
+      "min": 20000000
+     },
+     {
+      "key": "rs_flag",
+      "op": "not_in",
+      "values": [
+       "buyout_pending"
+      ]
+     },
+     {
+      "key": "security_type",
+      "op": "not_in",
+      "values": [
+       "ETF"
+      ]
+     },
+     {
+      "key": "rs_pos_12m",
+      "op": "gte",
+      "min": 1
+     }
+    ],
+    "sort": {
+     "key": "rs_pos_12m",
+     "dir": "asc"
+    },
+    "view": "rs_top_rating",
+    "page": 1,
+    "page_size": 100,
+    "columns": [
+     "ticker",
+     "company",
+     "price",
+     "chg_pct_1d",
+     "base_render",
+     "base_pivot_px",
+     "vol_ratio",
+     "rvol_live",
+     "rs_rank",
+     "market_cap",
+     "adr_pct",
+     "industry",
+     "sector",
+     "next_earnings_date",
+     "bars_asof",
+     "dollar_vol_30d",
+     "rs_flag",
+     "security_type",
+     "rs_pos_12m",
+     "rs_rating_session",
+     "rs_setup",
+     "rs_tight",
+     "rs_nh_bars_ago",
+     "px_below_high_pct",
+     "rs_rating_pos",
+     "rs_rating_pos_n",
+     "rs_rating_pos_prev20",
+     "rs_rating_chg_5"
+    ]
+   }
+  },
+  {
+   "starter": "starter_rs_top_rating",
+   "choices": {
+    "rank_by": "rising"
+   },
+   "body": {
+    "filters": [
+     {
+      "key": "price",
+      "op": "gte",
+      "min": 10
+     },
+     {
+      "key": "dollar_vol_30d",
+      "op": "gte",
+      "min": 20000000
+     },
+     {
+      "key": "rs_flag",
+      "op": "not_in",
+      "values": [
+       "buyout_pending"
+      ]
+     },
+     {
+      "key": "security_type",
+      "op": "not_in",
+      "values": [
+       "ETF"
+      ]
+     },
+     {
+      "key": "rs_rating_pos",
+      "op": "gte",
+      "min": 1
+     },
+     {
+      "key": "rs_rating_chg_20",
+      "op": "gte",
+      "min": 1
+     },
+     {
+      "key": "pct_vs_sma50",
+      "op": "gt",
+      "min": 0
+     }
+    ],
+    "sort": {
+     "key": "rs_rating_chg_20",
+     "dir": "desc",
+     "then": {
+      "key": "rs_rating_pos",
+      "dir": "asc"
+     }
+    },
+    "view": "rs_top_rating",
+    "page": 1,
+    "page_size": 100,
+    "columns": [
+     "ticker",
+     "company",
+     "price",
+     "chg_pct_1d",
+     "base_render",
+     "base_pivot_px",
+     "vol_ratio",
+     "rvol_live",
+     "rs_rank",
+     "market_cap",
+     "adr_pct",
+     "industry",
+     "sector",
+     "next_earnings_date",
+     "bars_asof",
+     "dollar_vol_30d",
+     "rs_flag",
+     "security_type",
+     "rs_rating_pos",
+     "rs_rating_chg_20",
+     "pct_vs_sma50",
+     "rs_rating_session",
+     "rs_setup",
+     "rs_tight",
+     "rs_nh_bars_ago",
+     "px_below_high_pct",
+     "rs_rating_pos_n",
+     "rs_rating_pos_prev20",
+     "rs_rating_chg_5"
+    ]
+   }
+  },
+  {
+   "starter": "starter_rs_top_rating",
+   "choices": {
+    "show": "r90"
+   },
+   "body": {
+    "filters": [
+     {
+      "key": "price",
+      "op": "gte",
+      "min": 10
+     },
+     {
+      "key": "dollar_vol_30d",
+      "op": "gte",
+      "min": 20000000
+     },
+     {
+      "key": "rs_rating_pos",
+      "op": "gte",
+      "min": 1
+     },
+     {
+      "key": "rs_flag",
+      "op": "not_in",
+      "values": [
+       "buyout_pending"
+      ]
+     },
+     {
+      "key": "security_type",
+      "op": "not_in",
+      "values": [
+       "ETF"
+      ]
+     },
+     {
+      "key": "rs_rank",
+      "op": "gte",
+      "min": 90
+     }
+    ],
+    "sort": {
+     "key": "rs_rating_pos",
+     "dir": "asc"
+    },
+    "view": "rs_top_rating",
+    "page": 1,
+    "page_size": 100,
+    "columns": [
+     "ticker",
+     "company",
+     "price",
+     "chg_pct_1d",
+     "base_render",
+     "base_pivot_px",
+     "vol_ratio",
+     "rvol_live",
+     "rs_rank",
+     "market_cap",
+     "adr_pct",
+     "industry",
+     "sector",
+     "next_earnings_date",
+     "bars_asof",
+     "dollar_vol_30d",
+     "rs_rating_pos",
+     "rs_flag",
+     "security_type",
+     "rs_rating_session",
+     "rs_setup",
+     "rs_tight",
+     "rs_nh_bars_ago",
+     "px_below_high_pct",
+     "rs_rating_pos_n",
+     "rs_rating_pos_prev20",
+     "rs_rating_chg_5"
+    ]
+   }
+  },
+  {
+   "starter": "starter_rs_top_rating",
+   "choices": {
+    "show": "new90"
+   },
+   "body": {
+    "filters": [
+     {
+      "key": "price",
+      "op": "gte",
+      "min": 10
+     },
+     {
+      "key": "dollar_vol_30d",
+      "op": "gte",
+      "min": 20000000
+     },
+     {
+      "key": "rs_rating_pos",
+      "op": "gte",
+      "min": 1
+     },
+     {
+      "key": "rs_flag",
+      "op": "not_in",
+      "values": [
+       "buyout_pending"
+      ]
+     },
+     {
+      "key": "security_type",
+      "op": "not_in",
+      "values": [
+       "ETF"
+      ]
+     },
+     {
+      "key": "rs_rank",
+      "op": "gte",
+      "min": 90
+     },
+     {
+      "key": "rs_rating_prev20",
+      "op": "lt",
+      "max": 90
+     }
+    ],
+    "sort": {
+     "key": "rs_rating_pos",
+     "dir": "asc"
+    },
+    "view": "rs_top_rating",
+    "page": 1,
+    "page_size": 100,
+    "columns": [
+     "ticker",
+     "company",
+     "price",
+     "chg_pct_1d",
+     "base_render",
+     "base_pivot_px",
+     "vol_ratio",
+     "rvol_live",
+     "rs_rank",
+     "market_cap",
+     "adr_pct",
+     "industry",
+     "sector",
+     "next_earnings_date",
+     "bars_asof",
+     "dollar_vol_30d",
+     "rs_rating_pos",
+     "rs_flag",
+     "security_type",
+     "rs_rating_prev20",
+     "rs_rating_session",
+     "rs_setup",
+     "rs_tight",
+     "rs_nh_bars_ago",
+     "px_below_high_pct",
+     "rs_rating_pos_n",
+     "rs_rating_pos_prev20",
+     "rs_rating_chg_5"
+    ]
+   }
+  },
+  {
+   "starter": "starter_rs_new_high",
+   "choices": {},
+   "body": {
+    "filters": [
+     {
+      "key": "price",
+      "op": "gte",
+      "min": 10
+     },
+     {
+      "key": "dollar_vol_30d",
+      "op": "gte",
+      "min": 20000000
+     },
+     {
+      "key": "pct_vs_sma200",
+      "op": "gt",
+      "min": 0
+     },
+     {
+      "key": "rs_nh_bars_ago",
+      "op": "between",
+      "min": 0,
+      "max": 4
+     },
+     {
+      "key": "rs_flag",
+      "op": "not_in",
+      "values": [
+       "buyout_pending"
+      ]
+     },
+     {
+      "key": "security_type",
+      "op": "not_in",
+      "values": [
+       "ETF"
+      ]
+     }
+    ],
+    "sort": {
+     "key": "rs_nh_bars_ago",
+     "dir": "asc",
+     "then": {
+      "key": "rs_rating_score",
+      "dir": "desc"
+     }
+    },
+    "view": "rs_new_highs",
+    "page": 1,
+    "page_size": 100,
+    "columns": [
+     "ticker",
+     "company",
+     "price",
+     "chg_pct_1d",
+     "base_render",
+     "base_pivot_px",
+     "vol_ratio",
+     "rvol_live",
+     "rs_rank",
+     "market_cap",
+     "adr_pct",
+     "industry",
+     "sector",
+     "next_earnings_date",
+     "bars_asof",
+     "dollar_vol_30d",
+     "pct_vs_sma200",
+     "rs_nh_bars_ago",
+     "rs_flag",
+     "security_type",
+     "rs_rating_session",
+     "rs_setup",
+     "rs_tight",
+     "px_below_high_pct",
+     "rs_rating_pos",
+     "rs_rating_pos_n",
+     "rs_nhbp_age",
+     "rs_nh_red_bars_ago"
+    ]
+   }
+  },
+  {
+   "starter": "starter_rs_new_high",
+   "choices": {
+    "when": "today"
+   },
+   "body": {
+    "filters": [
+     {
+      "key": "price",
+      "op": "gte",
+      "min": 10
+     },
+     {
+      "key": "dollar_vol_30d",
+      "op": "gte",
+      "min": 20000000
+     },
+     {
+      "key": "pct_vs_sma200",
+      "op": "gt",
+      "min": 0
+     },
+     {
+      "key": "rs_flag",
+      "op": "not_in",
+      "values": [
+       "buyout_pending"
+      ]
+     },
+     {
+      "key": "security_type",
+      "op": "not_in",
+      "values": [
+       "ETF"
+      ]
+     },
+     {
+      "key": "rs_nh_bars_ago",
+      "op": "between",
+      "min": 0,
+      "max": 0
+     }
+    ],
+    "sort": {
+     "key": "rs_nh_bars_ago",
+     "dir": "asc",
+     "then": {
+      "key": "rs_rating_score",
+      "dir": "desc"
+     }
+    },
+    "view": "rs_new_highs",
+    "page": 1,
+    "page_size": 100,
+    "columns": [
+     "ticker",
+     "company",
+     "price",
+     "chg_pct_1d",
+     "base_render",
+     "base_pivot_px",
+     "vol_ratio",
+     "rvol_live",
+     "rs_rank",
+     "market_cap",
+     "adr_pct",
+     "industry",
+     "sector",
+     "next_earnings_date",
+     "bars_asof",
+     "dollar_vol_30d",
+     "pct_vs_sma200",
+     "rs_flag",
+     "security_type",
+     "rs_nh_bars_ago",
+     "rs_rating_session",
+     "rs_setup",
+     "rs_tight",
+     "px_below_high_pct",
+     "rs_rating_pos",
+     "rs_rating_pos_n",
+     "rs_nhbp_age",
+     "rs_nh_red_bars_ago"
+    ]
+   }
+  },
+  {
+   "starter": "starter_rs_new_high",
+   "choices": {
+    "when": "month"
+   },
+   "body": {
+    "filters": [
+     {
+      "key": "price",
+      "op": "gte",
+      "min": 10
+     },
+     {
+      "key": "dollar_vol_30d",
+      "op": "gte",
+      "min": 20000000
+     },
+     {
+      "key": "pct_vs_sma200",
+      "op": "gt",
+      "min": 0
+     },
+     {
+      "key": "rs_flag",
+      "op": "not_in",
+      "values": [
+       "buyout_pending"
+      ]
+     },
+     {
+      "key": "security_type",
+      "op": "not_in",
+      "values": [
+       "ETF"
+      ]
+     },
+     {
+      "key": "rs_nh_bars_ago",
+      "op": "between",
+      "min": 0,
+      "max": 20
+     }
+    ],
+    "sort": {
+     "key": "rs_nh_bars_ago",
+     "dir": "asc",
+     "then": {
+      "key": "rs_rating_score",
+      "dir": "desc"
+     }
+    },
+    "view": "rs_new_highs",
+    "page": 1,
+    "page_size": 100,
+    "columns": [
+     "ticker",
+     "company",
+     "price",
+     "chg_pct_1d",
+     "base_render",
+     "base_pivot_px",
+     "vol_ratio",
+     "rvol_live",
+     "rs_rank",
+     "market_cap",
+     "adr_pct",
+     "industry",
+     "sector",
+     "next_earnings_date",
+     "bars_asof",
+     "dollar_vol_30d",
+     "pct_vs_sma200",
+     "rs_flag",
+     "security_type",
+     "rs_nh_bars_ago",
+     "rs_rating_session",
+     "rs_setup",
+     "rs_tight",
+     "px_below_high_pct",
+     "rs_rating_pos",
+     "rs_rating_pos_n",
+     "rs_nhbp_age",
+     "rs_nh_red_bars_ago"
+    ]
+   }
+  },
+  {
+   "starter": "starter_rs_new_high",
+   "choices": {
+    "min": "r70"
+   },
+   "body": {
+    "filters": [
+     {
+      "key": "price",
+      "op": "gte",
+      "min": 10
+     },
+     {
+      "key": "dollar_vol_30d",
+      "op": "gte",
+      "min": 20000000
+     },
+     {
+      "key": "pct_vs_sma200",
+      "op": "gt",
+      "min": 0
+     },
+     {
+      "key": "rs_nh_bars_ago",
+      "op": "between",
+      "min": 0,
+      "max": 4
+     },
+     {
+      "key": "rs_flag",
+      "op": "not_in",
+      "values": [
+       "buyout_pending"
+      ]
+     },
+     {
+      "key": "security_type",
+      "op": "not_in",
+      "values": [
+       "ETF"
+      ]
+     },
+     {
+      "key": "rs_rank",
+      "op": "gte",
+      "min": 70
+     }
+    ],
+    "sort": {
+     "key": "rs_nh_bars_ago",
+     "dir": "asc",
+     "then": {
+      "key": "rs_rating_score",
+      "dir": "desc"
+     }
+    },
+    "view": "rs_new_highs",
+    "page": 1,
+    "page_size": 100,
+    "columns": [
+     "ticker",
+     "company",
+     "price",
+     "chg_pct_1d",
+     "base_render",
+     "base_pivot_px",
+     "vol_ratio",
+     "rvol_live",
+     "rs_rank",
+     "market_cap",
+     "adr_pct",
+     "industry",
+     "sector",
+     "next_earnings_date",
+     "bars_asof",
+     "dollar_vol_30d",
+     "pct_vs_sma200",
+     "rs_nh_bars_ago",
+     "rs_flag",
+     "security_type",
+     "rs_rating_session",
+     "rs_setup",
+     "rs_tight",
+     "px_below_high_pct",
+     "rs_rating_pos",
+     "rs_rating_pos_n",
+     "rs_nhbp_age",
+     "rs_nh_red_bars_ago"
+    ]
+   }
+  },
+  {
+   "starter": "starter_rs_new_high",
+   "choices": {
+    "min": "r80"
+   },
+   "body": {
+    "filters": [
+     {
+      "key": "price",
+      "op": "gte",
+      "min": 10
+     },
+     {
+      "key": "dollar_vol_30d",
+      "op": "gte",
+      "min": 20000000
+     },
+     {
+      "key": "pct_vs_sma200",
+      "op": "gt",
+      "min": 0
+     },
+     {
+      "key": "rs_nh_bars_ago",
+      "op": "between",
+      "min": 0,
+      "max": 4
+     },
+     {
+      "key": "rs_flag",
+      "op": "not_in",
+      "values": [
+       "buyout_pending"
+      ]
+     },
+     {
+      "key": "security_type",
+      "op": "not_in",
+      "values": [
+       "ETF"
+      ]
+     },
+     {
+      "key": "rs_rank",
+      "op": "gte",
+      "min": 80
+     }
+    ],
+    "sort": {
+     "key": "rs_nh_bars_ago",
+     "dir": "asc",
+     "then": {
+      "key": "rs_rating_score",
+      "dir": "desc"
+     }
+    },
+    "view": "rs_new_highs",
+    "page": 1,
+    "page_size": 100,
+    "columns": [
+     "ticker",
+     "company",
+     "price",
+     "chg_pct_1d",
+     "base_render",
+     "base_pivot_px",
+     "vol_ratio",
+     "rvol_live",
+     "rs_rank",
+     "market_cap",
+     "adr_pct",
+     "industry",
+     "sector",
+     "next_earnings_date",
+     "bars_asof",
+     "dollar_vol_30d",
+     "pct_vs_sma200",
+     "rs_nh_bars_ago",
+     "rs_flag",
+     "security_type",
+     "rs_rating_session",
+     "rs_setup",
+     "rs_tight",
+     "px_below_high_pct",
+     "rs_rating_pos",
+     "rs_rating_pos_n",
+     "rs_nhbp_age",
+     "rs_nh_red_bars_ago"
+    ]
+   }
+  },
+  {
+   "starter": "starter_rs_new_high",
+   "choices": {
+    "min": "r90"
+   },
+   "body": {
+    "filters": [
+     {
+      "key": "price",
+      "op": "gte",
+      "min": 10
+     },
+     {
+      "key": "dollar_vol_30d",
+      "op": "gte",
+      "min": 20000000
+     },
+     {
+      "key": "pct_vs_sma200",
+      "op": "gt",
+      "min": 0
+     },
+     {
+      "key": "rs_nh_bars_ago",
+      "op": "between",
+      "min": 0,
+      "max": 4
+     },
+     {
+      "key": "rs_flag",
+      "op": "not_in",
+      "values": [
+       "buyout_pending"
+      ]
+     },
+     {
+      "key": "security_type",
+      "op": "not_in",
+      "values": [
+       "ETF"
+      ]
+     },
+     {
+      "key": "rs_rank",
+      "op": "gte",
+      "min": 90
+     }
+    ],
+    "sort": {
+     "key": "rs_nh_bars_ago",
+     "dir": "asc",
+     "then": {
+      "key": "rs_rating_score",
+      "dir": "desc"
+     }
+    },
+    "view": "rs_new_highs",
+    "page": 1,
+    "page_size": 100,
+    "columns": [
+     "ticker",
+     "company",
+     "price",
+     "chg_pct_1d",
+     "base_render",
+     "base_pivot_px",
+     "vol_ratio",
+     "rvol_live",
+     "rs_rank",
+     "market_cap",
+     "adr_pct",
+     "industry",
+     "sector",
+     "next_earnings_date",
+     "bars_asof",
+     "dollar_vol_30d",
+     "pct_vs_sma200",
+     "rs_nh_bars_ago",
+     "rs_flag",
+     "security_type",
+     "rs_rating_session",
+     "rs_setup",
+     "rs_tight",
+     "px_below_high_pct",
+     "rs_rating_pos",
+     "rs_rating_pos_n",
+     "rs_nhbp_age",
+     "rs_nh_red_bars_ago"
+    ]
+   }
+  },
+  {
+   "starter": "starter_rs_new_high",
+   "choices": {
+    "down": "down"
+   },
+   "body": {
+    "filters": [
+     {
+      "key": "price",
+      "op": "gte",
+      "min": 10
+     },
+     {
+      "key": "dollar_vol_30d",
+      "op": "gte",
+      "min": 20000000
+     },
+     {
+      "key": "pct_vs_sma200",
+      "op": "gt",
+      "min": 0
+     },
+     {
+      "key": "rs_nh_bars_ago",
+      "op": "between",
+      "min": 0,
+      "max": 4
+     },
+     {
+      "key": "rs_flag",
+      "op": "not_in",
+      "values": [
+       "buyout_pending"
+      ]
+     },
+     {
+      "key": "security_type",
+      "op": "not_in",
+      "values": [
+       "ETF"
+      ]
+     },
+     {
+      "key": "rs_nh_red_bars_ago",
+      "op": "between",
+      "min": 0,
+      "max": 9
+     }
+    ],
+    "sort": {
+     "key": "rs_nh_bars_ago",
+     "dir": "asc",
+     "then": {
+      "key": "rs_rating_score",
+      "dir": "desc"
+     }
+    },
+    "view": "rs_new_highs",
+    "page": 1,
+    "page_size": 100,
+    "columns": [
+     "ticker",
+     "company",
+     "price",
+     "chg_pct_1d",
+     "base_render",
+     "base_pivot_px",
+     "vol_ratio",
+     "rvol_live",
+     "rs_rank",
+     "market_cap",
+     "adr_pct",
+     "industry",
+     "sector",
+     "next_earnings_date",
+     "bars_asof",
+     "dollar_vol_30d",
+     "pct_vs_sma200",
+     "rs_nh_bars_ago",
+     "rs_flag",
+     "security_type",
+     "rs_nh_red_bars_ago",
+     "rs_rating_session",
+     "rs_setup",
+     "rs_tight",
+     "px_below_high_pct",
+     "rs_rating_pos",
+     "rs_rating_pos_n",
+     "rs_nhbp_age"
+    ]
+   }
+  },
+  {
+   "starter": "starter_rs_nh_before_price",
+   "choices": {},
+   "body": {
+    "filters": [
+     {
+      "key": "price",
+      "op": "gte",
+      "min": 10
+     },
+     {
+      "key": "dollar_vol_30d",
+      "op": "gte",
+      "min": 20000000
+     },
+     {
+      "key": "pct_vs_sma200",
+      "op": "gt",
+      "min": 0
+     },
+     {
+      "key": "rs_nhbp_age",
+      "op": "between",
+      "min": 0,
+      "max": 4
+     },
+     {
+      "key": "px_below_high_pct",
+      "op": "between",
+      "min": -25,
+      "max": -3
+     },
+     {
+      "key": "rs_flag",
+      "op": "not_in",
+      "values": [
+       "buyout_pending"
+      ]
+     },
+     {
+      "key": "security_type",
+      "op": "not_in",
+      "values": [
+       "ETF"
+      ]
+     }
+    ],
+    "sort": {
+     "key": "px_below_high_pct",
+     "dir": "desc",
+     "then": {
+      "key": "rs_rating_score",
+      "dir": "desc"
+     }
+    },
+    "view": "rs_before_price",
+    "page": 1,
+    "page_size": 100,
+    "columns": [
+     "ticker",
+     "company",
+     "price",
+     "chg_pct_1d",
+     "base_render",
+     "base_pivot_px",
+     "vol_ratio",
+     "rvol_live",
+     "rs_rank",
+     "market_cap",
+     "adr_pct",
+     "industry",
+     "sector",
+     "next_earnings_date",
+     "bars_asof",
+     "dollar_vol_30d",
+     "pct_vs_sma200",
+     "rs_nhbp_age",
+     "px_below_high_pct",
+     "rs_flag",
+     "security_type",
+     "rs_rating_session",
+     "rs_setup",
+     "rs_tight",
+     "rs_nh_bars_ago",
+     "rs_rating_pos",
+     "rs_rating_pos_n",
+     "rs_nh_red_bars_ago"
+    ]
+   }
+  },
+  {
+   "starter": "starter_rs_nh_before_price",
+   "choices": {
+    "when": "today"
+   },
+   "body": {
+    "filters": [
+     {
+      "key": "price",
+      "op": "gte",
+      "min": 10
+     },
+     {
+      "key": "dollar_vol_30d",
+      "op": "gte",
+      "min": 20000000
+     },
+     {
+      "key": "pct_vs_sma200",
+      "op": "gt",
+      "min": 0
+     },
+     {
+      "key": "px_below_high_pct",
+      "op": "between",
+      "min": -25,
+      "max": -3
+     },
+     {
+      "key": "rs_flag",
+      "op": "not_in",
+      "values": [
+       "buyout_pending"
+      ]
+     },
+     {
+      "key": "security_type",
+      "op": "not_in",
+      "values": [
+       "ETF"
+      ]
+     },
+     {
+      "key": "rs_nhbp_age",
+      "op": "between",
+      "min": 0,
+      "max": 0
+     }
+    ],
+    "sort": {
+     "key": "px_below_high_pct",
+     "dir": "desc",
+     "then": {
+      "key": "rs_rating_score",
+      "dir": "desc"
+     }
+    },
+    "view": "rs_before_price",
+    "page": 1,
+    "page_size": 100,
+    "columns": [
+     "ticker",
+     "company",
+     "price",
+     "chg_pct_1d",
+     "base_render",
+     "base_pivot_px",
+     "vol_ratio",
+     "rvol_live",
+     "rs_rank",
+     "market_cap",
+     "adr_pct",
+     "industry",
+     "sector",
+     "next_earnings_date",
+     "bars_asof",
+     "dollar_vol_30d",
+     "pct_vs_sma200",
+     "px_below_high_pct",
+     "rs_flag",
+     "security_type",
+     "rs_nhbp_age",
+     "rs_rating_session",
+     "rs_setup",
+     "rs_tight",
+     "rs_nh_bars_ago",
+     "rs_rating_pos",
+     "rs_rating_pos_n",
+     "rs_nh_red_bars_ago"
+    ]
+   }
+  },
+  {
+   "starter": "starter_rs_nh_before_price",
+   "choices": {
+    "when": "month"
+   },
+   "body": {
+    "filters": [
+     {
+      "key": "price",
+      "op": "gte",
+      "min": 10
+     },
+     {
+      "key": "dollar_vol_30d",
+      "op": "gte",
+      "min": 20000000
+     },
+     {
+      "key": "pct_vs_sma200",
+      "op": "gt",
+      "min": 0
+     },
+     {
+      "key": "px_below_high_pct",
+      "op": "between",
+      "min": -25,
+      "max": -3
+     },
+     {
+      "key": "rs_flag",
+      "op": "not_in",
+      "values": [
+       "buyout_pending"
+      ]
+     },
+     {
+      "key": "security_type",
+      "op": "not_in",
+      "values": [
+       "ETF"
+      ]
+     },
+     {
+      "key": "rs_nhbp_age",
+      "op": "between",
+      "min": 0,
+      "max": 20
+     }
+    ],
+    "sort": {
+     "key": "px_below_high_pct",
+     "dir": "desc",
+     "then": {
+      "key": "rs_rating_score",
+      "dir": "desc"
+     }
+    },
+    "view": "rs_before_price",
+    "page": 1,
+    "page_size": 100,
+    "columns": [
+     "ticker",
+     "company",
+     "price",
+     "chg_pct_1d",
+     "base_render",
+     "base_pivot_px",
+     "vol_ratio",
+     "rvol_live",
+     "rs_rank",
+     "market_cap",
+     "adr_pct",
+     "industry",
+     "sector",
+     "next_earnings_date",
+     "bars_asof",
+     "dollar_vol_30d",
+     "pct_vs_sma200",
+     "px_below_high_pct",
+     "rs_flag",
+     "security_type",
+     "rs_nhbp_age",
+     "rs_rating_session",
+     "rs_setup",
+     "rs_tight",
+     "rs_nh_bars_ago",
+     "rs_rating_pos",
+     "rs_rating_pos_n",
+     "rs_nh_red_bars_ago"
+    ]
+   }
+  },
+  {
+   "starter": "starter_rs_nh_before_price",
+   "choices": {
+    "below": "p5"
+   },
+   "body": {
+    "filters": [
+     {
+      "key": "price",
+      "op": "gte",
+      "min": 10
+     },
+     {
+      "key": "dollar_vol_30d",
+      "op": "gte",
+      "min": 20000000
+     },
+     {
+      "key": "pct_vs_sma200",
+      "op": "gt",
+      "min": 0
+     },
+     {
+      "key": "rs_nhbp_age",
+      "op": "between",
+      "min": 0,
+      "max": 4
+     },
+     {
+      "key": "rs_flag",
+      "op": "not_in",
+      "values": [
+       "buyout_pending"
+      ]
+     },
+     {
+      "key": "security_type",
+      "op": "not_in",
+      "values": [
+       "ETF"
+      ]
+     },
+     {
+      "key": "px_below_high_pct",
+      "op": "between",
+      "min": -25,
+      "max": -5
+     }
+    ],
+    "sort": {
+     "key": "px_below_high_pct",
+     "dir": "desc",
+     "then": {
+      "key": "rs_rating_score",
+      "dir": "desc"
+     }
+    },
+    "view": "rs_before_price",
+    "page": 1,
+    "page_size": 100,
+    "columns": [
+     "ticker",
+     "company",
+     "price",
+     "chg_pct_1d",
+     "base_render",
+     "base_pivot_px",
+     "vol_ratio",
+     "rvol_live",
+     "rs_rank",
+     "market_cap",
+     "adr_pct",
+     "industry",
+     "sector",
+     "next_earnings_date",
+     "bars_asof",
+     "dollar_vol_30d",
+     "pct_vs_sma200",
+     "rs_nhbp_age",
+     "rs_flag",
+     "security_type",
+     "px_below_high_pct",
+     "rs_rating_session",
+     "rs_setup",
+     "rs_tight",
+     "rs_nh_bars_ago",
+     "rs_rating_pos",
+     "rs_rating_pos_n",
+     "rs_nh_red_bars_ago"
+    ]
+   }
+  },
+  {
+   "starter": "starter_rs_nh_before_price",
+   "choices": {
+    "below": "p10"
+   },
+   "body": {
+    "filters": [
+     {
+      "key": "price",
+      "op": "gte",
+      "min": 10
+     },
+     {
+      "key": "dollar_vol_30d",
+      "op": "gte",
+      "min": 20000000
+     },
+     {
+      "key": "pct_vs_sma200",
+      "op": "gt",
+      "min": 0
+     },
+     {
+      "key": "rs_nhbp_age",
+      "op": "between",
+      "min": 0,
+      "max": 4
+     },
+     {
+      "key": "rs_flag",
+      "op": "not_in",
+      "values": [
+       "buyout_pending"
+      ]
+     },
+     {
+      "key": "security_type",
+      "op": "not_in",
+      "values": [
+       "ETF"
+      ]
+     },
+     {
+      "key": "px_below_high_pct",
+      "op": "between",
+      "min": -25,
+      "max": -10
+     }
+    ],
+    "sort": {
+     "key": "px_below_high_pct",
+     "dir": "desc",
+     "then": {
+      "key": "rs_rating_score",
+      "dir": "desc"
+     }
+    },
+    "view": "rs_before_price",
+    "page": 1,
+    "page_size": 100,
+    "columns": [
+     "ticker",
+     "company",
+     "price",
+     "chg_pct_1d",
+     "base_render",
+     "base_pivot_px",
+     "vol_ratio",
+     "rvol_live",
+     "rs_rank",
+     "market_cap",
+     "adr_pct",
+     "industry",
+     "sector",
+     "next_earnings_date",
+     "bars_asof",
+     "dollar_vol_30d",
+     "pct_vs_sma200",
+     "rs_nhbp_age",
+     "rs_flag",
+     "security_type",
+     "px_below_high_pct",
+     "rs_rating_session",
+     "rs_setup",
+     "rs_tight",
+     "rs_nh_bars_ago",
+     "rs_rating_pos",
+     "rs_rating_pos_n",
+     "rs_nh_red_bars_ago"
+    ]
+   }
+  },
+  {
+   "starter": "starter_rs_nh_before_price",
+   "choices": {
+    "min": "r70"
+   },
+   "body": {
+    "filters": [
+     {
+      "key": "price",
+      "op": "gte",
+      "min": 10
+     },
+     {
+      "key": "dollar_vol_30d",
+      "op": "gte",
+      "min": 20000000
+     },
+     {
+      "key": "pct_vs_sma200",
+      "op": "gt",
+      "min": 0
+     },
+     {
+      "key": "rs_nhbp_age",
+      "op": "between",
+      "min": 0,
+      "max": 4
+     },
+     {
+      "key": "px_below_high_pct",
+      "op": "between",
+      "min": -25,
+      "max": -3
+     },
+     {
+      "key": "rs_flag",
+      "op": "not_in",
+      "values": [
+       "buyout_pending"
+      ]
+     },
+     {
+      "key": "security_type",
+      "op": "not_in",
+      "values": [
+       "ETF"
+      ]
+     },
+     {
+      "key": "rs_rank",
+      "op": "gte",
+      "min": 70
+     }
+    ],
+    "sort": {
+     "key": "px_below_high_pct",
+     "dir": "desc",
+     "then": {
+      "key": "rs_rating_score",
+      "dir": "desc"
+     }
+    },
+    "view": "rs_before_price",
+    "page": 1,
+    "page_size": 100,
+    "columns": [
+     "ticker",
+     "company",
+     "price",
+     "chg_pct_1d",
+     "base_render",
+     "base_pivot_px",
+     "vol_ratio",
+     "rvol_live",
+     "rs_rank",
+     "market_cap",
+     "adr_pct",
+     "industry",
+     "sector",
+     "next_earnings_date",
+     "bars_asof",
+     "dollar_vol_30d",
+     "pct_vs_sma200",
+     "rs_nhbp_age",
+     "px_below_high_pct",
+     "rs_flag",
+     "security_type",
+     "rs_rating_session",
+     "rs_setup",
+     "rs_tight",
+     "rs_nh_bars_ago",
+     "rs_rating_pos",
+     "rs_rating_pos_n",
+     "rs_nh_red_bars_ago"
+    ]
+   }
+  },
+  {
+   "starter": "starter_rs_nh_before_price",
+   "choices": {
+    "min": "r80"
+   },
+   "body": {
+    "filters": [
+     {
+      "key": "price",
+      "op": "gte",
+      "min": 10
+     },
+     {
+      "key": "dollar_vol_30d",
+      "op": "gte",
+      "min": 20000000
+     },
+     {
+      "key": "pct_vs_sma200",
+      "op": "gt",
+      "min": 0
+     },
+     {
+      "key": "rs_nhbp_age",
+      "op": "between",
+      "min": 0,
+      "max": 4
+     },
+     {
+      "key": "px_below_high_pct",
+      "op": "between",
+      "min": -25,
+      "max": -3
+     },
+     {
+      "key": "rs_flag",
+      "op": "not_in",
+      "values": [
+       "buyout_pending"
+      ]
+     },
+     {
+      "key": "security_type",
+      "op": "not_in",
+      "values": [
+       "ETF"
+      ]
+     },
+     {
+      "key": "rs_rank",
+      "op": "gte",
+      "min": 80
+     }
+    ],
+    "sort": {
+     "key": "px_below_high_pct",
+     "dir": "desc",
+     "then": {
+      "key": "rs_rating_score",
+      "dir": "desc"
+     }
+    },
+    "view": "rs_before_price",
+    "page": 1,
+    "page_size": 100,
+    "columns": [
+     "ticker",
+     "company",
+     "price",
+     "chg_pct_1d",
+     "base_render",
+     "base_pivot_px",
+     "vol_ratio",
+     "rvol_live",
+     "rs_rank",
+     "market_cap",
+     "adr_pct",
+     "industry",
+     "sector",
+     "next_earnings_date",
+     "bars_asof",
+     "dollar_vol_30d",
+     "pct_vs_sma200",
+     "rs_nhbp_age",
+     "px_below_high_pct",
+     "rs_flag",
+     "security_type",
+     "rs_rating_session",
+     "rs_setup",
+     "rs_tight",
+     "rs_nh_bars_ago",
+     "rs_rating_pos",
+     "rs_rating_pos_n",
+     "rs_nh_red_bars_ago"
+    ]
+   }
+  },
+  {
+   "starter": "starter_rs_leaders",
+   "choices": {},
+   "body": {
+    "filters": [
+     {
+      "key": "price",
+      "op": "gte",
+      "min": 10
+     },
+     {
+      "key": "dollar_vol_30d",
+      "op": "gte",
+      "min": 20000000
+     },
+     {
+      "key": "adr_pct",
+      "op": "gte",
+      "min": 3
+     },
+     {
+      "key": "market_cap",
+      "op": "gte",
+      "min": 300000000
+     },
+     {
+      "key": "rs_rank",
+      "op": "gte",
+      "min": 80
+     },
+     {
+      "key": "pct_vs_sma200",
+      "op": "gt",
+      "min": 0
+     },
+     {
+      "key": "sma200_rising",
+      "op": "eq",
+      "value": 1
+     },
+     {
+      "key": "dist_52w_high_pct",
+      "op": "gte",
+      "min": -25
+     },
+     {
+      "key": "rs_line_above_ma",
+      "op": "eq",
+      "value": 1
+     },
+     {
+      "key": "rs_flag",
+      "op": "not_in",
+      "values": [
+       "buyout_pending"
+      ]
+     },
+     {
+      "key": "security_type",
+      "op": "not_in",
+      "values": [
+       "ETF"
+      ]
+     }
+    ],
+    "sort": {
+     "key": "uct_composite",
+     "dir": "desc"
+    },
+    "view": "rs_leaders",
+    "rank": {
+     "criteria": [
+      {
+       "key": "rs_rating_score",
+       "weight": 1
+      }
+     ],
+     "top_n": 50
+    },
+    "page": 1,
+    "page_size": 100,
+    "columns": [
+     "ticker",
+     "company",
+     "price",
+     "chg_pct_1d",
+     "base_render",
+     "base_pivot_px",
+     "vol_ratio",
+     "rvol_live",
+     "rs_rank",
+     "market_cap",
+     "adr_pct",
+     "industry",
+     "sector",
+     "next_earnings_date",
+     "bars_asof",
+     "dollar_vol_30d",
+     "pct_vs_sma200",
+     "sma200_rising",
+     "dist_52w_high_pct",
+     "rs_line_above_ma",
+     "rs_flag",
+     "security_type",
+     "rs_rating_session",
+     "rs_setup",
+     "rs_tight",
+     "rs_nh_bars_ago",
+     "px_below_high_pct",
+     "rs_rating_pos",
+     "rs_rating_pos_n"
+    ]
+   }
+  },
+  {
+   "starter": "starter_rs_leaders",
+   "choices": {
+    "show": "near"
+   },
+   "body": {
+    "filters": [
+     {
+      "key": "price",
+      "op": "gte",
+      "min": 10
+     },
+     {
+      "key": "dollar_vol_30d",
+      "op": "gte",
+      "min": 20000000
+     },
+     {
+      "key": "adr_pct",
+      "op": "gte",
+      "min": 3
+     },
+     {
+      "key": "market_cap",
+      "op": "gte",
+      "min": 300000000
+     },
+     {
+      "key": "rs_rank",
+      "op": "gte",
+      "min": 80
+     },
+     {
+      "key": "pct_vs_sma200",
+      "op": "gt",
+      "min": 0
+     },
+     {
+      "key": "sma200_rising",
+      "op": "eq",
+      "value": 1
+     },
+     {
+      "key": "dist_52w_high_pct",
+      "op": "gte",
+      "min": -25
+     },
+     {
+      "key": "rs_line_above_ma",
+      "op": "eq",
+      "value": 1
+     },
+     {
+      "key": "rs_flag",
+      "op": "not_in",
+      "values": [
+       "buyout_pending"
+      ]
+     },
+     {
+      "key": "security_type",
+      "op": "not_in",
+      "values": [
+       "ETF"
+      ]
+     },
+     {
+      "key": "rs_near_buy",
+      "op": "eq",
+      "value": 1
+     }
+    ],
+    "sort": {
+     "key": "uct_composite",
+     "dir": "desc"
+    },
+    "view": "rs_leaders",
+    "rank": {
+     "criteria": [
+      {
+       "key": "rs_rating_score",
+       "weight": 1
+      }
+     ],
+     "top_n": 50
+    },
+    "page": 1,
+    "page_size": 100,
+    "columns": [
+     "ticker",
+     "company",
+     "price",
+     "chg_pct_1d",
+     "base_render",
+     "base_pivot_px",
+     "vol_ratio",
+     "rvol_live",
+     "rs_rank",
+     "market_cap",
+     "adr_pct",
+     "industry",
+     "sector",
+     "next_earnings_date",
+     "bars_asof",
+     "dollar_vol_30d",
+     "pct_vs_sma200",
+     "sma200_rising",
+     "dist_52w_high_pct",
+     "rs_line_above_ma",
+     "rs_flag",
+     "security_type",
+     "rs_near_buy",
+     "rs_rating_session",
+     "rs_setup",
+     "rs_tight",
+     "rs_nh_bars_ago",
+     "px_below_high_pct",
+     "rs_rating_pos",
+     "rs_rating_pos_n"
+    ]
+   }
+  },
+  {
+   "starter": "starter_rs_leaders",
+   "choices": {
+    "show": "noext"
+   },
+   "body": {
+    "filters": [
+     {
+      "key": "price",
+      "op": "gte",
+      "min": 10
+     },
+     {
+      "key": "dollar_vol_30d",
+      "op": "gte",
+      "min": 20000000
+     },
+     {
+      "key": "adr_pct",
+      "op": "gte",
+      "min": 3
+     },
+     {
+      "key": "market_cap",
+      "op": "gte",
+      "min": 300000000
+     },
+     {
+      "key": "rs_rank",
+      "op": "gte",
+      "min": 80
+     },
+     {
+      "key": "pct_vs_sma200",
+      "op": "gt",
+      "min": 0
+     },
+     {
+      "key": "sma200_rising",
+      "op": "eq",
+      "value": 1
+     },
+     {
+      "key": "dist_52w_high_pct",
+      "op": "gte",
+      "min": -25
+     },
+     {
+      "key": "rs_line_above_ma",
+      "op": "eq",
+      "value": 1
+     },
+     {
+      "key": "rs_flag",
+      "op": "not_in",
+      "values": [
+       "buyout_pending"
+      ]
+     },
+     {
+      "key": "security_type",
+      "op": "not_in",
+      "values": [
+       "ETF"
+      ]
+     },
+     {
+      "key": "rs_setup",
+      "op": "not_in",
+      "values": [
+       "extended",
+       "below_50"
+      ]
+     }
+    ],
+    "sort": {
+     "key": "uct_composite",
+     "dir": "desc"
+    },
+    "view": "rs_leaders",
+    "rank": {
+     "criteria": [
+      {
+       "key": "rs_rating_score",
+       "weight": 1
+      }
+     ],
+     "top_n": 50
+    },
+    "page": 1,
+    "page_size": 100,
+    "columns": [
+     "ticker",
+     "company",
+     "price",
+     "chg_pct_1d",
+     "base_render",
+     "base_pivot_px",
+     "vol_ratio",
+     "rvol_live",
+     "rs_rank",
+     "market_cap",
+     "adr_pct",
+     "industry",
+     "sector",
+     "next_earnings_date",
+     "bars_asof",
+     "dollar_vol_30d",
+     "pct_vs_sma200",
+     "sma200_rising",
+     "dist_52w_high_pct",
+     "rs_line_above_ma",
+     "rs_flag",
+     "security_type",
+     "rs_setup",
+     "rs_rating_session",
+     "rs_tight",
+     "rs_nh_bars_ago",
+     "px_below_high_pct",
+     "rs_rating_pos",
+     "rs_rating_pos_n"
+    ]
+   }
+  },
+  {
+   "starter": "starter_rs_leaders",
+   "choices": {
+    "min": "r85"
+   },
+   "body": {
+    "filters": [
+     {
+      "key": "price",
+      "op": "gte",
+      "min": 10
+     },
+     {
+      "key": "dollar_vol_30d",
+      "op": "gte",
+      "min": 20000000
+     },
+     {
+      "key": "adr_pct",
+      "op": "gte",
+      "min": 3
+     },
+     {
+      "key": "market_cap",
+      "op": "gte",
+      "min": 300000000
+     },
+     {
+      "key": "pct_vs_sma200",
+      "op": "gt",
+      "min": 0
+     },
+     {
+      "key": "sma200_rising",
+      "op": "eq",
+      "value": 1
+     },
+     {
+      "key": "dist_52w_high_pct",
+      "op": "gte",
+      "min": -25
+     },
+     {
+      "key": "rs_line_above_ma",
+      "op": "eq",
+      "value": 1
+     },
+     {
+      "key": "rs_flag",
+      "op": "not_in",
+      "values": [
+       "buyout_pending"
+      ]
+     },
+     {
+      "key": "security_type",
+      "op": "not_in",
+      "values": [
+       "ETF"
+      ]
+     },
+     {
+      "key": "rs_rank",
+      "op": "gte",
+      "min": 85
+     }
+    ],
+    "sort": {
+     "key": "uct_composite",
+     "dir": "desc"
+    },
+    "view": "rs_leaders",
+    "rank": {
+     "criteria": [
+      {
+       "key": "rs_rating_score",
+       "weight": 1
+      }
+     ],
+     "top_n": 50
+    },
+    "page": 1,
+    "page_size": 100,
+    "columns": [
+     "ticker",
+     "company",
+     "price",
+     "chg_pct_1d",
+     "base_render",
+     "base_pivot_px",
+     "vol_ratio",
+     "rvol_live",
+     "rs_rank",
+     "market_cap",
+     "adr_pct",
+     "industry",
+     "sector",
+     "next_earnings_date",
+     "bars_asof",
+     "dollar_vol_30d",
+     "pct_vs_sma200",
+     "sma200_rising",
+     "dist_52w_high_pct",
+     "rs_line_above_ma",
+     "rs_flag",
+     "security_type",
+     "rs_rating_session",
+     "rs_setup",
+     "rs_tight",
+     "rs_nh_bars_ago",
+     "px_below_high_pct",
+     "rs_rating_pos",
+     "rs_rating_pos_n"
+    ]
+   }
+  },
+  {
+   "starter": "starter_rs_leaders",
+   "choices": {
+    "min": "r90"
+   },
+   "body": {
+    "filters": [
+     {
+      "key": "price",
+      "op": "gte",
+      "min": 10
+     },
+     {
+      "key": "dollar_vol_30d",
+      "op": "gte",
+      "min": 20000000
+     },
+     {
+      "key": "adr_pct",
+      "op": "gte",
+      "min": 3
+     },
+     {
+      "key": "market_cap",
+      "op": "gte",
+      "min": 300000000
+     },
+     {
+      "key": "pct_vs_sma200",
+      "op": "gt",
+      "min": 0
+     },
+     {
+      "key": "sma200_rising",
+      "op": "eq",
+      "value": 1
+     },
+     {
+      "key": "dist_52w_high_pct",
+      "op": "gte",
+      "min": -25
+     },
+     {
+      "key": "rs_line_above_ma",
+      "op": "eq",
+      "value": 1
+     },
+     {
+      "key": "rs_flag",
+      "op": "not_in",
+      "values": [
+       "buyout_pending"
+      ]
+     },
+     {
+      "key": "security_type",
+      "op": "not_in",
+      "values": [
+       "ETF"
+      ]
+     },
+     {
+      "key": "rs_rank",
+      "op": "gte",
+      "min": 90
+     }
+    ],
+    "sort": {
+     "key": "uct_composite",
+     "dir": "desc"
+    },
+    "view": "rs_leaders",
+    "rank": {
+     "criteria": [
+      {
+       "key": "rs_rating_score",
+       "weight": 1
+      }
+     ],
+     "top_n": 50
+    },
+    "page": 1,
+    "page_size": 100,
+    "columns": [
+     "ticker",
+     "company",
+     "price",
+     "chg_pct_1d",
+     "base_render",
+     "base_pivot_px",
+     "vol_ratio",
+     "rvol_live",
+     "rs_rank",
+     "market_cap",
+     "adr_pct",
+     "industry",
+     "sector",
+     "next_earnings_date",
+     "bars_asof",
+     "dollar_vol_30d",
+     "pct_vs_sma200",
+     "sma200_rising",
+     "dist_52w_high_pct",
+     "rs_line_above_ma",
+     "rs_flag",
+     "security_type",
+     "rs_rating_session",
+     "rs_setup",
+     "rs_tight",
+     "rs_nh_bars_ago",
+     "px_below_high_pct",
+     "rs_rating_pos",
+     "rs_rating_pos_n"
+    ]
+   }
+  },
+  {
+   "starter": "starter_rs_leaders",
+   "choices": {
+    "min": "r95"
+   },
+   "body": {
+    "filters": [
+     {
+      "key": "price",
+      "op": "gte",
+      "min": 10
+     },
+     {
+      "key": "dollar_vol_30d",
+      "op": "gte",
+      "min": 20000000
+     },
+     {
+      "key": "adr_pct",
+      "op": "gte",
+      "min": 3
+     },
+     {
+      "key": "market_cap",
+      "op": "gte",
+      "min": 300000000
+     },
+     {
+      "key": "pct_vs_sma200",
+      "op": "gt",
+      "min": 0
+     },
+     {
+      "key": "sma200_rising",
+      "op": "eq",
+      "value": 1
+     },
+     {
+      "key": "dist_52w_high_pct",
+      "op": "gte",
+      "min": -25
+     },
+     {
+      "key": "rs_line_above_ma",
+      "op": "eq",
+      "value": 1
+     },
+     {
+      "key": "rs_flag",
+      "op": "not_in",
+      "values": [
+       "buyout_pending"
+      ]
+     },
+     {
+      "key": "security_type",
+      "op": "not_in",
+      "values": [
+       "ETF"
+      ]
+     },
+     {
+      "key": "rs_rank",
+      "op": "gte",
+      "min": 95
+     }
+    ],
+    "sort": {
+     "key": "uct_composite",
+     "dir": "desc"
+    },
+    "view": "rs_leaders",
+    "rank": {
+     "criteria": [
+      {
+       "key": "rs_rating_score",
+       "weight": 1
+      }
+     ],
+     "top_n": 50
+    },
+    "page": 1,
+    "page_size": 100,
+    "columns": [
+     "ticker",
+     "company",
+     "price",
+     "chg_pct_1d",
+     "base_render",
+     "base_pivot_px",
+     "vol_ratio",
+     "rvol_live",
+     "rs_rank",
+     "market_cap",
+     "adr_pct",
+     "industry",
+     "sector",
+     "next_earnings_date",
+     "bars_asof",
+     "dollar_vol_30d",
+     "pct_vs_sma200",
+     "sma200_rising",
+     "dist_52w_high_pct",
+     "rs_line_above_ma",
+     "rs_flag",
+     "security_type",
+     "rs_rating_session",
+     "rs_setup",
+     "rs_tight",
+     "rs_nh_bars_ago",
+     "px_below_high_pct",
+     "rs_rating_pos",
+     "rs_rating_pos_n"
+    ]
+   }
+  },
+  {
+   "starter": "starter_rs_exit_warning_5",
+   "choices": {},
+   "body": {
+    "filters": [
+     {
+      "key": "rs_exit_bars_ago",
+      "op": "between",
+      "min": 0,
+      "max": 4
+     },
+     {
+      "key": "price",
+      "op": "gte",
+      "min": 10
+     },
+     {
+      "key": "dollar_vol_30d",
+      "op": "gte",
+      "min": 20000000
+     },
+     {
+      "key": "security_type",
+      "op": "not_in",
+      "values": [
+       "ETF"
+      ]
+     }
+    ],
+    "sort": {
+     "key": "rs_exit_bars_ago",
+     "dir": "asc"
+    },
+    "view": "relative_strength",
+    "page": 1,
+    "page_size": 100,
+    "columns": [
+     "ticker",
+     "company",
+     "price",
+     "chg_pct_1d",
+     "base_render",
+     "base_pivot_px",
+     "vol_ratio",
+     "rvol_live",
+     "rs_rank",
+     "market_cap",
+     "adr_pct",
+     "industry",
+     "sector",
+     "next_earnings_date",
+     "bars_asof",
+     "rs_exit_bars_ago",
+     "dollar_vol_30d",
+     "security_type",
+     "rs_rating_session",
+     "rs_setup",
+     "rs_tight",
+     "rs_nh_bars_ago",
+     "px_below_high_pct",
+     "rs_rating_pos",
+     "rs_rating_pos_n",
+     "rs_exit_last"
+    ]
+   }
+  },
+  {
+   "starter": "starter_rs_exit_warning_5",
+   "choices": {
+    "type": "quick_break"
+   },
+   "body": {
+    "filters": [
+     {
+      "key": "rs_exit_bars_ago",
+      "op": "between",
+      "min": 0,
+      "max": 4
+     },
+     {
+      "key": "price",
+      "op": "gte",
+      "min": 10
+     },
+     {
+      "key": "dollar_vol_30d",
+      "op": "gte",
+      "min": 20000000
+     },
+     {
+      "key": "security_type",
+      "op": "not_in",
+      "values": [
+       "ETF"
+      ]
+     },
+     {
+      "key": "rs_exit_last",
+      "op": "eq",
+      "value": "Quick Break"
+     }
+    ],
+    "sort": {
+     "key": "rs_exit_bars_ago",
+     "dir": "asc"
+    },
+    "view": "relative_strength",
+    "page": 1,
+    "page_size": 100,
+    "columns": [
+     "ticker",
+     "company",
+     "price",
+     "chg_pct_1d",
+     "base_render",
+     "base_pivot_px",
+     "vol_ratio",
+     "rvol_live",
+     "rs_rank",
+     "market_cap",
+     "adr_pct",
+     "industry",
+     "sector",
+     "next_earnings_date",
+     "bars_asof",
+     "rs_exit_bars_ago",
+     "dollar_vol_30d",
+     "security_type",
+     "rs_exit_last",
+     "rs_rating_session",
+     "rs_setup",
+     "rs_tight",
+     "rs_nh_bars_ago",
+     "px_below_high_pct",
+     "rs_rating_pos",
+     "rs_rating_pos_n"
+    ]
+   }
+  },
+  {
+   "starter": "starter_rs_exit_warning_5",
+   "choices": {
+    "type": "quicksand"
+   },
+   "body": {
+    "filters": [
+     {
+      "key": "rs_exit_bars_ago",
+      "op": "between",
+      "min": 0,
+      "max": 4
+     },
+     {
+      "key": "price",
+      "op": "gte",
+      "min": 10
+     },
+     {
+      "key": "dollar_vol_30d",
+      "op": "gte",
+      "min": 20000000
+     },
+     {
+      "key": "security_type",
+      "op": "not_in",
+      "values": [
+       "ETF"
+      ]
+     },
+     {
+      "key": "rs_exit_last",
+      "op": "eq",
+      "value": "Quicksand"
+     }
+    ],
+    "sort": {
+     "key": "rs_exit_bars_ago",
+     "dir": "asc"
+    },
+    "view": "relative_strength",
+    "page": 1,
+    "page_size": 100,
+    "columns": [
+     "ticker",
+     "company",
+     "price",
+     "chg_pct_1d",
+     "base_render",
+     "base_pivot_px",
+     "vol_ratio",
+     "rvol_live",
+     "rs_rank",
+     "market_cap",
+     "adr_pct",
+     "industry",
+     "sector",
+     "next_earnings_date",
+     "bars_asof",
+     "rs_exit_bars_ago",
+     "dollar_vol_30d",
+     "security_type",
+     "rs_exit_last",
+     "rs_rating_session",
+     "rs_setup",
+     "rs_tight",
+     "rs_nh_bars_ago",
+     "px_below_high_pct",
+     "rs_rating_pos",
+     "rs_rating_pos_n"
+    ]
+   }
+  },
+  {
+   "starter": "starter_rs_exit_warning_5",
+   "choices": {
+    "type": "grateful_dead_break"
+   },
+   "body": {
+    "filters": [
+     {
+      "key": "rs_exit_bars_ago",
+      "op": "between",
+      "min": 0,
+      "max": 4
+     },
+     {
+      "key": "price",
+      "op": "gte",
+      "min": 10
+     },
+     {
+      "key": "dollar_vol_30d",
+      "op": "gte",
+      "min": 20000000
+     },
+     {
+      "key": "security_type",
+      "op": "not_in",
+      "values": [
+       "ETF"
+      ]
+     },
+     {
+      "key": "rs_exit_last",
+      "op": "eq",
+      "value": "Grateful Dead Break"
+     }
+    ],
+    "sort": {
+     "key": "rs_exit_bars_ago",
+     "dir": "asc"
+    },
+    "view": "relative_strength",
+    "page": 1,
+    "page_size": 100,
+    "columns": [
+     "ticker",
+     "company",
+     "price",
+     "chg_pct_1d",
+     "base_render",
+     "base_pivot_px",
+     "vol_ratio",
+     "rvol_live",
+     "rs_rank",
+     "market_cap",
+     "adr_pct",
+     "industry",
+     "sector",
+     "next_earnings_date",
+     "bars_asof",
+     "rs_exit_bars_ago",
+     "dollar_vol_30d",
+     "security_type",
+     "rs_exit_last",
+     "rs_rating_session",
+     "rs_setup",
+     "rs_tight",
+     "rs_nh_bars_ago",
+     "px_below_high_pct",
+     "rs_rating_pos",
+     "rs_rating_pos_n"
+    ]
+   }
+  }
+ ]
+}
