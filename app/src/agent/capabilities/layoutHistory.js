@@ -238,7 +238,7 @@ export function registerLayoutHistoryCapabilities() {
       const n = Math.max(1, Math.min(SHOW_MAX, Math.trunc(Number(args?.count) || SHOW_DEFAULT)))
       const rows = all.slice(0, n).map((v, i) => `Version ${v.version} — ${etStamp(v.createdAt)} · ${sourceLabel({ source: v.source, restored_from: v.restoredFrom })}${i === 0 ? ' (current)' : ''}`)
       const more = all.length > n ? `\n…and ${plural(all.length - n, 'older version')}.` : ''
-      return `${rows.join('\n')}${more}\nI can restore one of these (I'll show you what it changes first). Restoring adds it back as a new version; nothing is deleted.`
+      return `${rows.join('\n')}${more}\nI can restore one of these (I'll show you what it changes first). Restoring adds it back as a new version, and the one you have now is still in Version history.`
     },
   })
 
@@ -284,7 +284,7 @@ export function registerLayoutHistoryCapabilities() {
       if (!w) return null
       const changes = w.changes.map(keyLabel).join(', ')
       const kept = w.kept.length ? `; kept as they are now: ${w.kept.map(keyLabel).join(', ')}` : ''
-      return `Restored your board to ${verLabel({ version: w.version, createdAt: w.createdAt, source: w.source, restoredFrom: w.restoredFrom })} — changes ${changes}${kept}. Version ${w.base} (your board before this) stays in the history`
+      return `Restored your board to ${verLabel({ version: w.version, createdAt: w.createdAt, source: w.source, restoredFrom: w.restoredFrom })} — changes ${changes}${kept}. Version ${w.base} (your board before this) is still in Version history`
     },
   })
 }

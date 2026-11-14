@@ -109,7 +109,7 @@ describe('layoutHistory.restore — the panel\'s own restore, read back from the
     expect(p.ok).toBe(true)
     expect(planShape(p).confirm).toBe(true)
     expect(getCapability('layoutHistory.restore').exclusive).toBe(true)
-    expect(p.lines[0]).toMatch(/^Restored your board to version 3 \(Nov 13, 3:30 PM ET, board saved\) — changes Chart settings, Board layout\. Version 4 \(your board before this\) stays in the history$/)
+    expect(p.lines[0]).toMatch(/^Restored your board to version 3 \(Nov 13, 3:30 PM ET, board saved\) — changes Chart settings, Board layout\. Version 4 \(your board before this\) is still in Version history$/)
     const res = await commitPlan(h, p, { env })
     expect(res.ok).toBe(true)
     expect(sv.calls.restore).toEqual([{ version: 3, base_version: 4, board: 'charts' }])
@@ -295,7 +295,7 @@ describe('layoutHistory.list — answered from the server', () => {
       'Version 3 — Nov 13, 3:30 PM ET · Board saved',
     ])
     expect(out).toMatch(/…and 2 older versions\./)
-    expect(out).toMatch(/nothing is deleted/)
+    expect(out).toMatch(/the one you have now is still in Version history/)
     expect(sv.calls.restore).toEqual([])
     const d = host({ dark: true })
     expect(await cap.answer(collectTargets(d.h, ['layoutHistory']).get('boardVersions').snap, { count: null }, d.h)).toBe(HISTORY_DARK)
@@ -419,5 +419,47 @@ describe('beforeMoment: New York wall clock', () => {
     expect(beforeMoment('2026-07-01T09:30')).toBe(ET('2026-07-01T13:30:59Z'))
     expect(beforeMoment('yesterday')).toBe(null)
     expect(beforeMoment('2026-13-01')).toBe(null)
+  })
+})
+
+// AUDIT #1248 wording condition: retention may prune an old version (30 days AND outside the newest 200), so no receipt,
+// Undo note, refusal, summary or discovery line may promise a version stays restorable indefinitely
+describe('wording: nothing promises a version stays restorable forever', () => {
+  const PROMISE = /\b(?:always|forever|permanent(?:ly)?|any ?time|indefinitely|never (?:be )?(?:lost|deleted|removed|pruned)|nothing (?:is |was |gets )?(?:ever )?deleted|for good|guaranteed?)\b/i
+  it('the source strings of layoutHistory.js (comments stripped), its manifest entries and the discovery line', () => {
+    const src = readFileSync(resolve(__dirname, 'capabilities/layoutHistory.js'), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '').split('\n').map(l => l.replace(/^\s*\/\/.*$/, '').replace(/\s\/\/ .*$/, '')).join('\n')
+    const literals = [...src.matchAll(/'(?:[^'\\n]|\.)*'|`(?:[^`\]|\.)*`/g)].map(m => m[0])
+    expect(literals.length).toBeGreaterThan(20)
+    for (const s of literals) expect(s, s).not.toMatch(PROMISE)
+    for (const n of ['layoutHistory.list', 'layoutHistory.restore']) {
+      const c = getCapability(n)
+      for (const s of [c.summary, c.hints, c.undoNote, c.exclusiveReason].filter(Boolean)) expect(s, n).not.toMatch(PROMISE)
+    }
+    const disc = readFileSync(resolve(__dirname, 'discovery.js'), 'utf8').split('\n').find(l => l.includes("'layoutHistory.restore'") || l.includes('Version history'))
+    expect(disc).toBeTruthy()
+    expect(disc).not.toMatch(PROMISE)
+  })
+  it('every sentence a run produces: proposal / receipt, list answer, Undo and refusals', async () => {
+    const out = []
+    const { h, sv } = host()
+    const ok = await plan(h, [restore({ stepsBack: 1 })])
+    out.push(...ok.p.lines)
+    const res = await commitPlan(h, ok.p, { env: ok.env })
+    out.push(...(res.lines || []))
+    const u = await undoEntry(h, res.undo)
+    out.push(...(u.lines || []), u.reason || '')
+    for (const args of [{}, { version: 99 }, { stepsBack: 50 }, { before: '2026-01-01' }, { version: max(sv) }]) out.push(...(await plan(h, [restore(args)])).p.refusals.map(r => r.reason))
+    const snap = collectTargets(h, ['layoutHistory']).get('boardVersions').snap
+    out.push(await getCapability('layoutHistory.list').answer(snap, { count: null }, h))
+    out.push(HISTORY_DARK, HISTORY_NOT_HERE)
+    expect(out.filter(Boolean).length).toBeGreaterThan(8)
+    for (const s of out.filter(Boolean)) expect(s, s).not.toMatch(PROMISE)
+    expect(out.join('\n')).toMatch(/is still in Version history/)          // the accepted wording is what it says instead
+  })
+  const max = (sv) => sv.head().version
+  it('CONTROL: the check sees a promise', () => {
+    for (const s of ['You can always restore it.', 'kept forever', 'nothing is deleted', 'restore it any time', 'it is permanently saved']) expect(s).toMatch(PROMISE)
+    expect('The earlier version is still in Version history.').not.toMatch(PROMISE)
   })
 })
