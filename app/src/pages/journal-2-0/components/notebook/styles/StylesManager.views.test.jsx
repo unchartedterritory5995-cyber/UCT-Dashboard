@@ -343,6 +343,32 @@ describe('the manager is the one room: its views', () => {
     await waitFor(() => expect(tab('Recently deleted')).toHaveFocus())
   })
 
+  it('(final M4) closed on Archived, a plain reopen starts on Active and never reads the Archived list again', async () => {
+    const onClose = vi.fn()
+    const { rerender } = render(tree({ onClose, show: 'archived', showKey: 1 }))
+    expect(await screen.findByRole('heading', { name: '1 archived' })).toBeInTheDocument()
+    expect(sent('GET', 'journal-styles?view=archived')).toHaveLength(1)
+    fireEvent.click(screen.getAllByRole('button', { name: 'Close' })[0])
+    expect(onClose).toHaveBeenCalledTimes(1)
+    rerender(tree({ onClose, open: false, show: 'archived', showKey: 1 }))
+    // the More menu's "Manage templates": no place, a new ask
+    rerender(tree({ onClose, open: true, show: null, showKey: 2 }))
+    expect(within(await kindSection('Daily prep')).getByText('Morning prep')).toBeInTheDocument()
+    expect(tab('Active')).toHaveAttribute('aria-selected', 'true')
+    expect(sent('GET', 'journal-styles?view=archived')).toHaveLength(1)           // not mounted again for one render
+  })
+
+  it('(final M4) CONTROL: a reopen that names a view (`?styles=1&show=deleted`, a new ask) still opens on it', async () => {
+    const onClose = vi.fn()
+    const { rerender } = render(tree({ onClose, show: 'archived', showKey: 1 }))
+    await screen.findByRole('heading', { name: '1 archived' })
+    fireEvent.click(screen.getAllByRole('button', { name: 'Close' })[0])
+    rerender(tree({ onClose, open: false, show: 'archived', showKey: 1 }))
+    rerender(tree({ onClose, open: true, show: 'deleted', showKey: 2 }))
+    expect(await screen.findByRole('heading', { name: '1 recently deleted' })).toBeInTheDocument()
+    expect(tab('Recently deleted')).toHaveAttribute('aria-selected', 'true')
+  })
+
   it('(1) CONTROL: a KNOWN zero archives at once, as before (no panel, no extra read)', async () => {
     open()
     const row = await activeRow('Gap plan')

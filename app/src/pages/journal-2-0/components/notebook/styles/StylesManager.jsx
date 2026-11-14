@@ -291,6 +291,9 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [], show
   const finish = () => {
     setUndo(null); setStatus(''); setProblem(''); setKindProblem(''); setEditing(null); setConfirmDiscard(null); setConfirmKind(null)
     setAside(null); setAsideError('')
+    // Final fix M4: the next opening starts on Active (a `show` it carries is applied by the opening's own effect), so
+    // a view the member closed on is never mounted again for one render (with its list read).
+    setView('live')
     starter.reset()
     onClose()
   }
