@@ -592,7 +592,10 @@ def adopt_clustered_store(data_dir: Optional[str] = None) -> str:
     except Exception as e:  # noqa: BLE001
         _log_once("probe", f"[data_sync] adopt-clustered: local probe failed: {e}")
         return "failed"
-    if not in_quiet_window():
+    if not in_quiet_window() and os.environ.get("BARS_ADOPT_IGNORE_WINDOW") != "1":
+        # ⭐ BARS_ADOPT_IGNORE_WINDOW=1 (owner-requested override, 2026-11-13): adopt outside the
+        # quiet window. Every other gate (clustered tag, disk, integrity, row ratio, the locked
+        # pass-2 budget) still applies. Unset it after the adoption.
         return "not-quiet"                    # retried at the next boot / pull in a window
     client, bucket = _client(), _bucket()
     ts = get_latest_snapshot_ts() if (client and bucket) else None

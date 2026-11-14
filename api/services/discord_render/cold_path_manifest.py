@@ -32,6 +32,21 @@ DEFAULT_MANIFEST_PATH = (
     / "docs" / "discord-render" / "evidence" / "cold-paths" / "preload-manifest.json"
 )
 
+_REPO_ROOT = pathlib.Path(__file__).resolve().parents[3]
+
+
+def module_present(name: str, root: pathlib.Path | None = None) -> bool:
+    """Does this repo still ship module `name`? Read from the FILE TREE, never by importing (this
+    runs at boot, before the preload thread). The manifest is evidence from a past scan: a module
+    archived after it (2026-11-04, `...note_connectors.convert.onenote_html`) stays listed and its
+    preload raised ModuleNotFoundError on every boot. A name outside `api.` is not ours to judge
+    and is kept."""
+    if not name.startswith("api."):
+        return True
+    base = (root or _REPO_ROOT).joinpath(*name.split("."))
+    return base.with_suffix(".py").is_file() or (base / "__init__.py").is_file()
+
+
 #: ⭐ Below this, boot-time preload machinery (a thread, a Future, a registry entry) plausibly
 #: costs more than the import it is saving. Not tuned from a formula — R63(a)'s own findings
 #: named modules from a few ms up into the thousands; 50 ms is the point past which "the member

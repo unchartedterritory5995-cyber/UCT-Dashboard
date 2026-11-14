@@ -203,6 +203,11 @@ def _quote(sym: str, today: str, live: dict | None) -> dict[str, Any]:
 
 
 def _live_ticks(symbols: list[str]) -> dict[str, dict]:
+    # ONE-SHOT get_last_price READ (bar_broadcaster.get_last_price FRESHNESS CONTRACT):
+    # one read inside one request, so registering interest here would subscribe and
+    # release before a tick could land. The tick is best-effort (per-trade only when
+    # another consumer holds the symbol, else up to a minute old) and is labelled with
+    # its minute (`asOf`); the stored close is the fallback.
     out: dict[str, dict] = {}
     try:
         from api.services import bar_broadcaster
