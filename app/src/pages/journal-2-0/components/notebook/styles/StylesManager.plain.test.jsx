@@ -255,6 +255,29 @@ describe('Manage templates: the Plain templates group', () => {
     await swrMutate(() => true, undefined, { revalidate: false })
   })
 
+  it('(final M2) deleting a plain template that is NOT the last one puts focus on the group heading', async () => {
+    render(tree())
+    await group()
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete Morning plan' }))
+    fireEvent.click(within(screen.getByRole('group', { name: 'Delete Morning plan?' })).getByRole('button', { name: 'Delete' }))
+    await screen.findByText('Deleted “Morning plan”. Notes made from it are unchanged.')
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Plain templates', level: 3 })).toHaveFocus())
+    expect(sent('DELETE', '/api/j2/note-templates/t1')).toHaveLength(1)        // what is sent is unchanged
+  })
+
+  it("(final M2) Rename's Save and Cancel put focus back on that row's Rename button", async () => {
+    render(tree())
+    await group()
+    fireEvent.click(await screen.findByRole('button', { name: 'Rename Weekly wrap' }))
+    fireEvent.click(within(item('Weekly wrap')).getByRole('button', { name: 'Cancel' }))
+    await waitFor(() => expect(within(item('Weekly wrap')).getByRole('button', { name: 'Rename Weekly wrap' })).toHaveFocus())
+    fireEvent.click(within(item('Morning plan')).getByRole('button', { name: 'Rename Morning plan' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'New name for Morning plan' }), { target: { value: 'Opening plan' } })
+    fireEvent.click(within(item('Morning plan')).getByRole('button', { name: 'Save' }))
+    await screen.findByText('Renamed to “Opening plan”.')
+    await waitFor(() => expect(within(item('Morning plan')).getByRole('button', { name: /^Rename / })).toHaveFocus())
+  })
+
   it('(2g) closing after the opener went away (a link in the New note sheet) puts focus on "+ New", not the page', async () => {
     const page = document.createElement('div')
     page.innerHTML = '<button type="button" data-start-note="">+ New</button><button type="button" id="opener">Manage</button>'

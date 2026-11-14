@@ -88,6 +88,16 @@ function PlainRows({ templates, manage = false, asCards = true, onPick, onPrevie
   const galleryOn = templateGalleryEnabled()
   const { prefs, setPref } = usePreferences()
   const dailyId = prefs?.[DAILY_TEMPLATE_PREF] || ''
+  // Final fix M2: Rename's Save or Cancel takes its form (and the focused field or button) away; focus goes back to
+  // that row's Rename button once it is drawn again, never to <body>.
+  const gridRef = useRef(null)
+  const renameBack = useRef(null)
+  useEffect(() => {
+    const id = renameBack.current
+    if (!id) return
+    const b = [...(gridRef.current?.querySelectorAll('[data-rename-for]') || [])].find((x) => x.dataset.renameFor === id)
+    if (b) { renameBack.current = null; b.focus() }
+  })
 
   const submitRename = async (e) => {
     e.preventDefault()
@@ -96,6 +106,7 @@ function PlainRows({ templates, manage = false, asCards = true, onPick, onPrevie
     say(null)
     try {
       const t = await renameMemberTemplate(renaming.id, renaming.draft)
+      renameBack.current = renaming.id
       setRenaming(null)
       say({ tone: 'ok', text: `Renamed to “${t.name}”.` })
     } catch (err) {
@@ -125,7 +136,7 @@ function PlainRows({ templates, manage = false, asCards = true, onPick, onPrevie
   }
 
   return (
-    <div className={styles.grid}>
+    <div className={styles.grid} ref={gridRef}>
       {templates.map((t) => (
         <div key={t.id} className={styles.memberItem} data-plain-template={t.id}>
           {renaming?.id === t.id ? (
@@ -139,7 +150,7 @@ function PlainRows({ templates, manage = false, asCards = true, onPick, onPrevie
                 autoFocus
               />
               <button type="submit" className={styles.miniBtn} disabled={working}>Save</button>
-              <button type="button" className={styles.miniBtn} onClick={() => setRenaming(null)}>Cancel</button>
+              <button type="button" className={styles.miniBtn} onClick={() => { renameBack.current = t.id; setRenaming(null) }}>Cancel</button>
             </form>
           ) : !asCards ? (
             <span className={styles.memberName}>
@@ -188,7 +199,7 @@ function PlainRows({ templates, manage = false, asCards = true, onPick, onPrevie
                 <>
                   <button type="button" className={styles.miniBtn}
                     onClick={() => { setConfirmDelete(null); setSharing(null); setRenaming({ id: t.id, draft: t.name }) }}
-                    aria-label={`Rename ${t.name}`}>
+                    aria-label={`Rename ${t.name}`} data-rename-for={t.id}>
                     Rename
                   </button>
                   <button type="button" className={styles.miniBtn}
@@ -272,7 +283,8 @@ export function PlainTemplatesManage({ onUse = null, busy = false, focusAsk = nu
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [target, isLoading, focusAsk?.n])
   // Fix round 1 (2b): the last delete takes its row away; focus goes to the group's heading (the line stays above).
-  const afterDelete = () => { if (templates.length <= 1) headRef.current?.focus() }
+  // Final fix M2: any delete does (the confirm that held focus is gone with its row), not only the last one.
+  const afterDelete = () => { headRef.current?.focus() }
   return (
     <section className={classes.section} aria-labelledby="js-plain-templates" data-plain-templates="">
       <h3 id="js-plain-templates" ref={headRef} tabIndex={-1} className={classes.head}>{PLAIN_COPY.title}</h3>
