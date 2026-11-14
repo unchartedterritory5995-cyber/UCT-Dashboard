@@ -1989,6 +1989,24 @@ RS_SCREENS_KEYS = (
 #: is the one it was.
 RS_SCREENS_VIEWS = ("rs_top_rating", "rs_new_highs", "rs_before_price", "rs_leaders")
 
+#: THE SHADOW FAMILY (RS screens unit U9, 2026-11-14): the Leader score, its four
+#: parts and its two bar inputs. Computed nightly and SHOWN TO NOBODY until the score
+#: passes its pre-registered test (plan section 8, owner decision D1).
+#:
+#: ⛔ NEVER LIT, AND NOT REGISTERED: none of these is a key of `FILTERS`, a column of
+#: `screener_rows` or a column of a view, and no flag changes that. `rs_dark_keys`
+#: can only hide a CONTROL: a scan answers `SELECT *` (`query.build_scan_sql`), so a
+#: value stored on the row reaches every member whatever `meta()` lists. The values
+#: live in `rs_leader_shadow`'s side tables under these same names.
+#: `tests/test_rs_screens_u9_unseen.py` holds every name out of every member payload,
+#: for every flag combination. A later unit that shows the score moves a name OUT of
+#: this tuple in the same change that registers it; it never registers one that is here.
+RS_SHADOW_KEYS = (
+    "rs_steady", "rs_line_below_high_pct",                       # the two bar inputs
+    "rs_leader_score",                                           # the score
+    "rs_ls_strength", "rs_ls_steady", "rs_ls_high", "rs_ls_group",   # its four parts
+)
+
 #: S1 (2026-11-10): RS columns that stay COMPUTED, FILTERABLE and valid inside
 #: every saved screen but are no longer OFFERED in the column picker or the
 #: Relative Strength rail. `rs_rating_chg_5` and `rs_benchmark_agree` always;

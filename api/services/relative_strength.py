@@ -1501,3 +1501,64 @@ def close_below_high_pct_last(closes: Column, window: int = DEFAULT_LOOKBACK) ->
         if not _is_num(c) or c <= 0:
             return None
     return (seg[-1] / max(seg) - 1.0) * 100.0
+
+
+# ── The Leader score's "Steady" input (RS screens unit U9, 2026-11-14) ───────
+#
+# Plan 2026-11-14 v2, section 8: "Steady: sign(return) x (share of up days - share
+# of down days) over days t-252 to t-21". It is Da, Gurun and Warachka (2014),
+# "Frog in the Pan", with the sign flipped so that HIGHER IS SMOOTHER: their
+# information discreteness is sign(PRET) x (%negative - %positive), and a low
+# value is the steady climb. Read by the shadow Leader score only
+# (`screener.rs_leader_score`); nothing a member sees reads it.
+
+#: The window's far end: the close this many sessions before the newest.
+STEADY_FAR = DEFAULT_LOOKBACK
+#: ... and its near end. The newest 21 sessions are left out, as in the paper's
+#: formation window (the last month is a reversal effect, not a continuation one).
+STEADY_NEAR = 21
+#: Closes the window must hold. A stock listed under a year ago is measured over
+#: the part of the window it has, down to half a year; below that there is no value.
+#: Written as half the lookback, not as its literal: that number beside 63 in one
+#: module is the RS weighting table's fingerprint (`test_single_authority_rails`).
+STEADY_MIN_SESSIONS = DEFAULT_LOOKBACK // 2
+
+
+def steady_last(closes: Column, far: int = STEADY_FAR, near: int = STEADY_NEAR,
+                min_sessions: int = STEADY_MIN_SESSIONS) -> MaybeNum:
+    """``sign(PRET) x (share of up days - share of down days)`` for the newest bar.
+
+    The window is the closes from ``far`` sessions before the newest to ``near``
+    sessions before it, both ends included (``C[t-far] .. C[t-near]``), cut at the
+    first close held when the series is shorter. ``PRET`` is the close-to-close
+    return over that same window. A day is "up" when its close is above the close
+    before it and "down" when below; a zero-change day is in neither share, and
+    both shares are over every day of the window. Range -1 to 1; a flat ``PRET``
+    is ``0.0``.
+
+    ``None`` when the window holds fewer than ``min_sessions`` closes, and when any
+    close in it is missing or not positive (a window with a hole has no honest
+    count of its days: `rolling_extreme_event`'s rule)."""
+    far, near = operator.index(far), operator.index(near)
+    n = len(closes)
+    end = n - 1 - near                     # the index of C[t-near]
+    start = max(0, n - 1 - far)            # the index of C[t-far], or the first close held
+    if near < 0 or far <= near or end - start + 1 < max(2, operator.index(min_sessions)):
+        return None
+    seg = closes[start:end + 1]
+    for c in seg:
+        if not _is_num(c) or c <= 0:
+            return None
+    up = down = 0
+    for prev, cur in zip(seg, seg[1:]):
+        if cur > prev:
+            up += 1
+        elif cur < prev:
+            down += 1
+    days = len(seg) - 1
+    spread = (up - down) / days
+    if seg[-1] > seg[0]:
+        return spread
+    if seg[-1] < seg[0]:
+        return -spread
+    return 0.0

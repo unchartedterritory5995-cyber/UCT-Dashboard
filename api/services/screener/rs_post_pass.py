@@ -57,6 +57,11 @@ succeeded, and a failure there never costs the pass.
 DARK BY DEFAULT. ``RS_SCREENS_ENABLED`` is read per call (only the literal ``1`` arms
 it). Off, :func:`run` returns before it opens the database: no column is written, no
 table is created and no receipt is stored.
+
+THE SHADOW LEADER SCORE (unit U9) rides this pass: after the places, and only while
+``RS_LEADER_SHADOW_ENABLED`` is on too, :func:`_leader_shadow` hands over to
+``rs_leader_shadow.run``, which keeps a score no member is shown in its own side
+tables. It writes no ``screener_rows`` column and nothing into this pass's receipt.
 """
 from __future__ import annotations
 
@@ -331,8 +336,32 @@ def _run(receipt: dict, session, now) -> None:
     fields = rs_history.read_fields(tickers, session=key) or {}
     if not fields:
         _carry(receipt, rows, rating_map, rs_history.read_fields(tickers) or {})
+        _leader_shadow(receipt.get("rating_session"), record_history=False)
         return
     _rewrite(receipt, key, rows, rating_map, fields)
+    _leader_shadow(key, record_history=True)
+
+
+def _leader_shadow(session, *, record_history: bool) -> None:
+    """The shadow Leader score (unit U9), after the places: ``rs_leader_shadow.run``
+    over the rows this pass just wrote. It needs ``rs_rating_score``, which only this
+    pass writes, so it runs here and nowhere else. Only the pass that moved the
+    ratings onto the settled session records the per-session history; a pass that
+    carried an earlier session's ratings scores the rows and records nothing (the
+    ``rs_pos_history`` rule).
+
+    ⛔ NOTHING IT DOES REACHES THIS PASS'S RECEIPT. The receipt is served to members
+    (``snapshot_db.status()`` on ``/api/screener/snapshot-status``) and the score is
+    shown to nobody. A failure is logged here and costs the pass nothing.
+
+    Dark behind ``RS_LEADER_SHADOW_ENABLED`` (read per call): off, the module is not
+    asked and the pass is the one it was."""
+    try:
+        from . import rs_leader_shadow                       # noqa: PLC0415 - lazy: no cycle
+        if rs_leader_shadow.enabled():
+            rs_leader_shadow.run(session, record_history=record_history)
+    except Exception as e:                                   # noqa: BLE001 - never costs the pass
+        log.warning("[rs_post_pass] leader shadow failed: %s: %s", type(e).__name__, e)
 
 
 def _mapped(rating_map: dict, f: dict) -> dict:
