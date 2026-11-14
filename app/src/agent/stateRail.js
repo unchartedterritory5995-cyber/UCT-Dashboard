@@ -37,6 +37,7 @@
 import { instancesOf } from '../components/chart/builder/agentSeams'
 import * as nativeRegistry from '../components/chart/engine/nativeRegistry'
 import { tickersIn } from './multiChart'
+import { matchPosition } from './fastPath'
 
 export const STATE_RAIL_MARK = 'state-rail'
 
@@ -116,7 +117,7 @@ const READERS = {
       const keys = Object.keys(u.set || {}).filter(k => !HARMLESS_DRAWING_KEYS.has(k))
       const d = all.find(x => x.id === u.id) || {}
       // its own target: which settings / levels of WHICH drawing (a fib level value binds only to that fib)
-      if (keys.length) out.push({ state: 'drawing', type: 'overwrite', name: dname(d), id: `draw:${p.ref}:${u.id}`, dtype: d.type, keys, levels: [...Object.keys(u.set.levels || {}), ...Object.keys(u.set.fills || {}).flatMap(f => f.split('>'))] })
+      if (keys.length) out.push({ state: 'drawing', type: 'overwrite', name: dname(d), id: `draw:${p.ref}:${u.id}`, dtype: d.type, sameType: all.filter(x => x.type === d.type).length, keys, levels: [...Object.keys(u.set.levels || {}), ...Object.keys(u.set.fills || {}).flatMap(f => f.split('>'))] })
     }
     return out
   },
@@ -131,7 +132,8 @@ const READERS = {
     const pt = p.patch
     if (!pt) return []
     const list = `your “${nm(p.before?.name || pt.name)}” watchlist`
-    if (pt.deleteList) return [{ state: 'watchlist', type: 'delete', name: list }]
+    const lid = `list:${p.ref}`
+    if (pt.deleteList) return [{ state: 'watchlist', type: 'delete', name: list, id: lid }]
     const out = []
     const rm = pt.remove || []
     const had = (p.before?.items || pt.beforeItems || []).length
@@ -141,7 +143,7 @@ const READERS = {
     else if (rm.length) out.push({ state: 'watchlist', type: 'remove', name: `${rm.map(x => x.sym).join(', ')} from ${list}`, ...own })
     if (pt.rename) out.push({ state: 'watchlist', type: 'overwrite', name: `the name of ${list}` })
     for (const n of pt.notes || []) if (nm(n.from).trim()) out.push({ state: 'watchlist', type: 'overwrite', name: `your note on ${n.sym}` })
-    return out
+    return out.map(e => ({ ...e, id: lid }))
   },
   // the Flagged list (a watchlist of its own): an unflag removes the symbol from it
   flaggedList(p) {
@@ -312,7 +314,7 @@ const NEG = /\b(?:no|not|nothing|none|never|without|neither|nor|don['’]?t|dont
 // "empty the watchlist", "unflag", "close the news tab" — each only with an EXISTING object of the right class after it
 const MORE_DESTROY = String.raw`retire\w*|prune\w*|trim\w*|ditch\w*|scrap\w*|purge\w*|axe|axed|drop|drops|dropped|dropping|take (?:\S+ ){0,3}?(?:off|out|away|down)|empty|emptied|unflag\w*|close|closes|closing`
 // modify verbs (beyond MODIFY): hide / show a part, drag an anchor, flatten, call it something, thicken
-const MORE_MODIFY = String.raw`hide|hides|hid|hidden|unhide|drag|drags|dragged|flatten\w*|call|thick\w*|thin\w*|widen\w*|narrow\w*|darken\w*|lighten\w*|bold|italic\w*|move|nudge\w*|bump\w*|raise|lower`
+const MORE_MODIFY = String.raw`stretch\w*|extend\w*|shrink\w*|lengthen\w*|shorten\w*|hide|hides|hid|hidden|unhide|drag|drags|dragged|flatten\w*|call|thick\w*|thin\w*|widen\w*|narrow\w*|darken\w*|lighten\w*|bold|italic\w*|move|nudge\w*|bump\w*|raise|lower`
 // what picks a widget's CONTENT (its list / scan): show, switch, open, load, go / take back to the picker, pick, exit, leave
 const DISPLAY = /^(?:show\w*|switch\w*|open\w*|load\w*|view\w*|display\w*|use|using|apply|change\w*|go(?:es)? back|take (?:\S+ ){0,3}?back|pick\w*|exit\w*|leave\w*|replac\w*|swap\w*|instead)$/i
 const VERBS = new RegExp(String.raw`\b(?:${DESTROY_SRC().slice(3, -1)}|${MORE_DESTROY}|take (?:\S+ ){0,3}?back|${MODIFY_SRC().slice(3, -1)}|${MORE_MODIFY}|apply|applies|applied|applying|show|shows|showing|display\w*|load\w*|open|opens|use|using|view|save|saves|saved|saving|update|updates|updated|go(?:es)? back|pick\w*|exit\w*|leave\w*)\b`, 'gi')
@@ -320,7 +322,7 @@ const DESTROY_ANY = new RegExp(String.raw`^(?:${DESTROY_SRC().slice(3, -1)}|${MO
 const MODIFY_ANY = new RegExp(String.raw`^(?:${MODIFY_SRC().slice(3, -1)}|${MORE_MODIFY})$`, 'i')
 const CUT = /\b(?:how|why|what|whether|because|since|so|if|when|while|once|until|unless|in order)\b/i
 // an object that only POINTS back at something already there ("it", "them", "that one", "the fast one")
-const POINTS = /^(?:it|them|both(?= of them|\s*$)|all of them|(?:the|that|this|these|those) (?:\w+ )?ones?|(?:that|this|these|those)(?=\s*$|\s+(?:to|on|in|into|at|from|with|up|down|over|a|an|the)\b)|(?:the )?(?:first|second|third|fourth|last|other|fast|slow|left|right|top|bottom)\b)/i
+const POINTS = /^(?:it|them|both(?= of them|\s*$)|all of them|(?:the|that|this|these|those) (?:\w+ )?ones?|(?:that|this|these|those)(?=\s*$|\s+(?:to|on|in|into|at|from|with|up|down|over|a|an|the|red|green|blue|yellow|orange|purple|pink|white|black|gr[ae]y|teal|cyan|gold|brown|thicker|thinner|dashed|dotted|solid|bolder|bigger|smaller|wider|narrower|darker|lighter)\b)|(?:the )?(?:first|second|third|fourth|last|other|fast|slow|left|right|top|bottom)\b)/i
 // the object ends where its sentence goes elsewhere ("my life WITH an rsi", "the rsi length TO 20"); a container after it stays
 // ("nvda FROM my tech watchlist", "spy IN my list"); a SAVE keeps "to / into / as" (its container: "save it to my layout",
 // "save these indicators as my Swing Setup template")
@@ -362,12 +364,25 @@ const symbolsNamed = (e, obj) => {
   const said = [...new Set([...tickersIn(obj), ...tokens(obj).map(t => t.toUpperCase()).filter(t => (e.listSyms || []).includes(t))])]
   return said.length > 0 && said.every(t => (e.listSyms || []).includes(t)) && said.some(t => e.syms.includes(t) || e.type === 'clear' || (e.listSyms || []).length > e.syms.length)
 }
-const namesOwn = (e, obj) => (e.state === 'widget' && e.type === 'replace' ? displayNamed(e, obj)
-  : namesObject(e, obj) || (e.state === 'drawing' && (levelNamed(e, obj) || settingNamed(e, obj))) || symbolsNamed(e, obj))
+// a drawing named by its TYPE ("the box", "the rectangle") binds only when that symbol holds exactly ONE of that type
+const TYPE_NOUNS = { rect: /\b(?:box|boxes|rectangles?|rect)\b/i, circle: /\bcircles?\b/i, channel: /\bchannels?\b/i, arrow: /\barrows?\b/i, text: /\b(?:notes?|texts?|labels?)\b/i }
+const typeNamed = (e, obj) => !!(e.dtype && TYPE_NOUNS[e.dtype] && TYPE_NOUNS[e.dtype].test(obj) && e.sameType === 1)
+// a widget's content named by the very list / scan it is to show ("open Software Over $10")
+const toNamed = (e, obj) => !!(e.to && has(obj, e.to))
+const namesOwn = (e, obj) => (e.state === 'widget' && e.type === 'replace' ? displayNamed(e, obj) || toNamed(e, obj)
+  : namesObject(e, obj) || (e.state === 'drawing' && (levelNamed(e, obj) || settingNamed(e, obj) || typeNamed(e, obj))) || symbolsNamed(e, obj))
 
 /** Do this turn's words COMMAND that kind of change on THAT existing object? (per clause, kind-matched, never negated).
  *  `subjects`: the conversation's current subject (exact object ids) — what a pointer at the start of a message means. */
-export function permits(e, words, subjects = null, previous = null) {
+// "from the right one" / "off the bottom two": the positions a pointer is narrowed to
+const POS_WORDS = /\b(top[- ]left|top[- ]right|bottom[- ]left|bottom[- ]right|upper[- ]left|upper[- ]right|lower[- ]left|lower[- ]right|left|right|top|bottom|upper|lower)\b/gi
+const normPosWord = (w) => w.toLowerCase().replace(/\s/, '-').replace('upper', 'top').replace('lower', 'bottom')
+const atPosition = (pos, words) => !!pos && words.some(w => matchPosition([{ position: pos }], normPosWord(w)).length > 0)
+// "the one I just made" / "the list I just created": exactly the object this session last made
+const JUST_MADE = /\b(?:the )?(?:one|list|watchlist)\s+(?:that\s+)?I\s+(?:just\s+)?(?:made|created|built)\b/i
+// "keep this arrangement in my current layout": a save over the layout it names (as "save my layout")
+const KEEP_IN_LAYOUT = /\bkeep\b[^.;!?]*\b(?:in|into|to)\s+(?:my|the|this)\s+(?:current\s+|open\s+)?layout\b/i
+export function permits(e, words, subjects = null, previous = null, previousSet = null, made = null) {
   // before / prev: the classes and the clause the latest earlier clause NAMED; spoke: an earlier clause said anything of
   // substance (named a thing, or asked for something) — then a pointer speaks of THAT, never of the conversation before
   let before = [], prev = '', spoke = false
@@ -377,6 +392,8 @@ export function permits(e, words, subjects = null, previous = null) {
     const negated = NEG.test(c)
     // a display switch named by the list it shows (never a symbol; a homograph is asked: stateRailRefusal)
     if (!negated && e.type === 'replace' && e.to && PUT_IN.test(c) && has(c, e.to) && (SAID_LIST(c, e.to) || !tickersIn(c).includes(String(e.to).toUpperCase()))) return true
+    if (!negated && e.via === 'save' && KEEP_IN_LAYOUT.test(c)) return true
+    if (!negated && JUST_MADE.test(c) && e.id && made && made.has(e.id)) return true
     if (!negated) {
       // a verbless style command ("the 9 green") changes the look of what it names or points at — an overwrite only
       // the conversation's drawing, named by a setting / level / anchor its change sets ("big arrow", "the top was 150",
@@ -416,6 +433,9 @@ export function permits(e, words, subjects = null, previous = null) {
             if (e.type === 'overwrite' && !saving && isSubject()) return true
             // a destroy right after: only the ONE object the immediately previous turn made or changed (AUDIT #1247 A)
             if (e.type !== 'overwrite' && !saving && e.id && previous && e.id === previous) return true
+            // "remove it from the right one": among what the previous turn made, exactly the one(s) at those positions
+            const pw = c.match(POS_WORDS)
+            if (e.type !== 'overwrite' && !saving && e.id && pw && (previousSet || []).some(o => o.id === e.id && atPosition(o.position, pw))) return true
             continue
           }
           // after words of its own: an overwrite takes the class they named; a destroy / replace only the very object they
@@ -470,7 +490,7 @@ export const notDoneLine = (adds) => (adds.length
  * a pending question carried). Every mode (apply / propose / approved): an additive request never reaches a card that
  * destroys either. Fails closed: anything that throws while reading an additive request's plan refuses it.
  */
-export function stateRailRefusal(plan, { words = '', mode = 'apply', subjects = null, previous = null } = {}) {
+export function stateRailRefusal(plan, { words = '', mode = 'apply', subjects = null, previous = null, previousSet = null, made = null } = {}) {
   if (!plan?.ok) return null
   // an APPROVED card was shown, naming what it removes or changes, to the member who approved it (and its binding is checked
   // before it runs): the card is the permit. Every other path — instant, model, proposal, composed, deferred — needs the words.
@@ -481,7 +501,7 @@ export function stateRailRefusal(plan, { words = '', mode = 'apply', subjects = 
     if (!effects.length) return null
     const amb = effects.map(e => homograph(e, w)).find(Boolean)
     if (amb) return `Do you mean your “${amb}” list, or the ticker ${String(amb).toUpperCase()}? Nothing was changed — say “show my ${amb} list” to switch the widget to it, or “add ${String(amb).toUpperCase()} to my watchlist” to add the symbol.${notDoneLine(notDoneAdds(plan))}`
-    const bad = effects.filter(e => !permits(e, w, subjects, previous))
+    const bad = effects.filter(e => !permits(e, w, subjects, previous, previousSet, made))
     if (!bad.length) return null
     const what = listOf([...new Set(bad.map(said))])
     const lead = isStateAdditive(w) ? `you asked to add, but this would ${what}. Adding never replaces or removes what you already have` : `this would ${what}, and you didn’t ask for that`
@@ -507,18 +527,24 @@ export function subjectIdsOf(memory, epoch = null, drawing = null) {
   return out
 }
 /** The ONE object the immediately previous turn made or changed (null when it made two or more, or none). */
-export function previousObjectOf(memory, epoch = null, drawing = null) {
+export function previousObjectsOf(memory, epoch = null, drawing = null) {
   try {
     const t = memory?.lastTurn?.(epoch)
-    if (!t?.ops?.length) return null
+    if (!t?.ops?.length) return []
     const acts = t.ops.map(o => String(o.action))
-    if (acts.every(a => a.startsWith('indicator.'))) { const set = memory.indicatorSet?.(epoch) || []; return set.length === 1 ? `ind:${set[0].chart}:${set[0].instanceId}` : null }
-    if (acts.every(a => a.startsWith('drawing.')) && t.ops.length === 1) return drawing?.sym && drawing.id ? `draw:${drawing.sym}:${drawing.id}` : null
+    if (acts.every(a => a.startsWith('indicator.'))) return (memory.indicatorSet?.(epoch) || []).map(x => `ind:${x.chart}:${x.instanceId}`)
+    if (acts.every(a => a.startsWith('drawing.')) && t.ops.length === 1) return drawing?.sym && drawing.id ? [`draw:${drawing.sym}:${drawing.id}`] : []
+    // a list the previous turn acted on, alone ("rename the one I just made …" → "delete that one")
+    if (acts.every(a => a.startsWith('watchlist.') && a !== 'watchlist.create')) { const refs = [...new Set(t.ops.map(o => String(o.target)))]; return refs.length === 1 ? [`list:${refs[0]}`] : [] }
   } catch { /* none */ }
-  return null
+  return []
+}
+export function previousObjectOf(memory, epoch = null, drawing = null) {
+  const all = previousObjectsOf(memory, epoch, drawing)
+  return all.length === 1 ? all[0] : null
 }
 /** What the member's NEW turn starts from: the subject as it is when they speak — never an earlier turn's carried over. */
-export const turnStartOf = (memory, epoch = null, drawing = null) => ({ ids: subjectIdsOf(memory, epoch, drawing), previous: previousObjectOf(memory, epoch, drawing) })
+export const turnStartOf = (memory, epoch = null, drawing = null) => ({ ids: subjectIdsOf(memory, epoch, drawing), previous: previousObjectOf(memory, epoch, drawing), previousAll: previousObjectsOf(memory, epoch, drawing) })
 /** The next turn's start, given the last one's: the subject NOW only — what an earlier turn's start held never carries over
  *  ("copies from an earlier turn" are not the subject; only what the latest turns touched). */
 export const nextTurnSubjects = (prevStart, memory, epoch = null, drawing = null) => { void prevStart; return turnStartOf(memory, epoch, drawing) }

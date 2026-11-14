@@ -80,16 +80,15 @@ describe('a save as the last step of a plan', () => {
       expect(tfOf(board)).toBe('D')
       expect(names(board)).toEqual(['Main'])
     }, 30000)
-    it('saving into the open layout: approved on the card, it still asks again on the board the change left', async () => {
-      const { say, click, board } = open()
+    // ⛔ AUDIT #1247 (owner D16): "put that over what my layout has saved" says no SAVE — the save-over ASKS, nothing written
+    it('"…put that over what my layout has saved for me" (no save command): asks, nothing written, no card', async () => {
+      const { say, board } = open()
       p.st.envelopes.push(p.env('propose', [weekly, saveCurrent]))
       await say('weekly would be better here, and then put that over what my layout has saved for me')
-      await click('Apply')
-      expect(tfOf(board)).toBe('W')
+      expect(transcript()).toMatch(/didn’t change anything/)
+      expect(pendingCards()).toHaveLength(0)
+      expect(tfOf(board)).not.toBe('W')
       expect(board.state.layouts.calls.some(c => c[0] === 'saveCurrent')).toBe(false)
-      expect(pendingCards()).toHaveLength(1)
-      await click('Apply')
-      expect(board.state.layouts.calls.some(c => c[0] === 'saveCurrent')).toBe(true)
     }, 30000)
   })
   it('saved FIRST and then changed stays refused whole: the save would not hold what was asked', async () => {

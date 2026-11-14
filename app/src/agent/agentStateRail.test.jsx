@@ -593,6 +593,46 @@ describe('STATE RAIL · "remove it" right after: only the ONE object the previou
   }, 60000)
 })
 
+// ── AUDIT #1247 (cfe01e3a66): each new binding is to the plan's OWN target ──
+describe('STATE RAIL · bindings: position of what the previous turn made, the list just made, keep-in-layout, the ONE box, "open <list>"', () => {
+  it('"remove it from the right one": only the previous turn’s object on the RIGHT chart', async () => {
+    const fx = stateFixture()
+    const rm = await planOf(fx, WRONG.indicator['indicator.remove (the RSI)'])          // the RSI on c1
+    const id = stateEffects(rm)[0].id
+    const set = (pos) => [{ id, position: pos }, { id: 'ind:c2:inst:rsi:1', position: pos === 'left' ? 'right' : 'left' }]
+    expect(stateRailRefusal(rm, { words: 'remove it from the right one', previousSet: set('right') })).toBe(null)
+    expect(stateRailRefusal(rm, { words: 'take it off the bottom two', previousSet: [{ id, position: 'bottom-left' }] })).toBe(null)
+    expect(stateRailRefusal(rm, { words: 'remove it from the right one', previousSet: set('left') }) || 'LET THROUGH').toMatch(/^I didn’t change anything/)
+    expect(stateRailRefusal(rm, { words: 'remove it from the right one', previousSet: [] }) || 'LET THROUGH').toMatch(/^I didn’t change anything/)
+  })
+  it('"the one I just made": exactly the list this session last created', async () => {
+    const fx = stateFixture()
+    const del = await planOf(fx, WRONG.watchlist['watchlist.delete (Swing)'])            // deletes wl2
+    expect(stateRailRefusal(del, { words: 'delete the one I just made', made: new Set(['list:wl2']) })).toBe(null)
+    expect(stateRailRefusal(del, { words: 'delete the one I just made', made: new Set(['list:wl1']) }) || 'LET THROUGH').toMatch(/^I didn’t change anything/)
+    expect(stateRailRefusal(del, { words: 'delete the one I just made', made: new Set() }) || 'LET THROUGH').toMatch(/^I didn’t change anything/)
+  })
+  it('"keep this arrangement in my current layout" saves over the layout it names; "keep my rsi" never does', async () => {
+    const fx = stateFixture()
+    const save = await planOf(fx, WRONG.layout['layout.saveCurrent (saved over Mine)'])
+    expect(stateRailRefusal(save, { words: 'keep this arrangement in my current layout' })).toBe(null)
+    for (const w of ['keep my rsi', 'keep it as it is', 'keep this arrangement'])
+      expect(stateRailRefusal(save, { words: w }) || 'LET THROUGH', w).toMatch(/^I didn’t change anything/)
+  })
+  it('"stretch the box to 130": only when the symbol holds exactly ONE box', () => {
+    const plan = (n) => ({ ok: true, plans: [{ kind: 'drawing', ref: 'SPY', before: { symbol: 'SPY', drawings: Array.from({ length: n }, (_, i) => ({ id: `r${i}`, type: 'rect', points: [] })) },
+      patch: { add: [], remove: [], update: [{ id: 'r0', set: { points: [{ price: 130 }] }, prev: {} }] } }] })
+    expect(stateRailRefusal(plan(1), { words: 'stretch the box to 130' })).toBe(null)
+    expect(stateRailRefusal(plan(2), { words: 'stretch the box to 130' }) || 'LET THROUGH').toMatch(/^I didn’t change anything/)
+  })
+  it('"open <list>" switches the widget only to THAT list', async () => {
+    const fx = stateFixture()
+    const show = await planOf(fx, WRONG.widget['widget.showList (Tech → Swing)'])
+    expect(stateRailRefusal(show, { words: 'open Swing' })).toBe(null)
+    expect(stateRailRefusal(show, { words: 'open Tech' }) || 'LET THROUGH').toMatch(/^I didn’t change anything/)
+  })
+})
+
 // ── A DRAWING BOARD SWITCH (AUDIT #1247 iii, accepted residual): the receipt names the board now shown; Undo is exact ──
 describe('STATE RAIL · a Drawing Board switch says which board is shown, and Undo puts the previous board back exactly', () => {
   it('drawing.setActiveBoard → "Swing board": receipt names it; Undo restores Board 1 and every drawing on it', async () => {

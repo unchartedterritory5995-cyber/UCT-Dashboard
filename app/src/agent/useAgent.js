@@ -19,6 +19,7 @@ import { protectionRefusal, undoProtectionRefusal, protectedOpenLayout, isProtec
 import { chartRailRefusal, RAIL_MARK, chartEffects } from './chartRail'
 import { stateRailRefusal, STATE_RAIL_MARK, notDoneAdds, notDoneLine, subjectIdsOf, nextTurnSubjects } from './stateRail'
 import { lastTouchedDrawing } from './capabilities/drawings'
+import { lastCreatedList } from './capabilities/watchlist'
 import { replyRelation, QUESTION_TTL_MS, CONTINUE_CHOICES, continueQuestion } from './pendingTask'
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { AuthContext } from '../context/AuthContext'
@@ -815,13 +816,22 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     if (withTurnStart) for (const id of turnSubjectsRef.current.ids) out.add(id)
     return out
   }
+  // what "it" / "the one I just made" may mean (AUDIT #1247): the ONE object the previous turn made, ALL of them with the
+  // position of the chart each is on ("remove it from the right one"), and the list this session last created — exact ids
+  const railMemoryOf = () => {
+    const ts = turnSubjectsRef.current
+    const chartPos = (id) => { try { return id.startsWith('ind:') ? host?.charts?.read?.(id.split(':')[1])?.position || null : null } catch { return null } }
+    let made = new Set()
+    try { const lc = lastCreatedList(); if (lc?.id) made = new Set([`list:${lc.id}`]) } catch { /* none */ }
+    return { previous: ts.previous, previousSet: (ts.previousAll || []).map(id => ({ id, position: chartPos(id) })), made }
+  }
   // stateMode: an APPROVED run's own steps (deferred, split parts) are approved for the state rail too (the card named them);
   // the chart rail keeps reading them as 'apply'
   const railOf = (plan, mode, stateMode = mode) => {
     // a refused bundle names its add parts as NOT done too (AUDIT #1247): the chart rail's refusal, with the plans it did not block
     const c0 = chartRailRefusal(plan, { words: railWordsRef.current, host, mode })
     const c = c0 && `${c0}${notDoneLine(notDoneAdds(plan, (p) => { try { return chartEffects({ ok: true, plans: [p] }, host).length > 0 } catch { return true } }))}`
-    const r = c || stateRailRefusal(plan, { words: railWordsRef.current, mode: stateMode, subjects: subjectIds(), previous: turnSubjectsRef.current.previous })
+    const r = c || stateRailRefusal(plan, { words: railWordsRef.current, mode: stateMode, subjects: subjectIds(), ...railMemoryOf() })
 
     railMarkRef.current = c ? RAIL_MARK : STATE_RAIL_MARK
     return r
@@ -1046,6 +1056,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     if (deferred.length) {
       // each one on its own (they run one at a time, so they are checked one at a time)
       const okd = []
+      let stateStop = null
       // ⭐ P2: a step aimed at a chart an EARLIER step of this request adds indicators to ("add the 9 EMA, make the
       // 9 green") cannot be checked yet — what it names does not exist until then. It is checked at its own turn
       // (and refused there, with the real reason, if it still cannot run).
@@ -1059,7 +1070,11 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         let dp
         try {
           const dp0 = planOps(collectTargets(host, kindsOf([d])), [d], { pendingLists: pendingNames }, capCtx)
-          const shut = dp0.ok ? protectionRefusal(host, dp0, dp0.normalizedOps || [d]) || railOf(dp0, 'apply', suggested === 'approved' ? 'approved' : 'apply') : null
+          const prot = dp0.ok ? protectionRefusal(host, dp0, dp0.normalizedOps || [d]) : null
+          const railed = dp0.ok && !prot ? railOf(dp0, 'apply', suggested === 'approved' ? 'approved' : 'apply') : null
+          // ⛔ AUDIT #1247: a later step the STATE rail stops stops the whole request — nothing runs, never "the rest"
+          if (railed && railMarkRef.current === STATE_RAIL_MARK && !stateStop) stateStop = railed
+          const shut = prot || railed
           dp = shut ? { ok: false, refusals: [{ reason: shut }] } : dp0
         } catch { dp = { ok: false, refusals: [{ reason: 'I could not check that step.' }] } }
         if (!dp.ok && (grows.has(d.target) || creates.has(String(d.target)))) okd.push(d)
@@ -1074,6 +1089,12 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         if (getCapability(d?.action)?.addsIndicators) grows.add(d.target)
       }
       deferred = okd
+      if (stateStop) {
+        refusalPush(stateStop)
+        const acts = [...allOps, ...deferred].map(o => o?.action)
+        record({ member, outcome: stateStop, outcomeData: { kind: 'refused', actions: acts, reason: STATE_RAIL_MARK }, telemetry: { path, refused: true, actions: acts, voice } })
+        return
+      }
     }
     // ⛔ Another window/device may have changed this member's board (one shared,
     // last-write-wins preference): never write over it (host.boardInSync).

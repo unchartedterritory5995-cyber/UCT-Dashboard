@@ -194,12 +194,14 @@ describe('F2b — "save it" with an indicator draft open is never a layout save'
     expect(h.saves).toEqual([])
     expect(stored).toEqual([])
   })
-  it('end to end: no draft open → "Save it." is still the layout\'s Save card (unchanged behaviour)', async () => {
+  // ⛔ AUDIT #1247 ruling 1b (owner D16): a save over the open layout has no exact Undo — "Save it." alone ASKS, nothing written
+  it('end to end: no draft open → "Save it." asks (no save card, nothing written)', async () => {
     const h = host([L])
     const send = mount(h)
     send('Save it.')
-    await waitFor(() => expect(cards()).toHaveLength(1))
-    expect(cards()[0]).toMatch(/Agent Indicators Acceptance/)
+    await waitFor(() => expect(screen.getByTestId('agent-transcript').textContent).toMatch(/didn’t change anything/))
+    expect(cards()).toHaveLength(0)
+    expect(screen.getByTestId('agent-transcript').textContent).not.toMatch(/Saved/)
   })
 })
 
