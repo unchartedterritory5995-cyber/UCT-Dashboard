@@ -394,6 +394,136 @@ def test_failures_retry_then_stop(monkeypatch):
     assert "bad reply" in row["last_error"]
 
 
+# ── a failure costs one try, not the video ───────────────────────────────────
+# Owner ask 2026-11-13: "make sure ... that entire automated ecosystem functions
+# efficiently". Three things in the failure path did not: a failed recap threw away a
+# paid-for transcript, three failures in a row dropped the video for good, and the
+# AI budget stop took the non-AI chores down with it.
+
+def test_a_failed_recap_does_not_pay_for_the_transcript_twice(monkeypatch):
+    """⚰️ The transcript was saved only AFTER the recap succeeded, so every failed recap
+    threw away a download and a full transcription, and the next try bought both again
+    (up to three times per video)."""
+    m = msg(sf(2026, 10, 15), attachments=[video("t1")])
+    tl.record_message(m, TSDR)
+    _pipeline(monkeypatch, m, recap=RuntimeError("model overloaded"))
+    paid = []
+    monkeypatch.setattr(tl, "download", lambda url, dest: paid.append("download") or dest.write_bytes(b"x") or 1)
+    monkeypatch.setattr(tl, "transcribe",
+                        lambda v, w: paid.append("transcribe") or ("word " * 50, 125.0, [[0, "word " * 50]]))
+    assert tl.run_lessons(limit=3, deadline=9e12)["errors"] == 1
+    row = tl.get_lesson("t1")
+    assert row["status"] == "new" and row["transcript"].startswith("word") and row["duration_s"] == 125.0
+    assert json.loads(row["segments"]) == [[0, "word " * 50]]
+    monkeypatch.setattr(tl, "generate_recap", lambda **kw: dict(RECAP))     # the model is back
+    assert tl.run_lessons(limit=3, deadline=9e12)["posted"] == 1
+    assert paid == ["download", "transcribe"], "the retry bought the transcript a second time"
+
+
+def test_a_failed_video_gets_another_round_a_day_later(monkeypatch):
+    """⚰️ Three failures set `failed` and nothing ever read that status again: 45 minutes
+    of trouble at Discord or the model vendor dropped up to three videos for good, with
+    one WARNING each to show for it."""
+    m = msg(sf(2026, 10, 15), attachments=[video("r1")])
+    tl.record_message(m, TSDR)
+    _pipeline(monkeypatch, m, recap=RuntimeError("model overloaded"))
+    for _ in range(tl.MAX_ATTEMPTS):
+        tl.run_lessons(limit=3, deadline=9e12)
+    row = tl.get_lesson("r1")
+    assert row["status"] == "failed" and row["failed_at"]
+    failed_at = row["failed_at"]
+    assert tl.reopen_failed(now=failed_at + tl.RETRY_AFTER_S - 60) == 0, "not before a day has passed"
+    assert tl.get_lesson("r1")["status"] == "failed"
+    assert tl.reopen_failed(now=failed_at + tl.RETRY_AFTER_S + 60) == 1
+    row = tl.get_lesson("r1")
+    assert row["status"] == "new" and row["attempts"] == 0 and row["retry_rounds"] == 1
+    assert "model overloaded" in row["last_error"], "why it failed stays readable until it posts"
+    monkeypatch.setattr(tl, "generate_recap", lambda **kw: dict(RECAP))     # the outage is over
+    assert tl.run_lessons(limit=3, deadline=9e12)["posted"] == 1
+    assert tl.get_lesson("r1")["status"] == "posted" and tl.get_lesson("r1")["last_error"] is None
+
+
+def test_retry_rounds_run_out_and_a_failure_that_cannot_change_is_never_retried():
+    for aid, day in (("r2", 15), ("r3", 16), ("r4", 17)):
+        tl.record_message(msg(sf(2026, 10, day), attachments=[video(aid)]), TSDR)
+    tl._update("r2", status="failed", attempts=3, last_error="RuntimeError: overloaded", failed_at=1,
+               retry_rounds=tl.MAX_RETRY_ROUNDS)
+    tl._update("r3", status="failed", attempts=3, failed_at=1,
+               last_error="ValueError: video is 240 minutes, over the cap")
+    tl._update("r4", status="failed", attempts=3, failed_at=1,
+               last_error="ValueError: the model declined to write this recap")
+    far = 10 ** 10
+    assert tl.reopen_failed(now=far) == 0
+    assert {tl.get_lesson(a)["status"] for a in ("r2", "r3", "r4")} == {"failed"}
+    # control: the same rows one round short, or with an ordinary error, DO reopen
+    tl._update("r2", retry_rounds=tl.MAX_RETRY_ROUNDS - 1)
+    tl._update("r3", last_error="ReadTimeout: timed out")
+    assert tl.reopen_failed(now=far) == 2
+    assert tl.get_lesson("r4")["status"] == "failed"
+
+
+def test_a_video_that_failed_before_the_rule_existed_is_dated_by_its_last_change():
+    """Rows already `failed` when this shipped have no `failed_at`. They are the videos
+    the rule exists for, so they must not be skipped for lacking the new column."""
+    tl.record_message(msg(sf(2026, 10, 15), attachments=[video("r5")]), TSDR)
+    tl._update("r5", status="failed", attempts=3, last_error="ReadTimeout: timed out")
+    row = tl.get_lesson("r5")
+    assert row["failed_at"] is None
+    assert tl.reopen_failed(now=row["updated_at"] + tl.RETRY_AFTER_S - 60) == 0
+    assert tl.reopen_failed(now=row["updated_at"] + tl.RETRY_AFTER_S + 60) == 1
+
+
+def test_the_tick_retries_failed_videos_and_reports_the_library(monkeypatch):
+    """The only way to see the library's state was to open the database on the pod. The
+    tick's own log line now carries the counts, every 15 minutes."""
+    monkeypatch.setenv("TSDR_LESSONS_ENABLED", "1")
+    monkeypatch.setattr(tl, "scan_channel", lambda ch: {})
+    monkeypatch.setattr(tl, "run_lessons", lambda **k: {"posted": 0, "skipped": 0, "duplicate": 0, "errors": 0})
+    _thread_lesson("k1", 1)                                                   # one posted lesson
+    tl.record_message(msg(sf(2026, 3, 2), attachments=[video("k2")]), TSDR)
+    tl._update("k2", status="failed", attempts=3, last_error="ReadTimeout: timed out", failed_at=1)
+    tl.record_message(msg(sf(2026, 3, 3), attachments=[video("k3")]), TSDR)
+    tl._update("k3", status="failed", attempts=3, failed_at=1,
+               last_error="ValueError: video is larger than the download cap")
+    out = tl.tick()
+    assert out["retrying_failed"] == 1
+    assert out["library"] == {"posted": 1, "new": 1, "failed": 1, "on_youtube": 0}
+    assert "retrying_failed" not in tl.tick(), "nothing left to reopen: the line stays quiet"
+
+
+def test_a_spent_ai_budget_stops_the_model_stages_and_nothing_else(monkeypatch):
+    """⚰️ The budget stop expired the ONE deadline every later stage reads, so regrouping,
+    the rewrite-request check, the video refill and the YouTube uploads stopped with the
+    model stages. None of them calls the model."""
+    import time
+    from api.services import llm_budget
+    for k in ("TSDR_LESSONS_ENABLED", "TSDR_LESSONS_THREADS_ENABLED", "TSDR_LESSONS_YOUTUBE_ENABLED"):
+        monkeypatch.setenv(k, "1")
+    monkeypatch.setattr(tl, "scan_channel", lambda ch: {})
+    monkeypatch.setattr(llm_budget, "allows", lambda door: False)
+    monkeypatch.setattr(tl, "run_lessons", lambda **k: pytest.fail("the lesson stage calls the model"))
+    monkeypatch.setattr(tl, "refresh_thread_index", lambda: {"updated": 0})
+    monkeypatch.setattr(tl, "remove_clips_from_library", lambda: 0)
+    monkeypatch.setattr(tl, "move_library_rows_to_sections", lambda: 0)
+    seen = {}
+
+    def stage(name):
+        def run(**k):
+            seen[name] = k["deadline"]
+            return {"n": 0}
+        return run
+    model_free = ("run_title_repair", "run_rewrite_requests", "run_related_refresh", "run_regroup",
+                  "run_video_refill", "run_youtube")
+    for name in model_free + ("run_level_backfill",):
+        monkeypatch.setattr(tl, name, stage(name))
+    before = time.time()
+    out = tl.tick()
+    assert out["ai_budget"] == "reached" and out["lessons"] == {"skipped": "daily AI budget reached"}
+    assert seen["run_level_backfill"] <= time.time(), "the level backfill calls the model: it stays stopped"
+    for name in model_free:
+        assert seen[name] > before + 60, f"{name} does not call the model and was stopped by the AI budget"
+
+
 def test_recent_videos_jump_the_backlog(monkeypatch):
     old = msg(sf(2026, 1, 5), attachments=[video("old")])
     new = msg(str(tl.snowflake_for(datetime.now(timezone.utc))), attachments=[video("new")])
@@ -669,6 +799,78 @@ def test_a_failed_forward_keeps_the_recap(monkeypatch):
     row = tl.get_lesson("th2")
     assert row["status"] == "posted" and row["discord_post_id"] == "r1"
     assert row["forward_post_id"] == ""
+
+
+def test_a_forward_that_times_out_keeps_the_recap_and_never_posts_it_twice(monkeypatch):
+    """⚰️ Only a Discord REFUSAL of the forward was caught. A timeout is not one (httpx
+    raises its own error), so it escaped after the recap was already in the thread: the
+    video went back in the queue and the next run posted the recap AGAIN, the first copy
+    tracked by nothing. With failed videos now retried for days, that is a recap per try."""
+    import httpx
+    monkeypatch.setenv("TSDR_LESSONS_THREADS_ENABLED", "1")
+    m = msg(sf(2026, 10, 15), attachments=[video("th3")])
+    tl.record_message(m, TSDR)
+    fake = _pipeline(monkeypatch, m)
+    _seed_threads()
+    recaps = []
+
+    def post(p, b):
+        if "message_reference" in b:
+            raise httpx.ReadTimeout("timed out")
+        recaps.append(b)
+        return {"id": "r1"}
+
+    fake.routes[("POST", "/channels/t-setups/messages")] = post
+    assert tl.run_lessons(limit=3, deadline=9e12) == {"posted": 1, "skipped": 0, "duplicate": 0, "errors": 0}
+    row = tl.get_lesson("th3")
+    assert row["status"] == "posted" and row["discord_post_id"] == "r1" and row["forward_post_id"] == ""
+    tl.run_lessons(limit=3, deadline=9e12)                      # the next run has nothing to redo
+    assert len(recaps) == 1, "the recap was posted again"
+
+
+def test_a_timeout_on_the_youtube_fallback_does_not_repost_the_recap_either(monkeypatch):
+    """The forward is refused, the YouTube copy is posted in its place, and THAT post times
+    out. It is the same position: the recap is up, so nothing may escape."""
+    import httpx
+    monkeypatch.setenv("TSDR_LESSONS_THREADS_ENABLED", "1")
+    m = msg(sf(2026, 10, 15), attachments=[video("th5")])
+    tl.record_message(m, TSDR)
+    tl._update("th5", youtube_id="YTVID00005")
+    fake = _pipeline(monkeypatch, m)
+    _seed_threads()
+    recaps = []
+
+    def post(p, b):
+        if "message_reference" in b:
+            raise tl.DiscordError(500, "forward refused")     # not 400/403: those reopen the thread first
+        if str(b.get("content") or "").startswith("https://youtu.be/"):
+            raise httpx.ConnectError("connection reset")
+        recaps.append(b)
+        return {"id": "r5"}
+
+    fake.routes[("POST", "/channels/t-setups/messages")] = post
+    assert tl.run_lessons(limit=3, deadline=9e12)["posted"] == 1
+    tl.run_lessons(limit=3, deadline=9e12)
+    assert len(recaps) == 1 and tl.get_lesson("th5")["discord_post_id"] == "r5"
+
+
+def test_a_recap_that_cannot_be_posted_still_fails_the_attempt(monkeypatch):
+    """The other half: BEFORE the recap is up, a timeout must still count as a failed
+    attempt. Catching everything everywhere would mark a lesson posted that never was."""
+    import httpx
+    monkeypatch.setenv("TSDR_LESSONS_THREADS_ENABLED", "1")
+    m = msg(sf(2026, 10, 15), attachments=[video("th4")])
+    tl.record_message(m, TSDR)
+    fake = _pipeline(monkeypatch, m)
+    _seed_threads()
+
+    def post(p, b):
+        raise httpx.ReadTimeout("timed out")
+
+    fake.routes[("POST", "/channels/t-setups/messages")] = post
+    assert tl.run_lessons(limit=3, deadline=9e12)["errors"] == 1
+    row = tl.get_lesson("th4")
+    assert row["status"] == "new" and row["attempts"] == 1 and not row["discord_post_id"]
 
 
 def test_an_archived_thread_is_reopened_and_the_post_retried(monkeypatch):
@@ -1943,6 +2145,20 @@ def test_search_reply_text_is_short_private_friendly_and_carries_no_previews():
 
 def _ids(hits):
     return [h["attachment_id"] for h in hits]
+
+
+def test_a_lesson_whose_post_was_deleted_is_not_offered_by_search_or_see_also(monkeypatch):
+    """⚰️ run_regroup marks a lesson whose old post was deleted by hand with the section
+    "removed" and leaves it `posted`. /lesson and "See also" both read `posted`, so they
+    went on linking to a post that no longer exists."""
+    monkeypatch.setenv("TSDR_LESSONS_THREADS_ENABLED", "1")
+    _searchable("gone1", 1, "Breakout entries, deleted", transcript="breakout " * 5, tickers=("NVDA",))
+    tl._update("gone1", section=tl.REMOVED)
+    _searchable("live1", 2, "Breakout entries", transcript="breakout", tickers=("NVDA",))
+    _searchable("live2", 3, "Breakout exits", transcript="breakout", tickers=("NVDA",))
+    assert sorted(_ids(tl.search_lessons("breakout"))) == ["live1", "live2"]
+    titles = [r["title"] for r in tl.related_lessons(tl.get_lesson("live1"))]
+    assert titles == ["Breakout exits"], "See also offered a deleted lesson, or lost a live one"
 
 
 def test_a_ticker_that_spells_a_filler_word_or_is_one_letter_still_finds_its_lesson(monkeypatch):

@@ -73,18 +73,23 @@ def _daily_folder_id(user_id: str, conn: sqlite3.Connection) -> str:
     2. else a root folder named any legacy name (any casing they gave it; the oldest first);
     3. else one named `DAILY_FOLDER_NAME`, else a new `DAILY_FOLDER_NAME`.
     A most recent day in a folder the member renamed (or moved deeper) is not a daily folder any more: the name order
-    decides. No rename, no migration. Inside the caller's transaction: no commit here."""
+    decides. No rename, no migration. Inside the caller's transaction: no commit here.
+
+    Follow-up B, item 4a: step 1 looks at the most recent live daily note ITSELF, wherever it is. It used to join
+    root folders only, so a most recent day moved into a nested folder or to Unfiled was skipped and an OLDER day's
+    root folder decided. Now such a day falls straight through to the name order; nothing older is looked at."""
     from api.services.journal_two import notes as notes_service
 
     candidates = {n.casefold() for n in (*LEGACY_DAILY_FOLDER_NAMES, DAILY_FOLDER_NAME)}
     latest = conn.execute(
-        "SELECT f.id, f.name FROM j2_notes n JOIN j2_note_folders f ON f.id = n.folder_id AND f.user_id = n.user_id"
+        "SELECT f.id, f.name, f.parent_id FROM j2_notes n"
+        " LEFT JOIN j2_note_folders f ON f.id = n.folder_id AND f.user_id = n.user_id"
         " WHERE n.user_id = ? AND n.daily_date IS NOT NULL AND n.deleted_at IS NULL"
-        " AND (f.parent_id IS NULL OR f.parent_id = '')"
         " ORDER BY n.daily_date DESC LIMIT 1",
         (user_id,),
     ).fetchone()
-    if latest and str(latest["name"]).casefold() in candidates:
+    if (latest and latest["id"] and not latest["parent_id"]
+            and str(latest["name"]).casefold() in candidates):
         return latest["id"]
     for name in (*LEGACY_DAILY_FOLDER_NAMES, DAILY_FOLDER_NAME):
         row = conn.execute(

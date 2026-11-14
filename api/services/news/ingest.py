@@ -303,6 +303,18 @@ def run_fmp_cycle(*, budget: int | None = None) -> dict[str, Any]:
     support = fmp_news.probe_latest(b)
     result["latest_support"] = support
 
+    if support.get("undecided"):
+        # The provider is refusing us in a way that can clear by itself (a rate limit, an
+        # outage). That says nothing about which path exists, so this cycle is SKIPPED and
+        # the probe runs again next time. ⚰️ It used to fall through to the fallback below:
+        # a rate limit answered with the fallback's requests, recorded as a healthy poll.
+        result["mode"] = "skipped-provider-refusing"
+        result["error"] = str(support.get("detail") or "provider refusing")
+        result["requests"] = b.used
+        _log.warning("fmp cycle skipped, provider refusing: %s", result["error"])
+        store.record_health("fmp", ok=False, error=result["error"])
+        return result
+
     raws: list[dict] = []
     try:
         if support.get("press") or support.get("stock"):
@@ -316,8 +328,15 @@ def run_fmp_cycle(*, budget: int | None = None) -> dict[str, Any]:
         else:
             result["mode"] = "per-symbol-fallback"
             syms = _active_universe(FALLBACK_SYMBOLS_PER_CYCLE)
+            refusals: list = []
             for lane in ("press", "stock"):
-                raws.extend(fmp_news.fetch_symbols(syms, lane, budget=b, limit=100))
+                raws.extend(fmp_news.fetch_symbols(syms, lane, budget=b, limit=100,
+                                                   refusals=refusals))
+            if refusals and not raws:
+                # fetch_symbols ends a lane quietly on a refusal. A cycle in which the
+                # provider refused and nothing at all came back is a FAILED poll, not a
+                # quiet one: recording it healthy made a dead feed read as fresh.
+                raise refusals[0]
         store.record_health("fmp", ok=True)
     except fmp_news.FmpUnavailable as e:
         _log.warning("fmp cycle: %s", e)

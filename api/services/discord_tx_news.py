@@ -6,7 +6,12 @@ News image cards in #📡丨uct-news (the old #tradexchange). `/news` reads the 
 in #tx-intake, not the cards: they are complete and searchable, the cards are
 summaries. Discord is the store: this module reads the
 channel with the bot token (already on web for the buzz poll), keeps a small
-in-process cache of the last WINDOW_MAX_DAYS, and filters by ticker prefix.
+cache of the last WINDOW_MAX_DAYS (in memory and in a file on the volume, so a
+restart resumes instead of re-reading the window), and filters by ticker.
+
+A long list continues on further pages, sent as follow-up messages. ⛔ Every one
+of them is ephemeral (`_followup` sets the flag itself): a follow-up is a new
+message and would otherwise be public.
 
 ⛔ #uct-news is a PAID channel (Exclusive VIP Access). The reply is
 ephemeral and the handler checks the member's roles, so the command cannot
@@ -17,10 +22,12 @@ Never raises out of `run_news_job`: the member is watching a deferred
 """
 from __future__ import annotations
 
+import contextlib
 import datetime as dt
 import logging
 import os
 import re
+import sqlite3
 import threading
 import time
 from zoneinfo import ZoneInfo
@@ -45,6 +52,9 @@ SKIP_AUTHORS = frozenset({"TradeXchange Recap", "TradeXchange Daily Wrap", "UCT 
 WINDOWS = {"today": "Today", "3d": "Last 3 days", "1w": "Last week"}
 WINDOW_MAX_DAYS = 7
 EMBED_LIMIT = 4000
+#: The reply plus up to three private follow-ups: about 120 headlines of ordinary length.
+MAX_PAGES = 4
+EPHEMERAL = 64           # Discord message flag: only the member who ran the command sees it
 GOLD = 0xDCBB5E          # UCT gold: the UCT News cards and recaps use the same
 #: The UCT mark, served by the dashboard as a real PNG (the /UCT_logo_*.png paths return the SPA's HTML).
 MARK_URL = "https://uctintelligence.com/live-trading-room/mark-256.png"
@@ -186,35 +196,130 @@ def _clean(text: str) -> str:
 
 # ── the channel cache ────────────────────────────────────────────────────────
 
+class NewsUnavailable(RuntimeError):
+    """The feed cannot be read until someone fixes something: the bot has no token, or
+    Discord refuses it the channel. Asking again changes nothing, so the member is told
+    that, and not to "try again in a minute"."""
+
+
 class _Cache:
     """Feed items keyed by message id, covering [cover_start, newest]. One lock:
-    two members asking at once fetch once."""
+    two members asking at once fetch once.
+
+    Kept in memory AND on disk (`_cache_path`). ⚰️ It was memory only, and the web
+    service restarts on every deploy, so most requests began by re-reading the whole
+    window from Discord. `loaded` = the disk copy has been read in this process."""
 
     def __init__(self):
         self.lock = threading.Lock()
         self.items: dict[int, tuple[dt.datetime, str]] = {}
         self.cover_start: dt.datetime | None = None
+        self.loaded = False
 
 
 _cache = _Cache()
+_sleep = time.sleep          # injectable for tests
+_disk_warned = False
 
 
-def _reset_for_tests() -> None:
-    global _cache
+def _cache_path() -> str:
+    return (os.environ.get("TX_NEWS_CACHE_PATH") or "").strip() or os.path.join(
+        os.environ.get("DATA_DIR", "/data"), "tx_news_cache.db")
+
+
+def _disk():
+    path = _cache_path()
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    conn = sqlite3.connect(path, timeout=2.0)
+    conn.executescript(
+        "PRAGMA journal_mode=WAL;"
+        "CREATE TABLE IF NOT EXISTS items(id INTEGER PRIMARY KEY, ts TEXT NOT NULL, text TEXT NOT NULL);"
+        "CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY, value TEXT);")
+    return conn
+
+
+def _disk_failed(what: str, e: Exception) -> None:
+    """⛔ The disk copy is a convenience. Any fault there is logged once per process and
+    the command goes on from memory, exactly as it did before there was a disk copy."""
+    global _disk_warned
+    if not _disk_warned:
+        log.warning("[news] feed cache on disk unavailable (%s), using memory only: %s", what, e)
+        _disk_warned = True
+
+
+def _disk_load(cache: _Cache, floor: int) -> None:
+    try:
+        with contextlib.closing(_disk()) as c:
+            rows = c.execute("SELECT id, ts, text FROM items WHERE id >= ?", (floor,)).fetchall()
+            meta = c.execute("SELECT value FROM meta WHERE key = 'cover_start'").fetchone()
+        if not meta or not meta[0]:
+            return                       # nothing usable: items without a start claim cover nothing
+        cache.items = {int(i): (dt.datetime.fromisoformat(ts), text) for i, ts, text in rows}
+        cache.cover_start = dt.datetime.fromisoformat(meta[0])
+    except Exception as e:  # noqa: BLE001
+        cache.items, cache.cover_start = {}, None
+        _disk_failed("load", e)
+
+
+def _disk_save(added: dict, cover_start: dt.datetime, floor: int) -> None:
+    """One transaction: the new rows, the pruning and the start claim move together, so a
+    crash leaves the previous consistent copy and never a start that outruns its rows."""
+    try:
+        with contextlib.closing(_disk()) as c:
+            c.executemany("INSERT OR IGNORE INTO items(id, ts, text) VALUES (?, ?, ?)",
+                          [(k, ts.isoformat(), text) for k, (ts, text) in added.items()])
+            c.execute("DELETE FROM items WHERE id < ?", (floor,))
+            c.execute("INSERT INTO meta(key, value) VALUES ('cover_start', ?) "
+                      "ON CONFLICT(key) DO UPDATE SET value = excluded.value", (cover_start.isoformat(),))
+            c.commit()
+    except Exception as e:  # noqa: BLE001
+        _disk_failed("save", e)
+
+
+def _reset_for_tests(disk: bool = True) -> None:
+    """A fresh cache. `disk=False` keeps the file: that is a process restart."""
+    global _cache, _disk_warned
     _cache = _Cache()
+    _disk_warned = False
+    if disk:
+        for suffix in ("", "-wal", "-shm"):
+            try:
+                os.remove(_cache_path() + suffix)
+            except OSError:
+                pass
 
 
 def _get_page(client, after: int) -> list[dict]:
-    """One page of messages after `after`, honouring a 429's retry_after."""
+    """One page of messages after `after`. A rate limit, a 5xx or a dropped connection is
+    waited out and asked again (4 tries in all). A 401/403/404 is not: the bot has lost
+    its token or the channel, and that is NewsUnavailable."""
+    import httpx
     url = f"{DISCORD_API}/channels/{channel_id()}/messages"
-    for _ in range(4):
-        r = client.get(url, params={"limit": 100, "after": str(after)})
-        if r.status_code == 429:
-            time.sleep(min(float((r.json() or {}).get("retry_after") or 1.0), 5.0))
+    last = "no reply"
+    for attempt in range(4):
+        try:
+            r = client.get(url, params={"limit": 100, "after": str(after)})
+        except httpx.TransportError as e:            # timeout, reset, DNS
+            last = f"{type(e).__name__}: {e}"
+            _sleep(1.0 + attempt)
             continue
+        if r.status_code == 429:
+            try:
+                wait = float((r.json() or {}).get("retry_after") or 1.0)
+            except Exception:  # noqa: BLE001
+                wait = 1.0
+            last = "rate limited"
+            _sleep(min(wait, 5.0))
+            continue
+        if r.status_code >= 500:
+            last = f"HTTP {r.status_code}"
+            _sleep(1.0 + attempt)
+            continue
+        if r.status_code in (401, 403, 404):
+            raise NewsUnavailable(f"discord refused the read: HTTP {r.status_code}")
         r.raise_for_status()
         return r.json() or []
-    raise RuntimeError("discord rate limit")
+    raise RuntimeError(f"discord read failed after 4 tries: {last}")
 
 
 def _fetch_range(client, after: int, stop_before: int | None) -> dict[int, tuple[dt.datetime, str]]:
@@ -240,32 +345,42 @@ def _make_client():
     import httpx
     token = (os.environ.get("DISCORD_BOT_TOKEN") or "").strip()
     if not token:
-        raise RuntimeError("DISCORD_BOT_TOKEN is not set")
+        raise NewsUnavailable("DISCORD_BOT_TOKEN is not set")
     return httpx.Client(timeout=15.0, headers={"Authorization": f"Bot {token}",
                                                "User-Agent": "DiscordBot (uctintelligence.com, 1)"})
 
 
 def feed_since(start: dt.datetime, *, client=None) -> list[tuple[dt.datetime, str]]:
     """Feed items since `start`, oldest first. Backfills older history once, then only
-    asks Discord for what arrived after the newest cached message."""
+    asks Discord for what arrived after the newest cached message. What it reads is kept
+    on disk, so a restart resumes instead of starting over."""
     own = client is None
     c = client or _make_client()
     try:
         with _cache.lock:
+            keep = dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=WINDOW_MAX_DAYS + 1)
+            floor = snowflake(keep)
+            if not _cache.loaded:
+                _disk_load(_cache, floor)
+                _cache.loaded = True
+            added: dict[int, tuple[dt.datetime, str]] = {}
             if _cache.cover_start is None or start < _cache.cover_start:
                 oldest = min(_cache.items) if _cache.items else None
-                _cache.items.update(_fetch_range(c, snowflake(start), oldest))
+                added.update(_fetch_range(c, snowflake(start), oldest))
+                _cache.items.update(added)
                 _cache.cover_start = start
             # ⛔ With nothing cached, resume from where the cache CLAIMS to start, not from
             # this request's own start: a later start would skip whatever arrived in
             # between while cover_start went on saying it was covered.
             newest = max(_cache.items) if _cache.items else snowflake(_cache.cover_start)
-            _cache.items.update(_fetch_range(c, newest, None))
-            floor = snowflake(dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=WINDOW_MAX_DAYS + 1))
+            fresh = _fetch_range(c, newest, None)
+            added.update(fresh)
+            _cache.items.update(fresh)
             for mid in [k for k in _cache.items if k < floor]:
                 del _cache.items[mid]
-            if _cache.cover_start < dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=WINDOW_MAX_DAYS + 1):
-                _cache.cover_start = dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=WINDOW_MAX_DAYS + 1)
+            if _cache.cover_start < keep:
+                _cache.cover_start = keep
+            _disk_save({k: v for k, v in added.items() if k >= floor}, _cache.cover_start, floor)
             lo = snowflake(start)
             return [v for k, v in sorted(_cache.items.items()) if k >= lo]
     finally:
@@ -308,6 +423,43 @@ def _tx_tagged(text: str, ticker: str) -> str | None:
     return None
 
 
+#: Income-statement words that are tickers too. The chat-derived list below never met them:
+#: nobody types "net income" in a trading room, and every earnings wire does.
+_WIRE_WORDS = frozenset({"NET", "COST"})
+
+
+def _word_tickers() -> frozenset:
+    """Tickers that are also ordinary words: the collision set the buzz board DERIVES from
+    a real corpus (buzz_universe.ambiguous), plus the wire's own vocabulary."""
+    try:
+        from api.services import buzz_universe
+        return frozenset(buzz_universe.ambiguous()) | _WIRE_WORDS
+    except Exception as e:  # noqa: BLE001 - the list only tightens a match
+        log.debug("[news] ambiguous-ticker list unavailable: %s", e)
+        return _WIRE_WORDS
+
+
+def _mentions(text: str, ticker: str, name: str | None) -> bool:
+    """`match.mentions`, minus one guess for one kind of ticker.
+
+    ⚰️ /news NET listed every "... REPORTS Q3 NET INCOME ..." in the feed. In an all-caps
+    headline the shared matcher accepts the bare word as the ticker, which is right for
+    NBIS and wrong for a ticker that is also a word. For those, when the company has a
+    NAME to be found by, the word alone is not enough: TX's own tag, $NET, (NET) or
+    "Cloudflare" is.
+
+    ⛔ Only when there is a name key. A word ticker with no usable name (ARM, BALL) keeps
+    the word match: dropping it there would drop the stock's only evidence.
+    ⛔ Done HERE, not in tx_headline_match: that file is shared with the tx-recap repo
+    and the two copies change together or not at all."""
+    if not match.mentions(text, ticker, name):
+        return False
+    keys = match.name_keys(ticker, name)
+    if not keys or ticker not in _word_tickers():
+        return True
+    return ticker in match.parse(text).all_tickers() or bool(match.find_names(match.names_regex(keys), text))
+
+
 def headlines_for(ticker: str, items, name: str | None = None) -> list[tuple[dt.datetime, str]]:
     """(ts, line) newest first, for every headline about `ticker` however TX wrote it
     (tx_headline_match: its tag, $AMD, "AMDpartners", "STX EPS of…", the company name).
@@ -315,7 +467,7 @@ def headlines_for(ticker: str, items, name: str | None = None) -> list[tuple[dt.
     so the member sees who else it is about; anything else is shown as written."""
     out = []
     for ts, text in items:
-        if not match.mentions(text, ticker, name):
+        if not _mentions(text, ticker, name):
             own = _tx_tagged(text, ticker)
             if own:
                 out.append((ts, own))
@@ -336,10 +488,16 @@ def _clock(ts: dt.datetime) -> str:
     return t.strftime("%I:%M").lstrip("0") + ("a" if t.hour < 12 else "p")
 
 
-def build_embed(ticker: str, window: str, rows, now: dt.datetime, *, known: bool = True) -> dict:
-    """`known` = the dashboard has a company for this symbol. It only changes the EMPTY
-    reply: a typo and a quiet stock must not read the same."""
+def build_embeds(ticker: str, window: str, rows, now: dt.datetime, *, known: bool = True) -> list[dict]:
+    """The reply as one embed per page, newest first, at most MAX_PAGES.
+
+    ⚰️ It was ONE embed: about 30 headlines, then "+N older headline(s) not shown", and
+    no way to reach them. A long list now continues on more pages; only what is past the
+    last page is counted as not shown. Every page opens with its day, so it reads on its
+    own. `known` = the dashboard has a company for this symbol; it only changes the EMPTY
+    reply, so a typo and a quiet stock do not read the same."""
     label = window_label(window, now)
+    pages: list[list[str]] = []
     if not rows:
         default = window not in ("3d", "1w")
         desc = (f"No UCT News headlines on **${ticker}** {label[0].lower()}{label[1:]}." if default
@@ -348,36 +506,48 @@ def build_embed(ticker: str, window: str, rows, now: dt.datetime, *, known: bool
             desc += " I could not find a company for that symbol, so check the spelling."
         elif default:
             desc += f" Try `window: {WINDOWS['3d']}` for older ones."
+        pages.append([desc])
     else:
-        lines, day, used, shown = [], None, 0, 0
         multi_day = len({r[0].astimezone(ET).date() for r in rows}) > 1
+        lines: list[str] = []
+        used, shown, day = 0, 0, None
+
+        def block(ts, line, d, first):
+            head = [f"**{ts.astimezone(ET).strftime('%a %b')} {d.day}**"] if multi_day and (first or d != day) else []
+            return "\n".join(head + [f"`{_clock(ts):>6}` {line}"])
+
         for ts, line in rows:
             d = ts.astimezone(ET).date()
-            block = []
-            if multi_day and d != day:
-                block.append(f"**{ts.astimezone(ET).strftime('%a %b')} {d.day}**")
-                day = d
-            block.append(f"`{_clock(ts):>6}` {line}")
-            text = "\n".join(block)
-            if used + len(text) + 60 > EMBED_LIMIT:
-                break
+            text = block(ts, line, d, not lines)
+            if lines and used + len(text) + 60 > EMBED_LIMIT:
+                if len(pages) == MAX_PAGES - 1:
+                    break                                  # the last page is full
+                pages.append(lines)
+                lines, used = [], 0
+                text = block(ts, line, d, True)
             lines.append(text)
             used += len(text) + 1
             shown += 1
+            day = d
         if shown < len(rows):
             lines.append(f"*+{len(rows) - shown} older headline(s) not shown*")
-        desc = "\n".join(lines)
-    n = len(rows)
+        pages.append(lines)
+    n, total = len(rows), len(pages)
     # Same brand as the UCT News cards: the UCT mark + "UCT INTELLIGENCE · NEWS" header, UCT gold.
-    return {
+    return [{
         "author": {"name": "UCT INTELLIGENCE · NEWS", "icon_url": MARK_URL},
-        "title": f"${ticker} · UCT News · {label}",
-        "description": desc,
+        "title": f"${ticker} · UCT News · {label}" + (f" ({i} of {total})" if total > 1 else ""),
+        "description": "\n".join(page),
         "color": GOLD,
         "footer": {"text": f"{n} headline{'s' if n != 1 else ''} · times ET · source TradeXchange · uctintelligence.com",
                    "icon_url": MARK_URL},
         "timestamp": now.astimezone(dt.timezone.utc).isoformat(),
-    }
+    } for i, page in enumerate(pages, 1)]
+
+
+def build_embed(ticker: str, window: str, rows, now: dt.datetime, *, known: bool = True) -> dict:
+    """The first page (the whole reply, for any list that fits one)."""
+    return build_embeds(ticker, window, rows, now, known=known)[0]
 
 
 def _edit(app_id: str, token: str, payload: dict, client=None) -> bool:
@@ -398,16 +568,63 @@ def _edit(app_id: str, token: str, payload: dict, client=None) -> bool:
         return False
 
 
+def _followup(app_id: str, token: str, payload: dict, client=None) -> bool:
+    """One more message after the reply, for a page that did not fit.
+
+    ⛔⛔ ALWAYS EPHEMERAL, AND THE FLAG IS SET HERE, NOT BY THE CALLER. The edit of the
+    deferred reply is private because the defer was. A follow-up is a NEW message: without
+    this flag it is posted for the whole channel, and this feed is a paid one. Rail:
+    tests/test_discord_news_command.py reads it off the wire."""
+    import httpx
+    url = f"{DISCORD_API}/webhooks/{app_id}/{token}"
+    body = {**payload, "flags": EPHEMERAL, "allowed_mentions": {"parse": []}}
+    try:
+        c = client or httpx.Client(timeout=15.0)
+        try:
+            r = c.post(url, json=body)
+        finally:
+            if client is None:
+                c.close()
+        if not r.is_success:
+            log.warning("[news] follow-up HTTP %s %s", r.status_code, r.text[:300])
+        return r.is_success
+    except Exception as e:  # noqa: BLE001
+        log.warning("[news] follow-up failed: %s", e)
+        return False
+
+
 def run_news_job(app_id: str, token: str, ticker: str, window: str, *,
-                 feed_fn=None, edit_fn=None, name_fn=None, now: dt.datetime | None = None) -> None:
-    """Background half of `/news`: read the feed, filter, edit the deferred reply."""
+                 feed_fn=None, edit_fn=None, followup_fn=None, name_fn=None,
+                 now: dt.datetime | None = None) -> None:
+    """Background half of `/news`: read the feed, filter, edit the deferred reply, then
+    send any further pages as private follow-ups."""
     edit = edit_fn or _edit
     now = now or dt.datetime.now(dt.timezone.utc)
     try:
         items = (feed_fn or feed_since)(window_start(window, now))
         name = (name_fn or company_name)(ticker)
-        embed = build_embed(ticker, window, headlines_for(ticker, items, name), now, known=bool(name))
-        edit(app_id, token, {"content": "", "embeds": [embed]})
+        pages = build_embeds(ticker, window, headlines_for(ticker, items, name), now, known=bool(name))
+    except NewsUnavailable as e:
+        # Not temporary: no token, or Discord refuses the bot the channel. Loud in the log.
+        log.error("[news] %s cannot be answered until this is fixed: %s", ticker, e)
+        edit(app_id, token, {"content": "UCT News is not available right now. This one needs a fix "
+                                        "on our side, so asking again will not help yet."})
+        return
     except Exception as e:  # noqa: BLE001 — a background job must never raise
         log.warning("[news] %s failed: %s", ticker, e)
         edit(app_id, token, {"content": "Could not read UCT News right now. Try again in a minute."})
+        return
+    try:
+        first = {"content": "", "embeds": [pages[0]]}
+        if edit(app_id, token, first) is False:
+            # The reply is the only thing that ends the member's "thinking…" line.
+            _sleep(1.0)
+            if edit(app_id, token, first) is False:
+                return
+        # ⛔ Past this point the first page is up: nothing below may replace it with an
+        # error message.
+        for page in pages[1:]:
+            if (followup_fn or _followup)(app_id, token, {"embeds": [page]}) is False:
+                break                                      # keep the order: no page after a gap
+    except Exception as e:  # noqa: BLE001
+        log.warning("[news] %s reply failed: %s", ticker, e)

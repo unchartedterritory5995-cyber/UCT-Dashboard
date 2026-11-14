@@ -59,6 +59,9 @@ export default function ChallengeChart({ id, bars, view = null, height = 320, an
     <div style={{ height, cursor: onBarTap ? 'crosshair' : undefined }} data-testid="challenge-chart" data-look={look}>
       <StockChart
         {...(lookProps || {})}
+        // A challenge chart keeps no saved pan/zoom on the device. Said outright (after the
+        // spread) so the settings census can read it: persistenceManifest.test.js.
+        viewLockKey={null}
         sym={id}
         tf="D"
         height={height}

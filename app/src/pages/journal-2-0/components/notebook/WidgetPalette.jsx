@@ -25,6 +25,7 @@ import {
 import { snapshotWidgetItems, SLASH_GROUPS } from './SlashMenu'
 import { CAPTURE_KINDS } from '../../lib/notebookWidgets'
 import { COT_SYMBOLS_URL, cotMarkets } from '../../lib/cotMarkets'
+import { withInsertDoor } from '../../lib/notebookUsage'
 import styles from './WidgetPalette.module.css'
 
 // S13.6 remainder: a capture kind that asks for something other than a ticker says so (COT asks for a CFTC
@@ -89,7 +90,8 @@ function selectLastInsertedEmbed(editor) {
   } catch { /* a stub editor (or one mid-teardown) keeps its caret */ }
 }
 
-export default function WidgetPalette({ editor, onClose, returnFocusTo }) {
+// Follow-up A: `via` names the door for `block_inserted` ('palette', or 'phone_plus' when the phone "+" opened it).
+export default function WidgetPalette({ editor, onClose, returnFocusTo, via = 'palette' }) {
   const [kind, setKind] = useState(null)   // null = the type list
   const [sym, setSym] = useState('')
   const [tfTok, setTfTok] = useState('D')
@@ -197,7 +199,7 @@ export default function WidgetPalette({ editor, onClose, returnFocusTo }) {
   const runSnapshot = async (item) => {
     if (!item || !editor) return
     setInserted(`Adding ${item.title}…`)
-    const res = await item.command({ editor, range: null })
+    const res = await withInsertDoor(via, () => item.command({ editor, range: null }))
     setInserted(res?.ok ? `${item.title} inserted` : res?.message || null)
     if (res?.ok && snapCmd) { setSym(''); symRef.current?.focus() }
   }
@@ -212,11 +214,11 @@ export default function WidgetPalette({ editor, onClose, returnFocusTo }) {
     // The slash path can't reach this state — typing collapses the selection
     // — but a palette click doesn't, so the entry side needs the same guard
     // as the exit side.
-    editor.chain().focus()
+    withInsertDoor(via, () => editor.chain().focus()
       .caretAfterWidgetEmbed()
       .insertContent(nodes)
       .caretAfterWidgetEmbed()
-      .run()
+      .run())
     // ⛔ Audit 2026-11-05, spec S3 (detail #36): the picker used to STAY OPEN over the chart it had
     // just made. It closes, and the last chart inserted takes focus -- selected, so its header and
     // its type-to-search (a key opens its ticker search, never replaces it) answer at once.

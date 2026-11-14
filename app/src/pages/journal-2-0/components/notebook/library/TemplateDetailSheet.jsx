@@ -20,7 +20,7 @@
 //    load on demand.
 import { Suspense, useEffect, useId, useRef, useState } from 'react'
 import Sheet from '../../../../../components/mobile/Sheet'
-import { previewMine } from '../../../lib/templateLibrary'
+import { familyOf, previewMine } from '../../../lib/templateLibrary'
 import { getGalleryTemplate } from '../../../lib/templateGallery'
 import { widgetEmbedNode } from '../../../lib/notebookWidgets'
 import lazyChunk from '../../../lib/lazyChunk'
@@ -88,7 +88,8 @@ export default function TemplateDetailSheet({ item, onClose, navigate = null, bu
 
   // ⛔ The note lands only AFTER this sheet has closed: the page under a Sheet is inert, and focus cannot go into it.
   const landAfterClose = typeof landNote === 'function'
-    ? (note) => { onClose?.(); setTimeout(() => landNote(note), 0) }
+    // Follow-up A fix round 1 (M3): the row's family chip rides along, for `template_started` (never the title).
+    ? (note) => { onClose?.(); setTimeout(() => landNote(note, { family: familyOf(item) }), 0) }
     : null
   const use = async () => {
     if (busy || usingRef.current) return

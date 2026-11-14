@@ -6,14 +6,13 @@ import WidgetsTab from './WidgetsTab'
 import RoutinesTab from './RoutinesTab'
 import TrackersTab from './TrackersTab'
 import TemplatesTab from './TemplatesTab'
-import { widgetsWaveOn } from '../../../lib/notebookWidgetsFlags'
-import { TABS, TAB_KEYS, COMING_SOON } from './myToolsLib'
+import { TABS, TAB_KEYS } from './myToolsLib'
 import styles from './myTools.module.css'
 
 /**
  * My tools (spec 5.8): the one place a member manages what they built. Four tabs, Widgets · Routines · Trackers ·
- * Templates; wave 8 builds Widgets, wave 9 Routines and Trackers (Task 9.18), and wave 11 Templates (Task 11.19, the
- * member's own templates). While wave 11 is off Templates says "coming soon" with no controls at all.
+ * Templates; wave 8 builds Widgets, wave 9 Routines and Trackers (Task 9.18). Templates (follow-up C) is one sentence
+ * and one button: templates are managed in Manage templates now (the tab stays, so nobody loses their place).
  *
  * Desktop: a centered dialog. Touch: the Sheet's own touch form; at 640 px and narrower a FULL-SCREEN sheet, the
  * tabs a segmented control, rows 56 px, every row's actions in a ContextPopover.
@@ -65,9 +64,6 @@ export default function MyToolsSheet({ onClose, tab = 'widgets', defId = null, e
   }, [active])
 
   const label = TABS.find(([k]) => k === active)?.[1] || 'Widgets'
-  // Read per render (the flag is latched per tab, so it never flips under an open sheet).
-  const templatesOn = widgetsWaveOn(11)
-  const soon = active === 'templates' && templatesOn ? null : COMING_SOON[active]
   return (
     <Sheet open onClose={closeOnce} title="My tools" labelledByTitle variant={phone ? 'fullscreen' : 'auto'}
       maxWidth={880} className={styles.sheetPanel} bodyClassName={styles.body}>
@@ -80,8 +76,7 @@ export default function MyToolsSheet({ onClose, tab = 'widgets', defId = null, e
           {active === 'widgets' && <WidgetsTab phone={phone} defId={defId} seek={seek} editor={editor} uid={uid} navigate={navigate} onCloseAll={closeOnce} />}
           {active === 'routines' && <RoutinesTab phone={phone} navigate={navigate} onCloseAll={closeOnce} />}
           {active === 'trackers' && <TrackersTab phone={phone} navigate={navigate} onCloseAll={closeOnce} />}
-          {active === 'templates' && templatesOn && <TemplatesTab phone={phone} navigate={navigate} onCloseAll={closeOnce} />}
-          {soon && <p className={styles.soon} data-testid="my-tools-soon">{soon}</p>}
+          {active === 'templates' && <TemplatesTab navigate={navigate} onCloseAll={closeOnce} />}
         </div>
       </div>
     </Sheet>

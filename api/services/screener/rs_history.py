@@ -2288,9 +2288,10 @@ NARROW_READ_MAX = 200
 #
 # The session list changes once a day and the table's columns only at a migration. So the
 # narrow ask (a chart's) remembers both for `REMEMBER_S`:
-#   * the session list is CHECKED, not trusted: one `MAX(session)` seek per call, and a
-#     newest session that differs from the remembered one rebuilds the list at once (a
-#     session stored by this process or installed by another shows up on the next ask);
+#   * the session list is CHECKED, not trusted: one `MAX(session)` seek per call (since
+#     2026-11-14 inside the ask's own statement, `narrow_read_sql`), and a newest session
+#     that differs from the remembered one rebuilds the list at once (a session stored by
+#     this process or installed by another shows up on the next ask);
 #   * the columns are remembered as read (they are only ever ADDED, so the worst a stale
 #     copy does is report a brand-new column as None for a minute).
 # Both are keyed by the database path. The screener build's bulk ask and an ask for a
@@ -2306,27 +2307,98 @@ def _remembered_get(key):
     return None
 
 
-def _newest_sessions_remembered(conn, limit: int) -> list:
-    """`_sessions_desc(conn, limit)`, remembered while the newest stored session is unchanged."""
-    key = (snapshot_db.get_db_path(), "sessions", limit)
-    newest = conn.execute(f"SELECT MAX(session) FROM {TABLE}").fetchone()[0]
-    held = _remembered_get(key)
-    if held and held[0] == newest:
-        return held
-    sess = _sessions_desc(conn, limit)
-    _remembered[key] = (time.monotonic(), sess)
-    return sess
-
-
-def _read_columns_remembered(conn) -> tuple:
+def _read_columns_remembered(conn, path: str | None = None) -> tuple:
     """`_read_columns(conn)`, remembered for `REMEMBER_S`."""
-    key = (snapshot_db.get_db_path(), "columns")
+    key = (path or snapshot_db.get_db_path(), "columns")
     held = _remembered_get(key)
     if held is not None:
         return held
     cols = _read_columns(conn)
     _remembered[key] = (time.monotonic(), cols)
     return cols
+
+
+# ── A CHART'S ASK IS ONE STATEMENT (2026-11-14) ──────────────────────────────
+#
+# ⚰️ MEASURED ON PRODUCTION 2026-11-14, after the remembering above: the `rating` stage was
+# still a median 185 ms of a 408 ms RS answer. The narrow ask was four statements on a
+# connection opened for it (the open and its two PRAGMAs are three more round trips), and the
+# series read beside it another open and two statements. Measured with the web pod's switch
+# interval beside 30 busy threads: 17 ms for an open, 6 to 14 ms for each statement, however
+# little it reads, because the thread waits to get the GIL back after every one.
+#
+# So the narrow ask runs on this thread's kept reader (`snapshot_db.read_on_reader`) and is
+# ONE statement: the newest stored session (the check on the remembered list), each asked
+# ticker's row in it, and its `ibd` 5 and 20 stored sessions earlier. What it answers is what
+# the four statements answered, row for row (tests/test_rs_read_fields_remembered.py holds
+# the two against each other).
+#: How many newest sessions the narrow ask needs: the newest, and the one 20 before it.
+_NARROW_SESSIONS = 21
+
+
+def narrow_read_sql(cols: tuple, n_tickers: int) -> str:
+    """The narrow ask's one statement. Parameters, in order: the session 5 stored sessions
+    before the newest, the one 20 before (None when the store is that short: no row matches),
+    the newest remembered session, then the tickers.
+
+    ALWAYS at least one row: `newest_` is the store's newest session NOW (None when it is
+    empty), on every row; a ticker with no row in the asked session has no row here, and when
+    none has one the single row's `ticker` is None. Every read is a primary-key seek (the plan
+    is pinned in tests/test_rs_read_fields_remembered.py)."""
+    earlier = (f"(SELECT p.ibd FROM {TABLE} p WHERE p.session = ? AND p.ticker = a.ticker)")
+    return (f"SELECT m.newest AS newest_, a.ticker AS ticker, {', '.join(f'a.{c} AS {c}' for c in cols)}, "
+            f"{earlier} AS ibd5_, {earlier} AS ibd20_ "
+            f"FROM (SELECT MAX(session) AS newest FROM {TABLE}) m "
+            f"LEFT JOIN {TABLE} a ON a.session = ? AND a.ticker IN ({', '.join('?' * n_tickers)})")
+
+
+def _narrow_read(conn, path: str, want: list):
+    """``(newest session, {ticker: row}, {5: {ticker: ibd}, 20: {...}})`` for the narrow ask,
+    or None when the store holds no session.
+
+    The remembered session list is CHECKED by the statement itself: it answers the store's
+    newest session beside the rows, and a list whose first entry is not that session is found
+    again at once and the statement run again (a session stored by this process or installed
+    by another shows on the very next ask). An empty list is never remembered as an answer."""
+    key = (path, "sessions", _NARROW_SESSIONS)
+    cols = _read_columns_remembered(conn, path)
+    sql = narrow_read_sql(cols, len(want))
+    sess = _remembered_get(key)
+    found_now = False
+    while True:
+        if not sess:
+            sess = _sessions_desc(conn, _NARROW_SESSIONS)
+            _remembered[key] = (time.monotonic(), sess)
+            found_now = True
+            if not sess:
+                return None
+        got = conn.execute(sql, (sess[5] if len(sess) > 5 else None,
+                                 sess[20] if len(sess) > 20 else None,
+                                 sess[0]) + tuple(want)).fetchall()
+        if found_now or got[0]["newest_"] == sess[0]:
+            break
+        sess = None                                  # the store moved on: find its sessions again
+    rows, earlier = {}, {5: {}, 20: {}}
+    for r in got:
+        t = r["ticker"]
+        if t is None:                                # the one row of an ask no ticker of which has a row
+            continue
+        rows[t] = {c: r[c] for c in cols}
+        earlier[5][t] = r["ibd5_"]
+        earlier[20][t] = r["ibd20_"]
+    return sess[0], rows, earlier
+
+
+def _table_known(conn, path: str) -> bool:
+    """`_table_exists(conn, TABLE)`, remembered for `REMEMBER_S` once it is True (a table is
+    never dropped; an absent one is looked for again on every ask, so it is seen at once)."""
+    key = (path, "table")
+    if _remembered_get(key):
+        return True
+    if not _table_exists(conn, TABLE):
+        return False
+    _remembered[key] = (time.monotonic(), True)
+    return True
 
 
 def read_fields(tickers, session=None, failures=None, now=None) -> dict:
@@ -2350,39 +2422,44 @@ def read_fields(tickers, session=None, failures=None, now=None) -> dict:
     if not want:
         return {}
     try:
-        with closing(snapshot_db.connect()) as conn:
-            if session is not None:
-                key = session_key(session)
-                sess = _sessions_desc(conn, 21, upto=key)
-                if not sess or sess[0] != key:
-                    sess = []
-            elif len(want) <= NARROW_READ_MAX:
-                sess = _newest_sessions_remembered(conn, 21)
-            else:
-                sess = _sessions_desc(conn, 21)
-            if not sess:
+        if session is None and len(want) <= NARROW_READ_MAX:
+            # A chart asks for one symbol: its rows by primary key, in one statement, on this
+            # thread's kept reader (`_narrow_read`). The build's bulk ask and an ask for a
+            # named session read the store as before, on a connection of their own.
+            hit = snapshot_db.read_on_reader(lambda conn, path: _narrow_read(conn, path, want))
+            if hit is None:
                 _note(failures, "missing")
                 return {}
-            latest = sess[0]
-            cols = ", ".join(_read_columns_remembered(conn) if len(want) <= NARROW_READ_MAX
-                             else _read_columns(conn))
-            # A chart asks for one symbol: read its rows by primary key rather than
-            # three whole sessions (review finding #30, 2026-11-07). The build's
-            # bulk ask keeps the whole-session read.
-            if len(want) <= NARROW_READ_MAX:
-                only = f" AND ticker IN ({', '.join('?' * len(want))})"
-                args = tuple(want)
-            else:
-                only, args = "", ()
-            rows = {r["ticker"]: dict(r) for r in conn.execute(
-                f"SELECT ticker, {cols} FROM {TABLE} WHERE session = ?{only}",
-                (latest,) + args).fetchall()}
-            earlier = {}
-            for n in (5, 20):
-                if len(sess) > n:
-                    earlier[n] = {r[0]: r[1] for r in conn.execute(
-                        f"SELECT ticker, ibd FROM {TABLE} WHERE session = ?{only}",
-                        (sess[n],) + args).fetchall()}
+            latest, rows, earlier = hit
+        else:
+            with closing(snapshot_db.connect()) as conn:
+                if session is not None:
+                    key = session_key(session)
+                    sess = _sessions_desc(conn, 21, upto=key)
+                    if not sess or sess[0] != key:
+                        sess = []
+                else:
+                    sess = _sessions_desc(conn, 21)
+                if not sess:
+                    _note(failures, "missing")
+                    return {}
+                latest = sess[0]
+                narrow = len(want) <= NARROW_READ_MAX
+                cols = ", ".join(_read_columns_remembered(conn) if narrow else _read_columns(conn))
+                if narrow:
+                    only = f" AND ticker IN ({', '.join('?' * len(want))})"
+                    args = tuple(want)
+                else:
+                    only, args = "", ()
+                rows = {r["ticker"]: dict(r) for r in conn.execute(
+                    f"SELECT ticker, {cols} FROM {TABLE} WHERE session = ?{only}",
+                    (latest,) + args).fetchall()}
+                earlier = {}
+                for n in (5, 20):
+                    if len(sess) > n:
+                        earlier[n] = {r[0]: r[1] for r in conn.execute(
+                            f"SELECT ticker, ibd FROM {TABLE} WHERE session = ?{only}",
+                            (sess[n],) + args).fetchall()}
     except Exception as e:                                   # noqa: BLE001 - a read never raises
         log.warning("[rs_history] read failed: %s", e)
         _note(failures, "missing")
@@ -2483,13 +2560,16 @@ def rating_series(ticker: str, upto=None, limit: int = 300) -> list:
     if not n or not tu:
         return []
     args = (tu, n) if upto is None else (tu, session_key(upto), n)
+
+    def read(conn, path):
+        if not _table_known(conn, path):
+            return []
+        pairs = _rating_series_one_step(conn, upto is not None, args)
+        if pairs is None:
+            pairs = [(r[0], r[1]) for r in conn.execute(rating_series_sql(upto is not None), args).fetchall()]
+        return pairs
     try:
-        with closing(snapshot_db.connect()) as conn:
-            if not _table_exists(conn, TABLE):
-                return []
-            pairs = _rating_series_one_step(conn, upto is not None, args)
-            if pairs is None:
-                pairs = [(r[0], r[1]) for r in conn.execute(rating_series_sql(upto is not None), args).fetchall()]
+        pairs = snapshot_db.read_on_reader(read)             # this thread's kept reader: one statement
     except Exception as e:                                   # noqa: BLE001 - a read never raises
         log.warning("[rs_history] rating series read failed for %s: %s", tu, e)
         return []

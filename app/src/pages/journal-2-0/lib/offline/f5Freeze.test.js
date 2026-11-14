@@ -113,6 +113,30 @@
  * ⛔ Still NOT moved by D3b: the append CALL SITES, `serverChange.js`,
  * `settleNoteWrite.js`, and the classifier. `F5_OPEN` stays true.
  *
+ * ⚖️ AMENDED 2026-11-13 — FOLLOW-UP D. Owner, 2026-11-13, approved fixing the Notebook
+ * save defect found during the simplify go-live ('okay lets do all of that now'); the
+ * root-cause read narrowed it to the false unsent mark; the controller ruled F1 to F4 and
+ * the Discard fix in scope. What moved, and nothing else:
+ *   · the settle, in the drain: both "server already identical" branches now call
+ *     `supersedeIdentical`, which asks ONE helper, `settleIfServerHolds` (one readwrite
+ *     transaction through `putNoteWithIntentIf`): a dirty record holding exactly the
+ *     server's words, every queued entry for the note holding them too, and a proof not
+ *     OLDER than the words' base, goes clean at the revision just read and its entries go;
+ *     otherwise only the proven entry is removed, and only while it still holds those
+ *     words (the clear used to be by id after a round trip). The landed ring is not
+ *     touched. Pinned below: `supersedeIdentical(` is called exactly twice in the drain.
+ *   · the editor settles on open through the same helper, only with a copy that mount saw
+ *     arrive from the network (`useDurableNote` `settleProvenEqual`).
+ *   · Discard on the recovery banner (`useDurableNote` `discardOffered`) removes the
+ *     device's copy of exactly the offered words, by a content-checked transaction; when it
+ *     runs it removes nothing the member typed after the offer. `persist`'s fix 6 is
+ *     untouched. Residual, ruled not fixed in this release: a durable write or save-settle
+ *     already in flight when Discard is pressed can put the offered words back (then the
+ *     outcome is what it was before). Pinned below: one door each for the open settle and
+ *     Discard.
+ * ⛔ Still NOT moved: the append CALL SITES, `serverChange.js`, `settleNoteWrite.js`, the
+ * classifier and `ringVouchedPlan`. `F5_OPEN` stays true.
+ *
  * ⛔ THIS RAIL EXPIRES BY CONSTRUCTION. `F5_OPEN` flips to false the day every
  * cell of the seven-family × six-ordering table is GREEN or NAMED (see the
  * constant's own note — amended 2026-09-13, because "zero INCONCLUSIVE rows"
@@ -296,6 +320,29 @@ describe('⛔⛔ Q1-F5 FREEZE — the append doors do not move until they are pr
     expect(recover, '…which baseOfRecovered asks too').toMatch(/baseMayStandFor\(at, entry\.baseUpdatedAt\)/)
     // …and the classifier the ruling left alone is still frozen, byte for byte in name.
     expect(read('app/src/pages/journal-2-0/lib/offline/serverChange.js')).toMatch(/export function classifyServerChange\(fresh, base\)/)
+  })
+
+  it('⚖️ follow-up D — the drain settles through `supersedeIdentical` at exactly its two identical branches', () => {
+    const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ')
+    const drain = strip(read('app/src/pages/journal-2-0/lib/offline/outboxDrain.js'))
+    expect([...drain.matchAll(/(?<!function\s)supersedeIdentical\(/g)].length, 'the pre-send branch and the 409 branch, nothing else').toBe(2)
+    expect([...drain.matchAll(/function\s+supersedeIdentical\(/g)].length).toBe(1)
+  })
+
+  it('⚖️ follow-up D — the open settle and Discard each have ONE door: one helper call each in the hook, one call site each in the editor', () => {
+    const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ').replace(/\r\n/g, '\n')
+    const hook = strip(read('app/src/pages/journal-2-0/lib/offline/useDurableNote.js'))
+    const settles = [...hook.matchAll(/(?<!function\s)settleIfServerHolds\(([^)]*)\)/g)].map((m) => m[1])
+    expect(settles.length, 'the hook settles through the shared helper in exactly one place').toBe(1)
+    expect(settles[0], 'and on open it never clears an entry it could not settle').not.toMatch(/clear/)
+    const ifs = [...hook.matchAll(/putNoteWithIntentIf\(/g)].map((m) => m.index)
+    expect(ifs.length, 'one conditional transaction in the hook: the discard').toBe(1)
+    const from = hook.indexOf('const discardOffered = useCallback(')
+    const to = hook.indexOf('}, [supported', from)
+    expect(from > -1 && ifs[0] > from && ifs[0] < to, 'and it is inside discardOffered').toBe(true)
+    const editor = strip(read('app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx'))
+    expect([...editor.matchAll(/\.discardOffered\(/g)].length, 'Discard is reached from one place').toBe(1)
+    expect([...editor.matchAll(/\.settleProvenEqual\(/g)].length, 'the open settle is reached from one place').toBe(1)
   })
 
   it('⭐ the freeze declares WHEN it lifts, and it has not lifted', () => {

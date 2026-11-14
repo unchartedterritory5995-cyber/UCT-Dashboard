@@ -1,0 +1,86 @@
+# promotion-gate: no
+#
+# The front door (`api/front_app.py`), on LINUX, where it will run.
+#
+# Two jobs:
+#   behaviour  the app over real sockets: a stand-in for `web` on one port, the front door
+#              on another, a real HTTP client. Needs four packages.
+#   parity     its tables against `api/main.py`: the same file routes, the same app shell,
+#              and every route `web` registers outside `/api` either served by the front
+#              door or passed through. Needs the application's dependencies, because it
+#              imports `api.main`.
+#
+# `api/main.py` is in the paths on purpose. The front door mirrors the block of that file
+# that serves the built frontend; a change there that the front door does not follow is
+# exactly what `parity` exists to turn red.
+#
+# promotion-gate is `no` while no member traffic goes through the front door. The change
+# that sends traffic to it must flip this to `yes` in the same commit.
+name: Front door
+
+on:
+  push:
+    paths:
+      - 'api/front_app.py'
+      - 'api/main.py'
+      - 'api/services/static_assets.py'
+      - 'api/services/build_manifest.py'
+      - 'tests/test_front_app.py'
+      - 'tests/test_front_app_parity.py'
+      - 'tests/test_front_parity_tool.py'
+      - 'tools/front_parity.py'
+      - 'front/**'
+      - 'railway.web.json'
+      - '.github/workflows/front-door.yml'
+  pull_request:
+    paths:
+      - 'api/front_app.py'
+      - 'api/main.py'
+      - 'api/services/static_assets.py'
+      - 'api/services/build_manifest.py'
+      - 'tests/test_front_app.py'
+      - 'tests/test_front_app_parity.py'
+      - 'tests/test_front_parity_tool.py'
+      - 'tools/front_parity.py'
+      - 'front/**'
+      - 'railway.web.json'
+      - '.github/workflows/front-door.yml'
+
+# CI COST (2026-11-06, owner): a newer push to the same PR cancels that PR's older run of this
+# workflow. Every other event (master push, dispatch, schedule) is grouped by its own commit SHA and
+# is never cancelled: promotion reads the master runs for a SHA. tests/test_ci_cost_rails.py pins this.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  behaviour:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install the packages the front door needs
+        run: python -m pip install --quiet 'fastapi==0.115.6' 'uvicorn==0.41.0' 'httpx==0.28.1' 'pytest==8.3.4' 'pytest-timeout==2.4.0'
+      - name: tests/test_front_app.py and the comparison tool's self-check
+        # An empty ini file, not the repo's pytest.ini: the repo's conftest and plugins
+        # need the whole application installed, and this app does not.
+        run: |
+          echo "[pytest]" > "$RUNNER_TEMP/empty.ini"
+          python -m pytest tests/test_front_app.py tests/test_front_parity_tool.py -q --noconftest -c "$RUNNER_TEMP/empty.ini" --rootdir . -p no:cacheprovider --timeout 240 -rs
+
+  parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install the application's dependencies
+        run: python -m pip install --quiet -r requirements.txt
+      - name: tests/test_front_app_parity.py
+        run: python -m pytest tests/test_front_app_parity.py -q -p no:cacheprovider --timeout 300 -rs
