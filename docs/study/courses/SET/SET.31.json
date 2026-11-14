@@ -3354,7 +3354,7 @@
    "key": "q56",
    "skill": "setup.parabolic_short",
    "rung": 7,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "ps.above_200",
    "q": "Is the short allowed under our 200-day rule?",
    "choices": [

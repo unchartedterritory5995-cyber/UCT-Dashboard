@@ -53,7 +53,10 @@ import { calloutLook, hardCallouts } from './ui/callout'
 import ChartKey from './ui/ChartKey'
 import { SymbolBadge } from './ui/StudyChart'
 import brandMark from '../../components/intro/assets/compass-mark.png'
-import { reviewTrade } from './challenges/hardMode'
+import { RUN_ON_MS, reviewTrade } from './challenges/hardMode'
+import { alignTicks, developing, fetchIntraday } from './challenges/replayTicks'
+import { useRunOnTicks } from '../../lab/fx'   // pure motion (bars running on, tick by tick); no styling rides in
+import ReplayClock from './ui/ReplayClock'
 import { tradeAnnotations, tradeMarkers } from './challenges/tradeMarks'
 import { HudCombo } from './ui/HudLooks'
 import StudyButton from './ui/StudyButton'
@@ -213,7 +216,6 @@ export default function DrillPlayer({
   const { prefs: chartPrefs } = usePreferences(true)
   const lookProps = useMemo(() => paneLookProps({ cs: surface.cs, theme: surface.theme, prefs: chartPrefs }), [surface.cs, surface.theme, chartPrefs])
   const entryDate = chartBars?.[0]?.t ?? null
-  const exitDate = chartBars?.length ? chartBars[chartBars.length - 1].t : null
 
   const state = item ? s.getState(item.id) : null
   const setState = useCallback((v) => { if (item) s.setState(item.id, typeof v === 'function' ? v(s.getState(item.id)) : v) }, [item, s])
@@ -227,7 +229,35 @@ export default function DrillPlayer({
   // workbench pointer: a halo on the candle, an arrow into it, the label; green or red with the low-of-day ray on the reveal.
   const forwardCount = phase === 'reveal' && Array.isArray(reveal?.forward_bars) ? reveal.forward_bars.length : 0
   const baseLen = Math.max(0, (chartBars?.length || 0) - forwardCount)
-  const shownBars = chartBars
+  // THE REPLAY AFTER THE ANSWER (owner, 2026-11-14: "a visual along with it to see ... Using our tick by tick ... Build
+  // this it is critical"; he picked "chart + replay after"). The bars after the decision day run on with Hard mode's
+  // engine (lab/fx useRunOnTicks, RUN_ON_MS), each day growing through its stored 30-minute closes where the server has
+  // them, the replay clock on top, the frame widening as each day arrives, as in Hard mode and the Daily Chart game. It
+  // is finite (it stops on the last bar) and lands at once under prefers-reduced-motion. Skip shows it all; Replay runs it again.
+  const fwdBars = useMemo(() => (forwardCount && chartBars ? chartBars.slice(baseLen) : null), [chartBars, baseLen, forwardCount])
+  const baseBars = useMemo(() => (forwardCount && chartBars ? chartBars.slice(0, baseLen) : chartBars), [chartBars, baseLen, forwardCount])
+  const [intraday, setIntraday] = useState(null)
+  const [skipped, setSkipped] = useState(false)
+  const attemptId = result?.attempt_id ?? null
+  useEffect(() => {
+    setIntraday(null)
+    setSkipped(false)
+    if (!forwardCount || !attemptId) return undefined
+    let live = true
+    // through the drill's own fetcher (a test or an embed injects one), never a bare network call
+    fetchIntraday({ attempt_id: attemptId }, fetcher || undefined).then((d) => { if (live && d) setIntraday(d) })
+    return () => { live = false }
+  }, [attemptId, forwardCount, fetcher])
+  const ticks = useMemo(() => alignTicks(fwdBars, intraday), [fwdBars, intraday])
+  const replayOn = phase === 'reveal' && forwardCount > 0 && !skipped
+  const run = useRunOnTicks(baseBars, fwdBars, forwardCount, replayOn, { slowMs: RUN_ON_MS, ticks, develop: developing })
+  const replayDone = forwardCount > 0 && (skipped || (run.k >= forwardCount && !run.clock))
+  const shownBars = forwardCount ? (skipped ? chartBars : run.bars) : chartBars
+  const exitDate = shownBars?.length ? shownBars[shownBars.length - 1].t : null
+  const replayAgain = useCallback(() => {
+    setSkipped(true)
+    requestAnimationFrame(() => setSkipped(false))
+  }, [])
   // One pointer everywhere (rule 4; the owner, 2026-11-08: one design for every mode): Hard mode's callout at the candle
   // in question, gold while asking, green or red after. After a scored answer on a setup with a plan, the trade is drawn
   // on the chart (the levels, BOUGHT, the targets, STOPPED OUT) and named in the chart key under it, as in Hard mode;
@@ -498,9 +528,17 @@ export default function DrillPlayer({
           {chartVisible && Overlay && (
             <Overlay item={item} state={state} setState={setState} locked={locked} reveal={reveal} bars={chartBars} />
           )}
+          {chartVisible && replayOn ? <ReplayClock clock={run.clock} tfMin={intraday?.tf || 30} testId="drill-replay-clock" /> : null}
         </div>
         {/* owner 2026-11-12: "remove THE READ ON THIS CHART and all that data there ... just noisy"; the chart takes the room */}
         </div>
+        {chartVisible && forwardCount > 0 ? (
+          <div className={styles.replayBar} data-testid="drill-replay">
+            {replayDone
+              ? <StudyButton kind="ghost" icon="refresh" onClick={replayAgain} testId="drill-replay-again">Replay what happened</StudyButton>
+              : <StudyButton kind="ghost" onClick={() => setSkipped(true)} testId="drill-replay-skip">Skip to the end</StudyButton>}
+          </div>
+        ) : null}
         {keyTrade && needsChart ? <ChartKey trade={keyTrade} testId="drill-key" /> : null}
         <div className={styles.body}>
           <mod.Body item={item} state={state} setState={setState} locked={locked} reveal={reveal} />

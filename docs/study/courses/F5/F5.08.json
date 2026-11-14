@@ -1166,9 +1166,9 @@
    "key": "q09",
    "skill": "fund.earnings_desk",
    "rung": 4,
-   "format": "mcq",
-   "q": "Alphabet, first quarter 2024: EPS $1.89. The LSEG consensus was $1.51. What was the surprise?",
-   "answer": "25.2%",
+   "format": "numeric",
+   "q": "Alphabet, first quarter 2024: EPS $1.89. The LSEG consensus was $1.51. What was the surprise, in percent?",
+   "answer": 25.2,
    "suffix": "%",
    "calc": {
     "fn": "pct_change",
@@ -1193,26 +1193,15 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
-   "choices": [
-    "2.5%",
-    "20.1%",
-    "38.0%",
-    "25.2%"
-   ],
-   "wrong": {
-    "20.1%": "Divided the gap by the actual EPS instead of the consensus.",
-    "38.0%": "Gave the gap in cents as if it were a percent.",
-    "2.5%": "Slipped a decimal place."
-   }
+   "batch": "wave6"
   },
   {
    "key": "q10",
    "skill": "fund.earnings_desk",
    "rung": 4,
-   "format": "mcq",
-   "q": "Netflix forecast 2.5 million new paid members for the first quarter of 2022. It lost 0.2 million. How far short was it?",
-   "answer": "2.7 million",
+   "format": "numeric",
+   "q": "Netflix forecast 2.5 million new paid members for the first quarter of 2022. It lost 0.2 million. How many million short was it?",
+   "answer": 2.7,
    "suffix": "million",
    "calc": {
     "fn": "arith",
@@ -1238,18 +1227,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
-   "choices": [
-    "2.3 million",
-    "2.5 million",
-    "2.7 million",
-    "0.2 million"
-   ],
-   "wrong": {
-    "2.3 million": "Subtracted the loss from the forecast instead of adding.",
-    "2.5 million": "Gave the forecast and ignored the loss.",
-    "0.2 million": "Gave only the loss and ignored the forecast."
-   }
+   "batch": "wave6"
   },
   {
    "key": "q11",
@@ -1289,9 +1267,9 @@
    "key": "q12",
    "skill": "fund.earnings_desk",
    "rung": 5,
-   "format": "mcq",
+   "format": "numeric",
    "q": "Walmart, first quarter of fiscal 2023: adjusted EPS $1.30. The Refinitiv consensus was $1.48. By what percent did it miss?",
-   "answer": "12.2%",
+   "answer": 12.2,
    "suffix": "%",
    "calc": {
     "fn": "arith",
@@ -1318,26 +1296,15 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
-   "choices": [
-    "13.8%",
-    "18.0%",
-    "1.2%",
-    "12.2%"
-   ],
-   "wrong": {
-    "13.8%": "Divided the shortfall by the actual EPS instead of the consensus.",
-    "18.0%": "Gave the shortfall in cents as if it were a percent.",
-    "1.2%": "Slipped a decimal place."
-   }
+   "batch": "wave6"
   },
   {
    "key": "q13",
    "skill": "fund.earnings_desk",
    "rung": 5,
-   "format": "mcq",
+   "format": "numeric",
    "q": "Meta's Q4 2022 EPS was $1.76. Its release says that without restructuring charges, EPS would have been $1.24 higher. What EPS is that?",
-   "answer": "$3.00",
+   "answer": 3,
    "prefix": "$",
    "calc": {
     "fn": "arith",
@@ -1363,18 +1330,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
-   "choices": [
-    "$0.52",
-    "$3.00",
-    "$0.70",
-    "$2.18"
-   ],
-   "wrong": {
-    "$0.52": "Subtracted the charges instead of adding them back.",
-    "$2.18": "Multiplied the two numbers instead of adding.",
-    "$0.70": "Divided the charges by the reported EPS."
-   }
+   "batch": "wave6"
   },
   {
    "key": "q14",
@@ -1390,7 +1346,7 @@
     "Nothing: EPS beat the estimate"
    ],
    "answer": "The full-year sales guide",
-   "why": "The full-year sales guide. Analysts expected fiscal 2025 sales up 0.9%, and Nike guided them down mid single digits. Guidance looks ahead, and Schwab says it can often be the top factor in the near-term price. The EPS beat and the revenue miss are about the quarter just gone. CNBC tied the next day's plunge of nearly 20% to the guidance cut.",
+   "why": "The full-year sales guide. Analysts expected fiscal 2025 sales up 0.9%, and Nike guided them down mid single digits. Guidance looks ahead, and Schwab says it can often be the top factor in the near-term price. The EPS beat and the revenue miss are about the quarter just gone. CNBC tied the drop to the guidance cut. Shares plunged nearly 20% the next day.",
    "lesson_line": "Read the guide before you celebrate the beat. The beat is last quarter; the guide is the year ahead.",
    "facts": [
     "f68",
@@ -1458,9 +1414,9 @@
    "key": "q16",
    "skill": "fund.earnings_desk",
    "rung": 6,
-   "format": "mcq",
+   "format": "numeric",
    "q": "Target, first quarter 2022: adjusted EPS $2.19. The Refinitiv consensus was $3.07. By what percent did it miss?",
-   "answer": "28.7%",
+   "answer": 28.7,
    "suffix": "%",
    "calc": {
     "fn": "arith",
@@ -1487,18 +1443,7 @@
      "computed key"
     ]
    },
-   "batch": "rank",
-   "choices": [
-    "28.7%",
-    "40.2%",
-    "71.3%",
-    "88.0%"
-   ],
-   "wrong": {
-    "40.2%": "Divided the shortfall by the actual EPS instead of the consensus.",
-    "88.0%": "Gave the shortfall in cents as if it were a percent.",
-    "71.3%": "Gave the actual EPS as a share of the consensus, not the miss."
-   }
+   "batch": "wave6"
   },
   {
    "key": "q17",
@@ -1558,7 +1503,7 @@
     "A currency gain inside the EPS"
    ],
    "answer": "Members fell, more losses guided",
-   "why": "Members fell, with more losses guided. Netflix lost 200,000 paid members where StreetAccount expected 2.73 million added. It guided to losing 2 million more. Subscriber growth had long been a key number for Netflix. The EPS beat looks back at the quarter just gone. Members and the guide speak to what comes next. The stock plunged 35% in one day.",
+   "why": "Members fell, more losses guided. Netflix lost 200,000 paid members where StreetAccount expected 2.73 million added. It guided to losing 2 million more. Subscriber growth had long been a key number for Netflix. The EPS beat looks back at the quarter just gone. Members and the guide speak to what comes next. The stock plunged 35% in one day.",
    "lesson_line": "Find the key number for each stock. For Netflix in 2022, that was members, not EPS.",
    "facts": [
     "f15",
@@ -1604,7 +1549,7 @@
     "Whether revenue beat its estimate"
    ],
    "answer": "What the $2.22 estimate included",
-   "why": "What the $2.22 estimate included. Reported EPS of $1.76 includes $4.20 billion of restructuring charges. Without them it would be $1.24 higher. CNBC said the charges made the comparison with $2.22 difficult. Compare an estimate and an actual only on the same basis. If the estimate counted the charges, compare it with $1.76. If not, compare it with the figure without them.",
+   "why": "What the $2.22 estimate included. Reported EPS of $1.76 includes $4.20 billion of restructuring charges. Without them it would be $1.24 higher. CNBC said the charges made the comparison with $2.22 difficult. Compare an estimate and an actual only on the same basis. If the estimate counted the charges, compare it with $1.76. If not, compare it with the figure without them. The stock closed up 23% the next day.",
    "lesson_line": "When a big charge sits in EPS, check what the estimate counted before you call a beat or a miss.",
    "facts": [
     "f31",
@@ -1613,7 +1558,9 @@
     "f23",
     "f32",
     "f91",
-    "f02"
+    "f02",
+    "f37",
+    "f39"
    ],
    "wrong": {
     "Meta's EPS a year earlier": "That's growth, a separate test. Beat and miss compare the actual with the estimate, not with last year.",
@@ -1641,7 +1588,7 @@
    "format": "tf",
    "q": "The bigger a company's EPS beat, the bigger the stock's jump the next day.",
    "answer": "False",
-   "why": "False. Nike earned $1.01 against 83 cents expected, Netflix $3.53 against $2.89, and Alphabet $1.89 against $1.51. All three beat. Yet Nike plunged nearly 20%, Netflix fell 35% in one day and Alphabet rose 10%. FINRA says simply beating or missing isn't always what moves a price. The guide and the rest of the report can outweigh it.",
+   "why": "False. Nike earned $1.01 against 83 cents expected, Netflix $3.53 against $2.89, and Alphabet $1.89 against $1.51. All three beat. FINRA says simply beating or missing isn't always what moves a price. The guide and the rest of the report can outweigh it. Yet Nike plunged nearly 20%, Netflix fell 35% in one day and Alphabet rose 10%.",
    "lesson_line": "The size of the beat doesn't set the move. The guide and the rest of the report do.",
    "facts": [
     "f68",
@@ -1672,7 +1619,7 @@
    "format": "tf",
    "q": "A company that reports EPS below the consensus will see its stock fall.",
    "answer": "False",
-   "why": "False. A miss usually hurts, but not always. Investopedia says a negative surprise will usually result in a decline. Meta's reported $1.76 sat below the $2.22 estimate, charges and all. Its revenue beat, it lowered its 2023 cost outlook, and it closed up 23% the next day. Weak earnings with upbeat guidance can lift a stock.",
+   "why": "False. A miss usually hurts, but not always. Investopedia says a negative surprise will usually result in a decline. Meta's reported $1.76 sat below the $2.22 estimate, charges and all. Weak earnings with upbeat guidance can lift a stock. Its revenue beat, it lowered its 2023 cost outlook, and it closed up 23% the next day.",
    "lesson_line": "A miss usually hurts, but the rest of the report can outweigh it. Read past the EPS line.",
    "facts": [
     "f85",
@@ -1714,7 +1661,7 @@
     "Sales beat, so retail is fine"
    ],
    "answer": "A warning about Target's costs",
-   "why": "A warning about Target's costs. Walmart's sales beat, so its miss came from costs. A day later Target missed by 88 cents and blamed freight and transportation costs. CNBC said Target's miss confirmed the same story from Walmart. Target fell nearly 25%, and both had their worst days since 1987. A peer's report is a warning, not a certainty. Our own rule: hold through a report only if the trade is up 5R.",
+   "why": "A warning about Target's costs. Walmart's sales beat, so its miss came from costs. A day later Target missed by 88 cents and blamed freight and transportation costs. CNBC said Target's miss confirmed the same story from Walmart. A peer's report is a warning, not a certainty. Our own rule: hold through a report only if the trade is up 5R. Target fell nearly 25%, and both had their worst days since 1987.",
    "lesson_line": "When a bigger name in your group reports a cost squeeze, treat it as a warning for yours.",
    "facts": [
     "f43",

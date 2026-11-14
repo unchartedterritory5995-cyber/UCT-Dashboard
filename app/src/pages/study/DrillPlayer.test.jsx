@@ -101,6 +101,24 @@ async function answerChoice(label) {
 }
 
 describe('DrillPlayer', () => {
+  // owner 2026-11-14 ("a visual along with it ... Using our tick by tick", he picked "chart + replay after"): after the
+  // answer the bars after the decision day run on (Hard mode's engine), with Skip and Replay; the full chart is the end.
+  it('replays the bars after the answer, with Skip to the end and Replay', async () => {
+    render(<DrillPlayer open onClose={() => {}} fetcher={makeFetcher(tenSet())} />)
+    const before = Number((await screen.findByTestId('stock-chart')).getAttribute('data-bars'))
+    await answerChoice('VCP')
+    fireEvent.click(screen.getByTestId('drill-takeover-go'))
+    const skip = await screen.findByTestId('drill-replay-skip')
+    // the replay starts from the decision day: no forward bar is on the chart yet
+    expect(Number(screen.getByTestId('stock-chart').getAttribute('data-bars'))).toBe(before)
+    fireEvent.click(skip)
+    await waitFor(() => expect(Number(screen.getByTestId('stock-chart').getAttribute('data-bars'))).toBe(before + 5))
+    const again = screen.getByTestId('drill-replay-again')
+    expect(again).toHaveTextContent('Replay what happened')
+    fireEvent.click(again)
+    await screen.findByTestId('drill-replay-skip')
+  })
+
   it('shows the status line as "Question N of 10" and advances it', async () => {
     const fetcher = makeFetcher(tenSet())
     render(<DrillPlayer open onClose={() => {}} fetcher={fetcher} />)

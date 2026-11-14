@@ -75,8 +75,17 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "The base's highest intraday high"
+  },
+  "asof": "2014-05-28",
+  "bars": {
+   "asof": "2014-05-28",
+   "forward": 20,
+   "sym": "LNG",
+   "tf": "D",
+   "window": 150
   },
   "difficulty": 1,
   "id": "si_54b33719e292",
@@ -84,6 +93,10 @@
   "lesson_text": "The base's highest intraday high. MarketSmith calls it the left-side high that began the base. IBD adds 10 cents to it for the buy point. With a market order the 10 cents does not matter. The lowest low is the floor, and the 50-day is support inside the base. The pivot is the top of the box. Mark it before the open.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 150
+   },
    "choices": [
     "The base's highest intraday high",
     "The base's lowest intraday low",
@@ -91,7 +104,8 @@
     "The rising 50-day average"
    ],
    "kind": "mcq",
-   "q": "On a flat base, where is the pivot, the level a breakout has to trade through?",
+   "q": "Where is this flat base's pivot, the level it must trade through?",
+   "story": "Hidden ticker, the day before a breakout.",
    "subject": "SET.07#q02"
   },
   "reveal_json": {
@@ -125,7 +139,7 @@
     "summary": "The pivot is the base's highest intraday high; IBD's 10 cents does not matter with a market order. MarketSmith: a flat base's pivot is the left-side high that began the base. IBD: the flat base buy point is 10 cents above the left-side high."
    },
    "facts": {
-    "given": "On a flat base, where is the pivot, the level a breakout has to trade through? The base's highest intraday high The base's lowest intraday low The rising 50-day average The midpoint of the base"
+    "given": "Where is this flat base's pivot, the level it must trade through? Hidden ticker, the day before a breakout. The base's highest intraday high The base's lowest intraday low The rising 50-day average The midpoint of the base"
    },
    "lesson_line": "The pivot is the top of the box. Mark it before the open.",
    "simple": "The pivot is the top of the box, the highest high of the base, and a breakout must trade through it.",
@@ -142,27 +156,42 @@
   "skill_id": "setup.flat_base",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.07.json#q02",
-  "type": "recall",
+  "sym": "LNG",
+  "type": "scenario",
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
-   "answer": "Trade through 60.00, regular hours"
+   "answer": "Trade through the pivot, regular hours"
+  },
+  "asof": "2020-07-02",
+  "bars": {
+   "asof": "2020-07-02",
+   "forward": 20,
+   "sym": "CMG",
+   "tf": "D",
+   "window": 150
   },
   "difficulty": 1,
   "id": "si_3e65220e8874",
   "lesson_origin": "session",
-  "lesson_text": "As it trades through 60.00 in regular hours, bought at market. Set the alert at the pivot and let the trade come to you. Do not wait for the close, and do not buy in premarket. Entries are market orders, and no new buys come outside regular hours. Buying inside the base has no trigger, and Kullamagi finds anticipating less effective. The trigger is the trade through the pivot. Alert at the pivot, market order, regular hours.",
+  "lesson_text": "As it trades through the pivot in regular hours, bought at market. Set the alert at the pivot and let the trade come to you. Do not wait for the close, and do not buy in premarket. Entries are market orders, and no new buys come outside regular hours. Buying inside the base has no trigger, and Kullamagi finds anticipating less effective. The trigger is the trade through the pivot. Alert at the pivot, market order, regular hours.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 150
+   },
    "choices": [
-    "In premarket, if it gaps over 60.00",
-    "At the first daily close above 60.00",
-    "Trade through 60.00, regular hours",
-    "Inside the base, just under 60.00"
+    "In premarket, if it gaps over the pivot",
+    "At the first daily close above the pivot",
+    "Trade through the pivot, regular hours",
+    "Inside the base, just under the pivot"
    ],
    "kind": "mcq",
-   "q": "A flat base pivot is 60.00. When do you buy?",
+   "q": "When do you buy?",
+   "story": "Hidden ticker, the day before a breakout.",
    "subject": "SET.07#q05"
   },
   "reveal_json": {
@@ -200,24 +229,25 @@
     "summary": "The trigger: price trades above the pivot in regular hours; buy at market; alert at the pivot. E57: entries are market orders. E58: no new buys outside regular hours. Kullamagi finds anticipating the breakout less effective."
    },
    "facts": {
-    "given": "A flat base pivot is 60.00. When do you buy? Trade through 60.00, regular hours At the first daily close above 60.00 In premarket, if it gaps over 60.00 Inside the base, just under 60.00"
+    "given": "When do you buy? Hidden ticker, the day before a breakout. Trade through the pivot, regular hours At the first daily close above the pivot In premarket, if it gaps over the pivot Inside the base, just under the pivot"
    },
    "lesson_line": "The trigger is the trade through the pivot. Alert at the pivot, market order, regular hours.",
-   "simple": "Buy with a market order as price trades through 60.00 during regular hours, not at the close or in premarket.",
+   "simple": "Buy with a market order as price trades through the pivot during regular hours, not at the close or in premarket.",
    "tier": "core",
    "unit": "SET.07",
-   "why": "As it trades through 60.00 in regular hours, bought at market. Set the alert at the pivot and let the trade come to you. Do not wait for the close, and do not buy in premarket. Entries are market orders, and no new buys come outside regular hours. Buying inside the base has no trigger, and Kullamagi finds anticipating less effective.",
+   "why": "As it trades through the pivot in regular hours, bought at market. Set the alert at the pivot and let the trade come to you. Do not wait for the close, and do not buy in premarket. Entries are market orders, and no new buys come outside regular hours. Buying inside the base has no trigger, and Kullamagi finds anticipating less effective.",
    "wrong": {
-    "At the first daily close above 60.00": "Our trigger is the trade through the pivot, not the close. Waiting for the close is a different, later entry.",
-    "In premarket, if it gaps over 60.00": "No new buys outside regular trading hours.",
-    "Inside the base, just under 60.00": "That is anticipating with no trigger. Kullamagi finds it less effective; we wait."
+    "At the first daily close above the pivot": "Our trigger is the trade through the pivot, not the close. Waiting for the close is a different, later entry.",
+    "In premarket, if it gaps over the pivot": "No new buys outside regular trading hours.",
+    "Inside the base, just under the pivot": "That is anticipating with no trigger. Kullamagi finds it less effective; we wait."
    }
   },
   "review_status": "draft",
   "skill_id": "setup.flat_base",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.07.json#q05",
-  "type": "recall",
+  "sym": "CMG",
+  "type": "scenario",
   "version": 1
  },
  {
@@ -383,8 +413,17 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "At the left-side high"
+  },
+  "asof": "2016-06-30",
+  "bars": {
+   "asof": "2016-06-30",
+   "forward": 20,
+   "sym": "LII",
+   "tf": "D",
+   "window": 200
   },
   "difficulty": 1,
   "id": "si_113ba395d079",
@@ -392,6 +431,10 @@
   "lesson_text": "At the left-side high, the highest intraday high of the last 100 sessions. MarketSmith agrees: in most cases it is the highest intraday price over the last 100 days, or 20 weeks. IBD calls it the highest price in the pattern, usually the start of the base. Depth and the pivot both measure from there. Find the left-side high first. Everything else is measured from it.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 200
+   },
    "choices": [
     "On the day of the breakout",
     "At the left-side high",
@@ -399,7 +442,8 @@
     "At the lowest low of the base"
    ],
    "kind": "mcq",
-   "q": "Where does a flat base start?",
+   "q": "Where does this flat base start?",
+   "story": "Hidden ticker, the day before a breakout.",
    "subject": "SET.07#q09"
   },
   "reveal_json": {
@@ -430,7 +474,7 @@
     "summary": "The base starts at the left-side high, the highest intraday high of the last 100 sessions. MarketSmith: the left-side high is usually the highest intraday price of the last 100 days. IBD's buy point is 10 cents above the highest price in the pattern, usually the start of the base."
    },
    "facts": {
-    "given": "Where does a flat base start? At the left-side high At the lowest low of the base At the first 50-day crossover On the day of the breakout"
+    "given": "Where does this flat base start? Hidden ticker, the day before a breakout. At the left-side high At the lowest low of the base At the first 50-day crossover On the day of the breakout"
    },
    "lesson_line": "Find the left-side high first. Everything else is measured from it.",
    "simple": "A flat base starts at the left-side high, the highest price of the last 100 sessions.",
@@ -447,19 +491,33 @@
   "skill_id": "setup.flat_base",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.07.json#q09",
-  "type": "recall",
+  "sym": "LII",
+  "type": "scenario",
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "Tight at the end"
+  },
+  "asof": "2019-06-26",
+  "bars": {
+   "asof": "2019-06-26",
+   "forward": 20,
+   "sym": "ALLY",
+   "tf": "D",
+   "window": 150
   },
   "difficulty": 1,
   "id": "si_15a111ee388c",
   "lesson_origin": "session",
-  "lesson_text": "Tight at the end. Our test: the last 10 sessions span at most half the base's depth, or the last 3 sessions include an inside day. IBD says flat bases should show tight trading. Tight at the end is the tell. Inside days into the pivot are the picture.",
+  "lesson_text": "Tight at the end. Our test: the last 10 sessions span at most half the base's depth, or the last 3 sessions include an inside day. IBD says flat bases should show tight trading. ALLY showed it in one picture, with four taps of 30 and inside days into the breakout. Tight at the end is the tell. Inside days into the pivot are the picture.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 150
+   },
    "choices": [
     "A volume dry-up",
     "A flat ceiling",
@@ -467,7 +525,8 @@
     "Tight at the end"
    ],
    "kind": "mcq",
-   "q": "Over the last ten sessions a base spans at most half its depth, or the last three include an inside day. Our card's name for it?",
+   "q": "Its last bars squeeze into a narrow range, with inside days. What does our card call that?",
+   "story": "Hidden ticker, the day before a breakout.",
    "subject": "SET.07#q10"
   },
   "reveal_json": {
@@ -507,18 +566,32 @@
       "quote": "In the base, at least 80% of the closes are at or above the 50-day. A brief shakeout under the 50-day is allowed.",
       "tier": 3,
       "url": "repo:docs/study/setups/criteria/01-flat-base.json"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own daily bars): Flat Base dossier, sections 12 and 13: examples, failures and near-misses from our data",
+      "quote": "ALLY | 2019-06-27 | 11.2 wk / 5.5% / 4 / +31% | 1.80x | 30.28 | 29.79 (1.6%) | 8.1R (10)",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/01-flat-base.md#12-examples-from-our-data"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own daily bars): Flat Base dossier, sections 12 and 13: examples, failures and near-misses from our data",
+      "quote": "The shallowest base of the ten (5.5%), four taps of 30 and inside days into the breakout: the \"tight at the end\" rule in one picture. Slower, 3R on day 10.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/01-flat-base.md#12-examples-from-our-data"
      }
     ],
-    "summary": "Tight at the end: the last 10 sessions span at most half the depth, or an inside day in the last 3. IBD: flat bases should show tight trading. The ceiling needs two or more separate touches, the first at least 10 sessions back. Volume drying up in the second half of the base is a grade cue, not a gate. At least 80% of the base's closes hold the 50-day; a brief shakeout is allowed."
+    "summary": "Tight at the end: the last 10 sessions span at most half the depth, or an inside day in the last 3. IBD: flat bases should show tight trading. The ceiling needs two or more separate touches, the first at least 10 sessions back. Volume drying up in the second half of the base is a grade cue, not a gate. At least 80% of the base's closes hold the 50-day; a brief shakeout is allowed. ALLY, trigger 2019-06-27: an 11.2-week, 5.5% base with 4 taps; buy 30.28, stop 29.79 (1.6%); 8.1R, 3R on day 10. ALLY: the shallowest base, four taps of 30, inside days into the breakout; 3R on day 10."
    },
    "facts": {
-    "given": "Over the last ten sessions a base spans at most half its depth, or the last three include an inside day. Our card's name for it? Tight at the end A flat ceiling A volume dry-up A held 50-day"
+    "given": "Its last bars squeeze into a narrow range, with inside days. What does our card call that? Hidden ticker, the day before a breakout. Tight at the end A flat ceiling A volume dry-up A held 50-day"
    },
    "lesson_line": "Tight at the end is the tell. Inside days into the pivot are the picture.",
    "simple": "Tight at the end: the last ten sessions span half the depth or less, or the last three include an inside day.",
    "tier": "core",
    "unit": "SET.07",
-   "why": "Tight at the end. Our test: the last 10 sessions span at most half the base's depth, or the last 3 sessions include an inside day. IBD says flat bases should show tight trading.",
+   "why": "Tight at the end. Our test: the last 10 sessions span at most half the base's depth, or the last 3 sessions include an inside day. IBD says flat bases should show tight trading. ALLY showed it in one picture, with four taps of 30 and inside days into the breakout.",
    "wrong": {
     "A flat ceiling": "That is the top, touched at least twice. It says nothing about how tight the last ten sessions are.",
     "A held 50-day": "That is the closes staying at or above the 50-day. This question is about the range of the last bars.",
@@ -529,19 +602,33 @@
   "skill_id": "setup.flat_base",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.07.json#q10",
-  "type": "recall",
+  "sym": "ALLY",
+  "type": "scenario",
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "Yes; the top has been tested enough"
+  },
+  "asof": "2025-09-09",
+  "bars": {
+   "asof": "2025-09-09",
+   "forward": 20,
+   "sym": "FIX",
+   "tf": "D",
+   "window": 120
   },
   "difficulty": 1,
   "id": "si_2f7bc0f259d1",
   "lesson_origin": "session",
-  "lesson_text": "Yes. Two or more separate touches of the top make the ceiling. They sit within 0.5 ATR, and the first is at least 10 sessions back. Here there are three, and the first was six weeks ago, well past 10 sessions. Three clean taps is the A+ cue on our card. A ceiling is touched, not guessed. Two taps make it; three make it clean.",
+  "lesson_text": "Yes. Two or more separate touches of the top make the ceiling. They sit within 0.5 ATR, and the first is at least 10 sessions back. Here there are three, over a base 6.4 weeks long, and the first is far enough back to count. Three clean taps is the A+ cue on our card. A ceiling is touched, not guessed. Two taps make it; three make it clean.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
    "choices": [
     "Yes, but only after a fourth test",
     "No; the first test is too recent",
@@ -550,7 +637,7 @@
    ],
    "kind": "mcq",
    "q": "Does the top count as a flat ceiling?",
-   "story": "A stock rests nine weeks under 48. It has touched 48 three times, on three swings, all within a few cents, the first six weeks ago. The floor holds near 43.",
+   "story": "Hidden ticker, the day before a breakout. A stock rests 6.4 weeks under about 733. It has tapped that top three times, on three swings.",
    "subject": "SET.07#q11"
   },
   "reveal_json": {
@@ -579,20 +666,34 @@
       "quote": "Three or more clean taps of one flat level is the A+ version of the ceiling.",
       "tier": 3,
       "url": "repo:docs/study/setups/criteria/01-flat-base.json"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own daily bars): Flat Base dossier, sections 12 and 13: examples, failures and near-misses from our data",
+      "quote": "FIX | 2025-09-10 | 6.4 wk / 11.6% / 3 / +115% | 1.57x | 733.26 | 721.82 (1.6%) | 25.1R (1)",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/01-flat-base.md#12-examples-from-our-data"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own daily bars): Flat Base dossier, sections 12 and 13: examples, failures and near-misses from our data",
+      "quote": "The shelf sat above a steep 50-day after a run from about 300; three taps near 733; 3R the next session.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/01-flat-base.md#12-examples-from-our-data"
      }
     ],
-    "summary": "The ceiling needs two or more separate touches, the first at least 10 sessions back. Bulkowski's rectangle touches one line at least three times and the other twice. Our card: three or more clean taps of one flat level is the A+ version of the ceiling."
+    "summary": "The ceiling needs two or more separate touches, the first at least 10 sessions back. Bulkowski's rectangle touches one line at least three times and the other twice. Our card: three or more clean taps of one flat level is the A+ version of the ceiling. FIX, trigger 2025-09-10: a 6.4-week, 11.6% base with 3 taps after a 115% run; buy 733.26, stop 721.82 (1.6%); 25.1R, 3R on day 1. FIX: a shelf above a steep 50-day after a run from about 300; three taps near 733; 3R the next session."
    },
    "facts": {
-    "given": "Does the top count as a flat ceiling? A stock rests nine weeks under 48. It has touched 48 three times, on three swings, all within a few cents, the first six weeks ago. The floor holds near 43. Yes; the top has been tested enough Yes, but only after a fourth test No; there are too few tests here No; the first test is too recent"
+    "given": "Does the top count as a flat ceiling? Hidden ticker, the day before a breakout. A stock rests 6.4 weeks under about 733. It has tapped that top three times, on three swings. Yes; the top has been tested enough Yes, but only after a fourth test No; there are too few tests here No; the first test is too recent"
    },
    "lesson_line": "A ceiling is touched, not guessed. Two taps make it; three make it clean.",
    "simple": "Yes, because two or more separate touches of the top make a flat ceiling, and this one has three.",
    "tier": "core",
    "unit": "SET.07",
-   "why": "Yes. Two or more separate touches of the top make the ceiling. They sit within 0.5 ATR, and the first is at least 10 sessions back. Here there are three, and the first was six weeks ago, well past 10 sessions. Three clean taps is the A+ cue on our card.",
+   "why": "Yes. Two or more separate touches of the top make the ceiling. They sit within 0.5 ATR, and the first is at least 10 sessions back. Here there are three, over a base 6.4 weeks long, and the first is far enough back to count. Three clean taps is the A+ cue on our card.",
    "wrong": {
-    "No; the first test is too recent": "The card needs the first touch at least 10 sessions back. Six weeks ago is well past that.",
+    "No; the first test is too recent": "The card needs the first touch at least 10 sessions back. This base passes that test.",
     "No; there are too few tests here": "Two or more separate touches is the rule. Three is more than that.",
     "Yes, but only after a fourth test": "Two or more separate touches is the rule. Three already clears it, so no fourth is needed."
    }
@@ -601,6 +702,7 @@
   "skill_id": "setup.flat_base",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.07.json#q11",
+  "sym": "FIX",
   "type": "scenario",
   "version": 1
  },
@@ -770,15 +872,28 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "A flat base, still resting"
+  },
+  "asof": "2017-02-13",
+  "bars": {
+   "asof": "2017-02-13",
+   "forward": 20,
+   "sym": "BAC",
+   "tf": "D",
+   "window": 150
   },
   "difficulty": 1,
   "id": "si_eeb88eaa962f",
   "lesson_origin": "session",
-  "lesson_text": "A flat base. At about 10% deep it holds one range with a level top, inside the 15% limit. A VCP's pullbacks shrink one after another, from as deep as 40% down to under 10%. IBD says a flat base should look like a rectangular box. A cup is a rounded fall and recovery with a handle. One range, one ceiling, the same floor: that is the box. Shrinking swings are the other setup.",
+  "lesson_text": "A flat base. At about 11% deep it holds one range with a level top, inside the 15% limit. A VCP's pullbacks shrink one after another, from as deep as 40% down to under 10%. IBD says a flat base should look like a rectangular box. A cup is a rounded fall and recovery with a handle. One range, one ceiling, the same floor: that is the box. Shrinking swings are the other setup.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 150
+   },
    "choices": [
     "A flat base, still resting",
     "A VCP, shrinking swings",
@@ -786,7 +901,8 @@
     "A double bottom forming"
    ],
    "kind": "mcq",
-   "q": "A ten-week base about 10% deep: a level top tapped three times, the same floor each time, one range held. What is this base?",
+   "q": "A ten-week base about 11% deep, a level top tapped five times, one range held. What is it?",
+   "story": "Hidden ticker, the day before a breakout.",
    "subject": "SET.07#q16"
   },
   "reveal_json": {
@@ -826,29 +942,37 @@
       "quote": "A flat base falls 15% or less and stays boxy; a cup falls 12% to 33% in a rounded U and then dips again for a handle before the buy.",
       "tier": 3,
       "url": "repo:docs/study/setups/criteria/01-flat-base.json"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own daily bars): Flat Base dossier, sections 12 and 13: examples, failures and near-misses from our data",
+      "quote": "BAC | 2017-02-14 | 9.8 wk / 10.7% / 5 / +57% | 1.33x | 23.56 | 23.12 (1.9%) | 5.1R (5)",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/01-flat-base.md#12-examples-from-our-data"
      }
     ],
-    "summary": "A flat base holds one range; a VCP's pullbacks shrink one after another. IBD: a flat base looks like a rectangular box. Bulkowski's rectangle touches one line at least three times and the other twice. Past 15% deep it is no longer a flat base. A cup falls 12% to 33% in a rounded U and dips for a handle; a flat base stays boxy."
+    "summary": "A flat base holds one range; a VCP's pullbacks shrink one after another. IBD: a flat base looks like a rectangular box. Bulkowski's rectangle touches one line at least three times and the other twice. Past 15% deep it is no longer a flat base. A cup falls 12% to 33% in a rounded U and dips for a handle; a flat base stays boxy. BAC, trigger 2017-02-14: a 9.8-week, 10.7% base with 5 taps; buy 23.56, stop 23.12; 5.1R."
    },
    "facts": {
-    "given": "A ten-week base about 10% deep: a level top tapped three times, the same floor each time, one range held. What is this base? A flat base, still resting A VCP, shrinking swings A cup, handle forming A double bottom forming"
+    "given": "A ten-week base about 11% deep, a level top tapped five times, one range held. What is it? Hidden ticker, the day before a breakout. A flat base, still resting A VCP, shrinking swings A cup, handle forming A double bottom forming"
    },
    "lesson_line": "One range, one ceiling, the same floor: that is the box. Shrinking swings are the other setup.",
    "simple": "A flat base, because it holds one range with a level top, while a VCP has swings that shrink.",
    "tier": "core",
    "unit": "SET.07",
-   "why": "A flat base. At about 10% deep it holds one range with a level top, inside the 15% limit. A VCP's pullbacks shrink one after another, from as deep as 40% down to under 10%. IBD says a flat base should look like a rectangular box. A cup is a rounded fall and recovery with a handle.",
+   "why": "A flat base. At about 11% deep it holds one range with a level top, inside the 15% limit. A VCP's pullbacks shrink one after another, from as deep as 40% down to under 10%. IBD says a flat base should look like a rectangular box. A cup is a rounded fall and recovery with a handle.",
    "wrong": {
     "A VCP, shrinking swings": "A VCP tightens pullback by pullback. These swings hold one range.",
-    "A cup, handle forming": "A cup falls 12% to 33% in a rounded U and then dips for a handle. This base is about 10% deep and boxy.",
-    "A double bottom forming": "Past 15% deep, a base may turn into a cup or a double bottom. This one is about 10% deep and holds one range."
+    "A cup, handle forming": "A cup falls 12% to 33% in a rounded U and then dips for a handle. This base is about 11% deep and boxy.",
+    "A double bottom forming": "Past 15% deep, a base may turn into a cup or a double bottom. This one is about 11% deep and holds one range."
    }
   },
   "review_status": "draft",
   "skill_id": "setup.flat_base",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.07.json#q16",
-  "type": "recall",
+  "sym": "BAC",
+  "type": "scenario",
   "version": 1
  },
  {
@@ -910,15 +1034,28 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "Day 3 at the earliest, into strength"
+  },
+  "asof": "2023-09-26",
+  "bars": {
+   "asof": "2023-09-26",
+   "forward": 30,
+   "sym": "WSM",
+   "tf": "D",
+   "window": 120
   },
   "difficulty": 1,
   "id": "si_a3ae1893b812",
   "lesson_origin": "session",
-  "lesson_text": "Day 3 at the earliest, into strength. The first sell is a judgment, not a fixed third at 3R. We very rarely sell on day 1 of the buy. Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. The first sell is a judgment. Wait until day 3 at the earliest, then sell into the push.",
+  "lesson_text": "Day 3 at the earliest, into strength. The first sell is a judgment, not a fixed third at 3R. We very rarely sell on day 1 of the buy. Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. WSM was up 3R on day 1 and reached 5R by day 10. The first sell is a judgment. Wait until day 3 at the earliest, then sell into the push.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
    "choices": [
     "A fixed third at 3R, on day one",
     "All of it as soon as it hits 1R",
@@ -926,7 +1063,8 @@
     "Day 3 at the earliest, into strength"
    ],
    "kind": "mcq",
-   "q": "When does the first sell usually come on a flat base winner?",
+   "q": "When does the first sell usually come?",
+   "story": "Hidden ticker, bought on the breakout and already up 3R the next session.",
    "subject": "SET.07#q19"
   },
   "reveal_json": {
@@ -952,18 +1090,32 @@
       "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
       "tier": 3,
       "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own daily bars): Flat Base dossier, sections 12 and 13: examples, failures and near-misses from our data",
+      "quote": "WSM | 2023-09-25 | 8.0 wk / 14.6% / 4 / +30% | 4.99x | 73.16 | 72.24 (1.2%) | 10.0R (1)",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/01-flat-base.md#12-examples-from-our-data"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own daily bars): Flat Base dossier, sections 12 and 13: examples, failures and near-misses from our data",
+      "quote": "5R by day 10, then a throwback to 71.56 in late October, through the pivot and the original stop, after both trims were due: Bulkowski's two-in-three throwback in person, before the run to 99.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/01-flat-base.md#12-examples-from-our-data"
      }
     ],
-    "summary": "D-013: the first sell is a judgment, not a fixed third at 3R. D-013: he rarely sells on day 1 and usually waits until day 3 at the earliest. D-013: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
+    "summary": "D-013: the first sell is a judgment, not a fixed third at 3R. D-013: he rarely sells on day 1 and usually waits until day 3 at the earliest. D-013: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. WSM, trigger 2023-09-25: an 8-week, 14.6% base with 4 taps; buy 73.16, stop 72.24 (1.2%); 10.0R, 3R on day 1. WSM: 5x volume; 5R by day 10; then a throwback to 71.56 through the pivot and the original stop after both trims were due; then a run to 99."
    },
    "facts": {
-    "given": "When does the first sell usually come on a flat base winner? Day 3 at the earliest, into strength A fixed third at 3R, on day one Half of it, the day after the buy All of it as soon as it hits 1R"
+    "given": "When does the first sell usually come? Hidden ticker, bought on the breakout and already up 3R the next session. Day 3 at the earliest, into strength A fixed third at 3R, on day one Half of it, the day after the buy All of it as soon as it hits 1R"
    },
    "lesson_line": "The first sell is a judgment. Wait until day 3 at the earliest, then sell into the push.",
    "simple": "The first sell is a judgment. We usually wait until day 3 at the earliest, then sell into a push.",
    "tier": "core",
    "unit": "SET.07",
-   "why": "Day 3 at the earliest, into strength. The first sell is a judgment, not a fixed third at 3R. We very rarely sell on day 1 of the buy. Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
+   "why": "Day 3 at the earliest, into strength. The first sell is a judgment, not a fixed third at 3R. We very rarely sell on day 1 of the buy. Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. WSM was up 3R on day 1 and reached 5R by day 10.",
    "wrong": {
     "A fixed third at 3R, on day one": "That was the old rule. The first sell is a judgment, and day 1 is very rare.",
     "All of it as soon as it hits 1R": "That sells far too early. The first sell waits for a push, often at about 5 to 10R.",
@@ -974,27 +1126,42 @@
   "skill_id": "setup.flat_base",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.07.json#q19",
-  "type": "recall",
+  "sym": "WSM",
+  "type": "scenario",
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
-   "answer": "$95.38"
+   "answer": "$75.92"
+  },
+  "asof": "2023-09-25",
+  "bars": {
+   "asof": "2023-09-25",
+   "forward": 30,
+   "sym": "WSM",
+   "tf": "D",
+   "window": 120
   },
   "difficulty": 1,
   "id": "si_c02d77da9752",
   "lesson_origin": "session",
-  "lesson_text": "95.38. One R is the fill minus the stop: 90.01 minus 88.22. Add three of those to the fill, 90.01, and you get 95.38. It is a mark on the ruler and not a fixed sell. NUS reached it the next session. Know your 3R before the open. It is a measuring mark, not an automatic sell.",
+  "lesson_text": "75.92. One R is the fill minus the stop: 73.16 minus 72.24. Add three of those to the fill, 73.16, and you get 75.92. It is a mark on the ruler and not a fixed sell. WSM reached 3R the next session and 5R by day 10. Know your 3R before the open. It is a measuring mark, not an automatic sell.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
    "choices": [
-    "$84.64",
-    "$91.80",
-    "$93.59",
-    "$95.38"
+    "$70.40",
+    "$74.08",
+    "$75.00",
+    "$75.92"
    ],
    "kind": "mcq",
-   "q": "Bought at 90.01 with the stop at 88.22. One R is the fill minus the stop. Where is 3R?",
+   "q": "16 with the stop at 72.24. One R is the fill minus the stop. Where is 3R?",
+   "story": "Hidden ticker, bought on the breakout at 73.",
    "subject": "SET.07#q20"
   },
   "reveal_json": {
@@ -1010,48 +1177,49 @@
      {
       "accessed": "2026-11-10",
       "name": "UCT setup research (examples read from our own daily bars): Flat Base dossier, sections 12 and 13: examples, failures and near-misses from our data",
-      "quote": "NUS | 2013-09-09 | 6.0 wk / 10.3% / 3 / +82% | 1.85x | 90.01 | 88.22 (2.0%) | 23.5R (1)",
+      "quote": "WSM | 2023-09-25 | 8.0 wk / 14.6% / 4 / +30% | 4.99x | 73.16 | 72.24 (1.2%) | 10.0R (1)",
       "tier": 3,
       "url": "repo:docs/study/setups/research/01-flat-base.md#12-examples-from-our-data"
      },
      {
       "accessed": "2026-11-10",
       "name": "UCT setup research (examples read from our own daily bars): Flat Base dossier, sections 12 and 13: examples, failures and near-misses from our data",
-      "quote": "A six-week shelf riding the rising 10- and 21-day after the stock nearly doubled; three clean taps of 90; broke out on 1.9x volume and reached 3R the next session.",
+      "quote": "5R by day 10, then a throwback to 71.56 in late October, through the pivot and the original stop, after both trims were due: Bulkowski's two-in-three throwback in person, before the run to 99.",
       "tier": 3,
       "url": "repo:docs/study/setups/research/01-flat-base.md#12-examples-from-our-data"
      }
     ],
-    "summary": "D-013: the first sell is a judgment, not a fixed third at 3R. NUS, trigger 2013-09-09: a 6-week, 10.3% base with 3 taps after an 82% run; buy 90.01, stop 88.22 (2.0%); 23.5R, 3R on day 1. NUS: a six-week shelf on the rising 10- and 21-day after nearly doubling; three taps of 90; 1.9x volume; 3R the next session."
+    "summary": "D-013: the first sell is a judgment, not a fixed third at 3R. WSM, trigger 2023-09-25: an 8-week, 14.6% base with 4 taps; buy 73.16, stop 72.24 (1.2%); 10.0R, 3R on day 1. WSM: 5x volume; 5R by day 10; then a throwback to 71.56 through the pivot and the original stop after both trims were due; then a run to 99."
    },
    "facts": {
     "calc": {
      "args": {
-      "a": 90.01,
-      "b": 88.22,
+      "a": 73.16,
+      "b": 72.24,
       "expr": "a + 3 * (a - b)"
      },
      "fn": "arith",
-     "result": 95.38
+     "result": 75.92
     },
-    "given": "Bought at 90.01 with the stop at 88.22. One R is the fill minus the stop. Where is 3R? $93.59 $84.64 $91.80 $95.38"
+    "given": "16 with the stop at 72.24. One R is the fill minus the stop. Where is 3R? Hidden ticker, bought on the breakout at 73. $75.00 $70.40 $74.08 $75.92"
    },
    "lesson_line": "Know your 3R before the open. It is a measuring mark, not an automatic sell.",
-   "simple": "3R is the fill plus three times the gap between the fill and the stop, which is 95.38.",
+   "simple": "3R is the fill plus three times the gap between the fill and the stop, which is 75.92.",
    "tier": "core",
    "unit": "SET.07",
-   "why": "95.38. One R is the fill minus the stop: 90.01 minus 88.22. Add three of those to the fill, 90.01, and you get 95.38. It is a mark on the ruler and not a fixed sell. NUS reached it the next session.",
+   "why": "75.92. One R is the fill minus the stop: 73.16 minus 72.24. Add three of those to the fill, 73.16, and you get 75.92. It is a mark on the ruler and not a fixed sell. WSM reached 3R the next session and 5R by day 10.",
    "wrong": {
-    "$84.64": "Subtracted the three R instead of adding them.",
-    "$91.80": "Added one R, not three.",
-    "$93.59": "Added the three R to the stop instead of the fill."
+    "$70.40": "Subtracted the three R instead of adding them.",
+    "$74.08": "Added one R, not three.",
+    "$75.00": "Added the three R to the stop instead of the fill."
    }
   },
   "review_status": "draft",
   "skill_id": "setup.flat_base",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.07.json#q20",
-  "type": "recall",
+  "sym": "WSM",
+  "type": "scenario",
   "version": 1
  },
  {
@@ -1356,23 +1524,37 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "2.08%"
+  },
+  "asof": "2026-01-12",
+  "bars": {
+   "asof": "2026-01-12",
+   "forward": 20,
+   "sym": "APH",
+   "tf": "D",
+   "window": 150
   },
   "difficulty": 2,
   "id": "si_3d724eecd2ec",
   "lesson_origin": "session",
-  "lesson_text": "2.08%. The stop sits five cents under the breakout day's low, so 70.70. The gap to the 72.20 fill is 1.50, and 1.50 over 72.20 is 2.08%. It is inside the 3% the stop usually sits within. The day's low here is made up for the drill. Stop first, distance second, size last.",
+  "lesson_text": "2.08%. The gap between the 72.20 fill and the 70.70 stop is 1.50, and 1.50 over 72.20 is 2.08%. It is inside the 3% the stop usually sits within. In our scan APH reached 3R on day 3. Stop first, distance second, size last.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 150
+   },
    "choices": [
-    "0.07%",
+    "0.02%",
     "1.50%",
     "2.08%",
     "20.80%"
    ],
    "kind": "mcq",
-   "q": "Fill 72.20. The breakout day's low is 70.75 and the stop sits five cents under it. How far below the fill is the stop, in percent?",
+   "q": "20 with the stop at 70.70. How far below the fill is the stop, in percent?",
+   "story": "Hidden ticker, bought on the breakout at 72.",
    "subject": "SET.07#q27"
   },
   "reveal_json": {
@@ -1401,29 +1583,36 @@
       "quote": "APH | 2026-01-12 | 10.8 wk / 13.2% / 4 / +49% | 1.30x | 72.20 | 70.70 (2.1%) | 7.6R (3)",
       "tier": 3,
       "url": "repo:docs/study/setups/research/01-flat-base.md#12-examples-from-our-data"
+     },
+     {
+      "accessed": "2026-11-10",
+      "name": "UCT setup research (examples read from our own daily bars): Flat Base dossier, sections 12 and 13: examples, failures and near-misses from our data",
+      "quote": "3R on day 3 and 5R by day 10, then a failure back through the base (low 63.10 within 30 sessions): the trims and the trail are what keep this a win.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/research/01-flat-base.md#12-examples-from-our-data"
      }
     ],
-    "summary": "F62: the stop sits a few cents under the day's low. A13: the stop usually sits within about 3% of the buy. APH, trigger 2026-01-12: a 10.8-week, 13.2% base; buy 72.20, stop 70.70 (2.1%); 7.6R, 3R on day 3."
+    "summary": "F62: the stop sits a few cents under the day's low. A13: the stop usually sits within about 3% of the buy. APH, trigger 2026-01-12: a 10.8-week, 13.2% base; buy 72.20, stop 70.70 (2.1%); 7.6R, 3R on day 3. APH: 3R on day 3 and 5R by day 10, then a failure back through the base; the trims and the trail kept it a win."
    },
    "facts": {
     "calc": {
      "args": {
       "a": 72.2,
-      "b": 70.75,
-      "expr": "(a - (b - 0.05)) / a * 100"
+      "b": 70.7,
+      "expr": "(a - b) / a * 100"
      },
      "fn": "arith",
      "result": 2.08
     },
-    "given": "Fill 72.20. The breakout day's low is 70.75 and the stop sits five cents under it. How far below the fill is the stop, in percent? 1.50% 20.80% 0.07% 2.08%"
+    "given": "20 with the stop at 70.70. How far below the fill is the stop, in percent? Hidden ticker, bought on the breakout at 72. 1.50% 20.80% 0.02% 2.08%"
    },
    "lesson_line": "Stop first, distance second, size last.",
    "simple": "The stop sits 2.08% below the fill, inside the 3% it usually stays within.",
    "tier": "core",
    "unit": "SET.07",
-   "why": "2.08%. The stop sits five cents under the breakout day's low, so 70.70. The gap to the 72.20 fill is 1.50, and 1.50 over 72.20 is 2.08%. It is inside the 3% the stop usually sits within. The day's low here is made up for the drill.",
+   "why": "2.08%. The gap between the 72.20 fill and the 70.70 stop is 1.50, and 1.50 over 72.20 is 2.08%. It is inside the 3% the stop usually sits within. In our scan APH reached 3R on day 3.",
    "wrong": {
-    "0.07%": "Measured only the five-cent cushion, not the whole gap to the stop.",
+    "0.02%": "Stopped at the ratio and never multiplied by 100.",
     "1.50%": "Read the dollar gap as a percent.",
     "20.80%": "Decimal slip: moved the decimal one place."
    }
@@ -1432,12 +1621,22 @@
   "skill_id": "setup.flat_base",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.07.json#q27",
-  "type": "recall",
+  "sym": "APH",
+  "type": "scenario",
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "5R"
+  },
+  "asof": "2019-06-27",
+  "bars": {
+   "asof": "2019-06-27",
+   "forward": 60,
+   "sym": "ALLY",
+   "tf": "D",
+   "window": 150
   },
   "difficulty": 2,
   "id": "si_cb657b7f7112",
@@ -1445,6 +1644,10 @@
   "lesson_text": "5R. One R is the fill minus the stop: 30.28 minus 29.79. The gain is 32.73 minus 30.28. The gain divided by one R is 5R. Five R is one mark we measure by, not a fixed sell. ALLY took ten days just to reach 3R. Count in R, not dollars. 5R is a mark on the ruler.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 150
+   },
    "choices": [
     "5R",
     "6R",
@@ -1452,7 +1655,8 @@
     "50R"
    ],
    "kind": "mcq",
-   "q": "Bought at 30.28, stop 29.79. The stock trades to 32.73. How many R is that?",
+   "q": "28, stop 29.79. Later it trades to 32.73. How many R is that?",
+   "story": "Hidden ticker, bought on the breakout at 30.",
    "subject": "SET.07#q28"
   },
   "reveal_json": {
@@ -1485,7 +1689,7 @@
      "fn": "r_multiple",
      "result": 5.0
     },
-    "given": "Bought at 30.28, stop 29.79. The stock trades to 32.73. How many R is that? 6R 10R 50R 5R"
+    "given": "28, stop 29.79. Later it trades to 32.73. How many R is that? Hidden ticker, bought on the breakout at 30. 6R 10R 50R 5R"
    },
    "lesson_line": "Count in R, not dollars. 5R is a mark on the ruler.",
    "simple": "The gain is five times the fill-to-stop gap, so it is 5R, a mark worth watching.",
@@ -1502,12 +1706,22 @@
   "skill_id": "setup.flat_base",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.07.json#q28",
-  "type": "recall",
+  "sym": "ALLY",
+  "type": "scenario",
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "Hold; the stop is still the exit"
+  },
+  "asof": "2024-03-21",
+  "bars": {
+   "asof": "2024-03-21",
+   "forward": 20,
+   "sym": "AMZN",
+   "tf": "D",
+   "window": 120
   },
   "difficulty": 2,
   "id": "si_d084918ec663",
@@ -1515,6 +1729,10 @@
   "lesson_text": "Hold it. A close back inside the base is a warning, not an exit by itself. The stop is the exit, and it only moves up, never down or wider. Here the day closed at 178.15, above the 178.10 stop. In the real AMZN case the next session's low took the stop, a planned loss. A weak close is a warning. The stop is the decision, and it was made before the open.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
    "choices": [
     "Add to it; the price is lower",
     "Widen the stop under the base low",
@@ -1574,6 +1792,7 @@
   "skill_id": "setup.flat_base",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.07.json#q29",
+  "sym": "AMZN",
   "type": "scenario",
   "version": 1
  },
@@ -2134,8 +2353,17 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "Its job: a small planned loss"
+  },
+  "asof": "2020-06-24",
+  "bars": {
+   "asof": "2020-06-24",
+   "forward": 20,
+   "sym": "META",
+   "tf": "D",
+   "window": 120
   },
   "difficulty": 2,
   "id": "si_f5ddfaece9ee",
@@ -2143,6 +2371,10 @@
   "lesson_text": "Its job: a small, planned loss. The stop is the exit, and it only moves up, never down or wider. You bought at 241.28 and the stop at 236.86 was hit on day 1, with a low of 232.68. Two sessions later it closed at 216.08, 10% under the fill. Giving it room would have been a 14% hole in three sessions. A stop hit still books a loss, and one stop-out does not judge the setup. That loss is the cost of being there for the ones that work. A loss taken at plan is the system working.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
    "choices": [
     "Cost you the trade; it needed room",
     "Proof the setup was bad; drop it",
@@ -2151,7 +2383,7 @@
    ],
    "kind": "mcq",
    "q": "What did the stop do?",
-   "story": "You bought the gap open at 241.28, above the pivot. It closes mid-range on average volume. Next day the low hits your stop at 236.86. Two sessions later it closes 10% under your fill.",
+   "story": "You bought the gap open at 241.28, above the pivot. It closes mid-range on average volume. Next day the low hits your stop at 236.86.",
    "subject": "SET.07#q41"
   },
   "reveal_json": {
@@ -2192,7 +2424,7 @@
     "summary": "A4: the stop is the exit; it only moves up, never wider; the gap rule is the one exception. META, trigger 2020-06-23: buy 241.28, stop 236.86; stopped on day 1. META: two sessions after the stop it closed 10% under the fill; giving it room would have been a 14% hole. B21: after a stop-out, buy again only on a new trigger, as a new trade."
    },
    "facts": {
-    "given": "What did the stop do? You bought the gap open at 241.28, above the pivot. It closes mid-range on average volume. Next day the low hits your stop at 236.86. Two sessions later it closes 10% under your fill. Its job: a small planned loss Cost you the trade; it needed room Protected you from losing anything Proof the setup was bad; drop it"
+    "given": "What did the stop do? You bought the gap open at 241.28, above the pivot. It closes mid-range on average volume. Next day the low hits your stop at 236.86. Its job: a small planned loss Cost you the trade; it needed room Protected you from losing anything Proof the setup was bad; drop it"
    },
    "lesson_line": "A loss taken at plan is the system working.",
    "simple": "The stop did its job. It cut a small planned loss before the stock fell much further.",
@@ -2209,6 +2441,7 @@
   "skill_id": "setup.flat_base",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.07.json#q41",
+  "sym": "META",
   "type": "scenario",
   "version": 1
  },
@@ -2413,8 +2646,17 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "173 shares"
+  },
+  "asof": "2014-05-29",
+  "bars": {
+   "asof": "2014-05-29",
+   "forward": 20,
+   "sym": "LNG",
+   "tf": "D",
+   "window": 150
   },
   "difficulty": 2,
   "id": "si_0ac2be3a03af",
@@ -2422,6 +2664,10 @@
   "lesson_text": "173 shares. The dollar risk is 0.5% of 50,000. The risk per share is 59.40 minus 57.96. Divide the first by the second and round down to 173. The size is the smaller of that and the position cap, and no cap binds here. The stop sets the size, never the other way round. The stop sets the size. Divide the dollar risk by the distance and round down.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 150
+   },
    "choices": [
     "4 shares",
     "173 shares",
@@ -2429,7 +2675,8 @@
     "1,736 shares"
    ],
    "kind": "mcq",
-   "q": "Account 50,000. Risk 0.5%. Fill 59.40, stop 57.96. No position cap applies. How many shares?",
+   "q": "Account 50,000, risk 0.5%, fill 59.40, stop 57.96. No position cap applies. How many shares?",
+   "story": "Hidden ticker, bought on the breakout.",
    "subject": "SET.07#q45"
   },
   "reveal_json": {
@@ -2473,7 +2720,7 @@
      "fn": "shares_from_risk",
      "result": 173.0
     },
-    "given": "Account 50,000. Risk 0.5%. Fill 59.40, stop 57.96. No position cap applies. How many shares? 347 shares 1,736 shares 173 shares 4 shares"
+    "given": "Account 50,000, risk 0.5%, fill 59.40, stop 57.96. No position cap applies. How many shares? Hidden ticker, bought on the breakout. 347 shares 1,736 shares 173 shares 4 shares"
    },
    "lesson_line": "The stop sets the size. Divide the dollar risk by the distance and round down.",
    "simple": "Divide the dollar risk by the gap between fill and stop, then round down to 173 shares.",
@@ -2490,7 +2737,8 @@
   "skill_id": "setup.flat_base",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.07.json#q45",
-  "type": "recall",
+  "sym": "LNG",
+  "type": "scenario",
   "version": 1
  },
  {
@@ -2816,8 +3064,17 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "No; it is too deep for a flat base"
+  },
+  "asof": "2020-05-18",
+  "bars": {
+   "asof": "2020-05-18",
+   "forward": 20,
+   "sym": "AMZN",
+   "tf": "D",
+   "window": 150
   },
   "difficulty": 3,
   "id": "si_be0d51b583cc",
@@ -2825,6 +3082,10 @@
   "lesson_text": "No. This base is 18.5% deep, and past 15% it is no longer a flat base. IBD's limit is 15% from the intraday peak to the intraday trough, and MarketSmith's is 15% too. Depth runs from the left-side high to the base's intraday low. Three taps do not fix depth, and the 51% run before it is only context. Our scan read it as cup-shaped: best 1.1R, then stopped. Three taps do not fix a deep base. Depth is a gate.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 150
+   },
    "choices": [
     "No; it is a high tight flag",
     "Yes; IBD allows bases to 20%",
@@ -2833,7 +3094,7 @@
    ],
    "kind": "mcq",
    "q": "Is it a flat base?",
-   "story": "A 27-session rest after a 51% run, three taps of the top, but the low sits 18.5% under the left-side high.",
+   "story": "Hidden ticker, the day before a breakout: a 27-session rest after a 51% run, three taps of the top, but the low sits 18.5% under the left-side high.",
    "subject": "SET.07#q51"
   },
   "reveal_json": {
@@ -2881,7 +3142,7 @@
     "summary": "Past 15% deep it is no longer a flat base. IBD: a flat base declines no more than 15% from its intraday peak to its intraday trough. MarketSmith: a flat base is 5 to 65 weeks long and 0% to 15% deep. AMZN 2020-05-19 near-miss: 18.5% deep, a cup-shaped base, not a flat base; best 1.1R, stopped. A high tight flag nearly doubles and pauses a few weeks; a flat base is a longer rest after a smaller run."
    },
    "facts": {
-    "given": "Is it a flat base? A 27-session rest after a 51% run, three taps of the top, but the low sits 18.5% under the left-side high. No; it is too deep for a flat base No; it is a high tight flag Yes; three taps are what count Yes; IBD allows bases to 20%"
+    "given": "Is it a flat base? Hidden ticker, the day before a breakout: a 27-session rest after a 51% run, three taps of the top, but the low sits 18.5% under the left-side high. No; it is too deep for a flat base No; it is a high tight flag Yes; three taps are what count Yes; IBD allows bases to 20%"
    },
    "lesson_line": "Three taps do not fix a deep base. Depth is a gate.",
    "simple": "No, because a flat base can be at most 15% deep, and this one is 18.5% deep.",
@@ -2898,6 +3159,7 @@
   "skill_id": "setup.flat_base",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.07.json#q51",
+  "sym": "AMZN",
   "type": "scenario",
   "version": 1
  },
@@ -3031,8 +3293,17 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "No; a planned loss on a weak day"
+  },
+  "asof": "2015-04-17",
+  "bars": {
+   "asof": "2015-04-17",
+   "forward": 20,
+   "sym": "BHC",
+   "tf": "D",
+   "window": 120
   },
   "difficulty": 3,
   "id": "si_3275d9130e98",
@@ -3040,6 +3311,10 @@
   "lesson_text": "No. A loss taken at the stop is the system working. The stop is the exit, a few cents under the day's low. Light volume lowers the grade. It does not cancel the trade. You bought at 206.85 with the stop at 203.95. Volume ended at 0.5x. It reached 1.63R, then the stop was hit on day 6 with a low of 203.46. Light volume lowers the grade, not the rule. A loss at the stop is the plan working.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 120
+   },
    "choices": [
     "No; a planned loss on a weak day",
     "No, but widen the stop next time",
@@ -3134,12 +3409,22 @@
   "skill_id": "setup.flat_base",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.07.json#q57",
+  "sym": "BHC",
   "type": "scenario",
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "Sell into a 3, 5 or 7 day push"
+  },
+  "asof": "2017-02-22",
+  "bars": {
+   "asof": "2017-02-22",
+   "forward": 30,
+   "sym": "BAC",
+   "tf": "D",
+   "window": 150
   },
   "difficulty": 3,
   "id": "si_0c08a9cf2fb7",
@@ -3147,6 +3432,10 @@
   "lesson_text": "Sell into a push. The first sell is a judgment, not a fixed third at 3R. We usually wait until day 3 at the earliest. Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. BAC reached 5R in about three weeks, then fell back into the base with a low of 22.16. Sell into strength. The first sell is a judgment, and the gain is what you keep when the box pulls it back.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 150
+   },
    "choices": [
     "All of it at 5R, in one sale",
     "Sell into a 3, 5 or 7 day push",
@@ -3155,7 +3444,7 @@
    ],
    "kind": "mcq",
    "q": "What does our plan say about selling on the way up to 5R?",
-   "story": "Five taps of a 23.5 ceiling after a vertical run. You bought at 23.56, stop 23.12. It reaches 5R in about three weeks, then sinks back into the base.",
+   "story": "Five taps of a 23.5 ceiling after a vertical run. You bought at 23.56, stop 23.12. By day five it has reached 3R.",
    "subject": "SET.07#q58"
   },
   "reveal_json": {
@@ -3203,7 +3492,7 @@
     "summary": "D-013: the first sell is a judgment, not a fixed third at 3R. D-013: he rarely sells on day 1 and usually waits until day 3 at the earliest. D-013: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. BAC, trigger 2017-02-14: a 9.8-week, 10.7% base with 5 taps; buy 23.56, stop 23.12; 5.1R. BAC: 5R in about three weeks, then back into the base; the case for the 3R and 5R trims and the trail."
    },
    "facts": {
-    "given": "What does our plan say about selling on the way up to 5R? Five taps of a 23.5 ceiling after a vertical run. You bought at 23.56, stop 23.12. It reaches 5R in about three weeks, then sinks back into the base. Sell into a 3, 5 or 7 day push Nothing; it only trails the stop A fixed third at 3R on day one All of it at 5R, in one sale"
+    "given": "What does our plan say about selling on the way up to 5R? Five taps of a 23.5 ceiling after a vertical run. You bought at 23.56, stop 23.12. By day five it has reached 3R. Sell into a 3, 5 or 7 day push Nothing; it only trails the stop A fixed third at 3R on day one All of it at 5R, in one sale"
    },
    "lesson_line": "Sell into strength. The first sell is a judgment, and the gain is what you keep when the box pulls it back.",
    "simple": "We sell into a strong push of a few days, not on a fixed rule. The first sell is a judgment.",
@@ -3220,6 +3509,7 @@
   "skill_id": "setup.flat_base",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.07.json#q58",
+  "sym": "BAC",
   "type": "scenario",
   "version": 1
  },
@@ -3490,8 +3780,17 @@
   "version": 1
  },
  {
+  "adjustment_basis": "split-adjusted",
   "answer_json": {
    "answer": "Market; stop under low; sell the push"
+  },
+  "asof": "2013-09-06",
+  "bars": {
+   "asof": "2013-09-06",
+   "forward": 30,
+   "sym": "NUS",
+   "tf": "D",
+   "window": 200
   },
   "difficulty": 3,
   "id": "si_a1745b8d8073",
@@ -3499,6 +3798,10 @@
   "lesson_text": "Market, stop under the day's low, and a first sell into the push. We buy with a market order as price trades through the pivot, in regular hours. The stop is a few cents under the day's low. The first sell is a judgment, usually day 3 at the earliest. Entry, stop, trim, trail. Know the plan before the trigger; execute it without a debate.",
   "module": "SET",
   "prompt_json": {
+   "chart": {
+    "tf": "D",
+    "window_bars": 200
+   },
    "choices": [
     "Market; stop under low; sell the push",
     "Limit under pivot; 7% stop; third at 3R",
@@ -3507,7 +3810,7 @@
    ],
    "kind": "mcq",
    "q": "Write the plan: entry, stop, first trim.",
-   "story": "NUS, September 2013: six weeks flat, three taps of 90, above a rising 50 and 200-day. It trades through 90 on 1.9x volume.",
+   "story": "Hidden ticker, the day before a breakout: six weeks flat, three taps of 90, above its 50 and 200-day. It may trade through 90 tomorrow.",
    "subject": "SET.07#q64"
   },
   "reveal_json": {
@@ -3576,7 +3879,7 @@
     "summary": "E57: entries are market orders. F62: the stop sits a few cents under the day's low. D-013: the first sell is a judgment, not a fixed third at 3R. D-013: he rarely sells on day 1 and usually waits until day 3 at the earliest. D-013: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. NUS, trigger 2013-09-09: a 6-week, 10.3% base with 3 taps after an 82% run; buy 90.01, stop 88.22 (2.0%); 23.5R, 3R on day 1. NUS: a six-week shelf on the rising 10- and 21-day after nearly doubling; three taps of 90; 1.9x volume; 3R the next session. The base low is not the stop; it can be the whole depth away."
    },
    "facts": {
-    "given": "Write the plan: entry, stop, first trim. NUS, September 2013: six weeks flat, three taps of 90, above a rising 50 and 200-day. It trades through 90 on 1.9x volume. Market; stop under low; sell the push Market; base-low stop; all out at 2R Limit under pivot; 7% stop; third at 3R Market; stop under low; all out at 5R"
+    "given": "Write the plan: entry, stop, first trim. Hidden ticker, the day before a breakout: six weeks flat, three taps of 90, above its 50 and 200-day. It may trade through 90 tomorrow. Market; stop under low; sell the push Market; base-low stop; all out at 2R Limit under pivot; 7% stop; third at 3R Market; stop under low; all out at 5R"
    },
    "lesson_line": "Entry, stop, trim, trail. Know the plan before the trigger; execute it without a debate.",
    "simple": "Buy at market through the pivot, put the stop under the day's low, and sell the first piece into a push.",
@@ -3593,6 +3896,7 @@
   "skill_id": "setup.flat_base",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.07.json#q64",
+  "sym": "NUS",
   "type": "scenario",
   "version": 1
  },
@@ -3691,7 +3995,8 @@
     "Yes; price over the 200-day is enough"
    ],
    "kind": "mcq",
-   "q": "Hidden ticker, the day before a breakout. Do its lines pass our card?",
+   "q": "Do its lines pass our card?",
+   "story": "Hidden ticker, the day before a breakout.",
    "subject": "SET.07#q66"
   },
   "reveal_json": {
@@ -3725,7 +4030,7 @@
     "summary": "On the breakout day price is above the 50-day and the 200-day, with the 50 above the 200. B26: no longs below the 200-day simple moving average, except a parabolic long. NUS: a six-week shelf on the rising 10- and 21-day after nearly doubling; three taps of 90; 1.9x volume; 3R the next session."
    },
    "facts": {
-    "given": "Hidden ticker, the day before a breakout. Do its lines pass our card? Yes; price, 50-day, 200-day stacked No; the 50-day is under the 200-day No; price is under the 200-day Yes; price over the 200-day is enough"
+    "given": "Do its lines pass our card? Hidden ticker, the day before a breakout. Yes; price, 50-day, 200-day stacked No; the 50-day is under the 200-day No; price is under the 200-day Yes; price over the 200-day is enough"
    },
    "lesson_line": "Check the lines before the box. Stacked, rising, price on top: that is context.",
    "simple": "Yes, because price is above both averages and the 50-day is above the 200-day.",
@@ -3743,7 +4048,7 @@
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.07.json#q66",
   "sym": "NUS",
-  "type": "recall",
+  "type": "scenario",
   "version": 1
  },
  {
@@ -3776,7 +4081,8 @@
     "No; the 50 is under the 200-day"
    ],
    "kind": "mcq",
-   "q": "Hidden ticker, the day before it trades through a flat top. Do its price, 50-day and 200-day pass our card?",
+   "q": "Do its price, 50-day and 200-day pass our card?",
+   "story": "Hidden ticker, the day before it trades through a flat top.",
    "subject": "SET.07#q67"
   },
   "reveal_json": {
@@ -3810,7 +4116,7 @@
     "summary": "On the breakout day price is above the 50-day and the 200-day, with the 50 above the 200. BBY 2026-07-09 near-miss: the 50-day under the 200-day; it worked (6.3R) but it is not ours. BBY: the close was 14.3% above the 200-day but the 50-day sat 1.6% under it."
    },
    "facts": {
-    "given": "Hidden ticker, the day before it trades through a flat top. Do its price, 50-day and 200-day pass our card? No; the 50 is under the 200-day No; price is under the 200-day Yes; price is above the 200-day Yes; recoveries make strong bases"
+    "given": "Do its price, 50-day and 200-day pass our card? Hidden ticker, the day before it trades through a flat top. No; the 50 is under the 200-day No; price is under the 200-day Yes; price is above the 200-day Yes; recoveries make strong bases"
    },
    "lesson_line": "A base that works is not always our base. The lines decide before the box does.",
    "simple": "No, because the 50-day is still under the 200-day, so this is a rebound and not a leader resting.",
@@ -3828,7 +4134,7 @@
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.07.json#q67",
   "sym": "BBY",
-  "type": "recall",
+  "type": "scenario",
   "version": 1
  },
  {
@@ -22511,6 +22817,7 @@
    ],
    "kind": "mcq",
    "q": "Which launch test does this bar fail?",
+   "story": "The bar opens 8% above the prior close on a news item. It closes up 9%, at 0.90 of its range, above all four averages.",
    "subject": "SET.11#q25"
   },
   "reveal_json": {
@@ -22572,7 +22879,7 @@
   "skill_id": "setup.launchpad",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.11.json#q25",
-  "type": "recall",
+  "type": "scenario",
   "version": 1
  },
  {
@@ -120773,6 +121080,7 @@
    ],
    "kind": "mcq",
    "q": "Is the short allowed under our 200-day rule?",
+   "story": "A stock below its 200-day rips higher in a burst, then ends with a 6% gap up and a closing reversal.",
    "subject": "SET.31#q56"
   },
   "reveal_json": {
@@ -120816,7 +121124,7 @@
   "skill_id": "setup.parabolic_short",
   "source_kind": "course",
   "source_ref": "docs/study/courses/SET/SET.31.json#q56",
-  "type": "recall",
+  "type": "scenario",
   "version": 1
  },
  {

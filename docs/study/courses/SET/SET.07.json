@@ -971,6 +971,18 @@
    "source": "h2",
    "quote": "A gap up past 3R at the open is not an automatic sell. Selling part at the open on a big gap is one choice he may make by judgment, never a rule",
    "claim": "GAP-TRIM: a gap past 3R is not an automatic sell; selling part at the open is an optional judgment."
+  },
+  {
+   "id": "d30",
+   "source": "d1",
+   "quote": "FIX | 2025-09-10 | 6.4 wk / 11.6% / 3 / +115% | 1.57x | 733.26 | 721.82 (1.6%) | 25.1R (1)",
+   "claim": "FIX, trigger 2025-09-10: a 6.4-week, 11.6% base with 3 taps after a 115% run; buy 733.26, stop 721.82 (1.6%); 25.1R, 3R on day 1."
+  },
+  {
+   "id": "d31",
+   "source": "d1",
+   "quote": "The shelf sat above a steep 50-day after a run from about 300; three taps near 733; 3R the next session.",
+   "claim": "FIX: a shelf above a steep 50-day after a run from about 300; three taps near 733; 3R the next session."
   }
  ],
  "walkthroughs": [
@@ -1076,9 +1088,9 @@
    "key": "q02",
    "skill": "setup.flat_base",
    "rung": 1,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "fb.pivot",
-   "q": "On a flat base, where is the pivot, the level a breakout has to trade through?",
+   "q": "Where is this flat base's pivot, the level it must trade through?",
    "choices": [
     "The base's highest intraday high",
     "The base's lowest intraday low",
@@ -1110,7 +1122,14 @@
      "rests on a proposed card criterion awaiting owner review"
     ]
    },
-   "batch": "pilot-1"
+   "batch": "visuals",
+   "chart": {
+    "sym": "LNG",
+    "asof": "2014-05-28",
+    "window": 150,
+    "forward": 20
+   },
+   "story": "Hidden ticker, the day before a breakout."
   },
   {
    "key": "q03",
@@ -1168,17 +1187,17 @@
    "key": "q05",
    "skill": "setup.flat_base",
    "rung": 1,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "fb.trigger",
-   "q": "A flat base pivot is 60.00. When do you buy?",
+   "q": "When do you buy?",
    "choices": [
-    "Trade through 60.00, regular hours",
-    "At the first daily close above 60.00",
-    "In premarket, if it gaps over 60.00",
-    "Inside the base, just under 60.00"
+    "Trade through the pivot, regular hours",
+    "At the first daily close above the pivot",
+    "In premarket, if it gaps over the pivot",
+    "Inside the base, just under the pivot"
    ],
-   "answer": "Trade through 60.00, regular hours",
-   "why": "As it trades through 60.00 in regular hours, bought at market. Set the alert at the pivot and let the trade come to you. Do not wait for the close, and do not buy in premarket. Entries are market orders, and no new buys come outside regular hours. Buying inside the base has no trigger, and Kullamagi finds anticipating less effective.",
+   "answer": "Trade through the pivot, regular hours",
+   "why": "As it trades through the pivot in regular hours, bought at market. Set the alert at the pivot and let the trade come to you. Do not wait for the close, and do not buy in premarket. Entries are market orders, and no new buys come outside regular hours. Buying inside the base has no trigger, and Kullamagi finds anticipating less effective.",
    "lesson_line": "The trigger is the trade through the pivot. Alert at the pivot, market order, regular hours.",
    "facts": [
     "c02",
@@ -1187,12 +1206,12 @@
     "k05"
    ],
    "wrong": {
-    "At the first daily close above 60.00": "Our trigger is the trade through the pivot, not the close. Waiting for the close is a different, later entry.",
-    "In premarket, if it gaps over 60.00": "No new buys outside regular trading hours.",
-    "Inside the base, just under 60.00": "That is anticipating with no trigger. Kullamagi finds it less effective; we wait."
+    "At the first daily close above the pivot": "Our trigger is the trade through the pivot, not the close. Waiting for the close is a different, later entry.",
+    "In premarket, if it gaps over the pivot": "No new buys outside regular trading hours.",
+    "Inside the base, just under the pivot": "That is anticipating with no trigger. Kullamagi finds it less effective; we wait."
    },
    "house": true,
-   "simple": "Buy with a market order as price trades through 60.00 during regular hours, not at the close or in premarket.",
+   "simple": "Buy with a market order as price trades through the pivot during regular hours, not at the close or in premarket.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1203,7 +1222,14 @@
    "depends_on": [
     "D-027"
    ],
-   "batch": "pilot-1"
+   "batch": "visuals",
+   "chart": {
+    "sym": "CMG",
+    "asof": "2020-07-02",
+    "window": 150,
+    "forward": 20
+   },
+   "story": "Hidden ticker, the day before a breakout."
   },
   {
    "key": "q06",
@@ -1285,9 +1311,9 @@
    "key": "q09",
    "skill": "setup.flat_base",
    "rung": 2,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "fb.left_side_high",
-   "q": "Where does a flat base start?",
+   "q": "Where does this flat base start?",
    "choices": [
     "At the left-side high",
     "At the lowest low of the base",
@@ -1316,15 +1342,22 @@
      "fixed before (cold check)"
     ]
    },
-   "batch": "pilot-1"
+   "batch": "visuals",
+   "chart": {
+    "sym": "LII",
+    "asof": "2016-06-30",
+    "window": 200,
+    "forward": 20
+   },
+   "story": "Hidden ticker, the day before a breakout."
   },
   {
    "key": "q10",
    "skill": "setup.flat_base",
    "rung": 2,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "fb.tight_end",
-   "q": "Over the last ten sessions a base spans at most half its depth, or the last three include an inside day. Our card's name for it?",
+   "q": "Its last bars squeeze into a narrow range, with inside days. What does our card call that?",
    "choices": [
     "Tight at the end",
     "A flat ceiling",
@@ -1332,14 +1365,16 @@
     "A held 50-day"
    ],
    "answer": "Tight at the end",
-   "why": "Tight at the end. Our test: the last 10 sessions span at most half the base's depth, or the last 3 sessions include an inside day. IBD says flat bases should show tight trading.",
+   "why": "Tight at the end. Our test: the last 10 sessions span at most half the base's depth, or the last 3 sessions include an inside day. IBD says flat bases should show tight trading. ALLY showed it in one picture, with four taps of 30 and inside days into the breakout.",
    "lesson_line": "Tight at the end is the tell. Inside days into the pivot are the picture.",
    "facts": [
     "c04",
     "i10",
     "c03",
     "c22",
-    "c06"
+    "c06",
+    "d03",
+    "d04"
    ],
    "wrong": {
     "A flat ceiling": "That is the top, touched at least twice. It says nothing about how tight the last ten sessions are.",
@@ -1355,7 +1390,14 @@
      "rests on a proposed card criterion awaiting owner review"
     ]
    },
-   "batch": "pilot-1"
+   "batch": "visuals",
+   "chart": {
+    "sym": "ALLY",
+    "asof": "2019-06-26",
+    "window": 150,
+    "forward": 20
+   },
+   "story": "Hidden ticker, the day before a breakout."
   },
   {
    "key": "q11",
@@ -1371,20 +1413,22 @@
     "No; the first test is too recent"
    ],
    "answer": "Yes; the top has been tested enough",
-   "why": "Yes. Two or more separate touches of the top make the ceiling. They sit within 0.5 ATR, and the first is at least 10 sessions back. Here there are three, and the first was six weeks ago, well past 10 sessions. Three clean taps is the A+ cue on our card.",
+   "why": "Yes. Two or more separate touches of the top make the ceiling. They sit within 0.5 ATR, and the first is at least 10 sessions back. Here there are three, over a base 6.4 weeks long, and the first is far enough back to count. Three clean taps is the A+ cue on our card.",
    "lesson_line": "A ceiling is touched, not guessed. Two taps make it; three make it clean.",
    "facts": [
     "c03",
     "b01",
-    "c31"
+    "c31",
+    "d30",
+    "d31"
    ],
    "wrong": {
     "Yes, but only after a fourth test": "Two or more separate touches is the rule. Three already clears it, so no fourth is needed.",
     "No; there are too few tests here": "Two or more separate touches is the rule. Three is more than that.",
-    "No; the first test is too recent": "The card needs the first touch at least 10 sessions back. Six weeks ago is well past that."
+    "No; the first test is too recent": "The card needs the first touch at least 10 sessions back. This base passes that test."
    },
    "house": true,
-   "story": "A stock rests nine weeks under 48. It has touched 48 three times, on three swings, all within a few cents, the first six weeks ago. The floor holds near 43.",
+   "story": "Hidden ticker, the day before a breakout. A stock rests 6.4 weeks under about 733. It has tapped that top three times, on three swings.",
    "simple": "Yes, because two or more separate touches of the top make a flat ceiling, and this one has three.",
    "deeper": {
     "counter": "Bulkowski's rectangle wants one line touched at least three times and the other at least twice, using distinct peaks and valleys. Our card asks only for two separate touches of the top, the first at least 10 sessions back. Three clean taps just make the top look cleaner."
@@ -1396,7 +1440,13 @@
      "fixed before (cold check)"
     ]
    },
-   "batch": "pilot-1"
+   "batch": "visuals",
+   "chart": {
+    "sym": "FIX",
+    "asof": "2025-09-09",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q12",
@@ -1529,9 +1579,9 @@
    "key": "q16",
    "skill": "setup.flat_base",
    "rung": 3,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "fb.flat",
-   "q": "A ten-week base about 10% deep: a level top tapped three times, the same floor each time, one range held. What is this base?",
+   "q": "A ten-week base about 11% deep, a level top tapped five times, one range held. What is it?",
    "choices": [
     "A flat base, still resting",
     "A VCP, shrinking swings",
@@ -1539,19 +1589,20 @@
     "A double bottom forming"
    ],
    "answer": "A flat base, still resting",
-   "why": "A flat base. At about 10% deep it holds one range with a level top, inside the 15% limit. A VCP's pullbacks shrink one after another, from as deep as 40% down to under 10%. IBD says a flat base should look like a rectangular box. A cup is a rounded fall and recovery with a handle.",
+   "why": "A flat base. At about 11% deep it holds one range with a level top, inside the 15% limit. A VCP's pullbacks shrink one after another, from as deep as 40% down to under 10%. IBD says a flat base should look like a rectangular box. A cup is a rounded fall and recovery with a handle.",
    "lesson_line": "One range, one ceiling, the same floor: that is the box. Shrinking swings are the other setup.",
    "facts": [
     "c16",
     "i08",
     "b01",
     "c23",
-    "c17"
+    "c17",
+    "d11"
    ],
    "wrong": {
     "A VCP, shrinking swings": "A VCP tightens pullback by pullback. These swings hold one range.",
-    "A cup, handle forming": "A cup falls 12% to 33% in a rounded U and then dips for a handle. This base is about 10% deep and boxy.",
-    "A double bottom forming": "Past 15% deep, a base may turn into a cup or a double bottom. This one is about 10% deep and holds one range."
+    "A cup, handle forming": "A cup falls 12% to 33% in a rounded U and then dips for a handle. This base is about 11% deep and boxy.",
+    "A double bottom forming": "Past 15% deep, a base may turn into a cup or a double bottom. This one is about 11% deep and holds one range."
    },
    "house": true,
    "simple": "A flat base, because it holds one range with a level top, while a VCP has swings that shrink.",
@@ -1563,7 +1614,14 @@
      "fixed before (cold check)"
     ]
    },
-   "batch": "rulings"
+   "batch": "visuals",
+   "chart": {
+    "sym": "BAC",
+    "asof": "2017-02-13",
+    "window": 150,
+    "forward": 20
+   },
+   "story": "Hidden ticker, the day before a breakout."
   },
   {
    "key": "q17",
@@ -1633,9 +1691,9 @@
    "key": "q19",
    "skill": "setup.flat_base",
    "rung": 3,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "fb.trim_1",
-   "q": "When does the first sell usually come on a flat base winner?",
+   "q": "When does the first sell usually come?",
    "choices": [
     "Day 3 at the earliest, into strength",
     "A fixed third at 3R, on day one",
@@ -1643,12 +1701,14 @@
     "All of it as soon as it hits 1R"
    ],
    "answer": "Day 3 at the earliest, into strength",
-   "why": "Day 3 at the earliest, into strength. The first sell is a judgment, not a fixed third at 3R. We very rarely sell on day 1 of the buy. Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
+   "why": "Day 3 at the earliest, into strength. The first sell is a judgment, not a fixed third at 3R. We very rarely sell on day 1 of the buy. Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. WSM was up 3R on day 1 and reached 5R by day 10.",
    "lesson_line": "The first sell is a judgment. Wait until day 3 at the earliest, then sell into the push.",
    "facts": [
     "r06",
     "r07",
-    "r08"
+    "r08",
+    "d05",
+    "d06"
    ],
    "wrong": {
     "A fixed third at 3R, on day one": "That was the old rule. The first sell is a judgment, and day 1 is very rare.",
@@ -1665,35 +1725,42 @@
      "fixed before (cold check)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "visuals",
+   "chart": {
+    "sym": "WSM",
+    "asof": "2023-09-26",
+    "window": 120,
+    "forward": 30
+   },
+   "story": "Hidden ticker, bought on the breakout and already up 3R the next session."
   },
   {
    "key": "q20",
    "skill": "setup.flat_base",
    "rung": 3,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "fb.trim_1",
-   "q": "Bought at 90.01 with the stop at 88.22. One R is the fill minus the stop. Where is 3R?",
-   "answer": "$95.38",
+   "q": "16 with the stop at 72.24. One R is the fill minus the stop. Where is 3R?",
+   "answer": "$75.92",
    "calc": {
     "fn": "arith",
     "args": {
      "expr": "a + 3 * (a - b)",
-     "a": 90.01,
-     "b": 88.22
+     "a": 73.16,
+     "b": 72.24
     },
     "round": 2
    },
-   "why": "95.38. One R is the fill minus the stop: 90.01 minus 88.22. Add three of those to the fill, 90.01, and you get 95.38. It is a mark on the ruler and not a fixed sell. NUS reached it the next session.",
+   "why": "75.92. One R is the fill minus the stop: 73.16 minus 72.24. Add three of those to the fill, 73.16, and you get 75.92. It is a mark on the ruler and not a fixed sell. WSM reached 3R the next session and 5R by day 10.",
    "lesson_line": "Know your 3R before the open. It is a measuring mark, not an automatic sell.",
    "facts": [
     "r06",
-    "d01",
-    "d02"
+    "d05",
+    "d06"
    ],
    "house": true,
    "prefix": "$",
-   "simple": "3R is the fill plus three times the gap between the fill and the stop, which is 95.38.",
+   "simple": "3R is the fill plus three times the gap between the fill and the stop, which is 75.92.",
    "tier": "core",
    "risk": {
     "score": 4,
@@ -1702,18 +1769,25 @@
      "rests on the owner's rulebook"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals",
    "choices": [
-    "$93.59",
-    "$84.64",
-    "$91.80",
-    "$95.38"
+    "$75.00",
+    "$70.40",
+    "$74.08",
+    "$75.92"
    ],
    "wrong": {
-    "$93.59": "Added the three R to the stop instead of the fill.",
-    "$91.80": "Added one R, not three.",
-    "$84.64": "Subtracted the three R instead of adding them."
-   }
+    "$75.00": "Added the three R to the stop instead of the fill.",
+    "$74.08": "Added one R, not three.",
+    "$70.40": "Subtracted the three R instead of adding them."
+   },
+   "chart": {
+    "sym": "WSM",
+    "asof": "2023-09-25",
+    "window": 120,
+    "forward": 30
+   },
+   "story": "Hidden ticker, bought on the breakout at 73."
   },
   {
    "key": "q21",
@@ -1953,25 +2027,26 @@
    "key": "q27",
    "skill": "setup.flat_base",
    "rung": 4,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "fb.stop_width",
-   "q": "Fill 72.20. The breakout day's low is 70.75 and the stop sits five cents under it. How far below the fill is the stop, in percent?",
+   "q": "20 with the stop at 70.70. How far below the fill is the stop, in percent?",
    "answer": "2.08%",
    "calc": {
     "fn": "arith",
     "args": {
-     "expr": "(a - (b - 0.05)) / a * 100",
+     "expr": "(a - b) / a * 100",
      "a": 72.2,
-     "b": 70.75
+     "b": 70.7
     },
     "round": 2
    },
-   "why": "2.08%. The stop sits five cents under the breakout day's low, so 70.70. The gap to the 72.20 fill is 1.50, and 1.50 over 72.20 is 2.08%. It is inside the 3% the stop usually sits within. The day's low here is made up for the drill.",
+   "why": "2.08%. The gap between the 72.20 fill and the 70.70 stop is 1.50, and 1.50 over 72.20 is 2.08%. It is inside the 3% the stop usually sits within. In our scan APH reached 3R on day 3.",
    "lesson_line": "Stop first, distance second, size last.",
    "facts": [
     "h24",
     "h04",
-    "d09"
+    "d09",
+    "d10"
    ],
    "house": true,
    "suffix": "%",
@@ -1988,26 +2063,33 @@
      "fixed before (cold check)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals",
    "choices": [
     "1.50%",
     "20.80%",
-    "0.07%",
+    "0.02%",
     "2.08%"
    ],
    "wrong": {
     "1.50%": "Read the dollar gap as a percent.",
-    "0.07%": "Measured only the five-cent cushion, not the whole gap to the stop.",
-    "20.80%": "Decimal slip: moved the decimal one place."
-   }
+    "20.80%": "Decimal slip: moved the decimal one place.",
+    "0.02%": "Stopped at the ratio and never multiplied by 100."
+   },
+   "chart": {
+    "sym": "APH",
+    "asof": "2026-01-12",
+    "window": 150,
+    "forward": 20
+   },
+   "story": "Hidden ticker, bought on the breakout at 72."
   },
   {
    "key": "q28",
    "skill": "setup.flat_base",
    "rung": 4,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "fb.trim_2",
-   "q": "Bought at 30.28, stop 29.79. The stock trades to 32.73. How many R is that?",
+   "q": "28, stop 29.79. Later it trades to 32.73. How many R is that?",
    "answer": "5R",
    "calc": {
     "fn": "r_multiple",
@@ -2035,7 +2117,7 @@
      "rests on the owner's rulebook"
     ]
    },
-   "batch": "rank",
+   "batch": "visuals",
    "choices": [
     "6R",
     "10R",
@@ -2046,7 +2128,14 @@
     "6R": "Measured the gain from the stop instead of the fill.",
     "10R": "Used half the real risk as one R.",
     "50R": "Decimal slip: moved the decimal one place."
-   }
+   },
+   "chart": {
+    "sym": "ALLY",
+    "asof": "2019-06-27",
+    "window": 150,
+    "forward": 60
+   },
+   "story": "Hidden ticker, bought on the breakout at 30."
   },
   {
    "key": "q29",
@@ -2088,7 +2177,13 @@
      "fixed before (cold check)"
     ]
    },
-   "batch": "pilot-1"
+   "batch": "visuals",
+   "chart": {
+    "sym": "AMZN",
+    "asof": "2024-03-21",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q30",
@@ -2517,7 +2612,7 @@
     "Proof the setup was bad; drop it": "One stop-out does not judge a setup. A loss taken at the stop is the system working, and the next trigger is a new trade."
    },
    "house": true,
-   "story": "You bought the gap open at 241.28, above the pivot. It closes mid-range on average volume. Next day the low hits your stop at 236.86. Two sessions later it closes 10% under your fill.",
+   "story": "You bought the gap open at 241.28, above the pivot. It closes mid-range on average volume. Next day the low hits your stop at 236.86.",
    "simple": "The stop did its job. It cut a small planned loss before the stock fell much further.",
    "deeper": {
     "example": "META, 2020-06-23: bought at 241.28 with the stop at 236.86, 1.83% under the fill. The stop was hit on day 1, and the trade never showed a gain (best 0.0R). The loss was small and planned. Holding on would have meant a 14% hole in three sessions."
@@ -2530,7 +2625,13 @@
      "fixed before (the 14% hole was once 10%)"
     ]
    },
-   "batch": "pilot-1"
+   "batch": "visuals",
+   "chart": {
+    "sym": "META",
+    "asof": "2020-06-24",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q42",
@@ -2652,9 +2753,9 @@
    "key": "q45",
    "skill": "setup.flat_base",
    "rung": 6,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "fb.stop",
-   "q": "Account 50,000. Risk 0.5%. Fill 59.40, stop 57.96. No position cap applies. How many shares?",
+   "q": "Account 50,000, risk 0.5%, fill 59.40, stop 57.96. No position cap applies. How many shares?",
    "answer": "173 shares",
    "calc": {
     "fn": "shares_from_risk",
@@ -2688,7 +2789,7 @@
      "fixed before"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals",
    "choices": [
     "347 shares",
     "1,736 shares",
@@ -2699,7 +2800,14 @@
     "347 shares": "Used twice the stated risk percent.",
     "1,736 shares": "Decimal slip: the risk dollars came out ten times too big.",
     "4 shares": "Divided the risk dollars by the fill price, not the gap to the stop."
-   }
+   },
+   "chart": {
+    "sym": "LNG",
+    "asof": "2014-05-29",
+    "window": 150,
+    "forward": 20
+   },
+   "story": "Hidden ticker, bought on the breakout."
   },
   {
    "key": "q46",
@@ -2930,7 +3038,7 @@
     "Yes; IBD allows bases to 20%": "IBD's limit is 15% from the intraday peak to the intraday trough. MarketSmith agrees. 18.5% is past that."
    },
    "house": true,
-   "story": "A 27-session rest after a 51% run, three taps of the top, but the low sits 18.5% under the left-side high.",
+   "story": "Hidden ticker, the day before a breakout: a 27-session rest after a 51% run, three taps of the top, but the low sits 18.5% under the left-side high.",
    "simple": "No, because a flat base can be at most 15% deep, and this one is 18.5% deep.",
    "deeper": {
     "trap": "The trap is counting taps first. Three clean taps of the top feel like a flat base, so you stop measuring. Measure depth first, from the left-side high down to the intraday low. This one is 18.5% deep by our scan, past the 15% line. After a 51% run it looks like a rest, but the pattern still has to be shallow."
@@ -2946,7 +3054,13 @@
    "depends_on": [
     "D-043"
    ],
-   "batch": "pilot-1"
+   "batch": "visuals",
+   "chart": {
+    "sym": "AMZN",
+    "asof": "2020-05-18",
+    "window": 150,
+    "forward": 20
+   }
   },
   {
    "key": "q52",
@@ -3149,7 +3263,13 @@
      "fixed before"
     ]
    },
-   "batch": "rulings"
+   "batch": "visuals",
+   "chart": {
+    "sym": "BHC",
+    "asof": "2015-04-17",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q58",
@@ -3180,7 +3300,7 @@
     "A fixed third at 3R on day one": "That was the old rule. The first sell is a judgment, and day 1 is very rare."
    },
    "house": true,
-   "story": "Five taps of a 23.5 ceiling after a vertical run. You bought at 23.56, stop 23.12. It reaches 5R in about three weeks, then sinks back into the base.",
+   "story": "Five taps of a 23.5 ceiling after a vertical run. You bought at 23.56, stop 23.12. By day five it has reached 3R.",
    "simple": "We sell into a strong push of a few days, not on a fixed rule. The first sell is a judgment.",
    "deeper": {
     "example": "BAC, 2017-02-14: bought at 23.56 with the stop at 23.12 after five taps of the ceiling. It hit 5R in about three weeks, then fell back into the base. Selling into the push on the way up banked gain before the fall, and the rest rode the trail."
@@ -3194,7 +3314,13 @@
      "fixed before"
     ]
    },
-   "batch": "rulings2"
+   "batch": "visuals",
+   "chart": {
+    "sym": "BAC",
+    "asof": "2017-02-22",
+    "window": 150,
+    "forward": 30
+   }
   },
   {
    "key": "q59",
@@ -3406,7 +3532,7 @@
     "Market; stop under low; all out at 5R": "The first sell is part of the position, into a push. Selling it all at once gives up the trail."
    },
    "house": true,
-   "story": "NUS, September 2013: six weeks flat, three taps of 90, above a rising 50 and 200-day. It trades through 90 on 1.9x volume.",
+   "story": "Hidden ticker, the day before a breakout: six weeks flat, three taps of 90, above its 50 and 200-day. It may trade through 90 tomorrow.",
    "simple": "Buy at market through the pivot, put the stop under the day's low, and sell the first piece into a push.",
    "deeper": {
     "example": "NUS, 2013-09-09: it traded through 90 on 1.9x volume. Buy 90.01, stop 88.22, which is 2.0% under the fill. It reached 3R on day 1, and the scan ran on to 23.5R. That is why we rarely sell on day 1. A plan made before the trigger lets you act without a debate."
@@ -3419,7 +3545,13 @@
      "fixed before (85.00 was not NUS's base low)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "visuals",
+   "chart": {
+    "sym": "NUS",
+    "asof": "2013-09-06",
+    "window": 200,
+    "forward": 30
+   }
   },
   {
    "key": "q65",
@@ -3466,9 +3598,9 @@
    "key": "q66",
    "skill": "setup.flat_base",
    "rung": 9,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "fb.above_mas",
-   "q": "Hidden ticker, the day before a breakout. Do its lines pass our card?",
+   "q": "Do its lines pass our card?",
    "choices": [
     "Yes; price, 50-day, 200-day stacked",
     "No; the 50-day is under the 200-day",
@@ -3507,15 +3639,16 @@
      "fixed before"
     ]
    },
-   "batch": "pilot-1"
+   "batch": "pilot-1",
+   "story": "Hidden ticker, the day before a breakout."
   },
   {
    "key": "q67",
    "skill": "setup.flat_base",
    "rung": 9,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "fb.above_mas",
-   "q": "Hidden ticker, the day before it trades through a flat top. Do its price, 50-day and 200-day pass our card?",
+   "q": "Do its price, 50-day and 200-day pass our card?",
    "choices": [
     "No; the 50 is under the 200-day",
     "No; price is under the 200-day",
@@ -3554,7 +3687,8 @@
      "fixed before"
     ]
    },
-   "batch": "pilot-1"
+   "batch": "pilot-1",
+   "story": "Hidden ticker, the day before it trades through a flat top."
   },
   {
    "key": "q68",
@@ -4071,8 +4205,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold read: own answer matches key, cited quotes support it, one defensible answer, no tell found, why and simple do not overreach.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "LNG winners_list 2014-05-29; asof Wed 05-28 is the day before; no numbers in text; pivot answer true for any flat base."
   },
   "q03": {
    "status": "cut",
@@ -4090,7 +4223,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: trade through 60.00 in regular hours. Matches key; c02/h22/h23 support it. Overlaps q33 (now T/F), which is fine."
+   "notes": "CMG winners_list 2020-07-06; 07-03 market holiday so Thu 07-02 is the last session before; pivot number removed from q, choices, why, simple, wrong; key still right."
   },
   "q06": {
    "status": "pass",
@@ -4114,19 +4247,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: left-side high. Matches key. c27, m04, i17 support it. Choices no longer tell. Note only: the 100-session lookback in c27 sits uneasily with the 65-week cap used in q71 and q72; q72 is fixed to state the start explicitly."
+   "notes": "LII winners_list 2016-07-01; asof 06-30 day before; 12.6-week base so window 200 covers the left-side high; no numbers."
   },
   "q10": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Cold read: own answer matches key, cited quotes support it, one defensible answer, no tell found, why and simple do not overreach."
+   "fixed": true,
+   "notes": "ALLY row 3 (inside days into the breakout); asof 06-26 day before. Fix: the q said \"last bars are tight\", which gave away the answer \"Tight at the end\"; reworded to a narrow range plus inside days."
   },
   "q11": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold read: own answer matches key, cited quotes support it, one defensible answer, no tell found, why and simple do not overreach."
+   "notes": "FIX 2025-09-10; asof 09-09; 6.4 wk, three taps near 733 match dossier row 2 (d30/d31 quotes are verbatim substrings); ticker not named; Yes stays right (scan requires first tap 10+ sessions back)."
   },
   "q12": {
    "status": "pass",
@@ -4155,8 +4288,8 @@
   "q16": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "keep right: flat vs VCP/cup/double bottom, not a flag-variant question | mechanical: depends_on left empty, restored to the ruling id(s)"
+   "fixed": false,
+   "notes": "BAC 2017-02-14; asof Mon 02-13; 9.8 wk ~ ten, 10.7% ~ 11%, five taps all match row 7; flat-base key true."
   },
   "q17": {
    "status": "cut",
@@ -4174,13 +4307,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Re-keyed to day 3 at earliest; wrongs clear."
+   "notes": "WSM trigger 09-25; day 1 = Tue 09-26 = asof, matching up 3R the next session; 3R day 1 and 5R by day 10 match d05/d06; key unchanged and true."
   },
   "q20": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Math right (95.38; 93.59; 91.80; 84.64). Why walks the steps."
+   "notes": "WSM buy 73.16 stop 72.24 match row 5; 3R = 75.92 (checked); all three distractor explanations check (75.00, 74.08, 70.40); asof = trigger day."
   },
   "q21": {
    "status": "pass",
@@ -4221,20 +4354,20 @@
   "q27": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Math right (1.50/72.20=2.08). 20.8% was the only one-decimal choice, a format tell; made it 20.80%."
+   "fixed": false,
+   "notes": "APH row 9: 72.20 / 70.70, 2.1% (2.08% exact); distractors check (0.02% = ratio not times 100); 3R day 3 matches; asof = trigger day."
   },
   "q28": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Answer unchanged and at the target rank after sorting. Each wrong choice follows from a real slip on this math and none is within rounding of the answer."
+   "fixed": true,
+   "notes": "ALLY row 3: 30.28 / 29.79; 32.73 = exactly 5.0R; 8.1R best. Forward raised 40 to 60 because the dossier only guarantees 5R within the 60-session scan window, and 3R alone took 10 sessions."
   },
   "q29": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold read: own answer matches key, cited quotes support it, one defensible answer, no tell found, why and simple do not overreach."
+   "notes": "AMZN failure 2024-03-21: close 178.15 at the low, stop 178.10, matches d15; asof = the breakout day itself so the member sees the weak close; text unchanged and consistent."
   },
   "q30": {
    "status": "cut",
@@ -4309,7 +4442,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Story matches dossier META row (gap open 241.28 above 241.21 pivot, mid-range close, 1.0x volume, low 232.68 hit the stop, 216.08 close, 14% hole). A4 supports. Shares theme with q57 but asks a different thing."
+   "notes": "META failure: gap open 241.28, stop 236.86 hit day 1 = 2020-06-24 = asof; story now stops at the stop-out; 216.08 / 10% stays in the reveal and shows in the replay."
   },
   "q42": {
    "status": "pass",
@@ -4333,7 +4466,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Math right (250/1.44=173.6; 347; 1736; 4). Why walks the steps in words."
+   "notes": "LNG row 4: 59.40 / 57.96; 250 / 1.44 = 173.6 -> 173; distractors 347, 1,736, 4 all check; asof = trigger day."
   },
   "q46": {
    "status": "pass",
@@ -4370,8 +4503,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "i05, m01, c23 agree on 15%; 18.5% is d22's number. IBD-allows-20% distractor is false and the note says so.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "AMZN near-miss 2020-05-19: 27 sessions, 51% run, three taps, 18.5% deep match; asof Mon 05-18 is the day before; No-too-deep stays right."
   },
   "q52": {
    "status": "cut",
@@ -4406,14 +4538,14 @@
   "q57": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "edit agrees with D-006/D-013; 3R no longer the only first sell | mechanical: depends_on left empty, restored to the ruling id(s)"
+   "fixed": false,
+   "notes": "BHC failure 2015-04-09: buy 206.85 / stop 203.95, 0.5x, 1.63R, stopped day 6 = 04-17 = asof; story matches; text consistent."
   },
   "q58": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Re-keyed to selling into a push; ok."
+   "notes": "BAC row 7: 23.56 / 23.12, five taps of 23.5; 3R on day 5 = 2017-02-22 (Presidents Day 02-20 closed) = asof; 5R in ~3 weeks then fall back shows in the replay."
   },
   "q59": {
    "status": "pass",
@@ -4450,8 +4582,8 @@
   "q64": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Re-keyed first sell; entry market through pivot; old wrong for limit/7% retained by merge."
+   "fixed": true,
+   "notes": "NUS row 1; asof Fri 09-06, trigger Mon 09-09; 1.9x volume correctly moved to the reveal. Fix: \"rising 50 and 200-day\" is not in the record (record says rising 10- and 21-day; the scan only requires close > 50 > 200 with the 200 not falling); changed to \"above its 50 and 200-day\"."
   },
   "q65": {
    "status": "pass",

@@ -1921,7 +1921,7 @@
    "key": "q25",
    "skill": "setup.launchpad",
    "rung": 3,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "lp.not_gap",
    "q": "Which launch test does this bar fail?",
    "choices": [

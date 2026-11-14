@@ -551,10 +551,11 @@ describe('the F5.08 unit in the repo', () => {
       q17: ['The stock closed down 11.38% that day.'],
       q18: ['The stock plunged 35% in one day.'],
       q19: ['The stock closed up 23% the next day.'],
-      q20: ['Nike earned $1.01 against 83 cents expected and plunged nearly 20%.', 'Alphabet earned $1.89 against $1.51 and rose 10%.', 'Netflix beat too, and fell 35% in one day.'],
-      q21: ['Revenue beat, it cut its cost outlook, and it closed up 23% the next day.'],
-      q22: ['Its shares fell nearly 25%, and both stocks had their worst days since 1987.'],
-      q23: ['Nike plunged nearly 20%; Alphabet rose 10%, its sharpest rally since July 2015.'],
+      // the overbuild (2026-11-11) rewrote these whys; each still ends on what the stock did (2026-11-14 reorder)
+      q20: ['Yet Nike plunged nearly 20%, Netflix fell 35% in one day and Alphabet rose 10%.'],
+      q21: ['Its revenue beat, it lowered its 2023 cost outlook, and it closed up 23% the next day.'],
+      q22: ['Target fell nearly 25%, and both had their worst days since 1987.'],
+      q23: ['Nike plunged nearly 20%.', 'Alphabet rose 10%, its sharpest rally since July 2015.'],
     })
   })
 

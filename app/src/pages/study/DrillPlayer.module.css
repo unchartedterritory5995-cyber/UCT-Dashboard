@@ -358,3 +358,10 @@
 .chartBrand { display: inline-flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 900; letter-spacing: .2em; text-transform: uppercase; color: #a39e94; }
 .chartBrand img { width: 16px; height: 16px; }
 @media (max-width: 640px) { .chartBrand { font-size: 0; letter-spacing: 0; gap: 0; } .chartBrand img { width: 18px; height: 18px; } .chartHead { padding: 6px 8px; } }
+
+/* the replay after the answer (owner 2026-11-14, "chart + replay after"): one quiet control under the chart, right-aligned */
+.replayBar {
+  display: flex;
+  justify-content: flex-end;
+  margin: 6px 0 0;
+}

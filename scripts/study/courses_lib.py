@@ -468,6 +468,10 @@ def question_problems(q: dict, *, unit: dict, facts: dict, sources: dict, skills
             out.append(f"`wrong` must explain every wrong choice (missing {missing})")
         if fmt == "scenario" and not (q.get("story") or "").strip():
             out.append("scenario needs a story")
+    # build_items puts the story on the screen only for a scenario; on any other format a member never sees it
+    # (2026-11-14: two live questions asked about a bar their hidden story described)
+    if fmt != "scenario" and (q.get("story") or "").strip():
+        out.append("a story only reaches the member on a scenario (make it a scenario, or fold it into the question)")
     elif fmt == "tf":
         if ans not in ("True", "False"):
             out.append('tf answer must be "True" or "False"')

@@ -17009,7 +17009,12 @@
  },
  {
   "answer_json": {
-   "answer": "19.8%"
+   "accept": [
+    "19.8",
+    "19.80",
+    "19.800"
+   ],
+   "answer": 19.8
   },
   "difficulty": 2,
   "id": "si_23ec54692404",
@@ -17017,15 +17022,10 @@
   "lesson_text": "19.8%. Take 2,930.75 minus 2,351.10, divide by 2,930.75, and turn it into a percent. That is the fall from the September 2018 closing peak to the December 24 close. Worries about earnings, global growth, trade tensions and the Fed weighed on stocks. Investor.gov says a bear market is generally a fall of 20% or more over at least two months. On closing prices, this fall stopped just short of that line. Measure from the closing peak. Late 2018 came within a hair of 20%, then turned.",
   "module": "F7",
   "prompt_json": {
-   "choices": [
-    "1.98%",
-    "19.8%",
-    "24.7%",
-    "80.2%"
-   ],
-   "kind": "mcq",
-   "q": "The S&P 500 closed at a 2,930.75 peak in September 2018 and at 2,351.10 on December 24. How far did it fall?",
-   "subject": "F7.08#q08"
+   "kind": "fill_numeric",
+   "q": "The S&P 500 closed at a 2,930.75 peak in September 2018 and at 2,351.10 on December 24. How far did it fall, in %? One decimal.",
+   "subject": "F7.08#q08",
+   "suffix": "%"
   },
   "reveal_json": {
    "deeper": {
@@ -17073,18 +17073,13 @@
      "fn": "drawdown_pct",
      "result": 19.8
     },
-    "given": "The S&P 500 closed at a 2,930.75 peak in September 2018 and at 2,351.10 on December 24. How far did it fall? 80.2% 1.98% 24.7% 19.8%"
+    "given": "The S&P 500 closed at a 2,930.75 peak in September 2018 and at 2,351.10 on December 24. How far did it fall, in %? One decimal."
    },
    "lesson_line": "Measure from the closing peak. Late 2018 came within a hair of 20%, then turned.",
    "simple": "19.8%, because the index dropped from 2,930.75 to 2,351.10, just short of a 20% fall.",
    "tier": "core",
    "unit": "F7.08",
-   "why": "19.8%. Take 2,930.75 minus 2,351.10, divide by 2,930.75, and turn it into a percent. That is the fall from the September 2018 closing peak to the December 24 close. Worries about earnings, global growth, trade tensions and the Fed weighed on stocks. Investor.gov says a bear market is generally a fall of 20% or more over at least two months. On closing prices, this fall stopped just short of that line.",
-   "wrong": {
-    "1.98%": "Decimal slip.",
-    "24.7%": "Divided the drop by the low, not the peak.",
-    "80.2%": "Gave what is left, not the fall."
-   }
+   "why": "19.8%. Take 2,930.75 minus 2,351.10, divide by 2,930.75, and turn it into a percent. That is the fall from the September 2018 closing peak to the December 24 close. Worries about earnings, global growth, trade tensions and the Fed weighed on stocks. Investor.gov says a bear market is generally a fall of 20% or more over at least two months. On closing prices, this fall stopped just short of that line."
   },
   "review_status": "draft",
   "skill_id": "history.detective",
@@ -17838,23 +17833,24 @@
  },
  {
   "answer_json": {
-   "answer": "131%"
+   "accept": [
+    "131",
+    "131.0",
+    "131.00",
+    "131.000"
+   ],
+   "answer": 131.0
   },
   "difficulty": 3,
   "id": "si_adbef199e8e4",
   "lesson_origin": "session",
-  "lesson_text": "131%. Subtract the low close, 676.53, from the peak close, 1,565.15. Divide that gain by the low, because you start from the low. A 56.8% loss leaves less than half the money. So what is left must more than double just to get back to even. The gain needed grows much faster than the loss. It says nothing about how long the climb takes. Big losses need far bigger gains to repair. Cutting losses early is cheaper than climbing out.",
+  "lesson_text": "131%. From 676.53 back up to 1,565.15 is a gain of 131%. A 56.8% loss leaves less than half the money. So what is left must more than double just to get back to even. The gain needed grows much faster than the loss. It says nothing about how long the climb takes. Big losses need far bigger gains to repair. Cutting losses early is cheaper than climbing out.",
   "module": "F7",
   "prompt_json": {
-   "choices": [
-    "131%",
-    "176%",
-    "231%",
-    "331%"
-   ],
-   "kind": "mcq",
-   "q": "The S&P 500 closed at 1,565.15 at its 2007 peak and 676.53 at its 2009 low. What gain gets it back to the peak?",
-   "subject": "F7.08#q17"
+   "kind": "fill_numeric",
+   "q": "The S&P 500 closed at 1,565.15 at its 2007 peak and 676.53 at its 2009 low. What gain gets it back to the peak? Nearest whole %.",
+   "subject": "F7.08#q17",
+   "suffix": "%"
   },
   "reveal_json": {
    "deeper": {
@@ -17895,18 +17891,13 @@
      "fn": "pct_change",
      "result": 131.0
     },
-    "given": "The S&P 500 closed at 1,565.15 at its 2007 peak and 676.53 at its 2009 low. What gain gets it back to the peak? 176% 231% 331% 131%"
+    "given": "The S&P 500 closed at 1,565.15 at its 2007 peak and 676.53 at its 2009 low. What gain gets it back to the peak? Nearest whole %."
    },
    "lesson_line": "Big losses need far bigger gains to repair. Cutting losses early is cheaper than climbing out.",
    "simple": "131%, because after a 56.8% loss what is left must more than double to get back to the old peak.",
    "tier": "extended",
    "unit": "F7.08",
-   "why": "131%. Subtract the low close, 676.53, from the peak close, 1,565.15. Divide that gain by the low, because you start from the low. A 56.8% loss leaves less than half the money. So what is left must more than double just to get back to even. The gain needed grows much faster than the loss. It says nothing about how long the climb takes.",
-   "wrong": {
-    "176%": "Divided one by the loss instead of what is left.",
-    "231%": "Stopped at the ratio and forgot to subtract one.",
-    "331%": "Added the low to the peak instead of subtracting."
-   }
+   "why": "131%. From 676.53 back up to 1,565.15 is a gain of 131%. A 56.8% loss leaves less than half the money. So what is left must more than double just to get back to even. The gain needed grows much faster than the loss. It says nothing about how long the climb takes."
   },
   "review_status": "draft",
   "skill_id": "history.detective",
