@@ -43,7 +43,7 @@ SAMPLE_SYMS = ["AAPL", "MSFT", "NVDA", "GOOGL", "TSLA", "AMZN"]
 ORDER = ["firstrun", "sample", "examples", "checklist", "offer", "gallery", "formulas", "chartplan", "positions", "board1",
          "transcript", "passed", "child", "resurface", "thesischips", "board2", "trades", "grading", "earnings", "discipline",
          "vplaybook", "playbook", "reviews", "nokey", "layout", "tours1280", "tours820", "tours390", "whysave", "styles", "blocks",
-         "smart", "followup", "page_layouts", "discover", "remove"]
+         "smart", "followup", "page_layouts", "discover", "followups", "remove"]
 
 CHECKLIST_JS = """() => { const hd = [...document.querySelectorAll('h3')].find(e => e.textContent.trim() === 'Get started');
   if (!hd) return null; const card = hd.closest('section');
@@ -5018,6 +5018,13 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         C.step(None, inst, "discover.coverage", f"every one of the {len(want)} door features left a row in the record",
                "PASS" if not missing else "FAIL", doors=want, missing=missing, shot=False)
     run("discover", discover)
+
+    # ── follow-ups A to D (2026-11-13): tools/notebook_fin_walk_followups.py, every check on its own member ──────────
+    def followups():
+        import notebook_fin_walk_followups as fu
+        fu.run({"C": C, "base": base, "inst": inst, "cfg": cfg, "S": S, "new_member": new_member, "at": at,
+                "phone_of": phone_of, "HOLD": HOLD, "open_templates": open_templates, "cover_js": COVER_JS})
+    run("followups", followups)
 
     # ── remove the sample in one click; nothing of it remains ───────────────────────────
     def remove():
