@@ -269,6 +269,43 @@ describe('Manage templates: the Plain templates group', () => {
     page.remove()
   })
 
+  // Final fix I1: jsdom draws no CSS, so these hold the ORDER of the fallbacks; that "+ New" is `display: none` on a
+  // phone (and the More button is not) is the controller's browser look.
+  const closeAfterOpenerLeft = async (html) => {
+    document.querySelectorAll('[data-i1-page]').forEach((el) => el.remove())   // a failed case never leaks into the next
+    const page = document.createElement('div')
+    page.setAttribute('data-i1-page', '')
+    page.innerHTML = `${html}<button type="button" id="opener">Manage</button>`
+    document.body.appendChild(page)
+    const opener = document.getElementById('opener')
+    opener.focus()
+    const { rerender } = render(tree({ open: true }))
+    await group()
+    opener.remove()
+    rerender(tree({ open: false }))
+    return page
+  }
+  it('(final I1) with the More button and "+ New" both on the page, closing puts focus on the More button (drawn at every width)', async () => {
+    const page = await closeAfterOpenerLeft('<button type="button" data-start-note="">+ New</button>'
+      + '<button type="button" data-tour="styles-button" aria-label="More notebook actions">More</button>')
+    await waitFor(() => expect(document.activeElement).toBe(page.querySelector('[data-tour="styles-button"]')))
+    page.remove()
+  })
+
+  it('(final I1) with neither (the Daily brief, an open note), closing puts focus on the page heading, else on <main>', async () => {
+    const page = await closeAfterOpenerLeft('<h2 tabindex="-1" data-focus-fallback="">Daily brief</h2>')
+    await waitFor(() => expect(document.activeElement).toBe(page.querySelector('[data-focus-fallback]')))
+    page.remove()
+    cleanup()
+    const main = document.createElement('main')
+    main.tabIndex = -1
+    document.body.appendChild(main)
+    const page2 = await closeAfterOpenerLeft('<p>A note</p>')
+    await waitFor(() => expect(document.activeElement).toBe(main))
+    page2.remove()
+    main.remove()
+  })
+
   it('(2g) CONTROL: with the opener still on the page, closing returns focus to it', async () => {
     const page = document.createElement('div')
     page.innerHTML = '<button type="button" data-start-note="">+ New</button><button type="button" id="opener">Manage</button>'

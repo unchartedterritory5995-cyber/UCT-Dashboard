@@ -4,7 +4,7 @@
  *
  *   * default `MemberTemplates`: "Your templates" in the template picker (the New note sheet and the empty notebook's
  *     inline picker). It PICKS: each template's card makes a note from it (Use) and Preview opens the picker's own
- *     preview. With `onManage(place, opener)` (NotebookTab, while the template manager's door can open) it also draws
+ *     preview. With `onManage(place)` (NotebookTab, while the template manager's door can open) it also draws
  *     a "Manage" link (opens the manager at its Plain templates group, `place` 'plain') and "Daily notes start from:
  *     <name>. Change" (opens it at the daily control, `place` 'daily'). Without `onManage` (the door cannot open, e.g.
  *     its switch has not latched yet) the picker keeps its own Rename, Delete, Share and the daily control (fix round
@@ -328,7 +328,7 @@ export default function MemberTemplates({ onPick, busy = false, query = '', onPr
       <div className={styles.memberHead}>
         <h3 id="member-templates-label" className={styles.famLabel} ref={headRef} tabIndex={-1}>Your templates</h3>
         {canManage && templates.length > 0 && (
-          <button type="button" className={styles.linkBtn} onClick={(e) => onManage('plain', e.currentTarget)}
+          <button type="button" className={styles.linkBtn} onClick={() => onManage('plain')}
             aria-label="Manage your plain templates">
             Manage
           </button>
@@ -348,7 +348,7 @@ export default function MemberTemplates({ onPick, busy = false, query = '', onPr
           {canManage ? (
             <p className={styles.dailyLine} data-daily-line="">
               {`Daily notes start from: ${dailyName}. `}
-              <button type="button" className={styles.linkBtn} onClick={(e) => onManage('daily', e.currentTarget)}
+              <button type="button" className={styles.linkBtn} onClick={() => onManage('daily')}
                 aria-label="Change what daily notes start from">
                 Change
               </button>

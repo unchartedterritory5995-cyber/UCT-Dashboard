@@ -175,17 +175,22 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [], show
   // Sheet only focuses its panel when nothing inside already has focus, so this wins its frame.
   const titleRef = useRef(null)
   // Fix round 1 (2g): where focus goes on close. The element that opened the manager, while it is still on the page;
-  // when it went away (a link inside the New note sheet, which closes as the manager opens), the list's "+ New" (or the
-  // More menu that holds "Manage templates"), never the page itself. Read at close time by the Sheet (`current`).
+  // when it went away (a link inside the New note sheet, which closes as the manager opens; My tools' button), never
+  // the page itself. Read at close time by the Sheet (`current`).
+  // Final fix 2c: where focus was is read during render as the Sheet reads it (memoised on `open`, so once per opening
+  // and before any child takes focus), and kept in the ref by an effect: no ref is written during render.
+  const focusAtOpen = useMemo(() => (open && typeof document !== 'undefined' ? document.activeElement : null), [open])
   const openedFrom = useRef(null)
-  const wasOpen = useRef(false)
-  if (open && !wasOpen.current && typeof document !== 'undefined') openedFrom.current = document.activeElement   // once per opening
-  wasOpen.current = Boolean(open)
+  useEffect(() => { if (open) openedFrom.current = focusAtOpen }, [open, focusAtOpen])
+  // Final fix I1: the fallbacks prefer a control drawn at EVERY width: the More menu that holds "Manage templates" (on
+  // a phone "+ New" is in the page but `display: none`, so focusing it lands on <body>), then "+ New", then the page's
+  // own heading (the Daily brief's), then <main> (a note is open: the list's controls are not drawn).
   const returnFocus = useMemo(() => ({
     get current() {
       const o = openedFrom.current
       if (o && o.isConnected && o !== document.body) return o
-      return document.querySelector('[data-start-note]') || document.querySelector('[data-tour="styles-button"]')
+      return document.querySelector('[data-tour="styles-button"]') || document.querySelector('[data-start-note]')
+        || document.querySelector('[data-focus-fallback]') || document.querySelector('main[tabindex="-1"]')
     },
   }), [])
   useEffect(() => {

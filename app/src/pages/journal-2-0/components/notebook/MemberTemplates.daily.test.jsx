@@ -79,9 +79,9 @@ describe('the daily template, from the New note sheet', () => {
     const onManageTemplates = vi.fn()
     renderPicker({ onManageTemplates })
     fireEvent.click(await screen.findByRole('button', { name: 'Change what daily notes start from' }))
-    expect(onManageTemplates).toHaveBeenLastCalledWith('daily', expect.any(HTMLElement))   // and the link that asked
+    expect(onManageTemplates).toHaveBeenLastCalledWith('daily')   // the place only (final fix 2c: no opener is handed up)
     fireEvent.click(screen.getByRole('button', { name: 'Manage your plain templates' }))
-    expect(onManageTemplates).toHaveBeenLastCalledWith('plain', expect.any(HTMLElement))
+    expect(onManageTemplates).toHaveBeenLastCalledWith('plain')
   })
 
   it('the picker picks: Use (the card) and Preview stay; Rename, Delete and Share are the manager\'s now', async () => {
