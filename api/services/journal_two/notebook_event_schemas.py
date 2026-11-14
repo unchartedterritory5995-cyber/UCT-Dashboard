@@ -1,8 +1,10 @@
 """The Notebook telemetry events' prop schemas, applied on arrival by POST /api/j2/telemetry
 (api/routers/journal_two.py `_sanitize_notebook_props`, which re-exports both names below).
 
-Follow-up A fix round 1 (M4): moved here from the router, unchanged, so a reader (tools/notebook_usage_report.py,
-the soak) can have the schema without importing the whole router module. ONE copy: the router imports it.
+Follow-up A fix round 1 (M4): moved here from the router, unchanged, so a reader can have the schema without
+importing the whole router module (tools/notebook_usage_report.py does). The soak and the SLO
+(`notebook_soak._enum_values`, `notebook_slo._offline_reason`) still read both names through the router's
+re-export. ONE copy: the router imports it.
 """
 from __future__ import annotations
 

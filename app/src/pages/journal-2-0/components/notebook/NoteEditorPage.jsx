@@ -2167,7 +2167,8 @@ export default function NoteEditorPage({
     // ⭐ Follow-up D, fix round 1: the device's copy of EXACTLY the offered words goes, content-checked in one
     // transaction, written over with the server copy this editor last knew. ⚰️ `markSynced` alone could not drop
     // them: fix 6 keeps a dirty record's words, so the drain later wrote the discarded words into the note.
-    // Refused (newer words, a differing entry, a crash draft alone) ⇒ the old path, unchanged.
+    // A crash draft alone (no record, nothing queued) is accepted: the same clean write the old path made. Refused (the
+    // record or an entry holds words the offered copy does not carry, or no usable server revision) ⇒ the old path, unchanged.
     const offered = pendingDraft ? { title: pendingDraft.title, subtitle: pendingDraft.subtitle, bodyJson: pendingDraft.bodyJson } : null
     const known = lastSavedRef.current
     const keepOldPath = () => durableRef.current.markSynced({ acked: server, current: server, updatedAt: note?.updatedAt || null })
