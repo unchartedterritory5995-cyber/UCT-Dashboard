@@ -3,6 +3,7 @@
 // receipt / proposal / refusal by its structure. Never an exact string of prose.
 import { anyAverageOn } from '../../../../components/chart/averageVisibility'
 import { mergeChartSettings } from '../../../../components/chart/chartDefaults'
+import { readUctIntelligence } from '../../../../components/chart/uctIntelligence'
 import * as nativeRegistry from '../../../../components/chart/engine/nativeRegistry'
 import { expect } from 'vitest'
 import { waitFor, fireEvent, screen } from '@testing-library/react'
@@ -257,6 +258,8 @@ export function checkExpect(ctx, e, label) {
       expect(bad, `${label}: every returned row has ${c.key} ${c.op} ${JSON.stringify(c.value)}`).toEqual([])
     }
   }
+  // uctIntelligence.set: the first chart's UCT Intelligence layers as its stored settings read (readUctIntelligence); only the fields named
+  if (e.uctIntelligence) { const u = readUctIntelligence(mergeChartSettings(chartsOf(board)[0]?.opts?.settings ?? null)); for (const [k, v] of Object.entries(e.uctIntelligence)) expect(u[k], `${label}: UCT Intelligence ${k}`).toBe(v) }
   for (const r of e.reads || []) expect(calls.map(callLine).some(l => new RegExp(r, 'i').test(l)), `${label}: a canonical read matching /${r}/ ran (ran: ${calls.map(c => `${c[0]} ${c[1]}`).join(' | ')})`).toBe(true)
   for (const r of e.writes || []) expect(calls.map(callLine).some(l => new RegExp(r, 'i').test(l)), `${label}: a canonical write matching /${r}/ ran`).toBe(true)
   for (const r of e.noCalls || []) expect(calls.map(callLine).some(l => new RegExp(r, 'i').test(l)), `${label}: nothing matching /${r}/ ran`).toBe(false)
