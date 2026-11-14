@@ -89,7 +89,7 @@ declare — how many operands they take and what they answer.
 | `!` | 1 | true or false |
 | `?:` | 3 | passthrough |
 
-## Functions (86)
+## Functions (87)
 
 `Needs` is how far back the function reads — the number the engine adds up to
 decide whether a formula can run at all.
@@ -113,6 +113,7 @@ decide whether a formula can run at all.
 | `barsAgo(source, offset, period)` | a number | whatever `period` asks for | `source` as it stood `offset` bars earlier, a count that changes from bar to bar and is read only below `period` |
 | `barssince(condition, period)` | a number | whatever `period` asks for | the number of bars since `condition` was last true, and `period` when it has not been true that recently |
 | `bbw(source, period, mult)` | a number | whatever `period` asks for | the `period`-bar Bollinger Band Width of `source` at multiplier `mult` |
+| `boolNaWithheld(source, withheld)` | a number | 0 bars | `source`, withheld wherever `withheld` |
 | `bop(period)` | a number | whatever `period` asks for | the `period`-bar average of where each bar closed within its own range |
 | `cci(high, low, close, period)` | a number | whatever `period` asks for | the `period`-bar commodity channel index of `high`, `low` and `close` |
 | `ceil(source)` | a number | 0 bars | `source` rounded up to a whole number |

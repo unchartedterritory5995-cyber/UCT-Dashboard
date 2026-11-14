@@ -2501,6 +2501,9 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
     const crossMemo = new Map()
     // ⭐ C36 — why a plot's `time(<timeframe>)` is withheld on this chart, per plot.
     const clock = {}
+    // ⭐ ENGINE 56 — plot key → Map(code → 0/1 column): the bars a per-bar witness mask
+    // withheld by name (`interpret.js::spreadWitnessMask`), read by `withheldBarsReport`
+    const withheldBars = {}
     for (const key of keys) {
       if (!Object.prototype.hasOwnProperty.call(trees, key)) {
         throw new Error(
@@ -2556,7 +2559,7 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
             ...(barIndexAbsoluteFor(def, ctx) ? { barIndexAbsolute: true } : {}), ...(varOriginAbsoluteFor(def) ? { varOriginAbsolute: true } : {}),
             ...(other ? { symbols: other.symbols } : {}),
             ...(lower ? { lowerTf: lower.supply } : {}), crossMemo,
-            chartClockSink: (clock[key] = new Map()) })
+            chartClockSink: (clock[key] = new Map()), withheldBarsSink: (withheldBars[key] = new Map()) })
       } catch (err) {
         // ⛔ A CRASH IS NOT A REFUSAL. `|| 'compute:error'` gave EVERY
         // exception a guard name, so a TypeError inside a walker was
@@ -2587,10 +2590,11 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
       if (runsWhy) {
         delete out[key]
         delete clock[key]
+        delete withheldBars[key]
         errors[key] = { guard: BLOCK_RUNS_GUARD, message: runsWhy }
       }
     }
-    return withLowerTf(withChartClock(withOtherSymbols(withColumnErrors(out, errors), other), clock), lower)
+    return withWithheldBars(withLowerTf(withChartClock(withOtherSymbols(withColumnErrors(out, errors), other), clock), lower), withheldBars)
   }
   if (keys.length !== 1) {
     throw new Error(
@@ -2616,6 +2620,7 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
   // ⭐ P0 0F — see the per-plot branch above (`chartScalars.js`).
   if (staticWhy.has(keys[0])) return withColumnErrors({}, { [keys[0]]: staticWhy.get(keys[0]) })
   const clock = { [keys[0]]: new Map() }
+  const soleWithheld = { [keys[0]]: new Map() }
   const sole = interpret(bound(def.compute.ast), bars, inputs, def.compute.budget,
     undefined, { tf: ctx && ctx.tf,
       newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
@@ -2624,7 +2629,7 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
       ...(barIndexAbsoluteFor(def, ctx) ? { barIndexAbsolute: true } : {}), ...(varOriginAbsoluteFor(def) ? { varOriginAbsolute: true } : {}),
       ...(other ? { symbols: other.symbols } : {}),
       ...(lower ? { lowerTf: lower.supply } : {}),
-      chartClockSink: clock[keys[0]] })
+      chartClockSink: clock[keys[0]], withheldBarsSink: soleWithheld[keys[0]] })
   // ⭐ C48 — the single-tree document's own block-run check (`blockRuns.js`),
   // AFTER its tree computed (a tree that cannot keeps its own reason, above).
   const soleRunsWhy = blockRunsRefusal(def, keys[0], (tree) => interpret(bound(tree), bars, inputs, def.compute.budget,
@@ -2637,7 +2642,7 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
       ...(lower ? { lowerTf: lower.supply } : {}),
       chartClockSink: new Map() }))
   if (soleRunsWhy) return withColumnErrors({}, { [keys[0]]: { guard: BLOCK_RUNS_GUARD, message: soleRunsWhy } })
-  return withLowerTf(withChartClock(withOtherSymbols({ [keys[0]]: sole }, other), clock), lower)
+  return withWithheldBars(withLowerTf(withChartClock(withOtherSymbols({ [keys[0]]: sole }, other), clock), lower), soleWithheld)
 }
 
 /** ⭐⭐ C41 — the lower-timeframe codes THIS binding may read
@@ -2733,6 +2738,27 @@ function withOtherSymbols(out, other) {
  *  refused and why: `{served, refused: [{ticker, code, reason}]}`, or null. */
 export function otherSymbolReport(columns) {
   return (columns && columns[OTHER_SYMBOLS]) || null
+}
+
+/** ⭐ ENGINE 56 — the key a column map carries its per-bar witness withholdings under,
+ *  non-enumerable like `__chartClock`: plot key → `{code: Float64Array(0/1)}`. */
+const WITHHELD_BARS = '__withheldBars'
+function withWithheldBars(out, byKey) {
+  const rows = {}
+  for (const [key, codes] of Object.entries(byKey || {})) {
+    if (codes && codes.size) rows[key] = Object.freeze(Object.fromEntries(codes))
+  }
+  if (Object.keys(rows).length) {
+    Object.defineProperty(out, WITHHELD_BARS, { value: Object.freeze(rows), enumerable: false })
+  }
+  return out
+}
+/** ⭐ ENGINE 56 — the bars each plot was withheld on by a per-bar witness code (A3's
+ *  `pine:bool-na-unwitnessed`, S4-2's `pine:tie-unwitnessed`): `{[plotKey]: {[code]: 0/1
+ *  column}}`, or null. The vendor harness reads it so a withheld bar is graded "not
+ *  compared", never as the `na` the column holds there. */
+export function withheldBarsReport(columns) {
+  return (columns && columns[WITHHELD_BARS]) || null
 }
 
 /** The key a column map carries its `time(<timeframe>)` withholdings under —

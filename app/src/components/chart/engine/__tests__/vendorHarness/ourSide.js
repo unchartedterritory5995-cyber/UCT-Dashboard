@@ -38,7 +38,7 @@ import { toRenderState } from '../../objectRenderState'
 // ⭐ RT5 — a runtime document's own drawings.
 import { runtimeObjectsOf, runtimeObjectsWithheldOf, drawsRuntimeObjects, runtimeWarmupOf, RUNTIME_WARMUP_KEY, runHalfOf, carriesRunHalf } from '../../runtime/runtimeObjects'
 import { runtimeDeclinedTag } from '../../../../../../../tools/pine_coverage/runtime_lane.mjs'
-import { maxLookback, CHART_CLOCK_WHOLE } from '../../ast/interpret'
+import { maxLookback, CHART_CLOCK_WHOLE, interpret as interpretTree } from '../../ast/interpret'
 import { setRuntimeDoorClock } from '../../runtime/runtimeColumns'
 import { paneObjectsGate } from '../../ast/paneGate'
 import { otherSymbolRequestsOf, storeTickerOf } from '../../otherSymbols'
@@ -379,6 +379,61 @@ export function warmBarsSupply(capture) {
  *  warm-up (`runtimeWarmupOf`) is the one payload counted in bars, so it is moved
  *  into the window's indices (never below 0, and never dropped: a curtain that
  *  existed still withholds the run's drawings, as on the chart). */
+/** ⭐ ENGINE 56 — the union of a plot's per-bar witness withholdings (`registry
+ *  .withheldBarsReport`, computed over `calcBars`), sliced to the window: a 0/1 array, or
+ *  null when no bar of it was withheld by name. */
+export function withheldBarsOf(report, key, pre) {
+  const codes = report && report[key]
+  if (!codes) return null
+  const masks = Object.values(codes)
+  if (!masks.length) return null
+  const n = masks[0].length
+  const out = new Array(Math.max(0, n - (pre || 0))).fill(0)
+  for (const m of masks) for (let i = pre || 0; i < n; i++) if (m[i]) out[i - (pre || 0)] = 1
+  return out.some(Boolean) ? { bars: out, codes: Object.keys(codes).sort() } : null
+}
+
+/** ⭐⭐ ENGINE 56 (S4-4) — THE FLOAT-ORDER FLOOR OF A PLOT FED BY A RUNNING TOTAL, per bar
+ *  of the window, or null. Coordinator ruling: where a `cum` (or `sum`) feeds the plot, two
+ *  correct engines that add the same terms in a different order differ by a few ulps of the
+ *  TOTAL, not of the plot (an `ema(ad, 12) - ema(ad, 26)` of a 1e9 accumulation is a 1e6
+ *  difference carrying 1e9's rounding). So the absolute floor on bar i is
+ *  `8 · ε · max |total|` over bars 0..i of the computed series (prehistory included). Only
+ *  the running-total operand's own magnitude enters: a relative 1e-6 error in the plot is
+ *  still a DIVERGE (railed in `vendorHarness.engine56FloatFloor.test.js`). */
+export const FLOAT_ORDER_ULPS = 8
+const RUNNING_TOTAL_NODES = new Set(['cum', 'cumFrom', 'sum'])
+export function floatOrderFloorOf(tree, calcBars, pre) {
+  if (!tree || typeof tree !== 'object') return null
+  const totals = []
+  const stack = [tree]
+  const seen = new Set()
+  while (stack.length) {
+    const n = stack.pop()
+    if (!n || typeof n !== 'object' || seen.has(n)) continue
+    seen.add(n)
+    if (n.type === 'call' && RUNNING_TOTAL_NODES.has(n.name)) totals.push(n)
+    if (Array.isArray(n.args)) for (const a of n.args) stack.push(a)
+  }
+  if (!totals.length) return null
+  const len = calcBars.length
+  const mag = new Float64Array(len)
+  for (const node of totals) {
+    let col
+    try { col = interpretTree(node, calcBars, undefined, undefined, undefined, {}) } catch { return null }
+    if (!col || typeof col.length !== 'number' || col.length !== len) return null
+    let m = 0
+    for (let i = 0; i < len; i++) {
+      const v = Math.abs(col[i])
+      if (Number.isFinite(v) && v > m) m = v
+      if (m > mag[i]) mag[i] = m
+    }
+  }
+  const out = []
+  for (let i = pre || 0; i < len; i++) out.push(FLOAT_ORDER_ULPS * Number.EPSILON * mag[i])
+  return out
+}
+
 export function columnsInWindow(cols, pre) {
   if (!cols || typeof cols !== 'object' || !(pre > 0)) return cols
   const out = {}
@@ -1106,6 +1161,8 @@ function runOurSideOnTheParityClock(capture) {
     // whole just the same, and graded the same way. A plot with values keeps its
     // comparison: the bars the door drew are still judged.
     const withheldWhole = withheldPlotsOf(registry.chartClockReport(cols), cols, notes)
+    // ⭐ ENGINE 56 — the bars each plot was withheld on by a per-bar witness code
+    const withheldBarsReport = registry.withheldBarsReport(calcCols)
     let colours
     // ⭐ DIV-1 — the plot colours the binder draws over the SAME replayed bars the
     // values were computed on, each sliced to the window.
@@ -1181,11 +1238,18 @@ function runOurSideOnTheParityClock(capture) {
         missingReason = `computeFor returned no column for ${row.key}`
           + (why && why.guard ? ` (${why.guard})` : '')
       }
+      const heldBars = row && col ? withheldBarsOf(withheldBarsReport, row.key, replayPre) : null
+      if (heldBars) notes.push(`${row.key}: ${heldBars.bars.filter(Boolean).length} bar(s) withheld by name (${heldBars.codes.join(', ')}) — not compared`)
       plots.push({
         title: o ? o.title : null,
         formula: o ? o.formula : null,
         key: row ? row.key : null,
         withheldBy: heldBy || null,
+        // ⭐ ENGINE 56 — 0/1 per window bar: withheld by name, graded "not compared"
+        withheldBars: heldBars ? heldBars.bars : null,
+        withheldBarsCodes: heldBars ? heldBars.codes : null,
+        // ⭐ ENGINE 56 (S4-4) — the float-order floor where a running total feeds the plot
+        floatOrderFloor: built.lane !== 'runtime' && o && o.ast && col ? floatOrderFloorOf(o.ast, calcBars, replayPre) : null,
         hidden: !!(o && o.hidden),
         column: col || null,
         missingReason,
