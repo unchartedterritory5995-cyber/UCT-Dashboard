@@ -313,7 +313,9 @@ def test_the_rows_are_the_contracts(on):
                                 "tags": ["before_price", "down_day", "flag", "new"]},
         "starter_rs_nh_before_price": {"place": None, "caption": ["below_high", "group"],
                                        "tags": ["down_day", "flag", "new"]},
-        "starter_rs_leaders": {"place": "index", "caption": ["setup", "group"], "tags": ["flag", "new"]},
+        # unit U7: the ranked screen names its own order (`sort_label`)
+        "starter_rs_leaders": {"place": "index", "caption": ["setup", "group"], "tags": ["flag", "new"],
+                               "sort_label": "RS Rating"},
         "starter_rs_exit_warning_5": {"place": None, "caption": ["group"], "tags": ["new"]}}
     for s in _five():
         row = s["row"]
@@ -321,6 +323,23 @@ def test_the_rows_are_the_contracts(on):
         assert set(row["caption"]) <= CAPTION_PARTS
         assert row["tags"] == [t for t in TAG_ORDER if t in row["tags"]], "tags in priority order"
     assert [i for i in FIVE if "empty" in by[i]] == ["starter_rs_nh_before_price"]
+
+
+def test_a_sort_label_is_only_on_a_ranked_screen_and_says_what_it_ranks_by(on):
+    """Unit U7. The list head of a ranked screen reads "Sort: Your ranking". A starter may
+    name the order instead (``row.sort_label``), and the name has to be true: only a screen
+    the server itself ranks may carry one, and "RS Rating" is honest only while the one
+    thing UCT RS Leaders ranks by is the RS Rating's own score."""
+    labelled = {s["id"]: s["row"]["sort_label"] for s in ss.starters() if "sort_label" in (s.get("row") or {})}
+    assert labelled == {"starter_rs_leaders": "RS Rating"}
+    for s in ss.starters():
+        if "sort_label" in (s.get("row") or {}):
+            assert s["spec"].get("rank") and "sort" not in s["spec"], s["id"]
+            label = s["row"]["sort_label"]
+            assert label and label.strip() == label and label.isascii() and not BANNED.search(label)
+    lead = _by_id()["starter_rs_leaders"]
+    assert [c["key"] for c in lead["spec"]["rank"]["criteria"]] == ["rs_rating_score"]
+    assert F.FILTERS["rs_rating_score"]["label"].startswith(lead["row"]["sort_label"])
 
 
 # ───────────────────────── the control invariants ─────────────────────────

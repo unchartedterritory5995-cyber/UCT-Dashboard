@@ -131,7 +131,8 @@ describe('what the client assumes about the payload', () => {
   })
   test('each row recipe names only parts and tags the row can draw; a null place is sent as null', () => {
     for (const st of RS_STARTERS) {
-      expect(Object.keys(st.row).sort(), st.id).toEqual(['caption', 'place', 'tags'])
+      // unit U7: a ranked screen may also name its order (`sort_label`); a screen that is not ranked never does
+      expect(Object.keys(st.row).sort(), st.id).toEqual(st.spec.rank ? ['caption', 'place', 'sort_label', 'tags'] : ['caption', 'place', 'tags'])
       for (const p of st.row.caption) expect(CAPTION_PARTS, `${st.id} caption`).toContain(p)
       for (const t of st.row.tags) expect(TAGS, `${st.id} tag`).toContain(t)
       const cfg = rowConfigOf(st)

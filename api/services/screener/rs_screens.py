@@ -61,6 +61,9 @@ LEADERS_MIN_ADR_PCT = 3
 LEADERS_MIN_MARKET_CAP = 300_000_000
 LEADERS_MAX_BELOW_HIGH = -25
 LEADERS_TOP_N = 50
+#: What the list head calls the order of UCT RS Leaders (unit U7): its one rank
+#: criterion, `rs_rating_score`, is the RS Rating before rounding.
+LEADERS_SORT_LABEL = "RS Rating"
 #: RS exit warnings: a warning in the last five sessions.
 EXIT_AGE = 4
 #: "New to 90+" and "90 and up" on Top RS Rating.
@@ -288,7 +291,12 @@ def leaders() -> dict:
                  "rank": {"criteria": [{"key": "rs_rating_score", "weight": 1}],
                           "top_n": LEADERS_TOP_N}},
         "controls": [show, _min_rating(LEADERS_RATING_CHOICES, default=LEADERS_MIN_RATING)],
-        "row": {"place": "index", "caption": ["setup", "group"], "tags": ["flag", "new"]},
+        # `sort_label` (unit U7): the list head said "Sort: Your ranking", the wording for
+        # any ranked screen. This ranking is ours and it is the RS Rating, so the screen
+        # says so. The client prints it only while the working spec still carries this
+        # rank; every other ranked screen (UCT 50) keeps "Your ranking".
+        "row": {"place": "index", "caption": ["setup", "group"], "tags": ["flag", "new"],
+                "sort_label": LEADERS_SORT_LABEL},
     }
 
 
