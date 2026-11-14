@@ -493,14 +493,15 @@ def premarket_starters():
 #: shape as `archive_starters()`. The group label has its own row in the
 #: client's `screenGroups.js` GROUPS (it used to fall back to Momentum leaders).
 #:
-#: ⛔ NO STARTER ON A RATING COLUMN UNTIL IT FILLS IN PROD. `rs_rating_ibd` and
-#: the six beside it read the `rs_rating_history` side table, and the job that
-#: writes it (`rs_history_nightly`, 04:15 ET) is DARK behind `RS_HISTORY_ENABLED`
-#: (unit 2a-04's ledger entry): non-null on zero prod rows BY CONSTRUCTION, so a
-#: starter on one would return nothing forever — the exact class
-#: `test_screener_saved._KNOWN_EMPTY_IN_PROD` exists for, and the seven are named
-#: there, dated. HELD BACK on 2026-11-06, to ship after the first clean fill
-#: (delete the seven ban entries the same day):
+#: ⚰️ This said "NO STARTER ON A RATING COLUMN UNTIL IT FILLS IN PROD":
+#: `rs_rating_ibd` and the columns beside it read the `rs_rating_history` side
+#: table, whose writer (`rs_history_nightly`, 04:15 ET) was dark behind
+#: `RS_HISTORY_ENABLED` on 2026-11-06, so `test_screener_saved.
+#: _KNOWN_EMPTY_IN_PROD` banned them. They filled: the flag was armed on
+#: 2026-11-07 and on 2026-11-13 2,390 of 2,404 liquid stocks carried a rating,
+#: so the ban entries were deleted on 2026-11-14 and a starter may filter a
+#: rating column. The three HELD BACK on 2026-11-06 are still not shipped here
+#: (the rating screens are their own piece of work, not this comment's):
 #:   "RS 90+ (IBD-style)"          rs_rating_ibd >= 90
 #:   "RS 90+ in a leading sector"  rs_rating_ibd >= 90 and sector_rs_pct >= 80
 #:   "RS rating climbing"          rs_rating_chg_20 >= 10 and rs_rating_ibd >= 70

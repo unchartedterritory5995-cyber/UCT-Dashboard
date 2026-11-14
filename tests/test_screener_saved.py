@@ -185,33 +185,30 @@ _KNOWN_EMPTY_IN_PROD = {
         " conflate the two when one of them fills."
     ),
     # ── UCT Relative Strength rating family (Phase 2a, unit 2a-08) ──
-    # ⛔ EMPTY BY CONSTRUCTION, not by measurement: the seven read the
-    # `rs_rating_history` side table, and the job that writes it
-    # (`rs_history_nightly`, 04:15 ET, unit 2a-04) is DARK behind
-    # `RS_HISTORY_ENABLED` — the flag is unset in prod at 2026-11-06, so the
-    # table has no rows and `_read_rs_history_fields` maps nothing. The ten
-    # bar-derived RS columns are NOT here: `rs_columns.collect_one` runs inside
-    # the 03:00 build with no flag, so they fill on the first build after
-    # deploy. DELETE these seven entries the day the first clean 04:15 run
-    # lands (`GET /api/screener/snapshot-status` carries the `rs_history`
-    # block), and ship the held-back rating starters named in
-    # `saved_screens.py` beside `rs_starters()` the same day.
-    **{col: ("non-null on 0 prod rows by construction at 2026-11-06: the"
-             " `rs_history_nightly` job that writes `rs_rating_history` is dark"
-             " behind `RS_HISTORY_ENABLED`; `_read_rs_history_fields` maps nothing"
-             " until it runs. Delete after the first clean fill.")
-       for col in ("rs_rating_ibd", "rs_rating_chg_5", "rs_rating_chg_20",
-                   "rs_rating_1m", "rs_rating_3m", "rs_rating_6m", "rs_rating_9m",
-                   "rs_rating_12m")},
+    # ⚰️ EIGHT ENTRIES STOOD HERE UNTIL 2026-11-14: `rs_rating_ibd`,
+    # `rs_rating_chg_5`, `rs_rating_chg_20` and `rs_rating_1m/3m/6m/9m/12m`,
+    # banned on 2026-11-06 as "non-null on 0 prod rows by construction" while
+    # the job that writes `rs_rating_history` (`rs_history_nightly`, 04:15 ET)
+    # was dark behind `RS_HISTORY_ENABLED`. Their own note said to delete them
+    # after the first clean fill. The flag was armed on 2026-11-07 and the
+    # ratings have been live on production since; measured 2026-11-13: 2,390 of
+    # 2,404 liquid stocks carry a rating. Deleted, as the rule above asks: a
+    # stale ban blocks a working criterion. `_PROD_EMPTY_CENSUS` below holds
+    # the list to what is still measured empty.
 }
+
+#: The ban list, counted. An entry leaves with a dated measurement that its
+#: column fills (the rating family, above) and joins with one that it is
+#: empty; either way this census moves in the same change, on purpose.
+_PROD_EMPTY_CENSUS = frozenset({"implied_move_pct", "earnings_setup_grade"})
 
 
 # ── UCT RELATIVE STRENGTH starters (Phase 2a, unit 2a-08) ───────────────────
 # ⛔ DERIVED FROM THE TWO WRITERS: the bar-derived set is `rs_columns.COLUMNS`
-# (fills on the first nightly build, no flag) and the rating set is
-# `snapshot_builder._RS_HISTORY_COLUMNS` (dark job). A starter may filter the
-# first set and must not filter the second until it fills — the rule the map
-# states as "no starter on a column until it fills in prod".
+# (written by the nightly build's `bars_rs` step) and the rating set is
+# `snapshot_builder._RS_HISTORY_COLUMNS` (read from `rs_rating_history`, live
+# since 2026-11-07). Both fill on production, so a starter may filter either.
+# ⚰️ This said a starter "must not filter the second until it fills"; it filled.
 
 def _rs_sets():
     from api.services.screener import rs_columns, snapshot_builder
@@ -233,18 +230,39 @@ def _rs_v2_on(monkeypatch):
     monkeypatch.setattr(registry_defs, "RS_V2_ENABLED", True)
 
 
-def test_rs_starters_filter_ONLY_the_columns_that_fill_on_day_one(tmp_path, monkeypatch):
-    """⛔ THE SET IS NAMED BY THE WRITERS, and the ban list above names the
-    other half, so the standing empty-column rail bites on any rating starter
-    the day somebody adds one early."""
+def test_the_ban_list_holds_what_is_measured_empty_and_no_rs_column(tmp_path, monkeypatch):
+    """⛔ THE BAN LIST IS A CENSUS, AND THE RS FAMILY IS NAMED BY ITS WRITERS.
+
+    Until 2026-11-14 this test asserted the opposite for the rating half: every
+    rating column had to be banned, because the job that fills them was dark.
+    The ratings went live on 2026-11-07 (measured 2026-11-13: 2,390 of 2,404
+    liquid stocks carry one), so a ban on one now blocks a working criterion.
+
+    What still has to hold: the columns that really are empty on production
+    stay banned (a starter on `implied_move_pct` returned nothing forever); no
+    RS column, bar-derived or rating, is banned; and a starter that filters a
+    rating column passes the empty-column rail's own decision function, so the
+    lift is real and not only a shorter dict.
+    """
     ss = _svc(tmp_path, monkeypatch)
     _rs_v2_on(monkeypatch)   # 2026-11-07 (U6)
     from api.services.screener import filters as scr_filters
     bars, ratings = _rs_sets()
     assert bars and ratings and not (bars & ratings)
-    # every rating column is banned — the rail above cannot be blind to one
-    assert ratings <= set(_KNOWN_EMPTY_IN_PROD), sorted(ratings - set(_KNOWN_EMPTY_IN_PROD))
-    assert not (bars & set(_KNOWN_EMPTY_IN_PROD)), "a bar-derived RS column is banned — it fills day one"
+    banned = set(_KNOWN_EMPTY_IN_PROD)
+    assert banned == _PROD_EMPTY_CENSUS, sorted(banned ^ _PROD_EMPTY_CENSUS)
+    assert not (bars & banned), "a bar-derived RS column is banned, and it fills every night"
+    assert not (ratings & banned), (
+        "a rating column is banned, and the ratings have been live on production "
+        f"since 2026-11-07: {sorted(ratings & banned)}")
+    # every rating column is a real filter, and a starter on it is not flagged
+    for col in sorted(ratings):
+        keys = [k for k, f in scr_filters.FILTERS.items() if f.get("column") == col]
+        assert keys, (col, "a rating column no filter reads")
+        fake = [{"id": "starter_control_rating", "name": "Control",
+                 "spec": {"filters": [{"key": keys[0], "op": "gte", "min": 90}],
+                          "view": "relative_strength"}}]
+        assert _starters_filtering_an_empty_column(fake, scr_filters.FILTERS) == [], col
     starters = _rs_starters(ss)
     assert len(starters) >= 5, [s["id"] for s in starters]
     touched = set()
@@ -254,11 +272,10 @@ def test_rs_starters_filter_ONLY_the_columns_that_fill_on_day_one(tmp_path, monk
         for f in s["spec"]["filters"]:
             col = scr_filters.FILTERS[f["key"]]["column"]
             if col in bars | ratings:
-                assert col in bars, (s["id"], col, "filters a dark rating column")
                 touched.add(col)
+        # an RS starter orders by a number the RS family itself writes
         sort = s["spec"]["sort"]["key"]
-        assert sort in bars or sort == "rs_rank", (s["id"], sort)
-        assert sort not in ratings, (s["id"], sort)
+        assert sort in bars | ratings or sort == "rs_rank", (s["id"], sort)
     # the starters reach a real share of the family, not one column seven times
     assert len(touched) >= 6, sorted(touched)
 
