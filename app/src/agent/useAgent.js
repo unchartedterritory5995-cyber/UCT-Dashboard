@@ -17,6 +17,7 @@
 
 import { protectionRefusal, undoProtectionRefusal, protectedOpenLayout, isProtected, protectedRenameRefusal } from './protectedLayouts'
 import { chartRailRefusal, RAIL_MARK } from './chartRail'
+import { newChartsRefusal } from './newChartsRail'
 import { replyRelation, QUESTION_TTL_MS, CONTINUE_CHOICES, continueQuestion } from './pendingTask'
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { AuthContext } from '../context/AuthContext'
@@ -801,7 +802,18 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
   const carriedWordsRef = useRef(null)
   const turnWords = (member) => [member, saidRef.current, carriedWordsRef.current]
   const resumeRef = useRef(null)            // pendingTask: restores (yes) or withdraws (no) a held reply's pending task
-  const railOf = (plan, mode) => chartRailRefusal(plan, { words: railWordsRef.current, host, mode })
+  const railOf = (plan, mode) => chartRailRefusal(plan, { words: railWordsRef.current, host, mode }) || newChartsRailOf(plan)
+  // ⛔ NEW-CHARTS RAIL (11-14, newChartsRail.js): words about the charts UCT just created never write a chart that was already
+  // there. The created set survives later changes (newSetRef, replaced only by the next creating request, dropped by a layout
+  // switch); the words are this turn's (railWordsRef) plus the words the change was proposed from (railGateRef: a card's own)
+  const newSetRef = useRef(null)            // { turn, epoch, refs }
+  const railGateRef = useRef([])
+  const newChartsRailOf = (plan) => {
+    const s = newSetRef.current
+    const created = s && s.epoch === epochOf(host) ? s.refs : []
+    const words = [railWordsRef.current, ...(railGateRef.current || [])].filter(x => typeof x === 'string' && x.trim()).join(' . ')
+    return newChartsRefusal(plan, { words, host, created })
+  }
   if (!memoryRef.current) memoryRef.current = createMemory()
   const [, force] = useState(0)
   const rerender = () => force(n => n + 1)
@@ -1500,6 +1512,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     // (merge with #1029) `proposedWords` is its own option: #1029's `words` is the turn's message string for resolveArgs
     // (the which-widget guard); the two never share one name, so neither reads the other's shape.
     const gateWords = Array.isArray(proposedWords) ? proposedWords : turnWords(member)
+    railGateRef.current = gateWords
     // ⭐ Multi Chart: one gate for the instant, model and approved paths — what cannot run on the grid is said, and nothing runs
     const onGrid = gridMode ? screenGridOps(opsIn, host) : null
     if (onGrid?.refuse) {
@@ -1757,6 +1770,11 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     if (!createdRef.current || createdRef.current.turn !== turn) createdRef.current = { turn, refs: [] }
     for (const r of Object.values(created || {})) {
       try { if (host?.charts?.read?.(String(r)) && !createdRef.current.refs.includes(String(r))) createdRef.current.refs.push(String(r)) } catch { /* not a chart */ }
+    }
+    // the new-charts rail's set: only a request that CREATED charts replaces it (the same turn's parts add to it)
+    if (createdRef.current.refs.length) {
+      const s = newSetRef.current
+      newSetRef.current = s && s.turn === turn ? { ...s, refs: [...new Set([...s.refs, ...createdRef.current.refs])] } : { turn, epoch: epochOf(host), refs: [...createdRef.current.refs] }
     }
   }
 
