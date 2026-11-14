@@ -5,8 +5,14 @@ command line (``__main__``) writes that dict to ``--out`` and prints the verdict
 
 ONE SCORE. The portfolios are formed with ``screener.rs_leader_score.score_rows``, the
 function the nightly pass stores from, over rows built for each date from bars as of
-that date and that session's stored rating. The reference set is the liquid universe
-of that date.
+that date and that session's rating. The reference set is the liquid universe of that
+date.
+
+THE RATING of a formation date is either computed from bars in memory with the rating
+job's own functions (``ratings.py``; the default, so no stored history is needed) or
+read from ``rs_rating_history`` (``ratings="stored"``). In computed mode the sessions
+are the benchmark's bar dates, and wherever a stored session can also be read the two
+are compared and the output carries the comparison.
 
 WHAT A DATE'S NUMBERS ARE. Every position is entered at the next session's open and
 left at the close ``h`` sessions after the formation date, equal weight; a formed
@@ -22,8 +28,10 @@ from typing import Callable, Dict, List, Optional
 
 from api.services.screener import rs_leader_score
 
-from . import panel, spec, stats
-from .data import Store, ymd
+from api.services.screener import rs_history
+
+from . import panel, ratings as rt, spec, stats
+from .data import COMPUTED, STORED, Store, as_bars, ymd
 
 DEVELOPMENT, HOLDOUT = "development", "holdout"
 QUINTILE_NAMES = tuple(f"q{q}" for q in range(1, spec.QUANTILES + 1))
@@ -280,10 +288,11 @@ def verdict_lines(result: dict) -> List[str]:
         lines.append("QUICK RUN: a limited number of formation dates was read. This is NOT a test record.")
     if result["holdout_unlocked"]:
         lines.append("HOLDOUT UNLOCKED: the newest "
-                     f"{spec.HOLDOUT_SESSIONS} rating sessions were read in this run.")
+                     f"{spec.HOLDOUT_SESSIONS} sessions were read in this run.")
     dev = result[DEVELOPMENT]
     lines.append(f"Development data: {dev['dates_used']} formation dates used of "
                  f"{dev['formation_dates']} ({dev['first_date']} to {dev['last_date']}).")
+    lines.extend(_rating_lines(result))
     iv = c1["interval"]
     lines.append(
         f"{mark(c1['met'])}  1. Top minus bottom quintile at {spec.PRIMARY_HORIZON} sessions is positive "
@@ -323,14 +332,47 @@ def verdict_lines(result: dict) -> List[str]:
 # the run
 # --------------------------------------------------------------------------- #
 
-def _formation(sessions: List[str], n_dev: int, unlocked: bool, limit: Optional[int]) -> List[tuple]:
-    """``[(k, session, segment)]``: every ``spec.FORMATION_STEP``-th stored session,
-    counted from the oldest, that this run may read. ``limit`` keeps the newest
-    ``limit`` of each segment (a quick run)."""
-    dev = [(k, s, DEVELOPMENT) for k, s in enumerate(sessions)
-           if k % spec.FORMATION_STEP == 0 and k < n_dev]
-    hold = [(k, s, HOLDOUT) for k, s in enumerate(sessions)
-            if k % spec.FORMATION_STEP == 0 and k >= n_dev] if unlocked else []
+def _rating_lines(result: dict) -> List[str]:
+    """Where the ratings came from and, in computed mode, how they compare with the
+    stored ones. Printed BEFORE the criteria: a rating that does not match the stored
+    one is something to know before reading PASS or FAIL."""
+    info = result.get("ratings") or {}
+    if info.get("mode") != COMPUTED:
+        return ["Ratings: read from the stored rating history."]
+    lines = ["Ratings: computed from daily bars for each formation date, with the rating job's own functions."]
+    check = result.get("ratings_cross_check") or {}
+    newest = check.get("newest")
+    if newest is None or newest.get("equal_share") is None:
+        lines.append("Ratings cross-check: NOT DONE. "
+                     + (check.get("note") or "no stock was rated both ways").capitalize()
+                     + ", so nothing says the computed ratings match the stored ones.")
+        return lines
+    share = f"{newest['equal_share'] * 100:.1f}% of {newest['stocks']:,} stocks"
+    if check.get("agrees"):
+        lines.append(f"Ratings cross-check: {share} have the stored rating on {newest['session']} "
+                     f"({check['sessions_compared']} sessions compared).")
+    else:
+        worst = ", ".join(f"{d['ticker']} {d['stored']} stored, {d['computed']} computed"
+                          for d in newest["largest"][:3])
+        lines.append(
+            f"WARNING  Ratings cross-check: only {share} have the stored rating on {newest['session']} "
+            f"(needs {rt.MIN_AGREEMENT * 100:.0f}%). The bars, the ETF list or the split lists are not "
+            "the ones that night's ratings were made from, so the ratings tested here are not the "
+            "ratings members saw. Largest differences: " + (worst or "none") + ".")
+    return lines
+
+
+def _formation(sessions: List[str], n_dev: int, unlocked: bool, limit: Optional[int],
+               offset: int = 0) -> List[tuple]:
+    """``[(k, session, segment)]``: every ``spec.FORMATION_STEP``-th session of the
+    calendar, counted from its oldest, that this run may read. ``sessions`` start
+    ``offset`` sessions into the calendar and ``k`` is the position in the WHOLE
+    calendar, so the grid of dates does not move with ``--from-date``. ``limit`` keeps
+    the newest ``limit`` of each segment (a quick run)."""
+    dev = [(offset + n, s, DEVELOPMENT) for n, s in enumerate(sessions)
+           if (offset + n) % spec.FORMATION_STEP == 0 and n < n_dev]
+    hold = [(offset + n, s, HOLDOUT) for n, s in enumerate(sessions)
+            if (offset + n) % spec.FORMATION_STEP == 0 and n >= n_dev] if unlocked else []
     if limit is not None:
         dev, hold = dev[-limit:] if limit > 0 else [], hold[-limit:] if limit > 0 else []
     return dev + hold
@@ -341,16 +383,66 @@ def _span(sessions: List[str]) -> dict:
             "last": sessions[-1] if sessions else None}
 
 
+def plan_block(store: Store, plan: List[tuple], limit: Optional[int], from_date) -> dict:
+    """What the run is about to do, known before a bar is read: the session range, the
+    formation dates and how many non-overlapping 21-session windows they span."""
+    dev = [k for k, _s, seg in plan if seg == DEVELOPMENT]
+    hold = [k for k, _s, seg in plan if seg == HOLDOUT]
+    return {
+        "ratings": store.mode, "from_date": from_date, "max_formation_dates": limit,
+        "calendar": _span(store.calendar), DEVELOPMENT: _span(store.development),
+        HOLDOUT: {**_span(store.holdout), "read": store.unlock_holdout},
+        "formation_dates": {DEVELOPMENT: len(dev), HOLDOUT: len(hold)},
+        "first_formation_date": plan[0][1] if plan else None,
+        "last_formation_date": plan[-1][1] if plan else None,
+        "independent_blocks": {DEVELOPMENT: stats.independent_blocks(dev),
+                               HOLDOUT: stats.independent_blocks(hold)},
+    }
+
+
+def plan_lines(block: dict) -> List[str]:
+    """:func:`plan_block` in plain words, printed up front."""
+    dev, hold = block[DEVELOPMENT], block[HOLDOUT]
+    source = ("computed from daily bars for each formation date" if block["ratings"] == COMPUTED
+              else "read from the stored rating history")
+    lines = [f"Ratings: {source}.",
+             f"Development sessions: {dev['count']:,} ({dev['first']} to {dev['last']}).",
+             f"Holdout: the newest {hold['count']:,} sessions ({hold['first']} to {hold['last']}), "
+             + ("READ in this run." if hold["read"] else "not read.")]
+    n, b = block["formation_dates"], block["independent_blocks"]
+    lines.append(f"Formation dates: {n[DEVELOPMENT]:,} in development "
+                 f"({block['first_formation_date']} to "
+                 f"{block['last_formation_date'] if not n[HOLDOUT] else 'the holdout'}), "
+                 f"spanning {b[DEVELOPMENT]:,} non-overlapping {spec.PRIMARY_HORIZON}-session windows"
+                 + (f"; {n[HOLDOUT]:,} in the holdout ({b[HOLDOUT]:,} windows)." if n[HOLDOUT] else "."))
+    return lines
+
+
 def run_test(bars_db, screener_db, *, unlock_holdout: bool = False,
              max_formation_dates: Optional[int] = None,
-             progress: Optional[Callable[[str], None]] = None) -> dict:
-    """Run the test and return the output dict. Opens both databases read-only and
-    writes nothing."""
+             progress: Optional[Callable[[str], None]] = None,
+             ratings: str = COMPUTED, from_date: Optional[str] = None, industry_db=None,
+             announce: Optional[Callable[[List[str]], None]] = None) -> dict:
+    """Run the test and return the output dict. Opens every database read-only and
+    writes nothing.
+
+    ``ratings`` is where a formation date's ratings come from (module docstring);
+    ``from_date`` bounds how far back formation dates go; ``industry_db`` is the
+    industry map the rating job's ETF list reads (computed mode). ``announce`` receives
+    the plan's lines once, before any bar is read."""
     say = progress or (lambda _msg: None)
     counts: Counter = Counter()
-    with Store(bars_db, screener_db, unlock_holdout=unlock_holdout) as store:
+    recs = {DEVELOPMENT: [], HOLDOUT: []}
+    compared: List[dict] = []
+    with Store(bars_db, screener_db, unlock_holdout=unlock_holdout, ratings=ratings,
+               from_date=from_date, industry_db=industry_db) as store:
+        computed = store.mode == COMPUTED
         n_dev = len(store.development)
-        plan = _formation(store.sessions, n_dev, store.unlock_holdout, max_formation_dates)
+        plan = _formation(store.sessions, n_dev, store.unlock_holdout, max_formation_dates,
+                          offset=store.first)
+        block = plan_block(store, plan, max_formation_dates, from_date)
+        if announce is not None:
+            announce(plan_lines(block))
         result = {
             "test": "UCT Leader score: pre-registered test", "preregistered": spec.PREREGISTERED,
             "generated_at": _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds"),
@@ -364,9 +456,13 @@ def run_test(bars_db, screener_db, *, unlock_holdout: bool = False,
                       "near_zero_at_pct": rs_leader_score.NEAR_ZERO_AT_PCT,
                       "group_min_members": rs_leader_score.GROUP_MIN_MEMBERS,
                       "group_shrink_members": rs_leader_score.GROUP_SHRINK_MEMBERS},
-            "sessions": {"stored": _span(store.sessions), DEVELOPMENT: _span(store.development),
+            "plan": block,
+            "sessions": {"stored": _span(store.stored_sessions), "calendar": _span(store.sessions),
+                         DEVELOPMENT: _span(store.development),
                          HOLDOUT: {**_span(store.holdout), "read": store.unlock_holdout},
                          "last_date_read": store.cutoff},
+            "ratings": {"mode": store.mode},
+            "ratings_cross_check": None,
             "universe": {"classification": ("Industry, sector and the ETF flag are as held today "
                                             "(screener_rows), not as of each formation date."),
                          "gate_omissions": list(spec.GATE_OMISSIONS)},
@@ -383,7 +479,18 @@ def run_test(bars_db, screener_db, *, unlock_holdout: bool = False,
             from_ymd = start.year * 10000 + start.month * 100 + start.day
             cal = panel.Calendar(store.daily_bars(spec.BENCHMARK, from_ymd))
             classes = store.classification()
-            symbols = sorted(t for t, c in classes.items() if c["is_etf"] == 0)
+            etfs: set = set()
+            if computed:
+                etfs, sources = store.etf_tickers(classes)
+                result["ratings"].update(
+                    etf_sources=sources, etfs_known=len(etfs),
+                    held_today=("The bars, the list of which symbols are ETFs and the declared "
+                                "split lists are as held today, not as of each formation date."),
+                    etf_list=("the rating job's four sources" if sources["industry_map"] is not None else
+                              "WITHOUT the industry map (--industry-db was not given): an ETF known "
+                              "only there is ranked as a stock, which moves every rating a little"))
+            symbols = sorted(t for t, c in classes.items() if c["is_etf"] == 0 and t not in etfs)
+            in_universe = set(symbols)
             counts["symbols_classified"] = len(classes)
             counts["symbols_not_a_stock_or_unknown"] = len(classes) - len(symbols)
             declared = store.declared_splits()
@@ -391,25 +498,76 @@ def run_test(bars_db, screener_db, *, unlock_holdout: bool = False,
                 "declared split lists read from the rating job's memo" if declared is not None else
                 "NO declared split lists in this database: no window was checked for an unadjusted split")
             books = {f: panel.DateBook() for f in formation}
-            say(f"reading {len(symbols)} symbols for {len(formation)} formation dates")
-            for n, t in enumerate(symbols, 1):
-                bars = store.daily_bars(t, from_ymd)
-                if not bars:
-                    counts["symbols_no_bars"] += 1
-                    continue
-                panel.add_symbol(t, bars, cal, formation, books, counts,
-                                 declared=None if declared is None else declared.get(t),
-                                 development_end=dev_end)
-                if n % 500 == 0:
-                    say(f"  {n} of {len(symbols)} symbols")
+
+            def _declared(t):
+                return None if declared is None else declared.get(t)
+            series: dict = {}
+            if computed:
+                # ONE read per symbol: its closes are kept (typed arrays) for every
+                # date's rating window, and a stock of the universe goes through the
+                # panel from the same rows.
+                say(f"reading every rankable symbol for {len(formation)} formation dates")
+                seen = set()
+                for n, t in enumerate(store.tickers(), 1):
+                    counts["symbols_in_bars_store"] += 1
+                    tu = str(t).upper()
+                    if not rs_history.rankable_symbol(tu):
+                        counts["symbols_not_rankable"] += 1
+                        continue
+                    rows = store.daily_rows(tu, from_ymd)
+                    if not rows:
+                        continue
+                    seen.add(tu)
+                    if tu in etfs:
+                        # An ETF's rating is read off the stocks' distribution and never
+                        # moves a stock's (`compute_ratings`), and the test ranks stocks
+                        # only: its closes are not kept and it is not rated.
+                        counts["symbols_etf_not_rated"] += 1
+                    elif rt.add_symbol(series, tu, rows, _declared(tu)):
+                        counts["symbols_rating_candidates"] += 1
+                    if tu in in_universe:
+                        panel.add_symbol(tu, as_bars(rows), cal, formation, books, counts,
+                                         declared=_declared(tu), development_end=dev_end)
+                    if n % 1000 == 0:
+                        say(f"  {n} symbols read")
+                counts["symbols_no_bars"] = len(in_universe - seen)
+            else:
+                say(f"reading {len(symbols)} symbols for {len(formation)} formation dates")
+                for n, t in enumerate(symbols, 1):
+                    bars = store.daily_bars(t, from_ymd)
+                    if not bars:
+                        counts["symbols_no_bars"] += 1
+                        continue
+                    panel.add_symbol(t, bars, cal, formation, books, counts,
+                                     declared=_declared(t), development_end=dev_end)
+                    if n % 500 == 0:
+                        say(f"  {n} of {len(symbols)} symbols")
             bench = panel.benchmark_book(cal, formation)
-            recs = {DEVELOPMENT: [], HOLDOUT: []}
-            for k, s, segment in plan:
+            readable = set(store.readable_stored_sessions()) if computed else set()
+            for n, (k, s, segment) in enumerate(plan, 1):
                 f = ymd(s)
+                if computed:
+                    rated = rt.rate(series, etfs, s)
+                    if s in readable:
+                        compared.append(rt.compare(s, store.ratings(s), rated, etfs))
+                    if n % 25 == 0:
+                        say(f"  {n} of {len(plan)} formation dates rated")
+                else:
+                    rated = store.ratings(s)
                 recs[segment].append(cross_section(f, s, k, segment, books[f], bench.get(f),
-                                                   store.ratings(s), classes))
-        else:
-            recs = {DEVELOPMENT: [], HOLDOUT: []}
+                                                   rated, classes))
+            if computed:
+                # The newest stored session this run may read is the one the verdict
+                # quotes: compared even when it is not a formation date.
+                newest = max(readable) if readable else None
+                if newest is not None and all(c["session"] != newest for c in compared):
+                    compared.append(rt.compare(newest, store.ratings(newest),
+                                               rt.rate(series, etfs, newest), etfs))
+        if computed:
+            result["ratings_cross_check"] = rt.cross_check(
+                sorted(compared, key=lambda c: c["session"]),
+                stored_sessions=len(store.stored_sessions),
+                readable=len(store.readable_stored_sessions()))
     result["counts"] = dict(sorted(counts.items()))
     result[DEVELOPMENT] = summarise(recs[DEVELOPMENT])
     result[HOLDOUT] = summarise(recs[HOLDOUT]) if unlock_holdout else None
