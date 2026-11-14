@@ -1698,6 +1698,17 @@
       ]
     },
     {
+      "key": "uct.barsgrace.off",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Charts",
+      "kind": "internal",
+      "label": "Chart loading rollout switch",
+      "files": [
+        "app/src/components/chart/useLegacyChartBars.js"
+      ]
+    },
+    {
       "key": "uct.barsFetchMax",
       "store": "localStorage",
       "scope": "device-local",

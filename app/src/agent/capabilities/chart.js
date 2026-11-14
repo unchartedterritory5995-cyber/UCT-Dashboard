@@ -51,6 +51,7 @@ import { whenVisible } from '../frames'
 const ASK_AI_DELAY_MS = 900
 import { readFavoriteTools, writeFavoriteTools } from '../../components/chart/drawToolFavorites'
 import { normalizeDock } from '../../pages/charts/widgets/chartDock'
+import { replayDone, replaySig, replayContext, bareExitFast, exitGuard, isCutoffExit, replayStopped } from './chartReplay'
 
 // The chart types and the timeframes UCT charts natively are the PRODUCT's lists
 // (chartDefaults.CHART_TYPE_OPTIONS, timeframes.NATIVE_TFS) — imported, never copied, so a new
@@ -270,12 +271,16 @@ export function viewDone(meta, { op, arg, want }) {
   if (op === 'autoScale') return meta.priceAuto === true
   // the Position Calculator (drawing extras): open or closed, and its entry / stop / target, as the panel shows them
   if (op === 'positionCalc') return samePositionCalc(meta.positionCalc, arg)
+  // chartReplay.playback: the Replay / Time Machine bar's own state (on, playing, speed, scrubber index) as asked
+  if (op === 'replay') return replayDone(meta.replay, want)
   return meta.indicatorsHidden === arg
 }
 // The window (right-relative, within a bar: the tolerance of the range read-back) and the view lock, as a range button found them.
 // What a view change's Undo is pinned to: the range shown, the window a step left (to a tenth of a bar), or hide-all.
-const viewFp = (snap, op) => {
+const viewFp = (snap, op, vd) => {
   if (op === 'applyRange') return snap.view?.activeRange ?? null
+  // a replay Undo is stale once the member moved the replay themselves (its bar's buttons, the scrubber, the speed)
+  if (op === 'replay') return replaySig(snap.view?.replay, vd?.arg?.op)
   // a Position Calculator's Undo is stale once the member typed in its panel or closed it themselves
   if (op === 'positionCalc') return positionCalcSig(snap.view?.positionCalc)
   if (op === 'stepBar' || op === 'zoom') { const f = snap.view?.frame; return f ? `${f.fromRight.toFixed(1)}|${f.toRight.toFixed(1)}` : null }
@@ -407,9 +412,19 @@ export const chartKind = {
     if ('replay' in patch && ok) ok = !!host.charts.setReplay?.(replay)
     // The chart's own view control; a long range may load history first (its "Loading chart history…", capped at 6s)
     if (viewDo && ok) {
-      if (!host.charts.viewDo?.(ref, viewDo.op, viewDo.arg)) return false
-      const t0 = Date.now()
-      while (Date.now() - t0 < 10000 && !viewDone(host.charts.read(ref)?.view, viewDo)) await new Promise(r => setTimeout(r, 100))
+      // chartReplay.playback: several replay ops of ONE plan ride as ordered `steps` — each pressed only once the one before it
+      // is READ BACK (the chart's door acts on its last render), and the sequence stops at the first that did not land
+      const steps = viewDo.steps || [viewDo]
+      // a step that fails AFTER earlier ones landed stops there and says exactly what the chart now shows (they stay: a
+      // receipt never claims "nothing was left changed" over a replay that is on)
+      const stop = (done) => { if (done) throw replayStopped(done, steps.length, host.charts.read(ref)?.view?.replay, steps.slice(0, done).map(s => s.arg)) }
+      for (const [done, s] of steps.entries()) {
+        const one = { op: viewDo.op, arg: s.arg, want: s.want }
+        if (!host.charts.viewDo?.(ref, one.op, one.arg)) { stop(done); return false }
+        const t0 = Date.now()
+        while (Date.now() - t0 < 10000 && !viewDone(host.charts.read(ref)?.view, one)) await new Promise(r => setTimeout(r, 100))
+        if (steps.length > 1 && !viewDone(host.charts.read(ref)?.view, one)) { stop(done); return false }
+      }
     }
     if (goto != null && ok) {
       if (!host.charts.goTo?.(ref, goto)) return false
@@ -481,6 +496,8 @@ export const chartKind = {
       else if ((op === 'applyRange' || op === 'stepBar' || op === 'zoom') && item.before.view?.frame) p.viewDo = { op: 'restoreView', arg: item.before.view.frame }
       // the Position Calculator back to exactly what it showed before (closed stays closed, its old prices kept)
       else if (op === 'positionCalc' && item.before.view?.positionCalc) p.viewDo = { op, arg: { ...item.before.view.positionCalc } }
+      // chartReplay.playback: the way back its plan worked out (none for play / pause, or for a replay that was playing)
+      else if (op === 'replay' && item.patch.viewDo.back) p.viewDo = { op, ...item.patch.viewDo.back }
       else return null
     }
     return p
@@ -516,7 +533,7 @@ export const chartKind = {
     ...('dock' in (item?.patch || {}) ? [snap.dock ?? null] : []),
     // a range's Undo is stale once the member panned or zoomed off it
     // a step's Undo is stale once the member moved the window themselves (pan, zoom, another step)
-    ...('viewDo' in (item?.patch || {}) ? [viewFp(snap, item.patch.viewDo.op)] : [])]),
+    ...('viewDo' in (item?.patch || {}) ? [viewFp(snap, item.patch.viewDo.op, item.patch.viewDo)] : [])]),
   // ⛔ APPROVAL BINDING: before an approved chart change re-plans, the server's copy of this chart must
   // equal this tab's (another tab may have changed its settings — boardInSync does not see settings).
   // Unreadable, or no way to check → the approval fails closed.
@@ -575,6 +592,8 @@ export function describeChart(snap, shortRef) {
     extendedHours: sessionOf(cs, snap.tf) === 'extended',
     scale: scaleOf(cs),
     linkedWidgets: snap.linkedCount || 0,
+    // chartReplay.playback: only while this chart's bar replay (the Replay / Time Machine button) is on
+    ...replayContext(snap.view?.replay),
     // the chart the member last clicked ("this chart" / "this stock"); omitted on every other chart
     ...(snap.selected ? { selected: true } : {}),
   }
@@ -1014,6 +1033,11 @@ const CAPABILITIES = [
     argAliases: { date: ['cutoff', 'to', 'until', 'day', 'at', 'as_of', 'asOf', 'replay_date', 'replayDate'] },
     // (W1.1 review NB-1: "none"/"nothing" are no longer null words for a string arg — replay declares them itself)
     coerce: { date: { exit: null, off: null, stop: null, end: null, false: null, clear: null, 'exit replay': null, none: null, nothing: null, nil: null } },
+    // AUDIT #1174 ruling 1: an EXIT here writes every chart, so "exit / stop the replay" is decided from state with the bar
+    // replay's (chartReplay.exitVerdict): only Replay Mode on → this; the bar replay on, or both → never this without its name
+    fastWhole: true,
+    fast: bareExitFast('cutoff'),
+    resolveArgs: exitGuard(isCutoffExit, 'cutoff'),
     shape: '{"date":"YYYY-MM-DD"} to replay from a date; {"date":null} to EXIT replay ("exit replay", "leave replay", "replay off", '
       + '"show every bar again") — the JSON null, never the word "null" and never an "exit" or "enabled" key.',
     check(st, { date }) {
