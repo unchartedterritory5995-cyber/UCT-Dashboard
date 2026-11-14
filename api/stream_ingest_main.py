@@ -100,7 +100,7 @@ async def serve_forever(port: int, server: ifs.IngestFeedServer, stop: asyncio.E
                      max_size=fp.MAX_MESSAGE_BYTES,
                      # The feed is its own liveness signal (a batch at least every
                      # STATUS_INTERVAL_S); keep the library ping too, generously.
-                     ping_interval=20, ping_timeout=60,
+                     ping_interval=20, ping_timeout=60, close_timeout=2,
                      compression=None) as ws_server:
         log.info("[stream-ingest] listening on :%d (epoch %d, dark: no vendor socket)", port, server.epoch)
         periodic = asyncio.create_task(_periodic(server, stop))
@@ -109,7 +109,17 @@ async def serve_forever(port: int, server: ifs.IngestFeedServer, stop: asyncio.E
         ws_server.close(close_connections=False)
         await server.shutdown()
         periodic.cancel()
-        await ws_server.wait_closed()
+        # Backstop: anything still open (a socket mid-handshake, a client the
+        # deadline gave up on) is closed 1001, then the wait itself is bounded.
+        for conn in list(getattr(ws_server, "connections", ())):
+            try:
+                await asyncio.wait_for(conn.close(ifs.CLOSE_GOING_AWAY, "stream-ingest shutting down"), 2)
+            except Exception:  # noqa: BLE001
+                pass
+        try:
+            await asyncio.wait_for(ws_server.wait_closed(), 5)
+        except asyncio.TimeoutError:
+            log.warning("[stream-ingest] connections still open at exit")
 
 
 def main(argv=None) -> int:

@@ -55,6 +55,10 @@ class FakeConn:
         if self.closed is None:
             self.closed = (code, reason)
             self._closed_evt.set()
+        # A real websockets close() awaits the closing handshake: yield like it does,
+        # so other handlers run in between (the supersede race needs this to show).
+        for _ in range(3):
+            await asyncio.sleep(0)
 
 
 def enc(msg) -> bytes:
@@ -207,6 +211,9 @@ def test_newer_connection_for_the_same_client_supersedes_the_old():
         await asyncio.wait_for(t_old, 2)
         assert old.closed[0] == ifs.CLOSE_POLICY and "superseded" in old.closed[1]
         assert srv.clients["web-1"].conn is new
+        # The old handler's cleanup must NOT have disconnected the new live client.
+        assert srv.union.clients()["web-1"]["connected"] is True
+        assert srv.union.clients()["web-1"]["lease_until"] is None
         new.inbox.put_nowait(EOFError)
         await asyncio.wait_for(t_new, 2)
     asyncio.run(go())
@@ -236,6 +243,65 @@ def test_shutdown_sends_a_final_batch_and_closes_going_away():
         await asyncio.wait_for(task, 2)
         assert conn.closed[0] == ifs.CLOSE_GOING_AWAY
         assert len(conn.sent) > n and conn.sent[-1].status["closing"] is True
+    asyncio.run(go())
+
+
+def test_a_hello_during_shutdown_is_turned_away_going_away():
+    async def go():
+        srv, _, _ = make_server()
+        await srv.shutdown()
+        conn = FakeConn([hello(), desired()])
+        await asyncio.wait_for(srv.handle(conn), 2)
+        assert conn.closed[0] == ifs.CLOSE_GOING_AWAY and srv.clients == {}
+    asyncio.run(go())
+
+
+def test_shutdown_is_concurrent_and_bounded_by_one_deadline():
+    class Hung(FakeConn):
+        async def send(self, data):
+            await asyncio.sleep(60)          # never drains
+
+        async def close(self, code=1000, reason=""):
+            await super().close(code, reason)
+            await asyncio.sleep(60)          # never finishes the closing handshake
+
+    async def go():
+        srv, _, _ = make_server()
+        tasks = []
+        for i in range(5):
+            c = Hung([hello(f"web-{i}"), desired()])
+            tasks.append(await run_until(c, srv, lambda i=i: f"web-{i}" in srv.clients))
+        t0 = asyncio.get_running_loop().time()
+        await srv.shutdown(deadline_s=0.3)
+        assert asyncio.get_running_loop().time() - t0 < 1.5     # not 5 x (send + close) serially
+        assert srv.clients == {}
+        for t in tasks:
+            t.cancel()
+    asyncio.run(go())
+
+
+def test_a_client_dropping_before_hello_is_quiet():
+    class Drop(FakeConn):
+        async def recv(self):
+            raise ConnectionError("gone")
+
+    async def go():
+        srv, _, _ = make_server()
+        await asyncio.wait_for(srv.handle(Drop()), 2)       # no exception escapes
+        assert srv.clients == {} and srv.union.clients() == {}
+    asyncio.run(go())
+
+
+def test_a_crashing_send_loop_closes_the_connection_internal_error(monkeypatch):
+    async def go():
+        srv, _, _ = make_server()
+
+        async def boom(client, timeout_s=None):
+            raise RuntimeError("synthetic")
+        monkeypatch.setattr(srv, "flush_client", boom)
+        conn = FakeConn([hello(), desired()])
+        await asyncio.wait_for(srv.handle(conn), 2)
+        assert conn.closed[0] == ifs.CLOSE_INTERNAL
     asyncio.run(go())
 
 
@@ -318,6 +384,40 @@ def test_real_socket_health_auth_and_feed(monkeypatch):
             assert ws.close_code == ifs.CLOSE_GOING_AWAY
             assert last is None or last.status["closing"] is True
         await asyncio.wait_for(task, 5)
+
+    asyncio.run(go())
+
+
+def test_real_socket_shutdown_does_not_hang_on_a_late_hello(monkeypatch):
+    pytest.importorskip("websockets.asyncio.server")
+    from websockets.asyncio.client import connect
+
+    from api import stream_ingest_main as main
+
+    monkeypatch.setenv("PUSH_SECRET", SECRET)
+    port = _free_port()
+
+    async def go():
+        srv = main.build_server()
+        stop = asyncio.Event()
+        task = asyncio.create_task(main.serve_forever(port, srv, stop))
+        for _ in range(100):
+            try:
+                with socket.create_connection(("127.0.0.1", port), timeout=0.2):
+                    break
+            except OSError:
+                await asyncio.sleep(0.02)
+        async with connect(f"ws://127.0.0.1:{port}/internal/feed",
+                           additional_headers={"Authorization": f"Bearer {SECRET}"}) as ws:
+            stop.set()                       # shutdown starts BEFORE this client says hello
+            await asyncio.sleep(0.05)
+            try:
+                await ws.send(hello("late", 1))
+                await asyncio.wait_for(ws.recv(), 3)
+            except Exception:
+                pass
+            await asyncio.wait_for(task, 8)  # the server finished; it did not hang
+            assert ws.close_code == ifs.CLOSE_GOING_AWAY
 
     asyncio.run(go())
 
