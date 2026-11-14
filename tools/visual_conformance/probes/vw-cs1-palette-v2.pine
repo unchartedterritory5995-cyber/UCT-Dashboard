@@ -1,0 +1,26 @@
+//@version=2
+study("UCTPROBE_VW_CS1_PALETTE_V2", overlay=false)
+
+// PROVENANCE: written 2026-11-14 for the Pine parity programme, capture session S1
+// (objects-lane REMAINING-SCOPE-2026-11-14 section 4; s3-bugs-1114 "CAPTURE PROBES NEEDED" C1).
+// C1: the hex TradingView resolves for each of the 17 named colours at this version, no transp
+// (read from properties().state().styles[plot_N].color; v3-v6 are in palette-by-version-rddt-1d-2026-09-27).
+// CAPTURE: NYSE:RDDT 1D from the listing, inputs at defaults.
+
+plot(1, title="C00_aqua", color=aqua)
+plot(2, title="C01_black", color=black)
+plot(3, title="C02_blue", color=blue)
+plot(4, title="C03_fuchsia", color=fuchsia)
+plot(5, title="C04_gray", color=gray)
+plot(6, title="C05_green", color=green)
+plot(7, title="C06_lime", color=lime)
+plot(8, title="C07_maroon", color=maroon)
+plot(9, title="C08_navy", color=navy)
+plot(10, title="C09_olive", color=olive)
+plot(11, title="C10_orange", color=orange)
+plot(12, title="C11_purple", color=purple)
+plot(13, title="C12_red", color=red)
+plot(14, title="C13_silver", color=silver)
+plot(15, title="C14_teal", color=teal)
+plot(16, title="C15_white", color=white)
+plot(17, title="C16_yellow", color=yellow)
