@@ -55,15 +55,31 @@ describe('the AI actions slot', () => {
     expect(document.activeElement).toBe(request())
   })
 
-  it('a failed fetch says so in plain words, with a Reload the member presses', async () => {
+  it('a failed fetch says so in plain words, with a Reload the member presses, once the member has pressed the toggle', async () => {
     aiActionsLoaders.box = () => Promise.reject(new Error('boom'))
     const reload = vi.spyOn(pageReload, 'run').mockImplementation(() => {})
     renderSlot()
+    await act(async () => { await new Promise((r) => setTimeout(r, 30)) })
+    expect(screen.queryByRole('alert')).toBeNull()                      // fix round 2: nothing the member did not ask for
+    fireEvent.click(screen.getByRole('button', { name: TOGGLE }))
     const alert = await screen.findByRole('alert')
+    expect(AI_ACTIONS_UNAVAILABLE).toBe('This could not be loaded.')
     expect(alert.textContent).toContain(`${AI_ACTIONS_UNAVAILABLE} ${RELOAD_TO_RECOVER}`)
     expect(reload).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'Reload' }))
     expect(reload).toHaveBeenCalledTimes(1)
+  })
+
+  it('fix round 2: a second press of the frame toggle closes it again', () => {
+    aiActionsLoaders.box = () => new Promise(() => {})
+    renderSlot()
+    const toggle = screen.getByRole('button', { name: TOGGLE })
+    act(() => { fireEvent.click(toggle) })
+    expect(toggle.getAttribute('aria-expanded')).toBe('true')
+    expect(screen.getByRole('status')).toBeTruthy()
+    act(() => { fireEvent.click(toggle) })
+    expect(toggle.getAttribute('aria-expanded')).toBe('false')
+    expect(screen.queryByRole('status')).toBeNull()
   })
 
   it('the panel mounts the slot, never a lazy wrapper', () => {

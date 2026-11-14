@@ -14,6 +14,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
 import { RELOAD_TO_RECOVER, heldModule, pageReload, useHeldModule } from '../../lib/heldModule'
 import whenIdle from '../../lib/whenIdle'
+import { TOOLBAR_ICON } from '../../lib/notebookIcons'
 import { notebookFlag } from '../../lib/offline/notebookFlags'
 import { openSpanningCitation } from '../../lib/openCitation'
 import AskPanel from './AskPanel'
@@ -33,18 +34,20 @@ export const aiActionsLoaders = { box: () => import('./AiActionsPanel') }
 export const aiActionsModule = heldModule(() => aiActionsLoaders.box())
 const actionsOn = () => notebookFlag('notebook_ai_actions_enabled') === true
 if (typeof window !== 'undefined') whenIdle(() => { if (actionsOn()) aiActionsModule.warm() })
-export const AI_ACTIONS_UNAVAILABLE = 'Tell Notebook what to change could not be loaded.'
+export const AI_ACTIONS_UNAVAILABLE = 'This could not be loaded.'
 export const AI_ACTIONS_LOADING = 'Loading…'
 
-function AiActionsFrame({ failed, wantOpen, onOpen }) {
+// Fix round 2: the failure is said only once the member has pressed the toggle (an idle warm that failed while the
+// section is open says nothing they did not ask for), and a second press closes it again.
+function AiActionsFrame({ failed, wantOpen, onToggle }) {
   const statusRef = useRef(null)
   useLayoutEffect(() => { if (wantOpen) statusRef.current?.focus() }, [wantOpen])
   return (
     <section className={actionStyles.wrap} aria-label="Or tell Notebook what to change" data-ai-actions-stand-in="">
-      <button type="button" className={actionStyles.toggle} aria-expanded={wantOpen} onClick={onOpen}>
-        <UIcon name="sparkle" size={13} gold={false} /> Or tell Notebook what to change
+      <button type="button" className={actionStyles.toggle} aria-expanded={wantOpen} onClick={onToggle}>
+        <UIcon name="sparkle" {...TOOLBAR_ICON} gold={false} /> Or tell Notebook what to change
       </button>
-      {(wantOpen || failed) && (
+      {wantOpen && (
         <p ref={statusRef} tabIndex={-1} role={failed ? 'alert' : 'status'}>
           {failed ? `${AI_ACTIONS_UNAVAILABLE} ${RELOAD_TO_RECOVER}` : AI_ACTIONS_LOADING}
           {failed && <> <button type="button" className="btn btn-secondary btn-sm" onClick={pageReload.run}>Reload</button></>}
@@ -60,7 +63,7 @@ export function AiActionsSlot(props) {
   const [wantOpen, setWantOpen] = useState(false)
   useEffect(() => { aiActionsModule.warm() }, [])
   if (Component) return <Component {...props} defaultOpen={wantOpen} />
-  return <AiActionsFrame failed={status === 'failed'} wantOpen={wantOpen} onOpen={() => setWantOpen(true)} />
+  return <AiActionsFrame failed={status === 'failed'} wantOpen={wantOpen} onToggle={() => setWantOpen((o) => !o)} />
 }
 
 export default function NotebookAiPanel({ id, onOpenNote, onClose, blockedNoteIds = null }) {

@@ -7,11 +7,13 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { useEffect, useRef, useState } from 'react'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import {
   INSERT_LOADING, INSERT_UNAVAILABLE, WidgetPaletteSlot, widgetPaletteLoaders, widgetPaletteModule,
 } from './EditorToolSlots'
 import { RELOAD_TO_RECOVER, pageReload } from '../../lib/heldModule'
+import slotStyles from './EditorToolSlots.module.css'
+import findStyles from './NoteFindBar.module.css'
 
 // Stands in for WidgetPalette: a dialog whose ticker field takes focus when it mounts.
 function StubPalette() {
@@ -77,6 +79,36 @@ describe('the Insert palette slot', () => {
     fireEvent.keyDown(document.activeElement, { key: 'Escape' })
     expect(document.querySelector('[data-palette-stand-in]')).toBeNull()
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Insert' }))
+  })
+
+  // Fix round 2: a Close (the real palette's own name) in both states; it hands focus back to the door.
+  it('Close in the frame closes it and hands focus back to Insert (loading and failed)', async () => {
+    for (const load of [() => new Promise(() => {}), () => Promise.reject(new Error('boom'))]) {
+      widgetPaletteModule.resetForTests()
+      widgetPaletteLoaders.palette = load
+      const view = render(<Editor />)
+      press()
+      await act(async () => { await new Promise((r) => setTimeout(r, 20)) })
+      const frame = document.querySelector('[data-palette-stand-in]')
+      fireEvent.click(within(frame).getByRole('button', { name: 'Close insert panel' }))
+      expect(document.querySelector('[data-palette-stand-in]')).toBeNull()
+      expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Insert' }))
+      view.unmount()
+    }
+  })
+
+  // Fix round 2: drawn in the palette's own ABSOLUTE slot (its own class), never the find bar's in-flow strip, so the
+  // chrome does not grow. (jsdom has no layout: the real check is the controller's look in a browser.)
+  it("the frame's root is the absolute palette slot, never the find bar's in-flow strip", () => {
+    widgetPaletteLoaders.palette = () => new Promise(() => {})
+    render(<Editor />)
+    press()
+    const frame = document.querySelector('[data-palette-stand-in]')
+    expect(slotStyles.paletteFrame).toBeTruthy()
+    expect(frame.classList.contains(slotStyles.paletteFrame)).toBe(true)
+    expect(frame.classList.contains(findStyles.bar)).toBe(false)
+    const css = readFileSync(join(process.cwd(), 'src/pages/journal-2-0/components/notebook/EditorToolSlots.module.css'), 'utf8')
+    expect(css).toMatch(/\.paletteFrame \{\s*position: absolute;/)
   })
 
   it('a failed load says so in plain words, with a Reload the member presses (never by itself)', async () => {

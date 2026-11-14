@@ -16,6 +16,7 @@ import { RELOAD_TO_RECOVER, heldModule, pageReload, useHeldModule } from '../../
 // Final fix residual R2: the Notebook's toolbar icon size (the token lint allows 16 and 20 only).
 import { TOOLBAR_ICON } from '../../lib/notebookIcons'
 import styles from './NoteFindBar.module.css'
+import slotStyles from './EditorToolSlots.module.css'
 
 // A property, so a rail can hold or fail a fetch (jsdom cannot fetch a chunk), like `sourceSheetLoaders`.
 export const editorToolLoaders = {
@@ -134,22 +135,38 @@ export const warmWidgetPalette = () => { widgetPaletteModule.warm() }
 export const INSERT_UNAVAILABLE = 'Insert could not be loaded.'
 export const INSERT_LOADING = 'Loading Insert…'
 
-// The frame itself takes focus (kept small: it is on the editor's first open). Escape closes it and hands focus back
-// to the door; pressing Insert again closes it too.
+// The frame itself takes focus (kept small: it is on the editor's first open). Fix round 2: in a PASSIVE effect, and
+// again one frame later if something took it: on a phone the palette is opened from the "+" menu, a Sheet, whose
+// passive cleanup hands focus back to "+" after any layout effect of ours (the real palette focuses passively too).
+// It sits in the palette's own absolute slot (EditorToolSlots.module.css), so the chrome never grows. Close (the real
+// palette's own name) or Escape closes it and hands focus back to the door ("Insert", or "+" on a phone).
 function PaletteFrame({ failed, onClose, returnFocusTo }) {
   const ref = useRef(null)
-  useLayoutEffect(() => { ref.current?.focus() }, [])
-  const onKeyDown = (e) => {
-    if (e.key !== 'Escape') return
-    e.stopPropagation()
+  useEffect(() => {
+    const el = ref.current
+    el?.focus()
+    const t = requestAnimationFrame(() => { if (el && !el.contains(document.activeElement)) el.focus() })
+    return () => cancelAnimationFrame(t)
+  }, [])
+  const close = () => {
     onClose?.()
     returnFocusTo?.current?.focus?.()
   }
+  const onKeyDown = (e) => {
+    if (e.key !== 'Escape') return
+    e.stopPropagation()
+    close()
+  }
   return (
-    <div ref={ref} tabIndex={-1} className={styles.bar} role="dialog" aria-label="Insert widget" data-palette-stand-in=""
-      onKeyDown={onKeyDown}>
-      <span role={failed ? 'alert' : 'status'}>{failed ? `${INSERT_UNAVAILABLE} ${RELOAD_TO_RECOVER}` : INSERT_LOADING}</span>
-      {failed && <button type="button" className={styles.textBtn} onClick={pageReload.run}>Reload</button>}
+    <div ref={ref} tabIndex={-1} className={slotStyles.paletteFrame} role="dialog" aria-label="Insert widget"
+      data-palette-stand-in="" onKeyDown={onKeyDown}>
+      <span className={slotStyles.paletteFrameText} role={failed ? 'alert' : 'status'}>
+        {failed ? `${INSERT_UNAVAILABLE} ${RELOAD_TO_RECOVER}` : INSERT_LOADING}
+      </span>
+      {failed && <button type="button" className={slotStyles.paletteFrameBtn} onClick={pageReload.run}>Reload</button>}
+      <button type="button" className={slotStyles.paletteFrameBtn} onClick={close} aria-label="Close insert panel">
+        <UIcon name="x" {...TOOLBAR_ICON} />
+      </button>
     </div>
   )
 }
