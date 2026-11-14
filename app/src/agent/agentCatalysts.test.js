@@ -279,6 +279,20 @@ describe('served vs dark', () => {
     expect(reads().map(x => x.kind)).toEqual([KIND])
   })
 
+  it('no extra news read: two symbols with one off the board, or news.company not served', async () => {
+    wire([KIND, 'news.company'])
+    await loadAgentConfig()
+    registerServerGatedBuiltins()
+    ENVS[KIND] = envelope({ rows: [row('AAA')], not_on_board: ['ZZZ'] })
+    await inTurn(() => getCapability(CAPABILITY).answer(null, ARGS({ symbols: ['AAA', 'ZZZ'] }), null))
+    expect(reads().map(x => x.kind)).toEqual([KIND])
+    _resetAgentConfig(); _resetCatalystsForTest(); wire([KIND]); await loadAgentConfig(); registerServerGatedBuiltins()
+    ENVS[KIND] = envelope({ rows: [], not_on_board: ['ZZZ'] })
+    const a = await inTurn(() => getCapability(CAPABILITY).answer(null, ARGS({ symbols: ['ZZZ'] }), null))
+    expect(reads().map(x => x.kind)).toEqual([KIND])
+    expect(a.text).not.toMatch(/news feed stored/)
+  })
+
   it('watchlist + date + days: the list\'s tickers, the day word resolved, the window passed; an unknown list reads nothing', async () => {
     wire([KIND])
     await loadAgentConfig()
