@@ -230,6 +230,14 @@ export const GROUPS = [
   { id: 'definitions', title: 'Indicator definitions: search UCT\'s and your own indicators, describe one, save a copy, delete one of yours', domains: ['definition'], fillLast: true,
     // CG-24 (corpus #774): "are there any volatility indicators", "which momentum indicators do you have" — a SEARCH of the catalog
     words: [/\b(my|saved|custom|own) indicators?\b/, /\bindicators? (for|that|which|to)\b/, /^(?!.*\b(?:remove|delete|clear|hide|show|add|drop|take off)\b)(?!.*\b(?:on|in) (?:my|this|the|that) charts?\b).*\b(?:(?:any|which|what|some|other|more) (?:[a-z-]+ ){1,2}indicators|indicators? (?:do you have|are available|exist)|are there (?:any )?(?:[a-z-]+ ){0,2}indicators?)\b/, /^(?!.*\b(?:on|in) (?:my|this|the|that) charts?\b)(?!.*\bon (?:here|it|there)\b).*\b(find|search|look for|what) .*\bindicators?\b/, /\b(describe|explain|what does)\b.*\b(indicator|rsi|macd|atr|study)\b/, /\b(delete|remove|copy|duplicate)\b.*\b(my|saved|custom)\b(?:\s+[a-z0-9-]+){0,3}\s+(indicator|formula|study)\b/] },
+  // Charts family (2026-11-12): a chart's Volume Profile overlay (volumeProfile.set), in its OWN words-only group (as chartMenu):
+  // never a filler, so no existing group and no unrecognised request changes. The words name the PROFILE itself (volume
+  // profile / VPVR / visible range volume); "VP" only beside an on / off verb or a bins word. A bare "volume" (the Volume
+  // pane), "VWAP" and volume alerts are not its words.
+  { id: 'volumeProfile', title: 'A chart’s Volume Profile overlay: on / off, bins, colours', domains: ['volumeProfile'], fillLast: true, wordsOnly: true,
+    words: [
+      /\bvolume[\s-]?profiles?\b|\bvol profile\b|\bvpvr\b|\bvisible range volume\b/,
+      /\b(?:add|show|hide|remove|turn on|turn off|enable|disable|switch on|switch off|toggle)\s+(?:the\s+|my\s+)?vp\b|\bvp\s+(?:on|off|bins?)\b/] },
   // ⭐ W1-B (2026-11-02): the TIME-ANCHORED tools in their OWN small group (as chartSetup is), so the drawings group keeps
   // its size and every group still fits a reroute beside the NL-1 core. Membership is by ACTION NAME (`actions`), not by
   // domain: the tools stay `drawing.*` on the drawing kind. Listed BEFORE drawings so "draw a trendline from…" takes this.

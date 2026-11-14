@@ -895,13 +895,17 @@ function FocusList({ mode, onMode }) {
 
   const drops = []
   if (coverageHasDrop(listed?.coverage)) {
-    // Said as the ordinary fact it usually is. RS Rank exists only for stocks over ~$300M
-    // (rs_ranking's universe), so on any RS screen thousands of smaller names have no value
-    // to compare; "could not be checked" read as broken data on the first screen a member
-    // opens (member walk, 2026-10-17: 7,765 on the default Leaders screen).
+    // Said as the ordinary fact it usually is: on any RS screen thousands of names have no
+    // rating to compare, and "could not be checked" read as broken data on the first screen a
+    // member opens (member walk, 2026-10-17: 7,765 on the default Leaders screen).
+    // 2026-11-14: this said "N smaller stocks ... RS Rank covers stocks over about $300M in
+    // market cap", which is true only of the hourly rank (rs_ranking's cap universe). Under
+    // RS_RANK_IBD_ENABLED the column is the nightly rating, which covers every stock with
+    // enough price history, and neither the scan answer nor /api/auth/me says which of the two
+    // this page is showing. So the sentence is the one that is true of both.
     const n = fmtN((listed.coverage.dropped || 0) + (listed.coverage.not_computable || 0))
     drops.push(s.filters?.rs_rank
-      ? `${n} smaller stocks are not in this list: RS Rank covers stocks over about $300M in market cap.`
+      ? `${n} stocks have no RS Rating, so they are not in this list.`
       : `${n} stocks have no value for one of these filters, so they are not in this list.`)
   }
   for (const r of scanReceipts) {

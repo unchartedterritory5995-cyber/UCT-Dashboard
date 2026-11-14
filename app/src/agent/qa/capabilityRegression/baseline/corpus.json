@@ -10921,6 +10921,94 @@
       ]
     },
     {
+      "id": "volumeProfile.set",
+      "source": "Charts family 11-12: Chart Settings → Indicators → Volume Profile row toggle (applyRowPatch on the carved-out row; the library toggledRow shape)",
+      "capabilities": [
+        "volumeProfile.set"
+      ],
+      "board": "ONE",
+      "needs": [
+        "volumeProfile.set"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "volumeProfile.set",
+            "target": "$charts[0]",
+            "args": {
+              "enabled": true,
+              "bins": null,
+              "color": null,
+              "pocColor": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "volumeProfile": {
+          "enabled": true,
+          "bins": 24
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "turn on volume profile",
+        "add the volume profile to this chart",
+        "show vpvr"
+      ]
+    },
+    {
+      "id": "volumeProfile.set.bins",
+      "source": "Charts family 11-12: the Volume Profile row's Bins field (8-50) with the toggle, one write",
+      "capabilities": [
+        "volumeProfile.set"
+      ],
+      "board": "ONE",
+      "needs": [
+        "volumeProfile.set"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "volumeProfile.set",
+            "target": "$charts[0]",
+            "args": {
+              "enabled": true,
+              "bins": 40,
+              "color": null,
+              "pocColor": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "volumeProfile": {
+          "enabled": true,
+          "bins": 40
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "turn on volume profile with 40 bins",
+        "add a volume profile with 40 rows",
+        "show the volume profile using 40 bins please"
+      ]
+    },
+    {
       "id": "chartMenu.resetWatermark",
       "source": "C1-061 (family C, 11-11): Chart Settings → Watermark → Reset to center (opts.watermarkPos = null)",
       "capabilities": [
