@@ -941,56 +941,92 @@
   {
    "id": "kk.trim_1",
    "field": "management",
-   "statement": "Sell a third at 3R.",
+   "statement": "The first sell is a judgment, not a fixed third at 3R: we very rarely sell on day 1 and usually wait until day 3 at the earliest; selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
    "measure": {
-    "what": "fraction sold at 3R",
-    "op": "==",
-    "value": 0.333,
-    "unit": "of the position"
+    "what": "trading day of the first sell",
+    "op": ">=",
+    "value": 3,
+    "unit": "day"
    },
-   "basis": "house rule",
+   "basis": "UCT",
    "sources": [],
-   "house_rule": "B19",
    "status": "settled",
    "gate": false,
    "grade_cue": false,
    "dossier_ref": "8.4",
-   "evidence": "Scan: the median hit reached 3R in 3 sessions; three in four touched the first stop within 60 sessions, most after a win. ATRO 2026-06-11 made 13.8R in two weeks, gave most back and hit the stop: the case for the trims."
+   "evidence": "Scan: the median hit reached 3R in 3 sessions; three in four touched the first stop within 60 sessions, most after a win. ATRO 2026-06-11 made 13.8R in two weeks, gave most back and hit the stop: the case for the trims.",
+   "superseded": [
+    {
+     "statement": "Sell a third at 3R.",
+     "house_rule": "B19",
+     "status": "settled",
+     "measure": {
+      "what": "fraction sold at 3R",
+      "op": "==",
+      "value": 0.333,
+      "unit": "of the position"
+     },
+     "basis": "house rule",
+     "on": "2026-11-12",
+     "by": "D-013"
+    }
+   ],
+   "ruling": "D-013"
   },
   {
    "id": "kk.trim_2",
    "field": "management",
-   "statement": "Sell a third at 5R.",
-   "measure": {
-    "what": "fraction sold at 5R",
-    "op": "==",
-    "value": 0.333,
-    "unit": "of the position"
-   },
-   "basis": "house rule",
+   "statement": "Later sells are a judgment too: sell more into strength on a later push, and trail the rest.",
+   "basis": "UCT",
    "sources": [],
-   "house_rule": "E51",
    "status": "settled",
    "gate": false,
    "grade_cue": false,
-   "dossier_ref": "8.4"
+   "dossier_ref": "8.4",
+   "superseded": [
+    {
+     "statement": "Sell a third at 5R.",
+     "house_rule": "E51",
+     "status": "settled",
+     "measure": {
+      "what": "fraction sold at 5R",
+      "op": "==",
+      "value": 0.333,
+      "unit": "of the position"
+     },
+     "basis": "house rule",
+     "on": "2026-11-12",
+     "by": "D-013"
+    }
+   ],
+   "ruling": "D-013"
   },
   {
    "id": "kk.trim_gap_open",
    "field": "management",
-   "statement": "If it opens above a trim level, trim at the open.",
-   "basis": "house rule",
+   "statement": "A gap up past a profit level at the open is not an automatic sell; selling part into a big gap is an optional judgment, never a rule.",
+   "basis": "UCT",
    "sources": [],
-   "house_rule": "F63",
    "status": "settled",
    "gate": false,
    "grade_cue": false,
-   "dossier_ref": "8.4"
+   "dossier_ref": "8.4",
+   "superseded": [
+    {
+     "statement": "If it opens above a trim level, trim at the open.",
+     "house_rule": "F63",
+     "status": "settled",
+     "basis": "house rule",
+     "on": "2026-11-12",
+     "by": "GAP-TRIM"
+    }
+   ],
+   "ruling": "GAP-TRIM"
   },
   {
    "id": "kk.trail",
    "field": "management",
-   "statement": "Trail the last third under the 10-day average, out on a close below it: Kickers are fast movers.",
+   "statement": "Trail what is left under the 10-day average, out on a close below it: Kickers are fast movers.",
    "measure": {
     "what": "close against the 10-day average",
     "op": "<",
@@ -1017,7 +1053,15 @@
    "gate": false,
    "grade_cue": false,
    "dossier_ref": "8.4; 10 question 16",
-   "evidence": "TRADE_PLANS.md and the playbook say under each higher low or the 10-day; the rulebook's close under the average replaces them."
+   "evidence": "TRADE_PLANS.md and the playbook say under each higher low or the 10-day; the rulebook's close under the average replaces them.",
+   "superseded": [
+    {
+     "statement": "Trail the last third under the 10-day average, out on a close below it: Kickers are fast movers.",
+     "on": "2026-11-12",
+     "by": "D-013"
+    }
+   ],
+   "ruling": "D-013"
   },
   {
    "id": "kk.time_stop",
@@ -1207,15 +1251,20 @@
  },
  "best_conditions": "A Green market after a few days of weakness that made people bearish (Bracco's June 2026 read). The stock pulled into its rising 20/21-day or 50-day, or to its base lows, so the gap is from a low spot, not an extended one. Leaders and leading groups; leveraged ETFs and index ETFs if he allows them. Avoid an index flashing a bearish Kicker, the days before a report, and Red markets.",
  "management": {
-  "trim_1": "a third at 3R (B19)",
-  "trim_2": "a third at 5R (E51)",
+  "trim_1": "first sell by judgment, usually day 3 or later, into a 3, 5 or 7 day push or at about 5 to 10R (D-013, 2026-11-12)",
+  "trim_2": "later sells by judgment into strength, then trail the rest (D-013, 2026-11-12)",
   "trail": "a close under the 10-day average, Kickers being fast movers (E52; D-024)",
   "breakeven": "between 2R and 5R (B19)",
   "time_stop": "under 1R after 10 trading days, sell (C33)",
-  "gap_open": "a trim level the day opens past is taken at the open (F63)",
+  "gap_open": "optional: selling part into a big gap at the open is a judgment, never a rule (owner, 2026-11-12)",
   "gap_against": "the first 30-minute low is the new stop; out if past 2R (B20)",
   "climax": "sell a big part into a parabolic burst (C34)",
-  "overrides": "the stop: under the Kicker's low or 3.5% under the entry, whichever is closer (his ruling of 2026-11-02, D-144); the 3.5% stays against A13's about 3%. Not ours: the detector's 2R and 3R targets and 'under each higher low' trail, Bigalow's gap-back exit, Duncan-style early exits."
+  "overrides": "the stop: under the Kicker's low or 3.5% under the entry, whichever is closer (his ruling of 2026-11-02, D-144); the 3.5% stays against A13's about 3%. Not ours: the detector's 2R and 3R targets and 'under each higher low' trail, Bigalow's gap-back exit, Duncan-style early exits.",
+  "superseded": {
+   "trim_1": "a third at 3R (B19)",
+   "trim_2": "a third at 5R (E51)",
+   "gap_open": "a trim level the day opens past is taken at the open (F63)"
+  }
  },
  "examples": {
   "winners": 10,

@@ -828,14 +828,24 @@
   {
    "id": "pl.trim_gap_open",
    "field": "management",
-   "statement": "A gap up past a trim level: take the trim at the open.",
-   "basis": "house rule",
+   "statement": "A gap up past a profit level at the open is not an automatic sell; selling part into a big gap is an optional judgment, never a rule.",
+   "basis": "UCT",
    "sources": [],
-   "house_rule": "F63",
    "status": "settled",
    "gate": false,
    "grade_cue": false,
-   "dossier_ref": "8.4 T5"
+   "dossier_ref": "8.4 T5",
+   "superseded": [
+    {
+     "statement": "A gap up past a trim level: take the trim at the open.",
+     "house_rule": "F63",
+     "status": "settled",
+     "basis": "house rule",
+     "on": "2026-11-12",
+     "by": "GAP-TRIM"
+    }
+   ],
+   "ruling": "GAP-TRIM"
   },
   {
    "id": "pl.hold_longer",
@@ -1170,14 +1180,19 @@
  },
  "best_conditions": "The index capitulating too: an index ETF at -3 ATR or more under its 50-day, a gap down of 1 ATR or more, a Monday, a fast VIX move into 30, deeply oversold breadth; a crowded group unwinding all at once (3x ETFs, crypto, a hot theme). Worst: the first days of a fresh breakdown from a top, a slow grind lower, the start of a crash, a lone stock collapsing on its own news.",
  "management": {
-  "trim_1": "a third at 3R (B19)",
-  "trim_2": "a third at 5R (E51)",
+  "trim_1": "first sell by judgment, usually day 3 or later, into a 3, 5 or 7 day push or at about 5 to 10R (D-013, 2026-11-12)",
+  "trim_2": "later sells by judgment into strength, then trail the rest (D-013, 2026-11-12)",
   "trail": "a close under the 10-day for a fast mover, the 21-day for a steadier one (E52)",
   "breakeven": "at 2R, the low end of B19's window",
   "time_stop": "under 1R at the close of the third session, out (the dossier's 3 sessions, pending D-019; C33's 10 days is the outer limit)",
-  "gap_open": "a trim level the day opens past is taken at the open (F63)",
+  "gap_open": "optional: selling part into a big gap at the open is a judgment, never a rule (owner, 2026-11-12)",
   "gap_against": "the first 30-minute low is the new stop; out if past 2R (B20)",
-  "overrides": "The dossier's exit (8.4 T2, pending D-013): two thirds at the first touch of the daily 9 EMA or at 3R, whichever comes first, then trail the last third under each prior day's low; the target is the 9 EMA by D47's mirror. Not ours: Kullamägi's 10/20-day target; the scanner's 2R and 3R targets; Bracco's second entry at the day's low (A5 wins, D-135)."
+  "overrides": "The dossier's exit (8.4 T2, pending D-013): two thirds at the first touch of the daily 9 EMA or at 3R, whichever comes first, then trail the last third under each prior day's low; the target is the 9 EMA by D47's mirror. Not ours: Kullamägi's 10/20-day target; the scanner's 2R and 3R targets; Bracco's second entry at the day's low (A5 wins, D-135).",
+  "superseded": {
+   "trim_1": "a third at 3R (B19)",
+   "trim_2": "a third at 5R (E51)",
+   "gap_open": "a trim level the day opens past is taken at the open (F63)"
+  }
  },
  "examples": {
   "winners": 10,

@@ -809,7 +809,7 @@
   {
    "id": "av.breakeven",
    "field": "management",
-   "statement": "Stop to breakeven between 2R and 5R, at the first trim by default.",
+   "statement": "Stop to breakeven between 2R and 5R, or at the first sell.",
    "measure": {
     "what": "R at which the stop moves to the entry",
     "op": "in",
@@ -825,62 +825,106 @@
    "status": "settled",
    "gate": false,
    "grade_cue": false,
-   "dossier_ref": "8.4"
+   "dossier_ref": "8.4",
+   "superseded": [
+    {
+     "statement": "Stop to breakeven between 2R and 5R, at the first trim by default.",
+     "on": "2026-11-12",
+     "by": "D-013"
+    }
+   ],
+   "ruling": "D-013"
   },
   {
    "id": "av.trim_1",
    "field": "management",
-   "statement": "Sell a third at 3R.",
+   "statement": "The first sell is a judgment, not a fixed third at 3R: we very rarely sell on day 1 and usually wait until day 3 at the earliest; selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
    "measure": {
-    "what": "fraction sold at 3R",
-    "op": "==",
-    "value": 0.333,
-    "unit": "of the position"
+    "what": "trading day of the first sell",
+    "op": ">=",
+    "value": 3,
+    "unit": "day"
    },
-   "basis": "house rule",
+   "basis": "UCT",
    "sources": [],
-   "house_rule": "B19",
    "status": "settled",
    "gate": false,
    "grade_cue": false,
    "dossier_ref": "8.4",
-   "evidence": "Among the scan's winners the median time to 3R was 12 sessions; the ten examples took 3 to 15. NOW 2017 and MAS 2024 had their report reaction day land after the first trim was due."
+   "evidence": "Among the scan's winners the median time to 3R was 12 sessions; the ten examples took 3 to 15. NOW 2017 and MAS 2024 had their report reaction day land after the first trim was due.",
+   "superseded": [
+    {
+     "statement": "Sell a third at 3R.",
+     "house_rule": "B19",
+     "status": "settled",
+     "measure": {
+      "what": "fraction sold at 3R",
+      "op": "==",
+      "value": 0.333,
+      "unit": "of the position"
+     },
+     "basis": "house rule",
+     "on": "2026-11-12",
+     "by": "D-013"
+    }
+   ],
+   "ruling": "D-013"
   },
   {
    "id": "av.trim_2",
    "field": "management",
-   "statement": "Sell a third at 5R.",
-   "measure": {
-    "what": "fraction sold at 5R",
-    "op": "==",
-    "value": 0.333,
-    "unit": "of the position"
-   },
-   "basis": "house rule",
+   "statement": "Later sells are a judgment too: sell more into strength on a later push, and trail the rest.",
+   "basis": "UCT",
    "sources": [],
-   "house_rule": "E51",
    "status": "settled",
    "gate": false,
    "grade_cue": false,
    "dossier_ref": "8.4",
-   "evidence": "For contrast only, Shannon's own style: on a fast first day a third off, often near the daily R2 pivot (not necessarily at daily R2). Not ours."
+   "evidence": "For contrast only, Shannon's own style: on a fast first day a third off, often near the daily R2 pivot (not necessarily at daily R2). Not ours.",
+   "superseded": [
+    {
+     "statement": "Sell a third at 5R.",
+     "house_rule": "E51",
+     "status": "settled",
+     "measure": {
+      "what": "fraction sold at 5R",
+      "op": "==",
+      "value": 0.333,
+      "unit": "of the position"
+     },
+     "basis": "house rule",
+     "on": "2026-11-12",
+     "by": "D-013"
+    }
+   ],
+   "ruling": "D-013"
   },
   {
    "id": "av.trim_gap_open",
    "field": "management",
-   "statement": "If the stock opens above a trim level, take that trim at the open.",
-   "basis": "house rule",
+   "statement": "A gap up past a profit level at the open is not an automatic sell; selling part into a big gap is an optional judgment, never a rule.",
+   "basis": "UCT",
    "sources": [],
-   "house_rule": "F63",
    "status": "settled",
    "gate": false,
    "grade_cue": false,
-   "dossier_ref": "8.4"
+   "dossier_ref": "8.4",
+   "superseded": [
+    {
+     "statement": "If the stock opens above a trim level, take that trim at the open.",
+     "house_rule": "F63",
+     "status": "settled",
+     "basis": "house rule",
+     "on": "2026-11-12",
+     "by": "GAP-TRIM"
+    }
+   ],
+   "ruling": "GAP-TRIM"
   },
   {
    "id": "av.trail",
    "field": "management",
-   "statement": "Trail the last third: a close under the 10-day average for a fast mover, under the 21-day for a steadier one.",
+   "statement": "Trail what is left: a close under the 10-day average for a fast mover, under the 21-day for a steadier one.",
    "measure": {
     "what": "close against the 10-day (fast) or 21-day (steadier) average",
     "op": "<",
@@ -897,7 +941,15 @@
    "gate": false,
    "grade_cue": false,
    "dossier_ref": "8.4",
-   "evidence": "Shannon trails under 15-minute higher lows above a rising 5-day, later the 10 or 20-day (dossier 3.3). Not ours. O 2020-01-16 reached 5R and then fell by half inside the window: a chart for the trims-and-trail lesson."
+   "evidence": "Shannon trails under 15-minute higher lows above a rising 5-day, later the 10 or 20-day (dossier 3.3). Not ours. O 2020-01-16 reached 5R and then fell by half inside the window: a chart for the trims-and-trail lesson.",
+   "superseded": [
+    {
+     "statement": "Trail the last third: a close under the 10-day average for a fast mover, under the 21-day for a steadier one.",
+     "on": "2026-11-12",
+     "by": "D-013"
+    }
+   ],
+   "ruling": "D-013"
   },
   {
    "id": "av.time_stop",
@@ -1079,14 +1131,19 @@
  },
  "best_conditions": "A Green market reading (Yellow smaller and fewer; Orange A+ only), with the index above its AVWAP from the most recent major low or follow-through day, after a correction ends and leaders are first getting back above their AVWAPs from their highs. Several stocks in the same group reclaiming together is the grade marker.",
  "management": {
-  "trim_1": "a third at 3R (B19)",
-  "trim_2": "a third at 5R (E51)",
+  "trim_1": "first sell by judgment, usually day 3 or later, into a 3, 5 or 7 day push or at about 5 to 10R (D-013, 2026-11-12)",
+  "trim_2": "later sells by judgment into strength, then trail the rest (D-013, 2026-11-12)",
   "trail": "a close under the 10-day for a fast mover, the 21-day for a steadier one (E52)",
-  "breakeven": "between 2R and 5R, at the first trim by default (B19)",
+  "breakeven": "between 2R and 5R, or at the first sell (B19)",
   "time_stop": "under 1R after 10 trading days, sell (C33)",
-  "gap_open": "a trim level the day opens past is taken at the open (F63)",
+  "gap_open": "optional: selling part into a big gap at the open is a judgment, never a rule (owner, 2026-11-12)",
   "gap_against": "the first 30-minute low is the new stop; out if past 2R (B20)",
-  "overrides": "none. The dossier (8.4) says the setup needs nothing special. Not ours: Shannon's first third on a fast day one (often near daily R2) and his 15-minute higher-low trail; the scanner's 30-day-high target."
+  "overrides": "none. The dossier (8.4) says the setup needs nothing special. Not ours: Shannon's first third on a fast day one (often near daily R2) and his 15-minute higher-low trail; the scanner's 30-day-high target.",
+  "superseded": {
+   "trim_1": "a third at 3R (B19)",
+   "trim_2": "a third at 5R (E51)",
+   "gap_open": "a trim level the day opens past is taken at the open (F63)"
+  }
  },
  "examples": {
   "winners": 10,

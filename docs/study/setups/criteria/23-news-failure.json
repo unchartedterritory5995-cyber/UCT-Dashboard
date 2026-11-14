@@ -604,7 +604,7 @@
   {
    "id": "nf.breakeven",
    "field": "management",
-   "statement": "Stop to breakeven between 2R and 5R, at the first trim by default.",
+   "statement": "Stop to breakeven between 2R and 5R, or at the first sell.",
    "measure": {
     "what": "R at which the stop moves to the entry",
     "op": "in",
@@ -620,61 +620,105 @@
    "status": "settled",
    "gate": false,
    "grade_cue": false,
-   "dossier_ref": "8.4"
+   "dossier_ref": "8.4",
+   "superseded": [
+    {
+     "statement": "Stop to breakeven between 2R and 5R, at the first trim by default.",
+     "on": "2026-11-12",
+     "by": "D-013"
+    }
+   ],
+   "ruling": "D-013"
   },
   {
    "id": "nf.trim_1",
    "field": "management",
-   "statement": "Sell (or cover) a third at 3R. With stops near 10%, 3R is a 30% move, so the trims will rarely be reached.",
+   "statement": "The first sell is a judgment, not a fixed third at 3R: we very rarely sell on day 1 and usually wait until day 3 at the earliest; selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
    "measure": {
-    "what": "fraction sold at 3R",
-    "op": "==",
-    "value": 0.333,
-    "unit": "of the position"
+    "what": "trading day of the first sell",
+    "op": ">=",
+    "value": 3,
+    "unit": "day"
    },
-   "basis": "house rule",
+   "basis": "UCT",
    "sources": [],
-   "house_rule": "B19",
    "status": "settled",
    "gate": false,
    "grade_cue": false,
    "dossier_ref": "8.4; 7 B19 row",
-   "evidence": "Among the ten examples 3R came in 1 to 16 sessions; AAOI reached 3R the next day."
+   "evidence": "Among the ten examples 3R came in 1 to 16 sessions; AAOI reached 3R the next day.",
+   "superseded": [
+    {
+     "statement": "Sell (or cover) a third at 3R. With stops near 10%, 3R is a 30% move, so the trims will rarely be reached.",
+     "house_rule": "B19",
+     "status": "settled",
+     "measure": {
+      "what": "fraction sold at 3R",
+      "op": "==",
+      "value": 0.333,
+      "unit": "of the position"
+     },
+     "basis": "house rule",
+     "on": "2026-11-12",
+     "by": "D-013"
+    }
+   ],
+   "ruling": "D-013"
   },
   {
    "id": "nf.trim_2",
    "field": "management",
-   "statement": "Sell (or cover) a third at 5R.",
-   "measure": {
-    "what": "fraction sold at 5R",
-    "op": "==",
-    "value": 0.333,
-    "unit": "of the position"
-   },
-   "basis": "house rule",
+   "statement": "Later sells are a judgment too: sell more into strength on a later push, and trail the rest.",
+   "basis": "UCT",
    "sources": [],
-   "house_rule": "E51",
    "status": "settled",
    "gate": false,
    "grade_cue": false,
-   "dossier_ref": "8.4"
+   "dossier_ref": "8.4",
+   "superseded": [
+    {
+     "statement": "Sell (or cover) a third at 5R.",
+     "house_rule": "E51",
+     "status": "settled",
+     "measure": {
+      "what": "fraction sold at 5R",
+      "op": "==",
+      "value": 0.333,
+      "unit": "of the position"
+     },
+     "basis": "house rule",
+     "on": "2026-11-12",
+     "by": "D-013"
+    }
+   ],
+   "ruling": "D-013"
   },
   {
    "id": "nf.trim_gap_open",
    "field": "management",
-   "statement": "If it opens past a trim level, take that trim at the open.",
-   "basis": "house rule",
+   "statement": "A gap up past a profit level at the open is not an automatic sell; selling part into a big gap is an optional judgment, never a rule.",
+   "basis": "UCT",
    "sources": [],
-   "house_rule": "F63",
    "status": "settled",
    "gate": false,
    "grade_cue": false,
-   "dossier_ref": "8.4"
+   "dossier_ref": "8.4",
+   "superseded": [
+    {
+     "statement": "If it opens past a trim level, take that trim at the open.",
+     "house_rule": "F63",
+     "status": "settled",
+     "basis": "house rule",
+     "on": "2026-11-12",
+     "by": "GAP-TRIM"
+    }
+   ],
+   "ruling": "GAP-TRIM"
   },
   {
    "id": "nf.trail",
    "field": "management",
-   "statement": "Trail the last third with a close beyond the 10-day for a fast mover or the 21-day for a steadier one.",
+   "statement": "Trail what is left with a close beyond the 10-day for a fast mover or the 21-day for a steadier one.",
    "measure": {
     "what": "close against the 10-day (fast) or 21-day (steadier) average",
     "op": "<",
@@ -688,7 +732,15 @@
    "status": "settled",
    "gate": false,
    "grade_cue": false,
-   "dossier_ref": "8.4"
+   "dossier_ref": "8.4",
+   "superseded": [
+    {
+     "statement": "Trail the last third with a close beyond the 10-day for a fast mover or the 21-day for a steadier one.",
+     "on": "2026-11-12",
+     "by": "D-013"
+    }
+   ],
+   "ruling": "D-013"
   },
   {
    "id": "nf.parabolic_target",
@@ -905,14 +957,19 @@
  },
  "best_conditions": "The long: after a correction, near washed-out breadth, crowded shorts, a market reading turning back toward Green. The short: an Orange or Red reading, good news being sold across the market, crowded longs and rising bullish sentiment. Either way, a read first; the trade only when it confirms a house setup.",
  "management": {
-  "trim_1": "a third at 3R (B19); with stops near 10% that is a 30% move, rarely reached",
-  "trim_2": "a third at 5R (E51)",
+  "trim_1": "first sell by judgment, usually day 3 or later, into a 3, 5 or 7 day push or at about 5 to 10R (D-013, 2026-11-12)",
+  "trim_2": "later sells by judgment into strength, then trail the rest (D-013, 2026-11-12)",
   "trail": "a close beyond the 10-day for a fast mover, the 21-day for a steadier one (E52)",
-  "breakeven": "between 2R and 5R, at the first trim by default (B19)",
+  "breakeven": "between 2R and 5R, or at the first sell (B19)",
   "time_stop": "under 1R after 10 trading days, out (C33)",
-  "gap_open": "a trim level the day opens past is taken at the open (F63)",
+  "gap_open": "optional: selling part into a big gap at the open is a judgment, never a rule (owner, 2026-11-12)",
   "gap_against": "the first 30-minute extreme is the new stop; out if past 2R (B20)",
-  "overrides": "a short that qualifies as a parabolic short uses Bracco's 9 EMA target (D47; dossier 8.4). Otherwise none: no stand-alone plan exists in the app or the originator's writing; the trade borrows the entry and stop of the setup the read confirms (dossier 8.0)."
+  "overrides": "a short that qualifies as a parabolic short uses Bracco's 9 EMA target (D47; dossier 8.4). Otherwise none: no stand-alone plan exists in the app or the originator's writing; the trade borrows the entry and stop of the setup the read confirms (dossier 8.0).",
+  "superseded": {
+   "trim_1": "a third at 3R (B19); with stops near 10% that is a 30% move, rarely reached",
+   "trim_2": "a third at 5R (E51)",
+   "gap_open": "a trim level the day opens past is taken at the open (F63)"
+  }
  },
  "examples": {
   "winners": 10,

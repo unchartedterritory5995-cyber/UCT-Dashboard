@@ -719,7 +719,7 @@
   {
    "id": "xbk.breakeven",
    "field": "management",
-   "statement": "Breakeven once the trade reaches 2R; the rule allows 2R to 5R, at the first trim by default.",
+   "statement": "Breakeven once the trade reaches 2R; the rule allows 2R to 5R, or at the first sell.",
    "measure": {
     "what": "R at which the stop moves to the entry",
     "op": "in",
@@ -736,56 +736,100 @@
    "gate": false,
    "grade_cue": false,
    "dossier_ref": "8.4",
-   "evidence": "The lab test found the house management (breakeven at 2R, the 10-session time stop, trims at 3R and 5R) earned 0.17R to 0.32R less per trade than holding to a close under the 21-day EMA, for crossbacks and random days alike (question 16). D-019's default sends that finding to one replay across all setups before any course teaches a change."
+   "evidence": "The lab test found the house management (breakeven at 2R, the 10-session time stop, trims at 3R and 5R) earned 0.17R to 0.32R less per trade than holding to a close under the 21-day EMA, for crossbacks and random days alike (question 16). D-019's default sends that finding to one replay across all setups before any course teaches a change.",
+   "superseded": [
+    {
+     "statement": "Breakeven once the trade reaches 2R; the rule allows 2R to 5R, at the first trim by default.",
+     "on": "2026-11-12",
+     "by": "D-013"
+    }
+   ],
+   "ruling": "D-013"
   },
   {
    "id": "xbk.trim_1",
    "field": "management",
-   "statement": "Sell a third at 3R.",
+   "statement": "The first sell is a judgment, not a fixed third at 3R: we very rarely sell on day 1 and usually wait until day 3 at the earliest; selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
    "measure": {
-    "what": "fraction sold at 3R",
-    "op": "==",
-    "value": 0.333,
-    "unit": "of the position"
+    "what": "trading day of the first sell",
+    "op": ">=",
+    "value": 3,
+    "unit": "day"
    },
-   "basis": "house rule",
+   "basis": "UCT",
    "sources": [],
-   "house_rule": "B19",
    "status": "settled",
    "gate": false,
    "grade_cue": false,
    "dossier_ref": "8.4",
-   "evidence": "The ten examples reached 3R in 1 to 11 sessions. Three winners in ten among the machine-found candidates is close to the lab test's 29% win rate: the setup pays through a few large winners, not a high hit rate."
+   "evidence": "The ten examples reached 3R in 1 to 11 sessions. Three winners in ten among the machine-found candidates is close to the lab test's 29% win rate: the setup pays through a few large winners, not a high hit rate.",
+   "superseded": [
+    {
+     "statement": "Sell a third at 3R.",
+     "house_rule": "B19",
+     "status": "settled",
+     "measure": {
+      "what": "fraction sold at 3R",
+      "op": "==",
+      "value": 0.333,
+      "unit": "of the position"
+     },
+     "basis": "house rule",
+     "on": "2026-11-12",
+     "by": "D-013"
+    }
+   ],
+   "ruling": "D-013"
   },
   {
    "id": "xbk.trim_2",
    "field": "management",
-   "statement": "Sell a third at 5R.",
-   "measure": {
-    "what": "fraction sold at 5R",
-    "op": "==",
-    "value": 0.333,
-    "unit": "of the position"
-   },
-   "basis": "house rule",
+   "statement": "Later sells are a judgment too: sell more into strength on a later push, and trail the rest.",
+   "basis": "UCT",
    "sources": [],
-   "house_rule": "E51",
    "status": "settled",
    "gate": false,
    "grade_cue": false,
-   "dossier_ref": "8.4"
+   "dossier_ref": "8.4",
+   "superseded": [
+    {
+     "statement": "Sell a third at 5R.",
+     "house_rule": "E51",
+     "status": "settled",
+     "measure": {
+      "what": "fraction sold at 5R",
+      "op": "==",
+      "value": 0.333,
+      "unit": "of the position"
+     },
+     "basis": "house rule",
+     "on": "2026-11-12",
+     "by": "D-013"
+    }
+   ],
+   "ruling": "D-013"
   },
   {
    "id": "xbk.trim_gap_open",
    "field": "management",
-   "statement": "Take a trim at the open if it gaps past the level.",
-   "basis": "house rule",
+   "statement": "A gap up past a profit level at the open is not an automatic sell; selling part into a big gap is an optional judgment, never a rule.",
+   "basis": "UCT",
    "sources": [],
-   "house_rule": "F63",
    "status": "settled",
    "gate": false,
    "grade_cue": false,
-   "dossier_ref": "8.4"
+   "dossier_ref": "8.4",
+   "superseded": [
+    {
+     "statement": "Take a trim at the open if it gaps past the level.",
+     "house_rule": "F63",
+     "status": "settled",
+     "basis": "house rule",
+     "on": "2026-11-12",
+     "by": "GAP-TRIM"
+    }
+   ],
+   "ruling": "GAP-TRIM"
   },
   {
    "id": "xbk.trail",
@@ -1149,15 +1193,20 @@
  },
  "best_conditions": "The start of a new market up-cycle: the index has just made its own Wedge Pop or follow-through, and leaders are crossing back while the index is still pulling back (UCT 2026-04-12: Now looking for continuation and crossback). Not late in the market's advance, nor late in the stock's own (Kell: just like buying late in an uptrend); the lab test's best case was a fresh turn (+0.107R) and its worst a stock already up 20% to 50% over the quarter (-0.062R). Not when many crossbacks are triggering and failing on low volume (Bracco).",
  "management": {
-  "trim_1": "a third at 3R (B19)",
-  "trim_2": "a third at 5R (E51)",
+  "trim_1": "first sell by judgment, usually day 3 or later, into a 3, 5 or 7 day push or at about 5 to 10R (D-013, 2026-11-12)",
+  "trim_2": "later sells by judgment into strength, then trail the rest (D-013, 2026-11-12)",
   "trail": "the first close under the 10-day EMA for a fast mover, the 21-day for a steadier one (E52); fits Kell's 10/20 EMA trail",
-  "breakeven": "once the trade reaches 2R, the rule allows 2R to 5R, at the first trim by default (B19)",
+  "breakeven": "once the trade reaches 2R, the rule allows 2R to 5R, or at the first sell (B19)",
   "time_stop": "under 1R after 10 sessions, sell (C33)",
-  "gap_open": "a trim level the day opens past is taken at the open (F63)",
+  "gap_open": "optional: selling part into a big gap at the open is a judgment, never a rule (owner, 2026-11-12)",
   "gap_against": "the first 30-minute low is the new stop; out if past 2R (B20)",
   "climax": "a climax run or an Exhaustion Extension far above the 10-day EMA: sell a big part into it (C34)",
-  "overrides": "none. The dossier (8.4) says this setup needs nothing special. Not ours: Kell's two pieces with staggered stops under the 10 and 20 EMA, his selling into extensions instead of at fixed R, TraderLion's scale in, and the curriculum's add-on-only label. The lab test's finding that holding to a close under the 21-day EMA beat the house management by 0.17R to 0.32R per trade goes to one replay across all setups (D-019). TRADE_PLANS.md has no row for this setup."
+  "overrides": "none. The dossier (8.4) says this setup needs nothing special. Not ours: Kell's two pieces with staggered stops under the 10 and 20 EMA, his selling into extensions instead of at fixed R, TraderLion's scale in, and the curriculum's add-on-only label. The lab test's finding that holding to a close under the 21-day EMA beat the house management by 0.17R to 0.32R per trade goes to one replay across all setups (D-019). TRADE_PLANS.md has no row for this setup.",
+  "superseded": {
+   "trim_1": "a third at 3R (B19)",
+   "trim_2": "a third at 5R (E51)",
+   "gap_open": "a trim level the day opens past is taken at the open (F63)"
+  }
  },
  "examples": {
   "winners": 10,

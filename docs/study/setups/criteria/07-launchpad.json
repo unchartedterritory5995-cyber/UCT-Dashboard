@@ -846,57 +846,93 @@
   {
    "id": "lp.trim_1",
    "field": "management",
-   "statement": "Sell a third at 3R.",
+   "statement": "The first sell is a judgment, not a fixed third at 3R: we very rarely sell on day 1 and usually wait until day 3 at the earliest; selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
    "measure": {
-    "what": "fraction sold at 3R",
-    "op": "==",
-    "value": 0.333,
-    "unit": "of the position"
+    "what": "trading day of the first sell",
+    "op": ">=",
+    "value": 3,
+    "unit": "day"
    },
-   "basis": "house rule",
+   "basis": "UCT",
    "sources": [],
-   "house_rule": "B19",
    "status": "settled",
    "gate": false,
    "grade_cue": false,
    "dossier_ref": "8.4",
-   "evidence": "Among the ten examples 3R came in 3 to 33 sessions (median about 11)."
+   "evidence": "Among the ten examples 3R came in 3 to 33 sessions (median about 11).",
+   "superseded": [
+    {
+     "statement": "Sell a third at 3R.",
+     "house_rule": "B19",
+     "status": "settled",
+     "measure": {
+      "what": "fraction sold at 3R",
+      "op": "==",
+      "value": 0.333,
+      "unit": "of the position"
+     },
+     "basis": "house rule",
+     "on": "2026-11-12",
+     "by": "D-013"
+    }
+   ],
+   "ruling": "D-013"
   },
   {
    "id": "lp.trim_2",
    "field": "management",
-   "statement": "Sell a third at 5R.",
-   "measure": {
-    "what": "fraction sold at 5R",
-    "op": "==",
-    "value": 0.333,
-    "unit": "of the position"
-   },
-   "basis": "house rule",
+   "statement": "Later sells are a judgment too: sell more into strength on a later push, and trail the rest.",
+   "basis": "UCT",
    "sources": [],
-   "house_rule": "E51",
    "status": "settled",
    "gate": false,
    "grade_cue": false,
    "dossier_ref": "8.4",
-   "evidence": "All ten examples reached 5R before the fixed stop."
+   "evidence": "All ten examples reached 5R before the fixed stop.",
+   "superseded": [
+    {
+     "statement": "Sell a third at 5R.",
+     "house_rule": "E51",
+     "status": "settled",
+     "measure": {
+      "what": "fraction sold at 5R",
+      "op": "==",
+      "value": 0.333,
+      "unit": "of the position"
+     },
+     "basis": "house rule",
+     "on": "2026-11-12",
+     "by": "D-013"
+    }
+   ],
+   "ruling": "D-013"
   },
   {
    "id": "lp.trim_gap_open",
    "field": "management",
-   "statement": "If it opens above a trim level, take that trim at the open.",
-   "basis": "house rule",
+   "statement": "A gap up past a profit level at the open is not an automatic sell; selling part into a big gap is an optional judgment, never a rule.",
+   "basis": "UCT",
    "sources": [],
-   "house_rule": "F63",
    "status": "settled",
    "gate": false,
    "grade_cue": false,
-   "dossier_ref": "8.4"
+   "dossier_ref": "8.4",
+   "superseded": [
+    {
+     "statement": "If it opens above a trim level, take that trim at the open.",
+     "house_rule": "F63",
+     "status": "settled",
+     "basis": "house rule",
+     "on": "2026-11-12",
+     "by": "GAP-TRIM"
+    }
+   ],
+   "ruling": "GAP-TRIM"
   },
   {
    "id": "lp.trail",
    "field": "management",
-   "statement": "Trail the last third on a close under the 21-day EMA, the steadier trail. Use the 10-day only if the stock is a fast mover.",
+   "statement": "Trail what is left on a close under the 21-day EMA, the steadier trail. Use the 10-day only if the stock is a fast mover.",
    "measure": {
     "what": "close against the 21-day EMA (default) or the 10-day average (fast mover)",
     "op": "<",
@@ -915,7 +951,15 @@
    "gate": false,
    "grade_cue": false,
    "dossier_ref": "8.4",
-   "evidence": "Launchpads come out of long bases and tend to trend along the 21-day: Manrav's RBLX note rides 8 and 21 EMAs; the app's trade plan trails the 21-day. The glossary lists this as the 21 default. DDOG (example 9) dangled along the 21 EMA for four weeks before its run."
+   "evidence": "Launchpads come out of long bases and tend to trend along the 21-day: Manrav's RBLX note rides 8 and 21 EMAs; the app's trade plan trails the 21-day. The glossary lists this as the 21 default. DDOG (example 9) dangled along the 21 EMA for four weeks before its run.",
+   "superseded": [
+    {
+     "statement": "Trail the last third on a close under the 21-day EMA, the steadier trail. Use the 10-day only if the stock is a fast mover.",
+     "on": "2026-11-12",
+     "by": "D-013"
+    }
+   ],
+   "ruling": "D-013"
   },
   {
    "id": "lp.time_stop",
@@ -1288,15 +1332,20 @@
  },
  "best_conditions": "The market reading Green, or turning Green after a correction while leaders are basing (F65, F68); Manrav buys launch pads and looks for relative strength during corrections. In Orange only an A+ launchpad; in Red the long is off. Honest note: the atlas found the same worked rate in up, down and mixed markets (24%, 24%, 25%).",
  "management": {
-  "trim_1": "a third at 3R (B19)",
-  "trim_2": "a third at 5R (E51)",
+  "trim_1": "first sell by judgment, usually day 3 or later, into a 3, 5 or 7 day push or at about 5 to 10R (D-013, 2026-11-12)",
+  "trim_2": "later sells by judgment into strength, then trail the rest (D-013, 2026-11-12)",
   "trail": "a close under the 21-day EMA by default, the steadier trail; the 10-day only for a fast mover (E52)",
   "breakeven": "at 2R, the low end of B19's 2R to 5R (B19)",
   "time_stop": "under 1R after 10 trading days, sell (C33)",
-  "gap_open": "a trim level the day opens past is taken at the open (F63)",
+  "gap_open": "optional: selling part into a big gap at the open is a judgment, never a rule (owner, 2026-11-12)",
   "gap_against": "the first 30-minute low is the new stop; out if past 2R (B20)",
   "climax": "sell a big part into a climax run (C34)",
-  "overrides": "The trail defaults to the 21-day EMA rather than the 10-day: launchpads come out of long bases and tend to trend along the 21 (Manrav's RBLX rides 8 and 21 EMAs; the app's plan trails the rising 21-day or each higher low, TRADE_PLANS.md). The stop cap of 6% is the setup's own (lp.stop_cap, D-005). Not ours: the scanner's 2R and 3R targets, the brain template's 8% stop, the team row's adds, and the scanner's stop 0.25 ATR under the lower of the 21 and 50."
+  "overrides": "The trail defaults to the 21-day EMA rather than the 10-day: launchpads come out of long bases and tend to trend along the 21 (Manrav's RBLX rides 8 and 21 EMAs; the app's plan trails the rising 21-day or each higher low, TRADE_PLANS.md). The stop cap of 6% is the setup's own (lp.stop_cap, D-005). Not ours: the scanner's 2R and 3R targets, the brain template's 8% stop, the team row's adds, and the scanner's stop 0.25 ATR under the lower of the 21 and 50.",
+  "superseded": {
+   "trim_1": "a third at 3R (B19)",
+   "trim_2": "a third at 5R (E51)",
+   "gap_open": "a trim level the day opens past is taken at the open (F63)"
+  }
  },
  "examples": {
   "winners": 10,

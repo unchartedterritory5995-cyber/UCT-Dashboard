@@ -764,56 +764,92 @@
   {
    "id": "wd.trim_1",
    "field": "management",
-   "statement": "Cover a third at 3R.",
+   "statement": "The first sell is a judgment, not a fixed third at 3R: we very rarely sell on day 1 and usually wait until day 3 at the earliest; selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
    "measure": {
-    "what": "fraction covered at 3R",
-    "op": "==",
-    "value": 0.333,
-    "unit": "of the position"
+    "what": "trading day of the first sell",
+    "op": ">=",
+    "value": 3,
+    "unit": "day"
    },
-   "basis": "house rule",
+   "basis": "UCT",
    "sources": [],
-   "house_rule": "B19",
    "status": "settled",
    "gate": false,
    "grade_cue": false,
    "dossier_ref": "8.4 item 12",
-   "evidence": "Among the ten examples 3R came in 3 to 21 sessions (EXP in 3, INCY in 21)."
+   "evidence": "Among the ten examples 3R came in 3 to 21 sessions (EXP in 3, INCY in 21).",
+   "superseded": [
+    {
+     "statement": "Cover a third at 3R.",
+     "house_rule": "B19",
+     "status": "settled",
+     "measure": {
+      "what": "fraction covered at 3R",
+      "op": "==",
+      "value": 0.333,
+      "unit": "of the position"
+     },
+     "basis": "house rule",
+     "on": "2026-11-12",
+     "by": "D-013"
+    }
+   ],
+   "ruling": "D-013"
   },
   {
    "id": "wd.trim_2",
    "field": "management",
-   "statement": "Cover a third at 5R.",
-   "measure": {
-    "what": "fraction covered at 5R",
-    "op": "==",
-    "value": 0.333,
-    "unit": "of the position"
-   },
-   "basis": "house rule",
+   "statement": "Later sells are a judgment too: sell more into strength on a later push, and trail the rest.",
+   "basis": "UCT",
    "sources": [],
-   "house_rule": "E51",
    "status": "settled",
    "gate": false,
    "grade_cue": false,
-   "dossier_ref": "8.4 item 12"
+   "dossier_ref": "8.4 item 12",
+   "superseded": [
+    {
+     "statement": "Cover a third at 5R.",
+     "house_rule": "E51",
+     "status": "settled",
+     "measure": {
+      "what": "fraction covered at 5R",
+      "op": "==",
+      "value": 0.333,
+      "unit": "of the position"
+     },
+     "basis": "house rule",
+     "on": "2026-11-12",
+     "by": "D-013"
+    }
+   ],
+   "ruling": "D-013"
   },
   {
    "id": "wd.trim_gap_open",
    "field": "management",
-   "statement": "If it opens past a cover level, take that cover at the open.",
-   "basis": "house rule",
+   "statement": "A gap up past a profit level at the open is not an automatic sell; selling part into a big gap is an optional judgment, never a rule.",
+   "basis": "UCT",
    "sources": [],
-   "house_rule": "F63",
    "status": "settled",
    "gate": false,
    "grade_cue": false,
-   "dossier_ref": "8.4 item 12"
+   "dossier_ref": "8.4 item 12",
+   "superseded": [
+    {
+     "statement": "If it opens past a cover level, take that cover at the open.",
+     "house_rule": "F63",
+     "status": "settled",
+     "basis": "house rule",
+     "on": "2026-11-12",
+     "by": "GAP-TRIM"
+    }
+   ],
+   "ruling": "GAP-TRIM"
   },
   {
    "id": "wd.trail",
    "field": "management",
-   "statement": "Trail the last third: cover on a close back above the 10-day EMA for a fast mover, the 21-day for a steadier one.",
+   "statement": "Trail what is left: cover on a close back above the 10-day EMA for a fast mover, the 21-day for a steadier one.",
    "measure": {
     "what": "close against the 10-day (fast) or 21-day (steadier) average",
     "op": ">",
@@ -830,7 +866,15 @@
    "gate": false,
    "grade_cue": false,
    "dossier_ref": "8.4 item 12",
-   "evidence": "Kell gives no targets. He expects a rally into the falling averages (the downside EMA Crossback), then lower; covering on a close back over the 10-day fits that. The test trailed the rest after the first cover on a close above the 10-day EMA."
+   "evidence": "Kell gives no targets. He expects a rally into the falling averages (the downside EMA Crossback), then lower; covering on a close back over the 10-day fits that. The test trailed the rest after the first cover on a close above the 10-day EMA.",
+   "superseded": [
+    {
+     "statement": "Trail the last third: cover on a close back above the 10-day EMA for a fast mover, the 21-day for a steadier one.",
+     "on": "2026-11-12",
+     "by": "D-013"
+    }
+   ],
+   "ruling": "D-013"
   },
   {
    "id": "wd.time_stop",
@@ -1178,14 +1222,19 @@
  },
  "best_conditions": "For the short: the index in a down cycle (QQQ under its 50-day and 20-day EMA), the reading Orange or Red, the stock under a falling 200-day in a weak group, the bounce rejected at the 50-day or 20-day. Not early in a new bull market, not late in the fall. For the sell signal: any market; the index's own Wedge Drop is a reason to cut exposure.",
  "management": {
-  "trim_1": "cover a third at 3R (B19)",
-  "trim_2": "cover a third at 5R (E51)",
+  "trim_1": "first sell by judgment, usually day 3 or later, into a 3, 5 or 7 day push or at about 5 to 10R (D-013, 2026-11-12)",
+  "trim_2": "later sells by judgment into strength, then trail the rest (D-013, 2026-11-12)",
   "trail": "cover the last third on a close back above the 10-day EMA for a fast mover, the 21-day for a steadier one (E52)",
   "breakeven": "between 2R and 5R, at the first cover by default (B19)",
   "time_stop": "under 1R of profit after 10 sessions, cover (C33)",
-  "gap_open": "a cover level the day opens past is taken at the open (F63)",
+  "gap_open": "optional: selling part into a big gap at the open is a judgment, never a rule (owner, 2026-11-12)",
   "gap_against": "a gap up through the stop: the first 30-minute high is the new stop; out if past 2R (B20)",
-  "overrides": "none. The setup keeps the house defaults (8.4); a rally that stalls under the falling averages is a place to hold, not to add (A5, B21). Not ours: the Downside EMA Crossback page's add at the crossback, kell_cycle.py's entry 0.1% under the 15-bar low and stop 1% over the 15-bar high, and the classical rising-wedge measured move (ChartSchool says there is none)."
+  "overrides": "none. The setup keeps the house defaults (8.4); a rally that stalls under the falling averages is a place to hold, not to add (A5, B21). Not ours: the Downside EMA Crossback page's add at the crossback, kell_cycle.py's entry 0.1% under the 15-bar low and stop 1% over the 15-bar high, and the classical rising-wedge measured move (ChartSchool says there is none).",
+  "superseded": {
+   "trim_1": "cover a third at 3R (B19)",
+   "trim_2": "cover a third at 5R (E51)",
+   "gap_open": "a cover level the day opens past is taken at the open (F63)"
+  }
  },
  "examples": {
   "winners": 10,

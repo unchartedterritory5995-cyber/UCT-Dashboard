@@ -860,7 +860,7 @@
   {
    "id": "gs.breakeven",
    "field": "management",
-   "statement": "Stop to breakeven between 2R and 5R, at the first trim by default.",
+   "statement": "Stop to breakeven between 2R and 5R, or at the first sell.",
    "measure": {
     "what": "R at which the stop moves to the entry",
     "op": "in",
@@ -876,28 +876,52 @@
    "status": "settled",
    "gate": false,
    "grade_cue": false,
-   "dossier_ref": "8.4"
+   "dossier_ref": "8.4",
+   "superseded": [
+    {
+     "statement": "Stop to breakeven between 2R and 5R, at the first trim by default.",
+     "on": "2026-11-12",
+     "by": "D-013"
+    }
+   ],
+   "ruling": "D-013"
   },
   {
    "id": "gs.trim_1",
    "field": "management",
-   "statement": "Sell a third at 3R.",
+   "statement": "The first sell is a judgment, not a fixed third at 3R: we very rarely sell on day 1 and usually wait until day 3 at the earliest; selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
    "measure": {
-    "what": "fraction sold at 3R",
-    "op": "==",
-    "value": 0.333,
-    "unit": "of the position"
+    "what": "trading day of the first sell",
+    "op": ">=",
+    "value": 3,
+    "unit": "day"
    },
-   "basis": "house rule",
+   "basis": "UCT",
    "sources": [
     "S40"
    ],
-   "house_rule": "B19",
    "status": "settled",
    "gate": false,
    "grade_cue": false,
    "dossier_ref": "8.4",
-   "evidence": "21% of all hits in the examples scan reached 3R within ten sessions."
+   "evidence": "21% of all hits in the examples scan reached 3R within ten sessions.",
+   "superseded": [
+    {
+     "statement": "Sell a third at 3R.",
+     "house_rule": "B19",
+     "status": "settled",
+     "measure": {
+      "what": "fraction sold at 3R",
+      "op": "==",
+      "value": 0.333,
+      "unit": "of the position"
+     },
+     "basis": "house rule",
+     "on": "2026-11-12",
+     "by": "D-013"
+    }
+   ],
+   "ruling": "D-013"
   },
   {
    "id": "gs.post_gap_high_trim",
@@ -924,37 +948,57 @@
   {
    "id": "gs.trim_2",
    "field": "management",
-   "statement": "Sell a third at 5R.",
-   "measure": {
-    "what": "fraction sold at 5R",
-    "op": "==",
-    "value": 0.333,
-    "unit": "of the position"
-   },
-   "basis": "house rule",
+   "statement": "Later sells are a judgment too: sell more into strength on a later push, and trail the rest.",
+   "basis": "UCT",
    "sources": [],
-   "house_rule": "E51",
    "status": "settled",
    "gate": false,
    "grade_cue": false,
-   "dossier_ref": "8.4"
+   "dossier_ref": "8.4",
+   "superseded": [
+    {
+     "statement": "Sell a third at 5R.",
+     "house_rule": "E51",
+     "status": "settled",
+     "measure": {
+      "what": "fraction sold at 5R",
+      "op": "==",
+      "value": 0.333,
+      "unit": "of the position"
+     },
+     "basis": "house rule",
+     "on": "2026-11-12",
+     "by": "D-013"
+    }
+   ],
+   "ruling": "D-013"
   },
   {
    "id": "gs.trim_gap_open",
    "field": "management",
-   "statement": "If it opens above a trim level, take that trim at the open.",
-   "basis": "house rule",
+   "statement": "A gap up past a profit level at the open is not an automatic sell; selling part into a big gap is an optional judgment, never a rule.",
+   "basis": "UCT",
    "sources": [],
-   "house_rule": "F63",
    "status": "settled",
    "gate": false,
    "grade_cue": false,
-   "dossier_ref": "8.4"
+   "dossier_ref": "8.4",
+   "superseded": [
+    {
+     "statement": "If it opens above a trim level, take that trim at the open.",
+     "house_rule": "F63",
+     "status": "settled",
+     "basis": "house rule",
+     "on": "2026-11-12",
+     "by": "GAP-TRIM"
+    }
+   ],
+   "ruling": "GAP-TRIM"
   },
   {
    "id": "gs.trail",
    "field": "management",
-   "statement": "Trail the last third: a close under the 10-day for a fast mover, under the 21-day for a steadier one.",
+   "statement": "Trail what is left: a close under the 10-day for a fast mover, under the 21-day for a steadier one.",
    "measure": {
     "what": "close against the 10-day (fast) or 21-day (steadier) average",
     "op": "<",
@@ -972,7 +1016,15 @@
    "gate": false,
    "grade_cue": false,
    "dossier_ref": "8.4",
-   "evidence": "Kacher and Morales's version: the 10-day only after seven weeks without a violation, else the 50-day. The plan's 'tighter stop just under the gap top if it drifts sideways' is a no-op whenever the test low held above the fill spot."
+   "evidence": "Kacher and Morales's version: the 10-day only after seven weeks without a violation, else the 50-day. The plan's 'tighter stop just under the gap top if it drifts sideways' is a no-op whenever the test low held above the fill spot.",
+   "superseded": [
+    {
+     "statement": "Trail the last third: a close under the 10-day for a fast mover, under the 21-day for a steadier one.",
+     "on": "2026-11-12",
+     "by": "D-013"
+    }
+   ],
+   "ruling": "D-013"
   },
   {
    "id": "gs.time_stop",
@@ -1214,15 +1266,20 @@
  },
  "best_conditions": "A Green market reading (B18, F65); Kacher and Morales: performance is highly dependent on the health of the general market. Earnings season and the weeks after a correction, when earnings gappers lead ('recent ER gappers are some of the best opportunities when the market comes out of a correction'). The group's ETF holding its own gap or 50-day is the brain template's regime rule.",
  "management": {
-  "trim_1": "a third at 3R (B19), taken early at the post-gap high when that comes first (gs.post_gap_high_trim, his 2026-11-09 verdict)",
-  "trim_2": "a third at 5R (E51)",
+  "trim_1": "first sell by judgment, usually day 3 or later, into a 3, 5 or 7 day push or at about 5 to 10R (D-013, 2026-11-12)",
+  "trim_2": "later sells by judgment into strength, then trail the rest (D-013, 2026-11-12)",
   "trail": "a close under the 10-day for a fast mover, the 21-day for a steadier one (E52)",
-  "breakeven": "between 2R and 5R, at the first trim by default (B19)",
+  "breakeven": "between 2R and 5R, or at the first sell (B19)",
   "time_stop": "under 1R after 10 trading days, sell (C33)",
-  "gap_open": "a trim level the day opens past is taken at the open (F63)",
+  "gap_open": "optional: selling part into a big gap at the open is a judgment, never a rule (owner, 2026-11-12)",
   "gap_against": "the first 30-minute low is the new stop; out if past 2R (B20)",
   "climax": "sell a big part into a climax run (C34)",
-  "overrides": "the post-gap high as the first place to take some off (TRADE_PLANS.md, the detector's plan; Trade Story stops there with his OK of 2026-11-09). Not ours: the detector's 2R and 3R targets, the plan's 'tighter stop just under the gap top' (a no-op when the test low held), Kacher and Morales's seven-week rule and their sell-half on a trade under the gap-up low, the brain template's 8% maximum stop and 50-SMA trail."
+  "overrides": "the post-gap high as the first place to take some off (TRADE_PLANS.md, the detector's plan; Trade Story stops there with his OK of 2026-11-09). Not ours: the detector's 2R and 3R targets, the plan's 'tighter stop just under the gap top' (a no-op when the test low held), Kacher and Morales's seven-week rule and their sell-half on a trade under the gap-up low, the brain template's 8% maximum stop and 50-SMA trail.",
+  "superseded": {
+   "trim_1": "a third at 3R (B19), taken early at the post-gap high when that comes first (gs.post_gap_high_trim, his 2026-11-09 verdict)",
+   "trim_2": "a third at 5R (E51)",
+   "gap_open": "a trim level the day opens past is taken at the open (F63)"
+  }
  },
  "examples": {
   "winners": 10,

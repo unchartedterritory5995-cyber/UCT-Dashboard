@@ -748,7 +748,7 @@
   {
    "id": "ep.breakeven",
    "field": "management",
-   "statement": "Stop to breakeven between 2R and 5R, at the first trim by default.",
+   "statement": "Stop to breakeven between 2R and 5R, or at the first sell.",
    "measure": {
     "what": "R at which the stop moves to the entry",
     "op": "in",
@@ -764,61 +764,105 @@
    "status": "settled",
    "gate": false,
    "grade_cue": false,
-   "dossier_ref": "8.4"
+   "dossier_ref": "8.4",
+   "superseded": [
+    {
+     "statement": "Stop to breakeven between 2R and 5R, at the first trim by default.",
+     "on": "2026-11-12",
+     "by": "D-013"
+    }
+   ],
+   "ruling": "D-013"
   },
   {
    "id": "ep.trim_1",
    "field": "management",
-   "statement": "Sell a third at 3R.",
+   "statement": "The first sell is a judgment, not a fixed third at 3R: we very rarely sell on day 1 and usually wait until day 3 at the earliest; selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
    "measure": {
-    "what": "fraction sold at 3R",
-    "op": "==",
-    "value": 0.333,
-    "unit": "of the position"
+    "what": "trading day of the first sell",
+    "op": ">=",
+    "value": 3,
+    "unit": "day"
    },
-   "basis": "house rule",
+   "basis": "UCT",
    "sources": [],
-   "house_rule": "B19",
    "status": "settled",
    "gate": false,
    "grade_cue": false,
    "dossier_ref": "8.4",
-   "evidence": "Among the scan's winners the median time to 3R was 2 sessions. COIN fell back to the stop in December after 34R: the trims mattered."
+   "evidence": "Among the scan's winners the median time to 3R was 2 sessions. COIN fell back to the stop in December after 34R: the trims mattered.",
+   "superseded": [
+    {
+     "statement": "Sell a third at 3R.",
+     "house_rule": "B19",
+     "status": "settled",
+     "measure": {
+      "what": "fraction sold at 3R",
+      "op": "==",
+      "value": 0.333,
+      "unit": "of the position"
+     },
+     "basis": "house rule",
+     "on": "2026-11-12",
+     "by": "D-013"
+    }
+   ],
+   "ruling": "D-013"
   },
   {
    "id": "ep.trim_2",
    "field": "management",
-   "statement": "Sell a third at 5R.",
-   "measure": {
-    "what": "fraction sold at 5R",
-    "op": "==",
-    "value": 0.333,
-    "unit": "of the position"
-   },
-   "basis": "house rule",
+   "statement": "Later sells are a judgment too: sell more into strength on a later push, and trail the rest.",
+   "basis": "UCT",
    "sources": [],
-   "house_rule": "E51",
    "status": "settled",
    "gate": false,
    "grade_cue": false,
-   "dossier_ref": "8.4"
+   "dossier_ref": "8.4",
+   "superseded": [
+    {
+     "statement": "Sell a third at 5R.",
+     "house_rule": "E51",
+     "status": "settled",
+     "measure": {
+      "what": "fraction sold at 5R",
+      "op": "==",
+      "value": 0.333,
+      "unit": "of the position"
+     },
+     "basis": "house rule",
+     "on": "2026-11-12",
+     "by": "D-013"
+    }
+   ],
+   "ruling": "D-013"
   },
   {
    "id": "ep.trim_gap_open",
    "field": "management",
-   "statement": "If it opens above a trim level, take that trim at the open.",
-   "basis": "house rule",
+   "statement": "A gap up past a profit level at the open is not an automatic sell; selling part into a big gap is an optional judgment, never a rule.",
+   "basis": "UCT",
    "sources": [],
-   "house_rule": "F63",
    "status": "settled",
    "gate": false,
    "grade_cue": false,
-   "dossier_ref": "8.4"
+   "dossier_ref": "8.4",
+   "superseded": [
+    {
+     "statement": "If it opens above a trim level, take that trim at the open.",
+     "house_rule": "F63",
+     "status": "settled",
+     "basis": "house rule",
+     "on": "2026-11-12",
+     "by": "GAP-TRIM"
+    }
+   ],
+   "ruling": "GAP-TRIM"
   },
   {
    "id": "ep.trail",
    "field": "management",
-   "statement": "Trail the last third on a close under the 10-day average while the stock moves fast, switching to the 21-day only after it builds its first base.",
+   "statement": "Trail what is left on a close under the 10-day average while the stock moves fast, switching to the 21-day only after it builds its first base.",
    "measure": {
     "what": "close against the 10-day average (fast), then the 21-day after the first base",
     "op": "<",
@@ -851,7 +895,15 @@
    "gate": false,
    "grade_cue": false,
    "dossier_ref": "8.4; 10 question 8",
-   "evidence": "The owner trailed FSLY on the 20-day, then the weekly 9 EMA, and regretted it. ENPH topped and collapsed through the stop within the window: the case for the trail. WING trended above the 10-day into October."
+   "evidence": "The owner trailed FSLY on the 20-day, then the weekly 9 EMA, and regretted it. ENPH topped and collapsed through the stop within the window: the case for the trail. WING trended above the 10-day into October.",
+   "superseded": [
+    {
+     "statement": "Trail the last third on a close under the 10-day average while the stock moves fast, switching to the 21-day only after it builds its first base.",
+     "on": "2026-11-12",
+     "by": "D-013"
+    }
+   ],
+   "ruling": "D-013"
   },
   {
    "id": "ep.climax",
@@ -1149,16 +1201,21 @@
  },
  "best_conditions": "Earnings season, when most EPs come in a window of 3 to 4 weeks each quarter. Green or Yellow readings by the house filter, Orange only for an A+. EPs often work when the indexes do not and are the first longs to try as a correction ends, a few positions first and more as they work (F68).",
  "management": {
-  "trim_1": "a third at 3R (B19)",
-  "trim_2": "a third at 5R (E51)",
+  "trim_1": "first sell by judgment, usually day 3 or later, into a 3, 5 or 7 day push or at about 5 to 10R (D-013, 2026-11-12)",
+  "trim_2": "later sells by judgment into strength, then trail the rest (D-013, 2026-11-12)",
   "trail": "a close under the 10-day while it moves fast, the 21-day only after its first base (E52; the switch is the dossier's proposal, D-024)",
-  "breakeven": "between 2R and 5R, at the first trim by default (B19)",
+  "breakeven": "between 2R and 5R, or at the first sell (B19)",
   "time_stop": "under 1R after 10 trading days, sell (C33); Bonde used 5 days",
-  "gap_open": "a trim level the day opens past is taken at the open (F63)",
+  "gap_open": "optional: selling part into a big gap at the open is a judgment, never a rule (owner, 2026-11-12)",
   "gap_against": "the first 30-minute low is the new stop; out if past 2R (B20)",
   "climax": "sell a big part into a climax run (C34)",
   "next_report": "hold through the next report only if up 5R (B22)",
-  "overrides": "none beyond the trail note: EPs are fast movers, so the 10-day is the default line until the first base. Not ours: Bonde's 5-day time stop, Kullamägi's sell a third to a half after 3 to 5 days, the Model Book's sell most on day one or two."
+  "overrides": "none beyond the trail note: EPs are fast movers, so the 10-day is the default line until the first base. Not ours: Bonde's 5-day time stop, Kullamägi's sell a third to a half after 3 to 5 days, the Model Book's sell most on day one or two.",
+  "superseded": {
+   "trim_1": "a third at 3R (B19)",
+   "trim_2": "a third at 5R (E51)",
+   "gap_open": "a trim level the day opens past is taken at the open (F63)"
+  }
  },
  "examples": {
   "winners": 10,

@@ -543,7 +543,7 @@
   {
    "id": "orb.breakeven",
    "field": "management",
-   "statement": "Stop to breakeven between 2R and 5R, at the first trim by default.",
+   "statement": "Stop to breakeven between 2R and 5R, or at the first sell.",
    "measure": {
     "what": "R at which the stop moves to the entry",
     "op": "in",
@@ -559,61 +559,105 @@
    "status": "settled",
    "gate": false,
    "grade_cue": false,
-   "dossier_ref": "8.4.1"
+   "dossier_ref": "8.4.1",
+   "superseded": [
+    {
+     "statement": "Stop to breakeven between 2R and 5R, at the first trim by default.",
+     "on": "2026-11-12",
+     "by": "D-013"
+    }
+   ],
+   "ruling": "D-013"
   },
   {
    "id": "orb.trim_1",
    "field": "management",
-   "statement": "Sell a third at 3R.",
+   "statement": "The first sell is a judgment, not a fixed third at 3R: we very rarely sell on day 1 and usually wait until day 3 at the earliest; selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
    "measure": {
-    "what": "fraction sold at 3R",
-    "op": "==",
-    "value": 0.333,
-    "unit": "of the position"
+    "what": "trading day of the first sell",
+    "op": ">=",
+    "value": 3,
+    "unit": "day"
    },
-   "basis": "house rule",
+   "basis": "UCT",
    "sources": [],
-   "house_rule": "B19",
    "status": "settled",
    "gate": false,
    "grade_cue": false,
    "dossier_ref": "8.4.2",
-   "evidence": "Four of the ten examples (OVV, QLYS, SNX, TJX) reached 5R and then traded back to the original stop within 20 sessions; the fixed-stop count calls them stopped. The trims are what keep the result."
+   "evidence": "Four of the ten examples (OVV, QLYS, SNX, TJX) reached 5R and then traded back to the original stop within 20 sessions; the fixed-stop count calls them stopped. The trims are what keep the result.",
+   "superseded": [
+    {
+     "statement": "Sell a third at 3R.",
+     "house_rule": "B19",
+     "status": "settled",
+     "measure": {
+      "what": "fraction sold at 3R",
+      "op": "==",
+      "value": 0.333,
+      "unit": "of the position"
+     },
+     "basis": "house rule",
+     "on": "2026-11-12",
+     "by": "D-013"
+    }
+   ],
+   "ruling": "D-013"
   },
   {
    "id": "orb.trim_2",
    "field": "management",
-   "statement": "Sell a third at 5R.",
-   "measure": {
-    "what": "fraction sold at 5R",
-    "op": "==",
-    "value": 0.333,
-    "unit": "of the position"
-   },
-   "basis": "house rule",
+   "statement": "Later sells are a judgment too: sell more into strength on a later push, and trail the rest.",
+   "basis": "UCT",
    "sources": [],
-   "house_rule": "E51",
    "status": "settled",
    "gate": false,
    "grade_cue": false,
-   "dossier_ref": "8.4.2"
+   "dossier_ref": "8.4.2",
+   "superseded": [
+    {
+     "statement": "Sell a third at 5R.",
+     "house_rule": "E51",
+     "status": "settled",
+     "measure": {
+      "what": "fraction sold at 5R",
+      "op": "==",
+      "value": 0.333,
+      "unit": "of the position"
+     },
+     "basis": "house rule",
+     "on": "2026-11-12",
+     "by": "D-013"
+    }
+   ],
+   "ruling": "D-013"
   },
   {
    "id": "orb.trim_gap_open",
    "field": "management",
-   "statement": "If a later day opens above a trim level, take that trim at the open.",
-   "basis": "house rule",
+   "statement": "A gap up past a profit level at the open is not an automatic sell; selling part into a big gap is an optional judgment, never a rule.",
+   "basis": "UCT",
    "sources": [],
-   "house_rule": "F63",
    "status": "settled",
    "gate": false,
    "grade_cue": false,
-   "dossier_ref": "8.4.2"
+   "dossier_ref": "8.4.2",
+   "superseded": [
+    {
+     "statement": "If a later day opens above a trim level, take that trim at the open.",
+     "house_rule": "F63",
+     "status": "settled",
+     "basis": "house rule",
+     "on": "2026-11-12",
+     "by": "GAP-TRIM"
+    }
+   ],
+   "ruling": "GAP-TRIM"
   },
   {
    "id": "orb.trail",
    "field": "management",
-   "statement": "Trail the last third: a close under the 10-day for a fast mover, under the 21-day for a steadier one.",
+   "statement": "Trail what is left: a close under the 10-day for a fast mover, under the 21-day for a steadier one.",
    "measure": {
     "what": "close against the 10-day (fast) or 21-day (steadier) average",
     "op": "<",
@@ -627,7 +671,15 @@
    "status": "settled",
    "gate": false,
    "grade_cue": false,
-   "dossier_ref": "8.4.3"
+   "dossier_ref": "8.4.3",
+   "superseded": [
+    {
+     "statement": "Trail the last third: a close under the 10-day for a fast mover, under the 21-day for a steadier one.",
+     "on": "2026-11-12",
+     "by": "D-013"
+    }
+   ],
+   "ruling": "D-013"
   },
   {
    "id": "orb.time_stop",
@@ -982,7 +1034,7 @@
   {
    "id": "orb.short_stop",
    "field": "stop",
-   "statement": "The short's stop: a few cents above the day's high at the fill; 3% or less. Trims and trail mirrored: cover a third at 3R and 5R, trail above the 10 or 21-day.",
+   "statement": "The short's stop: a few cents above the day's high at the fill; 3% or less. Covers and trail mirrored: the first cover is a judgment, usually day 3 or later, then trail above the 10 or 21-day.",
    "measure": {
     "what": "(stop - fill) / fill",
     "op": "<=",
@@ -998,7 +1050,15 @@
    "gate": true,
    "grade_cue": false,
    "dossier_ref": "8.6.3; 8.6.4",
-   "evidence": "The dossier's count: on 3%+ gap-down days the short's stop fit inside 3% only 36% of the time. The scan's short examples ran 1.03% to 1.68%."
+   "evidence": "The dossier's count: on 3%+ gap-down days the short's stop fit inside 3% only 36% of the time. The scan's short examples ran 1.03% to 1.68%.",
+   "superseded": [
+    {
+     "statement": "The short's stop: a few cents above the day's high at the fill; 3% or less. Trims and trail mirrored: cover a third at 3R and 5R, trail above the 10 or 21-day.",
+     "on": "2026-11-12",
+     "by": "D-013"
+    }
+   ],
+   "ruling": "D-013"
   },
   {
    "id": "orb.short_parabolic",
@@ -1112,15 +1172,20 @@
  },
  "best_conditions": "A Green market with the indexes themselves taking out their opening ranges after the first 30 minutes. A stock in play: a catalyst, heavy opening volume, an ORH at or above the prior day's high, and contraction the day before (an inside day, NR7 or a tight base).",
  "management": {
-  "trim_1": "a third at 3R (B19)",
-  "trim_2": "a third at 5R (E51)",
+  "trim_1": "first sell by judgment, usually day 3 or later, into a 3, 5 or 7 day push or at about 5 to 10R (D-013, 2026-11-12)",
+  "trim_2": "later sells by judgment into strength, then trail the rest (D-013, 2026-11-12)",
   "trail": "a close under the 10-day for a fast mover, the 21-day for a steadier one (E52)",
-  "breakeven": "between 2R and 5R, at the first trim by default (B19)",
+  "breakeven": "between 2R and 5R, or at the first sell (B19)",
   "time_stop": "under 1R after 10 trading days, sell (C33)",
-  "gap_open": "a trim level the day opens past is taken at the open (F63)",
+  "gap_open": "optional: selling part into a big gap at the open is a judgment, never a rule (owner, 2026-11-12)",
   "gap_against": "the first 30-minute low is the new stop; out if past 2R (B20)",
   "reentry": "a retake of the day's high after a stop-out is a new trade; at most 3 tries a week, 6 a month (B21, E56, D-142)",
-  "overrides": "none. The dossier (8.4) finds no ORB-specific rule anywhere. Not ours: the app's target of twice the range, Crabel's exit at the close, Kullamagi's third to a half after 3 to 5 days. The Kicker's 3.5% stop cap is the one setup-specific stop rule (orb.stop_kicker_cap)."
+  "overrides": "none. The dossier (8.4) finds no ORB-specific rule anywhere. Not ours: the app's target of twice the range, Crabel's exit at the close, Kullamagi's third to a half after 3 to 5 days. The Kicker's 3.5% stop cap is the one setup-specific stop rule (orb.stop_kicker_cap).",
+  "superseded": {
+   "trim_1": "a third at 3R (B19)",
+   "trim_2": "a third at 5R (E51)",
+   "gap_open": "a trim level the day opens past is taken at the open (F63)"
+  }
  },
  "examples": {
   "winners": 10,

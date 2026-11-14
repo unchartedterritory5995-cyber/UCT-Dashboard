@@ -245,5 +245,7 @@ size and the cap; A7 adds the book's 200% / 100% limits; A8 defines drawdown and
 B16 runs by calendar month; C28 notes that chasing costs size; C31 gains the short-side mirror; C33 defines "done
 nothing" as under 1R after 10 trading days.
 
+**Superseded on 2026-11-12 (the owner's setup rulings, docs/study/setups/DECISIONS.md, "The owner's rulings (2026-11-12)"):** B19's first trim of a third at 3R and E51's third at 5R are no longer the taught sells: the first sell is a judgment, he very rarely sells on day 1 and usually waits until day 3 at the earliest, and selling into a 3, 5 or 7 day push or at about 5 to 10R is often best (B19's breakeven at 2R to 5R stands). F63's trim at the open is optional judgment, never a rule. A13's stop band is 1-3% preferred, 3.5% good, up to 5%; past 5%, wait for a tighter trigger. Shorts enter through the trigger like buys and are recommended only for traders who have already made $1 million. The rule lines above keep his original words.
+
 **The account rulebook is closed as of 2026-11-09** (71 rules, B20 now with the 2R ceiling: A1-A14, B13-B27, C28-C37, D38-D48, E49-E59,
 F60-F69). The setup plans (TRADE_PLANS.md) are reviewed next, when the owner says so.

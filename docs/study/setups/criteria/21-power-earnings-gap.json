@@ -763,7 +763,7 @@
   {
    "id": "peg.breakeven",
    "field": "management",
-   "statement": "Stop to breakeven between 2R and 5R, at the first trim by default.",
+   "statement": "Stop to breakeven between 2R and 5R, or at the first sell.",
    "measure": {
     "what": "R at which the stop moves to the entry",
     "op": "in",
@@ -779,61 +779,105 @@
    "status": "settled",
    "gate": false,
    "grade_cue": false,
-   "dossier_ref": "8.4"
+   "dossier_ref": "8.4",
+   "superseded": [
+    {
+     "statement": "Stop to breakeven between 2R and 5R, at the first trim by default.",
+     "on": "2026-11-12",
+     "by": "D-013"
+    }
+   ],
+   "ruling": "D-013"
   },
   {
    "id": "peg.trim_1",
    "field": "management",
-   "statement": "Sell a third at 3R.",
+   "statement": "The first sell is a judgment, not a fixed third at 3R: we very rarely sell on day 1 and usually wait until day 3 at the earliest; selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
    "measure": {
-    "what": "fraction sold at 3R",
-    "op": "==",
-    "value": 0.333,
-    "unit": "of the position"
+    "what": "trading day of the first sell",
+    "op": ">=",
+    "value": 3,
+    "unit": "day"
    },
-   "basis": "house rule",
+   "basis": "UCT",
    "sources": [],
-   "house_rule": "B19",
    "status": "settled",
    "gate": false,
    "grade_cue": false,
    "dossier_ref": "8.4",
-   "evidence": "The measured edge comes from the few big runs, so do not trim earlier than the rule. The median winner took 10 sessions to reach 3R."
+   "evidence": "The measured edge comes from the few big runs, so do not trim earlier than the rule. The median winner took 10 sessions to reach 3R.",
+   "superseded": [
+    {
+     "statement": "Sell a third at 3R.",
+     "house_rule": "B19",
+     "status": "settled",
+     "measure": {
+      "what": "fraction sold at 3R",
+      "op": "==",
+      "value": 0.333,
+      "unit": "of the position"
+     },
+     "basis": "house rule",
+     "on": "2026-11-12",
+     "by": "D-013"
+    }
+   ],
+   "ruling": "D-013"
   },
   {
    "id": "peg.trim_2",
    "field": "management",
-   "statement": "Sell a third at 5R.",
-   "measure": {
-    "what": "fraction sold at 5R",
-    "op": "==",
-    "value": 0.333,
-    "unit": "of the position"
-   },
-   "basis": "house rule",
+   "statement": "Later sells are a judgment too: sell more into strength on a later push, and trail the rest.",
+   "basis": "UCT",
    "sources": [],
-   "house_rule": "E51",
    "status": "settled",
    "gate": false,
    "grade_cue": false,
-   "dossier_ref": "8.4"
+   "dossier_ref": "8.4",
+   "superseded": [
+    {
+     "statement": "Sell a third at 5R.",
+     "house_rule": "E51",
+     "status": "settled",
+     "measure": {
+      "what": "fraction sold at 5R",
+      "op": "==",
+      "value": 0.333,
+      "unit": "of the position"
+     },
+     "basis": "house rule",
+     "on": "2026-11-12",
+     "by": "D-013"
+    }
+   ],
+   "ruling": "D-013"
   },
   {
    "id": "peg.trim_gap_open",
    "field": "management",
-   "statement": "If it opens above a trim level, take that trim at the open.",
-   "basis": "house rule",
+   "statement": "A gap up past a profit level at the open is not an automatic sell; selling part into a big gap is an optional judgment, never a rule.",
+   "basis": "UCT",
    "sources": [],
-   "house_rule": "F63",
    "status": "settled",
    "gate": false,
    "grade_cue": false,
-   "dossier_ref": "8.4"
+   "dossier_ref": "8.4",
+   "superseded": [
+    {
+     "statement": "If it opens above a trim level, take that trim at the open.",
+     "house_rule": "F63",
+     "status": "settled",
+     "basis": "house rule",
+     "on": "2026-11-12",
+     "by": "GAP-TRIM"
+    }
+   ],
+   "ruling": "GAP-TRIM"
   },
   {
    "id": "peg.trail",
    "field": "management",
-   "statement": "Trail the last third under the 10-day average (most PEGs are fast movers) or the 21-day, sold on a close below. The owner's own habit is the 20 EMA; the course can name it as his.",
+   "statement": "Trail what is left under the 10-day average (most PEGs are fast movers) or the 21-day, sold on a close below. The owner's own habit is the 20 EMA; the course can name it as his.",
    "measure": {
     "what": "close against the 10-day (fast) or 21-day (steadier) average",
     "op": "<",
@@ -868,7 +912,15 @@
    "gate": false,
    "grade_cue": false,
    "dossier_ref": "8.4; 10 question 12",
-   "evidence": "GLW never lost the 10-day on its run; COCO's late-June shakeout under the buy point shows why the rest trails under the 10-day after 5R."
+   "evidence": "GLW never lost the 10-day on its run; COCO's late-June shakeout under the buy point shows why the rest trails under the 10-day after 5R.",
+   "superseded": [
+    {
+     "statement": "Trail the last third under the 10-day average (most PEGs are fast movers) or the 21-day, sold on a close below. The owner's own habit is the 20 EMA; the course can name it as his.",
+     "on": "2026-11-12",
+     "by": "D-013"
+    }
+   ],
+   "ruling": "D-013"
   },
   {
    "id": "peg.next_earnings",
@@ -1111,15 +1163,20 @@
  },
  "best_conditions": "A Green or Yellow market reading, especially the first earnings season after a correction, when the recent ER gappers lead. Earnings season itself: four windows a year, with a PEG list kept each quarter.",
  "management": {
-  "trim_1": "a third at 3R (B19)",
-  "trim_2": "a third at 5R (E51)",
+  "trim_1": "first sell by judgment, usually day 3 or later, into a 3, 5 or 7 day push or at about 5 to 10R (D-013, 2026-11-12)",
+  "trim_2": "later sells by judgment into strength, then trail the rest (D-013, 2026-11-12)",
   "trail": "a close under the 10-day for a fast PEG, the 21-day for a steadier one (E52); the owner's own habit is the 20 EMA (D-024)",
-  "breakeven": "between 2R and 5R, at the first trim by default (B19)",
+  "breakeven": "between 2R and 5R, or at the first sell (B19)",
   "time_stop": "under 1R after 10 trading days, sell (C33)",
-  "gap_open": "a trim level the day opens past is taken at the open (F63)",
+  "gap_open": "optional: selling part into a big gap at the open is a judgment, never a rule (owner, 2026-11-12)",
   "gap_against": "the first 30-minute low is the new stop; out if past 2R (B20)",
   "next_report": "sell before the next report unless up 5R (B22, D-137)",
-  "overrides": "none. The dossier finds nothing setup-specific is needed; the measured edge comes from the few big runs, so the trims are not pulled earlier. Not ours: Morales's 2% to 3% porosity, the scanner's gap-low minus 1.5%, Stewie's gap-and-go limit orders, adding on strength."
+  "overrides": "none. The dossier finds nothing setup-specific is needed; the measured edge comes from the few big runs, so the trims are not pulled earlier. Not ours: Morales's 2% to 3% porosity, the scanner's gap-low minus 1.5%, Stewie's gap-and-go limit orders, adding on strength.",
+  "superseded": {
+   "trim_1": "a third at 3R (B19)",
+   "trim_2": "a third at 5R (E51)",
+   "gap_open": "a trim level the day opens past is taken at the open (F63)"
+  }
  },
  "examples": {
   "winners": 10,

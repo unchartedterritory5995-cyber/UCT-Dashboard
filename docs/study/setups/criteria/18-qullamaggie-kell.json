@@ -158,7 +158,7 @@
   {
    "id": "qk.breakout_adr",
    "field": "context",
-   "statement": "Record the stock's ADR, the 20-day average of high over low minus 1. No minimum is set; the ADR caps the stop.",
+   "statement": "Record the stock's ADR, the 20-day average of high over low minus 1, as context. It does not cap our stop (Kullamagi's own rule caps it).",
    "measure": {
     "what": "20-day average of (high / low - 1)",
     "op": ">=",
@@ -171,11 +171,28 @@
    "sources": [
     "S1"
    ],
-   "status": "proposed",
+   "status": "settled",
    "gate": false,
    "grade_cue": false,
    "dossier_ref": "8.1 Liquidity",
-   "evidence": "Kullamagi gives no minimum ADR for the breakout; his stop should not be wider than the ATR or ADR of the stock. The examples' ADRs ran 2.9% (HWM) to 8.5% (PBF)."
+   "evidence": "Kullamagi gives no minimum ADR for the breakout; his stop should not be wider than the ATR or ADR of the stock. The examples' ADRs ran 2.9% (HWM) to 8.5% (PBF).",
+   "superseded": [
+    {
+     "statement": "Record the stock's ADR, the 20-day average of high over low minus 1. No minimum is set; the ADR caps the stop.",
+     "status": "proposed",
+     "measure": {
+      "what": "20-day average of (high / low - 1)",
+      "op": ">=",
+      "value": 0,
+      "unit": "%",
+      "timeframe": "daily"
+     },
+     "basis": "originator",
+     "on": "2026-11-12",
+     "by": "D-005"
+    }
+   ],
+   "ruling": "D-005"
   },
   {
    "id": "qk.breakout_market",
@@ -575,45 +592,60 @@
   {
    "id": "qk.breakout_stop_adr",
    "field": "stop",
-   "statement": "The stop must be no wider than the stock's ADR; if it is wider, skip.",
+   "statement": "Our stop sits within 5% of the buy: 1-3% preferred, 3.5% good; past 5%, wait for a tighter trigger. Kullamagi's own cap is the stock's ADR.",
    "measure": {
-    "what": "(entry - stop) / entry",
+    "what": "stop distance from the buy",
     "op": "<=",
-    "value": "20-day ADR",
+    "value": 5,
     "unit": "%"
    },
    "glossary": "stop_width",
-   "basis": "originator",
+   "basis": "UCT",
    "sources": [
     "S1"
    ],
-   "house_rule": "A3",
    "status": "settled",
    "gate": true,
    "grade_cue": false,
    "dossier_ref": "8.3",
-   "evidence": "Kullamagi: stop should not be wider than the ATR or ADR of the stock; if the ADR is 5%, your stop shouldn't be wider than 5%. A3: if the honest stop does not fit the risk, skip. The scan skipped stops wider than the ADR or 8%."
+   "evidence": "Kullamagi: stop should not be wider than the ATR or ADR of the stock; if the ADR is 5%, your stop shouldn't be wider than 5%. A3: if the honest stop does not fit the risk, skip. The scan skipped stops wider than the ADR or 8%.",
+   "superseded": [
+    {
+     "statement": "The stop must be no wider than the stock's ADR; if it is wider, skip.",
+     "house_rule": "A3",
+     "status": "settled",
+     "measure": {
+      "what": "(entry - stop) / entry",
+      "op": "<=",
+      "value": "20-day ADR",
+      "unit": "%"
+     },
+     "basis": "originator",
+     "on": "2026-11-12",
+     "by": "D-005"
+    }
+   ],
+   "ruling": "D-005"
   },
   {
    "id": "qk.breakout_stop_3_to_adr",
    "field": "stop",
-   "statement": "Where the stop is wider than 3% but within the ADR: take it with the size the stop allows.",
+   "statement": "Where the stop is wider than 3% but within 5% of the buy: take it with the size the stop allows.",
    "measure": {
-    "what": "(entry - stop) / entry",
+    "what": "stop distance from the buy",
     "op": "in",
     "value": [
      3,
-     "20-day ADR"
+     5
     ],
     "unit": "%"
    },
    "glossary": "stop_width",
-   "basis": "house rule",
+   "basis": "UCT",
    "sources": [
     "S1",
     "S9"
    ],
-   "house_rule": "A13",
    "options": [
     {
      "value": "a",
@@ -629,12 +661,32 @@
     }
    ],
    "recommended": "b",
-   "status": "pending-owner",
+   "status": "settled",
    "owner_question": "D-005",
    "gate": true,
    "grade_cue": true,
    "dossier_ref": "8.3 Options; 10 question 3",
-   "evidence": "AMD 2000-01-06 (4.9% stop inside a 5.4% ADR) and PBF 2022-04-04 (3.9% inside 8.5%) are the option (b) cases; HWM's 1.6% fits A13 with room. Kell's support buys use a 1-2% stop; a reporter says his max is about 3%."
+   "evidence": "AMD 2000-01-06 (4.9% stop inside a 5.4% ADR) and PBF 2022-04-04 (3.9% inside 8.5%) are the option (b) cases; HWM's 1.6% fits A13 with room. Kell's support buys use a 1-2% stop; a reporter says his max is about 3%.",
+   "superseded": [
+    {
+     "statement": "Where the stop is wider than 3% but within the ADR: take it with the size the stop allows.",
+     "house_rule": "A13",
+     "status": "pending-owner",
+     "measure": {
+      "what": "(entry - stop) / entry",
+      "op": "in",
+      "value": [
+       3,
+       "20-day ADR"
+      ],
+      "unit": "%"
+     },
+     "basis": "house rule",
+     "on": "2026-11-12",
+     "by": "D-005"
+    }
+   ],
+   "ruling": "D-005"
   },
   {
    "id": "qk.breakout_stop_gap",
@@ -694,22 +746,38 @@
   {
    "id": "qk.breakout_trim_1",
    "field": "management",
-   "statement": "Sell a third at 3R.",
+   "statement": "The first sell is a judgment, not a fixed third at 3R: we very rarely sell on day 1 and usually wait until day 3 at the earliest; selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
    "measure": {
-    "what": "fraction sold at 3R",
-    "op": "==",
-    "value": 0.333,
-    "unit": "of the position"
+    "what": "trading day of the first sell",
+    "op": ">=",
+    "value": 3,
+    "unit": "day"
    },
    "glossary": "trail",
-   "basis": "house rule",
+   "basis": "UCT",
    "sources": [],
-   "house_rule": "B19",
    "status": "settled",
    "gate": false,
    "grade_cue": false,
    "dossier_ref": "8.4",
-   "evidence": "Eight of the ten examples reached 3R within 9 sessions; ISRG took 23."
+   "evidence": "Eight of the ten examples reached 3R within 9 sessions; ISRG took 23.",
+   "superseded": [
+    {
+     "statement": "Sell a third at 3R.",
+     "house_rule": "B19",
+     "status": "settled",
+     "measure": {
+      "what": "fraction sold at 3R",
+      "op": "==",
+      "value": 0.333,
+      "unit": "of the position"
+     },
+     "basis": "house rule",
+     "on": "2026-11-12",
+     "by": "D-013"
+    }
+   ],
+   "ruling": "D-013"
   },
   {
    "id": "qk.breakout_kullamagi_trim",
@@ -749,37 +817,57 @@
   {
    "id": "qk.breakout_trim_2",
    "field": "management",
-   "statement": "Sell a third at 5R.",
-   "measure": {
-    "what": "fraction sold at 5R",
-    "op": "==",
-    "value": 0.333,
-    "unit": "of the position"
-   },
-   "basis": "house rule",
+   "statement": "Later sells are a judgment too: sell more into strength on a later push, and trail the rest.",
+   "basis": "UCT",
    "sources": [],
-   "house_rule": "E51",
    "status": "settled",
    "gate": false,
    "grade_cue": false,
-   "dossier_ref": "8.4"
+   "dossier_ref": "8.4",
+   "superseded": [
+    {
+     "statement": "Sell a third at 5R.",
+     "house_rule": "E51",
+     "status": "settled",
+     "measure": {
+      "what": "fraction sold at 5R",
+      "op": "==",
+      "value": 0.333,
+      "unit": "of the position"
+     },
+     "basis": "house rule",
+     "on": "2026-11-12",
+     "by": "D-013"
+    }
+   ],
+   "ruling": "D-013"
   },
   {
    "id": "qk.breakout_trim_gap_open",
    "field": "management",
-   "statement": "If it opens above a trim level, take that trim at the open.",
-   "basis": "house rule",
+   "statement": "A gap up past a profit level at the open is not an automatic sell; selling part into a big gap is an optional judgment, never a rule.",
+   "basis": "UCT",
    "sources": [],
-   "house_rule": "F63",
    "status": "settled",
    "gate": false,
    "grade_cue": false,
-   "dossier_ref": "8.4"
+   "dossier_ref": "8.4",
+   "superseded": [
+    {
+     "statement": "If it opens above a trim level, take that trim at the open.",
+     "house_rule": "F63",
+     "status": "settled",
+     "basis": "house rule",
+     "on": "2026-11-12",
+     "by": "GAP-TRIM"
+    }
+   ],
+   "ruling": "GAP-TRIM"
   },
   {
    "id": "qk.breakout_trail",
    "field": "management",
-   "statement": "Trail the last third: a close under the 10-day for a fast mover, under the 21-day for a steadier one. His own trail is nearly the same line: the first close below the 10 or 20-day.",
+   "statement": "Trail what is left: a close under the 10-day for a fast mover, under the 21-day for a steadier one. His own trail is nearly the same line: the first close below the 10 or 20-day.",
    "measure": {
     "what": "close against the 10-day (fast) or 21-day (steadier) average",
     "op": "<",
@@ -795,7 +883,15 @@
    "gate": false,
    "grade_cue": false,
    "dossier_ref": "8.4; 7",
-   "evidence": "Kullamagi: the rest of the position should be trailed with the 10- or the 20-day moving average; if a beginner stick to the 10-day. He says 20-day, the house says 21-day; the same line for teaching."
+   "evidence": "Kullamagi: the rest of the position should be trailed with the 10- or the 20-day moving average; if a beginner stick to the 10-day. He says 20-day, the house says 21-day; the same line for teaching.",
+   "superseded": [
+    {
+     "statement": "Trail the last third: a close under the 10-day for a fast mover, under the 21-day for a steadier one. His own trail is nearly the same line: the first close below the 10 or 20-day.",
+     "on": "2026-11-12",
+     "by": "D-013"
+    }
+   ],
+   "ruling": "D-013"
   },
   {
    "id": "qk.breakout_time_stop",
@@ -1723,15 +1819,20 @@
  },
  "best_conditions": "Bull markets, a Green reading: the index in its own up cycle or just off its own Wedge Pop, with the leaders that popped before it the best. Fewer trades and lower exposure when the index is below its 20 EMA (Kell caps exposure at 30% and trades 1-2 stocks in a poor environment). The UCT momentum-market test (the Nasdaq's 10 and 20-day rising, the 10 above the 20) is a cue, not a rule.",
  "management": {
-  "trim_1": "a third at 3R (B19); Kullamagi's sell a third to a half after 3 to 5 days is taught as his, by name (D-013)",
-  "trim_2": "a third at 5R (E51)",
+  "trim_1": "first sell by judgment, usually day 3 or later, into a 3, 5 or 7 day push or at about 5 to 10R (D-013, 2026-11-12); Kullamagi's sell a third to a half after 3 to 5 days is taught as his, by name",
+  "trim_2": "later sells by judgment into strength, then trail the rest (D-013, 2026-11-12)",
   "trail": "a close under the 10-day for a fast mover, the 21-day for a steadier one (E52); Kullamagi's 10 or 20-day first close below is nearly the same line; Kell trails the 10/20 EMA",
-  "breakeven": "between 2R and 5R, at the first trim by default (B19)",
+  "breakeven": "between 2R and 5R, or at the first sell (B19)",
   "time_stop": "under 1R after 10 trading days, sell (C33)",
-  "gap_open": "a trim level the day opens past is taken at the open (F63)",
+  "gap_open": "optional: selling part into a big gap at the open is a judgment, never a rule (owner, 2026-11-12)",
   "gap_against": "the first 30-minute low is the new stop; out if past 2R (B20)",
   "climax": "sell a big part into a climax run (C34); whether that covers Kell's Exhaustion Extension without a burst, and how much to sell, is D-013",
-  "overrides": "none for the breakout: the dossier (8.4) keeps the house default and teaches Kullamagi's 3-5 day trim as his. The Kell phases add two exits the house trail already contains: the Exhaustion Extension (sell part into strength, C34 by the dossier's proposal) and the Wedge Drop (the E52 close under the averages). Not ours: the app's 20-EMA stop and its 5-ATR target mislabeled as 5R; Kell's adds at each phase (A5, D-135); his reduced earnings size (B22, D-137)."
+  "overrides": "none for the breakout: the dossier (8.4) keeps the house default and teaches Kullamagi's 3-5 day trim as his. The Kell phases add two exits the house trail already contains: the Exhaustion Extension (sell part into strength, C34 by the dossier's proposal) and the Wedge Drop (the E52 close under the averages). Not ours: the app's 20-EMA stop and its 5-ATR target mislabeled as 5R; Kell's adds at each phase (A5, D-135); his reduced earnings size (B22, D-137).",
+  "superseded": {
+   "trim_2": "a third at 5R (E51)",
+   "gap_open": "a trim level the day opens past is taken at the open (F63)",
+   "trim_1": "a third at 3R (B19); Kullamagi's sell a third to a half after 3 to 5 days is taught as his, by name (D-013)"
+  }
  },
  "examples": {
   "winners": 10,

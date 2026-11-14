@@ -862,56 +862,92 @@
   {
    "id": "bg.trim_1",
    "field": "management",
-   "statement": "Cover a third at 3R (the hard rule).",
+   "statement": "The first sell is a judgment, not a fixed third at 3R: we very rarely sell on day 1 and usually wait until day 3 at the earliest; selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
    "measure": {
-    "what": "fraction covered at 3R",
-    "op": "==",
-    "value": 0.333,
-    "unit": "of the position"
+    "what": "trading day of the first sell",
+    "op": ">=",
+    "value": 3,
+    "unit": "day"
    },
-   "basis": "house rule",
+   "basis": "UCT",
    "sources": [],
-   "house_rule": "B19",
    "status": "settled",
    "gate": false,
    "grade_cue": false,
    "dossier_ref": "8.6",
-   "evidence": "A 25% hit rate at 3R needs the trims and the trail to pay. LPX 2025-03-27 ran to 5R in two weeks and reversed: the case for the trims."
+   "evidence": "A 25% hit rate at 3R needs the trims and the trail to pay. LPX 2025-03-27 ran to 5R in two weeks and reversed: the case for the trims.",
+   "superseded": [
+    {
+     "statement": "Cover a third at 3R (the hard rule).",
+     "house_rule": "B19",
+     "status": "settled",
+     "measure": {
+      "what": "fraction covered at 3R",
+      "op": "==",
+      "value": 0.333,
+      "unit": "of the position"
+     },
+     "basis": "house rule",
+     "on": "2026-11-12",
+     "by": "D-013"
+    }
+   ],
+   "ruling": "D-013"
   },
   {
    "id": "bg.trim_2",
    "field": "management",
-   "statement": "Cover a third at 5R.",
-   "measure": {
-    "what": "fraction covered at 5R",
-    "op": "==",
-    "value": 0.333,
-    "unit": "of the position"
-   },
-   "basis": "house rule",
+   "statement": "Later sells are a judgment too: sell more into strength on a later push, and trail the rest.",
+   "basis": "UCT",
    "sources": [],
-   "house_rule": "E51",
    "status": "settled",
    "gate": false,
    "grade_cue": false,
-   "dossier_ref": "8.6"
+   "dossier_ref": "8.6",
+   "superseded": [
+    {
+     "statement": "Cover a third at 5R.",
+     "house_rule": "E51",
+     "status": "settled",
+     "measure": {
+      "what": "fraction covered at 5R",
+      "op": "==",
+      "value": 0.333,
+      "unit": "of the position"
+     },
+     "basis": "house rule",
+     "on": "2026-11-12",
+     "by": "D-013"
+    }
+   ],
+   "ruling": "D-013"
   },
   {
    "id": "bg.trim_gap_open",
    "field": "management",
-   "statement": "If it opens past a cover level, take that cover at the open.",
-   "basis": "house rule",
+   "statement": "A gap up past a profit level at the open is not an automatic sell; selling part into a big gap is an optional judgment, never a rule.",
+   "basis": "UCT",
    "sources": [],
-   "house_rule": "F63",
    "status": "settled",
    "gate": false,
    "grade_cue": false,
-   "dossier_ref": "8.6"
+   "dossier_ref": "8.6",
+   "superseded": [
+    {
+     "statement": "If it opens past a cover level, take that cover at the open.",
+     "house_rule": "F63",
+     "status": "settled",
+     "basis": "house rule",
+     "on": "2026-11-12",
+     "by": "GAP-TRIM"
+    }
+   ],
+   "ruling": "GAP-TRIM"
   },
   {
    "id": "bg.trail",
    "field": "management",
-   "statement": "Trail the last third: cover on a close back above the 10-day average for a fast mover, the 21-day for a steadier one.",
+   "statement": "Trail what is left: cover on a close back above the 10-day average for a fast mover, the 21-day for a steadier one.",
    "measure": {
     "what": "close against the 10-day (fast) or 21-day (steadier) average",
     "op": ">",
@@ -925,7 +961,15 @@
    "status": "settled",
    "gate": false,
    "grade_cue": false,
-   "dossier_ref": "8.6"
+   "dossier_ref": "8.6",
+   "superseded": [
+    {
+     "statement": "Trail the last third: cover on a close back above the 10-day average for a fast mover, the 21-day for a steadier one.",
+     "on": "2026-11-12",
+     "by": "D-013"
+    }
+   ],
+   "ruling": "D-013"
   },
   {
    "id": "bg.time_stop",
@@ -1332,14 +1376,19 @@
  },
  "best_conditions": "Version R: a Red or Orange reading, the stock below a flat or falling 200-day, its group weak, a light bounce into the zone and a declining 20-day or 50-day at the same price. Not right after a big flush ('Do not ever be eager to short'). Version P: any market, best when the burst is far from its averages. A Red market is not by itself an edge: the gap-day close short did worse with SPY under its 200-day.",
  "management": {
-  "trim_1": "cover a third at 3R (B19); Version P covers at least a third at the daily 9 EMA even if under 3R (D47, pending D-013)",
-  "trim_2": "cover a third at 5R (E51)",
+  "trim_1": "first sell by judgment, usually day 3 or later, into a 3, 5 or 7 day push or at about 5 to 10R (D-013, 2026-11-12)",
+  "trim_2": "later sells by judgment into strength, then trail the rest (D-013, 2026-11-12)",
   "trail": "cover the last third on a close back above the 10-day average for a fast mover, the 21-day for a steadier one (E52)",
   "breakeven": "between 2R and 5R, at the first cover by default (B19)",
   "time_stop": "under 1R of profit after 10 sessions, cover (C33)",
-  "gap_open": "a cover level the day opens past is taken at the open (F63)",
+  "gap_open": "optional: selling part into a big gap at the open is a judgment, never a rule (owner, 2026-11-12)",
   "gap_against": "a gap up over the stop: the first 30-minute high is the new stop; out if past 2R (B20)",
-  "overrides": "Version P takes Bracco's target, the daily 9 EMA, for at least a third (D47; D-013 pending), and is sized in the B- band ('smaller size', E49). Version R keeps the house defaults. Not ours: Fleckenstein's wide 'much more room' stop, ChartSchool's 4% trailing stop, Qullamaggie's 10/20-day target except as an option under D-013."
+  "overrides": "Version P takes Bracco's target, the daily 9 EMA, for at least a third (D47; D-013 pending), and is sized in the B- band ('smaller size', E49). Version R keeps the house defaults. Not ours: Fleckenstein's wide 'much more room' stop, ChartSchool's 4% trailing stop, Qullamaggie's 10/20-day target except as an option under D-013.",
+  "superseded": {
+   "trim_2": "cover a third at 5R (E51)",
+   "gap_open": "a cover level the day opens past is taken at the open (F63)",
+   "trim_1": "cover a third at 3R (B19); Version P covers at least a third at the daily 9 EMA even if under 3R (D47, pending D-013)"
+  }
  },
  "examples": {
   "winners": 10,

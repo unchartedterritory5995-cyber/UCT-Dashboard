@@ -635,47 +635,73 @@
   {
    "id": "cap.trim_1",
    "field": "management",
-   "statement": "First trim: a third at 3R. With the reclaim entry this is near the 9 EMA, the first mean-reversion target.",
+   "statement": "The first sell is a judgment, not a fixed third at 3R: we very rarely sell on day 1 and usually wait until day 3 at the earliest; selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
    "measure": {
-    "what": "fraction sold at 3R",
-    "op": "==",
-    "value": 0.333,
-    "unit": "of the position"
+    "what": "trading day of the first sell",
+    "op": ">=",
+    "value": 3,
+    "unit": "day"
    },
-   "basis": "house rule",
+   "basis": "UCT",
    "sources": [
     "S18",
     "S21"
    ],
-   "house_rule": "B19",
    "status": "settled",
    "gate": false,
    "grade_cue": false,
    "dossier_ref": "8.4 First trim",
-   "evidence": "Bracco's parabolic-short target (the 9 EMA) mirrored; the dossier's check: with the reclaim entry the 9 EMA sat a median 2.7R away, with the close entry 8.6R. Eight of the ten examples reached 3R on day 1."
+   "evidence": "Bracco's parabolic-short target (the 9 EMA) mirrored; the dossier's check: with the reclaim entry the 9 EMA sat a median 2.7R away, with the close entry 8.6R. Eight of the ten examples reached 3R on day 1.",
+   "superseded": [
+    {
+     "statement": "First trim: a third at 3R. With the reclaim entry this is near the 9 EMA, the first mean-reversion target.",
+     "house_rule": "B19",
+     "status": "settled",
+     "measure": {
+      "what": "fraction sold at 3R",
+      "op": "==",
+      "value": 0.333,
+      "unit": "of the position"
+     },
+     "basis": "house rule",
+     "on": "2026-11-12",
+     "by": "D-013"
+    }
+   ],
+   "ruling": "D-013"
   },
   {
    "id": "cap.trim_2",
    "field": "management",
-   "statement": "Second trim: a third at 5R, near the 20 EMA.",
-   "measure": {
-    "what": "fraction sold at 5R",
-    "op": "==",
-    "value": 0.333,
-    "unit": "of the position"
-   },
-   "basis": "house rule",
+   "statement": "Later sells are a judgment too: sell more into strength on a later push, and trail the rest.",
+   "basis": "UCT",
    "sources": [
     "S4",
     "S5",
     "S21"
    ],
-   "house_rule": "E51",
    "status": "settled",
    "gate": false,
    "grade_cue": false,
    "dossier_ref": "8.4 Second trim",
-   "evidence": "Kell's first target is the retest of the 20 EMA; Kullamägi's short targets the 10 and 20-day, mirrored. The 20 EMA sat a median 4.0R from the reclaim entry. ALB 2010-05-07 teaches the tiny-stop case: 5R was only 3% above the buy."
+   "evidence": "Kell's first target is the retest of the 20 EMA; Kullamägi's short targets the 10 and 20-day, mirrored. The 20 EMA sat a median 4.0R from the reclaim entry. ALB 2010-05-07 teaches the tiny-stop case: 5R was only 3% above the buy.",
+   "superseded": [
+    {
+     "statement": "Second trim: a third at 5R, near the 20 EMA.",
+     "house_rule": "E51",
+     "status": "settled",
+     "measure": {
+      "what": "fraction sold at 5R",
+      "op": "==",
+      "value": 0.333,
+      "unit": "of the position"
+     },
+     "basis": "house rule",
+     "on": "2026-11-12",
+     "by": "D-013"
+    }
+   ],
+   "ruling": "D-013"
   },
   {
    "id": "cap.trim_at_averages",
@@ -792,14 +818,24 @@
   {
    "id": "cap.trim_gap_open",
    "field": "management",
-   "statement": "A gap up past a trim level: take the trim at the open.",
-   "basis": "house rule",
+   "statement": "A gap up past a profit level at the open is not an automatic sell; selling part into a big gap is an optional judgment, never a rule.",
+   "basis": "UCT",
    "sources": [],
-   "house_rule": "F63",
    "status": "settled",
    "gate": false,
    "grade_cue": false,
-   "dossier_ref": "7 and TRADE_PLANS.md"
+   "dossier_ref": "7 and TRADE_PLANS.md",
+   "superseded": [
+    {
+     "statement": "A gap up past a trim level: take the trim at the open.",
+     "house_rule": "F63",
+     "status": "settled",
+     "basis": "house rule",
+     "on": "2026-11-12",
+     "by": "GAP-TRIM"
+    }
+   ],
+   "ruling": "GAP-TRIM"
   },
   {
    "id": "cap.no_add",
@@ -1158,14 +1194,19 @@
  },
  "best_conditions": "Fear high and rising fast: a VIX spike toward 30 or more, breadth washed out (T2108 near or under 15% to 20%), several straight down days into a Friday and a gap down on Monday. For the leader flush, the index holding up or itself stretched. Not a calm, orderly decline; not the first day of a breakdown.",
  "management": {
-  "trim_1": "a third at 3R, near the 9 EMA with the reclaim entry (B19)",
-  "trim_2": "a third at 5R, near the 20 EMA (E51)",
+  "trim_1": "first sell by judgment, usually day 3 or later, into a 3, 5 or 7 day push or at about 5 to 10R (D-013, 2026-11-12)",
+  "trim_2": "later sells by judgment into strength, then trail the rest (D-013, 2026-11-12)",
   "trail": "under each higher daily low until price closes back above the 10-day, then a close below the 10-day (E52 adapted; the 21-day for a steadier one)",
   "breakeven": "at 2R, the low end of B19's window, because these bounces fade",
   "time_stop": "1R not reached within 3 sessions, sell (the dossier's number, pending D-019; C33's 10 days is the fallback)",
-  "gap_open": "a trim level the day opens past is taken at the open (F63)",
+  "gap_open": "optional: selling part into a big gap at the open is a judgment, never a rule (owner, 2026-11-12)",
   "gap_against": "the first 30-minute low is the new stop; out if past 2R (B20)",
-  "overrides": "The trail (higher daily lows until the 10-day is regained) and the 3-session time stop are the dossier's adaptations (8.4). Whether the trims are 3R and 5R or a sale into the 9 and 20 EMAs is D-013. Not ours: the scanner's 2R and 3R targets from a stop a fraction of an ATR wide."
+  "overrides": "The trail (higher daily lows until the 10-day is regained) and the 3-session time stop are the dossier's adaptations (8.4). Whether the trims are 3R and 5R or a sale into the 9 and 20 EMAs is D-013. Not ours: the scanner's 2R and 3R targets from a stop a fraction of an ATR wide.",
+  "superseded": {
+   "trim_1": "a third at 3R, near the 9 EMA with the reclaim entry (B19)",
+   "trim_2": "a third at 5R, near the 20 EMA (E51)",
+   "gap_open": "a trim level the day opens past is taken at the open (F63)"
+  }
  },
  "examples": {
   "winners": 10,

@@ -717,69 +717,105 @@
   {
    "id": "ss.trim_1",
    "field": "management",
-   "statement": "First trim a third at 3R.",
+   "statement": "The first sell is a judgment, not a fixed third at 3R: we very rarely sell on day 1 and usually wait until day 3 at the earliest; selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
    "measure": {
-    "what": "fraction sold at 3R",
-    "op": "==",
-    "value": 0.333,
-    "unit": "of the position"
+    "what": "trading day of the first sell",
+    "op": ">=",
+    "value": 3,
+    "unit": "day"
    },
-   "basis": "house rule",
+   "basis": "UCT",
    "sources": [],
-   "house_rule": "B19",
    "status": "settled",
    "gate": false,
    "grade_cue": false,
    "dossier_ref": "8.4 rule 20",
-   "evidence": "In the test 3R came first on about 20% of trades. The ten examples reached 3R in 3 to 8 sessions."
+   "evidence": "In the test 3R came first on about 20% of trades. The ten examples reached 3R in 3 to 8 sessions.",
+   "superseded": [
+    {
+     "statement": "First trim a third at 3R.",
+     "house_rule": "B19",
+     "status": "settled",
+     "measure": {
+      "what": "fraction sold at 3R",
+      "op": "==",
+      "value": 0.333,
+      "unit": "of the position"
+     },
+     "basis": "house rule",
+     "on": "2026-11-12",
+     "by": "D-013"
+    }
+   ],
+   "ruling": "D-013"
   },
   {
    "id": "ss.trim_2",
    "field": "management",
-   "statement": "Second trim a third at 5R.",
-   "measure": {
-    "what": "fraction sold at 5R",
-    "op": "==",
-    "value": 0.333,
-    "unit": "of the position"
-   },
-   "basis": "house rule",
+   "statement": "Later sells are a judgment too: sell more into strength on a later push, and trail the rest.",
+   "basis": "UCT",
    "sources": [],
-   "house_rule": "E51",
    "status": "settled",
    "gate": false,
    "grade_cue": false,
    "dossier_ref": "8.4 rule 20",
-   "evidence": "In the test 5R came first on about 12% of trades."
+   "evidence": "In the test 5R came first on about 12% of trades.",
+   "superseded": [
+    {
+     "statement": "Second trim a third at 5R.",
+     "house_rule": "E51",
+     "status": "settled",
+     "measure": {
+      "what": "fraction sold at 5R",
+      "op": "==",
+      "value": 0.333,
+      "unit": "of the position"
+     },
+     "basis": "house rule",
+     "on": "2026-11-12",
+     "by": "D-013"
+    }
+   ],
+   "ruling": "D-013"
   },
   {
    "id": "ss.trim_gap_open",
    "field": "management",
-   "statement": "At the open if it gaps past a trim level.",
-   "basis": "house rule",
+   "statement": "A gap up past a profit level at the open is not an automatic sell; selling part into a big gap is an optional judgment, never a rule.",
+   "basis": "UCT",
    "sources": [],
-   "house_rule": "F63",
    "status": "settled",
    "gate": false,
    "grade_cue": false,
-   "dossier_ref": "8.4 rule 20"
+   "dossier_ref": "8.4 rule 20",
+   "superseded": [
+    {
+     "statement": "At the open if it gaps past a trim level.",
+     "house_rule": "F63",
+     "status": "settled",
+     "basis": "house rule",
+     "on": "2026-11-12",
+     "by": "GAP-TRIM"
+    }
+   ],
+   "ruling": "GAP-TRIM"
   },
   {
    "id": "ss.first_trim_early",
    "field": "management",
-   "statement": "A note on the house trims: UCT's team playbook trims into the next 3-5 day burst and Scot1and sold a portion early into the advance. The house plan stays the default; an earlier first trim is the owner's call.",
+   "statement": "Selling into the next 3-5 day burst is ours: the first sell is a judgment, usually day 3 or later, not a fixed third at 3R.",
    "measure": {
-    "what": "first trim",
-    "op": "==",
-    "value": "a third at 3R, unless the owner rules an earlier partial"
+    "what": "trading day of the first sell",
+    "op": ">=",
+    "value": 3,
+    "unit": "day"
    },
-   "basis": "house rule",
+   "basis": "UCT",
    "sources": [
     "S26",
     "S6",
     "S21"
    ],
-   "house_rule": "B19",
    "options": [
     {
      "value": "a",
@@ -791,17 +827,33 @@
     }
    ],
    "recommended": "a",
-   "status": "pending-owner",
+   "status": "settled",
    "owner_question": "D-013",
    "gate": false,
    "grade_cue": false,
    "dossier_ref": "8.4 rule 24; 10 question 7",
-   "evidence": "Test: 3R came first on about 20% of trades and 5R on about 12%; the average winner was +2.3R and the average loser -0.9R. These are different holding periods."
+   "evidence": "Test: 3R came first on about 20% of trades and 5R on about 12%; the average winner was +2.3R and the average loser -0.9R. These are different holding periods.",
+   "superseded": [
+    {
+     "statement": "A note on the house trims: UCT's team playbook trims into the next 3-5 day burst and Scot1and sold a portion early into the advance. The house plan stays the default; an earlier first trim is the owner's call.",
+     "house_rule": "B19",
+     "status": "pending-owner",
+     "measure": {
+      "what": "first trim",
+      "op": "==",
+      "value": "a third at 3R, unless the owner rules an earlier partial"
+     },
+     "basis": "house rule",
+     "on": "2026-11-12",
+     "by": "D-013"
+    }
+   ],
+   "ruling": "D-013"
   },
   {
    "id": "ss.trail",
    "field": "management",
-   "statement": "Trail the last third: sell on a close under the 10-day EMA for fast movers, the 21-day for steadier ones.",
+   "statement": "Trail what is left: sell on a close under the 10-day EMA for fast movers, the 21-day for steadier ones.",
    "measure": {
     "what": "close against the 10-day (fast) or 21-day (steadier) average",
     "op": "<",
@@ -819,7 +871,15 @@
    "gate": false,
    "grade_cue": false,
    "dossier_ref": "8.4 rule 21",
-   "evidence": "Other views: Scot1and 2015, the EMA 4 should never be breached on a close, consider it the trailing stop; Manrav's RBLX note, a run that rides 8 and 21 EMAs. In the test the 10-day and 21-day versions averaged within 0.02R of each other."
+   "evidence": "Other views: Scot1and 2015, the EMA 4 should never be breached on a close, consider it the trailing stop; Manrav's RBLX note, a run that rides 8 and 21 EMAs. In the test the 10-day and 21-day versions averaged within 0.02R of each other.",
+   "superseded": [
+    {
+     "statement": "Trail the last third: sell on a close under the 10-day EMA for fast movers, the 21-day for steadier ones.",
+     "on": "2026-11-12",
+     "by": "D-013"
+    }
+   ],
+   "ruling": "D-013"
   },
   {
    "id": "ss.time_stop",
@@ -1043,15 +1103,20 @@
  },
  "best_conditions": "A Green market reading at full size (F65); Scot1and holds his Slingshots as long as the market is not giving distribution days. Earnings seasons in a healthy market give the most PEG Slingshots, because many leaders gap and pause at once (the dossier's proposal, untested). The test found no better average with SPY over its 50-day and 200-day than under its 50-day; the market rule is a house rule.",
  "management": {
-  "trim_1": "a third at 3R (B19)",
-  "trim_2": "a third at 5R (E51)",
+  "trim_1": "first sell by judgment, usually day 3 or later, into a 3, 5 or 7 day push or at about 5 to 10R (D-013, 2026-11-12)",
+  "trim_2": "later sells by judgment into strength, then trail the rest (D-013, 2026-11-12)",
   "trail": "a close under the 10-day EMA for a fast mover, the 21-day for a steadier one (E52); the TRADE_PLANS.md row's under each higher low is the detector's narrative",
   "breakeven": "at 2R, anywhere from 2R to 5R allowed (B19)",
   "time_stop": "under 1R after 10 trading days, sell (C33)",
-  "gap_open": "a trim level the day opens past is taken at the open (F63)",
+  "gap_open": "optional: selling part into a big gap at the open is a judgment, never a rule (owner, 2026-11-12)",
   "gap_against": "the first 30-minute low is the new stop; out if past 2R (B20)",
   "climax": "sell a big part into a climax run (C34)",
-  "overrides": "none by default. TRADE_PLANS.md names the trigger day's low as the stop with the day before's low as the wider choice. Whether a Slingshot gets an earlier first trim (the team's trim into the next 3-5 day burst; Scot1and's a portion early into the advance) is D-013. Not ours: the detector's 2R and 3R targets; Scot1and's no close under the 4-day EMA trail."
+  "overrides": "none by default. TRADE_PLANS.md names the trigger day's low as the stop with the day before's low as the wider choice. Whether a Slingshot gets an earlier first trim (the team's trim into the next 3-5 day burst; Scot1and's a portion early into the advance) is D-013. Not ours: the detector's 2R and 3R targets; Scot1and's no close under the 4-day EMA trail.",
+  "superseded": {
+   "trim_1": "a third at 3R (B19)",
+   "trim_2": "a third at 5R (E51)",
+   "gap_open": "a trim level the day opens past is taken at the open (F63)"
+  }
  },
  "examples": {
   "winners": 10,

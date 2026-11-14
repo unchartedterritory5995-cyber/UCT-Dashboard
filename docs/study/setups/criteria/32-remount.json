@@ -765,7 +765,7 @@
   {
    "id": "rm.breakeven",
    "field": "management",
-   "statement": "Stop to breakeven between 2R and 5R, at the first trim by default.",
+   "statement": "Stop to breakeven between 2R and 5R, or at the first sell.",
    "measure": {
     "what": "R at which the stop moves to the entry",
     "op": "in",
@@ -781,64 +781,108 @@
    "status": "settled",
    "gate": false,
    "grade_cue": false,
-   "dossier_ref": "8.4"
+   "dossier_ref": "8.4",
+   "superseded": [
+    {
+     "statement": "Stop to breakeven between 2R and 5R, at the first trim by default.",
+     "on": "2026-11-12",
+     "by": "D-013"
+    }
+   ],
+   "ruling": "D-013"
   },
   {
    "id": "rm.trim_1",
    "field": "management",
-   "statement": "Sell a third at 3R.",
+   "statement": "The first sell is a judgment, not a fixed third at 3R: we very rarely sell on day 1 and usually wait until day 3 at the earliest; selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
    "measure": {
-    "what": "fraction sold at 3R",
-    "op": "==",
-    "value": 0.333,
-    "unit": "of the position"
+    "what": "trading day of the first sell",
+    "op": ">=",
+    "value": 3,
+    "unit": "day"
    },
-   "basis": "house rule",
+   "basis": "UCT",
    "sources": [
     "S19"
    ],
-   "house_rule": "B19",
    "status": "settled",
    "gate": false,
    "grade_cue": false,
    "dossier_ref": "8.4",
-   "evidence": "The owner on ALAB: peel of a partial position and trail the remaining up the 9ema and 20ema on the daily. Eight of the ten examples reached 3R within 3 days of the buy."
+   "evidence": "The owner on ALAB: peel of a partial position and trail the remaining up the 9ema and 20ema on the daily. Eight of the ten examples reached 3R within 3 days of the buy.",
+   "superseded": [
+    {
+     "statement": "Sell a third at 3R.",
+     "house_rule": "B19",
+     "status": "settled",
+     "measure": {
+      "what": "fraction sold at 3R",
+      "op": "==",
+      "value": 0.333,
+      "unit": "of the position"
+     },
+     "basis": "house rule",
+     "on": "2026-11-12",
+     "by": "D-013"
+    }
+   ],
+   "ruling": "D-013"
   },
   {
    "id": "rm.trim_2",
    "field": "management",
-   "statement": "Sell a third at 5R.",
-   "measure": {
-    "what": "fraction sold at 5R",
-    "op": "==",
-    "value": 0.333,
-    "unit": "of the position"
-   },
-   "basis": "house rule",
+   "statement": "Later sells are a judgment too: sell more into strength on a later push, and trail the rest.",
+   "basis": "UCT",
    "sources": [],
-   "house_rule": "E51",
    "status": "settled",
    "gate": false,
    "grade_cue": false,
    "dossier_ref": "8.4",
-   "evidence": "Replay: about one in six trades reached 5R; the result comes from a few big runners."
+   "evidence": "Replay: about one in six trades reached 5R; the result comes from a few big runners.",
+   "superseded": [
+    {
+     "statement": "Sell a third at 5R.",
+     "house_rule": "E51",
+     "status": "settled",
+     "measure": {
+      "what": "fraction sold at 5R",
+      "op": "==",
+      "value": 0.333,
+      "unit": "of the position"
+     },
+     "basis": "house rule",
+     "on": "2026-11-12",
+     "by": "D-013"
+    }
+   ],
+   "ruling": "D-013"
   },
   {
    "id": "rm.trim_gap_open",
    "field": "management",
-   "statement": "Take a trim at the open if it gaps past the level.",
-   "basis": "house rule",
+   "statement": "A gap up past a profit level at the open is not an automatic sell; selling part into a big gap is an optional judgment, never a rule.",
+   "basis": "UCT",
    "sources": [],
-   "house_rule": "F63",
    "status": "settled",
    "gate": false,
    "grade_cue": false,
-   "dossier_ref": "8.4"
+   "dossier_ref": "8.4",
+   "superseded": [
+    {
+     "statement": "Take a trim at the open if it gaps past the level.",
+     "house_rule": "F63",
+     "status": "settled",
+     "basis": "house rule",
+     "on": "2026-11-12",
+     "by": "GAP-TRIM"
+    }
+   ],
+   "ruling": "GAP-TRIM"
   },
   {
    "id": "rm.trail",
    "field": "management",
-   "statement": "Trail the last third: sold on a close under the 21-day (an MA remount, steadier) or the 10-day (a fast mover).",
+   "statement": "Trail what is left: sold on a close under the 21-day (an MA remount, steadier) or the 10-day (a fast mover).",
    "measure": {
     "what": "close against the 21-day (steadier) or 10-day (fast) average",
     "op": "<",
@@ -855,7 +899,15 @@
    "gate": false,
    "grade_cue": false,
    "dossier_ref": "8.4",
-   "evidence": "The replay trailed under the 21-day EMA once the 3R trim was done. BABA 2025-01-24: the move ended in April, which the 21-day trail would have caught. remount.py's prior high + 7.5% target is not house."
+   "evidence": "The replay trailed under the 21-day EMA once the 3R trim was done. BABA 2025-01-24: the move ended in April, which the 21-day trail would have caught. remount.py's prior high + 7.5% target is not house.",
+   "superseded": [
+    {
+     "statement": "Trail the last third: sold on a close under the 21-day (an MA remount, steadier) or the 10-day (a fast mover).",
+     "on": "2026-11-12",
+     "by": "D-013"
+    }
+   ],
+   "ruling": "D-013"
   },
   {
    "id": "rm.time_stop",
@@ -1158,14 +1210,19 @@
  },
  "best_conditions": "Market reading Green, or Yellow at smaller size; Orange only an A+ remount (F65). Best after a correction, as the indexes remount their own lines and leaders remount first; panics that end fast are fertile (the panic sets in and selling accelerates just leads to quick remounts). Weak with the index under its own 200-day: in the replay those remounts had wider stops (median 3.66%) and half the result (+0.04R against +0.08R).",
  "management": {
-  "trim_1": "a third at 3R (B19)",
-  "trim_2": "a third at 5R (E51)",
+  "trim_1": "first sell by judgment, usually day 3 or later, into a 3, 5 or 7 day push or at about 5 to 10R (D-013, 2026-11-12)",
+  "trim_2": "later sells by judgment into strength, then trail the rest (D-013, 2026-11-12)",
   "trail": "a close under the 21-day for an MA remount (steadier), the 10-day for a fast mover (E52)",
-  "breakeven": "between 2R and 5R, at the first trim by default (B19)",
+  "breakeven": "between 2R and 5R, or at the first sell (B19)",
   "time_stop": "under 1R after 10 trading days, sell (C33); half the replay's trades never reached 1R",
-  "gap_open": "a trim level the day opens past is taken at the open (F63)",
+  "gap_open": "optional: selling part into a big gap at the open is a judgment, never a rule (owner, 2026-11-12)",
   "gap_against": "the first 30-minute low is the new stop; out if past 2R (B20)",
-  "overrides": "none. The dossier (8.4) keeps the house defaults; the 21-day is named first because an MA remount is the steadier case. Not ours: remount.py's entry (line + 1 ATR), its stop (1.5% under an older low) and its target (prior high + 7.5%); MAU&R's line as the selling guide; the owner's occasional add on a later hold (A5)."
+  "overrides": "none. The dossier (8.4) keeps the house defaults; the 21-day is named first because an MA remount is the steadier case. Not ours: remount.py's entry (line + 1 ATR), its stop (1.5% under an older low) and its target (prior high + 7.5%); MAU&R's line as the selling guide; the owner's occasional add on a later hold (A5).",
+  "superseded": {
+   "trim_1": "a third at 3R (B19)",
+   "trim_2": "a third at 5R (E51)",
+   "gap_open": "a trim level the day opens past is taken at the open (F63)"
+  }
  },
  "examples": {
   "winners": 10,
