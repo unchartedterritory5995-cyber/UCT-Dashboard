@@ -487,8 +487,23 @@ def test_the_tick_retries_failed_videos_and_reports_the_library(monkeypatch):
                last_error="ValueError: video is larger than the download cap")
     out = tl.tick()
     assert out["retrying_failed"] == 1
-    assert out["library"] == {"posted": 1, "new": 1, "failed": 1, "on_youtube": 0}
+    assert out["library"] == {"posted": 1, "new": 1, "failed": 1, "on_youtube": 0, "links_waiting": 0}
     assert "retrying_failed" not in tl.tick(), "nothing left to reopen: the line stays quiet"
+
+
+def test_the_library_count_says_how_many_link_lessons_wait_for_a_transcript():
+    """A lesson that came from a YouTube link is posted under its title only until its captions
+    are sent in from outside (the pod is refused them). Nothing said how many were waiting, so
+    nobody knew when that step was due."""
+    for day, vid in enumerate(("WAIT0000001", "DONE0000001", "REDO0000001"), start=3):
+        tl.record_message(msg(sf(2026, 5, day), content=f"https://youtu.be/{vid}"), TSDR)
+        tl._update(f"{tl.LINK_PREFIX}{vid}", status="posted", title=vid)
+    tl._update(f"{tl.LINK_PREFIX}DONE0000001", transcript="the words " * 30)
+    tl._update(f"{tl.LINK_PREFIX}REDO0000001", redo=1)        # its captions arrived; the rewrite is queued
+    _thread_lesson("file1", 1, transcript="")                 # a file lesson never waits on captions
+    counts = tl.status_counts()
+    assert counts["links_waiting"] == 1
+    assert counts["links_waiting"] == len(tl.links_needing_transcript()), "one list, counted; never a second rule"
 
 
 def test_a_spent_ai_budget_stops_the_model_stages_and_nothing_else(monkeypatch):

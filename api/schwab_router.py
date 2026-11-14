@@ -267,6 +267,33 @@ _NARRATIVE_MAX_TOKENS = 250
 _NARRATIVE_MODEL = os.environ.get("SCHWAB_NARRATIVE_MODEL", llm_models.SONNET)
 _NARRATIVE_WORST_SEARCHES = 3
 _NARRATIVE_WORST_INPUT_TOKENS = 34_000
+_NARRATIVE_MAX_CONTINUATIONS = 3     # resumes of a paused web-search turn
+
+
+def _narrative_answer_text(content) -> str:
+    """The model's ANSWER: the text blocks after the last web-search block. Text before a
+    search is its lead-in ("Let me pull up Friday's market close."), never the summary."""
+    blocks = list(content)              # None raises, as the old join did (-> 500, charged once)
+    last_tool = -1
+    for i, block in enumerate(blocks):
+        kind = getattr(block, "type", "") or ""
+        if kind == "server_tool_use" or kind.endswith("_tool_result"):
+            last_tool = i
+    return " ".join(
+        b.text for b in blocks[last_tool + 1:]
+        if getattr(b, "type", "text") == "text" and getattr(b, "text", None)
+    ).strip()
+
+
+_NARRATIVE_SELF_TALK = ("let me", "i ", "i'", "searching", "looking up", "one moment",
+                        "sorry", "based on", "the search results", "unfortunately")
+
+
+def _looks_like_market_summary(text: str) -> bool:
+    """Not the model talking about itself: a lead-in ("Let me pull up Friday's market
+    close."), a search note or an apology is never cached as the summary."""
+    t = (text or "").strip().lower()
+    return bool(t) and not t.startswith(_NARRATIVE_SELF_TALK)
 @router.get("/market-narrative")
 @market_narrative_swr.serve_last_good
 def market_narrative(_auth: dict = Depends(require_flow_user)):
@@ -300,7 +327,7 @@ def market_narrative(_auth: dict = Depends(require_flow_user)):
         elif weekday == 6:
             day_note = " (Sunday — markets closed, summarize Friday's action)"
         client = anthropic.Anthropic(api_key=api_key, timeout=llm_timeouts.seconds("SCHWAB_NARRATIVE_LLM_TIMEOUT_SECS", llm_timeouts.REQUEST_PATH))
-        response = client.messages.create(
+        request = dict(
             # Was "claude-sonnet-4-20250514" — Anthropic deprecated that pinned
             # snapshot. Using the stable alias "claude-sonnet-4-6" so future
             # Sonnet versions roll forward without another 404 outage. If you
@@ -317,15 +344,25 @@ def market_narrative(_auth: dict = Depends(require_flow_user)):
                 "content": f"Today is {today_str}{day_note}. Write 2-3 sentences: How did US markets close on the most recent trading day? Include S&P 500, Nasdaq, Dow moves and the main catalyst."
             }],
         )
+        response = client.messages.create(**request)
         narrative_cost_guard.record_from_response("schwab_market_narrative", _NARRATIVE_MODEL, response)
-        text = " ".join(
-            block.text for block in response.content
-            if hasattr(block, "text")
-        ).strip()
+        # ⛔ A web-search turn can come back PAUSED (stop_reason "pause_turn") after the
+        # model's lead-in line and before its answer. 2026-11-14: members were served
+        # "Let me pull up Friday's market close." for 30 minutes. Resume it.
+        for _ in range(_NARRATIVE_MAX_CONTINUATIONS):
+            if getattr(response, "stop_reason", None) != "pause_turn":
+                break
+            request["messages"] = request["messages"][:1] + [
+                {"role": "assistant", "content": response.content}]
+            response = client.messages.create(**request)
+            narrative_cost_guard.record_from_response("schwab_market_narrative", _NARRATIVE_MODEL, response)
+        text = _narrative_answer_text(response.content)
         for noise in ["Based on", "I can see", "Let me search", "The search results", "I notice", "I need to"]:
             if text.startswith(noise):
                 sentences = text.split(". ")
                 text = ". ".join(s for s in sentences if any(w in s for w in ["S&P", "Nasdaq", "Dow", "market", "stock", "fell", "rose", "gained", "dropped", "declined"]))
+        if not _looks_like_market_summary(text):
+            text = ""          # a lead-in, a refusal or chatter is never cached as the answer
         if text:
             cache.set(cache_key, text, ttl=1800)
         return {"narrative": text if text else "Market summary unavailable."}

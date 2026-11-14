@@ -4572,6 +4572,31 @@
     }
    }
   },
+  "chartReplay.playback": {
+   "digest": "ff4013691b1537c3",
+   "phrasings": {
+    "start the bar replay": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "turn on the bar replay on this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "open the replay bar": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "start the time machine on this chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
   "chartSetup.setIndicatorsHidden": {
    "digest": "6a2ae0ff5a8652e0",
    "phrasings": {
