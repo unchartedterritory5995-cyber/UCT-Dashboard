@@ -7918,7 +7918,7 @@
    "name": "layoutHistory.list",
    "domain": "layoutHistory",
    "target": "layoutHistory",
-   "summary": "List the saved versions of the Charts board (Layouts → Version history): number, when, how each came to be, which is current. Answered from the server.",
+   "summary": "List the Charts board’s saved versions (Layouts → Version history), newest first. Answered from the server.",
    "hints": "count = how many to show (default 10), else null.",
    "args": {
     "type": "object",
@@ -7954,8 +7954,8 @@
    "name": "layoutHistory.restore",
    "domain": "layoutHistory",
    "target": "layoutHistory",
-   "summary": "Restore an earlier saved version of the Charts board (Layouts → Version history): always shown first with what it changes. Added back as a new version, nothing deleted. Undo restores the version that was current.",
-   "hints": "Exactly one of: version = its number; stepsBack = saves before the current one (1 = previous version); before = \"YYYY-MM-DD\" or \"YYYY-MM-DDTHH:MM\" ET, the board as it was then. Others null.",
+   "summary": "Restore an earlier saved version of the Charts board (Layouts → Version history). Shown first with what it changes; added back as a new version. Undo restores the prior one.",
+   "hints": "One of: version = its number; stepsBack = saves back (1 = the previous); before = \"YYYY-MM-DD[THH:MM]\" ET, the board as it was then. Others null.",
    "args": {
     "type": "object",
     "properties": {

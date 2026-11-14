@@ -472,7 +472,7 @@ export const GROUPS = [
   // board's VERSIONS or HISTORY, or restoring the board / layout / workspace to an earlier time or version. ⛔ Opening another
   // ("previous") layout is layout.open: no version or time word, no match. ⛔ An indicator's, a watchlist's, a screen's,
   // an alert's, a drawing's or a note's own history / older version never selects it (the lead-in). No lookbehind.
-  { id: 'layoutHistory', title: 'Board version history (Layouts → Version history): list the saved versions of the Charts board, restore an earlier one',
+  { id: 'layoutHistory', title: 'Board version history: list the Charts board’s saved versions, restore one',
     domains: ['layoutHistory'], fillLast: true, wordsOnly: true,
     words: [
       /^(?!.*\b(?:indicators?|formulas?|scripts?|stud(?:y|ies)|watchlists?|screens?|scans?|alerts?|drawings?|notes?|journal|templates?)\b).*(?:\bversion history\b|\b(?:board|layout|workspace)(?:'s)? (?:history|versions|saves)\b|\b(?:(?:older|earlier|previous|prior|past|saved|old|other) )?versions? of (?:my |the |this |our )?(?:board|layout|workspace|charts? (?:page|board))\b)/,

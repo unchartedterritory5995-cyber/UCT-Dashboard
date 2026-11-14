@@ -341,7 +341,7 @@
   },
   {
    "id": "layoutHistory",
-   "title": "Board version history (Layouts → Version history): list the saved versions of the Charts board, restore an earlier one"
+   "title": "Board version history: list the Charts board’s saved versions, restore one"
   },
   {
    "id": "periodSort",
@@ -540,7 +540,7 @@
      },
      {
       "id": "layoutHistory",
-      "title": "Board version history (Layouts → Version history): list the saved versions of the Charts board, restore an earlier one"
+      "title": "Board version history: list the Charts board’s saved versions, restore one"
      },
      {
       "id": "periodSort",
@@ -757,7 +757,7 @@
      },
      {
       "id": "layoutHistory",
-      "title": "Board version history (Layouts → Version history): list the saved versions of the Charts board, restore an earlier one"
+      "title": "Board version history: list the Charts board’s saved versions, restore one"
      },
      {
       "id": "periodSort",
@@ -988,7 +988,7 @@
      },
      {
       "id": "layoutHistory",
-      "title": "Board version history (Layouts → Version history): list the saved versions of the Charts board, restore an earlier one"
+      "title": "Board version history: list the Charts board’s saved versions, restore one"
      },
      {
       "id": "periodSort",
@@ -1229,7 +1229,7 @@
      },
      {
       "id": "layoutHistory",
-      "title": "Board version history (Layouts → Version history): list the saved versions of the Charts board, restore an earlier one"
+      "title": "Board version history: list the Charts board’s saved versions, restore one"
      },
      {
       "id": "periodSort",
@@ -1442,7 +1442,7 @@
      },
      {
       "id": "layoutHistory",
-      "title": "Board version history (Layouts → Version history): list the saved versions of the Charts board, restore an earlier one"
+      "title": "Board version history: list the Charts board’s saved versions, restore one"
      },
      {
       "id": "periodSort",

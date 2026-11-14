@@ -224,7 +224,7 @@ export function registerLayoutHistoryCapabilities() {
   registerCapability({
     name: 'layoutHistory.list',
     target: 'layoutHistory', query: true, surfaces: ['charts'], available: (ctx) => ctx.surface === 'charts',
-    summary: 'List the saved versions of the Charts board (Layouts → Version history): number, when, how each came to be, which is current. Answered from the server.',
+    summary: 'List the Charts board’s saved versions (Layouts → Version history), newest first. Answered from the server.',
     hints: 'count = how many to show (default 10), else null.',
     args: { type: 'object', properties: { count: { type: ['integer', 'null'] } }, required: ['count'], additionalProperties: false },
     argAliases: { count: ['limit', 'n'] },
@@ -248,8 +248,8 @@ export function registerLayoutHistoryCapabilities() {
     risk: 'confirm',
     exclusive: true,
     exclusiveReason: 'Restoring a version replaces the whole board, so do it on its own: restore first, then ask for the changes.',
-    summary: 'Restore an earlier saved version of the Charts board (Layouts → Version history): always shown first with what it changes. Added back as a new version, nothing deleted. Undo restores the version that was current.',
-    hints: 'Exactly one of: version = its number; stepsBack = saves before the current one (1 = previous version); before = "YYYY-MM-DD" or "YYYY-MM-DDTHH:MM" ET, the board as it was then. Others null.',
+    summary: 'Restore an earlier saved version of the Charts board (Layouts → Version history). Shown first with what it changes; added back as a new version. Undo restores the prior one.',
+    hints: 'One of: version = its number; stepsBack = saves back (1 = the previous); before = "YYYY-MM-DD[THH:MM]" ET, the board as it was then. Others null.',
     args: { type: 'object', properties: {
       version: { type: ['integer', 'null'] },
       stepsBack: { type: ['integer', 'null'] },
