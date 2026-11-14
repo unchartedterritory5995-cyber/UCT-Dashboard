@@ -27,6 +27,7 @@ Mutation proof (run before calling these done):
    14. /__front/edge reports the TCP peer       -> test_front_edge_reads_the_callers_address_the_way_web_does RED
    15. /__front/edge drops `no-store`           -> test_front_edge_reads_the_callers_address_the_way_web_does RED
    16. proxy drops X-Real-IP                    -> test_front_edge_and_web_are_handed_the_same_three_headers RED
+   17. no keepalive_expiry on the client        -> test_an_idle_connection_to_web_is_dropped_before_web_drops_it RED
 """
 from __future__ import annotations
 
@@ -140,6 +141,7 @@ async def _upstream_app(scope, receive, send):
         "body_len": len(body),
         "body_sha": hashlib.sha256(body).hexdigest(),
         "from": "upstream",
+        "peer_port": (scope.get("client") or (None, None))[1],
     }
     out = json.dumps(echo).encode()
     await reply(200, [(b"content-type", b"application/json"), (b"content-length", str(len(out)).encode()),
@@ -596,6 +598,22 @@ def test_front_edge_and_web_are_handed_the_same_three_headers(front, http):
     for name, value in sent.items():
         assert arrived[name.lower()] == [value], name
     assert here["client_ip"] == arrived["cf-connecting-ip"][0]
+
+
+# ── connections to `web` ──────────────────────────────────────────────────────
+
+def test_an_idle_connection_to_web_is_dropped_before_web_drops_it(front, http):
+    """The stand-in for `web` reports the port each request arrived from, which names the
+    connection. Back to back, two requests share one (connections ARE reused). After the front
+    door's idle limit has passed, the next request must arrive on a new one: the front door let
+    go first, well inside `web`'s own 5 s, so it never writes into a connection `web` is closing."""
+    first = http.get(front + "/api/echo").json()["peer_port"]
+    again = http.get(front + "/api/echo").json()["peer_port"]
+    assert first == again, "two back-to-back requests did not share a connection: nothing is being reused"
+    time.sleep(front_app.UPSTREAM_KEEPALIVE_EXPIRY_S + 0.5)
+    later = http.get(front + "/api/echo").json()["peer_port"]
+    assert later != first, "an idle connection outlived the front door's limit"
+    assert front_app.UPSTREAM_KEEPALIVE_EXPIRY_S + 0.5 < 5, "the wait above must stay inside web's own idle limit"
 
 
 # ── when `web` is not there ───────────────────────────────────────────────────
