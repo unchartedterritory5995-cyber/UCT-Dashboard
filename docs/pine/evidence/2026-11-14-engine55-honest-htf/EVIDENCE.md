@@ -157,46 +157,51 @@ is only made honest about it.
 
 ## Measurements (before / after)
 
-All numbers measured 2026-11-14 on this branch. "Before" is `origin/master` `46b2975b86` (harness) and
-`387913b835` (census; the engine files are identical between the two). Sample: 679 scripts + 295
-examples (974 census rows).
+All numbers measured 2026-11-14 on this branch at `d044bbc106` (the review round, merged with
+`origin/master` `a69150804e`; no engine, census, sample or capture file came in with that merge). "Before"
+is `origin/master` `46b2975b86` (harness) and `387913b835` (census; the engine files are identical between
+the two). Sample: 679 scripts + 295 examples (974 census rows).
 
 ### Vendor harness (`tests/fixtures/vendor`, every capture)
 
 | lane | before (MATCH / DIVERGE / INCONCLUSIVE) | after |
 |---|---|---|
-| production | 155 / 49 / 166 | 157 / 43 / 170 (with the capture master added since: 157 / 44 / 170 of 371) |
-| runtime-on | 181 / 49 / 140 | 183 / 43 / 144 (with it: 183 / 44 / 144 of 371) |
+| production | 155 / 49 / 166 (370) | 157 / 44 / 170 (371) |
+| runtime-on | 181 / 49 / 140 (370) | 183 / 44 / 144 (371) |
 
-(Unique capture ids; 5 vw-* captures sit in two directories and count once, identically on both sides.)
+(Unique capture ids; 5 vw-* captures sit in two directories and count once, identically on both sides. The
+371st capture is the one master added, `pivot-high-low-points-rddt-1d-2026-11-14`: DIVERGE on master
+`c2a8e1773f` AND on this branch, identically per plot, both lanes — not a new DIVERGE.)
 
 Capture transitions, both lanes, and nothing else moved:
 - `support-and-resistance-multi-time-frame` RDDT + SPY: DIVERGE -> MATCH ("all 7 items agree"; 6 plots
-  DIVERGE -> MATCH, the 4 weekly / monthly ones with only the newest bar withheld by name and not compared).
+  DIVERGE -> MATCH). Both captures end on a Friday: the WEEKLY plots now draw and grade that bar (review
+  L3); the MONTHLY ones withhold it by name and do not compare it.
 - `k-clustering` RDDT + SPY: DIVERGE -> INCONCLUSIVE (the table named `objects:not-computable`).
-- `mcclellan-indicators` RDDT + SPY: DIVERGE -> INCONCLUSIVE (refused at the door, `pine:request`,
-  `other-symbol:bare` for `ADVN` / `DECN`). Its 13 plots per capture are no longer graded: all 13 read
-  `ADVN` / `DECN` (source lines 13-14), and the 12 that read MATCH before were `na` against `na` under the
-  input default (`Indicator = 'Oscillator'`), so no served value is lost.
-- Zero plot MATCH -> DIVERGE. Zero new DIVERGE. `htf-liquidity` stays DIVERGE (pre-existing, not this engine's).
-- The one capture master added after the first merge (`pivot-high-low-points-rddt-1d-2026-11-14`) grades
-  DIVERGE on master `c2a8e1773f` AND on this branch, identically per plot (Shapes DIVERGE + Shapes MATCH,
-  objects MATCH), both lanes: not a new DIVERGE.
+- `mcclellan-indicators` RDDT + SPY: DIVERGE -> INCONCLUSIVE, "1 of 15 items could not be compared"
+  (review M1): the door ATTACHES it, and only `Osc` — the one plot whose tree reads `ADVN` / `DECN` under the
+  input default — is refused by name (`pine:request`, `other-symbol:bare`, the breadth sentence). The other
+  plots fold to `na` under that default (`Indicator = 'Oscillator'`), read no symbol, and still MATCH
+  TradingView's `na`, exactly as on master.
+- Zero plot MATCH -> DIVERGE. Zero new DIVERGE. `htf-liquidity` stays DIVERGE (pre-existing; its CAP3
+  signature is master's again, since its bare FX reads are `sym` nodes again).
 
 ### Door census and coverage map
 
 | | before | after |
 |---|---|---|
-| sample row-clean (static, production) | 227 | 222 |
+| sample row-clean (static, production) | 227 | 227 |
 | sample row-clean AND bound-clean (production) | n/a | 215 |
-| sample attached any form (production) | 287 | 282 |
-| coverage map `headline.transfer` (static) | 214 | 209 |
+| sample attached any form (production) | 287 | 287 |
+| coverage map `headline.transfer` (static) | 214 | 214 |
 | coverage map `headline.transferBound` | n/a | 202 |
-| runtime-on lane: row-clean / bound-clean | 227 / n/a | 222 / 215 |
+| runtime-on lane: row-clean / bound-clean | 227 / n/a | 227 / 215 |
 
-Static: exactly the five expected scripts left the clean set (McClellan, smt-divergence `XAUUSD`,
-advance-decline-line-nyse-buschi, kyadvance-decline-line, LazyBear McClellan); none joined it.
-Bound: seven clean scripts are not fully drawn on the RDDT 1D bind:
+Static: unchanged — after review M1 the five scripts that read a spelling no binding serves (McClellan,
+smt-divergence `XAUUSD`, advance-decline-line-nyse-buschi, kyadvance-decline-line, LazyBear McClellan)
+ATTACH again, with only their reading plots refused. (The first cut refused them whole: 222.)
+Bound: twelve clean scripts are not fully drawn on the RDDT 1D bind — the five above (their refused plots:
+`column-error:<key>:pine:request` and the spelling-decided `other-symbol:*` refusals), and:
 - `builtin:supertrend` — DARK: `value` listing 0 / off-listing 102, `out2` listing 0 / off-listing 119;
 - `btc-charlie-trader-xo-macro-trend-scanner` — column errors `resolve:name` (out11-out14);
 - `k-clustering` — 51 object ops withheld unknown, table named not-computable;
@@ -215,7 +220,7 @@ draws as nothing too. The test now counts only plots the off-listing replay draw
 ## Mutants
 
 Every guard mutation-proven: copy aside, mutate, focused test fails, restore from the copy, `git hash-object`
-equals the HEAD blob. **44 mutants, 44 killed.**
+equals the HEAD blob. **62 mutants, 62 killed** (44 in the first round, 18 in the review round).
 - tf_merge (JS): M1 `child[b]` on every bar · M2 `child[b-1]` everywhere · M3a weekday (Friday) rule ·
   M3b calendar month-end rule · M4a serve the confirmed newest bar · M4b unknown state read as forming ·
   M4c `sym` series newest not masked · M5 merge applied to formula `tf` · M6 Pine emits `tf` · M7 lint badge
@@ -233,6 +238,15 @@ equals the HEAD blob. **44 mutants, 44 killed.**
   tested: naming creates took ict-killzones and vdubus off MATCH.)
 - census: C1 bound ignores withheld-unknown · C2 bound counts store-dependent refusals · C3 dark plot unseen ·
   C4 empty-in-both plot counted dark.
+- review round: R-M1a escalate to a whole-document refusal again · R-M1b the bind's guard is the code, not
+  `pine:request` · R-M1c static refusals unmarked at the bind · R-M2 another change rides the claimed move
+  (an extra key on the `tf_merge` node) · R-L3a a closing newest bar never served · R-L3b a weekend series
+  served · R-L3c an intraday chart served · R-L3d a Thursday read as closing (it SURVIVED the first rails —
+  the Good Friday Thursday plus three days is still in its ISO week — and was killed by a new rail: Thursday
+  2026-01-29 does not close January) · R-L3py the Python twin never serves · R-L2a the first period served ·
+  R-L2b the first bar always read as opening its period · R-L2c the listing gate ignored · R-L2py the Python
+  twin serves the first period · R-L5a a throw while asking serves · R-L5b the runtime lane takes any string ·
+  R-L5c the host's generic sentence · R-L5d a foreign exchange unnamed · R-L6 the breadth prefix unanchored.
 
 ## Open notes
 
@@ -241,23 +255,33 @@ equals the HEAD blob. **44 mutants, 44 killed.**
 - **Not named (by rule):** a withheld CREATE of a partly drawn family, and a cell write whose guard is
   unknown — whether that object exists on TradingView is itself the unknown. pivot-based-swing-highs-and-lows
   (4) and uptrick-volume-weighted-bands (2) stay counted-and-unnamed; the bound census counts them.
-- **`htf-liquidity` stays DIVERGE** (pre-existing; its probe replay re-pinned to the merged weekly reading).
+- **`htf-liquidity` stays DIVERGE** (pre-existing). After review M1 its bare FX reads are `sym` nodes again, so its
+  probe-replay pin, its CAP3 signature and DIV-1's "reads another symbol, stays cold" case are master's again.
+- **A spelling the host cannot turn into a listing at all** (a foreign exchange, `BRK/B`) still refuses the WHOLE
+  script, as at engine 54 — now by name, in one sentence, in both lanes (review L5). Only spellings that make a
+  `sym` node can be refused per plot.
 - **`savedDocumentRoundTrip`**: S&R MTF is listed in `MOVED_BY_ENGINE` — its saved computation digest moved on
-  purpose (tf -> tf_merge), with a rail that the move is the one claimed; the bumped engine version re-translates
-  a member's saved copy.
+  purpose (tf -> tf_merge). Review M2: with every `tf_merge` mapped back to `tf` (and the trees' hash re-taken),
+  the digest EQUALS the saved one, in the moved-on-purpose rail and in both round-trip loops, so nothing else can
+  ride the move; the bumped engine version re-translates a member's saved copy.
 - **Scans and alerts refuse `tf_merge`** by name rather than reading a merged series: both read the newest
   finished bar, the one the merge withholds. A daily-close alert on a merged weekly level is a later decision.
-- **Conformance `--check`** is red on master already (pre-existing); not re-recorded here. The new corpus case
-  `tf_merge_against_the_closed_week` agrees across lanes.
-- **Pre-existing failures** (fail identically on master, not touched): chart suite (`src/components/chart`, 6 shards, 1,534 files on `edb39790ae`):
-  16 failing tests in 9 files, the SAME 16 names failing on master `c2a8e1773f` (run there by checkout):
-  colorUpDownSubstitution, markerPixels, readoutSchema.va2 (8), rsRatingDef, rsVsEmaDef,
-  vendorHarness.b1Paints (master added three paint captures without the pin), readout.va3,
-  attachedPineDisclosures (11 vs 9 of 18 drawing elements, same text on master), oneKey.census.
-  Python: `test_definition_concierge.py` 5 failures, identical names on master; the rest of the
-  engine-55 Python set passes (tf_merge, scan_definition, ast_interpret, ast_lint, bar_index_shift parity,
-  compute_graph, user_definitions, ast_conformance, alert admission / lookback / runtime lane / router /
-  inputs / catalog, pine_coverage).
-- **Measurement note:** the harness verdicts are from `edb39790ae` (the merged head; identical, capture for
-  capture and plot for plot, to the run on `7587aa3bf9` before the second merge); the census and coverage
-  map are from `0751625034` (the second merge brought no engine, census or sample file).
+- **Conformance `--check`** is red on master already (pre-existing, 4,439 disagreeing rows); not re-recorded
+  here. The two new corpus cases are bound as a series from its listing (`opts.historyFromListing`, review L2:
+  the shared bars are five days of intraday bars, so off the listing nothing of a weekly merge is certain).
+  `tf_merge_against_the_closed_week` agrees across lanes; `tf_merge_close_weekly` differs exactly as master's
+  own formula `tf_close_weekly` already does on these intraday bars (JS 106.9 / Python 106.76 for week one —
+  the lanes' existing intraday day bucketing, not the merge).
+- **Pre-existing failures** (fail identically on master, not touched): chart suite (`src/components/chart`,
+  6 shards, 1,534 files, on `d044bbc106`): 3,916 / 4,251 / 5,569 / 4,185 / 4,816 / 4,999 passed; the 16 failing
+  test names are the SAME 16 that fail on master `c2a8e1773f` (run there by checkout): colorUpDownSubstitution,
+  markerPixels, readoutSchema.va2 (8), rsRatingDef, rsVsEmaDef, vendorHarness.b1Paints (master added three
+  paint captures without the pin), readout.va3, attachedPineDisclosures (11 vs 9 of 18 drawing elements, same
+  text on master), oneKey.census. (The one other failure that run showed — `interpret.test.js`, the two new
+  corpus cases reading all-NaN off the listing — is fixed by the corpus `opts` above.)
+  Python, one file at a time: `test_definition_concierge.py` 5 failures and `test_c45_withheld_doors.py` 2,
+  identical names on master; the rest of the engine-55 Python set passes.
+- **Measurement note:** the harness, census, coverage map and chart suite are all from `d044bbc106`. The commit
+  after it only gives the two corpus cases their `opts` and records the tool files the suite rewrote
+  (`tools/corpus_metric.json`, `tools/lookback_agreement.json`, read by `tests/test_ast_lookback_agreement.py`,
+  which passes).
