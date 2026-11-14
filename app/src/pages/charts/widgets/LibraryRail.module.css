@@ -358,3 +358,7 @@
 .overlayOut { animation: railOut 0.17s ease forwards; pointer-events: none; }
 .scrimOut { animation: scrimOut 0.17s ease forwards; pointer-events: none; }
 @media (prefers-reduced-motion: reduce) { .scrim, .overlayOut, .scrimOut { animation: none; } }
+
+/* One library width everywhere (owner 11-13): beside the list it keeps the same 232px it has when
+   it slides over a narrow widget — same tab spacing, same names, no squeeze. */
+.side { flex: 0 0 232px; width: 232px; }

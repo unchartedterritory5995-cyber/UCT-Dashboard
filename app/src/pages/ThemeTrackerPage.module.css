@@ -1411,7 +1411,7 @@
   border-radius: 2px;
   background: var(--widget-accent, var(--accent, #dcbb5e));
 }
-:global(.uct-frame) .settingsBtn { width: 24px; height: 22px; padding: 0; border-radius: 6px; opacity: 0.85; color: var(--widget-text, var(--tt-text, #cfcac0)); }
+:global(.uct-frame) .settingsBtn { width: 24px; height: 22px; padding: 0; border-radius: 6px; opacity: 0.85; color: var(--widget-text, var(--tt-text, var(--text-muted))); }
 :global(.uct-frame) .settingsBtn:hover,
 :global(.uct-frame) .settingsBtnActive { opacity: 1; color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); background: var(--widget-row-hover, rgba(255, 255, 255, 0.07)); }
 :global(.uct-frame) .searchBar { padding: 8px 10px; border-bottom: none; }
@@ -1725,3 +1725,296 @@
 }
 :global(.uct-frame) .groupRowOpen .groupCaret { transform: rotate(90deg); }
 @media (prefers-reduced-motion: reduce) { :global(.uct-frame) .groupCaret { transition: none; } }
+
+/* ── Theme groups, option B (owner 11-13) — replaces the guide line + index pill above ──────
+   A down-chevron on the left that flips when the theme opens; the count plain; an opened
+   theme's stocks on a slightly lighter band, simply indented — no lines; the index a plain row
+   with its label in UCT gold; a selected stock a soft grey highlight only (no gold edge, no
+   shifted padding — that edge is what read as off-centre). */
+.groupBody { padding: 0 0 4px; background: color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 3%, transparent); }
+.groupBody .stockRow::before,
+.groupBody .stockRow::after { content: none; }
+.groupBody .stockRow { padding-left: 32px; }
+.groupBody .indexRow {
+  margin: 0;
+  padding-left: 32px;
+  min-height: 28px;
+  border-radius: 0;
+  background: transparent;
+}
+.groupBody .indexRow:hover { background: color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 5%, transparent); }
+:global(.uct-frame) .stockRow.selected,
+:global(.uct-frame) .groupBody .stockRow.selected {
+  border-left: none;
+  padding-left: 32px;
+  box-shadow: none;
+  background: color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 8%, transparent);
+}
+:global(.uct-frame) .groupRowOpen,
+:global(.uct-frame) .groupRowOpen:hover { background: color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 5%, transparent); }
+
+/* Chevron: points down, flips up when the theme is open. */
+:global(.uct-frame) .groupCaret::before { left: 4px; top: 3px; transform: rotate(45deg); }
+:global(.uct-frame) .groupRowOpen .groupCaret { transform: rotate(180deg); }
+:global(.uct-frame) .groupCaret { color: var(--widget-text, var(--text-muted, #a9a59b)); }
+
+/* owner 11-13: no chevron at all (the open band and highlight show what is open), and the index
+   and stocks start just under the theme name instead of far in. */
+:global(.uct-frame) .groupCaret { display: none; }
+.groupBody .stockRow, .groupBody .indexRow, :global(.uct-frame) .groupBody .stockRow.selected { padding-left: 14px; }
+
+/* ~360px and below (owner 11-13: the top row overlapped): 1W folds too, and Close / Open moves
+   into the ▾ menu (ThemeTrackerPage lists it there then). */
+.ttMenuSep { height: 1px; margin: 4px 6px; background: var(--border, #2a2c31); }
+.ttMenuLabel { padding: 6px 10px 2px; font-size: 11px; font-weight: 600; color: var(--text-muted, #a9a59b); }
+@container uctw (max-width: 360px) {
+  .periodTabFoldTiny { display: none !important; }
+  :global(.uct-frame) .basisInTabs { display: none !important; }
+}
+
+/* Stocks start right under the theme name: the flag star floats in the left margin (still
+   shown on hover), so it no longer pushes the logo in. */
+.groupBody .stockLabel { position: relative; }
+:global(.uct-frame) .groupBody .stockRow .flagStar { position: absolute; left: -15px; top: 50%; transform: translateY(-50%); margin: 0; }
+.groupBody .stockRow, .groupBody .indexRow, :global(.uct-frame) .groupBody .stockRow.selected { padding-left: 18px; }
+
+/* Opened theme = a recessed drawer (owner 11-13, option 2): its stocks sit slightly DARKER than
+   the list with a soft inner shadow at the top, as if the theme slid open. No grey-on-grey. */
+.groupBody {
+  background: rgba(0, 0, 0, 0.28);
+  box-shadow: inset 0 6px 8px -6px rgba(0, 0, 0, 0.7), inset 0 -1px 0 color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 4%, transparent);
+}
+:global(.uct-frame) .groupRowOpen, :global(.uct-frame) .groupRowOpen:hover { background: transparent; }
+:global(.uct-frame) .groupRowOpen:hover { background: color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 4%, transparent); }
+:global([data-theme='light']) .groupBody { background: rgba(0, 0, 0, 0.05); box-shadow: inset 0 6px 8px -6px rgba(0, 0, 0, 0.18); }
+
+/* Star ↔ logo gap like the Watchlist's (owner 11-13): the star a little further out, the logo a touch in. */
+.groupBody .stockRow, .groupBody .indexRow, :global(.uct-frame) .groupBody .stockRow.selected { padding-left: 22px; }
+:global(.uct-frame) .groupBody .stockRow .flagStar { left: -21px; width: 14px; display: inline-flex; justify-content: center; }
+
+/* ── Theme sets on the board (UCT frame, owner 11-13) — the set picker, its menu and the edit
+      bar restyled to the widget look. Same elements and handlers as the sets v2 UI above;
+      these classes only render on the board. ── */
+.setPickerUct {
+  height: 30px;
+  gap: 6px;
+  padding: 0 9px 0 11px;
+  max-width: 150px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 5%, transparent);
+  color: var(--widget-text-strong, var(--text-bright, #f8f7f3));
+  font-size: calc(12px * var(--tt-font-scale, 1));
+  font-weight: 600;
+  letter-spacing: 0;
+}
+.setPickerUct:hover,
+.setPickerUctOpen { background: color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 9%, transparent); }
+.setPickerUct:focus-visible { outline: 2px solid var(--accent, #dcbb5e); outline-offset: 1px; }
+.setPickerUct svg { flex: 0 0 auto; color: var(--widget-text, var(--text-muted, #a9a59b)) !important; filter: none !important; transition: transform 0.15s ease; }
+.setPickerUct svg * { stroke: currentColor !important; }
+.setPickerUctOpen svg { transform: rotate(180deg); }
+.setPickerUctName { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Menus (set list + add theme): the board menu look (same as the footer ⋯). */
+.floatMenu.setMenuUct {
+  padding: 6px;
+  border-radius: 10px;
+  background: var(--menu-bg, var(--bg-elevated, #1b1c20));
+  border: 1px solid var(--menu-border, var(--border-accent, #383b41));
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5);
+  font-family: var(--font-sans);
+}
+.setMenuUct .ttMenuItem { font-size: 13px; }
+.setUctRow { display: flex; align-items: center; gap: 2px; min-height: 34px; }
+.setUctItem { flex: 1 1 auto; min-width: 0; gap: 6px; }
+.setUctCheck { flex: 0 0 16px; display: inline-flex; justify-content: center; }
+.setUctCheck svg { color: var(--text-bright, #f8f7f3) !important; }
+.setUctName { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.setUctIcon {
+  flex: 0 0 auto;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px;
+  border: none; border-radius: 6px; background: none; cursor: pointer;
+  color: var(--text-muted, #a9a59b);
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.setUctRow:hover .setUctIcon, .setUctIcon:focus-visible { opacity: 1; }
+.setUctIcon:hover { color: var(--text-bright, #f8f7f3); background: var(--bg-hover, rgba(255, 255, 255, 0.07)); }
+.setUctIconDanger:hover { color: var(--danger-ink, #f0525a); background: color-mix(in srgb, var(--loss, #f0525a) 12%, transparent); }
+.setUctConfirm { flex: 1; display: flex; align-items: center; gap: 6px; padding: 4px 4px 4px 10px; min-width: 0; }
+.setUctConfirmLabel { flex: 1; min-width: 0; font-size: 12.5px; color: var(--text, #e9e6de); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.setUctDanger, .setUctQuiet {
+  flex: 0 0 auto;
+  height: 26px; padding: 0 10px;
+  border: none; border-radius: 6px; cursor: pointer;
+  font: 600 12px var(--font-sans);
+}
+.setUctDanger { background: color-mix(in srgb, var(--loss, #f0525a) 18%, transparent); color: var(--danger-ink, #f0525a); }
+.setUctDanger:hover { background: color-mix(in srgb, var(--loss, #f0525a) 28%, transparent); }
+.setUctQuiet { background: none; color: var(--text-muted, #a9a59b); }
+.setUctQuiet:hover { background: var(--bg-hover, rgba(255, 255, 255, 0.07)); color: var(--text-bright, #f8f7f3); }
+.setUctInput {
+  flex: 1; min-width: 0; height: 30px;
+  margin: 2px 0;
+  padding: 0 10px;
+  border: 1px solid color-mix(in srgb, var(--text-bright, #f8f7f3) 22%, transparent);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--text-bright, #f8f7f3) 6%, transparent);
+  color: var(--text-bright, #f8f7f3);
+  font: 600 12.5px var(--font-sans);
+  outline: none;
+}
+/* The add-theme menu inside the board look. */
+.setMenuUct .addThemeSearch {
+  height: 30px; padding: 0 10px; margin-bottom: 6px;
+  border: 1px solid transparent; border-radius: 7px;
+  background: color-mix(in srgb, var(--text-bright, #f8f7f3) 6%, transparent);
+  font-size: 12.5px;
+}
+.setMenuUct .addThemeSearch:focus { border-color: color-mix(in srgb, var(--text-bright, #f8f7f3) 22%, transparent); }
+.setMenuUct .addThemeItem { padding: 7px 10px; border-radius: 6px; font-size: 12.5px; }
+.setMenuUct .addThemeItem:hover { background: var(--bg-hover, rgba(255, 255, 255, 0.07)); }
+.setMenuUct .addThemeMark { color: var(--text-muted, #a9a59b); }
+.setMenuUct .setMenuSep { margin: 6px 4px; background: var(--border, #2a2c31); }
+.setMenuUct .setNewRow { gap: 6px; padding: 0; }
+.setMenuUct .setInline {
+  height: 30px; padding: 0 10px;
+  border: 1px solid transparent; border-radius: 7px;
+  background: color-mix(in srgb, var(--text-bright, #f8f7f3) 6%, transparent);
+  font-size: 12.5px;
+}
+.setMenuUct .setInline:focus { border-color: color-mix(in srgb, var(--text-bright, #f8f7f3) 22%, transparent); }
+.setMenuUct .setNewGo {
+  height: 30px; padding: 0 12px; border-radius: 7px;
+  font-size: 12px; font-weight: 700;
+  background: var(--accent, #dcbb5e); color: var(--bg, #121212);
+}
+
+/* Edit bar: one quiet row in place of the column header. */
+.editUctBar {
+  flex: 0 0 auto;
+  display: flex; align-items: center; gap: 4px;
+  height: 36px; padding: 0 8px 0 6px;
+  border-bottom: 1px solid var(--tt-divider, var(--border));
+  font-family: var(--font-sans);
+  white-space: nowrap;
+  overflow: hidden;
+}
+.editUctAdd, .editUctQuiet {
+  flex: 0 0 auto;
+  display: inline-flex; align-items: center; gap: 5px;
+  height: 26px; padding: 0 8px;
+  border: none; border-radius: 6px; background: none; cursor: pointer;
+  font: 600 calc(12px * var(--tt-font-scale, 1)) var(--font-sans);
+}
+.editUctAdd { color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); }
+.editUctAdd svg { color: inherit !important; filter: none !important; }
+.editUctAdd svg * { stroke: currentColor !important; }
+.editUctQuiet { color: var(--widget-text, var(--text-muted, #a9a59b)); }
+.editUctAdd:hover, .editUctQuiet:hover { background: var(--widget-row-hover, rgba(255, 255, 255, 0.07)); color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); }
+.editUctStatus {
+  display: inline-flex; align-items: center; gap: 6px;
+  min-width: 0;
+  font-size: calc(11.5px * var(--tt-font-scale, 1));
+  color: var(--widget-text, var(--text-muted, #a9a59b));
+  overflow: hidden; text-overflow: ellipsis;
+}
+.editUctStatus b { color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); font-weight: 700; }
+.editUctStatus .setUctInput { height: 26px; width: 140px; flex: 0 1 auto; margin: 0; font-size: 12px; }
+.editUctName {
+  display: inline-flex; align-items: center; gap: 5px;
+  min-width: 0; height: 26px; padding: 0 6px;
+  border: none; border-radius: 6px; background: none; cursor: pointer;
+  font: 700 calc(12px * var(--tt-font-scale, 1)) var(--font-sans);
+  color: var(--widget-text-strong, var(--text-bright, #f8f7f3));
+}
+.editUctNameText { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.editUctName svg { flex: 0 0 auto; color: var(--widget-text, var(--text-muted, #a9a59b)); opacity: 0; transition: opacity 0.12s ease; }
+.editUctName:hover { background: var(--widget-row-hover, rgba(255, 255, 255, 0.07)); }
+.editUctName:hover svg, .editUctName:focus-visible svg { opacity: 1; }
+.editUctSaved { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 3px; font-size: calc(11px * var(--tt-font-scale, 1)); }
+.editUctSaved svg { color: inherit !important; filter: none !important; }
+.editUctSaved svg * { stroke: currentColor !important; }
+.editUctDone {
+  flex: 0 0 auto;
+  height: 26px; margin-left: 6px; padding: 0 12px;
+  border: none; border-radius: 6px; cursor: pointer;
+  font: 700 calc(12px * var(--tt-font-scale, 1)) var(--font-sans);
+  background: var(--accent, #dcbb5e); color: var(--bg, #121212);
+}
+.editUctDone:hover { filter: brightness(1.08); }
+.editUctAdd:focus-visible, .editUctQuiet:focus-visible, .editUctName:focus-visible, .editUctDone:focus-visible { outline: 2px solid var(--accent, #dcbb5e); outline-offset: 1px; }
+.editHintRow.editUctHint {
+  padding: 6px 12px;
+  background: none;
+  font-size: calc(11px * var(--tt-font-scale, 1));
+  color: var(--widget-text, var(--text-muted, #a9a59b));
+}
+
+/* Edit rows on the board: a quiet ✕ (red only on hover) and the add-ticker field in the
+   search-field style instead of a dashed box. */
+:global(.uct-frame) .editRemove {
+  width: 24px; height: 24px; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 6px;
+  color: var(--widget-text, var(--text-muted, #a9a59b));
+  opacity: 0.7;
+  font-size: 11px;
+}
+:global(.uct-frame) .editRemove:hover { opacity: 1; color: var(--danger-ink, #f0525a); background: color-mix(in srgb, var(--loss, #f0525a) 12%, transparent); }
+:global(.uct-frame) .addStockRow { padding-top: 4px; padding-bottom: 6px; }
+:global(.uct-frame) .addStockInput {
+  height: 28px; padding: 0 10px;
+  border: 1px solid transparent; border-radius: 7px;
+  background: color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 5%, transparent);
+  font-size: calc(12px * var(--tt-font-scale, 1));
+}
+:global(.uct-frame) .addStockInput:focus { border-style: solid; border-color: color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 22%, transparent); background: color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 8%, transparent); }
+:global(.uct-frame) .addStockGo {
+  height: 28px; padding: 0 12px; margin-left: 6px; border-radius: 7px;
+  font-size: calc(12px * var(--tt-font-scale, 1)); font-weight: 700;
+  background: var(--accent, #dcbb5e); color: var(--bg, #121212);
+}
+
+/* ── owner 11-13: index row reads "<Theme> Index" + a quiet "Equal weight" tag; the set picker +
+      search row get room to breathe (the board search box kept its own 8px padding inside a fixed
+      34px row, so both controls pressed against the row's edges). ── */
+:global(.uct-frame) .indexRow .stockLabel { min-width: 0; }
+:global(.uct-frame) .indexName { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+:global(.uct-frame) .indexSub {
+  flex: 0 0 auto;
+  margin-left: 8px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: calc(10px * var(--tt-font-scale, 1));
+  font-weight: 500;
+  background: color-mix(in srgb, var(--widget-text-strong, var(--text-bright)) 6%, transparent);
+  color: var(--widget-text, var(--text-muted));
+}
+:global(.uct-frame) .searchRow {
+  height: auto;
+  padding: 8px 12px 9px;
+  gap: 8px;
+  border-bottom: 1px solid var(--tt-divider, var(--border));
+}
+:global(.uct-frame) .searchRow .searchBar { padding: 0; }
+:global(.uct-frame) .searchRow .searchInput { height: 30px; padding-top: 0; padding-bottom: 0; }
+:global(.uct-frame) .searchRow .searchGlyph { left: 11px; }
+/* owner 11-13: the search row sits a notch shorter than the 40px title row (26px controls). */
+:global(.uct-frame) .searchRow { padding: 6px 12px; }
+:global(.uct-frame) .searchRow .searchInput { height: 26px; font-size: calc(12px * var(--tt-font-scale, 1)); border-radius: 7px; }
+:global(.uct-frame) .searchRow .setPickerUct { height: 26px; border-radius: 7px; font-size: calc(11.5px * var(--tt-font-scale, 1)); }
+/* owner 11-13: the search row is the SAME height as the Watchlist library rail's tab row
+   (LibraryRail .seg: 36px incl. its 1px bottom line), 26px controls centred in it. */
+:global(.uct-frame) .searchRow { height: 36px; box-sizing: border-box; padding: 0 12px; }
+:global(.uct-frame) .searchRow .searchInput { height: 26px; font-size: calc(12px * var(--tt-font-scale, 1)); border-radius: 7px; }
+:global(.uct-frame) .searchRow .setPickerUct { height: 26px; border-radius: 7px; font-size: calc(11.5px * var(--tt-font-scale, 1)); }
+/* owner 11-13: the opened theme is marked like the selected list in the Watchlist library rail
+   (LibraryRail .itemOn) — the same grey highlight + a 2px gold inset rail on the left edge. */
+:global(.uct-frame) .groupRowOpen,
+:global(.uct-frame) .groupRowOpen:hover {
+  background: var(--widget-row-hover, rgba(255, 255, 255, 0.06));
+  box-shadow: inset 2px 0 0 var(--widget-accent, var(--accent, #dcbb5e));
+}

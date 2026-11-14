@@ -341,7 +341,7 @@ function ThemeGroup({ theme, themeKey, selectedSym, selectedNavKey, onSelectSym,
             <span className={styles.stockLabel}>
               <span className={styles.stockLogo}><UIcon name="equity" size={13} /></span>
               {grouped
-                ? <><span className={`${styles.sym} ${styles.indexName}`}>Index</span><span className={styles.indexSub}>{theme.etf_name ? 'ETF · equal weight' : 'equal weight'}</span></>
+                ? <><span className={`${styles.sym} ${styles.indexName}`} title={`${theme.name} Index`}>{theme.name} Index</span><span className={styles.indexSub}>{theme.etf_name ? 'ETF · equal weight' : 'Equal weight'}</span></>
                 : <span className={styles.sym} style={{ fontWeight: 700 }}>{theme.name} Index</span>}
               {/* The row is always the equal-weight SYNTHETIC index ($IDX). Only
                   label it "ETF" when the theme is actually ETF-backed — the 48
@@ -402,7 +402,7 @@ function ThemeGroup({ theme, themeKey, selectedSym, selectedNavKey, onSelectSym,
 
 // A dropdown menu rendered in a PORTAL (document.body) positioned under an anchor, so the
 // widget's overflow:hidden can never clip it — it floats on top and can spill past the edge.
-function FloatingMenu({ anchorRef, onClose, width = 210, up = false, children }) {
+function FloatingMenu({ anchorRef, onClose, width = 210, up = false, className = '', children }) {
   const [pos, setPos] = useState(null)
   useLayoutEffect(() => {
     const el = anchorRef?.current
@@ -420,7 +420,7 @@ function FloatingMenu({ anchorRef, onClose, width = 210, up = false, children })
   return createPortal(
     <>
       <div className={styles.floatBackdrop} onClick={onClose} />
-      <div className={styles.floatMenu} style={style}>{children}</div>
+      <div className={`${styles.floatMenu}${className ? ' ' + className : ''}`} style={style}>{children}</div>
     </>,
     document.body,
   )
@@ -439,13 +439,71 @@ const TrashIcon = () => (
 
 // Set picker + Edit toggle (rides the search row). Create / rename / delete all happen
 // IN-WIDGET (inline inputs, 2-click delete confirm) — no browser prompt/confirm dialogs.
-function SetPicker({ sets, themeSetId, activeSet, onSelect, onRename, onDelete, editing, onToggleEdit }) {
+function SetPicker({ sets, themeSetId, activeSet, onSelect, onRename, onDelete, editing, onToggleEdit, board = false }) {
   const [open, setOpen] = useState(false)
   const [renamingId, setRenamingId] = useState(null)
   const [renameVal, setRenameVal] = useState('')
   const [confirmDel, setConfirmDel] = useState(null)
   const btnRef = useRef(null)
   const close = () => { setOpen(false); setRenamingId(null); setConfirmDel(null) }
+  // Board look (UCT frame, owner 11-13): the set name is a quiet button like the search field;
+  // Edit / Customize moved into its menu (and the footer ⋯). Same handlers as below.
+  if (board) return (
+    <div className={styles.setPicker}>
+      <button ref={btnRef} type="button" className={`${styles.setPickerBtn} ${styles.setPickerUct}${open ? ' ' + styles.setPickerUctOpen : ''}`}
+        data-guide="themes.sets" aria-haspopup="menu" aria-expanded={open}
+        onClick={() => setOpen(o => !o)} title="Theme set — UCT Default or one of your own">
+        <span className={styles.setPickerUctName}>{activeSet ? activeSet.name : 'UCT Default'}</span>
+        <UIcon name="chevronDown" size={12} gold={false} />
+      </button>
+      {open && (
+        <FloatingMenu anchorRef={btnRef} onClose={close} width={240} className={styles.setMenuUct}>
+          <div className={styles.ttMenuLabel}>Theme sets</div>
+          <button type="button" role="menuitemradio" aria-checked={!themeSetId}
+            className={`${styles.ttMenuItem} ${styles.setUctItem}`} onClick={() => { onSelect(null); close() }}>
+            <span className={styles.setUctCheck}>{!themeSetId && <UIcon name="check" size={13} gold={false} />}</span>
+            <span className={styles.setUctName}>UCT Default</span>
+          </button>
+          {sets.map(s => (
+            <div key={s.id} className={styles.setUctRow}>
+              {confirmDel === s.id ? (
+                <div className={styles.setUctConfirm}>
+                  <span className={styles.setUctConfirmLabel}>Delete “{s.name}”?</span>
+                  <button type="button" className={styles.setUctDanger} onClick={() => { onDelete(s.id); close() }}>Delete</button>
+                  <button type="button" className={styles.setUctQuiet} onClick={() => setConfirmDel(null)}>Cancel</button>
+                </div>
+              ) : renamingId === s.id ? (
+                <input aria-label="Rename theme set" autoFocus className={styles.setUctInput} value={renameVal}
+                  onChange={e => setRenameVal(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') { onRename(s.id, renameVal.trim() || s.name); setRenamingId(null) }
+                    if (e.key === 'Escape') setRenamingId(null)
+                  }}
+                  onBlur={() => setRenamingId(null)} />
+              ) : (
+                <>
+                  <button type="button" role="menuitemradio" aria-checked={s.id === themeSetId}
+                    className={`${styles.ttMenuItem} ${styles.setUctItem}`} onClick={() => { onSelect(s.id); close() }}>
+                    <span className={styles.setUctCheck}>{s.id === themeSetId && <UIcon name="check" size={13} gold={false} />}</span>
+                    <span className={styles.setUctName}>{s.name}</span>
+                  </button>
+                  <button type="button" className={styles.setUctIcon} title="Rename" aria-label={`Rename ${s.name}`}
+                    onClick={() => { setRenamingId(s.id); setRenameVal(s.name); setConfirmDel(null) }}><PencilIcon /></button>
+                  <button type="button" className={`${styles.setUctIcon} ${styles.setUctIconDanger}`} title="Delete" aria-label={`Delete ${s.name}`}
+                    onClick={() => setConfirmDel(s.id)}><TrashIcon /></button>
+                </>
+              )}
+            </div>
+          ))}
+          <div className={styles.ttMenuSep} />
+          <button type="button" role="menuitem" className={styles.ttMenuItem} onClick={() => { close(); onToggleEdit() }}>
+            <UIcon name="edit" size={14} gold={false} />
+            {editing ? 'Finish editing' : activeSet ? `Edit ${activeSet.name}` : 'Make your own set'}
+          </button>
+        </FloatingMenu>
+      )}
+    </div>
+  )
   return (
     <div className={styles.setPicker}>
       <button ref={btnRef} className={styles.setPickerBtn} data-guide="themes.sets" onClick={() => setOpen(o => !o)} title="Choose a preset">
@@ -497,7 +555,7 @@ function SetPicker({ sets, themeSetId, activeSet, onSelect, onRename, onDelete, 
 
 // Add-theme picker (edit mode): search the full theme list + click to add (watchlist-style),
 // or type a name to create a custom theme. One "Add" affordance.
-function AddThemePicker({ palette, inSet, onAdd, onCreateCustom, up = false }) {
+function AddThemePicker({ palette, inSet, onAdd, onCreateCustom, up = false, board = false }) {
   const [open, setOpen] = useState(false)
   const [q, setQ] = useState('')
   const [cname, setCname] = useState('')
@@ -507,9 +565,15 @@ function AddThemePicker({ palette, inSet, onAdd, onCreateCustom, up = false }) {
   const close = () => { setOpen(false); setQ(''); setCname('') }
   return (
     <div className={styles.addThemeWrap}>
-      <button ref={btnRef} className={styles.editBarAdd} onClick={() => setOpen(o => !o)}>＋ Add theme</button>
+      {board ? (
+        <button ref={btnRef} type="button" className={styles.editUctAdd} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(o => !o)}>
+          <UIcon name="plus" size={13} gold={false} /> Add theme
+        </button>
+      ) : (
+        <button ref={btnRef} className={styles.editBarAdd} onClick={() => setOpen(o => !o)}>＋ Add theme</button>
+      )}
       {open && (
-        <FloatingMenu anchorRef={btnRef} onClose={close} width={260} up={up}>
+        <FloatingMenu anchorRef={btnRef} onClose={close} width={260} up={up} className={board ? styles.setMenuUct : ''}>
           <input aria-label="Search themes" autoFocus className={styles.addThemeSearch} placeholder="Search themes…" value={q} onChange={e => setQ(e.target.value)} />
           <div className={styles.addThemeList}>
             {list.map(t => {
@@ -709,9 +773,11 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
 
   // Full default dataset — fetched ONLY while editing, as the palette + data source so
   // add/remove/reorder edits render instantly from local state (no server round-trip, no reflow).
-  const { data: allData } = useMobileSWR(editing ? '/api/theme-performance' : null, fetcher, {
+  const { data: allDataRaw } = useMobileSWR(editing ? '/api/theme-performance' : null, fetcher, {
     dedupingInterval: 30_000, revalidateOnFocus: false,
   })
+  // ⚠️ LOCAL PREVIEW ONLY (hooks/devFakeQuotes.js): the editor palette matches the made-up themes.
+  const allData = useMemo(() => (allDataRaw ? devFakeThemes(allDataRaw) : allDataRaw), [allDataRaw])
   // Prefer the full default dataset (the palette); fall back to the current ?set= data so the
   // editor is never blank in the moment before allData loads.
   const editSource = (allData?.themes?.length ? allData : data) || null
@@ -1399,7 +1465,7 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
           {RANK_TABS.map((tab, i) => (
             <button
               key={tab}
-              className={`${styles.periodTab} ${activeTab === tab ? styles.periodTabActive : ''}${onBoard && i >= FOLD_FROM && activeTab !== tab ? ' ' + styles.periodTabFold : ''}${onBoard && i === FOLD_FROM - 1 && activeTab !== tab ? ' ' + styles.periodTabFoldNarrow : ''}`}
+              className={`${styles.periodTab} ${activeTab === tab ? styles.periodTabActive : ''}${onBoard && i >= FOLD_FROM && activeTab !== tab ? ' ' + styles.periodTabFold : ''}${onBoard && i === FOLD_FROM - 1 && activeTab !== tab ? ' ' + styles.periodTabFoldNarrow : ''}${onBoard && i === 1 && activeTab !== tab ? ' ' + styles.periodTabFoldTiny : ''}`}
               onClick={() => handleTabClick(tab)}
             >
               {tab}{!onBoard && activeTab === tab ? (sortDir === 'desc' ? ' ↑' : ' ↓') : ''}
@@ -1417,7 +1483,8 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
                 const r = e.currentTarget.getBoundingClientRect()
                 // 1M is folded too only on a very narrow widget (the same 420px line as the CSS).
                 const w = e.currentTarget.closest('.uct-frame')?.clientWidth ?? 999
-                setPeriodMenu(periodMenu ? null : { left: r.left, top: r.bottom + 4, narrow: w <= 420 })
+                // …and at ~360px 1W and Close / Open fold too (the same lines as the CSS).
+                setPeriodMenu(periodMenu ? null : { left: r.left, top: r.bottom + 4, narrow: w <= 420, tiny: w <= 360 })
               }}
             ><svg width="10" height="7" viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" /></svg></button>
           )}
@@ -1425,11 +1492,20 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
             <>
               <div className={styles.ttMenuBackdrop} onClick={() => setPeriodMenu(null)} />
               <div className={styles.ttMenu} role="menu" aria-label="More periods" style={{ left: periodMenu.left, top: periodMenu.top, minWidth: 120 }}>
-                {RANK_TABS.slice(periodMenu.narrow ? FOLD_FROM - 1 : FOLD_FROM).map(tab => (
+                {RANK_TABS.slice(periodMenu.tiny ? 1 : periodMenu.narrow ? FOLD_FROM - 1 : FOLD_FROM).filter(tab => !(periodMenu.tiny && tab === activeTab && tab === RANK_TABS[1])).map(tab => (
                   <button key={tab} type="button" role="menuitemradio" aria-checked={activeTab === tab}
                     className={`${styles.ttMenuItem}${activeTab === tab ? ' ' + styles.ttMenuItemOn : ''}`}
                     onClick={() => { setPeriodMenu(null); handleTabClick(tab) }}>{tab}</button>
                 ))}
+                {periodMenu.tiny && activeTab === 'Today' && (<>
+                  <div className={styles.ttMenuSep} />
+                  <div className={styles.ttMenuLabel}>Today from</div>
+                  {[['close', 'Previous close'], ['open', "Today's open"]].map(([b, label]) => (
+                    <button key={b} type="button" role="menuitemradio" aria-checked={todayBasis === b}
+                      className={`${styles.ttMenuItem}${todayBasis === b ? ' ' + styles.ttMenuItemOn : ''}`}
+                      onClick={() => { setPeriodMenu(null); setTodayBasis(b) }}>{label}</button>
+                  ))}
+                </>)}
               </div>
             </>,
             pageRef.current?.ownerDocument?.body || document.body,
@@ -1490,6 +1566,7 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
                   onRename={renameSet}
                   onDelete={async (id) => { await deleteSet(id); if (id === themeSetId) selectSet(null) }}
                   editing={editing} onToggleEdit={() => editing ? stopEditing() : startEditing()}
+                  board={onBoard}
                 />
               )
               return picker
@@ -1503,7 +1580,41 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
             list): "＋ Add theme", "Start over from Default", and the auto-save status — the
             editable preset name + "Saves automatically" (or an "adding tickers" hint). Everything
             here auto-saves; there is no Save button and Done never discards. */}
-        {editing && themeSetsEnabled && (
+        {editing && themeSetsEnabled && onBoard && (
+          <div className={styles.editUctBar} role="toolbar" aria-label="Edit theme set">
+            <AddThemePicker board
+              palette={themePalette}
+              inSet={new Set(themeOrder ?? (data?.themes || []).map(t => themeSlug(t.name)))}
+              onAdd={addThemeToSet} onCreateCustom={createCustomTheme}
+            />
+            <button type="button" className={styles.editUctQuiet} onClick={resetToDefault} title="Clear all changes back to the UCT default">Start over</button>
+            <span className={styles.editBarSpacer} />
+            {addingTo ? (
+              <span className={styles.editUctStatus}>Adding to <b>{addingTo.name}</b></span>
+            ) : activeSet ? (
+              <span className={styles.editUctStatus}>
+                {barRenaming ? (
+                  <input aria-label="Rename this set" autoFocus className={styles.setUctInput} value={barRenameText}
+                    onChange={e => setBarRenameText(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') commitBarRename(); if (e.key === 'Escape') setBarRenaming(false) }}
+                    onBlur={commitBarRename} />
+                ) : (
+                  <button type="button" className={styles.editUctName} title="Rename this set"
+                    onClick={() => { setBarRenameText(activeSet.name); setBarRenaming(true) }}>
+                    <span className={styles.editUctNameText}>{activeSet.name}</span><PencilIcon />
+                  </button>
+                )}
+                <span className={styles.editUctSaved}><UIcon name="check" size={11} gold={false} />Saved</span>
+              </span>
+            ) : (
+              <span className={styles.editUctStatus}>New set · saves as you go</span>
+            )}
+            <button type="button" className={styles.editUctDone}
+              onClick={() => (addingTo ? setAddingTo(null) : stopEditing())}
+              title={addingTo ? 'Done adding tickers' : 'Finish editing (already saved)'}>Done</button>
+          </div>
+        )}
+        {editing && themeSetsEnabled && !onBoard && (
           <div className={styles.editBar}>
             <AddThemePicker
               palette={themePalette}
@@ -1539,7 +1650,7 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
         )}
         {/* One-line orientation while editing (hidden once you're mid-add). */}
         {editing && themeSetsEnabled && !addingTo && (
-          <div className={styles.editHintRow}>Add a theme, then tap it to add tickers.</div>
+          <div className={`${styles.editHintRow}${onBoard ? ' ' + styles.editUctHint : ''}`}>Add a theme, then tap it to add tickers.</div>
         )}
         {!editing && (
         <div className={styles.tableHeader}>
@@ -1666,7 +1777,7 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
                 {themeSetsEnabled && (
                   <button type="button" role="menuitem" className={styles.ttMenuItem}
                     onClick={() => { setFootMenu(null); editing ? stopEditing() : startEditing() }}>
-                    <UIcon name="edit" size={14} gold={false} /> {editing ? 'Finish editing' : activeSet ? 'Edit this set' : 'Customize (make your own set)'}
+                    <UIcon name="edit" size={14} gold={false} /> {editing ? 'Finish editing' : activeSet ? `Edit ${activeSet.name}` : 'Make your own set'}
                   </button>
                 )}
               </div>

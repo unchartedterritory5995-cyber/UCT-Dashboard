@@ -87,16 +87,19 @@ export function devFakeThemes(data) {
   const real = Array.isArray(data?.themes) ? data.themes : []
   const hasReal = real.some((t) => Object.values(t?.group_return || {}).some((v) => v != null))
   if (hasReal) return data
-  const themes = FAKE_THEMES.map(([name, ticker, syms]) => {
-    const h = seed(name)
-    const lean = rand01(h, 9) - 0.42
-    const holdings = syms.map((sym) => {
-      const hs = seed(sym)
-      const returns = Object.fromEntries(PERIOD_KEYS.map((k, i) => [k, Math.round((lean + (rand01(hs, i + 1) - 0.5) * 0.9) * SCALE[k] * 100) / 100]))
-      return { sym, name: sym, source: 'owner', returns, ref_prices: Object.fromEntries(PERIOD_KEYS.map((k) => [k, null])) }
-    })
-    const group_return = Object.fromEntries(PERIOD_KEYS.map((k) => [k, Math.round(holdings.reduce((a, x) => a + x.returns[k], 0) / holdings.length * 100) / 100]))
-    return { name, ticker, etf_name: '', holdings, group_return }
-  })
-  return { ...(data || {}), themes: [...real.filter((t) => t.holdings?.length), ...themes], status: 'ok' }
+  // Fill the member's REAL themes (their own sets included) with made-up returns, so edits show;
+  // pad a near-empty list with the sample themes so the widget has something to look at.
+  const fakeReturns = (sym, lean) => Object.fromEntries(PERIOD_KEYS.map((k, i) => [k, Math.round((lean + (rand01(seed(sym), i + 1) - 0.5) * 0.9) * SCALE[k] * 100) / 100]))
+  const fill = (t) => {
+    const lean = rand01(seed(t.name || t.ticker || ''), 9) - 0.42
+    const holdings = (t.holdings || []).map((h) => ({ ...h, returns: fakeReturns(h.sym, lean) }))
+    const group_return = Object.fromEntries(PERIOD_KEYS.map((k) => [k, holdings.length ? Math.round(holdings.reduce((a, x) => a + x.returns[k], 0) / holdings.length * 100) / 100 : null]))
+    return { ...t, holdings, group_return }
+  }
+  const filled = real.map(fill)
+  const names = new Set(filled.map((t) => t.name))
+  const pad = filled.filter((t) => t.holdings.length).length < 3
+    ? FAKE_THEMES.filter(([name]) => !names.has(name)).map(([name, ticker, syms]) => fill({ name, ticker, etf_name: '', holdings: syms.map((sym) => ({ sym, name: sym, source: 'owner', ref_prices: {} })) }))
+    : []
+  return { ...(data || {}), themes: [...filled, ...pad], status: 'ok' }
 }
