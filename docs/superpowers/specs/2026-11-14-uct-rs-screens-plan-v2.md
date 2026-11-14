@@ -270,3 +270,22 @@ called a track record.
   Windows may warn members on install.
 - Items 2 to 6 of v1 section 14 stand (RSI column, AGL news, three BRK rows, SPY self-high, 500 error).
   The exit-warning columns were empty only because they merged after that day's build.
+
+## 14. As built (2026-11-14): where the build differs from the plan above
+
+- **UCT RS Leaders is a kept list of 50 to 65 names, not a top-50 cut** (`rs_leaders_list`). A stock
+  joins when it ranks 50th or better among the stocks that pass the screen's rules and stays until it
+  falls past 65th or stops passing a rule. Every top-50 stock is always listed. Decided once a
+  session by the rating pass. Provisional default: the owner may ask for a hard 50.
+- **Weekly reading added.** `rs_nh_weekly` / `rs_nhbp_weekly` on completed weeks, a "Weekly RS high"
+  tag and a Weekly choice in When on RS New Highs and RS New High Before Price.
+- **The flag has three values** (`RS_SCREENS_ENABLED` = off / `admin` / on). `admin` computes the data
+  for everyone and shows the screens to admins only, so the owner can look on production first.
+- **Alerts** (`RS_SCREEN_ALERTS_ENABLED`), **the assistants' service** (`rs_screens_service`, Compass
+  tools behind `RS_COMPASS_TOOLS_ENABLED`) and **the unseen Leader score** (`RS_LEADER_SHADOW_ENABLED`,
+  with its pre-registered test `python -m api.services.rs_leader_test`) each have their own switch.
+- **The Leader score test needs no rating backfill**: it computes ratings in memory from bars.
+- The earnings tag counts from today in New York to the report's date; a row shows ONE tag, in the
+  starter's order (earnings, weekly, before price, market down day, flag, new).
+- Not done here: `scan_evaluator` and `rs_evidence` still read the bars store without the
+  listing-break rule (section 2 fixed the rating job and the screener build).
