@@ -45,6 +45,7 @@ import { archiveTemplate, listTemplates } from '../../../lib/templateLibrary'
 import TemplateList, { ArchivePanel, BACK_LABEL, usedOf } from '../myTools/TemplateList'
 import UsedInList from '../myTools/UsedInList'
 import { actionFailure, templateArchiveSentence, usedInText } from '../myTools/myToolsLib'
+import { PlainTemplatesManage } from '../MemberTemplates'
 import { AuthContext } from '../../../../../context/AuthContext'
 import useJournalStyles from '../../../hooks/useJournalStyles'
 import { journalStylesEnabled } from '../../../lib/journalStylesFlag'
@@ -93,7 +94,7 @@ function LibraryUpdateParam({ onFound }) {
   return null
 }
 
-export default function StylesManager({ open, onClose, blockedNoteIds = [], show = null, showKey = 0 }) {
+export default function StylesManager({ open, onClose, blockedNoteIds = [], show = null, showKey = 0, onUsePlain = null }) {
   const on = journalStylesEnabled()
   const libraryOn = styleLibraryEnabled()
   // Read per render (the flag is latched per tab, so it never flips under an open manager), as MyToolsSheet does.
@@ -112,6 +113,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [], show
   const [aside, setAside] = useState(null)             // { kind: 'usedIn' | 'archive', s } in the editor column
   const [asideError, setAsideError] = useState('')
   const tabRefs = useRef({})
+  const [plainServed, setPlainServed] = useState(-1)   // the ask (`showKey`) the Plain templates group already landed
   // `show` is read once per opening (and again when a door asks again: `showKey`).
   useEffect(() => {
     if (!open) return
@@ -166,6 +168,7 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [], show
   const titleRef = useRef(null)
   useEffect(() => {
     if (!open) return
+    if (show === 'plain' || show === 'daily') return     // follow-up C: a door asked for the Plain templates group
     const dialog = titleRef.current?.closest('[role="dialog"]')
     focusableWithin(dialog)[0]?.focus()
   }, [open])
@@ -585,6 +588,14 @@ export default function StylesManager({ open, onClose, blockedNoteIds = [], show
                 )
               })}
               </div>
+
+              {/* Follow-up C: the member's plain templates ("Save as template" copies), below the per-note-type lists,
+                  managed in this one room (MemberTemplates.jsx holds their rows and handlers, shared with the picker). */}
+              <PlainTemplatesManage busy={locked}
+                onUse={onUsePlain ? (t) => guard(() => { finish(); onUsePlain(t) }) : null}
+                focusAsk={(show === 'plain' || show === 'daily') && plainServed !== showKey ? { target: show, n: showKey } : null}
+                onLanded={() => setPlainServed(showKey)}
+                classes={{ section: styles.kindGroup, head: styles.kindHead, lead: styles.hint }} />
 
               <section className={styles.kindGroup} aria-labelledby="js-own-kinds">
                 <h3 id="js-own-kinds" className={styles.kindHead}>Your note types</h3>

@@ -2410,6 +2410,9 @@ export default function NotebookTab() {
   // The New-note menu's other doors, ONE each (the notes list's New menu, its phone rows in ⋯, the phone "+" sheet):
   // null while its gate is off, so a menu lists no door that opens nothing.
   const openNewNoteSheet = () => setPickerOpen(true)
+  // Follow-up C: the picker's "Your templates" picks; its "Manage" and "Daily notes start from: ... Change" links open
+  // the template manager at its Plain templates group (the New note sheet closes first: one room at a time).
+  const manageTemplates = stylesOn ? (place) => { setPickerOpen(false); openStyles(place) } : null
   const fromStyle = stylesOn ? () => setPickerOpen('kinds') : null
   const recordVoiceNote = voiceOn ? () => startVoiceNote('record') : null
 
@@ -3468,7 +3471,7 @@ export default function NotebookTab() {
             {/* P5 final fix: not while the New note sheet is open, so the page holds ONE picker (one
                 gallery door for a tour to wait on, one "How do you trade?", ruling P5-T10-R2). */}
             <div className={styles.emptyPicker}>
-              {!pickerOpen && !gridWaits && <TemplatePicker onPick={handlePick} onPickMember={createFromMemberTemplate} onLandNote={landTemplateNote} busy={creating} kindSection={kindSection(false)} />}
+              {!pickerOpen && !gridWaits && <TemplatePicker onPick={handlePick} onPickMember={createFromMemberTemplate} onLandNote={landTemplateNote} busy={creating} kindSection={kindSection(false)} onManageTemplates={manageTemplates} />}
             </div>
           </div>
         ) : (
@@ -3637,7 +3640,7 @@ export default function NotebookTab() {
           onImported={handleImported}
         />
         {stylesOn && <StylesManager open={stylesOpen} onClose={() => setStylesOpen(false)} blockedNoteIds={[...(blockedNoteIds || [])]}
-          show={stylesAsk.show} showKey={stylesAsk.n} />}
+          show={stylesAsk.show} showKey={stylesAsk.n} onUsePlain={createFromMemberTemplate} />}
         {/* P0.1: the New-note sheet and the voice-note dialog are mounted OUTSIDE the pane's
             branches, so a door beside an open note (the phone "+" sheet) is never a dead button.
             (Research Home's "New note" menu was the first such door; it went in go-live wave 1.) */}
@@ -3677,7 +3680,7 @@ export default function NotebookTab() {
           {/* 13Q-5: autoFocus only in the Sheet dialog -- the inline empty-notebook
               mount above (the picker at the empty-notebook branch) must never steal focus from a
               page load. */}
-          <TemplatePicker onPick={handlePick} onPickMember={createFromMemberTemplate} onLandNote={landTemplateNote} busy={creating} autoFocusSearch={pickerOpen !== 'kinds'} kindSection={kindSection(pickerOpen === 'kinds')} />
+          <TemplatePicker onPick={handlePick} onPickMember={createFromMemberTemplate} onLandNote={landTemplateNote} busy={creating} autoFocusSearch={pickerOpen !== 'kinds'} kindSection={kindSection(pickerOpen === 'kinds')} onManageTemplates={manageTemplates} />
         </Sheet>
 
         {voiceNote && voiceOn && (

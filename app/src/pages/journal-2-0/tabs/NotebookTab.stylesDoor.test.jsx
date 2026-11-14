@@ -2,7 +2,7 @@
 // Notebook P1 lane C: the Styles button and the `?styles=1` deep link on the REAL Notebook tab, with only the
 // network faked. ⛔ THE SWITCH GATES THE DOOR: off => no button a member could press, and the deep link opens
 // nothing. Each absent case has a control that proves the list header itself rendered (the Import button).
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { installFetch, Providers } from '../a11y/fixtures'
 import { __resetNotebookFlags, latchNotebookFlags } from '../lib/offline/notebookFlags'
@@ -118,5 +118,33 @@ describe('the Styles door on the Notebook tab', () => {
     latchNotebookFlags({ notebook_journal_styles_enabled: true })
     await show('/journal/notebook?view=all&styles=1&show=daily')
     expect(await screen.findByTestId('manager-show')).toHaveTextContent(/^null #/)
+  })
+
+  // Follow-up C: the New note sheet's "Your templates" picks; its two links open the manager at the Plain templates
+  // group (Manage) or the daily control (Change), and the New note sheet closes first (one room at a time).
+  it("the New note sheet's Manage and Change links open the manager in the right place and close the sheet", async () => {
+    latchNotebookFlags({ notebook_journal_styles_enabled: true })
+    installFetch([[/^\/api\/j2\/journal-styles$/, LIST], [/mapping-offer$/, { offer: null }],
+      [/^\/api\/j2\/note-templates$/, { templates: [{ id: 't1', name: 'Morning plan', title: '', createdAt: '1' }] }]])
+    await show('/journal/notebook?view=all#templates')
+    const sheet = await screen.findByRole('dialog', { name: 'New note' })
+    fireEvent.click(await within(sheet).findByRole('button', { name: 'Manage your plain templates' }))
+    expect(await screen.findByTestId('manager-show')).toHaveTextContent(/^plain #/)
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'New note' })).toBeNull())
+    cleanup()
+    await show('/journal/notebook?view=all#templates')
+    fireEvent.click(await within(await screen.findByRole('dialog', { name: 'New note' }))
+      .findByRole('button', { name: 'Change what daily notes start from' }))
+    expect(await screen.findByTestId('manager-show')).toHaveTextContent(/^daily #/)
+  })
+
+  it('CONTROL: with the switch off the New note sheet draws neither link (there is no manager to open)', async () => {
+    latchNotebookFlags({ notebook_journal_styles_enabled: false })
+    installFetch([[/^\/api\/j2\/note-templates$/, { templates: [{ id: 't1', name: 'Morning plan', title: '', createdAt: '1' }] }]])
+    await show('/journal/notebook?view=all#templates')
+    const sheet = await screen.findByRole('dialog', { name: 'New note' })
+    expect(await within(sheet).findByRole('button', { name: /^Morning plan/ })).toBeInTheDocument()   // the list drew
+    expect(within(sheet).queryByRole('button', { name: 'Manage your plain templates' })).toBeNull()
+    expect(within(sheet).queryByText(/Daily notes start from/)).toBeNull()
   })
 })

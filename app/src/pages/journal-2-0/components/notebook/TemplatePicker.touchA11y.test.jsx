@@ -205,13 +205,15 @@ describe('4. touch: no keyboard words, a count instead', () => {
     })
   })
 
-  it('a member template being renamed (a form, not a card) still counts', async () => {
+  // Follow-up C (one room for templates): Rename moved to Manage templates, so the picker can no longer turn a card
+  // into a rename form (the case this test drove: a renamed template still counted). The count is still derived from
+  // the list (MemberTemplates' `onMatches`); what is left to pin here is that the picker offers no Rename at all.
+  it("the picker offers no Rename (a member template is always a card here), and Your templates says the list's count", async () => {
     coarse.on = true
     await mount()
     fireEvent.click(chip('Your templates'))
     await says(touchMatchWords(MEMBER.length))
-    fireEvent.click(screen.getByRole('button', { name: `Rename ${MEMBER[0].name}` }))
-    expect(screen.getByRole('textbox', { name: `New name for ${MEMBER[0].name}` })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: `Rename ${MEMBER[0].name}` })).toBeNull()
     fireEvent.click(chip('All'))
     await says(touchMatchWords(expected('', 'all')))
   })
