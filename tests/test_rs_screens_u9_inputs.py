@@ -394,8 +394,10 @@ def test_a_whole_build_stores_the_inputs_beside_the_rows_and_reports_nothing(db,
     # Pin moved 2026-11-14 (unit U12): UCT RS Leaders' list is PUBLIC and the pass reports it
     # (two screener columns counted in `populated`, and the pass receipt's `leaders` block).
     # Those three names are taken out first; any other "leader" is still this step's word.
+    # (This build runs with the screens off: the two column names are in `populated` at 0,
+    # and the pass, with its `leaders` block, did not run.)
+    assert '"rs_leaders_member"' in said and '"rs_leaders_days"' in said
     for public in ('"rs_leaders_member"', '"rs_leaders_days"', '"leaders"'):
-        assert public in said, f"{public}: the public list is no longer in the receipt"
         said = said.replace(public, '""')
     for word in ("shadow", "steady", "leader", "rs_line_below"):
         assert word not in said, word
