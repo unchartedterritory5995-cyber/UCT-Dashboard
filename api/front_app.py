@@ -52,7 +52,7 @@ from starlette.middleware.cors import CORSMiddleware
 from starlette.middleware.gzip import GZipMiddleware
 from starlette.staticfiles import StaticFiles
 
-from api.services import build_manifest
+from api.services import build_manifest, request_ip
 from api.services.static_assets import ImmutableStaticFiles
 
 logger = logging.getLogger("uct.front")
@@ -250,6 +250,26 @@ def create_app(dist: str | None = None, upstream: str | None = None,
         not take the front door out of rotation with it."""
         return JSONResponse({"status": "ok", "role": "front", **build_manifest.build_info(dist, commit())},
                             headers={"Cache-Control": "no-store"})
+
+    @app.get("/__front/edge", include_in_schema=False)
+    def front_edge(request: Request):
+        """What Railway's edge told THIS app about the caller, read by the code `web` reads it with.
+
+        `web` limits requests by client address (`RATE_LIMIT_POLICY`), from three headers the edge
+        writes. This app forwards them untouched, so what `request_ip.client_ip` makes of them here
+        is what `web` will make of them. If the edge ever stopped writing them for this service,
+        every member would look like one address to `web`; this is where that shows first.
+        It tells a caller their own address and nothing else, and is never cached.
+        """
+        forwarded = [part.strip() for part in (request.headers.get("x-forwarded-for") or "").split(",") if part.strip()]
+        return JSONResponse({
+            "client_ip": request_ip.client_ip(request),
+            "edge_wrote_x_forwarded_for": bool(forwarded),
+            "x_forwarded_for_entries": len(forwarded),
+            "connecting_address_in_cloudflare": request_ip.in_cloudflare(forwarded[0] if forwarded else None),
+            "x_real_ip_present": bool(request.headers.get("x-real-ip")),
+            "cf_connecting_ip_present": bool(request.headers.get("cf-connecting-ip")),
+        }, headers={"Cache-Control": "no-store"})
 
     @app.get("/build.json", include_in_schema=False)
     def build_json():
