@@ -487,6 +487,11 @@ _last_tarball_meta: dict = {}
 _ADOPTED_MARKER = ".adopted_clustered"
 #: Set while an adoption builds/swaps the store: every sync path stands aside.
 _adoption_active = threading.Event()
+def adoption_active() -> bool:
+    """True while `adopt_clustered_store` owns bars.db (syncs and uploads stand aside)."""
+    return _adoption_active.is_set() or _ADOPT_RUN_LOCK.locked()
+
+
 _ADOPT_RUN_LOCK = threading.Lock()   # one adoption at a time: a second caller must never
                                      # sweep the first one's working folder
 _ADOPT_VERIFIED = ".verified"        # written inside adopt_<ts>/ once the download passed
