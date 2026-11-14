@@ -7,7 +7,7 @@
     "get_bars_before",
     "get_bars_since"
   ],
-  "modules_scanned": 2285,
+  "modules_scanned": 2292,
   "summary": {
     "named_access_count": 2,
     "positional_count": 53,
@@ -23,7 +23,6 @@
       "api/routers/screener_backtest.py",
       "api/routers/signature.py",
       "api/routers/study.py",
-      "api/services/adjustment_basis.py",
       "api/services/audit.py",
       "api/services/auto_structures.py",
       "api/services/bar_contract.py",
@@ -36,6 +35,7 @@
       "api/services/fundamentals_pit/beta_store.py",
       "api/services/indicator_alert_evaluator.py",
       "api/services/intraday_gap_audit.py",
+      "api/services/intraday_split_heal.py",
       "api/services/journal_two/excursion_engine.py",
       "api/services/journal_two/notebook_today.py",
       "api/services/journal_two/notebook_widgets.py",
@@ -77,23 +77,23 @@
       "calls": [
         {
           "function": "get_bars",
-          "line": 552
+          "line": 616
         },
         {
           "function": "get_bars",
-          "line": 841
+          "line": 905
         },
         {
           "function": "get_bars",
-          "line": 859
+          "line": 923
         },
         {
           "function": "get_bars",
-          "line": 6007
+          "line": 6316
         }
       ],
       "evidence": {
-        "line": 559,
+        "line": 72,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -160,10 +160,6 @@
         {
           "function": "get_bars",
           "line": 242
-        },
-        {
-          "function": "get_bars",
-          "line": 833
         }
       ],
       "evidence": {
@@ -190,24 +186,6 @@
       ],
       "evidence": {
         "line": 746,
-        "pattern": "int-subscript",
-        "index": 0
-      }
-    },
-    "api/services/adjustment_basis.py": {
-      "classification": "positional",
-      "calls": [
-        {
-          "function": "get_bars",
-          "line": 99
-        },
-        {
-          "function": "get_bars",
-          "line": 151
-        }
-      ],
-      "evidence": {
-        "line": 97,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -253,19 +231,19 @@
       "calls": [
         {
           "function": "get_bars",
-          "line": 236
+          "line": 243
         },
         {
           "function": "get_bars_since",
-          "line": 253
+          "line": 260
         },
         {
           "function": "get_bars_since",
-          "line": 326
+          "line": 333
         }
       ],
       "evidence": {
-        "line": 97,
+        "line": 99,
         "pattern": "int-subscript",
         "index": 1
       }
@@ -291,79 +269,83 @@
         },
         {
           "function": "get_bars",
-          "line": 1756
+          "line": 1779
         },
         {
           "function": "get_bars",
-          "line": 2299
+          "line": 2322
+        },
+        {
+          "function": "get_bars",
+          "line": 2380
         },
         {
           "function": "get_bars_since",
-          "line": 2599
+          "line": 2729
         },
         {
           "function": "get_bars_since",
-          "line": 2612
+          "line": 2742
         },
         {
           "function": "get_bars_since",
-          "line": 2761
+          "line": 2897
         },
         {
           "function": "get_bars",
-          "line": 3261
+          "line": 3397
         },
         {
           "function": "get_bars_before",
-          "line": 3395
+          "line": 3531
         },
         {
           "function": "get_bars_before",
-          "line": 3422
+          "line": 3558
         },
         {
           "function": "get_bars_before",
-          "line": 3507
+          "line": 3675
         },
         {
           "function": "get_bars_before",
-          "line": 3588
+          "line": 3773
         },
         {
           "function": "get_bars_since",
-          "line": 3720
+          "line": 3905
         },
         {
           "function": "get_bars",
-          "line": 3724
+          "line": 3909
         },
         {
           "function": "get_bars",
-          "line": 4555
+          "line": 4740
         },
         {
           "function": "get_bars",
-          "line": 4609
+          "line": 4794
         },
         {
           "function": "get_bars",
-          "line": 4619
+          "line": 4804
         },
         {
           "function": "get_bars",
-          "line": 4741
+          "line": 4926
         },
         {
           "function": "get_bars",
-          "line": 4828
+          "line": 5013
         },
         {
           "function": "get_bars",
-          "line": 4942
+          "line": 5127
         },
         {
           "function": "get_bars",
-          "line": 5076
+          "line": 5261
         }
       ],
       "evidence": {
@@ -478,11 +460,11 @@
       "calls": [
         {
           "function": "get_bars",
-          "line": 1493
+          "line": 1512
         }
       ],
       "evidence": {
-        "line": 1121,
+        "line": 1140,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -501,6 +483,20 @@
       ],
       "evidence": {
         "line": 103,
+        "pattern": "int-subscript",
+        "index": 0
+      }
+    },
+    "api/services/intraday_split_heal.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars_before",
+          "line": 297
+        }
+      ],
+      "evidence": {
+        "line": 207,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -582,11 +578,11 @@
       "calls": [
         {
           "function": "get_bars",
-          "line": 171
+          "line": 176
         }
       ],
       "evidence": {
-        "line": 175,
+        "line": 180,
         "pattern": "int-subscript",
         "index": 4
       }
@@ -776,11 +772,11 @@
       "calls": [
         {
           "function": "get_bars_before",
-          "line": 517
+          "line": 714
         }
       ],
       "evidence": {
-        "line": 141,
+        "line": 205,
         "pattern": "int-subscript",
         "index": 1
       }
@@ -874,11 +870,11 @@
       "calls": [
         {
           "function": "get_bars",
-          "line": 65
+          "line": 127
         }
       ],
       "evidence": {
-        "line": 69,
+        "line": 131,
         "pattern": "int-subscript",
         "index": 0
       }

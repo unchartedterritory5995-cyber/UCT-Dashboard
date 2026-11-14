@@ -853,11 +853,15 @@ def _lane_rows(reader, sym_u: str, store: str, count: int):
     host's) serves every row itself: the one-step read would go around it to the database.
     `RS_PACKED_READS=0` turns the one-step read off (docs/feature_flags.json, knobs)."""
     from api.services import bars_sqlite
-    if reader is bars_sqlite.ROW_READER and os.environ.get("RS_PACKED_READS", "1").strip() != "0":
+    if reader is not bars_sqlite.ROW_READER:
+        return reader(sym_u, store, count)
+    if os.environ.get("RS_PACKED_READS", "1").strip() != "0":
         rows = bars_sqlite.get_bars_packed(sym_u, store, count)
         if rows is not None:
             return rows
-    return reader(sym_u, store, count)
+    # (the store's own reader may switch to chunks by itself since 2026-11-13: with this lane's
+    # knob off, "row by row" means the row reader)
+    return bars_sqlite._get_bars_rows(sym_u, store, count)
 
 
 def _bars_rows_shared(sym_u: str, store: str, count: int):
