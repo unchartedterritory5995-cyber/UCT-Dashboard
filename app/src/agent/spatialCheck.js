@@ -484,7 +484,10 @@ const tickerPossMatches = (text) => [...String(text || '').matchAll(EXCEPT_TICKE
 const NEG_NOUN = String.raw`(?:chart|one|cell|pane|panel|graph)`
 const NEG_TOK = String.raw`[A-Za-z][A-Za-z0-9]{0,5}(?:\.[A-Za-z0-9]{1,2})?`
 const NEG_PTOK = String.raw`[A-Za-z][A-Za-z0-9]{0,11}`                // a possessive may be a company ("Microsoft's": asked)
-const NEG_REF1 = String.raw`(?:the\s+)?${NEG_PTOK}['’]s(?:\s+${NEG_NOUN})?|the\s+${NEG_TOK}\s+${NEG_NOUN}|${NEG_TOK}(?:\s+${NEG_NOUN})?`
+// ⛔ PRODUCTION 11-13: "my" is a determiner like "the" — "leave my NVDA chart alone", "leave my NVDA alone" were read as NO
+// exclusion (the reference had to start at the ticker), so a plan that also touched NVDA ran there
+const NEG_DET = String.raw`(?:(?:the|my)\s+)`
+const NEG_REF1 = String.raw`${NEG_DET}?${NEG_PTOK}['’]s(?:\s+${NEG_NOUN})?|${NEG_DET}${NEG_TOK}\s+${NEG_NOUN}|(?:my\s+)?${NEG_TOK}(?:\s+${NEG_NOUN})?`
 const NEG_REFS = String.raw`(?:${NEG_REF1})(?:\s*(?:,|&|\band\b|\bor\b|\bnor\b)\s*(?:${NEG_REF1}))*`
 const NEG_START = String.raw`(?:^|[,;:.!?—–(]|\b(?:and|but|then|so|though|although|while|also|plus|or|just|now)\b)\s*(?:(?:please|just|also|then|and|but|so|now|oh|ok(?:ay)?)\s+)*`
 const NEG_DONT = String.raw`(?:don['’]?t|dont|do\s+not|never|please\s+don['’]?t|no\s+need\s+to)\s+(?:touch|change|modify|alter|update|switch|mess\s+with|bother\s+with|include|do\s+anything\s+(?:to|with)|(?:apply|add)\s+(?:it|this|that|them)\s+to|put\s+(?:it|this|that|them)\s+on)`
@@ -511,7 +514,7 @@ export function negTickerRefs(text, charts = []) {
     const cue = String(m[1] || '').toLowerCase()
     if (/^keep$/.test(cue) && !wide && m[0].trim().endsWith(refs.trim())) return       // a bare "keep X" is no exclusion alone
     for (const r of refs.split(/\s*(?:,|&|\band\b|\bor\b|\bnor\b)\s*/i).filter(Boolean)) {
-      const x = new RegExp(String.raw`^(?:the\s+)?(?:(${NEG_PTOK})(['’]s)|(${NEG_TOK}))(?:\s+${NEG_NOUN})?$`, 'i').exec(r.trim())
+      const x = new RegExp(String.raw`^${NEG_DET}?(?:(${NEG_PTOK})(['’]s)|(${NEG_TOK}))(?:\s+${NEG_NOUN})?$`, 'i').exec(r.trim())
       if (!x) continue
       const tok = x[1] || x[3], poss = !!x[2], up = tok.toUpperCase()
       const onBoard = syms.has(up) && (tok === up || (tok.length >= 3 && !LOWER_STOP.test(tok)))
