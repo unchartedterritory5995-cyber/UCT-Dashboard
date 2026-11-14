@@ -248,9 +248,12 @@ details p, details div { margin: 6px 0; }
     }
     return { ups: ups.length, first: first, wide: wide, status: status, label: label, done: firstDone.length + wide.filter(decided).length, total: first.length + wide.length };
   }
+  // owner 2026-11-14: the sample review goes core first (setups, risk, orders, process...), options last
+  var TRACK_ORDER = ['SET', 'F9', 'F10', 'F10b', 'F12', 'F8', 'F11', 'F1', 'F5', 'V', 'F7', 'F6'];
+  function orderedUnits() { return S.idx.units.slice().sort(function (a, b) { var ra = TRACK_ORDER.indexOf(a.track), rb = TRACK_ORDER.indexOf(b.track); return (ra < 0 ? 99 : ra) - (rb < 0 ? 99 : rb); }); }
   function buildQueue(stage) {
     if (stage === 3) return S.decs.map(function (d) { return 'dec:' + d.id; });
-    if (stage === 4) { var q4 = []; S.idx.units.forEach(function (u) { var sm = unitSample(u); q4 = q4.concat(sm.first, sm.wide); }); return q4; }
+    if (stage === 4) { var q4 = []; orderedUnits().forEach(function (u) { var sm = unitSample(u); q4 = q4.concat(sm.first, sm.wide); }); return q4; }
     var ids = [];
     S.idx.units.forEach(function (u) { u.ids.forEach(function (id) { if (stage === 2 || (S.calls[id] && S.calls[id].c === 'look')) ids.push(id); }); });
     return ids;
