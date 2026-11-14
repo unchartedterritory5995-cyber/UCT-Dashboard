@@ -23,6 +23,8 @@ Why each rail exists:
 from __future__ import annotations
 
 import json
+import os
+from contextlib import closing
 from pathlib import Path
 
 import pytest
@@ -33,6 +35,7 @@ from api.services.screener import membership, methodology
 from api.services.screener import rs_post_pass as pp
 from api.services.screener import saved_screens as ss
 from api.services.screener import snapshot_builder as sb
+from api.services.screener import snapshot_db
 
 ROOT = Path(__file__).resolve().parents[1]
 FOCUS = "SCREENER_FOCUS_LAYOUT_ENABLED"
@@ -350,6 +353,62 @@ def test_the_services_fail_closed_for_a_caller_that_passes_no_user(monkeypatch):
     assert F._rs_screens_on(ADMIN) is True
     assert ss.rs_screens_served() is False and ss.rs_screens_served(ADMIN) is True
     assert [s["id"] for s in ss.rs_starters()] == list(TODAY_RS)
+
+
+# ───────────────────────── end to end: the real build under `admin` ─────────────────────────
+
+class _OwnerOnly(pytest.MonkeyPatch):
+    """The U6 harness (`tests/test_rs_screens_u6_e2e.py`) arms the flag with `1`. This
+    arms it with `admin` instead and changes nothing else, so the same market is built."""
+
+    def setenv(self, name, value, prepend=None):
+        super().setenv(name, "admin" if name == pp.FLAG else value, prepend)
+
+
+def test_the_real_build_under_admin_fills_what_on_fills_and_a_member_is_offered_none_of_it(tmp_path):
+    """The nightly build, the pass and the routes, run for real over U6's synthetic market
+    with the flag at `admin`. The rows are the ones the client's golden holds (captured
+    under `1`), so the owner looks at the real screens; the scan route answers a member
+    too (a column that exists may be filtered by anyone); and that member is offered
+    none of it."""
+    from tests import test_rs_screens_u6_e2e as e2e
+    mp = _OwnerOnly()
+    try:
+        built = e2e._build(mp, tmp_path, screens_on=True)
+        assert os.environ[pp.FLAG] == "admin", "control: this build ran under the owner-only value"
+        last = built["passes"][-1]
+        assert last["enabled"] and last["ok"] and last["rewritten"], last
+        assert built["stats"]["rs_post_pass"]["enabled"] is True
+        with closing(snapshot_db.connect()) as conn:
+            table = [dict(r) for r in conn.execute("SELECT * FROM screener_rows")]
+        filled = {c: sum(1 for r in table if r[c] is not None) for c in e2e.RS_COLUMNS}
+        assert not [c for c, n in filled.items() if n == 0], f"never written under admin: {filled}"
+
+        member = e2e._client(mp)
+        golden = json.loads(e2e.ROWS_GOLDEN.read_text(encoding="utf-8"))["screens"]
+        asked = 0
+        for req in e2e._requests():
+            if req["choices"]:
+                continue
+            out = member.post("/api/screener/scan", json=req["body"])
+            assert out.status_code == 200, (req["starter"], out.text[:200])
+            want, got = golden[req["starter"]], out.json()
+            assert got["total"] == want["total"] > 0, req["starter"]
+            assert [r["ticker"] for r in got["rows"][:len(want["rows"])]] == [r["ticker"] for r in want["rows"]]
+            asked += 1
+        assert asked == 5
+
+        starters = member.get("/api/screener/saved-screens").json()["starters"]
+        ids = [s["id"] for s in starters]
+        assert [i for i in ids if i.startswith("starter_rs_")] == list(TODAY_RS)
+        assert not [s["id"] for s in starters if {"controls", "row", "empty", "hidden"} & set(s)]
+        meta = member.get("/api/screener/meta").json()
+        assert not ({f["key"] for f in meta["filters"]} & set(e2e.RS_COLUMNS))
+        assert not ({v["key"] for v in meta["views"]} & set(F.RS_SCREENS_VIEWS))
+        assert "rs_screens" not in member.get("/api/screener/methodology").json()
+    finally:
+        mp.undo()
+        e2e._forget_caches()
 
 
 # ───────────────────────── the ledger ─────────────────────────

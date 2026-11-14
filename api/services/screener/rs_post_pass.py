@@ -159,7 +159,13 @@ def surfaces_on(user=None) -> bool:
     """Is THIS user shown the screens (on for everyone, or ``admin`` and the user is an
     admin)? Every member-facing surface asks this: the five starters and the hidden
     marks, the RS screens views and filter keys in ``filters.meta``, the method page.
-    A caller that passes no user gets a member's answer, so it fails closed at ``admin``."""
+    A caller that passes no user gets a member's answer, so it fails closed at ``admin``.
+
+    A payload a later unit serves for the screens (a new key, a new route) gates on THIS
+    with the route's user, never on :func:`enabled`: a member under ``admin`` must be
+    served exactly what the flag off serves (tests/test_rs_screens_u10_owner_only.py).
+    The scan and count routes are not gated: a column that exists may be filtered by
+    anyone."""
     return _reads(user)[1]
 
 
