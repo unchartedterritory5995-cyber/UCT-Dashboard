@@ -259,7 +259,7 @@ list endpoint over the same 50 near-cap runtime rows takes **9.7 s**:
   calls `runtime_repaint_of`, three lexer runs per runtime row (150 calls).
 - It is master code, unrelated to this flag, which is why the list rail holds it still.
 - **FOLLOW-UP:** persist `request_reads` per source sha256, on the same pattern as the capability
-  sets.
+  sets. **DONE 2026-11-13** as an in-process memo of the repaint lex: see "The repaint memo" below.
 
 **Evidence classifier hardening.**
 - `PINE_PROBE_PREFIXES` = `uctprobe`, `vw-`, `probe-`, `uct-`, compared lowercased on the title or
@@ -403,8 +403,8 @@ harness was re-run under the heavy lock: `runtime drew 38, declined 68`, the sam
 
 ## Before arming (notes; not built here)
 
-- **HARD PRECONDITION before `PINE_RUNTIME_SAVE_ENABLED` is ever set:** the server-lane stamp's
-  cost. Listing 50 near-cap runtime rows costs 16.8 s (the reviewer's measure, flag on or off; 9.7 s
+- ~~**HARD PRECONDITION before `PINE_RUNTIME_SAVE_ENABLED` is ever set:** the server-lane stamp's
+  cost.~~ **MET 2026-11-13 (PR perf/pine-runtime-stamp-memo): "The repaint memo" below.** Was: Listing 50 near-cap runtime rows costs 16.8 s (the reviewer's measure, flag on or off; 9.7 s
   measured here). The cause: `svc.server_lanes_stamp` -> `server_lane_composition` ->
   `request_reads` -> `runtime_repaint_of`, which re-lexes each runtime row three times per serve.
   **Named follow-up: "memoise the repaint lex per source hash"** (the same pattern as the
@@ -412,6 +412,54 @@ harness was re-run under the heavy lock: `runtime drew 38, declined 68`, the sam
 - **Optional:** garbage-collect `runtime_capabilities` rows whose source hash no live row (or live
   run half) references. Today they accumulate one small row per distinct source ever served or
   saved with the flag on.
+
+## The repaint memo (2026-11-13): the precondition before `PINE_RUNTIME_SAVE_ENABLED`, MET
+
+**What.** `runtime_repaint.runtime_repaint_of` is memoised per source in ONE bounded LRU
+(`_MEMO`, `REPAINT_MEMO_MAX` = 2048 entries), keyed by `(sha256 of the source, CLASSIFIER_VERSION,
+sha256 of RULES)`. Every server consumer of the classifier already went through that function (the
+save door's `validate`, `repaint_stamp`, `request_reads` once per server lane, and
+`pine_capabilities.capabilities_of`), so there is one cache and no caller changed. The classifier
+itself is `_classify` (uncached), called only by the memo. The cache holds the small answer, never
+the source, and every call returns a deep copy, so a caller cannot mutate what the next one reads.
+`SCRIPT_ENGINE_VERSION` and `DETECTOR_VERSION` are not in the key: the answer depends on neither
+(it is a function of the text, this module's rules and its table; the clock leaves' reach is the
+host linter's per-process constant, `_HOST_CLOCK`). A rule change bumps `CLASSIFIER_VERSION`.
+
+**Measured** (50 distinct near-cap 100 KiB runtime rows; `stamp_served` + `server_lanes_stamp`
+per row, as the list serves them; flag OFF; one heavy-lock hold, A/B interleaved, two rounds; the
+box was shared, so the spread is load):
+
+| | lexes | cold | warm (second pass) |
+|---|---|---|---|
+| before (memo bypassed) | 150 per pass | 11.0 s / 8.9 s | 8.4 s / 7.7 s (150 lexes again) |
+| after | 50 (one per distinct source) | 2.7 s / 4.0 s | **0.069 s / 0.067 s** (0 lexes) |
+
+The cold pass is now exactly one lex per distinct source; what remains cold is the lexer itself
+(~50-80 ms per 100 KiB, a char-by-char mirror of the JS `lexRepaint`, unchanged here). The full
+list endpoint over the same 50 rows, server lanes included: one lex per row on the first request,
+none on the second, same body (`test_SERVE_the_list_with_50_near_cap_rows_lexes_each_source_once_server_lanes_included`,
+5.0 s for the whole test including two requests and the 50-row seed).
+
+**Flag-off output is byte-identical.** A differential over every runtime fixture (the 266 corpus
+scripts' `runtime_repaint_of` + `capabilities_of`; the 6 runtime documents and each corpus script
+as a runtime document through `request_reads`, `repaint_stamp`, `validate`, `server_lanes_stamp`,
+`stamp_served` and `consumer_refusal` for six consumers; plus a warm second pass) was written to
+JSON from master's code and from this branch's: **6,833,325 bytes, `cmp` identical.**
+
+**Rails** (`tests/test_runtime_repaint_memo.py`, plus the list rail in
+`tests/test_pine_capability_admission.py`):
+- M1 one lex per distinct source across every server consumer, none warm (50 near-cap rows: the
+  call count is exact; wall-clock bounds are generous, warm < 1 s); the same source in ten rows
+  lexes once.
+- M2 a `CLASSIFIER_VERSION` bump recomputes; a different `RULES` table recomputes and answers by it.
+- M3 the LRU is bounded and evicts the least recently USED; it holds no source text.
+- M4 a caller mutating its answer does not change the next answer.
+- M5 the memoised answer equals `_classify` for all 266 corpus scripts, cold and warm (and an
+  unreadable source is answered the same both ways).
+- M6 one authority: nothing in `api/` calls `runtime_repaint.lex` or `_classify` but the memo.
+
+**Mutants (all KILLED):** listed in the PR body with each one's failing rail.
 
 ## C2 / C3 / endpoint
 
@@ -527,8 +575,7 @@ Sets 1-3 ran at `549deeb910` (38 mutants). Set 4 (S1-S8, serving cost) ran at `f
   refusals should ride on it.
 - **Per-built-in evidence for `core`** (see C1 above).
 - **A scheduled REACH re-measure** (see above).
-- **Persist `request_reads` per source.** The server-lane stamp's pre-existing 9.7 s on 50
-  near-cap rows (see Serving cost).
+- ~~**Persist `request_reads` per source.**~~ DONE 2026-11-13: "The repaint memo" below.
 - **Naming each undrawn fill by title** (D note; needs an engine bump).
 - **The chart outside MemberPane.** It latches the switch and the verdicts only after a MemberPane
   kill read in that tab, exactly as the allowlist does today.

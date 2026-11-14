@@ -14,9 +14,13 @@ the JS module committed for every corpus script.
 """
 from __future__ import annotations
 
+import copy
+import hashlib
 import json
 import pathlib
 import re
+import threading
+from collections import OrderedDict
 from typing import Any, Dict, List, Optional
 
 from api.services import ast_lint
@@ -209,9 +213,77 @@ def clock_leaf_reach(key: str, table: Optional[Dict[str, Any]] = None) -> Any:
     return host
 
 
+#: ⭐ THE REPAINT MEMO (2026-11-13, "memoise the repaint lex per source hash"). Every server
+#: question about a runtime document's source -- the save door (`runtime_definitions.validate`),
+#: the served repaint stamp (`repaint_stamp`), the requirements read the three server lanes ask
+#: (`request_reads`, once per lane) and the capability detector (`pine_capabilities`) -- asks
+#: `runtime_repaint_of`, and each ask used to LEX the whole script again: 150 lexes for a list of
+#: 50 near-cap runtime rows (16.8 s measured by the reviewer, 7-9.7 s here). The answer is a pure
+#: function of the source text, this module's rules (`CLASSIFIER_VERSION`, the code) and its table
+#: (`RULES`, fingerprinted), so it is computed ONCE per distinct source per process and kept in one
+#: bounded LRU. ONE AUTHORITY: this is the only cache; every caller goes through it.
+#:
+#: The key is ``(sha256 of the source, CLASSIFIER_VERSION, RULES fingerprint)``: a rule change
+#: (bump `CLASSIFIER_VERSION`) or a different table recomputes. The clock leaves' reach is the host
+#: linter's per-process answer (`_HOST_CLOCK`, already a process constant), so it adds no key part.
+#: The cache holds no source text, only the small answer, and every call returns a deep COPY of it,
+#: so a caller can never mutate what the next caller reads.
+CLASSIFIER_VERSION = 1
+#: The LRU's bound (entries). An answer is a few hundred bytes; the source is never held.
+REPAINT_MEMO_MAX = 2048
+_MEMO: "OrderedDict[tuple, Dict[str, Any]]" = OrderedDict()
+_MEMO_LOCK = threading.Lock()
+_RULES_FP: List[Any] = [None, ""]   # [the RULES object fingerprinted, its fingerprint]
+
+
+def _rules_fingerprint() -> str:
+    """sha256 of `RULES` (canonical JSON), recomputed only when `RULES` is a different object."""
+    rules = RULES
+    if _RULES_FP[0] is not rules:
+        fp = hashlib.sha256(json.dumps(rules, sort_keys=True).encode("utf-8")).hexdigest()
+        _RULES_FP[0], _RULES_FP[1] = rules, fp
+    return _RULES_FP[1]
+
+
+def memo_key(text: str) -> tuple:
+    """The memo's key for a source text: its sha256, the classifier's version, the table's."""
+    digest = hashlib.sha256(text.encode("utf-8", "surrogatepass")).hexdigest()
+    return (digest, CLASSIFIER_VERSION, _rules_fingerprint())
+
+
+def _reset_repaint_memo() -> None:
+    """Empty the memo (a fresh process; rails)."""
+    with _MEMO_LOCK:
+        _MEMO.clear()
+
+
 def runtime_repaint_of(source: Any) -> Dict[str, Any]:
     """``runtimeRepaintOf`` in the JS module: ``{ok, mode, forward, reads}`` or
-    ``{ok: False, why}``."""
+    ``{ok: False, why}``.
+
+    Memoised per source (`_MEMO`, above): the lex runs once per distinct source per process,
+    and the caller always receives its own copy. Two threads asking a NEW source at the same
+    moment may both lex it (the lex is not run under the lock, so one slow script never stalls
+    another's serve); both store the same answer."""
+    text = "" if source is None else str(source)
+    key = memo_key(text)
+    with _MEMO_LOCK:
+        hit = _MEMO.get(key)
+        if hit is not None:
+            _MEMO.move_to_end(key)
+    if hit is None:
+        hit = _classify(text)
+        with _MEMO_LOCK:
+            _MEMO[key] = hit
+            _MEMO.move_to_end(key)
+            while len(_MEMO) > REPAINT_MEMO_MAX:
+                _MEMO.popitem(last=False)
+    return copy.deepcopy(hit)
+
+
+def _classify(source: str) -> Dict[str, Any]:
+    """The classifier itself (uncached): lex the source and read its rules. Only
+    `runtime_repaint_of` calls it."""
     try:
         tokens = lex(source)
     except ValueError as err:
