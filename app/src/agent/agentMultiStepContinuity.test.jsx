@@ -1,3 +1,4 @@
+// re-merged onto master 2401f01d62 (2026-11-14): this line starts the Agent CI push run for the merge head.
 // ⛔ MULTI-STEP CONTINUITY (2026-11-14, owner: multi-step tasks keep their intent, constraints and references across steps and
 // turns) — through the REAL panel (panelHarness: AgentPanel + useAgent + registry, routing, planner, policy, runtime, receipts
 // and Undo) on the REAL board writer. Stand-in: the Agent model (/api/agent/turn), scripted. No paid model call.
