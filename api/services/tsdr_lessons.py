@@ -113,6 +113,15 @@ DEFAULT_GUILD_ID = "882293203485720596"
 VIDEO_EXTENSIONS = (".mp4", ".mov", ".webm", ".m4v", ".mkv")
 KEEP_TYPES = frozenset({0, 19})              # DEFAULT, REPLY
 MAX_ATTEMPTS = 3
+# A video that used up its attempts is `failed`. A day later it gets another
+# round of MAX_ATTEMPTS, up to MAX_RETRY_ROUNDS times (reopen_failed): three bad
+# ticks are 45 minutes, which an outage at Discord or the model vendor covers
+# easily, and before this nothing ever read `failed` again.
+RETRY_AFTER_S = 24 * 3600
+MAX_RETRY_ROUNDS = 5
+# ...unless the failure cannot change: the video itself is over a cap, or the
+# model declined it. Matched against `last_error`.
+_NO_RETRY_ERRORS = ("download cap", "over the cap", "declined to write")
 MAX_PAGES_PER_TICK = 20   # TSDR_LESSONS_SCAN_PAGES overrides; one page is 100 messages
 MAX_DOWNLOAD_BYTES = 2 * 1024 * 1024 * 1024  # long recordings run past 600 MB; streamed to disk
 MAX_VIDEO_SECONDS = 2 * 60 * 60
@@ -310,7 +319,10 @@ _ADDED_COLUMNS = (("post_channel_id", "TEXT"), ("forward_post_id", "TEXT"),
                   # post, its "See also" lessons (JSON [{title, post}]) and when
                   # they were last worked out, and when its reactions were read
                   ("forum_post_id", "TEXT"), ("related", "TEXT"), ("related_at", "INTEGER"),
-                  ("reaction_checked_at", "INTEGER"))
+                  ("reaction_checked_at", "INTEGER"),
+                  # when the video last used up its attempts, and how many extra
+                  # rounds it has been given since (reopen_failed)
+                  ("failed_at", "INTEGER"), ("retry_rounds", "INTEGER NOT NULL DEFAULT 0"))
 
 
 def _connect() -> sqlite3.Connection:
@@ -1289,6 +1301,11 @@ def process_lesson(row: dict, lesson_channel: str) -> str:
                 transcript, seconds, segments = transcribe(video, work)
             finally:
                 shutil.rmtree(work, ignore_errors=True)
+            if transcript.strip():
+                # Kept AT ONCE. The recap call and the post can both still fail, and
+                # the retry takes the branch above instead of downloading and
+                # transcribing the same video again.
+                _update(aid, transcript=transcript, segments=json.dumps(segments), duration_s=seconds)
     twin = find_duplicate(transcript, row["author_id"], aid)
     if twin:
         # the same talk, posted again (or shared as a link after the file):
@@ -1359,9 +1376,11 @@ def run_lessons(*, limit: int, deadline: float) -> dict:
             out[process_lesson(row, lesson_channel)] += 1
         except Exception as e:  # noqa: BLE001 — one bad video never stops the queue
             attempts = int(row.get("attempts") or 0) + 1
-            _update(row["attachment_id"], attempts=attempts,
-                    status="failed" if attempts >= MAX_ATTEMPTS else "new",
-                    last_error=f"{type(e).__name__}: {str(e)[:300]}")
+            fields = {"attempts": attempts, "status": "new",
+                      "last_error": f"{type(e).__name__}: {str(e)[:300]}"}
+            if attempts >= MAX_ATTEMPTS:
+                fields.update(status="failed", failed_at=int(time.time()))
+            _update(row["attachment_id"], **fields)
             log.warning("[tsdr-lessons] video %s failed (attempt %d): %s",
                         row["attachment_id"], attempts, e)
             out["errors"] += 1
@@ -1849,6 +1868,28 @@ def reopen_skipped_clips() -> int:
                       _REOPEN_REASONS).rowcount
         c.commit()
     set_state(_REOPEN_DONE_KEY, "1")
+    return n
+
+
+def reopen_failed(now: Optional[float] = None) -> int:
+    """Give each `failed` video another round of attempts, a day after it failed,
+    at most MAX_RETRY_ROUNDS times. Returns how many went back in the queue.
+
+    A failure that cannot change (_NO_RETRY_ERRORS) stays failed. `last_error` is
+    kept, so the reason is readable until the video posts. A row that failed
+    before `failed_at` existed is dated by its last change: those are the videos
+    this rule exists for."""
+    now = int(now if now is not None else time.time())
+    unchanged = "".join(" AND COALESCE(last_error, '') NOT LIKE ?" for _ in _NO_RETRY_ERRORS)
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        n = c.execute(
+            "UPDATE tsdr_lessons SET status = 'new', attempts = 0, "
+            "retry_rounds = COALESCE(retry_rounds, 0) + 1, updated_at = ? "
+            "WHERE status = 'failed' AND COALESCE(retry_rounds, 0) < ? "
+            "AND COALESCE(failed_at, updated_at) <= ?" + unchanged,
+            (now, MAX_RETRY_ROUNDS, now - RETRY_AFTER_S,
+             *(f"%{mark}%" for mark in _NO_RETRY_ERRORS))).rowcount
+        c.commit()
     return n
 
 
@@ -2711,9 +2752,18 @@ def refresh_thread_index(*, force: bool = False) -> dict:
 
 # ── the scheduled entry point ────────────────────────────────────────────────
 
+_said_off = False
+
+
 def tick() -> dict:
     """Scan, lessons, regroup, then YouTube. Never raises; never overlaps itself."""
+    global _said_off
     if not is_enabled():
+        if not _said_off:
+            # Once per process. The scheduler logs "scheduled" whatever this flag says,
+            # and a switched-off pipeline otherwise leaves no line at all.
+            log.info("[tsdr-lessons] off: TSDR_LESSONS_ENABLED is not 1, nothing will be scanned or posted")
+            _said_off = True
         return {"ran": False, "reason": "TSDR_LESSONS_ENABLED is not 1"}
     if not _TICK_LOCK.acquire(blocking=False):
         return {"ran": False, "reason": "previous tick still running"}
@@ -2743,6 +2793,12 @@ def tick() -> dict:
                 out["reopened"] = reopened
         except Exception as e:  # noqa: BLE001
             log.warning("[tsdr-lessons] could not reopen skipped clips: %s", e)
+        try:
+            retrying = reopen_failed()
+            if retrying:
+                out["retrying_failed"] = retrying
+        except Exception as e:  # noqa: BLE001
+            log.warning("[tsdr-lessons] could not reopen failed videos: %s", e)
         # The daily AI budget (api/services/llm_budget.py, /admin/ai-spend): once this
         # feature's block-mode budget is spent, the model-calling stages skip the
         # tick instead of failing calls and burning each video's MAX_ATTEMPTS.
@@ -2751,14 +2807,20 @@ def tick() -> dict:
             ai_ok = llm_budget.allows("api/services/tsdr_lessons.py")
         except Exception:  # noqa: BLE001 -- a metering fault never stops the job
             ai_ok = True
+        # ⛔ TWO deadlines. `ai_deadline` is for the stages that call the model
+        # (run_lessons, run_level_backfill, run_forum_migration); it is already past
+        # when the budget is spent. Everything else reads `deadline`. ⚰️ There was
+        # one, and expiring it for the budget also stopped the regroup, the
+        # rewrite-request check, the video refill and the YouTube uploads.
+        ai_deadline = deadline
         if not ai_ok:
             out["lessons"] = {"skipped": "daily AI budget reached"}
             out["ai_budget"] = "reached"
-            deadline = time.time()  # the remaining model-calling stages see an expired deadline
+            ai_deadline = time.time()
         try:
             if ai_ok:
                 out["lessons"] = run_lessons(limit=_int_env("TSDR_LESSONS_PER_TICK", 3),
-                                             deadline=deadline)
+                                             deadline=ai_deadline)
         except Exception as e:  # noqa: BLE001 — e.g. the channel could not be created
             log.warning("[tsdr-lessons] lesson stage failed: %s", e)
             out["lessons"] = {"error": str(e)[:200]}
@@ -2768,7 +2830,7 @@ def tick() -> dict:
                                 ("rewrites", run_rewrite_requests),
                                 ("related", run_related_refresh)):
                 try:
-                    result = stage(deadline=deadline)
+                    result = stage(deadline=ai_deadline if stage is run_level_backfill else deadline)
                     if any(result.values()):
                         out[name] = result
                 except Exception as e:  # noqa: BLE001
@@ -2784,7 +2846,7 @@ def tick() -> dict:
                                 ("rewrites", run_rewrite_requests),
                                 ("related", run_related_refresh)):
                 try:
-                    result = stage(deadline=deadline)
+                    result = stage(deadline=ai_deadline if stage is run_forum_migration else deadline)
                     if any(result.values()):
                         out[name] = result
                 except Exception as e:  # noqa: BLE001
@@ -2822,6 +2884,13 @@ def tick() -> dict:
             except Exception as e:  # noqa: BLE001
                 log.warning("[tsdr-lessons] YouTube stage failed: %s", e)
                 out["youtube"] = {"error": str(e)[:200]}
+        # The library by status, in the line this tick is logged as: `failed` is
+        # the number to watch (docs/runbooks/tsdr-lessons.md). Before this, seeing
+        # it meant opening the database on the pod.
+        try:
+            out["library"] = status_counts()
+        except Exception as e:  # noqa: BLE001
+            log.warning("[tsdr-lessons] could not count the library: %s", e)
         return out
     finally:
         _TICK_LOCK.release()
