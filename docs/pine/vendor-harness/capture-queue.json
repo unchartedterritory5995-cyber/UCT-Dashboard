@@ -60,7 +60,7 @@
   ],
   "coverageMeasuredOn": "2026-11-05",
   "coverageMasterSha": "3ca4b0d358",
-  "fixtures": 354,
+  "fixtures": 359,
   "ledgerRows": 37
  },
  "definitions": {
@@ -83,17 +83,17 @@
  "counts": {
   "targets": 301,
   "byStatus": {
-   "CAPTURED": 79,
+   "CAPTURED": 82,
    "NEEDS_CHART": 39,
    "NEEDS_LIVE": 2,
-   "QUEUED": 181
+   "QUEUED": 178
   },
   "byPlanWave": {
    "E": {
-    "CAPTURED": 66,
+    "CAPTURED": 69,
     "NEEDS_CHART": 37,
     "NEEDS_LIVE": 2,
-    "QUEUED": 148
+    "QUEUED": 145
    },
    "W1": {
     "QUEUED": 6
@@ -119,9 +119,9 @@
     "QUEUED": 167
    },
    "1-2": {
-    "CAPTURED": 18,
+    "CAPTURED": 21,
     "NEEDS_CHART": 1,
-    "QUEUED": 14
+    "QUEUED": 11
    }
   },
   "byDocWave": {
@@ -134,8 +134,8 @@
     "NEEDS_CHART": 2
    },
    "E-census": {
-    "CAPTURED": 7,
-    "QUEUED": 4
+    "CAPTURED": 10,
+    "QUEUED": 1
    },
    "b1-paints": {
     "CAPTURED": 2
@@ -1794,8 +1794,10 @@
   },
   {
    "id": "relative-volume__LnFmPEoFXQ@NYSE:RDDT@D",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/relative-volume-rddt-1d-2026-11-14.json"
+   ],
    "source": "corpus/committed/relative-volume__LnFmPEoFXQ.pine",
    "sourceKind": "corpus",
    "sha256": "7e60ca18d4b065fa9ca5df9cb36c0899f95b37dd09cce3c8068a24008338f52c",
@@ -1808,7 +1810,9 @@
    "chartDefaulted": false,
    "chartSource": "census",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "NYSE:RDDT D"
+   ],
    "licence": "corpus",
    "needsLive": false,
    "priority": 1,
@@ -1836,8 +1840,10 @@
   },
   {
    "id": "smart-money-interest-index-algoalpha__effdd7852c@NYSE:RDDT@D",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/smart-money-interest-index-algoalpha-rddt-1d-2026-11-14.json"
+   ],
    "source": "corpus/committed/smart-money-interest-index-algoalpha__effdd7852c.pine",
    "sourceKind": "corpus",
    "sha256": "571a7211764f620cb410daf75749a532fe84fdec5925bcf6994beec3905df250",
@@ -1850,7 +1856,9 @@
    "chartDefaulted": false,
    "chartSource": "census",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "NYSE:RDDT D"
+   ],
    "licence": "corpus",
    "needsLive": false,
    "priority": 1,
@@ -1878,8 +1886,10 @@
   },
   {
    "id": "smart-money-volume-index-algoalpha__6663950b80@NYSE:RDDT@D",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/smart-money-volume-index-algoalpha-rddt-1d-2026-11-14.json"
+   ],
    "source": "corpus/committed/smart-money-volume-index-algoalpha__6663950b80.pine",
    "sourceKind": "corpus",
    "sha256": "585e61e2d8c81156a4b716edba4415a5ae6d6b51d41aaf2a75aaff03673bcd83",
@@ -1892,7 +1902,9 @@
    "chartDefaulted": false,
    "chartSource": "census",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "NYSE:RDDT D"
+   ],
    "licence": "corpus",
    "needsLive": false,
    "priority": 1,
