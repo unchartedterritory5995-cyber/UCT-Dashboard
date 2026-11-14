@@ -198,6 +198,53 @@ def diff(spec: dict) -> dict:
             "new_since_label": _label(prev["session_date"], prev["snapshot_date"])}
 
 
+def recorded_change(spec: dict) -> dict:
+    """Who joined and who left one screen between its two newest RECORDED sessions, read
+    from the stored record alone (RS screens unit U13, the daily joined-and-left message).
+
+    `diff` answers "new since the last session" against the scan AS IT ANSWERS NOW, live
+    overlay included, which is right for a page a member is looking at. A message sent
+    once, after the nightly rating run, has to describe the record that run just took,
+    and must say the same thing however many times it is asked: so this reads the two
+    stored ticker lists and runs no scan.
+
+    States: ``live_screen`` and ``unsaved`` as `diff` (``unsaved`` also when nothing was
+    ever recorded), ``no_history`` (one recorded session: nothing to compare),
+    ``too_wide`` (a list was not stored), ``ok``. Every state but the first two carries
+    ``session`` (the newest record's session, None when the build did not say),
+    ``as_of`` (its build date) and ``recorded_at``; ``ok`` adds ``prev_session``,
+    ``n`` and ``prev_n`` (the two list sizes), ``entered`` and ``exited``.
+    Read-only: asking creates no table."""
+    if reads_live_only(spec):
+        return {"state": "live_screen"}
+    if has_list_filter(spec):
+        return {"state": "unsaved"}
+    h = spec_hash(spec)
+    with snapshot_db.connect() as conn:
+        if conn.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND "
+                        "name = 'screen_membership'").fetchone() is None:
+            return {"state": "unsaved"}
+        rows = conn.execute(
+            "SELECT snapshot_date, session_date, state, tickers, recorded_at "
+            "FROM screen_membership WHERE spec_hash = ? ORDER BY snapshot_date DESC LIMIT ?",
+            (h, KEEP_DATES)).fetchall()
+    if not rows:
+        return {"state": "unsaved"}
+    latest = rows[0]
+    out = {"session": latest["session_date"], "as_of": latest["snapshot_date"],
+           "recorded_at": latest["recorded_at"]}
+    prev = _previous_session_row(rows)
+    if prev is None:
+        return {"state": "no_history", **out}
+    if "too_wide" in (latest["state"], prev["state"]):
+        return {"state": "too_wide", **out}
+    now = set(json.loads(latest["tickers"] or "[]"))
+    before = set(json.loads(prev["tickers"] or "[]"))
+    return {"state": "ok", **out, "prev_session": prev["session_date"],
+            "n": len(now), "prev_n": len(before),
+            "entered": sorted(now - before), "exited": sorted(before - now)}
+
+
 def rerecord_all() -> dict | None:
     """Record every screen AGAIN for the build already recorded, or ``None`` when there
     is nothing to redo (RS screens unit U1).
