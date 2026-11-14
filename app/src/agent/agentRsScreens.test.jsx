@@ -234,7 +234,7 @@ describe('words that name no choice are refused, never guessed', () => {
     mount(host)
     turns.push((body) => env('apply', [{ action: 'screener.openSaved', target: body.context.screenerPage[0].ref, args: { screen: NEW_HIGHS.id, choose: 'tomorrow' } }]))
     type('open rs new highs for tomorrow please')
-    await screen.findByText(/has no choice called “tomorrow” \(it offers When: Today, This week, This month; /)
+    await screen.findByText(/has no choice called “tomorrow” \(it offers When: Today, This week, This month, Weekly; /)
     expect(page.applied).toHaveLength(0)
   })
 
