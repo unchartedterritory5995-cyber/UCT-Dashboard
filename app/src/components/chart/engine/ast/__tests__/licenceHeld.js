@@ -130,7 +130,10 @@ function ledger() {
 export function ledgerVerdict(entry) {
   const rows = ledger().filter((r) => r.schema === 'uct.evidence-ledger/v2'
     && ((entry.captureId && r.captureId === entry.captureId) || r.sourceSha256 === entry.sourceSha256))
-  if (!rows.length) return 'evidence ledger: NO ROW FILED YET'
+  if (!rows.length) {
+    return entry.kind === 'capture' ? 'evidence ledger: NO ROW FILED YET'
+      : 'evidence ledger: no row (not a vendor capture; licence verdict per the record)'
+  }
   const r = rows[rows.length - 1]
   const v = r.verdicts || {}
   return `evidence ledger: ${r.captureId} production ${(v.production || {}).verdict || '?'} / `

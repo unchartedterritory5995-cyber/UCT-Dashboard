@@ -196,3 +196,105 @@ def sweep(repo: str, files: list[str] | None = None, in_house: dict = IN_HOUSE):
             if c == "held":
                 offenders.append((f, where, detect(text), sha256_text(text)[:12]))
     return counts, sorted(offenders)
+
+
+# ─── THE THIRD DOOR: a TRANSLATED document derived from a held source (2026-11-15) ──────────────
+#
+# ⚰️ `tests/fixtures/graph_wire/u_c2d900000005.json` held no Pine text, so the sweep above passed it,
+# and it was still a derivative of a CC BY-NC-SA script: the save door's translated document of
+# `high_engagement__24-coppock-curve-multi-filter-markittick`, named after it. A definition document
+# (`compute` + `meta.name`) whose name is a held script's is flagged here by that name.
+
+DOC_SCOPE = ("tests/", "tools/", "app/src/")
+OOS_DIR = "tests/fixtures/pine_oos/"
+REFERENCE_DIR = "corpus/reference/"
+#: The save door cuts a name to 40 characters; a prefix this long names one script.
+MIN_PREFIX = 20
+
+
+def held_names(repo: str, files: list[str]) -> dict:
+    """{name: why} for every script whose source may not be committed: the local-only / unpublished
+    `pine_oos` members, and the `corpus/reference/` scripts whose verdict is not `commit` (by stem,
+    and by slug when no committed script shares the slug)."""
+    out = {}
+    committed_slugs = {os.path.basename(f)[:-5].split("__")[0] for f in files
+                       if f.startswith(CORPUS_DIR) and f.endswith(".pine")}
+    for f in files:
+        if not f.endswith(".json"):
+            continue
+        if f.startswith(OOS_DIR) and "__" in os.path.basename(f):
+            try:
+                rec = json.load(open(os.path.join(repo, f), encoding="utf-8"))
+            except (OSError, ValueError):
+                continue
+            if rec.get("storage") != "git":
+                out[os.path.basename(f)[:-5]] = f"pine_oos {rec.get('storage')} ({rec.get('license')})"
+        elif f.startswith(REFERENCE_DIR):
+            try:
+                rec = json.load(open(os.path.join(repo, f), encoding="utf-8"))
+            except (OSError, ValueError):
+                continue
+            if isinstance(rec, dict) and rec.get("verdict") not in (None, "commit"):
+                stem = os.path.basename(f)[:-5]
+                why = f"corpus/reference {rec.get('verdict')} ({rec.get('licence')})"
+                out[stem] = why
+                slug = stem.split("__")[0]
+                if slug not in committed_slugs:
+                    out.setdefault(slug, why)
+    return out
+
+
+def _held_name(name: str, held: dict):
+    if not isinstance(name, str) or not name:
+        return None
+    if name in held:
+        return name
+    if len(name) >= MIN_PREFIX:
+        return next((h for h in sorted(held) if h.startswith(name)), None)
+    return None
+
+
+def derived_documents(path: str):
+    """[(where, name)] for every definition document in a JSON file: a dict with a `compute` dict
+    (carrying source, trees, ast, graph or sources) and a `meta.name`."""
+    with open(path, encoding="utf-8", errors="replace") as fh:
+        raw = fh.read()
+    if '"compute"' not in raw or '"meta"' not in raw:
+        return []
+    try:
+        doc = json.loads(raw)
+    except ValueError:
+        return []
+    found = []
+
+    def walk(o, where):
+        if isinstance(o, dict):
+            c, m = o.get("compute"), o.get("meta")
+            if isinstance(c, dict) and isinstance(m, dict) and \
+                    any(k in c for k in ("source", "trees", "ast", "graph", "sources")):
+                found.append((where or "$", m.get("name")))
+            for k, v in o.items():
+                walk(v, f"{where}.{k}")
+        elif isinstance(o, list):
+            for i, v in enumerate(o):
+                walk(v, f"{where}[{i}]")
+
+    walk(doc, "")
+    return found
+
+
+def derived_sweep(repo: str, files: list[str] | None = None):
+    """(documents seen, [(file, where, held script, why)]): committed definition documents named
+    after a held script. Empty on a clean tree."""
+    files = tracked_files(repo) if files is None else files
+    held = held_names(repo, files)
+    seen, offenders = 0, []
+    for f in files:
+        if not (f.endswith(".json") and f.startswith(DOC_SCOPE)) or f.startswith(OOS_DIR):
+            continue
+        for where, name in derived_documents(os.path.join(repo, f)):
+            seen += 1
+            h = _held_name(name, held)
+            if h:
+                offenders.append((f, where, h, held[h]))
+    return seen, sorted(offenders)
