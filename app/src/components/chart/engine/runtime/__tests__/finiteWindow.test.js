@@ -281,6 +281,29 @@ describe('⭐⭐ the NA POLICIES, over a GAPPY RUNTIME SERIES (2026-09-08 ruling
     expect(Number.isFinite(hi[7]), 'it answers ON the hole').toBe(true)
   })
 
+  // ⭐⭐ S17 (`vw-cs2-holed-highestbars-rddt-1d-2026-11-15`): `highestbars` / `lowestbars` read the same
+  // last n FINITE values, the offset counted in BARS (so past a hole it reaches below -(n - 1)).
+  it('⭐⭐ FINITE — `highestbars` / `lowestbars` count their offset in BARS past a hole (S17)', () => {
+    const { outs } = runPine(`${head}${gappy}plot(ta.highestbars(x, 5))\nplot(ta.lowestbars(x, 5))\n`)
+    const [hb, lb] = outs
+    const src = BARS.map((b, i) => (i % 7 === 0 && i > 4 ? NaN : b.c))
+    let reached = 0
+    for (let i = 4; i < N; i += 1) {
+      const idx = []
+      for (let k = i; k >= 0 && idx.length < 5; k -= 1) if (Number.isFinite(src[k])) idx.unshift(k)
+      let hi = idx[0]
+      let lo = idx[0]
+      for (const k of idx) { if (src[k] > src[hi]) hi = k; if (src[k] < src[lo]) lo = k }
+      expect(hb[i] + 0, `bar ${i}`).toBe(hi - i + 0) // `+ 0`: the negation of a 0 offset is -0
+      expect(lb[i] + 0, `bar ${i}`).toBe(lo - i + 0)
+      if (hi - i < -4 || lo - i < -4) reached += 1
+    }
+    for (let i = 0; i < 4; i += 1) expect(Number.isNaN(hb[i]), `bar ${i}`).toBe(true)
+    // ⛔ NON-VACUITY: some offset reaches past the 5-bar span (a bar count, not a value count)
+    expect(reached).toBeGreaterThan(0)
+    expect(Number.isFinite(hb[7]), 'it answers ON the hole').toBe(true)
+  })
+
   it('⭐ SKIP — `sma` answers ON the hole, over the last 5 finite values', () => {
     const { out } = runPine(`${head}${gappy}plot(ta.sma(x, 5))\n`)
     const src = BARS.map((b, i) => (i % 7 === 0 && i > 4 ? NaN : b.c))

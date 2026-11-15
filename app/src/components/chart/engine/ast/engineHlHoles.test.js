@@ -11,12 +11,15 @@
 // again after a hole") misses 70 / 68 bars on RDDT and 824 / 1,034 on SPY — TradingView keeps
 // 47.7 / 40.88 on RDDT's hole bar 30, where RESTART drew nothing.
 //
+// ⭐⭐ S17 (2026-11-15) — `ta.highestbars` / `ta.lowestbars` read the SAME last `n` finite values, with
+// the offset counted in BARS (`vw-cs2-holed-highestbars-rddt-1d-2026-11-15`, probe
+// `tools/visual_conformance/probes/vw-cs2-holed-highestbars.pine`, 4 columns, 0 mismatches; bar 30,
+// the hole: -1; bar 37: `ta.lowestbars` -10). ⚰️ #1332 had withheld that case
+// (`arg-extreme:holed-window`) on 130 bars; the code is gone.
 // What no capture pins is withheld BY NAME, never guessed:
-//   - `window-extreme:left-edge`: off the listing, a `highest` / `lowest` window holding fewer than
-//     `n` finite values (it would reach bars this chart does not hold);
-//   - `arg-extreme:holed-window`: `highestbars` / `lowestbars` keep RESTART (their only hole witness
-//     is the refuted 2026-09-08 probe), and a window whose `na` the two rules read differently is
-//     withheld; the runtime VM stops by the same code.
+//   - `window-extreme:left-edge`: off the listing, a `highest` / `lowest` / `highestbars` /
+//     `lowestbars` window holding fewer than `n` finite values (it would reach bars this chart does
+//     not hold).
 // The four doors (screen, pane strict, `buildRuntimeIr`, `memberPaneDefinition`) and both lanes
 // (host, runtime) are asked of each.
 import { describe, it, expect, beforeEach } from 'vitest'
@@ -24,9 +27,9 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { translatePine } from './pine.js'
 import {
-  interpret, FN, FINITE_WINDOW, CHART_CLOCK_WITHHELD, WINDOW_EXTREME_LEFT_EDGE, ARG_EXTREME_HOLED,
-  argExtremeHoled, finiteWindowCount,
+  interpret, FN, FINITE_WINDOW, CHART_CLOCK_WITHHELD, WINDOW_EXTREME_LEFT_EDGE, finiteWindowCount,
 } from './interpret.js'
+import * as interpretModule from './interpret.js'
 import { buildRuntimeIr } from './pineRuntimeFrontend.js'
 import { memberPaneDefinition } from '../../builder/memberPane/memberPaneDefinition'
 import * as registry from '../nativeRegistry'
@@ -163,14 +166,91 @@ describe('⭐⭐ the S10 witness: 12 columns, 0 mismatches, on both lanes and at
   })
 })
 
+describe('⭐⭐ the S17 witness: ta.highestbars / ta.lowestbars over a holed source, offsets in BARS', () => {
+  // `vw-cs2-holed-highestbars-rddt-1d-2026-11-15` (probe written in this repo, NYSE:RDDT 1D from the
+  // listing): plots A00 bar_index, A01 na(x), B00 highestbars(x, 10), B01 lowestbars(x, 10), W00..W03
+  // the same over `close` (no hole).
+  const HB = FIX('vw-cs2-holed-highestbars-rddt-1d-2026-11-15')
+  const HB_BARS = HB.bars.rows.map(([t, o, h, l, c, v]) => ({ t, o, h, l, c, v }))
+  const HB_TV = (k) => HB.plotValues.rows.map((r) => (r[k + 1] === null ? NaN : r[k + 1]))
+  const COLS = [2, 3, 6, 7]
+  const HB_SRC = PROBE('vw-cs2-holed-highestbars')
+
+  it('the committed capture is what it says: from the listing, the hole on bar_index % 50 == 30', () => {
+    expect(HB.history.startsAtBar0).toBe(true)
+    expect(HB_BARS.length).toBe(666)
+    expect(HB.study.plots.map((p) => p.title)).toEqual(['A00_bar_index_CONTROL', 'A01_x_is_na',
+      'B00_highestbars_x_10', 'B01_lowestbars_x_10', 'W00_highest_close_10', 'W01_lowest_close_10',
+      'W02_highestbars_close_10', 'W03_lowestbars_close_10'])
+    expect(HB_TV(1)[30]).toBe(1)
+    // the signature: on the hole bar an offset, not 0; past it the offset reaches -10 (in BARS)
+    expect(HB_TV(2)[30]).toBe(-1)
+    expect(HB_TV(3)[30]).toBe(-10)
+    expect(HB_TV(3)[37]).toBe(-10)
+    // 130 bars hold the hole in their 10-bar window (#1332 withheld every one)
+    let holed = 0
+    for (let i = 9; i < HB_BARS.length; i += 1) if (HB_TV(1).slice(i - 9, i + 1).includes(1)) holed += 1
+    expect(holed).toBe(130)
+  })
+
+  it('⭐ the rule (last 10 finite values, offset in bars, ties to the older) reproduces all four columns', () => {
+    const x = HB_BARS.map((b, i) => (i % 50 === 30 ? NaN : b.c))
+    const c = HB_BARS.map((b) => b.c)
+    const rule = (s, better) => s.map((_, i) => {
+      if (i < 9) return NaN
+      const idx = []
+      for (let j = i; j >= 0 && idx.length < 10; j -= 1) if (Number.isFinite(s[j])) idx.unshift(j)
+      let best = idx[0]
+      for (const j of idx) if (better(s[j], s[best])) best = j
+      return best - i
+    })
+    expect(mismatches(rule(x, (a, b) => a > b), HB_TV(2))).toBe(0)
+    expect(mismatches(rule(x, (a, b) => a < b), HB_TV(3))).toBe(0)
+    expect(mismatches(rule(c, (a, b) => a > b), HB_TV(6))).toBe(0)
+    expect(mismatches(rule(c, (a, b) => a < b), HB_TV(7))).toBe(0)
+  })
+
+  it('⭐⭐ the host lane draws all eight columns exactly, nothing withheld', () => {
+    for (let k = 0; k < 8; k += 1) {
+      const { col, clock } = hostColumn(HB_SRC, k, LISTING, HB_BARS)
+      expect(mismatches(col, HB_TV(k)), `plot ${k}`).toBe(0)
+      expect(clock).toEqual([])
+    }
+  })
+
+  it('⭐⭐ the runtime lane draws them too', () => {
+    const run = runtimeRun(HB_SRC, { b0: 2, b1: 3, w2: 6, w3: 7 }, HB_BARS)
+    expect(run.err, run.err && run.err.message).toBeUndefined()
+    for (const [key, k] of [['b0', 2], ['b1', 3], ['w2', 6], ['w3', 7]]) {
+      expect(mismatches(run[key], HB_TV(k)), key).toBe(0)
+    }
+  })
+
+  it('⭐⭐ and all four doors admit the probe; the member door serves the columns', () => {
+    expect(doors(HB_SRC, HB_BARS)).toEqual(['OK', 'OK', 'OK', 'OK'])
+    const { cols, clock } = doorColumns(HB_SRC, HB_BARS)
+    for (const k of COLS) expect(mismatches(cols[k], HB_TV(k)), `door plot ${k}`).toBe(0)
+    expect(clock).toEqual([])
+  })
+})
+
 describe('⭐ the rule, on synthetic series', () => {
-  it('the table declares it for highest / lowest and only them', () => {
-    expect(FINITE_WINDOW.highest.na).toBe('finite')
-    expect(FINITE_WINDOW.lowest.na).toBe('finite')
-    expect(FINITE_WINDOW.highestbars.na).toBe('restart')
-    expect(FINITE_WINDOW.lowestbars.na).toBe('restart')
+  it('the table declares it for highest / lowest / highestbars / lowestbars and only them', () => {
     expect(Object.entries(FINITE_WINDOW).filter(([, s]) => s.na === 'finite').map(([k]) => k).sort())
-      .toEqual(['highest', 'lowest'])
+      .toEqual(['highest', 'highestbars', 'lowest', 'lowestbars'])
+    // ⭐ S17 — the two offset members count in BARS (`arg`); no member keeps RESTART or `naCurrent`
+    expect(Object.entries(FINITE_WINDOW).filter(([, s]) => s.arg === true).map(([k]) => k).sort())
+      .toEqual(['highestbars', 'lowestbars'])
+    expect(Object.values(FINITE_WINDOW).some((s) => s.na === 'restart' || 'naCurrent' in s)).toBe(false)
+  })
+
+  it('⭐⭐ highestbars / lowestbars: the offset is counted in BARS past a hole (S17)', () => {
+    const src = Float64Array.from([5, 9, 7, NaN, 6, NaN, NaN, 4])
+    // internal form: a non-negative distance back (`ta.highestbars` negates it)
+    expect(Array.from(FN.highestbars(src, 3))).toEqual([NaN, NaN, 1, 2, 3, 4, 5, 5])
+    expect(Array.from(FN.lowestbars(src, 3))).toEqual([NaN, NaN, 2, 3, 0, 1, 2, 0])
+    // a tie names the OLDER bar, in bars (the 2026-09-08 tie rule, unchanged)
+    expect(Array.from(FN.highestbars(Float64Array.from([3, NaN, 3, 1]), 2))).toEqual([NaN, 1, 2, 1])
   })
 
   it('reaches back past a hole and answers on the hole bar', () => {
@@ -239,38 +319,22 @@ describe('⛔ withheld by name where no capture pins the answer', () => {
     expect(on.clock).toEqual([])
   })
 
-  it('⭐⭐ highestbars / lowestbars: argExtremeHoled names exactly the bars the rules could split', () => {
-    // bars 0..2 warm-up na, then values, a hole at 6, values
-    const src = Float64Array.from([NaN, NaN, NaN, 4, 5, 6, NaN, 7, 8, 9, 10])
-    // n = 3: bars 2..4 hold only a leading warm-up na (same bars under both rules): served, except
-    // bar 2 itself, whose current value is na (RESTART answers 0 there, unwitnessed)
-    expect(Array.from(argExtremeHoled(src, 3, false))).toEqual([0, 0, 1, 0, 0, 0, 1, 1, 1, 0, 0])
-    // off the listing, every window holding an na
-    expect(Array.from(argExtremeHoled(src, 3, true))).toEqual([0, 0, 1, 1, 1, 0, 1, 1, 1, 0, 0])
-    // a clean source: nothing
-    expect(Array.from(argExtremeHoled(Float64Array.from([1, 2, 3, 4]), 3, true))).toEqual([0, 0, 0, 0])
+  it('⚰️ `arg-extreme:holed-window` is gone from every lane (S17 measured the rule)', () => {
+    expect(Object.keys(CHART_CLOCK_WITHHELD)).not.toContain('arg-extreme:holed-window')
+    expect('ARG_EXTREME_HOLED' in interpretModule).toBe(false)
+    expect('argExtremeHoled' in interpretModule).toBe(false)
+    expect(CHART_CLOCK_WITHHELD[WINDOW_EXTREME_LEFT_EDGE]()).toMatch(/ta\.highestbars/)
   })
 
-  it('⭐⭐ a holed highestbars is withheld by name at every lane and door; a clean one is drawn', () => {
-    const holed = ['//@version=6', 'indicator("ehl hb")', 'x = bar_index % 50 == 30 ? na : close', 'plot(ta.highestbars(x, 10), "hb")'].join('\n')
-    const clean = ['//@version=6', 'indicator("ehl hb")', 'plot(ta.highestbars(close, 10), "hb")'].join('\n')
-    const h = hostColumn(holed, 0)
-    expect(h.clock).toEqual([ARG_EXTREME_HOLED])
-    // the hole bar and the 9 bars whose window holds it, after a finite value: withheld
-    for (const i of [30, 31, 39, 80, 89]) expect(Number.isFinite(h.col[i]), `bar ${i}`).toBe(false)
-    for (const i of [9, 29, 40, 79]) expect(Number.isFinite(h.col[i]), `bar ${i}`).toBe(true)
-    expect(hostColumn(clean, 0).clock).toEqual([])
-    expect(doorColumns(holed).clock).toEqual([ARG_EXTREME_HOLED])
-    // the screen, the pane and the member door admit it (the host lane withholds the bars by name);
-    // the runtime door declines by the same code, because it has no per-bar withholding
-    expect(doors(holed)).toEqual(['OK', 'OK', ARG_EXTREME_HOLED, 'OK'])
-    expect(doors(clean)).toEqual(['OK', 'OK', 'OK', 'OK'])
-    const run = runtimeRun(holed)
-    expect(run.err && run.err.guard).toBe(ARG_EXTREME_HOLED)
-    const runClean = runtimeRun(clean)
-    expect(runClean.err).toBeUndefined()
-    expect(runClean.a).toEqual(hostColumn(clean, 0).col)
-    expect(CHART_CLOCK_WITHHELD[ARG_EXTREME_HOLED]()).toMatch(/highestbars/)
+  it('⭐ off the listing, a highestbars window of fewer than n finite values is withheld (left edge)', () => {
+    const src = ['//@version=6', 'indicator("ehl hb edge")', 'plot(ta.highestbars(ta.sma(close, 20), 10), "hb")'].join('\n')
+    const bars = RDDT.bars.slice(100)
+    const off = hostColumn(src, 0, { historyFromListing: false }, bars)
+    expect(off.clock).toEqual([WINDOW_EXTREME_LEFT_EDGE])
+    for (let i = 0; i < 28; i += 1) expect(Number.isFinite(off.col[i]), `bar ${i}`).toBe(false)
+    const on = hostColumn(src, 0, LISTING, RDDT.bars)
+    expect(on.clock).toEqual([])
+    for (let i = 28; i < bars.length; i += 1) expect(off.col[i], `bar ${i}`).toBe(on.col[i + 100])
   })
 
   it('⭐ a highestbars over a warm-up source (no interior hole) is served, equal on both lanes', () => {
@@ -284,12 +348,12 @@ describe('⛔ withheld by name where no capture pins the answer', () => {
     expect(run.a).toEqual(h.col)
   })
 
-  it('⭐ the withholding reaches downstream: a comparison over a holed highestbars is withheld, not 1', () => {
+  it('⭐ a comparison over a holed highestbars is drawn, 0 on the hole bar (it has an offset there)', () => {
     const src = ['//@version=6', 'indicator("ehl hb")', 'x = bar_index % 50 == 30 ? na : close',
       'plot(na(ta.highestbars(x, 10)) ? 1 : 0, "n")'].join('\n')
     const h = hostColumn(src, 0)
-    expect(h.clock).toEqual([ARG_EXTREME_HOLED])
-    expect(Number.isFinite(h.col[30])).toBe(false)
+    expect(h.clock).toEqual([])
+    expect(h.col[30]).toBe(0)
     expect(h.col[29]).toBe(0)
   })
 })

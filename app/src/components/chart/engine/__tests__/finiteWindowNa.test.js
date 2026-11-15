@@ -12,7 +12,8 @@
 //   RESTART   highest, lowest           — the window begins again after a hole
 //             ⚰️ REFUTED for highest / lowest 2026-11-15 (S10, `vw-cs2-holed-highest-*`): they are
 //             FINITE (the last n finite values, reaching back past the hole, kept on the hole bar).
-//             Only highestbars / lowestbars keep RESTART, their holed case withheld by name.
+//             ⚰️ highestbars / lowestbars kept RESTART (0 on the na bar) until S17 refuted it too
+//             (`vw-cs2-holed-highestbars-*`): FINITE, the offset counted in BARS. No member is RESTART.
 //             `engineHlHoles.test.js` holds the captures; `divergences.json::highest-lowest-restart-after-a-hole`.
 //
 // Fixture: `finite-window-na-policy-by-member-spy-1d-2026-09-08`.
@@ -52,8 +53,9 @@ describe('⛔⛔ the policy is declared PER MEMBER, and the table says so', () =
     // fourth, which is the same lesson one turn further on — the family did not
     // merely hold more than one rule, it held more rules than had been NAMED.
     // ⭐ 5 SINCE ENGINE HL (2026-11-15): `highest` / `lowest` moved to FINITE, and RESTART stays in
-    // use by `highestbars` / `lowestbars`.
-    expect(seen.size, 'the family must still use more than one policy').toBe(5)
+    // use by `highestbars` / `lowestbars`. ⭐ 4 SINCE S17: `highestbars` / `lowestbars` are FINITE
+    // too and RESTART has no member (skip, propagate, ffill, finite).
+    expect(seen.size, 'the family must still use more than one policy').toBe(4)
   })
 
   it('⭐ the members are on the policies the vendor showed', () => {
@@ -64,7 +66,8 @@ describe('⛔⛔ the policy is declared PER MEMBER, and the table says so', () =
     expect(FINITE_WINDOW.dev.na).toBe('propagate')
     expect(FINITE_WINDOW.highest.na).toBe('finite')
     expect(FINITE_WINDOW.lowest.na).toBe('finite')
-    expect(FINITE_WINDOW.highestbars.na).toBe('restart')
+    expect(FINITE_WINDOW.highestbars.na).toBe('finite')
+    expect(FINITE_WINDOW.lowestbars.na).toBe('finite')
   })
 })
 
@@ -215,18 +218,15 @@ describe('⚰️ what PART Z could not settle, and what settled it', () => {
     expect(out[4], 'and 7 -> na -> 1 does not break it').toBe(1)
   })
 
-  it('⭐⭐ highestbars/lowestbars: RESTART, and 0 where the VALUE is not computable', () => {
-    expect(FINITE_WINDOW.highestbars.na).toBe('restart')
-    expect(FINITE_WINDOW.lowestbars.na).toBe('restart')
-    expect(FINITE_WINDOW.highestbars.naCurrent).toBe(0)
-    // ⭐ THE ASYMMETRY PART Z MEASURED AND COULD NOT EXPLAIN, now expressed: the
-    // OFFSET is defined on an `na` bar because the window restarted there and
-    // this bar is its only candidate — while the VALUE stays blank.
+  it('⭐⭐ highestbars/lowestbars: on the `na` bar they keep their window, offset in BARS (S17)', () => {
+    expect(FINITE_WINDOW.highestbars.na).toBe('finite')
+    expect(FINITE_WINDOW.lowestbars.na).toBe('finite')
+    expect('naCurrent' in FINITE_WINDOW.highestbars).toBe(false)
+    // ⚰️ PART Z read 0 here (36 of 36, "the window restarted and this bar is its only
+    // candidate"). S17 (`vw-cs2-holed-highestbars-rddt-1d-2026-11-15`) read the window of the
+    // last n finite values instead: RDDT bar 30, the hole, -1. The value agrees (12 at bar 2).
     const src = Float64Array.from([10, 11, 12, NaN])
-    expect(FN.highestbars(src, 3)[3]).toBe(0)
-    // ⚰️ `highest` blanked here until engine HL; S10 measured it keeping its window (12).
-    // ⛔ The `highestbars` 0 is the raw column: `interpret` withholds that bar by name
-    // (`arg-extreme:holed-window`), because its only witness is the probe S10 refuted.
+    expect(FN.highestbars(src, 3)[3]).toBe(1)
     expect(FN.highest(src, 3)[3]).toBe(12)
   })
 

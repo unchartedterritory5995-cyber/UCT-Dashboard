@@ -107,15 +107,15 @@ def test_the_fixture_is_not_vacuous():
     # OWN fixture (tests/test_ast_bar_index_shift_parity.py) -- this one has no Pine
     # document reading `bar_index`, so they are set aside here by prefix, not by name.
     # 2026-11-09: so do the `running-total:` and `var-origin:` codes, held by that same fixture.
-    # Engine HL: the `window-extreme:` / `arg-extreme:` codes (`window_hole_mask`) are exercised by
+    # Engine HL: the `window-extreme:` code (`window_hole_mask`) is exercised by
     # tests/test_engine_hl_holes.py, set aside here by prefix for the same reason.
     clock = {c for c in ai.CHART_CLOCK_WITHHELD_CODES
-             if not c.startswith(("bar-index:", "running-total:", "var-origin:", "window-extreme:", "arg-extreme:"))}
+             if not c.startswith(("bar-index:", "running-total:", "var-origin:", "window-extreme:"))}
     assert clock - named == {"time-anchor:other-bars"}
     assert set(ai.CHART_CLOCK_WITHHELD_CODES) - clock == {
         "bar-index:window", "bar-index:early-bars", "bar-index:first-bar",
         "running-total:window", "running-total:early-bars", "var-origin:window", "var-origin:bars",
-        "window-extreme:left-edge", "arg-extreme:holed-window"}
+        "window-extreme:left-edge"}
 
 
 def test_the_builders_are_the_fixtures_own_trees():

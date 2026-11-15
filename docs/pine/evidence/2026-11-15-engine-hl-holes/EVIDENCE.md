@@ -113,6 +113,50 @@ and the member door's served columns computed on and off the listing; per plot a
 - `arg-extreme:holed-window`: named by **no** census source, on or off the listing.
 - Plots newly empty: 0 (217 -> 217). Dark plots (the listing drawing less than the off-listing replay): 5 -> 5.
 
+## Follow-up: `ta.highestbars` / `ta.lowestbars` over holes (S17, 2026-11-15)
+**Witness.** S17 captured the probe `tools/visual_conformance/probes/vw-cs2-holed-highestbars.pine`
+(ours, `UCTPROBE_VW_CS2_HOLED_HIGHESTBARS`) on NYSE:RDDT 1D from the listing (666 bars,
+`history.startsAtBar0` true); committed here as
+`tests/fixtures/vendor/harness/vw-cs2-holed-highestbars-rddt-1d-2026-11-15.json` (byte-equal to the copy on
+`data/pine-captures-s13-s14` `7f82fba3f1`). Same source, `x = bar_index % 50 == 30 ? na : close`;
+`ta.highestbars(x, 10)` / `ta.lowestbars(x, 10)` plus the same two over `close` (no hole) and the
+`highest` / `lowest` controls.
+
+- TradingView uses the LAST 10 FINITE values (the same window as `highest` / `lowest`), ties to the older
+  bar, and counts the offset in **BARS**: on the hole bar 30 it answers -1 / -10 (bars 20..29), and an
+  offset reaches -10 inside a 10-value window that spans 11 bars (bar 31 lowestbars -10, bar 37 -10).
+- That rule reproduces all four offset columns with 0 mismatches. 130 of the 666 bars hold the hole in their
+  window: #1332 withheld every one of them (`arg-extreme:holed-window`), master answered 0 on the hole bar and
+  a restarted window after it.
+
+**Change.** `FINITE_WINDOW.highestbars/lowestbars` are `na: NA.FINITE, arg: true` (both lanes, the VM,
+Python `WINDOW_NA` + `WINDOW_ARG`). `rollingFinite` / `_rolling_finite` keep each kept value's bar beside it
+and, for an `arg` member, turn `windowArgExtreme`'s dense distance into `i - bar`; the VM's `finite` ring is
+`2 * span` cells for an `arg` member (values, then their bars), one array so resume / rollback / the state
+encoder carry both halves. With no member left on it, `NA.RESTART`, `naCurrent` / `WINDOW_NA_CURRENT`,
+`argExtremeHoled` / `_arg_extreme_holed`, `ARG_EXTREME_HOLED`, its sentence, the runtime refusal and the VM's
+stop (and `program.windowsFromListing`) are deleted. `windowHoleMask` now asks one question of all four
+members: off the listing, a window of fewer than n finite values is `window-extreme:left-edge` (its sentence
+names the four functions); from the listing it returns null.
+
+**Rails.** `engineHlHoles.test.js` (new block): the capture is what it says (plots, the signature values,
+130 holed bars); the rule over its bars, 0 mismatches on all four columns; the host lane draws all eight
+plots exactly with nothing withheld; the runtime lane draws the four offset columns exactly; all four doors
+admit the probe and the member door serves the columns; synthetic offsets in bars past a hole and the tie;
+off the listing a short `highestbars` window withheld by name and the later bars equal the listing's; the
+code gone from every export. `runtime/__tests__/finiteWindow.test.js`: the VM's `arg` ring over a gappy
+series, with a non-vacuity check that an offset reaches past the span. `tests/test_engine_hl_holes.py`: the
+Python lane against the capture (4 columns, 0 mismatches), the synthetic offsets, the removed names.
+Re-pinned: `finiteWindowNa.test.js` (four policies; an offset, not 0, on the `na` bar),
+`test_ast_bounded_state.py` (`highestbars` and `highest` blank on the same bars again),
+`test_ast_period_anchor_parity.py` (the code list). `divergences.json`: new row
+`highestbars-lowestbars-restart-and-zero-on-the-na-bar` (`corrected`); the S10 row's and both 2026-09-08
+fixtures' notes and `closedTable.json`'s resolution say so.
+
+**Mutants (S17 follow-up).** Copy aside, mutate, the focused rails, restore from the copy, byte-equal checked: 7 of 7 killed. JS: the `arg` answer as the dense distance (columnar `rollingFinite`), the same in the VM, the VM's bar ring not shifted, `highestbars` dropped from `windowHoleMask`'s calls. Python: the `arg` answer as the dense distance, the bar list not popped, `highestbars` dropped from `_HOLE_WINDOW_CALLS`.
+
+**Tests run (S17 follow-up).** vitest `engineHlHoles` (23), `finiteWindowNa`, runtime `finiteWindow` (55), `w4SeriesLength`, `pureWindowInFunction`, `honestySweep`, `dynamicHistoryOffset` (231 in all), `vendorTruth`, `periodAnchorParity`, `interpret.test` (252); pytest `test_engine_hl_holes`, `test_ast_bounded_state`, `test_ast_period_anchor_parity` (187), `test_vendor_truth` (161), the AST conformance rails. Gate section 8 locally: 535 passed, 1 failed, `test_pine_runtime_service_smoke::test_committed_fixture_is_whole...` (`service_smoke.json` records engine 54, this branch says 55): the re-record and the host-parity digests (`tools/pine_runtime_host_parity.mjs --check` is RED on every case for the same number) belong to the merge, at the number the coordinator assigns.
+
 ## Rails
 - `app/src/components/chart/engine/ast/engineHlHoles.test.js`: the six committed captures (the rule over
   their bars, 0 mismatches, RESTART not); the host lane, the runtime lane and the member door each draw all
@@ -160,6 +204,5 @@ not committed, coordinator rule 2026-11-15).
    up to ~200 later bars of a screen condition whose OTHER branch reads `ta.sma(close, 200)`. A path-sum
    reach would withhold fewer; not changed here.
 4. **Not captured.** The short-window (warm-up) case of `ta.highest` from the listing (served as before, the
-   same values RESTART drew); `ta.highestbars` / `ta.lowestbars` over a holed source (withheld). A probe of
-   each (`ta.highest(ta.sma(close, 20), 10)` from the listing; `ta.highestbars(x, 10)` with
-   `x = bar_index % 50 == 30 ? na : close`) settles them.
+   same values RESTART drew); a probe (`ta.highest(ta.sma(close, 20), 10)` from the listing) settles it.
+   (`ta.highestbars` / `ta.lowestbars` over a holed source: S17 settled them, the follow-up above.)

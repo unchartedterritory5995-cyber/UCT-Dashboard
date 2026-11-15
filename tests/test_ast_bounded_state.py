@@ -700,41 +700,39 @@ def test_highestbars_agrees_with_highest_about_WHICH_bar_it_names():
     assert checked > 200, checked
 
 
-def test_highestbars_and_highest_NO_LONGER_blank_together_and_the_vendor_is_why():
+def test_highestbars_and_highest_blank_together_again_and_the_vendor_is_why():
     """⚰⚰ THIS TEST ASSERTED THEY BLANK ON EXACTLY THE SAME BARS, then (2026-09-08) that
-    ``highestbars`` blanks on strictly fewer, both under RESTART with ``naCurrent = 0``.
+    ``highestbars`` blanks on strictly fewer, both under RESTART with ``naCurrent = 0``, then
+    (engine HL) that ``highest`` was ``NA_FINITE`` while ``highestbars`` kept RESTART, withheld.
 
-    ⚰️ ENGINE HL (2026-11-15): the S10 captures refuted the 2026-09-08 probe's ``highest`` reading
-    (``vw-cs2-holed-highest-*``: the last n FINITE values, fewer while fewer exist). ``highest`` is
-    ``NA_FINITE`` now, and ``highestbars`` keeps RESTART with ``naCurrent = 0`` -- but its only hole
-    witness is that same probe, so ``interpret`` withholds by name every bar whose window holds an
-    ``na`` the two rules could read differently (``arg-extreme:holed-window``), and off the listing
-    (these bars) ``highest``'s short warm-up window too (``window-extreme:left-edge``).
-
-    So the RAW table functions keep the measured asymmetry (the offset answers 0 on the head, the
-    value only once a finite value exists), and the SERVED columns withhold the head by name.
+    ⭐⭐ S17 (2026-11-15, ``vw-cs2-holed-highestbars-rddt-1d-2026-11-15``): ``highestbars`` reads the
+    same last n FINITE values as ``highest`` (the offset counted in BARS) and answers -1, not 0, on
+    the hole bar. So they blank on the same bars once more -- the raw columns, the served columns off
+    the listing (``window-extreme:left-edge`` for both) and from it.
     """
     src = CALL("sma", SER("high"), NUM(30))     # a 29-bar hole at the front
     col = ast_interpret._interpret_column(src, BARS, {})
     raw_off = ast_interpret.FN["highestbars"](col, 5)
     raw_top = ast_interpret.FN["highest"](col, 5)
     nan = lambda v: isinstance(v, float) and math.isnan(v)  # noqa: E731
-    assert [i for i, v in enumerate(raw_off) if nan(v)] == [0, 1, 2, 3]
+    assert [i for i, v in enumerate(raw_off) if nan(v)] == list(range(29))
     assert [i for i, v in enumerate(raw_top) if nan(v)] == list(range(29))
-    # served, off the listing: both withheld on the head, by name, and drawn after it
+    # served, off the listing: both withheld on the head, by the same name, and drawn after it
     sink_off, sink_top = {}, {}
     off = ast_interpret.interpret(CALL("highestbars", src, NUM(5)), BARS, {}, opts={"chartClockSink": sink_off})
     top = ast_interpret.interpret(CALL("highest", src, NUM(5)), BARS, {}, opts={"chartClockSink": sink_top})
-    assert sink_off == {ast_interpret.ARG_EXTREME_HOLED: True}
+    assert sink_off == {ast_interpret.WINDOW_EXTREME_LEFT_EDGE: True}
     assert sink_top == {ast_interpret.WINDOW_EXTREME_LEFT_EDGE: True}
     assert [i for i in range(len(BARS)) if at(off, i) is None] == list(range(33))
     assert [i for i in range(len(BARS)) if at(top, i) is None] == list(range(33))
-    # from the listing the head is the series' own start: `highest` answers its short window,
-    # `highestbars` still withholds the bars whose CURRENT value is the head's `na`
+    # from the listing the head is the series' own start: both answer their short window
     on_off = ast_interpret.interpret(CALL("highestbars", src, NUM(5)), BARS, {}, opts={"historyFromListing": True})
     on_top = ast_interpret.interpret(CALL("highest", src, NUM(5)), BARS, {}, opts={"historyFromListing": True})
     assert [i for i in range(len(BARS)) if at(on_off, i) is None] == list(range(29))
     assert [i for i in range(len(BARS)) if at(on_top, i) is None] == list(range(29))
+    # and the offset names the bar the value sits on
+    for i in range(29, len(BARS)):
+        assert col[i - int(on_off[i])] == on_top[i], i
 
 
 # ─────────────────────────────────────────────────────────────────────────── #
