@@ -212,7 +212,19 @@ def store_pc_confirmed(symbols, as_of=None) -> dict:
         json.dump(payload, fh)
     os.replace(tmp, path)
     reset_cache()
+    _warm_async()
     return {"stored": len(syms), "as_of": payload["as_of"]}
+
+
+def _warm_async() -> None:
+    """Rebuild the pending set off the request thread after a reset, so the next reader
+    finds it built instead of paying for it (a cold build did not answer in 120 s on a
+    freshly booted pod, 2026-11-14). Never raises."""
+    try:
+        threading.Thread(target=pending_deal_symbols, daemon=True,
+                         name="deal-status-warm").start()
+    except Exception as exc:  # noqa: BLE001
+        _log.warning("[deal-status] warm not started: %s", exc)
 
 
 def pc_confirmed() -> frozenset:
