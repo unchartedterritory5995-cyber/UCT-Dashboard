@@ -28,11 +28,16 @@ Railway's stored settings, 2026-11-14:
 
 The other nine services already ran with no config file (their deployments show none) and are not
 affected: `bars-api`, `breadth-v2-runner`, `chart-renderer`, `econ-ingest`, `fundamentals-v5-runner`,
-`terminal-next-monitor`, `trade-exchange-news-receiver`, `tx-recap`, `web-front`. Four config files in
-the repo are read by no service today: `railway.econ.json`, `railway.ingest.json`,
+`terminal-next-monitor`, `trade-exchange-news-receiver`, `tx-recap`, `web-front`. Three config files in
+the repo are read by no service today: `railway.econ.json`,
 `services/pine_runtime/railway.json`, `services/trade_exchange_news_staging_web/railway.json`
 (`services/trade_exchange_news_receiver/railway.json` matches that service's stored settings but its
 deployments read no file either).
+
+`stream-ingest` (created 2026-11-14) is the proof that a NEW service reads no config file: its first
+deploy ignored `railway.ingest.json` and started the default command (the whole web app). Its
+settings were then typed into Railway by hand, and it is in `SERVICES` so the tool compares them
+with `railway.ingest.json` (watch paths included) from now on.
 
 ## The tool
 

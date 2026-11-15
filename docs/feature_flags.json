@@ -3337,7 +3337,7 @@
       "last_changed": "never set",
       "note": "P3-S1 BarStore chart bar source (app/src/components/chart/barStoreSwitch.js, read ONCE at module load as `=== '1'`). Off (unset) = every chart reads bars through the legacy selector (chart/useLegacyChartBars.js, SWR + IDB + mem); on = through the BarStore snapshot (chart/useBarSnapshotBars.js, data/barStore). Per-browser override: localStorage 'uct.barStore' = '1' (on) / '0' (off) wins over the build. SAFETY REASON FOR THE FLAG: it swaps the whole bar data path of every chart, so it ships OFF and the owner approves the live switch separately after a per-browser soak. Removed <= 7 days after it reaches 100% (P3-S3 deletes the legacy hook and the switch).",
       "flip_precondition": "ON CHANGES FOR A MEMBER: every chart's bars (history, tail polling, the developing candle Writer D re-tops, the symbol handoff's prepare) come from one BarStore entry per (symbol, timeframe) instead of the SWR/IDB/mem selector. VERIFY BEFORE FLIPPING: soak with localStorage uct.barStore=1 during RTH on 1/5/15/30/60m and D (symbol scan + timeframe switches), compare against a legacy tab; confirm no blank frames, no stale tails painted as LIVE, and the request count per chart stays at one tail poll.",
-      "hold": "Owner approval required to arm (P3-S1 PR). No action until then."
+      "hold": "Owner approval required to arm (P3-S1 PR). No action until then. Before arming: port the #1314 short-intraday warm rule (utils/prefetchBars.js `_shortIntraday` + `_shortFullAt`, one full window per key) into data/barStore/prefetch.js; without it the hourly charts' short first draw returns (34/40 drew <200 bars before #1314, 0/40 after)."
     },
     "VITE_CHART_RENDER_TOKEN": {
       "status": "armed",
@@ -3684,6 +3684,14 @@
   },
   "knobs": {
     "_readme": "X-16 (TERMINAL-NEXT ledger hygiene, 2026-10-02). Env vars that DECIDE behaviour but that `flags` cannot hold, because its rail admits only names the AST index classifies as a gate (ENABLED/DISABLE/_ON), a visibility flag or a *_MODE_FLAGS entry: a CUTOVER switch, a SAMPLE RATE, and a gate that lives in ANOTHER REPO. Each row says where it is read and what its unset value does. tests/test_flag_ledger_knobs.py holds every `repo: uct-dashboard` row to the AST scan (a name the code no longer reads fails) and every row to the same status vocabulary as `flags`.",
+    "PINE_RUNTIME_RUN_TELEMETRY": {
+      "repo": "uct-dashboard",
+      "read_at": "api/routers/pine_runtime_telemetry.py::run_telemetry_enabled (read per batch; only the literal off disables)",
+      "kind": "kill-switch",
+      "status": "armed",
+      "default": "on",
+      "note": "2026-11-14 (U4, feat/pine-runtime-telemetry): storage of the runtime lane's run-count and perf beacon (POST /api/pine-runtime-telemetry/runs), the denominator of the runtime pane's admins -> cohort exit gate (stops under 2% of runs). The default IS the decision: on, set on no service, because the gate cannot be measured without it and a batch carries no member content (integers under closed keys, aggregated per ET day and code; no source, no script hash, no member id; the per-member daily cap is a keyed hash). Only a member whose pane runs the runtime lane may post (runtime_definitions.pane_permitted: PINE_RUNTIME_STAGE + cohort; admins today); at most 600 answered runs per batch, one batch a minute per tab within a rolling 90/hour, fire-and-forget; per-member 600 batches/day against a 200,000 global cap. The gate (GET /runs cohort_criterion.passes) is stops / (ok + stops) under 2% with at least 150 runs, a 95% Wilson upper bound under 2%, >= 3 tabs, no tab over half the runs, no worker-failed, no load-failed and nothing dropped; declines are reported beside the rate. Set off to stop STORING batches (the endpoint still answers {ok, logged:false}); a variable, no deploy. Admin read: GET /api/pine-runtime-telemetry/runs. Rails: tests/test_pine_runtime_run_telemetry.py, app/src/components/chart/engine/__tests__/runtimeRunTelemetry.test.js."
+    },
     "PY_SWITCH_INTERVAL_MS": {
       "repo": "uct-dashboard",
       "read_at": "api/services/gil_tuning.py::apply (read once at web boot from api/main.py's lifespan; milliseconds; blank means the default; a value that is not a number in [0.05, 10] is REFUSED and the interpreter's interval is left as it was)",
