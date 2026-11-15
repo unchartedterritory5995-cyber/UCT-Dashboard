@@ -6,11 +6,15 @@ client's set in one `feed_protocol.DesiredUnion` (with the client lease, so a we
 deploy keeps the feed warm), and sends each client `batch` messages from that client's
 own `CoalescingBuffer`.
 
-PR4a ships this WITHOUT a market-data socket. Desired-set changes only update the
-union and its counters (`on_delta` is a no-op hook PR4b wires to bar_stream), and the
-only data a client receives is a status batch about once a second: the heartbeat that
-lets the web side track epoch and seq from day one. Nothing here opens a socket to a
-vendor. The rail `tests/test_stream_ingest_skeleton.py` keeps it that way.
+This module is the transport + protocol half and opens no market-data socket itself.
+The data half (PR4b, `ingest_runtime.IngestRuntime`) is plugged in as `data`: it hears
+every union change (`on_delta`), every change of one connected client's own set
+(`client_updated`, which snapshots what that connection has not been given yet),
+every connection end (`client_gone`), and one `before_flush()` per batch tick; it
+puts bars and prices into the clients' buffers. Without it (`data=None`) a client
+receives only the status batch about once a second: the heartbeat that lets the web
+side track epoch and seq. The rail `tests/test_stream_ingest_skeleton.py` keeps any
+vendor socket out of this file.
 
 Auth: `Authorization: Bearer <PUSH_SECRET>` on the upgrade request, the same
 service-auth convention as the repo's other internal endpoints, compared in constant
@@ -109,13 +113,18 @@ class IngestFeedServer:
                  monotonic: Callable[[], float] = time.monotonic,
                  on_delta: Optional[Callable[[fp.ChannelDelta], None]] = None,
                  status_extra: Optional[Callable[[], dict]] = None,
-                 limits: fp.BufferLimits = fp.BufferLimits()):
+                 limits: fp.BufferLimits = fp.BufferLimits(),
+                 data=None):
         self.secret = secret
         # A new epoch per boot: the web mirror resets on an epoch change (invariant 8).
         self.epoch = int(epoch if epoch is not None else time.time() * 1000)
         self._mono = monotonic
         self.union = fp.DesiredUnion(lease_s=lease_s)
         self._on_delta = on_delta or (lambda d: None)
+        # The data plane (ingest_runtime.IngestRuntime) or None (heartbeat only).
+        self._data = data
+        if data is not None:
+            data.attach(self)
         self._status_extra = status_extra or (lambda: {})
         self._limits = limits
         self.clients: dict[str, _Client] = {}
@@ -166,8 +175,20 @@ class IngestFeedServer:
 
     def _wire_status(self) -> dict:
         # What every client sees in its batches: small, JSON-safe, no secrets.
-        return {"epoch": self.epoch, "connect": False, "closing": self.closing,
-                "clients": len(self.clients)}
+        # `connect`: the Massive socket is up (the web side's "is ingest live?").
+        return {"epoch": self.epoch,
+                "connect": bool(self._data is not None and self._data.vendor_connected),
+                "closing": self.closing, "clients": len(self.clients)}
+
+    def _data_call(self, name: str, *args) -> None:
+        """One data-plane hook; its failure is logged and counted, never fatal."""
+        if self._data is None:
+            return
+        try:
+            getattr(self._data, name)(*args)
+        except Exception as e:  # noqa: BLE001
+            self.counters.extra["data_errors"] = self.counters.extra.get("data_errors", 0) + 1
+            log.warning("[ingest-feed] data %s failed: %s: %s", name, type(e).__name__, e)
 
     # -- one connection --
 
@@ -212,6 +233,7 @@ class IngestFeedServer:
             if old is not None:
                 self._spawn(self._close(old.conn, CLOSE_POLICY, "superseded by a newer connection"))
             client.buffer.set_status(self._wire_status())
+            self._data_call("client_updated", client)
             sender = asyncio.create_task(self._send_loop(client))
             sender.add_done_callback(lambda t, c=client: self._sender_done(t, c))
             await self._recv_loop(client)
@@ -231,6 +253,8 @@ class IngestFeedServer:
                         raise
                 except Exception:  # noqa: BLE001 - already reported by _sender_done
                     pass
+            if client is not None:
+                self._data_call("client_gone", client)
             if client is not None and self.clients.get(client.client_id) is client:
                 del self.clients[client.client_id]
                 if not self.closing and client.client_id in self.union.clients():
@@ -268,6 +292,8 @@ class IngestFeedServer:
                     self._apply(self.union.apply_patch(client.client_id, msg, now))
                 else:
                     raise fp.MalformedMessage(f"unexpected {type(msg).__name__} from a client")
+                if self.clients.get(client.client_id) is client:   # not superseded meanwhile
+                    self._data_call("client_updated", client)
             except fp.ProtocolError as e:
                 self.counters.protocol_closes += 1
                 await self._close(conn, CLOSE_POLICY, f"{type(e).__name__}: {e}")
@@ -281,6 +307,7 @@ class IngestFeedServer:
             if now - last_status >= STATUS_INTERVAL_S:
                 last_status = now
                 client.buffer.set_status(self._wire_status())
+            self._data_call("before_flush")
             if not await self.flush_client(client):
                 return
 
@@ -321,6 +348,7 @@ class IngestFeedServer:
 
         async def final(client: _Client) -> None:
             client.buffer.set_status(self._wire_status())
+            self._data_call("before_flush")
             try:
                 await self.flush_client(client, timeout_s=FINAL_SEND_TIMEOUT_S)
             except Exception:  # noqa: BLE001

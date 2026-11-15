@@ -268,10 +268,31 @@ def _build_auth_message(api_key: str) -> str:
     return json.dumps({"action": "auth", "params": api_key})
 
 
-async def _run_websocket(on_bar: OnBarCallback) -> None:
-    """Main reconnect loop. Returns only when the process exits."""
+class _DefaultReconnectPolicy:
+    """The web pod's waits, exactly as they always were: 60 s after a failed auth,
+    the reader's own exponential backoff (1, 2, 4 ... 60 s) after a disconnect.
+    The stream-ingest service passes `massive_reconnect.MaxConnLadder` instead."""
+
+    def connected(self) -> None:
+        pass
+
+    def auth_failed_delay(self, status) -> float:
+        return 60.0
+
+    def disconnect_delay(self, err, backoff) -> float:
+        return backoff
+
+
+async def _run_websocket(on_bar: OnBarCallback, policy=None) -> None:
+    """Main reconnect loop. Returns only when the process exits.
+
+    `policy` decides the waits between connections (and hears each successful
+    connect); None = `_DefaultReconnectPolicy`, the web pod's historic behaviour."""
     global _ws_connection, _running, _feed_bytes, _feed_frames
     import websockets
+
+    if policy is None:
+        policy = _DefaultReconnectPolicy()
 
     if not _API_KEY:
         _logger.warning("[bar_stream] MASSIVE_API_KEY not set — bar stream disabled")
@@ -318,10 +339,11 @@ async def _run_websocket(on_bar: OnBarCallback) -> None:
                             raise RuntimeError(f"Auth rejected: status={status_str!r}")
                     _logger.info("[bar_stream] auth_success")
                 except (asyncio.TimeoutError, json.JSONDecodeError, RuntimeError) as auth_err:
-                    _logger.error("[bar_stream] auth handshake failed: %s — backing off 60s", auth_err)
+                    wait = policy.auth_failed_delay(auth_err)
+                    _logger.error("[bar_stream] auth handshake failed: %s — backing off %ds", auth_err, wait)
                     _running = False
                     _ws_connection = None
-                    await asyncio.sleep(60)
+                    await asyncio.sleep(wait)
                     continue  # back to outer while True; async with closes ws cleanly
 
                 # Resubscribe whatever was active before the disconnect, channel by
@@ -344,6 +366,10 @@ async def _run_websocket(on_bar: OnBarCallback) -> None:
 
                 _running = True
                 backoff = 1
+                try:
+                    policy.connected()
+                except Exception as e:  # noqa: BLE001 - a hook must never break the reader
+                    _logger.warning("[bar_stream] reconnect policy hook failed: %s", e)
 
                 # One frame -> the same calls, through the code the stream-ingest
                 # service shares (ingest_core; golden tapes pin its output).
@@ -370,10 +396,11 @@ async def _run_websocket(on_bar: OnBarCallback) -> None:
                     drain_task.cancel()
                     live_task.cancel()
         except Exception as e:
-            _logger.warning("[bar_stream] disconnected: %s — reconnect in %ds", e, backoff)
+            wait = policy.disconnect_delay(e, backoff)
+            _logger.warning("[bar_stream] disconnected: %s — reconnect in %ds", e, wait)
             _running = False
             _ws_connection = None
-            await asyncio.sleep(backoff)
+            await asyncio.sleep(wait)
             backoff = min(backoff * 2, 60)
 
 

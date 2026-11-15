@@ -1,4 +1,4 @@
-"""Entrypoint of the `stream-ingest` service (ingest PR4a: the DARK skeleton).
+"""Entrypoint of the `stream-ingest` service (ingest PR4b: the Massive reader, gated).
 
     python -m api.stream_ingest_main          run forever on $PORT
     python -m api.stream_ingest_main --status print a status snapshot and exit
@@ -10,15 +10,19 @@ railway.json: editing that redeploys flow-worker). One asyncio loop, one port:
     GET  /status          JSON status (Authorization: Bearer <PUSH_SECRET>)
     WS   /internal/feed   the web pods' feed (same auth), see ingest_feed_server
 
-PR4a opens NO market-data socket. `STREAM_INGEST_CONNECT` is read only to be
-REPORTED (status shows it); nothing here acts on it. PR4b adds the Massive reader
-behind STREAM_INGEST_CONNECT=1 + vendor_socket_guard, break-before-make only (the
-web pod releases its socket before ingest connects; never two stocks sockets).
+The Massive stocks socket opens ONLY with STREAM_INGEST_CONNECT=1, vendor_socket_guard's
+consent and MASSIVE_API_KEY set (ingest_runtime.connect_decision), and only ever ONE:
+break-before-make, the web pod releases its socket before ingest connects (PR6 cutover,
+off-hours). Unset/0 (today), this process is dark: the feed serves heartbeats and the
+union, and no vendor socket exists. SIGTERM closes the Massive socket FIRST, then sends
+each client its final batch and closes it 1001.
 
 Must not import api.main (no FastAPI app, no web startup jobs): the rail in
 tests/test_stream_ingest_skeleton.py walks this module's import closure.
 Env: PORT (default 8080), PUSH_SECRET (required to serve the feed; fail closed),
-INGEST_CLIENT_LEASE_S (default 180), STREAM_INGEST_CONNECT (reported only).
+INGEST_CLIENT_LEASE_S (default 180), STREAM_INGEST_CONNECT (default 0), MASSIVE_API_KEY,
+STREAM_SCOPED_CHANNELS (same meaning as on web), INGEST_SNAPSHOT_LOOKBACK_MIN (15),
+INGEST_SEED_WORKERS (4).
 """
 from __future__ import annotations
 
@@ -32,26 +36,33 @@ import sys
 
 from api.services import feed_protocol as fp
 from api.services import ingest_feed_server as ifs
+from api.services import ingest_runtime
 
 log = logging.getLogger("api.stream_ingest_main")
 
 
-def _connect_requested() -> bool:
-    return os.environ.get("STREAM_INGEST_CONNECT", "0") == "1"
-
-
-def build_server() -> ifs.IngestFeedServer:
+def build_server(runtime: "ingest_runtime.IngestRuntime" = None) -> ifs.IngestFeedServer:
     lease = float(os.environ.get("INGEST_CLIENT_LEASE_S", str(fp.DEFAULT_LEASE_S)))
+    runtime = runtime or ingest_runtime.IngestRuntime()
+
+    def status_extra() -> dict:
+        rt = runtime.status()
+        return {
+            "service": "stream-ingest",
+            "stage": "pr4b",
+            "vendor_socket": rt["vendor_socket"],
+            "connect_requested": rt["connect"]["requested"],
+            "secret_configured": bool(os.environ.get("PUSH_SECRET")),
+            "runtime": rt,
+        }
+
     return ifs.IngestFeedServer(
         secret=os.environ.get("PUSH_SECRET", ""),
         lease_s=lease,
-        status_extra=lambda: {
-            "service": "stream-ingest",
-            "stage": "pr4a-dark",
-            "vendor_socket": "none",
-            "connect_requested": _connect_requested(),
-            "secret_configured": bool(os.environ.get("PUSH_SECRET")),
-        },
+        on_delta=runtime.on_delta,
+        status_extra=status_extra,
+        limits=ingest_runtime.BUFFER_LIMITS,
+        data=runtime,
     )
 
 
@@ -102,11 +113,16 @@ async def serve_forever(port: int, server: ifs.IngestFeedServer, stop: asyncio.E
                      # STATUS_INTERVAL_S); keep the library ping too, generously.
                      ping_interval=20, ping_timeout=60, close_timeout=2,
                      compression=None) as ws_server:
-        log.info("[stream-ingest] listening on :%d (epoch %d, dark: no vendor socket)", port, server.epoch)
+        runtime = server._data
+        reading = runtime.start_reader() if runtime is not None else False
+        log.info("[stream-ingest] listening on :%d (epoch %d, %s)", port, server.epoch,
+                 "Massive reader on" if reading else "dark: no vendor socket")
         periodic = asyncio.create_task(_periodic(server, stop))
         await stop.wait()
-        log.info("[stream-ingest] stopping: final batches, closing clients 1001")
+        log.info("[stream-ingest] stopping: Massive socket first, then final batches, closing clients 1001")
         ws_server.close(close_connections=False)
+        if runtime is not None:
+            await runtime.stop_reader()
         await server.shutdown()
         periodic.cancel()
         # Backstop: anything still open (a socket mid-handshake, a client the
