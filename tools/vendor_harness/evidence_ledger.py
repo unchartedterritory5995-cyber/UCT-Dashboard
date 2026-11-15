@@ -21,6 +21,13 @@ NEWEST row wins (a local regrade supersedes an older row). It counts only when
   * its `sourceSha256` is the sample's source sha256 (a sample whose script key names the row but
     whose source differs is a sha MISMATCH, never counted).
 A stale row is "unproven (stale)", never proven. A DIVERGE counts as DIVERGE, never dropped.
+
+MATCH_SUBSTITUTED (L7, 2026-11-14): a grade whose our side ran with SUBSTITUTED inputs (a vendor-only
+fact the member door answers from UCT data) fed the vendor's own value. It is filed and kept like
+any verdict, with the substituted inputs on the lane (`substituted: [{name, source,
+vendorValueFrom}]`), and it is NEVER a MATCH: `is_match` answers no, and every consumer that counts
+MATCH counts it apart (`fresh_match_counts`, the coverage map's own bucket, capability admission's
+separately named path).
 """
 from __future__ import annotations
 
@@ -36,7 +43,33 @@ REPO = HERE.parent.parent
 LEDGER = REPO / "docs" / "pine" / "vendor-harness" / "evidence-ledger.jsonl"
 SCHEMA = "uct.evidence-ledger/v2"
 LANES = ("production", "runtime-on")
-VERDICTS = ("MATCH", "DIVERGE", "INCONCLUSIVE")
+MATCH = "MATCH"
+MATCH_SUBSTITUTED = "MATCH_SUBSTITUTED"
+VERDICTS = (MATCH, MATCH_SUBSTITUTED, "DIVERGE", "INCONCLUSIVE")
+#: The keys one substituted input carries on a lane verdict (the fed value is never filed).
+SUBSTITUTED_FIELDS = ("name", "source", "vendorValueFrom")
+
+
+def is_match(verdict) -> bool:
+    """A PROVEN-exact verdict. ⛔ MATCH_SUBSTITUTED is not one (its substituted inputs are unproven)."""
+    return verdict == MATCH
+
+
+def is_match_substituted(verdict) -> bool:
+    """Verified with substituted inputs fed the vendor's value: its own bucket, never MATCH."""
+    return verdict == MATCH_SUBSTITUTED
+
+
+def fresh_match_counts(classified: dict) -> dict:
+    """Over `classify`'s fresh verdicts: {"match": n, "matchSubstituted": n}. Two counters, never one."""
+    out = {"match": 0, "matchSubstituted": 0}
+    for e in (classified or {}).get("byKey", {}).values():
+        for v in e.get("verdicts") or []:
+            if is_match(v):
+                out["match"] += 1
+            elif is_match_substituted(v):
+                out["matchSubstituted"] += 1
+    return out
 FILED_BY = ("promote", "regrade")
 
 #: The out-of-git capture store `regrade` reads: `<store>/*/captures/*.json`. The env var wins.
@@ -106,7 +139,13 @@ def source_shas(text: str) -> set:
 def _lane_verdict(v) -> dict | None:
     if not isinstance(v, dict) or v.get("verdict") is None:
         return None
-    return {"verdict": v.get("verdict"), "reason": (str(v.get("reason") or "")[:MAX_STRING] or None)}
+    out = {"verdict": v.get("verdict"), "reason": (str(v.get("reason") or "")[:MAX_STRING] or None)}
+    # ⭐ L7 — the substituted inputs the grade ran with (the harness's `substituted` record), names only
+    subs = v.get("substituted")
+    if isinstance(subs, list) and subs:
+        out["substituted"] = [{k: (str(e.get(k))[:200] if e.get(k) is not None else None) for k in SUBSTITUTED_FIELDS}
+                              if isinstance(e, dict) else e for e in subs]
+    return out
 
 
 def make_row(*, capture: dict, capture_bytes: bytes, verdicts: dict, filed_by: str, licence,
@@ -175,6 +214,8 @@ def row_problems(row, source_text: str | None = None) -> list:
         for x in graded:
             if not isinstance(x, dict) or x.get("verdict") not in VERDICTS:
                 p.append(f"a lane verdict is not one of {VERDICTS}: {x!r}")
+                continue
+            p.extend(_substituted_problems(x))
     if row.get("scriptEngineVersion") is not None and not isinstance(row.get("scriptEngineVersion"), int):
         p.append("scriptEngineVersion is not an integer")
     for s in _strings(row):
@@ -186,6 +227,21 @@ def row_problems(row, source_text: str | None = None) -> list:
         if any(source_text in s or any(ln in s for ln in body) for s in _strings(row)):
             p.append("the row carries the capture's source text")
     return p
+
+
+def _substituted_problems(x: dict) -> list:
+    """⭐ L7: a MATCH_SUBSTITUTED lane NAMES its substituted inputs; a MATCH lane carries none (a MATCH
+    with substituted inputs would be a substituted grade filed as proven)."""
+    subs = x.get("substituted")
+    if is_match_substituted(x.get("verdict")):
+        if not isinstance(subs, list) or not subs:
+            return ["a MATCH_SUBSTITUTED lane names no substituted inputs"]
+        bad = [e for e in subs if not (isinstance(e, dict) and set(e) <= set(SUBSTITUTED_FIELDS)
+                                       and isinstance(e.get("name"), str) and e["name"])]
+        return [f"a substituted input is not {{{', '.join(SUBSTITUTED_FIELDS)}}} with a name: {bad[0]!r}"] if bad else []
+    if is_match(x.get("verdict")) and subs:
+        return ["a MATCH lane carries substituted inputs (that grade is MATCH_SUBSTITUTED, never MATCH)"]
+    return []
 
 
 def read_rows(path: pathlib.Path = LEDGER) -> list:
