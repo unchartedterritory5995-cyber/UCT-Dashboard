@@ -376,6 +376,11 @@ def _compass_tool_union() -> set[str]:
     # harmless while the flag is off.
     out.add("get_rs_reading")
     out.add("explain_rs")
+    # The five RS screens as lists (RS screens unit U11). Gated per call by
+    # RS_COMPASS_TOOLS_ENABLED AND the RS screens being on (voice_tool_impls.
+    # _rs_screens_gate), so listing them here is harmless while either is off.
+    out.add("rs_screen")
+    out.add("rs_screen_check")
     # Compass × Twitter News Ingestion (shipped 2026-05-25) — let the voice
     # agent read the same curated trader-feed surfaces the MoversSidebar +
     # EarningsModal already show.
@@ -525,6 +530,8 @@ _COMPASS_CORE_TOOLS: set[str] = {
     "trader_archive_search", "trader_archive_ticker", "trader_archive_setup", "trader_archive_rhymes",
     # UCT Relative Strength reading + glossary (flag-gated per call; absent while off).
     "get_rs_reading", "explain_rs",
+    # The five RS screens as lists, and one stock against them (two gates per call).
+    "rs_screen", "rs_screen_check",
     # Briefings / proactive
     "morning_briefing", "closing_briefing", "plan_my_day",
     "whats_my_focus_today", "what_compass_noticed",
