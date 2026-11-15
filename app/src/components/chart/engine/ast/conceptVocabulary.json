@@ -9,7 +9,7 @@
   "_attribution": "`attribution.setup` is a SECOND attestation, never a grounding. A playbook is prose: it can say a setup is a pullback to a rising average, but it cannot mechanically produce a tree, so it can attribute a concept and not ground one. The setup name is checked against `app/src/constants/setupGroups.js::SETUPS` on every box, and against `brain_service.lookup_playbook` on a box where the Brain Pack is installed. An uninstalled pack makes the second half unverifiable, which is reported and never patched around.",
   "_sentence": "`sentence` is `sentence.js::sentenceFor(ast)` -- DERIVED FROM THE TREE, frozen here, and asserted equal in the test. It is what a member confirms before anything is saved, and it describes the TREE rather than echoing the WORD. That is D-A5 applied to a vocabulary: the file proposes, the tree is the truth, the sentence comes from the tree.",
   "_sentence_gap": "CLOSED 2026-08-08 by `56a2bca6`, AND RECORDED BECAUSE THE HAND-OFF DEPENDED ON IT: `sentence.js::compileRules` used to build name rows from `table.series` ONLY, so a tree naming any of the table's declared SCALARS refused with `sentence:name` and 19 of the concepts below could carry no frozen sentence. `renderName` now consults the manifest's scalars section (series -> scalars -> definition inputs) and says each column in the manifest's OWN words, and `coverageGaps()` probes the walker instead of re-reading the same declaration. Every concept here is therefore renderable and every one carries a `sentence` -- each PRODUCED BY CALLING `sentenceFor(parseFormula(source).ast)`, never typed. ⛔ A hand-written sentence remains the second vocabulary this whole design exists to prevent: `conceptVocabulary.test.js` re-derives every sentence from the shipped module and refuses one the read-back would not produce, including one planted on a tree it still genuinely refuses.",
-  "version": "2026-08-09.1",
+  "version": "2026-11-15.1",
   "concepts": {
     "trending": {
       "source": "close > sma(close, 20) && sma(close, 20) > sma(close, 50) && sma(close, 50) > sma(close, 200)",
@@ -278,7 +278,7 @@
       "note": "80 is the firm's own RS-rank preset, not a round number chosen here."
     },
     "leaders pulling back": {
-      "source": "rs_rank >= 80 && above_50sma && pct_vs_ema20 >= -2 && pct_vs_ema20 <= 2",
+      "source": "rs_rank >= 80 && pct_vs_ema20 >= -3 && pct_vs_ema20 <= 1 && ema20_rising && above_50sma && dollar_vol_30d >= 20000000",
       "ast": {
         "type": "op",
         "name": "&&",
@@ -293,73 +293,103 @@
                 "args": [
                   {
                     "type": "op",
-                    "name": ">=",
+                    "name": "&&",
                     "args": [
                       {
-                        "type": "series",
-                        "name": "rs_rank"
+                        "type": "op",
+                        "name": "&&",
+                        "args": [
+                          {
+                            "type": "op",
+                            "name": ">=",
+                            "args": [
+                              {
+                                "type": "series",
+                                "name": "rs_rank"
+                              },
+                              {
+                                "type": "num",
+                                "value": 80
+                              }
+                            ]
+                          },
+                          {
+                            "type": "op",
+                            "name": ">=",
+                            "args": [
+                              {
+                                "type": "series",
+                                "name": "pct_vs_ema20"
+                              },
+                              {
+                                "type": "op",
+                                "name": "u-",
+                                "args": [
+                                  {
+                                    "type": "num",
+                                    "value": 3
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
                       },
                       {
-                        "type": "num",
-                        "value": 80
+                        "type": "op",
+                        "name": "<=",
+                        "args": [
+                          {
+                            "type": "series",
+                            "name": "pct_vs_ema20"
+                          },
+                          {
+                            "type": "num",
+                            "value": 1
+                          }
+                        ]
                       }
                     ]
                   },
                   {
                     "type": "series",
-                    "name": "above_50sma"
+                    "name": "ema20_rising"
                   }
                 ]
               },
               {
-                "type": "op",
-                "name": ">=",
-                "args": [
-                  {
-                    "type": "series",
-                    "name": "pct_vs_ema20"
-                  },
-                  {
-                    "type": "op",
-                    "name": "u-",
-                    "args": [
-                      {
-                        "type": "num",
-                        "value": 2
-                      }
-                    ]
-                  }
-                ]
+                "type": "series",
+                "name": "above_50sma"
               }
             ]
           },
           {
             "type": "op",
-            "name": "<=",
+            "name": ">=",
             "args": [
               {
                 "type": "series",
-                "name": "pct_vs_ema20"
+                "name": "dollar_vol_30d"
               },
               {
                 "type": "num",
-                "value": 2
+                "value": 20000000
               }
             ]
           }
         ]
       },
-      "sentence": "(((1 when the relative-strength rank is greater than or equal to 80 and 0 otherwise) and whether the price is above its 50-day average) and (1 when the percentage distance from the 20-day exponential average is greater than or equal to (the negative of 2) and 0 otherwise)) and (1 when the percentage distance from the 20-day exponential average is less than or equal to 2 and 0 otherwise)",
+      "sentence": "(((((1 when the relative-strength rank is greater than or equal to 80 and 0 otherwise) and (1 when the percentage distance from the 20-day exponential average is greater than or equal to (the negative of 3) and 0 otherwise)) and (1 when the percentage distance from the 20-day exponential average is less than or equal to 1 and 0 otherwise)) and whether the 20-bar EMA is rising) and whether the price is above its 50-day average) and (1 when the average daily dollar volume over 30 days is greater than or equal to 20000000 and 0 otherwise)",
       "grounding": [
         {
           "kind": "starter_screen",
-          "screen": "starter_leaders_pullback"
+          "screen": "starter_pullback_20ema"
         }
       ],
       "attribution": {
         "setup": "Classic Flag/Pullback"
       },
-      "note": "The firm ships this screen. Every term is one of its three filters, at its thresholds."
+      "note": "The firm's shipped `Momentum pullbacks (20EMA)` screen, term for term (the same tree as `pullback to the 20ema`: two phrasings, one firm screen). Re-synced 2026-11-15: this concept cited `starter_leaders_pullback` (`Leaders pulling back to 20EMA`, RS 80, above the 50, within 2% of the 20 EMA), which the 2026-09-20 rebuild (#171) replaced with this screen after production measured the old one too loose, and it had been refused as ungrounded since."
     },
     "coiled": {
       "source": "tight_consolidation",
@@ -380,39 +410,125 @@
       "note": "The column IS the concept: `screener/candles.py` sets it when the ten-close coefficient of variation is under 2.5%. The word is the English name for a number the screener already computes."
     },
     "tight base": {
-      "source": "rs_rank >= 80 && tight_consolidation",
+      "source": "rs_rank >= 70 && dist_52w_high_pct >= -10 && close_cv_pct <= 1.5 && adr_pct_1w < adr_pct && above_50sma && dollar_vol_30d >= 20000000",
       "ast": {
         "type": "op",
         "name": "&&",
         "args": [
           {
             "type": "op",
-            "name": ">=",
+            "name": "&&",
             "args": [
               {
-                "type": "series",
-                "name": "rs_rank"
+                "type": "op",
+                "name": "&&",
+                "args": [
+                  {
+                    "type": "op",
+                    "name": "&&",
+                    "args": [
+                      {
+                        "type": "op",
+                        "name": "&&",
+                        "args": [
+                          {
+                            "type": "op",
+                            "name": ">=",
+                            "args": [
+                              {
+                                "type": "series",
+                                "name": "rs_rank"
+                              },
+                              {
+                                "type": "num",
+                                "value": 70
+                              }
+                            ]
+                          },
+                          {
+                            "type": "op",
+                            "name": ">=",
+                            "args": [
+                              {
+                                "type": "series",
+                                "name": "dist_52w_high_pct"
+                              },
+                              {
+                                "type": "op",
+                                "name": "u-",
+                                "args": [
+                                  {
+                                    "type": "num",
+                                    "value": 10
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "op",
+                        "name": "<=",
+                        "args": [
+                          {
+                            "type": "series",
+                            "name": "close_cv_pct"
+                          },
+                          {
+                            "type": "num",
+                            "value": 1.5
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "op",
+                    "name": "<",
+                    "args": [
+                      {
+                        "type": "series",
+                        "name": "adr_pct_1w"
+                      },
+                      {
+                        "type": "series",
+                        "name": "adr_pct"
+                      }
+                    ]
+                  }
+                ]
               },
               {
-                "type": "num",
-                "value": 80
+                "type": "series",
+                "name": "above_50sma"
               }
             ]
           },
           {
-            "type": "series",
-            "name": "tight_consolidation"
+            "type": "op",
+            "name": ">=",
+            "args": [
+              {
+                "type": "series",
+                "name": "dollar_vol_30d"
+              },
+              {
+                "type": "num",
+                "value": 20000000
+              }
+            ]
           }
         ]
       },
-      "sentence": "(1 when the relative-strength rank is greater than or equal to 80 and 0 otherwise) and whether the recent bars are tightly consolidated",
+      "sentence": "(((((1 when the relative-strength rank is greater than or equal to 70 and 0 otherwise) and (1 when the percentage distance from the 52-week high is greater than or equal to (the negative of 10) and 0 otherwise)) and (1 when the closing-price tightness (coefficient of variation of recent closes, %) is less than or equal to 1.5 and 0 otherwise)) and (1 when the average daily range over the last 5 bars, as a percent of price is less than the average daily range percentage and 0 otherwise)) and whether the price is above its 50-day average) and (1 when the average daily dollar volume over 30 days is greater than or equal to 20000000 and 0 otherwise)",
       "grounding": [
         {
           "kind": "starter_screen",
-          "screen": "starter_high_rs_bases"
+          "screen": "starter_tight_base"
         }
       ],
-      "note": "The firm's shipped `High-RS tight bases` screen, term for term."
+      "note": "The firm's shipped `Tight bases near highs` screen, term for term. Re-synced 2026-11-15: this concept cited `starter_high_rs_bases` (`rs_rank >= 80 && tight_consolidation`), which the 2026-09-20 screener rebuild (#171) retired in favour of this screen, and it had been refused as ungrounded since."
     },
     "oversold": {
       "source": "rsi14 <= 30",

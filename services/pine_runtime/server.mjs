@@ -30,7 +30,8 @@
 // THE ENV ALLOWLIST (L2): the service holds nothing worth stealing, so it refuses to boot when
 // any variable outside ENV_ALLOWLIST is set. That catches a service duplicated from `web` (Railway
 // copies the env on duplication) before it serves a single request. NODE_OPTIONS is deliberately
-// absent: it could drop the node flags T10 sets.
+// absent: it could drop the node flags T10 sets. On win32 only, SYSTEMROOT is admitted too
+// (WIN32_ENV_ALLOWLIST: Windows needs it to open a socket and seed its RNG; Railway runs Linux).
 import { createServer as createHttpServer } from 'node:http'
 import { connect } from 'node:net'
 import { readFileSync } from 'node:fs'
@@ -72,9 +73,21 @@ export const ENV_ALLOWLIST = Object.freeze([
   'VITE_PINE_LOWER_TF_ENABLED', 'VITE_PINE_RUNTIME_PANE_ENABLED',
 ])
 
+/** WINDOWS ONLY (local recording at an engine bump, tools/pine_runtime_service_smoke.py --record): Node
+ *  on Windows cannot open a socket (Winsock, Node 20) or seed its RNG (ncrypto CSPRNG, Node 24)
+ *  without SYSTEMROOT. It holds no credential. Admitted only when the platform is win32; Railway runs
+ *  Linux, so production's allowlist is ENV_ALLOWLIST unchanged. Exact name, nothing else. */
+export const WIN32_ENV_ALLOWLIST = Object.freeze(['SYSTEMROOT'])
+
+/** The names this platform's boot admits: ENV_ALLOWLIST, plus WIN32_ENV_ALLOWLIST on win32 only. */
+export function envAllowlistFor(platform = process.platform) {
+  return platform === 'win32' ? [...ENV_ALLOWLIST, ...WIN32_ENV_ALLOWLIST] : ENV_ALLOWLIST
+}
+
 /** The sentence when `env` holds a variable outside the allowlist, else null. Names only, never values. */
-export function envRefusal(env) {
-  const extra = Object.keys(env).filter((k) => !ENV_ALLOWLIST.includes(k)).sort()
+export function envRefusal(env, platform = process.platform) {
+  const allowed = envAllowlistFor(platform)
+  const extra = Object.keys(env).filter((k) => !allowed.includes(k)).sort()
   if (extra.length === 0) return null
   return `the pine-runtime service refuses to start: ${extra.length} variable(s) outside its allowlist are set `
     + `(${extra.join(', ')}). It holds no credentials by design; remove them.`

@@ -929,7 +929,8 @@ export function lowerIrProgram(ir, opts = {}) {
       for (let k = results - 1; k >= 0; k -= 1) emit(OP.EMIT, k)
     }
     emit(OP.HALT)
-    return { timeframe: r.timeframe, entry, results }
+    // ⭐ RS RATING L5 — the host's reading of the request (`target`), for the run's supply
+    return { timeframe: r.timeframe, entry, results, target: r.target || null }
   })
 
   const made = makeProgram({

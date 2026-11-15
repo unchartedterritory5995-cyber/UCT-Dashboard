@@ -1,0 +1,18 @@
+//@version=6
+indicator("UCTPROBE_RS_SYMINFO_INDUSTRY", overlay = true)
+
+// RS RATING TRANSFER, L3 -- THE CAPTURE THAT WITNESSES `syminfo.industry` / `syminfo.sector`.
+//
+// TradingView's industry and sector strings are its own taxonomy, not UCT's. The engine serves
+// a TradingView string only where a capture witnesses it for that symbol class, the
+// `symbolScope.json` discipline. Capture across many symbols, including ETFs: RS Rating
+// compares `syminfo.industry == 'Investment Trusts/Mutual Funds'`. A TEXT capture: read the
+// last-bar label's text (`objects.texts`), plus the plots below.
+
+if barstate.islast
+    label.new(bar_index, close, "IND=" + syminfo.industry + "|SEC=" + syminfo.sector + "|TYPE=" + syminfo.type)
+plot(str.length(syminfo.industry), "I01_len_industry")
+plot(str.length(syminfo.sector), "I02_len_sector")
+plot(syminfo.industry == "Investment Trusts/Mutual Funds" ? 1 : 0, "I03_is_fund_industry")
+// NON-VACUITY CONTROL
+plot(str.length(syminfo.ticker), "I04_len_ticker_CONTROL")

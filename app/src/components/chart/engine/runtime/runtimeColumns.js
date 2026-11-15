@@ -29,7 +29,10 @@ import { cloneValues } from './vmState.js'
 import { SLOT } from './ir.js'
 import { lowerIrProgram, naTestsOf } from './lowerIr.js'
 import { execute } from './vm.js'
+import { runtimeRequestSupply } from './requestSupply.js'
 import { symbolConstants, minContractOf } from '../ast/bind.js'
+// ⭐ RS RATING L3 — the symbol fields the fold reads, from the one list that names them.
+import { bindSymbolOf } from '../ast/bind.js'
 import { Budget, RuntimeLimitError, DEFAULT_LIMITS, LIMIT_PLAIN } from './limits.js'
 import { MAX_COLLECTION_CAP as ITER_SLOTS, rtLoopId } from '../ast/objectProgram.js'
 // ⭐ W5-T2 — through the leaf seam, never `objectColumns.js` (which reaches the registry)
@@ -81,13 +84,21 @@ const injectedNow = (opts) => (opts && typeof opts.now === 'function' ? { now: o
  *  (`symbolAtBind`); every build with bars carries the chart's symbol instead. */
 const COMPILE_ON_A_PANE = Object.freeze({ pane: true, symbolAtBind: true })
 
-/** The chart's `{ticker, exchange}` as the binder hands it, or undefined — the
- *  SAME object the object reader folds its trees with (`objectColumns.js`
- *  `bindConstsFor({… symbol: opts.symbol})`), so a run and the trees beside it
- *  settle `syminfo.*` from one symbol. */
+/** The chart's symbol as the binder hands it, or undefined — the SAME object the object
+ *  reader folds its trees with (`objectColumns.js` `bindConstsFor({… symbol: opts.symbol})`),
+ *  so a run and the trees beside it settle `syminfo.*` from one symbol.
+ *  ⭐ RS RATING L3 — every field the fold reads (`bind.js::BIND_SYMBOL_FIELDS`: ticker,
+ *  exchange, and the classification fields industry / sector / securityType). This copied
+ *  `{ticker, exchange}` only, so a run refused `syminfo.industry` the host lane settled. */
 const symbolOf = (ctx) => (ctx && ctx.symbol && typeof ctx.symbol === 'object'
-  ? { ticker: ctx.symbol.ticker, exchange: ctx.symbol.exchange } : undefined)
-const symbolKey = (s) => (s ? `${s.ticker}@${s.exchange}` : '-')
+  ? { ticker: ctx.symbol.ticker, exchange: ctx.symbol.exchange, ...bindSymbolOf(ctx.symbol) } : undefined)
+/** ⛔ The run caches key on this, so a field the fold reads is in it: two charts of one ticker
+ *  whose classification differs must not share a run. Unchanged for a symbol without one. */
+const symbolKey = (s) => {
+  if (!s) return '-'
+  const cls = ['industry', 'sector', 'securityType'].map((f) => (s[f] == null ? '' : String(s[f])))
+  return `${s.ticker}@${s.exchange}${cls.some((v) => v !== '') ? `#${cls.join('#')}` : ''}`
+}
 
 /** ⭐ RT1 — the guard a fallback document carries on a chart whose history does
  *  not start at the listing (see `runtimeColumnsFor`). */
@@ -143,6 +154,9 @@ export function probeRuntimeProgram(source, { objectsInRun = false } = {}) {
     outputs: program.outputs.map((o) => ({ ...o })),
     naTests: naTestsOf(program),
     requests: (built.ir.requests || []).length,
+    // ⭐ RS RATING L5 — the host's reading of each request (`pineRuntimeFrontend.js`), so the
+    // member door can ask whether a run's requests are servable by the host's rules
+    requestTargets: (program.requests || []).map((r) => r.target || null),
     // ⭐ RT5 — how many drawing operations the build lowered (0 unless asked).
     objectOps: (program.objectOps || []).length,
     // ⭐⭐ ENGINE 54 — each drawing-making op's source call and family (`objectSiteKey`), so the
@@ -305,7 +319,24 @@ function runKey(def, ctx) {
   const framed = ctx && ctx.framed === true ? '|framed' : ''
   // ⭐⭐ W9-T11 — a broker run's window (`ctx.historyWindowBars`) decides which bars it trades
   const hw = ctx && Number.isInteger(ctx.historyWindowBars) ? `|hw${ctx.historyWindowBars}` : ''
-  return `${def && def.id}|${compute.fn}|${runtimeContentKey(def)}|${tf}|${forming}|${symbolKey(symbolOf(ctx))}|${listing}|${settings}${framed}${hw}`
+  return `${def && def.id}|${compute.fn}|${runtimeContentKey(def)}|${tf}|${forming}|${symbolKey(symbolOf(ctx))}|${listing}|${settings}${framed}${hw}${requestSupplyKey(compute, ctx)}`
+}
+
+/** ⭐ RS RATING L5 — what a run that reads requested bars computed FROM: the chart's other-
+ *  symbol cache (`requestSupply.js` decides from it), so a series that lands or changes is a
+ *  new run, never the memo of the run that was still waiting for it. '' for a script with no
+ *  request (its key is unchanged byte for byte). */
+function requestSupplyKey(compute, ctx) {
+  if (!/\brequest\.(security|seed)\b/.test(String((compute && compute.source) || ''))) return ''
+  const sec = ctx && ctx.secondary && typeof ctx.secondary.entries === 'function' ? ctx.secondary : null
+  if (!sec) return '|req-'
+  const parts = []
+  for (const [k, e] of sec.entries()) {
+    const bars = e && Array.isArray(e.bars) ? e.bars : []
+    const last = bars.length ? bars[bars.length - 1] : null
+    parts.push(`${k}:${(e && e.status) || ''}:${bars.length}:${last ? `${last.t}/${last.c}` : ''}`)
+  }
+  return `|req${parts.sort().join(',')}`
 }
 
 /** ⭐⭐ P1 HARDENING — `PROGRAM_SIZE` (`limits.js`): the source's UTF-8 bytes, asked
@@ -1322,13 +1353,18 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
     const r = built.refusal || {}
     throw refusal(r.guard || 'runtime:build', r.message || 'the runtime lane could not build this script')
   }
-  // ⛔ RT2 — a request of other bars computes nothing here, whatever door the
-  // document came through (the member door declines one; a stored document is
-  // re-checked at its run): this run is handed no other symbol's bars, and an
-  // `na` drawn where TradingView draws a value is a wrong drawing.
-  if ((built.ir.requests || []).length) {
-    throw refusal('runtime:request', 'this script requests another symbol or timeframe, and a script drawn '
-      + "bar by bar here is handed only the chart's own bars, so nothing is drawn rather than a blank line")
+  // ⭐⭐ RS RATING L5 — A REQUEST OF OTHER BARS IS SUPPLIED (below, `runtimeRequestSupply`),
+  // by the host's rules: the host's reading of the request, the host bind's decision over the
+  // chart's own other-symbol cache, the host evaluator's alignment. ⚰️ It was refused here
+  // whatever the request ("handed only the chart's own bars").
+  // ⛔ EXCEPT OVER A WINDOW THAT SLIDES (a `calc_bars_count` window or a framed instance):
+  // where its first bar lands is not where a merge's first period does. Out of scope; it
+  // keeps the refusal it had.
+  const requestSites = built.ir.requests || []
+  if (requestSites.length && slides) {
+    throw refusal('runtime:request', 'this script requests another symbol or timeframe, and this run is over a '
+      + 'window that slides with each new bar, so its requested bars are not aligned here; nothing is drawn '
+      + 'rather than a blank line')
   }
   // ⭐⭐ RT3 — from the listing, a `NaN` is Pine's `na` and an `na` condition reads
   // as Pine reads it; off it the shared `{0,1,NaN}` rules stand (`lowerIrProgram`).
@@ -1354,8 +1390,20 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
     throw refusal(BROKER_START_GUARD, 'a strategy run takes the most recent bars of its history window, '
       + 'and this run is over a window that slides with each new bar, so its trades would move. Nothing is drawn.')
   }
+  // ⭐⭐ RS RATING L5 — THE REQUESTED BARS, per site (`requestSupply.js`). A refusal names its
+  // reason; a symbol still loading holds the run (no columns, nothing said, as the host lane
+  // says nothing about a read still waiting); the newest bar alone withheld is withheld below.
+  const reqSupply = requestSites.length ? runtimeRequestSupply(program.requests, rows, ctx) : null
+  if (reqSupply && reqSupply.refusal) throw refusal(reqSupply.refusal.guard, reqSupply.refusal.message)
+  if (reqSupply && reqSupply.pending) {
+    throw refusal('runtime:request', "this script reads another symbol whose bars are still loading; it is "
+      + 'drawn once they arrive')
+  }
   const build = reused ? prevSession.build : (recorder ? recorder.done(built.ir) : null)
-  const resumable = prevSession && !opts.probe ? resumableFrom(prevSession, rows, program) : { why: sessionKey ? 'cold' : 'off' }
+  // ⛔ RS RATING L5 — a run that reads requested bars never resumes from a checkpoint: the
+  // checkpoint's state was computed from the requested bars of an EARLIER supply.
+  const resumable = prevSession && !opts.probe && !reqSupply ? resumableFrom(prevSession, rows, program)
+    : { why: reqSupply ? 'request' : sessionKey ? 'cold' : 'off' }
   // ⚠️ Fresh constants for a run from bar 0 — conservative, NOT mutation-provable: running the
   // session's program instead drew the same columns and drawings on every rail and probe tried
   // (`runtimeRealtimeGuards.test.js`, a drawing script re-run after an old bar moved).
@@ -1403,6 +1451,8 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
       // way `interpret` does for the four realtime clock columns.
       confirmed: forming === false,
       barTimes,
+      // ⭐⭐ RS RATING L5 — the requested bars and, per chart bar, which one is read
+      ...(reqSupply ? { requestSupply: reqSupply.supply } : {}),
       // ⭐⭐ W9-T11 — the window the VM checks a broker run against (`vm.js`, [3.4]): the
       // context's, never a literal
       ...(ctx && ctx.historyWindowBars !== undefined ? { historyWindowBars: ctx.historyWindowBars } : {}),
@@ -1495,10 +1545,24 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
       }
     }
   }
+  // ⛔ RS RATING L5 — a request the run could not be handed (a nested request, a symbol the
+  // supply did not name) answered `na`: refused by name, never drawn as a blank line.
+  if (reqSupply && res.requested && res.requested.length) {
+    throw refusal('runtime:request', `this script requested ${res.requested.join(', ')} while it ran (a request `
+      + 'inside a request, or a symbol computed as it runs), which this run is not handed, so nothing is drawn '
+      + 'rather than a blank line')
+  }
   const out = {}
   for (const [plotKey, index] of Object.entries(outputs)) {
     const col = res.outputs[index]
     if (col) out[plotKey] = plainCopy(col)
+  }
+  // ⭐ RS RATING L5 — the newest bar a request cannot know yet (`request:htf-newest-unconfirmed`)
+  // is withheld on every column, as the host withholds that bar, and named beside them.
+  if (reqSupply && reqSupply.newestWithheld && rows.length) {
+    for (const k of Object.keys(out)) if (out[k] && out[k].length === rows.length) out[k][rows.length - 1] = NaN
+    Object.defineProperty(out, RUNTIME_REQUEST_WITHHELD_KEY, { enumerable: false, configurable: true,
+      value: Object.freeze({ bar: rows.length - 1, codes: [...reqSupply.codes], sentences: [...reqSupply.sentences] }) })
   }
   Object.defineProperty(out, RUNTIME_INCREMENTAL_KEY, { enumerable: false, configurable: true,
     value: { resumedFrom: Number.isInteger(res.resumedFrom) ? res.resumedFrom : null,
@@ -1514,10 +1578,18 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
   // safe for the worker), beside the columns.
   if (ownObjects) {
     const fin = res.objects ? res.objects.finish() : { status: 'ok', reason: null, live: [], withheld: {} }
-    withRuntimeObjects(out, { ...fin, pineVersion: Number.isFinite(program.version) ? program.version : null })
+    // ⛔ RS RATING L5 — a run whose newest bar read a request it cannot know yet draws no
+    // drawing (a last-bar label would carry that read), and says why
+    const held = reqSupply && reqSupply.newestWithheld
+      ? { status: 'WITHHELD', guard: reqSupply.codes[0] || 'runtime:request', reason: reqSupply.sentences[0] || '' }
+      : null
+    withRuntimeObjects(out, held || { ...fin, pineVersion: Number.isFinite(program.version) ? program.version : null })
   }
   return out
 }
+
+/** ⭐ RS RATING L5 — where a run's newest-bar request withholding rides (non-enumerable). */
+export const RUNTIME_REQUEST_WITHHELD_KEY = '__runtimeRequestWithheld'
 
 /** ⭐⭐ RT1 — WHERE A RUN HAPPENS OFF THE MAIN THREAD, when anything does.
  *
@@ -1650,6 +1722,10 @@ export function probeObjectRuntime(source, specs, opts = {}) {
     return { ok: false, refusal: { guard: 'runtime:build', message: String((err && err.message) || err) } }
   }
   if (!built.ok) return { ok: false, refusal: built.refusal || { guard: 'runtime:build', message: '' } }
+  // ⛔ RS RATING L5 — NOT LIFTED HERE. This is the OBJECT door's check (C18), which serves
+  // members' drawings with no runtime flag on (master's lane), unlike the run half, whose run
+  // is supplied its requested bars (`requestSupply.js`). Lifting it would hand every member a
+  // request read through the object reader, a production change of its own.
   if ((built.ir.requests || []).length) {
     return { ok: false, refusal: { guard: 'runtime:request', message: 'the script requests other bars' } }
   }
@@ -1749,6 +1825,7 @@ export function runtimeObjectValues(rt, bars, ctx = {}) {
       return withheld('runtime:build')
     }
     if (!built.ok) return withheld((built.refusal && built.refusal.guard) || 'runtime:build')
+    // ⛔ RS RATING L5 — not lifted: see `probeObjectRuntime` (the object door's master lane)
     if ((built.ir.requests || []).length) return withheld('runtime:request')
     if ((built.objectAtKinds || []).some((kind, j) => kind !== wantedKind(at[j]))) return withheld('runtime:object-kind')
     let program

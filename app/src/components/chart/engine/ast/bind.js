@@ -210,6 +210,89 @@ export const minContractTable = (raw) => Object.freeze(Object.fromEntries(
 ))
 export const SYMBOL_MIN_CONTRACT = minContractTable(SYMBOL_SCOPE && SYMBOL_SCOPE.min_contract)
 
+/** ⭐⭐ RS RATING L3 — `syminfo.industry` / `syminfo.sector`, the CLASSIFICATION fields.
+ *
+ *  TradingView's strings are its own classification, not ours (our store mixes yfinance, FMP and
+ *  Finnhub). `symbolScope.json::classification` holds, per field, the rows a capture witnessed:
+ *  `by_class` keyed by our store's instrument class (`Stock` / `ADR` / `ETF`, threaded as the
+ *  symbol's `securityType`) and `by_ours` keyed by our own string. A row needs `value`,
+ *  `witnesses`, `captures`, `captured` AND `how`, the `min_contract` discipline. Mirrors
+ *  `ast_bind.py::classification_table`. */
+export const CLASSIFICATION_FIELD_NAMES = Object.freeze(['industry', 'sector'])
+/** Where a substituted classification comes from: our ticker metadata (`api/services/ticker_meta.py`). */
+export const CLASSIFICATION_SOURCE = 'uct:ticker_meta'
+const nonEmptyText = (v) => typeof v === 'string' && v !== ''
+const classificationRowOk = (v) => !!v && typeof v === 'object'
+  && nonEmptyText(v.value)
+  && Array.isArray(v.witnesses) && v.witnesses.length > 0
+  && Array.isArray(v.captures) && v.captures.length > 0
+  && nonEmptyText(v.captured) && nonEmptyText(v.how)
+const classificationRows = (raw) => Object.freeze(Object.fromEntries(
+  Object.entries(raw && typeof raw === 'object' ? raw : {})
+    .filter(([k, v]) => !k.startsWith('_') && classificationRowOk(v))
+    .map(([k, v]) => [k, v.value]),
+))
+export const classificationTable = (raw) => Object.freeze(Object.fromEntries(
+  CLASSIFICATION_FIELD_NAMES.map((f) => {
+    const section = (raw && typeof raw === 'object' && raw[f]) || {}
+    return [f, Object.freeze({ byClass: classificationRows(section.by_class), byOurs: classificationRows(section.by_ours) })]
+  }),
+))
+export const SYMBOL_CLASSIFICATION = classificationTable(SYMBOL_SCOPE && SYMBOL_SCOPE.classification)
+
+/** ⭐⭐ THE ONE FOLD FOR THE CLASSIFICATION FIELDS — values AND the substitution tag, together.
+ *
+ *  Per field: a witnessed class row, else a witnessed our-string row, serves TradingView's
+ *  string untagged; else our own string is served and TAGGED (`{name, source, vendorValueFrom}`,
+ *  the vendor harness's `substituted` contract, RS-RATING-TRANSFER.md L7); else nothing — the
+ *  field stays unsettled and refuses by name. ⛔ The tag is computed HERE, beside the value it
+ *  describes, so no caller can serve a substituted string without its tag. */
+export function classificationWith(table, symbol) {
+  const values = {}
+  const substituted = []
+  if (!symbol || typeof symbol !== 'object') return { values, substituted }
+  const text = (v) => (typeof v === 'string' ? v.trim() : '')
+  const cls = text(symbol.securityType)
+  for (const field of CLASSIFICATION_FIELD_NAMES) {
+    const name = `syminfo.${field}`
+    const t = (table && table[field]) || {}
+    const byClass = t.byClass || {}
+    const byOurs = t.byOurs || {}
+    const ours = text(symbol[field])
+    if (cls && Object.prototype.hasOwnProperty.call(byClass, cls)) {
+      values[name] = byClass[cls]
+    } else if (ours && Object.prototype.hasOwnProperty.call(byOurs, ours)) {
+      values[name] = byOurs[ours]
+    } else if (ours) {
+      values[name] = ours
+      substituted.push({ name, source: CLASSIFICATION_SOURCE, vendorValueFrom: `capture.symbol.${field}` })
+    }
+  }
+  return { values, substituted }
+}
+
+/** ⭐ THE FIELDS OF THE SYMBOL OBJECT THE FOLD READS, in ONE list. A lane that copies the
+ *  chart's symbol (`runtimeColumns.js`, `runtimeAsync.js`'s worker hand-off) copies THESE, so
+ *  a field added to the fold reaches every lane or none: before L3 both copied only
+ *  `{ticker, exchange}`, and the runtime lane refused `syminfo.industry` on a chart whose host
+ *  lane settled it. */
+export const BIND_SYMBOL_FIELDS = Object.freeze(['ticker', 'exchange', 'industry', 'sector', 'securityType'])
+export function bindSymbolOf(symbol) {
+  if (!symbol || typeof symbol !== 'object') return undefined
+  const out = {}
+  for (const f of BIND_SYMBOL_FIELDS) if (symbol[f] !== undefined) out[f] = symbol[f]
+  return out
+}
+
+/** The substitution tags ONE binding carries — `[]` for a symbol with no ticker, as
+ *  `symbolConstantsWith` settles nothing for one. */
+export function symbolSubstitutionsWith(table, symbol) {
+  if (!symbol || typeof symbol !== 'object') return []
+  if (!(typeof symbol.ticker === 'string' && symbol.ticker.trim())) return []
+  return classificationWith(table, symbol).substituted
+}
+export const symbolSubstitutions = (symbol) => symbolSubstitutionsWith(SYMBOL_CLASSIFICATION, symbol)
+
 /** ⭐⭐ W9-T4-F1 — THE MINIMUM CONTRACT A RUN HANDS ITS BROKER, read off the same
  *  `name -> value` map a script's `syminfo.mincontract` folds from, so the two cannot
  *  disagree. A positive finite number, or undefined (unsettled: the broker refuses a
@@ -241,7 +324,8 @@ const PENDING = Object.freeze((SYMBOL_SCOPE && SYMBOL_SCOPE.pending_measurement)
  *
  *  ⚠️ `tickerid` IS ASSEMBLED, NOT STORED: Pine's is `EXCHANGE:SYMBOL`, so it is
  *  exactly as measured as the exchange half and is gated on the same witness. */
-export function symbolConstantsWith(confirmed, symbol, ticks = null, listing = null, minContracts = null) {
+export function symbolConstantsWith(confirmed, symbol, ticks = null, listing = null, minContracts = null,
+  classification = null) {
   const out = {}
   if (!symbol || typeof symbol !== 'object') return out
   const ticker = typeof symbol.ticker === 'string' ? symbol.ticker.trim() : ''
@@ -288,6 +372,10 @@ export function symbolConstantsWith(confirmed, symbol, ticks = null, listing = n
   if (stored && minContracts && Object.prototype.hasOwnProperty.call(minContracts, stored)) {
     out['syminfo.mincontract'] = minContracts[stored]
   }
+  // ⭐⭐ RS RATING L3 — industry / sector, keyed by the SYMBOL's class and strings, not its
+  // exchange: TradingView's where a capture witnesses it, else ours (tagged by
+  // `classificationWith`, read back through `symbolSubstitutions`), else unsettled.
+  Object.assign(out, classificationWith(classification, symbol).values)
   return out
 }
 
@@ -300,7 +388,7 @@ export function symbolConstantsWith(confirmed, symbol, ticks = null, listing = n
  *  nobody has ever seen run (`lesson_built_tested_green_and_unreachable`). */
 export const symbolConstants = (symbol) =>
   symbolConstantsWith(SYMBOL_EXCHANGE_CONFIRMED, symbol, SYMBOL_TICK_SIZE, SYMBOL_LISTING_FIELDS,
-    SYMBOL_MIN_CONTRACT)
+    SYMBOL_MIN_CONTRACT, SYMBOL_CLASSIFICATION)
 
 /** Thrown carrying the OPERAND that stopped the fold, never a generic message. */
 export class NotFoldable extends Error {

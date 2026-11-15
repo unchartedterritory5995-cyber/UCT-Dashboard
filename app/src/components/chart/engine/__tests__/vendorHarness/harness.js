@@ -11,7 +11,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { validateCapture } from '../../../../../../../tools/vendor_harness/schema.mjs'
-import { compareCapture, renderSummary, compareObjectsV2 } from '../../../../../../../tools/vendor_harness/compare.mjs'
+import { compareCapture, renderSummary, compareObjectsV2, MATCH_SUBSTITUTED } from '../../../../../../../tools/vendor_harness/compare.mjs'
 import { detectFormat, fromObservation, fromProbeRows } from '../../../../../../../tools/vendor_harness/adapters.mjs'
 import { runOurSide } from './ourSide'
 import { pairObjects } from './objectColours'
@@ -81,9 +81,9 @@ export function objectColourGraded(opts = {}) {
 }
 
 /** ⭐⭐ B1 (step 61) — PAINTS ARE PART OF THE VERDICT, ON BY DEFAULT.
- *  A capture whose `bgcolor` / `barcolor` paints differ from TradingView's — or
- *  that the door withholds — grades DIVERGE (`compare.mjs::comparePaints` states
- *  the rule). Same contract as `objectColourGraded`: `gradeCapture(c, {paints:
+ *  A capture whose `bgcolor` / `barcolor` paints differ from TradingView's grades
+ *  DIVERGE; one the door withholds BY NAME grades INCONCLUSIVE, as a plot does
+ *  (G5 ruling 2026-11-15; `compare.mjs::comparePaints` states the rule). Same contract as `objectColourGraded`: `gradeCapture(c, {paints:
  *  false})`, or `VENDOR_HARNESS_PAINTS=0` for a whole run, reproduces the verdict
  *  as it was before; every graded verdict also carries `verdictWithoutPaints`,
  *  so both numbers are read side by side from ONE run.
@@ -108,7 +108,11 @@ export function gradeCapture(capture, opts = {}) {
     : null
   const paints = paintsGraded(opts) && ours && ours.ok ? gradePaints(capture, ours) : null
   const verdict = compareCapture(capture, ours, { integrity, objectColours, paints })
-  return { verdict, ours, integrity, objectsV2: objectsV2Of(capture, ours, verdict) }
+  const objectsV2 = objectsV2Of(capture, ours, verdict)
+  // ⭐ L7 — a run with substituted inputs never reads MATCH, the v2 objects report included
+  // (capability admission reads `objectsV2: MATCH` for an `obj:*` family).
+  if (objectsV2 && verdict.substituted && objectsV2.verdict === 'MATCH') objectsV2.verdict = MATCH_SUBSTITUTED
+  return { verdict, ours, integrity, objectsV2 }
 }
 
 /** ⭐ OBJECTS v2 — every paired record graded field by field

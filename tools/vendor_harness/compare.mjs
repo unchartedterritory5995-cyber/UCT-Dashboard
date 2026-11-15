@@ -14,6 +14,14 @@
 //                   bars, a broken receipt. Never folded into either of the two
 //                   above, because "we could not tell" and "it is right" are
 //                   different facts and a member acts on the second.
+//     MATCH_SUBSTITUTED  (L7, 2026-11-14) everything agrees, but our side ran with
+//                   one or more SUBSTITUTED inputs (a vendor-only fact the member
+//                   door answers from UCT data: `syminfo.industry` from our
+//                   classification, a seed with no public mirror) and was FED the
+//                   vendor's own value of each, read off the capture. It proves the
+//                   translation; it does NOT prove the UCT value a member is served.
+//                   ⛔ ITS OWN BUCKET: never MATCH, never folded into MATCH by any
+//                   consumer (coverage map, evidence ledger, capability admission).
 //
 // ⛔ PURE. No engine import, no filesystem. The same function grades a real
 // capture and a perturbed copy of it, which is what makes the controls in the
@@ -60,7 +68,85 @@ export const REL_TOL = 1e-9
 export const ABS_TICK_FRACTION = 1e-6
 export const ABS_FLOOR_UNKNOWN_SCALE = 1e-12
 
-export const VERDICTS = Object.freeze(['MATCH', 'DIVERGE', 'INCONCLUSIVE'])
+export const VERDICTS = Object.freeze(['MATCH', 'MATCH_SUBSTITUTED', 'DIVERGE', 'INCONCLUSIVE'])
+export const MATCH_SUBSTITUTED = 'MATCH_SUBSTITUTED'
+
+// ── L7: SUBSTITUTED INPUTS (owner ruling 2026-11-14, option (a)) ─────────────
+//
+// THE CONTRACT our side (`ourSide.js::runOurSide`) fills, on its result:
+//
+//   substituted: [{ name, source, vendorValueFrom, value }]
+//     name             the Pine name the door answers from UCT data, e.g. 'syminfo.industry'
+//     source           where the MEMBER's value comes from (what the door discloses as
+//                      "UCT data"), e.g. 'uct:ticker_meta'
+//     vendorValueFrom  where the value our side was FED for this grade came from:
+//                        'capture.<dotted path>'  a field of this capture (verified here:
+//                                                 it must resolve, and equal `value`);
+//                        'committed:<repo path>'  a committed capture our side's own
+//                                                 supply read (the C26 other-symbol path,
+//                                                 for a seed series); stated by our side,
+//                                                 not re-read here (this file is pure)
+//     value            the value our side was fed (required for a 'capture.' source)
+//
+// ⛔ An entry that was NOT fed the vendor's value (no `vendorValueFrom`, an unresolvable
+// path, a fed value that is not the capture's) grades INCONCLUSIVE: a grade over UCT
+// data cannot tell an engine defect from a data difference, so it proves nothing.
+// An empty or absent list is the run every capture had before L7: plain MATCH.
+export const SUBSTITUTED_FROM_CAPTURE = 'capture.'
+export const SUBSTITUTED_FROM_COMMITTED = 'committed:'
+
+/** The vendor's value at `vendorValueFrom` ('capture.<dotted path>') on this capture:
+ *  `{found, value}`. The ONE resolver: our side feeds with it, the comparator checks with it. */
+export function vendorValueOf(capture, vendorValueFrom) {
+  if (typeof vendorValueFrom !== 'string' || !vendorValueFrom.startsWith(SUBSTITUTED_FROM_CAPTURE)) return { found: false, value: undefined }
+  let cur = capture
+  for (const k of vendorValueFrom.slice(SUBSTITUTED_FROM_CAPTURE.length).split('.')) {
+    if (!k || cur === null || typeof cur !== 'object' || !Object.prototype.hasOwnProperty.call(cur, k)) return { found: false, value: undefined }
+    cur = cur[k]
+  }
+  return cur === undefined ? { found: false, value: undefined } : { found: true, value: cur }
+}
+
+/** Why our side's `substituted` declaration cannot stand behind a grade, or [] when it can. */
+export function substitutionProblems(capture, substituted) {
+  if (substituted === undefined || substituted === null) return []
+  if (!Array.isArray(substituted)) return ["our side's `substituted` is not a list"]
+  const out = []
+  const seen = new Set()
+  for (const e of substituted) {
+    const name = e && typeof e.name === 'string' && e.name ? e.name : null
+    if (!name) { out.push('a substituted input names no `name`'); continue }
+    if (seen.has(name)) out.push(`substituted input ${name} is declared twice`)
+    seen.add(name)
+    if (typeof e.source !== 'string' || !e.source) out.push(`substituted input ${name} names no \`source\` (the UCT data a member is served)`)
+    const from = e.vendorValueFrom
+    if (typeof from !== 'string' || !from) {
+      out.push(`substituted input ${name} was not fed the vendor's value (no \`vendorValueFrom\`): a grade over UCT data proves nothing about the engine`)
+    } else if (from.startsWith(SUBSTITUTED_FROM_CAPTURE)) {
+      const got = vendorValueOf(capture, from)
+      if (!got.found) out.push(`substituted input ${name}: the vendor's value is not on this capture (${from})`)
+      else if (!Object.prototype.hasOwnProperty.call(e, 'value')) out.push(`substituted input ${name} does not say what our side was fed`)
+      else if (JSON.stringify(e.value) !== JSON.stringify(got.value)) out.push(`substituted input ${name}: our side was fed ${JSON.stringify(e.value)}, not the vendor's ${JSON.stringify(got.value)} (${from})`)
+    } else if (!(from.startsWith(SUBSTITUTED_FROM_COMMITTED) && from.length > SUBSTITUTED_FROM_COMMITTED.length)) {
+      out.push(`substituted input ${name}: vendorValueFrom ${JSON.stringify(from)} is neither 'capture.<path>' nor 'committed:<path>'`)
+    }
+  }
+  return out
+}
+
+/** The record a substituted grade carries: which inputs, the UCT source a member is served,
+ *  and where the vendor value the grade was fed came from. (The fed VALUE is not carried: a
+ *  seed series is a column, and the ledger never files bulk.) */
+export function substitutedRecord(substituted) {
+  return substituted.map((e) => ({
+    name: e.name, source: e.source, vendorValueFrom: e.vendorValueFrom,
+    checked: e.vendorValueFrom.startsWith(SUBSTITUTED_FROM_CAPTURE) ? 'by the comparator, against the capture' : 'stated by our side (a committed capture it supplied)',
+  }))
+}
+
+/** MATCH -> MATCH_SUBSTITUTED; every other verdict unchanged. ⛔ The only place the new
+ *  bucket is minted, so it can never be minted from a DIVERGE or an INCONCLUSIVE. */
+const asSubstituted = (v) => (v === 'MATCH' ? MATCH_SUBSTITUTED : v)
 
 export function tolerancePolicy(capture) {
   const ps = Number(capture && capture.symbol && capture.symbol.pricescale)
@@ -678,6 +764,11 @@ export function compareCapture(capture, ours, opts = {}) {
   const changed = nonDefaultInputs(capture)
   if (changed.length) return inconclusive(`the vendor study ran with non-default inputs (${changed.map((i) => `${i.name || i.id}=${JSON.stringify(i.value)} vs default ${JSON.stringify(i.defval)}`).join(', ')}); v1 compares at default inputs only — re-capture at defaults`)
   if (!ours || !ours.ok) return inconclusive(`refused on our side: ${(ours && ours.refusal) || 'no result'}`)
+  // ⭐ L7 — a substituted input must have been FED the vendor's own value, or nothing below
+  // proves the engine (`substitutionProblems`).
+  const subProblems = substitutionProblems(capture, ours.substituted)
+  if (subProblems.length) return inconclusive(`substituted inputs: ${subProblems.join('; ')}`)
+  const substituted = Array.isArray(ours.substituted) && ours.substituted.length ? substitutedRecord(ours.substituted) : null
 
   const tol = tolerancePolicy(capture)
   base.tolerance = tol
@@ -773,7 +864,13 @@ export function compareCapture(capture, ours, opts = {}) {
     const metaStyle = (capture.study && capture.study.styles && capture.study.styles[v.id]) || null
     const emptyGlyph = v.type === 'chars' && !!metaStyle && metaStyle.char === '' && !metaStyle.text
     const colourUngraded = hiddenOnVendor || emptyGlyph
-    const r = comparePlot({ times, vendor: vendorVals, ours: oursCol, vendorColors: colourUngraded ? null : vc.colors, ourColors: colourUngraded ? null : ourColors, warmupBars, colorWarmupBars, tol, oursUnreadAfter: treeShift ? times.length - treeShift : null })
+    // ⭐⭐ ENGINE 55 — the NEWEST bar our side withheld BY NAME (`withheldNewest`: the
+    // `request:htf-newest-unconfirmed` code, a finished newest bar whose period end is
+    // the next session's date) is not compared, exactly as a whole-series withholding
+    // is not: our side drew nothing there, and drew it on purpose. Every other bar is.
+    const unreadAfter = [treeShift ? times.length - treeShift : null, o.withheldNewest === true ? times.length - 1 : null]
+      .filter((x) => x !== null)
+    const r = comparePlot({ times, vendor: vendorVals, ours: oursCol, vendorColors: colourUngraded ? null : vc.colors, ourColors: colourUngraded ? null : ourColors, warmupBars, colorWarmupBars, tol, oursUnreadAfter: unreadAfter.length ? Math.min(...unreadAfter) : null })
     const pv = plotVerdict(r, {
       colorMeasured: vc.measured && !colourUngraded,
       colorResolvable: !!ourColors,
@@ -785,6 +882,7 @@ export function compareCapture(capture, ours, opts = {}) {
       warmupBars, warmupSource, derivedLookback: Number.isInteger(o.lookback) ? o.lookback : null,
       ...(colorWarmupBars !== warmupBars ? { colorWarmupBars, colorWarmupSource: `derived: the colour rule's own maxLookback (${o.colorLookback})` } : {}),
       ...(treeShift ? { treeShift, treeShiftNote: `offset = ${treeShift}: our column read ${treeShift} bars ahead to meet the vendor's unshifted series; the last ${treeShift} bars are unread` } : {}),
+      ...(o.withheldNewest === true ? { withheldNewest: 'request:htf-newest-unconfirmed', withheldNewestNote: 'the newest bar is withheld by name on our side (a finished bar whose week or month end is the date of the next session) and is not compared' } : {}),
       color: !vc.measured ? 'not captured'
         : colourUngraded ? (emptyGlyph ? 'not graded — an empty plotchar glyph draws nothing' : 'not graded — hidden on TradingView (display none)')
           : !vc.colors ? 'undecodable in the capture'
@@ -837,6 +935,19 @@ export function compareCapture(capture, ours, opts = {}) {
   // its own cause and no other.)
   if (base.objects && base.objects.verdictWithoutColour) {
     out.verdictWithoutColour = overallOf([...plotVerdicts, base.objects.verdictWithoutColour, ...(paintJoins ? [base.paints.verdict] : [])]).verdict
+  }
+  // ⭐⭐ L7 — A RUN WITH SUBSTITUTED INPUTS NEVER READS MATCH. Applied LAST, after every
+  // roll-up above, so DIVERGE / INCONCLUSIVE are decided exactly as before. Every plot is
+  // relabelled too: the engine does not yet say which outputs a substitution reaches, so
+  // every output is taken to (fail closed). The objects and paints sub-records keep their
+  // own grades (other functions read them as inputs); the capture's verdict carries the tag.
+  if (substituted) {
+    out.substituted = substituted
+    out.verdict = asSubstituted(out.verdict)
+    if (out.verdict === MATCH_SUBSTITUTED) out.reason = `${out.reason}, with substituted inputs fed the vendor's value (${substituted.map((e) => e.name).join(', ')}); the UCT data a member is served is not proven`
+    if (out.verdictWithoutPaints) out.verdictWithoutPaints = asSubstituted(out.verdictWithoutPaints)
+    if (out.verdictWithoutColour) out.verdictWithoutColour = asSubstituted(out.verdictWithoutColour)
+    out.plots = out.plots.map((p) => (p.verdict === 'MATCH' ? { ...p, verdict: MATCH_SUBSTITUTED } : p))
   }
   return out
 }
@@ -1422,9 +1533,17 @@ export function compareObjectsV2(v1, pairing, oursWithheldFamilies = []) {
 //   titleMismatch               DIFFERS — the pairing itself disagrees
 //   hiddenVendorOnly            DIFFERS — we draw a paint TradingView does not
 //   hiddenOursOnly              DIFFERS — TradingView draws a paint we hide
-//   withheld                    DIFFERS — the door refused it by name (a GAP, and
-//                               counted as one), unless TradingView does not draw
-//                               it either, when neither side paints a bar
+//   withheld (with a reason)    INCONCLUSIVE — the door refused it BY NAME: nothing
+//                               is drawn, and the member is told why. Graded the
+//                               way a plot withheld by name is (coordinator ruling
+//                               2026-11-15, G5 of s245-bugs-1115). ⚰️ It graded
+//                               DIFFERS until then ("a GAP, counted as one"), so a
+//                               paint the bind refused by name kept a capture
+//                               DIVERGE when its plots were INCONCLUSIVE.
+//                               Where TradingView does not draw it either, neither
+//                               side paints a bar: NOT GRADED (`undrawn`)
+//   withheld (no reason)        DIFFERS — a withholding nobody can read is not
+//                               "by name" (fail closed)
 //   notDrawn                    DIFFERS where TradingView painted a bar; where it
 //                               painted NONE (every bar `na` at the defaults) the
 //                               picture agrees and the paint is NOT GRADED —
@@ -1447,12 +1566,15 @@ export function comparePaints(grade) {
   let undecodable = 0
   const differing = []
   const undrawnIds = []
+  const withheldByName = []
   for (const r of rows) {
     const s = r.state
     if (PAINT_AGREES.has(s)) agreeing += 1
     else if (PAINT_DIFFERS.has(s)) differing.push(r)
     else if (s === 'withheld') {
-      if (r.displayed === false) { undrawn += 1; undrawnIds.push(r.id) } else differing.push(r)
+      if (r.displayed === false) { undrawn += 1; undrawnIds.push(r.id) }
+      else if (typeof r.reason === 'string' && r.reason.trim()) withheldByName.push(r)
+      else differing.push(r)
     } else if (s === 'notDrawn') {
       if (r.vendorPainted === 0) { undrawn += 1; undrawnIds.push(r.id) } else differing.push(r)
     } else if (s === 'vendorUnreadable') undecodable += 1
@@ -1463,7 +1585,16 @@ export function comparePaints(grade) {
   const graded = agreeing + differing.length + unpaired.length
   const undrawnSaid = undrawn ? `; ${undrawn} paint${undrawn === 1 ? '' : 's'} neither side draws not graded (${undrawnIds.join(', ')})` : ''
   const undecodableSaid = undecodable ? `; ${undecodable} unreadable in the capture` : ''
+  const w0 = withheldByName[0]
+  const withheldSaid = w0
+    ? `; ${withheldByName.length} paint${withheldByName.length === 1 ? '' : 's'} withheld by name, not graded (first: ${w0.kind} ${w0.id}${w0.title ? ` "${w0.title}"` : ''} — ${w0.reason})`
+    : ''
+  const rowsOut = () => rows.map((r) => ({ id: r.id, kind: r.kind, state: r.state, ...(r.reason ? { reason: r.reason } : {}) }))
   if (!graded) {
+    // ⭐ G5 — a paint withheld BY NAME is an item that could not be compared, as a plot is
+    if (withheldByName.length) {
+      return { verdict: 'INCONCLUSIVE', reason: `no paint was graded${withheldSaid}${undrawnSaid}${undecodableSaid}`, agreeing, differing: 0, withheld: withheldByName.length, undrawn, undecodable, unpaired, rows: rowsOut() }
+    }
     return { verdict: null, reason: `no paint was graded${undrawnSaid}${undecodableSaid}`, agreeing, differing: 0, undrawn, undecodable, unpaired }
   }
   const first = differing[0]
@@ -1472,16 +1603,17 @@ export function comparePaints(grade) {
     : null
   const diverge = differing.length + unpaired.length
   return {
-    verdict: diverge ? 'DIVERGE' : 'MATCH',
+    verdict: diverge ? 'DIVERGE' : (withheldByName.length ? 'INCONCLUSIVE' : 'MATCH'),
     reason: diverge
-      ? `${diverge} paint${diverge === 1 ? '' : 's'} differ${diverge === 1 ? 's' : ''}${firstSaid ? ` (first: ${firstSaid})` : ''}${unpairedSaid.length ? `; unpaired — ${unpairedSaid.join('; ')}` : ''}${undrawnSaid}${undecodableSaid}`
-      : `${agreeing} paint${agreeing === 1 ? '' : 's'} agree bar for bar${undrawnSaid}${undecodableSaid}`,
+      ? `${diverge} paint${diverge === 1 ? '' : 's'} differ${diverge === 1 ? 's' : ''}${firstSaid ? ` (first: ${firstSaid})` : ''}${unpairedSaid.length ? `; unpaired — ${unpairedSaid.join('; ')}` : ''}${withheldSaid}${undrawnSaid}${undecodableSaid}`
+      : `${agreeing} paint${agreeing === 1 ? '' : 's'} agree bar for bar${withheldSaid}${undrawnSaid}${undecodableSaid}`,
     agreeing,
     differing: differing.length,
+    withheld: withheldByName.length,
     undrawn,
     undecodable,
     unpaired,
-    rows: rows.map((r) => ({ id: r.id, kind: r.kind, state: r.state, ...(r.reason ? { reason: r.reason } : {}) })),
+    rows: rowsOut(),
   }
 }
 
@@ -1490,8 +1622,8 @@ export function comparePaints(grade) {
 export function renderSummary(results) {
   const pad = (s, n) => String(s ?? '').slice(0, n).padEnd(n)
   const lines = [
-    `${pad('capture', 44)} ${pad('symbol/tf', 16)} ${pad('plots', 6)} ${pad('verdict', 13)} first divergence / reason`,
-    `${'-'.repeat(44)} ${'-'.repeat(16)} ${'-'.repeat(6)} ${'-'.repeat(13)} ${'-'.repeat(40)}`,
+    `${pad('capture', 44)} ${pad('symbol/tf', 16)} ${pad('plots', 6)} ${pad('verdict', 17)} first divergence / reason`,
+    `${'-'.repeat(44)} ${'-'.repeat(16)} ${'-'.repeat(6)} ${'-'.repeat(17)} ${'-'.repeat(40)}`,
   ]
   for (const r of results) {
     const plots = (r.plots || []).length
@@ -1503,18 +1635,19 @@ export function renderSummary(results) {
         ? `${d.title}: bar ${f.bar} t=${f.time} color vendor=${f.vendorColor ?? 'none'} ours=${f.ourColor ?? 'none'}`
         : `${d.title}: bar ${f.bar} t=${f.time} ${f.kind} vendor=${fmt(f.vendor)} ours=${fmt(f.ours)}`
     }
-    lines.push(`${pad(r.id, 44)} ${pad(`${r.symbol || '?'} ${r.timeframe || '?'}`, 16)} ${pad(plots, 6)} ${pad(r.verdict, 13)} ${tail}`)
+    lines.push(`${pad(r.id, 44)} ${pad(`${r.symbol || '?'} ${r.timeframe || '?'}`, 16)} ${pad(plots, 6)} ${pad(r.verdict, 17)} ${tail}`)
     for (const p of (r.plots || [])) {
       const s = p.stats
       const detail = s ? `cmp ${s.compared} ok ${s.matching} warm ${s.warmup.divergent}/${s.warmup.compared} steady ${s.steady.divergent}/${s.steady.compared} maxRel ${s.maxRel.toExponential(2)}` : ''
-      lines.push(`    ${pad(p.title ?? p.id, 40)} ${pad(p.verdict, 13)} ${detail}${p.verdict !== 'MATCH' ? ` — ${p.reason}` : ''}`)
+      lines.push(`    ${pad(p.title ?? p.id, 40)} ${pad(p.verdict, 17)} ${detail}${p.verdict !== 'MATCH' && p.verdict !== MATCH_SUBSTITUTED ? ` — ${p.reason}` : ''}`)
     }
     if (r.objects) lines.push(`    ${pad('objects', 40)} ${pad(r.objects.verdict, 13)} ${r.objects.reason}`)
     if (r.paints) lines.push(`    ${pad('paints', 40)} ${pad(r.paints.verdict || 'NOT GRADED', 13)} ${r.paints.reason}`)
   }
   const tally = Object.fromEntries(VERDICTS.map((v) => [v, results.filter((r) => r.verdict === v).length]))
   lines.push('')
-  lines.push(`TOTAL ${results.length} captures — MATCH ${tally.MATCH} · DIVERGE ${tally.DIVERGE} · INCONCLUSIVE ${tally.INCONCLUSIVE}`)
+  lines.push(`TOTAL ${results.length} captures — MATCH ${tally.MATCH} · DIVERGE ${tally.DIVERGE} · INCONCLUSIVE ${tally.INCONCLUSIVE}`
+    + (tally.MATCH_SUBSTITUTED ? ` · MATCH_SUBSTITUTED ${tally.MATCH_SUBSTITUTED} (verified with substituted inputs; never counted as MATCH)` : ''))
   // ⭐ C44 — the same total as it read before object colour joined the verdict,
   // and every capture colour moved, by name.
   const coloured = results.filter((r) => r.verdictWithoutColour)
