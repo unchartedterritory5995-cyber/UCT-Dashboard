@@ -57,8 +57,10 @@ function indicatorOfRequest(req, rows, chartRef = null) {
   const what = row ? { defId: row.defId, inputs: row.inputs } : {}
   // id: the exact instance (a pointer at the conversation's subject may restyle only that one)
   const oid = chartRef && id ? `ind:${chartRef}:${id}` : null
-  if (op === 'remove') return [{ state: 'indicator', type: 'remove', name, label: name, id: oid, ...what }]
-  if (OVERWRITE_OPS.has(op)) return [{ state: 'indicator', type: 'overwrite', name, label: name, id: oid, ...what }]
+  // (H14) the chart's instances before the change: the scope a class noun ("the moving average") is counted in
+  const peers = (rows || []).map(r => ({ id: r.instanceId, defId: r.defId, inputs: r.inputs, name: r.name }))
+  if (op === 'remove') return [{ state: 'indicator', type: 'remove', name, label: name, id: oid, instanceId: id, peers, ...what }]
+  if (OVERWRITE_OPS.has(op)) return [{ state: 'indicator', type: 'overwrite', name, label: name, id: oid, instanceId: id, peers, ...what }]
   // add / duplicate / copyFrom (a template's indicators) add; setVisible / movePane / setPaneSize / setDisplayTarget /
   // setVisibility / setCalculationTimeframe arrange, show, or pick the bars it computes on — its settings are kept
   if (['add', 'duplicate', 'copyFrom', 'setVisible', 'movePane', 'setPaneSize', 'setDisplayTarget', 'setVisibility', 'setCalculationTimeframe'].includes(op)) return []
@@ -266,8 +268,51 @@ const phrase = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').
 const has = (clause, label) => { const p = phrase(label); return !!p && ` ${phrase(clause)} `.includes(` ${p} `) }
 // the member's own name for the thing (a list "Tech", a layout "Swing", "RSI (14)") — quoted in the effect, or its label
 const labelOf = (e) => e.label || (/“([^”]+)”/.exec(e.name || '') || [])[1] || null
+// ⛔ UNIQUE IDENTIFICATION (H14 hotfix 2026-11-14, AUDIT probe 48): an indicator CLASS noun ("the moving average", "the ema",
+// "the 50", "the line") licenses a change to an existing indicator ONLY when it describes exactly ONE instance on that chart
+// (or the words make it plural: "the moving averages", "all the emas" — every instance it describes). Several → asked, with
+// the chart's instances as the choices (kind 'demo'); never a guess. Read from the chart's own rows before the change.
+const IND_TYPE = [
+  [/\bemas?\b|\bexponential\b/i, (r) => r.defId === 'movingAverage' && String(r.inputs?.maType || '').toLowerCase() === 'ema'],
+  [/\bsmas?\b|\bsimple\b/i, (r) => r.defId === 'movingAverage' && String(r.inputs?.maType || '').toLowerCase() === 'sma'],
+  [/\bwmas?\b|\bweighted\b/i, (r) => r.defId === 'movingAverage' && String(r.inputs?.maType || '').toLowerCase() === 'wma'],
+  [/\b(?:moving averages?|averages?|mas)\b|\bma\b/i, (r) => r.defId === 'movingAverage'],
+  [/\brsi\b/i, (r) => r.defId === 'rsi'], [/\bmacd\b/i, (r) => r.defId === 'macd'], [/\bvwap\b/i, (r) => /vwap/i.test(r.defId)],
+  [/\batr\b/i, (r) => r.defId === 'atr'], [/\badx\b/i, (r) => r.defId === 'adx'], [/\bbollinger\w*\b|\bbb\b/i, (r) => r.defId === 'bb'],
+  [/\bstoch\w*\b/i, (r) => /^stoch/i.test(r.defId)], [/\bobv\b/i, (r) => r.defId === 'obv'], [/\bcci\b/i, (r) => r.defId === 'cci'],
+]
+const IND_GENERIC = /\b(?:indicators?|lines?|plots?|studies|study)\b/i
+const IND_PLURAL = /\b(?:all|both|every|each)\b|\b(?:moving averages|averages|emas|smas|wmas|mas|indicators|lines|plots|studies)\b/i
+/** The instances a clause's indicator words describe on this chart → { ids, plural } — or null when it names no indicator. */
+export function indicatorsNamed(clause, peers) {
+  const c = String(clause || '')
+  const rows = Array.isArray(peers) ? peers : []
+  const types = IND_TYPE.filter(([re]) => re.test(c))
+  const nums = [...c.matchAll(/(?:^|[^#\w.])(\d{1,3})(?![\w.%])/g)].map(m => Number(m[1]))
+  const generic = IND_GENERIC.test(c)
+  if (!types.length && !generic && !nums.length) return null
+  if (!types.length && !generic && !rows.some(r => nums.includes(Number(r.inputs?.period)))) return null
+  let hit = types.length ? rows.filter(r => types.some(([, ok]) => ok(r))) : rows
+  // each LENGTH said names the instance(s) of that length: "the 9 green and the 20 yellow" names EMA 9 and EMA 20 one by one
+  const unique = new Set()
+  const byNum = hit.filter(r => nums.includes(Number(r.inputs?.period)))
+  if (nums.length && byNum.length) {
+    for (const n of new Set(nums)) { const at = byNum.filter(r => Number(r.inputs?.period) === n); if (at.length === 1) unique.add(at[0].id) }
+    hit = byNum
+  } else if (hit.length === 1) unique.add(hit[0].id)
+  return { ids: hit.map(r => r.id), unique, plural: IND_PLURAL.test(c) }
+}
 /** Does this clause name the effect's object — its class, or (when it names no OTHER class) its own name? */
 export function namesObject(e, clause, why = null) {
+  // ⛔ H14: an indicator is named only UNIQUELY (its own words, or a class with one instance / said as plural)
+  if (e.state === 'indicator' && e.instanceId && Array.isArray(e.peers)) {
+    const n = indicatorsNamed(clause, e.peers)
+    if (n) {
+      if (n.unique.has(e.instanceId) || (n.plural && n.ids.includes(e.instanceId))) return true
+      if (n.ids.includes(e.instanceId) && why) why.demo = true
+      if (n.ids.length) return false
+    }
+  }
   const mine = classesOf(e)
   if (mine.some(c => CLASS[c]?.test(clause))) return true
   if (Object.keys(CLASS).some(c => !mine.includes(c) && CLASS[c].test(clause))) {
@@ -378,8 +423,8 @@ const TYPE_NOUNS = { rect: /\b(?:box|boxes|rectangles?|rect)\b/i, circle: /\bcir
 const typeNamed = (e, obj) => !!(e.dtype && TYPE_NOUNS[e.dtype] && TYPE_NOUNS[e.dtype].test(obj) && e.sameType === 1)
 // a widget's content named by the very list / scan it is to show ("open Software Over $10")
 const toNamed = (e, obj) => !!(e.to && has(obj, e.to))
-const namesOwn = (e, obj) => (e.state === 'widget' && e.type === 'replace' ? displayNamed(e, obj) || toNamed(e, obj)
-  : namesObject(e, obj) || (e.state === 'drawing' && (levelNamed(e, obj) || settingNamed(e, obj) || typeNamed(e, obj))) || symbolsNamed(e, obj))
+const namesOwn = (e, obj, why = null) => (e.state === 'widget' && e.type === 'replace' ? displayNamed(e, obj) || toNamed(e, obj)
+  : namesObject(e, obj, why) || (e.state === 'drawing' && (levelNamed(e, obj) || settingNamed(e, obj) || typeNamed(e, obj))) || symbolsNamed(e, obj))
 
 /** Do this turn's words COMMAND that kind of change on THAT existing object? (per clause, kind-matched, never negated).
  *  `subjects`: the conversation's current subject (exact object ids) — what a pointer at the start of a message means. */
@@ -494,11 +539,13 @@ export function permits(e, words, subjects = null, previous = null, previousSet 
           // after words of its own: an overwrite takes the class they named; a destroy / replace only the very object they
           // named or made ("add a 20 EMA, then remove it"); a widget's content, the list those words made ("make me a
           // watchlist … and open it")
+          const prevInd = e.state === 'indicator' && e.instanceId && Array.isArray(e.peers) ? indicatorsNamed(prev, e.peers) : null
+          if (prevInd) { if (prevInd.unique.has(e.instanceId) || (prevInd.plural && prevInd.ids.includes(e.instanceId))) return true; if (prevInd.ids.includes(e.instanceId)) why.demo = true; continue }
           if (classesOf(e).some(k => before.includes(k)) && (e.type === 'overwrite' || namesThatObject(e, prev))) return true
           if (e.type === 'replace' && e.state === 'widget' && before.includes('watchlist') && /\b(?:make|makes|made|create\w*|build\w*|new)\b/i.test(prev)) return true
           continue
         }
-        if (namesOwn(e, obj)) return true
+        if (namesOwn(e, obj, why)) return true
         if (e.type !== 'overwrite') namesObject(e, obj, why)
       }
     }

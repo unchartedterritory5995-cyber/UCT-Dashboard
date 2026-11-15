@@ -204,7 +204,28 @@ const said = (e) => (e.type === 'symbol' ? `${nameOf(e)} would ${e.to ? `become 
  * The refusal sentence for a plan the rail stops, or null. `words`: this turn's words (the message, and the request a
  * pending question carried). `mode`: 'apply' | 'propose' | 'approved' — a removal shown on a card first is allowed.
  */
-export function chartRailRefusal(plan, { words = '', host = null, mode = 'apply' } = {}) {
+// ⛔ UNIQUE IDENTIFICATION (H14 hotfix 2026-11-14, AUDIT probes 47/48): an EXISTING chart is given another ticker only when the
+// words identify THAT chart — its own ticker ("the SPY chart", "replace SPY …"), its position ("the left one"), a deixis on the
+// sole / selected / conversation chart ("this chart", "it"), the class noun on a board of exactly one chart ("the chart"), the
+// member's own pick from the choices this rail asked, or a REPLACE word (the existing REPLACE set) on the sole or selected chart.
+// "show / open / pull up / bring up X" alone never re-symbols: several charts → asked with the charts as choices; one → refused.
+// (a grid whose shape or count the words state re-symbols the cells it reuses — multiResymbolAllowed — as before)
+const DEIXIS = /\b(?:this|that|the current|the selected|current|selected)\s+(?:chart|one|panel|graph)\b|\b(?:it|here)\b/i
+const ONE_CHART_NOUN = /\b(?:the|my|that|this)\s+(?:chart|graph|panel)\b(?!s)/i
+const escRe = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+const symbolSaid = (w, sym) => !!sym && (tickersIn(w).includes(up(sym))
+  || new RegExp(`(^|[^A-Za-z])\\$?${escRe(sym)}(?:['’]s)?\\s+(?:chart|one|panel|graph)\\b`, 'i').test(w))
+/** How the words identify this existing chart (for a re-symbol), or null: 'pick' | 'name' | 'position' | 'deixis' | 'class' | 'replace'. */
+export function identifiesChart(w, e, host, { selected = null, subject = null, picked = null, sole = false } = {}) {
+  if (picked && picked.has(`chart:${e.ref}`)) return 'pick'
+  if (symbolSaid(w, e.symbol)) return 'name'
+  if (named(w, e, host)) return 'position'
+  if (DEIXIS.test(w) && (sole || e.ref === selected || e.ref === subject)) return 'deixis'
+  if (sole && ONE_CHART_NOUN.test(w)) return 'class'
+  if (REPLACE.test(w) && (sole || e.ref === selected)) return 'replace'
+  return null
+}
+export function chartRailRefusal(plan, { words = '', host = null, mode = 'apply', subject = null, picked = null, out = null } = {}) {
   if (!plan?.ok) return null
   const w = String(words || '')
   const effects = chartEffects(plan, host)
@@ -229,6 +250,21 @@ export function chartRailRefusal(plan, { words = '', host = null, mode = 'apply'
     const short = want0 && (panelsAfter(plan, host) ?? want0) < want0
     if (resym.length >= 2 && !short && mode !== 'approved' && !multiResymbolAllowed(w, resym, known, host)) {
       return `I didn’t change anything: this would have changed ${resym.length} of your charts at once (${listOf(resym.map(said))}), and you didn’t say to replace them. Say which charts to replace — for example “replace both charts with …” or “change the left to … and the right to …” — or ask to add them as new charts.`
+    }
+    // ⛔ UNIQUE IDENTIFICATION (H14): one existing chart re-symbolled — only the chart the words identify
+    if (resym.length === 1 && mode !== 'approved' && !(resym[0].kind !== 'chart' && multiResymbolAllowed(w, resym, known, host))) {
+      const e = resym[0]
+      const charts = liveCharts(host)
+      let selected = null
+      try { selected = host?.charts?.selected?.() || null } catch { selected = null }
+      const sole = charts.length === 1
+      if (!identifiesChart(w, e, host, { selected, subject, picked, sole })) {
+        if (charts.length > 1) {
+          if (out) out.ask = { kind: 'chart', from: e.ref, to: e.to, candidates: charts.map(c => ({ ref: c.ref, label: c.label || (c.symbol ? `the ${up(c.symbol)} chart` : 'a chart') })) }
+          return `Which chart should change to ${e.to}? You didn’t say which one, so nothing was changed — pick one, or say “add ${e.to}” for a new chart beside them.`
+        }
+        return `I didn’t change anything: this would turn ${nameOf(e)} into ${e.to}, and you didn’t say to change that chart. Say “switch this chart to ${e.to}” to replace it, or “add ${e.to}” for a new chart beside it.`
+      }
     }
     // REMOVAL: never at once without the words for it
     const removed = effects.filter(e => e.type === 'remove')

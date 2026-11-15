@@ -844,6 +844,12 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         if (!mine.length || rows.length < 1) return null
         return rows.map((r, i) => ({ ref: `rail:${i}`, id: `ind:${chart}:${r.instanceId}`, label: r.name, ops: mine.map(o => ({ ...o, args: { ...o.args, instance: r.instanceId } })) }))
       }
+      // ⛔ H14: which existing chart a re-symbol is for — each chart a choice; the pick re-aims the plan's own op at exactly it
+      if (ask.kind === 'chart') {
+        const mine = (ops || []).filter(o => o?.target === ask.from)
+        if (mine.length !== (ops || []).length || !mine.length) return null
+        return ask.candidates.map((c, i) => ({ ref: `rail:${i}`, id: `chart:${c.ref}`, label: c.label, ops: ops.map(o => ({ ...o, target: c.ref })) }))
+      }
       if (ask.kind === 'label') {
         const out = [{ ref: 'rail:0', id: ask.effect.id, label: `your saved look “${ask.label}”`, ops }]
         const lists = (() => { try { return getTargetKind('watchlist')?.list?.(host) || [] } catch { return [] } })()
@@ -858,10 +864,14 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
   // the chart rail keeps reading them as 'apply'
   const railOf = (plan, mode, stateMode = mode) => {
     // a refused bundle names its add parts as NOT done too (AUDIT #1247): the chart rail's refusal, with the plans it did not block
-    const c0 = chartRailRefusal(plan, { words: railWordsRef.current, host, mode })
+    // ⛔ H14 UNIQUE IDENTIFICATION: the chart rail reads the conversation's chart and the member's own pick too (chartRail.js)
+    const chartAsk = {}
+    let subjectChart = null
+    try { subjectChart = memoryRef.current?.subject?.('chart', epochOf(host))?.ref || null } catch { subjectChart = null }
+    const c0 = chartRailRefusal(plan, { words: railWordsRef.current, host, mode, subject: subjectChart, picked: railPickedRef.current, out: chartAsk })
     const c = c0 && `${c0}${notDoneLine(notDoneAdds(plan, (p) => { try { return chartEffects({ ok: true, plans: [p] }, host).length > 0 } catch { return true } }))}`
     railCardRef.current = false
-    railAskRef.current = null
+    railAskRef.current = c && chartAsk.ask ? { ...chartAsk.ask, plan } : null
     let r = c
     if (!c) {
       const d = stateRailDecision(plan, { words: railWordsRef.current, mode: stateMode, subjects: subjectIds(), picked: railPickedRef.current, ...railMemoryOf() })
@@ -1393,10 +1403,10 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     if (railed) {
       mark(railMarkRef.current, 'refused')
       // (D19) the state rail asks WITH CHOICES: each is the exact object, and a pick re-plans on exactly that one
-      const ch = railMarkRef.current === STATE_RAIL_MARK && railAskRef.current ? railChoicesOf(railAskRef.current, ops) : null
+      const ch = (railMarkRef.current === STATE_RAIL_MARK || railAskRef.current?.kind === 'chart') && railAskRef.current ? railChoicesOf(railAskRef.current, ops) : null
       if (ch?.length) {
         pendingRef.current = { kind: 'target', ops: [], path, mode: suggested, member, voice, epoch: epochOf(host), railChoice: ch }
-        push({ role: 'question', text: `${railed.replace(/ — say what to replace, remove or change, by name \(for example “remove the RSI”\), if that is what you want\./, '')} Which one do you mean?`, choices: ch.map(x => ({ ref: x.ref, label: x.label })), local: true })
+        push({ role: 'question', text: railAskRef.current?.kind === 'chart' ? railed : `${railed.replace(/ — say what to replace, remove or change, by name \(for example “remove the RSI”\), if that is what you want\./, '')} Which one do you mean?`, choices: ch.map(x => ({ ref: x.ref, label: x.label })), local: true })
         record({ member, outcome: railed, outcomeData: { kind: 'clarify-target', actions, reason: STATE_RAIL_MARK }, telemetry: { path, clarified: true, actions, voice } })
         return
       }
