@@ -11217,15 +11217,23 @@ export class Resolver {
    *  translated `ok` and disagreed with TradingView on 169 of 315 RDDT bars (bar 2:
    *  100.88 vs 92). Rails: `lenientBlockLocalHistory.test.js`. */
   blockLocalHistory(node) {
-    if (this.mintOnly > 0 || !(node.n >= 1) || !node.arg || node.arg.type !== 'name') return null
-    const bound = this.env.get(node.arg.name)
+    if (this.mintOnly > 0 || !(node.n >= 1) || !node.arg) return null
+    // ⭐⭐ COND-TA (F2, the #1326 review) — AN EXPRESSION'S HISTORY OVER A BLOCK LOCAL is the same
+    // read: `(x + 0)[1]` is the expression at the block's previous RUN, which this lane does not
+    // keep either. ⚰️ Only `name[k]` was asked, so `p := (x + 0)[1]` read the previous BAR's value
+    // with no gate on any lane. FAIL CLOSED: any block-local name the offset's own expression reads.
+    const local = node.arg.type === 'name' ? { name: node.arg.name, expr: false } : this.blockLocalReadIn(node.arg)
+    if (!local) return null
+    const bound = this.env.get(local.name)
     if (!bound || typeof bound !== 'object' || !bound.blockLocal) return null
     if (!this.refuseCondCalls && !this.condGate && !this.screen) return null
     if (bound.blockLocal === 'once') {
       if (this.paramMint) this.mintOnlyRead(() => this.resolve(node))
       return cOp('/', [cNum(0), cNum(0)])
     }
-    const why = `\`${node.arg.name}[${node.n}]\` reads the history of a name declared `
+    const read = local.expr ? `\`(…)[${node.n}]\`, the history of an expression over \`${local.name}\`,`
+      : `\`${local.name}[${node.n}]\``
+    const why = `${read} reads the history of a name declared `
       + 'inside a block that does not run on every bar: TradingView answers the value at the block\'s previous '
       + 'RUN, not the previous bar\'s (capture `vw-call-site-history`, rows C05 / D03), and that history is not kept here'
     const err = new PineRefusal('pine:block', `${REFUSALS['pine:block']} — ${why}`, locate(node.tok))
@@ -11233,6 +11241,26 @@ export class Resolver {
     if (this.refuseCondCalls || this.screen) throw err
     // a chart's plot reads on, and the bind decides (`resolveBinding`)
     this.noteBlockRun(bound, why, err)
+    return null
+  }
+
+  /** ⭐ COND-TA (F2) — the first name a parse expression reads that is bound to a block local
+   *  (`blockLocal`), or null. Walks the expression only (never a function's body). */
+  blockLocalReadIn(expr, d = 0) {
+    if (!expr || typeof expr !== 'object' || d > 64) return null
+    if (Array.isArray(expr)) {
+      for (const x of expr) { const r = this.blockLocalReadIn(x, d + 1); if (r) return r }
+      return null
+    }
+    if (expr.type === 'name') {
+      const b = this.env.get(expr.name)
+      return b && typeof b === 'object' && b.blockLocal ? { name: expr.name, expr: true } : null
+    }
+    for (const [k, v] of Object.entries(expr)) {
+      if (k === 'tok' || k === 'endTok' || !v || typeof v !== 'object') continue
+      const r = this.blockLocalReadIn(v, d + 1)
+      if (r) return r
+    }
     return null
   }
 

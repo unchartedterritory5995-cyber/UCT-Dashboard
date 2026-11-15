@@ -119,6 +119,11 @@ const GATED = {
   'v4 helper bare in a block': [pine(4, 'f() => sma(close, 3)', 'float v = na', 'if close > open', '    v := f()', 'plot(v, "v")'), /calls `f`, a function that reads its own history/],
   'v6 block local [1]': [pine(6, 'float v = na', 'if close > open', '    cx = close * 2', '    v := cx[1]', 'plot(v, "v")'), /`cx\[1\]` reads the history of a name declared inside a block/],
   'v6 var filled in a block': [pine(6, 'var float s = na', 'if close > open', '    s := ta.sma(close, 3)', 'plot(s, "v")'), /`s` calls `ta\.sma` inside a block/],
+  // F1 (the #1326 review; WITNESSED, `vw-call-site-history` H01_param_src1_cond): a USER FUNCTION
+  // reading its parameter's history, called in a block — the previous RUN's value, not the bar's
+  "v6 helper reading a parameter's history (F1)": [pine(6, 'h(s) => s[1]', 'float p = na', 'if close > open', '    p := h(close)', 'plot(p, "v")'), /calls `h`, a function that reads its own history/],
+  // F2 (the #1326 review): an EXPRESSION's history over a block local — fail closed
+  'v6 expression history over a block local (F2)': [pine(6, 'float p = na', 'if close > open', '    x = close * 2', '    p := (x + 0)[1]', 'plot(p, "v")'), /the history of an expression over `x`/],
   'v6 and right side': [pine(6, 'plot(close > open and ta.rsi(close, 14) > 50 ? 1 : 0, "v")'), /on the right of a Pine v6 `and`/],
 }
 
@@ -170,6 +175,28 @@ describe('COND-TA — 2. ⚰️ the number the screener lane served, against the
     const rt = runtime(BLOCK(6, 'ta.sma(close, 3)'))
     expect(rt.refusal).toBeFalsy()
     expect(wrongBars(rt.column, c03)).toBe(0)
+  })
+})
+
+describe("COND-TA — 2b. the #1326 review's sibling shapes on the host lane (F1, F2)", () => {
+  it('F1: gated on the host lane, withheld by name at the bind; its every-bar formula is wrong against H01', () => {
+    const src = pine(6, 'h(s) => s[1]', 'float p = na', 'if close > open', '    p := h(close)', 'plot(p, "v")')
+    const t = strict(src)
+    expect(t.outputs[0].refusal).toBeFalsy()
+    expect(t.blockRuns.outputs.map((x) => x.index)).toEqual([0])
+    // the previous BAR's close on the bars the block runs: what the screener lane used to serve
+    expect(wrongBars(Array.from(interpret(t.outputs[0].ast, BARS, {})), vendorColumn('H01_param_src1_cond'))).toBe(163)
+    const { errors } = bind(src)
+    expect(errors.value.guard).toBe(BLOCK_RUNS_GUARD)
+  })
+
+  it('F2: `(x + 0)[1]` over a block local is gated on the host lane (it was read as the previous bar, ungated)', () => {
+    const t = strict(pine(6, 'float p = na', 'if close > open', '    x = close * 2', '    p := (x + 0)[1]', 'plot(p, "v")'))
+    expect(t.outputs[0].refusal).toBeFalsy()
+    expect(t.blockRuns && t.blockRuns.outputs.map((x) => x.index)).toEqual([0])
+    expect(t.blockRuns.outputs[0].gates[0].why).toMatch(/the history of an expression over `x`/)
+    // ⛔ CONTROL: the same expression over the CHART's series is the chart's history, not gated
+    expect(strict(pine(6, 'float p = na', 'if close > open', '    p := (close + 0)[1]', 'plot(p, "v")')).blockRuns).toBeUndefined()
   })
 })
 
