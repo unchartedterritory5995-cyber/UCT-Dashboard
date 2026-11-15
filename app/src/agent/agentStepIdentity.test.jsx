@@ -102,7 +102,8 @@ describe('PARTIAL · a step that cannot run after one that did', () => {
       { action: 'indicator.remove', target: ixe(b), args: { instance: '#20:ema' } },
       { action: 'indicatorStyle.set', target: ixe(b), args: { instance: '#20:ema', property: 'color', value: 'blue', output: null } },
     ]))
-    let out = await m.say('please take care of the indicator request')
+    let out = await m.say('could you remove the 20 EMA for me, and after that i would like it in blue')
+    expect(p.turns(), 'the model planned it (the words ask for the removal: #1247 state rail)').toBe(1)
     if (p.proposals().length) out += await m.say('do it')
     if (process.env.DUMP) console.log('RM>>', out, JSON.stringify(live(m)['ovl:1']))
     expect(live(m)['ovl:1']).toBeUndefined()
@@ -137,7 +138,8 @@ describe('CHART / LIST · edit, then edit the same target in one plan (stable re
         { action: 'watchlist.add', target: list.ref, args: { symbols: ['AMD'] } },
       ])
     })
-    let out = await m.say('please take care of the list request')
+    let out = await m.say('could you rename Momentum to Leaders for me, and after that AMD should be in it')
+    expect(p.turns(), 'the model planned it (the words ask for the rename: #1247 state rail)').toBe(1)
     if (p.proposals().length) out += await m.say('do it')
     const l = m.board.state.server.lists.find(x => x.id === 'm1')
     expect(l?.name, out).toBe('Leaders')
