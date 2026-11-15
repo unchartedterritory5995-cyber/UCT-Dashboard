@@ -31,7 +31,8 @@ DOMAIN_KNOWN_UNLISTED = {"calendar"}
 #: bare action names the guard did not withhold before #1030 (frozen, may only shrink). The guard's prefix ×
 #: verb enumeration predates these; each is still caught when a verb ("run", "call", "use"…) precedes it.
 GUARD_KNOWN_UNWITHHELD = {
-    "chart.resetDefaults", "chart.goToDate", "chart.replay", "chart.compare", "layout.current", "watchlist.keepOnly",
+    # chart.replay left the set with the chartReplay family (the guard's "replay" verb withholds it now)
+    "chart.resetDefaults", "chart.goToDate", "chart.compare", "layout.current", "watchlist.keepOnly",
     "watchlist.sortColumn", "watchlist.step", "watchlist.readView", "screener.state", "stock.profile",
     # stock.earnings left the set with the chartFeatures family (the guard's "earnings" verb withholds it now)
     "stock.compare", "breadth.history", "news.latest", "news.catalysts", "widget.arrange", "widget.readOptions",
@@ -115,10 +116,35 @@ def test_the_guard_still_passes_ordinary_multi_chart_prose():
         assert guard.suspicious(text) is False, text
 
 
+def test_the_volume_profile_family_is_an_INDICATOR_action_withheld_bare():
+    # volumeProfile.set turns ONE chart's Volume Profile overlay on / off (Chart Settings → Indicators), never history
+    assert v2.domain_for("volumeProfile.set") == "indicator"
+    assert guard.suspicious(_bare("volumeProfile.set")) is True
+    for text in ("Turn on the volume profile and watch the point of control.", "A VPVR with 24 bins shows the high-volume nodes.",
+                 "Set the volume profile bins to 30 before the open."):
+        assert guard.suspicious(text) is False, text
+
+
 def test_the_chart_menu_family_is_a_CHART_action_not_history():
     # #1106: the chart's right-click Ask AI and watermark Reset act on ONE chart (the chart domain), never history
     assert v2.domain_for("chartMenu.askAi") == "chart"
     assert v2.domain_for("chartMenu.resetWatermark") == "chart"
+
+
+def test_the_chart_replay_family_is_a_CHART_action_not_history():
+    # the bar replay's playback acts on ONE chart's Replay / Time Machine bar (the chart domain), never history
+    assert v2.domain_for("chartReplay.playback") == "chart"
+
+
+def test_the_chart_replay_action_names_are_WITHHELD_bare():
+    for n in ("chartReplay.playback", "chart.replay"):
+        assert guard.suspicious(_bare(n)) is True, n
+
+
+def test_the_guard_still_passes_ordinary_replay_prose():
+    for text in ("Replay the session bar by bar to practise reading the tape.", "Watch the replay of the earnings call.",
+                 "Start the bar replay and play it at 5x.", "Replay Mode as of Oct 15 hides what came after."):
+        assert guard.suspicious(text) is False, text
 
 
 def test_the_calc_timeframe_action_is_an_INDICATOR_action_and_withheld():
@@ -143,4 +169,34 @@ def test_the_chart_features_action_names_are_WITHHELD_bare():
 def test_the_guard_still_passes_ordinary_company_and_earnings_prose():
     for text in ("The company reported earnings after the close.", "Open the company panel on the chart to read the profile.",
                  "The earnings strip shows quarterly EPS and revenue.", "Check the stock's earnings date before entering."):
+        assert guard.suspicious(text) is False, text
+
+
+# ── Phase 2 COT research: cot.positioning is SERVER-GATED (registered only while the server serves the kind), so it is not
+#    in manifest.golden.json and the ratchets above cannot see it — pinned by name here instead ──
+def test_the_cot_positioning_capability_is_a_DATA_action_withheld_bare_and_a_data_read():
+    assert v2.domain_for("cot.positioning") == "data"
+    assert guard.suspicious(_bare("cot.positioning")) is True
+    assert "cot.positioning" in turn.DATA_READ_ACTIONS        # the model's pre-read reply never serves a COT figure
+
+
+def test_the_guard_still_passes_ordinary_cot_prose():
+    for text in ("COT positioning in gold is near a three-year extreme.", "Commercials are net short crude in the COT report.",
+                 "Large speculators added to their net long position this week."):
+        assert guard.suspicious(text) is False, text
+
+
+# ── Phase 2 history: stock.dailyBars and history.afterEvent are SERVER-GATED (registered only while the server serves
+#    bars.daily / history.eventStudy), so they are not in manifest.golden.json — pinned by name here ──
+def test_the_history_capabilities_are_withheld_bare_and_keep_their_server_mirrors():
+    assert guard.suspicious(_bare("history.afterEvent")) is True
+    assert guard.suspicious(_bare("stock.dailyBars")) is True
+    assert "history.afterEvent" in turn.LOCAL_ONLY_ACTIONS          # the member sees the study; the model never a return
+    assert "stock.dailyBars" in turn.DATA_READ_ACTIONS             # the model's pre-read reply never serves a bars figure
+    assert v2.domain_for("stock.dailyBars") == "data"
+
+
+def test_the_guard_still_passes_ordinary_history_prose():
+    for text in ("History shows that stocks often gap after earnings.", "NVDA's daily bars closed higher after the report.",
+                 "After a 3% down day, SPY recovered the following week.", "The stock's price history goes back to 2003."):
         assert guard.suspicious(text) is False, text

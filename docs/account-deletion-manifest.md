@@ -237,7 +237,7 @@ the wave-6 close and 20 short by wave 7 (wave 7 lane J, J4).
 | `alert_fires` | `user_id` | Direct (alert_taxonomy.db) | `DELETE FROM alert_fires WHERE user_id = ?` |
 | `alert_predicates` | `user_id` | Direct (alert_taxonomy.db) | `DELETE FROM alert_predicates WHERE user_id = ?` |
 
-**screener.db** -- a second database, which no statement on auth.db reaches: **5 tables**, deleted by `api/services/alert_erasure.py` through `alert_erasure.purge_user`.
+**screener.db** -- a second database, which no statement on auth.db reaches: **7 tables**, deleted by `api/services/alert_erasure.py` through `alert_erasure.purge_user`.
 
 | Table | Owner key | Ownership | How the purge deletes it |
 |---|---|---|---|
@@ -246,6 +246,8 @@ the wave-6 close and 20 short by wave 7 (wave 7 lane J, J4).
 | `screen_alert_subs` | `user_id` | Direct (screener.db) | `DELETE FROM screen_alert_subs WHERE user_id = ?` |
 | `screen_alerts_fired` | `user_id` | Direct (screener.db) | `DELETE FROM screen_alerts_fired WHERE user_id = ?` |
 | `spec_alert_subs` | `user_id` | Direct (screener.db) | `DELETE FROM spec_alert_subs WHERE user_id = ?` |
+| `rs_screen_alert_subs` | `user_id` | Direct (screener.db) | `DELETE FROM rs_screen_alert_subs WHERE user_id = ?` |
+| `rs_screen_alerts_fired` | `user_id` | Direct (screener.db) | `DELETE FROM rs_screen_alerts_fired WHERE user_id = ?` |
 
 **calendar_alerts.db** -- a second database, which no statement on auth.db reaches: **1 tables**, deleted by `api/services/alert_erasure.py` through `alert_erasure.purge_user`.
 

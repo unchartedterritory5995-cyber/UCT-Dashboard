@@ -1394,6 +1394,152 @@
       "flags": {}
     },
     {
+      "id": "b-week-forming",
+      "category": "historical",
+      "kind": "bars.daily",
+      "purpose": "answer",
+      "question": "How has AAPL done this week?",
+      "envelope": {
+        "contract": "MD-1.0",
+        "kind": "bars.daily",
+        "params_echo": {
+          "symbol": "AAPL",
+          "tf": "W",
+          "bars": 1
+        },
+        "status": "ok",
+        "freshness": "historical",
+        "as_of": "2026-10-28T20:00:00Z",
+        "fetched_at": "2026-11-02T16:55:00Z",
+        "delay_s": null,
+        "stale": false,
+        "source": "uct-bars",
+        "coverage": null,
+        "data": {
+          "symbol": "AAPL",
+          "timeframe": "W",
+          "bars": [
+            {
+              "date": "2026-10-30",
+              "first_session": "2026-10-26",
+              "last_session": "2026-10-28",
+              "sessions": 3,
+              "open": 1,
+              "high": 2,
+              "low": 0.5,
+              "close": 1.5,
+              "volume": 30,
+              "change_pct": 1.0,
+              "partial": true,
+              "partial_reason": "forming"
+            }
+          ],
+          "through": "2026-10-28",
+          "latest_completed_session": "2026-10-28",
+          "current_period_partial": true
+        },
+        "notes": [
+          "completed sessions only — the current session's developing bar is never included",
+          "weekly bars resampled from completed daily sessions by the product's own resampler, each dated by its week's Friday (friday-close)",
+          "the newest week (2026-10-30) is still forming: it is partial, not a closed bar"
+        ],
+        "provider_calls": 0
+      },
+      "expect": {
+        "freshness_class": "historical",
+        "as_of_renderings": [
+          "2026-10-28",
+          "Oct 28",
+          "October 28"
+        ],
+        "may_claim_live": false,
+        "must_disclose_stale": false,
+        "must_say_unavailable": false,
+        "must_not_state_a_value": false,
+        "must_disclose": [
+          "still forming",
+          "partial"
+        ],
+        "as_of_null_reason_required": false
+      },
+      "expect_refusal": false,
+      "flags": {}
+    },
+    {
+      "id": "b-month-pre-floor",
+      "category": "historical",
+      "kind": "bars.daily",
+      "purpose": "answer",
+      "question": "What are MSFT's monthly closes back to 2003, through the latest month?",
+      "envelope": {
+        "contract": "MD-1.0",
+        "kind": "bars.daily",
+        "params_echo": {
+          "symbol": "MSFT",
+          "tf": "M",
+          "from": "2003-01-01",
+          "to": "2003-12-31"
+        },
+        "status": "ok",
+        "freshness": "historical",
+        "as_of": "2003-12-31T21:00:00Z",
+        "fetched_at": "2026-11-02T16:55:00Z",
+        "delay_s": null,
+        "stale": false,
+        "source": "uct-bars",
+        "coverage": null,
+        "data": {
+          "symbol": "MSFT",
+          "timeframe": "M",
+          "bars": [
+            {
+              "date": "2003-08-01",
+              "first_session": "2003-08-01",
+              "last_session": "2003-08-29",
+              "sessions": 21,
+              "open": 1,
+              "high": 2,
+              "low": 0.5,
+              "close": 1.5,
+              "volume": 30,
+              "change_pct": 1.0,
+              "partial": false,
+              "pre_vendor_floor": true
+            }
+          ],
+          "through": "2003-12-31",
+          "latest_completed_session": "2003-12-31",
+          "current_period_partial": false,
+          "window_from": "2003-01-01"
+        },
+        "notes": [
+          "completed sessions only — the current session's developing bar is never included",
+          "monthly bars resampled from completed daily sessions by the product's own resampler, each dated by its month's 1st",
+          "window: bars on or after 2003-01-01",
+          "rows before 2003-09-10 come from yfinance history (Massive's daily archive starts 2003-09-10)"
+        ],
+        "provider_calls": 0
+      },
+      "expect": {
+        "freshness_class": "historical",
+        "as_of_renderings": [
+          "2003-12-31",
+          "Dec 31",
+          "December 31"
+        ],
+        "may_claim_live": false,
+        "must_disclose_stale": false,
+        "must_say_unavailable": false,
+        "must_not_state_a_value": false,
+        "must_disclose": [
+          "yfinance"
+        ],
+        "as_of_null_reason_required": false
+      },
+      "expect_refusal": false,
+      "flags": {}
+    },
+    {
       "id": "f-current",
       "category": "periodic",
       "kind": "fundamentals",
@@ -1892,6 +2038,220 @@
       "flags": {}
     },
     {
+      "id": "cot-current",
+      "category": "periodic",
+      "kind": "cot.positioning",
+      "purpose": "answer",
+      "question": "Where are large speculators positioned in gold this week?",
+      "envelope": {
+        "contract": "MD-1.0",
+        "kind": "cot.positioning",
+        "params_echo": {},
+        "status": "ok",
+        "freshness": "periodic",
+        "as_of": "2026-10-27T00:00:00Z",
+        "fetched_at": "2026-11-02T16:55:00Z",
+        "delay_s": 259200,
+        "stale": false,
+        "source": "cftc-cot",
+        "coverage": {
+          "requested": 1,
+          "answered": 1
+        },
+        "data": {
+          "series": [
+            {
+              "symbol": "GC",
+              "name": "Gold",
+              "first_date": "2016-11-01",
+              "report_date": "2026-10-27",
+              "weeks": 2,
+              "missing_weeks": 0,
+              "stale": false,
+              "rows": [
+                {
+                  "date": "2026-10-27",
+                  "large_spec_net": 1,
+                  "commercial_net": -1,
+                  "small_spec_net": 0,
+                  "open_interest": 10
+                }
+              ]
+            }
+          ],
+          "not_covered": [],
+          "no_history": [],
+          "covered": null,
+          "report_date": "2026-10-27",
+          "expected_report_date": "2026-10-27",
+          "delay_days": 3
+        },
+        "notes": [
+          "weekly data: CFTC Commitments of Traders (legacy futures-only report), net positions per trader group",
+          "positions are as of the Tuesday report date; CFTC publishes them the following Friday, so they are about three days old when released"
+        ],
+        "provider_calls": 0
+      },
+      "expect": {
+        "freshness_class": "periodic",
+        "as_of_renderings": [
+          "2026-10-26",
+          "Oct 26",
+          "October 26",
+          "8:00"
+        ],
+        "may_claim_live": false,
+        "must_disclose_stale": false,
+        "must_say_unavailable": false,
+        "must_not_state_a_value": false,
+        "must_disclose": [
+          "tuesday report date",
+          "following friday",
+          "weekly"
+        ],
+        "as_of_null_reason_required": false
+      },
+      "expect_refusal": false,
+      "flags": {}
+    },
+    {
+      "id": "cot-stale",
+      "category": "periodic-stale",
+      "kind": "cot.positioning",
+      "purpose": "answer",
+      "question": "What is the latest COT positioning in gold?",
+      "envelope": {
+        "contract": "MD-1.0",
+        "kind": "cot.positioning",
+        "params_echo": {},
+        "status": "ok",
+        "freshness": "periodic",
+        "as_of": "2026-10-20T00:00:00Z",
+        "fetched_at": "2026-11-02T16:55:00Z",
+        "delay_s": 259200,
+        "stale": true,
+        "source": "cftc-cot",
+        "coverage": {
+          "requested": 1,
+          "answered": 1
+        },
+        "data": {
+          "series": [
+            {
+              "symbol": "GC",
+              "name": "Gold",
+              "first_date": "2016-11-01",
+              "report_date": "2026-10-20",
+              "weeks": 2,
+              "missing_weeks": 0,
+              "stale": true,
+              "rows": [
+                {
+                  "date": "2026-10-20",
+                  "large_spec_net": 1,
+                  "commercial_net": -1,
+                  "small_spec_net": 0,
+                  "open_interest": 10
+                }
+              ]
+            }
+          ],
+          "not_covered": [],
+          "no_history": [],
+          "covered": null,
+          "report_date": "2026-10-20",
+          "expected_report_date": "2026-10-27",
+          "delay_days": 3
+        },
+        "notes": [
+          "weekly data: CFTC Commitments of Traders (legacy futures-only report), net positions per trader group",
+          "positions are as of the Tuesday report date; CFTC publishes them the following Friday, so they are about three days old when released",
+          "the newest stored report is 2026-10-20; the report expected by now is 2026-10-27, so this is not the latest week"
+        ],
+        "provider_calls": 0
+      },
+      "expect": {
+        "freshness_class": "periodic",
+        "as_of_renderings": [
+          "2026-10-19",
+          "Oct 19",
+          "October 19",
+          "8:00"
+        ],
+        "may_claim_live": false,
+        "must_disclose_stale": true,
+        "must_say_unavailable": false,
+        "must_not_state_a_value": false,
+        "must_disclose": [
+          "not the latest week"
+        ],
+        "as_of_null_reason_required": false
+      },
+      "expect_refusal": false,
+      "flags": {}
+    },
+    {
+      "id": "cot-not-covered",
+      "category": "partial",
+      "kind": "cot.positioning",
+      "purpose": "answer",
+      "question": "How are traders positioned in lithium right now?",
+      "envelope": {
+        "contract": "MD-1.0",
+        "kind": "cot.positioning",
+        "params_echo": {},
+        "status": "partial",
+        "freshness": "periodic",
+        "as_of": null,
+        "fetched_at": "2026-11-02T16:55:00Z",
+        "delay_s": 259200,
+        "stale": false,
+        "source": "cftc-cot",
+        "coverage": {
+          "requested": 1,
+          "answered": 0
+        },
+        "data": {
+          "series": [],
+          "not_covered": [
+            "lithium"
+          ],
+          "no_history": [],
+          "covered": [
+            {
+              "symbol": "GC",
+              "name": "Gold",
+              "group": "Metals"
+            }
+          ],
+          "expected_report_date": "2026-10-27",
+          "delay_days": 3
+        },
+        "notes": [
+          "weekly data: CFTC Commitments of Traders (legacy futures-only report), net positions per trader group",
+          "positions are as of the Tuesday report date; CFTC publishes them the following Friday, so they are about three days old when released",
+          "not covered by UCT's COT data: lithium",
+          "no market in this request has stored COT data"
+        ],
+        "provider_calls": 0
+      },
+      "expect": {
+        "freshness_class": "periodic",
+        "as_of_renderings": [],
+        "may_claim_live": false,
+        "must_disclose_stale": false,
+        "must_say_unavailable": false,
+        "must_not_state_a_value": false,
+        "must_disclose": [
+          "not covered",
+          "lithium"
+        ],
+        "as_of_null_reason_required": true
+      },
+      "expect_refusal": false,
+      "flags": {}
+    },
+    {
       "id": "br-intraday",
       "category": "periodic",
       "kind": "breadth.current",
@@ -2197,7 +2557,8 @@
       },
       "expect_refusal": true,
       "flags": {
-        "UCT_AGENT_ISOLATED": "1"
+        "UCT_AGENT_ISOLATED": "1",
+        "UCT_AGENT_ISOLATED_KINDS": "breadth.current"
       }
     },
     {

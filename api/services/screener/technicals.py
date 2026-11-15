@@ -902,3 +902,86 @@ def compute_technicals(bars: list[dict], ipo_date=None) -> dict:
         out["prev_day_low"], out["prev_day_close"] = p["l"], p["c"]
     out.update(scan_primitives(bars, closes, ipo_date))
     return out
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Setup-label inputs (RS screens, plan 2026-11-14 v2, section 3)
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# The Setup label ("Extended", "Pullback to the 8-day", ...) is decided in
+# `rs_setup.label`; this is the one place its moving-average measures are read
+# off the bars, so the label and the columns beside it (`atr_ext_sma50`,
+# `pct_vs_sma50`) come from the same sanitized series and the same kernels.
+# NOT screener columns: `compute_technicals` is untouched and returns exactly
+# what it did.
+
+#: The keys `setup_inputs` returns, in order.
+SETUP_INPUT_KEYS = (
+    "ema8", "ema21", "ema8_rising", "ema21_rising", "atr14", "atr_ext_ema21",
+    "atr_ext_sma50", "high20_age", "sma50", "low", "close", "bars",
+)
+#: An 8-day or 21-day EMA "rises" when it stands above its own value this many
+#: sessions ago (plan section 3). A week, where `RISING_SPAN` gives the 20, 50
+#: and 200-day lines a month: a pullback is judged against a fast average.
+EMA_RISING_SPAN = 5
+#: `high20_age` reads the highest CLOSE of this many sessions, today included.
+HIGH20_WINDOW = 20
+
+
+def setup_inputs(bars) -> dict:
+    """The measures `rs_setup.label` reads, for the newest bar of ``bars``.
+
+    ``ema8`` / ``ema21`` / ``sma50`` / ``atr14`` are unrounded values (the label
+    compares against them); the two ATR extensions are rounded to two places,
+    as the `atr_ext_sma50` column is, so a row reading 4.0 is labelled the way
+    it reads. Each key is ``None`` until the series is long enough for it and
+    for nothing else: ``bars`` (the count of usable bars) is always an int.
+
+    * ``ema8_rising`` / ``ema21_rising``: today's EMA strictly above its value
+      :data:`EMA_RISING_SPAN` sessions ago.
+    * ``atr14``: Wilder's ATR(14) through `indicator_compute.compute_atr_raw`,
+      the chokepoint `_atr_pct` and `_atr_ext_sma50` use. ``None`` when it is
+      not above zero: a tape with no range has no unit to measure extension in
+      (`_atr_ext_sma50`'s own rule).
+    * ``atr_ext_ema21``: ``(close - ema21) / atr14``.
+    * ``atr_ext_sma50``: `_atr_ext_sma50`, the stored column's calculation.
+    * ``high20_age``: sessions since the highest close of the last
+      :data:`HIGH20_WINDOW` sessions (0 = today; a tie reads as the newest).
+
+    Hand it the SAME 400-bar window `compute_technicals` gets: the EMAs and
+    the ATR are seeded-and-smoothed over the bars they are given, and
+    ``atr_ext_sma50`` here equals the stored column only on the same window.
+    """
+    from api.services import indicator_compute
+    out = {k: None for k in SETUP_INPUT_KEYS}
+    bars = usable_bars(bars)
+    out["bars"] = len(bars)
+    if not bars:
+        return out
+
+    closes = [b["c"] for b in bars]
+    close = closes[-1]
+    out["close"] = close
+    out["low"] = bars[-1]["l"]
+
+    for name, length in (("ema8", 8), ("ema21", 21)):
+        ema = indicator_compute.compute_ema(closes, length)
+        now = ema[-1]
+        then = ema[-1 - EMA_RISING_SPAN] if len(ema) > EMA_RISING_SPAN else None
+        out[name] = now
+        out[name + "_rising"] = (now > then) if (now is not None and then is not None) else None
+
+    s50 = _sma(closes, 50)
+    out["sma50"] = s50
+    atr = (indicator_compute.compute_atr_raw(bars, 14)[-1]
+           if len(bars) >= 15 else None)
+    if atr is not None and atr > 0:
+        out["atr14"] = atr
+        if out["ema21"] is not None:
+            out["atr_ext_ema21"] = round((close - out["ema21"]) / atr, 2)
+    out["atr_ext_sma50"] = _atr_ext_sma50(bars, closes, s50)
+
+    if len(closes) >= HIGH20_WINDOW:
+        recent = closes[-HIGH20_WINDOW:]
+        out["high20_age"] = _age_of(recent, max(recent))
+    return out

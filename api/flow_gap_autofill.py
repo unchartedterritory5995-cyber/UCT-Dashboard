@@ -1024,6 +1024,27 @@ def register_jobs(scheduler) -> bool:
             CronTrigger(day_of_week="mon-fri", hour=hh, minute=mm, timezone=ET),
             id=f"flow_gap_autofill_{hh:02d}{mm:02d}",
             max_instances=1, replace_existing=True)
+    # SATURDAY (2026-11-14): a FRIDAY hole could never auto-heal on the weekend.
+    # Massive publishes the flat file ~11 AM ET on T+1, and for a Friday session
+    # T+1 is SATURDAY -- but every trigger above is mon-fri, so Friday's last
+    # fire (21:00 ET Fri) lands BEFORE the file exists and is STRUCTURALLY
+    # guaranteed to return no_file. 11/13 therefore sat at 21,245 rows with its
+    # whole 09:30-14:00 morning missing, because after that no_file nothing fired
+    # again until Mon 08:00 -- a broken Friday on the dashboard all weekend,
+    # every time a Friday session is damaged.
+    # _latest_completed_trading_day already resolves a Saturday to the prior
+    # Friday (Saturday is not a trading day), so these need no other change.
+    # Both fires sit AFTER the ~11 AM publish on purpose: run_fill takes the full
+    # ~11GB pre-run backup BEFORE _build_fill_rows fetches, so an earlier
+    # Saturday fire would copy the whole DB and only then discover no_file.
+    # 16:35 retries if 12:30 is still too early that week; Mon 08:00 + 08:15
+    # walkback remain the final backstop.
+    for hh, mm in ((12, 30), (16, 35)):
+        scheduler.add_job(
+            run_fill,
+            CronTrigger(day_of_week="sat", hour=hh, minute=mm, timezone=ET),
+            id=f"flow_gap_autofill_sat_{hh:02d}{mm:02d}",
+            max_instances=1, replace_existing=True)
     # 4th job: the morning is the right place to sweep the whole window and
     # catch a fully-missed session the single-day T-1 jobs never healed
     # (worker down all session / a failed fire). Runs 15min after the 08:00
@@ -1033,8 +1054,18 @@ def register_jobs(scheduler) -> bool:
         CronTrigger(day_of_week="mon-fri", hour=8, minute=15, timezone=ET),
         id="flow_gap_autofill_walkback",
         max_instances=1, replace_existing=True)
+    # Saturday walkback, 15min after the 12:30 Saturday fill: the same
+    # weekend-blind window stranded any OLDER unhealed day too, and a
+    # already-healed day is a cheap no-op that returns before the backup.
+    scheduler.add_job(
+        run_fill_walkback,
+        CronTrigger(day_of_week="sat", hour=12, minute=45, timezone=ET),
+        id="flow_gap_autofill_walkback_sat",
+        max_instances=1, replace_existing=True)
     logger.info("[gap-fill] scheduled 16:35 T-1 retry / 16:45 / 21:00 / 08:00 T-1 "
-                "+ 08:15 walkback (%d trading days) ET Mon-Fri (dry_run=%s)",
+                "+ 08:15 walkback (%d trading days) ET Mon-Fri, plus Sat 12:30 "
+                "+ Sat 16:35 T-1 and Sat 12:45 walkback (a Friday session's flat "
+                "file publishes on the Saturday) (dry_run=%s)",
                 WALKBACK_TRADING_DAYS, DRY_RUN)
     return True
 

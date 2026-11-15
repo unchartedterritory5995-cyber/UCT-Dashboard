@@ -67,6 +67,16 @@ def stop_write_tracking() -> set:
     return out
 
 
+def swap_write_tracking() -> set:
+    """Return the pairs written since the last start/swap and keep tracking from now, with
+    no gap between the two (one lock): the adoption's catch-up rounds re-carry each batch."""
+    global _tracked_writes
+    with _tracked_lock:
+        out = _tracked_writes or set()
+        _tracked_writes = set() if _tracked_writes is not None else None
+    return out
+
+
 def _track(pairs) -> None:
     if _tracked_writes is None:
         return

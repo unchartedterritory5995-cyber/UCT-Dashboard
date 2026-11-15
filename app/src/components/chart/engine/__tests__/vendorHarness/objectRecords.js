@@ -14,7 +14,7 @@
 // ⛔ Nothing here computes a drawing: our side is what `ourSide.js` (the member
 // door) produced, the vendor side is the capture's own record.
 
-import { objectDefaultsFor } from '../../objectRenderState'
+import { objectDefaultsFor, makeBarClock } from '../../objectRenderState'
 import { isThemeColour } from '../../objectTheme'
 import {
   OBJECTS_V2_FIELDS, OBJECTS_V2_FAMILIES, tolerancePolicy, valuesAgree, normalizeColor, coloursAgree, NO_COLOUR,
@@ -50,6 +50,106 @@ function alignById(vendor, ours) {
   return { pairs: [...pairs, ...rest.pairs], unpairedVendor: rest.unpairedVendor, unpairedOurs: rest.unpairedOurs }
 }
 
+// ─── U13 (G1) — x, ON BOTH SIDES, AS A BAR OF THE CAPTURE'S WINDOW ──────────────────
+//
+// The common unit is `k`, the bar's position in the capture's own `bars.rows`
+// (0 = its first bar; `rows.length + n - 1` = n bars past the last one, a future
+// bar). The vendor's x is a position in the capture's x table (`objects.xIndex`,
+// `tv_capture.js::readXIndex`), each entry a model bar index; ours is a bar of the
+// bars our object lane ran on (`ourSide.js` `objects.xFrame`: the replayed
+// prehistory, if any, then the window), placed by `xloc` exactly as the render
+// state places it (`makeBarClock`: `bar_time` lands on the bar whose span holds it).
+// ⛔ EITHER SIDE THAT CANNOT ANSWER SAYS WHY (`missing`), and the field is
+// `xMissing`: never a guessed bar, never an agreement.
+
+// ⭐ THE xmap SIDECAR (capture session S10, 2026-11-15). Before `tv_capture.js` recorded the
+// table, the capture agent read `graphics()._indexes` at capture time into
+// `<run>/xmap/<capture id>.json` (`firstBarIndex`, `lastBarIndex`, `indexes`, `times`,
+// `barIndex = index - firstBarIndex`), verified against printed `bar_index` labels. The
+// harness attaches it here (`harness.js::loadCapture`), BESIDE the capture, never into it (the
+// capture's receipt covers its own bytes). The capture's own `objects.xIndex` wins.
+const X_SIDECARS = new WeakMap()
+
+/** The x table an xmap sidecar holds, in `objects.xIndex`'s shape, or `{found: false, reason}`. */
+export function xIndexOfSidecar(sidecar, capture) {
+  const bad = (reason) => ({ found: false, source: 'xmap-sidecar', reason })
+  if (!sidecar || typeof sidecar !== 'object') return bad('the xmap sidecar is not an object')
+  if (!capture || sidecar.id !== capture.id) return bad('the xmap sidecar names another capture')
+  const { firstBarIndex: first, lastBarIndex: last, indexes, times, barIndex } = sidecar
+  if (!Number.isInteger(first) || !Number.isInteger(last) || !Array.isArray(indexes) || !Array.isArray(times)
+      || times.length !== indexes.length || !indexes.every(Number.isInteger)) return bad('the xmap sidecar is malformed')
+  // its own arithmetic must hold: barIndex = index - firstBarIndex
+  if (Array.isArray(barIndex) && !barIndex.every((b, j) => b === indexes[j] - first)) return bad('the xmap sidecar\'s barIndex disagrees with its indexes')
+  const rows = (capture.bars && capture.bars.rows) || []
+  if (rows.length && sidecar.firstBarTime !== undefined && sidecar.firstBarTime !== rows[0][0]) return bad('the xmap sidecar\'s first bar is not the capture\'s')
+  return { found: true, source: 'xmap-sidecar', path: 'graphics()._indexes (xmap sidecar)', indexes, times,
+    modelBars: { first, last, count: last - first + 1, contiguous: true } }
+}
+
+/** Attach a capture's xmap sidecar (test infrastructure; `harness.js::loadCapture`). */
+export function attachXSidecar(capture, sidecar) {
+  if (capture && typeof capture === 'object') X_SIDECARS.set(capture, xIndexOfSidecar(sidecar, capture))
+  return capture
+}
+
+/** The x table the grade reads for this capture: its own, else its sidecar's, else undefined. */
+export function xTableOf(capture) {
+  const own = capture && capture.objects ? capture.objects.xIndex : undefined
+  return own || (capture && typeof capture === 'object' ? X_SIDECARS.get(capture) : undefined)
+}
+
+/** The capture's x table → `at(x) → {bar} | {missing}`. */
+export function vendorXResolver(capture) {
+  const X = xTableOf(capture)
+  const no = (missing) => ({ at: () => ({ missing }) })
+  if (!X) return no('the capture records no x table (taken before U13)')
+  if (X.found !== true) return no(`the capture's x table was not read (${X.ambiguous ? 'ambiguous' : (X.reason || 'not found')})`)
+  const rows = (capture.bars && capture.bars.rows) || []
+  const mb = X.modelBars
+  if (!mb || mb.contiguous !== true || mb.count !== rows.length || !Array.isArray(X.indexes) || !Array.isArray(X.times)) {
+    return no('the x table\'s model bars do not line up with the capture\'s bars')
+  }
+  return {
+    at(x) {
+      if (!Number.isInteger(x) || x < 0 || x >= X.indexes.length) return { missing: 'the vendor x is outside its x table' }
+      // ⭐ S11 (inside-bar-setup, smart-money-concepts RDDT): TradingView files some objects at
+      // timepoint -2000000, far below any model bar: an `na` x, or one off the loaded bars. Named.
+      if (X.indexes[x] <= -1000000) return { missing: 'the vendor x is TradingView\'s off-chart timepoint (-2000000: an na x, or one off the loaded bars)' }
+      const k = X.indexes[x] - mb.first
+      if (!Number.isInteger(k) || k < 0) return { missing: 'the vendor x is before the first loaded bar' }
+      // ⛔ the table's own time must be the bar's: a table that disagrees is not trusted
+      if (k < rows.length && X.times[x] !== rows[k][0]) return { missing: 'the x table\'s time disagrees with the capture\'s bar' }
+      return { bar: k }
+    },
+  }
+}
+
+/** Our object lane's bars → `at(value, xloc) → {bar} | {missing}`. */
+export function ourXResolver(objects) {
+  const F = objects ? objects.xFrame : undefined
+  const no = (missing) => ({ at: () => ({ missing }) })
+  if (!F || !Array.isArray(F.bars) || !Number.isInteger(F.windowStart)) return no('our side exposes no x frame')
+  let clock = null
+  let keyAt = null
+  return {
+    at(value, xloc) {
+      const v = typeof value === 'number' ? value : (value === null || value === undefined || value === '' ? NaN : Number(value))
+      if (!Number.isFinite(v)) return { missing: 'our x is na' }
+      if (xloc === 'bar_time') {
+        if (!clock) {
+          clock = makeBarClock(F.bars, F.tf)
+          keyAt = new Map(F.bars.map((b, i) => [String(b.t), i]))
+        }
+        const t = clock.timeAtInstant(v / 1000)
+        const i = t === null || t === undefined ? undefined : keyAt.get(String(t))
+        if (i === undefined) return { missing: 'our bar_time x is not on a loaded bar' }
+        return { bar: i - F.windowStart }
+      }
+      return { bar: Math.round(v) - F.windowStart }
+    },
+  }
+}
+
 /** The colour our object is DRAWN in for a slot the script left unset. */
 function colourDefault(D, ourFamily, field) {
   if (ourFamily === 'cell' && field === 'text_color') return D.cell.text_color || CELL_TEXT_DEFAULT
@@ -60,6 +160,16 @@ function colourDefault(D, ourFamily, field) {
 export function fieldRow(spec, ctx, v, p) {
   const { field, kind } = spec
   const raw = p ? p[spec.ours] : undefined
+  if (kind === 'x') {
+    const xloc = p && p.xloc !== undefined && p.xloc !== null ? p.xloc
+      : (ctx.D[ctx.ourFamily] ? ctx.D[ctx.ourFamily].xloc : undefined)
+    const vr = has(v, spec.vendor) ? ctx.vendorX.at(v[spec.vendor]) : { missing: 'the vendor record holds no x' }
+    const or = ctx.ourX.at(raw, xloc)
+    if (vr.missing || or.missing) {
+      return { field, x: true, state: 'xMissing', why: vr.missing || or.missing, vendor: vr.bar ?? null, ours: or.bar ?? null }
+    }
+    return { field, x: true, state: vr.bar === or.bar ? 'agree' : 'differ', vendor: vr.bar, ours: or.bar }
+  }
   if (kind === 'colour') {
     // ⛔ ONLY THE FIELDS THE CAPTURE HOLDS ARE GRADED: an absent colour key is
     // undecoded, never read as the na colour (review #1150 note 1).
@@ -121,7 +231,8 @@ function recordRows(family, ctx, v, p, undrawn) {
     if (f.onlyIfVendor && !(Number(v[f.onlyIfVendor]) > 0)) row = { ...row, state: 'notApplicable' }
     // ⭐ C44 ruling, kept: an object drawn by NEITHER side shows a member nothing,
     // so nothing but its coordinates (which agree as `na` on both) is graded.
-    if (undrawn && f.kind !== 'price' && row.state !== 'notApplicable') row = { ...row, state: 'undrawn', wouldBe: row.state }
+    // (x is a coordinate too, U13: graded on an undrawn pair like the prices)
+    if (undrawn && f.kind !== 'price' && f.kind !== 'x' && row.state !== 'notApplicable') row = { ...row, state: 'undrawn', wouldBe: row.state }
     rows.push(row)
   }
   return rows
@@ -140,6 +251,8 @@ export function pairRecords(capture, objects) {
     tol: tolerancePolicy(capture),
     D: objectDefaultsFor(objects.pineVersion),
     readVendorColour: vendorColourReader(capture).read,
+    vendorX: vendorXResolver(capture),
+    ourX: ourXResolver(objects),
     vendorLineIdOfOurs: new Map(),
     ourFamily: null,
   }

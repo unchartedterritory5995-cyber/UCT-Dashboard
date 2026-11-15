@@ -59,10 +59,10 @@ def test_the_background_job_delivers_what_moved(route, monkeypatch):
     _spy_builders(monkeypatch)
     edits: list = []
     rt.run_buzz_job("A", "T", "", "open", 0, edit_fn=lambda a, t, **kw: edits.append(kw))
-    assert [e.get("content") for e in edits] == ["the board"]
+    assert [e["embeds"][0]["description"] for e in edits] == ["the board"]
     edits.clear()
     rt.run_buzz_job("A", "T", "NVDA", "open", 0, edit_fn=lambda a, t, **kw: edits.append(kw))
-    assert [e.get("content") for e in edits] == ["one name"]
+    assert [e["embeds"][0]["description"] for e in edits] == ["one name"]
 
 
 def test_a_build_failure_AFTER_the_defer_still_resolves_the_spinner(route, monkeypatch):

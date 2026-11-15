@@ -17,6 +17,12 @@ disk and two copies is replaced with no gap.
 - It never serves "any file that exists in the build". The authority is `web`'s route
   table. `tests/test_front_app_parity.py` fails when a route outside `/api` is neither
   served here nor passed through.
+- What it serves itself goes out through the same two layers `web` puts around every
+  answer, with `web`'s settings: gzip (level 5, every answer that has a body) and CORS.
+  A passed-through answer goes through neither: `web` already applied both. Every OPTIONS
+  request goes to `web`, which answers a preflight itself. The settings are read out of
+  `api.main:app` by `tests/test_front_app_parity.py`, so a change on `web` fails that test
+  until the front door follows.
 
 ## Start command
 
@@ -41,11 +47,30 @@ cannot be reached on the private network.
 `GET /__front/health` answers 200 from this app alone. It does not depend on `web`: a
 restart of `web` must not take the front door out of rotation with it.
 
+`GET /__front/edge` shows what Railway's edge told this app about the caller, read with
+`web`'s own function (`api/services/request_ip.py`). `web` limits requests by client
+address and this app forwards the edge's headers untouched, so this is the address `web`
+will see for a request that comes through here. Check it from two places after any change
+to how traffic reaches this service: through Cloudflare (`client_ip` must be your own
+address and `connecting_address_in_cloudflare` true) and straight at the Railway hostname
+with a forged `CF-Connecting-IP` (`client_ip` must still be your own address). If
+`edge_wrote_x_forwarded_for` is ever false in production, STOP: `web` would see every
+member as one address and its rate limits would throttle them together.
+
 ## When `web` is restarting
 
 The app shell and assets keep loading. Passed-through requests get a 502 within 5 seconds
 with `X-UCT-Front: upstream-unreachable`, which is what members get today and what the
 in-app banner keys on.
+
+## If the site is ever moved back to `web`
+
+Since 2026-11-14 `web` no longer restarts for a frontend-only change: `railway.web.json` watches
+only the frontend files its Python code uses (`tools/web_frontend_reads.py`). So `web`'s own copy
+of the built frontend can be older than master. Before (or right after) moving `uctintelligence.com`
+back to `web`: redeploy `web` from the latest commit so members get the current frontend, and put
+`app/**` back in `railway.web.json`'s watch list (change `test_the_list_is_what_makes_the_saving`
+in the same commit), then run `python tools/railway_stored_settings.py --apply`.
 
 ## Logs
 

@@ -25,6 +25,7 @@ import {
 } from './runtimeColumns.js'
 import { LIMIT_NAMES } from './limits.js'
 import { runtimeSourceHash } from '../runtimeKill.js'
+import { noteRuntimeRunStarted, noteRuntimeRunSettled, resetRuntimeRunTelemetry } from '../runtimeRunTelemetry.js'
 
 let _ready = false
 let _worker = null
@@ -166,7 +167,7 @@ const workerFailed = () => named(RUNTIME_WORKER_FAILED_GUARD,
 function runHere(def, rows, ctx, done, job) {
   let columns = null
   let failed = null
-  if (job) { job.lane = 'main'; job.startedAt = clock() }
+  if (job) { job.lane = 'main'; job.startedAt = clock(); noteRuntimeRunStarted() }
   try {
     columns = computeRuntimeColumns(def, rows, ctx, { budgetMs: RUNTIME_PANE_TIME_BUDGET_MS })
   } catch (err) { failed = err }
@@ -177,6 +178,9 @@ function runHere(def, rows, ctx, done, job) {
 function settle(job, err, columns) {
   if (job.settled) return
   job.settled = true
+  // ⭐ U4 — the run count (`runtimeRunTelemetry.js`): every ANSWERED job, by outcome,
+  // with its round trip when it started. An integer bump; nothing is sent from here.
+  noteRuntimeRunSettled(err || null, job.startedAt != null ? clock() - job.startedAt : undefined)
   if (err) {
     reportStop(job.def, job.rows, err,
       Number.isFinite(err.ms) ? err.ms : clock() - (job.startedAt ?? clock()), job.lane)
@@ -286,6 +290,7 @@ function post(job, factory) {
   job.lane = 'worker'
   job.startedAt = clock()
   _jobs.set(id, job)
+  noteRuntimeRunStarted()
   try {
     w.postMessage(messageOf(id, job.def, job.rows, job.ctx))
   } catch {
@@ -344,6 +349,7 @@ export function resetRuntimeAsync() {
   _beaconed.clear()
   _hashOf.clear()
   _stopReporter = null
+  resetRuntimeRunTelemetry()
   setRuntimeRunner(null)
 }
 

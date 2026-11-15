@@ -13,7 +13,7 @@ import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 
-import { pairRecords } from './objectRecords'
+import { pairRecords, attachXSidecar } from './objectRecords'
 import { HARNESS_DIR } from './harness'
 import {
   compareObjectsV2, OBJECTS_V2_FIELDS, OBJECTS_V2_FAMILIES,
@@ -22,10 +22,23 @@ import {
 // #2962FF packed as TradingView records it: 0xAABBGGRR
 const BLUE = 0xffff6229
 const RED = 0xff4536f2 // #F23645
-const capOf = (records) => ({ symbol: { pricescale: 100 }, study: {}, objects: { records } })
+// ⭐ U13 — every capture here carries an x table, and our side its x frame: ten daily bars
+// (model indices 0..9), and a SPARSE table, as TradingView's is (only the bars some object
+// touches). x position 0 is bar 2, 1 is bar 5, 2 is bar 7, 3 is bar 9, 4 is one bar past the
+// last (a future bar). ⛔ Sparse on purpose: an identity table could not tell a grader that
+// resolves the position from one that reads it as a bar.
+const DAY = 86400
+const T0 = 1700000000
+const TIMES = Array.from({ length: 10 }, (_, i) => T0 + i * DAY)
+const TABLE = [2, 5, 7, 9, 10]
+const xIndexOf = (over = {}) => ({ schema: 'uct.object-x-index/v1', found: true, path: 'graphics()._indexes', indexes: TABLE,
+  times: TABLE.map((i) => (i < TIMES.length ? TIMES[i] : null)), modelBars: { first: 0, last: 9, count: 10, contiguous: true }, ...over })
+const capOf = (records, xIndex = xIndexOf()) => ({ symbol: { pricescale: 100 }, study: {},
+  bars: { rows: TIMES.map((t) => [t, 1, 1, 1, 1, 1]) }, objects: { records, ...(xIndex ? { xIndex } : {}) } })
+const FRAME = { bars: TIMES.map((t) => ({ t, o: 1, h: 1, l: 1, c: 1, v: 1 })), windowStart: 0, windowBars: 10, tf: '60' }
 const vLine = (id, over = {}) => ({ id, x1: 0, y1: 10, x2: 1, y2: 12, ex: 'n', st: 'sol', ci: BLUE, w: 1, ...over })
-const oLine = (id, over = {}) => ({ family: 'line', id, props: { x1: 500, y1: 10, x2: 501, y2: 12, color: '#2962FF', ...over } })
-const objs = (held) => ({ ok: true, held, pineVersion: 6 })
+const oLine = (id, over = {}) => ({ family: 'line', id, props: { x1: 2, y1: 10, x2: 5, y2: 12, color: '#2962FF', ...over } })
+const objs = (held, xFrame = FRAME) => ({ ok: true, held, pineVersion: 6, ...(xFrame ? { xFrame } : {}) })
 const V1_MATCH = { verdict: 'MATCH', reason: 'object counts and texts agree' }
 const v2 = (records, held, v1 = V1_MATCH) => compareObjectsV2(v1, pairRecords(capOf(records), objs(held)))
 const fam = (r, f) => r.families.find((x) => x.family === f)
@@ -82,13 +95,139 @@ describe('objects v2 — a drawing in the wrong place is found', () => {
   })
 })
 
+// ═══ U13 (G1) — x is GRADED, at the exact bar, and an unwitnessed x is never a MATCH ═══
+describe('objects v2 — x, through the capture\'s x table (U13)', () => {
+  const vBox = (id, over = {}) => ({ id, x1: 0, y1: 20, x2: 1, y2: 10, c: BLUE, bc: BLUE, ts: 'auto', tc: 0xffffffff, tva: 'center', tha: 'center', tw: 'none', t: '', ...over })
+  const oBox = (id, over = {}) => ({ family: 'box', id, props: { left: 2, top: 20, right: 5, bottom: 10, border_color: '#2962FF', bgcolor: '#2962FF', ...over } })
+  const lab = (over = {}) => ({ id: 1, x: 2, y: 5, yl: 'pr', t: 'A', st: 'ldn', ci: BLUE, tci: 0xffffffff, sz: 'normal', ta: 'center', tt: '', ...over })
+  const oLab = (over = {}) => ({ family: 'label', id: 1, props: { x: 7, y: 5, text: 'A', color: '#2962FF', textcolor: '#FFFFFF', ...over } })
+
+  it('the right bars agree, and x was really graded (not merely not differing)', () => {
+    const r = v2({ lines: [vLine(1)], labels: [lab()], boxes: [vBox(1)] }, [oLine(1), oLab(), oBox(1)])
+    expect(r.verdict, r.reason).toBe('MATCH')
+    expect(r.x).toMatchObject({ graded: 5, agreeing: 5, differing: 0, missing: 0 })
+    expect(fam(r, 'lines').byField.x1).toEqual({ agree: 1, differ: 0, notGraded: 0 })
+    expect(fam(r, 'boxes').byField.right).toEqual({ agree: 1, differ: 0, notGraded: 0 })
+    expect(r.ungraded.lines).not.toContain('x1')
+  })
+
+  it('⛔ MUTATION TARGET (x ignored): a drawing on the wrong bar at the right price DIVERGES, every family', () => {
+    const line = v2({ lines: [vLine(1)] }, [oLine(1, { x2: 6 })])
+    expect(line.verdict).toBe('DIVERGE')
+    expect(line.verdictWithoutX).toBe('MATCH')            // the pre-U13 grade passed it
+    expect(line.first).toMatchObject({ family: 'lines', field: 'x2', vendor: 5, ours: 6 })
+    expect(v2({ labels: [lab()] }, [oLab({ x: 8 })]).first).toMatchObject({ family: 'labels', field: 'x', vendor: 7, ours: 8 })
+    expect(v2({ boxes: [vBox(1)] }, [oBox(1, { left: 1 })]).first).toMatchObject({ family: 'boxes', field: 'left', vendor: 2, ours: 1 })
+  })
+
+  it('the vendor x is a POSITION in the table, never a bar: reading it raw would pass this and must not', () => {
+    // vendor x1 = 0 is bar 2; our x1 = 0 is bar 0
+    expect(v2({ lines: [vLine(1)] }, [oLine(1, { x1: 0 })]).first).toMatchObject({ field: 'x1', vendor: 2, ours: 0 })
+  })
+
+  it('a future bar (past the last loaded one) is graded too, by how far past', () => {
+    expect(v2({ lines: [vLine(1, { x2: 4 })] }, [oLine(1, { x2: 10 })]).verdict).toBe('MATCH')
+    expect(v2({ lines: [vLine(1, { x2: 4 })] }, [oLine(1, { x2: 11 })]).first).toMatchObject({ field: 'x2', vendor: 10, ours: 11 })
+  })
+
+  it('xloc.bar_time lands on the bar whose span holds it (the render state\'s rule)', () => {
+    const ms = (i, plusSec = 0) => (TIMES[i] + plusSec) * 1000
+    expect(v2({ labels: [lab()] }, [oLab({ x: ms(7), xloc: 'bar_time' })]).verdict).toBe('MATCH')
+    expect(v2({ labels: [lab()] }, [oLab({ x: ms(7, 3600), xloc: 'bar_time' })]).verdict).toBe('MATCH')
+    expect(v2({ labels: [lab()] }, [oLab({ x: ms(8), xloc: 'bar_time' })]).first).toMatchObject({ field: 'x', vendor: 7, ours: 8 })
+  })
+
+  it('our replayed prehistory shifts our bar_index onto the window (DIV-1)', () => {
+    const pre = [T0 - 2 * DAY, T0 - DAY].map((t) => ({ t, o: 1, h: 1, l: 1, c: 1, v: 1 }))
+    const frame = { ...FRAME, bars: [...pre, ...FRAME.bars], windowStart: 2 }
+    const r = compareObjectsV2(V1_MATCH, pairRecords(capOf({ lines: [vLine(1)] }), objs([oLine(1, { x1: 4, x2: 7 })], frame)))
+    expect(r.verdict, r.reason).toBe('MATCH')
+  })
+
+  it('⛔ MUTATION TARGET (one side missing x): a capture with NO x table is INCONCLUSIVE, never MATCH', () => {
+    const r = compareObjectsV2(V1_MATCH, pairRecords(capOf({ lines: [vLine(1)] }, null), objs([oLine(1)])))
+    expect(r.verdict).toBe('INCONCLUSIVE')
+    expect(r.verdictWithoutX).toBe('MATCH')
+    expect(r.x).toMatchObject({ graded: 0, missing: 2, incompleteFamilies: ['lines'] })
+    expect(r.reason).toMatch(/no x table/)
+    expect(fam(r, 'lines')).toMatchObject({ agree: null, xIncomplete: true })
+  })
+
+  it('⛔ and the same when OUR side exposes no x frame, or our x is na', () => {
+    expect(compareObjectsV2(V1_MATCH, pairRecords(capOf({ lines: [vLine(1)] }), objs([oLine(1)], null))).verdict).toBe('INCONCLUSIVE')
+    const na = v2({ lines: [vLine(1)] }, [oLine(1, { x1: NaN })])
+    expect(na.verdict).toBe('INCONCLUSIVE')
+    expect(na.reason).toMatch(/our x is na/)
+  })
+
+  it('⛔ a table that was not found, is ambiguous, or does not line up with the bars is not trusted', () => {
+    const g = (xi) => compareObjectsV2(V1_MATCH, pairRecords(capOf({ lines: [vLine(1)] }, xi), objs([oLine(1)]))).verdict
+    expect(g(xIndexOf({ found: false, reason: 'no own `_indexes`' }))).toBe('INCONCLUSIVE')
+    expect(g(xIndexOf({ found: false, ambiguous: true }))).toBe('INCONCLUSIVE')
+    expect(g(xIndexOf({ modelBars: { first: 0, last: 10, count: 11, contiguous: true } }))).toBe('INCONCLUSIVE')
+    expect(g(xIndexOf({ times: TABLE.map(() => 1) }))).toBe('INCONCLUSIVE')
+    expect(g(xIndexOf())).toBe('MATCH')                     // control
+  })
+
+  it('a missing x never hides a real difference: a wrong price still DIVERGES without a table', () => {
+    const r = compareObjectsV2(V1_MATCH, pairRecords(capOf({ lines: [vLine(1)] }, null), objs([oLine(1, { y1: 11 })])))
+    expect(r.verdict).toBe('DIVERGE')
+  })
+
+  it('a pane-anchored table has no x: a tables-only capture with no x table can still MATCH', () => {
+    const t = { tables: [{ id: 1, pos: 'top_right', rows: 1, cols: 1, bgc: null, frmc: 0, frmw: 0, brdc: 0, brdw: 0 }] }
+    const held = [{ family: 'table', id: 1, props: { columns: 1, rows: 1 }, cells: [] }]
+    expect(compareObjectsV2(V1_MATCH, pairRecords(capOf(t, null), objs(held))).verdict).toBe('MATCH')
+  })
+
+  // ⭐ S10 — the xmap sidecar the capture agent read at capture time (`<run>/xmap/<id>.json`).
+  // Model indices start NEGATIVE on a real chart (S10 RDDT: firstBarIndex -366), as here.
+  const sidecarOf = (over = {}) => ({ id: 'cap-1', firstBarIndex: -3, firstBarTime: TIMES[0], lastBarIndex: 6,
+    indexes: TABLE.map((i) => i - 3), times: TABLE.map((i) => (i < TIMES.length ? TIMES[i] : null)),
+    barIndex: TABLE, ...over })
+  const withSidecar = (records, sidecar) => attachXSidecar({ ...capOf(records, null), id: 'cap-1' }, sidecar)
+
+  it('a capture with no table of its own is graded through its xmap sidecar (negative model indices)', () => {
+    const r = compareObjectsV2(V1_MATCH, pairRecords(withSidecar({ lines: [vLine(1)] }, sidecarOf()), objs([oLine(1)])))
+    expect(r.verdict, r.reason).toBe('MATCH')
+    expect(r.x).toMatchObject({ graded: 2, missing: 0 })
+    const off = compareObjectsV2(V1_MATCH, pairRecords(withSidecar({ lines: [vLine(1)] }, sidecarOf()), objs([oLine(1, { x2: 4 })])))
+    expect(off.first).toMatchObject({ field: 'x2', vendor: 5, ours: 4 })
+  })
+
+  it('⛔ a sidecar for another capture, or one whose arithmetic or first bar disagrees, is not trusted', () => {
+    const g = (sc) => compareObjectsV2(V1_MATCH, pairRecords(withSidecar({ lines: [vLine(1)] }, sc), objs([oLine(1)]))).verdict
+    expect(g(sidecarOf({ id: 'another' }))).toBe('INCONCLUSIVE')
+    expect(g(sidecarOf({ barIndex: TABLE.map((b) => b + 1) }))).toBe('INCONCLUSIVE')
+    expect(g(sidecarOf({ firstBarTime: TIMES[1] }))).toBe('INCONCLUSIVE')
+    expect(g(sidecarOf({ lastBarIndex: 7 }))).toBe('INCONCLUSIVE')      // 11 model bars against 10 rows
+    expect(g(sidecarOf())).toBe('MATCH')                                // control
+  })
+
+  it('⛔ TradingView\'s off-chart timepoint (-2000000) is named and never graded as a bar', () => {
+    const sc = sidecarOf({ indexes: [-2000000, ...TABLE.slice(1).map((i) => i - 3)], times: [null, ...TABLE.slice(1).map((i) => (i < 10 ? TIMES[i] : null))], barIndex: undefined })
+    const r = compareObjectsV2(V1_MATCH, pairRecords(withSidecar({ lines: [vLine(1)] }, sc), objs([oLine(1)])))
+    expect(r.verdict).toBe('INCONCLUSIVE')
+    expect(r.reason).toMatch(/off-chart timepoint/)
+  })
+
+  it('the capture\'s own table wins over a sidecar', () => {
+    const cap = attachXSidecar({ ...capOf({ lines: [vLine(1)] }), id: 'cap-1' }, sidecarOf({ indexes: TABLE.map((i) => i - 2) }))
+    expect(compareObjectsV2(V1_MATCH, pairRecords(cap, objs([oLine(1)]))).verdict).toBe('MATCH')
+  })
+
+  it('an unknown x state fails closed', () => {
+    const pairing = { families: { lines: { unpairedVendor: 0, unpairedOurs: 0, pairs: [{ vendorId: 1, ourId: 1, where: 'x', fields: [{ field: 'x1', x: true, state: 'weird' }] }] } } }
+    expect(() => compareObjectsV2(V1_MATCH, pairing)).toThrow(/unknown x field state/)
+  })
+})
+
 describe('objects v2 — what the capture does not hold is named, never passed', () => {
-  it('x is not graded and is named in `ungraded`: a moved x leaves the grade unchanged', () => {
-    const r = v2({ lines: [vLine(1)] }, [oLine(1, { x1: 9999 })])
-    expect(r.verdict).toBe('MATCH')
-    expect(r.ungraded.lines).toEqual(expect.arrayContaining(['x1', 'x2', 'xloc']))
-    expect(r.ungraded.boxes).toEqual(expect.arrayContaining(['left', 'right']))
-    expect(r.reason).toMatch(/not graded: x coordinates/)
+  it('xloc is named in `ungraded` (TradingView records none; the bar it resolves to is graded as x)', () => {
+    const r = v2({ lines: [vLine(1)] }, [oLine(1)])
+    expect(r.ungraded.lines).toEqual(expect.arrayContaining(['xloc']))
+    expect(r.ungraded.boxes).toEqual(expect.arrayContaining(['xloc']))
+    expect(r.reason).toMatch(/not graded: xloc/)
   })
 
   it('a vendor code the table cannot decode is counted `undecoded`, neither agreeing nor differing', () => {
@@ -175,7 +314,7 @@ describe('objects v2 — pairing', () => {
 
   it('a difference only in creation order is SAID (equal ids pair, every field agrees) and still diverges', () => {
     const lab = (id, t) => ({ id, x: 0, y: 5, yl: 'pr', t, st: 'ldn', ci: BLUE, tci: 0xffffffff, sz: 'normal', ta: 'center', tt: '' })
-    const ours = (id, t) => ({ family: 'label', id, props: { x: 1, y: 5, text: t, color: '#2962FF', textcolor: '#FFFFFF' } })
+    const ours = (id, t) => ({ family: 'label', id, props: { x: 2, y: 5, text: t, color: '#2962FF', textcolor: '#FFFFFF' } })
     // TradingView re-created B later (id 9); ours kept it at id 2
     const r = v2({ labels: [lab(1, 'A'), lab(3, 'C'), lab(9, 'B')] }, [ours(1, 'A'), ours(2, 'B'), ours(3, 'C')])
     expect(r.verdict).toBe('DIVERGE')
@@ -224,9 +363,9 @@ describe('objects v2 — pairing', () => {
 // ── review #1150 — rails for the rules a mutant survived, and the three notes ──
 describe('objects v2 — review #1150 rails', () => {
   const vBox = (id, over = {}) => ({ id, x1: 0, y1: 20, x2: 1, y2: 10, c: BLUE, bc: BLUE, ts: 'auto', tc: 0xffffffff, tva: 'center', tha: 'center', tw: 'none', t: '', ...over })
-  const oBox = (id, over = {}) => ({ family: 'box', id, props: { left: 5, top: 20, right: 6, bottom: 10, border_color: '#2962FF', bgcolor: '#2962FF', ...over } })
+  const oBox = (id, over = {}) => ({ family: 'box', id, props: { left: 2, top: 20, right: 5, bottom: 10, border_color: '#2962FF', bgcolor: '#2962FF', ...over } })
   const lab = (id, over = {}) => ({ id, x: 0, y: 5, yl: 'pr', t: 'A', st: 'ldn', ci: BLUE, tci: 0xffffffff, sz: 'normal', ta: 'center', tt: '', ...over })
-  const oLab = (id, over = {}) => ({ family: 'label', id, props: { x: 1, y: 5, text: 'A', color: '#2962FF', textcolor: '#FFFFFF', ...over } })
+  const oLab = (id, over = {}) => ({ family: 'label', id, props: { x: 2, y: 5, text: 'A', color: '#2962FF', textcolor: '#FFFFFF', ...over } })
 
   it('note 1: an ABSENT vendor colour key is undecoded, never read as the na colour', () => {
     const rec = vBox(1)
