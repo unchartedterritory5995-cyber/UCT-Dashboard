@@ -6,6 +6,7 @@ import useSparks from './useSparks'
 import RsResultRow from './RsResultRow'
 import { rowDisplay } from './rsRows'
 import { fmtPrice, fmtChg } from './rowNumbers'
+import { MQ } from '../../../styles/breakpoints'
 import styles from './FocusScreener.module.css'
 
 // One row, memoised. Live prices arrive as a fresh object per ticker on every stream message,
@@ -43,6 +44,14 @@ const ResultRow = memo(function ResultRow({ r, i, sel, price, chg, onRadar, onSe
 const NO_STRUCTURES = {}
 // Rows kept visible beyond the selection when it moves, so the next stock is always in view.
 export const LOOKAHEAD_ROWS = 2
+// Phones, RS screens: the page is the scroller, not the list (`data-phone-scroll`,
+// FocusScreener.module.css). The floating buttons cover this much of its foot (the same 152px the
+// list's bottom padding clears).
+export const PHONE_FLOOR_PX = 152
+const phonePage = list => {
+  if (!list || typeof window === 'undefined' || window.matchMedia?.(MQ.phone)?.matches !== true) return null
+  return list.closest('[data-phone-scroll]')
+}
 
 const ResultList = forwardRef(function ResultList(
   { rows, index, onSelect, onKeyDown, livePrices = {}, radar = new Set(), sortLabel, onSort, total, hasMore, onLoadMore, isLoading, itemProps, showCompany = false, sortMenu, pending = false, structures = NO_STRUCTURES, headExtra = null, newSet = null, rsRow = null, themes = null, headBelow = null },
@@ -60,10 +69,28 @@ const ResultList = forwardRef(function ResultList(
   // Scroll only the list's own container, never an ancestor or the window. The selection
   // keeps LOOKAHEAD_ROWS rows in view on either side (fewer at the ends of the list); when
   // the list is too short for that, the selected row itself always stays in view.
+  const lastIndexRef = useRef(null)
   const scrollToIndex = useCallback(i => {
     const list = listRef.current
     const el = list?.querySelector(`[data-index="${i}"]`)
+    const last = lastIndexRef.current
+    lastIndexRef.current = i
     if (!list || !el) return
+    const page = phonePage(list)
+    if (page) {
+      // The page scrolls here. Only a STEP to the next or previous stock moves it (the chart
+      // sheet's arrows, the joystick): a new list, or a tap on a row that is in view, must not
+      // pull the page down from the screen's own header.
+      if (last === null || Math.abs(i - last) !== 1) return
+      const pr = page.getBoundingClientRect()
+      const r = el.getBoundingClientRect()
+      const head = list.parentElement?.firstElementChild
+      const top = pr.top + (head && head !== list ? head.getBoundingClientRect().height || 0 : 0)
+      const bottom = Math.min(pr.bottom, window.innerHeight || pr.bottom) - PHONE_FLOOR_PX
+      if (r.top < top) page.scrollTop -= top - r.top
+      else if (r.bottom > bottom) page.scrollTop += r.bottom - bottom
+      return
+    }
     const rowAt = k => list.querySelector(`[data-index="${k}"]`)
     let above = el
     for (let k = Math.max(0, i - LOOKAHEAD_ROWS); k < i; k++) { const r = rowAt(k); if (r) { above = r; break } }

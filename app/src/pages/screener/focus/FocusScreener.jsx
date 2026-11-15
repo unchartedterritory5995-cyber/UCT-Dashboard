@@ -1085,7 +1085,12 @@ function FocusList({ mode, onMode }) {
   // (`quickChoices`, unit U11: this layout lays a choice named with the open over the screen, applyScreen above)
   useScreenerAgentHost({ rows, total, current, edited: isEdited, filters: Object.keys(s.filters || {}), loading: isLoading, saved, starters, applyScreen: chooseScreen, quickChoices: true, refresh })
   return (
+    // `data-phone-scroll` (RS screens): on a phone the whole page scrolls, not the list alone
+    // (FocusScreener.module.css). Seen on the live site on 2026-11-15 at 390 x 778: the RS
+    // controls, the ratings line, the market line and the "not in this list" line left the list
+    // a 152px window, about one stock, with the floating buttons over it.
     <div ref={pageRef} className={styles.page} data-testid="focus-screener" data-mode="list" data-density={density} onKeyDown={shortcuts.onKeyDown}
+      data-phone-scroll={rsRow && mode !== 'map' && mode !== 'grid' ? '' : undefined}
       onKeyDownCapture={markTouched} onPointerDownCapture={markTouched} onWheelCapture={markTouched} onScrollCapture={markTouched}>
       {/* The page's one h1, for assistive tech; the top bar carries the visible title. */}
       <h1 className="sr-only">Screener</h1>
