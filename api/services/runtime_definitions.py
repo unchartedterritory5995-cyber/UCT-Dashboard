@@ -526,6 +526,10 @@ def not_graded_at_save(source: Optional[str]) -> Optional[str]:
     sentence, pending = not_graded_reason(source, wait=SAVE_WAIT_SECONDS)
     if pending:
         h = source_hash(source) if isinstance(source, str) else ""
+        from api.services import pine_capability_worker
+        if pine_capability_worker.worker_enabled() and pine_capability_worker.is_quarantined(source):
+            # follow-up review L3: not "busy" -- this script's check is paused after it failed
+            raise CapabilityCheckPaused(SAVE_PAUSED_SENTENCE.format(h=h[:12]))
         raise CapabilityCheckBusy(SAVE_BUSY_SENTENCE.format(h=h[:12]))
     return sentence
 
@@ -663,12 +667,24 @@ _VERDICT_LOCK = threading.Lock()
 class CapabilityCheckBusy(ValueError):
     """F1: the save door could not compute the script's capability set within `SAVE_WAIT_SECONDS`
     (the detector was busy). Retryable; nothing was saved. The router answers 503 + Retry-After."""
+    retry_after = 2
+
+
+class CapabilityCheckPaused(CapabilityCheckBusy):
+    """U5 follow-up (review L3): THIS script's check is quarantined after it timed out or made the
+    detector raise (`pine_capability_worker`). Still retryable and nothing saved, but "try again in
+    a moment" would be untrue: the router answers 503 with a Retry-After of the quarantine's base."""
+    retry_after = 600
 
 
 #: What a busy save door says (`CapabilityCheckBusy`).
 SAVE_BUSY_SENTENCE = ("this script (sha256 {h}…) could not be checked against the parts of Pine graded "
                       "against TradingView right now because the check is busy; try again in a moment. "
                       "Nothing was saved")
+#: What the save door says for a quarantined script (`CapabilityCheckPaused`).
+SAVE_PAUSED_SENTENCE = ("this script (sha256 {h}…) could not be checked against the parts of Pine graded "
+                        "against TradingView: this script's check is temporarily paused after repeated "
+                        "failures; try again later. Nothing was saved")
 
 
 def _verdict_member_spent(member: str, now: float) -> float:
@@ -702,7 +718,11 @@ class DetectorBudget:
     source only (the save door, the verdict door). Every fresh run also needs the process-wide
     gate (`_DETECTOR_GATE`), taken without waiting."""
 
-    def __init__(self, runs: int = DETECTOR_RUNS_PER_REQUEST, seconds: float = DETECTOR_SECONDS_PER_REQUEST):
+    def __init__(self, runs: int = DETECTOR_RUNS_PER_REQUEST, seconds: float = DETECTOR_SECONDS_PER_REQUEST,
+                 member: Optional[str] = None):
+        #: whose request this is (the list / history routes): the worker strikes the member on a
+        #: timeout or a raise, so variants of one bad script cannot keep the worker busy
+        self.member = member
         self.runs = runs
         self.seconds = seconds
         self.spent = 0.0
@@ -894,7 +914,8 @@ def capabilities_for(source: str, *, budget: Optional[DetectorBudget] = None,
             # None: PENDING, never an admission, and never run inline here instead. The save door
             # may wait for a starting worker, within its own deadline only.
             caps, worker_ran, _status = pine_capability_worker.detect(
-                source, ready_wait=max(0.0, deadline - time.monotonic()) if wait > 0 else 0.0)
+                source, ready_wait=max(0.0, deadline - time.monotonic()) if wait > 0 else 0.0,
+                member=verdict_member if verdict_member is not None else getattr(budget, "member", None))
         else:
             caps = pine_capabilities.capabilities_of(source)
         # review L2: a worker run is charged with the CHILD's run time, never the parent's wall
