@@ -104,7 +104,10 @@ import { ENGINE_ERROR, isRefusal } from './ast/parse'
 // symbol folds it differently, so the second symbol of a sweep would inherit the
 // first's lengths. That shows as a WRONG NUMBER, not an error.
 import { foldBound, bindConstsFor } from './ast/bind'
-import { isPineOriginDoc, otherSymbolPending } from './otherSymbols'
+import {
+  isPineOriginDoc, otherSymbolPending, otherSymbolRefusalOfTree, staticOtherSymbolMessage,
+  isOtherSymbolRefusal, colourReaderRefusal, colourReaderMessage, plotValueIsNaLiteral,
+} from './otherSymbols'
 import { resolveLowerTf } from './lowerTf'
 import { blockRunsRefusal, BLOCK_RUNS_GUARD } from './blockRuns'
 // ⭐⭐ P1 — the chart lane's pre-compute refusals and its other-symbol decision
@@ -2426,6 +2429,52 @@ function astColumnsFor(def, bars, inputs, ctx) {
   return stop ? withRuntimeErrorStop(out, stop) : out
 }
 
+/** ⭐⭐ ENGINE 55 (review F1) — `column:<key>` → `<key>`, or null. */
+const colourHelperKeyOf = (mode) => (typeof mode === 'string' && mode.startsWith('column:') ? mode.slice('column:'.length) : null)
+
+/** The name a member reads for a plot: its label, never its key. */
+const visiblePlotName = (p) => `\`${(p && (p.label || p.title)) || (p && p.key) || 'a plot'}\``
+
+/** ⭐⭐ ENGINE 55 (review F1) — SERVE, NEVER DEFAULT. A plot whose per-bar COLOUR (`colorMode`) or
+ *  band colour (`fill.colorMode`) is read from a helper column the bind REFUSED for another
+ *  symbol is refused too, by name, with the helper's guard and code and a sentence naming the
+ *  visible plot and the symbol (`otherSymbols.colourReaderRefusal`). ⚰️ The helper was refused
+ *  and the plot was not: the binder found no colour column, `pointColour` answered null, and the
+ *  series' DEFAULT colour was drawn on every bar — a colour the script never chose.
+ *  ⛔ A band's PARTNER (`fill.with`) refused is not this: that partner is a visible plot refused
+ *  by name, the band has no edge to draw, and the owner's own line is still exact.
+ *  ⛔ A plot whose VALUE is the `na` literal draws nothing on any bar, so its colour is never
+ *  seen: it is not refused (`plotValueIsNaLiteral`). */
+function refuseColourReaders(def, out, errors) {
+  const trees = def && def.compute && def.compute.trees
+  for (const p of (def && def.plots) || []) {
+    if (!p || typeof p.key !== 'string' || errors[p.key]) continue
+    if (trees && plotValueIsNaLiteral(trees[p.key])) continue
+    const helpers = [colourHelperKeyOf(p.colorMode), p.fill ? colourHelperKeyOf(p.fill.colorMode) : null]
+      .filter((k) => typeof k === 'string' && k && k !== p.key)
+    const hit = helpers.map((k) => errors[k]).find(isOtherSymbolRefusal)
+    if (!hit) continue
+    delete out[p.key]
+    errors[p.key] = colourReaderRefusal(visiblePlotName(p), hit)
+  }
+}
+
+/** ⭐⭐ ENGINE 55 (review F1) — the paints (`bgcolor` / `barcolor`) whose colour is read from a
+ *  helper column refused for another symbol, each named for the strip by its kind and line —
+ *  never by the hidden helper row that carried the colour. */
+function colourReaderPaintNotices(def, columns) {
+  const errs = columnErrors(columns)
+  const out = []
+  for (const paint of (def && Array.isArray(def.paints) ? def.paints : [])) {
+    const key = paint && colourHelperKeyOf(paint.colorMode)
+    const e = key ? errs[key] : null
+    if (!isOtherSymbolRefusal(e)) continue
+    const name = `\`${paint.kind || 'bgcolor'}\`${Number.isInteger(paint.line) ? ` (line ${paint.line})` : ''}`
+    out.push({ code: e.code || e.guard, reason: colourReaderMessage(name, e.message) })
+  }
+  return out
+}
+
 function astColumnsUnstopped(def, bars, inputs, ctx) {
   const keys = astPlotKey(def)
   const trees = astTrees(def)
@@ -2545,6 +2594,14 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
         errors[key] = staticWhy.get(key)
         continue
       }
+      // ⭐⭐ ENGINE 55 — a plot that reads a ticker this binding REFUSED (settled, not
+      // pending) is refused BY NAME with the bind's code and sentence, never computed
+      // into an all-`na` column (`otherSymbols.js::otherSymbolRefusalOfTree`).
+      const symWhy = otherSymbolRefusalOfTree(trees[key], other)
+      if (symWhy) {
+        errors[key] = symWhy
+        continue
+      }
       try {
         out[key] = interpret(bound(trees[key]), bars, inputs, def.compute.budget,
           // ⛔ `newestBarIsForming` IS READ THE SAME WAY `tf` IS, and fails closed
@@ -2591,6 +2648,7 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
         errors[key] = { guard: BLOCK_RUNS_GUARD, message: runsWhy }
       }
     }
+    refuseColourReaders(def, out, errors)
     return withLowerTf(withChartClock(withOtherSymbols(withColumnErrors(out, errors), other), clock), lower)
   }
   if (keys.length !== 1) {
@@ -2616,6 +2674,9 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
   // different route and reads identically at the call site.
   // ⭐ P0 0F — see the per-plot branch above (`chartScalars.js`).
   if (staticWhy.has(keys[0])) return withColumnErrors({}, { [keys[0]]: staticWhy.get(keys[0]) })
+  // ⭐⭐ ENGINE 55 — the single tree's settled other-symbol refusal, by name.
+  const soleSymWhy = otherSymbolRefusalOfTree(def.compute.ast, other)
+  if (soleSymWhy) return withOtherSymbols(withColumnErrors({}, { [keys[0]]: soleSymWhy }), other)
   const clock = { [keys[0]]: new Map() }
   const sole = interpret(bound(def.compute.ast), bars, inputs, def.compute.budget,
     undefined, { tf: ctx && ctx.tf,
@@ -2670,8 +2731,24 @@ export { FORMULA_LTF_GUARD, FORMULA_LTF_MESSAGE }
  *  `ltf` is never a silent blank line. ⛔ A Pine translation's own refusals are
  *  left exactly as they were (its disclosures ride on `meta.disclosures`). */
 export function externalReadNotices(def, columns) {
-  if (!def || isPineOriginDoc(def) || !columns) return []
+  if (!def || !columns) return []
   const out = []
+  // ⭐⭐ ENGINE 55 — A PINE TRANSLATION'S OTHER-SYMBOL REFUSALS ARE PUBLISHED TOO. Its
+  // translate-time disclosures ride `meta.disclosures`, but a ticker the BIND refuses
+  // (`ADVQ` held nowhere, an unwitnessed venue) is decided per chart and was said
+  // nowhere: the plot drew an all-`na` line. It is now refused by name in
+  // `columnErrors` and named here, on the same strip.
+  if (isPineOriginDoc(def)) {
+    const other = otherSymbolReport(columns)
+    for (const r of (other && other.refused) || []) {
+      if (otherSymbolPending(r)) continue
+      out.push({ code: r.code, reason: r.static === true ? staticOtherSymbolMessage(r.ticker, r)
+        : `This indicator reads \`${r.ticker}\`: ${r.reason}` })
+    }
+    // ⭐ review F1 — and every paint whose colour that refusal leaves undrawn, by its own name
+    out.push(...colourReaderPaintNotices(def, columns))
+    return out
+  }
   const other = otherSymbolReport(columns)
   for (const r of (other && other.refused) || []) {
     if (otherSymbolPending(r)) continue

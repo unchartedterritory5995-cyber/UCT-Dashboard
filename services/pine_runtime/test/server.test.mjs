@@ -6,7 +6,7 @@ import { request as httpRequest } from 'node:http'
 import { signHeader, SIGNATURE_HEADER } from '../auth.mjs'
 import { MAX_BODY_BYTES } from '../protocol.mjs'
 import {
-  ENV_ALLOWLIST, createPineRuntimeServer, envRefusal, listenDualStack, portOf,
+  ENV_ALLOWLIST, WIN32_ENV_ALLOWLIST, envAllowlistFor, createPineRuntimeServer, envRefusal, listenDualStack, portOf,
 } from '../server.mjs'
 import { DOOR, IDENTITY, SECRET, SECRET_2, mutate, rng, validRequest } from './helpers.mjs'
 
@@ -205,6 +205,27 @@ test('env allowlist (L2): any variable outside it refuses boot, by name and neve
   }
   assert.ok(ENV_ALLOWLIST.includes('PINE_RUNTIME_SERVICE_SECRET') && ENV_ALLOWLIST.includes('PORT'))
   assert.equal(ENV_ALLOWLIST.some((k) => /TOKEN|KEY|PASSWORD|DATABASE|PUBLIC|STATIC_URL|PROXY|OPTIONS/.test(k)), false)
+})
+
+test('env allowlist, WINDOWS ONLY: SYSTEMROOT is admitted on win32 and nowhere else; nothing else is admitted', () => {
+  const base = { PORT: '8080', PINE_RUNTIME_SERVICE_SECRET: SECRET, PATH: '/usr/bin' }
+  assert.deepEqual([...WIN32_ENV_ALLOWLIST], ['SYSTEMROOT'])
+  assert.equal(ENV_ALLOWLIST.includes('SYSTEMROOT'), false, 'production\'s list is unchanged')
+  // (a) on a non-win32 platform it is still refused, by name (the platform is injected, never the box's)
+  for (const platform of ['linux', 'darwin', 'freebsd']) {
+    const s = envRefusal({ ...base, SYSTEMROOT: 'C:\\Windows' }, platform)
+    assert.ok(s && s.includes('SYSTEMROOT'), platform)
+    assert.equal(envAllowlistFor(platform), ENV_ALLOWLIST, platform)
+  }
+  // on win32 it is admitted
+  assert.equal(envRefusal({ ...base, SYSTEMROOT: 'C:\\Windows' }, 'win32'), null)
+  // (b) on win32 any other variable is still refused, git-bash's and Windows' own included
+  for (const name of ['WINDIR', 'MSYSTEM', 'SystemRoot', 'COMSPEC', 'TEMP', 'USERPROFILE', 'DATABASE_URL', 'RAILWAY_TOKEN', 'NODE_OPTIONS']) {
+    const s = envRefusal({ ...base, SYSTEMROOT: 'C:\\Windows', [name]: 'leak-value-xyz' }, 'win32')
+    assert.ok(s && s.includes(name), name)
+    // (c) the sentence names names only, never a value
+    assert.ok(!s.includes('leak-value-xyz') && !s.includes(SECRET) && !s.includes('C:\\Windows'), `names only: ${name}`)
+  }
 })
 
 test('PORT: unset is the default; anything but a whole port number refuses boot', () => {
