@@ -2962,7 +2962,7 @@
     "sym": "PANW",
     "asof": "2020-12-03",
     "window": 120,
-    "forward": 40,
+    "forward": 60,
     "trade": {
      "entry": 48.98,
      "stop": 48.29

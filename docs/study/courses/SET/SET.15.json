@@ -2440,7 +2440,7 @@
     "sym": "MU",
     "asof": "2025-08-19",
     "window": 150,
-    "forward": 10,
+    "forward": 20,
     "trade": {
      "entry": 123.7,
      "stop": 120.63

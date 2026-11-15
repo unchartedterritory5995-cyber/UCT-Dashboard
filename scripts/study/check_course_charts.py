@@ -98,14 +98,22 @@ def check_question(c, unit: str, q: dict) -> dict:
         if e and risk / e * 100 > MAX_STOP_PCT:
             out["problems"].append(f"stop is {risk / e * 100:.1f}% from the entry")
         if risk > 0:
-            best, stopped = 0.0, None
+            best, stopped, after = 0.0, None, None
             for k, row in enumerate(shown, start=1):
                 h, l = float(row[2]), float(row[3])
+                r_k = ((h - e) if not short else (e - l)) / risk
+                if stopped:
+                    after = max(after, r_k)
+                    continue
                 if (not short and l <= s) or (short and h >= s):
-                    stopped = k
-                    break
-                best = max(best, ((h - e) if not short else (e - l)) / risk)
-            out["notes"].append(f"in the {len(shown)} replayed bars: best {best:.1f}R" + (f", stopped on day {stopped}" if stopped else ", stop not hit"))
+                    stopped, after = k, r_k
+                    continue
+                best = max(best, r_k)
+            # what the replay shows AFTER the stop too: a story that says "it later reached 5R without us" must have a
+            # replay long enough to show it (2026-11-14: an MU question said so over 10 replayed days that never got
+            # back to the buy; 5R came on day 15)
+            out["notes"].append(f"in the {len(shown)} replayed bars: best {best:.1f}R"
+                                + (f", stopped on day {stopped}, after the stop it reaches {after:.1f}R" if stopped else ", stop not hit"))
     return out
 
 

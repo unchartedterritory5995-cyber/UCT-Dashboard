@@ -8195,7 +8195,7 @@
   "asof": "2020-12-03",
   "bars": {
    "asof": "2020-12-03",
-   "forward": 40,
+   "forward": 60,
    "sym": "PANW",
    "tf": "D",
    "window": 120
@@ -8207,7 +8207,7 @@
   "module": "SET",
   "prompt_json": {
    "chart": {
-    "forward_bars": 40,
+    "forward_bars": 60,
     "tf": "D",
     "window_bars": 120
    },
@@ -46467,7 +46467,7 @@
   "asof": "2025-08-19",
   "bars": {
    "asof": "2025-08-19",
-   "forward": 10,
+   "forward": 20,
    "sym": "MU",
    "tf": "D",
    "window": 150
@@ -46479,7 +46479,7 @@
   "module": "SET",
   "prompt_json": {
    "chart": {
-    "forward_bars": 10,
+    "forward_bars": 20,
     "tf": "D",
     "window_bars": 150
    },

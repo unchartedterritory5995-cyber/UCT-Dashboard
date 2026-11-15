@@ -50,3 +50,22 @@ def test_a_bad_chart_is_caught():
     # an unknown symbol does not resolve
     r = cc.check_question(c, "SET.99", {"key": "q4", "chart": {"sym": "ZZZ", "asof": iso}})
     assert any("no daily bars" in p for p in r["problems"])
+
+
+def test_the_report_shows_what_the_replay_reaches_after_the_stop():
+    """A story can say "it later reached 5R without us"; the report shows whether the replay is long enough to show it
+    (2026-11-14: an MU question said so over a 10-day replay that never got back to the buy)."""
+    days = _days(80)
+    rows = [(t, 10.0, 10.5, 9.8, 10.2) for t in days]
+    rows[50] = (days[50], 10.0, 10.1, 9.0, 9.2)              # the day after the buy runs through the stop
+    for i in range(51, 80):
+        p = 9.2 + (i - 50) * 0.4                              # then climbs well past 5R (5R = 15.0 + 5 x 0.31)
+        rows[i] = (days[i], p, p + 0.3, p - 0.2, p + 0.2)
+    c = _db(rows)
+    iso = lambda t: f"{str(t)[:4]}-{str(t)[4:6]}-{str(t)[6:]}"
+    q = {"key": "q5", "chart": {"sym": "ABC", "asof": iso(days[49]), "window": 40, "forward": 25,
+                                "trade": {"entry": 10.2, "stop": 9.79}}}
+    r = cc.check_question(c, "SET.99", q)
+    note = [n for n in r["notes"] if "replayed bars" in n][0]
+    assert "stopped on day 1" in note and "after the stop it reaches" in note, note
+    assert float(note.split("after the stop it reaches ")[1].rstrip("R")) > 5, note
