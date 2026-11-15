@@ -285,3 +285,7 @@ equals the HEAD blob. **62 mutants, 62 killed** (44 in the first round, 18 in th
   after it only gives the two corpus cases their `opts` and records the tool files the suite rewrote
   (`tools/corpus_metric.json`, `tools/lookback_agreement.json`, read by `tests/test_ast_lookback_agreement.py`,
   which passes).
+- **The last master merge** (`f7a6f13d39`) brought no engine file and 21 new vendor capture files (20 captures):
+  graded on master `f7a6f13d39` and on this branch (`ccbdb0ff14`), they are identical capture for capture, plot
+  for plot and object family for family, in both lanes (production 1 / 11 / 8, runtime-on 4 / 11 / 5
+  MATCH / DIVERGE / INCONCLUSIVE on both sides): no new DIVERGE. The engine-55 rails pass after it (173).
