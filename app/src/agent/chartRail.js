@@ -172,7 +172,8 @@ const REMOVAL = /\b(?:remove|removing|delete|deleting|close|closing|get rid|repl
 //   CHANGE_TAKE  "<word> X"      → X is the chart being changed ("replace SPY", "instead of SPY", "in place of SPY")
 //   CHANGE_TO    "X <word> Y"    → X changes to Y ("SPY for AAPL", "SPY into AAPL", "SPY to AAPL", "SPY switched to AAPL")
 //   CHANGE_BACK  "Y … <word> X"  → X changes to Y ("AAPL where SPY is", "AAPL over SPY", "AAPL rather than SPY")
-//   CHANGE_OFF   "X <word>" / "<word> X" → X is taken off
+//   CHANGE_OFF   "X <word>"      → X is taken off ("SPY off and AAPL on") — only AFTER the ticker: "<word> X" is the exclusion
+//                cue "hands off NVDA", never a change
 //   SEE_VERBS    a verb that asks to SEE the tickers it governs ("show SPY and AAPL")
 export const CHANGE_TAKE = ['replace', 'replaces', 'replaced', 'replacing', 'swap out', 'swapping out', 'swapped out', 'get rid of', 'getting rid of', 'switch out', 'switching out', 'instead of', 'in place of', 'rather than']
 export const CHANGE_TO = ['for', 'into', 'to']
@@ -293,8 +294,11 @@ export function tickerChanged(words, ticker, others = []) {
   if (!t) return false
   const T = String.raw`\$?${t}(?![A-Za-z0-9])`
   const det = String.raw`(?:(?:the|my|that|this|a|an)\s+)?`
+  // (a change needs a NEW symbol: with no other ticker named, "rather than the NVDA one" / "X off" is about a setting — "log on
+  //  this one rather than the NVDA one" excludes NVDA's chart, it changes no ticker)
+  if (!others.some(o => up(o) && up(o) !== up(ticker))) return false
   if (new RegExp(String.raw`\b(?:${altOf(CHANGE_TAKE)})\s+${det}${T}`, 'i').test(w)) return true
-  if (new RegExp(String.raw`(?:^|[^A-Za-z0-9])${T}(?:['’]s)?\s+(?:(?:chart|one|panel|graph)\s+)?(?:${altOf(CHANGE_OFF)})\b|\b(?:${altOf(CHANGE_OFF)})\s+${det}${T}`, 'i').test(w)) return true
+  if (new RegExp(String.raw`(?:^|[^A-Za-z0-9])${T}(?:['’]s)?\s+(?:(?:chart|one|panel|graph)\s+)?(?:${altOf(CHANGE_OFF)})\b`, 'i').test(w)) return true
   for (const o of others) {
     if (up(o) === up(ticker)) continue
     const O = String.raw`\$?${reEsc(up(o))}(?![A-Za-z0-9])`
@@ -310,7 +314,8 @@ export function tickerChanged(words, ticker, others = []) {
 /** The other tickers a sentence names, for tickerChanged: its all-caps symbols, plus any board symbol said in any casing. */
 export function namedTickers(words, symbols = []) {
   const w = String(words || '')
-  const caps = (w.match(/(?:^|[^A-Za-z0-9$])\$?([A-Z][A-Z0-9.]{0,9})(?![A-Za-z0-9])/g) || []).map(x => up(x.replace(/^[^A-Za-z$]*\$?/, '').replace(/\.$/, '')))
+  // (an all-caps symbol, or any "$"-prefixed one in any casing)
+  const caps = [...w.matchAll(/(?:^|[^A-Za-z0-9$])(\$[A-Za-z][A-Za-z0-9.]{0,9}|[A-Z][A-Z0-9.]{0,9})(?![A-Za-z0-9])/g)].map(x => up(x[1].replace(/^\$/, '').replace(/\.$/, '')))
   const lower = w.toLowerCase()
   const said = (symbols || []).map(up).filter(Boolean).filter(x => new RegExp(String.raw`(?:^|[^a-z0-9])\$?${reEsc(x.toLowerCase())}(?![a-z0-9])`).test(lower))
   return [...new Set([...caps, ...said])]
@@ -354,7 +359,12 @@ export function identifiesChart(w, e, host, { selected = null, subject = null, p
   try {
     const all = liveCharts(host)
     if (all.length > 1) {
-      const ex = excludedCharts(w, all, selected)
+      const ex = new Set(excludedCharts(w, all, selected))
+      // (a ticker the words CHANGE — with THIS plan's new symbol among the tickers they name, in any casing — is the target, never
+      //  an exclusion that leaves another chart: "aapl instead of spy" never licenses the QQQ chart)
+      const shown = new Set(all.map(c => up(c.symbol)))
+      const others = [...namedTickers(w).filter(t => !shown.has(t)), ...knownIn(w, [e.to]).map(up)]
+      for (const c of all) if (c.symbol && ex.has(c.ref) && tickerChanged(w, c.symbol, others)) ex.delete(c.ref)
       const left = all.filter(c => !ex.has(c.ref))
       if (!ex.has(UNPLACED) && left.length === 1 && left[0].ref === e.ref) return 'elimination'
     }

@@ -588,7 +588,9 @@ export function excludedCharts(text, charts = [], sel = null) {
   // ⛔ (AUDIT finding 1) a ticker the words CHANGE is never one they exclude: "AAPL instead of SPY" / "AAPL rather than SPY" name
   // SPY as the chart to change (AAPL its new symbol) — an exclusion reading of it would protect SPY and aim the change elsewhere
   {
-    const others = namedTickers(text, charts.map(c => c?.symbol))
+    // (the NEW symbol: a ticker the words name that no chart shows — "make QQQ weekly rather than SPY" changes no ticker)
+    const shown = new Set(charts.map(c => String(c?.symbol || '').toUpperCase()))
+    const others = namedTickers(text).filter(t => !shown.has(t))
     for (const c of charts) if (c?.ref && out.has(c.ref) && c.symbol && tickerChanged(text, c.symbol, others)) out.delete(c.ref)
   }
   out.add = add
