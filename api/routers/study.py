@@ -369,21 +369,26 @@ def post_spot_setup(body: SpotSetupIn, user: dict = Depends(require_paid)):
     queues = [list(v) for v in by.values()]
     while len(picked) < rounds and any(queues) and tried < rounds * 12:
         for q in queues:
-            if not q or len(picked) >= rounds:
-                continue
-            iid = q.pop(0)
-            tried += 1
-            full = study_store.get_item_full(iid) or {}
-            if study_hard.key_is_yes(full.get("answer_json")) is not True:
-                continue
-            vis_bars = (study_store.get_visible_bars(iid) or {}).get("bars") or []
-            if body.need_plan:
-                from api.services import study_trade
-                if not study_trade.plan(full.get("skill_id") or "", vis_bars):
+            if len(picked) >= rounds:
+                break
+            # each setup takes ONE chart per pass; a chart that cannot play (a No chart, no plan, no look-alikes) does not
+            # cost its setup the turn: the next one in its queue is tried (2026-11-15: a shuffle that put a No chart
+            # first in Oops's queue gave the run two Kickers and no Oops)
+            while q and tried < rounds * 12:
+                iid = q.pop(0)
+                tried += 1
+                full = study_store.get_item_full(iid) or {}
+                if study_hard.key_is_yes(full.get("answer_json")) is not True:
                     continue
-            look = study_spot_setup.lookalikes(vis_bars, full.get("skill_id") or "", view=view)
-            if look:
-                picked.append((iid, look))
+                vis_bars = (study_store.get_visible_bars(iid) or {}).get("bars") or []
+                if body.need_plan:
+                    from api.services import study_trade
+                    if not study_trade.plan(full.get("skill_id") or "", vis_bars):
+                        continue
+                look = study_spot_setup.lookalikes(vis_bars, full.get("skill_id") or "", view=view)
+                if look:
+                    picked.append((iid, look))
+                    break
     session = study_store.create_session(uid, "free", [iid for iid, _ in picked])
     payload = _set_payload(uid, session)
     looks = dict(picked)
