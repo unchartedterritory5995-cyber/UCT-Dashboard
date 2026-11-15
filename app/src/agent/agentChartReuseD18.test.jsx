@@ -14,6 +14,7 @@ import { readCopyIntent, setMoreSymbols } from './copyIntent'
 import { screenChartReuse, TF_NOTE } from './chartReuse'
 import { planOps, collectTargets } from './executor'
 import { chartRailRefusal, keepTickers, createdTickers, finalBoard } from './chartRail'
+import { multiChartPlan, gridChoiceFor } from './multiChart'
 
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
 import AgentPanel from './AgentPanel'
@@ -201,4 +202,29 @@ describe('D18 · through the real panel', () => {
     await say('undo')
     expect(raw()).toBe(before)
   }, 30000)
+})
+
+// ── AUDIT condition: "Add N more charts" picked = an explicit copy — so its LABEL names every displayed symbol it would duplicate ──
+describe('D18 · the add-or-replace choice label states the duplicates before the member picks', () => {
+  const six = () => makeBoard(Array.from({ length: 6 }, (_, i) => ({ id: `c${i}`, type: 'chart', x: (i % 3) * 8, y: Math.floor(i / 3) * 10, w: 8, h: 10, color: 'N', opts: settings() })),
+    { 'N:c0': 'SPY', 'N:c1': 'QQQ', 'N:c2': 'NVDA', 'N:c3': 'AMD', 'N:c4': 'MU', 'N:c5': 'META' })
+  const labelOf = (q) => (q?.choices || []).find(c => c.ref === 'grid:add')?.label
+  for (const [tickers, dup] of [[['SPY', 'QQQ', 'NVDA', 'TSLA'], ['SPY', 'QQQ', 'NVDA']], [['NVDA', 'AAPL'], ['NVDA']], [['AAPL', 'MSFT'], []]]) {
+    it(`instant reader · ${tickers.join(' ')} → names ${dup.length ? dup.join(', ') : 'no duplicate'}`, () => {
+      const b = six()
+      const said = tickers.length === 2 ? tickers.join(' and ') : `${tickers.slice(0, -1).join(', ')} and ${tickers[tickers.length - 1]}`
+      const q = multiChartPlan(`put ${said} on ${({ 2: 'two', 4: 'four' })[tickers.length]} charts`, { host: b.host })
+      expect(q?.kind).toBe('ask')
+      const label = labelOf(q)
+      for (const d of dup) expect(label, d).toContain(d)
+      expect(label).toBe(dup.length ? `Add ${tickers.length} new charts (a second ${dup.length === 1 ? dup[0] : `${dup.slice(0, -1).join(', ')} and ${dup[dup.length - 1]}`})` : `Add ${tickers.length} more charts`)
+    })
+    it(`model plan (gridChoiceFor) · ${tickers.join(' ')} → names ${dup.length ? dup.join(', ') : 'no duplicate'}`, () => {
+      const b = six()
+      const q = gridChoiceFor([{ action: 'chartGrid.set', target: 'board', args: { symbols: tickers, timeframe: null, layout: null, new_charts: null, watchlist: null, replace: null } }], 'set these up', b.host)
+      const label = labelOf(q)
+      for (const d of dup) expect(label, d).toContain(d)
+      if (!dup.length) expect(label).not.toMatch(/a second/)
+    })
+  }
 })

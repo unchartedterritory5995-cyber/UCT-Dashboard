@@ -1012,7 +1012,7 @@ describe('live train 4 · "four charts, all the same size" on a board of SIX cha
   it('"Add 4 more charts" → 10 charts (the owner\'s pick, said)', async () => {
     const { board, say } = mount(...SIX())
     await say(OWNER)
-    fireEvent.click(screen.getByRole('button', { name: 'Add 4 more charts' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add 4 new charts (a second SPY, QQQ, NVDA and TSLA)' }))   // D18: the label says the duplicates
     await idle()
     await waitFor(() => expect(chartsOf(board)).toHaveLength(10), { timeout: 8000 })
   }, 30000)
@@ -1157,7 +1157,7 @@ describe('review t4 M5 · "…charts, each with an RSI" — the per-chart steps 
     envelopes.push(b => env('apply', plan(b)))
     await say('I would like SPY, QQQ, NVDA and TSLA on equal charts, each with an RSI, thanks')
     await waitFor(() => expect(screen.queryAllByTestId('agent-question')).toHaveLength(1))
-    fireEvent.click(screen.getByRole('button', { name: 'Add 4 more charts' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add 4 new charts (a second SPY, QQQ, NVDA and TSLA)' }))   // D18: the label says the duplicates
     await idle()
     await waitFor(() => expect(chartsOf(board)).toHaveLength(10), { timeout: 10000 })
     const fresh = chartsOf(board).filter(w => !/^c\d$/.test(w.id))
