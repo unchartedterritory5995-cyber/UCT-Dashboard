@@ -49,6 +49,16 @@ stocks sockets, INGEST-PROCESS-DESIGN "DECIDED 11-13"):
     opt-in), and MASSIVE_API_KEY is set.
 The owner flips STREAM_INGEST_CONNECT only AFTER the web pod has released its socket
 (PR6 cutover, off-hours). Reconnects follow massive_reconnect.MaxConnLadder.
+
+DEPLOY HANDOFF. Railway starts a new deployment while the old one still runs, and stops
+the old one (SIGTERM; it closes its Massive socket first) only once the new one is
+healthy. So the reader waits INGEST_CONNECT_GRACE_S (default 45 s) after boot before
+its first connect: the old socket is closed and reaped by then (SIGTERM a moment after
+the new health check passes, Massive's 10-30 s reap), and the two never overlap.
+
+Contract with the web side (PR5): a chart key's symbol is always also held under an
+owner with channels (the web pod's "bars" owner). A key without channels gets no
+upstream subscription here and so no data; it is counted (keys_without_channels).
 """
 from __future__ import annotations
 
@@ -70,6 +80,8 @@ log = logging.getLogger("api.services.ingest_runtime")
 REMOTE_OWNER = "remote"
 SNAPSHOT_LOOKBACK_MIN = float(os.environ.get("INGEST_SNAPSHOT_LOOKBACK_MIN", "15"))
 SEED_WORKERS = max(1, int(os.environ.get("INGEST_SEED_WORKERS", "4")))
+#: Seconds after boot before the first Massive connect (see DEPLOY HANDOFF).
+CONNECT_GRACE_S = float(os.environ.get("INGEST_CONNECT_GRACE_S", "45"))
 #: Ingest buffers hold a connect-time snapshot (~16 bars per 1m key) on top of the
 #: live flow, so they get more pending-bar room than feed_protocol's default.
 BUFFER_LIMITS = fp.BufferLimits(max_pending_bars=65536)
@@ -117,7 +129,8 @@ class IngestRuntime:
                                      on_last_unsubscribe=self._symbol_cleared,
                                      publisher=self._publish, **(broadcaster_kw or {}))
         self._fetch = seed_fetcher or bbm._default_seed_fetcher
-        self.seeding = connect_requested() if seeding is None else bool(seeding)
+        # Seeds only when the socket will really open (no live data = nothing to merge into).
+        self.seeding = connect_decision()[0] if seeding is None else bool(seeding)
         self.policy = policy or massive_reconnect.MaxConnLadder()
         self.policy.on_connected = self._on_vendor_connected
         self.lookback_ms = int((SNAPSHOT_LOOKBACK_MIN if snapshot_lookback_ms is None
@@ -137,11 +150,13 @@ class IngestRuntime:
         self._seed_sem: Optional[asyncio.Semaphore] = None
         self._seed_tasks: set = set()
         self._reader: Optional[asyncio.Task] = None
+        self._grace_until: Optional[float] = None
         self.counters = {"bars_routed": 0, "bars_unrouted": 0, "bars_superseded": 0,
                          "prices_offered": 0, "snapshot_bars": 0, "snapshots": 0,
                          "forgets": 0, "seeds_started": 0, "seeds_applied": 0,
                          "seed_errors": 0, "reseeds": 0, "upstream_changes": 0,
-                         "bars_invalid": 0, "prices_invalid": 0}
+                         "bars_invalid": 0, "prices_invalid": 0, "keys_without_channels": 0,
+                         "seed_reoffers": 0}
 
     def attach(self, server) -> None:
         self.server = server
@@ -163,6 +178,9 @@ class IngestRuntime:
         for sym, key in sorted(delta.keys_added):
             if (sym, key) in self._keys:
                 continue
+            if not chans.get(sym):
+                self.counters["keys_without_channels"] += 1
+                log.warning("[stream-ingest] chart key %s/%s has no upstream channels: it gets no data", sym, key)
             tf, sess = fp.KEY_SPEC[key]
             self.bc.subscribe_sink(sym, tf, self.sink, sess)
             self._keys.add((sym, key))
@@ -342,6 +360,27 @@ class IngestRuntime:
             # back on the loop: the apply (and the frames it emits) is ordered with the reader
             if self.bc.apply_seed(sym, bars):
                 self.counters["seeds_applied"] += 1
+                self._reoffer(sym)
+
+    def _reoffer(self, sym: str) -> None:
+        """After a seed corrected `sym`'s minute map: give every connected client the
+        recent buckets again. The broadcaster re-emits only the CURRENT bucket on a seed
+        (F2), so without this a client would keep a closed bucket built from the live
+        trades alone (a snapshot taken before the seed, or the minutes a Massive
+        reconnect missed). A final replaces a final in the buffer (late-AM rule)."""
+        for (s, key) in sorted(self._keys):
+            if s != sym:
+                continue
+            targets = self._key_routes.get((s, key))
+            if not targets:
+                continue
+            tf, sess = fp.KEY_SPEC[key]
+            bars = self.bc.snapshot_bars(s, tf, sess, lookback_ms=self.lookback_ms)
+            for client in targets:
+                for bar in bars:
+                    if client.buffer.offer_bar(s, key, bar, bool(bar.get("final"))) is fp.Offer.STALLED:
+                        break
+                    self.counters["seed_reoffers"] += 1
 
     def _on_vendor_connected(self, n: int) -> None:
         if n <= 1:
@@ -355,8 +394,10 @@ class IngestRuntime:
 
     # ── the Massive reader ──────────────────────────────────────────────────
 
-    def start_reader(self) -> bool:
-        """Open the Massive socket if every gate allows it (see module doc)."""
+    def start_reader(self, grace_s: Optional[float] = None) -> bool:
+        """Open the Massive socket if every gate allows it, after the deploy-handoff
+        grace (see module doc)."""
+        grace = CONNECT_GRACE_S if grace_s is None else float(grace_s)
         ok, why = connect_decision()
         if not ok:
             log.info("[stream-ingest] Massive socket NOT opened: %s", why)
@@ -370,12 +411,20 @@ class IngestRuntime:
             _stallwatch_started = True
             threading.Thread(target=bar_stream._stall_watch, daemon=True,
                              name="ingest-stallwatch").start()
-        self._reader = loop.create_task(bar_stream._run_websocket(self.on_bar, policy=self.policy))
+        self._grace_until = loop.time() + grace
+
+        async def read() -> None:
+            if grace > 0:
+                log.info("[stream-ingest] first Massive connect in %.0fs (deploy handoff grace)", grace)
+                await asyncio.sleep(grace)
+            await bar_stream._run_websocket(self.on_bar, policy=self.policy)
+
+        self._reader = loop.create_task(read())
         self._reader.add_done_callback(lambda t: beat.cancel())
         log.info("[stream-ingest] Massive reader started")
         return True
 
-    async def stop_reader(self, timeout_s: float = 5.0) -> None:
+    async def stop_reader(self, timeout_s: float = 3.0) -> None:
         """SIGTERM, step 1: close the Massive socket (the reader's `async with` sends
         the close frame), BEFORE the clients get their final batch."""
         task, self._reader = self._reader, None
@@ -393,6 +442,14 @@ class IngestRuntime:
         if self._pool is not None:
             self._pool.shutdown(wait=False, cancel_futures=True)
 
+    def _in_grace(self) -> bool:
+        if self._reader is None or self._grace_until is None:
+            return False
+        try:
+            return asyncio.get_running_loop().time() < self._grace_until
+        except RuntimeError:
+            return False
+
     @property
     def vendor_connected(self) -> bool:
         return bool(bar_stream._running) and self._reader is not None
@@ -406,6 +463,7 @@ class IngestRuntime:
         bstat.pop("symbols", None)
         return {
             "vendor_socket": ("connected" if self.vendor_connected else
+                              "handoff-grace" if self._in_grace() else
                               "connecting" if self._reader is not None and not self._reader.done() else
                               "none"),
             "connect": {"requested": connect_requested(), "allowed": ok, "why_not": why or None,

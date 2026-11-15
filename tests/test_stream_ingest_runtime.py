@@ -106,8 +106,13 @@ def test_max_connections_ladder_and_young_cap():
     t[0] = 10_000.0                                   # an old process: no cap
     waits = [p.auth_failed_delay("Auth rejected: status='max_connections'") for _ in range(7)]
     assert waits == [30, 60, 120, 300, 600, 600, 600] and p.strikes == 7
+    p.connected()                                     # authenticating alone resets nothing
+    t[0] += 5
+    assert p.auth_failed_delay("max_connections") == 600
     p.connected()
-    assert p.strikes == 0 and p.auth_failed_delay("max_connections") == 30
+    t[0] += mr.HEALTHY_S                              # ... a connection that stayed up does
+    assert p.disconnect_delay(ConnectionError("reset"), 1) == mr.MIN_GAP_S and p.strikes == 0
+    assert p.auth_failed_delay("max_connections") == 30
 
     young = mr.MaxConnLadder(monotonic=lambda: 5.0)
     assert [young.auth_failed_delay("max_connections") for _ in range(4)] == [30, 60, 60, 60]
@@ -127,13 +132,58 @@ def test_bar_stream_default_policy_is_the_historic_waits():
     d = bs._DefaultReconnectPolicy()
     assert d.auth_failed_delay("max_connections") == 60
     assert d.disconnect_delay(ConnectionError(), 8) == 8
+    assert d.normal_close_delay() == 0 and d.note_status is None
+
+
+def test_two_sockets_kicking_each_other_climb_the_ladder():
+    """A kick arrives AFTER auth, as a status frame, then the socket drops (with or
+    without max_connections in the reason, and possibly as a clean close)."""
+    t = [0.0]
+    p = mr.MaxConnLadder(monotonic=lambda: t[0])
+    t[0] = 10_000.0                                   # an old process: no young cap
+    waits = []
+    for i in range(4):
+        p.connected()
+        t[0] += 2
+        p.note_status("max_connections")
+        waits.append(p.disconnect_delay(ConnectionError("going away"), 1) if i % 2 == 0
+                     else p.normal_close_delay())
+    assert waits == [30, 60, 120, 300]
+    p.connected()
+    t[0] += 1
+    assert p.normal_close_delay() == mr.MIN_GAP_S       # a clean close without a kick: the gap
+
+
+def test_a_kick_status_in_the_frame_loop_reaches_the_policy(monkeypatch):
+    frames = ['[{"ev":"status","status":"max_connections","message":"kicked"}]']
+    waits = _reader_with(monkeypatch, ['[{"ev":"status","status":"auth_success"}]'], frames=frames,
+                         clean=True)
+    # min_gap 11 s (not the 10 s ping sleep the fake lets through): a regression fails fast
+    p = mr.MaxConnLadder(monotonic=lambda: 10_000.0, min_gap_s=11.0)
+
+    async def go():
+        with pytest.raises(_Stop):
+            await bs._run_websocket(lambda *a: None, policy=p)
+    asyncio.run(go())
+    assert waits == [30] and p.maxconn_total == 1, "clean close after a kick: the ladder, not 0 s"
+
+
+def test_a_clean_server_close_waits_the_gap_under_the_ladder(monkeypatch):
+    waits = _reader_with(monkeypatch, ['[{"ev":"status","status":"auth_success"}]'], clean=True)
+    p = mr.MaxConnLadder(monotonic=lambda: 10_000.0, min_gap_s=11.0)
+
+    async def go():
+        with pytest.raises(_Stop):
+            await bs._run_websocket(lambda *a: None, policy=p)
+    asyncio.run(go())
+    assert waits == [11.0]
 
 
 class _Stop(BaseException):
     pass
 
 
-def _reader_with(monkeypatch, recv_frames, frames=(), on_close=None):
+def _reader_with(monkeypatch, recv_frames, frames=(), on_close=None, clean=False):
     """bar_stream._run_websocket over a fake socket; asyncio.sleep in bar_stream raises
     _Stop after recording its argument, so each test sees exactly one wait."""
     import websockets
@@ -168,7 +218,8 @@ def _reader_with(monkeypatch, recv_frames, frames=(), on_close=None):
             async def gen():
                 for f in frames:
                     yield f
-                raise ConnectionError("tape over")
+                if not clean:
+                    raise ConnectionError("tape over")   # clean=True: the server closed normally
             return gen()
 
     real_sleep = asyncio.sleep
@@ -457,10 +508,100 @@ def test_seeds_fetch_off_the_loop_apply_on_it_and_reseed_after_a_reconnect():
         rig.rt.policy.connected()                       # a RECONNECT: every chart symbol again
         await until(lambda: rig.rt.counters["seeds_applied"] == 2)
         assert rig.rt.counters["reseeds"] == 1
+        # the minute the socket "missed" (T0+1min, only in the 2nd REST fetch) reaches the
+        # connected client as a closed bar on BOTH keys, not only in a later snapshot
+        await until(lambda: any(u.bar["t"] == T0 + MIN and u.final for u in bars_in(c, ("ZZA", "1"))))
+        # the 5m bucket is still developing; it now counts both REST minutes
+        assert any(u.bar["t"] == T0 and u.bar["v"] == 20 for u in bars_in(c, ("ZZA", "5")))
         await c.close()
         await asyncio.wait_for(t, 2)
         await rig.rt.stop_reader()
     asyncio.run(go())
+
+
+def test_a_snapshot_taken_before_the_seed_is_corrected_when_it_lands():
+    """Interest-only symbol with live trades; a client adds a chart key; the snapshot
+    has a closed bucket built from those trades alone; the seed then fixes it."""
+    gate = threading.Event()
+
+    def fetcher(sym):
+        gate.wait(2)
+        return [{"t": T0, "o": 5.0, "h": 9.0, "l": 4.0, "c": 6.0, "v": 900}]
+
+    rig = Rig(seeding=True, fetcher=fetcher)
+
+    async def go():
+        c = FakeConn([hello(), desired(1, OWN)])
+        t = await run_until(c, rig.srv, lambda: "ZZA" in rig.rt._sym_routes)
+        rig.trade("ZZA", T0 + 30_000, 6.0, 10)             # half of minute 0, seen live
+        rig.trade("ZZA", T0 + MIN + 1000, 6.5, 10)         # closes minute 0
+        c.inbox.put_nowait(enc(fp.Patch(gen=1, seq=1, keys_add=frozenset({("ZZA", "1")}))))
+        await until(lambda: bars_in(c, ("ZZA", "1")))
+        first = [u for u in bars_in(c, ("ZZA", "1")) if u.bar["t"] == T0]
+        assert first and first[0].final and first[0].bar["v"] == 10
+        gate.set()
+        await until(lambda: rig.rt.counters["seeds_applied"] == 1)
+        await until(lambda: any(u.bar["t"] == T0 and u.bar["v"] == 900 for u in bars_in(c, ("ZZA", "1"))))
+        await c.close()
+        await asyncio.wait_for(t, 2)
+        await rig.rt.stop_reader()
+    asyncio.run(go())
+
+
+def test_a_chart_key_without_channels_is_counted():
+    rig = Rig()
+
+    async def go():
+        c = FakeConn([hello(), desired(1, {}, frozenset({("ZZK", "1")}))])
+        t = await run_until(c, rig.srv, lambda: rig.rt.counters["keys_without_channels"] == 1)
+        assert "ZZK" not in bs._sub_owners
+        await c.close()
+        await asyncio.wait_for(t, 2)
+    asyncio.run(go())
+
+
+def test_a_superseded_connection_can_no_longer_change_the_set():
+    rig = Rig()
+
+    async def go():
+        old = FakeConn([hello("w1"), desired(1, OWN, frozenset({("ZZA", "1")}))])
+        t_old = await run_until(old, rig.srv, lambda: ("ZZA", "1") in rig.rt._key_routes)
+        new = FakeConn([hello("w1", 1), desired(1, OWN, frozenset({("ZZA", "1")}))])
+        t_new = await run_until(new, rig.srv, lambda: rig.srv.clients["w1"].conn is new
+                                and rig.srv.union.client_keys("w1"))
+        old.closed = None                                # pretend the old socket still reads
+        old.inbox.put_nowait(desired(1, OWN, frozenset({("ZZB", "1")})))
+        await asyncio.sleep(0.05)
+        assert rig.srv.union.client_keys("w1") == frozenset({("ZZA", "1")})
+        for c, t in ((new, t_new), (old, t_old)):
+            await c.close()
+            await asyncio.wait_for(t, 2)
+    asyncio.run(go())
+
+
+def test_the_first_connect_waits_the_deploy_handoff_grace(monkeypatch):
+    from api.services import vendor_socket_guard as g
+    monkeypatch.setenv("STREAM_INGEST_CONNECT", "1")
+    monkeypatch.setenv("MASSIVE_API_KEY", "k-not-real")
+    monkeypatch.setattr(g, "may_open", lambda v: (True, ""))
+    called = []
+
+    async def fake_reader(on_bar, policy=None):
+        called.append(asyncio.get_running_loop().time())
+        await asyncio.Event().wait()
+    monkeypatch.setattr(bs, "_run_websocket", fake_reader)
+    rig = Rig()
+
+    async def go():
+        t0 = asyncio.get_running_loop().time()
+        assert rig.rt.start_reader(grace_s=0.3) is True
+        await asyncio.sleep(0.15)
+        assert called == [] and rig.rt.status()["vendor_socket"] == "handoff-grace"
+        await until(lambda: called)
+        assert called[0] - t0 >= 0.25                   # (Windows timer granularity)
+        await rig.rt.stop_reader()
+    asyncio.run(go())
+    assert ir.CONNECT_GRACE_S >= 30, "the default grace must outlast SIGTERM + Massive's reap"
 
 
 def test_no_seeds_while_the_connection_is_not_requested():
@@ -569,6 +710,7 @@ def test_live_reader_to_web_client_and_sigterm_closes_the_vendor_socket_first(mo
     monkeypatch.setattr(bs, "_universe_stream_enabled", lambda: False)
     monkeypatch.setattr(g, "may_open", lambda v: (True, ""))
     monkeypatch.setattr(websockets, "connect", lambda *a, **k: FakeMassive())
+    monkeypatch.setattr(ir, "CONNECT_GRACE_S", 0.0)
     with socket.socket() as s0:
         s0.bind(("127.0.0.1", 0))
         port = s0.getsockname()[1]

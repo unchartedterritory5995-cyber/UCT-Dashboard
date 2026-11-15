@@ -7,14 +7,17 @@ reconnect straight into it is refused too. This policy is what keeps one refusal
 turning into a reconnect storm. It is the options worker's ladder (api/massive_ws_worker.py,
 MAXCONN_LADDER and the young-process cap), ported here as a pure object:
 
-  * `max_connections` (at auth or as the disconnect reason): wait 30, 60, 120, 300,
-    then 600 s on each further strike in a row. The strikes reset only when a
-    connection authenticates. While the process is young (just deployed) the wait is
-    capped at 60 s: a young process's refusal is almost always the old deployment's
-    session still being reaped, not a real lockout.
+  * `max_connections` (at auth, as a status frame while streaming, which is how a
+    KICK arrives, or in the disconnect reason): wait 30, 60, 120, 300, then 600 s on
+    each further strike. The strikes reset only once a connection has stayed up for
+    `healthy_s` (120 s): resetting at auth would let two sockets that kick each other
+    reconnect every 30 s forever. While the process is young (just deployed) the wait
+    is capped at 60 s: a young process's refusal is almost always the old
+    deployment's session still being reaped, not a real lockout.
   * any other auth failure: 60 s (what bar_stream has always done).
-  * any other disconnect: the reader's own exponential backoff, but never under
-    `min_gap_s` (Massive's guidance: leave 10-30 s between connections).
+  * any other disconnect, and a clean close by the server: the reader's own
+    exponential backoff, but never under `min_gap_s` (Massive's guidance: leave
+    10-30 s between connections).
 
 No rung and no cap is below 30 s. Time is injected (`monotonic`), so every decision
 is reproducible in a test. The web pod's reader does NOT use this: bar_stream's
@@ -34,6 +37,8 @@ YOUNG_CAP_S = 60.0
 AUTH_FAILURE_S = 60.0
 #: The shortest wait before any reconnect after a disconnect.
 MIN_GAP_S = 10.0
+#: A connection that stayed up this long clears the max_connections strikes.
+HEALTHY_S = 120.0
 
 
 def is_max_connections(text: object) -> bool:
@@ -45,7 +50,7 @@ class MaxConnLadder:
 
     def __init__(self, *, ladder=MAXCONN_LADDER, young_uptime_s: float = YOUNG_UPTIME_S,
                  young_cap_s: float = YOUNG_CAP_S, auth_failure_s: float = AUTH_FAILURE_S,
-                 min_gap_s: float = MIN_GAP_S,
+                 min_gap_s: float = MIN_GAP_S, healthy_s: float = HEALTHY_S,
                  monotonic: Callable[[], float] = time.monotonic):
         if not ladder or min(ladder) < 30.0 or young_cap_s < 30.0:
             raise ValueError("no max_connections wait may be under 30 s (Massive guidance)")
@@ -54,6 +59,9 @@ class MaxConnLadder:
         self.young_cap_s = float(young_cap_s)
         self.auth_failure_s = float(auth_failure_s)
         self.min_gap_s = float(min_gap_s)
+        self.healthy_s = float(healthy_s)
+        self._up_since = None       # monotonic time the current connection authenticated
+        self._kicked = False        # a max_connections status arrived on the current connection
         self._mono = monotonic
         self.started = monotonic()
         self.strikes = 0            # consecutive max_connections since the last auth_success
@@ -66,23 +74,48 @@ class MaxConnLadder:
     # -- the three questions bar_stream asks --
 
     def connected(self) -> None:
-        """A connection authenticated: the strikes reset; `on_connected(n)` is told
-        which connection this is (1 = first, 2+ = a reconnect)."""
-        self.strikes = 0
+        """A connection authenticated. `on_connected(n)` is told which connection
+        this is (1 = first, 2+ = a reconnect). The strikes are NOT reset here (see
+        module doc): `_settle` resets them once this connection proved healthy."""
         self.connects += 1
+        self._up_since = self._mono()
+        self._kicked = False
         self.on_connected(self.connects)
 
+    def note_status(self, status: object) -> None:
+        """A non-routine status frame while streaming (bar_stream's frame loop)."""
+        if is_max_connections(status):
+            self._kicked = True
+
     def auth_failed_delay(self, status: object) -> float:
+        self._settle()
         if is_max_connections(status):
             return self._maxconn("auth: max_connections")
         return self._wait(self.auth_failure_s, f"auth failed: {str(status)[:80]}")
 
     def disconnect_delay(self, err: BaseException, backoff: float) -> float:
-        if is_max_connections(err):
+        self._settle()
+        if self._take_kick() or is_max_connections(err):
             return self._maxconn("disconnect: max_connections")
         return self._wait(max(float(backoff), self.min_gap_s), f"disconnect: {type(err).__name__}")
 
+    def normal_close_delay(self) -> float:
+        self._settle()
+        if self._take_kick():
+            return self._maxconn("closed: max_connections")
+        return self._wait(self.min_gap_s, "closed by the server")
+
     # -- internals --
+
+    def _settle(self) -> None:
+        """The connection that just ended: if it stayed up healthy_s, strikes reset."""
+        if self._up_since is not None and self._mono() - self._up_since >= self.healthy_s:
+            self.strikes = 0
+        self._up_since = None
+
+    def _take_kick(self) -> bool:
+        k, self._kicked = self._kicked, False
+        return k
 
     def _maxconn(self, reason: str) -> float:
         self.strikes += 1

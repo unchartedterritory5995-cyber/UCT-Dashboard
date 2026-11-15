@@ -270,8 +270,12 @@ def _build_auth_message(api_key: str) -> str:
 
 class _DefaultReconnectPolicy:
     """The web pod's waits, exactly as they always were: 60 s after a failed auth,
-    the reader's own exponential backoff (1, 2, 4 ... 60 s) after a disconnect.
-    The stream-ingest service passes `massive_reconnect.MaxConnLadder` instead."""
+    the reader's own exponential backoff (1, 2, 4 ... 60 s) after a disconnect, and
+    NO wait after a clean close (the socket's `async for` simply ends). The
+    stream-ingest service passes `massive_reconnect.MaxConnLadder` instead."""
+
+    #: No status hook: the frame loop is built exactly as before.
+    note_status = None
 
     def connected(self) -> None:
         pass
@@ -281,6 +285,9 @@ class _DefaultReconnectPolicy:
 
     def disconnect_delay(self, err, backoff) -> float:
         return backoff
+
+    def normal_close_delay(self) -> float:
+        return 0
 
 
 async def _run_websocket(on_bar: OnBarCallback, policy=None) -> None:
@@ -377,7 +384,8 @@ async def _run_websocket(on_bar: OnBarCallback, policy=None) -> None:
                     on_bar=on_bar, active=_active, trade_listeners=_trade_listeners,
                     universe=universe,
                     on_universe_am=(bars_live_ingest.on_am if universe else None),
-                    count_event=_count_event, note_am_lag=_note_am_lag, logger=_logger)
+                    count_event=_count_event, note_am_lag=_note_am_lag,
+                    on_status=policy.note_status, logger=_logger)
 
                 # Concurrent tasks: drain pending sub/unsub queue + read messages
                 drain_task = asyncio.create_task(_drain_pending_queue(ws))
@@ -402,6 +410,14 @@ async def _run_websocket(on_bar: OnBarCallback, policy=None) -> None:
             _ws_connection = None
             await asyncio.sleep(wait)
             backoff = min(backoff * 2, 60)
+        else:
+            # The peer closed cleanly: `async for` ended without an exception. The
+            # web pod reconnects at once, as it always has (delay 0); stream-ingest's
+            # policy waits (Massive still counts a just-closed session).
+            wait = policy.normal_close_delay()
+            if wait:
+                _logger.warning("[bar_stream] socket closed by the server — reconnect in %ds", wait)
+                await asyncio.sleep(wait)
 
 
 def _count_event(ec, ev) -> None:

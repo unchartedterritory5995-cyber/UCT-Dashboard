@@ -281,6 +281,8 @@ class IngestFeedServer:
                 data = await conn.recv()
             except _CLOSED_ERRORS:
                 return
+            if self.clients.get(client.client_id) is not client:
+                return   # superseded by a newer connection: it owns the client's set now
             try:
                 msg = fp.decode(data)
                 now = self._mono()
@@ -292,8 +294,7 @@ class IngestFeedServer:
                     self._apply(self.union.apply_patch(client.client_id, msg, now))
                 else:
                     raise fp.MalformedMessage(f"unexpected {type(msg).__name__} from a client")
-                if self.clients.get(client.client_id) is client:   # not superseded meanwhile
-                    self._data_call("client_updated", client)
+                self._data_call("client_updated", client)
             except fp.ProtocolError as e:
                 self.counters.protocol_closes += 1
                 await self._close(conn, CLOSE_POLICY, f"{type(e).__name__}: {e}")

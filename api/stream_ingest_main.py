@@ -127,13 +127,17 @@ async def serve_forever(port: int, server: ifs.IngestFeedServer, stop: asyncio.E
         periodic.cancel()
         # Backstop: anything still open (a socket mid-handshake, a client the
         # deadline gave up on) is closed 1001, then the wait itself is bounded.
-        for conn in list(getattr(ws_server, "connections", ())):
+        # Budget (Railway drains 15 s): reader 3 + clients 5 + backstop 2 + wait 3 = 13 s.
+        conns = list(getattr(ws_server, "connections", ()))
+        if conns:
             try:
-                await asyncio.wait_for(conn.close(ifs.CLOSE_GOING_AWAY, "stream-ingest shutting down"), 2)
-            except Exception:  # noqa: BLE001
+                await asyncio.wait_for(asyncio.gather(
+                    *(c.close(ifs.CLOSE_GOING_AWAY, "stream-ingest shutting down") for c in conns),
+                    return_exceptions=True), 2)
+            except asyncio.TimeoutError:
                 pass
         try:
-            await asyncio.wait_for(ws_server.wait_closed(), 5)
+            await asyncio.wait_for(ws_server.wait_closed(), 3)
         except asyncio.TimeoutError:
             log.warning("[stream-ingest] connections still open at exit")
 
