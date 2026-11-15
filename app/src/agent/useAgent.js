@@ -1538,7 +1538,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         const said = String((typeof words === 'string' && words) || railWordsRef.current || (typeof member === 'string' ? member : '') || '')
         const lex = lexiconFor(host)
         const cached = (w) => { try { return groundingOf(w) } catch { return null } }
-        bc = targetTickerConflict({ host, ops: opsIn, text: said, getTargetKind, getCapability, ordinary: lex.words, lists: lex.symbols, verdict: cached, plainWord: (w) => plainSymbolWord(w, host), askUnanswered: true })
+        bc = targetTickerConflict({ host, ops: opsIn, text: said, getTargetKind, getCapability, ordinary: lex.words, lists: lex.symbols, verdict: cached, plainWord: (w) => plainSymbolWord(w, host), askUnanswered: true, askedOnly: true })
       } catch { bc = null }
       if (bc?.ask && !bc.failed) {
         push({ role: 'agent', text: bc.ask.text })

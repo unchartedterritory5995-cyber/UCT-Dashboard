@@ -391,6 +391,21 @@ _TELEMETRY_COLS = ("path", "disposition", "refused", "clarified", "undo", "laten
                    "cost_usd", "research_calls", "unsupported", "voice", "model_calls", "input_tokens", "output_tokens",
                    "cache_read_tokens", "cache_write_tokens", "schema_mode", "visible_ms", "verified_ms")
 
+# ticker-lookup instrumentation (owner #1283): a LOG LINE only, no column. The ONLY keys kept, each a non-negative int -- never a
+# word the member typed, a symbol, a message or an id
+TICKER_STAT_KEYS = ("ticker_lookups", "ticker_answered", "ticker_timeouts", "ticker_hits", "ticker_misses", "ticker_multi",
+                    "ticker_wait_ms", "ticker_ambiguous", "ticker_unresolved")
+
+
+def ticker_log_line(row: dict) -> str | None:
+    """The ticker-lookup counts of a telemetry row as 'key=int ...' (allow-listed keys, non-negative ints only), or None."""
+    out = []
+    for k in TICKER_STAT_KEYS:
+        v = row.get(k) if isinstance(row, dict) else None
+        if isinstance(v, (int, float)) and not isinstance(v, bool) and v >= 0:
+            out.append(f"{k[len('ticker_'):]}={min(int(v), 10**7)}")
+    return " ".join(out) or None
+
 
 def _int_or_none(v: Any) -> int | None:
     return int(v) if isinstance(v, (int, float)) and not isinstance(v, bool) else None

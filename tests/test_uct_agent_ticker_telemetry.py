@@ -35,3 +35,43 @@ def test_no_leak_ticker_keys_and_words_never_reach_a_column(extra):
     raw = json.dumps(row, default=str)
     for leak in LEAKS:
         assert leak not in raw
+
+
+# ── the LOG LINE (owner decision (b), #1283): counts / ms / verdict-kind counts only ──
+def test_the_log_line_carries_the_counts():
+    line = store.ticker_log_line(TICKER_KEYS)
+    assert line == ("lookups=2 answered=1 timeouts=1 hits=1 misses=0 multi=0 wait_ms=412 ambiguous=0 unresolved=1")
+
+
+@pytest.mark.parametrize("bad", ["AMD", "take amd to weekly", {"w": "amd"}, ["amd"], True, -1, None, "ac_9"])
+def test_no_leak_the_log_line_carries_no_value_a_member_typed(bad):
+    row = {"ticker_lookups": bad, "ticker_wait_ms": 5, "ticker_words": ["amd"], "ticker_symbol": "AMD",
+           "conversation": "ac_9", "user": "u9", "member": "take amd to weekly"}
+    line = store.ticker_log_line(row)
+    assert line == "wait_ms=5"
+    for leak in LEAKS:
+        assert leak not in line
+
+
+def test_a_row_without_ticker_counts_logs_nothing():
+    assert store.ticker_log_line({"path": "fast", "visible_ms": 10}) is None
+    assert store.ticker_log_line(None) is None
+
+
+def test_the_record_route_logs_only_the_counts(caplog):
+    import logging
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from api.routers import uct_agent as rx
+    app = FastAPI()
+    app.include_router(rx.router)
+    app.dependency_overrides[rx.require_admin_dark] = lambda: {"id": "c0ffee00-0000-4000-8000-0000000000a1", "plan": "pro", "role": "admin"}
+    with caplog.at_level(logging.INFO, logger=rx.log.name):
+        r = TestClient(app).post("/api/agent/record", json={
+            "member": "take amd to weekly", "outcome": "ok",
+            "telemetry": {"path": "fast", "ticker_lookups": 1, "ticker_hits": 1, "ticker_words": ["amd"], "ticker_symbol": "AMD"}})
+    assert r.status_code == 200
+    lines = [m.getMessage() for m in caplog.records if "ticker lookups" in m.getMessage()]
+    assert lines == ["[uct-agent] ticker lookups lookups=1 hits=1"]
+    for leak in LEAKS:
+        assert leak not in lines[0]

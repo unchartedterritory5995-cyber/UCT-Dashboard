@@ -150,11 +150,38 @@ describe('R3 · every suppressing heuristic has a direct test (the search knows 
   const CASES = RULES.flatMap(([rule, say]) => HOMOGRAPH.map(T => [rule, say(T.toLowerCase()), T]))
   it.each(CASES)('%s: "%s" leaves %s a word', (rule, t, T) => expect(word(t, T)).toBe('word'))
   it.each(PRONOUN.map(T => [`take ${T.toLowerCase()} to weekly`, T]))('a pronoun typed in lowercase: "%s" leaves %s the pronoun', (t, T) => expect(word(t, T)).toBe('word'))
+  // an APP word in lowercase as a chart's adjective ("the left one", "the price chart") is the adjective — never searched
+  it.each([...LEX].flatMap(a => [`make my ${a} chart weekly`, `make it orange on the ${a} one`].map(t => [t, a.toUpperCase()])))(
+    'an app word as a chart adjective: "%s" leaves %s a word', (t, w) => expect(word(t, w)).toBe('word'))
+  it.each([...LEX].map(a => [`make my ${a} chart weekly`, a]))('…and it is not a ticker-search candidate: "%s"', (t, a) => {
+    expect(tickerGroundingCandidates(t, { charts: [{ symbol: 'SPY' }], ordinary: LEX, isSymbolWord: (x) => !LEX.has(x) })).not.toContain(a)
+  })
+  // a COMPANY-NAME answer never grounds an English / app word ("Apple's earnings are next week"); a TICKER answer does
+  it.each(HOMOGRAPH.map(T => [`show ${T.toLowerCase()}'s earnings`, T]))('a name answer for a homograph: "%s" leaves %s a word', (t, T) => {
+    expect(word(t, T, { verdict: () => ({ kind: 'name', ticker: 'ZZZZ', name: 'Zed Co' }) })).toBe('word')
+    expect(word(t, T, { verdict: (w) => ({ kind: 'ticker', ticker: w.toUpperCase() }) })).toBe('ambiguous')
+  })
+  it.each(PLAIN.map(T => [`show ${T.toLowerCase()}'s earnings`, T]))('…a name answer for a plain word still grounds it: "%s"', (t, T) => {
+    expect(word(t, T, { verdict: () => ({ kind: 'name', ticker: 'ZZZZ', name: 'Zed Co' }) })).toBe('ticker')
+  })
+  // the instant path (askUnanswered, no search) asks only a HOMOGRAPH in capitals; a plain ticker in capitals is read as typed
+  it.each(PLAIN.flatMap(T => TICKER_SLOTS.map(s => [s(T), T])))('instant path, a plain ticker in capitals: "%s" reads %s as the ticker', (t, T) => {
+    expect(word(t, T, { askUnanswered: true, verdict: () => null })).toBe('ticker')
+  })
+  // an article in lowercase ("use a log scale") is the article; in capitals in a ticker slot it is read (asked)
+  it.each(['a', 'an'].map(a => [`use ${a} log scale on the chart`, a.toUpperCase()]))('a lowercase article: "%s" leaves %s a word', (t, w) => expect(word(t, w)).toBe('word'))
+  it('…an article-shaped ticker in capitals in a ticker slot is still asked: "change A to weekly"', () => expect(word('change A to weekly', 'A')).toBe('ambiguous'))
+  // the word right after a NUMBER is its unit / study ("their 20 EMA with volume"), in any casing — and never a search candidate
+  it.each([...ACRONYM, ...HOMOGRAPH, ...PLAIN].flatMap(T => [T, T.toLowerCase()].map(c => [`find stocks above their 20 ${c} with volume`, T])))(
+    'the word after a number: "%s" leaves %s a word', (t, T) => {
+      expect(word(t, T)).toBe('word')
+      expect(tickerGroundingCandidates(t, { charts: [], slotsOnly: true })).not.toContain(T.toLowerCase())
+    })
   // a demonstrative before "one(s)" is a determiner in ANY casing (emphasis) — and only there: before a change it is still read
   const DEMONSTRATIVES = ['this', 'that', 'these', 'those', 'each', 'every', 'which']
   it.each(DEMONSTRATIVES.flatMap(d => Object.entries(CASE).flatMap(([cn, cased]) => ['one', 'ones'].map(o => [`put ${cased(d)} ${o} on weekly`, d.toUpperCase(), cn]))))(
     'a demonstrative before "one(s)": "%s" leaves %s a word (%s)', (t, w) => expect(word(t, w, { askUnanswered: true, verdict: () => null })).toBe('word'))
-  it.each(DEMONSTRATIVES.map(d => [`put ${d.toUpperCase()} on weekly`, d.toUpperCase()]))('…and only before "one(s)": "%s" still asks about %s', (t, w) => {
+  it.each(DEMONSTRATIVES.filter(d => isEnglish(d.toUpperCase())).map(d => [`put ${d.toUpperCase()} on weekly`, d.toUpperCase()]))('…and only before "one(s)": "%s" still asks about %s', (t, w) => {
     expect(word(t, w, { askUnanswered: true, verdict: () => null })).toBe('ambiguous')
   })
   it.each([['make it weekly with the study view', 'STUDY'], ['show the grid view weekly', 'GRID']])('an APP word in lowercase outside a ticker slot (T10): "%s" leaves %s a word', (t, w) => expect(word(t, w)).toBe('word'))
