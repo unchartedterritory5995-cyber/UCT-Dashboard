@@ -58,6 +58,9 @@ import useTradeExchangeNewsDay from './useTradeExchangeNewsDay'
 import * as library from '../../../lib/tradeExchangeNewsLibrary'
 import { sendHeadlineToNotebook } from '../../../lib/tradeExchangeNewsNotebook'
 import styles from './TradeExchangeNewsWidget.module.css'
+import { createPortal } from 'react-dom'
+import { useUctHeaderSlotAlways, useUctControlsSlot, useUctRowIsSub } from '../uctHeaderSlot'
+import ListPicker from './TradeExchangeNewsListPicker'
 
 //: New-headline highlight: held for 1.5 s, then a 0.6 s fade (CSS .flash), then removed.
 const FLASH_MS = 2100
@@ -393,6 +396,12 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, def
   // ── chrome ──
   const [settingsOpen, setSettingsOpen] = useState(false)
   const gearRef = useRef(null)
+  // UCT frame (owner 11-13): one title row — "UCT News · powered by TradeExchange", Live and
+  // Saved ride the frame's title row; ⚙ joins the window controls. Same buttons, same handlers.
+  const uctRow = useUctHeaderSlotAlways('tradeExchangeNews')
+  const uctCtrls = useUctControlsSlot()
+  const uctRowIsSub = useUctRowIsSub()   // a tabbed slot: the tab says "News"
+  const onBoard = !!uctCtrls && !!uctRow
   const rootRef = useRef(null)
   const [, tick] = useState(0)
   useEffect(() => {                         // keep "last headline 2m ago" honest
@@ -494,7 +503,7 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, def
         </div>
       )}
       {filterOpen && (
-        <FilterMenu anchorEl={filterRef.current} hostEl={rootRef.current} themeVars={menuVars} onClose={closeFilter}
+        <FilterMenu uct={onBoard} anchorEl={filterRef.current} hostEl={rootRef.current} themeVars={menuVars} onClose={closeFilter}
           linked={linked} linkedSym={linkedSym} onLinked={(on) => patchOpts({ linked: on, presetId: null })}
           categories={categories} onCategories={setCategories} presets={presets} activeId={opts?.presetId || null}
           onApply={applyPreset} onSave={savePreset} onRename={renamePreset} onDelete={deletePreset} />
@@ -516,6 +525,52 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, def
           themeVars={menuVars} onClose={closeHealth} />
       )}
 
+      {(() => {
+        const statusBtn = (
+          <button ref={statusRef} type="button" className={`${styles.status} ${toneCls}`} title={`${status.title} Click for feed health.`}
+            aria-live="polite" aria-haspopup="dialog" aria-expanded={healthOpen} onClick={() => setHealthOpen((o) => !o)}>
+            <span className={styles.dot} aria-hidden="true" />
+            <span className={styles.statusText}>{status.label}</span>
+          </button>
+        )
+        const savedBtn = (
+          <button
+            type="button"
+            className={`${styles.iconBtn}${view === 'saved' ? ' ' + styles.iconBtnOn : ''}`}
+            onClick={() => setView(view === 'saved' ? 'feed' : 'saved')}
+            title={view === 'saved' ? 'Back to the News feed' : 'Saved headlines'}
+            aria-label={view === 'saved' ? 'Back to the News feed' : 'Show saved headlines'}
+            aria-pressed={view === 'saved'}
+          ><UIcon name={view === 'saved' ? 'bookmark-fill' : 'bookmark'} size={14} gold={false} /></button>
+        )
+        const gearBtn = (
+          <button
+            ref={gearRef}
+            type="button"
+            className={`${styles.iconBtn}${settingsOpen ? ' ' + styles.iconBtnOn : ''}`}
+            onClick={() => setSettingsOpen((o) => !o)}
+            title="News widget settings"
+            aria-label="News widget settings"
+          ><UIcon name="gear" size={14} /></button>
+        )
+        if (!onBoard) return null
+        // Tabbed slot (owner 11-14): Saved · ⚙ go top-right with the window controls, like the
+        // Watchlist's; Live moves beside the search bar (it crowded the tab strip); no brand row
+        // (the tab already says News).
+        if (uctRowIsSub) return createPortal(<>{savedBtn}{gearBtn}</>, uctCtrls)
+        return (<>
+          {createPortal(
+            <div className={styles.uctTitle}>
+              <span className={styles.uctBrand} title="UCT News · powered by TradeExchange"><span className={styles.uctBrandName}>UCT News</span><span className={styles.uctBrandSub}>Powered by TradeExchange</span></span>
+              <span className={styles.spacer} />
+              {statusBtn}
+            </div>,
+            uctRow,
+          )}
+          {createPortal(<>{savedBtn}{gearBtn}</>, uctCtrls)}
+        </>)
+      })()}
+      {!onBoard && (
       <div className={styles.bar}>
         <span className={styles.brand}>
           <span className={styles.brandTitle}>UCT News</span>
@@ -545,6 +600,7 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, def
           aria-label="News widget settings"
         ><UIcon name="gear" size={14} /></button>
       </div>
+      )}
 
       {savedMounted && (
         <div className={`${styles.pane}${view !== 'saved' ? ' ' + styles.paneHidden : ''}`} inert={view !== 'saved'}
@@ -561,11 +617,12 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, def
         aria-hidden={view === 'saved' || undefined}>
       <div className={styles.searchBar}>
         <span className={styles.searchWrap}>
+          {onBoard && <span className={styles.searchGlyph} aria-hidden="true"><UIcon name="search" size={13} gold={false} /></span>}
           <Input
             className={styles.searchInput}
             value={queryRaw}
             onChange={(e) => setQueryRaw(e.target.value)}
-            placeholder="Search..."
+            placeholder={onBoard ? 'Search headlines or tickers…' : 'Search...'}
             aria-label="Search headlines"
             maxLength={80}
           />
@@ -586,14 +643,27 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, def
         >
           <UIcon name="sliders" size={14} gold={false} />
         </button>
-        <Select
-          className={styles.listSelect}
-          value={watchlistId}
-          onChange={(e) => patchOpts({ watchlistId: e.target.value || null })}
-          aria-label="Filter by watchlist"
-          title="Only headlines naming a symbol on this watchlist"
-          options={listOptions}
-        />
+        {onBoard ? (<>
+          <ListPicker value={watchlistId} options={listOptions} menuVars={menuVars}
+            onChange={(v) => patchOpts({ watchlistId: v || null })} />
+          {uctRowIsSub && (
+            <button ref={statusRef} type="button" className={`${styles.status} ${styles.statusInBar} ${toneCls}`} title={`${status.title} Click for feed health.`}
+              aria-live="polite" aria-haspopup="dialog" aria-expanded={healthOpen} onClick={() => setHealthOpen((o) => !o)}>
+              <span className={styles.dot} aria-hidden="true" />
+              <span className={styles.statusText}>{status.label}</span>
+            </button>
+          )}
+        </>
+        ) : (
+          <Select
+            className={styles.listSelect}
+            value={watchlistId}
+            onChange={(e) => patchOpts({ watchlistId: e.target.value || null })}
+            aria-label="Filter by watchlist"
+            title="Only headlines naming a symbol on this watchlist"
+            options={listOptions}
+          />
+        )}
       </div>
 
       {gap && (
@@ -667,6 +737,7 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, def
       {!unavailable && (
         <div className={styles.footer}>
           <DayBar day={day} calRef={calRef} timeRef={timeRef} calendarOpen={calendarOpen} timeOpen={timeOpen}
+            count={onBoard && day.total != null ? footerCount(filtered, day.total, day.dayTotal ?? day.total) : null}
             onCalendar={() => { setTimeOpen(false); setCalendarOpen((o) => !o) }}
             onTime={() => { setCalendarOpen(false); setTimeOpen((o) => !o) }} />
         </div>

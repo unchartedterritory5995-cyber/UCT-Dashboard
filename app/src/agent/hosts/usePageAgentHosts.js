@@ -6,7 +6,7 @@
 // asks. Outside a provider (tests, pop-outs) every hook registers nothing, so a page renders exactly as
 // before.
 //
-//   ScannerShell / FocusScreener:  useScreenerAgentHost({ rows, total, current, edited, filters, loading, saved, starters, applyScreen, refresh })
+//   ScannerShell / FocusScreener:  useScreenerAgentHost({ rows, total, current, edited, filters, loading, saved, starters, applyScreen, quickChoices, refresh })
 //   Breadth:                       useBreadthAgentHost({ tab, days, topDate, rowCount, columns, live, loading })
 //   Calendar:                      useCalendarAgentHost({ data, weekLabel, view, loading })
 //   JournalLayout:                 useJournalAgentHost({ notes?, refresh? })
@@ -56,6 +56,7 @@ export function useScreenerAgentHost(values) {
         if (v.current === undefined) applied = item ? { id: item.id, name: item.name, kind: item.kind } : null
         return v.applyScreen?.(spec, item)
       },
+      quickChoices: () => live().quickChoices === true,
       refreshSaved: () => { const v = live(); return v.refresh ? v.refresh() : v.lib?.refresh?.() },
       location: () => here() || '/screener',
       navigate: (to) => live().app?.navigate(to),

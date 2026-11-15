@@ -97,7 +97,9 @@ describe('one owner: no second copy of the paint rule in the warmers or the char
     expect(src).toMatch(/isCacheCurrentForView\(/)
   })
   it("StockChart's mem and IDB first-frame gates call isCacheCurrentForView", () => {
-    const src = readFileSync(join(here, '..', 'components', 'StockChart.jsx'), 'utf8')
+    // The gates live in StockChart's bar hook since P3-S0 (ac9b56a412, 2026-11-11) moved the bar
+    // data region out of StockChart.jsx; reading StockChart.jsx found neither marker and failed.
+    const src = readFileSync(join(here, '..', 'components', 'chart', 'useLegacyChartBars.js'), 'utf8')
     const mem = src.slice(src.indexOf('const _memIntradayRefused'), src.indexOf('const _memBars ='))
     const idbGate = src.slice(src.indexOf('const _idbNotCurrent'), src.indexOf('// Daily staleness gate'))
     expect(mem).toMatch(/isCacheCurrentForView\(/)

@@ -35,6 +35,29 @@ export const FALLBACK_GROUP = {
   starter_value_quality: 'quality',
 }
 export const DEFAULT_PINNED = ['starter_momentum_leaders', 'starter_power_play', 'starter_tight_base', 'starter_three_weeks_tight']
+// RS screens (2026-11-14): while the payload carries `starter_rs_leaders` (the server gates it on
+// RS_SCREENS_ENABLED) these four lead a new member's pins, so the first one is where a first
+// open lands. A member's stored pins, favourites and last-used screen are never touched by this.
+export const RS_DEFAULT_PINNED = ['starter_rs_leaders', 'starter_rs_new_high', 'starter_rs_nh_before_price', 'starter_rs_top_rating']
+
+// The pins of a member who has stored none. Without the RS screens: today's defaults, unchanged.
+// With them: the four RS screens, then today's defaults minus any the server marked `hidden`
+// (a hidden starter is not offered by the picker, so it is not a default either).
+export function defaultPinned(starters = []) {
+  const byId = new Map(starters.map(s => [String(s.id), s]))
+  const base = DEFAULT_PINNED.filter(id => byId.has(id))
+  if (!byId.has(RS_DEFAULT_PINNED[0])) return base
+  return [...RS_DEFAULT_PINNED.filter(id => byId.has(id)), ...base.filter(id => !byId.get(id).hidden)]
+}
+
+// The starters a list OFFERS (unit U6): everything but the ones the server marked `hidden`.
+// A hidden starter is still served, so an id a member already chose (a favourite, a stored chip
+// selection, a pin) keeps resolving: `kept` names those, and they stay in the list so the member
+// can use them and can take them off. The Table mode's two lists read this; the Focus menu
+// applies the same rule itself (ScreenMenu.jsx).
+export function offeredStarters(starters = [], kept = null) {
+  return (starters || []).filter(s => s && (!s.hidden || (kept ? kept.has(String(s.id)) : false)))
+}
 
 export function groupOf(starter) {
   const g = String(starter?.group || '').toLowerCase()
@@ -47,5 +70,5 @@ export function migratePinned({ favorites = [], chipPrefs = [], starters = [] })
   const out = []
   for (const id of [...favorites, ...chipPrefs].map(String)) if (known.has(id) && !out.includes(id)) out.push(id)
   if (out.length) return out
-  return DEFAULT_PINNED.filter(id => known.has(id))
+  return defaultPinned(starters)
 }

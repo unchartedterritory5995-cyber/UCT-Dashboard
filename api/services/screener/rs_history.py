@@ -40,6 +40,16 @@ before the restatement hold the OLD plain-return ``m6``/``m9``/``m12``; the
 ``--restate-ranks`` mode rewrites exactly those three columns, and
 ``--restate-ranks --columns m3`` rewrites ``m3`` (below).
 
+THE VALUES BEHIND THE RANKS (RS screens unit U1, 2026-11-14). A rank is an integer 1 to
+99 and dozens of names share each one, so an exact per-period order cannot be made from
+the ranks. The number each component rank was taken over (:func:`component_values`) is
+stored beside it as a REAL column: ``v1, v3, v6, v9, v12`` (:data:`VALUE_COLUMNS`),
+unrounded, and ``NULL`` wherever the rank is. They are nullable columns added by the same
+idempotent ``ALTER`` as ``m9``; every writer of a WHOLE session writes them (the nightly,
+the backfill, ``--restate-universe`` and ``--restate-listing-breaks``), so a session
+stored before this unit holds none until one of the restates rewrites it. No rating, score
+or bar count changed (``tests/test_rs_screens_u1_values.py`` holds a digest of them).
+
 POPULATION. Since 2026-11-12 (owner: "everything until the indicator is 100% perfect")
 the ranked set is EVERY non-ETF ticker with a fresh daily bar and enough closes for the
 term, about 6,000 names (:func:`ranking_universe`), not the 3,418-name cap universe it
@@ -204,9 +214,12 @@ COMPONENTS = IBD_COMPONENTS
 #: the 9-month one (round 2). The screener and the methodology page read
 #: ``COMPONENTS``; the chart reads all five.
 STORED_COMPONENTS = tuple(sorted(IBD_COMPONENTS + (IBD_M9_COMPONENT,), key=lambda c: c[1]))
+#: ``(rank column, value column)`` for every stored component, shortest window first:
+#: ``v1`` holds the number ``m1`` is the percentile of, and so on (RS screens unit U1).
+VALUE_COLUMNS = tuple((label, "v" + label[1:]) for label, _n in STORED_COMPONENTS)
 #: The columns a later round ADDED to the table (nullable, by ``ALTER``), each with
 #: its SQL type. A read selects one only when the table already carries it.
-ADDED_COLUMNS = {"m9": "INTEGER"}
+ADDED_COLUMNS = {"m9": "INTEGER", **{value: "REAL" for _rank, value in VALUE_COLUMNS}}
 #: The three columns whose MEANING changed on 2026-11-11 (IBD-style weighting) and
 #: that ``--restate-ranks`` rewrites for the sessions already stored.
 RESTATE_COLUMNS = tuple(label for label, _t in IBD_STYLE_COMPONENT_TERMS)
@@ -307,7 +320,9 @@ BACKFILL_UNKNOWN_SPLITS_FLOOR = 5
 BACKFILL_UNKNOWN_SPLITS_SHARE = 0.01
 
 RATING_COLUMNS = ("ibd", "m1", "m3", "m6", "m9", "m12")
-ROW_COLUMNS = ("ibd", "fast", "m1", "m3", "m6", "m9", "m12", "score", "bars")
+ROW_COLUMNS = (("ibd", "fast", "m1", "m3", "m6", "m9", "m12", "score", "bars")
+               + tuple(value for _rank, value in VALUE_COLUMNS))
+_VALUE_NAMES = ", ".join(value for _rank, value in VALUE_COLUMNS)
 
 _SQL = f"""
 CREATE TABLE IF NOT EXISTS {TABLE} (
@@ -316,6 +331,7 @@ CREATE TABLE IF NOT EXISTS {TABLE} (
     ibd INTEGER, fast INTEGER,
     m1 INTEGER, m3 INTEGER, m6 INTEGER, m12 INTEGER,
     score REAL, bars INTEGER, m9 INTEGER,
+    v1 REAL, v3 REAL, v6 REAL, v9 REAL, v12 REAL,
     PRIMARY KEY (session, ticker)
 )"""
 _INDEX_SQL = f"CREATE INDEX IF NOT EXISTS idx_rsh_ticker ON {TABLE}(ticker, session)"
@@ -511,9 +527,11 @@ def _rank_block(values: dict, ranked_set: set) -> dict:
 
 
 def compute_ratings(closes_by_ticker: dict, etf_tickers, *, suspects=None) -> dict:
-    """Pure: ``{TICKER: {ibd, m1, m3, m6, m9, m12, score, bars}}``.
+    """Pure: ``{TICKER: {ibd, m1, m3, m6, m9, m12, v1, v3, v6, v9, v12, score, bars}}``.
 
     * ``score`` is :func:`ibd_score` (``None`` without the 63-day term).
+    * ``v1`` .. ``v12`` (:data:`VALUE_COLUMNS`) are the :func:`component_values` the
+      component ranks were taken over, unrounded, ``None`` wherever the rank is.
     * ``ibd`` and the components are percentiles across the NON-ETF tickers only;
       an ETF receives each number by :func:`interpolate_pct` against that
       distribution and never moves a stock's rating.
@@ -547,11 +565,16 @@ def compute_ratings(closes_by_ticker: dict, etf_tickers, *, suspects=None) -> di
         row = {"ibd": ibd[t]}
         for label, _n in STORED_COMPONENTS:
             row[label] = by_component[label][t]
+        for label, value in VALUE_COLUMNS:
+            # The number the rank beside it was taken over: kept so an exact order can
+            # be made later. No rank, no value.
+            row[value] = comps[t][label] if row[label] is not None else None
         row["score"] = None if scores[t] is None else round(scores[t], 6)
         row["bars"] = bars[t]
         out[t] = row
     for t in skipped:
         row = {k: None for k in RATING_COLUMNS}
+        row.update({value: None for _rank, value in VALUE_COLUMNS})
         row["score"] = None
         row["bars"] = 0
         row["reason"] = "unadjusted_split"
@@ -818,10 +841,12 @@ def store_rows(session, ratings: dict, fast_map=None, *, replace: bool = True,
             continue
         rows.append((key, str(t).upper(), r.get("ibd"), _fast_for(fast_map, str(t).upper()),
                      r.get("m1"), r.get("m3"), r.get("m6"), r.get("m9"), r.get("m12"),
-                     r.get("score"), int(r.get("bars") or 0)))
+                     r.get("score"), int(r.get("bars") or 0),
+                     *(r.get(value) for _rank, value in VALUE_COLUMNS)))
     verb = "INSERT OR REPLACE" if replace else "INSERT OR IGNORE"
-    sql = (f"{verb} INTO {TABLE} (session, ticker, ibd, fast, m1, m3, m6, m9, m12, score, bars) "
-           "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+    sql = (f"{verb} INTO {TABLE} (session, ticker, ibd, fast, m1, m3, m6, m9, m12, score, bars, "
+           f"{_VALUE_NAMES}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, "
+           f"{', '.join('?' * len(VALUE_COLUMNS))})")
 
     def _write(c) -> int:
         ensure_schema(c)
@@ -1926,15 +1951,19 @@ def _restate_sessions(receipt, conn, keys, todo, *, etf_tickers, bars_reader, sp
 _REQUIRED_BARS = dict((label, n) for label, n, _w in IBD_TERMS)[REQUIRED_TERM]
 
 _UPSERT_SQL = (
-    f"INSERT INTO {TABLE} (session, ticker, ibd, m1, m3, m6, m9, m12, score, bars) "
-    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
+    f"INSERT INTO {TABLE} (session, ticker, ibd, m1, m3, m6, m9, m12, score, bars, {_VALUE_NAMES}) "
+    f"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, {', '.join('?' * len(VALUE_COLUMNS))}) "
     "ON CONFLICT(session, ticker) DO UPDATE SET ibd = excluded.ibd, m1 = excluded.m1, "
     "m3 = excluded.m3, m6 = excluded.m6, m9 = excluded.m9, m12 = excluded.m12, "
-    "score = excluded.score, bars = excluded.bars")
+    "score = excluded.score, bars = excluded.bars, "
+    + ", ".join(f"{value} = excluded.{value}" for _rank, value in VALUE_COLUMNS))
 #: ``fast`` is the HOURLY fast rating the nightly stored that night; it cannot be
 #: recomputed, so the upsert never names it (a conflict keeps it, a new row has none).
+#: The values go with their ranks: a name that can no longer be ranked keeps neither.
 _NULL_RATINGS_SQL = (f"UPDATE {TABLE} SET ibd = NULL, m1 = NULL, m3 = NULL, m6 = NULL, "
-                     "m9 = NULL, m12 = NULL WHERE session = ? AND ticker = ?")
+                     "m9 = NULL, m12 = NULL, "
+                     + ", ".join(f"{value} = NULL" for _rank, value in VALUE_COLUMNS)
+                     + " WHERE session = ? AND ticker = ?")
 _UNIVERSE_MARKERS = ((UNIVERSE_TABLE, UNIVERSE_METHOD), (RESTATED_TABLE, RESTATE_METHOD),
                      (RESTATED_M3_TABLE, RESTATE_M3_METHOD))
 
@@ -2016,7 +2045,8 @@ def restate_universe(days: int = BACKFILL_DAYS, *, universe=None, etf_tickers=No
       ``database is locked``): an UPSERT of ``ibd, m1, m3, m6, m9, m12, score, bars``
       for every ticker rated that session (a stock the cap universe never held is a NEW
       row; an ETF row is rewritten because its interpolation distribution changed),
-      ``NULL`` ratings for a stored ticker that no longer has a window or is split-guarded
+      the five values behind the component ranks (:data:`VALUE_COLUMNS`) with them,
+      ``NULL`` ratings and values for a stored ticker that no longer has a window or is split-guarded
       (never an old-universe number), and the session's marker in this restate's table AND in
       the long and m3 tables (every column is now in its current meaning, so those restates
       have nothing left to do). ``fast`` is never touched.
@@ -2189,7 +2219,8 @@ def _restate_universe_sessions(receipt, conn, keys, todo, *, universe, etf_ticke
             if not r.get("bars"):
                 continue
             upserts.append((key, t, r.get("ibd"), r.get("m1"), r.get("m3"), r.get("m6"),
-                            r.get("m9"), r.get("m12"), r.get("score"), int(r.get("bars") or 0)))
+                            r.get("m9"), r.get("m12"), r.get("score"), int(r.get("bars") or 0),
+                            *(r.get(value) for _rank, value in VALUE_COLUMNS)))
             old = stored.get(t)
             if old is None:
                 inserted += 1
@@ -2402,8 +2433,10 @@ def _table_known(conn, path: str) -> bool:
 
 
 def read_fields(tickers, session=None, failures=None, now=None) -> dict:
-    """``{TICKER: {ibd, fast, m1, m3, m6, m9, m12, score, bars, d5, d20, asof}}`` for the
-    newest session (or ``session``), the ``opt_flow.read_opt_flow_fields`` shape.
+    """``{TICKER: {ibd, fast, m1, m3, m6, m9, m12, score, bars, v1, v3, v6, v9, v12, d5,
+    d20, asof}}`` for the newest session (or ``session``), the
+    ``opt_flow.read_opt_flow_fields`` shape. ``v1`` .. ``v12`` are the values behind the
+    component ranks (:data:`VALUE_COLUMNS`), ``None`` on a session stored before them.
 
     ``d5`` / ``d20`` are ``ibd`` minus the ticker's ``ibd`` in the session 5 and 20
     stored sessions earlier, ``None`` when either row is absent or unrated. A
