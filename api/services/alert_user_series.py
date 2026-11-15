@@ -555,6 +555,10 @@ def _unsupplied_reason(tree: Any, codes: Sequence[str]) -> str:
     if UNSUPPLIED_LOWER_TF in codes:
         parts.append("it reads a timeframe below the chart (`ltf`), and the alert "
                      "lane holds no intraday bars for it")
+    if "request:htf-newest-unconfirmed" in codes:
+        parts.append("it reads a weekly or monthly value the way TradingView's "
+                     "`request.security` shows it (`tf_merge`), whose value on the newest "
+                     "finished bar depends on the date of the next session")
     return "; ".join(parts) + "."
 
 
@@ -697,6 +701,13 @@ def _make_value_fn(def_id: str, plot_key: str,
     unsupplied = unsupplied_reads(tree, check_opts)
     if cross_code:
         unsupplied = [cross_code] + [c for c in unsupplied if c != UNSUPPLIED_OTHER_SYMBOL]
+    # ⭐⭐ ENGINE 55 — PINE'S MERGED HIGHER-TIMEFRAME READ (`tf_merge`): the week's
+    # or month's value appears on the bar that closes it, and whether the newest
+    # finished bar closes its period is the next session's date — so on the bar an
+    # alert reads the value is withheld (`ast_interpret.tf_merge_mask`). Refused
+    # here, under the `withheld` gate and its sibling rule.
+    if _lane.reads_tf_merge(tree):
+        unsupplied = list(unsupplied) + [_lane.TF_MERGE_NEWEST_CODE]
     if unsupplied:
         raise AdmissionRefused(
             "withheld",

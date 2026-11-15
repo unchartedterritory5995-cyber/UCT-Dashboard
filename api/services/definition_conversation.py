@@ -352,6 +352,10 @@ _UNSUPPORTED_NODES: Mapping[str, str] = {
     **{k: v for k, v in dc._UNFINISHABLE.items() if k not in SCOPE_NODES},
     "ltf": ("it reads a lower timeframe ({value}); conversational authoring draws "
             "on the chart's own bars or a higher timeframe only"),
+    # ⭐ ENGINE 55 — Pine's merged higher-timeframe read is translated-only.
+    "tf_merge": ("it reads a higher timeframe ({value}) the way TradingView's request.security "
+                 "shows it, which only an imported Pine script carries; conversational authoring "
+                 "writes `tf` (the last closed period) instead"),
     "str": ("it uses a quoted text value, which only a symbol-text question takes, "
             "and that is not available here"),
     "symtext": ("it reads the symbol's text fields, which is not available here"),
@@ -375,6 +379,7 @@ _MEMBER_TIMEFRAME_WORDS: Mapping[str, str] = {
     "tf": "a higher timeframe",
     "ltf": "a lower timeframe",
     "tf_live": "a live higher-timeframe bar",
+    "tf_merge": "a higher timeframe the way TradingView shows it",
 }
 _MEMBER_TEXT_PHRASES: Mapping[str, str] = {
     "textop": "it asks a question about the symbol's name or text, which is not available here",

@@ -452,7 +452,7 @@ def bar_index_verdict(tree: Any) -> dict:
             def wrap(t):
                 return {"type": "offset", "value": node.get("value"), "args": [t]}
             return lin(alg.linear(x["p0"], wrap, 1), alg.linear(x["p1"], wrap, 1))
-        if kind in ("tf", "tf_live", "sym", "textop"):
+        if kind in ("tf", "tf_live", "tf_merge", "sym", "textop"):
             for a in args:
                 if not still(sub(a)):
                     raise _BarIndexUnprovable()
