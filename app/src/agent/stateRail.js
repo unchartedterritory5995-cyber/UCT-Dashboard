@@ -116,12 +116,12 @@ const READERS = {
     const removed = pt.remove || []
     const out = []
     if (removed.length && removed.length >= all.length && all.length > 1) out.push({ state: 'drawing', type: 'clear', name: `all ${all.length} drawings on ${nm(p.before?.symbol || p.ref)}` })
-    else for (const x of removed) out.push({ state: 'drawing', type: 'remove', name: dname(all.find(d => d.id === x.id) || x), id: `draw:${p.ref}:${x.id}`, dtype: (all.find(d => d.id === x.id) || x).type })
+    else for (const x of removed) out.push({ state: 'drawing', type: 'remove', name: dname(all.find(d => d.id === x.id) || x), id: `draw:${p.ref}:${x.id}`, dtype: (all.find(d => d.id === x.id) || x).type, sameType: all.filter(d => d.type === (all.find(y => y.id === x.id) || x).type).length, inScope: all.length })
     for (const u of pt.update || []) {
       const keys = Object.keys(u.set || {}).filter(k => !HARMLESS_DRAWING_KEYS.has(k))
       const d = all.find(x => x.id === u.id) || {}
       // its own target: which settings / levels of WHICH drawing (a fib level value binds only to that fib)
-      if (keys.length) out.push({ state: 'drawing', type: 'overwrite', name: dname(d), id: `draw:${p.ref}:${u.id}`, dtype: d.type, sameType: all.filter(x => x.type === d.type).length, keys, levels: [...Object.keys(u.set.levels || {}), ...Object.keys(u.set.fills || {}).flatMap(f => f.split('>'))] })
+      if (keys.length) out.push({ state: 'drawing', type: 'overwrite', name: dname(d), id: `draw:${p.ref}:${u.id}`, dtype: d.type, sameType: all.filter(x => x.type === d.type).length, inScope: all.length, keys, levels: [...Object.keys(u.set.levels || {}), ...Object.keys(u.set.fills || {}).flatMap(f => f.split('>'))] })
     }
     return out
   },
@@ -223,12 +223,12 @@ export const STATE_KINDS = Object.keys(READERS)
 
 /** Every destroying effect a planned change has on existing state: [{ state, type, name, kind, via? }]. A reader that
  *  throws yields an 'unreadable' effect (refused when the words are additive). */
-export function stateEffects(plan) {
+export function stateEffects(plan, scope = null) {
   const out = []
   for (const p of plan?.plans || []) {
     const f = READERS[p.kind]
     if (!f) continue
-    try { for (const e of f(p)) out.push({ ...e, kind: p.kind }) } catch { out.push({ state: p.kind, type: 'unreadable', name: 'a change I could not read', kind: p.kind }) }
+    try { for (const e of f(p)) out.push({ ...e, kind: p.kind, ...(e.state === 'watchlist' && scope?.watchlists != null ? { inScope: scope.watchlists } : {}) }) } catch { out.push({ state: p.kind, type: 'unreadable', name: 'a change I could not read', kind: p.kind }) }
   }
   return out
 }
@@ -302,6 +302,10 @@ export function indicatorsNamed(clause, peers) {
   } else if (hit.length === 1) unique.add(hit[0].id)
   return { ids: hit.map(r => r.id), unique, plural: IND_PLURAL.test(c) }
 }
+// (H14) a drawing's TYPE noun names it when it is the only one of that type in scope ("the trendline" beside a horizontal and a fib)
+const DTYPE_NOUN = { trendline: /\btrend ?lines?\b/i, horizontal: /\bhorizontal(?: lines?)?\b|\bh-?lines?\b/i, vertical: /\bvertical(?: lines?)?\b/i,
+  fib: /\bfib\w*\b/i, ray: /\brays?\b/i, rect: /\b(?:box|boxes|rectangles?|rect)\b/i, circle: /\bcircles?\b/i, channel: /\bchannels?\b/i,
+  arrow: /\barrows?\b/i, text: /\b(?:notes?|texts?|labels?)\b/i, avwap: /\bavwaps?\b/i, pitchfork: /\bpitchforks?\b/i }
 /** Does this clause name the effect's object — its class, or (when it names no OTHER class) its own name? */
 export function namesObject(e, clause, why = null) {
   // ⛔ H14: an indicator is named only UNIQUELY (its own words, or a class with one instance / said as plural)
@@ -314,6 +318,13 @@ export function namesObject(e, clause, why = null) {
     }
   }
   const mine = classesOf(e)
+  if ((e.state === 'drawing' || e.state === 'watchlist') && e.inScope > 1 && mine.some(c => CLASS[c]?.test(clause))) {
+    // ⛔ H14: "the line" / "my list" with several in scope names none of them — its own name (below) still does
+    const label = labelOf(e)
+    if (label && has(clause, label)) return true
+    if (e.state === 'drawing' && e.sameType === 1 && (typeNamed(e, clause) || (DTYPE_NOUN[e.dtype] && DTYPE_NOUN[e.dtype].test(clause)))) return true
+    return /\b(?:all|both|every|each|them|those|these)\b|\b(?:lines|drawings|lists|watchlists|trend ?lines|fibs|rays|levels)\b/i.test(clause)
+  }
   if (mine.some(c => CLASS[c]?.test(clause))) return true
   if (Object.keys(CLASS).some(c => !mine.includes(c) && CLASS[c].test(clause))) {
     // its OWN name beside another class ("delete the Paper watchlist look"): which is meant is asked, with both as choices
@@ -601,7 +612,7 @@ export function stateRailDecision(plan, ctx = {}) {
   const { mode = 'apply' } = ctx
   if (!plan?.ok || mode === 'approved') return null
   let effects
-  try { effects = stateEffects(plan) } catch { return { text: 'I didn’t change anything: I couldn’t check what this would remove or change. Ask again, or say exactly what to replace or remove.' } }
+  try { effects = stateEffects(plan, ctx.scope) } catch { return { text: 'I didn’t change anything: I couldn’t check what this would remove or change. Ask again, or say exactly what to replace or remove.' } }
   if (!effects.length) return null
   const text = stateRailRefusal(plan, ctx)
   // a save-over the words do not ask for in so many words goes to its CARD (as before the state rail)
@@ -617,14 +628,14 @@ export function stateRailDecision(plan, ctx = {}) {
   if (ask?.kind === 'rows') return { text: `I didn’t change anything: your list has changed since I showed it, so I can’t be sure which ones you mean. The top ones it showed were ${listOf(ask.rows)} — say them by name (for example “remove ${listOf(ask.rows)}”).`, ask }
   return { text, ask }
 }
-export function stateRailRefusal(plan, { words = '', mode = 'apply', subjects = null, previous = null, previousSet = null, made = null, views = null, picked = null } = {}) {
+export function stateRailRefusal(plan, { words = '', mode = 'apply', subjects = null, previous = null, previousSet = null, made = null, views = null, picked = null, scope = null } = {}) {
   if (!plan?.ok) return null
   // an APPROVED card was shown, naming what it removes or changes, to the member who approved it (and its binding is checked
   // before it runs): the card is the permit. Every other path — instant, model, proposal, composed, deferred — needs the words.
   if (mode === 'approved') return null
   const w = String(words || '')
   try {
-    const effects = stateEffects(plan)
+    const effects = stateEffects(plan, scope)
     if (!effects.length) return null
     const amb = effects.map(e => homograph(e, w)).find(Boolean)
     if (amb) return `Do you mean your “${amb}” list, or the ticker ${String(amb).toUpperCase()}? Nothing was changed — say “show my ${amb} list” to switch the widget to it, or “add ${String(amb).toUpperCase()} to my watchlist” to add the symbol.${notDoneLine(notDoneAdds(plan))}`

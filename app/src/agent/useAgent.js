@@ -874,7 +874,10 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     railAskRef.current = c && chartAsk.ask ? { ...chartAsk.ask, plan } : null
     let r = c
     if (!c) {
-      const d = stateRailDecision(plan, { words: railWordsRef.current, mode: stateMode, subjects: subjectIds(), picked: railPickedRef.current, ...railMemoryOf() })
+      // (H14) the scope a list class noun is counted in: the member's watchlists
+      let lists = null
+      try { lists = getTargetKind('watchlist')?.list?.(host)?.length ?? null } catch { lists = null }
+      const d = stateRailDecision(plan, { words: railWordsRef.current, mode: stateMode, subjects: subjectIds(), picked: railPickedRef.current, ...railMemoryOf(), scope: { watchlists: lists } })
       // (D19) an irreversible save-over: its approval CARD is the confirmation (the plan runs as a proposal)
       if (d?.card) railCardRef.current = true
       else if (d?.text) { r = d.text; railAskRef.current = d.ask ? { ...d.ask, plan } : null }
