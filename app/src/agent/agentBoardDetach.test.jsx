@@ -203,6 +203,18 @@ describe('the phone view and Multi Chart: nothing floats or merges there', () =>
   }, 40000)
 })
 
+describe('the detached-widget rule stays: arranging waits while a widget floats', () => {
+  it.each([['widget.arrange', { pattern: 'fill' }], ['widget.move', { widget: 'wl', x: 0, y: 0, w: null, h: null }]])('%s while the news widget floats (this family floated it): refused, nothing moves', async (action, args) => {
+    const { say, board: b } = mountOn()
+    await say('float the news widget')
+    expect(b.state.detach.floating).toEqual(['news'])
+    const was = widgetsJson(b)
+    p.st.envelopes.push(plan([action, args]))
+    expect(await say('tidy up the board layout for me')).toMatch(/floating or popped out right now — dock it back first/)
+    expect(widgetsJson(b)).toBe(was)
+  }, 40000)
+})
+
 describe('targeting: an excluded chart is never touched', () => {
   it.each([['float every chart except the NVDA one'], ['float all the charts but leave NVDA alone']])('"%s": a plan that also floats NVDA\'s chart never floats it', async (t) => {
     const { say, board: b } = mountOn()
