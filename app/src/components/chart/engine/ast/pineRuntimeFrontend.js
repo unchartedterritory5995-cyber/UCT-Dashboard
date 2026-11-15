@@ -369,7 +369,7 @@ export const RUNTIME_REFUSALS = Object.freeze({
   // ⭐⭐ ENGINE 57 — bars of `ta.stoch` no capture pins (`interpret.js::builtinWitnessMask`):
   // the columnar lane withholds them by name, and this lane, which has no per-bar withholding,
   // declines by the same code rather than draw them.
-  [STOCH_FLAT_WINDOW]: 'a `ta.stoch` window that is flat after a bar whose value was not 0, where no TradingView capture says whether it keeps that value or answers 0',
+  [STOCH_FLAT_WINDOW]: 'a `ta.stoch` window that is flat after a value other than 0 or 100 (or with its source off the flat level), a case no TradingView capture has reached',
 })
 
 export class RuntimeRefusal extends Error {
@@ -3353,7 +3353,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
           throw new RuntimeRefusal('runtime:chart-clock', `${code}: ${sentence}`, at)
         }
         // ⭐⭐ ENGINE 57 — a column the columnar lane withholds on some bars by a built-in's
-        // witness code declines the run by that code: drawn here those bars would read `na`
+        // witness code declines the run by that code: drawn here those bars would read `na`.
+        // ⛔ Not the off-listing LEFT EDGE codes (`stoch:left-edge`, `rci:left-edge`): those bars
+        // depend on where the chart starts, and this lane's own off-listing curtain
+        // (`runtimeColumns.js::computeOffListing`, measured per run) withholds such bars already
         if (code === STOCH_FLAT_WINDOW) {
           throw new RuntimeRefusal(code, sentence, at)
         }

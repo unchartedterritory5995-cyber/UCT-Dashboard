@@ -8,7 +8,8 @@ committed ``support-and-resistance-5f95e90f-rddt-1d-2026-11-13`` fixture, so the
 committed bars and are graded against numbers read off the captures.
 
 * ``stochPine`` (Pine's ``ta.stoch``): K = sma(stochPine(rsi, rsi, rsi, 14), 3) from bar 17, D = sma(K, 3)
-  from bar 19; probe P2's holes (held) and flat run (held 0); a flat run after another value withheld.
+  from bar 19; probe P2's holes (held) and flat run (held 0); S10's flat run after 100 (held 100);
+  an unpinned flat run withheld.
 * ``rci``: the Pearson correlation of average ranks, first value on bar ``length``; probe P1's
   warm-up ``na`` ranked lowest and flat window ``na``.
 * ``supertrend``: this lane runs the bounded window (it has no listing pass); its published bars
@@ -57,8 +58,11 @@ def _drawn(col):
     return sum(1 for v in col if v is not None)
 
 
-def _run(tree, bars=None, sink=None):
+def _run(tree, bars=None, sink=None, listing=True):
+    """The captures start at the listing, so the rails grade the listing's answer by default."""
     opts = {} if sink is None else {"chartClockSink": sink}
+    if listing:
+        opts["historyFromListing"] = True
     return ast_interpret.interpret(tree, bars or _bars(), None, None, None, opts)
 
 
@@ -140,14 +144,27 @@ def test_stoch_probe_p2_holes_hold_and_windows_span_them():
         assert sink == {}
 
 
-def test_stoch_flat_run_after_a_value_other_than_zero_is_withheld_by_name():
+def test_stoch_flat_run_after_100_on_its_level_keeps_the_100():
+    # S10 ``vw-cs2-stoch-flat-window``: TradingView keeps the 100 through the flat run
     y = _run_of(1000.0)
     sink = {}
     col = _run(C("stochPine", y, y, y, N(10)), sink=sink)
+    assert sink == {}
+    assert all(col[i] == 100 for i in range(100, 120))
+
+
+def test_stoch_unpinned_flat_run_is_withheld_by_name():
+    y = _run_of(1000.0)
+    sink = {}
+    src = {"type": "op", "name": "?:", "args": [
+        {"type": "op", "name": "==", "args": [S("barindex"), N(108)]}, N(1000.0), S("close")]}
+    col = _run(C("stochPine", y, y, src, N(10)), sink=sink)
     assert list(sink) == [ast_interpret.STOCH_FLAT_WINDOW]
-    assert _near(col[100], 100)
+    assert col[108] == 100          # kept through the run as in S10, but the source is off the level
     assert all(col[i] is None for i in range(109, 120))
-    assert col[108] is not None and col[120] is not None
+    assert col[120] is not None
+    assert ast_interpret._stoch_flat_pinned(0, True) and ast_interpret._stoch_flat_pinned(100, True)
+    assert not ast_interpret._stoch_flat_pinned(50, True) and not ast_interpret._stoch_flat_pinned(100, False)
 
 
 # --------------------------------------------------------------------------- #
@@ -254,8 +271,8 @@ def _pine_supertrend(bars, factor, n):
 def test_supertrend_bounded_bars_equal_pines_full_history_and_the_guard_holds():
     bars = _bars()
     ref = _pine_supertrend(bars, 3, 10)
-    col = _run(ce.expand_call(C("supertrend", N(3), N(10))), bars)
-    assert all(v is None for v in col[:400])
+    col = _run(ce.expand_call(C("supertrend", N(3), N(10))), bars, listing=False)
+    assert all(v is None for v in col[:409])     # 2W + n - 1, the base expansion's curtain
     published = [i for i, v in enumerate(col) if v is not None]
     assert len(published) > 200
     for i in published:
@@ -269,14 +286,14 @@ def test_supertrend_tree_carries_pines_nz_and_the_curtain_guard():
     guard = t["value"]["args"][0]
     # the guard is a bounded window's own curtain, 2W deep, over a body that forgets its seed
     assert guard["name"] == "na" and guard["args"][0]["name"] == "accum"
-    assert guard["args"][0]["args"] == [N(0), N(0), N(400)]
+    assert guard["args"][0]["args"] == [N(0), N(0), N(409)]
     upper = t["value"]["args"][2]["args"][2]
     assert upper["name"] == "accum" and upper["args"][0]["name"] == "nz"
     direction = t["direction"]["args"][2]["args"][1]
     assert direction["args"][0]["name"] == "na" and direction["args"][0]["args"][0]["type"] == "offset"
-    # this lane runs it bounded: na exactly before bar 2W, 0 after
-    g = _run(guard)
-    assert g[:400] == [1] * 400 and all(v == 0 for v in g[400:])
+    # this lane runs it bounded: na exactly before bar 2W + n - 1, 0 after
+    g = _run(guard, listing=False)
+    assert g[:409] == [1] * 409 and all(v == 0 for v in g[409:])
 
 
 # --------------------------------------------------------------------------- #
@@ -305,6 +322,7 @@ def test_js_and_python_lanes_agree_on_rddt():
         {"id": "rci_warm", "ast": C("rci", C("sma", S("close"), N(5)), N(10))},
         {"id": "rci_na_window", "ast": C("rci", C("change", C("sma", S("close"), N(5))), N(10))},
         {"id": "stoch_flat_after_100", "ast": C("stochPine", _run_of(1000.0), _run_of(1000.0), _run_of(1000.0), N(10))},
+        {"id": "stoch_flat_off_level", "ast": C("stochPine", _run_of(1000.0), _run_of(1000.0), S("close"), N(10))},
         {"id": "supertrend_3_10", "ast": ce.expand_call(C("supertrend", N(3), N(10)))},
     ]
     js = ac.run_js(cases, bars)
@@ -313,3 +331,40 @@ def test_js_and_python_lanes_agree_on_rddt():
     assert verdict["differences"] == [], verdict["differences"][:5]
     for c in cases:
         assert sum(1 for v in py[c["id"]] if v is not None) > 200, c["id"]
+
+
+# --------------------------------------------------------------------------- #
+# review #1294: off the listing (F1) and the hold chain (F3)
+# --------------------------------------------------------------------------- #
+
+def test_off_listing_left_edge_is_withheld_by_name_and_the_rest_equals_the_listing():
+    bars = _bars()
+    suffix = bars[100:]
+    for tree, edge_end, code in [
+        (C("rci", C("sma", S("close"), N(5)), N(10)), 13, ast_interpret.RCI_LEFT_EDGE),
+        (C("stochPine", C("sma", S("close"), N(5)), C("sma", S("close"), N(5)), C("sma", S("close"), N(5)), N(14)),
+         17, ast_interpret.STOCH_LEFT_EDGE),
+    ]:
+        on = _run(tree, bars)
+        sink = {}
+        off = _run(tree, suffix, sink=sink, listing=False)
+        assert list(sink) == [code]
+        assert all(v is None for v in off[:edge_end])
+        for i in range(edge_end, len(suffix)):
+            assert _near(off[i], on[i + 100]), (code, i, off[i], on[i + 100])
+    sink = {}
+    plain = _run(C("rci", S("close"), N(10)), suffix, sink=sink, listing=False)
+    assert sink == {} and _first(plain) == 10
+
+
+def test_a_hold_of_an_unpinned_value_stays_flagged():
+    x = [50.0 if 20 <= i < 35 else 10.0 + (i % 7) for i in range(40)]
+    x[35] = math.nan
+    s = list(x)
+    for i in range(29, 35):
+        s[i] = 49.0          # the source off the flat level
+    out, flags, _ = ast_interpret._stoch_pine_scan(x, x, s, 10)
+    assert flags[29:35] == [1] * 6
+    assert out[35] == out[34] and flags[35] == 1 and flags[36] == 0
+    pinned, pflags, _ = ast_interpret._stoch_pine_scan(x, x, x, 10)      # the S10 shape
+    assert pinned[29:36] == [100] * 7 and not any(pflags)

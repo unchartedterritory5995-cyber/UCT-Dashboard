@@ -1135,9 +1135,12 @@ def _window_percentile_nearest(series: Sequence[float], lo: int, hi: int,
     return vals[rank - 1]
 
 
-#: ``interpret.js::STOCH_FLAT_WINDOW`` (engine 57) -- the per-bar withholding code of
-#: ``ta.stoch``; the JS lane owns the sentence (``CHART_CLOCK_WITHHELD``).
+#: ``interpret.js::STOCH_FLAT_WINDOW`` / ``STOCH_LEFT_EDGE`` / ``RCI_LEFT_EDGE`` (engine 57) --
+#: the per-bar withholding codes of ``ta.stoch`` and ``ta.rci``; the JS lane owns the sentences
+#: (``CHART_CLOCK_WITHHELD``).
 STOCH_FLAT_WINDOW = "stoch:flat-window"
+STOCH_LEFT_EDGE = "stoch:left-edge"
+RCI_LEFT_EDGE = "rci:left-edge"
 
 
 def _finite(v: Any) -> bool:
@@ -1173,6 +1176,20 @@ def _rci_at(series: Sequence[float], lo: int, hi: int) -> float:
         vp += (p - m) * (p - m)
     vt = (n * (n * n - 1)) / 12
     return (100 * cov) / math.sqrt(vt * vp) if vp > 0 else NAN
+
+
+def rci_left_edge(series: Sequence[float], n: int) -> List[int]:
+    """``interpret.js::rciLeftEdge`` -- off the listing, 1 on the bars whose window reaches
+    before the source's first finite value."""
+    out = [0] * len(series)
+    first = next((i for i, v in enumerate(series) if _finite(v)), -1)
+    if first <= 0 or not n >= 2:
+        return out
+    i = n
+    while i < len(series) and i - n + 1 < first:
+        out[i] = 1
+        i += 1
+    return out
 
 
 def _rci_col(series: Sequence[float], n: int) -> List[float]:
@@ -2401,21 +2418,32 @@ def _fn_stoch(h, l, c, n):  # noqa: E741
                          lambda bars: compute_stoch_raw(bars, n, 1)[0])
 
 
-def _stoch_pine_scan(h, l, c, n):  # noqa: E741
+def _stoch_flat_pinned(prev, on_level):
+    """``interpret.js::stochFlatPinned`` -- the flat windows the captures pin: the source on the
+    window's level and a kept value of 0 (probe P2) or 100 (S10 ``vw-cs2-stoch-flat-window``)."""
+    return bool(on_level) and (prev == 0 or prev == 100)
+
+
+def _stoch_pine_scan(h, l, c, n, off_listing=False):  # noqa: E741
     """Pine's ``ta.stoch(source, high, low, n)`` (engine 57, MEASURED) --
     ``interpret.js::stochPineScan``, step for step: ``na`` before bar ``n - 1``; ``hi`` / ``lo``
     over the last ``n`` FINITE highs / lows (fewer while fewer exist); ``100 * (c - lo) / (hi - lo)``;
     where that has no number (an ``na`` source, a 0 range, no observation) the previous answer
-    is held. Returns ``(out, flags)``: ``flags[i]`` is 1 on a flat window whose held value is
-    not 0 (``stoch:flat-window``, withheld by ``builtin_witness_mask``)."""
+    is held. Returns ``(out, flags, edge)``: ``flags[i]`` is 1 on a flat window the captures do not
+    pin (``_stoch_flat_pinned``) and on every hold that keeps it (``stoch:flat-window``); off the listing ``edge[i]`` is 1
+    on a window of fewer than ``n`` finite values and on a hold of nothing or of such a value
+    (``stoch:left-edge``). Both withheld by ``builtin_witness_mask``."""
     length = len(c)
     out = _nan_col(length)
     flags = [0] * length
+    edge = [0] * length
     if not n >= 1:
-        return out, flags
+        return out, flags, edge
     hs: List[float] = []
     ls: List[float] = []
     prev = NAN
+    prev_flag = 0
+    prev_edge = 0
     for i in range(length):
         if _finite(h[i]):
             hs.append(h[i])
@@ -2429,20 +2457,28 @@ def _stoch_pine_scan(h, l, c, n):  # noqa: E741
             continue
         v = NAN
         flat = False
+        on_level = False
         if hs and ls and _finite(c[i]):
             hi = max(hs)
             lo = min(ls)
             if hi - lo == 0:
                 flat = True
+                on_level = c[i] == lo
             else:
                 v = (100 * (c[i] - lo)) / (hi - lo)
-        if not math.isfinite(v):
+        if math.isfinite(v):
+            prev_flag = 0
+            prev_edge = 1 if off_listing and (len(hs) < n or len(ls) < n) else 0
+        else:
+            prev_flag = 1 if ((flat and math.isfinite(prev) and not _stoch_flat_pinned(prev, on_level))
+                              or (prev_flag == 1 and math.isfinite(prev))) else 0
+            prev_edge = 1 if off_listing and (not math.isfinite(prev) or prev_edge == 1) else 0
             v = prev
-            if flat and math.isfinite(prev) and prev != 0:
-                flags[i] = 1
+        flags[i] = prev_flag
+        edge[i] = prev_edge
         out[i] = v
         prev = v
-    return out, flags
+    return out, flags, edge
 
 
 def _stoch_pine_col(h, l, c, n):  # noqa: E741
@@ -4740,7 +4776,7 @@ from api.services.ast_bar_index_shift import (  # noqa: E402,F401
 
 
 #: ``interpret.js::BUILTIN_WITNESS_CODES`` (engine 57).
-_BUILTIN_WITNESS_CODES = {"stochPine": STOCH_FLAT_WINDOW}
+_BUILTIN_WITNESS_CODES = {"rci": (RCI_LEFT_EDGE,), "stochPine": (STOCH_FLAT_WINDOW, STOCH_LEFT_EDGE)}
 #: ``interpret.js::WITNESS_CARRIED_CALLS``.
 _WITNESS_CARRIED_CALLS = frozenset(("ema", "rma", "rsi", "atr", "atrPine", "adx", "plusDI", "minusDI", "macd"))
 
@@ -4750,10 +4786,11 @@ def builtin_witness_mask(tree: Any, bars: List[dict],
                          budget: Optional[Mapping[str, Any]] = None,
                          scalars: Optional[Mapping[str, Any]] = None,
                          opts: Optional[Mapping[str, Any]] = None) -> Optional[List[int]]:
-    """``interpret.js::builtinWitnessMask`` (engine 57) -- the bars where a Pine ``ta.stoch``
-    reads a window no capture pins (1 = withheld), or None. Read the JS
-    docstring for the rule; this is the same decision, node for node."""
+    """``interpret.js::builtinWitnessMask`` (engine 57) -- the bars where a Pine ``ta.stoch`` or a
+    ``ta.rci`` reads a window no capture pins (1 = withheld), or None. Read the JS docstring for
+    the rule; this is the same decision, node for node."""
     n = len(bars)
+    off_listing = (opts or {}).get("historyFromListing") is not True
     found: List[tuple] = []
     stack = [(tree, False, False)]
     seen = set()
@@ -4766,7 +4803,7 @@ def builtin_witness_mask(tree: Any, bars: List[dict],
         name = node.get("name")
         if node.get("type") == "call" and name in _BUILTIN_WITNESS_CODES:
             found.append((node, nested, unbounded))
-        into = nested or node.get("type") in ("sym", "tf", "tf_live", "tf_merge")
+        into = nested or node.get("type") in ("sym", "tf", "tf_live", "ltf")
         spec = functions.get(name) if node.get("type") == "call" and isinstance(name, str) else None
         opened = unbounded or bool(spec is not None and (spec.get("lookback") == SERIES_LOOKBACK
                                                          or _is_stateful_call(node)
@@ -4789,19 +4826,30 @@ def builtin_witness_mask(tree: Any, bars: List[dict],
     for node, nested, unbounded in found:
         args = node.get("args") or []
         name = node.get("name")
-        if nested or _reads_recurrence_binding(node):
+        is_rci = name == "rci"
+        if nested:
             continue
-        length = col_of(args[3])
+        if _reads_recurrence_binding(node):
+            continue      # never reached: a window over ``self`` is refused by the interpreter first
+        if is_rci and not off_listing:
+            continue
+        length = col_of(args[1] if is_rci else args[3])
         w = length[-1] if length else NAN
         if not (_finite(w) and w >= 1 and w == int(w)):
             continue
         w = int(w)
-        flagged = [f == 1 for f in _stoch_pine_scan(col_of(args[0]), col_of(args[1]), col_of(args[2]), w)[1]]
+        if is_rci:
+            e = rci_left_edge(col_of(args[0]), w)
+            code_at = [RCI_LEFT_EDGE if e[i] == 1 else None for i in range(n)]
+        else:
+            _, flags, edge = _stoch_pine_scan(col_of(args[0]), col_of(args[1]), col_of(args[2]), w, off_listing)
+            code_at = [STOCH_FLAT_WINDOW if flags[i] == 1 else STOCH_LEFT_EDGE if edge[i] == 1 else None
+                       for i in range(n)]
         reach = max(0, root_reach - max_lookback(node))
         last = -math.inf
         for i in range(n):
-            if flagged[i]:
-                codes.add(_BUILTIN_WITNESS_CODES[name])
+            if code_at[i]:
+                codes.add(code_at[i])
                 last = last if (unbounded and last != -math.inf) else i
             if last != -math.inf and (unbounded or i - last <= reach):
                 mask[i] = 1

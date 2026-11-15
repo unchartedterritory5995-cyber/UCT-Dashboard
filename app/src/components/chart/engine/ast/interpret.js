@@ -1866,6 +1866,19 @@ export function rciAt(series, lo, hi) {
   return vp > 0 ? (100 * cov) / Math.sqrt(vt * vp) : NaN
 }
 
+/** ⭐⭐ ENGINE 57 (review F1) — off the listing, the bars of `ta.rci(source, n)` whose window
+ *  reaches before the source's first finite value (1), else 0. There a leading `na` is this
+ *  chart's warm-up, not TradingView's: TradingView holds values from before the loaded bars, so
+ *  "an `na` ranks lowest" (measured from the listing) answers a different window. */
+export function rciLeftEdge(series, n) {
+  const out = new Float64Array(series.length)
+  let first = -1
+  for (let i = 0; i < series.length; i++) if (Number.isFinite(series[i])) { first = i; break }
+  if (first <= 0 || !(n >= 2)) return out
+  for (let i = n; i < series.length && i - n + 1 < first; i++) out[i] = 1
+  return out
+}
+
 /** `ta.rci` as a column: `rciAt` over `source[i − n + 1 .. i]` on every bar `i >= n`. */
 export function rciCol(series, n) {
   const out = nan(series.length)
@@ -2592,37 +2605,63 @@ const windowFn = (name) => (series, n) =>
  *  bars 30, 80, … repeat bar 29's, 79's value), and on a flat window (P2's flat run holds the 0
  *  before it; the Stoch RSI's first bar, one observation, holds nothing and is `na`).
  *  ⛔ ONE CASE THE CAPTURES DO NOT PIN, WITHHELD BY NAME (`stoch:flat-window`): a flat window
- *  whose held value is not 0. The flat run P2 measured followed a 0, where "hold" and "a flat
- *  window is 0" agree; after another value they part.
+ *  whose kept value is neither 0 nor 100, or whose source is off the window's level
+ *  (`stochFlatPinned`). P2's flat run followed a 0; S10's `vw-cs2-stoch-flat-window` (RDDT, three
+ *  lead-ins, 0 mismatches) followed a 100 and drew 100, so "keep" is the one rule that fits both
+ *  ("a flat window is 0" misses S10, "a source at the high is 100" misses P2).
  *  Python twin: `ast_interpret._stoch_pine_scan`; runtime kernel: `CARRIED2.stochPine`. */
-export function stochPineScan(h, l, c, n) {
+export function stochPineScan(h, l, c, n, offListing = false) {
   const len = c.length
   const out = nan(len)
   const flags = new Float64Array(len)
-  if (!(n >= 1)) return { out, flags }
+  const edge = new Float64Array(len)
+  if (!(n >= 1)) return { out, flags, edge }
   const hs = []
   const ls = []
   let prev = NaN
+  let prevFlag = 0
+  let prevEdge = 0
   for (let i = 0; i < len; i++) {
     if (Number.isFinite(h[i])) { hs.push(h[i]); if (hs.length > n) hs.shift() }
     if (Number.isFinite(l[i])) { ls.push(l[i]); if (ls.length > n) ls.shift() }
     if (i < n - 1) continue
     let v = NaN
     let flat = false
+    let onLevel = false
     if (hs.length && ls.length && Number.isFinite(c[i])) {
       const hi = Math.max(...hs)
       const lo = Math.min(...ls)
-      if (hi - lo === 0) flat = true
+      if (hi - lo === 0) { flat = true; onLevel = c[i] === lo }
       else v = (100 * (c[i] - lo)) / (hi - lo)
     }
-    if (!Number.isFinite(v)) {
+    if (Number.isFinite(v)) {
+      prevFlag = 0
+      // ⛔ off the listing a window of fewer than `n` finite values reaches before the loaded
+      // bars, where TradingView holds values this chart does not
+      prevEdge = offListing && (hs.length < n || ls.length < n) ? 1 : 0
+    } else {
+      // ⛔ A HELD value carries its flags: a hold of an unpinned value is unpinned too, and
+      // off the listing a hold of nothing (or of an edge value) is a value from before the bars
+      prevFlag = (flat && Number.isFinite(prev) && !stochFlatPinned(prev, onLevel))
+        || (prevFlag === 1 && Number.isFinite(prev)) ? 1 : 0
+      prevEdge = offListing && (!Number.isFinite(prev) || prevEdge === 1) ? 1 : 0
       v = prev
-      if (flat && Number.isFinite(prev) && prev !== 0) flags[i] = 1
     }
+    flags[i] = prevFlag
+    edge[i] = prevEdge
     out[i] = v
     prev = v
   }
-  return { out, flags }
+  return { out, flags, edge }
+}
+
+/** ⭐ THE FLAT WINDOWS THE CAPTURES PIN (`stoch:flat-window` is every other one): the source on the
+ *  window's one level, and a kept value of 0 (probe P2's flat run after a 0) or 100 (S10's
+ *  `vw-cs2-stoch-flat-window`, three lead-ins into one flat run, all after a 100). One rule fits
+ *  every witness, "keep the previous value"; a flat window after any other value, or with the
+ *  source off the level, is a case no capture has reached. Shared by the scan and the kernel. */
+export function stochFlatPinned(prev, onLevel) {
+  return onLevel && (prev === 0 || prev === 100)
 }
 
 /** `ta.stoch` as a column (`stochPineScan`). */
@@ -2919,8 +2958,12 @@ const crossStep = (fired) => (st, off, a, b) => {
  *  ⚰️ It used to restart its whole window on ANY non-finite input and gate on the run (the
  *  captured Stoch RSI %K starts on bar 15; this started on bar 27) and answered 50 on a flat
  *  window.
- *  ⛔ A flat window whose held value is not 0 is not a bar this lane can answer — the columnar
- *  lane withholds it by name (`stoch:flat-window`) — so the run STOPS by that name. */
+ *  ⛔ A flat window the captures do not pin (`stochFlatPinned`) is not a bar this lane can answer — the columnar
+ *  lane withholds it by name (`stoch:flat-window`) — so the run STOPS by that name (it stops at the
+ *  first such bar, so the holds after it, which the columnar lane withholds too, are never drawn).
+ *  ⛔ Off the listing this kernel's first bars depend on where the run starts; the runtime lane's own
+ *  off-listing curtain (`runtimeColumns.js::computeOffListing`, measured per run) withholds them,
+ *  as it does for every carried value — the columnar lane names them `stoch:left-edge`. */
 const STOCH_PINE_CELLS = (n) => 2 * n + 6
 function stochPineInit(st, off, n) {
   for (let i = 0; i < 2 * n; i += 1) st[off + i] = NaN
@@ -2949,6 +2992,7 @@ function stochPineStep(st, off, c, h, n, l) {
   const prev = st[at + 5]
   let v = NaN
   let flat = false
+  let onLevel = false
   const heldH = st[at + 1]
   const heldL = st[at + 3]
   if (heldH > 0 && heldL > 0 && Number.isFinite(c)) {
@@ -2958,18 +3002,18 @@ function stochPineStep(st, off, c, h, n, l) {
     for (let j = 0; j < heldH; j += 1) if (st[off + j] > highestHigh) highestHigh = st[off + j]
     for (let j = 0; j < heldL; j += 1) if (st[off + n + j] < lowestLow) lowestLow = st[off + n + j]
     const range = highestHigh - lowestLow
-    if (range === 0) flat = true
+    if (range === 0) { flat = true; onLevel = c === lowestLow }
     else v = (100 * (c - lowestLow)) / range
   }
   if (!Number.isFinite(v)) {
-    if (flat && Number.isFinite(prev) && prev !== 0) throw stochFlatWindowStop(n)
+    if (flat && Number.isFinite(prev) && !stochFlatPinned(prev, onLevel)) throw stochFlatWindowStop(n)
     v = prev
   }
   st[at + 5] = v
   return v
 }
 function stochFlatWindowStop(n) {
-  const stop = new Error(`${STOCH_FLAT_WINDOW} — \`ta.stoch(…, ${n})\`: this bar's window is flat after a bar whose value was not 0, and no capture says whether TradingView holds that value or answers 0`)
+  const stop = new Error(`${STOCH_FLAT_WINDOW} — \`ta.stoch(…, ${n})\`: this bar's window is flat after a value other than 0 or 100 (or with the source off its level), a case no TradingView capture has reached`)
   stop.guard = STOCH_FLAT_WINDOW
   return stop
 }
@@ -5316,6 +5360,8 @@ const tfSpelled = (tf) => (typeof tf === 'string' && tf ? `\`${tf}\`` : 'not sta
  *  the chart-clock channel names them (`CHART_CLOCK_WITHHELD`, `builtinWitnessMask`), the
  *  runtime lane declines by the same string, and the member door shows it. */
 export const STOCH_FLAT_WINDOW = 'stoch:flat-window'
+export const STOCH_LEFT_EDGE = 'stoch:left-edge'
+export const RCI_LEFT_EDGE = 'rci:left-edge'
 export const CHART_CLOCK_WITHHELD = Object.freeze({
   'time-anchor:not-daily': (tf) => `${ANCHOR_SPELLED} — the opening time of the bar's week, month, `
     + 'quarter or year — are read here on 5-minute, 15-minute, 60-minute, 1D, 1W and 1M charts, the '
@@ -5454,11 +5500,28 @@ export const CHART_CLOCK_WITHHELD = Object.freeze({
   // ⭐⭐ ENGINE 57 — `ta.stoch` (`builtinWitnessMask`).
   [STOCH_FLAT_WINDOW]: () => 'Where TradingView\'s `ta.stoch` has no number — an `na` source bar, or a window '
     + 'whose high and low are equal — it keeps its previous value (measured on NYSE:RDDT 1D from the listing: '
-    + 'the builtin Stochastic RSI and a probe with a hole and a flat run), which is drawn. The flat run measured '
-    + 'followed a bar whose value was 0, where keeping it and answering 0 agree; after any other value they do '
-    + 'not, and no capture says which TradingView does, so what this indicator draws from it on those bars is '
-    + 'withheld rather than guessed; every other bar is drawn. What would settle it: `ta.stoch` over a flat run '
-    + 'that follows a value other than 0 captured on TradingView.',
+    + 'the builtin Stochastic RSI and probes with holes and flat runs), which is drawn. The flat runs measured '
+    + 'followed a value of 0 or 100, with the source on the flat level; a flat window after any other value, or '
+    + 'with the source off that level, is a case no capture has reached, so what this indicator draws from it '
+    + 'on those bars is withheld rather than guessed; every other bar is drawn. What would settle it: '
+    + '`ta.stoch` over a flat run that follows a value strictly between 0 and 100, captured on TradingView.',
+  // ⭐⭐ ENGINE 57 (review F1) — off the listing, the first bars of `ta.stoch` / `ta.rci` over a
+  // source that starts `na` on this chart.
+  [STOCH_LEFT_EDGE]: () => 'TradingView\'s `ta.stoch` reads the last `length` values of its high and low that are '
+    + 'not `na`, and keeps its previous value where it has none; that is measured from the symbol\'s listing. This '
+    + 'chart\'s loaded bars start later, so where fewer than `length` such values exist here — the first bars of a '
+    + 'source that is warming up on this chart, such as `ta.stoch(rsi, rsi, rsi, 14)` — TradingView also reads '
+    + 'values from before the loaded bars, which this chart does not hold. What this indicator draws from it on '
+    + 'those bars is withheld rather than drawn from a shorter window; every later bar is drawn. On a chart whose '
+    + 'bars start at the symbol\'s listing it draws. What would settle it: nothing to capture — bars reaching the '
+    + 'listing.',
+  [RCI_LEFT_EDGE]: () => 'TradingView\'s `ta.rci` ranks an `na` of its source inside the window as the lowest '
+    + 'value; that is measured from the symbol\'s listing. This chart\'s loaded bars start later, so where the '
+    + 'window reaches the first bars of a source that is warming up on this chart, such as '
+    + '`ta.rci(ta.sma(close, 5), 10)`, TradingView has values there and this chart has `na`. What this indicator '
+    + 'draws from it on those bars is withheld rather than ranked differently; every later bar is drawn. On a '
+    + 'chart whose bars start at the symbol\'s listing it draws. What would settle it: nothing to capture — bars '
+    + 'reaching the listing.',
 })
 export const CHART_CLOCK_WHOLE = Object.freeze(['time-anchor:other-bars', 'time-clock:unreadable',
   'time-anchor:not-daily', 'time-anchor:weekend-bars', 'time-own:chart-unwitnessed', 'time-close:not-daily',
@@ -6318,8 +6381,9 @@ export function varOriginMask(tree, bars, inputs, budget, scalars, opts) {
 
 
 /** The bars a tree's answer is WITHHELD on for a read this engine does not hold:
- *  `periodAnchorMask` (C30), `historyReadMask` (C38), `barIndexMask` (C45) or
- *  `varOriginMask` (2026-11-09), one channel. */
+ *  `periodAnchorMask` (C30), `historyReadMask` (C38), `barIndexMask` (C45),
+ *  `varOriginMask` (2026-11-09) or `builtinWitnessMask` (engine 57: `ta.stoch` / `ta.rci` bars
+ *  no capture pins), one channel. */
 export function withheldReadMask(tree, bars, inputs, budget, scalars, opts) {
   const masks = [
     periodAnchorMask(tree, bars, inputs, budget, scalars, opts),
@@ -6338,28 +6402,35 @@ export function withheldReadMask(tree, bars, inputs, budget, scalars, opts) {
 /** ⭐⭐ ENGINE 57 — the calls whose bars `builtinWitnessMask` asks about, and the code each
  *  names. */
 const BUILTIN_WITNESS_CODES = Object.freeze({
-  stochPine: STOCH_FLAT_WINDOW,
+  rci: [RCI_LEFT_EDGE],
+  stochPine: [STOCH_FLAT_WINDOW, STOCH_LEFT_EDGE],
 })
 /** Table functions that carry state with no end (a value read once moves every later answer):
  *  a withheld bar under one withholds every later bar, whatever the declared lookback. */
 const WITNESS_CARRIED_CALLS = new Set(['ema', 'rma', 'rsi', 'atr', 'atrPine', 'adx', 'plusDI', 'minusDI', 'macd'])
-/** ⭐⭐ ENGINE 57 — THE BARS WHERE A PINE `ta.stoch` READS A WINDOW NO CAPTURE PINS, as a 0/1
- *  column (1 = withheld), or null when no bar is.
+/** ⭐⭐ ENGINE 57 — THE BARS WHERE A PINE `ta.stoch` OR A `ta.rci` READS A WINDOW NO CAPTURE
+ *  PINS, as a 0/1 column (1 = withheld), or null when no bar is.
  *
- *  Per call site (`stochPine(high, low, close, n)`), each bar is asked of the site's own argument
- *  columns: `stoch:flat-window` (`stochPineScan`: a flat window whose kept value is not 0). Every
- *  root bar within the tree's reach of a flagged bar is withheld — `barIndexMask`'s rule:
+ *  Per call site, each bar is asked of the site's own argument columns:
+ *    - `stoch:flat-window` (`stochPineScan`): a flat window whose kept value is not 0, and every
+ *      hold that keeps it (review F3: an `na` source right after such a run keeps the same value);
+ *    - off the listing only (`opts.historyFromListing !== true`, review F1): `stoch:left-edge`, a
+ *      window of fewer than `n` finite values or a hold of nothing / of such a value, and
+ *      `rci:left-edge` (`rciLeftEdge`), a window reaching before the source's first finite value —
+ *      the two rules measured from the listing would answer a different window there.
+ *  Every root bar within the tree's reach of a flagged bar is withheld — `barIndexMask`'s rule:
  *  `maxLookback(tree) − maxLookback(site)` bars forward, or every later bar when the site sits
- *  under a call that carries state.
- *  ⛔ A site this pass cannot evaluate on the chart's bars — inside a read of other bars (`tf`,
- *  `tf_live`, `tf_merge`, `sym`) or reading a recurrence's own value — is NOT withheld: a flat
- *  window after a value other than 0 needs `n` bars of one price after a different one, and
- *  blanking every higher-timeframe stochastic for it would withhold plots that draw exactly —
- *  the residual is stated in the engine-57 evidence rather than hidden.
- *  The code is named in the chart-clock channel (`CHART_CLOCK_WITHHELD`).
+ *  under a call that carries state (review F4: a flagged bar under `ema` withholds the rest of the
+ *  series; the probe of a flat run after a non-zero value is queued to settle it).
+ *  A site inside a read of other bars (`tf`, `tf_live`, `sym`, `ltf`) is not walked here: those
+ *  nodes evaluate their child through `interpret` on their own bars, so this mask runs THERE, on the
+ *  bars the site reads, and names its code in the same channel (review F5). A site that reads a
+ *  recurrence's own value never gets here: the interpreter refuses a window over `self` by name.
+ *  Each code is named in the chart-clock channel (`CHART_CLOCK_WITHHELD`).
  *  Python twin: `ast_interpret.builtin_witness_mask`. */
 export function builtinWitnessMask(tree, bars, inputs, budget, scalars, opts) {
   const n = Array.isArray(bars) ? bars.length : 0
+  const offListing = !(opts && opts.historyFromListing === true)
   const found = []
   const stack = [[tree, false, false]]
   const seen = new Set()
@@ -6368,7 +6439,7 @@ export function builtinWitnessMask(tree, bars, inputs, budget, scalars, opts) {
     if (!node || typeof node !== 'object' || seen.has(node)) continue
     seen.add(node)
     if (node.type === 'call' && own(BUILTIN_WITNESS_CODES, node.name)) found.push({ node, nested, unbounded })
-    const into = nested || node.type === 'sym' || node.type === 'tf' || node.type === 'tf_live' || node.type === 'tf_merge'
+    const into = nested || node.type === 'sym' || node.type === 'tf' || node.type === 'tf_live' || node.type === LTF
     const spec = node.type === 'call' && own(TABLE.functions, node.name) ? TABLE.functions[node.name] : null
     const open = unbounded || !!(spec && (spec.lookback === SERIES_LOOKBACK || isStatefulCall(node)
       || WITNESS_CARRIED_CALLS.has(node.name)))
@@ -6383,16 +6454,28 @@ export function builtinWitnessMask(tree, bars, inputs, budget, scalars, opts) {
   const colOf = (node) => toColumn(interpretOnce(node, bars, inputs, budget, scalars, inner), n)
   for (const { node, nested, unbounded } of found) {
     const args = node.args || []
-    if (nested || readsRecurrenceBinding(node)) continue
-    const lenCol = colOf(args[3])
+    if (nested) continue
+    const isRci = node.name === 'rci'
+    // ⛔ never reached: a window over a recurrence's own value is refused by the interpreter
+    // before any mask runs (`interpret:recurrence`, railed in `engine57Builtins.test.js`)
+    if (readsRecurrenceBinding(node)) continue
+    if (isRci && !offListing) continue
+    const lenCol = colOf(args[isRci ? 1 : 3])
     const w = lenCol.length ? lenCol[lenCol.length - 1] : NaN
     if (!(w >= 1) || !Number.isInteger(w)) continue
-    const { flags } = stochPineScan(colOf(args[0]), colOf(args[1]), colOf(args[2]), w)
-    const flagged = (i) => flags[i] === 1
+    let codeAt
+    if (isRci) {
+      const e = rciLeftEdge(colOf(args[0]), w)
+      codeAt = (i) => (e[i] === 1 ? RCI_LEFT_EDGE : null)
+    } else {
+      const { flags, edge } = stochPineScan(colOf(args[0]), colOf(args[1]), colOf(args[2]), w, offListing)
+      codeAt = (i) => (flags[i] === 1 ? STOCH_FLAT_WINDOW : edge[i] === 1 ? STOCH_LEFT_EDGE : null)
+    }
     const reach = Math.max(0, rootReach - maxLookback(node))
     let last = -Infinity
     for (let i = 0; i < n; i++) {
-      if (flagged(i)) { codes.add(BUILTIN_WITNESS_CODES[node.name]); last = unbounded && last !== -Infinity ? last : i }
+      const code = codeAt(i)
+      if (code) { codes.add(code); last = unbounded && last !== -Infinity ? last : i }
       if (last !== -Infinity && (unbounded || i - last <= reach)) { mask[i] = 1; any = true }
     }
   }

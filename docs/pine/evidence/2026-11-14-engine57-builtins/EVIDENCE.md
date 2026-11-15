@@ -23,13 +23,24 @@ Fix, node for node in both lanes:
   as Pine's `na`, and `||` also read the upper band's REAL `na` on bars 1..n-2 as unknown. Heal + that guard
   drew 213 + 245 bars from the listing (bars 9..199 and 201..208 blank where TradingView draws), and the
   harness gives a capture that starts at bar 0 no warm-up excuse, so the builtin would have stayed DIVERGE.
-  The guard is now a bounded window's own curtain `2W` deep, `na(accum(0, 0, 2W))` (a constant body, so
-  `varOriginMask` never reads it as a value carried from before the loaded bars: an identity-body
-  version was withheld whole off the listing as `var-origin:window`, caught by the door rail): off the listing it is `na` on exactly the bars `t < 2W` the old
-  guard withheld (railed bar for bar against the old guard on three series), and it is in the TREE, so the
-  bare `interpret()`, the screen and the Python lane all withhold those bars with no consumer mask involved
-  (the condition the report set for dropping the guard is therefore not needed). From the listing both
-  accums are 0 on every bar, so nothing is withheld: every bar TradingView draws is drawn.
+  The guard is now a bounded window's own curtain `2W + n - 1` deep, `na(accum(0, 0, 2W + n - 1))`. Its body
+  is a constant, so `varOriginMask` never reads it as a value carried from before the loaded bars (an
+  identity-body version was withheld whole off the listing as `var-origin:window`, caught by the door rail).
+  Off the listing it is `na` on exactly the bars the BASE expansion withheld. ⚰️ The first version here was
+  `2W` deep, which is not the base's curtain: the base seeded its bands with the raw `na` band through the ATR's
+  `n - 1` warm-up bars, so its guard held for `t < 2W + n - 1`. `2W` alone served bars `[2W, 2W + n - 2]`
+  (review #1294 F2: 980 bars at n = 50, each ~1e-6 off a true full-history reference). The first equivalence rail
+  could not see this, because it rebuilt the old guard over the NEW bands and compared the new guard with
+  itself. The rail is now a verbatim copy of the base tree (`git show ec72c19913:.../callExpansions.js`): the
+  same bars drawn and the same numbers, bar for bar, at (3, 10), (2, 7) and (3, 50). The guard lives in the
+  TREE, so the bare `interpret()`, the screen and the Python lane all withhold those bars with no consumer
+  mask involved. From the listing the guard is 0 on every bar, so nothing is withheld: every bar TradingView
+  draws is drawn.
+  ⚠️ Residual, unchanged from the base and stated in `SUPERTREND_NOTE`: off the listing `atrPine` is an RMA
+  seeded on this chart's bar n-1, so at a long period it is still settling past the curtain. The reviewer
+  measured 6,756 bars that BOTH versions draw at ~1e-6 relative at n = 50 (20 walks); 0 at the default
+  (3, 10) and (2, 7) and 1 at (4, 20). A curtain that waits for the RMA to settle would need about 21 x n
+  bars (about 1,050 at n = 50), so it would blank the shorter periods' exact bars too. It is not done here.
 - `SUPERTREND_NOTE` says so; the recogniser reads the factor and period off a band's `nz` seed.
 
 ### Stochastic (`stochPine`, a Pine-only table entry; `pine.js` `ta.stoch` re-pointed; house `stoch` untouched)
@@ -43,8 +54,17 @@ over 666 bars: Stoch RSI K and D, S6; P2's `ta.stoch(x, x, x, 10)`, `ta.stoch(x,
 - where `100 * (src - lo) / (hi - lo)` has no number (an `na` source, a flat window, no observation) the
   previous answer is KEPT (P2 bars 30, 80, ... repeat 29, 79; "an `na` source is `na`": 13 mismatches; the
   Stoch RSI's first bar, one observation, keeps nothing and is `na`; "a flat window is 0": 1 mismatch there).
-- One case not pinned, withheld by name: a flat window whose kept value is not 0 (`stoch:flat-window`).
-  P2's flat run followed a 0, where "keep" and "0" agree.
+- S10 (`vw-cs2-stoch-flat-window`, NYSE:RDDT 1D from the listing, local capture): one flat run (bars
+  200..214, fully flat from 209) reached by three lead-ins, plus a hole at 215. Every lead-in reaches the run
+  at 100 (the flat level is the window's new high from bar 200), and TradingView keeps 100 through the run and
+  through the hole: 0 mismatches on K01, K03, K05 and K07 for "keep". So ONE rule fits every witness: where the
+  formula has no number, keep the previous value. "A flat window is 0" misses S10 (and S6 by one bar); "the
+  source at the high is 100" misses P2's flat run, which kept a 0.
+- One case still not pinned, withheld by name (`stoch:flat-window`, `stochFlatPinned`): a flat window whose
+  kept value is neither 0 nor 100, or whose source is off the window's level. Over `ta.stoch(x, x, x, n)` the
+  bar before a flat window always reads 0 or 100, so this case needs a source other than the high / low
+  columns. Until S10 every flat window after a non-zero value was withheld, which withheld S10's six
+  bars 209..214 (100 each, exactly TradingView's) and the hold at 215.
 - Runtime kernel `CARRIED2.stochPine` steps the same rule (rings of finite values, bars seen, the kept
   answer) and stops by name on the withheld case.
 - ⚠️ P2's fourth column, `ta.highest(x, 10)` over the same holed source, reads the same "last n finite values"
@@ -64,12 +84,34 @@ over 666 bars: Stoch RSI K and D, S6; P2's `ta.stoch(x, x, x, 10)`, `ta.stoch(x,
   settled it, so it is served on every source and nothing is withheld for RCI.
 
 ### Withholding by name (both lanes, four doors)
-`interpret.js::builtinWitnessMask` / `ast_interpret.builtin_witness_mask`: per `stochPine` site, the bars of
-a flat window whose kept value is not 0, spread to every root bar within the tree's reach (`barIndexMask`'s
-rule; every later bar under a call that carries state), named `stoch:flat-window` in the chart-clock channel
-with a sentence. A site inside a read of other bars is not analysed (stated residual: withholding every
-higher-timeframe stochastic for a flat run after a non-zero value would blank plots that draw exactly). The
-runtime lane declines a column withheld by the code (`RuntimeRefusal`), and the VM kernel stops by it.
+`interpret.js::builtinWitnessMask` / `ast_interpret.builtin_witness_mask`, per call site, over the site's
+own argument columns:
+- `stoch:flat-window`: a flat window the captures do not pin (a kept value other than 0 or 100, or the
+  source off the level), AND every hold that keeps it. (Review F3: an `na` source right after such a run kept
+  the same value unflagged. The reviewer's case, a flat run after 100 at the source's level, is now the S10
+  witness and is served; the hold-chain rail uses a source off the level.)
+- Off the listing only (`opts.historyFromListing !== true`, review F1):
+  * `stoch:left-edge`: a window of fewer than `n` finite values, or a hold of nothing or of such a value;
+  * `rci:left-edge`: a window that reaches before the source's first finite value.
+  Both rules were measured FROM the listing. Off it, a leading `na` is this chart's warm-up, where
+  TradingView has real values. The reviewer measured, through the member door, `ta.rci(ta.sma(close, 5), 10)`
+  serving 97.55 / 98.48 against 98.79 and `ta.stoch(s, s, s, 14)` wrong on bars 13..16. Both are now withheld
+  by name, and every later bar equals the listing's answer (railed).
+- How far a flagged bar reaches: every root bar within the tree's reach (`barIndexMask`'s rule), and every
+  later bar under a call that carries state (review F4, kept for now). One flagged bar under `ta.ema`
+  withholds the rest of the series; the queued probe of a flat run after a non-zero %K settles it.
+- A site inside a read of other bars (`tf`, `tf_live`, `sym`, `ltf`): the mask is not walked from the root.
+  Those nodes evaluate their child through `interpret` on their own bars, so the mask runs THERE, on the bars
+  the site reads, and names its code in the same channel (railed: a weekly `request.security` flat run is
+  withheld by name; review F5). The runtime lane never reaches such a site: it refuses a weekly
+  self-request by name before computing anything (`interpret:bind-time-text` on `syminfo.tickerid`, even when
+  told the chart's symbol, and the same over plain `close`). That refusal predates this engine and is reported
+  as a finding, not changed here.
+- A site that reads a recurrence's own value never reaches the mask: the interpreter already refuses a window
+  over `self` by name (`accum(0, stochPine(high, low, close + self * 0, 5), 20)` throws; railed, F5).
+The runtime lane declines a column withheld by `stoch:flat-window` (`RuntimeRefusal`), and the VM kernel
+stops by it at the first such bar. The left-edge codes do not decline: off the listing, the runtime lane's
+own measured curtain (`computeOffListing`) withholds the bars that depend on where the chart starts.
 
 ### The coordinator's S1 rules, checked against the captures
 - RCI: served exactly as ruled (above).
@@ -77,20 +119,24 @@ runtime lane declines a column withheld by the code (`RuntimeRefusal`), and the 
   so its window is flat; answering 0 there starts K on bar 16, where TradingView's K starts on bar 17
   (1 mismatch on K, 1 on D). "Keep the previous value" reproduces P2 AND S6 with 0 mismatches on all five
   columns, and on P2's flat run (which follows a 0) the two readings are the same number. So the rule
-  served is "keep", and the one case where "keep" and "0" differ (a flat window after a value other than 0)
-  is withheld by name. Checked variants (P01/P02/P03/K/D mismatches): last-n-finite + keep 0/0/0/0/0;
+  served is "keep". S10 then measured a flat run after 100, where "keep" and "0" differ, and TradingView
+  kept the 100; what stays withheld is the case no capture has reached (above). Checked variants (P01/P02/P03/K/D mismatches): last-n-finite + keep 0/0/0/0/0;
   + "flat = 0" 0/0/0/1/1; + "na source = na" 13/13/0/0/0; RESTART windows 84/13/11/...; in-window finite
   values 36/0/0/0/0.
 - `ta.highest` / `ta.lowest`: P2's `ta.highest(x, 10)` reads the last 10 finite values (0 mismatches),
-  which contradicts the 2026-09-08 SPY capture behind this table's RESTART rule
-  (`finite-window-na-policy-by-member-spy-1d-2026-09-08`, probe B: `highest` `na` on every hole bar and
-  `highest == lowest ==` the lone observation the bar after, 346 ok / 0 bad). Both are v6 and both are
-  direct reads, so one of them is not the whole rule (a TradingView change between the dates, or a
-  context difference: P2's `ta.highest(x, 10)` sits beside a `ta.stoch(x, x, x, 10)` over the same series).
-  NOT changed here: flipping the table on one witness against another would move every `highest` /
-  `lowest` over a holed source (and the runtime window) on contested evidence. `stochPine` keeps its own
-  last-n-finite windows, which P2's stoch columns pin regardless. What would settle it: `ta.highest(x, n)`
-  alone on a holed source, and again beside a `ta.stoch` of the same series, captured the same day.
+  against the 2026-09-08 SPY capture behind this table's RESTART rule
+  (`finite-window-na-policy-by-member-spy-1d-2026-09-08`, probe B: `highest` `na` on every hole bar).
+  **S10 settles it for "last n finite"** (`vw-cs2-holed-highest-{v5,v6,stoch-v6}`, RDDT and AMEX:SPY, both
+  from bar 0): over `x = bar_index % 50 == 30 ? na : close`, `highest` / `lowest` of the last 10 FINITE
+  values, `na` before bar 9, reproduce all 12 columns with 0 mismatches. That holds under v5 and v6, alone and
+  beside a `ta.stoch`, on both symbols. TradingView keeps a value on the hole bar (bar 30: 47.7 / 40.88 on RDDT,
+  45.75 / 44.28125 on SPY), where the RESTART rule gives `na`. "The last 10 bars with the `na` skipped" misses
+  26 / 29 (RDDT) and 233 / 365 (SPY). `stochPine` already uses last-n-finite windows: 0 mismatches on S10's
+  stoch columns (H03, RDDT and SPY). The bar-9 divergence the S10 grade shows is master's house `stoch`.
+  **NOT changed here (own engine):** the fix moves `FINITE_WINDOW.highest/lowest` (`NA.RESTART`), the VM
+  window and the Python `NA_RESTART` entries, and it reaches 93 of 439 held capture sources (121 captures, 329
+  call sites) and 161 of the repo's 839 `.pine` files. `highestbars` / `lowestbars` share the RESTART rule
+  under a separate witness (PART Z, `naCurrent: 0`); that witness needs rereading in the same engine.
 
 ## Rails
 - `app/src/components/chart/engine/ast/engine57Builtins.test.js` (host and runtime lanes, four doors, committed RDDT
@@ -152,7 +198,8 @@ this branch's `pasteLowersTo` reads that one capture INCONCLUSIVE on master's co
 plots): supertrend 657 -> 0, rci-ribbon 125 -> 0, stochastic-rsi 24 -> 0, rank-correlation-index 17 -> 0,
 `vw-cs1-stoch-p2` 1343 -> 70 (P04 `ta.highest`, below), `vw-cs1-rci-p1` 670 -> 8 (P01 bars 42..49, below). Both
 probe captures stay DIVERGE (they were DIVERGE before on more plots): their remaining items are the two open
-notes. No capture has a withheld bar where TradingView draws a value (no `stoch:flat-window` bar occurs).
+notes. No capture has a withheld bar where TradingView draws a value (no `stoch:flat-window` bar occurs). (These
+counts predate the S10 narrowing, which only serves bars that were withheld before.)
 
 ## Census (the four doors and one bind on the NYSE:RDDT 1D listing bars, on and off the listing)
 Scoped to every source that calls `supertrend`, `stoch` or `rci` in any spelling (46 unique: licence-held sample
@@ -175,14 +222,18 @@ row: **0 verdict moves** among them in either lane; 211 filed for the first time
 production MATCH 141 / DIVERGE 89 / INCONCLUSIVE 84; runtime-on MATCH 157 / DIVERGE 97 / INCONCLUSIVE 60.
 
 ## Open notes
-1. `ta.highest` / `ta.lowest` (above): P2 and the 2026-09-08 SPY probe disagree; the table is unchanged.
+1. `ta.highest` / `ta.lowest` (above): S10 settles "last n finite" against the 2026-09-08 SPY RESTART witness;
+   the table is unchanged here and goes to its own engine (93 held capture sources / 121 captures / 329 call
+   sites, 161 repo `.pine` files).
 2. **`ta.sma` precision.** P1's last 8 mismatches (bars 42..49 of `ta.rci(ta.sma(close, 5), 10)`) are an exact
    TIE TradingView sees and we do not: the vendor's `sma` on bars 40 and 42 is the same double and ours differs by
    one ulp. Rebuilt off the capture's own bars, compensated (Neumaier) summation reproduces all 656 values, plain
    left-to-right summation (what `windowMean` / `_window_mean` do) misses exactly these 8. Every exact-equality
    read of an `sma` (ties, `==`) is exposed; changing the summation moves every `sma` digest and is not done here.
-3. A stochastic inside a read of other bars (`request.security`) is not analysed by the witness mask (stated
-   above): a flat run after a value other than 0 there is served with the kept value.
+   S10 (`vw-cs2-sma-exact-tie`) supports it: RDDT MATCH, AMEX:SPY DIVERGE at bar 3665 (TradingView's tie
+   reads 1, ours 0). Recorded only; out of scope.
+3. (Closed by review F5.) A stochastic inside a read of other bars (`request.security`) is analysed on the
+   bars it reads and withheld there by the same code.
 4. Engine 55's census rail `a DARK plot (the builtin Supertrend ...) is a blocker` uses the builtin Supertrend as
    its dark subject; after this branch that plot is no longer dark, so the rail needs another subject at the
    rebase.

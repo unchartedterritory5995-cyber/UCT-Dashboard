@@ -69,12 +69,12 @@ const refusalOf = (version, body) => {
 const state = (name, expr) => `var float ${name} = 0.0\n${name} := ${expr}\n`
 
 /** The columnar lane's answer to a PURE Pine expression. */
-function pureLane(version, expr) {
+function pureLane(version, expr, opts) {
   const t = translatePine(`${heads[version]}plot(${expr})\n`)
   expect(t.ok, JSON.stringify(t.refusal || {})).toBe(true)
   const parsed = parseFormula(t.outputs[0].formula)
   expect(parsed.ok).toBe(true)
-  const col = interpret(parsed.ast, BARS, {})
+  const col = interpret(parsed.ast, BARS, {}, undefined, undefined, opts)
   return Array.from({ length: N }, (_, i) => (typeof col === 'number' ? col : col[i]))
 }
 /** A house-formula column (`cum(...)`), which Pine's own spelling refuses. */
@@ -253,7 +253,9 @@ describe('⭐⭐ W4 T10 — ta.stoch over values the run computes', () => {
   it('a source computed by the run that is na for a leading run answers from its first bars (StochRSI shape, Pine\'s gate)', () => {
     const C = '(bar_index < 9 ? na : close + 1)'
     const [out] = run(5, `${state('c', C)}plot(ta.stoch(c, c, c, 6))\n`)
-    const want = pureLane(5, `ta.stoch(${C}, ${C}, ${C}, 6)`)
+    // the VM runs from these bars' first bar, so the columnar answer it is held to is the one FROM
+    // THE LISTING; off it the columnar lane withholds these first bars by name (`stoch:left-edge`)
+    const want = pureLane(5, `ta.stoch(${C}, ${C}, ${C}, 6)`, { historyFromListing: true })
     same(out, want, 'stoch prefix')
     // by hand: the first bar from 9 on whose run (capped at 6 bars) holds a nonzero range
     let first = -1
@@ -297,20 +299,27 @@ describe('⭐⭐ W4 T10 — ta.stoch over values the run computes', () => {
     expect(same(out, pureLane(5, `ta.stoch(close, ${H}, low, 5)`), 'stoch high hole')).toBeGreaterThan(50)
   })
 
-  // ⭐⭐ ENGINE 57 — a flat window after a value other than 0 is a bar no capture pins: the
-  // columnar lane withholds it by name and this lane stops by that name.
-  it('a flat window after a value other than 0 stops the run by name (`stoch:flat-window`)', () => {
+  // ⭐⭐ ENGINE 57 — a flat window the captures do not pin (here the source is off the flat
+  // level) is a bar no capture answers: the columnar lane withholds it by name and this lane
+  // stops by that name.
+  it('an unpinned flat window stops the run by name (`stoch:flat-window`)', () => {
     const Y = '(bar_index >= 30 and bar_index < 45 ? 1000.0 : close)'
     let err = null
-    try { run(5, `${state('y', Y)}plot(ta.stoch(y, y, y, 5))\n`) } catch (e) { err = e }
+    // bar 33 reads 100 (the source at the window's high); the flat windows from bar 34 keep it with
+    // the source off the level, so only the level tells them from the S10 run
+    const S = '(bar_index == 33 ? 1000.0 : close)'
+    try { run(5, `${state('y', Y)}${state('s', S)}plot(ta.stoch(s, y, y, 5))\n`) } catch (e) { err = e }
     expect(err && err.guard).toBe('stoch:flat-window')
-    const t = translatePine(`${heads[5]}plot(ta.stoch(${Y}, ${Y}, ${Y}, 5))\n`)
+    const t = translatePine(`${heads[5]}plot(ta.stoch(${S}, ${Y}, ${Y}, 5))\n`)
     const parsed = parseFormula(t.outputs[0].formula)
     const clock = new Map()
     const col = interpret(parsed.ast, BARS, {}, undefined, undefined, { chartClockSink: clock })
     expect([...clock.keys()]).toEqual(['stoch:flat-window'])
-    expect(col[30]).toBe(100)                                    // the run's first bar: its own high
+    expect(col[33]).toBe(100)
     for (let i = 34; i <= 44; i += 1) expect(Number.isNaN(col[i]), `bar ${i}`).toBe(true)
+    // the S10 shape: the run at its own high keeps the 100 TradingView was measured keeping
+    const [kept] = run(5, `${state('y', Y)}plot(ta.stoch(y, y, y, 5))\n`)
+    for (let i = 30; i <= 44; i += 1) expect(kept[i], `bar ${i}`).toBe(100)
     // control: the same run below every price before it holds the 0 TradingView was measured holding
     const Z = '(bar_index >= 30 and bar_index < 45 ? 1.0 : close)'
     const [held] = run(5, `${state('y', Z)}plot(ta.stoch(y, y, y, 5))\n`)

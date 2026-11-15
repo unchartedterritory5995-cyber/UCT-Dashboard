@@ -280,29 +280,76 @@ describe("supertrend — from the listing (engine 57: Pine's `nz` seeds)", () =>
     expect(json).toMatch(/"name":"na","args":\[\{"type":"offset","value":1,"args":\[\{"type":"call","name":"atrPine"/)
   })
 
-  it('off the listing the guard withholds exactly the bars the old band guard did (t < 2W); on it, none', () => {
+  // ⭐⭐ REVIEW F2 — THE CONTROL IS THE BASE TREE, VERBATIM (`git show ec72c19913:…/callExpansions.js`,
+  // engine 54), never the old guard rebuilt over the NEW bands: that compared the new guard with
+  // itself. The base seeds were raw bands, `na` through the ATR's `n - 1` warm-up bars, so its
+  // guard held for `t < 2W + n - 1`, and `2W` alone served bars `[2W, 2W + n - 2]` the base never did
+  // (measured at n = 50: 980 bars, each ~1e-6 off a true full-history reference).
+  const cNumB = (value) => (value < 0 ? { type: 'op', name: 'u-', args: [{ type: 'num', value: -value }] } : { type: 'num', value })
+  const cSeriesB = (name) => ({ type: 'series', name })
+  const cOpB = (name, args) => ({ type: 'op', name, args })
+  const cCallB = (name, args) => ({ type: 'call', name, args })
+  function baseSupertrendTrees(f, n, warmup = W) {
+    const self = cSeriesB('self')
+    const close = cSeriesB('close')
+    const prevClose = { type: 'offset', value: 1, args: [close] }
+    const hl2 = cOpB('/', [cOpB('+', [cSeriesB('high'), cSeriesB('low')]), cNumB(2)])
+    const atr = cCallB('atrPine', [cSeriesB('high'), cSeriesB('low'), close, cNumB(n)])
+    const band = (sign) => cOpB(sign, [hl2, cOpB('*', [cNumB(f), atr])])
+    const up = band('+')
+    const dn = band('-')
+    const Wn = cNumB(warmup)
+    const upper = cCallB('accum', [up, cOpB('?:', [
+      cOpB('||', [cOpB('<', [up, self]), cOpB('>', [prevClose, self])]), up, self]), Wn])
+    const lower = cCallB('accum', [dn, cOpB('?:', [
+      cOpB('||', [cOpB('>', [dn, self]), cOpB('<', [prevClose, self])]), dn, self]), Wn])
+    const one = cNumB(1)
+    const minusOne = cNumB(-1)
+    const direction = cCallB('accum', [one, cOpB('?:', [
+      cOpB('==', [self, one]),
+      cOpB('?:', [cOpB('>', [close, upper]), minusOne, one]),
+      cOpB('?:', [cOpB('<', [close, lower]), one, minusOne]),
+    ]), Wn])
+    const unknown = cOpB('||', [
+      cCallB('na', [{ type: 'offset', value: warmup, args: [upper] }]),
+      cCallB('na', [{ type: 'offset', value: warmup, args: [lower] }]),
+    ])
+    const na = cOpB('/', [cNumB(0), cNumB(0)])
+    return {
+      value: cOpB('?:', [unknown, na, cOpB('?:', [cOpB('==', [direction, minusOne]), lower, upper])]),
+      direction: cOpB('?:', [unknown, na, direction]),
+    }
+  }
+
+  it.each([[3, 10], [2, 7], [3, 50]])('off the listing, factor %s ATR %s: the bars the BASE tree draws, and the same numbers on every one', (f, n) => {
+    const num = (v) => ({ type: 'num', value: v })
+    const t = supertrendTrees(num(f), num(n))
+    const b = baseSupertrendTrees(f, n)
+    let both = 0
+    for (const seed of [2, 5, 9]) {
+      const bars = walk(1100, seed)
+      for (const k of ['value', 'direction']) {
+        const now = Array.from(interpret(t[k], bars, {}))
+        const was = Array.from(interpret(b[k], bars, {}))
+        for (let i = 0; i < bars.length; i += 1) {
+          expect(Number.isFinite(now[i]), `seed ${seed} ${k} bar ${i} drawn as the base draws it`).toBe(Number.isFinite(was[i]))
+          if (Number.isFinite(was[i])) { both += 1; expect(now[i], `seed ${seed} ${k} bar ${i}`).toBe(was[i]) }
+        }
+        expect(now.findIndex(Number.isFinite), `seed ${seed} ${k}`).toBe(2 * W + n - 1)
+      }
+    }
+    expect(both).toBeGreaterThan(3000)
+  })
+
+  it('the guard is a bounded curtain `2W + n - 1` deep off the listing, and known on every bar from it', () => {
     const t = supertrendTrees({ type: 'num', value: 3 }, { type: 'num', value: 10 })
     const guard = t.value.args[0]
     expect(guard.type === 'call' && guard.name === 'na').toBe(true)
-    // the old guard, `na(upper[W]) || na(lower[W])`, built from the same bands
-    const branch = t.value.args[2]
-    const upper = branch.args[2]
-    const lower = branch.args[1]
-    expect(upper.name === 'accum' && lower.name === 'accum').toBe(true)
-    const old = {
-      type: 'op', name: '||', args: [
-        { type: 'call', name: 'na', args: [{ type: 'offset', value: W, args: [upper] }] },
-        { type: 'call', name: 'na', args: [{ type: 'offset', value: W, args: [lower] }] },
-      ],
-    }
-    for (const seed of [2, 5, 9]) {
+    expect(guard.args[0].args[2]).toEqual({ type: 'num', value: 2 * W + 9 })
+    for (const seed of [2, 5]) {
       const bars = walk(900, seed)
       const now = Array.from(interpret(guard, bars, {}))
-      const was = Array.from(interpret(old, bars, {}))
-      expect(now, `seed ${seed}`).toEqual(was)
-      expect(now.findIndex((v) => v === 0)).toBe(2 * W)
-      expect(now.slice(0, 2 * W).every((v) => v === 1) && now.slice(2 * W).every((v) => v === 0)).toBe(true)
-      // from the listing the guard is known on every bar
+      expect(now.slice(0, 2 * W + 9).every((v) => v === 1) && now.slice(2 * W + 9).every((v) => v === 0)).toBe(true)
       expect(Array.from(interpret(guard, bars, {}, undefined, undefined, LISTING)).every((v) => v === 0)).toBe(true)
     }
   })

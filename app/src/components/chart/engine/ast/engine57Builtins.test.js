@@ -26,9 +26,10 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import { translatePine } from './pine.js'
+import { parseFormula } from './parse.js'
 import {
-  interpret, FN, CHART_CLOCK_WITHHELD, STOCH_FLAT_WINDOW,
-  rciCol, stochPineCol,
+  interpret, FN, CHART_CLOCK_WITHHELD, STOCH_FLAT_WINDOW, STOCH_LEFT_EDGE, RCI_LEFT_EDGE, stochFlatPinned,
+  rciCol, stochPineCol, stochPineScan,
 } from './interpret.js'
 import { buildRuntimeIr } from './pineRuntimeFrontend.js'
 import { memberPaneDefinition } from '../../builder/memberPane/memberPaneDefinition'
@@ -287,9 +288,10 @@ describe('ta.stoch lands on `stochPine` (S6 builtin `stochastic-rsi`, S1 probe P
     expect(Array.from(FN.stoch(flat, flat, flat, 4)).slice(3)).toEqual(new Array(9).fill(50))
   })
 
-  it('a flat run after a value other than 0 is withheld by name; the runtime declines by the same code', () => {
-    // y rises into a flat run at its own high: the bar before the run reads 100, so "hold" (100)
-    // and "a flat window is 0" part there
+  it('S10: a flat run after 100, the source on its level, keeps the 100 (served on every door)', () => {
+    // S10 `vw-cs2-stoch-flat-window` (RDDT, three lead-ins into one flat run, 0 mismatches): y rises
+    // into a flat run at its own high, the bar before the full window reads 100, and TradingView
+    // keeps it through the run
     const src = [
       '//@version=6',
       'indicator("e57 stoch flat after 100")',
@@ -297,16 +299,40 @@ describe('ta.stoch lands on `stochPine` (S6 builtin `stochastic-rsi`, S1 probe P
       'plot(ta.stoch(y, y, y, 10))',
     ].join('\n')
     const { col, clock } = hostColumn(src)
+    expect(clock).toEqual([])
+    for (let i = 100; i <= 119; i += 1) expect(col[i], `bar ${i}`).toBe(100)
+    expect(doors(src)).toEqual(['OK', 'OK', 'OK', 'OK'])
+    const rt = runtimeRun(src)
+    expect(rt.err, rt.err && rt.err.message).toBeUndefined()
+    expect(rt.a.slice(100, 120)).toEqual(new Array(20).fill(100))
+    expect(doorColumns(src).clock).toEqual([])
+  })
+
+  it('a flat window the captures do not pin (source off the level) is withheld by name; the runtime declines by the same code', () => {
+    const src = [
+      '//@version=6',
+      'indicator("e57 stoch flat off level")',
+      'float y = bar_index >= 100 and bar_index < 120 ? 1000.0 : close',
+      'float s = bar_index == 108 ? 1000.0 : close',
+      'plot(ta.stoch(s, y, y, 10))',
+    ].join('\n')
+    const { col, clock } = hostColumn(src)
     expect(clock).toEqual([STOCH_FLAT_WINDOW])
-    // bar 100 reads 100 (its close is the window's high); the flat windows are bars 109..119
-    expect(near(col[100], 100)).toBe(true)
+    // bar 108 reads 100 (the source at the window's high), so the flat windows (bars 109..119) keep
+    // a 100 as the S10 run does, but with the source off the level: only the level tells them apart
+    expect(col[108]).toBe(100)
     for (let i = 109; i <= 119; i += 1) expect(Number.isNaN(col[i]), `bar ${i}`).toBe(true)
-    expect(Number.isFinite(col[108]) && Number.isFinite(col[120])).toBe(true)
+    expect(Number.isFinite(col[120])).toBe(true)
     const [screen, pane, runtime, door] = doors(src)
     expect([screen, pane, door]).toEqual(['OK', 'OK', 'OK'])
     expect(runtime).toBe(STOCH_FLAT_WINDOW)
     expect(doorColumns(src).clock).toEqual([STOCH_FLAT_WINDOW])
-    expect(CHART_CLOCK_WITHHELD[STOCH_FLAT_WINDOW]()).toMatch(/other than 0/)
+    expect(CHART_CLOCK_WITHHELD[STOCH_FLAT_WINDOW]()).toMatch(/strictly between 0 and 100/)
+  })
+
+  it('`stochFlatPinned`: only a kept 0 or 100 with the source on the level is pinned', () => {
+    expect([stochFlatPinned(0, true), stochFlatPinned(100, true)]).toEqual([true, true])
+    expect([stochFlatPinned(50, true), stochFlatPinned(100, false), stochFlatPinned(0, false)]).toEqual([false, false, false])
   })
 })
 
@@ -419,11 +445,11 @@ describe('ta.rci is the Pearson correlation of average ranks (S6 `rank-correlati
 describe('a withheld stochastic bar reaches every root bar that reads it', () => {
   const FLAT = 'float y = bar_index >= 100 and bar_index < 120 ? 1000.0 : close'
   it('a finite window withholds its reach; a smoother that never forgets withholds every later bar', () => {
-    const wma = hostColumn(`//@version=6\nindicator("e57 stoch wma")\n${FLAT}\nplot(ta.wma(ta.stoch(y, y, y, 10), 3))`)
+    const wma = hostColumn(`//@version=6\nindicator("e57 stoch wma")\n${FLAT}\nplot(ta.wma(ta.stoch(close, y, y, 10), 3))`)
     expect(wma.clock).toEqual([STOCH_FLAT_WINDOW])
     for (let i = 109; i <= 121; i += 1) expect(Number.isNaN(wma.col[i]), `bar ${i}`).toBe(true)
     expect(wma.col.slice(125).every(Number.isFinite)).toBe(true)
-    const ema = hostColumn(`//@version=6\nindicator("e57 stoch ema")\n${FLAT}\nplot(ta.ema(ta.stoch(y, y, y, 10), 3))`)
+    const ema = hostColumn(`//@version=6\nindicator("e57 stoch ema")\n${FLAT}\nplot(ta.ema(ta.stoch(close, y, y, 10), 3))`)
     expect(ema.clock).toEqual([STOCH_FLAT_WINDOW])
     expect(ema.col.slice(109).every(Number.isNaN)).toBe(true)
     expect(Number.isFinite(ema.col[108])).toBe(true)
@@ -434,5 +460,102 @@ describe('a withheld stochastic bar reaches every root bar that reads it', () =>
     const { col, clock } = hostColumn(src)
     expect(clock).toEqual([])
     expect(drawn(col)).toBeGreaterThan(400)
+  })
+})
+
+// ─── REVIEW #1294 (F1, F3, F5) ───────────────────────────────────────────────────────────
+// The reviewer's measurements, re-run as rails: the member door on a chart that does NOT reach
+// the listing (RDDT from bar 100), against the listing's own answer on the same bars.
+describe('review #1294 — off the listing, the left edge of a warming-up source is withheld by name (F1)', () => {
+  const K = 100
+  const SUFFIX = RDDT.slice(K)
+  const OFF = { ...CTX, historyFromListing: false }
+  const V = (b) => `//@version=6\nindicator("e57 edge")\n${b}`
+  const edgeOf = (body) => {
+    const src = V(body)
+    const on = doorColumns(src)
+    const off = doorColumns(src, SUFFIX, OFF)
+    return { on: on.cols[0], off: off.cols[0], clock: off.clock, onClock: on.clock }
+  }
+  it('`ta.rci(ta.sma(close, 5), 10)`: bars 10..12 withheld `rci:left-edge` (they served 97.55 / 98.48 against 98.79); every drawn bar equals the listing', () => {
+    const { on, off, clock, onClock } = edgeOf('s = ta.sma(close, 5)\nplot(ta.rci(s, 10))')
+    expect(clock).toEqual([RCI_LEFT_EDGE])
+    expect(onClock).toEqual([])
+    for (let i = 0; i <= 12; i += 1) expect(Number.isNaN(off[i]), `bar ${i}`).toBe(true)
+    let drawnOff = 0
+    for (let i = 13; i < SUFFIX.length; i += 1) {
+      expect(near(off[i], on[i + K]), `bar ${i}: ${off[i]} vs ${on[i + K]}`).toBe(true)
+      drawnOff += 1
+    }
+    expect(drawnOff).toBeGreaterThan(500)
+  })
+  it('`ta.stoch(s, s, s, 14)` over the same source: bars 13..16 (and every bar before 17) withheld `stoch:left-edge`; the rest equal the listing', () => {
+    const { on, off, clock } = edgeOf('s = ta.sma(close, 5)\nplot(ta.stoch(s, s, s, 14))')
+    expect(clock).toEqual([STOCH_LEFT_EDGE])
+    for (let i = 0; i <= 16; i += 1) expect(Number.isNaN(off[i]), `bar ${i}`).toBe(true)
+    for (let i = 17; i < SUFFIX.length; i += 1) expect(near(off[i], on[i + K]), `bar ${i}: ${off[i]} vs ${on[i + K]}`).toBe(true)
+  })
+  it('the control: a source with a value on every loaded bar names nothing and draws from bar 10', () => {
+    const { off, clock } = edgeOf('plot(ta.rci(close, 10))')
+    expect(clock).toEqual([])
+    expect(firstDrawn(off)).toBe(10)
+  })
+})
+
+describe('review #1294 — a held unpinned value stays withheld through the holds that keep it (F3)', () => {
+  it('an `na` source right after a flagged flat run keeps the flat run\'s value: withheld, not served', () => {
+    // the flat high / low run is unpinned (the source, close, is off its level); bar 215's source is `na`
+    const body = 'float x = bar_index >= 200 and bar_index < 215 ? 5000.0 : close\nfloat y = bar_index == 215 ? na : close\nplot(ta.stoch(y, x, x, 10))'
+    const { col, clock } = hostColumn(`//@version=6\nindicator("e57 hold chain")\n${body}`)
+    expect(clock).toEqual([STOCH_FLAT_WINDOW])
+    expect(Number.isFinite(col[208])).toBe(true)
+    for (let i = 209; i <= 215; i += 1) expect(Number.isNaN(col[i]), `bar ${i}`).toBe(true)   // 215 served the held value
+    expect(Number.isFinite(col[216])).toBe(true)
+    // the scan itself: the hold after a flagged run carries the flag
+    const x = Float64Array.from({ length: 40 }, (_, i) => (i >= 20 && i < 35 ? 50 : 10 + (i % 7)))
+    x[35] = NaN
+    const s = Float64Array.from(x)
+    for (let i = 29; i < 35; i += 1) s[i] = 49                   // the source off the flat level
+    const { out, flags } = stochPineScan(x, x, s, 10)
+    expect(Array.from(flags.slice(29, 35))).toEqual([1, 1, 1, 1, 1, 1])
+    expect(out[35]).toBe(out[34])
+    expect(flags[35]).toBe(1)
+    expect(flags[36]).toBe(0)
+    // control, the S10 shape: on the level after a 100, nothing is flagged and the 100 is kept
+    const pinned = stochPineScan(x, x, x, 10)
+    expect(Array.from(pinned.out.slice(29, 36))).toEqual(new Array(7).fill(100))
+    expect(Array.from(pinned.flags).every((f) => f === 0)).toBe(true)
+  })
+})
+
+describe('review #1294 — a site on other bars is withheld there, by the same code, on both lanes (F5)', () => {
+  it('an unpinned flat run inside a weekly `request.security` is withheld by name there; the runtime refuses the request by name', () => {
+    const src = '//@version=6\nindicator("e57 htf flat")\nfloat y = bar_index >= 60 and bar_index < 75 ? 1000.0 : close\nplot(request.security(syminfo.tickerid, "W", ta.stoch(close, y, y, 5)))'
+    const { col, clock } = hostColumn(src)
+    expect(clock).toEqual([STOCH_FLAT_WINDOW])
+    expect(drawn(col)).toBeGreaterThan(300)
+    expect(col.filter(Number.isNaN).length).toBeGreaterThan(40)
+    const [screen, pane, , door] = doors(src)
+    expect([screen, pane, door]).toEqual(['OK', 'OK', 'OK'])
+    // the runtime lane never reaches the site: it refuses a weekly self-request by name before any
+    // column is computed (`interpret:bind-time-text` on `syminfo.tickerid`, even told the chart's
+    // symbol), exactly as it refuses the same request over plain `close`, so nothing is served there
+    const runtimeGuard = (s) => {
+      try { computeRuntimeColumns(runtimeDoc(s, { a: 0 }), RDDT, { ...CTX, symbol: { ticker: 'RDDT', exchange: 'NYSE' } }) } catch (e) { return e.guard || 'threw' }
+      return 'OK'
+    }
+    expect(runtimeGuard(src)).toBe('interpret:bind-time-text')
+    expect(runtimeGuard(src.replace('ta.stoch(close, y, y, 5)', 'close'))).toBe('interpret:bind-time-text')
+  })
+})
+
+describe('review #1294 — a site that reads a recurrence\'s own value never reaches the mask (F5)', () => {
+  it('`stochPine` over `self` inside an `accum` body is refused by name by the interpreter itself', () => {
+    const r = parseFormula('accum(0, stochPine(high, low, close + self * 0, 5), 20)')
+    expect(r.ok, r.error).toBe(true)
+    expect(() => interpret(r.ast, RDDT, {}, undefined, undefined, LISTING)).toThrow(/reads a window of bars/)
+    // the control: the same tree without the self read draws
+    const plain = parseFormula('accum(0, stochPine(high, low, close, 5), 20)')
+    expect(Array.from(interpret(plain.ast, RDDT, {}, undefined, undefined, LISTING)).some(Number.isFinite)).toBe(true)
   })
 })
