@@ -151,6 +151,17 @@ describe('53b: "show T instead of SPY" on several charts switches the SPY chart,
     expect(snapshot(m.board, ids)).toEqual(before)
   }, 60000)
 })
+// …ON CONDITION (AUDIT 53): only when EXACTLY ONE object in scope shows SPY. Two independent SPY charts → still ASKED, nothing written
+describe('53b condition: "show T instead of SPY" with TWO independent SPY charts still asks', () => {
+  it.each(TICKERS)('"show %s instead of SPY" on SPY · NVDA · SPY: asked, nothing written', async (T) => {
+    const m = mount(['SPY', 'NVDA', 'SPY'])
+    const ids = ['w0', 'w1', 'w2'], before = snapshot(m.board, ids)
+    p.st.envelopes.push((body) => p.env('apply', [{ action: 'chart.setSymbol', target: spyRef(body), args: { symbol: T } }]))
+    await m.say(`show ${T} instead of SPY`)
+    expect(asked(), transcript()).toBe(true)
+    expect(snapshot(m.board, ids), transcript()).toEqual(before)
+  }, 60000)
+})
 
 // ── DEICTIC with no target ticker: the click rule as before ──────────────────────────────────────────────────────────────
 describe('DEICTIC words with no target ticker keep the click rule', () => {

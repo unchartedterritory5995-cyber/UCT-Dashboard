@@ -288,7 +288,9 @@ export function tickerSetAside(words, ticker) {
 // (is this ticker the OBJECT OF A CHANGE? — the CHANGE_* sets above, by position; every per-ticker pattern ESCAPED: "BRK.B" never
 // makes "." a wildcard; no lookbehind: the iOS 16 floor. Read by the final-board rule, tickerSetAside and spatialCheck excludedCharts)
 const reEsc = (s) => String(s || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-export function tickerChanged(words, ticker, others = []) {
+// (tight: the other ticker is ALREADY on the board — it is the new symbol only as the relation's DIRECT complement: "QQQ instead
+//  of SPY", "SPY to QQQ", "replace SPY with QQQ"; "make QQQ weekly rather than SPY" changes no ticker)
+export function tickerChanged(words, ticker, others = [], { tight = false } = {}) {
   const w = String(words || '')
   const t = reEsc(up(ticker))
   if (!t) return false
@@ -297,11 +299,18 @@ export function tickerChanged(words, ticker, others = []) {
   // (a change needs a NEW symbol: with no other ticker named, "rather than the NVDA one" / "X off" is about a setting — "log on
   //  this one rather than the NVDA one" excludes NVDA's chart, it changes no ticker)
   if (!others.some(o => up(o) && up(o) !== up(ticker))) return false
-  if (new RegExp(String.raw`\b(?:${altOf(CHANGE_TAKE)})\s+${det}${T}`, 'i').test(w)) return true
-  if (new RegExp(String.raw`(?:^|[^A-Za-z0-9])${T}(?:['’]s)?\s+(?:(?:chart|one|panel|graph)\s+)?(?:${altOf(CHANGE_OFF)})\b`, 'i').test(w)) return true
+  if (!tight && new RegExp(String.raw`\b(?:${altOf(CHANGE_TAKE)})\s+${det}${T}`, 'i').test(w)) return true
+  if (!tight && new RegExp(String.raw`(?:^|[^A-Za-z0-9])${T}(?:['’]s)?\s+(?:(?:chart|one|panel|graph)\s+)?(?:${altOf(CHANGE_OFF)})\b`, 'i').test(w)) return true
   for (const o of others) {
     if (up(o) === up(ticker)) continue
     const O = String.raw`\$?${reEsc(up(o))}(?![A-Za-z0-9])`
+    if (tight) {
+      const N = String.raw`(?:\s+(?:chart|one|panel|graph))?`
+      if (new RegExp(String.raw`(?:^|[^A-Za-z0-9])${O}\s+(?:${altOf(CHANGE_BACK)})\s+${det}${T}`, 'i').test(w)) return true
+      if (new RegExp(String.raw`(?:^|[^A-Za-z0-9])${T}${N}\s+(?:${altOf(CHANGE_TO)})\s+${det}${O}`, 'i').test(w)) return true
+      if (new RegExp(String.raw`\b(?:${altOf(CHANGE_TAKE)})\s+${det}${T}${N}\s+(?:with|for)\s+${det}${O}`, 'i').test(w)) return true
+      continue
+    }
     // the ticker, then a relation word, then the other ticker ("SPY for AAPL", "SPY into AAPL", "SPY to AAPL"; a participle
     // between them states the change outright: "SPY switched to AAPL", "SPY swapped for AAPL")
     if (new RegExp(String.raw`(?:^|[^A-Za-z0-9])${T}(?:['’]s)?\s+(?:(?:chart|one|panel|graph)\s+)?(?:[a-z]+(?:ed|en)\s+)?(?:${altOf(CHANGE_TO)})\s+${det}${O}`, 'i').test(w)) return true
@@ -341,6 +350,11 @@ export function chartPickStale(pick, host) {
   try { now = host?.charts?.read?.(pick.chartRef) || null } catch { now = null }
   return !now || (pick.fp !== undefined && up(now.symbol) !== (pick.fp || ''))
 }
+/** How many OBJECTS in scope show this symbol (every chart following one link colour is one object). */
+export function sameSymbolObjects(host, symbol) {
+  const want = up(symbol)
+  return new Set(liveCharts(host).filter(c => up(c.symbol) === want).map(c => (linked(c.group) ? `g:${c.group}` : `c:${c.ref}`))).size
+}
 /** How the words identify this existing chart (for a re-symbol), or null: 'pick' | 'name' | 'position' | 'deixis' | 'class' | 'replace'. */
 export function identifiesChart(w, e, host, { selected = null, subject = null, picked = null, sole = false, made = null } = {}) {
   // (AUDIT condition 6: "remove AAPL" never re-symbols the AAPL chart — removal words are no licence to change one)
@@ -348,7 +362,9 @@ export function identifiesChart(w, e, host, { selected = null, subject = null, p
   if (!e.symbol) return 'empty'                                    // an EMPTY chart filled replaces nothing
   if (made && made.has(e.ref)) return 'made'                       // a chart THIS request created (its own new chart)
   if (picked && picked.has(`chart:${e.ref}`)) return 'pick'
-  if (symbolSaid(w, e.symbol)) return 'name'
+  // ⛔ AUDIT 53 (H14): a ticker NAMES a chart only when exactly ONE object in scope shows it (a link group is one object) — two
+  // independent SPY charts are not identified by "SPY": asked
+  if (symbolSaid(w, e.symbol) && sameSymbolObjects(host, e.symbol) <= 1) return 'name'
   if (named(w, e, host)) return 'position'
   try { if (ordinalChart(w, liveCharts(host))?.ref === e.ref) return 'ordinal' } catch { /* no ordinal */ }
   if (DEIXIS.test(w) && (sole || e.ref === selected || e.ref === subject)) return 'deixis'

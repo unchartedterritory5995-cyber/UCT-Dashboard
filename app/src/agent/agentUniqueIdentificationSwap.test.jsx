@@ -185,3 +185,82 @@ describe('PANEL · the real Agent panel', () => {
     expect(got, out).toEqual(syms)
   }, 40000)
 })
+
+// ── AUDIT 53 condition: "Y instead of SPY" names the SPY chart only when EXACTLY ONE object in scope shows SPY (a link group is
+// ONE object). Two independent SPY charts → asked, nothing changed; a linked SPY pair → applied (both follow) ──
+const BACK_TAKE = FORMS.filter(([rel]) => /^(?:back|take)/.test(rel))
+const DUPS = [['2 SPY charts', ['SPY', 'SPY']], ['SPY · QQQ · SPY', ['SPY', 'QQQ', 'SPY']], ['QQQ · SPY · IWM · SPY', ['QQQ', 'SPY', 'IWM', 'SPY']]]
+const DUP_CASES = BACK_TAKE.flatMap(([rel, tpl]) => DUPS.map(([bname, syms]) => [rel, bname, fill(tpl, 'SPY', 'AAPL'), syms]))
+describe(`53 · two INDEPENDENT charts show SPY → no plan on either is licensed (${DUP_CASES.length} cases): relation × board`, () => {
+  it.each(DUP_CASES)('%s · %s · "%s"', (_r, _b, words, syms) => {
+    syms.forEach((s, i) => { if (s === 'SPY') expect(rail(syms, `c${i + 1}`, 'AAPL', words), `${words} → c${i + 1}`).toBeTruthy() })
+  })
+})
+// a linked SPY pair (one link colour) + an unlinked QQQ: ONE object shows SPY → the plan on it is licensed
+const linkedBoard = () => makeBoard([
+  { id: 'c1', type: 'chart', x: 0, y: 0, w: 8, h: 20, color: 'A', opts: settings() },
+  { id: 'c2', type: 'chart', x: 8, y: 0, w: 8, h: 20, color: 'A', opts: settings() },
+  { id: 'c3', type: 'chart', x: 16, y: 0, w: 8, h: 20, color: 'N', opts: settings() }], { A: 'SPY', 'N:c3': 'QQQ' })
+describe(`53 · a LINKED SPY pair is one object → applied (${BACK_TAKE.length} cases)`, () => {
+  it.each(BACK_TAKE.map(([rel, tpl]) => [rel, fill(tpl, 'SPY', 'AAPL')]))('%s · "%s"', (_r, words) => {
+    const b = linkedBoard()
+    const p = resym(b, 'c1', 'AAPL')
+    expect(p.ok).toBe(true)
+    expect(chartRailRefusal(p, { words, host: b.host, mode: 'apply' }), words).toBeNull()
+    expect(chartRailRefusal(resym(b, 'c3', 'AAPL'), { words, host: b.host, mode: 'apply' }), `${words} → QQQ`).toBeTruthy()
+  })
+})
+
+// ── AUDIT 53 edge: the new symbol is ALREADY on the board ("QQQ instead of SPY" on SPY + QQQ) — the SPY chart changes, never QQQ ──
+const QBOARDS = [['SPY · QQQ', ['SPY', 'QQQ']], ['QQQ · SPY', ['QQQ', 'SPY']], ['SPY · QQQ · IWM', ['SPY', 'QQQ', 'IWM']], ['IWM · QQQ · SPY', ['IWM', 'QQQ', 'SPY']]]
+const Q_CASES = BACK_TAKE.flatMap(([rel, tpl]) => QBOARDS.map(([bname, syms]) => [rel, bname, fill(tpl, 'SPY', 'QQQ'), syms]))
+describe(`53 · "QQQ instead of SPY" with QQQ on the board (${Q_CASES.length} cases): relation × board × order`, () => {
+  it.each(Q_CASES)('%s · %s · "%s"', (_r, _b, words, syms) => {
+    const at = syms.indexOf('SPY')
+    // (the readers that know no plan: a SHOWN new symbol is read as the relation's DIRECT complement — "QQQ instead of SPY")
+    if (/^back/.test(_r)) expect(excludedCharts(words, syms.map((x, i) => ({ ref: `c${i + 1}`, symbol: x })), null).has(`c${at + 1}`), words).toBe(false)
+    expect(rail(syms, `c${at + 1}`, 'QQQ', words), words).toBeNull()
+    syms.forEach((s, i) => { if (i !== at && s !== 'QQQ') expect(rail(syms, `c${i + 1}`, 'QQQ', words), `${words} → c${i + 1} (${s})`).toBeTruthy() })
+  })
+})
+describe('53 · PANEL · two SPY charts ask; a linked pair applies; "QQQ instead of SPY" changes only the SPY chart', () => {
+  let p
+  beforeEach(() => { p = setupPanel() })
+  afterEach(() => { vi.restoreAllMocks(); cleanup() })
+  const decorate = (s) => (s ? { ...s, label: `Chart (${s.symbol || 'empty'})` } : s)
+  const mountOf = (syms, colors = null) => {
+    const w = Math.floor(24 / syms.length)
+    const widgets = syms.map((_, i) => ({ id: `c${i}`, type: 'chart', x: i * w, y: 0, w, h: 20, color: colors ? colors[i] : 'N', opts: { settings: bareSettings() } }))
+    const gs = {}
+    widgets.forEach((wd, i) => { gs[wd.color === 'N' ? `N:${wd.id}` : wd.color] = syms[i] })
+    return p.mount(widgets, gs, { decorate })
+  }
+  const symsOf = (m, n) => Array.from({ length: n }, (_, i) => m.h.charts.read(`c${i}`)?.symbol || '')
+  const say = async (m, target, to, words) => {
+    p.st.envelopes.push(b => p.env('apply', [{ action: 'chart.setSymbol', target: b.context.charts[target].ref, args: { symbol: to } }]))
+    return m.say(words)
+  }
+  it.each([['AAPL instead of SPY'], ['show AAPL rather than SPY'], ['put AAPL in place of SPY']])('two independent SPY charts · "%s" → nothing changes', async (words) => {
+    const m = mountOf(['SPY', 'QQQ', 'SPY'])
+    const out = await say(m, 0, 'AAPL', words)
+    expect(symsOf(m, 3), out).toEqual(['SPY', 'QQQ', 'SPY'])
+  }, 40000)
+  it.each([['AAPL instead of SPY'], ['show AAPL rather than SPY']])('a linked SPY pair · "%s" → both SPY charts become AAPL, QQQ unchanged', async (words) => {
+    const m = mountOf(['SPY', 'SPY', 'QQQ'], ['A', 'A', 'N'])
+    const out = await say(m, 0, 'AAPL', words)
+    expect(symsOf(m, 3), out).toEqual(['AAPL', 'AAPL', 'QQQ'])
+  }, 40000)
+  it.each(QBOARDS)('%s · "QQQ instead of SPY" → the SPY chart becomes QQQ; every other chart unchanged', async (_b, syms) => {
+    const at = syms.indexOf('SPY')
+    let m = mountOf(syms)
+    let out = await say(m, at, 'QQQ', 'QQQ instead of SPY')
+    expect(symsOf(m, syms.length), out).toEqual(syms.map((s, i) => (i === at ? 'QQQ' : s)))
+    const other = syms.findIndex(s => s !== 'SPY' && s !== 'QQQ')
+    if (other >= 0) {
+      cleanup(); p = setupPanel()
+      m = mountOf(syms)
+      out = await say(m, other, 'QQQ', 'QQQ instead of SPY')
+      expect(symsOf(m, syms.length), out).toEqual(syms)
+    }
+  }, 60000)
+})
