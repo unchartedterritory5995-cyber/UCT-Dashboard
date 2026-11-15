@@ -115,6 +115,9 @@ tools/_gj_runs/
 
 # Pine intake bench — pasted scripts are evidence, never committed fixtures
 tests/fixtures/pine-inbox/
+# vendor-harness warm-candidate metadata cache (ourSide.js warmCandidates), rebuilt per file on size/mtime
+tests/fixtures/vendor/harness/.warm-candidates.index
+tests/fixtures/vendor/harness/.warm-candidates.index.*.tmp
 tests/fixtures/thinkscript-inbox/
 
 # UI stress harness output (screenshots + findings; regenerated per run)
