@@ -1,0 +1,22 @@
+//@version=5
+indicator("UCTPROBE_VW_CS2_LABEL_FORMAT_V5_HELPER", overlay=true)
+
+// PROVENANCE: written 2026-11-15 for the Pine parity programme, capture session S21
+// (objects-lane PROBES-NEXT.md item 14, widening #1333's A2 rule). The S17 label-format values at
+// //@version=5, but each text goes THROUGH a helper f(id, s) that concatenates before label.new:
+// is a numeric literal's str.tostring still printed in full once it has passed through a helper
+// and a concatenation? One label per value on the last bar; objects.texts holds the exact strings.
+// CAPTURE: NYSE:RDDT 1D from the listing, inputs at defaults.
+
+f(int id, string s) =>
+    label.new(bar_index - id * 5, close, "L" + str.tostring(id) + ":" + s)
+
+if barstate.islast
+    f(0, str.tostring(close))
+    f(1, str.tostring(close / 3))
+    f(2, str.tostring(0.8175176096085278))
+    f(3, str.tostring(math.round(close)))
+    f(4, str.tostring(0.000012345678901234))
+    f(5, str.tostring(close, format.mintick))
+plot(close, "A00_close")
+plot(close / 3, "A01_close_over_3")

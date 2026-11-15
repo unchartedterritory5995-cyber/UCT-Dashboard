@@ -806,6 +806,14 @@ def _every_gate_message(real_bars, monkeypatch) -> dict:
     save("user-d", defn(budget={"maxNodes": 1}))
     capture("budget", lambda: aus.admit_user_definition("user-d", DEF_ID, bars=real_bars))
 
+    # ⭐⭐ CBC-FMT -- a document stamped with a `calc_bars_count` window (`meta.calcBarsCount`):
+    # the chart computes its last N bars only, this lane every bar it reads. The product-path
+    # drives (admit, the value door, the catalog, the backtest) are in
+    # `tests/test_cbcfmt_calc_bars_server.py`.
+    save("user-f", defn(meta_extra={"calcBarsCount": 100}))
+    capture("calc-bars-window",
+            lambda: aus.admit_user_definition("user-f", DEF_ID, bars=real_bars))
+
     # ⛔ THE TAG IS READ OFF THE MANIFEST, NEVER TYPED. A literal
     # `["window_dependent"]` here would go stale the day the tag is renamed and
     # this drive would fall through to a LATER gate while the roster assertion

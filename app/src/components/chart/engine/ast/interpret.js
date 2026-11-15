@@ -1332,18 +1332,40 @@ const nan = (n) => { const c = new Float64Array(n); c.fill(NaN); return c }
  *    PROPAGATE — a clean `n`-BAR window; any `na` inside it makes the answer
  *                `na`. `dev`: 210 ok / 0 bad, blank for exactly `n-1` bars after
  *                a hole. ⭐ This is what every member used to do.
- *    RESTART   — the window BEGINS AGAIN after a hole: reduce over the
- *                contiguous finite run ending at this bar, capped at `n`.
- *                `highest`, `lowest`: 346 ok / 0 bad — one bar after a hole
- *                `highest === lowest === ` the lone observation.
+ *    ⚰️⚰️ RESTART (the window BEGINS AGAIN after a hole) IS GONE. `highest` /
+ *                `lowest` were here (2026-09-08, "346 ok / 0 bad") until S10 refuted
+ *                it (`divergences.json::highest-lowest-restart-after-a-hole`), and
+ *                `highestbars` / `lowestbars` (with `naCurrent: 0`, "0 on the `na`
+ *                bar") until S17 refuted theirs (`vw-cs2-holed-highestbars-*`: -1 on
+ *                the hole bar 30, not 0). No member reads it, so no lane keeps it.
+ *    FINITE    — ⭐⭐ ENGINE HL (2026-11-15): the last `n` FINITE values, however
+ *                many BARS that spans, FEWER while fewer exist; `na` before bar
+ *                `n - 1` and before the first finite value; it answers on the `na`
+ *                bar itself. `highest`, `lowest`, `highestbars`, `lowestbars`.
+ *                WITNESSED by S10 (probes
+ *                `tools/visual_conformance/probes/vw-cs2-holed-highest-{v5,v6,stoch-v6}.pine`,
+ *                `x = bar_index % 50 == 30 ? na : close`, NYSE:RDDT and AMEX:SPY 1D from
+ *                the listing, committed fixtures `tests/fixtures/vendor/harness/vw-cs2-holed-*`):
+ *                all 12 columns, 0 mismatches over 666 / 8,507 bars; TradingView keeps
+ *                47.7 / 40.88 on the hole bar 30, where RESTART read `na` (RESTART misses
+ *                70 / 68 bars on RDDT and 824 / 1,034 on SPY). It differs from SKIP only
+ *                where fewer than `n` finite values exist (an indicator's warm-up), where
+ *                SKIP answers `na` and FINITE the window it has. Off the listing such a
+ *                window reaches bars this chart does not hold, so it is withheld by name
+ *                there (`window-extreme:left-edge`, `windowHoleMask`).
  *
- *  ⚠️ THE SERIES-START WARM-UP IS DELIBERATELY UNCHANGED. Every capture begins
- *  deep in real history, so no fixture has seen what a window does on bar 0 of a
- *  symbol. `RESTART` answers with a PARTIAL run after a hole because that IS
- *  observed; the `i < n - 1` gate at the start of the series is not, so it stays.
- *  Two rules that look like one, and only one of them has evidence.
+ *  ⭐⭐ `highestbars` / `lowestbars` (S17, 2026-11-15, `vw-cs2-holed-highestbars-rddt-1d`,
+ *  source `x = bar_index % 50 == 30 ? na : close`): the SAME last `n` finite values, and
+ *  the OFFSET IS COUNTED IN BARS, so over a hole it reaches past `n - 1` (RDDT bar 30,
+ *  the hole: -1; bar 37: `ta.lowestbars` -10). The member's spec says `arg: true` and
+ *  `rollingFinite` keeps each value's bar beside it. 0 mismatches over 666 bars, 4
+ *  columns; 130 of those bars hold a hole in their window.
+ *
+ *  ⭐ THE SERIES-START GATE (`i < n - 1` is `na`) IS NOW WITNESSED for `highest` /
+ *  `lowest` / `highestbars` / `lowestbars`: the S10 / S17 captures start at bar 0 and
+ *  TradingView draws nothing on bars 0..8 of a 10-bar window.
  */
-const NA = Object.freeze({ SKIP: 'skip', PROPAGATE: 'propagate', RESTART: 'restart', FFILL: 'ffill' })
+const NA = Object.freeze({ SKIP: 'skip', PROPAGATE: 'propagate', FFILL: 'ffill', FINITE: 'finite' })
 
 /** The operand list for bar `i` under one policy, or `null` when unanswerable.
  *
@@ -1354,12 +1376,6 @@ const NA = Object.freeze({ SKIP: 'skip', PROPAGATE: 'propagate', RESTART: 'resta
  *  was, which is exactly the unbounded-lookback shape §8/§9 rules out. */
 function windowOperands(series, n, i, policy) {
   if (policy === NA.PROPAGATE) return { lo: i - n + 1, hi: i, buf: series }
-  if (policy === NA.RESTART) {
-    let lo = i
-    while (lo > i - n + 1 && lo > 0 && Number.isFinite(series[lo - 1])) lo -= 1
-    if (!Number.isFinite(series[i])) return null
-    return { lo, hi: i, buf: series }
-  }
   // SKIP — the last `n` FINITE values, gathered oldest-first into a dense buffer.
   const buf = new Float64Array(n)
   let k = n
@@ -1368,13 +1384,11 @@ function windowOperands(series, n, i, policy) {
   return { lo: 0, hi: n - 1, buf }
 }
 
-/** @param {number} [naCurrent] the answer when the CURRENT bar is `na` and the
- *  policy would otherwise refuse. Only `highestbars`/`lowestbars` declare one:
- *  the vendor answers 0 there because a restarted window's only candidate is
- *  this bar, so the OFFSET is defined even though the VALUE is not. Leaving it
- *  `undefined` keeps every other member blank, which is what they were measured
- *  doing. */
-function rolling(series, n, reduce, policy = NA.PROPAGATE, naCurrent) {
+/** ⚰️ `naCurrent` (the answer on an `na` bar, 0, for `highestbars` / `lowestbars`) WAS A
+ *  PARAMETER HERE until S17 measured -1 on the hole bar where it answered 0. They are
+ *  `NA.FINITE` now, and `arg` is what `rollingFinite` needs to count bars. */
+function rolling(series, n, reduce, policy = NA.PROPAGATE, arg = false) {
+  if (policy === NA.FINITE) return rollingFinite(series, n, reduce, arg)
   const out = nan(series.length)
   // ⭐ FORWARD-FILL IS A SERIES TRANSFORM, DONE ONCE. `ta.wma` replaces an `na`
   // in its lookback with the last finite value and keeps that bar's WEIGHT —
@@ -1412,7 +1426,49 @@ function rolling(series, n, reduce, policy = NA.PROPAGATE, naCurrent) {
     if (policy === NA.FFILL && finiteSeen < n) continue
     const w = windowOperands(src, n, i, policy === NA.FFILL ? NA.PROPAGATE : policy)
     if (w) out[i] = reduce(w.buf, w.lo, w.hi)
-    else if (naCurrent !== undefined && !Number.isFinite(series[i])) out[i] = naCurrent
+  }
+  return out
+}
+
+/** ⭐⭐ ENGINE HL — `NA.FINITE`: the last `n` FINITE values, FEWER while fewer exist, `na` before
+ *  bar `n - 1` and before the first finite value, an answer on an `na` bar. One forward pass that
+ *  keeps the last `n` finite values oldest-first in a dense buffer (O(N·n), whatever the gaps: a
+ *  backward gather per bar would cost a sparse source O(N²)). The runtime VM keeps the same ring
+ *  (`vm.js`, policy `finite`) and the Python twin is `ast_interpret._rolling_finite`.
+ *  `finiteWindowCount` names, per bar, how many values this window held.
+ *
+ *  ⭐⭐ `arg` (`highestbars` / `lowestbars`, S17): `reduce` answers a distance back in the DENSE
+ *  buffer (`windowArgExtreme`: `hi - j`), and TradingView counts the offset in BARS, so the bar of
+ *  each kept value rides beside it (`at`) and the answer is `i - at[j]`. */
+function rollingFinite(series, n, reduce, arg = false) {
+  const out = nan(series.length)
+  if (!(n >= 1)) return out
+  const buf = new Float64Array(n)
+  const at = arg ? new Float64Array(n) : null
+  let k = 0
+  for (let i = 0; i < series.length; i++) {
+    const v = series[i]
+    if (Number.isFinite(v)) {
+      if (k < n) { if (at) at[k] = i; buf[k++] = v }
+      else { buf.copyWithin(0, 1); buf[n - 1] = v; if (at) { at.copyWithin(0, 1); at[n - 1] = i } }
+    }
+    if (i >= n - 1 && k > 0) {
+      const r = reduce(buf, 0, k - 1)
+      out[i] = at ? (Number.isFinite(r) ? i - at[k - 1 - r] : NaN) : r
+    }
+  }
+  return out
+}
+
+/** ⭐⭐ ENGINE HL — per bar, how many FINITE values `NA.FINITE`'s window of `n` holds (0 before the
+ *  first, at most `n`). `windowHoleMask` reads it: a count below `n` off the listing is a window
+ *  that reaches bars this chart does not hold. */
+export function finiteWindowCount(series, n) {
+  const out = new Float64Array(series.length)
+  let seen = 0
+  for (let i = 0; i < series.length; i++) {
+    if (Number.isFinite(series[i])) seen += 1
+    out[i] = Math.min(seen, n)
   }
   return out
 }
@@ -2536,15 +2592,16 @@ export const FINITE_WINDOW = Object.freeze({
   sum: { reduce: windowSum, span: (n) => n, na: NA.SKIP },
   dev: { reduce: windowMeanAbsDev, span: (n) => n, na: NA.PROPAGATE },
   median: { reduce: windowMedian, span: (n) => n, na: NA.SKIP },
-  highest: { reduce: (s, lo, hi) => windowExtreme(s, lo, hi, (v, b) => v > b), span: (n) => n, na: NA.RESTART },
-  lowest: { reduce: (s, lo, hi) => windowExtreme(s, lo, hi, (v, b) => v < b), span: (n) => n, na: NA.RESTART },
-  // ⭐⭐ SAME WINDOW AS `highest`/`lowest`, ONE EXTRA RULE. `naCurrent: 0` is the
-  // vendor's answer on an `na` bar, where `highest` blanks and these do not —
-  // the restarted window's only candidate is this bar, so the OFFSET is defined
-  // even though the VALUE is not. PART Z measured the difference (36 of 36 vs 0
-  // of 36) and could not explain it; this is the explanation.
-  highestbars: { reduce: (s, lo, hi) => windowArgExtreme(s, lo, hi, (v, b) => v > b), span: (n) => n, na: NA.RESTART, naCurrent: 0 },
-  lowestbars: { reduce: (s, lo, hi) => windowArgExtreme(s, lo, hi, (v, b) => v < b), span: (n) => n, na: NA.RESTART, naCurrent: 0 },
+  // ⭐⭐ ENGINE HL (2026-11-15) — `NA.FINITE`, WITNESSED by S10 (see `NA`): the last `n` finite values,
+  // reaching back past every hole, kept on the hole bar itself. ⚰️ RESTART until engine HL.
+  highest: { reduce: (s, lo, hi) => windowExtreme(s, lo, hi, (v, b) => v > b), span: (n) => n, na: NA.FINITE },
+  lowest: { reduce: (s, lo, hi) => windowExtreme(s, lo, hi, (v, b) => v < b), span: (n) => n, na: NA.FINITE },
+  // ⭐⭐ `NA.FINITE` TOO, WITNESSED by S17 (`vw-cs2-holed-highestbars-rddt-1d-2026-11-15`, 4 columns,
+  // 666 bars, 0 mismatches): the last `n` finite values, the offset counted in BARS (`arg: true`), so
+  // over a hole it reaches -n (bar 30, the hole: -1). ⚰️ RESTART with `naCurrent: 0` (2026-09-08,
+  // "0 on the `na` bar") until then, and #1332 withheld the holed case (`arg-extreme:holed-window`).
+  highestbars: { reduce: (s, lo, hi) => windowArgExtreme(s, lo, hi, (v, b) => v > b), span: (n) => n, na: NA.FINITE, arg: true },
+  lowestbars: { reduce: (s, lo, hi) => windowArgExtreme(s, lo, hi, (v, b) => v < b), span: (n) => n, na: NA.FINITE, arg: true },
   // ⚰️ `rising` AND `falling` LEFT THIS TABLE 2026-09-08. They are carried
   // counters, not windows — see `monotoneStep`. They are in `CARRIED` now, and
   // the reason they were ever here is that a strict monotone run LOOKS like a
@@ -2557,7 +2614,7 @@ export const FINITE_WINDOW = Object.freeze({
  *  the span — the table does. */
 const windowFn = (name) => (series, n) =>
   rolling(series, FINITE_WINDOW[name].span(n), FINITE_WINDOW[name].reduce,
-    FINITE_WINDOW[name].na, FINITE_WINDOW[name].naCurrent)
+    FINITE_WINDOW[name].na, FINITE_WINDOW[name].arg === true)
 
 /** ⭐⭐⭐ THE CARRIED-STATE FAMILY (2F-2C) — `FINITE_WINDOW`'S COUNTERPART.
  *
@@ -5365,6 +5422,16 @@ export const CHART_CLOCK_WITHHELD = Object.freeze({
     + 'no such bar; a count that has not reset yet) it is not known here, and what this indicator draws from it '
     + 'is withheld on those bars rather than drawn wrong. On a chart whose bars start at the symbol\'s listing '
     + 'it draws. What would settle it: nothing to capture — bars reaching the listing.',
+  // ⭐⭐ ENGINE HL — a window extreme over a source with `na` holes (`windowHoleMask`).
+  // ⛔ Literal key: `WINDOW_EXTREME_LEFT_EDGE` is declared further down.
+  'window-extreme:left-edge': () => 'TradingView\'s `ta.highest`, `ta.lowest`, `ta.highestbars` and `ta.lowestbars` '
+    + 'read the last `length` values of their source that are not `na`, reaching back past every gap, and fewer '
+    + 'while fewer exist (measured from the listing on NYSE:RDDT and AMEX:SPY 1D, captures '
+    + '`vw-cs2-holed-highest-*-2026-11-15` and `vw-cs2-holed-highestbars-rddt-1d-2026-11-15`). This '
+    + 'chart\'s loaded bars start after the symbol\'s listing, so where the source has fewer than `length` such '
+    + 'values in them the window would reach bars this chart does not hold, and what this indicator draws from '
+    + 'it is withheld on those bars rather than drawn from a shorter window. On a chart whose bars start at the '
+    + 'symbol\'s listing it draws. What would settle it: nothing to capture — bars reaching the listing.',
 })
 export const CHART_CLOCK_WHOLE = Object.freeze(['time-anchor:other-bars', 'time-clock:unreadable',
   'time-anchor:not-daily', 'time-anchor:weekend-bars', 'time-own:chart-unwitnessed', 'time-close:not-daily',
@@ -6223,9 +6290,84 @@ export function varOriginMask(tree, bars, inputs, budget, scalars, opts) {
 }
 
 
+/** ⭐⭐ ENGINE HL — the code `windowHoleMask` names. ⚰️ `arg-extreme:holed-window` (#1332's
+ *  `highestbars` / `lowestbars` holed case) is gone: S17 measured the rule (`NA.FINITE`, `arg`). */
+export const WINDOW_EXTREME_LEFT_EDGE = 'window-extreme:left-edge'
+/** The window calls `windowHoleMask` asks about, by table name: every `NA.FINITE` member. */
+const HOLE_WINDOW_CALLS = Object.freeze(new Set(['highest', 'lowest', 'highestbars', 'lowestbars']))
+/** Table functions that carry state with no end (a value read once moves every later answer): a
+ *  withheld bar under one withholds every later bar, whatever its declared lookback.
+ *  ⚠️ Engine 57 (`builtinWitnessMask`, PR #1294) carries the same set as `WITNESS_CARRIED_CALLS`;
+ *  whichever merges second makes it one. */
+const HOLE_CARRIED_CALLS = new Set(['ema', 'rma', 'rsi', 'atr', 'atrPine', 'adx', 'plusDI', 'minusDI', 'macd'])
+
+/** ⭐⭐ ENGINE HL — THE BARS WHERE A WINDOW EXTREME OVER A SOURCE WITH `na` HOLES ANSWERS FROM A
+ *  WINDOW NO CAPTURE PINS, as a 0/1 column (1 = withheld), or null when no bar is.
+ *
+ *  Per call site, over the site's own source column and literal length:
+ *    - `window-extreme:left-edge` (`highest` / `lowest` / `highestbars` / `lowestbars`, `NA.FINITE`),
+ *      off the listing only (`opts.historyFromListing !== true`): from bar `n - 1`, a window holding
+ *      fewer than `n` finite values. S10 / S17 measured the rule FROM the listing; off it the window
+ *      reaches bars before this chart's first one, where TradingView has values, so the short window
+ *      would be a wrong number (a wrong offset, for the arg members).
+ *  Every root bar within the tree's reach of a flagged bar is withheld (`barIndexMask`'s rule:
+ *  `maxLookback(tree) − maxLookback(site)` bars forward, or every later bar under a call that carries
+ *  state). A site inside a read of other bars (`tf`, `tf_live`, `sym`, `ltf`) is not walked here: those
+ *  nodes evaluate their child through `interpret` on their own bars, so the mask runs there. A site
+ *  over a recurrence's own value never gets here (the interpreter refuses a window over `self`).
+ *  Each code is named in the chart-clock channel (`CHART_CLOCK_WITHHELD`).
+ *  Python twin: `ast_interpret.window_hole_mask`. */
+export function windowHoleMask(tree, bars, inputs, budget, scalars, opts) {
+  const n = Array.isArray(bars) ? bars.length : 0
+  if (opts && opts.historyFromListing === true) return null
+  const found = []
+  const stack = [[tree, false, false]]
+  const seen = new Set()
+  while (stack.length) {
+    const [node, nested, unbounded] = stack.pop()
+    if (!node || typeof node !== 'object' || seen.has(node)) continue
+    seen.add(node)
+    if (node.type === 'call' && HOLE_WINDOW_CALLS.has(node.name)) found.push({ node, nested, unbounded })
+    const into = nested || node.type === 'sym' || node.type === 'tf' || node.type === 'tf_live' || node.type === LTF
+    const spec = node.type === 'call' && own(TABLE.functions, node.name) ? TABLE.functions[node.name] : null
+    const open = unbounded || !!(spec && (spec.lookback === SERIES_LOOKBACK || isStatefulCall(node)
+      || HOLE_CARRIED_CALLS.has(node.name)))
+    if (Array.isArray(node.args)) for (const a of node.args) stack.push([a, into, open])
+  }
+  if (!found.length) return null
+  const mask = new Float64Array(n)
+  let any = false
+  const codes = new Set()
+  const rootReach = maxLookback(tree)
+  const inner = { ...opts, crossMemo: undefined, probeBase: undefined, chartClockSink: undefined }
+  const colOf = (node) => toColumn(interpretOnce(node, bars, inputs, budget, scalars, inner), n)
+  for (const { node, nested, unbounded } of found) {
+    const args = node.args || []
+    if (nested || args.length < 2) continue
+    if (readsRecurrenceBinding(node)) continue
+    const lenCol = colOf(args[1])
+    const w = lenCol.length ? lenCol[lenCol.length - 1] : NaN
+    if (!(w >= 1) || !Number.isInteger(w)) continue
+    const span = FINITE_WINDOW[node.name].span(w)
+    const src = colOf(args[0])
+    const count = finiteWindowCount(src, span)
+    const flagged = (i) => i >= span - 1 && count[i] < span
+    const code = WINDOW_EXTREME_LEFT_EDGE
+    const reach = Math.max(0, rootReach - maxLookback(node))
+    let last = -Infinity
+    for (let i = 0; i < n; i++) {
+      if (flagged(i)) { codes.add(code); last = unbounded && last !== -Infinity ? last : i }
+      if (last !== -Infinity && (unbounded || i - last <= reach)) { mask[i] = 1; any = true }
+    }
+  }
+  if (!any) return null
+  nameChartClock(opts, [...codes].sort(), opts && opts.tf)
+  return mask
+}
+
 /** The bars a tree's answer is WITHHELD on for a read this engine does not hold:
- *  `periodAnchorMask` (C30), `historyReadMask` (C38), `barIndexMask` (C45) or
- *  `varOriginMask` (2026-11-09), one channel. */
+ *  `periodAnchorMask` (C30), `historyReadMask` (C38), `barIndexMask` (C45),
+ *  `varOriginMask` (2026-11-09) or `windowHoleMask` (engine HL), one channel. */
 export function withheldReadMask(tree, bars, inputs, budget, scalars, opts) {
   const masks = [
     periodAnchorMask(tree, bars, inputs, budget, scalars, opts),
@@ -6233,6 +6375,7 @@ export function withheldReadMask(tree, bars, inputs, budget, scalars, opts) {
     barIndexMask(tree, bars, inputs, budget, scalars, opts),
     varOriginMask(tree, bars, inputs, budget, scalars, opts),
     tfMergeMask(tree, bars, opts),
+    windowHoleMask(tree, bars, inputs, budget, scalars, opts),
   ].filter(Boolean)
   if (masks.length <= 1) return masks[0] || null
   const out = new Float64Array(Math.max(...masks.map((m) => m.length)))

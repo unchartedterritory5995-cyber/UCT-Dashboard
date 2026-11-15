@@ -1323,7 +1323,9 @@ export function withheldPlotsOf(clockReport, cols, notes) {
     const what = r.code.startsWith('bar-index:') ? '`bar_index`'
       : r.code.startsWith('running-total:') ? 'a running total'
         : r.code.startsWith('var-origin:') ? '`var`'
-          : r.code.startsWith('request:') ? '`request.security`' : 'time(<timeframe>)'
+          : r.code.startsWith('request:') ? '`request.security`'
+            // engine HL: `windowHoleMask`
+            : r.code.startsWith('window-extreme:') ? 'a window over `na` gaps' : 'time(<timeframe>)'
     notes.push(`${what} withheld (${r.code}) on ${r.plots.length} plot(s) — ${r.reason}`)
     const whole = CHART_CLOCK_WHOLE.includes(r.code)
     // ⭐ ENGINE 55 — a NEWEST-BAR code is never a whole-series withholding, even on a

@@ -15,6 +15,7 @@ import { computeRuntimeColumns, RUNTIME_PANE_TIME_BUDGET_MS } from './runtimeCol
 import { RUNTIME_OBJECTS_KEY, runtimeWarmupOf } from './runtimeObjects.js'
 // ⭐⭐ W9-T11 — the run's `strategy` record crosses beside the columns, like the drawings.
 import { runtimeStrategyOf } from './strategyRecord.js'
+import { calcBarsWindowReport } from '../calcBarsWindow.js'
 // ⭐⭐ W9-T11 (T1 review N1a) — THE WORKER IS ITS OWN MODULE GRAPH: the member door's
 // registration (`memberPaneDefinition.js`) never runs here, so without this the worker's
 // front end would read the registry's default (off) while the main thread's probe read the
@@ -46,7 +47,9 @@ self.onmessage = (event) => {
     // payload, a WITHHELD one included (its sentence is the member's), and the warm-up
     // the run withheld off the listing, which the host object gate reads.
     self.postMessage({ id, ok: true, columns, objects: columns[RUNTIME_OBJECTS_KEY] || null,
-      warmup: runtimeWarmupOf(columns), strategy: runtimeStrategyOf(columns) })
+      warmup: runtimeWarmupOf(columns), strategy: runtimeStrategyOf(columns),
+      // ⭐⭐ CBC-FMT — the `calc_bars_count` window record crosses beside the columns too
+      calcBars: calcBarsWindowReport(columns) })
   } catch (err) {
     self.postMessage({
       id,

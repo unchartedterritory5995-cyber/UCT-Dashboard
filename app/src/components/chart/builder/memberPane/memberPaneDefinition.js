@@ -51,7 +51,6 @@ import { objectLossNote, RUN_HALF_DRAWING_SENTENCE } from '../../engine/ast/obje
 import { DOCUMENT_BYTE_BUDGET } from '../../engine/ast/graphDocument'
 import { storedBytesOf, sentDocument } from './storedBytes'
 import { runHalfProgramDigest, isGraphForm, RUN_HALF_PROGRAM_STAMP, RUN_HALF_PROGRAM_GRAPH_STAMP } from '../../engine/runHalfProgram'
-import { declaredCalcBarsOf } from '../../engine/runtime/objectStore'
 import { objectsOnlyPaneEnabled } from '../../engine/objectsOnlyPaneGate'
 import { memberInputTranslation, pineLineWidth } from '../builderInputs'
 import { manifestFromPlacements, paramLocatorsIn } from '../pineParamManifest'
@@ -149,6 +148,19 @@ function tradingViewDefaultColour(output, version) {
   }
 }
 
+/** ⭐⭐ CBC-FMT — the drawings note of a `calc_bars_count` document whose host object
+ *  program is withheld (phase 1: that program is computed over every bar). */
+export const CALC_BARS_DRAWINGS_NOTE = 'Its lines, labels, boxes and tables are not drawn: it is computed on '
+  + 'its last bars only (`calc_bars_count`), its plots are drawn over those bars, and its drawings could only be '
+  + 'made over every bar of the chart, which would be a different picture from TradingView’s.'
+
+/** ⭐⭐ CBC-FMT — `meta.calcBarsCount` (and `meta.calcBarsRequest`) off the translation, or
+ *  nothing: ONE stamp both lanes' documents carry. */
+function calcBarsMeta(t) {
+  if (!t || !Number.isInteger(t.calcBarsCount) || !(t.calcBarsCount > 0)) return {}
+  return { calcBarsCount: t.calcBarsCount, ...(t.calcBarsRequest === true ? { calcBarsRequest: true } : {}) }
+}
+
 export function memberPaneDefinition({ source, id, name, translation = null, enumInputs = true, routeHostPartial = true } = {}) {
   const no = (reason, guard = null, t = null) => ({
     ok: false, definition: null, reason, guard, translation: t, rows: [], notes: [],
@@ -224,6 +236,11 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
   // withholding is a narrowing of what it draws, never a new render path.
   const objectsGate = paneObjectsGate(t)
   const withholdObjects = !objectsGate.draw
+  // ⭐⭐ CBC-FMT — a `calc_bars_count` document's plots are computed over its window
+  // (`engine/calcBarsWindow.js`); the host object program has no window yet (phase 2:
+  // `objectReaderFor` over the window), so its drawings are withheld BY NAME rather than
+  // drawn over every bar beside plots drawn over the last N.
+  const windowed = Number.isInteger(t.calcBarsCount)
 
   // ⛔ THE ROWS ARE THE ONES A CHART CAN DRAW, and `hidden` is respected because
   // an author who wrote `display = display.none` meant it — Clouds' layer plots
@@ -270,7 +287,8 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
   //
   // ⛔ SAME GATE, SAME DEFAULT. Off, this returns exactly the refusal it always
   // did, and the fact that it now asks a second question is invisible.
-  const drawsObjects = !withholdObjects && !!(t.objects && (t.objects.ops || []).length)
+  const hostObjectsWouldDraw = !withholdObjects && !!(t.objects && (t.objects.ops || []).length)
+  const drawsObjects = hostObjectsWouldDraw && !windowed
   // ⭐⭐ B1 — THE PAINTS (`bgcolor` / `barcolor`) THE TRANSLATOR CARRIED. A paint
   // that is withheld by name, hidden by its author (`display.none`) or `na` draws
   // nothing, so it never reaches the document; the withheld ones are disclosed
@@ -279,6 +297,9 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
   const drawnPaints = allPaints.filter((p) => !p.withheld && !p.hidden && !p.na)
   const drawsPaints = drawnPaints.length > 0
   if (!visible.length && !(allowObjectsOnly && (drawsObjects || drawsPaints))) {
+    // ⭐⭐ CBC-FMT — a windowed script whose only drawing is its host object program: that
+    // program has no window yet, so it is refused by name, never "declares nothing".
+    if (windowed && hostObjectsWouldDraw) return no(CALC_BARS_DRAWINGS_NOTE, 'pine:calc-bars-objects', t)
     return no('this script declares nothing a chart can draw', null, t)
   }
   // ⛔ A PANE SCRIPT WHOSE ONLY DRAWING IS A BACKGROUND IS REFUSED BY NAME.
@@ -854,6 +875,7 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
     seen.add(`${drawingNote.name} :: ${drawingNote.note}`)
     notes.push(drawingNote)
   }
+  if (windowed && hostObjectsWouldDraw) notes.unshift({ name: 'Drawings', note: CALC_BARS_DRAWINGS_NOTE })
   // ⭐⭐ RS RATING L3 — A VALUE FROM UCT DATA IN PLACE OF TRADINGVIEW'S IS SAID SO, BY NAME
   // (`syminfo.industry` / `syminfo.sector`, `bind.js::classificationWith`). The program's
   // substitution rule: disclosed at the member door, never passed off as TradingView's.
@@ -939,6 +961,11 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
     // and it rides OUTSIDE the trees, so no tree hash moves. A document without
     // it (saved before this, or from another translator) keeps the bounded window.
     recurrenceOrigin: PINE_RECURRENCE_ORIGIN,
+    // ⭐⭐ CBC-FMT — the window this document is computed on (`calc_bars_count`), read by the
+    // one reader (`pine.js::declarationCalcBars`) and applied at the one seam
+    // (`nativeRegistry.computeFor` → `engine/calcBarsWindow.js`). Absent for every script
+    // that declares none, so no other document changes.
+    ...calcBarsMeta(t),
     // ⭐⭐ THE DOOR STAMPS (`memberDocumentMigration.DOOR_VERSION`): the script's own
     // `//@version` (null for a script with none — TradingView compiles it as v1)
     // and the version of the door that wrote this document, so the next
@@ -1066,7 +1093,7 @@ function hostPartialRunHalf({ source, id, t, objectsGate, drawable, definition, 
   if (!(Number.isInteger(diag.attemptedOps) && diag.attemptedOps > 0)) {
     return declined('run-half:no-drawing', 'the host object program attempted no drawing')
   }
-  if (declaredCalcBarsOf(strippedForScan(String(source || ''))) !== null) {
+  if (Number.isInteger(t && t.calcBarsCount)) {
     return declined('runtime:calc-bars-count', 'the script runs on its last bars only (`calc_bars_count`), '
       + 'and the host plots are drawn over every bar')
   }
@@ -2116,6 +2143,8 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
     // Every run re-checks them, so a later engine that orders outputs differently
     // refuses by name instead of drawing one plot under another's name.
     ...runtimeVersionStamp(probe.outputs),
+    // ⭐⭐ CBC-FMT — the same window stamp the host lane's document carries
+    ...calcBarsMeta(t),
     disclosures: notes.map((n) => ({ name: n.name, note: n.note })),
     requirementTags: [],
   }

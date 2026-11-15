@@ -182,6 +182,9 @@ import { LIMIT_NAMES } from './runtime/limits'
 import { registeredObjectRuntimeValues, inputsAtDefaults } from './objectRuntimeSeam.js'
 import { manifestAtDefaults } from './paramLiteral.js'
 import { noteRuntimeLoadFailed } from './runtimeRunTelemetry.js'
+// ⭐⭐ CBC-FMT — `calc_bars_count`: the window both lanes take (pure, imports nothing).
+import { calcBarsWindowOf, windowContext, widenToChart, withCalcBarsRecord, calcBarsWindowReport,
+  CALC_BARS_REQUEST_GUARD, calcBarsRequestSentence } from './calcBarsWindow.js'
 // ⭐ UCT RS's tour cards (unit 4-04). ⛔ FROM `teachingData.js`, NEVER `teaching.js`:
 // `teaching.js` reads the readout cards off this registry, so importing it here
 // is an import cycle. `teachingData.js` imports nothing.
@@ -2844,7 +2847,13 @@ function withChartClock(out, byKey) {
  *  (`chartClockNotice.js`); the vendor harness prints it as a note. Modelled on
  *  `otherSymbolReport`: the decision rides on the columns it was made for. */
 export function chartClockReport(columns) {
-  return (columns && columns[CHART_CLOCK]) || null
+  const own = (columns && columns[CHART_CLOCK]) || null
+  // ⭐⭐ CBC-FMT — a `calc_bars_count` window says so on the same strip ("computed on its
+  // last N bars", and the newest bar while it is withheld), in either lane.
+  const win = calcBarsWindowReport(columns)
+  if (!win) return own
+  const rows = win.rows.map((r) => ({ code: r.code, reason: r.reason, plots: [] }))
+  return Object.freeze({ withheld: Object.freeze([...((own && own.withheld) || []), ...rows]) })
 }
 
 /** ⭐⭐ C12w — THE DECLARATION A DOCUMENT MAKES ABOUT ITS RECURRENCES. The Pine
@@ -3647,6 +3656,12 @@ export function computeFor(def, bars, inputs, ctx) {
   // had one.
   if (def?.compute?.kind === 'ast') {
     const rows = Array.isArray(bars) ? bars : []
+    // ⭐⭐ CBC-FMT — `calc_bars_count`: THE ONE SEAM where the host lane takes its window
+    // (`engine/calcBarsWindow.js`). Every caller of `computeFor` (the binder, the object
+    // lane, the vendor harness) inherits it; a chart of N bars or fewer, and every document
+    // without the stamp, takes the path below unchanged.
+    const win = calcBarsWindowOf(def, rows)
+    if (win) return windowedAstColumns(def, win, inputs, ctx)
     const out = astColumnsFor(def, rows, treeScalars(def, resolveInputs(def, inputs)), ctx)
     const coloured = def.compute.runtimeColours ? withRuntimeColours(def, out, rows, inputs, ctx) : out
     // ⭐⭐ ENGINE 53 — and its drawings, when it carries a run half (`withRunHalf`).
@@ -3676,6 +3691,54 @@ export function computeFor(def, bars, inputs, ctx) {
 
   const hold = COLUMN_HOLDS[def.compute.fn]
   return hold ? hold(columns) : columns
+}
+
+/**
+ * ⭐⭐ CBC-FMT — AN `ast` DOCUMENT'S COLUMNS OVER ITS `calc_bars_count` WINDOW.
+ *
+ * The run is the ordinary one (`astColumnsFor`, then the run-read colours and the run
+ * half, exactly as `computeFor` composes them) over the window's rows, told its first bar
+ * is the history's first bar and TradingView's `bar_index` 0 (`windowContext`, both
+ * witnessed). Its columns are widened back to the chart (`NaN` before the window) and
+ * carry the window's record. Three things the window does not witness are withheld or
+ * refused BY NAME, never computed as if they were (`barstate.isfirst`, `last_bar_index` and
+ * a history read are witnessed: the slice computes them as TradingView does, S10):
+ *   · a request of other bars (`meta.calcBarsRequest`, or a `sym` / `ltf` / higher-
+ *     timeframe read): every plot is refused (`CALC_BARS_REQUEST_GUARD`);
+ *   · the newest bar while it may be forming (`withCalcBarsRecord`).
+ */
+function windowedAstColumns(def, win, inputs, ctx) {
+  const keys = astPlotKey(def)
+  if (calcBarsRequests(def)) {
+    const errors = {}
+    for (const key of keys) errors[key] = { guard: CALC_BARS_REQUEST_GUARD, message: calcBarsRequestSentence(win.count) }
+    return withCalcBarsRecord(withColumnErrors({}, errors), win, ctx, RUNTIME_OBJECTS_KEY)
+  }
+  const wctx = windowContext(ctx)
+  const out = astColumnsFor(def, win.rows, treeScalars(def, resolveInputs(def, inputs)), wctx)
+  const coloured = def.compute.runtimeColours ? withRuntimeColours(def, out, win.rows, inputs, wctx) : out
+  const ran = def.compute.runtimeObjects ? withRunHalf(def, coloured, win.rows, inputs, wctx) : coloured
+  return withCalcBarsRecord(widenToChart(ran, win.cut, RUNTIME_OBJECTS_KEY), win, ctx, RUNTIME_OBJECTS_KEY)
+}
+
+/** Does a windowed document request other bars? The door's stamp (the source's own
+ *  `request.*`, the identity included) or a tree that reads them. */
+function calcBarsRequests(def) {
+  if (def.meta && (def.meta.calcBarsRequest === true
+    || (Array.isArray(def.meta.otherSymbols) && def.meta.otherSymbols.length)
+    || (Array.isArray(def.meta.lowerTf) && def.meta.lowerTf.length))) return true
+  const trees = astTrees(def)
+  const all = trees ? Object.values(trees) : [def.compute.ast]
+  const stack = [...all]
+  const seen = new Set()
+  while (stack.length) {
+    const n = stack.pop()
+    if (!n || typeof n !== 'object' || seen.has(n)) continue
+    seen.add(n)
+    if (n.type === 'sym' || n.type === 'ltf' || n.type === 'tf' || n.type === 'tf_live') return true
+    if (Array.isArray(n.args)) for (const a of n.args) stack.push(a)
+  }
+  return false
 }
 
 /**
