@@ -13,7 +13,7 @@ from api.services.uct_agent.marketdata import gateway as gw
 
 @pytest.fixture(autouse=True)
 def _clean(monkeypatch):
-    for name in (gw.DATA_ENV, gw.SCAN_ENV, gw.ISOLATED_ENV, gw.KINDS_ENV):
+    for name in (gw.DATA_ENV, gw.SCAN_ENV, gw.ISOLATED_ENV, gw.ISOLATED_KINDS_ENV, gw.KINDS_ENV):
         monkeypatch.delenv(name, raising=False)
     gw._reset_for_test(None)
     yield

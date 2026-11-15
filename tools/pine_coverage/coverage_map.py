@@ -44,6 +44,7 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(ROOT, "tools", "vendor_harness"))
 import evidence_ledger as el  # noqa: E402 -- LEDGER_ONLY evidence and its freshness rule: one authority
+import licence_held  # noqa: E402 -- a licence-held capture is read from the local store (LICENSING.md 2d)
 
 # ── what each door guard is, as a CAPABILITY. Derived from pine.js REFUSALS sentences.
 GUARD_BUCKET = {
@@ -876,6 +877,10 @@ def main():
             # plots; the coverage map does not count that as the whole script.
             "clean": transfers_fully(c, u),
             "doorClean": bool(c.get("clean")),
+            # ⭐ ENGINE 55 — THE BOUND PREDICATE beside the static one: the census bound the
+            # attached definition once on the RDDT 1D reference bars (`boundBlockers` in
+            # coverageMapDoorCensus.measure.test.js). `None` on a row from an older census.
+            "cleanBound": (transfers_fully(c, u) and c.get("cleanBound") is True) if "cleanBound" in c else None,
             "runtimeAttached": bool((c.get("runtime") or {}).get("attached")),
             # ⚠️ COUNTERFACTUAL, AN UPPER BOUND: with the dark runtime pane on, the door
             # handed the script to the per-bar RUNTIME lane and attached it. The host
@@ -905,7 +910,7 @@ def main():
     verified_items, diverge_items = collections.Counter(), collections.Counter()
     cap_rows = []
     for r in vd.get("results", []):
-        p = os.path.join(ROOT, r["file"]) if not os.path.isabs(r["file"]) else r["file"]
+        p = licence_held.resolve(r["file"])
         try:
             cap = json.load(open(p, encoding="utf-8"))
             src = (cap.get("source") or {}).get("text") or ""
@@ -1113,6 +1118,11 @@ def main():
                            "attaches it with zero refusals, with nothing dropped or withheld from its object program "
                            "and no per-bar paint withheld. Door acceptance, not numeric parity."),
             "sample": N, "transfer": len(clean), "transferPct": pct(len(clean), N),
+            # ⭐ ENGINE 55 — both numbers: `transfer` (static, comparable with every earlier map)
+            # and `transferBound` (the same scripts, ALSO clean on one bind). Null when the census
+            # predates the bound check.
+            "transferBound": (sum(1 for s in scripts if s["cleanBound"])
+                              if any(s["cleanBound"] is not None for s in scripts) else None),
             "attachedAnyForm": sum(1 for s in scripts if s["attached"]),
             "attachedPct": pct(sum(1 for s in scripts if s["attached"]), N),
             "runtimeCounterfactualTransfer": sum(1 for s in scripts if s["clean"] or s["runtimeClean"]),

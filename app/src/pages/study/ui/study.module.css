@@ -266,6 +266,9 @@
 .stampInline .stamp { width: 72px; height: 72px; animation: stampIn .55s var(--k-ease) both; }
 .stampInline .stamp svg { width: 26px; height: 26px; }
 .stampInline .stampWord { font-size: 8px; }
+/* a short word ("Right", "Miss") needs none of that squeeze: the lesson's seal read 8 px (the screen check, 2026-11-14);
+   at 11 px, tracked a little tighter, a five-letter word still sits inside the 72 px seal */
+.stampInline .stampWord.stampWordShort { font-size: 11px; letter-spacing: .14em; }
 .cards.row { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
 .card.pill { justify-content: center; text-align: center; min-height: 56px; padding: 10px 14px; border-radius: 999px; font-size: 16px; gap: 10px; }
 .card.pill .num { width: 24px; height: 24px; font-size: 11px; }
@@ -344,7 +347,7 @@
 .coachTitles { flex: 1; min-width: 0; display: grid; gap: 3px; }
 .coachTitle { margin: 0; font-size: 25px; line-height: 1.15; font-weight: 850; letter-spacing: -.015em; color: var(--k-ink); }
 .coachBlock { display: grid; gap: 10px; padding-top: 16px; border-top: 1px solid rgba(255, 255, 255, .06); }
-.coachLabel { font-size: 11px; font-weight: 900; letter-spacing: .2em; text-transform: uppercase; color: var(--k-ink-dim); }
+.coachLabel { font-size: 12px; font-weight: 900; letter-spacing: .18em; text-transform: uppercase; color: var(--k-ink-dim); }
 .coach .leadList li { font-size: 16.5px; }
 .reads { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
 .read { display: grid; gap: 2px; align-content: start; padding: 10px 12px 11px; border-radius: 12px; border: 1px solid #23252a; background: rgba(255, 255, 255, .025); }
@@ -458,17 +461,22 @@
 }
 
 /* ROUND 22 · the trade in the lesson card (the owner, batch 22: "Entry, Stop, Trim, Trail, Advance") */
-.legs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
-.leg { display: flex; flex-direction: column; gap: 3px; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--k-line); background: linear-gradient(180deg, #17181b, #111214); }
-.leg small { font-size: 10.5px; font-weight: 900; letter-spacing: .18em; text-transform: uppercase; color: var(--k-ink-dim); }
-.leg b { font-size: 22px; font-weight: 900; font-variant-numeric: tabular-nums; color: var(--k-ink); }
-.leg span { font-size: 12.5px; line-height: 1.35; color: var(--k-ink-dim); }
+/* THE BOXES READ AT A GLANCE (the screen check, 2026-11-14: four 165 px columns broke "$51.05 · $52.43" over two lines on
+   a desktop, and the phone's two 146 px columns made the 3R and 5R box a 13-line strip). Two to a row past a phone, one
+   to a row on it; each box is its name and its number on one line, the short note under them. */
+.legs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.leg { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "k v" "n n"; align-items: baseline; column-gap: 12px; row-gap: 4px;
+  padding: 12px 14px; border-radius: 14px; border: 1px solid var(--k-line); background: linear-gradient(180deg, #17181b, #111214); }
+.leg small { grid-area: k; font-size: 12px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; color: var(--k-ink-dim); }
+.leg b { grid-area: v; font-size: 21px; font-weight: 900; font-variant-numeric: tabular-nums; color: var(--k-ink); white-space: nowrap; text-align: right; }
+.leg span { grid-area: n; font-size: 13px; line-height: 1.4; color: var(--k-ink-dim); }
+.leg span:empty { display: none; }
 .leg_gold { border-color: rgba(220, 187, 94, .45); } .leg_gold b { color: var(--k-gold-bright); }
 .leg_down { border-color: rgba(223, 70, 70, .4); } .leg_down b { color: #ff9d9d; }
 .leg_up { border-color: rgba(47, 175, 104, .45); } .leg_up b { color: #8fe3b1; }
 .tradeLine { margin: 10px 0 0; font-size: 15px; line-height: 1.5; color: var(--k-ink-soft); }
 .tradeLine b { color: var(--k-ink); }
-@media (max-width: 640px) { .legs { grid-template-columns: 1fr 1fr; } .leg b { font-size: 19px; } }
+@media (max-width: 640px) { .legs { grid-template-columns: minmax(0, 1fr); } .leg b { font-size: 19px; } }
 /* kit v2 · the lesson reads by its message (the owner, batch 24: "easier to read while getting a really good message across") */
 .takeaway { margin: 0; padding: 14px 16px; border-radius: 14px; font-size: 18px; line-height: 1.5; font-weight: 600; color: var(--k-ink);
   background: linear-gradient(90deg, rgba(220, 187, 94, .12), rgba(220, 187, 94, .02)); border: 1px solid rgba(220, 187, 94, .3); }

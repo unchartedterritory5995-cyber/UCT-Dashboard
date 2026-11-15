@@ -1,0 +1,151 @@
+/* HISTORY DETECTIVE (HistoryDetectiveGame.jsx): only what the Study kit lacks, on the kit's own tokens (study.module.css
+   .kit: --k-gold, --k-ink, --k-line, --k-up, --k-down ...) and the greens, reds and golds the kit already uses; no new
+   colour. The hearts (Order Ticket's and Options Payoff's shield), the case card that stands where a chart stands, the
+   fill sentence's gold blank, the number field, the case file's extras (the chart's facts, the working, the sources and
+   the evidence), and the end screen's run log as one case a row. */
+
+/* ── the status line and the hearts ─────────────────────────────────────────────────────────────────────── */
+.hudRow { display: flex; align-items: stretch; gap: 10px; }
+.hudRow > :first-child { flex: 1; min-width: 0; }
+.hearts { flex: none; display: inline-flex; align-items: center; gap: 3px; padding: 0 12px; border-radius: 16px; border: 1px solid var(--k-line);
+  background: var(--k-glass), var(--k-plate); box-shadow: 0 10px 30px rgba(0, 0, 0, .35), inset 0 1px 0 rgba(255, 255, 255, .04); }
+.heart { display: grid; place-items: center; font-style: normal; transition: color .3s, opacity .3s, filter .3s, transform .35s var(--k-ease); }
+.heart svg { display: block; }
+.heart.heartOn { color: var(--k-gold-bright); filter: drop-shadow(0 0 6px rgba(220, 187, 94, .45)); }
+.heart.lost { color: var(--k-line-lit); opacity: .75; transform: scale(.86); }
+
+/* ── the case card: the hero when there is no chart, the case notes under one when there is ─────────────── */
+.file { position: relative; margin: 14px 0 0; display: flex; flex-direction: column; justify-content: center; gap: 14px; min-height: 196px;
+  padding: 36px 34px 26px; border-radius: 22px; border: 1px solid color-mix(in srgb, var(--k-gold) 40%, transparent);
+  background: radial-gradient(120% 130% at 0% 0%, color-mix(in srgb, var(--k-gold) 11%, transparent), transparent 58%), var(--k-glass), var(--k-plate);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, .45), inset 0 1px 0 rgba(255, 255, 255, .05); animation: caseIn .36s var(--k-ease) both; }
+.file.compact { min-height: 0; padding: 26px 22px 16px; gap: 10px; }
+.tab { position: absolute; top: -13px; left: 26px; padding: 5px 14px; border-radius: 10px; font-size: 11.5px; font-weight: 900; letter-spacing: .22em;
+  text-transform: uppercase; white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--k-gold-ink);
+  background: linear-gradient(180deg, var(--k-gold-bright), var(--k-gold) 60%, var(--k-gold-deep)); box-shadow: 0 3px 0 var(--k-gold-edge), 0 8px 18px rgba(0, 0, 0, .4); }
+.mark { position: absolute; top: 16px; right: 22px; display: inline-flex; color: var(--k-gold); opacity: .35; }
+.story { margin: 0; max-width: 62ch; padding-left: 14px; border-left: 2px solid color-mix(in srgb, var(--k-gold) 45%, transparent);
+  font-size: 17px; line-height: 1.55; color: var(--k-ink-soft); text-wrap: pretty; }
+.big { margin: 0; max-width: 46ch; font-size: 27px; line-height: 1.3; font-weight: 750; letter-spacing: -.01em; color: var(--k-ink); text-wrap: balance; overflow-wrap: anywhere; }
+.foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 4px; font-size: 11px; font-weight: 900; letter-spacing: .2em;
+  text-transform: uppercase; color: var(--k-ink-dim); }
+.foot em { font-style: normal; color: var(--k-gold-bright); opacity: 0; animation: fadeOn .3s ease .4s forwards; }
+
+/* the blank in a fill sentence: a gold slot that takes the picked word */
+.slot { display: inline-block; min-width: 4.2em; margin: 0 .18em; padding: 0 .35em; border-bottom: 3px dashed color-mix(in srgb, var(--k-gold) 70%, transparent);
+  border-radius: 6px 6px 0 0; text-align: center; color: var(--k-gold-bright); line-height: 1.15; transition: background .2s, border-color .2s; }
+.slot.slotOn { border-bottom-style: solid; background: color-mix(in srgb, var(--k-gold) 12%, transparent); }
+.slot.slotOk { color: #9fe9bd; border-bottom-color: var(--k-up); background: rgba(47, 175, 104, .12); }
+.slot.slotBad { color: #ffb3b3; border-bottom-color: var(--k-down); background: rgba(223, 70, 70, .12); }
+
+/* ── the chart and what came next ────────────────────────────────────────────────────────────────────────── */
+.after { display: flex; align-items: center; gap: 8px; margin: 10px 2px 0; font-size: 13.5px; line-height: 1.45; color: var(--k-ink-dim); }
+.after svg { flex: none; color: var(--k-gold); }
+
+/* ── the number field (the answer area's look, answerLooks.module.css; only the field is new) ───────────── */
+.num { display: grid; gap: 8px; }
+.numLabel { font-size: 11px; font-weight: 900; letter-spacing: .2em; text-transform: uppercase; color: var(--k-ink-dim); }
+.numWrap { display: flex; align-items: center; gap: 10px; min-height: 64px; padding: 0 18px; border-radius: 16px; border: 1px solid var(--k-line-lit);
+  background: var(--k-glass), #141518; box-shadow: inset 0 2px 6px rgba(0, 0, 0, .45); transition: border-color .2s, box-shadow .2s; }
+.numWrap:focus-within { border-color: var(--k-gold); box-shadow: inset 0 2px 6px rgba(0, 0, 0, .45), 0 0 0 1px rgba(220, 187, 94, .25), 0 0 24px rgba(220, 187, 94, .14); }
+.numInput { flex: 1; min-width: 0; height: 60px; border: 0; outline: 0; background: transparent; color: var(--k-ink); font: inherit; font-size: 30px; font-weight: 800;
+  letter-spacing: -.01em; font-variant-numeric: tabular-nums; }
+.numInput:disabled { color: var(--k-ink-soft); }
+.affix { flex: none; font-size: 24px; font-weight: 800; color: var(--k-gold-bright); }
+.numOk .numWrap { border-color: rgba(47, 175, 104, .8); background: linear-gradient(180deg, rgba(47, 175, 104, .14), rgba(47, 175, 104, .05)), #141518; }
+.numBad .numWrap { border-color: rgba(223, 70, 70, .8); background: linear-gradient(180deg, rgba(223, 70, 70, .14), rgba(223, 70, 70, .05)), #141518; }
+.numHint { font-size: 13px; color: var(--k-ink-dim); }
+.numTruth { font-size: 15px; color: var(--k-ink-soft); }
+.numTruth b { color: var(--k-up); font-size: 18px; font-variant-numeric: tabular-nums; }
+
+.note { margin: 0; font-size: 14px; line-height: 1.45; text-align: center; color: var(--k-ink-soft); }
+.signIn { display: flex; justify-content: center; }
+
+/* ── the takeover's extras (kept short: the takeover cannot scroll and its button must stay on a phone's screen) ── */
+.tkLine { display: block; margin-top: 8px; font-size: 17px; line-height: 1.45; color: var(--k-ink); }
+.tkHearts { display: block; margin-top: 12px; text-align: center; font-weight: 800; color: #ffb3b3; }
+
+/* ── the case file (the coach card's look, study.module.css .coach; these are its extras) ────────────────── */
+.verdict { flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px 5px 9px; border-radius: 999px; border: 1px solid; font-size: 11px;
+  font-weight: 900; letter-spacing: .16em; text-transform: uppercase; }
+.verdict svg { display: block; }
+.verdictOk { color: #8fe3b1; border-color: rgba(47, 175, 104, .5); background: rgba(47, 175, 104, .1); }
+.verdictBad { color: #ffb3b3; border-color: rgba(223, 70, 70, .5); background: rgba(223, 70, 70, .1); }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { display: inline-flex; align-items: center; gap: 7px; padding: 5px 12px; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--k-gold) 40%, transparent);
+  background: linear-gradient(180deg, #1c1709, #0f0d06); font-size: 13px; color: var(--k-ink-soft); }
+.chip svg { display: block; color: var(--k-gold); }
+.chip b { color: var(--k-gold-bright); font-weight: 850; letter-spacing: .02em; }
+.said { color: #ffb3b3; }
+.formula { margin: 0; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--k-line); background: var(--k-plate); font-size: 15.5px; line-height: 1.7;
+  color: var(--k-ink-soft); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.formula b { color: var(--k-gold-bright); }
+.formula span { display: block; }
+.line { margin: 0; font-size: 18px; line-height: 1.5; font-weight: 650; color: var(--k-ink); text-wrap: pretty; }
+.sources { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.sources li { display: flex; align-items: flex-start; gap: 8px; font-size: 14px; line-height: 1.45; color: var(--k-ink-soft); }
+.sources li svg { flex: none; margin-top: 2px; color: var(--k-gold); }
+.sources a { color: inherit; text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--k-gold) 45%, transparent); text-underline-offset: 2px; }
+.sources a:hover { color: var(--k-ink); }
+.evidence summary { cursor: pointer; list-style: none; display: inline-flex; align-items: center; gap: 6px; min-height: 44px; font-size: 12px; font-weight: 800;
+  letter-spacing: .1em; text-transform: uppercase; color: var(--k-ink-dim); }
+.evidence summary::-webkit-details-marker { display: none; }
+.evidence[open] summary { color: var(--k-gold-bright); }
+.quotes { margin: 4px 0 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+.quotes li { padding: 10px 14px; border-left: 2px solid color-mix(in srgb, var(--k-gold) 45%, transparent); border-radius: 0 10px 10px 0; background: var(--k-plate); }
+.quotes q { display: block; font-size: 14.5px; line-height: 1.55; color: var(--k-ink-soft); font-style: italic; }
+.quotes small { display: block; margin-top: 5px; font-size: 12px; color: var(--k-ink-dim); }
+
+/* ── the failed draw: the kit's load-failed card with a way back under it ────────────────────────────────── */
+.failed { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 18px 0 26px; }
+
+/* ── the end screen: the run log as one case a row, its answer, its lesson and its source under it ───────── */
+.end { overflow-x: clip; }
+.endNote { display: block; }
+.endNote + .endNote { margin-top: 6px; }
+.end [data-testid='run-log'] { grid-template-columns: 1fr; gap: 10px; }
+.end [data-testid='run-log'] > [role='listitem'] { gap: 7px; padding: 13px 16px 14px; text-align: left; }
+.end [data-testid='run-log'] > [role='listitem'] > b { font-size: 15.5px; line-height: 1.42; font-weight: 700; color: var(--k-ink); }
+.end [data-testid='run-log'] > [role='listitem'] > em { order: 2; display: block; font-size: 14px; font-weight: 500; font-style: normal; letter-spacing: 0; color: var(--k-ink-soft); }
+/* a missed case's "you said ..., it was ..." sits right under its question, above the lesson and the source */
+.end [data-testid='run-log'] > [role='listitem'] > i { order: 1; font-size: 13px; font-weight: 700; line-height: 1.45; }
+.logLine { display: flex; flex-direction: column; gap: 6px; }
+.logAnswer { display: inline-flex; align-items: flex-start; gap: 6px; font-size: 13px; font-weight: 800; line-height: 1.45; color: #8fe3b1; }
+.logAnswer svg { flex: none; margin-top: 2px; color: var(--k-up); }
+.logChart { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 850; letter-spacing: .08em; color: var(--k-gold-bright); }
+.logChart svg, .logSrc svg { flex: none; color: var(--k-gold); }
+.logLesson { line-height: 1.5; color: var(--k-ink-soft); }
+.logSrc { display: flex; align-items: flex-start; gap: 6px; font-size: 12px; line-height: 1.4; color: var(--k-ink-dim); }
+.logSrc svg { margin-top: 1px; }
+
+@keyframes caseIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes fadeOn { to { opacity: 1; } }
+
+/* touch: a source is a link of its own, so it gets a finger's room (44px), in the case file and in the run log */
+@media (max-width: 1024px) {
+  .sources { gap: 2px; }
+  .sources li, .logSrc { align-items: center; }
+  .sources li svg, .logSrc svg { margin-top: 0; }
+  .sources a, .logSrc a { display: inline-flex; align-items: center; min-height: 44px; }
+}
+
+@media (max-width: 640px) {
+  .hudRow { flex-direction: column; align-items: stretch; gap: 6px; }
+  .hearts { align-self: flex-end; padding: 5px 10px; gap: 3px; border-radius: 12px; }
+  .heart svg { width: 18px; height: 18px; }
+  .file { min-height: 150px; padding: 30px 20px 20px; border-radius: 18px; }
+  .file.compact { padding: 24px 16px 14px; }
+  .tab { left: 18px; }
+  .mark { top: 12px; right: 14px; }
+  .story { font-size: 15.5px; }
+  .big { font-size: 21px; line-height: 1.34; }
+  .numInput { font-size: 26px; }
+  .tkLine { font-size: 15.5px; }
+  .line { font-size: 16.5px; }
+  .formula { font-size: 14px; }
+  .end [data-testid='run-log'] > [role='listitem'] { padding: 12px 13px 13px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .file, .foot em { animation: none; opacity: 1; }
+  .heart, .slot, .numWrap { transition: none; }
+}

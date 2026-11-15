@@ -5,6 +5,7 @@
 // (api/services/study_intraday.py), and serves them after the member's own answer (GET /attempts/{id}/intraday). Here:
 // line them up with the forward bars, and build the day's candle as it grew. A day with no bars lands whole.
 import { studyFetch } from '../useStudySession'
+import { dayLine, sellTooEarly } from './hardMode'
 
 const ATTEMPTS_URL = '/api/study/attempts'
 const dayKey = (t) => String(t ?? '').replace(/-/g, '').slice(0, 8)
@@ -50,8 +51,9 @@ export function developing(day, ticks, j) {
   return { t: day.t, o: day.o, h, l, c: upto[upto.length - 1].c, v: total > 0 ? Math.round((day.v || 0) * (sofar / total)) : 0 }
 }
 
-/** The sessions (1 = the first day after the signal) the replay plays slowly: the first two, the targets, the stop and
- *  the best price of the trade; the days between run quickly ("in between the main lesson days can be a bit faster"). */
+/** The sessions (1 = the first day after the signal) the replay plays slowly: the first two, the marks (3R and 5R), the
+ *  stop and the best price of the trade; the days between run quickly ("in between the main lesson days can be a bit
+ *  faster"). */
 export function keyDays(trade, culm = null) {
   const s = new Set([1, 2])
   for (const v of [trade?.t1At, trade?.t2At, trade?.stoppedSession, trade?.bestSessions, culm ? culm.offset : null]) {
@@ -79,9 +81,13 @@ export function showChart(el) {
   try { el?.scrollIntoView?.({ block: 'nearest' }) } catch { /* an old engine without options */ }
 }
 
-/** The questions the replay stops on (N033; api/services/study_trade.replay_checks, on the plan), each with the session
- *  it waits for: 2R's at the session 2R traded, 3R's at 3R's; a target reached on the signal day itself, or after the
- *  stop, asks nothing. */
+/** The questions the replay stops on (N033; api/services/study_trade.replay_checks, on the owner's D-013 of 2026-11-12:
+ *  at 3R the plan holds, 3R being a mark on the ruler and the stop free to move up to breakeven; at 5R it sells some into
+ *  strength if it is day 3 or later and trails the rest), each with the session it waits for: 3R's (`t1`) at the session
+ *  3R traded, 5R's (`t2`) at 5R's; a mark reached on the signal day itself, or after the stop, asks nothing. The words
+ *  are the server's; nothing here names a level. WHAT THE DAY CHANGES: the session is known here, so the why says the
+ *  day (the buy day is day 1, hardMode.dayName) and adds the server's own note for it: `early` on day 1 or 2 (we very
+ *  rarely sell that early), `later` from day 3. A check without the notes (an older server) keeps its why as it came. */
 export function replayChecks(trade) {
   if (!trade || trade.kind !== 'plan' || !Array.isArray(trade.checks)) return []
   const before = (s) => trade.stoppedSession == null || s < trade.stoppedSession
@@ -89,6 +95,10 @@ export function replayChecks(trade) {
   return trade.checks
     .map((c) => ({ ...c, session: when[c.at] }))
     .filter((c) => Number.isFinite(c.session) && c.session >= 1 && before(c.session) && Array.isArray(c.choices) && c.choices.length > 1)
+    .map((c) => {
+      const note = sellTooEarly(c.session) ? c.early : c.later
+      return typeof note === 'string' && note ? { ...c, why: [c.why, dayLine(c.session), note].filter(Boolean).join(' ') } : c
+    })
 }
 
 /** The question due now: the first not yet answered whose session has fully arrived (`k` whole days in). */

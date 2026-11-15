@@ -17,6 +17,8 @@ from api.services import deal_status as ds
 def pc(tmp_path, monkeypatch):
     monkeypatch.setenv("DATA_DIR", str(tmp_path))
     monkeypatch.setenv("PUSH_SECRET", "s3cret")
+    warmed = []
+    monkeypatch.setattr(ds, "_warm_async", lambda: warmed.append(1))
     ds.reset_cache()
     from api.routers import catalysts
 
@@ -80,3 +82,18 @@ def test_with_the_flag_off_consumers_still_exclude_nothing_new(pc, monkeypatch):
     pc(["ZZPCA"])
     assert ds.consumer_pending() == frozenset()
     assert "ZZPCA" not in ds.screener_excludes()
+
+
+def test_a_push_starts_the_rebuild_off_the_request_thread(tmp_path, monkeypatch):
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    started = []
+
+    class _T:
+        def __init__(self, target=None, daemon=None, name=None):
+            started.append((target, daemon))
+
+        def start(self):
+            started.append("started")
+    monkeypatch.setattr(ds.threading, "Thread", _T)
+    ds.store_pc_confirmed(["ZZPCA"])
+    assert started == [(ds.pending_deal_symbols, True), "started"]

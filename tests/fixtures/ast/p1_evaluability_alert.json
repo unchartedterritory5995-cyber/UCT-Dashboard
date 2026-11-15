@@ -1,5 +1,5 @@
 {
-  "_": "P1 shared fixture: the browser gate (evaluability.js, lane \"alert\") vs the server authority (alert_user_series._gate_lane + plot_admissions). Written by a generator from evaluability.js; tests/test_p1_truth_core.py drives the server over every case, p1.core.truth.test.js the browser. P2 (owner policy 7): `scalar` is PER OUTPUT -- 'multi plain + scalar :: a' and 'multi scalar + plain :: b' were deliberately moved from refused/scalar to supported (the scalar plot itself stays refused). PHASE 5: the alert lane SUPPLIES another symbol (alert_user_series._symbol_bars): a servable, unambiguous `sym` (at most 2 tickers) is supported; an ambiguous spelling is other-symbol:ambiguous and more than two is other-symbol:fan-out (withheld, per plot). UIE PHASE 6 (OPEN-FINDINGS-2026-10 §1): an `hlines` plot is a level-line GUIDE, refused for ITSELF at gate `presentation` (per plot) — 'rsi + level lines (v2) :: rsi' is supported (it was refused/plot with every sibling), and a v1 document's guide no longer arms on the scan tree's number.",
+  "_": "P1 shared fixture: the browser gate (evaluability.js, lane \"alert\") vs the server authority (alert_user_series._gate_lane + plot_admissions). Written by a generator from evaluability.js; tests/test_p1_truth_core.py drives the server over every case, p1.core.truth.test.js the browser. P2 (owner policy 7): `scalar` is PER OUTPUT -- 'multi plain + scalar :: a' and 'multi scalar + plain :: b' were deliberately moved from refused/scalar to supported (the scalar plot itself stays refused). PHASE 5: the alert lane SUPPLIES another symbol (alert_user_series._symbol_bars): a servable, unambiguous `sym` (at most 2 tickers) is supported; an ambiguous spelling is other-symbol:ambiguous and more than two is other-symbol:fan-out (withheld, per plot). UIE PHASE 6 (OPEN-FINDINGS-2026-10 §1): an `hlines` plot is a level-line GUIDE, refused for ITSELF at gate `presentation` (per plot) — 'rsi + level lines (v2) :: rsi' is supported (it was refused/plot with every sibling), and a v1 document's guide no longer arms on the scan tree's number. ENGINE 55: a `tf_merge` read (Pine's look-ahead-off request as TradingView merges it) is refused at gate `withheld`, code `request:htf-newest-unconfirmed`: the newest finished bar an alert reads is withheld.",
   "cases": [
     {
       "name": "plain close > 100 :: value",
@@ -1377,6 +1377,53 @@
         "status": "refused",
         "gate": "presentation",
         "codes": []
+      }
+    },
+    {
+      "name": "tf_merge read :: value",
+      "definition": {
+        "id": "u_00000000e055",
+        "name": "u_00000000e055",
+        "version": 1,
+        "plots": [
+          {
+            "key": "value",
+            "style": "line"
+          }
+        ],
+        "compute": {
+          "kind": "ast",
+          "fn": "u_00000000e055",
+          "source": "tf_merge(close, 'W') > close",
+          "ast": {
+            "type": "op",
+            "name": ">",
+            "args": [
+              {
+                "type": "tf_merge",
+                "value": "W",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "close"
+                  }
+                ]
+              },
+              {
+                "type": "series",
+                "name": "close"
+              }
+            ]
+          }
+        }
+      },
+      "plotKey": "value",
+      "expect": {
+        "status": "refused",
+        "gate": "withheld",
+        "codes": [
+          "request:htf-newest-unconfirmed"
+        ]
       }
     }
   ]
