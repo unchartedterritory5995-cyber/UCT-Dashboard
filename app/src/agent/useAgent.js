@@ -17,6 +17,7 @@
 
 import { protectionRefusal, undoProtectionRefusal, protectedOpenLayout, isProtected, protectedRenameRefusal } from './protectedLayouts'
 import { chartRailRefusal, RAIL_MARK, chartEffects } from './chartRail'
+import { newChartsRefusal } from './newChartsRail'
 import { stateRailDecision, noteApplied, noteBeforeRows, STATE_RAIL_MARK, notDoneAdds, notDoneLine, subjectIdsOf, nextTurnSubjects } from './stateRail'
 import { lastTouchedDrawing } from './capabilities/drawings'
 import { lastCreatedList } from './capabilities/watchlist'
@@ -821,6 +822,17 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
   const carriedWordsRef = useRef(null)
   const turnWords = (member) => [member, saidRef.current, carriedWordsRef.current]
   const resumeRef = useRef(null)            // pendingTask: restores (yes) or withdraws (no) a held reply's pending task
+  // ⛔ NEW-CHARTS RAIL (11-14, newChartsRail.js): words about the charts UCT just created never write a chart that was already
+  // there. The created set survives later changes (newSetRef, replaced only by the next creating request, dropped by a layout
+  // switch); the words are this turn's (railWordsRef) plus the words the change was proposed from (railGateRef: a card's own)
+  const newSetRef = useRef(null)            // { turn, epoch, refs }
+  const railGateRef = useRef([])
+  const newChartsRailOf = (plan) => {
+    const s = newSetRef.current
+    const created = s && s.epoch === epochOf(host) ? s.refs : []
+    const words = [railWordsRef.current, ...(railGateRef.current || [])].filter(x => typeof x === 'string' && x.trim()).join(' . ')
+    return newChartsRefusal(plan, { words, host, created })
+  }
   // ⛔ STATE RAIL (owner principle 11-13, stateRail.js): the same hook — an additive request never removes, replaces or
   // overwrites the member's indicators, drawings, watchlists, widgets, layouts, boards or templates. Either rail refuses.
   const railMarkRef = useRef(RAIL_MARK)     // which rail refused last (telemetry)
@@ -877,15 +889,18 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     const c = c0 && `${c0}${notDoneLine(notDoneAdds(plan, (p) => { try { return chartEffects({ ok: true, plans: [p] }, host).length > 0 } catch { return true } }))}`
     railCardRef.current = false
     railAskRef.current = null
-    let r = c
-    if (!c) {
+    // ⛔ NEW-CHARTS RAIL (#1261): after the chart rail, before the state rail — words about the charts UCT just created never
+    // write a chart that was already there (a hard refusal, marked as the chart rail's, as on #1261)
+    const n = c ? null : newChartsRailOf(plan)
+    let r = c || n
+    if (!c && !n) {
       const d = stateRailDecision(plan, { words: railWordsRef.current, mode: stateMode, subjects: subjectIds(), picked: railPickedRef.current, ...railMemoryOf() })
       // (D19) an irreversible save-over: its approval CARD is the confirmation (the plan runs as a proposal)
       if (d?.card) railCardRef.current = true
       else if (d?.text) { r = d.text; railAskRef.current = d.ask ? { ...d.ask, plan } : null }
     }
 
-    railMarkRef.current = c ? RAIL_MARK : STATE_RAIL_MARK
+    railMarkRef.current = c || n ? RAIL_MARK : STATE_RAIL_MARK
     return r
   }
   if (!memoryRef.current) memoryRef.current = createMemory()
@@ -1613,6 +1628,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     // (merge with #1029) `proposedWords` is its own option: #1029's `words` is the turn's message string for resolveArgs
     // (the which-widget guard); the two never share one name, so neither reads the other's shape.
     const gateWords = Array.isArray(proposedWords) ? proposedWords : turnWords(member)
+    railGateRef.current = gateWords
     // ⭐ Multi Chart: one gate for the instant, model and approved paths — what cannot run on the grid is said, and nothing runs
     const onGrid = gridMode ? screenGridOps(opsIn, host) : null
     if (onGrid?.refuse) {
@@ -1879,6 +1895,11 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     if (!createdRef.current || createdRef.current.turn !== turn) createdRef.current = { turn, refs: [] }
     for (const r of Object.values(created || {})) {
       try { if (host?.charts?.read?.(String(r)) && !createdRef.current.refs.includes(String(r))) createdRef.current.refs.push(String(r)) } catch { /* not a chart */ }
+    }
+    // the new-charts rail's set: only a request that CREATED charts replaces it (the same turn's parts add to it)
+    if (createdRef.current.refs.length) {
+      const s = newSetRef.current
+      newSetRef.current = s && s.turn === turn ? { ...s, refs: [...new Set([...s.refs, ...createdRef.current.refs])] } : { turn, epoch: epochOf(host), refs: [...createdRef.current.refs] }
     }
   }
 
