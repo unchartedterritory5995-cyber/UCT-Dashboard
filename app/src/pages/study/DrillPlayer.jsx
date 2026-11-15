@@ -618,7 +618,7 @@ export default function DrillPlayer({
         ) : null}
         {keyTrade && needsChart ? <div className={styles.keyWrap}><ChartKey trade={keyTrade} testId="drill-key" detached /></div> : null}
         <div className={styles.body}>
-          <mod.Body item={item} state={state} setState={setState} locked={locked} reveal={reveal} />
+          <mod.Body item={item} state={state} setState={setState} locked={locked} reveal={reveal} settled={!showTakeover} />
         </div>
         {phase === 'reveal' && result && (
           <RevealCard correct={!!result.correct} reveal={reveal} item={item} profile={profile}

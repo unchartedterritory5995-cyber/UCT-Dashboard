@@ -1888,7 +1888,22 @@
    ],
    "kind": "mcq",
    "q": "A stock closes at $66. Its 50-day average is $60. How far above the 50-day is it?",
-   "subject": "percent extended"
+   "subject": "percent extended",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The change"
+    },
+    "from": {
+     "label": "",
+     "value": 60.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 66.0
+    }
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -2850,7 +2865,22 @@
    ],
    "kind": "mcq",
    "q": "A stock trades 3,000,000 shares today. Its 50-day average volume is 1,200,000 shares. What is its relative volume?",
-   "subject": "relative volume"
+   "subject": "relative volume",
+   "visual": {
+    "find": {
+     "as": "times",
+     "label": "Times average"
+    },
+    "from": {
+     "label": "Average",
+     "value": 1200000.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "Today",
+     "value": 3000000.0
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -3696,7 +3726,22 @@
    ],
    "kind": "mcq",
    "q": "A stock's high is $80. It now trades at $68. How far down from its high is it?",
-   "subject": "down from highs"
+   "subject": "down from highs",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The fall"
+    },
+    "from": {
+     "label": "Peak",
+     "value": 80.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "Low",
+     "value": 68.0
+    }
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -4323,7 +4368,22 @@
    ],
    "kind": "mcq",
    "q": "The S&P 500 peaks at 5,000 and falls to 4,400. How far is it down from the peak?",
-   "subject": "correction"
+   "subject": "correction",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The fall"
+    },
+    "from": {
+     "label": "Peak",
+     "value": 5000.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "Low",
+     "value": 4400.0
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -7953,7 +8013,27 @@
    ],
    "kind": "mcq",
    "q": "A long white candle opens at $30.00 and closes at $34.00. Below what price must the next black candle close for a dark cloud cover?",
-   "subject": "dark cloud cover"
+   "subject": "dark cloud cover",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "Midpoint"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "open",
+      "label": "Open",
+      "price": 30.0
+     },
+     {
+      "key": "close",
+      "label": "Close",
+      "price": 34.0
+     }
+    ],
+    "side": "long"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -13621,7 +13701,22 @@
    ],
    "kind": "mcq",
    "q": "First low $50.00, second low $49.00. How far below the first low is the second?",
-   "subject": "double bottom"
+   "subject": "double bottom",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The distance"
+    },
+    "from": {
+     "label": "First",
+     "value": 50.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "Second",
+     "value": 49.0
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -17972,7 +18067,31 @@
    ],
    "kind": "mcq",
    "q": "Oops Reversal: you buy the reclaim of yesterday's $30.00 close. Your stop is $29.00, just under the day's low. Where is the 3R price?",
-   "subject": "3R"
+   "subject": "3R",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "3R"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 29.0
+     },
+     {
+      "key": "entry",
+      "label": "Entry",
+      "price": 30.0
+     }
+    ],
+    "r": {
+     "entry": 30.0,
+     "stop": 29.0
+    },
+    "side": "long"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -18421,7 +18540,22 @@
    "kind": "mcq",
    "q": "Where does our stop go?",
    "story": "You buy our Kicker at $40.00. The Kicker candle's low is $39.20.",
-   "subject": "Kicker"
+   "subject": "Kicker",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The distance"
+    },
+    "from": {
+     "label": "Entry",
+     "value": 40.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "Low",
+     "value": 39.2
+    }
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -18921,7 +19055,36 @@
    "kind": "mcq",
    "q": "Counting in R, where is it?",
    "story": "You buy a setup at $60 with its stop at $57. It reaches $69 and keeps going.",
-   "subject": "3R"
+   "subject": "3R",
+   "visual": {
+    "find": {
+     "as": "r",
+     "label": "R"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 57.0
+     },
+     {
+      "key": "entry",
+      "label": "Entry",
+      "price": 60.0
+     },
+     {
+      "key": "price",
+      "label": "Price",
+      "price": 69.0
+     }
+    ],
+    "r": {
+     "entry": 60.0,
+     "stop": 57.0
+    },
+    "side": "long"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -19101,7 +19264,31 @@
    ],
    "kind": "mcq",
    "q": "A setup fires with its trigger at $45.00 and its stop at $43.50. Where is the 5R price?",
-   "subject": "3R"
+   "subject": "3R",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "5R"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 43.5
+     },
+     {
+      "key": "entry",
+      "label": "Entry",
+      "price": 45.0
+     }
+    ],
+    "r": {
+     "entry": 45.0,
+     "stop": 43.5
+    },
+    "side": "long"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -19182,7 +19369,18 @@
    "kind": "mcq",
    "q": "Is this a Go Signal day?",
    "story": "A strong stock with a rising 20-day opens under yesterday's close and sweeps yesterday's low. The day's range is $48.00 to $50.00. It closes at $48.60.",
-   "subject": "Go Signal"
+   "subject": "Go Signal",
+   "visual": {
+    "close": 48.6,
+    "find": {
+     "as": "pct",
+     "label": "Where it closed in its range"
+    },
+    "high": 50.0,
+    "kind": "range",
+    "low": 48.0,
+    "value_label": "Close"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -20748,7 +20946,31 @@
    ],
    "kind": "mcq",
    "q": "You buy at $50 with your stop at $46. What is your R per share?",
-   "subject": "R"
+   "subject": "R",
+   "visual": {
+    "find": {
+     "as": "per_share",
+     "label": "Risk per share"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 46.0
+     },
+     {
+      "key": "entry",
+      "label": "Entry",
+      "price": 50.0
+     }
+    ],
+    "r": {
+     "entry": 50.0,
+     "stop": 46.0
+    },
+    "side": "long"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -20901,7 +21123,34 @@
    "kind": "mcq",
    "q": "What is your total risk on the position?",
    "story": "You buy 200 shares at $30. Your stop is at $28.50.",
-   "subject": "Total risk"
+   "subject": "Total risk",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Dollars at risk"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "sh",
+      "key": "shares",
+      "label": "Shares",
+      "value": 200.0
+     },
+     {
+      "fmt": "$",
+      "key": "entry",
+      "label": "Entry",
+      "value": 30.0
+     },
+     {
+      "fmt": "$",
+      "key": "stop",
+      "label": "Stop",
+      "value": 28.5
+     }
+    ]
+   }
   },
   "reveal_json": {
    "depth": {
@@ -21145,7 +21394,36 @@
    ],
    "kind": "mcq",
    "q": "You buy at $80 with a stop at $76. You sell at $92. What R-multiple did you make?",
-   "subject": "R-multiple"
+   "subject": "R-multiple",
+   "visual": {
+    "find": {
+     "as": "r",
+     "label": "R on the trade"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 76.0
+     },
+     {
+      "key": "entry",
+      "label": "Entry",
+      "price": 80.0
+     },
+     {
+      "key": "exit",
+      "label": "Exit",
+      "price": 92.0
+     }
+    ],
+    "r": {
+     "entry": 80.0,
+     "stop": 76.0
+    },
+    "side": "long"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -21223,7 +21501,36 @@
    "kind": "mcq",
    "q": "What R-multiple is that loss?",
    "story": "You buy at $60 with a stop at $55. It hits $55 and you hold, hoping. You finally sell at $45.",
-   "subject": "R-multiple"
+   "subject": "R-multiple",
+   "visual": {
+    "find": {
+     "as": "r",
+     "label": "R on the trade"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 55.0
+     },
+     {
+      "key": "entry",
+      "label": "Entry",
+      "price": 60.0
+     },
+     {
+      "key": "exit",
+      "label": "Exit",
+      "price": 45.0
+     }
+    ],
+    "r": {
+     "entry": 60.0,
+     "stop": 55.0
+    },
+    "side": "long"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -21474,7 +21781,17 @@
    ],
    "kind": "mcq",
    "q": "You win 40% of your trades. Winners average 3R and losers 1R. What is your expectancy per trade?",
-   "subject": "Expectancy"
+   "subject": "Expectancy",
+   "visual": {
+    "avg_loss_r": 1.0,
+    "avg_win_r": 3.0,
+    "find": {
+     "as": "r",
+     "label": "R per trade"
+    },
+    "kind": "expectancy",
+    "win_pct": 40.0
+   }
   },
   "reveal_json": {
    "depth": {
@@ -21616,7 +21933,17 @@
    "kind": "mcq",
    "q": "Which plan has the better expectancy?",
    "story": "Plan A wins 30% of the time, with +4R winners and -1R losers. Plan B wins 70%, with +0.5R winners and -2R losers.",
-   "subject": "Expectancy"
+   "subject": "Expectancy",
+   "visual": {
+    "avg_loss_r": 1.0,
+    "avg_win_r": 4.0,
+    "find": {
+     "as": "r",
+     "label": "R per trade"
+    },
+    "kind": "expectancy",
+    "win_pct": 30.0
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -21942,7 +22269,36 @@
    ],
    "kind": "mcq",
    "q": "Entry $20, stop $19, target $23. How many dollars can you make for each dollar you risk?",
-   "subject": "Risk/reward ratio"
+   "subject": "Risk/reward ratio",
+   "visual": {
+    "find": {
+     "as": "r",
+     "label": "R"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 19.0
+     },
+     {
+      "key": "entry",
+      "label": "Entry",
+      "price": 20.0
+     },
+     {
+      "key": "price",
+      "label": "Target",
+      "price": 23.0
+     }
+    ],
+    "r": {
+     "entry": 20.0,
+     "stop": 19.0
+    },
+    "side": "long"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -22181,7 +22537,40 @@
    ],
    "kind": "mcq",
    "q": "Account $40,000, risking 1% a trade. Entry $25, stop $23.50. How many shares do you buy?",
-   "subject": "Position sizing"
+   "subject": "Position sizing",
+   "visual": {
+    "find": {
+     "as": "shares",
+     "label": "Shares"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "account",
+      "label": "Account",
+      "value": 40000.0
+     },
+     {
+      "fmt": "%",
+      "key": "risk_pct",
+      "label": "Risk",
+      "value": 1.0
+     },
+     {
+      "fmt": "$",
+      "key": "entry",
+      "label": "Entry",
+      "value": 25.0
+     },
+     {
+      "fmt": "$",
+      "key": "stop",
+      "label": "Stop",
+      "value": 23.5
+     }
+    ]
+   }
   },
   "reveal_json": {
    "depth": {
@@ -22848,7 +23237,22 @@
    "kind": "mcq",
    "q": "Which is true at $48?",
    "story": "You buy at $40. The stock runs to $60, then falls to $48.",
-   "subject": "Drawdown"
+   "subject": "Drawdown",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The fall"
+    },
+    "from": {
+     "label": "Peak",
+     "value": 60.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "Low",
+     "value": 48.0
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -22995,7 +23399,15 @@
    ],
    "kind": "mcq",
    "q": "Your account is down 20% from its peak. What gain takes it back to the high?",
-   "subject": "Drawdown"
+   "subject": "Drawdown",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The gain back to even"
+    },
+    "kind": "recover",
+    "loss_pct": 20.0
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -23238,7 +23650,22 @@
    "kind": "mcq",
    "q": "What was your maximum drawdown?",
    "story": "Your account climbs from $100,000 to $130,000 and falls to $104,000. It bounces to $120,000, drops to $91,000, then makes a new high.",
-   "subject": "Maximum drawdown"
+   "subject": "Maximum drawdown",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The fall"
+    },
+    "from": {
+     "label": "Peak",
+     "value": 130000.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "Low",
+     "value": 91000.0
+    }
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -23958,7 +24385,28 @@
    ],
    "kind": "mcq",
    "q": "You own 100 shares bought at $50. They now trade at $62, and your stop is $55. What is your open risk?",
-   "subject": "Open risk"
+   "subject": "Open risk",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Open risk"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "price",
+      "label": "Price",
+      "price": 62.0
+     },
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 55.0
+     }
+    ],
+    "shares": 100.0,
+    "side": "long"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -24303,7 +24751,22 @@
    ],
    "kind": "mcq",
    "q": "You set a 20% trailing stop. The stock peaks at $85, then starts to fall. Where is your stop?",
-   "subject": "Trailing stop"
+   "subject": "Trailing stop",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "20% under"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "level",
+      "label": "High",
+      "price": 85.0
+     }
+    ],
+    "side": "long"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -27142,7 +27605,23 @@
    ],
    "kind": "mcq",
    "q": "You buy at $30 and set a sell trailing stop $2 below the price. It climbs to $37.40, then dips to $36. Where is your stop now?",
-   "subject": "Trailing stop"
+   "subject": "Trailing stop",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "Trailing stop (2 under)",
+     "tag": "Stop"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "high",
+      "label": "High",
+      "price": 37.4
+     }
+    ],
+    "side": "long"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -29038,7 +29517,28 @@
    ],
    "kind": "mcq",
    "q": "You send a market buy for 1,000 shares with the ask at $15.20. They fill at an average of $15.29. What did slippage cost you?",
-   "subject": "Slippage"
+   "subject": "Slippage",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Slippage"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "avg_fill",
+      "label": "Average fill",
+      "price": 15.29
+     },
+     {
+      "key": "expected",
+      "label": "Expected",
+      "price": 15.2
+     }
+    ],
+    "shares": 1000.0,
+    "side": "long"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -29901,7 +30401,28 @@
    ],
    "kind": "mcq",
    "q": "You short 200 shares at $18.00. A squeeze hits and you buy to cover at $27.40. How much did you lose, before costs?",
-   "subject": "Cover"
+   "subject": "Cover",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "The loss"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "cover",
+      "label": "Covered at",
+      "price": 27.4
+     },
+     {
+      "key": "short_price",
+      "label": "Short at",
+      "price": 18.0
+     }
+    ],
+    "shares": 200.0,
+    "side": "long"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -32950,7 +33471,18 @@
    ],
    "kind": "mcq",
    "q": "The stock is at $95. The 100-strike call trades at $1.20. How much intrinsic value does it have?",
-   "subject": "V.08#q25"
+   "subject": "V.08#q25",
+   "visual": {
+    "find": {
+     "as": "per_share",
+     "label": "Intrinsic value"
+    },
+    "kind": "payoff",
+    "option": "call",
+    "side": "long",
+    "strike": 100.0,
+    "underlying": 95.0
+   }
   },
   "reveal_json": {
    "depth": {
@@ -33027,7 +33559,19 @@
    ],
    "kind": "mcq",
    "q": "The stock is at $64. The 60-strike call trades at $5.10. How much of that is time value?",
-   "subject": "V.08#q26"
+   "subject": "V.08#q26",
+   "visual": {
+    "find": {
+     "as": "per_share",
+     "label": "Time value"
+    },
+    "kind": "payoff",
+    "option": "call",
+    "premium": 5.1,
+    "side": "long",
+    "strike": 60.0,
+    "underlying": 64.0
+   }
   },
   "reveal_json": {
    "depth": {
@@ -33112,7 +33656,18 @@
    ],
    "kind": "mcq",
    "q": "You buy the 60-strike call for $2.50. At expiration, what stock price breaks even, before fees?",
-   "subject": "V.08#q27"
+   "subject": "V.08#q27",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "Breakeven"
+    },
+    "kind": "payoff",
+    "option": "call",
+    "premium": 2.5,
+    "side": "long",
+    "strike": 60.0
+   }
   },
   "reveal_json": {
    "depth": {
@@ -37134,7 +37689,24 @@
    ],
    "kind": "mcq",
    "q": "Revenue is $835,000. Gross profit is $585,000. What is the gross margin, to one decimal place?",
-   "subject": "Gross margin"
+   "subject": "Gross margin",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "As a percent"
+    },
+    "kind": "share",
+    "part": {
+     "fmt": "$",
+     "label": "Gross profit",
+     "value": 585000.0
+    },
+    "whole": {
+     "fmt": "$",
+     "label": "Revenue",
+     "value": 835000.0
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -37389,7 +37961,24 @@
    ],
    "kind": "mcq",
    "q": "NVIDIA, Q3 fiscal 2026: revenue $57,006 million, operating income $36,010 million. What is the operating margin, to one decimal?",
-   "subject": "Operating margin"
+   "subject": "Operating margin",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "As a percent"
+    },
+    "kind": "share",
+    "part": {
+     "fmt": "count",
+     "label": "Operating income",
+     "value": 36010.0
+    },
+    "whole": {
+     "fmt": "count",
+     "label": "Revenue",
+     "value": 57006.0
+    }
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -38307,7 +38896,22 @@
    ],
    "kind": "mcq",
    "q": "NVIDIA's adjusted EPS was $1.30. The estimate was $1.25. What was the EPS surprise, in percent?",
-   "subject": "Earnings surprise"
+   "subject": "Earnings surprise",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The distance"
+    },
+    "from": {
+     "label": "Estimate",
+     "value": 1.25
+    },
+    "kind": "move",
+    "to": {
+     "label": "Actual",
+     "value": 1.3
+    }
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -39526,7 +40130,22 @@
    ],
    "kind": "mcq",
    "q": "NVIDIA operating income: $36,010 million in Q3 fiscal 2026, $21,869 million in Q3 fiscal 2025. YoY growth, to the nearest whole percent?",
-   "subject": "Year over year (YoY)"
+   "subject": "Year over year (YoY)",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The change"
+    },
+    "from": {
+     "label": "A year ago",
+     "value": 21869.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "Now",
+     "value": 36010.0
+    }
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -49018,7 +49637,24 @@
    ],
    "kind": "mcq",
    "q": "In a 500-stock index, 340 stocks trade above their 50-day moving average. What percent is that?",
-   "subject": "Percent above 50-day"
+   "subject": "Percent above 50-day",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "As a percent"
+    },
+    "kind": "share",
+    "part": {
+     "fmt": "count",
+     "label": "Above the line",
+     "value": 340.0
+    },
+    "whole": {
+     "fmt": "count",
+     "label": "All of them",
+     "value": 500.0
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -59658,7 +60294,17 @@
    ],
    "kind": "mcq",
    "q": "Win rate 70%. Average win $100. Average loss $400. What's your expectancy per trade, in dollars?",
-   "subject": "Negative expectancy"
+   "subject": "Negative expectancy",
+   "visual": {
+    "avg_loss_r": 400.0,
+    "avg_win_r": 100.0,
+    "find": {
+     "as": "r",
+     "label": "R per trade"
+    },
+    "kind": "expectancy",
+    "win_pct": 70.0
+   }
   },
   "reveal_json": {
    "deeper": {

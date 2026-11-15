@@ -276,6 +276,35 @@ describe('DrillPlayer', () => {
     expect(screen.queryByTestId('drill-key')).not.toBeInTheDocument()
   })
 
+  // the visuals plan, step 3 (2026-11-15): a computed question shows its picture card (prompt_json.visual) under the
+  // question; the answer slot asks until the verdict screen closes, then fills from the reveal's calc with the working
+  it('fills a computed question\'s card only once the verdict screen closes', async () => {
+    const visual = { kind: 'ladder', side: 'long', find: { label: '3R', as: 'price' }, r: { entry: 50, stop: 47.5 },
+      levels: [{ key: 'stop', label: 'Stop', price: 47.5 }, { key: 'entry', label: 'Entry', price: 50 }] }
+    const q = item('recall', 'si_calc', { q: 'Entry $50, stop $47.50. Where is the 3R price?', kind: 'mcq', choices: ['57.50', '55.00', '60.00', '52.50'], visual })
+    const fetcher = vi.fn(async (url) => {
+      if (url === '/api/study/today') return { session_id: 'sess-c', kind: 'daily', day_et: '2026-11-15', answered_item_ids: [], items: [q, recall('si_n')] }
+      if (url === '/api/study/attempts') {
+        return { attempt_id: 3, item_id: 'si_calc', correct: true, score: 1,
+          reveal: { why: 'One R is 2.50, so 3R is 7.50 over the entry.', answer: { answer: '57.50' },
+            facts: { calc: { fn: 'arith', args: { expr: 'entry + 3 * (entry - stop)', entry: 50, stop: 47.5 }, result: 57.5 } } },
+          progress: { xp_gained: 10, xp: 10, level: 1, streak: 1, streak_best: 1, due_at: null, weekly_xp: 10 } }
+      }
+      throw new Error(`unexpected ${url}`)
+    })
+    render(<DrillPlayer open onClose={() => {}} fetcher={fetcher} />)
+    const card = await screen.findByTestId('calc-card')
+    expect(card).toHaveTextContent('47.50')
+    expect(card).not.toHaveTextContent('57.50')
+    expect(screen.getByTestId('calc-ask')).toBeInTheDocument()
+    await answerChoice('57.50')
+    expect(screen.getByTestId('drill-takeover')).toBeInTheDocument()
+    expect(screen.queryByTestId('calc-answer')).toBeNull()          // under the verdict screen nothing fills
+    fireEvent.click(screen.getByTestId('drill-takeover-go'))
+    await waitFor(() => expect(screen.getByTestId('calc-answer')).toHaveTextContent('57.50'))
+    expect(screen.getByTestId('calc-working')).toHaveTextContent('50 + 3 × (50 − 47.5) = 57.50')
+  })
+
   it('shows the status line as "Question N of 10" and advances it', async () => {
     const fetcher = makeFetcher(tenSet())
     render(<DrillPlayer open onClose={() => {}} fetcher={fetcher} />)

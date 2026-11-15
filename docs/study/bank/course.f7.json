@@ -638,7 +638,22 @@
    ],
    "kind": "mcq",
    "q": "An index's record close is 4,800. Today it closes at 4,080. How far below the record is it?",
-   "subject": "F7.01#q11"
+   "subject": "F7.01#q11",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The fall"
+    },
+    "from": {
+     "label": "Peak",
+     "value": 4800.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "Low",
+     "value": 4080.0
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -1156,7 +1171,22 @@
    ],
    "kind": "mcq",
    "q": "The S&P 500's record close in February 2025 was 6,144.15. At what close would it be down exactly 20%?",
-   "subject": "F7.01#q17"
+   "subject": "F7.01#q17",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "20% under"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "level",
+      "label": "Peak",
+      "price": 6144.15
+     }
+    ],
+    "side": "long"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -1425,7 +1455,22 @@
    "kind": "mcq",
    "q": "By S&P Dow Jones Indices' rule, did the April 8 close make it a bear market?",
    "story": "The S&P 500's record close was 6,144.15 in February 2025. On April 7 it briefly traded past the 20% line. On April 8 it fell 1.57% to close at 4,982.77.",
-   "subject": "F7.01#q20"
+   "subject": "F7.01#q20",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The fall"
+    },
+    "from": {
+     "label": "Peak",
+     "value": 6144.15
+    },
+    "kind": "move",
+    "to": {
+     "label": "Low",
+     "value": 4982.77
+    }
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -3191,7 +3236,22 @@
    ],
    "kind": "mcq",
    "q": "The S&P 500 closed at 2,237.40 on March 23, 2020. What % gain gets it back to the 3,386.15 record?",
-   "subject": "F7.02#q11"
+   "subject": "F7.02#q11",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The change"
+    },
+    "from": {
+     "label": "",
+     "value": 2237.4
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 3386.15
+    }
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -3574,7 +3634,22 @@
    ],
    "kind": "mcq",
    "q": "March 16, 2020: the VIX closes at a record. The S&P 500 closes at 2,386.13, and at 2,237.40 on March 23. How much lower is March 23?",
-   "subject": "F7.02#q16"
+   "subject": "F7.02#q16",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The fall"
+    },
+    "from": {
+     "label": "Peak",
+     "value": 2386.13
+    },
+    "kind": "move",
+    "to": {
+     "label": "Low",
+     "value": 2237.4
+    }
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -5155,7 +5230,22 @@
    ],
    "kind": "mcq",
    "q": "The Nasdaq closed at 5,048.62 in March 2000 and 1,114.11 in October 2002. How far did it fall, to the nearest whole percent?",
-   "subject": "F7.03#q09"
+   "subject": "F7.03#q09",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The fall"
+    },
+    "from": {
+     "label": "Peak",
+     "value": 5048.62
+    },
+    "kind": "move",
+    "to": {
+     "label": "Low",
+     "value": 1114.11
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -5349,7 +5439,22 @@
    ],
    "kind": "mcq",
    "q": "The Nasdaq closed at 1,638.80 on April 4, 2001 and 2,313.85 on May 22, 2001. How big was that rally, to the nearest percent?",
-   "subject": "F7.03#q11"
+   "subject": "F7.03#q11",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The change"
+    },
+    "from": {
+     "label": "",
+     "value": 1638.8
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 2313.85
+    }
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -5449,7 +5554,15 @@
    ],
    "kind": "mcq",
    "q": "An index falls 78%. What gain does it need just to get back to its old high, to the nearest percent?",
-   "subject": "F7.03#q12"
+   "subject": "F7.03#q12",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The gain back to even"
+    },
+    "kind": "recover",
+    "loss_pct": 78.0
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -5871,7 +5984,22 @@
    ],
    "kind": "mcq",
    "q": "Dec. 1, 2008: the NBER calls a recession. The Nasdaq closes at 1,398.07, off a 2,859.12 peak. How far down, to the nearest percent?",
-   "subject": "F7.03#q17"
+   "subject": "F7.03#q17",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The fall"
+    },
+    "from": {
+     "label": "Peak",
+     "value": 2859.12
+    },
+    "kind": "move",
+    "to": {
+     "label": "Low",
+     "value": 1398.07
+    }
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -7435,7 +7563,22 @@
    ],
    "kind": "mcq",
    "q": "The S&P 500 closed at 4,796.56 on Jan. 3, 2022 and 3,577.03 on Oct. 12, 2022. How far did it fall?",
-   "subject": "F7.04#q09"
+   "subject": "F7.04#q09",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The fall"
+    },
+    "from": {
+     "label": "Peak",
+     "value": 4796.56
+    },
+    "kind": "move",
+    "to": {
+     "label": "Low",
+     "value": 3577.03
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -7710,7 +7853,22 @@
    ],
    "kind": "mcq",
    "q": "In March 2022 the Nasdaq closed at 12,581.22 on the 14th and 14,619.64 on the 29th. How much did it rally?",
-   "subject": "F7.04#q12"
+   "subject": "F7.04#q12",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The change"
+    },
+    "from": {
+     "label": "",
+     "value": 12581.22
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 14619.64
+    }
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -10341,7 +10499,24 @@
    ],
    "kind": "mcq",
    "q": "In a 500-stock index, 120 stocks close above their 50-day average. What percent of the index is that?",
-   "subject": "F7.05#q13"
+   "subject": "F7.05#q13",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "As a percent"
+    },
+    "kind": "share",
+    "part": {
+     "fmt": "count",
+     "label": "Above the line",
+     "value": 120.0
+    },
+    "whole": {
+     "fmt": "count",
+     "label": "All of them",
+     "value": 500.0
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -17038,7 +17213,22 @@
    "kind": "fill_numeric",
    "q": "The S&P 500 closed at a 2,930.75 peak in September 2018 and at 2,351.10 on December 24. How far did it fall, in %? One decimal.",
    "subject": "F7.08#q08",
-   "suffix": "%"
+   "suffix": "%",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The fall"
+    },
+    "from": {
+     "label": "Peak",
+     "value": 2930.75
+    },
+    "kind": "move",
+    "to": {
+     "label": "Low",
+     "value": 2351.1
+    }
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -17881,7 +18071,22 @@
    "kind": "fill_numeric",
    "q": "The S&P 500 closed at 1,565.15 at its 2007 peak and 676.53 at its 2009 low. What gain gets it back to the peak? Nearest whole %.",
    "subject": "F7.08#q17",
-   "suffix": "%"
+   "suffix": "%",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The change"
+    },
+    "from": {
+     "label": "",
+     "value": 676.53
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 1565.15
+    }
+   }
   },
   "reveal_json": {
    "deeper": {

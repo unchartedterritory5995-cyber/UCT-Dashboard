@@ -2023,7 +2023,16 @@
    ],
    "kind": "mcq",
    "q": "Bid $24.98, ask $25.02. What is the spread in dollars?",
-   "subject": "F1.03#q08"
+   "subject": "F1.03#q08",
+   "visual": {
+    "ask": 25.02,
+    "bid": 24.98,
+    "find": {
+     "as": "dollars",
+     "label": "The spread"
+    },
+    "kind": "quote"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -2113,7 +2122,17 @@
    ],
    "kind": "mcq",
    "q": "Bid $9.80, ask $10.20. You buy 500 shares at the ask and sell right away at the bid. What did the spread cost you?",
-   "subject": "F1.03#q10"
+   "subject": "F1.03#q10",
+   "visual": {
+    "ask": 10.2,
+    "bid": 9.8,
+    "find": {
+     "as": "dollars",
+     "label": "The spread's cost"
+    },
+    "kind": "quote",
+    "shares": 500.0
+   }
   },
   "reveal_json": {
    "depth": {
@@ -2360,7 +2379,29 @@
    ],
    "kind": "mcq",
    "q": "Your market buy for 1,000 shares fills 400 at $30.10 and 600 at $30.15. What is your average price?",
-   "subject": "F1.03#q13"
+   "subject": "F1.03#q13",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "Average price"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "fill1",
+      "label": "400 shares",
+      "price": 30.1,
+      "shares": 400.0
+     },
+     {
+      "key": "fill2",
+      "label": "600 shares",
+      "price": 30.15,
+      "shares": 600.0
+     }
+    ],
+    "side": "long"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -3044,7 +3085,16 @@
    ],
    "kind": "mcq",
    "q": "Bid $19.95, ask $20.05. What is the spread as a percent of the midpoint, the price halfway between them?",
-   "subject": "F1.03#q90"
+   "subject": "F1.03#q90",
+   "visual": {
+    "ask": 20.05,
+    "bid": 19.95,
+    "find": {
+     "as": "pct",
+     "label": "The spread, % of the midpoint"
+    },
+    "kind": "quote"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -4486,7 +4536,22 @@
    ],
    "kind": "mcq",
    "q": "A stock averages 1.2 million shares a day. Today it trades 4.8 million. Today is how many times its average?",
-   "subject": "F1.04#q92"
+   "subject": "F1.04#q92",
+   "visual": {
+    "find": {
+     "as": "times",
+     "label": "Times average"
+    },
+    "from": {
+     "label": "Average",
+     "value": 1.2
+    },
+    "kind": "move",
+    "to": {
+     "label": "Today",
+     "value": 4.8
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -4563,7 +4628,24 @@
    ],
    "kind": "mcq",
    "q": "You want 20,000 shares of a stock that averages 80,000 a day. What share of a normal day is your order?",
-   "subject": "F1.04#q93"
+   "subject": "F1.04#q93",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "As a percent"
+    },
+    "kind": "share",
+    "part": {
+     "fmt": "shares",
+     "label": "Your order",
+     "value": 20000.0
+    },
+    "whole": {
+     "fmt": "shares",
+     "label": "Average day",
+     "value": 80000.0
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -4647,7 +4729,20 @@
    ],
    "kind": "mcq",
    "q": "Our rule: never own more than 1% of a stock's average daily volume. It averages 600,000 shares. Most we'd own?",
-   "subject": "F1.04#q94"
+   "subject": "F1.04#q94",
+   "visual": {
+    "find": {
+     "as": "shares",
+     "label": "The most we own"
+    },
+    "kind": "share",
+    "pct": 1.0,
+    "whole": {
+     "fmt": "shares",
+     "label": "Average day's volume",
+     "value": 600000.0
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -5689,7 +5784,22 @@
    ],
    "kind": "mcq",
    "q": "Yesterday's close was $40.00. This morning it opens at $44.00. How big is the gap, as a percent of the close?",
-   "subject": "F1.05#q12"
+   "subject": "F1.05#q12",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The change"
+    },
+    "from": {
+     "label": "",
+     "value": 40.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 44.0
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -7904,7 +8014,24 @@
    ],
    "kind": "mcq",
    "q": "A stock has a 12 million share float and 3 million shares sold short. Short interest is what percent of the float?",
-   "subject": "F1.06#q91"
+   "subject": "F1.06#q91",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "As a percent"
+    },
+    "kind": "share",
+    "part": {
+     "fmt": "count",
+     "label": "Sold short",
+     "value": 3.0
+    },
+    "whole": {
+     "fmt": "count",
+     "label": "The float",
+     "value": 12.0
+    }
+   }
   },
   "reveal_json": {
    "depth": {

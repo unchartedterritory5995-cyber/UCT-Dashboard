@@ -4783,7 +4783,31 @@
    ],
    "kind": "mcq",
    "q": "A Go Signal: price trades through $40.00, the prior close, and you buy. Stop $39.20. What price is 3R?",
-   "subject": "F11.03#q11"
+   "subject": "F11.03#q11",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "3R"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 39.2
+     },
+     {
+      "key": "entry",
+      "label": "Entry",
+      "price": 40.0
+     }
+    ],
+    "r": {
+     "entry": 40.0,
+     "stop": 39.2
+    },
+    "side": "long"
+   }
   },
   "reveal_json": {
    "depth": {

@@ -588,7 +588,24 @@
    ],
    "kind": "mcq",
    "q": "Your account is $150,000. If this trade hits its stop, you lose $750. What percent of the account is at risk?",
-   "subject": "F9.01#q09"
+   "subject": "F9.01#q09",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "As a percent"
+    },
+    "kind": "share",
+    "part": {
+     "fmt": "$",
+     "label": "The loss",
+     "value": 750.0
+    },
+    "whole": {
+     "fmt": "$",
+     "label": "Account",
+     "value": 150000.0
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -1223,7 +1240,24 @@
    "kind": "mcq",
    "q": "What has happened to your risk as a percent of the account?",
    "story": "You set your risk at $400 a trade when the account was $40,000. The account has grown to $100,000. You still risk $400.",
-   "subject": "F9.01#q17"
+   "subject": "F9.01#q17",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "As a percent"
+    },
+    "kind": "share",
+    "part": {
+     "fmt": "$",
+     "label": "The risk",
+     "value": 400.0
+    },
+    "whole": {
+     "fmt": "$",
+     "label": "Account",
+     "value": 100000.0
+    }
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -2192,7 +2226,28 @@
    ],
    "kind": "mcq",
    "q": "You'll risk $300 on this trade. Your stop is $1.50 below your entry. How many shares do you buy?",
-   "subject": "F9.02#q06"
+   "subject": "F9.02#q06",
+   "visual": {
+    "find": {
+     "as": "shares",
+     "label": "Shares"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "risk",
+      "label": "Dollars at risk",
+      "value": 300.0
+     },
+     {
+      "fmt": "$",
+      "key": "per_share",
+      "label": "Risk per share",
+      "value": 1.5
+     }
+    ]
+   }
   },
   "reveal_json": {
    "depth": {
@@ -2398,7 +2453,40 @@
    ],
    "kind": "mcq",
    "q": "Account $48,000, risking 0.5%. Entry $50, stop $48.50. How many shares?",
-   "subject": "F9.02#q09"
+   "subject": "F9.02#q09",
+   "visual": {
+    "find": {
+     "as": "shares",
+     "label": "Shares"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "account",
+      "label": "Account",
+      "value": 48000.0
+     },
+     {
+      "fmt": "%",
+      "key": "risk_pct",
+      "label": "Risk",
+      "value": 0.5
+     },
+     {
+      "fmt": "$",
+      "key": "entry",
+      "label": "Entry",
+      "value": 50.0
+     },
+     {
+      "fmt": "$",
+      "key": "stop",
+      "label": "Stop",
+      "value": 48.5
+     }
+    ]
+   }
   },
   "reveal_json": {
    "depth": {
@@ -2631,7 +2719,28 @@
    "kind": "mcq",
    "q": "What's the right size now?",
    "story": "You'll risk $300. You planned 300 shares with a stop $1 under entry. The chart says the real stop is $2 under.",
-   "subject": "F9.02#q12"
+   "subject": "F9.02#q12",
+   "visual": {
+    "find": {
+     "as": "shares",
+     "label": "Shares"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "risk",
+      "label": "Dollars at risk",
+      "value": 300.0
+     },
+     {
+      "fmt": "$",
+      "key": "per_share",
+      "label": "Risk per share",
+      "value": 2.0
+     }
+    ]
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -2783,7 +2892,40 @@
    "kind": "mcq",
    "q": "How many shares?",
    "story": "Account $25,000. You risk 0.5% on this one. Entry $80, stop $76.",
-   "subject": "F9.02#q14"
+   "subject": "F9.02#q14",
+   "visual": {
+    "find": {
+     "as": "shares",
+     "label": "Shares"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "account",
+      "label": "Account",
+      "value": 25000.0
+     },
+     {
+      "fmt": "%",
+      "key": "risk_pct",
+      "label": "Risk",
+      "value": 0.5
+     },
+     {
+      "fmt": "$",
+      "key": "entry",
+      "label": "Entry",
+      "value": 80.0
+     },
+     {
+      "fmt": "$",
+      "key": "stop",
+      "label": "Stop",
+      "value": 76.0
+     }
+    ]
+   }
   },
   "reveal_json": {
    "depth": {
@@ -3028,7 +3170,40 @@
    ],
    "kind": "mcq",
    "q": "StockCharts' MNST example: $50,000 account, 1% risk, entry $86, stop at support $71. How many shares?",
-   "subject": "F9.02#q18"
+   "subject": "F9.02#q18",
+   "visual": {
+    "find": {
+     "as": "shares",
+     "label": "Shares"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "account",
+      "label": "Account",
+      "value": 50000.0
+     },
+     {
+      "fmt": "%",
+      "key": "risk_pct",
+      "label": "Risk",
+      "value": 1.0
+     },
+     {
+      "fmt": "$",
+      "key": "entry",
+      "label": "Entry",
+      "value": 86.0
+     },
+     {
+      "fmt": "$",
+      "key": "stop",
+      "label": "Stop",
+      "value": 71.0
+     }
+    ]
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -3211,7 +3386,40 @@
    ],
    "kind": "mcq",
    "q": "Account $60,000, risking 0.75%. You buy at $125.40 with the stop at $121.10, a few cents under the day's low. How many shares?",
-   "subject": "F9.02#q20"
+   "subject": "F9.02#q20",
+   "visual": {
+    "find": {
+     "as": "shares",
+     "label": "Shares"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "account",
+      "label": "Account",
+      "value": 60000.0
+     },
+     {
+      "fmt": "%",
+      "key": "risk_pct",
+      "label": "Risk",
+      "value": 0.75
+     },
+     {
+      "fmt": "$",
+      "key": "entry",
+      "label": "Entry",
+      "value": 125.4
+     },
+     {
+      "fmt": "$",
+      "key": "stop",
+      "label": "Stop",
+      "value": 121.1
+     }
+    ]
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -4390,7 +4598,24 @@
    ],
    "kind": "mcq",
    "q": "You closed 40 trades. 18 of them made money. What's your win rate?",
-   "subject": "F9.03#q09"
+   "subject": "F9.03#q09",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "As a percent"
+    },
+    "kind": "share",
+    "part": {
+     "fmt": "count",
+     "label": "Winners",
+     "value": 18.0
+    },
+    "whole": {
+     "fmt": "count",
+     "label": "Trades",
+     "value": 40.0
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -4535,7 +4760,17 @@
    ],
    "kind": "mcq",
    "q": "Your system wins 30% of its trades. Winners average +3R and losers -1R. What's the expectancy per trade?",
-   "subject": "F9.03#q11"
+   "subject": "F9.03#q11",
+   "visual": {
+    "avg_loss_r": 1.0,
+    "avg_win_r": 3.0,
+    "find": {
+     "as": "r",
+     "label": "R per trade"
+    },
+    "kind": "expectancy",
+    "win_pct": 30.0
+   }
   },
   "reveal_json": {
    "depth": {
@@ -4626,7 +4861,31 @@
    ],
    "kind": "mcq",
    "q": "Our plan has the entry at $40 and the stop at $38. At what price is the trade up 5R?",
-   "subject": "F9.03#q12"
+   "subject": "F9.03#q12",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "5R"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 38.0
+     },
+     {
+      "key": "entry",
+      "label": "Entry",
+      "price": 40.0
+     }
+    ],
+    "r": {
+     "entry": 40.0,
+     "stop": 38.0
+    },
+    "side": "long"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -4703,7 +4962,36 @@
    ],
    "kind": "mcq",
    "q": "You bought at $30 with a stop at $28. You skipped the stop and sold at $22. How many R did you lose?",
-   "subject": "F9.03#q13"
+   "subject": "F9.03#q13",
+   "visual": {
+    "find": {
+     "as": "r_loss",
+     "label": "R lost"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 28.0
+     },
+     {
+      "key": "entry",
+      "label": "Entry",
+      "price": 30.0
+     },
+     {
+      "key": "price",
+      "label": "Exit",
+      "price": 22.0
+     }
+    ],
+    "r": {
+     "entry": 30.0,
+     "stop": 28.0
+    },
+    "side": "long"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -4861,7 +5149,36 @@
    "kind": "mcq",
    "q": "What R did the trade make?",
    "story": "You buy at $50 with a stop at $48. The stock runs. You trail the stop up to $53, and it fills at $53.",
-   "subject": "F9.03#q15"
+   "subject": "F9.03#q15",
+   "visual": {
+    "find": {
+     "as": "r",
+     "label": "R on the trade"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 48.0
+     },
+     {
+      "key": "entry",
+      "label": "Entry",
+      "price": 50.0
+     },
+     {
+      "key": "exit",
+      "label": "Exit",
+      "price": 53.0
+     }
+    ],
+    "r": {
+     "entry": 50.0,
+     "stop": 48.0
+    },
+    "side": "long"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -5168,7 +5485,17 @@
    ],
    "kind": "mcq",
    "q": "System A wins 60% at +1R and loses 40% at -1R. System B wins 40% at +2.5R and loses 60% at -1R. Which makes more per trade?",
-   "subject": "F9.03#q19"
+   "subject": "F9.03#q19",
+   "visual": {
+    "avg_loss_r": 1.0,
+    "avg_win_r": 2.5,
+    "find": {
+     "as": "r",
+     "label": "R per trade"
+    },
+    "kind": "expectancy",
+    "win_pct": 40.0
+   }
   },
   "reveal_json": {
    "depth": {
@@ -5246,7 +5573,36 @@
    "kind": "mcq",
    "q": "What R is the loss?",
    "story": "You buy at $50 with a stop at $48. Bad news hits overnight. The stock opens at $45, and your stop fills there.",
-   "subject": "F9.03#q20"
+   "subject": "F9.03#q20",
+   "visual": {
+    "find": {
+     "as": "r",
+     "label": "R on the trade"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 48.0
+     },
+     {
+      "key": "entry",
+      "label": "Entry",
+      "price": 50.0
+     },
+     {
+      "key": "exit",
+      "label": "Exit",
+      "price": 45.0
+     }
+    ],
+    "r": {
+     "entry": 50.0,
+     "stop": 48.0
+    },
+    "side": "long"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -5864,7 +6220,17 @@
    "kind": "mcq",
    "q": "Grade the system. What's its expectancy?",
    "story": "Your journal shows 120 trades. You won 38% of them. Winners averaged +2.4R. Losers averaged -1.1R.",
-   "subject": "F9.03#q28"
+   "subject": "F9.03#q28",
+   "visual": {
+    "avg_loss_r": 1.1,
+    "avg_win_r": 2.4,
+    "find": {
+     "as": "r",
+     "label": "R per trade"
+    },
+    "kind": "expectancy",
+    "win_pct": 38.0
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -6451,7 +6817,22 @@
    ],
    "kind": "mcq",
    "q": "Your account peaked at $50,000. It's now $42,500. What's your drawdown?",
-   "subject": "F9.04#q04"
+   "subject": "F9.04#q04",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The fall"
+    },
+    "from": {
+     "label": "Peak",
+     "value": 50000.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "Low",
+     "value": 42500.0
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -6581,7 +6962,15 @@
    ],
    "kind": "mcq",
    "q": "You're down 25% from your account's high. Roughly what gain gets you back to the high?",
-   "subject": "F9.04#q06"
+   "subject": "F9.04#q06",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The gain back to even"
+    },
+    "kind": "recover",
+    "loss_pct": 25.0
+   }
   },
   "reveal_json": {
    "depth": {
@@ -6792,7 +7181,22 @@
    ],
    "kind": "mcq",
    "q": "You started the year at $40,000, ran it to $50,000, and now sit at $45,000. What's your drawdown?",
-   "subject": "F9.04#q09"
+   "subject": "F9.04#q09",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The fall"
+    },
+    "from": {
+     "label": "Peak",
+     "value": 50000.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "Low",
+     "value": 45000.0
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -6875,7 +7279,22 @@
    ],
    "kind": "mcq",
    "q": "Your account fell from $50,000 to $40,000. What percent gain takes it back to $50,000?",
-   "subject": "F9.04#q10"
+   "subject": "F9.04#q10",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The change"
+    },
+    "from": {
+     "label": "",
+     "value": 40000.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 50000.0
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -7013,7 +7432,22 @@
    "kind": "mcq",
    "q": "What was the max drawdown?",
    "story": "Your account runs from $100,000 to $120,000, drops to $96,000, bounces to $110,000, then sinks to $90,000. Later it makes a new high at $130,000.",
-   "subject": "F9.04#q12"
+   "subject": "F9.04#q12",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The fall"
+    },
+    "from": {
+     "label": "Peak",
+     "value": 120000.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "Low",
+     "value": 90000.0
+    }
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -7384,7 +7818,15 @@
    ],
    "kind": "mcq",
    "q": "On Black Monday, October 19, 1987, the Dow fell 22.6% in one day. What gain did it need to win that back? Use one decimal.",
-   "subject": "F9.04#q18"
+   "subject": "F9.04#q18",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The gain back to even"
+    },
+    "kind": "recover",
+    "loss_pct": 22.6
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -7462,7 +7904,15 @@
    ],
    "kind": "mcq",
    "q": "The S&P 500 fell 57% from its October 2007 peak to its March 2009 low. Roughly what gain did it need to get back?",
-   "subject": "F9.04#q19"
+   "subject": "F9.04#q19",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The gain back to even"
+    },
+    "kind": "recover",
+    "loss_pct": 57.0
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -10667,7 +11117,36 @@
    ],
    "kind": "mcq",
    "q": "You bought at $40 with the stop at $38. You've since raised the stop to $45. If it's hit there, what do you lock in, in R?",
-   "subject": "F9.06#q10"
+   "subject": "F9.06#q10",
+   "visual": {
+    "find": {
+     "as": "r",
+     "label": "R on the trade"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 38.0
+     },
+     {
+      "key": "entry",
+      "label": "Entry",
+      "price": 40.0
+     },
+     {
+      "key": "exit",
+      "label": "Exit",
+      "price": 45.0
+     }
+    ],
+    "r": {
+     "entry": 40.0,
+     "stop": 38.0
+    },
+    "side": "long"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -10758,7 +11237,34 @@
    ],
    "kind": "mcq",
    "q": "You hold 300 shares from $50 with the stop at $48. You raise the stop to $48.50. How much can they lose now, from your entry?",
-   "subject": "F9.06#q11"
+   "subject": "F9.06#q11",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Dollars at risk"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "sh",
+      "key": "shares",
+      "label": "Shares",
+      "value": 300.0
+     },
+     {
+      "fmt": "$",
+      "key": "entry",
+      "label": "Entry",
+      "value": 50.0
+     },
+     {
+      "fmt": "$",
+      "key": "stop",
+      "label": "Stop",
+      "value": 48.5
+     }
+    ]
+   }
   },
   "reveal_json": {
    "depth": {
@@ -11744,7 +12250,34 @@
    "kind": "mcq",
    "q": "What happens to your position?",
    "story": "You hold 200 shares bought at $50. Your sell stop order sits with your broker at $50. Bad news hits overnight, and the stock opens at $46.",
-   "subject": "F9.06#q24"
+   "subject": "F9.06#q24",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Dollars at risk"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "sh",
+      "key": "shares",
+      "label": "Shares",
+      "value": 200.0
+     },
+     {
+      "fmt": "$",
+      "key": "entry",
+      "label": "Entry",
+      "value": 50.0
+     },
+     {
+      "fmt": "$",
+      "key": "stop",
+      "label": "Stop",
+      "value": 46.0
+     }
+    ]
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -14806,7 +15339,40 @@
    ],
    "kind": "mcq",
    "q": "Account $50,000, risk 1%. Entry $40, stop $38.30. Under our rule, how many shares?",
-   "subject": "F9.08#q09"
+   "subject": "F9.08#q09",
+   "visual": {
+    "find": {
+     "as": "shares",
+     "label": "Shares"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "account",
+      "label": "Account",
+      "value": 50000.0
+     },
+     {
+      "fmt": "%",
+      "key": "risk_pct",
+      "label": "Risk",
+      "value": 1.0
+     },
+     {
+      "fmt": "$",
+      "key": "entry",
+      "label": "Entry",
+      "value": 40.0
+     },
+     {
+      "fmt": "$",
+      "key": "stop",
+      "label": "Stop",
+      "value": 38.3
+     }
+    ]
+   }
   },
   "reveal_json": {
    "depth": {
@@ -16822,7 +17388,23 @@
    ],
    "kind": "mcq",
    "q": "The buy point is $50. Under our 4% chase line, what's the highest price you may pay?",
-   "subject": "F9.09#q08"
+   "subject": "F9.09#q08",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "The most we pay (4% over)",
+     "tag": "Most we pay"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "line",
+      "label": "Buy point",
+      "price": 50.0
+     }
+    ],
+    "side": "long"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -17259,7 +17841,36 @@
    ],
    "kind": "mcq",
    "q": "You bought at $40 with a $38 stop. Earnings are tomorrow and the stock is at $48. How many R are you up?",
-   "subject": "F9.09#q15"
+   "subject": "F9.09#q15",
+   "visual": {
+    "find": {
+     "as": "r",
+     "label": "R on the trade"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 38.0
+     },
+     {
+      "key": "entry",
+      "label": "Entry",
+      "price": 40.0
+     },
+     {
+      "key": "exit",
+      "label": "Exit",
+      "price": 48.0
+     }
+    ],
+    "r": {
+     "entry": 40.0,
+     "stop": 38.0
+    },
+    "side": "long"
+   }
   },
   "reveal_json": {
    "deeper": {

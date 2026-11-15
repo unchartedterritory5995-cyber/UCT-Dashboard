@@ -25,6 +25,7 @@ import re
 from typing import Any, Callable, Iterable, Optional
 
 from scripts.study._common import REPO, dedash, item_id
+from scripts.study.calc_visuals import visual_for as calc_visual_for
 from api.services import study_import
 
 COURSES_DIR = REPO / "docs" / "study" / "courses"
@@ -769,6 +770,11 @@ def build_items(doc: dict, *, only_passed: bool = True) -> list[dict]:
             for k in ("prefix", "suffix", "label"):
                 if q.get(k):
                     prompt[k] = q[k]
+        # a computed question's picture card (a price ladder, a move, the size chain...): its inputs only, each one stated
+        # in the question's own words; the answer fills in after scoring from the reveal's facts.calc (calc_visuals.py)
+        visual = calc_visual_for(q)
+        if visual:
+            prompt["visual"] = visual
         answer_json: dict[str, Any] = {"answer": dedash(answer) if isinstance(answer, str) else answer}
         reveal_facts: dict[str, Any] = {}
         given = given_text(q)

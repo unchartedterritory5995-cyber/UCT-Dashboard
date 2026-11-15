@@ -55,8 +55,10 @@ whose chart ends on the buy day carries its trade (`chart.trade: {entry, stop}`,
 answer as the entry and stop lines with 3R and 5R as marks on the ruler, and BOUGHT / 3R / 5R / STOPPED landing only
 when the replay reaches their day; a course chart with no trade marks its DECISION DAY once the bars after it play.
 **Step 2 pilot:** Flat Base (SET.07), 19 charts, 4 with trades. **Step 2 rollout (2026-11-14):** batch 1 SET.08-15,
-batch 2 SET.16-23, batch 3 SET.24-31, then SET.40-52; 510 live charts after batch 3, every one checked against the
-bars copy. The intraday lessons (SET.32-34, 53, 54) wait for hourly course charts.
+batch 2 SET.16-23, batch 3 SET.24-31, then SET.40-52: all 37 daily setup lessons, 696 live charts, every one checked
+against the bars copy (check_course_charts: 0 failing). The intraday lessons (SET.32-34, 53, 54) wait for hourly course
+charts: the server holds about 3 months of intraday bars for about 30 tickers, and its forward horizon knows D/W/M only.
+**Step 3 built 2026-11-15** (below).
 
 Rules every chart question follows (the validator enforces the starred ones):
 - `asof` is the last day the member sees: the day before the breakout for "what is it / where is the pivot"
@@ -64,10 +66,11 @@ Rules every chart question follows (the validator enforces the starred ones):
 - The trade's entry and stop are the same numbers the question's words give.* Every number comes from the research
   dossier's table (docs/study/setups/research/NN-*.md), which was measured on the same bars.db the chart draws
   (split-adjusted), so the words and the chart agree.
-- The ticker is not in the question, the story or the choices.* The chart badge shows it before the answer in a lesson
-  (the owner, 2026-11-02 and 2026-11-08, "Yes"), so the words never say "Hidden ticker" (removed from 644 stories and
-  questions on 2026-11-14). Whether course charts should hide it until the answer, so a famous winner does not give the
-  outcome away, is for the owner to decide. A story shows only on a scenario.* A number is never
+- The ticker is not in the question, the story or the choices.* A course chart keeps its ticker off the badge until the
+  answer (`prompt_json.chart.hide_ticker`; the reveal names it), so a famous winner (NVDA 2023) does not give the
+  outcome away: decided 2026-11-14 on the owner's "you make a judgement call". Other lesson charts show the ticker
+  before the answer (the owner, 2026-11-02 and 2026-11-08, "Yes"). The words never say "Hidden ticker" (removed from
+  644 stories and questions on 2026-11-14). A story shows only on a scenario.* A number is never
   cut between the story and the question* (2026-11-14: three were, "bought at 73." / "16 with the stop").
 - The lines named in the words are the lines on the chart: the 9 and 20 EMA, the 50 and 200 SMA (D-021).
 - `forward` is how many days the replay plays after the answer: the reveal carries the first 20 and the drill fetches
@@ -118,6 +121,45 @@ examples (about 18 per setup), not with the questions.
   with no new content work; the 588 generic `arith` ones are mapped by expression where the shape is known.
 - Before the answer the card shows only what the question gives; after it, the card fills in the answer (the same
   way the chart replays after the answer).
+
+**Built 2026-11-15.** `scripts/study/calc_visuals.py` draws the card at bank build (`prompt_json.visual`):
+282 of the 661 live computed questions without a chart get one, in nine kinds (a price ladder, a move, back to even,
+the size inputs, a bar's range, a quote, a slice of a whole, a record's wins and losses, an option at expiry). The
+slices cover the 1%-of-volume ceiling and, from the second pass, a part of a whole (a win rate, the stocks above their
+50-day, an order's share of the day: its slice draws only after the answer, since before it would show the answer);
+moves cover a volume multiple ("4 times average"); ladders cover a midpoint, a level a stated percent under a peak, and
+the dollars between two named prices (a spread's cost, slippage, a short's loss) with the share count under them.
+The drill (`app/src/pages/study/ui/CalcCard.jsx`, logic in `calcCard.js`) draws it under the question and story, with
+the answer slot reading "?"; once the verdict screen closes the slot fills from the reveal's `facts.calc.result`, the
+picture completes (the level asked for and the R steps on the ruler, the part of a move, the payoff line) and the
+working line prints under it ("50 + 3 × (50 − 47.5) = 57.50"). The slot and the working line end on the key's own
+words when the key states the scored number ("$57.50", "0.70", "Made $120"), so the card agrees with the choice
+picked. Every other computed question gets the working line alone after the answer. Checked on real screens (phone
+390 and desktop 1440, the hub sandbox) on 2026-11-15: 16 targets covering every kind, before the answer, under the
+verdict screen (nothing fills there) and after it. The rules the builder keeps (tests/test_study_calc_visuals.py):
+- the card holds the question's inputs only, never the result (it rides in the prompt, which a member gets first);
+- every number on it is stated in the question's own words (question, story, fill sentence; never the choices, which
+  hold the answer), so a stop "three cents under the low" gets no card rather than an unstated price;
+- a shape is drawn only when its roles are certain (`a + 3 * (a - b)` is an entry and a stop, and the words must name
+  "3R"); a percent between two prices names no roles unless the expression does ("consensus", "entry"), so "how far
+  above the 9 EMA" is never drawn as a start and an end.
+- a percent the words do not state is the rule being tested ("1% of volume", "4% over the pivot", the monthly loss
+  limit), so such a question gets no card: the card would hand over the method.
+The card adds no words or numbers to a question, so a re-import at the same version keeps every approval
+(study_store.upsert_items). The remaining 379 computed questions are generic expressions whose roles a shape cannot
+fix ("(a - b) / c" for an ATR depth) or rule questions as above; a writer pass could give each one an explicit
+`visual`, checked the same way.
+
+## Step 4: what the data allows (checked 2026-11-15)
+
+- **Options:** the computed options questions (breakeven, intrinsic and time value, payoff, spreads) carry the payoff
+  card above. A conceptual options question has no numbers to draw.
+- **History charts:** the bars copy holds no index series (no S&P 500 or Nasdaq levels), only the funds: SPY from
+  1995, QQQ from 1999, DIA, IWM. A history question quotes index levels ("the S&P 500 closed at 2,237.40"), and a SPY
+  chart would print about a tenth of that, so the chart and the words would disagree (this plan's first rule). History
+  charts wait for an index series on the pod (or a question rewritten to the fund's own prices), each one owner-approved.
+- **Intraday lessons (SET.32-34, 53, 54):** wait for intraday course charts: about 3 months of intraday bars for about
+  30 tickers on the pod, and a forward horizon that knows D/W/M only.
 
 ## Open needs
 

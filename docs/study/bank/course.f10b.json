@@ -570,7 +570,27 @@
    ],
    "kind": "mcq",
    "q": "You short 200 shares at $45.00 and buy to cover at $39.00. What's your profit before costs?",
-   "subject": "F10b.01#q09"
+   "subject": "F10b.01#q09",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Profit or loss"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "entry",
+      "label": "Short at",
+      "price": 45.0
+     },
+     {
+      "key": "exit",
+      "label": "Covered at",
+      "price": 39.0
+     }
+    ],
+    "side": "short"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -814,7 +834,28 @@
    ],
    "kind": "mcq",
    "q": "You short 300 shares at $22.00. It rallies and you buy to cover at $25.50. How much did you lose?",
-   "subject": "F10b.01#q12"
+   "subject": "F10b.01#q12",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "The loss"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "cover",
+      "label": "Covered at",
+      "price": 25.5
+     },
+     {
+      "key": "entry",
+      "label": "Short at",
+      "price": 22.0
+     }
+    ],
+    "shares": 300.0,
+    "side": "long"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -3065,7 +3106,40 @@
    ],
    "kind": "mcq",
    "q": "Account $40,000, risking 0.5%. You short at $30.00 with a buy stop at $31.50. How many shares?",
-   "subject": "F10b.02#q11"
+   "subject": "F10b.02#q11",
+   "visual": {
+    "find": {
+     "as": "shares",
+     "label": "Shares"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "account",
+      "label": "Account",
+      "value": 40000.0
+     },
+     {
+      "fmt": "%",
+      "key": "risk_pct",
+      "label": "Risk",
+      "value": 0.5
+     },
+     {
+      "fmt": "$",
+      "key": "entry",
+      "label": "Entry",
+      "value": 30.0
+     },
+     {
+      "fmt": "$",
+      "key": "stop",
+      "label": "Stop",
+      "value": 31.5
+     }
+    ]
+   }
   },
   "reveal_json": {
    "depth": {
@@ -3150,7 +3224,36 @@
    ],
    "kind": "mcq",
    "q": "You short at $50.00 with a buy stop at $52.00. You cover at $45.00. How many R did you make?",
-   "subject": "F10b.02#q12"
+   "subject": "F10b.02#q12",
+   "visual": {
+    "find": {
+     "as": "r",
+     "label": "R on the trade"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 52.0
+     },
+     {
+      "key": "entry",
+      "label": "Entry",
+      "price": 50.0
+     },
+     {
+      "key": "exit",
+      "label": "Exit",
+      "price": 45.0
+     }
+    ],
+    "r": {
+     "entry": 50.0,
+     "stop": 52.0
+    },
+    "side": "short"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -3311,7 +3414,28 @@
    ],
    "kind": "mcq",
    "q": "You short 400 shares at $25.00, buy stop $26.00. Good news gaps it open at $29.00, and your stop fills there. What did you lose?",
-   "subject": "F10b.02#q14"
+   "subject": "F10b.02#q14",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "The loss"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "fill",
+      "label": "Stop fill",
+      "price": 29.0
+     },
+     {
+      "key": "entry",
+      "label": "Short at",
+      "price": 25.0
+     }
+    ],
+    "shares": 400.0,
+    "side": "long"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -4056,7 +4180,22 @@
    ],
    "kind": "mcq",
    "q": "You short at the $19.95 close on January 12, 2021. It closes at $347.51 on January 27. What's your loss on the move, as a % of the sale?",
-   "subject": "F10b.02#q22"
+   "subject": "F10b.02#q22",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The change"
+    },
+    "from": {
+     "label": "",
+     "value": 19.95
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 347.51
+    }
+   }
   },
   "reveal_json": {
    "deeper": {

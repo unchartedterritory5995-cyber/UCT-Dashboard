@@ -1449,7 +1449,22 @@
    ],
    "kind": "mcq",
    "q": "The lowest low in the two months before the base was 40.00 and the left-side high is 50.00. The prior advance, in percent?",
-   "subject": "SET.07#q25"
+   "subject": "SET.07#q25",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The change"
+    },
+    "from": {
+     "label": "",
+     "value": 40.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 50.0
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -1518,7 +1533,22 @@
    ],
    "kind": "mcq",
    "q": "Left-side high 100.00, the base's lowest intraday low 86.50. How deep is the base, in percent?",
-   "subject": "SET.07#q26"
+   "subject": "SET.07#q26",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The fall"
+    },
+    "from": {
+     "label": "Peak",
+     "value": 100.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "Low",
+     "value": 86.5
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -4364,7 +4394,22 @@
    ],
    "kind": "mcq",
    "q": "Left-side high 100.00. The base's first week tops out at 97.50. How far under the high is that, in percent?",
-   "subject": "SET.07#q69"
+   "subject": "SET.07#q69",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The fall"
+    },
+    "from": {
+     "label": "Peak",
+     "value": 100.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "Low",
+     "value": 97.5
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -6584,7 +6629,22 @@
    "kind": "mcq",
    "q": "Buy here, and why?",
    "story": "Your trigger is the break of yesterday's high at 50.00. You were away from the screen and are not in. By 10:20 the stock is trading 52.40.",
-   "subject": "SET.08#q23"
+   "subject": "SET.08#q23",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The change"
+    },
+    "from": {
+     "label": "",
+     "value": 50.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 52.4
+    }
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -6663,7 +6723,22 @@
    ],
    "kind": "mcq",
    "q": "The low before the run was 25.00. The pole top is 29.50. How big is the pole, in percent?",
-   "subject": "SET.08#q24"
+   "subject": "SET.08#q24",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The change"
+    },
+    "from": {
+     "label": "",
+     "value": 25.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 29.5
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -10192,7 +10267,22 @@
    ],
    "kind": "mcq",
    "q": "The pole top is 60.00 and the flag low is 56.00. How far under the top is the low, as a percent of the top?",
-   "subject": "SET.08#q71"
+   "subject": "SET.08#q71",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The distance"
+    },
+    "from": {
+     "label": "",
+     "value": 60.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 56.0
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -10255,7 +10345,22 @@
    ],
    "kind": "mcq",
    "q": "You would buy at 56.60. The 9 EMA is 50.00. How far above the 9 EMA is the buy, in percent?",
-   "subject": "SET.08#q72"
+   "subject": "SET.08#q72",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The distance"
+    },
+    "from": {
+     "label": "",
+     "value": 50.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 56.6
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -10580,7 +10685,22 @@
    ],
    "kind": "mcq",
    "q": "The 50-day average volume is 1,800,000 shares. A red flag day trades 2,700,000. How many times average is that?",
-   "subject": "SET.08#q77"
+   "subject": "SET.08#q77",
+   "visual": {
+    "find": {
+     "as": "times",
+     "label": "Times average"
+    },
+    "from": {
+     "label": "Average",
+     "value": 1800000.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 2700000.0
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -12614,7 +12734,22 @@
    ],
    "kind": "mcq",
    "q": "Lowest low of the prior six months 30.00, left-side high 40.50. How big was the run into the cup, in percent?",
-   "subject": "SET.09#q24"
+   "subject": "SET.09#q24",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The change"
+    },
+    "from": {
+     "label": "",
+     "value": 30.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 40.5
+    }
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -12693,7 +12828,22 @@
    ],
    "kind": "mcq",
    "q": "Left-side high 80.00, the cup's lowest intraday low 58.00. How deep is the cup, in percent?",
-   "subject": "SET.09#q25"
+   "subject": "SET.09#q25",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The fall"
+    },
+    "from": {
+     "label": "Peak",
+     "value": 80.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "Low",
+     "value": 58.0
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -12769,7 +12919,27 @@
    ],
    "kind": "mcq",
    "q": "Left-side high 62.00, cup low 44.00. Where is the cup's midpoint?",
-   "subject": "SET.09#q26"
+   "subject": "SET.09#q26",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "Midpoint"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "high",
+      "label": "High",
+      "price": 62.0
+     },
+     {
+      "key": "low",
+      "label": "Low",
+      "price": 44.0
+     }
+    ],
+    "side": "long"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -13271,7 +13441,36 @@
    ],
    "kind": "mcq",
    "q": "Bought at 72.40, stop 71.60. On day two it trades 74.40. How many R is that?",
-   "subject": "SET.09#q33"
+   "subject": "SET.09#q33",
+   "visual": {
+    "find": {
+     "as": "r",
+     "label": "R on the trade"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 71.6
+     },
+     {
+      "key": "entry",
+      "label": "Entry",
+      "price": 72.4
+     },
+     {
+      "key": "exit",
+      "label": "Exit",
+      "price": 74.4
+     }
+    ],
+    "r": {
+     "entry": 72.4,
+     "stop": 71.6
+    },
+    "side": "long"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -16228,7 +16427,20 @@
    ],
    "kind": "mcq",
    "q": "We never own more than 1% of a stock's average daily volume. A stock averages 250,000 shares a day. What is the most we may own?",
-   "subject": "SET.09#q74"
+   "subject": "SET.09#q74",
+   "visual": {
+    "find": {
+     "as": "shares",
+     "label": "The most we own"
+    },
+    "kind": "share",
+    "pct": 1.0,
+    "whole": {
+     "fmt": "shares",
+     "label": "Average day's volume",
+     "value": 250000.0
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -16646,7 +16858,22 @@
    ],
    "kind": "mcq",
    "q": "Handle high 50.00, handle low 47.50. How deep is the handle, in percent?",
-   "subject": "SET.09#q80"
+   "subject": "SET.09#q80",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The distance"
+    },
+    "from": {
+     "label": "",
+     "value": 50.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 47.5
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -22117,7 +22344,20 @@
    ],
    "kind": "mcq",
    "q": "A new issue at $40 averages 650,000 shares a day. We cap ourselves at 1% of that. What is the most shares we can own?",
-   "subject": "SET.10#q68"
+   "subject": "SET.10#q68",
+   "visual": {
+    "find": {
+     "as": "shares",
+     "label": "The most we own"
+    },
+    "kind": "share",
+    "pct": 1.0,
+    "whole": {
+     "fmt": "shares",
+     "label": "Average day's volume",
+     "value": 650000.0
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -24143,7 +24383,20 @@
    ],
    "kind": "mcq",
    "q": "We never own more than 1% of a stock's average daily volume. It trades 3,000,000 shares a day. Your ceiling?",
-   "subject": "SET.11#q15"
+   "subject": "SET.11#q15",
+   "visual": {
+    "find": {
+     "as": "shares",
+     "label": "The most we own"
+    },
+    "kind": "share",
+    "pct": 1.0,
+    "whole": {
+     "fmt": "shares",
+     "label": "Average day's volume",
+     "value": 3000000.0
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -24571,7 +24824,22 @@
    "kind": "mcq",
    "q": "Buy at this open, or pass, and why?",
    "story": "The launch closed at 50.00. Next morning it opens at 52.50. The top of the averages sits at 47.00.",
-   "subject": "SET.11#q23"
+   "subject": "SET.11#q23",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The change"
+    },
+    "from": {
+     "label": "",
+     "value": 50.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 52.5
+    }
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -24740,7 +25008,22 @@
    ],
    "kind": "mcq",
    "q": "The highest high of sessions 61 to 120 back was 80.00; the lowest close of the last 60 is 66.00. The fall from that high, in percent?",
-   "subject": "SET.11#q26"
+   "subject": "SET.11#q26",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The fall"
+    },
+    "from": {
+     "label": "Peak",
+     "value": 80.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "Low",
+     "value": 66.0
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -24880,7 +25163,18 @@
    ],
    "kind": "mcq",
    "q": "The launch bar ran 30.00 to 32.00 and closed at 31.40. Where in its range did it close, 0 to 1?",
-   "subject": "SET.11#q28"
+   "subject": "SET.11#q28",
+   "visual": {
+    "close": 31.4,
+    "find": {
+     "as": "frac",
+     "label": "Where it closed in its range"
+    },
+    "high": 32.0,
+    "kind": "range",
+    "low": 30.0,
+    "value_label": "Close"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -28834,7 +29128,22 @@
    ],
    "kind": "mcq",
    "q": "The final contraction's high is 170.00 and its low is 164.05. How deep is it, in percent of the high?",
-   "subject": "SET.12#q16"
+   "subject": "SET.12#q16",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The distance"
+    },
+    "from": {
+     "label": "",
+     "value": 170.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 164.05
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -32386,7 +32695,22 @@
    ],
    "kind": "mcq",
    "q": "A down day in the base's second half trades 3.3 million shares. The 50-day average is 2.2 million. How many times the average?",
-   "subject": "SET.12#q72"
+   "subject": "SET.12#q72",
+   "visual": {
+    "find": {
+     "as": "times",
+     "label": "Times average"
+    },
+    "from": {
+     "label": "Average",
+     "value": 2200000.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 3300000.0
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -34934,7 +35258,22 @@
    ],
    "kind": "mcq",
    "q": "The lowest low of the 40 sessions was 12.40 and the pole high is 26.00. How far did price rise, in percent?",
-   "subject": "SET.13#q23"
+   "subject": "SET.13#q23",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The change"
+    },
+    "from": {
+     "label": "",
+     "value": 12.4
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 26.0
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -35010,7 +35349,22 @@
    ],
    "kind": "mcq",
    "q": "Pattern high 100.00, flag low 84.00. How deep is the flag, in percent?",
-   "subject": "SET.13#q24"
+   "subject": "SET.13#q24",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The fall"
+    },
+    "from": {
+     "label": "Peak",
+     "value": 100.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "Low",
+     "value": 84.0
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -38735,7 +39089,22 @@
    ],
    "kind": "mcq",
    "q": "You buy at 100.00 and the flag low is 88.00. How far under your fill is a stop at the flag low, in percent?",
-   "subject": "SET.13#q75"
+   "subject": "SET.13#q75",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The distance"
+    },
+    "from": {
+     "label": "",
+     "value": 100.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 88.0
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -40593,7 +40962,31 @@
    ],
    "kind": "mcq",
    "q": "Bought the hold at 147.30 with the stop at 145.05. Where is 3R?",
-   "subject": "SET.14#q19"
+   "subject": "SET.14#q19",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "3R"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 145.05
+     },
+     {
+      "key": "entry",
+      "label": "Entry",
+      "price": 147.3
+     }
+    ],
+    "r": {
+     "entry": 147.3,
+     "stop": 145.05
+    },
+    "side": "long"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -43204,7 +43597,22 @@
    ],
    "kind": "mcq",
    "q": "The trigger is 45.00 and the stock opens at 46.62, above it. How far above the trigger is the open, in percent?",
-   "subject": "SET.14#q58"
+   "subject": "SET.14#q58",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The change"
+    },
+    "from": {
+     "label": "",
+     "value": 45.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 46.62
+    }
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -45612,7 +46020,18 @@
    ],
    "kind": "mcq",
    "q": "A hold day's high is 64.00, its low 61.00, its close 63.40. How far up its range did it close, in percent (0 is the low, 100 the high)?",
-   "subject": "SET.15#q18"
+   "subject": "SET.15#q18",
+   "visual": {
+    "close": 63.4,
+    "find": {
+     "as": "pct",
+     "label": "Where it closed in its range"
+    },
+    "high": 64.0,
+    "kind": "range",
+    "low": 61.0,
+    "value_label": "Close"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -45676,7 +46095,22 @@
    ],
    "kind": "mcq",
    "q": "The 20 EMA is 100.00 and the hold day's low is 99.20. How far under the 20 EMA is the low, in percent?",
-   "subject": "SET.15#q19"
+   "subject": "SET.15#q19",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The distance"
+    },
+    "from": {
+     "label": "",
+     "value": 100.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 99.2
+    }
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -49179,7 +49613,22 @@
    ],
    "kind": "mcq",
    "q": "A crossback trigger gaps and would fill at 54.60. The 9 EMA is 49.00. How far above it, in percent?",
-   "subject": "SET.15#q71"
+   "subject": "SET.15#q71",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The change"
+    },
+    "from": {
+     "label": "",
+     "value": 49.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 54.6
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -51256,7 +51705,18 @@
    ],
    "kind": "mcq",
    "q": "The pop day ran 100.00 to 106.00 and closed at 104.00. Where did it close, in percent of its range from the low?",
-   "subject": "SET.16#q17"
+   "subject": "SET.16#q17",
+   "visual": {
+    "close": 104.0,
+    "find": {
+     "as": "pct",
+     "label": "Where it closed in its range"
+    },
+    "high": 106.0,
+    "kind": "range",
+    "low": 100.0,
+    "value_label": "Close"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -51799,7 +52259,22 @@
    ],
    "kind": "mcq",
    "q": "Your fill would be 55.40. The 9 EMA is 50.00. How far above it, in percent?",
-   "subject": "SET.16#q24"
+   "subject": "SET.16#q24",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The change"
+    },
+    "from": {
+     "label": "",
+     "value": 50.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 55.4
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -53736,7 +54211,36 @@
    ],
    "kind": "mcq",
    "q": "Bought at 60.00, stop 59.00. It gaps down; the first 30-minute low is 57.30. How many R would a stop there lose?",
-   "subject": "SET.16#q48"
+   "subject": "SET.16#q48",
+   "visual": {
+    "find": {
+     "as": "r_loss",
+     "label": "R lost"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 59.0
+     },
+     {
+      "key": "entry",
+      "label": "Entry",
+      "price": 60.0
+     },
+     {
+      "key": "price",
+      "label": "Price",
+      "price": 57.3
+     }
+    ],
+    "r": {
+     "entry": 60.0,
+     "stop": 59.0
+    },
+    "side": "long"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -59265,7 +59769,22 @@
    ],
    "kind": "mcq",
    "q": "The 9 EMA is 40.00 and the stock opens at 36.40. How far under the average is the open, in percent?",
-   "subject": "SET.17#q51"
+   "subject": "SET.17#q51",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The distance"
+    },
+    "from": {
+     "label": "",
+     "value": 40.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 36.4
+    }
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -62084,7 +62603,22 @@
    ],
    "kind": "mcq",
    "q": "Prior close 40.00, today's open 44.80. How big is the gap, in percent?",
-   "subject": "SET.18#q16"
+   "subject": "SET.18#q16",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The change"
+    },
+    "from": {
+     "label": "",
+     "value": 40.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 44.8
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -62628,7 +63162,22 @@
    ],
    "kind": "mcq",
    "q": "The 50-day average volume is 2 million shares. The gap day traded 5.5 million. What is the multiple?",
-   "subject": "SET.18#q23"
+   "subject": "SET.18#q23",
+   "visual": {
+    "find": {
+     "as": "times",
+     "label": "Times average"
+    },
+    "from": {
+     "label": "Average",
+     "value": 2.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 5.5
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -62805,7 +63354,22 @@
    ],
    "kind": "mcq",
    "q": "Neglect check. The close 126 sessions ago was 20.00 and the close before the gap is 24.00. How far is it up, in percent?",
-   "subject": "SET.18#q25"
+   "subject": "SET.18#q25",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The change"
+    },
+    "from": {
+     "label": "",
+     "value": 20.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 24.0
+    }
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -67394,7 +67958,18 @@
    ],
    "kind": "mcq",
    "q": "The PEG day's low is 70.00, high 76.00, close 74.80. Where in the range did it close, from 0 to 1?",
-   "subject": "SET.19#q17"
+   "subject": "SET.19#q17",
+   "visual": {
+    "close": 74.8,
+    "find": {
+     "as": "frac",
+     "label": "Where it closed in its range"
+    },
+    "high": 76.0,
+    "kind": "range",
+    "low": 70.0,
+    "value_label": "Close"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -67697,7 +68272,22 @@
    ],
    "kind": "mcq",
    "q": "Prior close 50.00, today's open 55.60. How big is the gap, in percent?",
-   "subject": "SET.19#q23"
+   "subject": "SET.19#q23",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The change"
+    },
+    "from": {
+     "label": "",
+     "value": 50.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 55.6
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -71769,7 +72359,18 @@
    ],
    "kind": "mcq",
    "q": "Gap day: low 100.00, high 110.00, close 107.00. Where in the range did it close, from 0 to 1?",
-   "subject": "SET.20#q17"
+   "subject": "SET.20#q17",
+   "visual": {
+    "close": 107.0,
+    "find": {
+     "as": "frac",
+     "label": "Where it closed in its range"
+    },
+    "high": 110.0,
+    "kind": "range",
+    "low": 100.0,
+    "value_label": "Close"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -71969,7 +72570,22 @@
    ],
    "kind": "mcq",
    "q": "The 50-day average volume is 4 million shares. The gap day trades 13 million. What is the multiple?",
-   "subject": "SET.20#q23"
+   "subject": "SET.20#q23",
+   "visual": {
+    "find": {
+     "as": "times",
+     "label": "Times average"
+    },
+    "from": {
+     "label": "Average",
+     "value": 4.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 13.0
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -75057,7 +75673,22 @@
    ],
    "kind": "mcq",
    "q": "In the 60 sessions before a gap, the high was 58.00 and the low was 46.00. How far is the high above the low, in percent?",
-   "subject": "SET.20#q68"
+   "subject": "SET.20#q68",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The change"
+    },
+    "from": {
+     "label": "",
+     "value": 46.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 58.0
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -75320,7 +75951,36 @@
    ],
    "kind": "mcq",
    "q": "You bought at 80.00 with the stop at 77.00. A gap-down day's first 30-minute low is 71.00. What is the loss, in R?",
-   "subject": "SET.20#q72"
+   "subject": "SET.20#q72",
+   "visual": {
+    "find": {
+     "as": "r_loss",
+     "label": "R lost"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 77.0
+     },
+     {
+      "key": "entry",
+      "label": "Entry",
+      "price": 80.0
+     },
+     {
+      "key": "price",
+      "label": "Price",
+      "price": 71.0
+     }
+    ],
+    "r": {
+     "entry": 80.0,
+     "stop": 77.0
+    },
+    "side": "long"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -77197,7 +77857,22 @@
    "kind": "mcq",
    "q": "Buy or pass?",
    "story": "The HVC is 20.00. Day 2 dipped to 19.40 and reclaimed it while you were away. It now trades 21.10.",
-   "subject": "SET.21#q22"
+   "subject": "SET.21#q22",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The change"
+    },
+    "from": {
+     "label": "",
+     "value": 20.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 21.1
+    }
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -87419,7 +88094,22 @@
    ],
    "kind": "mcq",
    "q": "The red day closed at 44.10. The Kicker day opens at 44.75. What is the gap, as a percent of the red close, to two decimals?",
-   "subject": "SET.23#q23"
+   "subject": "SET.23#q23",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The change"
+    },
+    "from": {
+     "label": "",
+     "value": 44.1
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 44.75
+    }
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -87799,7 +88489,22 @@
    ],
    "kind": "mcq",
    "q": "The buy point is 83.20. The Kicker opens at 86.00. How far above the buy point is that, in percent, to one decimal?",
-   "subject": "SET.23#q27"
+   "subject": "SET.23#q27",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The change"
+    },
+    "from": {
+     "label": "",
+     "value": 83.2
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 86.0
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -88357,7 +89062,22 @@
    ],
    "kind": "mcq",
    "q": "Fill 55.00. The 9 EMA is 49.00. How far above the 9 EMA is the fill, in percent, to one decimal?",
-   "subject": "SET.23#q35"
+   "subject": "SET.23#q35",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The change"
+    },
+    "from": {
+     "label": "",
+     "value": 49.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 55.0
+    }
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -91179,7 +91899,18 @@
    ],
    "kind": "mcq",
    "q": "A Kicker day ran 40.00 to 44.00 and closed at 43.40. Where in its range did it close, in percent?",
-   "subject": "SET.23#q76"
+   "subject": "SET.23#q76",
+   "visual": {
+    "close": 43.4,
+    "find": {
+     "as": "pct",
+     "label": "Where it closed in its range"
+    },
+    "high": 44.0,
+    "kind": "range",
+    "low": 40.0,
+    "value_label": "Close"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -91382,7 +92113,22 @@
    ],
    "kind": "mcq",
    "q": "The red day opened at 51.00 and closed at 50.00. How big is its body, as a percent of the close?",
-   "subject": "SET.23#q79"
+   "subject": "SET.23#q79",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The distance"
+    },
+    "from": {
+     "label": "",
+     "value": 50.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 51.0
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -96902,7 +97648,20 @@
    ],
    "kind": "mcq",
    "q": "Our rule: own at most 1% of average daily volume. A stock averages 120,000 shares a day. How many shares at most?",
-   "subject": "SET.24#q66"
+   "subject": "SET.24#q66",
+   "visual": {
+    "find": {
+     "as": "shares",
+     "label": "The most we own"
+    },
+    "kind": "share",
+    "pct": 1.0,
+    "whole": {
+     "fmt": "shares",
+     "label": "Average day's volume",
+     "value": 120000.0
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -98723,7 +99482,22 @@
    ],
    "kind": "mcq",
    "q": "The 20-day high is 100.00 and the prior close is 91.50. How far has it pulled back, in percent?",
-   "subject": "SET.25#q23"
+   "subject": "SET.25#q23",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The fall"
+    },
+    "from": {
+     "label": "Peak",
+     "value": 100.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "Low",
+     "value": 91.5
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -101648,7 +102422,20 @@
    ],
    "kind": "mcq",
    "q": "Our cap is 1% of a stock's average daily volume. It averages 800,000 shares a day. What is the most shares we hold?",
-   "subject": "SET.25#q65"
+   "subject": "SET.25#q65",
+   "visual": {
+    "find": {
+     "as": "shares",
+     "label": "The most we own"
+    },
+    "kind": "share",
+    "pct": 1.0,
+    "whole": {
+     "fmt": "shares",
+     "label": "Average day's volume",
+     "value": 800000.0
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -101710,7 +102497,23 @@
    ],
    "kind": "mcq",
    "q": "We skip a long more than 10% above its 9 EMA. If the 9 EMA is 80.00, what is the most we pay?",
-   "subject": "SET.25#q67"
+   "subject": "SET.25#q67",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "The most we pay (10% over)",
+     "tag": "Most we pay"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "line",
+      "label": "9 EMA",
+      "price": 80.0
+     }
+    ],
+    "side": "long"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -103832,7 +104635,22 @@
    ],
    "kind": "mcq",
    "q": "The level is 50.00. The stock trades at 52.30. How far over the level, in percent?",
-   "subject": "SET.26#q28"
+   "subject": "SET.26#q28",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The change"
+    },
+    "from": {
+     "label": "",
+     "value": 50.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 52.3
+    }
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -108033,7 +108851,22 @@
    ],
    "kind": "mcq",
    "q": "Drive leg high 110.00, pullback low 101.20. How deep is the pullback, in percent?",
-   "subject": "SET.27#q24"
+   "subject": "SET.27#q24",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The fall"
+    },
+    "from": {
+     "label": "Peak",
+     "value": 110.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "Low",
+     "value": 101.2
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -120557,7 +121390,36 @@
    ],
    "kind": "mcq",
    "q": "Bought at 184.97, stop 182.98. The stock trades 194.00. How many R is that?",
-   "subject": "SET.29#q43"
+   "subject": "SET.29#q43",
+   "visual": {
+    "find": {
+     "as": "r",
+     "label": "R on the trade"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 182.98
+     },
+     {
+      "key": "entry",
+      "label": "Entry",
+      "price": 184.97
+     },
+     {
+      "key": "exit",
+      "label": "Exit",
+      "price": 194.0
+     }
+    ],
+    "r": {
+     "entry": 184.97,
+     "stop": 182.98
+    },
+    "side": "long"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -120684,7 +121546,22 @@
    ],
    "kind": "mcq",
    "q": "The lowest low of the six months before the left shoulder was 160.00; the head is 202.20. The advance, in percent?",
-   "subject": "SET.29#q47"
+   "subject": "SET.29#q47",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The change"
+    },
+    "from": {
+     "label": "",
+     "value": 160.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 202.2
+    }
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -124133,7 +125010,22 @@
    ],
    "kind": "mcq",
    "q": "The trigger prints at 20.00. Three minutes later it trades 21.00. Buy?",
-   "subject": "SET.30#q18"
+   "subject": "SET.30#q18",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The change"
+    },
+    "from": {
+     "label": "",
+     "value": 20.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 21.0
+    }
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -124607,7 +125499,22 @@
    ],
    "kind": "mcq",
    "q": "The peak four sessions ago was 88.00 and today's low is 50.00. How far has it fallen, in percent?",
-   "subject": "SET.30#q25"
+   "subject": "SET.30#q25",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The fall"
+    },
+    "from": {
+     "label": "Peak",
+     "value": 88.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "Low",
+     "value": 50.0
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -124683,7 +125590,36 @@
    ],
    "kind": "mcq",
    "q": "Entry 20.50, stop 19.80, the 9 EMA at 21.70. How many R to the 9 EMA?",
-   "subject": "SET.30#q26"
+   "subject": "SET.30#q26",
+   "visual": {
+    "find": {
+     "as": "r",
+     "label": "R on the trade"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 19.8
+     },
+     {
+      "key": "entry",
+      "label": "Entry",
+      "price": 20.5
+     },
+     {
+      "key": "exit",
+      "label": "Exit",
+      "price": 21.7
+     }
+    ],
+    "r": {
+     "entry": 20.5,
+     "stop": 19.8
+    },
+    "side": "long"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -127533,7 +128469,22 @@
    ],
    "kind": "mcq",
    "q": "The run's low was 20.00 and the peak 34.00. The run before the unwind, in percent?",
-   "subject": "SET.30#q62"
+   "subject": "SET.30#q62",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The change"
+    },
+    "from": {
+     "label": "",
+     "value": 20.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 34.0
+    }
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -127928,7 +128879,31 @@
    ],
    "kind": "mcq",
    "q": "Entry 40.00, stop 38.50, the 9 EMA at 45.10. Where is 3R, and is it below or above the 9 EMA?",
-   "subject": "SET.30#q67"
+   "subject": "SET.30#q67",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "3R"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 38.5
+     },
+     {
+      "key": "entry",
+      "label": "Entry",
+      "price": 40.0
+     }
+    ],
+    "r": {
+     "entry": 40.0,
+     "stop": 38.5
+    },
+    "side": "long"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -129955,7 +130930,22 @@
    ],
    "kind": "mcq",
    "q": "The prior close is 42.00 and the climax day opens at 48.47. How big is the gap up?",
-   "subject": "SET.31#q19"
+   "subject": "SET.31#q19",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The change"
+    },
+    "from": {
+     "label": "",
+     "value": 42.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 48.47
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -130163,7 +131153,22 @@
    ],
    "kind": "mcq",
    "q": "The prior close is 48.50 and the 9-day EMA sits at 40.00. How far above the average is that close?",
-   "subject": "SET.31#q24"
+   "subject": "SET.31#q24",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The change"
+    },
+    "from": {
+     "label": "",
+     "value": 40.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 48.5
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -131733,7 +132738,36 @@
    ],
    "kind": "mcq",
    "q": "Short 521.70, stop 565.54, the 9 EMA at 455.00. How many R is the cover at the 9 EMA?",
-   "subject": "SET.31#q46"
+   "subject": "SET.31#q46",
+   "visual": {
+    "find": {
+     "as": "r",
+     "label": "R on the trade"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 565.54
+     },
+     {
+      "key": "entry",
+      "label": "Entry",
+      "price": 521.7
+     },
+     {
+      "key": "exit",
+      "label": "Exit",
+      "price": 455.0
+     }
+    ],
+    "r": {
+     "entry": 521.7,
+     "stop": 565.54
+    },
+    "side": "short"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -134583,7 +135617,22 @@
    ],
    "kind": "mcq",
    "q": "The 30-minute high is 418.45 and the low 412.06. You fill at 418.46 with the stop at 412.01. How far below the fill is the stop?",
-   "subject": "SET.32#q15"
+   "subject": "SET.32#q15",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The distance"
+    },
+    "from": {
+     "label": "",
+     "value": 418.46
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 412.01
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -135087,7 +136136,31 @@
    ],
    "kind": "mcq",
    "q": "Fill 146.91, stop 143.86. Where is 3R?",
-   "subject": "SET.32#q23"
+   "subject": "SET.32#q23",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "3R"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 143.86
+     },
+     {
+      "key": "entry",
+      "label": "Entry",
+      "price": 146.91
+     }
+    ],
+    "r": {
+     "entry": 146.91,
+     "stop": 143.86
+    },
+    "side": "long"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -135157,7 +136230,22 @@
    ],
    "kind": "mcq",
    "q": "The 30-minute high is 60.91. You look up at 10:20 and the stock trades 63.60. How far above the high is that?",
-   "subject": "SET.32#q24"
+   "subject": "SET.32#q24",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The change"
+    },
+    "from": {
+     "label": "",
+     "value": 60.91
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 63.6
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -136066,7 +137154,40 @@
    ],
    "kind": "mcq",
    "q": "Account 100,000. On this trade you risk 0.25%. Fill 274.04, stop 270.67. How many shares?",
-   "subject": "SET.32#q38"
+   "subject": "SET.32#q38",
+   "visual": {
+    "find": {
+     "as": "shares",
+     "label": "Shares"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "account",
+      "label": "Account",
+      "value": 100000.0
+     },
+     {
+      "fmt": "%",
+      "key": "risk_pct",
+      "label": "Risk",
+      "value": 0.25
+     },
+     {
+      "fmt": "$",
+      "key": "entry",
+      "label": "Entry",
+      "value": 274.04
+     },
+     {
+      "fmt": "$",
+      "key": "stop",
+      "label": "Stop",
+      "value": 270.67
+     }
+    ]
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -137073,7 +138194,36 @@
    ],
    "kind": "mcq",
    "q": "Bought at 60.92, stop 59.51. The stock trades to 67.97. How many R is that?",
-   "subject": "SET.32#q50"
+   "subject": "SET.32#q50",
+   "visual": {
+    "find": {
+     "as": "r",
+     "label": "R on the trade"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 59.51
+     },
+     {
+      "key": "entry",
+      "label": "Entry",
+      "price": 60.92
+     },
+     {
+      "key": "exit",
+      "label": "Exit",
+      "price": 67.97
+     }
+    ],
+    "r": {
+     "entry": 60.92,
+     "stop": 59.51
+    },
+    "side": "long"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -139779,7 +140929,31 @@
    ],
    "kind": "mcq",
    "q": "Bought 238.91 with the stop at 237.09. Where is 3R?",
-   "subject": "SET.33#q24"
+   "subject": "SET.33#q24",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "3R"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 237.09
+     },
+     {
+      "key": "entry",
+      "label": "Entry",
+      "price": 238.91
+     }
+    ],
+    "r": {
+     "entry": 238.91,
+     "stop": 237.09
+    },
+    "side": "long"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -140402,7 +141576,36 @@
    ],
    "kind": "mcq",
    "q": "Bought 106.65, stop 105.74. The stock trades 110.65. How many R is that?",
-   "subject": "SET.33#q33"
+   "subject": "SET.33#q33",
+   "visual": {
+    "find": {
+     "as": "r",
+     "label": "R on the trade"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 105.74
+     },
+     {
+      "key": "entry",
+      "label": "Entry",
+      "price": 106.65
+     },
+     {
+      "key": "exit",
+      "label": "Exit",
+      "price": 110.65
+     }
+    ],
+    "r": {
+     "entry": 106.65,
+     "stop": 105.74
+    },
+    "side": "long"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -142054,7 +143257,22 @@
    ],
    "kind": "mcq",
    "q": "On PSX the 10-day EMA read 236.78 and the pivot candle's low was 237.12. How far above that line is the low?",
-   "subject": "SET.33#q57"
+   "subject": "SET.33#q57",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The distance"
+    },
+    "from": {
+     "label": "",
+     "value": 236.78
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 237.12
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -142410,7 +143628,22 @@
    ],
    "kind": "mcq",
    "q": "The pivot candle's high is 140.33. You look up and it trades 146.30. How far above the high is that?",
-   "subject": "SET.33#q64"
+   "subject": "SET.33#q64",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The change"
+    },
+    "from": {
+     "label": "",
+     "value": 140.33
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 146.3
+    }
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -142482,7 +143715,20 @@
    ],
    "kind": "mcq",
    "q": "A stock averages 350,000 shares a day. Under our rule of 1% of average daily volume alone, what is the most we can hold?",
-   "subject": "SET.33#q65"
+   "subject": "SET.33#q65",
+   "visual": {
+    "find": {
+     "as": "shares",
+     "label": "The most we own"
+    },
+    "kind": "share",
+    "pct": 1.0,
+    "whole": {
+     "fmt": "shares",
+     "label": "Average day's volume",
+     "value": 350000.0
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -142566,7 +143812,20 @@
    "kind": "mcq",
    "q": "What is the most you can buy?",
    "story": "Three limits apply: the risk formula, the 40% cap and 1% of average daily volume. A stock averages 500,000 shares a day. The risk formula asks for 9,000 shares and the 40% cap allows 7,000.",
-   "subject": "SET.33#q66"
+   "subject": "SET.33#q66",
+   "visual": {
+    "find": {
+     "as": "shares",
+     "label": "The most we own"
+    },
+    "kind": "share",
+    "pct": 1.0,
+    "whole": {
+     "fmt": "shares",
+     "label": "Average day's volume",
+     "value": 500000.0
+    }
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -143906,7 +145165,22 @@
    ],
    "kind": "mcq",
    "q": "Prior close 168.84. The reclaim candle closes at 169.79. How far over the prior close is that?",
-   "subject": "SET.34#q23"
+   "subject": "SET.34#q23",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The change"
+    },
+    "from": {
+     "label": "",
+     "value": 168.84
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 169.79
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -143982,7 +145256,31 @@
    ],
    "kind": "mcq",
    "q": "Bought at 336.42 with the stop at 331.63. One R is the gap between them. Where is 3R?",
-   "subject": "SET.34#q24"
+   "subject": "SET.34#q24",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "3R"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 331.63
+     },
+     {
+      "key": "entry",
+      "label": "Entry",
+      "price": 336.42
+     }
+    ],
+    "r": {
+     "entry": 336.42,
+     "stop": 331.63
+    },
+    "side": "long"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -144670,7 +145968,40 @@
    ],
    "kind": "mcq",
    "q": "Account 100,000, risk 0.25%. Buy 336.42, stop 331.63. How many shares does the stop allow?",
-   "subject": "SET.34#q34"
+   "subject": "SET.34#q34",
+   "visual": {
+    "find": {
+     "as": "shares",
+     "label": "Shares"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "account",
+      "label": "Account",
+      "value": 100000.0
+     },
+     {
+      "fmt": "%",
+      "key": "risk_pct",
+      "label": "Risk",
+      "value": 0.25
+     },
+     {
+      "fmt": "$",
+      "key": "entry",
+      "label": "Entry",
+      "value": 336.42
+     },
+     {
+      "fmt": "$",
+      "key": "stop",
+      "label": "Stop",
+      "value": 331.63
+     }
+    ]
+   }
   },
   "reveal_json": {
    "depth": {
@@ -145279,7 +146610,36 @@
    ],
    "kind": "mcq",
    "q": "Bought at 26.43, stop 25.66. One R is the gap between them. The stock trades to 28.74. How many R is that?",
-   "subject": "SET.34#q43"
+   "subject": "SET.34#q43",
+   "visual": {
+    "find": {
+     "as": "r",
+     "label": "R on the trade"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 25.66
+     },
+     {
+      "key": "entry",
+      "label": "Entry",
+      "price": 26.43
+     },
+     {
+      "key": "exit",
+      "label": "Exit",
+      "price": 28.74
+     }
+    ],
+    "r": {
+     "entry": 26.43,
+     "stop": 25.66
+    },
+    "side": "long"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -146929,7 +148289,31 @@
    ],
    "kind": "mcq",
    "q": "Bought at 26.43, stop 25.66. One R is the gap between them. Where is 5R, the low end of the 5 to 10R sell zone?",
-   "subject": "SET.34#q74"
+   "subject": "SET.34#q74",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "5R"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 25.66
+     },
+     {
+      "key": "entry",
+      "label": "Entry",
+      "price": 26.43
+     }
+    ],
+    "r": {
+     "entry": 26.43,
+     "stop": 25.66
+    },
+    "side": "long"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -149020,7 +150404,18 @@
    ],
    "kind": "mcq",
    "q": "The inside day ran 20.00 to 21.00 and closed at 20.80. Where in its range did it close, 0 to 1?",
-   "subject": "SET.40#q24"
+   "subject": "SET.40#q24",
+   "visual": {
+    "close": 20.8,
+    "find": {
+     "as": "frac",
+     "label": "Where it closed in its range"
+    },
+    "high": 21.0,
+    "kind": "range",
+    "low": 20.0,
+    "value_label": "Close"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -153760,7 +155155,22 @@
    "kind": "mcq",
    "q": "Buy the open?",
    "story": "The falling line sits at 40.00 today. News gaps the stock open to 41.80.",
-   "subject": "SET.41#q25"
+   "subject": "SET.41#q25",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The change"
+    },
+    "from": {
+     "label": "",
+     "value": 40.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 41.8
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -155059,7 +156469,36 @@
    "kind": "mcq",
    "q": "What now?",
    "story": "You bought at 40.00 with the stop at 39.00. It gaps open at 38.20, and the first 30-minute low is 37.80.",
-   "subject": "SET.41#q43"
+   "subject": "SET.41#q43",
+   "visual": {
+    "find": {
+     "as": "r_loss",
+     "label": "R lost"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 39.0
+     },
+     {
+      "key": "entry",
+      "label": "Entry",
+      "price": 40.0
+     },
+     {
+      "key": "price",
+      "label": "Low",
+      "price": 37.8
+     }
+    ],
+    "r": {
+     "entry": 40.0,
+     "stop": 39.0
+    },
+    "side": "long"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -157795,7 +159234,22 @@
    ],
    "kind": "mcq",
    "q": "The 52-week high is 60.00 and the cycle low is 31.50. How far under the high is the low, in percent?",
-   "subject": "SET.42#q15"
+   "subject": "SET.42#q15",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The fall"
+    },
+    "from": {
+     "label": "Peak",
+     "value": 60.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "Low",
+     "value": 31.5
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -157857,7 +159311,22 @@
    ],
    "kind": "mcq",
    "q": "The cycle low is 20.00 and the higher low is 21.40. How far above the cycle low is it, in percent?",
-   "subject": "SET.42#q16"
+   "subject": "SET.42#q16",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The change"
+    },
+    "from": {
+     "label": "",
+     "value": 20.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 21.4
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -162978,7 +164447,22 @@
    ],
    "kind": "mcq",
    "q": "The 52-week high is 300.00. The stock closed at 238.00 on the hold day. How far under the high is the close, as a percent of the high?",
-   "subject": "SET.43#q24"
+   "subject": "SET.43#q24",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The distance"
+    },
+    "from": {
+     "label": "",
+     "value": 300.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 238.0
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -163473,7 +164957,23 @@
    ],
    "kind": "mcq",
    "q": "The trigger is 31.80. What is the highest fill we accept, with the 4% rule?",
-   "subject": "SET.43#q32"
+   "subject": "SET.43#q32",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "The most we pay (4% over)",
+     "tag": "Most we pay"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "line",
+      "label": "Trigger",
+      "price": 31.8
+     }
+    ],
+    "side": "long"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -165768,7 +167268,40 @@
    ],
    "kind": "mcq",
    "q": "Account 50,000, risk 1%, buy 31.80, stop 30.67. Risk dollars divided by the stop distance: how many shares, rounded down?",
-   "subject": "SET.43#q69"
+   "subject": "SET.43#q69",
+   "visual": {
+    "find": {
+     "as": "shares",
+     "label": "Shares"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "account",
+      "label": "Account",
+      "value": 50000.0
+     },
+     {
+      "fmt": "%",
+      "key": "risk_pct",
+      "label": "Risk",
+      "value": 1.0
+     },
+     {
+      "fmt": "$",
+      "key": "entry",
+      "label": "Entry",
+      "value": 31.8
+     },
+     {
+      "fmt": "$",
+      "key": "stop",
+      "label": "Stop",
+      "value": 30.67
+     }
+    ]
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -165849,7 +167382,22 @@
    ],
    "kind": "mcq",
    "q": "The dip averaged 1.2 million shares a day. The 50-day average is 2.0 million. The dip ran at how many times the 50-day average?",
-   "subject": "SET.43#q70"
+   "subject": "SET.43#q70",
+   "visual": {
+    "find": {
+     "as": "times",
+     "label": "Times average"
+    },
+    "from": {
+     "label": "Average",
+     "value": 2.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 1.2
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -165919,7 +167467,22 @@
    ],
    "kind": "mcq",
    "q": "Price is 53.00 and the 9 EMA is 48.00. How far above the average is price, in percent, to one decimal?",
-   "subject": "SET.43#q71"
+   "subject": "SET.43#q71",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The distance"
+    },
+    "from": {
+     "label": "",
+     "value": 48.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 53.0
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -170258,7 +171821,22 @@
    "kind": "mcq",
    "q": "At the open, which call and reason fit our rules?",
    "story": "The trigger is the prior day's high at 56.50. News hits and the stock opens at 60.00, straight through it.",
-   "subject": "SET.44#q43"
+   "subject": "SET.44#q43",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The change"
+    },
+    "from": {
+     "label": "",
+     "value": 56.5
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 60.0
+    }
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -170344,7 +171922,22 @@
    ],
    "kind": "mcq",
    "q": "The momentum-high close was 40.00 and the swing low is 37.60. How deep is the pullback, in percent?",
-   "subject": "SET.44#q44"
+   "subject": "SET.44#q44",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The fall"
+    },
+    "from": {
+     "label": "Peak",
+     "value": 40.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "Low",
+     "value": 37.6
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -174707,7 +176300,22 @@
    ],
    "kind": "mcq",
    "q": "The base high is 64.40 and the base low is 52.10. How deep is it, in percent of the high, to one decimal?",
-   "subject": "SET.45#q16"
+   "subject": "SET.45#q16",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The distance"
+    },
+    "from": {
+     "label": "",
+     "value": 64.4
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 52.1
+    }
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -177876,7 +179484,22 @@
    ],
    "kind": "mcq",
    "q": "A stock's 9 EMA is 100.00. It closes at 111.50 with its low at 102.00. How far above the 9 EMA is the close, in percent?",
-   "subject": "SET.45#q69"
+   "subject": "SET.45#q69",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The distance"
+    },
+    "from": {
+     "label": "",
+     "value": 100.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 111.5
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -179828,7 +181451,36 @@
    ],
    "kind": "mcq",
    "q": "You bought at 50.00 with the stop at 48.00. A gap-down day's first 30-minute low is 45.80. What is the loss, in R?",
-   "subject": "SET.45#q98"
+   "subject": "SET.45#q98",
+   "visual": {
+    "find": {
+     "as": "r_loss",
+     "label": "R lost"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 48.0
+     },
+     {
+      "key": "entry",
+      "label": "Entry",
+      "price": 50.0
+     },
+     {
+      "key": "price",
+      "label": "Price",
+      "price": 45.8
+     }
+    ],
+    "r": {
+     "entry": 50.0,
+     "stop": 48.0
+    },
+    "side": "long"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -182093,7 +183745,22 @@
    "kind": "mcq",
    "q": "Buy or pass?",
    "story": "Your trigger is 50.00. You missed the open, and at 10:20 the stock trades 52.40.",
-   "subject": "SET.46#q30"
+   "subject": "SET.46#q30",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The change"
+    },
+    "from": {
+     "label": "",
+     "value": 50.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 52.4
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -182256,7 +183923,22 @@
    ],
    "kind": "mcq",
    "q": "The stock ran for days after its reclaim. Its 9 EMA is 40.00 and it trades 44.80. How far above the 9 EMA, in percent?",
-   "subject": "SET.46#q32"
+   "subject": "SET.46#q32",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The change"
+    },
+    "from": {
+     "label": "",
+     "value": 40.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 44.8
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -186147,7 +187829,31 @@
    ],
    "kind": "mcq",
    "q": "Bought at 40.00 with the stop at 38.00. Where is 3R?",
-   "subject": "SET.47#q17"
+   "subject": "SET.47#q17",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "3R"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 38.0
+     },
+     {
+      "key": "entry",
+      "label": "Entry",
+      "price": 40.0
+     }
+    ],
+    "r": {
+     "entry": 40.0,
+     "stop": 38.0
+    },
+    "side": "long"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -190874,7 +192580,22 @@
    ],
    "kind": "mcq",
    "q": "Prior close 50.00. The gap day closes at 47.00. The close is down what percent?",
-   "subject": "SET.48#q15"
+   "subject": "SET.48#q15",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The distance"
+    },
+    "from": {
+     "label": "",
+     "value": 50.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 47.0
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -193990,7 +195711,18 @@
    ],
    "kind": "mcq",
    "q": "A climax day ranges 40.00 to 48.00 and closes at 45.00. Where in its range did it close, in percent?",
-   "subject": "SET.48#q77"
+   "subject": "SET.48#q77",
+   "visual": {
+    "close": 45.0,
+    "find": {
+     "as": "pct",
+     "label": "Where it closed in its range"
+    },
+    "high": 48.0,
+    "kind": "range",
+    "low": 40.0,
+    "value_label": "Close"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -195352,7 +197084,22 @@
    ],
    "kind": "mcq",
    "q": "The highest close of the last 10 sessions was 120.00 and the flush low is 100.00. How far is the drop, in percent?",
-   "subject": "SET.49#q16"
+   "subject": "SET.49#q16",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The distance"
+    },
+    "from": {
+     "label": "",
+     "value": 120.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 100.0
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -196237,7 +197984,22 @@
    "kind": "mcq",
    "q": "Buy now?",
    "story": "The trigger price is 50.00. You look late and the stock trades at 52.40.",
-   "subject": "SET.49#q28"
+   "subject": "SET.49#q28",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The distance"
+    },
+    "from": {
+     "label": "",
+     "value": 50.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 52.4
+    }
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -199073,7 +200835,20 @@
    ],
    "kind": "mcq",
    "q": "A bounce trade in a stock that averages 400,000 shares a day. Under our 1% rule, what is the most we can own?",
-   "subject": "SET.49#q68"
+   "subject": "SET.49#q68",
+   "visual": {
+    "find": {
+     "as": "shares",
+     "label": "The most we own"
+    },
+    "kind": "share",
+    "pct": 1.0,
+    "whole": {
+     "fmt": "shares",
+     "label": "Average day's volume",
+     "value": 400000.0
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -203059,7 +204834,36 @@
    ],
    "kind": "mcq",
    "q": "Entry 142.00, stop 140.00, old range top 148.00. How many R is the top away?",
-   "subject": "SET.50#q51"
+   "subject": "SET.50#q51",
+   "visual": {
+    "find": {
+     "as": "r",
+     "label": "R"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 140.0
+     },
+     {
+      "key": "entry",
+      "label": "Entry",
+      "price": 142.0
+     },
+     {
+      "key": "price",
+      "label": "Price",
+      "price": 148.0
+     }
+    ],
+    "r": {
+     "entry": 142.0,
+     "stop": 140.0
+    },
+    "side": "long"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -206150,7 +207954,22 @@
    ],
    "kind": "mcq",
    "q": "The 63-day low was 32.00. The close before the slide began was 41.60. What was the run?",
-   "subject": "SET.51#q22"
+   "subject": "SET.51#q22",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The change"
+    },
+    "from": {
+     "label": "",
+     "value": 32.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 41.6
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -206219,7 +208038,22 @@
    ],
    "kind": "mcq",
    "q": "The highest close of the last 10 sessions was 33.00. Today closes at 19.50. How far down is that?",
-   "subject": "SET.51#q23"
+   "subject": "SET.51#q23",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The fall"
+    },
+    "from": {
+     "label": "Peak",
+     "value": 33.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "Low",
+     "value": 19.5
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -206605,7 +208439,36 @@
    ],
    "kind": "mcq",
    "q": "Bought at 50.00, stop at 48.00. A gap-down day makes a first 30-minute low of 46.50. How many R is the loss at that low?",
-   "subject": "SET.51#q27"
+   "subject": "SET.51#q27",
+   "visual": {
+    "find": {
+     "as": "r_loss",
+     "label": "R lost"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 48.0
+     },
+     {
+      "key": "entry",
+      "label": "Entry",
+      "price": 50.0
+     },
+     {
+      "key": "price",
+      "label": "Price",
+      "price": 46.5
+     }
+    ],
+    "r": {
+     "entry": 50.0,
+     "stop": 48.0
+    },
+    "side": "long"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -214650,7 +216513,22 @@
    "kind": "mcq",
    "q": "What do you do on day 3?",
    "story": "Day 2's high is 24.96, so the trigger is 24.97. On day 3 the stock opens at 25.90, above that trigger.",
-   "subject": "SET.52#q61"
+   "subject": "SET.52#q61",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The distance"
+    },
+    "from": {
+     "label": "",
+     "value": 24.97
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 25.9
+    }
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -216101,7 +217979,22 @@
    ],
    "kind": "mcq",
    "q": "Prior close 329.07, open 325.97. How far below the prior close is the open?",
-   "subject": "SET.53#q14"
+   "subject": "SET.53#q14",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The distance"
+    },
+    "from": {
+     "label": "",
+     "value": 329.07
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 325.97
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -216241,7 +218134,31 @@
    ],
    "kind": "mcq",
    "q": "Fill 111.93, stop 110.75. What price is 3R?",
-   "subject": "SET.53#q16"
+   "subject": "SET.53#q16",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "3R"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 110.75
+     },
+     {
+      "key": "entry",
+      "label": "Entry",
+      "price": 111.93
+     }
+    ],
+    "r": {
+     "entry": 111.93,
+     "stop": 110.75
+    },
+    "side": "long"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -217075,7 +218992,36 @@
    ],
    "kind": "mcq",
    "q": "Bought at 96.36, stop at 94.67. The day closes at 95.90. How many R is the open loss?",
-   "subject": "SET.53#q31"
+   "subject": "SET.53#q31",
+   "visual": {
+    "find": {
+     "as": "r_loss",
+     "label": "R lost"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 94.67
+     },
+     {
+      "key": "entry",
+      "label": "Entry",
+      "price": 96.36
+     },
+     {
+      "key": "price",
+      "label": "Price",
+      "price": 95.9
+     }
+    ],
+    "r": {
+     "entry": 96.36,
+     "stop": 94.67
+    },
+    "side": "long"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -219756,7 +221702,31 @@
    ],
    "kind": "mcq",
    "q": "Fill 111.93, stop 110.75. Where is 5R?",
-   "subject": "SET.53#q71"
+   "subject": "SET.53#q71",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "5R"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 110.75
+     },
+     {
+      "key": "entry",
+      "label": "Entry",
+      "price": 111.93
+     }
+    ],
+    "r": {
+     "entry": 111.93,
+     "stop": 110.75
+    },
+    "side": "long"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -221218,7 +223188,22 @@
    ],
    "kind": "mcq",
    "q": "The first 5-minute bar runs 272.80 to 277.23. You fill at 277.24 with the stop at 272.75. How far below the fill is the stop?",
-   "subject": "SET.54#q15"
+   "subject": "SET.54#q15",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The distance"
+    },
+    "from": {
+     "label": "",
+     "value": 277.24
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 272.75
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -221610,7 +223595,31 @@
    ],
    "kind": "mcq",
    "q": "Fill 581.57, stop 572.82. Where is 3R?",
-   "subject": "SET.54#q21"
+   "subject": "SET.54#q21",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "3R"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 572.82
+     },
+     {
+      "key": "entry",
+      "label": "Entry",
+      "price": 581.57
+     }
+    ],
+    "r": {
+     "entry": 581.57,
+     "stop": 572.82
+    },
+    "side": "long"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -221751,7 +223760,22 @@
    ],
    "kind": "mcq",
    "q": "The first 5-minute high is 71.99. You look up and the stock trades 75.00. How far above the high is that?",
-   "subject": "SET.54#q23"
+   "subject": "SET.54#q23",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The change"
+    },
+    "from": {
+     "label": "",
+     "value": 71.99
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 75.0
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -222702,7 +224726,40 @@
    ],
    "kind": "mcq",
    "q": "Account 100,000. Risk 0.4%. Fill 208.00, stop 205.66. How many shares?",
-   "subject": "SET.54#q37"
+   "subject": "SET.54#q37",
+   "visual": {
+    "find": {
+     "as": "shares",
+     "label": "Shares"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "account",
+      "label": "Account",
+      "value": 100000.0
+     },
+     {
+      "fmt": "%",
+      "key": "risk_pct",
+      "label": "Risk",
+      "value": 0.4
+     },
+     {
+      "fmt": "$",
+      "key": "entry",
+      "label": "Entry",
+      "value": 208.0
+     },
+     {
+      "fmt": "$",
+      "key": "stop",
+      "label": "Stop",
+      "value": 205.66
+     }
+    ]
+   }
   },
   "reveal_json": {
    "deeper": {

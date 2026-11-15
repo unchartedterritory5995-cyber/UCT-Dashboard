@@ -4893,7 +4893,18 @@
    ],
    "kind": "mcq",
    "q": "The stock trades at 87.50. What is the 80 call's intrinsic value, per share?",
-   "subject": "F6.03#q11"
+   "subject": "F6.03#q11",
+   "visual": {
+    "find": {
+     "as": "per_share",
+     "label": "Intrinsic value"
+    },
+    "kind": "payoff",
+    "option": "call",
+    "side": "long",
+    "strike": 80.0,
+    "underlying": 87.5
+   }
   },
   "reveal_json": {
    "depth": {
@@ -4970,7 +4981,18 @@
    ],
    "kind": "mcq",
    "q": "With the stock at 61, what is the 70 put's intrinsic value, per share?",
-   "subject": "F6.03#q12"
+   "subject": "F6.03#q12",
+   "visual": {
+    "find": {
+     "as": "per_share",
+     "label": "Intrinsic value"
+    },
+    "kind": "payoff",
+    "option": "put",
+    "side": "long",
+    "strike": 70.0,
+    "underlying": 61.0
+   }
   },
   "reveal_json": {
    "depth": {
@@ -5176,7 +5198,19 @@
    ],
    "kind": "mcq",
    "q": "The stock is at 52. The 50 call costs 3.40. How much of that is time value, per share?",
-   "subject": "F6.03#q15"
+   "subject": "F6.03#q15",
+   "visual": {
+    "find": {
+     "as": "per_share",
+     "label": "Time value"
+    },
+    "kind": "payoff",
+    "option": "call",
+    "premium": 3.4,
+    "side": "long",
+    "strike": 50.0,
+    "underlying": 52.0
+   }
   },
   "reveal_json": {
    "depth": {
@@ -5255,7 +5289,19 @@
    "kind": "mcq",
    "q": "How much of the 1.10 is time value?",
    "story": "A stock trades at 38. You look at the 40 call, priced at 1.10. Expiry is three weeks out.",
-   "subject": "F6.03#q16"
+   "subject": "F6.03#q16",
+   "visual": {
+    "find": {
+     "as": "per_share",
+     "label": "Time value"
+    },
+    "kind": "payoff",
+    "option": "call",
+    "premium": 1.1,
+    "side": "long",
+    "strike": 40.0,
+    "underlying": 38.0
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -5344,7 +5390,19 @@
    "kind": "mcq",
    "q": "How much of that 6.20 is time value?",
    "story": "XYZ trades at 95. You think it breaks lower. The 100 put is offered at 6.20.",
-   "subject": "F6.03#q18"
+   "subject": "F6.03#q18",
+   "visual": {
+    "find": {
+     "as": "per_share",
+     "label": "Time value"
+    },
+    "kind": "payoff",
+    "option": "put",
+    "premium": 6.2,
+    "side": "long",
+    "strike": 100.0,
+    "underlying": 95.0
+   }
   },
   "reveal_json": {
    "depth": {
@@ -5507,7 +5565,19 @@
    ],
    "kind": "mcq",
    "q": "The 100 call is 50.40 with the stock at 150. How much time value is in it, per share?",
-   "subject": "F6.03#q20"
+   "subject": "F6.03#q20",
+   "visual": {
+    "find": {
+     "as": "per_share",
+     "label": "Time value"
+    },
+    "kind": "payoff",
+    "option": "call",
+    "premium": 50.4,
+    "side": "long",
+    "strike": 100.0,
+    "underlying": 150.0
+   }
   },
   "reveal_json": {
    "depth": {
@@ -5674,7 +5744,18 @@
    ],
    "kind": "mcq",
    "q": "The stock is at 45. You buy the 40 call for 6.00. What stock price at expiry gets you back to even?",
-   "subject": "F6.03#q22"
+   "subject": "F6.03#q22",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "Breakeven"
+    },
+    "kind": "payoff",
+    "option": "call",
+    "premium": 6.0,
+    "side": "long",
+    "strike": 40.0
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -5755,7 +5836,19 @@
    "kind": "mcq",
    "q": "How much time value are you paying for, per share?",
    "story": "A stock trades at 112.40. The 105 call shows bid 8.90, ask 9.30. You'd buy at the ask.",
-   "subject": "F6.03#q23"
+   "subject": "F6.03#q23",
+   "visual": {
+    "find": {
+     "as": "per_share",
+     "label": "Time value"
+    },
+    "kind": "payoff",
+    "option": "call",
+    "premium": 9.3,
+    "side": "long",
+    "strike": 105.0,
+    "underlying": 112.4
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -5837,7 +5930,18 @@
    "kind": "mcq",
    "q": "What is your call worth now, per share?",
    "story": "You own a 40 call. The company agrees to an all-cash buyout at $50 a share. The deal closes and your options now deliver the cash.",
-   "subject": "F6.03#q24"
+   "subject": "F6.03#q24",
+   "visual": {
+    "find": {
+     "as": "per_share",
+     "label": "Intrinsic value"
+    },
+    "kind": "payoff",
+    "option": "call",
+    "side": "long",
+    "strike": 40.0,
+    "underlying": 50.0
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -6140,7 +6244,19 @@
    "kind": "mcq",
    "q": "Selling the call beats exercising and selling the shares. By how much, per share?",
    "story": "The stock is at 80. You own the 70 call, bid 11.50, with a month left. You want out of the trade.",
-   "subject": "F6.03#q28"
+   "subject": "F6.03#q28",
+   "visual": {
+    "find": {
+     "as": "per_share",
+     "label": "Time value"
+    },
+    "kind": "payoff",
+    "option": "call",
+    "premium": 11.5,
+    "side": "long",
+    "strike": 70.0,
+    "underlying": 80.0
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -7918,7 +8034,18 @@
    "kind": "mcq",
    "q": "Is that also your rough chance of making money if you hold to expiry?",
    "story": "You buy the 105 call for $1.66. It shows a 0.31 delta. You read that as roughly a 31% chance it finishes in the money.",
-   "subject": "F6.04#q23"
+   "subject": "F6.04#q23",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "Breakeven"
+    },
+    "kind": "payoff",
+    "option": "call",
+    "premium": 1.66,
+    "side": "long",
+    "strike": 105.0
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -10977,7 +11104,18 @@
    ],
    "kind": "mcq",
    "q": "Over the past year a stock's IV ranged from 20% to 60%. Today it's 50%. Where does today sit in that range?",
-   "subject": "F6.06#q16"
+   "subject": "F6.06#q16",
+   "visual": {
+    "close": 50.0,
+    "find": {
+     "as": "pct",
+     "label": "Where it sits in its range"
+    },
+    "high": 60.0,
+    "kind": "range",
+    "low": 20.0,
+    "value_label": "Today"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -16827,7 +16965,18 @@
    ],
    "kind": "mcq",
    "q": "The stock is at 50. You buy the 52.50 call for 0.99. Held to expiry, what stock price gets you back to even?",
-   "subject": "F6.09#q09"
+   "subject": "F6.09#q09",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "Breakeven"
+    },
+    "kind": "payoff",
+    "option": "call",
+    "premium": 0.99,
+    "side": "long",
+    "strike": 52.5
+   }
   },
   "reveal_json": {
    "depth": {
@@ -17246,7 +17395,18 @@
    "kind": "mcq",
    "q": "Held to expiry, which call breaks even closer to today's price?",
    "story": "A stock trades at 100. The 90 call costs 10.95 and the 110 call costs 1.00. Both expire in a month.",
-   "subject": "F6.09#q15"
+   "subject": "F6.09#q15",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "Breakeven"
+    },
+    "kind": "payoff",
+    "option": "call",
+    "premium": 10.95,
+    "side": "long",
+    "strike": 90.0
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -17334,7 +17494,21 @@
    "kind": "mcq",
    "q": "You buy the 75 put. XYZ closes at 72 on expiry day. What did it make or lose, per contract?",
    "story": "XYZ trades at 80. Your chart says it breaks down to 72 within a month. The 75 put costs 1.50 and the 70 put costs 0.50.",
-   "subject": "F6.09#q16"
+   "subject": "F6.09#q16",
+   "visual": {
+    "contracts": 1.0,
+    "find": {
+     "as": "dollars",
+     "label": "Profit or loss at expiry"
+    },
+    "kind": "payoff",
+    "multiplier": 100.0,
+    "option": "put",
+    "premium": 1.5,
+    "side": "long",
+    "strike": 75.0,
+    "underlying": 72.0
+   }
   },
   "reveal_json": {
    "depth": {
@@ -17799,7 +17973,16 @@
    ],
    "kind": "mcq",
    "q": "A far out-of-the-money call is quoted 0.10 bid, 0.20 ask. How wide is the spread, as a percent of the ask?",
-   "subject": "F6.09#q24"
+   "subject": "F6.09#q24",
+   "visual": {
+    "ask": 0.2,
+    "bid": 0.1,
+    "find": {
+     "as": "pct",
+     "label": "The spread, % of the ask"
+    },
+    "kind": "quote"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -21083,7 +21266,18 @@
    ],
    "kind": "mcq",
    "q": "You buy the 40 put for 1.75. At expiry, what stock price is your break-even?",
-   "subject": "F6.11#q11"
+   "subject": "F6.11#q11",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "Breakeven"
+    },
+    "kind": "payoff",
+    "option": "put",
+    "premium": 1.75,
+    "side": "long",
+    "strike": 40.0
+   }
   },
   "reveal_json": {
    "depth": {
@@ -21160,7 +21354,21 @@
    ],
    "kind": "mcq",
    "q": "You own 2 of the 50 calls, bought at 2.50. At expiry the stock is 56. What's your profit?",
-   "subject": "F6.11#q14"
+   "subject": "F6.11#q14",
+   "visual": {
+    "contracts": 2.0,
+    "find": {
+     "as": "dollars",
+     "label": "Profit or loss at expiry"
+    },
+    "kind": "payoff",
+    "multiplier": 100.0,
+    "option": "call",
+    "premium": 2.5,
+    "side": "long",
+    "strike": 50.0,
+    "underlying": 56.0
+   }
   },
   "reveal_json": {
    "depth": {
@@ -21326,7 +21534,21 @@
    ],
    "kind": "mcq",
    "q": "You buy the 40 put for 2.50. If the stock went to zero, what would one contract make?",
-   "subject": "F6.11#q16"
+   "subject": "F6.11#q16",
+   "visual": {
+    "contracts": 1.0,
+    "find": {
+     "as": "dollars",
+     "label": "Profit or loss at expiry"
+    },
+    "kind": "payoff",
+    "multiplier": 100.0,
+    "option": "put",
+    "premium": 2.5,
+    "side": "long",
+    "strike": 40.0,
+    "underlying": 0.0
+   }
   },
   "reveal_json": {
    "depth": {
@@ -23486,7 +23708,18 @@
    ],
    "kind": "mcq",
    "q": "You buy the 80/75 put spread for 2.10. At expiry, what stock price is break-even?",
-   "subject": "F6.12#q13"
+   "subject": "F6.12#q13",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "Breakeven"
+    },
+    "kind": "payoff",
+    "option": "put",
+    "premium": 2.1,
+    "side": "long",
+    "strike": 80.0
+   }
   },
   "reveal_json": {
    "depth": {
@@ -23564,7 +23797,30 @@
    "kind": "mcq",
    "q": "What did one spread make or lose?",
    "story": "You bought the 100/105 call spread for 1.80. Minutes before the close on expiry day, the stock is at 103. You close the spread at its intrinsic value.",
-   "subject": "F6.12#q14"
+   "subject": "F6.12#q14",
+   "visual": {
+    "contracts": 1.0,
+    "find": {
+     "as": "dollars",
+     "label": "Profit or loss at expiry"
+    },
+    "kind": "payoff",
+    "legs": [
+     {
+      "side": "long",
+      "strike": 100.0
+     },
+     {
+      "side": "short",
+      "strike": 105.0
+     }
+    ],
+    "multiplier": 100.0,
+    "net_debit": 1.8,
+    "option": "call",
+    "side": "long",
+    "underlying": 103.0
+   }
   },
   "reveal_json": {
    "depth": {
@@ -23830,7 +24086,18 @@
    "kind": "mcq",
    "q": "At expiry, below what stock price do you start losing money?",
    "story": "XYZ trades at 72. You sell the 70/65 put spread for 1.60, both legs in the same expiry.",
-   "subject": "F6.12#q17"
+   "subject": "F6.12#q17",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "Breakeven"
+    },
+    "kind": "payoff",
+    "option": "put",
+    "premium": 1.6,
+    "side": "long",
+    "strike": 70.0
+   }
   },
   "reveal_json": {
    "depth": {
@@ -23995,7 +24262,30 @@
    "kind": "mcq",
    "q": "The stock closes at 110 on expiry day. Which spread made the most?",
    "story": "A stock trades at 100. You expect it near 110 by expiry, a month out. The 100/105 call spread costs 2.00, the 100/110 costs 3.20 and the 110/120 costs 0.85.",
-   "subject": "F6.12#q19"
+   "subject": "F6.12#q19",
+   "visual": {
+    "contracts": 1.0,
+    "find": {
+     "as": "dollars",
+     "label": "Profit or loss at expiry"
+    },
+    "kind": "payoff",
+    "legs": [
+     {
+      "side": "long",
+      "strike": 100.0
+     },
+     {
+      "side": "short",
+      "strike": 110.0
+     }
+    ],
+    "multiplier": 100.0,
+    "net_debit": 3.2,
+    "option": "call",
+    "side": "long",
+    "underlying": 110.0
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -32929,7 +33219,19 @@
    "kind": "mcq",
    "q": "How likely is an early assignment tonight, and why?",
    "story": "You're short the 55 call with no shares. The stock is 62.40 and goes ex-dividend tomorrow, paying 0.30. Your call trades at 7.45, two weeks from expiry.",
-   "subject": "F6.16#q16"
+   "subject": "F6.16#q16",
+   "visual": {
+    "find": {
+     "as": "per_share",
+     "label": "Time value"
+    },
+    "kind": "payoff",
+    "option": "call",
+    "premium": 7.45,
+    "side": "long",
+    "strike": 55.0,
+    "underlying": 62.4
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -34612,7 +34914,23 @@
    "kind": "mcq",
    "q": "At what price does your trailing stop trigger?",
    "story": "Your call is bid $4.00. You set a sell trailing stop $1.50 under the bid. The bid climbs to $6.20, then starts to fall.",
-   "subject": "F6.17#q10"
+   "subject": "F6.17#q10",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "Trailing stop (1.5 under)",
+     "tag": "Stop"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "high",
+      "label": "High",
+      "price": 6.2
+     }
+    ],
+    "side": "long"
+   }
   },
   "reveal_json": {
    "depth": {

@@ -705,7 +705,23 @@
    ],
    "kind": "mcq",
    "q": "A stock just cleared its $40.00 breakout level. You'll pay at most 1% above it. What limit price caps your buy?",
-   "subject": "F10.01#q11"
+   "subject": "F10.01#q11",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "The most we pay (1% over)",
+     "tag": "Most we pay"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "line",
+      "label": "Breakout level",
+      "price": 40.0
+     }
+    ],
+    "side": "long"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -1257,7 +1273,22 @@
    ],
    "kind": "mcq",
    "q": "A stock closed at $25.00. After overnight news, it opened at $27.25. How far above the close did it open, in percent?",
-   "subject": "F10.01#q17"
+   "subject": "F10.01#q17",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The change"
+    },
+    "from": {
+     "label": "",
+     "value": 25.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 27.25
+    }
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -2851,7 +2882,23 @@
    ],
    "kind": "mcq",
    "q": "Your sell trailing stop is $1.50 below the price. The stock climbs to a high of $31.20, then slips. Where is your stop now?",
-   "subject": "F10.02#q11"
+   "subject": "F10.02#q11",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "Trailing stop (1.5 under)",
+     "tag": "Stop"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "high",
+      "label": "High",
+      "price": 31.2
+     }
+    ],
+    "side": "long"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -3278,7 +3325,36 @@
    ],
    "kind": "mcq",
    "q": "Entry $50, sell stop $48. It gaps open at $44 and the stop sells there. How many times your planned loss did you take?",
-   "subject": "F10.02#q16"
+   "subject": "F10.02#q16",
+   "visual": {
+    "find": {
+     "as": "r_loss",
+     "label": "R lost"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 48.0
+     },
+     {
+      "key": "entry",
+      "label": "Entry",
+      "price": 50.0
+     },
+     {
+      "key": "price",
+      "label": "Price",
+      "price": 44.0
+     }
+    ],
+    "r": {
+     "entry": 50.0,
+     "stop": 48.0
+    },
+    "side": "long"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -3826,7 +3902,22 @@
    ],
    "kind": "mcq",
    "q": "You bought at $50 with a 20% trailing stop. The stock peaks at $80, then rolls over. Near what price does the stop trigger?",
-   "subject": "F10.02#q22"
+   "subject": "F10.02#q22",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "20% under"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "level",
+      "label": "Peak",
+      "price": 80.0
+     }
+    ],
+    "side": "long"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -5002,7 +5093,36 @@
    ],
    "kind": "mcq",
    "q": "A broker's sample bracket: buy at $219.50, stop at $218.00, target at $221.00. How many dollars of reward per dollar of risk?",
-   "subject": "F10.03#q09"
+   "subject": "F10.03#q09",
+   "visual": {
+    "find": {
+     "as": "r",
+     "label": "R"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 218.0
+     },
+     {
+      "key": "entry",
+      "label": "Entry",
+      "price": 219.5
+     },
+     {
+      "key": "price",
+      "label": "Target",
+      "price": 221.0
+     }
+    ],
+    "r": {
+     "entry": 219.5,
+     "stop": 218.0
+    },
+    "side": "long"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -6814,7 +6934,22 @@
    ],
    "kind": "mcq",
    "q": "Your buy stop at $50.00 triggers on a breakout. You're filled at $50.40. What was your slippage, in percent?",
-   "subject": "F10.04#q09"
+   "subject": "F10.04#q09",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The change"
+    },
+    "from": {
+     "label": "",
+     "value": 50.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 50.4
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -6897,7 +7032,24 @@
    ],
    "kind": "mcq",
    "q": "A stock trades about 300,000 shares a day. You want 2,000 shares. What percent of a day's volume is that?",
-   "subject": "F10.04#q10"
+   "subject": "F10.04#q10",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "As a percent"
+    },
+    "kind": "share",
+    "part": {
+     "fmt": "shares",
+     "label": "Your order",
+     "value": 2000.0
+    },
+    "whole": {
+     "fmt": "shares",
+     "label": "A day's volume",
+     "value": 300000.0
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -7300,7 +7452,28 @@
    ],
    "kind": "mcq",
    "q": "You hold 500 shares. Your sell stop at $38.00 fills at $37.70 in a fast drop. What did slippage cost you, in dollars?",
-   "subject": "F10.04#q15"
+   "subject": "F10.04#q15",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Slippage"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 38.0
+     },
+     {
+      "key": "fill",
+      "label": "Fill",
+      "price": 37.7
+     }
+    ],
+    "shares": 500.0,
+    "side": "long"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -8200,7 +8373,20 @@
    ],
    "kind": "mcq",
    "q": "A $50 stock averages 800,000 shares a day. Our cap is 1% of average daily volume. What is the most shares you can own?",
-   "subject": "F10.04#q25"
+   "subject": "F10.04#q25",
+   "visual": {
+    "find": {
+     "as": "shares",
+     "label": "The most we own"
+    },
+    "kind": "share",
+    "pct": 1.0,
+    "whole": {
+     "fmt": "shares",
+     "label": "Average day's volume",
+     "value": 800000.0
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -9299,7 +9485,29 @@
    ],
    "kind": "mcq",
    "q": "You bought 100 shares at $50. At $40 you buy 100 more. What price gets you back to break even?",
-   "subject": "F10.05#q13"
+   "subject": "F10.05#q13",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "Average price"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "fill1",
+      "label": "100 shares",
+      "price": 50.0,
+      "shares": 100.0
+     },
+     {
+      "key": "fill2",
+      "label": "100 shares",
+      "price": 40.0,
+      "shares": 100.0
+     }
+    ],
+    "side": "long"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -10032,7 +10240,31 @@
    ],
    "kind": "mcq",
    "q": "Entry $50, stop $47.50. Where is the 3R price?",
-   "subject": "F10.05#q29"
+   "subject": "F10.05#q29",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "3R"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 47.5
+     },
+     {
+      "key": "entry",
+      "label": "Entry",
+      "price": 50.0
+     }
+    ],
+    "r": {
+     "entry": 50.0,
+     "stop": 47.5
+    },
+    "side": "long"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -10109,7 +10341,31 @@
    ],
    "kind": "mcq",
    "q": "Entry $80, stop $77. Where does the 5R mark sit?",
-   "subject": "F10.05#q30"
+   "subject": "F10.05#q30",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "5R"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 77.0
+     },
+     {
+      "key": "entry",
+      "label": "Entry",
+      "price": 80.0
+     }
+    ],
+    "r": {
+     "entry": 80.0,
+     "stop": 77.0
+    },
+    "side": "long"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -10611,7 +10867,31 @@
    "kind": "mcq",
    "q": "What does our plan do now?",
    "story": "You bought 300 shares at $40, stop $38, in one order. By day 5 it has run to $46, 3R, and it sits well above its rising 9 EMA.",
-   "subject": "F10.05#q37"
+   "subject": "F10.05#q37",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "3R"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 38.0
+     },
+     {
+      "key": "entry",
+      "label": "Entry",
+      "price": 40.0
+     }
+    ],
+    "r": {
+     "entry": 40.0,
+     "stop": 38.0
+    },
+    "side": "long"
+   }
   },
   "reveal_json": {
    "deeper": {

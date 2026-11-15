@@ -772,7 +772,22 @@
    ],
    "kind": "mcq",
    "q": "Schwab's sample exit: price falls 3% below a recent support level. Support is $50. At what price do you get out?",
-   "subject": "F12.01#q13"
+   "subject": "F12.01#q13",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "3% under"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "level",
+      "label": "Support",
+      "price": 50.0
+     }
+    ],
+    "side": "long"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -2208,7 +2223,22 @@
    ],
    "kind": "mcq",
    "q": "S&P 500 futures were at 6,000 at 4:00 p.m. yesterday. At 8:45 a.m. today they're at 5,940. How far down are they, in percent?",
-   "subject": "F12.02#q09"
+   "subject": "F12.02#q09",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The distance"
+    },
+    "from": {
+     "label": "Start",
+     "value": 6000.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "End",
+     "value": 5940.0
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -2461,7 +2491,31 @@
    "kind": "mcq",
    "q": "If you buy at $53.50, what's your risk per share to the $48 stop?",
    "story": "Your plan: buy over $50, stop at $48, so $2 of risk a share. Overnight news hits, and the stock gaps up. At 9:45 a.m. it trades at $53.50.",
-   "subject": "F12.02#q12"
+   "subject": "F12.02#q12",
+   "visual": {
+    "find": {
+     "as": "per_share",
+     "label": "Risk per share"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 48.0
+     },
+     {
+      "key": "entry",
+      "label": "Entry",
+      "price": 53.5
+     }
+    ],
+    "r": {
+     "entry": 53.5,
+     "stop": 48.0
+    },
+    "side": "long"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -4248,7 +4302,36 @@
    ],
    "kind": "mcq",
    "q": "Your log: entry $40, initial stop $39, exit $41.50. What R goes in the result field?",
-   "subject": "F12.03#q10"
+   "subject": "F12.03#q10",
+   "visual": {
+    "find": {
+     "as": "r",
+     "label": "R on the trade"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 39.0
+     },
+     {
+      "key": "entry",
+      "label": "Entry",
+      "price": 40.0
+     },
+     {
+      "key": "exit",
+      "label": "Exit",
+      "price": 41.5
+     }
+    ],
+    "r": {
+     "entry": 40.0,
+     "stop": 39.0
+    },
+    "side": "long"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -4505,7 +4588,22 @@
    ],
    "kind": "mcq",
    "q": "Your plan said buy at $50. You filled at $51. How far above plan was the fill, in percent?",
-   "subject": "F12.03#q14"
+   "subject": "F12.03#q14",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The change"
+    },
+    "from": {
+     "label": "",
+     "value": 50.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 51.0
+    }
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -4585,7 +4683,36 @@
    "kind": "mcq",
    "q": "What R goes in your log?",
    "story": "You bought at $20 with a stop at $19. It slid, so you moved the stop to $18. It hit there.",
-   "subject": "F12.03#q15"
+   "subject": "F12.03#q15",
+   "visual": {
+    "find": {
+     "as": "r_loss",
+     "label": "R lost"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 19.0
+     },
+     {
+      "key": "entry",
+      "label": "Entry",
+      "price": 20.0
+     },
+     {
+      "key": "price",
+      "label": "Exit",
+      "price": 18.0
+     }
+    ],
+    "r": {
+     "entry": 20.0,
+     "stop": 19.0
+    },
+    "side": "long"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -6315,7 +6442,36 @@
    ],
    "kind": "mcq",
    "q": "Plan: buy at $50, stop $48, target $56. You chase and fill at $53, same stop and target. Reward per $1 of risk now?",
-   "subject": "F12.04#q13"
+   "subject": "F12.04#q13",
+   "visual": {
+    "find": {
+     "as": "r",
+     "label": "R"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 48.0
+     },
+     {
+      "key": "entry",
+      "label": "Entry",
+      "price": 53.0
+     },
+     {
+      "key": "price",
+      "label": "Target",
+      "price": 56.0
+     }
+    ],
+    "r": {
+     "entry": 53.0,
+     "stop": 48.0
+    },
+    "side": "long"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -10217,7 +10373,31 @@
    ],
    "kind": "mcq",
    "q": "Your Kicker page: entry $20.00, stop $19.30. What is the 3R price?",
-   "subject": "F12.06#q11"
+   "subject": "F12.06#q11",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "3R"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 19.3
+     },
+     {
+      "key": "entry",
+      "label": "Entry",
+      "price": 20.0
+     }
+    ],
+    "r": {
+     "entry": 20.0,
+     "stop": 19.3
+    },
+    "side": "long"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -12237,7 +12417,34 @@
    ],
    "kind": "mcq",
    "q": "You hold 200 shares bought at $50, stop $48. You lower the stop to $46. What's your risk from entry now?",
-   "subject": "F12.07#q13"
+   "subject": "F12.07#q13",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Dollars at risk"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "sh",
+      "key": "shares",
+      "label": "Shares",
+      "value": 200.0
+     },
+     {
+      "fmt": "$",
+      "key": "entry",
+      "label": "Entry",
+      "value": 50.0
+     },
+     {
+      "fmt": "$",
+      "key": "stop",
+      "label": "Stop",
+      "value": 46.0
+     }
+    ]
+   }
   },
   "reveal_json": {
    "depth": {

@@ -592,7 +592,24 @@
    ],
    "kind": "mcq",
    "q": "Of your 8 plan breaks this month, 6 were the same mistake. What percent of your breaks was that one mistake?",
-   "subject": "F8.01#q09"
+   "subject": "F8.01#q09",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "As a percent"
+    },
+    "kind": "share",
+    "part": {
+     "fmt": "count",
+     "label": "That mistake",
+     "value": 6.0
+    },
+    "whole": {
+     "fmt": "count",
+     "label": "All breaks",
+     "value": 8.0
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -2479,7 +2496,22 @@
    ],
    "kind": "mcq",
    "q": "The buy point was $40. You missed it, and the stock now trades at $43.60. How far past the buy point is it?",
-   "subject": "F8.02#q14"
+   "subject": "F8.02#q14",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The change"
+    },
+    "from": {
+     "label": "",
+     "value": 40.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "",
+     "value": 43.6
+    }
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -2737,7 +2769,22 @@
    ],
    "kind": "mcq",
    "q": "Investopedia's GameStop case: it topped at $120.75, then traded at $10.97 a few weeks later. How far down was a buyer at the top?",
-   "subject": "F8.02#q18"
+   "subject": "F8.02#q18",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The distance"
+    },
+    "from": {
+     "label": "Top",
+     "value": 120.75
+    },
+    "kind": "move",
+    "to": {
+     "label": "Later",
+     "value": 10.97
+    }
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -2910,7 +2957,22 @@
    ],
    "kind": "mcq",
    "q": "Yesterday's low was $48.50. Today it opens up 8% at $54. Your stop is $48.45, a few cents under that low. How far below $54 is it?",
-   "subject": "F8.02#q20"
+   "subject": "F8.02#q20",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The distance"
+    },
+    "from": {
+     "label": "Entry",
+     "value": 54.0
+    },
+    "kind": "move",
+    "to": {
+     "label": "Stop",
+     "value": 48.45
+    }
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -4556,7 +4618,36 @@
    ],
    "kind": "mcq",
    "q": "Entry $40, stop $38, so 1R is $2 a share. You sell at $41 out of nerves. How many R did you make?",
-   "subject": "F8.03#q11"
+   "subject": "F8.03#q11",
+   "visual": {
+    "find": {
+     "as": "r",
+     "label": "R on the trade"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 38.0
+     },
+     {
+      "key": "entry",
+      "label": "Entry",
+      "price": 40.0
+     },
+     {
+      "key": "exit",
+      "label": "Exit",
+      "price": 41.0
+     }
+    ],
+    "r": {
+     "entry": 40.0,
+     "stop": 38.0
+    },
+    "side": "long"
+   }
   },
   "reveal_json": {
    "depth": {
