@@ -251,6 +251,8 @@ function fastSetting(text) {
     if (!m) continue
     const d = SETTING_WORDS.get(m[wi])
     if (!d) continue
+    // an enum's words name the SETTING, not an on/off value ("turn on the light palette" is the model's to read)
+    if (d.type !== 'bool' && !d.boolMap) continue
     const on = ['on', 'show', 'enable'].includes(m[vi])
     return { setting: d.id, value: d.type === 'bool' ? on : d.boolMap[String(on)] }
   }

@@ -3,6 +3,7 @@
 // Evidence: LOCAL (unit) — stateEffects / stateRailRefusal over synthetic plans.
 import { describe, it, expect } from 'vitest'
 import { stateEffects, stateRailRefusal, CLASS } from './stateRail'
+import { settingDescriptor } from '../components/chart/chartSettingsDescriptors'
 
 const planOf = (beforeTheme, settings) => ({ ok: true, plans: [{ kind: 'chart', ref: 'c1', before: { cs: beforeTheme == null ? { grid: { visible: true } } : { theme: beforeTheme } }, after: {}, patch: { settings } }] })
 const fx = (plan) => stateEffects(plan).map(e => `${e.state}:${e.type}`)
@@ -33,6 +34,11 @@ describe('the light/dark palette is a preference the state rail reads', () => {
   it('a UCT chart THEME is not the palette: "theme" never names this class (chart.applyTheme never writes `theme`)', () => {
     for (const w of ['apply the Sunrise theme', 'use the Midnight theme on this chart', 'switch themes']) expect(CLASS.preference.test(w), w).toBe(false)
     for (const w of ['the light palette', 'dark mode', 'press shift+t']) expect(CLASS.preference.test(w), w).toBe(true)
+  })
+  it('ONE source (AUDIT #1234): the palette class is the theme descriptor\'s own options and words (#1059\'s two folded in)', () => {
+    const d = settingDescriptor('theme')
+    expect(d.words).toEqual(expect.arrayContaining(['light palette', 'dark palette']))
+    for (const w of [...d.options, ...d.words]) expect(CLASS.preference.test(`use the ${w}`), w).toBe(true)
   })
   it('naming the OTHER palette does not license this change ("dark mode" never licenses dark → light)', () => {
     expect(stateRailRefusal(planOf('dark', { theme: 'light' }), { words: 'add a 20 EMA in dark mode' })).toMatch(REFUSED)

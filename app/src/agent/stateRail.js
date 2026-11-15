@@ -39,6 +39,7 @@ import { instancesOf } from '../components/chart/builder/agentSeams'
 import * as nativeRegistry from '../components/chart/engine/nativeRegistry'
 import { tickersIn } from './multiChart'
 import { matchPosition } from './fastPath'
+import { settingDescriptor } from '../components/chart/chartSettingsDescriptors'
 
 export const STATE_RAIL_MARK = 'state-rail'
 
@@ -258,6 +259,20 @@ const NEW_ONE = /\b(?:new|another|second|copy|duplicate|as (?:a|an)\b|called|nam
 // ⛔ KIND-MATCHED (AUDIT #1247): a permit word licenses an effect only on the CLASS its own clause names — never every kind.
 // "add a 20 EMA, and clear up the layout name confusion" licenses nothing on drawings. A permit word whose clause names no
 // class (and not the thing itself by its name) licenses nothing.
+// #1234 (AUDIT): the light/dark palette's words come from its OWN descriptor (chartSettingsDescriptors `theme`: its options
+// and words) — one source, never a second hand list here
+const PALETTE = settingDescriptor('theme') || { options: [], words: [] }
+const wordRe = (w) => new RegExp(`\\b${String(w).replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+')}\\b`, 'i')
+const PALETTE_VALUES = PALETTE.options || []
+const PALETTE_WORDS = PALETTE.words || []
+const PALETTE_CLASS = new RegExp(PALETTE_VALUES.concat(PALETTE_WORDS).map(w => wordRe(w).source).join('|'), 'i')
+// the NEW palette, named in its own words: a descriptor word that names it ("light palette"), or the value with a word that
+// names no value ("light … shift+t") or with a modify verb ("make this chart light")
+function paletteAsked(c, to) {
+  if (!wordRe(to).test(c)) return false
+  if (MODIFY.test(c)) return true
+  return PALETTE_WORDS.some(w => wordRe(w).test(c) && (wordRe(to).test(w) || !PALETTE_VALUES.some(v => wordRe(v).test(w))))
+}
 export const CLASS = {
   // (an indicator draws LINES too: "add the 50 sma then make that line purple")
   indicator: /\b(?:indicators?|lines?|plots?|studies|study|emas?|smas?|wmas?|rsi|macd|vwap|atr|adx|bollinger\w*|stoch\w*|moving averages?|averages?|mas?|obv|cci|keltner|ichimoku|length|period|lookback|(?:the|my|that) \d{1,3}|\d{1,3}[- ]?(?:day|period|bar|ema|sma))\b/i,
@@ -269,7 +284,7 @@ export const CLASS = {
   layoutBar: /\b(?:layout bar|the bar|bar)\b/i,
   template: /\btemplates?\b/i,
   // #1234: the chart's light/dark palette (Shift+T) — never "theme" (a UCT chart theme is its own action and never writes it)
-  preference: /\b(?:palettes?|light|dark|light mode|dark mode|shift ?\+ ?t)\b/i,
+  preference: PALETTE_CLASS,
 }
 const classesOf = (e) => e.classes || [e.state]
 const phrase = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
@@ -428,7 +443,7 @@ export function permits(e, words, subjects = null, previous = null, previousSet 
     if (!negated && e.via === 'save' && KEEP_IN_LAYOUT.test(c)) return true
     // #1234: the palette's OWN words — the clause names the NEW palette with a palette word ("put the chart on the light
     // palette", "dark mode", "light like shift+t") or with a modify verb ("make this chart light"); a bare additive request never names it
-    if (!negated && e.state === 'preference' && e.to && new RegExp(`\\b${e.to}\\b`, 'i').test(c) && (/\b(?:palettes?|mode|shift ?\+ ?t)\b/i.test(c) || MODIFY.test(c))) return true
+    if (!negated && e.state === 'preference' && e.to && paletteAsked(c, e.to)) return true
     if (!negated && e.state === 'watchlist' && e.syms && e.listSyms) {
       // "remove all five": the count IS the list's size, and the change removes every one
       const an = ALL_N.exec(c)

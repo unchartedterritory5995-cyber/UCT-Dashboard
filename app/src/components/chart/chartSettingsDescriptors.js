@@ -194,7 +194,9 @@ const ELIGIBLE = [
   // Charts family (2026-11-13): KNOWN → ELIGIBLE. Shift+T's own write (StockChart toggle:theme → updateField('theme'): a plain
   // field, the same withSetting shape). StockChart themeColors reads it on every canvas but Sunrise (fixedBy below); while it is
   // 'light' the palette sets its own canvas, grid and crosshair colors (the rows fixedBy 'light' refuse, as they always did).
-  E('theme', 'canvas', 'Light/dark palette (Shift+T)', 'enum', { options: ['dark', 'light'], ui: 'Shift+T on the chart' }),
+  // words (AUDIT #1234, with #1059's two): the palette's OWN words — the ONE source the state rail reads its palette class
+  // and its licence from (stateRail.js PALETTE_*), so the two never drift
+  E('theme', 'canvas', 'Light/dark palette (Shift+T)', 'enum', { options: ['dark', 'light'], ui: 'Shift+T on the chart', words: ['light palette', 'dark palette', 'shift+t'] }),
 ]
 
 // What StockChart's themeColors ignores (a Sunrise canvas has no grid and its own colors; the light palette has its own)
