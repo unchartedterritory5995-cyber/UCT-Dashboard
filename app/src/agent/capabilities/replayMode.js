@@ -17,7 +17,7 @@
 
 import { registerCapability } from '../capabilities'
 import { NATIVE_TFS, tfLabel } from '../../components/chart/timeframes'
-import { barVisible, cutoffDay, cutoffWords, intradayBarEndMs, lastSessionOfPeriod, preciseCutoffAt, isPreciseCutoff } from '../../components/chart/replayCutoff'
+import { barVisible, cutoffFetchDay, cutoffWords, intradayBarEndMs, lastSessionOfPeriod, preciseCutoffAt, isPreciseCutoff } from '../../components/chart/replayCutoff'
 import { closeTime } from '../../lib/marketClock/sessionCalendar'
 import { etYmd } from '../../lib/marketClock/etTime'
 import { replaysOn, NONE_RUNNING } from './chartReplay'
@@ -130,8 +130,9 @@ export async function stepReplay(host, ref, { direction, bars: n, from }, { now 
   } else {
     if (pos + n >= times.length) {
       // the bars after the cutoff are not held: the SAME request the chart makes, for a window ending later
-      const through = [addDays(cutoffDay(v), lookAheadDays(tf, n)), etYmd(now)].sort()[0]
-      const more = through > cutoffDay(v) ? await host.charts.replayBarTimes(ref, { throughDay: through }) : null
+      const heldTo = cutoffFetchDay(v, tf)
+      const through = [addDays(heldTo, lookAheadDays(tf, n)), etYmd(now)].sort()[0]
+      const more = through > heldTo ? await host.charts.replayBarTimes(ref, { throughDay: through }) : null
       if (more && Array.isArray(more.times)) {
         const anchor = pos >= 0 ? times[pos] : null
         const at = anchor == null ? -1 : more.times.findIndex(t => t === anchor)
@@ -153,6 +154,7 @@ export async function stepReplay(host, ref, { direction, bars: n, from }, { now 
   }
   const to = cutoffThrough(target, tf, extended)
   if (!to) throw stopped('I couldn’t work out where that bar ends, so I left Replay Mode where it is. Nothing was changed.')
+  if (to === v) throw stopped(`Replay Mode is already through that bar (${cutoffWords(v)}), so there is nothing to move. Nothing was changed.`)
   if (!host.charts.setReplay?.(to)) throw stopped('Replay Mode didn’t take the new cutoff. Nothing was changed.')
   const t0 = Date.now()
   while (Date.now() - t0 < 3000 && (host.charts.read(ref)?.replay ?? null) !== to) await new Promise(r => setTimeout(r, 50))

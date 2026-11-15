@@ -2,7 +2,7 @@
 // Optimized: chart instance reuse, O(n) HVC, memoized data transforms
 import { withoutGuardIds } from './chart/engine/ast/guardIdText'
 import { computeBarTime, toChartTime, fromChartTime, seriesCacheTf, barsSessionQuery, barsGridQuery, isRthBar } from './chart/barTime'
-import { barVisible } from './chart/replayCutoff'
+import { barVisible, cutoffFetchDay } from './chart/replayCutoff'
 import { lastCandlePos, pinNewestRange } from './chart/rightMargin'
 import { foldOffGridBars } from './chart/offGridBars'
 import { formatCompact } from '../lib/presentation/presentationPrimitives'
@@ -18689,7 +18689,7 @@ export default function StockChart({
     const c = replayBarsRef.current
     if (!c?.sym || c.custom || c.override) return null
     const out = (bars) => ({ tf: String(c.resolvedTf), extended: !!c.showExtended, times: (bars || []).map(b => b.t) })
-    const heldTo = c.cutoff ? String(c.cutoff).slice(0, 10) : null
+    const heldTo = c.cutoff ? cutoffFetchDay(c.cutoff, String(c.resolvedTf)) : null
     if (!throughDay || (heldTo && String(throughDay) <= heldTo)) return out(c.sessionBars)
     const url = `/api/bars/${encodeURIComponent(c.sym)}?tf=${c.resolvedTf}&bars=${REPLAY_STEP_BARS}${c.sessQ}&to=${encodeURIComponent(String(throughDay))}`
     let data

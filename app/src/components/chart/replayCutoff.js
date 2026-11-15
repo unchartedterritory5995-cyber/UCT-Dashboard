@@ -31,6 +31,13 @@ export const isPreciseCutoff = (v) => typeof v === 'string' && PRECISE.test(v)
 export const isDayCutoff = (v) => typeof v === 'string' && DAY.test(v)
 /** The cutoff's ET day ('YYYY-MM-DD'), for every day-keyed reader (fetch window, prefetch, the dialog's date). */
 export const cutoffDay = (v) => (v == null ? null : String(v).slice(0, 10))
+/** The day the bar request's window ends on: the cutoff's ET day — or, on a weekly / monthly chart, the END of the period
+ *  holding it, so the period's bar (keyed on its Friday / its month) is fetched; whether it shows is barVisible's call. */
+export function cutoffFetchDay(v, tf) {
+  const day = cutoffDay(v)
+  if (!day) return null
+  return tf === 'W' || tf === 'M' ? periodSpan(day, tf).to : day
+}
 /** A precise cutoff's instant (epoch ms); null for a day-only one (and for anything else). */
 export const cutoffInstantMs = (v) => (isPreciseCutoff(v) ? Date.parse(v) : null)
 
