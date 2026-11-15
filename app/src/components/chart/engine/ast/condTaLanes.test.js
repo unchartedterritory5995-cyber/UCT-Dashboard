@@ -216,9 +216,10 @@ describe('COND-TA — 2c. `?:` arms: eager in v1-v3, lazy from v4 (both witnesse
   //   barssince / cum) equal the EVERY-BAR values on every bar — v1-v3 arms are EAGER;
   //   probe 10 `vw-cs2-v4-ternary-lazy`: `up ? sma(close, 5) : close` is LAZY in v4 — bar 7:
   //   TradingView na, the eager `sma` 53.72; v4 `iff` is eager.
-  // ⛔ The P2 probe reads `n`, which this engine refuses (`pine:undefined`): railed on `cum(1) - 1`.
+  // ⛔ The P2 probe reads `n`, which this engine refuses (`pine:undefined`), and `cum` has no
+  // anchor on the screener lane (`pine:function`): railed on the same arm under `close > open`.
   it('v1 / v2 / v3 `?:` arms are eager: not stamped, drawn on the host and screener lanes, equal to the every-bar reading', () => {
-    const t3 = '(cum(1) - 1) % 3 == 0 ? close : sma(close, 5)'
+    const t3 = 'close > open ? close : sma(close, 5)'
     for (const head of [['study("p2 v1")'], ['//@version=2', 'study("p2 v2")'], ['//@version=3', 'study("p2 v3")']]) {
       const src = [...head, `plot(${t3}, title="B_sma")`].join('\n')
       const t = strict(src)
