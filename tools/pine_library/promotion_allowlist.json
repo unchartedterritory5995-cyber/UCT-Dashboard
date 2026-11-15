@@ -1,0 +1,94 @@
+{
+ "_": [
+  "U15 promotion allowlist (coordinator ruling 2026-11-15): the ONLY library versions that may be copied from an owner-run fetch into the production store (`$DATA_DIR/pine_libraries`).",
+  "A version is listed only when EVERY newly-attaching importing script in the U15 sample (65 scripts, 132 captures) grades MATCH with it linked, and its licence is not non-commercial.",
+  "Each version is pinned by the sha256 of the source that was graded: promote exactly that code, never a re-fetch with another sha.",
+  "Non-commercial (CC-BY-NC*) libraries are never promoted (the store refuses to serve them: pine:library-licence).",
+  "Promotion is a separate, coordinator-authorised step after U15 Phase A merges. Measured 2026-11-15 on the local store (docs/pine/evidence/2026-11-15-u15-library-pinning/EVIDENCE.md, P0)."
+ ],
+ "gradedWith": "member door + harness, objects pane and runtime pane on (host lane, runtime fallback); the runtime-pane-off re-grade of the same captures is recorded beside each row as hostOnly",
+ "promote": [
+  {
+   "path": "theEccentricTrader/PubLibSwing/3",
+   "sha256": "3cbd09d934016a46d43c8097857bc3fae7af23111e22a414f671db740fc8551f",
+   "licence": "MPL-2.0",
+   "licenceBasis": "header",
+   "reason": "imported by All Chart Patterns [theEccentricTrader] (committed corpus), which grades MATCH on RDDT 1D and AMEX:SPY 1D with the store loaded"
+  },
+  {
+   "path": "theEccentricTrader/PubLibPattern/4",
+   "sha256": "9a75c2736c3911de262ef1dacc78fa82b5010177a3d31bbf2744f391ec177327",
+   "licence": "MPL-2.0",
+   "licenceBasis": "header",
+   "reason": "imported by All Chart Patterns [theEccentricTrader] (MATCH on RDDT and SPY)"
+  },
+  {
+   "path": "theEccentricTrader/PubLibCandleTrend/2",
+   "sha256": "1d42daae07346debbf5b9b5a151a4862c0b173b3ea342e95a4db33271a2d5b52",
+   "licence": "MPL-2.0",
+   "licenceBasis": "header",
+   "reason": "imported by theEccentricTrader/PubLibPattern/4 (a dependency of All Chart Patterns, MATCH on RDDT and SPY)"
+  },
+  {
+   "path": "theEccentricTrader/PubLibTrend/3",
+   "sha256": "7f31c58b74ea16895550afcaa830a3ce96190b5fea34bab62275389c10688d1e",
+   "licence": "MPL-2.0",
+   "licenceBasis": "header",
+   "reason": "imported by theEccentricTrader/PubLibPattern/4 (a dependency of All Chart Patterns, MATCH on RDDT and SPY)"
+  },
+  {
+   "path": "PineCoders/ConditionalAverages/2",
+   "sha256": "24f89264710a97c33672fe8d222858f94a5606580ccbeb1530649f39ee05e57c",
+   "licence": "MPL-2.0",
+   "licenceBasis": "header",
+   "reason": "imported by Rolling VWAP (committed corpus), which grades MATCH on RDDT 1D and AMEX:SPY 1D with the store loaded"
+  }
+ ],
+ "heldOut": [
+  {
+   "path": "TradingView/ta/11",
+   "sha256": "da37dca4bc18ce3b825d1d9c8b682f97859508cc5bb8bd3e51e1a28713edee80",
+   "reason": "also imported by Aroon oscillator (DIVERGE, bar 116: a tie in highestbars; joins once engine values-v2 merges and the capture re-grades MATCH). Chandelier exit, Pring's special K and Ulcer index grade MATCH on it."
+  },
+  {
+   "path": "TradingView/RelativeValue/3",
+   "sha256": "44d71612a7596a11258e244e500c0ce56b563eceac2f07973b16b5dec4c7480d",
+   "reason": "a dependency of TradingView/ta/11 (held out with it)"
+  },
+  {
+   "path": "Fontiramisu/fontilab/11",
+   "sha256": "ee3343eb454a6e5f6fe3cfb4c0a898cfd2339b812369de9d63a032c8d8f5b3c3",
+   "reason": "imported by ATR Trend Bands [Misu] (DIVERGE: a colour on bar 0)"
+  },
+  {
+   "path": "loxx/loxxexpandedsourcetypes/4",
+   "sha256": "b3ffddf3442cc534a7a1904247b46ff623f690d89456073c22cb5c5959c3ba90",
+   "reason": "imported by Black-Scholes Option Pricing Model w/ Greeks [Loxx] (DIVERGE on 4 captures)"
+  },
+  {
+   "path": "TradingView/ValueAtTime/2",
+   "sha256": "74c0a0943c6331fdd754391a68fb285feca6ea942dde35e0ec7d01bad8d58169",
+   "reason": "imported by Performance (DIVERGE on RDDT and SPY)"
+  },
+  {
+   "path": "PineCoders/VisibleChart/3",
+   "sha256": "76b2ad4d7c813cfa97f7f5434154235fad488b5a9baf79db6ecff0806a68a60b",
+   "reason": "imported by Volume Profile Heatmap (INCONCLUSIVE)"
+  }
+ ],
+ "neverPromoted": {
+  "reason": "a non-commercial licence (CC-BY-NC-SA): never served on this paid product unless the author relicenses",
+  "paths": [
+   "Trendoscope/Drawing/2",
+   "Trendoscope/Drawing/3",
+   "Trendoscope/Zigzag/11",
+   "Trendoscope/ZigzagLite/4",
+   "Trendoscope/abstractchartpatterns/10",
+   "Trendoscope/basechartpatterns/9",
+   "Trendoscope/ohlc/3",
+   "Trendoscope/oota/1",
+   "Trendoscope/reversalchartpatterns/2",
+   "Trendoscope/utils/6"
+  ]
+ }
+}

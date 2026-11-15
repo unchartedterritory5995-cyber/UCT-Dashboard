@@ -48,7 +48,7 @@
 // order the statements run in. `remapLibraryLocation` turns a library line back
 // into the member's import line plus "in library X, line L".
 
-import { pineLibraryEntry, pineLibraryUnservable, libraryEntryProblem } from './pineLibraryStore.js'
+import { pineLibraryEntry, pineLibraryHeld, libraryEntryProblem, libraryLicenceProblem } from './pineLibraryStore.js'
 
 export { importPathsOf } from './pineLibraryStore.js'
 
@@ -113,6 +113,8 @@ class LinkRefusal extends Error {
  *  codes (`pine.js` REFUSALS, the runtime front end's table) instead of the generic one. */
 export const LIBRARY_CHANGED = 'pine:library-changed'
 export const LIBRARY_NO_SHA = 'pine:library-no-sha'
+// ⭐⭐ U15 (coordinator ruling 2026-11-15) — a non-commercial licence, never served on this paid product
+export const LIBRARY_LICENCE = 'pine:library-licence'
 
 /** `opts.libraryPins` (a document's `meta.libraries`: `[{path, sha256}]`) -> path -> sha. */
 function pinsOf(opts) {
@@ -286,7 +288,7 @@ export function linkLibraries(lexed, opts, { lexPine, blockStatements }) {
   if (!lines.length) return lexed
   const resolve = resolverOf(opts)
   const pins = pinsOf(opts)
-  const unservableOf = opts && opts.libraries ? () => null : pineLibraryUnservable
+  const heldOf = opts && opts.libraries ? () => null : pineLibraryHeld
   const mainVersion = lexed.version
   const mainLineCount = (lexed.lines || []).length
 
@@ -302,13 +304,18 @@ export function linkLibraries(lexed, opts, { lexPine, blockStatements }) {
     const entry = resolve(imp.path)
     if (!entry || typeof entry.source !== 'string') {
       // ⭐ U15 — the store holds it and will not serve it: say so, under its own name
-      const held = unservableOf(imp.path)
-      if (held) throw new LinkRefusal(`the library \`${imp.path}\` is not served: ${held}`, LIBRARY_NO_SHA)
+      const held = heldOf(imp.path)
+      if (held) {
+        throw new LinkRefusal(`the library \`${imp.path}\` is not served: ${held.reason}`,
+          held.code === 'licence' ? LIBRARY_LICENCE : LIBRARY_NO_SHA)
+      }
       throw new LinkRefusal(`the library \`${imp.path}\` is not in this engine's library registry, so its code cannot be compiled`)
     }
     // ⭐⭐ U15 — SERVED ONLY WITH THE sha256 OF ITS OWN SOURCE, and, for a document that
     // pinned it, only that sha. A library whose code changed under the same version is a
     // different program from the one the member saved; it is refused, never drawn.
+    const licence = libraryLicenceProblem(entry)
+    if (licence) throw new LinkRefusal(`the library \`${imp.path}\` is not served: ${licence}`, LIBRARY_LICENCE)
     const problem = libraryEntryProblem(entry)
     if (problem) throw new LinkRefusal(`the library \`${imp.path}\` is not served: ${problem}`, LIBRARY_NO_SHA)
     const pinned = pins.get(imp.path)

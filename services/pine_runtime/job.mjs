@@ -243,7 +243,7 @@ export function libraryRefusalOf(rt, doc, libraries) {
         sentence: `the library ${path} sent is not the code the document was saved against (sha256 ${sha.slice(0, 12)}…, sent ${e.sha256.slice(0, 12)}…)` }
     }
     if (!rt.registerPineLibrary(e)) {
-      return { guard: LIBRARY_CHANGED_GUARD, sentence: `the library ${path} sent could not be registered (its source and sha256 disagree)` }
+      return { guard: LIBRARY_CHANGED_GUARD, sentence: `the library ${path} sent was refused by the bundle's registry (its sha256 or its licence), so it is not run` }
     }
   }
   return null

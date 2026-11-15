@@ -353,6 +353,7 @@ export const RUNTIME_REFUSALS = Object.freeze({
   // ⭐⭐ U15 — the two named library refusals, one name in both lanes (`pineLibraries.js`)
   'pine:library-changed': 'the imported library is not the code this script was saved against',
   'pine:library-no-sha': 'the imported library is not served without the sha256 of its own source',
+  'pine:library-licence': 'the imported library is published under a non-commercial licence, so it is not served on this product',
   'runtime:no-output': 'a script with nothing to plot',
   // ⭐⭐ S1 — the strategy broker's build refusals (`strategyBroker.js`, docs/pine/strategy-broker-spec.md)
   'runtime:strategy-option': 'a strategy property or order argument this broker does not serve',

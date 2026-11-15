@@ -10,15 +10,17 @@
 //
 // Every library here is written from scratch for this file (no third-party code).
 import { describe, it, expect, vi, afterEach } from 'vitest'
+import fs from 'node:fs'
+import path from 'node:path'
 
 import { translatePine } from './pine.js'
 import { buildRuntimeIr } from './pineRuntimeFrontend.js'
 import { runtimeClockOpts } from './pineRuntimeClock.js'
 import { sha256Hex } from './parse.js'
-import { LIBRARY_CHANGED, LIBRARY_NO_SHA } from './pineLibraries.js'
+import { LIBRARY_CHANGED, LIBRARY_NO_SHA, LIBRARY_LICENCE } from './pineLibraries.js'
 import {
   registerPineLibrary, clearPineLibraries, pineLibraryUnservable, libraryEntryProblem, ensurePineLibraries,
-  markPineLibraryUnservable,
+  markPineLibraryUnservable, libraryLicenceProblem,
 } from './pineLibraryStore.js'
 import { fixtureLibrary } from './__tests__/libraryFixture.js'
 import * as registry from '../nativeRegistry'
@@ -81,6 +83,42 @@ describe('U15 — no sha256, not served', () => {
     expect(said(host({}).refusal)).toContain('pine:module')
     markPineLibraryUnservable('tester/other/1', 'x')
     expect(said(host({}).refusal)).not.toContain(LIBRARY_NO_SHA)
+  })
+})
+
+describe('U15 — a non-commercial library is never served on this paid product', () => {
+  const TABLE = JSON.parse(fs.readFileSync(path.resolve(process.cwd(), '..', 'tests/fixtures/ast/library_licence_cases.json'), 'utf8')).cases
+
+  it('⭐ the licence rule is the shared table\'s (the store\'s twin reads the same file)', () => {
+    expect(TABLE.length).toBeGreaterThan(8)
+    for (const c of TABLE) {
+      const e = { licence: c.licence, ...(c.nonCommercial ? { nonCommercial: true } : {}) }
+      expect(!!libraryLicenceProblem(e), JSON.stringify(c)).toBe(c.nonCommercialExpected)
+    }
+  })
+
+  it('⭐ both lanes refuse a non-commercial library by name, naming its licence (pine:library-licence)', () => {
+    const nc = fixtureLibrary({ ...raw(), licence: 'CC-BY-NC-SA' })
+    expect(registerPineLibrary(nc)).toBe(null)
+    expect(pineLibraryUnservable(PATH)).toMatch(/CC-BY-NC-SA, is non-commercial/)
+    for (const t of [host({}), host({ libraries: { [PATH]: nc } })]) {
+      expect(said(t.refusal)).toContain(LIBRARY_LICENCE)
+      expect(said(t.refusal)).toContain('CC-BY-NC-SA')
+    }
+    const b = runtime({ libraries: { [PATH]: nc } })
+    expect(b.ok).toBe(false)
+    expect(said(b.refusal)).toContain(LIBRARY_LICENCE)
+  })
+
+  it('⭐ the store\'s 409 `library:licence` is remembered under the licence refusal', async () => {
+    const fetchImpl = vi.fn(async () => ({ ok: false, status: 409, json: async () => ({ detail: { code: 'library:licence', reason: 'its licence, CC-BY-NC-SA, is non-commercial' } }) }))
+    await ensurePineLibraries(SRC, { fetchImpl })
+    expect(said(host({}).refusal)).toContain(LIBRARY_LICENCE)
+    // control: the same 409 without the licence code stays the no-sha refusal
+    clearPineLibraries()
+    const noSha = vi.fn(async () => ({ ok: false, status: 409, json: async () => ({ detail: { code: 'library:no-sha', reason: 'x' } }) }))
+    await ensurePineLibraries(SRC, { fetchImpl: noSha })
+    expect(said(host({}).refusal)).toContain(LIBRARY_NO_SHA)
   })
 })
 

@@ -28,6 +28,8 @@ scratch for that rail.
 | `api/services/pine_runtime_client.py` | Reads the pinned entries from this server's store. A pin it cannot honour withholds every job by name and sends nothing. |
 | `api/services/pine_capabilities.py` | One capability per imported version (`library:Author/Library/N`). `DETECTOR_VERSION` 1 → 2, with its fingerprint recorded. |
 | `api/services/rollout_gate.py`, `runtime_definitions.py` | The library row rule (above). `import` is met only when every imported version is admitted. A library row is recognised as an open family beside the closed vocabulary. |
+| Licence gate (ruling 2026-11-15) | A **non-commercial** licence is never served on this paid product: `NC` as a token in the licence id, or the `nonCommercial` flag `fetch_library.py` now records. ONE rule per language: `pine_library_store.licence_problem` and `pineLibraryStore.libraryLicenceProblem`, both held to `tests/fixtures/ast/library_licence_cases.json`. The store keeps such an entry and answers it **409** `{code: library:licence, reason}`. Both lanes refuse the import line as `pine:library-licence`, naming the licence. `pinned_entries` refuses the server run under the same guard. |
+| `tools/pine_library/promotion_allowlist.json` | The ONLY versions that may be copied into the production store, each pinned by the sha256 graded, with its reason. The held-out versions and the never-promoted NC versions are listed too. |
 | `api/data/pine_runtime_allowlist.json` | The rule is documented. **No library row is admitted** (no evidence has been graded against the store yet). |
 
 ## Rails
@@ -84,6 +86,10 @@ See the PR body for the run. J1–J5 (JS), P1–P4 (Python), S1–S2 (service):
     - Black-Scholes (4 captures, objects);
     - Performance (2 captures).
   - INCONCLUSIVE: Volume Profile Heatmap.
+- **Promotion allowlist** (`tools/pine_library/promotion_allowlist.json`, ruling 2026-11-15). A version is promoted only when every newly-attaching importing script grades MATCH, and NC is excluded:
+  - promote: the four theEccentricTrader libraries behind All Chart Patterns, and PineCoders/ConditionalAverages/2 behind Rolling VWAP;
+  - held out: TradingView/ta/11 (with its dependency RelativeValue/3), because Aroon oscillator DIVERGEs on it; it joins once values-v2 merges and Aroon re-grades MATCH. Also held out: fontilab/11, loxxexpandedsourcetypes/4, ValueAtTime/2 and VisibleChart/3;
+  - never promoted: the ten Trendoscope CC-BY-NC-SA versions.
 - ⛔ **Promotion note:** the host lane serves a linked import WITHOUT runtime admission. Promoting a store that holds those versions makes the four DIVERGE scripts draw where they now refuse. The promotion is the coordinator's call after this merges.
 
 ## Engine number

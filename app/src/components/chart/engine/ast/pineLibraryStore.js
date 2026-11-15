@@ -44,17 +44,36 @@ export function libraryEntryProblem(entry) {
 }
 const verified = new WeakMap()
 
+// ⭐⭐ U15 (coordinator ruling 2026-11-15) — `NC` as its own token in a licence id
+// (CC-BY-NC, CC-BY-NC-SA, CC-BY-NC-ND …), or the words. The store's twin is
+// `pine_library_store.licence_problem`; the rail holds the two to one answer.
+const NON_COMMERCIAL = /(?:^|[^A-Za-z])NC(?:[^A-Za-z]|$)|non[\s-]?commercial/i
+
+/** ⭐⭐ U15 — WHY a library's LICENCE keeps it off this paid product, or null: a
+ *  non-commercial licence (in its id, or the `nonCommercial` flag the fetch records) is
+ *  never served, whatever else the entry carries. */
+export function libraryLicenceProblem(entry) {
+  if (!entry || typeof entry !== 'object') return null
+  const licence = typeof entry.licence === 'string' ? entry.licence : ''
+  if (entry.nonCommercial === true || NON_COMMERCIAL.test(licence)) {
+    return `its licence, ${licence || 'unnamed'}, is non-commercial, and this is a paid product, so its code is not served here`
+  }
+  return null
+}
+
 /** Register one library version. Returns the stored entry, or null (and stores
  *  nothing) for an entry without a valid path, a source, a licence, or (U15) a
- *  sha256 that is its source's; such a path is remembered as UNSERVABLE, by name. */
+ *  sha256 that is its source's, or a non-commercial licence; such a path is
+ *  remembered as UNSERVABLE, by name. */
 export function registerPineLibrary(entry) {
   if (!entry || typeof entry !== 'object') return null
   const path = String(entry.path || '')
   if (!IMPORT_PATH.test(path) || typeof entry.source !== 'string' || !entry.source) return null
   if (!entry.licence) return null
-  const problem = libraryEntryProblem(entry)
+  const licence = libraryLicenceProblem(entry)
+  const problem = licence || libraryEntryProblem(entry)
   if (problem) {
-    unservable.set(path, problem)
+    unservable.set(path, { reason: problem, code: licence ? 'licence' : 'no-sha' })
     entries.delete(path)
     return null
   }
@@ -72,14 +91,18 @@ export function registerPineLibrary(entry) {
   return stored
 }
 
-/** ⭐ U15 — remember that the server holds `path` but will not serve it, and why. */
-export function markPineLibraryUnservable(path, reason) {
+/** ⭐ U15 — remember that the server holds `path` but will not serve it, and why
+ *  (`code`: `'no-sha'`, or `'licence'` for a non-commercial licence). */
+export function markPineLibraryUnservable(path, reason, code = 'no-sha') {
   if (!IMPORT_PATH.test(String(path || ''))) return
-  unservable.set(String(path), String(reason || 'the library store will not serve it'))
+  unservable.set(String(path), { reason: String(reason || 'the library store will not serve it'), code: code === 'licence' ? 'licence' : 'no-sha' })
 }
 
 /** The reason `path` is held but not served, or null. */
-export function pineLibraryUnservable(path) { return unservable.get(String(path)) || null }
+export function pineLibraryUnservable(path) { const h = unservable.get(String(path)); return h ? h.reason : null }
+
+/** `{reason, code}` for a held, unservable `path`, or null. */
+export function pineLibraryHeld(path) { return unservable.get(String(path)) || null }
 
 export function pineLibraryEntry(path) { return entries.get(String(path)) || null }
 export function clearPineLibraries() { entries.clear(); unservable.clear() }
@@ -123,7 +146,8 @@ export async function ensurePineLibraries(source, { fetchImpl, base = '/api/pine
           let body = null
           try { body = await res.json() } catch { body = null }
           const d = body && body.detail
-          markPineLibraryUnservable(path, d && typeof d === 'object' && d.reason ? d.reason : null)
+          markPineLibraryUnservable(path, d && typeof d === 'object' && d.reason ? d.reason : null,
+            d && typeof d === 'object' && d.code === 'library:licence' ? 'licence' : 'no-sha')
           loaded.push(path)
         }
       } catch { entry = null }

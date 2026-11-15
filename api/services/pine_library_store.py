@@ -48,6 +48,26 @@ REQUIRED_FIELDS = ("path", "author", "name", "version", "source", "licence", "at
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 #: The reason a held entry is not served for want of a verified sha256 (the client's 409).
 NO_SHA = "library:no-sha"
+#: ⭐⭐ U15 (coordinator ruling 2026-11-15) -- a NON-COMMERCIAL licence is never served on this
+#: paid product: the client's 409 code, and the guard the import line is refused under.
+NON_COMMERCIAL = "library:licence"
+LICENCE_GUARD = "pine:library-licence"
+#: `NC` as its own token in a licence id (CC-BY-NC, CC-BY-NC-SA, CC-BY-NC-ND ...), or the words.
+_NON_COMMERCIAL_RX = re.compile(r"(?:^|[^A-Za-z])NC(?:[^A-Za-z]|$)|non[\s-]?commercial", re.I)
+
+
+def licence_problem(entry: Any) -> Optional[str]:
+    """Why `entry`'s licence keeps it off this product, or None. ONE rule, read by every door
+    (`validate_entry`, so the read door, the list, the server run and `fetch_library`): a
+    non-commercial licence -- `NC` in its licence id, or the `nonCommercial` flag the fetch
+    records -- is never served, whatever else the entry carries."""
+    if not isinstance(entry, dict):
+        return None
+    licence = entry.get("licence")
+    if entry.get("nonCommercial") is True or (isinstance(licence, str) and _NON_COMMERCIAL_RX.search(licence)):
+        return ("its licence, %s, is non-commercial, and this is a paid product, so its code is not "
+                "served here" % (licence if isinstance(licence, str) and licence else "unnamed"))
+    return None
 
 
 def store_root() -> str:
@@ -91,6 +111,9 @@ def validate_entry(entry: Any) -> list[str]:
     # to the source's hexdigest is 64 lowercase hex by construction, so no second format check.)
     if entry.get("sha256") != hashlib.sha256(entry["source"].encode("utf-8")).hexdigest():
         return ["sha256 is missing or is not the sha256 of its source"]
+    licence = licence_problem(entry)
+    if licence:
+        return [licence]
     return []
 
 
@@ -113,7 +136,8 @@ def entry_status(path: str, root: Optional[str] = None) -> tuple:
         return "unservable", ["the stored entry is not readable JSON"]
     problems = validate_entry(entry)
     if problems:
-        return "unservable", problems
+        # a non-commercial licence is its own answer (409 `library:licence`, `pine:library-licence`)
+        return ("licence" if licence_problem(entry) and problems == [licence_problem(entry)] else "unservable"), problems
     return "ok", entry
 
 
@@ -137,6 +161,8 @@ def pinned_entries(pins, root: Optional[str] = None) -> tuple:
         status, got = entry_status(path, root=root)
         if status == "missing":
             return None, ("runtime:library", "the library %s is not in the library store" % path)
+        if status == "licence":
+            return None, (LICENCE_GUARD, "the library %s is not served: %s" % (path, "; ".join(got)))
         if status == "unservable":
             return None, ("pine:library-no-sha", "the library %s is not served: %s" % (path, "; ".join(got)))
         if got["sha256"] != sha:
@@ -172,7 +198,9 @@ def read_entry(path: str, root: Optional[str] = None) -> Optional[dict]:
 
 def write_entry(entry: dict, root: Optional[str] = None) -> str:
     """Write one entry atomically (temp file + os.replace). Returns the file path."""
-    problems = validate_entry(entry)
+    # a non-commercial entry may be STORED (so the read door can name why it is not served);
+    # every other problem refuses the write
+    problems = [p for p in validate_entry(entry) if p != licence_problem(entry)]
     if problems:
         raise ValueError("refusing to store %s: %s" % (entry.get("path"), "; ".join(problems)))
     fp = entry_file(entry["author"], entry["name"], entry["version"], root=root)

@@ -268,6 +268,8 @@ export const REFUSALS = Object.freeze({
     'the imported library is not the code this script was saved against',
   'pine:library-no-sha':
     'the imported library is not served without the sha256 of its own source',
+  'pine:library-licence':
+    'the imported library is published under a non-commercial licence, so it is not served on this product',
   'pine:strategy-call':
     'a strategy order or `strategy.*` value comes from the simulated broker TradingView runs for a strategy (orders, fills, positions), which this engine does not simulate',
   // ⚰️ IT SAID "another symbol or another timeframe is outside what one screened

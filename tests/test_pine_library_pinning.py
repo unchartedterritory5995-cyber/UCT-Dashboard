@@ -249,3 +249,37 @@ def test_the_registry_reader_accepts_a_library_row_by_its_own_rule(monkeypatch):
     got = rd.admitted_capabilities()
     assert NAME in got["admitted"]
     assert "library:bad" in got["withheld"]
+
+
+# ── the licence gate: a non-commercial library is never served on this paid product ──────────
+# (coordinator ruling 2026-11-15; the JS twin is pineLibraryStore.libraryLicenceProblem, and
+# LICENCE_CASES below is the one table both rails read)
+
+LICENCE_CASES = json.load(open(os.path.join(os.path.dirname(__file__), "fixtures", "ast", "library_licence_cases.json"),
+                               encoding="utf-8"))["cases"]
+
+
+@pytest.mark.parametrize("case", LICENCE_CASES, ids=lambda c: c["licence"] + ("+flag" if c.get("nonCommercial") else ""))
+def test_the_licence_rule_is_the_tables(case):
+    e = {"licence": case["licence"], **({"nonCommercial": True} if case.get("nonCommercial") else {})}
+    assert bool(store.licence_problem(e)) is case["nonCommercialExpected"]
+
+
+def test_a_non_commercial_library_is_stored_but_answered_409_by_name_and_never_run(root):
+    store.write_entry(entry(licence="CC-BY-NC-SA"))         # stored, so the door can say why
+    assert store.read_entry("tester/pinlib/1") is None
+    assert store.list_entries() == []
+    status, why = store.entry_status("tester/pinlib/1")
+    assert status == "licence" and "CC-BY-NC-SA" in why[0] and "non-commercial" in why[0]
+    r = _client().get("/api/pine/libraries/tester/pinlib/1")
+    assert r.status_code == 409
+    assert r.json()["detail"]["code"] == store.NON_COMMERCIAL
+    assert "CC-BY-NC-SA" in r.json()["detail"]["reason"]
+    _, refusal = store.pinned_entries([{"path": "tester/pinlib/1", "sha256": sha(LIB)}])
+    assert refusal[0] == store.LICENCE_GUARD == "pine:library-licence"
+    # the flag the fetch records is read too, whatever the id says
+    store.write_entry(entry(path="tester/pinlib/2", licence="Custom", nonCommercial=True))
+    assert store.entry_status("tester/pinlib/2")[0] == "licence"
+    # control: an MPL-2.0 entry beside it is served
+    store.write_entry(entry(path="tester/pinlib/3"))
+    assert store.entry_status("tester/pinlib/3")[0] == "ok"

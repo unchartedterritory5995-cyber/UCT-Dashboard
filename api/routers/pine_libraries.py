@@ -35,6 +35,10 @@ def get_library(author: str, name: str, version: str,
     if not store.parse_import_path(path):
         raise HTTPException(status_code=400, detail="not an Author/Library/Version import path")
     status, entry = store.entry_status(path)
+    if status == "licence":
+        # ⭐⭐ U15 -- a non-commercial licence is never served on this paid product, by name
+        raise HTTPException(status_code=409, detail={
+            "code": store.NON_COMMERCIAL, "reason": "the library %s is not served: %s" % (path, "; ".join(entry))})
     if status == "unservable":
         # ⭐ U15 -- held, not served (no verified sha256): the import line names the reason
         raise HTTPException(status_code=409, detail={
