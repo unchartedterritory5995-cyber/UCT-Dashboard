@@ -14,6 +14,7 @@ import { pendingLine } from './proposalWording'
 import { fastParse } from './fastPath'
 import { moveIntoTabs, addWidgetTab } from '../pages/charts/widgetTabs'
 import { BOARD_DETACH_ACTIONS, OWN_TABS, ON_PHONE, IN_GRID } from './capabilities/boardDetach'
+import { stateEffects, stateRailRefusal } from './stateRail'
 
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
 registerBuiltins()
@@ -221,6 +222,39 @@ describe('targeting: an excluded chart is never touched', () => {
     p.st.envelopes.push(plan([FLOAT, { widget: 'c0' }], [FLOAT, { widget: 'c1' }]))
     await say(t)
     expect(b.state.detach.floating, transcript()).not.toContain('c1')
+  }, 40000)
+})
+
+describe('the STATE RAIL (#1247): intoTabs is a destroy of a grid widget, setMerged an every-layout setting — never from additive words', () => {
+  const W0 = [{ id: 'news', type: 'news', x: 0, y: 0, w: 12, h: 10, color: 'A', opts: {} }, { id: 'wl', type: 'watchlist', x: 12, y: 0, w: 12, h: 10, color: 'A', opts: { watchName: 'Momentum' } }]
+  const intoPlan = () => {
+    const after = moveIntoTabs(W0, 'news', 'wl', { tabId: 'wtmnews' })
+    const t = after.find(w => w.id === 'wl')
+    return { ok: true, plans: [{ kind: 'board', ref: 'board', before: { board: W0 }, after: { board: after }, patch: { remove: ['news'], set: { wl: { wtabs: t.wtabs, activeWtab: t.activeWtab } } } }] }
+  }
+  const mergedPlan = () => ({ ok: true, plans: [{ kind: 'board', ref: 'board', before: { board: W0 }, after: { board: W0 }, patch: { viewDo: { merged: true } } }] })
+  it('both are read as destroying effects (overwrite) by stateEffects', () => {
+    expect(stateEffects(intoPlan()).map(e => `${e.state}:${e.type}`)).toEqual(['widget:overwrite'])
+    expect(stateEffects(mergedPlan()).map(e => `${e.state}:${e.type}`)).toEqual(['widget:overwrite'])
+  })
+  it.each(['add a news widget', 'could i get some more news on my board somewhere', 'add another chart', 'put a watchlist on the board too'])('additive "%s": BOTH refused by the state rail alone (independent of askedBy)', (w) => {
+    expect(stateRailRefusal(intoPlan(), { words: w })).toMatch(/^I didn’t change anything: you asked to add/)
+    expect(stateRailRefusal(mergedPlan(), { words: w })).toMatch(/^I didn’t change anything: you asked to add/)
+  })
+  it.each([['move the news widget into the watchlist tabs', 'into'], ['merge the board', 'merged'], ['unmerge the widgets', 'merged'], ['add the news widget into the watchlist tabs', 'into']])(
+    'its own words "%s" license it', (w, which) => {
+      expect(stateRailRefusal(which === 'into' ? intoPlan() : mergedPlan(), { words: w })).toBeNull()
+    })
+  it('the merge words never license the move (the rail is kind-matched: within the widget class a modify verb licenses both — the merged view’s own words are then askedBy’s)', () => {
+    expect(stateRailRefusal(intoPlan(), { words: 'merge the board' })).toBeTruthy()
+  })
+  it('through the panel: additive words + a model plan of intoTabs → refused, nothing written, no card', async () => {
+    const { say, board: b } = mountOn()
+    const was = widgetsJson(b)
+    p.st.envelopes.push(propose([TABS, { widget: 'news', into: 'wl' }]))
+    expect(await say('could i get some more news on my board somewhere')).toMatch(/you asked to add, but this would change the news widget’s spot on the board/)
+    expect(widgetsJson(b)).toBe(was)
+    expect(screen.queryAllByTestId('agent-proposal').filter(e => e.getAttribute('data-status') === 'pending')).toHaveLength(0)
   }, 40000)
 })
 

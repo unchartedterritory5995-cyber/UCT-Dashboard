@@ -42,6 +42,10 @@ import { matchPosition } from './fastPath'
 export const STATE_RAIL_MARK = 'state-rail'
 
 const sameJson = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
+// boardDetach.* (2026-11-15): the words that name a board-view change — an effect carrying `permit` is licensed only by a
+// clause that matches it (or the ordinary verbs below); additive words alone never match these
+const MERGE_WORDS = /\b(?:un)?merg(?:e|ed|es|ing)\b|\bgaps?\b/i
+const INTO_TABS_WORDS = /\binto\b[^.;!?]*\btabs?\b|\bas (?:a|another) tab\b/i
 const rowsOf = (cs) => instancesOf(cs, nativeRegistry).filter(r => !r.setting)
 const nm = (x) => (x == null ? '' : String(x))
 
@@ -157,7 +161,29 @@ const READERS = {
     if (!pt || pt.grid || pt.add) return []                       // chartGrid.set / a new widget: the chart rail reads the grid
     const was = new Map((p.before?.board || []).map(w => [String(w.id), w]))
     const out = []
+    // boardDetach.setMerged (2026-11-15): the board's merged view is the member's setting on EVERY layout — an overwrite,
+    // licensed only by the words that ask for it (merge / unmerge / merged / the gaps), never by additive words alone
+    if (pt.viewDo && 'merged' in pt.viewDo) out.push({ state: 'widget', type: 'overwrite', name: 'the board’s merged view (on every layout)', label: 'merged view', permit: MERGE_WORDS })
+    // boardDetach.intoTabs (2026-11-15): a widget MOVED into another widget's tabs leaves its slot on the board — a destroy of
+    // that grid widget (its base definition lives on as the new tab), licensed by a modify verb or by the words that name the
+    // move ("into … tabs"), never by additive words alone. Its own `remove` below is replaced by this effect.
+    const movedIn = new Set()
     for (const id of pt.remove || []) {
+      const w = was.get(String(id))
+      if (!w) continue
+      const into = Object.entries(pt.set || {}).find(([tid, d]) => {
+        const t = was.get(String(tid))
+        if (!t || !('wtabs' in d)) return false
+        const old = new Set(tabIds(t))
+        return (d.wtabs || []).some(x => !old.has(x.id) && x.type === w.type && sameJson(x.opts || {}, w.opts || {}))
+      })
+      if (into && w.type !== 'chart') {
+        movedIn.add(String(id))
+        out.push({ state: 'widget', type: 'overwrite', name: `the ${nm(w.type)} widget’s spot on the board (it moves into the ${nm(was.get(String(into[0]))?.type)} widget’s tabs)`, permit: INTO_TABS_WORDS })
+      }
+    }
+    for (const id of pt.remove || []) {
+      if (movedIn.has(String(id))) continue
       const w = was.get(String(id))
       if (w && w.type !== 'chart') out.push({ state: 'widget', type: 'remove', name: `the ${nm(w.type)} widget` })
     }
@@ -416,6 +442,8 @@ export function permits(e, words, subjects = null, previous = null, previousSet 
     // a display switch named by the list it shows (never a symbol; a homograph is asked: stateRailRefusal)
     if (!negated && e.type === 'replace' && e.to && PUT_IN.test(c) && has(c, e.to) && (SAID_LIST(c, e.to) || !tickersIn(c).includes(String(e.to).toUpperCase()))) return true
     if (!negated && e.via === 'save' && KEEP_IN_LAYOUT.test(c)) return true
+    // an effect's own words (boardDetach: "merge the board", "move it into the chart's tabs") license exactly it
+    if (!negated && e.permit instanceof RegExp && e.permit.test(c)) return true
     if (!negated && e.state === 'watchlist' && e.syms && e.listSyms) {
       // "remove all five": the count IS the list's size, and the change removes every one
       const an = ALL_N.exec(c)

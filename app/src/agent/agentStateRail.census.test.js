@@ -206,6 +206,9 @@ const ADDITIVE_WORDS = ['add AAPL', 'ADD an RSI', 'Add a trendline', 'adding one
   'add it, don’t remove anything', 'add AAPL without deleting anything', 'put AAPL on — never replace']
 // every capability that can destroy, replace or overwrite existing state, and how (read by stateRail.stateEffects)
 const EXPECTED = {
+  // boardDetach.* (2026-11-15): a widget moved into another's tabs leaves its slot; the merged board view (every layout)
+  'boardDetach.intoTabs': ['widget:overwrite'],
+  'boardDetach.setMerged': ['widget:overwrite'],
   'chart.applyTemplate': ['indicator:replace'],
   'chartSetup.deleteTemplate': ['template:delete'],
   'chartSetup.saveTemplate': ['template:overwrite'],
