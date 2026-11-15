@@ -945,7 +945,10 @@ export function withheldPlotsOf(clockReport, cols, notes) {
   for (const r of clockReport.withheld) {
     const what = r.code.startsWith('bar-index:') ? '`bar_index`'
       : r.code.startsWith('running-total:') ? 'a running total'
-        : r.code.startsWith('var-origin:') ? '`var`' : 'time(<timeframe>)'
+        : r.code.startsWith('var-origin:') ? '`var`'
+          // engine HL: `windowHoleMask`
+          : r.code.startsWith('window-extreme:') || r.code.startsWith('arg-extreme:') ? 'a window over `na` gaps'
+            : 'time(<timeframe>)'
     notes.push(`${what} withheld (${r.code}) on ${r.plots.length} plot(s) — ${r.reason}`)
     const whole = CHART_CLOCK_WHOLE.includes(r.code)
     for (const key of r.plots) {
