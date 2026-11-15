@@ -36,7 +36,8 @@ const VIEW = { firstMs: 0, lastMs: 1, rightMs: 1, activeRange: null, atDefaultVi
   // chartReplay.playback: the toolbar's Replay / Time Machine bar, present and OFF (so its ops are planned by the real planner)
   replay: { can: true, mode: false, playing: false, speed: 1, index: null, total: 100, dateMs: null, firstMs: 0, lastMs: 99 * 86400000 } }
 function fixture() {
-  const b = makeBoard(...BOARD(), { layouts: LAYOUTS })
+  // boardDetach.* (2026-11-15): the workspace's float / merged state, so the board's float family is planned like the rest
+  const b = makeBoard(...BOARD(), { layouts: LAYOUTS, detach: {} })
   const base = b.host.charts
   const charts = { ...base, read: (r) => { const x = base.read(r); return x && { ...x, view: VIEW } }, list: () => base.list().map(x => ({ ...x, view: VIEW })),
     canManageIndicators: () => true, canCreateIndicator: () => true }
@@ -187,6 +188,8 @@ describe('CHART RAIL census — by tool, from the registry', () => {
   it('the set is exactly what the rail is tested against (a new tool with a chart effect fails here until it is covered)', () => {
     expect(Object.fromEntries(hits.map(r => [r.name, r.effects]))).toEqual({
       'chart.setSymbol': ['symbol'],
+      // boardDetach.intoTabs (2026-11-15): a chart moved into another widget's tabs leaves the board — read as a removal
+      'boardDetach.intoTabs': ['remove'],
       'chartGrid.set': ['remove', 'symbol'],
       'layout.open': ['switch'],
       'multiChart.set': ['remove', 'symbol'],
