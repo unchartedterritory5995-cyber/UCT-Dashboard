@@ -105,25 +105,31 @@ describe('L4 — a constant-false test: the arm never runs', () => {
   })
 })
 
+// ⭐ L4d (re-pinned): a per-bar block's `ta.ema` is now served per call site (W3N-D1b), so these
+// controls use `ta.wma`, which no capture witnesses for a drawing: a per-bar test still refuses it,
+// while under a constant arm it reads the every-bar column.
 describe('L4 — a test that can change from bar to bar keeps the refusal, by name', () => {
-  it('control: `if close > open` around a `ta.ema` refuses', () => {
+  it('CONTROL: under a constant arm the same `ta.wma` builds (the per-bar test, not the kind, refuses below)', () => {
+    expect(refusalOf(src('typ = input.string("EMA")', 'm = 0.0', 'if typ == "EMA"', '    m := ta.wma(close, 5)'))).toBe(null)
+  })
+  it('control: `if close > open` around a `ta.wma` refuses', () => {
     expect(refusalOf(src('lenMa = input(21)', 'm = ta.sma(close, lenMa)',
-      'if close > open', '    m := ta.ema(close, lenMa)'))).toBe('runtime:conditional-history')
+      'if close > open', '    m := ta.wma(close, lenMa)'))).toBe('runtime:conditional-history')
   })
 
   it('control: a per-bar `else if` after a constant first arm refuses (each arm is the tests before it too)', () => {
     expect(refusalOf(src('typ = input.string("EMA")', 'm = 0.0',
-      'if typ == "SMA"', '    m := 1.0', 'else if close > open', '    m := ta.ema(close, 5)'))).toBe('runtime:conditional-history')
+      'if typ == "SMA"', '    m := 1.0', 'else if close > open', '    m := ta.wma(close, 5)'))).toBe('runtime:conditional-history')
   })
 
   it('control: a per-bar block inside a constant arm refuses', () => {
     expect(refusalOf(src('typ = input.string("EMA")', 'm = 0.0',
-      'if typ == "EMA"', '    if close > open', '        m := ta.ema(close, 5)'))).toBe('runtime:conditional-history')
+      'if typ == "EMA"', '    if close > open', '        m := ta.wma(close, 5)'))).toBe('runtime:conditional-history')
   })
 
   it('control: a constant arm inside a per-bar block refuses', () => {
     expect(refusalOf(src('typ = input.string("EMA")', 'm = 0.0',
-      'if close > open', '    if typ == "EMA"', '        m := ta.ema(close, 5)'))).toBe('runtime:conditional-history')
+      'if close > open', '    if typ == "EMA"', '        m := ta.wma(close, 5)'))).toBe('runtime:conditional-history')
   })
 })
 

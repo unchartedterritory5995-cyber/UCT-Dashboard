@@ -177,7 +177,9 @@
             "NASDAQ:TLT",
             "AMEX:XLK"
           ],
-          "captures": ["docs/pine/evidence/2026-11-15-q-rs4/witnesses.json"],
+          "captures": [
+            "docs/pine/evidence/2026-11-15-q-rs4/witnesses.json"
+          ],
           "captured": "2026-11-15",
           "how": "Q-RS4, rig run s10: all 8 ETF witnesses agree; per-symbol strings and capture sha256s in the evidence file."
         }
@@ -198,7 +200,9 @@
             "NASDAQ:TLT",
             "AMEX:XLK"
           ],
-          "captures": ["docs/pine/evidence/2026-11-15-q-rs4/witnesses.json"],
+          "captures": [
+            "docs/pine/evidence/2026-11-15-q-rs4/witnesses.json"
+          ],
           "captured": "2026-11-15",
           "how": "Q-RS4, rig run s10: all 8 ETF witnesses agree; per-symbol strings and capture sha256s in the evidence file."
         }

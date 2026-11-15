@@ -249,9 +249,9 @@
       "maxLookback": 0
     },
     {
-      "id": "sector_folds_OUR_string_too_and_an_ETF_class_has_no_row_yet",
-      "why": "⭐ RS Rating L3. No class row is served yet, so an ETF's own store string is what folds; the day Q-RS4 lands an `ETF` row this case changes, by data, in both lanes at once.",
-      "tree": {"type": "textop", "name": "eq", "args": [{"type": "symtext", "name": "sector"}, {"type": "str", "value": "Financial Services"}]},
+      "id": "an_ETF_sector_folds_to_the_witnessed_class_row_not_our_string",
+      "why": "⭐ RS Rating L3, Q-RS4 (2026-11-15): all eight ETF witnesses print sector 'Miscellaneous', so the `ETF` class row serves TradingView's string. Our store's 'Financial Services' is no longer what folds, in both lanes at once.",
+      "tree": {"type": "textop", "name": "eq", "args": [{"type": "symtext", "name": "sector"}, {"type": "str", "value": "Miscellaneous"}]},
       "symbol": {"ticker": "SPY", "exchange": "NYSE Arca", "securityType": "ETF", "industry": "Asset Management", "sector": "Financial Services"},
       "foldScalarTo": 1,
       "maxLookback": 0

@@ -3194,20 +3194,25 @@ function buildRuntimeIrLinked(source, opts, holder) {
     }
     return split
   }
+  // ⭐⭐ L4d — THE ONE SERVED SET, FOR BOTH BUILDS, EACH KIND ON ITS OWN WITNESSES: a PLOT
+  // (C48 `vw-call-site-history`, vw-arm-history) and a DRAWING (W3N-D1, queue
+  // capture-queue-2026-11-05-w3w4-d1.md, graded 2026-11-15 on the s10 captures
+  // `vw-w3n-draw-block-history-{a,b,c}-{rddt,spy}-1d-2026-11-15`, evidence
+  // docs/pine/evidence/2026-11-15-w3n-d1/): sma = W3N-D1a, ema = W3N-D1b, rma = W3N-D1c, every
+  // label's bar (through the capture's x map), y and text equal ours, 316 of 316 on RDDT from the
+  // listing (warm-up `na` included) and the newest 501 on SPY.
+  // ⛔ A kind added here is served to the drawing build too: it needs a DRAWING witness as well.
+  // Row d (a block local's `[1]`) DIVERGED: TradingView reads the previous RUN's value (RDDT bar
+  // 2: vendor 100.88, the every-bar column 92); the drawing build refuses it by name (`drawRefuse`).
+  // ⚰️ A drawing-build filter on this table (kind ∈ witnessed, not in a `?:` arm region) was
+  // written and removed on its own measurement: a mutation deleting it left every rail green,
+  // because the table IS the witnessed set and the drawing build refuses history in every `?:`
+  // arm before it gets here (`armHistoryGuard`; rail `l4dDrawingHistory.test.js`).
   const SERVED_COND = { sma: 'window', ema: 'carried', rma: 'carried' }
   // ⭐ W4 T4 — served in a `?:` ARM only (its region is `lazyArmRegion`): the
   // previous RUN's value is witnessed there (vw-arm-history T05 / K03), not yet in
   // an `if` block (queue H2), so a block keeps the refusal.
   const ARM_ONLY_SERVED_COND = { change: 'change' }
-  // ⛔⛔ W3W4-D1 capture gate (queue row W3N-D1, capture-queue-2026-11-05-w3w4-d1.md): the C48 witnesses
-  // pin sma/ema as PLOT values and nothing pins rma at all, so no capture shows a DRAWING reading the
-  // per-call-site set. Until W3N-D1 MATCHes, the drawing build keeps the named refusal
-  // (`runtime:conditional-history`). Flip to true ONLY once it does. Product callers never set the
-  // test-only `opts.w3nD1ServeDrawingHistory`; a rail uses it to prove the machinery without the gate.
-  const DRAWING_HISTORY_CAPTURED = false
-  // ONE gate: only the drawing build's `condHistory` (below, at the lowering of a pure subtree) reads it;
-  // `servedCondCall` is reached from there alone, so it needs no second copy.
-  const drawingHistoryServed = DRAWING_HISTORY_CAPTURED || opts.w3nD1ServeDrawingHistory === true
   const servedCondCall = (node, scope) => {
     if (owner !== null || loopDepth > 0 || r4Level() <= 0) return null
     if (!node || node.type !== 'call' || fnByName.has(node.name)) return null
@@ -3985,21 +3990,42 @@ function buildRuntimeIrLinked(source, opts, holder) {
   //     `ta.sma(close, 5)` argument, which lowers to a COLUMN — the every-bar value, the wrong
   //     one here (mutation-proved, `l4cArmDrawing.test.js`); `drawArmArgsPure` (after, over
   //     the lowered tree) is the one that sees a user call or a collection / drawing effect.
-  const DRAW_ARM_CREATE = /^(label|line)\.new$/
-  /** The family `c ? <family>.new(…) : na` makes, or null when `value` is not that shape. */
+  // ⭐⭐ L4d — THE WITNESSED (arm, family) PAIRS, one table, each with its witness. The arm
+  // that is NOT the drawing must be Pine's `na`.
+  //   yes · label  Q-RT5a T01/T02 (v6), Q-O1a (v5)
+  //   yes · line   Q-O1a (v5)
+  //   yes · box    Q-RS5 X01 (`rs-arm-label-last-bar-{rddt,spy}-1d-2026-11-15`, v5): 67 boxes on
+  //                RDDT, every box's left/right (via the capture's x map), top and bottom equal
+  //   no  · label  Q-RS5 E01 (same captures): `c ? na : label.new(…)`, 96 labels on RDDT, every
+  //                bar, y and text equal
+  // ⛔ Any other pair (a line or a box in the ELSE arm, a table, a linefill) keeps
+  // `runtime:object-op` by name: no capture shows it.
+  const DRAW_ARM_WITNESSED = Object.freeze({
+    yes: Object.freeze(new Set(['label', 'line', 'box'])),
+    no: Object.freeze(new Set(['label'])),
+  })
+  const drawArmCreateFamily = (node) => {
+    if (!node || node.type !== 'call') return null
+    const m = /^([a-z]+)\.new$/.exec(String(node.name || ''))
+    return m ? m[1] : null
+  }
+  /** `{family, arm}` for `c ? <family>.new(…) : na` (arm `yes`) or `c ? na : <family>.new(…)`
+   *  (arm `no`), a witnessed pair only; null for any other value. */
   const drawArmFamily = (value, scope) => {
     if (!objectsInRun || !value || value.type !== 'ternary') return null
-    const yes = value.yes
-    if (!yes || yes.type !== 'call' || !DRAW_ARM_CREATE.test(String(yes.name || ''))) return null
-    if (!isBuiltinNa(value.no, scope)) return null
-    return String(yes.name).slice(0, String(yes.name).indexOf('.'))
+    for (const [arm, other] of [['yes', 'no'], ['no', 'yes']]) {
+      const family = drawArmCreateFamily(value[arm])
+      if (family && DRAW_ARM_WITNESSED[arm].has(family) && isBuiltinNa(value[other], scope)) return { family, arm, other }
+    }
+    return null
   }
-  const drawArmRoots = new WeakSet()
+  const drawArmRoots = new WeakMap()
   const markDrawArmRoot = (value, scope) => {
     if (atObjectDoor || owner !== null || loopDepth > 0 || condDepth > 0 || inRequestValue || armDepth > 0) return
-    if (!drawArmFamily(value, scope)) return
-    if (lexArmHistory(value.yes)) return     // history in the arm: `armHistoryGuard` names it
-    drawArmRoots.add(value)
+    const shape = drawArmFamily(value, scope)
+    if (!shape) return
+    if (lexArmHistory(value[shape.arm])) return     // history in the arm: `armHistoryGuard` names it
+    drawArmRoots.set(value, shape)
   }
   const DRAW_ARM_PURE_KINDS = new Set([EXPR.NUM, EXPR.STR, EXPR.CONCAT, EXPR.COLOUR, EXPR.TEXT,
     EXPR.SERIES, EXPR.CLOCK, EXPR.COLUMN, EXPR.READ, EXPR.HIST, EXPR.HIST_DYN, EXPR.HIST_SLOT_DYN,
@@ -4034,7 +4060,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // ⭐ WS-E — a GETTER makes nothing, so it may stand in an arm (`objectStore.isArmSafeObjectOp`).
     if (armDepth > 0 && !isArmSafeObjectOp(fn)) {
       refuseObject(fn, 'a drawing call inside one arm of `?:` — Pine makes it only when that arm is taken, this lane evaluates both '
-        + '(served only as `t = c ? label.new(…) : na` or `line.new`, the whole value of a root declaration, Q-RT5a)', tok)
+        + '(served only as `t = c ? label.new(…) : na`, `line.new` or `box.new`, or `t = c ? na : label.new(…)`, '
+        + 'the whole value of a root declaration, Q-RT5a / Q-RS5)', tok)
     }
     if (/^polyline\./.test(fn) || /^chart\.point/.test(fn)) {
       refuseObject(fn, 'the chart this lane draws on has no polyline, so a polyline is not drawn rather '
@@ -4766,10 +4793,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
       const m = /^(line|label|box|table|linefill)\.(new|copy)$/.exec(String(value.name || ''))
       if (m) return makeTy('drawing', { name: m[1] })
     }
-    // ⭐ L4c — `c ? label.new(…) : na` holds that family's handle or `na`
+    // ⭐ L4c / L4d — `c ? label.new(…) : na` (or `c ? na : label.new(…)`) holds that family's handle or `na`
     {
-      const fam = drawArmFamily(value, scope)
-      if (fam) return makeTy('drawing', { name: fam })
+      const shape = drawArmFamily(value, scope)
+      if (shape) return makeTy('drawing', { name: shape.family })
     }
     if (holdsText(value, scope)) return makeTy('text')
     if (holdsColour(value, scope)) return makeTy('colour')
@@ -7715,10 +7742,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
       // runs on some bars is that call site's. `servedCondCall` is the ONE served set; every
       // other shape is refused BY NAME below (never read from the every-bar column, which for a
       // block local's `[1]` was a silent wrong value: the rt5 witness B01 pins the previous RUN).
-      // ⛔ GATED (DRAWING_HISTORY_CAPTURED): with the gate off the drawing build is exactly master's, so
-      // every output, including a block local's `[1]`, is unchanged until W3N-D1 MATCHes.
+      // ⭐ L4d — OPEN, per shape: `servedCondCall` serves only the kinds W3N-D1 witnessed for a drawing
+      // (`SERVED_COND`); a block local's `[1]` (W3N-D1d DIVERGE) is refused here by name.
       const drawingHistory = objectsInRun && owner === null && r4Level() > 0
-        && drawingHistoryServed
       const condHistory = (!objectsInRun || drawingHistory)
         && (r4Level() > 0 || owner !== null) && lexCondHistory(node)
       if (condHistory && owner !== null) functions[owner].rt5Lex = true
@@ -8140,14 +8166,17 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // label is made only on the bars `c` is true (Q-RT5a T01/T02, Q-O1a). The THEN arm is
         // lowered at this `?:`'s own depth so its ONE create is admitted; a `?:` inside its
         // arguments is still an arm (`lowerArm`) and keeps the refusal.
+        // ⭐ L4d — the same for the witnessed ELSE-arm label and THEN-arm box (`DRAW_ARM_WITNESSED`).
         if (drawArmRoots.has(node)) {
+          const shape = drawArmRoots.get(node)
           const test = lowerExpr(node.test, scope)
-          const yes = lowerExpr(node.yes, scope)
-          if (!yes || yes.kind !== EXPR.OBJECT_OP || !drawArmArgsPure(yes.args)) {
-            refuseObject(String(node.yes.name), 'a drawing call inside one arm of `?:` whose arguments keep history or '
-              + 'have an effect — Pine runs them only on the bars that arm is taken, and no capture settles that for a drawing', node.yes.tok)
+          const made = lowerExpr(node[shape.arm], scope)
+          if (!made || made.kind !== EXPR.OBJECT_OP || !drawArmArgsPure(made.args)) {
+            refuseObject(String(node[shape.arm].name), 'a drawing call inside one arm of `?:` whose arguments keep history or '
+              + 'have an effect — Pine runs them only on the bars that arm is taken, and no capture settles that for a drawing', node[shape.arm].tok)
           }
-          return { ...ternary(test, yes, lowerArm(node.no, scope)), lazy: true }
+          const naArm = lowerArm(node[shape.other], scope)
+          return { ...(shape.arm === 'yes' ? ternary(test, made, naArm) : ternary(test, naArm, made)), lazy: true }
         }
         // ⭐⭐⭐ W4 T4 — AN ARM WITH WITNESSED HISTORY RUNS ONLY WHEN IT IS CHOSEN
         // (`armHistoryGuard` cleared this node). Each arm is its own conditional

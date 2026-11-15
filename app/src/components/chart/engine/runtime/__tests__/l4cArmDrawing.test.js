@@ -177,11 +177,15 @@ describe('controls — every other drawing in an arm still refuses runtime:objec
   it('CONTROL (admitted): the witnessed shape builds', () => {
     expect(refusalOf(W('t = close > open ? label.new(bar_index, high) : na'))).toBe(null)
   })
+  // ⭐ L4d: a label in the ELSE arm and a box in the THEN arm are now witnessed (Q-RS5 E01 / X01,
+  // `l4dArmShapes.test.js`); the pairs no capture shows keep the refusal.
   it.each([
-    ['the drawing in the ELSE arm', 't = close > open ? na : label.new(bar_index, high)'],
+    ['a line in the ELSE arm', 't = close > open ? na : line.new(bar_index, high, bar_index + 1, high)'],
+    ['a box in the ELSE arm', 't = close > open ? na : box.new(bar_index, high, bar_index + 1, low)'],
     ['a drawing in both arms', 't = close > open ? label.new(bar_index, high) : label.new(bar_index, low)'],
     ['an ELSE arm that is not `na`', 'var label k = na\nt = close > open ? label.new(bar_index, high) : k'],
-    ['a family no witness covers (box)', 't = close > open ? box.new(bar_index, high, bar_index + 1, low) : na'],
+    ['a THEN arm that is not `na` around an ELSE label', 'var label k = na\nt = close > open ? k : label.new(bar_index, high)'],
+    ['a family no witness covers (table)', 't = barstate.islast ? table.new(position.top_right, 1, 1) : na'],
     ['a `?:` inside another arm', 't = close > open ? (high > low ? label.new(bar_index, high) : na) : na'],
     ['a `?:` that is not the whole value', 'label.delete(close > open ? label.new(bar_index, high) : na)'],
     ['inside an `if` block', 'if bar_index % 2 == 0\n    t = close > open ? label.new(bar_index, high) : na'],
