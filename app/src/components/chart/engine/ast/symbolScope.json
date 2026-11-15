@@ -177,18 +177,9 @@
             "NASDAQ:TLT",
             "AMEX:XLK"
           ],
-          "captures": [
-            "rs-syminfo-industry-arkk-1d-2026-11-15.json",
-            "rs-syminfo-industry-gld-1d-2026-11-15.json",
-            "rs-syminfo-industry-iwm-1d-2026-11-15.json",
-            "rs-syminfo-industry-qqq-1d-2026-11-15.json",
-            "rs-syminfo-industry-smh-1d-2026-11-15.json",
-            "rs-syminfo-industry-spy-1d-2026-11-15.json",
-            "rs-syminfo-industry-tlt-1d-2026-11-15.json",
-            "rs-syminfo-industry-xlk-1d-2026-11-15.json"
-          ],
+          "captures": ["docs/pine/evidence/2026-11-15-q-rs4/witnesses.json"],
           "captured": "2026-11-15",
-          "how": "Q-RS4: rs-syminfo-industry.pine's last-bar label IND=|SEC=|TYPE= on each witness (TradingView type 'fund'), rig run s10 2026-11-15; extracted with each capture's sha256 in docs/pine/evidence/2026-11-15-q-rs4/witnesses.json. All eight agree, equity-index, sector, thematic, gold and Treasury ETFs alike."
+          "how": "Q-RS4, rig run s10: all 8 ETF witnesses agree; per-symbol strings and capture sha256s in the evidence file."
         }
       },
       "by_ours": {}
@@ -207,18 +198,9 @@
             "NASDAQ:TLT",
             "AMEX:XLK"
           ],
-          "captures": [
-            "rs-syminfo-industry-arkk-1d-2026-11-15.json",
-            "rs-syminfo-industry-gld-1d-2026-11-15.json",
-            "rs-syminfo-industry-iwm-1d-2026-11-15.json",
-            "rs-syminfo-industry-qqq-1d-2026-11-15.json",
-            "rs-syminfo-industry-smh-1d-2026-11-15.json",
-            "rs-syminfo-industry-spy-1d-2026-11-15.json",
-            "rs-syminfo-industry-tlt-1d-2026-11-15.json",
-            "rs-syminfo-industry-xlk-1d-2026-11-15.json"
-          ],
+          "captures": ["docs/pine/evidence/2026-11-15-q-rs4/witnesses.json"],
           "captured": "2026-11-15",
-          "how": "Q-RS4: rs-syminfo-industry.pine's last-bar label IND=|SEC=|TYPE= on each witness (TradingView type 'fund'), rig run s10 2026-11-15; extracted with each capture's sha256 in docs/pine/evidence/2026-11-15-q-rs4/witnesses.json. All eight agree, equity-index, sector, thematic, gold and Treasury ETFs alike."
+          "how": "Q-RS4, rig run s10: all 8 ETF witnesses agree; per-symbol strings and capture sha256s in the evidence file."
         }
       },
       "by_ours": {}
