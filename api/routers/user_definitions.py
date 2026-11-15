@@ -640,6 +640,16 @@ def public_library(limit: int = 24, after: Optional[int] = None,
     return svc.public_library(limit=limit, after=after)
 
 
+@router.get("/capability-worker")
+def capability_worker(user: dict = Depends(require_paid)):
+    """U5 (review L6): the capability detector process, for the operator before and after
+    arming `PINE_CAPABILITY_DETECTOR_WORKER`: enabled, alive, ready, pid, quarantine size and
+    the call counters. ADMIN ONLY. Reads state; starts nothing."""
+    require_admin(user)
+    from api.services import pine_capability_worker
+    return pine_capability_worker.status()
+
+
 @router.get("/runtime-kill")
 def runtime_kill(user: dict = Depends(require_paid)):
     """RT1 — the runtime lane's per-script kill list and whether the store takes

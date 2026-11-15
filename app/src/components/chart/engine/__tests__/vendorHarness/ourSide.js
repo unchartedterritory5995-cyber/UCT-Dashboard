@@ -1512,6 +1512,15 @@ function runOurSideOnTheParityClock(capture) {
       // ⭐ DIV-1 — the LIVE set at the last bar of the replayed series: the window's
       // last bar, after every bar TradingView ran before it
       : objectsOf(def, calcBars, calcCtx, calcCols, built)
+    // ⭐⭐ U13 (G1) — WHERE OUR x LIVES, in BOTH lanes (the host object lane and the
+    // runtime's RT5 object store answer through `objectsOf`): the bars the object lane
+    // ran on, and where the capture's window starts in them (the DIV-1 prehistory, if
+    // replayed). Our `bar_index` x is an index into `bars`; `objectRecords.js::
+    // ourXResolver` turns it, or a `bar_time` x, into the window bar the vendor's x is
+    // graded against. ⛔ Test infrastructure only: never written to a verdict file.
+    if (objects && objects.ok) {
+      objects.xFrame = { bars: calcBars, windowStart: replayPre, windowBars: bars.length, tf: calcCtx.tf }
+    }
     for (const r of (objects && objects.chartClock) || []) {
       const what = r.code.startsWith('bar-index:') ? '`bar_index`' : 'time(<timeframe>)'
       notes.push(`${what} withheld (${r.code}) in the object lane — ${r.reason}`)

@@ -15,7 +15,7 @@ import { compareCapture, renderSummary, compareObjectsV2, MATCH_SUBSTITUTED } fr
 import { detectFormat, fromObservation, fromProbeRows } from '../../../../../../../tools/vendor_harness/adapters.mjs'
 import { runOurSide } from './ourSide'
 import { pairObjects } from './objectColours'
-import { pairRecords } from './objectRecords'
+import { pairRecords, attachXSidecar } from './objectRecords'
 import { gradePaints } from './paintColours'
 
 export const REPO = path.resolve(process.cwd(), '..')
@@ -42,7 +42,18 @@ export function loadCapture(file) {
     return { file: rel, format: 'unreadable', reason: `not JSON: ${err.message}` }
   }
   const { format, reason } = detectFormat(json, path.basename(file))
-  if (format === 'harness-v1') return { file: rel, format, capture: json }
+  if (format === 'harness-v1') {
+    // ⭐ U13 — a capture taken before tv_capture.js recorded the x table may have an xmap
+    // sidecar at `<run>/xmap/<id>.json` (capture session S10): attached BESIDE it
+    // (`objectRecords.js::attachXSidecar`), never written into it.
+    const side = json && json.id ? path.join(path.dirname(file), '..', 'xmap', `${json.id}.json`) : null
+    if (side && fs.existsSync(side)) {
+      let sidecar = null
+      try { sidecar = JSON.parse(fs.readFileSync(side, 'utf8')) } catch { sidecar = { unreadable: true } }
+      attachXSidecar(json, sidecar)
+    }
+    return { file: rel, format, capture: json }
+  }
   if (format === 'observation') return { file: rel, format, capture: fromObservation(json, { path: rel }) }
   if (format === 'probe-rows') {
     const cap = fromProbeRows(json, {
