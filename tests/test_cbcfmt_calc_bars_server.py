@@ -32,6 +32,8 @@ def test_the_refusal_names_the_window_and_the_guard():
 def test_a_stamp_it_cannot_read_FAILS_CLOSED(bad):
     why = aus.calc_bars_window_refusal({"meta": {"calcBarsCount": bad}})
     assert why and why.startswith(aus.CALC_BARS_WINDOW_GUARD)
+    # and it says so, rather than quoting a window it never read
+    assert "cannot read" in why and "last " not in why
 
 
 @pytest.mark.parametrize("doc", [{}, {"meta": {}}, {"meta": {"name": "x"}}, None, "x"])

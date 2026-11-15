@@ -137,6 +137,15 @@ describe('W2 — the host window on the capture\'s shape (666 bars, N = 100)', (
     for (let i = 566; i < 576; i += 1) s += BARS[i].c
     expect(sma[575]).toBeCloseTo(s / 10, 9)
   })
+  it('⭐ a chart NOT known to start at the listing: the window is still the whole history (state from its first bar)', () => {
+    flags()
+    const { d, cols } = host(CS1, BARS, { tf: 'D', newestBarIsForming: false })
+    const n = cols[keyOf(d, 'A02_var_count')]
+    const bi = cols[keyOf(d, 'A00_bar_index')]
+    expect(n[566]).toBe(1)
+    expect(n[N - 1]).toBe(100)
+    expect(bi[566]).toBe(0)
+  })
   it('the window is named on the member\'s strip ("computed on its last 100 bars")', () => {
     flags()
     const { cols } = host(CS1)
