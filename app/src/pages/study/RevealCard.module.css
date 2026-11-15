@@ -1,5 +1,9 @@
-/* RevealCard (spec §13.7 D9): a bottom panel that grows upward from the sticky
-   bar, never a modal. Verdict words in gold / muted ink; never green or red. */
+/* RevealCard (spec §13.7 D9): the answer card, never a modal. Verdict words in gold / muted ink; never green or red.
+   ⚰️ It was a bottom panel growing up from the sticky bar, capped at 45vh and scrolling inside itself. It has since
+   moved into the lesson's own scroll (DrillPlayer, under the chart and the answers; RevealTakeover lifts the cap too),
+   where the cap left a scroller inside a scroller with no sign there was more: the screen check (2026-11-14) found
+   1,001 px of card behind a 379 px window on a phone. No owner ruling stood behind the cap (it came with the bottom-panel
+   layout), so the card now flows with the page. */
 
 .card {
   /* THEME ISLAND (2026-11-08, real-screen check): the card paints a FIXED dark surface (the gradient below), so its
@@ -87,9 +91,6 @@
   border-top: 1px solid var(--border);
   border-left: 3px solid var(--ut-gold);
   background: linear-gradient(180deg, #171717, #0f0f0f);
-  max-height: 45vh;
-  overflow-y: auto;
-  overscroll-behavior: contain;
 }
 
 .verdict {
@@ -105,9 +106,9 @@
 }
 .verdictIcon { display: inline-flex; width: 20px; height: 20px; }
 /* the verdict wears the card colours of the workbench: green right, red wrong */
-.verdictCorrect .verdictWord { color: var(--color-success); }
-.verdictWrong .verdictWord { color: var(--color-danger); }
-.verdictWrong .verdictIcon { color: var(--color-danger); }
+.verdictCorrect .verdictWord { color: var(--gain); }
+.verdictWrong .verdictWord { color: var(--loss); }
+.verdictWrong .verdictIcon { color: var(--loss); }
 .verdictKey {
   flex-basis: 100%;
   color: var(--text);
@@ -134,6 +135,15 @@
   font-size: var(--text-md);
   line-height: var(--lh-snug);
 }
+
+.simple {
+  margin: 0;
+  color: var(--text);
+  font-size: var(--text-lg, var(--text-md));
+  font-weight: 600;
+  line-height: var(--lh-snug);
+}
+.simple .whyLabel { margin-bottom: 2px; font-weight: 400; }
 
 .why { margin: 0; }
 .whySummary {
@@ -164,6 +174,13 @@
   gap: var(--space-sm);
   padding: 0 0 var(--space-sm);
 }
+.wrongWhy {
+  margin: 0;
+  color: var(--text);
+  font-size: var(--text-md);
+  line-height: var(--lh-snug);
+}
+
 .whyLine {
   margin: 0;
   color: var(--text);

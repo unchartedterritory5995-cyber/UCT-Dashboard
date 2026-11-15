@@ -1,0 +1,4013 @@
+{
+ "unit": "SET.25",
+ "track": "SET",
+ "title": "Oops Reversal",
+ "teaches": "The Oops as we trade it: one daily candle in a leader after an orderly pullback, that opens under the prior close, trades under the prior day's low and closes back over the prior close, with a Super Oops closing over the prior high; the buy is a market order as price trades back over the prior close after the undercut, the stop sits a few cents under the Oops day's low, the first sell is a judgment, usually day 3 or later into a 3, 5 or 7 day push, a close back under the prior close is a warning and the stop is the exit.",
+ "skills": [
+  {
+   "id": "setup.oops_reversal",
+   "title": "Oops Reversal"
+  }
+ ],
+ "as_of": "2026-11-10",
+ "card": "docs/study/setups/criteria/30-oops-reversal.json",
+ "sources": [
+  {
+   "id": "s1",
+   "tier": 2,
+   "publisher": "The Chartist (Nick Radge)",
+   "title": "The Oops! Pattern - In Sample / Out of Sample (2015-04-02)",
+   "url": "https://www.thechartist.com.au/the-oops-pattern-in-sample-out-of-sample/",
+   "accessed": "2026-11-09",
+   "why_reliable": "A systematic trader's reproduction of the book's test; the only outside source here that names the book's pages. Dossier section 3.4."
+  },
+  {
+   "id": "s5",
+   "tier": 2,
+   "publisher": "The Chartist (Nick Radge)",
+   "title": "How To Create A High Winning Percentage Strategy (2015-04-09)",
+   "url": "https://www.thechartist.com.au/how-to-create-a-high-winning-percentage-strategy/",
+   "accessed": "2026-11-09",
+   "why_reliable": "The second of Radge's two posts, listing the book's exits. Dossier section 3.4."
+  },
+  {
+   "id": "s2",
+   "tier": 2,
+   "publisher": "Unger Academy (Andrea Unger)",
+   "title": "We Tested Larry Williams' Oops Pattern: The Results Might Surprise You (2025-06-04)",
+   "url": "https://ungeracademy.com/blog/we-tested-larry-williams-oops-pattern-the-results-might-surprise-you",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s3",
+   "tier": 2,
+   "publisher": "Deepvue knowledge base",
+   "title": "Technicals: column definitions",
+   "url": "https://docs.deepvue.com/articles/technical",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "t1",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Trade plans for the app's setups, how a plan is managed and reviewed",
+   "url": "repo:docs/study/TRADE_PLANS.md",
+   "accessed": "2026-11-10"
+  },
+  {
+   "id": "h1",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
+   "accessed": "2026-11-10"
+  },
+  {
+   "id": "c1",
+   "tier": 3,
+   "publisher": "UCT setup criteria card",
+   "title": "Oops Reversal criteria card (docs/study/setups/criteria/30-oops-reversal.json, as of 2026-11-10)",
+   "url": "repo:docs/study/setups/criteria/30-oops-reversal.json",
+   "accessed": "2026-11-10"
+  },
+  {
+   "id": "d1",
+   "tier": 3,
+   "publisher": "UCT setup research (examples read from our own daily bars)",
+   "title": "Oops dossier, sections 12 and 13: examples, failures and near-misses from our data",
+   "url": "repo:docs/study/setups/research/30-oops-reversal.md#12-examples-from-our-data",
+   "accessed": "2026-11-10"
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
+  }
+ ],
+ "facts": [
+  {
+   "id": "w1",
+   "source": "s1",
+   "quote": "This is where the S&P 500 futures opens below the prior days low. If prices rally from that weak open and penetrate the low of the prior day, a long position is initiated",
+   "claim": "Radge, reproducing Williams' book: the open is below the prior day's low, then price rallies back through that low."
+  },
+  {
+   "id": "w2",
+   "source": "s2",
+   "quote": "the current session opens with a gap down. This means the open must be lower than the previous session’s low",
+   "claim": "Unger: Williams' Oops needs an open lower than the previous session's low."
+  },
+  {
+   "id": "w3",
+   "source": "s3",
+   "quote": "Candlestick pattern formed when price opens below the previous day’s low then reverses to close above the previous day’s low.",
+   "claim": "Deepvue: the Oops Reversal opens below the previous day's low and closes back above it."
+  },
+  {
+   "id": "w5",
+   "source": "s5",
+   "quote": "Use the ‘bailout’ profit taking technique. The basic premise is to exit on the first profitable open, even if that profit is 1c.",
+   "claim": "Radge, listing the book's exits: take profit at the first profitable open."
+  },
+  {
+   "id": "h02",
+   "source": "h1",
+   "quote": "The stop is the exit. It only moves up, never down or wider. The one exception is the gap rule (B20).",
+   "claim": "A4: the stop is the exit; it only moves up, never wider; the gap rule is the one exception."
+  },
+  {
+   "id": "h04",
+   "source": "h1",
+   "quote": "\"I almost never take a loss greater than 3%\": the stop usually sits within about 3% of the buy (a loss on the position, not the account).",
+   "claim": "A13: the stop usually sits within about 3% of the buy."
+  },
+  {
+   "id": "h05",
+   "source": "hw",
+   "quote": "The stop may move up to breakeven between 2R and 5R, or at the first sell.",
+   "claim": "Our stop may move up to breakeven between 2R and 5R, or at the first sell."
+  },
+  {
+   "id": "h06",
+   "source": "h1",
+   "quote": "A gap against the stop: the first 30 minutes of the gap-down day decide. The low of the first 30-minute bar is the new stop.",
+   "claim": "B20: on a gap through the stop, the first 30-minute low is the new stop."
+  },
+  {
+   "id": "h07",
+   "source": "h1",
+   "quote": "With a ceiling: if the first 30 minutes take the loss past 2R, get out.",
+   "claim": "B20's ceiling: if the first 30 minutes take the loss past 2R, get out."
+  },
+  {
+   "id": "h08",
+   "source": "h1",
+   "quote": "No new buys in the 3 days before an earnings report; hold through a report only if the trade is up 5R.",
+   "claim": "B22: no new buys in the 3 days before a report; hold through one only if up 5R."
+  },
+  {
+   "id": "h09",
+   "source": "h1",
+   "quote": "Trade only stocks at $10 or more that trade at least $20 million a day.",
+   "claim": "B23: only stocks at $10 or more trading at least $20 million a day."
+  },
+  {
+   "id": "h10",
+   "source": "h1",
+   "quote": "The 200-day line: no longs below the 200-day simple moving average, unless it is a parabolic long; shorts only below the 200-day, never above it unless it is a parabolic short.",
+   "claim": "B26: no longs below the 200-day simple moving average, except a parabolic long."
+  },
+  {
+   "id": "h11",
+   "source": "h1",
+   "quote": "No chasing: never buy more than 4% above the buy point.",
+   "claim": "C28: never buy more than 4% above the buy point."
+  },
+  {
+   "id": "h12",
+   "source": "h1",
+   "quote": "Chasing costs size, not risk: the stop stays under the buy point, so the distance grows and the shares shrink (A5).",
+   "claim": "C28: chasing costs size, because the stop stays put and the distance grows."
+  },
+  {
+   "id": "h15",
+   "source": "h1",
+   "quote": "Time stop: a trade still under 1R after 10 trading days is sold, freeing the money.",
+   "claim": "C33: a trade still under 1R after 10 trading days is sold."
+  },
+  {
+   "id": "h18",
+   "source": "h1",
+   "quote": "Every position has a real stop order with the broker, not a stop kept in your head.",
+   "claim": "D41: a real stop order with the broker."
+  },
+  {
+   "id": "h19",
+   "source": "h1",
+   "quote": "Never own more than 1% of a stock's average daily volume; illiquid stocks are not even watched.",
+   "claim": "D42: never own more than 1% of a stock's average daily volume."
+  },
+  {
+   "id": "h20",
+   "source": "hw",
+   "quote": "Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
+   "claim": "Later sells are a judgment: sell more into strength on a later push, and trail what is left."
+  },
+  {
+   "id": "h21",
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
+  },
+  {
+   "id": "h22",
+   "source": "h1",
+   "quote": "Entries are market orders.",
+   "claim": "E57: entries are market orders."
+  },
+  {
+   "id": "h24",
+   "source": "h1",
+   "quote": "The stop sits a few cents under the day's low, not exactly on it.",
+   "claim": "F62: the stop sits a few cents under the day's low."
+  },
+  {
+   "id": "h25",
+   "source": "h1",
+   "quote": "If a stock opens above a trim level (3R, 5R), take that trim at the open.",
+   "claim": "F63: a trim level the day opens past is taken at the open."
+  },
+  {
+   "id": "h26",
+   "source": "h1",
+   "quote": "The market reading as a guide (A10): Green, full risk per grade and up to 10 positions; Yellow, smaller and fewer; Orange, only A+ setups; Red, mostly cash and shorts.",
+   "claim": "F65: Green full risk; Yellow smaller and fewer; Orange only A+; Red mostly cash and shorts."
+  },
+  {
+   "id": "h28",
+   "source": "h1",
+   "quote": "After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop and every rule.",
+   "claim": "B21: after a stop-out, buy again only on a new trigger, as a new trade."
+  },
+  {
+   "id": "h33",
+   "source": "h1",
+   "quote": "In a Red market: mostly cash, plus shorts below the 200-day.",
+   "claim": "D46: in a Red market, mostly cash plus shorts below the 200-day."
+  },
+  {
+   "id": "tp2",
+   "source": "t1",
+   "quote": "the stop may move to breakeven between 2R and 5R, or at the first sell",
+   "claim": "Our stop may move to breakeven between 2R and 5R, or at the first sell."
+  },
+  {
+   "id": "cp",
+   "source": "c1",
+   "quote": "One daily candle: it opens under the prior close, trades under the prior day's low, and closes back above the prior close. Williams: it opens under the prior low. Super: it closes over the prior high.",
+   "claim": "One daily candle: it opens under the prior close, trades under the prior day's low and closes back above the prior close. Williams opens under the prior low; Super closes over the prior high."
+  },
+  {
+   "id": "cs",
+   "source": "c1",
+   "quote": "A few cents under the Oops day's low, the point where the trap was set.",
+   "claim": "The stop: a few cents under the Oops day's low, the point where the trap was set."
+  },
+  {
+   "id": "o_main",
+   "source": "c1",
+   "quote": "The Oops day, the main version: open under the prior close, low under the prior day's low, close over the prior close.",
+   "claim": "The main Oops day: open under the prior close, low under the prior low, close over the prior close."
+  },
+  {
+   "id": "o_super",
+   "source": "c1",
+   "quote": "Super Oops: any Oops that closes over the prior high (the whole prior day engulfed).",
+   "claim": "A Super Oops closes over the prior high."
+  },
+  {
+   "id": "o_200r",
+   "source": "c1",
+   "quote": "Prefer a rising 200-day: its value higher than 20 sessions ago.",
+   "claim": "Prefer a rising 200-day."
+  },
+  {
+   "id": "o_pull",
+   "source": "c1",
+   "quote": "A real pullback first: the prior close is 3% to 12% below the highest high of the 20 sessions before.",
+   "claim": "A real pullback first: the prior close is 3% to 12% below the highest high of the 20 sessions before."
+  },
+  {
+   "id": "o_loc",
+   "source": "c1",
+   "quote": "Location: the Oops-day low is within 0.5 ATR of the rising 21-day EMA or 50-day SMA, or it undercuts a visible level (a flag low, a double-bottom low, a gap-support level, a high-volume close, a round number).",
+   "claim": "The Oops-day low is within 0.5 ATR of the rising 21-day EMA or 50-day SMA, or it undercuts a visible level."
+  },
+  {
+   "id": "o_size",
+   "source": "c1",
+   "quote": "A technical Oops day, not a news day: the Oops-day range under 3 ATR.",
+   "claim": "A technical Oops day, not a news day: the range under 3 ATR."
+  },
+  {
+   "id": "o_earn_day",
+   "source": "c1",
+   "quote": "An earnings-day Oops is allowed but grades lower; a reversal the day after a news gap is a delayed-reaction setup, not an Oops.",
+   "claim": "An earnings-day Oops grades lower; a reversal after a news gap is a delayed-reaction setup, not an Oops."
+  },
+  {
+   "id": "o_red",
+   "source": "c1",
+   "quote": "A red prior day is preferred, not required.",
+   "claim": "A red prior day is preferred, not required."
+  },
+  {
+   "id": "o_vol",
+   "source": "c1",
+   "quote": "No volume requirement.",
+   "claim": "No volume requirement."
+  },
+  {
+   "id": "o_earn",
+   "source": "c1",
+   "quote": "No new Oops buy in the 3 days before a report.",
+   "claim": "No new Oops buy in the 3 days before a report."
+  },
+  {
+   "id": "o_mkt",
+   "source": "c1",
+   "quote": "A market order when the trigger prints; an alert at the prior close makes it practical. Not a resting buy-stop placed at the open, which can fill before the undercut.",
+   "claim": "A market order when the trigger prints; an alert at the prior close makes it practical; not a resting buy-stop at the open."
+  },
+  {
+   "id": "o_chase",
+   "source": "c1",
+   "quote": "No buy more than 4% above the prior close.",
+   "claim": "No buy more than 4% above the prior close."
+  },
+  {
+   "id": "o_stop",
+   "source": "c1",
+   "quote": "A few cents under the Oops-day low, a real stop order with the broker.",
+   "claim": "A few cents under the Oops-day low, a real stop order with the broker."
+  },
+  {
+   "id": "o_inv",
+   "source": "c1",
+   "quote": "Before the entry: the day never trades back above the prior close after the undercut, or the trend, orderly, day-size, liquidity or earnings rules fail.",
+   "claim": "No trade if the day never trades back above the prior close after the undercut, or the other rules fail."
+  },
+  {
+   "id": "o_failed",
+   "source": "c1",
+   "quote": "A failed reclaim: if the day closes back below the prior close after the entry, the trade is wrong as an Oops. Hold to the Oops-day stop, do not add,",
+   "claim": "If the day closes back below the prior close after the entry, the trade is wrong as an Oops: hold to the stop, do not add."
+  },
+  {
+   "id": "o_after",
+   "source": "c1",
+   "quote": "After the entry: a trade below the Oops-day low is the stop. The low never breaks on the best examples; in the data it broke within 20 sessions on 75% of all Oops days.",
+   "claim": "After the entry, a trade below the Oops-day low is the stop; it broke within 20 sessions on 75% of all Oops days."
+  },
+  {
+   "id": "o_mktr",
+   "source": "c1",
+   "quote": "Green or Yellow market; in Orange only an A+ Oops; Red: mostly cash, plus shorts below the 200-day. The best days are market-wide gap downs that reverse, when leaders print Oops together.",
+   "claim": "Green or Yellow market; in Orange only an A+ Oops; Red is mostly cash, plus shorts below the 200-day. Best days: market-wide gap downs that reverse."
+  },
+  {
+   "id": "o_ord2",
+   "source": "c1",
+   "quote": "no bar in the 5 sessions before with a drop over 4% or a range over 2.5 ATR",
+   "claim": "No bar in the 5 sessions before with a drop over 4% or a range over 2.5 ATR."
+  },
+  {
+   "id": "o_best",
+   "source": "c1",
+   "quote": "The best days are market-wide gap downs that reverse, when leaders print Oops together",
+   "claim": "The best Oops days are market-wide gap downs that reverse, when leaders print Oops together."
+  },
+  {
+   "id": "l_ur1",
+   "source": "c1",
+   "quote": "An Oops opens under the prior close, breaks yesterday's low and reclaims the prior close the same day",
+   "claim": "An Oops opens under the prior close, breaks yesterday's low and reclaims the prior close the same day."
+  },
+  {
+   "id": "l_ur2",
+   "source": "c1",
+   "quote": "a U&R needs a bigger level",
+   "claim": "A U&R needs a bigger level."
+  },
+  {
+   "id": "l_ur3",
+   "source": "c1",
+   "quote": "its reclaim may take up to 3 sessions",
+   "claim": "A U&R reclaim may take up to 3 sessions."
+  },
+  {
+   "id": "l_tb1",
+   "source": "c1",
+   "quote": "An Oops breaks yesterday's low and is judged on one candle",
+   "claim": "An Oops breaks yesterday's low and is judged on one candle."
+  },
+  {
+   "id": "l_tb2",
+   "source": "c1",
+   "quote": "a 2B breaks a swing low",
+   "claim": "A 2B breaks a swing low."
+  },
+  {
+   "id": "l_tb3",
+   "source": "c1",
+   "quote": "and may take up to 3 sessions to close back above it",
+   "claim": "A 2B may take up to 3 sessions to close back above the low."
+  },
+  {
+   "id": "l_k1",
+   "source": "c1",
+   "quote": "A Kicker gaps UP over a red day's close and is bought through the red day's high",
+   "claim": "A Kicker gaps UP over a red day's close and is bought through the red day's high."
+  },
+  {
+   "id": "l_k2",
+   "source": "c1",
+   "quote": "an Oops opens DOWN under the prior close, trades under the prior low and is bought back through the prior close.",
+   "claim": "An Oops opens DOWN under the prior close, trades under the prior low and is bought back through the prior close."
+  },
+  {
+   "id": "l_go1",
+   "source": "c1",
+   "quote": "A Go Signal is an hourly flag that undercuts a slight range and goes red to green in the first hour",
+   "claim": "A Go Signal is an hourly flag that undercuts a slight range and goes red to green in the first hour."
+  },
+  {
+   "id": "l_go2",
+   "source": "c1",
+   "quote": "the Oops is the daily candle's reclaim of the prior close after an undercut of the prior day's low.",
+   "claim": "The Oops is the daily candle's reclaim of the prior close after an undercut of the prior day's low."
+  },
+  {
+   "id": "l_rg1",
+   "source": "c1",
+   "quote": "A Red to Green is only the trade back through the prior close; an Oops requires that the day first traded under the prior low",
+   "claim": "A Red to Green is only the trade back through the prior close; an Oops requires that the day first traded under the prior low."
+  },
+  {
+   "id": "l_rg2",
+   "source": "c1",
+   "quote": "every Oops is a red to green but not the reverse",
+   "claim": "Every Oops is a red to green but not the reverse."
+  },
+  {
+   "id": "m_news",
+   "source": "c1",
+   "quote": "Buying a reversal the day after a news gap: a delayed-reaction setup, not an Oops",
+   "claim": "Buying a reversal the day after a news gap is a delayed-reaction setup, not an Oops."
+  },
+  {
+   "id": "m_bar",
+   "source": "c1",
+   "quote": "Buying after a big red bar in the days before: the stock should be off the list",
+   "claim": "Buying after a big red bar in the days before: the stock should be off the list."
+  },
+  {
+   "id": "m_size",
+   "source": "c1",
+   "quote": "Buying a dramatic, news-sized Oops day",
+   "claim": "Buying a dramatic, news-sized Oops day is a named mistake."
+  },
+  {
+   "id": "m_touch",
+   "source": "c1",
+   "quote": "Buying the touch of the prior close before the undercut happened.",
+   "claim": "Buying the touch of the prior close before the undercut happened is a named mistake."
+  },
+  {
+   "id": "m_targets",
+   "source": "c1",
+   "quote": "Treating the app's 2R and 3R targets as the plan; the house plan is 3R and 5R thirds.",
+   "claim": "Treating the app's 2R and 3R targets as the plan is a named mistake; the house plan is 3R and 5R thirds."
+  },
+  {
+   "id": "m_good",
+   "source": "c1",
+   "quote": "Expecting every good Oops to work: WFRD and SEI were a good example with a horrible result.",
+   "claim": "Expecting every good Oops to work is a named mistake: WFRD and SEI were a good example with a horrible result."
+  },
+  {
+   "id": "dACN",
+   "source": "d1",
+   "quote": "ACN | 2006-10-23 | 5.0% | 0.73% | 1.41 | 0.99 | -0.06 / +2.02 | 31.51 | 31.12 (1.24%) | 3 days",
+   "claim": "ACN, 2006-10-23: a 5.0% pullback; undercut of the prior low 0.73%; closed at 0.99 of its range; buy 31.51, stop 31.12 (1.24%); 3R in 3 days."
+  },
+  {
+   "id": "dACNn",
+   "source": "d1",
+   "quote": "A three-week drift to the 21-day EMA after a fresh high; opens under the low, closes at the day's high over the prior high; never looks back.",
+   "claim": "ACN: a three-week drift to the 21-day EMA; opened under the low, closed at the high over the prior high."
+  },
+  {
+   "id": "dADBE",
+   "source": "d1",
+   "quote": "ADBE | 2018-05-03 | 5.2% | 0.82% | 1.56 | 0.85 | -0.70 / -0.15 | 221.11 | 218.69 (1.09%) | 1 day",
+   "claim": "ADBE, 2018-05-03: a 5.2% pullback; undercut 0.82%; closed at 0.85 of its range; buy 221.11, stop 218.69 (1.09%); 3R in 1 day."
+  },
+  {
+   "id": "dADBEn",
+   "source": "d1",
+   "quote": "A clean leader; a three-week drift onto a converging 21-day EMA and 50-day SMA (the Launchpad spot in rule 31); the undercut tags both, the close is over the prior high.",
+   "claim": "ADBE: a clean leader drifting three weeks onto its converging 21-day EMA and 50-day SMA; the undercut tags both and the close is over the prior high."
+  },
+  {
+   "id": "dDELL",
+   "source": "d1",
+   "quote": "DELL | 2026-03-19 | 5.4% | 1.58% | 1.29 | 0.97 | +0.43 / +2.30 | 149.22 | 146.52 (1.81%) | 1 day",
+   "claim": "DELL, 2026-03-19: a 5.4% pullback; undercut 1.58%; closed at 0.97 of its range; buy 149.22, stop 146.52 (1.81%); 3R in 1 day."
+  },
+  {
+   "id": "dDELLn",
+   "source": "d1",
+   "quote": "A two-week drift to the 21-day after a 200-day reclaim; a deeper undercut (1.6%) but a close at the high over the prior high; the start of a very large run. The widest stop of the ten.",
+   "claim": "DELL: a two-week drift to the 21-day after a 200-day reclaim; a deeper undercut but a close over the prior high; the widest stop of the ten."
+  },
+  {
+   "id": "dADBE14",
+   "source": "d1",
+   "quote": "ADBE | 2014-03-12 | 67.25 / 0.74% | 67.47 (buy 67.48) | 68.06 (0.97 of the range) | 66.70 (1.16%)",
+   "claim": "ADBE, 2014-03-12: buy 67.48, stop 66.70 (1.16%)."
+  },
+  {
+   "id": "dADBE14n",
+   "source": "d1",
+   "quote": "Opened 1.5% up the next morning and sold straight through the Oops-day low; 59.63 by 04-07, 63.46 twenty sessions after the entry. SPY made no lower low. A perfect-looking day gives no warning; the stop is the whole plan.",
+   "claim": "ADBE 2014: opened up the next morning and sold straight through the Oops-day low; a perfect-looking day gives no warning; the stop is the whole plan."
+  },
+  {
+   "id": "dV",
+   "source": "d1",
+   "quote": "V | 2019-08-13 | 175.60 / 0.79% | 176.34 (buy 176.35) | 178.61 (0.93) | 174.16 (1.24%)",
+   "claim": "V, 2019-08-13: buy 176.35, stop 174.16 (1.24%)."
+  },
+  {
+   "id": "dVn",
+   "source": "d1",
+   "quote": "Never traded above the entry: the next day fell through the stop and closed near its low.",
+   "claim": "V: never traded above the entry; the next day fell through the stop and closed near its low."
+  },
+  {
+   "id": "dVw",
+   "source": "d1",
+   "quote": "The stop did its job; the second chance was a new trigger, not a hold.",
+   "claim": "V: the stop did its job; the second chance was a new trigger, not a hold."
+  },
+  {
+   "id": "dAMAT",
+   "source": "d1",
+   "quote": "AMAT | 2022-01-14 | 156.50 / 0.58% | 157.18 (buy 157.19) | 167.00 (a Super Oops, over the 166.53 prior high) | 155.55 (1.04%)",
+   "claim": "AMAT, 2022-01-14: a Super Oops, close 167.00 over the 166.53 prior high; buy 157.19, stop 155.55 (1.04%)."
+  },
+  {
+   "id": "dAMATn",
+   "source": "d1",
+   "quote": "The best-looking close of the set, then a 9% down day through the stop, the first of three straight down days",
+   "claim": "AMAT: the best-looking close, then a 9% down day through the stop, the first of three straight down days."
+  },
+  {
+   "id": "dAMATw",
+   "source": "d1",
+   "quote": "a Super close is a grade mark, not a guarantee",
+   "claim": "The Super close is a grade mark, not a guarantee."
+  },
+  {
+   "id": "dUBER",
+   "source": "d1",
+   "quote": "UBER | 2025-03-07 | 74.72 / 1.26% | 74.96 (buy 74.97) | 76.27 (0.85) | 73.73 (1.65%)",
+   "claim": "UBER, 2025-03-07: buy 74.97, stop 73.73 (1.65%)."
+  },
+  {
+   "id": "dUBERn",
+   "source": "d1",
+   "quote": "Stopped the next day; SPY made a lower low on 03-13 (549.68 under its 570.12 20-session low) and the stock was 63.94 four weeks later (64.62 twenty sessions after the entry). An Oops in a market that was not Green.",
+   "claim": "UBER: stopped the next day; SPY made a lower low; an Oops in a market that was not Green."
+  },
+  {
+   "id": "dGOOGL",
+   "source": "d1",
+   "quote": "GOOGL | 2026-02-27 | oops.scanner_oops | The day's low (303.80) held 0.48% ABOVE the prior low (302.35); the rule is a trade under yesterday's low first. It opened under the prior close (304.14 against 307.38) and closed over it (311.76)",
+   "claim": "GOOGL, 2026-02-27: the low held 0.48% above the prior low; it opened under the prior close and closed over it."
+  },
+  {
+   "id": "dGOOGLn",
+   "source": "d1",
+   "quote": "A Red to Green (setup 43), not an Oops: every Oops is a red to green, not the reverse",
+   "claim": "GOOGL was a Red to Green, not an Oops: every Oops is a red to green, not the reverse."
+  },
+  {
+   "id": "dHD",
+   "source": "d1",
+   "quote": "HD | 2025-09-15 | oops.pullback | The prior close (422.69) was 0.6% under the 20-day high (425.22)",
+   "claim": "HD, 2025-09-15: the prior close was 0.6% under the 20-day high."
+  },
+  {
+   "id": "dHDn",
+   "source": "d1",
+   "quote": "A dip at the highs, not a pullback: there is nothing to reverse from.",
+   "claim": "HD was a dip at the highs, not a pullback: there is nothing to reverse from."
+  },
+  {
+   "id": "dBABA",
+   "source": "d1",
+   "quote": "BABA | 2016-02-24 | oops.above_200 | The Oops-day close (67.23) and the prior close (66.97) are both 12% under the 200-day SMA (76.48); the rule is both above it.",
+   "claim": "BABA, 2016-02-24: the Oops-day close and prior close were both 12% under the 200-day SMA."
+  },
+  {
+   "id": "dBABAn",
+   "source": "d1",
+   "quote": "An Oops shape in a downtrend, under all its averages: watch only under B26",
+   "claim": "BABA was an Oops shape under all its averages: watch only under B26."
+  },
+  {
+   "id": "dPANW",
+   "source": "d1",
+   "quote": "PANW | 2023-08-03 | oops.orderly | The prior day fell 6.71% (126.58 to 118.08)",
+   "claim": "PANW, 2023-08-03: the prior day fell 6.71% (126.58 to 118.08)."
+  },
+  {
+   "id": "dPANWn",
+   "source": "d1",
+   "quote": "The day after a news day (a delayed-reaction setup, not an Oops): the undercut is 12 cents and the reclaim closes only 0.5% over the prior close.",
+   "claim": "PANW was the day after a news day: a delayed-reaction setup, not an Oops."
+  },
+  {
+   "id": "dCRM",
+   "source": "d1",
+   "quote": "CRM 2023-06-20, a Super Oops (close 216.97 over the 213.65 prior high) with a 1.52% stop, opened 216.52 the next day and sold through the stop to 208.07",
+   "claim": "CRM 2023-06-20: a Super Oops with a 1.52% stop sold through the stop the next day."
+  },
+  {
+   "id": "h13",
+   "source": "hw",
+   "quote": "Too stretched to buy: skip a long that is more than 10% above its 9 EMA.",
+   "claim": "We skip a long that is more than 10% above its 9 EMA: too stretched to buy."
+  },
+  {
+   "id": "h31",
+   "source": "h1",
+   "quote": "The full size at one price with one stop; no adding.",
+   "claim": "A5: the full size at one price with one stop; no adding."
+  },
+  {
+   "id": "o_stretch",
+   "source": "c1",
+   "quote": "At entry, no more than 10% above the 9 EMA.",
+   "claim": "Card: at entry, no more than 10% above the 9 EMA."
+  },
+  {
+   "id": "o_failed2",
+   "source": "c1",
+   "quote": "Hold to the Oops-day stop, do not add, and treat the next day's open below the prior close as a warning.",
+   "claim": "After a failed reclaim, hold to the stop, do not add, and treat the next day's open below the prior close as a warning."
+  },
+  {
+   "id": "l_ur4",
+   "source": "c1",
+   "quote": "a U&R needs a bigger level (a swing low bounced 5%, the 10-session range low, a rising average, a prior high)",
+   "claim": "A U&R needs a bigger level, and a rising average is one of the levels it names."
+  },
+  {
+   "id": "dVhi",
+   "source": "d1",
+   "quote": "the stock went on to a new high (187.05 on 09-09, over the 184.07 20-day high) from a later entry.",
+   "claim": "V: the stock went on to a new high on 09-09 from a later entry."
+  },
+  {
+   "id": "r01",
+   "source": "h2",
+   "quote": "Stop distance: 1-3% preferred, 3.5% is good, up to 5% is acceptable.",
+   "claim": "D-005: stop 1-3% preferred, 3.5% good, up to 5% acceptable."
+  },
+  {
+   "id": "r02",
+   "source": "h2",
+   "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
+   "claim": "D-013: the first sell is a judgment, not a fixed third at 3R."
+  },
+  {
+   "id": "r03",
+   "source": "h2",
+   "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
+   "claim": "D-013: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
+  },
+  {
+   "id": "r04",
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
+  },
+  {
+   "id": "r05",
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
+  },
+  {
+   "id": "r06",
+   "source": "h2",
+   "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+   "claim": "D-021: the course teaches the 9 and 20 EMA everywhere, with the 50 and 200 SMA."
+  },
+  {
+   "id": "r07",
+   "source": "h2",
+   "quote": "Below the 200-day is a hard no for stocks.",
+   "claim": "D-009: below the 200-day is a hard no for stocks."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "ACN, October 2006: the textbook Oops",
+   "steps": [
+    "ACN, 2006. A three-week drift, 5.0% off its high, down to the 21-day EMA. Yesterday's close is the line.",
+    "2006-10-23: it opens under the prior close, trades 0.73% under the prior low, then reclaims the close.",
+    "Our scans buy as it trades back over the prior close: 31.51. Stop a few cents under the low, 31.12, 1.24% away.",
+    "Failure mode: a close back under the prior close. Instead it closed over the prior high. 3R took 3 days."
+   ],
+   "facts": [
+    "dACN",
+    "dACNn",
+    "cp",
+    "o_mkt",
+    "cs",
+    "o_failed",
+    "h05",
+    "h22"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "ADBE, May 2018: the undercut that tags two averages",
+   "steps": [
+    "ADBE, 2018. A leader drifts three weeks, 5.2% off its high, onto the 21-day EMA and the 50-day.",
+    "2018-05-03: it opens under the prior close and undercuts the prior low by 0.82%, tagging both averages.",
+    "Our scans buy as price trades back over the prior close: 221.11. Stop a few cents under the low, 218.69.",
+    "Failure mode: a close back under the prior close. Instead it closed over the prior high. 3R came the next day."
+   ],
+   "facts": [
+    "dADBE",
+    "dADBEn",
+    "cp",
+    "o_mkt",
+    "cs",
+    "o_failed",
+    "h05",
+    "h22"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "DELL, March 2026: a deeper undercut and the widest stop",
+   "steps": [
+    "DELL, 2026. A two-week drift to the 21-day EMA after a 200-day reclaim, 5.4% off its high.",
+    "2026-03-19: a deeper undercut, 1.58% under the prior low, then a close at 0.97 of its range.",
+    "Our scans buy at market, 149.22, as it reclaims the close. Stop a few cents under the low, 146.52, 1.81% away.",
+    "Failure mode: a close back under the prior close. Instead it closed over the prior high, and 3R came the next day."
+   ],
+   "facts": [
+    "dDELL",
+    "dDELLn",
+    "cp",
+    "o_mkt",
+    "cs",
+    "o_failed",
+    "h05",
+    "h04"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "setup.oops_reversal",
+   "rung": 1,
+   "format": "tf",
+   "criterion": "oops.scanner_oops",
+   "q": "The main Oops day opens under the prior close, trades under the prior low and closes over the prior close.",
+   "answer": "True",
+   "why": "True. The main Oops day passes three tests. It opens under the prior close, trades under the prior day's low and closes back over the prior close. Williams' version also needs an open under the prior low. A Super Oops also closes over the prior high. Neither extra is needed for the main version.",
+   "lesson_line": "Open under, undercut, close back over: that is the Oops.",
+   "facts": [
+    "o_main",
+    "cp",
+    "o_super"
+   ],
+   "house": true,
+   "simple": "True, because the main Oops opens under the prior close, dips under the prior low, then closes back over that close.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave3"
+  },
+  {
+   "key": "q02",
+   "skill": "setup.oops_reversal",
+   "rung": 1,
+   "format": "fill",
+   "criterion": "oops.scanner_oops",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "The Oops day must finish back over the prior ___.",
+   "bank": [
+    "close",
+    "high",
+    "open",
+    "midpoint"
+   ],
+   "answer": "close",
+   "why": "Close. The Oops day must close back over the prior close. That reclaim is the third test, after the open under the close and the undercut of the prior low. A close over the prior high is a Super Oops, a grade mark and not the main test.",
+   "lesson_line": "The Oops day must end back over the prior close.",
+   "facts": [
+    "o_main",
+    "cp",
+    "o_super"
+   ],
+   "house": true,
+   "simple": "The word is close, because the Oops day must finish back over where the day before ended.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave3"
+  },
+  {
+   "key": "q03",
+   "skill": "setup.oops_reversal",
+   "rung": 1,
+   "format": "fill",
+   "criterion": "oops.scanner_oops",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "The Oops day trades under the prior day's ___ and then closes back over the prior close.",
+   "bank": [
+    "low",
+    "high",
+    "open",
+    "average",
+    "volume"
+   ],
+   "answer": "low",
+   "why": "Low. The Oops day trades under the prior day's low, then closes back over the prior close. That undercut is the trap.",
+   "lesson_line": "The undercut of the prior low is the trap.",
+   "facts": [
+    "o_main",
+    "l_rg1"
+   ],
+   "house": true,
+   "simple": "The Oops day first trades under yesterday's low, then closes back over yesterday's close.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "two cited facts, both from the criteria card"
+    ]
+   },
+   "batch": "wave3"
+  },
+  {
+   "key": "q04",
+   "skill": "setup.oops_reversal",
+   "rung": 1,
+   "format": "scenario",
+   "criterion": "oops.super_oops",
+   "q": "What makes an Oops a Super Oops?",
+   "choices": [
+    "It closes over the prior high",
+    "It trades over a prior high",
+    "It opens over the last close",
+    "Closes over the prior close"
+   ],
+   "answer": "It closes over the prior high",
+   "why": "It closes over the prior high. A Super Oops is any Oops that closes over the prior high, so the whole prior day is engulfed. A trade over that high that closes back under it does not count. FCX, the example on the chart, closed its Oops day over the prior high.",
+   "lesson_line": "Close over the prior high, and the Oops is a Super.",
+   "facts": [
+    "o_super",
+    "cp",
+    "o_main"
+   ],
+   "wrong": {
+    "It trades over a prior high": "The Super Oops is a close over the prior high, not a trade over it.",
+    "It opens over the last close": "The Oops opens under the prior close.",
+    "Closes over the prior close": "Every Oops closes over the prior close. The Super mark needs a close over the prior high."
+   },
+   "house": true,
+   "simple": "A Super Oops is an Oops that closes over the prior high, not one that only trades over it.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's definition: a close over the prior high (the app's stage 6 counts a high)"
+    ]
+   },
+   "batch": "visuals-3",
+   "story": "The day before an Oops day that turns out to be a Super Oops. Watch tomorrow's candle.",
+   "chart": {
+    "sym": "FCX",
+    "asof": "2022-02-23",
+    "window": 120,
+    "forward": 20
+   }
+  },
+  {
+   "key": "q05",
+   "skill": "setup.oops_reversal",
+   "rung": 1,
+   "format": "tf",
+   "criterion": "oops.williams_open",
+   "q": "Williams' original Oops opens under the prior day's low.",
+   "answer": "True",
+   "why": "True. Unger's test of Williams' Oops needs an open lower than the previous session's low. Deepvue's Oops Reversal also opens below the previous day's low. Our main version is looser and only needs an open under the prior close.",
+   "lesson_line": "Williams opens under the low. Our main version opens under the close.",
+   "facts": [
+    "w2",
+    "w3",
+    "cp"
+   ],
+   "simple": "Williams' own version opens under the prior day's low, and our main version only needs an open under the prior close.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on two web pages, Unger and Deepvue; Radge blocked this run so it is not used",
+     "held decision D-104 on the Williams open"
+    ]
+   },
+   "depends_on": [
+    "D-104"
+   ],
+   "batch": "wave3"
+  },
+  {
+   "key": "q06",
+   "skill": "setup.oops_reversal",
+   "rung": 1,
+   "format": "scenario",
+   "criterion": "oops.stop",
+   "q": "Where does the Oops stop go?",
+   "choices": [
+    "A few cents under the Oops-day low",
+    "A few cents under the prior day's low",
+    "A few cents under the prior close",
+    "A few cents under the 200-day"
+   ],
+   "answer": "A few cents under the Oops-day low",
+   "why": "A few cents under the Oops-day low, the point where the trap was set. The Oops day already traded under the prior day's low, so its own low is the lower mark. The prior close is the buy point. The stop must be a real stop order with the broker. On the chart, ADBE bought at 221.11 and put the stop at 218.69, under that day's low.",
+   "lesson_line": "The stop sits under the low the trap was set at.",
+   "facts": [
+    "cs",
+    "o_stop",
+    "h24",
+    "h02",
+    "o_chase",
+    "dADBE"
+   ],
+   "wrong": {
+    "A few cents under the prior day's low": "The Oops day already traded under that low. Our Oops card puts the stop under the Oops-day low.",
+    "A few cents under the prior close": "The prior close is the buy point, not the stop.",
+    "A few cents under the 200-day": "The 200-day is context for the trend, not a stop. The Oops stop goes under the Oops-day low."
+   },
+   "house": true,
+   "simple": "The stop goes a few cents under the Oops-day low, the spot where the trap was set.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (F62)"
+    ]
+   },
+   "batch": "visuals-3",
+   "story": "Bought on the Oops day shown as price traded back over the prior close.",
+   "chart": {
+    "sym": "ADBE",
+    "asof": "2018-05-03",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 221.11,
+     "stop": 218.69
+    }
+   }
+  },
+  {
+   "key": "q07",
+   "skill": "setup.oops_reversal",
+   "rung": 1,
+   "format": "tf",
+   "criterion": "oops.market_reading",
+   "q": "In a Red market the Oops, like every long setup, is mostly cash.",
+   "answer": "True",
+   "why": "True. Green or Yellow, and Orange only for an A+ Oops. In a Red market it is mostly cash, plus shorts below the 200-day.",
+   "lesson_line": "Read the market first. Red means cash.",
+   "facts": [
+    "o_mktr",
+    "h33",
+    "h26"
+   ],
+   "house": true
+  },
+  {
+   "key": "q08",
+   "skill": "setup.oops_reversal",
+   "rung": 2,
+   "format": "mcq",
+   "criterion": "oops.inv_no_reclaim",
+   "q": "In our scans, when does the Oops buy fill?",
+   "choices": [
+    "On the reclaim, after the undercut",
+    "Right as it opens under the prior close",
+    "At the open, before any undercut",
+    "At the open of the next session"
+   ],
+   "answer": "On the reclaim, after the undercut",
+   "why": "Our scans buy as price trades back over the prior close, once the day has traded under the prior low. It is a market order when that trigger prints, not a resting buy-stop placed at the open. No reclaim after the undercut means no trade.",
+   "lesson_line": "Undercut first, then the reclaim of the close. That is our scans' buy.",
+   "facts": [
+    "o_inv",
+    "o_main",
+    "o_mkt",
+    "m_touch"
+   ],
+   "wrong": {
+    "Right as it opens under the prior close": "An open under the prior close is only the first test. The undercut and the reclaim must follow.",
+    "At the open, before any undercut": "A buy at the open can fill before the undercut. Our scans wait for the reclaim.",
+    "At the open of the next session": "Our scans buy on the Oops day itself, not at the next open."
+   },
+   "house": true,
+   "simple": "Our scans buy as price trades back over the prior close, once the day has already traded under the prior low.",
+   "deeper": {
+    "trap": "Trap: calling the open under the prior close a buy. It is only the first of three tests. Our scans wait for the undercut of the prior low and then the reclaim of the prior close."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on a held decision (D-003, the entry trigger)",
+     "fixed before"
+    ]
+   },
+   "batch": "wave3"
+  },
+  {
+   "key": "q09",
+   "skill": "setup.oops_reversal",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "oops.order_market",
+   "q": "The Oops buy is a resting buy-stop placed at the open.",
+   "answer": "False",
+   "why": "False. The Oops buy is a market order when the trigger prints. A resting buy-stop placed at the open can fill before the undercut, which is the early touch we do not buy. An alert at the prior close makes the market order practical. Entries are market orders.",
+   "lesson_line": "Alert at the prior close, then a market order. No resting stop at the open.",
+   "facts": [
+    "o_mkt",
+    "m_touch",
+    "h22"
+   ],
+   "house": true,
+   "simple": "False, because we buy at market when the trigger prints. A resting buy-stop at the open can fill before the undercut.",
+   "deeper": {
+    "trap": "Trap: a resting buy-stop feels careful because you do not have to watch. But it is live from the open. If price reaches its level before the day has traded under the prior low, it fills with no undercut behind it. Set an alert at the prior close and buy at market when the trigger prints."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (E57)"
+    ]
+   },
+   "batch": "wave3"
+  },
+  {
+   "key": "q10",
+   "skill": "setup.oops_reversal",
+   "rung": 2,
+   "format": "fill",
+   "criterion": "oops.pullback",
+   "q": "Tap the number that fits the blank.",
+   "sentence": "The prior close sits ___% to 12% below the 20-day high.",
+   "bank": [
+    "1",
+    "2",
+    "3",
+    "6",
+    "10"
+   ],
+   "answer": "3",
+   "why": "3%. The prior close should sit 3% to 12% under the 20-day high, which is the highest high of the 20 sessions before. Under 3% is not a real pullback, with little to reverse from. Past 12% is outside the range too.",
+   "lesson_line": "A real pullback first: 3% to 12% off the 20-day high.",
+   "facts": [
+    "o_pull",
+    "dHDn"
+   ],
+   "house": true,
+   "simple": "The pullback must be at least 3% off the 20-day high, and not past 12%.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "one cited fact only"
+    ]
+   },
+   "batch": "wave3"
+  },
+  {
+   "key": "q11",
+   "skill": "setup.oops_reversal",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "oops.pullback",
+   "q": "An Oops can fire on a dip of under 1% from the 20-day high.",
+   "answer": "False",
+   "why": "False. A real pullback comes first, 3% to 12% off the 20-day high. A dip at the highs has nothing to reverse from.",
+   "lesson_line": "No pullback, nothing to reverse.",
+   "facts": [
+    "o_pull",
+    "dHDn"
+   ],
+   "house": true
+  },
+  {
+   "key": "q12",
+   "skill": "setup.oops_reversal",
+   "rung": 2,
+   "format": "scenario",
+   "criterion": "oops.location",
+   "q": "What should the Oops-day low tag?",
+   "choices": [
+    "A rising 20 EMA or 50 SMA",
+    "The 5-day average, a fast read",
+    "The 9 EMA, our fast trail",
+    "The 100-day average, mid line"
+   ],
+   "answer": "A rising 20 EMA or 50 SMA",
+   "why": "The Oops-day low should sit within 0.5 ATR of the rising 20 EMA or 50 SMA. Or it should undercut a visible level. That could be a flag low, a double-bottom low, a gap-support level, a high-volume close or a round number. The undercut should tag something the market can see. GLW, the example on the chart, undercut a rising 50-day.",
+   "lesson_line": "The undercut should tag something the market can see.",
+   "facts": [
+    "o_loc",
+    "h21",
+    "r06"
+   ],
+   "wrong": {
+    "The 5-day average, a fast read": "Our rule names the rising 20 EMA or 50 SMA, or a visible level. A 5-day average is not on that list.",
+    "The 100-day average, mid line": "Our rule names the rising 20 EMA or 50 SMA. A 100-day average is not on that list.",
+    "The 9 EMA, our fast trail": "The 9 EMA is our trail for fast movers, not where the Oops-day low should tag. Our rule names the 20 EMA or 50 SMA."
+   },
+   "house": true,
+   "simple": "The low should tag a rising 20 EMA or 50 SMA, or a clear level. The undercut needs something the market can see.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "one cited fact only"
+    ]
+   },
+   "batch": "visuals-3",
+   "story": "The day before an Oops. Tomorrow's low is the one to judge.",
+   "chart": {
+    "sym": "GLW",
+    "asof": "2024-11-18",
+    "window": 120,
+    "forward": 20
+   }
+  },
+  {
+   "key": "q13",
+   "skill": "setup.oops_reversal",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "oops.prior_day_red",
+   "q": "The Oops needs a red prior day.",
+   "answer": "False",
+   "why": "False. A red prior day is preferred, not required. Three tests decide an Oops. They are the open under the prior close, the undercut of the prior low and the close back over. A red prior day is not one of them.",
+   "lesson_line": "Red prior day: preferred. Not required.",
+   "facts": [
+    "o_red",
+    "o_main"
+   ],
+   "house": true,
+   "simple": "False, because a red prior day is preferred but the Oops does not need one.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "one cited fact only"
+    ]
+   },
+   "batch": "wave3"
+  },
+  {
+   "key": "q14",
+   "skill": "setup.oops_reversal",
+   "rung": 2,
+   "format": "mcq",
+   "criterion": "oops.day_size",
+   "q": "How big should the Oops day be?",
+   "choices": [
+    "Under 3 ATR, a technical candle",
+    "At least 3 ATR, to show force",
+    "A news bar; bigger is better",
+    "Size does not matter for Oops"
+   ],
+   "answer": "Under 3 ATR, a technical candle",
+   "why": "Under 3 ATR, a technical candle. The rule asks for a technical Oops day, not a news day, with the day's range under 3 ATR. That is a ceiling, not a floor. A dramatic, news-sized Oops day is a named mistake.",
+   "lesson_line": "A clear but technical candle, not a news bar.",
+   "facts": [
+    "o_size",
+    "m_size"
+   ],
+   "wrong": {
+    "At least 3 ATR, to show force": "The rule is a ceiling of 3 ATR, not a floor.",
+    "A news bar; bigger is better": "A dramatic, news-sized Oops day is a named mistake.",
+    "Size does not matter for Oops": "Size matters. The rule keeps the day's range under 3 ATR."
+   },
+   "house": true,
+   "simple": "Keep the Oops day's range under 3 ATR, so it is a normal candle and not a big news bar.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "a threshold from the card that is still proposed"
+    ]
+   },
+   "batch": "wave3"
+  },
+  {
+   "key": "q15",
+   "skill": "setup.oops_reversal",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "oops.volume",
+   "q": "A volume surge is required for an Oops.",
+   "answer": "False",
+   "why": "False. There is no volume requirement for the Oops. The tests are the open under the prior close, the undercut of the prior low and the close back over. Volume is not one of them.",
+   "lesson_line": "No volume test here. The undercut and the reclaim are the test.",
+   "facts": [
+    "o_vol",
+    "o_main"
+   ],
+   "house": true,
+   "simple": "False, because our Oops rules have no volume test, so the open, the undercut and the close decide it.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "one cited fact only"
+    ]
+   },
+   "batch": "wave3"
+  },
+  {
+   "key": "q16",
+   "skill": "setup.oops_reversal",
+   "rung": 3,
+   "format": "mcq",
+   "criterion": "oops.trim_1",
+   "q": "How much comes off at the first trim, 3R?",
+   "choices": [
+    "A third",
+    "Half",
+    "All of it",
+    "A quarter"
+   ],
+   "answer": "A third",
+   "why": "A third. The hard rule is a third at 3R, another third at 5R, then trail the rest.",
+   "lesson_line": "A third at 3R, a third at 5R, and trail the last third.",
+   "facts": [
+    "h05",
+    "h20",
+    "m_targets"
+   ],
+   "wrong": {
+    "Half": "The hard rule is a third, not half.",
+    "All of it": "Trims are thirds. The last third is trailed.",
+    "A quarter": "The hard rule is a third at 3R."
+   },
+   "house": true
+  },
+  {
+   "key": "q17",
+   "skill": "setup.oops_reversal",
+   "rung": 3,
+   "format": "scenario",
+   "criterion": "oops.trim_1",
+   "q": "Bought at 149.22 with the stop at 146.52. Where is 3R?",
+   "answer": "$157.32",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a + 3 * (a - b)",
+     "a": 149.22,
+     "b": 146.52
+    },
+    "round": 2
+   },
+   "why": "157.32. One R is the fill minus the stop. Three R is 3 x (149.22 - 146.52). Add that to the fill: 149.22 + 3 x (149.22 - 146.52) = 157.32. 3R is a yardstick, not a fixed sell.",
+   "lesson_line": "Know your 3R before the open. It is a yardstick, not a sell order.",
+   "facts": [
+    "dDELL",
+    "r02"
+   ],
+   "house": true,
+   "prefix": "$",
+   "simple": "3R is 157.32, which is the fill plus three times the distance down to the stop.",
+   "deeper": {
+    "example": "Example: DELL on 2026-03-19. The buy was 149.22 and the stop 146.52, a stop 1.81% away. 3R came the next day."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "computed key",
+     "rests on the owner's rulebook (B19)",
+     "fixed before"
+    ]
+   },
+   "batch": "visuals-3",
+   "choices": [
+    "$154.62",
+    "$141.12",
+    "$151.92",
+    "$157.32"
+   ],
+   "wrong": {
+    "$154.62": "Added three R to the stop, not the fill.",
+    "$151.92": "Added only one R, forgot the times three.",
+    "$141.12": "Subtracted three R instead of adding."
+   },
+   "story": "Bought on the Oops day shown.",
+   "chart": {
+    "sym": "DELL",
+    "asof": "2026-03-19",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 149.22,
+     "stop": 146.52
+    }
+   }
+  },
+  {
+   "key": "q18",
+   "skill": "setup.oops_reversal",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "oops.stop",
+   "q": "A phone alert set at the Oops-day low can replace the stop order, if you act on it.",
+   "answer": "False",
+   "why": "False. Every position has a real stop order with the broker, not a stop kept in your head. An alert is only a message. It does not sell for you, and acting on it depends on you seeing it and deciding in time. The stop order sits a few cents under the Oops-day low.",
+   "lesson_line": "A stop in your head is a debate. A stop with the broker is an appointment.",
+   "facts": [
+    "h18",
+    "o_stop"
+   ],
+   "house": true,
+   "simple": "False, because an alert only tells you the price is there, while a stop order with the broker actually sells.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (D41)",
+     "fixed before"
+    ]
+   },
+   "batch": "wave3"
+  },
+  {
+   "key": "q19",
+   "skill": "setup.oops_reversal",
+   "rung": 3,
+   "format": "mcq",
+   "criterion": "oops.liquidity",
+   "q": "What floor must an Oops stock clear?",
+   "choices": [
+    "$10 and $20 million a day",
+    "$5 and $5 million a day",
+    "$20 and $10 million a day",
+    "$10 and 1 million shares a day"
+   ],
+   "answer": "$10 and $20 million a day",
+   "why": "$10 a share and $20 million a day. We trade only stocks at $10 or more that trade at least $20 million a day. Thin stocks are not even watched.",
+   "lesson_line": "Ten dollars a share, twenty million a day. Below that, no Oops.",
+   "facts": [
+    "h09",
+    "h19"
+   ],
+   "wrong": {
+    "$5 and $5 million a day": "Too low. Our floor is $10 a share and $20 million a day.",
+    "$20 and $10 million a day": "Swapped. The share price floor is $10 and the daily dollar floor is $20 million.",
+    "$10 and 1 million shares a day": "The daily floor is $20 million traded, not a count of shares."
+   },
+   "house": true,
+   "simple": "Our floor is a price of at least $10 and at least $20 million traded a day.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (B23) and a held decision (D-030)"
+    ]
+   },
+   "depends_on": [
+    "D-030"
+   ],
+   "batch": "wave3"
+  },
+  {
+   "key": "q20",
+   "skill": "setup.oops_reversal",
+   "rung": 3,
+   "format": "fill",
+   "criterion": "oops.no_chase",
+   "q": "Tap the number that fits the blank.",
+   "sentence": "Never buy an Oops more than ___% above the prior close.",
+   "bank": [
+    "2",
+    "4",
+    "5",
+    "8",
+    "10"
+   ],
+   "answer": "4",
+   "why": "4%. We never buy more than 4% above the prior close, the buy point. Past that you are chasing. Chasing costs size, not risk: the stop stays under the buy point, so the distance grows and the shares shrink.",
+   "lesson_line": "Four percent over the prior close and I am done.",
+   "facts": [
+    "o_chase",
+    "h11",
+    "h12"
+   ],
+   "house": true,
+   "simple": "Never pay more than 4% over the prior close, because past that you are chasing.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (C28)"
+    ]
+   },
+   "batch": "wave3"
+  },
+  {
+   "key": "q21",
+   "skill": "setup.oops_reversal",
+   "rung": 3,
+   "format": "mcq",
+   "criterion": "oops.stop",
+   "q": "Why does the stop sit under the Oops-day low?",
+   "choices": [
+    "It marks where the trap was set",
+    "It keeps the loss at exactly 3%",
+    "It is the prior day's low",
+    "It is the low of the last 20 days"
+   ],
+   "answer": "It marks where the trap was set",
+   "why": "It marks where the trap was set. A trade below the Oops-day low is the stop, and the stop is the exit. It is not a fixed percent. The stop usually sits within about 3% of the buy, but the Oops-day low sets it.",
+   "lesson_line": "Under the Oops-day low the trap has failed. That is the exit.",
+   "facts": [
+    "cs",
+    "o_after",
+    "h02",
+    "h04"
+   ],
+   "wrong": {
+    "It keeps the loss at exactly 3%": "About 3% is only where the stop usually sits. The Oops-day low sets it.",
+    "It is the prior day's low": "The Oops day already traded under the prior day's low. The stop goes under the Oops-day low.",
+    "It is the low of the last 20 days": "That is not a rule. The stop goes under the Oops-day low, where the trap was set."
+   },
+   "house": true,
+   "simple": "The stop sits there because that low is where the trap was set, so a trade below it means the trap failed.",
+   "deeper": {
+    "trap": "Trap: treating the 3% as the stop. Our rule says the stop usually sits within about 3% of the buy. That describes where it tends to land, not how to place it. Place it a few cents under the Oops-day low."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (A4, A13)"
+    ]
+   },
+   "batch": "wave3"
+  },
+  {
+   "key": "q22",
+   "skill": "setup.oops_reversal",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "oops.super_oops",
+   "q": "A Super Oops only needs the day's high to pass the prior high.",
+   "answer": "False",
+   "why": "False. A Super Oops is any Oops that closes over the prior high, so the whole prior day is engulfed. A trade over the prior high during the day is not enough. The Super close is a grade mark, not a guarantee.",
+   "lesson_line": "The Super is a close over the prior high.",
+   "facts": [
+    "o_super",
+    "dAMATw"
+   ],
+   "house": true,
+   "simple": "False, because a Super Oops needs the day to close over the prior high, not just trade over it.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "one cited fact only"
+    ]
+   },
+   "batch": "wave3"
+  },
+  {
+   "key": "q23",
+   "skill": "setup.oops_reversal",
+   "rung": 4,
+   "format": "mcq",
+   "criterion": "oops.pullback",
+   "q": "The 20-day high is 100.00 and the prior close is 91.50. How far has it pulled back, in percent?",
+   "answer": "8.5%",
+   "calc": {
+    "fn": "drawdown_pct",
+    "args": {
+     "peak": 100.0,
+     "trough": 91.5
+    },
+    "round": 1
+   },
+   "why": "8.5%. The drop is the high minus the close, divided by the 20-day high: (100.00 - 91.50) / 100.00 = 8.5%. That sits inside the 3% to 12% range, so it is a real pullback to reverse from.",
+   "lesson_line": "Measure the pullback from the 20-day high. Inside 3% to 12%.",
+   "facts": [
+    "o_pull"
+   ],
+   "house": true,
+   "suffix": "%",
+   "simple": "It pulled back 8.5% from the 20-day high, which is inside the 3% to 12% range.",
+   "tier": "core",
+   "risk": {
+    "score": 6,
+    "reasons": [
+     "one cited fact only",
+     "computed key",
+     "fixed before"
+    ]
+   },
+   "batch": "tomcq",
+   "choices": [
+    "9.3%",
+    "8.5%",
+    "0.9%",
+    "91.5%"
+   ],
+   "wrong": {
+    "9.3%": "Divided by the prior close instead of the high.",
+    "0.9%": "Decimal slip, one place too short.",
+    "91.5%": "Gave the close as a share of the high, no subtraction."
+   }
+  },
+  {
+   "key": "q24",
+   "skill": "setup.oops_reversal",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "oops.stop",
+   "q": "Filled at 31.51 with the stop at 31.12. How far is the stop from the fill, in percent?",
+   "answer": "1.24%",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(a - b) / a * 100",
+     "a": 31.51,
+     "b": 31.12
+    },
+    "round": 2
+   },
+   "why": "1.24%. The gap is the fill minus the stop, divided by the fill: (31.51 - 31.12) / 31.51 = 1.24%. That is inside the 1 to 3% we prefer, and up to 5% is acceptable. The Oops-day low still sets the stop. This is the ACN trade.",
+   "lesson_line": "Measure the stop as a percent of the fill. We prefer 1 to 3%, and up to 5% is fine.",
+   "facts": [
+    "h04",
+    "dACN",
+    "dDELL",
+    "h12",
+    "o_stop",
+    "r01"
+   ],
+   "house": true,
+   "suffix": "%",
+   "simple": "The stop is 1.24% below the fill, which is inside the range we prefer.",
+   "deeper": {
+    "counter": "Counter-example: DELL on 2026-03-19 had a deeper undercut, so its stop was wider. The buy was 149.22 and the stop 146.52, which is 1.81% away. That is still in the preferred range, but a wider stop means fewer shares for the same risk."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key",
+     "the stop range is the owner's ruling D-005"
+    ]
+   },
+   "batch": "visuals-3",
+   "choices": [
+    "0.39%",
+    "12.4%",
+    "98.8%",
+    "1.24%"
+   ],
+   "wrong": {
+    "0.39%": "Gave the gap in dollars as a percent, no divide.",
+    "12.4%": "Decimal slip, one place too far.",
+    "98.8%": "Divided the stop by the fill, no subtraction."
+   },
+   "story": "Bought on the Oops day shown.",
+   "chart": {
+    "sym": "ACN",
+    "asof": "2006-10-23",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 31.51,
+     "stop": 31.12
+    }
+   }
+  },
+  {
+   "key": "q25",
+   "skill": "setup.oops_reversal",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "oops.scanner_oops",
+   "q": "By our main test, is it an Oops day?",
+   "choices": [
+    "Yes, it passes all three tests",
+    "No, it opened over the prior low",
+    "Yes, but only as a Super Oops",
+    "No, the undercut was too shallow"
+   ],
+   "story": "Yesterday: high 50.60, low 49.40, close 50.00. Today: open 49.70, low 49.10, close 50.30.",
+   "answer": "Yes, it passes all three tests",
+   "why": "Yes. Test one: the 49.70 open is under the 50.00 prior close. Test two: the 49.10 low is under the 49.40 prior low. Test three: the 50.30 close is over the 50.00 prior close. The close stays under the 50.60 prior high, so it is a plain Oops, not a Super. Williams' version would also need an open under 49.40.",
+   "lesson_line": "Check the three tests one by one against yesterday.",
+   "facts": [
+    "o_main",
+    "o_super",
+    "cp"
+   ],
+   "wrong": {
+    "No, the undercut was too shallow": "Any trade under the prior low counts as the undercut.",
+    "No, it opened over the prior low": "That is Williams' stricter version. The main version needs an open under the prior close.",
+    "Yes, but only as a Super Oops": "It closed at 50.30, under the prior high of 50.60, so it is not a Super Oops. A plain Oops still counts."
+   },
+   "house": true,
+   "simple": "Yes. It opened under the prior close, dipped under the prior low and closed back over that close.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "every number is in the story"
+    ]
+   },
+   "batch": "wave3"
+  },
+  {
+   "key": "q26",
+   "skill": "setup.oops_reversal",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "oops.super_oops",
+   "q": "What do you call it?",
+   "choices": [
+    "It is a Super Oops setup",
+    "It is a Williams Oops setup",
+    "It is a plain Oops, no Super",
+    "It is a Kicker gap setup"
+   ],
+   "story": "Yesterday: high 50.60, low 49.40, close 50.00. Today opens at 49.70, trades down to 49.10 and closes at 50.80.",
+   "answer": "It is a Super Oops setup",
+   "why": "A Super Oops. It opened at 49.70, under the prior close of 50.00. It traded down to 49.10, under the prior low of 49.40. It closed at 50.80, over the prior close. It also closed over the prior high of 50.60, which makes it a Super. It opened over the prior low, so it is not a Williams open.",
+   "lesson_line": "Close over the prior high makes it a Super.",
+   "facts": [
+    "o_super",
+    "cp",
+    "w2",
+    "l_k1"
+   ],
+   "wrong": {
+    "It is a Williams Oops setup": "It opened at 49.70, over the prior low of 49.40. Williams opens under the prior low.",
+    "It is a plain Oops, no Super": "It closed at 50.80, over the prior high of 50.60, which makes it a Super.",
+    "It is a Kicker gap setup": "A Kicker gaps up over a red day's close. This opened under the prior close."
+   },
+   "house": true,
+   "simple": "A Super Oops is an Oops that closes over the prior high, and this one closed above it.",
+   "deeper": {
+    "trap": "Check the open against the right line. Williams needs an open under the prior low of 49.40. This day opened at 49.70, over it, so it is our main Oops with a Super close, not Williams' own version."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "the Williams open is a held decision (D-104), only the originator's definition is used"
+    ]
+   },
+   "depends_on": [
+    "D-104"
+   ],
+   "batch": "wave3"
+  },
+  {
+   "key": "q27",
+   "skill": "setup.oops_reversal",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "oops.order_market",
+   "q": "In our scans, which move fills the buy?",
+   "choices": [
+    "The 11:00 move back over 50.00",
+    "The 9:40 touch back up to 50.00",
+    "Both, since each reached 50.00",
+    "Neither; buy at the next day's open"
+   ],
+   "story": "The prior close is 50.00 and the prior low 49.40. The stock opens under 50.00 and touches it at 9:40, then breaks 49.40. At 11:00 it trades back over 50.00.",
+   "answer": "The 11:00 move back over 50.00",
+   "why": "The 11:00 move, after the undercut. By then the stock had broken the prior low of 49.40. Trading back over 50.00 is the reclaim our scans buy. The 9:40 touch came before the undercut, and buying that touch is a named mistake.",
+   "lesson_line": "Undercut first. A touch before it is not the trigger.",
+   "facts": [
+    "m_touch",
+    "o_mkt",
+    "o_main"
+   ],
+   "wrong": {
+    "The 9:40 touch back up to 50.00": "That touch came before the undercut. A touch of the prior close before the undercut is not a trigger.",
+    "Both, since each reached 50.00": "Only the move after the undercut counts.",
+    "Neither; buy at the next day's open": "Our scans buy on the Oops day itself, as a market order when the trigger prints."
+   },
+   "house": true,
+   "simple": "Our scans buy on the 11:00 move, because it comes after the stock traded under the prior low.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on a held decision (D-003, the entry trigger)",
+     "fixed before"
+    ]
+   },
+   "batch": "rulings"
+  },
+  {
+   "key": "q28",
+   "skill": "setup.oops_reversal",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "oops.no_chase",
+   "q": "Do you buy it now?",
+   "choices": [
+    "No, over 4% above the prior close",
+    "Yes, a strong Oops often continues",
+    "Yes, with a smaller stop to fit",
+    "No, it needs a Super close first"
+   ],
+   "story": "The prior close is 50.00. You missed the reclaim. At 11:30 the stock is at 52.30.",
+   "answer": "No, over 4% above the prior close",
+   "why": "No. 52.30 is more than 4% above the prior close of 50.00, so buying now is a chase. Our rule is no buy more than 4% above the prior close. You missed this one, so let it go.",
+   "lesson_line": "Past 4% over the prior close, you missed it. Let it go.",
+   "facts": [
+    "o_chase",
+    "h11",
+    "o_super",
+    "o_stop",
+    "dAMATw"
+   ],
+   "wrong": {
+    "Yes, a strong Oops often continues": "Strength is not a reason to chase. Past 4% over the prior close, there is no buy.",
+    "Yes, with a smaller stop to fit": "The stop stays a few cents under the Oops-day low. Past 4% over the prior close, there is no buy to size.",
+    "No, it needs a Super close first": "A plain Oops is still an Oops, and a Super close is a grade mark, not a requirement. The block here is the 4% limit."
+   },
+   "house": true,
+   "simple": "No. The stock is already more than 4% above the prior close, so buying now is chasing.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's no-chase rule (C28)"
+    ]
+   },
+   "batch": "wave3"
+  },
+  {
+   "key": "q29",
+   "skill": "setup.oops_reversal",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "oops.earnings_window",
+   "q": "Do you buy it?",
+   "choices": [
+    "No, a report is inside 3 days",
+    "Yes, it is an Oops, not earnings",
+    "No, earnings days are never traded",
+    "Yes, then sell before the report"
+   ],
+   "story": "A clean Oops reclaims the prior close. The company reports earnings in two days.",
+   "answer": "No, a report is inside 3 days",
+   "why": "No. We make no new Oops buy in the 3 days before a report, and this one reports in two days. The rule bars the buy itself, so a plan to sell before the report does not change it. A position goes through a report only if the trade is already up 5R.",
+   "lesson_line": "No new buys in the 3 days before a report.",
+   "facts": [
+    "o_earn",
+    "h08",
+    "o_earn_day"
+   ],
+   "wrong": {
+    "Yes, it is an Oops, not earnings": "The report window is its own rule.",
+    "Yes, then sell before the report": "The rule is no new buys inside the window.",
+    "No, earnings days are never traded": "An earnings-day Oops is allowed but grades lower. The block here is the report inside 3 days."
+   },
+   "house": true,
+   "simple": "No. We make no new buys in the 3 days before a report, and this company reports in two days.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's earnings rule (B22)"
+    ]
+   },
+   "batch": "wave3"
+  },
+  {
+   "key": "q30",
+   "skill": "setup.oops_reversal",
+   "rung": 4,
+   "format": "mcq",
+   "criterion": "oops.orderly",
+   "q": "A big red bar, a drop of over 4%, came three days before. What does it do to the Oops?",
+   "choices": [
+    "It removes it from our list",
+    "Nothing, it is old history",
+    "It counts if it was a gap",
+    "It raises the grade a bit"
+   ],
+   "answer": "It removes it from our list",
+   "why": "It removes it from our list. The pullback should be orderly. No bar in the 5 sessions before may drop over 4% or have a range over 2.5 ATR. A drop of over 4% three days earlier breaks that. Buying after one is a named mistake.",
+   "lesson_line": "An orderly drift only. A big red bar in the days before is out.",
+   "facts": [
+    "m_bar",
+    "o_ord2"
+   ],
+   "wrong": {
+    "Nothing, it is old history": "Three days is inside the 5 sessions the rule looks back over.",
+    "It counts if it was a gap": "The rule counts a drop over 4% or a range over 2.5 ATR, gap or not.",
+    "It raises the grade a bit": "A big red bar in the days before does not help. The card puts the stock off the list."
+   },
+   "house": true,
+   "simple": "A drop of over 4% in the five sessions before breaks the orderly pullback, so the stock comes off the list.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "thresholds from the card that are still proposed"
+    ]
+   },
+   "batch": "wave3"
+  },
+  {
+   "key": "q31",
+   "skill": "setup.oops_reversal",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "oops.failed_reclaim",
+   "q": "Your move at the close?",
+   "choices": [
+    "Hold to the stop; do not add",
+    "Sell at the close, it has failed",
+    "Add a second lot on the dip",
+    "Move the stop under 31.30"
+   ],
+   "story": "You bought the reclaim of the 31.50 prior close at 31.52, the way our scans do, with the stop at 31.12. The day closes at 31.30, back under the prior close, above your stop.",
+   "answer": "Hold to the stop; do not add",
+   "why": "Hold to the stop and do not add. The day closed at 31.30, back under the prior close of 31.50, so the trade is wrong as an Oops. But the stop is the exit, and 31.12 has not traded. Treat the next day's open below the prior close as a warning.",
+   "lesson_line": "A close back under the prior close means the Oops failed. Hold to the stop and do not add.",
+   "facts": [
+    "o_failed",
+    "o_failed2",
+    "h02",
+    "h31"
+   ],
+   "wrong": {
+    "Add a second lot on the dip": "We never add after a failed reclaim. The full size goes in at one price.",
+    "Move the stop under 31.30": "The card says to hold to the Oops-day stop after a failed reclaim.",
+    "Sell at the close, it has failed": "The stop is the exit, not a weak close."
+   },
+   "house": true,
+   "simple": "Hold to the stop and do not add, because the stop is the exit even after a weak close.",
+   "deeper": {
+    "trap": "Trap: a weak close feels like a reason to act. A close under the prior close tells you the trade is wrong as an Oops. But the Oops-day stop still decides the exit. Do not sell early and do not add. Treat the next day's open below the prior close as the warning."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on a held decision (D-003, the entry trigger)",
+     "fixed before"
+    ]
+   },
+   "batch": "rulings"
+  },
+  {
+   "key": "q32",
+   "skill": "setup.oops_reversal",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "oops.after_entry_stop",
+   "q": "What do you do?",
+   "choices": [
+    "Nothing; the stop is the plan",
+    "Wish you had a wider stop",
+    "Skip the stop and hold",
+    "Decide the setup is broken"
+   ],
+   "story": "Bought on the Oops day shown at 67.48 with the stop at 66.70. The next day it opens at 68.48, then sells straight through your stop to 66.63.",
+   "answer": "Nothing; the stop is the plan",
+   "why": "Nothing. A perfect-looking day gives no warning, and the stop is the whole plan. This was ADBE on 2014-03-12. It opened at 68.48, over the buy, and sold straight through the Oops-day low. The stop took a small planned loss, 1.16% from the buy.",
+   "lesson_line": "A perfect-looking Oops gives no warning. The stop is the plan.",
+   "facts": [
+    "dADBE14",
+    "dADBE14n",
+    "o_after",
+    "m_good",
+    "h18",
+    "h02"
+   ],
+   "wrong": {
+    "Wish you had a wider stop": "A wider stop is a bigger loss. The stop did its job.",
+    "Skip the stop and hold": "The stop is the exit, and every position has a real stop order with the broker.",
+    "Decide the setup is broken": "One stop-out is not a verdict. A good example can have a horrible result, and the stop is the whole plan."
+   },
+   "house": true,
+   "simple": "Do nothing. The stop did its job, and a perfect-looking Oops can still fail with no warning.",
+   "deeper": {
+    "trap": "Do not judge the trade by the result. The stop sat 1.16% under the 67.48 buy, a small planned loss. ADBE then fell to 59.63 by 04-07, so a wider stop would only have lost more."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "a dated example read off our own bars"
+    ]
+   },
+   "batch": "visuals-3",
+   "chart": {
+    "sym": "ADBE",
+    "asof": "2014-03-12",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 67.48,
+     "stop": 66.7
+    }
+   }
+  },
+  {
+   "key": "q33",
+   "skill": "setup.oops_reversal",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "oops.stop_gap",
+   "q": "Under our gap rule, where is the stop now?",
+   "choices": [
+    "30.85, the first 30-minute low",
+    "31.12, the original stop",
+    "Out now; the loss is past 2R",
+    "30.95, the gap-day open"
+   ],
+   "story": "You bought at 31.52 with the stop at 31.12. The next morning it gaps open at 30.95. The first 30-minute low is 30.85.",
+   "answer": "30.85, the first 30-minute low",
+   "why": "30.85. A gap down through the stop hands the decision to the first 30 minutes of the gap-down day. The low of the first 30-minute bar is the new stop. The loss at that low is under 2R, so the ceiling does not force an exit. This is the one exception to a stop that only moves up.",
+   "lesson_line": "A gap through the stop is the exception. The first 30 minutes decide.",
+   "facts": [
+    "h06",
+    "h07",
+    "h02"
+   ],
+   "wrong": {
+    "31.12, the original stop": "The stop is already through. The 30-minute low is the new stop.",
+    "Out now; the loss is past 2R": "The loss at the 30-minute low is inside the 2R ceiling.",
+    "30.95, the gap-day open": "The open is not the decision. The 30-minute low is."
+   },
+   "house": true,
+   "simple": "The new stop is the low of the first 30 minutes, 30.85, because the gap went through the old stop.",
+   "deeper": {
+    "trap": "The gap price is not the decision. The open at 30.95 only tells you the gap happened. The first 30-minute bar sets the stop, and if its low had taken the loss past 2R, the rule is to get out."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "rests on the owner's gap rule (B20)",
+     "the 2R check is arithmetic done by the cold checker, not a calc"
+    ]
+   },
+   "batch": "wave3"
+  },
+  {
+   "key": "q34",
+   "skill": "setup.oops_reversal",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "oops.trim_1",
+   "q": "The trade reaches 3R the session after the buy. What now?",
+   "choices": [
+    "Hold it all, no sell this early",
+    "Sell a third, stop to breakeven",
+    "Sell it all, lock in the 3R",
+    "Sell half, leave stop alone"
+   ],
+   "story": "Shown through the first session after the buy. You bought at 149.22 with the stop at 146.52. That session the Oops reaches 3R.",
+   "answer": "Hold it all, no sell this early",
+   "why": "Hold it all. We very rarely sell on day 1 of the buy. We usually wait until day 3 at the earliest. 3R this early is not a sell signal.",
+   "lesson_line": "3R on day 1 is not a sell signal. Wait for the push.",
+   "facts": [
+    "r04",
+    "r05",
+    "r02"
+   ],
+   "wrong": {
+    "Sell it all, lock in the 3R": "We do not sell it all on day 1. The first sell is a judgment.",
+    "Sell half, leave stop alone": "We very rarely sell on day 1 of the buy.",
+    "Sell a third, stop to breakeven": "A fixed third at 3R is not our rule. We very rarely sell on day 1."
+   },
+   "house": true,
+   "simple": "Hold it all. We very rarely sell on day 1, and we usually wait until day 3 at the earliest.",
+   "tier": "extended",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "held decision D-019 on the breakeven",
+     "rests on the owner's rulebook (B19)"
+    ]
+   },
+   "depends_on": [
+    "D-019"
+   ],
+   "batch": "visuals-3",
+   "chart": {
+    "sym": "DELL",
+    "asof": "2026-03-20",
+    "window": 120,
+    "forward": 20
+   }
+  },
+  {
+   "key": "q35",
+   "skill": "setup.oops_reversal",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "oops.trim_gap_open",
+   "q": "When do you take the first trim?",
+   "choices": [
+    "Right away, at the open",
+    "At the close, if it holds",
+    "On a dip back to 52.40",
+    "After the first 30-minute bar closes"
+   ],
+   "story": "You hold an Oops with a 3R level of 52.40. The next morning the stock opens at 53.10.",
+   "answer": "Right away, at the open",
+   "why": "At the open. If a stock opens above a trim level, take that trim at the open. Your 3R level is 52.40 and the stock opened at 53.10, past it, so the first third comes off right there. Do not wait for the close or for a dip.",
+   "lesson_line": "Open past the level, take the trim at the open.",
+   "facts": [
+    "h25",
+    "h05",
+    "h06"
+   ],
+   "wrong": {
+    "At the close, if it holds": "The rule is to take it at the open, not to wait for the close.",
+    "On a dip back to 52.40": "The stock already opened past 52.40. Take the trim at the open, because the dip may never come.",
+    "After the first 30-minute bar closes": "The first 30 minutes decide a gap against the stop. A trim level the day opens past is taken at the open."
+   },
+   "house": true,
+   "simple": "Take the first third at the open, because the stock opened at 53.10, past the 3R level of 52.40.",
+   "tier": "extended",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "one cited fact only",
+     "rests on the owner's rulebook (F63)"
+    ]
+   },
+   "batch": "wave3"
+  },
+  {
+   "key": "q36",
+   "skill": "setup.oops_reversal",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "oops.time_stop",
+   "q": "Your move now?",
+   "choices": [
+    "Sell it and find a new setup",
+    "Hold on and wait for the 5R trim",
+    "Add more on a break of the range",
+    "Widen the stop for more room"
+   ],
+   "story": "Ten trading days are done. The Oops has chopped sideways at +0.5R. The stop has not been touched.",
+   "answer": "Sell it and find a new setup",
+   "why": "Sell it. A trade still under 1R after 10 trading days is sold, freeing the money. At +0.5R after ten days the Oops has not reached 1R, so the time stop applies. Holding for 5R, adding or widening the stop are all off the plan.",
+   "lesson_line": "Ten days and under 1R: sell and use the money elsewhere.",
+   "facts": [
+    "h15",
+    "h31",
+    "h02"
+   ],
+   "wrong": {
+    "Widen the stop for more room": "A stop never moves wider.",
+    "Hold on and wait for the 5R trim": "A trade under 1R after 10 trading days is sold.",
+    "Add more on a break of the range": "We buy the full size once, at one price. No adding."
+   },
+   "house": true,
+   "simple": "Sell it, because a trade still under 1R after 10 trading days is sold to free the money.",
+   "deeper": {
+    "example": "Example: the story's trade sits at +0.5R after ten days. Holding for 5R keeps the money tied up in a trade that has not reached 1R. Selling frees it for the next setup."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "one cited fact only",
+     "tied to a held decision (D-019, the time stop)"
+    ]
+   },
+   "depends_on": [
+    "D-019"
+   ],
+   "batch": "wave3"
+  },
+  {
+   "key": "q37",
+   "skill": "setup.oops_reversal",
+   "rung": 5,
+   "format": "tf",
+   "criterion": "oops.trim_1",
+   "q": "Williams' exit, the first profitable open, is our exit.",
+   "answer": "False",
+   "why": "False. Williams' bailout exits on the first profitable open, even for 1c of profit. We very rarely sell on day 1; our first sell is a judgment, and the rest trails.",
+   "lesson_line": "Williams' exit is his. Ours is a judged first sell and a trail.",
+   "facts": [
+    "w5",
+    "h05",
+    "h20",
+    "r02",
+    "r04"
+   ],
+   "house": true,
+   "simple": "No. Williams sells at the first profitable open, but our first sell is a judgment, rarely on day 1.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "the Williams half rests on a Radge page that blocked this run's fetch",
+     "rests on the owner's exit plan (E51)"
+    ]
+   },
+   "batch": "wave3"
+  },
+  {
+   "key": "q38",
+   "skill": "setup.oops_reversal",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "oops.market_reading",
+   "q": "Which Oops longs may you take here?",
+   "choices": [
+    "Only an A+ Oops, nothing less",
+    "Any A or A+ Oops, full risk",
+    "Any Oops, at half the size",
+    "None; Orange is mostly cash"
+   ],
+   "story": "A clean Oops reclaims the prior close, but the market reading is Orange.",
+   "answer": "Only an A+ Oops, nothing less",
+   "why": "Only an A+ Oops. In an Orange market, only A+ setups. Green is full risk per grade and up to 10 positions. Yellow is smaller and fewer. Red is mostly cash and shorts. Orange does not mean no trades, and it does not mean full size.",
+   "lesson_line": "Orange market, A+ only. Yellow, smaller. Green, full.",
+   "facts": [
+    "o_mktr",
+    "h26"
+   ],
+   "wrong": {
+    "Any A or A+ Oops, full risk": "Orange takes only A+ setups, so an A is not enough. Full risk is for Green.",
+    "Any Oops, at half the size": "Smaller and fewer is Yellow. Orange takes only A+ setups.",
+    "None; Orange is mostly cash": "Mostly cash is Red. Orange still allows an A+."
+   },
+   "house": true,
+   "simple": "In an Orange market you take only A+ setups, so you pass on any Oops that grades lower.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (F65)",
+     "fixed before"
+    ]
+   },
+   "batch": "wave3"
+  },
+  {
+   "key": "q39",
+   "skill": "setup.oops_reversal",
+   "rung": 6,
+   "format": "mcq",
+   "criterion": "oops.trail",
+   "q": "Which average is the default trail for a steadier name?",
+   "choices": [
+    "The 20 EMA",
+    "The 50-day",
+    "The 200-day",
+    "The 9 EMA"
+   ],
+   "answer": "The 20 EMA",
+   "why": "The 20 EMA. Our default trail is the 9 EMA for fast movers and the 20 EMA for steadier ones. Sell on a close below it. What is left after the first sells trails it.",
+   "lesson_line": "Fast mover, 9 EMA. Steadier name, 20 EMA. Sell on a close below.",
+   "facts": [
+    "h21",
+    "r06"
+   ],
+   "wrong": {
+    "The 50-day": "Our default trails are the 9 EMA and the 20 EMA, not the 50-day.",
+    "The 200-day": "Our default trails are the 9 EMA and the 20 EMA, not the 200-day.",
+    "The 9 EMA": "That is the fast-mover trail. Steadier names trail the 20 EMA."
+   },
+   "house": true,
+   "simple": "The 20 EMA, because steadier names trail it and you sell on a close below it.",
+   "tier": "extended",
+   "risk": {
+    "score": 6,
+    "reasons": [
+     "one cited fact only",
+     "rests on the owner's rulebook (E52)",
+     "fixed before"
+    ]
+   },
+   "batch": "sweep-2026-11-14"
+  },
+  {
+   "key": "q40",
+   "skill": "setup.oops_reversal",
+   "rung": 6,
+   "format": "tf",
+   "criterion": "oops.after_entry_stop",
+   "q": "As of 2026-11-10, in our data the Oops-day low broke within 20 sessions on about three Oops days in four.",
+   "answer": "True",
+   "why": "True. In our data the Oops-day low broke within 20 sessions on 75% of all Oops days. The low never breaks on the best examples, but the data says that is not the usual case. A trade below the low is the stop.",
+   "lesson_line": "Most Oops lows break within 20 sessions. The stop is the plan.",
+   "facts": [
+    "o_after",
+    "dADBE14",
+    "dADBE14n"
+   ],
+   "house": true,
+   "simple": "True. In our data the Oops-day low broke within 20 sessions on 75% of all Oops days.",
+   "deeper": {
+    "counter": "Counter-example: ADBE on 2014-03-12 looked perfect. It opened 1.5% up the next morning and then sold straight through the Oops-day low. A perfect-looking day gives no warning, so the stop is the whole plan, even when the day looks like the best example."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 7,
+    "reasons": [
+     "one cited fact only",
+     "a data statistic that changes with the data",
+     "tied to a held decision (D-105)"
+    ]
+   },
+   "depends_on": [
+    "D-105"
+   ],
+   "batch": "wave3"
+  },
+  {
+   "key": "q41",
+   "skill": "setup.oops_reversal",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "oops.market_reading",
+   "q": "What do you do?",
+   "choices": [
+    "Pass; keep the account mostly in cash",
+    "Pass; put half the account in shorts",
+    "Take it at full risk, as in Green",
+    "Take it smaller and fewer, like Yellow"
+   ],
+   "story": "A clean Oops reclaims the prior close, but the market reading is Red.",
+   "answer": "Pass; keep the account mostly in cash",
+   "why": "Pass on the long and keep the account mostly in cash. In a Red market it is mostly cash, plus shorts below the 200-day. A clean Oops does not change the market reading. Full risk is for Green, and smaller and fewer is Yellow.",
+   "lesson_line": "Red market: cash first. The Oops waits.",
+   "facts": [
+    "o_mktr",
+    "h33",
+    "h26"
+   ],
+   "wrong": {
+    "Pass; put half the account in shorts": "Red is mostly cash, plus shorts below the 200-day. Shorts do not fill the account.",
+    "Take it at full risk, as in Green": "Full risk is for Green. A clean Oops does not change a Red reading.",
+    "Take it smaller and fewer, like Yellow": "Smaller and fewer is Yellow. In Red it is mostly cash."
+   },
+   "house": true,
+   "simple": "Pass on the long and stay mostly in cash. A Red market means mostly cash, plus shorts below the 200-day.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (D46, F65)",
+     "fixed before"
+    ]
+   },
+   "batch": "wave3"
+  },
+  {
+   "key": "q42",
+   "skill": "setup.oops_reversal",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "oops.after_entry_stop",
+   "q": "What do you do about that later peak?",
+   "choices": [
+    "A new trade needs a new trigger",
+    "Buy it back, you were right",
+    "Blame the stop and widen it",
+    "Skip it for good, it failed"
+   ],
+   "story": "Bought on the Oops day shown at 176.35 with the stop at 174.16. The next day it fell through the stop. A few weeks later the stock climbs to a fresh peak.",
+   "answer": "A new trade needs a new trigger",
+   "why": "A new trade needs a new trigger. After a stop-out we buy again only if the setup triggers again. That is a new trade with its own stop and every rule. The stop did its job on V (buy 176.35, stop 174.16, 1.24% away). Its second chance was a new trigger, not a hold.",
+   "lesson_line": "A stop-out is the plan working. Re-enter only on a new trigger.",
+   "facts": [
+    "dV",
+    "dVw",
+    "dVhi",
+    "h28"
+   ],
+   "wrong": {
+    "Buy it back, you were right": "Buy again only if the setup triggers again, as a new trade.",
+    "Blame the stop and widen it": "A stop never moves wider.",
+    "Skip it for good, it failed": "The stock is fine to trade again on a new trigger."
+   },
+   "house": true,
+   "simple": "After a stop-out, buy again only when the setup triggers again, as a brand new trade.",
+   "deeper": {
+    "trap": "Seeing the later peak and calling the stop a mistake is hindsight. A few weeks later is a different trade. Buying it back needs its own trigger, its own stop and every rule."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's re-entry rule (B21)"
+    ]
+   },
+   "batch": "visuals-3",
+   "chart": {
+    "sym": "V",
+    "asof": "2019-08-13",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 176.35,
+     "stop": 174.16
+    }
+   }
+  },
+  {
+   "key": "q43",
+   "skill": "setup.oops_reversal",
+   "rung": 6,
+   "format": "tf",
+   "criterion": "oops.trim_1",
+   "q": "The app's 2R and 3R targets are our Oops plan.",
+   "answer": "False",
+   "why": "False. The app's 2R and 3R targets are not our plan. Our first sell is a judgment, often into a push of 3, 5 or 7 days, not a fixed app target.",
+   "lesson_line": "The first sell is a judgment, not the app targets.",
+   "facts": [
+    "r02",
+    "r03"
+   ],
+   "house": true,
+   "simple": "False, because our first sell is a judgment into a push, not the app's 2R and 3R targets.",
+   "deeper": {
+    "trap": "Trap: the app shows 2R and 3R, so they look official. Our first sell is a judgment, often into a push of 3, 5 or 7 days, then a trail."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "one cited fact only",
+     "rests on the owner's rulebook (B19, E51)"
+    ]
+   },
+   "batch": "rulings2"
+  },
+  {
+   "key": "q44",
+   "skill": "setup.oops_reversal",
+   "rung": 6,
+   "format": "tf",
+   "criterion": "oops.ma200_rising",
+   "q": "An Oops is better above a rising 200-day than a falling one.",
+   "answer": "True",
+   "why": "True. We prefer a rising 200-day, meaning its value is higher than it was 20 sessions ago. That is a preference. The hard rule is separate: below the 200-day is a hard no for stocks.",
+   "lesson_line": "A rising 200-day under the stock is the better floor.",
+   "facts": [
+    "o_200r",
+    "r07"
+   ],
+   "house": true,
+   "simple": "True. We prefer a rising 200-day, meaning it is higher than it was 20 sessions ago.",
+   "tier": "extended",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "a proposed card criterion",
+     "held decision D-020 on the 200-day"
+    ]
+   },
+   "depends_on": [
+    "D-020"
+   ],
+   "batch": "wave3"
+  },
+  {
+   "key": "q45",
+   "skill": "setup.oops_reversal",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "oops.scanner_oops",
+   "q": "Which setup is it?",
+   "choices": [
+    "An Oops, judged on yesterday's low",
+    "A 2B, it reclaimed the same day",
+    "A U&R, it undercut a key level",
+    "A Kicker, it gapped up"
+   ],
+   "story": "Yesterday: low 83.10, close 83.90. Today opens at 83.50, trades under 83.10 and closes at 84.40. There is no older swing low nearby.",
+   "answer": "An Oops, judged on yesterday's low",
+   "why": "An Oops. The day opened under the prior close, broke yesterday's low and reclaimed the prior close in one candle. An Oops breaks yesterday's low and is judged on one candle. A 2B breaks a swing low, and may take up to 3 sessions to close back above it. No older swing low is near here.",
+   "lesson_line": "Count the age of the broken low. Yesterday's low is an Oops.",
+   "facts": [
+    "l_ur1",
+    "l_tb1",
+    "l_tb2",
+    "l_ur2",
+    "l_tb3",
+    "l_k1"
+   ],
+   "wrong": {
+    "A 2B, it reclaimed the same day": "A 2B breaks a swing low, not yesterday's low.",
+    "A U&R, it undercut a key level": "A U&R needs a bigger level than yesterday's low. This broke yesterday's low and reclaimed the prior close the same day.",
+    "A Kicker, it gapped up": "A Kicker gaps UP over a red day's close. This opened under the prior close."
+   },
+   "house": true,
+   "simple": "It is an Oops because it broke only yesterday's low and reclaimed the prior close in one day.",
+   "deeper": {
+    "counter": "Same shape, different level. Had it broken an older swing low and closed back over it within 3 sessions, it would be a 2B. Breaking only yesterday's low and reclaiming the close in one candle is an Oops."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "the tell between lookalikes comes from the criteria cards"
+    ]
+   },
+   "batch": "wave3"
+  },
+  {
+   "key": "q46",
+   "skill": "setup.oops_reversal",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "oops.scanner_oops",
+   "q": "Is it an Oops?",
+   "choices": [
+    "No, it is a 2B on an older low",
+    "Yes, it reclaimed within 3 sessions",
+    "Yes, it broke a low and reclaimed it",
+    "No, that is a Red to Green setup"
+   ],
+   "story": "On Monday the stock breaks a swing low from twelve sessions ago. It closes back above that low on Tuesday. Tuesday never trades under Monday's low.",
+   "answer": "No, it is a 2B on an older low",
+   "why": "No, it is a 2B. The break was of a swing low from twelve sessions ago, not yesterday's low. An Oops breaks yesterday's low and is judged on one candle. A 2B breaks a swing low, and may take up to 3 sessions to close back above it. This one closed back over it on the next session.",
+   "lesson_line": "One candle is an Oops. An older low and a day or two is a 2B.",
+   "facts": [
+    "l_tb1",
+    "l_tb2",
+    "l_tb3",
+    "l_rg1"
+   ],
+   "wrong": {
+    "Yes, it reclaimed within 3 sessions": "A 2B may take up to 3 sessions. An Oops is judged on one candle.",
+    "Yes, it broke a low and reclaimed it": "An Oops is judged on one candle and yesterday's low.",
+    "No, that is a Red to Green setup": "A Red to Green is only the trade back through the prior close. This reclaimed an older swing low, which is the 2B tell."
+   },
+   "house": true,
+   "simple": "It broke a low from twelve sessions ago, so it is a 2B and not a one-candle Oops.",
+   "deeper": {
+    "trap": "The reclaim looks like an Oops, so count two things: how old the broken low is and how many candles it took. An older swing low plus a day or two to close back above it is a 2B, and a 2B may take up to 3 sessions."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "the tell between lookalikes comes from the criteria cards"
+    ]
+   },
+   "batch": "wave3"
+  },
+  {
+   "key": "q47",
+   "skill": "setup.oops_reversal",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "oops.scanner_oops",
+   "q": "Which setup is this?",
+   "choices": [
+    "A U&R",
+    "An Oops",
+    "A Kicker",
+    "A 2B"
+   ],
+   "story": "The stock dips under its rising 50-day average and closes back above it the next day. It never traded under the prior day's low on the reclaim day.",
+   "answer": "A U&R",
+   "why": "A U&R. The level it dipped under is a rising 50-day average, not yesterday's low, and a U&R needs a bigger level. Its reclaim may take up to 3 sessions. An Oops is judged on one candle and must trade under the prior day's low first. A 2B breaks a swing low, not an average.",
+   "lesson_line": "A bigger level and a few days: U&R. Yesterday's low in one day: Oops.",
+   "facts": [
+    "l_ur1",
+    "l_ur2",
+    "l_ur3",
+    "l_ur4",
+    "l_tb1",
+    "l_tb2"
+   ],
+   "wrong": {
+    "A Kicker": "A Kicker gaps up. This is a dip under an average.",
+    "An Oops": "An Oops must trade under the prior day's low and be judged on one candle. This stock did not.",
+    "A 2B": "A 2B breaks a swing low. This broke a rising average, which is a bigger level."
+   },
+   "house": true,
+   "simple": "It is a U&R, because the level it dipped under is a rising average, a bigger level than yesterday's low.",
+   "deeper": {
+    "trap": "Trap: the speed of the reclaim. Closing back above the level the next day looks like an Oops. But an Oops must trade under the prior day's low in one candle. The level is the tell. Yesterday's low is an Oops. An older swing low is a 2B. A bigger level, like the rising 50-day in this story, is a U&R."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "tied to a held decision (D-101, the 2B and U&R levels)",
+     "fixed before"
+    ]
+   },
+   "depends_on": [
+    "D-101"
+   ],
+   "batch": "wave3"
+  },
+  {
+   "key": "q48",
+   "skill": "setup.oops_reversal",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "oops.scanner_oops",
+   "q": "Which setup is it?",
+   "choices": [
+    "A Kicker, it opened over the close",
+    "An Oops, it closed over the prior high",
+    "A 2B, it closed back over a swing low",
+    "A Red to Green, it turned green today"
+   ],
+   "story": "Yesterday was a red day: it opened at 52.00, closed at 50.00 and its high was 52.40. Today the stock opens at 50.90 and closes at 52.80.",
+   "answer": "A Kicker, it opened over the close",
+   "why": "A Kicker. A Kicker gaps UP over a red day's close and is bought through the red day's high. An Oops opens DOWN under the prior close, trades under the prior low and is bought back through the prior close. Here the stock opened at 50.90, over the red close of 50.00. It cannot be an Oops, even though it closed above that day's high.",
+   "lesson_line": "The gap direction decides it. Up is a Kicker. Down is an Oops.",
+   "facts": [
+    "l_k1",
+    "l_k2",
+    "l_rg1"
+   ],
+   "wrong": {
+    "An Oops, it closed over the prior high": "An Oops opens down under the prior close. This opened over it.",
+    "A 2B, it closed back over a swing low": "A 2B breaks a swing low first. Nothing here says it did.",
+    "A Red to Green, it turned green today": "A Red to Green is a trade back through the prior close. This opened over it, so it did not start red."
+   },
+   "house": true,
+   "simple": "A gap up over a red day's close is a Kicker, and an Oops opens down instead.",
+   "deeper": {
+    "trap": "The close over the prior high tempts you to say Oops. But an Oops opens down under the prior close. The direction of the gap is the first test."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "the tell between lookalikes comes from the criteria card"
+    ]
+   },
+   "batch": "wave3"
+  },
+  {
+   "key": "q49",
+   "skill": "setup.oops_reversal",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "oops.scanner_oops",
+   "q": "Which setup does this day show?",
+   "choices": [
+    "A Red to Green, not an Oops",
+    "An Oops, it closed over the close",
+    "A 2B, it reclaimed a swing low",
+    "A Kicker, it reclaimed the close"
+   ],
+   "story": "The last day on the chart. It opens under the prior close and closes over it. Its low stays 0.48% above the prior day's low.",
+   "answer": "A Red to Green, not an Oops",
+   "why": "A Red to Green. The day opened under the prior close and closed over it. Its low stayed 0.48% above the prior day's low, so it never undercut yesterday's low. An Oops requires that the day first traded under the prior low. This was GOOGL on 2026-02-27.",
+   "lesson_line": "Check if it traded under yesterday's low first. If not, it is a Red to Green.",
+   "facts": [
+    "l_rg1",
+    "dGOOGL",
+    "dGOOGLn",
+    "l_k1",
+    "l_tb2"
+   ],
+   "wrong": {
+    "An Oops, it closed over the close": "An Oops needs a trade under the prior low first.",
+    "A 2B, it reclaimed a swing low": "A 2B breaks a swing low first. Nothing here says it did.",
+    "A Kicker, it reclaimed the close": "A Kicker gaps UP over a red day's close. This opened under the prior close."
+   },
+   "house": true,
+   "simple": "The stock never traded under yesterday's low, so it is a Red to Green and not an Oops.",
+   "deeper": {
+    "trap": "GOOGL on 2026-02-27 opened at 304.14, under the 307.38 prior close, and closed at 311.76. Yet its low of 303.80 held above the prior low of 302.35. The open and the close looked right. The undercut was missing."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "a dated example read off our own bars"
+    ]
+   },
+   "batch": "visuals-3",
+   "chart": {
+    "sym": "GOOGL",
+    "asof": "2026-02-27",
+    "window": 120,
+    "forward": 20
+   }
+  },
+  {
+   "key": "q50",
+   "skill": "setup.oops_reversal",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "oops.scanner_oops",
+   "q": "Oops or Go Signal?",
+   "choices": [
+    "A Go Signal, it fires on the hourly",
+    "An Oops, undercut a slight range",
+    "A Kicker, a gap up over a close",
+    "A 2B, it reclaimed a swing low"
+   ],
+   "story": "After a catalyst gap, a stock digests in an hourly flag. It undercuts a slight range and goes red to green in the first hour.",
+   "answer": "A Go Signal, it fires on the hourly",
+   "why": "A Go Signal. A Go Signal is an hourly flag that undercuts a slight range and goes red to green in the first hour. The Oops is the daily candle's reclaim of the prior close after an undercut of the prior day's low. The chart that fires it tells them apart.",
+   "lesson_line": "The chart that fires it decides. Daily candle is the Oops. Hourly flag is the Go Signal.",
+   "facts": [
+    "l_go1",
+    "l_go2",
+    "l_tb2"
+   ],
+   "wrong": {
+    "An Oops, undercut a slight range": "The Oops is read on the daily candle, not an hourly flag.",
+    "A Kicker, a gap up over a close": "A Kicker is a daily gap up over a red day.",
+    "A 2B, it reclaimed a swing low": "A 2B breaks a swing low. This undercut a slight range inside an hourly flag."
+   },
+   "house": true,
+   "simple": "This fires on an hourly flag, so it is a Go Signal, while an Oops is read on the daily candle.",
+   "deeper": {
+    "trap": "Red to green appears in both. A Go Signal goes red to green inside an hourly flag after a catalyst gap. An Oops is one daily candle that undercuts the prior day's low and reclaims the prior close. Same words, different chart."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "the tell between lookalikes comes from the criteria card"
+    ]
+   },
+   "batch": "wave3"
+  },
+  {
+   "key": "q51",
+   "skill": "setup.oops_reversal",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "oops.orderly",
+   "q": "Is it an Oops?",
+   "choices": [
+    "No, it is a delayed reaction",
+    "Yes, it passes all three tests",
+    "Yes, a news drop makes it stronger",
+    "No, the undercut is too shallow"
+   ],
+   "story": "The last candle is the reversal day. The prior day fell from 126.58 to 118.08 on news. Today the stock opens under that close, undercuts the prior low by 12 cents and closes just over the prior close.",
+   "answer": "No, it is a delayed reaction",
+   "why": "No. The prior day fell from 126.58 to 118.08 on news, down 6.71%. That is well over the 4% limit for a bar in the days before. The day after a news day is a delayed-reaction setup, not an Oops. The three tests pass, but the pullback was not orderly. That was PANW on 2023-08-03.",
+   "lesson_line": "A reversal after a news bar is not an Oops.",
+   "facts": [
+    "m_news",
+    "dPANW",
+    "dPANWn",
+    "o_earn_day",
+    "o_ord2",
+    "m_bar"
+   ],
+   "wrong": {
+    "Yes, it passes all three tests": "The three tests pass, but the prior day was a news bar. That is not an orderly pullback.",
+    "Yes, a news drop makes it stronger": "A big drop in the days before takes the stock off the list. It does not help.",
+    "No, the undercut is too shallow": "Any trade under the prior low is an undercut. What fails here is the news day before."
+   },
+   "house": true,
+   "simple": "The prior day was a big news drop, so this reversal is a delayed reaction and not an Oops.",
+   "deeper": {
+    "trap": "All three tests pass, so it looks like an Oops. The problem is the day before: a 6.71% fall on news. PANW's undercut was only 12 cents and its close was just 0.5% over the prior close. The day after a news day is a delayed reaction."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "a dated example read off our own bars",
+     "the orderly-pullback criterion is still proposed"
+    ]
+   },
+   "batch": "visuals-3",
+   "chart": {
+    "sym": "PANW",
+    "asof": "2023-08-03",
+    "window": 120,
+    "forward": 20
+   }
+  },
+  {
+   "key": "q52",
+   "skill": "setup.oops_reversal",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "oops.pullback",
+   "q": "Which rule fails?",
+   "choices": [
+    "No pullback: it sits at the highs",
+    "The undercut is missing",
+    "The close is under the prior close",
+    "The stop is over 3%"
+   ],
+   "story": "The stock opens under the prior close, undercuts the prior low and closes over the prior close. The prior close was 0.6% under the 20-day high.",
+   "answer": "No pullback: it sits at the highs",
+   "why": "No pullback. The prior close was only 0.6% under the 20-day high, a dip at the highs with nothing to reverse from. That was HD on 2025-09-15.",
+   "lesson_line": "A dip at the highs is not a pullback.",
+   "facts": [
+    "dHD",
+    "dHDn",
+    "o_pull"
+   ],
+   "wrong": {
+    "The undercut is missing": "The stock did undercut the prior low.",
+    "The close is under the prior close": "It closed over the prior close.",
+    "The stop is over 3%": "The failing rule is the pullback, not the stop."
+   },
+   "house": true
+  },
+  {
+   "key": "q53",
+   "skill": "setup.oops_reversal",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "oops.above_200",
+   "q": "Why do the rules skip it?",
+   "choices": [
+    "Both closes sit far under the 200-day",
+    "It is only a plain Oops, not a Super one",
+    "The prior day was not a red day at all",
+    "The pullback was far too deep to trade"
+   ],
+   "story": "A textbook Oops day is the last candle. The prior close is 66.97 and the Oops-day close is 67.23. The 200-day SMA is 76.48.",
+   "answer": "Both closes sit far under the 200-day",
+   "why": "It is under the 200-day. The Oops-day close (67.23) and the prior close (66.97) were both about 12% below the 200-day SMA (76.48). Our rule is no longs below the 200-day simple moving average, unless it is a parabolic long. An Oops shape in a downtrend is watch only. That was BABA on 2016-02-24.",
+   "lesson_line": "An Oops shape under the 200-day is watch only.",
+   "facts": [
+    "dBABA",
+    "dBABAn",
+    "h10",
+    "o_main",
+    "o_red",
+    "o_super"
+   ],
+   "wrong": {
+    "It is only a plain Oops, not a Super one": "A Super close is a grade mark. A plain Oops still counts as an Oops.",
+    "The prior day was not a red day at all": "A red prior day is preferred, not required.",
+    "The pullback was far too deep to trade": "The story gives no pullback figure. The failing rule shows in the prices it does give."
+   },
+   "house": true,
+   "simple": "We take no longs under the 200-day, apart from a parabolic long, so this Oops is watch only.",
+   "deeper": {
+    "trap": "BABA's Oops-day close was 67.23 against a 200-day of 76.48. The Oops shape was clean, but shape is only one test. The 200-day rule comes first: no longs below it unless it is a parabolic long."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "rests on the owner's 200-day rule (B26)",
+     "held decision D-020 on the 200-day"
+    ]
+   },
+   "depends_on": [
+    "D-020"
+   ],
+   "batch": "visuals-3",
+   "chart": {
+    "sym": "BABA",
+    "asof": "2016-02-24",
+    "window": 200,
+    "forward": 20
+   }
+  },
+  {
+   "key": "q54",
+   "skill": "setup.oops_reversal",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "oops.williams_open",
+   "q": "Is it a Williams Oops?",
+   "choices": [
+    "No, it opened above the prior low",
+    "Yes, it opened under the close",
+    "Yes, it undercut the prior low",
+    "No, it did not close over the high"
+   ],
+   "story": "Yesterday: high 82.40, low 80.60, close 81.20. Today: open 80.90, low 80.10, close 81.70.",
+   "answer": "No, it opened above the prior low",
+   "why": "No. A Williams Oops opens under the prior low. This day opened at 80.90, over the prior low of 80.60. It is still our main Oops, which only needs an open under the prior close of 81.20.",
+   "lesson_line": "Williams opens under the prior low. The main Oops opens under the close.",
+   "facts": [
+    "cp",
+    "w2",
+    "w3",
+    "o_main",
+    "o_super"
+   ],
+   "wrong": {
+    "Yes, it opened under the close": "That is the main Oops. Williams' version opens under the prior low.",
+    "Yes, it undercut the prior low": "The undercut is part of every Oops. Williams also opens under the low.",
+    "No, it did not close over the high": "A close over the prior high is the Super Oops mark, not Williams' open."
+   },
+   "house": true,
+   "simple": "Williams needs an open under the prior low, and this one opened over it, so it is not his version.",
+   "deeper": {
+    "counter": "To be Williams' version this day needed to open under 80.60, the prior low. It opened at 80.90. Every other test still holds, which is why it stays our main Oops."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "held decision D-104 on the Williams open"
+    ]
+   },
+   "depends_on": [
+    "D-104"
+   ],
+   "batch": "wave3"
+  },
+  {
+   "key": "q55",
+   "skill": "setup.oops_reversal",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "oops.super_oops",
+   "q": "What did the Super close buy you?",
+   "choices": [
+    "A grade mark for the setup",
+    "A confirmed new uptrend",
+    "A wider stop on day two",
+    "A guarantee the stop is safe"
+   ],
+   "story": "Shown through the Oops day. A Super Oops closes at 167.00 over the 166.53 prior high. You bought at 157.19 with the stop at 155.55. The next day opens at 165.36 and falls to 151.52.",
+   "answer": "A grade mark for the setup",
+   "why": "A grade mark for the setup. A Super close is a grade mark, not a guarantee. AMAT closed at 167.00, over the 166.53 prior high, on 2022-01-14. The next day it opened at 165.36 and fell to 151.52, through the 155.55 stop.",
+   "lesson_line": "A Super close grades the setup. It does not guarantee it.",
+   "facts": [
+    "dAMAT",
+    "dAMATn",
+    "dAMATw",
+    "o_super",
+    "h02"
+   ],
+   "wrong": {
+    "A wider stop on day two": "A stop never moves wider, whatever the close.",
+    "A confirmed new uptrend": "A Super close is a grade mark, not a guarantee, and it confirms no trend.",
+    "A guarantee the stop is safe": "A Super close is a grade mark, not a guarantee. AMAT fell through its stop."
+   },
+   "house": true,
+   "simple": "A Super close is only a grade mark for the setup, not a promise that the trade will work.",
+   "deeper": {
+    "trap": "AMAT on 2022-01-14 had the best-looking close of the set, 167.00 over the 166.53 prior high. The next day was a 9% down day through the 155.55 stop, the first of three straight down days. A grade mark does not move the stop."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "a dated example read off our own bars",
+     "reshaped once before"
+    ]
+   },
+   "batch": "visuals-3",
+   "chart": {
+    "sym": "AMAT",
+    "asof": "2022-01-14",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 157.19,
+     "stop": 155.55
+    }
+   }
+  },
+  {
+   "key": "q56",
+   "skill": "setup.oops_reversal",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "oops.market_reading",
+   "q": "What did the daily chart miss?",
+   "choices": [
+    "The market was not Green",
+    "The undercut was small",
+    "The close was too weak",
+    "The stop was too wide"
+   ],
+   "story": "Shown through the Oops day. It undercut the prior low by 1.26% and closed at 0.85 of its range. You bought at 74.97 with the stop at 73.73. The next day it is stopped, and the index goes on to make a lower low.",
+   "answer": "The market was not Green",
+   "why": "The market was not Green. UBER reclaimed on 2025-03-07 and was stopped the next day. SPY then made a lower low. The daily chart looked fine: the close was strong and the stop only 1.65% away. The market reading is a filter the stock's own chart cannot show.",
+   "lesson_line": "The chart looks fine. The reading is the filter.",
+   "facts": [
+    "dUBER",
+    "dUBERn",
+    "o_mktr",
+    "h04"
+   ],
+   "wrong": {
+    "The undercut was small": "The undercut was 1.26% under the prior low. Any trade under the prior low counts.",
+    "The close was too weak": "The close was at 0.85 of its range, a strong close.",
+    "The stop was too wide": "The stop was 1.65% from the buy, inside about 3%."
+   },
+   "house": true,
+   "simple": "The chart looked fine, but the market was not Green, and the index made a lower low.",
+   "deeper": {
+    "trap": "UBER on 2025-03-07: buy 74.97, stop 73.73, 1.65% away. It was stopped the next day, and the stock was 63.94 four weeks later. A clean daily chart cannot show the market reading, so check the reading before the buy, not after the stop."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "a dated example read off our own bars",
+     "rebuilt from the dossier row so every number is in a cited quote"
+    ]
+   },
+   "batch": "visuals-3",
+   "chart": {
+    "sym": "UBER",
+    "asof": "2025-03-07",
+    "window": 120,
+    "forward": 22,
+    "trade": {
+     "entry": 74.97,
+     "stop": 73.73
+    }
+   }
+  },
+  {
+   "key": "q57",
+   "skill": "setup.oops_reversal",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "oops.after_entry_stop",
+   "q": "Your move after the stop-out?",
+   "choices": [
+    "Take the loss; the setup was right",
+    "Move the stop lower next time",
+    "Rewrite the rules after one stop-out",
+    "Buy it right back at the open"
+   ],
+   "story": "A clean Oops with a red prior day, a pullback to the 21-day and a strong close. Two days later it trades under the Oops-day low and you are stopped out.",
+   "answer": "Take the loss; the setup was right",
+   "why": "Take the planned loss. A good example can have a horrible result: our own named cases are WFRD and SEI. Do not expect every Oops to work. The stop is the exit, and it only moves up, never down or wider. Buy again only on a new trigger.",
+   "lesson_line": "A good setup can lose. The loss was planned.",
+   "facts": [
+    "m_good",
+    "h02",
+    "h28"
+   ],
+   "wrong": {
+    "Move the stop lower next time": "A stop never moves down or wider.",
+    "Rewrite the rules after one stop-out": "One loss on a good setup is part of the system.",
+    "Buy it right back at the open": "Buy again only on a new trigger."
+   },
+   "house": true,
+   "simple": "A clean setup can still lose, so take the planned loss and keep your rules.",
+   "deeper": {
+    "trap": "Judging the rules by one result. WFRD and SEI were good examples with horrible results. A good setup lost, the stop did its job, and the rules stay as they are."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's stop rule (A4)"
+    ]
+   },
+   "batch": "wave3"
+  },
+  {
+   "key": "q58",
+   "skill": "setup.oops_reversal",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "oops.after_entry_stop",
+   "q": "What went wrong?",
+   "choices": [
+    "Nothing; a Super close is no guarantee",
+    "The stop was too tight",
+    "You should have bought the close",
+    "The prior day was not red"
+   ],
+   "story": "A Super Oops closes over the prior high with a 1.52% stop. The next day it opens a little lower and sells through the stop.",
+   "answer": "Nothing; a Super close is no guarantee",
+   "why": "Nothing went wrong with the rules. CRM was a Super Oops on 2023-06-20 and sold through the stop the next day. The Super close is a grade mark.",
+   "lesson_line": "A clean Oops can still fail. The stop is the plan.",
+   "facts": [
+    "dCRM",
+    "dAMATw"
+   ],
+   "wrong": {
+    "The stop was too tight": "The stop sits under the Oops-day low, not where the day felt safe.",
+    "You should have bought the close": "The close is not the entry.",
+    "The prior day was not red": "A red prior day is preferred, not required."
+   },
+   "house": true
+  },
+  {
+   "key": "q59",
+   "skill": "setup.oops_reversal",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "oops.after_entry_stop",
+   "q": "What did the stop do?",
+   "choices": [
+    "Its job: a small planned loss",
+    "Cost you the trade; it needed room",
+    "Nothing; the close was the exit"
+   ],
+   "story": "You bought at 176.35 with the stop at 174.16. The next day it opens at 176.24 and falls to 173.16 without trading above your entry.",
+   "answer": "Its job: a small planned loss",
+   "why": "Its job. V never traded above the entry, and the stop took the loss the next day. The second chance later was a new trigger.",
+   "lesson_line": "A loss at plan is the system working.",
+   "facts": [
+    "dV",
+    "dVn",
+    "dVw",
+    "h02"
+   ],
+   "wrong": {
+    "Cost you the trade; it needed room": "Room is how a small loss becomes a big one.",
+    "Nothing; the close was the exit": "The stop is the exit."
+   },
+   "house": true
+  },
+  {
+   "key": "q60",
+   "skill": "setup.oops_reversal",
+   "rung": 9,
+   "format": "mcq",
+   "criterion": "oops.location",
+   "q": "Yesterday's close. Green market, no report in 3 days. Tomorrow it undercuts the low and reclaims the close. Take it?",
+   "choices": [
+    "Take it; a drift onto two averages",
+    "Pass; there is no real pullback",
+    "Pass; a big news bar came first",
+    "Take it; buy the open before the dip"
+   ],
+   "answer": "Take it; a drift onto two averages",
+   "why": "Take it. The stock drifted three weeks onto its two converging averages, 5.2% off its high. That is inside the 3% to 12% range for a real pullback, and those averages are where the Oops-day low is asked to tag.",
+   "lesson_line": "Judge the setup yesterday: orderly drift onto averages.",
+   "facts": [
+    "dADBE",
+    "dADBEn",
+    "o_loc",
+    "o_pull",
+    "m_good",
+    "o_mkt"
+   ],
+   "wrong": {
+    "Pass; there is no real pullback": "It drifted 5.2% off its high, inside the 3% to 12% range.",
+    "Pass; a big news bar came first": "The drift ran three weeks onto the averages, which is an orderly pullback.",
+    "Take it; buy the open before the dip": "Buying at the open can fill before the undercut. Our scans buy as price trades back over the prior close, not at the open."
+   },
+   "house": true,
+   "chart": {
+    "sym": "ADBE",
+    "asof": "2018-05-02",
+    "window": 120,
+    "forward": 20
+   },
+   "simple": "Take it, because the stock drifted onto its two averages in an orderly pullback.",
+   "deeper": {
+    "trap": "Trap: judging the Oops day instead of the setup. The decision is made on yesterday's chart: a clean drift of 5.2% onto two averages. A strong close is a grade mark, not a guarantee, and expecting every good Oops to work is a named mistake."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before"
+    ]
+   },
+   "batch": "sweep-2026-11-14"
+  },
+  {
+   "key": "q61",
+   "skill": "setup.oops_reversal",
+   "rung": 9,
+   "format": "mcq",
+   "criterion": "oops.pullback",
+   "q": "Yesterday's close. Tomorrow it undercuts the low and reclaims the close. Take it or pass?",
+   "choices": [
+    "Pass; it only dipped at the highs",
+    "Take it; the reclaim is the trigger",
+    "Take it; the 200-day is rising",
+    "Pass; the undercut is too shallow"
+   ],
+   "answer": "Pass; it only dipped at the highs",
+   "why": "Pass. The prior close was only 0.6% under the 20-day high, a dip at the highs. The pullback rule asks for 3% to 12%. There is nothing to reverse from. That was HD on 2025-09-15.",
+   "lesson_line": "No pullback, no Oops. A dip at the highs is not it.",
+   "facts": [
+    "dHD",
+    "dHDn",
+    "o_pull"
+   ],
+   "wrong": {
+    "Take it; the reclaim is the trigger": "The reclaim is a trigger only after a real pullback.",
+    "Take it; the 200-day is rising": "A rising 200-day is a plus, not a substitute for the pullback.",
+    "Pass; the undercut is too shallow": "Any trade under the prior low counts as the undercut. What is missing is the pullback."
+   },
+   "house": true,
+   "chart": {
+    "sym": "HD",
+    "asof": "2025-09-12",
+    "window": 120,
+    "forward": 20
+   },
+   "simple": "Pass, because the stock only dipped a little from its highs, so there is no real pullback to reverse from.",
+   "deeper": {
+    "trap": "The hidden chart looks like a leader at its highs, and the undercut and reclaim happen. But the reclaim is a trigger only after a real pullback of 3% to 12% off the 20-day high. HD's prior close was 0.6% under it."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "a dated example read off our own bars"
+    ]
+   },
+   "batch": "wave3"
+  },
+  {
+   "key": "q62",
+   "skill": "setup.oops_reversal",
+   "rung": 9,
+   "format": "tf",
+   "criterion": "oops.scanner_oops",
+   "q": "Every Oops is a red to green, and every red to green is an Oops.",
+   "answer": "False",
+   "why": "False. Every Oops is a red to green, but not the reverse. An Oops must first trade under the prior low.",
+   "lesson_line": "Oops is the narrower one. It needs the undercut first.",
+   "facts": [
+    "l_rg2",
+    "l_rg1"
+   ],
+   "house": true
+  },
+  {
+   "key": "q63",
+   "skill": "setup.oops_reversal",
+   "rung": 9,
+   "format": "tf",
+   "criterion": "oops.market_reading",
+   "q": "The best Oops days are market-wide gap downs that reverse, when leaders print Oops together.",
+   "answer": "True",
+   "why": "True. The best Oops days are market-wide gap downs that reverse, when leaders print Oops together. Even then the market reading still applies: Green or Yellow, Orange only for an A+ Oops, and in Red mostly cash.",
+   "lesson_line": "A whole-market gap down that reverses is the best Oops day.",
+   "facts": [
+    "o_best",
+    "o_mktr",
+    "h26"
+   ],
+   "house": true,
+   "simple": "True. The best Oops days are when the whole market gaps down and reverses, and leaders print Oops together.",
+   "deeper": {
+    "trap": "Treating a market-wide gap down as a free pass. The reading still sets the risk: Green is full risk, Yellow smaller and fewer, Orange only A+, Red mostly cash and shorts."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's market reading (F65)",
+     "fixed before"
+    ]
+   },
+   "batch": "wave3"
+  },
+  {
+   "key": "q64",
+   "skill": "setup.oops_reversal",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "oops.earnings_day_lower",
+   "q": "How does the earnings day change the Oops?",
+   "choices": [
+    "Allowed, but it grades lower",
+    "Not allowed; earnings days are out",
+    "Allowed, and it grades the same",
+    "A delayed reaction, not an Oops"
+   ],
+   "story": "The company reported before the open. The stock opened under yesterday's close, undercut the low and closed over the prior close.",
+   "answer": "Allowed, but it grades lower",
+   "why": "Allowed, but it grades lower. On our card, an earnings-day Oops counts as an Oops, but it earns a lower grade. The day after a news gap is a different case: a reversal then is a delayed-reaction setup, not an Oops.",
+   "lesson_line": "An earnings-day Oops is allowed but grades lower. The day after is a delayed reaction.",
+   "facts": [
+    "o_earn_day",
+    "m_news",
+    "dPANW",
+    "dPANWn"
+   ],
+   "wrong": {
+    "Not allowed; earnings days are out": "Our card allows an earnings-day Oops. It only grades lower.",
+    "A delayed reaction, not an Oops": "A delayed reaction is the reversal the day after a news gap, not the news day itself.",
+    "Allowed, and it grades the same": "The card grades an earnings-day Oops lower, not the same."
+   },
+   "house": true,
+   "simple": "An Oops on the day of earnings is allowed, but it earns a lower grade.",
+   "deeper": {
+    "trap": "Mixing up the report day with the day after. A reversal on the report day is an Oops with a lower grade. A reversal the day after a news gap is a delayed-reaction setup. PANW on 2023-08-03 was the second case."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "a proposed card criterion"
+    ]
+   },
+   "batch": "wave3"
+  },
+  {
+   "key": "q65",
+   "skill": "setup.oops_reversal",
+   "rung": 4,
+   "format": "mcq",
+   "criterion": "oops.position_adv",
+   "q": "Our cap is 1% of a stock's average daily volume. It averages 800,000 shares a day. What is the most shares we hold?",
+   "answer": "8,000 shares",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a * 0.01",
+     "a": 800000
+    },
+    "round": 0
+   },
+   "why": "8,000 shares. We never own more than 1% of a stock's average daily volume, and 1% of 800,000 is 8,000. A thin stock is not even watched.",
+   "lesson_line": "Take 1% of the average daily volume. That is the most we hold.",
+   "facts": [
+    "h19"
+   ],
+   "house": true,
+   "suffix": " shares",
+   "simple": "We hold at most 8,000 shares, which is 1% of the stock's 800,000 shares of average daily volume.",
+   "tier": "core",
+   "risk": {
+    "score": 7,
+    "reasons": [
+     "one cited fact only",
+     "computed key",
+     "rests on the owner's rulebook (D42)"
+    ]
+   },
+   "batch": "rank",
+   "choices": [
+    "8,000 shares",
+    "80,000 shares",
+    "792,000 shares",
+    "32,000 shares"
+   ],
+   "wrong": {
+    "80,000 shares": "Moved the decimal one place, ten times too many.",
+    "792,000 shares": "Subtracted 1% instead of taking it.",
+    "32,000 shares": "Used the four percent chase limit instead."
+   }
+  },
+  {
+   "key": "q66",
+   "skill": "setup.oops_reversal",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "oops.position_adv",
+   "q": "Our holding in a stock stays at or under 1% of its average daily volume.",
+   "answer": "True",
+   "why": "True. We never own more than 1% of a stock's average daily volume. Illiquid stocks are not even watched. The cap applies to every stock, not only small ones.",
+   "lesson_line": "One percent of average daily volume is our ceiling. Thin stocks are skipped.",
+   "facts": [
+    "h19"
+   ],
+   "house": true,
+   "simple": "True, because we never own more than 1% of a stock's average daily volume.",
+   "tier": "core",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "one cited fact only",
+     "rests on the owner's rulebook (D42)"
+    ]
+   },
+   "batch": "wave3"
+  },
+  {
+   "key": "q67",
+   "skill": "setup.oops_reversal",
+   "rung": 4,
+   "format": "mcq",
+   "criterion": "oops.not_stretched",
+   "q": "We skip a long more than 10% above its 9 EMA. If the 9 EMA is 80.00, what is the most we pay?",
+   "answer": "$88.00",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a * 1.1",
+     "a": 80.0
+    },
+    "round": 2
+   },
+   "why": "88.00. We skip a long more than 10% above its 9 EMA. 80.00 plus 10% is 88.00. This is a different rule from the 4% limit above the prior close.",
+   "lesson_line": "No more than 10% over the 9 EMA. Past that, skip.",
+   "facts": [
+    "h13",
+    "o_stretch",
+    "o_chase",
+    "r06"
+   ],
+   "house": true,
+   "prefix": "$",
+   "simple": "The most we pay is 88.00, which is the 9 EMA of 80.00 plus 10%.",
+   "tier": "core",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "computed key",
+     "rests on the owner's rulebook (C29)"
+    ]
+   },
+   "batch": "sweep-2026-11-14",
+   "choices": [
+    "$88.00",
+    "$90.00",
+    "$91.52",
+    "$96.80"
+   ],
+   "wrong": {
+    "$90.00": "Added ten dollars instead of ten percent.",
+    "$91.52": "Stacked the four percent chase limit on top.",
+    "$96.80": "Took ten percent twice, compounding it."
+   }
+  },
+  {
+   "key": "q68",
+   "skill": "setup.oops_reversal",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "oops.not_stretched",
+   "q": "Do you buy it?",
+   "choices": [
+    "No, it is too stretched to buy",
+    "No, it needs a red prior day",
+    "Yes, it passes every Oops test",
+    "Yes, a hard reversal is strength"
+   ],
+   "story": "A pullback reverses hard. The Oops reclaims the prior close at 56.00. The 9 EMA sits at 50.00.",
+   "answer": "No, it is too stretched to buy",
+   "why": "No. 56.00 is more than 10% above the 9 EMA of 50.00. We skip a long that is more than 10% above its 9 EMA, even a clean Oops. The stretch rule is a separate gate from the candle tests.",
+   "lesson_line": "Over 10% above the 9 EMA, skip the long, even a clean Oops.",
+   "facts": [
+    "h13",
+    "o_stretch",
+    "o_red",
+    "r06"
+   ],
+   "wrong": {
+    "No, it needs a red prior day": "A red prior day is preferred, not required. The stretch rule is what stops this buy.",
+    "Yes, it passes every Oops test": "The candle tests can pass, but the stretch rule is a separate gate.",
+    "Yes, a hard reversal is strength": "Strength does not beat the stretch rule. A long more than 10% over its 9 EMA is skipped."
+   },
+   "house": true,
+   "simple": "No. At 56.00 the stock is more than 10% above its 9 EMA, which is too stretched to buy.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's stretch rule (C29)"
+    ]
+   },
+   "batch": "sweep-2026-11-14"
+  },
+  {
+   "key": "q69",
+   "skill": "setup.oops_reversal",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "oops.trim_2",
+   "q": "Bought at 31.51 with the stop at 31.12. Where is 5R?",
+   "answer": "$33.46",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a + 5 * (a - b)",
+     "a": 31.51,
+     "b": 31.12
+    },
+    "round": 2
+   },
+   "why": "33.46. One R is the fill minus the stop. Five R is 5 x (31.51 - 31.12). Add that to the fill: 31.51 + 5 x (31.51 - 31.12) = 33.46. Five R is a mark on the ruler. Selling there is a judgment, and what is left trails.",
+   "lesson_line": "Know your 5R too. It is a mark on the ruler, and selling there is a judgment.",
+   "facts": [
+    "r03",
+    "dACN",
+    "h21"
+   ],
+   "house": true,
+   "prefix": "$",
+   "simple": "5R is 33.46, which is the fill plus five times the distance down to the stop.",
+   "tier": "extended",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "computed key",
+     "rests on the owner's rulebook (E51)"
+    ]
+   },
+   "batch": "visuals-3",
+   "choices": [
+    "$33.46",
+    "$33.85",
+    "$33.07",
+    "$32.68"
+   ],
+   "wrong": {
+    "$33.07": "Added five R to the stop, not the fill.",
+    "$32.68": "Added three R instead of five.",
+    "$33.85": "Counted six R, one too many."
+   },
+   "story": "Bought on the Oops day shown.",
+   "chart": {
+    "sym": "ACN",
+    "asof": "2006-10-23",
+    "window": 120,
+    "forward": 30,
+    "trade": {
+     "entry": 31.51,
+     "stop": 31.12
+    }
+   }
+  },
+  {
+   "key": "q70",
+   "skill": "setup.oops_reversal",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "oops.trim_2",
+   "q": "What do you do now?",
+   "choices": [
+    "Sell a second third, trail the rest",
+    "Sell everything that is left now",
+    "Hold it all; the trail does the work",
+    "Add a third; the stock is working"
+   ],
+   "story": "You sold a third at 3R. Now the Oops reaches 5R.",
+   "answer": "Sell a second third, trail the rest",
+   "why": "Sell a second third and trail the last third. After the first third at 3R comes another third at 5R. Then the last third rides the trail. The plan is adjustable. We buy the full size once, so there is no adding.",
+   "lesson_line": "At 5R the second third comes off. The last third rides the trail.",
+   "facts": [
+    "h20",
+    "h31"
+   ],
+   "wrong": {
+    "Hold it all; the trail does the work": "The second third comes off at 5R. The trail handles the last third.",
+    "Add a third; the stock is working": "We buy the full size once, at one price. No adding.",
+    "Sell everything that is left now": "The last third is trailed, not sold at 5R."
+   },
+   "house": true,
+   "simple": "At 5R we sell a second third and let the last third ride the trail.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's exit plan (E51, E52)"
+    ]
+   },
+   "batch": "wave3"
+  },
+  {
+   "key": "q71",
+   "skill": "setup.oops_reversal",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "oops.inv_no_reclaim",
+   "q": "What is your move as the day ends?",
+   "story": "The prior close is 50.00 and the prior low 49.40. The stock opens at 49.70 and trades down to 49.10. It bounces and closes at 49.85, never trading over 50.00.",
+   "choices": [
+    "No trade; the reclaim never came",
+    "Buy the close; 49.85 is near enough",
+    "No trade; it never broke the prior low",
+    "Buy now; the undercut is the signal"
+   ],
+   "answer": "No trade; the reclaim never came",
+   "why": "No trade. The stock broke the 49.40 prior low but never traded back over the 50.00 prior close. An Oops is bought back through the prior close, so the buy never came. The 49.85 close is also under 50.00, so the day is not an Oops at all. Our card also lists this as a no-trade, a rule still marked proposed.",
+   "lesson_line": "No reclaim of the prior close means no Oops and no trade.",
+   "facts": [
+    "o_main",
+    "l_k2",
+    "cs",
+    "o_inv"
+   ],
+   "wrong": {
+    "Buy the close; 49.85 is near enough": "Near is not over. The buy comes back through 50.00, and the 49.85 close is still under it.",
+    "Buy now; the undercut is the signal": "The undercut only sets the trap. The buy comes when price trades back through the prior close after it.",
+    "No trade; it never broke the prior low": "It did break it. The 49.10 low is under the 49.40 prior low. What never came is the trade back over 50.00."
+   },
+   "house": true,
+   "simple": "No trade, because the stock never got back over the prior close after it broke the prior low.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "touches a card criterion that is still proposed (oops.inv_no_reclaim); the why names it as proposed",
+     "the key holds under any entry option in D-003 and under the settled main Oops definition, since the close is under the prior close"
+    ]
+   },
+   "batch": "polish"
+  }
+ ],
+ "conflicts": [
+  "Pending-owner criteria kept OUT of every key and wrong note (the course's current default, waiting on the owner): oops.williams_open (D-104; the Williams open appears only as the originator's definition, with its three readers, and the card's quality mark is never keyed; q26 and q54 teach that the main version needs only an open under the prior close); oops.trigger (D-003; the buy is keyed through the settled oops.order_market and the settled mistake 'buying the touch of the prior close before the undercut', and through the proposed oops.inv_no_reclaim: the reclaim after the undercut, never 'at the close'); oops.timeframe_daily and the weekly Oops (D-012; not asked); oops.above_200 (D-020; only the hard rule B26 is keyed); oops.leader, RS 80 (D-011; never asked); oops.liquidity (D-030; only B23 is keyed, q19); oops.stop_width (D-005; only A13's about 3% as a measure in q24, never 'skip or an A+ smaller'); oops.breakeven and oops.time_stop (D-019; the breakeven is the first trim by default from TRADE_PLANS.md, the time stop is C33); oops.low_never_breaks (D-105; q40 keys only the settled 75% data line of oops.after_entry_stop).",
+  "Judgment call for the owner: the card's headline trigger is the reclaim of the prior close during the day (the register's default for every daily setup), but oops.trigger is pending and the card's own evidence shows the finished-candle count is look-ahead (every attempt reaches 3R 31.4% of the time against 48.2% for a close-confirmed Oops). The unit teaches the entry as the market order when price trades back over the prior close after the undercut, and the walk-throughs show the dossier's fill (the prior close plus a cent). If the owner picks the close (option B) the walk-throughs and q08, q27 and q31 need a second look.",
+  "Six Oops definitions live in the app (scanner, member tag, tag_textbook, study_hard, chart_iq, the owner's ruling). The unit teaches the owner's: the scanner main version, Williams as the originator's, Super as a close over the prior high. The app's stage 6 counts a HIGH over the prior high as Super; the owner's is a close (q22).",
+  "The 2B and U&R overlap: q45 to q47 separate the three by the cards' measurable tells (the age of the broken low: yesterday's low against a swing low; how many sessions to reclaim: the same day, up to 3 for a 2B or U&R; the level: a bigger level for a U&R). The 5 to 60 sessions and 1 ATR of the 2B level are pending (D-101) and are never keyed here.",
+  "The SET.44 Holy Grail Oops-versus-Grail item (q64 there) keys 'opens under the prior close, trades under the prior day's low and reclaims the prior close the same day'; this unit keys the same three tests (q01, q25), so the two agree.",
+  "Williams' exit (the first profitable open) and his dollar stop are the originator's; q37 contrasts them with ours. Williams' date of origin (1979 against 1981) is not asked.",
+  "The dossier's example numbers (d1) are read off our own daily bars by the research scan, not a public page: the fill is the prior close plus a cent, the stop 5 cents under the Oops-day low. The scan is a look-ahead version (a close over the prior close is required); q40 and the walk-throughs never quote a base rate.",
+  "UNITS-method SET.25 reads 'the gap-open 2B: gap below the prior low, close back above it; same entry and stop logic' and teaches 'place the stop under the gap low'. This unit follows the criteria card (D-004: the main Oops need not gap below the low); the unit id SET.25 comes from the brief.",
+  "The chart questions (q60 ADBE asof 2018-05-02, q61 HD asof 2025-09-12) show the member's own chart up to the day before the Oops day (the decision is made during the next session). The keys rest on the dossier's reads (dADBE, dADBEn, dHD, dHDn), not on the picture. HD is a near-miss that fails exactly one gate, the pullback.",
+  "Radge's two posts refused the research's first pass and loaded in its cold check; the quote checker may report them unreachable.",
+  "Cold check 2026-11-10: 60 pass (9 fixed), 0 fix, 6 cut (counting the 3 walk-throughs). The three things the owner should look at first: (1) the Oops entry (oops.trigger, D-003 pending): the walk-throughs, q08, q27 and q31 now say 'our scans buy as it trades back over the prior close' and no question marks the close or the next open as wrong because of when you buy; if he picks the close they need a second look. (2) the card's grading contradicts its own market gate: Orange or Red is listed as B- (and an A+ needs Green) while the gate says 'Green or Yellow, Orange only for an A+'; q38 and q41 follow the gate and F65. (3) the dossier says V 2019-08-13 'never traded above the entry'; the bars show 178.92 on the entry day, so that line is wrong (q59 cut). The card also puts a swing low bounced 5% under U&R while the 2B card calls it a 2B; q47 now uses a rising 50-day average, which both cards call a U&R. Cuts: q07 (same as q41), q11 (same as q10), q52 (same as q61), q58 (same as q55), q59 (same as q42 and wrong), q62 (same as q49). Stays consistent with SET.44 q64 (same three tests) and SET.24 q46 to q48. Chart bars: ADBE 2018-05-02 has 5,859 daily bars up to it and HD 2025-09-12 has 7,710, well over 120. Pending-owner criteria stay out of every key (williams_open, timeframe_daily, above_200 beyond B26, leader, liquidity beyond B23, trigger, stop_width, breakeven, low_never_breaks).",
+  "Requoted 2026-11-10: o_mktr after the cards' market-reading rows were corrected."
+ ],
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "Step 3 said 'Buy at market as it trades back over the prior close' as if it were the ruled trigger; oops.trigger is pending (D-003, close or reclaim). Now 'Our scans buy ...'. Re-derived from bars: ACN 2006-10-23 opens 31.17 under the 31.50 close, low 31.17 is 0.73% under the 31.40 prior low, close 32.07 over the 31.79 prior high; buy 31.51, stop 31.12 (1.24%); 3R = 32.68 first reached 10-26, day 3.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "Same rewording as w1 (oops.trigger pending, D-003). Bars: ADBE 2018-05-03 opens 220.01 under the 221.10 close, low 218.74 (0.82% under 220.55), close 226.05 over the 224.50 prior high; buy 221.11, stop 218.69 (1.09%); 3R = 228.37 hit 05-04, the next day.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "Entry reworded as the scans' default (oops.trigger pending, D-003). 'The widest stop of the ten' dropped (members cannot see the ten). '3R on day 1' is the NEXT session (bars: R = 2.70, 3R = 157.32; 03-19 high 157.07, 03-20 high 169.90), now says so. DELL 2026-03-19: open 146.59, low 146.57 (1.58% under 148.93), close 156.76 (97% of range) matches.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Cold check: key re-derived from the cited quotes/calc; no tell, no second answer found."
+  },
+  "q02": {
+   "status": "cut",
+   "by": "checker",
+   "fixed": false,
+   "notes": "q01's stem says 'closes over the prior close' and q03's stem says 'closes back over the prior close', so the blank is answered by its neighbours; same fact as q01."
+  },
+  "q03": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in fills: see the resolver's notes"
+  },
+  "q04": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "FCX 2022-02-23 is the day before the owner-graded FCX 2022-02-24 (Beautiful, Super yes). Bars: 02-24 opens 41.38 under the 42.46 close, low 41.25 under the 42.05 low, closes 43.72 over the 43.19 prior high: a true Super Oops, shown on day 1 of the replay. No trade, no numbers in text. Definition question but the chart shows exactly the feature asked."
+  },
+  "q05": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Unger (w2) and Deepvue (w3) both quoted and agree; card cp says the same. No key against the rulebook (it is silent on Williams). D-104 flag stands."
+  },
+  "q06": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "ADBE 2018-05-03 is winners_list row 6. Bars: prior close 221.10 (buy 221.11, inside the day range 218.74-227.37), Oops-day low 218.74, stop 218.69 (5 cents under). Entry and stop match dossier row 6, fact dADBE, and the why. asof is the buy day, so the trade is right. Ticker absent from q, story and choices. Answer true for the real example."
+  },
+  "q07": {
+   "status": "cut",
+   "notes": "Same fact as q41 (Red market: mostly cash); q41 is the decision version.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q08": {
+   "status": "cut",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Same fact, same ask as q27 (buy fills on the reclaim after the undercut, not the early touch/open); its right choice hands q27 its answer. q27 keeps it in applied form."
+  },
+  "q09": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Cold check: key re-derived from the cited quotes/calc; no tell, no second answer found."
+  },
+  "q10": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in fills: see the resolver's notes"
+  },
+  "q11": {
+   "status": "cut",
+   "notes": "Same fact as q10 (a real pullback first; a dip at the highs is not one) and the HD example is q61's.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q12": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "GLW 2024-11-18 is the day before the 2024-11-19 winner (row 9). Bars: 11-19 undercuts the prior low (45.83 vs 46.01), 50-day SMA 45.97 and rising (44.73 ten sessions earlier), low is 0.14 ATR under it; close 47.29 over the prior high. The 'undercut a rising 50-day' line is true. No numbers in story."
+  },
+  "q13": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Cold check: key re-derived from the cited quotes/calc; no tell, no second answer found."
+  },
+  "q14": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "3 ATR ceiling is in o_size; 'news-sized' is m_size. Choices balanced (31-34). No invented numbers. Threshold still proposed (owner flag).",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+  },
+  "q15": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Final text agrees with the rulings it touches; key right, wrongs wrong, quotes and numbers grounded, style ok."
+  },
+  "q16": {
+   "status": "cut",
+   "notes": "cut 2026-11-11: duplicate of SET.23 q18; cut confirmed, flagged-question fix checked 2026-11-11",
+   "by": "writer"
+  },
+  "q17": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "DELL 2026-03-19, winners_list row 10. Bars: prior close 149.21 (buy 149.22 inside 146.57-157.07), low 146.57, stop 146.52. 3R = 157.32 (matches calc and answer); high 03-20 169.9 so 3R lands in the replay on day 1. Trade on a buy-day chart only. Second DELL use is q34 (03-20), so two uses."
+  },
+  "q18": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Cold check: key re-derived from the cited quotes/calc; no tell, no second answer found."
+  },
+  "q19": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Cold check: key re-derived from the cited quotes/calc; no tell, no second answer found."
+  },
+  "q20": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in fills: see the resolver's notes"
+  },
+  "q21": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in wave3: see the resolver's notes"
+  },
+  "q22": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in wave3: see the resolver's notes"
+  },
+  "q23": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "8.5 recomputed; 9.3 divides by close, 91.5 no subtraction. ok."
+  },
+  "q24": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "ACN 2006-10-23, winners_list row 1. Bars: prior close 31.50 (buy 31.51 inside 31.17-32.08), low 31.17, stop 31.12 (1.24%). Entry/stop match dossier row 1, fact dACN and the question. Buy-day asof."
+  },
+  "q25": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key right (open 49.70<50.00, low 49.10<49.40, close 50.30>50.00; close under 50.60 so not Super). But the why is a near word-for-word copy of q26's why (same opening three sentences). Rewritten as the test-by-test check its lesson_line promises."
+  },
+  "q26": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Super Oops is right (close 50.80 over high 50.60; open 49.70 under close 50.00; low 49.10 under 49.40). Choices balanced. Wrong keys match choices."
+  },
+  "q27": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "keep right"
+  },
+  "q28": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key right (52.30 is over 52.00, 4% above 50.00; C28 and o_chase agree). But the why copies q20's why sentence for sentence, and its last line (distance grows, shares shrink) talks about sizing a buy the key says not to make. Rewritten; h12 dropped."
+  },
+  "q29": {
+   "status": "pass",
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave3; awaiting cold re-read"
+  },
+  "q30": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Drop over 4% inside the 5 sessions is o_ord2; 'off the list' is m_bar. Three days is inside the window. Distractors are weak but not defensible.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+  },
+  "q31": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "keep right"
+  },
+  "q32": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "ADBE 2014-03-12, failures row 1. Bars: prior close 67.47 (buy 67.48 inside 66.75-68.10), low 66.75, stop 66.70. Next day 03-13 open 68.48, low 66.63: matches the story. Day 18 (04-07) low 59.63: forward 20 reaches it (deeper trap line). Different example from q06/q60 (2018)."
+  },
+  "q33": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "R = 0.40; loss at the 30.85 low is 0.67 = about 1.7R, under the 2R ceiling (h07), so 30.85 is the new stop (h06). Choices use only story numbers. B20 is taught only here (owner flag).",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+  },
+  "q34": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "DELL 2026-03-20 is the first session after the buy day 03-19 (high 169.9, open 163.5 already over 3R 157.32; the original 'on the buy day itself' was false, 03-19 high 157.07 < 157.32; rewrite is right). No trade key, correct since asof is not the buy day. One catch: the correct choice said 'no sell on day 1' while the story now says the session after the buy; the rule's own 'day 1 of the buy' could be read either way, so the choice is reworded to 'Hold it all, no sell this early' (key unchanged, same meaning). Wrongs keyed by their unchanged texts."
+  },
+  "q35": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in rulings2: see the resolver's notes"
+  },
+  "q36": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Cold check: key re-derived from the cited quotes/calc; no tell, no second answer found."
+  },
+  "q37": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in wave3: see the resolver's notes"
+  },
+  "q38": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Cold check: key re-derived from the cited quotes/calc; no tell, no second answer found.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+  },
+  "q39": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Final text agrees with the rulings it touches; key right, wrongs wrong, quotes and numbers grounded, style ok."
+  },
+  "q40": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Cold check: key re-derived from the cited quotes/calc; no tell, no second answer found."
+  },
+  "q41": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Cold check: key re-derived from the cited quotes/calc; no tell, no second answer found."
+  },
+  "q42": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "V 2019-08-13, failures row 2. Bars: prior close 176.34 (buy 176.35 inside 174.21-178.92), low 174.21, stop 174.16. 08-14 open 176.24 low 173.16 through the stop; 187.05 high on 09-09 = day 18, within forward 20, so 'a fresh peak a few weeks later' plays out. The right answer (new trade needs a new trigger) holds."
+  },
+  "q43": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "app targets still not the plan"
+  },
+  "q44": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "KEEP was wrong: why taught 'no longs below the 200-day unless a parabolic long', which D-009 supersedes for stocks (exception only for indexes and leveraged ETFs). Re-stated as a hard no for stocks, cited to the D-009 quote."
+  },
+  "q45": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Open 83.50 < 83.90, low under 83.10, close 84.40 > 83.90 = Oops on yesterday's low; 'no older swing low' is stated. 2B and U&R tells quoted (l_tb1-3, l_ur1-2). Numbers differ from q25/q26.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+  },
+  "q46": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Break of an older swing low, reclaim next session, no undercut of Monday's low = 2B (l_tb2, l_tb3), not an Oops. 'Twelve sessions' comes from the question itself and no 5-to-60 rule is keyed. Yes/No split 2 and 2."
+  },
+  "q47": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Cold check: key re-derived from the cited quotes/calc; no tell, no second answer found."
+  },
+  "q48": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Open 50.90 over the red close 50.00, close 52.80 over the red high 52.40 = Kicker (l_k1); Oops opens down (l_k2). Choices balanced, four different setups."
+  },
+  "q49": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "GOOGL 2026-02-27 near-miss row 1. Bars: open 304.14 under prior close 307.38, close 311.76, low 303.80 vs prior low 302.35 = 0.48% above. asof is the day read, correct for a 'which setup is this day' reading. Answer (Red to Green, not an Oops) true."
+  },
+  "q50": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Go Signal key rests on l_go1/l_go2 (hourly flag vs daily candle). The story mirrors the card definition and the term is taught only here, so it is a cue-matching item; accepted, owner flag on a walk-through stands.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+  },
+  "q51": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "PANW 2023-08-03 near-miss row 4. Bars: prior day 126.585 to 118.085 (-6.71%), open 117.405 under that close, low 116.905 vs prior low 117.02 (12 cents under), close 118.725 just over the prior close. asof is the reversal day with the news bar just before it visible; replay shows 109.16 the next day. Answer true."
+  },
+  "q52": {
+   "status": "cut",
+   "notes": "Same HD 2025-09-15 example and same fact (no pullback) as q61, the chart version.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q53": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "BABA 2016-02-24 near-miss row 3. Bars: prior close 66.97, close 67.23, 200-day SMA 76.4757 = 76.48, both about 12% under. Window 200 shows the 200 SMA line (360 bars exist). Prior day is red, so the wrong choice about a non-red day is wrong. Answer true."
+  },
+  "q54": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Open 80.90 is over the prior low 80.60 so it is not Williams' open (w2, cp); it still passes the main test (80.90 < 81.20, low 80.10, close 81.70). Own numbers, not q25/q26. Choices balanced, 2 and 2."
+  },
+  "q55": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "AMAT 2022-01-14, failures row 3. Bars: prior high 166.53, close 167.00, prior close 157.18 (buy 157.19), Oops low 155.60, stop 155.55; next day 01-18 open 165.36, low 151.52. All story numbers match the bars and dossier. Buy-day asof with trade."
+  },
+  "q56": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "UBER 2025-03-07, failures row 4. Bars: prior low 74.725, low 73.78 = 1.26% undercut; close 76.27 = 0.85 of range; prior close 74.96 (buy 74.97), stop 73.73. Stopped 03-10 (low 71.97). SPY lower low is day 4; 63.94 low is day 20; forward 22 covers both. Story numbers match."
+  },
+  "q57": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in wave3: see the resolver's notes"
+  },
+  "q58": {
+   "status": "cut",
+   "notes": "Same fact as q55 (a Super close is a grade mark, not a guarantee); q55 keeps it with the AMAT numbers (bars: next open 165.36, low 151.52).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q59": {
+   "status": "cut",
+   "notes": "Same V trade and the same fact as q42, and the story's 'without trading above your entry' is false on the bars: V traded to 178.92 on the entry day (2019-08-13) and 177.25 on 08-14 before the stop traded at 173.16 (the dossier's 'never traded above the entry' is wrong too).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q60": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Final text agrees with the rulings it touches; key right, wrongs wrong, quotes and numbers grounded, style ok."
+  },
+  "q61": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Prior close 0.6% under the 20-day high (dHD) versus the 3% to 12% rule (o_pull). The tiny-undercut distractor is not a rule failure, and the rising-200-day distractor is wrong by o_200r being a preference. Choices balanced."
+  },
+  "q62": {
+   "status": "cut",
+   "notes": "Same fact as q49 (every Oops is a red to green, not the reverse); q49 keeps it with the GOOGL example.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q63": {
+   "status": "pass",
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave3; awaiting cold re-read"
+  },
+  "q64": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Earnings-day Oops allowed but graded lower is o_earn_day (proposed card line); day-after is m_news. Minimal pair balanced. The tension with q14's news-sized mistake is already an owner flag."
+  },
+  "q65": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
+  },
+  "q66": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in wave3: see the resolver's notes"
+  },
+  "q67": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Final text agrees with the rulings it touches; key right, wrongs wrong, quotes and numbers grounded, style ok."
+  },
+  "q68": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Final text agrees with the rulings it touches; key right, wrongs wrong, quotes and numbers grounded, style ok."
+  },
+  "q69": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "ACN again (second and last use). 5R = 33.46; bars show high 33.59 on day 5 (10-30), so forward 30 reaches the 5R mark. Numbers match the question and dossier row 1."
+  },
+  "q70": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in rulings2: see the resolver's notes"
+  },
+  "q71": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Final text agrees with the rulings it touches; key right, wrongs wrong, quotes and numbers grounded, style ok."
+  }
+ }
+}

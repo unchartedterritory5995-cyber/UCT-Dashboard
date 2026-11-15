@@ -23,6 +23,7 @@ The dispatcher `score(item_type, answer, key)` picks the rule by item type:
 from __future__ import annotations
 
 import math
+import re
 from typing import Any, NamedTuple, Optional
 
 RISK_CEILING_PCT = 2.0        # §4.11: 2% of the account is the hard ceiling
@@ -121,7 +122,30 @@ def score_exact(answer: Any, key: Any) -> Verdict:
     accepted = [k.get("answer")] + list(k.get("accept") or [])
     got = _norm(a)
     ok = got != "" and any(got == _norm(x) for x in accepted if x is not None)
+    if not ok and got != "":
+        # a typed number is the same answer however it is written (".05", "0.050", "1,000" for 0.05 and 1000), but
+        # only when BOTH sides are plain numbers: a choice like "2.4% of the account" never parses, so never matches
+        typed = _plain_number(a)
+        ok = typed is not None and any(_plain_number(x) is not None and math.isclose(typed, _plain_number(x),
+                                                                                     rel_tol=1e-9, abs_tol=1e-12)
+                                       for x in accepted if x is not None)
     return Verdict(ok, 1.0 if ok else 0.0, {"expected": k.get("answer"), "got": a})
+
+
+_PLAIN_NUMBER = re.compile(r"[-+]?(\d+(\.\d*)?|\.\d+)")
+
+
+def _plain_number(v: Any) -> Optional[float]:
+    """A finite float when `v` is a number or a string that is ONLY a number (thousands commas allowed), else None."""
+    if isinstance(v, bool) or v is None:
+        return None
+    if isinstance(v, (int, float)):
+        return float(v) if math.isfinite(float(v)) else None
+    s = str(v).strip().replace(",", "")
+    if not _PLAIN_NUMBER.fullmatch(s):
+        return None
+    f = float(s)
+    return f if math.isfinite(f) else None
 
 
 def score_match(answer: Any, key: Any) -> Verdict:

@@ -192,6 +192,15 @@ def _attempt_on_a_draft(c):
     return c.post("/api/study/attempts", json={"item_id": "si_nope", "answer": "x"})
 
 
+def _game_run(c):
+    return c.post("/api/study/game-runs", json={"kind": "size", "run_id": "leak-walk", "right": 3, "total": 5})
+
+
+def _tf_pool(c):
+    # the true/false pool sends prompts only: a key never leaves before /attempts scores it
+    return c.post("/api/study/game-pool", json={"kind": "tf", "size": 20})
+
+
 WALKS = [
     ("GET", "/api/study/map", _map),
     ("GET", "/api/study/today", _today),
@@ -211,6 +220,8 @@ WALKS = [
     ("POST", "/api/study/spot-setup", _spot_setup),
     ("GET", "/api/study/items/{item_id}/lookalikes", _lookalikes),
     ("POST", "/api/study/draw/score", _draw_on_a_draft),
+    ("POST", "/api/study/game-runs", _game_run),
+    ("POST", "/api/study/game-pool", _tf_pool),
 ]
 LESSON_WALKS = {_today, _lesson_session}
 
