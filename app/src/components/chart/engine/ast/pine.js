@@ -27384,6 +27384,17 @@ function translatePineResult(source, opts = {}) {
       if (rhs[0].kind === 'ident' && BLOCK_KEYWORDS.has(rhs[0].value)) {
         markOpaque(nameTok.value, 'pine:block', locate(rhs[0]), `\`${nameTok.value}\``)
         notes.push(noteOf('pine:block', REFUSALS['pine:block'], rhs[0]))
+        // ⭐⭐ B4 — a SUBJECT-LESS `name = switch` stays opaque to every value reader (unchanged), and
+        // the COLOUR reader alone is handed the chain it is (`subjectlessSwitchNode`, the `:=` form's
+        // reading), hung non-enumerably on the binding (`colourChainOf`).
+        if (rhs.length === 1 && rhs[0].value === 'switch' && stmts[si - 1] && (stmts[si - 1].sub || []).length) {
+          let chain = null
+          try { chain = subjectlessSwitchNode(stmts[si - 1].sub, rhs[0]) } catch { chain = null }
+          const marked = env.get(nameTok.value)
+          if (chain && marked && typeof marked === 'object') {
+            Object.defineProperty(marked, 'colourSwitch', { value: { node: chain, env: new Map(env) }, enumerable: false })
+          }
+        }
         continue
       }
       try {
@@ -30547,8 +30558,63 @@ function colourNewOverRule(node, env, depth, ctx) {
   return out
 }
 
+/** ⭐⭐ LEGACY SEMANTICS (B4, 2026-11-15) — TWO SPELLINGS OF A COLOUR CHAIN THE READER DID NOT OPEN,
+ *  as the ternary chain each IS, or null (the node is neither; the caller keeps its own path):
+ *    - `iff(cond, a, b)` (v1-v4, not a script's own `iff`): Pine's `cond ? a : b`, the arms opened the
+ *      same way so `iff(c1, iff(c2, lime, green), red)` is a three-leaf chain. squeeze-momentum
+ *      (LazyBear, no pragma) colours its histogram so; TradingView's palette is the four leaves in
+ *      order (`study.palettes`, the per-bar colorer index).
+ *    - a name bound to a SUBJECT-LESS `switch` whose arms are one expression each: the first arm whose
+ *      condition holds, the bare `=>` arm otherwise, `na` with none — `subjectlessSwitchNode`'s chain
+ *      (an `na` condition is false: `nz` around anything that is not a comparison). bbtrend (v6) colours
+ *      its columns so, four `color.new` names.
+ *  ⚰️ Master folded neither and drew the pane's gold; engine 58 withheld both (`pine:colour-unread`).
+ *  The chain is resolved in the env the colour was written in (the switch binding's own). */
+const containsIff = (n, d = 0) => !!n && d < 9 && ((n.type === 'call' && n.name === 'iff')
+  || (n.type === 'ternary' && (containsIff(n.yes, d + 1) || containsIff(n.no, d + 1))))
+
+function colourChainOf(node, env, depth = 0) {
+  if (!node || depth > 8) return null
+  if (node.type === 'call' && node.name === 'iff' && Array.isArray(node.args) && node.args.length === 3
+      && node.args.every((a) => a && !a.name)) {
+    let version = null
+    try { version = activePaletteVersion() } catch { version = null }
+    if (version !== null && version >= 5) return null
+    const own = env && typeof env.get === 'function' ? env.get('iff') : null
+    if (own) return null
+    // the arms stay as written: a nested `iff` in one is opened by the ternary step below, on the next
+    // pass through `colourConditional` (`containsIff`)
+    return { node: { type: 'ternary', test: node.args[0].value, yes: node.args[1].value, no: node.args[2].value, tok: node.tok }, env }
+  }
+  if (node.type === 'ternary') {
+    const yes = colourChainOf(node.yes, env, depth + 1)
+    const no = colourChainOf(node.no, env, depth + 1)
+    if (!yes && !no) return null
+    return { node: { ...node, yes: yes ? yes.node : node.yes, no: no ? no.node : node.no }, env }
+  }
+  if (node.type === 'name') {
+    const bound = env && typeof env.get === 'function' ? env.get(node.name) : null
+    if (bound && bound.kind === 'expr' && bound.node && bound.node.type === 'call' && bound.node.name === 'iff') {
+      return colourChainOf(bound.node, bound.env || env, depth + 1)
+    }
+    // a subject-less `name = switch`: the chain the declaration hung for this reader
+    if (bound && bound.colourSwitch && bound.colourSwitch.node) {
+      const inner = colourChainOf(bound.colourSwitch.node, bound.colourSwitch.env, depth + 1)
+      return inner || { node: bound.colourSwitch.node, env: bound.colourSwitch.env }
+    }
+    return null
+  }
+  return null
+}
+
 function colourConditional(node, env, depth = 0, ctx = null) {
   if (!node || depth > 8) return null
+  // ⭐⭐ B4 — `iff` and a subject-less `switch`: the ternary chain each is (`colourChainOf`).
+  if ((node.type === 'call' && node.name === 'iff') || node.type === 'name'
+      || (node.type === 'ternary' && containsIff(node))) {
+    const chain = colourChainOf(node, env)
+    if (chain) return colourConditional(chain.node, chain.env, depth + 1, ctx)
+  }
   if (node.type === 'bound') {
     const arm = openBoundArm(node, env)
     return arm ? colourConditional(arm.node, arm.env, depth + 1, ctx) : null
