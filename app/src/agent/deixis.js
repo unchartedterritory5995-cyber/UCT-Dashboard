@@ -1144,6 +1144,8 @@ export function screenUnnamedTargets({ host, ops, text, context = null, pickedRe
   const words = context ? `${text} ${context}` : String(text || '')
   const charts = host?.charts?.list?.() || []
   if (charts.length < 2) return null
+  // ⛔ D23 / probe 50e1: charts that all follow ONE link colour are one object (a change to one moves them all) — never asked which
+  if (new Set(charts.map(c => (typeof c.group === 'string' && c.group && !c.group.startsWith('N') ? `g:${c.group}` : `c:${c.ref}`))).size === 1) return null
   const aliases = new Set((ops || []).map(o => o?.args?.as).filter(a => typeof a === 'string' && a))
   const targets = new Map()                                  // chart ref → the op kind's snapshots
   for (const o of ops || []) {
