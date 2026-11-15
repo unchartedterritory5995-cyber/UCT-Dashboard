@@ -10909,7 +10909,7 @@ export default function StockChart({
     let _plotFrom = null
     {
       const _pw = plotWindowRef.current
-      const _pwKey = `${sym}_${resolvedTf}`
+      const _pwKey = _exKey   // this render's symbol+timeframe key (the one-key census counts sites)
       if (_pw.key !== _pwKey) {
         let _span = 0
         try {
@@ -18152,7 +18152,7 @@ export default function StockChart({
   useEffect(() => {
     const chart = chartRef.current
     if (!chart) return undefined
-    const key = `${sym}_${resolvedTf}`
+    const key = _exKey   // the same key `_pwKey` compares against (built once per render)
     if (_plotWindowFullKey === key) return undefined
     let raf = null
     const check = () => {

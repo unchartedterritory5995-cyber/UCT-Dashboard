@@ -55,6 +55,7 @@ import {
 import { requirementNote } from '../../engine/ast/parse'
 import { memberPaneDefinition, MEMBER_PANE_DEF_PREFIX } from './memberPaneDefinition'
 import { usePineLibraries } from '../usePineLibraries'
+import { logRefusalCodes } from '../../supportLoop/supportApi'
 import styles from './MemberPane.module.css'
 // ⭐ P0 gate (pineack) — the repaint acknowledgement reuses the Formula tab's own
 // `.ack` row, so the two doors' checkboxes look and behave alike.
@@ -69,6 +70,8 @@ const MEMBER_CHART_PROPS = Object.freeze({ liveUpdates: false, backgroundWarm: f
 
 /** WS-I Part 2 — how long a source must sit still before its capability verdict is asked. */
 const ADMISSION_ASK_DEBOUNCE_MS = 250
+/** ⭐ U4 — how long a refused source must stay still before its codes are logged. */
+const REFUSAL_LOG_SETTLE_MS = 1500
 
 /**
  * @param {object} props
@@ -168,6 +171,20 @@ export default function MemberPane({
     [live, source, defId, libRevision, killVersion],
   )
   const [installed, setInstalled] = useState(null)
+
+  // ⭐ U4 — A REFUSAL THE MEMBER HITS IS A RANKED WORK ITEM (the support loop's gap
+  // table, kind `refusal-guard`): the pane's guard code and its runtime decline code,
+  // once the source has been still for `REFUSAL_LOG_SETTLE_MS` (a keystroke's
+  // half-written script is not a refusal anyone hit), once per distinct set per page.
+  // ⛔ CODES ONLY: never the reason sentence (it can quote the script), never the source.
+  useEffect(() => {
+    if (!built || built.ok) return undefined
+    const codes = [built.guard, built.runtimeDeclined && built.runtimeDeclined.code]
+      .filter((c) => typeof c === 'string' && c)
+    if (!codes.length) return undefined
+    const t = setTimeout(() => { logRefusalCodes(codes) }, REFUSAL_LOG_SETTLE_MS)
+    return () => clearTimeout(t)
+  }, [built])
 
   useEffect(() => {
     if (!built || !built.ok) {

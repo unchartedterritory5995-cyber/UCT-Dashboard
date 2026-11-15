@@ -5,9 +5,9 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import ColorPanel from '../../../components/chart/ColorPanel'
 import useSavedColors from '../../../hooks/useSavedColors'
-import UIcon from '../../../components/ui/UIcon'
 import WidgetThemeSection from './WidgetThemeSection'
 import styles from './NewsSettingsPanel.module.css'
+import useWidgetMenuPlacement from './useWidgetMenuPlacement'
 
 const PANEL_W = 268
 
@@ -28,7 +28,11 @@ const BG_MODES = [
   { key: 'gradient', label: 'Gradient' },
 ]
 
-export default function NewsSettingsPanel({ settings: s, onChange, onReset, onClose, gearEl, hostEl, themeVars = null, title = 'News Settings', perfLabel = '% Change', extraSections = [], showPerf = true, textHint = 'titles & tickers', widgetType = 'news' }) {
+export default function NewsSettingsPanel({ settings: s, onChange, onReset, onClose, gearEl, hostEl, themeVars = null, title = 'News Settings', perfLabel = '% Change', extraSections = [], showPerf = true, textHint = 'titles & tickers', widgetType = 'news',
+  // uct (owner 11-14, /charts board — Notebook first): a dropdown under the gear in the board's
+  // menu style (sentence-case labels, soft segmented control, round swatches) instead of a
+  // panel beside the widget. Same rows, same handlers; off = the panel exactly as before.
+  uct = false }) {
   const panelRef = useRef(null)
   const [pos, setPos] = useState(null)
   const [activeTarget, setActiveTarget] = useState(null)   // { target, label }
@@ -36,25 +40,7 @@ export default function NewsSettingsPanel({ settings: s, onChange, onReset, onCl
   const { savedColors, saveColor, deleteColor } = useSavedColors()
 
   // Place the menu on the side of the widget facing the middle of the layout.
-  useLayoutEffect(() => {
-    if (!hostEl) return
-    const place = () => {
-      const r = hostEl.getBoundingClientRect()
-      const gap = 8
-      const preferRight = (r.left + r.width / 2) < window.innerWidth / 2
-      let left = preferRight ? r.right + gap : r.left - gap - PANEL_W
-      if (preferRight && left + PANEL_W > window.innerWidth - 8) left = r.left - gap - PANEL_W
-      if (!preferRight && left < 8) left = Math.min(window.innerWidth - PANEL_W - 8, r.right + gap)
-      left = Math.max(8, Math.min(left, window.innerWidth - PANEL_W - 8))
-      let top = Math.max(8, r.top)
-      const panelH = Math.min(460, Math.round(window.innerHeight * 0.7))
-      if (top + panelH > window.innerHeight - 8) top = Math.max(8, window.innerHeight - 8 - panelH)
-      setPos({ left: Math.round(left), top: Math.round(top) })
-    }
-    place()
-    window.addEventListener('resize', place)
-    return () => window.removeEventListener('resize', place)
-  }, [hostEl])
+  useWidgetMenuPlacement({ hostEl, gearEl, panelW: PANEL_W, setPos, onClose })  // owner 11-14: beside the widget for every widget (the uct drop-down is retired)
 
   // ColorPanel beside the menu (flip left if tight), bottom-aligned.
   useLayoutEffect(() => {
@@ -113,22 +99,23 @@ export default function NewsSettingsPanel({ settings: s, onChange, onReset, onCl
     <>
       <div
         ref={panelRef}
-        className={styles.panel}
-        style={{ ...(themeVars || {}), ...(pos ? { left: pos.left, top: pos.top } : { visibility: 'hidden' }) }}
+        data-side={pos?.side}
+        className={`${styles.panel} ${styles.uct}`}
+        style={{ ...(themeVars || {}), ...(pos ? { left: pos.left, top: pos.top, maxHeight: pos.maxHeight } : { visibility: 'hidden' }) }}
         onClick={e => e.stopPropagation()}
       >
         <div className={styles.head}>
-          <span className={styles.title}><UIcon name="gear" size={13} /> {title}</span>
+          <span className={styles.title}>{title}</span>
           <div className={styles.headRight}>
-            <button className="btn btn-ghost btn-sm" onClick={onReset} title="Restore news widget settings to defaults">↺ Reset</button>
-            <button className={styles.close} onClick={onClose} title="Close">✕</button>
+            <button className={styles.uReset} onClick={onReset} title="Restore this widget's settings to defaults">Reset</button>
+            <button className={styles.close} onClick={onClose} title="Close" aria-label="Close">✕</button>
           </div>
         </div>
 
         <div className={styles.body}>
           <div className={styles.sectionLabel}>Theme</div>
           <Row label="UCT theme" hint="whole-widget look">
-            <WidgetThemeSection widgetType={widgetType} currentSettings={s} onSettings={(next) => onChange(next)} themeVars={themeVars} buttonClass="btn btn-ghost btn-sm" />
+            <WidgetThemeSection widgetType={widgetType} currentSettings={s} onSettings={(next) => onChange(next)} themeVars={themeVars} buttonClass={styles.uBtn} buttonLabel="UCT Themes" />
           </Row>
           {/* Canvas */}
           <div className={styles.sectionLabel}>Canvas</div>

@@ -105,7 +105,7 @@ async function renderDesk() {
 
 function popBoard() {
   act(() => { fireEvent.click(screen.getByText('Layouts ▾')) })
-  act(() => { fireEvent.click(screen.getByText('⧉ Pop Out Layout')) })
+  act(() => { fireEvent.click(screen.getByRole('button', { name: 'Pop Out Layout' })) })
 }
 
 let popups

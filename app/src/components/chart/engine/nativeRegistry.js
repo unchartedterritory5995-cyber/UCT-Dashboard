@@ -178,6 +178,7 @@ import { runtimeWarmupOf, RUNTIME_OBJECTS_KEY, withRunHalfState, carriesRunHalf 
 import { LIMIT_NAMES } from './runtime/limits'
 import { registeredObjectRuntimeValues, inputsAtDefaults } from './objectRuntimeSeam.js'
 import { manifestAtDefaults } from './paramLiteral.js'
+import { noteRuntimeLoadFailed } from './runtimeRunTelemetry.js'
 // ⭐ UCT RS's tour cards (unit 4-04). ⛔ FROM `teachingData.js`, NEVER `teaching.js`:
 // `teaching.js` reads the readout cards off this registry, so importing it here
 // is an import cycle. `teachingData.js` imports nothing.
@@ -3074,6 +3075,7 @@ function loadRuntimeLane() {
     .catch((err) => {
       _runtimeLoading = null
       _runtimeLoadFailed = String((err && err.message) || err || 'the load failed')
+      noteRuntimeLoadFailed()   // ⭐ U4 — one stop in this tab's run count
       notifyColumnsLanded('runtime:lane')
     })
   return true

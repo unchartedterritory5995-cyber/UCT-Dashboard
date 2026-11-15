@@ -30,6 +30,13 @@ const bars5 = (fromH, fromM, toH, toM) => {
   for (let t = et(fromH, fromM); t <= et(toH, toM); t += 300) out.push({ t, o: 1, h: 2, l: 0.5, c: 1.5, v: 10 })
   return out
 }
+// A stored series with DEPTH ahead of `bars` (the tail is unchanged). The tail-repair cases need
+// it: a store shorter than half the chart's window is not repaired with `since=`, it is asked for
+// the full window (prefetchBars `_shortIntraday`, its own file prefetchBars.shortIntraday.test.js).
+const deep = (bars, n = 700) => [
+  ...Array.from({ length: n }, (_, i) => ({ t: bars[0].t - 5 * 86400 + i * 60, o: 1, h: 2, l: 0.5, c: 1.5, v: 10 })),
+  ...bars,
+]
 const flush = async (n = 40) => { for (let i = 0; i < n; i++) await new Promise(r => setTimeout(r, 0)) }
 const at = (h, m) => { vi.setSystemTime(et(h, m) * 1000) }
 
@@ -60,7 +67,7 @@ describe('extended-hours view: the warmers ask the chart\'s session question', (
   it('pre-market, the durable warm REPAIRS that tail with since= and lands it in mem', async () => {
     at(9, 0)
     setPrefetchShowExtended(true)
-    idb.entries.set('BBB_5', { bars: bars5(4, 0, 7, 0), lastT: et(7, 0), savedAt: Date.now() })
+    idb.entries.set('BBB_5', { bars: deep(bars5(4, 0, 7, 0)), lastT: et(7, 0), savedAt: Date.now() })
     stubFetch('BBB', bars5(7, 5, 8, 55), { delta: true })
     prefetchBarsToIDB(['BBB'], '5', { priority: true, immediate: true })
     await flush()
@@ -83,7 +90,7 @@ describe('regular-hours view: judged on the tail it actually DRAWS', () => {
   const extBars = () => [...bars5(9, 30, 15, 55).map(b => ({ ...b, t: b.t - 86400 })), ...bars5(4, 0, 7, 20)]
   it('09:38, a cache ending in 07:20 pre-market (RTH tail = yesterday 15:55) is repaired, not called current', async () => {
     at(9, 38)
-    const bars = extBars()
+    const bars = deep(extBars())
     idb.entries.set('EEE_5', { bars, lastT: et(7, 20), savedAt: Date.now() })
     stubFetch('EEE', bars5(7, 25, 9, 35), { delta: true })
     prefetchBarsToIDB(['EEE'], '5', { priority: true, immediate: true })
@@ -120,7 +127,7 @@ describe('prefetchAllTimeframes lands its answers where the chart reads', () => 
 describe('review #1095 — the repair never rolls back a newer chart write', () => {
   it('chart writes a NEWER series while the warm since= is in flight: mem and IDB keep it', async () => {
     at(13, 17)
-    idb.entries.set('RACE_5', { bars: bars5(9, 30, 10, 0), lastT: et(10, 0), savedAt: Date.now() })
+    idb.entries.set('RACE_5', { bars: deep(bars5(9, 30, 10, 0)), lastT: et(10, 0), savedAt: Date.now() })
     let release
     vi.stubGlobal('fetch', vi.fn(async (u) => {
       urls.push(String(u))
@@ -143,7 +150,7 @@ describe('review #1095 — the repair never rolls back a newer chart write', () 
 })
 
 describe('review #1095 — repair cooldown', () => {
-  const behind = (sym) => idb.entries.set(`${sym}_5`, { bars: bars5(9, 30, 10, 0), lastT: et(10, 0), savedAt: Date.now() })
+  const behind = (sym) => idb.entries.set(`${sym}_5`, { bars: deep(bars5(9, 30, 10, 0)), lastT: et(10, 0), savedAt: Date.now() })
   const answer = (status, body) => vi.stubGlobal('fetch', vi.fn(async (u) => {
     urls.push(String(u))
     return { ok: status === 200, status, headers: { get: () => null }, json: async () => body, clone() { return this } }
@@ -181,7 +188,7 @@ describe('review #1095 — repair cooldown', () => {
 describe('review #1095 — the chart joins the in-flight since= warm', () => {
   it('joinPendingBars(<chart since url>) returns the in-flight warm request for the same rows', async () => {
     at(13, 17)
-    idb.entries.set('JNN_5', { bars: bars5(9, 30, 10, 0), lastT: et(10, 0), savedAt: Date.now() })
+    idb.entries.set('JNN_5', { bars: deep(bars5(9, 30, 10, 0)), lastT: et(10, 0), savedAt: Date.now() })
     let release
     vi.stubGlobal('fetch', vi.fn(async (u) => {
       urls.push(String(u)); await new Promise(r => { release = r })

@@ -1069,6 +1069,15 @@ def runtime_admission(source: Any, member: Any = None) -> dict:
     # rolling detector budget (re-review F2); a member is never None here (the route passes its id)
     ok, missing = capability_admitted(source, persist=False,
                                       verdict_member=str(member) if member is not None else "<anonymous>")
+    if not ok and member is not None:
+        # ⭐ U4: the refusal becomes a ranked work item (support loop, kind `capability`):
+        # the capability ids only, under the member's keyed hash. Never the source. ⛔ `pending`
+        # is not a refusal: `indicator_support.clean_capabilities` drops it (the ONE guard).
+        try:
+            from api.services import indicator_support
+            indicator_support.record_capability_gaps(member, missing)
+        except Exception:  # noqa: BLE001 - telemetry never reaches the verdict
+            pass
     admitted = bool(ok and not killed(None, source))
     return {"sha256": h, "admitted": admitted, "missing": missing}
 

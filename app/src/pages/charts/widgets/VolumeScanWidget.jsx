@@ -34,6 +34,7 @@ import chrome from './NewHighsLowsWidget.module.css'
 import styles from './VolumeScanWidget.module.css'
 import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
 import { formatCompact } from '../../../lib/presentation/presentationPrimitives'
+import UctCtrlPortal from '../UctCtrlPortal'  // owner 11-14: the ⚙ goes top-right on the board
 
 // TERM-033: a failed read THROWS (sectionFetcher). It used to resolve to `null`, which this
 // widget drew as "Warming up…", a scanner that never finished warming. Now SWR keeps the last good answer through a failed poll, and a
@@ -284,7 +285,7 @@ export default function VolumeScanWidget({ color, opts, onOptsChange }) {
         <span className={chrome.spacer} />
         <ScopeControl lists={lists} activeId={activeListId} helpers={listHelpers} themeVars={panelThemeVars} />
         <span className={chrome.spacer} />
-        <button
+        <UctCtrlPortal><button
           ref={gearRef}
           type="button"
           className={`${chrome.gear} ${settingsOpen ? chrome.gearOn : ''}`}
@@ -293,7 +294,7 @@ export default function VolumeScanWidget({ color, opts, onOptsChange }) {
           aria-label="Volume Surge settings"
         >
           <UIcon name="gear" size={13} gold={false} />
-        </button>
+        </button></UctCtrlPortal>
       </div>
 
       {!isActive ? (
