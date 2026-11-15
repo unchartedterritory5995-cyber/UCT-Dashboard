@@ -44,6 +44,7 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(ROOT, "tools", "vendor_harness"))
 import evidence_ledger as el  # noqa: E402 -- LEDGER_ONLY evidence and its freshness rule: one authority
+import licence_held  # noqa: E402 -- a licence-held capture is read from the local store (LICENSING.md 2d)
 
 # ── what each door guard is, as a CAPABILITY. Derived from pine.js REFUSALS sentences.
 GUARD_BUCKET = {
@@ -909,7 +910,7 @@ def main():
     verified_items, diverge_items = collections.Counter(), collections.Counter()
     cap_rows = []
     for r in vd.get("results", []):
-        p = os.path.join(ROOT, r["file"]) if not os.path.isabs(r["file"]) else r["file"]
+        p = licence_held.resolve(r["file"])
         try:
             cap = json.load(open(p, encoding="utf-8"))
             src = (cap.get("source") or {}).get("text") or ""

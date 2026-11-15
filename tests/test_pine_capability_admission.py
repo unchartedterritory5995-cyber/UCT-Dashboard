@@ -32,6 +32,11 @@ from api.services import runtime_definitions as rt
 from api.services import user_definitions as svc
 
 ROOT = Path(__file__).resolve().parents[1]
+
+import sys  # noqa: E402
+
+sys.path.insert(0, str(ROOT / "tools" / "vendor_harness"))
+import licence_held  # noqa: E402 -- licence-held captures: read from the local store, skipped by name
 FIXTURE = ROOT / "tests" / "fixtures" / "runtime_documents" / "documents.json"
 DOCS = {d["slug"]: d for d in json.loads(FIXTURE.read_text(encoding="utf-8"))["documents"]}
 ADX = DOCS["adx-and-di-for-v4"]["definition"]
@@ -533,8 +538,8 @@ def _phantoms(registry: dict) -> list:
                 bad.append((cap, cid, "names another script"))
             if e.get("community") is not community:
                 bad.append((cap, cid, "states the wrong community flag"))
-            fixture = ROOT / r["file"]
-            if not fixture.is_file():
+            fixture = licence_held.fixture_path(r["file"])
+            if fixture is None or not fixture.is_file():
                 bad.append((cap, cid, "no fixture"))
                 continue
             text = (json.loads(fixture.read_text(encoding="utf-8")).get("source") or {}).get("text")
@@ -757,14 +762,23 @@ def reach_rule_violations(report: dict, rt_verdicts: dict, prod_verdicts: dict) 
     return out
 
 
-def _admitted_capture_ids() -> set:
+def _admitted_capture_ids(held_absent: dict | None = None) -> set:
     """The captures the committed registry admits, from the detector itself (not the serving path,
-    whose process-wide gate and cool-down answer "pending" between runs)."""
+    whose process-wide gate and cool-down answer "pending" between runs).
+
+    A licence-held capture (docs/pine/vendor-harness/licence-held.json) is read from the local
+    capture store; one that is not on this machine is recorded in `held_absent` {id: file}, so the
+    caller can say so by name rather than count it either way."""
     admitted = set(rt.admitted_capabilities()["admitted"])
     out = set()
     for r in _verdicts().values():
+        at = licence_held.fixture_path(r["file"])
+        if at is None and licence_held.entry(r["file"]) is not None:
+            if held_absent is not None:
+                held_absent[r["id"]] = r["file"]
+            continue
         try:
-            text = (json.loads((ROOT / r["file"]).read_text(encoding="utf-8")).get("source") or {}).get("text")
+            text = (json.loads((at or ROOT / r["file"]).read_text(encoding="utf-8")).get("source") or {}).get("text")
         except (OSError, ValueError):
             continue
         if isinstance(text, str) and text.strip() and pc.capabilities_of(text) <= admitted:
@@ -774,9 +788,17 @@ def _admitted_capture_ids() -> set:
 
 def test_REACH_the_committed_reach_run_is_the_committed_registrys():
     report = json.loads(REPORT.read_text(encoding="utf-8"))
-    assert {c["capture"] for c in report["captures"]} == _admitted_capture_ids()
+    held_absent: dict = {}
+    admitted = _admitted_capture_ids(held_absent)
+    # ⛔ A held capture that is not on this machine cannot be classified either way: it is taken
+    # out of BOTH sides, every other capture is still held to exact equality, and the test then
+    # SKIPS naming it (with its ledger verdict) instead of reporting a full pass.
+    assert {c["capture"] for c in report["captures"]} - set(held_absent) == admitted
     assert report["stops"] == [] and report["matchToDiverge"] == []
     assert sum(1 for c in report["captures"] if c["lane"] == "runtime") >= 10   # not vacuous
+    if held_absent:
+        pytest.skip(f"the other {len(admitted)} admitted captures were verified equal; "
+                    + licence_held.note(sorted(held_absent.values())))
 
 
 def test_REACH_no_runtime_lane_DIVERGE_and_no_MATCH_to_DIVERGE():
