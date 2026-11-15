@@ -868,7 +868,10 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     const chartAsk = {}
     let subjectChart = null
     try { subjectChart = memoryRef.current?.subject?.('chart', epochOf(host))?.ref || null } catch { subjectChart = null }
-    const c0 = chartRailRefusal(plan, { words: railWordsRef.current, host, mode, subject: subjectChart, picked: railPickedRef.current, out: chartAsk })
+    // (the charts THIS request created are its own to set up)
+    let madeNow = null
+    try { const cr = createdRef.current; madeNow = cr && cr.turn === (memoryRef.current?.currentTurn?.() ?? null) ? new Set(cr.refs.map(String)) : null } catch { madeNow = null }
+    const c0 = chartRailRefusal(plan, { words: railWordsRef.current, host, mode, subject: subjectChart, picked: railPickedRef.current, made: madeNow, out: chartAsk })
     const c = c0 && `${c0}${notDoneLine(notDoneAdds(plan, (p) => { try { return chartEffects({ ok: true, plans: [p] }, host).length > 0 } catch { return true } }))}`
     railCardRef.current = false
     railAskRef.current = c && chartAsk.ask ? { ...chartAsk.ask, plan } : null

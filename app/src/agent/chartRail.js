@@ -26,6 +26,7 @@
 // Pure: reads the plan, the words and the live board through `host`; never writes.
 import { tickersIn } from './multiChart'
 import { matchPosition } from './fastPath'
+import { ordinalChart } from './deixis'
 
 export const RAIL_MARK = 'chart-rail'
 const up = (s) => String(s || '').trim().toUpperCase()
@@ -178,7 +179,7 @@ export const isAdditive = (words, known = []) => (ADDITIVE.test(words) || ADD_RE
 // …), every one of those charts addressed by its position ("NVDA on the left and AMD on the right"), or the WHOLE grid stated
 // with no add — a shape or a count of charts and its tickers ("make a 2x2 of SPY QQQ IWM DIA", GRID-REUSE). Anything else
 // ("put these up there", "add aapl and msft") is refused, whatever reader or model planned it.
-const CHART_COUNT = /\b(?:two|three|four|five|six|seven|eight|nine|[2-9])\s+(?:new\s+)?(?:(?:daily|weekly|monthly|hourly|intraday)\s+)?charts?\b/i
+const CHART_COUNT = /\b(?:two|three|four|five|six|seven|eight|nine|[2-9])\s+(?:new\s+)?(?:(?:daily|weekly|monthly|hourly|intraday|equal(?:ly[- ]sized)?|equal-sized|same-sized)\s+)?charts?\b/i
 export function multiResymbolAllowed(words, resym, known, host) {
   const w = String(words || '')
   if (REPLACE.test(w)) return true
@@ -216,16 +217,19 @@ const escRe = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 const symbolSaid = (w, sym) => !!sym && (tickersIn(w).includes(up(sym))
   || new RegExp(`(^|[^A-Za-z])\\$?${escRe(sym)}(?:['’]s)?\\s+(?:chart|one|panel|graph)\\b`, 'i').test(w))
 /** How the words identify this existing chart (for a re-symbol), or null: 'pick' | 'name' | 'position' | 'deixis' | 'class' | 'replace'. */
-export function identifiesChart(w, e, host, { selected = null, subject = null, picked = null, sole = false } = {}) {
+export function identifiesChart(w, e, host, { selected = null, subject = null, picked = null, sole = false, made = null } = {}) {
+  if (!e.symbol) return 'empty'                                    // an EMPTY chart filled replaces nothing
+  if (made && made.has(e.ref)) return 'made'                       // a chart THIS request created (its own new chart)
   if (picked && picked.has(`chart:${e.ref}`)) return 'pick'
   if (symbolSaid(w, e.symbol)) return 'name'
   if (named(w, e, host)) return 'position'
+  try { if (ordinalChart(w, liveCharts(host))?.ref === e.ref) return 'ordinal' } catch { /* no ordinal */ }
   if (DEIXIS.test(w) && (sole || e.ref === selected || e.ref === subject)) return 'deixis'
   if (sole && ONE_CHART_NOUN.test(w)) return 'class'
   if (REPLACE.test(w) && (sole || e.ref === selected)) return 'replace'
   return null
 }
-export function chartRailRefusal(plan, { words = '', host = null, mode = 'apply', subject = null, picked = null, out = null } = {}) {
+export function chartRailRefusal(plan, { words = '', host = null, mode = 'apply', subject = null, picked = null, made = null, out = null } = {}) {
   if (!plan?.ok) return null
   const w = String(words || '')
   const effects = chartEffects(plan, host)
@@ -252,13 +256,13 @@ export function chartRailRefusal(plan, { words = '', host = null, mode = 'apply'
       return `I didn’t change anything: this would have changed ${resym.length} of your charts at once (${listOf(resym.map(said))}), and you didn’t say to replace them. Say which charts to replace — for example “replace both charts with …” or “change the left to … and the right to …” — or ask to add them as new charts.`
     }
     // ⛔ UNIQUE IDENTIFICATION (H14): one existing chart re-symbolled — only the chart the words identify
-    if (resym.length === 1 && mode !== 'approved' && !(resym[0].kind !== 'chart' && multiResymbolAllowed(w, resym, known, host))) {
+    if (resym.length === 1 && mode !== 'approved' && !multiResymbolAllowed(w, resym, known, host)) {
       const e = resym[0]
       const charts = liveCharts(host)
       let selected = null
       try { selected = host?.charts?.selected?.() || null } catch { selected = null }
       const sole = charts.length === 1
-      if (!identifiesChart(w, e, host, { selected, subject, picked, sole })) {
+      if (!identifiesChart(w, e, host, { selected, subject, picked, sole, made })) {
         if (charts.length > 1) {
           if (out) out.ask = { kind: 'chart', from: e.ref, to: e.to, candidates: charts.map(c => ({ ref: c.ref, label: c.label || (c.symbol ? `the ${up(c.symbol)} chart` : 'a chart') })) }
           return `Which chart should change to ${e.to}? You didn’t say which one, so nothing was changed — pick one, or say “add ${e.to}” for a new chart beside them.`
