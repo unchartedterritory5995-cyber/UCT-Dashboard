@@ -6,6 +6,7 @@
  * Answer: {choice}
  */
 import ChoiceList, { revealLabels } from './ChoiceList'
+import CalcCard from '../ui/CalcCard'
 import { brandWords, choiceAnswer, choiceAnswerable, choicesFromPrompt, questionOf } from './types'
 import styles from './drills.module.css'
 
@@ -13,11 +14,13 @@ export function choicesOf(item) {
   return choicesFromPrompt(item)
 }
 
-export function Body({ item, state, setState, locked, reveal }) {
+// `settled`: the verdict screen has closed (DrillPlayer), so a computed question's card fills in where the member sees it
+export function Body({ item, state, setState, locked, reveal, settled = true }) {
   const story = item?.prompt_json?.story
   return (
     <div>
       {story && <p className={styles.story}>{brandWords(story)}</p>}
+      <CalcCard item={item} reveal={reveal} settled={settled} />
       <ChoiceList {...revealLabels(reveal, state)}
         choices={choicesOf(item)}
         value={state?.choice ?? null}

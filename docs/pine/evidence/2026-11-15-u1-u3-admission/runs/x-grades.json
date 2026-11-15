@@ -1,0 +1,35 @@
+{
+ "_readme": [
+  "U1/U3 (2026-11-15): x grades (U13, PR #1335 at 484ff2c5a5, not yet merged) recorded for obj:* evidence.",
+  "Each grade is of a RE-CAPTURE of an evidence capture's script (same source sha256) taken with TradingView's x table",
+  "(session S14, xmap sidecar), graded runtime-on by the #1335 harness. No capture or source is committed here: the",
+  "re-capture lives in the local vendor-batch store until a capture-session PR commits it. A registry entry carrying",
+  "objectsX names 'capture' below as objectsXCapture; tests/test_pine_capability_admission.py (A8) holds it to this file.",
+  "Any x verdict DIVERGE vetoes the family (rollout_gate.pine_capability_admission)."
+ ],
+ "gradedBy": "vendorHarness.corpus.test.js @ 484ff2c5a5 (PR #1335), VENDOR_HARNESS_RUNTIME_ON=1",
+ "grades": [
+  {
+   "of": "fibonacci-dolphintradebot-rddt-1d-2026-10-02",
+   "capture": "fibonacci-dolphintradebot-rddt-1d-2026-11-15",
+   "sourceSha256": "cf5d2464b9d0141e45ab0f516bc1d615208039f707b27645033e9844f34136ac",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
+   "objectsV2": "MATCH",
+   "verdictWithoutX": "MATCH",
+   "verdict": "MATCH",
+   "x": {
+    "graded": 21,
+    "agreeing": 21,
+    "differing": 0,
+    "missing": 0,
+    "missingWhy": {},
+    "incompleteFamilies": []
+   },
+   "paired": {
+    "lines": 7,
+    "labels": 7
+   }
+  }
+ ]
+}

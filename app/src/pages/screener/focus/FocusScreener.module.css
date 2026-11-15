@@ -249,6 +249,16 @@ button.pill:hover { border-color: var(--ut-gold); }
      above the safe area (app/src/hub/constants.js; the hub has no CSS token for its footprint). */
   .list { padding-bottom: calc(152px + env(safe-area-inset-bottom)); }
   .row { min-height: var(--tap-min); }
+  /* RS screens (`data-phone-scroll`, FocusScreener.jsx): their controls, ratings line, market
+     line and "not in this list" line sit above the list, and with the list as its own scroller
+     they left it about one row tall (152px at 390 x 778, live site, 2026-11-15). Here the page
+     is the one scroller: everything above the list scrolls away with it, and the sort line
+     stays at the top. ResultList keeps a stepped selection in view by scrolling this page. */
+  .page[data-phone-scroll] { overflow-y: auto; overscroll-behavior: contain; }
+  .page[data-phone-scroll] > .body { flex: none; min-height: auto; }
+  .page[data-phone-scroll] .listWrap { flex: none; min-height: auto; }
+  .page[data-phone-scroll] .list { flex: none; overflow-y: visible; }
+  .page[data-phone-scroll] .listHead { position: sticky; top: 0; z-index: 3; background: var(--bg); }
 }
 /* The chart sheet: a header strip (the only place a swipe steps stocks), then the pane. */
 .phoneSheetBody { display: flex; flex-direction: column; overflow: hidden; padding: 0; }

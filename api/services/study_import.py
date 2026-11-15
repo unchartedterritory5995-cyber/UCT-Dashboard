@@ -50,7 +50,7 @@ NEAR_DUP_THRESHOLD = 0.85
 
 #: reveal_json keys that hold PROSE (checked for voice + grounding), as opposed
 #: to the facts the prose must cite.
-REVEAL_PROSE_KEYS = ("verdict", "why", "lesson_line", "note")
+REVEAL_PROSE_KEYS = ("verdict", "why", "lesson_line", "note", "simple")
 #: prompt_json keys that hold the QUESTION the member reads.
 PROMPT_QUESTION_KEYS = ("q", "question", "prompt", "text")
 

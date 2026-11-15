@@ -31,12 +31,17 @@ import path from 'node:path'
 import { loadCapture, gradeCapture, VENDOR_DIR, REPO } from './harness'
 import { __permitRuntimePaneForTests } from '../../runtimePaneGate'
 import { __allowEveryRuntimeScriptForTests, setRuntimeKillList, runtimeSourceHash } from '../../runtimeKill'
-import { pairRecords } from './objectRecords'
+import { pairRecords, xTableOf } from './objectRecords'
 import { OBJECTS_V2_FIELDS } from '../../../../../../../tools/vendor_harness/compare.mjs'
 
 const RUN = process.env.PINE_OBJECTS_V2 === '1'
 const RUNTIME_ON = process.env.PINE_OBJECTS_V2_RUNTIME_ON === '1'
 const OUT = process.env.PINE_OBJECTS_V2_OUT ? path.resolve(process.cwd(), process.env.PINE_OBJECTS_V2_OUT) : null
+// ⭐ U13 — `PINE_OBJECTS_V2_DIR` (several separated by `;`) re-grades captures outside the
+// committed fixtures, e.g. the licence-held store; the default is every committed capture.
+const DIRS = process.env.PINE_OBJECTS_V2_DIR
+  ? process.env.PINE_OBJECTS_V2_DIR.split(';').filter(Boolean).map((d) => path.resolve(process.cwd(), d))
+  : [VENDOR_DIR]
 
 /** The flag NAMES are read off their gate modules, never typed. */
 const flagOf = (rel) => (fs.readFileSync(path.resolve(process.cwd(), rel), 'utf8')
@@ -53,7 +58,8 @@ if (RUN) {
 /** ⭐ ENGINE 53 — v1's and v2's objects verdicts for one grade. */
 function objectVerdicts(graded) {
   const v1 = graded && graded.verdict && graded.verdict.objects
-  return { v1: v1 ? v1.verdict : null, v2: graded && graded.objectsV2 ? graded.objectsV2.verdict : null }
+  const o2 = graded && graded.objectsV2
+  return { v1: v1 ? v1.verdict : null, v2: o2 ? o2.verdict : null, v2WithoutX: o2 ? o2.verdictWithoutX : null }
 }
 
 function walk(dir, out = []) {
@@ -113,12 +119,15 @@ describe.skipIf(!RUN)('objects v2 — the re-grade over every capture with objec
     const rows = []
     const codeMap = {}
     const fieldDiffers = {}
-    for (const file of walk(VENDOR_DIR)) {
+    for (const file of [...new Set(DIRS.flatMap((d) => walk(d)))]) {
       const loaded = loadCapture(file)
       const cap = loaded.capture
       const R = cap && cap.objects && cap.objects.records
       if (!R || !Object.values(R).some((x) => Array.isArray(x) && x.length)) continue
       const rel = path.relative(REPO, file).replace(/\\/g, '/')
+      const xt = xTableOf(cap)
+      const hasXTable = !!(xt && xt.found === true)
+      const xTableSource = hasXTable ? (xt.source || 'capture') : null
       let graded
       try { graded = gradeCapture(cap) } catch (err) {
         rows.push({ file: rel, error: String(err && err.message).slice(0, 200) })
@@ -130,12 +139,19 @@ describe.skipIf(!RUN)('objects v2 — the re-grade over every capture with objec
       for (const f of Object.keys(OBJECTS_V2_FIELDS)) {
         const v2row = objectsV2 && (objectsV2.families || []).find((x) => x.family === f)
         const v1f = v1Family(v1, f)
-        let v2f = v1f
-        if (v1 && v1.verdict !== 'INCONCLUSIVE' && v2row && v2row.agree === false) v2f = 'DIVERGE'
-        else if (v1 && v1.verdict !== 'INCONCLUSIVE' && v2f === null && v2row && v2row.agree === true) v2f = 'MATCH'
+        // v2 as before U13 (x left out), and v2 with x (U13): an x not witnessed is INCONCLUSIVE
+        const v2Of = (agree, incomplete) => {
+          let out = v1f
+          if (v1 && v1.verdict !== 'INCONCLUSIVE' && v2row && agree === false) out = 'DIVERGE'
+          else if (v1 && v1.verdict !== 'INCONCLUSIVE' && incomplete) out = 'INCONCLUSIVE'
+          else if (v1 && v1.verdict !== 'INCONCLUSIVE' && out === null && v2row && agree === true) out = 'MATCH'
+          return out
+        }
+        const v2fNoX = v2row ? v2Of(v2row.agreeWithoutX, false) : v1f
+        const v2f = v2row ? v2Of(v2row.agree, v2row.xIncomplete) : v1f
         if (v1f || v2f || (v2row && v2row.paired)) {
-          fams[f] = { v1: v1f, v2: v2f, paired: v2row ? v2row.paired : 0, first: v2row ? v2row.first : null,
-            undecoded: v2row ? v2row.undecoded : {} }
+          fams[f] = { v1: v1f, v2WithoutX: v2fNoX, v2: v2f, paired: v2row ? v2row.paired : 0, first: v2row ? v2row.first : null,
+            x: v2row ? v2row.x : null, undecoded: v2row ? v2row.undecoded : {} }
         }
         if (v2row) {
           for (const [field, c] of Object.entries(v2row.byField)) {
@@ -180,7 +196,12 @@ describe.skipIf(!RUN)('objects v2 — the re-grade over every capture with objec
         file: rel,
         ...(runHalf ? { runHalf } : {}),
         v1: v1 ? v1.verdict : null,
+        v2WithoutX: objectsV2 ? objectsV2.verdictWithoutX : null,
         v2: objectsV2 ? objectsV2.verdict : null,
+        objectsLane: (ours && ours.objects && ours.objects.lane) || 'host',
+        hasXTable,
+        xTableSource,
+        x: objectsV2 ? objectsV2.x : null,
         first: objectsV2 ? objectsV2.first : null,
         orderOnly: objectsV2 ? !!objectsV2.differsOnlyByCreationOrder : false,
         v1reason: v1 ? v1.reason : null,
@@ -188,30 +209,35 @@ describe.skipIf(!RUN)('objects v2 — the re-grade over every capture with objec
       })
     }
     // ⛔ NON-VACUITY
-    expect(rows.length).toBeGreaterThan(50)
+    expect(rows.length).toBeGreaterThan(process.env.PINE_OBJECTS_V2_DIR ? 0 : 50)
     const moved = rows.filter((r) => r.v1 === 'MATCH' && r.v2 === 'DIVERGE')
     const perFamily = {}
     for (const r of rows) {
       for (const [f, x] of Object.entries(r.families || {})) {
-        const t = perFamily[f] || (perFamily[f] = { v1: { MATCH: 0, DIVERGE: 0 }, v2: { MATCH: 0, DIVERGE: 0 } })
-        if (x.v1) t.v1[x.v1] += 1
-        if (x.v2) t.v2[x.v2] += 1
+        const t = perFamily[f] || (perFamily[f] = { v1: {}, v2WithoutX: {}, v2: {} })
+        for (const k of ['v1', 'v2WithoutX', 'v2']) if (x[k]) t[k][x[k]] = (t[k][x[k]] || 0) + 1
       }
     }
     const totals = { captures: rows.length, errors: rows.filter((r) => r.error).length,
-      v1: {}, v2: {} }
-    for (const r of rows) { if (r.v1) totals.v1[r.v1] = (totals.v1[r.v1] || 0) + 1; if (r.v2) totals.v2[r.v2] = (totals.v2[r.v2] || 0) + 1 }
+      withXTable: rows.filter((r) => r.hasXTable).length, v1: {}, v2WithoutX: {}, v2: {}, xMissingWhy: {} }
+    for (const r of rows) {
+      for (const k of ['v1', 'v2WithoutX', 'v2']) if (r[k]) totals[k][r[k]] = (totals[k][r[k]] || 0) + 1
+      for (const [w, n] of Object.entries((r.x && r.x.missingWhy) || {})) totals.xMissingWhy[w] = (totals.xMissingWhy[w] || 0) + n
+    }
+    // ⭐ U13 — every capture whose v2 grade moved when x joined it, and why
+    const xMoved = rows.filter((r) => r.v2WithoutX && r.v2 && r.v2WithoutX !== r.v2)
+      .map((r) => ({ file: r.file, from: r.v2WithoutX, to: r.v2, lane: r.objectsLane, first: r.first, x: r.x }))
     fs.mkdirSync(OUT, { recursive: true })
     fs.writeFileSync(path.join(OUT, 'objects-v2-regrade.json'), JSON.stringify({
       generatedBy: 'app/src/components/chart/engine/__tests__/vendorHarness/objectsV2Regrade.measure.test.js',
       lane: RUNTIME_ON ? 'runtime-on (objects-only pane armed, runtime pane on, permitted, every script graded)'
         : 'production (objects-only pane armed, runtime pane dark)',
-      totals, perFamily, fieldDiffers, codeMap, moved: moved.map((r) => ({ file: r.file, first: r.first, orderOnly: r.orderOnly })),
+      totals, perFamily, fieldDiffers, codeMap, moved: moved.map((r) => ({ file: r.file, first: r.first, orderOnly: r.orderOnly })), xMoved,
       runHalf: runHalfLedger(rows), rows,
     }, null, 1) + '\n')
     // eslint-disable-next-line no-console
     const rh = runHalfLedger(rows)
-    console.log('OBJECTS-V2', JSON.stringify({ lane: RUNTIME_ON ? 'runtime-on' : 'production', totals, perFamily, moved: moved.length,
+    console.log('OBJECTS-V2', JSON.stringify({ lane: RUNTIME_ON ? 'runtime-on' : 'production', totals, perFamily, moved: moved.length, xMoved: xMoved.length,
       runHalf: rh }))
   }, 3600000)
 })

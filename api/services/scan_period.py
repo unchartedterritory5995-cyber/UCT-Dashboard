@@ -25,45 +25,132 @@ _GROUP_STEPS = 9     # snap a target date back over a holiday/weekend up to this
 # cost. Reuse boundaries are static historical data, so the map is cached in memory AND on
 # disk (survives redeploys) and pre-warmed at startup. Correct for any start date >= floor.
 _REUSE_FLOOR = 19900101
-_REUSE_CK = "scan_period_reuse_map"
+
 _REUSE_FILE = os.path.join(os.environ.get("DATA_DIR", "/data"), "period_reuse_map.json")
 _REUSE_FILE_TTL = 7 * 86400
 _reuse_lock = threading.Lock()
 
+# ⛔ WHY THE MAP LIVES HERE AND A STALE FILE IS SERVED (2026-11-15). Two defects made one deploy a
+# week slow for every member:
+#   1. The map sat in the SHARED 1,000-entry LRU (`cache`), and churn evicted it (an hour after a
+#      boot, `debug_period` read `warm: false` with the file present) -- the same trap the
+#      bars_sanitize meta fell into (moved to its own TTLCache, 2026-11-13).
+#   2. A file older than _REUSE_FILE_TTL was IGNORED, so the first boot after it aged out ran the
+#      whole-universe window scan in `reuse-map-warm` during the reconnect burst: boot-probe on the
+#      17:11 UTC boot showed it at 60-110% of a core from boot+94 s past boot+415 s, process CPU
+#      250-400%, and starter screens took 6-80 s; the next boot (fresh file) never showed it.
+# Now the map is held in this module (never evicted), a stale file is served at once, and the
+# recompute runs off the reader's thread and only outside regular hours (`_reuse_quiet_now`).
+_REUSE_MEM: dict = {"map": None, "failed_at": 0.0}
+_REUSE_RETRY_S = 3600.0          # after a failed compute, readers get {} for this long, not a retry
+_REUSE_REFRESH_POLL_S = 600.0    # a deferred refresh re-checks the clock this often
+_reuse_refreshing = threading.Event()
+
+
+def _reuse_log():
+    import logging
+    return logging.getLogger(__name__)
+
+
+def _reuse_quiet_now(now=None) -> bool:
+    """True outside the trading day's busy span: weekends, and weekdays before 07:00 or after
+    20:15 ET (members reconnect from the pre-market on; the evening jobs end ~20:15)."""
+    now = now or _now_et()
+    if now.weekday() >= 5:
+        return True
+    hm = now.hour * 60 + now.minute
+    return hm < 7 * 60 or hm >= 20 * 60 + 15
+
+
+def _read_reuse_file():
+    """(map, age_s) from the durable file, or (None, None) when absent or unreadable."""
+    try:
+        if not os.path.exists(_REUSE_FILE):
+            return None, None
+        age = _time.time() - os.path.getmtime(_REUSE_FILE)
+        with open(_REUSE_FILE) as fh:
+            m = json.load(fh)
+        if not isinstance(m, dict):
+            return None, None
+        return m, age
+    except Exception as exc:  # noqa: BLE001 -- unreadable = absent
+        _reuse_log().warning("[scan_period] reuse map file unreadable, not used: %s", exc)
+        return None, None
+
+
+def _compute_reuse_map() -> dict:
+    """The whole-universe window scan, then memory + the durable file. Raises on a failed scan
+    (nothing is stored, so a failure never becomes a week-long empty file)."""
+    t0 = _time.time()
+    from api.services import bars_sqlite
+    m = bars_sqlite.current_listing_starts(_REUSE_FLOOR)
+    _REUSE_MEM["map"] = m
+    try:
+        tmp = _REUSE_FILE + ".tmp"
+        with open(tmp, "w") as fh:
+            json.dump(m, fh)
+        os.replace(tmp, _REUSE_FILE)
+        saved = "saved"
+    except Exception as exc:  # noqa: BLE001
+        saved = f"NOT saved ({exc})"
+    _reuse_log().info("[scan_period] reuse map computed: %d tickers in %.1f s, %s",
+                      len(m), _time.time() - t0, saved)
+    return m
+
+
+def _refresh_reuse_map_when_quiet() -> None:
+    """Recompute the map once the clock is in the quiet span. One at a time; never raises."""
+    try:
+        while not _reuse_quiet_now():
+            _time.sleep(_REUSE_REFRESH_POLL_S)
+        with _reuse_lock:
+            _compute_reuse_map()
+    except Exception as exc:  # noqa: BLE001 -- the stale map keeps serving
+        _reuse_log().warning("[scan_period] reuse map refresh failed, keeping the stale map: %s", exc)
+    finally:
+        _reuse_refreshing.clear()
+
+
+def _spawn_reuse_refresh() -> None:
+    """Start the deferred refresh unless one is already waiting (tests replace this)."""
+    if _reuse_refreshing.is_set():
+        return
+    _reuse_refreshing.set()
+    try:
+        threading.Thread(target=_refresh_reuse_map_when_quiet, daemon=True,
+                         name="reuse-map-refresh").start()
+    except Exception:  # noqa: BLE001
+        _reuse_refreshing.clear()
+
 
 def _reuse_map() -> dict:
     """{TICKER: current-listing-start YYYYMMDD} for the whole warmed universe, floored at
-    _REUSE_FLOOR. In-memory cache → durable /data file → compute (the slow whole-universe
-    scan) once. Serialized so a stampede of pre-2004 requests computes it a single time."""
-    cached = cache.get(_REUSE_CK)
-    if cached is not None:
-        return cached
-    with _reuse_lock:
-        cached = cache.get(_REUSE_CK)          # re-check under lock (a peer may have filled it)
-        if cached is not None:
-            return cached
-        try:
-            if os.path.exists(_REUSE_FILE) and (_time.time() - os.path.getmtime(_REUSE_FILE)) < _REUSE_FILE_TTL:
-                with open(_REUSE_FILE) as fh:
-                    m = json.load(fh)
-                cache.set(_REUSE_CK, m, ttl=86400)
-                return m
-        except Exception:
-            pass
-        try:
-            from api.services import bars_sqlite
-            m = bars_sqlite.current_listing_starts(_REUSE_FLOOR)
-        except Exception:
-            m = {}
-        cache.set(_REUSE_CK, m, ttl=86400)
-        try:
-            tmp = _REUSE_FILE + ".tmp"
-            with open(tmp, "w") as fh:
-                json.dump(m, fh)
-            os.replace(tmp, _REUSE_FILE)
-        except Exception:
-            pass
+    _REUSE_FLOOR. Memory → durable /data file (at ANY age; a stale one is served and refreshed
+    in the quiet span) → compute, only when there is no file at all. Serialized so a stampede
+    of pre-2004 requests computes it a single time."""
+    m = _REUSE_MEM["map"]
+    if m is not None:
         return m
+    with _reuse_lock:
+        m = _REUSE_MEM["map"]
+        if m is not None:
+            return m
+        m, age = _read_reuse_file()
+        if m is not None:
+            _REUSE_MEM["map"] = m
+            if age > _REUSE_FILE_TTL:
+                _reuse_log().info("[scan_period] reuse map file is %.1f d old: serving it, "
+                                  "refreshing in the quiet span", age / 86400)
+                _spawn_reuse_refresh()
+            return m
+        if _time.time() - _REUSE_MEM["failed_at"] < _REUSE_RETRY_S:
+            return {}
+        try:
+            return _compute_reuse_map()
+        except Exception as exc:  # noqa: BLE001 -- no reuse filtering beats a failed sort
+            _REUSE_MEM["failed_at"] = _time.time()
+            _reuse_log().warning("[scan_period] reuse map compute failed: %s", exc)
+            return {}
 
 
 def warm_reuse_map() -> None:
@@ -405,9 +492,14 @@ def debug_period(start_ymd: int, end_ymd: int) -> dict:
         out["cs_universe_size"] = len(cs) if cs else 0
     except Exception as e:
         out["cs_universe_size"] = f"error: {e}"
-    rm = cache.get(_REUSE_CK)
+    rm = _REUSE_MEM["map"]
+    try:
+        file_age_d = round((_time.time() - os.path.getmtime(_REUSE_FILE)) / 86400, 2)
+    except OSError:
+        file_age_d = None
     out["reuse_map"] = {"warm": rm is not None, "size": (len(rm) if rm else 0),
-                        "file": os.path.exists(_REUSE_FILE)}
+                        "file": os.path.exists(_REUSE_FILE), "file_age_days": file_age_d,
+                        "refresh_waiting": _reuse_refreshing.is_set()}
     return out
 
 

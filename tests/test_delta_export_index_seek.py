@@ -184,12 +184,27 @@ def fresh_bars(tmp_path, monkeypatch):
 
 
 def _put_weekly(ticker, iso_dates):
-    bars_sqlite.put_bars(
-        ticker,
-        "W",
-        [{"t": d, "o": 1, "h": 1, "l": 1, "c": 1, "v": 1} for d in iso_dates],
-        date_tf=True,
-    )
+    """Friday keys through the store's writer; every other key planted as the LEGACY row the
+    purge exists for. ⚰️ These two tests were red from the day the write gate
+    (`_writable_bars`, `date_bar_keys`) began refusing non-Friday weekly keys: put_bars dropped
+    the Monday row, the purge correctly found nothing, and `== 1` read 0 (CI full suite since
+    at least 2026-11-14). A mis-keyed row can only come from before that gate, so plant it the
+    way it sits on disk, as test_weekly_purge_removes_a_malformed_key below already does."""
+    from api.services import date_bar_keys as _dk
+    keys = [int(d.replace("-", "")) for d in iso_dates]
+    good = [d for d, k in zip(iso_dates, keys) if _dk.key_ok("W", k)]
+    if good:
+        bars_sqlite.put_bars(
+            ticker,
+            "W",
+            [{"t": d, "o": 1, "h": 1, "l": 1, "c": 1, "v": 1} for d in good],
+            date_tf=True,
+        )
+    conn = bars_sqlite._conn()
+    for k in keys:
+        if not _dk.key_ok("W", k):
+            conn.execute("INSERT OR REPLACE INTO ohlcv VALUES (?,'W',?,1,1,1,1,1)", (ticker, k))
+    conn.commit()
 
 
 def test_weekly_purge_never_scans_the_table(fresh_bars, monkeypatch):
