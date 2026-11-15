@@ -348,7 +348,11 @@ describe('s18 — the bool-na probe at v1 and v3 (`vw-cs2-bool-na-v1-cum` / `-v3
       expect(rows[0][24], 'H02 vendor bar 0').toBe(0)
       // through the member door: the production lane, with the version's condition rule from the listing
       for (const k of [0, 2, ...Array.from({ length: 22 }, (_, j) => j + 3)]) {
-        const { col, codes } = doorOn(onlyPlot(cap.source.text, k))
+        // a plot that folds to a constant (`c or true`, `cum(1) - 1` alone) is "nothing a chart can
+        // draw" for the door on its own: those are read off the host lane over the whole script
+        const alone = memberPaneDefinition({ source: onlyPlot(cap.source.text, k), id: 'u_e56r', name: 'e56r' })
+        const { col, codes } = alone.ok ? doorOn(onlyPlot(cap.source.text, k))
+          : { ...hostColumn(cap.source.text, k), codes: [] }
         expect(codes, `${v} plot_${k}`).toEqual([])
         for (let i = 0; i < rows.length; i++) expect(col[i], `${v} plot_${k} bar ${i}`).toBe(rows[i][k + 1])
       }
