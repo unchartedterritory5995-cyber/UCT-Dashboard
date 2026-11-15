@@ -1654,7 +1654,7 @@ function cogOverBudget(args, tree) {
  *  on the `length` bars after it; PyneCore answers `na` there and advances neither
  *  sum. A remark does not settle it: the captures behind `interpret.js::NA` found the
  *  windowed family treating a gap three ways (`sum` skips, `dev` propagates,
- *  `highest`/`lowest` restart). No capture says which `ta.cmo` computes (capture queue
+ *  `highest`/`lowest` read the last n finite values, S10 2026-11-15, after the 2026-09-08 probe had read them as a restart). No capture says which `ta.cmo` computes (capture queue
  *  W1-E, rows E04/E05), and this engine never draws where TradingView may hide.
  *  ⭐ A WARM-UP IS NOT A GAP: the momentum's own `na` on bar 0 (or a source's leading
  *  `na`) gives the same values either way, because both windows begin after it, so

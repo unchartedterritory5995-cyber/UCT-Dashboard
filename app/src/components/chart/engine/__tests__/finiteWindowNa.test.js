@@ -10,6 +10,10 @@
 //                                         answering even ON the `na` bar
 //   PROPAGATE dev (and the unresolved)  — a clean `n`-BAR window
 //   RESTART   highest, lowest           — the window begins again after a hole
+//             ⚰️ REFUTED for highest / lowest 2026-11-15 (S10, `vw-cs2-holed-highest-*`): they are
+//             FINITE (the last n finite values, reaching back past the hole, kept on the hole bar).
+//             Only highestbars / lowestbars keep RESTART, their holed case withheld by name.
+//             `engineHlHoles.test.js` holds the captures; `divergences.json::highest-lowest-restart-after-a-hole`.
 //
 // Fixture: `finite-window-na-policy-by-member-spy-1d-2026-09-08`.
 //
@@ -47,7 +51,9 @@ describe('⛔⛔ the policy is declared PER MEMBER, and the table says so', () =
     // ⚰️ THIS READ 3 UNTIL 2026-09-08. `wma` resolving to FORWARD-FILL added a
     // fourth, which is the same lesson one turn further on — the family did not
     // merely hold more than one rule, it held more rules than had been NAMED.
-    expect(seen.size, 'the family must still use more than one policy').toBe(4)
+    // ⭐ 5 SINCE ENGINE HL (2026-11-15): `highest` / `lowest` moved to FINITE, and RESTART stays in
+    // use by `highestbars` / `lowestbars`.
+    expect(seen.size, 'the family must still use more than one policy').toBe(5)
   })
 
   it('⭐ the members are on the policies the vendor showed', () => {
@@ -56,8 +62,9 @@ describe('⛔⛔ the policy is declared PER MEMBER, and the table says so', () =
     expect(FINITE_WINDOW.sum.na).toBe('skip')
     expect(FINITE_WINDOW.median.na).toBe('skip')
     expect(FINITE_WINDOW.dev.na).toBe('propagate')
-    expect(FINITE_WINDOW.highest.na).toBe('restart')
-    expect(FINITE_WINDOW.lowest.na).toBe('restart')
+    expect(FINITE_WINDOW.highest.na).toBe('finite')
+    expect(FINITE_WINDOW.lowest.na).toBe('finite')
+    expect(FINITE_WINDOW.highestbars.na).toBe('restart')
   })
 })
 
@@ -105,43 +112,38 @@ describe('⭐⭐ PROPAGATE — blank for exactly n-1 bars after a hole', () => {
   })
 })
 
-describe('⭐⭐ RESTART — the window begins again after a hole', () => {
-  it('⭐⭐ one bar after a hole, highest === lowest === the lone observation', () => {
-    // ⭐ THE VENDOR'S OWN SIGNATURE. At bar 8130 — one bar past a hole — its
-    // `highest` and `lowest` both read 594.2, the only observation since.
+describe('⚰️⚰️ RESTART WAS REFUTED FOR highest / lowest — they read the last n FINITE values', () => {
+  // ⚰️ THIS BLOCK ASSERTED THE 2026-09-08 SIGNATURE ("one bar after a hole, highest === lowest
+  // === the lone observation", blank ON the hole). S10's six captures (2026-11-15) refuted it:
+  // TradingView keeps the window on the hole bar and reaches back past it. The captures
+  // themselves are graded in `engineHlHoles.test.js`; this keeps the structural shapes.
+  it('⭐⭐ one bar after a hole, the window still reaches back past it', () => {
     const hi = FN.highest(SRC, 5)
     const lo = FN.lowest(SRC, 5)
     for (let i = 8; i < N - 1; i += 1) {
       if (!HOLE(i)) continue
       const j = i + 1
-      expect(hi[j], `bar ${j}: highest is the lone value`).toBeCloseTo(SRC[j], 12)
-      expect(lo[j], `bar ${j}: lowest is the lone value`).toBeCloseTo(SRC[j], 12)
-      expect(hi[j]).toBeCloseTo(lo[j], 12)
+      const f = []
+      for (let k = j; k >= 0 && f.length < 5; k -= 1) if (Number.isFinite(SRC[k])) f.push(SRC[k])
+      expect(hi[j], `bar ${j}`).toBe(Math.max(...f))
+      expect(lo[j], `bar ${j}`).toBe(Math.min(...f))
+      expect(hi[j]).toBeGreaterThan(lo[j])
     }
   })
 
-  it('⭐ the run then grows back to n', () => {
+  it('⭐ and it ANSWERS on the hole itself, as a SKIP member does', () => {
     const hi = FN.highest(SRC, 5)
-    const h = 14
-    // two bars after the hole the window holds two observations
-    expect(hi[h + 2], `bar ${h + 2}`).toBeCloseTo(Math.max(SRC[h + 1], SRC[h + 2]), 12)
-    expect(hi[h + 3], `bar ${h + 3}`).toBeCloseTo(Math.max(SRC[h + 1], SRC[h + 2], SRC[h + 3]), 12)
-  })
-
-  it('⛔ and it is BLANK at the hole itself — restart is not skip', () => {
-    const hi = FN.highest(SRC, 5)
-    expect(Number.isFinite(hi[14])).toBe(false)
-    // whereas a SKIP member answers there
+    expect(Number.isFinite(hi[14])).toBe(true)
     expect(Number.isFinite(FN.sma(SRC, 5)[14])).toBe(true)
   })
 })
 
 describe('⭐ the series-start warm-up is UNCHANGED, and deliberately so', () => {
   it('⛔ no member answers before bar n-1, whatever its policy', () => {
-    // ⚠️ NOT OBSERVED BY ANY FIXTURE. Every capture begins deep in real history,
-    // so what Pine does on bar 0 of a symbol is unknown. RESTART answers with a
-    // PARTIAL run after a hole because that IS observed; the start-of-series gate
-    // stays because it is not. Two rules that look alike, one with evidence.
+    // ⚠️ NOT OBSERVED BY ANY FIXTURE for most members. Every capture begins deep in
+    // real history, so what Pine does on bar 0 of a symbol is unknown — except
+    // `highest` / `lowest`: S10's captures start at bar 0 and draw nothing on bars
+    // 0..8 of a 10-bar window (`engineHlHoles.test.js`).
     const clean = Float64Array.from({ length: 20 }, (_, i) => 100 + i)
     for (const m of Object.keys(FINITE_WINDOW)) {
       const span = FINITE_WINDOW[m].span(5)
@@ -222,7 +224,10 @@ describe('⚰️ what PART Z could not settle, and what settled it', () => {
     // this bar is its only candidate — while the VALUE stays blank.
     const src = Float64Array.from([10, 11, 12, NaN])
     expect(FN.highestbars(src, 3)[3]).toBe(0)
-    expect(Number.isFinite(FN.highest(src, 3)[3])).toBe(false)
+    // ⚰️ `highest` blanked here until engine HL; S10 measured it keeping its window (12).
+    // ⛔ The `highestbars` 0 is the raw column: `interpret` withholds that bar by name
+    // (`arg-extreme:holed-window`), because its only witness is the probe S10 refuted.
+    expect(FN.highest(src, 3)[3]).toBe(12)
   })
 
   it('⛔ and a TIE goes to the OLDER bar, which is where the corpus actually moved', () => {

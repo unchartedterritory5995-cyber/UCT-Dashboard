@@ -970,6 +970,9 @@ export function lowerIrProgram(ir, opts = {}) {
     fieldNames,
     requests,
     windows: (ir.windows || []).map((w) => ({ ...w })),
+    // ⭐⭐ ENGINE HL — the `highestbars` / `lowestbars` holed-window stop asks whether a value before
+    // bar 0 could exist (`vm.js`, `winFromListing`).
+    windowsFromListing: !!(opts && opts.historyFromListing === true),
     carried: (ir.carried || []).map((c) => ({ ...c })),
     carried2: (ir.carried2 || []).map((c) => ({ ...c })),
     callSites: (ir.callSites || []).map((c) => ({

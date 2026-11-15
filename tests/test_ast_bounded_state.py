@@ -701,47 +701,40 @@ def test_highestbars_agrees_with_highest_about_WHICH_bar_it_names():
 
 
 def test_highestbars_and_highest_NO_LONGER_blank_together_and_the_vendor_is_why():
-    """⚰⚰ THIS TEST ASSERTED THEY BLANK ON EXACTLY THE SAME BARS, and TradingView
-    says they do not.
+    """⚰⚰ THIS TEST ASSERTED THEY BLANK ON EXACTLY THE SAME BARS, then (2026-09-08) that
+    ``highestbars`` blanks on strictly fewer, both under RESTART with ``naCurrent = 0``.
 
-    Measured 2026-09-08 over a gappy source: on the 36 ``na`` bars of a 400-bar
-    capture ``ta.highest`` answered on **0** of them while ``ta.highestbars``
-    answered on **all 36**. The vendor's own pair disagrees about one window --
-    so the invariant this test defended was OURS, not Pine's.
+    ⚰️ ENGINE HL (2026-11-15): the S10 captures refuted the 2026-09-08 probe's ``highest`` reading
+    (``vw-cs2-holed-highest-*``: the last n FINITE values, fewer while fewer exist). ``highest`` is
+    ``NA_FINITE`` now, and ``highestbars`` keeps RESTART with ``naCurrent = 0`` -- but its only hole
+    witness is that same probe, so ``interpret`` withholds by name every bar whose window holds an
+    ``na`` the two rules could read differently (``arg-extreme:holed-window``), and off the listing
+    (these bars) ``highest``'s short warm-up window too (``window-extreme:left-edge``).
 
-    ⭐ AND SINCE 2026-09-08 THE SHAPE IS EXPLAINED, not merely recorded. Both
-    members use RESTART; the two arg-extremes additionally declare
-    ``naCurrent = 0``, because a restarted window's only candidate IS this bar, so
-    the OFFSET is defined exactly where the VALUE is not. The earlier pass could
-    measure the asymmetry (36 of 36 against 0 of 36) but not account for it, and
-    left them on ``propagate`` rather than guessing.
-
-    ⚠️ ONE EXTENSION BEYOND THE MEASUREMENT IS MADE HERE AND IS FLAGGED: every
-    observed ``na`` bar was an INTERIOR hole. This source has a 29-bar ``na`` HEAD
-    (``ta.sma(high, 30)``) and the same rule is applied there. No capture has seen
-    the start of a series, so that is a uniform reading of the measured rule
-    rather than a second measurement.
-
-    ⛔ The ORIGINAL coherence assertion is kept below as an EXCLUSION: it must
-    now FAIL, or the correction never landed.
+    So the RAW table functions keep the measured asymmetry (the offset answers 0 on the head, the
+    value only once a finite value exists), and the SERVED columns withhold the head by name.
     """
     src = CALL("sma", SER("high"), NUM(30))     # a 29-bar hole at the front
-    off = run(CALL("highestbars", src, NUM(5)))
-    top = run(CALL("highest", src, NUM(5)))
-    blank_off = [i for i in range(len(BARS)) if at(off, i) is None]
-    blank_top = [i for i in range(len(BARS)) if at(top, i) is None]
-    # ⭐⭐ THE OFFSET FORM BLANKS ON STRICTLY FEWER BARS, and that is now the
-    # vendor's own shape rather than an unexplained asymmetry: `ta.highestbars`
-    # answered on ALL 36 na bars of the capture while `ta.highest` answered on 0.
-    # The window restarts for both; only the OFFSET is still defined there,
-    # because a restarted window has this bar as its only candidate.
-    assert len(blank_off) < len(blank_top), (len(blank_off), len(blank_top))
-    # ... and it blanks ONLY for its own start-of-series warm-up.
-    assert blank_off == [0, 1, 2, 3], blank_off
-    # ⛔ THE EXCLUSION: they used to be equal. If they are equal again, either
-    # `highest` lost its RESTART policy or `highestbars` lost its `naCurrent` --
-    # both are regressions this line exists to catch.
-    assert blank_off != blank_top, "the pair must NOT blank together any more"
+    col = ast_interpret._interpret_column(src, BARS, {})
+    raw_off = ast_interpret.FN["highestbars"](col, 5)
+    raw_top = ast_interpret.FN["highest"](col, 5)
+    nan = lambda v: isinstance(v, float) and math.isnan(v)  # noqa: E731
+    assert [i for i, v in enumerate(raw_off) if nan(v)] == [0, 1, 2, 3]
+    assert [i for i, v in enumerate(raw_top) if nan(v)] == list(range(29))
+    # served, off the listing: both withheld on the head, by name, and drawn after it
+    sink_off, sink_top = {}, {}
+    off = ast_interpret.interpret(CALL("highestbars", src, NUM(5)), BARS, {}, opts={"chartClockSink": sink_off})
+    top = ast_interpret.interpret(CALL("highest", src, NUM(5)), BARS, {}, opts={"chartClockSink": sink_top})
+    assert sink_off == {ast_interpret.ARG_EXTREME_HOLED: True}
+    assert sink_top == {ast_interpret.WINDOW_EXTREME_LEFT_EDGE: True}
+    assert [i for i in range(len(BARS)) if at(off, i) is None] == list(range(33))
+    assert [i for i in range(len(BARS)) if at(top, i) is None] == list(range(33))
+    # from the listing the head is the series' own start: `highest` answers its short window,
+    # `highestbars` still withholds the bars whose CURRENT value is the head's `na`
+    on_off = ast_interpret.interpret(CALL("highestbars", src, NUM(5)), BARS, {}, opts={"historyFromListing": True})
+    on_top = ast_interpret.interpret(CALL("highest", src, NUM(5)), BARS, {}, opts={"historyFromListing": True})
+    assert [i for i in range(len(BARS)) if at(on_off, i) is None] == list(range(29))
+    assert [i for i in range(len(BARS)) if at(on_top, i) is None] == list(range(29))
 
 
 # ─────────────────────────────────────────────────────────────────────────── #

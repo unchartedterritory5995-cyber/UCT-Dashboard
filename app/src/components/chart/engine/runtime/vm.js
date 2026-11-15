@@ -22,7 +22,7 @@
 // forever, and the budget lives on the call rather than the module so that a
 // screener pass over 5,000 symbols cannot let symbol 4,000 inherit 3,999's spend.
 
-import { BINARY, UNARY, TERNARY, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED, CARRIED2 } from '../ast/interpret.js'
+import { BINARY, UNARY, TERNARY, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED, CARRIED2, ARG_EXTREME_HOLED } from '../ast/interpret.js'
 import { OP, OP_NAME, IMPLEMENTED, SERIES_NAMES, CLOCK_FIELDS } from './program.js'
 import { TEXT_IMPL as TEXT_FNS } from './text.js'
 import { COLOUR_FNS, colourArgKind } from './colours.js'
@@ -467,9 +467,17 @@ export function execute(program, ctx, limits, opts) {
   // (each bar's own value, or the last finite one before it), right-aligned; its
   // newest cell IS the carry, so no state beyond the ring (resume / rollback copy it
   // already). `winObsN` counts its FINITE observations (capped at `w.span`): the warm-up.
-  const winObs = winPlan.map((w) => (FINITE_WINDOW[w.fn].na === 'skip' ? new Float64Array(w.span)
+  // ⭐⭐ ENGINE HL — `finite` (`highest` / `lowest`) keeps the same right-aligned ring of the last
+  // `w.span` finite values as a dynamic `skip`; `winObsN` counts them (capped at `w.span`).
+  // A `restart` site (`highestbars` / `lowestbars`) keeps no ring: its `winObsN` counts the FINITE
+  // values it has been handed (saturating), which is all the holed-window stop needs to know.
+  const winObs = winPlan.map((w) => (FINITE_WINDOW[w.fn].na === 'skip' || FINITE_WINDOW[w.fn].na === 'finite'
+    ? new Float64Array(w.span)
     : FINITE_WINDOW[w.fn].na === 'ffill' ? new Float64Array(w.span).fill(NaN) : null))
   const winObsN = new Int32Array(winPlan.length)
+  // ⭐⭐ ENGINE HL — whether this run starts at the symbol's listing (`lowerIr.js`): off it, a value
+  // before bar 0 may be finite, so every `highestbars` / `lowestbars` window holding an `na` stops.
+  const winFromListing = program.windowsFromListing === true
   const winReduce = winPlan.map((w) => {
     const spec = FINITE_WINDOW[w.fn]
     if (!spec) throw new VmError(`no finite-window reducer for \`${w.fn}\``)
@@ -1226,6 +1234,22 @@ export function execute(program, ctx, limits, opts) {
             break
           }
 
+          if (policy === 'finite') {
+            // ⭐⭐ ENGINE HL — `interpret.js::rollingFinite`, a bar at a time: the last `span` FINITE
+            // values (fewer while fewer exist), `na` before bar `span - 1` and before the first finite
+            // value, an answer on the `na` bar itself. WITNESSED by S10 (`vw-cs2-holed-highest-*`).
+            const obs = winObs[wi]
+            if (Number.isFinite(live)) {
+              obs.copyWithin(0, 1)
+              obs[w.span - 1] = live
+              if (winObsN[wi] < w.span) winObsN[wi] += 1
+            }
+            if ((cWin += span) > capWin) { bc.WINDOW_CELLS = cWin - span; budget.charge('WINDOW_CELLS', span) }
+            const have = Math.min(winObsN[wi], span)
+            stack[sp++] = committed < span - 1 || have === 0 ? NaN : winReduce[wi](obs, w.span - have, w.span - 1)
+            break
+          }
+
           if (policy === 'ffill') {
             // ⭐⭐ LANE B0 (2026-11-09) — `ta.wma`, THE COLUMNAR LANE'S RULE
             // (`interpret.js::rolling`): an `na` in the lookback is the last finite
@@ -1249,6 +1273,8 @@ export function execute(program, ctx, limits, opts) {
           // ⛔ `propagate` AND `restart` BOTH READ THE COMMITTED RING, so they
           // keep 2F-2B's warm-up rule: `rolling` starts at bar n-1 and so does
           // this. What differs is only WHERE the window begins.
+          // ⭐ ENGINE HL — a `restart` site counts the finite values it is handed, gate or not.
+          if (policy === 'restart' && Number.isFinite(live) && winObsN[wi] < 1073741824) winObsN[wi] += 1
           if (committed < span - 1) { stack[sp++] = NaN; break }
           const buf = winBuf[wi]
           buf[span - 1] = live
@@ -1263,6 +1289,23 @@ export function execute(program, ctx, limits, opts) {
           }
           if ((cWin += span) > capWin) { bc.WINDOW_CELLS = cWin - span; budget.charge('WINDOW_CELLS', span) }
           if (policy === 'restart') {
+            // ⭐⭐ ENGINE HL — THE HOLED CASE STOPS BY NAME (`interpret.js::argExtremeHoled`, the columnar
+            // lane's `arg-extreme:holed-window`): the one capture of this rule over a hole is the
+            // 2026-09-08 probe S10 refuted for `highest` / `lowest`. A window holding an `na` stops
+            // where this bar is the `na`, where a finite value was handed to this site before the
+            // window's newest `na`, or off the listing; a clean window and a leading warm-up are served.
+            let newestNa = -1
+            let finiteAfter = 0
+            for (let k = span - 1; k >= 0; k -= 1) {
+              if (!Number.isFinite(buf[k])) { newestNa = k; break }
+              finiteAfter += 1
+            }
+            if (newestNa >= 0 && (newestNa === span - 1 || !winFromListing || winObsN[wi] > finiteAfter)) {
+              const stop = new VmError(`${ARG_EXTREME_HOLED} — \`${w.name}\`: on bar ${committed} this window holds an \`na\` `
+                + 'whose bar no TradingView capture of `ta.highestbars` / `ta.lowestbars` pins')
+              stop.guard = ARG_EXTREME_HOLED
+              throw stop
+            }
             // ⭐ THE WINDOW BEGINS AGAIN AFTER A HOLE. The current bar must be
             // finite (the vendor blanks ON the hole); the run then reaches back
             // only as far as the last non-finite value.

@@ -706,19 +706,28 @@ NA_SKIP = "skip"
 NA_PROPAGATE = "propagate"
 NA_RESTART = "restart"
 NA_FFILL = "ffill"
+#: ⭐⭐ ENGINE HL (2026-11-15) -- the last ``n`` FINITE values, fewer while fewer exist; ``na`` before
+#: bar ``n - 1`` and before the first finite value; an answer on the ``na`` bar itself. ``highest`` /
+#: ``lowest``, WITNESSED by S10 (``vw-cs2-holed-highest-*``, 12 columns, 0 mismatches). JS twin:
+#: ``interpret.js::NA.FINITE`` / ``rollingFinite``.
+NA_FINITE = "finite"
 
 #: The na policy of every finite-window member, by TABLE name.
 #:   SKIP      -- the last ``n`` FINITE observations, however many BARS that spans;
 #:                answers on the ``na`` bar itself (vendor: 133 of 133).
 #:   PROPAGATE -- a clean ``n``-BAR window; blank for exactly ``n-1`` bars after a hole.
-#:   RESTART   -- the window begins again after a hole, so one bar later
-#:                ``highest == lowest ==`` the lone observation.
+#:   RESTART   -- the window begins again after a hole. ``highestbars`` / ``lowestbars`` only, and
+#:                their holed case is withheld by name (``window_hole_mask``). ⚰️ ``highest`` /
+#:                ``lowest`` were RESTART until engine HL: the 2026-09-08 reading ("one bar later
+#:                ``highest == lowest ==`` the lone observation") is refuted by S10.
+#:   FINITE    -- the last ``n`` FINITE values, fewer while fewer exist, answering on the ``na`` bar
+#:                (``highest``, ``lowest``; engine HL).
 #:   FFILL     -- an ``na`` in the LOOKBACK is replaced by the last finite value
 #:                and keeps its bar-position weight; the answer is ``na`` only
 #:                when the CURRENT bar is ``na``. Vendor-pinned 2026-09-08.
 WINDOW_NA: Dict[str, str] = {
     "sma": NA_SKIP, "stdev": NA_SKIP, "sum": NA_SKIP, "median": NA_SKIP,
-    "highest": NA_RESTART, "lowest": NA_RESTART,
+    "highest": NA_FINITE, "lowest": NA_FINITE,
     "highestbars": NA_RESTART, "lowestbars": NA_RESTART,
     "wma": NA_FFILL,
     # ⚠️ STILL NOT DETERMINED. ``dev`` is the one member whose PROPAGATE reading
@@ -772,6 +781,8 @@ def _rolling(series: Sequence[float], n: int,
     per-bar would make one bar's cost depend on how long the preceding gap was.
     The JS twin is ``interpret.js::rolling``.
     """
+    if policy == NA_FINITE:
+        return _rolling_finite(series, n, reduce)
     out = _nan_col(len(series))
     src: Sequence[float] = series
     if policy == NA_FFILL:
@@ -811,6 +822,42 @@ def _rolling(series: Sequence[float], n: int,
             out[i] = reduce(buf, lo, hi)
         elif na_current is not None and not math.isfinite(series[i]):
             out[i] = na_current
+    return out
+
+
+def _hl_finite(v: Any) -> bool:
+    """A finite number (a ``None`` or a NaN is not)."""
+    return isinstance(v, (int, float)) and math.isfinite(v)
+
+
+def _rolling_finite(series: Sequence[float], n: int,
+                    reduce: Callable[[Sequence[float], int, int], float]) -> List[float]:
+    """⭐⭐ ENGINE HL -- ``NA_FINITE``: ``interpret.js::rollingFinite``, step for step. One forward
+    pass keeping the last ``n`` finite values oldest-first; ``na`` before bar ``n - 1`` and before
+    the first finite value; an answer on an ``na`` bar."""
+    out = _nan_col(len(series))
+    if not n >= 1:
+        return out
+    buf: List[float] = []
+    for i, v in enumerate(series):
+        if _hl_finite(v):
+            buf.append(v)
+            if len(buf) > n:
+                buf.pop(0)
+        if i >= n - 1 and buf:
+            out[i] = reduce(buf, 0, len(buf) - 1)
+    return out
+
+
+def finite_window_count(series: Sequence[float], n: int) -> List[int]:
+    """``interpret.js::finiteWindowCount`` -- per bar, how many finite values ``NA_FINITE``'s window
+    of ``n`` holds (0 before the first, at most ``n``)."""
+    out: List[int] = []
+    seen = 0
+    for v in series:
+        if _hl_finite(v):
+            seen += 1
+        out.append(min(seen, n))
     return out
 
 
@@ -4465,6 +4512,11 @@ def interpret(ast: Any, bars: List[dict],
         varied = var_origin_mask(ast, bars, inputs, budget, scalars, opts)
         if varied is not None:
             column = [math.nan if varied[i] else v for i, v in enumerate(column)]
+        # ⭐⭐ ENGINE HL -- ...and a window extreme over a holed source no capture pins
+        # (``interpret.js::windowHoleMask``).
+        holed = window_hole_mask(ast, bars, inputs, budget, scalars, opts)
+        if holed is not None:
+            column = [math.nan if holed[i] else v for i, v in enumerate(column)]
     # C30 / C36 -- the port of ``interpret.js::withPeriodAnchorWithheld``: a tree
     # that reads ``time("W"|"M"|"3M"|"12M")`` (or ``time(timeframe.period)`` /
     # ``time("60")``) is withheld on the bars ``period_anchor_mask`` names.
@@ -4636,6 +4688,108 @@ def history_read_mask(tree: Any, bars: List[dict],
                 mask[i] = 1
                 held = True
     return mask if held else None
+
+
+#: ⭐⭐ ENGINE HL -- the window calls ``window_hole_mask`` asks about (``interpret.js::HOLE_WINDOW_CALLS``).
+_HOLE_WINDOW_CALLS = {"highest": "extreme", "lowest": "extreme", "highestbars": "arg", "lowestbars": "arg"}
+#: Table functions that carry state with no end (``interpret.js::HOLE_CARRIED_CALLS``).
+_HOLE_CARRIED_CALLS = frozenset({"ema", "rma", "rsi", "atr", "atrPine", "adx", "plusDI", "minusDI", "macd"})
+
+
+def _arg_extreme_holed(src: Sequence[float], n: int, off_listing: bool) -> List[int]:
+    """``interpret.js::argExtremeHoled`` -- 1 where, from bar ``n - 1``, a ``highestbars`` /
+    ``lowestbars`` window holds an ``na`` and this bar is the ``na``, or a finite value lies before
+    the window's newest ``na``, or the chart is off the listing."""
+    out = [0] * len(src)
+    first_finite = -1
+    last_na = -math.inf
+    for i, v in enumerate(src):
+        if _hl_finite(v):
+            if first_finite < 0:
+                first_finite = i
+        else:
+            last_na = i
+        if i < n - 1 or last_na < i - n + 1:
+            continue
+        if last_na == i or off_listing or (0 <= first_finite < last_na):
+            out[i] = 1
+    return out
+
+
+def window_hole_mask(tree: Any, bars: List[dict],
+                     inputs: Optional[Mapping[str, Any]] = None,
+                     budget: Optional[Mapping[str, Any]] = None,
+                     scalars: Optional[Mapping[str, Any]] = None,
+                     opts: Optional[Mapping[str, Any]] = None) -> Optional[List[int]]:
+    """``interpret.js::windowHoleMask`` (engine HL) -- the bars where a window extreme over a source
+    with ``na`` holes answers from a window no capture pins (1 = withheld), or ``None``.
+    ``window-extreme:left-edge``: off the listing, a ``highest`` / ``lowest`` window of fewer than
+    ``n`` finite values from bar ``n - 1``; ``arg-extreme:holed-window``: ``_arg_extreme_holed``.
+    Spread forward by the tree's reach, or to the end under a call that carries state; a site under
+    ``tf`` / ``tf_live`` / ``sym`` / ``ltf`` is masked where its child is evaluated."""
+    n = len(bars)
+    off_listing = (opts or {}).get("historyFromListing") is not True
+    found: List[tuple] = []
+    stack = [(tree, False, False)]
+    seen = set()
+    functions = TABLE[FUNCTIONS_SECTION]
+    while stack:
+        node, nested, unbounded = stack.pop()
+        if not isinstance(node, dict) or id(node) in seen:
+            continue
+        seen.add(id(node))
+        name = node.get("name")
+        is_call = node.get("type") == "call" and isinstance(name, str)
+        if is_call and name in _HOLE_WINDOW_CALLS:
+            found.append((node, nested, unbounded))
+        into = nested or node.get("type") in ("tf", "tf_live", "sym", "ltf")
+        spec = functions.get(name) if is_call else None
+        opened = unbounded or bool(spec is not None and (
+            spec.get("lookback") == SERIES_LOOKBACK or _is_stateful_call(node) or name in _HOLE_CARRIED_CALLS))
+        args = node.get("args")
+        if isinstance(args, list):
+            for a in args:
+                stack.append((a, into, opened))
+    if not found:
+        return None
+    mask = [0] * n
+    held = False
+    codes = set()
+    root_reach = max_lookback(tree)
+    inner = dict(opts or {}, chartClockSink=None, crossMemo=None, probeBase=None)
+    for node, nested, unbounded in found:
+        args = node.get("args") or []
+        if nested or len(args) < 2 or _reads_recurrence_binding(node):
+            continue
+        kind = _HOLE_WINDOW_CALLS[node["name"]]
+        if kind == "extreme" and not off_listing:
+            continue
+        length = _interpret_column(args[1], bars, inputs, budget, scalars, inner)
+        w = length[-1] if length else NAN
+        if not (isinstance(w, (int, float)) and math.isfinite(w) and w >= 1 and float(w).is_integer()):
+            continue
+        span = int(w)
+        src = _interpret_column(args[0], bars, inputs, budget, scalars, inner)
+        if kind == "extreme":
+            count = finite_window_count(src, span)
+            flagged = [1 if (i >= span - 1 and count[i] < span) else 0 for i in range(n)]
+            code = WINDOW_EXTREME_LEFT_EDGE
+        else:
+            flagged = _arg_extreme_holed(src, span, off_listing)
+            code = ARG_EXTREME_HOLED
+        reach = max(0, root_reach - max_lookback(node))
+        last = -math.inf
+        for i in range(n):
+            if flagged[i]:
+                codes.add(code)
+                last = last if (unbounded and last != -math.inf) else i
+            if last != -math.inf and (unbounded or i - last <= reach):
+                mask[i] = 1
+                held = True
+    if not held:
+        return None
+    _name_chart_clock(opts, sorted(codes))
+    return mask
 
 
 def _reads_recurrence_binding(tree: Any) -> bool:
@@ -5246,6 +5400,10 @@ CHART_CLOCK_WHOLE = (
     # 2026-11-09 -- a `var` that began before the loaded bars (``var_origin_mask``)
     "var-origin:window",
 )
+#: ⭐⭐ ENGINE HL -- the two codes ``window_hole_mask`` names (``interpret.js::WINDOW_EXTREME_LEFT_EDGE``
+#: / ``ARG_EXTREME_HOLED``; the sentences are the JS lane's).
+WINDOW_EXTREME_LEFT_EDGE = "window-extreme:left-edge"
+ARG_EXTREME_HOLED = "arg-extreme:holed-window"
 
 #: The clock leaves that read the TIME OF DAY rather than the date. Mirrors
 #: ``interpret.js::SESSION_CLOCK_LEAVES``, which owns the reasoning: on a daily
@@ -5257,6 +5415,7 @@ SESSION_CLOCK_LEAVES = ("time", "hour", "minute", "timeclose", "dayopentime",
 CHART_CLOCK_WITHHELD_CODES = CHART_CLOCK_WHOLE + (
     "time-anchor:period-open-missing", "time-anchor:utc-day-clock",
     "bar-index:early-bars", "running-total:early-bars", "bar-index:first-bar", "var-origin:bars",
+    WINDOW_EXTREME_LEFT_EDGE, ARG_EXTREME_HOLED,
 )
 
 

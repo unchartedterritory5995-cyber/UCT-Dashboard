@@ -221,7 +221,59 @@
         "na-in-a-source-window-vs-recurrence-spy-1d-2026-09-08",
         "finite-window-na-policy-by-member-spy-1d-2026-09-08"
       ],
-      "_owner_ruling_required": "✅ RULED 2026-09-08: fix it. Corrected for the six members whose rule is proven, in BOTH lanes and in the runtime. The row stays `confirmed` rather than `refuted` because FOUR members are still on the pre-existing policy with their true rule unknown — see gap register PART Z, Z7.2 and Z7.3. A family is not vendor-complete while a third of it is unmeasured."
+      "_owner_ruling_required": "✅ RULED 2026-09-08: fix it. Corrected for the six members whose rule is proven, in BOTH lanes and in the runtime. The row stays `confirmed` rather than `refuted` because FOUR members are still on the pre-existing policy with their true rule unknown — see gap register PART Z, Z7.2 and Z7.3. A family is not vendor-complete while a third of it is unmeasured.",
+      "_highest_lowest_refuted_2026_11_15": "The sentence above, \"highest/lowest RESTART (the window begins again after a hole)\", is REFUTED. See `highest-lowest-restart-after-a-hole` (status corrected): ⚰️⚰️ REFUTED 2026-11-15 (engine HL), FOR `highest` / `lowest`. The S10 capture session measured `ta.highest(x, 10)` / `ta.lowest(x, 10)` over `x = bar_index % 50 == 30 ? na : close` on NYSE:RDDT (666 bars) and AMEX:SPY (8,507 bars) 1D from the listing, under //@version=5 and =6, alone and beside a `ta.stoch` (committed: `tests/fixtures/vendor/harness/vw-cs2-holed-highest-*-2026-11-15.json`; probes `tools/visual_conformance/probes/vw-cs2-holed-highest-{v5,v6,stoch-v6}.pine`). All 12 columns are the last n FINITE values, reaching back past the hole, with an answer ON the hole bar (RDDT bar 30: 47.7 / 40.88), `na` before bar n-1: 0 mismatches. RESTART misses 70 / 68 bars on RDDT and 824 / 1,034 on SPY. This witness's numbers are not reproduced by any later capture; why the 2026-09-08 reading came out RESTART is NOT established (candidates, untested: the 400-bar study window with its 100-row pre-history offset that probe's provenance records, and the eight other window calls sharing its script). Engine 57's builder found the same on S1's `vw-cs1-stoch-p2` P04 column. The S10 captures govern (coordinator ruling, 2026-11-15). ⚠️ Its `highestbars` / `lowestbars` readings (RESTART, 0 on the `na` bar) come from the same probe and are NOT re-measured: engine HL keeps that rule and withholds the holed case by name (`arg-extreme:holed-window`) rather than trusting or replacing it."
+    },
+    {
+      "id": "highest-lowest-restart-after-a-hole",
+      "shape": "`ta.highest` / `ta.lowest` over a source with `na` holes read a window that BEGAN AGAIN after the hole (and blanked on it); TradingView reads the last n FINITE values, reaching back past it.",
+      "status": "corrected",
+      "confidence": "measured",
+      "ours": "Until engine HL: `FINITE_WINDOW.highest/lowest.na = RESTART` (`interpret.js`, `runtime/vm.js`, `ast_interpret.WINDOW_NA`): reduce over the contiguous finite run ending at this bar, capped at n; `na` on the hole bar; one bar after a hole `highest == lowest ==` the lone value.",
+      "theirs": "MEASURED 2026-11-15 (S10): the last n FINITE values, however many bars that spans, fewer while fewer exist; `na` before bar n-1; an answer on the `na` bar itself. 12 of 12 columns, 0 mismatches, over 666 RDDT and 8,507 SPY 1D bars from the listing, v5 and v6, alone and beside a `ta.stoch`.",
+      "why_it_matters": "Any `cond ? x : na` source, any pivot or `valuewhen` series fed to `ta.highest` / `ta.lowest` (and everything built on them): RESTART drew `na` on every hole bar and a too-short window for the n-1 bars after it, so 70 / 68 of 666 RDDT bars and 824 / 1,034 of 8,507 SPY bars were wrong numbers or wrong blanks. 124 of the 565 held capture sources and 169 of the repo's 865 `.pine` files call them.",
+      "code": "interpret.js::NA.FINITE / rollingFinite / FINITE_WINDOW.highest,lowest / windowHoleMask; runtime/vm.js (policy `finite`); api/services/ast_interpret.py::NA_FINITE / _rolling_finite / window_hole_mask",
+      "probe": {
+        "case": "`x = bar_index % 50 == 30 ? na : close; plot(ta.highest(x, 10)); plot(ta.lowest(x, 10))`, NYSE:RDDT and AMEX:SPY 1D from the listing",
+        "under_ours": "RESTART: `na` on bar 30; bar 31 reads `highest == lowest == close[31]`; the window grows back over bars 31..39.",
+        "under_theirs": "last n finite: bar 30 keeps 47.7 / 40.88 (the window of bars 21..29); bar 31 reads bars 22..29 and 31; no bar is `na` after bar 8.",
+        "discriminates": "The hole bar alone separates them (a value vs `na`); over a capture RESTART misses 70 / 68 RDDT bars and last-n-finite misses 0."
+      },
+      "observation_ids": [
+        "finite-window-na-policy-by-member-spy-1d-2026-09-08",
+        "recurrent-composites-and-window-closure-spy-1d-2026-09-08"
+      ],
+      "measured": {
+        "by": "S10 capture session (TradingView, 2026-11-15); run dir %LOCALAPPDATA%/uct-vendor-batch/runs/s10-2026-11-15; the six probe captures are committed",
+        "on": "2026-11-15",
+        "captures": [
+          "vw-cs2-holed-highest-v5-rddt-1d-2026-11-15",
+          "vw-cs2-holed-highest-v5-spy-1d-2026-11-15",
+          "vw-cs2-holed-highest-v6-rddt-1d-2026-11-15",
+          "vw-cs2-holed-highest-v6-spy-1d-2026-11-15",
+          "vw-cs2-holed-highest-stoch-v6-rddt-1d-2026-11-15",
+          "vw-cs2-holed-highest-stoch-v6-spy-1d-2026-11-15"
+        ],
+        "how": "Each captured column against both rules over the capture's own bars (`engineHlHoles.test.js`, `tests/test_engine_hl_holes.py`).",
+        "restart_misses": {
+          "rddt": {
+            "highest": 70,
+            "lowest": 68
+          },
+          "spy": {
+            "highest": 824,
+            "lowest": 1034
+          }
+        },
+        "last_n_finite_misses": 0
+      },
+      "retires": "⚰️⚰️ REFUTED 2026-11-15 (engine HL), FOR `highest` / `lowest`. The S10 capture session measured `ta.highest(x, 10)` / `ta.lowest(x, 10)` over `x = bar_index % 50 == 30 ? na : close` on NYSE:RDDT (666 bars) and AMEX:SPY (8,507 bars) 1D from the listing, under //@version=5 and =6, alone and beside a `ta.stoch` (committed: `tests/fixtures/vendor/harness/vw-cs2-holed-highest-*-2026-11-15.json`; probes `tools/visual_conformance/probes/vw-cs2-holed-highest-{v5,v6,stoch-v6}.pine`). All 12 columns are the last n FINITE values, reaching back past the hole, with an answer ON the hole bar (RDDT bar 30: 47.7 / 40.88), `na` before bar n-1: 0 mismatches. RESTART misses 70 / 68 bars on RDDT and 824 / 1,034 on SPY. This witness's numbers are not reproduced by any later capture; why the 2026-09-08 reading came out RESTART is NOT established (candidates, untested: the 400-bar study window with its 100-row pre-history offset that probe's provenance records, and the eight other window calls sharing its script). Engine 57's builder found the same on S1's `vw-cs1-stoch-p2` P04 column. The S10 captures govern (coordinator ruling, 2026-11-15). ⚠️ Its `highestbars` / `lowestbars` readings (RESTART, 0 on the `na` bar) come from the same probe and are NOT re-measured: engine HL keeps that rule and withholds the holed case by name (`arg-extreme:holed-window`) rather than trusting or replacing it.",
+      "decision": {
+        "ruled": "Coordinator ruling 2026-11-15 (owner-delegated): the S10 witness governs; never serve wrong numbers, exact where witnessed, otherwise withhold by name.",
+        "what_changed": "`highest` / `lowest` are `NA.FINITE` in both lanes and the runtime VM. Off the listing a window of fewer than n finite values is withheld by name (`window-extreme:left-edge`); `highestbars` / `lowestbars` keep RESTART with their holed case withheld by name (`arg-extreme:holed-window`, the VM stops by it).",
+        "what_would_reopen_it": "A capture of `ta.highest` / `ta.lowest` over a holed source that is not the last n finite values, or one that pins the short-window (warm-up) case off the listing. A capture of `ta.highestbars` / `ta.lowestbars` over a holed source settles their withheld case."
+      },
+      "correctedIn": "engine HL, branch `fix/pine-engine-highest-holes` (SCRIPT_ENGINE_VERSION master + 1 at merge)"
     },
     {
       "id": "recurrent-composites-book-a-zero-or-die-on-na",
