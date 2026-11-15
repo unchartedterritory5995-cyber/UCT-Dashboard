@@ -27,6 +27,8 @@
 import { tickersIn } from './multiChart'
 import { matchPosition } from './fastPath'
 import { ordinalChart } from './deixis'
+import { widgetTabList } from '../pages/charts/widgetTabs'
+import { sanitizeChartTabs } from '../pages/charts/chartTabs'
 
 export const RAIL_MARK = 'chart-rail'
 const up = (s) => String(s || '').trim().toUpperCase()
@@ -184,9 +186,16 @@ export function multiResymbolAllowed(words, resym, known, host) {
   const w = String(words || '')
   if (REPLACE.test(w)) return true
   if (resym.every(e => named(w, e, host))) return true
-  const named2 = new Set([...tickersIn(w), ...knownIn(w, known).map(x => x.toUpperCase())]).size
-  return !addsCharts(w, known) && (requestedPanels(w) != null || CHART_COUNT.test(w) || LAYOUT_WORDS.test(w)) && named2 >= 2
+  return gridStated(w, known)
 }
+/** The words state a WHOLE GRID of named tickers (a shape or a count of charts, and their tickers or the set they come from). */
+export function gridStated(words, known = []) {
+  const w = String(words || '')
+  const named2 = new Set([...tickersIn(w), ...knownIn(w, known).map(x => x.toUpperCase())]).size
+  return !addsCharts(w, known) && (requestedPanels(w) != null || CHART_COUNT.test(w) || LAYOUT_WORDS.test(w)) && (named2 >= 2 || RESULT_SET.test(w))
+}
+// the tickers of a set the conversation already holds (the screen / list it showed): "those tickers", "these stocks"
+const RESULT_SET = /\b(?:those|these|them|the same)\s+(?:tickers?|symbols?|stocks?|names|ones)\b/i
 const LAYOUT_WORDS = /\b(?:side[\s-]by[\s-]side|next to each other|beside each other|stacked|on top of each other|in a (?:row|column|grid))\b/i
 // "just add …" / "only add …" limit what is ADDED — never a permission to remove
 const removalWords = (w) => String(w || '').replace(/\b(?:just|only)\s+(?=(?:add|adds|added|adding|put|include|includes|included|including)\b)/gi, ' ')
@@ -216,6 +225,28 @@ const ONE_CHART_NOUN = /\b(?:the|my|that|this)\s+(?:chart|graph|panel)\b(?!s)/i
 const escRe = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 const symbolSaid = (w, sym) => !!sym && (tickersIn(w).includes(up(sym))
   || new RegExp(`(^|[^A-Za-z])\\$?${escRe(sym)}(?:['’]s)?\\s+(?:chart|one|panel|graph)\\b`, 'i').test(w))
+// ⛔ D23 (owner, AUDIT T2): the SOLE chart is identified by being the only one — counted over EVERY chart in scope: the
+// charts the executor lists (Multi Chart cells included) AND the board's chart widgets with their hidden chart tabs / widget
+// tabs (a chart in a tab that is not showing is still a chart this board holds). Only charts count, never other widgets.
+export function chartsInScope(host) {
+  const listed = liveCharts(host)
+  let onBoard = 0
+  try {
+    const widgets = host?.layout?.()?.widgets || []
+    for (const w of widgets) {
+      const tabs = (() => { try { return widgetTabList(w) } catch { return [] } })()
+      const extraChartTabs = tabs.slice(1).filter(t => t?.type === 'chart').length
+      if (w?.type === 'chart') {
+        // a chart TAB on its own link colour can show another ticker: another chart in scope (a timeframe tab of the same
+        // ticker is the same chart)
+        const own = (() => { try { return sanitizeChartTabs(w.opts || {}).tabs.filter(t => t.color && t.color !== (w.color || 'A')).length } catch { return 0 } })()
+        onBoard += 1 + own
+      } else if (tabs[0]?.type === 'chart') onBoard += 1
+      onBoard += extraChartTabs
+    }
+  } catch { onBoard = 0 }
+  return { listed, count: Math.max(listed.length, onBoard) }
+}
 /** How the words identify this existing chart (for a re-symbol), or null: 'pick' | 'name' | 'position' | 'deixis' | 'class' | 'replace'. */
 export function identifiesChart(w, e, host, { selected = null, subject = null, picked = null, sole = false, made = null } = {}) {
   if (!e.symbol) return 'empty'                                    // an EMPTY chart filled replaces nothing
@@ -226,7 +257,9 @@ export function identifiesChart(w, e, host, { selected = null, subject = null, p
   try { if (ordinalChart(w, liveCharts(host))?.ref === e.ref) return 'ordinal' } catch { /* no ordinal */ }
   if (DEIXIS.test(w) && (sole || e.ref === selected || e.ref === subject)) return 'deixis'
   if (sole && ONE_CHART_NOUN.test(w)) return 'class'
-  if (REPLACE.test(w) && (sole || e.ref === selected)) return 'replace'
+  // the member's CLICK identifies the chart ("open the third one" with the left chart clicked: that chart)
+  if (e.ref === selected) return 'selection'
+  if (sole) return 'sole'                                          // ⛔ D23: the only chart in scope is identified by being it
   return null
 }
 export function chartRailRefusal(plan, { words = '', host = null, mode = 'apply', subject = null, picked = null, made = null, out = null } = {}) {
@@ -256,18 +289,34 @@ export function chartRailRefusal(plan, { words = '', host = null, mode = 'apply'
       return `I didn’t change anything: this would have changed ${resym.length} of your charts at once (${listOf(resym.map(said))}), and you didn’t say to replace them. Say which charts to replace — for example “replace both charts with …” or “change the left to … and the right to …” — or ask to add them as new charts.`
     }
     // ⛔ UNIQUE IDENTIFICATION (H14): one existing chart re-symbolled — only the chart the words identify
-    if (resym.length === 1 && mode !== 'approved' && !multiResymbolAllowed(w, resym, known, host)) {
+    if (resym.length === 1 && mode !== 'approved' && !gridStated(w, known)) {
       const e = resym[0]
-      const charts = liveCharts(host)
+      const { listed: charts, count: inScope } = chartsInScope(host)
       let selected = null
       try { selected = host?.charts?.selected?.() || null } catch { selected = null }
-      const sole = charts.length === 1
+      // (a link group is ONE object: every chart following one link colour is the sole chart when they are the whole board)
+      // (a link group is ONE object: every chart in scope following one link colour is the sole chart)
+      const groups = new Set(charts.map(c => (linked(c.group) ? `g:${c.group}` : `c:${c.ref}`)))
+      const sole = inScope === 1 || (groups.size === 1 && inScope === charts.length)
       if (!identifiesChart(w, e, host, { selected, subject, picked, sole, made })) {
-        if (charts.length > 1) {
-          if (out) out.ask = { kind: 'chart', from: e.ref, to: e.to, candidates: charts.map(c => ({ ref: c.ref, label: c.label || (c.symbol ? `the ${up(c.symbol)} chart` : 'a chart') })) }
+        if (inScope > 1) {
+          if (out) out.ask = { kind: 'chart', from: e.ref, to: e.to, candidates: charts.map(c => ({ ref: c.ref, symbol: up(c.symbol), label: c.label || (c.symbol ? `the ${up(c.symbol)} chart` : 'a chart') })) }
           return `Which chart should change to ${e.to}? You didn’t say which one, so nothing was changed — pick one, or say “add ${e.to}” for a new chart beside them.`
         }
         return `I didn’t change anything: this would turn ${nameOf(e)} into ${e.to}, and you didn’t say to change that chart. Say “switch this chart to ${e.to}” to replace it, or “add ${e.to}” for a new chart beside it.`
+      }
+    }
+    // ⛔ D23 (AUDIT T2 4): every NEW ticker the words name ends up on the board — "open AAPL and MSFT" never ends showing MSFT alone
+    {
+      const before = new Set(liveCharts(host).map(c => up(c.symbol)).filter(Boolean))
+      const asked = [...new Set(tickersIn(w))].filter(t => !before.has(t))
+      if (asked.length >= 2 && effects.some(e => e.type === 'symbol' && e.to)) {
+        const final = new Map(liveCharts(host).map(c => [c.ref, up(c.symbol)]))
+        for (const p of plan.plans || []) if (p.kind === 'chart' && !p.virtual && p.after?.symbol) final.set(p.ref, up(p.after.symbol))
+        const shown = new Set([...final.values(), ...(plan.plans || []).filter(p => p.virtual && p.after?.symbol).map(p => up(p.after.symbol)),
+          ...(plan.plans || []).flatMap(p => (p.after?.grid?.add || []).map(a => up(a.symbol)))].filter(Boolean))
+        const missing = asked.filter(t => !shown.has(t))
+        if (missing.length) return `I didn’t change anything: you asked for ${listOf(asked)}, but this would leave ${listOf(missing)} off your board. Say “add ${listOf(asked)}” for new charts, or which chart each one replaces.`
       }
     }
     // REMOVAL: never at once without the words for it

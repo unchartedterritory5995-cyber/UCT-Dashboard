@@ -848,7 +848,8 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       if (ask.kind === 'chart') {
         const mine = (ops || []).filter(o => o?.target === ask.from)
         if (mine.length !== (ops || []).length || !mine.length) return null
-        return ask.candidates.map((c, i) => ({ ref: `rail:${i}`, id: `chart:${c.ref}`, label: c.label, ops: ops.map(o => ({ ...o, target: c.ref })) }))
+        // (each bound to the chart's ref AND what it showed when asked: a stale pick is never applied — the pick handler)
+        return ask.candidates.map((c, i) => ({ ref: `rail:${i}`, id: `chart:${c.ref}`, label: c.label, chartRef: c.ref, fp: c.symbol || null, ops: ops.map(o => ({ ...o, target: c.ref })) }))
       }
       if (ask.kind === 'label') {
         const out = [{ ref: 'rail:0', id: ask.effect.id, label: `your saved look “${ask.label}”`, ops }]
@@ -2117,6 +2118,17 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       // (D19) a pick from the state rail's choices: exactly that object, re-planned on it — and only it
       const pick = p.railChoice.find(x => x.ref === ref)
       if (!pick) return
+      // ⛔ D23 (AUDIT T2 6): a chart pick applies only to THAT chart, still showing what it showed when asked
+      if (pick.chartRef) {
+        let now = null
+        try { now = host?.charts?.read?.(pick.chartRef) || null } catch { now = null }
+        if (!now || (pick.fp != null && String(now.symbol || '').toUpperCase() !== pick.fp)) {
+          const text = 'Your board changed since I asked, so I didn’t change anything — ask again and pick from the charts as they are now.'
+          push({ role: 'refusal', text })
+          record({ member: label, outcome: text, outcomeData: { kind: 'refused-stale-pick' }, telemetry: { path: p.path, refused: true } })
+          return
+        }
+      }
       railPickedRef.current = new Set([pick.id])
       try {
         lastActionsRef.current = pick.ops.map(o => o.action)
@@ -3570,7 +3582,11 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     }
     const op = { action: 'chart.setSymbol', args: { symbol: sym } }
     lastActionsRef.current = ['chart.setSymbol']
-    if (charts.length === 1) return execute([{ ...op, target: charts[0].ref }], { path: 'card', mode: 'apply', member, voice: false })
+    if (charts.length === 1) {
+      // ⛔ H14: the member's click on this card's "Open chart" button identifies the one chart it switches (chartRail)
+      railPickedRef.current = new Set([`chart:${charts[0].ref}`])
+      try { return await execute([{ ...op, target: charts[0].ref }], { path: 'card', mode: 'apply', member, voice: false }) } finally { railPickedRef.current = null }
+    }
     // several: the member picks — labels made unique when two charts read alike ("Top chart (QQQ)" ×2)
     // (each names what it shows now — the host's label carries it; added when a label does not)
     const named = charts.map((c, i) => {

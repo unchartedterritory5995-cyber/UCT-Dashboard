@@ -49,8 +49,9 @@ function licensed(form, n, verb) {
   if (['name', 'position'].includes(form)) return true
   if (form === 'deixis') return true                                          // on the selected chart (or the sole one)
   if (form === 'class noun') return n === 1
-  if (form === 'selection') return verb === 'replace'                         // a click + a replace word; a show verb alone never
-  return verb === 'replace' && n === 1                                        // none: a replace word on the sole chart only
+  if (n === 1) return true                                                    // ⛔ D23: the sole chart, whatever the verb
+  if (form === 'selection') return true                                       // the member's click identifies the chart
+  return n === 1                                                              // ⛔ D23: the SOLE chart is identified by being the only one
 }
 const CHART_CASES = []
 for (const form of Object.keys(FORMS)) for (const n of [1, 2, 4]) for (const verb of Object.keys(VERBS)) {
@@ -78,19 +79,36 @@ describe(`CHART · generated matrix (${CHART_CASES.length} cases): form × chart
   }, 40000)
 })
 
-// the owner's live sentences (AUDIT probe 47) on ONE SPY chart, the model re-symbolling it — and the controls
-const SHOW = ['show me AAPL', 'pull up MSFT', 'bring up AMD please', 'can I see TSLA', 'put NVDA up', 'let me look at AMD', 'open AAPL and MSFT']
+// the owner's live sentences (AUDIT probe 47). ⛔ D23 (owner 2026-11-15): on ONE chart they SWITCH it (TradingView convention,
+// Undo available); on SEVERAL charts with none selected they are asked (each chart a button), nothing changing before the pick
+const SHOW = ['show me AAPL', 'pull up MSFT', 'bring up AMD please', 'can I see TSLA', 'put NVDA up', 'let me look at AMD', 'aapl', 'go back to NVDA']
 const CONTROLS = [['switch to AMD', 'AMD'], ['change this chart to AMD', 'AMD'], ['replace SPY with AMD', 'AMD'], ['show AMD instead', 'AMD']]
 const tickerOf = (s) => (s.match(/\b[A-Z]{3,5}\b/g) || []).filter(t => t !== 'SPY').pop()
-describe('CHART · the owner\'s sentences: a show / open verb never re-symbols the existing chart; replace words still do', () => {
-  it.each(SHOW)('"%s" → SPY stays SPY, said', async (said) => {
+const tick = (s) => (s.match(/\b[A-Za-z]{3,5}\b/g) || []).map(t => t.toUpperCase()).filter(t => ['AAPL', 'MSFT', 'AMD', 'TSLA', 'NVDA'].includes(t)).pop()
+describe('CHART · the owner\'s sentences (D23): one chart switches; several charts, none selected, are asked', () => {
+  it.each(SHOW)('ONE chart · "%s" → the sole chart switches', async (said) => {
     const m = p.mount(...board(1), { decorate })
-    p.st.envelopes.push(b => p.env('apply', [{ action: 'chart.setSymbol', target: b.context.charts[0].ref, args: { symbol: tickerOf(said) } }]))
+    p.st.envelopes.push(b => p.env('apply', [{ action: 'chart.setSymbol', target: b.context.charts[0].ref, args: { symbol: tick(said) } }]))
     const out = await m.say(said)
-    // never a silent re-symbol: the existing SPY chart stays (an instant reader may ADD a chart instead); a model plan that
-    // re-symbols it is refused by this rule or asked by the target-ticker rail before it
-    expect(symsOf(m)[0], out).toBe('SPY')
-    if (p.turns() === 1) expect(out).toMatch(/I didn.t change anything|You named/)
+    if (p.proposals().length) await m.say('do it')
+    expect(symsOf(m), out).toEqual([tick(said)])
+  }, 40000)
+  it.each(SHOW)('TWO charts, none selected · "%s" → asked, nothing changed', async (said) => {
+    const m = p.mount(...board(2), { decorate })
+    p.st.envelopes.push(b => p.env('apply', [{ action: 'chart.setSymbol', target: b.context.charts[1].ref, args: { symbol: tick(said) } }]))
+    const out = await m.say(said)
+    expect(symsOf(m), out).toEqual(['SPY', 'QQQ'])
+    expect(out).toMatch(/Which chart|I didn.t change anything|You named/)
+  }, 40000)
+  // ⛔ AUDIT T2 4: "open AAPL and MSFT" on the sole chart — the final board holds BOTH, or nothing changes
+  it.each([
+    ['open AAPL and MSFT', ['AAPL', 'MSFT']], ['open AAPL, MSFT and AMD', ['AAPL', 'MSFT', 'AMD']], ['open AAPL then MSFT', ['AAPL', 'MSFT']],
+  ])('ONE chart · "%s" · a plan re-symbolling the sole chart (ending on the last one) → refused, SPY kept', async (said, syms) => {
+    const m = p.mount(...board(1), { decorate })
+    p.st.envelopes.push(b => p.env('apply', syms.map(t => ({ action: 'chart.setSymbol', target: b.context.charts[0].ref, args: { symbol: t } }))))
+    const out = await m.say(said)
+    expect(symsOf(m), out).toEqual(['SPY'])
+    expect(out).toMatch(/I didn.t change anything|You named|Which/)
   }, 40000)
   it.each(CONTROLS)('control "%s" → the chart becomes %s', async (said, to) => {
     const m = p.mount(...board(1), { decorate })
@@ -98,6 +116,17 @@ describe('CHART · the owner\'s sentences: a show / open verb never re-symbols t
     const out = await m.say(said)
     if (p.proposals().length) await m.say('do it')
     expect(symsOf(m), out).toEqual([to])
+  }, 40000)
+  it('two charts, "show AMD" + a STALE pick: the board changed since the ask → nothing applied, said', async () => {
+    const m = p.mount(...board(2), { decorate })
+    p.st.envelopes.push(b => p.env('apply', [{ action: 'chart.setSymbol', target: b.context.charts[1].ref, args: { symbol: 'AMD' } }]))
+    const out = await m.say('please show AMD')
+    if (/Which chart should change/.test(out)) {
+      m.h.charts.setSymbol ? m.h.charts.setSymbol('c0', 'IWM') : (m.board.state.groupSyms['N:c0'] = 'IWM')
+      await m.click('Chart (SPY)')
+      expect(symsOf(m), p.transcript()).not.toContain('AMD')
+      expect(p.transcript()).toMatch(/Your board changed since I asked/)
+    }
   }, 40000)
   it('two charts, "show AMD": asked with the charts as choices; the pick re-symbols exactly that one', async () => {
     const m = p.mount(...board(2), { decorate })
@@ -175,5 +204,27 @@ describe('PURE · identifiesChart — the rule on the SPY chart (c0) for every f
     const e = { type: 'symbol', ref: 'c0', symbol: 'SPY', to: 'AMD', position: host.charts.list()[0].position }
     const got = identifiesChart(said, e, host, { selected: FORMS[form].select ? 'c0' : null, sole: n === 1 })
     expect(!!got, `${said} → ${got}`).toBe(want)
+  })
+})
+
+// ── D23 · the SCOPE of "sole" (AUDIT T2 1/2/5): every chart the action could touch, only charts ──
+import { chartsInScope } from './chartRail'
+describe('D23 · sole = exactly one chart in scope (hidden chart tabs and widget tabs count; other widgets never)', () => {
+  const host = (widgets, listed) => ({ layout: () => ({ widgets }), charts: { list: () => listed, read: (r) => listed.find(c => c.ref === r), selected: () => null } })
+  const one = [{ ref: 'c0', symbol: 'SPY', position: null }]
+  const e = { type: 'symbol', ref: 'c0', symbol: 'SPY', to: 'AMD', position: null }
+  it('one chart + a watchlist widget → sole (the show verb switches it)', () => {
+    const h = host([{ id: 'c0', type: 'chart', opts: {} }, { id: 'w', type: 'watchlist', opts: {} }], one)
+    expect(chartsInScope(h).count).toBe(1)
+    expect(identifiesChart('show AMD', e, h, { sole: chartsInScope(h).count === 1 })).toBe('sole')
+  })
+  it('one VISIBLE chart + a chart in a hidden widget tab → NOT sole (asked)', () => {
+    const h = host([{ id: 'c0', type: 'chart', opts: {} }, { id: 'n', type: 'news', opts: {}, wtabs: [{ id: 't1', type: 'chart' }] }], one)
+    expect(chartsInScope(h).count).toBeGreaterThan(1)
+    expect(identifiesChart('show AMD', e, h, { sole: chartsInScope(h).count === 1 })).toBeNull()
+  })
+  it('one chart widget with a CHART TAB on another link colour → NOT sole; a timeframe tab on its own colour → still sole', () => {
+    expect(chartsInScope(host([{ id: 'c0', type: 'chart', color: 'A', opts: { chartTabs: [{ id: 'x1', color: 'B' }] } }], one)).count).toBeGreaterThan(1)
+    expect(chartsInScope(host([{ id: 'c0', type: 'chart', color: 'A', opts: { chartTabs: [{ id: 'x1', color: 'A' }] } }], one)).count).toBe(1)
   })
 })
