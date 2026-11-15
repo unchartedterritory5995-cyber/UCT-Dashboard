@@ -243,6 +243,14 @@ def test_a_failed_or_empty_week_is_UNAVAILABLE_even_with_symbols_asked(_env, pay
     assert out["status"] == "unavailable" and out["data"] is None
 
 
+@pytest.mark.parametrize("source", ["range_error", "range_error+finviz", "error"])
+def test_a_FAILED_build_is_unavailable_even_when_it_salvaged_rows(_env, source):
+    _current(_env, {**_full_week(), "source": source})              # rows present, but both primary providers failed
+    out = _read({"symbols": ["AAA", "ZZZ"]})
+    assert out["status"] == "unavailable" and out["data"] is None
+    assert "could not be built from its providers" in out["notes"][0]
+
+
 def test_a_stale_slot_is_served_stale_with_its_age_and_a_note(_env):
     cal._WEEKLY_STALE.remember("current", _full_week(), at=__import__("time").time() - 900)
     out = _read()

@@ -51,10 +51,10 @@ describe('answerFromCalendar — read-back, sessions, sources, past rows, honest
   it('a week: the read-back line, one table row per reporter, the session never guessed, each row its own source', () => {
     const a = answerFromCalendar(envelope({ rows: [row('AAA', '2026-11-17', 'bmo'), row('BBB', '2026-11-17', 'unknown', { source: 'fmp' }),
       row('CCC', '2026-11-18', 'amc', { source: 'finnhub', date_estimated: true })], total: 3, sources: ['earningswhispers', 'finnhub', 'fmp'] }))
-    expect(a.text).toMatch(/^Earnings — the week of Mon Nov 16–Fri Nov 20: 3 reporting\./)
+    expect(a.text).toMatch(/^Earnings — the week of Mon, Nov 16–Fri, Nov 20: 3 reporting\./)
     expect(a.table.rows.map(r => [r.symbol, r.session, r.source])).toEqual([
       ['AAA', 'before the open', 'EarningsWhispers'], ['BBB', 'session not confirmed', 'FMP'], ['CCC', 'after the close', 'Finnhub']])
-    expect(a.table.rows[2].date).toBe('Wed Nov 18 (projected)')
+    expect(a.table.rows[2].date).toBe('Wed, Nov 18 (projected)')
     expect(a.text).toMatch(/Source: EarningsWhispers, Finnhub, FMP via UCT's earnings calendar, built 2026-11-16 13:05 UTC\. Schedules can change; this is not a forecast\./)
     expect(a.link.href).toBe('/calendar?week=2026-11-16')
   })
@@ -70,7 +70,7 @@ describe('answerFromCalendar — read-back, sessions, sources, past rows, honest
     const a = answerFromCalendar(envelope({ rows: [row('AAA', '2026-11-17', 'bmo')], total: 1, session: 'bmo', excluded: { unknown: 2, other: 1 },
       not_on_calendar: ['ZZZ'] }, { status: 'partial', notes: ['2 reporters with an unconfirmed session (no hour given) were left out of the bmo filter', "not on UCT's calendar for that window: ZZZ (this is not proof they don't report)"] }),
     { listName: 'Core', listMore: 3 })
-    expect(a.text).toMatch(/^Earnings — the week of Mon Nov 16–Fri Nov 20 \(your watchlist “Core”, before the open\): 1 reporting\./)
+    expect(a.text).toMatch(/^Earnings — the week of Mon, Nov 16–Fri, Nov 20 \(your watchlist “Core”, before the open\): 1 reporting\./)
     expect(a.text).toMatch(/2 reporters with an unconfirmed session \(no hour given\) were left out of the bmo filter/)
     expect(a.text).toMatch(/not on UCT's calendar for that window: ZZZ/)
     expect(a.text).toMatch(/your watchlist has 3 more symbols than the 50 read/)
@@ -85,7 +85,7 @@ describe('answerFromCalendar — read-back, sessions, sources, past rows, honest
     expect(answerFromCalendar({ status: 'refused', data: null, notes: ['x'] }).text).toMatch(/wasn't allowed for this question, so no calendar was read\. No date is stated\.$/)
     expect(answerFromCalendar(null).text).toMatch(/could not answer it right now\. No date is stated\.$/)
   })
-  it('dayText formats a calendar day without a zone shift', () => expect(dayText('2026-11-16')).toBe('Mon Nov 16'))
+  it('dayText formats a calendar day without a zone shift', () => expect(dayText('2026-11-16')).toBe('Mon, Nov 16'))
 })
 
 // ── served vs dark, local-only, routing, and the end-to-end ask ──
