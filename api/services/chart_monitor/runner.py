@@ -177,7 +177,8 @@ def check_series(http: Http, sym: str, label: str, tf: str, session: Optional[st
     sess = session or "eth"
     last = max(ints)
     ck["grid"] = C.check_grid(ints, tf, sess)
-    ck["freshness"] = C.check_tail(now, tf, last, session=sess, thin=thin, grace=grace)
+    ck["freshness"] = C.check_tail(now, tf, last, session=sess, thin=thin, grace=grace,
+                                   tail_status=body.get("tail_status"))
     ck["forming"] = C.check_forming(now, tf, last, body.get("newest_bar_is_forming"),
                                     session=sess, grace=grace)
     sday = C.session_day_for(now)
