@@ -7011,6 +7011,7 @@ export function naInfo(t, version, boolCtx = false) {
   return info
 }
 function naInfoUncached(t, v, boolCtx) {
+  if (isStaticNa(t)) return naInfoOf(cNum(1), NA_NEVER)
   if (t.type === 'op' && Array.isArray(t.args)) {
     const [a, b] = t.args
     if (BOOL_NA_RANGE.has(t.name)) return naInfoOf(naOr(naOfNumber(a, v), naOfNumber(b, v)), NA_NEVER)
@@ -7080,7 +7081,11 @@ function naInfoUncached(t, v, boolCtx) {
     const seedInfo = isBoolLiteralNode(seed) ? NA_INFO_NEVER : naInfo(seed, v, true)
     const bodyInfo = naInfoSelf(body, v)
     if (seedInfo === null || bodyInfo === null || !isNaNever(seedInfo.maybe) || !isNaNever(bodyInfo.maybe)) return null
-    return naInfoOf(cCall('accum', [naTree(seedInfo.na), naTree(bodyInfo.na), warmup]), NA_NEVER)
+    if (isNaNever(bodyInfo.na)) return NA_INFO_NEVER
+    // a step whose flag does not read the flag's past is that step's flag, bar by bar
+    if (!containsFreeSelfSeries(bodyInfo.na, TABLE)) return naInfoOf(bodyInfo.na, NA_NEVER)
+    // an unknown flag (the recurrence before its seed is read) is `na`
+    return naInfoOf(cCall('nz', [cCall('accum', [naTree(seedInfo.na), naTree(bodyInfo.na), warmup]), cNum(1)]), NA_NEVER)
   }
   return null
 }
@@ -7175,6 +7180,13 @@ export function naArmsReadFalse(t) {
   const a2 = naArmsReadFalse(a)
   const b2 = naArmsReadFalse(b)
   return a2 === a && b2 === b ? t : cOp('?:', [c, a2, b2])
+}
+
+/** A WRITTEN `and` / `or` / `not` (a parse node): never `na` in v1-v5 (S1). */
+function writtenLogic(n) {
+  if (!n || typeof n !== 'object') return false
+  if (n.type === 'paren' || n.type === 'group') return writtenLogic(n.expr || n.inner)
+  return (n.type === 'binary' && (n.op === 'and' || n.op === 'or')) || (n.type === 'unary' && n.op === 'not')
 }
 
 /** ⭐ ENGINE 56 (A3) — the 0/1 tree where this v1-v5 `bool` VALUE is `na`, or null for a tree
@@ -12197,8 +12209,10 @@ export class Resolver {
       }
       if (name === 'na' && arity === 1) {
         const x = this.resolve(node.args[0].value)
-        // ⭐ ENGINE 56 (A3) — `na(b)` of a v1-v5 `bool` that is `na` is true (S1: `na(c > na_s)`)
-        const flag = boolNaFlagOf(x, this.pineVersion)
+        // ⭐ ENGINE 56 (A3) — `na(b)` of a v1-v5 `bool` that is `na` is true (S1: `na(c > na_s)`);
+        // a WRITTEN `and` / `or` / `not` never is (`rt3-na-logic`: `na(w or false)` is false), and
+        // the identity fold may have reduced it to its operand, so it is read off the source
+        const flag = writtenLogic(node.args[0].value) ? null : boolNaFlagOf(x, this.pineVersion)
         return flag ? cOp('||', [cCall('na', [x]), flag]) : cCall('na', [x])
       }
       if (name === 'nz' && (arity === 1 || arity === 2)) {
@@ -28435,7 +28449,7 @@ function translatePineResult(source, opts = {}) {
       } = foldDisplacement(resolver, seriesArg)
       const resolvedBase = resolver.resolve(seriesArg.value)
       // ⭐ ENGINE 56 (A3) — a v1-v5 `bool` PLOTTED is `na` where it is `na` (S1: `close > na_s`)
-      const plottedNa = out.kind === 'plot' ? boolNaFlagOf(resolvedBase, resolver.pineVersion) : null
+      const plottedNa = out.kind === 'plot' && !writtenLogic(seriesArg.value) ? boolNaFlagOf(resolvedBase, resolver.pineVersion) : null
       const base = plottedNa ? boolNaValue(plottedNa, resolvedBase) : resolvedBase
       const ast = shift > 0 ? { type: 'offset', value: shift, args: [base] } : base
       // ⭐ 2026-09-26 — A POSITIVE DISPLACEMENT THAT IS AN INPUT'S OWN VALUE CARRIES

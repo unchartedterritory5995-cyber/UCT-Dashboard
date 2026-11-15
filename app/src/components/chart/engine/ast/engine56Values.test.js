@@ -268,6 +268,16 @@ describe('A3 — the forms, version by version (S1 witnessed: v2 = v4 = v5; v1 /
     for (const i of WARM) expect(d.col[i], `bar ${i}`).toBe(1)
     expect(d.col.slice(4).every((x) => x === 2)).toBe(true)
   })
+  it('`c or false` / `c and true` are never `na` (`rt3-na-logic`: `na(w or false)` is false): never folded to `c`', () => {
+    for (const v of [null, 2, 4, 5]) {
+      const naFn = 'na'
+      for (const expr of ['c or false', 'c and true']) {
+        const src = [...head(v), `c = close > ${sma(v)}(close, 5)`, `plot(${naFn}(${expr}) ? 1 : 2)`].join('\n')
+        const { col } = doorColumn(src)
+        for (const i of WARM) expect(col[i], `v${v} ${expr} bar ${i}`).toBe(2)
+      }
+    }
+  })
   it('v6: `c == false` reads the cast `false` (1 on the warm-up bars) — unchanged', () => {
     const { col, held } = doorColumn(form(6, 'c == false'))
     for (const i of WARM) expect(col[i]).toBe(1)
@@ -504,6 +514,24 @@ describe('finding 1 - no untracked bool reaches `== true/false` with the compari
     expect(codes).toEqual([])
     expect(col.every((x) => Number.isFinite(x))).toBe(true)
   })
+  it('a latch whose arm is a comparison over `na` (`x = c ? close > sma(close, 20) : nz(x[1], false)`): `x == false` is 0 there', () => {
+    const src = 'study("r1")\nx = close > open ? close > sma(close, 20) : nz(x[1], false)\nplot(x == false ? 1 : 0)'
+    const { col, codes } = doorOn(src)
+    expect(codes).toEqual([])
+    // on a warm-up bar where close > open, `x` is the comparison with a warming `sma`: `na`, so 0
+    let checked = 0
+    for (let i = 0; i < 19; i++) if (RDDT[i].c > RDDT[i].o) { expect(col[i], `bar ${i}`).toBe(0); checked += 1 }
+    expect(checked).toBeGreaterThan(0)
+  })
+  it('a numeric state seeded `na` (`os := c ? 0 : d ? 1 : os[1]`, a zig-zag\'s) meets `== 1` / `!= 1` served, never withheld', () => {
+    const src = ['//@version=4', 'study("r1")', 'os = 0', 'os := close > highest(close, 10)[1] ? 0 : close < lowest(close, 10)[1] ? 1 : os[1]',
+      'plot(os == 1 and os[1] != 1 ? 1 : 0)'].join('\n')
+    const { col, codes, formula } = doorOn(src)
+    expect(formula).not.toMatch(/boolNaWithheld/)
+    expect(codes).toEqual([])
+    expect(col.every((x) => x === 0 || x === 1)).toBe(true)
+    expect(col.some((x) => x === 1)).toBe(true)
+  })
   it('S1: a NUMBER meeting a `bool` literal (v1 `x == true` is `x == 1`) is `na` where the number is, never withheld', () => {
     const src = 'study("r1")\nx = close - sma(close, 5)\nplot(x == true ? 1 : 2)'
     const { col, codes } = doorOn(src)
@@ -540,6 +568,13 @@ describe('finding 2 - the runtime lane declines a mutable `bool` that can be `na
       expect(ne.ok, `${plot}: ${ne.refusal && ne.refusal.guard}`).toBe(true)
     }
   })
+  it('S1 (this lane): an `and` returned by a function is never `na` (`f(x) == true` served)', () => {
+    const src = ['//@version=5', 'indicator("r8g")', 'float x = 0.0', 'x := close - open', 'f(a) => a > 0 and close > 0',
+      'plot(f(x) == true ? 1 : 0)'].join('\n')
+    const b = buildRuntimeIr(src, { bars: RDDT, inputs: {}, pane: true, historyFromListing: true })
+    expect(b.ok, b.refusal && `${b.refusal.guard}: ${b.refusal.message}`).toBe(true)
+    expect(runtimeRun(src).col).toEqual(RDDT.map((r) => (r.c - r.o > 0 && r.c > 0 ? 1 : 0)))
+  })
   it('finding 1 (this lane): a `valuewhen` of a comparison meeting `!= false` is never a different number than the door', () => {
     const src = '//@version=4\nstudy("r1")\nplot(valuewhen(close > open, close > sma(close, 20), 0) != false ? 1 : 0)'
     const b = buildRuntimeIr(src, { bars: RDDT, inputs: {}, pane: true, historyFromListing: true })
@@ -566,7 +601,8 @@ describe('finding 2 - the runtime lane declines a mutable `bool` that can be `na
     expect(b.refusal.guard).toBe(BOOL_NA_UNWITNESSED)
   })
   it('finding 6: a variable whose every write is a bar price (`float h = na; h := high`) takes the newest tie rule on this lane', () => {
-    const src = '//@version=5\nindicator("r6")\nfloat h = na\nh := high\nplot(ta.highestbars(h, 11))'
+    // v6: a computed source's tie stops this lane, so only the bar-price rule serves it
+    const src = '//@version=6\nindicator("r6")\nfloat h = na\nh := high\nplot(ta.highestbars(h, 11))'
     const rt = runtimeRun(src)
     expect(rt.err).toBeUndefined()
     expect(rt.col[117]).toBe(-1)
