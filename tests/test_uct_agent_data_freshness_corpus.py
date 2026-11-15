@@ -85,6 +85,7 @@ def test_refusal_questions_are_what_the_gateway_actually_refuses(q, monkeypatch)
     # the isolation rules (dormant default / purpose gate), never from the kind simply being off
     monkeypatch.setenv(gw.KINDS_ENV, q["kind"])
     monkeypatch.delenv(gw.ISOLATED_ENV, raising=False)
+    monkeypatch.delenv(gw.ISOLATED_KINDS_ENV, raising=False)
     for k, v in q["flags"].items():
         monkeypatch.setenv(k, v)
     gw._reset_for_test(None)
