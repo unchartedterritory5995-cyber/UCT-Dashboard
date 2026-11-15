@@ -622,9 +622,50 @@ def _spawn(fn) -> None:
     threading.Thread(target=fn, daemon=True, name="screener-deal-gate-refresh").start()
 
 
+#: The last full exclude set, kept on the volume so a freshly booted pod scans with it until its
+#: own build lands. Older than DEAL_GATE_LAST_MAX_AGE_S it is not used: a deal that broke must
+#: not stay hidden for long because of an old file.
+DEAL_GATE_LAST_FILENAME = "screener_deal_gate_last.json"
+DEAL_GATE_LAST_MAX_AGE_S = 7 * 86400.0
+
+
+def _deal_last_path() -> str:
+    import os
+    return os.path.join(os.environ.get("DATA_DIR", "/data"), DEAL_GATE_LAST_FILENAME)
+
+
+def _save_deal_last(syms) -> None:
+    """Write the full set to the volume. Atomic; a failed write is logged, never raised."""
+    import json
+    import os
+    try:
+        path = _deal_last_path()
+        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+        tmp = path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump({"symbols": sorted(syms), "at": time.time()}, fh)
+        os.replace(tmp, path)
+    except Exception as exc:  # noqa: BLE001
+        _deal_log().warning("[screener] deal gate set not saved: %s", exc)
+
+
+def _load_deal_last() -> frozenset:
+    """The saved full set, or empty when absent, unreadable or older than the limit."""
+    import json
+    try:
+        with open(_deal_last_path(), encoding="utf-8") as fh:
+            d = json.load(fh)
+        if time.time() - float(d.get("at", 0)) > DEAL_GATE_LAST_MAX_AGE_S:
+            return frozenset()
+        return frozenset(str(s) for s in d.get("symbols") or [] if s)
+    except Exception:  # noqa: BLE001 -- absent on a first boot; any damage = not used
+        return frozenset()
+
+
 def _refresh_deal_memo() -> None:
-    """Build the full exclude set (news + price, the slow part) and keep it."""
+    """Build the full exclude set (news + price, the slow part), keep it, and save it."""
     got = None
+    t0 = time.monotonic()
     try:
         from api.services import deal_status
         got = frozenset(deal_status._norm(s) for s in deal_status.screener_excludes() if s)
@@ -634,6 +675,21 @@ def _refresh_deal_memo() -> None:
         if got is not None:
             _DEAL_MEMO.update(syms=got, at=time.monotonic())
         _DEAL_MEMO["refreshing"] = False
+    if got:
+        _save_deal_last(got)
+        _deal_log().info("[screener] deal gate set refreshed: %d symbols in %.1f s",
+                         len(got), time.monotonic() - t0)
+
+
+def warm_deal_gate() -> None:
+    """Start the first full build (boot calls this), so the first scan after a deploy does not
+    start it. Never raises; does nothing while DEAL_STATUS_ENABLED is off."""
+    try:
+        from api.services import deal_status
+        if deal_status.enabled():
+            _deal_excludes()
+    except Exception as exc:  # noqa: BLE001
+        _deal_log().warning("[screener] deal gate warm failed: %s", exc)
 
 
 def _reset_deal_memo() -> None:
@@ -651,7 +707,12 @@ def _deal_excludes() -> frozenset:
     every scan waited for it. So the scan reads the last set it was handed, a background thread
     refreshes it once it is DEAL_GATE_MAX_AGE_S old (one at a time), and until the first full
     set exists the scan uses the cheap file-backed lists (the owner's hand list and the PC's
-    buyout names), which hold every hand-confirmed deal."""
+    buyout names, which hold every hand-confirmed deal) plus the last full set saved to disk.
+
+    ⛔ WHY THE SAVED SET (2026-11-15). The first build used to start only on a pod's first
+    scan. On a quiet Sunday the first scan after a deploy came an hour later, and its UCT 50
+    served ARX: a price-pin deal is in the full set only, never in the hand lists. The saved
+    set covers that window, and boot now starts the build too (`warm_deal_gate`)."""
     from api.services import deal_status
     start = False
     with _DEAL_MEMO_LOCK:
@@ -670,7 +731,7 @@ def _deal_excludes() -> frozenset:
     if syms is not None:
         return syms
     return frozenset(deal_status._norm(s) for s in deal_status.hand_list() | deal_status.mirror_list()
-                     if s)
+                     if s) | _load_deal_last()
 
 
 def deal_gate():
