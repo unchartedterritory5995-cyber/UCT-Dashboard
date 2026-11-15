@@ -4,7 +4,6 @@ import { isHiddenDeskKey } from './charts/deskKeyGate'
 import { useState, useMemo, useEffect, useLayoutEffect, useRef, useCallback, useContext, lazy, Suspense, memo } from 'react'
 import { createPortal } from 'react-dom'
 import { useUctHeaderSlotAlways, useUctControlsSlot } from './charts/uctHeaderSlot'
-import { devFakeThemes } from '../hooks/devFakeQuotes'
 import useMobileSWR from '../hooks/useMobileSWR'
 import { SkeletonTileContent } from '../components/Skeleton'
 import styles from './ThemeTrackerPage.module.css'
@@ -766,18 +765,15 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
     dedupingInterval: 8_000,
     revalidateOnFocus: false,
   })
-  // ⚠️ LOCAL PREVIEW ONLY: made-up themes on the dev server (hooks/devFakeQuotes.js). Real data otherwise.
-  const data = useMemo(() => devFakeThemes(perfData), [perfData])
+  const data = perfData
 
   const isComputing = data?.status === 'computing'
 
   // Full default dataset — fetched ONLY while editing, as the palette + data source so
   // add/remove/reorder edits render instantly from local state (no server round-trip, no reflow).
-  const { data: allDataRaw } = useMobileSWR(editing ? '/api/theme-performance' : null, fetcher, {
+  const { data: allData } = useMobileSWR(editing ? '/api/theme-performance' : null, fetcher, {
     dedupingInterval: 30_000, revalidateOnFocus: false,
   })
-  // ⚠️ LOCAL PREVIEW ONLY (hooks/devFakeQuotes.js): the editor palette matches the made-up themes.
-  const allData = useMemo(() => (allDataRaw ? devFakeThemes(allDataRaw) : allDataRaw), [allDataRaw])
   // Prefer the full default dataset (the palette); fall back to the current ?set= data so the
   // editor is never blank in the moment before allData loads.
   const editSource = (allData?.themes?.length ? allData : data) || null

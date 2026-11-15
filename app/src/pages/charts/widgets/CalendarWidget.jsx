@@ -38,7 +38,6 @@ import { nextSort } from '../../../lib/presentation/dataGrid'
 import { useUctHeaderSlotAlways, useUctControlsSlot } from '../uctHeaderSlot'
 import CalendarTimeline from './CalendarTimeline'
 // LOCAL PREVIEW fakes (dev only, only while the local week has no earnings) — remove before shipping.
-import { devFakeCalendarWeek, devFakeImpliedMoves } from '../../../hooks/devFakeQuotes'
 import { formatCompact } from '../../../lib/presentation/presentationPrimitives'
 
 // TERM-065: a section header click asks the DataGrid seed which way the sort
@@ -350,10 +349,9 @@ export default function CalendarWidget({ color, opts, onOptsChange, journalDoor 
   // function /calendar normalizes a `?week=` deep link with and the same rule
   // the backend's `_monday_of` applies to the param it receives.
   const weekParam = mondayOf(selected)
-  const { data: dataReal, isLoading } = useSWR(`/api/calendar?week=${weekParam}&full_impact=1`, fetcher, {
+  const { data, isLoading } = useSWR(`/api/calendar?week=${weekParam}&full_impact=1`, fetcher, {
     refreshInterval: 300000, dedupingInterval: 60000,
   })
-  const data = useMemo(() => devFakeCalendarWeek(dataReal), [dataReal])   // LOCAL PREVIEW fake (dev only)
   const day = data?.days?.[selected] || null
 
   // ── Implied move per earnings ticker for the selected day — the HONEST
@@ -364,7 +362,7 @@ export default function CalendarWidget({ color, opts, onOptsChange, journalDoor 
   const { data: imData } = useSWR(`/api/calendar/implied-moves?date=${selected}`, fetcher, {
     refreshInterval: 300000, dedupingInterval: 60000,
   })
-  const imMap = devFakeImpliedMoves(imData && typeof imData === 'object' ? imData : null, day)   // LOCAL PREVIEW fake (dev only)
+  const imMap = imData && typeof imData === 'object' ? imData : null
 
   // ── Per-ticker market cap ($B) for the selected day, used ONLY to order the
   // earnings lists (largest first) — the values themselves are never shown. The

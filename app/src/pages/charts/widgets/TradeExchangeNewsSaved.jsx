@@ -27,7 +27,6 @@ import news from './TradeExchangeNewsWidget.module.css'
 import styles from './TradeExchangeNewsSaved.module.css'
 import { useUctControlsSlot } from '../uctHeaderSlot'
 import ListPicker from './TradeExchangeNewsListPicker'
-import { devFakeLibrary, devFakeFetchItems } from '../../../hooks/devFakeQuotes'
 
 const SEARCH_DEBOUNCE_MS = 200
 const PAGE = 60
@@ -131,10 +130,7 @@ const SavedRow = memo(function SavedRow({ item, collections, linkedSym, onSym, o
 
 export default function SavedHeadlines({ active, opts, patchOpts, linkedSym, onSym, menuVars, onRemove, onBack,
   explainId, onExplain, onCloseExplain, actionsId, onActions }) {
-  const libReal = useSyncExternalStore(library.subscribe, library.getSnapshot)
-  // ⚠️ LOCAL PREVIEW ONLY (hooks/devFakeQuotes.js): made-up saved headlines when the library is off on the dev server.
-  const lib = devFakeLibrary(libReal)
-  const libFake = lib !== libReal
+  const lib = useSyncExternalStore(library.subscribe, library.getSnapshot)
   // UCT frame (owner 11-13): the board look for the Saved view — same controls, same handlers.
   const onBoard = !!useUctControlsSlot()
   // Filters persist with the widget (the keys the Research Library widget used, so a
@@ -157,11 +153,11 @@ export default function SavedHeadlines({ active, opts, patchOpts, linkedSym, onS
   const fetchPage = useCallback(async (limit) => {
     const n = ++reqRef.current
     setPage((p) => ({ ...p, loading: true }))
-    const r = await (libFake ? devFakeFetchItems : library.fetchItems)({ q: query, ticker, collection: activeCollection, sort, offset: 0, limit })
+    const r = await library.fetchItems({ q: query, ticker, collection: activeCollection, sort, offset: 0, limit })
     if (n !== reqRef.current) return
     setPage(r.ok ? { items: r.items, total: r.total, loading: false, error: null, limit }
       : { items: [], total: 0, loading: false, error: r.error || 'Your saved headlines could not be loaded.', limit })
-  }, [query, ticker, activeCollection, sort, libFake])
+  }, [query, ticker, activeCollection, sort])
   // Read when shown, and again only when the library or a filter changed since the last read.
   useEffect(() => {
     if (!active || lib.status !== 'ready') return

@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { devFakeEtfSymbols } from './devFakeQuotes'
 
 // The ETF-symbol universe (Massive reference type=ETF), fetched once from
 // /api/etf/symbols and cached module-wide so the chart can decide whether to show
@@ -18,7 +17,6 @@ function _load() {
   }
   _promise = fetch('/api/etf/symbols', { credentials: 'include' })
     .then(r => (r.ok ? r.json() : { symbols: [] }))
-    .then(devFakeEtfSymbols)   // LOCAL PREVIEW fake (dev only)
     .then(data => {
       _cache = new Set((data.symbols || []).map(s => String(s).toUpperCase()))
       _subs.forEach(fn => fn(_cache))

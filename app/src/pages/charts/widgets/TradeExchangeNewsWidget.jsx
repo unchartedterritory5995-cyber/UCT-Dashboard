@@ -60,7 +60,6 @@ import { sendHeadlineToNotebook } from '../../../lib/tradeExchangeNewsNotebook'
 import styles from './TradeExchangeNewsWidget.module.css'
 import { createPortal } from 'react-dom'
 import { useUctHeaderSlotAlways, useUctControlsSlot, useUctRowIsSub } from '../uctHeaderSlot'
-import { devFakeNewsFeed, devFakeNewsDay, useDevFakeNewsTick } from '../../../hooks/devFakeQuotes'
 import ListPicker from './TradeExchangeNewsListPicker'
 
 //: New-headline highlight: held for 1.5 s, then a 0.6 s fade (CSS .flash), then removed.
@@ -82,12 +81,7 @@ const NEAR_END_PX = 900
 export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, defaultView = 'feed' }) {
   const { groupSyms, setGroupSym } = useWorkspace()
   const linkedSym = groupSyms?.[color] || null
-  const feedReal = useSyncExternalStore(NEED.subscribe, NEED.read)
-  // ⚠️ LOCAL PREVIEW ONLY (hooks/devFakeQuotes.js): made-up headlines on the dev server, which has no stream.
-  const fakeTick = useDevFakeNewsTick()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const feed = useMemo(() => devFakeNewsFeed(feedReal), [feedReal, fakeTick])
-  const feedFake = feed !== feedReal
+  const feed = useSyncExternalStore(NEED.subscribe, NEED.read)
 
   // ── settings (per-widget, the News & Catalysts pattern) ──
   const { prefs } = usePreferences()
@@ -155,9 +149,8 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, def
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [query, linked, linkedSym, watchSet, categories, settings.graphicPlaceholders])
   // Linked to chart with a symbol to link: All history by default (every archived day).
-  const dayReal = useTradeExchangeNewsDay({ feed, matches: shown, request: dayReq, enabled: feed.status !== 'unavailable' && !feedFake,
+  const day = useTradeExchangeNewsDay({ feed, matches: shown, request: dayReq, enabled: feed.status !== 'unavailable',
     history: linked && !!linkedSym })
-  const day = devFakeNewsDay(dayReal, shown, feedFake)   // ⚠️ LOCAL PREVIEW ONLY
   const viewLabel = day.allHistory ? `All history · ${linkedSym}` : dayLabel(day.dateKey, day.todayKey)
   const rows = day.rows
   // Grouping runs AFTER the filters, so a group only ever holds headlines the reader

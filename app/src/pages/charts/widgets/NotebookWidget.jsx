@@ -37,7 +37,6 @@ import { useWidgetDoor } from '../widgetDoors'
 import { createPortal } from 'react-dom'
 import { useUctHeaderSlotAlways, useUctControlsSlot, useUctRowIsSub } from '../uctHeaderSlot'
 // LOCAL PREVIEW fakes (dev only, only while the local account has no notes) — remove before shipping.
-import { devFakeNoteFolders, devFakeNotes, devFakeNote, isDevFakeNote } from '../../../hooks/devFakeQuotes'
 
 const AUTOSAVE_MS = 800
 
@@ -60,9 +59,7 @@ class EditorBoundary extends Component {
 // live editor once it's loaded (so the title/body init synchronously — no state-sync
 // effect). Keyed on noteId by the caller, so switching notes remounts cleanly.
 function NoteEditor({ noteId, journalUrl, onBack, board = false, meta = null }) {
-  const fake = isDevFakeNote(noteId)
-  const real = useJ2Note(fake ? null : noteId)
-  const { note, update } = fake ? { note: devFakeNote(noteId), update: async () => {} } : real
+  const { note, update } = useJ2Note(noteId)
   if (!note) return <div className={styles.empty}>Loading…</div>
   return <NoteEditorInner note={note} update={update} journalUrl={journalUrl} onBack={onBack} board={board} meta={meta} />
 }
@@ -358,13 +355,11 @@ export default function NotebookWidget({ opts, onOptsChange }) {   // `color` un
     [opts, onOptsChange],
   )
 
-  const { folders: foldersReal } = useJ2NoteFolders()
-  const folders = devFakeNoteFolders(foldersReal)   // LOCAL PREVIEW fake (dev only)
+  const { folders } = useJ2NoteFolders()
   const [q, setQ] = useState('')
   // Fetch the WHOLE note set (no folder filter) so the tree can nest every note
   // under its folder. Server-side search still narrows when a query is typed.
-  const { notes: notesReal, refresh } = useJ2Notes({ q: q.trim() || undefined, sort: 'updated' })
-  const notes = devFakeNotes(notesReal, q)   // LOCAL PREVIEW fake (dev only)
+  const { notes, refresh } = useJ2Notes({ q: q.trim() || undefined, sort: 'updated' })
   // UCT frame (/charts board): the title row and the window-control group to draw into.
   const uctRow = useUctHeaderSlotAlways('notebook')
   const uctCtrls = useUctControlsSlot()

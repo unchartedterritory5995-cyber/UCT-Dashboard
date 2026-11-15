@@ -3,7 +3,6 @@ import { extSessionStartSec } from '../lib/extSession'
 import useLivePrices from './useLivePrices'
 import * as realtimeCandle from '../lib/realtimeCandle'
 import * as priceStreamManager from '../lib/priceStreamManager'
-import { useDevFakeOverlay } from './devFakeQuotes'
 import { STREAM_WATCHDOG_MS, STREAM_WATCHDOG_TICK_MS, STREAM_RECONNECT_CAP_MS } from '../utils/streamStatus'
 
 /**
@@ -338,10 +337,4 @@ const POOL_DISABLED = (() => {
   try { return localStorage.getItem('uct.ssePool.disabled') === '1' } catch { return false }
 })()
 
-const useRealtimePricesImpl = POOL_DISABLED ? useLegacyRealtimePrices : usePooledRealtimePrices
-// ⚠️ LOCAL PREVIEW ONLY: in Vite's development mode the blank quotes get made-up ones
-// (devFakeQuotes.js). Production builds and tests use the real hook untouched.
-function useRealtimePricesDevPreview(tickers = []) {
-  return useDevFakeOverlay(useRealtimePricesImpl(tickers), tickers)
-}
-export default import.meta.env.MODE === 'development' ? useRealtimePricesDevPreview : useRealtimePricesImpl
+export default POOL_DISABLED ? useLegacyRealtimePrices : usePooledRealtimePrices
