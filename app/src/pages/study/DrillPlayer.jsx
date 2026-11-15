@@ -57,7 +57,8 @@ import { RUN_ON_MS, reviewTrade } from './challenges/hardMode'
 import { alignTicks, developing, fetchIntraday } from './challenges/replayTicks'
 import { useRunOnTicks } from '../../lab/fx'   // pure motion (bars running on, tick by tick); no styling rides in
 import ReplayClock from './ui/ReplayClock'
-import { tradeAnnotations, tradeMarkers } from './challenges/tradeMarks'
+import { markerGapBars, tradeAnnotations, tradeLevelLines, tradeMarkers } from './challenges/tradeMarks'
+import { plotWidthPx, revealRightPad, tickLabelCharsFor } from './studyChartFrame'
 import { HudCombo } from './ui/HudLooks'
 import StudyButton from './ui/StudyButton'
 import sa from './ui/answerLooks.module.css'
@@ -84,6 +85,9 @@ export function studyChartHeight(phone, viewportHeight) {
   return Math.max(CHART_HEIGHT, Math.min(720, Math.round(viewportHeight * 0.6)))
 }
 export const SET_SIZE = 10
+/** The stamp's word on a lesson answer. "Named it" (the challenges' word, where a member names a setup) misread on a
+ *  number or an R question (the screen check, 2026-11-14), so the lesson stamp says what fits every question: right. */
+export const LESSON_STAMP_WORD = 'Right'
 
 /** The chip over the chart: the skill in the member's words (the workbench's question chip). */
 export function skillChip(skillId) {
@@ -305,10 +309,18 @@ export default function DrillPlayer({
     if (isRsPairItem(item)) return null
     if (phase !== 'reveal' || !result) return null
     // a course chart (2026-11-14, the visuals plan): a question bought on the chart's last day carries its trade from the
-    // research (courses_lib: chart.trade -> reveal.trade), drawn as the entry and stop lines and 3R / 5R; no ray otherwise
-    if (item?.type !== 'spot') return keyTrade ? tradeAnnotations(keyTrade, chartBars[baseLen - 1], chartBars) : null
-    return (keyTrade && tradeAnnotations(keyTrade, chartBars[baseLen - 1], chartBars)) || rayAt(chartBars[baseLen - 1], 'l', { id: 'ptl', label: '' })
-  }, [chartVisible, chartBars, item, baseLen, phase, result, keyTrade])
+    // research (courses_lib: chart.trade -> reveal.trade), drawn as the entry and stop lines and 3R / 5R; no ray otherwise.
+    // The rays carry no chip of their own: each level's price is its tag on the price axis (levelLines below). Where the
+    // tags carry their names (a wide screen) the rays stop at the last bar, short of the names in the blank room after it
+    const lines = keyTrade ? tradeAnnotations(keyTrade, chartBars[baseLen - 1], chartBars, { chips: false, endAt: phone ? null : exitDate }) : null
+    if (item?.type !== 'spot') return lines
+    return lines || rayAt(chartBars[baseLen - 1], 'l', { id: 'ptl', label: '' })
+  }, [chartVisible, chartBars, item, baseLen, phase, result, keyTrade, phone, exitDate])
+  // the trade's levels on the price axis, priced and coloured as the chart key lists them. On a wide screen each tag also
+  // carries the level's name once the replay has landed: while it runs the newest candles are where a name would print
+  const levelNames = forwardCount === 0 || replayDone
+  const levelLines = useMemo(() => (keyTrade && phase === 'reveal' && chartVisible ? tradeLevelLines(keyTrade, { titles: !phone && levelNames }) : null),
+    [keyTrade, phase, chartVisible, phone, levelNames])
   const callouts = useMemo(() => {
     if (!chartVisible || !chartBars?.length || item?.type !== 'spot' || baseLen < 2) return null
     if (isRsPairItem(item)) return null
@@ -330,18 +342,24 @@ export default function DrillPlayer({
   // The replay lands the days one at a time: a trade's marks (3R, 5R, STOPPED) appear when the replay reaches their day,
   // never before (counted in whole days, so a mark does not move while a day grows through its 30-minute closes)
   const landed = !chartBars?.length ? 0 : (!forwardCount || skipped) ? chartBars.length : !replayOn ? baseLen : Math.min(chartBars.length, baseLen + run.k)
+  // the marks' words stand apart at the scale of the whole replay's frame (the window plus every bar after it)
+  const markGap = markerGapBars((visibleN || baseLen) + forwardCount, plotWidthPx(phone))
+  // the frame the chart shows now: the question's window, the days landed after it, and the blank room once answered
+  const framePad = phase === 'reveal' && forwardCount > 0 ? revealRightPad(phone) : 0
+  const frameSlots = ((visibleN || baseLen) + Math.max(0, landed - baseLen)) * (1 + framePad)
+  const tickChars = String(chartTf).toUpperCase() === 'D' ? tickLabelCharsFor(phone, frameSlots) : null
   const chartMarkers = useMemo(() => {
     const rs = chartVisible ? rsMarkMarkers(item, chartBars) : null
     const upTo = chartBars ? chartBars.slice(0, landed) : null
     const scored = phase === 'reveal' && !!result
-    const trade = scored && keyTrade ? (tradeMarkers(keyTrade, upTo, baseLen) || []) : []
+    const trade = scored && keyTrade ? (tradeMarkers(keyTrade, upTo, baseLen, { near: markGap }) || []) : []
     // a course chart with no trade still says where the question stood once the bars after it play: the decision day
     const decided = scored && !keyTrade && item?.type !== 'spot' && chartVisible && forwardCount > 0 && baseLen >= 1
       ? [{ time: chartBars[baseLen - 1].t, position: 'belowBar', shape: 'arrowUp', color: '#dcbb5e', size: 1.2, text: 'DECISION DAY' }]
       : []
     const all = [...(openMarkers || []), ...(rs || []), ...trade, ...decided]
     return all.length ? all.sort((a, b) => String(a.time).localeCompare(String(b.time))) : null
-  }, [chartVisible, item, chartBars, openMarkers, phase, result, keyTrade, baseLen, landed, forwardCount])
+  }, [chartVisible, item, chartBars, openMarkers, phase, result, keyTrade, baseLen, landed, forwardCount, markGap])
   const modAnnotations = useMemo(
     () => (chartVisible && mod.annotationsFor ? mod.annotationsFor(state, item, reveal, chartBars) : null),
     [chartVisible, mod, state, item, reveal, chartBars],
@@ -508,7 +526,7 @@ export default function DrillPlayer({
             <Prompt mood={result.correct ? 'happy' : 'oops'} tone={result.correct ? 'ok' : 'bad'} size={phone ? 40 : 48}
               title={result.correct ? CORRECT_WORD : WRONG_WORD}
               sub={answerKey ? <>{result.correct ? 'You said' : 'The answer:'} <b>{answerKey}</b></> : null}
-              seal={<UiStamp ok={!!result.correct} inline />} />
+              seal={<UiStamp ok={!!result.correct} word={result.correct ? LESSON_STAMP_WORD : null} inline />} />
             {chartVisible && rsKey ? <p className={sa.lDetail} data-testid="rs-pair-key">{rsKey[0]} is the upper RS line, {rsKey[1]} the lower.</p> : null}
           </div>
         ) : (
@@ -560,6 +578,9 @@ export default function DrillPlayer({
               entryDate={entryDate}
               exitDate={exitDate}
               exactDateRange
+              frameRightPadFrac={framePad}
+              tickLabelChars={tickChars}
+              priceLines={levelLines}
               settingsOverride={sessionChart.settingsOverride}
               onSettingsPersist={sessionChart.onSettingsPersist}
               annotations={annotations}
@@ -595,7 +616,7 @@ export default function DrillPlayer({
               : <StudyButton kind="ghost" onClick={() => setSkipped(true)} testId="drill-replay-skip">Skip to the end</StudyButton>}
           </div>
         ) : null}
-        {keyTrade && needsChart ? <ChartKey trade={keyTrade} testId="drill-key" /> : null}
+        {keyTrade && needsChart ? <div className={styles.keyWrap}><ChartKey trade={keyTrade} testId="drill-key" detached /></div> : null}
         <div className={styles.body}>
           <mod.Body item={item} state={state} setState={setState} locked={locked} reveal={reveal} />
         </div>
@@ -643,7 +664,7 @@ export default function DrillPlayer({
 
       {showTakeover ? (
         <VerdictTakeover ok={!!result.correct} title={result.correct ? CORRECT_WORD : WRONG_WORD} answer={answerKey || null}
-          xp={Number(result.progress?.xp_gained || 0)} label="See the lesson" onContinue={closeTakeover} testId="drill-takeover" />
+          xp={Number(result.progress?.xp_gained || 0)} stampWord={result.correct ? LESSON_STAMP_WORD : null} label="See the lesson" onContinue={closeTakeover} testId="drill-takeover" />
       ) : null}
       {scoredReveal ? <span key={`f-${s.index}`} className={`${s2.flash} ${result.correct ? s2.ok : s2.bad}`} aria-hidden="true" /> : null}
       {!s.finished && s.status === 'ready' && item && (

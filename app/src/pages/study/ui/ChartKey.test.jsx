@@ -39,6 +39,24 @@ describe('ChartKey', () => {
     expect(screen.getByTestId('key')).toHaveTextContent('held through the run')
   })
 
+  // the screen check (2026-11-14): each cell drew the row's divider as its own top border, at its own height, so the
+  // dividers stepped where a row's cells differed in height and stopped short under the status pill (whose own border
+  // replaced it). One rule element now runs across the whole row between two levels; the pill sits in a cell of its
+  // own, so a row is always five cells; a drill key standing apart from its chart (the replay control between) is framed
+  it('one rule between two levels, five cells to a row with the pill inside the last; a detached key carries its frame', () => {
+    render(<ChartKey trade={plan} testId="key" detached />)
+    const key = screen.getByTestId('key')
+    const rows = [...key.querySelectorAll('[role="listitem"]')]
+    expect(rows.every((r) => r.children.length === 5)).toBe(true)
+    expect(rows[0].lastElementChild.firstElementChild.textContent).toBe('bought here')
+    expect(rows[0].lastElementChild.className).toMatch(/statusCell/)
+    // a rule before every row but the first, and nothing else between them
+    const kids = [...key.children].slice(1)
+    expect(kids.map((e) => (e.getAttribute('role') === 'listitem' ? 'row' : /sep/.test(e.className) ? 'rule' : '?')))
+      .toEqual(rows.flatMap((_, i) => (i ? ['rule', 'row'] : ['row'])))
+    expect(key.className).toMatch(/detached/)
+  })
+
   it('draws nothing without a trade', () => {
     const { container } = render(<ChartKey trade={null} />)
     expect(container).toBeEmptyDOMElement()

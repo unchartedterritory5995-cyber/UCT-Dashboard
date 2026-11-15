@@ -18,7 +18,12 @@ vi.mock('../../components/StockChart', () => ({
       data-exit={props.exitDate}
       data-markers={(props.markers || []).map((m) => m.text).join('|')}
       data-marker-days={(props.markers || []).map((m) => `${m.text}@${m.time}`).join('|')}
+      data-marker-sides={(props.markers || []).map((m) => `${m.text}:${m.position}`).join('|')}
       data-annotations={(props.annotations || []).length}
+      data-ann-chips={(props.annotations || []).map((a) => String(!!a.showPriceLabel)).join('|')}
+      data-price-lines={(props.priceLines || []).map((p) => `${p.title || '-'}@${p.price}`).join('|')}
+      data-pad={String(props.frameRightPadFrac || 0)}
+      data-tick-chars={String(props.tickLabelChars ?? '-')}
     >
       <span>chart:{props.sym}</span>
       <span>bars:{(props.barsOverride || []).length}</span>
@@ -149,6 +154,53 @@ describe('DrillPlayer', () => {
     expect(before).not.toContain('STOPPED')
     fireEvent.click(screen.getByTestId('drill-replay-skip'))
     await waitFor(() => expect(screen.getByTestId('stock-chart').getAttribute('data-markers')).toContain('STOPPED'))
+  })
+
+  // The Study screen check (2026-11-14): the levels were unlabeled stubs (the ray's own chip was dropped when the entry and
+  // the stop sat close), STOPPED printed on the BOUGHT text a day apart, and a mark on the last bar was cut by the price
+  // scale while the replay ran. The levels now print on the price axis (named once the replay lands), the marks keep their
+  // words apart, and the answered chart leaves blank room right of its last bar.
+  it('prints the trade levels on the price axis, keeps the marks apart and leaves room after the last bar', async () => {
+    const set = tenSet()
+    set.items[0] = item('recall', 'si_c6', { question: 'Where is the stop?', kind: 'mcq', choices: ['The buy point', 'The stop', 'The target', 'The low'] }, true)
+    const base = makeFetcher(set)
+    const fetcher = vi.fn(async (url, opts = {}) => {
+      const r = await base(url, opts)
+      if (url === '/api/study/attempts' && opts.body?.item_id === 'si_c6') {
+        r.reveal = { ...r.reveal, trade: { entry: 119.5, stop: 110, t1: 148, t2: 167, direction: 'bullish', enters_intraday: true, trim_r: [3, 5] } }
+      }
+      return r
+    })
+    render(<DrillPlayer open onClose={() => {}} fetcher={fetcher} />)
+    const chart = await screen.findByTestId('stock-chart')
+    expect(chart.getAttribute('data-price-lines')).toBe('')
+    expect(chart.getAttribute('data-pad')).toBe('0')            // the question's frame is the window as asked
+    await answerChoice('The buy point')
+    fireEvent.click(screen.getByTestId('drill-takeover-go'))
+    await screen.findByTestId('drill-replay-skip')
+    const live = screen.getByTestId('stock-chart')
+    // while the replay runs: the prices on the axis, no names over the newest candles; the rays carry no chip of their own
+    expect(live.getAttribute('data-price-lines')).toBe('-@119.5|-@110|-@148|-@167')
+    expect(live.getAttribute('data-ann-chips')).toBe('false|false|false|false')
+    expect(Number(live.getAttribute('data-pad'))).toBeGreaterThan(0)
+    fireEvent.click(screen.getByTestId('drill-replay-skip'))
+    // landed: each tag carries the chart key's name for its level
+    await waitFor(() => expect(screen.getByTestId('stock-chart').getAttribute('data-price-lines')).toBe('ENTRY@119.5|STOP@110|3R@148|5R@167'))
+    // stopped the session after the buy: STOPPED stands above its bar, clear of the BOUGHT word under the buy bar
+    expect(screen.getByTestId('stock-chart').getAttribute('data-marker-sides')).toBe('BOUGHT:belowBar|STOPPED:aboveBar')
+  })
+
+  // The same check: the lesson's stamp read "Named it" on a number or an R question. It says "Right", on the takeover and
+  // on the verdict line, a word every question type fits.
+  it('stamps a right answer "Right", never "Named it"', async () => {
+    const { container } = render(<DrillPlayer open onClose={() => {}} fetcher={makeFetcher(tenSet())} />)
+    await answerChoice('VCP')
+    // the verdict line's seal under the takeover, and the takeover's own
+    expect([...container.ownerDocument.querySelectorAll('[data-word]')].map((e) => e.getAttribute('data-word'))).toEqual(['Right', 'Right'])
+    fireEvent.click(screen.getByTestId('drill-takeover-go'))
+    const words = [...container.ownerDocument.querySelectorAll('[data-word]')].map((e) => e.getAttribute('data-word'))
+    expect(words).toEqual(['Right'])
+    expect(container.ownerDocument.body.textContent).not.toMatch(/Named it/)
   })
 
   // the reveal carries the first 20 bars after the decision; a course chart that wants more (prompt chart.forward_bars)
@@ -290,6 +342,8 @@ describe('DrillPlayer', () => {
     expect(screen.getByText('feeds:false/false')).toBeInTheDocument()
     expect(chart).toHaveAttribute('data-first', '2025-01-02')
     expect(chart).toHaveAttribute('data-entry', '2025-01-02')
+    // a 20-bar frame fits no even month spacing (tickLabelCharsFor): the library keeps its own label slot
+    expect(chart).toHaveAttribute('data-tick-chars', '-')
     expect(screen.getByTestId('chart-box')).toHaveAttribute('data-chart-visible', '1')
     expect(screen.getByText(/The ticker is hidden until you answer/)).toBeInTheDocument()
 

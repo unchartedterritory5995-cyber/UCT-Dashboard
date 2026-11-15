@@ -181,8 +181,11 @@ describe('RevealCard trade review', () => {
     expect(box).toHaveTextContent('$11.13 · $11.34')
     // 3R and 5R are marks on the ruler, never fixed sells (the owner's D-013, 2026-11-12, superseding "a third at 3R" and
     // "a third at 5R"), named from the plan's trim_r (3R and 5R when it has none)
-    expect(box).toHaveTextContent('3R, hit on the signal day: a mark on the ruler; the stop can move up to breakeven between 2R and 5R.')
-    expect(box).toHaveTextContent('5R, hit on session 1: inside the 5 to 10R zone where a first sell into strength is often best, by judgment, usually day 3 or later')
+    // the box says when each mark traded; the line under the boxes says what each mark is (the screen check, 2026-11-14:
+    // the whole sentence inside the box made it a 13-line strip on a phone)
+    expect(box).toHaveTextContent('3R hit on the signal day · 5R hit on session 1')
+    expect(box).toHaveTextContent('3R is a mark on the ruler; the stop can move up to breakeven between 2R and 5R.')
+    expect(box).toHaveTextContent('5R is inside the 5 to 10R zone where a first sell into strength is often best, by judgment, usually day 3 or later.')
     expect(box).toHaveTextContent('and reached 3R and 5R')
     expect(box.textContent).not.toMatch(/third|\btrims?\b/i)
   })

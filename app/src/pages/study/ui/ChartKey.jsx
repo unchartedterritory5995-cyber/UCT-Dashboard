@@ -4,6 +4,7 @@
 // on screen explanations of levels and such"). It sits on the chart's lower edge in every mode: each dashed line's colour,
 // its name, its price, why it sits there (the setup's own rule, from api/services/study_trade.py) and what the bars after
 // it did. Every word is the plan's or measured from the bars; nothing is invented.
+import { Fragment } from 'react'
 import UIcon from '../../../components/ui/UIcon'
 import { markWhy, trimLabels, trimR } from '../challenges/hardMode'
 import k from './chartKey.module.css'
@@ -20,8 +21,10 @@ function reached(at, stopped) {
   return { ok: false, text: stopped ? 'not reached before the stop' : 'not reached on this chart' }
 }
 
-/** `trade` is hardMode.reviewTrade's (kind 'plan') or tradeOf's line to hold (kind 'signal'). */
-export default function ChartKey({ trade, testId = null }) {
+/** `trade` is hardMode.reviewTrade's (kind 'plan') or tradeOf's line to hold (kind 'signal'). `detached`: the key stands
+ *  as its own panel, framed all round, where something sits between it and the chart (the lesson's replay control);
+ *  otherwise it hangs from the chart's lower edge. */
+export default function ChartKey({ trade, testId = null, detached = false }) {
   if (!trade) return null
   let rows
   if (trade.kind === 'plan') {
@@ -50,20 +53,28 @@ export default function ChartKey({ trade, testId = null }) {
     }]
   } else return null
   return (
-    <div className={k.key} role="list" aria-label="The levels on this chart" data-testid={testId || undefined}>
+    <div className={`${k.key} ${detached ? k.detached : ''}`} role="list" aria-label="The levels on this chart" data-testid={testId || undefined}>
       <span className={k.head}>On this chart</span>
-      {rows.map((r) => (
-        <div key={r.name} role="listitem" className={`${k.row} ${k[r.tone]}`}>
+      {rows.map((r, i) => (
+        <Fragment key={r.name}>
+        {/* one rule across the whole row between two levels (each cell drew its own top border, at its own height,
+            so the rules stepped where a row's cells differed in height: the screen check, 2026-11-14) */}
+        {i ? <i className={k.sep} aria-hidden="true" /> : null}
+        <div role="listitem" className={`${k.row} ${k[r.tone]}`}>
           <i className={k.swatch} aria-hidden="true" />
           <b className={k.name}>{r.name}</b>
           {r.price ? <span className={k.price}>{r.price}</span> : <span className={k.price} />}
           <span className={k.why}>{r.why || ''}{r.risk != null ? <em className={k.risk}>{r.risk.toFixed(1)}% risk from the entry</em> : null}</span>
-          {r.status ? (
-            <span className={`${k.status} ${r.status.ok ? k.sOk : k.sBad}`}>
-              <UIcon name={r.status.ok ? 'check' : 'x'} size={12} gold={false} />{r.status.text}
-            </span>
-          ) : <span />}
+          {/* the pill sits in a cell of its own: a row is always five cells */}
+          <span className={k.statusCell}>
+            {r.status ? (
+              <span className={`${k.status} ${r.status.ok ? k.sOk : k.sBad}`}>
+                <UIcon name={r.status.ok ? 'check' : 'x'} size={12} gold={false} />{r.status.text}
+              </span>
+            ) : null}
+          </span>
         </div>
+        </Fragment>
       ))}
     </div>
   )
