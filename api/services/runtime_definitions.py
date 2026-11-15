@@ -880,17 +880,20 @@ def capabilities_for(source: str, *, budget: Optional[DetectorBudget] = None,
             else:
                 return None              # cooling down: pending, never wait
         t0 = time.perf_counter()
+        worker_ran = None
         if pine_capability_worker.worker_enabled():
             # ⭐⭐ U5 -- OFF THE REQUEST GIL. The run goes to the detector process and this thread
             # WAITS ON A PIPE (the GIL released), still under the gate and the duty cycle below.
             # ⛔ A busy, starting, crashed, hung (killed at its timeout) or confused worker answers
             # None: PENDING, never an admission, and never run inline here instead. The save door
             # may wait for a starting worker, within its own deadline only.
-            caps, _ran, _status = pine_capability_worker.detect(
+            caps, worker_ran, _status = pine_capability_worker.detect(
                 source, ready_wait=max(0.0, deadline - time.monotonic()) if wait > 0 else 0.0)
         else:
             caps = pine_capabilities.capabilities_of(source)
-        elapsed = time.perf_counter() - t0
+        # review L2: a worker run is charged with the CHILD's run time, never the parent's wall
+        # time (a wait for READY, the pipe, a timeout); in-process, the run IS the wall time
+        elapsed = worker_ran if worker_ran is not None else time.perf_counter() - t0
         if verdict_member is not None:
             # a verdict run cools only the verdict door (persisted work keeps priority)
             _VERDICT_IDLE_UNTIL[0] = time.monotonic() + elapsed * (1 / VERDICT_DUTY_CYCLE - 1)

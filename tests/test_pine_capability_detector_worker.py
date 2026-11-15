@@ -87,10 +87,19 @@ def _no_inline(monkeypatch) -> list:
 
 # ─── OFF ─────────────────────────────────────────────────────────────────────
 
-@pytest.mark.parametrize("value", ["", "1", "true", "yes", "ON ", "off"])
-def test_OFF_unless_exactly_on(monkeypatch, value):
-    monkeypatch.setenv(pcw.WORKER_ENV, value)
-    assert pcw.worker_enabled() is (value.strip().lower() == "on")
+@pytest.mark.parametrize("value,expected", [
+    (None, False), ("", False), ("off", False), ("1", False), ("true", False), ("yes", False),
+    ("onn", False), ("o n", False), ("enabled", False),
+    ("on", True), ("ON", True), (" on ", True), ("ON ", True),   # case and spaces, as admission reads
+])
+def test_OFF_unless_on(monkeypatch, value, expected):
+    """Literal expectations (review L7), not the implementation restated: only `on`, in any case
+    and with surrounding spaces, as `capability_admission_on` reads its own mode."""
+    if value is None:
+        monkeypatch.delenv(pcw.WORKER_ENV, raising=False)
+    else:
+        monkeypatch.setenv(pcw.WORKER_ENV, value)
+    assert pcw.worker_enabled() is expected
 
 
 def test_OFF_the_default_is_pinned_in_SOURCE_and_in_the_mode_table():
@@ -220,16 +229,61 @@ def test_a_hang_through_capabilities_for_is_pending_within_the_call_timeout(work
     assert time.perf_counter() - t0 < 1.5
 
 
-@pytest.mark.parametrize("tag", ["@@RAISE@@", "@@JUNK@@"])
-def test_a_child_that_raises_or_answers_junk_is_pending(worker, monkeypatch, tag):
+def test_M1_a_source_that_makes_the_detector_RAISE_is_pending_and_the_healthy_child_is_KEPT(worker, monkeypatch):
     _no_inline(monkeypatch)
-    caps, _e, status = pcw.detect(MEMBER_COPY + f"// {tag}\n")
-    assert caps is None and status in (pcw.ERROR,)
+    pid = worker.proc.pid
+    src = MEMBER_COPY + "// @@RAISE@@\n"
+    caps, _ran, status = pcw.detect(src)
+    assert caps is None and status == pcw.ERROR
+    assert worker.proc is not None and worker.proc.pid == pid and worker.ready.is_set()   # not killed
+    assert worker.stats["killed"] == 0 and worker.stats["raised"] == 1
+    assert pcw.detect(src) == (None, 0.0, pcw.QUARANTINED)          # not sent again
+    assert pcw.detect(MEMBER_COPY)[2] == pcw.OK                     # the same child answers others
     rt._reset_capability_cache()
     monkeypatch.setattr(rt, "_DETECTOR_IDLE_UNTIL", [0.0])
+    assert rt.capability_admitted(src) == (False, [rt.PENDING])
+
+
+def test_a_child_that_answers_JUNK_is_out_of_step_killed_and_pending(worker, monkeypatch):
+    _no_inline(monkeypatch)
+    proc = worker.proc
+    caps, _ran, status = pcw.detect(MEMBER_COPY + "// @@JUNK@@\n")
+    assert caps is None and status == pcw.ERROR and worker.proc is None
+    proc.join(5)
+    assert not proc.is_alive()
+
+
+def test_M1_a_source_that_TIMED_OUT_is_quarantined_not_retried_on_every_list(worker, monkeypatch):
+    monkeypatch.setattr(pcw, "CALL_TIMEOUT_S", 0.5)
+    _no_inline(monkeypatch)
+    src = MEMBER_COPY + "// @@HANG@@ quarantine\n"
+    assert pcw.detect(src)[2] == pcw.TIMEOUT
     worker.ensure_started()
     assert worker.ready.wait(30)
-    assert rt.capability_admitted(MEMBER_COPY + f"// {tag} 2\n") == (False, [rt.PENDING])
+    starts, killed = worker.stats["starts"], worker.stats["killed"]
+    for _ in range(5):                                              # five list reads later
+        rt._reset_capability_cache()
+        monkeypatch.setattr(rt, "_DETECTOR_IDLE_UNTIL", [0.0])
+        assert rt.capability_admitted(src) == (False, [rt.PENDING])
+    assert worker.stats["quarantined"] == 5
+    assert (worker.stats["starts"], worker.stats["killed"]) == (starts, killed)   # the child untouched
+    assert pcw.detect(MEMBER_COPY)[2] == pcw.OK
+
+
+def test_M1_the_quarantine_ends_and_doubles_on_a_repeat(monkeypatch):
+    w = pcw._Worker(TARGET)
+    monkeypatch.setattr(pcw, "QUARANTINE_BASE_S", 10.0)
+    w.strike("k", 100.0)
+    assert w.quarantined("k", 105.0) and not w.quarantined("k", 110.5)
+    w.strike("k", 111.0)                                             # a repeat after it ended
+    assert w.quarantined("k", 130.0) and not w.quarantined("k", 131.5)
+    monkeypatch.setattr(pcw, "QUARANTINE_MAX_S", 25.0)
+    w.strike("k", 200.0)
+    assert w.quarantined("k", 224.0) and not w.quarantined("k", 225.5)   # capped at 25 s
+    monkeypatch.setattr(pcw, "QUARANTINE_MAX_ENTRIES", 2)
+    for k in ("a", "b", "c"):
+        w.strike(k, 300.0)
+    assert set(w.quarantine) == {"b", "c"}
 
 
 def test_a_BUSY_worker_answers_pending_at_once_and_never_runs_inline(worker, monkeypatch):
@@ -273,6 +327,102 @@ def test_a_spent_restart_budget_stays_pending_and_starts_nothing_more(worker, mo
     for _ in range(3):
         assert pcw.detect(MEMBER_COPY, ready_wait=0.2)[2] == pcw.UNAVAILABLE
     assert worker.stats["starts"] == starts and worker.proc is None
+
+
+def test_M1_timeouts_do_not_spend_the_crash_budget_and_have_their_own_bound(worker, monkeypatch):
+    monkeypatch.setattr(pcw, "CALL_TIMEOUT_S", 0.5)
+    monkeypatch.setattr(pcw, "MAX_STARTS_PER_WINDOW", 1)            # the boot start used it up
+    monkeypatch.setattr(pcw, "MAX_TIMEOUT_STARTS_PER_WINDOW", 2)
+    _no_inline(monkeypatch)
+    for i in range(2):                                              # two distinct slow sources
+        assert pcw.detect(MEMBER_COPY + f"// @@HANG@@ {i}\n")[2] == pcw.TIMEOUT
+        worker.ensure_started()
+        assert worker.ready.wait(30), f"restart {i} after a timeout was refused"
+    assert pcw.detect(MEMBER_COPY + "// @@HANG@@ 3\n")[2] == pcw.TIMEOUT
+    worker.ensure_started()                                         # the timeout budget is spent
+    assert worker.proc is None and pcw.detect(MEMBER_COPY, ready_wait=0.2)[2] == pcw.UNAVAILABLE
+
+
+def test_L2_the_cool_down_and_budget_are_charged_with_the_CHILDS_run_time(monkeypatch):
+    """A save that waits ~1 s for a starting child (its warm-up is slow) is charged the child's
+    few milliseconds, not the second of parent wall time."""
+    monkeypatch.setenv(rt.CAPABILITY_ADMISSION_ENV, "on")
+    monkeypatch.setenv(pcw.WORKER_ENV, "on")
+    pcw._reset_for_tests("tests._capability_worker_targets:slow_warm")
+    _no_inline(monkeypatch)
+    t0 = time.perf_counter()
+    assert rt.capabilities_for(MEMBER_COPY, wait=25.0) is not None
+    assert time.perf_counter() - t0 > 0.9                             # it really waited
+    assert rt._DETECTOR_IDLE_UNTIL[0] - time.monotonic() < 0.5        # ~2x the child's ms
+    caps, ran, status = pcw.detect(adversarial("ran"))
+    assert status == pcw.OK and ran > 0
+
+
+def test_L3_a_pipe_that_will_not_take_the_source_is_a_bounded_timeout(monkeypatch):
+    monkeypatch.setattr(pcw, "SEND_TIMEOUT_S", 0.3)
+    w = pcw._Worker(TARGET)
+
+    class Proc:
+        pid = 1
+        terminated = False
+
+        def terminate(self):
+            Proc.terminated = True
+
+        def join(self, *_a):
+            pass
+
+        def is_alive(self):
+            return False
+
+        def kill(self):
+            pass
+
+    class Stuck:
+        def send(self, _msg):
+            time.sleep(3)
+
+        def close(self):
+            pass
+    w.proc, w.conn = Proc(), Stuck()
+    w.ready.set()
+    t0 = time.perf_counter()
+    assert w.detect(MEMBER_COPY) == (None, 0.0, pcw.TIMEOUT)
+    assert time.perf_counter() - t0 < 1.0 and Proc.terminated and w.proc is None
+    assert w.next_start_kind == "timeout"
+
+
+def test_L4_the_lifespan_stops_the_child_at_shutdown():
+    import ast as _ast
+    tree = _ast.parse((ROOT / "api" / "main.py").read_text(encoding="utf-8"))
+    life = next(n for n in _ast.walk(tree) if isinstance(n, _ast.AsyncFunctionDef) and n.name == "lifespan")
+    seen_yield = called_after = False
+    for st in life.body:
+        if isinstance(st, _ast.Expr) and isinstance(st.value, _ast.Yield):
+            seen_yield = True
+            continue
+        text = _ast.unparse(st)
+        if seen_yield and "pine_capability_worker" in text and "shutdown()" in text:
+            called_after = True
+    assert seen_yield and called_after, "shutdown() is not called after the lifespan's yield"
+
+
+def test_L6_the_admin_read_of_the_worker(worker):
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from api.middleware.auth_middleware import get_current_user_with_plan
+    pcw.detect(MEMBER_COPY)
+
+    def client(role):
+        app = FastAPI()
+        app.include_router(router_mod.router)
+        app.dependency_overrides[get_current_user_with_plan] = (
+            lambda: {"id": "u-x", "role": role, "plan": "premium"})
+        return TestClient(app)
+    assert client("member").get("/api/user-definitions/capability-worker").status_code == 403
+    body = client("admin").get("/api/user-definitions/capability-worker").json()
+    assert body["enabled"] is True and body["alive"] is True and body["ready"] is True
+    assert body["ok"] >= 1 and "quarantine" in body and body["pid"] == worker.proc.pid
 
 
 def test_a_child_that_cannot_load_its_detector_is_killed_and_pending(monkeypatch):

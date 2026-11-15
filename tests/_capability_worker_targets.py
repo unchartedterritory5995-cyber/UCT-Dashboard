@@ -26,6 +26,13 @@ def crash_or_hang(source):
     return pine_capabilities.capabilities_of(source)
 
 
+def slow_warm(source):
+    """A detector whose WARM-UP (the child's first call, before READY) takes a second."""
+    if 'indicator("warm")' in source:
+        time.sleep(1.0)
+    return pine_capabilities.capabilities_of(source)
+
+
 def never_ready(source):  # pragma: no cover - the import below never succeeds
     return frozenset()
 
