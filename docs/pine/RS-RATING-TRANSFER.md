@@ -91,7 +91,30 @@ the door):
   - **Engine 56 (#1265)** adds bool-na tracking through tf/sym/tf_merge/ltf nodes. Rebase over it.
 - Accept: RS Rating's run-half mints, and the object-lane census shows no new divergence.
 
-**L6 seed substitute**: a registry keyed by `(source, symbol)`. An unregistered seed keeps refusing
+**L6 — REVISED 2026-11-14: the seed's own data is public, so ingest it and do not substitute.**
+- Fred's generator (`github.com/Fred6725/relative-strength`, Apache-2.0,
+  `.github/workflows/output.yml`) writes `output/RSRATING.csv` and copies the SAME file to the
+  private seed repo `Fred6725/seed_fred6725_rs_rating` (`data/RSRATING.csv`, the 404) AND to the
+  public `Fred6725/rs-log` (`output/RSRATING.csv`, no licence declared). Its git history holds
+  every daily upload.
+- The encoding, pinned from `rs_ranking.py::generate_tradingview_csv`:
+  - percentiles `sorted([98,89,69,49,29,9,1])`, 5 calendar-day rows each, dated back from
+    "yesterday", rows `YYYYMMDDT,0,1000,0,<value>,0`;
+  - so the NEWEST rows carry the 1st-percentile value (12.5 on 2026-11-10) and the oldest the
+    98th (199.57);
+  - the script's loop collects distinct values newest-first, so its `first` is the
+    1st-percentile value. That contradicts the script's own comments (`first` ~ 199). Either
+    TradingView's seed differs from rs-log or the published script misranks today. **The
+    capture decides; we reproduce TradingView, not the comments.**
+- TradingView's seed series is the union of the uploads, a later upload winning per date. It is
+  rebuilt by replaying rs-log's commit history of the file.
+- So RS Rating needs NO substituted value. `MATCH_SUBSTITUTED` (L7) is still built for the inputs
+  that are substitutes (`syminfo.industry`, seeds with no public mirror).
+- Generic shape: a seed registry `(source, symbol)` maps to a public mirror. The default
+  candidate is the `tradingview-pine-seeds` org's `<source>/data/<SYMBOL>.csv`; a named mirror
+  such as rs-log overrides it. A seed with no reachable mirror refuses by name.
+
+**L6 (original plan, kept for the no-mirror case) seed substitute**: a registry keyed by `(source, symbol)`. An unregistered seed keeps refusing
 by name. First entry: `seed_fred6725_rs_rating:RSRATING`. A backend daily job computes Fred's score
 (`0.4*p63 + 0.2*p126 + 0.2*p189 + 0.2*p252` of the stock over the same of SPX, x100) across our
 universe, takes the 98/89/69/49/29/9/1 percentiles, and serves them as daily bars in the seed's own
