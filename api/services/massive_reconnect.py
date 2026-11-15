@@ -94,22 +94,28 @@ class MaxConnLadder:
         return self._wait(self.auth_failure_s, f"auth failed: {str(status)[:80]}")
 
     def disconnect_delay(self, err: BaseException, backoff: float) -> float:
-        self._settle()
-        if self._take_kick() or is_max_connections(err):
+        kicked = self._take_kick() or is_max_connections(err)
+        self._settle(kicked)
+        if kicked:
             return self._maxconn("disconnect: max_connections")
         return self._wait(max(float(backoff), self.min_gap_s), f"disconnect: {type(err).__name__}")
 
     def normal_close_delay(self) -> float:
-        self._settle()
-        if self._take_kick():
+        kicked = self._take_kick()
+        self._settle(kicked)
+        if kicked:
             return self._maxconn("closed: max_connections")
         return self._wait(self.min_gap_s, "closed by the server")
 
     # -- internals --
 
-    def _settle(self) -> None:
-        """The connection that just ended: if it stayed up healthy_s, strikes reset."""
-        if self._up_since is not None and self._mono() - self._up_since >= self.healthy_s:
+    def _settle(self, kicked: bool = False) -> None:
+        """The connection that just ended: if it stayed up healthy_s AND did not end in
+        a kick, strikes reset. (A kicked connection proves nothing: two sockets that
+        kick each other each survive as long as the other one waits, which reaches
+        healthy_s on the higher rungs.)"""
+        if (not kicked and self._up_since is not None
+                and self._mono() - self._up_since >= self.healthy_s):
             self.strikes = 0
         self._up_since = None
 

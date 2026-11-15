@@ -154,6 +154,21 @@ def test_two_sockets_kicking_each_other_climb_the_ladder():
     assert p.normal_close_delay() == mr.MIN_GAP_S       # a clean close without a kick: the gap
 
 
+def test_kicked_connections_that_lasted_long_still_climb_to_the_top():
+    """Two old processes kicking each other: each connection lives as long as the
+    other side waits (>= healthy_s on the higher rungs). Those must not reset."""
+    t = [0.0]
+    p = mr.MaxConnLadder(monotonic=lambda: t[0])
+    t[0] = 10_000.0
+    waits = []
+    for _ in range(6):
+        p.connected()
+        t[0] += 700                                     # longer than healthy_s, then kicked
+        p.note_status("max_connections")
+        waits.append(p.disconnect_delay(ConnectionError("going away"), 1))
+    assert waits == [30, 60, 120, 300, 600, 600]
+
+
 def test_a_kick_status_in_the_frame_loop_reaches_the_policy(monkeypatch):
     frames = ['[{"ev":"status","status":"max_connections","message":"kicked"}]']
     waits = _reader_with(monkeypatch, ['[{"ev":"status","status":"auth_success"}]'], frames=frames,
@@ -503,11 +518,14 @@ def test_seeds_fetch_off_the_loop_apply_on_it_and_reseed_after_a_reconnect():
         t = await run_until(c, rig.srv, lambda: rig.rt.counters["seeds_applied"] == 1)
         assert rig.rt.counters["seeds_started"] == 1, "one seed per symbol, not per key"
         assert fetch_threads and loop_thread not in fetch_threads
-        rig.rt.policy.connected()                       # first Massive connect: no reseed
-        assert rig.rt.counters["reseeds"] == 0
-        rig.rt.policy.connected()                       # a RECONNECT: every chart symbol again
+        # the first Massive connect re-seeds too: the seed above landed before the socket
+        # (e.g. during the deploy-handoff grace) and cannot hold the trades it missed
+        rig.rt.policy.connected()
         await until(lambda: rig.rt.counters["seeds_applied"] == 2)
-        assert rig.rt.counters["reseeds"] == 1
+        assert rig.rt.counters["reseeds"] == 1 and len(fetch_threads) == 2
+        rig.rt.policy.connected()                       # a RECONNECT: every chart symbol again
+        await until(lambda: rig.rt.counters["seeds_applied"] == 3)
+        assert rig.rt.counters["reseeds"] == 2
         # the minute the socket "missed" (T0+1min, only in the 2nd REST fetch) reaches the
         # connected client as a closed bar on BOTH keys, not only in a later snapshot
         await until(lambda: any(u.bar["t"] == T0 + MIN and u.final for u in bars_in(c, ("ZZA", "1"))))

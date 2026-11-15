@@ -38,8 +38,9 @@ subscriber and interest left), every live buffer forgets that symbol's final
 watermarks (`CoalescingBuffer.forget`), or a later resubscribe's non-finals would be
 refused as stale.
 
-Seeds (D8): a symbol that gains its first chart key is seeded from REST, and after a
-Massive RECONNECT every chart symbol is re-seeded (the minutes the socket missed),
+Seeds (D8): a symbol that gains its first chart key is seeded from REST, and on EVERY
+Massive connect (the first too: seeds may have landed during the deploy-handoff
+grace) every chart symbol is re-seeded (the minutes the socket missed),
 at most INGEST_SEED_WORKERS (default 4) fetches at a time. No seeds while the
 connection is not requested: with no live data there is nothing to merge them into.
 
@@ -383,9 +384,12 @@ class IngestRuntime:
                     self.counters["seed_reoffers"] += 1
 
     def _on_vendor_connected(self, n: int) -> None:
-        if n <= 1:
-            return
+        """EVERY Massive connect, the first included, re-seeds every chart symbol: a
+        seed that landed before it (during the deploy-handoff grace, or before a
+        reconnect) cannot contain the trades the socket was not there to see."""
         syms = sorted({s for s, _ in self._keys})
+        if not syms:
+            return
         self.counters["reseeds"] += 1
         log.info("[stream-ingest] Massive reconnect #%d: re-seeding %d chart symbol(s)", n, len(syms))
         for sym in syms:
