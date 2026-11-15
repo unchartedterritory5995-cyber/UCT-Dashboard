@@ -1205,9 +1205,9 @@
    "key": "q03",
    "skill": "setup.holy_grail",
    "rung": 1,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "hg.stop",
-   "q": "Where does the stop go after a Holy Grail fill?",
+   "q": "Where does the stop go after this fill?",
    "choices": [
     "A few cents under the swing low",
     "A full ATR under the pullback low",
@@ -1215,14 +1215,15 @@
     "At the 50-day moving average"
    ],
    "answer": "A few cents under the swing low",
-   "why": "A few cents under the swing low. The swing low is the lowest low from the touch session through the trigger session. Raschke's rule 4 puts the protective stop at the newly formed swing low. Our rule sets it a few cents under the low, not exactly on it. It usually sits within about 3% of the buy. A full ATR under the low is the scanner's stop, not ours.",
+   "why": "A few cents under the swing low. The swing low is the lowest low from the touch session through the trigger session. Raschke's rule 4 puts the protective stop at the newly formed swing low. Our rule sets it a few cents under the low, not exactly on it. Here that was 24.45, 2.0% under the fill, and it usually sits within about 3% of the buy. A full ATR under the low is the scanner's stop, not ours.",
    "lesson_line": "Stop first: a few cents under the low the pullback just made.",
    "facts": [
     "c15",
     "r04",
     "h24",
     "h04",
-    "c16"
+    "c16",
+    "d09"
    ],
    "wrong": {
     "A full ATR under the pullback low": "That is the scanner's stop, not ours. Our stop is a few cents under the swing low, not a full ATR.",
@@ -1239,7 +1240,18 @@
      "fixed before: variety rewrite 2026-11-10"
     ]
    },
-   "batch": "wave4b"
+   "batch": "visuals-4",
+   "story": "Bought at 24.94 as it traded over the prior day's high, the morning after a first touch of the 20 EMA.",
+   "chart": {
+    "sym": "CE",
+    "asof": "2007-01-11",
+    "window": 150,
+    "forward": 20,
+    "trade": {
+     "entry": 24.94,
+     "stop": 24.45
+    }
+   }
   },
   {
    "key": "q04",
@@ -1467,7 +1479,7 @@
     "A Remount of the 50-day average": "A Remount needs 5 or more straight closes under the line first. This was one session that dipped.",
     "A Holy Grail; there is no depth rule": "There is no depth rule beyond the line, true. But the touch low must still hold above the 50-day, and this one did not."
    },
-   "story": "The touch session dips through the 20 EMA. Its low prints 106.26, under the 50-day at 107.16. It closes back above the 50-day.",
+   "story": "The touch day. The touch session dips through the 20 EMA. Its low prints 106.26, under the 50-day at 107.16. It closes back above the 50-day.",
    "house": true,
    "simple": "It is a 50-day pullback. The touch low went under the 50-day, and a Holy Grail low must stay above it.",
    "deeper": {
@@ -1481,7 +1493,13 @@
      "+1 fixed before (cold check 2026-11-10)"
     ]
    },
-   "batch": "wave4b"
+   "batch": "visuals-4",
+   "chart": {
+    "sym": "CRM",
+    "asof": "2018-02-12",
+    "window": 150,
+    "forward": 20
+   }
   },
   {
    "key": "q11",
@@ -1648,9 +1666,9 @@
    "key": "q16",
    "skill": "setup.holy_grail",
    "rung": 6,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "hg.inv_no_adx",
-   "q": "A steady climber touches its rising 20 EMA. No ADX push came before the dip. Which setup is it?",
+   "q": "Which setup is it?",
    "choices": [
     "The plain 20 EMA pullback",
     "A Holy Grail, ADX or no ADX",
@@ -1658,7 +1676,7 @@
     "No setup; a slow trend is weak"
    ],
    "answer": "The plain 20 EMA pullback",
-   "why": "The plain 20 EMA pullback. Both setups are a pullback to a rising 20 EMA, bought on the turn. The one difference is the ADX. A Holy Grail needs an ADX push before the touch. With no push, the card names it the plain 20 EMA pullback. Woods notes that slow, steady trends can run without the ADX ever crossing its level.",
+   "why": "The plain 20 EMA pullback. Both setups are a pullback to a rising 20 EMA, bought on the turn. The one difference is the ADX. A Holy Grail needs an ADX push before the touch. Here the ADX topped out at 26.1, so the card names it the plain 20 EMA pullback. Woods notes that slow, steady trends can run without the ADX ever crossing its level.",
    "lesson_line": "Same picture, one difference: the ADX. Check it before you name it.",
    "facts": [
     "c18",
@@ -1684,7 +1702,14 @@
    "depends_on": [
     "D-079"
    ],
-   "batch": "wave4b"
+   "batch": "visuals-4",
+   "story": "The day before the trigger. A steady climber has touched its rising 20 EMA after a four-day dip. The highest ADX in the 10 sessions before the touch was 26.1.",
+   "chart": {
+    "sym": "BOX",
+    "asof": "2024-11-20",
+    "window": 150,
+    "forward": 20
+   }
   },
   {
    "key": "q17",
@@ -1715,7 +1740,7 @@
     "Widen the stop under the 50-day": "The stop only moves up, never down or wider.",
     "Add more; it is cheaper now": "The full size goes on at one price with one stop. There is no adding."
    },
-   "story": "You bought at 49.79 with the stop at 48.55 after a first touch of the 20 EMA. The next session opens above your stop, then trades down through it.",
+   "story": "Bought at 49.79 with the stop at 48.55 after a first touch of the 20 EMA. The next session opens above your stop, then trades down through it.",
    "house": true,
    "simple": "You take the loss at the stop, because the stop is the exit and it never moves lower.",
    "deeper": {
@@ -1729,7 +1754,17 @@
      "+1 fixed before (cold check 2026-11-10)"
     ]
    },
-   "batch": "wave4b"
+   "batch": "visuals-4",
+   "chart": {
+    "sym": "BAC",
+    "asof": "2006-05-16",
+    "window": 150,
+    "forward": 30,
+    "trade": {
+     "entry": 49.79,
+     "stop": 48.55
+    }
+   }
   },
   {
    "key": "q18",
@@ -1773,9 +1808,9 @@
    "key": "q19",
    "skill": "setup.holy_grail",
    "rung": 3,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "hg.trim_1",
-   "q": "Bought at 36.72 with the stop at 36.03. Where is 3R?",
+   "q": "One R is the fill minus the stop. Where is 3R?",
    "answer": "$38.79",
    "calc": {
     "fn": "arith",
@@ -1804,7 +1839,7 @@
      "+2 rests on the owner's rulebook (sizing_rule.md section 9)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-4",
    "choices": [
     "$39.48",
     "$38.10",
@@ -1815,6 +1850,17 @@
     "$38.10": "Added the three R to the stop, not to the fill.",
     "$37.41": "Added only one R.",
     "$39.48": "Counted four R instead of three."
+   },
+   "story": "Bought at 36.72 with the stop at 36.03 as it traded over the prior day's high.",
+   "chart": {
+    "sym": "CI",
+    "asof": "2000-10-26",
+    "window": 150,
+    "forward": 20,
+    "trade": {
+     "entry": 36.72,
+     "stop": 36.03
+    }
    }
   },
   {
@@ -1856,7 +1902,7 @@
     "Yes; it can trigger within 10 sessions"
    ],
    "answer": "Yes; the fifth session still counts",
-   "why": "Yes. The setup goes void after 5 sessions from the first touch with no trigger, or after a close below the 50-day. A trigger on the fifth session after the touch is the last one allowed.",
+   "why": "Yes. The setup goes void after 5 sessions from the first touch with no trigger, or after a close below the 50-day. A trigger on the fifth session after the touch is the last one allowed. This was LULU, and it was stopped out. Our notes say a stock that needs five days to clear a prior high is no longer in the thrust, but the rule still allows the trade.",
    "lesson_line": "The trigger has five sessions after the touch. The fifth still counts; the sixth does not.",
    "facts": [
     "c14",
@@ -1871,7 +1917,7 @@
     "No; it had to trigger on touch day": "The trigger may come on any session up to the fifth. Eight of our ten examples triggered the session after the touch.",
     "Yes; it can trigger within 10 sessions": "Right call, wrong rule. The 2 to 10 sessions measure the pullback, momentum high to touch. The trigger gets 5 sessions after the touch."
    },
-   "story": "The touch of the 20 EMA was five sessions ago. It has not closed under the 50-day or cleared a prior day's high. Today it trades over the prior day's high.",
+   "story": "The day before the trigger. Tomorrow is the fifth session after the touch of the 20 EMA. It has not closed under the 50-day or cleared a prior day's high. In the morning it trades over the prior day's high.",
    "house": true,
    "simple": "Yes, because the fifth session after the touch is the last one the setup allows.",
    "deeper": {
@@ -1885,7 +1931,13 @@
      "+1 fixed before (cold check 2026-11-10)"
     ]
    },
-   "batch": "wave4b"
+   "batch": "visuals-4",
+   "chart": {
+    "sym": "LULU",
+    "asof": "2024-01-11",
+    "window": 150,
+    "forward": 20
+   }
   },
   {
    "key": "q22",
@@ -1952,9 +2004,9 @@
    "key": "q24",
    "skill": "setup.holy_grail",
    "rung": 4,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "hg.stop_width",
-   "q": "Fill 50.27, stop 48.75. How far below the fill is the stop, in percent?",
+   "q": "How far below the fill is the stop, in percent?",
    "answer": "3.02%",
    "calc": {
     "fn": "arith",
@@ -1986,7 +2038,7 @@
      "+2 rests on the owner's rulebook (sizing_rule.md section 9) (the about 3% habit, A13)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-4",
    "choices": [
     "3.12%",
     "3.02%",
@@ -1997,6 +2049,17 @@
     "3.12%": "Divided by the stop instead of the fill.",
     "1.52%": "Read the dollar gap as a percent.",
     "30.24%": "Slipped a decimal."
+   },
+   "story": "Bought at 50.27 with the stop at 48.75 as it traded over the prior day's high.",
+   "chart": {
+    "sym": "AMBA",
+    "asof": "2016-06-28",
+    "window": 150,
+    "forward": 20,
+    "trade": {
+     "entry": 50.27,
+     "stop": 48.75
+    }
    }
   },
   {
@@ -2072,7 +2135,7 @@
     "The ADX level; higher is safer": "Not after a vertical run. A very high ADX there can mean the trend is overdone.",
     "The slope of the 50-day line": "The 50-day is the floor under the touch, not a climax check. The card says check Bracco's signs."
    },
-   "story": "Every box ticks: a strong ADX push and a 5-day pullback to the 20 EMA. The stop is 87.57 against a 90.11 buy, 2.8%. The stock is in the third month of a near-vertical run.",
+   "story": "The day before the trigger. Every box ticks: a strong ADX push and a 5-day pullback to the 20 EMA. If it triggers, the buy is 90.11 and the stop 87.57, 2.8% away. The stock is in the third month of a near-vertical run.",
    "house": true,
    "simple": "Check for a climax run first, because a very high ADX after a near-vertical climb can mean the trend is overdone.",
    "deeper": {
@@ -2086,7 +2149,13 @@
      "the example rests on our own scan (d1), not yet reviewed by the owner"
     ]
    },
-   "batch": "wave4b"
+   "batch": "visuals-4",
+   "chart": {
+    "sym": "NVDA",
+    "asof": "2024-04-02",
+    "window": 150,
+    "forward": 30
+   }
   },
   {
    "key": "q27",
@@ -2335,7 +2404,7 @@
     "Yes; the stop was too tight": "The stop was 3.0% wide, inside our habit. Nothing in our four failures argues for a wider stop.",
     "No; so buy it back the next day": "Right that it was no mistake, wrong on the next step. A stop-out is not a signal to chase. A re-buy needs its own fresh trigger."
    },
-   "story": "Bought at 56.66, stop 54.95. It reached +0.54R, then five sessions of drift. On day five the stop goes.",
+   "story": "Bought at 56.66 with the stop at 54.95. It reached +0.54R, then five sessions of drift. On day five the stop goes.",
    "house": true,
    "simple": "No, because the stop is the exit, and a loss taken at the stop is the plan working.",
    "tier": "extended",
@@ -2346,7 +2415,17 @@
      "+1 fixed before (cold check 2026-11-10)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "visuals-4",
+   "chart": {
+    "sym": "MRVL",
+    "asof": "2021-07-09",
+    "window": 150,
+    "forward": 25,
+    "trade": {
+     "entry": 56.66,
+     "stop": 54.95
+    }
+   }
   },
   {
    "key": "q34",
@@ -2421,9 +2500,9 @@
    "key": "q36",
    "skill": "setup.holy_grail",
    "rung": 5,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "hg.stop",
-   "q": "Account 50,000, at its high. Risk 0.5%. Fill 38.93, stop 38.14. How many shares?",
+   "q": "How many shares?",
    "answer": "316 shares",
    "calc": {
     "fn": "shares_from_risk",
@@ -2456,7 +2535,7 @@
      "+1 fixed before (cold check 2026-11-10)"
     ]
    },
-   "batch": "rank",
+   "batch": "visuals-4",
    "choices": [
     "316 shares",
     "632 shares",
@@ -2467,6 +2546,17 @@
     "632 shares": "Doubled the risk dollars.",
     "3,164 shares": "Slipped a decimal and risked ten times too much.",
     "63,291 shares": "Used the whole account as the risk dollars."
+   },
+   "story": "Bought at 38.93 on the trigger with the stop at 38.14. Account 50,000, at its high. Risk 0.5%.",
+   "chart": {
+    "sym": "EXPD",
+    "asof": "2006-03-09",
+    "window": 150,
+    "forward": 20,
+    "trade": {
+     "entry": 38.93,
+     "stop": 38.14
+    }
    }
   },
   {
@@ -2936,7 +3026,7 @@
     "Not a setup; it ran too long": "Ten sessions is still inside the 2 to 10 the card allows. It trades, graded down.",
     "B-; the loss proves it was weak": "The grade sets the size, so it is fixed before the buy. A stop-out after it does not change it."
    },
-   "story": "A strong ADX push, then a 10-day pullback to the 20 EMA. You bought at 84.24, stop 81.37. It stopped out with no excursion past 0.5R.",
+   "story": "Bought at 84.24 with the stop at 81.37 on the trigger. A strong ADX push came first, then a 10-day pullback to the 20 EMA. It stopped out with no excursion past 0.5R.",
    "house": true,
    "simple": "It was an A or B going in, because 10 sessions is past the 2 to 5 our card grades A+.",
    "deeper": {
@@ -2951,7 +3041,17 @@
      "fixed before: flagged-question fix 2026-11-11"
     ]
    },
-   "batch": "wave4b"
+   "batch": "visuals-4",
+   "chart": {
+    "sym": "CELH",
+    "asof": "2024-04-01",
+    "window": 150,
+    "forward": 60,
+    "trade": {
+     "entry": 84.24,
+     "stop": 81.37
+    }
+   }
   },
   {
    "key": "q49",
@@ -3026,7 +3126,7 @@
     "All of it, sold at the 5R mark": "5R is not the exit. Sell a big part, keep some, and let the rest trail.",
     "Add shares; the leg looks strong": "No adds. A climax is where we sell, not where we buy more."
    },
-   "story": "Bought at 91.78, stop 88.88. It hits 3R in five sessions and you hold. Then a parabolic leg carries it well past 5R, and the push turns vertical.",
+   "story": "Bought at 91.78 with the stop at 88.88 on the trigger. It hits 3R in five sessions and you hold. Then a parabolic leg carries it well past 5R, and the push turns vertical.",
    "house": true,
    "simple": "Sell a big part into the burst, because our rule sells into a climax run and how much is your call.",
    "deeper": {
@@ -3040,7 +3140,17 @@
      "+1 fixed before (cold check 2026-11-10)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "visuals-4",
+   "chart": {
+    "sym": "LITE",
+    "asof": "2025-07-10",
+    "window": 150,
+    "forward": 60,
+    "trade": {
+     "entry": 91.78,
+     "stop": 88.88
+    }
+   }
   },
   {
    "key": "q52",
@@ -3325,7 +3435,7 @@
     "Under swing low; a third at 3R": "The stop is right. The first sell is a judgment, not a fixed third at 3R.",
     "1 ATR under low; a third at 3R": "Two misses. A stop a full ATR under the low is a named mistake, and the first sell is not a fixed third."
    },
-   "story": "EXPD, March 2006: a three-day, 3.6% rest to the 20 EMA after a fresh momentum high. This morning it trades over the prior day's high.",
+   "story": "The day before the trigger. A three-day, 3.6% rest to the 20 EMA after a fresh momentum high. In the morning it trades over the prior day's high.",
    "house": true,
    "simple": "Stop a few cents under the swing low, and judge the first sell instead of selling a fixed third.",
    "deeper": {
@@ -3340,7 +3450,13 @@
      "+1 fixed before (cold check 2026-11-10)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "visuals-4",
+   "chart": {
+    "sym": "EXPD",
+    "asof": "2006-03-08",
+    "window": 150,
+    "forward": 20
+   }
   },
   {
    "key": "q61",
@@ -3348,7 +3464,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "hg.depth",
-   "q": "Hidden ticker, the touch day. Assume a Green market, RS 80 or more. A first pullback to its rising 20 EMA after an ADX push. Buy or pass?",
+   "q": "The touch day. Assume a Green market, RS 80 or more. A first pullback to its rising 20 EMA after an ADX push. Buy or pass?",
    "choices": [
     "Buy the trigger; the 50-day held",
     "Pass; touch broke the 50-day",
@@ -3399,7 +3515,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "hg.above_200",
-   "q": "Hidden ticker, the day it touches the 20 EMA and holds. Assume a Green market and RS 80 or more. Buy or pass?",
+   "q": "The day it touches the 20 EMA and holds. Assume a Green market and RS 80 or more. Buy or pass?",
    "choices": [
     "Pass; it is under the 200-day SMA",
     "Take it; the 20 EMA held the touch",
@@ -3700,7 +3816,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Derived 'a few cents under the swing low' from c15/r04/h24 before the key; matches. ATR choice ruled out by c16, line and 50-day choices by r04/c15. Choices 28-35 chars, no tell. Overlaps q39/q60 on the same stop fact (accepted earlier); q03 is rung 1 and comes first."
+   "notes": "CE buy 2007-01-11 (touch 01-10, buy 24.94 over prior high 24.92, stop 24.45 under 24.50 low); trade inside the asof bar range; 2.0% matches the dossier row; 3R reached day 14 as dossier says (not named in text). Checked against bars.db."
   },
   "q04": {
    "status": "cut",
@@ -3743,7 +3859,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from c10 + d42/d43 (CRM low 106.26 under the 50-day 107.16, a 50-day pullback). Remount distractor correctly ruled out by c20 (5+ closes). Numbers grounded."
+   "notes": "CRM 2018-02-12: low 106.26 vs 50-day 107.16 and close 108.55 back above, exactly as the story says. Prior two days also closed under the 50-day (shown on the chart) but that does not change the key. High barely reaches the 20 EMA; wording is the dossier's."
   },
   "q11": {
    "status": "pass",
@@ -3780,13 +3896,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from c18b. The Woods line paraphrases w04 without keying the 30 level (D-079 respected). The Remount distractor is weak but a real setup confusion, grounded by c20."
+   "notes": "BOX asof 2024-11-20, day before the 11-21 trigger; touch of the rising 20 EMA on 11-19/11-20 after a 4-day dip; ADX 26.1 stated in words since ADX is not drawn. Key right."
   },
   "q17": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right by A4, but the story 'The next session trades through the stop' does not rule out a gap down through the stop, the one exception (B20) that the deeper itself teaches; under a gap the key would be wrong (new stop at the first 30-minute low). Pinned the open. BAC 2006-05-17 opened 49.30, above the 48.55 stop, low 48.30 (our daily bars, _study-resume/data/bars.db); no number added to the text."
+   "fixed": false,
+   "notes": "BAC asof = buy day 2006-05-16; buy 49.79 / stop 48.55 inside the bar and match the text. Bars confirm next session opens 49.30 (above stop) then low 48.30: stopped day 1; 20-session low claim inside forward 30."
   },
   "q18": {
    "status": "pass",
@@ -3798,7 +3914,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
+   "notes": "CI asof = buy day 2000-10-26; 36.72/36.03 match the dossier and the bar range; 3R (38.79) printed on day 2 inside forward 20. Second use of CI (with q61)."
   },
   "q20": {
    "status": "pass",
@@ -3810,7 +3926,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from c14 + d22 ('the fifth session after the touch (the last one allowed)'); consistent with q32 (sixth session void) and COST d44. 'Five sessions ago' = the fifth session after the touch. The second Yes is a wrong-reason choice, clearly false by c08 vs c14."
+   "notes": "LULU touch 2024-01-05, trigger 2024-01-12 is the fifth session after it; prior highs not cleared and no close under the 50-day through asof 01-11, as the story says. Stopped out by 01-16, inside forward 20. Key right."
   },
   "q22": {
    "status": "cut",
@@ -3828,7 +3944,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
+   "notes": "AMBA asof = buy day 2016-06-28; 50.27/48.75 match the dossier row and the bar range; 3.02% right. Wording has no outcome claims."
   },
   "q25": {
    "status": "pass",
@@ -3838,9 +3954,9 @@
   },
   "q26": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave4b; awaiting cold re-read"
+   "notes": "NVDA asof 2024-04-02 (touch day, low 87.62 under the 20 EMA); buy 90.11 is over the 90.09 prior high and 87.57 is under the touch low; stopped day 1 (04-04). Numbers match the card; forward 30 shows the correction."
   },
   "q27": {
    "status": "pass",
@@ -3882,7 +3998,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Wrong note softened; ok."
+   "notes": "MRVL asof = buy day 2021-07-09; 56.66/54.95 in range; bars: best +0.5R, stopped day 5, 3R on day 18 inside forward 25 as the why says."
   },
   "q34": {
    "status": "pass",
@@ -3900,7 +4016,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
+   "notes": "EXPD asof = buy day 2006-03-09; 38.93/38.14 in the bar range and match the dossier; 316 shares correct. EXPD use 1 of 2 (q60 the other)."
   },
   "q37": {
    "status": "pass",
@@ -3974,7 +4090,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "The 10-day pullback counts sessions, not an average; no ruling contradicted."
+   "notes": "CELH asof = buy day 2024-04-01; 84.24/81.37 match the card and the bar range; bars: stopped day 1, best 0.0R, consistent with the story. The replay later shows the stock reaching 5.1R after the stop, which the words do not deny; grade key still right."
   },
   "q49": {
    "status": "cut",
@@ -3992,7 +4108,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Re-keyed to climax sale, no 5R rule; ok."
+   "notes": "LITE asof = buy day 2025-07-10; 91.78/88.88 in range; 3R day 5, 5R day 12, best 29.9R within the 60-bar replay, so the parabolic leg plays on screen. Key right."
   },
   "q52": {
    "status": "cut",
@@ -4046,7 +4162,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key judge the first sell; third at 3R only as a wrong choice; stop under swing low is an accepted pattern-low stop (D-008); trigger entry (D-003)."
+   "notes": "EXPD asof 2006-03-08, touch day, last of a 3-day 3.6% rest; trigger over the prior high on 03-09; ticker removed from the story. 3R in three sessions inside forward 20. EXPD use 2 of 2."
   },
   "q61": {
    "status": "pass",

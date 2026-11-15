@@ -1338,7 +1338,7 @@
    "format": "scenario",
    "criterion": "peg.catalyst",
    "q": "Which session is the PEG day?",
-   "story": "Hidden ticker, and the last bar is Tuesday's close. The company reports after that close. You check the earnings calendar that evening.",
+   "story": "And the last bar is Tuesday's close. The company reports after that close. You check the earnings calendar that evening.",
    "choices": [
     "Wednesday, next session",
     "Tuesday, report day",
@@ -1479,7 +1479,7 @@
     "$74.82": "Added four R, one too many."
    },
    "suffix": "",
-   "story": "Hidden ticker, the day of the pause break.",
+   "story": "The day of the pause break.",
    "chart": {
     "sym": "COCO",
     "asof": "2026-05-08",
@@ -1836,7 +1836,7 @@
     "206.0%": "Turned the dollar gap into a percent without dividing by the fill."
    },
    "prefix": "",
-   "story": "Hidden ticker, the day of the pause break.",
+   "story": "The day of the pause break.",
    "chart": {
     "sym": "LULU",
     "asof": "2018-04-05",
@@ -2032,7 +2032,7 @@
    "format": "scenario",
    "criterion": "peg.entry_pause",
    "q": "What do you do?",
-   "story": "Hidden ticker. A PEG closed strong on Tuesday, near the top of its range. Four quiet days since have held above the PEG-day low. This morning the stock trades over the highest high of those four days.",
+   "story": "A PEG closed strong on Tuesday, near the top of its range. Four quiet days since have held above the PEG-day low. This morning the stock trades over the highest high of those four days.",
    "choices": [
     "Buy at market; stop under the low",
     "Wait for the close to confirm",
@@ -2115,7 +2115,7 @@
    "format": "scenario",
    "criterion": "peg.not_hve",
    "q": "PEG or High Volume Edge?",
-   "story": "Hidden ticker, the gap day is the last bar. A well-known company reports and gaps up 6.2%. Volume is 7.6x its average, its biggest in a year, and the day closes at 0.55 of its range.",
+   "story": "The gap day is the last bar. A well-known company reports and gaps up 6.2%. Volume is 7.6x its average, its biggest in a year, and the day closes at 0.55 of its range.",
    "choices": [
     "A PEG; earnings on a known name",
     "A High Volume Edge; a record",
@@ -2427,7 +2427,7 @@
     "109 shares": "Divided the risk dollars by the stop's percent, not by the dollars per share."
    },
    "prefix": "",
-   "story": "Hidden ticker, the day of the pause break.",
+   "story": "The day of the pause break.",
    "chart": {
     "sym": "LULU",
     "asof": "2018-04-05",
@@ -2745,7 +2745,7 @@
    "format": "scenario",
    "criterion": "peg.inv_drift",
    "q": "What was that loss?",
-   "story": "Hidden ticker. A 10.6% earnings gap on 7.5x volume closed at 0.61. After the pause you bought the break at 45.07 with the stop at 43.78, 2.9% away. It went straight to the stop.",
+   "story": "A 10.6% earnings gap on 7.5x volume closed at 0.61. After the pause you bought the break at 45.07 with the stop at 43.78, 2.9% away. It went straight to the stop.",
    "choices": [
     "A weaker setup the stop capped",
     "A mistake; the stop was too tight",
@@ -2799,7 +2799,7 @@
    "format": "scenario",
    "criterion": "peg.stop_pause",
    "q": "Was that a mistake?",
-   "story": "Hidden ticker. A 10.7% gap on 4.6x volume, close at 0.98, then a clean pause. You bought the eighth-day break at 107.16 with the stop at 104.36, 2.6% away. It never reached 1R and the stop traded.",
+   "story": "A 10.7% gap on 4.6x volume, close at 0.98, then a clean pause. You bought the eighth-day break at 107.16 with the stop at 104.36, 2.6% away. It never reached 1R and the stop traded.",
    "choices": [
     "A planned loss; the stop worked",
     "A mistake; the PEG should be skipped",
@@ -2853,7 +2853,7 @@
    "format": "scenario",
    "criterion": "peg.fundamentals",
    "q": "How does the catalyst side grade?",
-   "story": "Hidden ticker, a mega-cap that dozens of analysts follow. It gaps 5.4% on earnings on 3.8x volume and closes at 0.89 of its range. Two quiet days then hold above the gap-day low.",
+   "story": "A mega-cap that dozens of analysts follow. It gaps 5.4% on earnings on 3.8x volume and closes at 0.89 of its range. Two quiet days then hold above the gap-day low.",
    "choices": [
     "B-; many analysts follow it",
     "A+; a clean pause beats it",
@@ -2946,7 +2946,7 @@
     "0.1R": "Divided the gain by the price, not by R."
    },
    "prefix": "",
-   "story": "Hidden ticker, the day of the pause break.",
+   "story": "The day of the pause break.",
    "chart": {
     "sym": "ILMN",
     "asof": "2013-04-29",
@@ -3151,7 +3151,7 @@
    "format": "scenario",
    "criterion": "peg.faded_day",
    "q": "Is it a PEG?",
-   "story": "Hidden ticker, the gap day is the last bar. It gaps 11.2% on earnings on 2.7x volume. The day's low stays above the prior close of 116.78, but it closes at 0.23 of its range.",
+   "story": "The gap day is the last bar. It gaps 11.2% on earnings on 2.7x volume. The day's low stays above the prior close of 116.78, but it closes at 0.23 of its range.",
    "choices": [
     "No; it faded into a weak close",
     "Yes; the gap held all day",
@@ -3401,7 +3401,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "peg.above_200",
-   "q": "Hidden ticker, an earnings gap day is the last bar. Take the pause break once it triggers, or pass?",
+   "q": "An earnings gap day is the last bar. Take the pause break once it triggers, or pass?",
    "choices": [
     "Pass; it is under the 200-day",
     "Take it; it fell far and looks cheap",
@@ -3453,7 +3453,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "peg.entry_pause",
-   "q": "Hidden ticker, five sessions after an earnings gap. What is the call on this pause?",
+   "q": "Five sessions after an earnings gap. What is the call on this pause?",
    "choices": [
     "Take it over the pause high",
     "Take it now, before any break",

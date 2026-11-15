@@ -1233,7 +1233,7 @@
    "key": "q12",
    "skill": "setup.weinstein_4b",
    "rung": 2,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "w4b.trigger",
    "q": "What is the buy on a 4B-?",
    "choices": [
@@ -1266,7 +1266,14 @@
      "fixed before"
     ]
    },
-   "batch": "rulings"
+   "batch": "visuals-4",
+   "story": "The day before the trigger.",
+   "chart": {
+    "sym": "NDSN",
+    "asof": "2016-03-01",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q13",
@@ -1302,7 +1309,7 @@
    "key": "q14",
    "skill": "setup.weinstein_4b",
    "rung": 3,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "w4b.trim_1",
    "q": "Bought at 22.12 with the stop at 21.49. Where is 3R?",
    "answer": "$24.01",
@@ -1333,7 +1340,7 @@
      "the 3R trim is the owner's hard rule (B19)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-4",
    "choices": [
     "$23.38",
     "$22.75",
@@ -1344,6 +1351,17 @@
     "$23.38": "Added the three R to the stop, not to the buy.",
     "$22.75": "Added only one R.",
     "$24.64": "Counted four R instead of three."
+   },
+   "story": "Bought on the trigger.",
+   "chart": {
+    "sym": "PENN",
+    "asof": "2019-11-05",
+    "window": 150,
+    "forward": 30,
+    "trade": {
+     "entry": 22.12,
+     "stop": 21.49
+    }
    }
   },
   {
@@ -1706,7 +1724,7 @@
    "key": "q25",
    "skill": "setup.weinstein_4b",
    "rung": 4,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "w4b.trim_2",
    "q": "Bought at 12.37, stop 12.06. The stock trades to 13.92. How many R is that?",
    "answer": "5.0R",
@@ -1736,7 +1754,7 @@
      "the 5R trim is the owner's adjustable default (E51)"
     ]
    },
-   "batch": "sweep-2026-11-14",
+   "batch": "visuals-4",
    "choices": [
     "5.0R",
     "6.0R",
@@ -1747,6 +1765,17 @@
     "6.0R": "Measured the gain from the stop instead of the buy.",
     "44.9R": "Divided the exit price by R instead of the gain.",
     "50.0R": "Slipped the decimal point one place right."
+   },
+   "story": "Bought on the trigger.",
+   "chart": {
+    "sym": "AMD",
+    "asof": "2018-05-15",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 12.37,
+     "stop": 12.06
+    }
    }
   },
   {
@@ -2151,7 +2180,7 @@
    "wrong": {
     "Hold; the stop has not traded": "The time stop is its own exit. Under 1R after 10 days, the money goes elsewhere.",
     "Widen the stop to give it room": "The stop only moves up, never down or wider.",
-    "Sell half and hold the rest": "The time stop sells the trade; it does not trim it. A third comes off at 3R."
+    "Sell half and hold the rest": "The time stop sells the trade; it does not trim it."
    },
    "house": true,
    "simple": "Sell. A trade still under 1R after 10 trading days is sold, even though the stop has not traded.",
@@ -2249,7 +2278,7 @@
    "key": "q39",
    "skill": "setup.weinstein_4b",
    "rung": 6,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "w4b.stop",
    "q": "Account 50,000. Risk 1%. Buy 22.12, stop 21.49. How many shares does the risk allow?",
    "answer": "793 shares",
@@ -2281,7 +2310,7 @@
      "rests on the owner's rulebook (A3 and A5)"
     ]
    },
-   "batch": "rank",
+   "batch": "visuals-4",
    "choices": [
     "793 shares",
     "22 shares",
@@ -2292,6 +2321,17 @@
     "22 shares": "Divided the risk dollars by the buy price, not the stop distance.",
     "79 shares": "Slipped a decimal the other way and risked a tenth too little.",
     "396 shares": "Used half the risk percent."
+   },
+   "story": "Bought on the trigger.",
+   "chart": {
+    "sym": "PENN",
+    "asof": "2019-11-05",
+    "window": 150,
+    "forward": 30,
+    "trade": {
+     "entry": 22.12,
+     "stop": 21.49
+    }
    }
   },
   {
@@ -2623,7 +2663,17 @@
      "fixed before"
     ]
    },
-   "batch": "rulings"
+   "batch": "visuals-4",
+   "chart": {
+    "sym": "F",
+    "asof": "2024-02-12",
+    "window": 150,
+    "forward": 20,
+    "trade": {
+     "entry": 12.99,
+     "stop": 12.59
+    }
+   }
   },
   {
    "key": "q49",
@@ -2632,7 +2682,7 @@
    "format": "scenario",
    "criterion": "w4b.inv_close_under_50_before",
    "q": "After the first stop-out, when do you buy again?",
-   "story": "A 39% drop to the March 2020 low, a higher low, a 13-day pause. The break took the 1.4% stop the next day.",
+   "story": "Bought at 213.22 with the stop at 210.32. It followed a 39% drop to the March 2020 low, a higher low and a 13-day pause. The next day took the 1.4% stop.",
    "choices": [
     "Only when it triggers again",
     "At once; it is the same setup",
@@ -2667,7 +2717,17 @@
      "fixed before"
     ]
    },
-   "batch": "wave4"
+   "batch": "visuals-4",
+   "chart": {
+    "sym": "META",
+    "asof": "2020-05-11",
+    "window": 120,
+    "forward": 30,
+    "trade": {
+     "entry": 213.22,
+     "stop": 210.32
+    }
+   }
   },
   {
    "key": "q50",
@@ -2733,7 +2793,7 @@
    "format": "scenario",
    "criterion": "w4b.stage4",
    "q": "Is it a 4B-?",
-   "story": "A stock drops 34% from its high. At the cycle low the 150-day was rising: 528.74 against 521.41 twenty sessions earlier.",
+   "story": "The day before the trigger. A stock drops 34% from its high. At the cycle low the 150-day was rising: 528.74 against 521.41 twenty sessions earlier.",
    "choices": [
     "No; a pullback in an uptrend",
     "Yes; the drop is deep enough",
@@ -2741,7 +2801,7 @@
     "No; it is a plain 4B, not a 4B-"
    ],
    "answer": "No; a pullback in an uptrend",
-   "why": "No. At the cycle low the 150-day was rising: 528.74 against 521.41 twenty sessions earlier. A 4B- needs a falling 150-day first. A 34% drop under a rising 150-day is a pullback in an uptrend, so a Remount or a pullback buy, not a Stage 4 turn.",
+   "why": "No. At the cycle low the 150-day was rising: 528.74 against 521.41 twenty sessions earlier. A 4B- needs a falling 150-day first. A 34% drop under a rising 150-day is a pullback in an uptrend, so a Remount or a pullback buy, not a Stage 4 turn. The 150-day is not drawn on the chart; its two readings are in the story.",
    "lesson_line": "Read the 150-day at the low before you name it.",
    "facts": [
     "d19",
@@ -2767,7 +2827,13 @@
      "fixed before"
     ]
    },
-   "batch": "wave4"
+   "batch": "visuals-4",
+   "chart": {
+    "sym": "COST",
+    "asof": "2022-07-21",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q53",
@@ -2825,7 +2891,7 @@
     "No; the 200-day comes first"
    ],
    "answer": "No; too close to the report",
-   "why": "No. We take no new buy in the 3 days before a report. The stock closed back over its 50-day on 2022-07-18, and the company reported after the close on 2022-07-19. A buy on the 18th comes the day before the report. A clean chart does not move the window.",
+   "why": "No. We take no new buy in the 3 days before a report. The stock closed back over its 50-day on 2022-07-18, and the company reported after the close on 2022-07-19. A buy on the 18th comes the day before the report. A clean chart does not move the window. The rule guards against the risk of the report, and it does not judge a trade by how the report turned out.",
    "lesson_line": "Check the report date before every buy, even on a clean chart.",
    "facts": [
     "d23",
@@ -2850,7 +2916,13 @@
      "fixed before"
     ]
    },
-   "batch": "wave4"
+   "batch": "visuals-4",
+   "chart": {
+    "sym": "NFLX",
+    "asof": "2022-07-18",
+    "window": 120,
+    "forward": 12
+   }
   },
   {
    "key": "q55",
@@ -2859,7 +2931,7 @@
    "format": "scenario",
    "criterion": "w4b.stop",
    "q": "Write the plan.",
-   "story": "NUS, April 2013: 78 sessions off a December low, a February higher low, and a 19-day pause above a turning 50-day.",
+   "story": "78 sessions off a December low, a February higher low, and a 19-day pause above a turning 50-day. Today it trades over the pause high.",
    "choices": [
     "Buy 49.99, stop 49.05, first sell day 3+",
     "Buy 49.99, stop 45.00, hold it all",
@@ -2897,7 +2969,17 @@
      "stop width rests on held decision D-005"
     ]
    },
-   "batch": "rulings2"
+   "batch": "visuals-4",
+   "chart": {
+    "sym": "NUS",
+    "asof": "2013-04-18",
+    "window": 160,
+    "forward": 30,
+    "trade": {
+     "entry": 49.99,
+     "stop": 49.05
+    }
+   }
   },
   {
    "key": "q56",
@@ -3014,7 +3096,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "w4b.version_h_200",
-   "q": "Hidden ticker. A washout, a higher low, a pause over the 50-day. Take it or pass?",
+   "q": "A washout, a higher low, a pause over the 50-day. Take it or pass?",
    "choices": [
     "Take it; it is above the 200-day",
     "Pass; the 200-day is overhead",
@@ -3065,7 +3147,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "w4b.version_h_200",
-   "q": "Hidden ticker. A deep decline, a higher low, a 50-day reclaim. Is it above the 200-day? Take it or pass.",
+   "q": "A deep decline, a higher low, a 50-day reclaim. Is it above the 200-day? Take it or pass.",
    "choices": [
     "Pass; it is still under the 200-day",
     "Take it; the base is textbook",
@@ -3784,7 +3866,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with its rulings"
+   "notes": "Pass. NDSN card winner 2016-03-02; asof 2016-03-01 is the day before; bar 03-01 high 73.24 is the pause high; no numbers in the text; ticker hidden; answer unchanged."
   },
   "q13": {
    "status": "pass",
@@ -3796,7 +3878,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
+   "notes": "Pass. PENN 2019-11-05 buy day; trade 22.12/21.49 matches dossier row 7 and the question (2.8%); buy-day high 22.34 over entry; 3R 24.01 first traded replay day 24, inside forward 30."
   },
   "q15": {
    "status": "pass",
@@ -3862,8 +3944,8 @@
   "q25": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "R math verified (1.55 / 0.31 = 5.0; wrongs 6.0, 44.9, 50.0 reproduce). Text now agrees with D-013. Card fact c29 'Sell a third at 5R.' is the superseded rule; dropped from facts."
+   "fixed": false,
+   "notes": "Pass. AMD 2018-05-15 buy day; 12.37/12.06 match dossier row 6 and question; 13.92 (5R) first traded on replay day 10, inside forward 20."
   },
   "q26": {
    "status": "pass",
@@ -3948,7 +4030,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
+   "notes": "Pass. Same PENN row as q14 (second use); trade matches the question's 22.12/21.49."
   },
   "q40": {
    "status": "cut",
@@ -4001,13 +4083,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with its rulings"
+   "notes": "Pass. F 2024-02-12 failure 4; 12.99/12.59 (3.1%), 37.5% decline, 12-day pause, next-session low 12.48 all match dossier and bars; replay stops on day 1; answer true."
   },
   "q49": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Decided cold: only on a new trigger (B21, h28). Story numbers are d09/d10 (39%, 13-day pause, 1.4% stop). Wrong choices each refuted (no price rule; E56 caps tries but sets no wait). Lesson line no longer calls META a V. Leaks no other key."
+   "notes": "Pass. META 2020-05-11 failure 3; 213.22/210.32 (1.4%), 39% drop, 13-day pause match dossier; low 12 May 210.00 stops it; forward 30 reaches the second trigger 2020-06-10 the why names."
   },
   "q50": {
    "status": "cut",
@@ -4024,8 +4106,8 @@
   "q52": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key matches d19, d20, l1, c02. Yes/No split two and two; the plain-4B choice is refuted since there is no Stage 4 with a rising 150-day."
+   "fixed": true,
+   "notes": "Chart, asof (day before the 2022-07-22 trigger), 34% (612.27 to 406.51 in the window) and both 150-day readings all match the card. Only the why said the readings are in the question; they are in the story."
   },
   "q53": {
    "status": "pass",
@@ -4037,13 +4119,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Decided cold: No (B22 h08, c23: no new buy in the 3 days before a report). Dates are d23 verbatim; a buy on 07-18 is one session before the 07-19 after-close report. 'Before the report' is a real misconception; the 200-day choice is a No with an unsupported reason, refuted. q34 (same fact) is already cut."
+   "notes": "Pass. NFLX 2022-07-18 (closed back over 50-day, reported after close 07-19 per dossier); no prices in text; answer No stays right; why addresses the post-report pop the replay will show."
   },
   "q55": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Re-keyed to first sell day 3+; D-003 ok (buy over pause high)."
+   "notes": "Pass. NUS 2013-04-18 buy day; 49.99/49.05 (1.9%), 78 sessions, 19-day pause match dossier row 4; ticker removed from story; stop not hit in replay."
   },
   "q56": {
    "status": "pass",

@@ -1222,9 +1222,9 @@
    "key": "q01",
    "skill": "setup.failed_hs",
    "rung": 1,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "fh.direction",
-   "q": "Which way do we trade a head-and-shoulders top?",
+   "q": "Which way do we trade this top?",
    "choices": [
     "Long, when the breakdown fails",
     "Short, when the neckline breaks",
@@ -1232,7 +1232,7 @@
     "Long, when the neckline breaks"
    ],
    "answer": "Long, when the breakdown fails",
-   "why": "Long, when the breakdown fails. The breakdown everyone sees never comes, or comes and fails, and the squeeze fuels the next leg up. Bracco: the only way to trade a head and shoulders is to trade its failure. We never short the right shoulder before the neckline breaks, and a break is not taught here as a short setup. A fall of more than 10% under the neckline means the top worked, and the setup is gone.",
+   "why": "Long, when the breakdown fails. The breakdown everyone sees never comes, or comes and fails, and the squeeze fuels the next leg up. Bracco: the only way to trade a head and shoulders is to trade its failure. We never short the right shoulder before the neckline breaks, and a break is not taught here as a short setup. A fall of more than 10% under the neckline means the top worked, and the setup is gone. ABNB in June 2026 drew this top, fell 3.0% under the neckline, and recovered. The buy over the right shoulder reached 3R in 9 days.",
    "lesson_line": "The top everyone sees is the trade when it fails. We buy the failure.",
    "facts": [
     "c01",
@@ -1243,7 +1243,8 @@
     "c05",
     "d01",
     "d02",
-    "d45"
+    "d45",
+    "d19"
    ],
    "wrong": {
     "Short, when the neckline breaks": "The break is not taught here as a short setup. Of breaks from tops that formed above the 200-day, 70% stayed above it, where we never short.",
@@ -1263,15 +1264,22 @@
      "fixed before"
     ]
    },
-   "batch": "rulings"
+   "batch": "visuals-3",
+   "story": "The day before the trigger. A three-peak top, with its neckline already broken.",
+   "chart": {
+    "sym": "ABNB",
+    "asof": "2026-06-12",
+    "window": 150,
+    "forward": 20
+   }
   },
   {
    "key": "q02",
    "skill": "setup.failed_hs",
    "rung": 1,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "fh.trigger",
-   "q": "The neckline broke, the fall stayed shallow, and price came back. By Brandt, the failure is complete when?",
+   "q": "By Brandt, when is the failure complete?",
    "choices": [
     "A trade over the right-shoulder high",
     "A first bounce back to the neckline",
@@ -1279,13 +1287,14 @@
     "A first close back over the 50-day line"
    ],
    "answer": "A trade over the right-shoulder high",
-   "why": "Over the right-shoulder high. Brandt: the advance penetrated the right-shoulder high and officially completed the failure pattern. Our trigger is the same level: the first trade over it after the failure. A bounce back to the neckline is the return move the short sellers expect, not the signal.",
+   "why": "Over the right-shoulder high. Brandt: the advance penetrated the right-shoulder high and officially completed the failure pattern. Our trigger is the same level: the first trade over it after the failure. A bounce back to the neckline is the return move the short sellers expect, not the signal. MUSA completed it the next session: the trade over the 184.96 right-shoulder high filled at 184.97 and reached 3R in 1 day.",
    "lesson_line": "Mark the right-shoulder high. The failure is complete when price trades through it, not on the bounce below it.",
    "facts": [
     "c02",
     "br01",
     "c22",
-    "c09"
+    "c09",
+    "d13"
    ],
    "wrong": {
     "A first bounce back to the neckline": "Buying the first bounce back to the neckline is a named mistake. That is the return move the short sellers expect.",
@@ -1302,7 +1311,14 @@
      "fixed before"
     ]
    },
-   "batch": "rulings"
+   "batch": "visuals-3",
+   "story": "The day before the trigger. A three-peak top broke its neckline, the fall stayed shallow, and price came back.",
+   "chart": {
+    "sym": "MUSA",
+    "asof": "2022-03-14",
+    "window": 150,
+    "forward": 20
+   }
   },
   {
    "key": "q03",
@@ -1395,7 +1411,7 @@
    "key": "q06",
    "skill": "setup.failed_hs",
    "rung": 1,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "fh.invalidation_line",
    "q": "What is the low of the failed breakdown used for?",
    "choices": [
@@ -1405,7 +1421,7 @@
     "The first trim's target"
    ],
    "answer": "The setup's invalidation line",
-   "why": "The invalidation line. In our run a stop under the failed-break low sat a median 9.3% away, and only 4% were within 3%. Our stop usually sits within about 3% of the buy, so that low is too far to be the stop. Using it as the stop is a named mistake.",
+   "why": "The invalidation line. In our run a stop under the failed-break low sat a median 9.3% away, and only 4% were within 3%. Our stop usually sits within about 3% of the buy, so that low is too far to be the stop. Using it as the stop is a named mistake. In SPG's case the trigger day's low gave a stop of 68.76, 1.1% away, against 61.03 for the failed-break low.",
    "lesson_line": "The undercut low is the invalidation line. The trigger day's low is the stop.",
    "facts": [
     "c04",
@@ -1434,7 +1450,14 @@
      "fixed before"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "visuals-3",
+   "story": "The day before the trigger. The break under the neckline fell to a low of 61.03, then price came back.",
+   "chart": {
+    "sym": "SPG",
+    "asof": "2005-11-10",
+    "window": 150,
+    "forward": 20
+   }
   },
   {
    "key": "q07",
@@ -1535,9 +1558,9 @@
    "key": "q10",
    "skill": "setup.failed_hs",
    "rung": 2,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "fh.order",
-   "q": "At 10:40 the stock trades through the right-shoulder high. How do you buy?",
+   "q": "How do you buy?",
    "choices": [
     "Market order, now",
     "Limit at the neckline",
@@ -1545,13 +1568,14 @@
     "Premarket tomorrow"
    ],
    "answer": "Market order, now",
-   "why": "Market order, now. Entries are market orders, sent once price is through the level and only in regular trading hours. At 10:40 it is regular hours. No new buys outside regular trading hours, so premarket tomorrow is out too. A limit at the neckline sits far under price and does not buy the trigger.",
+   "why": "Market order, now. Entries are market orders, sent once price is through the level and only in regular trading hours, and that is where we are. No new buys outside regular trading hours, so premarket tomorrow is out too. A limit at the neckline sits far under price and does not buy the trigger. BXP did this on 2010-02-26: it bought at 68.02 as price traded over the 68.01 right-shoulder high.",
    "lesson_line": "Through the level, in hours, at market. No debate at the fill.",
    "facts": [
     "c38",
     "h22",
     "h23",
-    "c02"
+    "c02",
+    "d07"
    ],
    "wrong": {
     "Limit at the neckline": "A limit at the neckline sits under price and never fills on the trigger. The neckline is behind us.",
@@ -1567,7 +1591,14 @@
      "rests on the owner's rulebook (E57, E58)"
     ]
    },
-   "batch": "wave3"
+   "batch": "visuals-3",
+   "story": "The chart ends at yesterday's close. Today, in regular hours, it trades through the right-shoulder high.",
+   "chart": {
+    "sym": "BXP",
+    "asof": "2010-02-25",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q11",
@@ -1782,7 +1813,7 @@
    "key": "q17",
    "skill": "setup.failed_hs",
    "rung": 3,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "fh.depth",
    "q": "Head 47.22, neckline 40.82. How tall is the pattern, head to neckline, as a percent of the head?",
    "answer": "13.6%",
@@ -1810,7 +1841,7 @@
      "fixed before"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-3",
    "choices": [
     "15.7%",
     "13.6%",
@@ -1821,6 +1852,13 @@
     "15.7%": "Divided by the neckline instead of the head.",
     "6.4%": "Gave the gap in dollars as a percent, no divide.",
     "86.4%": "Gave the neckline as a share of the head."
+   },
+   "story": "The day before the trigger.",
+   "chart": {
+    "sym": "FDX",
+    "asof": "2003-03-18",
+    "window": 150,
+    "forward": 20
    }
   },
   {
@@ -2004,7 +2042,7 @@
    "key": "q23",
    "skill": "setup.failed_hs",
    "rung": 4,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "fh.failure_b",
    "q": "Neckline 63.38, the lowest low of the break 61.50. How deep was the undercut, in percent?",
    "answer": "3.0%",
@@ -2037,7 +2075,7 @@
      "fixed before"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-3",
    "choices": [
     "1.9%",
     "0.3%",
@@ -2048,6 +2086,13 @@
     "1.9%": "Gave the gap in dollars as a percent, no divide.",
     "0.3%": "Decimal slip, one place too short.",
     "97.0%": "Gave the low as a share of the neckline."
+   },
+   "story": "The day before the trigger.",
+   "chart": {
+    "sym": "BXP",
+    "asof": "2010-02-25",
+    "window": 150,
+    "forward": 60
    }
   },
   {
@@ -2056,7 +2101,7 @@
    "rung": 4,
    "format": "scenario",
    "criterion": "fh.no_chase",
-   "story": "The right-shoulder high is 327.76. After earnings the stock opens at 365.00, 11.4% over it, and the failure is complete on the gap.",
+   "story": "The right-shoulder high is 327.76. Earnings sent the stock gapping over it, and the next morning it opens at 365.00, 11.4% over the level.",
    "q": "What do you do?",
    "choices": [
     "Skip it; wait for a dip to curl up",
@@ -2093,7 +2138,13 @@
      "the answer has a hedge, skip or wait"
     ]
    },
-   "batch": "rulings"
+   "batch": "visuals-3",
+   "chart": {
+    "sym": "LULU",
+    "asof": "2023-03-29",
+    "window": 150,
+    "forward": 30
+   }
   },
   {
    "key": "q25",
@@ -2101,8 +2152,8 @@
    "rung": 4,
    "format": "scenario",
    "criterion": "fh.retries",
-   "story": "You bought the trigger over 320.28 and were stopped the next day at 315.40. The neckline still holds. Today it trades back over 320.28.",
-   "q": "Buy again?",
+   "story": "The day you are stopped out. You bought the trigger over 320.28 and were stopped the next day at 315.40. The neckline still holds.",
+   "q": "If it trades back over 320.28, do you buy again?",
    "choices": [
     "Yes; a new trade with a new stop",
     "No; only one try per pattern",
@@ -2110,7 +2161,7 @@
     "No; the pattern already failed"
    ],
    "answer": "Yes; a new trade with a new stop",
-   "why": "Yes, as a new trade. After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop and every rule. Today's trade back over 320.28 is that new trigger. The stop is set fresh for this trade and is never widened to dodge another whipsaw. Count the tries: at most 3 in a week and 6 in a month. Failures whipsaw, and a second entry over the same level is allowed. In our AAPL example the first try was a whipsaw, and the stock then rose 11% within 60 sessions without the trade.",
+   "why": "Yes, as a new trade. After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop and every rule. A trade back over 320.28 would be that new trigger. The stop is set fresh for this trade and is never widened to dodge another whipsaw. Count the tries: at most 3 in a week and 6 in a month. Failures whipsaw, and a second entry over the same level is allowed. In our AAPL example the first try was a whipsaw, and the stock then rose 11% within 60 sessions without the trade.",
    "lesson_line": "A whipsaw is not a verdict on the setup. The next trigger is a new trade.",
    "facts": [
     "h28",
@@ -2124,7 +2175,7 @@
    "wrong": {
     "No; only one try per pattern": "The limit is 3 tries in a week and 6 in a month, not one.",
     "Yes, with a wider stop now": "Every new trade gets its own stop, a few cents under its own trigger day's low. Widening it to dodge another whipsaw breaks the stop-first rule.",
-    "No; the pattern already failed": "The trade failed; the pattern triggered again. A second entry over the same level is allowed."
+    "No; the pattern already failed": "The trade failed; the pattern did not. A second trigger over the same level is allowed."
    },
    "house": true,
    "simple": "Yes, as a new trade with its own stop, as long as you are inside the limit of 3 tries a week.",
@@ -2138,7 +2189,13 @@
      "rests on the owner's rules B21 and E56"
     ]
    },
-   "batch": "wave3"
+   "batch": "visuals-3",
+   "chart": {
+    "sym": "AAPL",
+    "asof": "2026-08-31",
+    "window": 150,
+    "forward": 50
+   }
   },
   {
    "key": "q26",
@@ -2182,7 +2239,7 @@
    "rung": 4,
    "format": "scenario",
    "criterion": "fh.stop_gap",
-   "story": "You bought at 107.59, stop 104.59. The next morning the stock opens at 96.73, far under your stop.",
+   "story": "Bought on the trigger day at 107.59 with the stop at 104.59. The next morning the stock opens at 96.73, far under your stop.",
    "q": "What is the rule?",
    "choices": [
     "First 30-minute low; past 2R, out",
@@ -2216,7 +2273,17 @@
      "fixed before"
     ]
    },
-   "batch": "wave3"
+   "batch": "visuals-3",
+   "chart": {
+    "sym": "GILD",
+    "asof": "2014-12-19",
+    "window": 150,
+    "forward": 60,
+    "trade": {
+     "entry": 107.59,
+     "stop": 104.59
+    }
+   }
   },
   {
    "key": "q28",
@@ -2275,7 +2342,7 @@
    "key": "q30",
    "skill": "setup.failed_hs",
    "rung": 5,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "fh.volume_cue",
    "q": "The trigger day prints 1.0x its average volume. Does the trade still count?",
    "choices": [
@@ -2306,7 +2373,14 @@
      "the volume cue is a proposed card criterion"
     ]
    },
-   "batch": "wave3"
+   "batch": "visuals-3",
+   "story": "The day before the trigger.",
+   "chart": {
+    "sym": "ICLR",
+    "asof": "2015-01-13",
+    "window": 150,
+    "forward": 60
+   }
   },
   {
    "key": "q31",
@@ -2314,7 +2388,7 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "fh.market_correcting_cue",
-   "story": "The index sits under its 50-day in a correction, and the reading is Yellow. A leader's three-peak top broke its neckline, the fall stayed shallow, and now it trades over the right-shoulder high.",
+   "story": "The day before the trigger, in the early-2022 correction. A stock's three-peak top broke its neckline, the fall stayed shallow, and tomorrow it trades over the right-shoulder high.",
    "q": "How does the setting grade?",
    "choices": [
     "A grading plus; the best setting",
@@ -2323,7 +2397,7 @@
     "Neutral; market is no factor"
    ],
    "answer": "A grading plus; the best setting",
-   "why": "A grading plus. The card says best when the market itself is correcting and the stock refuses to break down. In our run, SPY under its 50-day gave +0.30R against a +0.12R baseline. The reading still applies: Yellow means smaller and fewer, and in Orange only A+ setups.",
+   "why": "A grading plus. The card says best when the market itself is correcting and the stock refuses to break down. In our run, SPY under its 50-day gave +0.30R against a +0.12R baseline. The market reading still applies: Yellow means smaller and fewer, and in Orange only A+ setups.",
    "lesson_line": "A leader that holds up while the market falls is the one to own when the market turns.",
    "facts": [
     "c15",
@@ -2336,7 +2410,7 @@
     "d14"
    ],
    "wrong": {
-    "Pass; a correction bars longs": "A correction is not a ban. Yellow allows a buy, smaller and fewer. Red is the reading that is mostly cash.",
+    "Pass; a correction bars longs": "A correction is not a ban. A Yellow reading still allows a buy, smaller and fewer. Red is the reading that is mostly cash.",
     "Lower grade; market is weak": "A weak market with a leader that holds up is the cue, not a mark against it.",
     "Neutral; market is no factor": "The card names a correcting market, with the stock refusing to break down, as the best setting."
    },
@@ -2354,7 +2428,13 @@
      "fixed before"
     ]
    },
-   "batch": "wave3"
+   "batch": "visuals-3",
+   "chart": {
+    "sym": "MUSA",
+    "asof": "2022-03-14",
+    "window": 150,
+    "forward": 60
+   }
   },
   {
    "key": "q32",
@@ -2387,7 +2467,7 @@
    "key": "q33",
    "skill": "setup.failed_hs",
    "rung": 5,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "fh.trim_1",
    "q": "Bought at 22.71 with the stop at 22.30. Where is 3R?",
    "answer": "$23.94",
@@ -2417,7 +2497,7 @@
      "a computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-3",
    "choices": [
     "$23.53",
     "$23.12",
@@ -2428,6 +2508,17 @@
     "$23.53": "Added three R to the stop, not the fill.",
     "$23.12": "Added only one R, forgot the times three.",
     "$21.48": "Subtracted three R instead of adding."
+   },
+   "story": "Bought on the trigger day.",
+   "chart": {
+    "sym": "MGM",
+    "asof": "2004-09-14",
+    "window": 150,
+    "forward": 20,
+    "trade": {
+     "entry": 22.71,
+     "stop": 22.3
+    }
    }
   },
   {
@@ -2473,9 +2564,9 @@
    "key": "q35",
    "skill": "setup.failed_hs",
    "rung": 5,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "fh.late_stage",
-   "q": "A failed top triggers in a stock that has already run up for over a year. How do we grade it?",
+   "q": "A failed top is about to trigger here. How do we grade it?",
    "choices": [
     "Lower; it is late in the advance",
     "A+; the failure is the signal",
@@ -2509,7 +2600,14 @@
      "rests on one dated example"
     ]
    },
-   "batch": "wave3"
+   "batch": "visuals-3",
+   "story": "The day before the trigger. The stock has already run up for over a year.",
+   "chart": {
+    "sym": "GOOGL",
+    "asof": "2026-09-17",
+    "window": 300,
+    "forward": 35
+   }
   },
   {
    "key": "q36",
@@ -2517,7 +2615,7 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "fh.inv_deep_break",
-   "story": "A three-peak top broke its neckline. The lowest close sat 10.9% under it. Then the stock came all the way back and trades over the right-shoulder high.",
+   "story": "The day before the trigger. A three-peak top broke its neckline. The lowest close sat 10.9% under it. Then the stock came all the way back, and tomorrow it trades over the right-shoulder high.",
    "q": "Take it?",
    "choices": [
     "No; the top had already worked",
@@ -2553,7 +2651,13 @@
      "rests on one near-miss from our own bars"
     ]
    },
-   "batch": "wave3"
+   "batch": "visuals-3",
+   "chart": {
+    "sym": "CSCO",
+    "asof": "2025-05-12",
+    "window": 150,
+    "forward": 30
+   }
   },
   {
    "key": "q37",
@@ -3130,7 +3234,7 @@
    "rung": 8,
    "format": "scenario",
    "criterion": "fh.earnings",
-   "story": "The report came after the close yesterday. This morning the stock opens under the right-shoulder high and trades through it at 10:05.",
+   "story": "The report came after the close on the last day you see. The next session it opens under the right-shoulder high and then trades through it.",
    "q": "Allowed?",
    "choices": [
     "Yes; the report is behind it",
@@ -3166,13 +3270,19 @@
      "rests on one dated example"
     ]
    },
-   "batch": "wave3"
+   "batch": "visuals-3",
+   "chart": {
+    "sym": "NFLX",
+    "asof": "2025-04-17",
+    "window": 150,
+    "forward": 20
+   }
   },
   {
    "key": "q53",
    "skill": "setup.failed_hs",
    "rung": 8,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "fh.stop",
    "q": "Account 100,000. Risk 0.25%. Fill 123.69, stop 122.25. How many shares? Round down.",
    "answer": "173 shares",
@@ -3208,7 +3318,7 @@
      "fixed before"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-3",
    "choices": [
     "174 shares",
     "808 shares",
@@ -3219,15 +3329,26 @@
     "174 shares": "Rounded up, so the risk goes over 0.25%.",
     "808 shares": "Divided the whole account by the fill price.",
     "1,736 shares": "Moved the decimal on the risk percent."
+   },
+   "story": "Bought on the trigger day.",
+   "chart": {
+    "sym": "TOL",
+    "asof": "2024-07-12",
+    "window": 120,
+    "forward": 60,
+    "trade": {
+     "entry": 123.69,
+     "stop": 122.25
+    }
    }
   },
   {
    "key": "q54",
    "skill": "setup.failed_hs",
    "rung": 8,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "fh.failure_b",
-   "q": "What makes a version B failure?",
+   "q": "What makes the failure on this chart a version B?",
    "choices": [
     "A neckline break, bought back",
     "A neckline break, then a slide",
@@ -3235,14 +3356,15 @@
     "A close under the 200-day average"
    ],
    "answer": "A neckline break, bought back",
-   "why": "A neckline break that is bought back. Version B on our card is at least one close under the neckline, or an intraday undercut of the right armpit low, that does not fall more than 10% under the neckline before the trigger. Murphy: once the neckline has broken, any decisive close back above it is a serious warning that the breakdown was probably a bad signal. Version A is the card's lesser form, with no close under the neckline at all.",
+   "why": "A neckline break that is bought back. Version B on our card is at least one close under the neckline, or an intraday undercut of the right armpit low, that does not fall more than 10% under the neckline before the trigger. Murphy: once the neckline has broken, any decisive close back above it is a serious warning that the breakdown was probably a bad signal. Version A is the card's lesser form, with no close under the neckline at all. NFLX in April 2025 fits: it fell 6.0% under the neckline and failed within two weeks, and the buy over the right-shoulder high reached 3R in 3 days.",
    "lesson_line": "Version B is a real break that failed. The crowd sold the break; the stock refused.",
    "facts": [
     "c51",
     "m03",
     "u03",
     "c06",
-    "c35"
+    "c35",
+    "d17"
    ],
    "wrong": {
     "A bounce off the neckline only": "No break, no failed break. That is version A at best.",
@@ -3265,7 +3387,14 @@
    "depends_on": [
     "D-109"
    ],
-   "batch": "wave3"
+   "batch": "visuals-3",
+   "story": "The day before the trigger.",
+   "chart": {
+    "sym": "NFLX",
+    "asof": "2025-04-17",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q55",
@@ -3390,7 +3519,7 @@
    "rung": 9,
    "format": "scenario",
    "criterion": "fh.invalidation_line",
-   "story": "SPG broke its neckline at 65.03 and fell to 61.03 before recovering over seven weeks. The trade over the right shoulder at 69.52 fills at 69.53.",
+   "story": "It broke its neckline at 65.03 and fell to 61.03 before it recovered. The trade over the right shoulder at 69.52 fills at 69.53.",
    "q": "Where is the primary stop?",
    "choices": [
     "Just under the trigger day's low",
@@ -3430,7 +3559,17 @@
      "choices rewritten so the stop's number no longer appears only in the key"
     ]
    },
-   "batch": "rulings"
+   "batch": "visuals-3",
+   "chart": {
+    "sym": "SPG",
+    "asof": "2005-11-11",
+    "window": 150,
+    "forward": 20,
+    "trade": {
+     "entry": 69.53,
+     "stop": 68.76
+    }
+   }
   },
   {
    "key": "q59",
@@ -3438,7 +3577,7 @@
    "rung": 9,
    "format": "scenario",
    "criterion": "fh.no_chase",
-   "story": "The right-shoulder high is 27.71. The stock gaps open at 27.98, 1% over the level, on heavy volume.",
+   "story": "The day before the trigger. The right-shoulder high is 27.71. The next morning the stock gaps open at 27.98, 1% over the level, on heavy volume.",
    "q": "What do you do?",
    "choices": [
     "Buy the open; stop under the day low",
@@ -3474,7 +3613,13 @@
      "rests on the owner's rule C28 and the held decisions D-022 and D-003"
     ]
    },
-   "batch": "rulings"
+   "batch": "visuals-3",
+   "chart": {
+    "sym": "MCO",
+    "asof": "2011-01-05",
+    "window": 150,
+    "forward": 20
+   }
   },
   {
    "key": "q60",
@@ -3564,7 +3709,7 @@
    "rung": 9,
    "format": "scenario",
    "criterion": "fh.trigger",
-   "story": "MGM, September 2004: shoulders within 0.3% of each other, a flat neckline at 21.22, a four-week failed breakdown bought back. The right-shoulder high is 22.70. Today it trades over 22.70 on 1.9x volume; the day's low is 22.35.",
+   "story": "Shoulders within 0.3% of each other, a flat neckline at 21.22, a four-week failed breakdown bought back. The right-shoulder high is 22.70. Today it trades over 22.70 on 1.9x volume; the day's low is 22.35.",
    "q": "Write the plan: entry, stop, first sell.",
    "choices": [
     "Market 22.71; stop 22.30; day 3-7 push",
@@ -3573,7 +3718,7 @@
     "Market 22.71; stop 22.30; sell on day 1"
    ],
    "answer": "Market 22.71; stop 22.30; day 3-7 push",
-   "why": "Market at 22.71, stop 22.30, and a first sell into a push on day 3 to 7. The entry is a market order as price trades over the right-shoulder high, in regular hours. The stop sits a few cents under the day's low of 22.35, the primary stop. The first sell is a judgment, and we usually wait until day 3 at the earliest. MGM reached 3R in 5 days and 23.7R at best.",
+   "why": "Market at 22.71, stop 22.30, and a first sell into a push on day 3 to 7. The entry is a market order as price trades over the right-shoulder high, in regular hours. The stop sits a few cents under the day's low of 22.35, the primary stop. The first sell is a judgment, and we usually wait until day 3 at the earliest. MGM reached 3R in 5 days.",
    "lesson_line": "Entry, stop, first sell, trail. Write the plan, then execute it without a debate.",
    "facts": [
     "h22",
@@ -3596,7 +3741,7 @@
    "house": true,
    "simple": "Buy at market over the shoulder high, put the stop under the day's low, and sell into a push on day 3 or later.",
    "deeper": {
-    "example": "Buy at market over the shoulder high. Put the stop a few cents under the day's low. Sell into a push on day 3 or later. Trail the rest on the 9 EMA or the 20 EMA. MGM reached 3R in 5 days and 23.7R at best."
+    "example": "Buy at market over the shoulder high. Put the stop a few cents under the day's low. Sell into a push on day 3 or later. Trail the rest on the 9 EMA or the 20 EMA. MGM reached 3R in 5 days."
    },
    "tier": "expert",
    "risk": {
@@ -3606,7 +3751,17 @@
      "fixed before"
     ]
    },
-   "batch": "rulings2"
+   "batch": "visuals-3",
+   "chart": {
+    "sym": "MGM",
+    "asof": "2004-09-14",
+    "window": 150,
+    "forward": 20,
+    "trade": {
+     "entry": 22.71,
+     "stop": 22.3
+    }
+   }
   },
   {
    "key": "q63",
@@ -3614,7 +3769,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "fh.above_200",
-   "q": "Hidden ticker, the day before a trade over the right-shoulder high. Read the 200-day and the 50-day. Take it or pass?",
+   "q": "The day before a trade over the right-shoulder high. Read the 200-day and the 50-day. Take it or pass?",
    "choices": [
     "Take it; above both lines",
     "Pass; under the 200-day",
@@ -3665,7 +3820,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "fh.above_200",
-   "q": "Hidden ticker, the day before it trades over a right-shoulder high. Read the chart. Take it or pass?",
+   "q": "The day before it trades over a right-shoulder high. Read the chart. Take it or pass?",
    "choices": [
     "Pass; it closed under the 200-day",
     "Take it; the failure is complete",
@@ -4032,13 +4187,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "agrees with ruling"
+   "notes": "ABNB winners row 10: trigger 2026-06-15, asof Fri 06-12 is the day before; 3.0% undercut (low 127.23 on 06-11), 3R day 9 (149.45 reached 06-29) inside forward 20. Fix: story said the break 'was bought back', which gave away the answer 'Long, when the breakdown fails'; now says only that the neckline has already broken."
   },
   "q02": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "agrees with ruling"
+   "notes": "MUSA row 7: trigger 2022-03-15 (open 184.77, level 184.96, buy 184.97, stop 182.98, 3R on day 1 = 191.2 high); asof Mon 03-14 is the day before. Fix: the q still repeated the story ('The neckline broke, the fall stayed shallow, and price came back'); shortened to the Brandt question."
   },
   "q03": {
    "status": "pass",
@@ -4062,7 +4217,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Wrong text re-keyed to D-013. But the question still cites superseded card fact c55 'Sell a third at 3R.' which nothing in the text uses now; drop it."
+   "notes": "SPG row 3: neckline 65.03, low 61.03 (bars: 2005-10-13), trigger 2005-11-11, asof 11-10 day before; stop 68.76 and 1.1% check against the 11-11 low 68.81. Fix: 'took seven weeks to recover' reads against the chart as about four weeks from the low (10-13) to the trigger; the duration is dropped, every number left is on the card or in the dossier."
   },
   "q07": {
    "status": "pass",
@@ -4085,8 +4240,8 @@
   "q10": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "c38, h22, h23, c02 support it. Key is the shortest choice; every wrong note is grounded."
+   "fixed": true,
+   "notes": "BXP row 4: trigger 2010-02-26 (open 67.42, level 68.01, buy 68.02, high 68.75), asof 02-25 day before. Fix: 'the next session ... Market order, now' did not fit a chart that ends at yesterday's close, and 'Premarket, next morning' would be the trigger day's own premarket; the story now says today it trades through in regular hours and the original choice 'Premarket tomorrow' (and its wrong note) is restored."
   },
   "q11": {
    "status": "cut",
@@ -4128,7 +4283,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "13.6 ok; 15.7 over neckline, 6.4 dollars, 86.4 share. verified."
+   "notes": "FDX row 1: trigger 2003-03-19, asof 03-18 day before; head 47.22 and neckline 40.82 are the dossier's own, (47.22-40.82)/47.22 = 13.6%; no ticker in q/story/choices; right answer unchanged."
   },
   "q18": {
    "status": "cut",
@@ -4164,20 +4319,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "3.0 ok (2.97); wrongs verified."
+   "notes": "BXP row 4: neckline 63.38, low 61.50 (bars: 2010-02-10 low 61.50), 3.0%; 18.8R best is reached 43 sessions after the trigger, inside forward 60 (best 18.78R within 60 bars); asof 02-25 day before the trigger."
   },
   "q24": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "answer right under D-022 and 4% rule; old text said stop stays under the buy point and within 3% of buy, which clashes with D-008/D-005"
+   "fixed": false,
+   "notes": "LULU failure / row 8: level 327.76, bars show the earnings gap on 2023-03-29 (open 366.25) and the next open 365.00 = +11.4% (365/327.76); chart ends on the gap day and the story gives the next open; stop hit on 03-30 (low 356.5) inside forward 30; answer 'skip' true for the real example (-1.0R)."
   },
   "q25": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Numbers match d21. 'Neckline still holds' closes the other reading. Two Yes, two No.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "AAPL failure row 1: trigger 2026-08-28 (buy 320.29, stop 315.40), stop hit 2026-08-31 (low 312.80) = asof; 49 sessions later the stock is 10.96% over the buy (355.38 on 11-05), so the 11% is reachable in forward 50 (the database holds 49 bars). Neckline (about 298) holds. Yes answer true: it traded back over 320.28 on 09-01."
   },
   "q26": {
    "status": "pass",
@@ -4189,8 +4343,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c45, h06, h07, d27, d28 support it. 107.59 buy, 104.59 stop (3.00 risk), open 96.73 is about 3.6R, so past 2R holds. Wrong notes grounded.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "GILD failure row 4: trigger 2014-12-19 (low 104.64, entry 107.59 and stop 104.59 inside the bar and under the low), 12-22 open 96.73, low 85.95 on day 2 = -20.1% from the buy; asof = the buy day; entry/stop in the story; forward 60 covers it."
   },
   "q28": {
    "status": "pass",
@@ -4208,14 +4361,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "keep; 3R yardstick only"
+   "notes": "ICLR row 6: trigger 2015-01-14, asof 01-13 day before; 3R on day 21, +25% reached on day 44 and 13.3R best on day 46, all inside forward 60; 1.0x volume is the dossier's number; no numbers in the story."
   },
   "q31": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Story now states Yellow, so Pass is not defensible. c15/c28 and d38 (+0.30R vs +0.12R baseline) support it. Four distinct grades, no lone-Yes pattern.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "MUSA row 7, early-2022 correction (dossier), asof 2022-03-14 day before the trigger; 39.0R and the +40% run are reached by day 44 (inside forward 60). Fix: 'A leader's' is not in the dossier (no RS rating for MUSA), so 'A stock's'; the why still said 'The reading still applies' with no reading left in the story, and the wrong note said 'In Yellow' as if a reading had been given."
   },
   "q32": {
    "status": "pass",
@@ -4227,7 +4379,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "23.94 ok; wrongs verified."
+   "notes": "MGM row 2: buy-day chart (trigger 2004-09-14: open 22.35, low 22.35, high 23.16, so 22.71 traded and the stop 22.30 sits under the low); trade equals the question's 22.71 / 22.30; 3R 23.94 reached day 5; forward 20 covers it."
   },
   "q34": {
    "status": "pass",
@@ -4239,13 +4391,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c14 and e04; d40 is used only in a wrong note and it matches the quote. Key no longer repeats the stem."
+   "notes": "GOOGL failure (card c53): trigger 2026-09-18 (level 351.60; the bar opens 357.31 on a gap), asof 09-17 day before; window 300 shows the year-plus run; 0.8R stall and the 20% fall (gap to 286.88 on 10-29, low 276.92) land inside forward 35. Lower is right for this example."
   },
   "q36": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c05 and d31: 10.9% is past the 10% line, so version B fails. No second defensible answer."
+   "notes": "CSCO near-miss (deep break): trigger 2025-05-13 (high 62.24 over the 62.04 level; 05-12 high 61.85), asof 05-12 day before; stopped 05-14 (low 60.85) = 0R day 1, then the stock ran, all inside forward 30; 10.9% is the card's number; No answer true."
   },
   "q37": {
    "status": "pass",
@@ -4343,19 +4495,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "keep; 3R yardstick only"
+   "notes": "NFLX row 9: report after the close on 2025-04-17 (asof, last bar), 04-18 closed, next session 04-21 opens 98.44 under the 99.87 level and trades through (high 101.9); 3R on day 3 (04-24 high 110.1); forward 20 covers it."
   },
   "q53": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "173 ok (173.6); 174 up, 808 = account/fill, 1,736 slip. verified."
+   "notes": "TOL row 8: buy-day chart (2024-07-12: low 122.30, high 125.40, so 123.69 traded and stop 122.25 is under the low); trade equals the question's 123.69 / 122.25; 3R day 2; 22.5R best is within 60 bars (22.49R), covered by forward 60."
   },
   "q54": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c51, c29 and c06 support the key; the slide choice maps to the more-than-10% line. Murphy m03 flag is an OCR hyphen issue only."
+   "notes": "NFLX row 9: asof 2025-04-17 day before the trigger; 6.0% under the neckline (low 82.11 on 04-07), failed within two weeks, 3R in 3 days; NFLX is used twice (q52, q54); the answer 'A neckline break, bought back' is right for this chart. depends_on D-109 untouched."
   },
   "q55": {
    "status": "pass",
@@ -4380,13 +4532,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "rebuilt around primary day low; distractors clearly wrong; r01/r02 quotes verbatim"
+   "notes": "SPG row 3: buy-day chart (2005-11-11: low 68.81, high 70.31; buy 69.53 and stop 68.76 equal the dossier; 68.76 and 1.1% in the why; the trade is drawn only after the answer). Fix: 'recovering over seven weeks' dropped, as in q06 (the bars show about four weeks from the 10-13 low to the trigger)."
   },
   "q59": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "keep; buys at open through level"
+   "notes": "MCO row 5: trigger 2011-01-06 opens 27.98 over the 27.71 level (+0.97%, 1%), asof 01-05 day before (high 27.32 under the level), 6.6M volume vs 3.3M; 3R reached the same day (dossier: 1 day); forward 20 covers it."
   },
   "q60": {
    "status": "pass",
@@ -4404,7 +4556,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "re-keyed to day 3-7 push; day-1 sell is a clean wrong; buys through trigger"
+   "notes": "MGM row 2: buy-day chart; every story number is the dossier's (shoulders 22.77 / 22.70 = 0.3%, neckline 21.22, level 22.70, 1.9x volume, low 22.35 matches the bar); entry/stop 22.71 / 22.30 match the choice; 3R day 5; the 23.7R claim was dropped (bars give 23.65), correct. MGM used twice (q33, q62)."
   },
   "q63": {
    "status": "pass",

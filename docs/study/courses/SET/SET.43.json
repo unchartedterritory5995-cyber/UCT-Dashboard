@@ -935,6 +935,36 @@
    "source": "h2",
    "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
    "claim": "Owner: the course teaches the 9 and 20 EMA with the 50 and 200 SMA."
+  },
+  {
+   "id": "dCME",
+   "source": "d1",
+   "quote": "CME | 2004-09-17 | 20 EMA | 5 days, 1.72 ATR, 5.1% off | 0.57x | 28.38 | 27.93 | 1.6% | 09-20 | 09-22",
+   "claim": "CME, trigger 2004-09-17: 20 EMA, 5 days, 1.72 ATR, 5.1% off; buy 28.38, stop 27.93 (1.6%); 3R on 09-20, 5R on 09-22."
+  },
+  {
+   "id": "dQCOM",
+   "source": "d1",
+   "quote": "QCOM | 1999-10-04 | 20 EMA | 6 days, 1.17 ATR deep, 6.1% off the high | 0.52x | 23.62 | 22.79 | 3.5% | 10-08 | 10-11",
+   "claim": "QCOM, trigger 1999-10-04: 20 EMA, 6 days, 1.17 ATR deep, 6.1% off the high; buy 23.62, stop 22.79 (3.5%); 3R on 10-08, 5R on 10-11."
+  },
+  {
+   "id": "dWINGw",
+   "source": "d1",
+   "quote": "onto a 20 EMA that had been respected since November; 3R in two days.",
+   "claim": "WING 2024-01-09: a seven-day drift onto a 20 EMA respected since November; 3R in two days."
+  },
+  {
+   "id": "dTRGPw",
+   "source": "d1",
+   "quote": "four days of small bars on half the normal volume",
+   "claim": "TRGP 2014-03-28: four days of small bars on half the normal volume."
+  },
+  {
+   "id": "dCAT2",
+   "source": "d1",
+   "quote": "CAT | 2025-09-03 | 50 SMA | 6 days, 2.36 ATR, 5.7% off | 0.79x | 418.13 | 410.47 | 1.8% | 09-17 | 09-18",
+   "claim": "CAT, trigger 2025-09-03: buy 418.13, stop 410.47 (1.8%)."
   }
  ],
  "walkthroughs": [
@@ -1105,9 +1135,9 @@
    "key": "q04",
    "skill": "setup.ma_pullbacks",
    "rung": 1,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "map.market_order",
-   "q": "The hold day is done and price trades over its high. How do we buy?",
+   "q": "Price then trades over the hold day's high. How do we buy?",
    "choices": [
     "A market order, in regular hours",
     "A limit order at the hold day's high",
@@ -1115,11 +1145,12 @@
     "A market order at tomorrow's open"
    ],
    "answer": "A market order, in regular hours",
-   "why": "A market order, in regular hours. Entries are market orders, placed the moment the trigger trades. A limit order at the high can miss the move. An order placed after the close, or at tomorrow's open, is not the rule.",
+   "why": "A market order, in regular hours. Entries are market orders, placed the moment the trigger trades. A limit order at the high can miss the move. An order placed after the close, or at tomorrow's open, is not the rule. WING traded over the hold day's high the next day and reached 3R in two days.",
    "lesson_line": "The trigger trades, you buy at market, and the stop goes in right away.",
    "facts": [
     "c16",
-    "hE57"
+    "hE57",
+    "dWINGw"
    ],
    "wrong": {
     "A limit order at the hold day's high": "Entries are market orders. A limit order at the high can sit unfilled while the stock leaves.",
@@ -1136,7 +1167,14 @@
      "the buy trigger itself is held as D-003 and is not graded"
     ]
    },
-   "batch": "rulings"
+   "batch": "visuals-4",
+   "story": "The day before the trigger trades. The hold day is done.",
+   "chart": {
+    "sym": "WING",
+    "asof": "2024-01-08",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q05",
@@ -1208,7 +1246,7 @@
    "key": "q07",
    "skill": "setup.ma_pullbacks",
    "rung": 1,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "map.volume",
    "q": "On the card, what does a healthy pullback look like on volume?",
    "choices": [
@@ -1218,13 +1256,14 @@
     "Quiet: below the 50-day average"
    ],
    "answer": "Quiet: below the 50-day average",
-   "why": "Quiet. On our card, the average volume over the pullback days sits below the 50-day average. The touch day is not above 1.5 times it. Minervini's template also looks for low volume during pullbacks. Volume rising on the pullback is a B- cue. Quiet volume is one check, not a buy signal.",
+   "why": "Quiet. On our card, the average volume over the pullback days sits below the 50-day average. The touch day is not above 1.5 times it. Minervini's template also looks for low volume during pullbacks. TRGP's four days ran on about half the normal volume. Volume rising on the pullback is a B- cue. Quiet volume is one check, not a buy signal.",
    "lesson_line": "Quiet volume on the dip is the picture. Heavy volume under the line is not.",
    "facts": [
     "c13",
     "m3",
     "g6",
-    "c28"
+    "c28",
+    "dTRGPw"
    ],
    "wrong": {
     "Heavy: well above the 50-day average": "Heavy selling into the line is a warning, not a pullback.",
@@ -1240,7 +1279,14 @@
      "+2 proposed card criterion (map.volume); the research scan found quiet volume made little difference"
     ]
    },
-   "batch": "wave4"
+   "batch": "visuals-4",
+   "story": "The day before the trigger. A leader drifts four days down to a rising moving average.",
+   "chart": {
+    "sym": "TRGP",
+    "asof": "2014-03-27",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q08",
@@ -1501,7 +1547,7 @@
    "key": "q16",
    "skill": "setup.ma_pullbacks",
    "rung": 3,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "map.trim_1",
    "q": "Bought at 86.93 with the stop at 85.82. One R is the buy minus the stop. Where is 3R?",
    "answer": "$90.26",
@@ -1514,7 +1560,7 @@
     },
     "round": 2
    },
-   "why": "One R is the buy minus the stop: 86.93 minus 85.82. Add three of those to the buy of 86.93 to get 90.26. That is the 3R mark, a yardstick and not a fixed sale.",
+   "why": "One R is the buy minus the stop: 86.93 minus 85.82. Add three of those to the buy of 86.93 to get 90.26. That is the 3R mark, a yardstick and not a fixed sale. This trade reached 3R the next session.",
    "lesson_line": "3R is the buy plus three R. It is a yardstick, not a sell order.",
    "facts": [
     "r70",
@@ -1532,7 +1578,7 @@
      "the buy trigger behind the example is held as D-003"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-4",
    "choices": [
     "$89.15",
     "$91.37",
@@ -1543,6 +1589,17 @@
     "$89.15": "Added the three R to the stop, not to the buy.",
     "$88.04": "Added only one R.",
     "$91.37": "Counted four R instead of three."
+   },
+   "story": "Bought on the day price traded over the hold day's high.",
+   "chart": {
+    "sym": "MOH",
+    "asof": "2018-06-08",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 86.93,
+     "stop": 85.82
+    }
    }
   },
   {
@@ -1575,27 +1632,28 @@
    "key": "q18",
    "skill": "setup.ma_pullbacks",
    "rung": 3,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "map.stop_width",
-   "q": "Bought at 64.00 with the stop at 61.50. How far under the buy is the stop, in percent, to one decimal?",
-   "answer": "3.9%",
+   "q": "Bought at 23.62 with the stop at 22.79. How far under the buy is the stop, in percent, to one decimal?",
+   "answer": "3.5%",
    "calc": {
     "fn": "arith",
     "args": {
      "expr": "(a - b) / a * 100",
-     "a": 64.0,
-     "b": 61.5
+     "a": 23.62,
+     "b": 22.79
     },
     "round": 1
    },
-   "why": "The gap is 64.00 minus 61.50. Divide it by the buy of 64.00, not the stop, to get 3.9%. That is wider than the usual limit of about 3%.",
+   "why": "The gap is 23.62 minus 22.79. Divide it by the buy of 23.62, not the stop, to get 3.5%. That is a little wider than the usual limit of about 3%, so the size comes down.",
    "lesson_line": "Measure the stop in percent of the buy. Over about 3% is wider than we usually allow.",
    "facts": [
-    "hA13"
+    "hA13",
+    "dQCOM"
    ],
    "house": true,
    "suffix": "%",
-   "simple": "The stop is 3.9 percent under the buy, which is over our usual 3 percent.",
+   "simple": "The stop is 3.5 percent under the buy, which is a bit over our usual 3 percent.",
    "deeper": {
     "trap": "Divide the gap by the buy price, not by the stop. The 3% limit is measured against the buy."
    },
@@ -1607,17 +1665,28 @@
      "rests on the owner's rulebook (A13, about 3%)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-4",
    "choices": [
-    "4.1%",
-    "2.5%",
-    "39%",
-    "3.9%"
+    "3.6%",
+    "35%",
+    "0.83%",
+    "3.5%"
    ],
    "wrong": {
-    "4.1%": "Divided by the stop instead of the buy.",
-    "2.5%": "Read the dollar gap as a percent.",
-    "39%": "Slipped a decimal."
+    "3.6%": "Divided by the stop instead of the buy.",
+    "35%": "Slipped a decimal.",
+    "0.83%": "Read the dollar gap as a percent."
+   },
+   "story": "Bought on the day price traded over the hold day's high.",
+   "chart": {
+    "sym": "QCOM",
+    "asof": "1999-10-04",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 23.62,
+     "stop": 22.79
+    }
    }
   },
   {
@@ -1690,9 +1759,9 @@
    "key": "q21",
    "skill": "setup.ma_pullbacks",
    "rung": 3,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "map.trim_1",
-   "q": "A buy hits 3R on its first day. What does our plan say about selling?",
+   "q": "It hits 3R on its first day. What does our plan say about selling?",
    "choices": [
     "Sell a third now; 3R is the rule",
     "Sell half now and lock the gain",
@@ -1700,12 +1769,13 @@
     "Sell it all before the close"
    ],
    "answer": "Judge it; we rarely sell on day 1",
-   "why": "Judge it. The first sell is a judgment, not a fixed third at 3R. We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest.",
+   "why": "Judge it. The first sell is a judgment, not a fixed third at 3R. We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest. CME hit 3R the next session and reached 5R by day 3.",
    "lesson_line": "The first sell is a judgment. Rarely day 1, often day 3 or later.",
    "facts": [
     "r70",
     "r71",
-    "r72"
+    "r72",
+    "dCME"
    ],
    "wrong": {
     "Sell a third now; 3R is the rule": "3R is no fixed sell point. The first sell is a judgment.",
@@ -1724,7 +1794,18 @@
      "+2 rests on the owner's rulebook (settled) (B19: a third at 3R, breakeven 2R to 5R, default at the first trim)"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "visuals-4",
+   "story": "Bought as price traded over the hold day's high at 28.38, with the stop at 27.93.",
+   "chart": {
+    "sym": "CME",
+    "asof": "2004-09-17",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 28.38,
+     "stop": 27.93
+    }
+   }
   },
   {
    "key": "q22",
@@ -2791,7 +2872,7 @@
     "Keep full size; it is close enough": "Over about 3%, the size comes down so the account risk is unchanged."
    },
    "house": true,
-   "story": "YELP, 2013. A fast leader drifts four quiet days down to its fast average. You plan to buy at 31.80 with the stop at 30.67.",
+   "story": "A fast leader drifts four quiet days down to its fast average. You buy as price trades over the hold day's high, at 31.80, with the stop at 30.67.",
    "simple": "Cut the size, because a stop wider than 3 percent means fewer shares for the same account risk.",
    "deeper": {
     "trap": "The trap is tightening the stop to 3% so the full size fits. That is no longer the honest stop at the pullback low. Before the buy the chart sets the stop. After the buy it only moves up. The size does the adjusting."
@@ -2804,7 +2885,17 @@
      "fixed before"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "visuals-4",
+   "chart": {
+    "sym": "YELP",
+    "asof": "2013-06-26",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 31.8,
+     "stop": 30.67
+    }
+   }
   },
   {
    "key": "q49",
@@ -2863,7 +2954,7 @@
     "Yes, quiet volume is enough": "Quiet volume is a separate cue. The depth rule asks for a close at least 1 ATR under the highest high of the last 11 sessions."
    },
    "house": true,
-   "story": "MOH, 2018. Six days sideways on the lowest volume on the chart. The dip is 1.01 ATR deep.",
+   "story": "The day before the trigger. Six days sideways on very light volume. The dip is 1.01 ATR deep.",
    "simple": "Yes, because the rule needs a dip of at least 1 ATR, and 1.01 ATR just clears it.",
    "deeper": {
     "example": "MOH dipped 1.01 ATR, right at the 1 ATR edge. Other examples dipped deeper: YELP 1.42 ATR, BFAM 2.24, CAT 2.36. The rule is a minimum, so measure the dip. Do not judge it by eye."
@@ -2875,7 +2966,13 @@
      "the 1 ATR minimum is a proposed card number (map.depth)"
     ]
    },
-   "batch": "wave4"
+   "batch": "visuals-4",
+   "chart": {
+    "sym": "MOH",
+    "asof": "2018-06-07",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q51",
@@ -2949,7 +3046,7 @@
     "Buy, but with a wider stop": "A wider stop does not fix a line that keeps slicing. A third close under the line in the same pullback is a skip."
    },
    "house": true,
-   "story": "ADI, 2023. In an 8-session pullback the stock closed under the moving average it was testing three times.",
+   "story": "The day before the would-be buy. In an 8-session pullback the stock closed under the moving average it was testing three times.",
    "simple": "Skip it, because a third close under the line in one pullback means the stock keeps slicing the line.",
    "deeper": {
     "trap": "Count closes, not feelings. ADI closed under its line 3 times in an 8-session pullback. That is more than a pullback allows and fewer than the 5 closes a Remount needs. In between, the line was sliced, not held."
@@ -2962,7 +3059,13 @@
      "fixed before: the story no longer names the 20 EMA"
     ]
    },
-   "batch": "wave4"
+   "batch": "visuals-4",
+   "chart": {
+    "sym": "ADI",
+    "asof": "2023-04-17",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q54",
@@ -2992,7 +3095,7 @@
     "The volume on the pullback days": "That check passes here. The length is the one that fails."
    },
    "house": true,
-   "story": "META, 2026. A stock drifts 10 sessions from the swing high to its touch day. Every other check on the card passes.",
+   "story": "The day before the would-be buy. A stock drifts 10 sessions from the swing high to its touch day. Every other check on the card passes.",
    "simple": "The pullback took 10 sessions but this card allows 2 to 8. A 10-session drift is judged on the 20 EMA Pullback card.",
    "deeper": {
     "trap": "A near-miss is not a rejection of the stock. The same 10-session drift that fails this card sits inside the 20 EMA Pullback card's 2 to 15 window. Ask which card it belongs to, not whether to throw it away."
@@ -3004,7 +3107,13 @@
      "+2 rests on a proposed card number (2 to 8 sessions) and an unreviewed scan example"
     ]
    },
-   "batch": "wave4"
+   "batch": "visuals-4",
+   "chart": {
+    "sym": "META",
+    "asof": "2026-10-08",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q55",
@@ -3079,7 +3188,7 @@
     "It changes nothing; volume is ignored": "Volume is a grade cue on our card. Heavy selling into the line lowers the grade."
    },
    "house": true,
-   "story": "TSM, 2025. A stock sits on its 50-day, then closes under it on 4.5 times its 50-day volume.",
+   "story": "The day before the would-be buy. A stock sits on its 50-day, then closes under it on 4.5 times its 50-day volume.",
    "simple": "Heavy volume on a close under the line is a distribution warning. It lowers the grade but does not void the setup.",
    "deeper": {
     "trap": "Trap: heavy volume feels like a veto. It is a distribution day to be mindful of, so the grade drops. A pullback also allows at most two closes under the line, the second reclaimed at once. The close is what still needs repair, not the volume."
@@ -3092,7 +3201,13 @@
      "the TSM example comes from the scan's not-charted list, owner to confirm"
     ]
    },
-   "batch": "heavy"
+   "batch": "visuals-4",
+   "chart": {
+    "sym": "TSM",
+    "asof": "2025-02-04",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q57",
@@ -3168,7 +3283,7 @@
     "A 50-day buy is not allowed here": "This card buys the 50-day when the low reaches it with the 200-day far below."
    },
    "house": true,
-   "story": "GILD, 2014. A 50-day pullback passed every check on the card. You bought at 109.07 with the stop at 106.28. The low broke the 50-day the same day and the stop was hit on day 2.",
+   "story": "A 50-day pullback that passed every check on the card. You buy at 109.07 with the stop at 106.28. The stop is hit on day 2, and the low breaks the 50-day that same day.",
    "simple": "Every rule was followed and the line gave way, so this stop-out is a normal cost.",
    "deeper": {
     "trap": "Judging the rule by one outcome. A stop-out does not show the setup was wrong, and a win does not show it was right. Judge the process: setup checked, stop in place, size from the stop. In our scan the edge was roughly a one-in-four chance of 3R, so stops are a normal part of this setup."
@@ -3180,7 +3295,17 @@
      "+2 rests on the owner's rulebook (settled) (A4, the stop is the exit)"
     ]
    },
-   "batch": "wave4"
+   "batch": "visuals-4",
+   "chart": {
+    "sym": "GILD",
+    "asof": "2014-11-10",
+    "window": 120,
+    "forward": 60,
+    "trade": {
+     "entry": 109.07,
+     "stop": 106.28
+    }
+   }
   },
   {
    "key": "q59",
@@ -3210,7 +3335,7 @@
     "No cap if each try triggers anew": "There is a cap: at most 3 tries a week and 6 a month on the same stock."
    },
    "house": true,
-   "story": "PLTR, 2025. Bought at 127.78 on a pullback, stop 124.27, hit on day 1. It was a one-day shakeout and it climbed later without us.",
+   "story": "Bought on a pullback at 127.78 with the stop at 124.27. The stop is hit on day 1, a one-day shakeout. The stock climbs later without us.",
    "simple": "At most 3 tries a week and 6 a month on one stock. Each one is a new trade.",
    "deeper": {
     "trap": "Hindsight says PLTR came back, so the shakeout looks like a gift. On the day, the stop was hit. The plan treats that as new information: the next buy needs its own trigger, its own stop and every rule again."
@@ -3222,7 +3347,17 @@
      "+2 rests on the owner's rulebook (settled) (B21 re-entry, E56 tries)"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "visuals-4",
+   "chart": {
+    "sym": "PLTR",
+    "asof": "2025-05-20",
+    "window": 120,
+    "forward": 30,
+    "trade": {
+     "entry": 127.78,
+     "stop": 124.27
+    }
+   }
   },
   {
    "key": "q60",
@@ -3295,7 +3430,7 @@
     "A correction; any dip over 3 ATR is one": "The card calls a broken leader's first touch of the 50 a correction. Depth alone is not the rule."
    },
    "house": true,
-   "story": "TSLA, 2024. A former leader is 20.6% off its high, with a flat 50 SMA. The pullback is 3.6 ATR deep and it touches the 50-day for the first time.",
+   "story": "The day before the trigger. A former leader is 20.6% off its high, with a flat 50 SMA. The pullback is 3.6 ATR deep and it touches the 50-day for the first time.",
    "simple": "It is a correction, because a broken leader's first touch of a flat 50-day is not a pullback.",
    "deeper": {
     "trap": "TSLA was 20.6% off its high, inside the 25% limit, so it passed that check. The trap is stopping there. Its 50 SMA was flat, the 200 was rising into it, and the dip was 3.6 ATR deep. A broken leader's first touch of the 50 is a correction."
@@ -3308,7 +3443,13 @@
      "fixed before: the story now says a former leader"
     ]
    },
-   "batch": "wave4"
+   "batch": "visuals-4",
+   "chart": {
+    "sym": "TSLA",
+    "asof": "2024-01-05",
+    "window": 120,
+    "forward": 40
+   }
   },
   {
    "key": "q62",
@@ -3383,7 +3524,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "map.hold_day",
-   "q": "Hidden ticker, the day before the buy trades. Take this pullback or pass?",
+   "q": "The day before the buy trades. Take this pullback or pass?",
    "choices": [
     "Take it; a calm dip held its line",
     "Take it; the stock is just on the line",
@@ -3434,7 +3575,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "map.near_high",
-   "q": "Hidden ticker, the day before a would-be buy. Is this a leader's pullback? Take it or pass.",
+   "q": "The day before a would-be buy. Is this a leader's pullback? Take it or pass.",
    "choices": [
     "Take it; the dip hit the line",
     "Pass; it sits far under its high",
@@ -3993,27 +4134,28 @@
    "key": "q83",
    "skill": "setup.ma_pullbacks",
    "rung": 4,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "map.breakeven",
-   "q": "Bought at 50.00 with the stop at 48.00. At what price is 2R, where the breakeven window opens?",
-   "answer": "$54.00",
+   "q": "Bought at 418.13 with the stop at 410.47. At what price is 2R, where the breakeven window opens?",
+   "answer": "$433.45",
    "calc": {
     "fn": "arith",
     "args": {
      "expr": "a + 2 * (a - b)",
-     "a": 50.0,
-     "b": 48.0
+     "a": 418.13,
+     "b": 410.47
     },
     "round": 2
    },
-   "why": "One R is the buy minus the stop: 50.00 minus 48.00. Add two of those to the buy of 50.00 to get 54.00. The breakeven window runs from 2R to 5R, and by default the stop moves at the first trim. The window is a guide, not one exact price.",
+   "why": "One R is the buy minus the stop: 418.13 minus 410.47. Add two of those to the buy of 418.13 to get 433.45. The breakeven window runs from 2R to 5R, and by default the stop moves at the first trim. The window is a guide, not one exact price.",
    "lesson_line": "Know your 2R before the open. The breakeven window starts there.",
    "facts": [
-    "c23"
+    "c23",
+    "dCAT2"
    ],
    "house": true,
    "prefix": "$",
-   "simple": "2R is 54.00, which is the buy of 50.00 plus two times the gap down to the stop.",
+   "simple": "2R is 433.45, which is the buy of 418.13 plus two times the gap down to the stop.",
    "tier": "core",
    "risk": {
     "score": 4,
@@ -4022,17 +4164,28 @@
      "rests on the owner's rulebook (B19, breakeven 2R to 5R)"
     ]
    },
-   "batch": "rank",
+   "batch": "visuals-4",
    "choices": [
-    "$54.00",
-    "$52.00",
-    "$46.00",
-    "$48.00"
+    "$433.45",
+    "$425.79",
+    "$402.81",
+    "$410.47"
    ],
    "wrong": {
-    "$52.00": "Added the two R to the stop, not to the buy.",
-    "$46.00": "Went down from the buy instead of up.",
-    "$48.00": "Gave the stop price, not the level two R up."
+    "$425.79": "Added only one R.",
+    "$402.81": "Went down from the buy instead of up.",
+    "$410.47": "Gave the stop price, not the level two R up."
+   },
+   "story": "Bought on the day price traded over the hold day's high.",
+   "chart": {
+    "sym": "CAT",
+    "asof": "2025-09-03",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 418.13,
+     "stop": 410.47
+    }
    }
   },
   {
@@ -4311,7 +4464,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with its rulings"
+   "notes": "WING trigger 2024-01-09 (hits.json t=hd+1); asof 01-08 is the day before; 3R in two days matches the dossier and dWINGw quote; no ticker/number in q, story, choices; answer unchanged."
   },
   "q05": {
    "status": "pass",
@@ -4328,8 +4481,8 @@
   "q07": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Quiet below the 50-day average: c13 verbatim, m3, g6 and c28 back the wrong notes. Rising-volume choice is a B- cue per g6, so no second answer. Proposed card cue, owner flag already raised."
+   "fixed": true,
+   "notes": "Chart and numbers fine (TRGP 03-28, 4 days, 0.52x, half the normal volume; asof 03-27). But the story names the 20 EMA while q34 and the lesson teach that the 20 EMA has its own card (this card = 9 EMA and 50-day); the unchanged question is a volume reading, so the line is not needed. Reworded to a neutral rising moving average."
   },
   "q08": {
    "status": "pass",
@@ -4383,7 +4536,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
+   "notes": "MOH 2018-06-08 buy 86.93 stop 85.82 (1.3%) match dossier and hits.json; 3R = 90.26 correct; 3R next session (days_to_3r 1); entry and stop are in the question; asof = buy day."
   },
   "q17": {
    "status": "cut",
@@ -4395,7 +4548,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
+   "notes": "QCOM 1999-10-04 buy 23.62 stop 22.79, 3.5% in dossier; (23.62-22.79)/23.62 = 3.51%, divide-by-stop gives 3.64 -> 3.6%; distractors sound; trade stop 3.5% < 6%; asof = buy day."
   },
   "q19": {
    "status": "pass",
@@ -4414,7 +4567,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key (judge it, rarely day 1) agrees with D-013; he->we done; r70-r72 quotes exact."
+   "notes": "CME 2004-09-17 buy 28.38 stop 27.93 (1.6%); 3R 09-20 next session, 5R 09-22 = day 3 (buy day = day 0, same count as GILD day 2); forward 20 covers it; answer still right."
   },
   "q22": {
    "status": "pass",
@@ -4584,7 +4737,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Real YELP 2013 trade; line name dropped so the measured 3.6% stop is not tied to a renamed line. Key (cut the size, same risk) still agrees with D-005 (size comes from the stop; never tighten it to fit)."
+   "notes": "YELP 2013-06-26 buy 31.80 stop 30.67 = 3.55% -> 3.6% as in dossier; four quiet days, 0.60x; second use of YELP (q64 first); uses 'fast average', not a named line; asof = buy day; stop < 6%."
   },
   "q49": {
    "status": "cut",
@@ -4596,8 +4749,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold-decided from the cited quotes; key matches, no second defensible answer found.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "MOH: 6 days, 1.01 ATR, 0.40x lowest volume per dossier and hits.json; asof 06-07 = day before the 06-08 trigger; second use of MOH; no line named."
   },
   "q51": {
    "status": "cut",
@@ -4608,14 +4760,14 @@
   "q53": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Cold-decided from the cited quotes; key matches, no second defensible answer found."
+   "fixed": true,
+   "notes": "Example, date (hold 04-17, buy 04-18) and 3 closes under the line are right. But the upgrade put '20 EMA' back into the story; the lesson's earlier fix (risk note: the story no longer names the 20 EMA) removed it on purpose because the lesson teaches the 20 EMA has its own card (q34). Restored the original neutral wording ('the moving average it was testing'), keeping the chart."
   },
   "q54": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave4; awaiting cold re-read"
+   "notes": "META near-miss: hold 2026-10-08, would-be buy 10-09 (hits near_misses hold_date); asof 10-08 right; 10 sessions vs 2-8 per dossier; the 20 EMA is not named in the story; bars through 2026-11 exist."
   },
   "q55": {
    "status": "cut",
@@ -4626,8 +4778,8 @@
   "q56": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Kept: already teaches that a heavy-volume down day lowers the grade, no veto (HEAVY-DOWN); hv1/hv2 quotes exact."
+   "fixed": true,
+   "notes": "CATCH: the dossier's 'TSM 2025-02-05' is the would-be BUY date (near_hits.json: date 2025-02-05, hold_date 2025-02-04, line 50 SMA, pb_days 7, closes_under 2); the 4.5x close sits earlier inside the pullback. asof 2025-02-05 would show the buy/trigger day itself and 'the last day shown' was not the heavy close. Re-dated asof to the hold day 2025-02-04 (day before the would-be buy) and reworded the story's first sentence. Rest of the story stays true."
   },
   "q57": {
    "status": "cut",
@@ -4639,13 +4791,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Uses 3R as measure; fine."
+   "notes": "GILD 2014-11-10 buy 109.07 stop 106.28 (2.6%); stopped 11-12 day 2 with the low breaking the 50-day same day; never 3R in 60 sessions; forward 60 is the max and covers it; asof = buy day."
   },
   "q59": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Real PLTR trade; '10-day' dropped from the story rather than renamed; try cap unaffected by the rulings."
+   "notes": "PLTR 2025-05-20 buy 127.78 stop 124.27 (2.7%); stopped day 1; 3R 06-11 = day 15 and 5R 06-25 = day 24 (counted with the Memorial Day and Juneteenth holidays), forward 30 reaches both; text says 'later' only. The question is a rule recall (tries cap), the chart illustrates the story; acceptable."
   },
   "q60": {
    "status": "pass",
@@ -4657,7 +4809,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold-decided from the cited quotes; key matches, no second defensible answer found."
+   "notes": "TSLA failure 2024-01-08 (hits t=3404, hold 01-05 Friday); 20.6% off high, flat 50 SMA, 3.57 -> 3.6 ATR match card; asof 2024-01-05 right; no outcome named."
   },
   "q62": {
    "status": "cut",
@@ -4789,8 +4941,8 @@
   "q83": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "R math right (2R = 54.00). Breakeven window 2R to 5R and at the first sell agree with D-013. Fact hB19 carries the superseded 'hard rule is a third at 3R' and c23 already grounds the breakeven window; dropped hB19."
+   "fixed": false,
+   "notes": "CAT 2025-09-03 buy 418.13 stop 410.47 (1.8%); 2R = 418.13 + 15.32 = 433.45; distractors 425.79 (1R), 402.81 (down 2R), 410.47 (stop) all check; asof = buy day."
   },
   "q84": {
    "status": "cut",

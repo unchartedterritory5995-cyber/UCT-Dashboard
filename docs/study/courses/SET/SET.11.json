@@ -1181,7 +1181,7 @@
     ]
    },
    "batch": "visuals-1",
-   "story": "Hidden ticker, the day before the launch.",
+   "story": "The day before the launch.",
    "chart": {
     "sym": "RMD",
     "asof": "2006-10-23",
@@ -1195,7 +1195,7 @@
    "rung": 1,
    "format": "tf",
    "criterion": "lp.stop",
-   "q": "Hidden ticker, bought through its trigger on the launch day. The stop goes a few cents under the day's low.",
+   "q": "Bought through its trigger on the launch day. The stop goes a few cents under the day's low.",
    "answer": "True",
    "why": "True. We buy as price trades through the trigger during the day, not at the close. The stop goes a few cents under the day's low. The size comes from that stop.",
    "lesson_line": "Stop first: a few cents under the launch day's low.",
@@ -1395,7 +1395,7 @@
     ]
    },
    "batch": "visuals-1",
-   "story": "Hidden ticker, the day before the launch.",
+   "story": "The day before the launch.",
    "chart": {
     "sym": "MSCI",
     "asof": "2017-01-03",
@@ -1514,7 +1514,7 @@
     ]
    },
    "batch": "visuals-1",
-   "story": "Hidden ticker, the launch day. You buy as price trades through the trigger.",
+   "story": "The launch day. You buy as price trades through the trigger.",
    "chart": {
     "sym": "CMC",
     "asof": "2016-11-04",
@@ -1814,7 +1814,7 @@
     "$37.26": "That counts 3R up from the stop, not from the fill.",
     "$39.26": "That adds four R. Three R is three gaps, not four."
    },
-   "story": "Hidden ticker, bought on the launch day at 35.26 with the stop at 34.26.",
+   "story": "Bought on the launch day at 35.26 with the stop at 34.26.",
    "chart": {
     "sym": "KBH",
     "asof": "2004-09-01",
@@ -2221,7 +2221,7 @@
     "4.37%": "That is the dollar amount read as a percent. Divide it first.",
     "35.6%": "That slips a decimal place."
    },
-   "story": "Hidden ticker, bought on the launch day at 122.69 with the stop at 118.32.",
+   "story": "Bought on the launch day at 122.69 with the stop at 118.32.",
    "chart": {
     "sym": "DDOG",
     "asof": "2024-10-04",
@@ -2499,7 +2499,7 @@
     "Nothing changed; risk is risk": "Risk is the same only because the size changed. That is the whole point of sizing from the stop.",
     "The stop: wider means a bigger loss": "Not so. Size comes from the stop, so a wider stop means fewer shares and the same risk. The loss stayed at 1R."
    },
-   "story": "Hidden ticker, a 22% correction, a tight pad, a +4.6% launch on 2.36x volume. You bought on the launch day at 76.16 with the stop at 72.43, 4.9% under the buy. Two sessions later the stop traded.",
+   "story": "A 22% correction, a tight pad, a +4.6% launch on 2.36x volume. You bought on the launch day at 76.16 with the stop at 72.43, 4.9% under the buy. Two sessions later the stop traded.",
    "simple": "A wider stop means fewer shares, so the loss stayed at 1R when the stop traded.",
    "tier": "extended",
    "risk": {
@@ -2807,7 +2807,7 @@
     "1,476 shares": "That risks ten times the plan. A decimal slip.",
     "400 shares": "That is the risk dollars read as shares. Divide by the risk per share."
    },
-   "story": "Hidden ticker, bought on the launch day at 89.14 with the stop at 86.43. The account is 40,000 and the risk is 1%. Volume is no limit.",
+   "story": "Bought on the launch day at 89.14 with the stop at 86.43. The account is 40,000 and the risk is 1%. Volume is no limit.",
    "chart": {
     "sym": "BABA",
     "asof": "2025-01-24",
@@ -3067,7 +3067,7 @@
     "Yes; above the 200-day is enough": "Above the 200-day is the context for every long. It does not make a pullback a pad.",
     "No; a pad needs a 20% fall": "20% or deeper is the A+ cue. The gate is a correction of 15% or more, and 11.2% is under both."
    },
-   "story": "Hidden ticker. Over a rising 200-day, the lowest close of the last 60 sessions is 11.2% under the prior 60-session high. The averages pinch and a strong day closes above them.",
+   "story": "Over a rising 200-day, the lowest close of the last 60 sessions is 11.2% under the prior 60-session high. The averages pinch and a strong day closes above them.",
    "simple": "No, because the fall was only 11.2% and a launchpad needs a correction of at least 15% first.",
    "deeper": {
     "example": "The tell is the order of events. A pad is a rest after a fall. A pullback is a dip inside a rising trend. This one fell 11.2% over a rising 200-day, so it was a moving-average pullback, not a pad, even with the averages pinched."
@@ -3117,7 +3117,7 @@
     "Yes; it cleared the averages": "It cleared loose averages under a falling 200-day. That is a rally bar, not a launch.",
     "No; a 4.8% bar is too big": "A big bar is not a flaw: the push needs only 2% or more. The miss here is the loose averages."
    },
-   "story": "Hidden ticker. The three averages span 5.77% of price the day before. A +4.8% bar on 2.78x volume breaks through them under a falling 200-day.",
+   "story": "The three averages span 5.77% of price the day before. A +4.8% bar on 2.78x volume breaks through them under a falling 200-day.",
    "simple": "No, because the averages were 5.77% apart and a pad needs them within 3%, so the big bar was just a rally.",
    "deeper": {
     "trap": "A big bar on big volume draws the eye. But the real test comes the day before: are the averages within 3% of each other? Here they were 5.77% apart. Skipping that test is how a rally bar gets called a launch."
@@ -3143,7 +3143,7 @@
    "rung": 7,
    "format": "tf",
    "criterion": "lp.not_above_bundle",
-   "q": "Hidden ticker: price rode on top of the three averages before this bar. It is still a launchpad if they are tight.",
+   "q": "Price rode on top of the three averages before this bar. It is still a launchpad if they are tight.",
    "answer": "False",
    "why": "False. Price riding on top of the bundle is a pullback breakout, not a launchpad. Tight averages do not change that.",
    "lesson_line": "Tight averages with price on top is a pullback. The pad has price under them.",
@@ -3203,7 +3203,7 @@
     "The stop was too tight; widen it": "A few cents under the launch low is the rule, and a stop only moves up. The stop did its job: 1R, none worse.",
     "The 16% correction was too shallow": "The rule needs a correction of 15% or more, so 16% passes. 20% or deeper is the A+ cue, which grades the pad but does not gate it."
    },
-   "story": "Hidden ticker. A 16% correction, a 0.83% bundle, a +4.9% launch on 2.17x volume in a slow large cap. One flat day, then two red days back into the bundle took the stop.",
+   "story": "A 16% correction, a 0.83% bundle, a +4.9% launch on 2.17x volume in a slow large cap. One flat day, then two red days back into the bundle took the stop.",
    "simple": "The launch bar looked fine, but the stock was a slow large cap, and the stop kept the loss at 1R.",
    "deeper": {
     "trap": "The bar cannot tell you the stock. The four failures had launch bars of +4.6% to +5.6% on 1.8x to 2.6x volume, closing in the top third. A strong bar did not keep a slow large cap from failing. So read the stock first: a leader or a stock in a strong group, not a slow bank."
@@ -3273,7 +3273,7 @@
     "2.7R": "That is the risk per share read as R. Divide the gain by it.",
     "4.0R": "Took one R off the gain before dividing."
    },
-   "story": "Hidden ticker, bought on the launch day at 89.14 with the stop at 86.43. Later the stock trades to 102.69.",
+   "story": "Bought on the launch day at 89.14 with the stop at 86.43. Later the stock trades to 102.69.",
    "chart": {
     "sym": "BABA",
     "asof": "2025-01-24",
@@ -3372,7 +3372,7 @@
     "Yes; sell half of it": "There is no half rule here. Either it is under 1R and sold, or it stays.",
     "No; any gain exempts it": "The line is 1R, not any profit. A trade still under 1R after 10 trading days is sold, even if it is slightly up."
    },
-   "story": "Hidden ticker, bought on the launch day at 122.69 with the stop at 118.32. The stock dangles near its short averages for four weeks. By day ten it has traded over 1R but not 3R.",
+   "story": "Bought on the launch day at 122.69 with the stop at 118.32. The stock dangles near its short averages for four weeks. By day ten it has traded over 1R but not 3R.",
    "simple": "No, because the time stop only sells a trade still under 1R after ten days, and this one was over.",
    "deeper": {
     "example": "DDOG, launch 2024-10-04: bought 122.69, stop 118.32. It dangled near its short averages for four weeks. 3R took 33 sessions, yet it was over 1R inside 10 days. It ran to 10.8R."
@@ -3625,7 +3625,7 @@
     "Limit below price; day-low stop; day 3": "Entries are market orders as price trades through the trigger, so a limit below the market is not the plan.",
     "At the close; day-low stop; day 3": "We never buy at the close. The buy comes as price trades through the trigger during the day."
    },
-   "story": "Hidden ticker: weeks of closes under the bundle after a big fall. On the launch day it is up 3.6% and closes above all four.",
+   "story": "Weeks of closes under the bundle after a big fall. On the launch day it is up 3.6% and closes above all four.",
    "simple": "Buy as price trades through the trigger, put the stop a few cents under the day's low, and sell no earlier than day 3.",
    "deeper": {
     "trap": "The trap is the entry and the stop. Buying at the close is never our way, and a stop far under the bundle or the base sits outside what we accept. Sizing from it gives a tiny position or a stop pulled in to fit. The primary stop is a few cents under the day's low."
@@ -3653,7 +3653,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "lp.inv_pullback_breakout",
-   "q": "Hidden ticker, the day before a possible launch. Is this a launchpad to watch, or a pass?",
+   "q": "The day before a possible launch. Is this a launchpad to watch, or a pass?",
    "choices": [
     "Watch it; weeks under the bundle",
     "Pass; it rode on top of the averages",
@@ -3705,7 +3705,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "lp.launch_above_all",
-   "q": "Hidden ticker, up 4.9% on 1.25x volume. Is it the launch? Take it or pass.",
+   "q": "Up 4.9% on 1.25x volume. Is it the launch? Take it or pass.",
    "choices": [
     "Pass; still under the 200-day",
     "Take it; it cleared the bundle",

@@ -1239,7 +1239,7 @@
    "rung": 1,
    "format": "mcq",
    "criterion": "qk.breakout_higher_lows",
-   "q": "What shape does the base take before a Qullamaggie breakout?",
+   "q": "The day before a breakout. What shape did this base take?",
    "choices": [
     "Sideways, higher lows, tight range",
     "Sideways, lower lows, widening range",
@@ -1258,7 +1258,7 @@
    "wrong": {
     "Sideways, lower lows, widening range": "The card needs at least two rising swing lows, and a range that tightens, not one that widens.",
     "Sideways, flat lows, wide swings": "Kullamagi wants higher lows and a tightening range. Flat lows with wide swings are neither.",
-    "Drifting down through the 20-day": "The base surfs the rising 10- and 20-day, and closes hold above the rising 20-day."
+    "Drifting down through the 20-day": "The base holds above the rising 20-day, and closes stay above it."
    },
    "house": true,
    "simple": "The base is a calm sideways rest where the lows keep rising and the daily range gets tighter.",
@@ -1269,7 +1269,13 @@
      "Two agreeing facts: Kullamagi's page and UCT's card"
     ]
    },
-   "batch": "wave4"
+   "batch": "visuals-4",
+   "chart": {
+    "sym": "BKNG",
+    "asof": "2010-09-07",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q02",
@@ -1708,7 +1714,7 @@
      "rests on the owner's rulebook"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-4",
    "choices": [
     "$166.87",
     "$172.15",
@@ -1719,6 +1725,16 @@
     "$166.87": "Added the three R to the stop, not to the buy.",
     "$164.23": "Added only one R.",
     "$172.15": "Counted four R instead of three."
+   },
+   "chart": {
+    "sym": "HWM",
+    "asof": "2025-05-15",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 161.59,
+     "stop": 158.95
+    }
    }
   },
   {
@@ -2462,11 +2478,11 @@
     "Yes, and it alone makes it an A+"
    ],
    "answer": "Yes; inside the ADR and within 3%",
-   "why": "Yes. The day's low well inside the ADR and within 3% is an A+ cue. HWM's stop was 1.6% under a 2.9% ADR, so it fits both tests. It is one cue, not the whole grade: grading a setup is discretionary and hard to define.",
+   "why": "Yes. The day's low well inside the ADR and within 3% is an A+ cue. CPRI's stop was 1.7% under a 5.6% ADR, so it fits both tests. It is one cue, not the whole grade: grading a setup is discretionary and hard to define.",
    "lesson_line": "A stop well inside the ADR and under 3% is a good sign.",
    "facts": [
     "g3",
-    "dHWM",
+    "dCPRI",
     "hA13",
     "hE50"
    ],
@@ -2476,8 +2492,8 @@
     "Yes, and it alone makes it an A+": "It is one A+ cue, not the whole grade. Grading a setup is discretionary and hard to define."
    },
    "house": true,
-   "story": "HWM, 2025. The stop sits 1.6% under the entry and the stock's ADR is 2.9%.",
-   "simple": "Yes, a stop well inside the ADR and within 3% is an A+ cue, and 1.6% fits both.",
+   "story": "You buy at 38.01 with the stop at 37.37. That stop sits 1.7% under the entry, and the stock's ADR is 5.6%.",
+   "simple": "Yes, a stop well inside the ADR and within 3% is an A+ cue, and 1.7% fits both.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2485,7 +2501,17 @@
      "rests on the owner's rulebook (A13, E50)"
     ]
    },
-   "batch": "wave4"
+   "batch": "visuals-4",
+   "chart": {
+    "sym": "CPRI",
+    "asof": "2020-12-03",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 38.01,
+     "stop": 37.37
+    }
+   }
   },
   {
    "key": "q39",
@@ -2580,7 +2606,7 @@
     "Yes; a big run excuses a short rest"
    ],
    "answer": "Yes; it is the shortest rest allowed",
-   "why": "Yes. The base runs 10 to 40 sessions, and CRSP's 10 sessions is the shortest allowed. Its 14% depth is inside the 25% cap, and the 47% run came first. Volume does not decide it, since the card has no volume rule. 3R came in 1 day after the break on 3.1x volume.",
+   "why": "Yes. The base runs 10 to 40 sessions, and CRSP's 10 sessions is the shortest allowed. Its 14% depth is inside the 25% cap, and the 47% run came first. Volume does not decide it, since the card has no volume rule. The break came on 3.1x volume.",
    "lesson_line": "Ten sessions is the shortest base that counts.",
    "facts": [
     "dCRSPw",
@@ -2598,7 +2624,7 @@
     "Yes; a big run excuses a short rest": "The rest length is its own rule, 10 to 40 sessions. The size of the run does not change it."
    },
    "house": true,
-   "story": "CRSP, 2019. After a 47% run, the stock rests 10 sessions in a 14% band, then breaks out on 3.1x volume.",
+   "story": "The day before the break. After a 47% run, the stock rests 10 sessions in a 14% band, then breaks out on 3.1x volume.",
    "simple": "Yes, 10 sessions is the shortest rest allowed, and CRSP's 14% depth is well inside the 25% cap.",
    "deeper": {
     "example": "CRSP rested 10 sessions in a 14% band and broke out on 3.1x volume. CPRI broke out on 0.8x volume, and ISRG on 0.7x, and both still worked. That is why the card makes volume a grade, not a rule."
@@ -2611,7 +2637,13 @@
      "Session and depth limits are the card's proposed numbers"
     ]
    },
-   "batch": "wave4"
+   "batch": "visuals-4",
+   "chart": {
+    "sym": "CRSP",
+    "asof": "2019-11-11",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q44",
@@ -2642,7 +2674,7 @@
     "Yes; a 71% run excuses any depth": "The cap is 25% or less however big the run. A bigger run does not excuse a deeper base."
    },
    "house": true,
-   "story": "AMD, 2000. A 71% run, then a 37-session shelf 22% deep, surfing the rising 10- and 20-day. The stock breaks out on 1.9x volume.",
+   "story": "The day before the break. A 71% run, then a 37-session shelf 22% deep. The stock breaks out on 1.9x volume.",
    "simple": "22% is under the 25% cap, so the base passes, though it is not the 15% A+ depth.",
    "deeper": {
     "trap": "Two caps apply: 25% or less, and no more than half of the prior move. AMD's 22% passes both, since half of its 71% run is more than 22%. Passing the cap is not the same as the A+ depth, which needs 15% or less."
@@ -2655,7 +2687,13 @@
      "Example read from the research scan"
     ]
    },
-   "batch": "wave4"
+   "batch": "visuals-4",
+   "chart": {
+    "sym": "AMD",
+    "asof": "2000-01-05",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q49",
@@ -2689,7 +2727,7 @@
     "Yes; you should have trimmed at 2R": "No rule sells at 2R. The first sell is a judgment, not a fixed third at 3R."
    },
    "house": true,
-   "story": "NVDA, 2024. A 23-session base after a 32% run breaks out, and the stock is far along its yearly advance. You buy at 144.43 with the stop at 141.91. It reaches 2.12R, then is stopped on day 7.",
+   "story": "A 23-session base after a 32% run breaks out, and the stock is far along its yearly advance. You buy at 144.43 with the stop at 141.91. It reaches 2.12R, then is stopped on day 7.",
    "simple": "No, because it was a late base and the stop did its job, so no rule was broken.",
    "deeper": {
     "counter": "Selling earlier looks smart in hindsight. NVDA passed 2R, but no rule sells at 2R. The first sell is a judgment. The hard rule that mattered was the stop, and it was followed."
@@ -2703,7 +2741,17 @@
      "a number-heavy walk"
     ]
    },
-   "batch": "rulings2"
+   "batch": "visuals-4",
+   "chart": {
+    "sym": "NVDA",
+    "asof": "2024-11-06",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 144.43,
+     "stop": 141.91
+    }
+   }
   },
   {
    "key": "q50",
@@ -2735,7 +2783,7 @@
     "Let a gap's first 30 minutes decide": "That rule manages a gap after you own the stock. It does not keep you out of the buy."
    },
    "house": true,
-   "story": "AMZN, 2020 (prices split-adjusted). A base breaks out. You buy at 123.06. The report comes that evening and the next day gaps below your 119.75 stop.",
+   "story": "Prices are split-adjusted. A base breaks out. You buy at 123.06 with the stop at 119.75. The report comes that evening and the next day gaps below your stop.",
    "simple": "Our rule bars new buys in the 3 sessions before a report, and this buy came the day of one.",
    "deeper": {
     "trap": "This was not a normal stop-out. The next day gapped to a low of 112.91, below the 119.75 stop, and the trade never traded above the entry. Here the gap went through the stop, so check the report date before you look at the chart."
@@ -2747,7 +2795,17 @@
      "rests on the owner's rulebook"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "visuals-4",
+   "chart": {
+    "sym": "AMZN",
+    "asof": "2020-04-30",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 123.06,
+     "stop": 119.75
+    }
+   }
   },
   {
    "key": "q51",
@@ -2780,7 +2838,7 @@
     "Too early to tell; wait for a new day": "The test is the close, and it already failed: the close was at the low of its range, back inside the base."
    },
    "house": true,
-   "story": "QCOM, 2021. A 26-session base breaks out and you buy at 188.78. The day closes at the low of its range, back inside the base.",
+   "story": "A 26-session base breaks out and you buy at 188.78 with the stop at 183.06. The day closes at the low of its range, back inside the base.",
    "simple": "It was a failed breakout, since it closed back inside the base at the low, so the stop decides.",
    "deeper": {
     "trap": "The test is the close, not an intraday dip. A breakout that dips into the base and then closes in the upper part of its range does not fail this test. QCOM closed at the low of its range, 183.32, back inside the base, so it did."
@@ -2793,7 +2851,17 @@
      "failed-breakout test is a proposed card line"
     ]
    },
-   "batch": "wave4"
+   "batch": "visuals-4",
+   "chart": {
+    "sym": "QCOM",
+    "asof": "2021-12-13",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 188.78,
+     "stop": 183.06
+    }
+   }
   },
   {
    "key": "q52",
@@ -2826,7 +2894,7 @@
     "Hold; the dip under the stop was a wick": "The stop is the exit. A real stop order with the broker has already sold it when price traded under 59.88."
    },
    "house": true,
-   "story": "OXY, 2022. A valid 16-session base after a 62% run breaks out. You buy at 62.10 with the stop at 59.88. The next day's low is 59.83.",
+   "story": "A valid 16-session base after a 62% run breaks out. You buy at 62.10 with the stop at 59.88. The next day's low is 59.83.",
    "simple": "Take the stop, because a valid base can still fail and the stop is there for that.",
    "deeper": {
     "trap": "A valid setup can still fail. OXY's base passed its tests and the stock fell through the stop the next day. In our research scan, 28.9% reached 3R and 20.0% reached 5R before the stop, and 92% were eventually stopped within 60 sessions. A stop-out is part of the cost of the setup, not proof you were wrong."
@@ -2838,7 +2906,17 @@
      "rests on the owner's rulebook (A4, B21, D41)"
     ]
    },
-   "batch": "wave4"
+   "batch": "visuals-4",
+   "chart": {
+    "sym": "OXY",
+    "asof": "2022-04-18",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 62.1,
+     "stop": 59.88
+    }
+   }
   },
   {
    "key": "q53",
@@ -2870,7 +2948,7 @@
     "An EMA Crossback; a dip to a line": "A Crossback is a first dip into the rising 10 or 20 EMA. This stock rested sideways."
    },
    "house": true,
-   "story": "NVDA, 2024. A 39% run, then the stock rests only 8 sessions sideways before it breaks out.",
+   "story": "The day before the break. A 39% run, then the stock rests only 8 sessions sideways before it breaks out.",
    "simple": "It is a bull flag, because a rest of fewer than 10 sessions is too short for this breakout.",
    "deeper": {
     "trap": "Eight sessions feels close to ten, but the card draws a hard line: the breakout rests 10 to 40 sessions, and under 10 sessions the rest is a flag. A bull flag is its own setup, a 3 to 15-session drift after a 20% pole."
@@ -2883,7 +2961,13 @@
      "a rule number that may change"
     ]
    },
-   "batch": "wave4"
+   "batch": "visuals-4",
+   "chart": {
+    "sym": "NVDA",
+    "asof": "2024-03-20",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q54",
@@ -2960,7 +3044,7 @@
     "Closes above the rising 50-day line": "The card checks the 20-day EMA through the base. A touch of the 50-day is allowed."
    },
    "house": true,
-   "story": "CVNA, 2024. A 46% run and a 19-session rest, but only 58% of the base's closes held near or above the 20 EMA.",
+   "story": "The day before the break. A 46% run and a 19-session rest, but only 58% of the base's closes held near or above the 20 EMA.",
    "simple": "The base failed to hold above its rising 20-day average, as only 58 percent of its closes stayed near or above it.",
    "deeper": {
     "trap": "A near-miss fails exactly one gate of the card, so once the 20-day check fails, the other checks are not the answer. A stock that lost the 20-day and came back can look like a base, but it is a wedge pop or an EMA reclaim."
@@ -2972,7 +3056,13 @@
      "rests on the criteria card, which the owner has not yet ruled on"
     ]
    },
-   "batch": "wave4"
+   "batch": "visuals-4",
+   "chart": {
+    "sym": "CVNA",
+    "asof": "2024-06-21",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q56",
@@ -2980,7 +3070,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "qk.breakout_higher_lows",
-   "q": "Hidden ticker, the day before a breakout. Is this a clean base to buy? Choose the call and the reason.",
+   "q": "The day before a breakout. Is this a clean base to buy? Choose the call and the reason.",
    "choices": [
     "Pass; the lows inside it are falling",
     "Pass; the base is too short to trust",
@@ -3031,7 +3121,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "qk.breakout_higher_lows",
-   "q": "Hidden ticker, the day before a possible breakout. Is this a clean base to buy? Take it or pass.",
+   "q": "The day before a possible breakout. Is this a clean base to buy? Take it or pass.",
    "choices": [
     "Pass; the box makes a lower low",
     "Take it; the stock ran hard first",
@@ -4724,7 +4814,7 @@
      "rests on the owner's rulebook"
     ]
    },
-   "batch": "rank",
+   "batch": "visuals-4",
    "choices": [
     "$58.05",
     "$56.91",
@@ -4735,6 +4825,16 @@
     "$56.91": "Added the five R to the stop, not to the buy.",
     "$55.77": "Counted three R instead of five.",
     "$46.65": "Subtracted five R from the buy instead of adding."
+   },
+   "chart": {
+    "sym": "CRSP",
+    "asof": "2019-11-12",
+    "window": 120,
+    "forward": 30,
+    "trade": {
+     "entry": 52.35,
+     "stop": 51.21
+    }
    }
   },
   {
@@ -5597,8 +5697,8 @@
   "q01": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Cold-checked: key matches cited facts, no second defensible answer, no tell found."
+   "fixed": true,
+   "notes": "BKNG 2010-09-07 is the day before the 2010-09-08 break; bars: 24 sessions, 14.4% depth, last-third low above first-third low. Right answer true. The wrong-answer note named the 10- and 20-day, which the chart does not draw; reworded to the 20-day."
   },
   "q02": {
    "status": "pass",
@@ -5677,8 +5777,8 @@
   "q15": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed 169.51. The $172.15 choice is 4R (10.56 over the buy), but its note said five R; note fixed."
+   "fixed": false,
+   "notes": "HWM 2025-05-15 buy day; entry 161.59 / stop 158.95 match the dossier and the question; asof bar range 159.00-161.72 holds both; stop 1.6%. Bars: 3R first reached 7 sessions after the buy day, so 'in 7 days' is true and forward 20 shows it. HWM use 2 of 2 (q56)."
   },
   "q16": {
    "status": "pass",
@@ -5806,7 +5906,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "pass: stop inside 3% is an A+ grade cue (not a stop cap); D-005 consistent."
+   "notes": "CPRI 2020-12-03 buy day; 38.01 / 37.37 and 1.7% stop / 5.6% ADR match dossier row 6; asof bar low 37.42 is above the stop. No ticker in story. Right answer still true; facts dCPRI exists. Stop not hit in the 20 replayed bars."
   },
   "q39": {
    "status": "pass",
@@ -5823,44 +5923,44 @@
   "q43": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Keep; 3R is a measure."
+   "fixed": true,
+   "notes": "CRSP 2019-11-11 is the day before the 2019-11-12 break; 47% run, 10 sessions, 14% (bars 14.3%), 3.1x all match dossier ex 5. But the why said '3R came in 1 day after the break' while the replayed bars show 3R reached on the break day itself (high 56.16 vs 3R 55.77), so the chart would contradict it. Dropped that clause; the answer is unchanged."
   },
   "q44": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Cold-checked: key matches cited facts, no second defensible answer, no tell found."
+   "fixed": true,
+   "notes": "AMD 2000-01-05 is the day before the 2000-01-06 break; 71% run, 37 sessions, 22% (bars 22.1%), 1.9x match dossier ex 1. The story named 'the rising 10- and 20-day', but the chart draws the 9 and 20 EMA (ruling D-021); removed the line claim. Answer unchanged."
   },
   "q49": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "pass: late base and a stop-out; no rule sells at 2R, first sell a judgment (D-013); 1.7% stop checks (2.52/144.43)."
+   "notes": "NVDA 2024-11-06 buy day; 144.43 / 141.91 match dossier failures table and the story; asof bar 141.96-146.49 holds entry, stop just under the low. Replay: best 2.1R, stopped on day 7, as the story says (forward 20 reaches it). Failures-list example; NVDA use 1 of 2 (q53)."
   },
   "q50": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "pass: ADR-stop distractor now flagged as no longer used; earnings-window answer unchanged."
+   "notes": "AMZN 2020-04-30 buy day (report that evening); 123.06 / 119.75 match dossier; asof bar 119.80-123.75 holds both. Replay: day 1 opens 116.84 and lows 112.91, through the stop, as the story and why say. Prices are split-adjusted in the bars and the story says so."
   },
   "q51": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "QCOM closed at the low of its range back inside the base (dQCOMw); a31 keys 'stop decides'. All numbers in d1 quotes."
+   "notes": "QCOM 2021-12-13 buy day; 188.78 / 183.06 match dossier; stop 3.0%. asof bar 183.11-191.3 closes 183.32 at the low, so the member sees the failed close. Next day low 179.41 took the stop, as the why says."
   },
   "q52": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Checked cold: key follows from the cited quotes; no second defensible answer or tell found."
+   "notes": "OXY 2022-04-18 buy day; 62.10 / 59.88 match dossier; asof bar low 59.93 is above the stop. Next day low 59.83 confirmed on the bars. Note: after the stop the stock recovers to 3.0R in the replay, which does not change the keyed answer (take the stop, re-enter on a new trigger)."
   },
   "q53": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "8 sessions under the 10 to 40 rule, l2 and dNVDAnw key the flag. Near q30 (5 sessions) but tests the boundary case; acceptable progression."
+   "notes": "NVDA 2024-03-20 is the day before the 2024-03-21 near-miss break; 39% run, 8 sessions, 8.9% (bars 8.9%) match dossier. Bull flag answer right for this near-miss. Hidden ticker story. NVDA use 2 of 2 with q49."
   },
   "q54": {
    "status": "pass",
@@ -5870,9 +5970,9 @@
   },
   "q55": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave4; awaiting cold re-read"
+   "notes": "CVNA 2024-06-24 is the first trading day after Friday 2024-06-21, the asof; 46% run, 19 sessions, 58% of closes near or above the 20 EMA match dossier (my rough bar count 53%, same side of the 80% rule). The 20 EMA is drawn, so the failing check is visible. Answer right."
   },
   "q56": {
    "status": "pass",
@@ -6158,7 +6258,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
+   "notes": "CRSP 2019-11-12 buy day; 52.35 / 51.21 match dossier ex 5 and the question; asof bar 51.26?-56.16: entry is the open 52.35, stop 51.21 under the low 51.26; stop 2.2%. 5R (58.05) first reached 4 sessions after the buy day, inside forward 30. CRSP use 2 of 2 (q43)."
   },
   "q105": {
    "status": "pass",

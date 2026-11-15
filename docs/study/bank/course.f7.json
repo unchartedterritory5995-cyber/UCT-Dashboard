@@ -8229,7 +8229,7 @@
    "forward": 40,
    "sym": "SPY",
    "tf": "D",
-   "window": 120
+   "window": 320
   },
   "difficulty": 3,
   "id": "si_c6e1dfdfa414",
@@ -8239,8 +8239,10 @@
   "prompt_json": {
    "chart": {
     "forward_bars": 40,
+    "hide_ticker": true,
     "tf": "D",
-    "window_bars": 120
+    "visible_bars": 120,
+    "window_bars": 320
    },
    "choices": [
     "Likely a follow-through day. Buy a bit",
@@ -16759,7 +16761,7 @@
    "forward": 120,
    "sym": "SPY",
    "tf": "D",
-   "window": 250
+   "window": 450
   },
   "difficulty": 1,
   "id": "si_1b659e81f632",
@@ -16769,8 +16771,10 @@
   "prompt_json": {
    "chart": {
     "forward_bars": 120,
+    "hide_ticker": true,
     "tf": "D",
-    "window_bars": 250
+    "visible_bars": 250,
+    "window_bars": 450
    },
    "choices": [
     "True",
@@ -17108,7 +17112,7 @@
    "forward": 120,
    "sym": "SPY",
    "tf": "D",
-   "window": 120
+   "window": 320
   },
   "difficulty": 2,
   "id": "si_0b1a39904651",
@@ -17118,8 +17122,10 @@
   "prompt_json": {
    "chart": {
     "forward_bars": 120,
+    "hide_ticker": true,
     "tf": "D",
-    "window_bars": 120
+    "visible_bars": 120,
+    "window_bars": 320
    },
    "choices": [
     "True",
@@ -17191,7 +17197,7 @@
    "forward": 120,
    "sym": "SPY",
    "tf": "D",
-   "window": 120
+   "window": 320
   },
   "difficulty": 2,
   "id": "si_708b04625274",
@@ -17201,8 +17207,10 @@
   "prompt_json": {
    "chart": {
     "forward_bars": 120,
+    "hide_ticker": true,
     "tf": "D",
-    "window_bars": 120
+    "visible_bars": 120,
+    "window_bars": 320
    },
    "choices": [
     "The US housing market's collapse",
@@ -17384,7 +17392,7 @@
    "forward": 60,
    "sym": "SPY",
    "tf": "D",
-   "window": 200
+   "window": 400
   },
   "difficulty": 2,
   "id": "si_50904b92f476",
@@ -17394,8 +17402,10 @@
   "prompt_json": {
    "chart": {
     "forward_bars": 60,
+    "hide_ticker": true,
     "tf": "D",
-    "window_bars": 200
+    "visible_bars": 200,
+    "window_bars": 400
    },
    "choices": [
     "A pandemic shutting the economy",
@@ -17509,7 +17519,7 @@
    "forward": 60,
    "sym": "SPY",
    "tf": "D",
-   "window": 250
+   "window": 450
   },
   "difficulty": 2,
   "id": "si_3e39f8285c1b",
@@ -17519,8 +17529,10 @@
   "prompt_json": {
    "chart": {
     "forward_bars": 60,
+    "hide_ticker": true,
     "tf": "D",
-    "window_bars": 250
+    "visible_bars": 250,
+    "window_bars": 450
    },
    "choices": [
     "About 17 months",
@@ -17627,7 +17639,7 @@
    "forward": 40,
    "sym": "SPY",
    "tf": "D",
-   "window": 120
+   "window": 320
   },
   "difficulty": 3,
   "id": "si_9719c5bc5a8b",
@@ -17637,8 +17649,10 @@
   "prompt_json": {
    "chart": {
     "forward_bars": 40,
+    "hide_ticker": true,
     "tf": "D",
-    "window_bars": 120
+    "visible_bars": 120,
+    "window_bars": 320
    },
    "choices": [
     "It fills at exactly your stop price",
@@ -17735,7 +17749,7 @@
    "forward": 60,
    "sym": "SPY",
    "tf": "D",
-   "window": 160
+   "window": 360
   },
   "difficulty": 3,
   "id": "si_17ef39872af5",
@@ -17745,8 +17759,10 @@
   "prompt_json": {
    "chart": {
     "forward_bars": 60,
+    "hide_ticker": true,
     "tf": "D",
-    "window_bars": 160
+    "visible_bars": 160,
+    "window_bars": 360
    },
    "choices": [
     "Dipped back but held above its low",
@@ -18110,7 +18126,7 @@
    "forward": 120,
    "sym": "SPY",
    "tf": "D",
-   "window": 250
+   "window": 450
   },
   "difficulty": 3,
   "id": "si_3da7aa3d1f41",
@@ -18120,8 +18136,10 @@
   "prompt_json": {
    "chart": {
     "forward_bars": 120,
+    "hide_ticker": true,
     "tf": "D",
-    "window_bars": 250
+    "visible_bars": 250,
+    "window_bars": 450
    },
    "choices": [
     "A growing economy stops a stock slide",

@@ -1095,6 +1095,42 @@
    "source": "h2",
    "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
    "claim": "Owner: the 9 and 20 EMA everywhere, with the 50 and 200 SMA."
+  },
+  {
+   "id": "v01",
+   "source": "d1",
+   "quote": "three straight lower closes, the flush closing on its low, then the next session undercuts and closes 6% higher",
+   "claim": "SBUX: three straight lower closes, the flush closed on its low, then the next session undercut it and closed 6% higher."
+  },
+  {
+   "id": "v02",
+   "source": "d1",
+   "quote": "2019-03-14 (undercut 59.63, close 61.82)",
+   "claim": "ROKU: the reclaim day, 2019-03-14, undercut 59.63 and closed 61.82."
+  },
+  {
+   "id": "v04",
+   "source": "d1",
+   "quote": "its report came on 2024-07-31, two sessions after the reclaim, so the buy fails cap.earnings_window",
+   "claim": "WDC: its report came two sessions after the reclaim, so the buy fails the earnings window."
+  },
+  {
+   "id": "v05",
+   "source": "d1",
+   "quote": "3R came on day 3, the slowest of the ten",
+   "claim": "ALGM: 3R came on day 3, the slowest of the ten examples."
+  },
+  {
+   "id": "v06",
+   "source": "d1",
+   "quote": "ICE | 2009-07-08 | 2 | -29.3% | 2.66x | 4.96x",
+   "claim": "ICE: flush day 2009-07-08, 29.3% down, 2.66 ATR under the prior close, 4.96x volume."
+  },
+  {
+   "id": "v07",
+   "source": "d1",
+   "quote": "2009-07-10 (2 sessions later; undercut 16.60, close 16.94)",
+   "claim": "ICE: reclaim day 2009-07-10, 2 sessions after the flush; undercut 16.60, close 16.94."
   }
  ],
  "walkthroughs": [
@@ -1503,7 +1539,7 @@
    "key": "q12",
    "skill": "setup.capitulation",
    "rung": 3,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "cap.trigger_daily",
    "q": "What is the taught daily trigger for a capitulation?",
    "choices": [
@@ -1534,7 +1570,14 @@
      "the daily trigger and its 3-session window are pending D-003"
     ]
    },
-   "batch": "rulings"
+   "batch": "visuals-5",
+   "story": "The flush day, the last bar on the chart.",
+   "chart": {
+    "sym": "HIMS",
+    "asof": "2024-10-30",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q13",
@@ -1565,21 +1608,21 @@
    "key": "q14",
    "skill": "setup.capitulation",
    "rung": 3,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "cap.location",
    "q": "Which is a level that matters under a flush?",
    "choices": [
-    "A round number, like $50",
+    "A round number, like 100",
     "A minor low from last week",
     "The 9 EMA on the daily chart",
     "The lower Bollinger band"
    ],
-   "answer": "A round number, like $50",
-   "why": "A round number. The card lists the levels that matter. They are a prior all-time high or breakout level, a round number, or the 200-day or 50-week average. An anchored VWAP from a major low or an old gap also count. Bracco's FIGR trade washed out the $50 level and a prior high. A minor low, a short average and the lower band are not on that list.",
+   "answer": "A round number, like 100",
+   "why": "A round number. The card lists the levels that matter. They are a prior all-time high or breakout level, a round number, or the 200-day or 50-week average. An anchored VWAP from a major low or an old gap also count. On this chart the fall ran into the round number 100 and the 200-day. A minor low, a short average and the lower band are not on that list.",
    "lesson_line": "A flush should drop into a level that matters.",
    "facts": [
     "c07",
-    "u02",
+    "d06",
     "c08",
     "c09"
    ],
@@ -1589,7 +1632,7 @@
     "The 9 EMA on the daily chart": "A flush falls below the 9 EMA, so it sits above the flush. It is not a level under it.",
     "The lower Bollinger band": "A band close is supporting evidence only. The band is not on the card's list of levels."
    },
-   "simple": "A round number. The card wants a flush into a level traders watch, like $50.",
+   "simple": "A round number. The card wants a flush into a level traders watch, like 100.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1597,7 +1640,14 @@
      "house: proposed card criterion (cap.location)"
     ]
    },
-   "batch": "wave5"
+   "batch": "visuals-5",
+   "story": "The flush day. The fall ran straight into a level that traders watch.",
+   "chart": {
+    "sym": "LYV",
+    "asof": "2022-03-07",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q15",
@@ -1847,28 +1897,29 @@
    "q": "Buy the close, or wait?",
    "choices": [
     "Wait for the undercut and reclaim",
-    "Buy the close; record volume",
+    "Buy the close; the low is in",
     "Wait a week for it to settle",
     "Buy tomorrow's open regardless"
    ],
-   "story": "The flush day closes at its low on record volume, 4 ATR under yesterday's close. It looks like the bottom.",
+   "story": "The flush day. Three lower closes in a row, and today it closes right on its low. It looks like the bottom.",
    "answer": "Wait for the undercut and reclaim",
-   "why": "Wait for the undercut and reclaim. We do not buy the falling price or the flush close, even on record volume. Nearly half of flush closes are undercut the next day. The trigger comes after: within 3 sessions, a session trades below the flush low and back above it. We buy that reclaim.",
+   "why": "Wait for the undercut and reclaim. We do not buy the falling price or the flush close, even one right on the low. Nearly half of flush closes are undercut the next day. SBUX closed on its low after three lower closes, and the next session undercut that low and closed back above it. The trigger comes after: within 3 sessions, a session trades below the flush low and back above it. We buy that reclaim.",
    "lesson_line": "Buy the turn, not the knife.",
    "facts": [
     "c12",
     "c33",
-    "c13"
+    "c13",
+    "v01"
    ],
    "house": true,
    "wrong": {
-    "Buy the close; record volume": "Record volume shows the panic. It does not show the low is in.",
     "Wait a week for it to settle": "The trigger has a window: within 3 sessions of the flush. A week can miss it.",
-    "Buy tomorrow's open regardless": "A blind open is not a trigger. The reclaim of the flush low is."
+    "Buy tomorrow's open regardless": "A blind open is not a trigger. The reclaim of the flush low is.",
+    "Buy the close; the low is in": "A close on the low shows the panic. It does not show the low is in."
    },
    "simple": "Wait. The flush close is often not the low, so we buy only when price breaks the low and climbs back.",
    "deeper": {
-    "trap": "Record volume tempts you to buy the close. It shows the panic, not the low. The card warns that nearly half of flush closes are undercut the next day. Buying the knife, not the turn, is how it loses. Wait for a session to trade under the flush low and back above it."
+    "trap": "A close right on the low tempts you to buy the bottom. It shows the panic, not the low. The card warns that nearly half of flush closes are undercut the next day. Buying the knife, not the turn, is how it loses. Wait for a session to trade under the flush low and back above it."
    },
    "tier": "core",
    "risk": {
@@ -1877,7 +1928,13 @@
      "keys the daily trigger, pending D-003"
     ]
    },
-   "batch": "rulings"
+   "batch": "visuals-5",
+   "chart": {
+    "sym": "SBUX",
+    "asof": "2011-08-08",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q23",
@@ -1887,28 +1944,29 @@
    "criterion": "cap.trigger_daily",
    "q": "Where do you buy?",
    "choices": [
-    "On the reclaim back over 64.20",
-    "At 63.95, the new low of the day",
+    "On the reclaim back over the flush low",
+    "At the new low of the day, under it",
     "At the close of the flush day",
     "On a break of the flush high"
    ],
-   "story": "The flush low is 64.20. The next day price trades down to 63.95, then climbs back above 64.20.",
-   "answer": "On the reclaim back over 64.20",
-   "why": "On the reclaim back above 64.20, the flush low. The dip to 63.95 is the undercut. The buy comes when price trades back above the flush low. The stop then goes a few cents under 63.95, the low of the session you bought in. Buying the flush close is the knife: nearly half of flush closes are undercut the next day.",
+   "story": "The flush day is the last bar. The next day price trades down under the flush low, then climbs back above it.",
+   "answer": "On the reclaim back over the flush low",
+   "why": "On the reclaim back above the flush low. The dip under it is the undercut. The buy comes when price trades back above the flush low. The stop then goes a few cents under the undercut low, the low of the session you bought in. ROKU did this: the next day it undercut the flush low and closed back above it. Buying the flush close is the knife: nearly half of flush closes are undercut the next day.",
    "lesson_line": "Undercut the flush low, then buy the reclaim.",
    "facts": [
     "c13",
     "c18",
     "c33",
-    "c12"
+    "c12",
+    "v02"
    ],
    "house": true,
    "wrong": {
     "At the close of the flush day": "That is the knife. Nearly half of flush closes are undercut the next day.",
     "On a break of the flush high": "That is not our trigger. We buy the reclaim of the flush low.",
-    "At 63.95, the new low of the day": "That is buying the falling price. We wait for the reclaim of the flush low."
+    "At the new low of the day, under it": "That is buying the falling price. We wait for the reclaim of the flush low."
    },
-   "simple": "Buy when price climbs back over 64.20, the flush low, because that reclaim is the trigger.",
+   "simple": "Buy when price climbs back over the flush low, because that reclaim is the trigger.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1916,13 +1974,19 @@
      "the daily trigger is pending D-003 and the setup's stop D-008; keyed on the settled house stop"
     ]
    },
-   "batch": "rulings"
+   "batch": "visuals-5",
+   "chart": {
+    "sym": "ROKU",
+    "asof": "2019-03-13",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q24",
    "skill": "setup.capitulation",
    "rung": 4,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "cap.stop_width",
    "q": "Reclaim at 38.49, undercut low 38.31, stop at 38.26. How far is the stop, in percent?",
    "answer": "0.6%",
@@ -1962,7 +2026,7 @@
     "D-007",
     "D-041"
    ],
-   "batch": "rank",
+   "batch": "visuals-5",
    "choices": [
     "0.6%",
     "3.0%",
@@ -1973,13 +2037,24 @@
     "6.0%": "Slipped the decimal point a place.",
     "23.0%": "Used the 23 cent gap as a percent.",
     "3.0%": "Used the usual 3.0% width, not this stop."
+   },
+   "story": "Bought the reclaim on the last bar of the chart.",
+   "chart": {
+    "sym": "ALB",
+    "asof": "2010-05-07",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 38.49,
+     "stop": 38.26
+    }
    }
   },
   {
    "key": "q25",
    "skill": "setup.capitulation",
    "rung": 5,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "cap.trim_2",
    "q": "Entry 38.49, stop 38.26. Where is 5R?",
    "answer": "39.64",
@@ -2011,7 +2086,7 @@
    "depends_on": [
     "D-007"
    ],
-   "batch": "tomcq",
+   "batch": "visuals-5",
    "choices": [
     "38.72",
     "39.64",
@@ -2022,6 +2097,17 @@
     "38.72": "Added one R, not five.",
     "39.41": "Added five R to the stop, not the entry.",
     "39.87": "Added six R, one too many."
+   },
+   "story": "Bought the reclaim on the last bar of the chart.",
+   "chart": {
+    "sym": "ALB",
+    "asof": "2010-05-07",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 38.49,
+     "stop": 38.26
+    }
    }
   },
   {
@@ -2077,13 +2163,14 @@
     "Yes, but at half size to be safe",
     "No; earnings mean skip it for a month"
    ],
-   "story": "The reclaim triggers two sessions before the company reports earnings.",
+   "story": "The day before the reclaim triggers. The reclaim comes two sessions before the company reports earnings.",
    "answer": "No; the report is 2 sessions away",
-   "why": "No. We take no new buys in the 3 days before an earnings report, and our card says the same for this setup. Two sessions away is inside that window. A clean trigger does not override it, and a smaller size does not either.",
+   "why": "No. We take no new buys in the 3 days before an earnings report, and our card says the same for this setup. Two sessions away is inside that window. A clean trigger does not override it, and a smaller size does not either. WDC is the case: its report came two sessions after the reclaim.",
    "lesson_line": "A clean trigger still waits out the report.",
    "facts": [
     "c16",
-    "h08"
+    "h08",
+    "v04"
    ],
    "house": true,
    "wrong": {
@@ -2099,7 +2186,13 @@
      "rests on the owner's rulebook (B22)"
     ]
    },
-   "batch": "wave5"
+   "batch": "visuals-5",
+   "chart": {
+    "sym": "WDC",
+    "asof": "2024-07-26",
+    "window": 120,
+    "forward": 30
+   }
   },
   {
    "key": "q28",
@@ -2207,14 +2300,16 @@
     "Nothing; one candle is minor",
     "Move the stop down a bit"
    ],
-   "story": "You bought the reclaim. The first bounce day closes in the lower third of its range.",
+   "story": "You bought the reclaim at 92.82. The next day opens at 93.75, then closes in the lower tenth of its range.",
    "answer": "An early warning; the stop rules",
-   "why": "An early warning. Our card names it: the bounce stalls on the first day and closes in its lower third. It does not move the stop or change the size. The stop is the exit, it only moves up, and we never average down.",
+   "why": "An early warning. Our card names it: the bounce stalls on the first day and closes in its lower third. COP opened 93.75 and closed 87.89, in the lower tenth and through the stop. It does not move the stop or change the size. The stop is the exit, it only moves up, and we never average down.",
    "lesson_line": "A weak first bounce is a warning. Keep the stop.",
    "facts": [
     "c25",
     "h02",
-    "c19"
+    "c19",
+    "d13",
+    "d14"
    ],
    "house": true,
    "wrong": {
@@ -2230,7 +2325,13 @@
      "rests on the owner's rulebook (A4) and a proposed card criterion"
     ]
    },
-   "batch": "wave5"
+   "batch": "visuals-5",
+   "chart": {
+    "sym": "COP",
+    "asof": "2022-06-23",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q31",
@@ -2245,7 +2346,7 @@
     "Yes; three weeks down is the burst",
     "No; it needs 20% off the high"
    ],
-   "story": "A stock chops lower for three weeks, with up and down days mixed, no gaps and no big days. Then it drops 2.61 ATR on 2.02x volume, 15.3% off its 10-day high.",
+   "story": "The flush day. A controlled three-week mark down comes first. Then it drops 2.61 ATR on 2.02x volume, 15.3% off its 10-day high.",
    "answer": "No; there was no burst before it",
    "why": "No. The last day passes the numbers: 2.61 ATR, 2.02x volume and 15.3% off the 10-day high. But a slow grind or a controlled mark down is not a capitulation. Look left: three weeks of choppy selling is not a burst. Bracco saw no fear or panic in a choppy, controlled mark down.",
    "lesson_line": "Look left. A slow grind is not a burst.",
@@ -2272,7 +2373,13 @@
      "the burst idea is held under D-002"
     ]
    },
-   "batch": "rulings"
+   "batch": "visuals-5",
+   "chart": {
+    "sym": "MS",
+    "asof": "2025-03-04",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q32",
@@ -2353,7 +2460,7 @@
     "Yes; volume is optional on a big ATR",
     "No; the ATR is too small to count"
    ],
-   "story": "A flush day: 2.13 ATR, 15.2% off the 10-day high, above the 200-day. Volume is 1.96 times the 50-day average.",
+   "story": "The flush day: 2.13 ATR, 15.2% off the 10-day high, above the 200-day. Volume is 1.96 times the 50-day average.",
    "answer": "No; volume is just under the 2x bar",
    "why": "No. Our card asks flush-day volume of at least 2 times the 50-day average, and 1.96 is under it. The rest of the shape is there: 2.13 ATR and 15.2% off the high. A near miss is still a miss. The 2 times line is the card's proposal, and the test is the number as written.",
    "lesson_line": "A near miss is still a miss.",
@@ -2384,7 +2491,13 @@
    "depends_on": [
     "D-007"
    ],
-   "batch": "wave5"
+   "batch": "visuals-5",
+   "chart": {
+    "sym": "LLY",
+    "asof": "2024-07-25",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q35",
@@ -2399,7 +2512,7 @@
     "The flush rule: the drop in ATR",
     "The volume rule: versus the average"
    ],
-   "story": "The reclaim closes 15.9% under the 200-day. The stock slid for two months, then dropped 2.19 ATR on 3.48x volume, 17.6% off its high.",
+   "story": "The day before the reclaim. The reclaim closes 15.9% under the 200-day. The stock slid for two months, then dropped 2.19 ATR on 3.48x volume, 17.6% off its high.",
    "answer": "The 200-day rule: where price sits",
    "why": "The 200-day rule. Below the 200-day is a hard no for stocks. Only an index or a levered ETF may go under it, on a reversal extension or a parabolic long. The flush, the volume and the stretch all clear their bars: 2.19 ATR, 3.48 times and 17.6%.",
    "lesson_line": "Under the 200-day, no stock long.",
@@ -2431,7 +2544,13 @@
     "D-119",
     "D-007"
    ],
-   "batch": "rulings"
+   "batch": "visuals-5",
+   "chart": {
+    "sym": "UBER",
+    "asof": "2024-12-13",
+    "window": 200,
+    "forward": 20
+   }
   },
   {
    "key": "q36",
@@ -2626,7 +2745,7 @@
     "Hold everything; never sell this early",
     "Add more at 26.00 on the gap"
    ],
-   "story": "You bought at 22.13 with a stop at 21.72. 5R is 24.18. The next day opens at 26.00.",
+   "story": "You bought the reclaim at 22.13 with a stop at 21.72. 5R is 24.18. The next day opens at 26.00.",
    "answer": "Weigh selling some into the gap",
    "why": "Weigh selling some into the gap. The first sell is a judgment. We very rarely sell on day 1 and usually wait until day 3, but selling part at the open on a big gap is one choice we may make. The open of 26.00 is far past the 5R line of 24.18. MP opened there, then closed at 21.94, through its stop.",
    "lesson_line": "A big gap is a time to weigh a part sale. It is a judgment, never a rule.",
@@ -2657,13 +2776,23 @@
    "depends_on": [
     "D-007"
    ],
-   "batch": "rulings3"
+   "batch": "visuals-5",
+   "chart": {
+    "sym": "MP",
+    "asof": "2025-04-07",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 22.13,
+     "stop": 21.72
+    }
+   }
   },
   {
    "key": "q42",
    "skill": "setup.capitulation",
    "rung": 4,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "cap.trim_1",
    "q": "What sets the first sell of a winner?",
    "choices": [
@@ -2673,13 +2802,14 @@
     "A fixed half of the shares at 5R"
    ],
    "answer": "A judgment, often a 3 to 7 day push",
-   "why": "A judgment. The first sell depends on a variety of factors, not a fixed third at 3R. We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest. Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
+   "why": "A judgment. The first sell depends on a variety of factors, not a fixed third at 3R. We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest. Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. ALGM took until day 3 just to reach 3R.",
    "lesson_line": "The first sell is a judgment, often into a 3 to 7 day push.",
    "facts": [
     "r10",
     "r11",
     "r12",
-    "r13"
+    "r13",
+    "v05"
    ],
    "house": true,
    "wrong": {
@@ -2696,7 +2826,18 @@
      "trim at the averages held under D-013"
     ]
    },
-   "batch": "rulings2"
+   "batch": "visuals-5",
+   "story": "Bought the reclaim at 35.06 with the stop at 34.14. It reached 3R on day 3.",
+   "chart": {
+    "sym": "ALGM",
+    "asof": "2023-04-28",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 35.06,
+     "stop": 34.14
+    }
+   }
   },
   {
    "key": "q43",
@@ -2753,7 +2894,7 @@
    "key": "q45",
    "skill": "setup.capitulation",
    "rung": 5,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "cap.trail",
    "q": "How do we trail what is left after the sells?",
    "choices": [
@@ -2782,7 +2923,18 @@
      "house: proposed card rule (cap.trail) on the E52 default"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "visuals-5",
+   "story": "Bought the reclaim at 18.64 with the stop at 18.27. It runs, and you sell some along the way.",
+   "chart": {
+    "sym": "HIMS",
+    "asof": "2024-10-31",
+    "window": 120,
+    "forward": 60,
+    "trade": {
+     "entry": 18.64,
+     "stop": 18.27
+    }
+   }
   },
   {
    "key": "q46",
@@ -2901,7 +3053,7 @@
     "Mean Reversion; a dip to the 50-day",
     "Oops Reversal; the gap under the low"
    ],
-   "story": "A stock flushes 2.4 ATR on 2.6x volume, 18% off its 10-day high. Two sessions later it undercuts the flush low and closes back above it. You buy the reclaim.",
+   "story": "A stock flushes 2.66 ATR on 4.96x volume, 29.3% off its 10-day high. Two sessions later it undercuts the flush low and closes back above it. You buy the reclaim.",
    "answer": "Capitulation; within 3 sessions",
    "why": "Capitulation. A capitulation needs a 2 ATR flush on 2x volume and 15% or more off the 10-session high. This one has all three. It is bought on the undercut and reclaim of the flush low within 3 sessions. Here the reclaim came two sessions later. A parabolic long is bought that day, on the VWAP reclaim.",
    "lesson_line": "Count the sessions. The reclaim after the flush is Capitulation.",
@@ -2909,12 +3061,14 @@
     "c35",
     "c36",
     "c41",
-    "c37"
+    "c37",
+    "v06",
+    "v07"
    ],
    "house": true,
    "wrong": {
     "Parabolic Long; the VWAP reclaim": "A parabolic long is bought the same day, on the VWAP reclaim. This reclaim came two sessions later.",
-    "Mean Reversion; a dip to the 50-day": "The flush is 18% off the 10-day high on 2.6x volume, a capitulation's shape. Nothing here touches the 50-day.",
+    "Mean Reversion; a dip to the 50-day": "The flush is 29.3% off the 10-day high on 4.96x volume, a capitulation's shape. Nothing here touches the 50-day.",
     "Oops Reversal; the gap under the low": "An Oops gaps under the prior day's low in an orderly pullback. This story has no gap."
    },
    "simple": "It is Capitulation, because it was bought on an undercut and reclaim days after the flush, not the same day.",
@@ -2929,7 +3083,13 @@
      "fixed before"
     ]
    },
-   "batch": "rulings"
+   "batch": "visuals-5",
+   "chart": {
+    "sym": "ICE",
+    "asof": "2009-07-09",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q50",
@@ -3196,7 +3356,7 @@
     "The stop can safely come off",
     "It may be time to add shares"
    ],
-   "story": "You hold a leader's reclaim after a 16.5% flush. The same week the index makes a new low on rising volume.",
+   "story": "You bought a leader's reclaim at 19.57 with the stop at 19.40, after a 16.5% flush. The same week the index makes a new low.",
    "answer": "Another leg down may come",
    "why": "Another leg down may come. The card lists a new index low on rising volume, while you hold, as an invalidation. BN is the dossier's case: bought on the reclaim, it was stopped on day 1. The index made a new low the same week, and the stock traded 41% under the buy. Keep the stop. Never add.",
    "lesson_line": "A new index low while you hold is a warning.",
@@ -3228,7 +3388,17 @@
    "depends_on": [
     "D-007"
    ],
-   "batch": "wave5"
+   "batch": "visuals-5",
+   "chart": {
+    "sym": "BN",
+    "asof": "2020-03-10",
+    "window": 120,
+    "forward": 40,
+    "trade": {
+     "entry": 19.57,
+     "stop": 19.4
+    }
+   }
   },
   {
    "key": "q57",
@@ -3275,7 +3445,17 @@
    "depends_on": [
     "D-007"
    ],
-   "batch": "wave5"
+   "batch": "visuals-5",
+   "chart": {
+    "sym": "VOYA",
+    "asof": "2023-03-15",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 64.66,
+     "stop": 63.75
+    }
+   }
   },
   {
    "key": "q58",
@@ -3436,17 +3616,17 @@
    "criterion": "cap.stop",
    "q": "Write the plan: entry and stop.",
    "choices": [
-    "Market 38.49; stop 38.26",
-    "Limit 39.23; stop 38.31",
-    "Market 38.31; stop 37.00",
-    "Market 38.49; stop 38.31"
+    "Market 89.37; stop 87.88",
+    "Limit 91.24; stop 87.93",
+    "Market 87.93; stop 80.00",
+    "Market 89.37; stop 87.93"
    ],
-   "story": "After a three-day flush the low is 38.48. A leader trades down to 38.31, then back above 38.48 and closes higher. You buy the reclaim at 38.49.",
-   "answer": "Market 38.49; stop 38.26",
-   "why": "Market 38.49; stop 38.26. Entries are market orders, so you buy as price reclaims, at 38.49. The stop goes a few cents under the undercut low of 38.31, the low of the session you bought in. The first sell is a judgment and is not part of this order.",
+   "story": "After a Friday flush, Monday opens at 88.34, under the flush low, and undercuts it to 87.93. Then it closes higher. You buy the reclaim at 89.37.",
+   "answer": "Market 89.37; stop 87.88",
+   "why": "Market 89.37; stop 87.88. Entries are market orders, so you buy as price reclaims, at 89.37. The stop goes a few cents under the undercut low of 87.93, the low of the session you bought in. The first sell is a judgment and is not part of this order.",
    "lesson_line": "Write the entry and stop before the buy.",
    "facts": [
-    "d02",
+    "d08",
     "h22",
     "h24",
     "c18",
@@ -3454,13 +3634,13 @@
    ],
    "house": true,
    "wrong": {
-    "Limit 39.23; stop 38.31": "We buy as price trades through the trigger, never at the close, and a stop on the low is too tight.",
-    "Market 38.31; stop 37.00": "38.31 is the undercut price, not the reclaim, and a stop at 37.00 is far too wide.",
-    "Market 38.49; stop 38.31": "A stop exactly on the low is not a few cents under it."
+    "Limit 91.24; stop 87.93": "We buy as price trades through the trigger, never at the close, and a stop on the low is too tight.",
+    "Market 87.93; stop 80.00": "87.93 is the undercut price, not the reclaim, and a stop at 80.00 is far too wide.",
+    "Market 89.37; stop 87.93": "A stop exactly on the low is not a few cents under it."
    },
    "simple": "Buy at market on the reclaim and put the stop a few cents under the undercut low.",
    "deeper": {
-    "trap": "Two details catch people. The stop goes a few cents under the undercut low of 38.31, not exactly on it. And the buy is as price trades through the trigger, never at the close."
+    "trap": "Two details catch people. The stop goes a few cents under the undercut low of 87.93, not exactly on it. And the buy is as price trades through the trigger, never at the close."
    },
    "tier": "expert",
    "risk": {
@@ -3473,7 +3653,17 @@
    "depends_on": [
     "D-007"
    ],
-   "batch": "rulings2"
+   "batch": "visuals-5",
+   "chart": {
+    "sym": "OKTA",
+    "asof": "2025-04-07",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 89.37,
+     "stop": 87.88
+    }
+   }
   },
   {
    "key": "q63",
@@ -3521,7 +3711,13 @@
    "depends_on": [
     "D-007"
    ],
-   "batch": "rulings"
+   "batch": "visuals-5",
+   "chart": {
+    "sym": "OKTA",
+    "asof": "2025-04-04",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q64",
@@ -3529,7 +3725,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "cap.location",
-   "q": "Hidden ticker; the chart ends on a flush day on heavy volume. Watch it, or pass?",
+   "q": "The chart ends on a flush day on heavy volume. Watch it, or pass?",
    "choices": [
     "Watch it; a fast flush into a level",
     "Pass; a slow grind with no burst",
@@ -3583,7 +3779,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "cap.stretch_stock",
-   "q": "Hidden ticker; a flush day: 2.95 ATR, 2.23x volume, the low 12.9% under the 10-day high close. Watch it, or pass?",
+   "q": "A flush day: 2.95 ATR, 2.23x volume, the low 12.9% under the 10-day high close. Watch it, or pass?",
    "choices": [
     "Pass; only a pullback in a leader",
     "Pass; 2.23x volume is too light",
@@ -3860,7 +4056,7 @@
    "format": "scenario",
    "criterion": "cap.inv_stop",
    "q": "What happens now?",
-   "story": "You bought the reclaim with the stop a few cents under the low of your entry session. Next morning the stock opens above that low, then trades through your stop.",
+   "story": "You bought the reclaim at 92.82 with the stop at 91.41, a few cents under the low of your entry session. Next morning the stock opens at 93.75, above that low, then trades through your stop.",
    "choices": [
     "The stop is the exit; you are out",
     "Wait for a close under the low",
@@ -3896,7 +4092,17 @@
      "story reworded"
     ]
    },
-   "batch": "rulings"
+   "batch": "visuals-5",
+   "chart": {
+    "sym": "COP",
+    "asof": "2022-06-22",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 92.82,
+     "stop": 91.41
+    }
+   }
   },
   {
    "key": "q74",
@@ -4227,8 +4433,8 @@
   "q12": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "keep ok; depends_on restored (writer emptied it)"
+   "fixed": false,
+   "notes": "HIMS flush 2024-10-30 (dossier row 8), reclaim 10-31; asof = flush day = day before trigger. Plain wording, no numbers, ticker hidden. Right answer true."
   },
   "q13": {
    "status": "pass",
@@ -4240,7 +4446,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Round number is on the card's c07 list; others are not. FIGR quote u02 re-found on the Substack post."
+   "notes": "LYV flush 2022-03-07 into round 100 and 200-day (d06); asof flush day. Use 2 of 2 with q64. Text numbers match d04/d06; 200 SMA is drawn."
   },
   "q15": {
    "status": "pass",
@@ -4276,31 +4482,31 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Waiting for the undercut and reclaim is right; buying the close is a wrong choice (D-003)."
+   "notes": "SBUX flush 2011-08-08: three straight lower closes, closed on its low, next session undercut and closed 6% higher (dossier row 3, v01). asof = flush day. Right answer true."
   },
   "q23": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "keep ok; depends_on restored (writer emptied it)"
+   "fixed": false,
+   "notes": "ROKU flush 2019-03-13, reclaim 03-14 undercut 59.63 (v02). asof = flush day; story has no numbers. Wrong key re-keyed to new choice text."
   },
   "q24": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Sorted rank matches target; each wrong choice recomputed as a real mistake on this math; no new tell."
+   "notes": "ALB buy day 2010-05-07, entry 38.49, stop 38.26 (0.6%) match dossier row 2/d02 and the question text. Use 1 of 2."
   },
   "q25": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "39.64 correct (38.49+5*0.23). Answer was the largest choice; swapped the subtract-5R choice for a six-R count slip (39.87) and wrote the steps into the why."
+   "fixed": false,
+   "notes": "Same ALB trade chart, second use; entry/stop in question text match dossier."
   },
   "q27": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c16 (3 sessions) and h08 (B22, 3 days) both put a report 2 sessions away inside the window. Two Yes, two No; key not longest; 'skip it for a month' and 'half size' are real misreadings, notes grounded."
+   "notes": "WDC reclaim 2024-07-29 (second session after 07-25 flush); asof 07-26 = day before. Dossier (section 14 note) says report 2024-07-31, two sessions after reclaim (v04). No numbers in story."
   },
   "q29": {
    "status": "pass",
@@ -4312,14 +4518,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Card cap.inv_stall names the stall 'the early warning' with no extra action, so 'the stop rules' (h02, c48 sense) is right. Wrong notes rest on c19, c25, h02. Checked the card text directly.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "COP day 1 = 2022-06-23 (06-20 closed): opened 93.75, closed 87.89 lower tenth (d13/d14). No trade drawn on a day-1 chart, consistent with pilot SET.07 q41/q29. Use 1 of 2."
   },
   "q31": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "keep ok; depends_on restored (writer emptied it)"
+   "fixed": false,
+   "notes": "MS flush 2025-03-04: 2.61 ATR, 2.02x, 15.3%, controlled three-week mark down (d20). asof flush day. Answer holds (fails cap.burst)."
   },
   "q32": {
    "status": "pass",
@@ -4331,13 +4536,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Facts now ground 2 ATR (c01) and 15% (c05). Key solved cold: 1.96 < 2 (c02). Story's 'above the 200-day' is the question's own detail on an unnamed stock; acceptable."
+   "notes": "LLY flush 2024-07-25: 2.13 ATR, 15.2%, above 200-day, 1.96x (d24/d25). asof flush day. Answer holds."
   },
   "q35": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Writer kept 'unless parabolic long' for stocks; ruling says hard no for stocks, exception only indexes/leveraged ETFs."
+   "fixed": false,
+   "notes": "UBER flush 12-11, reclaim 12-16; asof 12-13 = day before. 15.9% under 200-day, 2.19 ATR, 3.48x, 17.6%, two-month slide (d26/d27). Window 200 ok."
   },
   "q36": {
    "status": "cut",
@@ -4360,14 +4565,14 @@
   "q41": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Keys the gap sell as a judgment, never a rule (GAP-TRIM, D-013). The why says we very rarely sell on day 1; that is r13, not cited, so r13 is added."
+   "fixed": false,
+   "notes": "MP buy day 2025-04-07, entry 22.13 stop 21.72 (1.85%), 5R 24.18 (22.13+5x0.41 ok), day 1 opened 26.00 (d18/d19). forward 20 covers it."
   },
   "q42": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "First sell is a judgment, often a 3 to 7 day push, usually not before day 3; fixed third at 3R and fixed half at 5R correctly wrong."
+   "notes": "ALGM buy day 2023-04-28, 35.06/34.14 (2.6%), 3R on day 3 (v05); forward 20 reaches day 3."
   },
   "q43": {
    "status": "pass",
@@ -4385,7 +4590,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Trail text re-keyed to what is left and the 9 or 20 EMA, cites r21; stale 'second third at 5R' removed; no measured number renamed."
+   "notes": "HIMS buy day 2024-10-31, 18.64/18.27 (2.0%); no outcome R named; forward 60 for the trail. Use 2 of 2 with q12."
   },
   "q46": {
    "status": "cut",
@@ -4428,14 +4633,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from c26 and d12; BN numbers match d10-d12. h02 and c19 support the action notes."
+   "notes": "BN buy day 2020-03-10, 19.57/19.40 (0.89%), 16.5% flush, index new low same week, 41% under buy within 30 sessions; forward 40 covers it."
   },
   "q57": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from h28 and h30. Even if day 1 itself formed a new undercut and reclaim, the key (wait for a new trigger) still holds.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "VOYA buy day 2023-03-15, 64.66/63.75 (1.41%), day 1 low 63.52 = 23 cents under stop, close 66.15 near high (d16/d17)."
   },
   "q59": {
    "status": "pass",
@@ -4447,7 +4651,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "keep ok"
+   "notes": "OKTA Friday flush 2025-04-04 (2.67 ATR, 23.4%, 2.28x; d07), asof = Friday, day before Monday reclaim. Use 2 of 2 with q62."
   },
   "q01": {
    "status": "pass",
@@ -4484,7 +4688,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer is trigger timing; flush shape numbers (2 ATR, 2x, 15%) are the setup definition, and 10-day high is a price high not the 10-day EMA."
+   "notes": "ICE flush 2009-07-08 (2.66 ATR, 4.96x, -29.3%), reclaim 07-10 two sessions later; asof 07-09 = day before. Numbers match row 1 (v06/v07)."
   },
   "q50": {
    "status": "pass",
@@ -4514,7 +4718,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Entry and stop only; limit at the close wrong citing r14; stop on the low wrong."
+   "notes": "OKTA buy day 2025-04-07: opened 88.34, undercut 87.93, close 91.24, buy 89.37, stop 87.88 (d08). Choices/wrong keys consistent; 91.24 = the close, so the Limit distractor teaches never at the close."
   },
   "q64": {
    "status": "pass",
@@ -4609,8 +4813,8 @@
   "q73": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "keep ok; depends_on restored (writer emptied it)"
+   "fixed": false,
+   "notes": "COP buy day 2022-06-22, 92.82/91.41 (1.52%); day 1 opened 93.75 above entry-session low, low 87.26 (d13/d14). Use 2 of 2 with q30."
   },
   "q74": {
    "status": "pass",

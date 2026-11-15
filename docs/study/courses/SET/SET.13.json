@@ -1187,7 +1187,7 @@
     ]
    },
    "batch": "visuals-1",
-   "story": "Hidden ticker, a real high tight flag, the day before its breakout.",
+   "story": "A real high tight flag, the day before its breakout.",
    "chart": {
     "sym": "IOVA",
     "asof": "2019-06-27",
@@ -1461,7 +1461,7 @@
     "D-050"
    ],
    "batch": "visuals-1",
-   "story": "Hidden ticker, the day before a breakout.",
+   "story": "The day before a breakout.",
    "chart": {
     "sym": "SOFI",
     "asof": "2024-11-19",
@@ -1476,7 +1476,7 @@
    "format": "scenario",
    "criterion": "htf.tightness",
    "q": "Do the closes pass our tightness test?",
-   "story": "Hidden ticker, the day before a breakout. Look at the last five closes of the flag.",
+   "story": "The day before a breakout. Look at the last five closes of the flag.",
    "choices": [
     "Yes, within 10% of each other",
     "No, they must sit within 5%",
@@ -1688,7 +1688,7 @@
     ]
    },
    "batch": "visuals-1",
-   "story": "Hidden ticker, the day before a breakout. Look at the volume bars in the flag.",
+   "story": "The day before a breakout. Look at the volume bars in the flag.",
    "chart": {
     "sym": "MRNA",
     "asof": "2020-04-14",
@@ -1882,7 +1882,7 @@
     "$29.32": "That counts 3R up from the stop, not from the fill.",
     "$31.14": "That adds four R. Three R is three gaps, not four."
    },
-   "story": "Hidden ticker, bought on the breakout.",
+   "story": "Bought on the breakout.",
    "chart": {
     "sym": "SRPT",
     "asof": "2015-06-10",
@@ -1934,7 +1934,7 @@
     "D-007"
    ],
    "batch": "visuals-1",
-   "story": "Hidden ticker, the day before a breakout.",
+   "story": "The day before a breakout.",
    "chart": {
     "sym": "CVNA",
     "asof": "2019-03-29",
@@ -2112,7 +2112,7 @@
     "28.0%": "That slips a decimal place.",
     "97.2%": "That is the stop as a share of the fill, not the gap."
    },
-   "story": "Hidden ticker, bought on the breakout.",
+   "story": "Bought on the breakout.",
    "chart": {
     "sym": "SOFI",
     "asof": "2024-11-20",
@@ -2170,7 +2170,7 @@
     "49.5R": "That is the dollar gain read as R. Divide it by the risk per share.",
     "0.2R": "That divides the gain by the price, not by R."
    },
-   "story": "Hidden ticker, bought on the breakout.",
+   "story": "Bought on the breakout.",
    "chart": {
     "sym": "BIDU",
     "asof": "2021-02-05",
@@ -2234,7 +2234,7 @@
     "300 shares": "That is the 40% position cap size. The stop gives a smaller size.",
     "500 shares": "That is the risk dollars read as shares. Divide by the risk per share."
    },
-   "story": "Hidden ticker, bought on the breakout.",
+   "story": "Bought on the breakout.",
    "chart": {
     "sym": "TMDX",
     "asof": "2024-05-14",
@@ -2977,7 +2977,7 @@
    "format": "scenario",
    "criterion": "htf.flag_length",
    "q": "Which test does it fail as a high tight flag?",
-   "story": "Hidden ticker, the day before it trades through the top of its rest. It rose fast first. The rest has lasted 32 sessions, 23.1% deep, with tight closes.",
+   "story": "The day before it trades through the top of its rest. It rose fast first. The rest has lasted 32 sessions, 23.1% deep, with tight closes.",
    "choices": [
     "The flag length: not 5 to 30 sessions",
     "The flag depth: deeper than 25%",
@@ -3160,7 +3160,7 @@
    "format": "scenario",
    "criterion": "htf.after_entry_stop",
    "q": "What do you do?",
-   "story": "Hidden ticker, bought on the breakout at 52.01 with the stop at 49.95. It rose 291% in 34 sessions, then flagged six days. The breakout day traded a tenth of its average volume. Next morning it falls to your stop.",
+   "story": "Bought on the breakout at 52.01 with the stop at 49.95. It rose 291% in 34 sessions, then flagged six days. The breakout day traded a tenth of its average volume. Next morning it falls to your stop.",
    "choices": [
     "Sell at the stop, as planned",
     "Hold; the pole was huge",
@@ -3214,7 +3214,7 @@
    "format": "scenario",
    "criterion": "htf.no_chase",
    "q": "The next morning it takes your stop. Was buying the gap a mistake?",
-   "story": "Hidden ticker, a high tight flag that passes every gate. It gaps open at 125.50 over the 121.91 buy point on 1.47x volume. You are filled, with the stop at 120.92. It closes at 121.75, the low of its day.",
+   "story": "A high tight flag that passes every gate. It gaps open at 125.50 over the 121.91 buy point on 1.47x volume. You are filled, with the stop at 120.92. It closes at 121.75, the low of its day.",
    "choices": [
     "No; a planned loss at the stop",
     "Yes; skip gaps next time",
@@ -3271,7 +3271,7 @@
    "format": "scenario",
    "criterion": "htf.trim_1",
    "q": "Was the loss a mistake?",
-   "story": "Hidden ticker, bought on the breakout at 175.81 with the stop at 168.86. It reaches 2.35R, then falls back. On day 3 it trades through your stop.",
+   "story": "Bought on the breakout at 175.81 with the stop at 168.86. It reaches 2.35R, then falls back. On day 3 it trades through your stop.",
    "choices": [
     "No; the stop was the planned exit",
     "No; but skip this stock next time",
@@ -3327,7 +3327,7 @@
    "format": "scenario",
    "criterion": "htf.stop",
    "q": "Why did this trade end in a loss?",
-   "story": "Hidden ticker, a 101% pole, then a 15-day flag 8.5% deep. You buy the breakout at 398.90 on 1.48x volume, with the stop at 386.96. It reaches 1.66R, then stalls. On day 7 it trades through your stop.",
+   "story": "A 101% pole, then a 15-day flag 8.5% deep. You buy the breakout at 398.90 on 1.48x volume, with the stop at 386.96. It reaches 1.66R, then stalls. On day 7 it trades through your stop.",
    "choices": [
     "A valid flag simply failed",
     "The stop was set too tight",
@@ -3383,7 +3383,7 @@
    "format": "scenario",
    "criterion": "htf.inv_volume_rising",
    "q": "Take the breakout or pass?",
-   "story": "Hidden ticker, the day before the breakout. A 123% pole, then a 16-day flag 17.2% deep. Volume in the flag runs 1.27x the pole's average.",
+   "story": "The day before the breakout. A 123% pole, then a 16-day flag 17.2% deep. Volume in the flag runs 1.27x the pole's average.",
    "choices": [
     "Pass; supply is coming in",
     "Take it; the pole is big",
@@ -3639,7 +3639,7 @@
    "format": "scenario",
    "criterion": "htf.trail",
    "q": "What gets you out of the rest of the position?",
-   "story": "Hidden ticker, bought at 264.95 with the stop at 255.06. You sold part into the push and the rest still rides. Later it ran to about 354 and turned down hard.",
+   "story": "Bought at 264.95 with the stop at 255.06. You sold part into the push and the rest still rides. Later it ran to about 354 and turned down hard.",
    "choices": [
     "A close below the trail average",
     "A close under the flag low itself",
@@ -3845,7 +3845,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "htf.pole_size",
-   "q": "Hidden ticker, the day before a breakout. Take it or pass?",
+   "q": "The day before a breakout. Take it or pass?",
    "choices": [
     "Take it; the pole doubled",
     "Take it; flag volume is rising",
@@ -3894,7 +3894,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "htf.pole_size",
-   "q": "Hidden ticker, the day before it trades through a tight flag's high. Weigh the last 8 weeks. Take it as a high tight flag, or pass?",
+   "q": "The day before it trades through a tight flag's high. Weigh the last 8 weeks. Take it as a high tight flag, or pass?",
    "choices": [
     "Pass; the run never doubled",
     "Take it; the flag is tight",
@@ -4317,7 +4317,7 @@
     "$0.38": "That slips a decimal place.",
     "$98.71": "That adds one R to the fill. One R is the gap itself."
    },
-   "story": "Hidden ticker, bought on the breakout.",
+   "story": "Bought on the breakout.",
    "chart": {
     "sym": "CRNC",
     "asof": "2020-12-16",
@@ -4378,7 +4378,7 @@
    "format": "scenario",
    "criterion": "htf.breakeven",
    "q": "By our rule, may you move the stop to breakeven now?",
-   "story": "Hidden ticker, bought on the breakout at 175.81 with the stop at 168.86. Later it is up 2R, and you have not sold any shares yet.",
+   "story": "Bought on the breakout at 175.81 with the stop at 168.86. Later it is up 2R, and you have not sold any shares yet.",
    "choices": [
     "Yes, that is inside our window",
     "No, only after the first trim",
@@ -4426,7 +4426,7 @@
    "format": "scenario",
    "criterion": "htf.market_order",
    "q": "What do you do?",
-   "story": "Hidden ticker, the day before a breakout. Next morning your alert fires in regular hours: it trades through the pattern high. The flag passed every test.",
+   "story": "The day before a breakout. Next morning your alert fires in regular hours: it trades through the pattern high. The flag passed every test.",
    "choices": [
     "Buy at market now; stop goes in at once",
     "Wait for a close over the high, then buy",

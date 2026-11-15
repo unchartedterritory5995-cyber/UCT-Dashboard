@@ -921,7 +921,7 @@
    "key": "q01",
    "skill": "setup.news_failure",
    "rung": 1,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "nf.scan_standin",
    "q": "In a News Failure long, what does the stock do on the news day?",
    "choices": [
@@ -955,7 +955,14 @@
      "rests on the criteria card's proposed criterion (owner default, not yet ruled) (nf.scan_standin, the look-alike lines)"
     ]
    },
-   "batch": "wave5"
+   "batch": "visuals-5",
+   "story": "A News Failure long's news day, shown to the close.",
+   "chart": {
+    "sym": "CELH",
+    "asof": "2024-02-29",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q02",
@@ -1026,7 +1033,7 @@
    "key": "q04",
    "skill": "setup.news_failure",
    "rung": 1,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "nf.stop",
    "q": "Where does the stop go on a News Failure long?",
    "choices": [
@@ -1057,7 +1064,14 @@
      "rests on the owner's rulebook (F62)"
     ]
    },
-   "batch": "wave5"
+   "batch": "visuals-5",
+   "story": "The news day of a News Failure long. You bought as price traded back over the prior close.",
+   "chart": {
+    "sym": "KSS",
+    "asof": "2017-11-09",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q05",
@@ -1112,7 +1126,7 @@
    "key": "q07",
    "skill": "setup.news_failure",
    "rung": 1,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "nf.failure_close",
    "q": "Good news gaps a stock up, but it closes under the prior close. What is that?",
    "choices": [
@@ -1146,7 +1160,14 @@
    "depends_on": [
     "D-087"
    ],
-   "batch": "wave5"
+   "batch": "visuals-5",
+   "story": "The news day, shown to the close.",
+   "chart": {
+    "sym": "STNG",
+    "asof": "2020-05-06",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q08",
@@ -1191,7 +1212,7 @@
    "key": "q09",
    "skill": "setup.news_failure",
    "rung": 2,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "nf.entry_short",
    "q": "How is the News Failure short entered?",
    "choices": [
@@ -1226,7 +1247,14 @@
      "the short entry is a proposed card line; traded shorts wait on D-001"
     ]
    },
-   "batch": "rulings"
+   "batch": "visuals-5",
+   "story": "The news day of a News Failure short. It gapped up on news, then sold off.",
+   "chart": {
+    "sym": "OKLO",
+    "asof": "2026-04-24",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q10",
@@ -1426,9 +1454,9 @@
    "key": "q16",
    "skill": "setup.news_failure",
    "rung": 3,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "nf.stop",
-   "q": "Bought at 86.36 with the stop at 81.48. How far under the buy is the stop, in percent?",
+   "q": "How far under the buy is the stop, in percent?",
    "answer": "5.7%",
    "calc": {
     "fn": "arith",
@@ -1461,7 +1489,7 @@
      "rests on the owner's rulebook (A3, A13)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-5",
    "choices": [
     "6.0%",
     "0.6%",
@@ -1472,6 +1500,17 @@
     "6.0%": "Divided the gap by the stop, not the buy.",
     "4.9%": "Used the dollar gap as a percent.",
     "0.6%": "Slipped the decimal point a place."
+   },
+   "story": "Bought on the news day at 86.36 with the stop at 81.48.",
+   "chart": {
+    "sym": "AAOI",
+    "asof": "2026-04-02",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 86.36,
+     "stop": 81.48
+    }
    }
   },
   {
@@ -1701,25 +1740,25 @@
    "q": "Does the day pass the gap-and-volume test for news?",
    "choices": [
     "No; the gap down is under 4%",
-    "No; volume must be 5x the average",
+    "No; volume must be 10x the average",
     "Yes; the gap and volume both clear",
-    "Yes; the 2.4x volume alone is enough"
+    "Yes; the 6.6x volume alone is enough"
    ],
    "answer": "Yes; the gap and volume both clear",
-   "why": "Yes. The open of 47.80 is more than 4% under the 50.00 close. Volume is 2.4 times the 50-day average, over the 2 times the test asks. Both parts must clear. Passing only flags the day; the reversal back over the prior close is still needed.",
+   "why": "Yes. The open is 6.2% under the prior close, more than the 4% the test asks. Volume is 6.6 times the 50-day average, over the 2 times the test asks. Both parts must clear. Passing only flags the day; the reversal back over the prior close is still needed.",
    "lesson_line": "A gap of 4% or more on 2 times the volume passes the test.",
    "facts": [
     "n1",
     "n6"
    ],
    "wrong": {
-    "No; volume must be 5x the average": "The test asks for 2 times the 50-day volume or more.",
     "No; the gap down is under 4%": "The open is more than 4% under the prior close, so it clears 4%.",
-    "Yes; the 2.4x volume alone is enough": "Volume alone does not pass. The test also needs an open 4% or more under the prior close."
+    "No; volume must be 10x the average": "The test asks for 2 times the 50-day volume or more.",
+    "Yes; the 6.6x volume alone is enough": "Volume alone does not pass. The test also needs an open 4% or more under the prior close."
    },
    "house": true,
-   "story": "A stock closed at 50.00. It opens at 47.80 and trades 2.4 times its 50-day average volume that day.",
-   "simple": "Yes. The open is more than 4% under the 50.00 close, and volume is more than twice the 50-day average.",
+   "story": "An earnings day. It opens 6.2% under the prior close on 6.6x its 50-day average volume.",
+   "simple": "Yes. The open is over 4% under the prior close, and volume is more than twice the 50-day average.",
    "tier": "core",
    "risk": {
     "score": 4,
@@ -1728,7 +1767,13 @@
      "the key rests on arithmetic from the story"
     ]
    },
-   "batch": "wave5"
+   "batch": "visuals-5",
+   "chart": {
+    "sym": "KSS",
+    "asof": "2017-11-09",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q24",
@@ -2055,7 +2100,13 @@
      "rests on the owner's rulebook (B26); the card's short location waits on D-009"
     ]
    },
-   "batch": "rulings"
+   "batch": "visuals-5",
+   "chart": {
+    "sym": "UNH",
+    "asof": "2026-10-13",
+    "window": 120,
+    "forward": 15
+   }
   },
   {
    "key": "q34",
@@ -2276,7 +2327,13 @@
      "numbers read from our own bars by the research scan (Tier 3, not owner-reviewed)"
     ]
    },
-   "batch": "wave5"
+   "batch": "visuals-5",
+   "chart": {
+    "sym": "ZS",
+    "asof": "2023-11-28",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q40",
@@ -2349,7 +2406,7 @@
     "Risk goes up so the size stays full": "Risk is not raised to fit a stop. It runs 0.25% to 2%, picked by setup quality and the rest."
    },
    "house": true,
-   "story": "HIMS, 2025. An earnings gap down 8.5% on 5.2x volume closes 18.1% up. The stop is 8.9% under the buy.",
+   "story": "The news day. An earnings gap down 8.5% on 5.2x volume closes 18.1% up. The stop is 8.9% under the buy.",
    "simple": "The 8.9% stop is too wide, so we mostly wait for a tighter trigger.",
    "deeper": {
     "trap": "The trap is to keep the usual size and quietly tighten the stop to fit. That puts the stop inside the news day's range, above the honest stop. The honest stop is a few cents under the news day's low. When it sits past 5%, we mostly wait for a tighter trigger."
@@ -2363,15 +2420,21 @@
      "numbers read from our own bars by the research scan (Tier 3, not owner-reviewed)"
     ]
    },
-   "batch": "rulings"
+   "batch": "visuals-5",
+   "chart": {
+    "sym": "HIMS",
+    "asof": "2025-05-06",
+    "window": 150,
+    "forward": 20
+   }
   },
   {
    "key": "q42",
    "skill": "setup.news_failure",
    "rung": 6,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "nf.trim_1",
-   "q": "Bought at 41.89 with the stop at 38.18. The 3R price is what percent over the buy?",
+   "q": "The 3R price is what percent over the buy?",
    "answer": "26.6%",
    "calc": {
     "fn": "arith",
@@ -2405,7 +2468,7 @@
      "rests on the owner's rulebook (A13, B19)"
     ]
    },
-   "batch": "rank",
+   "batch": "visuals-5",
    "choices": [
     "26.6%",
     "8.9%",
@@ -2416,6 +2479,13 @@
     "8.9%": "Counted one R, forgot the three.",
     "29.2%": "Divided by the stop, not the buy.",
     "35.4%": "Counted four R, one too many."
+   },
+   "story": "Bought on the news day at 41.89 with the stop at 38.18.",
+   "chart": {
+    "sym": "HIMS",
+    "asof": "2025-05-06",
+    "window": 150,
+    "forward": 20
    }
   },
   {
@@ -2475,7 +2545,7 @@
     "A shakeout; widen the stop": "The stop only moves in the trade's favor, never wider. A new low is the exit, not a shakeout."
    },
    "house": true,
-   "story": "You hold a News Failure long. Price falls through the news day's low.",
+   "story": "You bought a News Failure long on the news day. Five sessions later, price falls through the news day's low.",
    "simple": "The trade is over, because a new low under the news day's low means the turn failed and your stop is hit.",
    "tier": "extended",
    "risk": {
@@ -2484,7 +2554,13 @@
      "rests on the owner's rulebook (section 9) (A4, B20, D41)"
     ]
    },
-   "batch": "wave5"
+   "batch": "visuals-5",
+   "chart": {
+    "sym": "TTD",
+    "asof": "2022-02-16",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q45",
@@ -2562,7 +2638,7 @@
     "On a break above the news day's high": "The trigger is the prior close, not the high. SEDG closed 28.9% over the prior close, and past 4% beyond the trigger you skip."
    },
    "house": true,
-   "story": "SEDG, 2025. An earnings gap down 4.1% into the 50-day, then a close 28.9% over the prior close at 0.95 of the range.",
+   "story": "In 2025, an earnings gap down 4.1% into the 50-day, then a close 28.9% over the prior close at 0.95 of the range.",
    "simple": "You buy with a market order as price climbs back over the prior close, because that reclaim is the trigger.",
    "deeper": {
     "example": "SEDG's scan trade: a buy at 31.83 as it crossed the prior close. The stop sat at 30.23, under the news day's low. That is a 5.0% stop, so the size comes from it and is smaller than usual. It reached 3R the next day and 10.5R at best."
@@ -2578,7 +2654,13 @@
    "depends_on": [
     "D-087"
    ],
-   "batch": "wave5"
+   "batch": "visuals-5",
+   "chart": {
+    "sym": "SEDG",
+    "asof": "2025-11-05",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q48",
@@ -2636,7 +2718,7 @@
     "A bear gap; the gap was on earnings": "A bear gap stays down. This one closed 20.4% up, so the bad news failed to hold it."
    },
    "house": true,
-   "story": "CELH, 2024. A leader above all its averages had fallen only 1% over 60 sessions. Then earnings gap it down 5.7% on 7.4x volume, and it closes 20.4% up.",
+   "story": "In 2024, a leader above all its averages had fallen only 1% over 60 sessions. Then earnings gap it down 5.7% on 7.4x volume, and it closes 20.4% up.",
    "simple": "It shows the reversal shape without the crowding, because the stock was not beaten down before the news.",
    "deeper": {
     "counter": "CELH made a clean reversal on 7.4x volume, so the shape can appear with no crowding behind it. A clean shape is not the whole read. With no crowding before the news, Shapiro would not trade it."
@@ -2652,7 +2734,13 @@
    "depends_on": [
     "D-088"
    ],
-   "batch": "wave5"
+   "batch": "visuals-5",
+   "chart": {
+    "sym": "CELH",
+    "asof": "2024-02-29",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q50",
@@ -2685,7 +2773,7 @@
     "Bottom of the range, over the 200-day": "The shape is right, but shorts go only below the 200-day, never above it unless it is a parabolic short."
    },
    "house": true,
-   "story": "SKIN, 2022. An earnings gap up 4.8% after a 54% run, then a sell-off to a close 16.2% down.",
+   "story": "In 2022, an earnings gap up 4.8% after a 54% run, then a sell-off to a close 16.2% down.",
    "simple": "The short grades up on a close at the bottom of the day's range, and it must sit under the 200-day line.",
    "deeper": {
     "example": "SKIN's scan short: in at 15.26 as it traded back under the prior close. The stop sat at 16.05, over the news day's high, a 5.2% stop. It reached 3R in 6 days and 6.6R at best."
@@ -2698,7 +2786,13 @@
      "numbers read from our own bars by the research scan (Tier 3, not owner-reviewed)"
     ]
    },
-   "batch": "rulings"
+   "batch": "visuals-5",
+   "chart": {
+    "sym": "SKIN",
+    "asof": "2022-08-09",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q51",
@@ -2734,7 +2828,7 @@
     "No; but it shows the setup is broken": "Losses are expected. Our test found about two losses for every 3R winner, so one loss does not break the setup."
    },
    "house": true,
-   "story": "MRVL, 2026. A 6.2% gap down on 2.7x volume. You buy as it trades back over the prior close. It closes up 4.9% in the top 12% of the range. The 8% stop is hit the next session.",
+   "story": "In 2026, a 6.2% gap down on 2.7x volume. You buy as it trades back over the prior close. It closes up 4.9% in the top 12% of the range. The 8% stop is hit the next session.",
    "simple": "No rule was broken, because you bought at the trigger and the stop did its job, but the idea was thin.",
    "deeper": {
     "trap": "The trap is to read one loss as a broken setup. Our test found about two losses for every 3R winner. The real lesson is the missing crowding: MRVL had pulled back only 7% before the news. A clean shape on 2.7x volume was not enough."
@@ -2750,7 +2844,13 @@
    "depends_on": [
     "D-088"
    ],
-   "batch": "wave5"
+   "batch": "visuals-5",
+   "chart": {
+    "sym": "MRVL",
+    "asof": "2026-06-04",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q52",
@@ -2783,7 +2883,7 @@
     "The stop was too tight for it": "The stop sits a few cents over the news day's high by rule. Price taking it out means the turn was not picked."
    },
    "house": true,
-   "story": "ZTS, 2025. Good news gaps it up 5.4% and it closes 3.7% down. You short. It reaches 0.9R, then reverses up through the news day's high.",
+   "story": "In 2025, good news gaps it up 5.4% and it closes 3.7% down. You short at 151.80 with the stop at 160.08. It reaches 0.9R, then reverses up through the news day's high.",
    "simple": "The short worked at first, then price rose through the news day's high, so the failure itself failed.",
    "deeper": {
     "counter": "ZTS ran only 5% before the news, so little crowding sat behind the short. A failure with no crowding behind it is the kind Shapiro would not trade. The shape alone looked fine: a 5.4% gap up on 2.3x volume, closing in the bottom 10% of the range."
@@ -2796,7 +2896,18 @@
      "numbers read from our own bars by the research scan (Tier 3, not owner-reviewed)"
     ]
    },
-   "batch": "rulings"
+   "batch": "visuals-5",
+   "chart": {
+    "sym": "ZTS",
+    "asof": "2025-08-05",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 151.8,
+     "stop": 160.08,
+     "direction": "bearish"
+    }
+   }
   },
   {
    "key": "q53",
@@ -2857,7 +2968,7 @@
     "The gap; 6.2% was too big to fade": "The stand-in asks for a gap of 4% or more, and 6.2% clears it. The gap was fine; the market was not."
    },
    "house": true,
-   "story": "UAL, 2020. Good news gaps it up 6.2% on 2.2x volume, and it closes 1.9% down, near the low. You short in a Green market. Two sessions later it is back through the day's high.",
+   "story": "In 2020, good news gaps it up 6.2% on 2.2x volume, and it closes 1.9% down, near the low. You short in a Green market. Two sessions later it is back through the day's high.",
    "simple": "The short failed because the market was Green and buying good news, and that tide carried the stock back up.",
    "deeper": {
     "trap": "The trap is reading the stock alone. UAL's shape was clean: a 6.2% gap up on 2.2x volume, sold to the bottom 15% of the range. But the short wants an Orange or Red reading. Here the reading was Green, and the market carried the stock back up through the high."
@@ -2870,7 +2981,13 @@
      "numbers read from our own bars by the research scan (Tier 3, not owner-reviewed)"
     ]
    },
-   "batch": "rulings"
+   "batch": "visuals-5",
+   "chart": {
+    "sym": "UAL",
+    "asof": "2020-05-19",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q55",
@@ -2900,7 +3017,7 @@
     "A reason to short all 56 of them": "The card wants fewer than 5 such events on a day. With 56, the news was the market, not each stock."
    },
    "house": true,
-   "story": "On 2025-04-08, 56 stocks show the good-news failure shape. Two of them, AMAT and DAL, gap up 4.2% on 2.2x volume and close in the bottom 11% of the range. Both stops are hit the next day.",
+   "story": "On 2025-04-08, 56 stocks show the good-news failure shape. The chart is one of two that gap up 4.2% on 2.2x volume and close in the bottom 11% of the range. Both stops are hit the next day.",
    "simple": "So many stocks failing on one day pointed to market news, not news about each stock.",
    "deeper": {
     "example": "The card's line is fewer than 5 such events on the same day. On 2025-04-08 there were 56. AMAT and DAL each closed in the bottom 11% of the range, under the 200-day. Each looked like a clean short alone. Read together, the day was a market story."
@@ -2914,7 +3031,13 @@
      "fixed before (cold check 2026-11-10)"
     ]
    },
-   "batch": "wave5"
+   "batch": "visuals-5",
+   "chart": {
+    "sym": "AMAT",
+    "asof": "2025-04-08",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q56",
@@ -2969,7 +3092,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "nf.entry_long",
-   "q": "Hidden ticker, a news day after the close. It gapped down on heavy volume. Was there a valid red-to-green long that day?",
+   "q": "A news day after the close. It gapped down on heavy volume. Was there a valid red-to-green long that day?",
    "choices": [
     "Not valid; the close stayed under it",
     "Valid; it traded back over the close",
@@ -3023,7 +3146,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "nf.above_200",
-   "q": "Hidden ticker, a news day that gapped down and closed green. Take the long or pass?",
+   "q": "A news day that gapped down and closed green. Take the long or pass?",
    "choices": [
     "Take it; the reversal is strong",
     "Take it; the gap was big enough",
@@ -3155,7 +3278,7 @@
    "rung": 2,
    "format": "tf",
    "criterion": "nf.stop",
-   "q": "The stop for a News Failure short goes a few cents under the news day's low.",
+   "q": "A News Failure short's news day. The stop goes a few cents under that day's low.",
    "answer": "False",
    "why": "False. For a short, the stop goes a few cents over the news day's high. For a long, it goes a few cents under the low. The stop sits beyond the news day's extreme so far, not exactly on it.",
    "lesson_line": "Long: under the low. Short: over the high.",
@@ -3172,7 +3295,13 @@
      "rests on the owner's rulebook (section 9) (F62); the card's settled stop"
     ]
    },
-   "batch": "wave5"
+   "batch": "visuals-5",
+   "chart": {
+    "sym": "OKLO",
+    "asof": "2026-04-24",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q62",
@@ -3311,7 +3440,7 @@
     "Up under the 9 EMA": "The 9 EMA is the trail for what is left. The stop moves to breakeven first."
    },
    "house": true,
-   "story": "You bought a News Failure long at 31.83 with the stop at 30.23. The stock reaches 3R and you sell part of the position.",
+   "story": "You bought a News Failure long on the news day at 31.83 with the stop at 30.23. The stock reaches 3R and you sell part of the position.",
    "simple": "The stop moves up to your 31.83 entry, because 3R is inside the window where breakeven comes.",
    "tier": "extended",
    "risk": {
@@ -3320,34 +3449,44 @@
      "rests on the owner's rulebook (section 9) (B19, A4)"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "visuals-5",
+   "chart": {
+    "sym": "SEDG",
+    "asof": "2025-11-05",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 31.83,
+     "stop": 30.23
+    }
+   }
   },
   {
    "key": "q67",
    "skill": "setup.news_failure",
    "rung": 4,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "nf.trim_2",
-   "q": "Bought at 86.36 with the stop at 81.48. Where is 5R?",
-   "answer": "$110.76",
-   "why": "110.76. One R is the buy minus the stop: 86.36 minus 81.48. Multiply that by five and add it to the 86.36 buy to get 110.76. 5R is another mark to measure by. Selling into a push, at about 5 to 10R, is often best.",
+   "q": "Where is 5R?",
+   "answer": "$238.67",
+   "why": "238.67. One R is the buy minus the stop: 191.92 minus 182.57. Multiply that by five and add it to the 191.92 buy to get 238.67. 5R is another mark to measure by. Selling into a push, at about 5 to 10R, is often best.",
    "lesson_line": "Know your 5R before the open. It is a mark to measure by.",
    "facts": [
     "r11",
-    "dAAOIb"
+    "dZS"
    ],
    "house": true,
    "calc": {
     "fn": "arith",
     "args": {
      "expr": "a + 5 * (a - b)",
-     "a": 86.36,
-     "b": 81.48
+     "a": 191.92,
+     "b": 182.57
     },
     "round": 2
    },
    "prefix": "$",
-   "simple": "$110.76. One R is the buy minus the stop, and 5R adds five of those to the buy.",
+   "simple": "$238.67. One R is the buy minus the stop, and 5R adds five of those to the buy.",
    "tier": "core",
    "risk": {
     "score": 4,
@@ -3356,17 +3495,28 @@
      "rests on the owner's rulebook (E51)"
     ]
    },
-   "batch": "rank",
+   "batch": "visuals-5",
    "choices": [
-    "$110.76",
-    "$105.88",
-    "$101.00",
-    "$91.24"
+    "$238.67",
+    "$229.32",
+    "$219.97",
+    "$201.27"
    ],
    "wrong": {
-    "$105.88": "Added five R to the stop, not the buy.",
-    "$91.24": "Added one R, not five.",
-    "$101.00": "Added three R, not five."
+    "$229.32": "Added five R to the stop, not the buy.",
+    "$201.27": "Added one R, not five.",
+    "$219.97": "Added three R, not five."
+   },
+   "story": "Bought on the news day at 191.92 with the stop at 182.57.",
+   "chart": {
+    "sym": "ZS",
+    "asof": "2023-11-28",
+    "window": 120,
+    "forward": 30,
+    "trade": {
+     "entry": 191.92,
+     "stop": 182.57
+    }
    }
   },
   {
@@ -3566,7 +3716,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer from l2b before key: gap down on bad news, close back over the prior close. Matches. Choices 33-39 chars, no tell; wrong notes true (l1, l2, l3). Stand-in numbers verbatim n1."
+   "notes": "CELH 2024-02-29 on card; bars: gap -5.7%, 7.4x, close +20.4%, range 0.94. asof = news day close, right for a read of the shape. No numbers in text. Answer true."
   },
   "q02": {
    "status": "pass",
@@ -3582,9 +3732,9 @@
   },
   "q04": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "KSS 2017-11-09; bars match dossier row 6 (gap -6.2%, 6.6x). Stop 7.0% so no trade drawn, correct. News-day chart shows the low the stop goes under."
   },
   "q05": {
    "status": "pass",
@@ -3602,7 +3752,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from l1; each wrong note rules its choice out on this story (l1, l3, l2). Note: q25 tests the same good-news-gap-up, red-close read at rung 4; teach then apply, kept."
+   "notes": "STNG 2020-05-06; bars: gap +5.6%, close -10.4%, range 0.01. Answer (News Failure mirror) true. Minor: dossier says STNG news unconfirmed, but the story claims no news; accepted."
   },
   "q08": {
    "status": "pass",
@@ -3614,7 +3764,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with its rulings"
+   "notes": "OKLO 2026-04-24; bars match row 10 (gap +6.3%, close -7.1%). Story 'gapped up on news' fits (news, no report). No numbers. Answer true."
   },
   "q10": {
    "status": "pass",
@@ -3656,7 +3806,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "5.7% = 4.88/86.36. 6.0% is 4.88/81.48 (wrong base), 4.9% dollar gap, 0.6% decimal slip. All real."
+   "notes": "AAOI 2026-04-02 trade 86.36/81.48 = dossier row 1; both in story; stop 5.7% (<6%); entry inside the day's range, stop under the low 81.51; checker clean. 5.7% answer correct."
   },
   "q17": {
    "status": "pass",
@@ -3698,7 +3848,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "47.80 vs 50.00 is a 4.4% gap, over 4%; 2.4x over 2x; key right. No computed number is printed, so no calc is needed by the validator. Balanced 2 Yes / 2 No."
+   "notes": "KSS re-key: open 6.2% under prior close and 6.6x match row 6 and bars (open 38.25 vs 40.79, 6.6x). Distractor 10x does not trip. Wrong keys match choices. Note: no KSS fact in the lesson facts list; numbers trace to dossier row 6 only."
   },
   "q24": {
    "status": "pass",
@@ -3758,8 +3908,8 @@
   "q33": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Answer correct (short side of the 200-day rule). The cited fact hB26 still prints the old 'no longs below the 200-day ... unless parabolic long' half; swapped for a fact quoting only the short half the question rests on."
+   "fixed": false,
+   "notes": "UNH 2026-10-13; bars: gap +5.0%, 2.7x, close -0.2%, 377.76, range 0.18 (bottom 18%). Matches near_miss. forward 15 is available. Answer true (above the 200-day)."
   },
   "q34": {
    "status": "pass",
@@ -3795,7 +3945,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer l2b: a close back above the prior close is the test; ZS closed +1.0% (dZS, dZSw verbatim). Two Yes, two No; key no longer echoes the story. 'No size of gain is required' follows from l2b's test."
+   "notes": "ZS 2023-11-28; bars: gap -4.3%, 6.5x, +1.0%, range 0.98. Text unchanged and true. Answer true."
   },
   "q40": {
    "status": "pass",
@@ -3807,13 +3957,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with its rulings"
+   "notes": "HIMS 2025-05-06; bars: gap -8.5%, 5.2x, +18.1%; stop 8.9% matches row 3; no trade drawn (over 6%), correct. Ticker hidden. Answer true."
   },
   "q42": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Sorted rank matches target; each wrong choice recomputed as a real mistake on this math; no new tell."
+   "notes": "HIMS 2025-05-06; buy 41.89 / stop 38.18 from row 3, in the story; no trade drawn (8.9% over limit), correct. 26.6% arithmetic unchanged. Second HIMS use only."
   },
   "q43": {
    "status": "cut",
@@ -3823,10 +3973,9 @@
   },
   "q44": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "TTD 2022-02-16; stop hit 2022-02-24, day 5 (bars: day 5 opens 69.67 under the news-day low 71.05), so 'five sessions later' is true; forward 20 covers it. Answer true. Note the stop is a gap-through then a +19% close that day; the words stay true."
   },
   "q45": {
    "status": "cut",
@@ -3844,7 +3993,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Buy as price trades back over the prior close, market order, intraday; agrees with D-003."
+   "notes": "SEDG 2025-11-05; bars: gap -4.1%, 3.8x, close +28.9%, range 0.95 match story. Ticker hidden. Answer true."
   },
   "q48": {
    "status": "cut",
@@ -3856,25 +4005,25 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer from dCELHw: the shape without the crowding. 60-session fall of 1% matches the dossier's structure definition (fall over 60 sessions). A+ distractor wrong by n20 (an invalidation). Rests on held D-088, already flagged."
+   "notes": "CELH 2024-02-29; story numbers (5.7%, 7.4x, +20.4%, fall 1%) match bars and row 4. Ticker hidden. Answer true."
   },
   "q50": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with its rulings"
+   "notes": "SKIN 2022-08-09; bars: gap +4.8%, close -16.2%, range 0.01; 54% run from row 9. Ticker hidden. Answer true."
   },
   "q51": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: no rule break, a planned loss (hA4, hA3, dMRVLb 8.0% stop day 1). Two Yes, two No, 33-36 chars. 'Setup is broken' is wrong for one loss (dBase2); does not contradict q56's no-edge finding since one loss shows nothing."
+   "notes": "MRVL 2026-06-04; bars: gap -6.2%, 2.7x, +4.9%, range 0.88; next session low 261.39 under the 277.53 stop (day 1) confirms 'hit the next session'. Answer true."
   },
   "q52": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with its rulings"
+   "notes": "ZTS 2025-08-05 short 151.80/160.08 (row 2); both in story; stop 5.5%; entry in range, stop 160.08 over the high 160.05; replay shows best 0.9R, stopped day 11, forward 20 covers it. Answer true."
   },
   "q53": {
    "status": "cut",
@@ -3886,13 +4035,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with its rulings"
+   "notes": "UAL 2020-05-19; bars: gap +6.2%, 2.2x, -1.9%, bottom 15%; day 2 high 26.58 clears the day's high and the stop, as the story says. No trade drawn (6.6% stop), correct. Answer true."
   },
   "q55": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer n5/dCluster: market-wide news. dAMAT/dApr8 verbatim (56 events, 4.2% on 2.2x, bottom 11%, stopped next day). Choices 27-32 chars. The stem word 'cluster' and q10's stem make it easy, accepted as the rung 8 applied case."
+   "notes": "AMAT 2025-04-08; bars: gap +4.2%, 2.2x, bottom 11%; card note says both AMAT and DAL stopped next day (day 1 high 150.96 over the high). Ticker hidden. Answer true."
   },
   "q56": {
    "status": "pass",
@@ -3928,9 +4077,9 @@
   },
   "q61": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "OKLO 2026-04-24 short news day; the day's high 81.50 is visible so the stop 'over the high' can be found. No numbers. Answer False stays true. Second OKLO use."
   },
   "q62": {
    "status": "cut",
@@ -3978,13 +4127,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Breakeven window 2R to 5R kept; 9 EMA trail for what is left cites r21; stale hB19 fact (third at 3R) already dropped; sell at 3R is only story context, not keyed."
+   "notes": "SEDG 2025-11-05 trade 31.83/30.23 = row 2; both in story; stop 5.0%; stop under the low 30.26; replay best 10.5R and the 3R claim is dated day 1; checker clean."
   },
   "q67": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Sorted rank matches target; each wrong choice recomputed as a real mistake on this math; no new tell."
+   "notes": "ZS 2023-11-28 trade 191.92/182.57 = row 5, in story; stop 4.9%; stop under the low 182.60. 5R = 238.67, distractors recomputed correctly (229.32 = stop+5R, 201.27 = 1R, 219.97 = 3R), wrong keys exact. Note: lesson facts lack a ZS buy/stop fact (dZS has no 191.92/182.57); dossier row 5 supports them."
   },
   "q68": {
    "status": "pass",

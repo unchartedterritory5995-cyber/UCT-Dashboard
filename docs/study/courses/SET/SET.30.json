@@ -1293,7 +1293,7 @@
    "key": "q03",
    "skill": "setup.parabolic_long",
    "rung": 1,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "pl.target",
    "q": "What is the target of a parabolic long?",
    "choices": [
@@ -1303,7 +1303,7 @@
     "A set percent bounce off the low"
    ],
    "answer": "The daily 9 EMA, from below",
-   "why": "The daily 9 EMA, from below. Bracco uses it as the target for his parabolic short, and our card keeps it for the long. The trade is done when price gets there.",
+   "why": "The daily 9 EMA, from below. Bracco uses it as the target for his parabolic short, and our card keeps it for the long. The trade is done when price gets there. On this chart the 9 EMA came inside two weeks.",
    "lesson_line": "The 9 EMA is the finish line. The trade is done when price gets there.",
    "facts": [
     "c18",
@@ -1328,7 +1328,18 @@
      "the exit is part of the held trim question (D-013)"
     ]
    },
-   "batch": "wave3"
+   "batch": "visuals-3",
+   "story": "Bought on the climax day at 84.95 with the stop at 81.62.",
+   "chart": {
+    "sym": "JCI",
+    "asof": "2001-09-21",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 84.95,
+     "stop": 81.62
+    }
+   }
   },
   {
    "key": "q04",
@@ -2021,7 +2032,7 @@
    "format": "scenario",
    "criterion": "pl.no_frontrun",
    "q": "Friday afternoon. What is the plan?",
-   "story": "It is Friday. The index is four down days deep and stretched under its 50-day. The VIX is 28. A liquid ETF has three boxes and a green close.",
+   "story": "A liquid ETF on a Friday afternoon. It is 20.3% down in 7 sessions and 5.6 ATR under its 50-day. Today it gapped down 4.1% on 3.1x volume, with four of the five boxes ticked.",
    "choices": [
     "Wait; Monday may bring a flush",
     "Buy the close; the turn is in",
@@ -2029,7 +2040,7 @@
     "Short it into the Monday open"
    ],
    "answer": "Wait; Monday may bring a flush",
-   "why": "Wait. Do not buy the Friday before a possible Monday flush. Bracco finds notable capitulations and turns on Mondays. Three of the four failures we studied (BAC, WDC, KRE) were Friday buys, all stopped the next session.",
+   "why": "Wait. Do not buy the Friday before a possible Monday flush. Bracco finds notable capitulations and turns on Mondays. Three of the four failures we studied (BAC, WDC, KRE) were Friday buys, all stopped the next session. This chart is KRE: Monday opened lower and printed the real low.",
    "lesson_line": "Friday's turn is often Monday's gap. Let the weekend decide.",
    "facts": [
     "c15",
@@ -2043,7 +2054,7 @@
    ],
    "house": true,
    "wrong": {
-    "Buy the close; the turn is in": "We never buy at the close. A buy comes as price trades through its trigger. A green Friday close does not prove the turn.",
+    "Buy the close; the turn is in": "We never buy at the close. A buy comes as price trades through its trigger. A Friday close does not prove the turn.",
     "Buy half now, add more on Monday": "Half of a Friday buy still faces the gap. Our rule is one price, one stop, no adding.",
     "Short it into the Monday open": "That bets on more fall. A stretched index is Bracco's cue to watch for a turn."
    },
@@ -2058,7 +2069,13 @@
      "+1 fixed before"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "visuals-3",
+   "chart": {
+    "sym": "KRE",
+    "asof": "2025-04-04",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q24",
@@ -2268,9 +2285,9 @@
    "key": "q29",
    "skill": "setup.parabolic_long",
    "rung": 4,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "pl.stop_width",
-   "q": "The climax day's low sits 7.3% under your fill. What does our card say?",
+   "q": "What does our card say about this stop?",
    "choices": [
     "Keep the stop and cut the shares",
     "Skip; the stop is wider than 3%",
@@ -2301,7 +2318,14 @@
      "the 8% skip line is the card's proposal, a number that can change"
     ]
    },
-   "batch": "wave3"
+   "batch": "visuals-3",
+   "story": "A 2x fund, bought on the climax day at 89.56. The stop is 83.01, 7.3% under the fill.",
+   "chart": {
+    "sym": "AGQ",
+    "asof": "2010-02-05",
+    "window": 120,
+    "forward": 60
+   }
   },
   {
    "key": "q30",
@@ -2485,7 +2509,17 @@
      "+2 rests on the owner's stop rule (A4, D41)"
     ]
    },
-   "batch": "wave3"
+   "batch": "visuals-3",
+   "chart": {
+    "sym": "BAC",
+    "asof": "2020-02-28",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 28.5,
+     "stop": 27.67
+    }
+   }
   },
   {
    "key": "q35",
@@ -2680,7 +2714,7 @@
    "format": "scenario",
    "criterion": "pl.crowded_group",
    "q": "What is the read?",
-   "story": "On one day six names from the same hot theme print the same climax: gap downs, heavy volume, all five boxes. Each reclaims VWAP before noon.",
+   "story": "A China-based stock. On one day six names from the same hot group fire this climax. This one gapped down 4.5% on 7.2x volume and ticked all five boxes.",
    "choices": [
     "The best setting; a group unwind",
     "Pass; many names at once means a crash",
@@ -2713,7 +2747,13 @@
      "+1 fixed before"
     ]
    },
-   "batch": "wave3"
+   "batch": "visuals-3",
+   "chart": {
+    "sym": "HTHT",
+    "asof": "2021-07-27",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q41",
@@ -2748,7 +2788,7 @@
    "key": "q42",
    "skill": "setup.parabolic_long",
    "rung": 6,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "pl.stop",
    "q": "Account 40,000. Risk 0.5%. Fill 76.76, stop 73.20. How many shares?",
    "answer": "56 shares",
@@ -2780,7 +2820,7 @@
      "rests on the owner's rulebook (A3, A5)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-3",
    "choices": [
     "57 shares",
     "521 shares",
@@ -2791,6 +2831,17 @@
     "57 shares": "Rounded up, so the risk goes over 0.5%.",
     "521 shares": "Divided the whole account by the fill price.",
     "561 shares": "Moved the decimal on the risk percent."
+   },
+   "story": "Bought on the climax day.",
+   "chart": {
+    "sym": "BABA",
+    "asof": "2022-03-15",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 76.76,
+     "stop": 73.2
+    }
    }
   },
   {
@@ -2841,7 +2892,7 @@
    "format": "scenario",
    "criterion": "pl.inv_new_low",
    "q": "What is the lesson?",
-   "story": "You bought a Friday turn at 25.58, stop 24.94. Monday closed 24.49, through the stop. The low came Thursday at 23.85, and by Friday the stock sat at the 9 EMA.",
+   "story": "Bought a Friday turn at 25.58, stop 24.94. Monday closed 24.49, through the stop. The low came Thursday at 23.85, and by Friday the stock sat at the 9 EMA.",
    "choices": [
     "Take the stop; selling was not done",
     "Hold on; it reached the 9 EMA",
@@ -2879,7 +2930,17 @@
      "fixed before: the key was the only choice phrased as an observation"
     ]
    },
-   "batch": "wave3"
+   "batch": "visuals-3",
+   "chart": {
+    "sym": "WDC",
+    "asof": "2022-09-23",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 25.58,
+     "stop": 24.94
+    }
+   }
   },
   {
    "key": "q45",
@@ -3177,7 +3238,7 @@
    "rung": 7,
    "format": "mcq",
    "criterion": "pl.burst",
-   "q": "Hidden ticker; the chart ends on a gap-down day. How many of the five boxes does it show?",
+   "q": "The chart ends on a gap-down day. How many of the five boxes does it show?",
    "choices": [
     "Five of five",
     "Four of five",
@@ -3227,7 +3288,7 @@
    "rung": 7,
    "format": "mcq",
    "criterion": "pl.volume_climax",
-   "q": "Hidden ticker; the chart ends on a gap-down day whose volume ran 1.5 times its average. Take it or pass.",
+   "q": "The chart ends on a gap-down day whose volume ran 1.5 times its average. Take it or pass.",
    "choices": [
     "Pass; its own volume falls short",
     "Take it; the boxes are ticked",
@@ -3303,20 +3364,20 @@
    "key": "q55",
    "skill": "setup.parabolic_long",
    "rung": 7,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "pl.stop_width",
-   "q": "Fill 20.50. The climax low is 19.00 and the stop sits five cents under it. How far below the fill is the stop, in percent?",
-   "answer": "7.56%",
+   "q": "Fill 20.50, stop 19.03. How far below the fill is the stop, in percent?",
+   "answer": "7.17%",
    "calc": {
     "fn": "arith",
     "args": {
-     "expr": "(a - (b - 0.05)) / a * 100",
+     "expr": "(a - b) / a * 100",
      "a": 20.5,
-     "b": 19.0
+     "b": 19.03
     },
     "round": 2
    },
-   "why": "7.56%. The stop is five cents under the 19.00 low. The fill minus the stop, over the fill: (20.50 - (19.00 - 0.05)) / 20.50 = 7.56%. That is between 3% and 8%, so we keep the honest stop and size down by the formula. Over about 8% we would skip. SLG's stop was 7.2% away and it reached 3R in 6 sessions.",
+   "why": "7.17%. The fill minus the stop, over the fill: (20.50 - 19.03) / 20.50 = 7.17%. That is between 3% and 8%, so we keep the honest stop and size down by the formula. Over about 8% we would skip. This stock reached 3R in 6 sessions.",
    "lesson_line": "Measure the honest stop before the size. Wide but under 8% is fewer shares, not no trade.",
    "facts": [
     "c17",
@@ -3326,7 +3387,7 @@
    ],
    "house": true,
    "suffix": "%",
-   "simple": "The stop is 7.56% below the fill, between 3% and 8%, so you buy fewer shares instead of skipping.",
+   "simple": "The stop is 7.17% below the fill, between 3% and 8%, so you buy fewer shares instead of skipping.",
    "deeper": {
     "trap": "Do not tighten the stop to make the percent look smaller. The stop sits a few cents under the climax low because a new low means the selling was not done. A tighter stop only hides the true distance, and the formula then sizes you too big for the risk."
    },
@@ -3338,17 +3399,24 @@
      "the 8% skip line is the card's proposal, a number that can change"
     ]
    },
-   "batch": "rank",
+   "batch": "visuals-3",
    "choices": [
-    "7.56%",
-    "8.18%",
-    "9.76%",
-    "92.44%"
+    "7.17%",
+    "7.72%",
+    "1.47%",
+    "92.83%"
    ],
    "wrong": {
-    "8.18%": "Divided by the stop instead of the fill.",
-    "9.76%": "Read five cents as fifty cents under the low.",
-    "92.44%": "Gave the stop as a share of the fill."
+    "7.72%": "Divided by the stop instead of the fill.",
+    "1.47%": "Gave the gap in dollars as a percent.",
+    "92.83%": "Gave the stop as a share of the fill."
+   },
+   "story": "Bought on the climax day.",
+   "chart": {
+    "sym": "SLG",
+    "asof": "2023-03-24",
+    "window": 120,
+    "forward": 30
    }
   },
   {
@@ -3430,9 +3498,9 @@
    "key": "q58",
    "skill": "setup.parabolic_long",
    "rung": 7,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "pl.room_to_target",
-   "q": "After a three-session crash from 847.70 to 202.31, CAR's 9 EMA was still above 260 at the end of April. What does our card warn?",
+   "q": "What does our card warn?",
    "choices": [
     "Do not count on reaching the 9 EMA",
     "Count on the 9 EMA in days",
@@ -3440,7 +3508,7 @@
     "Widen the stop for more time"
    ],
    "answer": "Do not count on reaching the 9 EMA",
-   "why": "Do not count on the 9 EMA every time. After CAR's three-session crash from 847.70 to 202.31, its 9 EMA, above 260 at the end of April, was not reached until 05-21. Expecting the 9 EMA every time is a named mistake.",
+   "why": "Do not count on the 9 EMA every time. After this three-session crash from far above, the 9 EMA was not reached until 05-21. Expecting the 9 EMA every time is a named mistake.",
    "lesson_line": "Room to the target is good. A target in another zip code is a warning.",
    "facts": [
     "c33",
@@ -3467,7 +3535,14 @@
      "the quote sits in the criteria card, not the research note the source cites"
     ]
    },
-   "batch": "wave3"
+   "batch": "visuals-3",
+   "story": "After a three-session crash from 847.70 to 202.31. Its 9 EMA sits far above the price.",
+   "chart": {
+    "sym": "CAR",
+    "asof": "2026-04-24",
+    "window": 120,
+    "forward": 25
+   }
   },
   {
    "key": "q59",
@@ -3476,7 +3551,7 @@
    "format": "scenario",
    "criterion": "pl.not_crash_start",
    "q": "What decides?",
-   "story": "On one Friday 83 names print the climax: every box ticked, every context met, heavy volume. It is the first week of a slide from an all-time high.",
+   "story": "An index fund. It is one of 83 names that print the climax on one Friday: every box ticked, every context met, heavy volume. It is the start of a market slide from an all-time high.",
    "choices": [
     "The market reading, not the bars",
     "The box count; five beats four",
@@ -3511,7 +3586,13 @@
      "+2 the 83 and 16 come from one dated read of our own data"
     ]
    },
-   "batch": "wave3"
+   "batch": "visuals-3",
+   "chart": {
+    "sym": "DIA",
+    "asof": "2020-02-28",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q60",
@@ -3520,7 +3601,7 @@
    "format": "scenario",
    "criterion": "pl.inv_linear",
    "q": "What is the lesson?",
-   "story": "A regional bank has fallen hard in a panic, and the setup fits. You buy at 23.10 with the stop at 21.70. Day one closes at 21.27, down 7.9%, and you are stopped out. Six sessions later, in the same panic, a different name turned and ran.",
+   "story": "A regional bank that has fallen hard in a panic, and the setup fits. You buy at 23.10 with the stop at 21.70. Day one closes at 21.27, down 7.9%, and you are stopped out. Six sessions later, in the same panic, a different name turned and ran.",
    "choices": [
     "The buy came one leg too early",
     "Never buy a bank in a panic",
@@ -3554,7 +3635,13 @@
      "+1 fixed before"
     ]
    },
-   "batch": "wave3"
+   "batch": "visuals-3",
+   "chart": {
+    "sym": "BKU",
+    "asof": "2023-03-16",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q61",
@@ -3652,7 +3739,7 @@
    "format": "scenario",
    "criterion": "pl.instrument",
    "q": "Take it?",
-   "story": "A 3x inverse Nasdaq ETF is 35% off its high with all five boxes ticked. The index is rallying to new highs.",
+   "story": "A 3x inverse Nasdaq ETF, 35% off its high with all five boxes ticked. The index is rallying to new highs.",
    "choices": [
     "No; its climax is the index peak",
     "Yes; the boxes fit the pattern",
@@ -3685,7 +3772,13 @@
      "card no-trade row and a dated example agree"
     ]
    },
-   "batch": "wave3"
+   "batch": "visuals-3",
+   "chart": {
+    "sym": "SQQQ",
+    "asof": "2020-08-27",
+    "window": 120,
+    "forward": 60
+   }
   },
   {
    "key": "q64",
@@ -3694,7 +3787,7 @@
    "format": "scenario",
    "criterion": "pl.trigger_vwap",
    "q": "Write the plan: entry, stop, target.",
-   "story": "BABA, 2022-03-15: 43.4% off the high in 17 sessions, all five boxes, a 3.4% gap down on 3.6x volume. Say it reclaims VWAP after the low.",
+   "story": "A China ADR: 43.4% off the high in 17 sessions, all five boxes, a 3.4% gap down on 3.6x volume. Say it reclaims VWAP after the low.",
    "choices": [
     "Buy reclaim, stop under low, 9 EMA",
     "Buy open, stop at 200-day, 9 EMA",
@@ -3733,7 +3826,13 @@
      "fixed before: the key tied the longest choice"
     ]
    },
-   "batch": "rulings"
+   "batch": "visuals-3",
+   "chart": {
+    "sym": "BABA",
+    "asof": "2022-03-15",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q65",
@@ -3742,16 +3841,16 @@
    "format": "scenario",
    "criterion": "pl.market_index",
    "q": "Take it?",
-   "story": "Monday, after a slide that is already weeks old. The index gaps down more than an ATR, four ATR under its 50-day; the VIX jumps to 31. A liquid ETF prints all five boxes on 3x volume and reclaims VWAP at 10:40.",
+   "story": "A Monday. The index closed the day before 6.4 ATR under its 50-day. This stock gapped down 2.2%, ticked all five boxes on 3.5x volume, and reclaims VWAP after the low.",
    "choices": [
     "Take it; the context and trigger agree",
-    "Pass; a VIX over 30 means more downside",
+    "Pass; a deep selloff means more downside",
     "Pass; a Monday gap is a trap",
     "Take it at the open, ahead of VWAP"
    ],
    "answer": "Take it; the context and trigger agree",
-   "why": "Take it. The index is capitulating too. It gapped down more than an ATR, sits four ATR under its 50-day, and it is a Monday. The VIX moved fast into 30. The slide is weeks old, not a fresh breakdown. The ETF also reclaimed VWAP, so the trigger printed.",
-   "lesson_line": "A Monday gap with the VIX spiking and the index stretched: that is the day.",
+   "why": "Take it. The index sat 6.4 ATR under its 50-day the day before, and it is a Monday: the market is capitulating too. The stock ticked all five boxes on 3.5x volume, and the VWAP reclaim means the trigger printed.",
+   "lesson_line": "A Monday gap with the index stretched far under its 50-day: that is the day.",
    "facts": [
     "c22",
     "s05",
@@ -3761,13 +3860,13 @@
    ],
    "house": true,
    "wrong": {
-    "Pass; a VIX over 30 means more downside": "A fast move into 30 is Bracco's cue to look for a turn, not to run from it.",
     "Pass; a Monday gap is a trap": "Bracco finds notable capitulations and turns on Mondays. The Monday gap is the cue, not a trap.",
-    "Take it at the open, ahead of VWAP": "Never before the turn. The buy is the first 5-minute close back over VWAP, here at 10:40."
+    "Take it at the open, ahead of VWAP": "Never before the turn. The buy is the first 5-minute close back over VWAP, after the low.",
+    "Pass; a deep selloff means more downside": "An index far under its 50-day is the best context, the market capitulating too. It is a cue to look for a turn."
    },
-   "simple": "Take it. The whole market is panicking, it is a Monday, and the ETF has reclaimed VWAP, so the buy has printed.",
+   "simple": "Take it. The whole market is panicking, it is a Monday, and the stock has reclaimed VWAP, so the buy has printed.",
    "deeper": {
-    "trap": "A big VIX scares people into passing. Bracco reads a fast move into 30 as the time to watch for a turn. Our rule then waits for the reclaim before acting. Here the reclaim printed at 10:40 on 3x volume with the index stretched. That is the setup in full."
+    "trap": "A deep selloff scares people into passing. An index 6.4 ATR under its 50-day is the best context, not a warning. Our rule then waits for the reclaim before acting. GE, on the tariff-crash Monday, ticked all five boxes on 3.5x volume. That is the setup in full."
    },
    "tier": "expert",
    "risk": {
@@ -3776,7 +3875,13 @@
      "+1 fixed before"
     ]
    },
-   "batch": "wave3"
+   "batch": "visuals-3",
+   "chart": {
+    "sym": "GE",
+    "asof": "2025-04-07",
+    "window": 120,
+    "forward": 60
+   }
   },
   {
    "key": "q66",
@@ -3986,18 +4091,18 @@
    "rung": 3,
    "format": "scenario",
    "criterion": "pl.climax_day",
-   "story": "A liquid ETF has closed lower three days running, and each drop was bigger than the last: 1.0%, then 1.8%, then 3.0%. Today it opens flat, drifts lower, then climbs back over VWAP at 10:45.",
+   "story": "A liquid stock down 20.6% in 20 sessions and 5.4 ATR under its 50-day, on 2.0x volume. Today it opened 0.1% under the prior close. Say it reclaims VWAP after the low.",
    "q": "A friend says the VWAP reclaim is the buy. What do you do?",
    "choices": [
     "Pass; there is no gap-down climax day",
-    "Buy; three lower closes are enough",
+    "Buy; a 20% fall is enough",
     "Buy; it just reclaimed VWAP",
     "Buy half now and half on a gap down"
    ],
    "answer": "Pass; there is no gap-down climax day",
-   "why": "Pass. The buy day is the climax day, the gap-down day. Here the drops grew from 1.0% to 1.8% to 3.0%, but today opened flat, so there is no climax gap. The VWAP reclaim is the trigger only on a climax day, after the low is in.",
+   "why": "Pass. The buy day is the climax day, the gap-down day. This one opened only 0.1% under the prior close, so there is no climax gap. The VWAP reclaim is the trigger only on a climax day, after the low is in. The stock went on lower.",
    "lesson_line": "No gap-down climax, no buy. A VWAP reclaim alone is not the trigger.",
-   "simple": "Pass. The buy day is the gap-down climax day, and today opened flat, so the VWAP reclaim alone is not a buy.",
+   "simple": "Pass. The buy day is the gap-down climax day, and today did not gap down, so the VWAP reclaim alone is not a buy.",
    "facts": [
     "c11",
     "c01",
@@ -4007,13 +4112,19 @@
     "p06"
    ],
    "wrong": {
-    "Buy; three lower closes are enough": "Three lower closes are only the first box. The buy day itself must gap down.",
     "Buy; it just reclaimed VWAP": "The reclaim is the trigger only on a climax day, after the low is in. Today is not one.",
-    "Buy half now and half on a gap down": "The setup is one entry, the full size at one price, with no second entry. Buying before the climax day is buying early."
+    "Buy half now and half on a gap down": "The setup is one entry, the full size at one price, with no second entry. Buying before the climax day is buying early.",
+    "Buy; a 20% fall is enough": "A deep fall is only the setting. The buy day itself must gap down."
    },
    "house": true,
    "tier": "core",
-   "batch": "cover"
+   "batch": "visuals-3",
+   "chart": {
+    "sym": "CHTR",
+    "asof": "2022-09-16",
+    "window": 120,
+    "forward": 20
+   }
   }
  ],
  "conflicts": [
@@ -4047,8 +4158,8 @@
   "q03": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (c18, p12, h16). But deeper.counter 'Price has to get there; nothing pulls it' gives away q57 (False) and q58 (do not count on the 9 EMA), and 'nothing pulls it' is in no quote (c19 says about 4 in 10 longs reached it). Keep the 9 EMA as the finish line only."
+   "fixed": false,
+   "notes": "checked against card and dossier row"
   },
   "q04": {
    "status": "pass",
@@ -4170,7 +4281,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Neutral stem; close-buy wrong text states D-003 (r06 quote verbatim); key wait unchanged."
+   "notes": "checked against card and dossier row"
   },
   "q24": {
    "status": "pass",
@@ -4206,7 +4317,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "7.3% (plus a few cents) sits between 3% and 8%: keep the stop, fewer shares (c17; card note 'fewer shares, the same account risk (A5)'). Consistent with A3/A13 (3% is 'usually', not a wall). AGQ numbers match d07."
+   "notes": "checked against card and dossier row"
   },
   "q30": {
    "status": "pass",
@@ -4237,7 +4348,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from d27/h02/h18; numbers all in d11/d12; no hand-over of q59 key."
+   "notes": "checked against card and dossier row"
   },
   "q35": {
    "status": "cut",
@@ -4273,7 +4384,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "keep; 3R only a yardstick/arithmetic; entries at reclaim, not close"
+   "notes": "checked against card and dossier row"
   },
   "q41": {
    "status": "pass",
@@ -4285,7 +4396,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "56 ok (56.2); 57 up, 521 = account/fill, 561 = 5% risk. verified."
+   "notes": "checked against card and dossier row"
   },
   "q43": {
    "status": "pass",
@@ -4297,8 +4408,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "d14 and new d15b are verbatim in docs/study/setups/research/38-parabolic-long.md (WDC row). 09-29-2022 was a Thursday; 09-30 a Friday. Why correctly says 'the later turn'.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "checked against card and dossier row"
   },
   "q45": {
    "status": "pass",
@@ -4365,7 +4475,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
+   "notes": "checked against card and dossier row"
   },
   "q56": {
    "status": "pass",
@@ -4384,20 +4494,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Numbers and the 05-21 date are in d24; c33 names the mistake. Deeper counter states the mirror is not true for longs, which is fine only because q57 comes first in the same rung.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "checked against card and dossier row"
   },
   "q59": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from c24/d13/d13b/d27; numbers 83 and 16 sessions in d13/d13b."
+   "notes": "checked against card and dossier row"
   },
   "q60": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from d16/d17/d27; 23.10, 21.70, 21.27, 7.9% all in d16/d17."
+   "notes": "checked against card and dossier row"
   },
   "q61": {
    "status": "pass",
@@ -4415,20 +4524,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from c38/d22/d23; story numbers from d22.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "checked against card and dossier row"
   },
   "q64": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "keep; 3R only a yardstick/arithmetic; entries at reclaim, not close"
+   "notes": "checked against card and dossier row"
   },
   "q65": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "'Take it at the open' is a buy choice about the VWAP turn, not a gap trim; kept."
+   "notes": "checked against card and dossier row"
   },
   "q66": {
    "status": "cut",
@@ -4487,8 +4595,8 @@
   "q72": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Right criterion (pl.climax_day: the buy day is the gap-down day) and right answer, but the story was over-determined: the shrinking losses (2.0, 1.5, 1.0) and light volume also fail the setup, so the missing gap was not the only reason to pass. Rebuilt with accelerating drops (1.0, 1.8, 3.0) so the flat open is the one thing missing; the VWAP reclaim then fails only because there is no climax day. Facts c11, c01, c03, c12, c13, p06 cover every claim. Not a duplicate of q43 (orderly decline) or q31 (buying before the turn on a gap-down day)."
+   "fixed": false,
+   "notes": "checked against card and dossier row"
   }
  }
 }

@@ -870,7 +870,7 @@
    "key": "q04",
    "skill": "setup.oops_reversal",
    "rung": 1,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "oops.super_oops",
    "q": "What makes an Oops a Super Oops?",
    "choices": [
@@ -880,7 +880,7 @@
     "Closes over the prior close"
    ],
    "answer": "It closes over the prior high",
-   "why": "It closes over the prior high. A Super Oops is any Oops that closes over the prior high, so the whole prior day is engulfed. A trade over that high that closes back under it does not count.",
+   "why": "It closes over the prior high. A Super Oops is any Oops that closes over the prior high, so the whole prior day is engulfed. A trade over that high that closes back under it does not count. FCX, the example on the chart, closed its Oops day over the prior high.",
    "lesson_line": "Close over the prior high, and the Oops is a Super.",
    "facts": [
     "o_super",
@@ -901,7 +901,14 @@
      "rests on the owner's definition: a close over the prior high (the app's stage 6 counts a high)"
     ]
    },
-   "batch": "wave3"
+   "batch": "visuals-3",
+   "story": "The day before an Oops day that turns out to be a Super Oops. Watch tomorrow's candle.",
+   "chart": {
+    "sym": "FCX",
+    "asof": "2022-02-23",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q05",
@@ -936,7 +943,7 @@
    "key": "q06",
    "skill": "setup.oops_reversal",
    "rung": 1,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "oops.stop",
    "q": "Where does the Oops stop go?",
    "choices": [
@@ -946,14 +953,15 @@
     "A few cents under the 200-day"
    ],
    "answer": "A few cents under the Oops-day low",
-   "why": "A few cents under the Oops-day low, the point where the trap was set. The Oops day already traded under the prior day's low, so its own low is the lower mark. The prior close is the buy point. The stop must be a real stop order with the broker.",
+   "why": "A few cents under the Oops-day low, the point where the trap was set. The Oops day already traded under the prior day's low, so its own low is the lower mark. The prior close is the buy point. The stop must be a real stop order with the broker. On the chart, ADBE bought at 221.11 and put the stop at 218.69, under that day's low.",
    "lesson_line": "The stop sits under the low the trap was set at.",
    "facts": [
     "cs",
     "o_stop",
     "h24",
     "h02",
-    "o_chase"
+    "o_chase",
+    "dADBE"
    ],
    "wrong": {
     "A few cents under the prior day's low": "The Oops day already traded under that low. Our Oops card puts the stop under the Oops-day low.",
@@ -969,7 +977,18 @@
      "rests on the owner's rulebook (F62)"
     ]
    },
-   "batch": "wave3"
+   "batch": "visuals-3",
+   "story": "Bought on the Oops day shown as price traded back over the prior close.",
+   "chart": {
+    "sym": "ADBE",
+    "asof": "2018-05-03",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 221.11,
+     "stop": 218.69
+    }
+   }
   },
   {
    "key": "q07",
@@ -1112,7 +1131,7 @@
    "key": "q12",
    "skill": "setup.oops_reversal",
    "rung": 2,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "oops.location",
    "q": "What should the Oops-day low tag?",
    "choices": [
@@ -1122,7 +1141,7 @@
     "The 100-day average, mid line"
    ],
    "answer": "A rising 20 EMA or 50 SMA",
-   "why": "The Oops-day low should sit within 0.5 ATR of the rising 20 EMA or 50 SMA. Or it should undercut a visible level. That could be a flag low, a double-bottom low, a gap-support level, a high-volume close or a round number. The undercut should tag something the market can see.",
+   "why": "The Oops-day low should sit within 0.5 ATR of the rising 20 EMA or 50 SMA. Or it should undercut a visible level. That could be a flag low, a double-bottom low, a gap-support level, a high-volume close or a round number. The undercut should tag something the market can see. GLW, the example on the chart, undercut a rising 50-day.",
    "lesson_line": "The undercut should tag something the market can see.",
    "facts": [
     "o_loc",
@@ -1143,7 +1162,14 @@
      "one cited fact only"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "visuals-3",
+   "story": "The day before an Oops. Tomorrow's low is the one to judge.",
+   "chart": {
+    "sym": "GLW",
+    "asof": "2024-11-18",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q13",
@@ -1263,7 +1289,7 @@
    "key": "q17",
    "skill": "setup.oops_reversal",
    "rung": 3,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "oops.trim_1",
    "q": "Bought at 149.22 with the stop at 146.52. Where is 3R?",
    "answer": "$157.32",
@@ -1297,7 +1323,7 @@
      "fixed before"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-3",
    "choices": [
     "$154.62",
     "$141.12",
@@ -1308,6 +1334,17 @@
     "$154.62": "Added three R to the stop, not the fill.",
     "$151.92": "Added only one R, forgot the times three.",
     "$141.12": "Subtracted three R instead of adding."
+   },
+   "story": "Bought on the Oops day shown.",
+   "chart": {
+    "sym": "DELL",
+    "asof": "2026-03-19",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 149.22,
+     "stop": 146.52
+    }
    }
   },
   {
@@ -1525,7 +1562,7 @@
    "key": "q24",
    "skill": "setup.oops_reversal",
    "rung": 4,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "oops.stop",
    "q": "Filled at 31.51 with the stop at 31.12. How far is the stop from the fill, in percent?",
    "answer": "1.24%",
@@ -1562,7 +1599,7 @@
      "the stop range is the owner's ruling D-005"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-3",
    "choices": [
     "0.39%",
     "12.4%",
@@ -1573,6 +1610,17 @@
     "0.39%": "Gave the gap in dollars as a percent, no divide.",
     "12.4%": "Decimal slip, one place too far.",
     "98.8%": "Divided the stop by the fill, no subtraction."
+   },
+   "story": "Bought on the Oops day shown.",
+   "chart": {
+    "sym": "ACN",
+    "asof": "2006-10-23",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 31.51,
+     "stop": 31.12
+    }
    }
   },
   {
@@ -1867,7 +1915,7 @@
     "Skip the stop and hold",
     "Decide the setup is broken"
    ],
-   "story": "You bought at 67.48 with the stop at 66.70. The next day it opens at 68.48, then sells straight through your stop to 66.63.",
+   "story": "Bought on the Oops day shown at 67.48 with the stop at 66.70. The next day it opens at 68.48, then sells straight through your stop to 66.63.",
    "answer": "Nothing; the stop is the plan",
    "why": "Nothing. A perfect-looking day gives no warning, and the stop is the whole plan. This was ADBE on 2014-03-12. It opened at 68.48, over the buy, and sold straight through the Oops-day low. The stop took a small planned loss, 1.16% from the buy.",
    "lesson_line": "A perfect-looking Oops gives no warning. The stop is the plan.",
@@ -1896,7 +1944,17 @@
      "a dated example read off our own bars"
     ]
    },
-   "batch": "wave3"
+   "batch": "visuals-3",
+   "chart": {
+    "sym": "ADBE",
+    "asof": "2014-03-12",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 67.48,
+     "stop": 66.7
+    }
+   }
   },
   {
    "key": "q33",
@@ -1946,15 +2004,15 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "oops.trim_1",
-   "q": "On the buy day the trade reaches 3R. What now?",
+   "q": "The trade reaches 3R the session after the buy. What now?",
    "choices": [
-    "Hold it all, no sell on day 1",
+    "Hold it all, no sell this early",
     "Sell a third, stop to breakeven",
     "Sell it all, lock in the 3R",
     "Sell half, leave stop alone"
    ],
-   "story": "You bought at 149.22 with the stop at 146.52. On the buy day itself the Oops reaches 3R.",
-   "answer": "Hold it all, no sell on day 1",
+   "story": "Shown through the first session after the buy. You bought at 149.22 with the stop at 146.52. That session the Oops reaches 3R.",
+   "answer": "Hold it all, no sell this early",
    "why": "Hold it all. We very rarely sell on day 1 of the buy. We usually wait until day 3 at the earliest. 3R this early is not a sell signal.",
    "lesson_line": "3R on day 1 is not a sell signal. Wait for the push.",
    "facts": [
@@ -1980,7 +2038,13 @@
    "depends_on": [
     "D-019"
    ],
-   "batch": "rulings2"
+   "batch": "visuals-3",
+   "chart": {
+    "sym": "DELL",
+    "asof": "2026-03-20",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q35",
@@ -2257,7 +2321,7 @@
     "Blame the stop and widen it",
     "Skip it for good, it failed"
    ],
-   "story": "You bought at 176.35 with the stop at 174.16. The next day it fell through the stop. A few weeks later the stock climbs to a fresh peak.",
+   "story": "Bought on the Oops day shown at 176.35 with the stop at 174.16. The next day it fell through the stop. A few weeks later the stock climbs to a fresh peak.",
    "answer": "A new trade needs a new trigger",
    "why": "A new trade needs a new trigger. After a stop-out we buy again only if the setup triggers again. That is a new trade with its own stop and every rule. The stop did its job on V (buy 176.35, stop 174.16, 1.24% away). Its second chance was a new trigger, not a hold.",
    "lesson_line": "A stop-out is the plan working. Re-enter only on a new trigger.",
@@ -2284,7 +2348,17 @@
      "rests on the owner's re-entry rule (B21)"
     ]
    },
-   "batch": "wave3"
+   "batch": "visuals-3",
+   "chart": {
+    "sym": "V",
+    "asof": "2019-08-13",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 176.35,
+     "stop": 174.16
+    }
+   }
   },
   {
    "key": "q43",
@@ -2532,7 +2606,7 @@
     "A 2B, it reclaimed a swing low",
     "A Kicker, it reclaimed the close"
    ],
-   "story": "The stock opens under the prior close and closes over it. Its low stays 0.48% above the prior day's low.",
+   "story": "The last day on the chart. It opens under the prior close and closes over it. Its low stays 0.48% above the prior day's low.",
    "answer": "A Red to Green, not an Oops",
    "why": "A Red to Green. The day opened under the prior close and closed over it. Its low stayed 0.48% above the prior day's low, so it never undercut yesterday's low. An Oops requires that the day first traded under the prior low. This was GOOGL on 2026-02-27.",
    "lesson_line": "Check if it traded under yesterday's low first. If not, it is a Red to Green.",
@@ -2560,7 +2634,13 @@
      "a dated example read off our own bars"
     ]
    },
-   "batch": "wave3"
+   "batch": "visuals-3",
+   "chart": {
+    "sym": "GOOGL",
+    "asof": "2026-02-27",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q50",
@@ -2616,7 +2696,7 @@
     "Yes, a news drop makes it stronger",
     "No, the undercut is too shallow"
    ],
-   "story": "The prior day fell from 126.58 to 118.08 on news. Today the stock opens under that close, undercuts the prior low by 12 cents and closes just over the prior close.",
+   "story": "The last candle is the reversal day. The prior day fell from 126.58 to 118.08 on news. Today the stock opens under that close, undercuts the prior low by 12 cents and closes just over the prior close.",
    "answer": "No, it is a delayed reaction",
    "why": "No. The prior day fell from 126.58 to 118.08 on news, down 6.71%. That is well over the 4% limit for a bar in the days before. The day after a news day is a delayed-reaction setup, not an Oops. The three tests pass, but the pullback was not orderly. That was PANW on 2023-08-03.",
    "lesson_line": "A reversal after a news bar is not an Oops.",
@@ -2646,7 +2726,13 @@
      "the orderly-pullback criterion is still proposed"
     ]
    },
-   "batch": "wave3"
+   "batch": "visuals-3",
+   "chart": {
+    "sym": "PANW",
+    "asof": "2023-08-03",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q52",
@@ -2690,7 +2776,7 @@
     "The prior day was not a red day at all",
     "The pullback was far too deep to trade"
    ],
-   "story": "A textbook Oops day. The prior close is 66.97 and the Oops-day close is 67.23. The 200-day SMA is 76.48.",
+   "story": "A textbook Oops day is the last candle. The prior close is 66.97 and the Oops-day close is 67.23. The 200-day SMA is 76.48.",
    "answer": "Both closes sit far under the 200-day",
    "why": "It is under the 200-day. The Oops-day close (67.23) and the prior close (66.97) were both about 12% below the 200-day SMA (76.48). Our rule is no longs below the 200-day simple moving average, unless it is a parabolic long. An Oops shape in a downtrend is watch only. That was BABA on 2016-02-24.",
    "lesson_line": "An Oops shape under the 200-day is watch only.",
@@ -2723,7 +2809,13 @@
    "depends_on": [
     "D-020"
    ],
-   "batch": "wave3"
+   "batch": "visuals-3",
+   "chart": {
+    "sym": "BABA",
+    "asof": "2016-02-24",
+    "window": 200,
+    "forward": 20
+   }
   },
   {
    "key": "q54",
@@ -2784,7 +2876,7 @@
     "A wider stop on day two",
     "A guarantee the stop is safe"
    ],
-   "story": "A Super Oops closes at 167.00 over the 166.53 prior high. You bought at 157.19 with the stop at 155.55. The next day opens at 165.36 and falls to 151.52.",
+   "story": "Shown through the Oops day. A Super Oops closes at 167.00 over the 166.53 prior high. You bought at 157.19 with the stop at 155.55. The next day opens at 165.36 and falls to 151.52.",
    "answer": "A grade mark for the setup",
    "why": "A grade mark for the setup. A Super close is a grade mark, not a guarantee. AMAT closed at 167.00, over the 166.53 prior high, on 2022-01-14. The next day it opened at 165.36 and fell to 151.52, through the 155.55 stop.",
    "lesson_line": "A Super close grades the setup. It does not guarantee it.",
@@ -2813,7 +2905,17 @@
      "reshaped once before"
     ]
    },
-   "batch": "wave3"
+   "batch": "visuals-3",
+   "chart": {
+    "sym": "AMAT",
+    "asof": "2022-01-14",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 157.19,
+     "stop": 155.55
+    }
+   }
   },
   {
    "key": "q56",
@@ -2828,7 +2930,7 @@
     "The close was too weak",
     "The stop was too wide"
    ],
-   "story": "A clean Oops: it undercut the prior low by 1.26% and closed at 0.85 of its range. You bought at 74.97 with the stop at 73.73. The next day it is stopped, and the index goes on to make a lower low.",
+   "story": "Shown through the Oops day. It undercut the prior low by 1.26% and closed at 0.85 of its range. You bought at 74.97 with the stop at 73.73. The next day it is stopped, and the index goes on to make a lower low.",
    "answer": "The market was not Green",
    "why": "The market was not Green. UBER reclaimed on 2025-03-07 and was stopped the next day. SPY then made a lower low. The daily chart looked fine: the close was strong and the stop only 1.65% away. The market reading is a filter the stock's own chart cannot show.",
    "lesson_line": "The chart looks fine. The reading is the filter.",
@@ -2856,7 +2958,17 @@
      "rebuilt from the dossier row so every number is in a cited quote"
     ]
    },
-   "batch": "wave3"
+   "batch": "visuals-3",
+   "chart": {
+    "sym": "UBER",
+    "asof": "2025-03-07",
+    "window": 120,
+    "forward": 22,
+    "trade": {
+     "entry": 74.97,
+     "stop": 73.73
+    }
+   }
   },
   {
    "key": "q57",
@@ -2961,7 +3073,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "oops.location",
-   "q": "Hidden ticker, yesterday's close. Green market, no report in 3 days. Tomorrow it undercuts the low and reclaims the close. Take it?",
+   "q": "Yesterday's close. Green market, no report in 3 days. Tomorrow it undercuts the low and reclaims the close. Take it?",
    "choices": [
     "Take it; a drift onto two averages",
     "Pass; there is no real pullback",
@@ -3010,7 +3122,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "oops.pullback",
-   "q": "Hidden ticker, yesterday's close. Tomorrow it undercuts the low and reclaims the close. Take it or pass?",
+   "q": "Yesterday's close. Tomorrow it undercuts the low and reclaims the close. Take it or pass?",
    "choices": [
     "Pass; it only dipped at the highs",
     "Take it; the reclaim is the trigger",
@@ -3300,7 +3412,7 @@
    "key": "q69",
    "skill": "setup.oops_reversal",
    "rung": 5,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "oops.trim_2",
    "q": "Bought at 31.51 with the stop at 31.12. Where is 5R?",
    "answer": "$33.46",
@@ -3331,7 +3443,7 @@
      "rests on the owner's rulebook (E51)"
     ]
    },
-   "batch": "sweep-2026-11-14",
+   "batch": "visuals-3",
    "choices": [
     "$33.46",
     "$33.85",
@@ -3342,6 +3454,17 @@
     "$33.07": "Added five R to the stop, not the fill.",
     "$32.68": "Added three R instead of five.",
     "$33.85": "Counted six R, one too many."
+   },
+   "story": "Bought on the Oops day shown.",
+   "chart": {
+    "sym": "ACN",
+    "asof": "2006-10-23",
+    "window": 120,
+    "forward": 30,
+    "trade": {
+     "entry": 31.51,
+     "stop": 31.12
+    }
    }
   },
   {
@@ -3475,10 +3598,9 @@
   },
   "q04": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave3; awaiting cold re-read",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "FCX 2022-02-23 is the day before the owner-graded FCX 2022-02-24 (Beautiful, Super yes). Bars: 02-24 opens 41.38 under the 42.46 close, low 41.25 under the 42.05 low, closes 43.72 over the 43.19 prior high: a true Super Oops, shown on day 1 of the replay. No trade, no numbers in text. Definition question but the chart shows exactly the feature asked."
   },
   "q05": {
    "status": "pass",
@@ -3490,7 +3612,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold check: key re-derived from the cited quotes/calc; no tell, no second answer found."
+   "notes": "ADBE 2018-05-03 is winners_list row 6. Bars: prior close 221.10 (buy 221.11, inside the day range 218.74-227.37), Oops-day low 218.74, stop 218.69 (5 cents under). Entry and stop match dossier row 6, fact dADBE, and the why. asof is the buy day, so the trade is right. Ticker absent from q, story and choices. Answer true for the real example."
   },
   "q07": {
    "status": "cut",
@@ -3525,8 +3647,8 @@
   "q12": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Wrong-choice notes said 'the card names the 20 EMA' but the card (o_loc) still says the 21-day EMA; attribute to our rule instead."
+   "fixed": false,
+   "notes": "GLW 2024-11-18 is the day before the 2024-11-19 winner (row 9). Bars: 11-19 undercuts the prior low (45.83 vs 46.01), 50-day SMA 45.97 and rising (44.73 ten sessions earlier), low is 0.14 ATR under it; close 47.29 over the prior high. The 'undercut a rising 50-day' line is true. No numbers in story."
   },
   "q13": {
    "status": "pass",
@@ -3556,7 +3678,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "157.32 recomputed; wrong choices are stop+3R, fill+1R, fill-3R. ok."
+   "notes": "DELL 2026-03-19, winners_list row 10. Bars: prior close 149.21 (buy 149.22 inside 146.57-157.07), low 146.57, stop 146.52. 3R = 157.32 (matches calc and answer); high 03-20 169.9 so 3R lands in the replay on day 1. Trade on a buy-day chart only. Second DELL use is q34 (03-20), so two uses."
   },
   "q18": {
    "status": "pass",
@@ -3598,7 +3720,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "1.24 recomputed; wrongs verified (0.39 dollars, 98.8 stop/fill). ok."
+   "notes": "ACN 2006-10-23, winners_list row 1. Bars: prior close 31.50 (buy 31.51 inside 31.17-32.08), low 31.17, stop 31.12 (1.24%). Entry/stop match dossier row 1, fact dACN and the question. Buy-day asof."
   },
   "q25": {
    "status": "pass",
@@ -3647,8 +3769,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Buy 67.48 and stop 66.70 are in dADBE14; 68.48 and 66.63 are real (dossier row 03-13) and given in the question. 1.16% is in the quote. q42 no longer answers it. Stop-first lesson matches h02/h18.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "ADBE 2014-03-12, failures row 1. Bars: prior close 67.47 (buy 67.48 inside 66.75-68.10), low 66.75, stop 66.70. Next day 03-13 open 68.48, low 66.63: matches the story. Day 18 (04-07) low 59.63: forward 20 reaches it (deeper trap line). Different example from q06/q60 (2018)."
   },
   "q33": {
    "status": "pass",
@@ -3660,8 +3781,8 @@
   "q34": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Final text agrees with the rulings it touches; key right, wrongs wrong, quotes and numbers grounded, style ok."
+   "fixed": true,
+   "notes": "DELL 2026-03-20 is the first session after the buy day 03-19 (high 169.9, open 163.5 already over 3R 157.32; the original 'on the buy day itself' was false, 03-19 high 157.07 < 157.32; rewrite is right). No trade key, correct since asof is not the buy day. One catch: the correct choice said 'no sell on day 1' while the story now says the session after the buy; the rule's own 'day 1 of the buy' could be read either way, so the choice is reworded to 'Hold it all, no sell this early' (key unchanged, same meaning). Wrongs keyed by their unchanged texts."
   },
   "q35": {
    "status": "cut",
@@ -3710,8 +3831,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "dV, dVw, dVhi all quoted on the dossier row (187.05 on 09-09 is a few weeks after 08-14). Key follows B21. Distractors do not duplicate q32 now.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "V 2019-08-13, failures row 2. Bars: prior close 176.34 (buy 176.35 inside 174.21-178.92), low 174.21, stop 174.16. 08-14 open 176.24 low 173.16 through the stop; 187.05 high on 09-09 = day 18, within forward 20, so 'a fresh peak a few weeks later' plays out. The right answer (new trade needs a new trigger) holds."
   },
   "q43": {
    "status": "pass",
@@ -3753,8 +3873,8 @@
   "q49": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (low held 0.48% above the prior low, dGOOGL). Breaks: the why repeats q62's why word for word ('Every Oops is a red to green, but not the reverse'), which answers q62; the stem 'Oops or Red to Green?' makes the 2B and Kicker choices silly; the 2B wrong note cites no fact (l_tb2 exists). Stem neutralised, sentence removed, l_tb2 cited."
+   "fixed": false,
+   "notes": "GOOGL 2026-02-27 near-miss row 1. Bars: open 304.14 under prior close 307.38, close 311.76, low 303.80 vs prior low 302.35 = 0.48% above. asof is the day read, correct for a 'which setup is this day' reading. Answer (Red to Green, not an Oops) true."
   },
   "q50": {
    "status": "pass",
@@ -3767,7 +3887,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Prior day 126.58 to 118.08 (6.71%) is in dPANW; 12 cents in dPANWn; 4% limit is o_ord2. A tiny undercut only grades lower, so 'too shallow' is not a second answer. Delayed-reaction key follows m_news."
+   "notes": "PANW 2023-08-03 near-miss row 4. Bars: prior day 126.585 to 118.085 (-6.71%), open 117.405 under that close, low 116.905 vs prior low 117.02 (12 cents under), close 118.725 just over the prior close. asof is the reversal day with the news bar just before it visible; replay shows 109.16 the next day. Answer true."
   },
   "q52": {
    "status": "cut",
@@ -3779,7 +3899,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "67.23 and 66.97 are both about 12% under 76.48 (dBABA); B26 is a settled hard rule and q44 teaches it earlier. Distractors are claims the story does not support and each wrong note refutes them."
+   "notes": "BABA 2016-02-24 near-miss row 3. Bars: prior close 66.97, close 67.23, 200-day SMA 76.4757 = 76.48, both about 12% under. Window 200 shows the 200 SMA line (360 bars exist). Prior day is red, so the wrong choice about a non-red day is wrong. Answer true."
   },
   "q54": {
    "status": "pass",
@@ -3791,14 +3911,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Numbers 167.00, 166.53, 157.19, 155.55 are in dAMAT; 165.36 and 151.52 are real dossier values given in the question. 'Grade mark, not a guarantee' is dAMATw. 'A bigger size' second answer is gone."
+   "notes": "AMAT 2022-01-14, failures row 3. Bars: prior high 166.53, close 167.00, prior close 157.18 (buy 157.19), Oops low 155.60, stop 155.55; next day 01-18 open 165.36, low 151.52. All story numbers match the bars and dossier. Buy-day asof with trade."
   },
   "q56": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "All story numbers appear in the dUBER row (1.26%, 0.85, 74.97, 73.73); 1.65% is in the quote and inside h04's 3%. Not-Green key follows dUBERn and o_mktr. Distractors are falsified by story numbers.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "UBER 2025-03-07, failures row 4. Bars: prior low 74.725, low 73.78 = 1.26% undercut; close 76.27 = 0.85 of range; prior close 74.96 (buy 74.97), stop 73.73. Stopped 03-10 (low 71.97). SPY lower low is day 4; 63.94 low is day 20; forward 22 covers both. Story numbers match."
   },
   "q57": {
    "status": "cut",
@@ -3876,7 +3995,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Final text agrees with the rulings it touches; key right, wrongs wrong, quotes and numbers grounded, style ok."
+   "notes": "ACN again (second and last use). 5R = 33.46; bars show high 33.59 on day 5 (10-30), so forward 30 reaches the 5R mark. Numbers match the question and dossier row 1."
   },
   "q70": {
    "status": "cut",

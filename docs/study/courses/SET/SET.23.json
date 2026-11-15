@@ -1116,7 +1116,7 @@
     ]
    },
    "batch": "visuals-2",
-   "story": "Hidden ticker, the red day. Tomorrow it gaps up and trades through this high.",
+   "story": "The red day. Tomorrow it gaps up and trades through this high.",
    "chart": {
     "sym": "JBI",
     "asof": "2023-12-13",
@@ -1257,7 +1257,7 @@
     ]
    },
    "batch": "visuals-2",
-   "story": "Hidden ticker, the Kicker day just closed.",
+   "story": "The Kicker day just closed.",
    "chart": {
     "sym": "JBI",
     "asof": "2023-12-14",
@@ -1310,7 +1310,7 @@
     ]
    },
    "batch": "visuals-2",
-   "story": "Hidden ticker, the red day of a Kicker. Read the chart behind it.",
+   "story": "The red day of a Kicker. Read the chart behind it.",
    "chart": {
     "sym": "SWKS",
     "asof": "2014-06-02",
@@ -1630,7 +1630,7 @@
     ]
    },
    "batch": "visuals-2",
-   "story": "Hidden ticker, bought on the Kicker day at 21.44 with the stop at 20.70.",
+   "story": "Bought on the Kicker day at 21.44 with the stop at 20.70.",
    "chart": {
     "sym": "AXON",
     "asof": "2004-11-04",
@@ -1714,7 +1714,7 @@
     "$129.50": "Added three R to the stop, not the fill.",
     "$112.85": "Subtracted three R from the fill."
    },
-   "story": "Hidden ticker, bought on the Kicker day at 122.84 with the stop at 119.51.",
+   "story": "Bought on the Kicker day at 122.84 with the stop at 119.51.",
    "chart": {
     "sym": "AMD",
     "asof": "2023-12-07",
@@ -1913,7 +1913,7 @@
     "No stop until 10:00, then 3.5%",
     "Under the red day's low"
    ],
-   "story": "Hidden ticker. The red high was 42.75. The Kicker day opens over it, and you are filled at the open at 42.83. At the open the day has no low yet.",
+   "story": "The red high was 42.75. The Kicker day opens over it, and you are filled at the open at 42.83. At the open the day has no low yet.",
    "answer": "41.33, 3.5% under the fill",
    "calc": {
     "fn": "arith",
@@ -2151,7 +2151,7 @@
     "No, it is really an earnings gapper",
     "Yes, then sell before the report"
    ],
-   "story": "Hidden ticker, the red day. Tomorrow it trades through this high, a clean Kicker. The company reports after tomorrow's close.",
+   "story": "The red day. Tomorrow it trades through this high, a clean Kicker. The company reports after tomorrow's close.",
    "answer": "No, a report is inside 3 sessions",
    "why": "No. No new buys in the 3 sessions before an earnings report, and a report due after the Kicker day's own close is inside that window. The rule bars the buy itself. A clean Kicker is not exempt, and a plan to sell before the report is still a new buy.",
    "lesson_line": "No new buys in the 3 sessions before a report.",
@@ -2319,7 +2319,7 @@
     "No, buy tomorrow's open",
     "Yes, with the 3.5% stop"
    ],
-   "story": "Hidden ticker. The Kicker day ran over the red high and closed strong, near its high. You were away and did not buy.",
+   "story": "The Kicker day ran over the red high and closed strong, near its high. You were away and did not buy.",
    "answer": "No, the trigger already passed",
    "why": "No. Never at the close of the Kicker day: buying the close is a named mistake. The entry is the trade through the red high, on the Kicker day only. You missed the trigger, so this entry is gone. A strong close is how the chart is graded afterward, not a buy signal.",
    "lesson_line": "Miss the trigger and this entry is gone. Do not buy the close.",
@@ -2490,7 +2490,7 @@
     "18.5%": "Slipped the decimal one place to the right.",
     "98.2%": "Divided the stop by the fill and skipped the subtraction."
    },
-   "story": "Hidden ticker, bought on the Kicker day.",
+   "story": "Bought on the Kicker day.",
    "chart": {
     "sym": "MS",
     "asof": "1997-07-01",
@@ -2552,7 +2552,7 @@
     "4,664 shares": "Bought the whole account at the fill price.",
     "6,756 shares": "Slipped the decimal: used ten times the risk percent."
    },
-   "story": "Hidden ticker, bought on the Kicker day.",
+   "story": "Bought on the Kicker day.",
    "chart": {
     "sym": "AXON",
     "asof": "2004-11-04",
@@ -2577,7 +2577,7 @@
     "Sell it all, bank the 3R gain",
     "Sell half, keep the same stop"
    ],
-   "story": "Hidden ticker, bought at 68.80 with the stop at 67.36. On the buy day itself the Kicker reaches 73.12, which is 3R.",
+   "story": "Bought at 68.80 with the stop at 67.36. On the buy day itself the Kicker reaches 73.12, which is 3R.",
    "answer": "Hold it all, no sell on day 1",
    "why": "Hold it all. We very rarely sell on day 1 of the buy. We usually wait until day 3 at the earliest. 3R this early is not a reason to sell.",
    "lesson_line": "3R on day 1 is not a sell signal. Wait for the push.",
@@ -2920,7 +2920,7 @@
     "An episodic pivot, neglected name",
     "A Launchpad over the averages"
    ],
-   "story": "Hidden ticker, a weak red day. The company reports after this close. The next day it gaps up 6.2% and closes up 18.7%.",
+   "story": "A weak red day. The company reports after this close. The next day it gaps up 6.2% and closes up 18.7%.",
    "answer": "An earnings gapper, graded as a PEG",
    "why": "An earnings gapper, graded as a PEG, a Power Earnings Gap. The company reported after the close the night before, so the gap day is the earnings reaction day. On our card the first session after a report is an earnings gapper, whatever the red day looked like. That was LUV on 2026-01-29: gap 6.2%, +18.7% on 3.8x.",
    "lesson_line": "The first session after a report is an earnings gapper, whatever the red day looked like.",
@@ -2971,7 +2971,7 @@
     "The red day closed too low, at 7%",
     "It traded through the red high"
    ],
-   "story": "Hidden ticker, the red day closed at 7% of its range. The next day opens 0.8% over that close, trades through this high and closes up 8.4%.",
+   "story": "The red day closed at 7% of its range. The next day opens 0.8% over that close, trades through this high and closes up 8.4%.",
    "answer": "The gap is under the 1.5% line",
    "why": "The gap is under 1.5%. It opened only 0.8% over the red close, and the rule needs 1.5% or more. That was CEG on 2024-06-10. It traded through the red high and closed up 8.4%, but with so small a gap it was a plain breakout day.",
    "lesson_line": "A strong green bar without a 1.5% gap is a breakout, not a Kicker.",
@@ -3052,7 +3052,7 @@
     "The red day closed too high in range",
     "The stop is over 3.5% of the entry"
    ],
-   "story": "Hidden ticker, the red day. It fell 5.8% and closed at 1% of its range. Tomorrow it gaps up 5.7% and trades through this high. Over the prior 20 sessions the closes ran across 44.1% of price. A 3.5% stop fits your risk.",
+   "story": "The red day. It fell 5.8% and closed at 1% of its range. Tomorrow it gaps up 5.7% and trades through this high. Over the prior 20 sessions the closes ran across 44.1% of price. A 3.5% stop fits your risk.",
    "answer": "The stock was not on a tight base",
    "why": "No base. The prior 20 closes span 44.1%, far past the 15% a base allows. IDCC on 2011-08-03 failed this test. It was a stock mid-run after a 60% burst, taken anyway and stopped the next session at 0.0R. The red day closed weak and the gap was 5.7%, so neither of those is the problem.",
    "lesson_line": "No base, no Kicker. A stock mid-run is not set up.",
@@ -3297,7 +3297,7 @@
     "It closed too strong to trust",
     "The stop was too tight for the day"
    ],
-   "story": "Hidden ticker. A hard market-wide selloff took it down 5.9% in one day. The next day it gapped 8.7% and you bought the open at 352.77 with the stop at 340.42, the full 3.5%. It closed up 9.9%, then gave it all back.",
+   "story": "A hard market-wide selloff took it down 5.9% in one day. The next day it gapped 8.7% and you bought the open at 352.77 with the stop at 340.42, the full 3.5%. It closed up 9.9%, then gave it all back.",
    "answer": "A shock-day bar is no pullback",
    "why": "A shock-day red bar is not an orderly pullback. That was AVGO on 2025-10-13: the red day fell 5.9% in a one-day market shock, and the Kicker gapped 8.7%. The next day gave it all back and hit the stop. A shock-day bar looks like a Kicker and is not.",
    "lesson_line": "A one-day shock bar is not an orderly pullback.",
@@ -3354,7 +3354,7 @@
     "No, it is an episodic pivot",
     "Yes, in Red we only size down"
    ],
-   "story": "Hidden ticker, the red day. A leader fell 10.0% on the day. Tomorrow it gaps up 5.5% and trades through this high. The whole market is in a crash and the reading is Red.",
+   "story": "The red day. A leader fell 10.0% on the day. Tomorrow it gaps up 5.5% and trades through this high. The whole market is in a crash and the reading is Red.",
    "answer": "No, in Red we are mostly cash",
    "why": "No. A bounce in a Red market looks like a Kicker and is not. In Red we are mostly cash, plus shorts below the 200-day. That was LLY on 2020-03-13: Monday opened under the stop, and the stop was hit.",
    "lesson_line": "Read the market first. A bounce in a crash is not a Kicker.",
@@ -3448,7 +3448,7 @@
     "Hold, the base is still intact",
     "Buy it back at the next open"
    ],
-   "story": "Hidden ticker. Textbook: an 8.1% base, a red day on its low, a 1.7% gap. You bought at 181.81 with the stop at 177.50. Next day it falls through the stop.",
+   "story": "Textbook: an 8.1% base, a red day on its low, a 1.7% gap. You bought at 181.81 with the stop at 177.50. Next day it falls through the stop.",
    "answer": "Take the loss; wait for a new trigger",
    "why": "Take the planned loss. The stop is the exit, and a clean chart does not change that. After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop and every rule. This was CDNS on 2021-12-02: a textbook picture, stopped the next session.",
    "lesson_line": "A clean chart can still fail. The stop makes the loss small.",
@@ -3500,7 +3500,7 @@
     "Nothing; the close was the exit",
     "Proved the setup was a bad one"
    ],
-   "story": "Hidden ticker. You bought at 141.14 with the stop at 137.35. The next day opens at 142.16 and closes at 136.32, under the red high. The stop traded.",
+   "story": "You bought at 141.14 with the stop at 137.35. The next day opens at 142.16 and closes at 136.32, under the red high. The stop traded.",
    "answer": "Its job; it capped a planned loss",
    "why": "Its job. The stop turned a failed Kicker into a planned loss. The next day opened at 142.16 but closed at 136.32, under the red high. That close is a warning for the grade, not an exit, and the stop traded the same day. That was PGR on 2023-03-16.",
    "lesson_line": "The warning came first and the stop did the rest.",
@@ -3690,7 +3690,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "kk.red_day_close",
-   "q": "Hidden ticker, the red day. Tomorrow it gaps up 2.1% and trades through this high. Every other check passes. Take it or pass?",
+   "q": "The red day. Tomorrow it gaps up 2.1% and trades through this high. Every other check passes. Take it or pass?",
    "choices": [
     "Take it; weak close at support",
     "Pass; it is only a baby red candle",
@@ -3737,7 +3737,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "kk.red_day_red",
-   "q": "Hidden ticker, the red day. Tomorrow it gaps up 2.2% and trades through this high. Every other check passes. Take it or pass?",
+   "q": "The red day. Tomorrow it gaps up 2.2% and trades through this high. Every other check passes. Take it or pass?",
    "choices": [
     "Pass; the red day is a baby candle",
     "Take it; the base is tight and quiet",
@@ -4224,7 +4224,7 @@
    "format": "scenario",
    "criterion": "kk.plan_before_open",
    "q": "What is the best use of tonight?",
-   "story": "Hidden ticker, a leader closed a weak red day near its low. If it gaps up through this high tomorrow, you want the Kicker. It is 8 pm.",
+   "story": "A leader closed a weak red day near its low. If it gaps up through this high tomorrow, you want the Kicker. It is 8 pm.",
    "choices": [
     "Write down entry, stop and size",
     "Wait and pick the stop after the fill",
@@ -4406,7 +4406,7 @@
    "format": "scenario",
    "criterion": "kk.breakeven",
    "q": "Move the stop up yet?",
-   "story": "Hidden ticker, bought on the Kicker day. You bought at 22.17 with the stop at 21.76. The next day the Kicker is up 1R. A friend says to move the stop to breakeven now.",
+   "story": "Bought on the Kicker day. You bought at 22.17 with the stop at 21.76. The next day the Kicker is up 1R. A friend says to move the stop to breakeven now.",
    "choices": [
     "Not yet; breakeven comes later",
     "No; a stop never moves",
@@ -4528,7 +4528,7 @@
     "$44.42": "Added five R to the stop, not the fill.",
     "$37.67": "Subtracted five R from the fill."
    },
-   "story": "Hidden ticker, bought on the Kicker day at 41.42 with the stop at 40.67.",
+   "story": "Bought on the Kicker day at 41.42 with the stop at 40.67.",
    "chart": {
     "sym": "BOOT",
     "asof": "2020-12-28",

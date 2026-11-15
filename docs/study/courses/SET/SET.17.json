@@ -1252,7 +1252,7 @@
     ]
    },
    "batch": "visuals-2",
-   "story": "Hidden ticker, the trigger day is the last bar.",
+   "story": "The trigger day is the last bar.",
    "chart": {
     "sym": "META",
     "asof": "2021-09-17",
@@ -1423,7 +1423,7 @@
     ]
    },
    "batch": "visuals-2",
-   "story": "Hidden ticker, the trigger day is the last bar.",
+   "story": "The trigger day is the last bar.",
    "chart": {
     "sym": "CAT",
     "asof": "2018-10-09",
@@ -1744,7 +1744,7 @@
    "rung": 3,
    "format": "scenario",
    "criterion": "wd.top_lower_high",
-   "story": "Hidden ticker, the day before the trigger. In a bear market the stock bounces into its falling 50-day and turns down, under the high of the last 60 sessions. Then it stalls four days.",
+   "story": "The day before the trigger. In a bear market the stock bounces into its falling 50-day and turns down, under the high of the last 60 sessions. Then it stalls four days.",
    "q": "What kind of top is that?",
    "choices": [
     "A lower high, the bear-market form",
@@ -1890,7 +1890,7 @@
     ]
    },
    "batch": "visuals-2",
-   "story": "Hidden ticker, shorted on the trigger day.",
+   "story": "Shorted on the trigger day.",
    "chart": {
     "sym": "EXP",
     "asof": "2015-09-18",
@@ -1946,7 +1946,7 @@
     "98.0%": "Gave the fill as a share of the stop, not the gap between them."
    },
    "prefix": "",
-   "story": "Hidden ticker, shorted on the trigger day.",
+   "story": "Shorted on the trigger day.",
    "chart": {
     "sym": "WHR",
     "asof": "2002-08-29",
@@ -1965,7 +1965,7 @@
    "rung": 3,
    "format": "scenario",
    "criterion": "wd.inv_reclaim",
-   "story": "Hidden ticker. You shorted the close under both averages at 24.74, stop 25.26. Two days later it closes back above both averages. Your stop has not been hit.",
+   "story": "You shorted the close under both averages at 24.74, stop 25.26. Two days later it closes back above both averages. Your stop has not been hit.",
    "q": "On our card, what now?",
    "choices": [
     "Cover; the reclaim is the exit",
@@ -2097,7 +2097,7 @@
     "$45.03": "Went down one R, not three."
    },
    "suffix": "",
-   "story": "Hidden ticker, shorted on the trigger day.",
+   "story": "Shorted on the trigger day.",
    "chart": {
     "sym": "PCG",
     "asof": "2007-12-14",
@@ -2157,7 +2157,7 @@
    "rung": 4,
    "format": "scenario",
    "criterion": "wd.close_position",
-   "story": "Hidden ticker, the trigger day is the last bar. The stock closes under both averages after a clean stall. But the close sits at 56% of the day's range, mid-bar.",
+   "story": "The trigger day is the last bar. The stock closes under both averages after a clean stall. But the close sits at 56% of the day's range, mid-bar.",
    "q": "Is that the trigger?",
    "choices": [
     "No; it must close in the lower 40%",
@@ -2286,7 +2286,7 @@
     "1.8R": "That is one R in dollars read as R. Divide the gain by it."
    },
    "prefix": "",
-   "story": "Hidden ticker, shorted on the trigger day.",
+   "story": "Shorted on the trigger day.",
    "chart": {
     "sym": "EXP",
     "asof": "2015-09-18",
@@ -2597,7 +2597,7 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "wd.wide_loose",
-   "story": "Hidden ticker, the trigger day is the last bar. An 8-day stall 9.6% wide breaks under both averages. The stop over the day's high is 2.4% away.",
+   "story": "The trigger day is the last bar. An 8-day stall 9.6% wide breaks under both averages. The stop over the day's high is 2.4% away.",
    "q": "How does our card treat that stall?",
    "choices": [
     "Take it, graded down for the stall",
@@ -2796,7 +2796,7 @@
     "1,404 shares": "Typed the risk as ten times too big, so the share count came out ten times too big."
    },
    "prefix": "",
-   "story": "Hidden ticker, shorted on the trigger day.",
+   "story": "Shorted on the trigger day.",
    "chart": {
     "sym": "GS",
     "asof": "2011-08-02",
@@ -2815,7 +2815,7 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "wd.inv_stop",
-   "story": "Hidden ticker, shorted on the trigger day. Short from 52.58, stop 53.70. The next session trades up through 53.70 and closes at 54.33.",
+   "story": "Shorted on the trigger day. Short from 52.58, stop 53.70. The next session trades up through 53.70 and closes at 54.33.",
    "q": "What happened to the trade?",
    "choices": [
     "Stopped at 53.70; a planned loss",
@@ -3011,7 +3011,7 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "wd.stall_tight",
-   "story": "Hidden ticker, the trigger day is the last bar. In the stall, one close sits more than 1 ATR from the 9 EMA. Then the stock closes under both averages.",
+   "story": "The trigger day is the last bar. In the stall, one close sits more than 1 ATR from the 9 EMA. Then the stock closes under both averages.",
    "q": "Does that pass our stall test?",
    "choices": [
     "No; one close was past 1 ATR",
@@ -3058,7 +3058,7 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "wd.stall_volume",
-   "story": "Hidden ticker, the trigger day is the last bar. In the stall the up days averaged 2.84 times the volume of the down days. Then a close under both averages.",
+   "story": "The trigger day is the last bar. In the stall the up days averaged 2.84 times the volume of the down days. Then a close under both averages.",
    "q": "What was the stall?",
    "choices": [
     "Accumulation; pass on the short",
@@ -3360,7 +3360,7 @@
    "rung": 8,
    "format": "scenario",
    "criterion": "wd.stop_width",
-   "story": "Hidden ticker, the trigger day is the last bar. The stall breaks on a gap down and every other rule checks out. The fill is 90.85 and the stop over the high is 93.53, 3.0% away.",
+   "story": "The trigger day is the last bar. The stall breaks on a gap down and every other rule checks out. The fill is 90.85 and the stop over the high is 93.53, 3.0% away.",
    "q": "Take it?",
    "choices": [
     "Yes; the stop fits the 3% line",
@@ -3627,7 +3627,7 @@
    "rung": 9,
    "format": "scenario",
    "criterion": "wd.order",
-   "story": "Hidden ticker, August 2011. A bounce dies at the falling 50-day, then a four-day stall. Today it trades down through both averages and the stall low, and closes at 131.23 on 1.2x volume. The day's high is 134.76.",
+   "story": "In August 2011, a bounce dies at the falling 50-day, then a four-day stall. Today it trades down through both averages and the stall low, and closes at 131.23 on 1.2x volume. The day's high is 134.76.",
    "q": "Write the plan: entry, stop, first cover day.",
    "choices": [
     "Through trigger; stop 134.79; day 3+",
@@ -3776,7 +3776,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "wd.below_200",
-   "q": "Hidden ticker; the trigger day is the last bar. The 200-day is on the chart. On the 200-day test alone, is a short allowed?",
+   "q": "The trigger day is the last bar. The 200-day is on the chart. On the 200-day test alone, is a short allowed?",
    "choices": [
     "Yes; the close is under the 200-day",
     "No; the close is above the 200-day",
@@ -3824,7 +3824,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "wd.below_200",
-   "q": "Hidden ticker; the trigger day is the last bar. A clean stall, then a close under both averages, 8.3% above the 200-day. Short or pass?",
+   "q": "The trigger day is the last bar. A clean stall, then a close under both averages, 8.3% above the 200-day. Short or pass?",
    "choices": [
     "Pass; it sits above the 200-day",
     "Take it; both averages are lost",
@@ -4006,7 +4006,7 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "wd.stop",
-   "story": "Hidden ticker, the day before the trigger. A Kell post says that if the stock loses 166.50, it would trigger a Wedge Drop short on a laggard. He adds that it might just be an avoid.",
+   "story": "The day before the trigger. A Kell post says that if the stock loses 166.50, it would trigger a Wedge Drop short on a laggard. He adds that it might just be an avoid.",
    "q": "On our rules, how do you treat that post?",
    "choices": [
     "A lead; my own entry, stop and size",

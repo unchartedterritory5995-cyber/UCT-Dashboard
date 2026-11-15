@@ -2533,7 +2533,7 @@
    "house": true,
    "simple": "Yes, a 10:50 break counts. We have no time-of-day rule, and the trigger lasts all session.",
    "deeper": {
-    "counter": "A late trigger is valid, not a promise. QLYS broke at 10:50, reached 5R in three sessions, then fell all the way back to the stop by session 10. Selling a third at 3R and another at 5R is how a run like that is kept."
+    "counter": "A late trigger is valid, not a promise. QLYS broke at 10:50, reached 5R in three sessions, then fell all the way back to the stop by session 10. Selling some into the push and moving the stop to breakeven is how a run like that is kept."
    },
    "tier": "extended",
    "risk": {

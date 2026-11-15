@@ -1001,7 +1001,7 @@
    "key": "q01",
    "skill": "setup.inside_day",
    "rung": 1,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "id.shape",
    "q": "What makes today an inside day?",
    "choices": [
@@ -1036,7 +1036,14 @@
      "five sources agree; the key uses only the part that strict and tie rules share"
     ]
    },
-   "batch": "wave4"
+   "batch": "visuals-4",
+   "story": "The last bar on the chart is today.",
+   "chart": {
+    "sym": "FTNT",
+    "asof": "2021-06-11",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q02",
@@ -1067,7 +1074,7 @@
    "key": "q03",
    "skill": "setup.inside_day",
    "rung": 1,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "id.stop",
    "q": "Where does the stop go on an inside-day buy?",
    "choices": [
@@ -1102,7 +1109,14 @@
      "fixed before"
     ]
    },
-   "batch": "wave4"
+   "batch": "visuals-4",
+   "story": "The inside day, the day before the buy.",
+   "chart": {
+    "sym": "MPC",
+    "asof": "2013-01-14",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q04",
@@ -1466,16 +1480,16 @@
    "key": "q15",
    "skill": "setup.inside_day",
    "rung": 2,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "id.order",
-   "q": "An inside day's high is 50.00. How do we buy the break?",
+   "q": "How do we buy the break over this inside day's high?",
    "choices": [
-    "At market as it trades over 50.00",
+    "At market as it trades over the high",
     "A limit order under the low",
-    "A limit order a cent over 50.00",
+    "A limit order a cent over the high",
     "In premarket on a gap up"
    ],
-   "answer": "At market as it trades over 50.00",
+   "answer": "At market as it trades over the high",
    "why": "At market, once it trades over the high, in regular hours. Entries are market orders, bought as price trades through the high. There are no new buys outside regular trading hours, so a premarket gap is not bought there. A limit under the low waits for the very weakness that cancels the buy.",
    "lesson_line": "Market order, regular hours, as it trades through. No limit, no premarket.",
    "facts": [
@@ -1486,8 +1500,8 @@
    "house": true,
    "wrong": {
     "A limit order under the low": "A limit under the low waits for the very weakness that cancels the buy.",
-    "A limit order a cent over 50.00": "Entries are market orders, not limit orders.",
-    "In premarket on a gap up": "No new buys outside regular trading hours."
+    "In premarket on a gap up": "No new buys outside regular trading hours.",
+    "A limit order a cent over the high": "Entries are market orders, not limit orders."
    },
    "simple": "We buy at market as price trades over the high, and only in regular hours.",
    "deeper": {
@@ -1504,13 +1518,20 @@
    "depends_on": [
     "D-038"
    ],
-   "batch": "rulings"
+   "batch": "visuals-4",
+   "story": "The inside day, the day before the break.",
+   "chart": {
+    "sym": "ALGN",
+    "asof": "2017-03-14",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q16",
    "skill": "setup.inside_day",
    "rung": 3,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "id.trim_1",
    "q": "Bought at 20.71 with the stop at 20.47. Where is 3R?",
    "answer": "$21.43",
@@ -1540,7 +1561,7 @@
      "a computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-4",
    "choices": [
     "$21.19",
     "$19.99",
@@ -1551,19 +1572,30 @@
     "$21.19": "Added three R to the stop instead of to the fill.",
     "$19.99": "Subtracted three R. A long's target sits above the fill.",
     "$23.71": "Added 3 dollars, not three R. R is the fill minus the stop."
+   },
+   "story": "Bought on the break the day after the inside day.",
+   "chart": {
+    "sym": "JBLU",
+    "asof": "2003-08-08",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 20.71,
+     "stop": 20.47
+    }
    }
   },
   {
    "key": "q17",
    "skill": "setup.inside_day",
    "rung": 3,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "id.inv_close_under_21",
-   "q": "The stock closed under its 20 EMA yesterday. Today it prints an inside day, still under that line. Our read?",
+   "q": "An inside day in a pullback, closing under its 20 EMA. Our read?",
    "choices": [
     "A pause in a range, not a setup",
     "A buy; any inside day will work",
-    "Skip it; the 9 EMA is under the 20 EMA",
+    "Skip it; the bar is too narrow",
     "A continuation; buy over its high"
    ],
    "answer": "A pause in a range, not a setup",
@@ -1580,7 +1612,7 @@
    "wrong": {
     "A buy; any inside day will work": "Buying every inside day is the named mistake. The location decides.",
     "A continuation; buy over its high": "An inside day under the fast average is a pause in a range, not a continuation.",
-    "Skip it; the 9 EMA is under the 20 EMA": "The story gives no 9 EMA reading, and the full stack is only a cue. The reason to skip is the close under the 20 EMA."
+    "Skip it; the bar is too narrow": "A narrow bar is not banned. The reason to skip is the close under the 20 EMA."
    },
    "simple": "Skip it. After a close under the 20 EMA, a quiet day is only a pause in a range.",
    "tier": "core",
@@ -1591,7 +1623,14 @@
      "fixed before"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "visuals-4",
+   "story": "The last bar on the chart is the inside day.",
+   "chart": {
+    "sym": "AMZN",
+    "asof": "2025-10-15",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q18",
@@ -1763,7 +1802,7 @@
    "key": "q23",
    "skill": "setup.inside_day",
    "rung": 4,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "id.stop",
    "q": "Bought at 41.09 with the stop at 40.45. How far below the buy is the stop, in percent?",
    "answer": "1.56%",
@@ -1793,7 +1832,7 @@
      "a computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-4",
    "choices": [
     "0.64%",
     "15.58%",
@@ -1804,6 +1843,17 @@
     "0.64%": "Read the dollar gap as a percent. Divide it by the buy first.",
     "15.58%": "Slipped the decimal point one place right.",
     "98.44%": "Divided the stop by the buy. That is how much of the price is left, not how far the stop is."
+   },
+   "story": "Bought on the break the day after the inside day.",
+   "chart": {
+    "sym": "ATI",
+    "asof": "2006-01-20",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 41.09,
+     "stop": 40.45
+    }
    }
   },
   {
@@ -2083,20 +2133,20 @@
    "key": "q31",
    "skill": "setup.inside_day",
    "rung": 4,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "id.trim_2",
-   "q": "Bought at 55.02, stop 54.28. The stock trades to 58.72. How many R is that?",
+   "q": "Bought at 207.86, stop 205.65. The stock trades to 218.91. How many R is that?",
    "answer": "5.0R",
    "calc": {
     "fn": "r_multiple",
     "args": {
-     "entry": 55.02,
-     "stop": 54.28,
-     "exit": 58.72
+     "entry": 207.86,
+     "stop": 205.65,
+     "exit": 218.91
     },
     "round": 1
    },
-   "why": "5R. One R is the fill minus the stop: 55.02 minus 54.28. The gain is 58.72 minus 55.02. The gain divided by that R is five.",
+   "why": "5R. One R is the fill minus the stop: 207.86 minus 205.65. The gain is 218.91 minus 207.86. The gain divided by that R is five.",
    "lesson_line": "Count in R, not dollars: the gain divided by the risk.",
    "facts": [
     "h20",
@@ -2105,7 +2155,7 @@
    ],
    "house": true,
    "suffix": "R",
-   "simple": "The gain is five times the risk of buying at 55.02 with a stop at 54.28.",
+   "simple": "The gain is five times the risk of buying at 207.86 with a stop at 205.65.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -2114,17 +2164,28 @@
      "fixed before"
     ]
    },
-   "batch": "rank",
+   "batch": "visuals-4",
    "choices": [
     "5.0R",
     "6.0R",
     "50.0R",
-    "79.4R"
+    "99.1R"
    ],
    "wrong": {
     "6.0R": "Measured the gain from the stop instead of from the fill.",
     "50.0R": "Slipped the decimal point one place right.",
-    "79.4R": "Divided the exit price by R instead of the gain."
+    "99.1R": "Divided the exit price by R instead of the gain."
+   },
+   "story": "Bought on the break the day after the inside day.",
+   "chart": {
+    "sym": "GOOGL",
+    "asof": "2025-08-27",
+    "window": 120,
+    "forward": 60,
+    "trade": {
+     "entry": 207.86,
+     "stop": 205.65
+    }
    }
   },
   {
@@ -2165,7 +2226,17 @@
      "example numbers read from our own bars"
     ]
    },
-   "batch": "wave4"
+   "batch": "visuals-4",
+   "chart": {
+    "sym": "NFLX",
+    "asof": "2018-03-16",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 32.35,
+     "stop": 31.76
+    }
+   }
   },
   {
    "key": "q33",
@@ -2181,7 +2252,7 @@
     "Plain bad luck; the spot was fine"
    ],
    "answer": "A planned loss at a B- spot",
-   "why": "A planned loss at a B- spot. An inside day after six up days in a row is the B- end of the spots. The stop was set 1.06% away, at 49.41. The stock later fell to 46.35 within 10 sessions.",
+   "why": "A planned loss at a B- spot. An inside day after a long run of up closes is the B- end of the spots. The stop was set 1.06% away, at 49.41. The stock later fell to 46.35 within 10 sessions.",
    "lesson_line": "Grade the spot before the bar. Late in a run, the quiet day is the B- end.",
    "facts": [
     "c42",
@@ -2193,10 +2264,10 @@
    "wrong": {
     "A mistake; the stop needed room": "Room means a bigger loss. The stock fell to 46.35 within 10 sessions.",
     "A mistake; inside days never work": "They can work. The spot, late in a run, was the problem, not the bar.",
-    "Plain bad luck; the spot was fine": "Six up days in a row before the pause is the B- end. The spot was the problem, not luck."
+    "Plain bad luck; the spot was fine": "A long run of up days before the pause is the B- end. The spot was the problem, not luck."
    },
-   "story": "Six up closes in a row, then an inside day. You bought the break at 49.94 with a 1.06% stop at 49.41. The next session's low was 49.11.",
-   "simple": "It was a planned loss at a weak spot, because the pause came after six up days in a row.",
+   "story": "A long run of up closes, then an inside day. You bought the break at 49.94 with a 1.06% stop at 49.41. The next session's low was 49.11.",
+   "simple": "It was a planned loss at a weak spot, because the pause came after a long run of up days.",
    "tier": "extended",
    "risk": {
     "score": 4,
@@ -2206,7 +2277,17 @@
      "fixed before"
     ]
    },
-   "batch": "wave4"
+   "batch": "visuals-4",
+   "chart": {
+    "sym": "AMZN",
+    "asof": "2017-05-30",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 49.94,
+     "stop": 49.41
+    }
+   }
   },
   {
    "key": "q34",
@@ -2332,7 +2413,7 @@
     "Yes; the stop is the inside low": "That stop would be 6.95% away. Far too wide to keep the loss small, and the wrong setup anyway.",
     "No; we skip gaps over the high": "A gap up to 4% over the high is bought at the open. This one is 6.0% over, past the line."
    },
-   "story": "AAPL, August 2017: a clean inside day prints. Earnings come after the close, and the next open is 6.0% over its high.",
+   "story": "A clean inside day prints. Earnings come after the close, and the next open is 6.0% over its high.",
    "simple": "No, because an open more than 4% over the high is a gap trade, not an inside-day buy.",
    "deeper": {
     "trap": "Strength after a report feels like confirmation. But the gap is the report's reaction, and the setup caps a gap at 4% over the inside day's high. Past that, the stop under the inside low sits too far away to keep the loss small."
@@ -2345,7 +2426,13 @@
      "fixed before"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "visuals-4",
+   "chart": {
+    "sym": "AAPL",
+    "asof": "2017-08-01",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q38",
@@ -2429,7 +2516,7 @@
    "key": "q40",
    "skill": "setup.inside_day",
    "rung": 6,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "id.stop",
    "q": "Account 50,000. Risk 0.25%. Trigger 38.00, stop 37.53. How many shares, rounded down?",
    "answer": "265 shares",
@@ -2463,7 +2550,7 @@
      "fixed before"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-4",
    "choices": [
     "526 shares",
     "1,063 shares",
@@ -2474,6 +2561,17 @@
     "526 shares": "That is the 40% position cap size. Risk sets the size, and it is smaller.",
     "1,063 shares": "Risked four times too much. Use the 0.25% the question gives.",
     "3 shares": "Divided the risk dollars by the trigger price, not by the stop distance."
+   },
+   "story": "Bought on the break the day after the inside day.",
+   "chart": {
+    "sym": "VST",
+    "asof": "2023-12-22",
+    "window": 120,
+    "forward": 30,
+    "trade": {
+     "entry": 38.0,
+     "stop": 37.53
+    }
    }
   },
   {
@@ -2716,27 +2814,27 @@
    "key": "q48",
    "skill": "setup.inside_day",
    "rung": 6,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "id.stop_wide",
-   "q": "Buy 50.00, stop 48.40. How far below the buy is the stop, in percent?",
-   "answer": "3.2%",
+   "q": "Buy 286.83, stop 277.28. How far below the buy is the stop, in percent?",
+   "answer": "3.33%",
    "calc": {
     "fn": "arith",
     "args": {
      "expr": "(a - b) / a * 100",
-     "a": 50.0,
-     "b": 48.4
+     "a": 286.83,
+     "b": 277.28
     },
     "round": 2
    },
-   "why": "3.2%. The gap is the buy minus the stop: 50.00 minus 48.40. Divide by the buy, 50.00, and show it as a percent. We prefer a stop 1 to 3% away, and 3.5% is good. This one is a touch past the preferred range. Up to 5% is acceptable, so we take it and the stop sets the size.",
+   "why": "3.33%. The gap is the buy minus the stop: 286.83 minus 277.28. Divide by the buy, 286.83, and show it as a percent. We prefer a stop 1 to 3% away, and 3.5% is good. This one is a touch past the preferred range. Up to 5% is acceptable, and the stop sets the size. The stop is only one gate: this buy was stretched after a vertical January and was stopped the next session.",
    "lesson_line": "Measure the stop as a percent of the buy. Past 5%, wait for a tighter trigger.",
    "facts": [
     "r11"
    ],
    "suffix": "%",
    "house": true,
-   "simple": "The stop is 3.2% below the buy: the buy minus the stop, divided by the buy.",
+   "simple": "The stop is 3.33% below the buy: the buy minus the stop, divided by the buy.",
    "tier": "extended",
    "risk": {
     "score": 5,
@@ -2746,17 +2844,28 @@
      "fixed before"
     ]
    },
-   "batch": "rank",
+   "batch": "visuals-4",
    "choices": [
-    "3.2%",
-    "1.6%",
-    "0.32%",
-    "0.032%"
+    "3.33%",
+    "9.55%",
+    "0.33%",
+    "0.033%"
    ],
    "wrong": {
-    "1.6%": "Read the dollar gap as a percent. Divide it by the buy first.",
-    "0.32%": "Slipped the decimal point one place left.",
-    "0.032%": "Forgot to scale the ratio to a percent."
+    "9.55%": "Read the dollar gap as a percent. Divide it by the buy first.",
+    "0.33%": "Slipped the decimal point one place left.",
+    "0.033%": "Forgot to scale the ratio to a percent."
+   },
+   "story": "Bought on the break the day after the inside day.",
+   "chart": {
+    "sym": "TSLA",
+    "asof": "2021-01-14",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 286.83,
+     "stop": 277.28
+    }
    }
   },
   {
@@ -3094,7 +3203,7 @@
     "Wait for the close; mother-low stop": "We buy as price trades through the high, never at the close. The mother low is the named mistake.",
     "Buy 55.02, stop 54.28, sell half day 1": "The stop is right, but we very rarely sell on day 1. We usually wait until day 3 at the earliest."
    },
-   "story": "NVDA, January 2024: an inside day four days after a breakout, on light volume. The next session opens a hair over the high.",
+   "story": "An inside day four days after a breakout, on light volume. The next session opens a hair over the high.",
    "simple": "Buy at market, put the stop just under the inside low, and wait until day 3 to make the first sell.",
    "deeper": {
     "example": "Walk the plan in R. The inside low sets one R at 55.02 minus 54.28. R is the measuring stick, not the sell signal. The first sell waits for day 3 at the earliest, then the rest trails the 9 EMA or the 20 EMA. Written before the open, the plan leaves nothing to argue about when the stock moves."
@@ -3107,7 +3216,13 @@
      "fixed before"
     ]
    },
-   "batch": "rulings2"
+   "batch": "visuals-4",
+   "chart": {
+    "sym": "NVDA",
+    "asof": "2024-01-12",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q58",
@@ -3288,7 +3403,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "id.trend_200",
-   "q": "Hidden ticker, an inside day days after a breakout. Is it above the 200-day with the 50-day over it? Take it or pass.",
+   "q": "An inside day days after a breakout. Is it above the 200-day with the 50-day over it? Take it or pass.",
    "choices": [
     "Take it; the lines are stacked",
     "Pass; price is under the 200-day",
@@ -3339,7 +3454,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "id.shape",
-   "q": "Hidden ticker. Is the last bar an inside day? Take the break over its high, or pass.",
+   "q": "Is the last bar an inside day? Take the break over its high, or pass.",
    "choices": [
     "Pass; its high is above yesterday's",
     "Take it; the narrowest day in a week",
@@ -3501,22 +3616,22 @@
    "rung": 4,
    "format": "scenario",
    "criterion": "id.double_inside",
-   "q": "What do you have after Wednesday's close?",
-   "story": "Monday ran 52.00 to 49.00. Tuesday ran 51.20 to 49.80. Wednesday ran 50.90 to 50.10. Judge the bars after Wednesday's close.",
+   "q": "What do you have after the last close?",
+   "story": "Judge the last three bars after the last close.",
    "choices": [
-    "A double inside day; Monday is mother",
-    "A triple inside day; Monday counts too",
-    "A single inside day; only Tuesday counts",
-    "None; Wednesday is only a narrow bar"
+    "Double inside; the first bar is mother",
+    "Triple inside; the first bar counts too",
+    "Single inside; only the middle counts",
+    "None; the last bar is only narrow"
    ],
-   "answer": "A double inside day; Monday is mother",
-   "why": "A double inside day. Tuesday sits inside Monday, so Monday is the mother bar. Wednesday sits inside Tuesday, its high 50.90 under 51.20 and its low 50.10 over 49.80. That is two inside days in a row, each inside the day before. Mish says two in a row is an even clearer sign of indecision. It is still an entry tool inside a bigger setup, not a setup by itself.",
+   "answer": "Double inside; the first bar is mother",
+   "why": "A double inside day. The first of the three bars is the mother bar. The middle bar sits inside it, and the last bar sits inside the middle one. That is two inside days in a row, each inside the day before. Mish says two in a row is an even clearer sign of indecision. It is still an entry tool inside a bigger setup, not a setup by itself.",
    "lesson_line": "Count from the mother bar. Each inside day has to sit inside the day before.",
-   "simple": "A double inside day. Tuesday is inside Monday and Wednesday is inside Tuesday, so that is two in a row.",
+   "simple": "A double inside day. The middle bar is inside the first and the last is inside the middle, so that is two in a row.",
    "wrong": {
-    "A triple inside day; Monday counts too": "Monday is the mother bar, the day the others sit inside. It is not an inside day, so the count is two.",
-    "A single inside day; only Tuesday counts": "Wednesday sits inside Tuesday, so it counts too. A single would stop after Tuesday.",
-    "None; Wednesday is only a narrow bar": "Wednesday's high is under 51.20 and its low is over 49.80, so both ends sit inside. A narrow range is no fault, and it is still an inside day."
+    "Triple inside; the first bar counts too": "The first bar is the mother bar, the day the others sit inside. It is not an inside day, so the count is two.",
+    "Single inside; only the middle counts": "The last bar sits inside the middle one, so it counts too. A single would stop after the middle bar.",
+    "None; the last bar is only narrow": "Both ends of the last bar sit inside the middle bar. A narrow range is no fault, and it is still an inside day."
    },
    "facts": [
     "c03",
@@ -3527,7 +3642,13 @@
    ],
    "house": true,
    "tier": "core",
-   "batch": "cover"
+   "batch": "visuals-4",
+   "chart": {
+    "sym": "TSLA",
+    "asof": "2025-12-19",
+    "window": 120,
+    "forward": 20
+   }
   }
  ],
  "conflicts": [
@@ -3573,7 +3694,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Both ends inside is right and rests on c01, cr01, bk01, tl01, mi01. Key is not the longest choice. NR7 note rests on sc01 and c46. No tell found."
+   "notes": "FTNT 2021-06-11 verified inside day on bars (H45.88<45.90, L45.44>44.88); asof = the inside day = today. Pass."
   },
   "q02": {
    "status": "pass",
@@ -3585,7 +3706,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key matches c14/h24/c15. Key is tied-shortest. Seven percent note grounded in bk04 and h04."
+   "notes": "MPC 2013-01-14 verified inside day; bought 2013-01-15 per dossier #3; no numbers in text. Pass."
   },
   "q04": {
    "status": "cut",
@@ -3658,19 +3779,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "keep agrees with ruling"
+   "notes": "ALGN 2017-03-14 verified inside day, bought 2017-03-15 (dossier #4). Rewrite drops the invented 50.00; wrong keys match. Pass."
   },
   "q16": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
+   "notes": "JBLU buy day 2003-08-08, entry 20.71 stop 20.47 match dossier #1 and text; 3R the next day covered by forward 20. Pass."
   },
   "q17": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Renamed to 20 EMA / 9 EMA, hypothetical so no measurement; r91 cited; style ok."
+   "fixed": true,
+   "notes": "AMZN 2025-10-15 verified inside day (H217.71<219.32, L212.66>212.60), close 215.57 under 20 EMA 221.93 (about 2.9%), EMA falling. FIX: story said \"the day before the buy\", which hints a buy is the answer on a question whose right read is \"not a setup\"; story changed to say only that the last bar is the inside day."
   },
   "q18": {
    "status": "pass",
@@ -3706,7 +3827,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
+   "notes": "ATI buy day 2006-01-20, 41.09/40.45 match dossier #2 and text; 1.56% correct. Pass."
   },
   "q24": {
    "status": "pass",
@@ -3755,19 +3876,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
+   "notes": "GOOGL buy day 2025-08-27, 207.86/205.65 match dossier #10; 218.91 is exactly 5R from those two and the example reached 5R (best R 44.6); distractors recomputed (6.0, 50.0, 99.1). Pass."
   },
   "q32": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c24, c40, c41 support the key. Numbers 32.35, 31.76, 31.84 are in c40; stop 31.76 under the day's low 31.84 is true. Breakeven note rests on c17. Gap rule removed so it does not collide with q47 or q25. No tell."
+   "notes": "NFLX buy day 2018-03-16; 32.35/31.76 match dossier; entry-day close 31.84 at its low confirmed on bars; next open 31.58 under stop shows in forward replay. Pass."
   },
   "q33": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave4; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "AMZN buy day 2017-05-30, 49.94/49.41 match. FIX: card and text say six up closes in a row, but the bars show seven (closes up 18, 19, 22, 23, 24, 25, 26 May 2017), so a member counting the chart would disagree. Number softened to \"a long run\" in story, why, wrong and simple; right answer unchanged."
   },
   "q34": {
    "status": "cut",
@@ -3790,8 +3911,8 @@
   "q37": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Story fine. The wrong text 'Far outside the 3% habit' implies 3% is the cap; D-005 allows up to 5%. Reworded without a new number."
+   "fixed": false,
+   "notes": "AAPL 2017-08-01 verified clean inside day; next open 6.03% over its high (card 6.0%); ticker removed from story. Pass."
   },
   "q38": {
    "status": "pass",
@@ -3809,7 +3930,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
+   "notes": "VST buy day 2023-12-22, 38.00/37.53 match dossier #8; 265 shares recomputed (125/0.47). Pass."
   },
   "q41": {
    "status": "pass",
@@ -3857,7 +3978,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
+   "notes": "TSLA buy day 2021-01-14, 286.83/277.28 match; 3.33% and distractors recomputed; 281.67 close and next-day low 273.03 confirm \"stopped the next session\". Pass."
   },
   "q49": {
    "status": "pass",
@@ -3912,7 +4033,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Re-keyed to first sell day 3+; day-1 sell is a wrong choice; buy through the high ok (D-003); quotes verbatim."
+   "notes": "NVDA asof 2024-01-12 inside day verified; buy 55.02 / stop 54.28 match dossier #9; next open 0.09% over the high (\"a hair\"); volume 0.59x. Pass."
   },
   "q58": {
    "status": "pass",
@@ -3973,7 +4094,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Applies id.double_inside by counting a real sequence: Tuesday 51.20/49.80 inside Monday 52.00/49.00, Wednesday 50.90/50.10 inside Tuesday, so two in a row, each inside the day before (c03). Monday is the mother bar (c02). Both readings of the card's count give two. Distractors clearly wrong. mi02 and c06 quotes verbatim. Complements q28 (single inside day), not a duplicate."
+   "notes": "TSLA 2025-12-19 verified on bars: 17 Dec mother (not itself inside), 18 Dec inside it, 19 Dec inside 18 Dec; 22 Dec traded over. Double inside is right. Pass."
   }
  }
 }

@@ -1217,6 +1217,12 @@
    "source": "h2",
    "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
    "claim": "D-021: the course uses the 9 and 20 EMA everywhere, with the 50 and 200 SMA."
+  },
+  {
+   "id": "d37",
+   "source": "d1",
+   "quote": "TIGR | 2024-10-07 | +327% in 15 sessions (+269% in 60); 67% over 9 EMA, 192% over 50-day, ATR x24.6; 4/4 boxes; gap +12.1%; vol 1.56x 20-day high; above 200-day",
+   "claim": "TIGR, climax 2024-10-07: Bracco's own named example, four of four boxes, a 12.1% gap, volume 1.56 times the 20-day high."
   }
  ],
  "walkthroughs": [
@@ -1832,7 +1838,7 @@
    "key": "q16",
    "skill": "setup.parabolic_short",
    "rung": 3,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "ps.climax_volume",
    "q": "On the climax day, what should the volume look like?",
    "choices": [
@@ -1842,7 +1848,7 @@
     "Heavy only in the last hour"
    ],
    "answer": "The highest of the whole run",
-   "why": "The highest of the whole run. Bracco: the climax day almost invariably shows the highest opening volume of the entire run. A big spike after a massive move signals exhaustion. StockCharts says an exhaustion gap also shows high volume. Our card wants the day's volume, and ideally its first 5 to 15 minutes, the highest of the run. It is a tell, not a trigger. The trigger is the break under VWAP.",
+   "why": "The highest of the whole run. Bracco: the climax day almost invariably shows the highest opening volume of the entire run. A big spike after a massive move signals exhaustion. StockCharts says an exhaustion gap also shows high volume. Our card wants the day's volume, and ideally its first 5 to 15 minutes, the highest of the run. TIGR, Bracco's own example, printed 1.56x the highest volume of its prior 20 sessions. It is a tell, not a trigger. The trigger is the break under VWAP.",
    "lesson_line": "The crowd buys the top. Record volume on the climax day is the tell.",
    "facts": [
     "b17",
@@ -1850,7 +1856,8 @@
     "c11",
     "g02",
     "g01",
-    "c35"
+    "c35",
+    "d37"
    ],
    "wrong": {
     "Lighter than the day before": "Lighter volume is not a climax. The card wants a record; rising but not a record is only a B- mark.",
@@ -1866,7 +1873,14 @@
      "wrong note fixed before (B- row wording)"
     ]
    },
-   "batch": "wave3"
+   "batch": "visuals-3",
+   "story": "After a burst. The last bar is the climax day.",
+   "chart": {
+    "sym": "TIGR",
+    "asof": "2024-10-07",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q17",
@@ -2170,9 +2184,9 @@
    "key": "q25",
    "skill": "setup.parabolic_short",
    "rung": 4,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "ps.stop",
-   "q": "Shorted at 29.66 with the stop at 31.81. How wide is the stop, as a percent of the fill?",
+   "q": "How wide is the stop, as a percent of the fill?",
    "answer": "7.25%",
    "calc": {
     "fn": "arith",
@@ -2206,7 +2220,7 @@
      "stop width options are held (D-005); only A13's 3% and A5's size-from-the-stop are keyed"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-3",
    "choices": [
     "6.76%",
     "7.25%",
@@ -2217,15 +2231,22 @@
     "6.76%": "Divided by the stop. Stop width is measured against the fill.",
     "2.15%": "Read the dollar gap as a percent. Divide it by the fill first.",
     "0.07%": "Forgot to multiply by 100, so the percent came out far too small."
+   },
+   "story": "Short at 29.66 with the stop at 31.81, a few cents over the climax day's high.",
+   "chart": {
+    "sym": "BILI",
+    "asof": "2024-10-02",
+    "window": 120,
+    "forward": 20
    }
   },
   {
    "key": "q26",
    "skill": "setup.parabolic_short",
    "rung": 4,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "ps.stop",
-   "q": "Account 50,000. Risk 0.5%. Short 48.50, stop 52.56. How many shares does the risk allow?",
+   "q": "How many shares does the risk allow?",
    "answer": "61 shares",
    "calc": {
     "fn": "shares_from_risk",
@@ -2237,7 +2258,7 @@
     },
     "round": 0
    },
-   "why": "61 shares. The risk dollars are 50,000 x 0.5%. The stop distance is 52.56 minus 48.50. Divide the risk dollars by the stop distance and round down to 61. Rounding down keeps the risk at or under 0.5%. The position cap can only make the size smaller. Stop first, size last. If the honest stop does not fit, skip.",
+   "why": "61 shares. The risk dollars are 50,000 x 0.5%. The stop distance is 52.56 minus 48.50. Divide the risk dollars by the stop distance and round down to 61. Rounding down keeps the risk at or under 0.5%. The position cap can only make the size smaller. Stop first, size last. If the honest stop does not fit, skip. GDS reached 3R on day 5.",
    "lesson_line": "Stop first, distance second, size last. The same on the short side.",
    "facts": [
     "h09",
@@ -2254,7 +2275,7 @@
      "a computed key (position size from risk)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-3",
    "choices": [
     "62 shares",
     "123 shares",
@@ -2265,6 +2286,13 @@
     "62 shares": "Rounded up. That pushes the risk over 0.5%, so always round down.",
     "123 shares": "Doubled the risk percent. Use the 0.5% the question gives.",
     "5 shares": "Divided the risk dollars by the fill price, not by the stop distance."
+   },
+   "story": "Short at 48.50 with the stop at 52.56. Account 50,000, risk 0.5%.",
+   "chart": {
+    "sym": "GDS",
+    "asof": "2025-02-20",
+    "window": 120,
+    "forward": 20
    }
   },
   {
@@ -2625,7 +2653,7 @@
     "Add more; it has not squeezed yet": "Never add to a parabolic short. Not squeezed yet is not a reason."
    },
    "house": true,
-   "story": "You shorted at 99.80, stop 119.80. Three sessions later the 9 EMA is still not reached and the stock chops under its high.",
+   "story": "Short at 99.80 with the stop at 119.80. Three sessions later the 9 EMA is still not reached and it chops under its high.",
    "simple": "Cover now. This setup must reach the 9 EMA within 3 sessions, and the 10-day limit is only the outer edge.",
    "deeper": {
     "example": "TSLA 2020-07-13: short 99.80, stop 119.80. It gave 0.44R at best. The 9 EMA was only touched on day 8, and by then it sat above the entry. Twenty-five sessions of chop under the climax high followed, with a report inside the window."
@@ -2638,15 +2666,21 @@
      "rests on the owner's time stop (C33)"
     ]
    },
-   "batch": "wave3"
+   "batch": "visuals-3",
+   "chart": {
+    "sym": "TSLA",
+    "asof": "2020-07-13",
+    "window": 120,
+    "forward": 30
+   }
   },
   {
    "key": "q37",
    "skill": "setup.parabolic_short",
    "rung": 5,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "ps.cover_9ema",
-   "q": "You shorted a climax day with the target only 0.14R away. Which yardstick fits this trade?",
+   "q": "Which yardstick fits this trade?",
    "choices": [
     "The 9 EMA, which acts as a magnet",
     "A fixed 3R, set before the trade",
@@ -2677,7 +2711,14 @@
      "MSTR figures come from our own scan"
     ]
    },
-   "batch": "rulings2"
+   "batch": "visuals-3",
+   "story": "Shorted on the climax day. The target is only 0.14R away.",
+   "chart": {
+    "sym": "MSTR",
+    "asof": "2024-11-21",
+    "window": 120,
+    "forward": 30
+   }
   },
   {
    "key": "q38",
@@ -2712,7 +2753,7 @@
     "Hold past the 9 EMA for 3R": "This setup is paid at the 9 EMA, inside a few sessions, or not at all. Holding past it is how 0.52R became a stop-out."
    },
    "house": true,
-   "story": "Shorted 60.68, stop 65.34. Day 2 touches the 9 EMA at 0.52R. Day 3 prints a new high and takes the stop. Twenty sessions later the stock is 27.7% higher.",
+   "story": "Short at 60.68 with the stop at 65.34. Day 2 touches the 9 EMA at 0.52R. Day 3 prints a new high and takes the stop. Twenty sessions later the stock is 27.7% higher.",
    "simple": "A mania can top twice, so we take the 9 EMA when it comes and do not chase the next climax.",
    "deeper": {
     "trap": "Hindsight says it was a bad short. It was not: the plan paid at the 9 EMA on day 2, and the stop did its job on day 3. The lesson is the window and the tries cap, not never short a mania."
@@ -2725,7 +2766,13 @@
      "window and tries cap rest on the owner's rulebook (E56)"
     ]
    },
-   "batch": "wave3"
+   "batch": "visuals-3",
+   "chart": {
+    "sym": "QCOM",
+    "asof": "1999-12-22",
+    "window": 120,
+    "forward": 30
+   }
   },
   {
    "key": "q39",
@@ -2873,7 +2920,7 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "ps.parabolic_not_linear",
-   "q": "Our card checks the last three weekly ranges. What is its read?",
+   "q": "Our card checks the last three 5-day ranges. What is its read?",
    "choices": [
     "Not parabolic; ranges did not expand",
     "Parabolic; the red close is the crack",
@@ -2881,7 +2928,7 @@
     "Not parabolic; it is above its 200-day"
    ],
    "answer": "Not parabolic; ranges did not expand",
-   "why": "Not parabolic. Our card wants the last 2 to 3 weekly ranges each larger than the one before. Here all three are given: 12.33, 5.27 and 13.33, so the middle week shrank. Bracco calls consecutive weeks of range expansion extremely important. This was a steady leader's one-day reversal, the linear case. NVDA gave 1.19R, then stopped. The 200-day is not the test, because our rule lets a parabolic short sit above it.",
+   "why": "Not parabolic. Our card wants the last 2 to 3 weekly ranges each larger than the one before. Here all three are given: 12.33, 5.27 and 13.33, so the middle week shrank. Bracco calls consecutive weeks of range expansion extremely important. This was a steady leader's one-day reversal, the linear case. NVDA gave 1.19R in our scan. The 200-day is not the test, because our rule lets a parabolic short sit above it.",
    "lesson_line": "A leader's one bad day is not a climax. The weeks before it decide.",
    "facts": [
     "d26",
@@ -2897,7 +2944,7 @@
     "Parabolic; three weeks of range": "Three weeks of range is not three weeks of expanding range. The middle week shrank."
    },
    "house": true,
-   "story": "A strong leader at highs. The last three weekly ranges were 12.33, 5.27 and 13.33 points. Today it gaps up and closes red.",
+   "story": "A strong leader at highs. The three 5-day ranges before the last bar were 12.33, 5.27 and 13.33 points. The last bar gaps up and closes red.",
    "simple": "The read is not parabolic. The middle week's range shrank to 5.27, so the weekly ranges did not each grow.",
    "deeper": {
     "trap": "A single big red day at highs looks like a climax. The weeks before it decide. Two big weeks around one small week is a bumpy climb, not an accelerating one. Bracco warns that judging by percent gain alone, without structure, is a frequent mistake."
@@ -2910,7 +2957,13 @@
      "figures come from our own scan"
     ]
    },
-   "batch": "wave3"
+   "batch": "visuals-3",
+   "chart": {
+    "sym": "NVDA",
+    "asof": "2024-03-08",
+    "window": 120,
+    "forward": 30
+   }
   },
   {
    "key": "q44",
@@ -3190,7 +3243,7 @@
     "Entered late; open was the entry": "Nothing at the open on the climax day. The mistake was what you shorted: a green close with one box."
    },
    "house": true,
-   "story": "The stock gaps up 2.2% and closes 7.3% above its open. Only one burst box is checked. You short the close anyway.",
+   "story": "After a run. The last bar gaps up 2.2% and closes 7.3% above its open. Only one burst box is checked. You short the close anyway.",
    "simple": "The mistake was shorting strength. The day closed above its open, so there was no crack, and one box is no burst.",
    "tier": "extended",
    "risk": {
@@ -3199,7 +3252,13 @@
      "figures come from our own scan"
     ]
    },
-   "batch": "wave3"
+   "batch": "visuals-3",
+   "chart": {
+    "sym": "MSTR",
+    "asof": "2024-03-08",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q51",
@@ -3320,7 +3379,13 @@
      "fixed before"
     ]
    },
-   "batch": "rulings"
+   "batch": "visuals-3",
+   "chart": {
+    "sym": "SMCI",
+    "asof": "2024-02-16",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q54",
@@ -3541,7 +3606,13 @@
      "fixed before"
     ]
    },
-   "batch": "wave3"
+   "batch": "visuals-3",
+   "chart": {
+    "sym": "TPL",
+    "asof": "2026-02-23",
+    "window": 120,
+    "forward": 35
+   }
   },
   {
    "key": "q61",
@@ -3656,9 +3727,9 @@
    "key": "q64",
    "skill": "setup.parabolic_short",
    "rung": 8,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "ps.climax_gap",
-   "q": "Four boxes and record volume, but the climax gap is only 1.7%, like SCHW in 1999. Does the small gap rule it out?",
+   "q": "Does the small gap rule it out?",
    "choices": [
     "Not ruled out; a small gap grades lower",
     "Ruled out; a gap must be 5% or more",
@@ -3693,7 +3764,14 @@
      "the count of boxes needed is held (D-040)"
     ]
    },
-   "batch": "wave3"
+   "batch": "visuals-3",
+   "story": "Four boxes and record volume, but the last bar's climax gap is only 1.7%.",
+   "chart": {
+    "sym": "SCHW",
+    "asof": "1999-04-14",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q65",
@@ -3709,16 +3787,16 @@
     "Market now; stop at the VWAP; 9 EMA"
    ],
    "answer": "Market now; stop over the high; 9 EMA",
-   "why": "Market now, stop a few cents over the day's high, target the daily 9 EMA. Our entries are market orders. The trigger is the break back under VWAP after the high is set. The stop sits a few cents over the climax day's high at entry. GDS: the daily stand-in short was 48.50 with the stop at 52.56, and the 9 EMA came in 2 sessions.",
+   "why": "Market now, stop a few cents over the day's high, target the daily 9 EMA. Our entries are market orders. The trigger is the break back under VWAP after the high is set. The stop sits a few cents over the climax day's high at entry. BILI: the daily stand-in short was 29.66 with the stop at 31.81, and the 9 EMA came in 4 sessions.",
    "lesson_line": "Entry at the VWAP break, stop over the high, out at the 9 EMA.",
    "facts": [
     "c04",
     "c05",
     "h05",
     "h08",
-    "d01",
-    "d02",
-    "d03",
+    "d07",
+    "d08",
+    "d09",
     "k03",
     "c15"
    ],
@@ -3728,10 +3806,10 @@
     "Market now; stop at the VWAP; 9 EMA": "A VWAP reclaim is Kullamagi's exit for a VWAP-fail entry. For the VWAP-break entry the stop sits a few cents over the day's high."
    },
    "house": true,
-   "story": "GDS, February 2025: a 13-session run from a flat base, four of four boxes, a 15% gap on record volume. On the 5-minute chart it runs, then breaks VWAP.",
+   "story": "A 12-session vertical run, three of four boxes, an 11% gap on the biggest volume of the run. On the 5-minute chart, say it runs, then breaks VWAP.",
    "simple": "Enter at market on the VWAP break, put the stop just over the day's high, and aim for the daily 9 EMA.",
    "deeper": {
-    "example": "GDS gapped up 15.4% on 2025-02-20 on record volume and closed red. Our daily stand-in for the plan was a short at 48.50 with the stop at 52.56. On the 5-minute chart the same plan starts earlier, at the VWAP break."
+    "example": "BILI gapped up 11.3% on 2024-10-02 on the biggest volume of its run and closed in the lower half. Our daily stand-in for the plan was a short at 29.66 with the stop at 31.81. On the 5-minute chart the same plan starts earlier, at the VWAP break."
    },
    "tier": "expert",
    "risk": {
@@ -3742,7 +3820,13 @@
      "fixed before"
     ]
    },
-   "batch": "wave3"
+   "batch": "visuals-3",
+   "chart": {
+    "sym": "BILI",
+    "asof": "2024-10-02",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q66",
@@ -3750,7 +3834,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "ps.climax_gap",
-   "q": "Hidden ticker, after a burst. The last bar is the climax day. Read the bar: take it or pass?",
+   "q": "After a burst. The last bar is the climax day. Read the bar: take it or pass?",
    "choices": [
     "Take it; a gap up that closed red",
     "Take it; short the next day's open",
@@ -3800,7 +3884,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "ps.red_close_daily",
-   "q": "Hidden ticker, after a burst. The last bar gapped up. Read the bar: take it or pass?",
+   "q": "After a burst. The last bar gapped up. Read the bar: take it or pass?",
    "choices": [
     "Pass; it closed near its high",
     "Take it; the gap is the trigger",
@@ -4241,8 +4325,8 @@
   "q12": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key derived from the cited quotes before reading the key; no second defensible answer, no tell, numbers grounded, sentences and choices within limits."
+   "fixed": true,
+   "notes": "CHART DROPPED. On the bars RGTI doubled in 11 sessions (15 to 31.6, 28% over its 9 EMA, +191% in 60 sessions) with 4 up closes in a row before a pause, so a member sees a vertical run and the answer 'the run is still too young' contradicts the chart; the card's 'week one out of a base / 1 up day' is a box count, not what the chart shows. Original question restored (no chart)."
   },
   "q13": {
    "status": "pass",
@@ -4264,9 +4348,9 @@
   },
   "q16": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave3; awaiting cold re-read"
+   "notes": "TIGR 2024-10-07 checked on bars: gap +12.1%, volume 1.56x the prior-20 max (highest of the run), 67% over 9 EMA, +327% burst; asof is the climax day the question names; ticker only in why; d37 quote matches the dossier row. Right answer true."
   },
   "q17": {
    "status": "pass",
@@ -4320,14 +4404,14 @@
   "q25": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
+   "fixed": true,
+   "notes": "Bars: BILI 2024-10-02 close 29.66, high 31.77, so stop 31.81 is 4 cents over the high and 7.25% from the fill; all text numbers match the dossier row. FIX: dropped chart.trade (check_course_charts fails any drawn trade with a stop over 6% from entry: 7.2%). The words keep the numbers."
   },
   "q26": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
+   "fixed": true,
+   "notes": "Bars: GDS 2025-02-20 close 48.50, high 52.50 (stop 52.56 over it); 3R on day 5 confirmed; 61 shares correct. FIX: dropped chart.trade (stop 8.4% from entry fails check_course_charts' 6% limit). Numbers stay in the words."
   },
   "q27": {
    "status": "cut",
@@ -4386,20 +4470,20 @@
   "q36": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "10-day is the 10 trading day time stop, not an average; 9 EMA already used."
+   "fixed": true,
+   "notes": "Bars: TSLA 2020-07-13 close 99.80, days 1-3 trade 95-106 under the 119.67 climax high, 9 EMA first touched day 8, stopped day 25 (2020-08-17), best 0.44R: all match the story and why; forward 30 reaches day 25. FIX: dropped chart.trade (stop 20.0% from entry fails the 6% limit)."
   },
   "q37": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "D-013 is about selling a long; a short's cover rule is the 9 EMA level, so the first-sell claim and r05 cite do not fit a short; reworded without it"
+   "fixed": false,
+   "notes": "Bars: MSTR 2024-11-21 asof is the climax day; the 9 EMA at that bar sits 0.14R under the close with a stop 0.1% + 1c over the 543.00 high (0.144R); best R in the next 60 sessions 0.77R on day 26, inside forward 30. No trade drawn, correct (no dossier entry/stop row). 9 EMA is the right yardstick; ticker not in q/story/choices."
   },
   "q38": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "keep; 9 EMA target or 3R as arithmetic/stat; short entry on a break not a close, outside D-003"
+   "fixed": true,
+   "notes": "Bars: QCOM 1999-12-22 close 60.68, high 65.27 (stop 65.34), day 2 low 57.28 touches the 9 EMA (58.2 same-day, 0.52R), day 3 high 66.06 over the climax high takes the stop, close on day 20 is +27.7% vs the entry: story exact; forward 30 covers it. FIX: dropped chart.trade (stop 7.7% from entry fails the 6% limit)."
   },
   "q39": {
    "status": "cut",
@@ -4423,14 +4507,14 @@
   "q42": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key derived from the cited quotes before reading the key; no second defensible answer, no tell, numbers grounded, sentences and choices within limits."
+   "fixed": true,
+   "notes": "CHART DROPPED. AAOI did not drift up slowly: the day before the gap bar it closed +57% (53.69 to 84.23 on 24.9M shares) and the gap bar opened 27.7% over that, so the last two bars are a two-day explosion (+239% in 60 sessions, 45% over its 9 EMA); 'no acceleration' and 'drifted slowly' are false on the chart. Original question restored (no chart)."
   },
   "q43": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "c10 says 'the last 2 to 3 weekly ranges'. Reading only the last 2 (5.27 then 13.33) they DID expand, so a learner can defend 'Parabolic'. The card's measure and the dossier row (d26) use the last three. The stem now names the three-range test so the key is the only read."
+   "notes": "Bars: NVDA 2024-03-08 gap +2.7%, open to close -8.0%. The 12.33 / 5.27 / 13.33 ranges are the three 5-day blocks ending the DAY BEFORE the last bar; counting the last bar into the final block (what a member sees on the chart) gives 16.15 / 5.17 / 13.98, so 'last three weekly ranges' in the story was loose. FIX: story and question say '5-day ranges before the last bar'. The 1.19R the why names comes on day 29 (stop day 53), so forward raised from 20 to 30."
   },
   "q44": {
    "status": "pass",
@@ -4472,9 +4556,8 @@
   "q50": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (c43, c48, c02). Two wrong-choice notes overreach: 'The stop was the rule's stop' asserts a fact the story never gives, and 'The open was not the entry here' is muddled. Rewritten from c03/c43.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": false,
+   "notes": "Bars: MSTR 2024-03-08 gap +2.2%, open to close +7.3%, closed 142.56 near the 145.17 high; next day (replay day 1) opens 155.00 = 4.5R against a close-entry short, matching 'lost 4.5R'. Volume 0.65x the prior-20 max, no crack. asof is the day the member judges; no trade drawn. Right answer true."
   },
   "q51": {
    "status": "cut",
@@ -4491,8 +4574,8 @@
   "q53": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Close entry is the wrong option, key is the intraday VWAP break; D-005 past-5% note and r01/r02 verbatim."
+   "fixed": true,
+   "notes": "Bars: SMCI 2024-02-16 close 80.33 vs low 80.11 (closed at the low), high 107.79 (stop 107.90), 34.3%; best 0.40R, stopped day 10 (2024-03-04): all match. FIX: dropped chart.trade (34.3% stop fails the 6% limit and would squash the chart)."
   },
   "q54": {
    "status": "cut",
@@ -4509,8 +4592,8 @@
   "q56": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Right answer decided from cited quotes first and matches the key; no second defensible choice, tell, ungrounded number or rulebook conflict found."
+   "fixed": true,
+   "notes": "CHART DROPPED. The premise is false on the bars: CAR 2020-06-08 closed 32.28 ABOVE its 200-day SMA (26.32); the dossier's own structure column says 'above 200-day' (its 'only one under the 200-day' prose is wrong), so 'below its 200-day, short needs no exception' would sit under a chart with price over the 200 SMA. No card example is below the 200-day. Original question restored (no chart)."
   },
   "q57": {
    "status": "cut",
@@ -4533,9 +4616,8 @@
   "q60": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key follows c14 and d10/d11; the 3-session cover is the card rule (owner flag stands). Wrong notes are grounded.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "Bars: TPL 2026-02-23 gap +2.8%, close 502.85 vs low 502.18, high 547.20 (stop 547.76); never trades over the climax high for 24 sessions (five weeks); 9 EMA day 8 (same-day EMA); best 2.95R is only reached on day 32 (2026-04-09), after the replay the writer set, though the why and a choice name 2.95R. FIX: forward 35 so the replay reaches it; dropped chart.trade (stop 8.9% fails the 6% limit)."
   },
   "q61": {
    "status": "pass",
@@ -4559,14 +4641,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Right answer decided from cited quotes first and matches the key; no second defensible choice, tell, ungrounded number or rulebook conflict found.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Bars: SCHW 1999-04-14 gap +1.7% (open 51.00 vs prior close 50.17), volume 28,492,200 vs prior-20 max 28,456,800 (a record), 9 EMA touched next session; ticker not in q/story/choices; the answer (a small gap grades lower, not ruled out) is true for the example."
   },
   "q65": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "keep; 9 EMA target or 3R as arithmetic/stat; short entry on a break not a close, outside D-003"
+   "fixed": true,
+   "notes": "Bars: BILI 2024-10-02 gap +11.3%, volume 1.64x the prior-20 max, 9 EMA day 4 and 3R day 4 confirmed. Two text errors fixed: the deeper said the day 'closed in the lower third' but the close sits 37% up the day's range (lower half); and 'On the 5-minute chart it runs, then breaks VWAP' asserts an intraday path no bar can show (bars.db has daily only), so it is now framed as the plan's premise ('say it runs...'). No trade drawn, fine."
   },
   "q66": {
    "status": "pass",

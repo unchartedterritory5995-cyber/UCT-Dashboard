@@ -965,9 +965,9 @@
    "key": "q03",
    "skill": "setup.trendline_break",
    "rung": 1,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "tl.stop",
-   "q": "Where does the stop go on a trendline break bought during the day?",
+   "q": "You buy as it trades through the line during the day. Where does the stop go?",
    "choices": [
     "A few cents under the day's low",
     "Exactly on the falling line itself",
@@ -997,7 +997,14 @@
      "+2 rests on the owner's rulebook (A3, F62)"
     ]
    },
-   "batch": "wave4b"
+   "batch": "visuals-4",
+   "story": "The day before the break. The falling line over the highs sits at 50.47 on the break day.",
+   "chart": {
+    "sym": "NUE",
+    "asof": "2006-10-04",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q04",
@@ -1103,7 +1110,7 @@
    "key": "q08",
    "skill": "setup.trendline_break",
    "rung": 2,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "tl.trigger",
    "q": "Which event is the buy on a trendline break?",
    "choices": [
@@ -1113,7 +1120,7 @@
     "The 50-day crossing the 200-day"
    ],
    "answer": "Trades through the line and prior high",
-   "why": "It trades through the line's value for the day and above the prior day's high, during regular hours, bought at market. That is our trigger. A touch from below is not a break.",
+   "why": "It trades through the line's value for the day and above the prior day's high, during regular hours, bought at market. That is our trigger. On this chart that is a trade through 144.70 on the break day. A touch from below is not a break.",
    "lesson_line": "Through the line and the prior high, in hours, at market.",
    "facts": [
     "c12",
@@ -1138,7 +1145,14 @@
      "+1 fixed before (the old why ruled the close out as settled)"
     ]
    },
-   "batch": "rulings"
+   "batch": "visuals-4",
+   "story": "The day before the break. The falling line over the highs sits at 144.70 on the break day.",
+   "chart": {
+    "sym": "COR",
+    "asof": "2022-10-20",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q09",
@@ -1328,7 +1342,7 @@
    "key": "q16",
    "skill": "setup.trendline_break",
    "rung": 3,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "tl.trim_1",
    "q": "Bought at 26.97 with the stop at 26.73. Where is 3R?",
    "answer": "$27.69",
@@ -1359,7 +1373,7 @@
      "+2 rests on the owner's rulebook (B19, a third at 3R)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-4",
    "choices": [
     "$27.45",
     "$26.25",
@@ -1370,6 +1384,17 @@
     "$27.45": "Added three R to the stop instead of to the fill.",
     "$26.25": "Subtracted three R. A long's target sits above the fill.",
     "$29.97": "Added 3 dollars, not three R. R is the fill minus the stop."
+   },
+   "story": "Bought on the break.",
+   "chart": {
+    "sym": "MSFT",
+    "asof": "2012-01-04",
+    "window": 120,
+    "forward": 30,
+    "trade": {
+     "entry": 26.97,
+     "stop": 26.73
+    }
    }
   },
   {
@@ -1449,18 +1474,18 @@
    "key": "q19",
    "skill": "setup.trendline_break",
    "rung": 3,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "tl.tight_under",
-   "q": "Which lead-in to the line is best?",
+   "q": "How does it drift into the line?",
    "choices": [
-    "Tight drift down, volume drying up",
+    "A tight drift down under the line",
     "Quiet drift, closes well below the line",
     "Wide, loose swings under the line",
     "One big, fast drop off the high"
    ],
-   "answer": "Tight drift down, volume drying up",
-   "why": "A tight drift down on drying volume. Our card wants the closes of the 5 sessions before the trigger within about 5% under the line. The average daily range should be smaller than the 20-session average. Wide swings are not tight. A big, fast drop makes a steep line, and a steeper line is less valid.",
-   "lesson_line": "Tight and quiet, just under the line.",
+   "answer": "A tight drift down under the line",
+   "why": "A tight drift down, just under the line. Our card wants the closes of the 5 sessions before the trigger within about 5% under the line. The average daily range should be smaller than the 20-session average. BDX drifted in that way under 29.39. Wide swings are not tight. A big, fast drop makes a steep line, and a steeper line is less valid.",
+   "lesson_line": "Tight, just under the line.",
    "facts": [
     "c04",
     "g2",
@@ -1472,7 +1497,7 @@
     "One big, fast drop off the high": "A big, fast drop makes a steep line. The steeper the line, the less valid it is."
    },
    "house": true,
-   "simple": "A tight, quiet drift down just under the line is best, because we want closes near the line and a shrinking range.",
+   "simple": "A tight drift down just under the line is best, because we want closes near the line and a shrinking range.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1480,7 +1505,14 @@
      "rests on a proposed criteria card line awaiting the owner (tl.tight_under, tl.not_wedging_up)"
     ]
    },
-   "batch": "wave4b"
+   "batch": "visuals-4",
+   "story": "The day before the break. The falling line over the highs sits at 29.39 on the break day.",
+   "chart": {
+    "sym": "BDX",
+    "asof": "2003-11-20",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q20",
@@ -1599,7 +1631,7 @@
    "key": "q24",
    "skill": "setup.trendline_break",
    "rung": 4,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "tl.stop_width",
    "q": "Bought at 109.23 with the stop at 106.79. How far below the buy is the stop, in percent?",
    "answer": "2.23%",
@@ -1630,7 +1662,7 @@
      "+2 rests on the owner's rulebook (A13)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-4",
    "choices": [
     "2.44%",
     "22.34%",
@@ -1641,6 +1673,17 @@
     "2.44%": "Read the dollar gap as a percent. Divide it by the buy first.",
     "22.34%": "Slipped the decimal point one place right.",
     "97.77%": "Divided the stop by the buy. That is how much of the price is left, not how far the stop is."
+   },
+   "story": "Bought on the break.",
+   "chart": {
+    "sym": "BHC",
+    "asof": "2013-12-16",
+    "window": 120,
+    "forward": 30,
+    "trade": {
+     "entry": 109.23,
+     "stop": 106.79
+    }
    }
   },
   {
@@ -1748,7 +1791,7 @@
    "format": "scenario",
    "criterion": "tl.slope",
    "q": "Which setup is this?",
-   "story": "Three highs sit at exactly 50.00 over six weeks. You are weighing a buy through 50.00.",
+   "story": "The day before the trigger. The highs keep stopping at the same level. You are weighing a buy through that level.",
    "choices": [
     "A flat-top break, no slope",
     "A descending trendline break",
@@ -1756,8 +1799,8 @@
     "No setup; a ceiling is no buy"
    ],
    "answer": "A flat-top break, no slope",
-   "why": "A flat top. A trendline falls, at least a little, from lower swing highs. Three highs at exactly 50.00 have no slope. A line with no slope is a horizontal resistance break, not this setup. A flat top is a setup of its own, judged by its own rules.",
-   "lesson_line": "No slope, no trendline. Three equal highs are a flat top.",
+   "why": "A flat top. A trendline falls, at least a little, from lower swing highs. Highs that stop at one level have no slope. A line with no slope is a horizontal resistance break, not this setup. A flat top is a setup of its own, judged by its own rules.",
+   "lesson_line": "No slope, no trendline. Level highs are a flat top.",
    "facts": [
     "c37",
     "c38",
@@ -1765,11 +1808,11 @@
    ],
    "wrong": {
     "A descending trendline break": "The highs are level, so there is no falling line to break.",
-    "A wedge pop off the lows": "A wedge pop needs a decline with most closes under the 20 EMA first. Level highs at 50.00 are a ceiling.",
+    "A wedge pop off the lows": "A wedge pop needs a decline with most closes under the 20 EMA first. Level highs are a ceiling.",
     "No setup; a ceiling is no buy": "A flat base has its own buy, the base's highest high. It is just not a trendline break."
    },
    "house": true,
-   "simple": "It is a flat top, because the three highs are level, and a trendline break needs a line that falls.",
+   "simple": "It is a flat top, because the highs are level, and a trendline break needs a line that falls.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1780,13 +1823,19 @@
    "depends_on": [
     "D-069"
    ],
-   "batch": "wave4b"
+   "batch": "visuals-4",
+   "chart": {
+    "sym": "HRI",
+    "asof": "2012-11-27",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q29",
    "skill": "setup.trendline_break",
    "rung": 4,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "tl.trim_2",
    "q": "Bought at 26.97, stop 26.73. The stock trades to 28.17. How many R is that?",
    "answer": "5.0R",
@@ -1816,7 +1865,7 @@
      "+2 rests on the owner's rulebook (E51)"
     ]
    },
-   "batch": "sweep-2026-11-14",
+   "batch": "visuals-4",
    "choices": [
     "5.0R",
     "1.2R",
@@ -1827,6 +1876,17 @@
     "1.2R": "Called the dollar gain R. Divide it by the risk per share.",
     "4.4R": "Used the percent gain and called it R. R is gain over the stop distance.",
     "0.2R": "Flipped it: R divided by the gain instead of gain divided by R."
+   },
+   "story": "Bought on the break.",
+   "chart": {
+    "sym": "MSFT",
+    "asof": "2012-01-04",
+    "window": 120,
+    "forward": 30,
+    "trade": {
+     "entry": 26.97,
+     "stop": 26.73
+    }
    }
   },
   {
@@ -2105,7 +2165,7 @@
    "format": "scenario",
    "criterion": "tl.volume",
    "q": "Which does this trade match?",
-   "story": "A break barely clears the line, closing 0.4% over it on thin volume. You buy it, stop a few cents under the day's low. Next day it closes back under, and the stop trades.",
+   "story": "Bought through the line at 18.79 with the stop at 18.53. The break closed only 0.39% over the line, on 1.25 times its 50-day average volume, barely above our 1.2 times minimum. Next day it closes back under the line, and the stop trades.",
    "choices": [
     "The card's named failure mode",
     "A stop set too tight for the line",
@@ -2113,8 +2173,8 @@
     "Proof the setup does not work"
    ],
    "answer": "The card's named failure mode",
-   "why": "The card's named failure mode. Our card lists it: a weak-volume break that barely clears the line closes back under it the next day, and the stop goes. The stop is the exit, so the trade ends there.",
-   "lesson_line": "A barely-there break on thin volume is the card's failure mode.",
+   "why": "The card's named failure mode. Our card lists it: a break that barely clears the line, on volume barely above the minimum, closes back under it the next day, and the stop goes. The stop is the exit, so the trade ends there.",
+   "lesson_line": "A barely-there break on barely enough volume is the card's failure mode.",
    "facts": [
     "c33",
     "c15",
@@ -2123,11 +2183,11 @@
    ],
    "wrong": {
     "A stop set too tight for the line": "The stop sat a few cents under the day's low, as the rule says. The weak spot was the break.",
-    "A buy past the 4% chase limit": "The close was only 0.4% over the line, well inside the 4% limit.",
+    "A buy past the 4% chase limit": "The close was only 0.39% over the line, well inside the 4% limit.",
     "Proof the setup does not work": "One loss proves nothing. This is the failure our card names, a weak break."
    },
    "house": true,
-   "simple": "It matches the failure our card names: a thin-volume break that barely clears the line falls back, and the stop goes.",
+   "simple": "It matches the failure our card names: a break that barely clears the line falls back, and the stop goes.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -2139,7 +2199,17 @@
    "depends_on": [
     "D-069"
    ],
-   "batch": "wave4b"
+   "batch": "visuals-4",
+   "chart": {
+    "sym": "LBTYA",
+    "asof": "2014-09-19",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 18.79,
+     "stop": 18.53
+    }
+   }
   },
   {
    "key": "q38",
@@ -2260,7 +2330,7 @@
    "key": "q41",
    "skill": "setup.trendline_break",
    "rung": 6,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "tl.stop",
    "q": "Account 50,000. Risk 0.5%. Buy 109.23, stop 106.79. How many shares?",
    "answer": "102 shares",
@@ -2297,7 +2367,7 @@
      "+1 fixed before (risk cut from 1% to 0.5% to stay under the cap)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-4",
    "choices": [
     "183 shares",
     "204 shares",
@@ -2308,6 +2378,17 @@
     "204 shares": "Risked twice too much. Use the 0.5% the question gives.",
     "183 shares": "That is the 40% position cap size. Risk sets the size, and it is smaller.",
     "10,245 shares": "Forgot to turn the 0.5% into a decimal."
+   },
+   "story": "Bought on the break.",
+   "chart": {
+    "sym": "BHC",
+    "asof": "2013-12-16",
+    "window": 120,
+    "forward": 30,
+    "trade": {
+     "entry": 109.23,
+     "stop": 106.79
+    }
    }
   },
   {
@@ -2511,7 +2592,7 @@
    "format": "scenario",
    "criterion": "tl.trim_1",
    "q": "What do you do?",
-   "story": "You bought at 30.00 with the stop at 29.00. On day 2 it trades to 33.00.",
+   "story": "Bought at 144.71 with the stop at 142.42. On day 2 it reaches 3R.",
    "choices": [
     "Hold; raise the stop to breakeven",
     "Sell a third now; 3R is the rule",
@@ -2519,7 +2600,7 @@
     "Sell it all; 3R is the target"
    ],
    "answer": "Hold; raise the stop to breakeven",
-   "why": "Hold, and move the stop to breakeven, 30.00. The risk was 30.00 minus 29.00, so 33.00 is three times that risk above the buy: 3R. But 3R is a measure, not a sell order. The first sell is a judgment call. We usually wait until day 3 at the earliest.",
+   "why": "Hold, and move the stop to breakeven, 144.71. The risk was 144.71 minus 142.42, and on day 2 it reached 3R. But 3R is a measure, not a sell order. The first sell is a judgment call. We usually wait until day 3 at the earliest.",
    "lesson_line": "3R is a measure, not a sell order. Raise the stop and judge the first sell.",
    "facts": [
     "c19",
@@ -2542,7 +2623,17 @@
      "computed key (33.00 is 3R)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "visuals-4",
+   "chart": {
+    "sym": "COR",
+    "asof": "2022-10-21",
+    "window": 120,
+    "forward": 30,
+    "trade": {
+     "entry": 144.71,
+     "stop": 142.42
+    }
+   }
   },
   {
    "key": "q48",
@@ -2663,7 +2754,7 @@
    "format": "scenario",
    "criterion": "tl.retry_limit",
    "q": "You were stopped out. What now?",
-   "story": "You bought at 200.06 with the stop at 197.41. The next low was 197.22, 19 cents under the stop. It closed at 209.53.",
+   "story": "Bought at 200.06 with the stop at 197.41. The next low was 197.22, 19 cents under the stop. It closed at 209.53.",
    "choices": [
     "Only a new trigger re-enters",
     "Buy it back at once; it ran 6%",
@@ -2697,7 +2788,17 @@
      "the structural stop is held (D-008) and never keyed"
     ]
    },
-   "batch": "rulings"
+   "batch": "visuals-4",
+   "chart": {
+    "sym": "DHR",
+    "asof": "2021-01-05",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 200.06,
+     "stop": 197.41
+    }
+   }
   },
   {
    "key": "q52",
@@ -2817,7 +2918,17 @@
      "+1 fixed before"
     ]
    },
-   "batch": "wave4b"
+   "batch": "visuals-4",
+   "chart": {
+    "sym": "SCHW",
+    "asof": "2020-02-20",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 48.12,
+     "stop": 47.25
+    }
+   }
   },
   {
    "key": "q55",
@@ -2872,15 +2983,15 @@
    "format": "scenario",
    "criterion": "tl.stop",
    "q": "Write the plan.",
-   "story": "A stock trades through its falling line at 30.00 and the prior day's high. You fill at 30.06. The day's low so far is 29.40.",
+   "story": "The day before the break. On the break day it trades through its falling line at 39.25 and the prior day's high. You fill at 39.26. The break day's low is 38.89.",
    "choices": [
-    "Stop under 29.40; first sell day 3+",
+    "Stop under 38.89; first sell day 3+",
     "Stop on the line; first sell day 3+",
-    "Stop under 29.40; sell a third day 1",
+    "Stop under 38.89; sell a third day 1",
     "Stop on the line; sell a third day 1"
    ],
-   "answer": "Stop under 29.40; first sell day 3+",
-   "why": "Stop a few cents under 29.40, and the first sell usually waits until day 3 at the earliest. The stop goes a few cents under the trigger day's low as it stands at entry, not on the line. The first sell is a judgment call, and the rest trails.",
+   "answer": "Stop under 38.89; first sell day 3+",
+   "why": "Stop a few cents under 38.89, and the first sell usually waits until day 3 at the earliest. The stop goes a few cents under the trigger day's low as it stands at entry, not on the line. The first sell is a judgment call, and the rest trails.",
    "lesson_line": "The stop goes under the day's low, not on the line. The first sell is a judgment call.",
    "facts": [
     "c12",
@@ -2891,12 +3002,12 @@
     "r02"
    ],
    "wrong": {
-    "Stop on the line; first sell day 3+": "30.00 is the line's value, not the stop. The stop goes a few cents under the trigger day's low.",
-    "Stop under 29.40; sell a third day 1": "The stop is right, but we very rarely sell on day 1. We usually wait until day 3 at the earliest.",
-    "Stop on the line; sell a third day 1": "Both parts miss. The stop sits under the day's low, not on the line, and we very rarely sell on day 1."
+    "Stop on the line; first sell day 3+": "39.25 is the line's value, not the stop. The stop goes a few cents under the trigger day's low.",
+    "Stop on the line; sell a third day 1": "Both parts miss. The stop sits under the day's low, not on the line, and we very rarely sell on day 1.",
+    "Stop under 38.89; sell a third day 1": "The stop is right, but we very rarely sell on day 1. We usually wait until day 3 at the earliest."
    },
    "house": true,
-   "simple": "Stop a few cents under the day's low of 29.40, not on the line, and usually wait until day 3 for the first sell.",
+   "simple": "Stop a few cents under the day's low of 38.89, not on the line, and usually wait until day 3 for the first sell.",
    "deeper": {
     "trap": "A stop on the line feels logical, since the line is what broke. But the line is the trigger, not the stop. The stop is a price a few cents under the trigger day's low."
    },
@@ -2909,7 +3020,13 @@
      "+1 fixed before"
     ]
    },
-   "batch": "rulings2"
+   "batch": "visuals-4",
+   "chart": {
+    "sym": "NEM",
+    "asof": "2019-12-02",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q57",
@@ -3065,7 +3182,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "tl.above_200",
-   "q": "Hidden ticker. A pullback drifts tight under a falling line. Above its 200-day? Take the break or pass.",
+   "q": "A pullback drifts tight under a falling line. Above its 200-day? Take the break or pass.",
    "choices": [
     "Take it; it holds above the 200-day",
     "Pass; the stock is under the 200-day",
@@ -3114,7 +3231,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "tl.above_200",
-   "q": "Hidden ticker. A good-looking falling line. Is the stock above its 200-day? Take the break or pass.",
+   "q": "A good-looking falling line. Is the stock above its 200-day? Take the break or pass.",
    "choices": [
     "Pass; it is under the 200-day",
     "Take it; the line is long and clean",
@@ -3354,9 +3471,9 @@
   },
   "q03": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave4b; awaiting cold re-read"
+   "notes": "NUE winners_list 2006-10-05; asof 10-04 is the day before. Line 50.47 matches row 3. Bars: trigger low 49.25, stop 49.20 five under; key true. No ticker in text."
   },
   "q04": {
    "status": "cut",
@@ -3385,8 +3502,8 @@
   "q08": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "'default trigger' hinted at alternatives; the ruling says the trigger is always the entry"
+   "fixed": false,
+   "notes": "COR winners_list 2022-10-21; asof 10-20 day before; 144.70 matches row 8; key true; ticker not in text."
   },
   "q09": {
    "status": "cut",
@@ -3435,7 +3552,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
+   "notes": "MSFT winners_list 2012-01-04 buy-day chart; 26.97/26.73 match row 5; bars: day low 26.78, stop 5 cents under; 3R 27.69 hit next session (high 27.73); forward 30 covers."
   },
   "q17": {
    "status": "pass",
@@ -3453,7 +3570,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from c04/g2 (verbatim). 'Closes well below the line' fails c04's 'within about 5%'; steep-drop note rests on x02 (re-read live, verbatim). Minor: risk.reasons still names tl.not_wedging_up though c05 is no longer cited (metadata only). Its steep-drop note foreshadows q53; accepted as a rung 3 to rung 7 ladder."
+   "notes": "BDX winners_list 2003-11-21; asof 11-20; 29.39 matches row 2 ('tight drift under the line'); last 4 closes 28.79-29.11 all within 2% under the line. Volume dropped (dossier has no dry-up figure). Key true."
   },
   "q20": {
    "status": "pass",
@@ -3483,7 +3600,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
+   "notes": "BHC winners_list 2013-12-16 buy-day chart; 109.23/106.79 match row 6; day low 106.84 so stop 5 under; 2.23% checks; stop within 6%."
   },
   "q25": {
    "status": "pass",
@@ -3507,13 +3624,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from c37/c38 (card lookalike, verbatim). No second defensible answer: c37 gives a flat base its own buy, so 'a ceiling is no buy' is wrong. Rests on a proposed card line (owner flag)."
+   "notes": "HRI 2012-11-28 is the dossier's flat slope-0.00 horizontal break; asof 11-27. Bars: highs 45.0 on 11-23, 11-26, 11-27 plus 45.06, 45.15 in Nov and 45.27-45.51 in Sep-Oct: level ceiling. Flat-top key true; no numbers."
   },
   "q29": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "R math and rewrite agree with D-013 (5R a mark, r03 quote exact). The card fact c21 'A third at 5R.' is the superseded rule and should not stay cited; dropped."
+   "fixed": false,
+   "notes": "Same MSFT row; 5R 28.17 reached day 2 (high 28.19); text names no outcome. Used twice, within limit."
   },
   "q30": {
    "status": "pass",
@@ -3561,7 +3678,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Second defensible answer: 'Nothing; valid breaks just fail'. q48 (LBTYA, 0.39% over the line, stop traded, 'You followed every rule') keys 'A planned loss', and under D-069's default volume is a cue, so a thin-volume break is still valid and the loss is planned. The card files this as its failure mode, not a mistake. Re-asked as which case it matches; the why no longer quotes x07, which handed over q52's key."
+   "notes": "LBTYA failure 2014-09-19, trade 18.79/18.53 match dossier; bars: day low 18.58 (stop 5 under), next day closes 18.58 under the line and low 18.39 trades the stop; forward 20 fine. Problem: the card's volume gate is 1.2x or more and LBTYA's 1.25x passes it, so 'only 1.25 times ... modest volume' reads as thin when it is not. Fix: state 1.25 against the card's 1.2 minimum ('barely enough') and re-word why, lesson_line and simple to match; key stays true."
   },
   "q38": {
    "status": "pass",
@@ -3585,7 +3702,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
+   "notes": "Same BHC row; 50000x0.5%=250 / 2.44 = 102.46 -> 102; cap 183 matches distractor; chart trade matches text."
   },
   "q42": {
    "status": "pass",
@@ -3623,7 +3740,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Kept: sell-a-third-at-3R is a wrong choice; key is hold and raise the stop to breakeven (within 2R to 5R); first sell a judgment."
+   "notes": "COR 2022-10-21 buy-day chart; 144.71/142.42 match row 8 (trigger low 142.47, stop 5 under); 3R = 151.58, day 1 high 150.73 no, day 2 high 152.89 yes: 'day 2' true; forward 30 covers."
   },
   "q48": {
    "status": "cut",
@@ -3646,8 +3763,8 @@
   "q51": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "keep agrees with ruling"
+   "fixed": false,
+   "notes": "DHR failure 2021-01-05 buy-day chart; 200.06/197.41 match; bars: next low 197.22 (19 cents under), close 209.53, 217.16 high on day 3 so 'within a week' true; forward 20 covers."
   },
   "q52": {
    "status": "cut",
@@ -3666,7 +3783,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "SCHW numbers from d09/d10 (48.12, 47.25, 1.80%, 34.45); 'risked 1.80%' not 'lost'. 3% note from h04. Rebuy note from c30/h28."
+   "notes": "SCHW failure 2020-02-20 buy-day chart; 48.12/47.25 match (low 47.30); next day low 45.93 trades the stop; 1.80% ok; forward 20 covers the fall to 34.45 named in deeper (within 10 sessions)."
   },
   "q55": {
    "status": "pass",
@@ -3677,8 +3794,8 @@
   "q56": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Wrong day-1 sells are fine, but the why and simple made day 3 sound like an absolute wait; the ruling says usually, at the earliest. Softened."
+   "fixed": false,
+   "notes": "NEM winners_list 2019-12-03; asof 12-02 day before; line 39.25, buy 39.26 match row 7; break-day low 38.89 confirmed in bars; stop 38.84 five under. No trade drawn since stop is the answer. Key true. Note: chart ends the day before the break day the story describes; acceptable as the replay then shows it."
   },
   "q57": {
    "status": "pass",

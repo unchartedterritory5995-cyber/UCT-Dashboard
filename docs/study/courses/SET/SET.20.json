@@ -1398,7 +1398,7 @@
     "$107.02": "Added one R, not three.",
     "$99.38": "Subtracted three R from the fill."
    },
-   "story": "Hidden ticker, bought the first pullback reclaim after a report gap.",
+   "story": "Bought the first pullback reclaim after a report gap.",
    "chart": {
     "sym": "TGT",
     "asof": "2019-08-28",
@@ -1665,7 +1665,7 @@
    "format": "scenario",
    "criterion": "ng.entry_pullback",
    "q": "What do you do?",
-   "story": "Hidden ticker, the day before the trigger. A 7.3% earnings gap on 5.6x volume closed at 92% of its range. A 4-session pullback, 2.9% deep, held the gap-day low. This morning it trades over yesterday's high.",
+   "story": "The day before the trigger. A 7.3% earnings gap on 5.6x volume closed at 92% of its range. A 4-session pullback, 2.9% deep, held the gap-day low. This morning it trades over yesterday's high.",
    "choices": [
     "Market buy; stop below pullback low",
     "Pass; day one was the only entry",
@@ -2331,7 +2331,7 @@
     "209 shares": "Risked double the risk percent.",
     "382 shares": "Multiplied by the stop distance instead of dividing."
    },
-   "story": "Hidden ticker, a report gap's pullback reclaim, bought on the day shown.",
+   "story": "A report gap's pullback reclaim, bought on the day shown.",
    "chart": {
     "sym": "TGT",
     "asof": "2019-08-28",
@@ -2417,7 +2417,7 @@
    "format": "scenario",
    "criterion": "ng.no_porosity",
    "q": "Where does the stop go?",
-   "story": "Hidden ticker, the day before the reclaim. A friend quotes Morales and Kacher and says to allow a little room: put the stop 2% under the pullback low.",
+   "story": "The day before the reclaim. A friend quotes Morales and Kacher and says to allow a little room: put the stop 2% under the pullback low.",
    "choices": [
     "Just under the pullback low",
     "2% under the pullback low",
@@ -2572,7 +2572,7 @@
     "28.6%": "Decimal slip: ten times too big.",
     "96.0%": "Turned the dollar gap into a percent without dividing by the fill."
    },
-   "story": "Hidden ticker, bought the day-8 reclaim after a report gap.",
+   "story": "Bought the day-8 reclaim after a report gap.",
    "chart": {
     "sym": "TWLO",
     "asof": "2018-02-26",
@@ -2630,7 +2630,7 @@
    "format": "scenario",
    "criterion": "ng.entry_pullback",
    "q": "What was that loss?",
-   "story": "Hidden ticker, the day before the reclaim. A 15.3% gap on 15.8x volume closed at 79% of its range. The next day you bought the day-8 reclaim at 162.59, with the stop at 158.43. It went straight to the stop.",
+   "story": "The day before the reclaim. A 15.3% gap on 15.8x volume closed at 79% of its range. The next day you bought the day-8 reclaim at 162.59, with the stop at 158.43. It went straight to the stop.",
    "choices": [
     "A planned loss; the stop did its job",
     "A bad gap; never a real gapper",
@@ -2712,7 +2712,7 @@
    "format": "scenario",
    "criterion": "ng.time_stop",
    "q": "What does the plan do on the tenth session after the buy?",
-   "story": "Hidden ticker, an 11.1% gap on 18.2x volume, in a stock already up 23.8% over 65 sessions. You bought the day-4 reclaim at 357.70. Nine sessions have passed and it has stayed under 1R.",
+   "story": "An 11.1% gap on 18.2x volume, in a stock already up 23.8% over 65 sessions. You bought the day-4 reclaim at 357.70. Nine sessions have passed and it has stayed under 1R.",
    "choices": [
     "Sells it and frees up the money",
     "Holds it; the stop has not been hit",
@@ -2765,7 +2765,7 @@
    "format": "scenario",
    "criterion": "ng.catalyst",
    "q": "Is it an earnings gapper?",
-   "story": "Hidden ticker, the gap day is the last bar. A 5.4% gap on 10.0x volume closes at 90% of its range. The earnings calendar shows no report that day.",
+   "story": "The gap day is the last bar. A 5.4% gap on 10.0x volume closes at 90% of its range. The earnings calendar shows no report that day.",
    "choices": [
     "Not earnings; find the headline",
     "An earnings gapper; volume says so",
@@ -2812,7 +2812,7 @@
    "format": "scenario",
    "criterion": "ng.volume",
    "q": "How should the light volume change your view?",
-   "story": "Hidden ticker, the gap day is the last bar. The report was the day before. The stock gaps up 4.1% on 1.7x its 50-day volume and closes at its high.",
+   "story": "The gap day is the last bar. The report was the day before. The stock gaps up 4.1% on 1.7x its 50-day volume and closes at its high.",
    "choices": [
     "It lowers the grade; it is no veto",
     "It voids the setup; no trade at all",
@@ -2860,7 +2860,7 @@
    "format": "scenario",
    "criterion": "ng.inv_red_close",
    "q": "Is it a News Failure?",
-   "story": "Hidden ticker, the gap day is the last bar. A 9.2% gap on 3.3x volume. The low of the day is 35.65, above the prior close of 34.64. It closes at 35% of its range.",
+   "story": "The gap day is the last bar. A 9.2% gap on 3.3x volume. The low of the day is 35.65, above the prior close of 34.64. It closes at 35% of its range.",
    "choices": [
     "No; the gap held and never filled",
     "Yes; any fade is a failure",
@@ -3247,7 +3247,7 @@
     ]
    },
    "batch": "visuals-2",
-   "story": "Hidden ticker, the day before a possible reclaim buy."
+   "story": "The day before a possible reclaim buy."
   },
   {
    "key": "q63",
@@ -3255,7 +3255,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "ng.not_late",
-   "q": "Hidden ticker, an earnings gap day is the last bar. Take it or pass?",
+   "q": "An earnings gap day is the last bar. Take it or pass?",
    "choices": [
     "Pass; it was already up too much",
     "Take it; the gap day closed strong",
@@ -3370,7 +3370,7 @@
    "format": "scenario",
    "criterion": "ng.inv_close_under_low",
    "q": "What must happen before you buy it again?",
-   "story": "Hidden ticker, a 15.0% gap on 11.4x volume. You bought the day-4 reclaim at 51.76 with the stop at 50.50. It failed the next session and the stop took you out.",
+   "story": "A 15.0% gap on 11.4x volume. You bought the day-4 reclaim at 51.76 with the stop at 50.50. It failed the next session and the stop took you out.",
    "choices": [
     "A new trigger, as a new trade",
     "Buy it back now; the gap was strong",

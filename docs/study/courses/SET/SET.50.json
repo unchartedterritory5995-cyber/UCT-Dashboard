@@ -864,6 +864,48 @@
    "source": "hw",
    "quote": "The stop may move up to breakeven between 2R and 5R, or at the first sell.",
    "claim": "Our stop may move up to breakeven between 2R and 5R, or at the first sell."
+  },
+  {
+   "id": "d31",
+   "source": "d1",
+   "quote": "ULTA | 2015-05-15 | spring, one-bar | 25 d, 149.53-158.97, 6.3%, 2 touches | 0.15 ATR, 0.93x",
+   "claim": "ULTA 2015-05-15: range 149.53 to 158.97, 6.3% tall, 2 touches; the probe 0.15 ATR under the floor on 0.93x volume."
+  },
+  {
+   "id": "d32",
+   "source": "d1",
+   "quote": "150.40 | 149.09 (0.87%) | 7 d | 15.9R",
+   "claim": "ULTA: buy 150.40, stop 149.09 (0.87%); 3R in 7 days; 15.9R best."
+  },
+  {
+   "id": "d33",
+   "source": "d1",
+   "quote": "PH | 2017-08-18 | spring, one-bar | 40 d, 155.04-167.50, 8.0%, 2 touches | 0.49 ATR, 0.81x",
+   "claim": "PH 2017-08-18: range 155.04 to 167.50, 8.0% tall, 2 touches; the probe 0.49 ATR under the floor on 0.81x volume."
+  },
+  {
+   "id": "d34",
+   "source": "d1",
+   "quote": "155.40 | 153.62 (1.15%) | 8 d | 19.3R",
+   "claim": "PH: buy 155.40, stop 153.62 (1.15%); 3R in 8 days; 19.3R best."
+  },
+  {
+   "id": "d35",
+   "source": "d1",
+   "quote": "AVGO | 2023-05-04 | spring, one-bar | 40 d, 60.32-64.85, 7.5%, 2 touches | 0.15 ATR, 0.82x",
+   "claim": "AVGO 2023-05-04: range 60.32 to 64.85, 7.5% tall, 2 touches; the probe 0.15 ATR under the floor on 0.82x volume."
+  },
+  {
+   "id": "d36",
+   "source": "d1",
+   "quote": "61.59 | 60.10 (2.43%) | 9 d | 20.6R",
+   "claim": "AVGO: buy 61.59, stop 60.10 (2.43%); 3R in 9 days; 20.6R best."
+  },
+  {
+   "id": "d37",
+   "source": "d1",
+   "quote": "KMX | 2020-12-29 | spring, two-bar | 25 d, 91.25-100.68, 10.3%, 4 touches | 0.31 ATR, 0.94x",
+   "claim": "KMX 2020-12-29: a two-bar spring; range 91.25 to 100.68, 10.3% tall, 4 floor touches; the probe 0.31 ATR under the floor on 0.94x volume."
   }
  ],
  "walkthroughs": [
@@ -1343,7 +1385,7 @@
    "key": "q15",
    "skill": "setup.wyckoff_spring",
    "rung": 3,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "spr.range_height",
    "q": "Floor 91.25, top 100.68. How tall is the range, as a percent of the floor?",
    "answer": "10.3%",
@@ -1360,7 +1402,8 @@
    "lesson_line": "Height is top minus floor, over the floor.",
    "facts": [
     "c07",
-    "d01"
+    "d01",
+    "d37"
    ],
    "house": true,
    "suffix": "%",
@@ -1374,7 +1417,7 @@
      "proposed card criterion (spr.range_height), the owner's review pending"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-5",
    "choices": [
     "9.4%",
     "110.3%",
@@ -1385,6 +1428,13 @@
     "9.4%": "Divided by the top, not the floor.",
     "110.3%": "Gave the top as a share of the floor.",
     "1.0%": "Slipped the decimal point a place."
+   },
+   "story": "The day it closes back inside the range after one close under the floor.",
+   "chart": {
+    "sym": "KMX",
+    "asof": "2020-12-29",
+    "window": 120,
+    "forward": 20
    }
   },
   {
@@ -1573,25 +1623,25 @@
     "A 2B of a single low",
     "A flat-base breakout"
    ],
-   "story": "A stock rests in a flat 8-week range, 8% tall, with four touches of the floor. One day it dips 0.3 ATR under the floor and closes back inside, in the upper half of the day's range.",
+   "story": "The day of the dip. A stock rests in a flat 12-week range, 9.4% tall, with four touches of the floor. One day it dips 0.13 ATR under the floor and closes back inside.",
    "answer": "A spring at the floor",
-   "why": "A spring. The range is flat and 8% tall, inside the card's 6% to 20%. The dip went 0.3 ATR under the floor, between the card's 0.1 and about 1 ATR. It closed back inside, in the upper half of the day's range. A breakdown needs over 2 ATR, and a 2B has one swing low, not four touches.",
-   "lesson_line": "Flat range, shallow dip, strong close: a spring.",
+   "why": "A spring. The range is flat and 9.4% tall, inside the card's 6% to 20%. The dip went 0.13 ATR under the floor, between the card's 0.1 and about 1 ATR. It closed back inside the same day. A breakdown needs over 2 ATR, and a 2B has one swing low, not four touches.",
+   "lesson_line": "Flat range, shallow dip, close back inside: a spring.",
    "facts": [
     "t01",
     "c07",
     "c09",
-    "c11",
     "c10",
-    "c28"
+    "c28",
+    "d01"
    ],
    "house": true,
    "wrong": {
     "A flat-base breakout": "A breakout goes over the top. This stock dipped under the floor.",
-    "A breakdown of the floor": "A breakdown goes over 2 ATR under the floor. This dip was 0.3 ATR and closed back inside.",
+    "A breakdown of the floor": "A breakdown goes over 2 ATR under the floor. This dip was 0.13 ATR and closed back inside.",
     "A 2B of a single low": "A 2B's level is one swing low. This floor is flat, with four touches."
    },
-   "simple": "A spring, because a flat range got a shallow dip that closed back inside and high on the day.",
+   "simple": "A spring, because a flat range got a shallow dip that closed back inside the same day.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1599,7 +1649,13 @@
      "rests on a proposed card criterion awaiting the owner's review (height, depth, close)"
     ]
    },
-   "batch": "wave5"
+   "batch": "visuals-5",
+   "chart": {
+    "sym": "GIS",
+    "asof": "2001-10-15",
+    "window": 120,
+    "forward": 30
+   }
   },
   {
    "key": "q22",
@@ -1689,7 +1745,7 @@
     "A breakdown; do not buy it",
     "A U&R of a rising average"
    ],
-   "story": "The floor is 359.50. The dip goes 1.34 ATR under it, with one close under, then back inside the next day.",
+   "story": "The day it closes back inside. The floor is 359.50. The dip goes 1.34 ATR under it, with one close under, then back inside the next day.",
    "answer": "A shakeout; grade it lower",
    "why": "A shakeout; grade it lower. The card's spring dips at most about 1 ATR. Over 1 ATR is a shakeout that grades lower, and over 2 ATR is a breakdown. At 1.34 ATR this sits in the middle band. COST went 1.34 ATR under the 359.50 floor, made 0.52R and was stopped.",
    "lesson_line": "Between 1 and 2 ATR deep, grade lower.",
@@ -1715,7 +1771,13 @@
      "rests on a proposed card criterion awaiting the owner's review (1 and 2 ATR bands)"
     ]
    },
-   "batch": "wave5"
+   "batch": "visuals-5",
+   "chart": {
+    "sym": "COST",
+    "asof": "2021-01-20",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q25",
@@ -1725,28 +1787,30 @@
    "criterion": "spr.stop",
    "q": "Where does the stop go?",
    "choices": [
-    "A few cents under 37.62",
-    "Right on 38.00, the floor",
-    "Far below, near 35.00",
-    "A few cents under 38.00"
+    "A few cents under the spring low",
+    "Right on the 149.53 floor",
+    "Far below, near 5% under the buy",
+    "A few cents under the 149.53 floor"
    ],
-   "story": "The floor is 38.00. The spring low is 37.62. You buy the reclaim at 38.10.",
-   "answer": "A few cents under 37.62",
-   "why": "A few cents under 37.62, the spring low. Our card puts the stop there, not on the old floor at 38.00. Our rulebook keeps it a few cents under the low, not exactly on it. Fraser also places stops under the low of the spring day. It is a real stop order with the broker.",
+   "story": "Bought at 150.40 the morning after the dip. The floor is 149.53. The dip went 0.15 ATR under it.",
+   "answer": "A few cents under the spring low",
+   "why": "A few cents under the spring low. In the real trade the stop was 149.09, 0.87% under the 150.40 buy, under the dip's low and not on the 149.53 floor. Our rulebook keeps a stop a few cents under the low, not exactly on it. Fraser also places stops under the low of the spring day. It is a real stop order with the broker.",
    "lesson_line": "The stop goes under the spring low, not the old floor.",
    "facts": [
     "c15",
     "f06",
     "h24",
-    "h41"
+    "h41",
+    "d31",
+    "d32"
    ],
    "house": true,
    "wrong": {
-    "Far below, near 35.00": "That is a wide stop, far past the spring low. The line is the spring low, a few cents under it.",
-    "A few cents under 38.00": "38.00 is the old floor, above the 37.62 spring low. The stop goes a few cents under the spring low.",
-    "Right on 38.00, the floor": "38.00 sits above the 37.62 spring low, so it is not under the dip. The stop goes a few cents under the spring low."
+    "Right on the 149.53 floor": "The floor sits above the dip's low, so a stop there is inside the dip. The stop goes a few cents under the spring low.",
+    "Far below, near 5% under the buy": "That is a wide stop, far past the spring low. The line is the spring low, a few cents under it.",
+    "A few cents under the 149.53 floor": "149.53 is the old floor, above the spring low. The stop goes a few cents under the spring low."
    },
-   "simple": "Put the stop a few cents under 37.62, the spring low, not on the old floor.",
+   "simple": "Put the stop a few cents under the spring low, not on the old floor.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -1755,34 +1819,46 @@
      "fixed before"
     ]
    },
-   "batch": "wave5"
+   "batch": "visuals-5",
+   "chart": {
+    "sym": "ULTA",
+    "asof": "2015-05-18",
+    "window": 120,
+    "forward": 30,
+    "trade": {
+     "entry": 150.4,
+     "stop": 149.09
+    }
+   }
   },
   {
    "key": "q26",
    "skill": "setup.wyckoff_spring",
    "rung": 4,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "spr.stop_width",
-   "q": "You buy at 62.50 with the stop at 61.30. How far is the stop, as a percent of the buy?",
-   "answer": "1.92%",
+   "q": "How far is the stop below the buy, as a percent of the buy?",
+   "answer": "1.15%",
    "calc": {
     "fn": "arith",
     "args": {
      "expr": "(a - b) / a * 100",
-     "a": 62.5,
-     "b": 61.3
+     "a": 155.4,
+     "b": 153.62
     },
     "round": 2
    },
-   "why": "1.92%. Stop distance is the buy minus the stop, divided by the buy: (62.50 - 61.30) / 62.50 = 1.92%. That is inside the 1-3% we prefer for stops.",
+   "why": "1.15%. Stop distance is the buy minus the stop, divided by the buy: (155.40 - 153.62) / 155.40 = 1.15%. That is inside the 1-3% we prefer for stops. In our scan this trade reached 3R on day 8.",
    "lesson_line": "Stop distance in percent: buy minus stop, divided by the buy.",
    "facts": [
     "h04",
-    "r05"
+    "r05",
+    "d33",
+    "d34"
    ],
    "house": true,
    "suffix": "%",
-   "simple": "The stop is 1.92% under the buy, which sits inside the range we prefer for stops.",
+   "simple": "The stop is 1.15% under the buy, which sits inside the range we prefer for stops.",
    "tier": "core",
    "risk": {
     "score": 4,
@@ -1791,17 +1867,28 @@
      "rests on the owner's rulebook (A13) and the held stop-width decision D-022"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-5",
    "choices": [
-    "1.20%",
-    "19.20%",
-    "98.08%",
-    "1.92%"
+    "1.15%",
+    "1.78%",
+    "98.85%",
+    "11.45%"
    ],
    "wrong": {
-    "1.20%": "Used the dollar gap as a percent.",
-    "19.20%": "Slipped the decimal point a place.",
-    "98.08%": "Gave the stop as a share of the buy."
+    "1.78%": "Used the dollar gap as a percent.",
+    "11.45%": "Slipped the decimal point a place.",
+    "98.85%": "Gave the stop as a share of the buy."
+   },
+   "story": "Bought at the open the day after the dip at 155.40, with the stop at 153.62.",
+   "chart": {
+    "sym": "PH",
+    "asof": "2017-08-21",
+    "window": 120,
+    "forward": 30,
+    "trade": {
+     "entry": 155.4,
+     "stop": 153.62
+    }
    }
   },
   {
@@ -1859,7 +1946,7 @@
     "Size up; the leader is stronger",
     "The turn is in; QQQ sprang today"
    ],
-   "story": "A leader springs off its range floor. QQQ sprang the same day. Before you buy, QQQ closes back under its own spring low.",
+   "story": "The day a leader springs off its range floor. QQQ sprang the same day. Before you buy, QQQ closes back under its own spring low.",
    "answer": "The market turn has not come",
    "why": "The market turn has not come. QQQ's own spring failed when it closed back under its low. ChartSchool's Wyckoff step is to time your commitment with a turn in the stock market index. In one AAPL case from our data, QQQ sprang the same day and failed too.",
    "lesson_line": "Check the index before you buy a leader's spring.",
@@ -1885,7 +1972,13 @@
      "rests on a proposed card criterion awaiting the owner's review (spr.index_sprung)"
     ]
    },
-   "batch": "wave5"
+   "batch": "visuals-5",
+   "chart": {
+    "sym": "AAPL",
+    "asof": "2021-10-01",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q29",
@@ -2681,7 +2774,7 @@
     "Move the stop under the next low",
     "Hold; it may close back inside"
    ],
-   "story": "You bought a spring in a range 17.9% tall, after a 73% run. The same day it fell through your stop under the spring low.",
+   "story": "The buy day. You bought a spring in a range 17.9% tall, after a 73% run. The same day it fell through your stop under the spring low.",
    "answer": "Done; the stop was the trade",
    "why": "The trade is done. The stop under the spring low is the exit. A spring that fails usually fails at once: in our scan 41% broke their low before any test came. After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop.",
    "lesson_line": "A stop-out is the cost of the setup.",
@@ -2710,7 +2803,13 @@
      "fixed before (a dossier quote was wrong against the bars)"
     ]
    },
-   "batch": "wave5"
+   "batch": "visuals-5",
+   "chart": {
+    "sym": "TSLA",
+    "asof": "2025-02-07",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q51",
@@ -2799,14 +2898,14 @@
    "criterion": "spr.stop",
    "q": "Write the plan: entry, stop, first sell.",
    "choices": [
-    "Buy 47.40; stop 46.92; sell from day 3",
-    "Buy over 52.80; stop 47.20; all at top",
-    "Buy 47.40; stop 47.20; hold a month",
-    "Buy over 52.80; stop 46.92; sell day 3"
+    "Buy 61.59; stop 60.10; sell from day 3",
+    "Buy over 64.85; stop 60.32; all at top",
+    "Buy 61.59; stop 60.32; hold a month",
+    "Buy over 64.85; stop 60.10; sell day 3"
    ],
-   "story": "A flat shelf runs from 47.20 to 52.80 with four floor touches. A quiet one-day dip to 46.95, 0.2 ATR under the floor, closes back inside. The next open is 47.40.",
-   "answer": "Buy 47.40; stop 46.92; sell from day 3",
-   "why": "Buy at the open, 47.40, with the stop a few cents under the 46.95 spring low, not on the 47.20 floor. The first sell is a judgment and comes from day 3 at the earliest, not on day 1.",
+   "story": "The day of the dip. A flat shelf runs from 60.32 to 64.85. A quiet one-day dip, 0.15 ATR under the floor, closes back inside. The next open is 61.59.",
+   "answer": "Buy 61.59; stop 60.10; sell from day 3",
+   "why": "Buy at the open, 61.59, with the stop at 60.10, a few cents under the spring low, not on the 60.32 floor. The first sell is a judgment and comes from day 3 at the earliest, not on day 1.",
    "lesson_line": "Entry at the reclaim, stop under the spring low, first sell from day 3.",
    "facts": [
     "h22",
@@ -2814,17 +2913,19 @@
     "c15",
     "c13",
     "r06",
-    "r07"
+    "r07",
+    "d35",
+    "d36"
    ],
    "house": true,
    "wrong": {
-    "Buy over 52.80; stop 47.20; all at top": "Buying over the top is the breakout entry. And 47.20 is the old floor, above the 46.95 spring low.",
-    "Buy 47.40; stop 47.20; hold a month": "47.20 is the old floor, above the 46.95 spring low. The stop goes a few cents under the spring low.",
-    "Buy over 52.80; stop 46.92; sell day 3": "That buys the breakout over the top with the stop under the spring low. Our card rejects it: a median 12.5% stop, and 1% reached 3R."
+    "Buy over 64.85; stop 60.32; all at top": "Buying over the top is the breakout entry. And 60.32 is the old floor, above the spring low.",
+    "Buy 61.59; stop 60.32; hold a month": "60.32 is the old floor, above the spring low. The stop goes a few cents under the spring low.",
+    "Buy over 64.85; stop 60.10; sell day 3": "That buys the breakout over the top with the stop under the spring low. Our card rejects it: a median 12.5% stop, and 1% reached 3R."
    },
-   "simple": "Buy at the next open, 47.40, put the stop just under the 46.95 low, and make the first sell from day 3.",
+   "simple": "Buy at the next open, 61.59, put the stop just under the spring low at 60.10, and make the first sell from day 3.",
    "deeper": {
-    "trap": "The trap is the breakout plan. Buying over the top at 52.80 with the stop still under the spring low makes a huge stop. Our card says that plan had a median 12.5% stop, and only 1% reached 3R. The spring's edge is the low-risk buy at the floor."
+    "trap": "The trap is the breakout plan. Buying over the top at 64.85 with the stop still under the spring low makes a huge stop. Our card says that plan had a median 12.5% stop, and only 1% reached 3R. The spring's edge is the low-risk buy at the floor."
    },
    "tier": "expert",
    "risk": {
@@ -2834,7 +2935,13 @@
      "fixed before"
     ]
    },
-   "batch": "rulings2"
+   "batch": "visuals-5",
+   "chart": {
+    "sym": "AVGO",
+    "asof": "2023-05-04",
+    "window": 120,
+    "forward": 30
+   }
   },
   {
    "key": "q54",
@@ -2842,7 +2949,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "spr.dip_depth",
-   "q": "Hidden ticker. The last bar undercut a recent low and closed back above it. On the pattern alone, take it or pass?",
+   "q": "The last bar undercut a recent low and closed back above it. On the pattern alone, take it or pass?",
    "choices": [
     "Take it; flat floor, modest dip",
     "Pass; there is no range",
@@ -2890,7 +2997,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "spr.floor_touches",
-   "q": "Hidden ticker. The last bar undercut an old low and closed back above it. Spring or pass?",
+   "q": "The last bar undercut an old low and closed back above it. Spring or pass?",
    "choices": [
     "Pass; one swing low is a 2B",
     "Take it; the dip is shallow",
@@ -3080,16 +3187,16 @@
    "rung": 8,
    "format": "scenario",
    "criterion": "spr.prior_advance",
-   "q": "Which range is the better spring base?",
+   "q": "How does our card read the run before this range?",
    "choices": [
-    "A; a pause after a rise",
-    "B; a base after a fall",
-    "Equal; only the range counts",
-    "Neither; both are too tall"
+    "A rise before it is preferred",
+    "A fall before it is preferred",
+    "The move before it does not matter",
+    "A rise before it makes it too late"
    ],
-   "story": "Range A follows a 31% rise. Range B follows a 13% fall. Both are flat, 12% tall, and above the 200-day.",
-   "answer": "A; a pause after a rise",
-   "why": "A. The card prefers the 60 sessions before the range to have risen. That is a reaccumulation pause, Fraser's stepping stone, not a base after a decline. Both ranges pass the other checks: flat, 12% tall inside the 6% to 20% band, and above the 200-day. HWM was such a stepping stone after a 31% run.",
+   "story": "The day of the dip. A flat range 13.5% tall follows a 31% run in the 60 sessions before it.",
+   "answer": "A rise before it is preferred",
+   "why": "A rise before it is preferred. The card likes the 60 sessions before the range to have risen. That is a reaccumulation pause, Fraser's stepping stone, not a base after a decline. This range followed a 31% run and is 13.5% tall, inside the 6% to 20% band.",
    "lesson_line": "Prefer a pause after a rise to a base after a fall.",
    "facts": [
     "c01",
@@ -3100,11 +3207,11 @@
    ],
    "house": true,
    "wrong": {
-    "B; a base after a fall": "A base after a decline is the less preferred prior trend.",
-    "Neither; both are too tall": "12% is inside the 6% to 20% band.",
-    "Equal; only the range counts": "The prior trend separates them. A pause after a rise is preferred."
+    "A fall before it is preferred": "A base after a decline is the less preferred prior trend.",
+    "The move before it does not matter": "The prior trend is part of the card. A pause after a rise is preferred.",
+    "A rise before it makes it too late": "A prior rise is the preferred setting, not a reason to pass."
    },
-   "simple": "A, because a flat pause after a rise is the preferred spring base, not a base after a fall.",
+   "simple": "A rise before it is preferred, because a flat pause after a rise beats a base after a fall.",
    "deeper": {
     "example": "HWM: a stepping-stone range after a 31% run, three floor touches and a shallow quiet probe. The range ran from 170.34 to 193.26, 13.5% tall. The buy was 171.85 with the stop at 169.42, and it reached 16.5R at best."
    },
@@ -3115,7 +3222,13 @@
      "rests on a proposed card criterion awaiting the owner's review (spr.prior_advance)"
     ]
    },
-   "batch": "wave5"
+   "batch": "visuals-5",
+   "chart": {
+    "sym": "HWM",
+    "asof": "2025-08-20",
+    "window": 150,
+    "forward": 20
+   }
   },
   {
    "key": "q63",
@@ -3467,28 +3580,30 @@
    "key": "q73",
    "skill": "setup.wyckoff_spring",
    "rung": 4,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "spr.breakeven",
-   "q": "Bought at 52.40 with the stop at 51.10. At what price is 2R, where the breakeven window opens?",
-   "answer": "$55.00",
+   "q": "At what price is 2R, where the breakeven window opens?",
+   "answer": "$176.71",
    "calc": {
     "fn": "arith",
     "args": {
      "expr": "a + 2 * (a - b)",
-     "a": 52.4,
-     "b": 51.1
+     "a": 171.85,
+     "b": 169.42
     },
     "round": 2
    },
-   "why": "55.00. One R is the buy minus the stop: 52.40 minus 51.10. Add two of those to the 52.40 buy. That gives 55.00. Our breakeven window runs from 2R to 5R, and the card moves the stop to breakeven at the first trim by default. So 55.00 is where the window opens, not a point where you must move it.",
+   "why": "176.71. One R is the buy minus the stop: 171.85 minus 169.42. Add two of those to the 171.85 buy. That gives 176.71. Our breakeven window runs from 2R to 5R, and the card moves the stop to breakeven at the first trim by default. So 176.71 is where the window opens, not a point where you must move it.",
    "lesson_line": "Know your 2R before the open. The breakeven window starts there.",
    "facts": [
     "h05b",
-    "c18"
+    "c18",
+    "d04",
+    "d05"
    ],
    "house": true,
    "prefix": "$",
-   "simple": "2R is $55.00, the buy plus twice the gap down to the stop.",
+   "simple": "2R is $176.71, the buy plus twice the gap down to the stop.",
    "tier": "core",
    "risk": {
     "score": 4,
@@ -3497,17 +3612,28 @@
      "rests on the owner's rulebook (B19)"
     ]
    },
-   "batch": "rank",
+   "batch": "visuals-5",
    "choices": [
-    "$55.00",
-    "$56.30",
-    "$57.60",
-    "$58.90"
+    "$176.71",
+    "$179.14",
+    "$181.57",
+    "$184.00"
    ],
    "wrong": {
-    "$56.30": "Added three R, one too many.",
-    "$57.60": "Added four R, doubling the two.",
-    "$58.90": "Used the far end of the window, not 2R."
+    "$179.14": "Added three R, one too many.",
+    "$181.57": "Added four R, doubling the two.",
+    "$184.00": "Used the far end of the window, not 2R."
+   },
+   "story": "Bought at 171.85 with the stop at 169.42.",
+   "chart": {
+    "sym": "HWM",
+    "asof": "2025-08-21",
+    "window": 120,
+    "forward": 30,
+    "trade": {
+     "entry": 171.85,
+     "stop": 169.42
+    }
    }
   },
   {
@@ -3771,8 +3897,8 @@
   "q15": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "10.3% = 9.43/91.25 verified; wrong choices real (9.4% = 9.43/100.68). But the old why quotes a GIS shelf that also equals 9.4%, which would read as confirming the wrong choice. Rewrote the why with the steps and no GIS line."
+   "fixed": false,
+   "notes": "KMX two-bar; scan date 2020-12-29 is the reclaim day (t), dip day t-1; range 91.25-100.68 10.3% 4 touches matches card/dossier; height math right; no ticker in text."
   },
   "q16": {
    "status": "pass",
@@ -3790,7 +3916,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "The spring is the only defensible choice: 8% inside c07, 0.3 ATR inside c09, upper-half close c11, four touches rule out the 2B (c28). Choices balanced (20 to 24)."
+   "notes": "GIS one-bar, asof = dip/reclaim day; 60 d=12 weeks, 21.30-23.30 9.4%, 4 touches, 0.13 ATR all match dossier row 1; right answer holds; dropped unmeasured close-in-upper-half."
   },
   "q22": {
    "status": "pass",
@@ -3807,21 +3933,21 @@
   },
   "q24": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "COST near-miss; 2021-01-20 is the reclaim day (probe 01-19, one close under); 359.50 floor, 1.34 ATR, 0.52R stopped all match; shakeout answer right."
   },
   "q26": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "1.2/62.5 = 1.92%. 1.20 dollar gap, 19.20 slip, 98.08 stop as share. Verified."
+   "notes": "PH signal 08-18 (Fri), buy day 08-21; 155.40/153.62=1.15% math and distractors correct; 3R day 8 inside forward 30."
   },
   "q28": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "t06 verified on ChartSchool (step 5); d12 verbatim in the dossier. A failed QQQ spring means no index turn yet. Note: its wrong-choice text for 'Nothing; only the stock matters' was duplicated word for word in q61 (fixed there)."
+   "notes": "AAPL 2021-10-01 spring day, QQQ failed same day (failures list); no numbers; asof right; QQQ claim is the card own note."
   },
   "q31": {
    "status": "pass",
@@ -3910,9 +4036,9 @@
   },
   "q62": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "HWM stepping-stone, 13.5% tall, 31% prior run (30.9) match; window 150 covers range plus 60 prior sessions."
   },
   "q04": {
    "status": "pass",
@@ -3936,7 +4062,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from c15, h24, f06; h41 for the broker sentence. Floor-vs-spring-low trap is the real mistake. Choices balanced (21-25)."
+   "notes": "ULTA signal 05-15, buy day 05-18 = asof; buy 150.40 stop 149.09 (0.87%) floor 149.53 0.15 ATR match; stop in why; trade drawn only after answer, so no giveaway; right answer true."
   },
   "q27": {
    "status": "pass",
@@ -3979,13 +4105,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "A4 (h02), B21 (h28), D41 (h41), c25 verbatim. Story numbers (17.9%, 73%) from d14 are noise but grounded."
+   "notes": "TSLA entry day 2025-02-07, no trade drawn (low 360.34 under stop 363.15); 17.9% and 73% match; story agrees with the bar; forward 20 reaches the gap down."
   },
   "q53": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "q still said first trim"
+   "fixed": false,
+   "notes": "AVGO signal day 05-04 as asof, next open 61.59, stop 60.10, 60.32-64.85, 0.15 ATR match dossier row 7; answer right."
   },
   "q54": {
    "status": "pass",
@@ -4137,8 +4263,8 @@
   "q73": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "R math checks (R = 1.30, 2R = 55.00, wrongs are +3R, +4R, +5R). Same stale fact h05 swapped for the breakeven-only quote."
+   "fixed": false,
+   "notes": "HWM buy day 08-21, 171.85/169.42 (1.41%); 2R=176.71, distractors are 3R/4R/5R, arithmetic checked; HWM used twice only."
   },
   "q74": {
    "status": "pass",

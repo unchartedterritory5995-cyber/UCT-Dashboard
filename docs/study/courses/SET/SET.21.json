@@ -1015,7 +1015,7 @@
     ]
    },
    "batch": "visuals-2",
-   "story": "Hidden ticker, the record day is the last bar.",
+   "story": "The record day is the last bar.",
    "chart": {
     "sym": "TVTX",
     "asof": "2015-03-18",
@@ -1146,7 +1146,7 @@
     ]
    },
    "batch": "visuals-2",
-   "story": "Hidden ticker, the record day is the last bar.",
+   "story": "The record day is the last bar.",
    "chart": {
     "sym": "MDGL",
     "asof": "2022-12-19",
@@ -1281,7 +1281,7 @@
     ]
    },
    "batch": "visuals-2",
-   "story": "Hidden ticker, the record day is the last bar. Day 2 opens 2.1% over the HVC, and its low stays 1.7% over it.",
+   "story": "The record day is the last bar. Day 2 opens 2.1% over the HVC, and its low stays 1.7% over it.",
    "chart": {
     "sym": "NRG",
     "asof": "2017-07-12",
@@ -1555,7 +1555,7 @@
     "$57.78": "Added three R to the stop, not the fill.",
     "$59.28": "Counted four R, one too many."
    },
-   "story": "Hidden ticker, bought on day 2 at 56.28 with the stop at 55.53.",
+   "story": "Bought on day 2 at 56.28 with the stop at 55.53.",
    "chart": {
     "sym": "DOCU",
     "asof": "2019-09-09",
@@ -1806,7 +1806,7 @@
     "10.1%": "Slipped the decimal one place to the right.",
     "99.0%": "Divided the stop by the fill and skipped the subtraction."
    },
-   "story": "Hidden ticker, bought on day 2 at 58.13. The day-2 low is 57.56, and the stop sits two cents under it, at 57.54.",
+   "story": "Bought on day 2 at 58.13. The day-2 low is 57.56, and the stop sits two cents under it, at 57.54.",
    "chart": {
     "sym": "VRTX",
     "asof": "2012-05-08",
@@ -1880,7 +1880,7 @@
     },
     "round": 2
    },
-   "why": "5.0R. R is the buy minus the stop, 84.90 minus 83.38. The gain is 92.50 minus 84.90. Divide the gain by R to get 5.0R. About 5 to 10R is often a good place to sell. The first sell is a judgment, not a fixed level. INOD reached 5R in two sessions.",
+   "why": "5.0R. R is the buy minus the stop, 84.90 minus 83.38. The gain is 92.50 minus 84.90. Divide the gain by R to get 5.0R. About 5 to 10R is often a good place to sell. The first sell is a judgment, not a fixed level. INOD passed 5R on the buy day itself.",
    "lesson_line": "Count the gain in R. Around 5R to 10R is often where we sell.",
    "facts": [
     "d07",
@@ -1910,7 +1910,7 @@
     "6.0R": "Measured the gain from the stop, not from the buy.",
     "7.6R": "Used the dollar gain and never divided by the risk."
    },
-   "story": "Hidden ticker, bought on day 2 at 84.90 with the stop at 83.38. Later it trades 92.50.",
+   "story": "Bought on day 2 at 84.90 with the stop at 83.38. Later it trades 92.50.",
    "chart": {
     "sym": "INOD",
     "asof": "2026-05-11",
@@ -1975,7 +1975,7 @@
    "format": "scenario",
    "criterion": "hve.fresh_catalyst",
    "q": "HVE or something else?",
-   "story": "Hidden ticker. A widely owned stock gaps up on earnings and closes 28.1% higher. Volume tops the past year but barely beats the old high. Day 2 dips and reclaims the close.",
+   "story": "A widely owned stock gaps up on earnings and closes 28.1% higher. Volume tops the past year but barely beats the old high. Day 2 dips and reclaims the close.",
    "choices": [
     "A PEG; big but ordinary volume",
     "An HVE; the day-2 reclaim triggers",
@@ -2216,7 +2216,7 @@
     ]
    },
    "batch": "visuals-2",
-   "story": "Hidden ticker, the record day is the last bar. The close before it was 24% under the 200-day. Day 2's fill is above the line.",
+   "story": "The record day is the last bar. The close before it was 24% under the 200-day. Day 2's fill is above the line.",
    "chart": {
     "sym": "FCNCA",
     "asof": "2023-03-27",
@@ -2310,7 +2310,7 @@
    "format": "scenario",
    "criterion": "hve.inv_level_fails",
    "q": "What is the HVC now?",
-   "story": "Hidden ticker. You bought day 2 at 55.46 with a stop at 53.73. It traded two sessions later, a planned loss. Weeks on, the stock closes under the record day's low.",
+   "story": "You bought day 2 at 55.46 with a stop at 53.73. It traded two sessions later, a planned loss. Weeks on, the stock closes under the record day's low.",
    "choices": [
     "A ceiling above price",
     "Support; buy again",
@@ -2360,7 +2360,7 @@
    "format": "scenario",
    "criterion": "hve.after_entry_stop",
    "q": "Was the stop a mistake?",
-   "story": "Hidden ticker. You bought day 2 at 80.07, stop 77.24. The next session takes your stop, and within three sessions the low is 71.08. Weeks later it runs to 88.84.",
+   "story": "You bought day 2 at 80.07, stop 77.24. The next session takes your stop, and within three sessions the low is 71.08. Weeks later it runs to 88.84.",
    "choices": [
     "No; the stop is the exit",
     "Yes; it needed a wider stop",
@@ -2411,7 +2411,7 @@
    "format": "scenario",
    "criterion": "hve.later_entries",
    "q": "Buy it back?",
-   "story": "Hidden ticker. Stopped out the day after your day-2 buy, you watch the stock grind back up, well over the HVC.",
+   "story": "Stopped out the day after your day-2 buy, you watch the stock grind back up, well over the HVC.",
    "choices": [
     "Only on a new trigger",
     "Yes; it is back over the HVC",
@@ -2575,7 +2575,7 @@
    "format": "scenario",
    "criterion": "hve.fresh_catalyst",
    "q": "Is it an HVE, a PEG or neither?",
-   "story": "Hidden ticker. An earnings report sends a stock up 22%. It trades more shares than on any day in its history.",
+   "story": "An earnings report sends a stock up 22%. It trades more shares than on any day in its history.",
    "choices": [
     "An HVE; the volume is extreme",
     "A PEG; the move came on earnings",
@@ -2706,7 +2706,7 @@
     "344 shares": "Risked half the risk percent.",
     "9 shares": "Divided the risk dollars by the fill price, not the gap to the stop."
    },
-   "story": "Hidden ticker, bought on day 2 at 20.18 with the stop at 19.89.",
+   "story": "Bought on day 2 at 20.18 with the stop at 19.89.",
    "chart": {
     "sym": "TVTX",
     "asof": "2015-03-19",
@@ -2830,7 +2830,7 @@
    "format": "scenario",
    "criterion": "hve.breakeven",
    "q": "Inside our rules, what would have saved it?",
-   "story": "Hidden ticker. You bought day 2 at 331.66, stop 323.98. The next day it reaches 2.3R. Four sessions after the buy, the low trades 322.50 and takes the stop.",
+   "story": "You bought day 2 at 331.66, stop 323.98. The next day it reaches 2.3R. Four sessions after the buy, the low trades 322.50 and takes the stop.",
    "choices": [
     "Stop to breakeven at 2R",
     "A stop under 320 for room",
@@ -2883,7 +2883,7 @@
    "format": "scenario",
    "criterion": "hve.stop_width",
    "q": "Which is the one thing you never do?",
-   "story": "Hidden ticker. The HVC is 13.11. Day 2 opens 12.80, falls well lower, then reclaims 13.11. The honest stop under the day-2 low is wide. At your usual share count it would risk more than your plan allows.",
+   "story": "The HVC is 13.11. Day 2 opens 12.80, falls well lower, then reclaims 13.11. The honest stop under the day-2 low is wide. At your usual share count it would risk more than your plan allows.",
    "choices": [
     "Pull the stop in to fit",
     "Skip and wait for a later setup",
@@ -2934,7 +2934,7 @@
    "format": "scenario",
    "criterion": "hve.trim_2",
    "q": "By our rules, what kept this a win?",
-   "story": "Hidden ticker. You bought on day 2 at 84.90, stop 83.38. 5R comes in two sessions; the peak is day 17. By day 30 it has round-tripped under the HVC.",
+   "story": "You bought on day 2 at 84.90, stop 83.38. It passes 5R that same day, and the peak is day 17. By day 30 it has round-tripped under the HVC.",
    "choices": [
     "Part sold into the push, rest trailed",
     "Holding all of it to the very end",
@@ -2942,7 +2942,7 @@
     "Selling it all on the day-17 peak"
    ],
    "answer": "Part sold into the push, rest trailed",
-   "why": "Part sold into the push, and the rest trailed. INOD hit 5R in two sessions, peaked at +47% on day 17, then round-tripped under the HVC by day 30. Selling part into strength banked the move before the slide.",
+   "why": "Part sold into the push, and the rest trailed. INOD passed 5R on the buy day itself, peaked at +47% on day 17, then round-tripped under the HVC by day 30. Selling part into strength banked the move before the slide.",
    "lesson_line": "Sell part into strength. The trail decides the rest.",
    "facts": [
     "r05",
@@ -3107,7 +3107,7 @@
    "format": "scenario",
    "criterion": "hve.close_position",
    "q": "What does that close say about the day?",
-   "story": "Hidden ticker. Up 100% on 62 times its 50-day average volume, 10 times the old record. But it closes at 0.26 of the day's range.",
+   "story": "Up 100% on 62 times its 50-day average volume, 10 times the old record. But it closes at 0.26 of the day's range.",
    "choices": [
     "A weak sign; it closed too low",
     "A strong sign; volume is huge",
@@ -3203,7 +3203,7 @@
    "format": "scenario",
    "criterion": "hve.stop_broker",
    "q": "What happened, by the plan?",
-   "story": "Hidden ticker. An earnings record day. You buy day 2 at 48.34, stop 47.52, a real stop order with the broker. Day 3 opens 49.56 and reverses to 46.94.",
+   "story": "An earnings record day. You buy day 2 at 48.34, stop 47.52, a real stop order with the broker. Day 3 opens 49.56 and reverses to 46.94.",
    "choices": [
     "Stopped; a small planned loss",
     "Still in; it closed over the HVC",
@@ -3429,7 +3429,7 @@
    "format": "scenario",
    "criterion": "hve.trigger",
    "q": "Write the plan: entry and stop.",
-   "story": "Hidden ticker. A lesser-known stock trades record volume, up 43%, and closes near its high at 13.98. Day 2 dips under that close to a low of 13.42, then trades back through it. You keep two cents of room on a stop.",
+   "story": "A lesser-known stock trades record volume, up 43%, and closes near its high at 13.98. Day 2 dips under that close to a low of 13.42, then trades back through it. You keep two cents of room on a stop.",
    "choices": [
     "13.99, stop 13.40",
     "13.99, stop 13.96",
@@ -3528,7 +3528,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "hve.fresh_catalyst",
-   "q": "Hidden ticker, the last bar is the record day. Plan the day-2 trade or pass?",
+   "q": "The last bar is the record day. Plan the day-2 trade or pass?",
    "choices": [
     "Plan day 2; a fresh start",
     "Pass; a climax after a run",
@@ -3579,7 +3579,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "hve.not_climax",
-   "q": "Hidden ticker, the last bar is a record-volume day. Plan the day-2 trade or pass?",
+   "q": "The last bar is a record-volume day. Plan the day-2 trade or pass?",
    "choices": [
     "Pass; a climax after a run",
     "Plan day 2; it is record volume",

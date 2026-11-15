@@ -1373,7 +1373,7 @@
     ]
    },
    "batch": "visuals-2",
-   "story": "Hidden ticker, the gap day is the last bar. Look at the months before it.",
+   "story": "The gap day is the last bar. Look at the months before it.",
    "chart": {
     "sym": "MOD",
     "asof": "2023-05-25",
@@ -1802,7 +1802,7 @@
     ]
    },
    "batch": "visuals-2",
-   "story": "Hidden ticker, day two after an earnings gap. Tomorrow it trades over the post-gap high, and you buy that day-three break.",
+   "story": "Day two after an earnings gap. Tomorrow it trades over the post-gap high, and you buy that day-three break.",
    "chart": {
     "sym": "META",
     "asof": "2013-07-26",
@@ -2143,7 +2143,7 @@
     "An EP; earnings make it one",
     "A Kicker; it gapped from a base"
    ],
-   "story": "Hidden ticker, the gap day is the last bar. The close before the gap was up 25.5% over 126 sessions and 19.3% over 63. It reports and gaps 16.6% on 11.2x volume, closing at 80% of its range.",
+   "story": "The gap day is the last bar. The close before the gap was up 25.5% over 126 sessions and 19.3% over 63. It reports and gaps 16.6% on 11.2x volume, closing at 80% of its range.",
    "answer": "A PEG; a leader, not neglected",
    "why": "A Power Earnings Gap. The six months before the report decide it. Up 25.5% over 126 sessions and 19.3% over 63 is past our neglect line of 25% and 15%. That is an established leader at highs, not a neglected name. Bonde wants stocks that have not rallied in anticipation of earnings. The gap and the volume passed, but they only make half the test.",
    "lesson_line": "Same report, two setups. The six months before the gap decide which.",
@@ -2242,7 +2242,7 @@
     "Buy; stop under the gap-day low",
     "Wait for a pullback to the prior close"
    ],
-   "story": "Hidden ticker. An earnings gap of 20.3% on 27.6x volume closed at 82% of its range two days ago. Yesterday it held above the gap-day low. This morning it trades over the post-gap high, and the stop under today's low would sit 1.7% below.",
+   "story": "An earnings gap of 20.3% on 27.6x volume closed at 82% of its range two days ago. Yesterday it held above the gap-day low. This morning it trades over the post-gap high, and the stop under today's low would sit 1.7% below.",
    "answer": "Buy at market; stop under today's low",
    "why": "Buy at market as it trades over the post-gap high, with the stop a few cents under the trigger day's low. The gap held: no trade below the gap-day low. That makes the delayed trigger live, and the stop is under 3%. A stop wider than about 3% would mean skip.",
    "lesson_line": "Miss day one and the break of the gap-day high, while the gap holds, is the second door.",
@@ -2490,7 +2490,7 @@
     "$493.55": "Subtracted the three R instead of adding them."
    },
    "suffix": "",
-   "story": "Hidden ticker, bought on the day-two break after an earnings gap.",
+   "story": "Bought on the day-two break after an earnings gap.",
    "chart": {
     "sym": "UI",
     "asof": "2025-08-25",
@@ -2811,7 +2811,7 @@
     "5 shares": "Divided the risk dollars by the fill price, not the gap to the stop."
    },
    "prefix": "",
-   "story": "Hidden ticker, bought on the day-three break of the post-gap high.",
+   "story": "Bought on the day-three break of the post-gap high.",
    "chart": {
     "sym": "META",
     "asof": "2013-07-29",
@@ -3021,7 +3021,7 @@
     "A loss from a gap too big to buy",
     "A loss from a gap on thin volume"
    ],
-   "story": "Hidden ticker. A big name gaps 18.2% on 13.1x volume when it names a new CEO, closing at 98% of its range. Day four, an inside-day break at 94.97, stop 92.93. The next day takes the stop.",
+   "story": "A big name gaps 18.2% on 13.1x volume when it names a new CEO, closing at 98% of its range. Day four, an inside-day break at 94.97, stop 92.93. The next day takes the stop.",
    "answer": "A loss from a strong gap that failed",
    "why": "A loss from a strong gap that failed. The gap on 13.1x volume and a 98% close were strong, but there was no follow-through. The stop is the exit, and it kept the loss near 1R. A loss taken at plan is the system working.",
    "lesson_line": "A strong gap can still fail to follow through. The stop keeps the loss small.",
@@ -3078,7 +3078,7 @@
     "Drop the stock; it failed once",
     "The stop should have been wider"
    ],
-   "story": "Hidden ticker. A 17.2% earnings gap on 4.4x volume. You buy the day-3 break of the post-gap high at 22.01, stop 21.46. The next session takes the stop. Months later the stock makes a far larger move.",
+   "story": "A 17.2% earnings gap on 4.4x volume. You buy the day-3 break of the post-gap high at 22.01, stop 21.46. The next session takes the stop. Months later the stock makes a far larger move.",
    "answer": "Right stock; the first buy failed",
    "why": "Right stock, the first buy failed. The day-3 break failed at once, and the stop kept the loss near 1R. A stop-out says nothing final about the stock. TSLA made a far larger move months later. After a stop-out, buy again only on a new trigger, as a new trade with its own stop and every rule.",
    "lesson_line": "A stop-out is not a verdict on the stock. The next trigger is a new trade.",
@@ -3132,7 +3132,7 @@
     "The volume on the gap day",
     "Where it closed in the day's range"
    ],
-   "story": "Hidden ticker. A 13.0% earnings gap on 7.4x volume, closing at 86%, on a stock up 19% over the prior six months. The day-3 break at 35.16 reaches 0.51R, then the stop at 34.16 goes.",
+   "story": "A 13.0% earnings gap on 7.4x volume, closing at 86%, on a stock up 19% over the prior six months. The day-3 break at 35.16 reaches 0.51R, then the stop at 34.16 goes.",
    "answer": "The run it made before the report",
    "why": "The run before the news. Up 19% over six months sat inside the neglect line. It was the least neglected of the four failures in our scan. The gap, volume and close were all strong, and every rule passed. A soft spot is not a proven cause. The day-3 break reached 0.5R and gave it back. The stop kept the loss near 1R.",
    "lesson_line": "A trade can pass every rule and still fail. The stop keeps it small.",
@@ -3189,7 +3189,7 @@
     "Sized up; the biggest gaps run most",
     "Not at all; a 28.5% gap is banned"
    ],
-   "story": "Hidden ticker. A stock down 31% over six months gaps 28.5% on earnings on 15.0x volume, closing at 97%. You buy the day-2 break at 42.01, stop 40.97.",
+   "story": "A stock down 31% over six months gaps 28.5% on earnings on 15.0x volume, closing at 97%. You buy the day-2 break at 42.01, stop 40.97.",
    "answer": "Small; B- at best, so sized down",
    "why": "Small. A gap over 25% is graded down to B- at best, and a B- or lower is sized down. Here the gap was 28.5%. The neglect was textbook, with the stock down 31% over six months, but the gap size was the warning. Bonde also says gaps over 20% pull back most of the time. A big gap is graded down, not banned.",
    "lesson_line": "The grade sets the size. A B- EP gets a small position.",
@@ -3244,7 +3244,7 @@
     "Yes; buy the close, the gap is support",
     "No; the day's volume was too light"
    ],
-   "story": "Hidden ticker, the gap day is the last bar. An 18.1% earnings gap on 4.6x volume. The day never trades back to the prior close, but it closes at 32% of its range.",
+   "story": "The gap day is the last bar. An 18.1% earnings gap on 4.6x volume. The day never trades back to the prior close, but it closes at 32% of its range.",
    "answer": "No; a faded day, a watch at most",
    "why": "No. The gap held, but the day closed at 32% of its range and the rule is the upper half. A faded gap day is not an EP. At most it goes on the list as a delayed-reaction watch.",
    "lesson_line": "The gap held and the buyers left. That is a watch, not a buy.",
@@ -3292,7 +3292,7 @@
     "Yes; the gap and volume qualify",
     "Yes; the 200-day is about to turn up"
    ],
-   "story": "Hidden ticker, the gap day is the last bar. A stock down 17% over six months gaps 12.1% on earnings on 3.6x, closing at 66%. The day-2 break would fill at 161.21. The 200-day sits at 168.35.",
+   "story": "The gap day is the last bar. A stock down 17% over six months gaps 12.1% on earnings on 3.6x, closing at 66%. The day-2 break would fill at 161.21. The 200-day sits at 168.35.",
    "answer": "No; the buy is under the 200-day",
    "why": "No. No longs below the 200-day simple moving average, unless the trade is a parabolic long. The day-2 break would fill at 161.21, under the 200-day at 168.35. The gap and the volume passed. The location failed.",
    "lesson_line": "Neglected stocks often live under the 200-day. No long until price is over it.",
@@ -3412,7 +3412,7 @@
     "0.3R": "Flipped the division: one R over the gain."
    },
    "prefix": "",
-   "story": "Hidden ticker, bought on the day-three break after an earnings gap.",
+   "story": "Bought on the day-three break after an earnings gap.",
    "chart": {
     "sym": "ENPH",
     "asof": "2021-10-29",
@@ -3437,7 +3437,7 @@
     "Everything at 3R, the first target",
     "Nothing; hold all of it for the big run"
    ],
-   "story": "Hidden ticker. A news EP after the election: a 14.2% gap on 3.9x, the day-3 break bought at 259.70, stop 257.10. It reaches 3R the next session and later 34R.",
+   "story": "A news EP after the election: a 14.2% gap on 3.9x, the day-3 break bought at 259.70, stop 257.10. It passes 3R and 5R that same day, and later 34R.",
    "answer": "A judgment call, day 3 or later",
    "why": "A judgment call, day 3 at the earliest. We very rarely sell on day 1 of a buy. A 3, 5 or 7 day push, or about 5 to 10R, is often best. COIN gave its gains back in December after 34R, so selling into strength mattered.",
    "lesson_line": "Sell part into strength, on judgment. An EP that gives it all back only hurts the untrimmed.",
@@ -3624,7 +3624,7 @@
     "Buy; stop under the gap-day low",
     "Wait for the gap-day high break"
    ],
-   "story": "Hidden ticker. A stock gaps 12.0% on earnings on 5.7x. Two days hold above the gap-day low. Day three is an inside day. Day four it trades over the inside day's high, 59.91, and the inside day's low is 2.3% below.",
+   "story": "A stock gaps 12.0% on earnings on 5.7x. Two days hold above the gap-day low. Day three is an inside day. Day four it trades over the inside day's high, 59.91, and the inside day's low is 2.3% below.",
    "answer": "Buy; stop under the inside-day low",
    "why": "Buy at market over the inside day's high, with the stop a few cents under the inside day's low, as WING did. The gap held for two days, so the delayed trigger is live. The stop is 2.3% away, inside the 3% line. Our rule puts the stop under the day's low or the prior day's low, and the prior day is the inside day.",
    "lesson_line": "An inside day after the gap is a tight trigger with a tight stop. That is the point.",
@@ -3724,7 +3724,7 @@
     "A; record volume is just a cue",
     "B; the close is only 82% of range"
    ],
-   "story": "Hidden ticker, the gap day is the last bar. A stock sideways-to-down for a year, with no earlier EP, gaps 20.3% on earnings on 27.6x volume. That is the highest volume on its chart by far. It closes at 82%.",
+   "story": "The gap day is the last bar. A stock sideways-to-down for a year, with no earlier EP, gaps 20.3% on earnings on 27.6x volume. That is the highest volume on its chart by far. It closes at 82%.",
    "answer": "A+; record volume on a neglected name",
    "why": "A+. The highest volume in years is our A+ volume cue, and 27.6x is far past the 5 times line. The stock drifted sideways to down for a year, the neglect the setup needs. The close at 82% is in the top quarter. Bonde cautions at gaps over 20%, but the card's line is 25%, and this gap is 20.3%.",
    "lesson_line": "Record volume on a forgotten stock is the loudest EP there is.",
@@ -3817,7 +3817,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "ep.neglect",
-   "q": "Hidden ticker; the gap day is the last bar. Read the months before it and the gap day. Buy a delayed break, or pass?",
+   "q": "The gap day is the last bar. Read the months before it and the gap day. Buy a delayed break, or pass?",
    "choices": [
     "Take it; neglect, strong close",
     "Pass; it was already up",
@@ -3867,7 +3867,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "ep.neglect",
-   "q": "Hidden ticker; the gap day is the last bar. The prior close was up 25.5% over 126 sessions and 19.3% over 63. EP or pass?",
+   "q": "The gap day is the last bar. The prior close was up 25.5% over 126 sessions and 19.3% over 63. EP or pass?",
    "choices": [
     "Pass; up into the news, a PEG",
     "Take it; the gap day is A+",

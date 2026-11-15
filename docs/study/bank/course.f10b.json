@@ -3938,7 +3938,7 @@
    "forward": 15,
    "sym": "GME",
    "tf": "D",
-   "window": 120
+   "window": 320
   },
   "difficulty": 3,
   "id": "si_0e74ecb382c0",
@@ -3948,8 +3948,10 @@
   "prompt_json": {
    "chart": {
     "forward_bars": 15,
+    "hide_ticker": true,
     "tf": "D",
-    "window_bars": 120
+    "visible_bars": 120,
+    "window_bars": 320
    },
    "choices": [
     "A small new high, stop not hit",

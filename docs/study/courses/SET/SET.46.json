@@ -1451,9 +1451,9 @@
    "key": "q17",
    "skill": "setup.avwap_reclaim",
    "rung": 3,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "av.anchor_high",
-   "q": "After weeks under it, a stock closes back over a line that starts on its March high day and moves each day. Which setup?",
+   "q": "It spent weeks under a line that starts on its March high day and moves each day. Which setup?",
    "choices": [
     "An anchored VWAP reclaim",
     "A Remount of a moving average",
@@ -1485,7 +1485,14 @@
    "depends_on": [
     "D-082"
    ],
-   "batch": "wave4b"
+   "batch": "visuals-4",
+   "story": "The day it closes back over the line.",
+   "chart": {
+    "sym": "MAS",
+    "asof": "2024-07-12",
+    "window": 150,
+    "forward": 20
+   }
   },
   {
    "key": "q18",
@@ -1516,9 +1523,9 @@
    "key": "q19",
    "skill": "setup.avwap_reclaim",
    "rung": 3,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "av.trim_1",
-   "q": "Bought at 17.70 with the stop at 17.50. Where is 3R?",
+   "q": "One R is the fill minus the stop. Where is 3R?",
    "answer": "$18.30",
    "why": "One R is the fill minus the stop: 17.70 minus 17.50. Add three of those to the fill of 17.70 to get 18.30. 3R is a mark to measure by, not an automatic sale. NOW reached 3R in five sessions.",
    "lesson_line": "Know 3R before the open. It is a mark to measure by.",
@@ -1550,7 +1557,7 @@
      "rests on the owner's rulebook (B19)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-4",
    "choices": [
     "$18.10",
     "$18.30",
@@ -1561,6 +1568,13 @@
     "$18.10": "Added the three R to the stop, not to the fill.",
     "$17.90": "Added only one R.",
     "$18.50": "Counted four R instead of three."
+   },
+   "story": "Bought on the reclaim at 17.70 with the stop at 17.50.",
+   "chart": {
+    "sym": "NOW",
+    "asof": "2017-04-20",
+    "window": 120,
+    "forward": 20
    }
   },
   {
@@ -1834,15 +1848,16 @@
    "key": "q27",
    "skill": "setup.avwap_reclaim",
    "rung": 4,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "av.stop_width",
    "q": "Fill 22.93. The reclaim day's low is 22.71 and the stop sits three cents under it. How far is the stop, in percent?",
    "answer": "1.09%",
-   "why": "1.09%. The stop sits three cents under the reclaim day's low of 22.71. Take the fill minus the stop, divide by the fill 22.93, then multiply by 100. That is well inside the 3% the stop usually sits within.",
+   "why": "1.09%. The stop sits three cents under the reclaim day's low of 22.71, at 22.68. Take the fill minus the stop, divide by the fill 22.93, then multiply by 100. That is well inside the 3% the stop usually sits within.",
    "lesson_line": "Stop first, distance second, size last.",
    "facts": [
     "h24",
-    "h04"
+    "h04",
+    "d07"
    ],
    "house": true,
    "calc": {
@@ -1865,7 +1880,7 @@
      "rests on the owner's rulebook (F62, A13) and held decision D-008"
     ]
    },
-   "batch": "rank",
+   "batch": "visuals-4",
    "choices": [
     "1.09%",
     "2.27%",
@@ -1876,13 +1891,24 @@
     "2.27%": "Read three cents as thirty cents.",
     "14.04%": "Took three dollars under the low, not three cents.",
     "25.00%": "Skipped the divide by the fill."
+   },
+   "story": "Bought on the reclaim.",
+   "chart": {
+    "sym": "MAR",
+    "asof": "2004-09-16",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 22.93,
+     "stop": 22.68
+    }
    }
   },
   {
    "key": "q28",
    "skill": "setup.avwap_reclaim",
    "rung": 4,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "av.size_by_grade",
    "q": "Account 100,000. Risk 0.5%. Fill 120.84, stop 118.83. How many shares?",
    "answer": "248 shares",
@@ -1919,7 +1945,7 @@
      "fixed before (cold check)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-4",
    "choices": [
     "4 shares",
     "497 shares",
@@ -1930,6 +1956,17 @@
     "4 shares": "Divided the risk dollars by the fill, not the stop distance.",
     "497 shares": "Doubled the risk dollars.",
     "2,487 shares": "Slipped a decimal and risked ten times too much."
+   },
+   "story": "Bought on the reclaim.",
+   "chart": {
+    "sym": "AJG",
+    "asof": "2021-02-22",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 120.84,
+     "stop": 118.83
+    }
    }
   },
   {
@@ -2204,7 +2241,7 @@
    "format": "scenario",
    "criterion": "av.stop",
    "q": "What did the stop do?",
-   "story": "A 7.6 ATR fall, 47 closes under, a flat line. You bought at 262.81, stop 255.97. Day 2 takes the stop. In the weeks after, its low is 12.7% under your buy.",
+   "story": "Bought on the reclaim after a 7.6 ATR fall, 47 closes under and a flat AVWAP. Bought at 262.81, stop 255.97. Day 2 takes the stop. In the weeks after, its low is 12.7% under your buy.",
    "choices": [
     "Its job: a planned 1R loss",
     "Cost you; it needed room",
@@ -2235,7 +2272,17 @@
      "fixed before (cold check)"
     ]
    },
-   "batch": "rulings"
+   "batch": "visuals-4",
+   "chart": {
+    "sym": "AMZN",
+    "asof": "2026-10-12",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 262.81,
+     "stop": 255.97
+    }
+   }
   },
   {
    "key": "q37",
@@ -2244,7 +2291,7 @@
    "format": "scenario",
    "criterion": "av.reentry",
    "q": "Buy again?",
-   "story": "You were stopped out the day after you bought. Weeks later the setup forms again and its trigger trades.",
+   "story": "Bought the reclaim at 192.63 with the stop at 189.29. The next session takes the stop. Say the setup triggers again later.",
    "choices": [
     "Yes, as a new trade, new stop",
     "No; one try per line, no more",
@@ -2279,7 +2326,17 @@
      "two wrong choices were shortened in the first cold check (+1)"
     ]
    },
-   "batch": "wave4b"
+   "batch": "visuals-4",
+   "chart": {
+    "sym": "LIN",
+    "asof": "2019-09-13",
+    "window": 120,
+    "forward": 60,
+    "trade": {
+     "entry": 192.63,
+     "stop": 189.29
+    }
+   }
   },
   {
    "key": "q38",
@@ -2389,7 +2446,7 @@
    "format": "scenario",
    "criterion": "av.stop_width",
    "q": "What do you do?",
-   "story": "The reclaim triggers. The reclaim day's low sits 4.1% under your fill, wider than your usual stop.",
+   "story": "The reclaim day. Tomorrow's trigger would fill. The honest stop, a few cents under today's low, would sit 4.1% under the fill, wider than your usual stop.",
    "choices": [
     "Keep it; buy fewer shares",
     "Pull the stop up to within 3%",
@@ -2420,7 +2477,13 @@
      "rests on the owner's rulebook, A3, A5 and A13 (+2)"
     ]
    },
-   "batch": "wave4b"
+   "batch": "visuals-4",
+   "chart": {
+    "sym": "DIS",
+    "asof": "2021-07-12",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q42",
@@ -2498,7 +2561,7 @@
    "format": "scenario",
    "criterion": "av.line_flattened",
    "q": "Take it by our card?",
-   "story": "Price closes back over the AVWAP from a September high. Over the 10 sessions before, that line fell 0.56 ATR.",
+   "story": "The reclaim day. It closes back over the AVWAP from a September high. Over the 10 sessions before, that line fell 0.56 ATR.",
    "choices": [
     "No; the line had not flattened",
     "Yes; it closed over the line",
@@ -2506,7 +2569,7 @@
     "No; it needs a close 1 ATR over"
    ],
    "answer": "No; the line had not flattened",
-   "why": "No. Our card proposes a flattened line. The AVWAP fell less than 0.5 ATR over the 10 sessions before the reclaim. This one still fell 0.56 ATR, so it fails. Shannon: a move above a declining VWAP will often fail. The steeper the angle, the likelier the move fails. The close over the line is one gate; this is another.",
+   "why": "No. Our card proposes a flattened line. The AVWAP fell less than 0.5 ATR over the 10 sessions before the reclaim. This one still fell 0.56 ATR, so it fails. Shannon: a move above a declining VWAP will often fail. The steeper the angle, the likelier the move fails. The close over the line is one gate; this is another. AAPL still ran afterwards: the rule is a quality filter, not a prediction.",
    "lesson_line": "A move above a declining line will often fail. Wait for it to flatten.",
    "facts": [
     "d19",
@@ -2533,7 +2596,13 @@
      "rests on a proposed card line, av.line_flattened, whose 0.5 ATR is the dossier's number (+2)"
     ]
    },
-   "batch": "wave4b"
+   "batch": "visuals-4",
+   "chart": {
+    "sym": "AAPL",
+    "asof": "2021-10-18",
+    "window": 150,
+    "forward": 60
+   }
   },
   {
    "key": "q45",
@@ -2542,7 +2611,7 @@
    "format": "scenario",
    "criterion": "av.real_fall",
    "q": "Does it qualify as an AVWAP reclaim?",
-   "story": "A stock falls 3.9 ATR from a one-month high, closes under the AVWAP from that high 19 times, then closes back over.",
+   "story": "The reclaim day. It fell 3.9 ATR from a one-month high and closed under the AVWAP from that high 19 times. Today it closes back over.",
    "choices": [
     "No; the fall is too small",
     "Yes; it closed back over",
@@ -2550,7 +2619,7 @@
     "No; it must fall 10% first"
    ],
    "answer": "No; the fall is too small",
-   "why": "No. Our card proposes a real fall first: the anchor high minus the lowest low after it is at least 4 ATR. This dip was 3.9 ATR, so it falls short. It is a dip from a one-month high, not a real fall. The fall is measured in ATR, not in percent. The closes under the line and the close back over do not make up for it.",
+   "why": "No. Our card proposes a real fall first: the anchor high minus the lowest low after it is at least 4 ATR. This dip was 3.9 ATR, so it falls short. It is a dip from a one-month high, not a real fall. The fall is measured in ATR, not in percent. The closes under the line and the close back over do not make up for it. ADC still ran afterwards: the rule is a filter, not a prediction.",
    "lesson_line": "Near enough is not a rule. The fall is a gate.",
    "facts": [
     "d17",
@@ -2574,7 +2643,13 @@
      "rests on a proposed card line, av.real_fall (+2)"
     ]
    },
-   "batch": "wave4b"
+   "batch": "visuals-4",
+   "chart": {
+    "sym": "ADC",
+    "asof": "2019-01-08",
+    "window": 120,
+    "forward": 60
+   }
   },
   {
    "key": "q46",
@@ -2583,7 +2658,7 @@
    "format": "scenario",
    "criterion": "av.reclaim_day_close",
    "q": "What is the read on that reclaim day?",
-   "story": "After weeks under a flat AVWAP, the stock opens under the line and closes 0.23 ATR over it.",
+   "story": "The reclaim day. After weeks under a flat AVWAP, it closes 0.23 ATR over the line.",
    "choices": [
     "A poke inside the noise; pass",
     "A clean reclaim; go long",
@@ -2613,7 +2688,13 @@
      "rests on a proposed card line, av.reclaim_day_close (+2)"
     ]
    },
-   "batch": "wave4b"
+   "batch": "visuals-4",
+   "chart": {
+    "sym": "CAG",
+    "asof": "2019-11-14",
+    "window": 120,
+    "forward": 60
+   }
   },
   {
    "key": "q47",
@@ -2622,7 +2703,7 @@
    "format": "scenario",
    "criterion": "av.no_gap_over",
    "q": "By our card, which setup is it?",
-   "story": "After weeks under the AVWAP from its high, a stock opens 0.91 ATR above the line and closes higher.",
+   "story": "The reclaim day. After weeks under its AVWAP from a high, it opens 0.91 ATR above the line and closes over it.",
    "choices": [
     "A gap setup, not an AVWAP reclaim",
     "A clean reclaim from below",
@@ -2657,7 +2738,13 @@
      "a wrong choice was shortened in the first cold check (+1)"
     ]
    },
-   "batch": "wave4b"
+   "batch": "visuals-4",
+   "chart": {
+    "sym": "AGCO",
+    "asof": "2019-09-06",
+    "window": 120,
+    "forward": 60
+   }
   },
   {
    "key": "q48",
@@ -2942,7 +3029,7 @@
    "format": "scenario",
    "criterion": "av.trail",
    "q": "What protects the rest of the position?",
-   "story": "Your reclaim pushed to 5R and you made your sells into the strength. Then the market breaks hard and the stock starts to slide.",
+   "story": "Bought on the reclaim. It pushed to 5R and you made your sells into the strength. Then the market breaks hard and the stock starts to slide.",
    "choices": [
     "The 9 EMA or 20 EMA trail",
     "The original stop under the low",
@@ -2977,13 +3064,19 @@
      "fixed before (cold check)"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "visuals-4",
+   "chart": {
+    "sym": "O",
+    "asof": "2020-01-16",
+    "window": 150,
+    "forward": 60
+   }
   },
   {
    "key": "q57",
    "skill": "setup.avwap_reclaim",
    "rung": 7,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "av.trim_2",
    "q": "Bought at 52.67, stop 51.99. You sell part at 56.07. How many R did that sale bank?",
    "answer": "5.0R",
@@ -3018,7 +3111,7 @@
      "fixed before (cold check)"
     ]
    },
-   "batch": "sweep-2026-11-14",
+   "batch": "visuals-4",
    "choices": [
     "5.0R",
     "3.4R",
@@ -3029,6 +3122,17 @@
     "3.4R": "Called the dollar gain the R multiple.",
     "1.7R": "Halved the dollar gain by mistake.",
     "0.8R": "Divided the gain by the whole run from the stop to the sale price."
+   },
+   "story": "Bought on the reclaim.",
+   "chart": {
+    "sym": "EPC",
+    "asof": "2006-12-28",
+    "window": 120,
+    "forward": 60,
+    "trade": {
+     "entry": 52.67,
+     "stop": 51.99
+    }
    }
   },
   {
@@ -3038,7 +3142,7 @@
    "format": "scenario",
    "criterion": "av.confluence",
    "q": "How does that grade the reclaim?",
-   "story": "After a deep fall, the AVWAP from the high flattens. The 50-day SMA runs flat right along it. Then the stock closes back over both.",
+   "story": "The reclaim day. After a 19.2% fall, its AVWAP from the high is flat near 70. The 50-day sits within one ATR of the line. It closes 0.49 ATR over the line.",
    "choices": [
     "Up; the line sits at a second level",
     "Down; too many lines in one place",
@@ -3046,7 +3150,7 @@
     "Down; the 50-day sits overhead"
    ],
    "answer": "Up; the line sits at a second level",
-   "why": "Up. Our card proposes an A+ cue: the AVWAP sits at a second level. That can be the 50-day SMA, a prior breakout level or another AVWAP. Here the 50-day runs right along the line. Shannon: a level is more likely to matter with confluence. ChartSchool says converging AVWAP lines can mark an especially strong area. A cue is a hint; grading stays a judgment.",
+   "why": "Up. Our card proposes an A+ cue: the AVWAP sits at a second level. That can be the 50-day SMA, a prior breakout level or another AVWAP. Here the 50-day sits within one ATR of the line. Shannon: a level is more likely to matter with confluence. ChartSchool says converging AVWAP lines can mark an especially strong area. A cue is a hint; grading stays a judgment.",
    "lesson_line": "One line is a level. Two lines in one place is a shelf.",
    "facts": [
     "d05",
@@ -3060,7 +3164,7 @@
    "wrong": {
     "Down; too many lines in one place": "Shannon: a level is more likely to matter with confluence. Our card grades a second level up.",
     "No change; the 50-day is not part of it": "The card names the 50-day as the second level that grades it up.",
-    "Down; the 50-day sits overhead": "It runs along the line, not above it. A second level at the line is the card's A+ cue."
+    "Down; the 50-day sits overhead": "The card counts a 50-day at the line as a second level. That grades the reclaim up, not down."
    },
    "house": true,
    "simple": "It grades up, because the line sits at a second level, the 50-day, and two levels together matter more.",
@@ -3075,7 +3179,13 @@
      "sits beside the owner's E50: grading is discretionary (+2)"
     ]
    },
-   "batch": "wave4b"
+   "batch": "visuals-4",
+   "chart": {
+    "sym": "MAS",
+    "asof": "2024-07-12",
+    "window": 150,
+    "forward": 30
+   }
   },
   {
    "key": "q59",
@@ -3084,7 +3194,7 @@
    "format": "scenario",
    "criterion": "av.earnings_window",
    "q": "Take it?",
-   "story": "A clean reclaim from a high triggers. The company's earnings reaction day is two sessions away.",
+   "story": "The day before a clean reclaim triggers. The earnings reaction day comes two sessions after the trigger.",
    "choices": [
     "No; earnings are too close",
     "Yes; the reclaim is clean",
@@ -3115,7 +3225,13 @@
      "rests on the owner's rulebook, B22 (+2)"
     ]
    },
-   "batch": "wave4b"
+   "batch": "visuals-4",
+   "chart": {
+    "sym": "CDW",
+    "asof": "2019-02-04",
+    "window": 120,
+    "forward": 60
+   }
   },
   {
    "key": "q60",
@@ -3252,15 +3368,15 @@
    "format": "scenario",
    "criterion": "av.stop",
    "q": "Write the plan: entry and stop.",
-   "story": "A stock sits above a rising 200-day. After weeks under a flat AVWAP, it closes 0.5 ATR over it. The day's high is 36.40 and its low 35.80. Next session it trades over that high, at 36.41.",
+   "story": "The reclaim day. Above a rising 200-day, it closed back over its AVWAP after weeks under a flat line. Tomorrow it may trade over today's high.",
    "choices": [
-    "Market at 36.41; stop 35.77",
-    "Market at 36.41; stop 35.80",
+    "Market over high; stop under the low",
+    "Market over high; stop on the low",
     "Market at the close; stop at the line",
-    "Limit at 36.00; stop 35.77"
+    "Limit under high; stop under the low"
    ],
-   "answer": "Market at 36.41; stop 35.77",
-   "why": "Market at 36.41, stop at 35.77. Entries are market orders, so the trade over the reclaim day's high is the fill. The stop sits a few cents under the reclaim day's low of 35.80, not exactly on it. The first sell is a judgment and is not part of this order.",
+   "answer": "Market over high; stop under the low",
+   "why": "Market over the high, stop under the low. Entries are market orders, so we buy as price trades over the reclaim day's high. The stop sits a few cents under the reclaim day's low, not exactly on it. The first sell is a judgment and is not part of this order.",
    "lesson_line": "Entry and stop first. Write them before the open.",
    "facts": [
     "h22",
@@ -3270,13 +3386,13 @@
    ],
    "wrong": {
     "Market at the close; stop at the line": "We buy as price trades through the trigger, never at the close. And the line is not the stop.",
-    "Market at 36.41; stop 35.80": "35.80 is the low itself. The stop sits a few cents under the day's low, not exactly on it.",
-    "Limit at 36.00; stop 35.77": "Entries are market orders. A limit under the trigger may never fill."
+    "Market over high; stop on the low": "The stop sits a few cents under the day's low, not exactly on it.",
+    "Limit under high; stop under the low": "Entries are market orders. A limit under the high may never fill."
    },
    "house": true,
-   "simple": "Buy at market at 36.41 and put the stop just under the 35.80 low at 35.77.",
+   "simple": "Buy at market as it trades over the high, and put the stop a few cents under the low.",
    "deeper": {
-    "trap": "The near-miss is a stop right on the low at 35.80. Our rule puts it a few cents under the day's low, not exactly on it, so it goes at 35.77. The other trap is a limit order below the trigger, which may never fill."
+    "trap": "The near-miss is a stop right on the low. Our rule puts it a few cents under the day's low, not exactly on it. The other trap is a limit order under the trigger, which may never fill."
    },
    "tier": "expert",
    "risk": {
@@ -3286,7 +3402,13 @@
      "fixed before (cold check)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "visuals-4",
+   "chart": {
+    "sym": "NOW",
+    "asof": "2017-04-19",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q65",
@@ -3336,7 +3458,7 @@
    "format": "scenario",
    "criterion": "av.above_200",
    "q": "Does the 200-day rule keep you out?",
-   "story": "During the fall, the October low undercut the 200-day. Now, weeks later, the reclaim day closes over the AVWAP and above the 200-day.",
+   "story": "The reclaim day. During the fall, the October low undercut the 200-day. Now it closes over the AVWAP and above the 200-day.",
    "choices": [
     "No; the rule reads the close today",
     "Yes; it traded under the 200-day",
@@ -3368,7 +3490,13 @@
      "rests on the owner's rulebook, B26, as the card reads it (+2)"
     ]
    },
-   "batch": "wave4b"
+   "batch": "visuals-4",
+   "chart": {
+    "sym": "JPM",
+    "asof": "2023-11-14",
+    "window": 200,
+    "forward": 30
+   }
   },
   {
    "key": "q67",
@@ -3455,13 +3583,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Derived AVWAP reclaim before reading key: a line that starts on an event day and moves daily, retaken after weeks under (c23, c24). Remount out (an MA has no anchor day), U&R out (weeks, not 3 sessions), flat level out (line moves). A downtrend line from the high would also 'start on the high day and move', but it is not a choice, so the key is unique within the set. Minor: the flat-level wrong note says the line moves 'with price and volume', which the stem does not say; true of an AVWAP by c08, so left. Stem does not answer q22's key."
+   "notes": "MAS dossier row 10: anchor 2024-03-28 (March high), reclaim 2024-07-12, 70 closes under; asof is the reclaim day, buy 07-15 is the next session. Answer true. No line named that is not described in words."
   },
   "q28": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
+   "notes": "AJG row 8: reclaim 02-19, buy 2021-02-22, 120.84/118.83 (1.7%) match text; 248 shares arithmetic ok; buy-day asof."
   },
   "q29": {
    "status": "cut",
@@ -3479,7 +3607,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with its rulings"
+   "notes": "AMZN failure: buy 262.81, stop 255.97 (2.6%), 7.6 ATR, 47 under, stopped day 2 (2026-10-14), low 12.7% under the buy; all match. Buy-day asof; forward 20 reaches the stop and the 20-session low."
   },
   "q43": {
    "status": "cut",
@@ -3490,14 +3618,14 @@
   "q44": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key c03 (0.56 >= 0.5, d19); Shannon b01/b02 verified wording in facts; no tell."
+   "fixed": true,
+   "notes": "AAPL near-miss: anchor 2021-09-07 (September high), reclaim 2021-10-18, line fell 0.56 ATR; asof reclaim day. Answer No by card is true, but the replay will show it ran (9.3R), so a why sentence is added saying the rule is a filter, not a prediction (no new numbers)."
   },
   "q45": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "3.9 ATR < 4 ATR (c01, d17, d18). Failing one gate suffices, so the thin story still decides; the Yes options would need every gate. 'Falls' (not 'dips') removes the earlier tell. Percent distractor rebutted (card measures in ATR). Anchor rule (D-082) not keyed. Pass."
+   "fixed": true,
+   "notes": "ADC near-miss: reclaim 2019-01-08, 3.9 ATR, 19 under, one-month high (anchor 2018-12-07); asof reclaim day. Replay will show it ran (6.4R), so a why sentence is added saying the rule is a filter, not a prediction (no new numbers)."
   },
   "q55": {
    "status": "cut",
@@ -3509,13 +3637,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "pass: trail renamed to 9/20 EMA, 'what is left' language; wrong choices all wrong."
+   "notes": "O is a dossier section 12 set-aside (reached 5R, March 2020 fall) for the trims-and-trail lesson; 2020-01-16 is the buy date by the set-aside convention (CDW/TPR dates are buy dates); forward 60 reaches 5R and the March break; no number invented, no trade drawn. Pilot has the same chart-then-story pattern (q28, q41)."
   },
   "q57": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "fix: two wrong-choice explanations were vague or wrong (1.7R, 0.8R); 56.07 less 52.67 over 0.68 = 5.0R stands, the answer is right."
+   "fixed": false,
+   "notes": "EPC row 3: buy 52.67, stop 51.99 (1.3%), 5R = 56.07, 3R day 6, 18.9R all in dossier; buy-day asof; trade matches text."
   },
   "q63": {
    "status": "cut",
@@ -3527,7 +3655,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Entry and stop only; close entry wrong citing r14; limit near miss ok."
+   "notes": "NOW row 6: reclaim 2017-04-19, rising 200-day, flat line; invented 36.40/35.80 numbers replaced by plain wording; choices keep similar length; wrong keys match choices. asof reclaim day, no trade. NOW used twice."
   },
   "q67": {
    "status": "cut",
@@ -3539,7 +3667,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
+   "notes": "NOW row 6: buy 17.70, stop 17.50, 3R 18.30 ok, 3R day 5 inside forward 20. No trade drawn (buy-day low 17.492 under the stop), correct call; buy-day asof ok. NOW used twice (q19, q64)."
   },
   "q25": {
    "status": "pass",
@@ -3557,7 +3685,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Sorted rank matches target; each wrong choice recomputed as a real mistake on this math; no new tell."
+   "notes": "MAR row 1: buy 22.93, stop 22.68 (1.1%), 22.71 low consistent; buy day 2004-09-16 (day 2 after the 09-14 reclaim). Trade 22.93/22.68 matches question and why. Daily replay only (pre-2003-09-10 floor not hit)."
   },
   "q30": {
    "status": "pass",
@@ -3593,7 +3721,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key B22 (h08); two sessions to the reaction day is inside 3 days; 5R note correct; d27 example."
+   "notes": "CDW dossier sec 12: buy 2019-02-05 is two sessions before the 02-07 reaction day; asof 02-04 is the day before the trigger. Answer No true. 22.4R in why is the best R inside the 60-session window; forward 60 from asof reaches it except possibly the last session (minor)."
   },
   "q60": {
    "status": "pass",
@@ -3623,7 +3751,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key c09 (A+ cue: the AVWAP sits at a second level, the 50-day named). p03 checked in context on the CMT transcript: he describes bids landing where an anchor and other levels meet, 'So it's more likely when we have that confluence', so the claim is fair. x03 now correctly limited to AVWAP lines. w3 teaches the MAS case first, but q58's story is generic and tests applying it. E50 hedge present. Pass."
+   "notes": "MAS row 10: 19.2% fall, flat line near 70, close +0.49 ATR, 50-day within one ATR; asof reclaim day. Wording matches dossier; MAS used twice (q17, q58). 50 SMA is drawn. Answer true."
   },
   "q61": {
    "status": "pass",
@@ -3646,23 +3774,21 @@
   },
   "q66": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave4b; awaiting cold re-read"
+   "notes": "JPM row 9: reclaim 2023-11-14, October low undercut the 200-day, close +0.81 ATR; asof reclaim day; 200 SMA is drawn; answer true."
   },
   "q46": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key c04 + d21/d22 (0.23 ATR poke); U&R note per c24; balanced choices.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "CAG near-miss: reclaim 2019-11-14, close +0.23 ATR; card-unsupported opens under the line was dropped. The December gap named in why falls inside forward 60."
   },
   "q47": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key c05/d24, stem says 'By our card'; Shannon's view stated as counter (e02).",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "AGCO near-miss: reclaim day 2019-09-06 opened +0.91 ATR over the line; asof reclaim day; answer gap setup true."
   },
   "q50": {
    "status": "pass",
@@ -3827,7 +3953,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from B21 (h28) and E56 (h29), both verbatim in sizing_rule.md section 9. Story stipulates the setup forms again, so the first-reclaim count (c02) does not bite. Story no longer says 'buy', no echo. LIN deeper matches d15/d16 (stopped next session 2019-09-16, 3R 39 sessions later). Two Yes / two No. Pass."
+   "notes": "LIN failure: buy 192.63, stop 189.29 (1.7%), stopped next session, 3R printed 39 sessions later (forward 60 reaches it; not named in text). Story made hypothetical; answer still right. Buy-day asof."
   },
   "q39": {
    "status": "pass",
@@ -3846,7 +3972,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key is c16's first branch (size down from the honest wider stop) with A3/A5 (h01, h03); skip is not offered, so no second defensible choice; 'simple' adds the skip branch correctly. Pull-up-to-3% is c16's 'never tighten into the noise'; AVWAP stop rebutted by c15. Consistent with b_minus 'stop wider than 3%' as a grade cue. Pass."
+   "notes": "DIS failure: reclaim 2021-07-12, buy 07-13, stop 4.1%; asof is the reclaim day, no trade drawn (no prices recorded). Answer holds for the real example."
   },
   "q49": {
    "status": "pass",

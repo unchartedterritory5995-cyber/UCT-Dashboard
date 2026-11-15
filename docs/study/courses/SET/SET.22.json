@@ -924,7 +924,7 @@
    "rung": 1,
    "format": "mcq",
    "criterion": "gs.line_is_gap_up_low",
-   "q": "Hidden ticker, the test day is the last bar. Which line does Gap Support defend here?",
+   "q": "The test day is the last bar. Which line does Gap Support defend here?",
    "choices": [
     "The gap-up day's low",
     "The prior day's high",
@@ -1346,7 +1346,7 @@
    "rung": 3,
    "format": "mcq",
    "criterion": "gs.test_low",
-   "q": "Hidden ticker, the test day is the last bar. Gap-up low 53.03, test-day low 52.45. How deep is the breach, in percent?",
+   "q": "The test day is the last bar. Gap-up low 53.03, test-day low 52.45. How deep is the breach, in percent?",
    "answer": "1.1%",
    "calc": {
     "fn": "arith",
@@ -1401,7 +1401,7 @@
    "rung": 3,
    "format": "mcq",
    "criterion": "gs.trim_1",
-   "q": "Hidden ticker, bought at 25.10 with the stop at 24.71. Where is 3R?",
+   "q": "Bought at 25.10 with the stop at 24.71. Where is 3R?",
    "answer": "$26.27",
    "calc": {
     "fn": "arith",
@@ -1496,7 +1496,7 @@
    "rung": 3,
    "format": "mcq",
    "criterion": "gs.stop",
-   "q": "Hidden ticker, the test day is the last bar. Where does the stop go on a Gap Support buy?",
+   "q": "The test day is the last bar. Where does the stop go on a Gap Support buy?",
    "choices": [
     "Just under the test day's low",
     "Under the gap-fill for room",
@@ -1618,7 +1618,7 @@
    "rung": 3,
    "format": "mcq",
    "criterion": "gs.stop_width",
-   "q": "Hidden ticker, bought at 15.96 with the stop at 15.48. How far is the stop from the fill, in percent?",
+   "q": "Bought at 15.96 with the stop at 15.48. How far is the stop from the fill, in percent?",
    "answer": "3.0%",
    "calc": {
     "fn": "arith",
@@ -1990,7 +1990,7 @@
    "format": "scenario",
    "criterion": "gs.not_gap_day",
    "q": "Gap Support or PEG?",
-   "story": "Hidden ticker, the gap day is the last bar. It opened 10.1% over the prior close on 11.9x volume, an earnings gap. You are deciding which setup owns today's buy.",
+   "story": "The gap day is the last bar. It opened 10.1% over the prior close on 11.9x volume, an earnings gap. You are deciding which setup owns today's buy.",
    "choices": [
     "A PEG; the gap day is not Gap Support",
     "Gap Support; the gap is holding",
@@ -2295,7 +2295,7 @@
    "rung": 6,
    "format": "mcq",
    "criterion": "gs.stop",
-   "q": "Hidden ticker, bought at 53.27, stop 52.40. Account 50,000, risk 0.5%. How many shares does the risk allow?",
+   "q": "Bought at 53.27, stop 52.40. Account 50,000, risk 0.5%. How many shares does the risk allow?",
    "answer": "287 shares",
    "calc": {
     "fn": "shares_from_risk",
@@ -2600,7 +2600,7 @@
    "format": "scenario",
    "criterion": "gs.after_entry_stop",
    "q": "What was that loss?",
-   "story": "Hidden ticker. A 16.2% earnings gap on 4.3x volume. Thirteen sessions later the test day holds near perfectly. The low is 0.7% above the line and the close is at 88% of its range. You buy at 339.31 with the stop at 333.47. The stop trades the next session without any gain.",
+   "story": "A 16.2% earnings gap on 4.3x volume. Thirteen sessions later the test day holds near perfectly. The low is 0.7% above the line and the close is at 88% of its range. You buy at 339.31 with the stop at 333.47. The stop trades the next session without any gain.",
    "choices": [
     "A planned loss; a clean test can lose",
     "A sign the setup no longer works",
@@ -2655,7 +2655,7 @@
    "format": "scenario",
    "criterion": "gs.inv_fill",
    "q": "What does the second close tell you?",
-   "story": "Hidden ticker. The test day closed on the line with a hammer. The stop traded the next session. Two sessions later the stock closes under the gap-fill spot.",
+   "story": "The test day closed on the line with a hammer. The stop traded the next session. Two sessions later the stock closes under the gap-fill spot.",
    "choices": [
     "The gap filled; the setup is dead",
     "The line held; buy again",
@@ -2761,7 +2761,7 @@
    "format": "scenario",
    "criterion": "gs.not_downtrend",
    "q": "Take it or pass?",
-   "story": "Hidden ticker, 2025. A 9.1% gap on 5.4x volume closed 2.6% under a falling 50-day. Eleven sessions later the test looks fine.",
+   "story": "In 2025, a 9.1% gap on 5.4x volume closed 2.6% under a falling 50-day. Eleven sessions later the test looks fine.",
    "choices": [
     "Pass; the gap is in a downtrend",
     "Pass; the test came too long after",
@@ -2810,7 +2810,7 @@
    "format": "scenario",
    "criterion": "gs.above_200",
    "q": "Take it or pass?",
-   "story": "Hidden ticker, 2019. A stock gaps 11.3% on 4.1x volume above a rising 50-day. Six sessions later the test closes 6.9% under the 200-day.",
+   "story": "In 2019, a stock gaps 11.3% on 4.1x volume above a rising 50-day. Six sessions later the test closes 6.9% under the 200-day.",
    "choices": [
     "Pass; it closed under the 200-day",
     "Pass; the 50-day is not rising enough",
@@ -2903,7 +2903,7 @@
    "format": "scenario",
    "criterion": "gs.post_gap_high_trim",
    "q": "Which level does price reach first on the way up?",
-   "story": "Hidden ticker. A news gap. The test is bought at 231.13 with the stop at 228.43. The post-gap high is 239.37.",
+   "story": "A news gap. The test is bought at 231.13 with the stop at 228.43. The post-gap high is 239.37.",
    "choices": [
     "3R, 239.23, comes first",
     "The post-gap high, 239.37, comes first",
@@ -3136,7 +3136,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "gs.test_close_position",
-   "q": "Hidden ticker, the test day is the last bar. Judging the test day alone, is it a buy or a pass?",
+   "q": "The test day is the last bar. Judging the test day alone, is it a buy or a pass?",
    "choices": [
     "Take it; closed back over the line",
     "Pass; the gap has already filled",
@@ -3189,7 +3189,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "gs.inv_still_falling",
-   "q": "Hidden ticker, the test day is the last bar. Did it hold the line and close back strong? Is it a buy or a pass?",
+   "q": "The test day is the last bar. Did it hold the line and close back strong? Is it a buy or a pass?",
    "choices": [
     "Pass; it closed right at its low",
     "Pass; it needs a deeper undercut first",
@@ -3314,7 +3314,7 @@
    "format": "scenario",
    "criterion": "gs.after_entry_stop",
    "q": "What do you do?",
-   "story": "Hidden ticker, 2021. You bought the test and the stop traded the next session on a 2.4% undercut that closed back on the line. Weeks later the stock has traded as high as 147.39.",
+   "story": "In 2021, you bought the test and the stop traded the next session on a 2.4% undercut that closed back on the line. Weeks later the stock has traded as high as 147.39.",
    "choices": [
     "Nothing; wait for a new trigger",
     "Buy now; the reclaim was a new trigger",
@@ -3570,7 +3570,7 @@
    "rung": 4,
    "format": "mcq",
    "criterion": "gs.trim_2",
-   "q": "Hidden ticker, bought at 27.15 with the stop at 26.89. Where is 5R?",
+   "q": "Bought at 27.15 with the stop at 26.89. Where is 5R?",
    "answer": "$28.45",
    "why": "$28.45. One R is the fill minus the stop, 27.15 minus 26.89. Add five of those to the 27.15 fill. 5R is a yardstick. A strong trade often runs well past it.",
    "lesson_line": "Know your 5R before the open. A strong trade often runs past it.",
@@ -3626,7 +3626,7 @@
    "rung": 2,
    "format": "mcq",
    "criterion": "gs.trim_2",
-   "q": "Hidden ticker, you bought this test. When do we usually make the first sell?",
+   "q": "You bought this test. When do we usually make the first sell?",
    "choices": [
     "Day 3 at the earliest, often later",
     "On the buy day, into strength",
@@ -3918,7 +3918,7 @@
    "format": "scenario",
    "criterion": "gs.stop_not_porosity",
    "q": "Why is a fixed stop 1% under the line wrong here?",
-   "story": "Hidden ticker, the test day is the last bar. Its low dips 1.8% under the gap-up low. Then the day closes back over the line at 87% of its range.",
+   "story": "The test day is the last bar. Its low dips 1.8% under the gap-up low. Then the day closes back over the line at 87% of its range.",
    "choices": [
     "The day already traded below it",
     "It would sit too far from the entry",
@@ -4015,7 +4015,7 @@
    "rung": 3,
    "format": "mcq",
    "criterion": "gs.breakeven",
-   "q": "Hidden ticker, you bought this test. When does the stop move to breakeven, by default?",
+   "q": "You bought this test. When does the stop move to breakeven, by default?",
    "choices": [
     "When the first trim is made",
     "The moment the buy fills",

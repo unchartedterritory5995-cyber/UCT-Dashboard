@@ -1357,11 +1357,11 @@
    "key": "q15",
    "skill": "setup.remount",
    "rung": 3,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "rm.stop_width",
-   "q": "Buy 86.24, stop 83.52. How far is the stop below the buy, in percent?",
+   "q": "How far is the stop below the buy, in percent?",
    "answer": "3.2%",
-   "why": "3.2%. Take the buy minus the stop and divide by the buy: (86.24 - 83.52) / 86.24 is about 3.2%. That is PYPL, just over the 3% a stop usually sits within, so the size comes down.",
+   "why": "3.2%. Take the buy minus the stop and divide by the buy: (86.24 - 83.52) / 86.24 is about 3.2%. That is PYPL, just over the 3% a stop usually sits within, so the size comes down. It was stopped the session after the buy.",
    "lesson_line": "Measure the stop in percent before you size the trade.",
    "facts": [
     "d08",
@@ -1386,7 +1386,7 @@
      "+2 computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-3",
    "choices": [
     "2.7%",
     "0.3%",
@@ -1397,15 +1397,22 @@
     "2.7%": "Gave the gap in dollars as a percent, no divide.",
     "0.3%": "Decimal slip, one place too short.",
     "96.8%": "Divided the stop by the buy, no subtraction."
+   },
+   "story": "The quiet day after a 200-day remount. You buy over its high at 86.24 with the stop at 83.52.",
+   "chart": {
+    "sym": "PYPL",
+    "asof": "2018-10-22",
+    "window": 150,
+    "forward": 20
    }
   },
   {
    "key": "q16",
    "skill": "setup.remount",
    "rung": 3,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "rm.trim_1",
-   "q": "Bought at 109.42 with the stop at 105.86. Where is 3R?",
+   "q": "One R is the fill minus the stop. Where is 3R?",
    "answer": "$120.10",
    "why": "120.10. One R is the fill minus the stop. Add three R to the fill: 109.42 + 3 x (109.42 - 105.86) = 120.10. The first sell is a judgment, not a fixed third at 3R.",
    "lesson_line": "Know your 3R before the open. It is a mark, not a sell order.",
@@ -1433,7 +1440,7 @@
      "+2 the third at 3R is a rulebook rule"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-3",
    "choices": [
     "$116.54",
     "$120.10",
@@ -1444,6 +1451,17 @@
     "$116.54": "Added three R to the stop, not the fill.",
     "$112.98": "Added only one R, forgot the times three.",
     "$98.74": "Subtracted three R instead of adding."
+   },
+   "story": "Bought over the quiet day's high at 109.42 with the stop at 105.86.",
+   "chart": {
+    "sym": "AMD",
+    "asof": "2023-11-03",
+    "window": 120,
+    "forward": 30,
+    "trade": {
+     "entry": 109.42,
+     "stop": 105.86
+    }
    }
   },
   {
@@ -1529,7 +1547,7 @@
    "key": "q20",
    "skill": "setup.remount",
    "rung": 3,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "rm.entry_pause",
    "q": "After the remount day, what arms the buy?",
    "choices": [
@@ -1561,7 +1579,14 @@
      "the pause entry is card 13's proposed Entry B, held (D-003)"
     ]
    },
-   "batch": "rulings"
+   "batch": "visuals-3",
+   "story": "The day it closes back over its 50-day after a dip.",
+   "chart": {
+    "sym": "NKE",
+    "asof": "2020-08-05",
+    "window": 150,
+    "forward": 20
+   }
   },
   {
    "key": "q21",
@@ -1703,9 +1728,9 @@
    "key": "q25",
    "skill": "setup.remount",
    "rung": 4,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "rm.trim_1",
-   "q": "Bought at 59.54, stop 58.44. If the stock trades to 61.47, how many R is that?",
+   "q": "How many R is that move, measured from the buy?",
    "answer": "1.75R",
    "why": "1.75R. One R is the fill minus the stop. The gain is the exit price minus the fill. (61.47 - 59.54) / (59.54 - 58.44) = 1.75R. That is short of the 3R mark. The first sell is a judgment, not a fixed third at 3R.",
    "lesson_line": "Count in R. Know where you stand against 3R.",
@@ -1736,7 +1761,7 @@
      "+2 computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-3",
    "choices": [
     "1.93R",
     "2.75R",
@@ -1747,6 +1772,13 @@
     "2.75R": "Measured the gain from the stop, not the fill.",
     "1.93R": "Used the dollar gain as R, no divide.",
     "0.03R": "Divided the gain by the fill price, not by one R."
+   },
+   "story": "A Remount buy over the quiet day's high at 59.54, with the stop at 58.44. Later the stock traded up to 61.47.",
+   "chart": {
+    "sym": "DOCU",
+    "asof": "2024-03-13",
+    "window": 150,
+    "forward": 40
    }
   },
   {
@@ -1872,9 +1904,9 @@
    "key": "q29",
    "skill": "setup.remount",
    "rung": 5,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "rm.stop_width",
-   "q": "Account 100,000, risk 0.5%. Buy 109.42, stop 105.86. How many shares does the stop allow?",
+   "q": "Account 100,000, risk 0.5%. How many shares does the stop allow?",
    "answer": "140 shares",
    "why": "140 shares. Risk is 0.5% of 100,000. The stop distance is 109.42 minus 105.86. 100,000 x 0.5% / (109.42 - 105.86), rounded down, is 140. Those shares cost far less than the 40% cap, so the risk size wins. The stop is 3.3% from the buy. We size to the stop and never tighten it.",
    "lesson_line": "The stop sets the size. Wider stop, fewer shares.",
@@ -1908,7 +1940,7 @@
      "+1 fixed before"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-3",
    "choices": [
     "141 shares",
     "365 shares",
@@ -1919,13 +1951,24 @@
     "141 shares": "Rounded up, so the risk goes over 0.5%.",
     "365 shares": "Sized to the 40% cap, not to the stop.",
     "1,404 shares": "Moved the decimal on the risk percent."
+   },
+   "story": "Bought over the quiet day's high at 109.42 with the stop at 105.86.",
+   "chart": {
+    "sym": "AMD",
+    "asof": "2023-11-03",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 109.42,
+     "stop": 105.86
+    }
    }
   },
   {
    "key": "q30",
    "skill": "setup.remount",
    "rung": 5,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "rm.trail",
    "q": "Which average trails a fresh 200-day remount?",
    "choices": [
@@ -1956,7 +1999,18 @@
      "rests on the owner's rulebook (E52, adjustable)"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "visuals-3",
+   "story": "A 200-day remount bought over the quiet day's high at 86.71 with the stop at 84.91.",
+   "chart": {
+    "sym": "BABA",
+    "asof": "2025-01-24",
+    "window": 150,
+    "forward": 60,
+    "trade": {
+     "entry": 86.71,
+     "stop": 84.91
+    }
+   }
   },
   {
    "key": "q31",
@@ -2001,7 +2055,7 @@
    "key": "q32",
    "skill": "setup.remount",
    "rung": 5,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "rm.trim_1",
    "q": "When is the first sell of a Remount winner usually made?",
    "choices": [
@@ -2032,7 +2086,18 @@
      "rests on the owner's rulebook (B19, E51, adjustable)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "visuals-3",
+   "story": "Bought over the quiet day's high at 20.95 with the stop at 20.55, and up 3R within two sessions.",
+   "chart": {
+    "sym": "MGM",
+    "asof": "2013-12-13",
+    "window": 120,
+    "forward": 30,
+    "trade": {
+     "entry": 20.95,
+     "stop": 20.55
+    }
+   }
   },
   {
    "key": "q33",
@@ -2219,7 +2284,7 @@
     "Take it, at half size": "Half size on a chop line is still a chop trade."
    },
    "house": true,
-   "story": "A stock has crossed back and forth over its flat 200-day for weeks. Today it closes well above the line on a strong green candle.",
+   "story": "The day it closes back over its flat 200-day. The stock has crossed back and forth over that line for weeks. Today it closes well above on a strong green candle.",
    "simple": "Pass, because a flat line that price keeps crossing is a chop line, and buying its retake is a known mistake.",
    "tier": "extended",
    "risk": {
@@ -2231,7 +2296,13 @@
    "depends_on": [
     "D-075"
    ],
-   "batch": "wave3"
+   "batch": "visuals-3",
+   "chart": {
+    "sym": "MSFT",
+    "asof": "2024-11-26",
+    "window": 150,
+    "forward": 20
+   }
   },
   {
    "key": "q39",
@@ -2323,28 +2394,29 @@
    "q": "Remount or U&R?",
    "choices": [
     "A U&R, back within 3 sessions",
-    "A Remount of the base low",
+    "A Remount of the 50-day",
     "An Oops, a one-day undercut",
     "A breakdown to sell, not buy"
    ],
    "answer": "A U&R, back within 3 sessions",
-   "why": "A U&R. Our card says a U&R closes back above the level within 3 sessions of the undercut. It is bought as the level is retaken. Here the stock was back over its base low by Thursday. A Remount needs the line lost for real.",
+   "why": "A U&R. Our card says a U&R closes back above the level within 3 sessions of the undercut. It is bought as the level is retaken. Here the stock closed under its 50-day only three times, a short dip. A Remount needs the line lost for a week or more.",
    "lesson_line": "Back in 3 sessions: a U&R. A long stay under the line: a Remount.",
    "facts": [
     "m03",
     "k18",
-    "k21"
+    "k21",
+    "d10"
    ],
    "wrong": {
-    "A Remount of the base low": "A Remount lost the line for real. This was two closes under, a short dip.",
-    "An Oops, a one-day undercut": "An Oops is one session. This took closes on two days under the low.",
-    "A breakdown to sell, not buy": "It closed back over the low within 3 sessions. That undercut is bought as the level is retaken."
+    "An Oops, a one-day undercut": "An Oops is one session. This took closes on three days under the line.",
+    "A breakdown to sell, not buy": "It closed back over the line within 3 sessions. That undercut is bought as the level is retaken.",
+    "A Remount of the 50-day": "A Remount lost the line for real. This was three closes under, a short dip."
    },
    "house": true,
-   "story": "The stock closed under its base low on Tuesday and Wednesday. It closed back over it on Thursday.",
-   "simple": "It closed back over the base low within 3 sessions, so it is a U&R and not a Remount.",
+   "story": "The day it closes back over its 50-day. It had closed under that line only three times.",
+   "simple": "It closed back over the 50-day after only three closes under, so it is a U&R and not a Remount.",
    "deeper": {
-    "trap": "Both setups end with a close back over a line, so that close does not name the setup. Count the closes under the line. Two is a dip. A Remount needs the line lost for real."
+    "trap": "Both setups end with a close back over a line, so that close does not name the setup. Count the closes under the line. Three is a dip. A Remount needs the line lost for real."
    },
    "tier": "extended",
    "risk": {
@@ -2357,7 +2429,13 @@
    "depends_on": [
     "D-074"
    ],
-   "batch": "wave3"
+   "batch": "visuals-3",
+   "chart": {
+    "sym": "ENOV",
+    "asof": "2019-10-11",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q42",
@@ -2467,7 +2545,7 @@
     "An Oops, a one-day undercut"
    ],
    "answer": "A marginal poke, no remount yet",
-   "why": "A marginal poke. A close 0.08 ATR over the line is inside the noise, so ESS could not be called a remount that evening. Wait for the clear close. ESS remounted clearly in the next sessions and reached 14.9R.",
+   "why": "A marginal poke. A close 0.08 ATR over the line is inside the noise, so ESS could not be called a remount that evening. Wait for the clear close. ESS remounted clearly in the next sessions.",
    "lesson_line": "Wait for the clear close. A poke is not a retake.",
    "facts": [
     "d11",
@@ -2482,10 +2560,10 @@
     "An Oops, a one-day undercut": "An Oops is one session. This stock sat under the line for weeks."
    },
    "house": true,
-   "story": "After weeks under the 50-day, the stock closes just 0.08 ATR over it, a small slice of a normal day's range. Nothing else is wrong.",
+   "story": "After weeks under the 50-day. It closes just 0.08 ATR over it, a small slice of a normal day's range. Nothing else is wrong.",
    "simple": "A close only 0.08 ATR over the line is a poke inside the noise, so wait for a clear close.",
    "deeper": {
-    "trap": "Waiting did not cost the move here. ESS remounted clearly a few sessions later and reached 14.9R. The mistake is buying the poke itself. Buying before the close is above the line, or on a marginal poke a few cents over it, is a listed mistake."
+    "trap": "Waiting did not cost the move here. ESS remounted clearly a few sessions later. The mistake is buying the poke itself. Buying before the close is above the line, or on a marginal poke a few cents over it, is a listed mistake."
    },
    "tier": "extended",
    "risk": {
@@ -2497,7 +2575,13 @@
    "depends_on": [
     "D-075"
    ],
-   "batch": "wave3"
+   "batch": "visuals-3",
+   "chart": {
+    "sym": "ESS",
+    "asof": "2014-10-14",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q45",
@@ -2822,7 +2906,7 @@
     "Widen the stop after the buy to ride it": "The stop only moves up, never down or wider."
    },
    "house": true,
-   "story": "You bought a 200-day remount at 198.12 with the stop at 195.31. It stopped you out the next day. Weeks later it reached your old 3R level, 206.55.",
+   "story": "A 200-day remount bought at 198.12 with the stop at 195.31. It stopped you out the next day. Weeks later it reached your old 3R level, 206.55.",
    "simple": "A stop-out that later turns around is the normal cost of the setup, not proof that the stop was wrong.",
    "deeper": {
     "trap": "The trap is judging a stop by what the stock does after it. FDX stopped out on a low of 193.94, then reached 206.55 weeks later. The stop did its job. Buying back later is a new try, and a new try needs its own trigger and its own stop."
@@ -2832,7 +2916,17 @@
     "score": 0,
     "reasons": []
    },
-   "batch": "wave3"
+   "batch": "visuals-3",
+   "chart": {
+    "sym": "FDX",
+    "asof": "2018-07-31",
+    "window": 150,
+    "forward": 35,
+    "trade": {
+     "entry": 198.12,
+     "stop": 195.31
+    }
+   }
   },
   {
    "key": "q53",
@@ -2863,7 +2957,7 @@
     "The stop was too tight for this stock": "The stop never goes wider. It was the exit, and it did its job."
    },
    "house": true,
-   "story": "A 200-day remount example. The buy was 163.43 with the stop at 159.25. The S&P 500 sat under its own 200-day. Next day it opened at 159.90 and traded through the stop.",
+   "story": "A 200-day remount. The buy was 163.43 with the stop at 159.25. The S&P 500 sat under its own 200-day. Next day it opened at 159.90 and traded through the stop.",
    "simple": "The index sat under its own 200-day, so the remount was weak and the stop did its job.",
    "deeper": {
     "trap": "One loss does not prove the setup or the stop was wrong. Most tries lose small. A weak index makes a weak remount, and the stop did its job."
@@ -2876,7 +2970,17 @@
      "+1 fixed before"
     ]
    },
-   "batch": "wave3"
+   "batch": "visuals-3",
+   "chart": {
+    "sym": "AAPL",
+    "asof": "2022-09-12",
+    "window": 150,
+    "forward": 20,
+    "trade": {
+     "entry": 163.43,
+     "stop": 159.25
+    }
+   }
   },
   {
    "key": "q54",
@@ -2892,7 +2996,7 @@
     "It made strong follow-through likely"
    ],
    "answer": "It did not offset the weak index",
-   "why": "It did not offset the weak index. A remount is weak with the index under its own 200-day. PYPL remounted its 200-day on 2.98x volume, the earnings reaction, in the October 2018 correction. SPY was under its own 200-day, and the stock was stopped the next session. One example is not a law.",
+   "why": "It did not offset the weak index. A remount is weak with the index under its own 200-day. PYPL remounted its 200-day on 2.98x volume, the earnings reaction, in the October 2018 correction. SPY was under its own 200-day, and the stock was stopped the session after the buy. One example is not a law.",
    "lesson_line": "Heavy volume does not save a remount in a weak market.",
    "facts": [
     "d08",
@@ -2903,10 +3007,10 @@
    "wrong": {
     "It turned this into an A plus setup": "A remount is weak with the index under its own 200-day. PYPL had heavy volume and still stopped out.",
     "It made the stop matter much less": "The stop is never optional. PYPL's stop is what ended the trade.",
-    "It made strong follow-through likely": "PYPL had heavy volume and was stopped out the next session."
+    "It made strong follow-through likely": "PYPL had heavy volume and was stopped out the session after the buy."
    },
    "house": true,
-   "story": "A 200-day remount shows heavy volume on the earnings reaction day. The index sits under its own 200-day and is making new lows. You buy over the quiet day's high.",
+   "story": "The earnings reaction day. A 200-day remount shows heavy volume. The index sits under its own 200-day, in a sharp correction. You buy over the quiet day's high.",
    "simple": "Heavy volume did not save it, because a remount is weak when the index sits under its 200-day.",
    "deeper": {
     "trap": "A buy over the quiet day's high is a trigger, not a promise. The same heavy volume that excites a chart can still meet a falling index. Check the index against its own 200-day before you trust a remount."
@@ -2920,7 +3024,13 @@
      "the old key said Nothing and was softened"
     ]
    },
-   "batch": "wave3"
+   "batch": "visuals-3",
+   "chart": {
+    "sym": "PYPL",
+    "asof": "2018-10-19",
+    "window": 150,
+    "forward": 20
+   }
   },
   {
    "key": "q55",
@@ -2973,7 +3083,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "rm.entry_pause",
-   "q": "Hidden ticker, after a dip under its 50-day. Read the last two days. Take it or pass?",
+   "q": "After a dip under its 50-day. Read the last two days. Take it or pass?",
    "choices": [
     "Take it; the quiet day holds the line",
     "Pass; the close sits under the 50-day",
@@ -3022,7 +3132,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "rm.above_200",
-   "q": "Hidden ticker, the day it closes back over the 50-day. Take it or pass?",
+   "q": "The day it closes back over the 50-day. Take it or pass?",
    "choices": [
     "Pass; the close is under the 200-day",
     "Take it; the 50-day was just retaken",
@@ -3566,7 +3676,7 @@
     "No; sell all now to lock in the gain": "Selling it all now gives up the runner. The first sell is a judgment, and the trail takes what is left."
    },
    "house": true,
-   "story": "You bought a Remount at 40.00 with the stop at 38.80. Two days later it holds above the line again. You like it even more.",
+   "story": "A 200-day Remount bought over the quiet day's high at 110.67 with the stop at 108.11. Two days later it still holds above the line. You like it even more.",
    "simple": "No. We buy the full size once, at one price with one stop, and liking a trade more is not a reason to add.",
    "tier": "extended",
    "risk": {
@@ -3575,15 +3685,21 @@
      "rests on the owner's rulebook (A5, the full size at one price with one stop, no adding)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "visuals-3",
+   "chart": {
+    "sym": "UTHR",
+    "asof": "2020-10-19",
+    "window": 150,
+    "forward": 30
+   }
   },
   {
    "key": "q72",
    "skill": "setup.remount",
    "rung": 4,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "rm.trim_2",
-   "q": "Bought at 59.54 with the stop at 58.44. Where is 5R?",
+   "q": "Where is 5R?",
    "answer": "$65.04",
    "why": "65.04. One R is the fill minus the stop. Add five R to the fill: 59.54 + 5 x (59.54 - 58.44) = 65.04. By default the second third comes off there.",
    "lesson_line": "Know your 5R before the open. The second third comes off there.",
@@ -3612,7 +3728,7 @@
      "+2 the third at 5R is a rulebook rule"
     ]
    },
-   "batch": "rank",
+   "batch": "visuals-3",
    "choices": [
     "$65.04",
     "$66.14",
@@ -3623,6 +3739,13 @@
     "$66.14": "Counted six R, one too many.",
     "$67.24": "Counted seven R, two too many.",
     "$70.54": "Counted ten R, double the five asked."
+   },
+   "story": "A Remount buy over the quiet day's high at 59.54, with the stop at 58.44.",
+   "chart": {
+    "sym": "DOCU",
+    "asof": "2024-03-13",
+    "window": 150,
+    "forward": 20
    }
   },
   {
@@ -3952,7 +4075,7 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "rm.all_mas",
-   "story": "A leader sits above a rising 200-day. It lost its 50-day, then remounts it on a clear green close. That same close also clears its 20 EMA.",
+   "story": "The remount day. A leader sits above a rising 200-day. It lost its 50-day, then remounts it on a clear green close. That same close also sits over its 20 EMA.",
    "q": "How does our card read this remount?",
    "choices": [
     "A plus cue, since none sit overhead",
@@ -3985,7 +4108,13 @@
      "+1 grade cues sit against rulebook E50 (grading is discretionary)"
     ]
    },
-   "batch": "polish"
+   "batch": "visuals-3",
+   "chart": {
+    "sym": "MGM",
+    "asof": "2013-12-06",
+    "window": 150,
+    "forward": 20
+   }
   },
   {
    "key": "q87",
@@ -4185,14 +4314,14 @@
   "q15": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "3.2 ok (3.154); wrongs verified."
+   "fixed": true,
+   "notes": "PYPL card failure (buy 2018-10-23, stop 83.52 = 5c under the quiet-day low 83.57 of 10-22; quiet-day high 86.23 so fill 86.24; 3.154% rounds to 3.2). asof 10-22 is the quiet day, the last bar before the buy; no trade drawn (buy-day low 82.99 is under the stop, the checker would fail). Fix: the why said 'stopped the next session', but the next session after the chart's last bar is the buy day itself; the dossier stop day is 10-24, the session after the buy. Reworded."
   },
   "q16": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "R math verified (120.10); wrongs real slips."
+   "notes": "AMD card winner 2023-11-03, dossier row 8 buy 109.42 stop 105.86. Bars: quiet day 11-02 high 109.41 (fill 109.42; open 109.05 so the trade triggers inside the buy-day range 107.86-113.39), low 105.91 (stop 5c under). asof is the buy day with the trade. 3R = 109.42 + 3 x 3.56 = 120.10, key and three wrongs verified. No outcome named; replay best 9.1R in 30 bars, stop not hit. Ticker absent."
   },
   "q17": {
    "status": "cut",
@@ -4216,7 +4345,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Buy as price trades over the inside day high; heavy red day is only a wrong choice for the pause, not a pullback invalidation."
+   "notes": "NKE winner: remount close 2020-08-05 is 100.94 over the 50-day 98.60 after 7 closes under; asof is the remount day and the question asks what arms the buy after it. The replay shows the inside quiet day 08-06 (high 101.18 under 101.25, low 100.03 over 97.08) and the buy 08-07 at 101.19, so the key is true. No numbers in the text. Second NKE use with q56. Ticker absent."
   },
   "q21": {
    "status": "cut",
@@ -4246,7 +4375,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "R math verified (1.75R); wrongs real slips."
+   "notes": "DOCU card failure: quiet day 2024-03-13 (high 59.53, low 58.49), buy 59.54, stop 58.44 = 5c under the low. 61.47 is the real high on 2024-04-12, offset 21 from asof, so forward 40 reaches it. (61.47 - 59.54) / 1.10 = 1.75R. No trade drawn (buy-day low 56.99 is under the stop). The story says only that the stock later traded up to 61.47, which the bars show; the deeper text explains the stop-out. Second DOCU use is q72."
   },
   "q26": {
    "status": "pass",
@@ -4270,13 +4399,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "140 ok (140.4); 141 up (risk 502 > 500), 365 = cap, 1,404 = 5% risk. verified."
+   "notes": "Same AMD buy-day chart and trade as q16 (second and last AMD use). 100000 x 0.5% / 3.56 = 140.45, rounds down to 140; 141 / 365 (40% cap) / 1,404 distractors still right. Stop 3.3% in the why matches the dossier. No outcome named. Ticker absent."
   },
   "q30": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "20 EMA steadier / 9 EMA fast; ok."
+   "notes": "BABA card winner 2025-01-24: quiet day 01-23 (high 86.20, low 84.96), gap-up fill at the open 86.71 over that high, stop 84.91 = 5c under the low; buy-day range 86.48-89.19; asof is the buy day with the trade. Key checked on the real bars: a 20 EMA trail first closes under on 2025-03-21 at 135.14 (offset 39), a 9 EMA trail on 03-03 at 130.81, so the 20 EMA kept the run and the card key holds. Forward 60 covers both. No outcome named in the text. Ticker absent."
   },
   "q31": {
    "status": "pass",
@@ -4288,7 +4417,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Day 3 at the earliest keyed; fixed third only a wrong choice."
+   "notes": "MGM card winner: quiet day 2013-12-12 (high 20.94, low 20.60), buy 20.95 (also the open), stop 20.55; buy-day range 20.72-21.20; asof is the buy day with the trade. 3R (22.15) first reached 12-17, day 2, so 'up 3R within two sessions' is true and forward 30 plays it. Key (day 3 at the earliest) stays right. Second MGM use is q86."
   },
   "q33": {
    "status": "pass",
@@ -4324,8 +4453,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Derived the answer from the cited quotes first and it matches the key; no second defensible answer, no tell, numbers grounded, notes supported.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "MSFT card 13 near-miss (not-chop, 12 side switches in 60 sessions). Bars at asof 2024-11-26: close 427.99 over a flat 200-day 421.88 (about +1.5%), a green candle from 419.58, closes just under the line for weeks before (413-419). 'Flat', 'crossed back and forth for weeks', 'well above' and 'strong green' all hold on the chart; no numbers in the text; Pass is right and the 'candle is weak' wrong is true. Ticker absent."
   },
   "q39": {
    "status": "cut",
@@ -4343,8 +4471,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Two closes under, back on the third session, fits m03's 'within 3 sessions' and card 32's 'fewer than 5'. Oops is one session (k21), so it is excluded. I could not break it.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "ENOV near-miss: bars show closes under the 50-day on 10-08, 10-09 and 10-10 only (10-07 close 48.19 is over 47.44), back over on 10-11 (49.79 vs 47.43), so 'three times' is exact and the Remount choice (5 or more closes) is wrong. Back within 3 sessions of the undercut (10-08 low 46.25 was the first undercut). Fact d10 supports 'a pullback or a U&R'. Oops (one session) and sell are wrong for the real chart. Ticker absent; choice lengths balanced."
   },
   "q42": {
    "status": "pass",
@@ -4362,9 +4489,8 @@
   "q44": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Derived the answer from the cited quotes first and it matches the key; no second defensible answer, no tell, numbers grounded, notes supported.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "ESS near-miss: asof 2014-10-14 close 186.97 over the 50-day 186.75 after 24 closes under it (09-12 to 10-13); next sessions close 187.45, 187.53, 186.71 (a poke again), then 189.65 on 10-20, so 'remounted clearly in the next sessions' shows in the 20-bar replay. Fix: the why and the deeper trap said ESS 'reached 14.9R'. Recomputing the dossier trade (buy 10-22 at 192.04, stop 189.47, R 2.57) gives 14.93R only on day 60 after the buy, which is 66 sessions after asof, past the 60-bar replay cap, so the replay can never show it and the dossier does not date it. Removed the 14.9R claim from the te"
   },
   "q45": {
    "status": "pass",
@@ -4413,19 +4539,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "keep; measuring stick"
+   "notes": "FDX card 13 failure (Entry A): buy at the remount-day close 198.12 on 2018-07-31, stop 195.31 = 5c under that day's low 195.36; entry inside the range 195.36-200.34. 08-01 low 193.94 takes the stop (next day). 3R = 198.12 + 3 x 2.81 = 206.55, first reached 09-13 = offset 31, inside forward 35 ('weeks later' fits, about six weeks). 200-day 195.86, close over it. Trade matches text and dossier. Ticker absent."
   },
   "q53": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "e01/e02: AAPL buy 163.43, stop 159.25, next open 159.90 (above the stop), low 153.37, S&P 500 under its 200-day. 'Traded through the stop' is true. Key is a reading, taught as weak (proposed k25), not a rule."
+   "notes": "AAPL card 13 failure (Entry A): buy at the remount-day close 163.43 on 2022-09-12, stop 159.25 = 5c under the low 159.30. Next day opened 159.90 (over the stop) and the low 153.37 went through it: the story's 'opened at 159.90 and traded through the stop' matches the bars. S&P 500 410.97 vs its 200-day 426.27 on the day. Close 163.43 over the AAPL 200-day 161.05. Key (index was weak) true. Ticker absent."
   },
   "q54": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Pass. Key is the lone negative against three positive misreadings, a mild tell, but the three are the natural misreadings of heavy volume and every note is cited (k25, d08, d09, d13). Rests on proposed D-023, already owner-flagged."
+   "fixed": true,
+   "notes": "PYPL 2018-10-19 is the remount day and the earnings reaction day (report 10-18 after the close); volume 34.2M, dossier 2.98x; close 84.78 over the 200-day 82.40; SPY 276.25 under its 200-day 276.51. Two fixes: (1) the story said the index 'is making new lows', but on 10-19 SPY's low was 10-11 (270.36); it made new lows on 10-24, after the buy, so the chart at asof contradicted the story; now 'in a sharp correction' (SPY fell about 8% in October, true on the chart). (2) the why and a wrong-answer text said 'stopped the next session', but the next session after the remount day is the quiet day; "
   },
   "q55": {
    "status": "pass",
@@ -4528,14 +4654,14 @@
   "q71": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "agrees with rulings"
+   "fixed": true,
+   "notes": "UTHR card winner: quiet day 2020-10-14 high 110.66, low 108.16; buy 110.67, stop 108.11 (5c under); 200-day remount (close 108.32 over 105.59 on 10-13). The question is a live in-trade decision two days after the buy, but the chart ended on the buy day with the trade, so the member saw none of the 'two days later' the story describes. Moved asof to 2020-10-19 (two sessions on: close 116.47 over the 200-day 106.12) with no trade drawn (a trade may only sit on its buy-day bar), as the pilot does for its in-trade decisions; the replay still plays on. The story now names the 200-day so the line on"
   },
   "q72": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
+   "notes": "Same DOCU quiet-day chart as q25, second and last use, no trade, no outcome named. 59.54 + 5 x 1.10 = 65.04; wrongs 66.14 / 67.24 / 70.54 are 6R / 7R / 10R as written. Ticker absent."
   },
   "q73": {
    "status": "pass",
@@ -4597,7 +4723,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "D-021: the wrong text names the 10-day in the stretch rule; renamed to the 9 EMA so no line is named that the chart does not draw. Cited r21. | 2026-11-14: stretch rule kept as the rulebook's C29 (10-day average) until the owner rules D-017 (9 EMA or 10-day). | 2026-11-14: stretch line read through D-021 as the 9 EMA, as in the other 44 live questions."
+   "notes": "MGM remount day 2013-12-06: close 20.17 over the 9 EMA 19.49, 20 EMA 19.37 and 50-day 19.79; 200-day 16.36 rising; after 25 closes under the 50-day; clear green (+1.4%). So no average sits over price and the A plus key is true. Fix: the story said the close 'clears its 20 EMA', but the stock had already closed over the 20 EMA on 12-03, 12-04 and 12-05, which the chart shows; reworded to 'sits over its 20 EMA'."
   },
   "q87": {
    "status": "cut",

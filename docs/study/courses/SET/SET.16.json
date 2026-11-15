@@ -1351,7 +1351,7 @@
     ]
    },
    "batch": "visuals-2",
-   "story": "Hidden ticker, the day before the pop.",
+   "story": "The day before the pop.",
    "chart": {
     "sym": "DHI",
     "asof": "2023-10-31",
@@ -1551,7 +1551,7 @@
     ]
    },
    "batch": "visuals-2",
-   "story": "Hidden ticker, the day before the pop.",
+   "story": "The day before the pop.",
    "chart": {
     "sym": "RCL",
     "asof": "2009-07-14",
@@ -1797,7 +1797,7 @@
     "$200.78": "Doubled the three R to six R."
    },
    "suffix": "",
-   "story": "Hidden ticker, bought on the pop.",
+   "story": "Bought on the pop.",
    "chart": {
     "sym": "STLD",
     "asof": "2026-03-31",
@@ -1847,7 +1847,7 @@
     ]
    },
    "batch": "visuals-2",
-   "story": "Hidden ticker, bought on the pop at 45.53 with the stop at 44.77. By the next session it is already up 3R.",
+   "story": "Bought on the pop at 45.53 with the stop at 44.77. By the next session it is already up 3R.",
    "chart": {
     "sym": "FNV",
     "asof": "2016-02-03",
@@ -2089,7 +2089,7 @@
     "36.6%": "A decimal slip. The stop is a few percent away, not a third."
    },
    "prefix": "",
-   "story": "Hidden ticker, bought on the pop.",
+   "story": "Bought on the pop.",
    "chart": {
     "sym": "CROX",
     "asof": "2007-04-04",
@@ -2151,7 +2151,7 @@
     "409 shares": "Divided the risk dollars by the stop's percent, not by the dollars per share."
    },
    "prefix": "",
-   "story": "Hidden ticker, bought on the pop.",
+   "story": "Bought on the pop.",
    "chart": {
     "sym": "TGT",
     "asof": "2021-03-19",
@@ -2193,7 +2193,7 @@
     "No, it needs a gap up": "A gap helps, but a pop does not need one. The reason to wait here is the report."
    },
    "house": true,
-   "story": "Hidden ticker, the chart ends the day before. Today the stock trades through its pivot, 81.20, on 1.8 times the 50-day volume, above both averages. The company's earnings come out after today's close.",
+   "story": "The chart ends the day before. Today the stock trades through its pivot, 81.20, on 1.8 times the 50-day volume, above both averages. The company's earnings come out after today's close.",
    "simple": "No, because we take no new buy in the three days before an earnings report, however good the chart looks.",
    "tier": "core",
    "risk": {
@@ -2241,7 +2241,7 @@
     "Wait for a dip to 12.95": "The rule is to buy the open when the gap is within 4% of the pivot. Waiting for a pullback is for a pop that runs past 4%."
    },
    "house": true,
-   "story": "Hidden ticker, the chart ends the day before. The base's high, the pivot, is 12.95. On the pop day the stock opens at 13.18, above both averages.",
+   "story": "The chart ends the day before. The base's high, the pivot, is 12.95. On the pop day the stock opens at 13.18, above both averages.",
    "simple": "Buy the open at market, because 13.18 is a gap within 4% of the 12.95 pivot.",
    "deeper": {
     "example": "RCL, pop 2009-07-15: it gapped open above the 12.95 pivot, under the 4% chase line. We buy the open at 13.18. The stop sits a few cents under the day's low, at 12.97, above the pivot."
@@ -2301,7 +2301,7 @@
     ]
    },
    "batch": "visuals-2",
-   "story": "Hidden ticker, the chart ends the day before the pop.",
+   "story": "The chart ends the day before the pop.",
    "chart": {
     "sym": "NET",
     "asof": "2020-09-17",
@@ -2450,7 +2450,7 @@
     "Pass, the base is too short": "A 6-day base is longer than the 3-session minimum on our card. The base was fine. The 200-day line is the problem."
    },
    "house": true,
-   "story": "Hidden ticker, the chart ends the day before the pop. A January 2019 chart: a 36% decline, a 6-day base, and a pop on 1.1x the base's volume. The pop day closed 7.3% under the 200-day.",
+   "story": "The chart ends the day before the pop. A January 2019 chart: a 36% decline, a 6-day base, and a pop on 1.1x the base's volume. The pop day closed 7.3% under the 200-day.",
    "simple": "Pass, because our hard rule bars stock longs below the 200-day line, even when the base is clean and the pop works.",
    "tier": "extended",
    "risk": {
@@ -2644,7 +2644,7 @@
     "Move the stop to the pivot": "The stop sits a few cents under the day's low. Moving it to fit is the mistake."
    },
    "house": true,
-   "story": "Hidden ticker, bought on the pop at 24.58. The stop sits a few cents under the pop day's low, at 23.68, which is 3.66% away.",
+   "story": "Bought on the pop at 24.58. The stop sits a few cents under the pop day's low, at 23.68, which is 3.66% away.",
    "simple": "Make the position smaller, because the stop is 3.66% away, wider than about 3%, and we never tighten a stop to fit.",
    "tier": "extended",
    "risk": {
@@ -2940,7 +2940,7 @@
     "Proof the setup does not work": "One loss at the stop proves nothing about the setup. A valid pop can fail, and then the stop does its job."
    },
    "house": true,
-   "story": "Hidden ticker, bought on the pop at 209.81 with the stop at 199.95. A 13-day base after a 41% decline. The pop closes near the high, on 1.24x the base days' volume. The honest stop is 4.7% below your fill. You took it smaller. Day 2 takes the stop.",
+   "story": "Bought on the pop at 209.81 with the stop at 199.95. A 13-day base after a 41% decline. The pop closes near the high, on 1.24x the base days' volume. The honest stop is 4.7% below your fill. You took it smaller. Day 2 takes the stop.",
    "simple": "A planned loss, because the wide stop was still acceptable, you sized down, and the stop did its job.",
    "deeper": {
     "trap": "Trap: calling the loss a mistake because it came on day 2. COIN, 2024-08-23, closed near the high with a 4.7% stop and was stopped on day 2. All four failed pops in our table closed strong, so the candle could not have warned you."
@@ -2995,7 +2995,7 @@
     "Avoid this stock for a month": "There is no ban. A new trigger is a new trade, up to 3 tries a week and 6 a month on one stock."
    },
    "house": true,
-   "story": "Hidden ticker. A 29% decline, an 11-day base, then a gap open at 184.95 on 1.86x the base days' volume, closing high in its range. You bought the open with the stop at 182.70. The next session's low takes it.",
+   "story": "A 29% decline, an 11-day base, then a gap open at 184.95 on 1.86x the base days' volume, closing high in its range. You bought the open with the stop at 182.70. The next session's low takes it.",
    "simple": "Take the loss and wait, because we buy this stock again only when the setup triggers again as a fresh trade.",
    "deeper": {
     "example": "PLTR, 2025-12-10: buy 184.95, stop 182.70. The next session's low of 180.21 took the stop. A valid pop that failed, and the stop did its job. All four pop days in our failed examples closed strong, so the candle gave no warning. The loss was the size we planned."
@@ -3209,7 +3209,7 @@
     "Take the 3R trim right away": "The first sell is a judgment, not a fixed third at 3R."
    },
    "house": true,
-   "story": "Hidden ticker, bought on the pop at 36.50 with the stop at 35.59, so 3R is 39.23. On day 2 the stock trades up through 3R.",
+   "story": "Bought on the pop at 36.50 with the stop at 35.59, so 3R is 39.23. On day 2 the stock trades up through 3R.",
    "simple": "Judge it. Trading through 3R is not an automatic sell, and we rarely sell this early.",
    "deeper": {
     "trap": "Trap: treating 3R as a sell trigger. The first sell depends on a variety of factors, such as how many days the push has run."
@@ -3336,7 +3336,7 @@
     "A limit buy resting at 30.24": "Entries are market orders. Our buy is a market order as price trades through the pivot."
    },
    "house": true,
-   "story": "Hidden ticker, the chart ends the day before. One wide bar runs from inside the base through the pivot, 30.24, and both averages. It closes at 31.72, 4.9% over the pivot.",
+   "story": "The chart ends the day before. One wide bar runs from inside the base through the pivot, 30.24, and both averages. It closes at 31.72, 4.9% over the pivot.",
    "simple": "Buy with a market order as it trades through 30.24, because the close at 31.72 was past the 4% chase line.",
    "deeper": {
     "trap": "Why not wait for the close to be sure? The close is known only at the close, and a wide bar can run well past the chase line by then. Here it closed 4.9% over the pivot. So the buy is the trade through the pivot, set up with an alert at the pivot, not a decision at the bell."
@@ -3655,7 +3655,7 @@
     "No; a 12-day base is too long": "The card sets a minimum base, not a maximum. The base is not the problem."
    },
    "house": true,
-   "story": "Hidden ticker, the day before a possible pop. An 18% dip into a 12-day base. Only 7 of the 15 closes before the pop sat under the 20 EMA.",
+   "story": "The day before a possible pop. An 18% dip into a 12-day base. Only 7 of the 15 closes before the pop sat under the 20 EMA.",
    "simple": "No, because only 7 of the 15 closes before it sat under the 20 EMA, so this is a pullback in an uptrend.",
    "deeper": {
     "trap": "Trap: calling it a pop because the dip and the base look right. The count of closes under the 20 EMA is the test, and this stock fell one short, so it was a pullback in an uptrend."
@@ -3767,7 +3767,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "wp.base_tight",
-   "q": "Hidden ticker, the day before a possible pop. Is this a Wedge Pop base to watch?",
+   "q": "The day before a possible pop. Is this a Wedge Pop base to watch?",
    "choices": [
     "Watch it; the bars are tightening",
     "Skip it; the base looks loose",
@@ -3815,7 +3815,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "wp.base_tight",
-   "q": "Hidden ticker, the day before a possible pop. Is this a Wedge Pop base to watch?",
+   "q": "The day before a possible pop. Is this a Wedge Pop base to watch?",
    "choices": [
     "Skip it; the bars are not tight",
     "Watch it; it sits under its averages",

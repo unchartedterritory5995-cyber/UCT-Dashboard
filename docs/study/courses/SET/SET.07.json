@@ -1168,7 +1168,7 @@
     "window": 150,
     "forward": 20
    },
-   "story": "Hidden ticker, the day before a breakout."
+   "story": "The day before a breakout."
   },
   {
    "key": "q03",
@@ -1268,7 +1268,7 @@
     "window": 150,
     "forward": 20
    },
-   "story": "Hidden ticker, the day before a breakout."
+   "story": "The day before a breakout."
   },
   {
    "key": "q06",
@@ -1388,7 +1388,7 @@
     "window": 200,
     "forward": 20
    },
-   "story": "Hidden ticker, the day before a breakout."
+   "story": "The day before a breakout."
   },
   {
    "key": "q10",
@@ -1436,7 +1436,7 @@
     "window": 150,
     "forward": 20
    },
-   "story": "Hidden ticker, the day before a breakout."
+   "story": "The day before a breakout."
   },
   {
    "key": "q11",
@@ -1467,7 +1467,7 @@
     "No; the first test is too recent": "The card needs the first touch at least 10 sessions back. This base passes that test."
    },
    "house": true,
-   "story": "Hidden ticker, the day before a breakout. A stock rests 6.4 weeks under about 733. It has tapped that top three times, on three swings.",
+   "story": "The day before a breakout. A stock rests 6.4 weeks under about 733. It has tapped that top three times, on three swings.",
    "simple": "Yes, because two or more separate touches of the top make a flat ceiling, and this one has three.",
    "deeper": {
     "counter": "Bulkowski's rectangle wants one line touched at least three times and the other at least twice, using distinct peaks and valleys. Our card asks only for two separate touches of the top, the first at least 10 sessions back. Three clean taps just make the top look cleaner."
@@ -1661,7 +1661,7 @@
     "window": 150,
     "forward": 20
    },
-   "story": "Hidden ticker, the day before a breakout."
+   "story": "The day before a breakout."
   },
   {
    "key": "q17",
@@ -1772,7 +1772,7 @@
     "window": 120,
     "forward": 30
    },
-   "story": "Hidden ticker, bought on the breakout and already up 3R the next session."
+   "story": "Bought on the breakout and already up 3R the next session."
   },
   {
    "key": "q20",
@@ -1791,7 +1791,7 @@
     },
     "round": 2
    },
-   "why": "75.92. One R is the fill minus the stop: 73.16 minus 72.24. Add three of those to the fill, 73.16, and you get 75.92. It is a mark on the ruler and not a fixed sell. WSM reached 3R the next session and 5R by day 10.",
+   "why": "75.92. One R is the fill minus the stop: 73.16 minus 72.24. Add three of those to the fill, 73.16, and you get 75.92. It is a mark on the ruler and not a fixed sell. WSM passed both 3R and 5R on the buy day itself.",
    "lesson_line": "Know your 3R before the open. It is a measuring mark, not an automatic sell.",
    "facts": [
     "r06",
@@ -1831,7 +1831,7 @@
      "stop": 72.24
     }
    },
-   "story": "Hidden ticker, bought on the breakout at 73.16 with the stop at 72.24."
+   "story": "Bought on the breakout at 73.16 with the stop at 72.24."
   },
   {
    "key": "q21",
@@ -2129,7 +2129,7 @@
      "stop": 70.7
     }
    },
-   "story": "Hidden ticker, bought on the breakout at 72.20 with the stop at 70.70."
+   "story": "Bought on the breakout at 72.20 with the stop at 70.70."
   },
   {
    "key": "q28",
@@ -2187,7 +2187,7 @@
      "stop": 29.79
     }
    },
-   "story": "Hidden ticker, bought on the breakout at 30.28, stop 29.79. Later it trades to 32.73."
+   "story": "Bought on the breakout at 30.28, stop 29.79. Later it trades to 32.73."
   },
   {
    "key": "q29",
@@ -2863,7 +2863,7 @@
      "stop": 57.96
     }
    },
-   "story": "Hidden ticker, bought on the breakout."
+   "story": "Bought on the breakout."
   },
   {
    "key": "q46",
@@ -3095,7 +3095,7 @@
     "Yes; IBD allows bases to 20%": "IBD's limit is 15% from the intraday peak to the intraday trough. MarketSmith agrees. 18.5% is past that."
    },
    "house": true,
-   "story": "Hidden ticker, the day before a breakout: a 27-session rest after a 51% run, three taps of the top, but the low sits 18.5% under the left-side high.",
+   "story": "The day before a breakout: a 27-session rest after a 51% run, three taps of the top, but the low sits 18.5% under the left-side high.",
    "simple": "No, because a flat base can be at most 15% deep, and this one is 18.5% deep.",
    "deeper": {
     "trap": "The trap is counting taps first. Three clean taps of the top feel like a flat base, so you stop measuring. Measure depth first, from the left-side high down to the intraday low. This one is 18.5% deep by our scan, past the 15% line. After a 51% run it looks like a rest, but the pattern still has to be shallow."
@@ -3591,7 +3591,7 @@
     "Market; stop under low; all out at 5R": "The first sell is part of the position, into a push. Selling it all at once gives up the trail."
    },
    "house": true,
-   "story": "Hidden ticker, the day before a breakout: six weeks flat, three taps of 90, above its 50 and 200-day. It may trade through 90 tomorrow.",
+   "story": "The day before a breakout: six weeks flat, three taps of 90, above its 50 and 200-day. It may trade through 90 tomorrow.",
    "simple": "Buy at market through the pivot, put the stop under the day's low, and sell the first piece into a push.",
    "deeper": {
     "example": "NUS, 2013-09-09: it traded through 90 on 1.9x volume. Buy 90.01, stop 88.22, which is 2.0% under the fill. It reached 3R on day 1, and the scan ran on to 23.5R. That is why we rarely sell on day 1. A plan made before the trigger lets you act without a debate."
@@ -3699,7 +3699,7 @@
     ]
    },
    "batch": "sweep-2026-11-14",
-   "story": "Hidden ticker, the day before a breakout."
+   "story": "The day before a breakout."
   },
   {
    "key": "q67",
@@ -3747,7 +3747,7 @@
     ]
    },
    "batch": "pilot-1",
-   "story": "Hidden ticker, the day before it trades through a flat top."
+   "story": "The day before it trades through a flat top."
   },
   {
    "key": "q68",

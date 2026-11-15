@@ -1225,7 +1225,7 @@
     ]
    },
    "batch": "visuals-1",
-   "story": "Hidden ticker, the breakout day. You buy as it trades through the IPO high, filled at 28.05.",
+   "story": "The breakout day. You buy as it trades through the IPO high, filled at 28.05.",
    "chart": {
     "sym": "APTV",
     "asof": "2012-11-02",
@@ -1318,7 +1318,7 @@
     "Yes, but only after it breaks out": "The base is the rest under the high, with no close above it. The breakout is the trigger, not part of the base."
    },
    "house": true,
-   "story": "Hidden ticker, the day before the breakout. A stock listed 189 sessions before the breakout has rested 4.0 weeks under its IPO high of 30.78, 16% deep. Its low held above the IPO open, and nothing has closed above the high.",
+   "story": "The day before the breakout. A stock listed 189 sessions before the breakout has rested 4.0 weeks under its IPO high of 30.78, 16% deep. Its low held above the IPO open, and nothing has closed above the high.",
    "simple": "Yes. It is the stock's first rest under its own high, and nothing has closed above that high.",
    "tier": "core",
    "risk": {
@@ -1472,7 +1472,7 @@
     ]
    },
    "batch": "visuals-1",
-   "story": "Hidden ticker, the day before the trigger.",
+   "story": "The day before the trigger.",
    "chart": {
     "sym": "LULU",
     "asof": "2007-09-18",
@@ -1560,7 +1560,7 @@
     },
     "round": 2
    },
-   "why": "One R is the fill minus the stop, 57.42 minus 56.05. Three R is three of those added to the fill: 57.42 plus 3 times (57.42 minus 56.05) is 61.53. R is a distance in dollars, not a fixed percent of price. The first sell is a judgment, not a fixed third at 3R. KRMN reached 3R the next day.",
+   "why": "One R is the fill minus the stop, 57.42 minus 56.05. Three R is three of those added to the fill: 57.42 plus 3 times (57.42 minus 56.05) is 61.53. R is a distance in dollars, not a fixed percent of price. The first sell is a judgment, not a fixed third at 3R. KRMN passed 3R on the buy day itself.",
    "lesson_line": "Know your 3R before the open. It is a mark on the ruler, not an automatic sell.",
    "facts": [
     "r04",
@@ -1589,7 +1589,7 @@
     "$60.16": "That counts three R up from the stop, not from the fill.",
     "$62.90": "That adds four R. Three R is three gaps, not four."
    },
-   "story": "Hidden ticker, bought on the breakout at 57.42 with the stop at 56.05.",
+   "story": "Bought on the breakout at 57.42 with the stop at 56.05.",
    "chart": {
     "sym": "KRMN",
     "asof": "2025-09-05",
@@ -1651,7 +1651,7 @@
     "70.7%": "That is the low as a share of the high. Depth is the drop, not what is left.",
     "16.0%": "That is the dollar amount read as a percent. Divide it first."
    },
-   "story": "Hidden ticker, the day before the trigger.",
+   "story": "The day before the trigger.",
    "chart": {
     "sym": "BSY",
     "asof": "2021-05-21",
@@ -1707,7 +1707,7 @@
     "5.3%": "That divides by the stop. Divide by the fill, the price you paid.",
     "0.55%": "That is the dollar amount read as a percent. Divide it first."
    },
-   "story": "Hidden ticker, bought on the breakout at 10.96 with the stop at 10.41.",
+   "story": "Bought on the breakout at 10.96 with the stop at 10.41.",
    "chart": {
     "sym": "MA",
     "asof": "2007-01-17",
@@ -1770,7 +1770,7 @@
     "$57.55": "That adds a fraction of a percent, not 4 percent. A decimal slip.",
     "$58.46": "That adds only half of the 4 percent."
    },
-   "story": "Hidden ticker, the day before the trigger.",
+   "story": "The day before the trigger.",
    "chart": {
     "sym": "KRMN",
     "asof": "2025-09-04",
@@ -2150,7 +2150,7 @@
     "The VCP card": "Nothing in the story shows shrinking swings. Tightening inside an IPO base is only a grade cue, not a VCP."
    },
    "house": true,
-   "story": "Hidden ticker, the day before the breakout. A stock listed 68 sessions before the breakout rests 6.4 weeks, 12% deep, under its post-listing high. It is the first rest, and its numbers could pass for a flat base.",
+   "story": "The day before the breakout. A stock listed 68 sessions before the breakout rests 6.4 weeks, 12% deep, under its post-listing high. It is the first rest, and its numbers could pass for a flat base.",
    "simple": "The IPO base card. The stock is young and this is its first rest, so the listing date decides, not the shape.",
    "deeper": {
     "counter": "Shape is not the label. While the stock is young, a rest that looks like a flat base is judged by the IPO base card. Past its first year, a stock is a regular base candidate and a different card judges it."
@@ -2284,7 +2284,7 @@
     "Buy full size and skip the stop": "With no stop there is no defined risk. The stop sets the size and is never skipped."
    },
    "house": true,
-   "story": "Hidden ticker, bought on the breakout at 30.09. The honest stop is 28.70, wider than the 1% to 3% we prefer.",
+   "story": "Bought on the breakout at 30.09. The honest stop is 28.70, wider than the 1% to 3% we prefer.",
    "simple": "Buy fewer shares. The stop sets the size, so a wide honest stop means a smaller position.",
    "tier": "extended",
    "risk": {
@@ -2468,7 +2468,7 @@
     "2,252 shares": "That risks ten times the planned dollars. A decimal slip.",
     "450 shares": "That risks double the planned dollars."
    },
-   "story": "Hidden ticker, bought on the breakout.",
+   "story": "Bought on the breakout.",
    "chart": {
     "sym": "BSY",
     "asof": "2021-05-24",
@@ -2516,7 +2516,7 @@
     ]
    },
    "batch": "visuals-1",
-   "story": "Hidden ticker, bought on the breakout at 62.64 with the stop at 60.76.",
+   "story": "Bought on the breakout at 62.64 with the stop at 60.76.",
    "chart": {
     "sym": "LSPD",
     "asof": "2020-12-22",
@@ -2734,7 +2734,7 @@
     "The first day opened too high": "A high open is not a flaw. The fault is the later low, which sank under it."
    },
    "house": true,
-   "story": "Hidden ticker, the day before the trigger. A direct listing opened at 165.90 on its first day. Its first base sank to a low of 135.51. The next day it trades through its IPO high.",
+   "story": "The day before the trigger. A direct listing opened at 165.90 on its first day. Its first base sank to a low of 135.51. The next day it trades through its IPO high.",
    "simple": "The base failed because it sank under the first day's open, and a good base holds above the IPO price.",
    "deeper": {
     "trap": "Do not judge the floor by the breakout alone. A stock can clear its IPO high after the base has already broken its floor. Check the base low against the IPO price before you look at volume or the trigger."
@@ -2785,7 +2785,7 @@
     "The IPO base card, it lacks a 200-day": "At 318 sessions the stock is old enough for a 200-day. Its age, not its averages, decides the card."
    },
    "house": true,
-   "story": "Hidden ticker, the day before the breakout. A clean 3.6-week, 14% shelf under the high breaks out on 2.2x volume the next day. The breakout comes 318 sessions after listing.",
+   "story": "The day before the breakout. A clean 3.6-week, 14% shelf under the high breaks out on 2.2x volume the next day. The breakout comes 318 sessions after listing.",
    "simple": "A regular base, because the stock is past its first year, so the IPO base card no longer applies.",
    "deeper": {
     "example": "CAVA is the case. It was a clean 3.6-week, 14% shelf on 2.2x volume. But it came 318 sessions after listing, past its first year. The shelf was fine. Only the card was wrong."
@@ -2833,7 +2833,7 @@
     "Weak; the base was too deep": "A 10% base is shallow. IBD says most IPO bases correct less than 20%, so depth is not the problem."
    },
    "house": true,
-   "story": "Hidden ticker, the breakout day. A spin-off listed in June. A 6-week, 10% base at the high breaks out today on 0.75x the base's average volume.",
+   "story": "The breakout day. A spin-off listed in June. A 6-week, 10% base at the high breaks out today on 0.75x the base's average volume.",
    "simple": "Weak, because the breakout came on less volume than the base averaged, so buyers were not there.",
    "deeper": {
     "trap": "Do not read a clean base as proof of demand. NWSA had a 6-week, 10% base at the high, yet the breakout came on 0.75x the base's volume. Volume is the demand check, and here it graded the breakout weak. A weak grade is not a ban."
@@ -2911,7 +2911,7 @@
     "Mostly cash and shorts, no longs": "That is Red. Yellow means smaller and fewer positions, not mostly cash."
    },
    "house": true,
-   "story": "Hidden ticker, the day before its second breakout. The first base broke out in February and stopped out. The market has been flat all year, and your market reading says Yellow.",
+   "story": "The day before its second breakout. The first base broke out in February and stopped out. The market has been flat all year, and your market reading says Yellow.",
    "simple": "Yellow means we take smaller and fewer positions. It does not mean full risk, and it is not the Orange rule of only A+ setups.",
    "deeper": {
     "trap": "A clean base does not make the market Green. APTV's two clean-looking failures came in a flat 2012 market. Read the market first, then the chart."
@@ -3352,7 +3352,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "ipo.structure",
-   "q": "Hidden ticker, the day before a breakout. Is this a first rest under the IPO high? Take it or pass.",
+   "q": "The day before a breakout. Is this a first rest under the IPO high? Take it or pass.",
    "choices": [
     "Take it; a tight rest under the high",
     "Pass; a new issue cannot form a base",
@@ -3404,7 +3404,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "ipo.above_ipo_price",
-   "q": "Hidden ticker, the day before it trades through its high. Does the base hold above the first day's open?",
+   "q": "The day before it trades through its high. Does the base hold above the first day's open?",
    "choices": [
     "Take it; the shelf is tight",
     "Pass; the base sank under the first open",
@@ -3808,7 +3808,7 @@
    "format": "scenario",
    "criterion": "ipo.location_averages",
    "q": "What does the location check ask of it?",
-   "story": "Hidden ticker, the day before the breakout, which comes 40 sessions after listing. It has no 50-day yet.",
+   "story": "The day before the breakout, which comes 40 sessions after listing. It has no 50-day yet.",
    "choices": [
     "The 9 and 20 EMA; the 50-day later",
     "The 50-day, so wait until it has formed",
@@ -3903,7 +3903,7 @@
    "format": "scenario",
    "criterion": "ipo.stop_broker",
    "q": "What does our rule say about the stop?",
-   "story": "Hidden ticker, bought on the breakout at 33.38 with the stop at 32.62. You want to lower the stop to give it air.",
+   "story": "Bought on the breakout at 33.38 with the stop at 32.62. You want to lower the stop to give it air.",
    "choices": [
     "Keep it where it is or raise it",
     "Lower it a little for a new issue",
@@ -3979,7 +3979,7 @@
     ]
    },
    "batch": "visuals-1",
-   "story": "Hidden ticker, bought on the breakout at 62.64 with the stop at 60.76.",
+   "story": "Bought on the breakout at 62.64 with the stop at 60.76.",
    "chart": {
     "sym": "LSPD",
     "asof": "2020-12-22",
@@ -4043,7 +4043,7 @@
     "$22.81": "That is the fill itself. Two R must be added to it.",
     "$20.65": "That subtracts two R from the fill instead of adding it."
    },
-   "story": "Hidden ticker, bought on the breakout at 22.81 with the stop at 21.73.",
+   "story": "Bought on the breakout at 22.81 with the stop at 21.73.",
    "chart": {
     "sym": "SABR",
     "asof": "2015-03-19",

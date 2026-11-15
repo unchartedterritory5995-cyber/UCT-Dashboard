@@ -1070,7 +1070,7 @@
     ]
    },
    "batch": "visuals-1",
-   "story": "Hidden ticker, a hold day just closed.",
+   "story": "A hold day just closed.",
    "chart": {
     "sym": "UAA",
     "asof": "2015-06-15",
@@ -1229,7 +1229,7 @@
     ]
    },
    "batch": "visuals-1",
-   "story": "Hidden ticker, the day before a buy. Look at the last bar.",
+   "story": "The day before a buy. Look at the last bar.",
    "chart": {
     "sym": "CROX",
     "asof": "2007-04-20",
@@ -1395,7 +1395,7 @@
     "$105.87": "Added four R, counting the fill as the first one."
    },
    "suffix": "",
-   "story": "Hidden ticker, bought on the trigger day.",
+   "story": "Bought on the trigger day.",
    "chart": {
     "sym": "ALGN",
     "asof": "2017-02-10",
@@ -1455,7 +1455,7 @@
     "96.4%": "Gave the stop as a share of the fill, not the gap between them."
    },
    "prefix": "",
-   "story": "Hidden ticker, bought on the trigger day.",
+   "story": "Bought on the trigger day.",
    "chart": {
     "sym": "HOOD",
     "asof": "2025-09-16",
@@ -1516,7 +1516,7 @@
    },
    "prefix": "",
    "suffix": "",
-   "story": "Hidden ticker, bought on the trigger day.",
+   "story": "Bought on the trigger day.",
    "chart": {
     "sym": "HOOD",
     "asof": "2025-09-16",
@@ -1734,7 +1734,7 @@
     "Breakout; a push to new highs": "This stock is testing its averages after the pop, not pushing out to a new high."
    },
    "house": true,
-   "story": "Hidden ticker, a hold day just closed. A three-month correction ended nine sessions ago, with a pop on 1.7x volume. The 9 is over the 20 again. Today it dips back to those averages. It has not been near them since the pop.",
+   "story": "A hold day just closed. A three-month correction ended nine sessions ago, with a pop on 1.7x volume. The 9 is over the 20 again. Today it dips back to those averages. It has not been near them since the pop.",
    "simple": "This is the first test of the averages since the stock closed back over them, so it is the crossback.",
    "tier": "core",
    "risk": {
@@ -1779,7 +1779,7 @@
     "A Wedge Drop, a break lower": "A Wedge Drop follows an Exhaustion Extension at the top of a run. This stock is turning up from weeks under its averages."
    },
    "house": true,
-   "story": "Hidden ticker. After a three-month correction, the stock closes back over its 9 and 20 EMA on 1.7x volume.",
+   "story": "After a three-month correction, the stock closes back over its 9 and 20 EMA on 1.7x volume.",
    "simple": "This is the pop itself, the first move back over the averages. The crossback is the pullback that comes after.",
    "deeper": {
     "counter": "Counter: say the same stock later pulls back and holds its averages. If the 9 is still over the 20, that pullback is the crossback. Same stock, different day. The close back over the averages is only the pop."
@@ -1832,7 +1832,7 @@
     "Exhaustion Extension; a climax": "An Exhaustion Extension is a climax run far above the 9 EMA. This stock is resting at its averages."
    },
    "house": true,
-   "story": "Hidden ticker, a hold day just closed. The stock popped sixteen sessions ago and has already pulled into its averages once. Today it pulls back into them again.",
+   "story": "A hold day just closed. The stock popped sixteen sessions ago and has already pulled into its averages once. Today it pulls back into them again.",
    "simple": "The stock already rested at its averages once, so this second rest is a Base n' Break, not a crossback.",
    "tier": "core",
    "risk": {
@@ -2290,7 +2290,7 @@
     "The hold day was not the first pullback": "Nothing in the story says it was a second pullback. The gate that fails is the depth of the low."
    },
    "house": true,
-   "story": "Hidden ticker, a hold day just closed. It closed back over the 20 EMA, but its low sat 2.1% under the line.",
+   "story": "A hold day just closed. It closed back over the 20 EMA, but its low sat 2.1% under the line.",
    "simple": "The low went 2.1% under the 20 EMA, but the zone ends about 1% under it.",
    "deeper": {
     "example": "AMAT, 2023-08-28: the low sat 2.1% under the 20 EMA against a rule of at most 1%. It was stopped, best run 2.27R. CLS undercut by only 0.6% and closed back over the line, and it reached 3R in 3 days."
@@ -2369,7 +2369,7 @@
     "Skip it, the stop is wider than 3%": "A stop of 3.4% is well inside what we accept. We prefer 1 to 3%, call 3.5% good, and accept up to 5%. A wider honest stop gets fewer shares."
    },
    "house": true,
-   "story": "Hidden ticker, bought on the trigger day. Fill 50.64, stop 48.94 under the hold day's low, which is 3.4% away. Your risk percent is set.",
+   "story": "Bought on the trigger day. Fill 50.64, stop 48.94 under the hold day's low, which is 3.4% away. Your risk percent is set.",
    "simple": "A wider stop means fewer shares, so keep the honest stop and cut the size.",
    "deeper": {
     "example": "CLS: fill 50.64, stop 48.94, which is 3.4% away. The wider stop does not change the plan. It only means the same risk buys fewer shares."
@@ -2423,7 +2423,7 @@
     "Wait three days, then buy again": "Time alone is not a trigger. A re-buy is a new trade with its own trigger, stop and every rule."
    },
    "house": true,
-   "story": "Hidden ticker: a pop on 1.3x volume, a 3-day drift and a clean hold day. You bought at 123.70 with the stop at 120.63. The next session it fell through the stop.",
+   "story": "A pop on 1.3x volume, a 3-day drift and a clean hold day. You bought at 123.70 with the stop at 120.63. The next session it fell through the stop.",
    "simple": "Take the loss and wait. Buy again only on a new hold day and trigger, as a brand new trade.",
    "deeper": {
     "trap": "The hardest part is the shakeout. MU later reached 3R (132.91) and 5R (139.05) without us, so the stop felt wrong. It was not. A new buy needs a new hold day and a new trigger, within 3 tries a week and 6 a month."
@@ -2657,7 +2657,7 @@
     "Buy at market; stop at the entry price": "A stop at the entry is breakeven, which comes from 2R. The first stop is a few cents under the hold day's low."
    },
    "house": true,
-   "story": "Hidden ticker. A leader popped on strong volume, then drifted back for three sessions. The hold day closed strong over the 20 EMA. Next morning, the stock trades a few cents over the hold day's high.",
+   "story": "A leader popped on strong volume, then drifted back for three sessions. The hold day closed strong over the 20 EMA. Next morning, the stock trades a few cents over the hold day's high.",
    "simple": "Buy at market over the hold day's high and put the stop a few cents under its low.",
    "deeper": {
     "trap": "The trap is the second piece. A clean trigger feels like a reason to buy half now and add later. Our rule is one full entry at one price with one stop. The stop sets the size."
@@ -2708,7 +2708,7 @@
     "Yes; a close under the line is fine too": "The hold day closes back over the line, in the upper half of its range. A close under the line means the line was lost."
    },
    "house": true,
-   "story": "Hidden ticker, a hold day just closed after four quiet sessions. Its low sat 0.6% under the 20 EMA. It closed back over the line, in the upper half of its range.",
+   "story": "A hold day just closed after four quiet sessions. Its low sat 0.6% under the 20 EMA. It closed back over the line, in the upper half of its range.",
    "simple": "Yes, because the low dipped only a little under the 20 EMA and the close came back over the line.",
    "deeper": {
     "counter": "A much deeper undercut did not work. AMAT's hold day low sat 2.1% under the 20 EMA, and it was stopped after a best run of 2.27R. How deep is too deep is a judgment call, not a fixed number."
@@ -2758,7 +2758,7 @@
     "Yes; close does not matter": "The close matters as much as the low. It must be at or above the 20 EMA in the upper half of its range."
    },
    "house": true,
-   "story": "Hidden ticker, a hold day just closed. The stock popped on 3.7x volume and drifted six sessions. The hold day's low sat exactly on the 20 EMA, and it closed strong.",
+   "story": "A hold day just closed. The stock popped on 3.7x volume and drifted six sessions. The hold day's low sat exactly on the 20 EMA, and it closed strong.",
    "simple": "Yes. The low only has to reach the zone, and a low on the 20 EMA does.",
    "tier": "extended",
    "risk": {
@@ -2803,7 +2803,7 @@
     "It came soon after the pop": "Sixteen sessions is a long wait, not a short one."
    },
    "house": true,
-   "story": "Hidden ticker, a hold day just closed, sixteen sessions after the pop and after a long advance. You bought the trigger, and the next day it hit the stop.",
+   "story": "A hold day just closed, sixteen sessions after the pop and after a long advance. You bought the trigger, and the next day it hit the stop.",
    "simple": "The warning is that it came late in the stock's run. The card says late crossbacks fail most.",
    "deeper": {
     "trap": "Lateness is a warning, not a gate. One stop-out does not prove a rule, and a late crossback can still win. The stop decides, and the size already limited the loss."
@@ -2856,7 +2856,7 @@
     "No; a stop covers any report risk": "A stop does not cover a gap through it. The rule is a window: no new buys within 3 sessions of a report."
    },
    "house": true,
-   "story": "Hidden ticker, the day before a crossback buy. The report came five sessions after the entry. The day after the entry, it hit the stop.",
+   "story": "The day before a crossback buy. The report came five sessions after the entry. The day after the entry, it hit the stop.",
    "simple": "No. The report was more than 3 sessions out, so the buy followed the rule.",
    "deeper": {
     "counter": "Had the report been due within 3 sessions, the buy would be barred however clean the hold day. We hold through a report only if the trade is up 5R."
@@ -2998,7 +2998,7 @@
     "Yes, but cut the size in half": "The size comes from the stop and the fill, and nothing says to halve it. A fill inside the limit is a normal full-size buy."
    },
    "house": true,
-   "story": "Hidden ticker, a hold day just closed and the trigger is 424.70. This morning the stock gaps up, and a market buy fills at 429.33, which is 1.1% over the trigger.",
+   "story": "A hold day just closed and the trigger is 424.70. This morning the stock gaps up, and a market buy fills at 429.33, which is 1.1% over the trigger.",
    "simple": "Yes. The fill is 1.1% over the trigger, inside our 4% limit, so buy at market.",
    "deeper": {
     "trap": "Do not mix up two numbers. Kell said 3-4% above the averages was too much for him, and that is distance from the averages. Our 4% limit is measured from the trigger, and the 9 EMA has its own 10% rule."
@@ -3309,7 +3309,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "xbk.hold_day",
-   "q": "Hidden ticker, a hold day just closed. Read the chart. Take it or pass?",
+   "q": "A hold day just closed. Read the chart. Take it or pass?",
    "choices": [
     "Take it; the hold day is strong",
     "Take it; buy at the day's close",
@@ -3358,7 +3358,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "xbk.hold_day",
-   "q": "Hidden ticker, a hold day just closed. Read the chart. Take it or pass?",
+   "q": "A hold day just closed. Read the chart. Take it or pass?",
    "choices": [
     "Pass; it closed near the low",
     "Pass; the low missed the zone",
@@ -3944,7 +3944,7 @@
     "$40.82": "That is the fill, where the stop goes. It is not the trigger price.",
     "$39.52": "That subtracts two R from the fill instead of adding it."
    },
-   "story": "Hidden ticker, bought on the trigger day.",
+   "story": "Bought on the trigger day.",
    "chart": {
     "sym": "UAA",
     "asof": "2015-06-16",
@@ -3990,7 +3990,7 @@
     ]
    },
    "batch": "visuals-1",
-   "story": "Hidden ticker, bought on the trigger day at 136.18 with the stop at 134.80.",
+   "story": "Bought on the trigger day at 136.18 with the stop at 134.80.",
    "chart": {
     "sym": "NOC",
     "asof": "2014-11-11",
@@ -4175,7 +4175,7 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "xbk.index_20ema",
-   "story": "Hidden ticker, a hold day just closed. The stock drifted into its 9/20 zone and printed a strong hold day. The Nasdaq 100 closed under its own 20-day EMA today.",
+   "story": "A hold day just closed. The stock drifted into its 9/20 zone and printed a strong hold day. The Nasdaq 100 closed under its own 20-day EMA today.",
    "q": "On our card, what does the index cue say about this trade?",
    "choices": [
     "It lowers the grade but does not block",

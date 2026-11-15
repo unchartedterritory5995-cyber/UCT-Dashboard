@@ -932,7 +932,7 @@
    "key": "q04",
    "skill": "setup.bear_gap",
    "rung": 1,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "bg.level_resistance",
    "q": "By our card, what does the zone over an open bear gap act as?",
    "choices": [
@@ -970,7 +970,14 @@
      "proposed card criterion (bg.level_resistance), though three outside publishers agree"
     ]
    },
-   "batch": "wave5"
+   "batch": "visuals-5",
+   "story": "A bounce has rallied back up into the open gap zone.",
+   "chart": {
+    "sym": "LDOS",
+    "asof": "2010-04-27",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q05",
@@ -1096,9 +1103,9 @@
    "key": "q09",
    "skill": "setup.bear_gap",
    "rung": 2,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "bg.long_warning",
-   "q": "A stock you own gaps down off its highs. What is that gap?",
+   "q": "What is that gap?",
    "choices": [
     "A warning; the stop decides",
     "A dip; buy more shares",
@@ -1128,7 +1135,14 @@
      "rests on the owner's rulebook (A4, A5, B20)"
     ]
    },
-   "batch": "wave5"
+   "batch": "visuals-5",
+   "story": "You own it, and today it gaps down off its highs.",
+   "chart": {
+    "sym": "HWM",
+    "asof": "2018-02-05",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q10",
@@ -1136,7 +1150,7 @@
    "rung": 2,
    "format": "tf",
    "criterion": "bg.long_warning",
-   "q": "For a long, buying right under an open bear gap is a good entry.",
+   "q": "The bounce just reached the open gap zone. For a long, buying it here is a good entry.",
    "answer": "False",
    "why": "False. For a long, do not buy right under an open bear gap. The zone overhead is resistance, and the first rally into it is where trapped buyers sell. Wait for the fill, a close above the zone's top edge, or for a base to form under it.",
    "lesson_line": "Do not buy right under an open bear gap. Wait for the fill or a base.",
@@ -1155,7 +1169,13 @@
      "proposed card criterion (bg.long_warning) awaiting the owner"
     ]
    },
-   "batch": "wave5"
+   "batch": "visuals-5",
+   "chart": {
+    "sym": "MDT",
+    "asof": "2021-10-27",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q11",
@@ -1487,7 +1507,7 @@
     "Short, at half the usual size",
     "Wait; short a break of today's low"
    ],
-   "story": "A stock gaps down 15% off its highs on 10x volume and closes near its low. The chart looks broken.",
+   "story": "The gap day. It opens 7.6% lower and closes down 20.0% on 12.3x its average volume, in the lower half of its range.",
    "answer": "Wait; do not short on reflex",
    "why": "Wait. Our card says never short the gap day's close by reflex. In our test the stop over the gap day's high was wide, a median 4.2%. The stock sits far under its 9 EMA. Big one-day drops bounced 28% on average in Bulkowski's sample. Any short enters as price trades through its trigger, never at the close. Here that is the later retest, under the 200-day.",
    "lesson_line": "Do not short the gap-day close by reflex. Big drops bounce.",
@@ -1515,7 +1535,13 @@
      "proposed card gate (bg.no_reflex_short) awaiting the owner; Bulkowski and Fleckenstein agree"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "visuals-5",
+   "chart": {
+    "sym": "EEFT",
+    "asof": "2023-07-26",
+    "window": 120,
+    "forward": 60
+   }
   },
   {
    "key": "q20",
@@ -1572,7 +1598,7 @@
     "Yes; any gap down qualifies",
     "No; it must close down 10%"
    ],
-   "story": "A stock opens 6.0% lower, then buyers step in. It closes down 4.2%, at 70% of the day's range.",
+   "story": "The gap day. It opens 6.0% lower, then buyers step in. It closes down 4.2%, at 70% of the day's range.",
    "answer": "No; the gap was bought back",
    "why": "No. The day opened 6.0% lower but closed down only 4.2%, at 70% of its range. Our card asks for a close down at least 5% and in the lower half. Buyers bought the gap back the same day. In our scan this near-miss read closer to a News Failure than a bear gap.",
    "lesson_line": "The close is the test, not the open.",
@@ -1596,7 +1622,13 @@
      "proposed card criterion (bg.gap_day) awaiting the owner"
     ]
    },
-   "batch": "wave5"
+   "batch": "visuals-5",
+   "chart": {
+    "sym": "CMCSA",
+    "asof": "2015-08-24",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q22",
@@ -1983,13 +2015,13 @@
    "q": "Is this a bear gap short?",
    "choices": [
     "No; shorts live under the 200-day",
-    "Yes; 12% is a big enough gap",
-    "Yes; earnings gaps tend to keep going",
+    "Yes; the gap was big enough",
+    "Yes; big gaps tend to keep going",
     "No; shorts are never allowed"
    ],
-   "story": "A leader above its rising 200-day gaps down 12% on earnings and closes in the lower half. A friend says to short it.",
+   "story": "A leader gapped down off its highs and the bounce was rejected. The rejection day closed 5.9% above its 200-day. A friend says to short it.",
    "answer": "No; shorts live under the 200-day",
-   "why": "No. Our rule allows a short only below the 200-day, never above it unless it is a parabolic short. This leader sits above a rising 200-day, so a short is off. In our scan, a gap in a stock still above its 200-day read as a pullback in a leader.",
+   "why": "No. Our rule allows a short only below the 200-day, never above it unless it is a parabolic short. This leader closed 5.9% above its 200-day, so a short is off. In our scan, a gap in a stock still above its 200-day read as a pullback in a leader.",
    "lesson_line": "Above a rising 200-day, a gap down in a leader is not a short.",
    "facts": [
     "h10",
@@ -1998,9 +2030,9 @@
    ],
    "house": true,
    "wrong": {
-    "Yes; 12% is a big enough gap": "The size of the gap does not move the 200-day line. Our rule still bars the short.",
     "No; shorts are never allowed": "Our rule allows shorts below the 200-day. This leader is above it, and that is what rules it out.",
-    "Yes; earnings gaps tend to keep going": "Large down gaps can keep dropping, but our rule allows no short above the 200-day."
+    "Yes; the gap was big enough": "The size of the gap does not move the 200-day line. Our rule still bars the short.",
+    "Yes; big gaps tend to keep going": "Large down gaps can keep dropping, but our rule allows no short above the 200-day."
    },
    "simple": "No, because we only short stocks below the 200-day line, and this leader is above it.",
    "tier": "extended",
@@ -2010,7 +2042,13 @@
      "rests on the owner's rulebook (B26)"
     ]
    },
-   "batch": "wave5"
+   "batch": "visuals-5",
+   "chart": {
+    "sym": "TSLA",
+    "asof": "2014-10-29",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q35",
@@ -2065,12 +2103,12 @@
    "choices": [
     "No; it needs a Red or Orange market",
     "Yes; the stock is under its 200-day",
-    "Yes; Yellow still allows a short",
+    "Yes; a market above its 50-day is fine",
     "No; a 20-day rejection does not count"
    ],
-   "story": "A stock under its own 200-day gapped down off its highs. The bounce was rejected at the 20-day. The market reading is Yellow.",
+   "story": "The stock is under its 200-day and the bounce was rejected at the 20-day. The day after, QQQ closes 1.0% above its 50-day.",
    "answer": "No; it needs a Red or Orange market",
-   "why": "No. The stock meets our 200-day rule, but the market rule is separate. A bear gap retest short needs a Red or Orange reading: it needs the market's help. Yellow is neither, so the short has no help.",
+   "why": "No. The stock meets our 200-day rule, but the market rule is separate. A bear gap retest short needs a Red or Orange reading: it needs the market's help. QQQ above its 50-day is no Red or Orange reading, so the short has no help. In our scan this CIEN short was stopped the next session.",
    "lesson_line": "A good stock chart is not enough. The market must help.",
    "facts": [
     "c14",
@@ -2082,10 +2120,10 @@
    "house": true,
    "wrong": {
     "Yes; the stock is under its 200-day": "That meets the stock's rule. The market rule is separate: Red or Orange.",
-    "Yes; Yellow still allows a short": "Our card asks for a Red or Orange reading. Yellow is neither.",
-    "No; a 20-day rejection does not count": "Our card counts a bounce to the 20-day. The no comes from the market: Yellow is not Red or Orange."
+    "No; a 20-day rejection does not count": "Our card counts a bounce to the 20-day. The no comes from the market, which is not at a Red or Orange reading.",
+    "Yes; a market above its 50-day is fine": "Our card asks for a Red or Orange reading. A market above its 50-day gives no such help."
    },
-   "simple": "No, because our short needs a Red or Orange market reading, and Yellow is neither.",
+   "simple": "No, because our short needs a Red or Orange market reading, and a market above its 50-day gives neither.",
    "deeper": {
     "example": "CIEN, 2017: its bounce was rejected at the 20-day while the general market was in a strong uptrend. The study short was stopped the next session. The market gave no help."
    },
@@ -2097,7 +2135,13 @@
      "fixed twice (the scan never read the market reading itself)"
     ]
    },
-   "batch": "wave5"
+   "batch": "visuals-5",
+   "chart": {
+    "sym": "CIEN",
+    "asof": "2017-09-28",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q37",
@@ -2395,7 +2439,13 @@
      "fixed before by the checker"
     ]
    },
-   "batch": "wave5"
+   "batch": "visuals-5",
+   "chart": {
+    "sym": "BMRN",
+    "asof": "2020-09-23",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q46",
@@ -2579,14 +2629,14 @@
    "criterion": "bg.gap",
    "q": "By our current default, a bear gap is an open at least 1 ATR under the prior close, not filled that day. Read it or pass?",
    "choices": [
-    "Pass; an ordinary down day",
+    "Pass; the open was under 1 ATR",
     "Read it; any gap down counts",
     "Read it; it closed red",
     "Pass; it must open down 5%"
    ],
-   "story": "A stock opens 2.1% under the prior close, 0.89 ATR, and never trades back up to that close. It closes red.",
-   "answer": "Pass; an ordinary down day",
-   "why": "Pass. By our current default, a bear gap needs an open at least 1 ATR under the prior close, not filled that day. This open was 2.1%, or 0.89 ATR: an ordinary down day with no gap zone to defend. A red close does not make it a gap day.",
+   "story": "The gap day. It opens 2.1% under the prior close, 0.89 ATR, and never trades back up to that close. It closes sharply lower.",
+   "answer": "Pass; the open was under 1 ATR",
+   "why": "Pass. By our current default, a bear gap needs an open at least 1 ATR under the prior close, not filled that day. This open was 2.1%, or 0.89 ATR, so there is no gap zone to defend. A red close does not make it a gap day.",
    "lesson_line": "Under 1 ATR is an ordinary down day. No real gap means no zone to defend.",
    "facts": [
     "c33",
@@ -2616,7 +2666,13 @@
    "depends_on": [
     "D-099"
    ],
-   "batch": "wave5"
+   "batch": "visuals-5",
+   "chart": {
+    "sym": "VZ",
+    "asof": "2026-06-29",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q52",
@@ -2838,7 +2894,13 @@
      "fixed before by the checker"
     ]
    },
-   "batch": "wave5"
+   "batch": "visuals-5",
+   "chart": {
+    "sym": "OI",
+    "asof": "2011-07-07",
+    "window": 120,
+    "forward": 40
+   }
   },
   {
    "key": "q58",
@@ -2874,7 +2936,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "bg.status",
-   "q": "Hidden ticker. Read the last bar against the gap zone and the 20-day. Read it or pass?",
+   "q": "Read the last bar against the gap zone and the 20-day. Read it or pass?",
    "choices": [
     "Read it; the bounce was rejected",
     "Pass; the gap already filled",
@@ -2923,7 +2985,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "bg.rejection_candle",
-   "q": "Hidden ticker. The last bar touched the declining 20-day. Read it or pass?",
+   "q": "The last bar touched the declining 20-day. Read it or pass?",
    "choices": [
     "Pass; buyers are in control",
     "Read it; it touched the 20-day",
@@ -3635,8 +3697,8 @@
   "q04": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Decided cold: resistance (c09). g04, m01 (Schaeffer's, re-read live), b01 (Bulkowski, re-read live), g03 verified. Distractors each answered by a quote; no leak into q33 now."
+   "fixed": true,
+   "notes": "LDOS 2010-04-27 checked on the bars: gap day 2010-03-31 (high 44.69, prior close 46.86); 04-27 high 44.96, close 44.47, so 'closed back under the zone' is true and the example is right (rejection day, trigger 04-28). But that clause hands over the answer (resistance) in the story; softened to 'rallied back up into the open gap zone' (also true: 04-23 high 45.58). No numbers added."
   },
   "q05": {
    "status": "pass",
@@ -3660,13 +3722,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Warning, stop decides; the gap-through-stop rule is a stop topic, not a gap-sell rule or an entry wait. Spurious hit."
+   "notes": "HWM 2018-02-05 is the gap day: open -5.9%, close -8.9%, 3.3x (bars and dossier row 5); top 2018-01-12 and the prior close 5.6% off it, so 'off its highs' is true. Last bar = the gap day, a read with no trade. Warning / stop decides is right for the real stock. No ticker in q, story or choices."
   },
   "q10": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "MDT 2021-10-27 on the bars: gap day 10-18 (high 123.26, prior close 127.75); 10-27 high 124.69 reaches the zone, close 122.50 back under its bottom edge; trigger 10-28. Statement False is right (fell on). No numbers in the text."
   },
   "q11": {
    "status": "pass",
@@ -3704,13 +3766,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Wait is right; why now says any short enters as price trades through its trigger, never at the close (cites rs1 verbatim); line renamed 9 EMA with no measured number; c11 quote stays a verbatim quote."
+   "notes": "EEFT 2023-07-26 gap day: open -7.6%, close -20.0%, 12.3x, close at 12% of the range (lower half) on the bars; all in dossier row 8. Wait is right for the real stock (25-session bounce, then the 08-31 retest); forward 60 covers it and no outcome is named."
   },
   "q21": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "CMCSA 2015-08-24: open -6.0%, close -4.2%, 70% of range on the bars, as the card and dossier sec 13. Last bar = the gap day. Key 'No; the gap was bought back' is right."
   },
   "q22": {
    "status": "pass",
@@ -3746,7 +3808,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key on B26 (h10), matches the rulebook; d13 and m02 used correctly. Two Yes, two No, key not longest. Overlaps q22 and q66 on h10, but asked as a different case."
+   "notes": "TSLA rejection day 2014-10-29 (trigger 10-30): close 15.87 is 5.91% over the 200-day SMA 14.99, recomputed from the bars. Story, choices, wrong keys (exact texts) and why agree; the invented 12% and earnings are gone; no ticker in text; key No is right (stopped at 0R)."
   },
   "q35": {
    "status": "pass",
@@ -3861,7 +3923,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "The 'right call, wrong reason' distractor 'No; only a Red reading helps a short' leans on a rulebook tension: section 9 names shorts only under Red (D46; F65 says Orange is only A+ setups), while the card adds Orange (c14, c34). A learner reading the rulebook can defend Red-only. The stem also does not say whose rule. Fix: anchor the stem on our card and swap that distractor for a plainly false reason grounded in c39."
+   "notes": "CIEN rejection day 2017-09-28: close 22.07 under the 20 EMA (22.10) and the 200-day (24.16); trigger 09-29 stopped 10-02. QQQ recomputed: 0.96% over its 50-day on 09-29, so 'the day after ... 1.0%' is true; the card's failure note says the Red or Orange reading was not met. Catch: the merged wrong note for 'No; a 20-day rejection does not count' still said 'Yellow is not Red or Orange', but the story no longer mentions Yellow; re-worded it."
   },
   "q37": {
    "status": "pass",
@@ -3873,7 +3935,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Story numbers all in d10/d11 (35% day, 27x, 24 sessions, 40% off the high). Key right; DLTR note on d04 (+24 sessions) and d05 correct. 19.3R gone. Mild reinforcement from q53's deeper (BMRN 40% off its high), acceptable since the story itself shows the distance."
+   "notes": "BMRN 2020-09-23 rejection day (trigger 09-24): gap 08-19 open -27.6%, close -35.3%, 26.5x; close 78.43 under the 20 EMA 80.11 (high 80.24), 24 sessions after the gap, about 40% off the top (dossier 40.9%). Text unchanged and true; forward 20 reaches the day-12 stop but names no outcome."
   },
   "q46": {
    "status": "pass",
@@ -3898,7 +3960,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "d23, d24, d25 verbatim in the dossier (OI: 23 sessions, -7.9% open, -13.5%, 6.7x, full window, rejection +15 sessions). Key holds whatever D-001 rules: the story gives no 200-day or market, and Version R's trigger is under the rejection candle's low, not the next open."
+   "notes": "OI 2011-07-07 on the bars: gap day 2011-06-15 open -7.9%, close -13.5%, 6.7x, high 27.45 under the prior low (full window); 07-07 is 15 sessions later, high 27.07 under the zone 27.45-29.54, close 26.76 under the 20 EMA 26.82; trigger 07-08. Text unchanged; forward 40 names no outcome."
   },
   "q59": {
    "status": "pass",
@@ -4023,9 +4085,9 @@
   },
   "q51": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "VZ 2026-06-29 is the gap day (open 45.57 vs prior close 46.54 = -2.1%; high 45.85 never back to it; consistent with 0.89 ATR; short day 07-20 after a 07-17 rejection). But the bars show it closing -5.2% on 2.3x volume, then -4.0% the next day, so 'an ordinary down day' (choice and why) contradicts the chart. Re-keyed the right choice to the true reason (the open was under 1 ATR), kept the number-free 'closes sharply lower' in the story, and dropped 'ordinary down day' from why. Answer Pass unchanged; the card's near-miss fails only bg.gap."
   },
   "q67": {
    "status": "cut",

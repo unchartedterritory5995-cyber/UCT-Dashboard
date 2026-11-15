@@ -641,6 +641,48 @@
    "source": "h2",
    "quote": "Selling part at the open on a big gap is one choice he may make by judgment, never a rule",
    "claim": "Selling part at the open on a big gap is a judgment, never a rule."
+  },
+  {
+   "id": "dGO",
+   "source": "d1",
+   "quote": "GOOGL | 2007-09-14 | 09-12: 13.03 / 13.21 / 12.99 / 13.08, wick 59% | 13.19 / 13.09, 44% of day 1, vol 0.63x | 13.20 | 13.06 (1.06%) | 39.3R (3R day 3, 5R day 4)",
+   "claim": "GOOGL, buy 2007-09-14: day 2 high 13.19 and low 13.09; buy 13.20, stop 13.06 (1.06%); 3R on day 3."
+  },
+  {
+   "id": "dNV",
+   "source": "d1",
+   "quote": "NVDA | 2021-10-29 | 10-27: 24.47 / 25.09 / 24.28 / 24.45, wick 76% | 24.95 / 24.52, 53%, vol 0.95x | 25.00 (opened 0.16% over 24.96) | 24.49 (2.03%) | 18.9R (3R day 2, 5R day 4)",
+   "claim": "NVDA, buy 2021-10-29: day 1 opened 24.47 and closed 24.45."
+  },
+  {
+   "id": "dAI",
+   "source": "d1",
+   "quote": "AIR | 2026-01-12 | 01-08: 93.00 / 97.67 / 92.21 / 94.73, wick 54% | 97.33 / 95.44, 35%, vol 0.92x | 97.50 (opened 0.16% over 97.34) | 95.41 (2.14%) | 12.9R (3R day 3, 5R day 12)",
+   "claim": "AIR, buy 2026-01-12: day 1 opened 93.00 and closed 94.73, a 54% wick."
+  },
+  {
+   "id": "dWB",
+   "source": "d1",
+   "quote": "WB | 2016-06-30 | 06-28: 26.90 / 27.71 / 26.20 / 26.88, wick 54% | 27.63 / 27.01, 41%, vol 0.43x | 27.64 | 26.98 (2.39%) | 37.4R (3R day 2, 5R day 4)",
+   "claim": "WB, buy 2016-06-30: buy 27.64, stop 26.98 (2.39%); 3R on day 2."
+  },
+  {
+   "id": "dGL",
+   "source": "d1",
+   "quote": "GLNG | 2022-03-18 | 03-16: 18.38 / 19.23 / 18.17 / 18.39, wick 79% | 19.05 / 18.64, 39%, vol 0.54x | 19.10 (opened 0.21% over 19.06) | 18.61 (2.57%) | 17.2R (3R day 1, 5R day 3)",
+   "claim": "GLNG, buy 2022-03-18: buy 19.10, stop 18.61 (2.57%); 3R on the first session, 5R on day 3."
+  },
+  {
+   "id": "dLX",
+   "source": "d1",
+   "quote": "LHX | 2020-01-17 | 01-15: 212.40 / 215.67 / 211.85 / 213.16, wick 66% | 214.99 / 213.20, 47%, vol 0.99x | 215.30 (opened 0.14% over the 215.00 trigger) | 213.17 (0.99%) | 7.4R (3R day 2, 5R day 11)",
+   "claim": "LHX, buy 2020-01-17: day 1 212.40 / 215.67 / 211.85 / 213.16, a 66% wick; buy 215.30, stop 213.17; 5R on day 11."
+  },
+  {
+   "id": "dAZ4",
+   "source": "d1",
+   "quote": "a fill at 101.33 with a 1.1% stop (100.21), 1.1% under the 52-week high",
+   "claim": "AMZN, 2018-09-04: fill 101.33, stop 100.21, a 1.1% stop."
   }
  ],
  "walkthroughs": [
@@ -777,35 +819,43 @@
    "key": "q03",
    "skill": "setup.wick_play",
    "rung": 1,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "wk.day1_wick",
-   "q": "Day 1 is red: it opened 48.20 and closed 47.65. Where is the body top?",
+   "q": "Day 1 opened 24.47 and closed 24.45. Where is the body top?",
    "choices": [
-    "48.20, the open",
-    "47.65, the close",
+    "24.47, the open",
+    "24.45, the close",
     "The body's midpoint",
     "The day's high"
    ],
-   "answer": "48.20, the open",
-   "why": "48.20, the open. The body top is the larger of the open and the close, the line Deepvue's test uses. On a red day the open is the larger, so it is the top. The close, 47.65, is the bottom of the body. The upper wick runs from the body top up to the high.",
+   "answer": "24.47, the open",
+   "why": "24.47, the open. The body top is the larger of the open and the close, the line Deepvue's test uses. On a red day the open is the larger, so it is the top. The close, 24.45, is the bottom of the body. The upper wick runs from the body top up to the high.",
    "lesson_line": "The body top is the larger of the open and the close.",
    "facts": [
     "dv1",
-    "cWick"
+    "cWick",
+    "dNV"
    ],
    "wrong": {
     "The day's high": "The high is the top of the wick. The body top is the larger of the open and the close.",
-    "47.65, the close": "The close is the lower end of a red body. The body top is the larger of the two.",
-    "The body's midpoint": "The midpoint sits inside the body. The top is the larger of the open and the close."
+    "The body's midpoint": "The midpoint sits inside the body. The top is the larger of the open and the close.",
+    "24.45, the close": "The close is the lower end of a red body. The body top is the larger of the two."
    },
    "house": true,
-   "simple": "The body top is 48.20, the open, because on a red day the open is higher than the close.",
+   "simple": "The body top is 24.47, the open, because on a red day the open is higher than the close.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave5"
+   "batch": "visuals-5",
+   "story": "A wick day that closed red.",
+   "chart": {
+    "sym": "NVDA",
+    "asof": "2021-10-27",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q04",
@@ -836,7 +886,7 @@
    "key": "q05",
    "skill": "setup.wick_play",
    "rung": 1,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "wk.trigger_a",
    "q": "What is the trigger on a wick play?",
    "choices": [
@@ -869,7 +919,14 @@
      "the trigger rests on the strict versus same-day form held in D-115 (the key holds under every option)"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "visuals-5",
+   "story": "The day before the trigger.",
+   "chart": {
+    "sym": "WB",
+    "asof": "2016-06-29",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q06",
@@ -1143,28 +1200,28 @@
    "rung": 3,
    "format": "mcq",
    "criterion": "wk.day1_wick",
-   "q": "Day 1: open 32.46, high 34.00, low 31.83, close 32.11. The upper wick is what percent of the day's range?",
-   "answer": "71%",
+   "q": "Day 1: open 212.40, high 215.67, low 211.85, close 213.16. The upper wick is what percent of the range?",
+   "answer": "66%",
    "calc": {
     "fn": "arith",
     "args": {
-     "expr": "(h - o) / (h - l) * 100",
-     "h": 34.0,
-     "o": 32.46,
-     "l": 31.83
+     "expr": "(h - c) / (h - l) * 100",
+     "h": 215.67,
+     "c": 213.16,
+     "l": 211.85
     },
     "round": 0
    },
-   "why": "71%. The upper wick is the high minus the body top. Day 1 is red, so the body top is the open, 32.46. Take 34.00 minus 32.46, then divide by the range, 34.00 minus 31.83. That gives 71%. The question asks for the share only, not a pass mark.",
+   "why": "66%. The upper wick is the high minus the body top. Day 1 is green, so the body top is the close, 213.16. Take 215.67 minus 213.16, then divide by the range, 215.67 minus 211.85. That gives 66%. The question asks for the share only, not a pass mark.",
    "lesson_line": "The wick is the high minus the body top.",
    "facts": [
     "cWick",
     "dv1",
-    "dTT"
+    "dLX"
    ],
    "house": true,
    "suffix": "%",
-   "simple": "The wick is 71% of the range, because the high minus the open is about 71% of the high minus the low.",
+   "simple": "The wick is 66% of the range, because the high minus the close is about 66% of the high minus the low.",
    "tier": "core",
    "risk": {
     "score": 4,
@@ -1173,17 +1230,23 @@
      "the minimum wick size is held in D-116 (no threshold is keyed)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-5",
    "choices": [
-    "87%",
-    "71%",
-    "29%",
-    "5%"
+    "86%",
+    "66%",
+    "34%",
+    "1%"
    ],
    "wrong": {
-    "87%": "Measured from the close, not the body top.",
-    "29%": "Measured the part under the open.",
-    "5%": "Divided by the price, not the range."
+    "86%": "Measured from the open, not the body top.",
+    "34%": "Measured the part under the body top.",
+    "1%": "Divided by the price, not the range."
+   },
+   "chart": {
+    "sym": "LHX",
+    "asof": "2020-01-15",
+    "window": 120,
+    "forward": 20
    }
   },
   {
@@ -1248,35 +1311,43 @@
    "key": "q18",
    "skill": "setup.wick_play",
    "rung": 3,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "wk.day1_wick",
-   "q": "Day 1 is green: it opened 188.58 and closed 188.62. Where is the body top?",
+   "q": "Day 1 opened 93.00 and closed 94.73. Where is the body top?",
    "choices": [
-    "188.62, the close",
-    "188.58, the open",
+    "94.73, the close",
+    "93.00, the open",
     "The day's high",
     "The prior day's close"
    ],
-   "answer": "188.62, the close",
-   "why": "188.62, the close. The body top is the larger of the open and the close. On a green day the close is the larger, so it is the top. The open, 188.58, is the bottom of the body. The body here is tiny, but the rule does not change.",
+   "answer": "94.73, the close",
+   "why": "94.73, the close. The body top is the larger of the open and the close. On a green day the close is the larger, so it is the top. The open, 93.00, is the bottom of the body. The upper wick runs from the body top up to the high.",
    "lesson_line": "Green day: the body top is the close.",
    "facts": [
     "dv1",
-    "cWick"
+    "cWick",
+    "dAI"
    ],
    "wrong": {
-    "188.58, the open": "The open is the bottom of a green body. The top is the larger of the two.",
     "The day's high": "The high is the top of the wick, not the body.",
-    "The prior day's close": "The body is today's open and close. The prior close is not part of it."
+    "The prior day's close": "The body is today's open and close. The prior close is not part of it.",
+    "93.00, the open": "The open is the bottom of a green body. The top is the larger of the two."
    },
    "house": true,
-   "simple": "The body top is 188.62, the close, because on a green day the close is higher than the open.",
+   "simple": "The body top is 94.73, the close, because on a green day the close is higher than the open.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave5"
+   "batch": "visuals-5",
+   "story": "A wick day that closed green.",
+   "chart": {
+    "sym": "AIR",
+    "asof": "2026-01-08",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q19",
@@ -1322,26 +1393,26 @@
    "rung": 4,
    "format": "mcq",
    "criterion": "wk.stop_a",
-   "q": "Day 2's high is 190.70 and its low is 189.04. The stop sits 3 cents under day 2's low. Where is the stop?",
-   "answer": "$189.01",
+   "q": "Day 2 just closed. Its high is 13.19 and its low is 13.09. The stop sits 3 cents under that low. Where is the stop?",
+   "answer": "$13.06",
    "calc": {
     "fn": "arith",
     "args": {
      "expr": "a - 0.03",
-     "a": 189.04
+     "a": 13.09
     },
     "round": 2
    },
-   "why": "189.01. The stop goes a few cents under day 2's low, which is the prior day's low at the time of the buy. Here that is 189.04 less 3 cents. It does not sit on the low itself. A few cents is the rule; 3 cents is this example's choice.",
+   "why": "13.06. The stop goes a few cents under day 2's low, which is the prior day's low at the time of the buy. Here that is 13.09 less 3 cents. It does not sit on the low itself. A few cents is the rule; 3 cents is this example's choice.",
    "lesson_line": "Stop first: price it before you buy.",
    "facts": [
     "cStopA",
     "h24",
-    "dME"
+    "dGO"
    ],
    "house": true,
    "prefix": "$",
-   "simple": "$189.01, because the stop goes 3 cents under day 2's low of 189.04, not right on it.",
+   "simple": "$13.06, because the stop goes 3 cents under day 2's low of 13.09, not right on it.",
    "tier": "core",
    "risk": {
     "score": 4,
@@ -1350,24 +1421,30 @@
      "house stop rule (F62); the day-3 stop is pending D-115"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-5",
    "choices": [
-    "$189.04",
-    "$189.07",
-    "$189.01",
-    "$190.67"
+    "$13.09",
+    "$13.12",
+    "$13.06",
+    "$13.16"
    ],
    "wrong": {
-    "$189.04": "Put the stop right on the low.",
-    "$189.07": "Put the stop above the low.",
-    "$190.67": "Went 3 cents under the high."
+    "$13.09": "Put the stop right on the low.",
+    "$13.12": "Put the stop above the low.",
+    "$13.16": "Went 3 cents under the high."
+   },
+   "chart": {
+    "sym": "GOOGL",
+    "asof": "2007-09-13",
+    "window": 120,
+    "forward": 20
    }
   },
   {
    "key": "q21",
    "skill": "setup.wick_play",
    "rung": 4,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "wk.trim_1",
    "q": "You buy at 30.70 with the stop at 30.32. What price is 3R?",
    "answer": "$31.84",
@@ -1397,7 +1474,7 @@
      "house trim rule from the owner's rulebook (B19)"
     ]
    },
-   "batch": "rank",
+   "batch": "visuals-5",
    "choices": [
     "$31.84",
     "$31.08",
@@ -1408,6 +1485,17 @@
     "$31.08": "Added one R, not three.",
     "$32.22": "Added four R, one too many.",
     "$32.98": "Doubled the R, then multiplied by three."
+   },
+   "story": "Bought on the trigger day.",
+   "chart": {
+    "sym": "SWKS",
+    "asof": "2014-02-10",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 30.7,
+     "stop": 30.32
+    }
    }
   },
   {
@@ -1507,7 +1595,7 @@
    "rung": 4,
    "format": "tf",
    "criterion": "wk.stop_a",
-   "q": "Day 1's low is 30.00 and day 2's low is 30.35. On a day-3 buy, our stop goes at 29.97.",
+   "q": "Day 2 just closed. Day 1's low is 30.00 and day 2's low is 30.35. On a day-3 buy, our stop goes at 29.97.",
    "answer": "False",
    "why": "False. On a day-3 buy, the stop sits a few cents under day 2's low. That is the prior day's low at the time of the buy. Here that means a few cents under 30.35. A stop at 29.97 sits under day 1's low. Moving the stop under day 1's low to give it room is a named mistake on our card. If the honest stop is too wide, size down or skip.",
    "lesson_line": "The stop goes under day 2's low, not day 1's.",
@@ -1527,13 +1615,19 @@
      "rests on the owner's rulebook (A3)"
     ]
    },
-   "batch": "wave5"
+   "batch": "visuals-5",
+   "chart": {
+    "sym": "SWKS",
+    "asof": "2014-02-07",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q25",
    "skill": "setup.wick_play",
    "rung": 5,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "wk.stop_width",
    "q": "Trigger 190.71, stop 189.01. How wide is the stop in percent?",
    "answer": "0.89%",
@@ -1563,7 +1657,7 @@
      "house rule (A13); the day-3 buy and stop are pending D-115"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-5",
    "choices": [
     "1.70%",
     "8.90%",
@@ -1574,13 +1668,24 @@
     "1.70%": "Used the dollar gap as a percent.",
     "8.90%": "Slipped the decimal point a place.",
     "99.11%": "Gave the stop as a share of the trigger."
+   },
+   "story": "Bought on the trigger day.",
+   "chart": {
+    "sym": "MELI",
+    "asof": "2017-02-06",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 190.71,
+     "stop": 189.01
+    }
    }
   },
   {
    "key": "q26",
    "skill": "setup.wick_play",
    "rung": 5,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "wk.stop_width",
    "q": "Account 50,000. You risk 1%. Buy at 33.64, stop at 32.54. How many shares?",
    "answer": "454 shares",
@@ -1616,7 +1721,7 @@
      "fixed before (40% cap note added 2026-11-10)"
     ]
    },
-   "batch": "rank",
+   "batch": "visuals-5",
    "choices": [
     "454 shares",
     "227 shares",
@@ -1627,6 +1732,17 @@
     "909 shares": "Doubled the risk percent.",
     "227 shares": "Used half the risk percent.",
     "1,486 shares": "Bought the whole account, not the risk."
+   },
+   "story": "Bought on the trigger day.",
+   "chart": {
+    "sym": "TTMI",
+    "asof": "2025-06-09",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 33.64,
+     "stop": 32.54
+    }
    }
   },
   {
@@ -1656,7 +1772,7 @@
     "No, it never hit day 1's close": "Touching the close would mean trading into the body. The hold is staying out of it.",
     "Yes, the open is what counts": "An open in the wick is only the start. The hold means the low stays out of the body."
    },
-   "story": "Day 1 opened 74.00, ran to 83.30 and closed at 75.89. Day 2 opened 80.99 and its low was 78.60.",
+   "story": "Day 2 has just closed. Day 1 opened 74.00, ran to 83.30 and closed at 75.89. Day 2 opened 80.99 and its low was 78.60.",
    "house": true,
    "simple": "Yes, day 2 opened in the wick and its low of 78.60 stayed above day 1's body top of 75.89.",
    "tier": "extended",
@@ -1666,7 +1782,13 @@
      "the body-touch tolerance is held in D-116 (78.60 is above the body under every option)"
     ]
    },
-   "batch": "wave5"
+   "batch": "visuals-5",
+   "chart": {
+    "sym": "APPS",
+    "asof": "2021-03-11",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q28",
@@ -1859,7 +1981,7 @@
    "key": "q33",
    "skill": "setup.wick_play",
    "rung": 6,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "wk.stop_gap",
    "q": "Bought at 91.40, stop at 88.89. The next day opens at 77.80. How many R is the loss at the open?",
    "answer": "5.42R",
@@ -1895,7 +2017,7 @@
      "fixed before (q48 cut, q33 made pure B20 arithmetic)"
     ]
    },
-   "batch": "rank",
+   "batch": "visuals-5",
    "choices": [
     "5.42R",
     "4.42R",
@@ -1906,6 +2028,17 @@
     "4.42R": "Measured the loss from the stop, not the buy.",
     "0.18R": "Flipped the division, risk over the loss.",
     "1.23R": "Divided by the stop-to-open gap, not the risk."
+   },
+   "story": "Bought on the trigger day.",
+   "chart": {
+    "sym": "SHOP",
+    "asof": "2024-02-12",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 91.4,
+     "stop": 88.89
+    }
    }
   },
   {
@@ -1935,7 +2068,7 @@
     "Yes, with the stop pulled in to 3%": "Never tighten a stop to fit. The honest stop is where the setup is wrong.",
     "No, any stop over 3% is a skip": "About 3% is usual, not a hard line. TTMI's 3.27% stop was sized down, not skipped."
    },
-   "story": "A clean wick play on day 2. The honest stop under day 2's low is 8.12% from the entry. The usual stop is about 3%.",
+   "story": "The day before the trigger. A clean wick play on day 2. The honest stop under day 2's low would be 8.12% from the entry. The usual stop is about 3%.",
    "house": true,
    "simple": "No, because a stop that wide means a much smaller position or no trade, and you never tighten it to fit.",
    "deeper": {
@@ -1948,7 +2081,13 @@
      "rests on the owner's rulebook (A3, A13)"
     ]
    },
-   "batch": "wave5"
+   "batch": "visuals-5",
+   "chart": {
+    "sym": "REGN",
+    "asof": "2013-05-02",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q35",
@@ -1968,6 +2107,7 @@
    "lesson_line": "Trims and a trail bank the win.",
    "facts": [
     "dLH",
+    "dLX",
     "h21",
     "h15",
     "r02",
@@ -1978,7 +2118,7 @@
     "A breakeven stop alone": "A breakeven stop gets you out flat. It saves the loss but banks no gain.",
     "The 10-day time stop": "The time stop sells a trade still under 1R after 10 trading days. This one ran to 5R."
    },
-   "story": "A wick play reaches 5R on day 11. Then the whole market sells off, and the stock falls back to the original stop price.",
+   "story": "A wick play bought at 215.30 with the stop at 213.17. It reaches 5R on day 11. Then the whole market sells off, and the stock falls back to the original stop price.",
    "house": true,
    "simple": "The trims and the trail, because the sells banked gains on the way up before the stock fell back.",
    "deeper": {
@@ -1991,7 +2131,17 @@
      "rests on the owner's rulebook (B19, E51, E52)"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "visuals-5",
+   "chart": {
+    "sym": "LHX",
+    "asof": "2020-01-17",
+    "window": 120,
+    "forward": 60,
+    "trade": {
+     "entry": 215.3,
+     "stop": 213.17
+    }
+   }
   },
   {
    "key": "q36",
@@ -2233,7 +2383,7 @@
     "No, it never broke day 1's high": "Staying under day 1's high is part of the pattern, not a fail. The fail here is the dip into the body.",
     "Yes, a 57% wick is long enough": "The wick's size is not the fail here. Day 2's low traded into the body, and that ends it."
    },
-   "story": "Day 1 has a 57% upper wick and a body top of 165.51. Day 2 stays under day 1's high but its low is 163.35.",
+   "story": "Day 2 has just closed. Day 1 has a 57% upper wick and a body top of 165.51. Day 2 stays under day 1's high but its low is 163.35.",
    "house": true,
    "simple": "No, because day 2's low of 163.35 fell below the body top at 165.51, and a wick play must stay above it.",
    "deeper": {
@@ -2246,7 +2396,13 @@
      "the body-touch tolerance is pending D-116 and criterion wk.day2_strict D-115; the key holds under every option"
     ]
    },
-   "batch": "wave5"
+   "batch": "visuals-5",
+   "chart": {
+    "sym": "AMZN",
+    "asof": "2020-08-25",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q42",
@@ -2395,6 +2551,7 @@
     "dAZ",
     "dAZ3",
     "dAZ2",
+    "dAZ4",
     "h02"
    ],
    "wrong": {
@@ -2402,7 +2559,7 @@
     "Yes, you should have held on": "The stop is the exit. It only moves up, never down or wider.",
     "No, but the rule failed": "The rule did not fail. The run was over, and the stop took a planned loss."
    },
-   "story": "You buy at 101.33 with a 1.1% stop. The next session's low is 99.49 and you are stopped out. In the next 20 sessions it never trades above 102.53.",
+   "story": "You buy at 101.33 with the stop at 100.21, 1.1% away. The next session's low is 99.49 and you are stopped out. In the next 20 sessions it never trades above 102.53.",
    "house": true,
    "simple": "No, the stop did its job, because a stop-out under the rules is a planned loss, not a mistake.",
    "deeper": {
@@ -2415,7 +2572,17 @@
      "rests on the owner's rulebook (A4, B21)"
     ]
    },
-   "batch": "wave5"
+   "batch": "visuals-5",
+   "chart": {
+    "sym": "AMZN",
+    "asof": "2018-09-04",
+    "window": 120,
+    "forward": 25,
+    "trade": {
+     "entry": 101.33,
+     "stop": 100.21
+    }
+   }
   },
   {
    "key": "q46",
@@ -2445,7 +2612,7 @@
     "A much tighter stop on the buy": "The 0.75% stop was already tight. The review says it sat inside the noise, the opposite problem.",
     "A stop under day 1's low instead": "Moving the stop under day 1's low to give it room is a named mistake on our card."
    },
-   "story": "Day 1 had a 91% wick and day 2 sat wholly inside it. You bought at 178.42 with a 0.75% stop. The next session took the stop. In the prior 15 sessions the stock had no big gap or volume burst.",
+   "story": "Day 1 had a 91% wick and day 2 sat wholly inside it. You bought at 178.42 with the stop at 177.08, 0.75% away. The next session took the stop. In the prior 15 sessions the stock had no big gap or volume burst.",
    "house": true,
    "simple": "A fresh explosion, because the stock had no big gap or volume burst first, so it was a weaker pullback case.",
    "deeper": {
@@ -2458,7 +2625,17 @@
      "fixed before (grade labels, 2026-11-10)"
     ]
    },
-   "batch": "wave5"
+   "batch": "visuals-5",
+   "chart": {
+    "sym": "V",
+    "asof": "2019-10-15",
+    "window": 120,
+    "forward": 15,
+    "trade": {
+     "entry": 178.42,
+     "stop": 177.08
+    }
+   }
   },
   {
    "key": "q47",
@@ -2488,7 +2665,7 @@
     "Buy back at once to catch the run": "After a stop-out, buy again only if the setup triggers again.",
     "Lower the stop on the next try for room": "The next stop still goes a few cents under the prior day's low. Lowering it for room is no fix."
    },
-   "story": "You buy over day 2's high. The stock reverses the same day and takes your stop. Over the next 20 sessions it climbs to 4.5R without you.",
+   "story": "The day before the trigger. You buy over day 2's high. The stock reverses the same day and takes your stop. Over the next 20 sessions it climbs to 4.5R without you.",
    "house": true,
    "simple": "Take the loss, because a stop is a stop, and you buy again only if the setup triggers again.",
    "deeper": {
@@ -2501,7 +2678,13 @@
      "rests on the owner's rulebook (A4, B21, E56)"
     ]
    },
-   "batch": "wave5"
+   "batch": "visuals-5",
+   "chart": {
+    "sym": "ANET",
+    "asof": "2025-08-12",
+    "window": 120,
+    "forward": 30
+   }
   },
   {
    "key": "q48",
@@ -2656,7 +2839,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "wk.day2_strict",
-   "q": "Hidden ticker, the day before the break. On the pattern alone, take it or pass?",
+   "q": "The day before the break. On the pattern alone, take it or pass?",
    "choices": [
     "Take it; it holds inside the wick",
     "Pass; the last bar dipped into the body",
@@ -2704,7 +2887,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "wk.trend",
-   "q": "Hidden ticker, the day before the break. Take it or pass?",
+   "q": "The day before the break. Take it or pass?",
    "choices": [
     "Pass; it closed under the 200-day",
     "Take it; the upper wick is long",
@@ -2842,7 +3025,7 @@
     "No, day 2 is under the open": "The open is 32.46. Day 2's low of 32.57 is above it.",
     "Yes, it broke day 1's high": "Day 2's high of 33.36 is under day 1's 34.00, so it did not break it. It stayed inside the wick."
    },
-   "story": "Day 1 is red: open 32.46, high 34.00, close 32.11. Day 2 trades between 32.57 and 33.36.",
+   "story": "Day 2 has just closed. Day 1 is red: open 32.46, high 34.00, close 32.11. Day 2 trades between 32.57 and 33.36.",
    "house": true,
    "simple": "Yes, because day 2 stays above the red day's open of 32.46 and under its high of 34.00.",
    "tier": "extended",
@@ -2850,7 +3033,13 @@
     "score": 0,
     "reasons": []
    },
-   "batch": "wave5"
+   "batch": "visuals-5",
+   "chart": {
+    "sym": "TTMI",
+    "asof": "2025-06-06",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q57",
@@ -2872,14 +3061,15 @@
     "h05",
     "h02",
     "r03",
-    "r04"
+    "r04",
+    "dGO"
    ],
    "wrong": {
     "Move down to give it room": "The stop only moves up, never down or wider.",
     "Nothing, stops are fixed": "Stops are not frozen. They only move up, and breakeven between 2R and 5R is the rule.",
     "Widen it to the 20 EMA": "That is wider. The stop only moves up."
    },
-   "story": "Three sessions in, the stock is past 3R and you have sold part of it. The rest still has the original stop under day 2's low.",
+   "story": "Bought at 13.20 with the stop at 13.06. Three sessions in, the stock is past 3R and you have sold part of it. The rest still has the original stop under day 2's low.",
    "house": true,
    "simple": "Move it up to breakeven, because past 3R the stop may rise to your buy price, and it never goes down.",
    "tier": "extended",
@@ -2890,7 +3080,13 @@
      "rests on the owner's rulebook (A4, B19)"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "visuals-5",
+   "chart": {
+    "sym": "GOOGL",
+    "asof": "2007-09-19",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q58",
@@ -3213,9 +3409,9 @@
    "key": "q97",
    "skill": "setup.wick_play",
    "rung": 3,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "wk.trim_2",
-   "q": "A wick play is bought today and runs up fast. When do we usually make the first sell?",
+   "q": "When do we usually make the first sell?",
    "choices": [
     "Day 3 or later, as a judgment call",
     "Day 1, to lock in the quick gain",
@@ -3229,7 +3425,8 @@
     "r02",
     "r03",
     "h21",
-    "r04"
+    "r04",
+    "dWB"
    ],
    "wrong": {
     "Day 1, to lock in the quick gain": "We very rarely sell on day 1. Waiting gives the move room to run.",
@@ -3239,15 +3436,26 @@
    "simple": "Day 3 or later, because we rarely sell on day 1 and the first sell is a judgment call.",
    "tier": "core",
    "house": true,
-   "batch": "sweep-2026-11-14"
+   "batch": "visuals-5",
+   "story": "A wick play bought at 27.64 with the stop at 26.98. It runs up fast.",
+   "chart": {
+    "sym": "WB",
+    "asof": "2016-06-30",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 27.64,
+     "stop": 26.98
+    }
+   }
   },
   {
    "key": "q98",
    "skill": "setup.wick_play",
    "rung": 3,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "wk.trail",
-   "q": "A fast mover has had its first sells. What sells what is left by default?",
+   "q": "What sells what is left by default?",
    "choices": [
     "A daily close under the 9 EMA",
     "A dip under the 9 EMA during the day",
@@ -3259,7 +3467,8 @@
    "lesson_line": "Fast mover, 9 EMA. Steadier, 20 EMA.",
    "facts": [
     "h21",
-    "r04"
+    "r04",
+    "dGL"
    ],
    "wrong": {
     "A dip under the 9 EMA during the day": "We sell on a close below the average, not on a dip under it during the day.",
@@ -3269,7 +3478,18 @@
    "simple": "A close under the 9 EMA, because a fast mover trails the 9 EMA and we sell on a close below it.",
    "tier": "core",
    "house": true,
-   "batch": "sweep-2026-11-14"
+   "batch": "visuals-5",
+   "story": "A fast mover bought at 19.10 with the stop at 18.61. Picture the first sells made and the rest still on.",
+   "chart": {
+    "sym": "GLNG",
+    "asof": "2022-03-18",
+    "window": 120,
+    "forward": 40,
+    "trade": {
+     "entry": 19.1,
+     "stop": 18.61
+    }
+   }
   }
  ],
  "conflicts": [
@@ -3305,7 +3525,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer first: larger of 48.20 and 47.65 is 48.20, the open (dv1 'larger of the prior day's open or close'). Key matches. Numbers are given in the stem. Choices 14-19 chars, key not the longest, no tell. q15/q56 reveals restate the red-day principle with other numbers: recall then application, acceptable."
+   "notes": "NVDA winners_list 2021-10-29; dossier row 6 day 1 10-27 24.47/25.09/24.28/24.45 (red). asof = day 1. Numbers match. Ticker hidden."
   },
   "q04": {
    "status": "cut",
@@ -3317,7 +3537,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged; the 20 EMA dip is still a wrong (not our trigger); Manrav note no longer names 21. D-021 cited."
+   "notes": "WB buy 06-30, day 2 = 06-29 (27.63/27.01 inside 54% wick); asof the day before the trigger. No numbers in text."
   },
   "q06": {
    "status": "cut",
@@ -3378,7 +3598,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "1.54/2.17 = 71%. 87 = 1.89/2.17 from the close, 29 the part under the open, 5 = 1.54/32.46. Verified."
+   "notes": "LHX day 1 2020-01-15 212.40/215.67/211.85/213.16, wick 66% (dossier row 5); (215.67-213.16)/3.82 = 65.7. Distractors 86 (from open), 34, 1 are the wrong-method values. Chart ends on day 1."
   },
   "q16": {
    "status": "cut",
@@ -3394,9 +3614,9 @@
   },
   "q18": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "AIR day 1 2026-01-08 93.00/97.67/92.21/94.73 (dossier row 10), green, body top the close. Matches."
   },
   "q19": {
    "status": "pass",
@@ -3408,13 +3628,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "189.04-0.03 = 189.01. The 3-cent gaps are the point of the question (on the low, above it, off the high). Fine."
+   "notes": "GOOGL day 2 2007-09-13 13.19/13.09, stop 13.06 (dossier row 1); asof day 2 correct. 13.09-0.03=13.06."
   },
   "q21": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Sorted rank matches target; each wrong choice recomputed as a real mistake on this math; no new tell."
+   "notes": "SWKS buy 2014-02-10 entry 30.70 stop 30.32 (row 2); both in the question; stop 1.24%; 3R 31.84 correct; no outcome named."
   },
   "q22": {
    "status": "pass",
@@ -3432,26 +3652,25 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer False: stop a few cents under 30.35; 29.97 is under day 1's low (mStop). Numbers are SWKS's real lows (dSW) given in the stem. Application of q07's recall; does not reveal q20's 189.01 or q21's 30.32."
+   "notes": "SWKS day 2 = 02-07 (day 1 low 30.00, day 2 low 30.35, row 2); asof right; False is right (29.97 = 30.00-0.03, under day 1 low)."
   },
   "q25": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "1.70/190.71 = 0.89%. 1.70 dollar gap, 8.90 slip, 99.11 share. Verified."
+   "notes": "MELI buy 2017-02-06 entry 190.71 stop 189.01, 0.89% (row 4); trade matches text; MELI used twice (q52)."
   },
   "q26": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Sorted rank matches target; each wrong choice recomputed as a real mistake on this math; no new tell."
+   "notes": "TTMI buy 2025-06-09 entry 33.64 stop 32.54, 3.27% (row 9), under 6%; 500/1.10=454."
   },
   "q27": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "APPS 2021-03-10 day 1 74.00/83.30/74.00/75.89, day 2 2021-03-11 open 80.99 low 78.60 (dossier sec 3.1 lines 166-168); asof = day 2 close; same-day form so no trade; chart shows the push on day 2 which does not contradict the question."
   },
   "q28": {
    "status": "pass",
@@ -3487,19 +3706,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Sorted rank matches target; each wrong choice recomputed as a real mistake on this math; no new tell."
+   "notes": "SHOP buy 2024-02-12 fill 91.40 stop 88.89 (2.75%), next open 77.80 (failures + dossier line 972); 5.42R correct; forward 20 reaches the open."
   },
   "q34": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "REGN day 2 = 2013-05-02, buy 05-03; honest stop 8.12% (card near_miss); over 6% so no trade drawn; story and key agree."
   },
   "q35": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged and right; what is left trails under 9/20 EMA; first sell a judgment. dLH is a historical backtest fact (3R/5R trims), not taught as the rule."
+   "notes": "LHX buy 2020-01-17 entry 215.30 stop 213.17 (0.99%); 5R day 11 (row 5); fixed-stop walk lost in late Feb 2020; forward 60 reaches both."
   },
   "q36": {
    "status": "pass",
@@ -3535,7 +3754,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "dAM20, dAM20b verbatim: low 163.35 under body top 165.51; 0.54 ATR fails both D-116 options. Two Yes, two No; notes true."
+   "notes": "AMZN near miss day 1 2020-08-24 57% wick body top 165.51, day 2 2020-08-25 low 163.35 (card); asof day 2 right; No is right."
   },
   "q42": {
    "status": "pass",
@@ -3561,20 +3780,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: no, a planned loss (dAZ, dAZ3, dAZ2; dAZ2 is on dossier lines 940-941, wrapped, and verbatim in the card). 101.33 with a 1.1% stop is about 100.21; a low of 99.49 stops it. The 102.53 ceiling refutes 'too tight'. Two Yes, two No, no length tell. Minor: risk reasons still cite B21, no longer used.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "AMZN failure buy 2018-09-04 fill 101.33 stop 100.21 (1.1%), next low 99.49, never above 102.53 in 20 sessions (card); forward 25 covers 20."
   },
   "q46": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "dVV, dVV2 verbatim (91% wick, 0.75% stop, no explosion in 15 sessions); cExp keeps it a grading plus, not a rule. Notes true."
+   "notes": "V buy 2019-10-15 entry 178.42 stop 177.08 (0.75%), 91% wick, no explosion in prior 15 sessions (card); forward 15 ok."
   },
   "q47": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: take the loss, rebuy only on a new trigger (dAN, dAN2, h28). Lower-stop note grounded in h01. Does not give q32's count or q45's key."
+   "notes": "ANET day 2 = 2025-08-12, buy 08-13; stopped on entry day, 4.5R within 20 sessions (dossier line 973); forward 30 covers it; no trade correctly (asof is the day before the buy)."
   },
   "q48": {
    "status": "cut",
@@ -3629,14 +3847,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: red day, body top = open 32.46; day 2 low 32.57 > 32.46 and high 33.36 < 34.00, so inside the wick (dv1, dTT). Key matches. Two Yes and two No; key not the longest; each distractor is a real misreading (red day cannot qualify; reading the open; same-day push). Numbers from the story and dTT.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "TTMI day 1 2025-06-05 red 32.46/34.00/32.11, day 2 2025-06-06 33.36/32.57 (row 9); asof day 2 right; Yes right."
   },
   "q57": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Breakeven answer right under D-013 (2R to 5R or at the first sell); 'taken a third' became 'sold part'; 21-day distractor renamed 20 EMA."
+   "fixed": true,
+   "notes": "GOOGL numbers right (entry 13.20, stop 13.06, 3R day 3, row 1) but the chart ended on the buy day (2007-09-14) while the story says three sessions in and past 3R, so the member would see a chart that contradicts the words. Moved asof to day 3 (2007-09-19; day 1 = first session after the buy, 09-17) and drew no trade, like the SET.07 q19/q58 pattern; entry and stop stay in the words."
   },
   "q58": {
    "status": "pass",
@@ -3715,13 +3932,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Right answer agrees with D-013; distractor renamed 20 EMA; wording 'what is left'."
+   "notes": "WB buy 2016-06-30 entry 27.64 stop 26.98 (2.39%) (row 3); trade matches text; story names no outcome beyond \"runs up fast\" (3R day 2)."
   },
   "q98": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Trail question re-keyed to 9 EMA / 20 EMA with 'what is left'; answer right; wrongs wrong; D-021 cited."
+   "notes": "GLNG buy 2022-03-18 entry 19.10 stop 18.61 (2.57%) (row 7); 3R day 1, 5R day 3; forward 40 enough; the 9 EMA is drawn."
   }
  }
 }

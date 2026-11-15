@@ -1269,7 +1269,7 @@
     ]
    },
    "batch": "visuals-1",
-   "story": "Hidden ticker, the day before the trigger.",
+   "story": "The day before the trigger.",
    "chart": {
     "sym": "GWW",
     "asof": "2004-09-28",
@@ -1316,7 +1316,7 @@
     ]
    },
    "batch": "visuals-1",
-   "story": "Hidden ticker, the day before the trigger.",
+   "story": "The day before the trigger.",
    "chart": {
     "sym": "EFX",
     "asof": "2007-05-03",
@@ -1453,7 +1453,7 @@
     ]
    },
    "batch": "visuals-1",
-   "story": "Hidden ticker, the day before the trigger.",
+   "story": "The day before the trigger.",
    "chart": {
     "sym": "RRC",
     "asof": "2013-02-04",
@@ -1531,7 +1531,7 @@
     ]
    },
    "batch": "visuals-1",
-   "story": "Hidden ticker, the day before the trigger. The pivot is the top of the handle.",
+   "story": "The day before the trigger. The pivot is the top of the handle.",
    "chart": {
     "sym": "WPM",
     "asof": "2025-12-09",
@@ -1887,7 +1887,7 @@
     "$42.44": "Added the three R to the stop instead of the fill.",
     "$41.71": "Added one R, not three."
    },
-   "story": "Hidden ticker, bought on the breakout at 40.98 with the stop at 40.25.",
+   "story": "Bought on the breakout at 40.98 with the stop at 40.25.",
    "chart": {
     "sym": "EFX",
     "asof": "2007-05-04",
@@ -2285,7 +2285,7 @@
     "97.63%": "Took the stop as a percent of the fill and skipped the gap.",
     "23.70%": "Decimal slip: moved the decimal one place."
    },
-   "story": "Hidden ticker, bought on the breakout.",
+   "story": "Bought on the breakout.",
    "chart": {
     "sym": "GWW",
     "asof": "2004-09-29",
@@ -2581,7 +2581,7 @@
     "2,912 shares": "Decimal slip: the risk dollars came out ten times too big.",
     "981 shares": "Divided the account by the fill price and skipped the risk."
    },
-   "story": "Hidden ticker, bought on the breakout.",
+   "story": "Bought on the breakout.",
    "chart": {
     "sym": "MCO",
     "asof": "2012-09-06",
@@ -2628,7 +2628,7 @@
    "format": "scenario",
    "criterion": "ch.cup_length_min",
    "q": "Is it a cup with handle?",
-   "story": "Hidden ticker, the day before the trigger. After a 64% run the stock dips and recovers over four weeks. Then it rests seven days just under the high.",
+   "story": "The day before the trigger. After a 64% run the stock dips and recovers over four weeks. Then it rests seven days just under the high.",
    "choices": [
     "Yes; the handle is long enough",
     "No; too few weeks to be a cup",
@@ -2678,7 +2678,7 @@
    "format": "scenario",
    "criterion": "ch.cup_depth",
    "q": "What is it?",
-   "story": "Hidden ticker, the day before the trigger. An 8.4-week rest that dips only 6.6% from the high. Then a 9-day handle.",
+   "story": "The day before the trigger. An 8.4-week rest that dips only 6.6% from the high. Then a 9-day handle.",
    "choices": [
     "A flat base with a late dip",
     "A shallow cup and handle",
@@ -2726,7 +2726,7 @@
    "format": "scenario",
    "criterion": "ch.shape_u",
    "q": "Take it as a cup with handle?",
-   "story": "Hidden ticker, the day before the trigger. An 11-week cup falls 22% in a straight line and climbs straight back to the high. Then a 5-day handle.",
+   "story": "The day before the trigger. An 11-week cup falls 22% in a straight line and climbs straight back to the high. Then a 5-day handle.",
    "choices": [
     "Take it; 22% is a normal depth",
     "Take it; the handle is 5 days",
@@ -3554,7 +3554,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "ch.handle_position",
-   "q": "Hidden ticker, the day before the breakout. Judge the handle. Take it or pass.",
+   "q": "The day before the breakout. Judge the handle. Take it or pass.",
    "choices": [
     "Take it; a high, quiet handle",
     "Pass; the handle sits too low",
@@ -3607,7 +3607,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "ch.handle_drift",
-   "q": "Hidden ticker, the day before it trades through the handle high. Judge the handle. Take it or pass.",
+   "q": "The day before it trades through the handle high. Judge the handle. Take it or pass.",
    "choices": [
     "Take it; the cup is 20% deep",
     "Pass; the handle's lows rise",
@@ -3819,7 +3819,7 @@
     ]
    },
    "batch": "visuals-1",
-   "story": "Hidden ticker, the day before the trigger. You are planning the exits.",
+   "story": "The day before the trigger. You are planning the exits.",
    "chart": {
     "sym": "WB",
     "asof": "2017-05-05",

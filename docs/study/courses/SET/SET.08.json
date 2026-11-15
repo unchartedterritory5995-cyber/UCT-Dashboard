@@ -1662,7 +1662,7 @@
     ]
    },
    "batch": "visuals-1",
-   "story": "Hidden ticker, bought on the flag break at 66.62 with the stop at 64.78.",
+   "story": "Bought on the flag break at 66.62 with the stop at 64.78.",
    "chart": {
     "sym": "TSEM",
     "asof": "2025-09-17",
@@ -1745,7 +1745,7 @@
     "Yes; a 36% pole makes any rest tight": "Pole size is not the test. Tightness compares the flag's average daily range with the pole's."
    },
    "house": true,
-   "story": "Hidden ticker, the day before a prior-day-high break. After a 36% pole the stock pauses four sessions in a 2.9% range.",
+   "story": "The day before a prior-day-high break. After a 36% pole the stock pauses four sessions in a 2.9% range.",
    "simple": "Yes, because the rest's bars are smaller than the pole's bars, and that is what tight means.",
    "deeper": {
     "example": "PANW, trigger 2020-12-03. A 36% pole, then four sessions only 2.9% deep on 0.53x the pole's volume. Buy 48.98, stop 48.29, a 1.4% stop. It reached 26.4R."
@@ -1870,7 +1870,7 @@
     "$63.95": "Added one R, not three.",
     "$59.35": "Subtracted the three R instead of adding them."
    },
-   "story": "Hidden ticker, bought on the flag break at 62.80 with the stop at 61.65.",
+   "story": "Bought on the flag break at 62.80 with the stop at 61.65.",
    "chart": {
     "sym": "SHOP",
     "asof": "2020-05-04",
@@ -1920,7 +1920,7 @@
     ]
    },
    "batch": "visuals-1",
-   "story": "Hidden ticker, the day before a prior-day-high break. The pole was an earnings gap and the flag is four sessions old. The next report is months away.",
+   "story": "The day before a prior-day-high break. The pole was an earnings gap and the flag is four sessions old. The next report is months away.",
    "chart": {
     "sym": "ISRG",
     "asof": "2005-11-09",
@@ -2180,7 +2180,7 @@
     "97.50%": "Gave the stop as a share of the fill, not the gap.",
     "102.56%": "Took the fill as a percent of the stop, skipping the subtraction."
    },
-   "story": "Hidden ticker, bought on the flag break at 83.26. The day's low is 81.23 and the stop sits five cents under it.",
+   "story": "Bought on the flag break at 83.26. The day's low is 81.23 and the stop sits five cents under it.",
    "chart": {
     "sym": "RARE",
     "asof": "2015-05-27",
@@ -2306,7 +2306,7 @@
     "Wait for a fourth flag to confirm": "A fourth flag in the same run is later still. Our card says to wait for the base."
    },
    "house": true,
-   "story": "Hidden ticker, the day before a prior-day-high break. A five-day flag sits at all-time highs after a 30% pole. It is a later flag in a long run.",
+   "story": "The day before a prior-day-high break. A five-day flag sits at all-time highs after a 30% pole. It is a later flag in a long run.",
    "simple": "Wait for a base. A later flag in a long run, with no new base, is graded B- or passed.",
    "tier": "core",
    "risk": {
@@ -2646,7 +2646,7 @@
     "2,142 shares": "Used twice the stated risk percent.",
     "14 shares": "Divided the risk dollars by the fill price, not the gap to the stop."
    },
-   "story": "Hidden ticker, bought on the flag break at 20.09 with the stop at 19.81.",
+   "story": "Bought on the flag break at 20.09 with the stop at 19.81.",
    "chart": {
     "sym": "AMD",
     "asof": "2018-08-21",
@@ -2842,7 +2842,7 @@
     ]
    },
    "batch": "visuals-1",
-   "story": "Hidden ticker, bought on the flag break at 83.26 with the stop at 81.18.",
+   "story": "Bought on the flag break at 83.26 with the stop at 81.18.",
    "chart": {
     "sym": "RARE",
     "asof": "2015-05-27",
@@ -2886,7 +2886,7 @@
     "Too tight; a wider stop is the fix": "The stop sits a few cents under the day's low, and it only moves up, never down or wider. A stop-out is the cost of the plan."
    },
    "house": true,
-   "story": "Hidden ticker, bought on the flag break at 44.34 with the stop at 43.55. The four-day flag was 3.1% deep on a quarter of the pole's volume. It reaches 0.85R, then day two's low of 43.07 takes you out. The stock later runs to 50.",
+   "story": "Bought on the flag break at 44.34 with the stop at 43.55. The four-day flag was 3.1% deep on a quarter of the pole's volume. It reaches 0.85R, then day two's low of 43.07 takes you out. The stock later runs to 50.",
    "simple": "The stop did its job. A small planned loss is the plan working, even when the stock runs on later.",
    "deeper": {
     "trap": "The later run to 50 tempts you to call the stop wrong. That is hindsight. A stop is judged by the plan, not by what came after. The same small stop on the next trigger is still the rule."
@@ -2957,7 +2957,7 @@
     "3.45R": "Read the dollar gain as R.",
     "7R": "Read the percent gain as R."
    },
-   "story": "Hidden ticker, bought on the flag break at 48.98 with the stop at 48.29. Later it trades to 52.43.",
+   "story": "Bought on the flag break at 48.98 with the stop at 48.29. Later it trades to 52.43.",
    "chart": {
     "sym": "PANW",
     "asof": "2020-12-03",
@@ -3180,7 +3180,7 @@
     "A flat base resting for weeks": "A flat base rests many weeks in a box with a flat ceiling tapped twice. This pause lasted five sessions."
    },
    "house": true,
-   "story": "Hidden ticker, the day before a prior-day-high break. A leader rose 18.2% in 20 sessions, then paused five sessions, 4.7% deep, on 0.75x the rise's volume.",
+   "story": "The day before a prior-day-high break. A leader rose 18.2% in 20 sessions, then paused five sessions, 4.7% deep, on 0.75x the rise's volume.",
    "simple": "With only an 18.2% rise before it, there is no pole, so the pause is a pullback, not a flag.",
    "deeper": {
     "trap": "The pole is what makes a flag a flag. A leader that rises 18.2% and then pauses neatly has no real run to rest from. Judge it as a moving-average pullback, which has its own rules."
@@ -3228,7 +3228,7 @@
     "A flag, but only graded B-": "Our B- band stops at 20 sessions. At 21 it is a base, not a flag."
    },
    "house": true,
-   "story": "Hidden ticker, the day before a prior-day-high break. A 30% pole, then a pause only 6.6% deep on 0.81x the pole's volume. The pause is now 21 sessions old.",
+   "story": "The day before a prior-day-high break. A 30% pole, then a pause only 6.6% deep on 0.81x the pole's volume. The pause is now 21 sessions old.",
    "simple": "A pause of 21 sessions is too long for a flag, so it is now a base.",
    "deeper": {
     "trap": "A pause that has run past the flag length is judged as a base, not a flag. It can still be a good setup, only under different rules. Count the sessions from the pole top, and do not let a clean, quiet look keep the word flag alive."
@@ -3349,7 +3349,7 @@
     "A fixed third, always at 3R": "There is no fixed third at 3R. The first sell is a judgment, usually day 3 at the earliest."
    },
    "house": true,
-   "story": "Hidden ticker, a four-day flag after a near-vertical pole. You bought at 80.41 with the stop at 78.66. The stock keeps pushing up.",
+   "story": "A four-day flag after a near-vertical pole. You bought at 80.41 with the stop at 78.66. The stock keeps pushing up.",
    "simple": "The first sell is a judgment. We usually sell into a push of a few days, not at a fixed level.",
    "deeper": {
     "example": "Take the story's trade. It kept pushing up for days, and that is where the first sell goes. Selling part into the push banks gain, and only the rest is left to the trail."
@@ -3518,7 +3518,7 @@
     "A flag too deep to be bought": "The flag was only 3.8% deep after a 30% pole. Depth was not the problem."
    },
    "house": true,
-   "story": "Hidden ticker. A five-day flag, 3.8% deep, at all-time highs after a 30% pole, late in a long run. You buy at 957.53, stop 935.95. It makes 0.56R and is stopped on day three.",
+   "story": "A five-day flag, 3.8% deep, at all-time highs after a 30% pole, late in a long run. You buy at 957.53, stop 935.95. It makes 0.56R and is stopped on day three.",
    "simple": "A flag late in a long run is weaker than a first flag. The stop only took the planned loss.",
    "deeper": {
     "trap": "How late a flag comes is a judgment, not a measured edge. The stop sat 2.25% under the entry. A late flag in an extended stock was weaker before the entry. The stop did what it was there to do."
@@ -3671,7 +3671,7 @@
     "Buy the close; day-low stop; no sell": "The trigger is the trade through the level, not the close, and the plan includes a first sell."
    },
    "house": true,
-   "story": "Hidden ticker, the night before the buy. A tight four-day flag after a 39% pole. Tonight you plan tomorrow's buy at the prior day's high.",
+   "story": "The night before the buy. A tight four-day flag after a 39% pole. Tonight you plan tomorrow's buy at the prior day's high.",
    "simple": "Buy at market when the level trades, with a stop a few cents under the day's low. Plan to sell into a push.",
    "deeper": {
     "example": "The plan written tonight: set the alert at the prior day's high. Tomorrow, buy at market if it trades through. Put a real stop a few cents under that day's low. Plan the first sell into a 3, 5 or 7 day push, then trail the last part."
@@ -3794,7 +3794,7 @@
     "A promise; it almost never fails": "QCOM, STZ and LLY all closed the trigger day at the high and were stopped within days."
    },
    "house": true,
-   "story": "Hidden ticker, bought on the flag break. The day closes at its high on below-average volume.",
+   "story": "Bought on the flag break. The day closes at its high on below-average volume.",
    "simple": "A strong close is not a promise. Three of our four failures closed the trigger day at the high and still failed.",
    "deeper": {
     "example": "Two of the failures show it. QCOM closed the trigger day at the high on 0.76x volume and was the top. STZ closed at the high on 0.32x volume and was stopped on day 2. A strong close graded the day, but the stop decided the trade."
@@ -3905,7 +3905,7 @@
     ]
    },
    "batch": "visuals-1",
-   "story": "Hidden ticker, the day before a prior-day-high break."
+   "story": "The day before a prior-day-high break."
   },
   {
    "key": "q67",
@@ -3954,7 +3954,7 @@
     ]
    },
    "batch": "visuals-1",
-   "story": "Hidden ticker, the day before it trades over the prior day's high."
+   "story": "The day before it trades over the prior day's high."
   },
   {
    "key": "q68",
@@ -4217,7 +4217,7 @@
    "format": "scenario",
    "criterion": "bf.breakeven",
    "q": "Where does the stop go now?",
-   "story": "Hidden ticker, bought on the flag break at 20.09 with the stop at 19.81. The stock reaches 3R and you sell the first piece.",
+   "story": "Bought on the flag break at 20.09 with the stop at 19.81. The stock reaches 3R and you sell the first piece.",
    "choices": [
     "Up to your entry price",
     "Down to give it more room",

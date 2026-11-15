@@ -2935,7 +2935,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "rg.ema20_rising",
-   "q": "Hidden ticker, the day before a gap down. The daily chart shows the pullback and averages, not RS or the hourly cross. Watch or pass?",
+   "q": "The day before a gap down. The daily chart shows the pullback and averages, not RS or the hourly cross. Watch or pass?",
    "choices": [
     "Watch; the 20-day EMA is rising",
     "Pass; the 20-day EMA is falling",
@@ -2987,7 +2987,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "rg.ema20_rising",
-   "q": "Hidden ticker, the day before a gap down. The daily chart shows the 20-day EMA, not RS or the hourly cross. Watch or pass?",
+   "q": "The day before a gap down. The daily chart shows the 20-day EMA, not RS or the hourly cross. Watch or pass?",
    "choices": [
     "Pass; the 20-day EMA is falling",
     "Watch for the cross; it is a leader",

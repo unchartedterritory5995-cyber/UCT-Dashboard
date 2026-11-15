@@ -1740,7 +1740,7 @@
    "key": "q24",
    "skill": "setup.mean_reversion",
    "rung": 4,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "mr.stop",
    "q": "You buy at 109.13. The lower of the flush low and the turn day's low is 106.93. The stop sits 5 cents under it. Stop width in percent?",
    "answer": "2.06%",
@@ -1770,7 +1770,7 @@
      "rests on the owner's rulebook (sizing_rule.md section 9)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-5",
    "choices": [
     "2.25%",
     "20.60%",
@@ -1781,13 +1781,24 @@
     "2.25%": "Used the dollar gap as a percent.",
     "20.60%": "Slipped the decimal point a place.",
     "97.94%": "Gave the stop as a share of the buy."
+   },
+   "story": "Bought on the turn day, the day after the flush.",
+   "chart": {
+    "sym": "KRYS",
+    "asof": "2023-08-08",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 109.13,
+     "stop": 106.88
+    }
    }
   },
   {
    "key": "q25",
    "skill": "setup.mean_reversion",
    "rung": 4,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "mr.trim_1",
    "q": "You buy at 26.76 with the stop at 26.00. What price is 3R?",
    "answer": "$29.04",
@@ -1819,7 +1830,7 @@
      "fixed before (cold check 2026-11-10)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-5",
    "choices": [
     "$28.28",
     "$27.52",
@@ -1830,13 +1841,24 @@
     "$27.52": "Added one R, not three.",
     "$28.28": "Added three R to the stop, not the fill.",
     "$29.76": "Added 3 dollars, not three R."
+   },
+   "story": "Bought on the turn day, the day after the flush.",
+   "chart": {
+    "sym": "EQT",
+    "asof": "2011-08-09",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 26.76,
+     "stop": 26.0
+    }
    }
   },
   {
    "key": "q26",
    "skill": "setup.mean_reversion",
    "rung": 5,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "mr.stop",
    "q": "Account 50,000. You risk 0.5% on the trade. Buy at 26.76, stop at 26.00. How many shares?",
    "answer": "328 shares",
@@ -1868,7 +1890,7 @@
      "fixed before (cold check 2026-11-10)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-5",
    "choices": [
     "657 shares",
     "328 shares",
@@ -1879,6 +1901,17 @@
     "657 shares": "Doubled the risk percent.",
     "747 shares": "Sized to the 40% cap, not to the risk.",
     "3,289 shares": "Used ten times the risk percent."
+   },
+   "story": "Bought on the turn day, the day after the flush.",
+   "chart": {
+    "sym": "EQT",
+    "asof": "2011-08-09",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 26.76,
+     "stop": 26.0
+    }
    }
   },
   {
@@ -1954,18 +1987,20 @@
     "sc3",
     "br1",
     "cD",
-    "bl2"
+    "bl2",
+    "dAC",
+    "dAC1"
    ],
    "wrong": {
     "Yes, it is fully stretched now": "A stretch is the setup, not the trigger. Moves often continue after the signal.",
     "Yes, a band close is a buy signal": "Bollinger: closes outside the bands are at first continuation signals, not reversal signals. The turn is the trigger.",
-    "No, RSI(2) must reach 0 first": "RSI(2) at 2 is already under 5, so mark 3 is ticked. What is missing is the turn, not a lower RSI."
+    "No, RSI(2) must reach 0 first": "A deeper RSI(2) only adds to the stretch. What is missing is the turn, not a lower reading."
    },
-   "story": "A leader's flush day closes on its low, under the lower band, with RSI(2) at 2. Tomorrow could go either way.",
+   "story": "The flush day just closed. A leader lost 38.6% in three down days and closed under its lower band. Tomorrow could go either way.",
    "house": true,
-   "simple": "No, wait for the turn, because a stock that closes on its low can keep falling the next day.",
+   "simple": "No, wait for the turn, because a stock stretched to a hard low can keep falling the next day.",
    "deeper": {
-    "counter": "A close on the low, under the lower band, with RSI(2) at 2 looks like the bottom. StockCharts warns the RSI(2) signal can be early, because moves often continue after it. The stretch sets up the trade. The turn is what triggers it."
+    "counter": "A close under the lower band after a steep slide looks like the bottom. StockCharts warns the RSI(2) signal can be early, because moves often continue after it. The stretch sets up the trade. The turn is what triggers it."
    },
    "tier": "core",
    "risk": {
@@ -1975,7 +2010,13 @@
      "fixed before (cold check 2026-11-10)"
     ]
    },
-   "batch": "rulings"
+   "batch": "visuals-5",
+   "chart": {
+    "sym": "ACMR",
+    "asof": "2020-09-08",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q29",
@@ -2489,9 +2530,9 @@
    "key": "q43",
    "skill": "setup.mean_reversion",
    "rung": 5,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "mr.inv_stall",
-   "q": "Day one's bounce stalls and closes weak. What is that?",
+   "q": "What does that weak close tell you?",
    "choices": [
     "An early warning sign on the trade",
     "A normal shakeout you can add on",
@@ -2522,7 +2563,18 @@
      "fixed before (cold check 2026-11-10)"
     ]
    },
-   "batch": "wave5"
+   "batch": "visuals-5",
+   "story": "Bought on the turn day at 165.90 with the stop at 162.24. The day closes at 162.53, in the bottom 3% of its range.",
+   "chart": {
+    "sym": "ELF",
+    "asof": "2024-04-04",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 165.9,
+     "stop": 162.24
+    }
+   }
   },
   {
    "key": "q44",
@@ -2788,7 +2840,7 @@
     "The flush is too big": "A 2.1 ATR flush is what a flush looks like. The run before it is what is missing.",
     "Four days is too few": "Four down days is plenty. The card skips only the first or second down day."
    },
-   "story": "A stock is up 15% from its 63-day low. It slides four days, a 2.1 ATR flush, and still sits above both averages.",
+   "story": "The flush day just closed. The stock was up 15% from its 63-day low before a four-day slide, a 2.1 ATR flush. It still sits above both averages.",
    "house": true,
    "simple": "We pass because it was only up 15%, and a leader flush needs a run of at least 25% first.",
    "deeper": {
@@ -2801,7 +2853,13 @@
      "rests on the card's proposed form A (a 25% run) and an unreviewed dossier example"
     ]
    },
-   "batch": "wave5"
+   "batch": "visuals-5",
+   "chart": {
+    "sym": "META",
+    "asof": "2021-09-20",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q51",
@@ -2830,7 +2888,7 @@
     "A stretched leader, ripe to bounce": "Eight days through the 50-day after a parabolic top is a broken leader, not a stretched one. RSI(2) at 0 does not fix that.",
     "Too small a run to be a leader": "Form A wants a run of at least 25%, and this one was up 58%. The run was fine. The trend broke."
    },
-   "story": "A stock just made a parabolic top, up 58%. It falls seven straight days, closing under its 50-day. Day eight is a 3x volume flush, 21% down in all, with RSI(2) at 0.",
+   "story": "The flush day just closed. A stock made a parabolic top, up 58%, then fell eight straight days, through its 50-day. The last was a 3x volume flush, 21% down in all, with RSI(2) at 0.",
    "house": true,
    "simple": "It was a broken trend, because eight down days through the 50-day after a parabolic top is a break, not a stretch.",
    "deeper": {
@@ -2844,7 +2902,13 @@
      "fixed before (the 2026-11-10 tells pass changed the key)"
     ]
    },
-   "batch": "wave5"
+   "batch": "visuals-5",
+   "chart": {
+    "sym": "ELF",
+    "asof": "2024-04-03",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q52",
@@ -2889,7 +2953,17 @@
      "fixed before (the 2026-11-10 tells pass changed the key)"
     ]
    },
-   "batch": "wave5"
+   "batch": "visuals-5",
+   "chart": {
+    "sym": "ILMN",
+    "asof": "2018-10-08",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 320.55,
+     "stop": 311.69
+    }
+   }
   },
   {
    "key": "q53",
@@ -2934,7 +3008,17 @@
      "fixed before (cold check 2026-11-10)"
     ]
    },
-   "batch": "wave5"
+   "batch": "visuals-5",
+   "chart": {
+    "sym": "SBUX",
+    "asof": "2025-03-07",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 105.48,
+     "stop": 103.39
+    }
+   }
   },
   {
    "key": "q54",
@@ -2942,7 +3026,7 @@
    "rung": 8,
    "format": "scenario",
    "criterion": "mr.location",
-   "q": "Take the turn?",
+   "q": "Tomorrow the turn prints. Take it?",
    "choices": [
     "Pass; no level to lean on",
     "Take it; 6x volume is a climax",
@@ -2965,7 +3049,7 @@
     "Take it; 17.5% is a deep stretch": "Depth is not a level. Without a level to lean on, a report-driven drop keeps falling.",
     "Pass; it is a report-day drop": "A report flush alone is not a skip: KRYS flushed on its report and worked. What is missing here is a level."
    },
-   "story": "A leader up 27% drops 17.5% in three days after its report, a 3.2 ATR flush on 6x volume. The honest stop is 6.4% away. Nothing sits under it.",
+   "story": "The flush day just closed. A leader up 27% fell 17.5% in three days after its report, a 3.2 ATR flush on 6x volume. The honest stop is 6.4% away. Nothing sits under it.",
    "house": true,
    "simple": "Pass, because the drop has no level under it to lean on, and a report drop like that tends to keep falling.",
    "deeper": {
@@ -2978,7 +3062,13 @@
      "rests on the card's proposed location line (gate or grade row open); stop width is held (D-005)"
     ]
    },
-   "batch": "rulings"
+   "batch": "visuals-5",
+   "chart": {
+    "sym": "DASH",
+    "asof": "2024-05-02",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q55",
@@ -3251,7 +3341,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "mr.prior_trend_a",
-   "q": "Hidden ticker, the flush day just closed. Wait for the turn, or pass?",
+   "q": "The flush day just closed. Wait for the turn, or pass?",
    "choices": [
     "Wait for the turn; over the 200-day",
     "Pass; it is under the 200-day",
@@ -3303,7 +3393,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "mr.prior_trend_b",
-   "q": "Hidden ticker, the flush day just closed. Take the turn, or pass?",
+   "q": "The flush day just closed. Take the turn, or pass?",
    "choices": [
     "Pass; it closed under the 200-day",
     "Take the turn; it is still a leader",
@@ -3351,32 +3441,33 @@
    "key": "q64",
    "skill": "setup.mean_reversion",
    "rung": 5,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "mr.trim_2",
-   "q": "Bought at 109.13 with the stop at 106.88. What price is 5R?",
-   "answer": "$120.38",
+   "q": "One R is the fill minus the stop. What price is 5R?",
+   "answer": "$23.55",
    "calc": {
     "fn": "arith",
     "args": {
      "expr": "a + 5 * (a - b)",
-     "a": 109.13,
-     "b": 106.88
+     "a": 20.0,
+     "b": 19.29
     },
     "round": 2
    },
-   "why": "120.38. One R is the fill minus the stop: 109.13 minus 106.88. Multiply that by five and add it to the fill. In an R-based plan, a later sell can sit at 5R. On KRYS, 5R printed two sessions after the turn day.",
+   "why": "23.55. One R is the fill minus the stop: 20.00 minus 19.29. Multiply that by five and add it to the fill. In an R-based plan, a later sell can sit at 5R. It is a mark on the ruler, not a target.",
    "lesson_line": "One R is the fill minus the stop. 5R is five of them above the fill.",
    "facts": [
     "h20",
-    "dKR",
-    "dKR1",
+    "dAC",
+    "dAC1",
+    "dAC2",
     "r02"
    ],
    "prefix": "$",
    "house": true,
-   "simple": "5R is 120.38, because you add five times the gap between 109.13 and 106.88 to your buy price.",
+   "simple": "5R is 23.55, because you add five times the gap between 20.00 and 19.29 to your buy price.",
    "deeper": {
-    "example": "KRYS, turn day 2023-08-08: bought at 109.13 with the stop at 106.88, a 2.1% stop. The flush was an earnings reaction on 2023-08-07. The turn day closed at 3R, and 5R printed two sessions later."
+    "example": "ACMR, turn day 2020-09-09: bought at 20.00 with the stop at 19.29, a 3.5% stop. A parabolic run had broken, then the stock bounced to its 20-day and went sideways."
    },
    "tier": "extended",
    "risk": {
@@ -3387,17 +3478,28 @@
      "fixed before (cold check 2026-11-10)"
     ]
    },
-   "batch": "rank",
+   "batch": "visuals-5",
    "choices": [
-    "$120.38",
-    "$118.13",
-    "$114.13",
-    "$111.38"
+    "$23.55",
+    "$22.84",
+    "$21.42",
+    "$24.26"
    ],
    "wrong": {
-    "$114.13": "Added 5 dollars, not five R.",
-    "$118.13": "Added five R to the stop, not the fill.",
-    "$111.38": "Added one R, not five."
+    "$22.84": "Added four R, not five.",
+    "$21.42": "Added two R, not five.",
+    "$24.26": "Added six R, not five."
+   },
+   "story": "Bought on the turn day at 20.00 with the stop at 19.29.",
+   "chart": {
+    "sym": "ACMR",
+    "asof": "2020-09-09",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 20.0,
+     "stop": 19.29
+    }
    }
   },
   {
@@ -3549,9 +3651,9 @@
    "key": "q97",
    "skill": "setup.mean_reversion",
    "rung": 3,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "mr.trim_1",
-   "q": "A mean-reversion long is bought today and bounces hard. When does our first sell usually come?",
+   "q": "When does our first sell usually come?",
    "choices": [
     "Day 3 or later, as a judgment call",
     "Day 1, to lock in the quick pop",
@@ -3576,7 +3678,18 @@
    "simple": "Day 3 or later, because we rarely sell on day 1 and the first sell is a judgment call.",
    "tier": "core",
    "house": true,
-   "batch": "sweep-2026-11-14"
+   "batch": "visuals-5",
+   "story": "Bought on the turn day at 33.61 with the stop at 32.85. It bounces hard.",
+   "chart": {
+    "sym": "LITE",
+    "asof": "2016-11-01",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 33.61,
+     "stop": 32.85
+    }
+   }
   }
  ],
  "conflicts": [
@@ -3744,19 +3857,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Stop 106.88, gap 2.25, /109.13 = 2.06%. 2.25 dollar gap, 20.60 slip, 97.94 share. Verified."
+   "notes": "Checked against card and dossier: example, asof, trade entry/stop, numbers, ticker hidden."
   },
   "q25": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "26.76+3*0.76 = 29.04. 27.52 one R, 28.28 added to the stop, 29.76 +3 dollars (above the answer, so no max tell). Verified."
+   "notes": "Checked against card and dossier: example, asof, trade entry/stop, numbers, ticker hidden."
   },
   "q26": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "500/0.76 = 328.9, down to 328. 657 doubled risk, 747 = 20000/26.76 cap, 3,289 ten times. Verified."
+   "notes": "Checked against card and dossier: example, asof, trade entry/stop, numbers, ticker hidden."
   },
   "q27": {
    "status": "pass",
@@ -3768,7 +3881,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Keep right. Teaches waiting for the turn (trigger), not a close entry; agrees with D-003."
+   "notes": "Checked against card and dossier: example, asof, trade entry/stop, numbers, ticker hidden."
   },
   "q29": {
    "status": "cut",
@@ -3859,7 +3972,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Early warning per cN; wrong notes grounded in A5 (h30) and A4 (h02). Clean."
+   "notes": "Checked against card and dossier: example, asof, trade entry/stop, numbers, ticker hidden."
   },
   "q44": {
    "status": "pass",
@@ -3899,34 +4012,33 @@
   },
   "q50": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Checked against card and dossier: example, asof, trade entry/stop, numbers, ticker hidden."
   },
   "q51": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Stem says 'What does this chart say?' but there is no chart, only a story. The why and the trap rest the key on the strict anchor ('under its 50-day the day before the flush'); the source only says the eight-day slide went through the 50-day and the flush closed under it, and the same strict anchor is the open owner flag that q62's KRYS key may fail. Rest the key on dEL (the card's own filing), which holds on either anchor; also fix a comma splice."
+   "notes": "Dossier says an eight-day slide THROUGH the 50-day (flush under it), not eight days all under it; reworded the story. Rest matches (ELF, +58%, -21.2%, 3.0x, RSI(2) 0; flush day 2024-04-03, turn 04-04)."
   },
   "q52": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key per h28 and cM; story numbers match dIL1 and dIL2 (second session after the turn). Wrong notes grounded (h28, cK, h29). Comes before q53 in order, so q53's notes do not pre-answer it."
+   "notes": "Checked against card and dossier: example, asof, trade entry/stop, numbers, ticker hidden."
   },
   "q53": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Wrong note 'The stop sat a few cents under the day's low' states a fact about this trade that neither the story nor dSB1/dSB2 gives. The note on 'No, so buy it back right away' restates B21, which is q52's key. Replaced with a calc from the story (any stop above 99.80 was hit; 99.80 is 5.4% under 105.48) and with cJ (buying back now buys the falling price)."
+   "fixed": false,
+   "notes": "Checked against card and dossier: example, asof, trade entry/stop, numbers, ticker hidden."
   },
   "q54": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "edit ok; quote verbatim, 3R framed as one way (depends_on restored to the resolved ruling ids, empty list fails the validator)"
+   "notes": "Chart ends on the flush day, so the turn has not printed; question reworded to ask about the coming turn. Numbers match DASH card/dossier (27%, 17.5%, 3.2 ATR, 6x, 6.4% stop); no trade drawn since stop over 6%."
   },
   "q55": {
    "status": "pass",
@@ -4005,7 +4117,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Sorted rank matches target; each wrong choice recomputed as a real mistake on this math; no new tell."
+   "notes": "Checked against card and dossier: example, asof, trade entry/stop, numbers, ticker hidden."
   },
   "q65": {
    "status": "pass",
@@ -4035,7 +4147,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer agrees with D-013; distractor renamed to 9 EMA; D-021 fact cited."
+   "notes": "Checked against card and dossier: example, asof, trade entry/stop, numbers, ticker hidden."
   }
  }
 }
