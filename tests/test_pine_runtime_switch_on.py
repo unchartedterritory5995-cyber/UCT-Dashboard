@@ -107,6 +107,8 @@ def test_D1_the_default_is_pinned_in_SOURCE_not_only_in_behaviour():
         "PINE_RUNTIME_SERVER_STAGE": ("off", ("off", "admins", "cohort", "all")),
         # WS-I Part 2 (2026-11-13): admission by capability; its rails are tests/test_pine_capability_admission.py
         "PINE_RUNTIME_CAPABILITY_ADMISSION": ("off", ("off", "on")),
+        # U5 (2026-11-14): the detector in its own process; its rails are tests/test_pine_capability_detector_worker.py
+        "PINE_CAPABILITY_DETECTOR_WORKER": ("off", ("off", "on")),
     }
     src = (ROOT / "api" / "services" / "runtime_definitions.py").read_text(encoding="utf-8")
     assert "os.environ.get(STAGE_ENV, STAGE_OFF)" in src
