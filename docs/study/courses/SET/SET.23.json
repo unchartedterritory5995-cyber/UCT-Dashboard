@@ -883,6 +883,30 @@
    "source": "h2",
    "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
    "claim": "D-021: the course teaches the 9 and 20 EMA everywhere, with the 50 and 200 SMA."
+  },
+  {
+   "id": "dAMD",
+   "source": "d1",
+   "quote": "AMD | 2023-12-07 | -1.3% / -3.3% / 7% | +3.4% / +9.9% / 97% / 2.2x | 8.4% | 122.84 (red high +0.01) | 119.51 (2.7%) | 27.6R, 3R in 2d",
+   "claim": "AMD, Kicker day 2023-12-07: buy 122.84 (red high plus a cent), stop 119.51 (2.7%); 3R in 2 days."
+  },
+  {
+   "id": "dAXON",
+   "source": "d1",
+   "quote": "AXON | 2004-11-04 | -1.1% / -3.7% / 28% | +2.5% / +13.2% / 97% / 2.4x | 14.5% | 21.44 (red high +0.01) | 20.70 (3.5%) | 16.2R, 3R in 1d",
+   "claim": "AXON, Kicker day 2004-11-04: buy 21.44 (red high plus a cent), stop 20.70 (3.5%); 3R in 1 day."
+  },
+  {
+   "id": "dBOOT",
+   "source": "d1",
+   "quote": "BOOT | 2020-12-28 | -0.8% / -1.8% / 24% | +1.6% / +7.0% / 86% / 1.6x | 9.7% | 41.42 (red high +0.01) | 40.67 (1.8%) | 37.0R, 3R in 1d",
+   "claim": "BOOT, Kicker day 2020-12-28: buy 41.42 (red high plus a cent), stop 40.67 (1.8%); 3R in 1 day."
+  },
+  {
+   "id": "dSWKSn",
+   "source": "d1",
+   "quote": "A flat 6-week base on a rising 50-day; the red day is small on the day (-0.6%) but a full red body closing near its low; the Kicker breaks the base.",
+   "claim": "SWKS: a flat six-week base on a rising 50-day average, a red day closing near its low, then the Kicker breaks the base."
   }
  ],
  "walkthroughs": [
@@ -1059,7 +1083,7 @@
    "key": "q04",
    "skill": "setup.kicker",
    "rung": 1,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "kk.entry_a",
    "q": "On the Kicker day, where is the buy trigger?",
    "choices": [
@@ -1069,7 +1093,7 @@
     "A cent over the red day's open"
    ],
    "answer": "One cent over the red day's high",
-   "why": "One cent over the red day's high, on the Kicker day only. It is a market buy as the stock trades through that price. The close is too late: buying the close is a named mistake.",
+   "why": "One cent over the red day's high, on the Kicker day only. It is a market buy as the stock trades through that price. The close is too late: buying the close is a named mistake. Our JBI example was bought at 11.05, a cent over the previous day's high.",
    "lesson_line": "The trigger is the trade through the red high. The close is too late.",
    "facts": [
     "k_ea",
@@ -1091,7 +1115,14 @@
      "rests on the owner's ruling of 2026-11-02 for the Kicker entry"
     ]
    },
-   "batch": "wave3"
+   "batch": "visuals-2",
+   "story": "Hidden ticker, the red day. Tomorrow it gaps up and trades through this high.",
+   "chart": {
+    "sym": "JBI",
+    "asof": "2023-12-13",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q05",
@@ -1192,7 +1223,7 @@
    "key": "q08",
    "skill": "setup.kicker",
    "rung": 2,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "kk.gap_holds",
    "q": "What does 'the gap holds' mean on the Kicker day?",
    "choices": [
@@ -1202,7 +1233,7 @@
     "It holds above the 50-day"
    ],
    "answer": "It stays over the red day's close",
-   "why": "It stays over the red day's close. The gap holds when the Kicker day never trades back down to that close. If it does, the gap has filled and the Kicker is off. Where the day opens against the red high is not the test.",
+   "why": "It stays over the red day's close. The gap holds when the Kicker day never trades back down to that close. If it does, the gap has filled and the Kicker is off. Where the day opens against the red high is not the test. On this chart the Kicker day's low stayed over the red close.",
    "lesson_line": "A gap that fills is not a Kicker. Hold above the red close or walk away.",
    "facts": [
     "k_hold",
@@ -1225,13 +1256,20 @@
      "fixed before"
     ]
    },
-   "batch": "wave3"
+   "batch": "visuals-2",
+   "story": "Hidden ticker, the Kicker day just closed.",
+   "chart": {
+    "sym": "JBI",
+    "asof": "2023-12-14",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q09",
    "skill": "setup.kicker",
    "rung": 2,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "kk.structure",
    "q": "Where does a Kicker belong?",
    "choices": [
@@ -1241,7 +1279,7 @@
     "On any earnings gap"
    ],
    "answer": "On a base or an orderly pullback",
-   "why": "On a base or an orderly pullback. The leader is already set up: tight closes before the red day, held above its 200-day, with the 50-day flat or rising. A stock mid-run with no base is not a setup, and a gap right after a report is an earnings gapper.",
+   "why": "On a base or an orderly pullback. The leader is already set up: tight closes before the red day, held above its 200-day, with the 50-day flat or rising. A stock mid-run with no base is not a setup, and a gap right after a report is an earnings gapper. SWKS sat on a flat six-week base over a rising 50-day.",
    "lesson_line": "No base, no setup. The Kicker sits on top of a leader that is already set up.",
    "facts": [
     "cx1",
@@ -1250,7 +1288,8 @@
     "l_peg",
     "dIDCC",
     "dIDCCn",
-    "dIDCCd"
+    "dIDCCd",
+    "dSWKSn"
    ],
    "wrong": {
     "After a vertical run with no base": "A stock mid-run has no base, so it is not a setup.",
@@ -1270,7 +1309,14 @@
      "fixed before"
     ]
    },
-   "batch": "wave3"
+   "batch": "visuals-2",
+   "story": "Hidden ticker, the red day of a Kicker. Read the chart behind it.",
+   "chart": {
+    "sym": "SWKS",
+    "asof": "2014-06-02",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q10",
@@ -1551,7 +1597,7 @@
    "key": "q18",
    "skill": "setup.kicker",
    "rung": 3,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "kk.trim_1",
    "q": "What is the earliest day we usually make the first sell?",
    "choices": [
@@ -1561,12 +1607,13 @@
     "Only at the time stop on day 10"
    ],
    "answer": "Day 3 at the earliest",
-   "why": "Day 3 at the earliest. We very rarely sell on day 1 of the buy. The first sell is a judgment, often into a push of 3, 5 or 7 days.",
+   "why": "Day 3 at the earliest. We very rarely sell on day 1 of the buy. The first sell is a judgment, often into a push of 3, 5 or 7 days. AXON reached 3R within a day of the buy, and the plan still waited.",
    "lesson_line": "We rarely sell on day 1. The first sell usually waits until day 3.",
    "facts": [
     "r04",
     "r05",
-    "r03"
+    "r03",
+    "dAXON"
    ],
    "wrong": {
     "Day 1, the buy day": "We very rarely sell on day 1 of the buy.",
@@ -1582,7 +1629,18 @@
      "rests on the owner's rulebook (B19, E51: a third at 3R is the hard rule)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "visuals-2",
+   "story": "Hidden ticker, bought on the Kicker day at 21.44 with the stop at 20.70.",
+   "chart": {
+    "sym": "AXON",
+    "asof": "2004-11-04",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 21.44,
+     "stop": 20.7
+    }
+   }
   },
   {
    "key": "q19",
@@ -1613,24 +1671,25 @@
    "key": "q20",
    "skill": "setup.kicker",
    "rung": 3,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "kk.trim_1",
-   "q": "Bought at 48.60 with the stop at 47.40. Where is 3R?",
-   "answer": "$52.20",
+   "q": "One R is the fill minus the stop. Where is 3R?",
+   "answer": "$132.83",
    "calc": {
     "fn": "arith",
     "args": {
      "expr": "a + 3 * (a - b)",
-     "a": 48.6,
-     "b": 47.4
+     "a": 122.84,
+     "b": 119.51
     },
     "round": 2
    },
-   "why": "$52.20. One R is the fill minus the stop, 48.60 minus 47.40. Add three of those to the 48.60 fill. 3R is a yardstick for the trade, not a fixed sell.",
+   "why": "$132.83. One R is the fill minus the stop, 122.84 minus 119.51. Add three of those to the 122.84 fill. 3R is a yardstick for the trade, not a fixed sell. AMD reached 3R within two days of the buy.",
    "lesson_line": "Know your 3R before the open. It is a yardstick, not a sell order.",
    "facts": [
     "h03",
-    "r02"
+    "r02",
+    "dAMD"
    ],
    "house": true,
    "prefix": "$",
@@ -1643,17 +1702,28 @@
      "rests on the owner's rulebook (a third off at 3R)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-2",
    "choices": [
-    "$53.40",
-    "$45.00",
-    "$51.00",
-    "$52.20"
+    "$126.17",
+    "$129.50",
+    "$132.83",
+    "$112.85"
    ],
    "wrong": {
-    "$45.00": "Subtracted three R from the fill.",
-    "$51.00": "Added three R to the stop, not the fill.",
-    "$53.40": "Counted four R, one too many."
+    "$126.17": "Added one R, not three.",
+    "$129.50": "Added three R to the stop, not the fill.",
+    "$112.85": "Subtracted three R from the fill."
+   },
+   "story": "Hidden ticker, bought on the Kicker day at 122.84 with the stop at 119.51.",
+   "chart": {
+    "sym": "AMD",
+    "asof": "2023-12-07",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 122.84,
+     "stop": 119.51
+    }
    }
   },
   {
@@ -1822,7 +1892,13 @@
      "key is a price worked out one cent over the story's high"
     ]
    },
-   "batch": "wave3"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "BBY",
+    "asof": "2013-06-28",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q25",
@@ -1832,22 +1908,22 @@
    "criterion": "kk.stop_open_fill",
    "q": "Where does your first stop go?",
    "choices": [
-    "59.83, 3.5% under the fill",
-    "61.85, just under the red high",
+    "41.33, 3.5% under the fill",
+    "42.70, just under the red high",
     "No stop until 10:00, then 3.5%",
     "Under the red day's low"
    ],
-   "story": "The red high was 61.90. The Kicker day opens over it, and you are filled at the open at 62.00. The day has no low yet.",
-   "answer": "59.83, 3.5% under the fill",
+   "story": "Hidden ticker. The red high was 42.75. The Kicker day opens over it, and you are filled at the open at 42.83. At the open the day has no low yet.",
+   "answer": "41.33, 3.5% under the fill",
    "calc": {
     "fn": "arith",
     "args": {
      "expr": "a * 0.965",
-     "a": 62.0
+     "a": 42.83
     },
     "round": 2
    },
-   "why": "59.83. A fill at the open has no Kicker low yet, so the first stop is 3.5% under the fill: 62.00 x 0.965 = 59.83. At 10:00 it is raised to a few cents under the 30-minute low if that is higher. It is a real stop order with the broker, and it only moves up.",
+   "why": "41.33. A fill at the open has no Kicker low yet, so the first stop is 3.5% under the fill: 42.83 x 0.965 = 41.33. At 10:00 it is raised to a few cents under the 30-minute low if that is higher. It is a real stop order with the broker, and it only moves up.",
    "lesson_line": "No low yet means 3.5% under the fill. Raise it once the low exists.",
    "facts": [
     "k_open",
@@ -1859,7 +1935,7 @@
    "wrong": {
     "No stop until 10:00, then 3.5%": "Every position has a real stop order from the start. At 10:00 it only moves up.",
     "Under the red day's low": "The stop sits under the Kicker day's low, not the red day's. With an open fill there is no Kicker low yet, so it starts 3.5% under the fill.",
-    "61.85, just under the red high": "The red high is the trigger. The first stop on an open fill is 3.5% under the fill."
+    "42.70, just under the red high": "The red high is the trigger. The first stop on an open fill is 3.5% under the fill."
    },
    "house": true,
    "simple": "With no low yet, the first stop goes 3.5% under your fill, and it moves up later.",
@@ -1875,7 +1951,17 @@
      "fixed before"
     ]
    },
-   "batch": "wave3"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "COHR",
+    "asof": "2024-01-16",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 42.83,
+     "stop": 41.33
+    }
+   }
   },
   {
    "key": "q26",
@@ -2065,9 +2151,9 @@
     "No, it is really an earnings gapper",
     "Yes, then sell before the report"
    ],
-   "story": "A clean Kicker triggers over the red high. The company reports earnings in two sessions.",
+   "story": "Hidden ticker, the red day. Tomorrow it trades through this high, a clean Kicker. The company reports after tomorrow's close.",
    "answer": "No, a report is inside 3 sessions",
-   "why": "No. No new buys in the 3 sessions before an earnings report, and a report in two sessions is inside that window. The rule bars the buy itself. A clean Kicker is not exempt, and a plan to sell before the report is still a new buy.",
+   "why": "No. No new buys in the 3 sessions before an earnings report, and a report due after the Kicker day's own close is inside that window. The rule bars the buy itself. A clean Kicker is not exempt, and a plan to sell before the report is still a new buy.",
    "lesson_line": "No new buys in the 3 sessions before a report.",
    "facts": [
     "k_earn",
@@ -2079,10 +2165,10 @@
    "wrong": {
     "Yes, it is a Kicker, not earnings": "The report window is its own rule and the Kicker does not escape it.",
     "Yes, then sell before the report": "The rule is no new buys inside the window, not buy and run.",
-    "No, it is really an earnings gapper": "The earnings gapper is the first session after a report. This report is still two sessions away, so the block is the 3-session window."
+    "No, it is really an earnings gapper": "The earnings gapper is the first session after a report. This report has not come yet, so the block is the 3-session window."
    },
    "house": true,
-   "simple": "No, because a report is two sessions away, and we buy nothing new in the 3 sessions before a report.",
+   "simple": "No, because a report is due right after the Kicker day, and we buy nothing new in the 3 sessions before a report.",
    "deeper": {
     "trap": "The trap is a clean Kicker. It can look perfect and still sit inside the window. GOOGL on 2020-02-03 reported after the Kicker's own close and gapped down the next morning. AVGO on 2024-03-07 did the same. Check the calendar before the buy."
    },
@@ -2093,7 +2179,13 @@
      "rests on the owner's rulebook (B22, the 3-day earnings window)"
     ]
    },
-   "batch": "wave3"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "GOOGL",
+    "asof": "2020-01-31",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q31",
@@ -2227,7 +2319,7 @@
     "No, buy tomorrow's open",
     "Yes, with the 3.5% stop"
    ],
-   "story": "The Kicker day ran over the red high at 45.10 and closes strong at 47.20. You were away and did not buy.",
+   "story": "Hidden ticker. The Kicker day ran over the red high and closed strong, near its high. You were away and did not buy.",
    "answer": "No, the trigger already passed",
    "why": "No. Never at the close of the Kicker day: buying the close is a named mistake. The entry is the trade through the red high, on the Kicker day only. You missed the trigger, so this entry is gone. A strong close is how the chart is graded afterward, not a buy signal.",
    "lesson_line": "Miss the trigger and this entry is gone. Do not buy the close.",
@@ -2254,7 +2346,13 @@
    "depends_on": [
     "D-026"
    ],
-   "batch": "wave3"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "RBRK",
+    "asof": "2026-09-14",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q35",
@@ -2350,7 +2448,7 @@
    "key": "q37",
    "skill": "setup.kicker",
    "rung": 5,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "kk.stop_cap",
    "q": "Filled at 22.17 with the stop at 21.76. How far under the fill is the stop, as a percent of the fill, to one decimal?",
    "answer": "1.8%",
@@ -2380,7 +2478,7 @@
      "rests on the owner's ruling (the 3.5% cap)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-2",
    "choices": [
     "98.2%",
     "0.4%",
@@ -2391,31 +2489,43 @@
     "0.4%": "Read the dollar gap as a percent.",
     "18.5%": "Slipped the decimal one place to the right.",
     "98.2%": "Divided the stop by the fill and skipped the subtraction."
+   },
+   "story": "Hidden ticker, bought on the Kicker day.",
+   "chart": {
+    "sym": "MS",
+    "asof": "1997-07-01",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 22.17,
+     "stop": 21.76
+    }
    }
   },
   {
    "key": "q38",
    "skill": "setup.kicker",
    "rung": 5,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "kk.size_from_stop",
-   "q": "Account 100,000, risk 0.5%. Fill 22.17, stop 21.76. How many shares, rounded down? The position cap does not bind.",
-   "answer": "1,219 shares",
+   "q": "Account 100,000, risk 0.5%. Fill 21.44, stop 20.70. How many shares, rounded down? The position cap does not bind.",
+   "answer": "675 shares",
    "calc": {
     "fn": "shares_from_risk",
     "args": {
      "account": 100000,
      "risk_pct": 0.5,
-     "entry": 22.17,
-     "stop": 21.76
+     "entry": 21.44,
+     "stop": 20.7
     },
     "round": 0
    },
-   "why": "1,219 shares. Risk dollars are 0.5% of 100,000. Divide that by the stop distance, 22.17 minus 21.76, and round down. The cap does not bind here. The stop comes first and sets the size.",
+   "why": "675 shares. Risk dollars are 0.5% of 100,000. Divide that by the stop distance, 21.44 minus 20.70, and round down. The cap does not bind here. The stop comes first and sets the size.",
    "lesson_line": "Stop first, then size. Shares are risk dollars over the stop distance.",
    "facts": [
     "h03",
-    "h01"
+    "h01",
+    "dAXON"
    ],
    "house": true,
    "simple": "Divide the money you risk by the gap between fill and stop, then round down to whole shares.",
@@ -2430,17 +2540,28 @@
      "rests on the owner's rulebook (A5)"
     ]
    },
-   "batch": "rank",
+   "batch": "visuals-2",
    "choices": [
-    "1,219 shares",
-    "2,439 shares",
-    "4,510 shares",
-    "12,195 shares"
+    "675 shares",
+    "1,351 shares",
+    "4,664 shares",
+    "6,756 shares"
    ],
    "wrong": {
-    "2,439 shares": "Risked double the risk percent.",
-    "4,510 shares": "Bought the whole account at the fill price.",
-    "12,195 shares": "Slipped the decimal: used ten times the risk percent."
+    "1,351 shares": "Risked double the risk percent.",
+    "4,664 shares": "Bought the whole account at the fill price.",
+    "6,756 shares": "Slipped the decimal: used ten times the risk percent."
+   },
+   "story": "Hidden ticker, bought on the Kicker day.",
+   "chart": {
+    "sym": "AXON",
+    "asof": "2004-11-04",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 21.44,
+     "stop": 20.7
+    }
    }
   },
   {
@@ -2449,21 +2570,22 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "kk.trim_1",
-   "q": "What do you do at 23.40 on the buy day?",
+   "q": "What do you do at 73.12 on the buy day?",
    "choices": [
     "Hold it all, no sell on day 1",
     "Sell a third, stop to breakeven",
     "Sell it all, bank the 3R gain",
     "Sell half, keep the same stop"
    ],
-   "story": "You bought at 22.17 with the stop at 21.76. On the buy day itself the Kicker reaches 23.40, which is 3R.",
+   "story": "Hidden ticker, bought at 68.80 with the stop at 67.36. On the buy day itself the Kicker reaches 73.12, which is 3R.",
    "answer": "Hold it all, no sell on day 1",
    "why": "Hold it all. We very rarely sell on day 1 of the buy. We usually wait until day 3 at the earliest. 3R this early is not a reason to sell.",
    "lesson_line": "3R on day 1 is not a sell signal. Wait for the push.",
    "facts": [
     "r04",
     "r05",
-    "r02"
+    "r02",
+    "dATRO"
    ],
    "wrong": {
     "Sell it all, bank the 3R gain": "We do not sell it all on day 1. The first sell is a judgment.",
@@ -2480,7 +2602,17 @@
      "fixed before (variety rewrite)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "ATRO",
+    "asof": "2026-06-11",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 68.8,
+     "stop": 67.36
+    }
+   }
   },
   {
    "key": "q40",
@@ -2788,7 +2920,7 @@
     "An episodic pivot, neglected name",
     "A Launchpad over the averages"
    ],
-   "story": "A weak red day, then a gap up 6.2% and a close up 18.7%. The company reported after the close the night before.",
+   "story": "Hidden ticker, a weak red day. The company reports after this close. The next day it gaps up 6.2% and closes up 18.7%.",
    "answer": "An earnings gapper, graded as a PEG",
    "why": "An earnings gapper, graded as a PEG, a Power Earnings Gap. The company reported after the close the night before, so the gap day is the earnings reaction day. On our card the first session after a report is an earnings gapper, whatever the red day looked like. That was LUV on 2026-01-29: gap 6.2%, +18.7% on 3.8x.",
    "lesson_line": "The first session after a report is an earnings gapper, whatever the red day looked like.",
@@ -2818,7 +2950,13 @@
      "fixed before (softened by the checker)"
     ]
    },
-   "batch": "wave3"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "LUV",
+    "asof": "2026-01-28",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q49",
@@ -2833,7 +2971,7 @@
     "The red day closed too low, at 7%",
     "It traded through the red high"
    ],
-   "story": "A red day closes at 7% of its range. The next day opens 0.8% over that close, trades through the red high and closes up 8.4%.",
+   "story": "Hidden ticker, the red day closed at 7% of its range. The next day opens 0.8% over that close, trades through this high and closes up 8.4%.",
    "answer": "The gap is under the 1.5% line",
    "why": "The gap is under 1.5%. It opened only 0.8% over the red close, and the rule needs 1.5% or more. That was CEG on 2024-06-10. It traded through the red high and closed up 8.4%, but with so small a gap it was a plain breakout day.",
    "lesson_line": "A strong green bar without a 1.5% gap is a breakout, not a Kicker.",
@@ -2861,7 +2999,13 @@
      "the 1.5% line is a proposed card threshold"
     ]
    },
-   "batch": "wave3"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "CEG",
+    "asof": "2024-06-07",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q50",
@@ -2908,7 +3052,7 @@
     "The red day closed too high in range",
     "The stop is over 3.5% of the entry"
    ],
-   "story": "The red day falls 5.8% and closes at 1% of its range. The next day gaps 5.7% and closes up 13.8%. Over the prior 20 sessions the closes ran across 44.1% of price. A 3.5% stop fits your risk.",
+   "story": "Hidden ticker, the red day. It fell 5.8% and closed at 1% of its range. Tomorrow it gaps up 5.7% and trades through this high. Over the prior 20 sessions the closes ran across 44.1% of price. A 3.5% stop fits your risk.",
    "answer": "The stock was not on a tight base",
    "why": "No base. The prior 20 closes span 44.1%, far past the 15% a base allows. IDCC on 2011-08-03 failed this test. It was a stock mid-run after a 60% burst, taken anyway and stopped the next session at 0.0R. The red day closed weak and the gap was 5.7%, so neither of those is the problem.",
    "lesson_line": "No base, no Kicker. A stock mid-run is not set up.",
@@ -2936,7 +3080,13 @@
      "the 15% base span is a proposed card threshold"
     ]
    },
-   "batch": "wave3"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "IDCC",
+    "asof": "2011-08-02",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q52",
@@ -3147,7 +3297,7 @@
     "It closed too strong to trust",
     "The stop was too tight for the day"
    ],
-   "story": "A hard market-wide selloff took the stock down 5.9% in one day. The next day it gapped 8.7%, closed up 9.9%, then gave it all back. Your stop was the full 3.5%.",
+   "story": "Hidden ticker. A hard market-wide selloff took it down 5.9% in one day. The next day it gapped 8.7% and you bought the open at 352.77 with the stop at 340.42, the full 3.5%. It closed up 9.9%, then gave it all back.",
    "answer": "A shock-day bar is no pullback",
    "why": "A shock-day red bar is not an orderly pullback. That was AVGO on 2025-10-13: the red day fell 5.9% in a one-day market shock, and the Kicker gapped 8.7%. The next day gave it all back and hit the stop. A shock-day bar looks like a Kicker and is not.",
    "lesson_line": "A one-day shock bar is not an orderly pullback.",
@@ -3179,7 +3329,17 @@
    "depends_on": [
     "D-097"
    ],
-   "batch": "wave3"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "AVGO",
+    "asof": "2025-10-13",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 352.77,
+     "stop": 340.42
+    }
+   }
   },
   {
    "key": "q58",
@@ -3194,7 +3354,7 @@
     "No, it is an episodic pivot",
     "Yes, in Red we only size down"
    ],
-   "story": "A leader fell 10.0% on a red day, then gaps up 5.5% and closes up 10.6%. The whole market is in a crash and the reading is Red.",
+   "story": "Hidden ticker, the red day. A leader fell 10.0% on the day. Tomorrow it gaps up 5.5% and trades through this high. The whole market is in a crash and the reading is Red.",
    "answer": "No, in Red we are mostly cash",
    "why": "No. A bounce in a Red market looks like a Kicker and is not. In Red we are mostly cash, plus shorts below the 200-day. That was LLY on 2020-03-13: Monday opened under the stop, and the stop was hit.",
    "lesson_line": "Read the market first. A bounce in a crash is not a Kicker.",
@@ -3224,7 +3384,13 @@
      "fixed before (requoted)"
     ]
    },
-   "batch": "wave3"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "LLY",
+    "asof": "2020-03-12",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q59",
@@ -3282,7 +3448,7 @@
     "Hold, the base is still intact",
     "Buy it back at the next open"
    ],
-   "story": "Textbook: an 8.1% base, a red day on its low, a 1.7% gap. You bought at 181.81 with the stop at 177.50. Next day it falls through the stop.",
+   "story": "Hidden ticker. Textbook: an 8.1% base, a red day on its low, a 1.7% gap. You bought at 181.81 with the stop at 177.50. Next day it falls through the stop.",
    "answer": "Take the loss; wait for a new trigger",
    "why": "Take the planned loss. The stop is the exit, and a clean chart does not change that. After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop and every rule. This was CDNS on 2021-12-02: a textbook picture, stopped the next session.",
    "lesson_line": "A clean chart can still fail. The stop makes the loss small.",
@@ -3309,7 +3475,17 @@
      "rests on the owner's rulebook (A4, B21)"
     ]
    },
-   "batch": "wave3"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "CDNS",
+    "asof": "2021-12-02",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 181.81,
+     "stop": 177.5
+    }
+   }
   },
   {
    "key": "q61",
@@ -3324,7 +3500,7 @@
     "Nothing; the close was the exit",
     "Proved the setup was a bad one"
    ],
-   "story": "You bought at 141.14 with the stop at 137.35. The next day opens at 142.16 and closes at 136.32, under the red high. The stop traded.",
+   "story": "Hidden ticker. You bought at 141.14 with the stop at 137.35. The next day opens at 142.16 and closes at 136.32, under the red high. The stop traded.",
    "answer": "Its job; it capped a planned loss",
    "why": "Its job. The stop turned a failed Kicker into a planned loss. The next day opened at 142.16 but closed at 136.32, under the red high. That close is a warning for the grade, not an exit, and the stop traded the same day. That was PGR on 2023-03-16.",
    "lesson_line": "The warning came first and the stop did the rest.",
@@ -3351,7 +3527,17 @@
      "rests on the owner's rulebook (A4) and one card line on the warning"
     ]
    },
-   "batch": "wave3"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "PGR",
+    "asof": "2023-03-16",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 141.14,
+     "stop": 137.35
+    }
+   }
   },
   {
    "key": "q62",
@@ -4038,7 +4224,7 @@
    "format": "scenario",
    "criterion": "kk.plan_before_open",
    "q": "What is the best use of tonight?",
-   "story": "A leader closed a weak red day at support. If it gaps up through the red day's high tomorrow, you want the Kicker. It is 8 pm.",
+   "story": "Hidden ticker, a leader closed a weak red day near its low. If it gaps up through this high tomorrow, you want the Kicker. It is 8 pm.",
    "choices": [
     "Write down entry, stop and size",
     "Wait and pick the stop after the fill",
@@ -4067,7 +4253,13 @@
      "rests on the owner's rulebook (D39)"
     ]
    },
-   "batch": "wave3"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "HOOD",
+    "asof": "2024-05-16",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q81",
@@ -4214,7 +4406,7 @@
    "format": "scenario",
    "criterion": "kk.breakeven",
    "q": "Move the stop up yet?",
-   "story": "You bought at 22.17 with the stop at 21.76. The Kicker is up 1R. A friend says to move the stop to breakeven now.",
+   "story": "Hidden ticker, bought on the Kicker day. You bought at 22.17 with the stop at 21.76. The next day the Kicker is up 1R. A friend says to move the stop to breakeven now.",
    "choices": [
     "Not yet; breakeven comes later",
     "No; a stop never moves",
@@ -4245,7 +4437,17 @@
      "fixed before"
     ]
    },
-   "batch": "rulings2"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "MS",
+    "asof": "1997-07-01",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 22.17,
+     "stop": 21.76
+    }
+   }
   },
   {
    "key": "q86",
@@ -4284,23 +4486,24 @@
    "key": "q87",
    "skill": "setup.kicker",
    "rung": 4,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "kk.trim_2",
-   "q": "Bought at 36.80 with the stop at 35.70. Where is 5R?",
-   "answer": "$42.30",
+   "q": "One R is the fill minus the stop. Where is 5R?",
+   "answer": "$45.17",
    "calc": {
     "fn": "arith",
     "args": {
      "expr": "a + 5 * (a - b)",
-     "a": 36.8,
-     "b": 35.7
+     "a": 41.42,
+     "b": 40.67
     },
     "round": 2
    },
-   "why": "$42.30. One R is the fill minus the stop, 36.80 minus 35.70. Add five of those to the 36.80 fill. 5R is a yardstick. Selling at about 5 to 10R is often best.",
+   "why": "$45.17. One R is the fill minus the stop, 41.42 minus 40.67. Add five of those to the 41.42 fill. 5R is a yardstick. Selling at about 5 to 10R is often best.",
    "lesson_line": "Know your 5R before the open. A strong trade often runs past it.",
    "facts": [
-    "r03"
+    "r03",
+    "dBOOT"
    ],
    "house": true,
    "prefix": "$",
@@ -4313,17 +4516,28 @@
      "rests on the owner's rulebook (E51)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-2",
    "choices": [
-    "$37.90",
-    "$42.30",
-    "$41.20",
-    "$31.30"
+    "$42.17",
+    "$45.17",
+    "$44.42",
+    "$37.67"
    ],
    "wrong": {
-    "$37.90": "Added one R, not five.",
-    "$41.20": "Added five R to the stop, not the fill.",
-    "$31.30": "Subtracted five R from the fill."
+    "$42.17": "Added one R, not five.",
+    "$44.42": "Added five R to the stop, not the fill.",
+    "$37.67": "Subtracted five R from the fill."
+   },
+   "story": "Hidden ticker, bought on the Kicker day at 41.42 with the stop at 40.67.",
+   "chart": {
+    "sym": "BOOT",
+    "asof": "2020-12-28",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 41.42,
+     "stop": 40.67
+    }
    }
   },
   {
@@ -4531,8 +4745,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key matches k_ea/k_over. Note: stem says 'On the Kicker day', which is q05's blank answer, and q05's stem hands over this key; q05 is outside this check, so only the order matters (keep q04 before q05).",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "JBI red day 2023-12-13 (high 11.04, Kicker day 12-14 opened 10.94, high 11.64) verified in bars; 11.05 = red high + 1c per owner ruling. Plain wording. Pass."
   },
   "q05": {
    "status": "cut",
@@ -4556,14 +4769,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key matches k_hold. Wrong notes grounded. Key ties for longest (33) with two others, so no tell.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "JBI Kicker day 12-14, low 10.82 stayed over red close 10.43 (+3.74%) verified. Second JBI use. Pass."
   },
   "q09": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from cx1 and k_struct. Wrong notes grounded (h10, l_peg). IDCC numbers match dIDCC/dIDCCn. Right answer is not the longest or the odd one out."
+   "notes": "SWKS red day 2014-06-02 close 9% of range; 50-day rising, over 200-day, 20-close span 6.4% in bars; dSWKSn quote matches dossier row 5 exactly. Pass."
   },
   "q10": {
    "status": "pass",
@@ -4619,7 +4831,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "re-keyed to day 3 earliest"
+   "notes": "AXON buy day 2004-11-04 buy 21.44 / stop 20.70 match dossier row 3 and bars (red high 21.43, Kicker low 20.75). 3R = 23.66 first reached next session (high 24.05), so within a day of the buy is true; forward 20 covers it. Pass."
   },
   "q19": {
    "status": "pass",
@@ -4631,7 +4843,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc; answer matches; every wrong choice rebuilt from its stated mistake and differs by more than rounding; no tell."
+   "notes": "AMD buy day 2023-12-07 122.84/119.51 match dossier row 8; 3R = 132.83 correct, distractors recomputed (126.17, 129.50, 112.85) right; 3R first reached day 3 (high 135.04), within two days true. Pass."
   },
   "q21": {
    "status": "pass",
@@ -4655,14 +4867,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "27.97 = 27.96 + 0.01 from the question and k_ea; BBY 27.97 is in dBBY. Open-under-high story agrees with the fill notation. Key is not the longest.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "BBY red day 2013-06-28 high 27.96, Kicker day opened 27.90 under it, gap 2.1% verified; story numbers are BBY own. Second BBY use with q66. Pass."
   },
   "q25": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "62.00 x 0.965 = 59.83 recomputed. k_open settles the first stop on an open fill. Story and COHR deeper example match dCOHR. Wrong choices are real misconceptions."
+   "notes": "COHR buy day 2024-01-16, red high 42.75, open fill 42.83, 3.5% stop 41.33 match dossier row 9, bars and text; wrong keys now match the choices. Pass."
   },
   "q26": {
    "status": "pass",
@@ -4692,7 +4903,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "A report two sessions out sits inside k_earn/h08's 3-session window; the earnings-gapper distractor is rightly wrong (l_peg needs the session after a report); GOOGL/AVGO trap grounded in dGOOGL/cGOOGL."
+   "notes": "GOOGL red day 2020-01-31 (close at 14% of range); Kicker day 02-03 traded through the red high; Alphabet reported after that close (dossier section 12/13), stock fell next day in bars. Pass."
   },
   "q31": {
    "status": "pass",
@@ -4716,7 +4927,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Final text agrees with the rulings it touches; key right, wrongs wrong, quotes and numbers grounded, style ok."
+   "notes": "RBRK Kicker day 2026-09-14 (red high 90.24, close 100.20 at 97% of range); plain wording, no trade since not bought. Pass."
   },
   "q35": {
    "status": "pass",
@@ -4734,19 +4945,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc; answer matches; every wrong choice rebuilt from its stated mistake and differs by more than rounding; no tell."
+   "notes": "MS buy day 1997-07-01 22.17/21.76 match dossier row 1 and bars; 1.8% correct. Pass."
   },
   "q38": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
+   "notes": "AXON second use; shares 675 and distractors 1,351 / 4,664 / 6,756 recomputed correct; numbers match row 3. Pass."
   },
   "q39": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Final text agrees with the rulings it touches; key right, wrongs wrong, quotes and numbers grounded, style ok."
+   "notes": "ATRO buy day 2026-06-11 68.80/67.36 match dossier row 10 and bars; 3R = 73.12 and buy-day high 75.78 is over it, so reaching 3R on the buy day is true. Pass."
   },
   "q40": {
    "status": "cut",
@@ -4800,14 +5011,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "l_peg plus dLUV (6.2% gap, +18.7%, 3.8x); EP ruled out by l_ep's 10%; Launchpad by l_lp0. Single defensible key.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "LUV red day 2026-01-28 close 13% of range; next day gap 6.2% and +18.7% match bars; report after that close per dossier section 13. Pass."
   },
   "q49": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "0.8% gap, 7% close, +8.4% all in dCEG; only the gap test failed (dCEGd). Trading through the red high follows from the +8.4% close. Key is not the longest."
+   "notes": "CEG red day 2024-06-07 close 7% of range, next day open +0.8% over the red close, +8.4% verified in bars. Pass."
   },
   "q50": {
    "status": "cut",
@@ -4819,7 +5029,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "44.1% span fails k_struct (dIDCC, dIDCCd). Gap 5.7% is inside 1.5-6%, close at 1% is weak, stop line settles the stop choice. Overlap with q57 stays an owner flag (D-097)."
+   "notes": "IDCC red day 2011-08-02 -5.8%, close 1% of range, next day gap 5.7%, trades through the high verified; 44.1% span per dossier. Pass."
   },
   "q52": {
    "status": "pass",
@@ -4855,14 +5065,14 @@
   "q57": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right. The why says 'On 10-10' with no year, and 'stopped the next session at 0.0R' misreads the research column (0.0R is the best R reached; a 3.5% stop-out is a full loss), so a learner reads it as breakeven. The simple line's 'so the Kicker failed' overreaches; the card says it is not a Kicker."
+   "fixed": false,
+   "notes": "AVGO buy day 2025-10-13 352.77/340.42 (3.5%) match dossier and bars; red day -5.9%, gap 8.7%, +9.9% verified; stop traded next session (low 339.65), within forward 20. Pass."
   },
   "q58": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "k_mkt/h33 decide it; 'only size down' is the Yellow reading (h26); EP excluded by l_ep. LLY numbers grounded in dLLY/dLLYn. Overlaps q07 and q70 by design (Learn to Prove ladder)."
+   "notes": "LLY red day 2020-03-12 -10.0% closing at 1% of range, gap 5.5% next day through the red high; Monday opened under the stop verified. Pass."
   },
   "q59": {
    "status": "cut",
@@ -4874,14 +5084,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "h02 and h28 decide it; CDNS numbers from dCDNS/dCDNSn (low 175.34 under the 177.50 stop); distractors each break a named rule.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "CDNS buy day 2021-12-02 181.81/177.50 match dossier and bars (red high 181.80, Kicker low 177.55); next day low 175.34 through the stop. Pass."
   },
   "q61": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Numbers match dPGR/dPGRn; k_warn supports the warning-not-exit note. Key is the only positive choice but that is inherent to the ask."
+   "notes": "PGR buy day 2023-03-16 141.14/137.35 match bars (red high 141.13, low 137.40); day 2 open 142.16, close 136.32, low 135.86 verified. Pass."
   },
   "q62": {
    "status": "cut",
@@ -4993,9 +5202,9 @@
   },
   "q80": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave3; awaiting cold re-read"
+   "notes": "HOOD red day 2024-05-16 close at 3% of range; plain wording. Pass."
   },
   "q81": {
    "status": "pass",
@@ -5024,8 +5233,8 @@
   "q85": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Final text agrees with the rulings it touches; key right, wrongs wrong, quotes and numbers grounded, style ok."
+   "fixed": true,
+   "notes": "MS buy day chart ends at +0.73R (close 22.47; 1R is 22.58), but the story says the Kicker is up 1R, which does not match the last bar; 1R is first reached the next day (high 23.00). Fix: say the trade reaches 1R the next day."
   },
   "q86": {
    "status": "cut",
@@ -5037,7 +5246,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc; answer matches; every wrong choice rebuilt from its stated mistake and differs by more than rounding; no tell."
+   "notes": "BOOT buy day 2020-12-28 41.42/40.67 match dossier row 6 and bars; 5R = 45.17 and distractors (42.17, 44.42, 37.67) recomputed correct. Pass."
   },
   "q88": {
    "status": "cut",

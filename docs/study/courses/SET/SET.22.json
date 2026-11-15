@@ -924,7 +924,7 @@
    "rung": 1,
    "format": "mcq",
    "criterion": "gs.line_is_gap_up_low",
-   "q": "Which line does Gap Support defend?",
+   "q": "Hidden ticker, the test day is the last bar. Which line does Gap Support defend here?",
    "choices": [
     "The gap-up day's low",
     "The prior day's high",
@@ -955,7 +955,13 @@
      "settled criteria card line, two facts"
     ]
    },
-   "batch": "wave3"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "ADSK",
+    "asof": "2004-03-17",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q02",
@@ -1340,7 +1346,7 @@
    "rung": 3,
    "format": "mcq",
    "criterion": "gs.test_low",
-   "q": "Gap-up low 53.03, test-day low 52.45. How deep is the breach, in percent?",
+   "q": "Hidden ticker, the test day is the last bar. Gap-up low 53.03, test-day low 52.45. How deep is the breach, in percent?",
    "answer": "1.1%",
    "calc": {
     "fn": "arith",
@@ -1361,7 +1367,7 @@
    "suffix": "%",
    "simple": "Subtract the test-day low from the gap-up low, then divide by the gap-up low, to get about 1.1 percent.",
    "deeper": {
-    "example": "ILMN: the test day's low broke the 53.03 line by 1.1%, yet the day closed at 94% of its range. The scan bought 53.27 with the stop at 52.40, and the best the trade reached was 18.6R."
+    "example": "ILMN: the test day's low broke the 53.03 line by 1.1%, yet the day closed at 94% of its range."
    },
    "tier": "core",
    "risk": {
@@ -1370,7 +1376,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-2",
    "choices": [
     "98.9%",
     "0.6%",
@@ -1381,6 +1387,12 @@
     "0.6%": "Read the dollar gap as a percent.",
     "10.9%": "Slipped the decimal one place to the right.",
     "98.9%": "Divided the test low by the gap-up low and skipped the subtraction."
+   },
+   "chart": {
+    "sym": "ILMN",
+    "asof": "2010-11-02",
+    "window": 120,
+    "forward": 20
    }
   },
   {
@@ -1389,7 +1401,7 @@
    "rung": 3,
    "format": "mcq",
    "criterion": "gs.trim_1",
-   "q": "Bought at 25.10 with the stop at 24.71. Where is 3R?",
+   "q": "Hidden ticker, bought at 25.10 with the stop at 24.71. Where is 3R?",
    "answer": "$26.27",
    "calc": {
     "fn": "arith",
@@ -1400,7 +1412,7 @@
     },
     "round": 2
    },
-   "why": "$26.27. One R is the fill minus the stop, 25.10 minus 24.71. Add three of those to the 25.10 fill. 3R is a yardstick for the trade, not a fixed sell. AKAM ran to 30.4R from these levels.",
+   "why": "$26.27. One R is the fill minus the stop, 25.10 minus 24.71. Add three of those to the 25.10 fill. 3R is a yardstick for the trade, not a fixed sell.",
    "lesson_line": "Know your 3R before the close. It is a yardstick, not a sell order.",
    "facts": [
     "e11",
@@ -1417,7 +1429,7 @@
      "fixed before"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-2",
    "choices": [
     "$23.93",
     "$26.27",
@@ -1428,6 +1440,16 @@
     "$23.93": "Subtracted three R from the fill.",
     "$25.49": "Added one R, not three.",
     "$26.66": "Counted four R, one too many."
+   },
+   "chart": {
+    "sym": "AKAM",
+    "asof": "2006-02-14",
+    "window": 120,
+    "forward": 40,
+    "trade": {
+     "entry": 25.1,
+     "stop": 24.71
+    }
    }
   },
   {
@@ -1474,7 +1496,7 @@
    "rung": 3,
    "format": "mcq",
    "criterion": "gs.stop",
-   "q": "Where does the stop go on a Gap Support buy?",
+   "q": "Hidden ticker, the test day is the last bar. Where does the stop go on a Gap Support buy?",
    "choices": [
     "Just under the test day's low",
     "Under the gap-fill for room",
@@ -1507,7 +1529,13 @@
      "settled stop rule (A3), three facts"
     ]
    },
-   "batch": "wave3"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "XYZ",
+    "asof": "2017-03-22",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q20",
@@ -1590,7 +1618,7 @@
    "rung": 3,
    "format": "mcq",
    "criterion": "gs.stop_width",
-   "q": "Fill 15.96, stop 15.48. How far is the stop from the fill, in percent?",
+   "q": "Hidden ticker, bought at 15.96 with the stop at 15.48. How far is the stop from the fill, in percent?",
    "answer": "3.0%",
    "calc": {
     "fn": "arith",
@@ -1601,7 +1629,7 @@
     },
     "round": 1
    },
-   "why": "3.0%. The fill minus the stop is 15.96 minus 15.48. Divide that by the fill, 15.96, and show it as a percent. That is right at the 'about 3%' line. If the honest stop is more than about 3% away, size down or skip, and never pull it in. VIAV had these levels and ran to 25.4R.",
+   "why": "3.0%. The fill minus the stop is 15.96 minus 15.48. Divide that by the fill, 15.96, and show it as a percent. That is right at the 'about 3%' line. If the honest stop is more than about 3% away, size down or skip, and never pull it in.",
    "lesson_line": "Stop distance is the fill minus the stop, over the fill.",
    "facts": [
     "g15",
@@ -1617,7 +1645,7 @@
      "computed key; the 'about 3%' line is marked settled on the card"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-2",
    "choices": [
     "30.1%",
     "0.5%",
@@ -1628,6 +1656,16 @@
     "0.5%": "Read the dollar gap as a percent.",
     "30.1%": "Slipped the decimal one place to the right.",
     "97.0%": "Divided the stop by the fill and skipped the subtraction."
+   },
+   "chart": {
+    "sym": "VIAV",
+    "asof": "2025-11-21",
+    "window": 120,
+    "forward": 40,
+    "trade": {
+     "entry": 15.96,
+     "stop": 15.48
+    }
    }
   },
   {
@@ -1952,7 +1990,7 @@
    "format": "scenario",
    "criterion": "gs.not_gap_day",
    "q": "Gap Support or PEG?",
-   "story": "A stock gapped 9% on earnings this morning and is holding near the high of the day. You are deciding which setup owns today's buy.",
+   "story": "Hidden ticker, the gap day is the last bar. It opened 10.1% over the prior close on 11.9x volume, an earnings gap. You are deciding which setup owns today's buy.",
    "choices": [
     "A PEG; the gap day is not Gap Support",
     "Gap Support; the gap is holding",
@@ -1981,7 +2019,13 @@
      "settled card line, three facts"
     ]
    },
-   "batch": "wave3"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "ADSK",
+    "asof": "2004-02-27",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q33",
@@ -2251,7 +2295,7 @@
    "rung": 6,
    "format": "mcq",
    "criterion": "gs.stop",
-   "q": "Account 50,000. Risk 0.5%. Fill 53.27, stop 52.40. How many shares does the risk allow?",
+   "q": "Hidden ticker, bought at 53.27, stop 52.40. Account 50,000, risk 0.5%. How many shares does the risk allow?",
    "answer": "287 shares",
    "calc": {
     "fn": "shares_from_risk",
@@ -2281,7 +2325,7 @@
      "rests on the owner's rulebook (A5)"
     ]
    },
-   "batch": "rank",
+   "batch": "visuals-2",
    "choices": [
     "287 shares",
     "938 shares",
@@ -2292,6 +2336,16 @@
     "574 shares": "Risked double the risk percent.",
     "938 shares": "Bought the whole account at the fill price.",
     "2,873 shares": "Slipped the decimal: used ten times the risk percent."
+   },
+   "chart": {
+    "sym": "ILMN",
+    "asof": "2010-11-02",
+    "window": 120,
+    "forward": 40,
+    "trade": {
+     "entry": 53.27,
+     "stop": 52.4
+    }
    }
   },
   {
@@ -2546,7 +2600,7 @@
    "format": "scenario",
    "criterion": "gs.after_entry_stop",
    "q": "What was that loss?",
-   "story": "AVGO. A 16.2% earnings gap on 4.3x volume. Thirteen sessions later the test day holds near perfectly. You buy it with the stop a few cents under the test day's low. The stop trades without any gain.",
+   "story": "Hidden ticker. A 16.2% earnings gap on 4.3x volume. Thirteen sessions later the test day holds near perfectly. The low is 0.7% above the line and the close is at 88% of its range. You buy at 339.31 with the stop at 333.47. The stop trades the next session without any gain.",
    "choices": [
     "A planned loss; a clean test can lose",
     "A sign the setup no longer works",
@@ -2582,7 +2636,17 @@
      "story says buy the close, D-003"
     ]
    },
-   "batch": "rulings"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "AVGO",
+    "asof": "2025-09-24",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 339.31,
+     "stop": 333.47
+    }
+   }
   },
   {
    "key": "q49",
@@ -2591,7 +2655,7 @@
    "format": "scenario",
    "criterion": "gs.inv_fill",
    "q": "What does the second close tell you?",
-   "story": "AEHR. The test day closes on the line with a hammer. The stop trades the next session. Two sessions later the stock closes under the gap-fill spot.",
+   "story": "Hidden ticker. The test day closed on the line with a hammer. The stop traded the next session. Two sessions later the stock closes under the gap-fill spot.",
    "choices": [
     "The gap filled; the setup is dead",
     "The line held; buy again",
@@ -2624,7 +2688,13 @@
      "settled card line"
     ]
    },
-   "batch": "wave3"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "AEHR",
+    "asof": "2023-08-17",
+    "window": 120,
+    "forward": 60
+   }
   },
   {
    "key": "q50",
@@ -2691,7 +2761,7 @@
    "format": "scenario",
    "criterion": "gs.not_downtrend",
    "q": "Take it or pass?",
-   "story": "DOCU, 2025. A 9.1% gap on 5.4x volume closed 2.6% under a falling 50-day. Eleven sessions later the test looks fine.",
+   "story": "Hidden ticker, 2025. A 9.1% gap on 5.4x volume closed 2.6% under a falling 50-day. Eleven sessions later the test looks fine.",
    "choices": [
     "Pass; the gap is in a downtrend",
     "Pass; the test came too long after",
@@ -2699,7 +2769,7 @@
     "Take it; 5.4x volume is huge"
    ],
    "answer": "Pass; the gap is in a downtrend",
-   "why": "Pass. We take no downtrend gaps: the gap day must close above a flat or rising 50-day. DOCU closed 2.6% under a falling 50-day. The test 11 sessions later looked fine, but it was a bounce in a downtrend, 0.0R if taken.",
+   "why": "Pass. We take no downtrend gaps: the gap day must close above a flat or rising 50-day. The gap closed 2.6% under a falling 50-day. The test 11 sessions later looked fine, but it was a bounce in a downtrend.",
    "lesson_line": "A clean test in a downtrend is still a bounce.",
    "facts": [
     "e23",
@@ -2725,7 +2795,13 @@
      "settled card line"
     ]
    },
-   "batch": "wave3"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "DOCU",
+    "asof": "2025-03-31",
+    "window": 120,
+    "forward": 30
+   }
   },
   {
    "key": "q53",
@@ -2734,7 +2810,7 @@
    "format": "scenario",
    "criterion": "gs.above_200",
    "q": "Take it or pass?",
-   "story": "EVR, 2019. A stock gaps 11.3% on 4.1x volume above a rising 50-day. Six sessions later the test closes 6.9% under the 200-day.",
+   "story": "Hidden ticker, 2019. A stock gaps 11.3% on 4.1x volume above a rising 50-day. Six sessions later the test closes 6.9% under the 200-day.",
    "choices": [
     "Pass; it closed under the 200-day",
     "Pass; the 50-day is not rising enough",
@@ -2769,7 +2845,13 @@
      "example read from our own bars"
     ]
    },
-   "batch": "rulings"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "EVR",
+    "asof": "2019-02-07",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q54",
@@ -2821,7 +2903,7 @@
    "format": "scenario",
    "criterion": "gs.post_gap_high_trim",
    "q": "Which level does price reach first on the way up?",
-   "story": "LLY, 2021. A news gap. The test is bought at 231.13 with the stop at 228.43. The post-gap high is 239.37.",
+   "story": "Hidden ticker. A news gap. The test is bought at 231.13 with the stop at 228.43. The post-gap high is 239.37.",
    "choices": [
     "3R, 239.23, comes first",
     "The post-gap high, 239.37, comes first",
@@ -2864,7 +2946,17 @@
      "computed key"
     ]
    },
-   "batch": "rulings2"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "LLY",
+    "asof": "2021-07-01",
+    "window": 120,
+    "forward": 30,
+    "trade": {
+     "entry": 231.13,
+     "stop": 228.43
+    }
+   }
   },
   {
    "key": "q56",
@@ -3089,7 +3181,7 @@
      "fixed before"
     ]
    },
-   "batch": "rulings"
+   "batch": "visuals-2"
   },
   {
    "key": "q62",
@@ -3139,7 +3231,7 @@
      "choice added"
     ]
    },
-   "batch": "rulings"
+   "batch": "visuals-2"
   },
   {
    "key": "q63",
@@ -3222,7 +3314,7 @@
    "format": "scenario",
    "criterion": "gs.after_entry_stop",
    "q": "What do you do?",
-   "story": "DKS, 2021. You bought the test and the stop traded the next session on a 2.4% undercut that closed back on the line. Weeks later the stock has run far higher.",
+   "story": "Hidden ticker, 2021. You bought the test and the stop traded the next session on a 2.4% undercut that closed back on the line. Weeks later the stock has traded as high as 147.39.",
    "choices": [
     "Nothing; wait for a new trigger",
     "Buy now; the reclaim was a new trigger",
@@ -3258,7 +3350,13 @@
      "fixed before"
     ]
    },
-   "batch": "wave3"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "DKS",
+    "asof": "2021-09-07",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q66",
@@ -3472,9 +3570,9 @@
    "rung": 4,
    "format": "mcq",
    "criterion": "gs.trim_2",
-   "q": "Bought at 27.15 with the stop at 26.89. Where is 5R?",
+   "q": "Hidden ticker, bought at 27.15 with the stop at 26.89. Where is 5R?",
    "answer": "$28.45",
-   "why": "$28.45. One R is the fill minus the stop, 27.15 minus 26.89. Add five of those to the 27.15 fill. 5R is a yardstick. A strong trade often runs well past it. GPN ran to 24.9R from these levels.",
+   "why": "$28.45. One R is the fill minus the stop, 27.15 minus 26.89. Add five of those to the 27.15 fill. 5R is a yardstick. A strong trade often runs well past it.",
    "lesson_line": "Know your 5R before the open. A strong trade often runs past it.",
    "facts": [
     "e02",
@@ -3499,7 +3597,7 @@
      "computed key"
     ]
    },
-   "batch": "rank",
+   "batch": "visuals-2",
    "choices": [
     "$28.45",
     "$27.41",
@@ -3510,6 +3608,16 @@
     "$27.41": "Added one R, not five.",
     "$28.19": "Added five R to the stop, not the fill.",
     "$25.85": "Took five R off the fill instead of adding it."
+   },
+   "chart": {
+    "sym": "GPN",
+    "asof": "2013-10-09",
+    "window": 120,
+    "forward": 40,
+    "trade": {
+     "entry": 27.15,
+     "stop": 26.89
+    }
    }
   },
   {
@@ -3518,7 +3626,7 @@
    "rung": 2,
    "format": "mcq",
    "criterion": "gs.trim_2",
-   "q": "When do we usually make the first sell?",
+   "q": "Hidden ticker, you bought this test. When do we usually make the first sell?",
    "choices": [
     "Day 3 at the earliest, often later",
     "On the buy day, into strength",
@@ -3547,7 +3655,13 @@
      "rests on the owner's trim rule (E51, B19)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "MA",
+    "asof": "2009-08-19",
+    "window": 120,
+    "forward": 40
+   }
   },
   {
    "key": "q74",
@@ -3803,8 +3917,8 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "gs.stop_not_porosity",
-   "q": "Why is a fixed stop 1% to 3% under the line wrong here?",
-   "story": "The gap-up low is the line. The test day's low dips 3.2% under it. Then the day closes back over the line in its upper half.",
+   "q": "Why is a fixed stop 1% under the line wrong here?",
+   "story": "Hidden ticker, the test day is the last bar. Its low dips 1.8% under the gap-up low. Then the day closes back over the line at 87% of its range.",
    "choices": [
     "The day already traded below it",
     "It would sit too far from the entry",
@@ -3812,7 +3926,7 @@
     "Morales allows no undercut at all"
    ],
    "answer": "The day already traded below it",
-   "why": "The day already traded below it. A stop 1% to 3% under the line sits above a low 3.2% under it. Our card proposes no fixed 1% to 3% stop, since slight breaches are often deeper. Our stop goes a few cents under the test day's low.",
+   "why": "The day already traded below it. A stop 1% under the line sits above a low 1.8% under it, so the day itself would take it out. Our card sets no fixed cushion under the line, since slight breaches are often deeper. Our stop goes a few cents under the test day's low.",
    "lesson_line": "The test day's real low sets the stop, not a fixed cushion under the line.",
    "facts": [
     "g57",
@@ -3822,12 +3936,12 @@
     "m03"
    ],
    "wrong": {
-    "It would sit too far from the entry": "It is the reverse. A 1% to 3% stop sits above this day's low, inside its range.",
+    "It would sit too far from the entry": "It is the reverse. A 1% stop sits above this day's low, inside its range.",
     "The card wants it on the line itself": "The stop goes a few cents under the test day's low, not on the line.",
     "Morales allows no undercut at all": "Morales and Kacher say a 1 to 2% undercut can be permitted in some cases."
    },
    "house": true,
-   "simple": "A fixed 1 to 3 percent stop sits above this day's low, so our stop goes a few cents under that low instead.",
+   "simple": "A fixed 1% stop under the line sits above this day's low, so our stop goes a few cents under that low instead.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -3836,7 +3950,13 @@
      "the 3.2% dip is given in the story and sits inside the card's up-to-5% undercut allowance"
     ]
    },
-   "batch": "polish"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "VIAV",
+    "asof": "2025-11-21",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q84",
@@ -3895,7 +4015,7 @@
    "rung": 3,
    "format": "mcq",
    "criterion": "gs.breakeven",
-   "q": "You buy a Gap Support test. When does the stop move to breakeven, by default?",
+   "q": "Hidden ticker, you bought this test. When does the stop move to breakeven, by default?",
    "choices": [
     "When the first trim is made",
     "The moment the buy fills",
@@ -3923,7 +4043,13 @@
     ]
    },
    "house": true,
-   "batch": "sweep-2026-11-14"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "ONC",
+    "asof": "2020-07-30",
+    "window": 120,
+    "forward": 40
+   }
   }
  ],
  "conflicts": [
@@ -4062,13 +4188,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "which level first; arithmetic ok"
+   "notes": "LLY buy day 2021-07-01, 231.13/228.43, post-gap high 239.37 match dossier row 8; 3R = 239.23 and 5R = 244.63 correct. Pass."
   },
   "q01": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave3; awaiting cold re-read"
+   "notes": "ADSK test day 2004-03-17 is card winners_list; dossier s12 row 1 (13 sessions after 2004-02-27 gap, low 0.3% above 13.88). No numbers in text; ticker hidden; right answer (gap-up low) true. Pass."
   },
   "q03": {
    "status": "pass",
@@ -4128,20 +4254,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc; answer matches; every wrong choice rebuilt from its stated mistake and differs by more than rounding; no tell."
+   "notes": "ILMN test day 2010-11-02, gap-up low 53.03, test low 52.45 = 1.1% under (dossier row 4); trade numbers and undated 18.6R trimmed from deeper. Second ILMN use (q40) ok. Pass."
   },
   "q17": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc; answer matches; every wrong choice rebuilt from its stated mistake and differs by more than rounding; no tell."
+   "notes": "AKAM buy day 2006-02-14, buy 25.10 stop 24.71 match dossier row 2 and text; 3R = 26.27 correct; undated 30.4R removed. Pass."
   },
   "q19": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key derived from g12/h24 matches. Numbers 6% and 12% are in g13. No tell, no second answer.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "XYZ test day 2017-03-22, low 1.3% under the 16.32 line per dossier row 6; no numbers in text; stop-under-test-low answer true. Pass."
   },
   "q20": {
    "status": "cut",
@@ -4158,7 +4283,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc; answer matches; every wrong choice rebuilt from its stated mistake and differs by more than rounding; no tell."
+   "notes": "VIAV buy day 2025-11-21, 15.96/15.48 = 3.0% match dossier row 10 and text; undated 25.4R removed. Pass."
   },
   "q24": {
    "status": "pass",
@@ -4201,7 +4326,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "PEG answer supported by g02/g38. Acronym undefined (owner flag stands). Overlap with q02 is rung-spaced, accepted."
+   "notes": "ADSK gap day 2004-02-27: +10.1% open on 11.9x earnings gap match dossier row 1; PEG answer true on day zero. Pass."
   },
   "q33": {
    "status": "cut",
@@ -4244,7 +4369,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Right answer unchanged, sorts to the target rank, wrong choices real and similar in form."
+   "notes": "ILMN buy day 2010-11-02, 53.27/52.40 match dossier row 4 and text; 250/0.87 = 287 shares. Pass."
   },
   "q41": {
    "status": "pass",
@@ -4287,26 +4412,26 @@
   "q48": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "cite D-003 ruling"
+   "fixed": false,
+   "notes": "AVGO buy day 2025-09-24, 339.31/333.47, gap 16.2% on 4.3x, low 0.7% above line, close 88%, stop traded 2025-09-25 all match dossier s13 failure 1; forward 20 covers next-session stop; ticker absent from story/choices. Pass."
   },
   "q49": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Final text agrees with the rulings it touches; key right, wrongs wrong, quotes and numbers grounded, style ok."
+   "notes": "AEHR test 2023-08-14, stop 08-15, close under gap-fill spot 08-17 (card: gap filled on a close two sessions later, 08-17); asof = decision day 08-17; forward 60 reaches 10-30 (halved, 21.57). No numbers in text. Pass."
   },
   "q52": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from g04/e23/e24; second Pass refuted by g51. Numbers in quotes."
+   "notes": "DOCU test 2025-03-31: 9.1% gap on 5.4x, 2.6% under falling 50-day, test 11 sessions later all match near-miss 3; undated 0.0R removed from why. Pass."
   },
   "q53": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "200-day hard no for stocks with exception; quotes verbatim"
+   "notes": "EVR test 2019-02-07: 11.3% on 4.1x, 6 sessions later, 6.9% under 200-day match near-miss 4. Pass."
   },
   "q54": {
    "status": "pass",
@@ -4337,14 +4462,14 @@
   "q61": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "why said the scan bought 27.15, the close; D-003 has no close entry"
+   "fixed": false,
+   "notes": "GPN test day 2013-10-09 (chart already present and identical to live); text numbers match dossier row 5. Pass."
   },
   "q62": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "cite D-003 ruling"
+   "fixed": false,
+   "notes": "DE test day 2026-02-25 (chart already present and identical to live); text matches near-miss 2 (0.01 of range, 0.8% under). Pass."
   },
   "q63": {
    "status": "pass",
@@ -4355,8 +4480,8 @@
   "q65": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (B21, C28). But all three distractors were plainly rule-breaking and 'Chase it; you were right all along' is a silly, emotional choice, so the lone calm key was guessable. Replaced it with a plausible wrong buy that a student might believe (the reclaim as a trigger)."
+   "fixed": false,
+   "notes": "DKS: stop 2021-06-17, 2.4% undercut closed back on line, 147.39 by 09-07 per card failure; asof 09-07 shows the run. Pass."
   },
   "q66": {
    "status": "pass",
@@ -4399,13 +4524,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Right answer unchanged, sorts to the target rank, wrong choices real and similar in form."
+   "notes": "GPN buy day 2013-10-09, 27.15/26.89 match dossier row 5 and text; 5R = 28.45 correct; undated 24.9R removed. Pass."
   },
   "q73": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "first sell day 3 at earliest; quotes verbatim"
+   "notes": "MA test day 2009-08-19 per dossier row 3; no numbers, no outcome named; day-3 rule is house policy. Pass."
   },
   "q74": {
    "status": "pass",
@@ -4452,8 +4577,8 @@
   "q83": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key is correct from g57 (a fixed 1% to 3% stop sits above the test day's low when the breach is deeper). A 3.2% undercut is within the card's allowance of up to 5% (gs.test_low). Problems: (1) 'as our card says' reads as if the card RECOMMENDS the 1% to 3% stop, but it says the opposite; (2) the market-order choice is a silly distractor; (3) the right choice echoes the story's 'dips'. Rewrote the question, the answer and two distractors. Every number comes from the story or g57. The why now says the card line is a proposal. The proposed criterion gs.stop_not_porosity stays on the owner flag."
+   "fixed": false,
+   "notes": "VIAV test day 2025-11-21: low 1.8% under 15.80 line, close 87% match dossier row 10; re-keyed to a 1% stop (a 3% stop would sit under a 1.8% dip) with story, why, simple and wrong all agreeing. Pass."
   },
   "q84": {
    "status": "pass",
@@ -4471,7 +4596,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Final text agrees with the rulings it touches; key right, wrongs wrong, quotes and numbers grounded, style ok."
+   "notes": "ONC test day 2020-07-30 per dossier row 7; no numbers, no outcome named; breakeven-at-first-trim rule is house policy. Pass."
   }
  }
 }

@@ -1052,6 +1052,30 @@
    "source": "h2",
    "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
    "claim": "D-021: the course uses the 9 and 20 EMA, with the 50 and 200 SMA."
+  },
+  {
+   "id": "v02",
+   "source": "d1",
+   "quote": "3R the next session and 45 to 69 in ten weeks.",
+   "claim": "FNV reached 3R the next session after the buy."
+  },
+  {
+   "id": "v03",
+   "source": "d1",
+   "quote": "NET | 2020-09-18 | 28% / 12 of 15 / 7 days, 32.70-36.33 | 2.1x (2.0x) | 36.50 (the open, a 1.1% gap) | 35.59 (2.5%) | 55R (2)",
+   "claim": "NET, pop 2020-09-18: buy the open at 36.50, stop 35.59; 55R, 3R on day 2."
+  },
+  {
+   "id": "v04",
+   "source": "d1",
+   "quote": "7 of the 15 closes before the pop under the 20 EMA; the rule is 8 or more",
+   "claim": "DECK 2024-05-14 near-miss: only 7 of the 15 closes before the pop were under the 20 EMA; the rule is 8 or more."
+  },
+  {
+   "id": "v05",
+   "source": "d1",
+   "quote": "A 12-day base after an 18% dip with a 1.4x pop, but only 7 of the 15 closes before it were under the 20 EMA.",
+   "claim": "DECK 2024-05-14: a 12-day base after an 18% dip, but only 7 of the 15 closes before the pop were under the 20 EMA."
   }
  ],
  "walkthroughs": [
@@ -1294,7 +1318,7 @@
    "key": "q06",
    "skill": "setup.wedge_pop",
    "rung": 1,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "wp.pivot",
    "q": "On a Wedge Pop, what is the pivot?",
    "choices": [
@@ -1326,7 +1350,14 @@
      "a stable definition with three agreeing facts"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-2",
+   "story": "Hidden ticker, the day before the pop.",
+   "chart": {
+    "sym": "DHI",
+    "asof": "2023-10-31",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q07",
@@ -1483,9 +1514,9 @@
    "key": "q12",
    "skill": "setup.wedge_pop",
    "rung": 2,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "wp.gap_up",
-   "q": "A stock gaps up 3% over the pivot, through both averages. What does the gap tell us?",
+   "q": "A stock gaps up over the pivot, through both averages. What does the gap tell us?",
    "choices": [
     "Strength; it backs the pop",
     "Weakness; the gap will soon fill in",
@@ -1493,18 +1524,20 @@
     "Nothing; gaps are only noise here"
    ],
    "answer": "Strength; it backs the pop",
-   "why": "Strength. Kell: most Wedge Pops that lead to new, powerful trends start with gaps. Our card calls a gap up through the pivot and the averages the A+ pop, and 3% is still inside the 4% line. In our scan a gap open of 1% or more did better, not worse.",
+   "why": "Strength. Kell: most Wedge Pops that lead to new, powerful trends start with gaps. Our card calls a gap up through the pivot and the averages the A+ pop, and a gap up to 4% past the pivot is still a buy. RCL in 2009 was a gap open under the 4% chase line. In our scan a gap open of 1% or more did better, not worse.",
    "lesson_line": "A gap through the averages is strength, not a reason to wait.",
    "facts": [
     "k11",
     "c11",
     "d28",
     "c13",
-    "h11"
+    "h11",
+    "d03",
+    "d04"
    ],
    "wrong": {
     "Weakness; the gap will soon fill in": "Waiting for a fill is a guess. In our scan a gap open of 1% or more did better, not worse.",
-    "Strength, but too late to buy now": "A 3% gap is still inside the 4% chase line, so it is not too late.",
+    "Strength, but too late to buy now": "A gap up to 4% past the pivot is still inside the chase line, so it is not too late.",
     "Nothing; gaps are only noise here": "It matters: our card calls a gap up through the pivot and the averages the A+ pop."
    },
    "house": true,
@@ -1517,7 +1550,14 @@
      "the gap row is on the proposed card"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-2",
+   "story": "Hidden ticker, the day before the pop.",
+   "chart": {
+    "sym": "RCL",
+    "asof": "2009-07-14",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q13",
@@ -1710,11 +1750,11 @@
    "key": "q18",
    "skill": "setup.wedge_pop",
    "rung": 3,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "wp.trim_1",
    "q": "Bought at 175.52 with the stop at 171.31. Where is 3R?",
    "answer": "$188.15",
-   "why": "$188.15. One R is the fill minus the stop: 175.52 - 171.31. Add three of those to the fill: 175.52 + 3 x (175.52 - 171.31) = 188.15. 3R is a measuring stick, not an order to sell. The first sell is a judgment.",
+   "why": "$188.15. One R is the fill minus the stop: 175.52 - 171.31. Add three of those to the fill: 175.52 + 3 x (175.52 - 171.31) = 188.15. 3R is a measuring stick, not an order to sell. STLD took six sessions to reach it. The first sell is a judgment.",
    "lesson_line": "Know your 3R before the open. It is a yardstick, not a sell order.",
    "facts": [
     "d05",
@@ -1744,7 +1784,7 @@
      "the first sell is the owner's D-013 judgment, not a fixed 3R sale"
     ]
    },
-   "batch": "rank",
+   "batch": "visuals-2",
    "choices": [
     "$188.15",
     "$192.36",
@@ -1756,13 +1796,24 @@
     "$196.57": "Used five R, the far end of the breakeven window.",
     "$200.78": "Doubled the three R to six R."
    },
-   "suffix": ""
+   "suffix": "",
+   "story": "Hidden ticker, bought on the pop.",
+   "chart": {
+    "sym": "STLD",
+    "asof": "2026-03-31",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 175.52,
+     "stop": 171.31
+    }
+   }
   },
   {
    "key": "q19",
    "skill": "setup.wedge_pop",
    "rung": 3,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "wp.trim_2",
    "q": "When does our first sell usually come on a pop?",
    "choices": [
@@ -1772,12 +1823,14 @@
     "Never; hold it all to the end"
    ],
    "answer": "Day 3 at the earliest, or later",
-   "why": "Day 3 at the earliest, and often later. We very rarely sell on day 1 of the buy. Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. The first sell is a judgment, not a fixed third at 3R.",
+   "why": "Day 3 at the earliest, and often later. We very rarely sell on day 1 of the buy. Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. FNV was up 3R the next session, and that is still rarely the day to sell. The first sell is a judgment, not a fixed third at 3R.",
    "lesson_line": "Rarely sell on day 1. Day 3 at the earliest, often into a 3, 5 or 7 day push.",
    "facts": [
     "r57",
     "r58",
-    "r59"
+    "r59",
+    "v01",
+    "v02"
    ],
    "wrong": {
     "Day 1, to lock in a quick gain": "We very rarely sell on day 1 of the buy. We usually wait until day 3 at the earliest.",
@@ -1793,7 +1846,18 @@
      "rests on the owner's ruling D-013 (the first sell is a judgment)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "visuals-2",
+   "story": "Hidden ticker, bought on the pop at 45.53 with the stop at 44.77. By the next session it is already up 3R.",
+   "chart": {
+    "sym": "FNV",
+    "asof": "2016-02-03",
+    "window": 120,
+    "forward": 30,
+    "trade": {
+     "entry": 45.53,
+     "stop": 44.77
+    }
+   }
   },
   {
    "key": "q20",
@@ -1977,7 +2041,7 @@
    "key": "q25",
    "skill": "setup.wedge_pop",
    "rung": 4,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "wp.stop_width",
    "q": "Fill 24.58, stop 23.68. How far below the fill is the stop, in percent?",
    "answer": "3.66%",
@@ -2012,7 +2076,7 @@
      "rests on the owner's rulebook A13"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-2",
    "choices": [
     "36.6%",
     "3.80%",
@@ -2024,13 +2088,24 @@
     "0.90%": "Used the dollar gap as if it were the percent.",
     "36.6%": "A decimal slip. The stop is a few percent away, not a third."
    },
-   "prefix": ""
+   "prefix": "",
+   "story": "Hidden ticker, bought on the pop.",
+   "chart": {
+    "sym": "CROX",
+    "asof": "2007-04-04",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 24.58,
+     "stop": 23.68
+    }
+   }
   },
   {
    "key": "q26",
    "skill": "setup.wedge_pop",
    "rung": 4,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "wp.stop",
    "q": "Account 200,000. Risk 0.25%. Fill 181.80, stop 179.58. How many shares?",
    "answer": "225 shares",
@@ -2063,7 +2138,7 @@
      "rests on the owner's rulebook A5"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-2",
    "choices": [
     "2,252 shares",
     "1,100 shares",
@@ -2075,7 +2150,18 @@
     "1,100 shares": "Divided the account by the price and ignored the stop.",
     "409 shares": "Divided the risk dollars by the stop's percent, not by the dollars per share."
    },
-   "prefix": ""
+   "prefix": "",
+   "story": "Hidden ticker, bought on the pop.",
+   "chart": {
+    "sym": "TGT",
+    "asof": "2021-03-19",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 181.8,
+     "stop": 179.58
+    }
+   }
   },
   {
    "key": "q27",
@@ -2107,7 +2193,7 @@
     "No, it needs a gap up": "A gap helps, but a pop does not need one. The reason to wait here is the report."
    },
    "house": true,
-   "story": "A stock trades through its pivot on 1.8 times the 50-day volume, above both averages. The company's earnings come out after today's close.",
+   "story": "Hidden ticker, the chart ends the day before. Today the stock trades through its pivot, 81.20, on 1.8 times the 50-day volume, above both averages. The company's earnings come out after today's close.",
    "simple": "No, because we take no new buy in the three days before an earnings report, however good the chart looks.",
    "tier": "core",
    "risk": {
@@ -2116,7 +2202,13 @@
      "the 3-day window is the owner's rulebook (B22)"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "MU",
+    "asof": "2022-03-28",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q28",
@@ -2127,12 +2219,12 @@
    "q": "How do you enter this pop?",
    "choices": [
     "Buy the open at market",
-    "Wait for a dip to 50.00",
+    "Wait for a dip to 12.95",
     "Pass, gaps tend to fill",
     "Buy half now, half on a dip"
    ],
    "answer": "Buy the open at market",
-   "why": "Buy the open at market. If a stock opens above the pivot, we buy at the open when the gap is no more than 4% above it. 51.20 is inside that line. A gap up through the pivot and the averages is the A+ pop. The stop still goes a few cents under the day's low.",
+   "why": "Buy the open at market. If a stock opens above the pivot, we buy at the open when the gap is no more than 4% above it. 13.18 is inside that line. A gap up through the pivot and the averages is the A+ pop. The stop still goes a few cents under the day's low.",
    "lesson_line": "A gap through the pivot inside the chase line is the A+ pop. Buy it.",
    "facts": [
     "c11",
@@ -2145,12 +2237,12 @@
    ],
    "wrong": {
     "Pass, gaps tend to fill": "Kell says most of the powerful pops start with gaps. On our card a gap up through the pivot is the A+ pop.",
-    "Wait for a dip to 50.00": "The rule is to buy the open when the gap is within 4% of the pivot. Waiting for a pullback is for a pop that runs past 4%.",
-    "Buy half now, half on a dip": "We put the full size on at one price with one stop. No adding."
+    "Buy half now, half on a dip": "We put the full size on at one price with one stop. No adding.",
+    "Wait for a dip to 12.95": "The rule is to buy the open when the gap is within 4% of the pivot. Waiting for a pullback is for a pop that runs past 4%."
    },
    "house": true,
-   "story": "The base's high, the pivot, is 50.00. On the pop day the stock opens at 51.20, above both averages.",
-   "simple": "Buy the open at market, because 51.20 is a gap within 4% of the 50.00 pivot.",
+   "story": "Hidden ticker, the chart ends the day before. The base's high, the pivot, is 12.95. On the pop day the stock opens at 13.18, above both averages.",
+   "simple": "Buy the open at market, because 13.18 is a gap within 4% of the 12.95 pivot.",
    "deeper": {
     "example": "RCL, pop 2009-07-15: it gapped open above the 12.95 pivot, under the 4% chase line. We buy the open at 13.18. The stop sits a few cents under the day's low, at 12.97, above the pivot."
    },
@@ -2161,13 +2253,19 @@
      "rests on the owner's rulebook C28 and E57"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "RCL",
+    "asof": "2009-07-14",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q29",
    "skill": "setup.wedge_pop",
    "rung": 4,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "wp.stop",
    "q": "It gaps over the pivot and you buy the open. Where does the stop go?",
    "choices": [
@@ -2202,7 +2300,14 @@
      "the base-low option is held (D-008)"
     ]
    },
-   "batch": "rulings"
+   "batch": "visuals-2",
+   "story": "Hidden ticker, the chart ends the day before the pop.",
+   "chart": {
+    "sym": "NET",
+    "asof": "2020-09-17",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q30",
@@ -2330,7 +2435,7 @@
     "Pass, the base is too short"
    ],
    "answer": "Pass, it is under the 200-day",
-   "why": "Pass. For a stock, no longs below the 200-day simple moving average. The one exception is indexes and ETFs built to magnify an index's moves, on a reversal extension or a parabolic long. This is a stock. That January 2019 pop closed 7.3% under the 200-day, and it worked, best 7.46R, without us. A clean base or a smaller size does not change a hard rule.",
+   "why": "Pass. For a stock, no longs below the 200-day simple moving average. The one exception is indexes and ETFs built to magnify an index's moves, on a reversal extension or a parabolic long. This is a stock. That January 2019 pop closed 7.3% under the 200-day, and the stock went higher without us. A clean base or a smaller size does not change a hard rule.",
    "lesson_line": "A pop that works is not always our pop. Under the 200-day, I pass.",
    "facts": [
     "c27",
@@ -2345,7 +2450,7 @@
     "Pass, the base is too short": "A 6-day base is longer than the 3-session minimum on our card. The base was fine. The 200-day line is the problem."
    },
    "house": true,
-   "story": "A January 2019 chart of a stock. A 36% decline, a 6-day base, and a pop on 1.1x the base's volume. The pop day closed 7.3% under the 200-day.",
+   "story": "Hidden ticker, the chart ends the day before the pop. A January 2019 chart: a 36% decline, a 6-day base, and a pop on 1.1x the base's volume. The pop day closed 7.3% under the 200-day.",
    "simple": "Pass, because our hard rule bars stock longs below the 200-day line, even when the base is clean and the pop works.",
    "tier": "extended",
    "risk": {
@@ -2355,7 +2460,13 @@
      "the index and ETF option is held (D-009)"
     ]
    },
-   "batch": "rulings"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "AMZN",
+    "asof": "2019-01-03",
+    "window": 250,
+    "forward": 60
+   }
   },
   {
    "key": "q34",
@@ -2517,13 +2628,15 @@
     "Move the stop to the pivot"
    ],
    "answer": "The size, not the stop",
-   "why": "The size, not the stop. The honest stop is 3.7% away, wider than about 3%. Then take a smaller position or skip. Never tighten the stop to fit. The size comes from the stop.",
+   "why": "The size, not the stop. The honest stop is 3.66% away, wider than about 3%. Then take a smaller position or skip. Never tighten the stop to fit. The size comes from the stop. CROX had the widest stop of our ten winners and still worked.",
    "lesson_line": "Never shrink the stop to fit the size. Shrink the size to fit the stop.",
    "facts": [
     "c19",
     "h01",
     "h04",
-    "c18"
+    "c18",
+    "d07",
+    "d08"
    ],
    "wrong": {
     "Pull the stop in to 3%": "The stop never gets tighter to fit. It sits a few cents under the day's low.",
@@ -2531,8 +2644,8 @@
     "Move the stop to the pivot": "The stop sits a few cents under the day's low. Moving it to fit is the mistake."
    },
    "house": true,
-   "story": "Fill 50.00. The pop day's low is 48.20, so the stop sits at 48.15, 3.7% away.",
-   "simple": "Make the position smaller, because the stop is 3.7% away, wider than about 3%, and we never tighten a stop to fit.",
+   "story": "Hidden ticker, bought on the pop at 24.58. The stop sits a few cents under the pop day's low, at 23.68, which is 3.66% away.",
+   "simple": "Make the position smaller, because the stop is 3.66% away, wider than about 3%, and we never tighten a stop to fit.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2540,7 +2653,17 @@
      "the 3% line is the owner's rulebook (A13)"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "CROX",
+    "asof": "2007-04-04",
+    "window": 120,
+    "forward": 30,
+    "trade": {
+     "entry": 24.58,
+     "stop": 23.68
+    }
+   }
   },
   {
    "key": "q39",
@@ -2802,7 +2925,7 @@
     "Proof the setup does not work"
    ],
    "answer": "A planned loss, the plan working",
-   "why": "A planned loss. The honest stop was 4.7% below the fill. That is past the 3.5% we call good, but inside the 5% we accept, so you took it smaller. The pop closed at the high on 1.24 times the base days' volume. The stop did its job.",
+   "why": "A planned loss. The honest stop was 4.7% below the fill. That is past the 3.5% we call good, but inside the 5% we accept, so you took it smaller. The pop closed near its high on 1.24 times the base days' volume. The stop did its job.",
    "lesson_line": "A wide stop is a reason for a small size. The loss stays small too.",
    "facts": [
     "d20",
@@ -2817,10 +2940,10 @@
     "Proof the setup does not work": "One loss at the stop proves nothing about the setup. A valid pop can fail, and then the stop does its job."
    },
    "house": true,
-   "story": "A 13-day base after a 41% decline. The pop closes at the high, on 1.24x the base days' volume. The honest stop is 4.7% below your fill. You took it smaller. Day 2 takes the stop.",
+   "story": "Hidden ticker, bought on the pop at 209.81 with the stop at 199.95. A 13-day base after a 41% decline. The pop closes near the high, on 1.24x the base days' volume. The honest stop is 4.7% below your fill. You took it smaller. Day 2 takes the stop.",
    "simple": "A planned loss, because the wide stop was still acceptable, you sized down, and the stop did its job.",
    "deeper": {
-    "trap": "Trap: calling the loss a mistake because it came on day 2. COIN, 2024-08-23, closed at the high with a 4.7% stop and was stopped on day 2. All four failed pops in our table closed strong, so the candle could not have warned you."
+    "trap": "Trap: calling the loss a mistake because it came on day 2. COIN, 2024-08-23, closed near the high with a 4.7% stop and was stopped on day 2. All four failed pops in our table closed strong, so the candle could not have warned you."
    },
    "tier": "extended",
    "risk": {
@@ -2830,7 +2953,17 @@
      "the cold check held it as a fix on D-006"
     ]
    },
-   "batch": "rulings"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "COIN",
+    "asof": "2024-08-23",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 209.81,
+     "stop": 199.95
+    }
+   }
   },
   {
    "key": "q46",
@@ -2862,7 +2995,7 @@
     "Avoid this stock for a month": "There is no ban. A new trigger is a new trade, up to 3 tries a week and 6 a month on one stock."
    },
    "house": true,
-   "story": "A 29% decline, an 11-day base, a gap open at 184.95 on 1.86x the base days' volume, closing high in its range. The next session's low takes the 182.70 stop.",
+   "story": "Hidden ticker. A 29% decline, an 11-day base, then a gap open at 184.95 on 1.86x the base days' volume, closing high in its range. You bought the open with the stop at 182.70. The next session's low takes it.",
    "simple": "Take the loss and wait, because we buy this stock again only when the setup triggers again as a fresh trade.",
    "deeper": {
     "example": "PLTR, 2025-12-10: buy 184.95, stop 182.70. The next session's low of 180.21 took the stop. A valid pop that failed, and the stop did its job. All four pop days in our failed examples closed strong, so the candle gave no warning. The loss was the size we planned."
@@ -2875,7 +3008,17 @@
      "the stop default is held (D-008)"
     ]
    },
-   "batch": "rulings"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "PLTR",
+    "asof": "2025-12-10",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 184.95,
+     "stop": 182.7
+    }
+   }
   },
   {
    "key": "q47",
@@ -3052,21 +3195,22 @@
     "Sell the whole position"
    ],
    "answer": "Judge it; 3R is not a sell order",
-   "why": "Judge it. The first sell is a judgment, not a fixed third at 3R. We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest. A gap past 3R is a reason to look, not a sell order.",
-   "lesson_line": "A gap past 3R is not a sell order. Judge the first sell.",
+   "why": "Judge it. The first sell is a judgment, not a fixed third at 3R. We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest. Trading through 3R is a reason to look, not a sell order.",
+   "lesson_line": "Trading through 3R is not a sell order. Judge the first sell.",
    "facts": [
     "r57",
     "r58",
-    "r59"
+    "r59",
+    "v03"
    ],
    "wrong": {
-    "Sell the whole position": "Nothing says a gap means selling it all. The first sell is a judgment.",
+    "Sell the whole position": "Nothing says reaching 3R means selling it all. The first sell is a judgment.",
     "Wait for the close to confirm 3R": "A close does not make 3R a rule. The first sell is a judgment.",
     "Take the 3R trim right away": "The first sell is a judgment, not a fixed third at 3R."
    },
    "house": true,
-   "story": "Bought at 40.00, stop 39.00, so 3R is 43.00. The next morning the stock opens at 43.60.",
-   "simple": "Judge it. A gap past 3R is not an automatic sell, and we rarely sell this early.",
+   "story": "Hidden ticker, bought on the pop at 36.50 with the stop at 35.59, so 3R is 39.23. On day 2 the stock trades up through 3R.",
+   "simple": "Judge it. Trading through 3R is not an automatic sell, and we rarely sell this early.",
    "deeper": {
     "trap": "Trap: treating 3R as a sell trigger. The first sell depends on a variety of factors, such as how many days the push has run."
    },
@@ -3077,7 +3221,17 @@
      "rests on the owner's ruling D-013 (the first sell is a judgment)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "NET",
+    "asof": "2020-09-18",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 36.5,
+     "stop": 35.59
+    }
+   }
   },
   {
    "key": "q52",
@@ -3166,7 +3320,7 @@
     "A limit buy resting at 30.24"
    ],
    "answer": "As it traded through 30.24",
-   "why": "As it traded through 30.24. We buy with a market order as price trades through the pivot. The close at 31.72 was 4.9% over the pivot, past the 4% chase line, so at the close it was a chase. SLB in January 2022 went on to 50R at best.",
+   "why": "As it traded through 30.24. We buy with a market order as price trades through the pivot. The close at 31.72 was 4.9% over the pivot, past the 4% chase line, so at the close it was a chase. SLB in January 2022 is the card's example of a pop buyable only as it traded through.",
    "lesson_line": "Have the alert at the pivot. The buy is the trade through, not the close.",
    "facts": [
     "d09",
@@ -3182,7 +3336,7 @@
     "A limit buy resting at 30.24": "Entries are market orders. Our buy is a market order as price trades through the pivot."
    },
    "house": true,
-   "story": "One wide bar runs from inside the base through the pivot, 30.24, and both averages. It closes at 31.72, 4.9% over the pivot.",
+   "story": "Hidden ticker, the chart ends the day before. One wide bar runs from inside the base through the pivot, 30.24, and both averages. It closes at 31.72, 4.9% over the pivot.",
    "simple": "Buy with a market order as it trades through 30.24, because the close at 31.72 was past the 4% chase line.",
    "deeper": {
     "trap": "Why not wait for the close to be sure? The close is known only at the close, and a wide bar can run well past the chase line by then. Here it closed 4.9% over the pivot. So the buy is the trade through the pivot, set up with an alert at the pivot, not a decision at the bell."
@@ -3195,7 +3349,13 @@
      "trigger timing is a held decision (D-003)"
     ]
    },
-   "batch": "rulings"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "SLB",
+    "asof": "2021-12-31",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q55",
@@ -3474,30 +3634,31 @@
    "criterion": "wp.prior_decline",
    "q": "Is this a Wedge Pop?",
    "choices": [
-    "No, it spent weeks above its 20-day",
-    "Yes, it is breaking to a new high",
-    "Yes, it is sitting on the 20-day EMA",
-    "No, a new high is just a chase"
+    "No; too few closes under the 20 EMA",
+    "Yes; the 12-day base is long enough",
+    "Yes; an 18% dip is deep enough",
+    "No; a 12-day base is too long"
    ],
-   "answer": "No, it spent weeks above its 20-day",
-   "why": "No. A Wedge Pop comes from a correction that spent most of three weeks under the 20-day EMA. This leader ran 40% and then rested five weeks above its rising 20-day. A new high there is a different setup, not a pop. The pop is a rally back up through the averages from under them.",
-   "lesson_line": "Ask where the base sits. Under the averages is pop country; above them is a breakout.",
+   "answer": "No; too few closes under the 20 EMA",
+   "why": "No. A Wedge Pop comes from a correction that spent most of three weeks under the 20 EMA: our card wants at least 8 of the 15 closes before the pop under it. This stock had 7. It is a pullback inside an uptrend it already rides, not a rally back up through the averages from under them.",
+   "lesson_line": "Count the closes under the 20 EMA before the pop. Too few, and it is a pullback, not a pop.",
    "facts": [
     "c01",
     "y01",
-    "h11",
-    "c13"
+    "v04",
+    "v05",
+    "d12"
    ],
    "wrong": {
-    "Yes, it is breaking to a new high": "A break to a new high is not enough. A Wedge Pop is a rally back up through the averages from under them.",
-    "Yes, it is sitting on the 20-day EMA": "Sitting on the 20-day is not the test. The stock must first have spent most of three weeks under it.",
-    "No, a new high is just a chase": "A chase is a buy more than 4% past the buy point, and nothing here says that. It is not a pop because the stock spent the weeks above its averages, not under them."
+    "Yes; the 12-day base is long enough": "Base length is not the gate here. The count of closes under the 20 EMA before the pop is, and it falls one short.",
+    "Yes; an 18% dip is deep enough": "Depth is not what the card counts. It counts closes under the 20 EMA, and there were too few.",
+    "No; a 12-day base is too long": "The card sets a minimum base, not a maximum. The base is not the problem."
    },
    "house": true,
-   "story": "A leader ran 40% in a month, then rested five weeks above its rising 20-day EMA. Today it breaks to a new high.",
-   "simple": "No, because a Wedge Pop comes after weeks under the averages, and this stock rested above them instead.",
+   "story": "Hidden ticker, the day before a possible pop. An 18% dip into a 12-day base. Only 7 of the 15 closes before the pop sat under the 20 EMA.",
+   "simple": "No, because only 7 of the 15 closes before it sat under the 20 EMA, so this is a pullback in an uptrend.",
    "deeper": {
-    "trap": "The stock looks strong, near a high after five weeks of rest, which is what tempts us to call it a pop. But a pop is a rally back up through the averages. This stock never fell under them, so there was nothing to reclaim."
+    "trap": "Trap: calling it a pop because the dip and the base look right. The count of closes under the 20 EMA is the test, and this stock fell one short, so it was a pullback in an uptrend."
    },
    "tier": "expert",
    "risk": {
@@ -3509,7 +3670,13 @@
    "depends_on": [
     "D-077"
    ],
-   "batch": "wave2"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "DECK",
+    "asof": "2024-05-13",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q63",
@@ -3887,7 +4054,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Decided buy the open before the key. c11/h11 quotes verified in the card and rulebook; 51.20 is 2.4% over 50.00 so inside the 4% line. No second defensible choice (wait-for-dip is for a pop past 4%, pass-on-gap-fill has no support, half-and-half breaks A5/h30). RCL deeper example matches d03/d04 (stop 12.97 over the 12.95 pivot). No tell. Mild overlap with q12 is in post-answer explanations only."
+   "notes": "RCL asof 2009-07-14. Pivot 12.95 (07-09 high), open 13.18 over both averages, 1.8% over the pivot so inside the 4% line. Choices and wrong text re-keyed to 12.95 correctly; answer unchanged and true. Deeper already carries the RCL numbers."
   },
   "q31": {
    "status": "pass",
@@ -3928,8 +4095,8 @@
   "q45": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "edit verified against rulings, quotes word for word"
+   "fixed": true,
+   "notes": "COIN buy day 2024-08-23 (failure 2): entry 209.81 = pivot 209.80 + 0.01, stop 199.95 = low 200.00 - 0.05, 4.70% wide; day 1 low 202.68 holds, day 2 low 194.10 takes it, so 'Day 2 takes the stop' is true. Story/why fine ('near the high': close 211.40, high 211.92). Fix: deeper still said 'closed at the high', now 'near the high' so it agrees with the story."
   },
   "q49": {
    "status": "cut",
@@ -3983,8 +4150,8 @@
   "q18": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Rank ok. Notes for 5R and 6R reworded to name a believable slip."
+   "fixed": false,
+   "notes": "STLD buy day 2026-03-31 (row 10): buy 175.52 = pivot 175.51 + 0.01, stop 171.31 = low 171.36 - 0.05; trade matches the question. 3R 188.15: bars 04-08 high 187.84 (under), 04-09 high 190.32 = day 6 (Good Friday closed), matches 'six sessions' and forward 20. Arithmetic key unchanged and right."
   },
   "q23": {
    "status": "pass",
@@ -4002,13 +4169,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "calc recomputed, answer matches, wrong choices distinct and real, steps correct."
+   "notes": "CROX buy day 2007-04-04 (row 1): buy 24.58, stop 23.68 (low 23.73 - 0.05), matches the question. (24.58-23.68)/24.58 = 3.66%. Key unchanged. Used twice (q25, q38)."
   },
   "q26": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "calc recomputed, answer matches, wrong choices distinct and real, steps correct."
+   "notes": "TGT buy day 2021-03-19 (row 6): buy 181.80 = pivot 181.79 + 0.01, stop 179.58 (low 179.63 - 0.05), same as the question. Shares key unchanged. TGT now used twice (q65 day before, q26 buy day), within the limit."
   },
   "q30": {
    "status": "pass",
@@ -4020,7 +4187,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Checked cold: key derived from the cited quotes first, matches; no second defensible answer, tell, ungrounded number or rulebook conflict found."
+   "notes": "CROX buy day 2007-04-04: entry 24.58, stop 23.68 match the dossier row and the text; (24.58-23.68)/24.58 = 3.66%. Replaced the invented 50.00/48.15/3.7%. Answer (size, not the stop) true; 'widest stop of our ten' is in the dossier row. Second use of CROX."
   },
   "q43": {
    "status": "pass",
@@ -4038,7 +4205,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "keep agrees with ruling"
+   "notes": "PLTR buy day 2025-12-10 (failure 3): open 184.95 over the pivot, stop 182.70 = low 182.75 - 0.05, matches the text; next session (12-11) low 180.21 takes it, forward 20 plays it. 29% decline, 11-day base, 1.86x all from the dossier row. Answer true."
   },
   "q47": {
    "status": "pass",
@@ -4056,7 +4223,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with rulings"
+   "notes": "NET buy day 2020-09-18 (row 5): entry 36.50 (the open), stop 35.59 (low 35.64 - 0.05); 3R = 36.50 + 3 x 0.91 = 39.23. Bars: day 1 high 38.97 under 3R, day 2 (09-22) high 39.97 over it, matching '3R on day 2' (v03 quotes row 5). Answer true; why consistent with day 2. Second use of NET (q29 + q51)."
   },
   "q53": {
    "status": "cut",
@@ -4068,7 +4235,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "keep agrees with ruling"
+   "notes": "SLB pop 2022-01-03 (row 7); asof 2021-12-31 the day before. Bars: pivot 30.24 (12-28 high), 01-03 bar from 29.98 to 31.97, close 31.72 = 4.9% over the pivot. Undated '50R at best' dropped. Answer true."
   },
   "q65": {
    "status": "pass",
@@ -4085,8 +4252,8 @@
   "q33": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "agrees with rulings"
+   "fixed": true,
+   "notes": "AMZN near-miss 2019-01-04; asof 2019-01-03 the day before. Bars: 01-04 close 78.77 vs 200-day 85.00 = 7.3% under; 36% decline, 6-day base, 1.1x from the dossier; 250 window shows the 200 SMA. Catch: 'it kept rising for weeks' is not what the bars show (it chopped 80-84 for about seven weeks before breaking out, 75 to 90.7 over the 60-bar replay). Reworded to 'went higher without us', true over the replay."
   },
   "q34": {
    "status": "pass",
@@ -4127,8 +4294,8 @@
   "q62": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Checked cold: key derived from the cited quotes first, matches; no second defensible answer, tell, ungrounded number or rulebook conflict found."
+   "fixed": true,
+   "notes": "DECK near-miss 2024-05-14 (wp.prior_decline); asof 05-13. Bars recount: exactly 7 of the 15 closes up to 05-13 under the 20 EMA (141.78 vs 141.32 on the last bar); 12-day base and 18% dip are the dossier's words. Answer true, wrong reasons true (card: minimum 3 base sessions, no maximum, no depth gate). Fixes: (1) the old deeper still said it 'never fell under the averages ... five weeks above' which contradicts the new story, rewritten; (2) lesson_line still about a breakout above the averages, rewritten; (3) story said 'the day before a pop' which gives the answer a hint, now 'a possible pop"
   },
   "q01": {
    "status": "pass",
@@ -4164,7 +4331,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Checked cold: key derived from the cited quotes first, matches; no second defensible answer, tell, ungrounded number or rulebook conflict found."
+   "notes": "DHI pop 2023-11-01 (winners_list); asof 2023-10-31 is the day before. Bars: base high 104.78 = 10-31 high, buy 104.79 per dossier row 8; close 104.40 over 9 EMA 102.58 and 20 EMA 103.88. Pivot answer true; no numbers in text; ticker hidden."
   },
   "q07": {
    "status": "pass",
@@ -4200,8 +4367,8 @@
   "q12": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (k11, c11, d28; 3% is inside the 4% line). Tell: the key is the only choice with a hedge ('often') while the wrong ones carry absolutes. 'Strongest pop' is not the card's wording (it says the A+ pop; E50 makes grades discretionary). Reworded key and why."
+   "fixed": false,
+   "notes": "RCL pop 2009-07-15 (row 2); asof 07-14 is the day before. Bars: base high 12.95 (07-09), open 13.18 over 9 EMA 12.77 and 20 EMA 13.11; 13.18 is 1.8% over the pivot, under the 4% line (dossier: 3.9% gap vs prior close, still under 4%). Invented 3% removed. Answer true; RCL named only in why. Used twice (q12, q28)."
   },
   "q13": {
    "status": "pass",
@@ -4219,7 +4386,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with rulings"
+   "notes": "FNV buy day 2016-02-03 (row 3): buy 45.53, stop 44.77 (low 44.82 - 0.05). 3R 47.81: pop-day high 47.63 under it, next-day high 49.52 over it, so 'up 3R the next session' is true and forward 30 plays it. New facts v01/v02 quote the dossier row word for word. Answer (day 3 at the earliest) true."
   },
   "q21": {
    "status": "pass",
@@ -4237,14 +4404,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Checked cold: key derived from the cited quotes first, matches; no second defensible answer, tell, ungrounded number or rulebook conflict found.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "MU pop 2022-03-29 (failure 1); asof 03-28 is the day before. Pivot 81.20 and 1.8x the 50-day volume are in the dossier; bars: 03-29 open 82.10 over both EMAs, report that evening, 03-30 low 78.60 through the 79.21 stop; forward 20 plays it. Answer (no, a report is too close) true."
   },
   "q29": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "edit verified against rulings, quotes word for word"
+   "notes": "NET pop 2020-09-18 (row 5); asof 09-17 the day before. Bars: open 36.50 over the 36.33 pivot, day low 35.64, stop 35.59 a few cents under the low. Answer true. No numbers in the story. The why's aside about RCL's low above the pivot is a general contrast and stays true."
   },
   "q42": {
    "status": "pass",

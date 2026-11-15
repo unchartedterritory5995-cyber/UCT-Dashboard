@@ -1353,7 +1353,7 @@
    "key": "q16",
    "skill": "setup.news_gapper",
    "rung": 3,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "ng.trim_1",
    "q": "Bought at 105.11 with the stop at 103.20. Where is 3R?",
    "answer": "$110.84",
@@ -1386,7 +1386,7 @@
      "rests on the owner's rulebook (B19 first trim)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-2",
    "choices": [
     "$99.38",
     "$108.93",
@@ -1397,6 +1397,17 @@
     "$108.93": "Added three R to the stop, not the fill.",
     "$107.02": "Added one R, not three.",
     "$99.38": "Subtracted three R from the fill."
+   },
+   "story": "Hidden ticker, bought the first pullback reclaim after a report gap.",
+   "chart": {
+    "sym": "TGT",
+    "asof": "2019-08-28",
+    "window": 120,
+    "forward": 60,
+    "trade": {
+     "entry": 105.11,
+     "stop": 103.2
+    }
    }
   },
   {
@@ -1654,7 +1665,7 @@
    "format": "scenario",
    "criterion": "ng.entry_pullback",
    "q": "What do you do?",
-   "story": "A stock gapped 12% on a contract headline, on heavy volume, and closed strong. Two down days followed, both closing above the gap-day low. This morning it trades over yesterday's high.",
+   "story": "Hidden ticker, the day before the trigger. A 7.3% earnings gap on 5.6x volume closed at 92% of its range. A 4-session pullback, 2.9% deep, held the gap-day low. This morning it trades over yesterday's high.",
    "choices": [
     "Market buy; stop below pullback low",
     "Pass; day one was the only entry",
@@ -1662,11 +1673,14 @@
     "Limit buy at gap-day low; stop under"
    ],
    "answer": "Market buy; stop below pullback low",
-   "why": "Buy at market. After two down days that hold the gap-day low, buy as price trades over the prior day's high. The stop goes a few cents under the pullback low. The gap-day low is the line that must hold. It is not the stop.",
+   "why": "Buy at market. After a pullback that holds the gap-day low, buy as price trades over the prior day's high. The stop goes a few cents under the pullback low. The gap-day low is the line that must hold. It is not the stop.",
    "lesson_line": "Buy as price trades over the prior day's high.",
    "facts": [
     "c12",
-    "c15"
+    "c15",
+    "d07",
+    "d08",
+    "d09"
    ],
    "wrong": {
     "Pass; day one was the only entry": "The pullback buy is the entry here; day one is not the only one.",
@@ -1683,7 +1697,13 @@
      "fixed before"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "NFLX",
+    "asof": "2024-10-24",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q25",
@@ -2266,7 +2286,7 @@
    "key": "q40",
    "skill": "setup.news_gapper",
    "rung": 6,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "ng.stop_pullback",
    "q": "Account 40,000. Risk 0.5%. Fill 105.11, stop 103.20. How many shares?",
    "answer": "104 shares",
@@ -2299,7 +2319,7 @@
      "fixed before"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-2",
    "choices": [
     "382 shares",
     "10 shares",
@@ -2310,6 +2330,17 @@
     "10 shares": "Slipped the decimal: used a tenth of the risk percent.",
     "209 shares": "Risked double the risk percent.",
     "382 shares": "Multiplied by the stop distance instead of dividing."
+   },
+   "story": "Hidden ticker, a report gap's pullback reclaim, bought on the day shown.",
+   "chart": {
+    "sym": "TGT",
+    "asof": "2019-08-28",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 105.11,
+     "stop": 103.2
+    }
    }
   },
   {
@@ -2386,7 +2417,7 @@
    "format": "scenario",
    "criterion": "ng.no_porosity",
    "q": "Where does the stop go?",
-   "story": "A friend quotes Morales and Kacher and says to allow a little room: put the stop 2% under the pullback low.",
+   "story": "Hidden ticker, the day before the reclaim. A friend quotes Morales and Kacher and says to allow a little room: put the stop 2% under the pullback low.",
    "choices": [
     "Just under the pullback low",
     "2% under the pullback low",
@@ -2417,7 +2448,13 @@
      "the stop rule is the owner's rulebook default (F62)"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "ULTA",
+    "asof": "2016-03-17",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q44",
@@ -2493,7 +2530,7 @@
    "key": "q46",
    "skill": "setup.news_gapper",
    "rung": 6,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "ng.stop_pullback",
    "q": "Fill 33.55, stop 32.59. How far is the stop from the fill, in percent?",
    "answer": "2.9%",
@@ -2523,7 +2560,7 @@
      "rests on the owner's rulebook (A13, the 3% habit)"
     ]
    },
-   "batch": "rank",
+   "batch": "visuals-2",
    "choices": [
     "2.9%",
     "97.1%",
@@ -2534,6 +2571,17 @@
     "97.1%": "Divided the stop by the fill and skipped the subtraction.",
     "28.6%": "Decimal slip: ten times too big.",
     "96.0%": "Turned the dollar gap into a percent without dividing by the fill."
+   },
+   "story": "Hidden ticker, bought the day-8 reclaim after a report gap.",
+   "chart": {
+    "sym": "TWLO",
+    "asof": "2018-02-26",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 33.55,
+     "stop": 32.59
+    }
    }
   },
   {
@@ -2582,7 +2630,7 @@
    "format": "scenario",
    "criterion": "ng.entry_pullback",
    "q": "What was that loss?",
-   "story": "AVAV, 2024. A 15.3% gap on 15.8x volume closed at 79% of its range. You bought the 8-session pullback and reclaim at 162.59. It went straight to the stop at 158.43.",
+   "story": "Hidden ticker, the day before the reclaim. A 15.3% gap on 15.8x volume closed at 79% of its range. The next day you bought the day-8 reclaim at 162.59, with the stop at 158.43. It went straight to the stop.",
    "choices": [
     "A planned loss; the stop did its job",
     "A bad gap; never a real gapper",
@@ -2611,7 +2659,7 @@
    "house": true,
    "simple": "It was a planned loss. A strong gap does not protect a pullback buy, and the stop got us out.",
    "deeper": {
-    "example": "AVAV, 2024: a 15.3% gap on 15.8x volume, closing at 79% of its range. The 8-session pullback was bought at 162.59 and went straight to the stop at 158.43. Compare TWLO: also bought on pullback day 8, it ran to 24.1R. The stop is what makes both outcomes acceptable."
+    "example": "A 15.3% gap on 15.8x volume, closing at 79% of its range. The day-8 reclaim was bought at 162.59 and went straight to the stop at 158.43. Compare TWLO: also bought on day 8, it ran to 24.1R. The stop is what makes both outcomes acceptable."
    },
    "tier": "extended",
    "risk": {
@@ -2621,7 +2669,13 @@
      "keyed on the stop rule, not on when the reclaim came"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "AVAV",
+    "asof": "2024-03-13",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q49",
@@ -2657,8 +2711,8 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "ng.time_stop",
-   "q": "What does the plan do ten sessions after the buy?",
-   "story": "PEN, 2026. An 11.1% gap on 18.2x volume, in a stock already up 23.8% over 65 sessions. You bought the day-4 reclaim at 357.70, and it has drifted under 1R since.",
+   "q": "What does the plan do on the tenth session after the buy?",
+   "story": "Hidden ticker, an 11.1% gap on 18.2x volume, in a stock already up 23.8% over 65 sessions. You bought the day-4 reclaim at 357.70. Nine sessions have passed and it has stayed under 1R.",
    "choices": [
     "Sells it and frees up the money",
     "Holds it; the stop has not been hit",
@@ -2696,7 +2750,13 @@
      "the day count is ambiguous in the old question text, now fixed"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "PEN",
+    "asof": "2026-02-03",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q51",
@@ -2705,7 +2765,7 @@
    "format": "scenario",
    "criterion": "ng.catalyst",
    "q": "Is it an earnings gapper?",
-   "story": "GE, 2015. A 5.4% gap on 10.0x volume closes at 90% of its range. The earnings calendar shows no report that day.",
+   "story": "Hidden ticker, the gap day is the last bar. A 5.4% gap on 10.0x volume closes at 90% of its range. The earnings calendar shows no report that day.",
    "choices": [
     "Not earnings; find the headline",
     "An earnings gapper; volume says so",
@@ -2737,7 +2797,13 @@
      "fixed before"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "GE",
+    "asof": "2015-04-10",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q52",
@@ -2746,7 +2812,7 @@
    "format": "scenario",
    "criterion": "ng.volume",
    "q": "How should the light volume change your view?",
-   "story": "AAPL, 2022. The report was the day before. The stock gaps up 4.1% on 1.7x its 50-day volume and closes at its high.",
+   "story": "Hidden ticker, the gap day is the last bar. The report was the day before. The stock gaps up 4.1% on 1.7x its 50-day volume and closes at its high.",
    "choices": [
     "It lowers the grade; it is no veto",
     "It voids the setup; no trade at all",
@@ -2779,7 +2845,13 @@
      "one example from our own scan, not yet owner reviewed"
     ]
    },
-   "batch": "rulings"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "AAPL",
+    "asof": "2022-01-28",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q53",
@@ -2788,7 +2860,7 @@
    "format": "scenario",
    "criterion": "ng.inv_red_close",
    "q": "Is it a News Failure?",
-   "story": "NFLX, 2018. A 9.2% gap on 3.3x volume. The low of the day is 35.65, above the prior close of 34.64. It closes at 35% of its range.",
+   "story": "Hidden ticker, the gap day is the last bar. A 9.2% gap on 3.3x volume. The low of the day is 35.65, above the prior close of 34.64. It closes at 35% of its range.",
    "choices": [
     "No; the gap held and never filled",
     "Yes; any fade is a failure",
@@ -2822,7 +2894,13 @@
      "fixed before"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "NFLX",
+    "asof": "2018-10-17",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q54",
@@ -3125,9 +3203,9 @@
    "key": "q62",
    "skill": "setup.news_gapper",
    "rung": 9,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "ng.entry_pullback",
-   "q": "Hidden ticker, five sessions after a report gap. Take the reclaim or pass?",
+   "q": "A report gap, then a pullback. Take the reclaim if it trades over the last bar's high, or pass?",
    "choices": [
     "Take it; the gap-day low held",
     "Buy at the close; skip the trigger",
@@ -3153,9 +3231,9 @@
    "house": true,
    "chart": {
     "sym": "ULTA",
-    "asof": "2016-03-18",
+    "asof": "2016-03-17",
     "window": 120,
-    "forward": 20
+    "forward": 60
    },
    "simple": "Take it. The gap was big, volume was heavy, the close was strong, and the pullback held the gap-day low.",
    "deeper": {
@@ -3168,7 +3246,8 @@
      "one example from our own scan, single source, not yet owner reviewed"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-2",
+   "story": "Hidden ticker, the day before a possible reclaim buy."
   },
   {
    "key": "q63",
@@ -3290,8 +3369,8 @@
    "rung": 9,
    "format": "scenario",
    "criterion": "ng.inv_close_under_low",
-   "q": "What must happen before you buy SEDG again?",
-   "story": "SEDG, 2019. A 15.0% gap on 11.4x volume. You bought the day-4 reclaim at 51.76. It failed the next session and the stop took you out.",
+   "q": "What must happen before you buy it again?",
+   "story": "Hidden ticker, a 15.0% gap on 11.4x volume. You bought the day-4 reclaim at 51.76 with the stop at 50.50. It failed the next session and the stop took you out.",
    "choices": [
     "A new trigger, as a new trade",
     "Buy it back now; the gap was strong",
@@ -3316,7 +3395,7 @@
    "house": true,
    "simple": "After a stop-out, buy again only on a new trigger, as a new trade with its own stop.",
    "deeper": {
-    "trap": "A big gap on big volume can make a stop-out feel like a mistake. The day-4 reclaim at 51.76 failed the next session, best 0.0R, and the gap was given back within weeks. Whatever the gap looked like, the next buy needs its own new trigger."
+    "trap": "A big gap on big volume can make a stop-out feel like a mistake. The day-4 reclaim at 51.76 failed the next session and the stop at 50.50 took us out. Whatever the gap looked like, the next buy needs its own new trigger."
    },
    "tier": "expert",
    "risk": {
@@ -3325,7 +3404,17 @@
      "one example from our own scan, single source, not yet owner reviewed"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "SEDG",
+    "asof": "2019-05-10",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 51.76,
+     "stop": 50.5
+    }
+   }
   },
   {
    "key": "q67",
@@ -3829,9 +3918,9 @@
   },
   "q51": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave2; awaiting cold re-read"
+   "notes": "GE gap day 2015-04-10 is the last bar: +5.4% (130.02/123.31), close at 90% of range, 10x volume; news not report day per card; prices on the chart are split/spin adjusted but none named in text. Right answer true."
   },
   "q01": {
    "status": "pass",
@@ -3892,7 +3981,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc; answer matches; every wrong choice rebuilt from its stated mistake and differs by more than rounding; no tell."
+   "notes": "TGT: buy day 2019-08-28 (day 6, gap 08-21), 08-27 high 105.10, entry 105.11 inside the 08-28 range 104.50-106.72, stop 103.20 under that low and under the 103.25 pullback low. 3R 110.84 and 1.8% correct. forward 60 reaches 11.97R on the 60th bar (2019-11-21), matching '12.0R'."
   },
   "q17": {
    "status": "pass",
@@ -3935,7 +4024,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Market buy over the prior high after two down days holding the gap-day low (c12, c15). Wrong choices are refuted by c26 and the gap-day-low rule."
+   "notes": "NFLX gap 2024-10-18 +7.3% (73.764/68.765), close at 92% of range, 4-session pullback 10-21..10-24 held the gap-day low 73.62 (2.9% from 76.63 to 74.43); 10-25 open 75.62 over the 10-24 high 75.58, so asof 10-24 is the day before. No outcome named."
   },
   "q25": {
    "status": "pass",
@@ -4020,8 +4109,8 @@
   "q40": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc 200/1.91 = 104. The 381 choice is a float artifact: 200 x 1.91 is exactly 382, so the multiply-by-the-distance mistake reads 382."
+   "fixed": false,
+   "notes": "TGT second use, same verified buy day and trade; 104 shares correct (200/1.91); no outcome named, forward 20 fine."
   },
   "q41": {
    "status": "pass",
@@ -4031,9 +4120,9 @@
   },
   "q43": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave2; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "DECK mismatch: the visible pullback low is 96.20 (4.8% under the 101.01 trigger), the real stop 98.39 sat under the last days' low (the dossier's over-3% fallback), so a chart asking 'just under the pullback low' disagrees with the real trade. Swapped to ULTA 2016-03-17 (second use): pullback low 186.60, real stop 186.55 just under it, and a 2% cushion (182.87) would sit under the gap-day low 184.10, which shows the point. Story still true (03-17 is the day before the 03-18 reclaim)."
   },
   "q44": {
    "status": "pass",
@@ -4050,8 +4139,8 @@
   "q46": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Rank ok. 'Divided by ten' is not a real slip; replaced with turning the dollar gap into a percent without dividing."
+   "fixed": false,
+   "notes": "TWLO gap 2018-02-14, day 8 = 2018-02-26 (02-23 high 33.54, entry 33.55 inside 32.76-34.28, stop 32.59 under the day low); 2.9% correct. No outcome named, forward 20."
   },
   "q47": {
    "status": "pass",
@@ -4062,28 +4151,26 @@
   "q48": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Content and key are sound (planned loss; stop did its job). Provenance defect: facts d14 and d15 are quoted from the card's examples.failures (source c1) but cited to d1 (the dossier), where the wording differs ('gap 2024-03-05 (+15.3% ...)' and 'reclaim on 2024-03-14 was bought'), so the quotes are not found on the cited page. Repoint d14, d15 (and d17 for q66) to source c1 in the lesson facts array, or re-quote the dossier text verbatim. Question fields themselves unchanged.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": false,
+   "notes": "AVAV gap 2024-03-05 +15.3% (150.64/130.65), 15.8x per dossier; day 8 = 03-14 (03-13 high 162.58, buy 162.59). asof 03-13 is the day before. No trade drawn, correct: the buy-day low 154.75 is under the 158.43 stop. Replay shows the stop hit, consistent with the answer."
   },
   "q50": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold read of final text against D-013, D-021, D-003, GAP-TRIM, D-005, D-031, D-033: agrees; answer right, wrongs wrong, quotes verbatim, style ok."
+   "notes": "PEN gap 2026-01-15 +11.1%, day 4 buy 01-21 at 357.70 (open); asof 02-03 is the 9th session after, all under 1R; the next bar 02-04 is session 10 and gaps under the stop, which supports the time-stop answer. 0.45R matches the best high after the buy day (361.55). No trade drawn (asof not buy day). Minor: replay shows the stop-out the same session the plan sells."
   },
   "q52": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Correct keep. False match: about the volume grade on a news gap, which raises the grade and is never a gate; nothing on heavy selling in a pullback. Left untouched."
+   "notes": "AAPL gap day 2022-01-28: +4.08% (165.71/159.22), close 170.33 vs high 170.35, 1.7x per card. Answer follows ruling D-006 (volume raises the grade, not a veto). Note: card lists this as a near-miss for the 3x gate, but the lesson's question rests on D-006."
   },
   "q53": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Low 35.65 above prior close 34.64, so the gap held (d25) and it is not a News Failure (c49). 35% is a lower-half B- close (c03). The second No is plainly false.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "NFLX gap day 2018-10-17: +9.2% (37.833/34.64), low 35.65, close at 35% of range, all match. Right for the gap day. Note: the replay shows the stock trading back under the prior close the next session; the answer is about the gap day itself and the fade supports 'weak'."
   },
   "q57": {
    "status": "pass",
@@ -4121,7 +4208,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold read of final text against D-013, D-021, D-003, GAP-TRIM, D-005, D-031, D-033: agrees; answer right, wrongs wrong, quotes verbatim, style ok."
+   "notes": "ULTA gap 2016-03-11 +14.2% on 4.8x, close 94%; bars: pullback 03-14..03-17 held the gap-day low 184.10 (pullback low 186.60); 03-18 high 192.38 over the 03-17 high 190.68, so asof 03-17 is the day before the trigger. forward 60 reaches 12.1R exactly on the 60th replay bar (2016-06-13). Right answer true."
   },
   "q63": {
    "status": "pass",
@@ -4139,8 +4226,8 @@
   "q66": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key correct (B21, h28). The simple line 'A loss is never a reason to buy' says more than the rule or the why. Also fact d17 quote is from the card (c1) but cited to the dossier (d1) where it reads differently; repoint to c1."
+   "fixed": false,
+   "notes": "SEDG gap 2019-05-07 +15.0% (50.46/43.88), day 4 = 05-10, 05-09 high 51.75 so entry 51.76, stop 50.50 under the 05-10 low 50.96 and inside the range; 05-13 low 49.58 takes the stop out as the story says. Ticker removed from the question; deeper no longer claims the gap was given back."
   },
   "q67": {
    "status": "pass",

@@ -982,7 +982,7 @@
    "key": "q03",
    "skill": "setup.high_volume_edge",
    "rung": 1,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "hve.day2_window",
    "q": "When is the taught High Volume Edge buy?",
    "choices": [
@@ -1014,7 +1014,14 @@
      "+2 rests on the card's day-2 trigger and the held D-005 (whether a close entry is taught at all)"
     ]
    },
-   "batch": "rulings"
+   "batch": "visuals-2",
+   "story": "Hidden ticker, the record day is the last bar.",
+   "chart": {
+    "sym": "TVTX",
+    "asof": "2015-03-18",
+    "window": 150,
+    "forward": 20
+   }
   },
   {
    "key": "q04",
@@ -1107,7 +1114,7 @@
    "key": "q07",
    "skill": "setup.high_volume_edge",
    "rung": 1,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "hve.trigger",
    "q": "Day 2 opens under the HVC and trades lower. What is the trigger?",
    "choices": [
@@ -1138,7 +1145,14 @@
      "+2 rests on the owner's rulebook (E57, entries are market orders) and the card's trigger"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-2",
+   "story": "Hidden ticker, the record day is the last bar.",
+   "chart": {
+    "sym": "MDGL",
+    "asof": "2022-12-19",
+    "window": 150,
+    "forward": 20
+   }
   },
   {
    "key": "q08",
@@ -1236,9 +1250,9 @@
    "key": "q11",
    "skill": "setup.high_volume_edge",
    "rung": 2,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "hve.day2_dip",
-   "q": "Day 2 opens over the HVC and stays over it all session. Is that our trigger?",
+   "q": "Is that day 2 our trigger?",
    "choices": [
     "No; it must dip under first",
     "Yes; it is strong, holding above",
@@ -1246,7 +1260,7 @@
     "No; it needs a close over it"
    ],
    "answer": "No; it must dip under first",
-   "why": "No. Day 2 must open at or under the HVC and trade under it before the reclaim. A day 2 that opens over the HVC and never trades under it is not this trigger. It may become a later entry, with its own trigger and stop. Strength alone is not the trigger, and the open over the HVC is not a buy.",
+   "why": "No. Day 2 must open at or under the HVC and trade under it before the reclaim. A day 2 that opens over the HVC and never trades under it is not this trigger. It may become a later entry, with its own trigger and stop. Strength alone is not the trigger, and the open over the HVC is not a buy. This is NRG, which gave no trigger.",
    "lesson_line": "No dip under the HVC, no day-2 trade.",
    "facts": [
     "c13",
@@ -1266,7 +1280,14 @@
      "+2 rests on the card's proposed day-2 dip rule"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-2",
+   "story": "Hidden ticker, the record day is the last bar. Day 2 opens 2.1% over the HVC, and its low stays 1.7% over it.",
+   "chart": {
+    "sym": "NRG",
+    "asof": "2017-07-12",
+    "window": 150,
+    "forward": 20
+   }
   },
   {
    "key": "q12",
@@ -1492,9 +1513,9 @@
    "key": "q19",
    "skill": "setup.high_volume_edge",
    "rung": 3,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "hve.trim_1",
-   "q": "Bought at 56.28 with the stop at 55.53. Where is 3R?",
+   "q": "One R is the fill minus the stop. Where is 3R?",
    "answer": "$58.53",
    "calc": {
     "fn": "arith",
@@ -1522,7 +1543,7 @@
      "+1 fixed before (the fill was corrected)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-2",
    "choices": [
     "$59.28",
     "$57.03",
@@ -1533,6 +1554,17 @@
     "$57.03": "Added one R, not three.",
     "$57.78": "Added three R to the stop, not the fill.",
     "$59.28": "Counted four R, one too many."
+   },
+   "story": "Hidden ticker, bought on day 2 at 56.28 with the stop at 55.53.",
+   "chart": {
+    "sym": "DOCU",
+    "asof": "2019-09-09",
+    "window": 150,
+    "forward": 20,
+    "trade": {
+     "entry": 56.28,
+     "stop": 55.53
+    }
    }
   },
   {
@@ -1724,9 +1756,9 @@
    "key": "q25",
    "skill": "setup.high_volume_edge",
    "rung": 4,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "hve.stop_width",
-   "q": "Fill 58.13. The day-2 low is 57.56. The stop sits two cents under it. How far below the fill, in percent to one decimal?",
+   "q": "How far below the fill is the stop, in percent to one decimal?",
    "answer": "1.0%",
    "calc": {
     "fn": "arith",
@@ -1762,7 +1794,7 @@
      "+1 fixed before (the fill was corrected)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-2",
    "choices": [
     "10.1%",
     "0.6%",
@@ -1773,6 +1805,17 @@
     "0.6%": "Read the dollar gap as a percent.",
     "10.1%": "Slipped the decimal one place to the right.",
     "99.0%": "Divided the stop by the fill and skipped the subtraction."
+   },
+   "story": "Hidden ticker, bought on day 2 at 58.13. The day-2 low is 57.56, and the stop sits two cents under it, at 57.54.",
+   "chart": {
+    "sym": "VRTX",
+    "asof": "2012-05-08",
+    "window": 150,
+    "forward": 20,
+    "trade": {
+     "entry": 58.13,
+     "stop": 57.54
+    }
    }
   },
   {
@@ -1824,9 +1867,9 @@
    "key": "q27",
    "skill": "setup.high_volume_edge",
    "rung": 4,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "hve.trim_2",
-   "q": "Bought at 84.90, stop 83.38. The stock trades 92.50. How many R is that?",
+   "q": "How many R is that?",
    "answer": "5.0R",
    "calc": {
     "fn": "r_multiple",
@@ -1837,7 +1880,7 @@
     },
     "round": 2
    },
-   "why": "5.0R. R is the buy minus the stop, 84.90 minus 83.38. The gain is 92.50 minus 84.90. Divide the gain by R to get 5.0R. About 5 to 10R is often a good place to sell. The first sell is a judgment, not a fixed level.",
+   "why": "5.0R. R is the buy minus the stop, 84.90 minus 83.38. The gain is 92.50 minus 84.90. Divide the gain by R to get 5.0R. About 5 to 10R is often a good place to sell. The first sell is a judgment, not a fixed level. INOD reached 5R in two sessions.",
    "lesson_line": "Count the gain in R. Around 5R to 10R is often where we sell.",
    "facts": [
     "d07",
@@ -1855,7 +1898,7 @@
      "+1 fixed before (the fill was corrected)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-2",
    "choices": [
     "0.2R",
     "5.0R",
@@ -1866,6 +1909,17 @@
     "0.2R": "Flipped it: divided the risk by the gain.",
     "6.0R": "Measured the gain from the stop, not from the buy.",
     "7.6R": "Used the dollar gain and never divided by the risk."
+   },
+   "story": "Hidden ticker, bought on day 2 at 84.90 with the stop at 83.38. Later it trades 92.50.",
+   "chart": {
+    "sym": "INOD",
+    "asof": "2026-05-11",
+    "window": 150,
+    "forward": 20,
+    "trade": {
+     "entry": 84.9,
+     "stop": 83.38
+    }
    }
   },
   {
@@ -1921,7 +1975,7 @@
    "format": "scenario",
    "criterion": "hve.fresh_catalyst",
    "q": "HVE or something else?",
-   "story": "A widely owned stock gaps up on earnings and closes 28.1% higher. Volume tops the past year but barely beats the old high. Day 2 dips and reclaims the close.",
+   "story": "Hidden ticker. A widely owned stock gaps up on earnings and closes 28.1% higher. Volume tops the past year but barely beats the old high. Day 2 dips and reclaims the close.",
    "choices": [
     "A PEG; big but ordinary volume",
     "An HVE; the day-2 reclaim triggers",
@@ -1929,7 +1983,7 @@
     "An Episodic Pivot; it gapped on news"
    ],
    "answer": "A PEG; big but ordinary volume",
-   "why": "A PEG, a Power Earnings Gap, not an HVE. An earnings gap on big but ordinary volume in a well-owned name is a PEG. Rank the volume, not the gap. An earnings gap is an HVE only when the volume is extreme. ROKU looked like this: +28.1%, a one-year record, a day-2 dip and reclaim. Taken as an HVE it was stopped at 0.0R.",
+   "why": "A PEG, a Power Earnings Gap, not an HVE. An earnings gap on big but ordinary volume in a well-owned name is a PEG. Rank the volume, not the gap. An earnings gap is an HVE only when the volume is extreme. This is ROKU: +28.1%, a one-year record, a day-2 dip and reclaim.",
    "lesson_line": "Rank the volume, not the gap.",
    "facts": [
     "c31",
@@ -1958,7 +2012,13 @@
    "depends_on": [
     "D-089"
    ],
-   "batch": "wave2"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "ROKU",
+    "asof": "2019-05-09",
+    "window": 150,
+    "forward": 20
+   }
   },
   {
    "key": "q30",
@@ -2125,9 +2185,9 @@
    "key": "q35",
    "skill": "setup.high_volume_edge",
    "rung": 5,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "hve.above_200",
-   "q": "The stock sat under its 200-day for months, until the record day. Day 2's fill is above the line. Does it pass the 200-day rule?",
+   "q": "Does it pass the 200-day rule?",
    "choices": [
     "Yes; the rule reads it at entry",
     "No; it sat under the line before",
@@ -2155,7 +2215,14 @@
      "rests on the owner's rulebook (B26 200-day line)"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-2",
+   "story": "Hidden ticker, the record day is the last bar. The close before it was 24% under the 200-day. Day 2's fill is above the line.",
+   "chart": {
+    "sym": "FCNCA",
+    "asof": "2023-03-27",
+    "window": 250,
+    "forward": 20
+   }
   },
   {
    "key": "q36",
@@ -2243,7 +2310,7 @@
    "format": "scenario",
    "criterion": "hve.inv_level_fails",
    "q": "What is the HVC now?",
-   "story": "You bought day 2 at 55.46 with a stop at 53.73. It traded two sessions later, a planned loss. Weeks on, the stock closes under the record day's low.",
+   "story": "Hidden ticker. You bought day 2 at 55.46 with a stop at 53.73. It traded two sessions later, a planned loss. Weeks on, the stock closes under the record day's low.",
    "choices": [
     "A ceiling above price",
     "Support; buy again",
@@ -2274,7 +2341,17 @@
      "the level rule is proposed on the card"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "QGEN",
+    "asof": "2026-01-21",
+    "window": 150,
+    "forward": 60,
+    "trade": {
+     "entry": 55.46,
+     "stop": 53.73
+    }
+   }
   },
   {
    "key": "q39",
@@ -2283,7 +2360,7 @@
    "format": "scenario",
    "criterion": "hve.after_entry_stop",
    "q": "Was the stop a mistake?",
-   "story": "You bought day 2 at 80.07, stop 77.24. The next session takes your stop, and within three sessions the low is 71.08. Weeks later it runs to 88.84.",
+   "story": "Hidden ticker. You bought day 2 at 80.07, stop 77.24. The next session takes your stop, and within three sessions the low is 71.08. Weeks later it runs to 88.84.",
    "choices": [
     "No; the stop is the exit",
     "Yes; it needed a wider stop",
@@ -2315,7 +2392,17 @@
      "+1 fixed before (the story was corrected)"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "SE",
+    "asof": "2023-03-08",
+    "window": 150,
+    "forward": 30,
+    "trade": {
+     "entry": 80.07,
+     "stop": 77.24
+    }
+   }
   },
   {
    "key": "q40",
@@ -2324,7 +2411,7 @@
    "format": "scenario",
    "criterion": "hve.later_entries",
    "q": "Buy it back?",
-   "story": "Stopped out the day after your day-2 buy, you watch the stock grind back up, well over the HVC.",
+   "story": "Hidden ticker. Stopped out the day after your day-2 buy, you watch the stock grind back up, well over the HVC.",
    "choices": [
     "Only on a new trigger",
     "Yes; it is back over the HVC",
@@ -2358,7 +2445,13 @@
      "+1 fixed before (a wrong note was edited)"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "SE",
+    "asof": "2023-04-04",
+    "window": 150,
+    "forward": 60
+   }
   },
   {
    "key": "q41",
@@ -2482,7 +2575,7 @@
    "format": "scenario",
    "criterion": "hve.fresh_catalyst",
    "q": "Is it an HVE, a PEG or neither?",
-   "story": "An earnings report sends a stock up 22%. It trades more shares than on any day in its history.",
+   "story": "Hidden ticker. An earnings report sends a stock up 22%. It trades more shares than on any day in its history.",
    "choices": [
     "An HVE; the volume is extreme",
     "A PEG; the move came on earnings",
@@ -2490,7 +2583,7 @@
     "Neither; a 22% rise is too small"
    ],
    "answer": "An HVE; the volume is extreme",
-   "why": "An HVE. Earnings on ordinary big volume is a PEG, but earnings so big the volume is extreme can be an HVE. This stock traded more shares than on any day in its history. DOCU in 2019 was the same case: earnings on all-time record volume, an HVE and not a PEG. Bonde notes that earnings-day volume can be the highest in a stock's history.",
+   "why": "An HVE. Earnings on ordinary big volume is a PEG, but earnings so big the volume is extreme can be an HVE. This stock traded more shares than on any day in its history. This is DOCU in 2019: earnings on all-time record volume, an HVE and not a PEG. Bonde notes that earnings-day volume can be the highest in a stock's history.",
    "lesson_line": "Earnings can count. The volume decides, not the report.",
    "facts": [
     "c07",
@@ -2514,7 +2607,13 @@
    "depends_on": [
     "D-089"
    ],
-   "batch": "wave2"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "DOCU",
+    "asof": "2019-09-06",
+    "window": 150,
+    "forward": 20
+   }
   },
   {
    "key": "q45",
@@ -2560,9 +2659,9 @@
    "key": "q46",
    "skill": "setup.high_volume_edge",
    "rung": 6,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "hve.stop",
-   "q": "Account 40,000. Risk 0.5%. Fill 20.18, stop 19.89. Ignore the position cap and round down. How many shares?",
+   "q": "Account 40,000, risk 0.5%. Ignore the position cap and round down. How many shares?",
    "answer": "689 shares",
    "calc": {
     "fn": "shares_from_risk",
@@ -2595,7 +2694,7 @@
      "+1 fixed before (the fill was corrected)"
     ]
    },
-   "batch": "rank",
+   "batch": "visuals-2",
    "choices": [
     "689 shares",
     "68 shares",
@@ -2606,6 +2705,17 @@
     "68 shares": "Slipped the decimal: used a tenth of the risk percent.",
     "344 shares": "Risked half the risk percent.",
     "9 shares": "Divided the risk dollars by the fill price, not the gap to the stop."
+   },
+   "story": "Hidden ticker, bought on day 2 at 20.18 with the stop at 19.89.",
+   "chart": {
+    "sym": "TVTX",
+    "asof": "2015-03-19",
+    "window": 150,
+    "forward": 20,
+    "trade": {
+     "entry": 20.18,
+     "stop": 19.89
+    }
    }
   },
   {
@@ -2720,7 +2830,7 @@
    "format": "scenario",
    "criterion": "hve.breakeven",
    "q": "Inside our rules, what would have saved it?",
-   "story": "You bought day 2 at 331.66, stop 323.98. The next day it reaches 2.3R. Four sessions after the buy, the low trades 322.50 and takes the stop.",
+   "story": "Hidden ticker. You bought day 2 at 331.66, stop 323.98. The next day it reaches 2.3R. Four sessions after the buy, the low trades 322.50 and takes the stop.",
    "choices": [
     "Stop to breakeven at 2R",
     "A stop under 320 for room",
@@ -2754,7 +2864,17 @@
      "rests on the owner's rulebook (B19); the card gives two timings for the breakeven move"
     ]
    },
-   "batch": "rulings2"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "NKTR",
+    "asof": "2017-03-21",
+    "window": 150,
+    "forward": 20,
+    "trade": {
+     "entry": 331.66,
+     "stop": 323.98
+    }
+   }
   },
   {
    "key": "q50",
@@ -2763,7 +2883,7 @@
    "format": "scenario",
    "criterion": "hve.stop_width",
    "q": "Which is the one thing you never do?",
-   "story": "The HVC is 13.11. Day 2 opens 12.80, falls well lower, then reclaims 13.11. The honest stop under the day-2 low is wide. At your usual share count it would risk more than your plan allows.",
+   "story": "Hidden ticker. The HVC is 13.11. Day 2 opens 12.80, falls well lower, then reclaims 13.11. The honest stop under the day-2 low is wide. At your usual share count it would risk more than your plan allows.",
    "choices": [
     "Pull the stop in to fit",
     "Skip and wait for a later setup",
@@ -2799,7 +2919,13 @@
      "rests on the owner's rulebook (A3) and the pending stop-width decision D-005"
     ]
    },
-   "batch": "rulings"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "NAVN",
+    "asof": "2026-03-26",
+    "window": 100,
+    "forward": 30
+   }
   },
   {
    "key": "q51",
@@ -2808,7 +2934,7 @@
    "format": "scenario",
    "criterion": "hve.trim_2",
    "q": "By our rules, what kept this a win?",
-   "story": "You bought on day 2. 5R comes in two sessions; the peak is day 17. By day 30 it has round-tripped under the HVC.",
+   "story": "Hidden ticker. You bought on day 2 at 84.90, stop 83.38. 5R comes in two sessions; the peak is day 17. By day 30 it has round-tripped under the HVC.",
    "choices": [
     "Part sold into the push, rest trailed",
     "Holding all of it to the very end",
@@ -2845,7 +2971,17 @@
      "+1 fixed before (the story fill was corrected)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "INOD",
+    "asof": "2026-05-11",
+    "window": 150,
+    "forward": 35,
+    "trade": {
+     "entry": 84.9,
+     "stop": 83.38
+    }
+   }
   },
   {
    "key": "q52",
@@ -2971,7 +3107,7 @@
    "format": "scenario",
    "criterion": "hve.close_position",
    "q": "What does that close say about the day?",
-   "story": "Up 100% on 62 times its 50-day average volume, 10 times the old record. But it closes at 0.26 of the day's range.",
+   "story": "Hidden ticker. Up 100% on 62 times its 50-day average volume, 10 times the old record. But it closes at 0.26 of the day's range.",
    "choices": [
     "A weak sign; it closed too low",
     "A strong sign; volume is huge",
@@ -3006,7 +3142,13 @@
      "the close grade is a cue, not a hard line"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "MBX",
+    "asof": "2025-09-22",
+    "window": 150,
+    "forward": 60
+   }
   },
   {
    "key": "q56",
@@ -3061,7 +3203,7 @@
    "format": "scenario",
    "criterion": "hve.stop_broker",
    "q": "What happened, by the plan?",
-   "story": "An earnings record day. You buy day 2 at 48.34, stop 47.52, a real stop order with the broker. Day 3 opens 49.56 and reverses to 46.94.",
+   "story": "Hidden ticker. An earnings record day. You buy day 2 at 48.34, stop 47.52, a real stop order with the broker. Day 3 opens 49.56 and reverses to 46.94.",
    "choices": [
     "Stopped; a small planned loss",
     "Still in; it closed over the HVC",
@@ -3097,7 +3239,17 @@
      "+1 fixed before (an unsupported line was removed)"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "YELP",
+    "asof": "2018-08-10",
+    "window": 150,
+    "forward": 20,
+    "trade": {
+     "entry": 48.34,
+     "stop": 47.52
+    }
+   }
   },
   {
    "key": "q58",
@@ -3277,15 +3429,15 @@
    "format": "scenario",
    "criterion": "hve.trigger",
    "q": "Write the plan: entry and stop.",
-   "story": "A quiet stock trades record volume, up 41%, and closes near its high at 32.50. Day 2 dips under that close to a low of 31.80, then trades back through it. You keep two cents of room on a stop.",
+   "story": "Hidden ticker. A lesser-known stock trades record volume, up 43%, and closes near its high at 13.98. Day 2 dips under that close to a low of 13.42, then trades back through it. You keep two cents of room on a stop.",
    "choices": [
-    "32.51, stop 31.78",
-    "32.51, stop 32.48",
-    "Wait for 34, stop 31.78",
-    "Buy at the close, 32.50, stop 31.78"
+    "13.99, stop 13.40",
+    "13.99, stop 13.96",
+    "Wait for 14.60, stop 13.40",
+    "Buy at the close, 13.98, stop 13.40"
    ],
-   "answer": "32.51, stop 31.78",
-   "why": "32.51, stop 31.78. The buy is a market order a cent over the HVC. The stop is two cents under the day-2 low of 31.80, never the HVC. The first sell is a judgment made later.",
+   "answer": "13.99, stop 13.40",
+   "why": "13.99, stop 13.40. The buy is a market order a cent over the HVC of 13.98. The stop is two cents under the day-2 low of 13.42, never the HVC. The first sell is a judgment made later.",
    "lesson_line": "Entry and stop before the buy. Then let the plan work.",
    "facts": [
     "c14",
@@ -3295,14 +3447,14 @@
     "r03"
    ],
    "wrong": {
-    "32.51, stop 32.48": "The HVC is never the stop. It sits under the day-2 low, not under the HVC.",
-    "Wait for 34, stop 31.78": "The trigger is the trade back over the HVC, not a higher price. 34 would also be past the 4% chase limit.",
-    "Buy at the close, 32.50, stop 31.78": "We buy as price trades back over the HVC, never at the close."
+    "13.99, stop 13.96": "The HVC is never the stop. It sits under the day-2 low, not under the HVC.",
+    "Wait for 14.60, stop 13.40": "The trigger is the trade back over the HVC, not a higher price. 14.60 would also be past the 4% chase limit.",
+    "Buy at the close, 13.98, stop 13.40": "We buy as price trades back over the HVC, never at the close."
    },
    "house": true,
-   "simple": "Buy a cent over the HVC at 32.51 and put the stop two cents under the day-2 low at 31.78.",
+   "simple": "Buy a cent over the HVC at 13.99 and put the stop two cents under the day-2 low at 13.40.",
    "deeper": {
-    "example": "The plan is written before the buy: entry 32.51, stop 31.78. The same plan applies on the trade that fails, because the stop is the exit."
+    "example": "The plan is written before the buy: entry 13.99, stop 13.40. The same plan applies on the trade that fails, because the stop is the exit."
    },
    "tier": "expert",
    "risk": {
@@ -3313,7 +3465,17 @@
      "+1 fixed before (the HVC was added to the story)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "GRPN",
+    "asof": "2025-03-13",
+    "window": 150,
+    "forward": 20,
+    "trade": {
+     "entry": 13.99,
+     "stop": 13.4
+    }
+   }
   },
   {
    "key": "q64",
@@ -3396,7 +3558,7 @@
     "sym": "INSM",
     "asof": "2024-05-28",
     "window": 120,
-    "forward": 20
+    "forward": 60
    },
    "simple": "Plan day 2. A quiet stock, a fresh story, record volume and no run before it make a start, not a climax.",
    "deeper": {
@@ -3409,7 +3571,7 @@
      "rests on dossier reads of the example, not on the picture"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-2"
   },
   {
    "key": "q66",
@@ -3444,7 +3606,7 @@
     "sym": "GPCR",
     "asof": "2025-12-08",
     "window": 120,
-    "forward": 20
+    "forward": 60
    },
    "simple": "Pass. The stock had already run up a lot, so a record day there is a climax and not a start.",
    "deeper": {
@@ -3457,7 +3619,7 @@
      "rests on dossier reads of the example, not on the picture"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-2"
   },
   {
    "key": "q67",
@@ -3555,7 +3717,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "keep right: day-2 trigger, not a close buy"
+   "notes": "TVTX in winners_list; dossier row 2 HVE 03-18, buy 03-19, one-day dip and reclaim. asof = record day, day before the trigger. Text has no numbers/ticker."
   },
   "q04": {
    "status": "pass",
@@ -3579,7 +3741,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key follows c14/c03/h22. The day-2-low bounce note is grounded in c04. Lengths even."
+   "notes": "MDGL winners_list; row 6 HVE 12-19, buy 12-20, day 2 opened under HVC and reclaimed. asof right; answer true for it."
   },
   "q08": {
    "status": "pass",
@@ -3603,7 +3765,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key follows c13/c03. Yes/No split 2/2. It overlaps q30 (same fact, rung 4 with numbers); accepted as a learn-then-apply step."
+   "notes": "NRG near-miss row 4: record day 07-12, day 2 opened 2.1% over HVC, low 1.7% over, no trigger. Numbers match; ticker only in why. Answer true."
   },
   "q12": {
    "status": "pass",
@@ -3652,7 +3814,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc; answer matches; every wrong choice rebuilt from its stated mistake and differs by more than rounding; no tell."
+   "notes": "DOCU row 4: HVC 56.27, buy 56.28, stop 55.53, buy day 09-09; trade matches text; 3R 58.53 correct."
   },
   "q20": {
    "status": "pass",
@@ -3688,7 +3850,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc; answer matches; every wrong choice rebuilt from its stated mistake and differs by more than rounding; no tell."
+   "notes": "VRTX row 1: buy 58.13, stop 57.54 (1.0%); day-2 low 57.56 is stop+0.02 per the dossier stop rule. Buy day 05-08; trade matches story."
   },
   "q26": {
    "status": "pass",
@@ -3700,7 +3862,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc; answer matches; every wrong choice rebuilt from its stated mistake and differs by more than rounding; no tell."
+   "notes": "INOD row 10: stop 83.38, buy-day 05-11; 92.50 = exactly 5R and the dossier says 5R in two sessions, forward 20 reaches it. 5.0R correct."
   },
   "q28": {
    "status": "pass",
@@ -3712,7 +3874,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "PEG per c31/c07; ROKU d22/d23 match. No second answer."
+   "notes": "ROKU near-miss row 1: +28.1%, one-year record, 1.17x old record, day-2 dip and reclaim; asof = record day 05-09; PEG answer true. Ticker only in why."
   },
   "q30": {
    "status": "cut",
@@ -3749,7 +3911,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key right per B26 and the card ('the trade, not the HVE day'). Quotes verified. Minor: q53's why states the same principle (200-day read at entry), so it overlaps; not a reason to cut."
+   "notes": "FCNCA row 7: 24% under 200-day measured on the close before the HVE (\"Before\" convention, dossier line 1294). Window 250 shows the 200 SMA. Answer true (passes B26 at entry)."
   },
   "q36": {
    "status": "pass",
@@ -3769,20 +3931,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key per c23; QGEN d14/d15 match. No second answer.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "QGEN failure row 1: buy 55.46, stop 53.73, stopped 01-23, slid to 38.80 under HVE low 46.07 within 60 sessions; forward 60 reaches it. Buy-day asof."
   },
   "q39": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Numbers are from d16/d17. Key follows h02/d33/h01. No longer answers q40. Hindsight is in the story as the temptation, and the key refuses it."
+   "notes": "SE failure row 2: 80.07/77.24, stopped 03-09, low 71.08 within 3 sessions, 88.84 on 04-04 (session ~19), forward 30 reaches it."
   },
   "q40": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key matches B21 (new trigger, new trade). Quotes verified. The SE detail in deeper (stopped the next session, 71.08, 88.84, 56.05) matches the research table row. No second defensible answer."
+   "notes": "SE second use; asof 04-04 (the 88.84 run) after the grind back over the HVC. Deeper names the 56.05 collapse, which the dossier does not date; forward 60 is the max, so it may or may not play, but story/question do not name it. Accept."
   },
   "q41": {
    "status": "pass",
@@ -3805,8 +3966,8 @@
   "q44": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (c07, DOCU d05, Bonde b01 verified). Fixes: the 'no minimum gap' note is wrong (the card needs an up move of 8% or more; the gap is only a cue) and the story says 'up 22%', not a gap. Reworded choices and notes; no new numbers."
+   "fixed": false,
+   "notes": "DOCU row 4: +22%, earnings 09-05 AMC, all-time record volume; asof = record day 09-06. HVE answer true. Second DOCU use."
   },
   "q45": {
    "status": "pass",
@@ -3818,7 +3979,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Right answer unchanged, sorts to the target rank, wrong choices real and similar in form."
+   "notes": "TVTX row 2: HVC 20.17, buy 20.18, stop 19.89; 200/0.29 = 689 shares. Buy day 03-19; second TVTX use."
   },
   "q47": {
    "status": "pass",
@@ -3836,19 +3997,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "edit: breakeven at 2R kept; why no longer says 'by default at the first trim' and the 'selling it all' note no longer sa"
+   "notes": "NKTR failure row 4: 331.66/323.98, 2.3R on 03-22, stop traded 03-27 (4 sessions), low 322.50; forward 20 reaches. Buy day 03-21."
   },
   "q50": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "answer right; add D-005 past-5% wait-for-tighter-trigger and cite the rulings"
+   "fixed": false,
+   "notes": "NAVN: HVC 13.11, day 2 opened 12.80, honest stop 7.5% wide (dossier). asof = record day 03-26. Window 100 equals the stock history length (100 sessions); harmless if the server returns fewer bars. Answer true."
   },
   "q51": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "edit: was thirds sold at 3R and 5R; now part sold into the push and the rest trailed (D-013)"
+   "notes": "INOD second use: 5R in two sessions, peak +47% day 17, round trip under HVC day 30; forward 35 covers it. 84.90/83.38 match text."
   },
   "q52": {
    "status": "pass",
@@ -3872,8 +4033,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key matches c27/c40/d29/d30/d31 (MBX 0.26, 62x, 10x, +100%; repo quotes verified). It is a grade cue and the why says so. Note: fact g02's stored quote has a corrupted apostrophe (U+FFFD for I'll); the page has U+2019. Fix that fact quote in the file; q55's text does not use it.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "MBX: +100%, 62x, 10x old record, close 0.26, 7.4% stop never saw a cent of profit (dossier). asof = record day; forward 60. Answer true."
   },
   "q56": {
    "status": "pass",
@@ -3883,9 +4043,9 @@
   },
   "q57": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave2; awaiting cold re-read"
+   "notes": "YELP failure row 3: 48.34/47.52 (1.7%), day 3 open 49.56 reversed to 46.94 on 08-13. Buy day 08-10; trade matches text."
   },
   "q58": {
    "status": "pass",
@@ -3921,7 +4081,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold read of final text against D-013, D-021, D-003, GAP-TRIM, D-005, D-031, D-033: agrees; answer right, wrongs wrong, quotes verbatim, style ok."
+   "notes": "Re-keyed to GRPN row 9: HVC 13.98, +43%, DCR 0.92, buy 13.99, stop 13.40; day-2 low 13.42 = stop+0.02; 14.60 is 4.4% over HVC so the chase-limit note holds. Choices, wrong keys, simple, deeper all re-keyed. Record volume is a one-year record only (card still counts GRPN as a winner)."
   },
   "q64": {
    "status": "pass",
@@ -3933,13 +4093,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold read of final text against D-013, D-021, D-003, GAP-TRIM, D-005, D-031, D-033: agrees; answer right, wrongs wrong, quotes verbatim, style ok."
+   "notes": "INSM already charted 2024-05-28; forward raised to 60 for \"added 68% by day 59\". Correct."
   },
   "q66": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "d24/d25 match the numbers; c10 60% line. Pass-for-wrong-reason choice is refuted in its note."
+   "notes": "GPCR near-miss row 3; asof record day 2025-12-08; forward 60 reaches \"topped within two months\". Correct."
   },
   "q67": {
    "status": "pass",

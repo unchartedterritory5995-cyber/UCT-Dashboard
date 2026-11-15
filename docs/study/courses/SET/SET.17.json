@@ -1216,9 +1216,9 @@
    "key": "q01",
    "skill": "setup.wedge_drop",
    "rung": 1,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "wd.trigger_close",
-   "q": "In one line, what is a Wedge Drop?",
+   "q": "What happened on the last bar that makes it a Wedge Drop?",
    "choices": [
     "A close down through the averages",
     "A close under the 200-day line",
@@ -1226,7 +1226,7 @@
     "A close up through the averages"
    ],
    "answer": "A close down through the averages",
-   "why": "A close down through the averages. TraderLion: the Wedge Drop happens when the market trades back below the moving averages after a strong rally. Kell: the drop is price falling through the averages with an influx of sellers. Deepvue says sellers push the stock below key averages. The 200-day is a separate gate for shorts.",
+   "why": "A close down through the averages. TraderLion: the Wedge Drop happens when the market trades back below the moving averages after a strong rally. Kell: the drop is price falling through the averages with an influx of sellers. Deepvue says sellers push the stock below key averages. The 200-day is a separate gate for shorts. The chart is META, a close down through both averages that TraderLion marked.",
    "lesson_line": "A rally, a rest on the averages, then the close through them. That is the drop.",
    "facts": [
     "t01",
@@ -1251,7 +1251,14 @@
      "fixed before (cold check)"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-2",
+   "story": "Hidden ticker, the trigger day is the last bar.",
+   "chart": {
+    "sym": "META",
+    "asof": "2021-09-17",
+    "window": 150,
+    "forward": 20
+   }
   },
   {
    "key": "q02",
@@ -1379,7 +1386,7 @@
    "key": "q06",
    "skill": "setup.wedge_drop",
    "rung": 1,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "wd.stop",
    "q": "Where does the stop go on a Wedge Drop short, by our default?",
    "choices": [
@@ -1415,7 +1422,14 @@
      "+2 rests on the owner's rulebook and a held decision (D-008, where the stop goes)"
     ]
    },
-   "batch": "rulings"
+   "batch": "visuals-2",
+   "story": "Hidden ticker, the trigger day is the last bar.",
+   "chart": {
+    "sym": "CAT",
+    "asof": "2018-10-09",
+    "window": 150,
+    "forward": 20
+   }
   },
   {
    "key": "q07",
@@ -1447,9 +1461,9 @@
    "key": "q08",
    "skill": "setup.wedge_drop",
    "rung": 1,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "wd.index_signal",
-   "q": "The index itself forms a Wedge Drop. What is that a warning of?",
+   "q": "What is that a warning of?",
    "choices": [
     "The whole market is weakening",
     "Only a few big stocks are tired",
@@ -1457,7 +1471,7 @@
     "A buy point for the market leaders"
    ],
    "answer": "The whole market is weakening",
-   "why": "The market as a whole is weakening. TraderLion: when an index like the S&P 500 or Nasdaq forms a Wedge Drop, it is a warning. Several leaders in Wedge Drops is a sign to get defensive. Bracco read the Nasdaq's drop as the start of another leg down.",
+   "why": "The market as a whole is weakening. TraderLion: when an index like the S&P 500 or Nasdaq forms a Wedge Drop, it is a warning. Several leaders in Wedge Drops is a sign to get defensive. Bracco read the Nasdaq's drop as the start of another leg down. The chart is QQQ in a bear market: a bounce made a lower high and then dropped, and the lows over the next weeks sat well under the trigger close.",
    "lesson_line": "An index Wedge Drop is a warning for the whole market, not just one stock.",
    "facts": [
     "t08",
@@ -1485,7 +1499,14 @@
      "a card rule, proposed"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-2",
+   "story": "Hidden index fund, the trigger day is the last bar. The index itself forms a Wedge Drop.",
+   "chart": {
+    "sym": "QQQ",
+    "asof": "2022-06-09",
+    "window": 150,
+    "forward": 20
+   }
   },
   {
    "key": "q09",
@@ -1723,7 +1744,7 @@
    "rung": 3,
    "format": "scenario",
    "criterion": "wd.top_lower_high",
-   "story": "In a downtrend the stock bounces into its falling 50-day and turns down, under the high of the last 60 sessions. Then it stalls four days.",
+   "story": "Hidden ticker, the day before the trigger. In a bear market the stock bounces into its falling 50-day and turns down, under the high of the last 60 sessions. Then it stalls four days.",
    "q": "What kind of top is that?",
    "choices": [
     "A lower high, the bear-market form",
@@ -1750,7 +1771,7 @@
    },
    "simple": "The bounce peaked under the highest high of the last 60 sessions, which makes it a lower high.",
    "deeper": {
-    "example": "GS in August 2011 was this picture. The bounce died at the falling 50-day, a four-day stall followed, and the whole move followed the averages down. The short came on the close under both averages at 131.23."
+    "example": "WHR in a bear market was this picture. A bear-market bounce made a lower high at the falling 50-day, a four-day stall followed, and the close under both averages came the next day. The averages then led it down."
    },
    "tier": "core",
    "risk": {
@@ -1759,7 +1780,13 @@
      "rests on a proposed card criterion awaiting owner review"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "WHR",
+    "asof": "2002-08-28",
+    "window": 150,
+    "forward": 20
+   }
   },
   {
    "key": "q17",
@@ -1829,7 +1856,7 @@
    "key": "q19",
    "skill": "setup.wedge_drop",
    "rung": 3,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "wd.trim_1",
    "q": "When does the first cover usually come on a Wedge Drop short?",
    "choices": [
@@ -1839,7 +1866,7 @@
     "Never; hold it all to the end"
    ],
    "answer": "Day 3 at the earliest, or later",
-   "why": "Day 3 at the earliest, and often later. The first cover is a judgment, not a fixed third at 3R. We very rarely sell on day 1 of the buy. Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. A short is a long setup reversed, so the same holds.",
+   "why": "Day 3 at the earliest, and often later. The first cover is a judgment, not a fixed third at 3R. We very rarely sell on day 1 of the buy. Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. A short is a long setup reversed, so the same holds. The short on this chart, EXP, was up 3R by day 3 and did not stop there.",
    "lesson_line": "Rarely cover on day 1. Day 3 at the earliest, often into a longer move.",
    "facts": [
     "r54",
@@ -1862,13 +1889,20 @@
      "the short side mirrors the long side (D47)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "visuals-2",
+   "story": "Hidden ticker, shorted on the trigger day.",
+   "chart": {
+    "sym": "EXP",
+    "asof": "2015-09-18",
+    "window": 150,
+    "forward": 20
+   }
   },
   {
    "key": "q20",
    "skill": "setup.wedge_drop",
    "rung": 3,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "wd.stop_width",
    "q": "Short at 55.16 with the stop at 56.28. How far above the fill is the stop, in percent?",
    "answer": "2.03%",
@@ -1899,7 +1933,7 @@
      "+1 fixed before"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-2",
    "choices": [
     "1.12%",
     "98.0%",
@@ -1911,7 +1945,19 @@
     "20.3%": "A decimal slip, one place too far right.",
     "98.0%": "Gave the fill as a share of the stop, not the gap between them."
    },
-   "prefix": ""
+   "prefix": "",
+   "story": "Hidden ticker, shorted on the trigger day.",
+   "chart": {
+    "sym": "WHR",
+    "asof": "2002-08-29",
+    "window": 150,
+    "forward": 30,
+    "trade": {
+     "entry": 55.16,
+     "stop": 56.28,
+     "direction": "bearish"
+    }
+   }
   },
   {
    "key": "q21",
@@ -1919,7 +1965,7 @@
    "rung": 3,
    "format": "scenario",
    "criterion": "wd.inv_reclaim",
-   "story": "You shorted the close under both averages at 50.00, stop 51.20. Two days later it closes back above both averages. Your stop has not been hit.",
+   "story": "Hidden ticker. You shorted the close under both averages at 24.74, stop 25.26. Two days later it closes back above both averages. Your stop has not been hit.",
    "q": "On our card, what now?",
    "choices": [
     "Cover; the reclaim is the exit",
@@ -1928,7 +1974,7 @@
     "Move the stop to breakeven"
    ],
    "answer": "Cover; the reclaim is the exit",
-   "why": "Cover. TraderLion: if the stock regains its moving averages and pushes higher, exit the short. Our card says a close back above both averages is the cover. HPQ did this on day 2 and its stop was hit that same day. The slide came in July, without the trade. A second short needs a new stall and a new close under both.",
+   "why": "Cover. TraderLion: if the stock regains its moving averages and pushes higher, exit the short. Our card says a close back above both averages is the cover. DIS did this on day 2, yet its stop was not hit until its earnings day, so a cover on day 2 cost less than the stop. A second short needs a new stall and a new close under both.",
    "lesson_line": "The reclaim cancels the drop. Cover, and wait for a new stall.",
    "facts": [
     "t06",
@@ -1953,7 +1999,18 @@
      "fixed before (cold check)"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "DIS",
+    "asof": "2006-01-26",
+    "window": 150,
+    "forward": 30,
+    "trade": {
+     "entry": 24.74,
+     "stop": 25.26,
+     "direction": "bearish"
+    }
+   }
   },
   {
    "key": "q22",
@@ -1997,7 +2054,7 @@
    "key": "q23",
    "skill": "setup.wedge_drop",
    "rung": 4,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "wd.trim_1",
    "q": "Shorted at 45.96 with the stop at 46.89. Where is 3R?",
    "answer": "$43.17",
@@ -2027,7 +2084,7 @@
      "the first cover is the owner's D-013 judgment, not a fixed 3R cover"
     ]
    },
-   "batch": "rank",
+   "batch": "visuals-2",
    "choices": [
     "$43.17",
     "$48.75",
@@ -2039,7 +2096,19 @@
     "$44.10": "Counted 3R down from the stop, which is only two R below the fill.",
     "$45.03": "Went down one R, not three."
    },
-   "suffix": ""
+   "suffix": "",
+   "story": "Hidden ticker, shorted on the trigger day.",
+   "chart": {
+    "sym": "PCG",
+    "asof": "2007-12-14",
+    "window": 150,
+    "forward": 30,
+    "trade": {
+     "entry": 45.96,
+     "stop": 46.89,
+     "direction": "bearish"
+    }
+   }
   },
   {
    "key": "q24",
@@ -2088,7 +2157,7 @@
    "rung": 4,
    "format": "scenario",
    "criterion": "wd.close_position",
-   "story": "The stock closes under both averages after a clean stall. But the close sits at 56% of the day's range, mid-bar.",
+   "story": "Hidden ticker, the trigger day is the last bar. The stock closes under both averages after a clean stall. But the close sits at 56% of the day's range, mid-bar.",
    "q": "Is that the trigger?",
    "choices": [
     "No; it must close in the lower 40%",
@@ -2123,7 +2192,13 @@
      "fixed before (cold check)"
     ]
    },
-   "batch": "rulings3"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "LOW",
+    "asof": "2007-09-07",
+    "window": 150,
+    "forward": 20
+   }
   },
   {
    "key": "q26",
@@ -2166,7 +2241,7 @@
    "key": "q27",
    "skill": "setup.wedge_drop",
    "rung": 4,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "wd.trim_2",
    "q": "Shorted at 78.94, stop 80.77. The stock trades down to 69.79. How many R is that?",
    "answer": "5.0R",
@@ -2198,7 +2273,7 @@
      "when to cover is the owner's D-013 judgment"
     ]
    },
-   "batch": "rank",
+   "batch": "visuals-2",
    "choices": [
     "5.0R",
     "0.2R",
@@ -2210,7 +2285,19 @@
     "0.1R": "Divided the gain by the price, not by R.",
     "1.8R": "That is one R in dollars read as R. Divide the gain by it."
    },
-   "prefix": ""
+   "prefix": "",
+   "story": "Hidden ticker, shorted on the trigger day.",
+   "chart": {
+    "sym": "EXP",
+    "asof": "2015-09-18",
+    "window": 150,
+    "forward": 30,
+    "trade": {
+     "entry": 78.94,
+     "stop": 80.77,
+     "direction": "bearish"
+    }
+   }
   },
   {
    "key": "q28",
@@ -2510,7 +2597,7 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "wd.wide_loose",
-   "story": "An 8-day stall 9.6% wide breaks under both averages. The stop over the day's high is 2.4% away.",
+   "story": "Hidden ticker, the trigger day is the last bar. An 8-day stall 9.6% wide breaks under both averages. The stop over the day's high is 2.4% away.",
    "q": "How does our card treat that stall?",
    "choices": [
     "Take it, graded down for the stall",
@@ -2545,7 +2632,13 @@
      "fixed before (cold check)"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "DXCM",
+    "asof": "2022-04-18",
+    "window": 150,
+    "forward": 30
+   }
   },
   {
    "key": "q37",
@@ -2659,7 +2752,7 @@
    "key": "q40",
    "skill": "setup.wedge_drop",
    "rung": 6,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "wd.stop",
    "q": "Account 50,000. Risk 1%. Short at 131.23, stop 134.79. How many shares?",
    "answer": "140 shares",
@@ -2690,7 +2783,7 @@
      "+2 a computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-2",
    "choices": [
     "381 shares",
     "184 shares",
@@ -2702,7 +2795,19 @@
     "184 shares": "Divided the risk dollars by the stop's percent, not by the dollars per share.",
     "1,404 shares": "Typed the risk as ten times too big, so the share count came out ten times too big."
    },
-   "prefix": ""
+   "prefix": "",
+   "story": "Hidden ticker, shorted on the trigger day.",
+   "chart": {
+    "sym": "GS",
+    "asof": "2011-08-02",
+    "window": 150,
+    "forward": 20,
+    "trade": {
+     "entry": 131.23,
+     "stop": 134.79,
+     "direction": "bearish"
+    }
+   }
   },
   {
    "key": "q41",
@@ -2710,7 +2815,7 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "wd.inv_stop",
-   "story": "Short from 52.58, stop 53.70. The next session trades up through 53.70 and closes at 54.33.",
+   "story": "Hidden ticker, shorted on the trigger day. Short from 52.58, stop 53.70. The next session trades up through 53.70 and closes at 54.33.",
    "q": "What happened to the trade?",
    "choices": [
     "Stopped at 53.70; a planned loss",
@@ -2746,7 +2851,18 @@
      "+2 rests on the owner's rulebook (A4)"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "GOOGL",
+    "asof": "2019-01-14",
+    "window": 150,
+    "forward": 20,
+    "trade": {
+     "entry": 52.58,
+     "stop": 53.7,
+     "direction": "bearish"
+    }
+   }
   },
   {
    "key": "q42",
@@ -2895,16 +3011,16 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "wd.stall_tight",
-   "story": "In a five-day stall, one close sits 1.6 ATR over the 9 EMA. Then the stock closes under both averages.",
+   "story": "Hidden ticker, the trigger day is the last bar. In the stall, one close sits more than 1 ATR from the 9 EMA. Then the stock closes under both averages.",
    "q": "Does that pass our stall test?",
    "choices": [
     "No; one close was past 1 ATR",
-    "Yes; five days is enough",
-    "Yes; 1.6 ATR is fine",
-    "No; five days is too short"
+    "Yes; the stall was long enough",
+    "Yes; that distance is fine",
+    "No; the stall was too short"
    ],
    "answer": "No; one close was past 1 ATR",
-   "why": "No. Through the stall no close is more than 1 ATR from the 9 EMA. One close at 1.6 ATR fails that test. Five days is inside the 3 to 10 the card allows, so length is not the problem. The 1 ATR is the card's proposed number.",
+   "why": "No. Through the stall no close is more than 1 ATR from the 9 EMA. One close past 1 ATR fails that test. The stall's length is inside the 3 to 10 the card allows, so length is not the problem. The 1 ATR is the card's proposed number. WFC was this near miss: an extension turn with no real stall, the mean-reversion short and not a Wedge Drop.",
    "lesson_line": "Count the quiet days. One close too far from the 9 EMA and it is not a stall.",
    "facts": [
     "c09",
@@ -2913,11 +3029,11 @@
    ],
    "house": true,
    "wrong": {
-    "Yes; five days is enough": "Length is one test. The distance is another, and one close failed it.",
-    "No; five days is too short": "Five days is inside the 3 to 10 sessions the card allows.",
-    "Yes; 1.6 ATR is fine": "The card says no close is more than 1 ATR from the 9 EMA. This one is past it."
+    "Yes; the stall was long enough": "Length is one test. The distance is another, and one close failed it.",
+    "No; the stall was too short": "The stall's length is inside the 3 to 10 sessions the card allows. The distance is what fails.",
+    "Yes; that distance is fine": "The card says no close is more than 1 ATR from the 9 EMA. This one is past it."
    },
-   "simple": "No. One close past 1 ATR from the 9 EMA breaks the stall test, even in a five-day stall.",
+   "simple": "No. One close past 1 ATR from the 9 EMA breaks the stall test, even when the stall is long enough.",
    "deeper": {
     "trap": "One stretched close breaks a stall. A close that far from the 9 EMA means the move is still extended with no real stall, so it is not a Wedge Drop."
    },
@@ -2928,7 +3044,13 @@
      "rests on a proposed card criterion awaiting owner review"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "WFC",
+    "asof": "2016-09-09",
+    "window": 150,
+    "forward": 30
+   }
   },
   {
    "key": "q47",
@@ -2936,7 +3058,7 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "wd.stall_volume",
-   "story": "In the stall the up days averaged 2.84 times the volume of the down days. Then a close under both averages.",
+   "story": "Hidden ticker, the trigger day is the last bar. In the stall the up days averaged 2.84 times the volume of the down days. Then a close under both averages.",
    "q": "What was the stall?",
    "choices": [
     "Accumulation; pass on the short",
@@ -2969,7 +3091,13 @@
      "rests on a proposed card criterion awaiting owner review"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "VZ",
+    "asof": "2010-06-30",
+    "window": 150,
+    "forward": 30
+   }
   },
   {
    "key": "q48",
@@ -3232,7 +3360,7 @@
    "rung": 8,
    "format": "scenario",
    "criterion": "wd.stop_width",
-   "story": "The stall breaks on a gap down and every other rule checks out. The fill is 90.85 and the stop over the high is 93.53, 3.0% away.",
+   "story": "Hidden ticker, the trigger day is the last bar. The stall breaks on a gap down and every other rule checks out. The fill is 90.85 and the stop over the high is 93.53, 3.0% away.",
    "q": "Take it?",
    "choices": [
     "Yes; the stop fits the 3% line",
@@ -3241,7 +3369,7 @@
     "No; 3.0% is not under 3%"
    ],
    "answer": "Yes; the stop fits the 3% line",
-   "why": "Yes. The stop usually sits within about 3% of the fill, and this one sits right at it. Skip or size down only when the stop is more than about 3% away. Never pull it in. TSM 2022-06-09 was this trade: a gap down through the stall low. It reached 6.4R at best, with 3R on day 9.",
+   "why": "Yes. The stop usually sits within about 3% of the fill, and this one sits right at it. Skip or size down only when the stop is more than about 3% away. Never pull it in. TSM 2022-06-09 was this trade: it opened under the prior low and closed under the stall low. It reached 6.4R at best, with 3R on day 9.",
    "lesson_line": "Right at 3% is inside the line. Past it, size down or skip; never pull it in.",
    "facts": [
     "h04",
@@ -3266,7 +3394,18 @@
      "rests on the owner's rulebook"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "TSM",
+    "asof": "2022-06-09",
+    "window": 150,
+    "forward": 30,
+    "trade": {
+     "entry": 90.85,
+     "stop": 93.53,
+     "direction": "bearish"
+    }
+   }
   },
   {
    "key": "q55",
@@ -3488,7 +3627,7 @@
    "rung": 9,
    "format": "scenario",
    "criterion": "wd.order",
-   "story": "GS, August 2011. A bounce dies at the falling 50-day, then a four-day stall. Today it trades down through both averages and the stall low, and closes at 131.23 on 1.2x volume. The day's high is 134.76.",
+   "story": "Hidden ticker, August 2011. A bounce dies at the falling 50-day, then a four-day stall. Today it trades down through both averages and the stall low, and closes at 131.23 on 1.2x volume. The day's high is 134.76.",
    "q": "Write the plan: entry, stop, first cover day.",
    "choices": [
     "Through trigger; stop 134.79; day 3+",
@@ -3528,7 +3667,13 @@
      "the short entry on the close is not covered by D-003"
     ]
    },
-   "batch": "rulings3"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "GS",
+    "asof": "2011-08-02",
+    "window": 150,
+    "forward": 50
+   }
   },
   {
    "key": "q61",
@@ -3536,7 +3681,7 @@
    "rung": 9,
    "format": "scenario",
    "criterion": "wd.index_signal",
-   "story": "Friday the Nasdaq closed under both its EMAs after a stall, the big AI names leading it lower. You hold six longs.",
+   "story": "Hidden index fund, the trigger day is the last bar, a Friday. The Nasdaq closed under both its averages, the big AI names leading it lower. You hold six longs.",
    "q": "What does the index's Wedge Drop tell you?",
    "choices": [
     "Cut longs; the market is weak",
@@ -3545,7 +3690,7 @@
     "Hold; wait for the 200-day to break"
    ],
    "answer": "Cut longs; the market is weak",
-   "why": "Cut long exposure. The index's own Wedge Drop is a reason to cut exposure in any market. It is a warning that the market as a whole is weakening. Kell: ideally any long positions have been closed at the Wedge Drop. Bracco called the Nasdaq's drop the start of another leg down.",
+   "why": "Cut long exposure. The index's own Wedge Drop is a reason to cut exposure in any market. It is a warning that the market as a whole is weakening. Kell: ideally any long positions have been closed at the Wedge Drop. Bracco called the Nasdaq's drop the start of another leg down. On this chart the index was back over both averages within a week, so the warning was short. The rule is about cutting exposure, not about calling the next leg.",
    "lesson_line": "When the index wedge drops, your longs are on notice. Reduce first, ask later.",
    "facts": [
     "c26",
@@ -3572,7 +3717,13 @@
      "a card rule, proposed"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "QQQ",
+    "asof": "2025-12-12",
+    "window": 150,
+    "forward": 20
+   }
   },
   {
    "key": "q62",
@@ -3651,7 +3802,7 @@
     "sym": "DXCM",
     "asof": "2026-03-05",
     "window": 120,
-    "forward": 20
+    "forward": 40
    },
    "simple": "Yes. The close is under the 200-day, so a short passes that test, but the other rules still apply.",
    "deeper": {
@@ -3665,7 +3816,7 @@
      "+1 fixed before"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-2"
   },
   {
    "key": "q64",
@@ -3700,7 +3851,7 @@
     "sym": "V",
     "asof": "2021-05-10",
     "window": 120,
-    "forward": 20
+    "forward": 30
    },
    "simple": "Pass. The close is above the 200-day, so this is a sell signal for a long holder and not a short.",
    "deeper": {
@@ -3713,7 +3864,7 @@
      "rests on the owner's rulebook"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-2"
   },
   {
    "key": "q65",
@@ -3855,7 +4006,7 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "wd.stop",
-   "story": "A Kell post says that if the stock loses 166.50, it would trigger a Wedge Drop short on a laggard. He adds that it might just be an avoid.",
+   "story": "Hidden ticker, the day before the trigger. A Kell post says that if the stock loses 166.50, it would trigger a Wedge Drop short on a laggard. He adds that it might just be an avoid.",
    "q": "On our rules, how do you treat that post?",
    "choices": [
     "A lead; my own entry, stop and size",
@@ -3864,7 +4015,7 @@
     "Skip it; a post is no source of ideas"
    ],
    "answer": "A lead; my own entry, stop and size",
-   "why": "A lead, not a plan. Our rule: never take a trade from an alert, a post or a video. You need your own entry, stop and size by these rules first. Kell hedged his own post: it might just be an avoid.",
+   "why": "A lead, not a plan. Our rule: never take a trade from an alert, a post or a video. You need your own entry, stop and size by these rules first. Kell hedged his own post: it might just be an avoid. On this chart the short lost its stop and the stock ran up over the following weeks.",
    "lesson_line": "A post is a lead, never a plan. Your own entry, stop and size come first.",
    "facts": [
     "k06",
@@ -3889,7 +4040,13 @@
      "replaces the cut q62"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "TSLA",
+    "asof": "2023-05-12",
+    "window": 150,
+    "forward": 30
+   }
   },
   {
    "key": "q97",
@@ -3953,7 +4110,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key is the close down through the averages (t01, y02, c28). Distractors are the 200-day gate, the downside crossback (y04) and the Wedge Pop; none defensible. Lengths 30-37, no tell."
+   "notes": "META 2021-09-17 (dossier 8.11 A#1, TraderLion). Bars: close 364.72 under 9 EMA 373.36 and 20 EMA 372.09, prior close 373.06 was over the 20 EMA; trigger day is last bar; close well over the 200 SMA (311.77) so the 200-day choice is visibly false. No numbers in text; ticker only in why."
   },
   "q02": {
    "status": "pass",
@@ -3983,7 +4140,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "edit verified against rulings, quotes word for word"
+   "notes": "CAT 2018-10-09 (card winners #6, dossier 13 row 6). Bars: close 149.46 under 9 EMA 153.07 and 20 EMA 151.24, prior close over both. Default stop (a few cents over the trigger day's high) is the key; the dossier's 153.69 uses the 2-day high which the why already allows. No numbers in text."
   },
   "q07": {
    "status": "pass",
@@ -3995,7 +4152,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "t08/t09/u03/k04 support key and notes; no overlap with q61 beyond the spaced re-test."
+   "notes": "QQQ 2022-06-09 (dossier 8.11 C#12). Bars: close 299.40 under 9 EMA 304.83 and 20 EMA 305.24, prior close 307.64 over both; QQQ -17% under 200 SMA; forward lows reach 269.28 (6/16), well under the trigger close, as the why says (lower high at 6/2 then drop). No numbers in text."
   },
   "q09": {
    "status": "cut",
@@ -4042,8 +4199,8 @@
   "q16": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Story gives the c07 definition; key k01/u01; tops can overlap per c05 but the story fixes the lower high."
+   "fixed": true,
+   "notes": "WHR 2002-08-28 is the right day (day before the 08-29 trigger) and the example fits. But the writer's 'bounces into its FALLING 20 EMA' is false on the bars: the 20 EMA was rising on 8/22 (55.67) and 8/28 (56.04) after turning up in mid-August. What IS true: the bounce top 59.10 (8/22) sat just under the falling 50 SMA (59.39, down from 72 in June) and under the 60-session high 70.70. Restored the original 'falling 50-day' wording in story and deeper. The four-day stall 8/23-8/28 and the close under both averages on 8/29 check."
   },
   "q17": {
    "status": "pass",
@@ -4061,19 +4218,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with rulings"
+   "notes": "EXP 2015-09-18 buy-day chart, no trade drawn. Bars with the dossier entry 78.94 / stop 80.77: R=1.83, 3R (73.45) first reached day 3 (9/23 low 73.28), best 9.8R in the replay, 11.0R by dossier. 'Up 3R by day 3 and did not stop there' is true. The chart draws no trade so the member cannot see the 3R mark; acceptable because the text names no entry or stop."
   },
   "q20": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc 2.03 ok. 20.3% and 0.20% both reused the answer's digits (a tell) and the 0.20% note misdescribed the slip. Replaced 0.20% with the fill-as-share-of-stop mistake (98.0%)."
+   "fixed": false,
+   "notes": "WHR 2002-08-29 trade 55.16/56.28. Bars: close 55.16, high 56.25 (stop 3 cents over = 56.28), 2.03% math right. 3R day 9, best 14.2R, never stopped, matching dossier row 1. Story has no numbers. Forward 30 reaches 3R and 5R (day 13)."
   },
   "q21": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c20 and t06: a close back above both averages is the cover. 50.00 to 51.20 is 2.4%, inside 3%. HPQ anecdote matches d23/d24 (reclaim and stop hit on day 2). Add/hold/breakeven choices all wrong by the card and h05."
+   "notes": "DIS 2006-01-26 trade 24.74/25.26. Bars: close 24.74 under 9 EMA 25.11 and 20 EMA 24.91, high 25.23 (stop = high+0.03). Day 2 (1/30) close 25.12 is back over 9 EMA 25.05 and 20 EMA 24.91; stop (25.26) not hit until day 8 (2/7); a day-2 cover at 25.12 loses 0.38 versus 0.52 at the stop, so 'cost less than the stop' is true. Story numbers match the dossier (sec 14 row 1). Forward 30 reaches day 8."
   },
   "q22": {
    "status": "cut",
@@ -4085,7 +4242,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Right answer unchanged, sorts to the target rank, wrong choices real and similar in form."
+   "notes": "PCG 2007-12-14 trade 45.96/46.89. Bars: close 45.96 (low of day), high 46.85 (stop 46.89 matches dossier row 2 and the question). 3R (43.17) first reached day 10, matches the why. Forward 30 covers it. Story has no numbers."
   },
   "q24": {
    "status": "pass",
@@ -4096,8 +4253,8 @@
   "q25": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Drop the 0R outcome: it was measured from a close entry, which SHORT-ENTRY rules out."
+   "fixed": false,
+   "notes": "LOW 2007-09-07 near miss. Bars: close 29.43 under 9 EMA 29.93 and 20 EMA 29.47; (29.43-28.60)/(30.07-28.60)=56%. Trigger day is last bar. Story and why match the card (wd.close_position). Shorted at the close, next day high 30.12 reaches the 2-day-high stop 30.10 (stopped 0R) as the dossier says."
   },
   "q26": {
    "status": "pass",
@@ -4109,7 +4266,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Right answer unchanged, sorts to the target rank, wrong choices real and similar in form."
+   "notes": "EXP 2015-09-18 trade 78.94/80.77. Bars: close 78.94, high 80.74 (+0.03 = 80.77). 69.79 is exactly 5.0R and is reached day 6 (5R day 6, low 69.25); 3R day 3 matches the why. Forward 30 covers it. Story has no numbers."
   },
   "q28": {
    "status": "pass",
@@ -4163,8 +4320,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c12 supports 'graded down, not excluded'; stem avoids a fixed grade. Residual owner call on grade wording (E50) already flagged; the story does not state the closes stayed within 1 ATR, accepted.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "DXCM 2022-04-18 (card failures wd.wide_loose). Bars: close 120.16 under 9 EMA 123.85 and 20 EMA 122.03; stop 123.03 (high 123.00+0.03) = 2.4% from the close; next day high 124.00 stops it at 0R and the stock falls to 105.88 by day 6. Story's 8-day stall 9.6% wide and 2.4% are the dossier numbers. No trade drawn: fine, the words give no entry."
   },
   "q37": {
    "status": "pass",
@@ -4188,13 +4344,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "calc recomputed, answer matches, wrong choices distinct and real, steps correct."
+   "notes": "GS 2011-08-02 trade 131.23/134.79. Bars: close 131.23, high 134.76 (+0.03 = 134.79), R=3.56; 50,000 x 1% / 3.56 = 140.4 -> 140 shares, key right. 3R day 4, best 13.2R on day 44, never stopped; forward 20 is fine for the question (no outcome named). Story has no numbers."
   },
   "q41": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "no entry timing claimed; stop-out logic; keep agrees"
+   "notes": "GOOGL 2019-01-14 trade 52.58/53.70. Bars: close 52.58, 2-day high 53.67 (+0.03 = 53.70; dossier sec 14). Next session (1/15) opens 52.90, high 54.41 (through 53.70), close 54.33: story exact. Stopped day 1, matches the why. Forward 20 shows it."
   },
   "q42": {
    "status": "pass",
@@ -4224,14 +4380,14 @@
   "q46": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "measured 1.42 ATR vs 10-day dropped, invented 1.6 ATR vs 9 EMA is a hypothetical; acceptable"
+   "fixed": true,
+   "notes": "WFC 2016-09-09 is the card near miss, trigger day is last bar, close 48.72 under 9 EMA 49.62 and 20 EMA 49.30. BUT the 1.42 ATR is the dossier's distance from the 10-day EMA (bars: 9/2 close 50.55 = 1.42 ATR from the 10 EMA, only 1.28 ATR from the 9 EMA that is on the chart; D-021). Saying '1.42 ATR from the 9 EMA' is wrong. Replaced the exact number by 'more than 1 ATR' (true on both bases) and re-keyed the choice, wrong notes and why; the answer is unchanged."
   },
   "q47": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c11/d32 support; accumulation/distribution notes fit d32 and the rulebook h02."
+   "notes": "VZ 2010-06-30 near miss. Bars: close 26.28 under 9 EMA 26.85 and 20 EMA 26.78. Reproduced the 2.84: the 4-day stall 6/24-6/29, up (close over open) days vs down days volume = 2.84x. Number is the dossier's. Answer (accumulation, pass) is right."
   },
   "q48": {
    "status": "pass",
@@ -4273,8 +4429,8 @@
   "q54": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "agrees with D-013; keep/edit judged correct"
+   "fixed": true,
+   "notes": "TSM 2022-06-09 trade 90.85/93.53 checks: close 90.85, high 93.50 (+0.03), 2.95% -> 3.0%; 3R day 9, best 6.4R. But the why says 'a gap down through the stall low': the bars show the open 93.00 (under the prior low 93.14 only), ABOVE the stall low 91.77; the stock traded down through it intraday. Reworded the why to what the chart shows. Story's 'gap down' is a small real gap (open under the prior low) and is the dossier's own wording, left."
   },
   "q55": {
    "status": "pass",
@@ -4311,13 +4467,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with rulings"
+   "notes": "GS 2011-08-02, no trade drawn (plan enters on the trade-through). Bars: close 131.23 under both averages, low 131.18 under the stall low 133.13, high 134.76 (stop 134.79); 4-day stall 7/27-8/1; 3R day 4 and 13.2R best on day 44, stop never hit, forward 50 covers the why and deeper. Left the dossier's 'bounce dies at the falling 50-day' (the 50 SMA is falling, 134.17, though the 7/26 top 139.25 pushed above it first). Ticker not in the story."
   },
   "q61": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c26 'in any market'; q08 asks the meaning, q61 the action. Mild overlap accepted."
+   "notes": "QQQ 2025-12-12, a Friday. Bars: close 613.62 under 9 EMA 620.84 and 20 EMA 617.69 on 75M volume; prior close over both. 12/19 close 617.05 is back over both (9 EMA 613.82, 20 EMA 614.67), 5 sessions later, as the why says. Cut-longs key is the rule. No ticker; 'Nasdaq' is the index name, not the ticker."
   },
   "q62": {
    "status": "cut",
@@ -4329,13 +4485,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with D-013; keep/edit judged correct"
+   "notes": "DXCM 2026-03-05, forward raised to 40. Bars: close 70.69 (3.9% under the 200 SMA 73.59), stop 72.79 = high 72.76+0.03; 3R day 6, 5R day 37, best 6.65R (6.7R) on day 38, so 40 bars play it. Answer right."
   },
   "q64": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "8.3% above the 200-day is in the stem (d29); B26/h10 shorts only below it; c01 sell signal for a long. 'Stall must run 10' is wrong by c08. The earlier q45 duplicate is cut in verify, so nothing leaks the answer except q02's rule statement, which is teaching, not this case."
+   "notes": "V 2021-05-10, forward 20. Bars: close 225.97 is 8.3% over the 200 SMA 208.58. Shorted at the close with the trigger-day-high stop 232.03: best 0.93R and stopped day 16 (6/2), inside the 20 forward bars. Matches the why."
   },
   "q65": {
    "status": "pass",
@@ -4382,8 +4538,8 @@
   "q75": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key is right (F66/hf66, k06 hedge). One tell: the lone absolute 'no post can ever be a lead' marks the choice as wrong at a glance. Soften choice 4 and its wrong note."
+   "fixed": false,
+   "notes": "TSLA 2023-05-12, day before the 05-15 trigger. Bars: 5/15 close 166.35 is under 166.50; stop 169.79 hit 5/17 (high 174.50), stock 188.87 by 5/22; matches 'lost its stop and ran up'. Note: with the 9 EMA on the chart the 5/12 close (167.98) already sits a cent under it (167.99); the dossier measures the 10 EMA. The story makes no claim about the averages, so no conflict. Right answer is a rule, true."
   },
   "q97": {
    "status": "pass",

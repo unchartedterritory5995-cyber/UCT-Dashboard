@@ -1342,7 +1342,7 @@
    "key": "q03",
    "skill": "setup.episodic_pivot",
    "rung": 1,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "ep.neglect",
    "q": "What does neglect look like on the chart before the news?",
    "choices": [
@@ -1352,7 +1352,7 @@
     "A new high every week into the report"
    ],
    "answer": "Flat or down for months, no rally",
-   "why": "Flat or down for months, with no rally into the news. Bonde: neglect shows as no big rally before earnings, a long sideways period or a down move. Kullamagi: the best EPs come after 3 to 6 months or more of sideways trading. A stock that rallied into the report does not fit. Bonde wants stocks that have not rallied in anticipation of earnings.",
+   "why": "Flat or down for months, with no rally into the news. Bonde: neglect shows as no big rally before earnings, a long sideways period or a down move. Kullamagi: the best EPs come after 3 to 6 months or more of sideways trading. A stock that rallied into the report does not fit. Bonde wants stocks that have not rallied in anticipation of earnings. The stock on this chart sat flat to down for six months before its gap.",
    "lesson_line": "The best surprise lands on a stock nobody was watching.",
    "facts": [
     "b18",
@@ -1372,7 +1372,14 @@
      "stable idea; two Tier 2 originators agree"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "visuals-2",
+   "story": "Hidden ticker, the gap day is the last bar. Look at the months before it.",
+   "chart": {
+    "sym": "MOD",
+    "asof": "2023-05-25",
+    "window": 150,
+    "forward": 20
+   }
   },
   {
    "key": "q04",
@@ -1758,7 +1765,7 @@
    "key": "q15",
    "skill": "setup.episodic_pivot",
    "rung": 2,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "ep.stop_delayed",
    "q": "You buy a delayed entry on day three. Where is the stop?",
    "choices": [
@@ -1794,7 +1801,14 @@
      "rests on the owner's rulebook (A3, F62, stop first)"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "visuals-2",
+   "story": "Hidden ticker, day two after an earnings gap. Tomorrow it trades over the post-gap high, and you buy that day-three break.",
+   "chart": {
+    "sym": "META",
+    "asof": "2013-07-26",
+    "window": 150,
+    "forward": 20
+   }
   },
   {
    "key": "q16",
@@ -2129,9 +2143,9 @@
     "An EP; earnings make it one",
     "A Kicker; it gapped from a base"
    ],
-   "story": "A stock up 40% over the last six months rests in a six-week base near its highs. It reports, and gaps 12% on 5x volume to a strong close.",
+   "story": "Hidden ticker, the gap day is the last bar. The close before the gap was up 25.5% over 126 sessions and 19.3% over 63. It reports and gaps 16.6% on 11.2x volume, closing at 80% of its range.",
    "answer": "A PEG; a leader, not neglected",
-   "why": "A Power Earnings Gap. The six months before the report decide it. Up 40% and building a base is an established leader, not neglect. Bonde wants stocks that have not rallied in anticipation of earnings. Our card calls an EP a neglected stock and a PEG an established leader gapping out of a base.",
+   "why": "A Power Earnings Gap. The six months before the report decide it. Up 25.5% over 126 sessions and 19.3% over 63 is past our neglect line of 25% and 15%. That is an established leader at highs, not a neglected name. Bonde wants stocks that have not rallied in anticipation of earnings. The gap and the volume passed, but they only make half the test.",
    "lesson_line": "Same report, two setups. The six months before the gap decide which.",
    "facts": [
     "c27",
@@ -2141,12 +2155,12 @@
     "c29"
    ],
    "wrong": {
-    "An EP; the gap and volume qualify": "The gap day qualifies; the stock before it does not. Up 40% in six months is not neglect.",
-    "An EP; earnings make it one": "An earnings gap on a leader in a base is the PEG. The EP is the neglected name's gap.",
-    "A Kicker; it gapped from a base": "A Kicker needs a weak red close and a small gap. This one gapped 12% on 5x volume to a strong close."
+    "An EP; the gap and volume qualify": "The gap day qualifies; the stock before it does not. Up 25.5% in 126 sessions is past the neglect line.",
+    "An EP; earnings make it one": "An earnings gap on a leader at highs is the PEG. The EP is the neglected name's gap.",
+    "A Kicker; it gapped from a base": "A Kicker needs a weak red close and a small gap. This one gapped 16.6% on 11.2x volume to a strong close."
    },
    "house": true,
-   "simple": "It is a Power Earnings Gap, because a stock up 40% in six months is an established leader, not a neglected name.",
+   "simple": "It is a Power Earnings Gap, because a stock already up 25.5% is an established leader, not a neglected name.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -2155,7 +2169,13 @@
      "neglect line is a proposed card line"
     ]
    },
-   "batch": "rulings"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "CRM",
+    "asof": "2020-08-26",
+    "window": 150,
+    "forward": 20
+   }
   },
   {
    "key": "q25",
@@ -2222,9 +2242,9 @@
     "Buy; stop under the gap-day low",
     "Wait for a pullback to the prior close"
    ],
-   "story": "A neglected stock gapped 13% on earnings three days ago on 5x volume and closed near its high. The two days since held above the gap-day low. This morning it trades over the gap-day high, and today's low is 1.8% below.",
+   "story": "Hidden ticker. An earnings gap of 20.3% on 27.6x volume closed at 82% of its range two days ago. Yesterday it held above the gap-day low. This morning it trades over the post-gap high, and the stop under today's low would sit 1.7% below.",
    "answer": "Buy at market; stop under today's low",
-   "why": "Buy at market as it trades over the gap-day high, with the stop a few cents under the trigger day's low. The gap held: no trade below the gap-day low. That makes the delayed trigger live, and the stop is under 3%. A stop wider than about 3% would mean skip.",
+   "why": "Buy at market as it trades over the post-gap high, with the stop a few cents under the trigger day's low. The gap held: no trade below the gap-day low. That makes the delayed trigger live, and the stop is under 3%. A stop wider than about 3% would mean skip.",
    "lesson_line": "Miss day one and the break of the gap-day high, while the gap holds, is the second door.",
    "facts": [
     "c14",
@@ -2236,12 +2256,12 @@
     "d05"
    ],
    "wrong": {
-    "Pass; day one was the only entry": "The delayed entry is our second trigger. While the gap holds, the first break of the gap-day high is a buy.",
+    "Pass; day one was the only entry": "The delayed entry is our second trigger. While the gap holds, the first break of the post-gap high is a buy.",
     "Buy; stop under the gap-day low": "The stop is a few cents under the trigger day's low. The gap-day low is wider than it needs to be.",
     "Wait for a pullback to the prior close": "A trade back to the prior close fills the gap and ends the setup. That is not a pullback to buy."
    },
    "house": true,
-   "simple": "Buy at market as it breaks the gap-day high, with the stop a few cents under today's low. The gap has held.",
+   "simple": "Buy at market as it breaks the post-gap high, with the stop a few cents under today's low. The gap has held.",
    "deeper": {
     "example": "ENPH, October 2021: an 18.5% earnings gap closed at 56% of its range. On day three it broke the post-gap high, 227.59. The buy was 227.60 with the stop at 224.95, 1.2% under."
    },
@@ -2256,7 +2276,13 @@
    "depends_on": [
     "D-084"
    ],
-   "batch": "wave2"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "DLB",
+    "asof": "2006-11-13",
+    "window": 150,
+    "forward": 20
+   }
   },
   {
    "key": "q27",
@@ -2423,20 +2449,20 @@
    "key": "q32",
    "skill": "setup.episodic_pivot",
    "rung": 5,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "ep.trim_1",
-   "q": "Bought at 50.00 with the stop at 49.00. Where is 3R?",
-   "answer": "$53.00",
+   "q": "Bought at 514.01 with the stop at 507.19. Where is 3R?",
+   "answer": "$534.47",
    "calc": {
     "fn": "arith",
     "args": {
      "expr": "a + 3 * (a - b)",
-     "a": 50.0,
-     "b": 49.0
+     "a": 514.01,
+     "b": 507.19
     },
     "round": 2
    },
-   "why": "$53.00. One R is the fill minus the stop: 50.00 - 49.00. Add three of those to the fill: 50.00 + 3 x (50.00 - 49.00) = 53.00. 3R is a measuring mark, not a fixed sell.",
+   "why": "$534.47. One R is the fill minus the stop: 514.01 minus 507.19. Add three of those to the fill, 514.01, and you get 534.47. 3R is a measuring mark, not a fixed sell. UI reached 3R the next session.",
    "lesson_line": "Know your 3R price before the open. It is a measuring mark, not a sell order.",
    "facts": [
     "r54"
@@ -2451,19 +2477,30 @@
      "computed key"
     ]
    },
-   "batch": "rank",
+   "batch": "visuals-2",
    "choices": [
-    "$53.00",
-    "$54.00",
-    "$55.00",
-    "$150.00"
+    "$534.47",
+    "$527.65",
+    "$520.83",
+    "$493.55"
    ],
    "wrong": {
-    "$54.00": "Added four R, counting the fill as the first one.",
-    "$55.00": "Added five R, not three.",
-    "$150.00": "Multiplied the fill by three instead of adding three R."
+    "$527.65": "Added the three R to the stop instead of the fill.",
+    "$520.83": "Added one R, not three.",
+    "$493.55": "Subtracted the three R instead of adding them."
    },
-   "suffix": ""
+   "suffix": "",
+   "story": "Hidden ticker, bought on the day-two break after an earnings gap.",
+   "chart": {
+    "sym": "UI",
+    "asof": "2025-08-25",
+    "window": 150,
+    "forward": 20,
+    "trade": {
+     "entry": 514.01,
+     "stop": 507.19
+    }
+   }
   },
   {
    "key": "q33",
@@ -2728,21 +2765,21 @@
    "key": "q40",
    "skill": "setup.episodic_pivot",
    "rung": 6,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "ep.stop_delayed",
-   "q": "Account 40,000. Risk 0.5%. Fill 38.40, stop 37.80. How many shares?",
-   "answer": "333 shares",
+   "q": "Account 40,000. Risk 0.5%. Fill 34.89, stop 33.96. How many shares?",
+   "answer": "215 shares",
    "calc": {
     "fn": "shares_from_risk",
     "args": {
      "account": 40000,
      "risk_pct": 0.5,
-     "entry": 38.4,
-     "stop": 37.8
+     "entry": 34.89,
+     "stop": 33.96
     },
     "round": 0
    },
-   "why": "333 shares. Risk in dollars is 40,000 x 0.5%. Risk per share is the fill minus the stop: 38.40 - 37.80. Divide the first by the second and round down to 333. The position stays under the 40% cap, because the size is the smaller of the risk size and the cap.",
+   "why": "215 shares. Risk in dollars is 40,000 x 0.5%. Risk per share is the fill minus the stop: 34.89 - 33.96. Divide the first by the second and round down to 215. The position stays under the 40% cap, because the size is the smaller of the risk size and the cap.",
    "lesson_line": "Stop first, distance second, size last.",
    "facts": [
     "h03",
@@ -2751,7 +2788,7 @@
    ],
    "house": true,
    "suffix": "",
-   "simple": "Divide the dollars you risk by the gap between fill and stop, then round down. That gives 333 shares.",
+   "simple": "Divide the dollars you risk by the gap between fill and stop, then round down. That gives 215 shares.",
    "tier": "extended",
    "risk": {
     "score": 5,
@@ -2761,19 +2798,30 @@
      "fixed before (the cap broke at 1% risk)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-2",
    "choices": [
-    "416 shares",
-    "333 shares",
-    "1,042 shares",
-    "3,333 shares"
+    "430 shares",
+    "2,150 shares",
+    "215 shares",
+    "5 shares"
    ],
    "wrong": {
-    "416 shares": "That is the 40% cap alone. The size is the smaller of the risk size and the cap.",
-    "1,042 shares": "Divided the account by the price and ignored the stop.",
-    "3,333 shares": "Typed the risk as ten times too big, so the share count came out ten times too big."
+    "430 shares": "Used twice the stated risk percent.",
+    "2,150 shares": "Decimal slip: the risk dollars came out ten times too big.",
+    "5 shares": "Divided the risk dollars by the fill price, not the gap to the stop."
    },
-   "prefix": ""
+   "prefix": "",
+   "story": "Hidden ticker, bought on the day-three break of the post-gap high.",
+   "chart": {
+    "sym": "META",
+    "asof": "2013-07-29",
+    "window": 150,
+    "forward": 20,
+    "trade": {
+     "entry": 34.89,
+     "stop": 33.96
+    }
+   }
   },
   {
    "key": "q41",
@@ -2973,7 +3021,7 @@
     "A loss from a gap too big to buy",
     "A loss from a gap on thin volume"
    ],
-   "story": "A big name gaps 18.2% on 13.1x volume when it names a new CEO, closing at 98% of its range. Day four, an inside-day break at 94.97, stop 92.93. The next day takes the stop.",
+   "story": "Hidden ticker. A big name gaps 18.2% on 13.1x volume when it names a new CEO, closing at 98% of its range. Day four, an inside-day break at 94.97, stop 92.93. The next day takes the stop.",
    "answer": "A loss from a strong gap that failed",
    "why": "A loss from a strong gap that failed. The gap on 13.1x volume and a 98% close were strong, but there was no follow-through. The stop is the exit, and it kept the loss near 1R. A loss taken at plan is the system working.",
    "lesson_line": "A strong gap can still fail to follow through. The stop keeps the loss small.",
@@ -3005,7 +3053,17 @@
      "reworded before"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "SBUX",
+    "asof": "2024-08-16",
+    "window": 150,
+    "forward": 20,
+    "trade": {
+     "entry": 94.97,
+     "stop": 92.93
+    }
+   }
   },
   {
    "key": "q47",
@@ -3020,7 +3078,7 @@
     "Drop the stock; it failed once",
     "The stop should have been wider"
    ],
-   "story": "A 17.2% earnings gap on 4.4x volume. You buy the day-3 break of the post-gap high at 22.01, stop 21.46. The next session takes the stop. Months later the stock makes a far larger move.",
+   "story": "Hidden ticker. A 17.2% earnings gap on 4.4x volume. You buy the day-3 break of the post-gap high at 22.01, stop 21.46. The next session takes the stop. Months later the stock makes a far larger move.",
    "answer": "Right stock; the first buy failed",
    "why": "Right stock, the first buy failed. The day-3 break failed at once, and the stop kept the loss near 1R. A stop-out says nothing final about the stock. TSLA made a far larger move months later. After a stop-out, buy again only on a new trigger, as a new trade with its own stop and every rule.",
    "lesson_line": "A stop-out is not a verdict on the stock. The next trigger is a new trade.",
@@ -3049,7 +3107,17 @@
      "rests on the owner's rulebook (B21)"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "TSLA",
+    "asof": "2019-10-28",
+    "window": 150,
+    "forward": 60,
+    "trade": {
+     "entry": 22.01,
+     "stop": 21.46
+    }
+   }
   },
   {
    "key": "q48",
@@ -3064,7 +3132,7 @@
     "The volume on the gap day",
     "Where it closed in the day's range"
    ],
-   "story": "A 13.0% earnings gap on 7.4x volume, closing at 86%, on a stock up 19% over the prior six months. The day-3 break at 35.16 reaches 0.51R, then the stop at 34.16 goes.",
+   "story": "Hidden ticker. A 13.0% earnings gap on 7.4x volume, closing at 86%, on a stock up 19% over the prior six months. The day-3 break at 35.16 reaches 0.51R, then the stop at 34.16 goes.",
    "answer": "The run it made before the report",
    "why": "The run before the news. Up 19% over six months sat inside the neglect line. It was the least neglected of the four failures in our scan. The gap, volume and close were all strong, and every rule passed. A soft spot is not a proven cause. The day-3 break reached 0.5R and gave it back. The stop kept the loss near 1R.",
    "lesson_line": "A trade can pass every rule and still fail. The stop keeps it small.",
@@ -3096,7 +3164,17 @@
      "fixed before"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "GOOGL",
+    "asof": "2015-07-21",
+    "window": 150,
+    "forward": 20,
+    "trade": {
+     "entry": 35.16,
+     "stop": 34.16
+    }
+   }
   },
   {
    "key": "q49",
@@ -3111,7 +3189,7 @@
     "Sized up; the biggest gaps run most",
     "Not at all; a 28.5% gap is banned"
    ],
-   "story": "A stock down 31% over six months gaps 28.5% on earnings on 15.0x volume, closing at 97%. You buy the day-2 break at 42.01, stop 40.97.",
+   "story": "Hidden ticker. A stock down 31% over six months gaps 28.5% on earnings on 15.0x volume, closing at 97%. You buy the day-2 break at 42.01, stop 40.97.",
    "answer": "Small; B- at best, so sized down",
    "why": "Small. A gap over 25% is graded down to B- at best, and a B- or lower is sized down. Here the gap was 28.5%. The neglect was textbook, with the stock down 31% over six months, but the gap size was the warning. Bonde also says gaps over 20% pull back most of the time. A big gap is graded down, not banned.",
    "lesson_line": "The grade sets the size. A B- EP gets a small position.",
@@ -3141,7 +3219,17 @@
      "answer over 30 characters"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "ANF",
+    "asof": "2012-11-15",
+    "window": 150,
+    "forward": 20,
+    "trade": {
+     "entry": 42.01,
+     "stop": 40.97
+    }
+   }
   },
   {
    "key": "q50",
@@ -3156,9 +3244,9 @@
     "Yes; buy the close, the gap is support",
     "No; the day's volume was too light"
    ],
-   "story": "An 18.1% earnings gap on 4.6x volume. The day never trades back to the prior close, but it closes at 32% of its range.",
+   "story": "Hidden ticker, the gap day is the last bar. An 18.1% earnings gap on 4.6x volume. The day never trades back to the prior close, but it closes at 32% of its range.",
    "answer": "No; a faded day, a watch at most",
-   "why": "No. The gap held, but the day closed at 32% of its range and the rule is the upper half. A faded gap day is not an EP. At most it goes on the list as a delayed-reaction watch. The would-be close buy at 109.88 was stopped for 0.0R.",
+   "why": "No. The gap held, but the day closed at 32% of its range and the rule is the upper half. A faded gap day is not an EP. At most it goes on the list as a delayed-reaction watch.",
    "lesson_line": "The gap held and the buyers left. That is a watch, not a buy.",
    "facts": [
     "d24",
@@ -3167,7 +3255,7 @@
     "c03"
    ],
    "wrong": {
-    "Yes; buy the close, the gap is support": "The would-be close buy at 109.88 was stopped. A held gap with a weak close is not an EP.",
+    "Yes; buy the close, the gap is support": "We buy as price trades through a trigger, not at the close. A held gap with a weak close is not an EP.",
     "Yes; the gap held, so it counts": "Holding the gap is one gate. Closing in the upper half is another, and this fails it.",
     "No; the day's volume was too light": "4.6x is well over the 3 times floor. The close is what fails."
    },
@@ -3183,7 +3271,13 @@
      "fixed before"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "MU",
+    "asof": "2024-09-26",
+    "window": 150,
+    "forward": 20
+   }
   },
   {
    "key": "q51",
@@ -3198,7 +3292,7 @@
     "Yes; the gap and volume qualify",
     "Yes; the 200-day is about to turn up"
    ],
-   "story": "A stock down 17% over six months gaps 12.1% on earnings on 3.6x, closing at 66%. The day-2 break would fill at 161.21. The 200-day sits at 168.35.",
+   "story": "Hidden ticker, the gap day is the last bar. A stock down 17% over six months gaps 12.1% on earnings on 3.6x, closing at 66%. The day-2 break would fill at 161.21. The 200-day sits at 168.35.",
    "answer": "No; the buy is under the 200-day",
    "why": "No. No longs below the 200-day simple moving average, unless the trade is a parabolic long. The day-2 break would fill at 161.21, under the 200-day at 168.35. The gap and the volume passed. The location failed.",
    "lesson_line": "Neglected stocks often live under the 200-day. No long until price is over it.",
@@ -3230,7 +3324,13 @@
    "depends_on": [
     "D-020"
    ],
-   "batch": "wave2"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "AMZN",
+    "asof": "2022-02-04",
+    "window": 150,
+    "forward": 20
+   }
   },
   {
    "key": "q52",
@@ -3266,7 +3366,7 @@
    "key": "q53",
    "skill": "setup.episodic_pivot",
    "rung": 8,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "ep.trim_1",
    "q": "Bought at 227.60, stop 224.95. You sell part at 235.55. How many R did that sale bank?",
    "answer": "3.0R",
@@ -3299,7 +3399,7 @@
      "rests on the owner's rulebook (B19, first trim)"
     ]
    },
-   "batch": "sweep-2026-11-14",
+   "batch": "visuals-2",
    "choices": [
     "8.0R",
     "4.0R",
@@ -3311,7 +3411,18 @@
     "4.0R": "Measured the gain from the stop, not from the fill.",
     "0.3R": "Flipped the division: one R over the gain."
    },
-   "prefix": ""
+   "prefix": "",
+   "story": "Hidden ticker, bought on the day-three break after an earnings gap.",
+   "chart": {
+    "sym": "ENPH",
+    "asof": "2021-10-29",
+    "window": 150,
+    "forward": 20,
+    "trade": {
+     "entry": 227.6,
+     "stop": 224.95
+    }
+   }
   },
   {
    "key": "q54",
@@ -3326,7 +3437,7 @@
     "Everything at 3R, the first target",
     "Nothing; hold all of it for the big run"
    ],
-   "story": "A news EP after the election: a 14.2% gap on 3.9x, the day-3 break bought at 259.70, stop 257.10. It reaches 3R the next session and later 34R.",
+   "story": "Hidden ticker. A news EP after the election: a 14.2% gap on 3.9x, the day-3 break bought at 259.70, stop 257.10. It reaches 3R the next session and later 34R.",
    "answer": "A judgment call, day 3 or later",
    "why": "A judgment call, day 3 at the earliest. We very rarely sell on day 1 of a buy. A 3, 5 or 7 day push, or about 5 to 10R, is often best. COIN gave its gains back in December after 34R, so selling into strength mattered.",
    "lesson_line": "Sell part into strength, on judgment. An EP that gives it all back only hurts the untrimmed.",
@@ -3356,7 +3467,17 @@
      "the owner often waits for 5R on the first trim"
     ]
    },
-   "batch": "rulings2"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "COIN",
+    "asof": "2024-11-08",
+    "window": 150,
+    "forward": 40,
+    "trade": {
+     "entry": 259.7,
+     "stop": 257.1
+    }
+   }
   },
   {
    "key": "q55",
@@ -3503,7 +3624,7 @@
     "Buy; stop under the gap-day low",
     "Wait for the gap-day high break"
    ],
-   "story": "A stock gaps 12.0% on earnings on 5.7x. Two days hold above the gap-day low. Day three is an inside day. Day four it trades over the inside day's high, 59.91, and the inside day's low is 2.3% below.",
+   "story": "Hidden ticker. A stock gaps 12.0% on earnings on 5.7x. Two days hold above the gap-day low. Day three is an inside day. Day four it trades over the inside day's high, 59.91, and the inside day's low is 2.3% below.",
    "answer": "Buy; stop under the inside-day low",
    "why": "Buy at market over the inside day's high, with the stop a few cents under the inside day's low, as WING did. The gap held for two days, so the delayed trigger is live. The stop is 2.3% away, inside the 3% line. Our rule puts the stop under the day's low or the prior day's low, and the prior day is the inside day.",
    "lesson_line": "An inside day after the gap is a tight trigger with a tight stop. That is the point.",
@@ -3537,7 +3658,13 @@
    "depends_on": [
     "D-084"
    ],
-   "batch": "wave2"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "WING",
+    "asof": "2018-08-07",
+    "window": 150,
+    "forward": 20
+   }
   },
   {
    "key": "q59",
@@ -3597,7 +3724,7 @@
     "A; record volume is just a cue",
     "B; the close is only 82% of range"
    ],
-   "story": "A stock sideways-to-down for a year, with no earlier EP, gaps 20.3% on earnings on 27.6x volume. That is the highest volume on its chart by far. It closes at 82%.",
+   "story": "Hidden ticker, the gap day is the last bar. A stock sideways-to-down for a year, with no earlier EP, gaps 20.3% on earnings on 27.6x volume. That is the highest volume on its chart by far. It closes at 82%.",
    "answer": "A+; record volume on a neglected name",
    "why": "A+. The highest volume in years is our A+ volume cue, and 27.6x is far past the 5 times line. The stock drifted sideways to down for a year, the neglect the setup needs. The close at 82% is in the top quarter. Bonde cautions at gaps over 20%, but the card's line is 25%, and this gap is 20.3%.",
    "lesson_line": "Record volume on a forgotten stock is the loudest EP there is.",
@@ -3630,7 +3757,13 @@
      "grading is discretionary (E50), so the stem asks for the card's cues"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "DLB",
+    "asof": "2006-11-10",
+    "window": 260,
+    "forward": 60
+   }
   },
   {
    "key": "q61",
@@ -4167,7 +4300,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold read of final text against D-013, D-021, D-003, GAP-TRIM, D-005, D-031, D-033: agrees; answer right, wrongs wrong, quotes verbatim, style ok."
+   "notes": "MOD gap day 2023-05-25 (card winners_list; dossier sec 12 row 1: -8% six months, flat). asof = gap day, plain wording, no new numbers. Answer right. Pass."
   },
   "q04": {
    "status": "cut",
@@ -4240,7 +4373,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold read of final text against D-013, D-021, D-003, GAP-TRIM, D-005, D-031, D-033: agrees; answer right, wrongs wrong, quotes verbatim, style ok."
+   "notes": "META gap 2013-07-25, buy 07-29 day 3 (dossier row 3); asof 07-26 = day 2, the day before the trigger. No numbers. Ticker absent. Stop answer right for the real trade. Pass."
   },
   "q16": {
    "status": "pass",
@@ -4295,7 +4428,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "keep agrees with ruling"
+   "notes": "CRM near-miss 2020-08-26: 25.5%/19.3%, 16.6%, 11.2x, 80% all match card and dossier near-miss 3; asof = gap day. PEG answer right; 25%/15% lines are the card limits. Pass."
   },
   "q25": {
    "status": "pass",
@@ -4306,8 +4439,8 @@
   "q26": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key re-derived from the cited quotes and matches; no second defensible answer, no tell beyond the accepted ones, numbers grounded."
+   "fixed": true,
+   "notes": "DLB gap 11-10, buy 11-14 day 3 (27.47, post-gap high 27.46, stop 27.00 = 1.7%); asof 11-13 = day before trigger. 20.3%/27.6x/82% match. \"two days ago\"/\"yesterday\" count right. Fix: the unchanged wrong note for \"Pass; day one...\" still says gap-day high while the story now says post-gap high; align."
   },
   "q27": {
    "status": "pass",
@@ -4343,7 +4476,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Right answer unchanged, sorts to the target rank, wrong choices real and similar in form."
+   "notes": "UI buy day 2025-08-25, 514.01/507.19 match dossier row 2 and text; 3R = 534.47 and every distractor recomputed (527.65, 520.83, 493.55). 3R day 1 covered by forward 20. Trade on the buy day. Pass."
   },
   "q33": {
    "status": "pass",
@@ -4391,7 +4524,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "calc recomputed, answer matches, wrong choices distinct and real, steps correct."
+   "notes": "META buy day 2013-07-29, 34.89/33.96 match dossier row 3; 40000x0.5%/0.93 = 215.05 -> 215, distractors recomputed (430, 2150, 5), size under 40% cap. Pass."
   },
   "q41": {
    "status": "pass",
@@ -4427,40 +4560,38 @@
   "q46": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (d16/d17/d30/h02). Choice D 'not buying on the first day' cannot be ruled out from the story (d17 says the inside-day trigger is the weaker one), so it is a second defensible read. Replace it with a clearly false choice. Also the deeper example's '0.0R' reads as the result; d16 says best run 0.0R.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": false,
+   "notes": "SBUX gap 08-13, buy 08-16 day 4 94.97/92.93, stopped 08-19; 18.2%/13.1x/98% match failure 1. asof = buy day, trade matches text. Pass."
   },
   "q47": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "d18/d19/h28/d30: right stock, first buy failed; re-buy and wider-stop notes grounded in h28 and h01. d19 vs d17 wording flag stands.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "TSLA gap 10-24, buy 10-28 day 3 22.01/21.46, stopped 10-29; 17.2%/4.4x match. forward 60 (~3 months) reaches the later large move. Pass."
   },
   "q48": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key supported (d20, d21: least neglected of the four; others pass c03/c07/c27). Tell: the three wrong choices share 'too small/light/weak' while the key is the odd shape. Make the four parallel noun phrases."
+   "fixed": false,
+   "notes": "GOOGL gap 07-17, buy 07-21 day 3 35.16/34.16, stopped 07-23, best 0.51R; 13.0%/7.4x/86%/+19% match. Pass."
   },
   "q49": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key re-derived from the cited quotes and matches; no second defensible answer, no tell beyond the accepted ones, numbers grounded."
+   "notes": "ANF gap 11-14, buy 11-15 day 2 42.01/40.97, stopped 11-16; 28.5%/15.0x/97%/-31% match. Pass."
   },
   "q50": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Cold read of final text against D-013, D-021, D-003, GAP-TRIM, D-005, D-031, D-033: agrees; answer right, wrongs wrong, quotes verbatim, style ok."
+   "fixed": true,
+   "notes": "MU near-miss 2024-09-26: 18.1%/4.6x/32% match; asof = gap day; right answer No. Fix: the rewritten wrong note says \"We never buy the close\", a new absolute claim not in the card; reword to the lesson rule (buy as price trades through a trigger)."
   },
   "q51": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key re-derived from the cited quotes and matches; no second defensible answer, no tell beyond the accepted ones, numbers grounded."
+   "notes": "AMZN near-miss: gap 02-04, day-2 buy 161.21 under 200-day 168.35, 12.1%/3.6x/66%/-17% match; asof = gap day = day before trigger. Answer No right. Pass."
   },
   "q52": {
    "status": "cut",
@@ -4472,13 +4603,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold read of final text against D-013, D-021, D-003, GAP-TRIM, D-005, D-031, D-033: agrees; answer right, wrongs wrong, quotes verbatim, style ok."
+   "notes": "ENPH gap 10-27, buy 10-29 day 3 227.60/224.95 match dossier row 7 and the question text; (235.55-227.60)/2.65 = 3.0R; 3R day 1 covered by forward 20. Pass."
   },
   "q54": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold read of final text against D-013, D-021, D-003, GAP-TRIM, D-005, D-031, D-033: agrees; answer right, wrongs wrong, quotes verbatim, style ok."
+   "notes": "COIN gap 11-06, buy 11-08 day 3 259.70/257.10 match row 8; 3R day 1, best 34.6R, back to stop in December (day ~28-30); forward 40 reaches all December. Pass."
   },
   "q55": {
    "status": "cut",
@@ -4503,8 +4634,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key re-derived from the cited quotes and matches; no second defensible answer, no tell beyond the accepted ones, numbers grounded.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "WING gap 08-03, inside day 08-07, buy 08-08 day 4 at 59.92 over inside-day high 59.91, stop 58.54 = 2.3%; asof = inside day. 12.0%/5.7x match. Pass."
   },
   "q59": {
    "status": "pass",
@@ -4515,9 +4645,8 @@
   "q60": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key re-derived from the cited quotes and matches; no second defensible answer, no tell beyond the accepted ones, numbers grounded.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "DLB gap day 2006-11-10; 20.3%/27.6x/82%/-12% match row 4; asof gap day; second DLB use (q26 first). Fix: the text says \"sideways-to-down for a year\" and \"highest volume on its chart\" but window 150 shows only ~7 months; widen the window to 260."
   },
   "q61": {
    "status": "pass",

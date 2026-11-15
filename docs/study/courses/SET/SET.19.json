@@ -881,6 +881,36 @@
    "source": "h2",
    "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
    "claim": "The course teaches one pair, the 9 and 20 EMA, with the 50 and 200 SMA (D-021)."
+  },
+  {
+   "id": "d91",
+   "source": "d1",
+   "quote": "LOGI | 2023-10-23 (after close) | 2023-10-24 | 2023-10-31 | +10.4% | 5.2x | 5.4x | 0.95",
+   "claim": "LOGI: report 2023-10-23 after the close, PEG day 2023-10-24, buy day 2023-10-31, gap +10.4%, volume 5.4x, close 0.95 of range."
+  },
+  {
+   "id": "d92",
+   "source": "d1",
+   "quote": "4 days, 2.4% deep | 78.20 | 77.34 | 1.2% | 18.9R",
+   "claim": "LOGI: four-day pause 2.4% deep, buy over 78.20, stop 77.34 (1.2%), best 18.9R."
+  },
+  {
+   "id": "d93",
+   "source": "d1",
+   "quote": "+5.4% (3.2x) / 3.8x / 0.89 / -6%",
+   "claim": "MSFT 2015-04-24 PEG day: gap +5.4%, volume 3.8x, close at 0.89 of range."
+  },
+  {
+   "id": "d94",
+   "source": "d1",
+   "quote": "49.22 on 2015-04-29 over 49.21 (2-session pause)",
+   "claim": "MSFT: a two-session pause, then the buy over 49.21 on 2015-04-29; a mega-cap, one of the thinnest follow-throughs."
+  },
+  {
+   "id": "d95",
+   "source": "d1",
+   "quote": "ASML 2024-01-24 | owner, \"Again, just a PEG\" | 6.2%* | +8.9%* | 7.6x* | 0.55*",
+   "claim": "ASML 2024-01-24: gap 6.2%, volume 7.6x, close 0.55 of range; the owner called it just a PEG."
   }
  ],
  "walkthroughs": [
@@ -1308,7 +1338,7 @@
    "format": "scenario",
    "criterion": "peg.catalyst",
    "q": "Which session is the PEG day?",
-   "story": "A company reports after the close on Tuesday. You check the earnings calendar that evening.",
+   "story": "Hidden ticker, and the last bar is Tuesday's close. The company reports after that close. You check the earnings calendar that evening.",
    "choices": [
     "Wednesday, next session",
     "Tuesday, report day",
@@ -1323,7 +1353,8 @@
     "c02",
     "d10",
     "d11",
-    "d01"
+    "d01",
+    "d04"
    ],
    "wrong": {
     "Tuesday, report day": "Tuesday's regular session was over before the report.",
@@ -1342,7 +1373,13 @@
      "rests on our setup card and dossier only"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "BIDU",
+    "asof": "2010-02-09",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q14",
@@ -1398,28 +1435,28 @@
    "key": "q16",
    "skill": "setup.power_earnings_gap",
    "rung": 3,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "peg.trim_1",
-   "q": "Bought at 48.93 with the stop at 48.20. One R is the gap between them. Where is 3R?",
-   "answer": "$51.12",
+   "q": "Bought at 69.58 with the stop at 68.27. One R is the gap between them. Where is 3R?",
+   "answer": "$73.51",
    "calc": {
     "fn": "arith",
     "args": {
      "expr": "a + 3 * (a - b)",
-     "a": 48.93,
-     "b": 48.2
+     "a": 69.58,
+     "b": 68.27
     },
     "round": 2
    },
-   "why": "$51.12. One R is the fill minus the stop: 48.93 - 48.20. Add three of those to the fill: 48.93 + 3 x (48.93 - 48.20) = 51.12.",
+   "why": "$73.51. One R is the fill minus the stop: 69.58 - 68.27. Add three of those to the fill: 69.58 + 3 x (69.58 - 68.27) = 73.51.",
    "lesson_line": "Know your 3R price before the open.",
    "facts": [
     "h05",
-    "d05"
+    "d14b"
    ],
    "house": true,
    "prefix": "",
-   "simple": "Add three times the gap between the fill and the stop to the fill, which gives 51.12.",
+   "simple": "Add three times the gap between the fill and the stop to the fill, which gives 73.51.",
    "tier": "core",
    "risk": {
     "score": 5,
@@ -1429,19 +1466,30 @@
      "fixed before: the BIDU 27.7R claim was dropped"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-2",
    "choices": [
-    "$49.66",
-    "$50.39",
-    "$51.12",
-    "$51.93"
+    "$72.20",
+    "$73.51",
+    "$74.82",
+    "$72.58"
    ],
    "wrong": {
-    "$50.39": "Counted 3R up from the stop, which is only two R above the fill.",
-    "$49.66": "Added one R, not three.",
-    "$51.93": "Added three dollars to the fill. 3R is three times the risk, not three dollars."
+    "$72.20": "Counted 3R up from the stop, which is only two R above the fill.",
+    "$72.58": "Added three dollars to the fill. 3R is three times the risk, not three dollars.",
+    "$74.82": "Added four R, one too many."
    },
-   "suffix": ""
+   "suffix": "",
+   "story": "Hidden ticker, the day of the pause break.",
+   "chart": {
+    "sym": "COCO",
+    "asof": "2026-05-08",
+    "window": 120,
+    "forward": 25,
+    "trade": {
+     "entry": 69.58,
+     "stop": 68.27
+    }
+   }
   },
   {
    "key": "q17",
@@ -1743,7 +1791,7 @@
    "key": "q25",
    "skill": "setup.power_earnings_gap",
    "rung": 4,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "peg.stop_pause",
    "q": "Fill 90.25, stop 88.19. How far is the stop from the fill, in percent?",
    "answer": "2.3%",
@@ -1775,7 +1823,7 @@
      "the stop range is the owner's ruling D-005"
     ]
    },
-   "batch": "rank",
+   "batch": "visuals-2",
    "choices": [
     "2.3%",
     "97.7%",
@@ -1787,7 +1835,18 @@
     "23.0%": "A decimal slip, one place too far right.",
     "206.0%": "Turned the dollar gap into a percent without dividing by the fill."
    },
-   "prefix": ""
+   "prefix": "",
+   "story": "Hidden ticker, the day of the pause break.",
+   "chart": {
+    "sym": "LULU",
+    "asof": "2018-04-05",
+    "window": 120,
+    "forward": 40,
+    "trade": {
+     "entry": 90.25,
+     "stop": 88.19
+    }
+   }
   },
   {
    "key": "q26",
@@ -1973,7 +2032,7 @@
    "format": "scenario",
    "criterion": "peg.entry_pause",
    "q": "What do you do?",
-   "story": "A PEG closed strong on Thursday. Three quiet days since have held above the PEG-day low. The market reading is Green. This morning the stock trades over the highest high of those three days.",
+   "story": "Hidden ticker. A PEG closed strong on Tuesday, near the top of its range. Four quiet days since have held above the PEG-day low. This morning the stock trades over the highest high of those four days.",
    "choices": [
     "Buy at market; stop under the low",
     "Wait for the close to confirm",
@@ -1989,7 +2048,9 @@
     "h22",
     "st4",
     "d01",
-    "d02"
+    "d02",
+    "d91",
+    "d92"
    ],
    "wrong": {
     "Wait for the close to confirm": "Waiting for the close hands away the trigger and the price.",
@@ -1999,7 +2060,7 @@
    "house": true,
    "simple": "Buy at market as price trades over the pause high, and put the stop a few cents under the low.",
    "deeper": {
-    "example": "AMZN, 2017: the PEG day was 2017-10-27. Five flat days made a pause 1.7% deep. The buy came on 2017-11-06 over the pause high at 56.14, with the stop at 55.39."
+    "example": "LOGI, 2023: the PEG day was 2023-10-24. Four flat days made a pause 2.4% deep. The buy came on 2023-10-31 over the pause high at 78.20, with the stop at 77.34."
    },
    "tier": "core",
    "risk": {
@@ -2011,7 +2072,13 @@
    "depends_on": [
     "D-085"
    ],
-   "batch": "wave2"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "LOGI",
+    "asof": "2023-10-30",
+    "window": 120,
+    "forward": 40
+   }
   },
   {
    "key": "q32",
@@ -2048,7 +2115,7 @@
    "format": "scenario",
    "criterion": "peg.not_hve",
    "q": "PEG or High Volume Edge?",
-   "story": "A well-known company reports and gaps up strongly. It trades its biggest volume in a year, 7.6x its average, and closes strong.",
+   "story": "Hidden ticker, the gap day is the last bar. A well-known company reports and gaps up 6.2%. Volume is 7.6x its average, its biggest in a year, and the day closes at 0.55 of its range.",
    "choices": [
     "A PEG; earnings on a known name",
     "A High Volume Edge; a record",
@@ -2062,7 +2129,8 @@
     "c13",
     "c34",
     "c32",
-    "c33"
+    "c33",
+    "d95"
    ],
    "wrong": {
     "A High Volume Edge; a record": "An HVE dwarfs every prior day, usually on a lesser-known name.",
@@ -2082,7 +2150,13 @@
      "the split depends on the name, a judgment call"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "ASML",
+    "asof": "2024-01-24",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q34",
@@ -2307,7 +2381,7 @@
    "key": "q40",
    "skill": "setup.power_earnings_gap",
    "rung": 6,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "peg.stop_pause",
    "q": "Account 50,000. Risk 0.5%. Fill 90.25, stop 88.19. How many shares?",
    "answer": "121 shares",
@@ -2340,7 +2414,7 @@
      "fixed before: risk cut to 0.5% to stay under the cap"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-2",
    "choices": [
     "109 shares",
     "554 shares",
@@ -2352,7 +2426,18 @@
     "1,213 shares": "Typed the risk as ten times too big, so the share count came out ten times too big.",
     "109 shares": "Divided the risk dollars by the stop's percent, not by the dollars per share."
    },
-   "prefix": ""
+   "prefix": "",
+   "story": "Hidden ticker, the day of the pause break.",
+   "chart": {
+    "sym": "LULU",
+    "asof": "2018-04-05",
+    "window": 150,
+    "forward": 40,
+    "trade": {
+     "entry": 90.25,
+     "stop": 88.19
+    }
+   }
   },
   {
    "key": "q41",
@@ -2660,7 +2745,7 @@
    "format": "scenario",
    "criterion": "peg.inv_drift",
    "q": "What was that loss?",
-   "story": "CELH, 2023. A 10.6% earnings gap on 7.5x volume closed at 0.61. The pause took seven days to trigger, and you bought the break at 45.07 with a 2.9% stop. It went straight to the stop.",
+   "story": "Hidden ticker. A 10.6% earnings gap on 7.5x volume closed at 0.61. After the pause you bought the break at 45.07 with the stop at 43.78, 2.9% away. It went straight to the stop.",
    "choices": [
     "A weaker setup the stop capped",
     "A mistake; the stop was too tight",
@@ -2695,7 +2780,17 @@
      "a pause that drifts for 5 sessions or more takes the setup off before a buy (c22), so the buy itself may break a rule"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "CELH",
+    "asof": "2023-05-18",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 45.07,
+     "stop": 43.78
+    }
+   }
   },
   {
    "key": "q50",
@@ -2704,7 +2799,7 @@
    "format": "scenario",
    "criterion": "peg.stop_pause",
    "q": "Was that a mistake?",
-   "story": "ELF, 2023. A 10.7% gap on 4.6x volume, close at 0.98, then a clean pause. You bought the eighth-day break at 107.16 with a stop 2.6% away. It never reached 1R and the stop traded.",
+   "story": "Hidden ticker. A 10.7% gap on 4.6x volume, close at 0.98, then a clean pause. You bought the eighth-day break at 107.16 with the stop at 104.36, 2.6% away. It never reached 1R and the stop traded.",
    "choices": [
     "A planned loss; the stop worked",
     "A mistake; the PEG should be skipped",
@@ -2739,7 +2834,17 @@
      "rests on the dossier alone for the example"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "ELF",
+    "asof": "2023-06-06",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 107.16,
+     "stop": 104.36
+    }
+   }
   },
   {
    "key": "q51",
@@ -2748,7 +2853,7 @@
    "format": "scenario",
    "criterion": "peg.fundamentals",
    "q": "How does the catalyst side grade?",
-   "story": "A mega-cap followed by dozens of analysts gaps on earnings, closes strong and sets up a clean pause.",
+   "story": "Hidden ticker, a mega-cap that dozens of analysts follow. It gaps 5.4% on earnings on 3.8x volume and closes at 0.89 of its range. Two quiet days then hold above the gap-day low.",
    "choices": [
     "B-; many analysts follow it",
     "A+; a clean pause beats it",
@@ -2760,7 +2865,9 @@
    "lesson_line": "A widely covered mega-cap is a B- cue.",
    "facts": [
     "c39",
-    "bo2"
+    "bo2",
+    "d93",
+    "d94"
    ],
    "wrong": {
     "A+; a clean pause beats it": "The pause is one cue. A mega-cap with many analysts is a separate B- cue on the catalyst side.",
@@ -2780,13 +2887,19 @@
      "Bonde's line is general, not about PEGs by name"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "MSFT",
+    "asof": "2015-04-28",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q52",
    "skill": "setup.power_earnings_gap",
    "rung": 7,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "peg.trim_2",
    "q": "Bought at 61.35, stop 60.21. A third sells at 67.05. How many R is that?",
    "answer": "5.0R",
@@ -2820,7 +2933,7 @@
      "rests on the owner's rulebook E51 second third at 5R"
     ]
    },
-   "batch": "rank",
+   "batch": "visuals-2",
    "choices": [
     "5.0R",
     "0.2R",
@@ -2832,7 +2945,18 @@
     "1.1R": "That is the risk per share read as R. Divide the gain by it.",
     "0.1R": "Divided the gain by the price, not by R."
    },
-   "prefix": ""
+   "prefix": "",
+   "story": "Hidden ticker, the day of the pause break.",
+   "chart": {
+    "sym": "ILMN",
+    "asof": "2013-04-29",
+    "window": 120,
+    "forward": 40,
+    "trade": {
+     "entry": 61.35,
+     "stop": 60.21
+    }
+   }
   },
   {
    "key": "q53",
@@ -3027,7 +3151,7 @@
    "format": "scenario",
    "criterion": "peg.faded_day",
    "q": "Is it a PEG?",
-   "story": "AMD, 2022. A stock gaps 11.2% on earnings on 2.7x volume. The day's low stays above the prior close of 116.78, but it closes at 0.23 of its range.",
+   "story": "Hidden ticker, the gap day is the last bar. It gaps 11.2% on earnings on 2.7x volume. The day's low stays above the prior close of 116.78, but it closes at 0.23 of its range.",
    "choices": [
     "No; it faded into a weak close",
     "Yes; the gap held all day",
@@ -3063,7 +3187,13 @@
    "depends_on": [
     "D-039"
    ],
-   "batch": "wave2"
+   "batch": "visuals-2",
+   "chart": {
+    "sym": "AMD",
+    "asof": "2022-02-02",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q59",
@@ -3659,8 +3789,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Wednesday correct from c01; notes sound; key not longest.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "BIDU: card winners_list 2010-02-10; dossier s12 row 1 report 2010-02-09 after close, PEG day 2010-02-10 (Wednesday). asof 2010-02-09 is a Tuesday, the report-day close; replay shows the PEG day. No numbers; ticker absent; answer true."
   },
   "q14": {
    "status": "pass",
@@ -3677,8 +3806,8 @@
   "q16": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "calc recomputed, answer matches, wrong choices distinct and real, steps correct."
+   "fixed": true,
+   "notes": "COCO 2026-05-08 (dossier s12 row 10: buy over 69.58, stop 68.27, report 2026-04-29 before open, buy day 2026-05-08); trade matches text; 3R = 73.51 correct; distractors 70.89/72.20/72.58 correct. Only issue: the right answer was the largest of the four values. Fix swaps the 1R distractor for a 4R one (74.82 = 69.58 + 4 x 1.31) so the answer sits mid-range."
   },
   "q17": {
    "status": "pass",
@@ -3719,8 +3848,8 @@
   "q25": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Rank ok. 'Divided by ten' is not a real slip; replaced with turning the dollar gap into a percent without dividing."
+   "fixed": false,
+   "notes": "LULU 2018-04-05 (Thursday) is the buy day (dossier s12 row 5: PEG 2018-03-28, buy over 90.25, stop 88.19, 2.3%; hits.json pivot 90.25). Trade matches the words; 2.3% correct. First use of LULU."
   },
   "q26": {
    "status": "pass",
@@ -3750,14 +3879,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Buy at market over the pause high is c03/h22; story decidable; AMZN example matches d01-d03."
+   "notes": "LOGI asof 2023-10-30 (Monday), the day before the 2023-10-31 trigger. PEG day 2023-10-24 is a Tuesday; four pause days (25,26,27,30) match dossier pause 4 days; hits.json pause_low 75.49 over gap_low 74.0 so 'held above the PEG-day low' is true; close 0.95 = strong; pivot 78.20, stop 77.34. Deeper example matches d91/d92. Answer true."
   },
   "q33": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c13 and c34: an earnings spike on a known name at a one-year volume record stays a PEG (ASML 7.6x). EP and News Gapper are killed by c32 and c33. All numbers in c34 or the story.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "ASML 2024-01-24 Wednesday gap day (dossier 6.7 row 1, owner 'Again, just a PEG'; 6.2%, 7.6x, close 0.55; card source: 2.7x its biggest day of the prior year). Story numbers match; d95 quote is a verbatim substring of the table row. Answer PEG correct."
   },
   "q34": {
    "status": "cut",
@@ -3798,8 +3926,8 @@
   "q40": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc 121 ok. 108 shares came from a rounded 2.3%; with the exact 2.2825% the mistake gives 109, so a solver using exact figures would not find 108."
+   "fixed": false,
+   "notes": "Same LULU buy day and levels, second use (allowed). Window 150. Account 50,000 and 0.5% risk are the lesson's own sizing inputs, not example numbers; 121 shares correct."
   },
   "q41": {
    "status": "pass",
@@ -3847,26 +3975,25 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key rests on the 0.61 close being short of the top-quarter A grade (c09) plus the 2.9% stop inside the usual 3% (h04). Numbers all in d18v/d19v/the story. Owner flag stands: the dossier calls CELH's pause a drift, which c22 would take off before a buy; the key holds either way."
+   "notes": "CELH 2023-05-18 (Thursday) buy day: hits.json entry 45.07, stop 43.78, 2.9%, stopped 2023-05-19 day 1, best 0.0R; gap 10.6%, 7.5x, close 0.61 match dossier s13 row 2. The 'seven days' count was dropped (dossier is ambiguous: 5-session pause, triggered day 7). Forward 20 covers the stop-out. Key stays true."
   },
   "q50": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "keep: stop-out and base-rate question, no fixed trim keyed"
+   "notes": "ELF 2023-06-06 (Tuesday) buy day: hits.json entry 107.16, stop 104.36 (2.61%, matches dossier 2.6%), pause day 8, best 0.0R, stopped. Gap 10.7%, 4.6x, close 0.98 match dossier. Stop price is not printed in the dossier but is verified in final/hits.json."
   },
   "q51": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c39 and bo2: a mega-cap with many analysts is a B- catalyst cue; Bonde supports the wrong note for the A choice. No gap size in the story. Same E50 note as q36.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "MSFT asof 2015-04-28 (Tuesday), day before the 2015-04-29 trigger; PEG day 2015-04-24, two-session pause; gap 5.4%, 3.8x, close 0.89 match dossier s13 row 4; hits.json pause_low 47.22 over gap_low 45.65 so 'hold above the gap-day low' true. d93/d94 quotes verbatim. Answer B- consistent with the card."
   },
   "q52": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Right answer unchanged, sorts to the target rank, wrong choices real and similar in form."
+   "notes": "ILMN 2013-04-29 (Monday) buy day (dossier s12 row 2: buy over 61.35, stop 60.21, 1.9%, 17.0R, 3R in 5 sessions; hits.json best 17.05R and never stopped). 67.05 = 5R is a hypothetical sale; the stock reached 17R inside 60 sessions without hitting the stop so 5R is certain to be reached, and forward 40 covers it. Answer 5.0R correct."
   },
   "q53": {
    "status": "pass",
@@ -3890,8 +4017,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c08/c37/d24v/d25v: a faded day (0.23, bottom quarter) is not a PEG, gap still open (low above 116.78). Every number is in the story or d24v. Gap Support note is c35.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "AMD 2022-02-02 (Wednesday) gap day; report 2022-02-01 after close; 11.2%, 2.7x, close 0.23, low 120.64 over prior close 116.78 all from dossier s13 near-miss 3. Answer 'No; it faded' correct."
   },
   "q59": {
    "status": "pass",
