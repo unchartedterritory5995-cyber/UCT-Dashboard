@@ -160,3 +160,20 @@ describe(`PURE · generated matrix (${PURE.length} cases): kind × form × insta
     else expect(r, words).toMatch(/^I didn’t change anything/)
   })
 })
+
+// ── PURE · the chart rail's own reading (identifiesChart): what reaches it when no earlier screen asks first ──
+import { identifiesChart } from './chartRail'
+const hostOf = (n, selected = null) => {
+  const pos = n === 1 ? [null] : n === 2 ? ['left', 'right'] : ['top-left', 'top-right', 'bottom-left', 'bottom-right']
+  const list = SYMS.slice(0, n).map((s, i) => ({ ref: `c${i}`, symbol: s, position: pos[i], label: `Chart (${s})` }))
+  return { charts: { list: () => list, read: (r) => list.find(c => c.ref === r), selected: () => selected } }
+}
+describe('PURE · identifiesChart — the rule on the SPY chart (c0) for every form × count × verb', () => {
+  it.each(CHART_CASES)('%s · %i chart(s) · %s · "%s" → licensed %s', (form, n, verb, said, want) => {
+    if (verb === 'additive') return                              // (the ADDITIVE rule refuses before identification is read)
+    const host = hostOf(n, FORMS[form].select ? 'c0' : null)
+    const e = { type: 'symbol', ref: 'c0', symbol: 'SPY', to: 'AMD', position: host.charts.list()[0].position }
+    const got = identifiesChart(said, e, host, { selected: FORMS[form].select ? 'c0' : null, sole: n === 1 })
+    expect(!!got, `${said} → ${got}`).toBe(want)
+  })
+})
