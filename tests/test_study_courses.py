@@ -187,8 +187,12 @@ def test_a_chart_question_ships_a_bars_spec_and_never_names_its_ticker():
     _first(d, "q01")["chart"] = {"sym": "SPY", "asof": "2020-03-23", "window": 120, "forward": 30}
     assert cl.unit_problems(d) == []
     it = next(i for i in cl.build_items(d) if i["_key"] == "q01")
-    assert it["bars"] == {"sym": "SPY", "tf": "D", "asof": "2020-03-23", "window": 120, "forward": 30}
-    assert it["sym"] == "SPY" and it["asof"] == "2020-03-23" and it["prompt_json"]["chart"]["window_bars"] == 120
+    # the bank asks for the window plus WARMUP_BARS of history (the averages are formed from the first visible candle);
+    # the drill opens on visible_bars, and the ticker stays out of the set until the answer (hide_ticker, 2026-11-14)
+    assert it["bars"] == {"sym": "SPY", "tf": "D", "asof": "2020-03-23", "window": 120 + cl.WARMUP_BARS, "forward": 30}
+    assert it["sym"] == "SPY" and it["asof"] == "2020-03-23"
+    assert it["prompt_json"]["chart"] == {"window_bars": 120 + cl.WARMUP_BARS, "visible_bars": 120, "tf": "D",
+                                          "forward_bars": 30, "hide_ticker": True}
     _first(d, "q01").update(q="Which price is the most a buyer of SPY will pay?")
     assert any("names the chart's ticker" in p for p in cl.unit_problems(d))
     _first(d, "q01")["chart"].update(sym="spy", asof="March 2020")

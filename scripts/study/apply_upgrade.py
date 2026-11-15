@@ -11,6 +11,7 @@ UPGRADE_JSON  {"questions": {"<key>": {simple, why, lesson_line, deeper, tier, r
               files override earlier ones. New facts and sources are added when their id is not already in the lesson;
               a new question is added when its key is not already there (a house fact quotes the owner's rulebook).
 CHECK_JSON    {"questions": {"<key>": {"status": "pass|fix|cut", "notes": "...", "fix": {fields}}}} from a cold checker.
+              A fix's "chart": null removes the question's chart (a chart the bars contradict).
               pass = the checker's pass; fix = apply `fix`, then pass; cut = cut. Without a check the upgraded question
               is marked pass by the writer ("awaiting cold re-read"), which is enough to validate and preview.
 
@@ -105,6 +106,11 @@ def apply(doc: dict, upgrades: dict, batch: str, checks: dict | None = None, ext
                         doc.setdefault("facts", []).append(fact)
                         have.add(fact["id"])
                 fx.pop("house", None)          # a checker never marks a question as resting on the house rules
+                # a checker may DROP a chart the bars contradict: `"chart": null` in its fix removes it (2026-11-14: two
+                # checkers had to edit the writer's file instead, because a null field is otherwise ignored)
+                if "chart" in fx and fx["chart"] is None:
+                    fx.pop("chart")
+                    q.pop("chart", None)
                 _set_fields(q, fx)
             verify[key] = {"status": "pass", "by": "checker", "fixed": True, "notes": text}
         elif status == "pass":

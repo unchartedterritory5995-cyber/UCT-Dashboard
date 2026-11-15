@@ -18,7 +18,8 @@ function Leg({ k, v, note, tone = '' }) {
 }
 export function TradeBlock({ trade: t, name }) {
   if (t.kind === 'plan') {
-    const own = t.skill === 'setup.family3.kicker' ? 'your Kicker rules' : `the ${name} rules`
+    // a course question's trade is that real example's, from the research, not a detector's plan for the setup
+    const own = t.source === 'course' ? 'this example' : t.skill === 'setup.family3.kicker' ? 'your Kicker rules' : `the ${name} rules`
     const hit = (at) => (at == null ? 'not reached' : at === 0 ? 'hit on the signal day' : `hit on session ${at}`)
     const [l1, l2] = trimLabels(t)
     const r = Number.isFinite(t.r) ? ` · ${t.r.toFixed(1)}R` : ''
@@ -30,8 +31,8 @@ export function TradeBlock({ trade: t, name }) {
       <div className={s.coachBlock}>
         <span className={s.coachLabel}>The trade · {own}</span>
         <div className={s.legs} role="list">
-          <Leg k={t.long ? 'Entry' : 'Short'} v={px(t.entry)} note={t.entry_note} tone="gold" />
-          <Leg k="Stop" v={px(t.stop)} note={`${t.stop_note} · risk ${pct(t.riskPct, false)}`} tone="down" />
+          <Leg k={t.long ? 'Entry' : 'Short'} v={px(t.entry)} note={t.entry_note || ''} tone="gold" />
+          <Leg k="Stop" v={px(t.stop)} note={[t.stop_note, `risk ${pct(t.riskPct, false)}`].filter(Boolean).join(' · ')} tone="down" />
           <Leg k={`${l1} · ${l2}`} v={`${px(t.t1)} · ${px(t.t2)}`} note={`${l1}, ${hit(t.t1At)}: a mark on the ruler; the stop can move up to breakeven between 2R and 5R. ${l2}, ${hit(t.t2At)}: inside the 5 to 10R zone where a first sell into strength is often best, by judgment, usually day 3 or later`} tone={t.t1At != null ? 'up' : ''} />
           <Leg k={t.long ? 'Advance' : 'Fall, in your favour'} v={t.long ? pct(t.advancePct) : `${Math.abs(t.advancePct).toFixed(1)}%`} note={t.bestSessions != null ? `to the best ${t.long ? 'high' : 'low'}, session ${t.bestSessions}${r}` : `no new ${t.long ? 'high' : 'low'} after entry`} tone="up" />
         </div>

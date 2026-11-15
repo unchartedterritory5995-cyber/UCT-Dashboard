@@ -69,3 +69,28 @@ def test_the_report_shows_what_the_replay_reaches_after_the_stop():
     note = [n for n in r["notes"] if "replayed bars" in n][0]
     assert "stopped on day 1" in note and "after the stop it reaches" in note, note
     assert float(note.split("after the stop it reaches ")[1].rstrip("R")) > 5, note
+
+
+def test_words_naming_the_200_day_need_200_bars_by_asof():
+    """2026-11-14: the words name lines the chart must draw (D-021). A 200-day the stock's history cannot draw on the
+    decision day fails; with the history it passes (the bank loads WARMUP_BARS ahead of the window for it)."""
+    days = _days(80)
+    rows = [(t, 10.0, 10.5, 9.8, 10.2) for t in days]
+    c = _db(rows)
+    iso = lambda t: f"{str(t)[:4]}-{str(t)[4:6]}-{str(t)[6:]}"
+    q = {"key": "q6", "story": "It sits just over its 200-day.", "chart": {"sym": "ABC", "asof": iso(days[59]), "window": 40, "forward": 20}}
+    r = cc.check_question(c, "SET.99", q)
+    assert any("name the 200-day" in p for p in r["problems"]), r
+    days2 = _days(330)
+    c2 = _db([(t, 10.0, 10.5, 9.8, 10.2) for t in days2])
+    q2 = {**q, "chart": {**q["chart"], "asof": iso(days2[299])}}
+    assert cc.check_question(c2, "SET.99", q2)["problems"] == []
+
+
+def test_a_sentence_saying_the_200_day_is_absent_agrees_with_a_young_chart():
+    days = _days(80)
+    c = _db([(t, 10.0, 10.5, 9.8, 10.2) for t in days])
+    iso = lambda t: f"{str(t)[:4]}-{str(t)[4:6]}-{str(t)[6:]}"
+    q = {"key": "q7", "why": "A young stock has no 200-day yet. The card does not ask for one.",
+         "chart": {"sym": "ABC", "asof": iso(days[59]), "window": 40, "forward": 20}}
+    assert cc.check_question(c, "SET.99", q)["problems"] == []

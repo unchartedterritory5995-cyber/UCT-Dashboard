@@ -182,7 +182,9 @@ export default function DrillPlayer({
   const chartVisible = needsChart && chartItemId === item?.id && chartMounted
   const chartItem = chartItemId ? s.items.find((it) => it.id === chartItemId) || item : null
   // the chart's ticker, shown before answering in a lesson (the owner, 2026-11-08 "Yes"; the challenges never carry it)
-  const ticker = (chartItem?.ticker || item?.ticker || null)
+  // A course chart (prompt_json.chart.hide_ticker) arrives without it: a dated real example's ticker gives the outcome
+  // away, so it shows from the answer on, named by the reveal (2026-11-14)
+  const ticker = (chartItem?.ticker || item?.ticker || (chartItem?.prompt_json?.chart?.hide_ticker && phase === 'reveal' && chartItemId === item?.id ? result?.reveal?.sym : null) || null)
   const chartOpts = chartItem?.prompt_json?.chart
   const chartTf = chartItem?.bars?.tf || chartItem?.prompt_json?.tf || 'D'
   // RS 4-09: an RS drill draws the REAL UCT RS pane from the columns the item carries (studyRsOverlay). Primed
@@ -215,13 +217,21 @@ export default function DrillPlayer({
   const phone = useIsPhone()
   const { prefs: chartPrefs } = usePreferences(true)
   const lookProps = useMemo(() => paneLookProps({ cs: surface.cs, theme: surface.theme, prefs: chartPrefs }), [surface.cs, surface.theme, chartPrefs])
-  const entryDate = chartBars?.[0]?.t ?? null
 
   const state = item ? s.getState(item.id) : null
   const setState = useCallback((v) => { if (item) s.setState(item.id, typeof v === 'function' ? v(s.getState(item.id)) : v) }, [item, s])
   const locked = phase !== 'answer'
   const answerable = !!item && !locked && mod.isAnswerable(state, item)
-  const reveal = result?.reveal || null
+  // The session's copy of the reveal, not the answer's: the session appends the days past the reveal's first 20 to BOTH
+  // the chart's bars and its reveal (useStudySession 'more-forward'), so counting the forward days from the answer's own
+  // copy put the decision day 40 bars late on a 60-day replay, and BOUGHT and the levels with it (screen check 2026-11-14).
+  const reveal = result ? ((item && s.results?.[item.id]?.reveal) || result.reveal || null) : null
+  // The verdict takeover holds the screen first; the replay waits until it closes, so the member sees it play (the
+  // screen check, 2026-11-14: it had always finished under "Correct / See the lesson").
+  const scoredReveal = !s.finished && s.status === 'ready' && !!item && phase === 'reveal' && !!result && !unscored
+  const [dismissedTakeover, setDismissedTakeover] = useState(null)
+  const showTakeover = scoredReveal && dismissedTakeover !== item?.id
+  takeoverOpen.current = showTakeover
   // THE WORKBENCH LOOK (owner, 2026-11-04: "it looks nothing like the work we did in the local host"): the forward
   // bars run on one at a time after the verdict instead of appearing at once, and a chart item carries the pointer
   // at the candle in question, then the verdict colour and the low-of-day ray on the reveal.
@@ -229,6 +239,10 @@ export default function DrillPlayer({
   // workbench pointer: a halo on the candle, an arrow into it, the label; green or red with the low-of-day ray on the reveal.
   const forwardCount = phase === 'reveal' && Array.isArray(reveal?.forward_bars) ? reveal.forward_bars.length : 0
   const baseLen = Math.max(0, (chartBars?.length || 0) - forwardCount)
+  // A course chart carries WARMUP_BARS of history ahead of its window (courses_lib), so the 50 and 200-day averages are
+  // drawn from its first visible candle: the chart opens on the question's own window (prompt_json.chart.visible_bars).
+  const visibleN = Number(chartOpts?.visible_bars) || 0
+  const entryDate = chartBars?.length ? chartBars[visibleN ? Math.max(0, baseLen - visibleN) : 0].t : null
   // THE REPLAY AFTER THE ANSWER (owner, 2026-11-14: "a visual along with it to see ... Using our tick by tick ... Build
   // this it is critical"; he picked "chart + replay after"). The bars after the decision day run on with Hard mode's
   // engine (lab/fx useRunOnTicks, RUN_ON_MS), each day growing through its stored 30-minute closes where the server has
@@ -268,7 +282,7 @@ export default function DrillPlayer({
       .then((more) => { if (more.length) moreForward.current?.(itemId, more) })
   }, [phase, attemptId, itemId, wantForward, revealTotal, forwardCount, fetcher])
   const ticks = useMemo(() => alignTicks(fwdBars, intraday), [fwdBars, intraday])
-  const replayOn = phase === 'reveal' && forwardCount > 0 && !skipped
+  const replayOn = phase === 'reveal' && forwardCount > 0 && !skipped && !showTakeover
   const run = useRunOnTicks(baseBars, fwdBars, forwardCount, replayOn, { slowMs: RUN_ON_MS, ticks, develop: developing })
   const replayDone = forwardCount > 0 && (skipped || (run.k >= forwardCount && !run.clock))
   const shownBars = forwardCount ? (skipped ? chartBars : run.bars) : chartBars
@@ -315,7 +329,7 @@ export default function DrillPlayer({
   // trade's action items join them on the reveal (challenges/tradeMarks.tradeMarkers), in the time order the chart wants
   // The replay lands the days one at a time: a trade's marks (3R, 5R, STOPPED) appear when the replay reaches their day,
   // never before (counted in whole days, so a mark does not move while a day grows through its 30-minute closes)
-  const landed = !chartBars?.length ? 0 : (!forwardCount || skipped || !replayOn) ? chartBars.length : Math.min(chartBars.length, baseLen + run.k)
+  const landed = !chartBars?.length ? 0 : (!forwardCount || skipped) ? chartBars.length : !replayOn ? baseLen : Math.min(chartBars.length, baseLen + run.k)
   const chartMarkers = useMemo(() => {
     const rs = chartVisible ? rsMarkMarkers(item, chartBars) : null
     const upTo = chartBars ? chartBars.slice(0, landed) : null
@@ -335,6 +349,13 @@ export default function DrillPlayer({
   const annotations = useMemo(() => (modAnnotations || pointer ? [...(modAnnotations || []), ...(pointer || [])] : null), [modAnnotations, pointer])
 
   const onCrosshairMove = useCallback((payload) => { crosshair.current = payload }, [])
+  const chartRowRef = useRef(null)
+  const closeTakeover = useCallback(() => {
+    setDismissedTakeover(item?.id ?? null)
+    if (!needsChart) return
+    const still = typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches
+    requestAnimationFrame(() => chartRowRef.current?.scrollIntoView?.({ block: 'start', behavior: still ? 'auto' : 'smooth' }))
+  }, [item?.id, needsChart])
 
   const tapAt = useCallback((times, price) => {
     if (!chartVisible || locked || !mod.onChartTap || !item) return
@@ -427,12 +448,13 @@ export default function DrillPlayer({
 
   useEffect(() => { if (s.finished) onFinished?.(s.summary) }, [s.finished]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const scoredReveal = !s.finished && s.status === 'ready' && !!item && phase === 'reveal' && !!result && !unscored
-  const [dismissedTakeover, setDismissedTakeover] = useState(null)
-  const showTakeover = scoredReveal && dismissedTakeover !== item?.id
-  takeoverOpen.current = showTakeover
   const answerKey = scoredReveal ? (() => { const w = brandWords(answerWord(reveal) || ''); return w ? w.charAt(0).toUpperCase() + w.slice(1) : '' })() : ''
-  const hudResults = useMemo(() => s.items.slice(0, s.index).map((it) => s.results[it.id]?.correct !== false), [s.items, s.index, s.results])
+  // the question on screen counts once it is scored (the screen check, 2026-11-14: "0 right" sat over a correct answer)
+  const hudResults = useMemo(() => {
+    const done = s.items.slice(0, s.index).map((it) => s.results[it.id]?.correct !== false)
+    if (scoredReveal) done.push(result.correct !== false)
+    return done
+  }, [s.items, s.index, s.results, scoredReveal, result])
   const label = !unscored && (phase === 'answer' || phase === 'checking') ? 'Check' : 'Continue'
   const framing = item && needsChart && mod.framingOf ? mod.framingOf(item) : ''
   // round 17: the bar count is gone from the framing (the chart facts carry the window); the rest of the sentence stays
@@ -499,7 +521,7 @@ export default function DrillPlayer({
           </div>
         </div>
         )}
-        <div className={styles.chartRow}>
+        <div className={styles.chartRow} ref={chartRowRef}>
         <div
           className={`${styles.chartBox} ${needsChart ? '' : styles.chartHidden}`}
           aria-hidden={!needsChart}
@@ -621,7 +643,7 @@ export default function DrillPlayer({
 
       {showTakeover ? (
         <VerdictTakeover ok={!!result.correct} title={result.correct ? CORRECT_WORD : WRONG_WORD} answer={answerKey || null}
-          xp={Number(result.progress?.xp_gained || 0)} label="See the lesson" onContinue={() => setDismissedTakeover(item.id)} testId="drill-takeover" />
+          xp={Number(result.progress?.xp_gained || 0)} label="See the lesson" onContinue={closeTakeover} testId="drill-takeover" />
       ) : null}
       {scoredReveal ? <span key={`f-${s.index}`} className={`${s2.flash} ${result.correct ? s2.ok : s2.bad}`} aria-hidden="true" /> : null}
       {!s.finished && s.status === 'ready' && item && (

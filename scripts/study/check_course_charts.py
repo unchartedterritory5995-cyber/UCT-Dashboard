@@ -28,6 +28,7 @@ import argparse
 import datetime as dt
 import json
 import pathlib
+import re
 import sqlite3
 import sys
 
@@ -41,6 +42,10 @@ FORWARD_HORIZON_DAYS_D = 2
 REVEAL_FORWARD_BARS = 20
 FORWARD_WANT = 60
 MAX_STOP_PCT = 6.0
+#: the history courses_lib loads ahead of a course chart's window so the averages are formed (the bank's bars.window)
+from scripts.study.courses_lib import WARMUP_BARS  # noqa: E402
+NAMES_200 = re.compile(r"\b200[- ]?(?:day|SMA|DMA)\b", re.I)
+NEGATED = re.compile(r"\b(no|not|without|never)\b|n't\b", re.I)
 
 
 def _key(d: str) -> int:
@@ -57,6 +62,7 @@ def _bars_before(c, sym: str, n: int, to_key: int) -> list[tuple]:
 def resolve(c, chart: dict) -> dict:
     """As api/routers/study.resolve_bars does for a daily spec."""
     sym, window, fwd_n = str(chart["sym"]).upper(), int(chart.get("window", 120)), int(chart.get("forward", 20))
+    window += WARMUP_BARS            # the bank asks for the window plus the averages' history (courses_lib)
     asof = _key(chart["asof"])
     visible = _bars_before(c, sym, window, asof)
     d = dt.date(asof // 10000, (asof // 100) % 100, asof % 100)
@@ -78,6 +84,12 @@ def check_question(c, unit: str, q: dict) -> dict:
         out["problems"].append(f"asof {ch['asof']} is not a bar: the last visible bar is {vis[-1][0]}")
     if len(vis) < int(ch.get("window", 120)) // 2:
         out["problems"].append(f"only {len(vis)} bars of history for a window of {ch.get('window', 120)}")
+    # a chart whose words name the 200-day must be able to draw it on the decision day (200 bars of history by asof)
+    words = " ".join(str(q.get(k) or "") for k in ("story", "q", "why", "simple", "lesson_line"))
+    # a sentence saying the line is ABSENT ("a young stock has no 200-day yet") agrees with a chart that cannot draw it
+    named = [x for x in re.split(r"(?<=[.!?])\s+", words) if NAMES_200.search(x) and not NEGATED.search(x)]
+    if named and len(vis) < 200:
+        out["problems"].append(f"the words name the 200-day but only {len(vis)} bars exist by asof: the line cannot be drawn")
     want = int(ch.get("forward", 20))
     if want and len(fwd) < min(want, REVEAL_FORWARD_BARS):
         out["problems"].append(f"only {len(fwd)} bars after asof (the replay wants {min(want, REVEAL_FORWARD_BARS)})")
@@ -95,6 +107,13 @@ def check_question(c, unit: str, q: dict) -> dict:
         if (not short and s > lo + 0.005) or (short and s < hi - 0.005):
             out["problems"].append(f"stop {s} is not beyond the day's {'high' if short else 'low'} ({hi if short else lo})")
         risk = abs(e - s)
+        # the buy day itself can pass 3R / 5R after the fill (2026-11-14: WSM, KRMN, COIN and INOD said "the next
+        # session" / "in two sessions" when the buy day had already run through both; the answer card says "hit on
+        # the signal day"). Reported when the day opened on the buy's side, so the high came after the fill.
+        if risk > 0 and ((not short and float(b[1]) <= e + 0.01) or (short and float(b[1]) >= e - 0.01)):
+            day_r = ((hi - e) if not short else (e - lo)) / risk
+            if day_r >= 3:
+                out["notes"].append(f"the buy day itself reaches {day_r:.1f}R")
         if e and risk / e * 100 > MAX_STOP_PCT:
             out["problems"].append(f"stop is {risk / e * 100:.1f}% from the entry")
         if risk > 0:

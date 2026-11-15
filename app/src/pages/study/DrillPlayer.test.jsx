@@ -17,6 +17,7 @@ vi.mock('../../components/StockChart', () => ({
       data-entry={props.entryDate}
       data-exit={props.exitDate}
       data-markers={(props.markers || []).map((m) => m.text).join('|')}
+      data-marker-days={(props.markers || []).map((m) => `${m.text}@${m.time}`).join('|')}
       data-annotations={(props.annotations || []).length}
     >
       <span>chart:{props.sym}</span>
@@ -171,6 +172,46 @@ describe('DrillPlayer', () => {
     expect(fetcher).toHaveBeenCalledWith('/api/study/attempts/1/step', expect.objectContaining({ method: 'POST', body: { offset: 5, n: 3 } }))
   })
 
+  // screen check 2026-11-14: the decision day was counted back from the reveal's own 20 bars after the top-up had added
+  // more, so BOUGHT and the levels sat 40 days late on a 60-day replay. The decision day is the question's last bar.
+  it('keeps BOUGHT on the decision day after the replay is topped up past the reveal bars', async () => {
+    const set = tenSet()
+    set.items[0] = item('recall', 'si_c4', { question: 'Where is the stop?', kind: 'mcq', choices: ['The buy point', 'The stop', 'The target', 'The low'], chart: { window_bars: 20, tf: 'D', forward_bars: 8 } }, true)
+    const base = makeFetcher(set)
+    const fetcher = vi.fn(async (url, opts = {}) => {
+      if (url === '/api/study/attempts/1/step') return { bars: bars(3, '2025-01-27'), next_offset: 8, done: true, forward_total: 8 }
+      const r = await base(url, opts)
+      if (url === '/api/study/attempts' && opts.body?.item_id === 'si_c4') {
+        r.reveal = { ...r.reveal, forward_total: 8, trade: { entry: 119.5, stop: 118, t1: 124, t2: 127, direction: 'bullish', enters_intraday: true, trim_r: [3, 5] } }
+      }
+      return r
+    })
+    render(<DrillPlayer open onClose={() => {}} fetcher={fetcher} />)
+    const before = Number((await screen.findByTestId('stock-chart')).getAttribute('data-bars'))
+    await answerChoice('The buy point')
+    // under the verdict: only the question's bars, and no mark has landed yet
+    expect(Number(screen.getByTestId('stock-chart').getAttribute('data-bars'))).toBe(before)
+    fireEvent.click(screen.getByTestId('drill-takeover-go'))
+    fireEvent.click(await screen.findByTestId('drill-replay-skip'))
+    await waitFor(() => expect(Number(screen.getByTestId('stock-chart').getAttribute('data-bars'))).toBe(before + 8))
+    // the question's last bar is 2025-01-21 (20 days from 01-02): BOUGHT stays there
+    await waitFor(() => expect(screen.getByTestId('stock-chart').getAttribute('data-marker-days')).toMatch(/BOUGHT@2025-01-21/))
+  })
+
+  // 2026-11-14: a course chart is a dated real example, so the server sends no ticker with it (hide_ticker); the badge
+  // and watermark appear once the answer is scored, named by the reveal
+  it('shows a course chart ticker only from the answer on', async () => {
+    const set = tenSet()
+    set.items[0] = item('recall', 'si_c5', { question: 'Take it?', kind: 'mcq', choices: ['The buy point', 'The stop', 'The target', 'The low'], chart: { window_bars: 20, tf: 'D', forward_bars: 5, hide_ticker: true } }, true)
+    render(<DrillPlayer open onClose={() => {}} fetcher={makeFetcher(set)} />)
+    await screen.findByTestId('stock-chart')
+    expect(screen.queryByTestId('chart-identity')).not.toBeInTheDocument()
+    expect(screen.getByText('hideWatermark:true')).toBeInTheDocument()
+    await answerChoice('The buy point')
+    fireEvent.click(screen.getByTestId('drill-takeover-go'))
+    expect(await screen.findByTestId('chart-identity')).toHaveTextContent('AAPL')
+  })
+
   it('marks the decision day on a course chart with no trade once the bars after it play', async () => {
     const set = tenSet()
     set.items[0] = item('recall', 'si_c2', { question: 'What is a pivot?', kind: 'mcq', choices: ['The buy point', 'The stop', 'The target', 'The low'] }, true)
@@ -191,6 +232,8 @@ describe('DrillPlayer', () => {
     expect(screen.getByRole('group', { name: 'Lesson, question 1 of 10, 0 right' })).toBeInTheDocument()
 
     await answerChoice('VCP')
+    // the answer just scored counts at once, under the verdict (it read "0 right" over a correct answer)
+    expect(screen.getByRole('group', { name: /question 1 of 10, 1 right/ })).toBeInTheDocument()
     fireEvent.click(screen.getByTestId('primary-action'))
     expect(await screen.findByText('Question 2 of 10')).toBeInTheDocument()
     await answerChoice('The buy point')
@@ -267,6 +310,11 @@ describe('DrillPlayer', () => {
     expect(chart).toHaveAttribute('data-bars', '20')
     expect(screen.getByText('bars:20')).toBeInTheDocument()
     await answerChoice('VCP')
+    // the verdict holds the screen first: the replay has not started under it (0.8 s is two replay days at RUN_ON_MS)
+    await new Promise((r) => setTimeout(r, 800))
+    expect(screen.getByTestId('stock-chart')).toHaveAttribute('data-bars', '20')
+    fireEvent.click(screen.getByTestId('drill-takeover-go'))
+    fireEvent.click(await screen.findByTestId('drill-replay-skip'))
     await waitFor(() => expect(screen.getByTestId('stock-chart')).toHaveAttribute('data-bars', '25'))
     expect(screen.getByText('bars:25')).toBeInTheDocument()
     expect(screen.getByTestId('stock-chart')).toHaveAttribute('data-exit', '2025-01-26')

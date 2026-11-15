@@ -213,7 +213,11 @@ def _set_payload(user_id: str, session: dict, ticker: bool = False) -> dict:
             continue
         if p.get("has_chart"):
             p["bars"] = study_store.get_visible_bars(iid)
-            if ticker:
+            # a course chart (prompt_json.chart.hide_ticker) is a dated real example whose ticker gives the outcome away
+            # (NVDA 2023): it stays out of the set, and the answer's reveal names it (2026-11-14, the owner's call to make
+            # was left to us: "you make a judgement call")
+            hide = bool(((p.get("prompt_json") or {}).get("chart") or {}).get("hide_ticker"))
+            if ticker and not hide:
                 p["ticker"] = (study_store.get_item_full(iid) or {}).get("sym") or None
         items.append(p)
     return {

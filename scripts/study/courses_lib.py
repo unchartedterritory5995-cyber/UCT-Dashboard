@@ -574,6 +574,11 @@ def question_problems(q: dict, *, unit: dict, facts: dict, sources: dict, skills
     return out
 
 
+#: history loaded ahead of a course chart's visible window, so the 50 and 200-day averages are drawn from its first
+#: visible candle (the drill opens on `visible_bars`; 2026-11-14)
+WARMUP_BARS = 200
+
+
 def unit_problems(doc: dict, *, path: Optional[pathlib.Path] = None) -> list[str]:
     """Every mechanical problem in one unit file (empty = clean). Built items are checked too (voice + grounding)."""
     out: list[str] = []
@@ -796,7 +801,14 @@ def build_items(doc: dict, *, only_passed: bool = True) -> list[dict]:
             # bars.db by this spec (get_bars_before, split-adjusted); the ticker never reaches a member before scoring
             # forward_bars: how many days the replay after the answer plays (the reveal carries the first 20; the drill
             # fetches the rest, up to what the server holds): a count, nothing about the answer
-            prompt["chart"] = {"window_bars": int(chart.get("window", 120)), "tf": "D", "forward_bars": int(chart.get("forward", 20))}
+            # WARMUP_BARS of history ride ahead of the window, hidden: the 50 and 200-day averages the words name are
+            # drawn from the first visible candle (2026-11-14 screen check: a 120-bar chart drew no 200-day at all, and the
+            # 50-day only from bar 50). visible_bars is what the drill opens on; the extra bars are only the averages' history.
+            win = int(chart.get("window", 120))
+            # hide_ticker: a course chart is a real dated example, so its ticker (NVDA 2023, AMD 2018) would give the
+            # outcome away before the answer; the server leaves it out of the set and the reveal names it (2026-11-14)
+            prompt["chart"] = {"window_bars": win + WARMUP_BARS, "visible_bars": win, "tf": "D", "forward_bars": int(chart.get("forward", 20)),
+                               "hide_ticker": True}
             tr = chart.get("trade")
             if tr:
                 # after the answer only (the reveal): the drill player draws it as Hard mode does (entry, stop, 3R and 5R
@@ -804,8 +816,14 @@ def build_items(doc: dict, *, only_passed: bool = True) -> list[dict]:
                 e, s = float(tr["entry"]), float(tr["stop"])
                 sign = -1.0 if tr.get("direction") == "bearish" else 1.0
                 risk = abs(e - s)
+                # the notes the answer card prints under the entry and the stop (2026-11-14: it printed "undefined"); both
+                # are what check_course_charts verifies for every drawn trade (the entry traded that day, the stop sits
+                # beyond the day's extreme). `source` lets the card name this example, not a setup's detector rules.
                 reveal["trade"] = {"entry": e, "stop": s, "t1": round(e + sign * 3 * risk, 2), "t2": round(e + sign * 5 * risk, 2),
-                                   "direction": "bearish" if sign < 0 else "bullish", "enters_intraday": True, "trim_r": [3, 5]}
+                                   "direction": "bearish" if sign < 0 else "bullish", "enters_intraday": True, "trim_r": [3, 5],
+                                   "source": "course",
+                                   "entry_note": "the fill on the chart's last day",
+                                   "stop_note": "over that day's high" if sign < 0 else "under that day's low"}
         it = {
             "id": item_id(ref_base, f"q:{key}"), "version": 1, "type": "scenario" if fmt == "scenario" else "recall",
             "skill_id": q.get("skill"), "module": track, "difficulty": _difficulty(int(q.get("rung") or 1)),
@@ -817,7 +835,7 @@ def build_items(doc: dict, *, only_passed: bool = True) -> list[dict]:
         if chart:
             it.update(sym=str(chart["sym"]).upper(), asof=chart["asof"], adjustment_basis="split-adjusted",
                       bars={"sym": str(chart["sym"]).upper(), "tf": "D", "asof": chart["asof"],
-                            "window": int(chart.get("window", 120)), "forward": int(chart.get("forward", 20))})
+                            "window": int(chart.get("window", 120)) + WARMUP_BARS, "forward": int(chart.get("forward", 20))})
         items.append(it)
     return items
 

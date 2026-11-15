@@ -54,7 +54,9 @@ Step 1 and step 2 go first; step 2 runs in parallel with the owner's review, les
 whose chart ends on the buy day carries its trade (`chart.trade: {entry, stop}`, from the research), drawn after the
 answer as the entry and stop lines with 3R and 5R as marks on the ruler, and BOUGHT / 3R / 5R / STOPPED landing only
 when the replay reaches their day; a course chart with no trade marks its DECISION DAY once the bars after it play.
-**Step 2 pilot:** Flat Base (SET.07), 19 charts, 4 with trades.
+**Step 2 pilot:** Flat Base (SET.07), 19 charts, 4 with trades. **Step 2 rollout (2026-11-14):** batch 1 SET.08-15,
+batch 2 SET.16-23, batch 3 SET.24-31, then SET.40-52; 510 live charts after batch 3, every one checked against the
+bars copy. The intraday lessons (SET.32-34, 53, 54) wait for hourly course charts.
 
 Rules every chart question follows (the validator enforces the starred ones):
 - `asof` is the last day the member sees: the day before the breakout for "what is it / where is the pivot"
@@ -62,12 +64,30 @@ Rules every chart question follows (the validator enforces the starred ones):
 - The trade's entry and stop are the same numbers the question's words give.* Every number comes from the research
   dossier's table (docs/study/setups/research/NN-*.md), which was measured on the same bars.db the chart draws
   (split-adjusted), so the words and the chart agree.
-- The ticker is not in the question, the story or the choices.* A story shows only on a scenario.* A number is never
+- The ticker is not in the question, the story or the choices.* The chart badge shows it before the answer in a lesson
+  (the owner, 2026-11-02 and 2026-11-08, "Yes"), so the words never say "Hidden ticker" (removed from 644 stories and
+  questions on 2026-11-14). Whether course charts should hide it until the answer, so a famous winner does not give the
+  outcome away, is for the owner to decide. A story shows only on a scenario.* A number is never
   cut between the story and the question* (2026-11-14: three were, "bought at 73." / "16 with the stop").
 - The lines named in the words are the lines on the chart: the 9 and 20 EMA, the 50 and 200 SMA (D-021).
 - `forward` is how many days the replay plays after the answer: the reveal carries the first 20 and the drill fetches
-  the rest, up to the server's 60. Pick it so the outcome the words name (3R on day 5, the stop in week three) plays.
-- Run check_course_charts before committing a chart batch; it must report 0 failing.
+  the rest, up to the server's 60. Pick it so EVERY outcome the words name plays, after the stop too ("went on to
+  26.4R", "later reached 5R without us"); a named outcome past day 60 is dropped from the words (2026-11-14: MU named
+  5R over a 10-day replay; PANW named 26.4R over 40 days that peak at 23.2R; ESS named 14.9R on day 66).
+- A trade is drawn only when its stop is within 6% of the entry; a wider real stop stays in the words, undrawn.
+- Every course chart loads 200 bars of history ahead of its window (courses_lib WARMUP_BARS; the drill opens on
+  `visible_bars`), so the 50 and 200-day averages are drawn from the first visible candle. Words that name the
+  200-day need 200 bars by asof (check_course_charts fails it otherwise; "no 200-day yet" on a young stock is fine).
+- The drill (2026-11-14 screen check): the replay starts when the verdict screen closes and the chart scrolls into
+  view; the decision day and the trade's marks are counted from the session's reveal, which holds the whole replay.
+- The chart draws only the 9/20 EMA and 50/200 SMA, plus the 4-day line of highs on Slingshot questions (SET.27; the
+  overlay keys on the course skill `setup.slingshot` too since 2026-11-14). No AVWAP, trendline, box or neckline is
+  drawn on a course chart: a question that needs one gives its price in the words. The HVE, Gap Support and Bear Gap
+  overlays stay off course charts: they anchor on the chart's last day (or a gap date course items do not carry),
+  and a course chart often ends on a later decision day.
+- Run check_course_charts before committing a chart batch; it must report 0 failing. It also prints each drawn
+  trade's outcome in the replay, after the stop too; `_study-resume/overbuild/chart_outcome_check.py` compares that
+  with the words. A checker drops a chart the bars contradict with `"chart": null` in its fix.
 
 ## After the merge (pod steps, in order)
 

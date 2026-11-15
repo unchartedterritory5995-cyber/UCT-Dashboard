@@ -123,3 +123,14 @@ def test_a_typed_number_question_may_become_multiple_choice_and_nothing_else_cha
     s = {"key": "q4", "format": "scenario", "answer": "Wait"}
     au._set_fields(s, {"format": "mcq"})
     assert s["format"] == "scenario"
+
+
+def test_a_checker_fix_can_drop_a_chart_and_a_writer_null_cannot():
+    """2026-11-14: a checker that finds the bars contradict a chart drops it with "chart": null in its fix."""
+    d = copy.deepcopy(_unit())
+    q = _first(d, "q01")
+    q["chart"] = {"sym": "ABC", "asof": "2024-01-02", "window": 120, "forward": 20}
+    au.apply(d, {"q01": {"chart": None}}, "b")               # a writer's null is ignored
+    assert _first(d, "q01").get("chart", {}).get("sym") == "ABC"
+    au.apply(d, {}, "b", {"q01": {"status": "fix", "notes": "the close is under the low", "fix": {"chart": None}}})
+    assert "chart" not in _first(d, "q01") and d["verify"]["q01"]["fixed"] is True
