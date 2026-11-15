@@ -104,7 +104,10 @@ import { ENGINE_ERROR, isRefusal } from './ast/parse'
 // symbol folds it differently, so the second symbol of a sweep would inherit the
 // first's lengths. That shows as a WRONG NUMBER, not an error.
 import { foldBound, bindConstsFor } from './ast/bind'
-import { isPineOriginDoc, otherSymbolPending, otherSymbolRefusalOfTree, staticOtherSymbolMessage } from './otherSymbols'
+import {
+  isPineOriginDoc, otherSymbolPending, otherSymbolRefusalOfTree, staticOtherSymbolMessage,
+  isOtherSymbolRefusal, colourReaderRefusal, colourReaderMessage,
+} from './otherSymbols'
 import { resolveLowerTf } from './lowerTf'
 import { blockRunsRefusal, BLOCK_RUNS_GUARD } from './blockRuns'
 // ⭐⭐ P1 — the chart lane's pre-compute refusals and its other-symbol decision
@@ -2425,6 +2428,48 @@ function astColumnsFor(def, bars, inputs, ctx) {
   return stop ? withRuntimeErrorStop(out, stop) : out
 }
 
+/** ⭐⭐ ENGINE 55 (review F1) — `column:<key>` → `<key>`, or null. */
+const colourHelperKeyOf = (mode) => (typeof mode === 'string' && mode.startsWith('column:') ? mode.slice('column:'.length) : null)
+
+/** The name a member reads for a plot: its label, never its key. */
+const visiblePlotName = (p) => `\`${(p && (p.label || p.title)) || (p && p.key) || 'a plot'}\``
+
+/** ⭐⭐ ENGINE 55 (review F1) — SERVE, NEVER DEFAULT. A plot whose per-bar COLOUR (`colorMode`) or
+ *  band colour (`fill.colorMode`) is read from a helper column the bind REFUSED for another
+ *  symbol is refused too, by name, with the helper's guard and code and a sentence naming the
+ *  visible plot and the symbol (`otherSymbols.colourReaderRefusal`). ⚰️ The helper was refused
+ *  and the plot was not: the binder found no colour column, `pointColour` answered null, and the
+ *  series' DEFAULT colour was drawn on every bar — a colour the script never chose.
+ *  ⛔ A band's PARTNER (`fill.with`) refused is not this: that partner is a visible plot refused
+ *  by name, the band has no edge to draw, and the owner's own line is still exact. */
+function refuseColourReaders(def, out, errors) {
+  for (const p of (def && def.plots) || []) {
+    if (!p || typeof p.key !== 'string' || errors[p.key]) continue
+    const helpers = [colourHelperKeyOf(p.colorMode), p.fill ? colourHelperKeyOf(p.fill.colorMode) : null]
+      .filter((k) => typeof k === 'string' && k && k !== p.key)
+    const hit = helpers.map((k) => errors[k]).find(isOtherSymbolRefusal)
+    if (!hit) continue
+    delete out[p.key]
+    errors[p.key] = colourReaderRefusal(visiblePlotName(p), hit)
+  }
+}
+
+/** ⭐⭐ ENGINE 55 (review F1) — the paints (`bgcolor` / `barcolor`) whose colour is read from a
+ *  helper column refused for another symbol, each named for the strip by its kind and line —
+ *  never by the hidden helper row that carried the colour. */
+function colourReaderPaintNotices(def, columns) {
+  const errs = columnErrors(columns)
+  const out = []
+  for (const paint of (def && Array.isArray(def.paints) ? def.paints : [])) {
+    const key = paint && colourHelperKeyOf(paint.colorMode)
+    const e = key ? errs[key] : null
+    if (!isOtherSymbolRefusal(e)) continue
+    const name = `\`${paint.kind || 'bgcolor'}\`${Number.isInteger(paint.line) ? ` (line ${paint.line})` : ''}`
+    out.push({ code: e.code || e.guard, reason: colourReaderMessage(name, e.message) })
+  }
+  return out
+}
+
 function astColumnsUnstopped(def, bars, inputs, ctx) {
   const keys = astPlotKey(def)
   const trees = astTrees(def)
@@ -2598,6 +2643,7 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
         errors[key] = { guard: BLOCK_RUNS_GUARD, message: runsWhy }
       }
     }
+    refuseColourReaders(def, out, errors)
     return withLowerTf(withChartClock(withOtherSymbols(withColumnErrors(out, errors), other), clock), lower)
   }
   if (keys.length !== 1) {
@@ -2694,6 +2740,8 @@ export function externalReadNotices(def, columns) {
       out.push({ code: r.code, reason: r.static === true ? staticOtherSymbolMessage(r.ticker, r)
         : `This indicator reads \`${r.ticker}\`: ${r.reason}` })
     }
+    // ⭐ review F1 — and every paint whose colour that refusal leaves undrawn, by its own name
+    out.push(...colourReaderPaintNotices(def, columns))
     return out
   }
   const other = otherSymbolReport(columns)
