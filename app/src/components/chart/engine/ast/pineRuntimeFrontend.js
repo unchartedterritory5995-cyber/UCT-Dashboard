@@ -6056,12 +6056,19 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // `tickerid` or `period` would read as the built-in to a reader that cannot
     // see it. Those keep the request path below and its refusals.
     let targetReader = null
+    // ⭐⭐ RS RATING L5 — THE HOST'S READING OF THIS REQUEST, kept for the run's supply
+    // (`runtime/requestSupply.js`): whose bars and which period, by the same reader the plot
+    // lane composes from, so the runtime lane fetches exactly what the host lane would. Kept
+    // only where the host's world is this lane's (no slot reached), else null: refused there.
+    let hostTarget = null
     const identity = (() => {
       let t = null
       try {
         targetReader = new Resolver(env, TABLE, new Map(), { ...resolverOpts, basePeriod: lanePeriod })
         t = targetReader.requestTargetOf(node)
       } catch { return null } // a refusal on the way is "not the identity": the path below names it
+      if (t && t.lower !== true && !reachesSlotThroughEnv(t.positional[0], scope)
+        && !reachesSlotThroughEnv(t.positional[1], scope)) hostTarget = t
       if (!t || t.own === null || t.other !== null || t.code !== null) return null
       return reachesSlotThroughEnv(t.positional[0], scope) || reachesSlotThroughEnv(t.positional[1], scope)
         ? null : t
@@ -6146,8 +6153,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // the realtime half needs an open market and is still owed. Serving
     // lookahead on a guess would put a number on screen that nobody could have
     // traded on — the most valuable-LOOKING wrong answer available.
+    // ⭐ RS RATING L5 — `lookahead = barmerge.lookahead_off` WRITTEN OUT is the default merge,
+    // which the host read (`hostTarget.live === false`) and the run's supply serves; only a
+    // look-ahead the host did not read as off keeps this refusal.
+    const lookaheadOff = !!hostTarget && hostTarget.live === false
     for (const a2 of node.args) {
-      if (a2 && a2.name === 'lookahead') {
+      if (a2 && a2.name === 'lookahead' && !lookaheadOff) {
         throw new RuntimeRefusal('runtime:request',
           '`lookahead` — the realtime half of this alignment is not measured yet, '
           + 'and a guess here reads as a number that could have been traded on', at)
@@ -6162,7 +6173,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
         + 'it decides which bars must be fetched before the run', at)
     }
 
-    const symbolIr = lowerExpr(argOf(positional[0]), scope)
+    // ⭐ RS RATING L5 — THIS chart's own symbol at another timeframe needs no text: the host
+    // read it as this chart's (`hostTarget`), and the run's supply hands its bars per site, so
+    // the symbol is a marker, never `syminfo.tickerid` settled as text (which a binding may
+    // not witness: `symbolScope.json::pending_measurement`).
+    const symbolIr = hostTarget && hostTarget.own !== null && hostTarget.other === null
+      ? str('@chart') : lowerExpr(argOf(positional[0]), scope)
 
     // ⛔ THE VALUE IS LOWERED IN A SCOPE OF ITS OWN. It runs in another symbol's
     // context, so a mutable value from THIS script has no meaning inside it.
@@ -6225,7 +6241,15 @@ function buildRuntimeIrLinked(source, opts, holder) {
 
     const results = valueIr && valueIr.kind === EXPR.TUPLE ? valueIr.elements.length : 1
     const site = requests.length
-    requests.push({ timeframe: tfIr.value, value: valueIr, results, statements: hoisted })
+    requests.push({ timeframe: tfIr.value, value: valueIr, results, statements: hoisted,
+      target: hostTarget ? Object.freeze({
+        own: hostTarget.own !== null,
+        ticker: hostTarget.other,
+        venue: hostTarget.venue,
+        code: hostTarget.code,
+        live: hostTarget.live === true,
+        line: node.tok ? node.tok.line : null,
+      }) : null })
     return requestCall(site, symbolIr, results)
   }
 
