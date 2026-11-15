@@ -124,6 +124,7 @@ import {
   readFunctionDefs, objectCollections, drawingFunctions, callOwnedSeriesFor, chartSeriesFor,
 } from './objectFnInline.js'
 import { legacyTaCallFor } from './legacyTaNames.js'
+import { barConstantTree } from './barConstant.js'
 // ⭐ Pine's method form. Only the SPLITTER is needed here: `mutatorTargets`
 // works on tokens rather than on parse nodes, and what it has to recognise is
 // that `a.push` names a receiver `a`. One splitter, so this file and the object
@@ -6890,26 +6891,19 @@ export function copyKeepingArmRuns(tree) {
  *  else — a bar value, a call, an offset, a clock that moves, a `var` seeded from a
  *  bar — is not, and the bind decides from the chart's bars instead. */
 export function bindTimeConstantTree(tree) {
-  const stack = [tree]
-  while (stack.length) {
-    const n = stack.pop()
-    if (!n || typeof n !== 'object') return false
-    if (n.type === 'num') continue
-    if (n.type === 'series') {
-      if (BIND_TIME_CLOCK.includes(n.name)) continue
-      if (typeof n.inputDefault === 'number' && Number.isFinite(n.inputDefault)) continue
-      return false
-    }
-    if (n.type === 'op' && Array.isArray(n.args)) { for (const a of n.args) stack.push(a); continue }
-    if (n.type === 'call' && Object.hasOwn(RECURRENCES, n.name) && Array.isArray(n.args)) {
+  // ⭐⭐ COND-TA — ONE AUTHORITY (`barConstant.js::barConstantTree`, which the runtime lane's
+  // `invariantTest` asks too). This door adds only its `var` seed rule. ⚰️ Its own copy admitted
+  // no call at all, so `math.max(len, 5) > 10 ? ta.sma(close, 3) : close` was stamped here (and
+  // refused on the screener lane) while the runtime lane, asking a pure call, drew it.
+  return barConstantTree(tree, {
+    table: TABLE,
+    seedOf: (n) => {
+      if (!Object.hasOwn(RECURRENCES, n.name)) return undefined
       const rec = RECURRENCES[n.name]
       const body = n.args[rec.body]
-      if (body && body.type === 'series' && body.name === rec.binds) { stack.push(n.args[rec.seed]); continue }
-      return false
-    }
-    return false
-  }
-  return true
+      return body && body.type === 'series' && body.name === rec.binds ? n.args[rec.seed] : null
+    },
+  })
 }
 
 /** ⭐ C45 — the first call WRITTEN in this parse node that keeps a history of its

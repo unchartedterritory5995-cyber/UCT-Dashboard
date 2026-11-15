@@ -2289,6 +2289,7 @@ def conditional_history_candidate(definition: Any) -> bool:
     `conditionalHistoryCandidate`, node for node: do the saved trees (`compute.ast`,
     `compute.trees`) hold a CALL under an arm of a `?:` or of `iff(c, a, b)`, or an OFFSET under
     a `?:` arm — the shapes the old screener lane misread? A tree too deep to read fails closed."""
+    from api.services import bar_constant
     compute = definition.get("compute") if isinstance(definition, Mapping) else None
     if not isinstance(compute, Mapping):
         return False
@@ -2316,8 +2317,13 @@ def conditional_history_candidate(definition: Any) -> bool:
         if ternary or iff:
             if walk(arm(args[0]), in_arm, in_ternary_arm, d + 1):
                 return True
-            sub = in_ternary_arm or ternary
-            return walk(arm(args[1]), True, sub, d + 1) or walk(arm(args[2]), True, sub, d + 1)
+            # COND-TA -- a test the same on every bar of a binding runs one arm on every bar or
+            # none: its arms are not conditional history (`bar_constant.bar_constant_tree`, the
+            # browser's `barConstantTree`, node for node).
+            constant = bar_constant.bar_constant_tree(arm(args[0]))
+            in_a = in_arm if constant else True
+            sub = in_ternary_arm if constant else (in_ternary_arm or ternary)
+            return walk(arm(args[1]), in_a, sub, d + 1) or walk(arm(args[2]), in_a, sub, d + 1)
         return any(walk(v, in_arm, in_ternary_arm, d + 1)
                    for k, v in n.items() if k not in ("tok", "endTok") and isinstance(v, (Mapping, list)))
 

@@ -69,6 +69,8 @@
 // `unsupported` note: an op the program skips must make the program dirty, or
 // the object-only door's clean-win rule would accept a drawing with a hole in it.
 
+import { isPurePineCall } from './barConstant.js'
+
 /** How deep a drawing helper may call another. ⛔ Pine forbids recursion, so a
  *  real script never approaches this — it exists so a cycle this reader
  *  mis-detected stops loudly instead of looping. */
@@ -877,11 +879,9 @@ const CONSTANT_NAMESPACES = new Set(['color', 'extend', 'xloc', 'yloc', 'size', 
   'syminfo', 'timeframe'])
 /** `timeframe.*` members that vary bar to bar despite the namespace. */
 const VARYING_CONSTANT_MEMBERS = new Set(['timeframe.change'])
-/** Calls whose result is invariant when every argument is. ⛔ `math.random` is
- *  the one `math.*` that is not a function of its arguments. */
-const INVARIANT_CALLS = new Set(['color.new', 'color.rgb', 'color.r', 'color.g', 'color.b',
-  'color.t', 'int', 'float', 'bool', 'string', 'nz', 'na'])
-const INVARIANT_CALL_NAMESPACES = new Set(['math', 'str'])
+// ⭐⭐ COND-TA — the calls whose result is invariant when every argument is: the ONE allowlist,
+// `barConstant.js::PURE_PINE_CALLS` (`isPurePineCall`; `math.random` and `str.format_time` are
+// excluded there), which the canonical-tree rule's pointwise half mirrors.
 /** `input.*` kinds that return a SIMPLE value. ⛔ `input.source` is a series. */
 const INVARIANT_INPUTS = new Set(['input.bool', 'input.int', 'input.float', 'input.string',
   'input.color', 'input.timeframe', 'input.session', 'input.symbol', 'input.text_area',
@@ -936,8 +936,7 @@ function allInvariant(toks, from, to, names) {
         i = close
         continue
       }
-      const ns = nsOf(v)
-      if (INVARIANT_CALLS.has(v) || (ns && INVARIANT_CALL_NAMESPACES.has(ns) && v !== 'math.random')) continue
+      if (isPurePineCall(v)) continue
       return false
     }
     if (INVARIANT_WORDS.has(v)) continue

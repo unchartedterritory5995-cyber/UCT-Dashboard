@@ -60,8 +60,9 @@
 import { PINE_RECURRENCE_ORIGIN } from '../../engine/nativeRegistry'
 import { runtimePaneBuilt } from '../../engine/runtimePaneGate'
 import {
-  SCRIPT_ENGINE_VERSION, isStaleStamp, withEngineStamp, pineImportHeld, PINE_IMPORT_HELD_SENTENCE,
+  SCRIPT_ENGINE_VERSION, isStaleStamp, withEngineStamp, PINE_IMPORT_HELD_SENTENCE,
 } from '../../engine/scriptEngineVersion'
+import { pineImportHeld } from '../../engine/pineImportHold'
 
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
 

@@ -13,9 +13,8 @@ import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 
-import {
-  SCRIPT_ENGINE_VERSION, PINE_IMPORT_FIX_ENGINE, PINE_IMPORT_HELD_SENTENCE, pineImportHeld, conditionalHistoryCandidate,
-} from '../scriptEngineVersion'
+import { SCRIPT_ENGINE_VERSION, PINE_IMPORT_FIX_ENGINE, PINE_IMPORT_HELD_SENTENCE } from '../scriptEngineVersion'
+import { pineImportHeld, conditionalHistoryCandidate } from '../pineImportHold'
 import { upgradeKindOf, resolveRow } from '../../builder/memberPane/savedScriptUpgrade'
 import { applyProvenanceFor, withApplyProvenance } from '../../builder/BuilderSheet'
 
@@ -67,6 +66,12 @@ describe('COND-TA — a Pine import applied before the fix is held on the chart,
     }
     // every plot's tree is read, not only the scan plot's
     expect(conditionalHistoryCandidate({ compute: { ast: PLAIN, trees: { value: PLAIN, out2: BLOCK_SMA } } })).toBe(true)
+  })
+
+  it('⭐ a `?:` whose test is bar-constant (the shared `barConstantTree`) is not a candidate; a varying one nested in its arm still is', () => {
+    const weekly = OP('?:', OP('!', S('isweekly')), CALL('sma', S('close'), NUM(3)), NA)
+    expect(conditionalHistoryCandidate({ compute: { ast: weekly } })).toBe(false)
+    expect(conditionalHistoryCandidate({ compute: { ast: OP('?:', S('isweekly'), BLOCK_SMA, NA) } })).toBe(true)
   })
 
   it('a RE-APPLIED import is drawn: the Apply door stamps today\'s engine', () => {
