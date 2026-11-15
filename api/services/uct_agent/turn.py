@@ -570,6 +570,60 @@ def _del_path(d: dict, path: str) -> None:
             break
 
 
+# ⛔ BUG C (owner live test 2026-11-14; AUDIT T2 on #1289): a TIMEFRAME enum arg (by schema: it holds D and W and a minute
+# bucket) reads its value BY GRAMMAR — [number][ -|space ]unit — never by a word list. The SAME rule as the browser
+# (app/src/agent/capabilities/timeframeWords.js parseTimeframe); parity: app/src/agent/contract/timeframe.parity.json.
+# Only a value the arg's own enum offers; "1m" (a minute or a month), "4 hours" (240 is not offered), "2 weeks" stay as said.
+_TF_UNIT = {"m": "m", "min": "m", "mins": "m", "minute": "m", "minutes": "m",
+            "h": "h", "hr": "h", "hrs": "h", "hour": "h", "hours": "h",
+            "d": "d", "day": "d", "days": "d",
+            "w": "w", "wk": "w", "week": "w", "weeks": "w",
+            "mo": "mo", "month": "mo", "months": "mo"}
+_TF_LY = {"hourly": "h", "daily": "d", "weekly": "w", "monthly": "mo"}
+_TF_LETTER = {"m", "h", "d", "w", "mo"}
+_TF_SHAPE = re.compile(r"^(\d{1,4})?\s*-?\s*([a-z]+)$")
+
+
+def _is_timeframe_enum(spec: dict) -> bool:
+    vals = {v for v in (spec.get("enum") or []) if isinstance(v, str)}
+    return {"D", "W"} <= vals and bool(vals & {"1", "5", "15", "30", "60"})
+
+
+def _parse_timeframe(v: Any, enum: list) -> str | None:
+    """The canonical timeframe a string spells, if this enum offers it — else None (left as said; the enum refuses it)."""
+    if not isinstance(v, str):
+        return None
+    s = re.sub(r"\s+", " ", v.strip().lower())
+    m = _TF_SHAPE.match(s)
+    if not m:
+        return None
+    n = int(m.group(1)) if m.group(1) is not None else None
+    word = m.group(2)
+    if word in _TF_LY:
+        if n is not None:
+            return None
+        unit, n = _TF_LY[word], 1
+    elif word in _TF_UNIT:
+        unit = _TF_UNIT[word]
+        if n is None:
+            if word in _TF_LETTER:
+                return None
+            n = 1
+        if word == "m" and n == 1:
+            return None
+    else:
+        return None
+    if not n:
+        return None
+    if unit == "m":
+        value = str(n)
+    elif unit == "h":
+        value = str(n * 60)
+    else:
+        value = {"d": "D", "w": "W", "mo": "M"}[unit] if n == 1 else None
+    return value if value is not None and value in (enum or []) else None
+
+
 def _coerce_schema(spec: dict, v: Any, path: str, applied: list[str]) -> Any:
     """The schema-driven rules for ONE value: strings the schema types as boolean / number / null, enum
     case-folding, numbers the schema types as an enum string; lists element by element; nested objects
@@ -602,6 +656,11 @@ def _coerce_schema(spec: dict, v: Any, path: str, applied: list[str]) -> Any:
             if hit is not None:
                 applied.append(f"{path}:enum-case")
                 return hit
+            if _is_timeframe_enum(spec):
+                tf = _parse_timeframe(v, enum)
+                if tf is not None:
+                    applied.append(f"{path}:timeframe")
+                    return tf
         return v
     if isinstance(v, bool):
         if "boolean" not in types and enum:

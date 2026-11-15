@@ -33,15 +33,48 @@ def expand(name: str, args: dict, message: str = "", target: str = "c1") -> dict
     return turn.expand_compact_ops(env, [cap(name)], message=message, context=CTX)["ops"][0]["args"]
 
 
-@pytest.mark.parametrize("word", ["1h", "1H", "hourly", "60m", "1hr", "1 hour", "60"])
-def test_chart_set_timeframe_reads_the_hour_words(word):
+@pytest.mark.parametrize("word", ["1h", "1H", "hourly", "60m", "1hr", "1 hour", "60", "1-hour", "60 minutes", "1 hours"])
+def test_chart_set_timeframe_reads_the_hour_spellings(word):
     assert expand("chart.setTimeframe", {"timeframe": word}) == {"timeframe": "60"}
 
 
-@pytest.mark.parametrize("name", ["chart.setTimeframe", "widget.addCharts", "chartGrid.set"])
-def test_every_timeframe_action_in_the_golden_carries_the_shared_words(name):
-    words = (BY[name].get("coerce") or {}).get("timeframe") or {}
-    assert words.get("1h") == "60" and words.get("weekly") == "W" and words.get("daily") == "D"
+# AUDIT T2 held-out probe 45: spaced and plural forms are read by GRAMMAR (no word list)
+@pytest.mark.parametrize("word,want", [("15 minutes", "15"), ("15 min", "15"), ("5 minutes", "5"), ("30 minutes", "30"),
+                                       ("15mins", "15"), ("5-minute", "5"), ("1 day", "D"), ("weekly", "W"), ("1 month", "M")])
+def test_spaced_and_plural_forms_are_read_by_grammar(word, want):
+    assert expand("chart.setTimeframe", {"timeframe": word}) == {"timeframe": want}
+
+
+TF_ENUM_ACTIONS = [c["name"] for c in GOLDEN["capabilities"] if turn._is_timeframe_enum((c["args"]["properties"].get("timeframe") or {}))]
+
+
+def test_every_timeframe_enum_in_the_golden_is_read_by_grammar_and_none_carries_a_word_list():
+    assert {"chart.setTimeframe", "widget.addCharts", "chartGrid.set", "chart.addTab", "settings.setDefaultTimeframe"} <= set(TF_ENUM_ACTIONS)
+    for name in TF_ENUM_ACTIONS:
+        enum = BY[name]["args"]["properties"]["timeframe"]["enum"]
+        assert turn._parse_timeframe("15 minutes", enum) == ("15" if "15" in enum else None), name
+        words = (BY[name].get("coerce") or {}).get("timeframe") or {}
+        assert "15 minutes" not in words, f"{name}: a timeframe word list came back"
+        if name != "widget.addCharts":                  # (its own pre-existing words stay; no shared list is attached)
+            assert "1h" not in words, f"{name}: a timeframe word list came back"
+
+
+PARITY = json.loads((ROOT / "app/src/agent/contract/timeframe.parity.json").read_text(encoding="utf-8"))
+
+
+def test_the_server_reads_every_row_of_the_browsers_parity_table():
+    """app/src/agent/agentTimeframeWords.test.js writes the table from the browser's parseTimeframe; the server must agree."""
+    enums = PARITY["enums"]
+    assert len(PARITY["rows"]) > 1000
+    bad = [(i, e, want, turn._parse_timeframe(i, enums[e])) for i, e, want in PARITY["rows"] if turn._parse_timeframe(i, enums[e]) != want]
+    assert not bad, bad[:10]
+
+
+@pytest.mark.parametrize("word", ["1m", "1M", "4 hours", "2 weeks", "13min", "2 daily", "h"])
+def test_ambiguous_or_unoffered_spellings_are_refused_with_the_honest_sentence(word):
+    with pytest.raises(turn.TurnError) as e:
+        expand("chart.setTimeframe", {"timeframe": word}, message=f"change SPY to {word}")
+    assert str(e.value).startswith("I couldn't read the timeframe")
 
 
 @pytest.mark.parametrize("word", ["2h", "4h", "fortnightly", "banana", "intraday"])
