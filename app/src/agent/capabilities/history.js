@@ -30,6 +30,9 @@ export const DEFAULT_HORIZONS = [1, 5, 21]
 export const MAX_HORIZONS = 4
 export const MAX_SESSIONS = 252
 export const DESCRIPTIVE = "Descriptive, not predictive: this is what happened after past events in UCT's stored daily history; past results do not predict future returns."
+/** AUDIT: with episodes "first" a run of consecutive qualifying sessions is ONE event — said whenever the server's value-free
+ *  summary says that rule actually merged a run (`first_of_run`); never for episodes "all" or crossings. */
+export const FIRST_OF_RUN_NOTE = 'Counting: a run of consecutive qualifying sessions counts once (its first session); the later sessions of the same run are not separate events.'
 const GAPS_NOTE = "Opening gaps on any session are counted — UCT's data carries no past earnings dates, so earnings days are not separated."
 const INDICATOR_WORDS = { day_pct: 'one-day close-to-close change (%)', gap_pct: 'opening gap vs the previous close (%)', pct_from_sma: '% from its N-day SMA', rsi: 'RSI(N)', bb_pct_b: 'Bollinger %B (N, 2σ)', macd_hist: 'MACD histogram (12, 26, 9)', pct_from_high: 'a new N-day closing high' }
 /** PKG2: a BREADTH-conditioned study ("SPY after breadth thrusts") is refused in fixed words, before any read or model call:
@@ -95,6 +98,7 @@ export function answerFromEventStudy(env, { symbol, name = null, indicator = nul
   if (caveats.length) lines.push(...caveats.map(c => `Caveat: ${c}`))
   if (indicator === 'gap_pct' || env.data?.request?.condition?.series?.indicator === 'gap_pct') lines.push(GAPS_NOTE)
   if (isFundLabel(name)) lines.push(FUND_NOTE)
+  if (env.data?.summary?.first_of_run === true) lines.push(FIRST_OF_RUN_NOTE)
   const sample = sampleLine(env)
   if (sample) lines.push(sample)
   lines.push(DESCRIPTIVE, freshnessLine(env, bare))
