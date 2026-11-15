@@ -37,7 +37,7 @@ test('runArgs builds the def, rows and ctx the browser worker builds, from the v
   assert.deepEqual(def, { id: doc.id, compute: doc.compute, meta: doc.meta })
   assert.deepEqual(rows, [0, 1].map((i) => ({ t: job.bars.t[i], o: job.bars.o[i], h: job.bars.h[i], l: job.bars.l[i], c: job.bars.c[i], v: job.bars.v[i] })))
   assert.deepEqual(ctx, { tf: 'D', newestBarIsForming: false, historyFromListing: true, runtimeInputs: { length: 14 },
-    symbol: { ticker: 'AAPL', exchange: 'NASDAQ' } })
+    symbol: { ticker: 'AAPL', exchange: 'NASDAQ' }, otherSymbolSupply: false })
   assert.notEqual(ctx.runtimeInputs, job.ctx.runtimeInputs, 'the inputs are copied, never shared with the job')
   job.ctx.historyFromListing = false
   job.ctx.newestBarIsForming = true
@@ -239,3 +239,15 @@ test('W9-T11: runArgs forwards the job ctx window (as the browser does), and onl
   job.ctx.historyWindowBars = 77
   assert.equal(runArgs(doc, job).ctx.historyWindowBars, 77)
 })
+
+test('RS RATING L5: on the REAL bundle a server run of another symbol is refused by name, never held as loading', async () => {
+  real = real || await buildRealBundle()
+  const rt = await import(pathToFileURL(real.outfile).href)
+  const src = ['//@version=5', 'indicator("r")', "s = request.security('SP:SPX', 'D', close)", 'plot(close / s)'].join(String.fromCharCode(10))
+  const r = runJob(rt, docOf(src), parsedJob('A', { n: 30 }))
+  assert.equal(r.status, 'withheld', JSON.stringify(r))
+  assert.equal(r.refusals[0].guard, 'runtime:request', JSON.stringify(r.refusals))
+  assert.match(r.refusals[0].sentence, /SPX/)
+  assert.match(r.refusals[0].sentence, /not handed another symbol's bars/)
+  assert.doesNotMatch(r.refusals[0].sentence, /still loading/)
+}, { timeout: 120000 })

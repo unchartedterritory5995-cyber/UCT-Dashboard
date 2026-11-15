@@ -1182,8 +1182,14 @@ def screener_saved_list(user=Depends(require_paid)):
     # exists only for a user the RS screens are shown to (unit U10: `rs_screens_served`):
     # for everyone else the payload is the one it was.
     if scr_saved.rs_screens_served(user):
-        from api.services.screener import rs_market_state
+        from api.services.screener import rs_market_state, rs_post_pass
         out["rs_market"] = rs_market_state.served()
+        # The first night: the lists have not been built yet (`rs_post_pass.pending`).
+        # `{text}` so the page says that instead of "No stocks match all 12 filters".
+        # The KEY exists only in that state, and only for a user the screens are shown to.
+        rs_pending = rs_post_pass.pending()
+        if rs_pending is not None:
+            out["rs_pending"] = rs_pending
     # RS screens unit U13: "Tell me what joins and leaves". `{available, subscribed}`
     # for the toggle in the list head, riding this payload for the same reason. The
     # KEY exists only while RS_SCREEN_ALERTS_ENABLED is on and the RS screens are on

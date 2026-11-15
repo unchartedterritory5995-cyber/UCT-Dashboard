@@ -22,6 +22,9 @@
 // so the message says so in the same breath as the offer. An offer that hid the
 // difference would be the silent mistranslation this engine exists against,
 // wearing a helpful face.
+// ⭐⭐ ENGINE 55 — a look-ahead-off `request.security(…, 'W'|'M')` translates to `tf_merge`
+// (TradingView's merge: the period's value on the bar that closes it), no longer `tf`;
+// the pins below were flipped deliberately with it (formula `tf` is unchanged).
 
 import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
@@ -128,6 +131,6 @@ describe('the request door names its reason and its rewrite', () => {
       'plot(request.security(syminfo.tickerid, "W", ta.sma(close, 10)))', ''].join('\n')
     const out = translatePine(src)
     expect(out.ok).toBe(true)
-    expect((out.outputs.find((o) => o.formula) || {}).formula).toBe("tf(sma(close, 10), 'W')")
+    expect((out.outputs.find((o) => o.formula) || {}).formula).toBe("tf_merge(sma(close, 10), 'W')")
   })
 })

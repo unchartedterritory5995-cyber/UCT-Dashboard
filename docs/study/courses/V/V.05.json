@@ -1,0 +1,3622 @@
+{
+ "unit": "V.05",
+ "track": "V",
+ "title": "Setup words",
+ "teaches": "The names on our setup list and what each one means: the Kicker, Oops Reversal, Slingshot, Launchpad, High Volume Edge (HVC), Gap Support and the Go Signal, the catalog family each sits in, the Bear gap lesson, and the plan words every setup carries: trigger, stop, R, the first sell as a judgment (usually day 3 or later), the stop to breakeven, partials, trail.",
+ "skills": [
+  {
+   "id": "vocab.setup_terms",
+   "title": "Setup words"
+  }
+ ],
+ "as_of": "2026-11-09",
+ "sources": [
+  {
+   "id": "s1",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
+   "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Study: the trade plan for every setup, section: The Go Signal",
+   "url": "repo:docs/study/TRADE_PLANS.md#the-go-signal",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s3",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Study: the trade plan for every setup, section: The levels",
+   "url": "repo:docs/study/TRADE_PLANS.md#the-levels",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s4",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The owner's principles, B. Teaching, rule 8 (owner quoted)",
+   "url": "repo:docs/study/OWNER_PRINCIPLES.md#b-teaching",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s5",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Study skill map, the setup catalog (canonical names, families, aliases; quotes join consecutive JSON lines)",
+   "url": "repo:docs/study/skill_map.json#setups",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s6",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Kicker Pattern Explained: Identifying Powerful Price Reversals",
+   "url": "https://www.investopedia.com/terms/k/kickerpattern.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s7",
+   "tier": 2,
+   "publisher": "Thomas Bulkowski, ThePatternSite.com",
+   "title": "Bulkowski on the Bullish Kicking Candle Pattern",
+   "url": "https://thepatternsite.com/KickingBull.html",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s8",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Guide to Using the Opening Range in Trading",
+   "url": "https://www.investopedia.com/terms/o/opening-range.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s9",
+   "tier": 2,
+   "publisher": "Investor's Business Daily",
+   "title": "Stock Market Buy Signals, Sell Signals In Full Display In 'Stocks On The Move'",
+   "url": "https://www.investors.com/how-to-invest/investors-corner/stock-market-buy-signals-sell-signals/",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s10",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Breakout: Definition, Meaning, Example, and What It Tells You",
+   "url": "https://www.investopedia.com/terms/b/breakout.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s11",
+   "tier": 2,
+   "publisher": "Thomas Bulkowski, ThePatternSite.com",
+   "title": "Price Gaps",
+   "url": "https://thepatternsite.com/gaps.html",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s12",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Stop, Stop-Limit, and Trailing Stop Orders: Investor Bulletin",
+   "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-stop-stop-limit-trailing-stop",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s13",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Trailing Stops: What They Are, How to Use Them in Trading",
+   "url": "https://www.investopedia.com/terms/t/trailingstop.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s14",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Uptrend in Technical Analysis: How to Trade and Examples",
+   "url": "https://www.investopedia.com/terms/u/uptrend.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s15",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Average True Range (ATR) Formula, What It Means, and How to Use It",
+   "url": "https://www.investopedia.com/terms/a/atr.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s16",
+   "tier": 2,
+   "publisher": "Van Tharp Institute",
+   "title": "Tharp Think Trading Concepts: The Gifts of Dr. Van K Tharp (2024)",
+   "url": "https://vantharp.com/tharp-think-trading-concepts/",
+   "accessed": "2026-11-09",
+   "why_reliable": "The Van Tharp Institute's own page of Dr. Van K. Tharp's core concepts. Tharp coached traders for decades, wrote Trade Your Way to Financial Freedom, popularised R-multiples, and is interviewed in Jack Schwager's Market Wizards. F9.01, F9.03 and F12.05 cite the same page."
+  },
+  {
+   "id": "s17",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The house sizing rule, 6. Management (owner quoted, Sunday Scans 2026-06-14)",
+   "url": "repo:docs/study/sizing_rule.md#6-management-so-the-sizing-drills-can-go-full-circle",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s18",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
+  }
+ ],
+ "facts": [
+  {
+   "id": "h01",
+   "source": "s1",
+   "quote": "returns its own trigger (the entry) and stop for the candle it fires on.",
+   "claim": "Each of our setup detectors returns its own trigger, which is the entry, and its own stop."
+  },
+  {
+   "id": "h02",
+   "source": "s18",
+   "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+   "claim": "Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R."
+  },
+  {
+   "id": "h03",
+   "source": "hw",
+   "quote": "Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
+   "claim": "Later sells are a judgment: sell more into strength on a later push, and trail what is left."
+  },
+  {
+   "id": "h05",
+   "source": "s1",
+   "quote": "over the red day's high, on the Kicker day, at market as it trades through (his JBI example: \"11.05 over THE previous day high\", the red day's high 11.04)",
+   "claim": "Our Kicker entry is over the red day's high, on the Kicker day, at market as it trades through: in the JBI example, $11.05 over an $11.04 high."
+  },
+  {
+   "id": "h06",
+   "source": "s1",
+   "quote": "or the day-1 30-minute opening-range break",
+   "claim": "The Kicker's other entry is the break of the 30-minute opening range on day one."
+  },
+  {
+   "id": "h07",
+   "source": "s1",
+   "quote": "under the Kicker's low, or 3.5% under the entry if that is closer",
+   "claim": "Our Kicker stop goes under the Kicker's low, or 3.5% under the entry when that is closer."
+  },
+  {
+   "id": "h08",
+   "source": "s1",
+   "quote": "under each higher low, or under the 9 EMA",
+   "claim": "Our Kicker plan trails the stop under each higher low, or under the 9 EMA."
+  },
+  {
+   "id": "h09",
+   "source": "s1",
+   "quote": "the prior close, reclaimed during the day | the day's low | 3R and 5R are marks; the first sell is a judgment (D-013) | under each higher low",
+   "claim": "Our Oops Reversal buys the prior close when it is reclaimed during the day, stops at the day's low, treats 3R and 5R as marks, and trails under each higher low."
+  },
+  {
+   "id": "h11",
+   "source": "s1",
+   "quote": "the close back over the 4-day average of the highs",
+   "claim": "Our Slingshot enters on the close back over the 4-day average of the highs."
+  },
+  {
+   "id": "h12",
+   "source": "s1",
+   "quote": "the trigger day's low (the day before's low is the wider choice)",
+   "claim": "The Slingshot stop is the trigger day's low; the day before's low is the wider choice."
+  },
+  {
+   "id": "h13",
+   "source": "s1",
+   "quote": "under the 9 EMA, or under each higher low",
+   "claim": "The Slingshot trails under the 9 EMA, or under each higher low."
+  },
+  {
+   "id": "h14",
+   "source": "s1",
+   "quote": "the close out of the tight cluster of averages",
+   "claim": "Our Launchpad enters on the close out of a tight cluster of moving averages."
+  },
+  {
+   "id": "h15",
+   "source": "s1",
+   "quote": "under the 21-day and 50-day averages, a quarter of an ATR below the lower one",
+   "claim": "The Launchpad stop sits under the 21-day and 50-day averages, a quarter of an ATR below whichever is lower."
+  },
+  {
+   "id": "h16",
+   "source": "s1",
+   "quote": "under the rising 20 EMA, or under each higher low",
+   "claim": "The Launchpad trails under the rising 20 EMA, or under each higher low."
+  },
+  {
+   "id": "h17",
+   "source": "s1",
+   "quote": "the high-volume close | the edge bar's low (its high on a down close)",
+   "claim": "The High Volume Edge enters at the high-volume close; the stop is the edge bar's low, or its high when the bar closed down."
+  },
+  {
+   "id": "h18",
+   "source": "s1",
+   "quote": "the first return to the high-volume close is the cleanest decision point",
+   "claim": "The first time price comes back to the high-volume close is the cleanest place to decide."
+  },
+  {
+   "id": "h19",
+   "source": "s1",
+   "quote": "the close, as the gap holds | the gap top or the day's low, whichever is lower",
+   "claim": "Our Gap Support buys the close as the gap holds; the stop is the gap top or the day's low, whichever is lower."
+  },
+  {
+   "id": "h20",
+   "source": "s1",
+   "quote": "the post-gap high is the first place to take some off",
+   "claim": "In Gap Support, the high made after the gap is the first place to take some off."
+  },
+  {
+   "id": "h21",
+   "source": "s1",
+   "quote": "if it drifts sideways at the gap, a tighter stop just under the gap top",
+   "claim": "If a Gap Support trade drifts sideways at the gap, the stop tightens to just under the gap top."
+  },
+  {
+   "id": "h22",
+   "source": "s1",
+   "quote": "(short) | no trade is defined in the app | the lesson shows the line a close must stay under: the gap day's high | the fall is measured, not traded",
+   "claim": "The Bear gap is a short-side lesson with no trade defined: a close must stay under the gap day's high, and the fall is measured, not traded."
+  },
+  {
+   "id": "h23",
+   "source": "s1",
+   "quote": "Where the app defines no trade, none is invented: the Bear gap's obvious stop, the gap day's high, sat 25% over the close on VRNS (a gap that opened 37% down and closed at the low)",
+   "claim": "On VRNS, a gap that opened 37% down and closed at the low, the obvious stop (the gap day's high) sat 25% over the close, so no trade was invented."
+  },
+  {
+   "id": "g01",
+   "source": "s2",
+   "quote": "It is an intraday entry in a stock that has already shown it can move. The session opens weak, sweeps a nearby support, and buyers step in and turn it.",
+   "claim": "The Go Signal is an intraday entry in a stock that has already moved: it opens weak, sweeps nearby support, and buyers turn it."
+  },
+  {
+   "id": "g02",
+   "source": "s2",
+   "quote": "the 20-day average is rising;",
+   "claim": "A Go Signal needs a rising 20-day average."
+  },
+  {
+   "id": "g03",
+   "source": "s2",
+   "quote": "there is a notable recent move: a 13% gain over 5 sessions within the last 20, or a 4% gap on 2x volume within the last 30, or a tight 10-bar base above the 50-day;",
+   "claim": "A Go Signal needs a notable recent move: a 13% gain in 5 sessions within the last 20, a 4% gap on 2x volume within the last 30, or a tight 10-bar base above the 50-day."
+  },
+  {
+   "id": "g04",
+   "source": "s2",
+   "quote": "the day opens under the prior close;",
+   "claim": "On a Go Signal day the stock opens under the prior close."
+  },
+  {
+   "id": "g05",
+   "source": "s2",
+   "quote": "the low sweeps support: the prior low, the 5-bar low, or a 9, 20 or 50-day average the prior close was above;",
+   "claim": "The day's low sweeps a support: the prior low, the 5-bar low, or a 9, 20 or 50-day average."
+  },
+  {
+   "id": "g06",
+   "source": "s2",
+   "quote": "buyers step in: a lower wick of 40% of the range, or the low under the open with the close in the upper half;",
+   "claim": "Buyers stepping in shows as a lower wick of 40% of the range, or a low under the open with the close in the upper half."
+  },
+  {
+   "id": "g07",
+   "source": "s2",
+   "quote": "the day closes in the upper 40% of its range.",
+   "claim": "A Go Signal day closes in the upper 40% of its range."
+  },
+  {
+   "id": "g08",
+   "source": "s2",
+   "quote": "Entry: the prior close when it traded that session (red to green), else the close. Stop: the session's low.",
+   "claim": "Go Signal entry: the prior close when it trades that session (red to green), otherwise the close; the stop is the session's low."
+  },
+  {
+   "id": "g09",
+   "source": "s2",
+   "quote": "The real trigger is on the 30 or 65-minute chart, which the daily bar cannot see.",
+   "claim": "The Go Signal's real trigger is on the 30 or 65-minute chart."
+  },
+  {
+   "id": "l01",
+   "source": "s3",
+   "quote": "Each lesson's levels are the plan's: the entry, the stop, and the marks at 3R and 5R",
+   "claim": "Every setup lesson draws the same levels: the entry, the stop, and the marks at 3R and 5R."
+  },
+  {
+   "id": "o01",
+   "source": "s4",
+   "quote": "I would rather have Entry, Stop, Trim, Trail, Advance",
+   "claim": "In the owner's words, every setup is taught as Entry, Stop, Trim, Trail, Advance."
+  },
+  {
+   "id": "o02",
+   "source": "s4",
+   "quote": "over previous day high or on day 1 kicker ORB on the 30 minute",
+   "claim": "The owner's Kicker entry: over the previous day's high, or the day-one Kicker ORB on the 30-minute chart."
+  },
+  {
+   "id": "o03",
+   "source": "s4",
+   "quote": "under the kicker candle low or entry with a 3.5% stop",
+   "claim": "The owner's Kicker stop: under the Kicker candle's low, or a 3.5% stop from entry."
+  },
+  {
+   "id": "m01",
+   "source": "s5",
+   "quote": "\"canonical\": \"Kicker Candle\", \"family\": \"Gaps & Catalysts\"",
+   "claim": "Our catalog files the Kicker under Gaps & Catalysts."
+  },
+  {
+   "id": "m02",
+   "source": "s5",
+   "quote": "\"canonical\": \"High Volume Edge\", \"family\": \"Gaps & Catalysts\"",
+   "claim": "Our catalog files the High Volume Edge under Gaps & Catalysts."
+  },
+  {
+   "id": "m03",
+   "source": "s5",
+   "quote": "\"canonical\": \"Gap Support\", \"family\": \"Gaps & Catalysts\"",
+   "claim": "Our catalog files Gap Support under Gaps & Catalysts."
+  },
+  {
+   "id": "m04",
+   "source": "s5",
+   "quote": "\"canonical\": \"Oops Reversal\", \"family\": \"Reversals & Reclaims\"",
+   "claim": "Our catalog files the Oops Reversal under Reversals & Reclaims."
+  },
+  {
+   "id": "m05",
+   "source": "s5",
+   "quote": "\"canonical\": \"Slingshot\", \"family\": \"Reversals & Reclaims\"",
+   "claim": "Our catalog files the Slingshot under Reversals & Reclaims."
+  },
+  {
+   "id": "m06",
+   "source": "s5",
+   "quote": "\"canonical\": \"Launchpad\", \"family\": \"Bases & Breakouts\"",
+   "claim": "Our catalog files the Launchpad under Bases & Breakouts."
+  },
+  {
+   "id": "m07",
+   "source": "s5",
+   "quote": "\"canonical\": \"Go Signal\", \"family\": \"Intraday\"",
+   "claim": "Our catalog files the Go Signal under Intraday."
+  },
+  {
+   "id": "m08",
+   "source": "s5",
+   "quote": "\"canonical\": \"ORB (Opening Range Break)\", \"family\": \"Intraday\"",
+   "claim": "Our catalog files the ORB (Opening Range Break) under Intraday."
+  },
+  {
+   "id": "m09",
+   "source": "s5",
+   "quote": "\"setupGroups\": \"HVC\", \"templates\": \"HVC\"",
+   "claim": "In our catalog, HVC is the High Volume Edge's other name."
+  },
+  {
+   "id": "t01",
+   "source": "s6",
+   "quote": "Bullish kickers start with a bearish candle and then show a bullish gap up. Bearish kickers start with a bullish candle and then show a bearish gap down.",
+   "claim": "A bullish kicker is a down candle followed by a gap up; the bearish kicker is the mirror image."
+  },
+  {
+   "id": "t02",
+   "source": "s6",
+   "quote": "A kicker pattern is a two-bar candlestick pattern indicating a reversal in an asset's price trend.",
+   "claim": "Textbooks treat the kicker as a two-candle reversal pattern."
+  },
+  {
+   "id": "t03",
+   "source": "s6",
+   "quote": "Kicker patterns are rare but highly reliable indicators of market sentiment shifts.",
+   "claim": "Investopedia calls kickers rare but highly reliable."
+  },
+  {
+   "id": "t05",
+   "source": "s7",
+   "quote": "Look for a tall black marubozu candle followed by an upward gap then a tall white marubozu candle.",
+   "claim": "Bulkowski's bullish kicking: a tall black candle, an upward gap, then a tall white candle, both marubozu."
+  },
+  {
+   "id": "t06",
+   "source": "s7",
+   "quote": "The bullish kicking candle acts as a bullish reversal of the existing price trend 53% of the time. That is almost random, so do not try to guess the breakout direction from this candle pattern.",
+   "claim": "In Bulkowski's tests the bullish kicking candle reversed the trend 53% of the time, which he calls almost random."
+  },
+  {
+   "id": "t07",
+   "source": "s7",
+   "quote": "two marubozu's with a gap between is a rare combination, ranking 100th out of 103 candle types",
+   "claim": "The bullish kicking candle is rare: 100th of 103 candle types by frequency."
+  },
+  {
+   "id": "t08",
+   "source": "s8",
+   "quote": "The opening range refers to a security's high and low prices during the first 15 minutes of trading.",
+   "claim": "Investopedia defines the opening range as the high and low of the first 15 minutes."
+  },
+  {
+   "id": "t09",
+   "source": "s8",
+   "quote": "Day traders frequently use the trading range of the first half hour of the trading session as a reference point for their intraday strategies. For example, a trader might buy a stock if it breaks above its opening trading range.",
+   "claim": "Day traders often use the first half hour's range and buy a break above it."
+  },
+  {
+   "id": "t10",
+   "source": "s8",
+   "quote": "Traders may decide to take profits using a multiple of risk. For example, if using a 30-cent stop, traders might set a 60-cent profit target.",
+   "claim": "Investopedia: traders may take profits at a multiple of risk, such as a 60-cent target on a 30-cent stop."
+  },
+  {
+   "id": "t11",
+   "source": "s9",
+   "quote": "large increases in trading volume are usually the work of institutional investors, buying or selling",
+   "claim": "Big jumps in volume are usually institutions buying or selling."
+  },
+  {
+   "id": "t12",
+   "source": "s10",
+   "quote": "Lack of volume shows the level is not important or that the big traders (who create big volume) aren't ready to participate yet.",
+   "claim": "Investopedia: big traders create big volume, and a lack of volume can mean they aren't ready to take part yet."
+  },
+  {
+   "id": "t13",
+   "source": "s11",
+   "quote": "Gaps are places of weak support or resistance, but you can use them for a stop location. Place a stop a few cents below the gap (upward breakouts) or above the gap (downward breakouts).",
+   "claim": "A gap is weak support, but it works as a stop location: a few cents below an up gap."
+  },
+  {
+   "id": "t14",
+   "source": "s12",
+   "quote": "As the price of the security moves in a favorable direction the trailing stop price adjusts or “trails” the market price of the security by the specified amount.",
+   "claim": "A trailing stop moves up behind the price as the trade works."
+  },
+  {
+   "id": "t15",
+   "source": "s12",
+   "quote": "However, if the security’s price moves in an unfavorable direction the trailing stop price remains fixed",
+   "claim": "When price moves against you, a trailing stop stays where it is."
+  },
+  {
+   "id": "t16",
+   "source": "s13",
+   "quote": "A trailing stop is simply a stop order that automatically follows—or trails—the market once the price of a security has initially begun moving in a favorable direction.",
+   "claim": "A trailing stop follows the price once the trade starts working."
+  },
+  {
+   "id": "t17",
+   "source": "s13",
+   "quote": "A close above or below a specific moving average, such as the eight-, 20-, or 50-day trailing stops.",
+   "claim": "A close through a set moving average is one common way to trail a stop."
+  },
+  {
+   "id": "t18",
+   "source": "s13",
+   "quote": "if the market recently found support or resistance during a healthy pullback to a certain price level, a break below or above that level would be a strong exit signal",
+   "claim": "A break of the low a healthy pullback just made is a strong exit signal, so a stop can go there."
+  },
+  {
+   "id": "t19",
+   "source": "s14",
+   "quote": "The uptrend is therefore composed of higher swing lows and higher swing highs. As long as the price is making these higher swing lows and higher swing highs, the uptrend is considered intact.",
+   "claim": "An uptrend is a run of higher swing lows and higher swing highs; it is intact while they keep coming."
+  },
+  {
+   "id": "t20",
+   "source": "s15",
+   "quote": "The ATR shows investors the average range of prices for an investment over a specified period.",
+   "claim": "ATR is the average size of a stock's price range over a set period."
+  },
+  {
+   "id": "t21",
+   "source": "s10",
+   "quote": "Breakouts with relatively high volume show conviction and interest, and therefore the price is more likely to continue moving in the breakout direction.",
+   "claim": "Investopedia: breakouts on relatively high volume show conviction and are more likely to keep going."
+  },
+  {
+   "id": "t22",
+   "source": "s12",
+   "quote": "A buy stop order is entered at a stop price above the current market price.",
+   "claim": "A buy stop sits above the current price."
+  },
+  {
+   "id": "t23",
+   "source": "s12",
+   "quote": "Investors generally use a buy stop order in an attempt to limit a loss or to protect a profit on a stock that they have sold short.",
+   "claim": "A buy stop is what guards a short position."
+  },
+  {
+   "id": "r01",
+   "source": "s16",
+   "quote": "R represents your initial risk per unit. It is simply the initial risk per share of stock, or futures contract, or minimum investment unit.",
+   "claim": "R is your initial risk per share."
+  },
+  {
+   "id": "r02",
+   "source": "s16",
+   "quote": "You buy a stock at $50 and decide to sell it if it drops to $40. What’s your initial risk? Your initial risk is $10 per share, so in this case, 1R is equal to $10.",
+   "claim": "Tharp's example: buy at $50 with the exit at $40, and 1R is $10 a share, entry to stop."
+  },
+  {
+   "id": "p01",
+   "source": "s17",
+   "quote": "Hold your winners by selling partials into strength and trailing the rising moving averages.",
+   "claim": "Our rule for winners: sell partials into strength and trail the rising moving averages."
+  },
+  {
+   "id": "h24",
+   "source": "hw",
+   "quote": "The stop may move up to breakeven between 2R and 5R, or at the first sell.",
+   "claim": "Our stop may move up to breakeven between 2R and 5R, or at the first sell."
+  },
+  {
+   "id": "h25",
+   "source": "s18",
+   "quote": "Shorts are our long setups reversed, for almost every setup.",
+   "claim": "We do short: our shorts are our long setups reversed, for almost every setup."
+  },
+  {
+   "id": "h26",
+   "source": "s18",
+   "quote": "The stop sits a few cents under the day's low, not exactly on it.",
+   "claim": "Our rulebook puts the stop order a few cents under the day's low, not exactly on it."
+  },
+  {
+   "id": "h27",
+   "source": "s18",
+   "quote": "the size comes from the stop; if the honest stop does not fit the risk, skip the trade.",
+   "claim": "The size comes from the stop, and when the honest stop does not fit the risk, we skip the trade."
+  },
+  {
+   "id": "h28",
+   "source": "s1",
+   "quote": "the stop may move to breakeven between 2R and 5R, or at the first sell",
+   "claim": "Our stop may move to breakeven between 2R and 5R, or at the first sell."
+  },
+  {
+   "id": "h62",
+   "source": "s18",
+   "quote": "The stop sits a few cents under the day's low, not exactly on it.",
+   "claim": "Our rulebook puts the stop a few cents under the day's low, not exactly on it."
+  },
+  {
+   "id": "h63",
+   "source": "s18",
+   "quote": "Stop first (by default a few cents under the day's low or the prior day's low, F62)",
+   "claim": "Our rulebook sets the stop first, by default a few cents under the day's low or the prior day's low."
+  },
+  {
+   "id": "m10",
+   "source": "s5",
+   "quote": "\"canonical\": \"Wedge Pop\", \"family\": \"Momentum & Trend\"",
+   "claim": "Our catalog files the Wedge Pop under Momentum & Trend."
+  },
+  {
+   "id": "r03",
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
+  },
+  {
+   "id": "r04",
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
+  },
+  {
+   "id": "r05",
+   "source": "h2",
+   "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
+   "claim": "The first sell is a judgment, not a fixed third at 3R."
+  },
+  {
+   "id": "r06",
+   "source": "h2",
+   "quote": "SO 3-5-7 day or 5-10 R is often best.",
+   "claim": "A 3, 5 or 7 day push, or about 5 to 10R, is often the best first sell."
+  },
+  {
+   "id": "r07",
+   "source": "h2",
+   "quote": "Every setup buys as price trades through its trigger, during the day.",
+   "claim": "Every setup buys as price trades through its trigger, during the day, never at the close."
+  },
+  {
+   "id": "r08",
+   "source": "h2",
+   "quote": "It is always just the trigger for each trade never the close.",
+   "claim": "The owner buys at the trigger for each trade, never the close."
+  },
+  {
+   "id": "r09",
+   "source": "h2",
+   "quote": "My stop is always LOD or PLOD or range low.",
+   "claim": "The owner's stop is the low of day, the prior day's low or the range low."
+  },
+  {
+   "id": "r10",
+   "source": "h2",
+   "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+   "claim": "D-021: the course uses the 9 and 20 EMA everywhere, with the 50 and 200 SMA."
+  },
+  {
+   "id": "r11",
+   "source": "h2",
+   "quote": "The low of day (the entry day's low) is the primary stop. The pattern's low and a line minus a cushion are acceptable alternatives, not wrong answers.",
+   "claim": "D-008: the low of day is the primary stop; a line minus a cushion is an acceptable alternative."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "Every setup carries a plan",
+   "steps": [
+    "Every trade plan we teach hands you two prices: the trigger, which is the entry, and the stop.",
+    "R is your risk per share, entry to stop. The first sell is a judgment, usually day 3 or later.",
+    "Then you trail. The stop follows the stock up, under each higher low or a rising average."
+   ],
+   "facts": [
+    "h01",
+    "h02",
+    "h03",
+    "r01",
+    "h08",
+    "h16",
+    "p01",
+    "l01"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "Names and families",
+   "steps": [
+    "Our catalog sorts every setup into a family. Learn the family and the name gets easier to place.",
+    "The Kicker, High Volume Edge and Gap Support are Gaps & Catalysts. Oops Reversal and Slingshot are Reversals & Reclaims.",
+    "The Launchpad sits in Bases & Breakouts. The Go Signal and the ORB are Intraday."
+   ],
+   "facts": [
+    "m01",
+    "m02",
+    "m03",
+    "m04",
+    "m05",
+    "m06",
+    "m07",
+    "m08"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "A name is not an edge",
+   "steps": [
+    "The textbook kicker is a down candle, then a gap up the other way.",
+    "Investopedia calls it highly reliable. Bulkowski's tests found it reversed the trend 53% of the time, almost random.",
+    "So I don't trade the name. I trade the plan: our entry, our stop, a first sell by judgment."
+   ],
+   "facts": [
+    "t01",
+    "t03",
+    "t06",
+    "h02",
+    "h03"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "vocab.setup_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "trigger",
+   "house": true,
+   "q": "In our setup plans, what is a setup's trigger?",
+   "choices": [
+    "The setup's entry price",
+    "The setup's stop price",
+    "The first target",
+    "The news that moved it"
+   ],
+   "answer": "The setup's entry price",
+   "why": "The setup's entry price. In our plans, trigger means entry. Each setup's detector returns its own trigger and its own stop for the candle it fires on. The trigger is a price on the chart. It is not the stop, not a profit target, and not the news behind the move. Selling comes later, and the first sell is a judgment.",
+   "lesson_line": "Trigger means entry. Every setup hands you one, plus a stop.",
+   "facts": [
+    "h01",
+    "r01",
+    "r05"
+   ],
+   "wrong": {
+    "The setup's stop price": "The stop is the other price each setup gives you. The trigger is where you get in.",
+    "The first target": "Selling comes later, and the first sell is a judgment, not a fixed target.",
+    "The news that moved it": "News can be why a stock moves. The trigger is a price on the chart."
+   },
+   "simple": "The trigger is the entry price, the spot where you get in, and each setup gives you one along with a stop.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "wrong note rests on the owner's rulebook (B19, E51)",
+     "fixed before"
+    ]
+   },
+   "batch": "rulings2"
+  },
+  {
+   "key": "q02",
+   "skill": "vocab.setup_terms",
+   "rung": 1,
+   "format": "fill",
+   "term": "Trim",
+   "house": true,
+   "q": "Fill in the order our setup plans run in.",
+   "sentence": "Entry, Stop, ___, Trail.",
+   "bank": [
+    "Trim",
+    "Add",
+    "Hold",
+    "Exit"
+   ],
+   "answer": "Trim",
+   "why": "Trim. Our plans run Entry, Stop, Trim, Trail: get in, set the stop, take some off, then trail the rest. Our full line ends with Advance. The first sell is a judgment, rarely on day 1, and the last part trails.",
+   "lesson_line": "Entry, Stop, Trim, Trail. Every trade plan we teach runs in that order.",
+   "facts": [
+    "o01",
+    "r03",
+    "r05"
+   ],
+   "simple": "Trim comes third because you take some profit off as the trade works, then trail the rest.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (A12, E51)",
+     "fixed before"
+    ]
+   },
+   "batch": "rulings2"
+  },
+  {
+   "key": "q03",
+   "skill": "vocab.setup_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "Kicker",
+   "q": "In candle terms, what is a bullish kicker?",
+   "choices": [
+    "A red candle, then a gap-up green one",
+    "A green candle, then a gap-down red one",
+    "One candle with a long lower wick",
+    "A small candle inside the prior range"
+   ],
+   "answer": "A red candle, then a gap-up green one",
+   "why": "A red candle, then a gap-up green one. Investopedia: bullish kickers start with a bearish candle and then show a bullish gap up. Bulkowski's version is stricter: a tall black marubozu, an upward gap, then a tall white marubozu. The mirror image, a green candle then a gap-down red one, is the bearish kicker. One candle alone is never a kicker.",
+   "lesson_line": "Kicker: a down day, then a gap up going the other way.",
+   "facts": [
+    "t01",
+    "t05",
+    "t02"
+   ],
+   "wrong": {
+    "A green candle, then a gap-down red one": "That's the bearish kicker, the mirror image.",
+    "One candle with a long lower wick": "One candle can't be a kicker. It takes two candles with a gap between them.",
+    "A small candle inside the prior range": "A candle inside the day before has no gap. A kicker gaps away from the day before."
+   },
+   "simple": "A bullish kicker is a red candle, then a green candle that gaps up, a sharp flip from down to up.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "two Tier 2 publishers agree; stable definition"
+    ]
+   },
+   "batch": "wave8"
+  },
+  {
+   "key": "q04",
+   "skill": "vocab.setup_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "Oops Reversal",
+   "house": true,
+   "q": "In our setup list, what is an Oops Reversal?",
+   "choices": [
+    "The prior close, reclaimed intraday",
+    "A gap up the day after a red day",
+    "A move back over a 4-day high average",
+    "A move out of a tight MA cluster"
+   ],
+   "answer": "The prior close, reclaimed intraday",
+   "why": "The prior close, reclaimed intraday. The stock trades under yesterday's close, then gets back over it during the day. That reclaim is the entry. The plan then sells in parts, the first sell a judgment, and trails under each higher low. It is not the Kicker, which gaps up after a red day.",
+   "lesson_line": "Oops: it lost the prior close and took it back the same day.",
+   "facts": [
+    "h09",
+    "h05",
+    "r05",
+    "r07",
+    "t01"
+   ],
+   "wrong": {
+    "A gap up the day after a red day": "That's the Kicker: a red day, then a gap up the next day.",
+    "A move back over a 4-day high average": "That's the Slingshot's entry: price trading back over the 4-day average of the highs.",
+    "A move out of a tight MA cluster": "That's the Launchpad."
+   },
+   "simple": "An Oops Reversal is a stock that drops under yesterday's close and then climbs back over it the same day.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "house definition from TRADE_PLANS.md; stable"
+    ]
+   },
+   "batch": "rulings2"
+  },
+  {
+   "key": "q05",
+   "skill": "vocab.setup_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "Launchpad",
+   "house": true,
+   "q": "What is a Launchpad in our setup list?",
+   "choices": [
+    "A break out of a tight MA cluster",
+    "A move back over a 4-day high average",
+    "A pullback that holds an old gap",
+    "A weak open that buyers turn up"
+   ],
+   "answer": "A break out of a tight MA cluster",
+   "why": "A break out of a tight MA cluster. The moving averages squeeze together, and we buy as price trades out of the cluster, never at the close. The line-based stop sits under the 20 EMA and 50 SMA, a quarter of an ATR below the lower one. It is not the Slingshot, whose line is the 4-day average of the highs.",
+   "lesson_line": "Launchpad: averages squeezed together, then price breaks out of the squeeze.",
+   "facts": [
+    "h15",
+    "g01",
+    "r07",
+    "r10",
+    "r11"
+   ],
+   "wrong": {
+    "A weak open that buyers turn up": "That's the Go Signal.",
+    "A pullback that holds an old gap": "That's Gap Support, a pullback that holds an old gap.",
+    "A move back over a 4-day high average": "That's the Slingshot. Its line is a short average of the highs, not a cluster."
+   },
+   "simple": "A Launchpad is when the moving averages bunch up tight and price then breaks out of that bunch.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "house definition from TRADE_PLANS.md; stable"
+    ]
+   },
+   "batch": "sweep-2026-11-14"
+  },
+  {
+   "key": "q06",
+   "skill": "vocab.setup_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "Gap Support",
+   "house": true,
+   "q": "What is Gap Support in our setup list?",
+   "choices": [
+    "Buying a pullback that holds a gap",
+    "Shorting a gap down off the highs",
+    "Buying the open of any gap up",
+    "Waiting for a gap to fill, then buying"
+   ],
+   "answer": "Buying a pullback that holds a gap",
+   "why": "Buying a pullback that holds a gap. The stock gaps up and runs, then comes back to the gap and holds. We buy as price trades up through the trigger while the gap holds, never at the close. The stop is the gap top or the day's low, whichever is lower. If it drifts sideways at the gap, the stop tightens to just under the gap top. It is not buying the open of a fresh gap, and it does not wait for the gap to fill.",
+   "lesson_line": "Gap Support: the gap holds, you buy, and the gap is your line.",
+   "facts": [
+    "h19",
+    "h20",
+    "h21",
+    "h22",
+    "t13",
+    "r07"
+   ],
+   "wrong": {
+    "Shorting a gap down off the highs": "Gap Support buys. A short off a gap down is the Bear gap lesson, and that one is measured, not traded.",
+    "Buying the open of any gap up": "Gap Support waits for the gap to prove it holds. The buy comes later, as price trades up through its trigger.",
+    "Waiting for a gap to fill, then buying": "We buy while the gap still holds, not after it fills."
+   },
+   "simple": "Gap Support means buying when a stock pulls back to an old gap and the gap holds.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before"
+    ]
+   },
+   "batch": "sweep-2026-11-14"
+  },
+  {
+   "key": "q07",
+   "skill": "vocab.setup_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "HVC",
+   "house": true,
+   "q": "Our catalog lists HVC with the High Volume Edge. What is the HVC?",
+   "choices": [
+    "The close of a high-volume day",
+    "The highest price of the day",
+    "A high-volume gap at the open",
+    "Volume above its 50-day average"
+   ],
+   "answer": "The close of a high-volume day",
+   "why": "The close of a high-volume day. Our catalog files HVC with the High Volume Edge, and the HVC is the price where the heavy day closed. We mark it as a level, and we buy as price trades through the trigger, never at the close. It is not a volume reading, a gap, or the day's high.",
+   "lesson_line": "High Volume Edge: the HVC is where the heavy-volume day closed, a level we mark.",
+   "facts": [
+    "h18",
+    "m09",
+    "r07"
+   ],
+   "wrong": {
+    "The highest price of the day": "That's the high. The HVC is the close of the heavy-volume day.",
+    "A high-volume gap at the open": "It isn't about a gap. The HVC is where the heavy-volume day closed.",
+    "Volume above its 50-day average": "That's a volume reading, not a price. The HVC is the close of that heavy day."
+   },
+   "simple": "The HVC is the close of the heavy-volume day, not its high or a volume reading.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "the HVC expansion has no citable house quote (owner flag)",
+     "fixed before"
+    ]
+   },
+   "batch": "sweep-2026-11-14"
+  },
+  {
+   "key": "q08",
+   "skill": "vocab.setup_terms",
+   "rung": 1,
+   "format": "mcq",
+   "term": "Go Signal",
+   "house": true,
+   "q": "What is our Go Signal?",
+   "choices": [
+    "A weak open that buyers turn back up",
+    "A gap up the day after a red day",
+    "A pullback that holds an older gap up",
+    "A break out of a tight MA cluster"
+   ],
+   "answer": "A weak open that buyers turn back up",
+   "why": "A weak open that buyers turn back up. It is an intraday entry in a stock that has already shown it can move. The day opens under the prior close. The low sweeps a nearby support. Then buyers step in and turn it.",
+   "lesson_line": "Go Signal: a strong stock opens weak, flushes support, and buyers turn it.",
+   "facts": [
+    "g01",
+    "g04",
+    "g05",
+    "h05",
+    "h19",
+    "h14",
+    "t01"
+   ],
+   "wrong": {
+    "A gap up the day after a red day": "That's the Kicker: a red day, then a gap up the next day.",
+    "A pullback that holds an older gap up": "That's Gap Support, a pullback that holds an older gap.",
+    "A break out of a tight MA cluster": "That's the Launchpad."
+   },
+   "simple": "The Go Signal is a strong stock that opens weak, dips through support, and then buyers turn it back up.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "house definition from TRADE_PLANS.md; stable"
+    ]
+   },
+   "batch": "sweep-2026-11-14"
+  },
+  {
+   "key": "q09",
+   "skill": "vocab.setup_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "Slingshot",
+   "house": true,
+   "q": "Which of our setups enters as price trades back over the 4-day average of the highs?",
+   "choices": [
+    "Slingshot",
+    "Launchpad",
+    "Oops Reversal",
+    "Go Signal"
+   ],
+   "answer": "Slingshot",
+   "why": "Slingshot. The stock slips under the 4-day average of the highs, then trades back over it, and that move through the line is the entry. The Launchpad breaks out of a cluster of averages. The Oops takes back the prior close during the day. The Go Signal turns a weak open back up intraday.",
+   "lesson_line": "Slingshot: back over the 4-day average of the highs, as price trades through it.",
+   "facts": [
+    "h09",
+    "g01",
+    "r07"
+   ],
+   "wrong": {
+    "Launchpad": "The Launchpad breaks out of a tight cluster of averages.",
+    "Oops Reversal": "The Oops reclaims the prior close during the day.",
+    "Go Signal": "The Go Signal turns a weak open back up during the day."
+   },
+   "simple": "The Slingshot enters as price trades back over the 4-day average of the highs after slipping under it.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "house definition; stable"
+    ]
+   },
+   "batch": "sweep-2026-11-14"
+  },
+  {
+   "key": "q10",
+   "skill": "vocab.setup_terms",
+   "rung": 2,
+   "format": "tf",
+   "house": true,
+   "q": "Our Oops Reversal plan puts the stop just under the day's low.",
+   "answer": "True",
+   "why": "True. The entry is the prior close, reclaimed during the day, and the plan's stop is the day's low. Our rulebook puts the stop order a few cents under that low, not exactly on it. So the stop sits just under the day's low.",
+   "lesson_line": "Oops: buy the reclaim, stop a few cents under the day's low.",
+   "facts": [
+    "h09",
+    "h26"
+   ],
+   "term": "Oops Reversal",
+   "simple": "True, the Oops Reversal stop goes a few cents under the low of the day you buy the reclaim.",
+   "tier": "core",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "key rests on one house fact (h09)",
+     "touches the owner's rulebook (F62: a few cents under the low)"
+    ]
+   },
+   "batch": "wave8"
+  },
+  {
+   "key": "q11",
+   "skill": "vocab.setup_terms",
+   "rung": 2,
+   "format": "fill",
+   "term": "partials",
+   "house": true,
+   "q": "Fill in our line on holding winners.",
+   "sentence": "Hold your winners by selling ___ into strength and trailing the rising moving averages.",
+   "bank": [
+    "partials",
+    "everything",
+    "nothing",
+    "losers"
+   ],
+   "answer": "partials",
+   "why": "Partials. You sell some of the position into strength, not all of it. The rest stays on, with the stop trailing the rising moving averages. The first sell is a judgment, rarely on day 1. Selling everything at the first pop is not our line.",
+   "lesson_line": "Sell partials into strength. Trail the rest.",
+   "facts": [
+    "p01",
+    "r03",
+    "r05"
+   ],
+   "wrong": {
+    "everything": "Selling it all at the first pop ends the trade. The line keeps part of it on and trails it.",
+    "half": "Half is a set share. The line sells partials, and the size is a judgment.",
+    "losers": "This line is about winners: take some off into strength and trail the rest.",
+    "nothing": "Selling nothing banks no profit. The line sells partials into strength and trails the rest."
+   },
+   "simple": "Partials, because you sell part of a winner as it rises and keep the rest on with a trailing stop.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's own words and rulebook (E51)"
+    ]
+   },
+   "batch": "rulings2"
+  },
+  {
+   "key": "q12",
+   "skill": "vocab.setup_terms",
+   "rung": 2,
+   "format": "tf",
+   "house": true,
+   "q": "Our Go Signal is an intraday entry. Its real trigger is on the 30 or 65-minute chart.",
+   "answer": "True",
+   "why": "True. Our Go Signal is an intraday entry in a stock that has already shown it can move. The daily bar shows the footprint: a weak open, a sweep of support, and buyers turning it. The real trigger is on the 30 or 65-minute chart, which the daily bar cannot see.",
+   "lesson_line": "Spot it on the daily, time it on the 30 or 65-minute chart.",
+   "facts": [
+    "g01",
+    "g09"
+   ],
+   "term": "Go Signal",
+   "simple": "True, because the daily chart shows the setup, but the real trigger comes on the 30 or 65-minute chart.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "a house plan rule (TRADE_PLANS.md) the owner reviews next"
+    ]
+   },
+   "batch": "wave8"
+  },
+  {
+   "key": "q13",
+   "skill": "vocab.setup_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "Trim",
+   "house": true,
+   "q": "In our trade plans, what does Trim mean?",
+   "choices": [
+    "Taking some shares off",
+    "Selling the whole position",
+    "Moving your stop higher",
+    "Cutting size before you buy"
+   ],
+   "answer": "Taking some shares off",
+   "why": "Taking some shares off. A trim sells part of the position and keeps the rest working. The first sell is a judgment, rarely on day 1, and the last part trails. A trim does not sell the whole position.",
+   "lesson_line": "Trim means some, not all.",
+   "facts": [
+    "o01",
+    "p01",
+    "r03",
+    "r05"
+   ],
+   "wrong": {
+    "Selling the whole position": "That's selling everything. A trim keeps part of the position on.",
+    "Cutting size before you buy": "That's sizing. A trim happens after you're in and it's working.",
+    "Moving your stop higher": "That moves the stop, as the trail does. A trim sells shares."
+   },
+   "simple": "A trim means selling some of your shares, not all of them, so the rest can keep working.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's account rulebook (sizing_rule.md section 9)",
+     "fixed or rewritten before"
+    ]
+   },
+   "batch": "rulings2"
+  },
+  {
+   "key": "q14",
+   "skill": "vocab.setup_terms",
+   "rung": 3,
+   "format": "mcq",
+   "term": "Gaps & Catalysts",
+   "house": true,
+   "q": "Our catalog sorts setups into families. Which family holds the Kicker?",
+   "choices": [
+    "Gaps & Catalysts",
+    "Reversals & Reclaims",
+    "Bases & Breakouts",
+    "Momentum & Trend"
+   ],
+   "answer": "Gaps & Catalysts",
+   "why": "Gaps & Catalysts. Our catalog files the Kicker there, with the High Volume Edge and Gap Support. Investopedia calls the kicker a reversal pattern, so Reversals & Reclaims is a fair guess. Our catalog does not file it there.",
+   "lesson_line": "Kicker, High Volume Edge and Gap Support all sit in Gaps & Catalysts.",
+   "facts": [
+    "m01",
+    "m02",
+    "m03",
+    "m06",
+    "m10",
+    "t02"
+   ],
+   "wrong": {
+    "Reversals & Reclaims": "Fair guess, since Investopedia calls the kicker a reversal pattern. Our catalog files it with the gaps.",
+    "Bases & Breakouts": "Bases & Breakouts holds the Launchpad.",
+    "Momentum & Trend": "That family holds setups like the Wedge Pop. Our catalog files the Kicker with the gaps."
+   },
+   "simple": "The Kicker sits in Gaps and Catalysts, the same family as the High Volume Edge and Gap Support.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "the key rests on one cited fact"
+    ]
+   },
+   "batch": "wave8"
+  },
+  {
+   "key": "q15",
+   "skill": "vocab.setup_terms",
+   "rung": 3,
+   "format": "mcq",
+   "term": "Reversals & Reclaims",
+   "house": true,
+   "q": "Which family does our catalog file the Slingshot in?",
+   "choices": [
+    "Reversals & Reclaims",
+    "Momentum & Trend",
+    "Gaps & Catalysts",
+    "Intraday"
+   ],
+   "answer": "Reversals & Reclaims",
+   "why": "Reversals & Reclaims. The Slingshot takes back a line the stock just lost: it trades back over the 4-day average of the highs. The Oops Reversal sits in the same family. Gaps & Catalysts holds the Kicker, the High Volume Edge and Gap Support. Intraday holds the Go Signal and the ORB.",
+   "lesson_line": "Slingshot and Oops Reversal: both in Reversals & Reclaims.",
+   "facts": [
+    "m05",
+    "m04",
+    "h11",
+    "m01",
+    "m02",
+    "m03",
+    "m07",
+    "m08"
+   ],
+   "wrong": {
+    "Momentum & Trend": "The Slingshot feels like momentum, but our catalog files it as a reclaim.",
+    "Gaps & Catalysts": "That family holds the Kicker, the High Volume Edge and Gap Support.",
+    "Intraday": "Intraday holds the Go Signal and the ORB. The Slingshot is filed as a reclaim."
+   },
+   "simple": "The Slingshot sits in Reversals and Reclaims, because it takes back a line the stock just lost.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before"
+    ]
+   },
+   "batch": "sweep-2026-11-14"
+  },
+  {
+   "key": "q16",
+   "skill": "vocab.setup_terms",
+   "rung": 3,
+   "format": "tf",
+   "house": true,
+   "q": "Our catalog files the Launchpad under Momentum & Trend.",
+   "answer": "False",
+   "why": "False. Our catalog files the Launchpad under Bases & Breakouts, not Momentum & Trend. Its entry is the close out of a tight cluster of averages.",
+   "lesson_line": "Launchpad: Bases & Breakouts, a close out of the averages' squeeze.",
+   "facts": [
+    "m06",
+    "h14"
+   ],
+   "term": "Launchpad",
+   "simple": "False, our catalog puts the Launchpad in Bases and Breakouts, not in Momentum and Trend.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "the key rests on one cited fact"
+    ]
+   },
+   "batch": "wave8"
+  },
+  {
+   "key": "q17",
+   "skill": "vocab.setup_terms",
+   "rung": 3,
+   "format": "mcq",
+   "house": true,
+   "q": "Kicker day. The red day before it topped at $11.04. You enter a cent over that high as it trades through. What do you pay?",
+   "answer": "$11.05",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "high + 0.01",
+     "high": 11.04
+    }
+   },
+   "prefix": "$",
+   "why": "$11.05. Our Kicker entry is over the red day's high, on the Kicker day, at market as it trades through. A cent over $11.04 is $11.05, the same price as our JBI example.",
+   "lesson_line": "Kicker entry: over the red day's high, at market as it trades through.",
+   "facts": [
+    "h05"
+   ],
+   "term": "Kicker",
+   "simple": "$11.05, a cent over the red day's $11.04 high, the level our Kicker entry breaks.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "tomcq",
+   "choices": [
+    "$12.04",
+    "$10.94",
+    "$11.14",
+    "$11.05"
+   ],
+   "wrong": {
+    "$11.14": "A dime over the high, not a cent.",
+    "$12.04": "A dollar over the high, not a cent.",
+    "$10.94": "A dime under the high, so the entry has not triggered yet."
+   }
+  },
+  {
+   "key": "q18",
+   "skill": "vocab.setup_terms",
+   "rung": 3,
+   "format": "fill",
+   "house": true,
+   "q": "Finish our Gap Support stop rule.",
+   "sentence": "The stop is the gap top or the day's low, whichever is ___.",
+   "bank": [
+    "lower",
+    "higher",
+    "closer",
+    "tighter"
+   ],
+   "answer": "lower",
+   "why": "Lower. Our Gap Support stop is the gap top or the day's low, whichever is lower. It is not the Kicker's rule, which takes whichever is closer. If the trade drifts sideways at the gap, the stop tightens to just under the gap top. Our rulebook sets the stop order a few cents under the day's low, not exactly on it.",
+   "lesson_line": "Gap Support stop: the lower of the gap top and the day's low.",
+   "facts": [
+    "h19",
+    "h21",
+    "h07",
+    "h26"
+   ],
+   "term": "Gap Support",
+   "simple": "Lower, because the stop goes on whichever of the gap top and the day's low sits further down.",
+   "tier": "core",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "key rests on one house fact (h19)",
+     "touches the owner's rulebook (F62: a few cents under the low)"
+    ]
+   },
+   "batch": "wave8"
+  },
+  {
+   "key": "q19",
+   "skill": "vocab.setup_terms",
+   "rung": 2,
+   "format": "fill",
+   "term": "Bear gap",
+   "house": true,
+   "q": "Which of our lessons does this line belong to?",
+   "sentence": "In our ___ lesson, a close must stay under the gap day's high.",
+   "bank": [
+    "Bear gap",
+    "Gap Support",
+    "Kicker",
+    "Oops Reversal"
+   ],
+   "answer": "Bear gap",
+   "why": "Bear gap. Our Bear gap lesson draws one line, the gap day's high, and a close must stay under it. No trade is defined for it in the app. Gap Support is a long: it buys the close as the gap holds.",
+   "lesson_line": "Bear gap: the line is the gap day's high.",
+   "facts": [
+    "h22",
+    "h19",
+    "h05"
+   ],
+   "simple": "Bear gap, because that lesson's one line is the gap day's high, and a close must stay under it.",
+   "tier": "core",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "the key rests on one cited fact",
+     "a house plan rule (TRADE_PLANS.md) the owner reviews next"
+    ]
+   },
+   "batch": "wave8"
+  },
+  {
+   "key": "q20",
+   "skill": "vocab.setup_terms",
+   "rung": 3,
+   "format": "mcq",
+   "term": "Red to green",
+   "house": true,
+   "q": "A stock opens under yesterday's close, then trades back above it. What's that move called?",
+   "choices": [
+    "Red to green",
+    "Green to red",
+    "Bear gap",
+    "Kicker day"
+   ],
+   "answer": "Red to green",
+   "why": "Red to green. While it trades under yesterday's close, the stock is down on the day. Once it trades back over that close, it is up on the day. Our Go Signal buys right there: the prior close, when it trades that session. Green to red is the mirror image.",
+   "lesson_line": "Red to green: from under yesterday's close to over it, in one session.",
+   "facts": [
+    "g08",
+    "g04",
+    "h22",
+    "t01"
+   ],
+   "wrong": {
+    "Green to red": "That's the mirror: up on the day first, then down through yesterday's close.",
+    "Bear gap": "Our Bear gap is a gap down that has to stay under a line. This one came back up.",
+    "Kicker day": "A Kicker opens with a gap up off a red day. This stock opened under yesterday's close."
+   },
+   "simple": "Red to green, because the stock starts the day down and then trades back above yesterday's close.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "the key rests on one cited fact"
+    ]
+   },
+   "batch": "wave8"
+  },
+  {
+   "key": "q21",
+   "skill": "vocab.setup_terms",
+   "rung": 3,
+   "format": "mcq",
+   "term": "Trail",
+   "house": true,
+   "q": "In our trade plans, what does Trail mean?",
+   "choices": [
+    "Moving the stop up behind the price",
+    "Taking some shares off into strength",
+    "Adding more shares as it rises",
+    "Lowering the stop for more room"
+   ],
+   "answer": "Moving the stop up behind the price",
+   "why": "Moving the stop up behind the price. Our plans trail under each higher low, or under a rising average such as the 20 EMA. A trailing stop moves up as the stock rises and stays put when it falls. Trailing changes the stop, not the number of shares you hold.",
+   "lesson_line": "Trail: the stop follows the stock up, never down.",
+   "facts": [
+    "h08",
+    "h16",
+    "t14",
+    "t15",
+    "t17",
+    "p01",
+    "r10"
+   ],
+   "wrong": {
+    "Lowering the stop for more room": "That's widening the stop. A trail only ever tightens.",
+    "Taking some shares off into strength": "That's the trim: selling partials into strength.",
+    "Adding more shares as it rises": "That's adding to a winner, a different decision. The trail moves the stop, not the size."
+   },
+   "simple": "Trail means moving your stop up behind the stock as it rises, and never moving it back down.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "sweep-2026-11-14"
+  },
+  {
+   "key": "q22",
+   "skill": "vocab.setup_terms",
+   "rung": 4,
+   "format": "mcq",
+   "term": "Kicker ORB",
+   "house": true,
+   "q": "Our Kicker has two entries. Besides the break over the red day's high, what is the other?",
+   "choices": [
+    "A break of day one's 30-minute range",
+    "A close over the 4-day average of highs",
+    "The prior close, reclaimed intraday",
+    "A pullback that holds the gap"
+   ],
+   "answer": "A break of day one's 30-minute range",
+   "why": "A break of day one's 30-minute range. That is the Kicker ORB: on the Kicker day, buy the break of the 30-minute opening range. The first entry is over the red day's high as price trades through. Day traders often use the first half hour's range the same way. A close over the 4-day average of the highs is the Slingshot, not the Kicker.",
+   "lesson_line": "Kicker entries: over the red day's high, or the day-one 30-minute range break.",
+   "facts": [
+    "h06",
+    "o02",
+    "h05",
+    "m08",
+    "t09",
+    "h11",
+    "h09",
+    "h19",
+    "t01"
+   ],
+   "wrong": {
+    "A close over the 4-day average of highs": "That's the Slingshot's entry.",
+    "The prior close, reclaimed intraday": "That's the Oops Reversal's entry.",
+    "A pullback that holds the gap": "That's Gap Support, a later pullback that holds an old gap. The Kicker buys on the gap day itself."
+   },
+   "simple": "The other Kicker entry is a break of the first 30 minutes' range on day one, called the Kicker ORB.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before"
+    ]
+   },
+   "batch": "wave8"
+  },
+  {
+   "key": "q23",
+   "skill": "vocab.setup_terms",
+   "rung": 4,
+   "format": "tf",
+   "house": true,
+   "q": "On a Slingshot, our entry is the first intraday touch of the 4-day average of the highs.",
+   "answer": "False",
+   "why": "False. The Slingshot's entry is the close back over the 4-day average of the highs. A touch of that line during the day is not the signal. The stock has to close over it. A stock can poke above the line and close back under, and then there is no entry.",
+   "lesson_line": "Slingshot waits for the close over the line, not a touch.",
+   "facts": [
+    "h11"
+   ],
+   "term": "Slingshot",
+   "simple": "False, a Slingshot waits for a close back over the line, and a touch during the day does not count.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "one cited fact only (h11)"
+    ]
+   },
+   "batch": "wave8"
+  },
+  {
+   "key": "q24",
+   "skill": "vocab.setup_terms",
+   "rung": 4,
+   "format": "tf",
+   "house": true,
+   "q": "When a High Volume Edge bar closes down, our stop is still the bar's low.",
+   "answer": "False",
+   "why": "False. Our plan's stop is the edge bar's low, or its high when the bar closed down. A stop above the price is a buy stop, the kind that guards a short. So a down-close edge bar is read from the short side. It is not a stop placed above a long entry.",
+   "lesson_line": "Up close: stop at the bar's low. Down close: stop at its high, the short side's stop.",
+   "facts": [
+    "h17",
+    "t22",
+    "t23"
+   ],
+   "term": "High Volume Edge",
+   "simple": "False, on a down close the stop moves to the bar's high, which only makes sense as a stop for a short.",
+   "deeper": {
+    "trap": "A stop above your buy price cannot protect a long. A buy stop sits above the current price, and investors use it to limit a loss on a stock they sold short. When you read the down-close rule, the stop at the bar's high is the short side's line, not a long trader's."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before"
+    ]
+   },
+   "batch": "wave8"
+  },
+  {
+   "key": "q25",
+   "skill": "vocab.setup_terms",
+   "rung": 4,
+   "format": "tf",
+   "house": true,
+   "q": "Our app defines a short trade for the Bear gap, with an entry and a stop.",
+   "answer": "False",
+   "why": "False. The app defines no trade for the Bear gap, and none is invented. The lesson shows the line a close must stay under, the gap day's high, and measures the fall. On VRNS that obvious stop sat 25% over the close.",
+   "lesson_line": "No plan in the app, no plan invented. The Bear gap is studied, not traded.",
+   "facts": [
+    "h22",
+    "h23"
+   ],
+   "term": "Bear gap",
+   "simple": "False, the app defines no trade for the Bear gap, so we study the fall instead of trading it.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "a house plan rule (TRADE_PLANS.md) the owner reviews next"
+    ]
+   },
+   "batch": "wave8"
+  },
+  {
+   "key": "q26",
+   "skill": "vocab.setup_terms",
+   "rung": 4,
+   "format": "tf",
+   "house": true,
+   "q": "Our plan fixes the first sell at a third of the position at 3R.",
+   "answer": "False",
+   "why": "False. The first sell is a judgment that depends on many factors, not a fixed third at 3R. We very rarely sell on day 1 and usually wait until day 3. A 3, 5 or 7 day push, or about 5 to 10R, is often best.",
+   "lesson_line": "The first sell is a judgment, not a fixed third at 3R.",
+   "facts": [
+    "r03",
+    "r04",
+    "r05",
+    "r06"
+   ],
+   "term": "Trim",
+   "simple": "False, because the first sell is a judgment and not a set third at 3R.",
+   "tier": "core",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "rests on the owner's rulebook (B19, E51)",
+     "a rule the owner calls adjustable (E51)",
+     "fixed before (key flipped 2026-11-09)"
+    ]
+   },
+   "batch": "rulings2"
+  },
+  {
+   "key": "q27",
+   "skill": "vocab.setup_terms",
+   "rung": 4,
+   "format": "mcq",
+   "house": true,
+   "q": "Which pair of our setups both sit in the Intraday family?",
+   "choices": [
+    "The Go Signal and the ORB",
+    "The Kicker and Gap Support",
+    "Oops Reversal and Slingshot",
+    "Launchpad and High Volume Edge"
+   ],
+   "answer": "The Go Signal and the ORB",
+   "why": "The Go Signal and the ORB. Our catalog files both under Intraday. The Go Signal's real trigger is on the 30 or 65-minute chart, and the ORB is the Opening Range Break. Each other pair holds no Intraday setup.",
+   "lesson_line": "The Go Signal and the ORB are both Intraday setups.",
+   "facts": [
+    "m07",
+    "m08",
+    "g09",
+    "m01",
+    "m03",
+    "m04",
+    "m05",
+    "m06",
+    "m02"
+   ],
+   "wrong": {
+    "Oops Reversal and Slingshot": "Both are Reversals & Reclaims.",
+    "Launchpad and High Volume Edge": "The Launchpad is Bases & Breakouts. The High Volume Edge is Gaps & Catalysts.",
+    "The Kicker and Gap Support": "Both are Gaps & Catalysts."
+   },
+   "term": "Intraday",
+   "simple": "The Go Signal and the ORB, because our catalog files both in the Intraday family.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave8"
+  },
+  {
+   "key": "q28",
+   "skill": "vocab.setup_terms",
+   "rung": 4,
+   "format": "scenario",
+   "term": "Kicker",
+   "house": true,
+   "story": "Yesterday a stock opened at $20.50 and closed red at $20.00, near its low. Its high was $20.60. Today it opens at $20.55 and trades up through $20.60.",
+   "q": "Which setup of ours is this?",
+   "choices": [
+    "Kicker",
+    "Oops Reversal",
+    "Gap Support",
+    "Slingshot"
+   ],
+   "answer": "Kicker",
+   "why": "Kicker. A red day that closed near its low. Today opens over that day's $20.50 open and $20.00 close, then trades through its $20.60 high. Our entry is over the red day's high, at market as it trades through.",
+   "lesson_line": "Kicker: a red day, then a push through its high the next day.",
+   "facts": [
+    "h05",
+    "t01",
+    "h09",
+    "h19",
+    "h11"
+   ],
+   "wrong": {
+    "Oops Reversal": "The Oops trades under the prior close and reclaims it. This one opened above it.",
+    "Gap Support": "Gap Support is a later pullback that holds an old gap. This story has no old gap.",
+    "Slingshot": "The Slingshot closes back over the 4-day average of the highs. Nothing here is a close over that line."
+   },
+   "simple": "It is a Kicker: a red day, then a strong open and a push through the red day's high.",
+   "deeper": {
+    "counter": "Change one thing. If today had opened under yesterday's $20.00 close and then climbed back over it, that reclaim is the Oops Reversal's entry, not the Kicker's. Here the open sat over the red day's close, and the push through its $20.60 high is the Kicker's entry."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before"
+    ]
+   },
+   "batch": "wave8"
+  },
+  {
+   "key": "q29",
+   "skill": "vocab.setup_terms",
+   "rung": 5,
+   "format": "scenario",
+   "term": "Oops Reversal",
+   "house": true,
+   "story": "A stock closed at $30.00 yesterday, with a low of $29.20. Today it opens at $29.60 and trades down to $29.00. By midday it's back at $30.05.",
+   "q": "Which setup of ours fits?",
+   "choices": [
+    "Oops Reversal",
+    "Kicker",
+    "Bear gap",
+    "Gap Support"
+   ],
+   "answer": "Oops Reversal",
+   "why": "Oops Reversal. The stock lost yesterday's $30.00 close at the open and even undercut yesterday's $29.20 low. Then it took the close back during the day. Our Oops entry is the prior close, reclaimed during the day, so $30.00 is the entry. The day's low, $29.00 so far, sets the stop.",
+   "lesson_line": "Under the prior close, back over it the same day: Oops.",
+   "facts": [
+    "h09",
+    "h05",
+    "h22",
+    "h19"
+   ],
+   "wrong": {
+    "Kicker": "A Kicker gaps up off a red day. This one opened weak.",
+    "Bear gap": "A Bear gap is a gap down that stays under its line. This one came all the way back.",
+    "Gap Support": "Gap Support buys the close as an old gap holds. This stock opened lower and won back yesterday's close."
+   },
+   "simple": "Oops Reversal, because the stock fell under yesterday's close and then won it back the same day.",
+   "tier": "extended",
+   "risk": {
+    "score": 6,
+    "reasons": [
+     "the key rests on one cited fact",
+     "a house plan rule (TRADE_PLANS.md) the owner reviews next",
+     "fixed or rewritten before"
+    ]
+   },
+   "batch": "wave8"
+  },
+  {
+   "key": "q30",
+   "skill": "vocab.setup_terms",
+   "rung": 5,
+   "format": "mcq",
+   "house": true,
+   "q": "Oops Reversal: you buy the reclaim of yesterday's $30.00 close. Your stop is $29.00, just under the day's low. Where is the 3R price?",
+   "answer": "$33.00",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "entry + 3 * (entry - stop)",
+     "entry": 30,
+     "stop": 29
+    }
+   },
+   "prefix": "$",
+   "why": "$33.00. You buy the $30.00 reclaim. The stop sits at $29.00, a few cents under the day's low, where our rulebook puts it. Risk per share is $30.00 - $29.00. 3R is three times that, added to the entry: $30.00 + 3 x ($30.00 - $29.00) = $33.00. It is a mark to measure with, not an order to sell.",
+   "lesson_line": "3R is three times your entry-to-stop risk, added to the entry.",
+   "facts": [
+    "h09",
+    "h26",
+    "t10",
+    "r01",
+    "r05"
+   ],
+   "term": "3R",
+   "simple": "$33.00, because 3R adds three times your risk per share, $30.00 down to $29.00, on top of your entry.",
+   "tier": "extended",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "computed key",
+     "rests on the owner's rulebook (B19)"
+    ]
+   },
+   "batch": "tomcq",
+   "choices": [
+    "$32.00",
+    "$31.00",
+    "$33.00",
+    "$34.00"
+   ],
+   "wrong": {
+    "$32.00": "Counted 3R up from the $29.00 stop, not from the entry.",
+    "$31.00": "Added only one R, one risk per share, to the entry.",
+    "$34.00": "Added four R, counting the entry itself as the first step."
+   }
+  },
+  {
+   "key": "q31",
+   "skill": "vocab.setup_terms",
+   "rung": 5,
+   "format": "scenario",
+   "term": "Launchpad",
+   "house": true,
+   "story": "A stock's short-term average, 20 EMA and 50 SMA have bunched tightly together. Price has sat just on top of the bunch for days. Today it trades up and out of the cluster.",
+   "q": "What is our name for this setup?",
+   "choices": [
+    "Launchpad",
+    "Slingshot",
+    "Gap Support",
+    "High Volume Edge"
+   ],
+   "answer": "Launchpad",
+   "why": "Launchpad. The short-term average, 20 EMA and 50 SMA are bunched tight, and today's move breaks out of the cluster. Our Launchpad buys as price trades out of it. The line-based stop goes under the 20 EMA and 50 SMA, a quarter of an ATR below the lower one.",
+   "lesson_line": "Tight cluster of averages, then price breaks out of it: Launchpad.",
+   "facts": [
+    "h15",
+    "h11",
+    "r07",
+    "r10"
+   ],
+   "wrong": {
+    "Slingshot": "The Slingshot's line is the 4-day average of the highs, not a squeeze of longer averages.",
+    "Gap Support": "There's no gap in this story.",
+    "High Volume Edge": "Nothing says the volume was heavy. The cluster of averages is the tell."
+   },
+   "simple": "Launchpad, because the averages are bunched tight and price breaks out of that bunch.",
+   "tier": "extended",
+   "risk": {
+    "score": 6,
+    "reasons": [
+     "the key rests on one cited fact",
+     "a house plan rule (TRADE_PLANS.md) the owner reviews next",
+     "fixed or rewritten before"
+    ]
+   },
+   "batch": "sweep-2026-11-14"
+  },
+  {
+   "key": "q32",
+   "skill": "vocab.setup_terms",
+   "rung": 5,
+   "format": "scenario",
+   "term": "higher low",
+   "house": true,
+   "story": "You're long a Kicker. It pulled back to $31 and rallied. Now it has pulled back again, held $33, and turned up.",
+   "q": "Trailing under each higher low, where does the stop go now?",
+   "choices": [
+    "Just under the $33 low",
+    "Just under a $31 low",
+    "Under the setup's low",
+    "At today's close"
+   ],
+   "answer": "Just under the $33 low",
+   "why": "Just under $33. This pullback held above the last one at $31, so $33 is the new higher low. Our Kicker plan trails the stop under each higher low, so it moves up under $33. An uptrend is a run of higher lows and higher highs, and a break of $33 would end that run. The stop never goes back down to $31.",
+   "lesson_line": "Each new higher low pulls the stop up behind it.",
+   "facts": [
+    "h08",
+    "t19",
+    "t18"
+   ],
+   "wrong": {
+    "Under the setup's low": "That's where the stop started. Trailing means it has moved up since.",
+    "At today's close": "The plan trails under the low, not at the close.",
+    "Just under a $31 low": "That was the last higher low. $33 has replaced it."
+   },
+   "simple": "Just under $33, because that is the newest higher low and the stop moves up under each one.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "a house plan rule (TRADE_PLANS.md) the owner reviews next"
+    ]
+   },
+   "batch": "wave8"
+  },
+  {
+   "key": "q33",
+   "skill": "vocab.setup_terms",
+   "rung": 5,
+   "format": "mcq",
+   "house": true,
+   "q": "On the daily bar, what shows buyers stepped in on a Go Signal?",
+   "choices": [
+    "A lower wick of 40% of the range",
+    "The open is the low of the day",
+    "A gap up over the prior day's high",
+    "Volume at twice its average"
+   ],
+   "answer": "A lower wick of 40% of the range",
+   "why": "A lower wick of 40% of the range. That is one of two signs our Go Signal reads as buyers stepping in. The other is a low under the open with the close in the upper half. Either way, the stock was pushed down and buyers turned it.",
+   "lesson_line": "Long lower wick, strong close: buyers showed up after the flush.",
+   "facts": [
+    "g06",
+    "g04",
+    "g03"
+   ],
+   "wrong": {
+    "Volume at twice its average": "Twice-average volume belongs to the recent-move check, the 4% gap. It isn't the buyers check.",
+    "The open is the low of the day": "Our sign wants a flush first: a long lower wick, or a low under the open. Here it never traded under the open.",
+    "A gap up over the prior day's high": "A Go Signal opens weak, under the prior close. No gap up."
+   },
+   "term": "Go Signal",
+   "simple": "A lower wick that is 40% of the day's range, because it shows buyers pushed the price back up.",
+   "tier": "extended",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "the key rests on one cited fact",
+     "a house plan rule (TRADE_PLANS.md) the owner reviews next"
+    ]
+   },
+   "batch": "wave8"
+  },
+  {
+   "key": "q34",
+   "skill": "vocab.setup_terms",
+   "rung": 5,
+   "format": "tf",
+   "house": true,
+   "q": "Our Launchpad plan trails the stop under the 4-day average of the highs.",
+   "answer": "False",
+   "why": "False. Our Launchpad trails under the rising 20 EMA, or under each higher low. The 4-day average of the highs is the Slingshot's entry line, not a Launchpad trail.",
+   "lesson_line": "Launchpad trail: the rising 20 EMA, or each higher low.",
+   "facts": [
+    "h16",
+    "h11",
+    "r10"
+   ],
+   "term": "Launchpad",
+   "simple": "False, the Launchpad trails under the rising 20 EMA or each higher low, not the 4-day line.",
+   "tier": "extended",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "the key rests on one cited fact",
+     "a house plan rule (TRADE_PLANS.md) the owner reviews next"
+    ]
+   },
+   "batch": "sweep-2026-11-14"
+  },
+  {
+   "key": "q35",
+   "skill": "vocab.setup_terms",
+   "rung": 5,
+   "format": "scenario",
+   "term": "Gap Support",
+   "house": true,
+   "story": "The gap top is $50.00. Today the stock dipped to $49.60, then turned up and traded through your trigger. You buy as Gap Support.",
+   "q": "Which level sets our stop?",
+   "choices": [
+    "$49.60, today's low",
+    "$50.00, the gap top",
+    "3.5% under your entry",
+    "Under the rising 9 EMA"
+   ],
+   "answer": "$49.60, today's low",
+   "why": "$49.60, today's low. Our Gap Support stop is the gap top or the day's low, whichever is lower. Today's low, $49.60, sits under the $50.00 gap top, so it sets the stop. Our rulebook puts the order a few cents under that low, not exactly on it.",
+   "lesson_line": "Two candidates, take the lower one. That's the Gap Support stop.",
+   "facts": [
+    "h19",
+    "h07",
+    "h62",
+    "r07",
+    "r10"
+   ],
+   "wrong": {
+    "$50.00, the gap top": "That's the higher of the two here. Our rule takes the lower.",
+    "3.5% under your entry": "That's part of the Kicker's stop rule, not Gap Support's.",
+    "Under the rising 9 EMA": "That's a trail line in our Kicker and Slingshot plans, used once a trade works. Gap Support's first stop is the lower of the gap top and the day's low."
+   },
+   "simple": "Today's $49.60 low sets the stop, because our Gap Support stop takes the lower of the gap top and the day's low.",
+   "tier": "extended",
+   "risk": {
+    "score": 7,
+    "reasons": [
+     "the key rests on one cited fact",
+     "a house plan rule (TRADE_PLANS.md) the owner reviews next",
+     "rests on the owner's account rulebook (sizing_rule.md section 9)"
+    ]
+   },
+   "batch": "sweep-2026-11-14"
+  },
+  {
+   "key": "q36",
+   "skill": "vocab.setup_terms",
+   "rung": 7,
+   "format": "scenario",
+   "term": "Kicker",
+   "house": true,
+   "story": "You buy our Kicker at $40.00. The Kicker candle's low is $39.20.",
+   "q": "Where does our stop go?",
+   "choices": [
+    "Under the Kicker low, 2% away",
+    "3.5% under your $40.00 entry",
+    "Under the prior red day's low",
+    "Under the rising 9 EMA"
+   ],
+   "answer": "Under the Kicker low, 2% away",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(entry - low) / entry * 100",
+     "entry": 40,
+     "low": 39.2
+    }
+   },
+   "why": "Under the Kicker low, 2% away. Our Kicker stop goes under the Kicker's low, or 3.5% under the entry if that is closer. Here the $39.20 low is 2% under the $40.00 entry, so it is the closer one and wins. The red day's low is not the stop, and the 9 EMA is how the trade trails later.",
+   "lesson_line": "Kicker stop: the Kicker's low, or 3.5% under entry, whichever is closer.",
+   "facts": [
+    "h07",
+    "o03",
+    "h08",
+    "r10"
+   ],
+   "wrong": {
+    "3.5% under your $40.00 entry": "That's the other half of the rule. Here the Kicker's low is only 2% under, so it is closer and wins.",
+    "Under the prior red day's low": "The red day came before the Kicker. Our stop hangs off the Kicker candle itself.",
+    "Under the rising 9 EMA": "That's how the Kicker trails later, under the 9 EMA or each higher low. The first stop hangs off the Kicker's low."
+   },
+   "simple": "Under the Kicker low, because it is only 2% below your entry, closer than 3.5%, and our rule takes the closer stop.",
+   "deeper": {
+    "trap": "Whichever is closer does not mean always the Kicker low. If the Kicker's low sat more than 3.5% under your entry, the 3.5% stop would be the closer one and would win. Work out both, then take the closer."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "sweep-2026-11-14"
+  },
+  {
+   "key": "q37",
+   "skill": "vocab.setup_terms",
+   "rung": 6,
+   "format": "scenario",
+   "term": "Slingshot",
+   "house": true,
+   "story": "You buy a Slingshot as price trades up through its trigger. The day's low is $52.10. The day before, the low was $51.40.",
+   "q": "You want more room than our standard stop. Which stop level does the plan allow?",
+   "choices": [
+    "$51.40, the day before's low",
+    "$52.10, the trigger day's low",
+    "The 4-day average of the highs",
+    "The 50-day moving average"
+   ],
+   "answer": "$51.40, the day before's low",
+   "why": "$51.40, the day before's low. Our standard Slingshot stop is the trigger day's low, $52.10. The day before's low, $51.40, is the wider choice the plan allows. Our rulebook puts the order a few cents under that low. A wider stop makes R bigger, since R is your risk per share from entry to stop.",
+   "lesson_line": "Slingshot stop: the trigger day's low, or the day before's low for more room.",
+   "facts": [
+    "h12",
+    "h63",
+    "r01",
+    "r02",
+    "r07",
+    "r09"
+   ],
+   "wrong": {
+    "$52.10, the trigger day's low": "That's the standard stop, the tighter one.",
+    "The 4-day average of the highs": "That line is the entry, not the stop.",
+    "The 50-day moving average": "Not in the Slingshot plan. Its stops are the two daily lows."
+   },
+   "simple": "$51.40, because our plan lets you use the day before's low when you want a wider stop.",
+   "tier": "extended",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "the key rests on one cited fact",
+     "a house plan rule (TRADE_PLANS.md) the owner reviews next"
+    ]
+   },
+   "batch": "rulings2"
+  },
+  {
+   "key": "q38",
+   "skill": "vocab.setup_terms",
+   "rung": 6,
+   "format": "scenario",
+   "term": "decision point",
+   "house": true,
+   "story": "Weeks ago a stock closed up at $64 on its heaviest volume in a year. It ran to $75. Now, for the first time, it's back at $64.20.",
+   "q": "In our High Volume Edge plan, what is this spot?",
+   "choices": [
+    "The cleanest decision point",
+    "A failed setup: the stop is hit",
+    "The 3R mark, three times the risk",
+    "A new Kicker setup forming"
+   ],
+   "answer": "The cleanest decision point",
+   "why": "The cleanest decision point. Our High Volume Edge buys the high-volume close, here $64. The first return to that close is the cleanest place to decide. Nothing has failed yet: the stock is back at the level, not under it. It is not a target either, since $64.20 is back near where the trade started.",
+   "lesson_line": "First return to the high-volume close: the cleanest place to decide.",
+   "facts": [
+    "h18",
+    "h17",
+    "r01",
+    "r05"
+   ],
+   "wrong": {
+    "A new Kicker setup forming": "A Kicker needs a red day and a gap up. This is a return to an old close.",
+    "A failed setup: the stop is hit": "The bar closed up, so our stop is its low, at or under the $64 close. At $64.20 it hasn't been hit.",
+    "The 3R mark, three times the risk": "A 3R mark sits above the entry by three times the risk. This is a return to the $64 entry level."
+   },
+   "simple": "It is the cleanest place to decide, because it is the first time price has come back to the big-volume close.",
+   "tier": "extended",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "the key rests on one cited fact",
+     "a house plan rule (TRADE_PLANS.md) the owner reviews next"
+    ]
+   },
+   "batch": "rulings2"
+  },
+  {
+   "key": "q39",
+   "skill": "vocab.setup_terms",
+   "rung": 6,
+   "format": "scenario",
+   "term": "post-gap high",
+   "house": true,
+   "story": "You bought Gap Support at $82 as the gap held. Since the gap, the best price was $90, which is 3R on this trade. It's heading back up there now.",
+   "q": "What does our plan say about $90?",
+   "choices": [
+    "Where we look first to take some off",
+    "Where our 5R target sits",
+    "Where to add a few more shares",
+    "Where we sell everything"
+   ],
+   "answer": "Where we look first to take some off",
+   "why": "Where we look first to take some off. Our Gap Support plan names the post-gap high, here $90, as the first place to take some off. Here $90 is also 3R, but that is only a mark. The first sell stays a judgment, rarely on day 1. The rest keeps working.",
+   "lesson_line": "Gap Support names the post-gap high as the first place to look at selling. The sell itself is a judgment.",
+   "facts": [
+    "h20",
+    "r01",
+    "h19",
+    "r03",
+    "r05"
+   ],
+   "wrong": {
+    "Where to add a few more shares": "Adding there isn't in the plan. It's where we take some off.",
+    "Where our 5R target sits": "The story puts $90 at 3R. 5R sits higher, at five times the risk.",
+    "Where we sell everything": "Trim means some, not all. Keep the rest working."
+   },
+   "simple": "It is where we look first to take some off, because $90 is the post-gap high.",
+   "tier": "extended",
+   "risk": {
+    "score": 6,
+    "reasons": [
+     "the key rests on one cited fact",
+     "a house plan rule (TRADE_PLANS.md) the owner reviews next",
+     "fixed or rewritten before"
+    ]
+   },
+   "batch": "rulings2"
+  },
+  {
+   "key": "q40",
+   "skill": "vocab.setup_terms",
+   "rung": 6,
+   "format": "tf",
+   "q": "Once you trail a stop up, you move it back down if the stock dips.",
+   "answer": "False",
+   "why": "False. A trailing stop only moves in your favor. When price moves against you, the stop stays where it is.",
+   "lesson_line": "A trail tightens. It never widens.",
+   "facts": [
+    "t15",
+    "t14",
+    "t16"
+   ],
+   "term": "trailing stop"
+  },
+  {
+   "key": "q41",
+   "skill": "vocab.setup_terms",
+   "rung": 6,
+   "format": "scenario",
+   "term": "Go Signal",
+   "house": true,
+   "story": "A strong stock closed at $40.00 yesterday. Today it opens at $39.10, dips under yesterday's low, then climbs. By 11 a.m. it trades $40.00.",
+   "q": "Where is our Go Signal entry?",
+   "choices": [
+    "$40.00, the prior close",
+    "$39.10, today's open",
+    "Today's closing price",
+    "The break over yesterday's high"
+   ],
+   "answer": "$40.00, the prior close",
+   "why": "$40.00, the prior close. The stock opened under yesterday's close, swept yesterday's low and climbed back. It traded $40.00 this session, red to green, so that is our entry. The session's low sets the stop.",
+   "lesson_line": "Go Signal entry: the prior close, the moment it goes red to green.",
+   "facts": [
+    "g08",
+    "g04",
+    "g05",
+    "h05"
+   ],
+   "wrong": {
+    "$39.10, today's open": "Buying the weak open is guessing. We wait for the turn back to the prior close.",
+    "Today's closing price": "Our entry is the prior close when it trades that session. It traded $40.00 here, so the close isn't the entry.",
+    "The break over yesterday's high": "That's the Kicker's entry, over the red day's high."
+   },
+   "simple": "$40.00, because our Go Signal buys the prior close as soon as the stock trades back up to it.",
+   "tier": "extended",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "the key rests on one cited fact",
+     "a house plan rule (TRADE_PLANS.md) the owner reviews next"
+    ]
+   },
+   "batch": "wave8"
+  },
+  {
+   "key": "q42",
+   "skill": "vocab.setup_terms",
+   "rung": 7,
+   "format": "mcq",
+   "house": true,
+   "q": "Launchpad. The 20 EMA is $48.00, the 50 SMA is $47.50 and the ATR is $2.00. Where does the line-based stop sit?",
+   "answer": "$47.00",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "lower - 0.25 * atr",
+     "lower": 47.5,
+     "atr": 2
+    }
+   },
+   "prefix": "$",
+   "why": "$47.00. The line-based Launchpad stop sits under the 20 EMA and 50 SMA, a quarter of an ATR below the lower one. The lower one is the 50 SMA at $47.50. A quarter of the $2.00 ATR below $47.50 is $47.50 - 0.25 x $2.00 = $47.00. An easy slip is starting from the higher average, the 20 EMA at $48.00. The low of day stays our primary stop.",
+   "lesson_line": "Launchpad line stop: a quarter of an ATR under the lower of the 20 EMA and 50 SMA.",
+   "facts": [
+    "h15",
+    "t20",
+    "r10",
+    "r11"
+   ],
+   "term": "Launchpad",
+   "simple": "$47.00, because the lower average is the 50 SMA at $47.50, and the stop sits a quarter of the $2.00 ATR below it.",
+   "deeper": {
+    "trap": "The stop hangs off the lower of the two averages, not the one you watch most. Here the 20 EMA is $48.00 and the 50 SMA is $47.50. So the 50 SMA sets the line, and the quarter ATR goes below that."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "sweep-2026-11-14",
+   "choices": [
+    "$47.00",
+    "$47.50",
+    "$48.00",
+    "$48.50"
+   ],
+   "wrong": {
+    "$47.50": "Used the 50 SMA itself and took nothing off.",
+    "$48.00": "Used the 20 EMA itself and took nothing off.",
+    "$48.50": "Added a quarter ATR to the 20 EMA instead of subtracting."
+   }
+  },
+  {
+   "key": "q43",
+   "skill": "vocab.setup_terms",
+   "rung": 7,
+   "format": "scenario",
+   "term": "3R",
+   "house": true,
+   "story": "You buy a setup at $60 with its stop at $57. It reaches $69 and keeps going.",
+   "q": "Counting in R, where is it?",
+   "choices": [
+    "At 3R, three times the risk",
+    "At 5R, five times the risk",
+    "At 9R: nine dollars",
+    "At 4R: from the stop"
+   ],
+   "answer": "At 3R, three times the risk",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(price - entry) / (entry - stop)",
+     "price": 69,
+     "entry": 60,
+     "stop": 57
+    }
+   },
+   "why": "At 3R. Your risk is the gap from the $60 entry down to the $57 stop. The gain to $69 is three times that risk. 3R is a mark to measure with, not an order to sell. R counts from the entry, not from the stop, and it is never the dollar gain itself.",
+   "lesson_line": "Count in R: the gain divided by your entry-to-stop risk.",
+   "facts": [
+    "t10",
+    "r01",
+    "p01",
+    "r03",
+    "r05"
+   ],
+   "wrong": {
+    "At 9R: nine dollars": "That's dollars, not R. Divide the gain by your risk per share.",
+    "At 4R: from the stop": "That counts from the $57 stop. R counts the gain from your $60 entry, in units of your risk.",
+    "At 5R, five times the risk": "5R needs five times the risk. This is three."
+   },
+   "simple": "At 3R, because the gain from $60 to $69 is three times your risk from $60 to $57.",
+   "deeper": {
+    "example": "Same trade, keep going. 5R is five times your risk per share, added to the $60 entry. These are marks to measure with. The first sell is a judgment, rarely on day 1, and the last part trails under the rising averages."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "computed key",
+     "rests on the owner's rulebook (B19, E51)"
+    ]
+   },
+   "batch": "rulings2"
+  },
+  {
+   "key": "q44",
+   "skill": "vocab.setup_terms",
+   "rung": 7,
+   "format": "mcq",
+   "q": "Why does a huge-volume day's close become a level worth watching?",
+   "choices": [
+    "Big volume usually means institutions",
+    "Heavy volume usually marks a top",
+    "Volume shows the next day's direction",
+    "Big volume means it was all buying"
+   ],
+   "answer": "Big volume usually means institutions",
+   "why": "Big volume usually means institutions. IBD says large increases in trading volume are usually the work of institutions, buying or selling. Investopedia says the big traders create big volume. That is why our High Volume Edge treats the high-volume close, the HVC, as a level. The first return to it is the cleanest decision point. Volume does not say which way, and it does not call a top.",
+   "lesson_line": "Heavy volume leaves a footprint. The close of that day is a level.",
+   "facts": [
+    "t11",
+    "t12",
+    "t21",
+    "h17",
+    "h18"
+   ],
+   "wrong": {
+    "Heavy volume usually marks a top": "Not usually. Investopedia says breakouts on high volume are more likely to keep going.",
+    "Volume shows the next day's direction": "Volume shows who was active, not what tomorrow does.",
+    "Big volume means it was all buying": "Volume counts both sides. IBD says big jumps in volume are usually institutions buying or selling."
+   },
+   "term": "High Volume Edge",
+   "simple": "Big volume usually means institutions were trading, so the close of that day is a price worth watching.",
+   "deeper": {
+    "counter": "Volume is not direction. A huge-volume day can be heavy selling as easily as heavy buying. That is why our plan reads how the edge bar closed. On a down close, its stop flips to the bar's high, the short side's line."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before"
+    ]
+   },
+   "batch": "wave8"
+  },
+  {
+   "key": "q45",
+   "skill": "vocab.setup_terms",
+   "rung": 2,
+   "format": "mcq",
+   "term": "1R",
+   "house": true,
+   "q": "Our trims sit at 3R and 5R. What is 1R?",
+   "choices": [
+    "Your risk per share, entry to stop",
+    "1% of your account",
+    "The first profit target",
+    "A 1% move in the stock"
+   ],
+   "answer": "Your risk per share, entry to stop",
+   "why": "Your risk per share, entry to stop. Tharp's example: buy at $50 with the exit at $40, and 1R is $10. Our 3R and 5R trims count in those units.",
+   "lesson_line": "1R is your risk per share. The targets count up in those units.",
+   "facts": [
+    "r01",
+    "r02",
+    "h02"
+   ],
+   "wrong": {
+    "1% of your account": "That's an account-risk number. R is per share: the gap from your entry to your stop.",
+    "The first profit target": "That's 3R in our plan, the first trim. 1R is the unit the trims are measured in.",
+    "A 1% move in the stock": "R isn't a percent move. It's the dollars per share between entry and stop."
+   }
+  },
+  {
+   "key": "q46",
+   "skill": "vocab.setup_terms",
+   "rung": 7,
+   "format": "mcq",
+   "house": true,
+   "q": "A setup fires with its trigger at $45.00 and its stop at $43.50. Where is the 5R price?",
+   "answer": "$52.50",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "entry + 5 * (entry - stop)",
+     "entry": 45,
+     "stop": 43.5
+    }
+   },
+   "prefix": "$",
+   "why": "$52.50. R is the risk per share from trigger to stop: $45.00 - $43.50. 5R is five times that, added to the trigger: $45.00 + 5 x ($45.00 - $43.50) = $52.50. It is a mark to measure a push with, not a fixed sell. Count from the trigger, not the stop.",
+   "lesson_line": "5R: five times your risk per share, on top of the entry.",
+   "facts": [
+    "h01",
+    "r01",
+    "r05"
+   ],
+   "term": "3R",
+   "simple": "$52.50, because 5R is five times your risk from the $45.00 trigger to the $43.50 stop, added to the trigger.",
+   "deeper": {
+    "trap": "One slip is adding five times the risk to the stop instead of the trigger. That lands one R short of the real target. Always start the count from the trigger."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "computed key",
+     "rests on the owner's rulebook (B19)"
+    ]
+   },
+   "batch": "rank",
+   "choices": [
+    "$52.50",
+    "$51.00",
+    "$49.50",
+    "$46.50"
+   ],
+   "wrong": {
+    "$51.00": "Counted 5R up from the $43.50 stop, not from the trigger.",
+    "$49.50": "Added only 3R to the trigger, not 5R.",
+    "$46.50": "Added one R, not 5R."
+   }
+  },
+  {
+   "key": "q47",
+   "skill": "vocab.setup_terms",
+   "rung": 8,
+   "format": "scenario",
+   "term": "Go Signal",
+   "house": true,
+   "story": "A strong stock with a rising 20-day opens under yesterday's close and sweeps yesterday's low. The day's range is $48.00 to $50.00. It closes at $48.60.",
+   "q": "Is this a Go Signal day?",
+   "choices": [
+    "No: it closed 30% up its range",
+    "Yes: weak open, then a sweep",
+    "Yes: the 20-day is rising",
+    "No: the open was too weak"
+   ],
+   "answer": "No: it closed 30% up its range",
+   "why": "No. A Go Signal day closes in the upper 40% of its range. The range is $48.00 to $50.00, and $48.60 is only 30% of the way up. That is the lower part of the range, nowhere near the top 40%. The weak open, the sweep and the rising 20-day all pass, but the close fails.",
+   "lesson_line": "No strong close, no Go Signal. The close has to land in the top 40% of the range.",
+   "facts": [
+    "g07",
+    "g02",
+    "g04",
+    "g05"
+   ],
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(close - low) / (high - low) * 100",
+     "close": 48.6,
+     "low": 48.0,
+     "high": 50.0
+    }
+   },
+   "wrong": {
+    "Yes: weak open, then a sweep": "Those are two of the checks. The close must also sit in the top 40% of the range, and 30% doesn't.",
+    "Yes: the 20-day is rising": "That's the first check, not the last. A close 30% up the range fails the strong-close check.",
+    "No: the open was too weak": "Opening under the prior close is one of the checks, not a flaw. The close is what fails here."
+   },
+   "simple": "No, because it closed only 30% of the way up its range, and a Go Signal day must close in the top 40%.",
+   "deeper": {
+    "trap": "Read 'the upper 40%' from the top of the range down, not from the bottom up. A close 30% of the way up is not inside the top 40%. It sits in the lower part of the range."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 7,
+    "reasons": [
+     "the key rests on one cited fact",
+     "a computed key",
+     "a house plan rule (TRADE_PLANS.md) the owner reviews next"
+    ]
+   },
+   "batch": "wave8"
+  },
+  {
+   "key": "q48",
+   "skill": "vocab.setup_terms",
+   "rung": 9,
+   "format": "scenario",
+   "term": "Go Signal",
+   "house": true,
+   "story": "Four stocks open under yesterday's close, sweep yesterday's low and close near their highs. A's 20-day average is falling, and C's is flat. B and D have a rising 20-day and ran 15% in five sessions: B two weeks ago, D three months ago. D has had no gap or tight base since.",
+   "q": "Which one fits our Go Signal?",
+   "choices": [
+    "Stock B",
+    "Stock A",
+    "Stock C",
+    "Stock D"
+   ],
+   "answer": "Stock B",
+   "why": "Stock B. Our Go Signal needs a rising 20-day average and a notable recent move. One such move is a 13% gain over 5 sessions within the last 20. B's 15% run two weeks ago fits both. A's 20-day is falling and C's is flat. D's 20-day is rising, but its run was three months ago, with no gap or tight base since.",
+   "lesson_line": "Go Signal: strength first, then the weak open and the turn.",
+   "facts": [
+    "g02",
+    "g03",
+    "g04",
+    "g05",
+    "g07"
+   ],
+   "wrong": {
+    "Stock A": "A falling 20-day fails the first check. A turn inside a downtrend isn't a Go Signal.",
+    "Stock C": "A flat 20-day fails the rising-average check.",
+    "Stock D": "D's 20-day is rising, but its 15% run was three months ago. A run like that has to come within the last 20 sessions."
+   },
+   "simple": "Stock B, because only B has both a rising 20-day average and a big run inside the last 20 sessions.",
+   "deeper": {
+    "trap": "All four stocks show the same weak open, sweep and close near the highs. The day alone cannot pick the Go Signal. What separates them is what came before: a rising 20-day average and a recent run."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "a house plan rule (TRADE_PLANS.md) the owner reviews next",
+     "detector thresholds (13%, 20 sessions) that can change"
+    ]
+   },
+   "batch": "wave8"
+  },
+  {
+   "key": "q49",
+   "skill": "vocab.setup_terms",
+   "rung": 8,
+   "format": "scenario",
+   "term": "Red to green",
+   "house": true,
+   "story": "A Go Signal day. The stock opens under yesterday's $25.00 close, sweeps support, and buyers turn it. It closes strong at $24.90, never trading $25.00.",
+   "q": "Where is our entry?",
+   "choices": [
+    "The close, $24.90",
+    "Yesterday's close, $25.00",
+    "Today's weak open",
+    "Skip it: no red to green"
+   ],
+   "answer": "The close, $24.90",
+   "why": "The close, $24.90. Our Go Signal entry is the prior close when it trades that session, red to green. Otherwise the entry is the close. Here the stock never traded $25.00, so the fallback applies, and the stop is the session's low. Red to green is the first choice, not a must, so this is no reason to skip.",
+   "lesson_line": "Go Signal: the prior close if it trades, otherwise the close.",
+   "facts": [
+    "g08"
+   ],
+   "wrong": {
+    "Yesterday's close, $25.00": "It never traded there today, so there's no fill at $25.00.",
+    "Today's weak open": "The weak open comes before the turn. We don't buy the weakness.",
+    "Skip it: no red to green": "Red to green is the first entry, not a must. The plan falls back to the close."
+   },
+   "simple": "The close at $24.90, because the plan buys yesterday's close only if it trades that day, and here it never did.",
+   "deeper": {
+    "trap": "An order at $25.00 would never have filled, so yesterday's close is not an entry here. Skipping is not the plan either. The rule names the close as the fallback when red to green never comes."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "one cited fact only (g08)"
+    ]
+   },
+   "batch": "wave8"
+  },
+  {
+   "key": "q50",
+   "skill": "vocab.setup_terms",
+   "rung": 9,
+   "format": "scenario",
+   "term": "Bear gap",
+   "house": true,
+   "story": "VRNS opened 37% down on a gap and closed at the low. A short's obvious stop, the gap day's high, sat 25% over the close.",
+   "q": "Why does our lesson study this fall instead of shorting it?",
+   "choices": [
+    "The honest stop is far too wide",
+    "Gap downs fill, so it bounces",
+    "It closed low, so it's done",
+    "Volume was too light to trust"
+   ],
+   "answer": "The honest stop is far too wide",
+   "why": "The honest stop is far too wide. The Bear gap's obvious stop, the gap day's high, sat 25% over the close, so no trade was invented. Our rule: the size comes from the stop, and if the honest stop does not fit the risk, skip the trade. The lesson shows the line a close must stay under and measures the fall. We do short; this stop just did not fit.",
+   "lesson_line": "When the honest stop doesn't fit the risk, there's no trade. Study it instead.",
+   "facts": [
+    "h23",
+    "h22",
+    "h27",
+    "h25"
+   ],
+   "wrong": {
+    "Gap downs fill, so it bounces": "Whether the gap fills isn't the reason. The lesson skips the trade because the stop is 25% away.",
+    "It closed low, so it's done": "That isn't the reason. The lesson still measures the fall. The problem is the 25% stop.",
+    "Volume was too light to trust": "The story says nothing about volume. The lesson skips the trade because its stop sat 25% away."
+   },
+   "simple": "The honest stop was 25% away, far too wide for a trade, so the lesson studies the fall instead.",
+   "deeper": {
+    "trap": "A big fall looks like an easy short. But the size comes from the stop, so a stop 25% away shrinks the position the rule allows. When the honest stop does not fit the risk, there is no trade, however obvious the move looked."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (A3)",
+     "fixed before"
+    ]
+   },
+   "batch": "wave8"
+  },
+  {
+   "key": "q51",
+   "skill": "vocab.setup_terms",
+   "rung": 8,
+   "format": "mcq",
+   "q": "In Bulkowski's tests, how often did the bullish kicking candle reverse the trend?",
+   "choices": [
+    "Barely more than a coin flip",
+    "A reversal almost every time",
+    "Almost never a reversal",
+    "In about 100 of 103 tests"
+   ],
+   "answer": "Barely more than a coin flip",
+   "why": "Barely more than a coin flip. Bulkowski found the bullish kicking candle reversed the trend 53% of the time, which he calls almost random. It is also rare, ranking 100th of 103 candle types by how often it shows up. Investopedia calls kickers rare but highly reliable; Bulkowski's numbers say otherwise. Rare is not the same as reliable.",
+   "lesson_line": "A candle's name isn't an edge. The plan around it is.",
+   "facts": [
+    "t06",
+    "t07",
+    "t03"
+   ],
+   "wrong": {
+    "A reversal almost every time": "That's the kicker's reputation, and Investopedia calls it highly reliable. Bulkowski's tests found 53%.",
+    "Almost never a reversal": "Not that either. 53% is about even.",
+    "In about 100 of 103 tests": "That mixes up a rank with a rate. It ranks 100th of 103 candle types by how often it shows up. It reversed 53% of the time."
+   },
+   "term": "Kicker",
+   "simple": "It reversed the trend only 53% of the time, barely better than a coin flip, so the name alone is no edge.",
+   "deeper": {
+    "counter": "Two good sources disagree. Investopedia calls kickers rare but highly reliable. Bulkowski tested the bullish kicking candle, found 53%, called it almost random, and says not to guess the breakout direction from it. That is why our Kicker comes with a full plan: entry, stop, trims and a trail."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "a tested number the author can revise (53%)",
+     "fixed before"
+    ]
+   },
+   "batch": "wave8"
+  },
+  {
+   "key": "q52",
+   "skill": "vocab.setup_terms",
+   "rung": 9,
+   "format": "scenario",
+   "term": "Gap Support",
+   "house": true,
+   "story": "Your Gap Support trade hasn't gone anywhere. For a week the stock drifts sideways right at the gap.",
+   "q": "What does our plan do with the stop?",
+   "choices": [
+    "Tighten it just under the gap top",
+    "Widen it to give the trade room",
+    "Leave it where it is and wait for 3R",
+    "Raise it to breakeven, your entry"
+   ],
+   "answer": "Tighten it just under the gap top",
+   "why": "Tighten it to just under the gap top. Our Gap Support plan says: if the trade drifts sideways at the gap, tighten the stop to just under the gap top. Widening adds risk to a trade that isn't working. Waiting for 3R with the wide stop keeps more risk on than the plan wants.",
+   "lesson_line": "A trade going nowhere at the gap gets a tighter stop, not more room.",
+   "facts": [
+    "h21",
+    "h19",
+    "h24"
+   ],
+   "wrong": {
+    "Widen it to give the trade room": "Widening adds risk to a trade that isn't working.",
+    "Leave it where it is and wait for 3R": "The plan says to tighten when it drifts at the gap. Waiting with the wide stop keeps more risk on.",
+    "Raise it to breakeven, your entry": "Breakeven comes once the trade is 2R to 5R ahead. This one hasn't gone anywhere, so the stop goes just under the gap top."
+   },
+   "simple": "Tighten the stop to just under the gap top, because a trade that drifts sideways at the gap gets less room, not more.",
+   "deeper": {
+    "counter": "Tightening here is not a trail. A trail follows a stock that is rising. This one is going nowhere, and the plan cuts the room it gets while it waits at the gap."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 6,
+    "reasons": [
+     "the key rests on one cited fact",
+     "a house plan rule (TRADE_PLANS.md) the owner reviews next",
+     "fixed or rewritten before"
+    ]
+   },
+   "batch": "wave8"
+  },
+  {
+   "key": "q53",
+   "skill": "vocab.setup_terms",
+   "rung": 7,
+   "format": "scenario",
+   "term": "Gap Support",
+   "house": true,
+   "story": "Six weeks ago a stock gapped up on big volume and never filled the gap. Now it has pulled back to the top of the gap and is holding.",
+   "q": "Which of our setups is this?",
+   "choices": [
+    "Gap Support",
+    "Kicker",
+    "Oops Reversal",
+    "Bear gap"
+   ],
+   "answer": "Gap Support",
+   "why": "Gap Support. Six weeks ago it gapped up on big volume, and the gap is still open. Now the pullback is holding the gap top. We buy as price trades up through the trigger while the gap holds. The stop is the gap top or the day's low, whichever is lower.",
+   "lesson_line": "An old gap that holds on the pullback: Gap Support.",
+   "facts": [
+    "h19",
+    "h05",
+    "h09",
+    "h22",
+    "t13",
+    "r07"
+   ],
+   "wrong": {
+    "Kicker": "A Kicker is the gap day itself, off a red day. This is weeks later.",
+    "Oops Reversal": "The Oops reclaims the prior close inside one day. This is about an old gap.",
+    "Bear gap": "A Bear gap is a gap down. This one gapped up."
+   },
+   "simple": "Gap Support, because the stock is pulling back to an old gap up and the gap is holding.",
+   "deeper": {
+    "example": "Bulkowski calls a gap weak support, but a useful place for a stop: a few cents below an up gap. Our plan uses the gap the same way. The stop sits at the gap top or the day's low, whichever is lower."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "the key rests on one cited fact",
+     "a house plan rule (TRADE_PLANS.md) the owner reviews next"
+    ]
+   },
+   "batch": "sweep-2026-11-14"
+  },
+  {
+   "key": "q54",
+   "skill": "vocab.setup_terms",
+   "rung": 7,
+   "format": "scenario",
+   "term": "High Volume Edge",
+   "house": true,
+   "story": "A stock closes up at $72 on its heaviest volume in a year. That day's low was $68.",
+   "q": "Which levels set our High Volume Edge entry and stop?",
+   "choices": [
+    "Entry $72 close, stop $68 low",
+    "Next open, stop 3.5% under",
+    "Entry $72 close, 3.5% under",
+    "Next open, stop $68 low"
+   ],
+   "answer": "Entry $72 close, stop $68 low",
+   "why": "Entry $72, stop $68. Our High Volume Edge buys the high-volume close, $72. The bar closed up, so the edge bar's low, $68, sets the stop. Our rulebook puts the order a few cents under that low, not exactly on it.",
+   "lesson_line": "High Volume Edge: buy the high-volume close, stop at the edge bar's low.",
+   "facts": [
+    "h17",
+    "h07",
+    "h62"
+   ],
+   "wrong": {
+    "Next open, stop 3.5% under": "Our entry is the high-volume close itself, and the 3.5% stop is part of the Kicker's rule.",
+    "Entry $72 close, 3.5% under": "The entry is right, but the 3.5% stop is part of the Kicker's rule. Here the edge bar's low sets the stop.",
+    "Next open, stop $68 low": "The stop is right, but our entry is the high-volume close itself, $72, not the next day's open."
+   },
+   "simple": "Buy the $72 high-volume close, and let the $68 low set the stop, because the bar closed up.",
+   "deeper": {
+    "trap": "The 3.5% stop belongs to the Kicker's rule. Borrowing it here moves the stop off the edge bar's low, the line our High Volume Edge plan uses."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 7,
+    "reasons": [
+     "the key rests on one cited fact",
+     "a house plan rule (TRADE_PLANS.md) the owner reviews next",
+     "rests on the owner's account rulebook (sizing_rule.md section 9)"
+    ]
+   },
+   "batch": "wave8"
+  },
+  {
+   "key": "q55",
+   "skill": "vocab.setup_terms",
+   "rung": 8,
+   "format": "tf",
+   "house": true,
+   "q": "Investopedia's opening range is the first 15 minutes. Our Kicker ORB uses that same window.",
+   "answer": "False",
+   "why": "False. Investopedia defines the opening range as the first 15 minutes of trading. Our Kicker ORB is the 30-minute opening range on day one, as we set it. Investopedia also notes day traders frequently use the first half hour.",
+   "lesson_line": "Our Kicker ORB: the first 30 minutes, on day one.",
+   "facts": [
+    "h06",
+    "o02",
+    "t08",
+    "t09"
+   ],
+   "term": "ORB",
+   "simple": "False, Investopedia uses the first 15 minutes, but our Kicker ORB uses the first 30 minutes of day one.",
+   "deeper": {
+    "trap": "The opening range has no single fixed length. Investopedia's definition uses 15 minutes, yet it notes day traders often use the first half hour. When a plan says ORB, check which window it means. Ours is 30 minutes."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "a web definition that can change",
+     "rests on the owner's own Kicker ruling"
+    ]
+   },
+   "batch": "wave8"
+  },
+  {
+   "key": "q56",
+   "skill": "vocab.setup_terms",
+   "rung": 8,
+   "format": "tf",
+   "house": true,
+   "q": "On our plan, a setup that reaches 3R is done: you sell it all there.",
+   "answer": "False",
+   "why": "False. 3R is the first trim, not the exit. Our hard rule sells a third at 3R. The stop on the rest moves up to breakeven, which our rulebook puts at 2R to 5R. Another third goes at 5R, and the last third trails. In practice the owner often waits for 5R before the first trim.",
+   "lesson_line": "3R is a trim, not the finish line.",
+   "facts": [
+    "h03",
+    "h02",
+    "h24",
+    "o01"
+   ],
+   "term": "3R",
+   "simple": "False, at 3R we sell only a third and keep the rest, with more coming off at 5R.",
+   "deeper": {
+    "trap": "The thirds make the trims sound mechanical, but a third at 3R is the hard rule, the floor. In practice the owner mostly waits for 5R. What never changes: you do not sell the whole position at the first target."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's account rulebook (sizing_rule.md section 9)",
+     "fixed or rewritten before"
+    ]
+   },
+   "batch": "wave8"
+  },
+  {
+   "key": "q57",
+   "skill": "vocab.setup_terms",
+   "rung": 5,
+   "format": "mcq",
+   "term": "sweep",
+   "house": true,
+   "q": "On a Go Signal day, the low sweeps support. Which of these levels counts?",
+   "choices": [
+    "The 5-bar low",
+    "The 200-day line",
+    "Yesterday's close",
+    "The prior day's high"
+   ],
+   "answer": "The 5-bar low",
+   "why": "The 5-bar low. Our Go Signal's sweep list has three kinds of level. They are the prior low, the 5-bar low, or a 9, 20 or 50-day average the prior close was above. The 200-day line and the prior day's high are not on it. Yesterday's close is the line the stock reclaims for the entry, not a support it sweeps.",
+   "lesson_line": "Go Signal sweeps: the prior low, the 5-bar low, or the 9, 20 or 50-day average.",
+   "facts": [
+    "g05",
+    "g08",
+    "g01"
+   ],
+   "wrong": {
+    "Yesterday's close": "That's the line it reclaims for the entry, red to green. The sweep happens lower.",
+    "The 200-day line": "Our list stops at the 9, 20 and 50-day averages. The 200-day isn't on it.",
+    "The prior day's high": "Not on the sweep list. A sweep dips under a support, and the prior day's high sits overhead."
+   },
+   "simple": "The 5-bar low, because it is on our sweep list with the prior low and the 9, 20 and 50-day averages.",
+   "tier": "extended",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "the key rests on one cited fact",
+     "a house plan rule (TRADE_PLANS.md) the owner reviews next"
+    ]
+   },
+   "batch": "sweep-2026-11-14"
+  },
+  {
+   "key": "q58",
+   "skill": "vocab.setup_terms",
+   "rung": 9,
+   "format": "scenario",
+   "term": "Slingshot",
+   "house": true,
+   "story": "Your note reads: 'Slingshot. Entry as price trades up through the 4-day average of the highs. Stop under the trigger day's low. First sell: day 3 at the earliest. Trail under the 4-day line.'",
+   "q": "One line in the note doesn't match our plan. Which?",
+   "choices": [
+    "Trail under the 4-day line",
+    "Entry as it trades up through it",
+    "Stop under the trigger day's low",
+    "First sell: day 3 at the earliest"
+   ],
+   "answer": "Trail under the 4-day line",
+   "why": "Trail under the 4-day line. Our Slingshot trails under the 9 EMA, or under each higher low. The 4-day average of the highs is the entry line, not the trail. The entry, the stop and the first sell in the note all match our plan.",
+   "lesson_line": "Slingshot: enter as price trades over the 4-day highs line, trail the 9 EMA or the higher lows.",
+   "facts": [
+    "h12",
+    "h13",
+    "r03",
+    "r04",
+    "r07",
+    "r08",
+    "r10"
+   ],
+   "wrong": {
+    "Stop under the trigger day's low": "That's our stop. The day before's low is the wider choice.",
+    "Entry as it trades up through it": "That's our entry: price trading up through the line, not a close.",
+    "First sell: day 3 at the earliest": "That fits how we sell. We very rarely sell on day 1, and the first sell is a judgment."
+   },
+   "simple": "The trail line is wrong, because our Slingshot trails under the 9 EMA or each higher low, not the 4-day line.",
+   "deeper": {
+    "trap": "The 4-day line is already in the note as the entry, so reusing it for the trail feels natural. The plan uses a different line for each job. The 4-day average of the highs gets you in. The 9 EMA or each higher low trails."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "the key rests on one cited fact",
+     "a house plan rule (TRADE_PLANS.md) the owner reviews next"
+    ]
+   },
+   "batch": "sweep-2026-11-14"
+  },
+  {
+   "key": "q59",
+   "skill": "vocab.setup_terms",
+   "rung": 8,
+   "format": "scenario",
+   "term": "Bear gap",
+   "house": true,
+   "story": "A stock gaps down hard off its highs. Eight days later it closes above the gap day's high.",
+   "q": "In our Bear gap lesson, what does that close mean?",
+   "choices": [
+    "The Bear gap's line is broken",
+    "The Bear gap is still on track",
+    "A short entry at that high",
+    "Nothing yet: it needs two closes"
+   ],
+   "answer": "The Bear gap's line is broken",
+   "why": "The Bear gap's line is broken. Our lesson's line is the gap day's high, and a close must stay under it. One close over it is enough; the lesson does not wait for a second close. The Bear gap has no trade defined, so this close is not a buy signal or a new setup. It marks where the line failed.",
+   "lesson_line": "Bear gap: a close over the gap day's high breaks it.",
+   "facts": [
+    "h22"
+   ],
+   "wrong": {
+    "The Bear gap is still on track": "Not after a close over the gap day's high. That's the one line it had to stay under.",
+    "A short entry at that high": "Our Bear gap has no trade defined in the app. The gap day's high is a line a close must stay under, not an entry.",
+    "Nothing yet: it needs two closes": "Our line needs no second close. A close must stay under the gap day's high, so one close over it breaks it."
+   },
+   "simple": "A close over the gap day's high breaks the Bear gap's line, because a close had to stay under it.",
+   "deeper": {
+    "trap": "Our Bear gap line needs no confirming close. A close must stay under the gap day's high, so the first close over it is the break."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "one cited fact only (h22)"
+    ]
+   },
+   "batch": "wave8"
+  },
+  {
+   "key": "q60",
+   "skill": "vocab.setup_terms",
+   "rung": 8,
+   "format": "scenario",
+   "term": "Oops Reversal",
+   "house": true,
+   "story": "A stock closed at $50.00 yesterday. Today it opens at $49.20, dips to $48.80, and climbs. Its high for the day is $49.90, and it closes at $49.60.",
+   "q": "Did our Oops Reversal trigger?",
+   "choices": [
+    "No: it never reclaimed $50.00",
+    "Yes: it bounced off the low",
+    "Yes: it closed in the upper half",
+    "No: the dip went too deep"
+   ],
+   "answer": "No: it never reclaimed $50.00",
+   "why": "No. Our Oops entry is the prior close, $50.00, reclaimed during the day. The stock bounced from $48.80 to a high of $49.90 and closed at $49.60. It never got back to $50.00. A bounce is not a reclaim. Without the reclaim there is no entry, however strong the close.",
+   "lesson_line": "A bounce isn't a reclaim. No prior close, no Oops.",
+   "facts": [
+    "h09",
+    "g06"
+   ],
+   "wrong": {
+    "Yes: it bounced off the low": "A bounce off the low isn't the trigger. The reclaim of the prior close is.",
+    "Yes: it closed in the upper half": "A strong close is one of the Go Signal's checks. The Oops needs the prior close back.",
+    "No: the dip went too deep": "The plan names no limit on the dip. The day's low is the stop. What's missing is the reclaim of $50.00."
+   },
+   "simple": "No, because its high was $49.90, short of yesterday's $50.00 close, and the Oops buys only when that close is won back.",
+   "deeper": {
+    "counter": "Picture the same day, but it trades $50.00 by midday. That day reclaims the prior close, so the Oops triggers at $50.00 with the stop at the day's low. The only difference is the reclaim."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "the key rests on one cited fact",
+     "a house plan rule (TRADE_PLANS.md) the owner reviews next"
+    ]
+   },
+   "batch": "wave8"
+  },
+  {
+   "key": "q61",
+   "skill": "vocab.setup_terms",
+   "rung": 3,
+   "format": "tf",
+   "house": true,
+   "q": "On a Slingshot, our stop goes just under the trigger day's low.",
+   "answer": "True",
+   "why": "True. The Slingshot's stop is the trigger day's low. Our rulebook puts the stop order a few cents under the low, not exactly on it. So the stop sits just under the trigger day's low.",
+   "lesson_line": "Slingshot stop: a few cents under the trigger day's low.",
+   "facts": [
+    "h12",
+    "h26"
+   ],
+   "term": "Slingshot",
+   "simple": "True, the Slingshot stop goes a few cents under the trigger day's low, not exactly on it.",
+   "tier": "core",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "key rests on one house fact (h12)",
+     "touches the owner's rulebook (F62: a few cents under the low)"
+    ]
+   },
+   "batch": "wave8"
+  },
+  {
+   "key": "q62",
+   "skill": "vocab.setup_terms",
+   "rung": 4,
+   "format": "tf",
+   "house": true,
+   "term": "breakeven",
+   "q": "Our rulebook moves the stop on the whole position to breakeven once it is 2R to 5R ahead, ideally.",
+   "answer": "True",
+   "why": "True. The rulebook says to move the stop to breakeven at 2R to 5R, ideally. That is a move of the stop, not a sale. The first sell is a judgment and often comes later.",
+   "lesson_line": "Stop to breakeven at 2R to 5R ahead, ideally. That moves the stop, not your shares.",
+   "simple": "True, because the rulebook moves the stop to breakeven once the trade is well ahead, and it is not a sale.",
+   "facts": [
+    "h24",
+    "r05"
+   ],
+   "tier": "core",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "rests on the owner's rulebook (B19)",
+     "a window the owner calls ideal, 2R to 5R"
+    ]
+   },
+   "batch": "rulings2"
+  },
+  {
+   "key": "q97",
+   "skill": "vocab.setup_terms",
+   "rung": 1,
+   "format": "mcq",
+   "q": "Which order do our setup plans run in?",
+   "choices": [
+    "Entry, Stop, Trim, Trail",
+    "Entry, Trim, Stop, Trail",
+    "Stop, Entry, Trail, Trim",
+    "Entry, Stop, Trail, Trim"
+   ],
+   "answer": "Entry, Stop, Trim, Trail",
+   "why": "Entry, Stop, Trim, Trail. Our plans run in that order: get in, set the stop, take some off, then trail the rest. Our full line ends with Advance. The first sell is a judgment, rarely on day 1.",
+   "lesson_line": "Entry, Stop, Trim, Trail. Every plan runs in that order.",
+   "facts": [
+    "o01",
+    "r03",
+    "r05"
+   ],
+   "wrong": {
+    "Entry, Trim, Stop, Trail": "The stop goes in before any profit is taken. It is the plan for when the trade turns.",
+    "Stop, Entry, Trail, Trim": "The stop protects a position, so the entry comes first.",
+    "Entry, Stop, Trail, Trim": "You trim first, then trail what is left. The trail rides the part you kept."
+   },
+   "simple": "Entry, Stop, Trim, Trail, because you get in, protect it, take some off, then trail the rest.",
+   "tier": "core",
+   "house": true,
+   "batch": "fills"
+  },
+  {
+   "key": "q98",
+   "skill": "vocab.setup_terms",
+   "rung": 2,
+   "format": "mcq",
+   "q": "A trade is working. Which line is ours for holding a winner?",
+   "choices": [
+    "Sell partials, trail the rising averages",
+    "Sell the whole position at the first pop",
+    "Hold the full size until the stop hits",
+    "Move the stop down to give it room"
+   ],
+   "answer": "Sell partials, trail the rising averages",
+   "why": "Sell partials into strength and trail the rest. You sell some of the position as it rises, not all of it. The rest stays on, with the stop trailing the rising moving averages. The first sell is a judgment, rarely on day 1.",
+   "lesson_line": "Sell partials into strength. Trail the rest.",
+   "facts": [
+    "p01",
+    "r03",
+    "r05"
+   ],
+   "wrong": {
+    "Sell the whole position at the first pop": "Our line is partials, not everything. Selling it all at the first pop leaves the rest of the move behind.",
+    "Hold the full size until the stop hits": "Our line sells partials into strength. Holding the full size gives gains back if the stock turns.",
+    "Move the stop down to give it room": "Moving the stop down adds risk. Our line trails the stop up behind the rising averages."
+   },
+   "simple": "Sell partials into strength and trail the rest, because that banks some gain and keeps the winner running.",
+   "tier": "core",
+   "house": true,
+   "batch": "fills"
+  },
+  {
+   "key": "q99",
+   "skill": "vocab.setup_terms",
+   "rung": 3,
+   "format": "mcq",
+   "q": "Where does our Gap Support stop go?",
+   "choices": [
+    "The lower of the gap top and day's low",
+    "The higher of the gap top and day's low",
+    "The closer of the gap top and day's low",
+    "A few cents under the prior day's close"
+   ],
+   "answer": "The lower of the gap top and day's low",
+   "why": "The lower of the gap top and the day's low. Our Gap Support buys the close as the gap holds. If the trade drifts sideways at the gap, the stop tightens to just under the gap top. Our rulebook puts the stop order a few cents under the day's low, not exactly on it.",
+   "lesson_line": "Gap Support stop: the lower of the gap top and the day's low.",
+   "facts": [
+    "h19",
+    "h21",
+    "h07",
+    "h26"
+   ],
+   "wrong": {
+    "The higher of the gap top and day's low": "Our card says whichever is lower, not higher.",
+    "The closer of the gap top and day's low": "Whichever is closer is the Kicker's rule. Gap Support takes whichever is lower.",
+    "A few cents under the prior day's close": "Our Gap Support stop is tied to the gap top and the day's low, not the prior close."
+   },
+   "simple": "The lower of the gap top and the day's low, because our Gap Support stop goes on whichever sits further down.",
+   "tier": "core",
+   "house": true,
+   "batch": "fills"
+  }
+ ],
+ "conflicts": [
+  "Older wording elsewhere in the repo defines two of these setups differently: the vocab.method glossary bank (recall.glossary.json) and the skill_map lesson_key slugs call the Go Signal 'a catalyst gap digests into the 9 EMA, then engulfs' and the Launchpad 'a tight base on top of stacked moving averages'. TRADE_PLANS.md (2026-11-08, read from the detectors and the owner's rulings) defines the Go Signal as a weak open that sweeps support and turns, and the Launchpad entry as the close out of the tight cluster of averages. docs/study/research/definitions.json also defines the Go Signal differently, as an intraday confirmation that a planned entry is live. This unit follows TRADE_PLANS.md only and never uses lesson_key slugs or the older glossary as a source. The owner may want the old glossary items retired.",
+  "Kicker: the textbook shape is narrower than our detector. Investopedia's bullish kicker opens at or beyond the first candle's open; Bulkowski's bullish kicking is two marubozu candles with an upward gap. Our uct_kicker detector fires on a weak prior close, an open above the prior close and a trade through the prior high. The unit teaches the shape 'in candle terms' (q03, from two Tier 2 publishers) and our plan from TRADE_PLANS.md; it never says our Kicker needs marubozu candles. q28's story fits both (it opens above the red day's open and trades through its high).",
+  "Kicker reliability: Investopedia calls kickers 'rare but highly reliable'; Bulkowski measured the bullish kicking at 53% ('almost random'). Asked only as what each source says (q51, w3), never as a prediction.",
+  "Opening range window: Investopedia defines the opening range on the first 15 minutes and notes day traders often use the first half hour. Our Kicker ORB is the 30-minute range (the owner's ruling). q55 asks it as ours.",
+  "Gap definition: Investopedia (breakaway gap page) measures a gap from the prior close to the open; Bulkowski requires today's low above yesterday's high. No question here quizzes a general gap definition; Gap Support's 'gap top' and the Bear gap line are taken from TRADE_PLANS.md.",
+  "Oops Reversal: Larry Williams's classic Oops (open below the prior day's low, then a buy back at that low) differs from ours (the prior close, reclaimed during the day; the detector also wants an undercut of the prior low). No reliable page for Williams's version could be read (definitions.json records a 403 on the magazine article; this session's web search budget ran out), so only our version is taught.",
+  "High Volume Edge on a down close: TRADE_PLANS.md gives the stop as 'its high on a down close' (the detector reads a down-close edge bar as bearish). q24 asks only what the stop is, not how to trade the short side.",
+  "The Oops Reversal and the Go Signal share the same entry mechanic (the prior close, reclaimed in the session). TRADE_PLANS.md lists the Go Signal's checks but not the Oops's, so no question says what one needs that the other does not, and no question offers both as choices where both would fit.",
+  "HVC: skill_map.json lists HVC only as an alias of the High Volume Edge. q07 reads it as the high-volume close from TRADE_PLANS.md's entry wording; the detector's docstring (uct_hve.py, not a citable source) says the same: 'the high-volume close (HVC)'.",
+  "Gap top: TRADE_PLANS.md uses 'the gap top' without defining it (uct_gap_support.py takes it as the prior day's high, the top of the range before the gap). No question asks what the gap top is; questions give it as a price.",
+  "R and the trims: until 2026-11-09 TRADE_PLANS.md put the detectors' targets 'at 2R and 3R from that stop' and named no fraction; the owner's account rulebook (sizing_rule.md section 9, B19, E51) replaces it with a third at 3R (stop to breakeven), a third at 5R, the last third trailed, and TRADE_PLANS.md was rewritten to match. R is still taken from the Van Tharp Institute (initial risk per share, entry to stop); every trim calc here is entry + 3 x (entry - stop).",
+  "Checker, 2026-11-09: q24 now names the down-close stop as a short's stop. TRADE_PLANS.md puts the stop at the edge bar's high on a down close with the entry at the close, which only works as a short; Investor.gov (t22, t23) says a buy stop sits above the price and guards a short. Without that line a member could read it as a stop above a long entry.",
+  "Gap, two senses (track audit 2026-11-09): V.02 q50 defines a chart gap as no overlap between two days' ranges (ChartSchool, Bulkowski). Our Kicker detector (uct_kicker.py, rule K2) calls an open over the prior close a gap up, even inside the prior range, and q28's open ($20.55) sits over the $20.00 close but under the $20.60 high. q28's why now says 'a gap up over its close' so the sense is named; V.02 q50's wrong note now says 'On a chart'."
+ ],
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Checker 2026-11-09: h02 (B19) and h03 (E51) verbatim in section 9; l01 and h09 match TRADE_PLANS.md as rewritten on 2026-11-09. Step 2's thirds and step 3's trail (h08, h16) each rest on a quote. Writer: rewritten 2026-11-09 to the account rulebook (sizing_rule.md section 9, B19, E51); awaiting cold check. Step 2's 'Targets sit at 2R and 3R, where you trim some off' now the thirds at 3R and 5R. Old house fact was TRADE_PLANS.md 'Trim is where to take some off: the detectors put the targets at 2R and 3R ... does not invent a fraction' (the detectors' plan); replaced by the rulebook"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "m01-m08 confirmed in skill_map.json (consecutive lines joined). Every family is right, and each line says a setup is in a family, never that the family holds only those.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Checker 2026-11-09: Step 3's thirds are B19 and E51 (h02, h03 verbatim). Kicker facts t01, t03, t06 unchanged from the last check. Writer: rewritten 2026-11-09 to the account rulebook (sizing_rule.md section 9, B19, E51); awaiting cold check. Step 3's 'the trims at 2R and 3R' now 'a third off at 3R and at 5R'"
+  },
+  "q01": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Trigger-means-entry kept; trim text now judgment."
+  },
+  "q02": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in fills: see the resolver's notes"
+  },
+  "q03": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "t01, t05 and t02 support key and every wrong note; 'one candle alone is never a kicker' now rests on t02. Longest choice is a distractor."
+  },
+  "q04": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Oops key kept; distractors reworded so none teaches a close entry (D-003)."
+  },
+  "q05": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Edit agrees with D-003/D-021/D-008. Stale house facts h14, h11, h19 quote 'close' entries that now contradict the text; dropped from facts (r07 carries the entry, h15 the quarter-ATR)."
+  },
+  "q06": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Trade-through entry, never at the close (D-003). h19 kept only because it grounds the stop rule."
+  },
+  "q07": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Re-asked as what the HVC is; no entry rule invented; volume is the setup here so D-006 n/a."
+  },
+  "q08": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Go Signal answer unchanged; wrong notes no longer say close entry."
+  },
+  "q09": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Entry now trade-through (D-003). Stale facts h11 and h14 quote 'close' entries; dropped, r07 carries the entry."
+  },
+  "q10": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "True under both h09 (plan: the day's low) and h26 (F62: a few cents under it, section 9 wins). The why separates plan level from order placement."
+  },
+  "q11": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in fills: see the resolver's notes"
+  },
+  "q12": {
+   "status": "pass",
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave8; awaiting cold re-read"
+  },
+  "q13": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Trim meaning kept; thirds removed."
+  },
+  "q14": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "m01 confirmed in skill_map.json. m10 (Wedge Pop, Momentum & Trend) confirmed at skill_map.json lines 3318-3319. 'Investopedia calls the kicker a reversal pattern' matches t02. Choices 16-20 characters."
+  },
+  "q15": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Family answer unchanged; text now trade-through. h11 kept to ground the Slingshot line."
+  },
+  "q16": {
+   "status": "pass",
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave8; awaiting cold re-read"
+  },
+  "q17": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Content passes; reordered only to vary the answer slot."
+  },
+  "q18": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in fills: see the resolver's notes"
+  },
+  "q19": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in fills: see the resolver's notes"
+  },
+  "q20": {
+   "status": "pass",
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave8; awaiting cold re-read"
+  },
+  "q21": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "20 EMA with D-021 fact cited; D-013 untouched (trim wrong note is generic)."
+  },
+  "q22": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Key from h06/o02; t09 supports the half-hour line; each wrong note is cited (h11, h09, h19). The overlap with q55 is fine: q55 tests the contrast with Investopedia's 15 minutes. The q17 leak into q22 is fixed in q17."
+  },
+  "q23": {
+   "status": "pass",
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave8; awaiting cold re-read"
+  },
+  "q24": {
+   "status": "pass",
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave8; awaiting cold re-read"
+  },
+  "q25": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "False from h22 ('no trade is defined in the app'), VRNS 25% from h23. Rulebook D47 (shorts are long setups reversed) does not say the app defines a Bear gap trade, so no conflict."
+  },
+  "q26": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Already teaches D-013: False to a fixed third at 3R; quotes r03-r06 word for word."
+  },
+  "q27": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "m07, m08 confirmed; every other pair checked against m01-m06. Choices 25-30 characters. q15's Intraday note and w2 also state the pair, but only as feedback and teaching."
+  },
+  "q28": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "The story fits both the textbook shape (opens over the red day's open, t01) and our detector (opens over the prior close, trades through the prior high, h05). The Oops needs a reclaim from under the close, which did not happen. Gap Support needs an old gap. The Slingshot needs a close. Only one answer holds."
+  },
+  "q29": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Oops from h09: $30.00 close lost and won back by midday. Every number in the why comes from the story. A Go Signal could also fit, but it is not offered (as the conflicts note says). Name choices run 6-13 characters, which is fixed by the setup names."
+  },
+  "q30": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Answer was the highest choice. Replaced the subtract slip with a four-R overshoot."
+  },
+  "q31": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Writer missed lesson_line, which still says 'a close out of it' (D-003). Also dropped stale close-entry facts h14, h11, h19, h17. h11 kept to ground the 4-day number in the Slingshot wrong note."
+  },
+  "q32": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "h08 trail under each higher low; $33 replaced $31. t19 and t18 support the 'break ends the run' line, and rulebook A4 supports 'never back down'. Choices 22-24 characters.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+  },
+  "q33": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "The content is right (g06, the daily-chart checks in TRADE_PLANS). But the key (32 chars) is the longest choice, a tell the README forbids. The fix lengthens one distractor so the key is no longer the longest, and renames its feedback key to match."
+  },
+  "q34": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "21-day to 20 EMA with D-021 fact; key unchanged."
+  },
+  "q35": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Writer missed the story: 'closed at $52.00. You buy that close as Gap Support' is a close entry (D-003). Re-told as a trade-through entry; the $52.00 is not used in the why. Dropped stale 10-day facts h08, h13, added r07."
+  },
+  "q36": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "10-day renamed to 9 EMA; key (Kicker low 2% away vs 3.5%) unchanged and arithmetic 0.80/40 = 2% correct."
+  },
+  "q37": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Stop key kept; story now buys through the trigger (D-003)."
+  },
+  "q38": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Decision-point key kept; 3R distractor reworded."
+  },
+  "q39": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Softened to where we look first; the 3R sell sentence removed."
+  },
+  "q40": {
+   "status": "cut",
+   "notes": "duplicate of V.07#q19. Track audit 2026-11-09: both are true/false items keyed False on the same fact, that a trailing stop never moves back down when the stock dips, on the same SEC sentence ('the trailing stop price remains fixed'), which both units quote from Investor.gov. V.07, the order unit, owns the trailing stop. This unit's q21 still teaches what Trail means in our plans, and its why says a trailing stop only moves in your favor.",
+   "fixed": false,
+   "by": "track-auditor"
+  },
+  "q41": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "The key matches g08 (the prior close when it trades that session, red to green). But the key (23 chars) is the longest choice, a length tell. The fix lengthens the Kicker distractor; its feedback says the same thing."
+  },
+  "q42": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Math checks: 47.50 - 0.25 x 2.00 = 47.00; wrong answers are real slips; D-008 low of day stays primary."
+  },
+  "q43": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "3R arithmetic kept; no 'first trim' framing."
+  },
+  "q44": {
+   "status": "pass",
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave8; awaiting cold re-read"
+  },
+  "q45": {
+   "status": "cut",
+   "notes": "Still cut (duplicate of V.06#q01). Text updated 2026-11-09 so the dead item no longer carries the old 2R / 3R targets. duplicate of V.06#q01. Track audit 2026-11-09: both ask what R (1R) means and key the risk per share from entry to stop, both on Tharp's definition of R as the initial risk per share (this item also used his $50 / $40 example). V.06, the risk unit, owns R. This unit still applies R in q30, q43 and q46.",
+   "fixed": false,
+   "by": "track-auditor"
+  },
+  "q46": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Sorted rank matches target; each wrong choice recomputed as a real mistake on this math; no new tell."
+  },
+  "q47": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Recomputed (48.60 - 48.00) / (50.00 - 48.00) = 30%, under g07's upper 40%. The calc agrees. Two Yes and two No, 25-30 characters. The deeper trap is accurate."
+  },
+  "q48": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "B fits g02 and g03 (15% over 5 sessions, about 10 sessions ago, inside 20). D's run is about 3 months, over 20 sessions, and the story rules out g03's gap and base clauses. A and C fail g02. Story is 4 sentences, each 20 words or fewer."
+  },
+  "q49": {
+   "status": "pass",
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave8; awaiting cold re-read"
+  },
+  "q50": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Key from h23 and h27. No 'app defines no trade' choice, so no second answer. The volume distractor is fair (the story gives no volume). Longest choice is a distractor.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+  },
+  "q51": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "t06 (53%, almost random) and t07 (100th of 103) support the key and the rank/rate distractor. Choices are parallel noun phrases."
+  },
+  "q52": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key fine (tighten a stalled gap stop); drop the old B19 third-at-3R fact h02, which supports nothing here."
+  },
+  "q53": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Trade-through entry; stop rule per house."
+  },
+  "q54": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "h17: entry at the high-volume close, stop at the edge bar's low on an up close (the story says 'closes up'). The why notes F62's few cents. The answer is not the longest. It overlaps q07 on the entry half only, which the rung ladder intends.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+  },
+  "q55": {
+   "status": "pass",
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave8; awaiting cold re-read"
+  },
+  "q56": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in wave8: see the resolver's notes"
+  },
+  "q57": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Answer and distractors fine (prior day's high is not on the g05 sweep list). Dropped stale 10-day facts h08, h13 that no longer apply to the question."
+  },
+  "q58": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Trail 9 EMA per D-021; first sell day 3 at the earliest matches D-013; key unchanged."
+  },
+  "q59": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Key from h22. The 'short entry' note is cited (no trade defined). The 'two closes' distractor is the longest but wrong, and its note rests on h22's single-close line."
+  },
+  "q60": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Its high, $49.90, is under the $50.00 close, so no reclaim (h09). 'Closed in the upper half' is a true but wrong reason: (49.60 - 48.80) / 1.10 = 73%. The key no longer echoes the story. The simple line is exactly 22 words."
+  },
+  "q61": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "h12 (the trigger day's low is the standard stop, the day before's low the wider choice) plus F62/h26 (a few cents under). True is the default plan. q37 covers the wider choice and is not given away."
+  },
+  "q62": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Re-keyed to stop move at 2R-5R as a stop move, not a sale; OK."
+  },
+  "q97": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Correct per o01 (Entry, Stop, Trim, Trail) and it is the owner's own structure. Distractors are real permutations with no tell. Q13 and q21 test single words, not the order."
+  },
+  "q98": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Correct per p01, r03, r05: the owner's own line on holding winners. Distractors are real mistakes. Q56 covers the 3R-exit mistake, not the partials-plus-trail line."
+  },
+  "q99": {
+   "status": "cut",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Cut: duplicates scenario q35 (gap top 50.00, low 49.60, stop is today's low because the stop is the lower of the two) and q52. The brief says not to replace when a choice question on the same idea exists."
+  }
+ }
+}

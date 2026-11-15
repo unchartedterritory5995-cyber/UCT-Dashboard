@@ -190,6 +190,10 @@ describe('GT D6 — the starter allowlist', () => {
   it('MemberPane latches the list from the same read as the kill list', () => {
     const src = fs.readFileSync(path.join(REPO, 'app', 'src', 'components', 'chart', 'builder',
       'memberPane', 'MemberPane.jsx'), 'utf8')
-    expect(src).toMatch(/setRuntimeKillList\(d\.kill\)[\s\S]{0,400}setRuntimeAllowList\(d\.allow\)/)
+    // ⭐ RS RATING L8 — through the one latch both readers share (`runtimeKill.js::latchRuntimeLists`)
+    expect(src).toMatch(/latchRuntimeLists\(d\)/)
+    const kill = fs.readFileSync(path.join(REPO, 'app', 'src', 'components', 'chart', 'engine', 'runtimeKill.js'), 'utf8')
+    const latch = kill.slice(kill.indexOf('export function latchRuntimeLists'))
+    expect(latch).toMatch(/setRuntimeKillList\(d\.kill\)[\s\S]{0,400}setRuntimeAllowList\(d\.allow\)/)
   })
 })

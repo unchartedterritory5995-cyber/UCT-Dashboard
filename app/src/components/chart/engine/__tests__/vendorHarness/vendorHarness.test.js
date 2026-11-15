@@ -258,6 +258,50 @@ describe('2 · the TradingView-side snippet, against a RECORDING DOUBLE of the m
     vh.cleanup()
   })
 
+  // ⭐ U13 (G1) — the x table: an object's x is a POSITION in the study's `_indexes`,
+  // whose entries are model bar indices (object-semantics-spy-1d-2026-09-08).
+  it('records the x table: found where it lives, each entry\'s bar time, the model bars — read-only', () => {
+    const byId = (recs) => ({ _primitivesDataById: new Map(recs.map((r, i) => [i, r])) })
+    const capOfG = (g) => {
+      const vh = install({ studies: [mkStudy({ graphics: g })], bars: BARS })
+      const sum = vh.capture({ study: 'UCTVH', source: SRC })
+      const cap = JSON.parse(Array.from({ length: sum.chunks }, (_, i) => vh.chunk(i).text).join(''))
+      vh.cleanup()
+      return cap
+    }
+    let calls = 0
+    const g = {
+      dwglines: () => new Map([['a', new Map([['f', byId([{ id: 1, x1: 0, x2: 1 }])]])]]),
+      _indexes: [0, 2],
+      // ⛔ a getter must never run (read through descriptors only)
+      get indexes() { calls += 1; return [9, 9] },
+    }
+    const cap = capOfG(g)
+    expect(validateCapture(cap)).toEqual({ ok: true, errors: [] })
+    expect(cap.objects.xIndex).toMatchObject({ found: true, path: 'graphics()._indexes', indexes: [0, 2],
+      times: [BARS[0][0], BARS[2][0]], modelBars: { first: 0, last: 2, count: 3, contiguous: true } })
+    expect(calls).toBe(0)
+    // a table off the loaded bars is recorded with a null time, never a guess
+    // (built without the getter: spreading `g` would RUN it and copy its value)
+    expect(capOfG({ dwglines: g.dwglines, _indexes: [1, 5] }).objects.xIndex.times).toEqual([BARS[1][0], null])
+    // ⛔ NOT FOUND is said, with what was looked at — never an empty table
+    const none = capOfG({ dwglines: g.dwglines, _indexes: 'nochange' }).objects.xIndex
+    expect(none).toMatchObject({ found: false })
+    expect(none.indexes).toBeUndefined()
+    expect(none.looked.join(' ')).toMatch(/_indexes: string/)
+    // ⛔ two DIFFERENT tables is ambiguous, never a pick
+    const amb = capOfG({ dwglines: g.dwglines, _indexes: [0, 1], _graphicsData: { _indexes: [3, 4] } }).objects.xIndex
+    expect(amb).toMatchObject({ found: false, ambiguous: true })
+    // `graphics()._indexes` held behind an accessor (not an own data property) is still read,
+    // by that one name (S10 read it as `g._indexes`)
+    const proto = { get _indexes() { return [0, 1] } }
+    const viaAccessor = Object.assign(Object.create(proto), { dwglines: g.dwglines })
+    expect(capOfG(viaAccessor).objects.xIndex).toMatchObject({ found: true, path: 'graphics()._indexes (accessor)', indexes: [0, 1] })
+    // the same table in two places is one table
+    expect(capOfG({ dwglines: g.dwglines, _indexes: [0, 1], _graphicsData: { _indexes: [0, 1] } }).objects.xIndex)
+      .toMatchObject({ found: true, alsoAt: ['graphics()._graphicsData._indexes'] })
+  })
+
   it('an OBJECTS-ONLY study (no declared plots, no rows) captures its drawings; a study WITH plots and no rows is still refused', () => {
     const byId = (recs) => ({ _primitivesDataById: new Map(recs.map((r, i) => [i, r])) })
     const g = { dwglines: () => new Map([['a', new Map([['f', byId([{ id: 1 }])]])]]) }
@@ -735,12 +779,17 @@ describe('4 · end to end on REAL vendor bars, through the member door', () => {
   })
 
   // ── the non-vacuity of all of the above ──
-  it('⛔ the three verdicts are all reachable, and the comparator never returns anything else', () => {
+  it('⛔ every verdict is reachable, and the comparator never returns anything else', () => {
     const seen = new Set()
-    seen.add(gradeCapture(SMA_CAPTURE).verdict.verdict)
+    const graded = gradeCapture(SMA_CAPTURE)
+    seen.add(graded.verdict.verdict)
     const d = clone(SMA_CAPTURE); d.plotValues.rows[1500][1] += 1
     seen.add(gradeCapture(sealCapture(d)).verdict.verdict)
     seen.add(compareCapture(SMA_CAPTURE, { ok: false, refusal: 'x' }).verdict)
+    // ⭐ L7 — MATCH_SUBSTITUTED: our side declaring one input it was fed off the capture
+    // (`vendorHarness.l7Substituted.test.js` holds the rule; this is the reachability)
+    seen.add(compareCapture(SMA_CAPTURE, { ...graded.ours, substituted: [
+      { name: 'syminfo.ticker', source: 'uct:test', vendorValueFrom: 'capture.symbol.name', value: SMA_CAPTURE.symbol.name }] }).verdict)
     expect([...seen].sort()).toEqual([...VERDICTS].sort())
   })
 

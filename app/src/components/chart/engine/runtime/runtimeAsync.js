@@ -25,6 +25,8 @@ import {
 } from './runtimeColumns.js'
 import { LIMIT_NAMES } from './limits.js'
 import { runtimeSourceHash } from '../runtimeKill.js'
+import { bindSymbolOf } from '../ast/bind.js'
+import { noteRuntimeRunStarted, noteRuntimeRunSettled, resetRuntimeRunTelemetry } from '../runtimeRunTelemetry.js'
 
 let _ready = false
 let _worker = null
@@ -166,7 +168,7 @@ const workerFailed = () => named(RUNTIME_WORKER_FAILED_GUARD,
 function runHere(def, rows, ctx, done, job) {
   let columns = null
   let failed = null
-  if (job) { job.lane = 'main'; job.startedAt = clock() }
+  if (job) { job.lane = 'main'; job.startedAt = clock(); noteRuntimeRunStarted() }
   try {
     columns = computeRuntimeColumns(def, rows, ctx, { budgetMs: RUNTIME_PANE_TIME_BUDGET_MS })
   } catch (err) { failed = err }
@@ -177,6 +179,9 @@ function runHere(def, rows, ctx, done, job) {
 function settle(job, err, columns) {
   if (job.settled) return
   job.settled = true
+  // ⭐ U4 — the run count (`runtimeRunTelemetry.js`): every ANSWERED job, by outcome,
+  // with its round trip when it started. An integer bump; nothing is sent from here.
+  noteRuntimeRunSettled(err || null, job.startedAt != null ? clock() - job.startedAt : undefined)
   if (err) {
     reportStop(job.def, job.rows, err,
       Number.isFinite(err.ms) ? err.ms : clock() - (job.startedAt ?? clock()), job.lane)
@@ -265,11 +270,25 @@ function messageOf(id, def, rows, ctx) {
     ...(ctx && ctx.runtimeInputs && typeof ctx.runtimeInputs === 'object'
       ? { runtimeInputs: { ...ctx.runtimeInputs } } : {}),
     ...(ctx && ctx.symbol && typeof ctx.symbol === 'object'
-      ? { symbol: { ticker: ctx.symbol.ticker, exchange: ctx.symbol.exchange } } : {}),
+      // ⭐ RS RATING L3 — every field the fold reads (`bind.js::BIND_SYMBOL_FIELDS`), not only
+      // `{ticker, exchange}`: the worker's run settles `syminfo.industry` from the same symbol.
+      ? { symbol: { ticker: ctx.symbol.ticker, exchange: ctx.symbol.exchange, ...bindSymbolOf(ctx.symbol) } } : {}),
     // ⭐ P3 WS-F — a framed instance's window slides, so the run refuses a `varip` there
     ...(ctx && ctx.framed === true ? { framed: true } : {}),
     // ⭐⭐ W9-T11 — the window a broker run takes (design 3.4), as the context holds it
     ...(ctx && ctx.historyWindowBars !== undefined ? { historyWindowBars: ctx.historyWindowBars } : {}),
+    // ⭐⭐ RS RATING L5 — the chart's other-symbol cache, for a run that reads another symbol
+    // (`requestSupply.js` decides from it by the host bind's rules): plain entries, each with
+    // the store exchange the bind matches a spelling against (`exchangeOf` is a function and
+    // does not cross), rebuilt as a Map on the other side (`runtimeWorker.js`).
+    ...(ctx && ctx.secondary && typeof ctx.secondary.entries === 'function' ? {
+      secondaryEntries: [...ctx.secondary.entries()].map(([k, e]) => [k, {
+        bars: e && Array.isArray(e.bars) ? e.bars.map((b) => ({ t: b.t, o: b.o, h: b.h, l: b.l, c: b.c, v: b.v })) : [],
+        status: e && e.status,
+        exchange: (e && typeof e.exchange === 'string' && e.exchange)
+          || (typeof ctx.exchangeOf === 'function' ? ctx.exchangeOf(k) : null) || null,
+      }]),
+    } : {}),
   }
   const plainRows = rows.map((b) => ({ t: b.t, o: b.o, h: b.h, l: b.l, c: b.c, v: b.v }))
   return { id, def: plainDef, rows: plainRows, ctx: plainCtx }
@@ -286,6 +305,7 @@ function post(job, factory) {
   job.lane = 'worker'
   job.startedAt = clock()
   _jobs.set(id, job)
+  noteRuntimeRunStarted()
   try {
     w.postMessage(messageOf(id, job.def, job.rows, job.ctx))
   } catch {
@@ -344,6 +364,7 @@ export function resetRuntimeAsync() {
   _beaconed.clear()
   _hashOf.clear()
   _stopReporter = null
+  resetRuntimeRunTelemetry()
   setRuntimeRunner(null)
 }
 

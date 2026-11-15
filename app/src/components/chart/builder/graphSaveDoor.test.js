@@ -27,8 +27,6 @@
 // ⛔ THE FIXTURE MUST INCLUDE THE MANIFEST, and it must be built the way the
 // product builds it, or this file is measuring a document nobody saves.
 import { describe, it, expect } from 'vitest'
-import fs from 'node:fs'
-import path from 'node:path'
 import { translatePine } from '../engine/ast/pine'
 import { memberInputTranslation } from './builderInputs'
 import { paramLocatorsIn, manifestFromPlacements } from './pineParamManifest'
@@ -40,8 +38,11 @@ import {
   DOCUMENT_BYTE_BUDGET,
 } from '../engine/ast/graphDocument'
 import { treesHash } from '../engine/ast/trees'
+import { pineFixtureDir } from '../engine/ast/__tests__/licenceHeld'
 
-const OOS = path.resolve(process.cwd(), '../tools/c0_oos_fixtures')
+// ⛔ `…03-supertrend` is LICENCE-HELD (2026-11-15, docs/pine/vendor-harness/licence-held.json):
+// read from the local store when present, its case SKIPPED BY NAME when not.
+const OOS = pineFixtureDir('tools/c0_oos_fixtures')
 
 /** The document `BuilderSheet.save()` would hand `saveUserDefinition` — the
  *  carried multi-plot rows AND the Track F manifest `PineBox` produces. */
@@ -49,7 +50,7 @@ const OOS = path.resolve(process.cwd(), '../tools/c0_oos_fixtures')
  *  ZERO columns, and a test about that fact must be able to say so without going
  *  through a document builder that has nothing to build. */
 function translation(name) {
-  const src = fs.readFileSync(path.join(OOS, `${name}.pine`), 'utf8')
+  const src = OOS.read(name)
   return memberInputTranslation(translatePine, src, { paramManifest: true })
 }
 
@@ -60,7 +61,7 @@ function productRows(name) {
 }
 
 function productDocument(name) {
-  const src = fs.readFileSync(path.join(OOS, `${name}.pine`), 'utf8')
+  const src = OOS.read(name)
   // ⭐⭐ C2D.1 — ONE TRANSLATION. This used to make PineBox's second,
   // `declareInputs`-free `translatePine(src, {paramManifest: true})` call and
   // locate the manifest in a tree the document never saved; that is the defect
@@ -134,7 +135,7 @@ const NOW_EXCEEDS_EXPANSION_CEILING = 'mid_engagement__22-rsi-levels-regime-map'
 
 describe('C2C — the two DOCUMENT_SIZE_BLOCKED scripts, through the real save door', () => {
   for (const name of BLOCKED) {
-    it(name, () => {
+    OOS.it([name], name, () => {
       const doc = productDocument(name)
       expect(doc.compute.paramManifest, 'the fixture must carry a manifest — that is the point')
         .toBeTruthy()

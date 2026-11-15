@@ -342,14 +342,16 @@
 @media (prefers-reduced-motion: reduce) { .sheetBody.sheetBody::after { animation: none; } }
 @media (max-width: 640px) { .sheetBody.sheetBody::before { background-size: auto, auto, 1100px 180px, auto; } .sheetBody.sheetBody::after { height: 34%; } }
 
-/* the chart's targeting frame: gold corner brackets, the same on every chart in every mode */
-.chartBox.chartBox::after { content: ''; position: absolute; inset: 5px; z-index: 4; pointer-events: none; border-radius: 4px;
+/* the chart's targeting frame: gold corner brackets, the same on every chart in every mode. Arms of 20 px from 4 px in
+   (they were 26 px from 5 px): the top-right arm ran through the last digit of the top price label ("480.00") on a
+   question chart with no ticker row above the plot (the screen check, 2026-11-14) */
+.chartBox.chartBox::after { content: ''; position: absolute; inset: 4px; z-index: 4; pointer-events: none; border-radius: 4px;
   --b: #e9cd77;
   background:
-    linear-gradient(var(--b), var(--b)) left top / 26px 2px no-repeat, linear-gradient(var(--b), var(--b)) left top / 2px 26px no-repeat,
-    linear-gradient(var(--b), var(--b)) right top / 26px 2px no-repeat, linear-gradient(var(--b), var(--b)) right top / 2px 26px no-repeat,
-    linear-gradient(var(--b), var(--b)) left bottom / 26px 2px no-repeat, linear-gradient(var(--b), var(--b)) left bottom / 2px 26px no-repeat,
-    linear-gradient(var(--b), var(--b)) right bottom / 26px 2px no-repeat, linear-gradient(var(--b), var(--b)) right bottom / 2px 26px no-repeat;
+    linear-gradient(var(--b), var(--b)) left top / 20px 2px no-repeat, linear-gradient(var(--b), var(--b)) left top / 2px 20px no-repeat,
+    linear-gradient(var(--b), var(--b)) right top / 20px 2px no-repeat, linear-gradient(var(--b), var(--b)) right top / 2px 20px no-repeat,
+    linear-gradient(var(--b), var(--b)) left bottom / 20px 2px no-repeat, linear-gradient(var(--b), var(--b)) left bottom / 2px 20px no-repeat,
+    linear-gradient(var(--b), var(--b)) right bottom / 20px 2px no-repeat, linear-gradient(var(--b), var(--b)) right bottom / 2px 20px no-repeat;
   filter: drop-shadow(0 0 6px rgba(233, 205, 119, .55)); }
 
 /* the lesson chart's identity row, as on the Charts page widget: the ticker and company, our mark at the right */
@@ -358,3 +360,24 @@
 .chartBrand { display: inline-flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 900; letter-spacing: .2em; text-transform: uppercase; color: #a39e94; }
 .chartBrand img { width: 16px; height: 16px; }
 @media (max-width: 640px) { .chartBrand { font-size: 0; letter-spacing: 0; gap: 0; } .chartBrand img { width: 18px; height: 18px; } .chartHead { padding: 6px 8px; } }
+
+/* the replay after the answer (owner 2026-11-14, "chart + replay after"): one quiet control under the chart, right-aligned */
+.replayBar {
+  display: flex;
+  justify-content: flex-end;
+  margin: 6px 0 0;
+}
+.keyWrap { margin: 0; }
+
+/* ONE COLUMN ON DESKTOP (the screen check, 2026-11-14): the chart, the answers and the card stood on 720 px while the
+   replay control and the chart key ran the lesson's full 848 px, and a grid of short answers shrank to its content
+   (418 px) because an auto-margined flex child does not stretch. Every piece is now the same 720 px column. */
+@media (min-width: 1025px) {
+  .replayBar.replayBar, .keyWrap.keyWrap, .body.body, .revealIn.revealIn { width: 100%; max-width: 720px; margin-left: auto; margin-right: auto; }
+}
+
+/* THE CHART'S FRAME CLEARS ITS LABELS (the screen check, 2026-11-14): our compass mark sat on the first date label, the
+   A/L/% chips on the last one, and the gold corner brackets crossed both. The chart reserves a taller date axis
+   (StockChart reads --time-axis-min-height into the time scale's minimumHeight): the dates print at the top of that
+   band, and the mark, the chips and the brackets' lower arms sit in the strip under them. */
+.chartBox { --time-axis-min-height: 56px; }

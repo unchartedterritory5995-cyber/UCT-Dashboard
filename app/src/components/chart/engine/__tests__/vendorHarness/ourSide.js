@@ -27,29 +27,35 @@
 
 import { memberPaneDefinition } from '../../../builder/memberPane/memberPaneDefinition'
 import * as registry from '../../nativeRegistry'
-import { createBinder, drawShiftOf, paintColoursFor } from '../../binder'
+import { createBinder, drawShiftOf, paintColoursFor, plotStripNoticesOf } from '../../binder'
+import { bindWithheldPaintsOf } from './paintColours'
 import { bindingKey } from '../../pool'
 import { addInstance } from '../../instanceControls'
 import { mergeChartSettings } from '../../../chartDefaults'
 import { objectReaderFor } from '../../objectColumns'
 import { evaluateObjects } from '../../objectRuntime'
-import { NOT_SHOWN, runtimeWithheldWhy, runtimeWithheldCause } from '../../ast/objectLoss'
+import { NOT_SHOWN, runtimeWithheldWhy, runtimeWithheldCause, runtimeUnknownSentence } from '../../ast/objectLoss'
 import { toRenderState } from '../../objectRenderState'
 // ⭐ RT5 — a runtime document's own drawings.
 import { runtimeObjectsOf, runtimeObjectsWithheldOf, drawsRuntimeObjects, runtimeWarmupOf, RUNTIME_WARMUP_KEY, runHalfOf, carriesRunHalf } from '../../runtime/runtimeObjects'
 import { runtimeDeclinedTag } from '../../../../../../../tools/pine_coverage/runtime_lane.mjs'
-import { maxLookback, CHART_CLOCK_WHOLE } from '../../ast/interpret'
+import { maxLookback, CHART_CLOCK_WHOLE, TF_MERGE_NEWEST_CODE, TF_MERGE_FIRST_CODE } from '../../ast/interpret'
 import { setRuntimeDoorClock } from '../../runtime/runtimeColumns'
 import { paneObjectsGate } from '../../ast/paneGate'
-import { otherSymbolRequestsOf, storeTickerOf } from '../../otherSymbols'
+import { otherSymbolRequestsOf, storeTickerOf, witnessRowOf } from '../../otherSymbols'
 import { lowerTfCodesOf, LOWER_TF_SOURCE } from '../../lowerTf'
 import SYMBOL_SCOPE from '../../ast/symbolScope.json'
 import { createFakeChart } from '../fakeChart'
-import { normalizeColor } from '../../../../../../../tools/vendor_harness/compare.mjs'
+import { normalizeColor, substitutionProblems, vendorValueOf } from '../../../../../../../tools/vendor_harness/compare.mjs'
+// ⭐ RS RATING L3 — which classification fields a script reads, and the binding's substitution tags.
+import { substitutedFor } from '../../ast/symbolSubstitution'
+import { CLASSIFICATION_FIELD_NAMES } from '../../ast/bind'
 import { validateCapture } from '../../../../../../../tools/vendor_harness/schema.mjs'
 import { fullBarsFor } from '../../../../../utils/barsBackfill'
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
+import crypto from 'node:crypto'
 
 // ─── ⭐⭐ C26 — ANOTHER SYMBOL'S BARS, FROM COMMITTED CAPTURES ONLY ─────────────
 //
@@ -211,6 +217,158 @@ function lowerTfSupply(def, capture) {
   return { lowerTf, notes }
 }
 
+// ─── ⭐⭐ RS RATING L8 — THE BARS OUR SERVER SERVES, RECORDED BESIDE A CAPTURE ────────
+//
+// C26 supplies another symbol from committed CAPTURES: TradingView's own bars of that listing.
+// For a symbol TradingView's own bars must NOT feed (an index such as `SP:SPX`, where grading
+// on the vendor's values would be circular, and a Pine seed, which no capture holds as bars),
+// the honest supply is what OUR SERVER serves, recorded: `tests/fixtures/vendor-supply/<capture
+// id>.json` (`uct.harness-supply/v1`). Each `other.<STORE TICKER>` is either
+//   * `{servedBy, source, recordedAtUTC, bars}`: the served bars, in the shape the server
+//     serves them, with where they came from (a fallback says so in `source`); or
+//   * `{notRecorded}`: the source a member is served was not recorded, so NOTHING is supplied
+//     (the read refuses by name, the grade is INCONCLUSIVE), never a stand-in; or
+//     ⚠️ Inline PROVIDER bars (FMP, Yahoo) are committed only under an owner ruling the entry
+//     quotes in `licence` (the RS Rating records: 2026-11-15, "That's fine, I accept it all",
+//     covering those records only; railed in vendorHarness.l9LocalSupply.test.js); or
+//   * (RS RATING L9) `{servedBy, source, recordedAtUTC, rows: {file, sha256, count, first, last}}`:
+//     for provider data NO ruling covers (the repo is public; FMP is class R/LA for member display
+//     and Yahoo class X, `provider_licensing_class.py`), git holds only this manifest and the rows
+//     live OUT of git, in the local supply store
+//     (`$UCT_HARNESS_SUPPLY_STORE`, default `%LOCALAPPDATA%/uct-vendor-batch/supply`), the way a
+//     licence-held capture lives in the capture store. The file is read only when its sha256, row
+//     count and first / last session are the manifest's (else the record throws); a machine
+//     without it supplies NOTHING and the grade is refused by name (INCONCLUSIVE), never run on a
+//     stand-in.
+// and `symbol.<field>` feeds a classification field the capture does not carry with the
+// VENDOR's value read off a committed capture (`vendorValueFrom: 'committed:<path>'`), checked
+// here against that capture's own text before it is fed.
+// and (RS RATING L9) `store.securityType` feeds OUR STORE's instrument class for the chart symbol
+// (`{value: 'Stock'|'ADR'|'ETF', source}`), the field a member's chart threads from
+// `ticker_meta.security_type` (`StockChart.jsx`). It is ours, never the vendor's (a capture carries
+// TradingView's `type`, which is not our class), so it names where it was read, and a record that
+// states none feeds none: the bind then keys no class row, exactly as before.
+// ⛔ A record that names another capture, or a malformed one, throws: it is never half-read.
+const SUPPLY_DIR = path.resolve(process.cwd(), '..', 'tests/fixtures/vendor-supply')
+let _supplyDir = SUPPLY_DIR
+/** Rails only: read recorded supply from a scratch directory (null restores the committed one). */
+export function __setSupplyDirForTests(dir) { _supplyDir = dir || SUPPLY_DIR }
+export const HARNESS_SUPPLY_SCHEMA = 'uct.harness-supply/v1'
+/** The out-of-git rows file a manifest names (`uct.harness-supply-rows/v1`: `{ticker, source,
+ *  servedBy, recordedAtUTC, bars}`). */
+export const HARNESS_SUPPLY_ROWS_SCHEMA = 'uct.harness-supply-rows/v1'
+export const SUPPLY_STORE_ENV = 'UCT_HARNESS_SUPPLY_STORE'
+let _supplyStoreForTests = null
+/** Rails only: read out-of-git rows from a scratch store (null restores the configured one). */
+export function __setSupplyStoreForTests(dir) { _supplyStoreForTests = dir || null }
+/** The local supply store, read per call. */
+export function supplyStoreDir() {
+  if (_supplyStoreForTests) return _supplyStoreForTests
+  if (process.env[SUPPLY_STORE_ENV]) return path.resolve(process.env[SUPPLY_STORE_ENV])
+  const base = process.env.LOCALAPPDATA || process.env.TEMP || os.tmpdir()
+  return path.join(base, 'uct-vendor-batch', 'supply')
+}
+/** Our store's instrument classes (`screener_universe.COARSE_TYPES`, keyed by `bind.js`'s
+ *  `by_class` rows). */
+export const STORE_SECURITY_TYPES = Object.freeze(['Stock', 'ADR', 'ETF'])
+
+/** The Q-RS4 probe's label keys (`IND=<industry>|SEC=<sector>|TYPE=<type>`). */
+const CLASSIFICATION_PROBE_KEY = Object.freeze({ industry: 'IND', sector: 'SEC' })
+
+/** The recorded supply beside this capture, or null when none is committed. */
+export function recordedSupplyOf(capture, dir = _supplyDir) {
+  const id = capture && capture.id
+  if (typeof id !== 'string' || !id) return null
+  const file = path.join(dir, `${id}.json`)
+  if (!fs.existsSync(file)) return null
+  const rec = JSON.parse(fs.readFileSync(file, 'utf8'))
+  const bad = (why) => { throw new Error(`ourSide: recorded supply ${path.basename(file)} refused: ${why}`) }
+  if (!rec || rec.schema !== HARNESS_SUPPLY_SCHEMA) bad(`schema is not ${HARNESS_SUPPLY_SCHEMA}`)
+  if (rec.capture !== id) bad(`it is the record of ${JSON.stringify(rec.capture)}, not of ${id}`)
+  for (const [ticker, e] of Object.entries(rec.other || {})) {
+    if (!e || typeof e !== 'object') bad(`other.${ticker} is not an object`)
+    const forms = [Array.isArray(e.bars), !!(e.rows && typeof e.rows === 'object'),
+      typeof e.notRecorded === 'string' && e.notRecorded.length > 0]
+    if (forms.filter(Boolean).length !== 1) {
+      bad(`other.${ticker} must hold exactly one of \`bars\`, \`rows\` or \`notRecorded\``)
+    }
+    if (!forms[2] && !(typeof e.source === 'string' && e.source && typeof e.servedBy === 'string' && e.servedBy)) {
+      bad(`other.${ticker} records bars without naming \`source\` and \`servedBy\``)
+    }
+    if (forms[1]) e.bars = outOfGitRows(ticker, e, bad)            // [] -> e.notOnThisMachine
+  }
+  for (const [field, e] of Object.entries(rec.symbol || {})) {
+    if (!CLASSIFICATION_PROBE_KEY[field]) bad(`symbol.${field} is not a classification field`)
+    if (!e || typeof e.value !== 'string' || !e.value) bad(`symbol.${field} carries no value`)
+    const from = String(e.vendorValueFrom || '')
+    if (!from.startsWith('committed:')) bad(`symbol.${field} must cite a committed capture (\`committed:<path>\`)`)
+    const probe = path.resolve(process.cwd(), '..', from.slice('committed:'.length))
+    if (!fs.existsSync(probe)) bad(`symbol.${field} cites ${from}, which is not committed`)
+    const texts = ((JSON.parse(fs.readFileSync(probe, 'utf8')).objects || {}).texts || {}).labels || []
+    const key = CLASSIFICATION_PROBE_KEY[field]
+    const said = texts.map((t) => String(t).split('|').find((part) => part.startsWith(`${key}=`)))
+      .filter(Boolean).map((part) => part.slice(key.length + 1))
+    if (!said.includes(e.value)) {
+      bad(`symbol.${field} = ${JSON.stringify(e.value)} is not what ${from} printed (${JSON.stringify(said)})`)
+    }
+  }
+  for (const [field, e] of Object.entries(rec.store || {})) {
+    if (field !== 'securityType') bad(`store.${field} is not a store field the bind reads`)
+    if (!e || !STORE_SECURITY_TYPES.includes(e.value)) {
+      bad(`store.securityType must be one of ${STORE_SECURITY_TYPES.join(' / ')} (our store's class), not ${JSON.stringify(e && e.value)}`)
+    }
+    if (!(typeof e.source === 'string' && e.source)) bad('store.securityType does not say where our store\'s class was read (`source`)')
+    if (Object.prototype.hasOwnProperty.call(e, 'vendorValueFrom')) {
+      bad('store.securityType is our store\'s class, never a vendor value (`vendorValueFrom`)')
+    }
+  }
+  return rec
+}
+
+/** ⭐ RS RATING L9 — the bars an out-of-git manifest names, read from the local supply store and
+ *  checked against the manifest; `undefined` (with `e.notOnThisMachine` set) when the file is not
+ *  on this machine. A file that IS here but is not the manifest's throws (`bad`). */
+function outOfGitRows(ticker, e, bad) {
+  const m = e.rows
+  const name = typeof m.file === 'string' ? m.file : ''
+  if (!name || name !== path.basename(name)) bad(`other.${ticker}.rows.file must be a bare file name in the supply store`)
+  if (!/^[0-9a-f]{64}$/.test(String(m.sha256 || ''))) bad(`other.${ticker}.rows names no sha256`)
+  if (!Number.isInteger(m.count) || m.count < 1) bad(`other.${ticker}.rows names no row count`)
+  const file = path.join(supplyStoreDir(), name)
+  if (!fs.existsSync(file)) {
+    e.notOnThisMachine = `the served bars (${e.source}) are kept out of git (provider data; the repo `
+      + `is public) and ${name} is not in the local supply store (${supplyStoreDir()}, \`${SUPPLY_STORE_ENV}\`)`
+    return undefined
+  }
+  const raw = fs.readFileSync(file)
+  const sha = crypto.createHash('sha256').update(raw).digest('hex')
+  if (sha !== m.sha256) bad(`other.${ticker}.rows: ${name} is not the recorded file (sha256 ${sha.slice(0, 12)}, the manifest says ${m.sha256.slice(0, 12)})`)
+  const doc = JSON.parse(raw.toString('utf8'))
+  if (!doc || doc.schema !== HARNESS_SUPPLY_ROWS_SCHEMA || !Array.isArray(doc.bars)) bad(`other.${ticker}.rows: ${name} is not a ${HARNESS_SUPPLY_ROWS_SCHEMA} file`)
+  if (doc.ticker !== ticker) bad(`other.${ticker}.rows: ${name} holds ${JSON.stringify(doc.ticker)}`)
+  const day = (b) => new Date(b.t * 1000).toISOString().slice(0, 10)
+  if (doc.bars.length !== m.count || day(doc.bars[0]) !== m.first || day(doc.bars[doc.bars.length - 1]) !== m.last) {
+    bad(`other.${ticker}.rows: ${name} holds ${doc.bars.length} sessions ${day(doc.bars[0])}..${day(doc.bars[doc.bars.length - 1])}, the manifest ${m.count} ${m.first}..${m.last}`)
+  }
+  return doc.bars
+}
+
+/** ⭐ RS RATING L9 — our store's class for the chart symbol, from the recorded supply, or {}. */
+function recordedStoreOf(capture) {
+  const rec = recordedSupplyOf(capture)
+  const e = rec && rec.store && rec.store.securityType
+  return e ? { securityType: e.value } : {}
+}
+
+/** The classification fields the recorded supply feeds, and the committed capture each cites. */
+function recordedClassificationOf(capture) {
+  const rec = recordedSupplyOf(capture)
+  const fields = {}
+  const from = {}
+  for (const [field, e] of Object.entries((rec && rec.symbol) || {})) { fields[field] = e.value; from[field] = e.vendorValueFrom }
+  return { fields, from }
+}
+
 /** The secondary supply a capture's script asks for, and the notes naming what
  *  could not be supplied. */
 function otherSymbolSupply(def, capture) {
@@ -220,7 +378,33 @@ function otherSymbolSupply(def, capture) {
   const index = otherCaptureIndex()
   const secondary = new Map()
   const notes = []
-  for (const { ticker } of requests) {
+  // ⭐ RS RATING L8 — a recorded server supply beside this capture answers first, for the
+  // symbols it names (`recordedSupplyOf`); every other symbol keeps C26's committed captures.
+  const recorded = recordedSupplyOf(capture)
+  const unrecorded = []
+  for (const { ticker, spellings } of requests) {
+    // the key the chart fetches it under: a witnessed spelling's row's store key (`SPX`,
+    // `SEED_FRED6725_RS_RATING:RSRATING`), else our store's ticker (`fetchableOtherSymbols`)
+    const row = (spellings || []).map((v) => witnessRowOf(v, ticker)).find(Boolean)
+    const storeKey = row ? row.store : storeTickerOf(ticker)
+    const rec = recorded && recorded.other ? recorded.other[storeKey] : null
+    if (rec) {
+      if (Array.isArray(rec.bars)) {
+        secondary.set(storeKey, { bars: rec.bars, status: 'available' })
+        notes.push(`other symbol ${ticker}: the bars our server serves, recorded beside the capture `
+          + `(${rec.servedBy}; ${rec.source})`
+          + (rec.rows ? `; kept out of git, read from the local supply store as ${rec.rows.file} (sha256 ${rec.rows.sha256.slice(0, 12)})` : ''))
+      } else if (rec.notOnThisMachine) {
+        secondary.set(storeKey, { bars: [], status: 'no_data' })
+        notes.push(`other symbol ${ticker}: not supplied: ${rec.notOnThisMachine}`)
+        unrecorded.push(`other symbol ${ticker}: ${rec.notOnThisMachine}`)
+      } else {
+        secondary.set(storeKey, { bars: [], status: 'no_data' })
+        notes.push(`other symbol ${ticker}: not supplied: ${rec.notRecorded}`)
+        unrecorded.push(`other symbol ${ticker}: ${rec.notRecorded}`)
+      }
+      continue
+    }
     const hit = index.get(`${ticker}|${tf}`)
     if (hit) {
       // ⭐ C29 — keyed as the product keys it: our store's ticker (`BRK-B`).
@@ -236,7 +420,7 @@ function otherSymbolSupply(def, capture) {
     const e = secondary.get(t)
     return e && e.exchange ? e.exchange : null
   }
-  return { secondary, exchangeOf, notes }
+  return { secondary, exchangeOf, notes, unrecorded }
 }
 
 // ─── ⭐⭐ RC1 — WARM BARS: THE SAME SERIES' OWN HISTORY, FROM COMMITTED CAPTURES ─
@@ -277,49 +461,165 @@ const OHLCV_FIELDS = ['time', 'open', 'high', 'low', 'close', 'volume']
 // back, and its receipt validated, only once it is actually considered.
 // ⛔ Deliberately NOT `otherCaptureIndex`: that validates every capture's receipt up
 // front (measured ~57 s for the directory), which every paint capture would then pay.
-let warmCandidateIndex = null
+const warmCandidateIndexes = new Map() // `${dir}|${useIndex}` → Map(key → metas)
 const warmCandidateRows = new Map()
 
-function warmCandidates() {
-  if (warmCandidateIndex) return warmCandidateIndex
-  warmCandidateIndex = new Map()
-  if (!fs.existsSync(OTHER_CAPTURE_DIR)) return warmCandidateIndex
-  for (const name of fs.readdirSync(OTHER_CAPTURE_DIR).sort()) {
-    if (!name.endsWith('.json')) continue
-    let cap
-    try { cap = JSON.parse(fs.readFileSync(path.join(OTHER_CAPTURE_DIR, name), 'utf8')) } catch { continue }
-    if (!cap || cap.schema !== 'uct.vendor-capture/v1' || !cap.bars || !Array.isArray(cap.bars.rows)) continue
-    const rows = cap.bars.rows
-    if (!rows.length) continue
-    const { ticker } = symbolOf(cap)
-    if (!ticker) continue
-    const key = `${String(ticker).toUpperCase()}|${tfCodeOf(cap.timeframe)}`
-    if (!warmCandidateIndex.has(key)) warmCandidateIndex.set(key, [])
-    warmCandidateIndex.get(key).push({ file: name, timeUnit: cap.bars.timeUnit,
-      firstT: rows[0][0], lastT: rows[rows.length - 1][0],
-      listing: !!(cap.history && cap.history.startsAtBar0 === true) })
+// ⭐ The metadata of every capture, cached on disk so a fresh worker does not parse the whole
+// directory (610 files / 420 MB took 5.4 s per worker on 2026-11-15, and that cost grows with
+// every capture). One row per file: what `warmBarsSupply` reads, plus the file's size and
+// mtimeMs. A row is trusted ONLY when both still match the file; any other row (missing,
+// malformed, stale, or an unreadable index) is rebuilt from the file itself, so the index can
+// never pick a supplier the full scan would not. Gitignored; rewritten atomically when it changes.
+export const WARM_INDEX_NAME = '.warm-candidates.index'
+export const WARM_INDEX_SCHEMA = 'uct.warm-candidates-index/v2'
+
+/** A capture's bar times, run-length encoded on their deltas: `t0;d1xn1,d2xn2,...`. Small enough to
+ *  keep in the index for every capture, and enough to place the window's first bar exactly. */
+function encodeTimes(rows) {
+  if (!rows.length) return ''
+  const runs = []
+  for (let i = 1; i < rows.length; i += 1) {
+    const d = rows[i][0] - rows[i - 1][0]
+    if (runs.length && runs[runs.length - 1][0] === d) runs[runs.length - 1][1] += 1
+    else runs.push([d, 1])
   }
-  return warmCandidateIndex
+  return `${rows[0][0]};${runs.map(([d, n]) => `${d}x${n}`).join(',')}`
+}
+
+/** The position of time `t` in encoded times, or -1 when it is not one of them. */
+function timeIndexOf(enc, t) {
+  const [head, tail] = enc.split(';')
+  let cur = Number(head)
+  let i = 0
+  if (cur === t) return 0
+  if (!(cur < t) || !tail) return -1
+  for (const run of tail.split(',')) {
+    const [d, n] = run.split('x').map(Number)
+    if (d > 0 && (t - cur) % d === 0 && (t - cur) / d <= n) return i + (t - cur) / d
+    cur += d * n
+    i += n
+    if (cur > t) return -1
+  }
+  return -1
+}
+
+/** One file's index row: the signature plus either the candidate metadata or `skip`. */
+function warmMetaRow(dir, name, st) {
+  const sig = { size: st.size, mtimeMs: st.mtimeMs }
+  let cap
+  try { cap = JSON.parse(fs.readFileSync(path.join(dir, name), 'utf8')) } catch { return { ...sig, skip: true } }
+  if (!cap || cap.schema !== 'uct.vendor-capture/v1' || !cap.bars || !Array.isArray(cap.bars.rows)) return { ...sig, skip: true }
+  const rows = cap.bars.rows
+  if (!rows.length) return { ...sig, skip: true }
+  const { ticker } = symbolOf(cap)
+  if (!ticker) return { ...sig, skip: true }
+  return { ...sig, key: `${String(ticker).toUpperCase()}|${tfCodeOf(cap.timeframe)}`, timeUnit: cap.bars.timeUnit,
+    firstT: rows[0][0], lastT: rows[rows.length - 1][0],
+    listing: !!(cap.history && cap.history.startsAtBar0 === true),
+    capturedAt: typeof cap.capturedAtUTC === 'string' ? cap.capturedAtUTC : '',
+    times: encodeTimes(rows) }
+}
+
+/** A row read from the index is usable only if its signature matches the file and its shape is whole. */
+function warmRowFresh(r, st) {
+  if (!r || typeof r !== 'object' || r.size !== st.size || r.mtimeMs !== st.mtimeMs) return false
+  if (r.skip === true) return true
+  return typeof r.key === 'string' && typeof r.timeUnit === 'string' && Number.isFinite(r.firstT)
+    && Number.isFinite(r.lastT) && typeof r.listing === 'boolean' && typeof r.capturedAt === 'string'
+    && typeof r.times === 'string'
+}
+
+function readWarmIndex(file) {
+  try {
+    const j = JSON.parse(fs.readFileSync(file, 'utf8'))
+    if (j && j.schema === WARM_INDEX_SCHEMA && j.rows && typeof j.rows === 'object' && !Array.isArray(j.rows)) return j.rows
+  } catch { /* unreadable or absent: every row is rebuilt */ }
+  return {}
+}
+
+function writeWarmIndex(file, rows) {
+  const tmp = `${file}.${process.pid}.${Date.now()}.tmp`
+  try {
+    fs.writeFileSync(tmp, JSON.stringify({ schema: WARM_INDEX_SCHEMA, rows }))
+    fs.renameSync(tmp, file)
+  } catch {
+    // another worker may hold or have just replaced it; the index is a cache, never required
+    try { fs.unlinkSync(tmp) } catch { /* gone */ }
+  }
+}
+
+/** `TICKER|tf` → candidate metadata for every capture in `dir`.
+ *  @param {{dir?: string, useIndex?: boolean}} [opts] useIndex:false is the full scan the index must equal. */
+export function warmCandidates({ dir = OTHER_CAPTURE_DIR, useIndex = true } = {}) {
+  const cacheKey = `${dir}|${useIndex}`
+  if (warmCandidateIndexes.has(cacheKey)) return warmCandidateIndexes.get(cacheKey)
+  const byKey = new Map()
+  warmCandidateIndexes.set(cacheKey, byKey)
+  if (!fs.existsSync(dir)) return byKey
+  const indexFile = path.join(dir, WARM_INDEX_NAME)
+  const cached = useIndex ? readWarmIndex(indexFile) : {}
+  const rows = {}
+  let changed = false
+  for (const name of fs.readdirSync(dir).sort()) {
+    if (!name.endsWith('.json')) continue
+    let st
+    try { st = fs.statSync(path.join(dir, name)) } catch { continue }
+    let r = cached[name]
+    if (!warmRowFresh(r, st)) { r = warmMetaRow(dir, name, st); changed = true }
+    rows[name] = r
+    if (r.skip) continue
+    if (!byKey.has(r.key)) byKey.set(r.key, [])
+    byKey.get(r.key).push({ file: name, timeUnit: r.timeUnit, firstT: r.firstT, lastT: r.lastT, listing: r.listing, capturedAt: r.capturedAt, times: r.times })
+  }
+  if (useIndex && (changed || Object.keys(cached).length !== Object.keys(rows).length)) writeWarmIndex(indexFile, rows)
+  return byKey
+}
+
+/** Forget the in-process metadata (rails only: the on-disk index is untouched). */
+export function resetWarmCandidateCache() {
+  warmCandidateIndexes.clear()
+  warmCandidateRows.clear()
 }
 
 /** A candidate's own rows, or null when its receipt does not validate. */
-function warmCandidateRowsOf(file) {
-  if (!warmCandidateRows.has(file)) {
+function warmCandidateRowsOf(file, dir = OTHER_CAPTURE_DIR) {
+  const cacheKey = path.join(dir, file)
+  if (!warmCandidateRows.has(cacheKey)) {
     let rows = null
     try {
-      const cap = JSON.parse(fs.readFileSync(path.join(OTHER_CAPTURE_DIR, file), 'utf8'))
+      const cap = JSON.parse(fs.readFileSync(path.join(dir, file), 'utf8'))
       if (validateCapture(cap).ok) rows = cap.bars.rows
     } catch { rows = null }
-    warmCandidateRows.set(file, rows)
+    warmCandidateRows.set(cacheKey, rows)
   }
-  return warmCandidateRows.get(file)
+  return warmCandidateRows.get(cacheKey)
+}
+
+/** The order among proved warm suppliers: the deepest prehistory first; on equal depth the
+ *  earliest `capturedAtUTC`; a supplier with NO stamp (missing or empty) sorts AFTER every
+ *  stamped one, so an unstamped capture can never take over a tie; then the file name.
+ *  @param {{rows: any[], capturedAt?: string, file: string}} a
+ *  @param {{rows: any[], capturedAt?: string, file: string}} b */
+export function compareWarmSuppliers(a, b) {
+  const depth = b.rows.length - a.rows.length
+  if (depth) return depth
+  const sa = typeof a.capturedAt === 'string' && a.capturedAt ? a.capturedAt : null
+  const sb = typeof b.capturedAt === 'string' && b.capturedAt ? b.capturedAt : null
+  if (sa !== sb) {
+    if (sa === null) return 1
+    if (sb === null) return -1
+    return sa < sb ? -1 : 1
+  }
+  return a.file < b.file ? -1 : a.file > b.file ? 1 : 0
 }
 
 /** The prehistory a capture's paints, plots and objects are replayed over (DIV-1:
  *  plots and objects too), or why there is none.
  *  @returns {{kind: 'warm'|'cold'|'bar0', rows: any[]|null, file: string|null,
- *             bars: number, refused: string[], reason: string}} */
-export function warmBarsSupply(capture) {
+ *             bars: number, refused: string[], reason: string}}
+ *  @param {{dir?: string, useIndex?: boolean}} [opts] where the candidates live, and whether
+ *  their metadata comes through the on-disk index (the default) or a full scan. */
+export function warmBarsSupply(capture, { dir = OTHER_CAPTURE_DIR, useIndex = true } = {}) {
   const none = (kind, reason, refused = []) => ({ kind, rows: null, file: null, bars: 0, refused, reason, historyFromListing: null })
   if (capture && capture.history && capture.history.startsAtBar0 === true) {
     return none('bar0', 'the capture starts at the listing (history.startsAtBar0); there is no history before bar 0')
@@ -332,37 +632,74 @@ export function warmBarsSupply(capture) {
   const { ticker } = symbolOf(capture)
   const key = `${String(ticker || '').toUpperCase()}|${tfCodeOf(capture.timeframe)}`
   const first = rows[0][0]
-  const refused = []
-  const proved = []
-  for (const meta of warmCandidates().get(key) || []) {
+  const metas = (warmCandidates({ dir, useIndex }).get(key) || [])
     // only a capture that starts BEFORE the window and reaches its first bar
-    if (meta.timeUnit !== capture.bars.timeUnit || !(meta.firstT < first) || meta.lastT < first) continue
-    const candRows = warmCandidateRowsOf(meta.file)
-    if (!candRows) { refused.push(`${meta.file}: its receipt does not validate`); continue }
-    const cand = { file: meta.file, rows: candRows, listing: meta.listing }
-    const at = cand.rows.findIndex((r) => r[0] === first)
-    if (at <= 0) continue // the window's first bar is not in it
-    const byT = new Map(cand.rows.map((r) => [r[0], r]))
-    const candLast = cand.rows[cand.rows.length - 1][0]
-    let why = null
+    .filter((meta) => meta.timeUnit === capture.bars.timeUnit && meta.firstT < first && meta.lastT >= first)
+  /** One candidate: its prehistory when every overlapping window bar is equal, else why not. */
+  const prove = (meta) => {
+    const candRows = warmCandidateRowsOf(meta.file, dir)
+    if (!candRows) return { refused: `${meta.file}: its receipt does not validate` }
+    const at = candRows.findIndex((r) => r[0] === first)
+    if (at <= 0) return { skip: true } // the window's first bar is not in it
+    const byT = new Map(candRows.map((r) => [r[0], r]))
+    const candLast = candRows[candRows.length - 1][0]
     for (const w of rows) {
       if (w[0] > candLast) break
       const c = byT.get(w[0])
-      if (!c) { why = `window bar ${w[0]} is absent from it inside its span`; break }
+      if (!c) return { refused: `${meta.file}: window bar ${w[0]} is absent from it inside its span` }
       for (let k = 1; k < OHLCV_FIELDS.length; k += 1) {
-        if (c[k] !== w[k]) { why = `bar ${w[0]} ${OHLCV_FIELDS[k]} ${c[k]} vs the capture's ${w[k]}`; break }
+        if (c[k] !== w[k]) return { refused: `${meta.file}: bar ${w[0]} ${OHLCV_FIELDS[k]} ${c[k]} vs the capture's ${w[k]}` }
       }
-      if (why) break
     }
-    if (why) { refused.push(`${cand.file}: ${why}`); continue }
-    proved.push({ file: cand.file, rows: cand.rows.slice(0, at), listing: cand.listing })
+    return { proved: { file: meta.file, rows: candRows.slice(0, at), listing: meta.listing, capturedAt: meta.capturedAt } }
+  }
+  let refused = []
+  let proved = []
+  // The index knows each candidate's bar times, so it knows each one's prehistory depth EXACTLY
+  // without reading the file: try them in the final order and stop at the first that proves,
+  // reading one file instead of every one (SPY 1D had 220 candidates, 257 MB, on 2026-11-15).
+  // Fails closed: a depth the file contradicts, or no candidate proving, falls through to the
+  // full pass below, which is the same code the `useIndex: false` scan runs.
+  let fast = null
+  if (useIndex && metas.every((m) => typeof m.times === 'string')) {
+    const ordered = metas.map((meta) => ({ meta, at: timeIndexOf(meta.times, first) })).filter((x) => x.at > 0)
+      .sort((a, b) => compareWarmSuppliers({ rows: { length: a.at }, capturedAt: a.meta.capturedAt, file: a.meta.file },
+        { rows: { length: b.at }, capturedAt: b.meta.capturedAt, file: b.meta.file }))
+    const fastRefused = []
+    for (const { meta, at } of ordered) {
+      const r = prove(meta)
+      if (r.refused) { fastRefused.push(r.refused); continue }
+      if (r.skip || r.proved.rows.length !== at) break // the index disagrees with the file: full pass
+      fast = { proved: [r.proved], refused: fastRefused }
+      break
+    }
+  }
+  if (fast) {
+    proved = fast.proved
+    refused = fast.refused
+  } else {
+    for (const meta of metas) {
+      const r = prove(meta)
+      if (r.refused) refused.push(r.refused)
+      else if (r.proved) proved.push(r.proved)
+    }
   }
   if (!proved.length) {
     return none('cold', refused.length
       ? `every candidate supplier was refused, cold replay (${refused.join('; ')})`
       : `no committed capture of ${key} holds bars before ${first}, cold replay`, refused)
   }
-  proved.sort((a, b) => (b.rows.length - a.rows.length) || (a.file < b.file ? -1 : 1))
+  // Deepest prehistory wins. On a tie (every listing capture of a series offers the same
+  // bars, and each is proved bar for bar against the window, so the replay is identical)
+  // the EARLIEST-CAPTURED supplier wins, then the name: a later capture of the same series
+  // must never relabel a replay that is already pinned. (2026-11-15: ordering by name alone
+  // let S9's `supply-demand-mtf-flux-charts-spy-1d-2026-11-14.json` (#1296), then
+  // `3-level-zigzag-semafor-spy-1d-2026-11-14.json` (#1307), take over from
+  // `vw-clock-close-tfchange-spy-1d-2026-09-28.json` and turned 13 pins red with no change
+  // in any bar or grade. Under this rule the SPY 1D supplier is
+  // `vw-object-gc-b-spy-1d-2026-09-28.json`, the earliest proved one, and a new capture can
+  // no longer displace it.)
+  proved.sort(compareWarmSuppliers)
   const pick = proved[0]
   return { kind: 'warm', rows: pick.rows, file: pick.file, bars: pick.rows.length, refused,
     historyFromListing: pick.listing === true,
@@ -516,7 +853,45 @@ function symbolOf(capture) {
   // supply uses; where no witness links it, the vendor's spelling is kept (what
   // the harness did before, so nothing unlinked changes).
   const exchange = storeExchangeOfCapture(capture, tv) || tv
-  return { ticker, exchange }
+  // ⭐ RS RATING L8 — a field the capture does not carry may be fed from its recorded supply
+  // (the vendor's value off a committed probe, checked in `recordedSupplyOf`); the capture's
+  // own value, where it has one, wins.
+  // ⭐ RS RATING L9 — and our store's class (`securityType`), so an ETF keys the witnessed L3
+  // `by_class` row as on a member's chart; absent unless the record states it.
+  return { ticker, exchange, ...recordedStoreOf(capture), ...recordedClassificationOf(capture).fields,
+    ...vendorClassificationOf(capture) }
+}
+
+/** ⭐⭐ RS RATING L3 — THE GRADE FEEDS OUR SIDE THE VENDOR'S OWN VALUE of each substituted input
+ *  (RS-RATING-TRANSFER.md: "the grade proves the engine, the substitute is disclosed"): the
+ *  capture's `symbol.industry` / `symbol.sector`, read with `compare.mjs::vendorValueOf` (the
+ *  comparator's own resolver), in the slot our store's string fills on a member's chart. The path
+ *  is the one `bind.js::classificationWith` writes into its tag (`capture.symbol.<field>`), so
+ *  what is fed and what is declared cannot name different fields. A capture without them leaves the
+ *  fields unsettled (a script reading one refuses by name): nothing is invented. ⛔ No
+ *  `securityType` HERE: that is our store's class, and a capture carries TradingView's `type`;
+ *  it comes from the recorded supply's `store` block (`recordedStoreOf`, RS RATING L9). */
+function vendorClassificationOf(capture) {
+  const out = {}
+  for (const f of CLASSIFICATION_FIELD_NAMES) {
+    const got = vendorValueOf(capture, `capture.symbol.${f}`)
+    if (got.found && typeof got.value === 'string' && got.value.trim()) out[f] = got.value
+  }
+  return out
+}
+
+/** ⭐⭐ RS RATING L3 — THIS run's substituted inputs: each classification field the script reads
+ *  that the binding served from the substitution path (`symbolSubstitution.js::substitutedFor`),
+ *  with `value`, what our side was fed for it (the capture's own value, `vendorClassificationOf`). */
+function classificationSubstitutions(source, symbol, capture = null) {
+  // ⭐ RS RATING L8 — a field fed from the recorded supply (not off the capture) cites the
+  // committed capture it was read from, so the comparator never looks for it on this one.
+  const viaRecord = capture ? recordedClassificationOf(capture) : { fields: {}, from: {} }
+  return substitutedFor(source, symbol).map((e) => {
+    const field = e.name.slice('syminfo.'.length)
+    const fromRecord = !vendorValueOf(capture || {}, `capture.symbol.${field}`).found && viaRecord.from[field]
+    return { ...e, value: symbol[field], ...(fromRecord ? { vendorValueFrom: viaRecord.from[field] } : {}) }
+  })
 }
 
 /** The reach of a plot's per-bar colour rule, or null when it has none. */
@@ -806,6 +1181,8 @@ function hostObjectsOf(def, bars, ctx, cols, built = null) {
       // ⭐ F1 — the binder's own statement (`binder.js`): off the listing a `var`
       // list of drawings is withheld whole (`objectRuntime.js`, `withheldBy`).
       offListing: reader.historyFromListing !== true,
+      // ⭐ ENGINE 55 — the binder's own statement of why run-half values are unknown.
+      unknownBecause: runtimeUnknownSentence(reader.runtime),
     })
     if (run.withheldBy && run.withheldBy['objects:off-listing']) {
       const fams = run.withheldBy['objects:off-listing']
@@ -945,9 +1322,15 @@ export function withheldPlotsOf(clockReport, cols, notes) {
   for (const r of clockReport.withheld) {
     const what = r.code.startsWith('bar-index:') ? '`bar_index`'
       : r.code.startsWith('running-total:') ? 'a running total'
-        : r.code.startsWith('var-origin:') ? '`var`' : 'time(<timeframe>)'
+        : r.code.startsWith('var-origin:') ? '`var`'
+          : r.code.startsWith('request:') ? '`request.security`' : 'time(<timeframe>)'
     notes.push(`${what} withheld (${r.code}) on ${r.plots.length} plot(s) — ${r.reason}`)
     const whole = CHART_CLOCK_WHOLE.includes(r.code)
+    // ⭐ ENGINE 55 — a NEWEST-BAR code is never a whole-series withholding, even on a
+    // plot whose column is empty for its own reasons (RDDT's monthly pivots never
+    // form in its history): that bar is excluded by `withheldNewest`, the rest graded.
+    // …and review L2's first-period code withholds the first period's bars only, never the series.
+    if (r.code === TF_MERGE_NEWEST_CODE || r.code === TF_MERGE_FIRST_CODE) continue
     for (const key of r.plots) {
       if (out.has(key)) continue
       if (withholdsEveryBar(cols[key])) out.set(key, r.code)
@@ -955,6 +1338,24 @@ export function withheldPlotsOf(clockReport, cols, notes) {
     }
   }
   return out
+}
+
+/** ⭐⭐ L7 (2026-11-14) — THE SUBSTITUTED INPUTS OF ONE GRADE: our side's declaration,
+ *  read by `compare.mjs::compareCapture` (the contract is stated there, beside
+ *  `substitutionProblems`). Each entry is `{name, source, vendorValueFrom, value}`: a
+ *  vendor-only fact the member door answers from UCT data (`source`), which THIS run was
+ *  fed from the vendor instead (`vendorValueFrom`, resolved with `compare.mjs::vendorValueOf`,
+ *  the comparator's own resolver), so the grade proves the translation and only the UCT
+ *  value is left unproven (the member door discloses it).
+ *  ⛔ Nothing in the engine supplies a substituted value yet, so today every run declares
+ *  `[]` and grades exactly as before. L3 (`syminfo.industry`) is the first to fill it: the
+ *  lane that feeds a vendor value into `ctx` pushes its entry here, in the same change.
+ *  A malformed declaration is refused HERE, before it can reach a verdict. */
+export function substitutedInputsOf(capture, declared = []) {
+  const list = Array.isArray(declared) ? declared : []
+  const problems = substitutionProblems(capture, list)
+  if (problems.length) throw new Error(`ourSide: substituted inputs refused: ${problems.join('; ')}`)
+  return list.map((e) => ({ ...e }))
 }
 
 export function runOurSide(capture) {
@@ -1006,6 +1407,17 @@ function runOurSideOnTheParityClock(capture) {
     const supply = otherSymbolSupply(def, capture)
     if (supply.secondary) { ctx.secondary = supply.secondary; ctx.exchangeOf = supply.exchangeOf }
     notes.push(...supply.notes)
+    if (ctx.symbol.securityType) {
+      const rec = recordedSupplyOf(capture)
+      notes.push(`symbol class ${ctx.symbol.securityType}: our store's, recorded beside the capture (${rec.store.securityType.source})`)
+    }
+    // ⭐ RS RATING L8 — a capture whose recorded supply says the served source was NOT recorded is
+    // not graded at all: a grade over another source (a fallback, or TradingView's own bars) would
+    // speak for bars no member is served. INCONCLUSIVE, by name.
+    if (supply.unrecorded && supply.unrecorded.length) {
+      return { ok: false, refusal: `the supply this grade needs is not recorded — ${supply.unrecorded.join('; ')}`,
+        plots: [], notes }
+    }
     // ⭐ C41 — the chart symbol's own intraday bars, from committed captures only.
     const lower = lowerTfSupply(def, capture)
     if (lower.lowerTf) ctx.lowerTf = lower.lowerTf
@@ -1079,6 +1491,13 @@ function runOurSideOnTheParityClock(capture) {
       return { kind: p.kind, line: p.line ?? null, title: p.title ?? null,
         colors: Array.isArray(all) ? all.slice(pre) : all }
     })
+    // ⭐ G5 — the paints the BIND withheld by name: the column their colour is read from was
+    // refused, and the member's disclosure strip (`plotStripNoticesOf`, what the binder
+    // publishes) names the paint itself. Read off the columns the paints were computed on.
+    const bindWithheldPaints = bindWithheldPaintsOf(def, {
+      columnErrors: typeof registry.columnErrors === 'function' ? registry.columnErrors(paintColsRaw || {}) : {},
+      notices: plotStripNoticesOf(registry, def, paintColsRaw),
+    })
     const lowerReport = registry.lowerTfReport(cols)
     if (lowerReport) {
       for (const c of lowerReport.served) notes.push(`lower timeframe ${c}: served`)
@@ -1106,6 +1525,11 @@ function runOurSideOnTheParityClock(capture) {
     // whole just the same, and graded the same way. A plot with values keeps its
     // comparison: the bars the door drew are still judged.
     const withheldWhole = withheldPlotsOf(registry.chartClockReport(cols), cols, notes)
+    // ⭐⭐ ENGINE 55 — the plots whose NEWEST bar the door withheld by name
+    // (`request:htf-newest-unconfirmed`, `interpret.js::tfMergeMask`): that one bar is
+    // not compared (`compare.mjs`, `withheldNewest`), every other bar is.
+    const newestHeld = new Set(((registry.chartClockReport(cols) || {}).withheld || [])
+      .filter((r) => r.code === TF_MERGE_NEWEST_CODE).flatMap((r) => r.plots))
     let colours
     // ⭐ DIV-1 — the plot colours the binder draws over the SAME replayed bars the
     // values were computed on, each sliced to the window.
@@ -1180,12 +1604,16 @@ function runOurSideOnTheParityClock(capture) {
         const why = registry.columnErrors(cols)[row.key]
         missingReason = `computeFor returned no column for ${row.key}`
           + (why && why.guard ? ` (${why.guard})` : '')
+          // ⭐ ENGINE 55 (review M1) — a refusal carrying its own code (a spelling no binding serves)
+          // says its whole sentence, so a grade reads WHY that one plot is not drawn.
+          + (why && why.code && why.message ? ` — ${why.message}` : '')
       }
       plots.push({
         title: o ? o.title : null,
         formula: o ? o.formula : null,
         key: row ? row.key : null,
         withheldBy: heldBy || null,
+        withheldNewest: !!(col && row && newestHeld.has(row.key) && col.length > 0 && !(col[col.length - 1] === col[col.length - 1])),
         hidden: !!(o && o.hidden),
         column: col || null,
         missingReason,
@@ -1216,6 +1644,15 @@ function runOurSideOnTheParityClock(capture) {
       // ⭐ DIV-1 — the LIVE set at the last bar of the replayed series: the window's
       // last bar, after every bar TradingView ran before it
       : objectsOf(def, calcBars, calcCtx, calcCols, built)
+    // ⭐⭐ U13 (G1) — WHERE OUR x LIVES, in BOTH lanes (the host object lane and the
+    // runtime's RT5 object store answer through `objectsOf`): the bars the object lane
+    // ran on, and where the capture's window starts in them (the DIV-1 prehistory, if
+    // replayed). Our `bar_index` x is an index into `bars`; `objectRecords.js::
+    // ourXResolver` turns it, or a `bar_time` x, into the window bar the vendor's x is
+    // graded against. ⛔ Test infrastructure only: never written to a verdict file.
+    if (objects && objects.ok) {
+      objects.xFrame = { bars: calcBars, windowStart: replayPre, windowBars: bars.length, tf: calcCtx.tf }
+    }
     for (const r of (objects && objects.chartClock) || []) {
       const what = r.code.startsWith('bar-index:') ? '`bar_index`' : 'time(<timeframe>)'
       notes.push(`${what} withheld (${r.code}) in the object lane — ${r.reason}`)
@@ -1249,10 +1686,16 @@ function runOurSideOnTheParityClock(capture) {
         // ⚠️ review N3 — what a replayed MATCH speaks for
         speaksFor: replay ? 'the standalone daily chart (not a grid cell, which first-paints shallow; W / M stay cold)' : null },
       translationPaints: runtimeAwarePaints(built, def),
+      // ⭐ G5 — read by `paintColours.gradePaints` where the binder drew nothing
+      bindWithheldPaints,
       drawnPaints,
       // ⭐ ENGINE 53 — what the door did with the run half (minted / declined by code); the bind's
       // answer (served / refused) rides on `objects.runHalf`.
       runHalfDoor: built.runHalf ? 'minted' : (built.runHalfDeclined ? `declined:${built.runHalfDeclined.code}` : null),
+      // ⭐ L7 — the inputs this run answered with the VENDOR's value in place of UCT data
+      // (`substitutedInputsOf`); `[]` until a lane feeds one.
+      // ⭐ RS RATING L3 — `syminfo.industry` / `sector`, fed the capture's value (`symbolOf`).
+      substituted: substitutedInputsOf(capture, classificationSubstitutions(source, ctx.symbol, capture)),
     }
   } finally {
     registry.uninstallUserDefinition(HARNESS_DEF_ID)
