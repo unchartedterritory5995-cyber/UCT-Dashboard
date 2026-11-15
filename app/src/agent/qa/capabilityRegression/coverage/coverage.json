@@ -1,53 +1,53 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 210,
-  "withProductionKinds": 200,
+  "all": 215,
+  "withProductionKinds": 205,
   "darkGated": 10
  },
  "totals": {
-  "capabilities": 210,
-  "withAnyRegressionCase": 158,
+  "capabilities": 215,
+  "withAnyRegressionCase": 163,
   "perProtection": {
    "nl": {
-    "covered": 155,
-    "applicable": 210
+    "covered": 160,
+    "applicable": 215
    },
    "routing": {
-    "covered": 152,
-    "applicable": 210
+    "covered": 157,
+    "applicable": 215
    },
    "args": {
-    "covered": 158,
-    "applicable": 210
+    "covered": 163,
+    "applicable": 215
    },
    "execution": {
-    "covered": 155,
-    "applicable": 210
+    "covered": 160,
+    "applicable": 215
    },
    "receipt": {
-    "covered": 127,
-    "applicable": 210
+    "covered": 132,
+    "applicable": 215
    },
    "refusal": {
     "covered": 35,
-    "applicable": 210
+    "applicable": 215
    },
    "permission": {
-    "covered": 203,
-    "applicable": 210
+    "covered": 208,
+    "applicable": 215
    },
    "undo": {
-    "covered": 80,
-    "applicable": 139
+    "covered": 84,
+    "applicable": 143
    },
    "multiStep": {
     "covered": 40,
-    "applicable": 210
+    "applicable": 215
    },
    "phrasings": {
-    "covered": 151,
-    "applicable": 210
+    "covered": 156,
+    "applicable": 215
    }
   }
  },
@@ -7795,6 +7795,276 @@
     "refusal": [],
     "permission": [],
     "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "newsLibrary.collection": {
+   "domain": "newsLibrary",
+   "group": "newsLibrary",
+   "target": "newsLibrary",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "newsLibrary.collection: \"create a collection called Fed\"",
+     "newsLibrary.collection: \"make a news collection named Fed\"",
+     "newsLibrary.collection: \"start a new collection called Fed\""
+    ],
+    "routing": [
+     "newsLibrary.collection: \"create a collection called Fed\"",
+     "newsLibrary.collection: \"make a news collection named Fed\"",
+     "newsLibrary.collection: \"start a new collection called Fed\""
+    ],
+    "args": [
+     "corpus newsLibrary.collection"
+    ],
+    "execution": [
+     "newsLibrary.collection (c)"
+    ],
+    "receipt": [
+     "newsLibrary.collection (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "newsLibrary.collection: undo restores"
+    ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "newsLibrary.deleteCollection": {
+   "domain": "newsLibrary",
+   "group": "newsLibrary",
+   "target": "newsLibrary",
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "none",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "newsLibrary.deleteCollection: \"delete my Earnings collection\"",
+     "newsLibrary.deleteCollection: \"remove the Earnings collection\"",
+     "newsLibrary.deleteCollection: \"delete the news collection Earnings\""
+    ],
+    "routing": [
+     "newsLibrary.deleteCollection: \"delete my Earnings collection\"",
+     "newsLibrary.deleteCollection: \"remove the Earnings collection\"",
+     "newsLibrary.deleteCollection: \"delete the news collection Earnings\""
+    ],
+    "args": [
+     "corpus newsLibrary.deleteCollection"
+    ],
+    "execution": [
+     "newsLibrary.deleteCollection (c)"
+    ],
+    "receipt": [
+     "newsLibrary.deleteCollection (c)"
+    ],
+    "refusal": [],
+    "permission": [
+     "newsLibrary.deleteCollection: waits for Apply"
+    ],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "newsLibrary.place": {
+   "domain": "newsLibrary",
+   "group": "newsLibrary",
+   "target": "newsLibrary",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "newsLibrary.place: \"put the NVDA headline in my Earnings collection\"",
+     "newsLibrary.place: \"add the NVDA headline to my Earnings collection\"",
+     "newsLibrary.place: \"move the NVDA headline into the Earnings collection\""
+    ],
+    "routing": [
+     "newsLibrary.place: \"put the NVDA headline in my Earnings collection\"",
+     "newsLibrary.place: \"add the NVDA headline to my Earnings collection\"",
+     "newsLibrary.place: \"move the NVDA headline into the Earnings collection\""
+    ],
+    "args": [
+     "corpus newsLibrary.place"
+    ],
+    "execution": [
+     "newsLibrary.place (c)"
+    ],
+    "receipt": [
+     "newsLibrary.place (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "newsLibrary.place: undo restores"
+    ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "newsLibrary.save": {
+   "domain": "newsLibrary",
+   "group": "newsLibrary",
+   "target": "newsLibrary",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "newsLibrary.save: \"save the NVDA headline\"",
+     "newsLibrary.save: \"bookmark the NVDA headline\"",
+     "newsLibrary.save: \"save the NVDA story to my library\""
+    ],
+    "routing": [
+     "newsLibrary.save: \"save the NVDA headline\"",
+     "newsLibrary.save: \"bookmark the NVDA headline\"",
+     "newsLibrary.save: \"save the NVDA story to my library\""
+    ],
+    "args": [
+     "corpus newsLibrary.save"
+    ],
+    "execution": [
+     "newsLibrary.save (c)"
+    ],
+    "receipt": [
+     "newsLibrary.save (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "newsLibrary.save: undo restores"
+    ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "newsLibrary.setNote": {
+   "domain": "newsLibrary",
+   "group": "newsLibrary",
+   "target": "newsLibrary",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "newsLibrary.setNote: \"add a note to the NVDA headline: watch guidance\"",
+     "newsLibrary.setNote: \"put a note on the NVDA headline: watch guidance\"",
+     "newsLibrary.setNote: \"write a note on the NVDA headline: watch guidance\""
+    ],
+    "routing": [
+     "newsLibrary.setNote: \"add a note to the NVDA headline: watch guidance\"",
+     "newsLibrary.setNote: \"put a note on the NVDA headline: watch guidance\"",
+     "newsLibrary.setNote: \"write a note on the NVDA headline: watch guidance\""
+    ],
+    "args": [
+     "corpus newsLibrary.setNote"
+    ],
+    "execution": [
+     "newsLibrary.setNote (c)"
+    ],
+    "receipt": [
+     "newsLibrary.setNote (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "newsLibrary.setNote: undo restores"
+    ],
     "multiStep": [],
     "phrasings": []
    }

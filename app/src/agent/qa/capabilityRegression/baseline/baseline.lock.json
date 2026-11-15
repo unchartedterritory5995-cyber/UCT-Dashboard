@@ -4484,6 +4484,106 @@
     }
    }
   },
+  "newsLibrary.save": {
+   "digest": "0a7b6822479210fa",
+   "phrasings": {
+    "save the NVDA headline": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "bookmark the NVDA headline": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "save the NVDA story to my library": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "newsLibrary.setNote": {
+   "digest": "22d9bb249dec9d0c",
+   "phrasings": {
+    "add a note to the NVDA headline: watch guidance": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "put a note on the NVDA headline: watch guidance": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "write a note on the NVDA headline: watch guidance": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "newsLibrary.collection": {
+   "digest": "59155d8de3d7b977",
+   "phrasings": {
+    "create a collection called Fed": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "make a news collection named Fed": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "start a new collection called Fed": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "newsLibrary.deleteCollection": {
+   "digest": "9a0bb808851f6670",
+   "phrasings": {
+    "delete my Earnings collection": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "remove the Earnings collection": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "delete the news collection Earnings": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "newsLibrary.place": {
+   "digest": "e54f74f203e34102",
+   "phrasings": {
+    "put the NVDA headline in my Earnings collection": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "add the NVDA headline to my Earnings collection": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "move the NVDA headline into the Earnings collection": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
   "chartMenu.resetWatermark": {
    "digest": "df220e8af0d696e0",
    "phrasings": {

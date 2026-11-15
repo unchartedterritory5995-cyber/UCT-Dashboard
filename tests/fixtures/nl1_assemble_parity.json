@@ -194,6 +194,11 @@
   "calendar.day": "calendar",
   "periodSort.run": "periodSort",
   "periodSort.dock": "periodSort",
+  "newsLibrary.save": "newsLibrary",
+  "newsLibrary.setNote": "newsLibrary",
+  "newsLibrary.collection": "newsLibrary",
+  "newsLibrary.deleteCollection": "newsLibrary",
+  "newsLibrary.place": "newsLibrary",
   "compare.openView": "comparePanel",
   "multiChart.set": "multiChart",
   "multiChart.cell": "multiChart"
@@ -210,6 +215,10 @@
   {
    "id": "compareGroups",
    "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
+  },
+  {
+   "id": "newsLibrary",
+   "title": "Your UCT News library: save or unsave a headline, its note, collections"
   },
   {
    "id": "chartMenu",
@@ -413,6 +422,10 @@
      {
       "id": "compareGroups",
       "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
+     },
+     {
+      "id": "newsLibrary",
+      "title": "Your UCT News library: save or unsave a headline, its note, collections"
      },
      {
       "id": "chartMenu",
@@ -634,6 +647,10 @@
      {
       "id": "compareGroups",
       "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
+     },
+     {
+      "id": "newsLibrary",
+      "title": "Your UCT News library: save or unsave a headline, its note, collections"
      },
      {
       "id": "chartMenu",
@@ -869,6 +886,10 @@
      {
       "id": "compareGroups",
       "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
+     },
+     {
+      "id": "newsLibrary",
+      "title": "Your UCT News library: save or unsave a headline, its note, collections"
      },
      {
       "id": "chartMenu",
@@ -1116,6 +1137,10 @@
       "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
      },
      {
+      "id": "newsLibrary",
+      "title": "Your UCT News library: save or unsave a headline, its note, collections"
+     },
+     {
       "id": "chartMenu",
       "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
      },
@@ -1333,6 +1358,10 @@
       "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
      },
      {
+      "id": "newsLibrary",
+      "title": "Your UCT News library: save or unsave a headline, its note, collections"
+     },
+     {
       "id": "chartMenu",
       "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
      },
@@ -1488,6 +1517,7 @@
     "charts",
     "chartSetup",
     "compareGroups",
+    "newsLibrary",
     "chartMenu",
     "chartFeatures",
     "chartGrid",
@@ -1712,6 +1742,11 @@
     "calendar.day",
     "periodSort.run",
     "periodSort.dock",
+    "newsLibrary.save",
+    "newsLibrary.setNote",
+    "newsLibrary.collection",
+    "newsLibrary.deleteCollection",
+    "newsLibrary.place",
     "compare.openView",
     "multiChart.set",
     "multiChart.cell"

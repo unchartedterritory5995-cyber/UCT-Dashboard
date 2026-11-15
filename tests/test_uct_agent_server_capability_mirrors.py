@@ -116,6 +116,15 @@ def test_the_guard_still_passes_ordinary_multi_chart_prose():
         assert guard.suspicious(text) is False, text
 
 
+def test_the_news_library_family_is_a_NEWS_action_withheld_bare():
+    # newsLibrary.* saves / notes / collects the member's own UCT News headlines: the news domain, never history
+    for n in ("newsLibrary.save", "newsLibrary.setNote", "newsLibrary.collection", "newsLibrary.deleteCollection", "newsLibrary.place"):
+        assert v2.domain_for(n) == "news", n
+        assert guard.suspicious(_bare(n)) is True, n
+    for text in ("Save the NVDA headline to your library.", "Put that headline in your Earnings collection."):
+        assert guard.suspicious(text) is False, text
+
+
 def test_the_volume_profile_family_is_an_INDICATOR_action_withheld_bare():
     # volumeProfile.set turns ONE chart's Volume Profile overlay on / off (Chart Settings → Indicators), never history
     assert v2.domain_for("volumeProfile.set") == "indicator"
