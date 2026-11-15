@@ -4788,6 +4788,19 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] thread switch interval tuning failed (non-fatal): {e}")
 
+    # ⭐ U5 (2026-11-14): the capability detector's own process, off the request GIL
+    # (PINE_CAPABILITY_DETECTOR_WORKER=on). Started 30 s after boot, off the boot path; until it
+    # is READY every detector call answers "still being checked" (fail closed). Off: nothing.
+    try:
+        from api.services import pine_capability_worker
+        if pine_capability_worker.worker_enabled():
+            _cw = threading.Timer(30.0, pine_capability_worker.prestart)
+            _cw.daemon = True
+            _cw.start()
+            print("[startup] capability detector process: starting in 30 s")
+    except Exception as e:
+        print(f"[startup] capability detector process failed to schedule (non-fatal): {e}")
+
     # Self-logging burst capture (2026-06-09/10 thread-exhaustion incident).
     try:
         _start_thread_burst_watch()

@@ -131,6 +131,9 @@ PINE_RUNTIME_MODE_FLAGS = {
     "PINE_RUNTIME_SERVER_STAGE": (STAGE_OFF, (STAGE_OFF, STAGE_ADMINS, STAGE_COHORT, STAGE_ALL)),
     # WS-I Part 2 (2026-11-13): admission by capability, off until the owner arms it.
     "PINE_RUNTIME_CAPABILITY_ADMISSION": ("off", ("off", "on")),
+    # U5 (2026-11-14): the capability detector in its own process (pine_capability_worker), off
+    # the request GIL. Off: in-process, byte for byte as before.
+    "PINE_CAPABILITY_DETECTOR_WORKER": ("off", ("off", "on")),
 }
 assert STAGE_ENV in PINE_RUNTIME_MODE_FLAGS
 assert SERVER_STAGE_ENV in PINE_RUNTIME_MODE_FLAGS
@@ -848,7 +851,7 @@ def capabilities_for(source: str, *, budget: Optional[DetectorBudget] = None,
     `wait` (the save door): wait up to that long for the gate and the cool-down, then run once.
     `verdict_member` (the verdict door): run only if that member's rolling detector spend has room
     and the detector is idle for persisted work AND for the verdict door (it yields; F2)."""
-    from api.services import pine_capabilities
+    from api.services import pine_capabilities, pine_capability_worker
     key = source_hash(source)
     hit = _lru_get(key)
     if hit is not None:
@@ -877,7 +880,16 @@ def capabilities_for(source: str, *, budget: Optional[DetectorBudget] = None,
             else:
                 return None              # cooling down: pending, never wait
         t0 = time.perf_counter()
-        caps = pine_capabilities.capabilities_of(source)
+        if pine_capability_worker.worker_enabled():
+            # ⭐⭐ U5 -- OFF THE REQUEST GIL. The run goes to the detector process and this thread
+            # WAITS ON A PIPE (the GIL released), still under the gate and the duty cycle below.
+            # ⛔ A busy, starting, crashed, hung (killed at its timeout) or confused worker answers
+            # None: PENDING, never an admission, and never run inline here instead. The save door
+            # may wait for a starting worker, within its own deadline only.
+            caps, _ran, _status = pine_capability_worker.detect(
+                source, ready_wait=max(0.0, deadline - time.monotonic()) if wait > 0 else 0.0)
+        else:
+            caps = pine_capabilities.capabilities_of(source)
         elapsed = time.perf_counter() - t0
         if verdict_member is not None:
             # a verdict run cools only the verdict door (persisted work keeps priority)
@@ -887,6 +899,12 @@ def capabilities_for(source: str, *, budget: Optional[DetectorBudget] = None,
             _DETECTOR_IDLE_UNTIL[0] = time.monotonic() + elapsed * (1 / DETECTOR_DUTY_CYCLE - 1)
     finally:
         _DETECTOR_GATE.release()
+    if caps is None:
+        # U5: the worker could not answer. The attempt still costs the request a run (no retry
+        # storm across its rows) and the cool-down above already ran; nothing is stored.
+        if budget is not None:
+            budget.charge(nbytes, elapsed)
+        return None
     if nbytes >= 1024:
         _SECONDS_PER_BYTE[0] = 0.7 * _SECONDS_PER_BYTE[0] + 0.3 * (elapsed / nbytes)
     if budget is not None:
