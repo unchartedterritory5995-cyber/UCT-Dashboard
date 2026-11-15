@@ -334,3 +334,56 @@ def test_the_read_is_admin_only(db):
     assert TestClient(app).get(URL).status_code in (401, 403)
     r = _admin().get(URL + "?days=7")
     assert r.status_code == 200 and r.json()["days"] == 7 and "passes" in r.json()["cohort_criterion"]
+
+
+# ─── follow-up review: refused batches counted, the criterion's own window, prune on read ───────
+
+def test_FL1_a_batch_the_caps_refuse_is_counted_and_fails_nothing_dropped(db, monkeypatch):
+    monkeypatch.setattr(tel, "RUNS_MEMBER_DAILY_CAP", 1)
+    c = _client(member="m-cap")
+    assert c.post(URL, json={"tab": TAB, "ok": 1}).json()["logged"] is True
+    assert c.post(URL, json={"tab": TAB, "ok": 1}).json()["logged"] is False     # refused by the cap
+    assert c.post(URL, json={"tab": TAB, "ok": 1}).json()["logged"] is False
+    day = tel._et_day()
+    assert (day, "count", "refused", 2) in _rows()
+    rep = tel.runs_report(1)
+    assert rep["total"]["refused"] == 2 and rep["total"]["ok"] == 1
+    assert rep["cohort_criterion"]["nothing_dropped"] is False
+    conn = auth_db.get_connection()
+    try:
+        dump = "\n".join(conn.iterdump())
+    finally:
+        conn.close()
+    assert "m-cap" not in dump                                    # a count, never a member
+
+
+def test_FL1_a_refusal_that_is_not_a_cap_is_not_counted(db, monkeypatch):
+    monkeypatch.setenv(rd.STAGE_ENV, "off")                       # not permitted: not a cap refusal
+    _client().post(URL, json=GOOD)
+    _client().post(URL, json={**GOOD, "ms": {"99": 1}})          # malformed: not a cap refusal
+    assert tel.runs_report(1)["total"]["refused"] == 0
+
+
+def test_FL2_the_criterion_window_is_capped_at_the_tab_retention(db):
+    # a clean, big sample 45 days ago (its tabs pruned away) and a small one this week
+    for i in range(4):
+        tel.record_runs(_batch(tab=f"{i:016x}", ok=200), MEMBER_ID, day="2026-10-01")
+    tel.record_runs(_batch(tab="e" * 16, ok=10), MEMBER_ID, day="2026-11-12")
+    rep = tel.runs_report(60, today="2026-11-14")
+    assert rep["total"]["runs"] == 810                             # the 60-day view still shows it
+    crit = rep["cohort_criterion"]
+    assert crit["window_days"] == tel.RUNS_TAB_RETAIN_DAYS
+    assert rep["criterion_window"]["total"]["runs"] == 10          # graded on the last 30 days only
+    assert crit["enough_runs"] is False and crit["passes"] is False
+    short = tel.runs_report(7, today="2026-11-14")
+    assert short["cohort_criterion"]["window_days"] == 7
+
+
+def test_FL3_the_read_prunes_old_rows_even_on_a_day_with_no_batch(db):
+    for d in ("2025-01-01", "2026-09-01"):
+        tel._runs_pruned_day[0] = d                               # the write path prunes nothing here
+        tel.record_runs(_batch(ok=1), None, day=d)
+    assert {r[0] for r in _rows()} == {"2025-01-01", "2026-09-01"}
+    tel.runs_report(7, today="2026-11-14")
+    assert {r[0] for r in _rows()} == {"2026-09-01"}               # daily sums keep 400 days
+    assert _tab_rows() == []                                       # tab rows keep 30 days
