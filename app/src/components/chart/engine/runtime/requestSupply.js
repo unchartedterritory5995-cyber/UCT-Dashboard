@@ -150,7 +150,17 @@ export function runtimeRequestSupply(requests, rows, ctx = {}) {
       const { ticker, decision } = decideOther(target, ctx)
       const hit = (decision.refused || [])[0]
       if (hit) {
-        if (otherSymbolPending(hit)) { out.pending = true; return out }
+        if (otherSymbolPending(hit)) {
+          // ⭐ RS RATING L5 — A LANE THAT IS NEVER HANDED ANOTHER SYMBOL'S BARS (the server
+          // service, `job.mjs::DECLARED_DIFFERENCES.ctxServerOnly`) refuses by name: "still
+          // loading" would be false there, as nothing ever arrives.
+          if (ctx && ctx.otherSymbolSupply === false) {
+            return refuse(`This indicator reads \`${hit.ticker}\`${at(site)}, and this run is not handed another `
+              + 'symbol\'s bars (a server run holds only the chart symbol\'s own), so nothing is drawn rather than a blank line')
+          }
+          out.pending = true
+          return out
+        }
         return refuse(`This indicator reads \`${hit.ticker}\`: ${hit.code} — ${hit.reason}`)
       }
       srcBars = decision.symbols[ticker]
