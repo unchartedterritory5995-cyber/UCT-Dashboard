@@ -3,37 +3,23 @@
  *
  * Defaults: haptics on; sound OFF on iOS first run, ON on desktop. ONE toggle,
  * read from the profile (`sound_on`) when the profile carries it, else from
- * localStorage, else the platform default. Haptics fire only on the reveal and
- * on tap-anchor placement; nothing fires on choosing.
+ * the device switch (studySound.js, set in Settings → Study), else the platform
+ * default. Haptics fire only on the reveal and on tap-anchor placement; nothing
+ * fires on choosing.
  */
 import * as haptics from '../../components/mobile/haptics'
 import { playStudyTone } from '../../utils/alertSound'
+import { isIOS, setSoundPref, SOUND_KEY, storedSound } from './studySound'
 
-export const SOUND_KEY = 'study.sound'
-
-export function isIOS() {
-  if (typeof navigator === 'undefined') return false
-  const ua = navigator.userAgent || ''
-  return /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
-}
+export { isIOS, setSoundPref, SOUND_KEY }
 
 export function feedbackPrefs(profile) {
-  let sound
-  if (profile && typeof profile.sound_on === 'boolean') sound = profile.sound_on
-  else {
-    try {
-      const stored = window.localStorage?.getItem(SOUND_KEY)
-      if (stored === 'on') sound = true
-      else if (stored === 'off') sound = false
-    } catch { /* private window */ }
-  }
+  const stored = storedSound()
+  let sound = profile && typeof profile.sound_on === 'boolean' ? profile.sound_on : stored
   if (sound === undefined) sound = !isIOS()
-  const hapticsOn = profile && typeof profile.haptics_on === 'boolean' ? profile.haptics_on : true
+  // the switch is "Sound and haptics": switched off, both stop; otherwise haptics stay on (D11)
+  const hapticsOn = profile && typeof profile.haptics_on === 'boolean' ? profile.haptics_on : stored !== false
   return { sound, haptics: hapticsOn }
-}
-
-export function setSoundPref(on) {
-  try { window.localStorage?.setItem(SOUND_KEY, on ? 'on' : 'off') } catch { /* private window */ }
 }
 
 /** Fire the reveal's feedback once: success / warn haptic, ding / descending tone. */

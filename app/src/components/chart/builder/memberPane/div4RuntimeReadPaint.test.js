@@ -31,6 +31,7 @@ import { coloursAgree, normalizeColor, NO_COLOUR } from '../../../../../../tools
 import { __resetRuntimePanePermission, __permitRuntimePaneForTests } from '../../engine/runtimePaneGate'
 import {
   setRuntimeKillList, runtimeSourceHash, __resetRuntimeAllowList, __allowEveryRuntimeScriptForTests,
+  setRuntimeCapabilityAdmission, latchRuntimeAdmission, __resetRuntimeAdmission, RUNTIME_FORMING_GUARD,
 } from '../../engine/runtimeKill'
 import { registerObjectRuntimeValues, registeredObjectRuntimeValues } from '../../engine/objectRuntimeSeam'
 
@@ -157,6 +158,25 @@ describe('⭐⭐ DIV-4 — with the runtime pane on, the colour is read from the
       const cols = registry.computeFor(stamped, BARS, undefined, ctx)
       expect(cols.rtcolour1, stamp).toBeUndefined()
       expect(registry.columnErrors(cols).rtcolour1.code, stamp).toBe(code)
+    }
+  })
+
+  it('⛔⛔ G6 — admitted by capability for CLOSED-BAR HISTORY only: refused by name on a forming or untold bar; CONTROL: served on a closed bar', () => {
+    const d = door(true)
+    const ctx = { tf: 'D', symbol: 'AMEX:SPY', historyFromListing: true, newestBarIsForming: false }
+    __resetRuntimeAllowList()
+    setRuntimeCapabilityAdmission(true)
+    try {
+      latchRuntimeAdmission(runtimeSourceHash(SRC), { admitted: true, historyOnly: true })
+      expect(registry.computeFor(d.definition, BARS, undefined, ctx).rtcolour1).toBeInstanceOf(Float64Array)
+      for (const forming of [true, null, undefined]) {
+        const cols = registry.computeFor(d.definition, BARS, undefined, { ...ctx, newestBarIsForming: forming })
+        expect(cols.rtcolour1, String(forming)).toBeUndefined()
+        expect(registry.columnErrors(cols).rtcolour1.code, String(forming)).toBe(RUNTIME_FORMING_GUARD)
+        expect(registry.columnErrors(cols).rtcolour1.message).toMatch(/only been checked against TradingView on finished bars/)
+      }
+    } finally {
+      __resetRuntimeAdmission()
     }
   })
 

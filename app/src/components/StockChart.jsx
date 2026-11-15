@@ -1952,6 +1952,20 @@ function chartTickMarkFormatter(time, tickMarkType) {
   return String(d.getUTCDate())                                  // DayOfMonth
 }
 
+// THE STUDY CHART'S DATE AXIS (studyMode only; the Study screen check, 2026-11-14: a finished replay read
+// "Feb 4 Apr May"). The library places tick marks greedily, heaviest first, each at least one label width from the
+// last: a short month (Feb 2025 has 19 sessions) can fall inside that width and lose its month mark, and then a DAY
+// mark a session or two later fits, so a bare "4" stood where "Mar" belongs. On a daily study chart such a day mark is
+// always within a few sessions of the month it stands in for, so a day mark in a month's first week names its month
+// ("Mar 4"); later days stay bare numbers, the usual axis. Intraday and the year and month marks read as everywhere.
+export function studyTickMarkFormatter(time, tickMarkType) {
+  if (typeof time !== 'number' && tickMarkType === 2) {
+    const d = _dayDate(time)
+    if (d && d.getUTCDate() <= 7) return `${_MO[d.getUTCMonth()]} ${d.getUTCDate()}`
+  }
+  return chartTickMarkFormatter(time, tickMarkType)
+}
+
 // CROSSHAIR time label (the hover box on the axis): weekday + date [+ 12-hour].
 // e.g. "Tue 14 Jul '26 12:00 AM"  (daily: "Tue 14 Jul '26").
 function chartCrosshairTimeFormatter(time) {
@@ -3204,6 +3218,7 @@ export default function StockChart({
   className = '',
   showDrawingTools: showDrawingToolsProp = true,
   studyMode = false,        // Study drills (spec §13.2 T1): the chart shows an ITEM, not a ticker. Nulls useTickerMeta/useTickerIpo/useChartDrawings (no provider lookups or localStorage under the item id), turns every marker/news/desk feed off, prints no symbol in the loading/error copy, and defaults the drawing tools OFF. Additive: a caller that never passes it is byte-identical.
+  tickLabelChars = null,    // opt-in: the date axis sizes its label slot for this many characters (the library's default is 8). The Study drill passes 5 on a wide screen, where its daily labels are "Sep" / "2025" / "Mar 4" and the 8-character slot skipped a short month's mark. Unset = byte-identical.
   onSymbolChange = null,
   onBarContextMenu = null,  // Journal 2.0: right-click a bar → callback({bar, clientX, clientY})
   entryDate = null,         // ISO date string — zoom centers on trade holding period
@@ -11191,6 +11206,10 @@ export default function StockChart({
         // default headroom. vertMarginsRef is captured in fractions of the pane, so the
         // candles land in the same relative spot regardless of the stock's price.
         scaleMargins: vertMarginsRef.current || _mainMargins(paneLayoutRef.current, priceScaleTopMargin, volumePaneExists ? priceScaleBottomMargin : null),
+        // A Study chart prints a top or bottom price label only when the whole label fits (the screen check,
+        // 2026-11-14: "140.00" cut in half at the top and "52.00" sliced by the volume pane). Every other chart keeps
+        // the library default.
+        ...(_study ? { entireTextOnly: true } : {}),
       },
       localization: {
         // Crosshair time label (the hover box on the axis): weekday + date +
@@ -11205,8 +11224,12 @@ export default function StockChart({
         borderVisible: false,
         timeVisible: true,
         secondsVisible: false,
-        // Bottom-axis tick labels: 12-hour on intraday (default is 24-hour).
-        tickMarkFormatter: chartTickMarkFormatter,
+        // Bottom-axis tick labels: 12-hour on intraday (default is 24-hour). A Study chart names the month on a
+        // first-week day mark (studyTickMarkFormatter).
+        tickMarkFormatter: _study ? studyTickMarkFormatter : chartTickMarkFormatter,
+        // A host that knows its labels are short sizes the library's label slot to them (`tickLabelChars`, opt-in; the
+        // Study drill on a wide screen). Unset, the library's own eight-character slot, as on every other chart.
+        ...(tickLabelChars > 0 ? { tickMarkMaxCharacterLength: tickLabelChars } : {}),
         // Exact-range (Model Book) locks to a historical window, so don't pin the
         // latest bar to the right edge — that re-expands the view to "now".
         rightOffset: exactDateRange ? 0 : rightPadBars,
@@ -13420,6 +13443,10 @@ export default function StockChart({
             axisLabelVisible: pl.axisLabelVisible ?? true,
             lineVisible: pl.lineVisible ?? true,   // session ext tag = chip only (no line)
             title: pl.title || '',
+            // An axis tag drawn in its own chip colours, only when the line asks (the Study trade levels' dark chips,
+            // tradeMarks.tradeLevelLines); every other line keeps the library's colour-filled tag.
+            ...(pl.axisLabelColor ? { axisLabelColor: pl.axisLabelColor } : {}),
+            ...(pl.axisLabelTextColor ? { axisLabelTextColor: pl.axisLabelTextColor } : {}),
           })
           priceLineRefs.current.push(ref)
         }
@@ -14130,7 +14157,7 @@ export default function StockChart({
     // (mutation M3 SURVIVED): something else in this list is already unstable per
     // render. Kept as the one declaration that names this dependency; the full
     // reasoning is at the `useInstalledUserDefinitions` call site above.
-  }, [volumePaneHeightPct, filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, calcFrames, applyAverageZOrder, showExtended, _intradayLike, fundamentalSources, marketCapAuthoritySources, economicSources, _econId, historyFromListing, strategyHistoryWindow, strategyWindowPending, otherSymbolExchangeOf, lowerTfSources, csView, secondarySources, serverColumnsGeneration, compactAxes, _plotWindowFullKey, _pinnedFull, _overlayActive, _hasOverride])
+  }, [volumePaneHeightPct, filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, calcFrames, applyAverageZOrder, showExtended, _intradayLike, fundamentalSources, marketCapAuthoritySources, economicSources, _econId, historyFromListing, strategyHistoryWindow, strategyWindowPending, otherSymbolExchangeOf, lowerTfSources, csView, secondarySources, serverColumnsGeneration, compactAxes, _plotWindowFullKey, _pinnedFull, _overlayActive, _hasOverride, _study, tickLabelChars])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   useEffect(() => {

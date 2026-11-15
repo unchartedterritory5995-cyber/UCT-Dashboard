@@ -1,0 +1,2064 @@
+{
+ "unit": "F6.14",
+ "track": "F6",
+ "title": "Straddles, strangles, calendars, diagonals",
+ "teaches": "Long straddles and strangles pay on a big move or rising implied volatility, calendars and diagonals pay on time decay with the stock near the short strike, and each one has a max risk you can name before you trade.",
+ "skills": [
+  {
+   "id": "options.vol_spreads",
+   "title": "Straddles, strangles, calendars, diagonals"
+  }
+ ],
+ "as_of": "2026-11-09",
+ "sources": [
+  {
+   "id": "s1",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Long Straddle (strategy page)",
+   "url": "https://www.optionseducation.org/strategies/all-strategies/long-straddle",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s2",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Long Strangle (Long Combination) (strategy page)",
+   "url": "https://www.optionseducation.org/strategies/all-strategies/long-strangle-long-combination",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s3",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Short Straddle (strategy page)",
+   "url": "https://www.optionseducation.org/strategies/all-strategies/short-straddle",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s4",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Short Strangle (strategy page)",
+   "url": "https://www.optionseducation.org/strategies/all-strategies/short-strangle",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s5",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Long Call Calendar Spread (Call Horizontal) (strategy page)",
+   "url": "https://www.optionseducation.org/strategies/all-strategies/long-call-calendar-spread-call-horizontal",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s6",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Short Call Calendar Spread (Short Call Time Spread) (strategy page)",
+   "url": "https://www.optionseducation.org/strategies/all-strategies/short-call-calendar-spread-short-call-time-spread",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s7",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Options Glossary (D): Diagonal spread",
+   "url": "https://www.optionseducation.org/referencelibrary/optionsglossary?filter=D",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s8",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Options Glossary (C): Calendar spread",
+   "url": "https://www.optionseducation.org/referencelibrary/optionsglossary?filter=C",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s9",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Options Glossary (T): Time spread",
+   "url": "https://www.optionseducation.org/referencelibrary/optionsglossary?filter=T",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s10",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "FAQ: Strategies",
+   "url": "https://www.optionseducation.org/referencelibrary/faq/strategies",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s11",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "August Office Hours FAQs: Straddles Strategy, Spreads and Managing Risk (September 2026; instructors Roma Colwell and Ken Keating)",
+   "url": "https://www.optionseducation.org/news/august-office-hours-faqs-straddles-strategy%2c-spreads-and-managing-risk",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s12",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "August Webinar Key Takeaways: From Straddles to Butterflies, a Volatility Toolkit (September 2026; instructor Ken Keating)",
+   "url": "https://www.optionseducation.org/news/august-webinar-key-takeaways-from-straddles-to-butterflies%2c-a-volatility-toolkit",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s13",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "September Webinar Key Takeaways: What Are Calendar & Diagonal Spreads? (September 2025; instructor Mat Cashman)",
+   "url": "https://www.optionseducation.org/news/september-webinar-key-takeaways-what-are-calendar-diagonal-spreads",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s14",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Video Library: Long Straddle Example: Cost, Risk and Break-Even Points (instructor Ken Keating; page text and chapter list)",
+   "url": "https://www.optionseducation.org/videolibrary/long-straddle-example-cost-risk-and-break-even-points",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s15",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Vega",
+   "url": "https://www.optionseducation.org/advancedconcepts/vega",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s16",
+   "tier": 1,
+   "publisher": "The Options Clearing Corporation and the US options exchanges",
+   "title": "Characteristics and Risks of Standardized Options (June 2024 edition)",
+   "url": "https://cdn.robinhood.com/assets/robinhood/legal/Characteristics%20and%20Risks%20of%20Standardized%20Options.pdf",
+   "accessed": "2026-11-09",
+   "why_reliable": "The official options disclosure document every options customer must receive (June 2024 edition, the version Cboe Regulatory Circular RC24-009 says replaces all prior ones). theocc.com refuses plain clients (403, re-checked 2026-11-09), so this cites the copy Robinhood distributes to its customers (cover: June 2024; published by the exchanges and OCC). Only definitions and risk statements are cited, none of which are time-sensitive."
+  },
+  {
+   "id": "s17",
+   "tier": 2,
+   "publisher": "Fidelity Investments (Options Strategy Guide, written by The Options Institute at Cboe)",
+   "title": "Long straddle",
+   "url": "https://www.fidelity.com/learning-center/investment-products/options/options-strategy-guide/long-straddle",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s18",
+   "tier": 2,
+   "publisher": "Fidelity Investments (Options Strategy Guide, written by The Options Institute at Cboe)",
+   "title": "Long calendar spread with calls",
+   "url": "https://www.fidelity.com/learning-center/investment-products/options/options-strategy-guide/long-calendar-spread-calls",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s19",
+   "tier": 2,
+   "publisher": "Fidelity Investments (Options Strategy Guide, written by The Options Institute at Cboe)",
+   "title": "Long diagonal spread with calls",
+   "url": "https://www.fidelity.com/learning-center/investment-products/options/options-strategy-guide/long-diagonal-spread-calls",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s20",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Tools for Trading Options Around Earnings (January 20, 2026)",
+   "url": "https://www.schwab.com/learn/story/trading-options-around-earnings-announcements",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s21",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Unlocking Diagonal Spreads: A Strategy Guide for Options Trading (Lucas Downey; updated July 22, 2026)",
+   "url": "https://www.investopedia.com/terms/d/diagonalspread.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s22",
+   "tier": 2,
+   "publisher": "CME Group",
+   "title": "Option Calendar Spreads (Option Strategies course)",
+   "url": "https://www.cmegroup.com/education/courses/option-strategies/option-calendar-spreads.html",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s23",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
+   "accessed": "2026-11-12"
+  }
+ ],
+ "facts": [
+  {
+   "id": "f1",
+   "source": "s1",
+   "quote": "This strategy consists of buying a call option and a put option with the same strike price and expiration.",
+   "claim": "A long straddle buys a call and a put with the same strike and the same expiry."
+  },
+  {
+   "id": "f2",
+   "source": "s1",
+   "quote": "The maximum loss is limited to the two premiums paid. The worst that can happen is for the stock price to hold steady and implied volatility to decline.",
+   "claim": "The most a long straddle can lose is the two premiums; the worst case is a flat stock and falling implied volatility."
+  },
+  {
+   "id": "f3",
+   "source": "s1",
+   "quote": "If at expiration the stock's price is exactly at-the-money, both options will expire worthless, and the entire premium paid to put on the position will be lost.",
+   "claim": "If the stock closes right at the strike at expiry, both legs expire worthless and the whole premium is lost."
+  },
+  {
+   "id": "f4",
+   "source": "s1",
+   "quote": "Upside breakeven = strike + premiums paid",
+   "claim": "A long straddle's upper break-even at expiry is the strike plus the total premium paid."
+  },
+  {
+   "id": "f5",
+   "source": "s1",
+   "quote": "Downside breakeven = strike - premiums paid",
+   "claim": "A long straddle's lower break-even at expiry is the strike minus the total premium paid."
+  },
+  {
+   "id": "f6",
+   "source": "s1",
+   "quote": "Conversely, if implied volatility declines, so would both options' resale values (and therefore, profitability).",
+   "claim": "Falling implied volatility lowers the value of both legs of a long straddle."
+  },
+  {
+   "id": "f7",
+   "source": "s1",
+   "quote": "every day that passes without a move in the stock's price will cause the total premium of this position to suffer a significant erosion of value.",
+   "claim": "Every day without a move eats a long straddle's premium."
+  },
+  {
+   "id": "f8",
+   "source": "s1",
+   "quote": "Because the straddle requires premiums to be paid on two types of options instead of one, the combined expense sets a relatively high hurdle for the strategy to break even.",
+   "claim": "Paying two premiums sets a high bar for a straddle to break even."
+  },
+  {
+   "id": "f9",
+   "source": "s1",
+   "quote": "For example, the investor might be expecting an important court ruling in the next quarter, the outcome of which will be either very good news or very bad news for the stock.",
+   "claim": "A typical straddle case is a binary event, such as a court ruling, that could send the stock sharply either way."
+  },
+  {
+   "id": "f10",
+   "source": "s1",
+   "quote": "This strategy could be seen as a race between time decay and volatility.",
+   "claim": "A long straddle is a race between time decay and volatility."
+  },
+  {
+   "id": "f11",
+   "source": "s2",
+   "quote": "This strategy typically involves buying an out-of-the money call option and an out-of-the-money put option with the same expiration date.",
+   "claim": "A long strangle usually buys an out-of-the-money call and an out-of-the-money put with the same expiry."
+  },
+  {
+   "id": "f12",
+   "source": "s2",
+   "quote": "This strategy differs from a straddle in that the call strike is above the put strike.",
+   "claim": "In a strangle the call strike sits above the put strike; a straddle uses one strike."
+  },
+  {
+   "id": "f13",
+   "source": "s2",
+   "quote": "Strangles are less expensive than straddles, but a larger move in the underlying stock is generally required to reach breakeven.",
+   "claim": "A strangle costs less than a straddle but generally needs a bigger move to break even."
+  },
+  {
+   "id": "f14",
+   "source": "s2",
+   "quote": "The maximum loss occurs if the underlying stock remains between the strike prices until expiration.",
+   "claim": "A long strangle loses the most when the stock stays between the strikes until expiry."
+  },
+  {
+   "id": "f15",
+   "source": "s2",
+   "quote": "Downside breakeven = put strike - premiums paid",
+   "claim": "A long strangle's lower break-even is the put strike minus the total premium paid."
+  },
+  {
+   "id": "f16",
+   "source": "s2",
+   "quote": "An increase in implied volatility, all other things equal, would have a very positive impact on this strategy.",
+   "claim": "All else equal, rising implied volatility helps a long strangle a lot."
+  },
+  {
+   "id": "f17",
+   "source": "s2",
+   "quote": "The passage of time, all other things equal, will have a very negative impact on this strategy.",
+   "claim": "All else equal, the passage of time hurts a long strangle a lot."
+  },
+  {
+   "id": "f18",
+   "source": "s3",
+   "quote": "The maximum risk is unlimited. The worst that can happen is for the stock to rise to infinity, and the next-to-worst outcome is for the stock to fall to zero.",
+   "claim": "A short straddle's risk is unlimited on the upside; the next-worst case is the stock going to zero."
+  },
+  {
+   "id": "f19",
+   "source": "s3",
+   "quote": "The maximum gain is limited to the premiums received at the outset.",
+   "claim": "The most a short straddle can make is the premium collected."
+  },
+  {
+   "id": "f20",
+   "source": "s3",
+   "quote": "This strategy's chances of success would be better if implied volatility were to fall.",
+   "claim": "A short straddle does better if implied volatility falls."
+  },
+  {
+   "id": "f21",
+   "source": "s3",
+   "quote": "Still no precaution can change the fundamentals: limited rewards for unlimited risk.",
+   "claim": "Selling a straddle means limited reward for unlimited risk, whatever precautions you take."
+  },
+  {
+   "id": "f22",
+   "source": "s4",
+   "quote": "Upside breakeven = call strike + premiums received",
+   "claim": "A short strangle's upper break-even is the call strike plus the premium received."
+  },
+  {
+   "id": "f23",
+   "source": "s4",
+   "quote": "An increase in implied volatility, all other things equal, would have a very negative impact on this strategy.",
+   "claim": "All else equal, rising implied volatility hurts a short strangle a lot."
+  },
+  {
+   "id": "f24",
+   "source": "s4",
+   "quote": "The maximum loss is unlimited. The maximum loss occurs if the stock goes to infinity, and a very substantial loss could occur if the stock became worthless.",
+   "claim": "A short strangle's loss is unlimited if the stock runs up, and very large if it collapses."
+  },
+  {
+   "id": "f25",
+   "source": "s5",
+   "quote": "Short one call option and long a second call option with a more distant expiration is an example of a long call calendar spread.",
+   "claim": "A long call calendar sells one call and buys another call with a later expiry."
+  },
+  {
+   "id": "f26",
+   "source": "s5",
+   "quote": "The strategy most commonly involves calls with the same strike (horizontal spread), but can also be done with different strikes (diagonal spread).",
+   "claim": "A calendar usually uses one strike; with different strikes it becomes a diagonal."
+  },
+  {
+   "id": "f27",
+   "source": "s5",
+   "quote": "If both options have the same strike price, the strategy will always require paying a premium to initiate the position.",
+   "claim": "A same-strike long calendar is always opened for a debit."
+  },
+  {
+   "id": "f28",
+   "source": "s5",
+   "quote": "The maximum loss would occur should the two options reach parity.",
+   "claim": "A long calendar loses the most when both options trade at the same value."
+  },
+  {
+   "id": "f29",
+   "source": "s5",
+   "quote": "This could happen if the underlying stock declined enough that both options became worthless, or if the stock rose enough that both options went deep in-the-money and traded at their intrinsic value.",
+   "claim": "That happens on a big drop (both worthless) or a big rally (both deep in the money at intrinsic value)."
+  },
+  {
+   "id": "f30",
+   "source": "s5",
+   "quote": "In either case, the loss would be the premium paid to put on the position.",
+   "claim": "Either way, a long calendar's loss is the premium paid to open it."
+  },
+  {
+   "id": "f31",
+   "source": "s5",
+   "quote": "At the expiration of the near-term option, the maximum gain would occur should the underlying stock be at the strike price of the expiring option.",
+   "claim": "A long calendar makes the most if the stock sits at the strike when the near-term option expires."
+  },
+  {
+   "id": "f32",
+   "source": "s5",
+   "quote": "An increase in implied volatility, all other things equal, would have an extremely positive impact on this strategy. In general, longer-term options have a greater sensitivity to changes in market volatility, i.e., a higher Vega.",
+   "claim": "Rising implied volatility helps a long calendar, because the longer-dated option you own has more vega."
+  },
+  {
+   "id": "f33",
+   "source": "s5",
+   "quote": "Obviously, the near-term call suffers more from time decay, i.e., has a greater Theta.",
+   "claim": "The near-term option you sell loses time value faster than the longer-term one you own."
+  },
+  {
+   "id": "f34",
+   "source": "s6",
+   "quote": "Selling a call calendar spread consists of buying one call option and selling a second call option with a more distant expiration.",
+   "claim": "A short call calendar buys the near call and sells the later-dated call."
+  },
+  {
+   "id": "f35",
+   "source": "s6",
+   "quote": "If the near-term option expires worthless and the investor takes no action, the strategy becomes a naked call and there is no limit to the potential loss.",
+   "claim": "Once the near call in a short calendar expires, the position is a naked short call with unlimited risk."
+  },
+  {
+   "id": "f36",
+   "source": "s7",
+   "quote": "A strategy involving the simultaneous purchase and writing of two options of the same type that have different strike prices and different expiration dates. Example: buying 1 OICX May 60 call and writing 1 OICX March 65 call.",
+   "claim": "A diagonal spread buys one option and sells another of the same type, with different strikes and different expiries."
+  },
+  {
+   "id": "f37",
+   "source": "s8",
+   "quote": "An option strategy that generally involves the purchase of a longer-termed option(s) (call or put) and the writing of an equal number of nearer-termed option(s) of the same type and strike price.",
+   "claim": "A calendar spread buys a longer-dated option and sells an equal number of nearer-dated options of the same type and strike."
+  },
+  {
+   "id": "f38",
+   "source": "s9",
+   "quote": "Also known as calendar spread or horizontal spread.",
+   "claim": "A time spread is the same thing as a calendar spread or a horizontal spread."
+  },
+  {
+   "id": "f39",
+   "source": "s10",
+   "quote": "Can I perform a spread by purchasing an at-the-money LEAPS® call and selling a front month out-of-the-money call? Yes, you are describing the diagonal call spread strategy.",
+   "claim": "Buying a longer-dated call and selling a nearer, higher-strike call is a diagonal call spread."
+  },
+  {
+   "id": "f40",
+   "source": "s10",
+   "quote": "if you are assigned on the front month call and then exercise your LEAPS® to cover the assignment, your loss is the net debit paid to establish the position, less the difference between the strike prices",
+   "claim": "In that call diagonal, if you are assigned on the short call and exercise the long call to cover, the result is the net debit minus the gap between the strikes."
+  },
+  {
+   "id": "f41",
+   "source": "s10",
+   "quote": "Remember, when you exercise an option contract, you forgo any time value.",
+   "claim": "Exercising an option throws away its remaining time value."
+  },
+  {
+   "id": "f42",
+   "source": "s10",
+   "quote": "The vertical spread consists of buying one option and selling another with a different strike but both expiring in the same month.",
+   "claim": "A vertical spread uses two strikes in the same expiry."
+  },
+  {
+   "id": "f43",
+   "source": "s11",
+   "quote": "A straddle or a strangle also has two legs, but both are on the same side: buying a call and a put together, or selling a call and a put together, rather than buying one and selling the other.",
+   "claim": "Straddles and strangles buy both legs or sell both legs; they never buy one and sell the other."
+  },
+  {
+   "id": "f44",
+   "source": "s11",
+   "quote": "Buying a straddle or a strangle has defined risk and undefined reward. Selling one has defined reward and undefined risk",
+   "claim": "Bought, a straddle or strangle has capped risk; sold, it has capped reward and open-ended risk."
+  },
+  {
+   "id": "f45",
+   "source": "s11",
+   "quote": "The at-the-money straddle price, divided by the stock price, gives a rough percentage estimate of the move the market expects around an event such as earnings.",
+   "claim": "The at-the-money straddle price divided by the stock price roughly gives the percentage move the market expects."
+  },
+  {
+   "id": "f46",
+   "source": "s11",
+   "quote": "As the event gets closer, implied volatility often rises, which pushes the straddle price, and the expected move, higher.",
+   "claim": "Implied volatility often climbs into an event, which makes the straddle more expensive."
+  },
+  {
+   "id": "f47",
+   "source": "s11",
+   "quote": "Being short options also usually means being short Vega, so rising implied volatility works against the position while falling implied volatility helps it.",
+   "claim": "Short options are usually short vega: rising implied volatility hurts and falling implied volatility helps."
+  },
+  {
+   "id": "f48",
+   "source": "s11",
+   "quote": "A combo, also called a synthetic stock position, involves buying a call and selling a put (or vice versa) at the same strike and expiration.",
+   "claim": "Buying a call and selling a put at one strike is a combo, a synthetic stock position, not a straddle."
+  },
+  {
+   "id": "f49",
+   "source": "s12",
+   "quote": "Because the position profits from a large move in either direction, the trader doesn't need to predict which way the stock will go, only that it will move enough to clear one of two break-even points.",
+   "claim": "A long straddle needs a big enough move to clear a break-even, not a call on direction."
+  },
+  {
+   "id": "f50",
+   "source": "s12",
+   "quote": "The position also carries positive Vega, so rising implied volatility helps even without stock movement, while quiet, flat trading works against it through time decay.",
+   "claim": "A long straddle is long vega: rising implied volatility helps, and quiet trading hurts through time decay."
+  },
+  {
+   "id": "f51",
+   "source": "s12",
+   "quote": "Because the strikes sit further from the current price, a strangle needs a larger move to become profitable, and its break-even points are wider than the straddle's.",
+   "claim": "A strangle's break-evens are wider than a straddle's, so it needs a bigger move."
+  },
+  {
+   "id": "f52",
+   "source": "s12",
+   "quote": "the opposite of the straddle and strangle, which are long Vega positions",
+   "claim": "Long straddles and strangles are long vega positions."
+  },
+  {
+   "id": "f53",
+   "source": "s13",
+   "quote": "Maximum loss limited to the net debit paid.",
+   "claim": "A long calendar's maximum loss is the net debit paid."
+  },
+  {
+   "id": "f54",
+   "source": "s13",
+   "quote": "Can be effective in low volatility environments due to differences in Theta, Vega, and Gamma.",
+   "claim": "Calendars can work well when volatility is low."
+  },
+  {
+   "id": "f55",
+   "source": "s13",
+   "quote": "Combine elements of vertical spreads and calendars, using different strikes and expirations.",
+   "claim": "A diagonal mixes a vertical spread and a calendar: different strikes and different expiries."
+  },
+  {
+   "id": "f57",
+   "source": "s14",
+   "quote": "Stock Price $100, IV 35%, 21 DTE 0:47 Buying 100 Call + 100 Put",
+   "claim": "OIC's worked example: stock at 100, buy the 100 call and the 100 put."
+  },
+  {
+   "id": "f58",
+   "source": "s14",
+   "quote": "1:37 Maximum Risk: $680 2:24 Break-Even Calculation: $106.80 / $93.20",
+   "claim": "In that example the maximum risk is $680 and the break-evens are 106.80 and 93.20."
+  },
+  {
+   "id": "f59",
+   "source": "s15",
+   "quote": "Longer-term options tend to have higher Vega than near-term options.",
+   "claim": "Longer-dated options usually have more vega than near-dated ones."
+  },
+  {
+   "id": "f60",
+   "source": "s15",
+   "quote": "Implied volatility tends to increase when there is uncertainty or anticipated news, while it tends to decrease in times of calm.",
+   "claim": "Implied volatility tends to rise ahead of news and fall when things calm down."
+  },
+  {
+   "id": "f61",
+   "source": "s16",
+   "quote": "A straddle consists of purchasing or writing both a put and a call on the same underlying interest, with the options having the same exercise price and expiration date.",
+   "claim": "A straddle is buying or writing a put and a call on the same stock with the same strike and expiry."
+  },
+  {
+   "id": "f62",
+   "source": "s16",
+   "quote": "However, the spread may not offset all of the risk of the uncovered writing position. For example, if the long portion of the spread has a higher exercise price than the exercise price of the short",
+   "claim": "A spread may not cover all the risk of a short call, for example when the call you own has a higher strike than the one you sold."
+  },
+  {
+   "id": "f63",
+   "source": "s16",
+   "quote": "or if the long has an earlier expiration date than the expiration date of the short, then the writer may still be exposed to significant risks from his uncovered writing position.",
+   "claim": "If the option you own expires before the one you sold, the short leg can still carry significant risk."
+  },
+  {
+   "id": "f64",
+   "source": "s16",
+   "quote": "the possibility that a loss could be incurred on both sides of a combination transaction",
+   "claim": "A multi-leg position can lose on both sides at once."
+  },
+  {
+   "id": "f65",
+   "source": "s16",
+   "quote": "where the investor writes both a put and a call on the same underlying interest at the same exercise price in exchange for a combined premium on the two writing transactions, the potential risk is unlimited",
+   "claim": "Writing a straddle carries unlimited potential risk."
+  },
+  {
+   "id": "f66",
+   "source": "s16",
+   "quote": "If the option is trading at a premium of, say, $4 per share, then the aggregate premium for a single option contract would be $400.",
+   "claim": "A stock option's premium is quoted per share; one contract costs 100 times that."
+  },
+  {
+   "id": "f67",
+   "source": "s16",
+   "quote": "the unit of trading for most options on equity securities is 100 shares.",
+   "claim": "Most stock option contracts cover 100 shares."
+  },
+  {
+   "id": "f68",
+   "source": "s16",
+   "quote": "If the writer of a physical delivery call option owns or acquires the amount of the underlying interest that is deliverable upon exercise of the call, she is said to be a covered call writer.",
+   "claim": "A call is covered only when you own the shares it would deliver."
+  },
+  {
+   "id": "f69",
+   "source": "s17",
+   "quote": "The risk is that the announcement does not cause a significant change in stock price and, as a result, both the call price and put price decrease as traders sell both options.",
+   "claim": "The risk in a straddle bought before news is a small move, after which both the call and the put lose value."
+  },
+  {
+   "id": "f70",
+   "source": "s17",
+   "quote": "prices of straddles frequently are an accurate gauge of how much a stock price is likely to move prior to expiration.",
+   "claim": "Straddle prices are often a fair gauge of how far the stock will move by expiry."
+  },
+  {
+   "id": "f71",
+   "source": "s17",
+   "quote": "For buyers of straddles, higher options prices mean that breakeven points are farther apart and that the underlying stock price has to move further to achieve breakeven.",
+   "claim": "When options are expensive, a straddle's break-evens sit farther apart and the stock has to move further."
+  },
+  {
+   "id": "f72",
+   "source": "s17",
+   "quote": "The first disadvantage of a long straddle is that the cost and maximum risk of one straddle (one call and one put) are greater than for one strangle.",
+   "claim": "One straddle costs and risks more than one comparable strangle."
+  },
+  {
+   "id": "f73",
+   "source": "s17",
+   "quote": "Since long straddles consist of two long options, the sensitivity to time erosion is higher than for single-option positions.",
+   "claim": "Owning two options makes a straddle more sensitive to time decay than a single option."
+  },
+  {
+   "id": "f74",
+   "source": "s18",
+   "quote": "This is the point of maximum profit, because the long call has maximum time value when the stock price equals the strike price.",
+   "claim": "A calendar peaks with the stock at the strike, where the long call holds the most time value."
+  },
+  {
+   "id": "f75",
+   "source": "s18",
+   "quote": "If the stock price moves sharply away from the strike price, then the difference between the two calls approaches zero and the full amount paid for the spread is lost.",
+   "claim": "A sharp move away from the strike shrinks a calendar toward zero, losing the full amount paid."
+  },
+  {
+   "id": "f76",
+   "source": "s18",
+   "quote": "Traders who are not suited to the unlimited risk of short straddles or strangles might consider long calendar spreads as a limited-risk alternative to profit from a neutral forecast.",
+   "claim": "For a neutral view, a long calendar is a limited-risk alternative to a short straddle or strangle."
+  },
+  {
+   "id": "f77",
+   "source": "s18",
+   "quote": "One should not forget, however, that the risk of a long calendar spread is still 100% of the capital committed.",
+   "claim": "You can still lose everything you put into a long calendar."
+  },
+  {
+   "id": "f78",
+   "source": "s18",
+   "quote": "the impact of changing volatility is slightly positive, but very close to zero.",
+   "claim": "Fidelity calls a long calendar's sensitivity to volatility slightly positive, close to zero."
+  },
+  {
+   "id": "f79",
+   "source": "s19",
+   "quote": "A long diagonal spread with calls is created by buying one “longer-term” call with a lower strike price and selling one “shorter-term” call with a higher strike price.",
+   "claim": "A long call diagonal buys a longer-dated, lower-strike call and sells a shorter-dated, higher-strike call."
+  },
+  {
+   "id": "f80",
+   "source": "s19",
+   "quote": "unlike a long calendar spread with calls, a long diagonal spread can still earn a profit if the stock rises sharply above the strike price of the short call.",
+   "claim": "Unlike a calendar, a long call diagonal can still profit on a sharp rally above the short strike."
+  },
+  {
+   "id": "f81",
+   "source": "s19",
+   "quote": "The maximum risk of a long diagonal spread with calls is equal to the net cost of the spread including commissions.",
+   "claim": "With the lower strike owned, a long call diagonal's maximum risk is its net cost."
+  },
+  {
+   "id": "f82",
+   "source": "s19",
+   "quote": "it is generally preferable to buy shares to close the short stock position and then sell the long call. This two-part action recovers the time value of the long call.",
+   "claim": "After an assignment, buying shares and selling the long call usually beats exercising, because it keeps the long call's time value."
+  },
+  {
+   "id": "f83",
+   "source": "s20",
+   "quote": "In the immediate aftermath of an earnings report, IV can sometimes collapse, removing value from associated options contracts.",
+   "claim": "Implied volatility can collapse right after earnings, taking value out of options."
+  },
+  {
+   "id": "f84",
+   "source": "s20",
+   "quote": "it can cause the value of an option to fall even when the stock makes a move in the anticipated direction.",
+   "claim": "That IV crush can make an option lose value even when the stock moves the way you wanted."
+  },
+  {
+   "id": "f85",
+   "source": "s20",
+   "quote": "if the current IV percentile is high, it means options premiums are typically going to be relatively expensive. This typically favors strategies that involve selling options",
+   "claim": "A high IV percentile means expensive premiums, which favors selling options."
+  },
+  {
+   "id": "f86",
+   "source": "s20",
+   "quote": "Conversely, a low current IV percentile, particularly relative to prior earnings seasons, tends to favor strategies that involve buying options, such as long straddles or strangles or debit spreads.",
+   "claim": "A low IV percentile favors buying options, such as long straddles and strangles."
+  },
+  {
+   "id": "f87",
+   "source": "s21",
+   "quote": "Most diagonal spreads are long spreads and the only requirement is that the holder buys the option with the longer expiration date and sells the option with the shorter expiration date.",
+   "claim": "In a long diagonal you buy the longer-dated option and sell the shorter-dated one."
+  },
+  {
+   "id": "f88",
+   "source": "s22",
+   "quote": "Conversely, if the market rose to 3000 before September expiration, her short September call would be worth 560.00, and her long December call would be trading close to parity at 560.00. The spread is worth zero",
+   "claim": "In CME's example, a big rally takes both calls of a calendar to parity and the spread to zero."
+  },
+  {
+   "id": "f89",
+   "source": "s5",
+   "quote": "Be aware, that the near-term and far-term options could and probably will trade at different implied volatilities.",
+   "claim": "The near and far options of a calendar usually trade at different implied volatilities."
+  },
+  {
+   "id": "h1",
+   "source": "s23",
+   "quote": "Trade shares; options are only a defined-risk alternative.",
+   "claim": "Rule A6: we trade shares, and we use options only as a defined-risk alternative."
+  },
+  {
+   "id": "h2",
+   "source": "s23",
+   "quote": "Options occasionally; no further rules. The premium paid is the stop.",
+   "claim": "Rule B25: we use options occasionally, and on an option we buy, the premium paid is the stop."
+  },
+  {
+   "id": "h3",
+   "source": "s23",
+   "quote": "Risk 0.25% to 2% of the account on a trade",
+   "claim": "Rule A1: risk 0.25% to 2% of the account on a trade."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "Straddle or strangle",
+   "steps": [
+    "A long straddle buys a call and a put at the same strike, same expiry.",
+    "A long strangle buys an out-of-the-money call and an out-of-the-money put instead. The call strike sits above the put strike.",
+    "Both pay on a big enough move either way. The strangle costs less but needs a bigger move.",
+    "Rising implied volatility helps both. Quiet days hurt both."
+   ],
+   "facts": [
+    "f1",
+    "f11",
+    "f12",
+    "f13",
+    "f50",
+    "f16",
+    "f17"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "One straddle, start to finish",
+   "steps": [
+    "Stock at $100. Buy the 100 call and the 100 put, same expiry.",
+    "Max risk is $680 a contract: the two premiums together, times 100 shares.",
+    "The break-evens are $106.80 and $93.20: the strike plus or minus both premiums, per share.",
+    "Close right at $100 on expiry day and both legs expire worthless."
+   ],
+   "facts": [
+    "f57",
+    "f58",
+    "f2",
+    "f4",
+    "f5",
+    "f3",
+    "f67"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "Calendars and diagonals",
+   "steps": [
+    "A calendar sells a near-term option and buys a later one, same type, same strike.",
+    "A diagonal does the same with two different strikes.",
+    "The near option loses time value faster, so a quiet stock near the strike pays. A big move either way hurts.",
+    "Bought for a debit, a calendar's max loss is that debit."
+   ],
+   "facts": [
+    "f37",
+    "f36",
+    "f33",
+    "f31",
+    "f28",
+    "f29",
+    "f30"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "rung": 1,
+   "format": "mcq",
+   "term": "Long straddle",
+   "q": "What is a long straddle?",
+   "choices": [
+    "Buy call and put, one strike and date",
+    "Buy call and put, two different strikes",
+    "Buy a call, sell a put, same strike",
+    "Sell a near call, buy a far call"
+   ],
+   "answer": "Buy call and put, one strike and date",
+   "why": "Buy a call and a put at one strike and one expiry. That is how OIC defines a long straddle. You own both legs, so a big enough move either way can pay. Paying two premiums sets a high bar to break even. Two different strikes make a strangle instead. Buying the call and selling the put at one strike is a combo, which acts like owning the stock.",
+   "lesson_line": "Straddle: one strike, one expiry, a call and a put. You're betting on size, not direction.",
+   "facts": [
+    "f1",
+    "f61",
+    "f49",
+    "f43",
+    "f48",
+    "f8",
+    "f12",
+    "f37",
+    "f36"
+   ],
+   "wrong": {
+    "Buy call and put, two different strikes": "That's a strangle. Its call strike sits above its put strike.",
+    "Buy a call, sell a put, same strike": "Buying one and selling the other at one strike is a combo. It behaves like owning the stock.",
+    "Sell a near call, buy a far call": "That's a calendar or a diagonal: two expiries, both calls."
+   },
+   "skill": "options.vol_spreads",
+   "simple": "A long straddle buys a call and a put at one strike and date, so a big enough move can pay.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before"
+    ]
+   },
+   "batch": "wave7"
+  },
+  {
+   "key": "q02",
+   "rung": 1,
+   "format": "tf",
+   "q": "A long strangle usually buys an in-the-money call and an in-the-money put.",
+   "answer": "False",
+   "why": "False. A long strangle typically buys an out-of-the-money call and an out-of-the-money put, with the same expiry. Its call strike sits above its put strike. A straddle buys both at one strike instead.",
+   "lesson_line": "A strangle usually buys two out-of-the-money options, the call strike above the put strike.",
+   "facts": [
+    "f11",
+    "f12",
+    "f1"
+   ],
+   "skill": "options.vol_spreads",
+   "simple": "False, because a long strangle usually buys an out-of-the-money call and an out-of-the-money put.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave7"
+  },
+  {
+   "key": "q03",
+   "rung": 1,
+   "format": "mcq",
+   "term": "Calendar spread",
+   "q": "What is a calendar spread?",
+   "choices": [
+    "One strike, two different expiries",
+    "Same expiry, two different strikes",
+    "Two strikes and two expiries",
+    "A call and a put at the same strike"
+   ],
+   "answer": "One strike, two different expiries",
+   "why": "One strike, two different expiries. OIC's glossary: a calendar usually buys a longer-dated option and writes an equal number of nearer-dated ones, same type and same strike. Both legs are calls, or both are puts. It is also called a time spread or a horizontal spread. Change the strikes too and it becomes a diagonal. Buy one and sell another at two strikes in one expiry, and it's a vertical.",
+   "lesson_line": "Calendar: one strike, two expiries. You'll also see it called a time spread or a horizontal spread.",
+   "facts": [
+    "f37",
+    "f25",
+    "f38",
+    "f36",
+    "f42",
+    "f61"
+   ],
+   "wrong": {
+    "Same expiry, two different strikes": "A calendar keeps one strike. Buying one and selling another at two strikes in one expiry is a vertical, like a bull call spread.",
+    "Two strikes and two expiries": "That's a diagonal. A calendar keeps one strike.",
+    "A call and a put at the same strike": "A call plus a put at one strike is how a straddle is built. A calendar uses two calls or two puts."
+   },
+   "skill": "options.vol_spreads",
+   "simple": "A calendar spread uses one strike and two expiry dates, usually selling the near option and buying the later one.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before"
+    ]
+   },
+   "batch": "wave7"
+  },
+  {
+   "key": "q04",
+   "rung": 2,
+   "format": "tf",
+   "q": "If the stock closes exactly at the strike on expiry day, a long straddle's put still has value.",
+   "answer": "False",
+   "why": "False. If the stock closes exactly at the strike at expiry, both options expire worthless and the whole premium is lost. Neither leg is sure to pay. That is the worst case, and the loss stops at the two premiums. A close near the strike, inside the two break-evens, still loses money.",
+   "lesson_line": "Both legs can lose. The worst close for a long straddle is right at its strike.",
+   "facts": [
+    "f3",
+    "f2",
+    "f64",
+    "f4",
+    "f5"
+   ],
+   "skill": "options.vol_spreads",
+   "simple": "False, because if the stock ends right at the strike, both the call and the put expire worthless.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave7"
+  },
+  {
+   "key": "q05",
+   "rung": 2,
+   "format": "tf",
+   "q": "When you own a straddle, every day without a move eats into its value.",
+   "answer": "True",
+   "why": "True. Quiet days work against you. Every day without a move erodes the straddle's premium. Owning two options makes it more sensitive to time decay than a single option. OIC calls it a race between time decay and volatility. Only a big enough move, or rising implied volatility, wins that race.",
+   "lesson_line": "A long straddle is a race between time decay and a move. Quiet days are the cost.",
+   "facts": [
+    "f7",
+    "f10",
+    "f73",
+    "f50"
+   ],
+   "skill": "options.vol_spreads",
+   "simple": "True, because you own two options and each quiet day eats away at what they are worth.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave7"
+  },
+  {
+   "key": "q06",
+   "rung": 2,
+   "format": "mcq",
+   "q": "You own a long strangle. All else equal, which of these helps it?",
+   "choices": [
+    "Implied volatility rising",
+    "Implied volatility drops",
+    "Expiry getting closer",
+    "The stock holding still"
+   ],
+   "answer": "Implied volatility rising",
+   "why": "Implied volatility rising. All else equal, OIC says an increase in IV has a very positive impact on a long strangle. You own two options, so you are long vega: higher IV lifts both, even with no stock move. Falling IV, the clock running down and a stock stuck between the strikes all hurt it.",
+   "lesson_line": "Long straddles and strangles are long volatility. Rising IV helps them, falling IV hurts them.",
+   "facts": [
+    "f16",
+    "f52",
+    "f50",
+    "f14",
+    "f17"
+   ],
+   "wrong": {
+    "Implied volatility drops": "Falling IV shrinks both options. That's what a seller wants.",
+    "Expiry getting closer": "Time decay eats both legs as expiry nears. OIC says the passage of time has a very negative impact.",
+    "The stock holding still": "A stock sitting between the strikes until expiry is the strangle's worst case."
+   },
+   "skill": "options.vol_spreads",
+   "simple": "Rising implied volatility helps, because it makes both options you own worth more, even before the stock moves.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave7"
+  },
+  {
+   "key": "q07",
+   "rung": 3,
+   "format": "fill",
+   "q": "Fill in the blank.",
+   "sentence": "Sold straddles and strangles are short ___, so rising implied volatility hurts them.",
+   "bank": [
+    "vega",
+    "theta",
+    "delta",
+    "gamma"
+   ],
+   "answer": "vega",
+   "why": "Vega. Vega is an option's sensitivity to changes in volatility. Short options are usually short vega, so rising implied volatility works against them and falling IV helps. OIC says rising IV has a very negative impact on a short strangle. A short straddle does better if IV falls.",
+   "lesson_line": "Sellers want calm: a quiet stock and falling IV. A jump in either one hurts.",
+   "facts": [
+    "f47",
+    "f23",
+    "f20",
+    "f32"
+   ],
+   "skill": "options.vol_spreads",
+   "simple": "Vega, because vega measures how an option reacts to implied volatility, and rising IV works against sellers.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave7"
+  },
+  {
+   "key": "q08",
+   "rung": 3,
+   "format": "mcq",
+   "q": "A trader sells a straddle. What is the most that trade can lose?",
+   "choices": [
+    "Unlimited, the short call has no cap",
+    "The premium collected up front",
+    "The strike price, at most, per share",
+    "The margin the broker holds, no more"
+   ],
+   "answer": "Unlimited, the short call has no cap",
+   "why": "Unlimited. A short straddle's maximum risk is unlimited, because the short call keeps losing as the stock rises. The premium collected is the most it can make, and it only softens the loss. On the downside, the next-worst case is the stock going to zero. Selling a straddle means limited reward for unlimited risk.",
+   "lesson_line": "A short straddle caps the win at the premium and leaves the loss open.",
+   "facts": [
+    "f18",
+    "f19",
+    "f65",
+    "f21"
+   ],
+   "wrong": {
+    "The strike price, at most, per share": "The stock going to zero is only the next-worst case. The call side has no limit.",
+    "The premium collected up front": "That's the most the trade can make, not the most it can lose.",
+    "The margin the broker holds, no more": "What the broker holds is not a cap. The short call's risk is unlimited, so the loss can run far past it."
+   },
+   "skill": "options.vol_spreads",
+   "simple": "The loss has no limit, because the call sold keeps losing money as long as the stock keeps rising.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave7"
+  },
+  {
+   "key": "q09",
+   "rung": 4,
+   "format": "mcq",
+   "q": "You buy the 50 call at 2.10 and the 50 put at 1.90. Before fees, what's the most one straddle can lose?",
+   "answer": "$400",
+   "prefix": "$",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(call + put) * 100",
+     "call": 2.1,
+     "put": 1.9
+    }
+   },
+   "why": "$400. A long straddle's maximum loss is the two premiums paid. Here that is 2.10 plus 1.90, times 100 shares a contract. You lose all of it only if the stock closes exactly at 50 at expiry, where both options expire worthless. Any close away from 50 gets some of it back.",
+   "lesson_line": "A long straddle's max loss is both premiums. Know that dollar number before you buy.",
+   "facts": [
+    "f2",
+    "f66",
+    "f67",
+    "f3"
+   ],
+   "skill": "options.vol_spreads",
+   "simple": "The most you can lose is $400: both premiums, 2.10 plus 1.90, times 100 shares, if both options expire worthless.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "tomcq",
+   "choices": [
+    "$210",
+    "$4.00",
+    "$4,000",
+    "$400"
+   ],
+   "wrong": {
+    "$210": "Counts only the call's premium.",
+    "$4.00": "Forgets that one contract covers 100 shares.",
+    "$4,000": "Slips a decimal place on the 100 shares."
+   }
+  },
+  {
+   "key": "q10",
+   "rung": 4,
+   "format": "mcq",
+   "q": "Short the March 60 call, long the May 60 call. What is this position called?",
+   "choices": [
+    "Long call calendar",
+    "Short call calendar",
+    "Bull call spread",
+    "Long call diagonal"
+   ],
+   "answer": "Long call calendar",
+   "why": "A long call calendar. You sell the nearer call and own a later-dated call at the same 60 strike. With one strike, it always costs a debit to open. A short call calendar is the reverse: own the near call, sell the later one. Two strikes would make it a diagonal or a vertical.",
+   "lesson_line": "On a calendar, long means you own the later expiry and pay a debit to open it.",
+   "facts": [
+    "f25",
+    "f34",
+    "f27",
+    "f42",
+    "f36"
+   ],
+   "wrong": {
+    "Short call calendar": "That's the reverse: buy the near call, sell the later one.",
+    "Bull call spread": "A vertical uses two strikes in one expiry. These share the 60 strike.",
+    "Long call diagonal": "A diagonal needs two different strikes. Both of these are 60."
+   },
+   "skill": "options.vol_spreads",
+   "simple": "It is a long call calendar, because you sell the nearer call and own the later one at the same strike.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave7"
+  },
+  {
+   "key": "q11",
+   "rung": 4,
+   "format": "mcq",
+   "q": "You buy the 210 call for 2.40 and the 190 put for 2.10. Where is the lower break-even at expiry?",
+   "answer": "$185.50",
+   "prefix": "$",
+   "calc": {
+    "fn": "option_breakeven",
+    "args": {
+     "kind": "put",
+     "strike": 190,
+     "premium": 4.5
+    }
+   },
+   "why": "$185.50. A long strangle's lower break-even at expiry is the put strike minus the total premium paid. Count both legs: 2.40 plus 2.10 is 4.50. So 190 minus 4.50 is 185.50. Below that at expiry, the put is worth more than the whole trade cost.",
+   "lesson_line": "A strangle's break-evens sit outside its strikes by the total premium. Count both legs.",
+   "facts": [
+    "f15",
+    "f11"
+   ],
+   "skill": "options.vol_spreads",
+   "simple": "The lower break-even is $185.50, the put strike of 190 minus both premiums you paid.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "tomcq",
+   "choices": [
+    "$187.90",
+    "$214.50",
+    "$185.50",
+    "$190.00"
+   ],
+   "wrong": {
+    "$187.90": "Counts only the put's 2.10 premium. Both legs count.",
+    "$214.50": "That is the upper break-even, off the call strike.",
+    "$190.00": "Stops at the put strike and forgets the premiums."
+   }
+  },
+  {
+   "key": "q12",
+   "rung": 5,
+   "format": "mcq",
+   "term": "Diagonal spread",
+   "q": "Long the June 45 call, short the April 50 call. Which structure is this?",
+   "choices": [
+    "Call diagonal spread",
+    "Calendar spread",
+    "Bull call spread",
+    "Long strangle"
+   ],
+   "answer": "Call diagonal spread",
+   "why": "A diagonal spread. OIC's glossary: buy one option and write another of the same type, with different strikes and different expiries. Here both are calls, at 45 and 50, in June and April. It mixes a vertical spread and a calendar. In a long diagonal you own the later expiry, as here.",
+   "lesson_line": "Buy one call, sell another: two strikes is a vertical, two expiries a calendar, two of each a diagonal.",
+   "facts": [
+    "f36",
+    "f55",
+    "f87",
+    "f26",
+    "f11",
+    "f42"
+   ],
+   "wrong": {
+    "Calendar spread": "A calendar keeps one strike. These are 45 and 50.",
+    "Bull call spread": "A vertical keeps one expiry. These expire in June and April.",
+    "Long strangle": "A strangle is a call and a put. Both legs here are calls."
+   },
+   "skill": "options.vol_spreads",
+   "simple": "It is a diagonal spread, because the two calls have different strikes and different expiry dates.",
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave7"
+  },
+  {
+   "key": "q13",
+   "rung": 5,
+   "format": "mcq",
+   "q": "You sell the March 60 call at 1.95 and buy the May 60 call at 3.10. Before fees, what's the most one spread can lose?",
+   "answer": "$115",
+   "prefix": "$",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(far - near) * 100",
+     "far": 3.1,
+     "near": 1.95
+    }
+   },
+   "why": "$115. A long calendar's maximum loss is the net debit paid. Here that is 3.10 minus 1.95, times 100 shares. You lose all of it if both calls reach the same value. A big drop makes both worthless, and a big rally sends both deep in the money. Either way, the loss is the debit, no more.",
+   "lesson_line": "A long calendar risks its debit. I size it as if all of it can go.",
+   "facts": [
+    "f30",
+    "f53",
+    "f66",
+    "f67",
+    "f77",
+    "f28",
+    "f29"
+   ],
+   "skill": "options.vol_spreads",
+   "simple": "The most you can lose is $115, the net debit you paid: 3.10 minus 1.95, times 100 shares.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "tomcq",
+   "choices": [
+    "$505",
+    "$115",
+    "$310",
+    "$1.15"
+   ],
+   "wrong": {
+    "$505": "Adds the two premiums. You sell one call and buy the other.",
+    "$310": "Counts only the 3.10 call you bought. The 1.95 you took in comes off.",
+    "$1.15": "Forgets that one contract covers 100 shares."
+   }
+  },
+  {
+   "key": "q14",
+   "rung": 5,
+   "format": "mcq",
+   "q": "You own the 100-strike call calendar. At the near-term expiry, where do you want the stock?",
+   "choices": [
+    "Right at the strike",
+    "Far above the strike",
+    "Far below the strike",
+    "Anywhere, time pays"
+   ],
+   "answer": "Right at the strike",
+   "why": "Right at the strike, 100. At the near-term expiry, a long calendar earns the most with the stock at the strike. The short call expires worthless there, and the long call holds its most time value. Far above, both calls go deep in the money and the spread shrinks. Far below, both head toward worthless.",
+   "lesson_line": "A calendar earns the most with the stock sitting on the strike at the near expiry.",
+   "facts": [
+    "f31",
+    "f74",
+    "f29",
+    "f75"
+   ],
+   "wrong": {
+    "Far above the strike": "Both calls go deep in the money and trade near intrinsic value. The spread shrinks toward zero.",
+    "Far below the strike": "Both calls head toward worthless, and the spread goes with them.",
+    "Anywhere, time pays": "Time decay only pays near the strike. Far from it, the spread loses value either way."
+   },
+   "skill": "options.vol_spreads",
+   "simple": "Right at the strike, because there the call you sold ends worthless and the call you own keeps the most time value.",
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before"
+    ]
+   },
+   "batch": "wave7"
+  },
+  {
+   "key": "q15",
+   "rung": 6,
+   "format": "tf",
+   "q": "All else equal, a jump in implied volatility helps a long calendar spread.",
+   "answer": "True",
+   "why": "True. Rising implied volatility helps a long calendar, all else equal. The later-dated option you own has more vega than the near one you sold. OIC calls the effect extremely positive. Fidelity calls it slightly positive, close to zero. Both agree on the direction. The two expiries often trade at different IVs, so watch both.",
+   "lesson_line": "A long calendar likes rising IV. It can work well when volatility starts low.",
+   "facts": [
+    "f32",
+    "f59",
+    "f54",
+    "f78",
+    "f89"
+   ],
+   "skill": "options.vol_spreads",
+   "simple": "True, because the later option you own reacts more to implied volatility than the near one you sold.",
+   "deeper": {
+    "trap": "The words all else equal hide a catch. OIC warns that the near and far options probably will trade at different implied volatilities. Say the near option's IV rises while the later one's stays flat. Then the option you sold gains value and the one you own does not. The rule assumes both expiries' IVs move together."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before"
+    ]
+   },
+   "batch": "wave7"
+  },
+  {
+   "key": "q16",
+   "rung": 6,
+   "format": "mcq",
+   "q": "Stock at 200. The 200 straddle costs 12.00. What percent move at expiry gets it back to even?",
+   "answer": "6%",
+   "suffix": "%",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "premium / price * 100",
+     "premium": 12,
+     "price": 200
+    }
+   },
+   "why": "6%. The break-evens at expiry are the strike plus and minus the 12.00 you paid. Each sits 12 points from 200, and 12 is 6% of 200. Because the strike equals the stock price, the ratio is exact here. It is the move needed to break even, not a forecast of the move.",
+   "lesson_line": "At the money, the straddle's price over the stock price is the move it needs at expiry to break even.",
+   "facts": [
+    "f4",
+    "f5",
+    "f45"
+   ],
+   "skill": "options.vol_spreads",
+   "simple": "It needs a 6% move, because the 12.00 you paid is 6% of the 200 stock price.",
+   "deeper": {
+    "counter": "This ratio is the move needed to break even at expiry, not the move the market predicts. OIC calls the at-the-money straddle price over the stock price only a rough estimate of the expected move. It is exact as a break-even only when the strike equals the stock price, as here. With the stock off the strike, work out each break-even from the strike instead."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "computed key",
+     "fixed before"
+    ]
+   },
+   "batch": "rank",
+   "choices": [
+    "6%",
+    "3%",
+    "0.6%",
+    "0.06%"
+   ],
+   "wrong": {
+    "3%": "Splits the cost between the call and the put.",
+    "0.6%": "Slips a decimal place.",
+    "0.06%": "Forgets to multiply by 100."
+   }
+  },
+  {
+   "key": "q17",
+   "rung": 6,
+   "format": "scenario",
+   "story": "A stock sits at 100 before a court ruling. The 100 straddle costs 7.00. The 105 call plus the 95 put costs 3.10.",
+   "q": "What do you give up by buying the cheaper strangle?",
+   "choices": [
+    "It needs a bigger move to pay",
+    "It loses more if nothing happens",
+    "Its upside has a hard cap",
+    "It only pays if IV falls"
+   ],
+   "answer": "It needs a bigger move to pay",
+   "why": "It needs a bigger move to pay. A strangle costs less than a straddle, here 3.10 against 7.00. But its strikes sit further from the price, so its break-evens are wider. The stock must travel past 105 or 95 and then cover the premium. In return, it risks less if nothing happens.",
+   "lesson_line": "A strangle is cheaper to own and harder to win. You pay less and need more.",
+   "facts": [
+    "f13",
+    "f51",
+    "f72",
+    "f16",
+    "f6",
+    "f44"
+   ],
+   "wrong": {
+    "It loses more if nothing happens": "It risks less. The most a strangle can lose is its 3.10, against 7.00 for the straddle.",
+    "Its upside has a hard cap": "Both are open-ended on the upside. The long call has no cap.",
+    "It only pays if IV falls": "Both want IV to rise. Falling IV lowers the value of the options you own."
+   },
+   "skill": "options.vol_spreads",
+   "simple": "The strangle needs a bigger move, because its strikes sit farther from the price, so its break-evens are wider.",
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave7"
+  },
+  {
+   "key": "q18",
+   "rung": 6,
+   "format": "scenario",
+   "story": "You paid 1.25 for the 100 call calendar: short the near 100 call, long the later 100 call. A week later the stock jumps to 130.",
+   "q": "What is happening to the spread's value?",
+   "choices": [
+    "It's shrinking toward zero",
+    "It's rising on the rally",
+    "It's dropping below zero",
+    "It's near its peak"
+   ],
+   "answer": "It's shrinking toward zero",
+   "why": "It's shrinking toward zero. At 130, both 100 calls are deep in the money and trade near their intrinsic value. The gap between them, which is the spread's value, closes. Bought for a debit, a long calendar can lose that 1.25 at most. A sharp move either way does this.",
+   "lesson_line": "A calendar wants a quiet stock. A big move either way drains it, and you can lose the whole debit.",
+   "facts": [
+    "f28",
+    "f29",
+    "f30",
+    "f75",
+    "f88"
+   ],
+   "wrong": {
+    "It's rising on the rally": "The long call gains, but the short call gains nearly as much. The spread is the gap between them.",
+    "It's dropping below zero": "Bought for a debit, the most a long calendar can lose is that 1.25.",
+    "It's near its peak": "The peak is the stock sitting on the strike at the near expiry, not far above it."
+   },
+   "skill": "options.vol_spreads",
+   "simple": "The spread shrinks toward zero, because deep in the money both calls are worth about the same.",
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before"
+    ]
+   },
+   "batch": "wave7"
+  },
+  {
+   "key": "q19",
+   "rung": 7,
+   "format": "scenario",
+   "story": "A stock trades at 120 ahead of a court ruling. You buy the 120 straddle for 9.00 and hold it to expiry. It closes at 126.",
+   "q": "What did the trade make or lose, per share?",
+   "choices": [
+    "Lost $3 a share",
+    "Made $6 a share",
+    "Made $3 a share",
+    "Lost the full $9"
+   ],
+   "answer": "Lost $3 a share",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "premium - (close - strike)",
+     "premium": 9,
+     "close": 126,
+     "strike": 120
+    }
+   },
+   "why": "Lost $3 a share. At 126 the call is worth 6, and the put expires worthless. You paid 9.00 for the pair, so you got back 3 less than you paid. The upper break-even is the strike plus the premium, and 126 falls short of it. The move was real, but not big enough.",
+   "lesson_line": "A move isn't enough. A straddle needs a move bigger than its price.",
+   "facts": [
+    "f4",
+    "f8",
+    "f49",
+    "f9"
+   ],
+   "wrong": {
+    "Made $6 a share": "That's the call's value at expiry. Take off the 9.00 you paid.",
+    "Made $3 a share": "The sign is flipped. You got back less than the 9.00 you paid.",
+    "Lost the full $9": "Only a close right at 120 loses it all. At 126 the call is worth something."
+   },
+   "skill": "options.vol_spreads",
+   "simple": "You lost $3 a share, because the call was worth only 6 at expiry and the pair cost 9.00.",
+   "deeper": {
+    "trap": "The trap is calling it a win because the stock moved. A straddle doesn't pay for any move. It pays only past a break-even, the strike plus or minus everything you paid. Before you buy, set the straddle's price beside the move you expect. If the move you expect is smaller than the price, the trade loses even when the stock does move."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "wave7"
+  },
+  {
+   "key": "q20",
+   "rung": 7,
+   "format": "scenario",
+   "story": "The day before earnings, a stock sits at 100. A trader buys the 100 straddle, expiring Friday, for 8.00. After the report, the stock opens 3 points higher and implied volatility collapses.",
+   "q": "What most likely happened to the trader's straddle?",
+   "choices": [
+    "Worth less than the trader paid",
+    "It gained, since the stock moved",
+    "It's flat, the legs offset",
+    "Only the put lost any value"
+   ],
+   "answer": "Worth less than the trader paid",
+   "why": "Worth less than the trader paid, most likely. The straddle cost 8.00, so it priced in a move near 8 points. The stock moved 3. The call moved 3 points into the money, but the IV collapse took value out of both legs at once. IV crush can make an option lose value even when the stock moves the expected way.",
+   "lesson_line": "Into earnings, a straddle buys a priced move. The stock has to beat that price, or the IV crush wins.",
+   "facts": [
+    "f6",
+    "f69",
+    "f70",
+    "f83",
+    "f84",
+    "f46",
+    "f60",
+    "f4",
+    "f5"
+   ],
+   "wrong": {
+    "It's flat, the legs offset": "Both legs lost their IV premium at once. Nothing offsets that.",
+    "It gained, since the stock moved": "The stock moved 3, well short of the 8 points the straddle priced. With IV crushed, 3 points can't cover that.",
+    "Only the put lost any value": "The call lost IV premium too, which ate into the 3 points it moved into the money."
+   },
+   "skill": "options.vol_spreads",
+   "simple": "It is worth less, because the stock moved less than the straddle's price and the drop in volatility cut both options.",
+   "deeper": {
+    "counter": "A bigger move changes the answer. A move past either break-even, the strike plus or minus the 8.00 paid, would pay at expiry even after the IV crush. Schwab notes the crush can sink an option even on a move in the expected direction. Three points was too small to outrun it."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before"
+    ]
+   },
+   "batch": "wave7"
+  },
+  {
+   "key": "q21",
+   "rung": 7,
+   "format": "scenario",
+   "story": "You buy the later 45 call and sell the near 50 call for a 3.80 debit. The stock runs to 70 by the near expiry. You're assigned on the 50 and exercise the 45 to cover.",
+   "q": "Fees aside, what's the result per share?",
+   "choices": [
+    "A $1.20 gain",
+    "A $3.80 loss",
+    "A $5.00 gain",
+    "Unlimited loss"
+   ],
+   "answer": "A $1.20 gain",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(short_strike - long_strike) - debit",
+     "short_strike": 50,
+     "long_strike": 45,
+     "debit": 3.8
+    }
+   },
+   "why": "A $1.20 gain. OIC's FAQ covers this path: assigned on the short call, you exercise the long one. Your loss is the net debit less the gap between the strikes. That comes out below zero, so it is a gain of 1.20. Exercising throws away the 45 call's time value, though. Buying shares and selling the 45 call usually keeps it.",
+   "lesson_line": "Own the lower strike in a call diagonal and a runaway rally still nets you the strike gap minus the debit.",
+   "facts": [
+    "f40",
+    "f39",
+    "f80",
+    "f82",
+    "f41"
+   ],
+   "wrong": {
+    "A $3.80 loss": "That's a same-strike calendar's fate on a big rally. Your long call has the lower strike, so it's worth more than the short one.",
+    "A $5.00 gain": "That's the gap between the strikes. Take off the 3.80 you paid.",
+    "Unlimited loss": "The 45 call covers the 50 call. Exercising it delivers the shares."
+   },
+   "skill": "options.vol_spreads",
+   "simple": "You gain $1.20, because you buy at 45, deliver at 50, and the 3.80 you paid comes off the gap between them.",
+   "deeper": {
+    "trap": "Exercising the 45 call to cover is the simple path, but it is rarely the best one. When you exercise an option, you give up any time value left in it. Fidelity says it is generally better to buy shares to close the short stock, then sell the long call. That keeps the long call's time value, which exercising throws away."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "computed key",
+     "fixed before"
+    ]
+   },
+   "batch": "wave7"
+  },
+  {
+   "key": "q22",
+   "rung": 8,
+   "format": "tf",
+   "q": "A call diagonal bought for a debit can never lose more than that debit.",
+   "answer": "False",
+   "why": "False. It depends on which strike you own. With the lower strike owned, Fidelity puts a long call diagonal's maximum risk at its net cost. If your long call has the higher strike, the options disclosure document warns the spread may not offset the short call's risk. Then a big rally can cost more than the debit.",
+   "lesson_line": "Before you trust a diagonal's max risk, check which strike you own.",
+   "facts": [
+    "f62",
+    "f81",
+    "f79"
+   ],
+   "skill": "options.vol_spreads",
+   "simple": "False, because if the call you own has the higher strike, a rally can cost more than you paid.",
+   "deeper": {
+    "example": "Say you own a later call at a higher strike and sell a nearer call at a lower strike. On a big rally, the short call loses from the lower strike up. Your call gains only from the higher strike up. That gap between the strikes is a loss your debit never paid for. Check which strike you own before you trust any max-risk number."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave7"
+  },
+  {
+   "key": "q23",
+   "rung": 8,
+   "format": "scenario",
+   "story": "Earnings are two weeks out. The stock's implied volatility is high next to its past year. You expect a big move but can't call the direction.",
+   "q": "What is the catch with buying the straddle here?",
+   "choices": [
+    "You're paying up for the move",
+    "None, a big move pays either way",
+    "High IV caps your upside",
+    "You must still guess the direction"
+   ],
+   "answer": "You're paying up for the move",
+   "why": "You're paying up for the move. High implied volatility means rich premiums. Higher option prices push the break-evens farther apart, so the stock has to move further. IV often climbs into the event and can collapse right after it. The straddle wins only if the move beats its price.",
+   "lesson_line": "High IV means the options already price in a big move. I check the price before the story.",
+   "facts": [
+    "f71",
+    "f85",
+    "f86",
+    "f46",
+    "f70",
+    "f83",
+    "f49"
+   ],
+   "wrong": {
+    "None, a big move pays either way": "Only a move bigger than the price pays, and the options already price in a big one.",
+    "High IV caps your upside": "The upside stays open. High IV raises what you pay, not what you can make.",
+    "You must still guess the direction": "A straddle doesn't need a direction. It needs a move big enough to clear a break-even."
+   },
+   "skill": "options.vol_spreads",
+   "simple": "The options are already pricey, so the break-evens sit far apart and the stock must move a lot just to pay.",
+   "deeper": {
+    "trap": "A big move is not the same as a profitable move. Fidelity notes that straddle prices are often a fair gauge of how far a stock will move by expiry. When IV is high, the market already expects a big move. You win only if the real move is bigger than the one already priced in."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before"
+    ]
+   },
+   "batch": "wave7"
+  },
+  {
+   "key": "q24",
+   "rung": 8,
+   "format": "scenario",
+   "story": "A stock sits at 100. You think it stays near 100 for the next month. You want your risk capped.",
+   "q": "Which trade fits that view?",
+   "choices": [
+    "Long 100 call calendar",
+    "Short 100 straddle",
+    "Long 100 straddle",
+    "Long 105 call, long 95 put"
+   ],
+   "answer": "Long 100 call calendar",
+   "why": "The long 100 call calendar. It earns the most with the stock at 100 when the near call expires. Bought for a debit, it can lose only that debit. Fidelity names it a limited-risk alternative to a short straddle for a neutral view. The short straddle fits the view too, but its risk is unlimited.",
+   "lesson_line": "For a quiet stock with capped risk, I'd take the calendar over the short straddle.",
+   "facts": [
+    "f31",
+    "f30",
+    "f76",
+    "f18",
+    "f14",
+    "f77"
+   ],
+   "wrong": {
+    "Short 100 straddle": "It fits the quiet view, but its risk is unlimited. That breaks your rule.",
+    "Long 100 straddle": "That's a bet on a big move. A quiet month is its worst case.",
+    "Long 105 call, long 95 put": "That's a long strangle, also a bet on a big move. Sitting between the strikes loses all of it."
+   },
+   "skill": "options.vol_spreads",
+   "simple": "The long calendar fits, because it earns most with the stock near 100 and can lose only what you paid.",
+   "deeper": {
+    "trap": "The short 100 straddle looks like the best fit for a quiet stock, and that is the trap. It wins if the stock sits still, but its risk is unlimited, and your rule was capped risk. Capped is not small, though. Fidelity warns that a long calendar can still lose all of the money you put into it."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave7"
+  },
+  {
+   "key": "q25",
+   "rung": 9,
+   "format": "scenario",
+   "story": "A trader sold the 110 call and the 90 put for 3.00 total. Overnight, a takeover bid sends the stock to 140.",
+   "q": "If it's still at 140 at expiry, what is the trader's loss per share?",
+   "choices": [
+    "$27 a share",
+    "$30 a share",
+    "$3 a share",
+    "$33 a share"
+   ],
+   "answer": "$27 a share",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(price - call_strike) - premium",
+     "price": 140,
+     "call_strike": 110,
+     "premium": 3
+    }
+   },
+   "why": "$27 a share. At 140, the 110 call that was sold is worth 30, and the 90 put expires worthless. The trader collected 3.00 up front, so the loss is 30 less the 3 taken in. A short strangle's loss is unlimited as the stock rises. Limited reward, unlimited risk.",
+   "lesson_line": "Limited reward, unlimited risk. One overnight gap can cost many times the premium collected.",
+   "facts": [
+    "f22",
+    "f24",
+    "f21",
+    "f44"
+   ],
+   "wrong": {
+    "$30 a share": "That's the short call's value at 140. The trader collected 3.00 up front, so take it off.",
+    "$3 a share": "That's the premium taken in, the most the trade could make. It doesn't cap the loss.",
+    "$33 a share": "The 3.00 was collected, not paid. It comes off the loss, so don't add it."
+   },
+   "skill": "options.vol_spreads",
+   "simple": "The trader loses $27 a share, because the 110 call is worth 30 at 140 and the 3.00 taken in barely helps.",
+   "deeper": {
+    "trap": "Selling a strangle feels safe because the stock has to travel a long way before it loses. A takeover bid can make that whole trip overnight, before the seller can act. OIC puts it plainly: selling a strangle has defined reward and undefined risk. The premium collected is small next to what one gap can cost."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "wave7"
+  },
+  {
+   "key": "q26",
+   "rung": 9,
+   "format": "mcq",
+   "q": "A trader is long the March 60 call and short the May 60 call. March expires worthless, and the trader does nothing. What's left?",
+   "choices": [
+    "A naked short call",
+    "A long May call",
+    "A covered short call",
+    "Nothing left open"
+   ],
+   "answer": "A naked short call",
+   "why": "A naked short call. The March call the trader owned expired, and the May call the trader sold is still open. Nothing covers it: no shares and no other call. OIC says a short call calendar left alone this way becomes a naked call. There is no limit to its potential loss.",
+   "lesson_line": "Left alone, a short calendar can become a naked call at the first expiry. Close it or cover it before then.",
+   "facts": [
+    "f34",
+    "f35",
+    "f63",
+    "f68"
+   ],
+   "wrong": {
+    "A long May call": "That's what a long calendar leaves. Here the trader sold the May call and doesn't own it.",
+    "A covered short call": "A covered call is written against shares the trader owns. There are none here.",
+    "Nothing left open": "Only the March call expired. The May call that was sold is still open."
+   },
+   "skill": "options.vol_spreads",
+   "simple": "A naked short call, because the call that covered it expired and the call that was sold is still open.",
+   "deeper": {
+    "trap": "A short calendar looks hedged on the day it is opened. The hedge has an end date, the near expiry. Say the near call expires worthless and the trader takes no action. OIC says the trade then becomes a naked call, with no limit to the loss. It has to be closed or covered before that expiry, not after."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before"
+    ]
+   },
+   "batch": "wave7"
+  },
+  {
+   "key": "q27",
+   "skill": "options.vol_spreads",
+   "rung": 5,
+   "format": "mcq",
+   "house": true,
+   "q": "Account $100,000, risk 1% a trade. Our stop on an option is the premium paid. A straddle costs $450 a contract. How many can you buy?",
+   "answer": "2 contracts",
+   "calc": {
+    "fn": "shares_from_risk",
+    "args": {
+     "account": 100000,
+     "risk_pct": 1,
+     "entry": 450,
+     "stop": 0
+    }
+   },
+   "why": "2 contracts. Our stop on an option is the premium paid, so each contract can lose its full $450. Your risk is 1% of $100,000. Divide that by the $450 a contract and round down to whole contracts. One more contract would go past your risk.",
+   "simple": "2 contracts, because each one can lose its full $450, and 1% of the account covers two of them, rounded down.",
+   "lesson_line": "On a straddle, the whole premium is the risk. Size the contracts from it.",
+   "facts": [
+    "h2",
+    "h3",
+    "f2"
+   ],
+   "tier": "extended",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "rests on the owner's rulebook (B25, A1)",
+     "computed key"
+    ]
+   },
+   "batch": "tomcq",
+   "choices": [
+    "3 contracts",
+    "222 contracts",
+    "22 contracts",
+    "2 contracts"
+   ],
+   "wrong": {
+    "3 contracts": "Rounds up. A third contract goes past your risk.",
+    "222 contracts": "Divides the whole account by $450, not 1% of it.",
+    "22 contracts": "Slips a decimal place on the 1% risk."
+   }
+  },
+  {
+   "key": "q28",
+   "skill": "options.vol_spreads",
+   "rung": 6,
+   "format": "tf",
+   "house": true,
+   "q": "A sold strangle breaks our rule that options are only a defined-risk alternative.",
+   "answer": "True",
+   "why": "True. Our rule: trade shares; options are only a defined-risk alternative. Selling a strangle has defined reward and undefined risk. Its loss is unlimited if the stock runs up, so it can't qualify.",
+   "simple": "True, because a sold strangle's risk is open-ended, and our rule allows options only where the risk is defined.",
+   "lesson_line": "Our rule keeps options to defined risk. A sold strangle's risk has no cap.",
+   "facts": [
+    "h1",
+    "f44",
+    "f24"
+   ],
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (A6)"
+    ]
+   },
+   "batch": "wave7"
+  }
+ ],
+ "conflicts": [
+  "How much rising implied volatility helps a long calendar: OIC's long call calendar page says an IV increase has 'an extremely positive impact' (f32); Fidelity's page by the Options Institute at Cboe calls the net vega 'slightly positive, but very close to zero' (f78). Both agree on the direction. q15 keys only the direction (rising IV helps, it does not hurt) and no question asks how much.",
+  "Investopedia's calendar spread page (James Chen, updated July 29, 2026) was read and NOT cited: its cheat sheet says a short call calendar profits from a 'stable price or decreasing volatility' and lists a long put calendar's maximum profit as 'Unlimited'. OIC says the reverse on both (a short call calendar's maximum loss comes with a steady stock; a long put calendar's maximum gain is the strike minus the net premium). The file follows OIC.",
+  "Call diagonal outcomes: OIC's FAQ (f40) calls the assigned-then-exercise path its 'worst-case scenario' (net debit less the strike gap), while Fidelity (f81) puts a long call diagonal's maximum risk at the full net cost, reached if the stock falls far below the long strike. Both hold, for different paths. q21 asks only the assigned-then-exercise path on a rally; q22 keeps the net cost as the cap only when the lower strike is owned.",
+  "Not a source conflict, flagged for the owner: the Journal's compute_max_risk (api/services/journal_two/options.py) returns the net debit as the max risk of every debit 'diagonal'. Per the options disclosure document (f62), a call diagonal whose long call has the HIGHER strike is not fully covered and can lose more than its debit, so the Journal understates that case. This unit teaches the correct rule (q22); the Journal code was not touched.",
+  "Expected move: OIC calls the at-the-money straddle price over the stock price 'a rough percentage estimate' of the expected move (f45). q16 uses that ratio only as the break-even move at expiry of an at-the-money straddle, where it is exact arithmetic from f4 and f5, not as a forecast."
+ ],
+ "verify": {
+  "q01": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Key = f1 (one strike, one expiry). Choices 32-39, key not longest. Strangle, combo, calendar/diagonal notes rest on f12, f48, f37, f36. Simple fine."
+  },
+  "q02": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "False on f11 ('typically' OTM call and OTM put). Hedge 'usually' sits on a False key, so no tell. Distinct from q01's strangle note (same-strike fact)."
+  },
+  "q03": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key right (f37). But the why and simple define every calendar as selling the near option and buying the later one, while q10 and q26 teach the short calendar (own the near, sell the later), which is still a calendar. f37 says the glossary definition 'generally' involves buying the longer one. Added 'usually' in the why and simple; nothing else changed."
+  },
+  "q04": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "False on f3 (both expire worthless exactly at the strike). Why grounded in f2, f4, f5. Note: q09's why repeats the at-strike fact later; acceptable as reinforcement."
+  },
+  "q05": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "True on f7 (OIC's own 'every day that passes without a move'). Why balances it with f50 (rising IV can win the race), so the absolute is OIC's, not ours."
+  },
+  "q06": {
+   "status": "pass",
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave7; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+  },
+  "q07": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Keep. Short straddles and strangles are short vega is what a premium seller reads on the screen; bank is all Greeks so no giveaway; why ties it to falling IV."
+  },
+  "q08": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Unlimited on f18/f65; third person keeps the member out of an A6-excluded trade. Choices 30-36, key ties two others. Notes rest on f18, f19."
+  },
+  "q09": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 4."
+  },
+  "q10": {
+   "status": "pass",
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave7; awaiting cold re-read"
+  },
+  "q11": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 3."
+  },
+  "q12": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Solved cold: different strikes and expiries, same type = diagonal (f36, whose own example is the same shape). Calendar, vertical and strangle notes rest on f37/f26, f42, f11. Lesson line scoped to buy-one, sell-another call spreads (18 words). Choices 13-16, no tell. q03's wrong note and q21's story teach the same structure, but as reinforcement, not a give-away of the stem.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+  },
+  "q13": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 2."
+  },
+  "q14": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Key on f31/f74. Choices 19-20; 'Anywhere, time pays' is a real misconception with an f75-backed note. Note: its far-above note overlaps q18's key (rally shrinks the spread), but q18 tests it as an applied case; not a give-away of a stem."
+  },
+  "q15": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "True on f32 (OIC page re-fetched: 'extremely positive impact', longer-term options have higher Vega) and f78 (Fidelity re-fetched: 'slightly positive, but very close to zero'); direction agrees, conflict recorded. f89 verbatim on OIC page. Deeper trap is a hypothetical built on f89 and labelled as such; fine."
+  },
+  "q16": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
+  },
+  "q17": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Key on f13/f51; strangle 3.10 vs straddle 7.00 from the story; wrong notes on f72, f44, f16/f6. No second defensible answer."
+  },
+  "q18": {
+   "status": "pass",
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave7; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+  },
+  "q19": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "calc 9-(126-120) = 3, lost $3. New deeper trap stays inside f4/f49 and the story; no direction implied."
+  },
+  "q20": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key right (f83, f84, f69, f70): a 3-point move against an 8.00 straddle with IV crushed most likely leaves it worth less. But the why says 'The call gained', and the wrong note says 'The call's gain'. That is not supported and likely false: an at-the-money call in an 8.00 straddle cost about 4, and 3 points in the money with IV crushed can be worth less than that. Reworded to what the story supports: the call moved 3 points into the money. Key, choices and simple unchanged. Owner flag on B22 (buying the day before earnings) stays: third person, not endorsed."
+  },
+  "q21": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "calc (50-45)-3.80 = 1.20 gain, matches f40 (debit less strike gap). Choices 12-14. Exercise caveat on f41/f82. Lower-strike case only, so q22 still stands."
+  },
+  "q22": {
+   "status": "pass",
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave7; awaiting cold re-read"
+  },
+  "q23": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Solved cold: high IV = rich premiums, wider break-evens (f85, f71); key not longest (29 vs 24-34). 'High IV caps your upside' and 'must still guess the direction' are real misconceptions with grounded notes (f49). q20's lesson line reinforces the idea but does not state q23's high-IV case. Owner flag on B22 (a straddle bought for earnings would be held through the report) still applies."
+  },
+  "q24": {
+   "status": "pass",
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave7; awaiting cold re-read"
+  },
+  "q25": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key $27 right (calc (140-110)-3). Distractor '$0 a share' is close to silly with the stock 30 points through the short call, and its note names no real mistake. Replaced with '$33 a share', the real sign error of adding the premium collected to the loss (numbers from the question). Other fields unchanged."
+  },
+  "q26": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Solved cold: near long call expires worthless, sold May call remains uncovered = naked short call (f35 verbatim case, f68 for covered). Third person keeps the member out of an A6-excluded trade. Stem 128 chars, choices 15-20. q10's why names the short calendar but not this outcome."
+  },
+  "w1": {
+   "status": "pass",
+   "notes": "f1, f11, f12, f13, f16, f17, f50 read in context on the OIC pages (fresh fetch 2026-11-09). Changed 'pay on a big move' to 'a big enough move': a straddle pays only past a break-even (f49).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "OIC video page (WebFetch): 100 call + 100 put, max risk $680, break-evens 106.80/93.20, worst case at 100; 100 +/- 6.80 checks. Steps now say $680 is per contract (100 shares, f67 added) and the break-evens use the per-share premium, so 100 + 680 can't be misread.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "f37 glossary (same type, same strike), f36 diagonal, f33 near leg has more theta, f31 max at strike, f28-f30 max loss = debit, all read in context on OIC pages. Right as written.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q27": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 4."
+  },
+  "q28": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "True on h1 (A6 verbatim in sizing_rule.md section 9) and f44/f24 (sold strangle has undefined, unlimited risk). B25 ('no further rules') does not lift A6. 'breaks' is unambiguous. Does not give away q08 or q25 (both earlier or different numbers)."
+  }
+ }
+}

@@ -777,6 +777,9 @@ const RUN_HALF_WHY = Object.freeze({
   'pane:not-permitted': 'running scripts bar by bar is switched off for your account right now',
   'pane:killed': 'this script is switched off for running bar by bar',
   'pane:not-graded': "this script hasn't been checked against TradingView for running bar by bar yet",
+  // ⭐ G6 — `runtimeKill.js::RUNTIME_FORMING_GUARD`
+  'pane:forming-ungraded': "the script reads the state of the bar as it forms, which has only been checked "
+    + "against TradingView on finished bars, and this chart's newest bar is not known to be finished",
   'runtime:member-inputs': "a setting has been changed from the script's default, and the complete drawings "
     + "are only worked out at the script's own settings",
   'runtime:runtime.error': 'the script stops itself with its own error message on this chart',
