@@ -95,3 +95,24 @@ See the PR body for the run. J1–J5 (JS), P1–P4 (Python), S1–S2 (service):
 
 ## Engine number
 Changes door outcomes, so it takes the next free engine number at push (number-last).
+
+## ⛔ PARKED 2026-11-15 22:2xZ: RESUME NOTE (pushed as a draft before a planned PC restart)
+
+**Passed on this head, before parking:**
+- JS rails, 49/49:
+  - `pineLibraryPinning.test.js`: pin, no-sha, licence and deny;
+  - `libraryLinkParity.test.js`;
+  - `pineLibraries.test.js`, `usePineLibraries.test.jsx`, `runtimeLibraryDoor.test.js`, `libraryImportRefusal.test.js`.
+- Earlier JS sweep, 18 files, 210 passed: memberPaneDefinition, the saved and runtime document round trips, capRound4, h5, host-parity rails.
+- Python rails: `test_pine_library_pinning.py` (39), `test_library_link_parity.py`, `test_pine_library_store.py`, allowlist rails.
+- Mutants, all killed, each restored byte-equal: J1–J5, P1–P4, L1–L3, D1–D2, S1–S2.
+- Gate list (an earlier head, before the licence and deny commits): steps 1–4, 6 and 7 green.
+
+**Left to do:**
+1. Re-run gate step 5, `node --test services/pine_runtime/test/*.test.mjs`. It went red on the earlier head (the sandbox's boot export check against the fixture bundles); that is FIXED here (boot check reverted, per-document fail-closed, a real-bundle rail added) but not re-run in full. Then re-run the full gate list (master deploy gate, `pine-runtime` job steps 1–7).
+2. The runtime-pane-OFF (host-only) re-grade behind `tools/pine_library/promotion_allowlist.json`: the probe is the P0 probe with `VITE_PINE_RUNTIME_PANE_ENABLED` unset. Record its result in the file.
+3. Rebase onto master; squash the WIP commits.
+4. Take the engine number LAST (master + 1 at push): bump `scriptEngineVersion.js` with its history line, then `node tools/pine_runtime_host_parity.mjs --write` and `--check`.
+5. Re-run the rails above; mark the PR ready.
+
+**Known and pre-existing (NOT this PR):** `tests/test_pine_capability_detector_worker.py::test_OFF_the_detector_runs_in_process_and_no_process_is_started` fails when it runs after `tests/test_pine_capabilities.py`, on origin/master `4548ee75fb` as well.
