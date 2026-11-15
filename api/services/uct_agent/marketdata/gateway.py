@@ -18,8 +18,9 @@
   or fails — an attempted execution is an execution.
   These limits sit UNDER the existing caps: they add no model call and change no $ budget
   (budget.py's $5/day Agent cap and the shared $15 ledger are untouched).
-* MODEL ISOLATION (ADR-005): a kind marked `model_isolated` is DORMANT — refused for every purpose — unless
-  UCT_AGENT_ISOLATED=1 (default off; activation is a separate owner decision). When active, it
+* MODEL ISOLATION (ADR-005): a kind marked `model_isolated` is DORMANT — refused for every purpose — unless it is
+  armed PER KIND: listed in UCT_AGENT_ISOLATED_KINDS AND in UCT_AGENT_DATA_KINDS, with UCT_AGENT_ISOLATED=1 as the
+  master switch over all of them (default off; each activation is a separate owner decision). When active, it
   (UCT-derived values the owner has not cleared for the model, e.g. breadth) is served only for purpose "answer"; any other purpose is refused before admission.
 * Every envelope is validated (envelope.validate_envelope) before it leaves; an adapter that breaks the
   contract is answered `unavailable`, never passed through.
@@ -46,9 +47,17 @@ SCAN_ENV = "UCT_AGENT_SCAN"
 #: member request budget.latest_request finds (research/rs1.py), never by this id. Activation is a separate
 #: owner decision that also needs ADR-005 layers L2-L7 in place.
 ISOLATED_ENV = "UCT_AGENT_ISOLATED"
+#: PER-KIND isolation allowlist (owner decision 2026-11-12: each Phase 2 data feature is armed on its own; no single
+#: global switch may arm several). A comma list of model-isolated kind names (e.g. "rs.leadership"). An isolated kind
+#: is served only when ALL hold: UCT_AGENT_DATA=1, the kind is in UCT_AGENT_DATA_KINDS, UCT_AGENT_ISOLATED=1 (the
+#: MASTER switch: it can turn every isolated kind OFF at once, but never arms one on its own) and the kind is listed
+#: HERE. FAILS CLOSED: unset or empty arms NO isolated kind, there is no wildcard, an unknown name arms nothing, and a
+#: name here never arms a kind that is not model-isolated or not in UCT_AGENT_DATA_KINDS (it narrows, never widens).
+ISOLATED_KINDS_ENV = "UCT_AGENT_ISOLATED_KINDS"
 #: Per-kind activation allowlist: a comma list of kind names (e.g. "quote"). Read only while UCT_AGENT_DATA is
 #: on. FAILS CLOSED: unset or empty admits NO kind, there is no wildcard, and an unknown name admits nothing.
-#: It narrows, never widens: isolated kinds still need UCT_AGENT_ISOLATED and scan kinds UCT_AGENT_SCAN.
+#: It narrows, never widens: isolated kinds still need UCT_AGENT_ISOLATED + their own UCT_AGENT_ISOLATED_KINDS entry,
+#: and scan kinds UCT_AGENT_SCAN.
 KINDS_ENV = "UCT_AGENT_DATA_KINDS"
 
 MAX_READS_PER_TURN = 8
@@ -84,8 +93,21 @@ def kind_enabled(name: str) -> bool:
     return name in enabled_kinds()
 
 
-def isolated_enabled() -> bool:
-    return data_enabled() and os.environ.get(ISOLATED_ENV, "").strip() == "1"
+def isolated_kinds() -> frozenset:
+    """The model-isolated kinds an operator has armed ONE BY ONE (UCT_AGENT_ISOLATED_KINDS), or none while the
+    gateway or the isolation master switch is off. Fails closed: unset/empty is the empty set."""
+    if not data_enabled() or os.environ.get(ISOLATED_ENV, "").strip() != "1":
+        return frozenset()
+    raw = os.environ.get(ISOLATED_KINDS_ENV, "")
+    return frozenset(p.strip() for p in raw.split(",") if p.strip())
+
+
+def isolated_enabled(name: str) -> bool:
+    """True only when THIS isolated kind is armed: the master switch is on AND the kind has its own entry.
+
+    ⛔ Per kind, never global: UCT_AGENT_ISOLATED=1 alone arms nothing (before 2026-11-14 it armed every isolated
+    kind that UCT_AGENT_DATA_KINDS listed). The name is required, so no caller can ask the old global question."""
+    return isinstance(name, str) and name in isolated_kinds()
 
 
 def scan_enabled() -> bool:
@@ -192,7 +214,7 @@ def read(kind: str, params: Any = None, *, user_id: Any, turn_id: str, purpose: 
         return env.refused(kind, params, f"unknown kind {kind!r}")
     if not kind_enabled(kind):
         return env.refused(kind, params, f"{kind} is not switched on for UCT Agent ({KINDS_ENV})")
-    if k.model_isolated and not isolated_enabled():
+    if k.model_isolated and not isolated_enabled(kind):
         return env.refused(kind, params, "this data is not available to UCT Agent yet")
     if k.model_isolated and purpose != "answer":
         return env.refused(kind, params, "this data is shown to the member only and is never used for research")
