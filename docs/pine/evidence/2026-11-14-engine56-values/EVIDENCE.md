@@ -157,9 +157,13 @@ S10).
   `docs/formulas/GRAMMAR.md` (regenerated), `tools/lookback_agreement.json` (written by its own rail),
   host-parity digests (`--write`, every case moves with the engine identity; 0 status or guard changes).
 
-> ⚠️ **OWED AT THE REBASE (coordinator, re-review of `c5715efa9b`, item 3).** The census and both
-> harness sets are re-measured on the FINAL head of the `-v2` branch, and every table below is replaced
-> with those numbers and that commit. Until then the tables name the commit they were measured at.
+> ⚠️ **LANDING TRAIN (coordinator, 2026-11-15).** This branch lands in a train of five engine branches
+> under ONE engine number, with ONE before/after census + harness run done by the train builder. This
+> branch therefore does NOT re-measure the census or the harness, does not take the engine number
+> (`SCRIPT_ENGINE_VERSION` is still master's at `5443154808`; the history line says "master + 1"), does
+> not regenerate the host-parity digests, re-record `service_smoke.json` or regrade the ledger: the train
+> does all of those on the train head. The tables below name the commit they were measured at; the train
+> replaces them. What THIS branch ran on its own head is in **Tests run** (the `-v2` block).
 >
 > ⚠️ **Measured at `86dc5eeb5d` (the review round + S1).** The S10 change (newest over every Pine source,
 > `b39a7b9828`) and the two floor follow-ups were railed and mutation-proved, and the four vitest roots,
@@ -317,6 +321,17 @@ The S5 aroon capture is that reading, so the xfail is removed. `test_ast_bounded
 (over `high` / `low`) now reads the newest bar, and a computed-source twin of it is withheld.
 
 ## Tests run (all under the heavy lock, `--maxWorkers=1`; pytest one file at a time)
+- **`-v2`, on master `5443154808` (engine 56, #1264) + this change, head `389c81bcb2`** (one heavy lock
+  per phase): focused rails (`engine56Values` and the rails it touches) green; mutants **76 + the C0
+  control: 72 killed, 4 equivalent** (S1f, M22, R1c, R7, as before), every restore equal to the HEAD blob;
+  vitest `engine/ast` **354 files / 6,029 tests green** (11 skipped); `engine/runtime` **196 / 4,153
+  green**; **NOT RUN on this head (PARKED, PC restart): `builder`, `engine/__tests__` and the pytest list** (their
+  locked runs were queued and stopped before they started). Before the rebase onto #1264, at `b39a7b9828`,
+  `builder` was green and `engine/__tests__` failed only on files that fail on master too (above), and the
+  focused pytest files are green on `1310dd2be3` (`test_engine56_values` 14 / 0). **Left for the train /
+  the next session:** `builder`, `engine/__tests__`, the pytest list, the census + harness (both lanes),
+  the engine number, the host-parity digests, the `service_smoke.json` re-record at that number, the
+  section 8 list and the ledger regrade.
 - vitest `src/components/chart/engine/ast` (351 files) and `runtime` + `builder` + `engine/__tests__`
   (798 files): every failure was triaged. Engine 56's own were fixed and re-run green, and the files named above
   were re-run green after the last edit (23 files / 972 tests; 7 files / 295 tests). These failures are not
