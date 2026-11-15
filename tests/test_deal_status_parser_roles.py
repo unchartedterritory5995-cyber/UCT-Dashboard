@@ -359,6 +359,10 @@ def test_a_cold_name_cache_rebuilds_the_snapshot_soon_and_warms_names(monkeypatc
     assert warmed and ds._STATE["cold"] is True
     subject._NAME_CACHE["ATKR"] = NAMES["ATKR"]              # the warm landed
     clock[0] += ds._cold_refresh_s() + 1
+    # The expired set is served AT ONCE while one refresh rebuilds it (inline here; a
+    # daemon thread in production), so no reader pays for the rebuild.
+    monkeypatch.setattr(ds, "_spawn_sets_refresh", ds._refresh_sets)
+    assert "ATKR" not in ds.pending_deal_symbols()
     assert "ATKR" in ds.pending_deal_symbols()
     assert ds._STATE["cold"] is False
     clock[0] += ds._cold_refresh_s() + 1                     # warm snapshot: full TTL again
