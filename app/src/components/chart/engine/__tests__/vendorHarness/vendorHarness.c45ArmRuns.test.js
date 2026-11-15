@@ -30,8 +30,9 @@
 //      has one: a test fixed before bar 0 (input, literal, the chart's timeframe), a
 //      test true on every bar of the chart, a test true then false for good, a call
 //      bound above the ternary, a call in the test, the smoothed-MA / alligator
-//      `na(x[1]) ? ta.sma(…) : …` seed, Pine v5 `and` / `or` (strict), v4 `?:` and
-//      `iff` (not witnessed: see `docs/pine/capture-queue-2026-10-31-prod-ternary.md`);
+//      `na(x[1]) ? ta.sma(…) : …` seed, Pine v5 `and` / `or` (strict), v4 `iff` (both
+//      values every bar, the to-v5 guide). ⚰️ v4 `?:` was on this list as "not witnessed";
+//      COND-TA withholds it where its test varies (the v4 User Manual documents the arm as lazy);
 //   5. nothing is refused at TRANSLATION, so the parameters a plot mints do not move,
 //      and the screener lane (which binds no chart) REFUSES each such row by name
 //      (COND-TA, engine 55: its every-bar reading was this capture's wrong number);
@@ -519,13 +520,26 @@ describe('C45 — ⛔ what stays drawn, TradingView\'s number where a capture ho
     expect(door.def.meta.blockRuns).toBeUndefined()
   })
 
-  it('Pine v4 `?:` and `iff` are not witnessed — drawn as before (queued: capture-queue-2026-10-31-prod-ternary.md)', () => {
-    drawn(['//@version=4', 'study("v4")', 'y = close > open ? sma(close, 5) : close', 'plot(y, "Y")'].join('\n'), (i) => (up[i] ? e03[i] : B[i].c))
+  // ⭐⭐ COND-TA (engine 55+) — FLIPPED, DELIBERATELY, FROM EVIDENCE. This pinned v4 `?:` "not
+  // witnessed — drawn as before", which drew the EVERY-BAR number. The v4 User Manual documents the
+  // arm as lazy ("`barssince` is not called on every bar because it is inside a ternary
+  // operator's conditional branch … This leads to incorrect results"; Functions and annotations,
+  // "Execution of Pine functions and historical context inside function blocks"), so a v4 arm
+  // whose test varies is stamped and WITHHELD BY NAME where it runs after a skip, as v5 / v6 are.
+  // `iff` stays drawn: the to-v5 guide says it "always evaluated both values" (`ast/condTaLanes.test.js`).
+  it('Pine v4 `?:` is documented lazy — withheld by name where its test varies; v4 `iff` (both values every bar) stays drawn', () => {
+    for (const source of [
+      ['//@version=4', 'study("v4")', 'y = close > open ? sma(close, 5) : close', 'plot(y, "Y")'].join('\n'),
+      // the VERSION decides, not the spelling: a v4 helper reading its own history is read as a v5 one is
+      ['//@version=4', 'study("v4 f")', 'f(s) => s - s[1]', 'y = close > open ? f(close) : close', 'plot(y, "Y")'].join('\n'),
+    ]) {
+      const { door, cols, errors } = bind(cap, source)
+      expect(door.def, door.refusal || '').toBeTruthy()
+      expect(door.def.meta.blockRuns, source).toBeTruthy()
+      expect(cols.value, source).toBeUndefined()
+      expect(errors.value.guard, source).toBe(BLOCK_RUNS_GUARD)
+    }
     drawn(['//@version=4', 'study("v4 iff")', 'y = iff(close > open, sma(close, 5), close)', 'plot(y, "Y")'].join('\n'), (i) => (up[i] ? e03[i] : B[i].c))
-    // ⛔ the VERSION decides, not the spelling: a v4 helper reading its own history is
-    // read the same way a v5 one is (`f`), and still drawn as before in v4
-    drawn(['//@version=4', 'study("v4 f")', 'f(s) => s - s[1]', 'y = close > open ? f(close) : close', 'plot(y, "Y")'].join('\n'),
-      (i) => (i === 0 ? (up[0] ? null : B[0].c) : up[i] ? B[i].c - B[i - 1].c : B[i].c))
   })
 
   it('a `request.*` in an arm is evaluated in the requested context — not stamped (queued, not witnessed)', () => {
