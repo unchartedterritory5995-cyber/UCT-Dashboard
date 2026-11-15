@@ -328,6 +328,80 @@ export function staticOtherSymbolRefusalOf(tree, otherSymbols) {
   return null
 }
 
+/** ⭐⭐ ENGINE 55 (review F1) — IS THIS COLUMN ERROR AN OTHER-SYMBOL REFUSAL? The spelling-decided
+ *  ones (`{guard: 'pine:request', code: 'other-symbol:…'}`) and the bind-decided ones
+ *  (`{guard: 'other-symbol:…'}`). */
+export function isOtherSymbolRefusal(err) {
+  if (!err || typeof err !== 'object') return false
+  if (err.guard === 'pine:request' && typeof err.code === 'string' && err.code.startsWith('other-symbol:')) return true
+  return typeof err.guard === 'string' && err.guard.startsWith('other-symbol:')
+}
+
+/** ⭐⭐ ENGINE 55 (review F1) — THE ONE SENTENCE for something visible (a plot, a band, a paint)
+ *  whose COLOUR is read from a value refused for another symbol: it names the visible thing
+ *  and the symbol, never the hidden helper row that carried the colour. `message` is the
+ *  refusal's own sentence ("This indicator reads `T`: …"). */
+export function colourReaderMessage(name, message) {
+  const why = String(message || '').replace(/^This indicator reads /, 'reads ')
+  return `${name} is not drawn: its colour ${why}`
+}
+
+/** ⭐⭐ ENGINE 55 (review F1, narrowed) — A PLOT THAT CAN NEVER DRAW: its value tree IS the `na`
+ *  literal (`0 / 0`, how the translator spells `na` — e.g. an input-folded
+ *  `Indicator == 'MSI RSI' ? msirsi : na` whose branch the inputs did not choose). It draws
+ *  nothing on any bar, and neither does TradingView, so its colour is never seen: a colour
+ *  that reads a refused symbol is NOT a reason to refuse it (that only adds a strip sentence
+ *  about a plot the member did not choose; McClellan's MSI RSI / MACD Histogram, CAP3). The ONE
+ *  authority for the bind (`refuseColourReaders`) and the member door (`staticPlotRefusalsOf`),
+ *  which share one translation. A member who chooses the branch retranslates, and the value
+ *  then reads the symbol and is refused on its own.
+ *  ⛔ The import screen never reaches this question: its translation folds every input to its
+ *  default, and an output whose value is then `na` is offered as "hidden by the script itself"
+ *  (`importOutcome`, pre-existing) — for a live input's branch too, which the bind refuses. */
+export function plotValueIsNaLiteral(tree) {
+  return !!tree && tree.type === 'op' && tree.name === '/' && Array.isArray(tree.args) && tree.args.length === 2
+    && tree.args.every((a) => !!a && a.type === 'num' && a.value === 0)
+}
+
+/** ⭐⭐ ENGINE 55 (review F1) — the refusal a plot inherits when its colour reads a refused
+ *  helper column: the helper's guard and code, the reader's sentence. */
+export function colourReaderRefusal(name, helperErr) {
+  return {
+    guard: helperErr.guard,
+    ...(typeof helperErr.code === 'string' ? { code: helperErr.code } : {}),
+    message: colourReaderMessage(name, helperErr.message),
+  }
+}
+
+/** ⭐⭐ ENGINE 55 (review F1) — WHAT THE BIND WILL REFUSE BY SPELLING ALONE, per plot key, before
+ *  any bar is bound: `{key: {guard: 'pine:request', code, message}}`. A plot whose own tree
+ *  reads a spelling no binding serves (`staticOtherSymbolRefusalOf`), then every plot whose
+ *  colour (`colorMode`) or band colour (`fill.colorMode`) reads such a helper, in the reader's
+ *  own words (`colourReaderRefusal`). The member door returns it (`staticRefusals`) so the
+ *  preview can say it up front; the bind's `columnErrors` refuses exactly these (railed). */
+export function staticPlotRefusalsOf(def) {
+  const out = {}
+  if (!def || !def.compute) return out
+  const others = def.meta && Array.isArray(def.meta.otherSymbols) ? def.meta.otherSymbols : null
+  if (!others || !others.length) return out
+  const trees = def.compute.trees && typeof def.compute.trees === 'object' ? def.compute.trees : null
+  const plots = Array.isArray(def.plots) ? def.plots : []
+  const treeOf = (key) => (trees ? trees[key] : (plots.length === 1 && plots[0].key === key ? def.compute.ast : null))
+  for (const p of plots) {
+    if (!p || typeof p.key !== 'string') continue
+    const r = staticOtherSymbolRefusalOf(treeOf(p.key), others)
+    if (r) out[p.key] = r
+  }
+  const helperOf = (mode) => (typeof mode === 'string' && mode.startsWith('column:') ? mode.slice('column:'.length) : null)
+  for (const p of plots) {
+    if (!p || typeof p.key !== 'string' || out[p.key] || plotValueIsNaLiteral(treeOf(p.key))) continue
+    const hit = [helperOf(p.colorMode), p.fill ? helperOf(p.fill.colorMode) : null]
+      .filter((k) => k && k !== p.key).map((k) => out[k]).find(Boolean)
+    if (hit) out[p.key] = colourReaderRefusal(`\`${p.label || p.title || p.key}\``, hit)
+  }
+  return out
+}
+
 /** Every ticker a document's trees read through a `sym` node — plots, object
  *  trees and graph nodes alike. Iterative (a deep tree must not overflow). */
 export function symTickersOf(def) {

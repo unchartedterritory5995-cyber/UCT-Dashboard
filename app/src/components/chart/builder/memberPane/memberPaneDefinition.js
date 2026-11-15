@@ -22,6 +22,7 @@
 // where the product can call it. That test is the reason this is a productised
 // path rather than a first attempt: the rows, the manifest placements and the
 // `buildDefinition` call are the shapes it already proved land a valid document.
+import { staticPlotRefusalsOf } from '../../engine/otherSymbols.js'
 import { translatePine, lexPine, blockStatements, parseWholeExpression, findTop, isPunct, boundName, PAINT_RUNTIME_COLOUR, strippedForScan, OBJECT_SITE_SOURCES } from '../../engine/ast/pine'
 import { withAlphaByte } from '../../designTokens'
 import { DEFAULT_SERIES_COLOUR, V3_DEFAULT_SERIES_OPACITY } from '../../engine/pinePalette'
@@ -1019,6 +1020,9 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
     // The pane finishes the sentence with `parse.js::requirementNote` once the
     // series has loaded; the producer still owns the wording.
     requirementTags,
+    // ⭐⭐ ENGINE 55 (review F1) — the plots a binding will refuse by spelling alone, with the
+    // sentence it will say (`otherSymbols.staticPlotRefusalsOf`), for the preview to say up front.
+    ...((sr) => (Object.keys(sr).length ? { staticRefusals: sr } : {}))(staticPlotRefusalsOf(docOut)),
     // ⭐ ENGINE 53 — the run half, minted (how many host plots its column rail compares) or
     // declined (by code, for the census); absent for a script whose drawings are complete.
     ...(runHalfOut && runHalfOut.runtimeObjects ? { runHalf: { minted: true, columns: Object.keys(runHalfOut.runtimeObjects.outputs).length } } : {}),

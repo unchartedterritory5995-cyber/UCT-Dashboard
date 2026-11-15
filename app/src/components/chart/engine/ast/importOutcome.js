@@ -37,6 +37,7 @@
 //                 a dash read as a minus sign).
 
 import { assessObjectLoss, objectLossNote } from './objectLoss.js'
+import { staticOtherSymbolRefusalOf, colourReaderMessage } from '../otherSymbols.js'
 
 export const OUTCOME = Object.freeze({
   EXACT: 'exact',
@@ -106,6 +107,21 @@ export const PCF_XUP_NOTE = 'XUP / XDOWN: TC2000 counts a cross when the value w
   + 'value lands exactly on the level — reachable on a round-number threshold.'
 
 const isObj = (v) => !!v && typeof v === 'object'
+
+/** ⭐⭐ ENGINE 55 (review F1) — what the BIND will refuse, said up front on the import screen: an
+ *  output whose value, colour, or band colour reads a spelling no binding can serve is listed
+ *  as missing with the bind's own sentence (`staticOtherSymbolRefusalOf`; a colour reader in
+ *  `colourReaderMessage`'s words, naming the plot and the symbol). The member door's
+ *  `staticRefusals` and the bind's `columnErrors` say the same per plot. */
+function staticRefusalOfOutput(out, name, report, fills, i) {
+  const others = report && Array.isArray(report.otherSymbols) ? report.otherSymbols : null
+  if (!others || !out) return null
+  const own = staticOtherSymbolRefusalOf(out.ast, others)
+  if (own) return own
+  const colour = staticOtherSymbolRefusalOf(out.presentation, others)
+    || fills.filter((f) => f && f.a === i).map((f) => staticOtherSymbolRefusalOf(f.colorCondition, others)).find(Boolean)
+  return colour ? { ...colour, message: colourReaderMessage(`\`${name}\``, colour.message) } : null
+}
 
 function walk(node, visit) {
   if (!isObj(node)) return
@@ -182,6 +198,12 @@ export function importOutcome(report, opts = {}) {
       }
       if (out.downstream && out.downstream.ok === false) {
         parts.missing.push({ name: outputName(out, i), guard: out.downstream.guard || null, message: out.downstream.error || 'does not evaluate' })
+        return
+      }
+      const fills = (report.presentation && Array.isArray(report.presentation.fills)) ? report.presentation.fills : []
+      const refusedAtBind = staticRefusalOfOutput(out, outputName(out, i), report, fills, i)
+      if (refusedAtBind) {
+        parts.missing.push({ name: outputName(out, i), guard: refusedAtBind.guard, message: refusedAtBind.message })
         return
       }
       usable += 1

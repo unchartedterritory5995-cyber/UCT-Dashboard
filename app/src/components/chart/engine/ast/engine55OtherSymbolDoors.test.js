@@ -31,8 +31,9 @@ import { computeFor, columnErrors, externalReadNotices } from '../nativeRegistry
 import { objectReaderFor } from '../objectColumns'
 import {
   staticallyUnservable, spellingUnservable, staticOtherSymbolMessage, staticOtherSymbolRefusalOf,
-  OTHER_SYMBOL_REFUSAL as R,
+  colourReaderMessage, staticPlotRefusalsOf, plotValueIsNaLiteral, OTHER_SYMBOL_REFUSAL as R,
 } from '../otherSymbols'
+import { inspectSource } from '../../builder/PineBox'
 
 const LF = String.fromCharCode(10)
 const pine = (lines) => ['//@version=5', 'indicator("e55")', ...lines].join(LF)
@@ -210,6 +211,134 @@ describe('⭐ review L6 — only a real breadth spelling gets the breadth senten
       expect(why.reason, t).not.toMatch(/breadth/)
     }
     expect(spellingUnservable('TSX:ADDYY').reason).not.toMatch(/breadth/)
+  })
+})
+
+// ⭐⭐ REVIEW F1 (coordinator, PR #1264 re-review) — SERVE, NEVER DEFAULT. A plot whose COLOUR
+// (or band colour) reads a refused symbol was drawn in the series' DEFAULT colour on every bar:
+// the hidden colour helper was refused and its reader was not. Now the reader is refused too, by
+// name, with a sentence naming the visible plot and the symbol (never the helper row `out2`); a
+// paint reading one is named on the strip by its kind and line. The import screen, the member
+// door (`staticRefusals`) and the bind say the same per plot.
+describe('⭐⭐ review F1 — a plot whose colour reads a refused symbol is refused by name, never drawn in a default colour', () => {
+  const SPX = 'request.security("SPX", timeframe.period, close)'
+  const spx = staticOtherSymbolMessage('SPX', staticallyUnservable('SPX', ''))
+  const doorOf = (lines) => memberPaneDefinition({ source: ['//@version=5', 'indicator("f1", overlay=true)', ...lines].join(LF), id: 'u_e55f1', name: 'f1' })
+  const screenOf = (lines) => inspectSource(['//@version=5', 'indicator("f1", overlay=true)', ...lines].join(LF), 'pine').outcome
+  const keyOf = (def, label) => def.plots.find((p) => p.label === label).key
+
+  it('the reviewer\'s probe: plot(close, "own", color = SPX > 100 ? green : red) — `own` is refused by name at every door', () => {
+    const lines = [`plot(close, "own", color = ${SPX} > 100 ? color.green : color.red)`]
+    const d = doorOf(lines)
+    expect(d.ok, d.reason).toBe(true)
+    const own = keyOf(d.definition, 'own')
+    const want = { guard: 'pine:request', code: R.BARE, message: colourReaderMessage('`own`', spx) }
+    expect(want.message).toMatch(/^`own` is not drawn: its colour reads `SPX`: other-symbol:bare — /)
+    expect(want.message).not.toMatch(/out2/)
+    // the bind: refused, NOT drawn in the default colour
+    const cols = computeFor(d.definition, BARS, undefined, CTX)
+    expect(columnErrors(cols)[own]).toEqual(want)
+    expect(cols[own]).toBeUndefined()
+    // the member door says it up front, the same sentence
+    expect(d.staticRefusals[own]).toEqual(want)
+    // the import screen says it up front, the same sentence
+    const outcome = screenOf(lines)
+    expect(outcome.missing).toEqual([{ name: 'own', guard: 'pine:request', message: want.message }])
+  })
+
+  it('a band whose COLOUR reads the refused symbol: its owner is refused by name; the other plot is drawn', () => {
+    const lines = ['a = plot(close, "own")', 'b = plot(open, "o")', `fill(a, b, color = ${SPX} > 100 ? color.new(color.blue, 80) : color.new(color.red, 80))`]
+    const d = doorOf(lines)
+    expect(d.ok, d.reason).toBe(true)
+    const cols = computeFor(d.definition, BARS, undefined, CTX)
+    const errs = columnErrors(cols)
+    const want = { guard: 'pine:request', code: R.BARE, message: colourReaderMessage('`own`', spx) }
+    expect(errs[keyOf(d.definition, 'own')]).toEqual(want)
+    expect(Array.from(cols[keyOf(d.definition, 'o')]).some(Number.isFinite)).toBe(true)
+    expect(d.staticRefusals[keyOf(d.definition, 'own')]).toEqual(want)
+    expect(screenOf(lines).missing).toEqual([{ name: 'own', guard: 'pine:request', message: want.message }])
+  })
+
+  it('a band whose PARTNER reads the refused symbol: the partner is refused by name and the owner\'s own line is drawn', () => {
+    const d = doorOf(['a = plot(close, "own")', `b = plot(${SPX}, "spx")`, 'fill(a, b, color=color.new(color.blue, 80))'])
+    expect(d.ok, d.reason).toBe(true)
+    const cols = computeFor(d.definition, BARS, undefined, CTX)
+    const errs = columnErrors(cols)
+    expect(errs[keyOf(d.definition, 'spx')]).toEqual({ guard: 'pine:request', code: R.BARE, message: spx })
+    expect(cols[keyOf(d.definition, 'spx')]).toBeUndefined()            // the band has no edge to draw
+    expect(Array.from(cols[keyOf(d.definition, 'own')]).some(Number.isFinite)).toBe(true)
+  })
+
+  it.each(['bgcolor', 'barcolor'])('a %s whose colour reads the refused symbol is named on the strip by its kind and line, never by the helper row', (kind) => {
+    const colour = kind === 'bgcolor' ? 'color.new(color.green, 80)' : 'color.green'
+    const d = doorOf(['plot(close, "own")', `${kind}(${SPX} > 100 ? ${colour} : na)`])
+    expect(d.ok, d.reason).toBe(true)
+    const cols = computeFor(d.definition, BARS, undefined, CTX)
+    const notes = externalReadNotices(d.definition, cols)
+    expect(notes).toContainEqual({ code: R.BARE, reason: colourReaderMessage(`\`${kind}\` (line 4)`, spx) })
+    expect(notes.some((n) => /out2/.test(n.reason))).toBe(false)
+    expect(Array.from(cols[keyOf(d.definition, 'own')]).some(Number.isFinite)).toBe(true)
+  })
+
+  // ⭐ review F1, narrowed (McClellan MSI RSI / MACD Histogram, CAP3): a plot whose VALUE is `na`
+  // on every bar draws nothing, and neither does TradingView, so a colour reading the refused
+  // symbol is never seen. It is NOT refused. CONTROL: the same plot with a value IS.
+  // ⛔ STATICALLY na only (the value tree IS the `na` literal, as McClellan's input-folded branches
+  // are). A value that is na only at RUN time (`mode == "B" ? close : na` with mode a live input)
+  // is still refused: the member can choose the branch without a retranslation.
+  const HIDDEN_BY_SCRIPT = 'hidden by the script itself, so not offered'
+  const QUIET = (value) => [`plot(${value}, "quiet", color = ${SPX} > 100 ? color.green : color.red)`, 'plot(open, "o")']
+
+  it('a plot whose value is na on every bar and whose colour reads SPX is NOT refused by the bind or the member door, and draws nothing', () => {
+    const lines = QUIET('na')
+    const d = doorOf(lines)
+    expect(d.ok, d.reason).toBe(true)
+    const quiet = keyOf(d.definition, 'quiet')
+    expect(plotValueIsNaLiteral(d.definition.compute.trees[quiet])).toBe(true)     // non-vacuity: the input folded to na
+    const cols = computeFor(d.definition, BARS, undefined, CTX)
+    expect(columnErrors(cols)[quiet]).toBeUndefined()
+    expect(Array.from(cols[quiet])).toHaveLength(BARS.length)
+    expect(Array.from(cols[quiet]).some(Number.isFinite)).toBe(false)               // draws nothing, as TradingView
+    expect((d.staticRefusals || {})[quiet]).toBeUndefined()
+    expect(Array.from(cols[keyOf(d.definition, 'o')]).some(Number.isFinite)).toBe(true)
+    // the import screen (pre-existing, unchanged here) offers an all-na output as hidden by the script
+    const screen = screenOf(lines)
+    expect((screen.missing || []).map((m) => m.name)).not.toContain('quiet')
+    expect(screen.info).toContainEqual(expect.objectContaining({ name: 'quiet', note: HIDDEN_BY_SCRIPT }))
+  })
+
+  it.each(['close', 'mode == "B" ? close : na'])('CONTROL: the same plot with value `%s` (drawable) is refused by name at every door', (value) => {
+    const lines = value === 'close' ? QUIET(value) : ['mode = input.string("A", "Mode", options = ["A", "B"])', ...QUIET(value)]
+    const d = doorOf(lines)
+    expect(d.ok, d.reason).toBe(true)
+    const quiet = keyOf(d.definition, 'quiet')
+    expect(plotValueIsNaLiteral(d.definition.compute.trees[quiet])).toBe(false)
+    const want = { guard: 'pine:request', code: R.BARE, message: colourReaderMessage('`quiet`', spx) }
+    const cols = computeFor(d.definition, BARS, undefined, CTX)
+    expect(columnErrors(cols)[quiet]).toEqual(want)
+    expect(cols[quiet]).toBeUndefined()
+    expect(d.staticRefusals[quiet]).toEqual(want)
+    const screen = screenOf(lines)
+    if (value === 'close') expect(screen.missing).toEqual([{ name: 'quiet', guard: 'pine:request', message: want.message }])
+    // ⚠️ KNOWN, PRE-EXISTING (not this change): the import screen folds the live input to its
+    // default, reads the value as na and offers the plot as hidden, while the bind refuses it by name
+    else expect(screen.info).toContainEqual(expect.objectContaining({ name: 'quiet', note: HIDDEN_BY_SCRIPT }))
+  })
+
+  it('the member door\'s `staticRefusals` equals what the bind refuses by spelling, for every shape here', () => {
+    for (const lines of [
+      QUIET('na'),
+      QUIET('close'),
+      [`plot(close, "own", color = ${SPX} > 100 ? color.green : color.red)`],
+      ['plot(close, "own")', `plot(${SPX}, "spx")`],
+      ['x = ' + SPX, 'plot(close - x, "diff")', 'plot(close, "own")'],
+    ]) {
+      const d = doorOf(lines)
+      expect(d.ok, d.reason).toBe(true)
+      const errs = columnErrors(computeFor(d.definition, BARS, undefined, CTX))
+      expect(d.staticRefusals, lines.join(' / ')).toEqual(errs)
+      expect(staticPlotRefusalsOf(d.definition)).toEqual(errs)
+    }
   })
 })
 
