@@ -24,8 +24,13 @@
 //   graded       our colour compared bar for bar (`agree` / `differ`)
 //   hiddenBoth   TradingView draws it nowhere (display 0) and neither do we
 //   naBoth       our door folded it to `na` and the vendor's every bar is `na`
-//   withheld     the door withheld it by name (the reason is carried) — NOT graded
-//   notDrawn     the vendor draws it, our door carried nothing for it
+//   withheld     the door withheld it by name (the reason is carried) — NOT graded.
+//                Either the translator withheld it (`t.withheld`), or (G5) the BIND
+//                refused the column its colour is read from AND the member's
+//                disclosure strip names the paint itself (`bindWithheldPaintsOf`,
+//                `by: 'bind'`)
+//   notDrawn     the vendor draws it, our door carried nothing for it, and nothing
+//                the member reads names it
 import { vendorColorsFor, coloursAgree, normalizeColor, NO_COLOUR, decodeVendorText } from '../../../../../../../tools/vendor_harness/compare.mjs'
 
 const PAINT_TYPES = Object.freeze({ bg_colorer: 'bgcolor', bar_colorer: 'barcolor' })
@@ -62,6 +67,38 @@ export function vendorPaints(capture) {
 }
 
 const canon = (c) => (c === null || c === undefined ? NO_COLOUR : (normalizeColor(c) || c))
+
+/** The name the member's strip gives a paint: `` `bgcolor` (line 12) ``. */
+export const paintStripName = (kind, line) => `\`${kind || 'bgcolor'}\`${Number.isInteger(line) ? ` (line ${line})` : ''}`
+
+/** ⭐ G5 — THE PAINTS THE BIND WITHHOLDS BY NAME. A paint whose colour is read from a
+ *  helper column (`colorMode: 'column:<key>'`) that the BIND refused (a column error:
+ *  another symbol it cannot serve, …) draws nothing. The translator never knew, so
+ *  `t.withheld` is empty, and the grade used to read it as `notDrawn` ("our door
+ *  carried nothing"): the wrong label, and the name was lost.
+ *
+ *  ⛔ BY NAME MEANS WHAT THE MEMBER READS. Both are required, and neither is
+ *  inferred:
+ *   - the column the paint's colour reads carries a column error (`columnErrors`);
+ *   - a notice on the member's disclosure strip (`notices`: what the binder publishes,
+ *     `chartClockReport().withheld` + `externalReadNotices()`) names THIS paint, i.e. its
+ *     reason opens with the paint's strip name (`paintStripName`), and gives a reason.
+ *  A refused helper the strip does not name stays `notDrawn` (fail closed).
+ *  @returns {{kind: string, line: number|null, code: string|null, reason: string}[]} */
+export function bindWithheldPaintsOf(def, { columnErrors = {}, notices = [] } = {}) {
+  const out = []
+  for (const p of (def && Array.isArray(def.paints) ? def.paints : [])) {
+    const mode = p && p.colorMode
+    const key = typeof mode === 'string' && mode.startsWith('column:') ? mode.slice('column:'.length) : null
+    const err = key ? columnErrors[key] : null
+    if (!err) continue
+    const name = paintStripName(p.kind, p.line)
+    const said = (notices || []).find((n) => n && typeof n.reason === 'string' && n.reason.startsWith(`${name} `))
+    if (!said) continue
+    out.push({ kind: p.kind || 'bgcolor', line: p.line ?? null, code: said.code || err.code || err.guard || null, reason: said.reason })
+  }
+  return out
+}
 
 // ─── ⭐ RC1 — THE WARM-UP A COLD REPLAY CANNOT GRADE ──────────────────────────
 //
@@ -131,6 +168,12 @@ export function gradePaints(capture, ours) {
       else {
         const drawn = (ours.paints || []).find((p) => p.kind === kind && p.line === t.line)
         if (!drawn || !drawn.colors) {
+          // ⭐ G5 — the bind withheld it, and the member's strip names it: withheld BY NAME
+          const named = (ours.bindWithheldPaints || []).find((w) => w.kind === kind && w.line === (t.line ?? null))
+          if (named) {
+            rows.push({ ...base, state: 'withheld', by: 'bind', code: named.code, reason: named.reason, displayed: v.displayed })
+            return
+          }
           // how many bars TradingView painted — 0 means neither side draws a bar
           // (the verdict counts that, `compare.mjs::comparePaints`)
           const vendorPainted = v.colors.filter((c) => c !== undefined && canon(c) !== NO_COLOUR).length

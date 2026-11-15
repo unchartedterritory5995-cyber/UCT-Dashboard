@@ -254,7 +254,9 @@ const nodeTypeClaim = (types) => `${countWord(types.length)} node types -- ${typ
 
 /** Every count word a text uses in a claim ABOUT node types, whatever it is. */
 function nodeTypeCountWordsIn(text) {
-  return [...text.matchAll(/\b([A-Z]{3,7}) node types\b/g)].map((m) => m[1])
+  // ⭐ ENGINE 55 — up to EIGHT letters: THIRTEEN (the live count since `tf_merge`) and
+  // FOURTEEN (the planted proof below) are eight; at seven neither was read.
+  return [...text.matchAll(/\b([A-Z]{3,8}) node types\b/g)].map((m) => m[1])
 }
 
 /** Which prose keys state the live roster, and which assert a stale count.

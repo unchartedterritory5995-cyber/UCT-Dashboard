@@ -1,0 +1,21 @@
+//@version=4
+study("UCTPROBE_VW_CS2_V4_TERNARY_LAZY", overlay=false)
+
+// PROVENANCE: written 2026-11-15 for the Pine parity programme, capture session S17
+// (objects-lane PROBES-NEXT.md item 10). v4 `?:` arm laziness: is a stateful call (sma, barssince,
+// a helper that calls sma) evaluated on every bar or only on bars where its arm is taken? If an arm
+// is lazy, sma inside it sees only the bars it ran on and its value differs from the eager one.
+// Control: iff(), which evaluates both arms (to-v5 migration guide), and the eager values themselves.
+// CAPTURE: NYSE:RDDT 1D from the listing, inputs at defaults.
+
+up = close > open
+f(x) => sma(x, 5)
+
+plot(bar_index, title="A00_bar_index_CONTROL")
+plot(up ? 1 : 0, title="A01_up")
+plot(up ? sma(close, 5) : close, title="T00_up_sma_else_close")
+plot(up ? barssince(close > close[1]) : na, title="T01_up_barssince_else_na")
+plot(up ? f(close) : close, title="T02_up_helper_sma_else_close")
+plot(iff(up, sma(close, 5), close), title="C00_iff_up_sma_close")
+plot(sma(close, 5), title="E00_sma_eager")
+plot(barssince(close > close[1]), title="E01_barssince_eager")

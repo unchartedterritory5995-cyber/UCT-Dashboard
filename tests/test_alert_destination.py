@@ -146,6 +146,11 @@ CONVERTED = {
     # 2026-11-10 -- desktop app telemetry halt triggers + daily digest (desktop plan 5.1). New
     # (never a literal reader), an ops message (enum counts only), resolved lazily inside `_post_ops`.
     "api/services/desktop_events.py",
+    # 2026-11-10 -- daily AI budgets: alert-or-block per feature (eda491e765) and the daily spend
+    # digest. New (never a literal reader), an ops message (dollar totals per feature, never
+    # prompts or member data), resolved lazily inside `_post` with producer="llm_budget".
+    # Added 2026-11-15: the census was red on master from the day it landed.
+    "api/services/llm_budget.py",
 }
 
 # ══════════════════════════════════════════════════════════════════════════════
