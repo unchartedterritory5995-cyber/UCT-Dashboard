@@ -31,11 +31,13 @@
 //      test true on every bar of the chart, a test true then false for good, a call
 //      bound above the ternary, a call in the test, the smoothed-MA / alligator
 //      `na(x[1]) ? ta.sma(…) : …` seed, Pine v5 `and` / `or` (strict), v4 `iff` (both
-//      values every bar, the to-v5 guide), and Pine v1 (no pragma) `?:` — EAGER, WITNESSED:
-//      `cci-coded-obv` / `trade-archer-obv-mas-v1` (RDDT 1D from the listing) equal the eager
-//      reading on 666 / 666 bars, the lazy one mismatches 662 / 666 (`condTaLanes.test.js` 2c).
-//      ⚰️ v4 `?:` was on this list as "not witnessed"; COND-TA withholds v2-v4 arms where their
-//      test varies (the v4 User Manual documents the arm as lazy; v2 / v3 wait for probe P2);
+//      values every bar, the to-v5 guide), and Pine v1 (no pragma) / v2 / v3 `?:` — EAGER,
+//      WITNESSED: probe P2 (`vw-ternary-arm-legacy-v1/v2/v3`, run s17, RDDT 1D from the listing:
+//      every arm call equals its every-bar value on every bar), and `cci-coded-obv` /
+//      `trade-archer-obv-mas-v1` (no pragma) equal the eager OBV on 666 / 666 bars, the lazy one
+//      mismatches 662 / 666 (`condTaLanes.test.js` 2c). ⚰️ v4 `?:` was on this list as "not
+//      witnessed": probe 10 (`vw-cs2-v4-ternary-lazy`, run s17) shows it LAZY, so COND-TA withholds
+//      it where its test varies, exactly as v5 / v6;
 //   5. nothing is refused at TRANSLATION, so the parameters a plot mints do not move,
 //      and the screener lane (which binds no chart) REFUSES each such row by name
 //      (COND-TA, engine 55: its every-bar reading was this capture's wrong number);
@@ -524,11 +526,11 @@ describe('C45 — ⛔ what stays drawn, TradingView\'s number where a capture ho
   })
 
   // ⭐⭐ COND-TA (engine 55+) — FLIPPED, DELIBERATELY, FROM EVIDENCE. This pinned v4 `?:` "not
-  // witnessed — drawn as before", which drew the EVERY-BAR number. The v4 User Manual documents the
-  // arm as lazy ("`barssince` is not called on every bar because it is inside a ternary
-  // operator's conditional branch … This leads to incorrect results"; Functions and annotations,
-  // "Execution of Pine functions and historical context inside function blocks"), so a v4 arm
-  // whose test varies is stamped and WITHHELD BY NAME where it runs after a skip, as v5 / v6 are.
+  // witnessed — drawn as before", which drew the EVERY-BAR number. Probe 10 (run s17,
+  // `vw-cs2-v4-ternary-lazy`, RDDT 1D from the listing) witnesses the v4 arm LAZY (bar 7:
+  // TradingView na, the eager sma 53.72), as the v4 User Manual says ("`barssince` is not called on
+  // every bar because it is inside a ternary operator's conditional branch"), so a v4 arm whose
+  // test varies is stamped and WITHHELD BY NAME where it runs after a skip, as v5 / v6 are.
   // `iff` stays drawn: the to-v5 guide says it "always evaluated both values" (`ast/condTaLanes.test.js`).
   it('Pine v4 `?:` is documented lazy — withheld by name where its test varies; v4 `iff` (both values every bar) stays drawn', () => {
     for (const source of [

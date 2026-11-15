@@ -112,7 +112,6 @@ const GATED = {
   'v6 arm': [pine(6, 'plot(close > open ? ta.sma(close, 3) : close, "v")'), /`ta\.sma` is called in one arm of a `\?:`/],
   'v5 arm': [pine(5, 'plot(close > open ? ta.sma(close, 3) : close, "v")'), /`ta\.sma` is called in one arm of a `\?:`/],
   'v4 arm bare': [pine(4, 'plot(close > open ? sma(close, 3) : close, "v")'), /`sma` is called in one arm of a `\?:`/],
-  'v3 arm bare': [pine(3, 'plot(close > open ? rsi(close, 14) : 50, "v")'), /`rsi` is called in one arm of a `\?:`/],
   'v6 if expression': [pine(6, 'y = if close > open', '    ta.sma(close, 3)', 'else', '    close', 'plot(y, "v")'), /one branch of an `if`/],
   'v4 if expression bare': [pine(4, 'y = if close > open', '    sma(close, 3)', 'else', '    close', 'plot(y, "v")'), /`sma` is called in one branch of an `if`/],
   'v6 helper in a block': [pine(6, 'f() => ta.sma(close, 3)', 'float v = na', 'if close > open', '    v := f()', 'plot(v, "v")'), /calls `f`, a function that reads its own history/],
@@ -189,7 +188,7 @@ describe('COND-TA — 2. ⚰️ the number the screener lane served, against the
 const OBV_V1 = ['study("v1 obv")', 'src = close',
   'obv(src) => ', '    cum(change(src) > 0 ? volume : change(src) < 0 ? -volume : 0*volume)',
   'o = obv(src)', 'plot(o, title="OBV")'].join('\n')
-describe('COND-TA — 2c. Pine v1 (no pragma) `?:` arms are eager (witnessed): drawn as before', () => {
+describe('COND-TA — 2c. `?:` arms: eager in v1-v3, lazy from v4 (both witnessed, run s17)', () => {
   it('the OBV construct: not stamped, served on the screener lane, drawn on the host lane, equal to the eager reading', () => {
     const t = strict(OBV_V1)
     expect(t.outputs[0].refusal).toBeFalsy()
@@ -210,15 +209,40 @@ describe('COND-TA — 2c. Pine v1 (no pragma) `?:` arms are eager (witnessed): d
     expect(off).toEqual([])
   })
 
-  it('a v1 arm calling `sma` stays drawn (no gate); the same arm in v2, v3 and v4 is withheld by name', () => {
-    const v1 = ['study("v1 arm")', 'plot(close > open ? sma(close, 3) : close, "v")'].join('\n')
-    expect(strict(v1).blockRuns).toBeUndefined()
-    expect(lenient(v1).outputs[0].refusal).toBeFalsy()
-    for (const v of [2, 3, 4]) {
-      const src = [`//@version=${v}`, 'study("arm")', 'plot(close > open ? sma(close, 3) : close, "v")'].join('\n')
-      expect(strict(src).blockRuns, `v${v}`).toBeTruthy()
-      expect(lenient(src).outputs[0].refusal && lenient(src).outputs[0].refusal.guard, `v${v}`).toBe('pine:block')
+  // ⭐⭐ run s17-2026-11-15 (NYSE:RDDT 1D from the listing; licence-held, numbers transcribed):
+  //   P2 `vw-ternary-arm-legacy-v1/v2/v3`: `t ? close : sma(close, 5)` (and change / ema / rma /
+  //   barssince / cum) equal the EVERY-BAR values on every bar — v1-v3 arms are EAGER;
+  //   probe 10 `vw-cs2-v4-ternary-lazy`: `up ? sma(close, 5) : close` is LAZY in v4 — bar 7:
+  //   TradingView na, the eager `sma` 53.72; v4 `iff` is eager.
+  // ⛔ The P2 probe reads `n`, which this engine refuses (`pine:undefined`): railed on `cum(1) - 1`.
+  it('v1 / v2 / v3 `?:` arms are eager: not stamped, drawn on the host and screener lanes, equal to the every-bar reading', () => {
+    const t3 = '(cum(1) - 1) % 3 == 0 ? close : sma(close, 5)'
+    for (const head of [['study("p2 v1")'], ['//@version=2', 'study("p2 v2")'], ['//@version=3', 'study("p2 v3")']]) {
+      const src = [...head, `plot(${t3}, title="B_sma")`].join('\n')
+      const t = strict(src)
+      expect(t.outputs[0].refusal, head[0]).toBeFalsy()
+      expect(t.blockRuns, head[0]).toBeUndefined()
+      expect(lenient(src).outputs[0].refusal, head[0]).toBeFalsy()
+      const { cols, errors } = bind(src)
+      expect(errors.value, head[0]).toBeUndefined()
+      const want = Array.from(interpret(t.outputs[0].ast, BARS, {}))
+      expect(Array.from(cols.value).every((x, i) => sameValue(x, Number.isFinite(want[i]) ? want[i] : null)), head[0]).toBe(true)
     }
+  })
+
+  it('a v4 `?:` arm is lazy (probe 10): stamped and withheld by name on RDDT, refused on the screener and runtime lanes; v4 `iff` is eager and drawn', () => {
+    const src = ['//@version=4', 'study("p10 v4")', 'up = close > open', 'plot(up ? sma(close, 5) : close, title="T00")'].join('\n')
+    // the witness ties to these bars: at bar 7 the EAGER sma is 53.72, where TradingView reads na
+    expect(BARS.slice(3, 8).reduce((a, b) => a + b.c, 0) / 5).toBeCloseTo(53.72, 2)
+    expect(strict(src).blockRuns).toBeTruthy()
+    const { cols, errors } = bind(src)
+    expect(cols.value).toBeUndefined()
+    expect(errors.value.guard).toBe(BLOCK_RUNS_GUARD)
+    expect(lenient(src).outputs[0].refusal.guard).toBe('pine:block')
+    expect(runtime(src).refusal.guard).toBe('runtime:conditional-history')
+    const iff = ['//@version=4', 'study("p10 iff")', 'up = close > open', 'plot(iff(up, sma(close, 5), close), title="C00")'].join('\n')
+    expect(strict(iff).blockRuns).toBeUndefined()
+    expect(bind(iff).errors.value).toBeUndefined()
   })
 })
 
@@ -249,7 +273,6 @@ describe('COND-TA — 3. Pine v1-v4 bare calls are history calls on the host lan
     ['v4 block', BLOCK(4, 'sma(close, 3)')],
     ['v3 block', BLOCK(3, 'highest(high, 3)')],
     ['v4 arm', pine(4, 'plot(close > open ? sma(close, 3) : close, "v")')],
-    ['v3 arm', pine(3, 'plot(close > open ? rsi(close, 14) : 50, "v")')],
     ['v4 if expression', pine(4, 'y = if close > open', '    sma(close, 3)', 'else', '    close', 'plot(y, "v")')],
     ['v4 helper', pine(4, 'f() => sma(close, 3)', 'float v = na', 'if close > open', '    v := f()', 'plot(v, "v")')],
   ])('%s: translated, gated, and withheld by name at the bind on RDDT', (_, src) => {

@@ -11119,22 +11119,18 @@ export class Resolver {
    *  walk reads; skipping the stamp there could only lose it on a memoised node a
    *  later output reuses. */
   stampTernaryArms(out, node, test) {
-    // ⭐⭐ COND-TA (engine 55) — v2-v6. ⚰️ v2-v4 `?:` were not stamped ("no capture"), so a v4
-    // `up ? sma(close, 5) : close` was drawn off the every-bar number. The v4 User Manual
-    // documents the arm as lazy: "`barssince` is not called on every bar because it is inside
-    // a ternary operator's conditional branch … This leads to incorrect results" (Functions and
-    // annotations, "Execution of Pine functions and historical context inside function blocks";
-    // probe 10 queued to witness it). v2 / v3 are documented neither way: withheld, never
-    // guessed, until probe P2 settles them (the stamp withholds only where the test runs the
-    // arm after a bar it skipped). `iff` is a call, never stamped: the to-v5 guide says it
-    // "always evaluated both values".
-    // ⛔⛔ v1 (`//@version=1`, or NO pragma, which TradingView compiles as v1) IS EAGER, AND THAT
-    // IS WITNESSED: `cci-coded-obv` and `trade-archer-obv-mas-v1` (no pragma, NYSE:RDDT 1D from
-    // the listing, held store s2 / s4) build OBV as `cum(change(src) > 0 ? volume :
-    // change(src) < 0 ? -volume : 0*volume)`; TradingView equals the EAGER (every-bar) reading
-    // on 666 / 666 bars, and the lazy reading mismatches 662 / 666 from bar 4. So a v1 arm is
-    // not stamped: drawn as before (`condTaLanes.test.js`, the v1 rails).
-    if (!node.ifExpr && (this.pineVersion === null || this.pineVersion === undefined || Number(this.pineVersion) <= 1)) return
+    // ⭐⭐ COND-TA — `?:` ARMS ARE LAZY FROM PINE v4, EAGER BEFORE IT. BOTH WITNESSED (run
+    // s17-2026-11-15, NYSE:RDDT 1D from the listing):
+    //   · probe 10 (`vw-cs2-v4-ternary-lazy`): a v4 arm's `sma`, `barssince` and a helper calling
+    //     `sma` see only the bars the arm ran on (bar 7: TradingView na, the eager `sma` 53.72), as
+    //     v5 / v6 do (`vw-arm-history`); v4 `iff` is eager. ⚰️ Master drew v4 arms off the every-
+    //     bar number, wrong on up to 299 bars: stamped now, withheld by name where the test varies;
+    //   · probe P2 (`vw-ternary-arm-legacy-v1/v2/v3`): in v1 (no pragma), v2 and v3 an arm's
+    //     `change`, `sma`, `ema`, `rma`, `barssince` and `cum` equal their EVERY-BAR values on every
+    //     bar — and `cci-coded-obv` / `trade-archer-obv-mas-v1` (no pragma) equal the eager OBV on
+    //     666 / 666 bars (the lazy reading misses 662). So v1-v3 arms are not stamped: drawn eager.
+    // `iff` is a call, never stamped: eager at every version it exists in.
+    if (!node.ifExpr && !(Number(this.pineVersion) >= 4)) return
     if (!out || out.type !== 'op' || out.name !== '?:') return
     // ⛔ ONE question, not two: a literal or a constant expression is a tree of
     // `num`s, which `bindTimeConstantTree` admits (an `na` test included — it takes

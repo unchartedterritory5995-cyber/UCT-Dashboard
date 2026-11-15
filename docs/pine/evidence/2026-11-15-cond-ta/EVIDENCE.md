@@ -44,14 +44,18 @@ Pine keeps a `ta.*` call's history PER CALL SITE: a call written in an `if` bloc
 | `engine/scriptEngineVersion.js` | 55. |
 | tests | `ast/condTaLanes.test.js` (new); pins flipped in `vendorHarness.c48CallSite` and `vendorHarness.c45ArmRuns` (the screener lane); `tests/test_pine_runtime_switch_on.py` R4, `tests/test_pine_capability_admission.py` (admitted set, allow report, REACH `WITHHELD_WHOLE`). |
 
-## The v4 `?:` stamping is DOCUMENTATION-BASED, pending probe 10
+## `?:` arms by Pine version — WITNESSED (run s17-2026-11-15, NYSE:RDDT 1D from the listing)
 
-v1-v4 `?:` arms are stamped (withheld by name where the test varies) on the v4 User Manual's
-statement that an arm is lazy, not on a capture; the `c45ArmRuns` pin that drew them every bar was
-flipped for that reason (`1f393ccbf4`), and v4 `iff` stays drawn (the to-v5 guide: it evaluated both
-values). The coordinator has queued **probe 10** (`PROBES-NEXT.md`: v4 `?:` arm laziness, with an
-`iff` control) so TradingView witnesses it; when that capture lands, the withheld v4 shapes can be
-served exactly (or, if it shows every-bar arms, unstamped again).
+| version | arm | witness | COND-TA |
+|---|---|---|---|
+| v1 (no pragma), v2, v3 | EAGER | probe P2 `vw-ternary-arm-legacy-v1/v2/v3`: `change`, `sma`, `ema`, `rma`, `barssince`, `cum` in the else arm equal their every-bar values on every bar; `cci-coded-obv` / `trade-archer-obv-mas-v1` (S2 / S4 triage, no pragma): TradingView = eager OBV on 666 / 666 bars, lazy misses 662 / 666 from bar 4 | not stamped: drawn eager, as master did (both scripts value-exact on this head and on master: 0 value / 0 na mismatches; their DIVERGE is the v1 colour palette, unchanged) |
+| v4 | LAZY | probe 10 `vw-cs2-v4-ternary-lazy`: `sma`, `barssince` and a helper calling `sma` in an arm see only the arm's bars (bar 7: TradingView na, eager 53.72) | stamped like v5 / v6: withheld by name where the test varies (master drew the every-bar number: wrong on up to 299 bars); runtime refuses (`?:` laziness is served at v6 only) |
+| any | `iff` EAGER | P2 / probe 10 C00 | never stamped |
+
+The P2 sources read `n`, which this engine refuses (`pine:undefined`); the rails use `cum(1) - 1`.
+⛔ `if` BLOCKS in v2 / v3 are not part of P2: their bare calls stay history calls (gated), as before.
+The Pine-import hold skips a v1 door-stamped import (no `if` exists in v1); v2 / v3 imports stay
+candidates (their saved `?:` may be an `if` block, whose rule P2 does not settle).
 
 ## The `c48CallSite` pin — ruled from evidence
 
