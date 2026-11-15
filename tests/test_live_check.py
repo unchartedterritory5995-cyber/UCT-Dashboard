@@ -68,3 +68,9 @@ def test_workflow_sparse_checkout_carries_every_file_the_tool_reads():
     assert '"deploy_freeze.py"' in src and "tools/deploy_freeze.py" in listed
     assert '"feature_flags.json"' in src and "docs/feature_flags.json" in listed
     assert '"measurement_window.py"' in freeze and "api/services/measurement_window.py" in listed
+
+
+def test_runs_queue_instead_of_cancelling_each_other():
+    # a skipped promotion run cancelled the first real run while cancel-in-progress was true
+    doc = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
+    assert doc["concurrency"]["cancel-in-progress"] is False
