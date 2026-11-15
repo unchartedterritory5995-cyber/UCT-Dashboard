@@ -29,7 +29,7 @@
 import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef, lazy, Suspense } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { createPortal } from 'react-dom'
-import { useUctHeaderSlot, useUctControlsSlot } from './charts/uctHeaderSlot'
+import { useUctHeaderSlot, useUctControlsSlot, useUctRowIsSub } from './charts/uctHeaderSlot'
 import { isHiddenDeskKey } from './charts/deskKeyGate'
 import { useVirtualizer, observeElementRect } from '@tanstack/react-virtual'
 
@@ -77,6 +77,9 @@ import useThesisChips from './journal-2-0/hooks/useThesisChips'
 import ThesisChip from './journal-2-0/components/notebook/ThesisChip'
 import useWatchlistIntelligence from '../hooks/useWatchlistIntelligence'
 import useWatchlistMeta from '../hooks/useWatchlistMeta'
+import useWatchlistFacts from '../hooks/useWatchlistFacts'
+import { LIVE_COLUMNS, FACT_COLUMNS, factFieldsFor, factValue, factText } from './watchlist/watchlistColumnCatalog'
+import ColumnPicker from './watchlist/ColumnPicker'
 import useVolumeCurve from '../hooks/useVolumeCurve'
 import { RVOL_TOOLTIP, formatRvol } from '../lib/volumeCurve'
 import { watchlistRvol } from './watchlist/watchlistRvol'
@@ -188,11 +191,17 @@ const COL_FULL_MINW = {
   atr: 44, a50: 96,
   attention: 60,
 }
+// The column library's new columns (owner 11-14): a width each, and the width at which the
+// full label fits (shorter → the short label).
+for (const [k, c] of [...Object.entries(LIVE_COLUMNS), ...Object.entries(FACT_COLUMNS)]) {
+  COL_META[k] = { def: c.width || (c.text ? 96 : 72), min: 44 }
+  COL_FULL_MINW[k] = Math.round(c.label.length * 6.6 + 20)
+}
 const EXTRA_KEYS = new Set(EXTRA_COLS.map(c => c.key))
 // Subset of EXTRA columns whose data comes from the /api/research/snapshot-batch
 // meta fetch (vs the live quote feed). Only these trigger useWatchlistMeta; the
 // quote-derived ones (dchg/fromopen/…) read fields already on prices[sym].
-const META_KEYS = new Set(['name', 'rvol', 'ipoDate', 'mcap', 'earn', 'rating', 'sector', 'industry'])
+const META_KEYS = new Set(['name', 'rvol', 'ipoDate', 'mcap', 'earn', 'rating', 'sector', 'industry', 'dte'])
 // N-day performance columns → their key in perfData (from /api/watchlist-performance).
 const PERF_KEY_MAP = { perf5d: '5d', perf30d: '30d', perf60d: '60d', perf90d: '90d', periodchg: 'period' }
 const PERF_COL_KEYS = new Set(Object.keys(PERF_KEY_MAP))
@@ -380,6 +389,8 @@ const WatchRow = React.memo(function WatchRow({
   coName = null, sector = null, industry = null, theme = null,
   perf5d = null, perf30d = null, perf60d = null, perf90d = null, periodchg = null,
   weight = null, atr = null, a50 = null,
+  // The column library's columns: { [key]: { v, t, signed?, text?, bar? } } (owner 11-14).
+  libCells = null,
   thesisChip = null,  // wave 13 lane 13G-2 (ruling P2) -- null while the flag/mount is held
   notable = false, intelStatus = null, intelFacts = null,
   isOwner, wlId,
@@ -464,6 +475,20 @@ const WatchRow = React.memo(function WatchRow({
               on desktop. See components/mobile/RowSpark.jsx. */}
           <RowSpark sym={sym} />
         </span>
+      )
+    }
+    // The column library's LIVE / FACT columns (owner 11-14): value + text precomputed by the
+    // caller (libCells); signed ones are green / red like % Chg, Day Range is a small bar.
+    if (libCells && libCells[key]) {
+      const c = libCells[key]
+      if (c.bar) return (
+        <span key={key} className={styles.metaCell} title={c.v != null ? `${Math.round(c.v * 100)}% of today’s range` : undefined}>
+          {c.v != null ? <span className={styles.rangeBar}><i style={{ left: `calc(${(c.v * 100).toFixed(0)}% - 1px)` }} /></span> : '—'}
+        </span>
+      )
+      if (c.text) return <span key={key} className={styles.textCell} title={c.t}>{c.t}</span>
+      return (
+        <span key={key} className={c.signed ? `${styles.changeCell} ${c.v != null ? (c.v >= 0 ? styles.gain : styles.loss) : ''}` : styles.metaCell}>{c.t}</span>
       )
     }
     if (key === 'price') return (
@@ -755,7 +780,10 @@ function CompareSearch({ onPick, baseSym }) {
 // How long a selection must rest before its OTHER timeframes are warmed (see below).
 const SCAN_DWELL_MS = 600
 
-export default function Watchlists({ embedded = false, pickList = null, pickName = null, onExitPick = null, activeRef = null, widgetKey = null, listView = null, settingsOverride = null, onSettingsPersist = null, scanSymbols = null, backLabel = null, colStorageKey = null, scanEmptyText = null, defaultColCfg = null, metaOverride = null, perfOverride = null, scanFooter = null, scanCriteria = null, scanActions = null, ephemeralCols = false, scanGroups = null, onScanVisibleSyms = null, groupExpand = 'accordion', quoteOverride = null, pickTitleSlot = null, pickTitleBefore = null, pickTitleAfter = null, pickSubHeader = null, renderGroupRow = null, groupAccent = null, openFirstGroup = false, stableGutter = false }) {
+export default function Watchlists({ embedded = false, pickList = null, pickName = null, onExitPick = null, activeRef = null, widgetKey = null, listView = null, settingsOverride = null, onSettingsPersist = null, scanSymbols = null, backLabel = null, colStorageKey = null, scanEmptyText = null, defaultColCfg = null, metaOverride = null, perfOverride = null, scanFooter = null, scanCriteria = null, scanActions = null, ephemeralCols = false, scanGroups = null, onScanVisibleSyms = null, groupExpand = 'accordion', quoteOverride = null, pickTitleSlot = null, pickTitleBefore = null, pickTitleAfter = null, pickSubHeader = null, renderGroupRow = null, groupAccent = null, openFirstGroup = false, stableGutter = false,
+  // RTH · EXT switch (owner 11-14, /charts board Watchlist widget): 'ext' shows pre-market /
+  // after-hours numbers in Price + % Chg (and sorts by them); onSessionMode draws the switch.
+  sessionMode = 'rth', onSessionMode = null }) {
   // Entry-point convergence (owner authorization): the shared door into canonical
   // Research/Ask AI, matching TickerPopup's goToResearch/goToAskAi exactly.
   // Watchlists has its own bespoke per-symbol context menu (Notes/Set price
@@ -852,8 +880,44 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // Same elements and handlers, drawn there through a portal; null slots → drawn in place.
   const uctRowSlot = useUctHeaderSlot(pickList ? 'list' : 'lists')
   const uctCtrlSlot = useUctControlsSlot()
+  // RTH · EXT (owner 11-14), only where the switch is drawn (the /charts board widget).
+  //  EXT: ONLY the current extended session. Pre-market 04:00-09:30 ET (move from the previous
+  //    4:00 PM close) or after-hours 16:00-20:00 ET (move from today's 4:00 PM close): price,
+  //    % and $ change, and that session's own volume, fresh each session (a print from before
+  //    the session began never counts: ext_fresh). Before its first trade a ticker reads its
+  //    reference close at 0.00% / 0 volume. Outside an extended session every number is '—'.
+  //  RTH: the last REGULAR session as of its 4:00 PM close, frozen while pre/after-hours
+  //    trade (rth_close / rth_volume; before the open that is the previous day's session).
+  // sessionQuote(q) is the quote the row AND the sort read (q itself when nothing changes).
+  const extMode = sessionMode === 'ext'
+  const sessionQuote = (q) => {
+    if (!onSessionMode || !q) return q
+    const ms = q.market_session
+    const extended = ms === 'pre_market' || ms === 'post_market'
+    const num = (v) => (Number.isFinite(v) ? v : null)
+    if (extMode) {
+      const blank = { ...q, price: null, change_pct: null, change: null, volume: null, day_open: null, day_high: null, day_low: null, _sessBlank: true }
+      if (!extended) return blank
+      const ref = ms === 'pre_market' ? num(q.prev_close) : (num(q.rth_close) ?? num(q.day_close))
+      if (!(ref > 0)) return blank
+      const fresh = q.ext_fresh === true && num(q.ext_price) > 0
+      const px = fresh ? q.ext_price : ref
+      const vol = num(q.ext_volume) ?? (fresh ? null : 0)
+      return { ...q, price: px, change: px - ref, change_pct: ((px - ref) / ref) * 100, volume: vol, day_open: null, day_high: null, day_low: null, _sessExt: true }
+    }
+    if (!extended) return q
+    const close = num(q.rth_close)
+    if (!(close > 0)) return q
+    const prev = num(q.prev_close)
+    const chg = ms === 'pre_market' ? num(q.prev_change_pct) : (prev > 0 ? ((close - prev) / prev) * 100 : num(q.change_pct))
+    const dchg = ms === 'pre_market' ? num(q.prev_change) : (prev > 0 ? close - prev : num(q.change))
+    return { ...q, price: close, change_pct: chg, change: dchg, volume: num(q.rth_volume) ?? q.volume }
+  }
   const inUctRow = (el) => (uctRowSlot ? createPortal(el, uctRowSlot) : el)
   const inUctCtrls = (el) => (uctCtrlSlot ? createPortal(el, uctCtrlSlot) : el)
+  // A tabbed slot (owner 11-14): the tab strip needs the title row's room, so RTH · EXT stays
+  // in the list's own header row (right side) instead of joining the window controls.
+  const uctTabbed = useUctRowIsSub()
   const settingsBtnRef = useRef(null)
   const [filterOpen, setFilterOpen] = useState(false)   // scanner "criteria" popover
   const filterWrapRef = useRef(null)
@@ -2090,11 +2154,12 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   const pricesRef = useRef(prices)
   useEffect(() => { pricesRef.current = prices }, [prices])
   const [sortBasis, setSortBasis] = useState(null)
-  // Re-snapshot on every explicit sort — colSort changes on each header click.
+  // Re-snapshot on every explicit sort — colSort changes on each header click — and on an
+  // RTH · EXT switch (owner 11-14), so the rows re-rank by the numbers now showing.
   useEffect(() => {
     const p = pricesRef.current
     setSortBasis(p && Object.keys(p).length ? { ...p } : null)
-  }, [colSort])   // eslint-disable-line react-hooks/exhaustive-deps
+  }, [colSort, sessionMode])   // eslint-disable-line react-hooks/exhaustive-deps
   // Initial fill: capture once when live prices first arrive so a saved/default
   // sort still orders correctly on load without then re-shuffling every tick.
   useEffect(() => {
@@ -2160,7 +2225,12 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // least one is actually shown (fundamentals are heavy per ticker). The quote-derived
   // columns ($ chg / % from open·high·low / DCR) read prices[sym] — no meta fetch.
   const extraVisible = orderedKeys.some(k => META_KEYS.has(k))
+  // The column library's nightly-snapshot columns: fetched only while one is showing.
+  const factKeys = useMemo(() => orderedKeys.filter(k => FACT_COLUMNS[k]), [orderedKeys])
+  const factFields = useMemo(() => factFieldsFor(factKeys), [factKeys])
+  const libKeys = useMemo(() => orderedKeys.filter(k => FACT_COLUMNS[k] || LIVE_COLUMNS[k]), [orderedKeys])
   const { metaData: rawMetaData } = useWatchlistMeta(extraVisible ? listUniverseOrScan : [])
+  const factsData = useWatchlistFacts(factKeys.length ? listUniverseOrScan : [], factFields)
   // RVOL's time-of-day curve: ONE batch request for the whole list (each symbol's own
   // curve rides the market one; the server answers at most 500 symbols per request, so a
   // longer list's tail reads the market curve), fetched only while the column is shown.
@@ -2205,6 +2275,25 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     for (const s in metaOverride) merged[s] = { ...(merged[s] || {}), ...metaOverride[s] }
     return merged
   }, [rawMetaData, metaOverride])
+
+  // The column library's columns for one row (owner 11-14): the value (also the sort key)
+  // and its display text. LIVE ones read the session-aware quote (and the meta batch for
+  // Days to Earnings); FACT ones read the nightly snapshot, re-based on the live price.
+  const libCellsFor = (sym, q) => {
+    const out = {}
+    for (const k of libKeys) {
+      const live = LIVE_COLUMNS[k]
+      if (live) {
+        const v = q?._sessBlank ? null : live.value(q, metaData?.[sym])
+        out[k] = { v, t: live.fmt(v), signed: !!live.signed, bar: !!live.bar }
+        continue
+      }
+      const f = FACT_COLUMNS[k]
+      const v = factValue(k, factsData?.[sym], q?._sessBlank ? null : q)
+      out[k] = { v, t: factText(k, v), signed: !!f.signed, text: !!f.text }
+    }
+    return out
+  }
 
   // openFirstGroup (the breadth drill): an accordion that opens on its TOP group,
   // re-seeded when the grouping changes (Sector → Theme). Like Theme Tracker.
@@ -2293,6 +2382,35 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     window.addEventListener('mouseup', onUp)
   }
   const toggleColHidden = (key) => saveColCfg({ ...colCfg, hidden: { ...colHidden, [key]: !colHidden[key] } })
+  // ── Column library (owner 11-14): the dropdown's handlers, all through saveColCfg ──
+  const addColBtnRef = useRef(null)
+  const pickerToggle = (key) => (OPTIONAL_COLS.some(c => c.key === key) ? toggleColHidden(key) : toggleExtraCol(key))
+  const pickerMove = (fromKey, toKey) => saveColCfg(movedColCfg(colCfg, fromKey, toKey))
+  // A preset: exactly these columns, in this order (Symbol always first); widths and sort kept.
+  const pickerApply = (cols) => {
+    const keep = cols.filter(k => COL_META[k] && k !== 'flag' && k !== 'sym')
+    const hidden = Object.fromEntries(OPTIONAL_COLS.map(c => [c.key, !keep.includes(c.key)]))
+    saveColCfg({ ...colCfg, order: ['flag', 'sym', ...keep], hidden })
+  }
+  // The hint strip's sample: the hovered column's value for the selected ticker (else the first row).
+  const pickerSample = (key) => {
+    const sym = (selectedSym && visibleSymsFlat.includes(selectedSym)) ? selectedSym : visibleSymsFlat[0]
+    if (!sym) return null
+    const q = sessionQuote(prices[sym])
+    if (LIVE_COLUMNS[key] || FACT_COLUMNS[key]) {
+      const live = LIVE_COLUMNS[key]
+      const v = live ? live.value(q, metaData?.[sym]) : factValue(key, factsData?.[sym], q)
+      if (v == null) return { sym, text: shown(key) ? '\u2014' : null }
+      const signed = live ? live.signed : FACT_COLUMNS[key].signed
+      return { sym, text: live ? live.fmt(v) : factText(key, v), sign: signed && typeof v === 'number' ? Math.sign(v) : 0 }
+    }
+    if (key === 'price' && Number.isFinite(q?.price)) return { sym, text: q.price.toFixed(2) }
+    if (key === 'chg' && Number.isFinite(q?.change_pct)) return { sym, text: `${q.change_pct >= 0 ? '+' : ''}${q.change_pct.toFixed(2)}%`, sign: Math.sign(q.change_pct) }
+    if (key === 'vol' && Number.isFinite(q?.volume)) return { sym, text: fmtVol(q.volume) }
+    if (colDerived[key]) { const v = colDerived[key](q); if (Number.isFinite(v)) return { sym, text: key === 'dolvol' ? fmtDolVol(v) : key === 'dcr' ? `${v.toFixed(0)}%` : key === 'dchg' ? `${v >= 0 ? '+' : ''}${v.toFixed(2)}` : `${v >= 0 ? '+' : ''}${v.toFixed(2)}%`, sign: key === 'dcr' || key === 'dolvol' ? 0 : Math.sign(v) } }
+    return null
+  }
+  const shown = (key) => orderedKeys.includes(key)
   const handleColSort = (key) => {
     if (resizingRef.current) return   // a drag just ended — don't treat the trailing click as a sort
     const next = nextWatchColSort(colSort, key)   // first click: sym A→Z, numbers high→low
@@ -2310,12 +2428,14 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     // until the next explicit re-sort.
     const basis = (key === 'sym') ? null : (sortBasis || prices)
     const num = (s) => {
-      const q = basis?.[s]
+      const q = sessionQuote(basis?.[s])
       if (key === 'price') return q?.price ?? null
       if (key === 'vol') return q?.volume ?? null
       if (key === 'chg') return q?.change_pct ?? null
       // Intraday quote-derived columns sort off the same helper the cells render from.
       if (colDerived[key]) return colDerived[key](q)
+      if (LIVE_COLUMNS[key]) return LIVE_COLUMNS[key].value(q, metaData?.[s])
+      if (FACT_COLUMNS[key]) return factValue(key, factsData?.[s], q)
       // Extra columns sort off the meta batch, not the quote feed. Market cap arrives
       // as a display string ("$1.2T") → parse it back to a number; next earnings sorts
       // by calendar date; rating is already numeric.
@@ -2332,7 +2452,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         // The SAME helper the cell renders from (a directly-supplied ratio first) —
         // otherwise sorting a drill by RVOL would order every row as null while the
         // column visibly shows values.
-        return watchlistRvol(s, m, q, volCurve)
+        return watchlistRvol(s, m, q?._sessExt || q?._sessBlank ? null : q, volCurve)
       }
       if (key === 'ipoDate') return ipoSortValue(m?.ipo_date)
       if (key === 'mcap') return parseMcap(m?.market_cap)
@@ -2353,6 +2473,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       if (key === 'sector') return metaData?.[s]?.sector || ''
       if (key === 'industry') return metaData?.[s]?.industry || ''
       if (key === 'theme') return themeData?.[s] || ''
+      if (FACT_COLUMNS[key]) return factValue(key, factsData?.[s], null) || ''
       return ''
     }
     // Blanks always sink to the bottom in BOTH directions (they'd otherwise lead the
@@ -2381,7 +2502,8 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       }
       return mul * (va - vb)
     })
-  }, [colSort, sortBasis, prices, metaData, perfData, themeData, intelData, volCurve])
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- sessionQuote reads only extMode / onSessionMode
+  }, [colSort, sortBasis, prices, metaData, perfData, themeData, intelData, volCurve, extMode, factsData])
 
   // ── The sorted order of every expanded list, computed ONCE ──────────────────
   //
@@ -2613,6 +2735,12 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   const columnHeader = (
     <div className={styles.gridHead} onContextMenu={e => { e.preventDefault(); setColMenu({ x: e.clientX, y: e.clientY }) }}>
       {orderedKeys.map(renderHeaderCell)}
+      {/* Column library (owner 11-14): the + opens it under itself; right-click opens it at the cursor. */}
+      {!isAllIdxList && (
+        <button ref={addColBtnRef} type="button" className={`${styles.hAddCol}${colMenu?.anchor ? ' ' + styles.hAddColOn : ''} charts-no-drag`}
+          onClick={() => setColMenu(m => (m?.anchor ? null : { anchor: true }))} data-guide="watchlist.addColumn"
+          aria-label="Columns" aria-expanded={!!colMenu?.anchor} title="Columns"><UIcon name="plus" size={12} gold={false} /></button>
+      )}
       {_gridDividers.map(d => (
         <i
           key={`div-${d.key}`}
@@ -2689,7 +2817,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         />
       )
     }
-    const q = prices[sym]
+    const q = sessionQuote(prices[sym])
     // N-day % change, computed LIVE from the current price vs the reference close N
     // trading days ago (backend `refs`), so these columns tick/flash/tint with every
     // quote update just like % Change. Falls back to the backend's static % when the
@@ -2705,7 +2833,9 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     // time-of-day curve, as a %. Live-updates because q.volume ticks; blank before 09:45
     // ET or until the average and the curve have loaded. A caller that ALREADY knows the
     // ratio supplies `rvol` via metaOverride (the breadth drill's `vr`) and wins.
-    const rvolVal = watchlistRvol(sym, metaData[sym], q, volCurve)
+    // RVOL is a regular-session measure: no live volume for it in EXT mode (session volume isn't comparable).
+    const rvolVal = watchlistRvol(sym, metaData[sym], q?._sessExt || q?._sessBlank ? null : q, volCurve)
+    // (libCellsFor, below the hooks: the library columns' value + text for this row)
     // Entity Master UC-2: the row's identity stays `sym`; only what it SAYS changes.
     const ent = entity ? entityDisplay(entity) : null
     return (
@@ -2718,6 +2848,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         brandMark={breadth.isBreadth(sym)}
         price={q?.price ?? null}
         changePct={q?.change_pct ?? null}
+        libCells={libKeys.length ? libCellsFor(sym, q) : null}
         volume={q?.volume ?? null}
         dchg={colDerived.dchg(q)}
         fromOpen={colDerived.fromopen(q)}
@@ -3242,6 +3373,20 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                   )}
                 </div>
               )}
+              {/* RTH · EXT (owner 11-14): regular-session or pre-market / after-hours numbers in
+                  Price + % Chg. Dimmed (still clickable) while no ticker has an extended session. */}
+              {onSessionMode && (uctTabbed ? (x) => x : inUctCtrls)((() => {
+                const extLive = Object.values(prices || {}).some(q => q?.ext_session)
+                return (
+                  <span className={styles.sessSeg} role="group" aria-label="Trading session" data-guide="watchlist.session">
+                    {[['rth', 'RTH', 'Regular trading hours'], ['ext', 'EXT', extLive ? 'Pre-market / after-hours prices' : 'Pre-market / after-hours prices (no extended session right now: showing regular numbers)']].map(([k, lab, tip]) => (
+                      <button key={k} type="button" aria-pressed={sessionMode === k} title={tip}
+                        className={`${styles.sessBtn}${sessionMode === k ? ' ' + styles.sessBtnOn : ''}${k === 'ext' && !extLive ? ' ' + styles.sessBtnIdle : ''}`}
+                        onClick={() => onSessionMode(k)}>{lab}</button>
+                    ))}
+                  </span>
+                )
+              })())}
               {/* ⚙ Watchlist settings (canvas/colors + Templates). */}
               {inUctCtrls(
               <button
@@ -3635,28 +3780,19 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         </div>
       )}
 
-      {/* ── Column right-click menu (hide/show columns) ── */}
+      {/* ── Column library (owner 11-14): replaces the old right-click hide/show list ── */}
       {colMenu && (
-        <>
-          <div style={{ position: 'fixed', inset: 0, zIndex: 2999 }} onClick={() => setColMenu(null)} onContextMenu={e => { e.preventDefault(); setColMenu(null) }} />
-          <div className={styles.colMenu} data-guide="watchlist.colMenu" style={{ left: Math.min(colMenu.x, window.innerWidth - 170), top: Math.min(colMenu.y, window.innerHeight - 260) }}>
-            <div className={styles.colMenuTitle}>Columns</div>
-            {OPTIONAL_COLS.map(c => (
-              <button key={c.key} type="button" className={styles.colMenuItem} onClick={() => toggleColHidden(c.key)}>
-                <span className={styles.colMenuCheck}>{!colHidden[c.key] ? <UIcon name="check" size={11} /> : null}</span>
-                {c.label}
-              </button>
-            ))}
-            {EXTRA_COLS.map(c => (
-              <button key={c.key} type="button" className={styles.colMenuItem} onClick={() => toggleExtraCol(c.key)}>
-                <span className={styles.colMenuCheck}>{orderedKeys.includes(c.key) ? <UIcon name="check" size={11} /> : null}</span>
-                {c.label}
-              </button>
-            ))}
-            <div className={styles.colMenuDivider} />
-            <button type="button" className={styles.colMenuItem} onClick={() => { saveColCfg({}); setColMenu(null) }}>Reset columns</button>
-          </div>
-        </>
+        <ColumnPicker
+          anchorEl={colMenu.anchor ? addColBtnRef.current : null}
+          point={colMenu.anchor ? null : { x: colMenu.x, y: colMenu.y }}
+          visibleKeys={orderedKeys}
+          onToggle={pickerToggle}
+          onMove={pickerMove}
+          onApply={pickerApply}
+          onReset={() => saveColCfg({})}
+          onClose={() => setColMenu(null)}
+          sampleFor={pickerSample}
+        />
       )}
 
       {/* ── Alert popover ── */}

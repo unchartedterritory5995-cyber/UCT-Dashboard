@@ -22,8 +22,8 @@ export default function WidgetHeader({
   onSelectTab,          // (index) => void
   onCloseTab,           // (tabId) => void
   onRenameTab,          // (tabId, name) => void — double-click a tab to rename it
+  onMoveTab,            // (tabId, dir) => void — right-click a tab → Move left / right (owner 11-14)
   onAddTab,             // (type) => void — add a new tab of this widget type
-  addMenuTheme = null,  // --menu-* bag so the "+" add menu wears THIS widget's canvas color
   tabsOnly = false,     // merged mode: render ONLY the tab strip (no header chrome)
   // Chart widget's integrated header (/charts board): the chart has NO header bar of its
   // own — its identity row hosts the chrome. 'dot' renders ONLY the link-colour button,
@@ -110,7 +110,7 @@ export default function WidgetHeader({
     const win = doc.defaultView || window
     const place = () => {
       const r = btn.getBoundingClientRect()
-      const W = 156
+      const W = 210  // the new board-menu width (owner 11-14)
       const left = Math.max(6, Math.min(r.right - W, win.innerWidth - W - 6))
       // Capture the portal target here (the button's own document) so the render
       // path never has to read a ref — works in popped-out windows too.
@@ -170,6 +170,40 @@ export default function WidgetHeader({
     return () => { doc.removeEventListener('mousedown', onDown, true); doc.removeEventListener('keydown', onKey) }
   }, [floatTabOpen])
 
+  // Right-click a tab (owner 11-14): a small menu — Rename · Move left · Move right · Close tab.
+  // Portaled to the tab's own document (popped-out windows too), fixed at the pointer.
+  const [tabMenu, setTabMenu] = useState(null)   // { id, x, y, target }
+  const tabMenuRef = useRef(null)
+  useEffect(() => {
+    if (!tabMenu) return undefined
+    const doc = tabMenu.target.ownerDocument
+    const onDown = (e) => { if (!tabMenuRef.current?.contains(e.target)) setTabMenu(null) }
+    const onKey = (e) => { if (e.key === 'Escape') setTabMenu(null) }
+    const onAway = () => setTabMenu(null)
+    doc.addEventListener('mousedown', onDown, true)
+    doc.addEventListener('keydown', onKey)
+    doc.defaultView?.addEventListener('blur', onAway)
+    doc.defaultView?.addEventListener('resize', onAway)
+    return () => {
+      doc.removeEventListener('mousedown', onDown, true)
+      doc.removeEventListener('keydown', onKey)
+      doc.defaultView?.removeEventListener('blur', onAway)
+      doc.defaultView?.removeEventListener('resize', onAway)
+    }
+  }, [tabMenu])
+  const openTabMenu = (e, tab) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const win = e.currentTarget.ownerDocument.defaultView || window
+    const W = 176, H = 150
+    setTabMenu({
+      id: tab.id,
+      x: Math.max(6, Math.min(e.clientX, win.innerWidth - W - 6)),
+      y: Math.max(6, Math.min(e.clientY + 2, win.innerHeight - H - 6)),
+      target: e.currentTarget.ownerDocument.body,
+    })
+  }
+
   // Two-stage close so a stray click can't nuke a tab.
   const handleCloseClick = (tabId) => {
     if (confirmCloseId === tabId) { clearTimeout(confirmTimer.current); setConfirmCloseId(null); onCloseTab?.(tabId); return }
@@ -181,6 +215,38 @@ export default function WidgetHeader({
   // The scrollable tab strip (chips + overflow chevrons). Shared by the full
   // header and merged mode's tabs-only bar, so switching/renaming/closing tabs
   // works in both — merged mode just drops the surrounding header chrome.
+  const menuTab = tabMenu ? tabs?.find(t => t.id === tabMenu.id) : null
+  const menuPos = menuTab ? tabs.indexOf(menuTab) : -1
+  const tabMenuEl = menuTab ? createPortal(
+    <div ref={tabMenuRef} className={styles.wtabCtxMenu} style={{ left: tabMenu.x, top: tabMenu.y }} role="menu" aria-label={`${menuTab.label} tab`}
+      onContextMenu={(e) => e.preventDefault()}>
+      {onRenameTab && (
+        <button type="button" role="menuitem" className={styles.wtabCtxItem}
+          onClick={() => { setTabMenu(null); startRename(menuTab) }}>
+          <UIcon name="edit" size={13} gold={false} aria-hidden="true" /><span>Rename</span>
+        </button>
+      )}
+      {onMoveTab && (<>
+        <button type="button" role="menuitem" className={styles.wtabCtxItem} disabled={menuPos <= 0}
+          onClick={() => { setTabMenu(null); onMoveTab(menuTab.id, -1) }}>
+          <UIcon name="chevronLeft" size={13} gold={false} aria-hidden="true" /><span>Move left</span>
+        </button>
+        <button type="button" role="menuitem" className={styles.wtabCtxItem} disabled={menuPos >= tabs.length - 1}
+          onClick={() => { setTabMenu(null); onMoveTab(menuTab.id, 1) }}>
+          <UIcon name="chevronRight" size={13} gold={false} aria-hidden="true" /><span>Move right</span>
+        </button>
+      </>)}
+      {!menuTab.isMain && onCloseTab && (<>
+        <div className={styles.wtabCtxDivider} role="separator" />
+        <button type="button" role="menuitem" className={styles.wtabCtxItem}
+          onClick={() => { setTabMenu(null); onCloseTab(menuTab.id) }}>
+          <UIcon name="x" size={13} gold={false} aria-hidden="true" /><span>Close tab</span>
+        </button>
+      </>)}
+    </div>,
+    tabMenu.target,
+  ) : null
+
   const tabRegion = showTabs ? (
         <div className={styles.wtabRegion}>
           {scroll.over && (
@@ -195,7 +261,8 @@ export default function WidgetHeader({
           )}
           <div className={styles.wtabStrip} ref={stripRef} role="tablist" aria-label="Widget tabs" data-guide="workspace.widgetTabs">
             {tabs.map((tab, i) => {
-              const active = i === activeIndex
+              const si = Number.isInteger(tab.index) ? tab.index : i   // storage index (strip order may differ)
+              const active = si === activeIndex
               const editing = editingId === tab.id
               return (
                 <div
@@ -203,9 +270,10 @@ export default function WidgetHeader({
                   role="tab"
                   aria-selected={active}
                   className={`${styles.wtabChip}${active ? ' ' + styles.wtabChipActive : ''}`}
-                  onClick={() => { if (!editing) { setConfirmCloseId(null); onSelectTab?.(i) } }}
+                  onClick={() => { if (!editing) { setConfirmCloseId(null); onSelectTab?.(si) } }}
+                  onContextMenu={(e) => openTabMenu(e, tab)}
                   onDoubleClick={() => onRenameTab && startRename(tab)}
-                  title={onRenameTab ? `${tab.label} tab — double-click to rename` : `${tab.label} tab`}
+                  title={`${tab.label} tab — right-click for options`}
                 >
                   {editing ? (
                     <Input aria-label="Rename tab"
@@ -223,9 +291,12 @@ export default function WidgetHeader({
                       placeholder="Name"
                     />
                   ) : (
-                    <span className={styles.wtabLabel}>{tab.label}</span>
+                    // data-label: the bold width is reserved (CSS), so selecting a tab never shifts the strip
+                    <span className={styles.wtabLabel} data-label={tab.label}>{tab.label}</span>
                   )}
-                  {!tab.isMain && active && !editing && (
+                  {/* uct look (owner 11-14): no × on the tabs — Close tab is in the right-click
+                      menu, so it can never be hit by accident. Old look: the active tab's ×. */}
+                  {!tab.isMain && active && look !== 'uct' && !editing && (
                     <span
                       data-guide="workspace.widgetTabClose"
                       className={`${styles.wtabClose}${confirmCloseId === tab.id ? ' ' + styles.wtabCloseConfirm : ''}`}
@@ -249,6 +320,7 @@ export default function WidgetHeader({
               title="Scroll tabs right"
             >›</button>
           )}
+          {tabMenuEl}
         </div>
   ) : null
 
@@ -266,9 +338,12 @@ export default function WidgetHeader({
       {addOpen && addPos && createPortal(
         <div
           data-wtab-add-menu
-          className={styles.wtabAddMenu}
-          style={{ top: addPos.top, left: addPos.left, ...(addMenuTheme || {}) }}
+          // Owner 11-14: the board's menu style (the Widgets / Layouts / Tools look) — always
+          // dark like every other board menu, so it no longer takes the widget's canvas colour.
+          className={`${styles.wtabAddMenu} ${styles.tbMenu}`}
+          style={{ top: addPos.top, left: addPos.left }}
         >
+          <div className={styles.addMenuGroupLabel}>Add a tab</div>
           {WIDGET_TAB_PICKER_TYPES.map(t => (
             <button
               key={t}
@@ -276,8 +351,8 @@ export default function WidgetHeader({
               className={styles.addMenuItem}
               onClick={() => { onAddTab(t); setAddOpen(false) }}
             >
-              <UIcon name={catalogMeta(t).icon} size={14} className={styles.addMenuIcon} />
-              {WIDGET_TAB_MENU_LABEL[t] || t}
+              <span className={styles.tbGlyph} aria-hidden="true"><UIcon name={catalogMeta(t).icon} size={15} /></span>
+              <span className={styles.tbLbl}>{WIDGET_TAB_MENU_LABEL[t] || t}</span>
             </button>
           ))}
         </div>,
@@ -472,7 +547,8 @@ export default function WidgetHeader({
           {linkDot}
         </span>
         {/* Icon-only header: the hairline after the icon stays at every width (owner 11-13). */}
-        {iconOnly && !tabRegion && <span className={styles.uctIdentSep} aria-hidden="true" />}
+        {/* the hairline after the icon stays with tabs too (owner 11-14) */}
+        {(iconOnly || tabRegion) && <span className={styles.uctIdentSep} aria-hidden="true" />}
         {tabRegion || (
           <>
             <span className={iconOnly ? styles.widgetLabel : styles.uctTitle} data-uct-title="">{label}</span>

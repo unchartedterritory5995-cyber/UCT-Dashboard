@@ -39,6 +39,17 @@ export function fakeQuote(sym, t) {
     day_high: Math.round(Math.max(price, prev) * 1.006 * 100) / 100,
     day_low: Math.round(Math.min(price, prev) * 0.994 * 100) / 100,
     volume,
+    // Extended session (preview): a made-up after-hours print a little off the close, so
+    // the Watchlist's Pre/After-Hours columns have something to show locally.
+    day_close: price,
+    ext_session: 'post_market',
+    // The live feed's additive session fields (owner 11-14), as an after-hours session.
+    market_session: 'post_market',
+    ext_fresh: true,
+    ext_volume: Math.round(volume * (0.01 + rand01(h, 7) * 0.06)),
+    rth_close: price,
+    rth_volume: volume,
+    ext_price: Math.round(price * (1 + ((rand01(h, 5) - 0.5) * 4 + Math.sin((t + rand01(h, 6) * 40) / 4) * 0.3) / 100) * 100) / 100,
     updated_at: new Date().toISOString(),
     _devFake: true,
   }
@@ -212,4 +223,102 @@ export async function devFakeFetchItems({ q = '', ticker = '', collection = '' }
   const items = fakeSavedItems().filter((it) => (!ql || it.content.toLowerCase().includes(ql) || it.bookmark.note.toLowerCase().includes(ql))
     && (!ticker || it.tickers.includes(ticker)) && (!collection || it.bookmark.collection_ids.includes(collection)))
   return { ok: true, items, total: items.length }
+}
+
+// ── LOCAL PREVIEW: the chart's ▾ symbol menu (leveraged ETFs / top holdings) ──────────
+// The local backend has no reference data, so both lists come back empty and the ▾ never
+// shows. Dev only, only when the real answer is empty; made-up funds (tickers + names).
+const DEV_FAKE_ETFS = ['SPY', 'QQQ', 'IWM', 'DIA', 'SMH', 'SOXX', 'XLK', 'XLF', 'XLE', 'XLV', 'ARKK', 'IBIT', 'GLD', 'TLT', 'KWEB', 'XBI']
+export function devFakeEtfSymbols(data) {
+  if (import.meta.env.MODE !== 'development' || !devFakeQuotesOn()) return data
+  return data?.symbols?.length ? data : { ...(data || {}), symbols: DEV_FAKE_ETFS }
+}
+export function devFakeLevFamily(url, data) {
+  if (import.meta.env.MODE !== 'development' || !devFakeQuotesOn()) return data
+  if (data?.long?.length || data?.short?.length) return data
+  const sym = decodeURIComponent(String(url).split('/').pop() || '').toUpperCase()
+  if (!sym || DEV_FAKE_ETFS.includes(sym)) return data
+  const h = seed(sym)
+  const row = (ticker, factor, side, n) => ({ ticker, factor, name: `Preview ${factor}x ${side} ${sym} ETF`, avg_dollar_vol: Math.round(2e6 + rand01(h, n) * 9e7) })
+  const long = [row(`${sym}U`, 2, 'Long', 1), row(`${sym}X`, 1.5, 'Long', 2)]
+  const short = [row(`${sym}D`, 2, 'Short', 3)]
+  return { underlying: sym, long, short, best_long: long[0].ticker, best_short: short[0].ticker }
+}
+
+// ── LOCAL PREVIEW: the Notebook widget (the local account has no notes or folders) ─────
+// Dev only, only while the real answers are empty. Made-up notes; their ids start with
+// 'dev-' and the widget never saves them (update is a no-op for a fake id).
+const P = (text) => ({ type: 'paragraph', content: text ? [{ type: 'text', text }] : [] })
+const H = (text) => ({ type: 'heading', attrs: { level: 3 }, content: [{ type: 'text', text }] })
+const T = (text, checked) => ({ type: 'taskItem', attrs: { checked }, content: [P(text)] })
+const DEV_NB_FOLDERS = [
+  { id: 'dev-f-plan', name: 'Daily plans', parentId: null, sortOrder: 0 },
+  { id: 'dev-f-mb', name: 'Model Books', parentId: null, sortOrder: 1 },
+  { id: 'dev-f-mb26', name: '2026', parentId: 'dev-f-mb', sortOrder: 0 },
+  { id: 'dev-f-mb25', name: '2025', parentId: 'dev-f-mb', sortOrder: 1 },
+  { id: 'dev-f-rules', name: 'Setups & rules', parentId: null, sortOrder: 2 },
+  { id: 'dev-f-rev', name: 'Weekly reviews', parentId: null, sortOrder: 3 },
+]
+const d = (daysAgo, h = 9) => { const t = new Date(); t.setDate(t.getDate() - daysAgo); t.setHours(h, 12, 0, 0); return t.toISOString() }
+const DEV_NB_NOTES = [
+  ['dev-n1', 'dev-f-plan', 'Plan for Friday', 0, 'Watching the semis into the open. Two names near pivots, half size until the first hour settles.'],
+  ['dev-n2', 'dev-f-plan', 'Plan for Thursday', 1, 'Gap-and-go only if volume confirms in the first 5 minutes. No new longs after 3 PM.'],
+  ['dev-n3', 'dev-f-plan', 'Plan for Wednesday', 2, 'Index under the 21-day; defense first, cash is a position.'],
+  ['dev-n4', 'dev-f-mb26', 'ZXTR — base breakout', 5, 'Seven-week flat base, volume dry-up on the last pullback, broke out on 3x average volume.'],
+  ['dev-n5', 'dev-f-mb26', 'QLMN — earnings gap', 15, 'Gap held the opening range all day, closed in the top 10% of the range.'],
+  ['dev-n6', 'dev-f-mb25', 'HVRA — cup with handle', 250, 'Handle in the upper third, shakeout under the 50-day before the move.'],
+  ['dev-n7', 'dev-f-rules', 'Entry checklist', 31, 'Market in an uptrend, group in the top 20, tight action, defined risk under 7%.'],
+  ['dev-n8', 'dev-f-rules', 'Sell rules', 47, 'Sell into strength at 20-25%, cut at -7% with no exceptions.'],
+  ['dev-n9', 'dev-f-rev', 'Week 45 review', 6, 'Overtraded Tuesday. Best trade came from the watchlist built on Sunday.'],
+  ['dev-n10', null, 'Book notes — position sizing', 87, 'Risk a fixed fraction per trade; let winners add the size, not the entries.'],
+].map(([id, folderId, title, ago, bodyPlain]) => ({ id, folderId, title, bodyPlain, createdAt: d(ago + 1), updatedAt: d(ago) }))
+const nbOn = () => import.meta.env.MODE === 'development' && devFakeQuotesOn()
+export const isDevFakeNote = (id) => typeof id === 'string' && id.startsWith('dev-')
+export function devFakeNoteFolders(real) {
+  return nbOn() && !(real && real.length) ? DEV_NB_FOLDERS : real
+}
+export function devFakeNotes(real, q) {
+  if (!nbOn() || (real && real.length)) return real
+  const s = String(q || '').trim().toLowerCase()
+  return s ? DEV_NB_NOTES.filter((n) => (n.title + ' ' + n.bodyPlain).toLowerCase().includes(s)) : DEV_NB_NOTES
+}
+export function devFakeNote(id) {
+  const n = DEV_NB_NOTES.find((x) => x.id === id)
+  if (!n) return null
+  const content = id === 'dev-n1'
+    ? [P('Market is in a confirmed uptrend. Full size only on A+ setups.'), H('Watchlist'),
+       P('ZXTR: pivot 48.20, stop under the 21-day. QLMN needs a tighter week first.'), H('Rules for today'),
+       { type: 'taskList', content: [T('Review overnight news and earnings', true), T('Half size until 10:30', false), T('Log every entry in the Journal', false)] }]
+    : [P(n.bodyPlain)]
+  return { ...n, bodyJson: { type: 'doc', content } }
+}
+
+// ── LOCAL PREVIEW: Calendar earnings (the local backend's earnings lists are empty) ─────
+// Dev only, only for a week with no earnings at all. Real tickers, MADE-UP numbers.
+const DEV_CAL_SYMS = ['NVDA', 'AMAT', 'WMT', 'HD', 'TGT', 'LOW', 'TJX', 'PANW', 'INTU', 'SNOW', 'ROST', 'ADI', 'DE', 'CSCO', 'ZM', 'WDAY', 'DELL', 'MRVL', 'CRM', 'NTAP']
+export function devFakeCalendarWeek(data) {
+  if (!nbOn() || !data?.days) return data
+  const days = Object.values(data.days)
+  if (days.some((d) => (d.bmo?.length || 0) + (d.amc?.length || 0) + (d.tbd?.length || 0) > 0)) return data
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+  const out = { ...data, days: {} }
+  Object.entries(data.days).forEach(([iso, d], i) => {
+    const past = iso < today
+    const mk = (sym, n) => {
+      const h = seed(sym + iso)
+      const epsE = +(0.3 + rand01(h, n) * 4).toFixed(2), revE = Math.round(400 + rand01(h, n + 1) * 30000)
+      const beat = rand01(h, n + 2) - 0.35
+      return { sym, eps_est: epsE, rev_est: revE, ...(past ? { eps_act: +(epsE * (1 + beat * 0.2)).toFixed(2), rev_act: Math.round(revE * (1 + beat * 0.05)) } : {}) }
+    }
+    const pick = (k, n) => Array.from({ length: n }, (_, j) => DEV_CAL_SYMS[(i * 4 + k * 3 + j * 2) % DEV_CAL_SYMS.length])
+    const uniq = (a) => [...new Set(a)]
+    out.days[iso] = { ...d, bmo: uniq(pick(0, 5 + (i % 3))).map((s, j) => mk(s, j)), amc: uniq(pick(1, 4 + (i % 4))).map((s, j) => mk(s, j + 9)), tbd: i % 2 ? uniq(pick(2, 3)).map((s, j) => mk(s, j + 20)) : [] }
+  })
+  return out
+}
+export function devFakeImpliedMoves(map, day) {
+  if (!nbOn() || (map && Object.keys(map).length) || !day) return map
+  const out = {}
+  ;[...(day.bmo || []), ...(day.amc || []), ...(day.tbd || [])].forEach((c) => { out[c.sym] = +(2 + rand01(seed(c.sym), 31) * 9).toFixed(1) })
+  return Object.keys(out).length ? out : map
 }

@@ -1,6 +1,7 @@
 // The Watchlist widget's column catalog, and the two pure edits a column config takes. Watchlists.jsx draws from this;
 // the Agent reads the same catalog (agent/capabilities/listView.js) so it offers exactly the columns the menu offers.
 import { ASC, DESC } from '../../lib/presentation/dataGrid/gridSort'
+import { FACT_COLUMNS, LIVE_COLUMNS } from './watchlistColumnCatalog'
 
 export const OPTIONAL_COLS = [  // hideable via right-click
   { key: 'price', label: 'Price', def: 62, min: 44 },
@@ -31,6 +32,9 @@ export const EXTRA_COLS = [
   { key: 'attention', label: 'Attention' },
   { key: 'atr', label: 'ATR %' },
   { key: 'a50', label: 'ATR from 50SMA' },
+  // The column library's new columns (owner 11-14) — live-quote and nightly-snapshot ones.
+  ...Object.entries(LIVE_COLUMNS).map(([key, c]) => ({ key, label: c.label })),
+  ...Object.entries(FACT_COLUMNS).map(([key, c]) => ({ key, label: c.label })),
 ]
 export const DEFAULT_COL_ORDER = ['flag', 'sym', 'price', 'vol', 'chg']   // reorderable by dragging a header
 // [full label, abbreviation].
@@ -48,9 +52,11 @@ export const COL_LABELS = {
   weight: ['Weight %', 'Wt %'],
   atr: ['ATR %', 'ATR%'], a50: ['ATR from 50SMA', '50SMA'],
   attention: ['Attention', 'Attn'],
+  ...Object.fromEntries([...Object.entries(LIVE_COLUMNS), ...Object.entries(FACT_COLUMNS)].map(([k, c]) => [k, [c.label, c.short || c.label]])),
 }
 // Text columns — sorted alphabetically, not numerically.
-export const TEXT_COLS = new Set(['name', 'sector', 'industry', 'theme'])
+export const TEXT_COLS = new Set(['name', 'sector', 'industry', 'theme',
+  ...Object.entries(FACT_COLUMNS).filter(([, c]) => c.text).map(([k]) => k)])
 
 /** The direction a first click on a header takes: Symbol A→Z, everything else high→low. */
 export const firstSortDir = (key) => (key === 'sym' ? ASC : DESC)

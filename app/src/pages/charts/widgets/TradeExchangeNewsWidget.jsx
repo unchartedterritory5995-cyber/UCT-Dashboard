@@ -59,7 +59,7 @@ import * as library from '../../../lib/tradeExchangeNewsLibrary'
 import { sendHeadlineToNotebook } from '../../../lib/tradeExchangeNewsNotebook'
 import styles from './TradeExchangeNewsWidget.module.css'
 import { createPortal } from 'react-dom'
-import { useUctHeaderSlotAlways, useUctControlsSlot } from '../uctHeaderSlot'
+import { useUctHeaderSlotAlways, useUctControlsSlot, useUctRowIsSub } from '../uctHeaderSlot'
 import { devFakeNewsFeed, devFakeNewsDay, useDevFakeNewsTick } from '../../../hooks/devFakeQuotes'
 import ListPicker from './TradeExchangeNewsListPicker'
 
@@ -407,6 +407,7 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, def
   // Saved ride the frame's title row; ⚙ joins the window controls. Same buttons, same handlers.
   const uctRow = useUctHeaderSlotAlways('tradeExchangeNews')
   const uctCtrls = useUctControlsSlot()
+  const uctRowIsSub = useUctRowIsSub()   // a tabbed slot: the tab says "News"
   const onBoard = !!uctCtrls && !!uctRow
   const rootRef = useRef(null)
   const [, tick] = useState(0)
@@ -560,6 +561,10 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, def
           ><UIcon name="gear" size={14} /></button>
         )
         if (!onBoard) return null
+        // Tabbed slot (owner 11-14): Saved · ⚙ go top-right with the window controls, like the
+        // Watchlist's; Live moves beside the search bar (it crowded the tab strip); no brand row
+        // (the tab already says News).
+        if (uctRowIsSub) return createPortal(<>{savedBtn}{gearBtn}</>, uctCtrls)
         return (<>
           {createPortal(
             <div className={styles.uctTitle}>
@@ -645,9 +650,17 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, def
         >
           <UIcon name="sliders" size={14} gold={false} />
         </button>
-        {onBoard ? (
+        {onBoard ? (<>
           <ListPicker value={watchlistId} options={listOptions} menuVars={menuVars}
             onChange={(v) => patchOpts({ watchlistId: v || null })} />
+          {uctRowIsSub && (
+            <button ref={statusRef} type="button" className={`${styles.status} ${styles.statusInBar} ${toneCls}`} title={`${status.title} Click for feed health.`}
+              aria-live="polite" aria-haspopup="dialog" aria-expanded={healthOpen} onClick={() => setHealthOpen((o) => !o)}>
+              <span className={styles.dot} aria-hidden="true" />
+              <span className={styles.statusText}>{status.label}</span>
+            </button>
+          )}
+        </>
         ) : (
           <Select
             className={styles.listSelect}

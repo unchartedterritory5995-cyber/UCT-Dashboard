@@ -1155,3 +1155,6 @@
 :global(.uct-frame) .rowBtnOn { background: none; color: var(--widget-text-strong, var(--text-bright)); }
 :global(.uct-frame) .rowBtn:hover { background: var(--widget-row-hover, var(--bg-hover)); color: var(--widget-text-strong, var(--text-bright)); }
 :global(.uct-frame) .rowBtnSaved, :global(.uct-frame) .row:hover .rowBtnSaved { color: var(--widget-text-strong, var(--text-bright)); }
+
+/* Live beside the search bar in a tabbed slot (owner 11-14) — never squeezed. */
+.statusInBar { flex: 0 0 auto; white-space: nowrap; margin-left: 2px; }

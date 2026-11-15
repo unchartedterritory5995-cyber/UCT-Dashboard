@@ -2446,6 +2446,19 @@
 :global(.react-grid-item):has(.widgetUct) .rzCorner:hover::after { border-color: color-mix(in srgb, var(--accent) 70%, transparent); }
 :global(.react-grid-item.react-draggable-dragging):has(.widgetUct)::after { border-radius: 10px; }
 :global(.react-grid-item):has(.widgetUct) .rzPlaceholder { border-radius: 10px; }
+/* Merged board (owner 11-14): the same UCT widgets tiled flush into one surface: no
+   gaps, no rounded cards, no shadows; one hairline seam (right + bottom, as
+   .widgetMerged) between neighbours, the outer top/left/bottom from .workspaceBodyMerged. */
+.widgetUct.widgetMerged {
+  border: none;
+  border-right: 1px solid var(--border-accent);
+  border-bottom: 1px solid var(--border-accent);
+  border-radius: 0;
+  box-shadow: none;
+}
+:global([data-theme='light']) .widgetUct.widgetMerged { box-shadow: none; }
+:global(.react-grid-item.react-draggable-dragging):has(.widgetMerged)::after,
+:global(.react-grid-item):has(.widgetMerged) .rzPlaceholder { border-radius: 0; }
 
 .uctHeader {
   /* --uct-head-bg = the colour the widget's body paints (WidgetHost / uctSurface.js). */
@@ -2675,3 +2688,138 @@
       under a one-row header) sit at the same height across the board. ── */
 .uctHeader { height: 40px; min-height: 40px; flex: 0 0 40px; box-sizing: border-box; }
 .widgetIntegrated .chartHeaderTop { height: 40px; min-height: 40px; box-sizing: border-box; }
+
+/* ═══ Top-bar menus — Widgets · Layouts · Tools (owner 11-14) ═══════════════════════════
+   The widgets' menu look (the Theme sets menu): a dark rounded panel, sentence-case group
+   labels, 13px rows with a soft hover, hairline separators; the GOLD glyph before each row
+   stays. Active modes get a ✓ on the right, submenus a ›. Scoped to .tbMenu so the shared
+   .addMenuItem (the in-widget "+" tab menu) is untouched. */
+.tbMenu,
+.tbMenu .addMenu {
+  margin-top: 6px;
+  padding: 6px;
+  gap: 1px;
+  border-radius: 10px;
+  background: var(--menu-bg, #1b1c20);
+  border: 1px solid var(--menu-border, #383b41);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5);
+  font-family: var(--font-sans);
+}
+.tbMenu .addMenu { margin-top: 0; }
+.tbMenu .addMenuItem {
+  display: flex; align-items: center; gap: 10px;
+  min-height: 32px; padding: 7px 10px; border-radius: 6px;
+  font-size: 13px; color: var(--menu-text, #e9e6de); text-align: left;
+}
+.tbMenu .addMenuItem:hover:not(:disabled),
+.tbMenu .addMenuItem:focus-visible { background: var(--menu-hover, rgba(255, 255, 255, 0.07)); color: var(--menu-text-strong, #f8f7f3); outline: none; }
+.tbMenu .addMenuItem:disabled { opacity: 0.45; cursor: default; }
+.tbGlyph { width: 18px; flex: 0 0 18px; display: inline-flex; align-items: center; justify-content: center; }
+.tbLbl { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tbCheck { flex: 0 0 auto; display: inline-flex; color: var(--menu-text-strong, #f8f7f3); }
+.tbChev { flex: 0 0 auto; display: inline-flex; color: var(--menu-text-muted, #a9a59b); }
+.tbCheck svg, .tbCheck svg *, .tbChev svg, .tbChev svg *, .tbBack svg, .tbBack svg * { stroke: currentColor !important; color: inherit !important; filter: none !important; }
+.tbMenu .tbBack { gap: 6px; color: var(--menu-text-muted, #a9a59b); font-size: 12.5px; min-height: 28px; }
+/* Group labels + section titles: sentence case, small grey (no caps, no tracking). */
+.tbMenu .addMenuGroupLabel,
+.tbMenu .menuSection { padding: 8px 10px 4px; font-size: 11px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--menu-text-muted, #a9a59b); }
+.tbMenu .menuDivider { height: 1px; margin: 5px 4px; background: var(--menu-divider, #2c2e33); }
+/* Widgets: the grouped 2-column grid, the same rows — gold glyph + name, soft hover. */
+.tbMenu.wAddMenu { min-width: 330px; padding: 6px; }
+.tbMenu .wAddGroup + .wAddGroup { border-top: 1px solid var(--menu-divider, #2c2e33); margin-top: 4px; padding-top: 2px; }
+.tbMenu .wAddGrid { gap: 1px 4px; padding: 0 0 4px; }
+.tbMenu .wAddChip { gap: 10px; padding: 7px 10px; border: none; border-radius: 6px; font-size: 13px; color: var(--menu-text, #e9e6de); }
+.tbMenu .wAddChip:hover:not(:disabled) { background: var(--menu-hover, rgba(255, 255, 255, 0.07)); color: var(--menu-text-strong, #f8f7f3); border-color: transparent; }
+.tbMenu .boardBoundNote { border-bottom-color: var(--menu-divider, #2c2e33); border-radius: 6px; }
+/* Open-layout rows: the row hover is the item's; the ✕ stays quiet until the row is hovered. */
+.tbMenu .menuRow { border-radius: 6px; }
+.tbMenu .menuRow:hover { background: var(--menu-hover, rgba(255, 255, 255, 0.07)); }
+.tbMenu .menuRow .addMenuItem { min-height: 30px; }
+.tbMenu .menuDel { border-radius: 5px; padding: 4px 8px; opacity: 0; }
+.tbMenu .menuRow:hover .menuDel, .tbMenu .menuDel:focus-visible { opacity: 1; }
+/* Save-as form + Multi Chart's checkboxes in the same quiet voice. */
+.tbMenu .menuForm { padding: 6px 10px 8px; }
+.tbMenu .menuInput { height: 28px; border-radius: 7px; border-color: rgba(248, 247, 243, 0.08); background: rgba(248, 247, 243, 0.06); font-size: 12.5px; color: var(--menu-text-strong, #f8f7f3); }
+.tbMenu .menuInput:focus { border-color: rgba(248, 247, 243, 0.22); }
+.tbMenu .menuCheck { padding: 6px 10px; font-size: 12.5px; color: var(--menu-text, #e9e6de); }
+.tbMenu .menuForm .toolbarBtn { height: 28px; padding: 0 12px; border-radius: 7px; }
+
+/* Owner 11-14: no gold corner "L" on the resize corners — at rest, on hover, or while
+   dragging, on every widget. The corners still resize; only the mark is gone. */
+.rzCorner::after,
+:global(.react-grid-item):hover .rzCorner::after,
+:global(.react-grid-item) .rzCorner:hover::after { display: none !important; }
+/* Ultra-smooth resize (owner 11-14): while a widget resizes, the whole board's items keep
+   no transition (the drag writes their boxes every frame) and the browser is told the
+   boxes will change, so it can prepare the layers. */
+:global(.charts-resizing) :global(.react-grid-item) { transition: none !important; }
+
+/* One-row chart header (owner 11-14): the window controls never leave. The right cluster
+   holds its width; the ticker area may shrink (and, last of all, ellipsize) instead, so a
+   very narrow chart still shows ⚙ · + · pop out · ✕. */
+.widgetIntegrated .chartHeaderTop > .headerTopRight { flex: 0 0 auto; margin-left: auto; }
+.widgetIntegrated .chartHeaderTop > .symbolSlot { flex: 0 1 auto; min-width: 28px; overflow: hidden; }
+.widgetIntegrated .chartHeaderTop > .symbolSlot [data-testid='sym-label'] { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Dark menu, dark scrollbar (owner 11-14): the browser draws a thin dark scrollbar, never the
+   white light-theme one, inside this always-dark menu. */
+.tbMenu, .tbMenu .addMenu { color-scheme: dark; scrollbar-width: thin; scrollbar-color: rgba(248, 247, 243, 0.22) transparent; }
+
+/* A widget whose settings menu is open (owner 11-14, useWidgetMenuPlacement): its gear stays lit
+   (a widget outline was tried and dropped at owner request). */
+:global(button[data-menu-open]) { color: var(--accent, #dcbb5e) !important; background: rgba(220, 187, 94, 0.14) !important; }
+
+/* The in-widget "+" add-tab menu in the board menu style (owner 11-14). */
+.wtabAddMenu.tbMenu { width: 210px; margin-top: 0; color-scheme: dark; }
+.wtabAddMenu.tbMenu .addMenuItem { color: var(--menu-text, #e9e6de); }
+.wtabAddMenu.tbMenu .addMenuItem:hover { background: var(--menu-hover, rgba(255, 255, 255, 0.07)); color: var(--menu-text-strong, #f8f7f3); }
+.wtabAddMenu.tbMenu .addMenuGroupLabel { padding: 4px 10px 6px; }
+
+/* One menu colour (owner 11-14): the top-bar Widgets / Layouts / Tools menus and the "+" add-tab
+   menu wear the widget settings menu's panel (#111214), text (#ededed) and card shade on hover. */
+.tbMenu, .tbMenu .addMenu { background: #111214; }
+.tbMenu .addMenuItem, .tbMenu .wAddChip, .wtabAddMenu.tbMenu .addMenuItem { color: #ededed; }
+.tbMenu .addMenuItem:hover:not(:disabled), .tbMenu .addMenuItem:focus-visible, .tbMenu .wAddChip:hover:not(:disabled), .wtabAddMenu.tbMenu .addMenuItem:hover { background: #1a1b1f; color: #f8f7f3; }
+
+/* A tabbed slot's own title row (owner 11-14, WidgetHost subRow): under the tab strip, the
+   active widget's week / note path / periods — one quiet row; nothing when it is empty. */
+.uctSubRow {
+  display: flex; align-items: stretch; flex: 0 0 auto; min-width: 0; min-height: 36px;
+  padding: 0 6px 0 10px;
+  border-bottom: 1px solid var(--widget-divider, var(--border, #2a2c31));
+}
+.uctSubRow:empty { display: none; }
+.uctSubRow > * { flex: 1 1 auto; min-width: 0; border-bottom: none !important; background: transparent !important; }
+
+/* Steady tabs (owner 11-14): selecting a tab or showing its x never moves the strip.
+   The bold width is reserved on every label; the x floats over the tab's top-right corner,
+   appearing on hover (a pending "click again" check stays visible). */
+.uctHeader .wtabLabel { display: inline-flex; flex-direction: column; align-items: center; }
+.uctHeader .wtabLabel::after { content: attr(data-label); height: 0; overflow: hidden; visibility: hidden; font-weight: 700; pointer-events: none; }
+.uctHeader .wtabClose {
+  position: absolute; top: 5px; right: -3px; width: 15px; height: 15px; border-radius: 50%;
+  font-size: 11px; opacity: 0; pointer-events: none;
+  background: var(--uct-head-bg, #16171a); color: var(--widget-text, #cfcac0);
+  box-shadow: 0 0 0 1px var(--widget-divider, #2a2c31);
+  transition: opacity 0.1s;
+}
+.uctHeader .wtabChip:hover .wtabClose { opacity: 1; pointer-events: auto; }
+.uctHeader .wtabClose:hover { color: var(--danger-ink, #f0525a); background: var(--uct-head-bg, #16171a); }
+.uctHeader .wtabCloseConfirm { opacity: 1; pointer-events: auto; color: var(--success-ink, #3fd47a); }
+
+/* Right-click a widget tab (owner 11-14): the Theme Tracker "..." menu look, a size smaller. */
+.wtabCtxMenu { position: fixed; z-index: 6500; min-width: 168px; padding: 5px; display: flex; flex-direction: column; gap: 1px;
+  border-radius: 9px; background: #111214; border: 1px solid var(--menu-border, #383b41); box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+  font-family: var(--font-sans); color-scheme: dark; }
+.wtabCtxItem { display: flex; align-items: center; gap: 9px; padding: 6px 9px; border: none; border-radius: 6px; background: none;
+  font: 500 12.5px var(--font-sans); color: #ededed; text-align: left; cursor: pointer; white-space: nowrap; }
+.wtabCtxItem:hover:not(:disabled), .wtabCtxItem:focus-visible { background: #1a1b1f; color: #f8f7f3; outline: none; }
+.wtabCtxItem:disabled { opacity: 0.4; cursor: default; }
+.wtabCtxItem svg { color: var(--text-muted, #a9a59b) !important; filter: none !important; flex: 0 0 auto; }
+.wtabCtxItem svg * { stroke: currentColor !important; }
+.wtabCtxDivider { height: 1px; margin: 4px 6px; background: var(--menu-divider, #2a2c31); }
+
+
+/* The open tab's gold line sits just under its word (owner 11-14), like RTH / EXT — not at the
+   bottom edge of the header, where it read as part of the row below. */
+.uctHeader .wtabChipActive::after { bottom: 7px; }

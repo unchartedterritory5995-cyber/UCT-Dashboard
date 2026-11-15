@@ -299,6 +299,8 @@ export default function WatchlistWidget({ color, opts, onOptsChange }) {
         onSettingsPersist={persistWlSettings}
         defaultColCfg={_prebuiltCfg}
         ephemeralCols={_isPrebuilt}
+        sessionMode={opts?.wlSession === 'ext' ? 'ext' : 'rth'}
+        onSessionMode={uctFrame ? (m) => onOptsChange?.({ ...(opts || {}), wlSession: m === 'ext' ? 'ext' : undefined }) : null}
       />
   )
   return (

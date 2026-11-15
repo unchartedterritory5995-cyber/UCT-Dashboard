@@ -5,6 +5,8 @@
 // never land under a key, or in a shape, the hook would not have produced itself.
 
 /** The SWR key for a symbol. Null for none and for a synthetic pseudo-ticker ($IDX:...). */
+import { devFakeLevFamily } from './devFakeQuotes'
+
 export function singleStockEtfsKey(sym) {
   const skip = !sym || String(sym).startsWith('$IDX:')
   return skip ? null : `/api/single-stock-etfs/${encodeURIComponent(String(sym).toUpperCase())}`
@@ -12,5 +14,5 @@ export function singleStockEtfsKey(sym) {
 
 export const singleStockEtfsFetcher = (url) => fetch(url, { credentials: 'include' }).then(r => {
   if (!r.ok) throw new Error(`single-stock-etfs ${r.status}`)  // transient -> SWR keeps last-good + retries
-  return r.json()
+  return r.json().then((j) => devFakeLevFamily(url, j))   // LOCAL PREVIEW fake (dev only)
 })

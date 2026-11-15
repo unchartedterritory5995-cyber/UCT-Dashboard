@@ -30,6 +30,7 @@ import NewsSettingsPanel from './NewsSettingsPanel'
 import { newsWidgetStyleVars } from './newsWidgetSettings'
 import styles from './NewsWidget.module.css'
 import { fmtDate, fmtMove } from '../../../utils/feedFormat'
+import UctCtrlPortal from '../UctCtrlPortal'  // owner 11-14: the ⚙ goes top-right on the board
 
 const SOURCE_ICON = { catalyst: 'bolt', earnings: 'calendar', breaking: 'bell' }
 const SOURCE_LABEL = { catalyst: 'Catalyst', earnings: 'Earnings', breaking: 'Wire' }
@@ -314,14 +315,14 @@ export default function NewsWidget({
           />
         )}
         {!readOnly && (
-        <button
+        <UctCtrlPortal><button
           ref={settingsBtnRef}
           type="button"
           className={`${styles.gearBtn}${settingsOpen ? ' ' + styles.gearBtnActive : ''}`}
           style={journalDoor && sym && events?.length > 0 ? { marginLeft: 2 } : undefined}
           data-guide="widget.settings" onClick={() => setSettingsOpen(o => !o)}
           title="News widget settings"
-        ><UIcon name="gear" size={13} /></button>
+        ><UIcon name="gear" size={13} /></button></UctCtrlPortal>
         )}
       </div>
 

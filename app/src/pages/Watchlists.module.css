@@ -2163,3 +2163,20 @@
 :global(.uct-frame) .gridHead { min-height: 28px; }
 :global(.uct-frame) .gridHead > span { font-size: calc(10.5px * var(--wl-font-scale, 1)); }
 :global(.uct-frame) .wlCountFooter { min-height: 30px; font-size: calc(11px * var(--wl-font-scale, 1)); }
+
+/* RTH · EXT switch in the board widget's title row (owner 11-14) — the chart header's session
+   switch: quiet text buttons, the active one in white with a gold underline. */
+.sessSeg { display: inline-flex; align-items: center; gap: 2px; margin-right: 6px; padding-right: 6px; border-right: 1px solid var(--widget-divider, var(--border, #2a2c31)); }
+.sessBtn { position: relative; height: 22px; padding: 0 5px; border: none; border-radius: 5px; background: none; cursor: pointer; font: 700 11px var(--font-sans); letter-spacing: 0.02em; color: var(--widget-text, var(--text-muted, #cfcac0)); opacity: 0.8; }
+.sessBtn:hover { opacity: 1; color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); }
+.sessBtnOn { opacity: 1; color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); }
+.sessBtnOn::after { content: ''; position: absolute; left: 5px; right: 5px; bottom: 1px; height: 2px; border-radius: 2px; background: var(--widget-accent, var(--accent, #dcbb5e)); }
+.sessBtnIdle:not(.sessBtnOn) { opacity: 0.45; }
+/* Column library: Day Range (owner 11-14) — a thin track with the price marked. */
+.rangeBar { display: inline-block; position: relative; width: 52px; height: 5px; border-radius: 3px; background: color-mix(in srgb, var(--wl-text, var(--text-bright, #f8f7f3)) 14%, transparent); vertical-align: middle; }
+.rangeBar i { position: absolute; top: -3px; width: 3px; height: 11px; border-radius: 2px; background: var(--wl-text, var(--text-bright, #f8f7f3)); }
+
+/* Column library + (owner 11-14): the last header cell, at the right end of the header row. */
+.hAddCol { justify-self: end; align-self: center; display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 20px; padding: 0; margin-left: 4px; border: none; border-radius: 6px; background: none; cursor: pointer; color: var(--widget-text, var(--text-muted, #a9a59b)); opacity: 0.8; }
+.hAddCol svg, .hAddCol svg * { stroke: currentColor !important; filter: none !important; }
+.hAddCol:hover, .hAddColOn { opacity: 1; color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); background: var(--widget-row-hover, rgba(255, 255, 255, 0.07)); }

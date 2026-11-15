@@ -2020,3 +2020,21 @@
 }
 /* owner 11-13: the set picker sits to the RIGHT of the search (as News: search left, lists right). */
 :global(.uct-frame) .searchRow .setPicker { order: 2; flex: 0 0 auto; }
+
+/* Light-theme pass (owner 11-14): the opened theme's drawer and the Index row follow the
+   widget's ACTUAL surface (WidgetHost --uct-recess / --uct-gold), not the app's data-theme —
+   a light Theme Tracker never gets the dark drawer, and its gold stays readable. */
+:global(.uct-frame) .groupBody,
+:global([data-theme='light']) :global(.uct-frame) .groupBody {
+  background: var(--uct-recess, rgba(0, 0, 0, 0.28));
+  box-shadow: var(--uct-recess-shadow, inset 0 6px 8px -6px rgba(0, 0, 0, 0.7));
+}
+:global(.uct-frame) .indexName { color: var(--uct-gold, var(--ut-gold, #dcbb5e)) !important; }
+:global(.uct-frame) .groupBody .indexRow :global(svg) { color: var(--uct-gold, var(--ut-gold, #dcbb5e)) !important; }
+:global(.uct-frame) .groupBody .indexRow { background: color-mix(in srgb, var(--uct-gold, #dcbb5e) 10%, transparent); }
+:global(.uct-frame) .groupBody .indexRow:hover { background: color-mix(in srgb, var(--uct-gold, #dcbb5e) 16%, transparent); }
+
+/* One menu colour (owner 11-14): the same panel, text and hover as the widget settings menu. */
+.ttMenu { background: #111214; }
+.ttMenuItem { color: #ededed; }
+.ttMenuItem:hover:not(:disabled), .ttMenuItem:focus-visible { background: #1a1b1f; color: #f8f7f3; }
