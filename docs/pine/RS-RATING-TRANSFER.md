@@ -104,6 +104,20 @@ the door):
     in progress). Store: `uct-vendor-batch/runs/s9-ahead-2026-11-14/captures`, local only. Ledger
     via `evidence_engine regrade`.
   - **Engine 56 (#1265)** adds bool-na tracking through tf/sym/tf_merge/ltf nodes. Rebase over it.
+- **Scoped 2026-11-14, the runtime machinery already exists:**
+  - `vm.js` `OP.REQUEST` (case 79) runs the program from the request's entry over
+    `ctx.requestBars['<symbol>|<timeframe>']` (`runRequest`). A missing key answers `na` and is
+    recorded in `requested`, which is "run it, read back what it asked for".
+  - The gaps:
+    - (1) `runtimeColumns.js` refuses any script with `ir.requests` at three sites (~1329, ~1653,
+      ~1752), and the chart passes no `requestBars`;
+    - (2) **`runRequest` aligns STRICTLY BEFORE** (`otherTimes[j+1] < tNow`). For a same-timeframe
+      other symbol (`request.security('SP:SPX', timeframe.period, close)` on a daily chart) that
+      hands each bar YESTERDAY's SPX close, where Pine (`lookahead_off`) answers the same day's
+      bar. This confirms the peer's flag. Replace it with `tfMergeMask` semantics, both lanes, one
+      authority;
+    - (3) a supply: the chart's `secondaryBars.js` cache, keyed the same way; the harness's C26
+      captures.
 - Accept: RS Rating's run-half mints, and the object-lane census shows no new divergence.
 
 **L6 — REVISED 2026-11-14: the seed's own data is public, so ingest it and do not substitute.**
