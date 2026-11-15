@@ -156,3 +156,33 @@ describe('⭐ the rule (`literalTostringText`): the version decides', () => {
     expect(texts).toContain('F02 close/3|32.8166666667')
   })
 })
+
+describe('⭐⭐ the s21 witnesses, committed: v6 direct (ten decimals) and v5 through a helper (in full)', () => {
+  const S21 = (v) => `vw-cs2-label-format-${v}-rddt-1d-2026-11-15.json`
+  const probe = (v) => fs.readFileSync(path.join(REPO, `tools/visual_conformance/probes/vw-cs2-label-format-${v}.pine`), 'utf8')
+  for (const v of ['v6-direct', 'v5-helper']) {
+    it(`${v}: the committed capture is our probe, from the listing`, () => {
+      const c = cap(S21(v))
+      expect(c.source.text).toBe(probe(v))
+      expect(c.history.startsAtBar0).toBe(true)
+      expect(c.objects.texts.labels).toHaveLength(6)
+    })
+    it(`⭐⭐ ${v}: the host lane prints all six texts exactly`, () => {
+      const c = cap(S21(v))
+      expect(hostLabels(c, c.source.text)).toEqual(c.objects.texts.labels)
+    })
+  }
+  it('the two captures differ only where the version decides (the two literals)', () => {
+    const six = cap(S21('v6-direct')).objects.texts.labels
+    const five = cap(S21('v5-helper')).objects.texts.labels.map((t) => t.replace(/^L\d:/, ''))
+    const differ = six.map((t, i) => (t === five[i] ? null : i)).filter((i) => i !== null)
+    expect(differ).toEqual([2, 4])
+    expect(five[2]).toBe('0.8175176096085278')
+    expect(six[2]).toBe('0.8175176096')
+  })
+  it('⭐ v6 direct on the runtime lane: the five texts it prints are TradingView\'s', () => {
+    const c = cap(S21('v6-direct'))
+    const five = c.source.text.replace(/^.*format\.mintick.*$/m, '')
+    expect(runLabels(c, five)).toEqual({ texts: c.objects.texts.labels.slice(0, 5) })
+  })
+})
