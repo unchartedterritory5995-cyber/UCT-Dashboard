@@ -616,7 +616,7 @@ def ingest_vendor(ev, verdicts, lane, inv, capture_lanes=None):
         if lane == "runtime" and (capture_lanes or {}).get(r["file"]) != "runtime":
             continue
         if r.get("verdict") == "DIVERGE":
-            dsrc = capture_source(os.path.join(ROOT, r["file"]))
+            dsrc = capture_source(cm.licence_held.resolve(r["file"]))
             if dsrc:
                 ev.diverged[lane].add(_source_digest(dsrc))
             continue
@@ -627,7 +627,7 @@ def ingest_vendor(ev, verdicts, lane, inv, capture_lanes=None):
         subject = r.get("format") in SUBJECT_FORMATS
         if not subject and r.get("notCompared"):
             continue
-        src = capture_source(os.path.join(ROOT, r["file"]))
+        src = capture_source(cm.licence_held.resolve(r["file"]))
         if not src:
             continue
         if subject:

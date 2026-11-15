@@ -23,14 +23,16 @@
 // That is what every test below does — it never trusts the manifest's own
 // account of itself.
 import { describe, it, expect } from 'vitest'
-import fs from 'node:fs'
-import path from 'node:path'
 import { translatePine } from '../engine/ast/pine'
 import { memberInputTranslation } from './builderInputs'
 import { paramLocatorsIn, manifestFromPlacements } from './pineParamManifest'
 import { astHash, parseFormula } from '../engine/ast/parse'
+import { pineFixtureDir } from '../engine/ast/__tests__/licenceHeld'
 
-const OOS = path.resolve(process.cwd(), '../tools/c0_oos_fixtures')
+// ⛔ Two of these scripts are LICENCE-HELD (2026-11-15, docs/pine/vendor-harness/
+// licence-held.json): read from the local store when present, a case that needs an absent
+// one SKIPPED BY NAME.
+const OOS = pineFixtureDir('tools/c0_oos_fixtures')
 
 // ⚰⚰ `…03-supertrend-kivancozbilgic` LEFT THIS LIST ON 2026-09-12, BY RULING R-F,
 // AND IT IS NOT A REGRESSION. R-F took `min`/`max` out of the seed-forgetting admit
@@ -58,12 +60,12 @@ const COMPLEX = [
 
 const BACK_FROM_RF = 'high_engagement__03-supertrend-kivancozbilgic'
 
-const read = (n) => fs.readFileSync(path.join(OOS, `${n}.pine`), 'utf8')
+const read = OOS.read
 const kept = (t) => (t.outputs || []).filter((o) => o && o.ast && o.formula && !o.hidden)
 
 describe('C2D.1 — the option is inert on the saved computation', () => {
   for (const name of COMPLEX) {
-    it(`${name}: trees are byte-identical with and without paramManifest`, () => {
+    OOS.it([name], `${name}: trees are byte-identical with and without paramManifest`, () => {
       // ⛔ THE PRECONDITION FOR FOLDING THE TWO TRANSLATIONS INTO ONE. If asking
       // for parameters changed what gets computed, this fix would be trading a
       // detached control for a different indicator.
@@ -112,7 +114,7 @@ function expectLiteralAt(root, astPath, label) {
 
 describe('C2D.1 — every locator resolves against the tree that is SAVED', () => {
   for (const name of COMPLEX) {
-    it(name, () => {
+    OOS.it([name], name, () => {
       const src = read(name)
       const t = memberInputTranslation(translatePine, src, { paramManifest: true })
       const outs = kept(t).slice(0, 12)
@@ -143,7 +145,7 @@ describe('C2D.1 — every locator resolves against the tree that is SAVED', () =
 })
 
 describe('⭐ the specimen R-F removed is back (wave 15, H1)', () => {
-  it(`${BACK_FROM_RF} translates again: no pine:state, and its Multiplier reaches several plots`, () => {
+  OOS.it([BACK_FROM_RF], `${BACK_FROM_RF} translates again: no pine:state, and its Multiplier reaches several plots`, () => {
     // ⚰ This was `refuses at pine:state and therefore places nothing` (R-F,
     // 2026-09-12). Its own note said the day it went red the script belonged back in
     // COMPLEX; it is there now, and this pins WHY it is.

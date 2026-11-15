@@ -80,6 +80,11 @@ START_WINDOW_S = 300.0
 QUARANTINE_BASE_S = 600.0
 QUARANTINE_MAX_S = 6 * 3600.0
 QUARANTINE_MAX_ENTRIES = 1024
+#: Follow-up review (L1 option): a MEMBER whose sources struck this many times inside the window
+#: is quarantined as a member, so one-character variants of a hanging script cannot evade the
+#: per-source quarantine. Only fresh detector runs are refused; stored and cached sets still serve.
+MEMBER_STRIKES_LIMIT = 2
+MEMBER_STRIKE_WINDOW_S = 600.0
 DEFAULT_TARGET = "api.services.pine_capabilities:capabilities_of"
 
 OK, BUSY, UNAVAILABLE, QUARANTINED, TIMEOUT, CRASHED, ERROR = (
@@ -158,6 +163,7 @@ class _Worker:
         self.rid = 0
         self.quarantine: "OrderedDict[str, tuple]" = OrderedDict()   # key -> (until, strikes)
         self.q_lock = threading.Lock()
+        self.member_strikes: "OrderedDict[str, list]" = OrderedDict()   # member -> strike times
         self.stats = {"starts": 0, "calls": 0, "ok": 0, "busy": 0, "unavailable": 0, "quarantined": 0,
                       "timeout": 0, "crashed": 0, "error": 0, "raised": 0, "killed": 0}
 
@@ -179,6 +185,31 @@ class _Worker:
             self.quarantine.move_to_end(key)
             while len(self.quarantine) > QUARANTINE_MAX_ENTRIES:
                 self.quarantine.popitem(last=False)
+
+    def member_quarantined(self, member: Optional[str], now: float) -> bool:
+        if not member:
+            return False
+        with self.q_lock:
+            times = [t for t in self.member_strikes.get(member, ()) if now - t < MEMBER_STRIKE_WINDOW_S]
+            if times:
+                self.member_strikes[member] = times
+            else:
+                self.member_strikes.pop(member, None)
+            return len(times) >= MEMBER_STRIKES_LIMIT
+
+    def strike_member(self, member: Optional[str], now: float) -> None:
+        if not member:
+            return
+        with self.q_lock:
+            self.member_strikes.setdefault(member, []).append(now)
+            self.member_strikes.move_to_end(member)
+            while len(self.member_strikes) > QUARANTINE_MAX_ENTRIES:
+                self.member_strikes.popitem(last=False)
+
+    def _strike(self, key: str, member: Optional[str]) -> None:
+        now = time.monotonic()
+        self.strike(key, now)
+        self.strike_member(member, now)
 
     # ─── lifecycle ────────────────────────────────────────────────────────────
     def _may_start(self, now: float, kind: str) -> bool:
@@ -279,9 +310,12 @@ class _Worker:
 
     # ─── one call ────────────────────────────────────────────────────────────
     def detect(self, source: str, *, timeout: Optional[float] = None,
-               ready_wait: float = 0.0) -> tuple:
-        """`(caps or None, the child's run seconds, status)`. Never raises, never runs the detector
-        here. `timeout` defaults to `CALL_TIMEOUT_S`, read per call."""
+               ready_wait: float = 0.0, member: Optional[str] = None) -> tuple:
+        """`(caps or None, seconds to charge, status)`. Never raises, never runs the detector here.
+        `timeout` defaults to `CALL_TIMEOUT_S`, read per call. The seconds are the CHILD's own run
+        time for an answer, and (follow-up review L1) the WALL time a TIMEOUT held the call for:
+        a hang still charges the cool-down, the request budget and the member's verdict spend.
+        `member`, when given, is struck with the source on a timeout or a raise."""
         timeout = CALL_TIMEOUT_S if timeout is None else timeout
         self.stats["calls"] += 1
         if not self.call_lock.acquire(blocking=False):
@@ -289,7 +323,8 @@ class _Worker:
             return None, 0.0, BUSY
         try:
             key = _key(source)
-            if self.quarantined(key, time.monotonic()):
+            now = time.monotonic()
+            if self.quarantined(key, now) or self.member_quarantined(member, now):
                 self.stats["quarantined"] += 1
                 return None, 0.0, QUARANTINED
             if not self.ready.is_set():
@@ -303,23 +338,24 @@ class _Worker:
                 return None, 0.0, UNAVAILABLE
             self.rid += 1
             rid = self.rid
+            t_call = time.perf_counter()
             sent = self._send(conn, (rid, source))
             if sent == TIMEOUT:
                 log.warning("[capability-worker] the pipe did not take a source in %.1fs; killing it",
                             SEND_TIMEOUT_S)
                 self.kill(proc, reason=_START_TIMEOUT)
                 self.stats["timeout"] += 1
-                return None, 0.0, TIMEOUT
+                return None, time.perf_counter() - t_call, TIMEOUT
             try:
                 if sent is not None:
                     raise BrokenPipeError("send failed")
                 if not conn.poll(max(0.0, timeout)):
                     log.warning("[capability-worker] detector call timed out after %.2fs; killing it "
                                 "and quarantining the source", timeout)
-                    self.strike(key, time.monotonic())
+                    self._strike(key, member)
                     self.kill(proc, reason=_START_TIMEOUT)
                     self.stats["timeout"] += 1
-                    return None, 0.0, TIMEOUT
+                    return None, time.perf_counter() - t_call, TIMEOUT
                 msg = conn.recv()
             except (EOFError, OSError, BrokenPipeError):
                 log.warning("[capability-worker] detector process died; restarting on the next call")
@@ -333,7 +369,7 @@ class _Worker:
             ran = max(0.0, float(msg[3]))
             if msg[1] is not True:
                 # the detector RAISED on this source: the child is healthy and stays (review M1)
-                self.strike(key, time.monotonic())
+                self._strike(key, member)
                 self.stats["raised"] += 1
                 self.stats["error"] += 1
                 return None, ran, ERROR
@@ -355,17 +391,26 @@ class _Worker:
         p = self.proc
         with self.q_lock:
             q = len(self.quarantine)
+            mq = sum(1 for times in self.member_strikes.values() if len(times) >= MEMBER_STRIKES_LIMIT)
         return {"enabled": worker_enabled(), "alive": bool(p is not None and p.is_alive()),
                 "ready": self.ready.is_set(), "pid": getattr(p, "pid", None), "quarantine": q,
+                "members_quarantined": mq,
                 "call_timeout_s": CALL_TIMEOUT_S, **self.stats}
 
 
 _WORKER = _Worker()
 
 
-def detect(source: str, *, timeout: Optional[float] = None, ready_wait: float = 0.0) -> tuple:
+def detect(source: str, *, timeout: Optional[float] = None, ready_wait: float = 0.0,
+           member: Optional[str] = None) -> tuple:
     """The detector's answer for `source` from the worker process: `(caps, ran, status)`."""
-    return _WORKER.detect(source, timeout=timeout, ready_wait=ready_wait)
+    return _WORKER.detect(source, timeout=timeout, ready_wait=ready_wait, member=member)
+
+
+def is_quarantined(source: Any, member: Optional[str] = None) -> bool:
+    """Is this source (or this member) quarantined right now? The save door's wording reads it."""
+    now = time.monotonic()
+    return _WORKER.quarantined(_key(source), now) or _WORKER.member_quarantined(member, now)
 
 
 def prestart() -> None:

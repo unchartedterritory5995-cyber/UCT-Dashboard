@@ -46,6 +46,7 @@ from api.services import runtime_definitions as rt  # noqa: E402
 
 sys.path.insert(0, os.path.join(ROOT, "tools", "vendor_harness"))
 import evidence_ledger as el  # noqa: E402 -- LEDGER_ONLY evidence and its freshness rule: one authority
+import licence_held  # noqa: E402 -- a licence-held capture is read from the local store (LICENSING.md 2d)
 
 
 def _capture_source(path):
@@ -61,7 +62,7 @@ def scripts_of(verdicts, cache):
     out = []
     for r in json.load(open(verdicts, encoding="utf-8"))["results"]:
         out.append({"key": "capture:" + r["id"], "population": "capture", "capture": r["id"],
-                    "script": r.get("script"), "path": os.path.join(ROOT, r["file"])})
+                    "script": r.get("script"), "path": licence_held.resolve(r["file"])})
     pops = [("committed", glob.glob(os.path.join(ROOT, "corpus", "committed", "*.pine")))]
     if cache:
         pops += [("reference", glob.glob(os.path.join(cache, "reference", "*.pine"))),
