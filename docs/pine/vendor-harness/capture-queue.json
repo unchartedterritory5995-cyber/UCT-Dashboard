@@ -60,7 +60,7 @@
   ],
   "coverageMeasuredOn": "2026-11-05",
   "coverageMasterSha": "3ca4b0d358",
-  "fixtures": 538,
+  "fixtures": 568,
   "ledgerRows": 103
  },
  "definitions": {
@@ -83,17 +83,17 @@
  "counts": {
   "targets": 301,
   "byStatus": {
-   "CAPTURED": 92,
+   "CAPTURED": 93,
    "NEEDS_CHART": 39,
    "NEEDS_LIVE": 2,
-   "QUEUED": 168
+   "QUEUED": 167
   },
   "byPlanWave": {
    "E": {
-    "CAPTURED": 79,
+    "CAPTURED": 80,
     "NEEDS_CHART": 37,
     "NEEDS_LIVE": 2,
-    "QUEUED": 135
+    "QUEUED": 134
    },
    "W1": {
     "QUEUED": 6
@@ -119,9 +119,9 @@
     "QUEUED": 159
    },
    "1-2": {
-    "CAPTURED": 23,
+    "CAPTURED": 24,
     "NEEDS_CHART": 1,
-    "QUEUED": 9
+    "QUEUED": 8
    }
   },
   "byDocWave": {
@@ -294,9 +294,9 @@
     "QUEUED": 6
    },
    "wse": {
-    "CAPTURED": 1,
+    "CAPTURED": 2,
     "NEEDS_CHART": 1,
-    "QUEUED": 2
+    "QUEUED": 1
    },
    "wsf-realtime": {
     "NEEDS_CHART": 1
@@ -1378,8 +1378,10 @@
   },
   {
    "id": "atr-trend-bands-misu__a34d44410a@NYSE:RDDT@D",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/atr-trend-bands-misu-rddt-1d-2026-11-15.json"
+   ],
    "source": "corpus/committed/atr-trend-bands-misu__a34d44410a.pine",
    "sourceKind": "corpus",
    "sha256": "d24f3468e4f96d99dac8c66f10b574affdbdf33ca07a3a7f8d1da33414aa1cfc",
@@ -1392,7 +1394,9 @@
    "chartDefaulted": false,
    "chartSource": "row",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "NYSE:RDDT D"
+   ],
    "licence": "corpus",
    "needsLive": false,
    "priority": 1,

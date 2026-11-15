@@ -35,7 +35,14 @@ export function isStrategyCapture(c) {
 
 /** The strategy tester's Properties inputs, by TradingView's own input name.
  *  `param` is the `strategy()` argument that declares it (null: only the dialog sets it);
- *  `kind` says how the source's literal is compared with the read-back value. */
+ *  `kind` says how the source's literal is compared with the read-back value.
+ *  `aliases`: other names the SAME input is read back under. `sinceVersion`: the input exists only
+ *  for a source at that `//@version` or later, so it is required only there.
+ *  ⭐ MEASURED 2026-11-15 (session S11, live read-backs on NYSE:RDDT 1D): a `//@version=5`
+ *  strategy() reads `risk_free_rate` back under its raw parameter name `risk_free_rate`, and has
+ *  no "Calculate Strategy on every History Tick" input at all; a `//@version=6` strategy() reads
+ *  both back as named below (Heikin Ashi Supertrend and Lorentzian 5c7960, v5; Trailing Take
+ *  Profit Trailing Stop Loss and Technical ratings strategy, v6). */
 export const PROPERTY_TABLE = Object.freeze([
   { key: 'initial_capital', name: 'Initial Capital', param: 'initial_capital', kind: 'num' },
   { key: 'pyramiding', name: 'pyramiding', param: 'pyramiding', kind: 'num' },
@@ -52,21 +59,38 @@ export const PROPERTY_TABLE = Object.freeze([
   { key: 'close_entries_rule', name: 'Close entries rule', param: 'close_entries_rule', kind: 'enum' },
   { key: 'margin_long', name: 'Margin Long', param: 'margin_long', kind: 'num' },
   { key: 'margin_short', name: 'Margin Short', param: 'margin_short', kind: 'num' },
-  { key: 'risk_free_rate', name: 'Risk free rate', param: 'risk_free_rate', kind: 'num' },
+  { key: 'risk_free_rate', name: 'Risk free rate', param: 'risk_free_rate', kind: 'num', aliases: ['risk_free_rate'] },
   { key: 'use_bar_magnifier', name: 'Use Bar Magnifier', param: 'use_bar_magnifier', kind: 'bool' },
   { key: 'fill_orders_on_standard_ohlc', name: 'Fill orders using standard OHLC', param: 'fill_orders_on_standard_ohlc', kind: 'bool' },
-  { key: 'calc_on_every_history_tick', name: 'Calculate Strategy on every History Tick', param: null, kind: 'bool' },
+  { key: 'calc_on_every_history_tick', name: 'Calculate Strategy on every History Tick', param: null, kind: 'bool', sinceVersion: 6 },
 ])
+/** Every key the table knows: what a source of unknown version is held to (fail closed). */
 export const REQUIRED_PROPERTY_KEYS = Object.freeze(PROPERTY_TABLE.map((p) => p.key))
+
+/** The `//@version=N` of a Pine source (the annotation is a comment, so the raw text is read), or
+ *  null when the source carries none. */
+export function pineVersionOf(source) {
+  const m = /^[ \t]*\/\/[ \t]*@version[ \t]*=[ \t]*(\d+)/m.exec(String(source || ''))
+  return m ? Number(m[1]) : null
+}
+
+/** The keys a read-back must hold for a source at `pineVersion`. An unknown version (null) is held
+ *  to every key, so a missing annotation can only make the gate stricter. */
+export function requiredPropertyKeys(pineVersion) {
+  const v = Number.isInteger(pineVersion) ? pineVersion : null
+  return PROPERTY_TABLE.filter((p) => !p.sinceVersion || v === null || v >= p.sinceVersion).map((p) => p.key)
+}
 
 const norm = (s) => String(s == null ? '' : s).replace(/\s+/g, ' ').trim().toLowerCase()
 
 /** The read-back Properties inputs, by canonical key: `{ key → {name, id, value, defval, type} }`.
- *  `missing` names every required key the capture does not hold; `unknownVisible` names a visible
- *  input this table does not know (kept raw, never dropped). */
-export function propertiesByKey(strategySettings) {
+ *  `missing` names every key required at `pineVersion` (see `requiredPropertyKeys`) that the capture
+ *  does not hold; `unknownVisible` names a visible input this table does not know (kept raw, never
+ *  dropped). A read-back name matches a row's `name` or one of its `aliases`. */
+export function propertiesByKey(strategySettings, pineVersion = null) {
   const props = isObj(strategySettings) && Array.isArray(strategySettings.properties) ? strategySettings.properties : []
-  const byName = new Map(PROPERTY_TABLE.map((p) => [norm(p.name), p]))
+  const byName = new Map()
+  for (const p of PROPERTY_TABLE) for (const n of [p.name, ...(p.aliases || [])]) byName.set(norm(n), p)
   const found = {}
   const unknownVisible = []
   for (const p of props) {
@@ -75,7 +99,7 @@ export function propertiesByKey(strategySettings) {
     if (row) found[row.key] = { id: p.id, name: p.name, type: p.type, value: p.value, defval: p.defval }
     else unknownVisible.push(String(p.name))
   }
-  const missing = REQUIRED_PROPERTY_KEYS.filter((k) => !(k in found))
+  const missing = requiredPropertyKeys(pineVersion).filter((k) => !(k in found))
   return { found, missing, unknownVisible }
 }
 
@@ -195,7 +219,7 @@ function sameValue(kind, declared, read) {
  *  `unread` lists what could not be read back; it is not a disagreement. */
 export function settingsAgreement(c) {
   const ss = ((c || {}).provenance || {}).strategySettings
-  const { found, missing } = propertiesByKey(ss)
+  const { found, missing } = propertiesByKey(ss, pineVersionOf(c && c.source && c.source.text))
   const decl = declaredStrategyArgs(c && c.source && c.source.text)
   const declared = decl || {}
   const disagreements = []
@@ -247,7 +271,7 @@ export function validateStrategyProvenance(c) {
   const ss = prov.strategySettings
   need(isObj(ss), 'strategy-capture: provenance.strategySettings is required: a strategy capture with no settings read-back is refused')
   if (isObj(ss)) {
-    const { missing } = propertiesByKey(ss)
+    const { missing } = propertiesByKey(ss, pineVersionOf(c.source && c.source.text))
     if (missing.length) errors.push(`strategy-capture: the Properties read-back lacks ${missing.length} required input(s): ${missing.join(', ')}`)
     need(isObj(ss.chartData) && Array.isArray(ss.chartData.adjustments),
       'strategy-capture: provenance.strategySettings.chartData.adjustments must list the dividend / back-adjustment reads (an empty list is the honest "unread")')
