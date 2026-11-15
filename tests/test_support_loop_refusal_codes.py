@@ -113,7 +113,7 @@ def test_a_guards_list_too_long_or_non_string_is_a_422():
     c = _client()
     assert c.post("/api/indicator-support/gaps", json={"guards": ["pine:builtin"] * (svc.MAX_GUARDS + 1)}).status_code == 422
     assert c.post("/api/indicator-support/gaps", json={"guards": [{"x": 1}]}).status_code == 422
-    assert c.post("/api/indicator-support/gaps", json={"guards": ["x" * 81]}).status_code == 422
+    assert c.post("/api/indicator-support/gaps", json={"guards": ["x" * 201]}).status_code == 422   # absurd: bounded
     assert _rows() == []
 
 
@@ -213,3 +213,102 @@ def test_the_digest_ranks_codes_open_and_keeps_unlisted_codes_apart():
     assert ("switch", "capability") in open_rows
     assert d["gaps"]["unlisted"]["members"] == 1                  # the unnamed built-in gaps
     assert d["gaps"]["unlisted_refusal_codes"]["members"] == 1    # NOT overwritten by them
+
+
+# ─── review fixes L1-L3 ──────────────────────────────────────────────────────
+
+def test_L1_one_over_long_code_is_unlisted_never_a_422_for_the_whole_post():
+    r = _client().post("/api/indicator-support/gaps", json={"guards": ["pine:" + "x" * 150, "pine:builtin"]})
+    assert r.status_code == 200
+    assert {(n, k) for _d, n, k, _m, _h in _rows()} == {("pine:builtin", "refusal-guard"),
+                                                        (svc.UNLISTED, "refusal-guard")}
+
+
+def test_L1_the_client_and_server_agree_on_the_longest_code():
+    import re as _re
+    from pathlib import Path as _P
+    js = (_P(__file__).resolve().parents[1] / "app" / "src" / "components" / "chart" / "supportLoop"
+          / "supportApi.js").read_text(encoding="utf-8")
+    assert int(_re.search(r"export const REFUSAL_CODE_MAX = (\d+)", js).group(1)) == svc.REFUSAL_CODE_MAX
+    assert max(len(c) for c in svc.REFUSAL_CODES) <= svc.REFUSAL_CODE_MAX
+
+
+def test_L2_a_BEGIN_that_fails_raises_its_own_error_not_a_rollback_error(db):
+    path = auth_db._DB_PATH
+    setup = sqlite3.connect(path)
+    setup.execute("DROP TABLE IF EXISTS indicator_gap_hits")
+    setup.execute("CREATE TABLE indicator_gap_hits (day TEXT NOT NULL, name TEXT NOT NULL,"
+                  " kind TEXT NOT NULL CHECK (kind IN ('name-unknown', 'call-unmapped')),"
+                  " member_key TEXT NOT NULL, hits INTEGER NOT NULL DEFAULT 1,"
+                  " PRIMARY KEY (day, name, kind, member_key))")
+    setup.commit()
+    holder = sqlite3.connect(path, isolation_level=None)
+    holder.execute("BEGIN IMMEDIATE")                       # another writer holds the lock
+    try:
+        conn = sqlite3.connect(path, timeout=0.05)
+        with pytest.raises(sqlite3.OperationalError, match="locked"):
+            svc._migrate_gap_kinds(conn)
+        conn.close()
+    finally:
+        holder.execute("ROLLBACK")
+        holder.close()
+        setup.close()
+
+
+def test_L3_racing_threads_write_one_capability_row_once(monkeypatch):
+    import threading as _th
+    writes = []
+    real = svc._upsert_pairs
+
+    def spy(*a, **k):
+        writes.append(1)
+        return real(*a, **k)
+    monkeypatch.setattr(svc, "_upsert_pairs", spy)
+    barrier = _th.Barrier(16)
+    got = []
+
+    def one():
+        barrier.wait()
+        got.append(svc.record_capability_gaps("u-race", ["switch"]))
+    ts = [_th.Thread(target=one) for _ in range(16)]
+    for t in ts:
+        t.start()
+    for t in ts:
+        t.join()
+    assert writes == [1] and sorted(got) == [0] * 15 + [1]
+
+
+def test_L3_a_failed_capability_write_can_be_tried_again(monkeypatch):
+    real = svc._upsert_pairs
+    monkeypatch.setattr(svc, "_upsert_pairs", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("db gone")))
+    assert svc.record_capability_gaps("u-retry", ["switch"]) == 0
+    monkeypatch.setattr(svc, "_upsert_pairs", real)
+    assert svc.record_capability_gaps("u-retry", ["switch"]) == 1
+
+
+def test_L2_a_failing_ROLLBACK_never_hides_the_error_that_caused_it():
+    """A statement that fails mid-rebuild, and a ROLLBACK that then fails too (the engine had
+    already rolled back): the caller sees the ORIGINAL error."""
+    class Original(Exception):
+        pass
+
+    class Conn:
+        def __init__(self):
+            self.calls = []
+
+        def commit(self):
+            pass
+
+        def execute(self, sql, *a):
+            self.calls.append(sql.split()[0])
+            if sql.startswith("SELECT sql FROM sqlite_master"):
+                return type("R", (), {"fetchone": lambda _s: ("CREATE TABLE indicator_gap_hits (kind CHECK (kind IN ('name-unknown')))",)})()
+            if sql.startswith("INSERT INTO indicator_gap_hits_u4"):
+                raise Original("the copy failed")
+            if sql == "ROLLBACK":
+                raise sqlite3.OperationalError("cannot rollback - no transaction is active")
+            return None
+    c = Conn()
+    with pytest.raises(Original, match="the copy failed"):
+        svc._migrate_gap_kinds(c)
+    assert "ROLLBACK" in c.calls

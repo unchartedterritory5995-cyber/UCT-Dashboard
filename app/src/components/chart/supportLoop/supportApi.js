@@ -61,12 +61,15 @@ export function logImportGaps(payload) {
  *  is what keeps anything that is not a code out of the request body at all. */
 export const REFUSAL_CODE_RE = /^[a-z][a-z-]{0,23}:[A-Za-z0-9](?:[A-Za-z0-9._:-]{0,62}[A-Za-z0-9])?$/
 export const MAX_REFUSAL_CODES = 32
+/** The longest code either side accepts (`indicator_support.REFUSAL_CODE_MAX`, pinned by the
+ *  server rail): a longer one never leaves the page. */
+export const REFUSAL_CODE_MAX = 80
 
 /** The distinct, sorted refusal codes in `list` (anything else dropped). */
 export function refusalCodesOf(list) {
   const out = new Set()
   for (const c of (Array.isArray(list) ? list : [])) {
-    if (typeof c === 'string' && REFUSAL_CODE_RE.test(c)) out.add(c)
+    if (typeof c === 'string' && c.length <= REFUSAL_CODE_MAX && REFUSAL_CODE_RE.test(c)) out.add(c)
     if (out.size >= MAX_REFUSAL_CODES) break
   }
   return [...out].sort()

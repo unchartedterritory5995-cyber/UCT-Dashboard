@@ -7,14 +7,16 @@
 //     with its round trip in the closed histogram;
 //   • a CACHED result is not a run: a repaint over the same bars reaches no runner and no count;
 //   • nothing is sent per run: one batch leaves after `RUNS_FLUSH_MS` (or on page hide), and
-//     never more than `RUNS_BEACONS_PER_TAB` per tab; the chart path never waits on it;
+//     never more than `RUNS_BEACONS_PER_HOUR` in a rolling hour (a batch over budget is KEPT,
+//     not lost); a full batch counts what it cannot keep as `dropped`; the chart never waits;
 //   • a batch is integers under closed keys: no source, no hash, no sentence.
 // The server half is `tests/test_pine_runtime_run_telemetry.py`.
 import { describe, it, expect, vi, afterEach, beforeAll, afterAll } from 'vitest'
 import {
   noteRuntimeRunStarted, noteRuntimeRunSettled, noteRuntimeLoadFailed, flushRuntimeRuns,
   pendingRuntimeRuns, setRuntimeRunsReporter, resetRuntimeRunTelemetry, runMsBucketOf, runStopCodeOf,
-  RUNS_FLUSH_MS, RUNS_BEACONS_PER_TAB, RUN_MS_BUCKETS, RUNTIME_RUNS_BEACON_URL,
+  RUNS_FLUSH_MS, RUNS_BEACONS_PER_HOUR, RUNS_MAX_PER_BATCH, RUNS_MIN_GAP_MS, RUN_MS_BUCKETS,
+  RUNTIME_RUNS_BEACON_URL, runtimeRunsTab,
 } from '../runtimeRunTelemetry.js'
 import { workerRunner, resetRuntimeAsync } from '../runtime/runtimeAsync.js'
 import { runtimeColumnsFor, setRuntimeRunner } from '../runtime/runtimeColumns.js'
@@ -125,7 +127,7 @@ describe('U4 — instant always: batched, rate-limited, fire-and-forget', () => 
     vi.advanceTimersByTime(RUNS_FLUSH_MS - 1)
     expect(sent).toEqual([])
     vi.advanceTimersByTime(1)
-    expect(sent).toEqual([{ started: 50, ok: 50, declined: 0, stops: {}, ms: { 15: 50 } }])
+    expect(sent).toEqual([{ tab: runtimeRunsTab(), started: 50, ok: 50, declined: 0, stops: {}, ms: { 15: 50 } }])
     expect(pendingRuntimeRuns().ok).toBe(0)
     vi.advanceTimersByTime(RUNS_FLUSH_MS * 3)
     expect(sent.length).toBe(1)          // an empty batch is never sent
@@ -137,15 +139,49 @@ describe('U4 — instant always: batched, rate-limited, fire-and-forget', () => 
     noteRuntimeRunSettled(Object.assign(new Error(`the script ${PLAIN} stopped`), { guard: 'runtime:time-budget' }), 900)
     flushRuntimeRuns()
     const text = JSON.stringify(sent)
-    expect(Object.keys(sent[0]).sort()).toEqual(['declined', 'ms', 'ok', 'started', 'stops'])
-    expect(text).not.toMatch(/indicator|stopped|version|[0-9a-f]{12}/)
+    expect(Object.keys(sent[0]).sort()).toEqual(['declined', 'ms', 'ok', 'started', 'stops', 'tab'])
+    expect(sent[0].tab).toMatch(/^[0-9a-f]{16}$/)
+    const { tab: _t, ...rest } = sent[0]
+    expect(JSON.stringify(rest)).not.toMatch(/indicator|stopped|version|[0-9a-f]{12}/)
+    expect(text).not.toMatch(/indicator|stopped|version/)
   })
 
-  it('at most RUNS_BEACONS_PER_TAB batches leave one tab', () => {
+  it('⭐ a ROLLING budget: over it the batch is KEPT and leaves when the hour frees a slot', () => {
+    vi.useFakeTimers()
     const sent = []
     setRuntimeRunsReporter((b) => sent.push(b))
-    for (let i = 0; i < RUNS_BEACONS_PER_TAB + 20; i += 1) { noteRuntimeRunSettled(null, 1); flushRuntimeRuns() }
-    expect(sent.length).toBe(RUNS_BEACONS_PER_TAB)
+    for (let i = 0; i < RUNS_BEACONS_PER_HOUR; i += 1) { noteRuntimeRunSettled(null, 1); expect(flushRuntimeRuns()).toBe(true) }
+    noteRuntimeRunSettled(null, 1)
+    noteRuntimeRunSettled(null, 1)
+    expect(flushRuntimeRuns()).toBe(false)            // over budget: nothing sent...
+    expect(pendingRuntimeRuns().ok).toBe(2)           // ...and nothing lost
+    vi.advanceTimersByTime(3600000 + 1)
+    expect(sent.length).toBe(RUNS_BEACONS_PER_HOUR + 1)
+    expect(sent[sent.length - 1].ok).toBe(2)          // a tab open all day keeps reporting
+  })
+
+  it('a FULL batch counts what it cannot keep as dropped and leaves early (not sooner than the gap)', () => {
+    vi.useFakeTimers()
+    const sent = []
+    setRuntimeRunsReporter((b) => sent.push(b))
+    noteRuntimeRunSettled(null, 1)
+    flushRuntimeRuns()                                // a send just happened
+    for (let i = 0; i < RUNS_MAX_PER_BATCH + 7; i += 1) noteRuntimeRunSettled(null, 1)
+    expect(pendingRuntimeRuns().ok).toBe(RUNS_MAX_PER_BATCH)
+    expect(pendingRuntimeRuns().dropped).toBe(7)
+    vi.advanceTimersByTime(RUNS_MIN_GAP_MS - 5)
+    expect(sent.length).toBe(1)
+    vi.advanceTimersByTime(10)
+    expect(sent.length).toBe(2)
+    expect(sent[1].ok + sent[1].declined).toBe(RUNS_MAX_PER_BATCH)
+    expect(sent[1].dropped).toBe(7)
+  })
+
+  it('the tab nonce is random per page load, 16 hex, and needs no secure context', () => {
+    const a = runtimeRunsTab()
+    expect(a).toMatch(/^[0-9a-f]{16}$/)
+    resetRuntimeRunTelemetry()
+    expect(runtimeRunsTab()).not.toBe(a)
   })
 
   it('the default transport is a keepalive POST nobody awaits, and a throwing fetch costs nothing', () => {

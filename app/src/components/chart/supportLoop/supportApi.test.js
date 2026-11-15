@@ -21,6 +21,13 @@ describe('U4 — refusal codes in the gap log', () => {
       'the script reads secretLevel on line 3', 'secretLevel', 'pine: spaced', ':nope', 7, null, { guard: 'pine:x' },
     ])).toEqual(['pine:builtin', 'runtime:not-yet-graded'])
     expect(refusalCodesOf('pine:builtin')).toEqual([])
+    // review L1: nothing longer than the server's REFUSAL_CODE_MAX (80) leaves the page
+    // (code-shaped either way: a 24-letter namespace and an id under the shape's 64 limit)
+    const ns = 'abcdefghijklmnopqrstuvwx'
+    const long81 = `${ns}:${'a'.repeat(56)}`
+    const ok80 = `${ns}:${'a'.repeat(55)}`
+    expect([long81.length, ok80.length]).toEqual([81, 80])
+    expect(refusalCodesOf([long81, ok80])).toEqual([ok80])
     expect(refusalCodesOf(Array.from({ length: 50 }, (_, i) => `pine:c${i}`))).toHaveLength(MAX_REFUSAL_CODES)
   })
 

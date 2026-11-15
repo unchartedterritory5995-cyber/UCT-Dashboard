@@ -69,7 +69,8 @@ class GapsBody(BaseModel):
     gaps: list[GapItem] = Field(default_factory=list, max_length=svc.MAX_GAPS)
     unlisted: int = Field(0, ge=0, le=10_000)
     # U4: refusal guard codes; the SERVICE keeps only codes on the closed list
-    guards: list[Annotated[str, Field(max_length=80)]] = Field(default_factory=list, max_length=svc.MAX_GUARDS)
+    # (review L1) an over-long item is the SERVICE's `_unlisted`, never a 422 for the whole POST
+    guards: list[Annotated[str, Field(max_length=200)]] = Field(default_factory=list, max_length=svc.MAX_GUARDS)
 
 
 class ReportBody(BaseModel):

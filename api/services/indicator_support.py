@@ -89,6 +89,7 @@ import json
 import logging
 import os
 import re
+import threading
 import uuid
 from pathlib import Path
 from typing import Any, Optional
@@ -108,6 +109,9 @@ CAPABILITY_KIND = "capability"
 STORED_KINDS = GAP_KINDS | {GUARD_KIND, CAPABILITY_KIND}
 UNLISTED = "_unlisted"
 MAX_GUARDS = 32
+#: U4 (review L1): the longest refusal code either side accepts. The client sends nothing
+#: longer; the router takes longer items without a 422, and they are counted `_unlisted`.
+REFUSAL_CODE_MAX = 80
 HITS_CAP_PER_DAY = 50
 MAX_GAPS = 64
 MAX_UNLISTED_PER_CALL = 64
@@ -166,7 +170,7 @@ def is_pine_builtin(name: Any) -> bool:
 
 
 def is_refusal_code(code: Any) -> bool:
-    return isinstance(code, str) and code in REFUSAL_CODES
+    return isinstance(code, str) and len(code) <= REFUSAL_CODE_MAX and code in REFUSAL_CODES
 
 
 def _capability_vocabulary() -> frozenset:
@@ -248,6 +252,9 @@ def _migrate_gap_kinds(conn) -> None:
     if sql is None or "refusal-guard" in sql:
         return
     conn.commit()
+    # ⛔ review L2: BEGIN outside the try. A BEGIN that fails (the database is locked) has no
+    # transaction to roll back, and a ROLLBACK there would raise "no transaction is active"
+    # and hide the real error; a failed ROLLBACK inside never replaces the original either.
     conn.execute("BEGIN IMMEDIATE")
     try:
         again = _gap_table_sql(conn)
@@ -255,8 +262,11 @@ def _migrate_gap_kinds(conn) -> None:
             for stmt in _GAP_TABLE_REBUILD:
                 conn.execute(stmt)
         conn.execute("COMMIT")
-    except Exception:
-        conn.execute("ROLLBACK")
+    except BaseException:
+        try:
+            conn.execute("ROLLBACK")
+        except Exception:  # noqa: BLE001 - the original error is the one that matters
+            pass
         raise
 
 
@@ -419,6 +429,8 @@ def record_gaps(user_id: Any, gaps: Any, unlisted: Any = 0, *, guards: Any = Non
 #: no-verdict source every 60 s): one write per (day, member, missing set) per process.
 _CAP_SEEN: "dict[tuple, None]" = {}
 _CAP_SEEN_MAX = 4096
+#: review L3: request threads share the memo; one lock makes check-and-mark atomic.
+_CAP_SEEN_LOCK = threading.Lock()
 
 
 def record_capability_gaps(user_id: Any, missing: Any, *, day: Optional[str] = None) -> int:
@@ -433,13 +445,18 @@ def record_capability_gaps(user_id: Any, missing: Any, *, day: Optional[str] = N
             return 0
         d = day or _now().strftime("%Y-%m-%d")
         seen = (d, member_key(user_id), tuple(sorted(n for n, _k in pairs)))
-        if seen in _CAP_SEEN:
-            return 0
-        n = _upsert_pairs(user_id, pairs, d)
-        _CAP_SEEN[seen] = None
-        while len(_CAP_SEEN) > _CAP_SEEN_MAX:
-            _CAP_SEEN.pop(next(iter(_CAP_SEEN)))
-        return n
+        with _CAP_SEEN_LOCK:
+            if seen in _CAP_SEEN:
+                return 0
+            _CAP_SEEN[seen] = None          # marked BEFORE the write: a racing twin returns 0
+            while len(_CAP_SEEN) > _CAP_SEEN_MAX:
+                _CAP_SEEN.pop(next(iter(_CAP_SEEN)))
+        try:
+            return _upsert_pairs(user_id, pairs, d)
+        except Exception:
+            with _CAP_SEEN_LOCK:
+                _CAP_SEEN.pop(seen, None)   # a failed write may be tried again
+            raise
     except Exception:  # noqa: BLE001
         log.exception("[indicator-support] capability gap write failed")
         return 0
