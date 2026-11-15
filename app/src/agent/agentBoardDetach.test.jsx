@@ -109,7 +109,7 @@ describe('intoTabs — the SAME transform as the handler, always a card, exact U
     expect(transcript()).toMatch(/Moved the News .* into the Watchlist .*’s tabs — its spot on the board is now empty/)
     expect(noTabIds(b.state.widgets)).toEqual(noTabIds(moveIntoTabs(before, 'news', 'wl')))
     expect(b.state.boardWrites).toBe(1)                                  // ONE board write
-    await p.click('Undo')
+    await say('undo')
     expect(norm(b.state.widgets).sort((x, y) => x.id.localeCompare(y.id))).toEqual(norm(before).sort((x, y) => x.id.localeCompare(y.id)))
   }, 40000)
   it('a CHART moved into tabs keeps its settings byte-identical inside the new tab (the chart rail)', async () => {
@@ -123,13 +123,13 @@ describe('intoTabs — the SAME transform as the handler, always a card, exact U
     expect(JSON.stringify(host.wtabs.at(-1).opts)).toBe(settings)
   }, 40000)
   it('a FLOATING source is docked first (as the handler clears its float) and Undo floats it back', async () => {
-    const { say, board: b } = mountOn({ floating: ['news'] })
+    const m = mountOn({ floating: ['news'] }); const { say, board: b } = m
     p.st.envelopes.push(plan([TABS, { widget: 'news', into: 'wl' }]))
     await say('move the floating news widget into the watchlist tabs')
     await apply()
     expect(b.state.detach.floating).toEqual([])
     expect(b.state.widgets.some(w => w.id === 'news')).toBe(false)
-    await p.click('Undo')
+    await say('undo')
     expect(b.state.widgets.some(w => w.id === 'news')).toBe(true)
     expect(b.state.detach.floating).toEqual(['news'])
   }, 40000)
