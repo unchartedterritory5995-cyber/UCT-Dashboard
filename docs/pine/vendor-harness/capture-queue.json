@@ -60,7 +60,7 @@
   ],
   "coverageMeasuredOn": "2026-11-05",
   "coverageMasterSha": "3ca4b0d358",
-  "fixtures": 450,
+  "fixtures": 487,
   "ledgerRows": 103
  },
  "definitions": {
@@ -1439,6 +1439,7 @@
    "chartSource": "row",
    "unparsedCharts": [],
    "capturedOn": [
+    "AMEX:SPY D",
     "NYSE:RDDT D"
    ],
    "licence": "corpus",
