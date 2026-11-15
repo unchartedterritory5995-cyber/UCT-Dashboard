@@ -277,43 +277,138 @@ const OHLCV_FIELDS = ['time', 'open', 'high', 'low', 'close', 'volume']
 // back, and its receipt validated, only once it is actually considered.
 // ⛔ Deliberately NOT `otherCaptureIndex`: that validates every capture's receipt up
 // front (measured ~57 s for the directory), which every paint capture would then pay.
-let warmCandidateIndex = null
+const warmCandidateIndexes = new Map() // `${dir}|${useIndex}` → Map(key → metas)
 const warmCandidateRows = new Map()
 
-function warmCandidates() {
-  if (warmCandidateIndex) return warmCandidateIndex
-  warmCandidateIndex = new Map()
-  if (!fs.existsSync(OTHER_CAPTURE_DIR)) return warmCandidateIndex
-  for (const name of fs.readdirSync(OTHER_CAPTURE_DIR).sort()) {
-    if (!name.endsWith('.json')) continue
-    let cap
-    try { cap = JSON.parse(fs.readFileSync(path.join(OTHER_CAPTURE_DIR, name), 'utf8')) } catch { continue }
-    if (!cap || cap.schema !== 'uct.vendor-capture/v1' || !cap.bars || !Array.isArray(cap.bars.rows)) continue
-    const rows = cap.bars.rows
-    if (!rows.length) continue
-    const { ticker } = symbolOf(cap)
-    if (!ticker) continue
-    const key = `${String(ticker).toUpperCase()}|${tfCodeOf(cap.timeframe)}`
-    if (!warmCandidateIndex.has(key)) warmCandidateIndex.set(key, [])
-    warmCandidateIndex.get(key).push({ file: name, timeUnit: cap.bars.timeUnit,
-      firstT: rows[0][0], lastT: rows[rows.length - 1][0],
-      listing: !!(cap.history && cap.history.startsAtBar0 === true),
-      capturedAt: typeof cap.capturedAtUTC === 'string' ? cap.capturedAtUTC : '' })
+// ⭐ The metadata of every capture, cached on disk so a fresh worker does not parse the whole
+// directory (610 files / 420 MB took 5.4 s per worker on 2026-11-15, and that cost grows with
+// every capture). One row per file: what `warmBarsSupply` reads, plus the file's size and
+// mtimeMs. A row is trusted ONLY when both still match the file; any other row (missing,
+// malformed, stale, or an unreadable index) is rebuilt from the file itself, so the index can
+// never pick a supplier the full scan would not. Gitignored; rewritten atomically when it changes.
+export const WARM_INDEX_NAME = '.warm-candidates.index'
+export const WARM_INDEX_SCHEMA = 'uct.warm-candidates-index/v2'
+
+/** A capture's bar times, run-length encoded on their deltas: `t0;d1xn1,d2xn2,...`. Small enough to
+ *  keep in the index for every capture, and enough to place the window's first bar exactly. */
+function encodeTimes(rows) {
+  if (!rows.length) return ''
+  const runs = []
+  for (let i = 1; i < rows.length; i += 1) {
+    const d = rows[i][0] - rows[i - 1][0]
+    if (runs.length && runs[runs.length - 1][0] === d) runs[runs.length - 1][1] += 1
+    else runs.push([d, 1])
   }
-  return warmCandidateIndex
+  return `${rows[0][0]};${runs.map(([d, n]) => `${d}x${n}`).join(',')}`
+}
+
+/** The position of time `t` in encoded times, or -1 when it is not one of them. */
+function timeIndexOf(enc, t) {
+  const [head, tail] = enc.split(';')
+  let cur = Number(head)
+  let i = 0
+  if (cur === t) return 0
+  if (!(cur < t) || !tail) return -1
+  for (const run of tail.split(',')) {
+    const [d, n] = run.split('x').map(Number)
+    if (d > 0 && (t - cur) % d === 0 && (t - cur) / d <= n) return i + (t - cur) / d
+    cur += d * n
+    i += n
+    if (cur > t) return -1
+  }
+  return -1
+}
+
+/** One file's index row: the signature plus either the candidate metadata or `skip`. */
+function warmMetaRow(dir, name, st) {
+  const sig = { size: st.size, mtimeMs: st.mtimeMs }
+  let cap
+  try { cap = JSON.parse(fs.readFileSync(path.join(dir, name), 'utf8')) } catch { return { ...sig, skip: true } }
+  if (!cap || cap.schema !== 'uct.vendor-capture/v1' || !cap.bars || !Array.isArray(cap.bars.rows)) return { ...sig, skip: true }
+  const rows = cap.bars.rows
+  if (!rows.length) return { ...sig, skip: true }
+  const { ticker } = symbolOf(cap)
+  if (!ticker) return { ...sig, skip: true }
+  return { ...sig, key: `${String(ticker).toUpperCase()}|${tfCodeOf(cap.timeframe)}`, timeUnit: cap.bars.timeUnit,
+    firstT: rows[0][0], lastT: rows[rows.length - 1][0],
+    listing: !!(cap.history && cap.history.startsAtBar0 === true),
+    capturedAt: typeof cap.capturedAtUTC === 'string' ? cap.capturedAtUTC : '',
+    times: encodeTimes(rows) }
+}
+
+/** A row read from the index is usable only if its signature matches the file and its shape is whole. */
+function warmRowFresh(r, st) {
+  if (!r || typeof r !== 'object' || r.size !== st.size || r.mtimeMs !== st.mtimeMs) return false
+  if (r.skip === true) return true
+  return typeof r.key === 'string' && typeof r.timeUnit === 'string' && Number.isFinite(r.firstT)
+    && Number.isFinite(r.lastT) && typeof r.listing === 'boolean' && typeof r.capturedAt === 'string'
+    && typeof r.times === 'string'
+}
+
+function readWarmIndex(file) {
+  try {
+    const j = JSON.parse(fs.readFileSync(file, 'utf8'))
+    if (j && j.schema === WARM_INDEX_SCHEMA && j.rows && typeof j.rows === 'object' && !Array.isArray(j.rows)) return j.rows
+  } catch { /* unreadable or absent: every row is rebuilt */ }
+  return {}
+}
+
+function writeWarmIndex(file, rows) {
+  const tmp = `${file}.${process.pid}.${Date.now()}.tmp`
+  try {
+    fs.writeFileSync(tmp, JSON.stringify({ schema: WARM_INDEX_SCHEMA, rows }))
+    fs.renameSync(tmp, file)
+  } catch {
+    // another worker may hold or have just replaced it; the index is a cache, never required
+    try { fs.unlinkSync(tmp) } catch { /* gone */ }
+  }
+}
+
+/** `TICKER|tf` → candidate metadata for every capture in `dir`.
+ *  @param {{dir?: string, useIndex?: boolean}} [opts] useIndex:false is the full scan the index must equal. */
+export function warmCandidates({ dir = OTHER_CAPTURE_DIR, useIndex = true } = {}) {
+  const cacheKey = `${dir}|${useIndex}`
+  if (warmCandidateIndexes.has(cacheKey)) return warmCandidateIndexes.get(cacheKey)
+  const byKey = new Map()
+  warmCandidateIndexes.set(cacheKey, byKey)
+  if (!fs.existsSync(dir)) return byKey
+  const indexFile = path.join(dir, WARM_INDEX_NAME)
+  const cached = useIndex ? readWarmIndex(indexFile) : {}
+  const rows = {}
+  let changed = false
+  for (const name of fs.readdirSync(dir).sort()) {
+    if (!name.endsWith('.json')) continue
+    let st
+    try { st = fs.statSync(path.join(dir, name)) } catch { continue }
+    let r = cached[name]
+    if (!warmRowFresh(r, st)) { r = warmMetaRow(dir, name, st); changed = true }
+    rows[name] = r
+    if (r.skip) continue
+    if (!byKey.has(r.key)) byKey.set(r.key, [])
+    byKey.get(r.key).push({ file: name, timeUnit: r.timeUnit, firstT: r.firstT, lastT: r.lastT, listing: r.listing, capturedAt: r.capturedAt, times: r.times })
+  }
+  if (useIndex && (changed || Object.keys(cached).length !== Object.keys(rows).length)) writeWarmIndex(indexFile, rows)
+  return byKey
+}
+
+/** Forget the in-process metadata (rails only: the on-disk index is untouched). */
+export function resetWarmCandidateCache() {
+  warmCandidateIndexes.clear()
+  warmCandidateRows.clear()
 }
 
 /** A candidate's own rows, or null when its receipt does not validate. */
-function warmCandidateRowsOf(file) {
-  if (!warmCandidateRows.has(file)) {
+function warmCandidateRowsOf(file, dir = OTHER_CAPTURE_DIR) {
+  const cacheKey = path.join(dir, file)
+  if (!warmCandidateRows.has(cacheKey)) {
     let rows = null
     try {
-      const cap = JSON.parse(fs.readFileSync(path.join(OTHER_CAPTURE_DIR, file), 'utf8'))
+      const cap = JSON.parse(fs.readFileSync(path.join(dir, file), 'utf8'))
       if (validateCapture(cap).ok) rows = cap.bars.rows
     } catch { rows = null }
-    warmCandidateRows.set(file, rows)
+    warmCandidateRows.set(cacheKey, rows)
   }
-  return warmCandidateRows.get(file)
+  return warmCandidateRows.get(cacheKey)
 }
 
 /** The order among proved warm suppliers: the deepest prehistory first; on equal depth the
@@ -337,8 +432,10 @@ export function compareWarmSuppliers(a, b) {
 /** The prehistory a capture's paints, plots and objects are replayed over (DIV-1:
  *  plots and objects too), or why there is none.
  *  @returns {{kind: 'warm'|'cold'|'bar0', rows: any[]|null, file: string|null,
- *             bars: number, refused: string[], reason: string}} */
-export function warmBarsSupply(capture) {
+ *             bars: number, refused: string[], reason: string}}
+ *  @param {{dir?: string, useIndex?: boolean}} [opts] where the candidates live, and whether
+ *  their metadata comes through the on-disk index (the default) or a full scan. */
+export function warmBarsSupply(capture, { dir = OTHER_CAPTURE_DIR, useIndex = true } = {}) {
   const none = (kind, reason, refused = []) => ({ kind, rows: null, file: null, bars: 0, refused, reason, historyFromListing: null })
   if (capture && capture.history && capture.history.startsAtBar0 === true) {
     return none('bar0', 'the capture starts at the listing (history.startsAtBar0); there is no history before bar 0')
@@ -351,30 +448,57 @@ export function warmBarsSupply(capture) {
   const { ticker } = symbolOf(capture)
   const key = `${String(ticker || '').toUpperCase()}|${tfCodeOf(capture.timeframe)}`
   const first = rows[0][0]
-  const refused = []
-  const proved = []
-  for (const meta of warmCandidates().get(key) || []) {
+  const metas = (warmCandidates({ dir, useIndex }).get(key) || [])
     // only a capture that starts BEFORE the window and reaches its first bar
-    if (meta.timeUnit !== capture.bars.timeUnit || !(meta.firstT < first) || meta.lastT < first) continue
-    const candRows = warmCandidateRowsOf(meta.file)
-    if (!candRows) { refused.push(`${meta.file}: its receipt does not validate`); continue }
-    const cand = { file: meta.file, rows: candRows, listing: meta.listing }
-    const at = cand.rows.findIndex((r) => r[0] === first)
-    if (at <= 0) continue // the window's first bar is not in it
-    const byT = new Map(cand.rows.map((r) => [r[0], r]))
-    const candLast = cand.rows[cand.rows.length - 1][0]
-    let why = null
+    .filter((meta) => meta.timeUnit === capture.bars.timeUnit && meta.firstT < first && meta.lastT >= first)
+  /** One candidate: its prehistory when every overlapping window bar is equal, else why not. */
+  const prove = (meta) => {
+    const candRows = warmCandidateRowsOf(meta.file, dir)
+    if (!candRows) return { refused: `${meta.file}: its receipt does not validate` }
+    const at = candRows.findIndex((r) => r[0] === first)
+    if (at <= 0) return { skip: true } // the window's first bar is not in it
+    const byT = new Map(candRows.map((r) => [r[0], r]))
+    const candLast = candRows[candRows.length - 1][0]
     for (const w of rows) {
       if (w[0] > candLast) break
       const c = byT.get(w[0])
-      if (!c) { why = `window bar ${w[0]} is absent from it inside its span`; break }
+      if (!c) return { refused: `${meta.file}: window bar ${w[0]} is absent from it inside its span` }
       for (let k = 1; k < OHLCV_FIELDS.length; k += 1) {
-        if (c[k] !== w[k]) { why = `bar ${w[0]} ${OHLCV_FIELDS[k]} ${c[k]} vs the capture's ${w[k]}`; break }
+        if (c[k] !== w[k]) return { refused: `${meta.file}: bar ${w[0]} ${OHLCV_FIELDS[k]} ${c[k]} vs the capture's ${w[k]}` }
       }
-      if (why) break
     }
-    if (why) { refused.push(`${cand.file}: ${why}`); continue }
-    proved.push({ file: cand.file, rows: cand.rows.slice(0, at), listing: cand.listing, capturedAt: meta.capturedAt })
+    return { proved: { file: meta.file, rows: candRows.slice(0, at), listing: meta.listing, capturedAt: meta.capturedAt } }
+  }
+  let refused = []
+  let proved = []
+  // The index knows each candidate's bar times, so it knows each one's prehistory depth EXACTLY
+  // without reading the file: try them in the final order and stop at the first that proves,
+  // reading one file instead of every one (SPY 1D had 220 candidates, 257 MB, on 2026-11-15).
+  // Fails closed: a depth the file contradicts, or no candidate proving, falls through to the
+  // full pass below, which is the same code the `useIndex: false` scan runs.
+  let fast = null
+  if (useIndex && metas.every((m) => typeof m.times === 'string')) {
+    const ordered = metas.map((meta) => ({ meta, at: timeIndexOf(meta.times, first) })).filter((x) => x.at > 0)
+      .sort((a, b) => compareWarmSuppliers({ rows: { length: a.at }, capturedAt: a.meta.capturedAt, file: a.meta.file },
+        { rows: { length: b.at }, capturedAt: b.meta.capturedAt, file: b.meta.file }))
+    const fastRefused = []
+    for (const { meta, at } of ordered) {
+      const r = prove(meta)
+      if (r.refused) { fastRefused.push(r.refused); continue }
+      if (r.skip || r.proved.rows.length !== at) break // the index disagrees with the file: full pass
+      fast = { proved: [r.proved], refused: fastRefused }
+      break
+    }
+  }
+  if (fast) {
+    proved = fast.proved
+    refused = fast.refused
+  } else {
+    for (const meta of metas) {
+      const r = prove(meta)
+      if (r.refused) refused.push(r.refused)
+      else if (r.proved) proved.push(r.proved)
+    }
   }
   if (!proved.length) {
     return none('cold', refused.length
