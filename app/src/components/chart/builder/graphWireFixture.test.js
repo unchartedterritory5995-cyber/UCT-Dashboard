@@ -31,6 +31,9 @@ import { pineFixtureDir } from '../engine/ast/__tests__/licenceHeld'
 // licence-held.json): read from the local store when present. When it is absent the WHOLE
 // emitter is SKIPPED BY NAME: the Python lane asserts five bands, and a fixture written from
 // four would read as a passing measurement of a distribution nobody spans any more.
+// ⛔ ITS DOCUMENT IS HELD TOO: `u_c2d900000005.json` is a translation of that CC BY-NC-SA script,
+// so it is gitignored and listed in licence-held.json; this emitter re-writes it only on a machine
+// that holds the source, and `tests/test_graph_wire_size.py` reads it from there or skips by name.
 const OOS = pineFixtureDir('tools/c0_oos_fixtures')
 const OUT = path.resolve(process.cwd(), '../tests/fixtures/graph_wire')
 
