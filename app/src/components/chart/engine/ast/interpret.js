@@ -5442,7 +5442,8 @@ export const CHART_CLOCK_WITHHELD = Object.freeze({
     + 'v6), and a pasted Pine script draws exactly that. This formula is written in this engine\'s own '
     + 'language, where the rule over a source that is not a bar price is not settled, so on the bars whose '
     + 'window holds such a tie what it draws from it is withheld rather than guessed; every other bar is '
-    + 'drawn.',
+    + 'drawn. What would settle it: a ruling on the tie rule of this engine\'s own language (or writing '
+    + 'the formula as a Pine script, which follows TradingView).',
 })
 export const CHART_CLOCK_WHOLE = Object.freeze(['time-anchor:other-bars', 'time-clock:unreadable',
   'time-anchor:not-daily', 'time-anchor:weekend-bars', 'time-own:chart-unwitnessed', 'time-close:not-daily',

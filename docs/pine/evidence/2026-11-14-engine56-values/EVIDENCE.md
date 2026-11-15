@@ -157,6 +157,13 @@ S10).
   `docs/formulas/GRAMMAR.md` (regenerated), `tools/lookback_agreement.json` (written by its own rail),
   host-parity digests (`--write`, every case moves with the engine identity; 0 status or guard changes).
 
+> ⚠️ **Measured at `86dc5eeb5d` (the review round + S1).** The S10 change (newest over every Pine source,
+> `b39a7b9828`) and the two floor follow-ups were railed and mutation-proved, and the four vitest roots,
+> the Python rails and the mutant run were re-run at `b39a7b9828`; the census and harness re-measure at
+> the new head is paused at the coordinator's request and is owed at the rebase onto engine 55. Expected
+> moves: v6 computed-source ties drawn instead of withheld (none occurs in the captures), accdist-macd's
+> Histogram floor.
+
 ## Census (1,816 sources: corpus 266, repo `.pine` 507, committed vendor captures 173, licence-held sample 679, held capture store 191)
 BEFORE = this tree with the merge base's product files (`cc608bb582`, engine 54) swapped in (`ast_interpret.py`,
 `interpret.js`, `pine.js`, `pineRuntimeFrontend.js`, `thinkscript.js`, `closedTable.json`, `nativeRegistry.js`,
@@ -204,7 +211,7 @@ its hidden constant `0 line` (colour not resolvable on our side); all 29 of its 
 Value level (bars where the value or its `na` differs, summed over a capture's plots), held store, both
 lanes identical: accumulation-distribution-with-markers 1 -> 0, average-true-range-trailing-stops 31 -> 0,
 uptrick-volatility-weighted-cloud 84 -> 0, obv-macd-ao-pivdiv-3 3 -> 0, pivot-high-low-points 1 -> 0,
-aroon 4 -> 0, connors-rsi 1 -> 0, rsi-divergence-indicator 4 -> 0, {ACCDIST}; **0 captures got worse**.
+aroon 4 -> 0, connors-rsi 1 -> 0, rsi-divergence-indicator 4 -> 0, accdist-macd SPY 2 -> 2 (its Histogram is `sh and hist ? hist : na` through a same-symbol `security`; the floor now reads through both, `R4c` / `R4d`, after this run, not yet re-measured); **0 captures got worse**.
 accumulation-distribution, the ATR trailing stop, uptrick, accdist-macd and bill-williams AO stay DIVERGE on
 COLOUR only (the v1-v3 palette and default transparency: engine 57's lane).
 
@@ -250,8 +257,8 @@ All 29 were killed. The first run's M19 (deleting `if (op === '&&') return built
 redundant, because `&&` already falls through the `==` / `!=` test. It was an equivalent mutant, so the line was removed
 and replaced by M19a / M19b, which test the rule itself.
 
-### Review round and S1 (63 mutants under one lock, then R4c / S1b after the floor change)
-Same procedure; C0 green, every restore equal to the HEAD blob (one run was cut by the disk filling and its
+### Review round, S1 and S10 (61 mutants and the C0 control at `b39a7b9828`, one lock; R4c / R4d / S1b re-run after their changes)
+Same procedure; C0 green, 57 of 61 killed, 4 equivalent (named below), every restore equal to the HEAD blob (one run was cut by the disk filling and its
 in-flight file, `ast_interpret.py`, was restored from the saved copy and checked against HEAD before the
 re-run). The phase-1 rows above whose code the S1 rules removed (M16-M19b, M23's old pattern, R1e, R2b's,
 R6a, R6c) were replaced:
@@ -267,13 +274,13 @@ R6a, R6c) were replaced:
 | S1e | `and` / `or` / `not` untracked | yes |
 | S1f | a latch body's `and` / `or` / `not` untracked in the self pass | EQUIVALENT: the accum's own value then carries its `na`, and the number fallback reads it |
 | M20 / M21 | the bool-na mask off (JS / Python) | yes (JS: the fallback-marker rail) |
-| M22 | the runtime column decline off | yes |
+| M22 | the runtime column decline off | EQUIVALENT since S10: no Pine column carries a withheld code any more (bool-na and ties are served), so the decline is the fail-closed path only |
 | M23 | the runtime VM decline off | yes |
 | R1a / R1b / R1d | the tf lift / valuewhen flag / var-bool flag recurrence off | yes |
 | R1c | an untracked side served | EQUIVALENT: no reachable `bool` is untracked any more (0 in the census) |
 | R2a / R2b | runtime bool slot / literal side not asked | yes |
 | R3a / R3b / R3c | `tf` / `tf_merge` / `ltf` not nested (JS / Python) | yes |
-| R4 / R4b / R4c | the floor accepts a ratio / reason not surfaced / stops at a same-symbol timeframe read | yes |
+| R4 / R4b / R4c / R4d | the floor accepts a ratio / reason not surfaced / stops at a same-symbol timeframe read / stops at a ternary | yes |
 | R5a-R5e | barssince / valuewhen spread forever, a recurrence forgets (JS / Python) | yes |
 | R7 | a nested child keeps the sink | EQUIVALENT: the parent records the same code after the child, and a mask of the wrong length is replaced |
 | R8a-R8g | the runtime deferred `==` pass: off, comparisons / columns read as never `na`, slot writes not asked, history not kept, parameters dropped, `and` / `or` read as `na`-able | yes |
@@ -289,6 +296,11 @@ R6a, R6c) were replaced:
 - Totals at engine 56: production MATCH 140 / DIVERGE 76 / INCONCLUSIVE 30; runtime-on MATCH 149 /
   DIVERGE 78 / INCONCLUSIVE 19.
 The ledger rows carry the source sha256 and the verdicts only; no capture or source text is committed.
+
+⚠️ That regrade (commit `c244cee6bc`, phase 1) predates the review round, S1 and S10, so its engine-56 rows
+describe the phase-1 engine. **No later regrade is committed** (coordinator rule 2026-11-15: the ledger's
+`scriptKey` / `captureId` slugs trip the public-repo secret scan; the coordinator regrades centrally once
+the owner rules). The verdicts this head produces are the harness tables above.
 
 ## The tie sentence and the strict xfail it settles
 `highestbars` / `lowestbars` now read back as "the number of bars back to the bar holding the highest X of
@@ -309,6 +321,11 @@ The S5 aroon capture is that reading, so the xfail is removed. `test_ast_bounded
   `origin/master`'s `ast_interpret.py` and `closedTable.json` swapped in, so they are not engine 56's:
   `tests/test_indicator_golden.py` (1: `rs_parity_deepvue_universe` fixture vs CASES) and
   `tests/test_c45_withheld_doors.py` (2: `time-clock:unreadable`).
+- S10, at `b39a7b9828`, each root under its own lock: `ast` 351 files / 5,932 tests green (11 skipped);
+  `runtime` 196 / 4,150 green; `builder` 193 / 3,178 green (incl. `savedDocumentRoundTrip`);
+  `engine/__tests__` 409 files, 15 failed: the five UCT RS files, `b1Paints` (both above), and
+  `c36TimeFollowups` / `c49CapturedClock` (the new tie sentence lacked "What would settle it"; fixed after
+  the run, re-run owed). pytest: the six above plus `test_vendor_truth` green.
 - Review round + S1, at `86dc5eeb5d`: the same four vitest roots in one run, 1,149 files / 20,461 tests:
   13 failed, 20,239 passed, 209 skipped; every failure is one of the five UCT RS files above or
   `vendorHarness.b1Paints` ("every capture that records a paint is pinned"), which fails on `origin/master`
