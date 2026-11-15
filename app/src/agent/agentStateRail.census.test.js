@@ -26,9 +26,11 @@ const BY_NAME = () => ({
   layout: ['12', 'Swing', '11'], board: ['Swing board', 'Board 1'], template: ['Dark', 'Momentum'], range: ['3M', '1Y'],
   instance: ['inst:rsi:1', 'ovl:0'], pane: ['inst:rsi:1'], place: ['pane', 'price', 'inst:rsi:1'], from: ['c2', '2026-01-05', 'c1'], to: ['up', 'Renamed', '2026-02-02'],
   date: ['2026-01-05', '2026-03-02'], color: ['red', null], up: ['red'], down: ['blue'], name: ['New one', 'Swing', 'Tech'], text: ['Note'],
+  // #1248 layoutHistory.restore: ONE of version / stepsBack / before — the fixture's version 4 by number first
+  before: [null],
   symbol: ['SPY', 'AAPL'], key: ['period', 'scan', 'showLogos'], value: [SCAN, 'red'], chart: ['c1', 'c2'], defId: ['rsi', 'macd'], screen: ['Mine'],
 })
-const NUMS = { point: [1, 2], price: [105], level: [0.618], x: [0, 16], y: [0], w: [4, 8], h: [20, 10] }
+const NUMS = { version: [4], stepsBack: [null], point: [1, 2], price: [105], level: [0.618], x: [0, 16], y: [0], w: [4, 8], h: [20, 10] }
 const STRINGS = () => [...drawingIds(), 'inst:rsi:1', 'ovl:0', 'rsi', 'c1', 'c2', 'wl', 'sc', 'wt1', '1', 'main', 'AAPL', 'SPY',
   'Tech', 'Swing', 'Mine', '11', '12', 'Dark', 'Momentum', 'Board 1', 'Swing board', 'wl1', SCAN, 'flagged', 'red', 'D', 'New one', '2026-03-02']
 const PTS = [{ date: '2026-01-05', price: 100 }, { date: '2026-02-02', price: 110 }, { date: '2026-03-02', price: 105 }]
@@ -187,7 +189,8 @@ describe('STATE RAIL census — by tool, from the registry', () => {
         // (kind-matched: the explicit clause names each effect's own class)
         const eff = stateEffects(plan)
         const nouns = [...new Set(eff.map(e => NOUN[e.state]))].join(' and the ')
-        const explicit = eff.every(e => e.type === 'overwrite') ? `add AAPL, and change the ${nouns}` : eff.every(e => e.type === 'replace') ? `add AAPL, and replace the ${nouns}` : `add AAPL, and remove the ${nouns}`
+        // (#1248: a board restore has its OWN words — a restore verb with a version word; "change the layout" never licenses it)
+        const explicit = eff.some(e => e.own === 'restoreVersion') ? 'add AAPL, and restore the previous version' : eff.every(e => e.type === 'overwrite') ? `add AAPL, and change the ${nouns}` : eff.every(e => e.type === 'replace') ? `add AAPL, and replace the ${nouns}` : `add AAPL, and remove the ${nouns}`
         // …and the same permit for ANOTHER class licenses nothing here
         for (const [st, noun] of Object.entries(NOUN)) if (!eff.some(e => (e.classes || [e.state]).includes(st))) expect(stateRailRefusal(plan, { words: `add AAPL, and remove the ${noun}` }), `${r.name} cross-kind ${noun}`).toBeTruthy()
         expect(stateRailRefusal(plan, { words: explicit }), `${r.name} explicit "${explicit}"`).toBe(null)
@@ -206,6 +209,8 @@ const ADDITIVE_WORDS = ['add AAPL', 'ADD an RSI', 'Add a trendline', 'adding one
   'add it, don’t remove anything', 'add AAPL without deleting anything', 'put AAPL on — never replace']
 // every capability that can destroy, replace or overwrite existing state, and how (read by stateRail.stateEffects)
 const EXPECTED = {
+  // #1248: Layouts → Version history — the board as it is now overwritten by an earlier saved version (its own words only)
+  'layoutHistory.restore': ['layout:overwrite'],
   'chart.applyTemplate': ['indicator:replace'],
   'chartSetup.deleteTemplate': ['template:delete'],
   'chartSetup.saveTemplate': ['template:overwrite'],

@@ -25,6 +25,12 @@ export const drawingIds = () => DRAWING_IDS
 const VIEW = { firstMs: Date.UTC(2025, 0, 2), lastMs: Date.UTC(2026, 9, 30), rightMs: Date.UTC(2026, 9, 30), activeRange: null, atDefaultView: false, indicatorsHidden: false, priceAuto: true,
   zoomLimits: { minWidth: 1, maxWidth: 2000 }, frame: { fromRight: 100, toRight: 0, activeRange: null, locked: false, lock: null } }
 /** The Charts fixture with existing state of every kind. Drawings live in the module store (reset here). */
+function layoutHistoryStandIn() {
+  const versions = [{ version: 5, created_at: 1763000000, source: 'mirror', content_sha256: 'h5' }, { version: 4, created_at: 1762900000, source: 'mirror', content_sha256: 'h4' }]
+  const prefsOf = { 5: { chart_settings: '{"a":1}' }, 4: { chart_settings: '{"a":2}' } }
+  return { read: () => ({ here: true }), list: async () => ({ ok: true, status: 200, body: { versions } }),
+    readVersion: async (v) => ({ ok: true, status: 200, body: { doc: { prefs: prefsOf[v] || null } } }), restore: async () => ({ ok: false, status: 500 }) }
+}
 export function stateFixture() {
   store._reset()
   // the store keeps its boards (and their drawings) across _reset: back to the first board, emptied
@@ -67,6 +73,8 @@ export function stateFixture() {
     ...b.host, charts, drawings: buildDrawingSource(charts), drawingBoards: buildDrawingBoardSource(store), layoutDock: buildLayoutDockSource(() => dock),
     flagged: { read: () => [...flags], write: async (n) => { flags = [...n]; return true } },
     persist: async () => ({ ok: true }),
+    // #1248 Layouts → Version history: the panel's own routes as they answer — two saved versions of the board (5 current)
+    layoutHistory: layoutHistoryStandIn(),
     prefs: { read: () => prefs, merge: async (p) => { prefs = { ...prefs, ...p }; return true }, write: async (k, v) => { prefs = { ...prefs, [k]: v }; return true } },
   }
   return { b, host, boards: { second }, prefs: () => prefs, flags: () => flags }

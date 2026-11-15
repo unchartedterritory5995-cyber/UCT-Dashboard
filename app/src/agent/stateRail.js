@@ -16,6 +16,7 @@
 //   widget       a widget removed (charts: the chart rail), a widget tab closed, the list / scan a widget
 //                already shows replaced, an item in a widget's own list deleted or renamed      board · workspace
 //   layout       a saved layout deleted, renamed, or saved over (the open layout's stored arrangement)     layouts
+//                the whole board restored to an earlier saved version (Layouts → Version history)   layoutHistory
 //   layoutBar    a layout unpinned from the Layout bar                                                  layoutDock
 //   template     a saved chart / indicator template deleted or saved over          chartTemplates · indicatorTemplates
 //
@@ -190,6 +191,14 @@ const READERS = {
     if (pt.saveCurrent) return [{ state: 'layout', type: 'overwrite', via: 'save', name: `your saved layout “${nm(pt.saveCurrent.name)}”` }]
     return []                                                     // open (the chart rail), saveAs / create / duplicate (new)
   },
+  // #1248 Layouts → Version history: a restore puts an earlier version back as the board — the board as it is NOW is
+  // overwritten (it stays in the history). Licensed ONLY by restore-version words (permits: RESTORE_VERSION), never by a
+  // modify / pick verb and never by an additive request. Listing the versions is a query (no plan).
+  layoutHistory(p) {
+    const w = p.patch?.restore
+    if (!w) return []
+    return [{ state: 'layout', type: 'overwrite', own: 'restoreVersion', name: `your board as it is now (version ${w.base ?? '?'}), replaced by version ${w.version ?? '?'}` }]
+  },
   layoutDock(p) {
     const op = p.patch
     return op?.op === 'unpin' ? [{ state: 'layoutBar', classes: ['layoutBar', 'layout'], type: 'remove', name: `“${nm(op.name)}” from the Layout bar` }] : []
@@ -316,6 +325,9 @@ export function homograph(e, words) {
 //     my bad habits", "clear up how to add an ema" ✗)
 //   · an object that only POINTS ("it", "them", "that one", "the fast one"): an overwrite takes the class the clause before it
 //     named; a destroy / replace takes only the very object that clause named or made ("add a 20 EMA, then remove it")
+// #1248 (layoutHistory.restore): the words that ask for an earlier saved version of the board back
+const RESTORE_VERB = /\b(?:restor\w*|revert\w*|roll(?:ed|ing)? ?back|go(?:es|ing)? back to|put (?:it|the board|my board) back)\b/i
+const RESTORE_WHAT = /\b(?:versions?|v\d+|saves?|saved|history|backup|earlier|previous|prior|last|before|yesterday|ago|this morning|as it was|how it was|\d+|it|that(?: one)?|this one)\b/i
 const NEG = /\b(?:no|not|nothing|none|never|without|neither|nor|don['’]?t|dont|doesn['’]?t|didn['’]?t|won['’]?t|can['’]?t|cannot|shouldn['’]?t|mustn['’]?t)\b|n['’]t\b/i
 // destroy verbs the member uses for their own things (beyond DESTROY): "drop TSLA from Momentum", "take TSLA off the list",
 // "empty the watchlist", "unflag", "close the news tab" — each only with an EXISTING object of the right class after it
@@ -404,6 +416,9 @@ const SAME_OTHER = /\b(?:do|make|apply)?\s*(?:the\s+)?same(?:\s+thing)?\b[^.;!?]
 const chartOfId = (id) => String(id || '').split(':')[1] || null
 export function permits(e, words, subjects = null, previous = null, previousSet = null, made = null, extra = null) {
   const why = extra?.why || {}
+  // #1248: a board restore is licensed by ITS OWN words only — a restore verb with a version word (or a pointer at the
+  // version just listed), in a clause that is not negated. Nothing below (modify / pick verbs, subjects) can license it.
+  if (e.own === 'restoreVersion') return clausesOf(words).some(c => !NEG.test(c) && RESTORE_VERB.test(c) && RESTORE_WHAT.test(c))
   // a PICK the member made from the choices this rail asked with: exactly that object
   if (e.id && extra?.picked && extra.picked.has(e.id)) return true
   // before / prev: the classes and the clause the latest earlier clause NAMED; spoke: an earlier clause said anything of
