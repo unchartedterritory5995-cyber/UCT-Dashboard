@@ -141,6 +141,38 @@
 /** 55 = COND-TA (U2; ⛔ NUMBER PENDING: renumbered to master + 1 at the go, with PINE_IMPORT_FIX_ENGINE; follows the lenient block-local hotfix #1326, the 55 above): a `ta.*` call that runs only on some bars is exact or refused by name on every door. The screener lane (translatePine default, the Import tab's Apply) refuses each such value `pine:block` by name (it served the every-bar number: 242 of 635 bars wrong against vw-call-site-history C03); Pine v1-v4 bare calls (`sma(…)`) are history calls on the host, object and Python lanes (gap G-b: a v4 block or arm was drawn off every bar), and v1-v4 `?:` arms are stamped (the v4 User Manual documents the arm as lazy); the runtime lane serves bare calls per call site in v4 only (v1-v3 refuse runtime:conditional-history); the registry's conditional-ta row is conformant; see docs/pine/evidence/2026-11-15-cond-ta/EVIDENCE.md */
 export const SCRIPT_ENGINE_VERSION = 56
 
+// ⭐⭐ COND-TA (coordinator ruling 2026-11-15) — THE PINE-IMPORT HOLD.
+// A screen or alert saved by the Import tab's APPLY is a FORMULA document: the translated text,
+// with no script kept (no `pine_source`) and no engine stamp, so an engine bump never reaches it
+// (`savedScriptUpgrade.upgradeKindOf` answered `none`). Before COND-TA the screener lane that wrote
+// those formulas served a `ta.*` call that runs only on some bars as its EVERY-BAR number (242 of
+// 635 RDDT bars wrong, `vw-call-site-history` C03), and #1326's block-local `x[1]` the same way.
+// Which saved formulas hold such a shape cannot be told without the script, so every Pine import
+// with no script, applied before this engine, is WITHHELD BY NAME on the chart and on every server
+// lane (`pineImportHeld`, the twin of `user_definitions.py::pine_import_stale`, which reads THIS
+// declaration): `PINE_IMPORT_HELD_SENTENCE`. Re-applying the import stamps `importedFrom.engine`
+// with today's engine (`BuilderSheet.applyProvenanceFor`), which lifts it.
+// ⛔ It is the engine that LANDED COND-TA: renumber it with that bump (it equals the number of the
+// history line that begins "55 = COND-TA"; `pineImportHold.test.js` and the Python twin hold both).
+// Keep it `export const PINE_IMPORT_FIX_ENGINE = <n>` on one line: the server reads it.
+export const PINE_IMPORT_FIX_ENGINE = 55
+
+/** What the member reads where a held Pine import would have been drawn or evaluated. */
+export const PINE_IMPORT_HELD_SENTENCE = 'This script was imported from Pine before a calculation fix. '
+  + 'Re-apply the import to update it.'
+
+/** Is this stored row a Pine import with no script, applied before `PINE_IMPORT_FIX_ENGINE`?
+ *  `row` is a store row (`definition`, and `pine_source` / `has_pine_source` when it holds its
+ *  script). Reads provenance only — never the script. */
+export function pineImportHeld(row, fixEngine = PINE_IMPORT_FIX_ENGINE) {
+  const def = row && typeof row === 'object' ? row.definition : null
+  const meta = def && typeof def === 'object' && def.meta && typeof def.meta === 'object' ? def.meta : null
+  const imp = meta && meta.importedFrom && typeof meta.importedFrom === 'object' ? meta.importedFrom : null
+  if (!imp || String(imp.dialect || '').toLowerCase() !== 'pine') return false
+  if ((typeof row.pine_source === 'string' && row.pine_source.trim()) || row.has_pine_source === true) return false
+  return !(Number.isInteger(imp.engine) && Number.isInteger(fixEngine) && imp.engine >= fixEngine)
+}
+
 /** The meta key the stamp lives under. `defSchema` keeps unknown `meta` keys
  *  (ignore-and-preserve), and it sits outside every tree, so no hash moves. */
 export const ENGINE_STAMP_KEY = 'engineVersion'

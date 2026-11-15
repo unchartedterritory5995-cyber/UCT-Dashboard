@@ -84,7 +84,7 @@ import { SCHEMA_VERSION, MARKER_SHAPES, MARKER_POSITIONS, PLOT_LINE_STYLES } fro
 import { astHash } from '../engine/ast/parse'
 import { lexPine } from '../engine/ast/pine'
 import { DOOR_VERSION } from '../engine/memberDocumentMigration'
-import { withEngineStamp } from '../engine/scriptEngineVersion'
+import { withEngineStamp, SCRIPT_ENGINE_VERSION } from '../engine/scriptEngineVersion'
 import { SCRIPT_UPGRADE_PASTE_NOTE, SCRIPT_UPGRADE_RESAVE_NOTE } from './memberPane/savedScriptUpgrade'
 // ⛔ THE SECOND MACHINE-ASSIGNED BADGE, AND IT IS MEASURED HERE FOR THE SAME
 // REASON `repaint` IS: `validateUserDefinitions` REQUIRES `meta.freshness` on
@@ -468,7 +468,11 @@ export function applyProvenanceFor(dialect, sourceText) {
   const d = String(dialect || '').toLowerCase()
   if (d !== 'pine') return null
   const text = String(sourceText || '')
-  return { dialect: d, via: 'apply', ...(text ? { sourceLength: text.length, sourceFingerprint: scriptFingerprint(text) } : {}) }
+  // ⭐ COND-TA — `engine`: the script engine that translated this Apply. A Pine import applied
+  // before `PINE_IMPORT_FIX_ENGINE` (or with no `engine`) is held by name on the chart and the
+  // server lanes (`scriptEngineVersion.pineImportHeld`); re-applying stamps today's and lifts it.
+  return { dialect: d, via: 'apply', engine: SCRIPT_ENGINE_VERSION,
+    ...(text ? { sourceLength: text.length, sourceFingerprint: scriptFingerprint(text) } : {}) }
 }
 
 /** Stamp an Apply import's provenance onto a document (a copy; identity when none). */

@@ -60,7 +60,7 @@
 import { PINE_RECURRENCE_ORIGIN } from '../../engine/nativeRegistry'
 import { runtimePaneBuilt } from '../../engine/runtimePaneGate'
 import {
-  SCRIPT_ENGINE_VERSION, isStaleStamp, withEngineStamp,
+  SCRIPT_ENGINE_VERSION, isStaleStamp, withEngineStamp, pineImportHeld, PINE_IMPORT_HELD_SENTENCE,
 } from '../../engine/scriptEngineVersion'
 
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
@@ -104,7 +104,9 @@ function writeFailedToday(row, current = SCRIPT_ENGINE_VERSION) {
 }
 
 /** What load-time work a store row needs.
- *  @returns {'current'|'retranslate'|'refused'|'retry'|'legacy'|'none'}
+ *  @returns {'current'|'retranslate'|'refused'|'retry'|'legacy'|'none'|'import-held'}
+ *   `import-held` — a Pine import with no script, applied before the COND-TA fix
+ *               (`pineImportHeld`): not drawn, by name, until it is re-applied;
  *   `refused` — today's engine already refused it (recorded), or an older engine
  *               refused the very maths it still carries: not drawn, no work;
  *   `retry`   — its upgrade could not be written back (recorded): drawn as stored,
@@ -121,6 +123,12 @@ export function upgradeKindOf(row, current = SCRIPT_ENGINE_VERSION) {
     const st = row && row.engine_status
     if (isObj(st) && st.status === 'refused' && st.same_maths === true) return 'refused'
   }
+  // ⭐⭐ COND-TA — A PINE IMPORT WITH NO SCRIPT, APPLIED BEFORE THE CONDITIONAL-CALL FIX, is held
+  // by name (`pineImportHeld`; the server's `engine_withheld_reason` holds it too): its formula
+  // may be the every-bar reading of a call that runs only on some bars, and without the script
+  // nothing can tell. Re-applying the import lifts it. A refusal already binding wins (its own
+  // sentence); a script document never reaches here (it holds its script, or has no import stamp).
+  if (kind !== 'refused' && pineImportHeld(row)) return 'import-held'
   return kind
 }
 
@@ -360,6 +368,8 @@ export function resolveRow(row) {
     // ⭐ REMEMBERED: no chunk download, no translation, no request — the refusal wins.
     return out(null, { refusal: `${nameOf()}: ${row.engine_status.reason}` })
   }
+  // ⭐ COND-TA — not drawn, by name, exactly where the server lanes withhold it.
+  if (kind === 'import-held') return out(null, { refusal: `${nameOf()}: ${PINE_IMPORT_HELD_SENTENCE}` })
   if (kind !== 'retranslate') return out(stored)
   const r = upgradedRow(row)
   if (!r) {

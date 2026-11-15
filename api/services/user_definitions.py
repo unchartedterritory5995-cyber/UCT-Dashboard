@@ -2247,6 +2247,56 @@ def read_script_engine_version(path: Any = None) -> Optional[int]:
 #: ask. ⛔ Never a literal here — bump the JS constant and this follows.
 #: ⛔ None (unreadable) FAILS CLOSED: every recorded refusal binds.
 SCRIPT_ENGINE_VERSION = read_script_engine_version()
+
+#: ⭐⭐ COND-TA (coordinator ruling 2026-11-15) — THE PINE-IMPORT HOLD, the server half of
+#: `scriptEngineVersion.js::pineImportHeld`. A Pine import saved by the Builder's Apply door is a
+#: formula document with no script and no engine stamp; before COND-TA the translator that wrote it
+#: served a `ta.*` call that runs only on some bars (and #1326's block-local `x[1]`) as the
+#: every-bar number, and which saved formulas hold that shape cannot be told without the script.
+#: So such a row applied before the fix engine is WITHHELD BY NAME on every server lane
+#: (`engine_withheld_reason`); re-applying the import stamps `importedFrom.engine` and lifts it.
+#: The number is the browser's declaration, read like `SCRIPT_ENGINE_VERSION` (one authority).
+_PINE_IMPORT_FIX_RE = re.compile(
+    r"^export\s+const\s+PINE_IMPORT_FIX_ENGINE\s*=\s*(\d+)\s*;?\s*(?://.*)?$", re.M)
+
+
+def read_pine_import_fix_engine(path: Any = None) -> Optional[int]:
+    """`PINE_IMPORT_FIX_ENGINE` as declared in `scriptEngineVersion.js`, or None (absent,
+    ambiguous or < 1). ⛔ None FAILS CLOSED: every Pine import with no script is held."""
+    p = path if path is not None else _SCRIPT_ENGINE_JS
+    try:
+        with open(p, encoding="utf-8") as fh:
+            found = _PINE_IMPORT_FIX_RE.findall(fh.read())
+    except OSError:
+        return None
+    if len(found) != 1:
+        return None
+    v = int(found[0])
+    return v if v >= 1 else None
+
+
+PINE_IMPORT_FIX_ENGINE = read_pine_import_fix_engine()
+
+#: What the member reads (the browser's `PINE_IMPORT_HELD_SENTENCE`, word for word).
+PINE_IMPORT_HELD_SENTENCE = ("This script was imported from Pine before a calculation fix. "
+                             "Re-apply the import to update it.")
+
+
+def pine_import_stale(row: Any, fix_engine: Any = "default") -> bool:
+    """Is this stored row a Pine import (`meta.importedFrom.dialect == 'pine'`) holding no script,
+    applied before `PINE_IMPORT_FIX_ENGINE`? Reads provenance only, never the script."""
+    fix = PINE_IMPORT_FIX_ENGINE if fix_engine == "default" else fix_engine
+    definition = row.get("definition") if isinstance(row, Mapping) else None
+    meta = definition.get("meta") if isinstance(definition, Mapping) else None
+    imp = meta.get("importedFrom") if isinstance(meta, Mapping) else None
+    if not isinstance(imp, Mapping) or str(imp.get("dialect") or "").lower() != PINE_IMPORT_DIALECT:
+        return False
+    if _pine_source_of(row) is not None:
+        return False
+    eng = imp.get("engine")
+    applied_at_fix = (isinstance(eng, int) and not isinstance(eng, bool)
+                      and isinstance(fix, int) and not isinstance(fix, bool) and eng >= fix)
+    return not applied_at_fix
 if SCRIPT_ENGINE_VERSION is None:
     _log.error("[user-definitions] script engine version unreadable from %s — every "
                "recorded refusal binds until it is readable", _SCRIPT_ENGINE_JS)
@@ -2681,7 +2731,9 @@ def engine_withheld_reason(row: Any, current: Optional[int] = None) -> Optional[
     never draws what the alerts withhold, or the reverse."""
     st = row.get("engine_status") if isinstance(row, Mapping) else None
     if not isinstance(st, Mapping) or st.get("status") != "refused":
-        return None
+        # ⭐ COND-TA — a Pine import applied before the conditional-call fix, with no script
+        # to re-translate: held by name until it is re-applied (`pine_import_stale`).
+        return f"engine-refused: {PINE_IMPORT_HELD_SENTENCE}" if pine_import_stale(row) else None
     cur = SCRIPT_ENGINE_VERSION if current is None else current
     eng = st.get("engine")
     if cur is None or not isinstance(eng, int) or isinstance(eng, bool) or eng >= cur:
