@@ -1,53 +1,53 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 210,
-  "withProductionKinds": 200,
+  "all": 211,
+  "withProductionKinds": 201,
   "darkGated": 10
  },
  "totals": {
-  "capabilities": 210,
-  "withAnyRegressionCase": 158,
+  "capabilities": 211,
+  "withAnyRegressionCase": 159,
   "perProtection": {
    "nl": {
-    "covered": 155,
-    "applicable": 210
+    "covered": 156,
+    "applicable": 211
    },
    "routing": {
-    "covered": 152,
-    "applicable": 210
+    "covered": 153,
+    "applicable": 211
    },
    "args": {
-    "covered": 158,
-    "applicable": 210
+    "covered": 159,
+    "applicable": 211
    },
    "execution": {
-    "covered": 155,
-    "applicable": 210
+    "covered": 156,
+    "applicable": 211
    },
    "receipt": {
-    "covered": 127,
-    "applicable": 210
+    "covered": 128,
+    "applicable": 211
    },
    "refusal": {
     "covered": 35,
-    "applicable": 210
+    "applicable": 211
    },
    "permission": {
-    "covered": 203,
-    "applicable": 210
+    "covered": 204,
+    "applicable": 211
    },
    "undo": {
-    "covered": 80,
-    "applicable": 139
+    "covered": 81,
+    "applicable": 140
    },
    "multiStep": {
-    "covered": 40,
-    "applicable": 210
+    "covered": 41,
+    "applicable": 211
    },
    "phrasings": {
-    "covered": 151,
-    "applicable": 210
+    "covered": 152,
+    "applicable": 211
    }
   }
  },
@@ -1455,6 +1455,62 @@
     "undo": [],
     "multiStep": [
      "chart.replay.exit: after an earlier turn"
+    ],
+    "phrasings": []
+   }
+  },
+  "chart.replayStep": {
+   "domain": "chart",
+   "group": "chartSetup",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": true,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "chart.replayStep: \"step forward one bar\"",
+     "chart.replayStep: \"step replay mode forward 1 bar\"",
+     "chart.replayStep: \"move replay mode forward one bar\""
+    ],
+    "routing": [
+     "chart.replayStep: \"step forward one bar\"",
+     "chart.replayStep: \"step replay mode forward 1 bar\"",
+     "chart.replayStep: \"move replay mode forward one bar\""
+    ],
+    "args": [
+     "corpus chart.replayStep"
+    ],
+    "execution": [
+     "chart.replayStep (c)"
+    ],
+    "receipt": [
+     "chart.replayStep (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "chart.replayStep: undo restores"
+    ],
+    "multiStep": [
+     "chart.replayStep: after an earlier turn"
     ],
     "phrasings": []
    }
