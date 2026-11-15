@@ -2180,7 +2180,11 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       return
     }
     // (a model PROPOSAL re-aimed by a "which chart?" pick stays a proposal; fast picks set no mode)
-    await execute(p.ops.map(o => ({ ...o, target: ref })), { path: p.path, mode: p.mode === 'propose' ? 'propose' : 'apply', member: `${p.member} → ${label}`, voice: p.voice })
+    // ⛔ H14: the chart the member picked here is the chart the words now identify (chartRail UNIQUE IDENTIFICATION)
+    railPickedRef.current = new Set([`chart:${String(ref).replace(/^[a-z]+:/i, '')}`])
+    try {
+      await execute(p.ops.map(o => ({ ...o, target: ref })), { path: p.path, mode: p.mode === 'propose' ? 'propose' : 'apply', member: `${p.member} → ${label}`, voice: p.voice })
+    } finally { railPickedRef.current = null }
   }, [execute, push, host])
 
   // ⭐ PHASE 2 — A MULTI-STEP REQUEST (agent/compound.js): read in full before anything runs, then step by step on the
