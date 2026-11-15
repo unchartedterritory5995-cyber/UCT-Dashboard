@@ -350,8 +350,12 @@ function serverResolvesChipKey(def, key) {
   return !!(def && Array.isArray(def.readout) && def.readout.some((r) => r && r.key === key && r.chip === true))
 }
 
-/** What an unresolved, server-resolved enum choice prints: the code itself when its option's label
- *  names it as the symbol (`S&P 500 (SPY)`), else the option's label; any other value is unchanged. */
+/** An option the SERVER resolves into a symbol is labelled `… (auto)` in the menu (`Sector (auto)`,
+ *  `Industry group (auto)`, `Theme (auto)`); its code names nothing a member can read. */
+const AUTO_OPTION_LABEL = /\(auto\)\s*$/i
+
+/** What an unresolved, server-resolved enum choice prints: an AUTO option's label, else the code
+ *  exactly as before (`SPY` whatever its label says); any other value is unchanged. */
 function unresolvedChoiceText(def, key, text) {
   const inp = (def.inputs || []).find((i) => i && i.key === key)
   if (!inp || inp.type !== 'enum' || typeof text !== 'string') return text
@@ -359,8 +363,7 @@ function unresolvedChoiceText(def, key, text) {
     const value = Array.isArray(o) ? o[0] : (o && o.value)
     const label = Array.isArray(o) ? o[1] : (o && o.label)
     if (value !== text) continue
-    if (typeof label !== 'string' || !label) return text
-    return label.includes(`(${value})`) ? text : label
+    return typeof label === 'string' && AUTO_OPTION_LABEL.test(label) ? label : text
   }
   return text
 }
@@ -446,7 +449,7 @@ function stampReadout(chip, def, inputs, opts) {
   // member's request until that row lands, which is honest; but an AUTO option's code names nothing
   // (`UCT RS · SECTOR`, measured by the stale-rail repair, PR #1367: no envelope yet, or a v3 payload
   // without `benchmark.name`). Such a part prints its option's LABEL (`Sector (auto)`), unless the label
-  // names the code as its symbol (`S&P 500 (SPY)` -> `SPY`). Only these parts: every other identity part,
+  // is an AUTO option (its menu label ends `(auto)`); a symbol code (`SPY`) prints as before. Only these parts: every other identity part,
   // and every definition without such a row, reads exactly as before.
   for (const [k, v] of identity) {
     if (resolved.has(k) || !serverResolvesChipKey(def, k)) continue
