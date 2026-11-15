@@ -2102,6 +2102,31 @@ def _explain_rs(*, term: str = "") -> dict:
     return rs_read_tools.explain_term(term)
 
 
+# The five RS screens as lists (RS screens unit U11). ONE implementation,
+# api/services/rs_screens_service.py: each list is the screen's own starter spec run
+# through the scan, so an answer cannot differ from the screen. These are the Compass
+# voice wrappers; chat reaches them through `_voice_delegate`.
+# TWO GATES, both read PER CALL: RS_COMPASS_TOOLS_ENABLED (the RS Compass tools) AND the
+# RS screens being on. A registry gate is asked with no user, so it answers as for a
+# member; the per-user answer is the service's own, inside every call (`wants_user`),
+# which says "not available" to a user the screens are not on for.
+def _rs_screens_gate() -> bool:
+    if not _rs_tools_gate():
+        return False
+    from api.services import rs_screens_service
+    return rs_screens_service.available(None)
+
+
+def _rs_screen(*, screen: str = "", limit: int = 15, options=None, user: dict | None = None) -> dict:
+    from api.services import rs_screens_service
+    return rs_screens_service.list_screen(screen, user=user or {}, limit=limit, option_ids=options)
+
+
+def _rs_screen_check(*, ticker: str = "", user: dict | None = None) -> dict:
+    from api.services import rs_screens_service
+    return rs_screens_service.check_ticker(ticker, user=user or {})
+
+
 def _find_patterns_on_ticker(
     *, symbol: str, tf: str = "D", min_conf: float = 50.0,
 ) -> dict:
@@ -3229,6 +3254,27 @@ def _register_all() -> None:
         contexts=["global"],
         gate=_rs_tools_gate,
     )(_explain_rs)
+
+    # The five RS screens (unit U11): descriptions and parameters are built by
+    # rs_screens_service from the screens' own definitions and shared with the chat
+    # registry. `wants_user`: the service decides per user whether the screens are on.
+    from api.services import rs_screens_service as _rs_sc
+    _vt.voice_tool(
+        name="rs_screen",
+        description=_rs_sc.screen_description(),
+        parameters=_rs_sc.screen_parameters(),
+        contexts=["global"],
+        wants_user=True,
+        gate=_rs_screens_gate,
+    )(_rs_screen)
+    _vt.voice_tool(
+        name="rs_screen_check",
+        description=_rs_sc.check_description(),
+        parameters=_rs_sc.CHECK_PARAMETERS,
+        contexts=["global"],
+        wants_user=True,
+        gate=_rs_screens_gate,
+    )(_rs_screen_check)
 
     _vt.voice_tool(
         name="scan_active_patterns",

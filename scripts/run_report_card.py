@@ -77,6 +77,10 @@ def main() -> int:
     # require them, and the ledger arms RS_COMPASS_TOOLS_ENABLED only after this run
     # passes its safety checks with them on.
     os.environ.setdefault("RS_COMPASS_TOOLS_ENABLED", "1")
+    # The two RS screens tools (RS screens unit U11: rs_screen, rs_screen_check) sit
+    # behind that flag AND the screens' own, so R1-12 to R1-15 can only pass their tool
+    # gate with both on. This is the exam's own process: nothing else reads the flag here.
+    os.environ.setdefault("RS_SCREENS_ENABLED", "1")
 
     # ⏱️ Compass chat now bounds a whole member TURN, not just each call — a
     # request-path budget, sized for someone staring at a spinner. The exam is an
@@ -95,6 +99,7 @@ def main() -> int:
     print(f"flags: BRAIN_TOOLS_ENABLED={os.environ['BRAIN_TOOLS_ENABLED']}"
           f" COMPASS_MENTOR_MODE={os.environ['COMPASS_MENTOR_MODE']}"
           f" RS_COMPASS_TOOLS_ENABLED={os.environ['RS_COMPASS_TOOLS_ENABLED']}"
+          f" RS_SCREENS_ENABLED={os.environ['RS_SCREENS_ENABLED']}"
           f" COMPASS_CHAT_TURN_BUDGET_SECS={os.environ['COMPASS_CHAT_TURN_BUDGET_SECS']}")
 
     from api.services.compass_eval import runner, golden_set

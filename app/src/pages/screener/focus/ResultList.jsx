@@ -3,15 +3,10 @@ import { setupLine } from './setupLine'
 import { livePriceOf } from './livePrice'
 import Sparkline from '../../../components/Sparkline'
 import useSparks from './useSparks'
+import RsResultRow from './RsResultRow'
+import { rowDisplay } from './rsRows'
+import { fmtPrice, fmtChg } from './rowNumbers'
 import styles from './FocusScreener.module.css'
-
-const fmtPrice = v => (Number.isFinite(v) ? v.toFixed(2) : '—')
-const fmtChg = v => {
-  if (!Number.isFinite(v)) return '—'
-  const r = Number(Math.abs(v).toFixed(1))
-  const s = r.toFixed(1)
-  return r === 0 ? `${s}%` : v > 0 ? `+${s}%` : `−${s}%`
-}
 
 // One row, memoised. Live prices arrive as a fresh object per ticker on every stream message,
 // so the list hands each row PRIMITIVES (its live price and change) plus stable references (the
@@ -50,10 +45,16 @@ const NO_STRUCTURES = {}
 export const LOOKAHEAD_ROWS = 2
 
 const ResultList = forwardRef(function ResultList(
-  { rows, index, onSelect, onKeyDown, livePrices = {}, radar = new Set(), sortLabel, onSort, total, hasMore, onLoadMore, isLoading, itemProps, showCompany = false, sortMenu, pending = false, structures = NO_STRUCTURES, headExtra = null, newSet = null },
+  { rows, index, onSelect, onKeyDown, livePrices = {}, radar = new Set(), sortLabel, onSort, total, hasMore, onLoadMore, isLoading, itemProps, showCompany = false, sortMenu, pending = false, structures = NO_STRUCTURES, headExtra = null, newSet = null, rsRow = null, themes = null, headBelow = null },
   ref,
 ) {
   const listRef = useRef(null)
+  // RS screens (unit U5): `rsRow` is the open starter's row description (rsRows.rowConfigOf), null
+  // on every other screen. With it, each row's place, caption and tag are worked out ONCE per
+  // result set (never per price tick) and handed to the row as primitives.
+  const rsView = useMemo(() => (rsRow
+    ? rows.map((r, i) => rowDisplay(r, rsRow, { index: i, theme: themes ? themes[r.ticker] : null, isNew: !!newSet && newSet.has(r.ticker) }))
+    : null), [rows, rsRow, themes, newSet])
   const sparkTickers = useMemo(() => rows.map(r => r.ticker), [rows])
   const sparks = useSparks(sparkTickers)
   // Scroll only the list's own container, never an ancestor or the window. The selection
@@ -137,6 +138,9 @@ const ResultList = forwardRef(function ResultList(
           <span>{rows.length ? `${index + 1} of ${total ?? rows.length}` : ''}</span>
         </span>
       </div>
+      {/* RS screens (unit U8): "Why isn't a stock here?", under the list head and outside the listbox,
+          so the list's own keys are not heard while a ticker is typed. Nothing on any other screen. */}
+      {headBelow}
       <div ref={listRef} id="focus-results" role="listbox" aria-label="Screen results" tabIndex={0} aria-busy={pending}
         aria-activedescendant={rows[index] ? `focus-opt-${rows[index].ticker}` : undefined}
         className={styles.list} data-focus-list=""
@@ -150,6 +154,14 @@ const ResultList = forwardRef(function ResultList(
           const { price, chg } = livePriceOf(r, livePrices[r.ticker])
           const spark = sparks.get(r.ticker)
           // itemProps(i) returns one of two constant objects, so the row's prop stays stable.
+          if (rsView) {
+            const d = rsView[i]
+            return (
+              <RsResultRow key={r.ticker} r={r} i={i} sel={i === index} price={price} chg={chg}
+                onRadar={radar.has(r.ticker)} onSelect={onSelect} hubProps={itemProps ? itemProps(i) : undefined}
+                showCompany={showCompany} spark={spark} hasPlace={!!rsRow.place} place={d.place} caption={d.caption} tag={d.tag} />
+            )
+          }
           return (
             <ResultRow key={r.ticker} r={r} i={i} sel={i === index} price={price} chg={chg}
               onRadar={radar.has(r.ticker)} onSelect={onSelect} hubProps={itemProps ? itemProps(i) : undefined}
