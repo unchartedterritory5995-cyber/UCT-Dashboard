@@ -200,7 +200,7 @@ describe('STATE RAIL census — by tool, from the registry', () => {
   })
 })
 
-const NOUN = { indicator: 'indicators', drawing: 'drawings', drawingBoard: 'drawing board', watchlist: 'watchlist', widget: 'widget', layout: 'layout', layoutBar: 'layout bar', template: 'template' }
+const NOUN = { indicator: 'indicators', drawing: 'drawings', drawingBoard: 'drawing board', watchlist: 'watchlist', widget: 'widget', layout: 'layout', layoutBar: 'layout bar', template: 'template', preference: 'palette' }
 const ADDITIVE_WORDS = ['add AAPL', 'ADD an RSI', 'Add a trendline', 'adding one', 'put a new one on', 'PUT ANOTHER LINE', 'include MSFT', 'another one', 'Another RSI',
   'one more please', 'also MSFT', 'AAPL as well', 'TSLA too', 'a new layout', 'Insert a widget', 'more indicators', 'extra line', 'additional watchlist',
   'add it, don’t remove anything', 'add AAPL without deleting anything', 'put AAPL on — never replace']

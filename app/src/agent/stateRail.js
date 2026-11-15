@@ -18,6 +18,7 @@
 //   layout       a saved layout deleted, renamed, or saved over (the open layout's stored arrangement)     layouts
 //   layoutBar    a layout unpinned from the Layout bar                                                  layoutDock
 //   template     a saved chart / indicator template deleted or saved over          chartTemplates · indicatorTemplates
+//   preference   a chart's light/dark palette (Shift+T: settings.theme) changed — the member's own preference        chart
 //
 // (not destroying, never refused here: show / hide / lock, reorder, move / resize / re-pane, link colours, switching the
 // active layout or Drawing Board — the chart rail guards the charts a layout switch replaces — and every add / create.)
@@ -105,7 +106,14 @@ const READERS = {
   },
   chart(p) {
     if (!p.patch || !('settings' in p.patch) || p.virtual) return []
-    return indicatorOfSettings(p.before?.cs, p.patch.settings).map(e => ({ ...e, id: e.instanceId ? `ind:${p.ref}:${e.instanceId}` : null }))
+    const out = indicatorOfSettings(p.before?.cs, p.patch.settings).map(e => ({ ...e, id: e.instanceId ? `ind:${p.ref}:${e.instanceId}` : null }))
+    // #1234 (chartShare / Shift+T): the light/dark palette is a member PREFERENCE — its change is an OVERWRITE, licensed only by
+    // its own words ("make the chart light", "switch to the dark palette"); never by an additive request. (A UCT chart theme —
+    // chart.applyTheme — never writes `theme`; the effective value is 'dark' unless the blob says 'light', as CHART_DEFAULTS.)
+    const pal = (cs) => (cs?.theme === 'light' ? 'light' : 'dark')
+    const was = pal(p.before?.cs), now = pal(p.patch.settings)
+    if (was !== now) out.push({ state: 'preference', type: 'overwrite', name: `this chart’s ${was} palette (Shift+T)`, label: `${was} palette`, to: now, id: `pref:${p.ref}:theme` })
+    return out
   },
   drawing(p) {
     const pt = p.patch
@@ -260,6 +268,8 @@ export const CLASS = {
   layout: /\b(?:layouts?(?! bar)|arrangements?|workspaces?)\b/i,
   layoutBar: /\b(?:layout bar|the bar|bar)\b/i,
   template: /\btemplates?\b/i,
+  // #1234: the chart's light/dark palette (Shift+T) — never "theme" (a UCT chart theme is its own action and never writes it)
+  preference: /\b(?:palettes?|light|dark|light mode|dark mode|shift ?\+ ?t)\b/i,
 }
 const classesOf = (e) => e.classes || [e.state]
 const phrase = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
@@ -416,6 +426,9 @@ export function permits(e, words, subjects = null, previous = null, previousSet 
     // a display switch named by the list it shows (never a symbol; a homograph is asked: stateRailRefusal)
     if (!negated && e.type === 'replace' && e.to && PUT_IN.test(c) && has(c, e.to) && (SAID_LIST(c, e.to) || !tickersIn(c).includes(String(e.to).toUpperCase()))) return true
     if (!negated && e.via === 'save' && KEEP_IN_LAYOUT.test(c)) return true
+    // #1234: the palette's OWN words — the clause names the NEW palette with a palette word ("put the chart on the light
+    // palette", "dark mode", "light like shift+t") or with a modify verb ("make this chart light"); a bare additive request never names it
+    if (!negated && e.state === 'preference' && e.to && new RegExp(`\\b${e.to}\\b`, 'i').test(c) && (/\b(?:palettes?|mode|shift ?\+ ?t)\b/i.test(c) || MODIFY.test(c))) return true
     if (!negated && e.state === 'watchlist' && e.syms && e.listSyms) {
       // "remove all five": the count IS the list's size, and the change removes every one
       const an = ALL_N.exec(c)
