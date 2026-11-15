@@ -8435,12 +8435,15 @@ async def lifespan(app: FastAPI):
                 latest = _cot_service.get_latest_date()
                 if latest:
                     import datetime as _dtm
-                    days_old = (_dtm.datetime.now(_ZI("America/New_York")).date() - _dt.fromisoformat(latest)).days
-                    if days_old >= 8:
-                        print(f"[scheduler] COT daily catchup: data is {days_old}d stale -- refreshing...")
+                    # holiday-aware (cot_service.expected_latest_report_date): the old "8+ days old" rule re-downloaded
+                    # every evening of a holiday week whose report CFTC moved to Monday, and this is also what fetches
+                    # that Monday release (the Friday jobs never run on a Monday)
+                    expected = _cot_service.expected_latest_report_date(_dtm.datetime.now(_ZI("America/New_York")))
+                    if _dt.fromisoformat(latest) < expected:
+                        print(f"[scheduler] COT daily catchup: latest {latest} < expected {expected} -- refreshing...")
                         _cot_service.refresh_from_current()
                     else:
-                        print(f"[scheduler] COT daily catchup: data is {days_old}d old -- fresh, skipping")
+                        print(f"[scheduler] COT daily catchup: latest {latest} covers expected {expected} -- skipping")
             except Exception as e:
                 print(f"[scheduler] COT daily catchup error: {e}")
 
