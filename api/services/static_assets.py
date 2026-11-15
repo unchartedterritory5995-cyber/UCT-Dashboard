@@ -58,6 +58,24 @@ _CACHE_CONTROL = "public, max-age=31536000, immutable, no-transform"
 # Without `no-transform`: only for hashed JS/CSS, and only when ASSETS_NO_TRANSFORM_ENABLED=0 (see below).
 _CACHE_CONTROL_EDGE_COMPRESSES = "public, max-age=31536000, immutable"
 
+#: File types the built frontend ships that Python's own table does not know on the runtime
+#: image: python:3.12-slim has no /etc/mime.types, and 3.12's built-in table has no web fonts,
+#: so Starlette fell back to `text/plain`. Measured on production 2026-11-14: every `.woff2`
+#: left the origin as `text/plain; charset=utf-8`, while Cloudflare was still handing out a
+#: correctly typed copy it had cached 74 days earlier. Browsers load a font whatever its type,
+#: so nothing looked wrong, which is how it lasted.
+TYPES_THE_RUNTIME_LACKS = (("font/woff2", ".woff2"), ("font/woff", ".woff"))
+
+
+def register_missing_types() -> None:
+    """Teach `mimetypes` (the table Starlette's file responses read) the types above.
+    Safe to call again: registering a type twice changes nothing."""
+    for media_type, extension in TYPES_THE_RUNTIME_LACKS:
+        mimetypes.add_type(media_type, extension)
+
+
+register_missing_types()
+
 
 def no_transform_enabled() -> bool:
     """`ASSETS_NO_TRANSFORM_ENABLED` (default ON, i.e. today's behaviour). Measured 2026-11-10: Cloudflare always

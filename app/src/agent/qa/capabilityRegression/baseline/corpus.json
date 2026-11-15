@@ -7782,47 +7782,272 @@
       ]
     },
     {
-      "id": "news.movers",
-      "source": "Phase 2 market-moving news + catalysts (11-14): UCT's catalyst board, owner-style phrasings",
+      "id": "cot.positioning",
+      "source": "Phase 2 COT research (11-13): CFTC Commitments of Traders positioning, owner-style phrasings",
       "kinds": "ALL",
       "capabilities": [
-        "news.movers"
+        "cot.positioning"
       ],
       "board": "ONE",
       "needs": [
-        "news.movers"
+        "cot.positioning"
       ],
       "ownWords": [
-        "catalysts"
+        "cot"
       ],
       "model": {
         "ops": [
           {
-            "action": "news.movers",
+            "action": "cot.positioning",
             "target": "$stockData",
             "args": {
-              "symbols": null,
-              "watchlist": null,
-              "sector": null,
-              "date": null,
-              "days": null
+              "markets": [
+                "gold"
+              ],
+              "group": "large_specs",
+              "change_weeks": null,
+              "lookback_years": 3
             }
           }
         ]
       },
       "expect": {
         "reads": [
-          "^POST /api/agent/data .*catalysts\\.board.*\"params\":\\{\\}"
+          "^POST /api/agent/data .*cot\\.positioning.*\"symbols\":\\[\"gold\"\\],\"weeks\":163"
         ],
         "unchanged": true,
         "modelTurns": 1,
         "refusal": false
       },
       "phrasings": [
-        "what's moving the market today",
-        "what is driving stocks this morning",
-        "show me the catalyst board",
-        "what are today's catalysts"
+        "where are large speculators positioned in gold",
+        "what does the COT report say about gold",
+        "are specs net long gold at a 3-year extreme",
+        "show me the commitments of traders for gold"
+      ]
+    },
+    {
+      "id": "history.monthlyReturns",
+      "source": "Phase 2 history (11-13): weekly / monthly bars, relative performance, one-day-move studies, owner-style phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.dailyBars"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.dailyBars"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "stock.dailyBars",
+            "args": {
+              "symbol": "NVDA",
+              "measure": "periods",
+              "timeframe": "M",
+              "from": "2024-01-01",
+              "date": "2024-12-31"
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "stock.dailyBars",
+            "target": "$stockData",
+            "args": {
+              "symbol": "NVDA",
+              "measure": "periods",
+              "sessions": null,
+              "date": "2024-12-31",
+              "from": "2024-01-01",
+              "timeframe": "M",
+              "symbols": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*bars\\.daily.*\"symbol\":\"NVDA\",\"tf\":\"M\",\"from\":\"2024-01-01\",\"to\":\"2024-12-31\""
+        ],
+        "unchanged": true,
+        "modelTurns": 0,
+        "refusal": false
+      },
+      "phrasings": [
+        {
+          "text": "monthly returns for NVDA in 2024",
+          "det": "required",
+          "gaps": {
+            "a": {
+              "id": "GAP-HISTORY-PERIODS-ROUTE",
+              "router": "v1+v2",
+              "owner": "hist-builder",
+              "reason": "the fast path answers these with no model (det: required); a MODEL-routed paraphrase of weekly / monthly returns names no data-group word, and Phase 2 adds no words to an existing group (stock.dailyBars lives in data) — the model reaches it by need_groups",
+              "mode": "\"monthly returns for NVDA in 2024\" → stock.dailyBars"
+            }
+          }
+        },
+        {
+          "text": "NVDA's monthly performance in 2024",
+          "det": "required",
+          "gaps": {
+            "a": {
+              "id": "GAP-HISTORY-PERIODS-ROUTE",
+              "router": "v1+v2",
+              "owner": "hist-builder",
+              "reason": "the fast path answers these with no model (det: required); a MODEL-routed paraphrase of weekly / monthly returns names no data-group word, and Phase 2 adds no words to an existing group (stock.dailyBars lives in data) — the model reaches it by need_groups",
+              "mode": "\"NVDA's monthly performance in 2024\" → stock.dailyBars"
+            }
+          }
+        },
+        {
+          "text": "show me the monthly closes for NVDA in 2024",
+          "det": "required",
+          "gaps": {
+            "a": {
+              "id": "GAP-HISTORY-PERIODS-ROUTE",
+              "router": "v1+v2",
+              "owner": "hist-builder",
+              "reason": "the fast path answers these with no model (det: required); a MODEL-routed paraphrase of weekly / monthly returns names no data-group word, and Phase 2 adds no words to an existing group (stock.dailyBars lives in data) — the model reaches it by need_groups",
+              "mode": "\"show me the monthly closes for NVDA in 2024\" → stock.dailyBars"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "history.weeklyCompare",
+      "source": "Phase 2 history (11-13): weekly / monthly bars, relative performance, one-day-move studies, owner-style phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.dailyBars"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.dailyBars"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "stock.dailyBars",
+            "args": {
+              "symbol": "AAPL",
+              "measure": "compare",
+              "timeframe": "W",
+              "sessions": 52,
+              "symbols": [
+                "MSFT"
+              ]
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "stock.dailyBars",
+            "target": "$stockData",
+            "args": {
+              "symbol": "AAPL",
+              "measure": "compare",
+              "sessions": 52,
+              "date": null,
+              "from": null,
+              "timeframe": "W",
+              "symbols": [
+                "MSFT"
+              ]
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*bars\\.daily.*\"symbol\":\"AAPL\",\"tf\":\"W\",\"bars\":53",
+          "^POST /api/agent/data .*bars\\.daily.*\"symbol\":\"MSFT\",\"tf\":\"W\",\"bars\":53"
+        ],
+        "unchanged": true,
+        "modelTurns": 0,
+        "refusal": false
+      },
+      "phrasings": [
+        {
+          "text": "compare AAPL and MSFT weekly over the last year",
+          "det": "required"
+        },
+        {
+          "text": "AAPL vs MSFT weekly performance over the past year",
+          "det": "required"
+        }
+      ]
+    },
+    {
+      "id": "history.dayMove",
+      "source": "Phase 2 history (11-13): weekly / monthly bars, relative performance, one-day-move studies, owner-style phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "history.afterEvent"
+      ],
+      "board": "ONE",
+      "needs": [
+        "history.afterEvent"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "history.afterEvent",
+            "args": {
+              "symbol": "SPY",
+              "indicator": "day_pct",
+              "op": "below",
+              "threshold": -3,
+              "last": 5
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "history.afterEvent",
+            "target": "$stockData",
+            "args": {
+              "symbol": "SPY",
+              "indicator": "day_pct",
+              "period": null,
+              "op": "below",
+              "threshold": -3,
+              "horizons": [
+                1,
+                5,
+                21
+              ],
+              "since": null,
+              "last": 5
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*history\\.eventStudy.*\"indicator\":\"day_pct\",\"period\":null,\"op\":\"below\",\"threshold\":-3.*\"last\":5"
+        ],
+        "unchanged": true,
+        "modelTurns": 0,
+        "refusal": false
+      },
+      "phrasings": [
+        {
+          "text": "what happened to SPY after the last 5 times it fell 3% in a day",
+          "det": "required"
+        },
+        {
+          "text": "what happened to SPY after the last 5 times it dropped 3% in one day",
+          "det": "required"
+        }
       ]
     },
     {
@@ -10965,6 +11190,94 @@
       ]
     },
     {
+      "id": "volumeProfile.set",
+      "source": "Charts family 11-12: Chart Settings → Indicators → Volume Profile row toggle (applyRowPatch on the carved-out row; the library toggledRow shape)",
+      "capabilities": [
+        "volumeProfile.set"
+      ],
+      "board": "ONE",
+      "needs": [
+        "volumeProfile.set"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "volumeProfile.set",
+            "target": "$charts[0]",
+            "args": {
+              "enabled": true,
+              "bins": null,
+              "color": null,
+              "pocColor": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "volumeProfile": {
+          "enabled": true,
+          "bins": 24
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "turn on volume profile",
+        "add the volume profile to this chart",
+        "show vpvr"
+      ]
+    },
+    {
+      "id": "volumeProfile.set.bins",
+      "source": "Charts family 11-12: the Volume Profile row's Bins field (8-50) with the toggle, one write",
+      "capabilities": [
+        "volumeProfile.set"
+      ],
+      "board": "ONE",
+      "needs": [
+        "volumeProfile.set"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "volumeProfile.set",
+            "target": "$charts[0]",
+            "args": {
+              "enabled": true,
+              "bins": 40,
+              "color": null,
+              "pocColor": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "volumeProfile": {
+          "enabled": true,
+          "bins": 40
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "turn on volume profile with 40 bins",
+        "add a volume profile with 40 rows",
+        "show the volume profile using 40 bins please"
+      ]
+    },
+    {
       "id": "chartMenu.resetWatermark",
       "source": "C1-061 (family C, 11-11): Chart Settings → Watermark → Reset to center (opts.watermarkPos = null)",
       "capabilities": [
@@ -11303,6 +11616,56 @@
         "zoom out on the chart",
         "zoom the chart out one step",
         "give me a wider view of the chart"
+      ]
+    },
+    {
+      "id": "chartReplay.playback",
+      "source": "Charts family (pl-rp): the chart toolbar's Replay / Time Machine bar (start, play, pause, step, jump, speed, exit)",
+      "capabilities": [
+        "chartReplay.playback"
+      ],
+      "board": "TIMED",
+      "needs": [
+        "chartReplay.playback"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "chartReplay.playback",
+            "target": "$charts[0]",
+            "args": {
+              "op": "enter",
+              "bars": null,
+              "date": null,
+              "speed": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "barReplay": {
+          "mode": true,
+          "playing": false,
+          "speed": 1
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "barReplay": {
+            "mode": false,
+            "playing": false,
+            "index": null
+          }
+        }
+      },
+      "phrasings": [
+        "start the bar replay",
+        "turn on the bar replay on this chart",
+        "open the replay bar",
+        "start the time machine on this chart"
       ]
     },
     {
@@ -11659,7 +12022,18 @@
         "refusal": false
       },
       "phrasings": [
-        {"text": "how is that one set right now", "gaps": {"a": {"id": "GAP-WIDGET-READ-ROUTE", "router": "v1", "reason": "v1 ONLY (the kill-switch fallback): boardEdit has no v1 words in this message (workspace + agent only); the model can still ask for the group (need_groups). Routing v2 (production) reaches it since the budget-cut tie rule (routingV2.js TIE)", "owner": "agent-lead", "mode": "\"how is that one set right now\" → widget.readOptions"}}}
+        {
+          "text": "how is that one set right now",
+          "gaps": {
+            "a": {
+              "id": "GAP-WIDGET-READ-ROUTE",
+              "router": "v1",
+              "reason": "v1 ONLY (the kill-switch fallback): boardEdit has no v1 words in this message (workspace + agent only); the model can still ask for the group (need_groups). Routing v2 (production) reaches it since the budget-cut tie rule (routingV2.js TIE)",
+              "owner": "agent-lead",
+              "mode": "\"how is that one set right now\" → widget.readOptions"
+            }
+          }
+        }
       ]
     },
     {
@@ -12212,6 +12586,50 @@
         "add the fib tool to my favourites",
         "star the fibonacci retracement tool",
         "put the fib tool on my favorites toolbar"
+      ]
+    },
+    {
+      "id": "news.movers",
+      "source": "Phase 2 market-moving news + catalysts (11-14): UCT's catalyst board, owner-style phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "news.movers"
+      ],
+      "board": "ONE",
+      "needs": [
+        "news.movers"
+      ],
+      "ownWords": [
+        "catalysts"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "news.movers",
+            "target": "$stockData",
+            "args": {
+              "symbols": null,
+              "watchlist": null,
+              "sector": null,
+              "date": null,
+              "days": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*catalysts\\.board.*\"params\":\\{\\}"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "what's moving the market today",
+        "what is driving stocks this morning",
+        "show me the catalyst board",
+        "what are today's catalysts"
       ]
     }
   ],

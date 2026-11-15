@@ -41,8 +41,13 @@ import urllib.request
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
       "Chrome/130.0.0.0 Safari/537.36 uct-front-parity/1")
 ORIGIN = "https://uctintelligence.com"
+#: The CORS headers were not in this list until 2026-11-14, and the first real run therefore
+#: reported "headers match" while every answer to a request carrying `Origin` differed: `web`
+#: adds `Access-Control-Allow-Origin` to all of them and the front door added it to none.
 COMPARED = ("content-type", "cache-control", "content-encoding", "vary", "link",
-            "x-robots-tag", "referrer-policy", "location")
+            "x-robots-tag", "referrer-policy", "location",
+            "access-control-allow-origin", "access-control-allow-credentials",
+            "access-control-expose-headers")
 IGNORED = ("etag", "last-modified", "date", "server", "content-length", "cf-*", "x-railway-*")
 ENCODINGS = (("br", "br"), ("gzip", "gzip"), ("none", None))
 
@@ -270,6 +275,15 @@ def self_check(out=print) -> int:
             await app(scope, receive, patched if scope["type"] == "http" else send)
         return wrapped
 
+    def without_header(app, path, name):
+        async def wrapped(scope, receive, send):
+            async def patched(message):
+                if message["type"] == "http.response.start" and scope.get("path") == path:
+                    message = dict(message, headers=[(k, v) for k, v in message["headers"] if k != name])
+                await send(message)
+            await app(scope, receive, patched if scope["type"] == "http" else send)
+        return wrapped
+
     @contextlib.contextmanager
     def serve(app):
         s = socket.socket()
@@ -302,6 +316,14 @@ def self_check(out=print) -> int:
                                         b"cache-control", b"public, max-age=1")
             with serve(a) as ua, serve(b) as ub, serve(wrong) as uw:
                 results.append(("two identical origins -> 0", run(ua, ub, quiet), 0))
+                with serve(without_header(front_app.create_app(dist=d2, upstream=up), "/sw.js",
+                                          b"access-control-allow-origin")) as un:
+                    lines = []
+                    results.append(("a missing CORS header -> 1", run(ua, un, lines.append), 1))
+                    named = [ln for ln in lines if "/sw.js" in ln and "access-control-allow-origin" in ln]
+                    only_with_origin = bool(named) and all("origin=yes" in ln for ln in named)
+                    results.append(("...reported on the Origin variant only, by path and field",
+                                    0 if only_with_origin else 1, 0))
                 lines = []
                 results.append(("one header differs -> 1", run(ua, uw, lines.append), 1))
                 named = any("/og-image.png" in ln and "cache-control" in ln for ln in lines)

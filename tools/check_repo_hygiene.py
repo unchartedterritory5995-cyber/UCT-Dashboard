@@ -60,6 +60,18 @@ BIG_ALLOWLIST = {
     "docs/study/bank/spot.setups.json", "docs/study/bank/cycle.price_action.json",
     # 2026-11-07: chart.events (1,700 Chart IQ event questions) crossed 5 MB with its brain quotes; same reason.
     "docs/study/bank/chart.events.json",
+    # 2026-11-15: seven Pine capture-ahead fixtures from PR #1307 (S9 part 2) crossed 5 MB and turned the
+    # master deploy gate red for every deploy. tests/fixtures/vendor/harness/ is that program's deliberate
+    # in-repo capture corpus (471 files, ~291 MB, read by the Pine parity tests and
+    # tools/pine_coverage/coverage_map.py), so they stay where the readers look. Listed to unblock the gate;
+    # the capture program may shrink or split them and delete these lines.
+    "tests/fixtures/vendor/harness/anchored-vwap-pinch-handoff-intervals-and-signals-spy-1d-2026-11-14.json",
+    "tests/fixtures/vendor/harness/camarilla-spy-1d-2026-11-14.json",
+    "tests/fixtures/vendor/harness/chart-champions-part-1-npoc-levels-vwaps-spy-1d-2026-11-14.json",
+    "tests/fixtures/vendor/harness/cppivot-boss-floor-pivots-with-atr-dilation-and-dynamic-levels-spy-1d-2026-11-14.json",
+    "tests/fixtures/vendor/harness/elliot-wave-detector-pro-spy-60-2026-11-14.json",
+    "tests/fixtures/vendor/harness/renderingnature-smc-reversal-engine-v71-spy-60-2026-11-14.json",
+    "tests/fixtures/vendor/harness/zigzag-ma-pattern-recognition-spy-60-2026-11-14.json",
 }
 # A `.env*` may be tracked only when it carries no value — a template.
 ENV_ALLOWLIST = {".env.example"}

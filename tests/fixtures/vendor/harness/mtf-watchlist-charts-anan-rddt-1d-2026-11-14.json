@@ -1,0 +1,7290 @@
+{
+ "schema": "uct.vendor-capture/v1",
+ "id": "mtf-watchlist-charts-anan-rddt-1d-2026-11-14",
+ "capturedAtUTC": "2026-11-14T23:55:50.840Z",
+ "tool": {
+  "snippet": "tools/vendor_harness/tv_capture.js",
+  "version": 2
+ },
+ "page": {
+  "url": "https://www.tradingview.com/chart/01f1AcIj/",
+  "visibilityState": "visible",
+  "hasFocus": true
+ },
+ "symbol": {
+  "name": "RDDT",
+  "full_name": "NYSE:RDDT",
+  "pro_name": "NYSE:RDDT",
+  "exchange": "NYSE",
+  "listed_exchange": "NYSE",
+  "type": "stock",
+  "session": "0930-1600",
+  "timezone": "America/New_York",
+  "pricescale": 100,
+  "minmov": 1,
+  "currency": "USD"
+ },
+ "timeframe": "1D",
+ "newestBarIsForming": false,
+ "newestBar": {
+  "time": 1794580200,
+  "source": "derived",
+  "derived": false,
+  "periodEndUTC": "2026-11-13T21:00:00.000Z",
+  "rule": "the session close of the bar's trading day (session_holidays read)",
+  "asserted": null
+ },
+ "history": {
+  "startsAtBar0": true,
+  "why": "listed 2024-03-21; first loaded bar is the listing day after requestMoreData stopped growing (666 bars)"
+ },
+ "source": {
+  "text": "// ━╮╭━╮╱╱╭╮╱╱╱╱╱╱╱╱╱╱╱╱╭┳━━━╮\n// ┃╰╯┃┃╱╱┃┃╱╱╱╱╱╱╱╱╱╱╱╱┃┃╭━╮┃\n// ╭╮╭╮┣━━┫╰━┳━━┳╮╭┳━━┳━╯┣╯╭╯┃\n// ┃┃┃┃┃╭╮┃╭╮┃╭╮┃╰╯┃┃━┫╭╮┣╮╰╮┃\n// ┃┃┃┃┃╰╯┃┃┃┃╭╮┃┃┃┃┃━┫╰╯┃╰━╯┃\n// ╯╰╯╰┻━━┻╯╰┻╯╰┻┻┻┻━━┻━━┻━━━┻\n// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/\n// © Mohamed3nan\n//@version=4\n// ---------------------------------------------------------------------------------------------- //\nstudy(\"MTF WatchList Charts [Anan]\", \"MTF WatchList Charts [Anan]\", false, max_bars_back=500, max_lines_count = 500, max_labels_count = 500, precision=0)\ngroup_1   = \"MTF & HTF Symbols\"\nuse_1st   = input(true, \"\", inline = \"1\", group = group_1)\nsym1      = input(\"\",\"\", type = input.symbol, inline = \"1\", group = group_1)\nsym_1st = sym1 == \"\" ? syminfo.ticker : sym1\nhtf_1st   = input(\"\"  , \"\", type=input.resolution, inline = \"1\", group = group_1)\nuse_2nd   = input(true, \"\", inline = \"2\", group = group_1)\nsym2   = input(\"\",\"\", type = input.symbol, inline = \"2\", group = group_1)\nsym_2nd = sym2 == \"\" ? syminfo.ticker : sym2\nhtf_2nd   = input(\"60\"  , \"\",type=input.resolution, inline = \"2\", group = group_1)\nuse_3rd   = input(true, \"\", inline = \"3\", group = group_1)\nsym3   = input(\"\",\"\", type = input.symbol, inline = \"3\", group = group_1)\nsym_3rd = sym3 == \"\" ? syminfo.ticker : sym3\nhtf_3rd   = input(\"240\"  , \"\",type=input.resolution, inline = \"3\", group = group_1)\nuse_4th   = input(true, \"\", inline = \"4\", group = group_1)\nsym4   = input(\"\",\"\",type = input.symbol, inline = \"4\", group = group_1)\nsym_4th = sym4 == \"\" ? syminfo.ticker : sym4\nhtf_4th   = input(\"1D\"  , \"\",type=input.resolution, inline = \"4\", group = group_1)\n// use_5th   = input(false, \"\", inline = \"5\", group = group_1)\n// sym5   = input(\"\",\"\", type = input.symbol, inline = \"5\", group = group_1)\n// sym_5th = sym5 == \"\" ? syminfo.ticker : sym5\n// htf_5th   = input(\"720\"  , \"\",type=input.resolution, inline = \"5\", group = group_1)\n// use_6th   = input(false, \"\", inline = \"6\", group = group_1)\n// sym6   = input(\"\",\"\", type = input.symbol, inline = \"6\", group = group_1)\n// sym_6th = sym6 == \"\" ? syminfo.ticker : sym6\n// htf_6th   = input(\"1D\"  , \"\",type=input.resolution, inline = \"6\", group = group_1)\n// use_7th   = input(false, \"\", inline = \"7\", group = group_1)\n// sym7   = input(\"\",\"\",type = input.symbol, inline = \"7\", group = group_1)\n// sym_7th = sym7 == \"\" ? syminfo.ticker : sym7\n// htf_7th   = input(\"1W\"  , \"\",type=input.resolution, inline = \"7\", group = group_1)\n// use_8th   = input(false, \"\", inline = \"8\", group = group_1)\n// sym8   = input(\"\",\"\",type = input.symbol, inline = \"8\", group = group_1)\n// sym_8th = sym8 == \"\" ? syminfo.ticker : sym8\n// htf_8th   = input(\"1M\"  , \"\",type=input.resolution, inline = \"8\", group = group_1)\ngroup_2   = \"Candle Settings\"\ncandleType= input(\"Standard\", \"Candle Type\", options = [\"Standard\",\"Heikin Ashi\", \"Line\"], inline = \"1\", group = group_2)\nbars      = input(10      , \"#Bars\", minval = 1, maxval = 10, inline = \"1\", group = group_2)\nprice     = input(true, \"Show Price\", inline = \"3\", group = group_2)\npriceLine = input(true, \"Show Price Line\", inline = \"3\", group = group_2)\ntextSizee = input(\"Small\", \"Labels Size\", options = [\"Auto\", \"Tiny\", \"Small\", \"Normal\", \"Large\", \"Huge\"], inline = \"4\", group = group_2)\ntextSize  = textSizee == \"Auto\" ? size.auto : textSizee == \"Tiny\" ? size.tiny : textSizee == \"Small\" ? size.small : textSizee == \"Normal\" ? size.normal : textSizee == \"Large\" ? size.large : size.huge\ngap       = input(15      , \"Gaps Between Charts\", minval = 15, maxval = 100, step=1, inline = \"5\", group = group_2)\nbullColor = input(#26a69a, \"Colors\" , inline = \"6\", group = group_2)\nbearColor = input(#ee5350, \"\"          , inline = \"6\", group = group_2)\n\n// ---------------------------------------------------------------------------------------------- //\ncutLastDigit(str) =>\n    s = str + \";\"\n    r = str.replace_all(s, \"1;\", \"\")\n    if r != s\n        [r, 1]\n    else\n        r := str.replace_all(s, \"2;\", \"\")\n        if r != s\n            [r, 2]\n        else\n            r := str.replace_all(s, \"3;\", \"\")\n            if r != s\n                [r, 3]\n            else\n                r := str.replace_all(s, \"4;\", \"\")\n                if r != s\n                    [r, 4]\n                else\n                    r := str.replace_all(s, \"5;\", \"\")\n                    if r != s\n                        [r, 5]\n                    else\n                        r := str.replace_all(s, \"6;\", \"\")\n                        if r != s\n                            [r, 6]\n                        else\n                            r := str.replace_all(s, \"7;\", \"\")\n                            if r != s\n                                [r, 7]\n                            else\n                                r := str.replace_all(s, \"8;\", \"\")\n                                if r != s\n                                    [r, 8]\n                                else\n                                    r := str.replace_all(s, \"9;\", \"\")\n                                    if r != s\n                                        [r, 9]\n                                    else\n                                        r := str.replace_all(s, \"0;\", \"\")\n                                        if r != s\n                                            [r, 0]\n                \nstrToNumInt(str) =>\n    integer = 0    // integer part of the number\n    s_new = str\n    position = 0.0    // handled position of the number.\n    sign = 1          // sign of the number. 1.0 is PLUS and -1.0 is MINUS.\n    for i = 0 to 30\n        [s, digit] = cutLastDigit(s_new) // here we'll cut the digits by one from the string till the string is empty.\n        integer := integer + digit * int(pow(10, position)) // it's just a regular digit.\n        position := position + 1\n        if s == \"\"\n            break\n        s_new := s                  // If we are here, then there are more digits in the string. Let's handle the next one!\n    sign * (integer)   // We've exited from the loop. Build the returning value.\n\n// resInMinutes() => \n//     resInMinutes = timeframe.multiplier * (\n//       timeframe.isseconds ? 1. / 60. :\n//       timeframe.isminutes ? 1.       :\n//       timeframe.isdaily   ? 1440.    :\n//       timeframe.isweekly  ? 10080.   :\n//       timeframe.ismonthly ? 43800.   : na)\n\n// tfResInMinutes(res) =>\n//     security(syminfo.tickerid, res, resInMinutes())\n\ncalculateTimeDividedBy(res) =>\n    timeDividiedBy = time(timeframe.period)\n    if(strToNumInt(res) < 1440)\n        timeDividiedBy := strToNumInt(res) * 60 * 1000\n\tfor i = 1 to 50\n\t\tif(res == (tostring(i)+\"D\") or res == \"D\")\n\t\t\ttimeDividiedBy := i * 1 * 86400000\n\t\t\tbreak\n\t\telse if (res == (tostring(i)+\"W\") or res == \"W\")\n\t\t\ttimeDividiedBy := i * 7 * 86400000\n\t\t\tbreak\n\t\telse if (res == (tostring(i)+\"M\") or res == \"M\")\n\t\t\ttimeDividiedBy := i * 30 * 86400000\n\t\t\tbreak\n    timeDividiedBy\n\nvisible(res)=> \n    calculateTimeDividedBy(res) >= calculateTimeDividedBy(timeframe.period)\n\nresToStr(res)=>\n    str = res\n\tif(strToNumInt(str) < 60)\n\t\tstr := str + \"m\"\n\telse if (strToNumInt(str) >= 60 and strToNumInt(str) <= 1440)\n\t\tstr := tostring(strToNumInt(str)/60) + \"h\"\n\telse if (str == \"\")\n\t\tif(strToNumInt(timeframe.period) < 60)\n\t\t\tstr := \"\"+ timeframe.period + \"m\"\n\t\telse if (strToNumInt(timeframe.period) >= 60 and strToNumInt(timeframe.period) <= 1440)\n\t\t\tstr := \"\"+ tostring(strToNumInt(timeframe.period)/60) + \"h\"\n\t\telse\n\t    \tstr:= \"\"+ timeframe.period\n\telse\n\t    str\n    str\n\ndrawLine(x1, y1, x2, y2, xloc, extend, color, style, width) =>\n    var id = line.new(x1, y1, x2, y2, xloc, extend, color, style, width)\n    line.set_xy1(id, x1, y1)\n    line.set_xy2(id, x2, y2)\n    line.set_color(id, color)\n\ndrawLabel(x, y, text, xloc, yloc, color, style, textcolor, size, textalign, tooltip) =>\n    var id = label.new(x, y, text, xloc, yloc, color, style, textcolor, size, textalign, tooltip)\n    label.set_xy(id, x, y)\n    label.set_text(id, text)\n    label.set_tooltip(id, tooltip)\n    label.set_textcolor(id, textcolor)\n\nlabelAbove(txt,x, y, color, size) => \n    var id = label.new(x, y, txt, xloc.bar_index, yloc.price, color, label.style_label_down, color.white, size)\n    label.set_xy(id, x, y)\n    label.set_text(id, txt)\n    label.set_textcolor(id, color.white)\n    label.set_color(id, color)\n\nlabelRight(txt,x, y, color, size) => \n    var id = label.new(x, y, txt, xloc.bar_index, yloc.price, color.new(color.white,100), label.style_label_left, color, size)\n    label.set_xy(id, x, y)\n    label.set_text(id, txt)\n    label.set_textcolor(id, color)\n        \ntoolTip(o, h, l, c, c1) =>\n    \"O: \" + tostring(o) + \"\\nH: \" + tostring(h) + \"\\nL: \" + tostring(l) + \"\\nC: \" + tostring(c)\n\n// getMax(src,bars)=>\n//     max = 0.\n//     if bars == 1\n//         max := highest(src, bars)\n//     else\n//         a = array.new_float(bars, 0)\n//         for _i = 0 to bars-1\n//             array.set(a, _i,src[_i])\n//         max := array.max(a)\n//     max\n\n// getMin(src,bars)=>\n//     min = 0.\n//     if bars == 1\n//         min := lowest(src, bars)\n//     else\n//         a = array.new_float(bars, 0)\n//         for _i = 0 to bars-1\n//             array.set(a, _i,src[_i])\n//         min := array.min(a)\n//     min\n\n// HH = (candleType == \"Line\")?getMax(close,bars):getMax(high,bars)\n// LL  = (candleType == \"Line\")?getMin(close,bars): getMin(low,bars)\n\ngetOHLC(symbol, htf) =>\n    o   = open\n    h   = high\n    l   = low\n    c   = close\n    o1  = open[1]\n    h1  = high[1]\n    l1  = low[1]\n    c1 = close[1]\n    HH = (candleType == \"Line\")?highest(close, bars): highest(high, bars)\n    LL  = (candleType == \"Line\")?lowest(close , bars): lowest(low, bars)\n    [oRa,lRa,hRa,cRa,o1Ra,h1Ra,l1Ra,c1Ra,HHa,LLa]   = security(symbol, htf, [o,l,h,c,o1,h1,l1,c1,HH,LL])  \n    [oRb,lRb,hRb,cRb,o1Rb,h1Rb,l1Rb,c1Rb,HHb,LLb]   = security(symbol, timeframe.period, [o,l,h,c,o1,h1,l1,c1,HH,LL])  \n    [oHa,lHa,hHa,cHa,o1Ha,h1Ha,l1Ha,c1Ha,HHaa,LLaa] = security(heikinashi(symbol), htf, [o,l,h,c,o1,h1,l1,c1,HH,LL])\n    [oHb,lHb,hHb,cHb,o1Hb,h1Hb,l1Hb,c1Hb,HHab,LLab] = security(heikinashi(symbol), timeframe.period, [o,l,h,c,o1,h1,l1,c1,HH,LL])\n    timecheck = visible(htf)\n    oe  = oRb\n    he  = hRb\n    le  = lRb\n    ce  = cRb\n    oe1 = o1Rb\n    he1 = h1Rb\n    le1 = l1Rb\n    ce1 = c1Rb \n    H   = HHb \n    L   = LLb \n    if timecheck and candleType != \"Heikin Ashi\"\n        oe  := oRa\n        he  := hRa\n        le  := lRa\n        ce  := cRa\n        oe1 := o1Ra\n        he1 := h1Ra\n        le1 := l1Ra\n        ce1 := c1Ra\n        H   := HHa\n        L   := LLa\n    if timecheck and candleType == \"Heikin Ashi\"\n        oe  := oHa\n        he  := hHa\n        le  := lHa\n        ce  := cHa\n        oe1 := o1Ha\n        he1 := h1Ha\n        le1 := l1Ha\n        ce1 := c1Ha\n        H   := HHaa\n        L   := LLaa\n    if not timecheck and candleType == \"Heikin Ashi\"\n        oe  := oHb\n        he  := hHb\n        le  := lHb\n        ce  := cHb\n        oe1 := o1Hb\n        he1 := h1Hb\n        le1 := l1Hb\n        ce1 := c1Hb\n        H   := HHab\n        L   := LLab\n    [oe,he,le,ce,oe1,he1,le1,ce1,H,L]\n\n// normalize(val,minVal,maxVal,newMin,newMax) =>\n//     newMin + (val - minVal) * (newMax - newMin) / (maxVal - minVal)\n    \nnormalize(val,minVal,maxVal,newMin,newMax) =>\n    ((val-minVal) / (maxVal-minVal)) *100\n\n// Thanks to @dgtrd\ndrawChart(show, htf, symbol, bullColor, bearColor, Xoffset, bars, candleType, textSize) =>\n    [O0,H0,L0,C0,O1,H1,L1,C1,H,L] = getOHLC(symbol, htf)\n    if candleType == \"Standard\" or candleType == \"Heikin Ashi\"\n        if show\n            labelAbove(tostring(symbol)+\" [\"+tostring(resToStr(htf))+\"]\\n\"+tostring(C0,format.mintick)+\" (\"+tostring((C0 / C1 - 1) * 100, \"#.##\")+\"%)\", bar_index + (Xoffset - 4), 105 , O0 < C0 ? bullColor : bearColor,textSize)\n            if price\n                labelRight(tostring(C0,format.mintick), bar_index + (Xoffset) , normalize(C0,L,H,0,100) , O0 < C0 ? bullColor : bearColor,textSize)\n            if priceLine\n                drawLine(bar_index + Xoffset, normalize(C0,L,H,0,100), bar_index + (Xoffset-bars+1),normalize(C0,L,H,0,100), xloc.bar_index, extend.none, O0 < C0 ? bullColor : bearColor, line.style_dotted, 1)\n            if bars > 0\n                drawLine(bar_index + Xoffset, normalize(O0,L,H,0,100), bar_index + Xoffset, normalize(C0,L,H,0,100), xloc.bar_index, extend.none, O0 < C0 ? bullColor : bearColor, line.style_solid, 6)\n                drawLine(bar_index + Xoffset, normalize(L0,L,H,0,100), bar_index + Xoffset, normalize(H0,L,H,0,100), xloc.bar_index, extend.none, O0 < C0 ? bullColor : bearColor, line.style_solid, 1)\n                drawLabel(bar_index + Xoffset, normalize(H0,L,H,0,100), \"\", xloc.bar_index, yloc.price, #00000000, label.style_label_down, O0 < C0 ? bullColor : bearColor, textSize, text.align_left, toolTip(O0, H0, L0, C0, C1))\n            if bars > 1\n                drawLine(bar_index + (Xoffset - 1), normalize(O1,L,H,0,100), bar_index + (Xoffset - 1), normalize(C1,L,H,0,100), xloc.bar_index, extend.none, O1 < C1 ? bullColor : bearColor, line.style_solid, 6)\n                drawLine(bar_index + (Xoffset - 1), normalize(L1,L,H,0,100), bar_index + (Xoffset - 1), normalize(H1,L,H,0,100), xloc.bar_index, extend.none, O1 < C1 ? bullColor : bearColor, line.style_solid, 1)\n                drawLabel(bar_index + (Xoffset - 1), normalize(H1,L,H,0,100), \"\", xloc.bar_index, yloc.price, #00000000, label.style_label_down, O1 < C1 ?  bullColor : bearColor, textSize, text.align_left, toolTip(O1, H1, L1, C1, valuewhen(change(C1), C1, 1)))\n            if bars > 2\n                O1 := valuewhen(change(O1), O1, 1)\n                C1 := valuewhen(change(C1), C1, 1)\n                L1 := valuewhen(change(L1), L1, 1)\n                H1 := valuewhen(change(H1), H1, 1)\n                drawLine(bar_index + (Xoffset - 2), normalize(O1,L,H,0,100), bar_index + (Xoffset - 2), normalize(C1,L,H,0,100), xloc.bar_index, extend.none, O1 < C1 ? bullColor : bearColor, line.style_solid, 6)\n                drawLine(bar_index + (Xoffset - 2), normalize(L1,L,H,0,100), bar_index + (Xoffset - 2), normalize(H1,L,H,0,100), xloc.bar_index, extend.none, O1 < C1 ? bullColor : bearColor, line.style_solid, 1)\n                drawLabel(bar_index + (Xoffset - 2), normalize(H1,L,H,0,100), \"\", xloc.bar_index, yloc.price, #00000000, label.style_label_down, O1 < C1 ?  bullColor : bearColor, textSize, text.align_left, toolTip(O1, H1, L1, C1, valuewhen(change(C1), C1, 1)))\n            if bars > 3\n                O1 := valuewhen(change(O1), O1, 1)\n                C1 := valuewhen(change(C1), C1, 1)\n                L1 := valuewhen(change(L1), L1, 1)\n                H1 := valuewhen(change(H1), H1, 1)\n                drawLine(bar_index + (Xoffset - 3), normalize(O1,L,H,0,100), bar_index + (Xoffset - 3), normalize(C1,L,H,0,100), xloc.bar_index, extend.none, O1 < C1 ? bullColor : bearColor, line.style_solid, 6)\n                drawLine(bar_index + (Xoffset - 3), normalize(L1,L,H,0,100), bar_index + (Xoffset - 3), normalize(H1,L,H,0,100), xloc.bar_index, extend.none, O1 < C1 ? bullColor : bearColor, line.style_solid, 1)\n                drawLabel(bar_index + (Xoffset - 3), normalize(H1,L,H,0,100), \"\", xloc.bar_index, yloc.price, #00000000, label.style_label_down, O1 < C1 ?  bullColor : bearColor, textSize, text.align_left, toolTip(O1, H1, L1, C1, valuewhen(change(C1), C1, 1)))\n            if bars > 4\n                O1 := valuewhen(change(O1), O1, 1)\n                C1 := valuewhen(change(C1), C1, 1)\n                L1 := valuewhen(change(L1), L1, 1)\n                H1 := valuewhen(change(H1), H1, 1)\n                drawLine(bar_index + (Xoffset - 4), normalize(O1,L,H,0,100), bar_index + (Xoffset - 4), normalize(C1,L,H,0,100), xloc.bar_index, extend.none, O1 < C1 ? bullColor : bearColor, line.style_solid, 6)\n                drawLine(bar_index + (Xoffset - 4), normalize(L1,L,H,0,100), bar_index + (Xoffset - 4), normalize(H1,L,H,0,100), xloc.bar_index, extend.none, O1 < C1 ? bullColor : bearColor, line.style_solid, 1)\n                drawLabel(bar_index + (Xoffset - 4), normalize(H1,L,H,0,100), \"\", xloc.bar_index, yloc.price, #00000000, label.style_label_down, O1 < C1 ?  bullColor : bearColor, textSize, text.align_left, toolTip(O1, H1, L1, C1, valuewhen(change(C1), C1, 1)))\n            if bars > 5\n                O1 := valuewhen(change(O1), O1, 1)\n                C1 := valuewhen(change(C1), C1, 1)\n                L1 := valuewhen(change(L1), L1, 1)\n                H1 := valuewhen(change(H1), H1, 1)\n                drawLine(bar_index + (Xoffset - 5), normalize(O1,L,H,0,100), bar_index + (Xoffset - 5), normalize(C1,L,H,0,100), xloc.bar_index, extend.none, O1 < C1 ? bullColor : bearColor, line.style_solid, 6)\n                drawLine(bar_index + (Xoffset - 5), normalize(L1,L,H,0,100), bar_index + (Xoffset - 5), normalize(H1,L,H,0,100), xloc.bar_index, extend.none, O1 < C1 ? bullColor : bearColor, line.style_solid, 1)\n                drawLabel(bar_index + (Xoffset - 5), normalize(H1,L,H,0,100), \"\", xloc.bar_index, yloc.price, #00000000, label.style_label_down, O1 < C1 ?  bullColor : bearColor, textSize, text.align_left, toolTip(O1, H1, L1, C1, valuewhen(change(C1), C1, 1)))\n            if bars > 6\n                O1 := valuewhen(change(O1), O1, 1)\n                C1 := valuewhen(change(C1), C1, 1)\n                L1 := valuewhen(change(L1), L1, 1)\n                H1 := valuewhen(change(H1), H1, 1)\n                drawLine(bar_index + (Xoffset - 6), normalize(O1,L,H,0,100), bar_index + (Xoffset - 6), normalize(C1,L,H,0,100), xloc.bar_index, extend.none, O1 < C1 ? bullColor : bearColor, line.style_solid, 6)\n                drawLine(bar_index + (Xoffset - 6), normalize(L1,L,H,0,100), bar_index + (Xoffset - 6), normalize(H1,L,H,0,100), xloc.bar_index, extend.none, O1 < C1 ? bullColor : bearColor, line.style_solid, 1)\n                drawLabel(bar_index + (Xoffset - 6), normalize(H1,L,H,0,100), \"\", xloc.bar_index, yloc.price, #00000000, label.style_label_down, O1 < C1 ?  bullColor : bearColor, textSize, text.align_left, toolTip(O1, H1, L1, C1, valuewhen(change(C1), C1, 1)))\n            if bars > 7\n                O1 := valuewhen(change(O1), O1, 1)\n                C1 := valuewhen(change(C1), C1, 1)\n                L1 := valuewhen(change(L1), L1, 1)\n                H1 := valuewhen(change(H1), H1, 1)\n                drawLine(bar_index + (Xoffset - 7), normalize(O1,L,H,0,100), bar_index + (Xoffset - 7), normalize(C1,L,H,0,100), xloc.bar_index, extend.none, O1 < C1 ? bullColor : bearColor, line.style_solid, 6)\n                drawLine(bar_index + (Xoffset - 7), normalize(L1,L,H,0,100), bar_index + (Xoffset - 7), normalize(H1,L,H,0,100), xloc.bar_index, extend.none, O1 < C1 ? bullColor : bearColor, line.style_solid, 1)\n                drawLabel(bar_index + (Xoffset - 7), normalize(H1,L,H,0,100), \"\", xloc.bar_index, yloc.price, #00000000, label.style_label_down, O1 < C1 ?  bullColor : bearColor, textSize, text.align_left, toolTip(O1, H1, L1, C1, valuewhen(change(C1), C1, 1)))\n            if bars > 8\n                O1 := valuewhen(change(O1), O1, 1)\n                C1 := valuewhen(change(C1), C1, 1)\n                L1 := valuewhen(change(L1), L1, 1)\n                H1 := valuewhen(change(H1), H1, 1)\n                drawLine(bar_index + (Xoffset - 8), normalize(O1,L,H,0,100), bar_index + (Xoffset - 8), normalize(C1,L,H,0,100), xloc.bar_index, extend.none, O1 < C1 ? bullColor : bearColor, line.style_solid, 6)\n                drawLine(bar_index + (Xoffset - 8), normalize(L1,L,H,0,100), bar_index + (Xoffset - 8), normalize(H1,L,H,0,100), xloc.bar_index, extend.none, O1 < C1 ? bullColor : bearColor, line.style_solid, 1)\n                drawLabel(bar_index + (Xoffset - 8), normalize(H1,L,H,0,100), \"\", xloc.bar_index, yloc.price, #00000000, label.style_label_down, O1 < C1 ?  bullColor : bearColor, textSize, text.align_left, toolTip(O1, H1, L1, C1, valuewhen(change(C1), C1, 1)))\n            if bars > 9\n                O1 := valuewhen(change(O1), O1, 1)\n                C1 := valuewhen(change(C1), C1, 1)\n                L1 := valuewhen(change(L1), L1, 1)\n                H1 := valuewhen(change(H1), H1, 1)\n                drawLine(bar_index + (Xoffset - 9), normalize(O1,L,H,0,100), bar_index + (Xoffset - 9), normalize(C1,L,H,0,100), xloc.bar_index, extend.none, O1 < C1 ? bullColor : bearColor, line.style_solid, 6)\n                drawLine(bar_index + (Xoffset - 9), normalize(L1,L,H,0,100), bar_index + (Xoffset - 9), normalize(H1,L,H,0,100), xloc.bar_index, extend.none, O1 < C1 ? bullColor : bearColor, line.style_solid, 1)\n                drawLabel(bar_index + (Xoffset - 9), normalize(H1,L,H,0,100), \"\", xloc.bar_index, yloc.price, #00000000, label.style_label_down, O1 < C1 ?  bullColor : bearColor, textSize, text.align_left, toolTip(O1, H1, L1, C1, valuewhen(change(C1), C1, 1)))\n    if candleType == \"Line\"\n        if show\n            labelAbove(tostring(symbol)+\"[\"+tostring(resToStr(htf))+\"]\\n\"+tostring(C0,format.mintick)+\" (\"+tostring((C0 / C1 - 1) * 100, \"#.##\")+\"%)\", bar_index + (Xoffset - 4), 105 , O0 < C0 ? bullColor : bearColor,textSize)\n            if price\n                labelRight(tostring(C0,format.mintick), bar_index + (Xoffset-1) , normalize(C0,L,H,0,100) , O0 < C0 ? bullColor : bearColor,textSize)\n            if priceLine\n                drawLine(bar_index + Xoffset, normalize(C0,L,H,0,100), bar_index + (Xoffset-bars+1),normalize(C0,L,H,0,100), xloc.bar_index, extend.none, O0 < C0 ? bullColor : bearColor, line.style_dotted, 1)\n            if bars > 0\n                drawLine(bar_index + Xoffset, normalize(C0,L,H,0,100), bar_index + (Xoffset-1), normalize(C1,L,H,0,100), xloc.bar_index, extend.none, C1 < C0 ? bullColor : bearColor, line.style_solid, 2)\n                drawLabel(bar_index + Xoffset, normalize(C0,L,H,0,100), \"\", xloc.bar_index, yloc.price, #00000000, label.style_label_down, O0 < C0 ? bullColor : bearColor, textSize, text.align_left, toolTip(O0, H0, L0, C0, C1))\n            if bars > 1\n                O1 := valuewhen(change(C1), C1, 1)\n                drawLine(bar_index + (Xoffset - 1), normalize(C1,L,H,0,100), bar_index + (Xoffset - 2), normalize(O1,L,H,0,100), xloc.bar_index, extend.none, O1 < C1 ? bullColor : bearColor, line.style_solid, 2)\n                drawLabel(bar_index + (Xoffset - 1), normalize(C1,L,H,0,100), \"\", xloc.bar_index, yloc.price, #00000000, label.style_label_down, O0 < C0 ? bullColor : bearColor, textSize, text.align_left, toolTip(O0, H0, L0, C0, C1))\n            if bars > 2\n                O1 := valuewhen(change(O1), O1, 1)\n                C1 := valuewhen(change(C1), C1, 1)\n                L1 := valuewhen(change(L1), L1, 1)\n                H1 := valuewhen(change(H1), H1, 1)\n                drawLine(bar_index + (Xoffset - 2), normalize(C1,L,H,0,100), bar_index + (Xoffset - 3), normalize(O1,L,H,0,100), xloc.bar_index, extend.none, O1 < C1 ? bullColor : bearColor, line.style_solid, 2)\n                drawLabel(bar_index + (Xoffset - 2), normalize(C1,L,H,0,100), \"\", xloc.bar_index, yloc.price, #00000000, label.style_label_down, O0 < C0 ? bullColor : bearColor, textSize, text.align_left, toolTip(O0, H0, L0, C0, C1))\n            if bars > 3\n                O1 := valuewhen(change(O1), O1, 1)\n                C1 := valuewhen(change(C1), C1, 1)\n                L1 := valuewhen(change(L1), L1, 1)\n                H1 := valuewhen(change(H1), H1, 1)\n                drawLine(bar_index + (Xoffset - 3), normalize(C1,L,H,0,100), bar_index + (Xoffset - 4), normalize(O1,L,H,0,100), xloc.bar_index, extend.none, O1 < C1 ? bullColor : bearColor, line.style_solid, 2)\n                drawLabel(bar_index + (Xoffset - 3), normalize(C1,L,H,0,100), \"\", xloc.bar_index, yloc.price, #00000000, label.style_label_down, O0 < C0 ? bullColor : bearColor, textSize, text.align_left, toolTip(O0, H0, L0, C0, C1))\n            if bars > 4\n                O1 := valuewhen(change(O1), O1, 1)\n                C1 := valuewhen(change(C1), C1, 1)\n                L1 := valuewhen(change(L1), L1, 1)\n                H1 := valuewhen(change(H1), H1, 1)\n                drawLine(bar_index + (Xoffset - 4), normalize(C1,L,H,0,100), bar_index + (Xoffset - 5), normalize(O1,L,H,0,100), xloc.bar_index, extend.none, O1 < C1 ? bullColor : bearColor, line.style_solid, 2)\n                drawLabel(bar_index + (Xoffset - 4), normalize(C1,L,H,0,100), \"\", xloc.bar_index, yloc.price, #00000000, label.style_label_down, O0 < C0 ? bullColor : bearColor, textSize, text.align_left, toolTip(O0, H0, L0, C0, C1))\n            if bars > 5\n                O1 := valuewhen(change(O1), O1, 1)\n                C1 := valuewhen(change(C1), C1, 1)\n                L1 := valuewhen(change(L1), L1, 1)\n                H1 := valuewhen(change(H1), H1, 1)\n                drawLine(bar_index + (Xoffset - 5), normalize(C1,L,H,0,100), bar_index + (Xoffset - 6), normalize(O1,L,H,0,100), xloc.bar_index, extend.none, O1 < C1 ? bullColor : bearColor, line.style_solid, 2)\n                drawLabel(bar_index + (Xoffset - 5), normalize(C1,L,H,0,100), \"\", xloc.bar_index, yloc.price, #00000000, label.style_label_down, O0 < C0 ? bullColor : bearColor, textSize, text.align_left, toolTip(O0, H0, L0, C0, C1))\n            if bars > 6\n                O1 := valuewhen(change(O1), O1, 1)\n                C1 := valuewhen(change(C1), C1, 1)\n                L1 := valuewhen(change(L1), L1, 1)\n                H1 := valuewhen(change(H1), H1, 1)\n                drawLine(bar_index + (Xoffset - 6), normalize(C1,L,H,0,100), bar_index + (Xoffset - 7), normalize(O1,L,H,0,100), xloc.bar_index, extend.none, O1 < C1 ? bullColor : bearColor, line.style_solid, 2)\n                drawLabel(bar_index + (Xoffset - 6), normalize(C1,L,H,0,100), \"\", xloc.bar_index, yloc.price, #00000000, label.style_label_down, O0 < C0 ? bullColor : bearColor, textSize, text.align_left, toolTip(O0, H0, L0, C0, C1))\n            if bars > 7\n                O1 := valuewhen(change(O1), O1, 1)\n                C1 := valuewhen(change(C1), C1, 1)\n                L1 := valuewhen(change(L1), L1, 1)\n                H1 := valuewhen(change(H1), H1, 1)\n                drawLine(bar_index + (Xoffset - 7), normalize(C1,L,H,0,100), bar_index + (Xoffset - 8), normalize(O1,L,H,0,100), xloc.bar_index, extend.none, O1 < C1 ? bullColor : bearColor, line.style_solid, 2)\n                drawLabel(bar_index + (Xoffset - 7), normalize(C1,L,H,0,100), \"\", xloc.bar_index, yloc.price, #00000000, label.style_label_down, O0 < C0 ? bullColor : bearColor, textSize, text.align_left, toolTip(O0, H0, L0, C0, C1))\n            if bars > 8\n                O1 := valuewhen(change(O1), O1, 1)\n                C1 := valuewhen(change(C1), C1, 1)\n                L1 := valuewhen(change(L1), L1, 1)\n                H1 := valuewhen(change(H1), H1, 1)\n                drawLine(bar_index + (Xoffset - 8), normalize(C1,L,H,0,100), bar_index + (Xoffset - 9), normalize(O1,L,H,0,100), xloc.bar_index, extend.none, O1 < C1 ? bullColor : bearColor, line.style_solid, 2)\n                drawLabel(bar_index + (Xoffset - 8), normalize(C1,L,H,0,100), \"\", xloc.bar_index, yloc.price, #00000000, label.style_label_down, O0 < C0 ? bullColor : bearColor, textSize, text.align_left, toolTip(O0, H0, L0, C0, C1))\n            // if bars > 9\n            //     O1 := valuewhen(change(O1), O1, 1)\n            //     C1 := valuewhen(change(C1), C1, 1)\n            //     L1 := valuewhen(change(L1), L1, 1)\n            //     H1 := valuewhen(change(H1), H1, 1)\n            //     drawLine(bar_index + (Xoffset - 9), normalize(C1,L,H,0,100), bar_index + (Xoffset - 10), normalize(O1,L,H,0,100), xloc.bar_index, extend.none, O1 < C1 ? bullColor : bearColor, line.style_solid, 2)\n            //     drawLabel(bar_index + (Xoffset - 9), normalize(C1,L,H,0,100), \"\", xloc.bar_index, yloc.price, #00000000, label.style_label_down, O0 < C0 ? bullColor : bearColor, textSize, text.align_left, toolTip(O0, H0, L0, C0, C1))\n            \n// ---------------------------------------------------------------------------------------------- //\ndrawChart(use_1st, htf_1st ,sym_1st , bullColor, bearColor,   0      , bars, candleType, textSize)\ndrawChart(use_2nd, htf_2nd, sym_2nd , bullColor, bearColor, 1*(-gap) , bars, candleType, textSize)\ndrawChart(use_3rd, htf_3rd, sym_3rd , bullColor, bearColor, 2*(-gap) , bars, candleType, textSize)\ndrawChart(use_4th, htf_4th, sym_4th , bullColor, bearColor, 3*(-gap) , bars, candleType, textSize)\n// drawChart(use_5th, htf_5th, sym_5th , bullColor, bearColor, 4*(-gap) , bars, candleType, textSize)\n// drawChart(use_6th, htf_6th, sym_6th , bullColor, bearColor, 5*(-gap) , bars, candleType, textSize)\n// drawChart(use_7th, htf_7th, sym_7th , bullColor, bearColor, 6*(-gap) , bars, candleType, textSize)\n// drawChart(use_8th, htf_8th, sym_8th , bullColor, bearColor, 7*(-gap) , bars, candleType, textSize)\n// ---------------------------------------------------------------------------------------------- //\n",
+  "sha256": "652bf916e6a1df2e57e190be16e7fe1891977d96e55b563f36f694d8d84ee7b8",
+  "chars": 28937,
+  "declaredTitle": null
+ },
+ "census": {
+  "studies": 3,
+  "events": [
+   "Splits",
+   "Earnings"
+  ],
+  "indicators": 1,
+  "controlProbeSawSomething": true,
+  "controlFilterRemovedExactlyTheEvents": true
+ },
+ "study": {
+  "id": "Script$USER;6a17cb6595e6407f8b76c162ed6bb027@tv-scripting",
+  "fullId": "Script$USER;6a17cb6595e6407f8b76c162ed6bb027@tv-scripting-101",
+  "title": "MTF WatchList Charts [Anan]",
+  "description": "MTF WatchList Charts [Anan]",
+  "shortDescription": "MTF WatchList Charts [Anan]",
+  "status": {
+   "type": 2
+  },
+  "plots": [],
+  "styles": {},
+  "styleState": {},
+  "palettes": {
+   "palette_common": {
+    "valToIndex": {
+     "0": 0,
+     "1": 1,
+     "2": 2,
+     "3": 3,
+     "4": 4
+    },
+    "colors": {
+     "0": {
+      "color": "#26a69a"
+     },
+     "1": {
+      "color": "#ee5350"
+     },
+     "2": {
+      "color": "#FFFFFF"
+     },
+     "3": {
+      "color": "rgba(255,255,255,0)"
+     },
+     "4": {
+      "color": "rgba(0,0,0,0)"
+     }
+    }
+   }
+  },
+  "paletteState": {
+   "palette_common": {
+    "colors": {
+     "0": {
+      "color": "#26a69a"
+     },
+     "1": {
+      "color": "#ee5350"
+     },
+     "2": {
+      "color": "#FFFFFF"
+     },
+     "3": {
+      "color": "rgba(255,255,255,0)"
+     },
+     "4": {
+      "color": "rgba(0,0,0,0)"
+     }
+    }
+   }
+  },
+  "inputs": [
+   {
+    "id": "text",
+    "name": "ILScript",
+    "type": "text",
+    "defval": "",
+    "isHidden": true,
+    "value": "bmI9Ks46_f4CMGZBoqEiGkdEW13s9fg==_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"
+   },
+   {
+    "id": "pineId",
+    "name": "pineId",
+    "type": "text",
+    "defval": "",
+    "isHidden": true,
+    "value": ""
+   },
+   {
+    "id": "pineVersion",
+    "name": "pineVersion",
+    "type": "text",
+    "defval": "",
+    "isHidden": true,
+    "value": ""
+   },
+   {
+    "id": "in_0",
+    "name": "",
+    "type": "bool",
+    "defval": true,
+    "isHidden": false,
+    "value": true
+   },
+   {
+    "id": "in_1",
+    "name": "",
+    "type": "symbol",
+    "defval": "",
+    "isHidden": false,
+    "value": ""
+   },
+   {
+    "id": "in_2",
+    "name": "",
+    "type": "resolution",
+    "defval": "",
+    "isHidden": false,
+    "value": ""
+   },
+   {
+    "id": "in_3",
+    "name": "",
+    "type": "bool",
+    "defval": true,
+    "isHidden": false,
+    "value": true
+   },
+   {
+    "id": "in_4",
+    "name": "",
+    "type": "symbol",
+    "defval": "",
+    "isHidden": false,
+    "value": ""
+   },
+   {
+    "id": "in_5",
+    "name": "",
+    "type": "resolution",
+    "defval": "60",
+    "isHidden": false,
+    "value": "60"
+   },
+   {
+    "id": "in_6",
+    "name": "",
+    "type": "bool",
+    "defval": true,
+    "isHidden": false,
+    "value": true
+   },
+   {
+    "id": "in_7",
+    "name": "",
+    "type": "symbol",
+    "defval": "",
+    "isHidden": false,
+    "value": ""
+   },
+   {
+    "id": "in_8",
+    "name": "",
+    "type": "resolution",
+    "defval": "240",
+    "isHidden": false,
+    "value": "240"
+   },
+   {
+    "id": "in_9",
+    "name": "",
+    "type": "bool",
+    "defval": true,
+    "isHidden": false,
+    "value": true
+   },
+   {
+    "id": "in_10",
+    "name": "",
+    "type": "symbol",
+    "defval": "",
+    "isHidden": false,
+    "value": ""
+   },
+   {
+    "id": "in_11",
+    "name": "",
+    "type": "resolution",
+    "defval": "1D",
+    "isHidden": false,
+    "value": "1D"
+   },
+   {
+    "id": "in_12",
+    "name": "Candle Type",
+    "type": "text",
+    "defval": "Standard",
+    "isHidden": false,
+    "value": "Standard"
+   },
+   {
+    "id": "in_13",
+    "name": "#Bars",
+    "type": "integer",
+    "defval": 10,
+    "isHidden": false,
+    "value": 10
+   },
+   {
+    "id": "in_14",
+    "name": "Show Price",
+    "type": "bool",
+    "defval": true,
+    "isHidden": false,
+    "value": true
+   },
+   {
+    "id": "in_15",
+    "name": "Show Price Line",
+    "type": "bool",
+    "defval": true,
+    "isHidden": false,
+    "value": true
+   },
+   {
+    "id": "in_16",
+    "name": "Labels Size",
+    "type": "text",
+    "defval": "Small",
+    "isHidden": false,
+    "value": "Small"
+   },
+   {
+    "id": "in_17",
+    "name": "Gaps Between Charts",
+    "type": "integer",
+    "defval": 15,
+    "isHidden": false,
+    "value": 15
+   },
+   {
+    "id": "in_18",
+    "name": "Colors",
+    "type": "color",
+    "defval": "#26a69a",
+    "isHidden": false,
+    "value": "#26a69a"
+   },
+   {
+    "id": "in_19",
+    "name": "",
+    "type": "color",
+    "defval": "#ee5350",
+    "isHidden": false,
+    "value": "#ee5350"
+   }
+  ]
+ },
+ "window": {
+  "chartBarsLoaded": 666,
+  "studyBarsLoaded": 0,
+  "firstBarTime": 1711027800,
+  "lastBarTime": 1794580200
+ },
+ "bars": {
+  "fields": [
+   "time",
+   "open",
+   "high",
+   "low",
+   "close",
+   "volume"
+  ],
+  "timeUnit": "unix-s",
+  "count": 666,
+  "rows": [
+   [
+    1711027800,
+    47,
+    57.8,
+    45.05,
+    50.44,
+    48705533
+   ],
+   [
+    1711114200,
+    48.88,
+    51,
+    45.34,
+    46,
+    15983139
+   ],
+   [
+    1711373400,
+    47.09,
+    61.9399,
+    46.08,
+    59.8,
+    24398838
+   ],
+   [
+    1711459800,
+    67.71,
+    74.9,
+    63.21,
+    65.11,
+    35330978
+   ],
+   [
+    1711546200,
+    63.76,
+    63.76,
+    55.62,
+    57.75,
+    18758308
+   ],
+   [
+    1711632600,
+    54.52,
+    55.3,
+    49.1,
+    49.32,
+    12694482
+   ],
+   [
+    1711978200,
+    48.95,
+    49.28,
+    44.395,
+    45.97,
+    12987945
+   ],
+   [
+    1712064600,
+    45.055,
+    51.35,
+    44,
+    50.45,
+    9442857
+   ],
+   [
+    1712151000,
+    49.7,
+    51.2399,
+    46.55,
+    46.99,
+    4822866
+   ],
+   [
+    1712237400,
+    46.7,
+    48.43,
+    45.1,
+    45.78,
+    4618377
+   ],
+   [
+    1712323800,
+    45.68,
+    48.29,
+    44.68,
+    47.56,
+    2930772
+   ],
+   [
+    1712583000,
+    47.86,
+    49.1799,
+    45.04,
+    46.15,
+    2661470
+   ],
+   [
+    1712669400,
+    46.4,
+    47.49,
+    44.9,
+    45,
+    2277342
+   ],
+   [
+    1712755800,
+    44,
+    44.5975,
+    41.72,
+    42.09,
+    4350147
+   ],
+   [
+    1712842200,
+    42.05,
+    46.35,
+    42.01,
+    44.53,
+    4263001
+   ],
+   [
+    1712928600,
+    43.47,
+    43.86,
+    42.16,
+    42.27,
+    2021261
+   ],
+   [
+    1713187800,
+    41.94,
+    42.1,
+    39.68,
+    40,
+    3448536
+   ],
+   [
+    1713274200,
+    40.5,
+    42.14,
+    39.32,
+    41.14,
+    1699046
+   ],
+   [
+    1713360600,
+    40.4,
+    40.6054,
+    38.7,
+    39.17,
+    2153817
+   ],
+   [
+    1713447000,
+    38.8,
+    42.13,
+    37.35,
+    41.72,
+    2284138
+   ],
+   [
+    1713533400,
+    40.57,
+    43.83,
+    40.17,
+    40.88,
+    2540622
+   ],
+   [
+    1713792600,
+    40.88,
+    42.57,
+    40.51,
+    42.04,
+    1486416
+   ],
+   [
+    1713879000,
+    42.07,
+    44.0599,
+    41.8216,
+    42.82,
+    1956480
+   ],
+   [
+    1713965400,
+    42.66,
+    43.97,
+    42.45,
+    43.15,
+    1384024
+   ],
+   [
+    1714051800,
+    41.64,
+    42.64,
+    40.85,
+    42.45,
+    1485825
+   ],
+   [
+    1714138200,
+    42.98,
+    46.199,
+    42.65,
+    45.43,
+    2764203
+   ],
+   [
+    1714397400,
+    46.05,
+    48.88,
+    45.85,
+    46.28,
+    2683917
+   ],
+   [
+    1714483800,
+    45.47,
+    46.755,
+    44.15,
+    44.44,
+    1752875
+   ],
+   [
+    1714570200,
+    44.87,
+    47.7,
+    44.6,
+    45.88,
+    1598960
+   ],
+   [
+    1714656600,
+    46.61,
+    49.639,
+    45.72,
+    47.7,
+    2364999
+   ],
+   [
+    1714743000,
+    48.44,
+    48.7,
+    46.24,
+    46.64,
+    1188304
+   ],
+   [
+    1715002200,
+    46.99,
+    49.8699,
+    46.75,
+    48.27,
+    2116653
+   ],
+   [
+    1715088600,
+    47.73,
+    50.33,
+    47.4,
+    49.4,
+    6241675
+   ],
+   [
+    1715175000,
+    55,
+    55.16,
+    49.7,
+    51.4,
+    13509264
+   ],
+   [
+    1715261400,
+    51.24,
+    51.25,
+    48.25,
+    50.11,
+    3909140
+   ],
+   [
+    1715347800,
+    50.64,
+    54.75,
+    50.38,
+    53.53,
+    4450785
+   ],
+   [
+    1715607000,
+    56.49,
+    61.21,
+    55.59,
+    58.19,
+    8179370
+   ],
+   [
+    1715693400,
+    62.57,
+    64.5,
+    59.5,
+    62.34,
+    7674013
+   ],
+   [
+    1715779800,
+    60.23,
+    60.93,
+    56.25,
+    59.63,
+    4897634
+   ],
+   [
+    1715866200,
+    59.5,
+    60.46,
+    56.29,
+    56.38,
+    3219432
+   ],
+   [
+    1715952600,
+    61.2,
+    66.15,
+    60.62,
+    62.04,
+    15131435
+   ],
+   [
+    1716211800,
+    61.9,
+    62,
+    57.27,
+    61.22,
+    5975244
+   ],
+   [
+    1716298200,
+    60.74,
+    62.46,
+    58.84,
+    59.31,
+    2694029
+   ],
+   [
+    1716384600,
+    59,
+    60.4499,
+    55.86,
+    56.69,
+    3272328
+   ],
+   [
+    1716471000,
+    56.88,
+    57.26,
+    53.11,
+    54.16,
+    3289560
+   ],
+   [
+    1716557400,
+    53.96,
+    56,
+    53.21,
+    54.72,
+    2019797
+   ],
+   [
+    1716903000,
+    55.12,
+    59.275,
+    53.8634,
+    58.49,
+    3536946
+   ],
+   [
+    1716989400,
+    57.45,
+    58.63,
+    56.801,
+    57.64,
+    1319960
+   ],
+   [
+    1717075800,
+    57,
+    59.49,
+    55.76,
+    56.3,
+    1860520
+   ],
+   [
+    1717162200,
+    56.21,
+    57.52,
+    53.45,
+    54.24,
+    2036766
+   ],
+   [
+    1717421400,
+    57.55,
+    58.64,
+    54.15,
+    55.8,
+    2573080
+   ],
+   [
+    1717507800,
+    55.2,
+    55.4,
+    53.955,
+    54.5,
+    1291039
+   ],
+   [
+    1717594200,
+    54.79,
+    60.24,
+    54.5709,
+    60.07,
+    3030031
+   ],
+   [
+    1717680600,
+    58.99,
+    63.57,
+    58.38,
+    63.46,
+    3375228
+   ],
+   [
+    1717767000,
+    61.63,
+    63.8,
+    59.21,
+    59.8,
+    3414026
+   ],
+   [
+    1718026200,
+    60.01,
+    61.38,
+    58.26,
+    59.63,
+    1459111
+   ],
+   [
+    1718112600,
+    60.12,
+    62.0492,
+    58.495,
+    61.55,
+    2024061
+   ],
+   [
+    1718199000,
+    62.875,
+    69.59,
+    61.85,
+    65.93,
+    6825736
+   ],
+   [
+    1718285400,
+    66.83,
+    69.0417,
+    63.64,
+    63.96,
+    2874509
+   ],
+   [
+    1718371800,
+    63.54,
+    64.94,
+    60.11,
+    60.94,
+    2454885
+   ],
+   [
+    1718631000,
+    61,
+    61.13,
+    58.1,
+    60.35,
+    2096260
+   ],
+   [
+    1718717400,
+    61.11,
+    61.6387,
+    57.5,
+    60.21,
+    2213121
+   ],
+   [
+    1718890200,
+    60,
+    60.1,
+    55.47,
+    57.42,
+    3372050
+   ],
+   [
+    1718976600,
+    56.4,
+    57.65,
+    54.45,
+    57.3,
+    4441047
+   ],
+   [
+    1719235800,
+    57.32,
+    58.89,
+    55.95,
+    56.48,
+    1789202
+   ],
+   [
+    1719322200,
+    56.56,
+    61.57,
+    56.42,
+    61.38,
+    2828497
+   ],
+   [
+    1719408600,
+    60.5,
+    63.88,
+    60.33,
+    63.61,
+    3828425
+   ],
+   [
+    1719495000,
+    62.834,
+    64.7,
+    62.03,
+    63.58,
+    1704769
+   ],
+   [
+    1719581400,
+    64.07,
+    65.82,
+    62.67,
+    63.89,
+    1921903
+   ],
+   [
+    1719840600,
+    64.2,
+    66.69,
+    62.2,
+    66.59,
+    3609070
+   ],
+   [
+    1719927000,
+    65.99,
+    73.52,
+    65.65,
+    73.51,
+    6089633
+   ],
+   [
+    1720013400,
+    71.93,
+    73.9722,
+    70.18,
+    73.62,
+    2718149
+   ],
+   [
+    1720186200,
+    73.78,
+    76.2,
+    71.58,
+    72.97,
+    2587222
+   ],
+   [
+    1720445400,
+    72.76,
+    74.1155,
+    70.9,
+    72.81,
+    2191086
+   ],
+   [
+    1720531800,
+    73.48,
+    76.74,
+    69.2,
+    70.59,
+    2889761
+   ],
+   [
+    1720618200,
+    71.23,
+    72.28,
+    67.62,
+    69.4,
+    2156086
+   ],
+   [
+    1720704600,
+    70.5,
+    71.891,
+    68.3283,
+    70.29,
+    2170320
+   ],
+   [
+    1720791000,
+    70.75,
+    76.73,
+    69.4,
+    73.85,
+    3512646
+   ],
+   [
+    1721050200,
+    74.69,
+    78.08,
+    72.5312,
+    72.98,
+    2782760
+   ],
+   [
+    1721136600,
+    70.67,
+    70.69,
+    66.77,
+    70.44,
+    4589263
+   ],
+   [
+    1721223000,
+    68.48,
+    69.79,
+    63.79,
+    65.21,
+    3318987
+   ],
+   [
+    1721309400,
+    66.74,
+    66.74,
+    63.9377,
+    65.92,
+    2064082
+   ],
+   [
+    1721395800,
+    65.75,
+    68.27,
+    64.5,
+    64.7,
+    1997292
+   ],
+   [
+    1721655000,
+    66.93,
+    70.46,
+    65.545,
+    68.13,
+    3644792
+   ],
+   [
+    1721741400,
+    67.8,
+    71.41,
+    67.01,
+    67.84,
+    2486464
+   ],
+   [
+    1721827800,
+    65.665,
+    66.3,
+    62.1814,
+    62.95,
+    2869117
+   ],
+   [
+    1721914200,
+    62.9,
+    64.36,
+    59.73,
+    62.06,
+    2644529
+   ],
+   [
+    1722000600,
+    62.9,
+    64.32,
+    61.23,
+    62.36,
+    2044272
+   ],
+   [
+    1722259800,
+    62.97,
+    62.98,
+    58.72,
+    59.98,
+    2202874
+   ],
+   [
+    1722346200,
+    60.06,
+    60.59,
+    57.36,
+    58.44,
+    2211163
+   ],
+   [
+    1722432600,
+    59.38,
+    61.27,
+    59.31,
+    60.85,
+    1652089
+   ],
+   [
+    1722519000,
+    64.4,
+    64.64,
+    59.2,
+    59.38,
+    2520441
+   ],
+   [
+    1722605400,
+    56.24,
+    57.81,
+    54.11,
+    57.58,
+    3254160
+   ],
+   [
+    1722864600,
+    53.25,
+    59.13,
+    52.76,
+    56.81,
+    3078910
+   ],
+   [
+    1722951000,
+    58.1,
+    58.5,
+    54.34,
+    54.36,
+    6498267
+   ],
+   [
+    1723037400,
+    54.8,
+    55.24,
+    49.13,
+    50.69,
+    7772162
+   ],
+   [
+    1723123800,
+    51.95,
+    57.7422,
+    51.76,
+    54.94,
+    5653307
+   ],
+   [
+    1723210200,
+    53.97,
+    54.11,
+    51.5,
+    52.91,
+    14509834
+   ],
+   [
+    1723469400,
+    52.5,
+    52.97,
+    50.8,
+    52.51,
+    3397997
+   ],
+   [
+    1723555800,
+    53.05,
+    54.69,
+    52.54,
+    54.52,
+    3967761
+   ],
+   [
+    1723642200,
+    53.7,
+    55.03,
+    53.2,
+    54.95,
+    3874030
+   ],
+   [
+    1723728600,
+    55.25,
+    56.85,
+    54.18,
+    55.55,
+    4841780
+   ],
+   [
+    1723815000,
+    54.87,
+    55.14,
+    53.9,
+    54.92,
+    3005713
+   ],
+   [
+    1724074200,
+    54.79,
+    54.9,
+    52.49,
+    54.36,
+    4487378
+   ],
+   [
+    1724160600,
+    53.5,
+    55.06,
+    52.39,
+    55.02,
+    4206307
+   ],
+   [
+    1724247000,
+    54.88,
+    57.1097,
+    54.27,
+    56.89,
+    4179385
+   ],
+   [
+    1724333400,
+    56.5,
+    57.45,
+    55.3,
+    56.43,
+    3938958
+   ],
+   [
+    1724419800,
+    56.51,
+    59.68,
+    56.13,
+    59.21,
+    5286654
+   ],
+   [
+    1724679000,
+    59.29,
+    59.98,
+    57.51,
+    58.26,
+    2555743
+   ],
+   [
+    1724765400,
+    57.7204,
+    60.27,
+    56.54,
+    59,
+    3716275
+   ],
+   [
+    1724851800,
+    57.88,
+    57.93,
+    55.02,
+    56.14,
+    4033137
+   ],
+   [
+    1724938200,
+    57.585,
+    60.29,
+    57.1,
+    58.75,
+    5040140
+   ],
+   [
+    1725024600,
+    59,
+    60.41,
+    58.475,
+    60.03,
+    4152512
+   ],
+   [
+    1725370200,
+    59.245,
+    60.075,
+    57.49,
+    57.53,
+    3016014
+   ],
+   [
+    1725456600,
+    56.72,
+    58.81,
+    56.06,
+    57,
+    2772124
+   ],
+   [
+    1725543000,
+    56.8,
+    59.565,
+    56.38,
+    58.71,
+    2699564
+   ],
+   [
+    1725629400,
+    59.24,
+    60.41,
+    55.8,
+    56.85,
+    3074512
+   ],
+   [
+    1725888600,
+    57.14,
+    58.5,
+    55.2511,
+    57.46,
+    4540553
+   ],
+   [
+    1725975000,
+    57.52,
+    57.87,
+    55.48,
+    56.87,
+    2615552
+   ],
+   [
+    1726061400,
+    56.5,
+    60,
+    55.84,
+    59.87,
+    3466522
+   ],
+   [
+    1726147800,
+    60,
+    62.6594,
+    59.38,
+    59.63,
+    4785681
+   ],
+   [
+    1726234200,
+    59.63,
+    60.25,
+    58.04,
+    59.09,
+    3726014
+   ],
+   [
+    1726493400,
+    58.6,
+    60.1,
+    57.22,
+    59.15,
+    2683768
+   ],
+   [
+    1726579800,
+    61.37,
+    61.98,
+    59.31,
+    61.89,
+    3824420
+   ],
+   [
+    1726666200,
+    61.92,
+    64.09,
+    61.54,
+    63.66,
+    4688405
+   ],
+   [
+    1726752600,
+    64.99,
+    67.19,
+    63.9,
+    64.56,
+    5105663
+   ],
+   [
+    1726839000,
+    64.82,
+    66.94,
+    64.17,
+    66.17,
+    8518333
+   ],
+   [
+    1727098200,
+    66,
+    66.96,
+    64.78,
+    65,
+    3645624
+   ],
+   [
+    1727184600,
+    65.28,
+    67.28,
+    63.6,
+    66.96,
+    4444864
+   ],
+   [
+    1727271000,
+    66.96,
+    69.11,
+    66.35,
+    67.88,
+    4321053
+   ],
+   [
+    1727357400,
+    69,
+    69,
+    65.71,
+    66.52,
+    4310254
+   ],
+   [
+    1727443800,
+    66.59,
+    68.35,
+    66.12,
+    67.08,
+    3922269
+   ],
+   [
+    1727703000,
+    66.94,
+    67.81,
+    65.32,
+    65.92,
+    3558824
+   ],
+   [
+    1727789400,
+    65.93,
+    66.61,
+    64.515,
+    65.97,
+    3150485
+   ],
+   [
+    1727875800,
+    65.49,
+    68.31,
+    64.9,
+    67.78,
+    3992032
+   ],
+   [
+    1727962200,
+    68.06,
+    68.97,
+    67.35,
+    67.47,
+    4120349
+   ],
+   [
+    1728048600,
+    69.52,
+    72.88,
+    68.8,
+    72.38,
+    7419214
+   ],
+   [
+    1728307800,
+    72.99,
+    73.42,
+    70.13,
+    70.44,
+    2811169
+   ],
+   [
+    1728394200,
+    70.75,
+    72.98,
+    70.24,
+    70.77,
+    2494671
+   ],
+   [
+    1728480600,
+    73.64,
+    75.2,
+    70.44,
+    71,
+    5018988
+   ],
+   [
+    1728567000,
+    70.69,
+    71.66,
+    69.3001,
+    69.9,
+    3974118
+   ],
+   [
+    1728653400,
+    69.95,
+    73.25,
+    69.74,
+    73.25,
+    5076331
+   ],
+   [
+    1728912600,
+    73.75,
+    75.67,
+    72.82,
+    74.87,
+    5488824
+   ],
+   [
+    1728999000,
+    74.8,
+    76.48,
+    74.14,
+    75.17,
+    5701323
+   ],
+   [
+    1729085400,
+    75.16,
+    77.87,
+    73.59,
+    77.26,
+    4455191
+   ],
+   [
+    1729171800,
+    76.98,
+    78.74,
+    75.94,
+    76.29,
+    3074850
+   ],
+   [
+    1729258200,
+    76.61,
+    81.36,
+    76.42,
+    80.9,
+    5428484
+   ],
+   [
+    1729517400,
+    80.555,
+    80.555,
+    77.9,
+    78.55,
+    3750578
+   ],
+   [
+    1729603800,
+    77.77,
+    78.5,
+    76.54,
+    77.29,
+    3284956
+   ],
+   [
+    1729690200,
+    77.69,
+    80.13,
+    76.651,
+    77.68,
+    4083658
+   ],
+   [
+    1729776600,
+    77.855,
+    78.715,
+    77.14,
+    78.6,
+    2174123
+   ],
+   [
+    1729863000,
+    79.02,
+    81.72,
+    79.02,
+    81.36,
+    3889070
+   ],
+   [
+    1730122200,
+    82.21,
+    82.53,
+    79.45,
+    79.68,
+    6567464
+   ],
+   [
+    1730208600,
+    79.725,
+    82.975,
+    79.1,
+    81.74,
+    12718705
+   ],
+   [
+    1730295000,
+    104.9,
+    118.2494,
+    104.11,
+    116.05,
+    37764574
+   ],
+   [
+    1730381400,
+    117.405,
+    123.6,
+    114.8,
+    119.3,
+    17033460
+   ],
+   [
+    1730467800,
+    114,
+    115.5,
+    110.5,
+    112.98,
+    12024739
+   ],
+   [
+    1730730600,
+    110.765,
+    112.98,
+    108.6847,
+    109.03,
+    7719250
+   ],
+   [
+    1730817000,
+    110.5,
+    122.68,
+    110.27,
+    122.57,
+    10831246
+   ],
+   [
+    1730903400,
+    124.15,
+    124.9296,
+    117.16,
+    121.08,
+    6506131
+   ],
+   [
+    1730989800,
+    121.57,
+    133.25,
+    121.57,
+    131.44,
+    7756027
+   ],
+   [
+    1731076200,
+    130.03,
+    134.8,
+    128.33,
+    134.8,
+    4402023
+   ],
+   [
+    1731335400,
+    139,
+    139.04,
+    128.3,
+    129.23,
+    5711378
+   ],
+   [
+    1731421800,
+    126.66,
+    130.47,
+    125.69,
+    127.75,
+    5247916
+   ],
+   [
+    1731508200,
+    128.8,
+    135.07,
+    128.8,
+    132.06,
+    4567415
+   ],
+   [
+    1731594600,
+    132.06,
+    133.99,
+    129.72,
+    131.88,
+    2667713
+   ],
+   [
+    1731681000,
+    128.79,
+    131.6899,
+    123.14,
+    124.78,
+    4605078
+   ],
+   [
+    1731940200,
+    125.56,
+    130.13,
+    124.66,
+    129.42,
+    4320716
+   ],
+   [
+    1732026600,
+    129.01,
+    138.54,
+    128.72,
+    137.16,
+    6889242
+   ],
+   [
+    1732113000,
+    137.155,
+    138.39,
+    130.01,
+    136.27,
+    5497907
+   ],
+   [
+    1732199400,
+    141.27,
+    158.49,
+    139.57,
+    158.02,
+    12275538
+   ],
+   [
+    1732285800,
+    145.41,
+    149,
+    142.91,
+    146.67,
+    18665539
+   ],
+   [
+    1732545000,
+    149.5,
+    152.14,
+    139.22,
+    141.9,
+    8403896
+   ],
+   [
+    1732631400,
+    141.65,
+    144.81,
+    132.475,
+    135.61,
+    7697103
+   ],
+   [
+    1732717800,
+    137.8,
+    141.19,
+    134.45,
+    140.04,
+    5531021
+   ],
+   [
+    1732890600,
+    143.43,
+    143.93,
+    140.26,
+    140.69,
+    2105949
+   ],
+   [
+    1733149800,
+    144,
+    145.58,
+    138.75,
+    141.64,
+    3263219
+   ],
+   [
+    1733236200,
+    141,
+    151.56,
+    141,
+    149.83,
+    5966670
+   ],
+   [
+    1733322600,
+    150.84,
+    157.75,
+    150.63,
+    154.23,
+    6568466
+   ],
+   [
+    1733409000,
+    155.58,
+    156.667,
+    151.25,
+    153.09,
+    4500182
+   ],
+   [
+    1733495400,
+    152.06,
+    163.72,
+    149.33,
+    162.76,
+    7910663
+   ],
+   [
+    1733754600,
+    171.5,
+    180.74,
+    157.05,
+    167.17,
+    16640769
+   ],
+   [
+    1733841000,
+    168.31,
+    176.6731,
+    151.76,
+    155.93,
+    10972806
+   ],
+   [
+    1733927400,
+    164,
+    168.6605,
+    161,
+    165.92,
+    5981887
+   ],
+   [
+    1734013800,
+    164.01,
+    172.5,
+    163.2393,
+    163.51,
+    4024652
+   ],
+   [
+    1734100200,
+    164.35,
+    174,
+    163.51,
+    172.65,
+    4893316
+   ],
+   [
+    1734359400,
+    169.27,
+    180.36,
+    166.2,
+    178.1,
+    8934913
+   ],
+   [
+    1734445800,
+    177.15,
+    177.57,
+    167.32,
+    168.79,
+    6894464
+   ],
+   [
+    1734532200,
+    172.45,
+    174.385,
+    157.75,
+    160.65,
+    7792824
+   ],
+   [
+    1734618600,
+    163.9,
+    166.6,
+    157.22,
+    163.72,
+    4761558
+   ],
+   [
+    1734705000,
+    162.99,
+    174.11,
+    158.77,
+    170.71,
+    7705642
+   ],
+   [
+    1734964200,
+    171.25,
+    173.82,
+    166.3731,
+    168.61,
+    3728886
+   ],
+   [
+    1735050600,
+    169,
+    178.1,
+    168.89,
+    177.41,
+    2098732
+   ],
+   [
+    1735223400,
+    177.8,
+    182.2,
+    174.77,
+    176.74,
+    2444126
+   ],
+   [
+    1735309800,
+    175.53,
+    176.53,
+    167.8,
+    173.54,
+    2606090
+   ],
+   [
+    1735569000,
+    167.375,
+    169.79,
+    162.26,
+    165.53,
+    7541139
+   ],
+   [
+    1735655400,
+    166,
+    167.678,
+    162.64,
+    163.44,
+    3438493
+   ],
+   [
+    1735828200,
+    164.43,
+    168.4999,
+    156.0357,
+    165.91,
+    4076541
+   ],
+   [
+    1735914600,
+    167.53,
+    181.22,
+    166.965,
+    177.74,
+    9436014
+   ],
+   [
+    1736173800,
+    182,
+    187.69,
+    174.5,
+    179.49,
+    5416360
+   ],
+   [
+    1736260200,
+    180.25,
+    183.12,
+    171.1078,
+    172.32,
+    4201077
+   ],
+   [
+    1736346600,
+    167.59,
+    174.34,
+    166,
+    172.01,
+    4202606
+   ],
+   [
+    1736519400,
+    169,
+    169.6999,
+    159.8,
+    167.08,
+    4003804
+   ],
+   [
+    1736778600,
+    160.44,
+    165.5,
+    156.58,
+    164.65,
+    4368150
+   ],
+   [
+    1736865000,
+    169.6,
+    172.1888,
+    161.06,
+    164.82,
+    4913996
+   ],
+   [
+    1736951400,
+    170.09,
+    178.83,
+    167.5,
+    170.69,
+    5164845
+   ],
+   [
+    1737037800,
+    171.76,
+    176.8193,
+    169.73,
+    174.87,
+    3341636
+   ],
+   [
+    1737124200,
+    178.28,
+    179.87,
+    172.15,
+    175.33,
+    3375496
+   ],
+   [
+    1737469800,
+    177.5,
+    191,
+    175.6,
+    188.32,
+    7475493
+   ],
+   [
+    1737556200,
+    187.47,
+    188.19,
+    181.52,
+    183.74,
+    4999437
+   ],
+   [
+    1737642600,
+    182,
+    187.7,
+    178.5,
+    181.99,
+    3568417
+   ],
+   [
+    1737729000,
+    183.63,
+    190.5,
+    180,
+    182.4,
+    3923229
+   ],
+   [
+    1737988200,
+    174.22,
+    183.59,
+    170.2,
+    180.83,
+    4068590
+   ],
+   [
+    1738074600,
+    184,
+    196.83,
+    181.81,
+    194.75,
+    5422760
+   ],
+   [
+    1738161000,
+    201,
+    205.57,
+    195.671,
+    202,
+    5863404
+   ],
+   [
+    1738247400,
+    204.99,
+    208.62,
+    195.69,
+    198.93,
+    4168870
+   ],
+   [
+    1738333800,
+    201.84,
+    206.6,
+    197.05,
+    199.55,
+    3248356
+   ],
+   [
+    1738593000,
+    189.12,
+    205.5,
+    188.95,
+    202.31,
+    3611053
+   ],
+   [
+    1738679400,
+    208.865,
+    218.25,
+    207.143,
+    215.31,
+    5509422
+   ],
+   [
+    1738765800,
+    213.5,
+    221.18,
+    211,
+    221.16,
+    3563599
+   ],
+   [
+    1738852200,
+    222.44,
+    222.44,
+    209,
+    216.51,
+    6409250
+   ],
+   [
+    1738938600,
+    218.59,
+    227.05,
+    218.2001,
+    225.23,
+    5448021
+   ],
+   [
+    1739197800,
+    228.8,
+    230.41,
+    221.5001,
+    224.93,
+    4314758
+   ],
+   [
+    1739284200,
+    222.03,
+    222.48,
+    211.33,
+    213.76,
+    6210474
+   ],
+   [
+    1739370600,
+    213.6,
+    220.75,
+    211,
+    216.47,
+    11245549
+   ],
+   [
+    1739457000,
+    203.915,
+    214.3,
+    195.98,
+    204.95,
+    21066721
+   ],
+   [
+    1739543400,
+    202,
+    203.95,
+    192.5701,
+    196.38,
+    8424934
+   ],
+   [
+    1739889000,
+    193.4,
+    196.758,
+    183.8,
+    187.13,
+    9020178
+   ],
+   [
+    1739975400,
+    185.5,
+    190.9174,
+    183.96,
+    189.66,
+    4444134
+   ],
+   [
+    1740061800,
+    187.7,
+    187.75,
+    170.6,
+    175.44,
+    10625813
+   ],
+   [
+    1740148200,
+    175.5,
+    176.505,
+    161.883,
+    166.4,
+    9938974
+   ],
+   [
+    1740407400,
+    164.77,
+    166.38,
+    154.2,
+    165.57,
+    7908151
+   ],
+   [
+    1740493800,
+    164,
+    166.99,
+    154.74,
+    159.99,
+    6115769
+   ],
+   [
+    1740580200,
+    161.96,
+    170.3,
+    161.22,
+    168.1,
+    6358362
+   ],
+   [
+    1740666600,
+    170.41,
+    172.14,
+    156,
+    159.78,
+    5342560
+   ],
+   [
+    1740753000,
+    156.9,
+    163.38,
+    155.45,
+    161.78,
+    9356938
+   ],
+   [
+    1741012200,
+    165.455,
+    174.22,
+    160.4,
+    162.45,
+    7176780
+   ],
+   [
+    1741098600,
+    157.86,
+    164.65,
+    148.2651,
+    159.17,
+    7780740
+   ],
+   [
+    1741185000,
+    161,
+    169.99,
+    158.3173,
+    168.52,
+    4355851
+   ],
+   [
+    1741271400,
+    160.5,
+    166.11,
+    150.53,
+    150.72,
+    5336036
+   ],
+   [
+    1741357800,
+    147.02,
+    148.3,
+    131.26,
+    133.98,
+    13834948
+   ],
+   [
+    1741613400,
+    127.75,
+    127.75,
+    105.51,
+    107.29,
+    20956740
+   ],
+   [
+    1741699800,
+    111,
+    123.49,
+    110,
+    122.73,
+    14629574
+   ],
+   [
+    1741786200,
+    134.79,
+    136.47,
+    126.12,
+    130.68,
+    11368675
+   ],
+   [
+    1741872600,
+    130,
+    131.68,
+    118.57,
+    121.53,
+    7288624
+   ],
+   [
+    1741959000,
+    126.51,
+    130.83,
+    123.45,
+    128.21,
+    6818919
+   ],
+   [
+    1742218200,
+    123.62,
+    142,
+    119.92,
+    125.56,
+    19261720
+   ],
+   [
+    1742304600,
+    120.57,
+    121.94,
+    108.1285,
+    110.1,
+    13232158
+   ],
+   [
+    1742391000,
+    110.1,
+    113.48,
+    105.5,
+    109.91,
+    9529586
+   ],
+   [
+    1742477400,
+    109.18,
+    112.99,
+    107.04,
+    108.75,
+    7803443
+   ],
+   [
+    1742563800,
+    107.8,
+    116.29,
+    106,
+    115.7,
+    7987117
+   ],
+   [
+    1742823000,
+    119.81,
+    126.5,
+    119.76,
+    124.94,
+    9012069
+   ],
+   [
+    1742909400,
+    124,
+    127.27,
+    120.02,
+    125.43,
+    5815589
+   ],
+   [
+    1742995800,
+    124.6,
+    125.6,
+    117.17,
+    120.2,
+    4869412
+   ],
+   [
+    1743082200,
+    117.5,
+    117.5,
+    110.05,
+    110.23,
+    6775399
+   ],
+   [
+    1743168600,
+    110.25,
+    112.78,
+    103.74,
+    107.71,
+    8001920
+   ],
+   [
+    1743427800,
+    102.295,
+    106.59,
+    97.61,
+    104.9,
+    9511550
+   ],
+   [
+    1743514200,
+    105.795,
+    111.6,
+    104.3491,
+    110.05,
+    6568167
+   ],
+   [
+    1743600600,
+    104.85,
+    113.75,
+    104.85,
+    109.5,
+    10073457
+   ],
+   [
+    1743687000,
+    99.5,
+    100.5,
+    93.63,
+    96.9,
+    11840669
+   ],
+   [
+    1743773400,
+    92.18,
+    92.91,
+    82.8,
+    86.91,
+    13290250
+   ],
+   [
+    1744032600,
+    81.01,
+    97,
+    79.7499,
+    93,
+    11772338
+   ],
+   [
+    1744119000,
+    97.14,
+    97.8999,
+    86.88,
+    88.89,
+    9633597
+   ],
+   [
+    1744205400,
+    88.74,
+    113.9,
+    87.1242,
+    110.86,
+    13906473
+   ],
+   [
+    1744291800,
+    103.98,
+    107.46,
+    98.77,
+    102.01,
+    7351305
+   ],
+   [
+    1744378200,
+    101,
+    101.81,
+    96.43,
+    101.15,
+    4217575
+   ],
+   [
+    1744637400,
+    105.75,
+    106.5,
+    97.5001,
+    98.26,
+    3943375
+   ],
+   [
+    1744723800,
+    98.66,
+    99.79,
+    94.56,
+    96.46,
+    4061699
+   ],
+   [
+    1744810200,
+    93.07,
+    95.49,
+    91.61,
+    95.38,
+    3685336
+   ],
+   [
+    1744896600,
+    94.52,
+    96.87,
+    93.0801,
+    96.16,
+    2858279
+   ],
+   [
+    1745242200,
+    94,
+    95.41,
+    90.78,
+    94.15,
+    3090751
+   ],
+   [
+    1745328600,
+    96.24,
+    101.9,
+    95.4,
+    101.66,
+    5108777
+   ],
+   [
+    1745415000,
+    109.51,
+    113.55,
+    105.82,
+    107.17,
+    5873665
+   ],
+   [
+    1745501400,
+    106.9,
+    112.96,
+    106.16,
+    112.25,
+    4141140
+   ],
+   [
+    1745587800,
+    115.03,
+    120.56,
+    114.2556,
+    118.1,
+    8702704
+   ],
+   [
+    1745847000,
+    118.58,
+    123,
+    116.3,
+    121.21,
+    8891410
+   ],
+   [
+    1745933400,
+    119.57,
+    123.29,
+    118.2,
+    122.14,
+    3766968
+   ],
+   [
+    1746019800,
+    113.875,
+    116.94,
+    108.5,
+    116.57,
+    8008405
+   ],
+   [
+    1746106200,
+    125.635,
+    126.1,
+    117.49,
+    118.79,
+    14328186
+   ],
+   [
+    1746192600,
+    120.25,
+    125.3899,
+    111.62,
+    113.83,
+    29599202
+   ],
+   [
+    1746451800,
+    113.09,
+    120.87,
+    111.63,
+    116.33,
+    11529504
+   ],
+   [
+    1746538200,
+    113.65,
+    114.78,
+    108.6301,
+    109.99,
+    8954682
+   ],
+   [
+    1746624600,
+    109.33,
+    111.58,
+    102.8,
+    105.53,
+    9219438
+   ],
+   [
+    1746711000,
+    108.25,
+    109.66,
+    105.2,
+    107.83,
+    5758976
+   ],
+   [
+    1746797400,
+    109.85,
+    112.35,
+    105.52,
+    108.46,
+    4836052
+   ],
+   [
+    1747056600,
+    114.15,
+    114.535,
+    109.6021,
+    111.21,
+    7070511
+   ],
+   [
+    1747143000,
+    113.04,
+    116.4,
+    111.5,
+    112.84,
+    6684765
+   ],
+   [
+    1747229400,
+    114.725,
+    130.11,
+    113.8,
+    125.32,
+    20753506
+   ],
+   [
+    1747315800,
+    122.08,
+    122.08,
+    112.85,
+    113.59,
+    13711046
+   ],
+   [
+    1747402200,
+    117.5,
+    117.59,
+    110.82,
+    113.23,
+    8626997
+   ],
+   [
+    1747661400,
+    104.89,
+    110.09,
+    104.8,
+    107.99,
+    10494178
+   ],
+   [
+    1747747800,
+    107.35,
+    107.9899,
+    104.47,
+    105.64,
+    7178322
+   ],
+   [
+    1747834200,
+    103.09,
+    103.5,
+    94.89,
+    95.85,
+    17448231
+   ],
+   [
+    1747920600,
+    97.29,
+    100.4491,
+    95.6972,
+    98.32,
+    8522905
+   ],
+   [
+    1748007000,
+    95.83,
+    102.265,
+    95.23,
+    100.76,
+    6753505
+   ],
+   [
+    1748352600,
+    103,
+    104.9111,
+    99.1401,
+    104.62,
+    6944411
+   ],
+   [
+    1748439000,
+    104.94,
+    106.7068,
+    103.09,
+    105.43,
+    5399868
+   ],
+   [
+    1748525400,
+    108.19,
+    113.7999,
+    107.594,
+    109.03,
+    10701351
+   ],
+   [
+    1748611800,
+    107.31,
+    112.62,
+    106.3402,
+    112.35,
+    7555536
+   ],
+   [
+    1748871000,
+    109.16,
+    113.66,
+    109.16,
+    112.11,
+    4539438
+   ],
+   [
+    1748957400,
+    112.46,
+    115.3872,
+    109.92,
+    110.86,
+    5462482
+   ],
+   [
+    1749043800,
+    110.87,
+    119.69,
+    110.87,
+    118.21,
+    8683435
+   ],
+   [
+    1749130200,
+    118.76,
+    119.23,
+    111.8499,
+    112.24,
+    6231754
+   ],
+   [
+    1749216600,
+    113.63,
+    121.29,
+    112.77,
+    121.29,
+    6773380
+   ],
+   [
+    1749475800,
+    119.65,
+    121.98,
+    116.3801,
+    117.53,
+    5636117
+   ],
+   [
+    1749562200,
+    116.2,
+    119.15,
+    115.26,
+    117.09,
+    5631152
+   ],
+   [
+    1749648600,
+    117.4,
+    120.6215,
+    114.45,
+    115.03,
+    5988200
+   ],
+   [
+    1749735000,
+    113.02,
+    118.12,
+    110.85,
+    116.2,
+    4824351
+   ],
+   [
+    1749821400,
+    112.3,
+    120.3,
+    112.3,
+    118.18,
+    6509246
+   ],
+   [
+    1750080600,
+    121.425,
+    126.59,
+    121.425,
+    126.2,
+    8405053
+   ],
+   [
+    1750167000,
+    133.65,
+    146.164,
+    132.41,
+    133.84,
+    23521813
+   ],
+   [
+    1750253400,
+    132.32,
+    143.89,
+    132.25,
+    141.16,
+    12180683
+   ],
+   [
+    1750426200,
+    141.51,
+    147.999,
+    138.098,
+    139.15,
+    8787293
+   ],
+   [
+    1750685400,
+    135.77,
+    141.67,
+    133.28,
+    134.14,
+    7057617
+   ],
+   [
+    1750771800,
+    136.35,
+    143.77,
+    136.03,
+    140.79,
+    6547750
+   ],
+   [
+    1750858200,
+    150.91,
+    153.94,
+    141.44,
+    141.68,
+    9090189
+   ],
+   [
+    1750944600,
+    145.1,
+    147,
+    140.75,
+    143.95,
+    6587070
+   ],
+   [
+    1751031000,
+    143.51,
+    145.5,
+    139.26,
+    143.01,
+    17684836
+   ],
+   [
+    1751290200,
+    148.08,
+    155,
+    146.78,
+    150.57,
+    9904695
+   ],
+   [
+    1751376600,
+    151.82,
+    156.37,
+    146.55,
+    152.23,
+    8713533
+   ],
+   [
+    1751463000,
+    152,
+    164.55,
+    151.8,
+    159.34,
+    11005410
+   ],
+   [
+    1751549400,
+    159,
+    160.99,
+    155.4,
+    157.03,
+    4041162
+   ],
+   [
+    1751895000,
+    154.95,
+    155.39,
+    149.56,
+    153.37,
+    6308084
+   ],
+   [
+    1751981400,
+    155.2,
+    155.85,
+    145.2,
+    145.96,
+    7055549
+   ],
+   [
+    1752067800,
+    147.31,
+    147.95,
+    141.3,
+    145.65,
+    4609569
+   ],
+   [
+    1752154200,
+    148.73,
+    148.8,
+    141.28,
+    143,
+    3941435
+   ],
+   [
+    1752240600,
+    141.64,
+    147.4,
+    141.3,
+    145.59,
+    3686176
+   ],
+   [
+    1752499800,
+    146,
+    150.39,
+    145.3,
+    146.38,
+    4438737
+   ],
+   [
+    1752586200,
+    147.29,
+    148.05,
+    142.9,
+    144.8,
+    4426493
+   ],
+   [
+    1752672600,
+    144.95,
+    146.19,
+    138.3,
+    144.31,
+    5853169
+   ],
+   [
+    1752759000,
+    144.3,
+    147.05,
+    140.89,
+    142.52,
+    4454730
+   ],
+   [
+    1752845400,
+    142.51,
+    149.09,
+    138.11,
+    148.24,
+    6405912
+   ],
+   [
+    1753104600,
+    145.02,
+    149.7288,
+    144.41,
+    146.29,
+    5134872
+   ],
+   [
+    1753191000,
+    145.4,
+    147.8,
+    138.6,
+    145.8,
+    5183121
+   ],
+   [
+    1753277400,
+    147.97,
+    152.25,
+    144.3202,
+    146.1,
+    5664369
+   ],
+   [
+    1753363800,
+    147.85,
+    150.75,
+    142.9,
+    148.13,
+    5460455
+   ],
+   [
+    1753450200,
+    149.94,
+    152.78,
+    147.9,
+    149.66,
+    4505610
+   ],
+   [
+    1753709400,
+    150.84,
+    153.2,
+    147.55,
+    151.6,
+    4008671
+   ],
+   [
+    1753795800,
+    151.55,
+    152,
+    141.6,
+    144.85,
+    6464107
+   ],
+   [
+    1753882200,
+    145.72,
+    150.38,
+    144.085,
+    149.33,
+    5280716
+   ],
+   [
+    1753968600,
+    160.88,
+    162.88,
+    154.83,
+    160.59,
+    19988941
+   ],
+   [
+    1754055000,
+    182,
+    196.6799,
+    177.77,
+    188.64,
+    27258289
+   ],
+   [
+    1754314200,
+    191.7,
+    203.73,
+    188.98,
+    201.76,
+    15113312
+   ],
+   [
+    1754400600,
+    198.67,
+    208.68,
+    197.51,
+    199.09,
+    10585061
+   ],
+   [
+    1754487000,
+    199.01,
+    212.98,
+    198.75,
+    212.81,
+    8279389
+   ],
+   [
+    1754573400,
+    215.745,
+    217.3,
+    205.72,
+    211.82,
+    6074456
+   ],
+   [
+    1754659800,
+    211.85,
+    219,
+    208.85,
+    215.44,
+    4726955
+   ],
+   [
+    1754919000,
+    215.23,
+    225.35,
+    211.8001,
+    220.75,
+    5563370
+   ],
+   [
+    1755005400,
+    221.175,
+    229.4469,
+    220.69,
+    224.02,
+    4803252
+   ],
+   [
+    1755091800,
+    225.92,
+    237.3531,
+    224.3,
+    234.77,
+    7466951
+   ],
+   [
+    1755178200,
+    229.955,
+    244.85,
+    229.955,
+    243.47,
+    7579693
+   ],
+   [
+    1755264600,
+    242.575,
+    248.015,
+    235.79,
+    246.5,
+    6434008
+   ],
+   [
+    1755523800,
+    245.63,
+    253.14,
+    237.54,
+    241.76,
+    6933845
+   ],
+   [
+    1755610200,
+    238.22,
+    238.84,
+    225.5001,
+    228.18,
+    8655674
+   ],
+   [
+    1755696600,
+    221.5,
+    225.0318,
+    205.374,
+    218.37,
+    13073431
+   ],
+   [
+    1755783000,
+    217.44,
+    221.73,
+    215.1,
+    218.65,
+    4002415
+   ],
+   [
+    1755869400,
+    215,
+    230.25,
+    214.1,
+    217.31,
+    7640575
+   ],
+   [
+    1756128600,
+    214.27,
+    222.47,
+    212.57,
+    219.73,
+    4580555
+   ],
+   [
+    1756215000,
+    218.84,
+    220.5,
+    214.99,
+    219.43,
+    5316164
+   ],
+   [
+    1756301400,
+    220.97,
+    226.6688,
+    208.24,
+    211.1,
+    4906088
+   ],
+   [
+    1756387800,
+    212.8,
+    227,
+    212.4,
+    225.54,
+    5146994
+   ],
+   [
+    1756474200,
+    225.54,
+    227.9,
+    219.62,
+    225.08,
+    3922315
+   ],
+   [
+    1756819800,
+    219.98,
+    223.44,
+    213.15,
+    220.06,
+    4639979
+   ],
+   [
+    1756906200,
+    226.28,
+    239.37,
+    218.7,
+    223.14,
+    8426761
+   ],
+   [
+    1756992600,
+    225,
+    234.38,
+    223.5,
+    232.11,
+    4269990
+   ],
+   [
+    1757079000,
+    234,
+    241.18,
+    230.24,
+    240,
+    5567611
+   ],
+   [
+    1757338200,
+    245.09,
+    246.99,
+    229.86,
+    229.98,
+    5949183
+   ],
+   [
+    1757424600,
+    235.35,
+    240.3,
+    232.05,
+    240.2,
+    3655873
+   ],
+   [
+    1757511000,
+    245.14,
+    261.1273,
+    244.845,
+    259.03,
+    7445754
+   ],
+   [
+    1757597400,
+    260.57,
+    266.6395,
+    257.45,
+    260.54,
+    3726896
+   ],
+   [
+    1757683800,
+    262.22,
+    266.15,
+    251.19,
+    254.29,
+    3683657
+   ],
+   [
+    1757943000,
+    256.66,
+    265.54,
+    255.42,
+    263.64,
+    4584343
+   ],
+   [
+    1758029400,
+    265.075,
+    268.15,
+    260.5,
+    266.66,
+    3671286
+   ],
+   [
+    1758115800,
+    263.1,
+    270.36,
+    249.22,
+    266.47,
+    10028725
+   ],
+   [
+    1758202200,
+    271.99,
+    282.95,
+    269.92,
+    270.71,
+    6843943
+   ],
+   [
+    1758288600,
+    270.5,
+    271.99,
+    251.5,
+    264.48,
+    11586079
+   ],
+   [
+    1758547800,
+    257.45,
+    262.99,
+    253.34,
+    257.56,
+    5281151
+   ],
+   [
+    1758634200,
+    255.575,
+    255.78,
+    235.85,
+    237.45,
+    8042236
+   ],
+   [
+    1758720600,
+    241.51,
+    244,
+    234.89,
+    235.69,
+    4821560
+   ],
+   [
+    1758807000,
+    228.15,
+    236.52,
+    223.5,
+    232.75,
+    4646075
+   ],
+   [
+    1758893400,
+    234.08,
+    240.61,
+    231.2379,
+    240.11,
+    3280330
+   ],
+   [
+    1759152600,
+    244.804,
+    246.43,
+    239.3,
+    241.98,
+    3784584
+   ],
+   [
+    1759239000,
+    240.335,
+    240.99,
+    225.09,
+    229.99,
+    4885384
+   ],
+   [
+    1759325400,
+    213,
+    218.319,
+    202.26,
+    202.6,
+    15773953
+   ],
+   [
+    1759411800,
+    206.85,
+    209,
+    198.8,
+    200.92,
+    7759210
+   ],
+   [
+    1759498200,
+    212.02,
+    213.38,
+    205.41,
+    207.2,
+    8463205
+   ],
+   [
+    1759757400,
+    207.3,
+    211.15,
+    198.87,
+    203.63,
+    4985092
+   ],
+   [
+    1759843800,
+    206.24,
+    209.7364,
+    202.5071,
+    205.92,
+    3706730
+   ],
+   [
+    1759930200,
+    206.225,
+    206.225,
+    195.01,
+    202.29,
+    6644149
+   ],
+   [
+    1760016600,
+    203.25,
+    212.34,
+    199.38,
+    211.7,
+    5196443
+   ],
+   [
+    1760103000,
+    214.4,
+    214.4,
+    198,
+    198.55,
+    5568990
+   ],
+   [
+    1760362200,
+    201.89,
+    204.7085,
+    197.85,
+    203.68,
+    2942264
+   ],
+   [
+    1760448600,
+    199.925,
+    205.52,
+    194.77,
+    196.35,
+    3826450
+   ],
+   [
+    1760535000,
+    201.36,
+    203.8638,
+    196.8,
+    200.76,
+    2697387
+   ],
+   [
+    1760621400,
+    202.54,
+    203.88,
+    196,
+    198.97,
+    3036135
+   ],
+   [
+    1760707800,
+    195.16,
+    200.5999,
+    189.02,
+    194.95,
+    4531453
+   ],
+   [
+    1760967000,
+    201,
+    211.11,
+    200.65,
+    202.48,
+    6314955
+   ],
+   [
+    1761053400,
+    207.52,
+    208,
+    203.01,
+    205.71,
+    4186027
+   ],
+   [
+    1761139800,
+    204.03,
+    205,
+    191.28,
+    197.05,
+    5863525
+   ],
+   [
+    1761226200,
+    201,
+    205.32,
+    200.37,
+    200.82,
+    2798175
+   ],
+   [
+    1761312600,
+    206.02,
+    215.94,
+    205.1213,
+    214.2,
+    6280385
+   ],
+   [
+    1761571800,
+    219.7,
+    224.75,
+    216.5417,
+    219.24,
+    4888247
+   ],
+   [
+    1761658200,
+    222.22,
+    222.22,
+    212.75,
+    212.97,
+    4564973
+   ],
+   [
+    1761744600,
+    211.27,
+    214.13,
+    204.7501,
+    210.77,
+    4374596
+   ],
+   [
+    1761831000,
+    209.41,
+    209.4702,
+    193.81,
+    194.42,
+    12953265
+   ],
+   [
+    1761917400,
+    219.2,
+    230.97,
+    208.41,
+    208.95,
+    17708306
+   ],
+   [
+    1762180200,
+    211.06,
+    214.25,
+    199.1125,
+    204.98,
+    8198719
+   ],
+   [
+    1762266600,
+    199.19,
+    199.69,
+    187.4,
+    187.77,
+    8202421
+   ],
+   [
+    1762353000,
+    187.78,
+    199.3,
+    186.3601,
+    196.27,
+    5074567
+   ],
+   [
+    1762439400,
+    195.985,
+    196.7023,
+    182.74,
+    183.64,
+    4918877
+   ],
+   [
+    1762525800,
+    178,
+    195.16,
+    173.56,
+    194.58,
+    6446711
+   ],
+   [
+    1762785000,
+    200.03,
+    208.28,
+    198.3401,
+    204.19,
+    4657076
+   ],
+   [
+    1762871400,
+    201.94,
+    211.08,
+    201.34,
+    208.21,
+    3861782
+   ],
+   [
+    1762957800,
+    208.85,
+    213,
+    200.08,
+    202.82,
+    3168008
+   ],
+   [
+    1763044200,
+    201.775,
+    201.96,
+    185.44,
+    189.42,
+    5213307
+   ],
+   [
+    1763130600,
+    186.405,
+    198.59,
+    183.8,
+    193.31,
+    4284859
+   ],
+   [
+    1763389800,
+    191.34,
+    194.3399,
+    185.25,
+    187.55,
+    2598440
+   ],
+   [
+    1763476200,
+    184.18,
+    189.5,
+    180.89,
+    185.69,
+    3722343
+   ],
+   [
+    1763562600,
+    185.69,
+    192.45,
+    185.21,
+    187.78,
+    2728451
+   ],
+   [
+    1763649000,
+    192.955,
+    195.48,
+    178.2448,
+    181.88,
+    5161269
+   ],
+   [
+    1763735400,
+    185.04,
+    190.15,
+    180.01,
+    183.48,
+    4009229
+   ],
+   [
+    1763994600,
+    186.6,
+    195.69,
+    184.78,
+    195,
+    5268047
+   ],
+   [
+    1764081000,
+    198,
+    219.8,
+    196.57,
+    218.48,
+    7751496
+   ],
+   [
+    1764167400,
+    216,
+    220.7642,
+    207.29,
+    207.56,
+    4680879
+   ],
+   [
+    1764340200,
+    209.15,
+    218,
+    207.34,
+    216.47,
+    2388670
+   ],
+   [
+    1764599400,
+    211.72,
+    226.25,
+    211.5,
+    223.4,
+    4819797
+   ],
+   [
+    1764685800,
+    224.69,
+    231.51,
+    221.72,
+    222.76,
+    3445339
+   ],
+   [
+    1764772200,
+    222.66,
+    225.82,
+    220,
+    220.84,
+    2706064
+   ],
+   [
+    1764858600,
+    222.19,
+    225.87,
+    215,
+    222.75,
+    3493497
+   ],
+   [
+    1764945000,
+    225.15,
+    237.59,
+    224.175,
+    234.11,
+    6141274
+   ],
+   [
+    1765204200,
+    230,
+    238.2,
+    225.26,
+    236.95,
+    3685849
+   ],
+   [
+    1765290600,
+    230.85,
+    237.5,
+    229.55,
+    236.11,
+    2791563
+   ],
+   [
+    1765377000,
+    235.3,
+    240.18,
+    231.47,
+    238.11,
+    3816555
+   ],
+   [
+    1765463400,
+    235.54,
+    238,
+    227.2971,
+    233.54,
+    4386042
+   ],
+   [
+    1765549800,
+    233.06,
+    237.4,
+    222.85,
+    224.78,
+    4932169
+   ],
+   [
+    1765809000,
+    222.045,
+    225.77,
+    213.35,
+    218.5,
+    5415763
+   ],
+   [
+    1765895400,
+    215.264,
+    224.63,
+    215.264,
+    224,
+    4332179
+   ],
+   [
+    1765981800,
+    226.83,
+    235.42,
+    226.83,
+    227.34,
+    5721755
+   ],
+   [
+    1766068200,
+    232.82,
+    246.15,
+    229.4544,
+    231.34,
+    6060380
+   ],
+   [
+    1766154600,
+    235.85,
+    239.44,
+    230.99,
+    233.19,
+    5942860
+   ],
+   [
+    1766413800,
+    235.95,
+    240.4899,
+    230.3,
+    233.15,
+    4042041
+   ],
+   [
+    1766500200,
+    231.53,
+    237.5,
+    225.45,
+    225.82,
+    3487745
+   ],
+   [
+    1766586600,
+    225.77,
+    228.4,
+    222.785,
+    225.85,
+    982577
+   ],
+   [
+    1766759400,
+    225.79,
+    226.22,
+    220.26,
+    225.77,
+    1904008
+   ],
+   [
+    1767018600,
+    225.15,
+    236,
+    223.9101,
+    234.65,
+    3901188
+   ],
+   [
+    1767105000,
+    235.92,
+    236.9299,
+    229.08,
+    233.36,
+    2489821
+   ],
+   [
+    1767191400,
+    232.24,
+    233.7128,
+    227.5,
+    229.87,
+    2149087
+   ],
+   [
+    1767364200,
+    232.18,
+    242.8699,
+    228.15,
+    241.89,
+    3547051
+   ],
+   [
+    1767623400,
+    248.84,
+    250,
+    241,
+    244.05,
+    3365244
+   ],
+   [
+    1767709800,
+    248.21,
+    254.78,
+    242.1517,
+    253.81,
+    4159940
+   ],
+   [
+    1767796200,
+    252,
+    260.5,
+    251.05,
+    255.5,
+    3002303
+   ],
+   [
+    1767882600,
+    255.34,
+    259.55,
+    248.1,
+    253.95,
+    3015212
+   ],
+   [
+    1767969000,
+    257.67,
+    263.4999,
+    235.01,
+    244.56,
+    5542455
+   ],
+   [
+    1768228200,
+    244.72,
+    251.87,
+    240.61,
+    244.02,
+    2595300
+   ],
+   [
+    1768314600,
+    246.22,
+    263.335,
+    246.1,
+    258.93,
+    4516253
+   ],
+   [
+    1768401000,
+    258.8,
+    258.8,
+    246.85,
+    252.38,
+    4829883
+   ],
+   [
+    1768487400,
+    250.09,
+    251,
+    225.2501,
+    228.75,
+    10876269
+   ],
+   [
+    1768573800,
+    228.5,
+    236.499,
+    222.85,
+    231.01,
+    5450428
+   ],
+   [
+    1768919400,
+    220.125,
+    228.98,
+    217.34,
+    225.36,
+    3747976
+   ],
+   [
+    1769005800,
+    224.485,
+    224.925,
+    208.5,
+    210.13,
+    5204258
+   ],
+   [
+    1769092200,
+    214,
+    216,
+    209.78,
+    214.54,
+    2708186
+   ],
+   [
+    1769178600,
+    212.6,
+    220.82,
+    209,
+    218.88,
+    2612780
+   ],
+   [
+    1769437800,
+    216.64,
+    222.65,
+    212.6287,
+    213.63,
+    2621510
+   ],
+   [
+    1769524200,
+    203.14,
+    204.56,
+    193.11,
+    196.3,
+    7123070
+   ],
+   [
+    1769610600,
+    195,
+    199.05,
+    189.526,
+    193.14,
+    4372417
+   ],
+   [
+    1769697000,
+    200,
+    201.1214,
+    188.65,
+    190.05,
+    3936159
+   ],
+   [
+    1769783400,
+    188.24,
+    190.471,
+    180,
+    180.27,
+    4248199
+   ],
+   [
+    1770042600,
+    180,
+    184.35,
+    176.14,
+    177.15,
+    5887556
+   ],
+   [
+    1770129000,
+    178.4,
+    179.01,
+    161.71,
+    165.41,
+    6876714
+   ],
+   [
+    1770215400,
+    162.51,
+    163.265,
+    146.35,
+    152.69,
+    9451444
+   ],
+   [
+    1770301800,
+    151.005,
+    155.34,
+    148.5,
+    151.05,
+    11083865
+   ],
+   [
+    1770388200,
+    161.53,
+    164.3999,
+    137.02,
+    139.83,
+    22081617
+   ],
+   [
+    1770647400,
+    139.39,
+    145.9376,
+    136.61,
+    141.74,
+    8487343
+   ],
+   [
+    1770733800,
+    145.06,
+    152.44,
+    143.51,
+    149.98,
+    9003182
+   ],
+   [
+    1770820200,
+    148.86,
+    152.44,
+    137.25,
+    139.29,
+    8409677
+   ],
+   [
+    1770906600,
+    138.45,
+    138.45,
+    127.705,
+    131.07,
+    8703535
+   ],
+   [
+    1770993000,
+    141.85,
+    141.85,
+    135.37,
+    139.65,
+    7462441
+   ],
+   [
+    1771338600,
+    138.2,
+    143.92,
+    135.85,
+    139.23,
+    5470594
+   ],
+   [
+    1771425000,
+    140.9,
+    148.18,
+    139.26,
+    147.46,
+    5965873
+   ],
+   [
+    1771511400,
+    146.08,
+    147.395,
+    141.8001,
+    146.13,
+    4097101
+   ],
+   [
+    1771597800,
+    144.4,
+    151.25,
+    143.3936,
+    150.17,
+    7650931
+   ],
+   [
+    1771857000,
+    148.42,
+    150.94,
+    140.34,
+    142.46,
+    4529936
+   ],
+   [
+    1771943400,
+    142.93,
+    147.4999,
+    141.09,
+    142.08,
+    4012700
+   ],
+   [
+    1772029800,
+    143.395,
+    150.51,
+    141.05,
+    149.67,
+    4499385
+   ],
+   [
+    1772116200,
+    148.38,
+    156.39,
+    146.48,
+    151.25,
+    4908816
+   ],
+   [
+    1772202600,
+    149.51,
+    150.45,
+    143.05,
+    145.81,
+    4747671
+   ],
+   [
+    1772461800,
+    142.25,
+    147.5,
+    141.534,
+    147.11,
+    3473107
+   ],
+   [
+    1772548200,
+    141.88,
+    146.51,
+    137.5001,
+    145.69,
+    4480492
+   ],
+   [
+    1772634600,
+    146.59,
+    149.85,
+    144.35,
+    147.29,
+    5053306
+   ],
+   [
+    1772721000,
+    146.97,
+    153.78,
+    142.3,
+    144.34,
+    6249860
+   ],
+   [
+    1772807400,
+    142,
+    142.33,
+    137.9,
+    139.39,
+    5084037
+   ],
+   [
+    1773063000,
+    136.75,
+    139.39,
+    132.41,
+    138.86,
+    7991145
+   ],
+   [
+    1773149400,
+    141.875,
+    142.46,
+    133.8,
+    134.13,
+    6156821
+   ],
+   [
+    1773235800,
+    135.05,
+    137.9699,
+    133.28,
+    137.12,
+    5087266
+   ],
+   [
+    1773322200,
+    135.59,
+    139.7934,
+    131.5,
+    132.25,
+    3330337
+   ],
+   [
+    1773408600,
+    133.67,
+    136.98,
+    131.31,
+    132.36,
+    3049052
+   ],
+   [
+    1773667800,
+    133.97,
+    140.08,
+    133.18,
+    140,
+    4488671
+   ],
+   [
+    1773754200,
+    140.02,
+    147.45,
+    140,
+    144.33,
+    6424794
+   ],
+   [
+    1773840600,
+    144.01,
+    146.75,
+    142.04,
+    142.79,
+    4155921
+   ],
+   [
+    1773927000,
+    138.75,
+    142.27,
+    135.33,
+    138.12,
+    4878269
+   ],
+   [
+    1774013400,
+    139,
+    143.85,
+    135.68,
+    139.85,
+    6532902
+   ],
+   [
+    1774272600,
+    140,
+    144.19,
+    138.7,
+    140.96,
+    3514653
+   ],
+   [
+    1774359000,
+    139.7,
+    141.24,
+    134.585,
+    136.12,
+    3481309
+   ],
+   [
+    1774445400,
+    139,
+    143.22,
+    138.43,
+    139.63,
+    3192842
+   ],
+   [
+    1774531800,
+    135.49,
+    137.52,
+    124,
+    127.26,
+    8196909
+   ],
+   [
+    1774618200,
+    125.04,
+    125.51,
+    120.5,
+    121.84,
+    5776499
+   ],
+   [
+    1774877400,
+    122.5,
+    126.38,
+    119.27,
+    124.13,
+    4487532
+   ],
+   [
+    1774963800,
+    126.06,
+    135.9,
+    125.12,
+    134.65,
+    5443807
+   ],
+   [
+    1775050200,
+    136.375,
+    139.34,
+    133.25,
+    136.18,
+    3931961
+   ],
+   [
+    1775136600,
+    129.67,
+    137.12,
+    128.63,
+    136,
+    3077714
+   ],
+   [
+    1775482200,
+    138.46,
+    140.555,
+    136.2234,
+    138.34,
+    3208678
+   ],
+   [
+    1775568600,
+    137.5,
+    141.27,
+    136.35,
+    141.14,
+    2340455
+   ],
+   [
+    1775655000,
+    151.59,
+    154.77,
+    143.86,
+    145,
+    3995814
+   ],
+   [
+    1775741400,
+    144.54,
+    145.17,
+    135,
+    138.38,
+    5076466
+   ],
+   [
+    1775827800,
+    141.05,
+    142.2996,
+    135.99,
+    139.73,
+    3259543
+   ],
+   [
+    1776087000,
+    138.97,
+    149.45,
+    138.81,
+    149.35,
+    3638886
+   ],
+   [
+    1776173400,
+    152.61,
+    156.5,
+    151.78,
+    154.54,
+    4453050
+   ],
+   [
+    1776259800,
+    156.78,
+    160.3799,
+    155.33,
+    158.48,
+    4173876
+   ],
+   [
+    1776346200,
+    163.11,
+    164,
+    157.01,
+    162.45,
+    4032329
+   ],
+   [
+    1776432600,
+    165.505,
+    168.7,
+    161.364,
+    163.8,
+    4068576
+   ],
+   [
+    1776691800,
+    162.15,
+    166.79,
+    161.01,
+    166.28,
+    3055068
+   ],
+   [
+    1776778200,
+    166.5,
+    167.92,
+    156.085,
+    156.82,
+    4777225
+   ],
+   [
+    1776864600,
+    161.38,
+    164.41,
+    158.95,
+    164.31,
+    2890108
+   ],
+   [
+    1776951000,
+    162.3,
+    162.3,
+    151.22,
+    152.96,
+    3707926
+   ],
+   [
+    1777037400,
+    154.3,
+    154.93,
+    150.55,
+    154.89,
+    3242219
+   ],
+   [
+    1777296600,
+    154.375,
+    163.15,
+    154.05,
+    160.21,
+    3311661
+   ],
+   [
+    1777383000,
+    153.02,
+    153.73,
+    146.55,
+    147.93,
+    5156330
+   ],
+   [
+    1777469400,
+    146,
+    148.78,
+    143.09,
+    147.75,
+    3373206
+   ],
+   [
+    1777555800,
+    146.85,
+    150.2,
+    143.39,
+    147.23,
+    9383433
+   ],
+   [
+    1777642200,
+    165.51,
+    173,
+    156.49,
+    166.48,
+    14252200
+   ],
+   [
+    1777901400,
+    170.08,
+    175.29,
+    164.65,
+    169.07,
+    6091958
+   ],
+   [
+    1777987800,
+    171,
+    177.13,
+    167.62,
+    171.63,
+    7080642
+   ],
+   [
+    1778074200,
+    172.025,
+    172.65,
+    162.55,
+    166.56,
+    7179755
+   ],
+   [
+    1778160600,
+    168.5,
+    169.1,
+    159.6,
+    163.95,
+    5444650
+   ],
+   [
+    1778247000,
+    162.62,
+    162.9,
+    155.2101,
+    155.8,
+    5778954
+   ],
+   [
+    1778506200,
+    153.5,
+    162.45,
+    153.5,
+    159.51,
+    5077727
+   ],
+   [
+    1778592600,
+    159.3,
+    161.04,
+    150.32,
+    152.35,
+    4698065
+   ],
+   [
+    1778679000,
+    152,
+    154.7,
+    148.5,
+    154.12,
+    4151093
+   ],
+   [
+    1778765400,
+    155.775,
+    157.23,
+    149.0301,
+    156.31,
+    3265989
+   ],
+   [
+    1778851800,
+    153.55,
+    159.16,
+    153.14,
+    158.17,
+    3340033
+   ],
+   [
+    1779111000,
+    157,
+    160.98,
+    153.5701,
+    159.11,
+    3457184
+   ],
+   [
+    1779197400,
+    158.23,
+    161.49,
+    154.15,
+    154.88,
+    4080695
+   ],
+   [
+    1779283800,
+    154.02,
+    154.7599,
+    143.91,
+    146.72,
+    10395714
+   ],
+   [
+    1779370200,
+    144.31,
+    153.45,
+    144.1,
+    150.04,
+    3494463
+   ],
+   [
+    1779456600,
+    145.23,
+    145.795,
+    140.67,
+    141.67,
+    7849884
+   ],
+   [
+    1779802200,
+    143.495,
+    145.89,
+    139.55,
+    144.64,
+    5398443
+   ],
+   [
+    1779888600,
+    144.5,
+    158.551377,
+    144.24,
+    154.19,
+    5704894
+   ],
+   [
+    1779975000,
+    155.01,
+    167.72,
+    151.66,
+    167.69,
+    5726049
+   ],
+   [
+    1780061400,
+    168.705,
+    176.69,
+    166.49,
+    176,
+    9360119
+   ],
+   [
+    1780320600,
+    179.9,
+    182.645,
+    174.85,
+    177.85,
+    5794886
+   ],
+   [
+    1780407000,
+    174.52,
+    175.75,
+    166.66,
+    169.13,
+    4316517
+   ],
+   [
+    1780493400,
+    167,
+    170.49,
+    159.11,
+    169.49,
+    3399142
+   ],
+   [
+    1780579800,
+    170.3999,
+    187.34,
+    169.81,
+    183.91,
+    7380981
+   ],
+   [
+    1780666200,
+    182.18,
+    186.4499,
+    167.04,
+    173.45,
+    5965647
+   ],
+   [
+    1780925400,
+    171.51,
+    173.45,
+    166.16,
+    171.13,
+    3031435
+   ],
+   [
+    1781011800,
+    178.55,
+    183.12,
+    166.9,
+    178.11,
+    5237658
+   ],
+   [
+    1781098200,
+    174.45,
+    179.8,
+    170.8,
+    172.21,
+    3235173
+   ],
+   [
+    1781184600,
+    168.7,
+    174,
+    163.77,
+    173.26,
+    3207924
+   ],
+   [
+    1781271000,
+    172.49,
+    173,
+    158.36,
+    162.1,
+    5767960
+   ],
+   [
+    1781530200,
+    168.81,
+    182,
+    167.905,
+    181.88,
+    4843966
+   ],
+   [
+    1781616600,
+    181.95,
+    182.41,
+    174.721,
+    175.39,
+    3562101
+   ],
+   [
+    1781703000,
+    174.41,
+    175.4094,
+    165.95,
+    165.95,
+    4405012
+   ],
+   [
+    1781789400,
+    169,
+    176.22,
+    165.88,
+    174.96,
+    5337416
+   ],
+   [
+    1782135000,
+    171.86,
+    182.3,
+    167.01,
+    170.44,
+    4386396
+   ],
+   [
+    1782221400,
+    167,
+    174,
+    164.67,
+    165.63,
+    3364922
+   ],
+   [
+    1782307800,
+    164.7,
+    167.7,
+    157.27,
+    160.72,
+    4166337
+   ],
+   [
+    1782394200,
+    160.35,
+    160.35,
+    152.65,
+    158.02,
+    2783047
+   ],
+   [
+    1782480600,
+    156.62,
+    169.02,
+    155.7,
+    166.94,
+    6325811
+   ],
+   [
+    1782739800,
+    168.29,
+    176.35,
+    166.6,
+    174.39,
+    3132761
+   ],
+   [
+    1782826200,
+    172.6,
+    175.38,
+    169.75,
+    173.58,
+    2477773
+   ],
+   [
+    1782912600,
+    175.01,
+    201.16,
+    175.01,
+    197.76,
+    8763460
+   ],
+   [
+    1782999000,
+    194.01,
+    198.7199,
+    184.38,
+    194.67,
+    4469802
+   ],
+   [
+    1783344600,
+    197.96,
+    207.54,
+    196.44,
+    200.86,
+    5568881
+   ],
+   [
+    1783431000,
+    200.83,
+    206.4899,
+    198.8118,
+    199.44,
+    4133928
+   ],
+   [
+    1783517400,
+    195.63,
+    199.19,
+    189.33,
+    195.31,
+    2823751
+   ],
+   [
+    1783603800,
+    193.01,
+    200.85,
+    189.64,
+    200.31,
+    2248683
+   ],
+   [
+    1783690200,
+    205.8,
+    208.05,
+    192.61,
+    195.34,
+    3756482
+   ],
+   [
+    1783949400,
+    199,
+    204.065,
+    193.88,
+    200.93,
+    4372093
+   ],
+   [
+    1784035800,
+    197.18,
+    204.89,
+    197.18,
+    203.27,
+    2433304
+   ],
+   [
+    1784122200,
+    204.61,
+    207,
+    189.75,
+    198.03,
+    4070498
+   ],
+   [
+    1784208600,
+    199.69,
+    200.32,
+    184.62,
+    185.26,
+    3758329
+   ],
+   [
+    1784295000,
+    181.54,
+    184.95,
+    173.71,
+    181.18,
+    3327326
+   ],
+   [
+    1784554200,
+    179,
+    187.43,
+    174.46,
+    181.64,
+    4055443
+   ],
+   [
+    1784640600,
+    181.5,
+    186.99,
+    178,
+    185.84,
+    2602790
+   ],
+   [
+    1784727000,
+    172.9,
+    174,
+    166,
+    170.38,
+    8986993
+   ],
+   [
+    1784813400,
+    174.42,
+    179.283,
+    168.285,
+    168.78,
+    3842575
+   ],
+   [
+    1784899800,
+    169.5,
+    173.1999,
+    165.55,
+    168.73,
+    3539598
+   ],
+   [
+    1785159000,
+    173.335,
+    183.8823,
+    172.73,
+    179.23,
+    4263859
+   ],
+   [
+    1785245400,
+    179.25,
+    180.8,
+    173.61,
+    178.44,
+    2898108
+   ],
+   [
+    1785331800,
+    181.94,
+    185.9099,
+    176.3251,
+    177.99,
+    4231276
+   ],
+   [
+    1785418200,
+    180,
+    182.42,
+    175,
+    178.04,
+    11864896
+   ],
+   [
+    1785504600,
+    147.7,
+    151.38,
+    135.2223,
+    140.67,
+    29916722
+   ],
+   [
+    1785763800,
+    141.9,
+    157.7195,
+    140.0501,
+    154.71,
+    10648269
+   ],
+   [
+    1785850200,
+    153.62,
+    162.82,
+    152.78,
+    159.97,
+    6155487
+   ],
+   [
+    1785936600,
+    159.28,
+    160.79,
+    153.5,
+    155.26,
+    4169310
+   ],
+   [
+    1786023000,
+    150.94,
+    155.27,
+    149.51,
+    150.87,
+    3466403
+   ],
+   [
+    1786109400,
+    153.3,
+    163.9,
+    153.22,
+    161.7,
+    4509577
+   ],
+   [
+    1786368600,
+    161.49,
+    163.24,
+    157.65,
+    158.72,
+    3101668
+   ],
+   [
+    1786455000,
+    158,
+    161.98,
+    155.62,
+    156.19,
+    2735440
+   ],
+   [
+    1786541400,
+    157.64,
+    158,
+    152.0101,
+    153.45,
+    3318575
+   ],
+   [
+    1786627800,
+    154.51,
+    159.29,
+    152.67,
+    158.12,
+    4658023
+   ],
+   [
+    1786714200,
+    175.78,
+    184.284,
+    174,
+    178.09,
+    21500412
+   ],
+   [
+    1786973400,
+    177.51,
+    178.34,
+    164.18,
+    164.5,
+    37846236
+   ],
+   [
+    1787059800,
+    166.1,
+    167.54,
+    157.45,
+    158.25,
+    7447327
+   ],
+   [
+    1787146200,
+    156.66,
+    158.25,
+    151.367,
+    151.71,
+    8157153
+   ],
+   [
+    1787232600,
+    149.61,
+    150.77,
+    144.05,
+    150.31,
+    7672007
+   ],
+   [
+    1787319000,
+    151.79,
+    155.3,
+    150.0381,
+    153.29,
+    4554891
+   ],
+   [
+    1787578200,
+    150.01,
+    154.4,
+    149.2,
+    152.7,
+    3530314
+   ],
+   [
+    1787664600,
+    153.49,
+    162.625,
+    152.77,
+    162.45,
+    4386581
+   ],
+   [
+    1787751000,
+    161,
+    165.91,
+    155.27,
+    155.36,
+    3687227
+   ],
+   [
+    1787837400,
+    155.76,
+    158.99,
+    153.5,
+    153.95,
+    2716403
+   ],
+   [
+    1787923800,
+    152.25,
+    158.86,
+    152.0565,
+    153,
+    2756736
+   ],
+   [
+    1788183000,
+    151.32,
+    151.9418,
+    146.62,
+    147.81,
+    3864821
+   ],
+   [
+    1788269400,
+    144.79,
+    147.8625,
+    143.8,
+    144.64,
+    3799133
+   ],
+   [
+    1788355800,
+    144.02,
+    158.27,
+    143.47,
+    158.1,
+    6237700
+   ],
+   [
+    1788442200,
+    159.26,
+    162.5,
+    154.6305,
+    155.99,
+    4036001
+   ],
+   [
+    1788528600,
+    155.74,
+    156.49,
+    152.35,
+    154.46,
+    2834665
+   ],
+   [
+    1788874200,
+    155.01,
+    156.6,
+    148.46,
+    149.38,
+    5017908
+   ],
+   [
+    1788960600,
+    148.64,
+    149.215,
+    145.1663,
+    146.44,
+    4820395
+   ],
+   [
+    1789047000,
+    146.34,
+    156.9499,
+    144.8,
+    155.34,
+    5813363
+   ],
+   [
+    1789133400,
+    157.55,
+    159.4999,
+    154.61,
+    157.77,
+    3196541
+   ],
+   [
+    1789392600,
+    160,
+    166.18,
+    157.11,
+    162.38,
+    4553745
+   ],
+   [
+    1789479000,
+    157.9,
+    164.16,
+    157.3053,
+    159.63,
+    5093147
+   ],
+   [
+    1789565400,
+    160.62,
+    162.04,
+    156.1601,
+    157.6,
+    2907225
+   ],
+   [
+    1789651800,
+    154.71,
+    156.5299,
+    149.21,
+    152.83,
+    5751110
+   ],
+   [
+    1789738200,
+    152.69,
+    154.1,
+    150.2,
+    150.85,
+    13897539
+   ],
+   [
+    1789997400,
+    152.67,
+    160.35,
+    151.74,
+    158.73,
+    5464335
+   ],
+   [
+    1790083800,
+    161.28,
+    161.67,
+    152.33,
+    155.67,
+    4258708
+   ],
+   [
+    1790170200,
+    154.01,
+    154.94,
+    147.77,
+    151.98,
+    4576417
+   ],
+   [
+    1790256600,
+    151.5,
+    153.88,
+    150.2,
+    152.72,
+    3262609
+   ],
+   [
+    1790343000,
+    152.73,
+    154.76,
+    149.82,
+    149.84,
+    2879230
+   ],
+   [
+    1790602200,
+    149,
+    149.29,
+    143.08,
+    143.08,
+    4339871
+   ],
+   [
+    1790688600,
+    144.95,
+    147.55,
+    141.3217,
+    145.36,
+    4988528
+   ],
+   [
+    1790775000,
+    147.48,
+    151.8899,
+    142.42,
+    142.44,
+    4906704
+   ],
+   [
+    1790861400,
+    144.14,
+    150.225,
+    143.02,
+    149.53,
+    4108171
+   ],
+   [
+    1790947800,
+    149.775,
+    151.5,
+    144.8,
+    147.86,
+    3125951
+   ],
+   [
+    1791207000,
+    150.73,
+    152.85,
+    148.2435,
+    150.42,
+    5203377
+   ],
+   [
+    1791293400,
+    151.5,
+    151.5,
+    147.7801,
+    148.95,
+    3846272
+   ],
+   [
+    1791379800,
+    147.255,
+    154.52,
+    146.2486,
+    152.71,
+    2689893
+   ],
+   [
+    1791466200,
+    152.81,
+    157.3,
+    152,
+    156.47,
+    4577704
+   ],
+   [
+    1791552600,
+    161.06,
+    162.96,
+    158.32,
+    159.91,
+    5067158
+   ],
+   [
+    1791811800,
+    160.9,
+    162,
+    151.4201,
+    159.93,
+    5102400
+   ],
+   [
+    1791898200,
+    155.51,
+    164.18,
+    154.99,
+    155.29,
+    4927911
+   ],
+   [
+    1791984600,
+    154.15,
+    156.37,
+    148.46,
+    148.6,
+    3557188
+   ],
+   [
+    1792071000,
+    146.42,
+    159.66,
+    145.5101,
+    159.36,
+    4037550
+   ],
+   [
+    1792157400,
+    160,
+    164.94,
+    153.3242,
+    156.14,
+    3842497
+   ],
+   [
+    1792416600,
+    157.9,
+    158.8,
+    151.59,
+    155.14,
+    3410296
+   ],
+   [
+    1792503000,
+    155.14,
+    158.7599,
+    153.32,
+    155.65,
+    3037626
+   ],
+   [
+    1792589400,
+    156.49,
+    160.415,
+    152.81,
+    153.28,
+    3189160
+   ],
+   [
+    1792675800,
+    151.54,
+    152.46,
+    147.77,
+    150.26,
+    3298955
+   ],
+   [
+    1792762200,
+    148.01,
+    149.4999,
+    143.92,
+    144.25,
+    4070812
+   ],
+   [
+    1793021400,
+    144.25,
+    144.5499,
+    133.33,
+    138.45,
+    7884346
+   ],
+   [
+    1793107800,
+    138.39,
+    140.979,
+    135.07,
+    136.46,
+    4626407
+   ],
+   [
+    1793194200,
+    135.25,
+    138.155,
+    133.95,
+    134.7,
+    5378098
+   ],
+   [
+    1793280600,
+    129.95,
+    131.89,
+    126.37,
+    129.6,
+    17872159
+   ],
+   [
+    1793367000,
+    100.25,
+    101.98,
+    89.28,
+    91.73,
+    33411609
+   ],
+   [
+    1793629800,
+    92.21,
+    95.82,
+    90.5,
+    90.97,
+    11807787
+   ],
+   [
+    1793716200,
+    92.11,
+    96.21,
+    91.64,
+    96.15,
+    7914501
+   ],
+   [
+    1793802600,
+    97.9,
+    104.55,
+    97.78,
+    101.89,
+    8274830
+   ],
+   [
+    1793889000,
+    101.63,
+    101.72,
+    91.2,
+    93.81,
+    8310752
+   ],
+   [
+    1793975400,
+    95.11,
+    96.81,
+    93.5,
+    95.1,
+    6295330
+   ],
+   [
+    1794234600,
+    95.1,
+    101.405,
+    94.1001,
+    100.79,
+    5879937
+   ],
+   [
+    1794321000,
+    98.91,
+    102.325,
+    95.08,
+    98.67,
+    5468243
+   ],
+   [
+    1794407400,
+    100.73,
+    106.38,
+    99.6501,
+    105.66,
+    4959391
+   ],
+   [
+    1794493800,
+    101.27,
+    103.2824,
+    98.51,
+    99.55,
+    5824416
+   ],
+   [
+    1794580200,
+    98.75,
+    100.59,
+    97.98,
+    98.45,
+    3272144
+   ]
+  ]
+ },
+ "plotValues": {
+  "fields": [
+   "time"
+  ],
+  "rows": []
+ },
+ "objects": {
+  "counts": {
+   "lines": 84,
+   "labels": 48,
+   "boxes": 0,
+   "tables": 0,
+   "tableCells": 0,
+   "linefills": 0
+  },
+  "records": {
+   "lines": [
+    {
+     "id": 3,
+     "x1": 39,
+     "y1": 50.06297229219147,
+     "x2": 30,
+     "y2": 50.06297229219147,
+     "ex": "n",
+     "st": "dot",
+     "ci": 1,
+     "w": 1
+    },
+    {
+     "id": 4,
+     "x1": 39,
+     "y1": 51.95214105793452,
+     "x2": 39,
+     "y2": 50.06297229219147,
+     "ex": "n",
+     "st": "sol",
+     "ci": 1,
+     "w": 6
+    },
+    {
+     "id": 5,
+     "x1": 39,
+     "y1": 47.10327455919399,
+     "x2": 39,
+     "y2": 63.53904282115873,
+     "ex": "n",
+     "st": "sol",
+     "ci": 1,
+     "w": 1
+    },
+    {
+     "id": 7,
+     "x1": 38,
+     "y1": 67.82115869017632,
+     "x2": 38,
+     "y2": 56.98992443324937,
+     "ex": "n",
+     "st": "sol",
+     "ci": 1,
+     "w": 6
+    },
+    {
+     "id": 8,
+     "x1": 38,
+     "y1": 50.44080604534009,
+     "x2": 38,
+     "y2": 80.49370277078086,
+     "ex": "n",
+     "st": "sol",
+     "ci": 1,
+     "w": 1
+    },
+    {
+     "id": 10,
+     "x1": 37,
+     "y1": 64.42065491183884,
+     "x2": 37,
+     "y2": 95.46599496221663,
+     "ex": "n",
+     "st": "sol",
+     "ci": 0,
+     "w": 6
+    },
+    {
+     "id": 11,
+     "x1": 37,
+     "y1": 57.62027707808562,
+     "x2": 37,
+     "y2": 100,
+     "ex": "n",
+     "st": "sol",
+     "ci": 0,
+     "w": 1
+    },
+    {
+     "id": 13,
+     "x1": 36,
+     "y1": 52.959697732997476,
+     "x2": 36,
+     "y2": 51.448362720403054,
+     "ex": "n",
+     "st": "sol",
+     "ci": 1,
+     "w": 6
+    },
+    {
+     "id": 14,
+     "x1": 36,
+     "y1": 28.84130982367758,
+     "x2": 36,
+     "y2": 74.46473551637284,
+     "ex": "n",
+     "st": "sol",
+     "ci": 1,
+     "w": 1
+    },
+    {
+     "id": 16,
+     "x1": 35,
+     "y1": 28.967254408060427,
+     "x2": 35,
+     "y2": 64.79848866498746,
+     "ex": "n",
+     "st": "sol",
+     "ci": 0,
+     "w": 6
+    },
+    {
+     "id": 17,
+     "x1": 35,
+     "y1": 22.670654911838785,
+     "x2": 35,
+     "y2": 68.67128463476074,
+     "ex": "n",
+     "st": "sol",
+     "ci": 0,
+     "w": 1
+    },
+    {
+     "id": 19,
+     "x1": 34,
+     "y1": 29.030226700251895,
+     "x2": 34,
+     "y2": 28.967254408060427,
+     "ex": "n",
+     "st": "sol",
+     "ci": 1,
+     "w": 6
+    },
+    {
+     "id": 20,
+     "x1": 34,
+     "y1": 18.891687657430737,
+     "x2": 34,
+     "y2": 39.735516372796,
+     "ex": "n",
+     "st": "sol",
+     "ci": 1,
+     "w": 1
+    },
+    {
+     "id": 22,
+     "x1": 33,
+     "y1": 70.088161209068,
+     "x2": 33,
+     "y2": 20.84382871536526,
+     "ex": "n",
+     "st": "sol",
+     "ci": 1,
+     "w": 6
+    },
+    {
+     "id": 23,
+     "x1": 33,
+     "y1": 4.408060453400523,
+     "x2": 33,
+     "y2": 70.65491183879095,
+     "ex": "n",
+     "st": "sol",
+     "ci": 1,
+     "w": 1
+    },
+    {
+     "id": 25,
+     "x1": 32,
+     "y1": 46.59949622166252,
+     "x2": 32,
+     "y2": 71.72544080604536,
+     "ex": "n",
+     "st": "sol",
+     "ci": 0,
+     "w": 6
+    },
+    {
+     "id": 26,
+     "x1": 32,
+     "y1": 45.84382871536526,
+     "x2": 32,
+     "y2": 88.47607052896727,
+     "ex": "n",
+     "st": "sol",
+     "ci": 0,
+     "w": 1
+    },
+    {
+     "id": 28,
+     "x1": 31,
+     "y1": 10.138539042821158,
+     "x2": 31,
+     "y2": 35.579345088161254,
+     "ex": "n",
+     "st": "sol",
+     "ci": 0,
+     "w": 6
+    },
+    {
+     "id": 29,
+     "x1": 31,
+     "y1": 7.178841309823683,
+     "x2": 31,
+     "y2": 35.9571788413098,
+     "ex": "n",
+     "st": "sol",
+     "ci": 0,
+     "w": 1
+    },
+    {
+     "id": 31,
+     "x1": 30,
+     "y1": 10.76826196473548,
+     "x2": 30,
+     "y2": 2.959697732997475,
+     "ex": "n",
+     "st": "sol",
+     "ci": 1,
+     "w": 6
+    },
+    {
+     "id": 32,
+     "x1": 30,
+     "y1": 0,
+     "x2": 30,
+     "y2": 33.50125944584379,
+     "ex": "n",
+     "st": "sol",
+     "ci": 1,
+     "w": 1
+    },
+    {
+     "id": 36,
+     "x1": 29,
+     "y1": 50.06297229219147,
+     "x2": 20,
+     "y2": 50.06297229219147,
+     "ex": "n",
+     "st": "dot",
+     "ci": 1,
+     "w": 1
+    },
+    {
+     "id": 37,
+     "x1": 29,
+     "y1": 51.95214105793452,
+     "x2": 29,
+     "y2": 50.06297229219147,
+     "ex": "n",
+     "st": "sol",
+     "ci": 1,
+     "w": 6
+    },
+    {
+     "id": 38,
+     "x1": 29,
+     "y1": 47.10327455919399,
+     "x2": 29,
+     "y2": 63.53904282115873,
+     "ex": "n",
+     "st": "sol",
+     "ci": 1,
+     "w": 1
+    },
+    {
+     "id": 40,
+     "x1": 28,
+     "y1": 67.82115869017632,
+     "x2": 28,
+     "y2": 56.98992443324937,
+     "ex": "n",
+     "st": "sol",
+     "ci": 1,
+     "w": 6
+    },
+    {
+     "id": 41,
+     "x1": 28,
+     "y1": 50.44080604534009,
+     "x2": 28,
+     "y2": 80.49370277078086,
+     "ex": "n",
+     "st": "sol",
+     "ci": 1,
+     "w": 1
+    },
+    {
+     "id": 43,
+     "x1": 27,
+     "y1": 64.42065491183884,
+     "x2": 27,
+     "y2": 95.46599496221663,
+     "ex": "n",
+     "st": "sol",
+     "ci": 0,
+     "w": 6
+    },
+    {
+     "id": 44,
+     "x1": 27,
+     "y1": 57.62027707808562,
+     "x2": 27,
+     "y2": 100,
+     "ex": "n",
+     "st": "sol",
+     "ci": 0,
+     "w": 1
+    },
+    {
+     "id": 46,
+     "x1": 26,
+     "y1": 52.959697732997476,
+     "x2": 26,
+     "y2": 51.448362720403054,
+     "ex": "n",
+     "st": "sol",
+     "ci": 1,
+     "w": 6
+    },
+    {
+     "id": 47,
+     "x1": 26,
+     "y1": 28.84130982367758,
+     "x2": 26,
+     "y2": 74.46473551637284,
+     "ex": "n",
+     "st": "sol",
+     "ci": 1,
+     "w": 1
+    },
+    {
+     "id": 49,
+     "x1": 25,
+     "y1": 28.967254408060427,
+     "x2": 25,
+     "y2": 64.79848866498746,
+     "ex": "n",
+     "st": "sol",
+     "ci": 0,
+     "w": 6
+    },
+    {
+     "id": 50,
+     "x1": 25,
+     "y1": 22.670654911838785,
+     "x2": 25,
+     "y2": 68.67128463476074,
+     "ex": "n",
+     "st": "sol",
+     "ci": 0,
+     "w": 1
+    },
+    {
+     "id": 52,
+     "x1": 24,
+     "y1": 29.030226700251895,
+     "x2": 24,
+     "y2": 28.967254408060427,
+     "ex": "n",
+     "st": "sol",
+     "ci": 1,
+     "w": 6
+    },
+    {
+     "id": 53,
+     "x1": 24,
+     "y1": 18.891687657430737,
+     "x2": 24,
+     "y2": 39.735516372796,
+     "ex": "n",
+     "st": "sol",
+     "ci": 1,
+     "w": 1
+    },
+    {
+     "id": 55,
+     "x1": 23,
+     "y1": 70.088161209068,
+     "x2": 23,
+     "y2": 20.84382871536526,
+     "ex": "n",
+     "st": "sol",
+     "ci": 1,
+     "w": 6
+    },
+    {
+     "id": 56,
+     "x1": 23,
+     "y1": 4.408060453400523,
+     "x2": 23,
+     "y2": 70.65491183879095,
+     "ex": "n",
+     "st": "sol",
+     "ci": 1,
+     "w": 1
+    },
+    {
+     "id": 58,
+     "x1": 22,
+     "y1": 46.59949622166252,
+     "x2": 22,
+     "y2": 71.72544080604536,
+     "ex": "n",
+     "st": "sol",
+     "ci": 0,
+     "w": 6
+    },
+    {
+     "id": 59,
+     "x1": 22,
+     "y1": 45.84382871536526,
+     "x2": 22,
+     "y2": 88.47607052896727,
+     "ex": "n",
+     "st": "sol",
+     "ci": 0,
+     "w": 1
+    },
+    {
+     "id": 61,
+     "x1": 21,
+     "y1": 10.138539042821158,
+     "x2": 21,
+     "y2": 35.579345088161254,
+     "ex": "n",
+     "st": "sol",
+     "ci": 0,
+     "w": 6
+    },
+    {
+     "id": 62,
+     "x1": 21,
+     "y1": 7.178841309823683,
+     "x2": 21,
+     "y2": 35.9571788413098,
+     "ex": "n",
+     "st": "sol",
+     "ci": 0,
+     "w": 1
+    },
+    {
+     "id": 64,
+     "x1": 20,
+     "y1": 10.76826196473548,
+     "x2": 20,
+     "y2": 2.959697732997475,
+     "ex": "n",
+     "st": "sol",
+     "ci": 1,
+     "w": 6
+    },
+    {
+     "id": 65,
+     "x1": 20,
+     "y1": 0,
+     "x2": 20,
+     "y2": 33.50125944584379,
+     "ex": "n",
+     "st": "sol",
+     "ci": 1,
+     "w": 1
+    },
+    {
+     "id": 69,
+     "x1": 19,
+     "y1": 50.06297229219147,
+     "x2": 10,
+     "y2": 50.06297229219147,
+     "ex": "n",
+     "st": "dot",
+     "ci": 1,
+     "w": 1
+    },
+    {
+     "id": 70,
+     "x1": 19,
+     "y1": 51.95214105793452,
+     "x2": 19,
+     "y2": 50.06297229219147,
+     "ex": "n",
+     "st": "sol",
+     "ci": 1,
+     "w": 6
+    },
+    {
+     "id": 71,
+     "x1": 19,
+     "y1": 47.10327455919399,
+     "x2": 19,
+     "y2": 63.53904282115873,
+     "ex": "n",
+     "st": "sol",
+     "ci": 1,
+     "w": 1
+    },
+    {
+     "id": 73,
+     "x1": 18,
+     "y1": 67.82115869017632,
+     "x2": 18,
+     "y2": 56.98992443324937,
+     "ex": "n",
+     "st": "sol",
+     "ci": 1,
+     "w": 6
+    },
+    {
+     "id": 74,
+     "x1": 18,
+     "y1": 50.44080604534009,
+     "x2": 18,
+     "y2": 80.49370277078086,
+     "ex": "n",
+     "st": "sol",
+     "ci": 1,
+     "w": 1
+    },
+    {
+     "id": 76,
+     "x1": 17,
+     "y1": 64.42065491183884,
+     "x2": 17,
+     "y2": 95.46599496221663,
+     "ex": "n",
+     "st": "sol",
+     "ci": 0,
+     "w": 6
+    },
+    {
+     "id": 77,
+     "x1": 17,
+     "y1": 57.62027707808562,
+     "x2": 17,
+     "y2": 100,
+     "ex": "n",
+     "st": "sol",
+     "ci": 0,
+     "w": 1
+    },
+    {
+     "id": 79,
+     "x1": 16,
+     "y1": 52.959697732997476,
+     "x2": 16,
+     "y2": 51.448362720403054,
+     "ex": "n",
+     "st": "sol",
+     "ci": 1,
+     "w": 6
+    },
+    {
+     "id": 80,
+     "x1": 16,
+     "y1": 28.84130982367758,
+     "x2": 16,
+     "y2": 74.46473551637284,
+     "ex": "n",
+     "st": "sol",
+     "ci": 1,
+     "w": 1
+    },
+    {
+     "id": 82,
+     "x1": 15,
+     "y1": 28.967254408060427,
+     "x2": 15,
+     "y2": 64.79848866498746,
+     "ex": "n",
+     "st": "sol",
+     "ci": 0,
+     "w": 6
+    },
+    {
+     "id": 83,
+     "x1": 15,
+     "y1": 22.670654911838785,
+     "x2": 15,
+     "y2": 68.67128463476074,
+     "ex": "n",
+     "st": "sol",
+     "ci": 0,
+     "w": 1
+    },
+    {
+     "id": 85,
+     "x1": 14,
+     "y1": 29.030226700251895,
+     "x2": 14,
+     "y2": 28.967254408060427,
+     "ex": "n",
+     "st": "sol",
+     "ci": 1,
+     "w": 6
+    },
+    {
+     "id": 86,
+     "x1": 14,
+     "y1": 18.891687657430737,
+     "x2": 14,
+     "y2": 39.735516372796,
+     "ex": "n",
+     "st": "sol",
+     "ci": 1,
+     "w": 1
+    },
+    {
+     "id": 88,
+     "x1": 13,
+     "y1": 70.088161209068,
+     "x2": 13,
+     "y2": 20.84382871536526,
+     "ex": "n",
+     "st": "sol",
+     "ci": 1,
+     "w": 6
+    },
+    {
+     "id": 89,
+     "x1": 13,
+     "y1": 4.408060453400523,
+     "x2": 13,
+     "y2": 70.65491183879095,
+     "ex": "n",
+     "st": "sol",
+     "ci": 1,
+     "w": 1
+    },
+    {
+     "id": 91,
+     "x1": 12,
+     "y1": 46.59949622166252,
+     "x2": 12,
+     "y2": 71.72544080604536,
+     "ex": "n",
+     "st": "sol",
+     "ci": 0,
+     "w": 6
+    },
+    {
+     "id": 92,
+     "x1": 12,
+     "y1": 45.84382871536526,
+     "x2": 12,
+     "y2": 88.47607052896727,
+     "ex": "n",
+     "st": "sol",
+     "ci": 0,
+     "w": 1
+    },
+    {
+     "id": 94,
+     "x1": 11,
+     "y1": 10.138539042821158,
+     "x2": 11,
+     "y2": 35.579345088161254,
+     "ex": "n",
+     "st": "sol",
+     "ci": 0,
+     "w": 6
+    },
+    {
+     "id": 95,
+     "x1": 11,
+     "y1": 7.178841309823683,
+     "x2": 11,
+     "y2": 35.9571788413098,
+     "ex": "n",
+     "st": "sol",
+     "ci": 0,
+     "w": 1
+    },
+    {
+     "id": 97,
+     "x1": 10,
+     "y1": 10.76826196473548,
+     "x2": 10,
+     "y2": 2.959697732997475,
+     "ex": "n",
+     "st": "sol",
+     "ci": 1,
+     "w": 6
+    },
+    {
+     "id": 98,
+     "x1": 10,
+     "y1": 0,
+     "x2": 10,
+     "y2": 33.50125944584379,
+     "ex": "n",
+     "st": "sol",
+     "ci": 1,
+     "w": 1
+    },
+    {
+     "id": 102,
+     "x1": 9,
+     "y1": 50.06297229219147,
+     "x2": 0,
+     "y2": 50.06297229219147,
+     "ex": "n",
+     "st": "dot",
+     "ci": 1,
+     "w": 1
+    },
+    {
+     "id": 103,
+     "x1": 9,
+     "y1": 51.95214105793452,
+     "x2": 9,
+     "y2": 50.06297229219147,
+     "ex": "n",
+     "st": "sol",
+     "ci": 1,
+     "w": 6
+    },
+    {
+     "id": 104,
+     "x1": 9,
+     "y1": 47.10327455919399,
+     "x2": 9,
+     "y2": 63.53904282115873,
+     "ex": "n",
+     "st": "sol",
+     "ci": 1,
+     "w": 1
+    },
+    {
+     "id": 106,
+     "x1": 8,
+     "y1": 67.82115869017632,
+     "x2": 8,
+     "y2": 56.98992443324937,
+     "ex": "n",
+     "st": "sol",
+     "ci": 1,
+     "w": 6
+    },
+    {
+     "id": 107,
+     "x1": 8,
+     "y1": 50.44080604534009,
+     "x2": 8,
+     "y2": 80.49370277078086,
+     "ex": "n",
+     "st": "sol",
+     "ci": 1,
+     "w": 1
+    },
+    {
+     "id": 109,
+     "x1": 7,
+     "y1": 64.42065491183884,
+     "x2": 7,
+     "y2": 95.46599496221663,
+     "ex": "n",
+     "st": "sol",
+     "ci": 0,
+     "w": 6
+    },
+    {
+     "id": 110,
+     "x1": 7,
+     "y1": 57.62027707808562,
+     "x2": 7,
+     "y2": 100,
+     "ex": "n",
+     "st": "sol",
+     "ci": 0,
+     "w": 1
+    },
+    {
+     "id": 112,
+     "x1": 6,
+     "y1": 52.959697732997476,
+     "x2": 6,
+     "y2": 51.448362720403054,
+     "ex": "n",
+     "st": "sol",
+     "ci": 1,
+     "w": 6
+    },
+    {
+     "id": 113,
+     "x1": 6,
+     "y1": 28.84130982367758,
+     "x2": 6,
+     "y2": 74.46473551637284,
+     "ex": "n",
+     "st": "sol",
+     "ci": 1,
+     "w": 1
+    },
+    {
+     "id": 115,
+     "x1": 5,
+     "y1": 28.967254408060427,
+     "x2": 5,
+     "y2": 64.79848866498746,
+     "ex": "n",
+     "st": "sol",
+     "ci": 0,
+     "w": 6
+    },
+    {
+     "id": 116,
+     "x1": 5,
+     "y1": 22.670654911838785,
+     "x2": 5,
+     "y2": 68.67128463476074,
+     "ex": "n",
+     "st": "sol",
+     "ci": 0,
+     "w": 1
+    },
+    {
+     "id": 118,
+     "x1": 4,
+     "y1": 29.030226700251895,
+     "x2": 4,
+     "y2": 28.967254408060427,
+     "ex": "n",
+     "st": "sol",
+     "ci": 1,
+     "w": 6
+    },
+    {
+     "id": 119,
+     "x1": 4,
+     "y1": 18.891687657430737,
+     "x2": 4,
+     "y2": 39.735516372796,
+     "ex": "n",
+     "st": "sol",
+     "ci": 1,
+     "w": 1
+    },
+    {
+     "id": 121,
+     "x1": 3,
+     "y1": 70.088161209068,
+     "x2": 3,
+     "y2": 20.84382871536526,
+     "ex": "n",
+     "st": "sol",
+     "ci": 1,
+     "w": 6
+    },
+    {
+     "id": 122,
+     "x1": 3,
+     "y1": 4.408060453400523,
+     "x2": 3,
+     "y2": 70.65491183879095,
+     "ex": "n",
+     "st": "sol",
+     "ci": 1,
+     "w": 1
+    },
+    {
+     "id": 124,
+     "x1": 2,
+     "y1": 46.59949622166252,
+     "x2": 2,
+     "y2": 71.72544080604536,
+     "ex": "n",
+     "st": "sol",
+     "ci": 0,
+     "w": 6
+    },
+    {
+     "id": 125,
+     "x1": 2,
+     "y1": 45.84382871536526,
+     "x2": 2,
+     "y2": 88.47607052896727,
+     "ex": "n",
+     "st": "sol",
+     "ci": 0,
+     "w": 1
+    },
+    {
+     "id": 127,
+     "x1": 1,
+     "y1": 10.138539042821158,
+     "x2": 1,
+     "y2": 35.579345088161254,
+     "ex": "n",
+     "st": "sol",
+     "ci": 0,
+     "w": 6
+    },
+    {
+     "id": 128,
+     "x1": 1,
+     "y1": 7.178841309823683,
+     "x2": 1,
+     "y2": 35.9571788413098,
+     "ex": "n",
+     "st": "sol",
+     "ci": 0,
+     "w": 1
+    },
+    {
+     "id": 130,
+     "x1": 0,
+     "y1": 10.76826196473548,
+     "x2": 0,
+     "y2": 2.959697732997475,
+     "ex": "n",
+     "st": "sol",
+     "ci": 1,
+     "w": 6
+    },
+    {
+     "id": 131,
+     "x1": 0,
+     "y1": 0,
+     "x2": 0,
+     "y2": 33.50125944584379,
+     "ex": "n",
+     "st": "sol",
+     "ci": 1,
+     "w": 1
+    }
+   ],
+   "labels": [
+    {
+     "id": 1,
+     "x": 35,
+     "y": 105,
+     "yl": "pr",
+     "t": "RDDT [D]\n98.45 (-1.1%)",
+     "st": "ldn",
+     "ci": 1,
+     "tci": 2,
+     "sz": "small",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 2,
+     "x": 39,
+     "y": 50.06297229219147,
+     "yl": "pr",
+     "t": "98.45",
+     "st": "llf",
+     "ci": 3,
+     "tci": 1,
+     "sz": "small",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 6,
+     "x": 39,
+     "y": 63.53904282115873,
+     "yl": "pr",
+     "t": "",
+     "st": "ldn",
+     "ci": 4,
+     "tci": 1,
+     "sz": "small",
+     "ta": "left",
+     "tt": "O: 98.75\nH: 100.59\nL: 97.98\nC: 98.45"
+    },
+    {
+     "id": 9,
+     "x": 38,
+     "y": 80.49370277078086,
+     "yl": "pr",
+     "t": "",
+     "st": "ldn",
+     "ci": 4,
+     "tci": 1,
+     "sz": "small",
+     "ta": "left",
+     "tt": "O: 101.27\nH: 103.2824\nL: 98.51\nC: 99.55"
+    },
+    {
+     "id": 12,
+     "x": 37,
+     "y": 100,
+     "yl": "pr",
+     "t": "",
+     "st": "ldn",
+     "ci": 4,
+     "tci": 0,
+     "sz": "small",
+     "ta": "left",
+     "tt": "O: 100.73\nH: 106.38\nL: 99.6501\nC: 105.66"
+    },
+    {
+     "id": 15,
+     "x": 36,
+     "y": 74.46473551637284,
+     "yl": "pr",
+     "t": "",
+     "st": "ldn",
+     "ci": 4,
+     "tci": 1,
+     "sz": "small",
+     "ta": "left",
+     "tt": "O: 98.91\nH: 102.325\nL: 95.08\nC: 98.67"
+    },
+    {
+     "id": 18,
+     "x": 35,
+     "y": 68.67128463476074,
+     "yl": "pr",
+     "t": "",
+     "st": "ldn",
+     "ci": 4,
+     "tci": 0,
+     "sz": "small",
+     "ta": "left",
+     "tt": "O: 95.1\nH: 101.405\nL: 94.1001\nC: 100.79"
+    },
+    {
+     "id": 21,
+     "x": 34,
+     "y": 39.735516372796,
+     "yl": "pr",
+     "t": "",
+     "st": "ldn",
+     "ci": 4,
+     "tci": 1,
+     "sz": "small",
+     "ta": "left",
+     "tt": "O: 95.11\nH: 96.81\nL: 93.5\nC: 95.1"
+    },
+    {
+     "id": 24,
+     "x": 33,
+     "y": 70.65491183879095,
+     "yl": "pr",
+     "t": "",
+     "st": "ldn",
+     "ci": 4,
+     "tci": 1,
+     "sz": "small",
+     "ta": "left",
+     "tt": "O: 101.63\nH: 101.72\nL: 91.2\nC: 93.81"
+    },
+    {
+     "id": 27,
+     "x": 32,
+     "y": 88.47607052896727,
+     "yl": "pr",
+     "t": "",
+     "st": "ldn",
+     "ci": 4,
+     "tci": 0,
+     "sz": "small",
+     "ta": "left",
+     "tt": "O: 97.9\nH: 104.55\nL: 97.78\nC: 101.89"
+    },
+    {
+     "id": 30,
+     "x": 31,
+     "y": 35.9571788413098,
+     "yl": "pr",
+     "t": "",
+     "st": "ldn",
+     "ci": 4,
+     "tci": 0,
+     "sz": "small",
+     "ta": "left",
+     "tt": "O: 92.11\nH: 96.21\nL: 91.64\nC: 96.15"
+    },
+    {
+     "id": 33,
+     "x": 30,
+     "y": 33.50125944584379,
+     "yl": "pr",
+     "t": "",
+     "st": "ldn",
+     "ci": 4,
+     "tci": 1,
+     "sz": "small",
+     "ta": "left",
+     "tt": "O: 92.21\nH: 95.82\nL: 90.5\nC: 90.97"
+    },
+    {
+     "id": 34,
+     "x": 25,
+     "y": 105,
+     "yl": "pr",
+     "t": "RDDT [1h]\n98.45 (-1.1%)",
+     "st": "ldn",
+     "ci": 1,
+     "tci": 2,
+     "sz": "small",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 35,
+     "x": 29,
+     "y": 50.06297229219147,
+     "yl": "pr",
+     "t": "98.45",
+     "st": "llf",
+     "ci": 3,
+     "tci": 1,
+     "sz": "small",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 39,
+     "x": 29,
+     "y": 63.53904282115873,
+     "yl": "pr",
+     "t": "",
+     "st": "ldn",
+     "ci": 4,
+     "tci": 1,
+     "sz": "small",
+     "ta": "left",
+     "tt": "O: 98.75\nH: 100.59\nL: 97.98\nC: 98.45"
+    },
+    {
+     "id": 42,
+     "x": 28,
+     "y": 80.49370277078086,
+     "yl": "pr",
+     "t": "",
+     "st": "ldn",
+     "ci": 4,
+     "tci": 1,
+     "sz": "small",
+     "ta": "left",
+     "tt": "O: 101.27\nH: 103.2824\nL: 98.51\nC: 99.55"
+    },
+    {
+     "id": 45,
+     "x": 27,
+     "y": 100,
+     "yl": "pr",
+     "t": "",
+     "st": "ldn",
+     "ci": 4,
+     "tci": 0,
+     "sz": "small",
+     "ta": "left",
+     "tt": "O: 100.73\nH: 106.38\nL: 99.6501\nC: 105.66"
+    },
+    {
+     "id": 48,
+     "x": 26,
+     "y": 74.46473551637284,
+     "yl": "pr",
+     "t": "",
+     "st": "ldn",
+     "ci": 4,
+     "tci": 1,
+     "sz": "small",
+     "ta": "left",
+     "tt": "O: 98.91\nH: 102.325\nL: 95.08\nC: 98.67"
+    },
+    {
+     "id": 51,
+     "x": 25,
+     "y": 68.67128463476074,
+     "yl": "pr",
+     "t": "",
+     "st": "ldn",
+     "ci": 4,
+     "tci": 0,
+     "sz": "small",
+     "ta": "left",
+     "tt": "O: 95.1\nH: 101.405\nL: 94.1001\nC: 100.79"
+    },
+    {
+     "id": 54,
+     "x": 24,
+     "y": 39.735516372796,
+     "yl": "pr",
+     "t": "",
+     "st": "ldn",
+     "ci": 4,
+     "tci": 1,
+     "sz": "small",
+     "ta": "left",
+     "tt": "O: 95.11\nH: 96.81\nL: 93.5\nC: 95.1"
+    },
+    {
+     "id": 57,
+     "x": 23,
+     "y": 70.65491183879095,
+     "yl": "pr",
+     "t": "",
+     "st": "ldn",
+     "ci": 4,
+     "tci": 1,
+     "sz": "small",
+     "ta": "left",
+     "tt": "O: 101.63\nH: 101.72\nL: 91.2\nC: 93.81"
+    },
+    {
+     "id": 60,
+     "x": 22,
+     "y": 88.47607052896727,
+     "yl": "pr",
+     "t": "",
+     "st": "ldn",
+     "ci": 4,
+     "tci": 0,
+     "sz": "small",
+     "ta": "left",
+     "tt": "O: 97.9\nH: 104.55\nL: 97.78\nC: 101.89"
+    },
+    {
+     "id": 63,
+     "x": 21,
+     "y": 35.9571788413098,
+     "yl": "pr",
+     "t": "",
+     "st": "ldn",
+     "ci": 4,
+     "tci": 0,
+     "sz": "small",
+     "ta": "left",
+     "tt": "O: 92.11\nH: 96.21\nL: 91.64\nC: 96.15"
+    },
+    {
+     "id": 66,
+     "x": 20,
+     "y": 33.50125944584379,
+     "yl": "pr",
+     "t": "",
+     "st": "ldn",
+     "ci": 4,
+     "tci": 1,
+     "sz": "small",
+     "ta": "left",
+     "tt": "O: 92.21\nH: 95.82\nL: 90.5\nC: 90.97"
+    },
+    {
+     "id": 67,
+     "x": 15,
+     "y": 105,
+     "yl": "pr",
+     "t": "RDDT [4h]\n98.45 (-1.1%)",
+     "st": "ldn",
+     "ci": 1,
+     "tci": 2,
+     "sz": "small",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 68,
+     "x": 19,
+     "y": 50.06297229219147,
+     "yl": "pr",
+     "t": "98.45",
+     "st": "llf",
+     "ci": 3,
+     "tci": 1,
+     "sz": "small",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 72,
+     "x": 19,
+     "y": 63.53904282115873,
+     "yl": "pr",
+     "t": "",
+     "st": "ldn",
+     "ci": 4,
+     "tci": 1,
+     "sz": "small",
+     "ta": "left",
+     "tt": "O: 98.75\nH: 100.59\nL: 97.98\nC: 98.45"
+    },
+    {
+     "id": 75,
+     "x": 18,
+     "y": 80.49370277078086,
+     "yl": "pr",
+     "t": "",
+     "st": "ldn",
+     "ci": 4,
+     "tci": 1,
+     "sz": "small",
+     "ta": "left",
+     "tt": "O: 101.27\nH: 103.2824\nL: 98.51\nC: 99.55"
+    },
+    {
+     "id": 78,
+     "x": 17,
+     "y": 100,
+     "yl": "pr",
+     "t": "",
+     "st": "ldn",
+     "ci": 4,
+     "tci": 0,
+     "sz": "small",
+     "ta": "left",
+     "tt": "O: 100.73\nH: 106.38\nL: 99.6501\nC: 105.66"
+    },
+    {
+     "id": 81,
+     "x": 16,
+     "y": 74.46473551637284,
+     "yl": "pr",
+     "t": "",
+     "st": "ldn",
+     "ci": 4,
+     "tci": 1,
+     "sz": "small",
+     "ta": "left",
+     "tt": "O: 98.91\nH: 102.325\nL: 95.08\nC: 98.67"
+    },
+    {
+     "id": 84,
+     "x": 15,
+     "y": 68.67128463476074,
+     "yl": "pr",
+     "t": "",
+     "st": "ldn",
+     "ci": 4,
+     "tci": 0,
+     "sz": "small",
+     "ta": "left",
+     "tt": "O: 95.1\nH: 101.405\nL: 94.1001\nC: 100.79"
+    },
+    {
+     "id": 87,
+     "x": 14,
+     "y": 39.735516372796,
+     "yl": "pr",
+     "t": "",
+     "st": "ldn",
+     "ci": 4,
+     "tci": 1,
+     "sz": "small",
+     "ta": "left",
+     "tt": "O: 95.11\nH: 96.81\nL: 93.5\nC: 95.1"
+    },
+    {
+     "id": 90,
+     "x": 13,
+     "y": 70.65491183879095,
+     "yl": "pr",
+     "t": "",
+     "st": "ldn",
+     "ci": 4,
+     "tci": 1,
+     "sz": "small",
+     "ta": "left",
+     "tt": "O: 101.63\nH: 101.72\nL: 91.2\nC: 93.81"
+    },
+    {
+     "id": 93,
+     "x": 12,
+     "y": 88.47607052896727,
+     "yl": "pr",
+     "t": "",
+     "st": "ldn",
+     "ci": 4,
+     "tci": 0,
+     "sz": "small",
+     "ta": "left",
+     "tt": "O: 97.9\nH: 104.55\nL: 97.78\nC: 101.89"
+    },
+    {
+     "id": 96,
+     "x": 11,
+     "y": 35.9571788413098,
+     "yl": "pr",
+     "t": "",
+     "st": "ldn",
+     "ci": 4,
+     "tci": 0,
+     "sz": "small",
+     "ta": "left",
+     "tt": "O: 92.11\nH: 96.21\nL: 91.64\nC: 96.15"
+    },
+    {
+     "id": 99,
+     "x": 10,
+     "y": 33.50125944584379,
+     "yl": "pr",
+     "t": "",
+     "st": "ldn",
+     "ci": 4,
+     "tci": 1,
+     "sz": "small",
+     "ta": "left",
+     "tt": "O: 92.21\nH: 95.82\nL: 90.5\nC: 90.97"
+    },
+    {
+     "id": 100,
+     "x": 5,
+     "y": 105,
+     "yl": "pr",
+     "t": "RDDT [1D]\n98.45 (-1.1%)",
+     "st": "ldn",
+     "ci": 1,
+     "tci": 2,
+     "sz": "small",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 101,
+     "x": 9,
+     "y": 50.06297229219147,
+     "yl": "pr",
+     "t": "98.45",
+     "st": "llf",
+     "ci": 3,
+     "tci": 1,
+     "sz": "small",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 105,
+     "x": 9,
+     "y": 63.53904282115873,
+     "yl": "pr",
+     "t": "",
+     "st": "ldn",
+     "ci": 4,
+     "tci": 1,
+     "sz": "small",
+     "ta": "left",
+     "tt": "O: 98.75\nH: 100.59\nL: 97.98\nC: 98.45"
+    },
+    {
+     "id": 108,
+     "x": 8,
+     "y": 80.49370277078086,
+     "yl": "pr",
+     "t": "",
+     "st": "ldn",
+     "ci": 4,
+     "tci": 1,
+     "sz": "small",
+     "ta": "left",
+     "tt": "O: 101.27\nH: 103.2824\nL: 98.51\nC: 99.55"
+    },
+    {
+     "id": 111,
+     "x": 7,
+     "y": 100,
+     "yl": "pr",
+     "t": "",
+     "st": "ldn",
+     "ci": 4,
+     "tci": 0,
+     "sz": "small",
+     "ta": "left",
+     "tt": "O: 100.73\nH: 106.38\nL: 99.6501\nC: 105.66"
+    },
+    {
+     "id": 114,
+     "x": 6,
+     "y": 74.46473551637284,
+     "yl": "pr",
+     "t": "",
+     "st": "ldn",
+     "ci": 4,
+     "tci": 1,
+     "sz": "small",
+     "ta": "left",
+     "tt": "O: 98.91\nH: 102.325\nL: 95.08\nC: 98.67"
+    },
+    {
+     "id": 117,
+     "x": 5,
+     "y": 68.67128463476074,
+     "yl": "pr",
+     "t": "",
+     "st": "ldn",
+     "ci": 4,
+     "tci": 0,
+     "sz": "small",
+     "ta": "left",
+     "tt": "O: 95.1\nH: 101.405\nL: 94.1001\nC: 100.79"
+    },
+    {
+     "id": 120,
+     "x": 4,
+     "y": 39.735516372796,
+     "yl": "pr",
+     "t": "",
+     "st": "ldn",
+     "ci": 4,
+     "tci": 1,
+     "sz": "small",
+     "ta": "left",
+     "tt": "O: 95.11\nH: 96.81\nL: 93.5\nC: 95.1"
+    },
+    {
+     "id": 123,
+     "x": 3,
+     "y": 70.65491183879095,
+     "yl": "pr",
+     "t": "",
+     "st": "ldn",
+     "ci": 4,
+     "tci": 1,
+     "sz": "small",
+     "ta": "left",
+     "tt": "O: 101.63\nH: 101.72\nL: 91.2\nC: 93.81"
+    },
+    {
+     "id": 126,
+     "x": 2,
+     "y": 88.47607052896727,
+     "yl": "pr",
+     "t": "",
+     "st": "ldn",
+     "ci": 4,
+     "tci": 0,
+     "sz": "small",
+     "ta": "left",
+     "tt": "O: 97.9\nH: 104.55\nL: 97.78\nC: 101.89"
+    },
+    {
+     "id": 129,
+     "x": 1,
+     "y": 35.9571788413098,
+     "yl": "pr",
+     "t": "",
+     "st": "ldn",
+     "ci": 4,
+     "tci": 0,
+     "sz": "small",
+     "ta": "left",
+     "tt": "O: 92.11\nH: 96.21\nL: 91.64\nC: 96.15"
+    },
+    {
+     "id": 132,
+     "x": 0,
+     "y": 33.50125944584379,
+     "yl": "pr",
+     "t": "",
+     "st": "ldn",
+     "ci": 4,
+     "tci": 1,
+     "sz": "small",
+     "ta": "left",
+     "tt": "O: 92.21\nH: 95.82\nL: 90.5\nC: 90.97"
+    }
+   ],
+   "boxes": [],
+   "tables": [],
+   "tableCells": [],
+   "linefills": []
+  },
+  "texts": {
+   "labels": [
+    "RDDT [D]\n98.45 (-1.1%)",
+    "98.45",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "RDDT [1h]\n98.45 (-1.1%)",
+    "98.45",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "RDDT [4h]\n98.45 (-1.1%)",
+    "98.45",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "RDDT [1D]\n98.45 (-1.1%)",
+    "98.45",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    ""
+   ],
+   "tableCells": []
+  },
+  "unreadable": []
+ },
+ "warnings": [
+  "objects-only study: it declares no plots, so plotValues is empty and its drawings are the whole answer"
+ ],
+ "receipt": {
+  "algo": "fnv1a32-utf16",
+  "over": "JSON.stringify(capture without its receipt key)",
+  "chars": 125261,
+  "fnv1a": 869778306
+ }
+}

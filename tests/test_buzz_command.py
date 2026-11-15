@@ -316,7 +316,8 @@ def test_a_ticker_lookup_DEFERS_publicly_and_the_text_still_arrives(route, monke
     edits = []
     rt.run_buzz_job("APP1", "TOK1", "NVDA", "open", 0,
                     edit_fn=lambda a, t, **kw: edits.append(kw))
-    assert len(edits) == 1 and edits[0].get("content"), "the member got a spinner and nothing else"
+    assert len(edits) == 1 and edits[0]["embeds"][0]["description"], "the member got a spinner and nothing else"
+    assert edits[0]["embeds"][0]["author"]["name"] == "UCT INTELLIGENCE · BUZZ"
 
 
 def test_the_text_only_board_DEFERS_publicly(route, monkeypatch):

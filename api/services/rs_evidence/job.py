@@ -72,6 +72,8 @@ import time
 from datetime import date, datetime, timezone
 from typing import Callable, Dict, List, Optional, Sequence, Tuple
 
+from api.services import listing_break
+
 from . import store as S
 from .measure import BASELINE_KEY, HORIZONS, Row, benchmark_aligned, rows_for_ticker, split_indexes, summarise
 from .signals import SIGNALS, compute_signal_columns, inputs_used
@@ -265,7 +267,10 @@ def collect(universe: Sequence[str], bars_reader: Callable, *, asof_ymd: int, de
              "split_tickers": 0, "split_skipped": 0, "split_unchecked": 0, "split_unchecked_names": []}
     total = len(universe)
     for i, ticker in enumerate(universe, 1):
-        bars = rows_to_bars(bars_reader(ticker, int(depth), int(asof_ymd)))
+        # The current listing only (`listing_break`, the rule the rating window and the
+        # screener build read with): a recycled symbol's earlier security is another
+        # stock, and a forward return measured across the two is no stock's return.
+        bars = listing_break.current_listing(rows_to_bars(bars_reader(ticker, int(depth), int(asof_ymd))))
         if not bars:
             stats["no_bars"] += 1
             continue

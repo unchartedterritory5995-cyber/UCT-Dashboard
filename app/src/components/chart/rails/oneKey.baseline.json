@@ -31,7 +31,7 @@
     },
     "components/chart/useLegacyChartBars.js": {
       "${sym}_${_barsTf}": {
-        "n": 18,
+        "n": 16,
         "at": "components/chart/useLegacyChartBars.js:120"
       }
     },
