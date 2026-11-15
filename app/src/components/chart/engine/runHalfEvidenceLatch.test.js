@@ -116,3 +116,27 @@ describe('L9 — run-half evidence on the substituted path', () => {
     expect(viaLatch).toEqual([])
   })
 })
+
+// ─── L9b — on the substituted path the objects-v2 grade may itself be MATCH_SUBSTITUTED ──────
+const subV2 = (capture, v2 = ['syminfo.industry']) => ({ ...sub(capture), objectsV2: false, objectsV2Substituted: v2 })
+
+describe('L9b — objects-v2 MATCH_SUBSTITUTED on the substituted path', () => {
+  it('CONTROL: it counts when its names are the record\'s', () => {
+    latchRuntimeLists(subRead([subV2('rddt'), subV2('nvda')]))
+    expect(runHalfEvidenceAdmits(runtimeSourceHash(SRC))).toBe(true)
+  })
+
+  it('⛔ it never counts on a plain record', () => {
+    const plain = (capture) => ({ capture, verdict: 'MATCH', objectsV2: false, runtimeOn: true,
+      objectsV2Substituted: ['syminfo.industry'] })
+    latchRuntimeLists(read([{ sha256: runtimeSourceHash(SRC), captures: [plain('rddt'), plain('nvda')] }]))
+    expect(runHalfEvidenceAdmits(runtimeSourceHash(SRC))).toBe(false)
+  })
+
+  it('⛔ naming other inputs, or none, it does not count', () => {
+    for (const v2 of [['syminfo.sector'], [], null]) {
+      latchRuntimeLists(subRead([subV2('rddt'), subV2('nvda', v2)]))
+      expect(runHalfEvidenceAdmits(runtimeSourceHash(SRC)), JSON.stringify(v2)).toBe(false)
+    }
+  })
+})

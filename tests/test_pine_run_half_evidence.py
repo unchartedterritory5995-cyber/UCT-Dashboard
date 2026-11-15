@@ -195,3 +195,39 @@ def test_E6_the_server_rule_answers_every_parity_case():
     wrong = [c["name"] for c in PARITY["cases"] if rt.run_half_entry_admits(c["entry"]) is not c["admits"]]
     assert wrong == []
     assert any(c["admits"] for c in PARITY["cases"]) and any(not c["admits"] for c in PARITY["cases"])
+
+
+# ── E7 (L9b) ── on the substituted path, objects-v2 may itself grade MATCH_SUBSTITUTED ─────────
+# Coordinator ruling 2026-11-15 (after owner ruling (a)): a substituted run's drawings grade
+# MATCH_SUBSTITUTED, never MATCH, so on a substituted record the objects-v2 grade may be
+# MATCH_SUBSTITUTED when its own names (`objectsV2Substituted`) are exactly the record's.
+
+def _sub_v2(cid, v2_names=NAMES):
+    c = _sub(cid, v2="MATCH_SUBSTITUTED")
+    if v2_names is not None:
+        c["objectsV2Substituted"] = list(v2_names)
+    return c
+
+
+def test_E7_control_substituted_objects_v2_is_served_and_admits(tmp_path, monkeypatch):
+    _allowlist(tmp_path, monkeypatch, [_sub_record([_sub_v2("x-rddt"), _sub_v2("x-nvda")])])
+    ev = rt.run_half_evidence()
+    assert [c["objectsV2Substituted"] for c in ev[0]["captures"]] == [NAMES, NAMES]
+    assert [c["objectsV2"] for c in ev[0]["captures"]] == [False, False]
+    assert _kill_read()["run_half_evidence"] == ev
+
+
+def test_E7_substituted_objects_v2_naming_other_inputs_or_none_is_not_evidence(tmp_path, monkeypatch):
+    for v2_names in (["syminfo.sector"], [], None):
+        _allowlist(tmp_path, monkeypatch, [_sub_record([_sub_v2("x-rddt"), _sub_v2("x-nvda", v2_names)])])
+        assert rt.run_half_evidence() == [], v2_names
+
+
+def test_E7_substituted_objects_v2_never_counts_on_a_plain_record(tmp_path, monkeypatch):
+    rec = {"slug": "rs", "sha256": "e" * 64, "capabilities": ["a"], "captures": [
+        _cap("x-rddt", v2="MATCH_SUBSTITUTED"), _cap("x-nvda", v2="MATCH_SUBSTITUTED")]}
+    for c in rec["captures"]:
+        c["objectsV2Substituted"] = list(NAMES)
+    _allowlist(tmp_path, monkeypatch, [rec])
+    assert rt.allow_report(with_capabilities=False)["served"], "the record itself is served"
+    assert rt.run_half_evidence() == []

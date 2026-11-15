@@ -310,9 +310,12 @@ by FMP-vs-TradingView history; still NOT admitted.
     equal the record's.
   - Each counted capture has objects-v2 MATCH and the runtime pane on; at least 2 distinct.
   - The server serves only admitted entries; the client re-applies the rule.
-  - ⚠️ Measured on Q-RS1: a substituted capture's objects-v2 grade is itself MATCH_SUBSTITUTED,
-    never MATCH. As written, the rule cannot count a real substituted capture's drawings. Whether
-    the substituted path should count objects-v2 MATCH_SUBSTITUTED is an open ruling.
+  - Measured on Q-RS1: a substituted capture's objects-v2 grade is itself MATCH_SUBSTITUTED, never
+    MATCH. Ruled (coordinator, 2026-11-15, after owner ruling (a)): ON THE SUBSTITUTED PATH ONLY a
+    counted capture's objects-v2 grade may be MATCH_SUBSTITUTED, when its own names
+    (`objectsV2Substituted` on the allowlist capture) are exactly the record's. Its verdict must
+    still be MATCH_SUBSTITUTED with equal names. A record without `admission` still needs objects-v2
+    MATCH. Built on both sides (parity cases L9b).
 - **securityType in the harness: built.** A supply record's `store.securityType` (`Stock` / `ADR`
   / `ETF`, naming its `source`) reaches `ctx.symbol`, so an ETF keys the L3 class row. No committed
   record states one: our store's class is not readable on this machine.
@@ -335,7 +338,8 @@ by FMP-vs-TradingView history; still NOT admitted.
   | `rs-rating-fred6724-spy-1d-2026-11-15` | INCONCLUSIVE | Not graded (owner ruling). |
 
 - **Still not admitted.** Only one capture grades MATCH_SUBSTITUTED, and the run-half rule needs
-  two (plus the objects-v2 ruling above). No allowlist record was added.
+  two. No allowlist record was added. Next: Q-RS1b (RS Rating on NASDAQ:ALAB and NASDAQ:CRWV 1D, both
+  listed after 2023-12-05, where FMP is exact) and Q-RS4b (the industry probe on the same).
 
 ## Owner rulings
 

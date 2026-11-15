@@ -1,5 +1,5 @@
 {
-  "_": "RS RATING L9: the run half's object-evidence rule, pinned ONCE for both sides. `api/services/runtime_definitions.py::run_half_entry_admits` (the server serves only entries it admits) and `app/src/components/chart/engine/runHalfRailSeam.js::runHalfEvidenceAdmits` (the client admits only what this rule admits) both read every case here; a case either side answers differently fails both suites. `entry` is the shape `GET /api/user-definitions/runtime-kill` serves under `run_half_evidence`. The rule: a record WITHOUT `admission` counts a capture only when it is graded MATCH; a record with `admission: \"substituted\"` and `substituted: [names]` counts a capture only when it is graded MATCH_SUBSTITUTED and its OWN `substituted` names are exactly the record's; every counted capture also has objectsV2 MATCH with the runtime pane on; admission needs at least 2 DISTINCT counted captures.",
+  "_": "RS RATING L9: the run half's object-evidence rule, pinned ONCE for both sides. `api/services/runtime_definitions.py::run_half_entry_admits` (the server serves only entries it admits) and `app/src/components/chart/engine/runHalfRailSeam.js::runHalfEvidenceAdmits` (the client admits only what this rule admits) both read every case here; a case either side answers differently fails both suites. `entry` is the shape `GET /api/user-definitions/runtime-kill` serves under `run_half_evidence`. The rule: a record WITHOUT `admission` counts a capture only when it is graded MATCH; a record with `admission: \"substituted\"` and `substituted: [names]` counts a capture only when it is graded MATCH_SUBSTITUTED and its OWN `substituted` names are exactly the record's; every counted capture also has objectsV2 MATCH with the runtime pane on, except that ON THE SUBSTITUTED PATH ONLY its objects-v2 grade may instead be MATCH_SUBSTITUTED when that grade's own names (`objectsV2Substituted`) are exactly the record's (coordinator ruling 2026-11-15, after owner ruling (a)); admission needs at least 2 DISTINCT counted captures.",
   "min_captures": 2,
   "cases": [
     {"name": "control: two MATCH captures on the plain path admit",
@@ -89,6 +89,31 @@
      "entry": {"sha256": "aa", "captures": [
        {"capture": "rddt", "verdict": "MATCH", "objectsV2": true, "runtimeOn": true},
        {"capture": "", "verdict": "MATCH", "objectsV2": true, "runtimeOn": true}]},
+     "admits": false},
+    {"name": "L9b: objects-v2 MATCH_SUBSTITUTED naming exactly the record's inputs counts on the substituted path",
+     "entry": {"sha256": "aa", "admission": "substituted", "substituted": ["syminfo.industry"], "captures": [
+       {"capture": "rddt", "verdict": "MATCH_SUBSTITUTED", "objectsV2": false, "runtimeOn": true, "substituted": ["syminfo.industry"], "objectsV2Substituted": ["syminfo.industry"]},
+       {"capture": "nvda", "verdict": "MATCH_SUBSTITUTED", "objectsV2": false, "runtimeOn": true, "substituted": ["syminfo.industry"], "objectsV2Substituted": ["syminfo.industry"]}]},
+     "admits": true},
+    {"name": "L9b: objects-v2 MATCH_SUBSTITUTED does NOT count on a plain record",
+     "entry": {"sha256": "aa", "captures": [
+       {"capture": "rddt", "verdict": "MATCH", "objectsV2": false, "runtimeOn": true, "objectsV2Substituted": ["syminfo.industry"]},
+       {"capture": "nvda", "verdict": "MATCH", "objectsV2": false, "runtimeOn": true, "objectsV2Substituted": ["syminfo.industry"]}]},
+     "admits": false},
+    {"name": "L9b: objects-v2 MATCH_SUBSTITUTED naming other inputs does not count",
+     "entry": {"sha256": "aa", "admission": "substituted", "substituted": ["syminfo.industry"], "captures": [
+       {"capture": "rddt", "verdict": "MATCH_SUBSTITUTED", "objectsV2": false, "runtimeOn": true, "substituted": ["syminfo.industry"], "objectsV2Substituted": ["syminfo.industry"]},
+       {"capture": "nvda", "verdict": "MATCH_SUBSTITUTED", "objectsV2": false, "runtimeOn": true, "substituted": ["syminfo.industry"], "objectsV2Substituted": ["syminfo.sector"]}]},
+     "admits": false},
+    {"name": "L9b: objects-v2 MATCH_SUBSTITUTED naming no inputs does not count",
+     "entry": {"sha256": "aa", "admission": "substituted", "substituted": ["syminfo.industry"], "captures": [
+       {"capture": "rddt", "verdict": "MATCH_SUBSTITUTED", "objectsV2": false, "runtimeOn": true, "substituted": ["syminfo.industry"], "objectsV2Substituted": ["syminfo.industry"]},
+       {"capture": "nvda", "verdict": "MATCH_SUBSTITUTED", "objectsV2": false, "runtimeOn": true, "substituted": ["syminfo.industry"], "objectsV2Substituted": []}]},
+     "admits": false},
+    {"name": "L9b: an objects-v2 substituted grade does not rescue a capture whose own verdict names other inputs",
+     "entry": {"sha256": "aa", "admission": "substituted", "substituted": ["syminfo.industry"], "captures": [
+       {"capture": "rddt", "verdict": "MATCH_SUBSTITUTED", "objectsV2": false, "runtimeOn": true, "substituted": ["syminfo.industry"], "objectsV2Substituted": ["syminfo.industry"]},
+       {"capture": "nvda", "verdict": "MATCH_SUBSTITUTED", "objectsV2": false, "runtimeOn": true, "substituted": ["syminfo.sector"], "objectsV2Substituted": ["syminfo.industry"]}]},
      "admits": false},
     {"name": "no entry admits nothing",
      "entry": null,

@@ -535,6 +535,10 @@ def run_half_evidence() -> list:
                     "objectsV2": c.get("objectsV2") == "MATCH", "runtimeOn": c.get("runtimePane") == "on"}
             if "substituted" in c:
                 fact["substituted"] = c.get("substituted")
+            if c.get("objectsV2") == rollout_gate.PINE_CAPTURE_MATCH_SUBSTITUTED:
+                # the objects-v2 grade's own substituted names (`objectsV2Substituted` on the record's
+                # capture); absent names are served as none, which counts nothing
+                fact["objectsV2Substituted"] = c.get("objectsV2Substituted") or []
             entry["captures"].append(fact)
         if run_half_entry_admits(entry):
             out.append(entry)
@@ -556,6 +560,10 @@ def run_half_entry_admits(entry) -> bool:
         names are exactly the record's (`rollout_gate._pine_substituted_names`: a non-empty list of
         distinct names, compared as a set); a malformed record list counts nothing;
       * on any other ``admission``: nothing counts.
+    ON THE SUBSTITUTED PATH ONLY, the objects-v2 grade may be MATCH_SUBSTITUTED instead of MATCH, when its
+    own names (``objectsV2Substituted``) are exactly the record's (coordinator ruling 2026-11-15, after
+    owner ruling (a)): a substituted run's drawings grade MATCH_SUBSTITUTED, never MATCH. A record without
+    ``admission`` still needs objects-v2 MATCH.
     Admits on at least `RUN_HALF_EVIDENCE_MIN_CAPTURES` distinct counted captures."""
     from api.services import rollout_gate as rg
     if not isinstance(entry, dict):
@@ -573,9 +581,15 @@ def run_half_entry_admits(entry) -> bool:
     for c in entry.get("captures") if isinstance(entry.get("captures"), list) else []:
         if not isinstance(c, dict) or not isinstance(c.get("capture"), str) or not c.get("capture"):
             continue
-        if c.get("verdict") != want or c.get("objectsV2") is not True or c.get("runtimeOn") is not True:
+        if c.get("verdict") != want or c.get("runtimeOn") is not True:
             continue
         if names is not None and rg._pine_substituted_names(c.get("substituted")) != names:
+            continue
+        # objects-v2 MATCH; or, ON THE SUBSTITUTED PATH ONLY, objects-v2 MATCH_SUBSTITUTED naming exactly
+        # the record's inputs (coordinator ruling 2026-11-15, after owner ruling (a))
+        objects_ok = c.get("objectsV2") is True or (
+            names is not None and rg._pine_substituted_names(c.get("objectsV2Substituted")) == names)
+        if not objects_ok:
             continue
         seen.add(c["capture"])
     return len(seen) >= RUN_HALF_EVIDENCE_MIN_CAPTURES

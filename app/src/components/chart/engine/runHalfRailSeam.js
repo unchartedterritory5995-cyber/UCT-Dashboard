@@ -85,8 +85,12 @@ export function runHalfEntryAdmits(entry) {
   const seen = new Set()
   for (const c of Array.isArray(entry.captures) ? entry.captures : []) {
     if (!c || typeof c.capture !== 'string' || !c.capture) continue
-    if (c.verdict !== want || c.objectsV2 !== true || c.runtimeOn !== true) continue
+    if (c.verdict !== want || c.runtimeOn !== true) continue
     if (names !== null && substitutedNames(c.substituted) !== names) continue
+    // objects-v2 MATCH; or, ON THE SUBSTITUTED PATH ONLY, objects-v2 MATCH_SUBSTITUTED naming exactly
+    // the record's inputs (`objectsV2Substituted`; coordinator ruling 2026-11-15, after owner ruling (a))
+    const objectsOk = c.objectsV2 === true || (names !== null && substitutedNames(c.objectsV2Substituted) === names)
+    if (!objectsOk) continue
     seen.add(c.capture)
   }
   return seen.size >= RUN_HALF_EVIDENCE_MIN_CAPTURES
