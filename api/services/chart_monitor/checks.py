@@ -431,6 +431,30 @@ class LabelWindow:
         return out
 
 
+#: `X-Bars-Edge` values that mean bars-api did NOT answer: the edge Worker hedged to web after
+#: BARS_HEDGE_MS, or fell back to web on a tier failure (edge/bars-edge-router/worker.js).
+EDGE_FALLBACK_LABELS = frozenset({"web-hedge", "web-fallback"})
+
+
+def check_edge_fallback(edges: Sequence[Optional[str]], budget_share: float,
+                        min_samples: int = 20) -> Verdict:
+    """Share of member-path answers bars-api did not serve (2026-11-15).
+
+    ⭐ THE FALLBACK HIDES A TIER OUTAGE FROM EVERY OTHER CHECK. Since the edge hedges to web
+    after 1.2 s, a down or stalled bars-api still yields 200s with correct bars, ~1.3 s each:
+    the data checks pass and a p90 budget of seconds never trips. Only the share of answers
+    stamped web-hedge / web-fallback says the tier is gone. Answers with no stamp (breadth and
+    market-indicator series route straight to web) are not counted either way."""
+    stamped = [e for e in edges if e]
+    if len(stamped) < min_samples:
+        return Verdict(SKIP, f"n={len(stamped)}")
+    bad = [e for e in stamped if e in EDGE_FALLBACK_LABELS]
+    share = len(bad) / len(stamped)
+    kinds = " ".join(f"{k}={bad.count(k)}" for k in sorted(set(bad)))
+    return Verdict(FAIL if share > budget_share else PASS,
+                   f"not-tier={len(bad)}/{len(stamped)} ({share:.0%}) budget={budget_share:.0%} {kinds}".strip())
+
+
 def check_label_budget(counts: dict, budget_share: float, min_samples: int = 40) -> Verdict:
     """Share of degraded first answers (stale-swr / delta-deadline / sd-deadline / sd-partial)."""
     total = sum(counts.values())
