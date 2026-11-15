@@ -74,6 +74,18 @@ describe('COND-TA — a Pine import applied before the fix is held on the chart,
     expect(conditionalHistoryCandidate({ compute: { ast: OP('?:', S('isweekly'), BLOCK_SMA, NA) } })).toBe(true)
   })
 
+  it('⛔ a Pine v1 import (door stamp `pineVersion` null = no pragma, or 1) is drawn: a v1 arm is eager (witnessed); with no door stamp it stays held', () => {
+    expect(pineImportHeld(rowOf(OLD))).toBe(true)
+    for (const pineVersion of [null, 1]) {
+      const r = { ...rowOf(OLD) }
+      r.definition = { ...r.definition, meta: { ...r.definition.meta, pineVersion } }
+      expect(pineImportHeld(r), String(pineVersion)).toBe(false)
+    }
+    const v4 = { ...rowOf(OLD) }
+    v4.definition = { ...v4.definition, meta: { ...v4.definition.meta, pineVersion: 4 } }
+    expect(pineImportHeld(v4)).toBe(true)
+  })
+
   it('a RE-APPLIED import is drawn: the Apply door stamps today\'s engine', () => {
     const prov = applyProvenanceFor('pine', '//@version=6\nindicator("x")\nplot(close)')
     expect(prov.engine).toBe(SCRIPT_ENGINE_VERSION)

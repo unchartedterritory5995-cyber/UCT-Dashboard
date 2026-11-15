@@ -122,6 +122,17 @@ def test_NARROWED_a_tree_too_deep_to_read_fails_closed():
     assert svc.conditional_history_candidate({"compute": {"ast": deep}}) is True
 
 
+def test_a_pine_v1_import_is_served_a_v1_arm_is_eager_and_no_door_stamp_stays_held():
+    assert svc.engine_withheld_reason(row(OLD))
+    for v in (None, 1):
+        r = row(OLD)
+        r["definition"]["meta"]["pineVersion"] = v
+        assert svc.engine_withheld_reason(r) is None, v
+    r = row(OLD)
+    r["definition"]["meta"]["pineVersion"] = 4
+    assert svc.engine_withheld_reason(r)
+
+
 def test_an_engine_flag_that_is_not_an_integer_never_lifts_it():
     for bad in ("55", 55.0, True, None):
         assert svc.engine_withheld_reason(row(dict(OLD, engine=bad))), bad

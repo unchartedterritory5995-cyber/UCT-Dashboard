@@ -2345,7 +2345,18 @@ def pine_import_stale(row: Any, fix_engine: Any = "default") -> bool:
     eng = imp.get("engine")
     applied_at_fix = (isinstance(eng, int) and not isinstance(eng, bool)
                       and isinstance(fix, int) and not isinstance(fix, bool) and eng >= fix)
-    return not applied_at_fix and conditional_history_candidate(definition)
+    if applied_at_fix:
+        return False
+    # a Pine v1 import (door stamp `meta.pineVersion` present and None = no pragma, or 1): a v1
+    # `?:` arm is EAGER (witnessed, cci-coded-obv / trade-archer OBV) and v1 has no `if`
+    if "pineVersion" in meta and (meta.get("pineVersion") is None
+                                  or (isinstance(meta.get("pineVersion"), (int, float))
+                                      and not isinstance(meta.get("pineVersion"), bool)
+                                      and meta.get("pineVersion") <= 1)):
+        return False
+    return conditional_history_candidate(definition)
+
+
 if SCRIPT_ENGINE_VERSION is None:
     _log.error("[user-definitions] script engine version unreadable from %s — every "
                "recorded refusal binds until it is readable", _SCRIPT_ENGINE_JS)

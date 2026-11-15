@@ -61,5 +61,10 @@ export function pineImportHeld(row, fixEngine = PINE_IMPORT_FIX_ENGINE) {
   if (!imp || String(imp.dialect || '').toLowerCase() !== 'pine') return false
   if ((typeof row.pine_source === 'string' && row.pine_source.trim()) || row.has_pine_source === true) return false
   if (Number.isInteger(imp.engine) && Number.isInteger(fixEngine) && imp.engine >= fixEngine) return false
+  // ⛔ A Pine v1 import (the door stamp `meta.pineVersion` present and `null` = no pragma, or 1):
+  // a v1 `?:` arm is EAGER (witnessed: cci-coded-obv / trade-archer OBV, 666 / 666 eager) and v1
+  // has no `if`, so its every-bar formula is TradingView's. An import with no door stamp at all
+  // is of unknown version and stays a candidate.
+  if (Object.prototype.hasOwnProperty.call(meta, 'pineVersion') && (meta.pineVersion === null || Number(meta.pineVersion) <= 1)) return false
   return conditionalHistoryCandidate(def)
 }

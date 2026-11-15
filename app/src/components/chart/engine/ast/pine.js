@@ -11119,16 +11119,22 @@ export class Resolver {
    *  walk reads; skipping the stamp there could only lose it on a memoised node a
    *  later output reuses. */
   stampTernaryArms(out, node, test) {
-    // ⭐⭐ COND-TA (engine 55) — EVERY VERSION. ⚰️ v1-v4 `?:` were not stamped ("no
-    // capture"), so a v4 `up ? sma(close, 5) : close` was drawn off the every-bar number.
-    // The v4 User Manual documents the arm as lazy: "`barssince` is not called on every
-    // bar because it is inside a ternary operator's conditional branch … This leads to
-    // incorrect results" (Functions and annotations, "Execution of Pine functions and
-    // historical context inside function blocks"). v1-v3 are documented neither way, and an
-    // unwitnessed number is withheld, never guessed: the stamp withholds only where the
-    // test runs the arm after a bar it skipped, so a reading the two semantics agree on
-    // stays drawn. `iff` is a call, never stamped: the to-v5 guide says it "always
-    // evaluated both values".
+    // ⭐⭐ COND-TA (engine 55) — v2-v6. ⚰️ v2-v4 `?:` were not stamped ("no capture"), so a v4
+    // `up ? sma(close, 5) : close` was drawn off the every-bar number. The v4 User Manual
+    // documents the arm as lazy: "`barssince` is not called on every bar because it is inside
+    // a ternary operator's conditional branch … This leads to incorrect results" (Functions and
+    // annotations, "Execution of Pine functions and historical context inside function blocks";
+    // probe 10 queued to witness it). v2 / v3 are documented neither way: withheld, never
+    // guessed, until probe P2 settles them (the stamp withholds only where the test runs the
+    // arm after a bar it skipped). `iff` is a call, never stamped: the to-v5 guide says it
+    // "always evaluated both values".
+    // ⛔⛔ v1 (`//@version=1`, or NO pragma, which TradingView compiles as v1) IS EAGER, AND THAT
+    // IS WITNESSED: `cci-coded-obv` and `trade-archer-obv-mas-v1` (no pragma, NYSE:RDDT 1D from
+    // the listing, held store s2 / s4) build OBV as `cum(change(src) > 0 ? volume :
+    // change(src) < 0 ? -volume : 0*volume)`; TradingView equals the EAGER (every-bar) reading
+    // on 666 / 666 bars, and the lazy reading mismatches 662 / 666 from bar 4. So a v1 arm is
+    // not stamped: drawn as before (`condTaLanes.test.js`, the v1 rails).
+    if (!node.ifExpr && (this.pineVersion === null || this.pineVersion === undefined || Number(this.pineVersion) <= 1)) return
     if (!out || out.type !== 'op' || out.name !== '?:') return
     // ⛔ ONE question, not two: a literal or a constant expression is a tree of
     // `num`s, which `bindTimeConstantTree` admits (an `na` test included — it takes

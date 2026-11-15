@@ -182,6 +182,49 @@ describe('COND-TA — 2. ⚰️ the number the screener lane served, against the
   })
 })
 
+// ⭐⭐ v1 (no pragma) `?:` IS EAGER — WITNESSED. `cci-coded-obv` and `trade-archer-obv-mas-v1` (no
+// pragma, NYSE:RDDT 1D from the listing, held store s2 / s4; licence-held, numbers transcribed):
+// TradingView's OBV equals the EAGER (every-bar) reading on 666 / 666 bars; the LAZY reading
+// mismatches 662 / 666 from bar 4. So a v1 arm is drawn as before, on every lane.
+const OBV_V1 = ['study("v1 obv")', 'src = close',
+  'obv(src) => ', '    cum(change(src) > 0 ? volume : change(src) < 0 ? -volume : 0*volume)',
+  'o = obv(src)', 'plot(o, title="OBV")'].join('
+')
+describe('COND-TA — 2c. Pine v1 (no pragma) `?:` arms are eager (witnessed): drawn as before', () => {
+  it('the OBV construct: not stamped, served on the screener lane, drawn on the host lane, equal to the eager reading', () => {
+    const t = strict(OBV_V1)
+    expect(t.outputs[0].refusal).toBeFalsy()
+    expect(t.blockRuns).toBeUndefined()
+    expect(lenient(OBV_V1).outputs[0].refusal).toBeFalsy()
+    const { cols, errors } = bind(OBV_V1)
+    expect(errors.value).toBeUndefined()
+    // the eager OBV, by hand: every bar's change decides the bar's signed volume
+    let acc = 0
+    const want = BARS.map((b, i) => {
+      if (i === 0) return NaN
+      const ch = b.c - BARS[i - 1].c
+      acc += ch > 0 ? b.v : ch < 0 ? -b.v : 0
+      return acc
+    })
+    const got = Array.from(cols.value)
+    const off = want.map((w, i) => (i === 0 || sameValue(got[i], w) ? null : i)).filter((i) => i !== null)
+    expect(off).toEqual([])
+  })
+
+  it('a v1 arm calling `sma` stays drawn (no gate); the same arm in v2, v3 and v4 is withheld by name', () => {
+    const v1 = ['study("v1 arm")', 'plot(close > open ? sma(close, 3) : close, "v")'].join('
+')
+    expect(strict(v1).blockRuns).toBeUndefined()
+    expect(lenient(v1).outputs[0].refusal).toBeFalsy()
+    for (const v of [2, 3, 4]) {
+      const src = [`//@version=${v}`, 'study("arm")', 'plot(close > open ? sma(close, 3) : close, "v")'].join('
+')
+      expect(strict(src).blockRuns, `v${v}`).toBeTruthy()
+      expect(lenient(src).outputs[0].refusal && lenient(src).outputs[0].refusal.guard, `v${v}`).toBe('pine:block')
+    }
+  })
+})
+
 describe("COND-TA — 2b. the #1326 review's sibling shapes on the host lane (F1, F2)", () => {
   it('F1: gated on the host lane, withheld by name at the bind; its every-bar formula is wrong against H01', () => {
     const src = pine(6, 'h(s) => s[1]', 'float p = na', 'if close > open', '    p := h(close)', 'plot(p, "v")')
