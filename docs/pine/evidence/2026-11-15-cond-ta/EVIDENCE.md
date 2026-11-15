@@ -44,6 +44,15 @@ Pine keeps a `ta.*` call's history PER CALL SITE: a call written in an `if` bloc
 | `engine/scriptEngineVersion.js` | 55. |
 | tests | `ast/condTaLanes.test.js` (new); pins flipped in `vendorHarness.c48CallSite` and `vendorHarness.c45ArmRuns` (the screener lane); `tests/test_pine_runtime_switch_on.py` R4, `tests/test_pine_capability_admission.py` (admitted set, allow report, REACH `WITHHELD_WHOLE`). |
 
+## The v4 `?:` stamping is DOCUMENTATION-BASED, pending probe 10
+
+v1-v4 `?:` arms are stamped (withheld by name where the test varies) on the v4 User Manual's
+statement that an arm is lazy, not on a capture; the `c45ArmRuns` pin that drew them every bar was
+flipped for that reason (`1f393ccbf4`), and v4 `iff` stays drawn (the to-v5 guide: it evaluated both
+values). The coordinator has queued **probe 10** (`PROBES-NEXT.md`: v4 `?:` arm laziness, with an
+`iff` control) so TradingView witnesses it; when that capture lands, the withheld v4 shapes can be
+served exactly (or, if it shows every-bar arms, unstamped again).
+
 ## The `c48CallSite` pin — ruled from evidence
 
 It pinned the screener lane's reading of `if close > open` / `v := ta.sma(close, len)` as the strict
