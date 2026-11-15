@@ -17,6 +17,7 @@
 // a line or place that is a move's destination, a comparison ("like the top row") or a source states none either.
 import { ordinalChart, chartsNamedBy, relativeChart, selectedChart, chartRefOf } from './deixis'
 import { CLICK_ACT_NP } from './clickRef'
+import { tickerChanged, namedTickers } from './chartRail'
 
 const INERT = /\b(?:fine|alone|already|leave|leaving|left alone|can stay|stays?|stay put|untouched|as (?:it|they) (?:is|are)|don'?t|do not|doesn'?t|not|never|ignore|skip|keep)\b/i
 const CLAUSES = /[,;.!?]|\b(?:and then|but|then|while|also|plus|although|though)\b/i
@@ -583,6 +584,12 @@ export function excludedCharts(text, charts = [], sel = null) {
     // "kitty-corner from this one") is placed by spatialConstraints' relation readers (agentEveryExceptSet) — not unplaced here
     if (sel && relativeChart(k[1], charts, sel)?.hits?.length) continue
     add(UNPLACED)
+  }
+  // ⛔ (AUDIT finding 1) a ticker the words CHANGE is never one they exclude: "AAPL instead of SPY" / "AAPL rather than SPY" name
+  // SPY as the chart to change (AAPL its new symbol) — an exclusion reading of it would protect SPY and aim the change elsewhere
+  {
+    const others = namedTickers(text, charts.map(c => c?.symbol))
+    for (const c of charts) if (c?.ref && out.has(c.ref) && c.symbol && tickerChanged(text, c.symbol, others)) out.delete(c.ref)
   }
   out.add = add
   // the charts an UNPLACED exception may mean (a ticker on several charts): never offered by a question (`unoffered`)

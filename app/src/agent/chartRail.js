@@ -167,6 +167,21 @@ export const knownIn = (text, known) => {
 const ADD_REST = /\badd(?:ing)?\b[^.;!?]*\b(?:other|others|remaining|rest)\b|\b(?:as|for|in|into) the (?:other|remaining|empty|new)\b/i
 const REPLACE = /\b(?:replace|replacing|replaced|instead|swap(?:ping)? out|swap (?:the |my )?(?:tickers?|symbols?|charts?)\b|swap \$?[A-Za-z]{1,5} (?:and|with) |get rid of|switch (?:out|over)|change (?:the |my |that |this |both |all )?(?:\w+ )?(?:chart|charts|one|ones|symbol|ticker)s?\b(?!\s+layout)|(?:change|switch|turn|flip) (?:the |my |that |this )?(?:\w+ )?(?:chart |one )?(?:to|into) \$?[A-Za-z]{1,5}\b)/i
 const REMOVAL = /\b(?:remove|removing|delete|deleting|close|closing|get rid|replace|replacing|clear|clean(?:ing)? up|tidy|drop|dropping|only|just|fewer|less|reduce|down to|instead|swap(?:ping)? out|single|one chart)\b/i
+// ⛔ CHANGE RELATION + SEE words — the ONE place (AUDIT probe 52a / 53, STRUCTURAL: each word set is read by its POSITION
+// against the tickers, never as a phrase list; tests generate their forms from these exports):
+//   CHANGE_TAKE  "<word> X"      → X is the chart being changed ("replace SPY", "instead of SPY", "in place of SPY")
+//   CHANGE_TO    "X <word> Y"    → X changes to Y ("SPY for AAPL", "SPY into AAPL", "SPY to AAPL", "SPY switched to AAPL")
+//   CHANGE_BACK  "Y … <word> X"  → X changes to Y ("AAPL where SPY is", "AAPL over SPY", "AAPL rather than SPY")
+//   CHANGE_OFF   "X <word>" / "<word> X" → X is taken off
+//   SEE_VERBS    a verb that asks to SEE the tickers it governs ("show SPY and AAPL")
+export const CHANGE_TAKE = ['replace', 'replaces', 'replaced', 'replacing', 'swap out', 'swapping out', 'swapped out', 'get rid of', 'getting rid of', 'switch out', 'switching out', 'instead of', 'in place of', 'rather than']
+export const CHANGE_TO = ['for', 'into', 'to']
+export const CHANGE_BACK = ['where', 'instead of', 'in place of', 'rather than', 'over']
+export const CHANGE_OFF = ['off']
+export const SEE_VERBS = ['show', 'showing', 'open', 'opening', 'pull up', 'pulling up', 'bring up', 'bringing up', 'see', 'view', 'viewing', 'display', 'displaying']
+const altOf = (ws) => ws.map(x => x.replace(/\s+/g, String.raw`\s+`)).join('|')
+const SEE_VERB = new RegExp(String.raw`\b(?:${altOf(SEE_VERBS)})\b`, 'gi')
+const SEE_FILLER = new Set(['and', '&', 'plus', 'also', 'both', 'the', 'me', 'my', 'us', 'a', 'an', 'up', 'of', 'chart', 'charts', 'too', 'as', 'well'])
 const SHAPE = /\b([1-4])\s*(?:x|×|by|-by-|\s+by\s+)\s*([1-4])\b/i
 const QUAD = /\bquad\b/i
 
@@ -258,6 +273,8 @@ export function chartsInScope(host) {
 // "except NVDA", "leave NVDA …", "don't touch NVDA", "keep NVDA"), never an earlier clause about another ticker
 const NEGATOR = String.raw`(?:not|except(?:\s+for)?|other\s+than|excluding|without|leave|leaving|keep|keeping|(?:do\s+not|don['’]?t|never)\s+(?:touch|change|move|replace|remove)|never)`
 export function tickerSetAside(words, ticker) {
+  // (a ticker the words CHANGE is never one they set aside: "AAPL instead of SPY" changes SPY)
+  if (tickerChanged(words, ticker, namedTickers(words))) return false
   const t = String(ticker || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   if (!t) return false
   return new RegExp(String.raw`\b${NEGATOR}\s+(?:(?:the|my|your|on|to|for|of)\s+)?\$?${t}\b`, 'i').test(String(words || ''))
@@ -267,8 +284,8 @@ export function tickerSetAside(words, ticker) {
 // "pull up SPY, AAPL") — and it is never the OBJECT OF A CHANGE: the ticker on one side of a relation word whose other side is
 // another named ticker ("SPY for AAPL", "AAPL where SPY", "SPY into / to AAPL", "AAPL in place of / instead of SPY"), a ticker taken
 // "off", or a ticker a replace verb takes ("replace SPY", "swap out SPY"). Everything else is not asked to see.
-const SEE_VERB = /\b(?:show(?:ing)?|open(?:ing)?|(?:pull|bring)(?:ing)?\s+up|see|view(?:ing)?|display(?:ing)?)\b/gi
-const SEE_FILLER = new Set(['and', '&', 'plus', 'also', 'both', 'the', 'me', 'my', 'us', 'a', 'an', 'up', 'of', 'chart', 'charts', 'too', 'as', 'well'])
+// (is this ticker the OBJECT OF A CHANGE? — the CHANGE_* sets above, by position; every per-ticker pattern ESCAPED: "BRK.B" never
+// makes "." a wildcard; no lookbehind: the iOS 16 floor. Read by the final-board rule, tickerSetAside and spatialCheck excludedCharts)
 const reEsc = (s) => String(s || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 export function tickerChanged(words, ticker, others = []) {
   const w = String(words || '')
@@ -276,18 +293,27 @@ export function tickerChanged(words, ticker, others = []) {
   if (!t) return false
   const T = String.raw`\$?${t}(?![A-Za-z0-9])`
   const det = String.raw`(?:(?:the|my|that|this|a|an)\s+)?`
-  if (new RegExp(String.raw`\b(?:replac(?:e|es|ed|ing)|swap(?:ping|ped)?\s+out|get(?:ting)?\s+rid\s+of|switch(?:ing)?\s+out|instead\s+of|in\s+place\s+of|rather\s+than)\s+${det}${T}`, 'i').test(w)) return true
-  if (new RegExp(String.raw`(?:^|[^A-Za-z0-9])${T}(?:['’]s)?\s+(?:(?:chart|one|panel|graph)\s+)?off\b|\boff\s+${det}${T}`, 'i').test(w)) return true
+  if (new RegExp(String.raw`\b(?:${altOf(CHANGE_TAKE)})\s+${det}${T}`, 'i').test(w)) return true
+  if (new RegExp(String.raw`(?:^|[^A-Za-z0-9])${T}(?:['’]s)?\s+(?:(?:chart|one|panel|graph)\s+)?(?:${altOf(CHANGE_OFF)})\b|\b(?:${altOf(CHANGE_OFF)})\s+${det}${T}`, 'i').test(w)) return true
   for (const o of others) {
     if (up(o) === up(ticker)) continue
     const O = String.raw`\$?${reEsc(up(o))}(?![A-Za-z0-9])`
     // the ticker, then a relation word, then the other ticker ("SPY for AAPL", "SPY into AAPL", "SPY to AAPL"; a participle
     // between them states the change outright: "SPY switched to AAPL", "SPY swapped for AAPL")
-    if (new RegExp(String.raw`(?:^|[^A-Za-z0-9])${T}(?:['’]s)?\s+(?:(?:chart|one|panel|graph)\s+)?(?:[a-z]+(?:ed|en)\s+)?(?:for|into|to)\s+${det}${O}`, 'i').test(w)) return true
+    if (new RegExp(String.raw`(?:^|[^A-Za-z0-9])${T}(?:['’]s)?\s+(?:(?:chart|one|panel|graph)\s+)?(?:[a-z]+(?:ed|en)\s+)?(?:${altOf(CHANGE_TO)})\s+${det}${O}`, 'i').test(w)) return true
     // the other ticker, then a relation word that points back at this one ("AAPL where SPY is", "AAPL in place of SPY")
-    if (new RegExp(String.raw`(?:^|[^A-Za-z0-9])${O}\b(?:[^.;!?]|\.(?=\S)){0,40}?\b(?:where|instead\s+of|in\s+place\s+of|rather\s+than|over)\s+${det}${T}`, 'i').test(w)) return true
+    if (new RegExp(String.raw`(?:^|[^A-Za-z0-9])${O}\b(?:[^.;!?]|\.(?=\S)){0,40}?\b(?:${altOf(CHANGE_BACK)})\s+${det}${T}`, 'i').test(w)) return true
   }
   return false
+}
+
+/** The other tickers a sentence names, for tickerChanged: its all-caps symbols, plus any board symbol said in any casing. */
+export function namedTickers(words, symbols = []) {
+  const w = String(words || '')
+  const caps = (w.match(/(?:^|[^A-Za-z0-9$])\$?([A-Z][A-Z0-9.]{0,9})(?![A-Za-z0-9])/g) || []).map(x => up(x.replace(/^[^A-Za-z$]*\$?/, '').replace(/\.$/, '')))
+  const lower = w.toLowerCase()
+  const said = (symbols || []).map(up).filter(Boolean).filter(x => new RegExp(String.raw`(?:^|[^a-z0-9])\$?${reEsc(x.toLowerCase())}(?![a-z0-9])`).test(lower))
+  return [...new Set([...caps, ...said])]
 }
 export function tickerAskedToSee(words, ticker, others = []) {
   const w = String(words || '')
