@@ -647,6 +647,32 @@ export function notShownSentence(families, cause) {
   return `No ${list} is shown on this chart: ${because}`
 }
 
+/** ⭐⭐ ENGINE 55 — A FAMILY PARTLY DRAWN, `n` OF WHOSE OPS WERE WITHHELD for a value the
+ *  chart could not compute (`objectRuntime.js`, `objects:not-computable`): the sentence
+ *  says some are missing and how many, never "none is shown". */
+export function partlyNotComputableSentence(family, n) {
+  const noun = { line: 'lines', label: 'labels', box: 'boxes', table: 'table cells', linefill: 'fills between lines',
+    polyline: 'polylines' }[family] || 'drawings'
+  const count = Number.isInteger(n) && n > 0 ? n : 0
+  const what = family === 'table' ? `${count} table ${count === 1 ? 'cell' : 'cells'}`
+    : `${count} ${count === 1 ? 'drawing' : 'drawings'}`
+  return `Some ${noun} are not shown on this chart: ${what} depend on values this chart can’t work out here, `
+    + 'so they are left out rather than guessed.'
+}
+
+/** ⭐ ENGINE 55 — why a document’s run half was not served, in plain words, or null when
+ *  it was (or there is none). Carried into the drawing note beside the not-computable
+ *  sentence, so the member reads the cause and not only the gap. */
+export function runtimeUnknownSentence(runtime) {
+  if (!runtime || runtime.served !== false) return null
+  const r = String(runtime.reason || '')
+  if (r === 'runtime:INSTRUCTIONS_PER_BAR') {
+    return 'This script’s last-bar calculation is too heavy to run yet.'
+  }
+  if (r === 'runtime:not-loaded') return 'This script’s last-bar calculation has not loaded yet.'
+  return `This script’s last-bar calculation could not be run here yet${r ? ` (${r})` : ''}.`
+}
+
 /** ⭐⭐ OZ — THE RUNTIME LANE'S WITHHELD FAMILIES, AS THE MEMBER'S SENTENCES. The run
  *  (`runtime/objectStore.js`) withholds a family WHOLE by name (`withheld`: family →
  *  the engine's reason) and draws none of it; until now that name stopped at the
@@ -697,6 +723,11 @@ export const COLLECTOR_HELD_RE = /^TradingView's collector deletes the oldest /
  *  said to the member, with the code marks taken out. `kind`: `error` | `unmeasured`
  *  | `withheld`. Keyed `*` in the binder's `why` (every family). */
 export const STOPPED_KEY = '*'
+
+/** ⭐ ENGINE 55 — the key the run half's not-served reason rides under in the note's
+ *  `why` (`objectRuntime.js`, `runtimeUnknownSentence`): said once, beside the
+ *  not-computable sentences it explains. */
+export const RUNTIME_UNKNOWN_KEY = '~run-half-unknown'
 
 /** ⭐ OZ r2 (N-e) — a stop reason in the member's words: no code marks, no em dash, no
  *  "captured" (said as "measured"), and a bar NUMBER only on a chart that starts at the

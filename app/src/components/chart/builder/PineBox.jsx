@@ -400,6 +400,10 @@ function inspectSourceUnguarded(source, dialect = 'auto', opts = undefined) {
       // levels box empty. That is the same failure this whole wave is about — a
       // carriage that stops one door short — committed inside the wave fixing it.
       presentation: t.presentation || null,
+      // ⭐ ENGINE 55 (review F1) — which other symbols the trees read and how each was spelled,
+      // so the import screen can say up front which plots a binding will refuse
+      // (`importOutcome` → `otherSymbols.staticOtherSymbolRefusalOf`), forwarded by name.
+      otherSymbols: Array.isArray(t.otherSymbols) ? t.otherSymbols : null,
       // ⭐ L1 — the imported libraries this translation linked, with their licence
       // and attribution, which the member is shown (forwarded by name: see above).
       libraries: t.libraries || [],

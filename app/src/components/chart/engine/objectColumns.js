@@ -34,6 +34,7 @@ import {
   resolveInputs, treeScalars, bindConstsFor, historyFromListingFor, listingOptsFor, barIndexAbsoluteFor, varOriginAbsoluteFor, otherSymbolsFor, lowerTfFor, computeFor,
   runtimeErrorStopOf,
 } from './nativeRegistry'
+import { otherSymbolRefusalOfTree } from './otherSymbols'
 import { periodReadsObjectRefusal } from './periodReads'
 import { blockRunsRefusal, BLOCK_RUNS_GUARD } from './blockRuns'
 // ⭐ C43 — a cycle on purpose (that module reads `unknownMask` below): both sides
@@ -496,6 +497,15 @@ export function computeObjectColumns(graph, program, bars, opts = {}) {
     let tree = null
     try {
       tree = intern(fold(nodeTree(graph, node)))
+      // ⭐⭐ ENGINE 55 — a tree that reads a ticker this binding refused is refused by
+      // name, with the bind's code (`otherSymbols.js::otherSymbolRefusalOfTree`).
+      const symWhy = otherSymbolRefusalOfTree(tree, opts.otherDecision)
+      if (symWhy) {
+        failed.push(node)
+        withholdFailed(unknown, node, Array.isArray(bars) ? bars.length : 0)
+        refusals.push({ node, guard: symWhy.guard, message: symWhy.message })
+        continue
+      }
       const iopts = { tf: opts.tf, newestBarIsForming: opts.newestBarIsForming ?? null,
         ...(opts.historyFromListing === true ? { historyFromListing: true } : {}),
         ...(opts.historyFromListing === true && opts.naConditionFalse === true ? { naConditionFalse: true } : {}),
@@ -688,6 +698,9 @@ export function objectReaderFor(definition, bars, opts = {}) {
   }
   const otherSymbols = otherSymbolsFor(definition, opts)
   if (otherSymbols) evalOpts.symbols = otherSymbols.symbols
+  // ⭐⭐ ENGINE 55 — and which it REFUSED: an object tree reading one is refused by name
+  // (`refusals`, with the bind's code), the plot lane's `columnErrors` rule.
+  evalOpts.otherDecision = otherSymbols || null
   // ⭐⭐ C41 — the lower-timeframe codes this binding may read, decided by the SAME
   // function the plot lane asks (`nativeRegistry.lowerTfFor`), so an object and the
   // plot beside it are handed the same intraday supply.
@@ -764,6 +777,14 @@ export function objectReaderFor(definition, bars, opts = {}) {
     let tree = null
     try {
       tree = intern(fold(trees[i]))
+      // ⭐⭐ ENGINE 55 — the same settled other-symbol refusal on the V1 form.
+      const symWhy = otherSymbolRefusalOfTree(tree, evalOpts.otherDecision)
+      if (symWhy) {
+        failed.push(i)
+        withholdFailed(unknown, i, barCount)
+        refusals.push({ node: i, guard: symWhy.guard, message: symWhy.message })
+        continue
+      }
       const iopts = { tf: evalOpts.tf, newestBarIsForming: evalOpts.newestBarIsForming,
         ...(evalOpts.historyFromListing === true ? { historyFromListing: true } : {}),
         ...(evalOpts.naConditionFalse === true ? { naConditionFalse: true } : {}),
