@@ -65,7 +65,7 @@ export const GROUPS = [
     // named by "describe / summarise / walk me through … setup"
     // Phase 1: indicator templates here by action name — the group's own `templates?` word already names them, and a
     // member's saved template NAME brings the group (NAME_GROUPS), so no new phrase rule
-    actions: ['chart.replay', 'chart.replayStep', 'chart.describeSetup', 'indicatorTemplate.list', 'indicatorTemplate.apply', 'indicatorTemplate.save', 'indicatorTemplate.delete'],
+    actions: ['chart.replay', 'chart.describeSetup', 'indicatorTemplate.list', 'indicatorTemplate.apply', 'indicatorTemplate.save', 'indicatorTemplate.delete'],
     // CG-33 (corpus #774, live LT-7): Replay Mode had no words of its own — "replay", "bar replay", "as of <date>", "hide
     // what came after", "step through", "exit / stop replay" (routing only ADDS this group) — the first words below
     // W2 (CG-5): "what's the setup here" names chart.describeSetup too (not only describe / summarise / walk me through)
@@ -498,6 +498,13 @@ export const GROUPS = [
       /\breplay\s+(?:bar|speed|playback|controls?|scrubber|slider)\b|\btime machine\b/,
       /\b(?:in|on|during|through) (?:the |this |my )?(?:bar )?replay\b(?!\s+mode\b).*\b(?:step|forward|back|next|previous|bars?|play|pause|speed|faster|slower)\b|\b(?:step|forward|next|previous|bars?|play|pause|speed|faster|slower)\b.*\b(?:in|on|during|through) (?:the |this |my )?(?:bar )?replay\b(?!\s+mode\b)/,
       /\breplay\b(?!\s+mode\b).*\b(?:\d+ ?x|faster|slower)\b|\b(?:\d+ ?x|faster|slower)\b.*\breplay\b(?!\s+mode\b)/] },
+  // D20 (owner 2026-11-14): Tools → Replay Mode stepped by real bars (chart.replayStep) in its OWN words-only fillLast group,
+  // LAST, so chartSetup (where chart.replay lives) keeps master's size — a 20th chartSetup action pushed that group out of a
+  // template request's first call. Its words name Replay Mode with a step; a bare step ("next bar", "step forward 2 bars")
+  // brings it only while Replay Mode is ON (routingNames.cutoffOn, namedGroups) — from STATE, never from the words alone.
+  { id: 'replayMode', title: 'Tools → Replay Mode stepped forward or back by a chart’s own bars', domains: [], fillLast: true, wordsOnly: true,
+    actions: ['chart.replayStep'],
+    words: [/\breplay mode\b.*\b(?:step|forward|back|backward|next|previous|bars?|candles?)\b|\b(?:step|move|advance)\b.*\breplay mode\b/] },
   // Phase 2 COT research (cot.positioning): CFTC Commitments of Traders positioning in its OWN group, WORDS-ONLY and fillLast (as
   // indicatorCalc / chartMenu): never a filler, so no existing group and no unrecognised request changes. `words` stays EMPTY here:
   // capabilities/cot.js arms them only while the capability is registered (the server serves the `cot.positioning` kind), so on a
@@ -572,7 +579,7 @@ function namedGroups(q, names) {
   // chartReplay: while a chart's bar replay is on, its bare playback words ("next bar", "pause", "5x") mean the replay
   if (names?.replayOn === true && REPLAY_ON_WORDS.test(q)) out.add('chartReplay')
   // D20: while Tools → Replay Mode is on, a bare step ("next bar", "step forward 2 bars") steps IT (chart.replayStep, chartSetup)
-  if (names?.cutoffOn === true && REPLAY_ON_WORDS.test(q)) out.add('chartSetup')
+  if (names?.cutoffOn === true && REPLAY_ON_WORDS.test(q)) out.add('replayMode')
   return out
 }
 
@@ -627,7 +634,7 @@ export function selectGroups(message, { pendingActions = [], recentActions = [],
   for (const t of texts) for (const id of namedGroups(t, names)) hits.add(id)
   // D20 (owner req 1/4): which replay is active is STATE — while only Replay Mode is on, the bar replay's group is never sent
   // (its words — play / step the replay — would otherwise reach chartReplay.playback); Replay Mode's own group is
-  if (names?.cutoffOn === true && names?.replayOn !== true && hits.delete('chartReplay')) hits.add('chartSetup')
+  if (names?.cutoffOn === true && names?.replayOn !== true && hits.delete('chartReplay')) { hits.add('replayMode'); hits.add('chartSetup') }
   // "put NVDA on the left", "Switch to AMD": a ticker-shaped word (case-sensitive, on the raw
   // text) after a show/switch verb is a chart symbol request.
   if (SYMBOL_VERB.test(q) && tickerWords(raw).length) hits.add('charts')

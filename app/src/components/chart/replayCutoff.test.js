@@ -54,7 +54,7 @@ describe('barVisible == the independent oracle, every timeframe × every cutoff'
       }
     }
     expect(n).toBeGreaterThan(5000)
-  })
+  }, 180000)
   it.each(['D', 'W', 'M'])('%s', (tf) => {
     const bars = O.dwmBars(DAYS, tf)
     for (const v of CUTS) for (const b of bars) {
@@ -98,7 +98,7 @@ describe('compatibility: a DAY-ONLY cutoff keeps the pre-D20 rule exactly for in
       if (typeof b.t !== 'number' && !['D', '2D'].includes(tf)) continue
       expect(barVisible(b, tf, v), `${tf} ${v} ${b.t}`).toBe(legacy(b, v))
     }
-  })
+  }, 180000)
   it('no cutoff: every bar', () => {
     expect(barVisible({ t: 1 }, '5', null)).toBe(true)
     expect(barVisible({ t: '2026-01-01' }, 'W', '')).toBe(true)

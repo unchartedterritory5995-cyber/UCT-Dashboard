@@ -6595,9 +6595,9 @@
         }
       },
       "phrasings": [
-        "step forward one bar",
         "step replay mode forward 1 bar",
-        "move replay mode forward one bar"
+        "move replay mode forward one bar",
+        "advance replay mode one bar"
       ]
     },
     {

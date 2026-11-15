@@ -1461,7 +1461,7 @@
   },
   "chart.replayStep": {
    "domain": "chart",
-   "group": "chartSetup",
+   "group": "replayMode",
    "target": "chart",
    "risk": "local",
    "reversible": true,
@@ -1486,14 +1486,14 @@
    "phrasings": 3,
    "evidence": {
     "nl": [
-     "chart.replayStep: \"step forward one bar\"",
      "chart.replayStep: \"step replay mode forward 1 bar\"",
-     "chart.replayStep: \"move replay mode forward one bar\""
+     "chart.replayStep: \"move replay mode forward one bar\"",
+     "chart.replayStep: \"advance replay mode one bar\""
     ],
     "routing": [
-     "chart.replayStep: \"step forward one bar\"",
      "chart.replayStep: \"step replay mode forward 1 bar\"",
-     "chart.replayStep: \"move replay mode forward one bar\""
+     "chart.replayStep: \"move replay mode forward one bar\"",
+     "chart.replayStep: \"advance replay mode one bar\""
     ],
     "args": [
      "corpus chart.replayStep"

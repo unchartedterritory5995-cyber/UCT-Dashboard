@@ -329,7 +329,7 @@
   },
   "chart.replayStep": {
    "domain": "chart",
-   "group": "chartSetup",
+   "group": "replayMode",
    "target": "chart",
    "risk": "local",
    "reversible": true,

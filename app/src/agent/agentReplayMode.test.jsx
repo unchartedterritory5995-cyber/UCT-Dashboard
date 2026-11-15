@@ -199,9 +199,11 @@ describe('routing by STATE (AUDIT e)', () => {
       expect(sel(msg, { cutoffOn: true, replayOn: false })).not.toContain('chartReplay')
     })
   it('a step with only Replay Mode on brings Replay Mode\'s group; with only the bar replay on it is the bar replay\'s, unchanged', () => {
-    expect(sel('next bar', { cutoffOn: true, replayOn: false })).toContain('chartSetup')
+    expect(sel('next bar', { cutoffOn: true, replayOn: false })).toContain('replayMode')
+    expect(sel('next bar', { cutoffOn: false, replayOn: false })).not.toContain('replayMode')      // a bare step, no Replay Mode: never
     expect(sel('next bar', { cutoffOn: false, replayOn: true })).toContain('chartReplay')
     expect(sel('play the replay', { cutoffOn: false, replayOn: false })).toContain('chartReplay')
+    expect(sel('step replay mode forward 2 bars', {})).toContain('replayMode')                       // named: its own words
   })
   it('the capability: one chart, exact Undo, its words', () => {
     const c = getCapability(STEP_ACTION)
