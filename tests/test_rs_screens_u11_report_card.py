@@ -118,8 +118,10 @@ def test_a_verdict_on_a_list_is_caught():
     assert "unsolicited_verdict" in out["auto_fails"]
 
 
-def test_the_exam_runs_with_both_gates_on():
+def test_the_exam_runs_with_every_gate_on():
     src = (ROOT / "scripts" / "run_report_card.py").read_text(encoding="utf-8")
     assert 'os.environ.setdefault("RS_COMPASS_TOOLS_ENABLED", "1")' in src
+    assert 'os.environ.setdefault("RS_SCREEN_TOOLS_ENABLED", "1")' in src
     assert 'os.environ.setdefault("RS_SCREENS_ENABLED", "1")' in src
+    assert src.index('setdefault("RS_SCREEN_TOOLS_ENABLED"') < src.index("from api.services.compass_eval import runner")
     assert src.index('setdefault("RS_SCREENS_ENABLED"') < src.index("from api.services.compass_eval import runner")

@@ -2106,9 +2106,9 @@ _TOOLS_UNGATED.update(_rs_tool_entries())
 # starter spec run through the scan); the voice twins are registered in
 # voice_tool_impls.py and chat reaches them THROUGH the voice registry
 # (`_voice_delegate`, which hands the member's id on as the user), so the two surfaces
-# can never diverge. TWO GATES, read PER CALL by the registry below and again by voice
-# dispatch: RS_COMPASS_TOOLS_ENABLED AND the RS screens being on
-# (voice_tool_impls._rs_screens_gate). The descriptions and schemas are built by the
+# can never diverge. THREE GATES, read PER CALL by the registry below and again by voice
+# dispatch: RS_COMPASS_TOOLS_ENABLED, the two tools' own RS_SCREEN_TOOLS_ENABLED, AND the
+# RS screens being on (voice_tool_impls._rs_screens_gate). The descriptions and schemas are built by the
 # service from the screens' own definitions.
 
 def _rs_screens_enabled() -> bool:

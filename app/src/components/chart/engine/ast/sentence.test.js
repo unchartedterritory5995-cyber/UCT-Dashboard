@@ -669,6 +669,18 @@ function readTfLiveSentence(s) {
  *  this one `<digits>-minute` — and `the grammar is UNAMBIGUOUS` asserts it. */
 const LTF_SUFFIX = /^(.+) on the ([1-9][0-9]*)-minute timeframe$/
 
+/** ⭐ ENGINE 55 — PINE'S MERGED READ (`tf_merge`), hand-typed from `renderTf`'s words:
+ *  the `tf` chrome, then which bar shows the value. ⚠️ It cannot collide with
+ *  `TF_SUFFIX` (anchored on `timeframe$`), and `the grammar is UNAMBIGUOUS` asserts it. */
+const TF_MERGE_SUFFIX = /^(.+) on the (weekly|monthly) timeframe, from the bar that closes each (week|month)$/
+
+function readTfMergeSentence(s) {
+  const m = TF_MERGE_SUFFIX.exec(s)
+  if (!m) return null
+  if (TF_CODE_OF[m[2]] !== TF_LIVE_CODE_OF[m[3]]) return null
+  return { via: 'tf_merge', ast: { type: 'tf_merge', value: TF_CODE_OF[m[2]], args: [readOperand(m[1])] } }
+}
+
 function readLtfSentence(s) {
   const m = LTF_SUFFIX.exec(s)
   if (!m) return null
@@ -697,6 +709,10 @@ function readSentenceCandidates(s) {
   try {
     const forming = readTfLiveSentence(s)
     if (forming) found.push(forming)
+  } catch { /* the chrome matched but the child did not read */ }
+  try {
+    const merged = readTfMergeSentence(s)
+    if (merged) found.push(merged)
   } catch { /* the chrome matched but the child did not read */ }
   try {
     const lower = readLtfSentence(s)
@@ -844,6 +860,11 @@ function predictTrace(node, at = '$') {
   if (node.type === 'ltf') {
     // ⭐ C41 — one `ltf` frame, then the child's own walk; no branch on the code.
     return [{ path: at, rule: 'ltf' },
+      ...predictTrace(node.args[0], `${at}.args[0]`)]
+  }
+  if (node.type === 'tf_merge') {
+    // ⭐ ENGINE 55 — its own rule name, as the renderer attributes it.
+    return [{ path: at, rule: 'tf_merge' },
       ...predictTrace(node.args[0], `${at}.args[0]`)]
   }
   if (node.type === 'tf_live') {
@@ -2560,6 +2581,9 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       'sym_an_unsupplied_benchmark_is_not_computable',
       'tf_live_close_weekly',
       'tf_live_compared_to_the_closed_week',
+      // ⭐ ENGINE 55 — Pine's merged read (`tf_merge`), a thirteenth node type.
+      'tf_merge_close_weekly',
+      'tf_merge_against_the_closed_week',
       // ⭐ C41 — the read BELOW the chart's timeframe (`ltf`), a twelfth node type.
       'ltf_close_sixty_is_not_computable_without_a_supply',
       // ⭐ FOUR ADDED WITH THE mod/idiv OVERFLOW FIX. The two `*_overflow_to_nan`

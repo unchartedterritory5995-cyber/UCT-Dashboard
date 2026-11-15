@@ -185,7 +185,7 @@ Sources: `uct-intelligence/prompts/06_psychology.txt` (S1 Mark Douglas framework
 
 ---
 
-## F9 · Account and risk basics (7 units)
+## F9 · Account and risk basics (9 units)
 
 House rule is §4.11: risk 0.25-2% chosen by quality, 2% hard ceiling, flat-risk is legitimate, stop first, size from the stop, heat ≤10%, 5-10 names, progressive exposure. `houseSizing.json` (ceiling grid by regime word and grade) is mentioned once as a cap layer, not the lesson. Sources: `uct-intelligence/prompts/03_risk_management.txt` (S1 sizing frameworks, S2 portfolio framework, S3 regime for risk, S4 risk math: expectancy, Kelly, size calculator, open heat; S5 ten rules), `portfolio_heat.py`.
 
@@ -198,6 +198,8 @@ House rule is §4.11: risk 0.25-2% chosen by quality, 2% hard ceiling, flat-risk
 | F9.05 | Heat and the book | Total open risk as one number, ≤10%, 5-10 names, correlation (five positions that are one trade), progressive exposure: pilot, half, full | Compute heat and say whether you can add | L: define heat / P: compute heat from four positions / Pr: scenario, can you add a sixth name | 1, 3, 15 | 25 generated books mirroring `portfolio_heat.py` | 26 | dossier M11 "portfolio heat"; course M13 | computed |
 | F9.06 | Open risk after a partial | R still at risk after selling a third, the breakeven move, the trail (10/20-day for EPs: CORRECTIONS), what moving the stop does to heat (C11) | Recompute risk after every action | L: define / P: R at risk after a partial / Pr: four-step management sequence with real numbers | 3 | 40 generated `manage.math` problems | 30 | dossier M10 "the partials playbook", "breakeven rule" | computed |
 | F9.07 | Margin, PDT, settlement, cash | Margin and the call, the pattern day trader rule, T+1 settlement, cash is a position (C4), why going to cash is a trade | Know the account rules before they bite | L: define / P: match the rule to the case / Pr: scenario, four day trades on a 20k account | 1, 15 | 15 scenarios | 22 | dossier M11 "cash is a position" | authored |
+| F9.08 | Our account rules: size, caps and grades | The owner's account rulebook (sizing_rule.md section 9, 2026-11-09): the full size at one price with one stop, no adding (A5); the 40% max position (A7); the stop within about 3% (A13); grades set the size (D38, E49); new traders at 0.25% (C37); $10 and $20M a day, never 1% of the volume (B23, D42); margin to 200% only in Green (B24, F60); leveraged ETFs preferred (E54); 3 tries a week (E56) | Size any trade under our rules | L: the rules / P: size with the cap binding / Pr: scenarios: the cap before the grade, a fourth try, a thin stock | 3 | 26 authored | 26 | sizing_rule.md section 9 | authored 2026-11-09, cold-checked |
+| F9.09 | Our account rules: the market and the trade | The market reading as the filter (B18, F65); the 200-day hard rule and the parabolic exception (B26, Bracco); no chasing past 4% (C28), skip 10% over the 10-day (C29); RS 80 leaders (C31); earnings (B22); the time stop (C33); the 30-minute gap rule (B20); market orders, real stops, regular hours (E57, D41, E58); no setup no trade, alerts, tired days (D44, F66, F67) | Know when our account trades and when it does not | L: the rules / P: the chase line, the gap ceiling, R before earnings / Pr: scenarios: a leader 6% past its pivot, Orange and a B setup, a gap through the stop | 3 | 28 authored | 28 | sizing_rule.md section 9; Bracco's The Parabolic Short | authored 2026-11-09, cold-checked (q17 waits on the owner) |
 
 ---
 
@@ -209,7 +211,7 @@ House rule is §4.11: risk 0.25-2% chosen by quality, 2% hard ceiling, flat-risk
 | F10.02 | Stop, stop-limit, trailing | The stop order vs the stop in your plan, stop-limit's gap risk, trailing stops by timeframe (10-day fast movers, 20/50-day position holds) | Place the stop order that matches the plan | L: define / P: which order type for this stop / Pr: scenario, gap through a stop-limit | 1, 15 | 15 scenarios + 10 real gap-through-stop bars | 24 | dossier M10 "trailing stops by timeframe" | real + authored |
 | F10.03 | Brackets and OCO | Entry + stop + target in one order, one-cancels-other, why a bracket keeps you honest | Build a bracket from a plan | L: define / P: fill the three legs / Pr: scenario, target hit, what happens to the stop | 1, 13 | 12 plans | 18 | none | authored |
 | F10.04 | Slippage, partial fills, extended hours | What you lose between the trigger and the fill, partial fills on size, why extended-hours fills are different | Estimate slippage before the order | L: define / P: compute slippage in % (C16) / Pr: scenario, 2,000 shares in a name that trades 300k | 1, 3, 15 | 15 scenarios | 20 | none | authored |
-| F10.05 | Scaling in and out | Pilot, half, full; adding only after the last rung paid; a third into strength; ADD vs a new trade (C4) | Build a position in rungs | L: the ladder / P: order the rungs / Pr: scenario with real bars, add or not | 1, 13, 15 | 20 scenarios + 15 real continuation bars | 24 | dossier M7 "adding to winners", M11 "the exposure ladder" | real + authored |
+| F10.05 | Trims, trails and scaling out | Full size at one price with one stop, never add (account rulebook A5, 2026-11-09); scale OUT: a third at 3R with the stop to breakeven, a third at 5R, trail the last third under the 10 or 21-day, sell on a close below (B19, E51, E52); a trim the day opens above is taken at the open (F63); the time stop (C33); a gap through the stop (B20); never average down; what scaling out costs and buys | Run the exit ladder on a winner; refuse an add | L: the ladder / P: the trim prices from entry and stop / Pr: scenario, trim or trail or add | 1, 13, 15 | 20 scenarios + 15 real continuation bars | 24 | docs/study/sizing_rule.md section 9 (the owner, 2026-11-09); dossier M7 "adding to winners" and M11 "the exposure ladder" are struck (A5) | real + authored |
 | F10b.01 | Shorting: borrow, locate, cover | Selling what you do not own, the locate, hard-to-borrow fees, buy to cover, the uptick history (C10) | Say what a short costs before the trade | L: define / P: compute the borrow cost / Pr: scenario, HTB name at 40% annual | 1, 3, 15 | 12 scenarios | 20 | dossier M9 "shorting as the mirror" | authored |
 | F10b.02 | Short risk: squeezes and the mirror | Unlimited loss, days to cover, short interest, the squeeze, why this side is sized smallest, every long rule inverted | Size a short down and place the buy-stop | L: define / P: compute days to cover / Pr: real bars, hidden ticker, squeeze or not; one short that worked, one that got squeezed | 1, 3, 8 | 20 real bars (Parabolic Short detector) + frozen short-interest rows | 24 | dossier M9 "the short entry", "why this family is sized smallest" | computed, medium |
 
@@ -277,7 +279,7 @@ Built on `study_terms` (§4.8b). Every definition cites its source; every term h
 | F6 Options | 18 | 446 |
 | F7 History and macro | 7 | 182 |
 | F8 Psychology | 7 | 160 |
-| F9 Account and risk | 7 | 194 |
+| F9 Account and risk | 9 | 248 |
 | F10 Orders and execution + F10b Shorting | 5 + 2 | 150 |
 | F11 Styles | 5 | 102 |
 | F12 Process | 6 | 142 |

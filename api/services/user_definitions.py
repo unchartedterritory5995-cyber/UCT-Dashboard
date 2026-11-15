@@ -434,6 +434,11 @@ _CANONICAL_KEYS: dict[str, tuple[str, ...]] = {
     # ⛔ without this row the STORE would refuse a document every other door
     # accepts (the trap `offset` documents above).
     "ltf": ("type", "value", "args"),
+    # ⭐⭐ ENGINE 55 — PINE'S MERGED HIGHER-TIMEFRAME READ — `tf_merge(expr, "W")`.
+    # `tf`'s key set and `tf`'s reason. Written by the Pine member door for
+    # `request.security(…, "W"|"M")` with look-ahead off; ⛔ without this row the
+    # STORE would refuse a document every other door accepts.
+    "tf_merge": ("type", "value", "args"),
 }
 NODE_TYPES = tuple(_CANONICAL_KEYS)
 

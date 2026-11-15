@@ -29,6 +29,7 @@ import { alertsWidgetStyleVars } from './alertsWidgetSettings'
 import { ALERTS_URL, levelNow, alertsCaptureSettings, alertPriceOf, buildAlertsCapture } from './captures/alertsCapture'
 import styles from './AlertsWidget.module.css'
 import Input from '../../../components/ui/Input'
+import UctCtrlPortal from '../UctCtrlPortal'  // owner 11-14: the ⚙ goes top-right on the board
 
 const fetcher = url => fetch(url).then(r => (r.ok ? r.json() : []))
 
@@ -286,14 +287,14 @@ export default function AlertsWidget({
           />
         )}
         {!readOnly && (
-        <button
+        <UctCtrlPortal><button
           ref={settingsBtnRef}
           type="button"
           className={`${styles.gearBtn}${settingsOpen ? ' ' + styles.gearBtnActive : ''}`}
           onClick={() => setSettingsOpen(o => !o)}
           data-guide="widget.settings"
           title="Alerts widget settings"
-        ><UIcon name="gear" size={13} /></button>
+        ><UIcon name="gear" size={13} /></button></UctCtrlPortal>
         )}
       </div>
 

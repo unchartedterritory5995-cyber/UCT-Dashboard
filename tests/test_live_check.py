@@ -23,6 +23,38 @@ def _tool():
     return mod
 
 
+def _big_rows(mod):
+    rows = [mod.row("service", f"svc-{i}", mod.LIVE, "running the tip of master (" + "x" * 60 + ")") for i in range(40)]
+    rows.append(mod.row("pipeline", "master -> production", mod.STUCK, "checks FAILED on abc; " + "y" * 150))
+    rows.append(mod.row("off", "switched-off features", mod.NOTE, "95 built features are switched off on purpose"))
+    return rows
+
+
+def test_discord_text_fits_and_keeps_what_needs_attention():
+    # the first real post (2026-11-15) overflowed 2,000 characters and lost whole sections
+    mod = _tool()
+    now = mod._parse_ts("2026-11-15T12:00:00+00:00")
+    text = mod.discord_text(_big_rows(mod), now, "https://example.invalid/run/1")
+    assert len(text) <= 1900
+    assert "[STUCK] master -> production" in text
+    assert "Railway services: 40 live" in text
+    assert "95 built features are switched off" in text
+    assert "svc-7" not in text  # a live row is counted, not listed
+
+
+def test_a_failed_post_is_the_check_breaking_not_a_report(monkeypatch, tmp_path):
+    # a post failure once exited 1 ("stuck"), and the job stayed green while nothing reached Discord
+    mod = _tool()
+    rows = [mod.row("pipeline", "master -> production", mod.LIVE, "every master commit is promoted")]
+    monkeypatch.setattr(mod, "collect", lambda **k: {"now": "2026-11-15T12:00:00+00:00", "errors": {}})
+    monkeypatch.setattr(mod, "evaluate", lambda f: rows)
+    monkeypatch.setenv("LIVE_CHECK_DISCORD_WEBHOOK", "unchartedterritory5995-cyber/UCT-Dashboard")
+    monkeypatch.delenv("GITHUB_STEP_SUMMARY", raising=False)
+    code = mod.main(["--no-fetch", "--post", "--morning", "--state", str(tmp_path / "s.json")])
+    assert code == mod.EXIT_BROKEN == 3
+    assert not (tmp_path / "s.json").exists()  # nothing remembered: the next run tries again
+
+
 def test_self_check_passes(capsys):
     assert _tool().self_check() == 0, capsys.readouterr().out
 

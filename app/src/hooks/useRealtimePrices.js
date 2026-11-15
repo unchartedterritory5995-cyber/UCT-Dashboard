@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo, useSyncExternalStore } from 'react'
+import { extSessionStartSec } from '../lib/extSession'
 import useLivePrices from './useLivePrices'
 import * as realtimeCandle from '../lib/realtimeCandle'
 import * as priceStreamManager from '../lib/priceStreamManager'
@@ -94,7 +95,14 @@ function _applyLiveChange(merged, rest) {
 export function _applyLiveExtPrice(merged, rest, streamed) {
   if (!rest || rest.ext_session == null) return
   const px = Number(streamed?.price)
-  if (px > 0) merged.ext_price = px
+  if (px > 0) {
+    merged.ext_price = px
+    // ext_fresh (owner 11-14): a streamed trade received after THIS extended session began
+    // is a print of it, so the Watchlist's EXT mode starts moving on the first live trade.
+    const start = extSessionStartSec(rest.market_session)
+    const at = Number(streamed?.updated_at)
+    if (start != null && Number.isFinite(at) && at >= start) merged.ext_fresh = true
+  }
 }
 
 function usePooledRealtimePrices(tickers = []) {

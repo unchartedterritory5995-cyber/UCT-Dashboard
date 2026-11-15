@@ -377,8 +377,9 @@ def _compass_tool_union() -> set[str]:
     out.add("get_rs_reading")
     out.add("explain_rs")
     # The five RS screens as lists (RS screens unit U11). Gated per call by
-    # RS_COMPASS_TOOLS_ENABLED AND the RS screens being on (voice_tool_impls.
-    # _rs_screens_gate), so listing them here is harmless while either is off.
+    # RS_COMPASS_TOOLS_ENABLED, their own RS_SCREEN_TOOLS_ENABLED AND the RS screens
+    # being on (voice_tool_impls._rs_screens_gate), so listing them here is harmless
+    # while any of the three is off.
     out.add("rs_screen")
     out.add("rs_screen_check")
     # Compass × Twitter News Ingestion (shipped 2026-05-25) — let the voice

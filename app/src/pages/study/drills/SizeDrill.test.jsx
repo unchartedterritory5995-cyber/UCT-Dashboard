@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { useState } from 'react'
-import { Body, answerFromState, isAnswerable, variantOf } from './SizeDrill'
+import { Body, answerFromState, answerFromChoice, isAnswerable, variantOf } from './SizeDrill'
 
 function Host({ item, locked = false }) {
   const [state, setState] = useState(null)
@@ -66,5 +66,24 @@ describe('SizeDrill', () => {
     expect(isAnswerable({ shares: '10', risk_dollars: '' }, forward)).toBe(false)
     expect(isAnswerable({ shares: '10', risk_dollars: '25' }, forward)).toBe(true)
     expect(isAnswerable({ risk_dollars: '25' }, reverse)).toBe(true)
+  })
+
+  // owner 2026-11-12: "make these ones multiple choice"
+  const mc = { id: 's3', type: 'size', prompt_json: { q: 'How many shares?', account: 75000, risk_pct: 1.5, entry: 74.64, stop: 72.4,
+    format: 'size', choices: ['50 shares', '502 shares', '5,020 shares', 'Skip it, or wait for a tighter trigger'] } }
+  it('choices: shows the facts and four choice tiles, no number boxes', () => {
+    render(<Host item={mc} />)
+    expect(screen.getByText('$75,000')).toBeInTheDocument()
+    expect(screen.getAllByRole('radio')).toHaveLength(4)
+    expect(screen.queryByLabelText('Shares')).toBeNull()
+    expect(screen.getByTestId('answerable').textContent).toBe('false')
+    fireEvent.click(screen.getByText('5,020 shares'))
+    expect(screen.getByTestId('answerable').textContent).toBe('true')
+    expect(JSON.parse(screen.getByTestId('answer').textContent)).toMatchObject({ shares: 5020, skip: false })
+  })
+  it('choices: a skip is a skip, and a worded choice carries no share count', () => {
+    expect(answerFromChoice('Skip it, or wait for a tighter trigger')).toMatchObject({ skip: true, shares: null })
+    expect(answerFromChoice('Buy 1 share anyway')).toMatchObject({ skip: false, shares: null })
+    expect(answerFromChoice('1 share')).toMatchObject({ skip: false, shares: 1 })
   })
 })
