@@ -1076,10 +1076,23 @@ export function compareObjects(vendorObjs, ourObjs, colour = null) {
 //
 // ⛔⛔ ONLY THE FIELDS THE CAPTURE HOLDS ARE GRADED, AND A FIELD IT LACKS IS NAMED.
 // `tv_capture.js::readGraphics` records `_primitivesDataById` verbatim. Its `x`,
-// `x1`, `x2` are small integers (0 … a few hundred on a 1,800-bar chart): an
-// index into a coordinate table the capture does not record, not a bar index
-// and not a time. So no x is graded, and every v2 report says so in `ungraded`
-// rather than passing it. The same for `xloc` and the other fields below.
+// `x1`, `x2` are small integers (0 … a few hundred on a 1,800-bar chart): a
+// POSITION in the study's own `_indexes` table, whose entries are model bar
+// indices (object-semantics-spy-1d-2026-09-08). Not a bar index, not a time.
+// ⭐⭐ U13 (G1) — x IS GRADED, kind `x`: the vendor's position is resolved through
+// the table the capture now records (`objects.xIndex`, `tv_capture.js::readXIndex`)
+// to a bar of the capture's own window; ours through the bars our object lane ran
+// on (`ourSide.js` `objects.xFrame`, both lanes), honouring `xloc` exactly as the
+// render state places it (`objectRenderState.js::makeBarClock`). EXACT bar
+// alignment: one bar off is a difference. A future bar is the window's length
+// plus the bars past the last one, on both sides.
+// ⛔ AN x NEITHER SIDE CAN RESOLVE IS NEVER A MATCH. A capture taken before U13
+// holds no table, so its x is `xMissing` (named, counted), and a v2 MATCH needs
+// every paired line / label / box to have its x graded: otherwise the capture is
+// INCONCLUSIVE, with the reason. `verdictWithoutX` keeps the pre-U13 grade, so
+// the two baselines are read side by side from ONE run.
+// `xloc` itself is not recorded by the vendor: TradingView resolves both modes to
+// a model bar, which is what the x grade compares.
 //
 // ⛔ A VENDOR CODE THIS TABLE CANNOT DECODE IS NOT GRADED (state `undecoded`,
 // counted with the code). Read as a mismatch it would invent a defect; read as
@@ -1092,6 +1105,7 @@ export function compareObjects(vendorObjs, ourObjs, colour = null) {
 //   enum    the vendor code decoded through `codes`, then exact
 //   text    exact string
 //   colour  the C44 reading (`objectColours.js`): theme-relative is not graded
+//   x       a bar of the capture's window, both sides (U13): exact
 // `default`: Pine's own default (v6 reference) for a property the script left
 // unset, so our absent property is compared as what Pine draws.
 const EXTEND_CODES = Object.freeze({ n: 'none', r: 'right', b: 'both' })
@@ -1113,26 +1127,29 @@ const POSITION_CODES = SAME('top_left', 'top_center', 'top_right', 'middle_left'
   'bottom_left', 'bottom_center', 'bottom_right')
 const FONT_CODES = SAME('default', 'monospace')
 
-const X_UNGRADED = 'the capture records an index into a coordinate table it does not record (tv_capture.js readGraphics), not a bar index or a time'
+const XLOC_UNRECORDED = 'TradingView records no xloc: it resolves both modes to a model bar, and that bar is graded as x (U13)'
 export const OBJECTS_V2_FIELDS = Object.freeze({
   lines: Object.freeze({
     ourFamily: 'line',
     fields: Object.freeze([
+      { field: 'x1', vendor: 'x1', ours: 'x1', kind: 'x' },
       { field: 'y1', vendor: 'y1', ours: 'y1', kind: 'price' },
+      { field: 'x2', vendor: 'x2', ours: 'x2', kind: 'x' },
       { field: 'y2', vendor: 'y2', ours: 'y2', kind: 'price' },
       { field: 'extend', vendor: 'ex', ours: 'extend', kind: 'enum', codes: EXTEND_CODES, default: 'none' },
       { field: 'style', vendor: 'st', ours: 'style', kind: 'enum', codes: LINE_STYLE_CODES, default: 'solid' },
       { field: 'width', vendor: 'w', ours: 'width', kind: 'number', default: 1 },
       { field: 'color', vendor: 'ci', ours: 'color', kind: 'colour' },
     ]),
-    vendorKeysNotGraded: Object.freeze(['x1', 'x2', 'fo']),
-    ungraded: Object.freeze({ x1: X_UNGRADED, x2: X_UNGRADED, xloc: 'not recorded by the capture', force_overlay: 'recorded on some captures only (`fo`), and our side does not carry it' }),
+    vendorKeysNotGraded: Object.freeze(['fo']),
+    ungraded: Object.freeze({ xloc: XLOC_UNRECORDED, force_overlay: 'recorded on some captures only (`fo`), and our side does not carry it' }),
   }),
   labels: Object.freeze({
     ourFamily: 'label',
     fields: Object.freeze([
       // y is graded only where the label is placed BY PRICE on both sides: at
       // abovebar / belowbar neither platform draws it at y.
+      { field: 'x', vendor: 'x', ours: 'x', kind: 'x' },
       { field: 'y', vendor: 'y', ours: 'y', kind: 'price', onlyAtPrice: true },
       { field: 'yloc', vendor: 'yl', ours: 'yloc', kind: 'enum', codes: YLOC_CODES, default: 'price' },
       { field: 'text', vendor: 't', ours: 'text', kind: 'text', default: '' },
@@ -1143,13 +1160,15 @@ export const OBJECTS_V2_FIELDS = Object.freeze({
       { field: 'color', vendor: 'ci', ours: 'color', kind: 'colour' },
       { field: 'textcolor', vendor: 'tci', ours: 'textcolor', kind: 'colour', onlyWithText: true },
     ]),
-    vendorKeysNotGraded: Object.freeze(['x', 'fo']),
-    ungraded: Object.freeze({ x: X_UNGRADED, xloc: 'not recorded by the capture', text_font_family: 'not recorded by the capture', text_formatting: 'not recorded by the capture', force_overlay: 'recorded on some captures only (`fo`), and our side does not carry it' }),
+    vendorKeysNotGraded: Object.freeze(['fo']),
+    ungraded: Object.freeze({ xloc: XLOC_UNRECORDED, text_font_family: 'not recorded by the capture', text_formatting: 'not recorded by the capture', force_overlay: 'recorded on some captures only (`fo`), and our side does not carry it' }),
   }),
   boxes: Object.freeze({
     ourFamily: 'box',
     fields: Object.freeze([
+      { field: 'left', vendor: 'x1', ours: 'left', kind: 'x' },
       { field: 'top', vendor: 'y1', ours: 'top', kind: 'price' },
+      { field: 'right', vendor: 'x2', ours: 'right', kind: 'x' },
       { field: 'bottom', vendor: 'y2', ours: 'bottom', kind: 'price' },
       { field: 'extend', vendor: 'ex', ours: 'extend', kind: 'enum', codes: EXTEND_CODES, default: 'none' },
       { field: 'border_style', vendor: 'st', ours: 'border_style', kind: 'enum', codes: LINE_STYLE_CODES, default: 'solid' },
@@ -1163,8 +1182,8 @@ export const OBJECTS_V2_FIELDS = Object.freeze({
       { field: 'bgcolor', vendor: 'bc', ours: 'bgcolor', kind: 'colour' },
       { field: 'text_color', vendor: 'tc', ours: 'text_color', kind: 'colour', onlyWithText: true },
     ]),
-    vendorKeysNotGraded: Object.freeze(['x1', 'x2']),
-    ungraded: Object.freeze({ left: X_UNGRADED, right: X_UNGRADED, xloc: 'not recorded by the capture', text_font_family: 'not recorded by the capture', text_formatting: 'not recorded by the capture', force_overlay: 'not recorded by the capture for boxes' }),
+    vendorKeysNotGraded: Object.freeze([]),
+    ungraded: Object.freeze({ xloc: XLOC_UNRECORDED, text_font_family: 'not recorded by the capture', text_formatting: 'not recorded by the capture', force_overlay: 'not recorded by the capture for boxes' }),
   }),
   tables: Object.freeze({
     ourFamily: 'table',
@@ -1231,6 +1250,11 @@ export const V2_DIFFERS = new Set(['differ'])
 // ⭐ Engine 52 — `pointSize`: our side drew a v6 int text size (typographic points); no capture
 // records a point size's pixels, so it is served and NOT graded (`objectRecords.js::fieldRow`).
 export const V2_NOT_GRADED = new Set(['undecoded', 'themeRelative', 'undrawn', 'notApplicable', 'pointSize'])
+/** ⭐ U13 — an x one side cannot resolve to a bar (no x table in the capture, our
+ *  side's frame absent, an `na` x, a `bar_time` off the loaded bars). Not graded,
+ *  counted with its reason, and it BLOCKS a MATCH: a capture whose drawings' x was
+ *  not witnessed is INCONCLUSIVE (coordinator ruling G1), never passed. */
+export const V2_X_MISSING = new Set(['xMissing'])
 
 /**
  * The v2 report for one capture.
@@ -1244,7 +1268,7 @@ export function compareObjectsV2(v1, pairing, oursWithheldFamilies = []) {
   if (!v1) return null
   if (!pairing) {
     // ⚠️ `pairedNothing`: this verdict is v1's, carried; v2 graded nothing (review #1150 note 6)
-    return { verdict: v1.verdict, v1: v1.verdict, pairedNothing: true, reason: `no record was paired; v1: ${v1.reason}`, families: [], ungraded }
+    return { verdict: v1.verdict, verdictWithoutX: v1.verdict, v1: v1.verdict, pairedNothing: true, x: null, reason: `no record was paired; v1: ${v1.reason}`, families: [], ungraded }
   }
   const families = []
   // ⛔ A FAMILY v1 FOUND WITHHELD BY NAME (W-C22-DEL / OZ: `counts[].withheld`)
@@ -1272,21 +1296,46 @@ export function compareObjectsV2(v1, pairing, oursWithheldFamilies = []) {
     if (!p) continue
     if (withheld.has(f)) {
       families.push({ family: f, withheld: true, paired: 0, unpairedVendor: 0, unpairedOurs: 0, graded: 0, agreeing: 0,
-        differing: 0, notGraded: 0, undecoded: {}, byField: {}, first: null, agree: null, differsOnlyByCreationOrder: false })
+        differing: 0, notGraded: 0, undecoded: {}, byField: {}, first: null, firstWithoutX: null, agree: null, agreeWithoutX: null,
+        x: null, xIncomplete: false, differsOnlyByCreationOrder: false })
       continue
     }
     const row = {
       family: f, paired: p.pairs.length, unpairedVendor: p.unpairedVendor, unpairedOurs: p.unpairedOurs,
-      graded: 0, agreeing: 0, differing: 0, notGraded: 0, undecoded: {}, byField: {}, first: null, agree: null,
+      graded: 0, agreeing: 0, differing: 0, notGraded: 0, undecoded: {}, byField: {}, first: null, firstWithoutX: null,
+      agree: null, agreeWithoutX: null,
+      // ⭐ U13 — the x grade, tallied APART so the pre-U13 tallies above stay comparable
+      x: { graded: 0, agreeing: 0, differing: 0, missing: 0, missingWhy: {}, first: null },
+      xIncomplete: false,
     }
     for (const pair of p.pairs) {
       for (const r of pair.fields) {
         const bf = row.byField[r.field] || (row.byField[r.field] = { agree: 0, differ: 0, notGraded: 0 })
+        const at = { field: r.field, vendor: r.vendor, ours: r.ours, vendorId: pair.vendorId, ourId: pair.ourId, where: pair.where }
+        if (r.x === true) {
+          if (V2_AGREES.has(r.state)) { row.x.graded += 1; row.x.agreeing += 1; bf.agree += 1 } else if (V2_DIFFERS.has(r.state)) {
+            row.x.graded += 1
+            row.x.differing += 1
+            bf.differ += 1
+            if (!row.x.first) row.x.first = at
+            if (!row.first) row.first = at
+          } else if (V2_X_MISSING.has(r.state)) {
+            bf.notGraded += 1
+            row.x.missing += 1
+            const why = r.why || 'unstated'
+            row.x.missingWhy[why] = (row.x.missingWhy[why] || 0) + 1
+          } else {
+            // ⛔ FAIL CLOSED, as below: an x state this table does not name is never agreeing.
+            throw new Error(`objects v2: unknown x field state ${JSON.stringify(r.state)}`)
+          }
+          continue
+        }
         if (V2_AGREES.has(r.state)) { row.graded += 1; row.agreeing += 1; bf.agree += 1 } else if (V2_DIFFERS.has(r.state)) {
           row.graded += 1
           row.differing += 1
           bf.differ += 1
-          if (!row.first) row.first = { field: r.field, vendor: r.vendor, ours: r.ours, vendorId: pair.vendorId, ourId: pair.ourId, where: pair.where }
+          if (!row.firstWithoutX) row.firstWithoutX = at
+          if (!row.first) row.first = at
         } else if (V2_NOT_GRADED.has(r.state)) {
           row.notGraded += 1
           bf.notGraded += 1
@@ -1297,35 +1346,64 @@ export function compareObjectsV2(v1, pairing, oursWithheldFamilies = []) {
         }
       }
     }
-    row.agree = row.graded === 0 ? null : row.differing === 0
+    row.agreeWithoutX = row.graded === 0 ? null : row.differing === 0
     // ⛔ A record one side holds and the other does not is a difference a member
     // sees (for lines … cells v1's counts already say so; for linefills only v2 does).
     if (p.unpairedVendor || p.unpairedOurs) {
-      row.agree = false
-      if (!row.first) row.first = { field: 'count', vendor: row.paired + p.unpairedVendor, ours: row.paired + p.unpairedOurs, where: `${f} held` }
+      row.agreeWithoutX = false
+      const count = { field: 'count', vendor: row.paired + p.unpairedVendor, ours: row.paired + p.unpairedOurs, where: `${f} held` }
+      if (!row.firstWithoutX) row.firstWithoutX = count
+      if (!row.first) row.first = count
     }
+    // ⭐ U13 — with x: any difference diverges; an x not resolved (and nothing that
+    // differs) leaves the family UNGRADED (`xIncomplete`), never agreeing.
+    if (row.agreeWithoutX === false || row.x.differing > 0) row.agree = false
+    else if (row.x.missing > 0) { row.agree = null; row.xIncomplete = true } else if (row.agreeWithoutX === true || row.x.graded > 0) row.agree = true
+    else row.agree = null
     row.differsOnlyByCreationOrder = !!p.differsOnlyByCreationOrder
     families.push(row)
   }
+  const divergingWithoutX = families.filter((r) => r.agreeWithoutX === false)
   const diverging = families.filter((r) => r.agree === false)
+  const incomplete = families.filter((r) => r.xIncomplete)
   const graded = families.reduce((n, r) => n + r.graded, 0)
-  const first = diverging.length ? { family: diverging[0].family, ...diverging[0].first } : null
+  const xt = { graded: 0, agreeing: 0, differing: 0, missing: 0, missingWhy: {} }
+  for (const r of families) {
+    if (!r.x) continue
+    xt.graded += r.x.graded; xt.agreeing += r.x.agreeing; xt.differing += r.x.differing; xt.missing += r.x.missing
+    for (const [k, n] of Object.entries(r.x.missingWhy)) xt.missingWhy[k] = (xt.missingWhy[k] || 0) + n
+  }
+  const firstOf = (list, key) => (list.length ? { family: list[0].family, ...list[0][key] } : null)
+  const first = firstOf(diverging, 'first')
+  const firstWithoutX = firstOf(divergingWithoutX, 'firstWithoutX')
   // ⭐ v2 never makes a v1 DIVERGE or INCONCLUSIVE better; it can only find a
   // MATCH whose records are in the wrong place.
+  let verdictWithoutX = v1.verdict
+  if (v1.verdict === 'MATCH' && divergingWithoutX.length) verdictWithoutX = 'DIVERGE'
+  // ⭐⭐ U13 (G1) — and, with x: a MATCH needs every paired line / label / box on
+  // the SAME bar as TradingView's; an x that could not be resolved is INCONCLUSIVE.
   let verdict = v1.verdict
   if (v1.verdict === 'MATCH' && diverging.length) verdict = 'DIVERGE'
-  const fieldsSaid = graded
+  else if (v1.verdict === 'MATCH' && incomplete.length) verdict = 'INCONCLUSIVE'
+  const fieldsSaid = graded || xt.graded
     ? (first
       ? `${diverging.length} object ${diverging.length === 1 ? 'family differs' : 'families differ'} field by field (first: ${first.family} ${first.field} of ${first.where} — vendor ${JSON.stringify(first.vendor)}, ours ${JSON.stringify(first.ours)})${diverging.every((r) => r.differsOnlyByCreationOrder) ? ' — ONLY in creation order: paired by equal ids, every field agrees' : ''}`
       : `every paired record agrees on ${graded} graded fields`)
     : 'no field of a paired record was graded'
+  const topWhy = Object.entries(xt.missingWhy).sort((a, b) => b[1] - a[1])[0]
+  const xSaid = xt.missing
+    ? `x: ${xt.graded} graded (${xt.differing} differ), ${xt.missing} not resolvable to a bar (${topWhy[0]})${verdict === 'INCONCLUSIVE' && v1.verdict === 'MATCH' ? ', so x is not witnessed and this is not a MATCH (G1)' : ''}`
+    : `x: ${xt.graded} graded, ${xt.differing} differ (exact bar)`
   return {
     verdict,
+    verdictWithoutX,
     v1: v1.verdict,
     pairedNothing: false,
     differsOnlyByCreationOrder: diverging.length > 0 && diverging.every((r) => r.differsOnlyByCreationOrder),
-    reason: `${fieldsSaid}; v1: ${v1.reason}; not graded: x coordinates (the capture holds no bar index or time), xloc`,
+    reason: `${fieldsSaid}; ${xSaid}; v1: ${v1.reason}; not graded: xloc (TradingView records none; the bar it resolves to is the x grade)`,
     first,
+    firstWithoutX,
+    x: { ...xt, incompleteFamilies: incomplete.map((r) => r.family) },
     families,
     ungraded,
   }

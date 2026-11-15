@@ -1132,6 +1132,31 @@ above worked. The hidden-tab rule at the top of this file is about **adding a
 study**, not about reading one — do not let a hidden tab stop you collecting a
 timeline row.
 
+## ⭐⭐ THE OBJECT x TABLE — check it on the FIRST capture of a session (U13, 2026-11-14)
+
+A line's `x1` / `x2`, a label's `x` and a box's `x1` / `x2` in `_primitivesDataById` are **not bar
+indices and not times**. Each is a position in the study's own `_indexes` array, and each entry of
+that array is a MODEL bar index (the index space of `mainSeries().bars()`). Measured 2026-09-08
+(`tests/fixtures/vendor/visual/object-semantics-spy-1d-2026-09-08.json`): `_indexes = [259, 264,
+…, 299]`, and the anchor line's `x1 = 4, x2 = 10` resolve to model bars 279 and 299, the 20-bar
+span the script asks for. **No capture taken before U13 recorded that table**, so none of their
+x can be graded: the harness reads them `xMissing` and their objects-v2 grade cannot be MATCH
+(coordinator ruling G1).
+
+`tv_capture.js` now records it as `objects.xIndex`: the table, the bar time at each entry, the
+model indices of the loaded bars, and the path it was found at. The probe that found the table did
+not record which object holds it, so the snippet searches the graphics object and the data source
+(two levels into any own `*graphics*` object), through property descriptors only: no getter runs
+and nothing is called.
+
+**On the first capture of every session, read `objectsX` in the summary `capture()` returns:**
+- `found: true` with a `path` and `entries > 0`: x will be graded. Carry on.
+- `found: false`: the table was not where the snippet looks. **Stop capturing object scripts**
+  (their x would be ungradable again), keep the summary's `reason`, and read
+  `capture.objects.xIndex.looked` and `graphicsOwnKeys` (own key NAMES of `graphics()`, no
+  values): they say where to look. Fix `readXIndex` before the next object capture.
+- `ambiguous: true`: two different tables were found. Same: stop, and report both paths.
+
 ## Moving data out
 
 `fetch` to a localhost sink is **dead** — tradingview.com's CSP `connect-src` stops the request
