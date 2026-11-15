@@ -165,6 +165,17 @@ Rail: `ast/condTaLanes.test.js` (M12: `vendorHarness.c48CallSite.test.js`). Cont
 | M11 | the screener lane refuses a value for its COLOUR's gates too | SURVIVED on the first pass: every colour rail was one the host withholds ALONE (`colourWithholdsAlone`), where the mutant is equivalent. Rail added (`a hiding colour with a conditional call`: an `na` entry, so the host keeps the gate on the plot); re-run pending (lock moratorium) |
 | M12 | the c48 pin with the screener serving again | KILLED |
 
+## Known over-refusal (coordinator ruling: ship as is, fix next)
+
+`fib-pivot-points-alerts` (v4, community; held s3, NYSE:RDDT 1D): **MATCH -> INCONCLUSIVE** on
+both lanes. Its helper `is_newbar(res)` writes `if(res == 'Y')` / `ch := change(t) != 0 ? 1 : 0`.
+G-b now reads the v4 bare `change` as a history call; the guard reads a PARAMETER that every call
+site fixes to an input-derived (bar-constant) value, so the every-bar value is exact (master MATCH),
+but the host's guard check knows only top-level invariant names, not a call site's arguments, and
+the runtime lane declines too (`runtime:conditional-history`). By name, never wrong. Next PR:
+"bar-constant parameter guards" (substitute the call-site arguments into the guard, v4 and v5
+together), which rails this capture back to MATCH.
+
 ## Measurements
 
 PENDING — the coordinator's lock moratorium (2026-11-15: no new heavy runs until engine 55 and #1326
