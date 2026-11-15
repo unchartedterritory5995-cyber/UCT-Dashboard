@@ -27,7 +27,8 @@
 
 import { memberPaneDefinition } from '../../../builder/memberPane/memberPaneDefinition'
 import * as registry from '../../nativeRegistry'
-import { createBinder, drawShiftOf, paintColoursFor } from '../../binder'
+import { createBinder, drawShiftOf, paintColoursFor, plotStripNoticesOf } from '../../binder'
+import { bindWithheldPaintsOf } from './paintColours'
 import { bindingKey } from '../../pool'
 import { addInstance } from '../../instanceControls'
 import { mergeChartSettings } from '../../../chartDefaults'
@@ -1240,6 +1241,13 @@ function runOurSideOnTheParityClock(capture) {
       return { kind: p.kind, line: p.line ?? null, title: p.title ?? null,
         colors: Array.isArray(all) ? all.slice(pre) : all }
     })
+    // ⭐ G5 — the paints the BIND withheld by name: the column their colour is read from was
+    // refused, and the member's disclosure strip (`plotStripNoticesOf`, what the binder
+    // publishes) names the paint itself. Read off the columns the paints were computed on.
+    const bindWithheldPaints = bindWithheldPaintsOf(def, {
+      columnErrors: typeof registry.columnErrors === 'function' ? registry.columnErrors(paintColsRaw || {}) : {},
+      notices: plotStripNoticesOf(registry, def, paintColsRaw),
+    })
     const lowerReport = registry.lowerTfReport(cols)
     if (lowerReport) {
       for (const c of lowerReport.served) notes.push(`lower timeframe ${c}: served`)
@@ -1428,6 +1436,8 @@ function runOurSideOnTheParityClock(capture) {
         // ⚠️ review N3 — what a replayed MATCH speaks for
         speaksFor: replay ? 'the standalone daily chart (not a grid cell, which first-paints shallow; W / M stay cold)' : null },
       translationPaints: runtimeAwarePaints(built, def),
+      // ⭐ G5 — read by `paintColours.gradePaints` where the binder drew nothing
+      bindWithheldPaints,
       drawnPaints,
       // ⭐ ENGINE 53 — what the door did with the run half (minted / declined by code); the bind's
       // answer (served / refused) rides on `objects.runHalf`.
