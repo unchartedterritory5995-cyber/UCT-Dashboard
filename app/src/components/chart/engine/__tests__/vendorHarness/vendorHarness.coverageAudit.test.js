@@ -219,39 +219,38 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
   it.fails('supertrend-strategy RDDT: MATCH', () => {
     expect(grade('supertrend-strategy-rddt-1d-2026-10-02').v.verdict).toBe('MATCH')
   }, T)
-  it('control: every plot value agrees on both symbols; the barcolor is WITHHELD (expression colour)', () => {
+  it('control: every plot value agrees on both symbols; the barcolor is WITHHELD by name (expression colour)', () => {
     for (const id of ['supertrend-strategy-rddt-1d-2026-10-02', 'supertrend-strategy-spy-1d-2026-10-02']) {
       const { v } = grade(id)
       expect(v.plots.filter((p) => p.verdict === 'DIVERGE'), id).toEqual([])
-      expect(v.paints.verdict, id).toBe('DIVERGE')
-      expect(v.paints.reason, id).toMatch(/withheld/)
+      // ⭐ G5 ruling 2026-11-15: a paint withheld by name is INCONCLUSIVE (it was DIVERGE)
+      expect(v.paints.verdict, id).toBe('INCONCLUSIVE')
+      expect(v.paints.reason, id).toMatch(/withheld by name/)
     }
   }, T)
 
   // support-and-resistance-multi-time-frame --------------------------------------
-  it.fails('support-and-resistance-multi-time-frame RDDT: MATCH', () => {
+  // ⭐⭐ ENGINE 55 — FIXED, the it.fails FLIPPED: the look-ahead-off weekly / monthly request is
+  // `tf_merge` (TradingView's merge: the period's value on the bar that closes it). ⚰️ It read the
+  // last CLOSED period on every bar — RDDT na on 15 + 3 bars, SPY scattered values on the bars that
+  // close a week or month. The newest finished bar is withheld by name and is the one bar not compared.
+  it('support-and-resistance-multi-time-frame RDDT: MATCH', () => {
     expect(grade('support-and-resistance-multi-time-frame-rddt-1d-2026-10-02').v.verdict).toBe('MATCH')
   }, T)
-  it('control: RDDT (from the listing) Resistance Weekly na on 15 bars from 161, Support Weekly on 3 from 476; SPY (replayed, DIV-1) only the weekly / monthly request diverges, scattered values', () => {
-    const r = grade('support-and-resistance-multi-time-frame-rddt-1d-2026-10-02').v
-    expect(first(item(r, 'Resistance Weekly'))).toMatchObject({ bar: 161, kind: 'na' })
-    expect(item(r, 'Resistance Weekly').stats.steady.divergent).toBe(15)
-    expect(first(item(r, 'Support Weekly'))).toMatchObject({ bar: 476, kind: 'na' })
-    expect(item(r, 'Resistance Daily').verdict).toBe('MATCH')
-    // ⭐ DIV-1 RE-PIN (2026-11-09): SPY Support Monthly was na from bar 735 to the last
-    // (persistent) and the Daily rows na early — the cold window. Replayed from SPY's
-    // listing (DIV-1) the Daily rows agree, and what diverges is the weekly / monthly
-    // request alone, scattered VALUES (the HTF class RDDT shows from its listing): a
-    // better-explained DIVERGE, owned by the request lane.
-    const s = grade('support-and-resistance-multi-time-frame-spy-1d-2026-10-02').v
-    expect(item(s, 'Resistance Daily').verdict).toBe('MATCH')
-    expect(item(s, 'Support Daily').verdict).toBe('MATCH')
-    for (const t of ['Resistance Weekly', 'Support Weekly', 'Resistance Monthly', 'Support Monthly']) {
-      expect(item(s, t).verdict, t).toBe('DIVERGE')
-      expect(item(s, t).stats.steady.pattern.kind, t).toBe('scattered')
-      expect(first(item(s, t)).kind, t).toBe('value')
+  it('support-and-resistance-multi-time-frame RDDT and SPY: every plot MATCHES, the weekly / monthly ones with only the newest bar withheld by name', () => {
+    for (const id of ['support-and-resistance-multi-time-frame-rddt-1d-2026-10-02', 'support-and-resistance-multi-time-frame-spy-1d-2026-10-02']) {
+      const v = grade(id).v
+      expect(v.verdict, id).toBe('MATCH')
+      for (const t of ['Resistance Daily', 'Support Daily']) expect(item(v, t).verdict, `${id} ${t}`).toBe('MATCH')
+      // ⭐ review L3 — both captures end on a Friday: the weekly plots draw (and grade) it; the
+      // monthly ones still withhold that one bar by name (October is not over).
+      for (const t of ['Resistance Weekly', 'Support Weekly', 'Resistance Monthly', 'Support Monthly']) {
+        const monthly = /Monthly/.test(t)
+        expect(item(v, t).verdict, `${id} ${t}`).toBe('MATCH')
+        expect(item(v, t).withheldNewest, `${id} ${t}`).toBe(monthly ? 'request:htf-newest-unconfirmed' : undefined)
+        expect(item(v, t).stats.oursUnread, `${id} ${t}`).toBe(monthly ? 1 : 0)
+      }
     }
-    expect(item(s, 'Support Monthly').stats.steady.divergent).toBe(1)
   }, T)
 
   // support-and-resistance (SPY only — RDDT is a MATCH above) ---------------------

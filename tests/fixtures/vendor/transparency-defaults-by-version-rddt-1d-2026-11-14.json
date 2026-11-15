@@ -1,0 +1,698 @@
+{
+ "_what": "TradingView's DEFAULT transparency (no transp= anywhere in the source) for plot lines, plot style columns / stepline (v3), plotarrow, bgcolor, fill between two plots, fill between two hlines, and hline, per Pine version v1 / v2 / v3. Read from the study's own metaInfo().defaults and properties().state() after TradingView compiled and drew it.",
+ "_captured": "2026-11-14, owner's TradingView Premium session (agent-driven, Claude-in-Chrome, capture session S1), rig layout 01f1AcIj, NYSE:RDDT 1D, tab visible, study count 0 before each add and 0 after each removal",
+ "_probes": {
+  "1": "tools/visual_conformance/probes/vw-cs1-transp-v1.pine",
+  "2": "tools/visual_conformance/probes/vw-cs1-transp-v2.pine",
+  "3": "tools/visual_conformance/probes/vw-cs1-transp-v3.pine"
+ },
+ "_captures": {
+  "1": "tests/fixtures/vendor/harness/vw-cs1-transp-v1-rddt-1d-2026-11-14.json",
+  "2": "tests/fixtures/vendor/harness/vw-cs1-transp-v2-rddt-1d-2026-11-14.json",
+  "3": "tests/fixtures/vendor/harness/vw-cs1-transp-v3-rddt-1d-2026-11-14.json"
+ },
+ "_note_hline": "bands (hline) carry no transparency key at all in defaults or state: drawn opaque, linestyle 2 (dashed).",
+ "versions": {
+  "1": {
+   "title": "UCTPROBE_VW_CS1_TRANSP_V1",
+   "defaults": {
+    "styles": {
+     "plot_0": {
+      "color": "#0000FF",
+      "display": 15,
+      "linestyle": 0,
+      "linewidth": 1,
+      "plottype": 0,
+      "trackPrice": false,
+      "transparency": 35,
+      "visible": true
+     },
+     "plot_1": {
+      "color": "#FF0000",
+      "display": 15,
+      "linestyle": 0,
+      "linewidth": 1,
+      "plottype": 0,
+      "trackPrice": false,
+      "transparency": 35,
+      "visible": true
+     },
+     "plot_2": {
+      "transparency": 90
+     },
+     "plot_3": {
+      "colordown": "#FF00FF",
+      "colorup": "#00FFFF",
+      "display": 15,
+      "transparency": 35,
+      "visible": true
+     }
+    },
+    "bands": [
+     {
+      "color": "#800080",
+      "display": 15,
+      "linestyle": 2,
+      "linewidth": 1,
+      "value": 100,
+      "visible": true
+     },
+     {
+      "color": "#FF7F00",
+      "display": 15,
+      "linestyle": 2,
+      "linewidth": 1,
+      "value": 50,
+      "visible": true
+     }
+    ],
+    "filledAreasStyle": {
+     "fill_0": {
+      "color": "#008000",
+      "display": 15,
+      "transparency": 90,
+      "visible": true
+     },
+     "fill_1": {
+      "color": "#008080",
+      "display": 15,
+      "transparency": 90,
+      "visible": true
+     }
+    },
+    "palettes": {
+     "palette_0": {
+      "colors": {
+       "0": {
+        "color": "#00FF00",
+        "style": 0,
+        "width": 1
+       },
+       "1": {
+        "color": "#800000",
+        "style": 0,
+        "width": 1
+       }
+      }
+     }
+    }
+   },
+   "bands": [
+    {
+     "id": "hline_0",
+     "isHidden": false,
+     "name": "H1_hline_purple"
+    },
+    {
+     "id": "hline_1",
+     "isHidden": false,
+     "name": "H2_hline_orange"
+    }
+   ],
+   "filledAreas": [
+    {
+     "id": "fill_0",
+     "isHidden": false,
+     "objAId": "plot_0",
+     "objBId": "plot_1",
+     "title": "F1_fill_plots_green",
+     "type": "plot_plot"
+    },
+    {
+     "id": "fill_1",
+     "isHidden": false,
+     "objAId": "hline_0",
+     "objBId": "hline_1",
+     "title": "F2_fill_hlines_teal",
+     "type": "hline_hline"
+    }
+   ],
+   "state": {
+    "styles": {
+     "plot_0": {
+      "color": "#0000FF",
+      "display": 15,
+      "linestyle": 0,
+      "linewidth": 1,
+      "plottype": 0,
+      "trackPrice": false,
+      "transparency": 35,
+      "visible": true,
+      "title": "plot_0"
+     },
+     "plot_1": {
+      "color": "#FF0000",
+      "display": 15,
+      "linestyle": 0,
+      "linewidth": 1,
+      "plottype": 0,
+      "trackPrice": false,
+      "transparency": 35,
+      "visible": true,
+      "title": "plot_1"
+     },
+     "plot_2": {
+      "transparency": 90,
+      "display": 4294967295,
+      "color": "#2962FF",
+      "linestyle": 0,
+      "linewidth": 2,
+      "plottype": "bg_colorer",
+      "trackPrice": false,
+      "title": "plot_2"
+     },
+     "plot_3": {
+      "colordown": "#FF00FF",
+      "colorup": "#00FFFF",
+      "display": 15,
+      "transparency": 35,
+      "visible": true,
+      "color": "#2962FF",
+      "linestyle": 0,
+      "linewidth": 2,
+      "plottype": "arrows",
+      "trackPrice": false,
+      "title": "plot_3"
+     }
+    },
+    "bands": [
+     {
+      "color": "#800080",
+      "display": 15,
+      "linestyle": 2,
+      "linewidth": 1,
+      "value": 100,
+      "visible": true
+     },
+     {
+      "color": "#FF7F00",
+      "display": 15,
+      "linestyle": 2,
+      "linewidth": 1,
+      "value": 50,
+      "visible": true
+     }
+    ],
+    "filledAreasStyle": {
+     "fill_0": {
+      "color": "#008000",
+      "display": 15,
+      "transparency": 90,
+      "visible": true
+     },
+     "fill_1": {
+      "color": "#008080",
+      "display": 15,
+      "transparency": 90,
+      "visible": true
+     }
+    },
+    "palettes": {
+     "palette_0": {
+      "colors": {
+       "0": {
+        "color": "#00FF00",
+        "style": 0,
+        "width": 1
+       },
+       "1": {
+        "color": "#800000",
+        "style": 0,
+        "width": 1
+       }
+      }
+     }
+    },
+    "graphics": {}
+   }
+  },
+  "2": {
+   "title": "UCTPROBE_VW_CS1_TRANSP_V2",
+   "defaults": {
+    "styles": {
+     "plot_0": {
+      "color": "#0000FF",
+      "display": 15,
+      "linestyle": 0,
+      "linewidth": 1,
+      "plottype": 0,
+      "trackPrice": false,
+      "transparency": 35,
+      "visible": true
+     },
+     "plot_1": {
+      "color": "#FF0000",
+      "display": 15,
+      "linestyle": 0,
+      "linewidth": 1,
+      "plottype": 0,
+      "trackPrice": false,
+      "transparency": 35,
+      "visible": true
+     },
+     "plot_2": {
+      "transparency": 90
+     },
+     "plot_3": {
+      "colordown": "#FF00FF",
+      "colorup": "#00FFFF",
+      "display": 15,
+      "transparency": 35,
+      "visible": true
+     }
+    },
+    "bands": [
+     {
+      "color": "#800080",
+      "display": 15,
+      "linestyle": 2,
+      "linewidth": 1,
+      "value": 100,
+      "visible": true
+     },
+     {
+      "color": "#FF7F00",
+      "display": 15,
+      "linestyle": 2,
+      "linewidth": 1,
+      "value": 50,
+      "visible": true
+     }
+    ],
+    "filledAreasStyle": {
+     "fill_0": {
+      "color": "#008000",
+      "display": 15,
+      "transparency": 90,
+      "visible": true
+     },
+     "fill_1": {
+      "color": "#008080",
+      "display": 15,
+      "transparency": 90,
+      "visible": true
+     }
+    },
+    "palettes": {
+     "palette_0": {
+      "colors": {
+       "0": {
+        "color": "#00FF00",
+        "style": 0,
+        "width": 1
+       },
+       "1": {
+        "color": "#800000",
+        "style": 0,
+        "width": 1
+       }
+      }
+     }
+    }
+   },
+   "bands": [
+    {
+     "id": "hline_0",
+     "isHidden": false,
+     "name": "H1_hline_purple"
+    },
+    {
+     "id": "hline_1",
+     "isHidden": false,
+     "name": "H2_hline_orange"
+    }
+   ],
+   "filledAreas": [
+    {
+     "id": "fill_0",
+     "isHidden": false,
+     "objAId": "plot_0",
+     "objBId": "plot_1",
+     "title": "F1_fill_plots_green",
+     "type": "plot_plot"
+    },
+    {
+     "id": "fill_1",
+     "isHidden": false,
+     "objAId": "hline_0",
+     "objBId": "hline_1",
+     "title": "F2_fill_hlines_teal",
+     "type": "hline_hline"
+    }
+   ],
+   "state": {
+    "styles": {
+     "plot_0": {
+      "color": "#0000FF",
+      "display": 15,
+      "linestyle": 0,
+      "linewidth": 1,
+      "plottype": 0,
+      "trackPrice": false,
+      "transparency": 35,
+      "visible": true,
+      "title": "plot_0"
+     },
+     "plot_1": {
+      "color": "#FF0000",
+      "display": 15,
+      "linestyle": 0,
+      "linewidth": 1,
+      "plottype": 0,
+      "trackPrice": false,
+      "transparency": 35,
+      "visible": true,
+      "title": "plot_1"
+     },
+     "plot_2": {
+      "transparency": 90,
+      "display": 4294967295,
+      "color": "#2962FF",
+      "linestyle": 0,
+      "linewidth": 2,
+      "plottype": "bg_colorer",
+      "trackPrice": false,
+      "title": "plot_2"
+     },
+     "plot_3": {
+      "colordown": "#FF00FF",
+      "colorup": "#00FFFF",
+      "display": 15,
+      "transparency": 35,
+      "visible": true,
+      "color": "#2962FF",
+      "linestyle": 0,
+      "linewidth": 2,
+      "plottype": "arrows",
+      "trackPrice": false,
+      "title": "plot_3"
+     }
+    },
+    "bands": [
+     {
+      "color": "#800080",
+      "display": 15,
+      "linestyle": 2,
+      "linewidth": 1,
+      "value": 100,
+      "visible": true
+     },
+     {
+      "color": "#FF7F00",
+      "display": 15,
+      "linestyle": 2,
+      "linewidth": 1,
+      "value": 50,
+      "visible": true
+     }
+    ],
+    "filledAreasStyle": {
+     "fill_0": {
+      "color": "#008000",
+      "display": 15,
+      "transparency": 90,
+      "visible": true
+     },
+     "fill_1": {
+      "color": "#008080",
+      "display": 15,
+      "transparency": 90,
+      "visible": true
+     }
+    },
+    "palettes": {
+     "palette_0": {
+      "colors": {
+       "0": {
+        "color": "#00FF00",
+        "style": 0,
+        "width": 1
+       },
+       "1": {
+        "color": "#800000",
+        "style": 0,
+        "width": 1
+       }
+      }
+     }
+    },
+    "graphics": {}
+   }
+  },
+  "3": {
+   "title": "UCTPROBE_VW_CS1_TRANSP_V3",
+   "defaults": {
+    "styles": {
+     "plot_0": {
+      "color": "#0000FF",
+      "display": 15,
+      "linestyle": 0,
+      "linewidth": 1,
+      "plottype": 0,
+      "trackPrice": false,
+      "transparency": 35,
+      "visible": true
+     },
+     "plot_1": {
+      "color": "#FF0000",
+      "display": 15,
+      "linestyle": 0,
+      "linewidth": 1,
+      "plottype": 0,
+      "trackPrice": false,
+      "transparency": 35,
+      "visible": true
+     },
+     "plot_2": {
+      "transparency": 90
+     },
+     "plot_3": {
+      "colordown": "#FF00FF",
+      "colorup": "#00FFFF",
+      "display": 15,
+      "transparency": 35,
+      "visible": true
+     },
+     "plot_4": {
+      "color": "#000080",
+      "display": 15,
+      "linestyle": 0,
+      "linewidth": 1,
+      "plottype": 5,
+      "trackPrice": false,
+      "transparency": 35,
+      "visible": true
+     },
+     "plot_5": {
+      "color": "#808000",
+      "display": 15,
+      "linestyle": 0,
+      "linewidth": 1,
+      "plottype": 9,
+      "trackPrice": false,
+      "transparency": 35,
+      "visible": true
+     }
+    },
+    "bands": [
+     {
+      "color": "#800080",
+      "display": 15,
+      "linestyle": 2,
+      "linewidth": 1,
+      "value": 100,
+      "visible": true
+     },
+     {
+      "color": "#FF7F00",
+      "display": 15,
+      "linestyle": 2,
+      "linewidth": 1,
+      "value": 50,
+      "visible": true
+     }
+    ],
+    "filledAreasStyle": {
+     "fill_0": {
+      "color": "#008000",
+      "display": 15,
+      "transparency": 90,
+      "visible": true
+     },
+     "fill_1": {
+      "color": "#008080",
+      "display": 15,
+      "transparency": 90,
+      "visible": true
+     }
+    },
+    "palettes": {
+     "palette_0": {
+      "colors": {
+       "0": {
+        "color": "#00FF00",
+        "style": 0,
+        "width": 1
+       },
+       "1": {
+        "color": "#800000",
+        "style": 0,
+        "width": 1
+       }
+      }
+     }
+    }
+   },
+   "bands": [
+    {
+     "id": "hline_0",
+     "isHidden": false,
+     "name": "H1_hline_purple"
+    },
+    {
+     "id": "hline_1",
+     "isHidden": false,
+     "name": "H2_hline_orange"
+    }
+   ],
+   "filledAreas": [
+    {
+     "id": "fill_0",
+     "isHidden": false,
+     "objAId": "plot_0",
+     "objBId": "plot_1",
+     "title": "F1_fill_plots_green",
+     "type": "plot_plot"
+    },
+    {
+     "id": "fill_1",
+     "isHidden": false,
+     "objAId": "hline_0",
+     "objBId": "hline_1",
+     "title": "F2_fill_hlines_teal",
+     "type": "hline_hline"
+    }
+   ],
+   "state": {
+    "styles": {
+     "plot_0": {
+      "color": "#0000FF",
+      "display": 15,
+      "linestyle": 0,
+      "linewidth": 1,
+      "plottype": 0,
+      "trackPrice": false,
+      "transparency": 35,
+      "visible": true,
+      "title": "plot_0"
+     },
+     "plot_1": {
+      "color": "#FF0000",
+      "display": 15,
+      "linestyle": 0,
+      "linewidth": 1,
+      "plottype": 0,
+      "trackPrice": false,
+      "transparency": 35,
+      "visible": true,
+      "title": "plot_1"
+     },
+     "plot_2": {
+      "transparency": 90,
+      "display": 4294967295,
+      "color": "#2962FF",
+      "linestyle": 0,
+      "linewidth": 2,
+      "plottype": "bg_colorer",
+      "trackPrice": false,
+      "title": "plot_2"
+     },
+     "plot_3": {
+      "colordown": "#FF00FF",
+      "colorup": "#00FFFF",
+      "display": 15,
+      "transparency": 35,
+      "visible": true,
+      "color": "#2962FF",
+      "linestyle": 0,
+      "linewidth": 2,
+      "plottype": "arrows",
+      "trackPrice": false,
+      "title": "plot_3"
+     },
+     "plot_4": {
+      "color": "#000080",
+      "display": 15,
+      "linestyle": 0,
+      "linewidth": 1,
+      "plottype": 5,
+      "trackPrice": false,
+      "transparency": 35,
+      "visible": true,
+      "title": "plot_4"
+     },
+     "plot_5": {
+      "color": "#808000",
+      "display": 15,
+      "linestyle": 0,
+      "linewidth": 1,
+      "plottype": 9,
+      "trackPrice": false,
+      "transparency": 35,
+      "visible": true,
+      "title": "plot_5"
+     }
+    },
+    "bands": [
+     {
+      "color": "#800080",
+      "display": 15,
+      "linestyle": 2,
+      "linewidth": 1,
+      "value": 100,
+      "visible": true
+     },
+     {
+      "color": "#FF7F00",
+      "display": 15,
+      "linestyle": 2,
+      "linewidth": 1,
+      "value": 50,
+      "visible": true
+     }
+    ],
+    "filledAreasStyle": {
+     "fill_0": {
+      "color": "#008000",
+      "display": 15,
+      "transparency": 90,
+      "visible": true
+     },
+     "fill_1": {
+      "color": "#008080",
+      "display": 15,
+      "transparency": 90,
+      "visible": true
+     }
+    },
+    "palettes": {
+     "palette_0": {
+      "colors": {
+       "0": {
+        "color": "#00FF00",
+        "style": 0,
+        "width": 1
+       },
+       "1": {
+        "color": "#800000",
+        "style": 0,
+        "width": 1
+       }
+      }
+     }
+    },
+    "graphics": {}
+   }
+  }
+ }
+}

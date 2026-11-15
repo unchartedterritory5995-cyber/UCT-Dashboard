@@ -52,7 +52,7 @@ from starlette.middleware.cors import CORSMiddleware
 from starlette.middleware.gzip import GZipMiddleware
 from starlette.staticfiles import StaticFiles
 
-from api.services import build_manifest
+from api.services import build_manifest, request_ip
 from api.services.static_assets import ImmutableStaticFiles
 
 logger = logging.getLogger("uct.front")
@@ -61,6 +61,12 @@ DEFAULT_DIST = os.path.join(os.path.dirname(__file__), "..", "app", "dist")
 
 #: Seconds to wait for a connection to `web` before answering 502.
 CONNECT_TIMEOUT_S = 5.0
+#: How long an unused connection to `web` is kept for the next request. It must be SHORTER
+#: than `web`'s own idle limit (uvicorn's keep-alive, 5 s): with the two equal, both sides let
+#: go of a connection in the same instant, and a request written in that instant is lost on a
+#: connection `web` has just closed. Nothing here retries, so that would be a 502 for the
+#: member. `tests/test_front_app_parity.py` reads `web`'s limit and requires the margin.
+UPSTREAM_KEEPALIVE_EXPIRY_S = 2.0
 
 #: path, file inside the build, media type, Cache-Control (None = none sent).
 #: Mirrors the `FileResponse` routes in `api/main.py`. `tests/test_front_app.py` serves the
@@ -217,7 +223,8 @@ def create_app(dist: str | None = None, upstream: str | None = None,
         app.state.client = httpx.AsyncClient(
             transport=transport,
             timeout=httpx.Timeout(connect=CONNECT_TIMEOUT_S, read=None, write=60.0, pool=CONNECT_TIMEOUT_S),
-            limits=httpx.Limits(max_connections=2000, max_keepalive_connections=200),
+            limits=httpx.Limits(max_connections=2000, max_keepalive_connections=200,
+                                keepalive_expiry=UPSTREAM_KEEPALIVE_EXPIRY_S),
             follow_redirects=False,
             trust_env=False,
         )
@@ -250,6 +257,26 @@ def create_app(dist: str | None = None, upstream: str | None = None,
         not take the front door out of rotation with it."""
         return JSONResponse({"status": "ok", "role": "front", **build_manifest.build_info(dist, commit())},
                             headers={"Cache-Control": "no-store"})
+
+    @app.get("/__front/edge", include_in_schema=False)
+    def front_edge(request: Request):
+        """What Railway's edge told THIS app about the caller, read by the code `web` reads it with.
+
+        `web` limits requests by client address (`RATE_LIMIT_POLICY`), from three headers the edge
+        writes. This app forwards them untouched, so what `request_ip.client_ip` makes of them here
+        is what `web` will make of them. If the edge ever stopped writing them for this service,
+        every member would look like one address to `web`; this is where that shows first.
+        It tells a caller their own address and nothing else, and is never cached.
+        """
+        forwarded = [part.strip() for part in (request.headers.get("x-forwarded-for") or "").split(",") if part.strip()]
+        return JSONResponse({
+            "client_ip": request_ip.client_ip(request),
+            "edge_wrote_x_forwarded_for": bool(forwarded),
+            "x_forwarded_for_entries": len(forwarded),
+            "connecting_address_in_cloudflare": request_ip.in_cloudflare(forwarded[0] if forwarded else None),
+            "x_real_ip_present": bool(request.headers.get("x-real-ip")),
+            "cf_connecting_ip_present": bool(request.headers.get("cf-connecting-ip")),
+        }, headers={"Cache-Control": "no-store"})
 
     @app.get("/build.json", include_in_schema=False)
     def build_json():

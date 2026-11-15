@@ -4,11 +4,9 @@
 //
 // ⚰️ THE MEASUREMENT THAT MADE IT A RULING. After R-F,
 // `high_engagement__03-supertrend-kivancozbilgic` refused on all nine of its
-// visible outputs and kept exactly one: line 29,
-//
-//     mPlot = plot(ohlc4, title="", style=plot.style_circles, linewidth=0)
-//     fill(mPlot, pPlot, …)
-//
+// visible outputs and kept exactly one: line 29, an UNTITLED, zero-width plot
+// of `ohlc4` that the script only uses as one edge of a `fill` (not quoted: the
+// script is licence-held, docs/pine/LICENSING.md §2d)
 // — the author's untitled band edge. The door OFFERED it, and selected it, so an
 // import produced a saveable definition named after a Supertrend that computes
 // `(open + high + low + close) / 4`. Owner, 2026-09-12: *"a column offered under
@@ -25,14 +23,15 @@
 // author simply did not name; filled ALONE would refuse a named series the author
 // plots and also fills against. The controls below hold both directions.
 import { describe, it, expect } from 'vitest'
-import fs from 'node:fs'
 import path from 'node:path'
 import { translatePine, REFUSALS } from './pine.js'
+import { pineFixtureDir } from './__tests__/licenceHeld'
 
 const REPO = path.resolve(process.cwd(), '..')
-const OOS = path.join(REPO, 'tools/c0_oos_fixtures')
+// ⛔ `…03-supertrend` is LICENCE-HELD (2026-11-15, docs/pine/vendor-harness/licence-held.json):
+// read from the local store when present, its case SKIPPED BY NAME when not.
+const OOS = pineFixtureDir('tools/c0_oos_fixtures')
 const FIX = path.join(REPO, 'tests/fixtures/pine')
-const read = (p) => fs.readFileSync(p, 'utf8')
 const guardsOf = (r) => [...new Set((r.refusals || []).map((x) => x.guard))]
 const HEAD = '//@version=5\nindicator("Band demo")\n'
 
@@ -43,8 +42,8 @@ describe('⛔ branch A — every survivor is a helper the author hid', () => {
   // The RANGE window decides that test (`interpret.js::RANGE_TOP`), so the columns
   // are real and the fill edge is a helper BESIDE them — branch B, below. The rule
   // itself is railed by the constructed cases in this block, both spellings.
-  it('⭐⭐ the script that made this a ruling now offers its supertrend — and still never the `ohlc4` edge', () => {
-    const r = translatePine(read(path.join(OOS, 'high_engagement__03-supertrend-kivancozbilgic.pine')))
+  OOS.it(['high_engagement__03-supertrend-kivancozbilgic'], '⭐⭐ the script that made this a ruling now offers its supertrend — and still never the `ohlc4` edge', () => {
+    const r = translatePine(OOS.read('high_engagement__03-supertrend-kivancozbilgic'))
     expect(guardsOf(r)).not.toContain('pine:hidden-only')
     expect(guardsOf(r)).not.toContain('pine:state')
     expect(r.selected).toBeGreaterThanOrEqual(0)

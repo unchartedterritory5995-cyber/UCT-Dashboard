@@ -231,6 +231,12 @@ button.pill:hover { border-color: var(--ut-gold); }
 .ntBtn:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 2px; }
 .ntBtn[aria-pressed="true"] { color: var(--success-ink); font-weight: 700; }
 .ntPop { position: absolute; top: 100%; right: 0; z-index: var(--z-dropdown); display: flex; flex-wrap: wrap; gap: 6px; max-width: 260px; margin-top: 4px; padding: 8px; background: var(--bg-surface); border: 1px solid var(--border-accent); border-radius: var(--radius-lg); color: var(--text); box-shadow: var(--shadow-popover); }
+/* Dropped names with reasons (RS screens): one name a line, its reason beside it in plain sight
+   (a title is never seen on a phone). Only when a name has a reason; else the chips above. */
+.ntPopRows { flex-direction: column; flex-wrap: nowrap; gap: 6px; width: max-content; max-width: min(340px, calc(100vw - 32px)); }
+.ntWhy { display: flex; align-items: baseline; gap: 8px; }
+.ntTicker { flex: none; min-width: 44px; font-weight: 700; }
+.ntReason { min-width: 0; color: var(--text-muted); font-size: var(--text-xs); line-height: 1.35; }
 .ntNote { margin-right: 10px; font-size: var(--text-sm); color: var(--text-muted); }
 
 /* Phones (spec 2026-10-16 s3): one column, list first. The side pane is hidden here and the
@@ -243,6 +249,16 @@ button.pill:hover { border-color: var(--ut-gold); }
      above the safe area (app/src/hub/constants.js; the hub has no CSS token for its footprint). */
   .list { padding-bottom: calc(152px + env(safe-area-inset-bottom)); }
   .row { min-height: var(--tap-min); }
+  /* RS screens (`data-phone-scroll`, FocusScreener.jsx): their controls, ratings line, market
+     line and "not in this list" line sit above the list, and with the list as its own scroller
+     they left it about one row tall (152px at 390 x 778, live site, 2026-11-15). Here the page
+     is the one scroller: everything above the list scrolls away with it, and the sort line
+     stays at the top. ResultList keeps a stepped selection in view by scrolling this page. */
+  .page[data-phone-scroll] { overflow-y: auto; overscroll-behavior: contain; }
+  .page[data-phone-scroll] > .body { flex: none; min-height: auto; }
+  .page[data-phone-scroll] .listWrap { flex: none; min-height: auto; }
+  .page[data-phone-scroll] .list { flex: none; overflow-y: visible; }
+  .page[data-phone-scroll] .listHead { position: sticky; top: 0; z-index: 3; background: var(--bg); }
 }
 /* The chart sheet: a header strip (the only place a swipe steps stocks), then the pane. */
 .phoneSheetBody { display: flex; flex-direction: column; overflow: hidden; padding: 0; }

@@ -1,0 +1,43 @@
+study("UCTPROBE_VW_CS2_BOOL_NA_V1_CUM", overlay=false)
+
+// PROVENANCE: written 2026-11-15 for the Pine parity programme, capture session S17
+// (objects-lane PROBES-NEXT.md item 9, engine 56 review item 2). The S1 bool-na probe
+// (vw-cs1-bool-na-v2/v4/v5) at //@version=1: NO version header, so TradingView reads it as v1.
+// Bool-na rule A3 on the warm-up bars where na_s = sma(close, 20) is na. B rows are encoded
+// 1 = true, 0 = false, -1 = na(x); R rows read the same value as plain x ? 1 : 0. H rows: an
+// OFFSET of a value form, (c != false)[1] and x, and c[1] ? 1 : 0.
+// S18 -cum copy: the bar-index control is cum(1) - 1 instead of n, so an engine without `n` can grade it.
+// CAPTURE: NYSE:RDDT 1D from the listing, inputs at defaults.
+
+na_s = sma(close, 20)
+c = close > na_s
+x = close > open
+cf = c != false
+enc(v) => na(v) ? -1 : v ? 1 : 0
+raw(v) => v ? 1 : 0
+
+plot(cum(1) - 1, title="A00_bar_index_CONTROL")
+plot(na_s, title="A01_na_s")
+plot(na(na_s) ? 1 : 0, title="A02_na_s_is_na")
+plot(enc(c), title="B00_c")
+plot(enc(c == false), title="B01_c_eq_false")
+plot(enc(c != false), title="B02_c_ne_false")
+plot(enc(c == true), title="B03_c_eq_true")
+plot(enc(not c), title="B04_not_c")
+plot(enc(c and true), title="B05_c_and_true")
+plot(enc(c or true), title="B06_c_or_true")
+plot(enc(c and false), title="B07_c_and_false")
+plot(enc(c or false), title="B08_c_or_false")
+plot(raw(c), title="RB00_c")
+plot(raw(c == false), title="RB01_c_eq_false")
+plot(raw(c != false), title="RB02_c_ne_false")
+plot(raw(c == true), title="RB03_c_eq_true")
+plot(raw(not c), title="RB04_not_c")
+plot(raw(c and true), title="RB05_c_and_true")
+plot(raw(c or true), title="RB06_c_or_true")
+plot(raw(c and false), title="RB07_c_and_false")
+plot(raw(c or false), title="RB08_c_or_false")
+plot(enc(cf[1] and x), title="H00_cf_off1_and_x")
+plot(raw(cf[1] and x), title="H01_cf_off1_and_x_raw")
+plot(c[1] ? 1 : 0, title="H02_c_off1_ternary")
+plot(enc(c[1]), title="H03_c_off1")

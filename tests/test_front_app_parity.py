@@ -29,6 +29,7 @@ Mutation proof (run before calling these done):
     8. front_app.is_gzip_exempt also exempts /og-image.png    -> test_gzip_exemption_agrees_... RED
     9. LocalAnswerLayers stacks CORS outside gzip             -> test_build_json_leaves_both_stacks_... RED
                                                                  (the Origin+Cookie+gzip case: `Vary` order)
+   10. front_app.UPSTREAM_KEEPALIVE_EXPIRY_S = 5.0               -> test_the_front_door_drops_an_idle_connection_well_before_web_does RED
 """
 from __future__ import annotations
 
@@ -289,6 +290,25 @@ def test_the_layer_comparison_can_see_a_difference(dist):
     assert web["content-encoding"] == ["gzip"] and web["vary"] == ["Accept-Encoding"]
     assert web["access-control-allow-origin"] == ["*"]
     assert len(web["body"]) < 1000, "the answer is no longer under web's declared 1000-byte floor"
+
+
+# ── idle connections: the front door lets go before `web` does ────────────────
+
+def test_the_front_door_drops_an_idle_connection_well_before_web_does():
+    """`web` closes a connection idle for uvicorn's keep-alive. The front door must have dropped
+    it at least 2 s earlier. Read from both ways `web` can start: `api/serve_dual.py`, and the
+    image's plain `uvicorn` command (which passes no keep-alive flag, so uvicorn's default)."""
+    import uvicorn
+
+    from api import serve_dual
+
+    web_idle = serve_dual.build_config().timeout_keep_alive
+    assert uvicorn.Config("api.main:app").timeout_keep_alive == web_idle
+    with open(os.path.join(ROOT, "Dockerfile.web"), encoding="utf-8") as f:
+        assert "--timeout-keep-alive" not in f.read(), (
+            "Dockerfile.web now sets web's keep-alive: compare front_app.UPSTREAM_KEEPALIVE_EXPIRY_S with THAT value")
+    assert front_app.UPSTREAM_KEEPALIVE_EXPIRY_S <= web_idle - 2, (front_app.UPSTREAM_KEEPALIVE_EXPIRY_S, web_idle)
+    assert front_app.UPSTREAM_KEEPALIVE_EXPIRY_S >= 1, "below a second, connections would hardly ever be reused"
 
 
 # ── every route outside /api is accounted for ─────────────────────────────────

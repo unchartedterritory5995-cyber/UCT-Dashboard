@@ -87,12 +87,16 @@ ALERT_TAXONOMY_JOINS = (
     ("scan_membership_comparison_spans", "predicate_id", "alert_predicates"),
 )
 
-#: screener.db -- the screen-alert subscriptions and their fire (dedup) rows, and the
-#: standing-screen (spec) alert subscriptions.
+#: screener.db -- the screen-alert subscriptions and their fire (dedup) rows, the
+#: standing-screen (spec) alert subscriptions, and the RS screens' daily joined-and-left
+#: message: which screens the member asked about and what was already sent
+#: (`screener/rs_screen_alerts.py`, RS screens unit U13).
 SCREENER_TABLES = (
     "screen_alert_subs",
     "screen_alerts_fired",
     "spec_alert_subs",
+    "rs_screen_alert_subs",
+    "rs_screen_alerts_fired",
 )
 SCREENER_JOINS = (
     ("spec_alert_snapshots", "sub_id", "spec_alert_subs"),

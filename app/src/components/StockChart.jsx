@@ -1952,6 +1952,20 @@ function chartTickMarkFormatter(time, tickMarkType) {
   return String(d.getUTCDate())                                  // DayOfMonth
 }
 
+// THE STUDY CHART'S DATE AXIS (studyMode only; the Study screen check, 2026-11-14: a finished replay read
+// "Feb 4 Apr May"). The library places tick marks greedily, heaviest first, each at least one label width from the
+// last: a short month (Feb 2025 has 19 sessions) can fall inside that width and lose its month mark, and then a DAY
+// mark a session or two later fits, so a bare "4" stood where "Mar" belongs. On a daily study chart such a day mark is
+// always within a few sessions of the month it stands in for, so a day mark in a month's first week names its month
+// ("Mar 4"); later days stay bare numbers, the usual axis. Intraday and the year and month marks read as everywhere.
+export function studyTickMarkFormatter(time, tickMarkType) {
+  if (typeof time !== 'number' && tickMarkType === 2) {
+    const d = _dayDate(time)
+    if (d && d.getUTCDate() <= 7) return `${_MO[d.getUTCMonth()]} ${d.getUTCDate()}`
+  }
+  return chartTickMarkFormatter(time, tickMarkType)
+}
+
 // CROSSHAIR time label (the hover box on the axis): weekday + date [+ 12-hour].
 // e.g. "Tue 14 Jul '26 12:00 AM"  (daily: "Tue 14 Jul '26").
 function chartCrosshairTimeFormatter(time) {
@@ -3204,6 +3218,7 @@ export default function StockChart({
   className = '',
   showDrawingTools: showDrawingToolsProp = true,
   studyMode = false,        // Study drills (spec §13.2 T1): the chart shows an ITEM, not a ticker. Nulls useTickerMeta/useTickerIpo/useChartDrawings (no provider lookups or localStorage under the item id), turns every marker/news/desk feed off, prints no symbol in the loading/error copy, and defaults the drawing tools OFF. Additive: a caller that never passes it is byte-identical.
+  tickLabelChars = null,    // opt-in: the date axis sizes its label slot for this many characters (the library's default is 8). The Study drill passes 5 on a wide screen, where its daily labels are "Sep" / "2025" / "Mar 4" and the 8-character slot skipped a short month's mark. Unset = byte-identical.
   onSymbolChange = null,
   onBarContextMenu = null,  // Journal 2.0: right-click a bar → callback({bar, clientX, clientY})
   entryDate = null,         // ISO date string — zoom centers on trade holding period
@@ -8819,6 +8834,8 @@ export default function StockChart({
   const [replayIndex, setReplayIndex] = useState(null)
   const [replayPlaying, setReplayPlaying] = useState(false)
   const [replaySpeed, setReplaySpeed] = useState(1)
+  // the Replay bar's handlers + state for the UCT Agent's door (written each render below; never read during render)
+  const replayCtlRef = useRef(null)
 
   // ── Extended-hours session preview (Charts workspace; D/W/M only) ──────────
   // `sessionView` is non-null only on the workspace. `marketSession` is the live
@@ -10894,7 +10911,7 @@ export default function StockChart({
     let _plotFrom = null
     {
       const _pw = plotWindowRef.current
-      const _pwKey = `${sym}_${resolvedTf}`
+      const _pwKey = _exKey   // this render's symbol+timeframe key (the one-key census counts sites)
       if (_pw.key !== _pwKey) {
         let _span = 0
         try {
@@ -11176,6 +11193,10 @@ export default function StockChart({
         // default headroom. vertMarginsRef is captured in fractions of the pane, so the
         // candles land in the same relative spot regardless of the stock's price.
         scaleMargins: vertMarginsRef.current || _mainMargins(paneLayoutRef.current, priceScaleTopMargin, volumePaneExists ? priceScaleBottomMargin : null),
+        // A Study chart prints a top or bottom price label only when the whole label fits (the screen check,
+        // 2026-11-14: "140.00" cut in half at the top and "52.00" sliced by the volume pane). Every other chart keeps
+        // the library default.
+        ...(_study ? { entireTextOnly: true } : {}),
       },
       localization: {
         // Crosshair time label (the hover box on the axis): weekday + date +
@@ -11190,8 +11211,12 @@ export default function StockChart({
         borderVisible: false,
         timeVisible: true,
         secondsVisible: false,
-        // Bottom-axis tick labels: 12-hour on intraday (default is 24-hour).
-        tickMarkFormatter: chartTickMarkFormatter,
+        // Bottom-axis tick labels: 12-hour on intraday (default is 24-hour). A Study chart names the month on a
+        // first-week day mark (studyTickMarkFormatter).
+        tickMarkFormatter: _study ? studyTickMarkFormatter : chartTickMarkFormatter,
+        // A host that knows its labels are short sizes the library's label slot to them (`tickLabelChars`, opt-in; the
+        // Study drill on a wide screen). Unset, the library's own eight-character slot, as on every other chart.
+        ...(tickLabelChars > 0 ? { tickMarkMaxCharacterLength: tickLabelChars } : {}),
         // Exact-range (Model Book) locks to a historical window, so don't pin the
         // latest bar to the right edge — that re-expands the view to "now".
         rightOffset: exactDateRange ? 0 : rightPadBars,
@@ -13405,6 +13430,10 @@ export default function StockChart({
             axisLabelVisible: pl.axisLabelVisible ?? true,
             lineVisible: pl.lineVisible ?? true,   // session ext tag = chip only (no line)
             title: pl.title || '',
+            // An axis tag drawn in its own chip colours, only when the line asks (the Study trade levels' dark chips,
+            // tradeMarks.tradeLevelLines); every other line keeps the library's colour-filled tag.
+            ...(pl.axisLabelColor ? { axisLabelColor: pl.axisLabelColor } : {}),
+            ...(pl.axisLabelTextColor ? { axisLabelTextColor: pl.axisLabelTextColor } : {}),
           })
           priceLineRefs.current.push(ref)
         }
@@ -14115,7 +14144,7 @@ export default function StockChart({
     // (mutation M3 SURVIVED): something else in this list is already unstable per
     // render. Kept as the one declaration that names this dependency; the full
     // reasoning is at the `useInstalledUserDefinitions` call site above.
-  }, [volumePaneHeightPct, filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, calcFrames, applyAverageZOrder, showExtended, _intradayLike, fundamentalSources, marketCapAuthoritySources, economicSources, _econId, historyFromListing, strategyHistoryWindow, strategyWindowPending, otherSymbolExchangeOf, lowerTfSources, csView, secondarySources, serverColumnsGeneration, compactAxes, _plotWindowFullKey, _pinnedFull, _overlayActive, _hasOverride])
+  }, [volumePaneHeightPct, filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, calcFrames, applyAverageZOrder, showExtended, _intradayLike, fundamentalSources, marketCapAuthoritySources, economicSources, _econId, historyFromListing, strategyHistoryWindow, strategyWindowPending, otherSymbolExchangeOf, lowerTfSources, csView, secondarySources, serverColumnsGeneration, compactAxes, _plotWindowFullKey, _pinnedFull, _overlayActive, _hasOverride, _study, tickLabelChars])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   useEffect(() => {
@@ -18137,7 +18166,7 @@ export default function StockChart({
   useEffect(() => {
     const chart = chartRef.current
     if (!chart) return undefined
-    const key = `${sym}_${resolvedTf}`
+    const key = _exKey   // the same key `_pwKey` compares against (built once per render)
     if (_plotWindowFullKey === key) return undefined
     let raf = null
     const check = () => {
@@ -18624,6 +18653,62 @@ export default function StockChart({
     } catch { /* noop */ }
   }
 
+  // ── Replay / Time Machine bar: its OWN handlers. The toolbar's buttons (ChartToolbar onReplay*) and the UCT Agent's
+  // onDateNavApi.replay (chartReplay.playback) call these SAME functions; replayCtlRef is a plain ref write per render
+  // (no state, no effect), so the Agent's door always reaches this render's handlers and reads this render's state.
+  const replayToggle = () => {
+    if (replayMode) {
+      setReplayMode(false)
+      setReplayPlaying(false)
+      setReplayIndex(null)
+    } else {
+      setReplayMode(true)
+      setReplayPlaying(false)
+      setReplayIndex(Math.floor((sessionBars?.length || 1) * 0.7))
+    }
+  }
+  const replayPlayPause = () => setReplayPlaying(p => !p)
+  const replayStep = (dir) => {
+    setReplayPlaying(false)
+    setReplayIndex(i => {
+      const max = (sessionBars?.length || 1) - 1
+      return Math.max(0, Math.min(max, (i ?? 0) + dir))
+    })
+  }
+  const replayIndexChange = (idx) => {
+    setReplayPlaying(false)
+    const max = (sessionBars?.length || 1) - 1
+    setReplayIndex(Math.max(0, Math.min(max, idx)))
+  }
+  // the Replay button is on this chart only where the primary toolbar mounts visibly with it (not a grid cell, not the phone shell)
+  replayCtlRef.current = { toggle: replayToggle, playPause: replayPlayPause, step: replayStep, seek: replayIndexChange, setSpeed: setReplaySpeed,
+    can: !!showDrawingTools && !hideReplay && !mobileDrawBar, mode: replayMode, playing: replayPlaying, speed: replaySpeed, index: replayIndex, bars: sessionBars }
+  // ⭐ UCT Agent's replay door: one op → the button that op names, only when that button would do it (never a toggle by accident)
+  const replayDo = (a) => {
+    const c = replayCtlRef.current
+    if (!c?.can || !a || typeof a !== 'object') return
+    const n = c.bars?.length || 0
+    if (a.op === 'enter') { if (!c.mode && n) c.toggle(); return }
+    if (a.op === 'restore') { if (!c.mode && n) c.toggle(); if (Number.isInteger(a.index)) c.seek(a.index); return }   // Undo of an exit
+    if (!c.mode) return
+    if (a.op === 'exit') c.toggle()
+    else if (a.op === 'play') { if (!c.playing) c.playPause() }
+    else if (a.op === 'pause') { if (c.playing) c.playPause() }
+    else if (a.op === 'step' && Number.isInteger(a.n)) c.step(a.n)
+    else if (a.op === 'seek' && Number.isInteger(a.index)) c.seek(a.index)
+    else if (a.op === 'seekDate' && Number.isFinite(a.ms)) {
+      // the scrubber at the last bar on or before that day (the bar's own day; never past the replay's bars)
+      let idx = -1
+      for (let i = 0; i < n; i++) { if (_dateToMs(c.bars[i].t) <= a.ms + 86399999) idx = i; else break }
+      if (idx >= 0) c.seek(idx)
+    } else if (a.op === 'speed' && [1, 5, 20].includes(a.speed)) c.setSpeed(a.speed)
+  }
+  const replayMeta = () => {
+    const c = replayCtlRef.current, b = c?.bars, n = b?.length || 0, i = c?.index
+    return { can: !!c?.can && n > 0, mode: !!c?.mode, playing: !!c?.playing, speed: c?.speed ?? 1, index: c?.mode && i != null ? i : null, total: n,
+      dateMs: c?.mode && i != null && b?.[i] ? _dateToMs(b[i].t) : null, firstMs: n ? _dateToMs(b[0].t) : null, lastMs: n ? _dateToMs(b[n - 1].t) : null }
+  }
+
   // ── Imperative date-nav API (published to the host via onDateNavApi) ──
   // Drives the top-bar Time Navigator box (ChartDateNav): jump to a date at the
   // right edge, frame a whole year, step one bar, and read the loaded date span.
@@ -18721,6 +18806,8 @@ export default function StockChart({
       // panel's own entry / stop / target strings (PositionPanel onChange writes the same state)
       positionCalc: { can: !!showDrawingToolsRef.current, open: !!showDrawingToolsRef.current && activeToolRef.current === 'position', entry: positionToolRef.current.entry, stop: positionToolRef.current.stop,
         target: positionToolRef.current.target, direction: positionToolRef.current.direction },
+      // ⭐ UCT Agent (chartReplay.playback): the Replay / Time Machine bar as it is now — on, playing, speed, scrubber index
+      replay: replayMeta(),
     }
   }
   // ⭐ UCT Agent (drawing extras): the Position Calculator through the tool's OWN state — the toolbar button's
@@ -18747,7 +18834,7 @@ export default function StockChart({
   }
   useEffect(() => {
     if (typeof onDateNavApi !== 'function') return undefined
-    onDateNavApi({ goToDate, goToYear, stepBar, ensureFullHistory, getDateMeta, applyRange, restoreView, resetView: () => resetViewRef.current?.(), setIndicatorsHidden, autoScale: () => autoScaleRef.current?.(), zoom: (z) => zoomTimeAxis(chartRef.current, !!z?.out, z?.steps), positionCalc })
+    onDateNavApi({ goToDate, goToYear, stepBar, ensureFullHistory, getDateMeta, applyRange, restoreView, resetView: () => resetViewRef.current?.(), setIndicatorsHidden, autoScale: () => autoScaleRef.current?.(), zoom: (z) => zoomTimeAxis(chartRef.current, !!z?.out, z?.steps), positionCalc, replay: replayDo })
     return () => onDateNavApi(null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onDateNavApi, barCount, isValidating, fetchDepth, originLoading])
@@ -21229,30 +21316,11 @@ export default function StockChart({
             replayDate={replayMode && filteredBars?.length ? filteredBars[filteredBars.length - 1]?.t : null}
             replayIndex={replayIndex ?? 0}
             replayTotal={sessionBars?.length || 0}
-            onReplayToggle={() => {
-              if (replayMode) {
-                setReplayMode(false)
-                setReplayPlaying(false)
-                setReplayIndex(null)
-              } else {
-                setReplayMode(true)
-                setReplayPlaying(false)
-                setReplayIndex(Math.floor((sessionBars?.length || 1) * 0.7))
-              }
-            }}
-            onReplayPlayPause={() => setReplayPlaying(p => !p)}
-            onReplayStep={dir => {
-              setReplayPlaying(false)
-              setReplayIndex(i => {
-                const max = (sessionBars?.length || 1) - 1
-                return Math.max(0, Math.min(max, (i ?? 0) + dir))
-              })
-            }}
-            onReplayIndexChange={idx => {
-              setReplayPlaying(false)
-              const max = (sessionBars?.length || 1) - 1
-              setReplayIndex(Math.max(0, Math.min(max, idx)))
-            }}
+            /* the Replay bar's own handlers (defined above the date-nav API: the Agent's replay door calls the same ones) */
+            onReplayToggle={replayToggle}
+            onReplayPlayPause={replayPlayPause}
+            onReplayStep={replayStep}
+            onReplayIndexChange={replayIndexChange}
             onReplaySpeedChange={setReplaySpeed}
             showPatterns={showPatterns}
             onTogglePatterns={handleTogglePatterns}

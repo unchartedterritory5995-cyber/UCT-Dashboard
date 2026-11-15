@@ -24,6 +24,14 @@ Mutation proof (run before calling these done):
    11. let the layers see an OPTIONS            -> test_every_options_request_goes_to_web RED (preflight cases)
    12. drop the OPTIONS_TO_WEB_PREFIXES routes  -> test_every_options_request_goes_to_web RED (folder cases)
    13. drop the CORS layer                      -> test_local_answers_carry_the_cors_header_web_adds RED
+   14. /__front/edge reports the TCP peer       -> test_front_edge_reads_the_callers_address_the_way_web_does RED
+   15. /__front/edge drops `no-store`           -> test_front_edge_reads_the_callers_address_the_way_web_does RED
+   16. proxy drops X-Real-IP                    -> test_front_edge_and_web_are_handed_the_same_three_headers RED
+   17. no keepalive_expiry on the client        -> test_an_idle_connection_to_web_is_dropped_before_web_drops_it RED
+   18. the read from web detached, never closed -> test_when_the_member_leaves_a_stream_the_connection_to_web_is_dropped RED
+       (removing only the explicit close SURVIVES: the HTTP library closes a cancelled read itself)
+   19. static_assets.register_missing_types does nothing
+                                                -> test_web_fonts_are_typed_where_python_does_not_know_them RED
 """
 from __future__ import annotations
 
@@ -82,6 +90,10 @@ def dist(tmp_path_factory):
 
 # ── a stand-in for `web` ──────────────────────────────────────────────────────
 
+#: token -> {"gone": bool}: whether the reader of a stand-in stream has gone away.
+STREAMS: dict = {}
+
+
 async def _upstream_app(scope, receive, send):
     if scope["type"] == "lifespan":
         while True:
@@ -112,6 +124,36 @@ async def _upstream_app(scope, receive, send):
             await asyncio.sleep(0.4)
         await send({"type": "http.response.body", "body": b"", "more_body": False})
         return
+    if path in ("/api/forever", "/api/silent", "/api/slow-stream"):
+        # A stream that ends only when whoever is reading it goes away. "forever" keeps sending;
+        # "silent" sends one event and then nothing, like a quiet market. Either way the moment
+        # the reader's connection closes is recorded under the caller's token.
+        token = scope["query_string"].decode()
+        STREAMS[token] = {"gone": False}
+        if path == "/api/slow-stream":
+            await asyncio.sleep(0.8)   # still working on the answer: no status line yet
+            STREAMS[token] = {"gone": False, "answered": True}
+        await send({"type": "http.response.start", "status": 200,
+                    "headers": [(b"content-type", b"text/event-stream"), (b"cache-control", b"no-store")]})
+        await send({"type": "http.response.body", "body": b"data: first\n\n", "more_body": True})
+
+        async def reader_left():
+            while (await receive())["type"] != "http.disconnect":
+                pass
+
+        left = asyncio.ensure_future(reader_left())
+        try:
+            while not left.done():
+                if path == "/api/forever":
+                    await send({"type": "http.response.body", "body": b"data: more\n\n", "more_body": True})
+                await asyncio.wait({left}, timeout=0.2)
+        finally:
+            left.cancel()
+            STREAMS[token] = dict(STREAMS[token], gone=True)
+        return
+    if path == "/api/stream-state":
+        out = json.dumps(STREAMS.get(scope["query_string"].decode(), {"gone": None})).encode()
+        return await reply(200, [(b"content-type", b"application/json")], [out])
     if path == "/api/gzip":
         return await reply(200, [(b"content-type", b"application/json"), (b"content-encoding", b"gzip"),
                                  (b"content-length", str(len(GZ_BODY)).encode()), (b"vary", b"Accept-Encoding")],
@@ -137,6 +179,7 @@ async def _upstream_app(scope, receive, send):
         "body_len": len(body),
         "body_sha": hashlib.sha256(body).hexdigest(),
         "from": "upstream",
+        "peer_port": (scope.get("client") or (None, None))[1],
     }
     out = json.dumps(echo).encode()
     await reply(200, [(b"content-type", b"application/json"), (b"content-length", str(len(out)).encode()),
@@ -281,6 +324,27 @@ def test_hashed_assets_are_immutable_and_precompressed(front, http):
     assert img.headers["cache-control"] == "public, max-age=31536000, immutable, no-transform"
     font = http.get(front + "/fonts/a.woff2")
     assert font.status_code == 200 and font.headers["cache-control"].startswith("public, max-age=31536000, immutable")
+    assert font.headers["content-type"] == "font/woff2"
+
+
+def test_web_fonts_are_typed_where_python_does_not_know_them(monkeypatch):
+    """The runtime image's Python has no entry for web fonts and no system table to read one
+    from, so a font went out as `text/plain`. This puts `mimetypes` in that state (the test
+    machine's own table usually does know fonts, which is why nothing ever failed), then
+    requires the registration to fix it."""
+    import mimetypes
+
+    from api.services import static_assets
+
+    bare = mimetypes.MimeTypes(filenames=())
+    for extension in (".woff2", ".woff"):
+        for table in bare.types_map:
+            table.pop(extension, None)
+    monkeypatch.setattr(mimetypes, "_db", bare)
+    assert mimetypes.guess_type("a.woff2")[0] is None, "the stripped table still knows .woff2: this test proves nothing"
+    static_assets.register_missing_types()
+    assert mimetypes.guess_type("a.woff2")[0] == "font/woff2"
+    assert mimetypes.guess_type("a.woff")[0] == "font/woff"
 
 
 @pytest.mark.parametrize("path", ["/assets/index-GONE.js", "/assets/index-abc123.js.br", "/assets/index-abc123.js.gz",
@@ -445,8 +509,11 @@ def test_a_stream_arrives_as_it_is_produced(front, http, headers):
     body = b"".join(c for _, c in arrivals)
     assert body == b"data: 0\n\ndata: 1\n\ndata: 2\n\n"
     first, last = arrivals[0][0], arrivals[-1][0]
-    assert first < 0.35, f"first event took {first:.2f}s: the stream was buffered"
-    assert last - first > 0.5, f"events arrived together ({first:.2f}s, {last:.2f}s)"
+    # The events leave 0.8 s apart, first to last. Buffered, they arrive in the same instant.
+    # No deadline on the first one: this gates promotion, and a shared runner that stalls for
+    # half a second must not read as a broken proxy. The spread is what tells the two apart.
+    assert len(arrivals) >= 2, "the three events arrived as one piece: the stream was buffered"
+    assert last - first > 0.25, f"events arrived together ({first:.2f}s, {last:.2f}s): the stream was buffered"
 
 
 def test_a_head_request_has_headers_and_no_body(front, http):
@@ -550,6 +617,113 @@ def test_every_options_request_goes_to_web(front, http, path, preflight):
     r = http.request("OPTIONS", front + path, headers=headers)
     assert r.status_code == 200 and r.json()["from"] == "upstream" and r.json()["method"] == "OPTIONS"
     assert "access-control-allow-origin" not in r.headers and "access-control-allow-methods" not in r.headers
+
+
+# ── /__front/edge: what the edge said about the caller, read the way `web` reads it ─
+#
+# `web` limits by client address, derived from three headers Railway's edge writes. The
+# front door forwards them untouched (test_the_request_arrives_unchanged). This endpoint
+# applies `web`'s own function to them HERE, so one request without a login shows what
+# `web` will see for traffic that comes through this service.
+
+CF_EDGE = "173.245.48.5"        # inside Cloudflare's published ranges
+RAILWAY_PROXY = "100.64.0.9"
+
+
+@pytest.mark.parametrize("headers,expected", [
+    # through Cloudflare: the edge that connected is Cloudflare's, so CF-Connecting-IP is the member
+    ({"X-Forwarded-For": f"{CF_EDGE}, {RAILWAY_PROXY}", "X-Real-IP": "198.51.100.7", "CF-Connecting-IP": "198.51.100.7"},
+     {"client_ip": "198.51.100.7", "edge_wrote_x_forwarded_for": True, "x_forwarded_for_entries": 2,
+      "connecting_address_in_cloudflare": True, "x_real_ip_present": True, "cf_connecting_ip_present": True}),
+    # straight at the origin with a forged CF-Connecting-IP: Railway's X-Real-IP wins
+    ({"X-Forwarded-For": f"203.0.113.50, {RAILWAY_PROXY}", "X-Real-IP": "203.0.113.50", "CF-Connecting-IP": "8.8.4.4"},
+     {"client_ip": "203.0.113.50", "edge_wrote_x_forwarded_for": True, "x_forwarded_for_entries": 2,
+      "connecting_address_in_cloudflare": False, "x_real_ip_present": True, "cf_connecting_ip_present": True}),
+    # no edge in front at all (this test): the peer, and the endpoint says so
+    ({},
+     {"client_ip": "127.0.0.1", "edge_wrote_x_forwarded_for": False, "x_forwarded_for_entries": 0,
+      "connecting_address_in_cloudflare": False, "x_real_ip_present": False, "cf_connecting_ip_present": False}),
+])
+def test_front_edge_reads_the_callers_address_the_way_web_does(front, http, headers, expected):
+    r = http.get(front + "/__front/edge", headers=headers)
+    assert r.status_code == 200 and r.json() == expected
+    assert r.headers["cache-control"] == "no-store", "one caller's address must never be cached for another"
+
+
+def test_front_edge_and_web_are_handed_the_same_three_headers(front, http):
+    """The endpoint is only evidence about `web` if `web` gets the same headers. Same request,
+    once to the endpoint and once passed through: the stand-in for `web` echoes what arrived."""
+    sent = {"X-Forwarded-For": f"{CF_EDGE}, {RAILWAY_PROXY}", "X-Real-IP": "198.51.100.7",
+            "CF-Connecting-IP": "198.51.100.7"}
+    here = http.get(front + "/__front/edge", headers=sent).json()
+    arrived = _headers(http.get(front + "/api/echo", headers=sent).json())
+    for name, value in sent.items():
+        assert arrived[name.lower()] == [value], name
+    assert here["client_ip"] == arrived["cf-connecting-ip"][0]
+
+
+# ── connections to `web` ──────────────────────────────────────────────────────
+
+def test_an_idle_connection_to_web_is_dropped_before_web_drops_it(front, http):
+    """The stand-in for `web` reports the port each request arrived from, which names the
+    connection. Back to back, two requests share one (connections ARE reused). After the front
+    door's idle limit has passed, the next request must arrive on a new one: the front door let
+    go first, well inside `web`'s own 5 s, so it never writes into a connection `web` is closing."""
+    first = http.get(front + "/api/echo").json()["peer_port"]
+    again = http.get(front + "/api/echo").json()["peer_port"]
+    assert first == again, "two back-to-back requests did not share a connection: nothing is being reused"
+    time.sleep(front_app.UPSTREAM_KEEPALIVE_EXPIRY_S + 0.5)
+    later = http.get(front + "/api/echo").json()["peer_port"]
+    assert later != first, "an idle connection outlived the front door's limit"
+    assert front_app.UPSTREAM_KEEPALIVE_EXPIRY_S + 0.5 < 5, "the wait above must stay inside web's own idle limit"
+
+
+# ── when the member leaves ────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("kind", ["forever", "silent"])
+def test_when_the_member_leaves_a_stream_the_connection_to_web_is_dropped(front, http, kind):
+    """A closed tab must end the stream on `web` too. If the front door kept its side open,
+    `web` would go on producing a stream nobody reads and the front door would hold one of
+    its connections to `web` for as long as that lasted; enough closed tabs and there are
+    none left for anyone. "silent" is the hard case: with nothing left to send, nothing ever
+    fails, so the front door has to notice the member leaving by watching for it."""
+    token = f"{kind}-{time.time_ns()}"
+    with http.stream("GET", front + f"/api/{kind}?{token}") as r:
+        events = r.iter_raw()   # held in a name: letting go of this iterator is itself a disconnect
+        first = next(events)
+        assert first.startswith(b"data: first"), first
+        assert http.get(front + f"/api/stream-state?{token}").json() == {"gone": False}   # live through both hops
+    # leaving the block closes the member's connection mid-stream, as closing a tab does
+    deadline = time.time() + 5
+    state = None
+    while time.time() < deadline:
+        state = http.get(front + f"/api/stream-state?{token}").json()
+        if state["gone"]:
+            break
+        time.sleep(0.1)
+    assert state == {"gone": True}, "5 s after the member left, `web` was still streaming to them"
+
+
+def test_a_member_who_left_before_the_answer_started_does_not_leave_a_stream_open(front, http):
+    """The member asks, `web` takes 0.8 s to begin answering, and the member is gone after
+    0.2 s. When `web`'s stream finally starts there is nobody to give it to. Nothing has been
+    sent yet, so nothing has failed, and a pass-through that only cleans up from inside its
+    streaming loop never gets there. The connection to `web` must still be dropped."""
+    token = f"slow-{time.time_ns()}"
+    host, port = front.replace("http://", "").split(":")
+    s = socket.create_connection((host, int(port)), timeout=5)
+    s.sendall(f"GET /api/slow-stream?{token} HTTP/1.1\r\nHost: {host}\r\n\r\n".encode())
+    time.sleep(0.2)
+    s.close()                                                # gone before any answer
+    deadline = time.time() + 6
+    state = {}
+    while time.time() < deadline:
+        state = http.get(front + f"/api/stream-state?{token}").json()
+        if state.get("answered") and state.get("gone"):
+            break
+        time.sleep(0.1)
+    assert state.get("answered"), "the stand-in never got as far as answering: the test proved nothing"
+    assert state.get("gone"), "`web` began a stream for a member who had already left, and it was never closed"
 
 
 # ── when `web` is not there ───────────────────────────────────────────────────

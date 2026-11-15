@@ -1,0 +1,13 @@
+//@version=2
+// Settles COND-TA's v1-v3 `?:` arm rule (one script per dialect: no pragma, //@version=2, //@version=3). RDDT 1D from the listing.
+// The S2 capture cci-coded-obv (no pragma) already witnesses EAGER for `change(src)` in an else-arm (0 vs 662 mismatches).
+// This probe covers the stateful calls the COND-TA hold names and the other dialects.
+study("vw-ternary-arm-legacy")
+t = (cum(1) - 1) % 3 == 0
+plot(t ? close : change(close), title="A_change")
+plot(t ? close : sma(close, 5), title="B_sma")
+plot(t ? close : ema(close, 5), title="C_ema")
+plot(t ? close : rma(close, 5), title="D_rma")
+plot(t ? 0 : barssince(close > open), title="E_barssince")
+plot(t ? 0 : cum(volume), title="F_cum")
+plot(cum(1) - 1, title="BI")

@@ -31,6 +31,7 @@ import NhnlUniverseMenu, { NHNL_UNIVERSE_PICKS } from './NhnlUniverseMenu'
 import { mergeNhnlSettings, nhnlDefaultsForTheme, nhnlWidgetStyleVars } from './nhnlSettings'
 import styles from './NewHighsLowsWidget.module.css'
 import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
+import UctCtrlPortal from '../UctCtrlPortal'  // owner 11-14: the ⚙ goes top-right on the board
 
 // TERM-033: a failed read THROWS (sectionFetcher). It used to resolve to `null`, which this
 // widget drew as "0 new highs / 0 new lows", a confident count made out of a failed request. Now SWR keeps the last good answer through a failed poll, and a
@@ -289,7 +290,7 @@ export default function NewHighsLowsWidget({ color, opts, onOptsChange }) {
           <NhnlUniverseMenu activeKey={cur.key} onPick={addUniverse} addClassName={styles.uniAdd} />
         </div>
         <span className={styles.spacer} />
-        <button
+        <UctCtrlPortal><button
           ref={gearRef}
           type="button"
           className={`${styles.gear} ${settingsOpen ? styles.gearOn : ''}`}
@@ -298,7 +299,7 @@ export default function NewHighsLowsWidget({ color, opts, onOptsChange }) {
           aria-label="New Highs / Lows settings"
         >
           <UIcon name="gear" size={13} gold={false} />
-        </button>
+        </button></UctCtrlPortal>
       </div>
 
       {error && !data ? (

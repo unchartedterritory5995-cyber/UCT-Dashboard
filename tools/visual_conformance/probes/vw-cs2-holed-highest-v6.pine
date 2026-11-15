@@ -1,0 +1,17 @@
+//@version=6
+indicator("UCTPROBE_VW_CS2_HOLED_HIGHEST_V6", overlay = true)
+
+// PROVENANCE: written 2026-11-15 (session S10, PROBES-NEXT item 2; engine 57 note 4).
+// NEVER COMPILED ON TRADINGVIEW before this session.
+// ta.highest / ta.lowest over a source with a hole (na) every 50th bar, ALONE in the script
+// (no other ta.* call). Settles P2 "last n finite" against the 2026-09-08 SPY RESTART witness.
+// A v6 header; vw-cs2-holed-highest-v5 is the same body under the other header,
+// and vw-cs2-holed-highest-stoch-v6 is this body beside a ta.stoch.
+// CAPTURE: NYSE:RDDT 1D from the listing and AMEX:SPY 1D, inputs at defaults.
+
+x = bar_index % 50 == 30 ? na : close
+plot(ta.highest(x, 10), "H01_highest_x_10")
+plot(ta.lowest(x, 10), "H02_lowest_x_10")
+// NON-VACUITY CONTROLS
+plot(x, "C01_x_holed")
+plot(bar_index, "C00_bar_index_CONTROL")

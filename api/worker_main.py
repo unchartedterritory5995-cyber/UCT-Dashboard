@@ -1100,6 +1100,17 @@ def main():
         log.exception(f"bars.db repair failed: {e}")
         sys.exit(1)
 
+    # A clustered adoption deferred by a busy old store finishes HERE, before anything in
+    # this process opens bars.db (repair_at_boot probes in a subprocess), so no reader can
+    # block the swap's checkpoint (2026-11-14: one held the store past a 5-minute budget).
+    try:
+        from api.services import data_sync as _ds_boot
+        _r = _ds_boot.complete_deferred_swap()
+        if _r != "none":
+            log.info(f"adopt-clustered boot swap: {_r}")
+    except Exception as e:  # noqa: BLE001
+        log.exception(f"adopt-clustered boot swap error (non-fatal): {e}")
+
     # Bring up SQLite (needed by the prewarmer)
     try:
         from api.services import bars_sqlite as _bs
@@ -1115,10 +1126,23 @@ def main():
     # aside while it runs (`adoption_active`). After it the daily base ships the store as
     # is instead of spending hours converting a rowid copy. Restart the worker after the
     # swap: idle threads hold the old 40 GB file open until they next touch bars.db.
+    def _exit_for_boot_swap():
+        # Called with the bars write lock held: no write can land between the saved series
+        # list and process exit. Railway's ALWAYS restart policy brings the worker back,
+        # and main() finishes the swap before anything opens bars.db.
+        log.warning("adopt-clustered: restarting the worker to finish the swap at boot")
+        for _h in logging.getLogger().handlers:
+            try:
+                _h.flush()
+            except Exception:  # noqa: BLE001
+                pass
+        os._exit(75)
+
     def _adopt():
         try:
             from api.services import data_sync as _ds
-            log.info(f"adopt-clustered: {_ds.adopt_clustered_store()}")
+            log.info(f"adopt-clustered: "
+                     f"{_ds.adopt_clustered_store(defer_swap=_exit_for_boot_swap)}")
         except Exception as e:  # noqa: BLE001
             log.warning(f"adopt-clustered check failed (non-fatal): {e}")
     threading.Thread(target=_adopt, daemon=True, name="adopt-clustered").start()

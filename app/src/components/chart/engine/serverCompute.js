@@ -635,6 +635,9 @@ export function clearServerColumns() {
   for (const h of _held.values()) clearTimeout(h.timer)
   _held.clear()
   _shown.clear()
+  _lastKeyAt = 0
+  _repeating = null
+  _releasedAt = 0
   _ownOut = 0
   _ownSentAt = 0
   _laneMs = 0
@@ -989,6 +992,64 @@ function _stride(s) {
   return s.prev === Infinity ? s.gap : Math.max(s.gap, s.prev)
 }
 
+// ⭐ A HELD KEY'S RELEASE IS A STOP (2026-11-15). The hold above GUESSES that the member has
+// stopped from the time since the last step. A member holding ArrowDown sends auto-repeated
+// key-downs (`repeat: true`) and one key-up when they let go: the release says it for certain.
+// ⚰️ Measured on production 2026-11-15 (hourly charts, key held through a list never opened):
+// the landing chart's own ask left 409 ms after its key and was answered in 154 ms, so the
+// guess was about 0.4 s of a 0.53 s wait for its RS lines.
+//   · At the release, a held ask whose chart arrived AFTER the last key-down is the landing
+//     chart's: it is sent at once. One whose chart arrived before it belongs to a row that last
+//     key-down is still replacing: it keeps its timer (and is dropped when the chart moves on).
+//   · For RELEASE_MS after the release, until any walk key-down: an ask is not held (a chart
+//     arriving now is the landing chart, drawn after the key-up).
+//   · A TAP (key-down + key-up, no repeat) is not a release: fast tapping keeps the pace rule.
+const _WALK_KEYS = new Set(['ArrowDown', 'ArrowUp'])
+/** After a held walk key is released, asks go unheld for this long (or until the next key). */
+export const RELEASE_MS = 1500
+let _lastKeyAt = 0         // the last walk key-down, repeated or not
+let _repeating = null      // the walk key being auto-repeated now
+let _releasedAt = 0        // a held walk key was let go (0: not since the last key-down)
+
+function _landedSinceKey(sym, tf) {
+  const t = String(tf)
+  for (const s of _shown.values()) if (s.sym === sym && s.tf === t && s.at >= _lastKeyAt) return true
+  return false
+}
+function _onWalkKeyDown(e) {
+  if (!e || !_WALK_KEYS.has(e.key)) return
+  _lastKeyAt = Date.now()
+  _releasedAt = 0
+  if (e.repeat) _repeating = e.key
+}
+function _onWalkKeyUp(e) {
+  if (!e || !_repeating || e.key !== _repeating) return
+  _repeating = null
+  _releasedAt = Date.now()
+  for (const [gk, h] of [..._held]) {
+    if (!_landedSinceKey(h.g.sym, h.g.tf)) continue
+    clearTimeout(h.timer)
+    _held.delete(gk)
+    _sendOwn(h.g)
+  }
+  for (const [gk, timer] of [..._diskHeld]) {
+    const cut = gk.lastIndexOf('|')
+    const sym = gk.slice(0, cut), t = gk.slice(cut + 1)
+    if (!_landedSinceKey(sym, t)) continue
+    clearTimeout(timer)
+    _diskHeld.delete(gk)
+    _hydrate(sym, t)
+  }
+}
+function _released() {
+  return _releasedAt > 0 && Date.now() - _releasedAt < RELEASE_MS
+}
+// Capture, passive: a list's own handler may stop the event, and nothing here changes it.
+if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+  window.addEventListener('keydown', _onWalkKeyDown, { capture: true, passive: true })
+  window.addEventListener('keyup', _onWalkKeyUp, { capture: true, passive: true })
+}
+
 /**
  * A chart says which (symbol, timeframe) it is on. Call it when either changes.
  * @param {object} slot the chart's own token (any object it keeps for its lifetime)
@@ -1011,6 +1072,7 @@ export function chartGone(slot) {
 
 // How long an own ask for (sym, tf) is held: 0 = send now.
 function _settleMs(sym, tf) {
+  if (_released()) return 0                 // a held key was just let go: this is the landing
   const t = String(tf)
   let hold = 0
   let any = false

@@ -1,0 +1,16 @@
+//@version=6
+indicator("UCTPROBE_VW_CS2_HOLED_HIGHEST_STOCH_V6", overlay = false)
+
+// PROVENANCE: written 2026-11-15 (session S10, PROBES-NEXT item 2; engine 57 note 4).
+// NEVER COMPILED ON TRADINGVIEW before this session.
+// The vw-cs2-holed-highest-v6 body BESIDE a ta.stoch over the same holed source, captured the
+// same day: does a neighbouring stoch change what highest / lowest read over the holes?
+// CAPTURE: NYSE:RDDT 1D from the listing and AMEX:SPY 1D, inputs at defaults.
+
+x = bar_index % 50 == 30 ? na : close
+plot(ta.highest(x, 10), "H01_highest_x_10")
+plot(ta.lowest(x, 10), "H02_lowest_x_10")
+plot(ta.stoch(x, x, x, 10), "H03_stoch_x_10")
+// NON-VACUITY CONTROLS
+plot(x, "C01_x_holed")
+plot(bar_index, "C00_bar_index_CONTROL")

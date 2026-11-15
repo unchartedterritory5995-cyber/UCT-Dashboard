@@ -1,3 +1,6 @@
+// ⭐⭐ ENGINE 55 — a look-ahead-off `request.security(…, 'W'|'M')` translates to `tf_merge`
+// (TradingView's merge: the period's value on the bar that closes it), no longer `tf`;
+// the pins below were flipped deliberately with it (formula `tf` is unchanged).
 import { describe, it, expect } from 'vitest'
 
 import { translatePine } from './pine.js'
@@ -72,7 +75,7 @@ plot(security(tickerid, res, sma(close, 10)))`))
 other = input(title="Other", type=resolution, defval="W")
 res = useCurrent ? period : other
 plot(security(tickerid, res, close))`)))
-    expect(ast).toEqual({ type: 'tf', value: 'W', args: [{ type: 'series', name: 'close' }] })
+    expect(ast).toEqual({ type: 'tf_merge', value: 'W', args: [{ type: 'series', name: 'close' }] })
   })
 
   // ─── what must NOT fold ────────────────────────────────────────────────────
@@ -95,7 +98,7 @@ plot(security(tickerid, res, close))`))
     const ast = treeOf(translatePine(src(
       `period = "W"
 plot(security(tickerid, period, close))`)))
-    expect(ast).toEqual({ type: 'tf', value: 'W', args: [{ type: 'series', name: 'close' }] })
+    expect(ast).toEqual({ type: 'tf_merge', value: 'W', args: [{ type: 'series', name: 'close' }] })
   })
 
   it('⛔ and a shadow onto a timeframe off the ladder still refuses', () => {
@@ -162,7 +165,7 @@ plot(request.security(syminfo.tickerid, flag == false ? timeframe.period : TF, t
 plot(request.security(syminfo.tickerid, not flag ? timeframe.period : "W", close))`
     expect(treeOf(translatePine(v6(body('false'))))).toEqual({ type: 'series', name: 'close' })
     expect(treeOf(translatePine(v6(body('true')))))
-      .toEqual({ type: 'tf', value: 'W', args: [{ type: 'series', name: 'close' }] })
+      .toEqual({ type: 'tf_merge', value: 'W', args: [{ type: 'series', name: 'close' }] })
   })
 
   it('⛔ a comparison that reads the BARS never folds — `bar_index == 0 ? …` refuses', () => {
