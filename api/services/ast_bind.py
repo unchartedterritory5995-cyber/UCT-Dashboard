@@ -267,6 +267,89 @@ def min_contract_table(raw) -> dict:
 SYMBOL_MIN_CONTRACT = min_contract_table(_SYMBOL_SCOPE.get("min_contract"))
 
 
+#: RS Rating L3 -- the classification fields (``syminfo.industry`` / ``syminfo.sector``) and where a
+#: substituted one comes from. Mirrors ``bind.js::CLASSIFICATION_FIELD_NAMES`` / ``CLASSIFICATION_SOURCE``.
+CLASSIFICATION_FIELD_NAMES = ("industry", "sector")
+CLASSIFICATION_SOURCE = "uct:ticker_meta"
+
+
+def _non_empty_text(v) -> bool:
+    return isinstance(v, str) and v != ""
+
+
+def _classification_rows(raw) -> dict:
+    out = {}
+    for k, v in (raw if isinstance(raw, Mapping) else {}).items():
+        if k.startswith("_") or not isinstance(v, Mapping):
+            continue
+        if not (_non_empty_text(v.get("value"))
+                and isinstance(v.get("witnesses"), list) and v.get("witnesses")
+                and isinstance(v.get("captures"), list) and v.get("captures")
+                and _non_empty_text(v.get("captured")) and _non_empty_text(v.get("how"))):
+            continue
+        out[k] = v["value"]
+    return out
+
+
+def classification_table(raw) -> dict:
+    """``{field: {"byClass": {...}, "byOurs": {...}}}`` from ``symbolScope.json::classification``: a row
+    serves only with ``value`` / ``witnesses`` / ``captures`` / ``captured`` / ``how``. Mirrors
+    ``bind.js::classificationTable`` (same key names, so the agreement rail compares them whole)."""
+    out = {}
+    for f in CLASSIFICATION_FIELD_NAMES:
+        section = (raw.get(f) if isinstance(raw, Mapping) else None) or {}
+        out[f] = {"byClass": _classification_rows(section.get("by_class")),
+                  "byOurs": _classification_rows(section.get("by_ours"))}
+    return out
+
+
+#: Mirrors ``bind.js::SYMBOL_CLASSIFICATION`` (empty until Q-RS4 lands a row).
+SYMBOL_CLASSIFICATION = classification_table(_SYMBOL_SCOPE.get("classification"))
+
+
+def classification_with(table, symbol=None) -> dict:
+    """``{"values": {...}, "substituted": [...]}`` -- ``bind.js::classificationWith``'s twin.
+
+    Per field: a witnessed class row (the symbol's ``securityType``), else a witnessed our-string row,
+    serves TradingView's string untagged; else our own string is served and tagged
+    ``{name, source, vendorValueFrom}``; else nothing (unsettled, refused by name)."""
+    values: dict = {}
+    substituted: list = []
+    if not isinstance(symbol, Mapping):
+        return {"values": values, "substituted": substituted}
+
+    def text(v):
+        return v.strip() if isinstance(v, str) else ""
+
+    cls = text(symbol.get("securityType"))
+    for field in CLASSIFICATION_FIELD_NAMES:
+        name = "syminfo." + field
+        t = (table or {}).get(field) or {}
+        by_class = t.get("byClass") or {}
+        by_ours = t.get("byOurs") or {}
+        ours = text(symbol.get(field))
+        if cls and cls in by_class:
+            values[name] = by_class[cls]
+        elif ours and ours in by_ours:
+            values[name] = by_ours[ours]
+        elif ours:
+            values[name] = ours
+            substituted.append({"name": name, "source": CLASSIFICATION_SOURCE,
+                                "vendorValueFrom": "capture.symbol." + field})
+    return {"values": values, "substituted": substituted}
+
+
+def symbol_substitutions_with(table, symbol=None) -> list:
+    """The substitution tags ONE binding carries; ``[]`` without a ticker (``bind.js`` twin)."""
+    if not isinstance(symbol, Mapping) or not str(symbol.get("ticker") or "").strip():
+        return []
+    return classification_with(table, symbol)["substituted"]
+
+
+def symbol_substitutions(symbol=None) -> list:
+    return symbol_substitutions_with(SYMBOL_CLASSIFICATION, symbol)
+
+
 def symbol_constants(symbol=None) -> dict:
     """What ONE symbol makes constant: ``syminfo.*``, and nothing else.
 
@@ -286,10 +369,11 @@ def symbol_constants(symbol=None) -> dict:
     witness.
     """
     return symbol_constants_with(SYMBOL_EXCHANGE_CONFIRMED, symbol, SYMBOL_TICK_SIZE,
-                                 SYMBOL_LISTING_FIELDS, SYMBOL_MIN_CONTRACT)
+                                 SYMBOL_LISTING_FIELDS, SYMBOL_MIN_CONTRACT, SYMBOL_CLASSIFICATION)
 
 
-def symbol_constants_with(confirmed, symbol=None, ticks=None, listing=None, min_contracts=None) -> dict:
+def symbol_constants_with(confirmed, symbol=None, ticks=None, listing=None, min_contracts=None,
+                          classification=None) -> dict:
     """``symbol_constants`` with the witness map handed in.
 
     ⭐⭐ THE PRODUCTION CALL IS THE ONE-LINE SPECIALISATION ABOVE. ``confirmed``
@@ -337,6 +421,8 @@ def symbol_constants_with(confirmed, symbol=None, ticks=None, listing=None, min_
     # W9-T4-F1 -- the minimum contract, on its own witness table (bind.js twin); no row, no value.
     if stored and min_contracts and stored in min_contracts:
         out["syminfo.mincontract"] = min_contracts[stored]
+    # RS Rating L3 -- industry / sector from the symbol's class and strings (bind.js twin).
+    out.update(classification_with(classification, symbol)["values"])
     return out
 
 

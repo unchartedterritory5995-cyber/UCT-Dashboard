@@ -620,6 +620,8 @@ def ingest_vendor(ev, verdicts, lane, inv, capture_lanes=None):
             if dsrc:
                 ev.diverged[lane].add(_source_digest(dsrc))
             continue
+        # ⛔ L7: a MATCH_SUBSTITUTED capture credits no item here (its substituted inputs are unproven);
+        # the coverage map counts it in its own bucket (`coverage_map.credit_capture`)
         if r.get("verdict") != "MATCH" or _unmeasured_beyond_colour(r.get("notMeasured")):
             continue
         subject = r.get("format") in SUBJECT_FORMATS

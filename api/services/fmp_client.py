@@ -401,6 +401,20 @@ def get_historical_price_eod_light(ticker: str, from_date: str, to_date: str, *,
                    not_found_if=_empty_list, freshness="historical", timeout=timeout)
 
 
+def get_index_history_eod_full(index_symbol: str, from_date: str, to_date: str, *,
+                               timeout: Optional[int] = None) -> _pe.ProviderResult:
+    """Daily OHLCV for a cash index (`[{date, open, high, low, close, volume}, ...]`,
+    newest first) in a date window. `index_symbol` is FMP's caret form (`^GSPC`).
+
+    ⭐ The PRIMARY source for daily index bars (`api/index_bars.py`), by owner ruling
+    2026-11-14: "We have the highest plan for FMP, I am fine using Yahoo, and only want to
+    upgrade to massive if it is needed" (docs/pine/RS-RATING-TRANSFER.md)."""
+    return _fetch("/stable/historical-price-eod/full",
+                   {"symbol": _fmp_index_symbol(index_symbol), "from": from_date, "to": to_date},
+                   source_activity="fmp_client.get_index_history_eod_full", data_class="indices",
+                   not_found_if=_empty_list, freshness="end_of_day", timeout=timeout)
+
+
 def get_earnings(ticker: str, *, limit: int = 20, timeout: Optional[int] = None) -> _pe.ProviderResult:
     return _fetch("/stable/earnings", {"symbol": ticker.upper(), "limit": limit},
                    source_activity="fmp_client.get_earnings", data_class="earnings",

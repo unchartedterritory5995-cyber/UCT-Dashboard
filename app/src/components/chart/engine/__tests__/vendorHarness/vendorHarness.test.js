@@ -779,12 +779,17 @@ describe('4 · end to end on REAL vendor bars, through the member door', () => {
   })
 
   // ── the non-vacuity of all of the above ──
-  it('⛔ the three verdicts are all reachable, and the comparator never returns anything else', () => {
+  it('⛔ every verdict is reachable, and the comparator never returns anything else', () => {
     const seen = new Set()
-    seen.add(gradeCapture(SMA_CAPTURE).verdict.verdict)
+    const graded = gradeCapture(SMA_CAPTURE)
+    seen.add(graded.verdict.verdict)
     const d = clone(SMA_CAPTURE); d.plotValues.rows[1500][1] += 1
     seen.add(gradeCapture(sealCapture(d)).verdict.verdict)
     seen.add(compareCapture(SMA_CAPTURE, { ok: false, refusal: 'x' }).verdict)
+    // ⭐ L7 — MATCH_SUBSTITUTED: our side declaring one input it was fed off the capture
+    // (`vendorHarness.l7Substituted.test.js` holds the rule; this is the reachability)
+    seen.add(compareCapture(SMA_CAPTURE, { ...graded.ours, substituted: [
+      { name: 'syminfo.ticker', source: 'uct:test', vendorValueFrom: 'capture.symbol.name', value: SMA_CAPTURE.symbol.name }] }).verdict)
     expect([...seen].sort()).toEqual([...VERDICTS].sort())
   })
 
