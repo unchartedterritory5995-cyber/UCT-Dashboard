@@ -448,6 +448,12 @@ def allow_report(*, with_capabilities: bool = True) -> dict:
         if not sha:
             reasons = ["no well-formed sha256"] + reasons
         row = {"slug": s.get("slug"), "sha256": sha[0] if sha else None}
+        # ⭐ L7 — a record admitted on the SUBSTITUTED path carries the Pine names it answers from UCT
+        # data, for the member door to disclose. Absent on every R1 (MATCH) record, so their rows are
+        # the rows before L7, key for key.
+        subs = rollout_gate.pine_runtime_substituted_inputs(s)
+        if subs:
+            row = dict(row, admission=rollout_gate.PINE_ADMISSION_SUBSTITUTED, substituted=subs)
         if reasons:
             withheld.append(dict(row, reasons=reasons))
         else:
@@ -467,6 +473,16 @@ def graded_allow_list() -> list[str]:
     the SERVER lanes ask it directly (`not_graded(..., graded_only=True)`), so the two can
     never disagree about what is graded. Read per call; an unreadable JSON serves nothing."""
     return [r["sha256"] for r in allow_report(with_capabilities=False)["served"]]
+
+
+def substituted_inputs() -> dict:
+    """⭐ L7 — THE DISCLOSURE FIELD: ``{sha256: [Pine name, ...]}`` for every SERVED allowlist script
+    admitted on the substituted path (`rollout_gate.pine_runtime_substituted_inputs`). The member door
+    reads it (`GET /api/user-definitions/runtime-kill`, key ``substituted``) to say "uses UCT data
+    for: syminfo.industry". Empty while no such script is served (today). Read per call."""
+    return {r["sha256"]: list(r["substituted"])
+            for r in allow_report(with_capabilities=False)["served"]
+            if r.get("sha256") and r.get("substituted")}
 
 
 def allow_list() -> list[str]:

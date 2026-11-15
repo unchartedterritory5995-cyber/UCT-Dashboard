@@ -660,6 +660,12 @@ def runtime_kill(user: dict = Depends(require_paid)):
     # is byte for byte what it was before Part 2 and a client never asks the new door.
     if runtime_definitions.capability_admission_on():
         out["capability_admission"] = True
+    # ⭐ L7 -- the served scripts answered from UCT data, by source sha256 -> the Pine names, for the
+    # member door to disclose ("uses UCT data for: ..."). ABSENT while none is served (today), so this
+    # read is byte for byte what it was before L7.
+    substituted = runtime_definitions.substituted_inputs()
+    if substituted:
+        out["substituted"] = substituted
     return out
 
 
