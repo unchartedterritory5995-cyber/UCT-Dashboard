@@ -45,7 +45,7 @@ import { otherSymbolRequestsOf, storeTickerOf } from '../../otherSymbols'
 import { lowerTfCodesOf, LOWER_TF_SOURCE } from '../../lowerTf'
 import SYMBOL_SCOPE from '../../ast/symbolScope.json'
 import { createFakeChart } from '../fakeChart'
-import { normalizeColor } from '../../../../../../../tools/vendor_harness/compare.mjs'
+import { normalizeColor, substitutionProblems } from '../../../../../../../tools/vendor_harness/compare.mjs'
 import { validateCapture } from '../../../../../../../tools/vendor_harness/schema.mjs'
 import { fullBarsFor } from '../../../../../utils/barsBackfill'
 import fs from 'node:fs'
@@ -957,6 +957,24 @@ export function withheldPlotsOf(clockReport, cols, notes) {
   return out
 }
 
+/** ⭐⭐ L7 (2026-11-14) — THE SUBSTITUTED INPUTS OF ONE GRADE: our side's declaration,
+ *  read by `compare.mjs::compareCapture` (the contract is stated there, beside
+ *  `substitutionProblems`). Each entry is `{name, source, vendorValueFrom, value}`: a
+ *  vendor-only fact the member door answers from UCT data (`source`), which THIS run was
+ *  fed from the vendor instead (`vendorValueFrom`, resolved with `compare.mjs::vendorValueOf`,
+ *  the comparator's own resolver), so the grade proves the translation and only the UCT
+ *  value is left unproven (the member door discloses it).
+ *  ⛔ Nothing in the engine supplies a substituted value yet, so today every run declares
+ *  `[]` and grades exactly as before. L3 (`syminfo.industry`) is the first to fill it: the
+ *  lane that feeds a vendor value into `ctx` pushes its entry here, in the same change.
+ *  A malformed declaration is refused HERE, before it can reach a verdict. */
+export function substitutedInputsOf(capture, declared = []) {
+  const list = Array.isArray(declared) ? declared : []
+  const problems = substitutionProblems(capture, list)
+  if (problems.length) throw new Error(`ourSide: substituted inputs refused: ${problems.join('; ')}`)
+  return list.map((e) => ({ ...e }))
+}
+
 export function runOurSide(capture) {
   setRuntimeDoorClock(PARITY_CLOCK)
   try {
@@ -1253,6 +1271,9 @@ function runOurSideOnTheParityClock(capture) {
       // ⭐ ENGINE 53 — what the door did with the run half (minted / declined by code); the bind's
       // answer (served / refused) rides on `objects.runHalf`.
       runHalfDoor: built.runHalf ? 'minted' : (built.runHalfDeclined ? `declined:${built.runHalfDeclined.code}` : null),
+      // ⭐ L7 — the inputs this run answered with the VENDOR's value in place of UCT data
+      // (`substitutedInputsOf`); `[]` until a lane feeds one.
+      substituted: substitutedInputsOf(capture, []),
     }
   } finally {
     registry.uninstallUserDefinition(HARNESS_DEF_ID)
