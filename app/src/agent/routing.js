@@ -93,6 +93,16 @@ export const GROUPS = [
       // The verb (compare… / overlay / remove / drop / take off / clear) must govern the group noun within six words: a bare
       // "vs … themes" or a plural "overlays … group" (indicator talk) never reaches this group.
       /\b(?:compar\w*|overlay|remove|drop|take off|clear)\s+(?:[\w’'-]+\s+){0,6}?(?:groups?|sectors?|industr(?:y|ies)|themes?)\b|\b(?:groups?|sectors?|industr(?:y|ies)|themes?|semis)\b.*\b(?:overlays?|scale|comparisons?)\b/] },
+  // Charts family (2026-11-15): newsLibrary.* — the member's UCT News library (save / unsave a headline, its note, collections),
+  // in its OWN words-only group: never a filler. The words name a HEADLINE / story / article with a save / bookmark / note verb,
+  // the library itself, or a collection with its own verbs — never "save my layout", "save the screen", a watchlist note,
+  // "note to self", or a news question (news.latest).
+  { id: 'newsLibrary', title: 'Your UCT News library: save or unsave a headline, its note, collections', domains: ['newsLibrary'], fillLast: true, wordsOnly: true,
+    words: [
+      /\b(?:save|unsave|bookmark|unbookmark)\b[^.;!?]*\b(?:headlines?|stor(?:y|ies)|articles?|news items?)\b|\b(?:headlines?|stor(?:y|ies)|articles?)\b[^.;!?]*\b(?:to|in|from|out of) (?:my |the )?(?:news )?library\b/,
+      /\b(?:saved headlines|research library|news library)\b|\bmy (?:news )?collections\b/,
+      /\b(?:create|make|start|rename|delete|remove)\b[^.;!?]*\b(?:news )?collections?\b|\b(?:into|in|to|out of|from) (?:my |the )?[\w “”"'-]{1,40} collection\b/,
+      /\bnote\b[^.;!?]*\b(?:headline|story|article)\b|\b(?:headline|story|article)\b[^.;!?]*\bnote\b/] },
   // Family C (right-click and header parity, 2026-11-11): a chart's right-click Ask AI and the watermark's Reset position, in
   // their OWN words-only group (as compareGroups): never a filler, so no existing group and no unrecognised request changes.
   // "ask" / "watermark" are used elsewhere, so each needs its context: Ask AI with about / on / for or a chart word; the

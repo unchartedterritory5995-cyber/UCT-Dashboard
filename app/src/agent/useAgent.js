@@ -1626,6 +1626,24 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         if (suggested === 'apply') suggested = 'propose'
       }
     }
+    // boardDetach.setMerged (AUDIT, D21): a capability that declares `askedBy` runs only when the member's OWN words ask for it —
+    // never planned from additive words alone ("add a news widget"): such an op is dropped here, on every path
+    {
+      const asked = (o) => { const c = getCapability(o?.action); return !(c?.askedBy instanceof RegExp) || (gateWords || []).some(t => typeof t === 'string' && c.askedBy.test(t.toLowerCase())) }
+      const kept = (opsIn || []).filter(asked)
+      if (kept.length !== (opsIn || []).length) {
+        if (!kept.length) {
+          // each capability says what its own words are (askedByWhy); the merged view's sentence is the default
+          const dropped = (opsIn || []).find(o => !asked(o))
+          const text = `I didn’t change anything: ${getCapability(dropped?.action)?.askedByWhy || 'the board’s merged view changes only when you ask for it (“merge the board” / “unmerge the widgets”).'}`
+          push({ role: 'refusal', text })
+          record({ member, outcome: text, outcomeData: { kind: 'refused', actions: (opsIn || []).map(o => o?.action) }, telemetry: { path, refused: true, voice } })
+          return undefined
+        }
+        opsIn = kept
+        if (suggested === 'apply') suggested = 'propose'
+      }
+    }
     // ⭐ PHASE 2 (agent/duplicates.js, owner decision 2026-10-29): an add of an indicator the chart already shows, same
     // settings, is not added a second time — the existing one is reused (and is what "make it a 9" means next); a hidden
     // one is shown instead. Never on an approved card, nor when the member asked for another copy ("add another RSI").

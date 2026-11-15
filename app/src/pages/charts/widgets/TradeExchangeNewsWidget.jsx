@@ -441,7 +441,18 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, def
   // UCT Agent: the watchlist choices, and the search box (read back as typed; written through its own setter, as typing does)
   useWidgetDoor(() => ({
     options: () => ({ watchlist: listOptions.map(o => ({ value: o.value || null, label: o.label })) }),
-    read: () => ({ search: queryRaw }),
+    // ⭐ UCT Agent newsLibrary.* (read-only, 2026-11-15): the rows THIS widget renders (`rows`, as drawn — nothing is
+    // computed for the Agent) and the one the member has open (its ⋯ menu or Explain, else the single expanded row), so a
+    // headline is named by its id from what the member sees or clicked. The door writes nothing here.
+    read: () => {
+      const open = actions?.item?.id ?? (explain?.view === 'feed' ? explain.id : null)
+      const one = !open && expanded.size === 1 ? rows.find(r => expanded.has(r.seq))?.id ?? null : null
+      return {
+        search: queryRaw,
+        visible: rows.slice(0, 20).map(r => ({ id: r.id, time: r.received_at_ms ?? null, tickers: r.tickers || [], text: String(r.content || '').slice(0, 200) })),
+        selected: open ?? one,
+      }
+    },
     write: (key, v) => { if (key === 'search') setQueryRaw(String(v ?? '').slice(0, 80)) },
   }))
 

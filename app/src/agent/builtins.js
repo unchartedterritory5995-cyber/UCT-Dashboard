@@ -56,6 +56,8 @@ import { registerJournalCapabilities } from './capabilities/journal'
 import { registerCoachCapabilities } from './capabilities/coach'
 // C3-205..207 (pl-exec6): Tools → Custom-Period Sort — run a sort, dock its panel
 import { registerPeriodSortCapabilities } from './capabilities/periodSort'
+// Charts family (2026-11-15): the member's UCT News library — save a headline, its note, collections
+import { registerNewsLibraryCapabilities } from './capabilities/newsLibrary'
 // Tools → Compare Symbols: open the panel on its Rotation (RRG-style) or Overlay tab, switch between them
 import { registerComparePanelCapabilities } from './capabilities/comparePanel'
 
@@ -105,6 +107,7 @@ export function registerBuiltins() {
   registerCalendarCapabilities()
   registerJournalCapabilities()
   registerPeriodSortCapabilities()
+  registerNewsLibraryCapabilities()         // newsLibrary.*: the UCT News library's own writers (lib/tradeExchangeNewsLibrary.js)
   registerComparePanelCapabilities()        // compare.openView: the Compare panel's Rotation / Overlay view (a view, not saved)
   registerMultiChartCapabilities()   // pl-grid: the Multi Chart grid itself (C3-042..061)
 }
