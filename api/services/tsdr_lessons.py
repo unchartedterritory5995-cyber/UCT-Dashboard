@@ -378,6 +378,10 @@ def status_counts() -> dict:
         yt = c.execute("SELECT COUNT(*) AS n FROM tsdr_lessons WHERE youtube_id IS NOT NULL").fetchone()
     out = {r["status"]: r["n"] for r in rows}
     out["on_youtube"] = yt["n"]
+    # Link lessons posted under their title only, waiting for captions that have to be
+    # sent in from outside (tools/tsdr_link_transcripts.py; the pod is refused them).
+    # Counted from the ONE list that tool is given, never a second rule for "waiting".
+    out["links_waiting"] = len(links_needing_transcript())
     return out
 
 
@@ -2184,6 +2188,12 @@ def best_moment(row: dict, pats: list) -> tuple[Optional[float], str]:
     part's text the words are (a part is five minutes long), less a short
     lead-in. Never earlier than the part's own start."""
     segs = [s for s in _json_list(row.get("segments")) if isinstance(s, (list, tuple)) and len(s) == 2]
+    if not segs and float(row.get("duration_s") or 0) > 0 and str(row.get("transcript") or "").strip():
+        # A lesson transcribed before part timings were kept (they arrived with library
+        # v2, 2026-10-18) has the words and the length but no parts. Read it as ONE part
+        # spanning the whole video: the same proportional placement locate_moments uses
+        # when it has no parts. ⚰️ Without this, older lessons never got a "Watch from".
+        segs = [[0, str(row.get("transcript"))]]
     best, best_hits = None, 0
     for i, (start, text) in enumerate(segs):
         low = str(text or "").lower()
@@ -2204,6 +2214,14 @@ def best_moment(row: dict, pats: list) -> tuple[Optional[float], str]:
     said = start + (at / float(max(1, len(text)))) * max(0.0, end - start)
     lo = max(0, at - _SNIPPET_CHARS // 3)
     hi = min(len(text), lo + _SNIPPET_CHARS)
+    # Whole words only: "…ow of 318.20" (seen in Discord 2026-11-14) reads as a typo. Move
+    # each cut to the nearest space INSIDE the window, never past the matched words.
+    if lo > 0:
+        space = text.find(" ", lo, at)
+        lo = space + 1 if space != -1 else lo
+    if hi < len(text):
+        space = text.rfind(" ", at, hi)
+        hi = space if space != -1 else hi
     quote = text[lo:hi].strip()
     if lo > 0:
         quote = "…" + quote.lstrip(" ,.;:")
@@ -2259,7 +2277,10 @@ def search_lessons(query: str, limit: int = _SEARCH_MAX) -> list[dict]:
             "SELECT attachment_id, title, recap, takeaway, question, tickers, tags, transcript, "
             "segments, duration_s, section, level, posted_at, post_channel_id, discord_post_id, "
             "forum_post_id, youtube_id FROM tsdr_lessons WHERE status = 'posted' "
-            "AND discord_post_id IS NOT NULL AND post_channel_id IS NOT NULL").fetchall()]
+            "AND discord_post_id IS NOT NULL AND post_channel_id IS NOT NULL "
+            # run_regroup leaves a lesson whose old post was deleted by hand `posted`,
+            # with this section: its link opens nothing, so it is never an answer.
+            "AND (section IS NULL OR section != 'removed')").fetchall()]
     # A word that is a ticker somewhere in the library, or was typed as one (in
     # capitals or with a $), is matched exactly: "hims" must never find "him".
     library = {str(t).lower().lstrip("$") for r in rows for t in _json_list(r.get("tickers"))}
@@ -2303,6 +2324,35 @@ def format_search_reply(query: str, hits: list[dict]) -> str:
     return "\n".join(lines)[:1900]
 
 
+def search_card(query: str, hits: list[dict]) -> dict:
+    """The /lesson reply as a card in the bot's one style (api/services/discord_cards.py),
+    the same frame as /news and /buzz: one entry per lesson, its title linking to the
+    recap, then the moment in the video that says it.
+
+    An embed shows no link previews, so the links need no <> wrapping here."""
+    from api.services import discord_cards
+    q = re.sub(r"\s+", " ", str(query or "")).strip()[:80]
+    title = f"Lessons on “{q}”"
+    if not hits:
+        return discord_cards.card("lessons", title=title, description=(
+            "Nothing in the lesson library says anything about that yet. "
+            "Try fewer or different words, or a ticker like `NVDA`."),
+            footer=["0 lessons", "TSDR & Bracco video lessons"])
+    blocks = []
+    for i, h in enumerate(hits, 1):
+        name = h["title"][:90]
+        head = f"**{i}. [{name}]({h['url']})**" if h.get("url") else f"**{i}. {name}**"
+        meta = " · ".join(x for x in (h.get("level", "").capitalize(), h.get("section"), h.get("day")) if x)
+        lines = [head] + ([meta] if meta else [])
+        if h.get("quote"):
+            where = (f"[▶ Watch from {h['at']}]({h['watch']})" if h.get("watch")
+                     else (f"At {h['at']}" if h.get("at") else ""))
+            lines.append(f"{where} — “{h['quote']}”" if where else f"“{h['quote']}”")
+        blocks.append("\n".join(lines))
+    return discord_cards.card("lessons", title=title, description="\n\n".join(blocks),
+                              footer=[discord_cards.plural(len(hits), "lesson"), "TSDR & Bracco video lessons"])
+
+
 def related_lessons(lesson: dict, limit: int = RELATED_MAX) -> list[dict]:
     """Up to `limit` other posted lessons, closest first: 3 points per shared
     ticker, 2 per shared tag, 1 for the same section; newer wins a tie. Clips
@@ -2320,7 +2370,7 @@ def related_lessons(lesson: dict, limit: int = RELATED_MAX) -> list[dict]:
             "SELECT attachment_id, title, tickers, tags, section, forum_post_id, posted_at, "
             "discord_post_id, post_channel_id FROM tsdr_lessons WHERE status = 'posted' "
             f"AND discord_post_id IS NOT NULL {scope}"
-            "AND attachment_id != ? AND (section IS NULL OR section != 'clips')",
+            "AND attachment_id != ? AND (section IS NULL OR section NOT IN ('clips', 'removed'))",
             (str(lesson.get("attachment_id") or ""),)).fetchall()
         rows = [dict(r) for r in rows]
     scored = []

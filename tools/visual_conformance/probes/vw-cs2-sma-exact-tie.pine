@@ -1,0 +1,18 @@
+//@version=6
+indicator("UCTPROBE_VW_CS2_SMA_EXACT_TIE", overlay = false)
+
+// PROVENANCE: written 2026-11-15 (session S10, PROBES-NEXT item 3; engine 57 note 1, Neumaier vs plain sum).
+// NEVER COMPILED ON TRADINGVIEW before this session.
+// Does TradingView's ta.sma report an EXACT tie between two windows that hold the same values in a
+// different order? The raw sma values are plotted at full precision so the summation order shows.
+// CAPTURE: NYSE:RDDT 1D from the listing and AMEX:SPY 1D, inputs at defaults.
+
+a = ta.sma(close, 5)
+b = ta.sma(close[1], 5)
+plot(a == b ? 1 : 0, "T01_sma5_equals_prev")
+plot(a, "T02_sma5")
+plot(b, "T03_sma5_of_close_1")
+plot(a - b, "T04_difference")
+plot(math.sum(close, 5), "T05_sum5")
+// NON-VACUITY CONTROL
+plot(close, "C01_close_CONTROL")

@@ -590,6 +590,30 @@
       ]
     },
     {
+      "key": "screener_rs_controls",
+      "store": "server-preference",
+      "scope": "cross-device",
+      "surface": "Screener",
+      "kind": "setting",
+      "label": "RS screen quick controls",
+      "serverAllowlisted": true,
+      "files": [
+        "app/src/pages/screener/focus/FocusScreener.jsx"
+      ]
+    },
+    {
+      "key": "screener_rs_note_seen",
+      "store": "server-preference",
+      "scope": "cross-device",
+      "surface": "Screener",
+      "kind": "state",
+      "label": "RS screens first-visit note dismissed",
+      "serverAllowlisted": true,
+      "files": [
+        "app/src/pages/screener/focus/FocusScreener.jsx"
+      ]
+    },
+    {
       "key": "shared_tag_colors",
       "store": "server-preference",
       "scope": "cross-device",
@@ -1660,6 +1684,39 @@
       "label": "App theme, for painting before your account loads",
       "files": [
         "app/src/styles/appThemes.js"
+      ]
+    },
+    {
+      "key": "uct.barStore",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Charts",
+      "kind": "internal",
+      "label": "Chart data rollout switch",
+      "files": [
+        "app/src/components/chart/barStoreSwitch.js"
+      ]
+    },
+    {
+      "key": "uct.barsgrace.off",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Charts",
+      "kind": "internal",
+      "label": "Chart loading rollout switch",
+      "files": [
+        "app/src/components/chart/useLegacyChartBars.js"
+      ]
+    },
+    {
+      "key": "uct.barspack.deltaProgress",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Charts",
+      "kind": "internal",
+      "label": "Daily market data update progress",
+      "files": [
+        "app/src/lib/barsPackClient.js"
       ]
     },
     {
@@ -2826,12 +2883,23 @@
       ]
     },
     {
-      "key": "uct.watchlist.cols.breadthDrill",
+      "key": "uct.watchlist.cols.breadthDrill.focus7",
       "store": "localStorage",
       "scope": "device-local",
       "surface": "Breadth",
       "kind": "setting",
       "label": "Drill-down list columns",
+      "files": [
+        "app/src/pages/Watchlists.jsx"
+      ]
+    },
+    {
+      "key": "uct.watchlist.cols.breadthDrill.table",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Breadth",
+      "kind": "setting",
+      "label": "Drill-down table columns",
       "files": [
         "app/src/pages/Watchlists.jsx"
       ]
@@ -3055,6 +3123,17 @@
       "label": "Which named screen the current filters came from",
       "files": [
         "app/src/pages/screener/focus/FocusScreener.jsx"
+      ]
+    },
+    {
+      "key": "uct.screener.rsMarketHidden",
+      "store": "sessionStorage",
+      "scope": "device-local",
+      "surface": "Screener",
+      "kind": "state",
+      "label": "RS screens market note hidden for today",
+      "files": [
+        "app/src/pages/screener/focus/rsMarket.js"
       ]
     },
     {

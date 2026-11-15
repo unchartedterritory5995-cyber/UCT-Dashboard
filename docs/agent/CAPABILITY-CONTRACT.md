@@ -121,7 +121,7 @@ The server's prompt may name only the reviewed capabilities `widget.addCharts` a
 
 | Limit | Value | Where | What it bounds |
 |---|---|---|---|
-| Registered (catalog) | `catalog.maxRegistered` = 200 | `manifest.contract.json`, `agentContracts.test.js` | everything the browser knows how to do |
+| Registered (catalog) | `catalog.maxRegistered` = 300 (= v2 `turn_v2.MAX_CAPABILITIES_V2`, parity-tested) | `manifest.contract.json`, `agentContracts.test.js` (max-armed catalog) | everything the browser knows how to do |
 | One group | `catalog.maxGroupSize` = 40 | same | so any single group (+ the agent group) always fits one request |
 | Per request (server) | `limits.maxCapabilities` = 60 | `turn.MAX_CAPABILITIES` | what one model call may be shown — a request over it is **refused whole** ("sent too many actions for one request, so nothing was planned"), never trimmed |
 | Routed budget | `routingThreshold` = 55 | `routing.js` `routeManifest(…, {limit, budget})` | what the browser actually sends |

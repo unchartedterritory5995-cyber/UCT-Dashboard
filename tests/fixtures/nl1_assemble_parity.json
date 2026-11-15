@@ -166,6 +166,7 @@
   "chartMenu.resetWatermark": "chartMenu",
   "chartFeatures.companyPanel": "chartFeatures",
   "chartFeatures.earningsStrip": "chartFeatures",
+  "chartReplay.playback": "chartReplay",
   "drawing.positionCalculator": "drawingExtras",
   "drawing.saveDefaults": "drawingExtras",
   "drawing.favoriteTool": "drawingExtras",
@@ -180,6 +181,7 @@
   "indicatorTemplate.apply": "chartSetup",
   "indicatorTemplate.save": "chartSetup",
   "indicatorTemplate.delete": "chartSetup",
+  "volumeProfile.set": "volumeProfile",
   "definition.search": "definitions",
   "definition.describe": "definitions",
   "definition.duplicate": "definitions",
@@ -258,6 +260,10 @@
   {
    "id": "definitions",
    "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
+  },
+  {
+   "id": "volumeProfile",
+   "title": "A chart’s Volume Profile overlay: on / off, bins, colours"
   },
   {
    "id": "drawingOps",
@@ -346,6 +352,10 @@
   {
    "id": "periodSort",
    "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
+  },
+  {
+   "id": "chartReplay",
+   "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
   }
  ],
  "cases": [
@@ -459,6 +469,10 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "volumeProfile",
+      "title": "A chart’s Volume Profile overlay: on / off, bins, colours"
+     },
+     {
       "id": "drawingOps",
       "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
      },
@@ -545,6 +559,10 @@
      {
       "id": "periodSort",
       "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
+     },
+     {
+      "id": "chartReplay",
+      "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
      }
     ],
     "selected": [
@@ -676,6 +694,10 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "volumeProfile",
+      "title": "A chart’s Volume Profile overlay: on / off, bins, colours"
+     },
+     {
       "id": "drawingOps",
       "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
      },
@@ -762,6 +784,10 @@
      {
       "id": "periodSort",
       "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
+     },
+     {
+      "id": "chartReplay",
+      "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
      }
     ],
     "selected": [
@@ -907,6 +933,10 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "volumeProfile",
+      "title": "A chart’s Volume Profile overlay: on / off, bins, colours"
+     },
+     {
       "id": "drawingOps",
       "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
      },
@@ -993,6 +1023,10 @@
      {
       "id": "periodSort",
       "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
+     },
+     {
+      "id": "chartReplay",
+      "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
      }
     ],
     "selected": [
@@ -1148,6 +1182,10 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "volumeProfile",
+      "title": "A chart’s Volume Profile overlay: on / off, bins, colours"
+     },
+     {
       "id": "drawingOps",
       "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
      },
@@ -1234,6 +1272,10 @@
      {
       "id": "periodSort",
       "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
+     },
+     {
+      "id": "chartReplay",
+      "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
      }
     ],
     "selected": [
@@ -1361,6 +1403,10 @@
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "volumeProfile",
+      "title": "A chart’s Volume Profile overlay: on / off, bins, colours"
+     },
+     {
       "id": "drawingOps",
       "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
      },
@@ -1447,6 +1493,10 @@
      {
       "id": "periodSort",
       "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
+     },
+     {
+      "id": "chartReplay",
+      "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
      }
     ],
     "selected": [
@@ -1476,6 +1526,7 @@
     "indicatorSetup",
     "indicatorCalc",
     "definitions",
+    "volumeProfile",
     "drawingOps",
     "drawingTools",
     "drawings",
@@ -1497,7 +1548,8 @@
     "chartView",
     "comparePanel",
     "layoutHistory",
-    "periodSort"
+    "periodSort",
+    "chartReplay"
    ],
    "names": [
     "chart.setType",
@@ -1659,6 +1711,7 @@
     "chartMenu.resetWatermark",
     "chartFeatures.companyPanel",
     "chartFeatures.earningsStrip",
+    "chartReplay.playback",
     "drawing.positionCalculator",
     "drawing.saveDefaults",
     "drawing.favoriteTool",
@@ -1673,6 +1726,7 @@
     "indicatorTemplate.apply",
     "indicatorTemplate.save",
     "indicatorTemplate.delete",
+    "volumeProfile.set",
     "definition.search",
     "definition.describe",
     "definition.duplicate",

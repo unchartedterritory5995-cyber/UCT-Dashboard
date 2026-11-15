@@ -71,7 +71,16 @@ def _api_key() -> str:
 
 
 class FmpUnavailable(RuntimeError):
-    """No key, or the provider refused. Ingestion logs and moves on."""
+    """No key, or the provider refused. Ingestion logs and moves on.
+
+    `transient` = the refusal can clear by itself: a rate limit (429, which is also what
+    the account-wide bandwidth cut-off of 2026-11-13 answers), a 5xx, a dropped connection.
+    A missing key, a 401/403 or "not on your plan" is not. ⛔ The distinction is what stops
+    `probe_latest` from reading a rate limit as a fact about the endpoint."""
+
+    def __init__(self, message: str, *, transient: bool = False):
+        super().__init__(message)
+        self.transient = transient
 
 
 def _get(path: str, params: dict[str, Any], budget: "RequestBudget | None" = None) -> Any:
@@ -91,12 +100,13 @@ def _get(path: str, params: dict[str, Any], budget: "RequestBudget | None" = Non
     p = dict(params)
     p["apikey"] = key
     last_err = ""
+    transient = False
     for attempt in range(3):
         try:
             r = _http().get(f"{BASE}{path}", params=p)
             if r.status_code == 429:
                 time.sleep(2 + attempt * 4)
-                last_err = "429"
+                last_err, transient = "429", True
                 continue
             if r.status_code in (401, 403):
                 raise FmpUnavailable(f"FMP {r.status_code}: plan or key issue")
@@ -106,13 +116,14 @@ def _get(path: str, params: dict[str, Any], budget: "RequestBudget | None" = Non
             raise
         except httpx.HTTPStatusError as e:
             last_err = f"{e.response.status_code}"
+            transient = e.response.status_code >= 500
             if e.response.status_code < 500:
                 break
             time.sleep(1 + attempt)
         except httpx.HTTPError as e:
-            last_err = type(e).__name__
+            last_err, transient = type(e).__name__, True
             time.sleep(1 + attempt)
-    raise FmpUnavailable(f"FMP {path} failed: {last_err}")
+    raise FmpUnavailable(f"FMP {path} failed: {last_err}", transient=transient)
 
 
 class RequestBudget:
@@ -203,10 +214,17 @@ _latest_support: dict[str, bool] | None = None
 
 
 def probe_latest(budget: RequestBudget | None = None) -> dict[str, Any]:
-    """Verify the global `-latest` endpoints. Cached for the process.
+    """Verify the global `-latest` endpoints. A DEFINITE answer is cached for the process.
 
-    Returns {'stock': bool, 'press': bool, 'detail': str}. Never raises: a
-    failure here simply selects the bounded per-symbol fallback.
+    Returns {'stock': bool, 'press': bool, 'detail': str}, plus 'undecided': True when the
+    provider refused in a way that can clear by itself (FmpUnavailable.transient). Never
+    raises.
+
+    ⛔ AN UNDECIDED PROBE IS NOT CACHED, AND THE CALLER MUST NOT FALL BACK ON IT. ⚰️ Until
+    2026-11-14 a 429 here was stored as "no global path" for the life of the process: the
+    poll then answered a rate limit with the per-symbol fallback (40 requests a cycle in
+    place of two to four) and kept doing so after access returned, until the next restart.
+    The probe stops at the first such refusal: the other lane would only be refused too.
     """
     global _latest_support
     if _latest_support is not None:
@@ -214,6 +232,7 @@ def probe_latest(budget: RequestBudget | None = None) -> dict[str, Any]:
 
     out = {"stock": False, "press": False}
     detail = []
+    undecided = False
     for name, path in (("stock", STOCK_LATEST), ("press", PR_LATEST)):
         try:
             rows = _rows(_get(path, {"limit": 5, "page": 0}, budget))
@@ -222,8 +241,13 @@ def probe_latest(budget: RequestBudget | None = None) -> dict[str, Any]:
             detail.append(f"{name}={'ok' if ok else 'empty'}({len(rows)})")
         except FmpUnavailable as e:
             detail.append(f"{name}=unavailable({e})")
+            if e.transient:
+                undecided = True
+                break
         except Exception as e:                       # noqa: BLE001 - never fatal
             detail.append(f"{name}=error({type(e).__name__})")
+    if undecided:
+        return {**out, "detail": ", ".join(detail), "undecided": True}
     _latest_support = out
     return {**out, "detail": ", ".join(detail)}
 
@@ -276,8 +300,11 @@ def fetch_symbol(symbol: str, lane: str, *, limit: int = PAGE_SIZE,
 
 def fetch_symbols(symbols: Iterable[str], lane: str, *,
                   budget: RequestBudget | None = None,
-                  limit: int = PAGE_SIZE) -> list[dict]:
-    """Bounded iteration for the fallback path. Stops cleanly at the ceiling."""
+                  limit: int = PAGE_SIZE, refusals: list | None = None) -> list[dict]:
+    """Bounded iteration for the fallback path. Stops cleanly at the ceiling.
+
+    A refusal ends the lane without raising. Pass `refusals` to be told about it: the
+    caller needs to tell "nothing new" from "the provider refused everything"."""
     out: list[dict] = []
     for sym in symbols:
         if budget is not None and budget.remaining <= 0:
@@ -286,6 +313,8 @@ def fetch_symbols(symbols: Iterable[str], lane: str, *,
             out.extend(fetch_symbol(sym, lane, limit=limit, budget=budget))
         except FmpUnavailable as e:
             _log.warning("fmp %s %s: %s", lane, sym, e)
+            if refusals is not None:
+                refusals.append(e)
             break
         except Exception as e:                       # noqa: BLE001
             _log.warning("fmp %s %s unexpected: %s", lane, sym, e)

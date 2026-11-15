@@ -32,7 +32,9 @@ function gridControl() {
 }
 // each chart reports a loaded VIEW (the date navigator's meta: frame, zoom limits), so the view controls can be planned too
 const VIEW = { firstMs: 0, lastMs: 1, rightMs: 1, activeRange: null, atDefaultView: false, indicatorsHidden: false, priceAuto: true,
-  zoomLimits: { minWidth: 1, maxWidth: 2000 }, frame: { fromRight: 100, toRight: 0, activeRange: null, locked: false, lock: null } }
+  zoomLimits: { minWidth: 1, maxWidth: 2000 }, frame: { fromRight: 100, toRight: 0, activeRange: null, locked: false, lock: null },
+  // chartReplay.playback: the toolbar's Replay / Time Machine bar, present and OFF (so its ops are planned by the real planner)
+  replay: { can: true, mode: false, playing: false, speed: 1, index: null, total: 100, dateMs: null, firstMs: 0, lastMs: 99 * 86400000 } }
 function fixture() {
   const b = makeBoard(...BOARD(), { layouts: LAYOUTS })
   const base = b.host.charts

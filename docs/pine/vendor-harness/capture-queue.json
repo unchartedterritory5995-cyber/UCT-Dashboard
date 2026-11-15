@@ -60,8 +60,8 @@
   ],
   "coverageMeasuredOn": "2026-11-05",
   "coverageMasterSha": "3ca4b0d358",
-  "fixtures": 353,
-  "ledgerRows": 0
+  "fixtures": 568,
+  "ledgerRows": 103
  },
  "definitions": {
   "priority": "|firm ∪ named ∪ direct| — firm: non-transferring sample scripts whose every host wall is a guard the target's rows name; named: non-transferring scripts the rows name; direct: the target IS a transferring, never-MATCHed sample script (its capture verifies it)",
@@ -83,17 +83,17 @@
  "counts": {
   "targets": 301,
   "byStatus": {
-   "CAPTURED": 78,
+   "CAPTURED": 93,
    "NEEDS_CHART": 39,
    "NEEDS_LIVE": 2,
-   "QUEUED": 182
+   "QUEUED": 167
   },
   "byPlanWave": {
    "E": {
-    "CAPTURED": 65,
+    "CAPTURED": 80,
     "NEEDS_CHART": 37,
     "NEEDS_LIVE": 2,
-    "QUEUED": 149
+    "QUEUED": 134
    },
    "W1": {
     "QUEUED": 6
@@ -113,15 +113,15 @@
   },
   "byPriorityBand": {
    "0": {
-    "CAPTURED": 61,
+    "CAPTURED": 69,
     "NEEDS_CHART": 38,
     "NEEDS_LIVE": 2,
-    "QUEUED": 167
+    "QUEUED": 159
    },
    "1-2": {
-    "CAPTURED": 17,
+    "CAPTURED": 24,
     "NEEDS_CHART": 1,
-    "QUEUED": 15
+    "QUEUED": 8
    }
   },
   "byDocWave": {
@@ -134,8 +134,7 @@
     "NEEDS_CHART": 2
    },
    "E-census": {
-    "CAPTURED": 6,
-    "QUEUED": 5
+    "CAPTURED": 11
    },
    "b1-paints": {
     "CAPTURED": 2
@@ -250,7 +249,7 @@
     "QUEUED": 4
    },
    "w3w4-d1": {
-    "QUEUED": 8
+    "CAPTURED": 8
    },
    "w4-t11": {
     "QUEUED": 8
@@ -295,8 +294,9 @@
     "QUEUED": 6
    },
    "wse": {
+    "CAPTURED": 2,
     "NEEDS_CHART": 1,
-    "QUEUED": 3
+    "QUEUED": 1
    },
    "wsf-realtime": {
     "NEEDS_CHART": 1
@@ -1378,8 +1378,10 @@
   },
   {
    "id": "atr-trend-bands-misu__a34d44410a@NYSE:RDDT@D",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/atr-trend-bands-misu-rddt-1d-2026-11-15.json"
+   ],
    "source": "corpus/committed/atr-trend-bands-misu__a34d44410a.pine",
    "sourceKind": "corpus",
    "sha256": "d24f3468e4f96d99dac8c66f10b574affdbdf33ca07a3a7f8d1da33414aa1cfc",
@@ -1392,7 +1394,9 @@
    "chartDefaulted": false,
    "chartSource": "row",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "NYSE:RDDT D"
+   ],
    "licence": "corpus",
    "needsLive": false,
    "priority": 1,
@@ -1422,8 +1426,10 @@
   },
   {
    "id": "multi-timeframe-trend-indicator__fa4022ecf5@NYSE:RDDT@D",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/multi-timeframe-trend-indicator-rddt-1d-2026-11-14.json"
+   ],
    "source": "corpus/committed/multi-timeframe-trend-indicator__fa4022ecf5.pine",
    "sourceKind": "corpus",
    "sha256": "a45b057a05e86612bd60275f34d86825f69b4b24bc78f4f3f1dd62f60533fae0",
@@ -1436,7 +1442,10 @@
    "chartDefaulted": false,
    "chartSource": "row",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "AMEX:SPY D",
+    "NYSE:RDDT D"
+   ],
    "licence": "corpus",
    "needsLive": false,
    "priority": 1,
@@ -1705,8 +1714,10 @@
   },
   {
    "id": "pivot-high-low-points__hoTsDQRY3L@NYSE:RDDT@D",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/pivot-high-low-points-rddt-1d-2026-11-14.json"
+   ],
    "source": "corpus/committed/pivot-high-low-points__hoTsDQRY3L.pine",
    "sourceKind": "corpus",
    "sha256": "157699de27f04cd391d0def8bec9d1854fa3414c0477af4d8049d5133e70a223",
@@ -1719,7 +1730,9 @@
    "chartDefaulted": false,
    "chartSource": "census",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "NYSE:RDDT D"
+   ],
    "licence": "corpus",
    "needsLive": false,
    "priority": 1,
@@ -1794,8 +1807,10 @@
   },
   {
    "id": "relative-volume__LnFmPEoFXQ@NYSE:RDDT@D",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/relative-volume-rddt-1d-2026-11-14.json"
+   ],
    "source": "corpus/committed/relative-volume__LnFmPEoFXQ.pine",
    "sourceKind": "corpus",
    "sha256": "7e60ca18d4b065fa9ca5df9cb36c0899f95b37dd09cce3c8068a24008338f52c",
@@ -1808,7 +1823,9 @@
    "chartDefaulted": false,
    "chartSource": "census",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "NYSE:RDDT D"
+   ],
    "licence": "corpus",
    "needsLive": false,
    "priority": 1,
@@ -1836,8 +1853,10 @@
   },
   {
    "id": "smart-money-interest-index-algoalpha__effdd7852c@NYSE:RDDT@D",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/smart-money-interest-index-algoalpha-rddt-1d-2026-11-14.json"
+   ],
    "source": "corpus/committed/smart-money-interest-index-algoalpha__effdd7852c.pine",
    "sourceKind": "corpus",
    "sha256": "571a7211764f620cb410daf75749a532fe84fdec5925bcf6994beec3905df250",
@@ -1850,7 +1869,9 @@
    "chartDefaulted": false,
    "chartSource": "census",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "NYSE:RDDT D"
+   ],
    "licence": "corpus",
    "needsLive": false,
    "priority": 1,
@@ -1878,8 +1899,10 @@
   },
   {
    "id": "smart-money-volume-index-algoalpha__6663950b80@NYSE:RDDT@D",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/smart-money-volume-index-algoalpha-rddt-1d-2026-11-14.json"
+   ],
    "source": "corpus/committed/smart-money-volume-index-algoalpha__6663950b80.pine",
    "sourceKind": "corpus",
    "sha256": "585e61e2d8c81156a4b716edba4415a5ae6d6b51d41aaf2a75aaff03673bcd83",
@@ -1892,7 +1915,9 @@
    "chartDefaulted": false,
    "chartSource": "census",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "NYSE:RDDT D"
+   ],
    "licence": "corpus",
    "needsLive": false,
    "priority": 1,
@@ -2014,8 +2039,10 @@
   },
   {
    "id": "support-and-resistance__1505@NYSE:RDDT@D",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/support-and-resistance-5f95e90f-rddt-1d-2026-11-13.json"
+   ],
    "source": "corpus/committed/support-and-resistance__1505.pine",
    "sourceKind": "corpus",
    "sha256": "5f95e90f1714bc164b2982b9ce1eb447218c8b830dbcb5e0374ec3f4d0416a84",
@@ -2028,7 +2055,9 @@
    "chartDefaulted": false,
    "chartSource": "census",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "NYSE:RDDT D"
+   ],
    "licence": "corpus",
    "needsLive": false,
    "priority": 1,
@@ -9640,7 +9669,9 @@
    "chartDefaulted": false,
    "chartSource": "row",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "NYSE:RDDT D"
+   ],
    "licence": "probe",
    "needsLive": false,
    "priority": 0,
@@ -10882,8 +10913,10 @@
   },
   {
    "id": "vw-w3n-draw-block-history-a@AMEX:SPY@D",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/vw-w3n-draw-block-history-a-spy-1d-2026-11-15.json"
+   ],
    "source": "tools/visual_conformance/probes/vw-w3n-draw-block-history-a.pine",
    "sourceKind": "probe",
    "sha256": "0cee10839e257b3a1d199066848918cdb1781dd114ea1596030e87a466ab1135",
@@ -10896,7 +10929,10 @@
    "chartDefaulted": false,
    "chartSource": "preamble",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "AMEX:SPY D",
+    "NYSE:RDDT D"
+   ],
    "licence": "probe",
    "needsLive": false,
    "priority": 0,
@@ -10924,8 +10960,10 @@
   },
   {
    "id": "vw-w3n-draw-block-history-a@NYSE:RDDT@D",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/vw-w3n-draw-block-history-a-rddt-1d-2026-11-15.json"
+   ],
    "source": "tools/visual_conformance/probes/vw-w3n-draw-block-history-a.pine",
    "sourceKind": "probe",
    "sha256": "0cee10839e257b3a1d199066848918cdb1781dd114ea1596030e87a466ab1135",
@@ -10938,7 +10976,10 @@
    "chartDefaulted": false,
    "chartSource": "preamble",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "AMEX:SPY D",
+    "NYSE:RDDT D"
+   ],
    "licence": "probe",
    "needsLive": false,
    "priority": 0,
@@ -10966,8 +11007,10 @@
   },
   {
    "id": "vw-w3n-draw-block-history-b@AMEX:SPY@D",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/vw-w3n-draw-block-history-b-spy-1d-2026-11-15.json"
+   ],
    "source": "tools/visual_conformance/probes/vw-w3n-draw-block-history-b.pine",
    "sourceKind": "probe",
    "sha256": "18eca33b53ad0a55cbce1e2ce73078b7e08d5831c9b0731b9228158ff0f59004",
@@ -10980,7 +11023,10 @@
    "chartDefaulted": false,
    "chartSource": "preamble",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "AMEX:SPY D",
+    "NYSE:RDDT D"
+   ],
    "licence": "probe",
    "needsLive": false,
    "priority": 0,
@@ -11008,8 +11054,10 @@
   },
   {
    "id": "vw-w3n-draw-block-history-b@NYSE:RDDT@D",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/vw-w3n-draw-block-history-b-rddt-1d-2026-11-15.json"
+   ],
    "source": "tools/visual_conformance/probes/vw-w3n-draw-block-history-b.pine",
    "sourceKind": "probe",
    "sha256": "18eca33b53ad0a55cbce1e2ce73078b7e08d5831c9b0731b9228158ff0f59004",
@@ -11022,7 +11070,10 @@
    "chartDefaulted": false,
    "chartSource": "preamble",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "AMEX:SPY D",
+    "NYSE:RDDT D"
+   ],
    "licence": "probe",
    "needsLive": false,
    "priority": 0,
@@ -11050,8 +11101,10 @@
   },
   {
    "id": "vw-w3n-draw-block-history-c@AMEX:SPY@D",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/vw-w3n-draw-block-history-c-spy-1d-2026-11-15.json"
+   ],
    "source": "tools/visual_conformance/probes/vw-w3n-draw-block-history-c.pine",
    "sourceKind": "probe",
    "sha256": "6c343788965a3b12d6863c0988f8979256d0d37c7459a599c3432f67221c6e62",
@@ -11064,7 +11117,10 @@
    "chartDefaulted": false,
    "chartSource": "preamble",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "AMEX:SPY D",
+    "NYSE:RDDT D"
+   ],
    "licence": "probe",
    "needsLive": false,
    "priority": 0,
@@ -11092,8 +11148,10 @@
   },
   {
    "id": "vw-w3n-draw-block-history-c@NYSE:RDDT@D",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/vw-w3n-draw-block-history-c-rddt-1d-2026-11-15.json"
+   ],
    "source": "tools/visual_conformance/probes/vw-w3n-draw-block-history-c.pine",
    "sourceKind": "probe",
    "sha256": "6c343788965a3b12d6863c0988f8979256d0d37c7459a599c3432f67221c6e62",
@@ -11106,7 +11164,10 @@
    "chartDefaulted": false,
    "chartSource": "preamble",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "AMEX:SPY D",
+    "NYSE:RDDT D"
+   ],
    "licence": "probe",
    "needsLive": false,
    "priority": 0,
@@ -11134,8 +11195,10 @@
   },
   {
    "id": "vw-w3n-draw-block-history-d@AMEX:SPY@D",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/vw-w3n-draw-block-history-d-spy-1d-2026-11-15.json"
+   ],
    "source": "tools/visual_conformance/probes/vw-w3n-draw-block-history-d.pine",
    "sourceKind": "probe",
    "sha256": "42fb685a6daa13cdfd48a2b12f52298668ab25d20d2c97b6aa30e9ccb193e1d6",
@@ -11148,7 +11211,10 @@
    "chartDefaulted": false,
    "chartSource": "preamble",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "AMEX:SPY D",
+    "NYSE:RDDT D"
+   ],
    "licence": "probe",
    "needsLive": false,
    "priority": 0,
@@ -11176,8 +11242,10 @@
   },
   {
    "id": "vw-w3n-draw-block-history-d@NYSE:RDDT@D",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/vw-w3n-draw-block-history-d-rddt-1d-2026-11-15.json"
+   ],
    "source": "tools/visual_conformance/probes/vw-w3n-draw-block-history-d.pine",
    "sourceKind": "probe",
    "sha256": "42fb685a6daa13cdfd48a2b12f52298668ab25d20d2c97b6aa30e9ccb193e1d6",
@@ -11190,7 +11258,10 @@
    "chartDefaulted": false,
    "chartSource": "preamble",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "AMEX:SPY D",
+    "NYSE:RDDT D"
+   ],
    "licence": "probe",
    "needsLive": false,
    "priority": 0,

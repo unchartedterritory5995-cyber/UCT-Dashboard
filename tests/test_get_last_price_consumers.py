@@ -30,6 +30,7 @@ ROOT = Path(__file__).resolve().parents[1]
 INTEREST = {
     "api/routers/stream.py",                                   # /api/stream/prices: add on open, remove in finally
     "api/services/alert_taxonomy/price_level_projection.py",   # D3 cohort, reconciled every tick
+    "api/services/ingest_runtime.py",                          # stream-ingest: interest per unioned owner symbol
 }
 #: Documented one-shot reads (best-effort tick, labelled with its minute).
 ONE_SHOT = {

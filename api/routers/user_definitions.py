@@ -347,6 +347,9 @@ def _stamped(row: dict, *, budget: Optional["runtime_definitions.DetectorBudget"
     WS-I Part 2 (re-verify of #1204): `budget` is the REQUEST's bound on fresh capability-detector
     runs (`runtime_definitions.DetectorBudget`), shared by every row the request serves.
     """
+    # ⛔⛔ SHARE PRIVACY -- an installed copy's `origin.author_id` stays on the server
+    # (`svc.served_row`); every door below that hands a stored definition out goes through it.
+    row = svc.served_row(row)
     row = runtime_definitions.stamp_served(row, budget=budget)
     out = dict(row)
     # ⭐ W5-T17 — THE SERVER'S OWN ANSWER FOR THE THREE SERVER LANES, runtime rows only: an
@@ -698,6 +701,7 @@ def get_definition(def_id: str,
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     if row is None:
         raise HTTPException(status_code=404, detail="Not found")
+    row = svc.served_row(row)
     row = runtime_definitions.stamp_served(row)
     row = dict(row, repaint_notice=relint.member_notice(row))
     row = _served_lines(user["id"], row)
@@ -840,7 +844,9 @@ def share_state(def_id: str, user: dict = Depends(require_paid)):
         out = svc.share_status(user["id"], def_id)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return out or {"token": None}
+    # ⭐ `includesSource` even with no link yet: the panel shows the sentence BEFORE the member
+    # presses Create (`SharePanel.jsx`), so the disclosure precedes the share.
+    return out or {"token": None, "includesSource": svc.includes_source(user["id"], def_id)}
 
 
 @router.delete("/{def_id}/share")
@@ -885,7 +891,8 @@ def definition_history(def_id: str, user: dict = Depends(require_paid),
     rows = [dict(r, plot_identities=by_version.get(r.get("version"), {}))
             if isinstance(r, dict) else r
             for r in (runtime_definitions.stamp_served(
-                r, budget=budget, capability=isinstance(r, dict) and r.get("version") == latest)
+                svc.served_row(r), budget=budget,
+                capability=isinstance(r, dict) and r.get("version") == latest)
                 for r in rows)]
     return {"def_id": def_id, "versions": _maybe_compact(rows, graph)}
 

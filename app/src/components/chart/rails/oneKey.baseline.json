@@ -23,6 +23,12 @@
         "at": "components/StockChart.jsx:9309"
       }
     },
+    "components/chart/engine/binder.js": {
+      "${ctx.sym || ''}:${frame || ctx.tf || ''}": {
+        "n": 1,
+        "at": "components/chart/engine/binder.js:1995"
+      }
+    },
     "components/chart/engine/liveTail.js": {
       "${String(sym).toUpperCase()}:${String(tf == null ? 'D' : tf)}": {
         "n": 1,
@@ -31,7 +37,7 @@
     },
     "components/chart/useLegacyChartBars.js": {
       "${sym}_${_barsTf}": {
-        "n": 18,
+        "n": 16,
         "at": "components/chart/useLegacyChartBars.js:120"
       }
     },
