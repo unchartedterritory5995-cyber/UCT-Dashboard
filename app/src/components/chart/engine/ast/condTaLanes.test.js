@@ -193,7 +193,9 @@ describe('COND-TA — 2c. `?:` arms: eager in v1-v3, lazy from v4 (both witnesse
     const t = strict(OBV_V1)
     expect(t.outputs[0].refusal).toBeFalsy()
     expect(t.blockRuns).toBeUndefined()
-    expect(lenient(OBV_V1).outputs[0].refusal).toBeFalsy()
+    // the screener lane refuses `cum` for its own reason (no anchor: `pine:function`), never this rule's
+    const lr = lenient(OBV_V1).outputs[0].refusal
+    expect(lr && lr.guard).not.toBe('pine:block')
     const { cols, errors } = bind(OBV_V1)
     expect(errors.value).toBeUndefined()
     // the eager OBV, by hand: every bar's change decides the bar's signed volume
