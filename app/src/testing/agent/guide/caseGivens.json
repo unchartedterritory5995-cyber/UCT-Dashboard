@@ -1,0 +1,33 @@
+{
+ "_about": "Declared givens for the GENERATED inventory cases (cases.inventory.json is rewritten by agentGuideInventory, so they live here, by row id). Each name is built by givens.mjs. A hand-written cases file declares `given` on the case itself.",
+ "C1-045": [
+  "replayRunning"
+ ],
+ "C2-007": [
+  "savedIndicator"
+ ],
+ "C2-091": [
+  "alertFormMultiLine"
+ ],
+ "C2-092": [
+  "alertFormSignal"
+ ],
+ "C2-100": [
+  "blockedAlert"
+ ],
+ "C3-198": [
+  "aiAnswer"
+ ],
+ "C3-199": [
+  "aiAnswer"
+ ],
+ "C3-200": [
+  "aiAnswer"
+ ],
+ "C3-203": [
+  "noteOpen"
+ ],
+ "C3-210": [
+  "replayRunning"
+ ]
+}

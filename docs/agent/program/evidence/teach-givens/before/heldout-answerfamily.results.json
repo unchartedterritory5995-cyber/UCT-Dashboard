@@ -1,0 +1,102 @@
+{
+ "mode": "BROWSER-MOCK-MODEL",
+ "evidence": "LOCAL agent harness, scripted model, synthetic bars and fixtures: not production, not gate evidence",
+ "at": "2026-11-10T07:32:16.333Z",
+ "base": "http://127.0.0.1:5302",
+ "results": [
+  {
+   "id": "HG-03",
+   "say": "show me how to copy what the AI search said",
+   "feature": "control",
+   "title": "Copying an answer",
+   "given": [
+    "widgets",
+    "declared",
+    "declaredRoutes"
+   ],
+   "pass": false,
+   "steps": [],
+   "prelude": [
+    "aiAnswer: asked, answered"
+   ],
+   "why": "no walkthrough: Harness\n2:31 AM\nshow me how to copy what the AI search said // UCT Agent\n2:31 AM\n\nthe script had no plan for this turn",
+   "consoleErrors": []
+  },
+  {
+   "id": "HG-18",
+   "say": "how do I copy the AI search response",
+   "feature": "control",
+   "title": "Copying an answer",
+   "given": [
+    "widgets",
+    "declared",
+    "declaredRoutes"
+   ],
+   "note": "answer-named-indirectly family (HG-03 class), written before the words.js change",
+   "pass": false,
+   "steps": [],
+   "prelude": [
+    "aiAnswer: asked, answered"
+   ],
+   "why": "no walkthrough: Harness\n2:31 AM\nhow do I copy the AI search response // UCT Agent\n2:31 AM\n\nthe script had no plan for this turn",
+   "consoleErrors": []
+  },
+  {
+   "id": "HG-19",
+   "say": "show me how to save the response I got from AI search",
+   "feature": "control",
+   "title": "Saving an answer",
+   "given": [
+    "widgets",
+    "declared",
+    "declaredRoutes"
+   ],
+   "note": "answer-named-indirectly family (HG-03 class), written before the words.js change",
+   "pass": false,
+   "steps": [],
+   "prelude": [
+    "aiAnswer: asked, answered"
+   ],
+   "why": "no walkthrough: Harness\n2:31 AM\nshow me how to save the response I got from AI search // UCT Agent\n2:31 AM\n\nthe script had no plan for this turn",
+   "consoleErrors": []
+  },
+  {
+   "id": "HG-20",
+   "say": "how do I copy what it wrote in AI search",
+   "feature": "control",
+   "title": "Copying an answer",
+   "given": [
+    "widgets",
+    "declared",
+    "declaredRoutes"
+   ],
+   "note": "answer-named-indirectly family (HG-03 class), written before the words.js change",
+   "pass": false,
+   "steps": [],
+   "prelude": [
+    "aiAnswer: asked, answered"
+   ],
+   "why": "no walkthrough: Harness\n2:32 AM\nhow do I copy what it wrote in AI search // UCT Agent\n2:32 AM\n\nthe script had no plan for this turn",
+   "consoleErrors": []
+  },
+  {
+   "id": "HG-21",
+   "say": "how do I save what the AI told me",
+   "feature": "control",
+   "title": "Saving an answer",
+   "given": [
+    "widgets",
+    "declared",
+    "declaredRoutes"
+   ],
+   "note": "answer-named-indirectly family (HG-03 class), written before the words.js change",
+   "pass": false,
+   "steps": [],
+   "prelude": [
+    "aiAnswer: asked, answered"
+   ],
+   "why": "no walkthrough: Harness\n2:32 AM\nhow do I save what the AI told me // UCT Agent\n2:32 AM\n\nDo you mean Saving an answer (the AI Search widget)? If so, ask me again naming it; if n",
+   "consoleErrors": []
+  }
+ ]
+}

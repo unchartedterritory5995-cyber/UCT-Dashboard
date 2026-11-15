@@ -1,0 +1,155 @@
+{
+ "mode": "BROWSER-MOCK-MODEL",
+ "evidence": "LOCAL agent harness, scripted model, synthetic bars and fixtures: not production, not gate evidence",
+ "at": "2026-11-10T07:27:12.237Z",
+ "base": "http://127.0.0.1:5302",
+ "results": [
+  {
+   "id": "C2-091",
+   "say": "show me how to alert on the MACD signal line",
+   "feature": "alertAction",
+   "title": "Which line an alert watches",
+   "given": [
+    "iaCatalog",
+    "declared"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Click the bell to open Indicator alerts.",
+     "onPrimary": true,
+     "pr": [
+      482,
+      174,
+      24,
+      22
+     ],
+     "rr": [
+      478,
+      170,
+      32,
+      30
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Choose which line of the indicator to watch.",
+     "onPrimary": true,
+     "pr": [
+      267,
+      292,
+      218,
+      28
+     ],
+     "rr": [
+      263,
+      288,
+      226,
+      36
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "C2-092",
+   "say": "how do I alert on a yes/no signal with trigger policy",
+   "feature": "alertAction",
+   "title": "When a signal alert fires",
+   "given": [
+    "iaCatalog",
+    "declared"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Click the bell to open Indicator alerts.",
+     "onPrimary": true,
+     "pr": [
+      482,
+      174,
+      24,
+      22
+     ],
+     "rr": [
+      478,
+      170,
+      32,
+      30
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Choose when it fires: when it becomes true, becomes false, or while it is true.",
+     "onPrimary": true,
+     "pr": [
+      267,
+      295,
+      218,
+      28
+     ],
+     "rr": [
+      263,
+      291,
+      226,
+      36
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "C2-100",
+   "say": "how do I see why an alert cannot fire",
+   "feature": "alertAction",
+   "title": "Why an alert can’t fire",
+   "given": [
+    "iaCatalog",
+    "declared",
+    "declaredSetups",
+    "setup"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Click the bell to open Indicator alerts.",
+     "onPrimary": true,
+     "pr": [
+      482,
+      174,
+      24,
+      22
+     ],
+     "rr": [
+      478,
+      170,
+      32,
+      30
+     ]
+    },
+    {
+     "i": 1,
+     "text": "This line says why the alert can’t fire.",
+     "onPrimary": true,
+     "pr": [
+      200,
+      551,
+      213,
+      32
+     ],
+     "rr": [
+      196,
+      547,
+      221,
+      40
+     ]
+    }
+   ],
+   "setup": "blockedAlert: created",
+   "consoleErrors": []
+  }
+ ]
+}

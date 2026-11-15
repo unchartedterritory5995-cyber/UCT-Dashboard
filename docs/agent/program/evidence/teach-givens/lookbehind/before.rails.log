@@ -1,0 +1,42 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/w/pl-teach-givens/app[39m
+
+ [32m✓[39m src/noRegexLookbehind.test.js [2m([22m[2m6 tests[22m[2m)[22m[33m 3524[2mms[22m[39m
+     [33m[2m✓[22m[39m no product file under app/src uses one [33m 3314[2mms[22m[39m
+ [32m✓[39m src/agent/agentGuideAnswerWords.test.js [2m([22m[2m20 tests[22m[2m)[22m[32m 31[2mms[22m[39m
+ [31m❯[39m src/agent/agentNoLookbehindStrings.test.js [2m([22m[2m5 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[33m 9419[2mms[22m[39m
+     [32m✓[39m the detectors fire on every form they guard, and never on a comment (control)[32m 5[2mms[22m[39m
+[31m     [31m×[31m PARSED: no product file under app/src/agent carries one in a regex, string or template literal[39m[33m 420[2mms[22m[39m
+     [33m[2m✓[22m[39m BUILT: no module under app/src/agent exports a pattern or string that carries one [33m 5845[2mms[22m[39m
+     [33m[2m✓[22m[39m KNOWN GAP: no product file outside app/src/agent carries one [33m 1638[2mms[22m[39m
+     [33m[2m✓[22m[39m KNOWN GAP pinned: the sites outside the Agent are exactly these today [33m 1509[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/agent/agentNoLookbehindStrings.test.js[2m > [22mno string-built regex lookbehind in app/src/agent (iOS 16 floor)[2m > [22mPARSED: no product file under app/src/agent carries one in a regex, string or template literal
+[31m[1mAssertionError[22m: expected [ 'agent/guide/words.js:71' ] to deeply equal [][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- [][39m
+[31m+ [[39m
+[31m+   "agent/guide/words.js:71",[39m
+[31m+ ][39m
+
+[36m [2m❯[22m src/agent/agentNoLookbehindStrings.test.js:[2m90:23[22m[39m
+    [90m 88| [39m      for (const at of builtSites(data)) offenders.push(`${path.relati…
+    [90m 89| [39m    }
+    [90m 90| [39m    [34mexpect[39m(offenders)[33m.[39m[34mtoEqual[39m([])
+    [90m   | [39m                      [31m^[39m
+    [90m 91| [39m  })
+    [90m 92| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m2 passed[39m[22m[90m (3)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m30 passed[39m[22m[90m (31)[39m
+[2m   Start at [22m 15:05:29
+[2m   Duration [22m 10.40s[2m (transform 8.74s, setup 866ms, import 5.88s, tests 12.97s, environment 1.49s)[22m
+

@@ -1,0 +1,4 @@
+BEFORE rows 439, AFTER rows 463; shared 439 (held-out 432); missing from AFTER 0
+shared rows whose fast-route digest changed (any surface): 0; surface rows whose feature or step targets changed: 0; rows whose concepts changed: 1
+CONCEPTS | held | "how do I copy the AI search response" | ai,answer,copy,search | -> | ai,answer,copy,search,~response
+AFTER-only rows (literals of the new agentGuideAnswerNoLookbehind.test.js, no BEFORE): 24

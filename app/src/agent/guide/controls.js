@@ -83,7 +83,15 @@ function opening(place, row) {
 }
 
 // ── the catalog ──
-const w = (type, need, target, name, say, more = {}) => ({ place: `w:${type}`, need, target: typeof target === 'string' ? { widgetType: type, aria: target } : { widgetType: type, ...target }, name, say, ...more })
+// `more.portaled`: the control sits in a menu the widget portals to the page (targets.js then looks outside the cell for it)
+const w = (type, need, target, name, say, more = {}) => {
+  const scope = { widgetType: type, ...(more.portaled ? { portaled: true } : {}) }
+  const { portaled: _p, ...rest } = more
+  return { place: `w:${type}`, need, target: typeof target === 'string' ? { ...scope, aria: target } : { ...scope, ...target }, name, say, ...rest }
+}
+// a Volume Surge list's own controls (Rename, Delete list) are in the list picker's menu, which is portaled to the page
+// (pages/charts/widgets/VolumeScanLists.jsx): the walkthrough opens the picker first
+const SURGE_PICKER = [{ target: { widgetType: 'volumescan', guide: 'volumeScan.scope' }, name: 'the list picker', text: 'Click the list picker at the top of the widget.', waitFor: { widgetType: 'volumescan', portaled: true, attr: 'role', value: 'menu' } }]
 const title = (value) => ({ attr: 'title', value })
 const JOURNAL = '^Send (?!to Journal).+ to Journal$'
 const SEND = ['send', 'save', 'copy', '~add', '~get']
@@ -166,8 +174,8 @@ const ROWS = [
   w('scatter', 'zoom map', 'Zoom in', 'Zoom', 'These zoom the map in and out, and reset it.', { id: 'map.zoom', label: 'Zooming the Market Map', alt: 'These show on the map once it has a universe and its data.' }),
   w('scatter', 'map label', { nameRe: '^Cycle ticker labels' }, 'Labels', 'This cycles the ticker labels: spotlight, all, or off.', { id: 'map.labels', also: 'ticker hide', label: 'The Market Map’s labels', alt: 'These show on the map once it has a universe and its data.' }),
   w('scatter', 'map follow', 'Follow the linked list', 'Follow', 'This makes the map follow the linked watchlist.', { id: 'map.follow', also: 'list', label: 'Following the linked list', alt: 'These show on the map once it has a universe and its data.' }),
-  w('volumescan', 'delete list', title('Delete list'), 'Delete list', 'This deletes the list. It asks first.', { id: 'surge.delete', label: 'Deleting a Volume Surge list', alt: 'You have no lists of your own here yet.' }),
-  w('volumescan', 'rename list', title('Rename'), 'Rename', 'Click this, type the new name and press Enter.', { id: 'surge.rename', label: 'Renaming a Volume Surge list', alt: 'You have no lists of your own here yet.' }),
+  w('volumescan', 'delete list', title('Delete list'), 'Delete list', 'This deletes the list. It asks first.', { id: 'surge.delete', label: 'Deleting a Volume Surge list', alt: 'You have no lists of your own here yet.', portaled: true, open: SURGE_PICKER }),
+  w('volumescan', 'rename list', title('Rename'), 'Rename', 'Click this, type the new name and press Enter.', { id: 'surge.rename', label: 'Renaming a Volume Surge list', alt: 'You have no lists of your own here yet.', portaled: true, open: SURGE_PICKER }),
   w('volumescan', 'ticker list', 'Add a ticker to this list', 'Add a ticker', 'Type a ticker here to add it to the list.', { id: 'surge.add', any: ['~add', '~put'], label: 'Adding a ticker to a Volume Surge list', alt: 'Open one of your lists first.' }),
   // ── round 7: the Options Flow widget's own filters (the funnel's strip: OptionsFlowWidget.jsx) ──
   w('optionsflow', '', { guide: 'flow.filter.min' }, 'Min', 'Pick the smallest premium a print must have to show.', { id: 'flow.min', any: ['~premium', '~minimum', '~min', '~size', '~big', '~large', '~dollar'], label: 'Options Flow: minimum premium', open: [{ target: { widgetType: 'optionsflow', guide: 'flow.filters' }, name: 'the funnel', text: 'Click the funnel to open the filters.', waitFor: { widgetType: 'optionsflow', guide: 'flow.filterStrip' } }] }),

@@ -1,0 +1,1429 @@
+{
+ "mode": "BROWSER-MOCK-MODEL",
+ "evidence": "LOCAL agent harness, scripted model, synthetic bars and fixtures: not production, not gate evidence",
+ "at": "2026-11-10T08:24:23.694Z",
+ "base": "http://127.0.0.1:5302",
+ "results": [
+  {
+   "id": "C1-001",
+   "say": "how do I change ticker by search pick",
+   "feature": "symbol",
+   "title": "Changing a chart’s symbol",
+   "given": [],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Click the symbol name, then type a ticker or company name and pick it from the list.",
+     "onPrimary": true,
+     "pr": [
+      21,
+      111,
+      54,
+      16
+     ],
+     "rr": [
+      17,
+      107,
+      62,
+      24
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "C1-008",
+   "say": "how do I add custom interval",
+   "feature": "timeframeCustom",
+   "title": "Adding a custom timeframe",
+   "given": [],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Click this arrow to open every timeframe.",
+     "onPrimary": true,
+     "pr": [
+      126,
+      146,
+      27,
+      12
+     ],
+     "rr": [
+      122,
+      142,
+      35,
+      20
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Type the number here, choose minutes, hours, days or weeks beside it, and add it. A star on any row puts it on the buttons.",
+     "onPrimary": true,
+     "pr": [
+      276,
+      787,
+      54,
+      28
+     ],
+     "rr": [
+      272,
+      783,
+      62,
+      36
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "C1-018",
+   "say": "how do I thin bars",
+   "feature": "chartSetting",
+   "title": "Changing Thin bars",
+   "given": [
+    "chartSettings"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Open this chart’s settings with the gear.",
+     "onPrimary": true,
+     "pr": [
+      730,
+      139,
+      26,
+      26
+     ],
+     "rr": [
+      726,
+      135,
+      34,
+      34
+     ]
+    },
+    {
+     "i": 2,
+     "text": "Thin bars is here, under Bar thickness. This shows while the chart type is Bars or HLC.",
+     "onPrimary": true,
+     "pr": [
+      479,
+      520,
+      632,
+      16
+     ],
+     "rr": [
+      475,
+      516,
+      640,
+      24
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "C1-030",
+   "say": "how do I type a date in Time Navigator",
+   "feature": "goToDate",
+   "title": "Going to a date",
+   "given": [],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Click here, type a date and press Enter. The arrows beside it step one bar at a time.",
+     "onPrimary": true,
+     "pr": [
+      188,
+      143,
+      92,
+      18
+     ],
+     "rr": [
+      184,
+      139,
+      100,
+      26
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "C1-031",
+   "say": "show me how to go to 2020",
+   "feature": "goToDate",
+   "title": "Going to a date",
+   "given": [],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Click here, type a date and press Enter. The arrows beside it step one bar at a time.",
+     "onPrimary": true,
+     "pr": [
+      188,
+      143,
+      92,
+      18
+     ],
+     "rr": [
+      184,
+      139,
+      100,
+      26
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "C1-034",
+   "say": "show me how to compare with AMD",
+   "feature": "compare",
+   "title": "Comparing symbols on a chart",
+   "given": [],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Open Tools ▾.",
+     "onPrimary": true,
+     "pr": [
+      340,
+      17,
+      81,
+      26
+     ],
+     "rr": [
+      336,
+      13,
+      89,
+      34
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Click Compare Symbols.",
+     "onPrimary": true,
+     "pr": [
+      341,
+      76,
+      198,
+      28
+     ],
+     "rr": [
+      337,
+      72,
+      206,
+      36
+     ]
+    },
+    {
+     "i": 2,
+     "text": "Type a ticker and press Enter. Each symbol you add is listed here, with its scale and a remove button.",
+     "onPrimary": true,
+     "pr": [
+      643,
+      451,
+      314,
+      32
+     ],
+     "rr": [
+      639,
+      447,
+      322,
+      40
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "C1-143",
+   "say": "how do I text note",
+   "feature": "drawing",
+   "title": "Drawing a Text Note",
+   "given": [],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Click Text Note on the drawing toolbar.",
+     "onPrimary": true,
+     "pr": [
+      300,
+      174,
+      24,
+      22
+     ],
+     "rr": [
+      296,
+      170,
+      32,
+      30
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Click on the chart where the note goes, then type it.",
+     "onPrimary": true,
+     "pr": [
+      13,
+      168,
+      785,
+      741
+     ],
+     "rr": [
+      9,
+      164,
+      793,
+      749
+     ]
+    },
+    {
+     "i": 2,
+     "text": "That’s the Text Note. Click it to restyle, lock or delete it.",
+     "onPrimary": true,
+     "pr": [
+      13,
+      168,
+      785,
+      741
+     ],
+     "rr": [
+      9,
+      164,
+      793,
+      749
+     ]
+    }
+   ],
+   "scrolled": 6,
+   "consoleErrors": []
+  },
+  {
+   "id": "C1-169",
+   "say": "how do I rename a board",
+   "feature": "control",
+   "title": "Drawing boards: Rename",
+   "given": [],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Click Drawing Boards, at the end of the drawing tools.",
+     "onPrimary": true,
+     "pr": [
+      300,
+      174,
+      24,
+      22
+     ],
+     "rr": [
+      296,
+      170,
+      32,
+      30
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Click the pencil, type the new name and press Enter. Double-clicking the name does the same.",
+     "onPrimary": true,
+     "pr": [
+      503,
+      246,
+      19,
+      19
+     ],
+     "rr": [
+      499,
+      242,
+      27,
+      27
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "C2-005",
+   "say": "show me how to add a 20 EMA",
+   "feature": "indicators",
+   "title": "Adding EMA",
+   "given": [],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Open this chart’s settings with the gear.",
+     "onPrimary": true,
+     "pr": [
+      730,
+      139,
+      26,
+      26
+     ],
+     "rr": [
+      726,
+      135,
+      34,
+      34
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Open the Indicators tab.",
+     "onPrimary": true,
+     "pr": [
+      635,
+      247,
+      62,
+      36
+     ],
+     "rr": [
+      631,
+      243,
+      70,
+      44
+     ]
+    },
+    {
+     "i": 4,
+     "text": "Moving Average is already on this chart. Click this ＋ to add another.",
+     "onPrimary": true,
+     "pr": [
+      1081,
+      589,
+      22,
+      22
+     ],
+     "rr": [
+      1077,
+      585,
+      30,
+      30
+     ]
+    },
+    {
+     "i": 5,
+     "text": "SMA 5 is on the chart. That’s what a new one starts as. Click it here, then set Type to EMA and Period to 20.",
+     "onPrimary": true,
+     "pr": [
+      508,
+      474,
+      167,
+      18
+     ],
+     "rr": [
+      504,
+      470,
+      175,
+      26
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "C2-066",
+   "say": "how do I enter a formula",
+   "feature": "builderAction",
+   "title": "Entering a formula",
+   "given": [],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Click the chart, then press Alt+Shift+A to open the indicator library.",
+     "onPrimary": true,
+     "pr": [
+      13,
+      168,
+      785,
+      741
+     ],
+     "rr": [
+      9,
+      164,
+      793,
+      749
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Click New formula.",
+     "onPrimary": true,
+     "pr": [
+      497,
+      195,
+      601,
+      81
+     ],
+     "rr": [
+      493,
+      191,
+      609,
+      89
+     ]
+    },
+    {
+     "i": 2,
+     "text": "Type the formula here. UCT reads it back underneath as you go.",
+     "onPrimary": true,
+     "pr": [
+      497,
+      457,
+      601,
+      68
+     ],
+     "rr": [
+      493,
+      453,
+      609,
+      76
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "C2-072",
+   "say": "how do I name the draft",
+   "feature": "builderAction",
+   "title": "Naming a formula",
+   "given": [],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Click the chart, then press Alt+Shift+A to open the indicator library.",
+     "onPrimary": true,
+     "pr": [
+      13,
+      168,
+      785,
+      741
+     ],
+     "rr": [
+      9,
+      164,
+      793,
+      749
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Click New formula.",
+     "onPrimary": true,
+     "pr": [
+      497,
+      195,
+      601,
+      81
+     ],
+     "rr": [
+      493,
+      191,
+      609,
+      89
+     ]
+    },
+    {
+     "i": 2,
+     "text": "Type the name here. Save needs one.",
+     "onPrimary": true,
+     "pr": [
+      497,
+      819,
+      601,
+      44
+     ],
+     "rr": [
+      493,
+      815,
+      609,
+      52
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "C3-018",
+   "say": "how do I rename a widget tab",
+   "feature": "control",
+   "title": "Renaming a widget tab",
+   "given": [
+    "board"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Double-click a tab’s name, type the new one and press Enter.",
+     "onPrimary": true,
+     "pr": [
+      842,
+      78,
+      237,
+      19
+     ],
+     "rr": [
+      838,
+      74,
+      245,
+      27
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "C3-022",
+   "say": "how do I rename a chart tab",
+   "feature": "control",
+   "title": "Renaming a chart tab",
+   "given": [
+    "board"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Double-click a tab’s name, type the new one and press Enter.",
+     "onPrimary": true,
+     "pr": [
+      13,
+      102,
+      785,
+      26
+     ],
+     "rr": [
+      9,
+      98,
+      793,
+      34
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "C3-030",
+   "say": "show me how to save my layout",
+   "feature": "layoutSave",
+   "title": "Saving a layout",
+   "given": [],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Open Layouts ▾.",
+     "onPrimary": true,
+     "pr": [
+      230,
+      17,
+      95,
+      26
+     ],
+     "rr": [
+      226,
+      13,
+      103,
+      34
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Click Save Layout.",
+     "onPrimary": true,
+     "pr": [
+      231,
+      105,
+      228,
+      29
+     ],
+     "rr": [
+      227,
+      101,
+      236,
+      37
+     ]
+    },
+    {
+     "i": 2,
+     "text": "Click this to update the layout you have open. To keep this board as a NEW layout instead, type a name in the box below and click Save templ",
+     "onPrimary": true,
+     "pr": [
+      231,
+      85,
+      228,
+      28
+     ],
+     "rr": [
+      227,
+      81,
+      236,
+      36
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "C3-031",
+   "say": "how do I save as a new layout",
+   "feature": "layoutSave",
+   "title": "Saving a layout",
+   "given": [],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Open Layouts ▾.",
+     "onPrimary": true,
+     "pr": [
+      230,
+      17,
+      95,
+      26
+     ],
+     "rr": [
+      226,
+      13,
+      103,
+      34
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Click Save Layout.",
+     "onPrimary": true,
+     "pr": [
+      231,
+      105,
+      228,
+      29
+     ],
+     "rr": [
+      227,
+      101,
+      236,
+      37
+     ]
+    },
+    {
+     "i": 2,
+     "text": "Click this to update the layout you have open. To keep this board as a NEW layout instead, type a name in the box below and click Save templ",
+     "onPrimary": true,
+     "pr": [
+      231,
+      85,
+      228,
+      28
+     ],
+     "rr": [
+      227,
+      81,
+      236,
+      36
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "C3-033",
+   "say": "how do I rename a layout",
+   "feature": "layoutAction",
+   "title": "Renaming a layout",
+   "given": [],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Right-click one of your own layouts on the bar, such as “Agent Test”.",
+     "onPrimary": true,
+     "pr": [
+      157,
+      923,
+      81,
+      27
+     ],
+     "rr": [
+      153,
+      919,
+      89,
+      35
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Click Rename layout, type the new name and press Enter.",
+     "onPrimary": true,
+     "pr": [
+      178,
+      834,
+      176,
+      24
+     ],
+     "rr": [
+      174,
+      830,
+      184,
+      32
+     ]
+    }
+   ],
+   "tried": [
+    [
+     {
+      "x": 197.375,
+      "y": 936.5
+     },
+     {
+      "x": 197,
+      "y": 937
+     }
+    ]
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "C3-047",
+   "say": "how do I turn on Groups mode",
+   "feature": "gridAction",
+   "title": "Groups mode",
+   "given": [
+    "prefs"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Open Layouts ▾.",
+     "onPrimary": true,
+     "pr": [
+      121,
+      17,
+      95,
+      26
+     ],
+     "rr": [
+      117,
+      13,
+      103,
+      34
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Click Multi Chart.",
+     "onPrimary": true,
+     "pr": [
+      122,
+      77,
+      228,
+      31
+     ],
+     "rr": [
+      118,
+      73,
+      236,
+      39
+     ]
+    },
+    {
+     "i": 2,
+     "text": "Tick this, then type a ticker on any chart: the grid fills with its group.",
+     "onPrimary": true,
+     "pr": [
+      123,
+      259,
+      244,
+      18
+     ],
+     "rr": [
+      119,
+      255,
+      252,
+      26
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "C3-053",
+   "say": "how do I save a grid",
+   "feature": "gridAction",
+   "title": "Saving a grid",
+   "given": [
+    "prefs"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Open Layouts ▾.",
+     "onPrimary": true,
+     "pr": [
+      121,
+      17,
+      95,
+      26
+     ],
+     "rr": [
+      117,
+      13,
+      103,
+      34
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Click Multi Chart.",
+     "onPrimary": true,
+     "pr": [
+      122,
+      77,
+      228,
+      31
+     ],
+     "rr": [
+      118,
+      73,
+      236,
+      39
+     ]
+    },
+    {
+     "i": 2,
+     "text": "Type a name here, then click Save grid.",
+     "onPrimary": true,
+     "pr": [
+      135,
+      340,
+      220,
+      26
+     ],
+     "rr": [
+      131,
+      336,
+      228,
+      34
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "C3-070",
+   "say": "how do I create a list",
+   "feature": "watchlistCreate",
+   "title": "Creating a watchlist",
+   "given": [],
+   "pass": true,
+   "steps": [
+    {
+     "i": 2,
+     "text": "This is the list picker. Click ＋ New to start a list.",
+     "onPrimary": true,
+     "pr": [
+      1105,
+      108,
+      57,
+      21
+     ],
+     "rr": [
+      1101,
+      104,
+      65,
+      29
+     ]
+    },
+    {
+     "i": 3,
+     "text": "Type a name for the list.",
+     "onPrimary": true,
+     "pr": [
+      825,
+      192,
+      351,
+      28
+     ],
+     "rr": [
+      821,
+      188,
+      359,
+      36
+     ]
+    },
+    {
+     "i": 4,
+     "text": "Click Create. If it can’t be created, the form tells you here and nothing is saved.",
+     "onPrimary": true,
+     "pr": [
+      1114,
+      228,
+      62,
+      24
+     ],
+     "rr": [
+      1110,
+      224,
+      70,
+      32
+     ]
+    },
+    {
+     "i": 5,
+     "text": "The list is open in this widget and saved in My Lists. Click + to add its first ticker.",
+     "onPrimary": true,
+     "pr": [
+      1126,
+      107,
+      27,
+      23
+     ],
+     "rr": [
+      1122,
+      103,
+      35,
+      31
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "C3-098",
+   "say": "how do I set a price alert from a row",
+   "feature": "watchlistAction",
+   "title": "A price alert from the list",
+   "given": [
+    "alerts",
+    "setup"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 3,
+     "text": "Click a list to open it. It needs at least one ticker.",
+     "onPrimary": true,
+     "pr": [
+      806,
+      102,
+      389,
+      807
+     ],
+     "rr": [
+      802,
+      98,
+      397,
+      815
+     ]
+    },
+    {
+     "i": 4,
+     "text": "Right-click the ticker symbol at the left of this row. On a UCT or community list there’s no menu: open one of your own lists.",
+     "onPrimary": true,
+     "pr": [
+      806,
+      168,
+      389,
+      29
+     ],
+     "rr": [
+      802,
+      164,
+      397,
+      37
+     ]
+    },
+    {
+     "i": 5,
+     "text": "Click Set price alert. The box that opens takes the price, and any alerts on this ticker are listed below with a × to delete them.",
+     "onPrimary": true,
+     "pr": [
+      893,
+      307,
+      178,
+      30
+     ],
+     "rr": [
+      889,
+      303,
+      186,
+      38
+     ]
+    },
+    {
+     "i": 6,
+     "text": "Type the price and click Set. Alerts on this ticker are listed below, each with a × to delete it.",
+     "onPrimary": true,
+     "pr": [
+      979,
+      222,
+      80,
+      22
+     ],
+     "rr": [
+      975,
+      218,
+      88,
+      30
+     ]
+    }
+   ],
+   "setup": "alerts 2",
+   "tried": [
+    [
+     {
+      "x": 1000.5,
+      "y": 182.296875
+     },
+     {
+      "x": 829,
+      "y": 182
+     },
+     {
+      "x": 892,
+      "y": 182
+     },
+     {
+      "x": 971,
+      "y": 182
+     }
+    ]
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "C3-123",
+   "say": "how do I add a ticker to a scope list",
+   "feature": "control",
+   "title": "Adding a ticker to a Volume Surge list",
+   "given": [
+    "board",
+    "prefs"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 3,
+     "text": "Type a ticker here to add it to the list.",
+     "onPrimary": true,
+     "pr": [
+      933,
+      881,
+      208,
+      22
+     ],
+     "rr": [
+      929,
+      877,
+      216,
+      30
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "C3-128",
+   "say": "how do I create a price alert",
+   "feature": "alertPrice",
+   "title": "Setting a price alert",
+   "given": [],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Price alerts live in the Alerts widget. Open Widgets ▾.",
+     "onPrimary": true,
+     "pr": [
+      121,
+      17,
+      95,
+      26
+     ],
+     "rr": [
+      117,
+      13,
+      103,
+      34
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Click Alerts to add it to your board.",
+     "onPrimary": true,
+     "pr": [
+      280,
+      491,
+      150,
+      30
+     ],
+     "rr": [
+      276,
+      487,
+      158,
+      38
+     ]
+    },
+    {
+     "i": 2,
+     "text": "Your board is full, so choose where it goes: the arrows move it, and the gold outline shows what makes room. Then click Place.",
+     "onPrimary": true,
+     "pr": [
+      910,
+      694,
+      55,
+      22
+     ],
+     "rr": [
+      906,
+      690,
+      63,
+      30
+     ]
+    },
+    {
+     "i": 3,
+     "text": "Type the ticker.",
+     "onPrimary": true,
+     "pr": [
+      814,
+      565,
+      67,
+      22
+     ],
+     "rr": [
+      810,
+      561,
+      75,
+      30
+     ]
+    },
+    {
+     "i": 4,
+     "text": "Choose Above or Below: which way the price has to cross.",
+     "onPrimary": true,
+     "pr": [
+      887,
+      565,
+      97,
+      21
+     ],
+     "rr": [
+      883,
+      561,
+      105,
+      29
+     ]
+    },
+    {
+     "i": 5,
+     "text": "Type the price.",
+     "onPrimary": true,
+     "pr": [
+      989,
+      565,
+      80,
+      22
+     ],
+     "rr": [
+      985,
+      561,
+      88,
+      30
+     ]
+    },
+    {
+     "i": 6,
+     "text": "Set stays greyed out until the ticker and price are filled in.",
+     "onPrimary": true,
+     "pr": [
+      1076,
+      563,
+      54,
+      25
+     ],
+     "rr": [
+      1072,
+      559,
+      62,
+      33
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "C3-173",
+   "say": "how do I search themes or tickers",
+   "feature": "widgetAction",
+   "title": "Searching themes",
+   "given": [
+    "themes"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "That’s in the Theme Tracker widget. Open Widgets ▾.",
+     "onPrimary": true,
+     "pr": [
+      121,
+      17,
+      95,
+      26
+     ],
+     "rr": [
+      117,
+      13,
+      103,
+      34
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Click Theme Tracker to add it to your board.",
+     "onPrimary": true,
+     "pr": [
+      280,
+      138,
+      150,
+      30
+     ],
+     "rr": [
+      276,
+      134,
+      158,
+      38
+     ]
+    },
+    {
+     "i": 2,
+     "text": "Your board is full, so choose where it goes: the arrows move it, and the gold outline shows what makes room. Then click Place.",
+     "onPrimary": true,
+     "pr": [
+      910,
+      694,
+      55,
+      22
+     ],
+     "rr": [
+      906,
+      690,
+      63,
+      30
+     ]
+    },
+    {
+     "i": 3,
+     "text": "Type a theme or a ticker to find it.",
+     "onPrimary": true,
+     "pr": [
+      1007,
+      564,
+      178,
+      22
+     ],
+     "rr": [
+      1003,
+      560,
+      186,
+      30
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "C3-196",
+   "say": "show me how to ask AI search about NVDA",
+   "feature": "widgetAction",
+   "title": "Asking AI Search",
+   "given": [],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "That’s in the AI Search widget. Open Widgets ▾.",
+     "onPrimary": true,
+     "pr": [
+      121,
+      17,
+      95,
+      26
+     ],
+     "rr": [
+      117,
+      13,
+      103,
+      34
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Click AI Search to add it to your board.",
+     "onPrimary": true,
+     "pr": [
+      128,
+      395,
+      150,
+      30
+     ],
+     "rr": [
+      124,
+      391,
+      158,
+      38
+     ]
+    },
+    {
+     "i": 2,
+     "text": "Your board is full, so choose where it goes: the arrows move it, and the gold outline shows what makes room. Then click Place.",
+     "onPrimary": true,
+     "pr": [
+      910,
+      694,
+      55,
+      22
+     ],
+     "rr": [
+      906,
+      690,
+      63,
+      30
+     ]
+    },
+    {
+     "i": 3,
+     "text": "Type your question here and press Enter. Ask a follow-up in the same box.",
+     "onPrimary": true,
+     "pr": [
+      839,
+      860,
+      178,
+      19
+     ],
+     "rr": [
+      835,
+      856,
+      186,
+      27
+     ]
+    }
+   ],
+   "consoleErrors": []
+  }
+ ]
+}

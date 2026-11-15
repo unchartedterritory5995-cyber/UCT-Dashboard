@@ -65,7 +65,11 @@ const C = {
   news: ['news', 'feed'],
   note: ['=note', '=notes'],
   collection: ['collection'],
-  answer: ['answer', 'reply'],
+  // an answer named indirectly: "what the AI said / wrote / told me", and "the response" ONLY beside the AI ("the AI search
+  // response", "the response I got from AI search"). "response time", "API response", "responsive layout" and "the chart
+  // isn't responding" stay out: no AI in the words (pattern pieces: no literal spaces; no lookbehind, iOS 16 floor: "ai" before
+  // "respons" is the lookahead on "ai")
+  answer: ['answer', 'reply', 'respons\\w*(?=.*\\bai\\b)', 'ai\\b(?=.*\\brespons)', 'what\\s+(?:the\\s+)?(?:ai(?:\\s+search)?|it|search)\\s+(?:said|wrote|told\\s+me|gave\\s+me|came\\s+back\\s+with)'],
   scan: ['scan', 'screen'],
   index: ['index', 'indexes', 'indices', '=dow', 'nasdaq', 's&p'],
   journal: ['journal'],
@@ -106,7 +110,8 @@ const stem = (w) => w.replace(/ies$/, 'y').replace(/([^s])s$/, '$1').replace(/(i
 /** The concepts these words carry → Set of concept ids (and, for a word no concept knows, `~stem`). */
 export function conceptsOf(text) {
   // a key chord names keys, not things ("Alt+Shift+W" moves nothing)
-  const q = ` ${String(text || '').toLowerCase().replace(/[’']/g, "'").replace(/\b(?:ctrl|alt|shift|cmd|meta)(?:\s*\+\s*[\w-]+)+/g, ' ').replace(ASKING, ' ')} `
+  // and "right-click" is a click, not the word "right" (which the watermark's Alignment reads)
+  const q = ` ${String(text || '').toLowerCase().replace(/[’']/g, "'").replace(/\b(?:ctrl|alt|shift|cmd|meta)(?:\s*\+\s*[\w-]+)+/g, ' ').replace(/\bright[- ]?(click\w*)/g, '$1').replace(ASKING, ' ')} `
   const out = new Set()
   for (const c of CONCEPTS) if (c.re.test(q)) out.add(c.id)
   // the words no concept took: the product's own names ("heikin", "watermark") match only themselves

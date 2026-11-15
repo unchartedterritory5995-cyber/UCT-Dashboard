@@ -1,0 +1,169 @@
+{
+ "mode": "REAL BROWSER (CDP) on the LOCAL agent harness, synthetic bars: diagnostic",
+ "at": "2026-11-10T17:01:41.665Z",
+ "tries": [
+  {
+   "fx": 0.5,
+   "at": {
+    "x": 267,
+    "y": 418
+   },
+   "menu": {
+    "menu": [
+     267,
+     418,
+     255,
+     377
+    ],
+    "position": "fixed",
+    "askAi": [
+     273,
+     753,
+     243,
+     36
+    ],
+    "hits": [
+     {
+      "f": 0.1,
+      "x": 297,
+      "at": "ask-ai"
+     },
+     {
+      "f": 0.5,
+      "x": 395,
+      "at": "ask-ai"
+     },
+     {
+      "f": 0.9,
+      "x": 492,
+      "at": "ask-ai"
+     }
+    ],
+    "clips": [
+     {
+      "tag": "DIV",
+      "cls": "_widgetBody_6offc_271",
+      "overflow": "auto",
+      "box": [
+       13,
+       102,
+       585,
+       807
+      ]
+     },
+     {
+      "tag": "DIV",
+      "cls": "_widget_6offc_3",
+      "overflow": "hidden",
+      "box": [
+       12,
+       72,
+       587,
+       838
+      ]
+     },
+     {
+      "tag": "MAIN",
+      "cls": "_workspaceBody_6offc_151 ",
+      "overflow": "clip",
+      "box": [
+       0,
+       60,
+       1600,
+       862
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "fx": 0.92,
+   "at": {
+    "x": 480,
+    "y": 418
+   },
+   "menu": {
+    "menu": [
+     480,
+     418,
+     255,
+     377
+    ],
+    "position": "fixed",
+    "askAi": [
+     486,
+     753,
+     243,
+     36
+    ],
+    "hits": [
+     {
+      "f": 0.1,
+      "x": 510,
+      "at": "ask-ai"
+     },
+     {
+      "f": 0.5,
+      "x": 608,
+      "at": "ask-ai"
+     },
+     {
+      "f": 0.9,
+      "x": 705,
+      "at": "ask-ai"
+     }
+    ],
+    "clips": [
+     {
+      "tag": "DIV",
+      "cls": "_widgetBody_6offc_271",
+      "overflow": "auto",
+      "box": [
+       13,
+       102,
+       585,
+       807
+      ]
+     },
+     {
+      "tag": "DIV",
+      "cls": "_widget_6offc_3",
+      "overflow": "hidden",
+      "box": [
+       12,
+       72,
+       587,
+       838
+      ]
+     },
+     {
+      "tag": "MAIN",
+      "cls": "_workspaceBody_6offc_151 ",
+      "overflow": "clip",
+      "box": [
+       0,
+       60,
+       1600,
+       862
+      ]
+     }
+    ]
+   }
+  }
+ ],
+ "geometry": {
+  "cell": [
+   12,
+   72,
+   587,
+   838
+  ],
+  "plot": [
+   13,
+   168,
+   508,
+   626
+  ]
+ },
+ "consoleErrors": []
+}

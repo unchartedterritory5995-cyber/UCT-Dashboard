@@ -1,0 +1,1 @@
+attempt-1: a trial on 2 rows (C3-198, C3-203) while the framework was uncommitted (working tree = the framework commit below, before givens.test.js and the JSON-import change). Kept per R-RAW; the full after run supersedes it.

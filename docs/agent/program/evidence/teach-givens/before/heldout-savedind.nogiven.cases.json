@@ -1,0 +1,14 @@
+[
+ {
+  "id": "HG-09",
+  "say": "how do I add one of my own indicators to the chart",
+  "feature": "indicatorManage",
+  "title": "Adding your own indicator"
+ },
+ {
+  "id": "HG-10",
+  "say": "how do I put my saved indicator on this chart",
+  "feature": "indicatorManage",
+  "title": "Adding your own indicator"
+ }
+]

@@ -1,0 +1,257 @@
+{
+ "mode": "BROWSER-MOCK-MODEL",
+ "evidence": "LOCAL agent harness, scripted model, synthetic bars and fixtures: not production, not gate evidence",
+ "at": "2026-11-10T07:58:57.488Z",
+ "base": "http://127.0.0.1:5302",
+ "results": [
+  {
+   "id": "C2-070",
+   "say": "show me how to put a green arrow under the bar when true",
+   "feature": "builderAction",
+   "title": "Signal markers and colours",
+   "given": [],
+   "pass": false,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Click the chart, then press Alt+Shift+A to open the indicator library.",
+     "onPrimary": true,
+     "pr": [
+      13,
+      168,
+      785,
+      741
+     ],
+     "rr": [
+      9,
+      164,
+      793,
+      749
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Click New formula.",
+     "onPrimary": true,
+     "pr": [
+      497,
+      195,
+      601,
+      81
+     ],
+     "rr": [
+      493,
+      191,
+      609,
+      89
+     ]
+    },
+    {
+     "i": 2,
+     "text": "Type a yes-or-no formula, such as close > open.",
+     "onPrimary": true,
+     "pr": [
+      497,
+      457,
+      601,
+      68
+     ],
+     "rr": [
+      493,
+      453,
+      609,
+      76
+     ]
+    },
+    {
+     "i": 3,
+     "text": "Choose Signal — mark when it is true.",
+     "onPrimary": true,
+     "pr": [
+      669,
+      870,
+      13,
+      13
+     ],
+     "rr": [
+      665,
+      866,
+      21,
+      21
+     ]
+    },
+    {
+     "i": 4,
+     "text": "These show once the formula gives a yes or no, such as close > open. Type one, then set it as a Signal.",
+     "onPrimary": false,
+     "pr": null,
+     "rr": [
+      590,
+      747,
+      141,
+      52
+     ]
+    }
+   ],
+   "why": "last step shows its fallback: These show once the formula gives a yes or no, such as close > open. Type one, then set it as a Signal.",
+   "consoleErrors": []
+  },
+  {
+   "id": "C2-071",
+   "say": "show me how to paint the candles gold when true",
+   "feature": "builderAction",
+   "title": "Signal markers and colours",
+   "given": [],
+   "pass": false,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Click the chart, then press Alt+Shift+A to open the indicator library.",
+     "onPrimary": true,
+     "pr": [
+      13,
+      168,
+      785,
+      741
+     ],
+     "rr": [
+      9,
+      164,
+      793,
+      749
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Click New formula.",
+     "onPrimary": true,
+     "pr": [
+      497,
+      195,
+      601,
+      81
+     ],
+     "rr": [
+      493,
+      191,
+      609,
+      89
+     ]
+    },
+    {
+     "i": 2,
+     "text": "Type a yes-or-no formula, such as close > open.",
+     "onPrimary": true,
+     "pr": [
+      497,
+      457,
+      601,
+      68
+     ],
+     "rr": [
+      493,
+      453,
+      609,
+      76
+     ]
+    },
+    {
+     "i": 3,
+     "text": "Choose Signal — mark when it is true.",
+     "onPrimary": true,
+     "pr": [
+      669,
+      870,
+      13,
+      13
+     ],
+     "rr": [
+      665,
+      866,
+      21,
+      21
+     ]
+    },
+    {
+     "i": 4,
+     "text": "These show once the formula gives a yes or no, such as close > open. Type one, then set it as a Signal.",
+     "onPrimary": false,
+     "pr": null,
+     "rr": [
+      590,
+      747,
+      141,
+      52
+     ]
+    }
+   ],
+   "why": "last step shows its fallback: These show once the formula gives a yes or no, such as close > open. Type one, then set it as a Signal.",
+   "consoleErrors": []
+  },
+  {
+   "id": "C3-122",
+   "say": "how do I create, rename or delete a scope list",
+   "feature": "control",
+   "title": "Deleting a Volume Surge list",
+   "given": [
+    "board",
+    "prefs"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 3,
+     "text": "Click the list picker at the top of the widget.",
+     "onPrimary": true,
+     "pr": [
+      1018,
+      108,
+      80,
+      22
+     ],
+     "rr": [
+      1014,
+      104,
+      88,
+      30
+     ]
+    },
+    {
+     "i": 3,
+     "text": "Click the list picker at the top of the widget.",
+     "onPrimary": true,
+     "pr": [
+      1018,
+      108,
+      80,
+      22
+     ],
+     "rr": [
+      1014,
+      104,
+      88,
+      30
+     ]
+    },
+    {
+     "i": 4,
+     "text": "This deletes the list. It asks first.",
+     "onPrimary": true,
+     "pr": [
+      1201,
+      204,
+      20,
+      20
+     ],
+     "rr": [
+      1197,
+      200,
+      28,
+      28
+     ]
+    }
+   ],
+   "consoleErrors": []
+  }
+ ]
+}

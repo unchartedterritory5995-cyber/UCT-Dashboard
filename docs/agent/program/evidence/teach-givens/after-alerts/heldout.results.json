@@ -1,0 +1,173 @@
+{
+ "mode": "BROWSER-MOCK-MODEL",
+ "evidence": "LOCAL agent harness, scripted model, synthetic bars and fixtures: not production, not gate evidence",
+ "at": "2026-11-10T07:28:00.386Z",
+ "base": "http://127.0.0.1:5302",
+ "results": [
+  {
+   "id": "HG-11",
+   "say": "how do I set an alert on the MACD histogram",
+   "feature": "alertAction",
+   "title": "Which line an alert watches",
+   "given": [
+    "iaCatalog",
+    "declared"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Click the bell to open Indicator alerts.",
+     "onPrimary": true,
+     "pr": [
+      482,
+      174,
+      24,
+      22
+     ],
+     "rr": [
+      478,
+      170,
+      32,
+      30
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Choose which line of the indicator to watch.",
+     "onPrimary": true,
+     "pr": [
+      267,
+      292,
+      218,
+      28
+     ],
+     "rr": [
+      263,
+      288,
+      226,
+      36
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "HG-12",
+   "say": "how do I pick which line my alert watches",
+   "feature": "alertAction",
+   "title": "Which line an alert watches",
+   "given": [
+    "iaCatalog",
+    "declared"
+   ],
+   "pass": false,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Right-click a drawing on the chart. If this chart has none yet, draw one first.",
+     "onPrimary": true,
+     "pr": [
+      13,
+      168,
+      785,
+      741
+     ],
+     "rr": [
+      9,
+      164,
+      793,
+      749
+     ]
+    }
+   ],
+   "tried": [
+    []
+   ],
+   "why": "step 1: no point of the region it names opened the menu row it needs",
+   "consoleErrors": []
+  },
+  {
+   "id": "HG-13",
+   "say": "how do I make an alert on a yes/no signal fire only once",
+   "feature": "alertAction",
+   "title": "When a signal alert fires",
+   "given": [
+    "iaCatalog",
+    "declared"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Click the bell to open Indicator alerts.",
+     "onPrimary": true,
+     "pr": [
+      482,
+      174,
+      24,
+      22
+     ],
+     "rr": [
+      478,
+      170,
+      32,
+      30
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Choose when it fires: when it becomes true, becomes false, or while it is true.",
+     "onPrimary": true,
+     "pr": [
+      267,
+      295,
+      218,
+      28
+     ],
+     "rr": [
+      263,
+      291,
+      226,
+      36
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "HG-14",
+   "say": "why won't my alert fire",
+   "feature": "alertAction",
+   "title": "Why an alert can’t fire",
+   "given": [
+    "iaCatalog",
+    "declared",
+    "declaredSetups",
+    "setup"
+   ],
+   "pass": false,
+   "steps": [],
+   "setup": "blockedAlert: created",
+   "why": "no walkthrough: Harness\n2:27 AM\nwhy won't my alert fire // UCT Agent\n2:27 AM\n\nthe script had no plan for this turn",
+   "consoleErrors": []
+  },
+  {
+   "id": "HG-15",
+   "say": "why is my indicator alert never going off",
+   "feature": "alertAction",
+   "title": "Why an alert can’t fire",
+   "given": [
+    "iaCatalog",
+    "declared",
+    "declaredSetups",
+    "setup"
+   ],
+   "pass": false,
+   "steps": [],
+   "setup": "blockedAlert: created",
+   "why": "no walkthrough: Harness\n2:27 AM\nwhy is my indicator alert never going off // UCT Agent\n2:27 AM\n\nthe script had no plan for this turn",
+   "consoleErrors": []
+  }
+ ]
+}

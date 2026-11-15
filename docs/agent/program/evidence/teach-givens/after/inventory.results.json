@@ -1,0 +1,611 @@
+{
+ "mode": "BROWSER-MOCK-MODEL",
+ "evidence": "LOCAL agent harness, scripted model, synthetic bars and fixtures: not production, not gate evidence",
+ "at": "2026-11-10T07:13:03.679Z",
+ "base": "http://127.0.0.1:5302",
+ "results": [
+  {
+   "id": "C1-045",
+   "say": "how do I exit replay",
+   "feature": "panelAction",
+   "title": "Leaving replay",
+   "given": [],
+   "pass": false,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Open Tools ▾.",
+     "onPrimary": true,
+     "pr": [
+      340,
+      17,
+      81,
+      26
+     ],
+     "rr": [
+      336,
+      13,
+      89,
+      34
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Click Replay Mode.",
+     "onPrimary": true,
+     "pr": [
+      341,
+      104,
+      198,
+      28
+     ],
+     "rr": [
+      337,
+      100,
+      206,
+      36
+     ]
+    },
+    {
+     "i": 2,
+     "text": "Replay isn’t running, so there’s nothing to exit. Exit replay shows here while it runs.",
+     "onPrimary": false,
+     "pr": null,
+     "rr": [
+      626,
+      318,
+      348,
+      315
+     ]
+    }
+   ],
+   "why": "last step shows its fallback: Replay isn’t running, so there’s nothing to exit. Exit replay shows here while it runs.",
+   "consoleErrors": []
+  },
+  {
+   "id": "C2-007",
+   "say": "how do I add own saved indicator",
+   "feature": "indicatorManage",
+   "title": "Adding your own indicator",
+   "given": [],
+   "pass": false,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Open this chart’s settings with the gear.",
+     "onPrimary": true,
+     "pr": [
+      730,
+      139,
+      26,
+      26
+     ],
+     "rr": [
+      726,
+      135,
+      34,
+      34
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Open the Indicators tab.",
+     "onPrimary": true,
+     "pr": [
+      635,
+      247,
+      62,
+      36
+     ],
+     "rr": [
+      631,
+      243,
+      70,
+      44
+     ]
+    },
+    {
+     "i": 3,
+     "text": "You have no saved indicators yet. Search here, or use Create Indicator above.",
+     "onPrimary": false,
+     "pr": null,
+     "rr": [
+      714,
+      346,
+      401,
+      44
+     ]
+    }
+   ],
+   "why": "last step shows its fallback: You have no saved indicators yet. Search here, or use Create Indicator above.",
+   "consoleErrors": []
+  },
+  {
+   "id": "C2-070",
+   "say": "show me how to put a green arrow under the bar when true",
+   "feature": "builderAction",
+   "title": "Signal markers and colours",
+   "given": [],
+   "pass": false,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Click the chart, then press Alt+Shift+A to open the indicator library.",
+     "onPrimary": true,
+     "pr": [
+      13,
+      168,
+      785,
+      741
+     ],
+     "rr": [
+      9,
+      164,
+      793,
+      749
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Click New formula.",
+     "onPrimary": true,
+     "pr": [
+      497,
+      195,
+      601,
+      81
+     ],
+     "rr": [
+      493,
+      191,
+      609,
+      89
+     ]
+    },
+    {
+     "i": 2,
+     "text": "These show once the formula gives a yes or no, such as close > open. Type one, then set it as a Signal.",
+     "onPrimary": false,
+     "pr": null,
+     "rr": [
+      590,
+      815,
+      141,
+      52
+     ]
+    }
+   ],
+   "why": "last step shows its fallback: These show once the formula gives a yes or no, such as close > open. Type one, then set it as a Signal.",
+   "consoleErrors": []
+  },
+  {
+   "id": "C2-071",
+   "say": "show me how to paint the candles gold when true",
+   "feature": "builderAction",
+   "title": "Signal markers and colours",
+   "given": [],
+   "pass": false,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Click the chart, then press Alt+Shift+A to open the indicator library.",
+     "onPrimary": true,
+     "pr": [
+      13,
+      168,
+      785,
+      741
+     ],
+     "rr": [
+      9,
+      164,
+      793,
+      749
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Click New formula.",
+     "onPrimary": true,
+     "pr": [
+      497,
+      195,
+      601,
+      81
+     ],
+     "rr": [
+      493,
+      191,
+      609,
+      89
+     ]
+    },
+    {
+     "i": 2,
+     "text": "These show once the formula gives a yes or no, such as close > open. Type one, then set it as a Signal.",
+     "onPrimary": false,
+     "pr": null,
+     "rr": [
+      590,
+      815,
+      141,
+      52
+     ]
+    }
+   ],
+   "why": "last step shows its fallback: These show once the formula gives a yes or no, such as close > open. Type one, then set it as a Signal.",
+   "consoleErrors": []
+  },
+  {
+   "id": "C2-091",
+   "say": "show me how to alert on the MACD signal line",
+   "feature": "alertAction",
+   "title": "Which line an alert watches",
+   "given": [],
+   "pass": false,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Click the bell to open Indicator alerts.",
+     "onPrimary": true,
+     "pr": [
+      482,
+      174,
+      24,
+      22
+     ],
+     "rr": [
+      478,
+      170,
+      32,
+      30
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Choose an indicator with several lines first, such as MACD: the Plot list appears here.",
+     "onPrimary": false,
+     "pr": null,
+     "rr": [
+      174,
+      210,
+      328,
+      311
+     ]
+    }
+   ],
+   "why": "last step shows its fallback: Choose an indicator with several lines first, such as MACD: the Plot list appears here.",
+   "consoleErrors": []
+  },
+  {
+   "id": "C2-092",
+   "say": "how do I alert on a yes/no signal with trigger policy",
+   "feature": "alertAction",
+   "title": "When a signal alert fires",
+   "given": [],
+   "pass": false,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Click the bell to open Indicator alerts.",
+     "onPrimary": true,
+     "pr": [
+      482,
+      174,
+      24,
+      22
+     ],
+     "rr": [
+      478,
+      170,
+      32,
+      30
+     ]
+    },
+    {
+     "i": 1,
+     "text": "This shows when the indicator gives a yes or no signal.",
+     "onPrimary": false,
+     "pr": null,
+     "rr": [
+      174,
+      210,
+      328,
+      311
+     ]
+    }
+   ],
+   "why": "last step shows its fallback: This shows when the indicator gives a yes or no signal.",
+   "consoleErrors": []
+  },
+  {
+   "id": "C2-100",
+   "say": "how do I see why an alert cannot fire",
+   "feature": "alertAction",
+   "title": "Why an alert can’t fire",
+   "given": [],
+   "pass": false,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Click the bell to open Indicator alerts.",
+     "onPrimary": true,
+     "pr": [
+      482,
+      174,
+      24,
+      22
+     ],
+     "rr": [
+      478,
+      170,
+      32,
+      30
+     ]
+    },
+    {
+     "i": 1,
+     "text": "None of your alerts for this symbol are blocked. A blocked one says why under its name here.",
+     "onPrimary": false,
+     "pr": null,
+     "rr": [
+      174,
+      210,
+      328,
+      311
+     ]
+    }
+   ],
+   "why": "last step shows its fallback: None of your alerts for this symbol are blocked. A blocked one says why under its name here.",
+   "consoleErrors": []
+  },
+  {
+   "id": "C3-122",
+   "say": "how do I create, rename or delete a scope list",
+   "feature": "control",
+   "title": "Deleting a Volume Surge list",
+   "given": [
+    "board",
+    "prefs"
+   ],
+   "pass": false,
+   "steps": [
+    {
+     "i": 3,
+     "text": "You have no lists of your own here yet.",
+     "onPrimary": false,
+     "pr": null,
+     "rr": [
+      901,
+      68,
+      300,
+      846
+     ]
+    }
+   ],
+   "why": "last step shows its fallback: You have no lists of your own here yet.",
+   "consoleErrors": []
+  },
+  {
+   "id": "C3-198",
+   "say": "show me how to save that answer",
+   "feature": "control",
+   "title": "Saving an answer",
+   "given": [
+    "widgets",
+    "declared",
+    "declaredRoutes"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 3,
+     "text": "This saves the answer so you can reopen it later from Saved answers.",
+     "onPrimary": true,
+     "pr": [
+      636,
+      203,
+      45,
+      20
+     ],
+     "rr": [
+      632,
+      199,
+      53,
+      28
+     ]
+    }
+   ],
+   "prelude": [
+    "aiAnswer: asked, answered"
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "C3-199",
+   "say": "how do I copy or speak an answer",
+   "feature": "control",
+   "title": "Copying an answer",
+   "given": [
+    "widgets",
+    "declared",
+    "declaredRoutes"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 3,
+     "text": "This copies the answer’s text.",
+     "onPrimary": true,
+     "pr": [
+      523,
+      203,
+      46,
+      20
+     ],
+     "rr": [
+      519,
+      199,
+      54,
+      28
+     ]
+    }
+   ],
+   "prelude": [
+    "aiAnswer: asked, answered"
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "C3-200",
+   "say": "how do I send the conversation to Journal",
+   "feature": "control",
+   "title": "Sending AI Search to the Journal",
+   "given": [
+    "widgets",
+    "declared",
+    "declaredRoutes"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 3,
+     "text": "This sends the AI Search widget to your Journal. The arrow beside it chooses where it goes.",
+     "onPrimary": true,
+     "pr": [
+      851,
+      106,
+      17,
+      17
+     ],
+     "rr": [
+      847,
+      102,
+      25,
+      25
+     ]
+    }
+   ],
+   "prelude": [
+    "aiAnswer: asked, answered"
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "C3-203",
+   "say": "how do I edit a note's title or body",
+   "feature": "control",
+   "title": "Editing a note",
+   "given": [
+    "widgets",
+    "declared",
+    "declaredRoutes"
+   ],
+   "pass": true,
+   "steps": [
+    {
+     "i": 3,
+     "text": "Click the title or the text and type: the note saves as you go.",
+     "onPrimary": true,
+     "pr": [
+      509,
+      135,
+      389,
+      34
+     ],
+     "rr": [
+      505,
+      131,
+      397,
+      42
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "C3-210",
+   "say": "how do I exit replay",
+   "feature": "panelAction",
+   "title": "Leaving replay",
+   "given": [],
+   "pass": false,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Open Tools ▾.",
+     "onPrimary": true,
+     "pr": [
+      340,
+      17,
+      81,
+      26
+     ],
+     "rr": [
+      336,
+      13,
+      89,
+      34
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Click Replay Mode.",
+     "onPrimary": true,
+     "pr": [
+      341,
+      104,
+      198,
+      28
+     ],
+     "rr": [
+      337,
+      100,
+      206,
+      36
+     ]
+    },
+    {
+     "i": 2,
+     "text": "Replay isn’t running, so there’s nothing to exit. Exit replay shows here while it runs.",
+     "onPrimary": false,
+     "pr": null,
+     "rr": [
+      626,
+      318,
+      348,
+      315
+     ]
+    }
+   ],
+   "why": "last step shows its fallback: Replay isn’t running, so there’s nothing to exit. Exit replay shows here while it runs.",
+   "consoleErrors": []
+  },
+  {
+   "id": "C3-219",
+   "say": "how do I open ETF holdings",
+   "feature": "dockAction",
+   "title": "An ETF’s holdings",
+   "given": [
+    "board"
+   ],
+   "pass": false,
+   "steps": [
+    {
+     "i": 0,
+     "text": "View Holdings shows on a chart of an ETF or an index. Load one first.",
+     "onPrimary": false,
+     "pr": null,
+     "rr": [
+      9,
+      164,
+      393,
+      749
+     ]
+    }
+   ],
+   "why": "last step shows its fallback: View Holdings shows on a chart of an ETF or an index. Load one first.",
+   "consoleErrors": []
+  }
+ ]
+}
