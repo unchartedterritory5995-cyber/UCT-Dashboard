@@ -357,12 +357,12 @@ rsdata = lambda stale: {"scope": "sectors", "period": "1M", "sessions": 21, "ben
 add("rs-sectors", "Which sectors are leading right now?",
     E("rs.leadership", status="ok", freshness="periodic", as_of="2026-10-30T20:00:00Z", source="uct-rs",
       data=rsdata(False), notes=[rl.NOTE_METHOD, rl.NOTE_RETURNS, rl.NOTE_HISTORICAL]),
-    category="periodic", disclose=["not a forecast"], flags={"UCT_AGENT_ISOLATED": "1"})
+    category="periodic", disclose=["not a forecast"], flags={"UCT_AGENT_ISOLATED": "1", "UCT_AGENT_ISOLATED_KINDS": "rs.leadership"})
 add("rs-stale", "Is semis RS improving now?",
     E("rs.leadership", status="ok", freshness="periodic", as_of="2026-10-27T20:00:00Z", source="uct-rs", stale=True,
       data=rsdata(True), notes=[rl.NOTE_METHOD, rl.NOTE_RETURNS, rl.NOTE_HISTORICAL,
                                 rl.NOTE_STALE.format(session="2026-10-27")]),
-    category="periodic-stale", disclose=["older than the ratings' own freshness rule"], flags={"UCT_AGENT_ISOLATED": "1"})
+    category="periodic-stale", disclose=["older than the ratings' own freshness rule"], flags={"UCT_AGENT_ISOLATED": "1", "UCT_AGENT_ISOLATED_KINDS": "rs.leadership"})
 add("rs-industry-ambiguous", "How is the software industry's RS today?",
     E("rs.leadership", status="partial", freshness="periodic", as_of=None, source="uct-rs",
       data={"scope": "industry", "period": "1M", "industry": None, "asked": "software", "ambiguous": True,
@@ -370,7 +370,7 @@ add("rs-industry-ambiguous", "How is the software industry's RS today?",
       notes=[rl.NOTE_METHOD, rl.NOTE_RETURNS, rl.NOTE_HISTORICAL, rl.NOTE_INDUSTRY_AMBIGUOUS.format(
           word="software", names="Software - Application; Software - Infrastructure")],
       coverage={"requested": 1, "answered": 0}),
-    category="partial", disclose=["several industries match"], flags={"UCT_AGENT_ISOLATED": "1"})
+    category="partial", disclose=["several industries match"], flags={"UCT_AGENT_ISOLATED": "1", "UCT_AGENT_ISOLATED_KINDS": "rs.leadership"})
 r = env.refused("breadth.current", {"metric": "pct_above_50sma"},
                 "this data is shown to the member only and is never used for research")
 r["fetched_at"] = FETCHED

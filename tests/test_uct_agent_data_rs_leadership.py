@@ -45,6 +45,7 @@ def _env(monkeypatch):
     monkeypatch.setenv(gw.DATA_ENV, "1")
     monkeypatch.setenv(gw.KINDS_ENV, rl.KIND)
     monkeypatch.setenv(gw.ISOLATED_ENV, "1")
+    monkeypatch.setenv(gw.ISOLATED_KINDS_ENV, rl.KIND)     # #1271: armed per kind, never by the global switch alone
     gw._reset_for_test(None)
     yield
     gw._reset_for_test(None)
@@ -262,7 +263,10 @@ def test_model_isolated_dormant_without_the_switch_and_answer_only(store, monkey
     assert gw.registry().get(rl.KIND).model_isolated is True
     for purpose in ("research", "scan"):
         assert _read({"scope": "sectors"}, purpose=purpose)["status"] == "refused"
-    monkeypatch.delenv(gw.ISOLATED_ENV)
+    monkeypatch.setenv(gw.ISOLATED_KINDS_ENV, "ratings")             # #1271: another kind's entry never arms this one
+    assert _read({"scope": "sectors"}, turn_id="t4")["status"] == "refused"
+    monkeypatch.setenv(gw.ISOLATED_KINDS_ENV, rl.KIND)
+    monkeypatch.delenv(gw.ISOLATED_ENV)                              # ...and its own entry never arms it without the switch
     assert _read({"scope": "sectors"}, turn_id="t3")["status"] == "refused"
     assert store["calls"] == []
 
