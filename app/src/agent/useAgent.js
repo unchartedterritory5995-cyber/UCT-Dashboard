@@ -1849,6 +1849,10 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         continue
       }
       const one0 = rp.op
+      // ⛔ #1289 × H14: a step PINNED to the instance the member's words named before the first step ran (and verified on the
+      // live state by resolvePinned) is IDENTIFIED — the state rail reads that pin as the member's own pick of exactly it
+      const pinnedPick = pinned.pin?.id && rp.op?.args?.[pinned.pin.arg || 'instance'] === pinned.pin.id && typeof rp.op.target === 'string'
+        ? `ind:${String(rp.op.target).replace(/^ixe:/, '')}:${pinned.pin.id}` : null
       // NLM-1 step plans (dark): a step that changes the indicator an EARLIER step added runs on that step's result — the
       // instance it added, found by state; no result (failed, refused, dismissed, ambiguous) → this step does not run, said
       let one = one0
@@ -1867,7 +1871,9 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         continue
       }
       traceStart('followup:apply')
-      try { await executeInner([one], { path: 'followup', mode: approvedStep ? 'approved' : 'apply', member, voice, note: followNote || null, lead: held }) } finally { traceEnd('done') }
+      const pickBefore = railPickedRef.current
+      if (pinnedPick) railPickedRef.current = new Set([...(pickBefore || []), pinnedPick])
+      try { await executeInner([one], { path: 'followup', mode: approvedStep ? 'approved' : 'apply', member, voice, note: followNote || null, lead: held }) } finally { railPickedRef.current = pickBefore; traceEnd('done') }
     }
     // a held Save receipt is ALWAYS said — on its own if no step used it (never a silent save)
     if (held && !held.used) push({ role: 'receipt', lines: held.lines, undoId: null })
