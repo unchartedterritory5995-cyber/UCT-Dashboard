@@ -197,7 +197,9 @@ const READERS = {
   layoutHistory(p) {
     const w = p.patch?.restore
     if (!w) return []
-    return [{ state: 'layout', type: 'overwrite', own: 'restoreVersion', name: `your board as it is now (version ${w.base ?? '?'}), replaced by version ${w.version ?? '?'}` }]
+    const b = p.before || {}
+    return [{ state: 'layout', type: 'overwrite', own: 'restoreVersion', version: w.version ?? null, layout: b.layout ?? null, layoutNames: b.layoutNames || [],
+      name: `your board as it is now (version ${w.base ?? '?'}), replaced by version ${w.version ?? '?'}` }]
   },
   layoutDock(p) {
     const op = p.patch
@@ -328,6 +330,36 @@ export function homograph(e, words) {
 // #1248 (layoutHistory.restore): the words that ask for an earlier saved version of the board back
 const RESTORE_VERB = /\b(?:restor\w*|revert\w*|roll(?:ed|ing)? ?back|go(?:es|ing)? back to|put (?:it|the board|my board) back)\b/i
 const RESTORE_WHAT = /\b(?:versions?|v\d+|saves?|saved|history|backup|earlier|previous|prior|last|before|yesterday|ago|this morning|as it was|how it was|\d+|it|that(?: one)?|this one)\b/i
+// "switch to version 4" / "go back to version 4" / a bare "version 4": the version BY NUMBER
+const TO_VERSION = /\b(?:switch\w*|go(?:es|ing)?|chang\w*|mov\w*|jump\w*|take (?:me|it|the board|my board))\s+(?:back\s+)?to\s+(?:version|v)\s*\d+\b/i
+const BARE_VERSION = /^\s*(?:the\s+)?(?:version|v)\s*\d+(?:\s+please)?\s*$/i
+const versionsIn = (c) => [...String(c).matchAll(/\b(?:version|v)\s*(\d+)\b/gi)].map(m => Number(m[1]))
+const LAYOUT_NOT_A_NAME = /^(?:board|boards|current|open|whole|charts?|this|that|same|old|previous|earlier|last|saved|board's|board’s)$/i
+/** The saved layout a clause NAMES ("my Swing layout", "the Swing layout", a catalog name beside "layout"), else null. */
+export function layoutNamedIn(c, e) {
+  const t = String(c || '')
+  if (!/\blayouts?\b/i.test(t)) return null
+  const byName = (e?.layoutNames || []).filter(n => has(t, n)).sort((a, b) => b.length - a.length)[0]
+  if (byName) return byName
+  const m = /\b(?:my|the|our)\s+[“"]?([^“”".,;!?]+?)[”"]?\s+layout\b/i.exec(t)
+  const n = m ? m[1].trim() : ''
+  return n && !n.split(/\s+/).every(w => LAYOUT_NOT_A_NAME.test(w)) ? n : null
+}
+/** A layout this clause names that is NOT the one the board holds (the history has no versions of it), else null. */
+function otherLayoutIn(e, c) {
+  const n = layoutNamedIn(c, e)
+  return n && !(e.layout && phrase(n) === phrase(e.layout)) ? n : null
+}
+/** #1248: does this clause ask for exactly this restore? Its own words (a restore verb with a version word, or the version
+ *  BY NUMBER — "switch to version 4", "version 4"); a version number it names must be the planned one; a layout it names
+ *  must be the one this board document holds. */
+function restoreAskedIn(e, c) {
+  if (NEG.test(c) || otherLayoutIn(e, c)) return false
+  const nums = versionsIn(c)
+  if (nums.length && !nums.includes(Number(e.version))) return false
+  if (RESTORE_VERB.test(c) && RESTORE_WHAT.test(c)) return true
+  return nums.length > 0 && (TO_VERSION.test(c) || BARE_VERSION.test(c))
+}
 const NEG = /\b(?:no|not|nothing|none|never|without|neither|nor|don['’]?t|dont|doesn['’]?t|didn['’]?t|won['’]?t|can['’]?t|cannot|shouldn['’]?t|mustn['’]?t)\b|n['’]t\b/i
 // destroy verbs the member uses for their own things (beyond DESTROY): "drop TSLA from Momentum", "take TSLA off the list",
 // "empty the watchlist", "unflag", "close the news tab" — each only with an EXISTING object of the right class after it
@@ -418,7 +450,7 @@ export function permits(e, words, subjects = null, previous = null, previousSet 
   const why = extra?.why || {}
   // #1248: a board restore is licensed by ITS OWN words only — a restore verb with a version word (or a pointer at the
   // version just listed), in a clause that is not negated. Nothing below (modify / pick verbs, subjects) can license it.
-  if (e.own === 'restoreVersion') return clausesOf(words).some(c => !NEG.test(c) && RESTORE_VERB.test(c) && RESTORE_WHAT.test(c))
+  if (e.own === 'restoreVersion') return clausesOf(words).some(c => restoreAskedIn(e, c))
   // a PICK the member made from the choices this rail asked with: exactly that object
   if (e.id && extra?.picked && extra.picked.has(e.id)) return true
   // before / prev: the classes and the clause the latest earlier clause NAMED; spoke: an earlier clause said anything of
@@ -599,6 +631,13 @@ export function stateRailRefusal(plan, { words = '', mode = 'apply', subjects = 
     // (a save-over is never refused here: it goes to its card — stateRailDecision)
     const bad = effects.filter(e => e.via !== 'save' && !permits(e, w, subjects, previous, previousSet, made, { views, picked }))
     if (!bad.length) return null
+    // #1248: a restore that names ANOTHER saved layout — the history is the board's, never a layout's: said, and the board's own
+    // history offered (never a restore of the whole board under that layout's name)
+    for (const e of bad) {
+      if (e.own !== 'restoreVersion') continue
+      const other = clausesOf(w).filter(c => !NEG.test(c) && (RESTORE_VERB.test(c) || versionsIn(c).length)).map(c => otherLayoutIn(e, c)).find(Boolean)
+      if (other) return `I didn’t restore anything: Version history keeps your whole board, not each saved layout, so “${plainName(other)}” has no versions of its own${e.layout ? ` (your board has “${plainName(e.layout)}” open)` : ''}. Say “show my board’s version history” to see the board’s saved versions, then which one to restore.`
+    }
     const what = listOf([...new Set(bad.map(said))])
     const lead = isStateAdditive(w) ? `you asked to add, but this would ${what}. Adding never replaces or removes what you already have` : `this would ${what}, and you didn’t ask for that`
     return `I didn’t change anything: ${lead} — say what to replace, remove or change, by name (for example “remove the RSI”), if that is what you want.${notDoneLine(notDoneAdds(plan))}`

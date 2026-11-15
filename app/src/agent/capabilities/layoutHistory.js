@@ -140,7 +140,11 @@ function readSnap(host) {
   if (!host?.layoutHistory) return null
   const here = hereOn(host)
   const head = cache.status === 'ok' ? (cache.versions[0] || null) : null
-  return { ref: REF, label: LABEL, here, status: here ? cache.status : 'absent', head: head ? { ...head } : null }
+  // the open layout and the saved layouts' names (the Layout Dock's own catalog): the state rail licenses a restore that
+  // NAMES a layout only when it is the one this board document holds (the history is per BOARD, never per saved layout)
+  let layout = null, layoutNames = []
+  try { const L = host.layouts?.snapshot?.(); layout = L?.active?.name || null; layoutNames = (L?.entries || []).map(e => String(e?.name || '')).filter(Boolean) } catch { /* no dock: no names */ }
+  return { ref: REF, label: LABEL, here, status: here ? cache.status : 'absent', head: head ? { ...head } : null, layout, layoutNames }
 }
 const headSig = (h) => (h ? `${h.version}:${h.sha || ''}:${h.source || ''}:${h.restoredFrom ?? ''}` : 'none')
 
