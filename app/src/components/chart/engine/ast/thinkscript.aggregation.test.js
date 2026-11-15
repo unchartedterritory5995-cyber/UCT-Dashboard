@@ -24,6 +24,11 @@ import { translateThinkScript } from './thinkscript.js'
  * daily bars. Offering a code the interpreter then refuses is the "told it would
  * run, answers nothing" shape this codebase has already paid for twice.
  */
+/* ⭐ I2 WS1, BASIS F (owner decision 2026-11-01): an UNSHIFTED thinkScript weekly or monthly
+ * read is the DEVELOPING period, `tf_live` — it moves until the week closes and shows each past
+ * week's final value, as thinkorswim's secondary aggregation is understood to (not yet confirmed
+ * against a thinkorswim capture). These cases emitted `tf` (the last CLOSED week) before
+ * `periodLift.js`; the window cases are in `periodLift.test.js`. */
 describe('another timeframe inside one column', () => {
   const only = (out) => {
     expect(out.refusal, out.refusal && out.refusal.message).toBe(null)
@@ -34,26 +39,26 @@ describe('another timeframe inside one column', () => {
 
   it('⭐⭐ WEEK becomes a `tf` node wrapping the bar field', () => {
     expect(only(translateThinkScript('plot p = close(period = AggregationPeriod.WEEK);\n')).ast)
-      .toEqual({ type: 'tf', value: 'W', args: [{ type: 'series', name: 'close' }] })
+      .toEqual({ type: 'tf_live', value: 'W', args: [{ type: 'series', name: 'close' }] })
   })
 
   it('⭐⭐ MONTH likewise, and the FIELD is the one asked for', () => {
     // ⛔ THE CONTROL THAT CATCHES A HARD-CODED CHILD — `high(period = …)` reading
     // `close` would be a silent mistranslation every other assertion here misses.
     expect(only(translateThinkScript('plot p = high(period = AggregationPeriod.MONTH);\n')).ast)
-      .toEqual({ type: 'tf', value: 'M', args: [{ type: 'series', name: 'high' }] })
+      .toEqual({ type: 'tf_live', value: 'M', args: [{ type: 'series', name: 'high' }] })
   })
 
   it('⭐ …and through an INPUT, folded to its default', () => {
     expect(only(translateThinkScript(
       'input agg = AggregationPeriod.WEEK;\nplot p = close(period = agg);\n')).ast)
-      .toEqual({ type: 'tf', value: 'W', args: [{ type: 'series', name: 'close' }] })
+      .toEqual({ type: 'tf_live', value: 'W', args: [{ type: 'series', name: 'close' }] })
   })
 
   it('⭐ `aggregationPeriod =` is the same argument by its other spelling', () => {
     expect(only(translateThinkScript(
       'plot p = close(aggregationPeriod = AggregationPeriod.WEEK);\n')).ast)
-      .toEqual({ type: 'tf', value: 'W', args: [{ type: 'series', name: 'close' }] })
+      .toEqual({ type: 'tf_live', value: 'W', args: [{ type: 'series', name: 'close' }] })
   })
 
   // ─── what must still refuse ───────────────────────────────────────────────
@@ -163,7 +168,7 @@ describe('another timeframe inside one column', () => {
       'plot rs = close / close(period = AggregationPeriod.WEEK);\n')).ast).toEqual({
       type: 'op', name: '/', args: [
         { type: 'series', name: 'close' },
-        { type: 'tf', value: 'W', args: [{ type: 'series', name: 'close' }] },
+        { type: 'tf_live', value: 'W', args: [{ type: 'series', name: 'close' }] },
       ],
     })
   })

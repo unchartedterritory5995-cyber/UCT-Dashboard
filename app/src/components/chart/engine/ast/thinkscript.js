@@ -76,6 +76,7 @@ import { TABLE, parseFormula, astHash, TICKER_SHAPE } from './parse.js'
 // that restates the number translates a tree the engine then refuses at
 // evaluation, which is a refusal at a door the member never typed at.
 import { MAX_SELF_LAG } from './interpret.js'
+import { liftPeriods, PeriodLiftRefusal } from './periodLift.js'
 import { memberNumber, isNumericText } from './memberValue.js'
 import {
   printFormula, treeYieldsBool, forgetsItsSeed, seedAndUpdateOf, containsFreeSelfSeries,
@@ -171,6 +172,14 @@ export const REFUSALS = Object.freeze({
   // — says which situation the member is actually in.
   'thinkscript:aggregation':
     'this thinkorswim aggregation period is not one this engine can read',
+  // ⭐ I2 WS1 (`periodLift.js`): an average, high/low, sum or `[n]` over a MIX
+  // of daily and weekly (or monthly) values. thinkorswim does not publish which
+  // bars such a window runs on, so this door refuses rather than guesses. The
+  // tail names the window that mixes them.
+  'thinkscript:aggregation-mixed':
+    'this averages a mix of daily and weekly or monthly values, and thinkorswim does not '
+    + 'publish which bars that runs on, so this engine will not guess. Move the weekly or '
+    + 'monthly read outside the window, or make every value inside it weekly or monthly',
   'thinkscript:symbol':
     'this door does not yet fold another ticker onto the engine\'s cross-symbol '
     + 'read. The `sym` node exists, the Pine door emits it, and the scan gate '
@@ -4649,6 +4658,19 @@ function verifyRoundTrip(formula, ast, tok) {
  * question "is there a column here" means. Derived by walking the tree, so a
  * node type added later is covered by the descent it already has.
  */
+/** `periodLift.liftPeriods`, with its refusal turned into this door's own. */
+function liftOrRefuse(ast, table, tok) {
+  try {
+    return liftPeriods(ast, table && table.functions)
+  } catch (err) {
+    if (err instanceof PeriodLiftRefusal) {
+      throw new ThinkScriptRefusal('thinkscript:aggregation-mixed',
+        `${REFUSALS['thinkscript:aggregation-mixed']} (${err.what})`, locate(tok))
+    }
+    throw err
+  }
+}
+
 function readsTheBar(node) {
   if (!node || typeof node !== 'object') return false
   if (node.type === 'series') return true
@@ -4740,7 +4762,10 @@ export function translateThinkScript(source, opts = {}) {
         const value = o.name
           ? resolver.resolveBinding(o.name, o.nameTok)
           : resolver.resolve(o.expr)
-        const ast = resolver.asNode(value, o.nameTok)
+        // ⭐⭐ I2 WS1 — a window over a weekly/monthly read runs ON that period
+        // (`periodLift.js`, basis F). `reads` is the disclosure channel below.
+        const lifted = liftOrRefuse(resolver.asNode(value, o.nameTok), table, o.nameTok)
+        const ast = lifted.ast
         const formula = printOrRefuse(ast, o.nameTok)
         verifyRoundTrip(formula, ast, o.nameTok)
         // ⚰️⚰️ `hidden: false` WAS HARDCODED HERE while this same module computed
@@ -4764,6 +4789,10 @@ export function translateThinkScript(source, opts = {}) {
           formula,
           ast,
           inputsFolded: program.folded.filter((f) => resolver.inputs.has(key(f.name))),
+          // ⭐ THE FOLD CHANNEL (`closedTable.json::_folds.thinkscriptSecondaryAggregation`):
+          // one entry per lifted read, so the import box discloses the weekly/monthly
+          // timing and the source period stays on the result. Absent when nothing lifted.
+          ...(lifted.reads.length ? { thinkscriptSecondaryAggregation: lifted.reads } : {}),
           hidden: !readsTheBar(ast),
           hiddenReason: readsTheBar(ast) ? null : 'constant',
           refusal: null,
