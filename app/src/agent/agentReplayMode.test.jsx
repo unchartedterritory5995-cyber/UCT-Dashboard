@@ -25,11 +25,12 @@ const BARS = { D: O.dwmBars(WIN, 'D'), '5': O.intradayBars(WIN, '5'), W: O.dwmBa
 const dayOfBar = (b) => (typeof b.t === 'number' ? O.unixToEt(b.t).day : b.t)
 
 /** The board's charts with Replay Mode (one shared cutoff), each chart's bars, and (optionally) a bar replay on a chart. */
-function withReplayMode(h, { cutoff = null, tfs = {}, door = true, bar = null } = {}) {
+function withReplayMode(h, { cutoff = null, tfs = {}, door = true, bar = null, instances = null } = {}) {
   const ws = { cut: cutoff, writes: [], viewDo: [] }
   const base = h.charts, read = base.read, list = base.list
   const deco = (s) => s && ({
     ...s, tf: tfs[s.ref] || s.tf, replay: ws.cut, ...(door ? { canStepReplay: true } : {}),
+    ...(instances ? { cs: { ...s.cs, indicatorInstances: instances } } : {}),
     view: { frame: { fromRight: 50, toRight: 0 }, replay: { can: true, mode: bar === s.ref, playing: false, speed: 1, index: bar === s.ref ? 70 : null, total: 100 } },
   })
   h.charts = {
@@ -211,4 +212,25 @@ describe('routing by STATE (AUDIT e)', () => {
     expect(c.undo).toBe('exact')
     expect(c.args.properties.direction.enum).toEqual(['forward', 'back'])
   })
+})
+
+// AUDIT #1292 (owner req 5): a step receipt names, from the charts' ACTUAL instances, every indicator calculated on a higher
+// timeframe (its own frame's bars are not cut at the cutoff); absent when there is none
+describe('the receipt names higher-timeframe-calculated indicators', () => {
+  it('a 1W-calculated RSI on the daily chart: the receipt says it is not cut at the cutoff', async () => {
+    const { say, h } = p.mount(...ONE('NVDA'))
+    withReplayMode(h, { cutoff: '2026-03-06', tfs: { c: 'D' }, instances: [{ instanceId: 'inst:rsi:1', defId: 'rsi', inputs: { period: 14 }, calculationTimeframe: 'W' }] })
+    await say('step forward one bar')
+    expect(document.body.textContent).toMatch(/Note: the 1W-calculated RSI is not cut at the cutoff — it reads its own higher-timeframe bars, and each bar shows the last such period that had closed before it/)
+  }, 40000)
+  it('the same RSI on the chart’s own timeframe, or none at all: no note', async () => {
+    for (const instances of [[{ instanceId: 'inst:rsi:1', defId: 'rsi', inputs: { period: 14 } }], [{ instanceId: 'inst:rsi:1', defId: 'rsi', inputs: { period: 14 }, calculationTimeframe: 'D' }], []]) {
+      const { say, h } = p.mount(...ONE('NVDA'))
+      withReplayMode(h, { cutoff: '2026-03-06', tfs: { c: 'D' }, instances })
+      await say('step forward one bar')
+      expect(document.body.textContent).toMatch(/Moved Replay Mode forward 1 bar/)
+      expect(document.body.textContent).not.toMatch(/not cut at the cutoff/)
+      cleanup()
+    }
+  }, 60000)
 })

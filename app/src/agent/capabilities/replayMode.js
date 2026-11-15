@@ -21,6 +21,8 @@ import { barVisible, cutoffFetchDay, cutoffWords, intradayBarEndMs, lastSessionO
 import { closeTime } from '../../lib/marketClock/sessionCalendar'
 import { etYmd } from '../../lib/marketClock/etTime'
 import { replaysOn, NONE_RUNNING } from './chartReplay'
+import { effectiveCalcFrame } from '../../components/chart/engine/instanceTimeframe'
+import { getDefinition } from '../../components/chart/engine/nativeRegistry'
 
 export const STEP_ACTION = 'chart.replayStep'
 export const MAX_STEP = 100
@@ -102,6 +104,32 @@ function cutoffThrough(t, tf, extended) {
   if (tf === 'D') return String(t).slice(0, 10)
   return lastSessionOfPeriod(String(t).slice(0, 10), tf)
 }
+// AUDIT #1292 (owner req 5): an indicator CALCULATED on a higher timeframe reads its own frame's bars, which the cutoff does
+// not cut (engine/secondaryBars.secondaryBarsUrl has no `to`); each chart bar shows the last higher-timeframe period that had
+// CLOSED before it (engine/mtfProjection.js, COMPLETED semantics). The receipt says so plainly, generated from every chart's
+// actual instances and their effective calculation frames — never per-indicator text.
+const indicatorName = (inst) => {
+  const d = getDefinition(inst?.defId)
+  return d?.meta?.shortName || d?.shortName || d?.meta?.name || d?.name || String(inst?.defId || 'indicator')
+}
+export function higherCalcIndicators(charts) {
+  const out = []
+  for (const s of charts) {
+    for (const inst of [].concat(s?.cs?.indicatorInstances || [])) {
+      if (!inst || inst.hidden) continue
+      const f = effectiveCalcFrame(inst, String(s.tf || ''))
+      if (f.frame) out.push({ chart: s.label || s.ref, name: indicatorName(inst), frame: f.frame })
+    }
+  }
+  return out
+}
+export function higherCalcNote(charts) {
+  const hits = higherCalcIndicators(charts)
+  if (!hits.length) return ''
+  const seen = [...new Set(hits.map(h => `${tfLabel(h.frame)}-calculated ${h.name}`))]
+  const list = seen.length === 1 ? `the ${seen[0]}` : `the ${seen.slice(0, -1).join(', ')} and ${seen.at(-1)}`
+  return `. Note: ${list} ${seen.length === 1 ? 'is' : 'are'} not cut at the cutoff — ${seen.length === 1 ? 'it reads' : 'they read'} its own higher-timeframe bars, and each bar shows the last such period that had closed before it`
+}
 const lastVisibleIndex = (times, tf, v, extended) => {
   let i = -1
   for (let k = 0; k < times.length; k++) if (barVisible({ t: times[k] }, tf, v, { extended })) i = k
@@ -161,6 +189,7 @@ export async function stepReplay(host, ref, { direction, bars: n, from }, { now 
   const others = (host.charts.list?.() || []).filter(s => s.ref !== ref && s.tf && s.tf !== snap.tf).length
   const line = `Moved Replay Mode ${direction} ${barsWord(n)} of this chart (${tfLabel(tf)}): every chart now shows only what was known by ${cutoffWords(to)}`
     + `${others ? ' (charts on other timeframes show only their bars that were complete by then)' : ''}`
+    + higherCalcNote(host.charts.list?.() || [])
   return { to, line, precise: isPreciseCutoff(to) }
 }
 
