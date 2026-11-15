@@ -367,7 +367,7 @@ const newestOffset = (src, len, i) => {
   for (let j = i - len + 1; j <= i; j++) if (src[j] >= best) { best = src[j]; at = j }
   return -(i - at)
 }
-describe('S4-2 — the arg-extreme tie: newest over a bar price at every version, over ANY source at v4 / v5 (S1); a v6 computed source withheld', () => {
+describe('S4-2 — the arg-extreme tie: Pine names the NEWEST of a tie over ANY source (S5 / S1 / S10 witnessed)', () => {
   it('builtin aroon (v6): Aroon Up reads 100 on bar 116, the tie of bars 112 and 116 (TradingView; was 71.43)', () => {
     const src = '//@version=6\nindicator("e56 aroon")\nplot(100 * (ta.highestbars(high, 15) + 14) / 14)'
     const { col, held } = hostColumn(src)
@@ -382,40 +382,51 @@ describe('S4-2 — the arg-extreme tie: newest over a bar price at every version
     const lo = hostColumn('//@version=4\nstudy("e56 lb")\nplot(lowestbars(low, 3))').col
     expect(lo.every((x, i) => i < 2 || Number.isFinite(x))).toBe(true)
   })
-  it('v4 / v5: a two-valued COMPUTED source names the NEWEST of a tie (S1), first value on bar length - 1, both lanes', () => {
+  it('S10 capture (`vw-cs2-highestbars-computed-v6`, v6): `vt = bar_index % 3 == 0 ? 1.0 : 2.0` reads TradingView\'s offsets, both lanes', () => {
+    // the capture's numbers from bar 3 on, by bar_index % 3: highestbars -1, 0, 0; lowestbars 0, -1, -2
+    // (the NEWEST tied bar; an oldest-wins reading would give -2 / -3 for highestbars)
+    const HB = [-1, 0, 0]
+    const LB = [0, -1, -2]
+    for (const [fn, want] of [['ta.highestbars', HB], ['ta.lowestbars', LB]]) {
+      const src = `//@version=6\nindicator("e56 cs2")\nvt = bar_index % 3 == 0 ? 1.0 : 2.0\nplot(${fn}(vt, 4))`
+      const { col, held, formula } = hostColumn(src)
+      expect(held.size).toBe(0)
+      expect(formula).toMatch(/tieNewest\(/)
+      for (let i = 0; i < 3; i++) expect(Number.isNaN(col[i]), `${fn} bar ${i}`).toBe(true)
+      for (let i = 3; i < RDDT.length; i++) expect(col[i] + 0, `${fn} bar ${i}`).toBe(want[i % 3])
+      const rt = runtimeRun(src)
+      expect(rt.err).toBeUndefined()
+      expect(rt.col).toEqual(col)
+    }
+  })
+  it('v4 / v5 / v6: a two-valued COMPUTED source names the NEWEST of a tie, first value on bar length - 1, both lanes', () => {
     const vt = BARS.map((b) => (b.c > b.o ? 10 : 20))
-    for (const [v, call] of [[5, 'ta.highestbars(vt, 4)'], [4, 'highestbars(vt, 4)']]) {
+    for (const [v, call] of [[6, 'ta.highestbars(vt, 4)'], [5, 'ta.highestbars(vt, 4)'], [4, 'highestbars(vt, 4)']]) {
       const src = `//@version=${v}\n${v >= 5 ? 'indicator' : 'study'}("e56 tie")\nvt = close > open ? 10 : 20\nplot(${call})`
       const { col, held, formula } = hostColumn(src, 0, BARS)
       expect(held.size).toBe(0)
       expect(formula).toMatch(/tieNewest\(/)
-      for (let i = 0; i < 3; i++) expect(Number.isNaN(col[i]), `bar ${i}`).toBe(true)
-      for (let i = 3; i < BARS.length; i++) expect(col[i], `bar ${i}`).toBe(newestOffset(vt, 4, i))
+      for (let i = 0; i < 3; i++) expect(Number.isNaN(col[i]), `v${v} bar ${i}`).toBe(true)
+      for (let i = 3; i < BARS.length; i++) expect(col[i], `v${v} bar ${i}`).toBe(newestOffset(vt, 4, i))
       const rt = runtimeRun(src, BARS)
       expect(rt.err).toBeUndefined()
       expect(rt.col).toEqual(col)
     }
   })
-  it('v6: a computed source\'s tied window is withheld by name (unresolved), every other bar drawn', () => {
-    const src = '//@version=6\nindicator("e56 tie")\nvt = close > open ? 10 : 20\nplot(ta.highestbars(vt, 4))'
-    const { col, held, clock, formula } = hostColumn(src, 0, BARS)
-    expect(formula).not.toMatch(/tieNewest/)
+  it('a formula of this engine\'s own language (no Pine door) keeps its rule: a computed tie is withheld by name', () => {
+    const vtT = { type: 'op', name: '?:', args: [{ type: 'op', name: '>', args: [{ type: 'series', name: 'close' }, { type: 'series', name: 'open' }] }, { type: 'num', value: 10 }, { type: 'num', value: 20 }] }
+    const held = new Map()
+    const col = interpret({ type: 'call', name: 'highestbars', args: [vtT, { type: 'num', value: 4 }] }, BARS, undefined, undefined, undefined,
+      { ...LISTING, tf: 'D', withheldBarsSink: held })
     expect([...held.keys()]).toEqual([TIE_UNWITNESSED])
-    expect([...clock.keys()]).toContain(TIE_UNWITNESSED)
-    expect(col.slice(3).every((x) => Number.isNaN(x))).toBe(true)
-    expect(buildRuntimeIr(src, { bars: BARS, inputs: {}, pane: true, historyFromListing: true }).refusal.guard).toBe(TIE_UNWITNESSED)
+    expect(Array.from(col).slice(3).every((x) => Number.isNaN(x))).toBe(true)
   })
-  it('a computed source with no tie is drawn', () => {
+  it('a computed source over real bars: every bar drawn, a tied window at its newest bar', () => {
     const src = '//@version=6\nindicator("e56 notie")\nplot(ta.highestbars(close * 2, 4))'
     const { col, held } = hostColumn(src)
-    // `close * 2` over RDDT: count the tied windows and check exactly those are withheld
-    let tied = 0
-    for (let i = 3; i < RDDT.length; i++) {
-      const w = RDDT.slice(i - 3, i + 1).map((b) => b.c * 2)
-      const m = Math.max(...w)
-      if (w.filter((x) => x === m).length > 1) { tied += 1; expect(Number.isNaN(col[i])).toBe(true) } else expect(Number.isFinite(col[i])).toBe(true)
-    }
-    expect(held.size).toBe(tied ? 1 : 0)
+    expect(held.size).toBe(0)
+    const c2 = RDDT.map((b) => b.c * 2)
+    for (let i = 3; i < RDDT.length; i++) expect(col[i], `bar ${i}`).toBe(newestOffset(c2, 4, i))
   })
   it('the bar-price test is structural (`close`, `hl2` as derived, never `volume` or a computed mean)', () => {
     const s = (name) => ({ type: 'series', name })
@@ -438,21 +449,14 @@ describe('the runtime lane on its own path (a mutable value: no column to read)'
     expect(v5.refusal.guard).toBe(BOOL_NA_UNWITNESSED)
     expect(rt(['//@version=6', 'indicator("e56 vm")', ...body].join('\n'), BARS).ok).toBe(true)
   })
-  it('S4-2: a window over a mutable (computed) source stops by name on its first tied window, and is served with none', () => {
-    const vm = (body, v = 6) => [`//@version=${v}`, 'indicator("e56 vm tie")', 'float vt = 0.0', body, 'plot(ta.highestbars(vt, 4))'].join('\n')
-    const tie = runtimeRun(vm('vt := close > open ? 10 : 20'), BARS)
-    expect(tie.err && tie.err.guard).toBe(TIE_UNWITNESSED)
-    // v5 (S1): the newest of the tie, served
-    const v5 = runtimeRun(vm('vt := close > open ? 10 : 20', 5), BARS)
-    expect(v5.err).toBeUndefined()
+  it('S4-2: a window over a mutable (computed) source names the newest of a tie at v5 and v6', () => {
     const vt = BARS.map((b) => (b.c > b.o ? 10 : 20))
-    for (let i = 3; i < BARS.length; i++) expect(v5.col[i], `bar ${i}`).toBe(newestOffset(vt, 4, i))
-    const none = runtimeRun(vm('vt := close * 2'), BARS)
-    expect(none.err).toBeUndefined()
-    // with no tie on these bars, the columnar lane draws every bar, and both lanes agree
-    const host = hostColumn('//@version=6\nindicator("e56 notie")\nplot(ta.highestbars(close * 2, 4))', 0, BARS)
-    expect(host.held.size).toBe(0)
-    expect(none.col).toEqual(host.col)
+    for (const v of [5, 6]) {
+      const run = runtimeRun([`//@version=${v}`, 'indicator("e56 vm tie")', 'float vt = 0.0', 'vt := close > open ? 10 : 20',
+        'plot(ta.highestbars(vt, 4))'].join('\n'), BARS)
+      expect(run.err).toBeUndefined()
+      for (let i = 3; i < BARS.length; i++) expect(run.col[i], `v${v} bar ${i}`).toBe(newestOffset(vt, 4, i))
+    }
     // a per-bar length sends `ta.highestbars(high, …)` to this lane's own window
     const src = ['//@version=5', 'indicator("e56 vm aroon")', 'len = close > 0 ? 15 : 16',
       'plot(100 * (ta.highestbars(high, len) + 14) / 14)'].join('\n')
@@ -600,8 +604,7 @@ describe('finding 2 - the runtime lane declines a mutable `bool` that can be `na
     expect(b.ok).toBe(false)
     expect(b.refusal.guard).toBe(BOOL_NA_UNWITNESSED)
   })
-  it('finding 6: a variable whose every write is a bar price (`float h = na; h := high`) takes the newest tie rule on this lane', () => {
-    // v6: a computed source's tie stops this lane, so only the bar-price rule serves it
+  it('finding 6: a variable whose every write is a bar price (`float h = na; h := high`) names the newest tie on this lane', () => {
     const src = '//@version=6\nindicator("r6")\nfloat h = na\nh := high\nplot(ta.highestbars(h, 11))'
     const rt = runtimeRun(src)
     expect(rt.err).toBeUndefined()
@@ -632,17 +635,27 @@ describe('finding 2 - the runtime lane declines a mutable `bool` that can be `na
 })
 
 describe('finding 3 -a witness site under a read on other bars is withheld (TF_MERGE / LTF / tf / sym)', () => {
-  it('a v6 tie site under `request.security(…, "W", …)` withholds the plot, never draws the weekly guess', () => {
-    const { col, codes, maskLengths } = doorOn('//@version=6\nindicator("r3")\nvt = close > open ? 10 : 20\nplot(request.security(syminfo.tickerid, "W", ta.highestbars(vt, 4)))')
-    expect(codes).toEqual([TIE_UNWITNESSED])
-    expect(col.every((x) => Number.isNaN(x))).toBe(true)
-    // finding 7: the mask the harness trusts is the chart's length, never the weekly child's
-    expect(maskLengths).toEqual([RDDT.length])
+  // the Pine door leaves no witness site any more (S1, S10); this engine's own language still
+  // withholds a computed tie, so the nesting rule is railed on its trees
+  const ser = (name) => ({ type: 'series', name })
+  const vtT = { type: 'op', name: '?:', args: [{ type: 'op', name: '>', args: [ser('close'), ser('open')] }, { type: 'num', value: 10 }, { type: 'num', value: 20 }] }
+  const hb = { type: 'call', name: 'highestbars', args: [vtT, { type: 'num', value: 4 }] }
+  it('a tie site under a weekly read withholds the whole plot, and the mask is the chart\'s length (finding 7)', () => {
+    // (`tf_merge` is engine 55's node, matched by name in WITNESS_NESTED; it lands with #1264)
+    for (const type of ['tf', 'tf_live']) {
+      const held = new Map()
+      const col = interpret({ type, value: 'W', args: [hb] }, RDDT, undefined, undefined, undefined, { ...LISTING, tf: 'D', withheldBarsSink: held })
+      expect([...held.keys()], type).toEqual([TIE_UNWITNESSED])
+      expect(held.get(TIE_UNWITNESSED).length, type).toBe(RDDT.length)
+      expect(Array.from(col).every((x) => Number.isNaN(x)), type).toBe(true)
+    }
   })
-  it('the same source at v5 (newest, S1) is drawn', () => {
-    const { col, codes } = doorOn('//@version=5\nindicator("r3")\nvt = close > open ? 10 : 20\nplot(request.security(syminfo.tickerid, "W", ta.highestbars(vt, 4)))')
-    expect(codes).toEqual([])
-    expect(col.slice(40).every((x) => Number.isFinite(x))).toBe(true)
+  it('the same source through the Pine door at v5 / v6 (newest, S1 / S10) is drawn', () => {
+    for (const v of [5, 6]) {
+      const { col, codes } = doorOn(`//@version=${v}\nindicator("r3")\nvt = close > open ? 10 : 20\nplot(request.security(syminfo.tickerid, "W", ta.highestbars(vt, 4)))`)
+      expect(codes).toEqual([])
+      expect(col.slice(40).every((x) => Number.isFinite(x))).toBe(true)
+    }
   })
   it('a tracked `!=` under `request.security(…, "W", …)` is Pine\'s answer: false as a condition while the weekly side is `na`', () => {
     const { col, codes } = doorOn('//@version=5\nindicator("r3")\nw = request.security(syminfo.tickerid, "W", (close > ta.sma(close, 20)) != false)\nplot(w ? 1 : 0)')
@@ -651,17 +664,31 @@ describe('finding 3 -a witness site under a read on other bars is withheld (TF_M
   })
 })
 
-describe('finding 5 - the withholding ENDS once the answer no longer depends on the unknown bars (v6 tie sites)', () => {
-  const v6 = (expr) => `//@version=6\nindicator("r5")\nvt = close > open ? 10 : 20\nhb = ta.highestbars(vt, 4)\nplot(${expr})`
-  it('a recurrence over the unknown bars withholds every later bar; `barssince` / `valuewhen` / the bounded form stop withholding', () => {
-    const cum = doorOn(v6('ta.cum(hb == 0 ? 1 : 0)'))
-    expect(cum.codes).toEqual([TIE_UNWITNESSED])
+describe('finding 5 - the withholding ENDS once the answer no longer depends on the unknown bars (tie sites of this engine\'s own trees)', () => {
+  const ser = (name) => ({ type: 'series', name })
+  const num = (value) => ({ type: 'num', value })
+  const vtT = { type: 'op', name: '?:', args: [{ type: 'op', name: '>', args: [ser('close'), ser('open')] }, num(10), num(20)] }
+  const cond = { type: 'op', name: '==', args: [{ type: 'call', name: 'highestbars', args: [vtT, num(4)] }, num(0)] }
+  const run = (tree) => {
+    const held = new Map()
+    const col = interpret(tree, RDDT, undefined, undefined, undefined, { ...LISTING, tf: 'D', withheldBarsSink: held })
+    const m = held.get(TIE_UNWITNESSED)
+    return { col: Array.from(col), held: m ? Array.from(m).filter(Boolean).length : 0 }
+  }
+  it('a recurrence withholds every later bar; `barssince` (bare and bounded) and `valuewhen` stop withholding', () => {
+    const cum = run({ type: 'call', name: 'cum', args: [{ type: 'op', name: '?:', args: [cond, num(1), num(0)] }] })
+    expect(cum.held).toBeGreaterThan(RDDT.length - 20)
     expect(cum.col.slice(10).every((x) => Number.isNaN(x))).toBe(true)
-    for (const expr of ['ta.barssince(hb == 0)', 'ta.valuewhen(hb == 0, close, 0)', 'ta.barssince(hb == 0) < 30 ? 1 : 0']) {
-      const r = doorOn(v6(expr))
-      expect(r.codes, expr).toEqual([TIE_UNWITNESSED])
-      expect(r.held, expr).toBeLessThan(cum.held)
-      expect(r.col.slice(40).some((x) => Number.isFinite(x)), expr).toBe(true)
+    const trees = {
+      'barssince (bounded)': { type: 'call', name: 'barssince', args: [cond, num(30)] },
+      valuewhen: { type: 'call', name: 'valuewhenOccurrence', args: [cond, ser('close'), num(0)] },
+      'barssince (bare)': { type: 'op', name: '-', args: [ser('barindex'), { type: 'call', name: 'valuewhenOccurrence', args: [cond, ser('barindex'), num(0)] }] },
+    }
+    for (const [name, tree] of Object.entries(trees)) {
+      const r = run(tree)
+      expect(r.held, name).toBeGreaterThan(0)
+      expect(r.held, name).toBeLessThan(cum.held)
+      expect(r.col.slice(40).some((x) => Number.isFinite(x)), name).toBe(true)
     }
   })
 })

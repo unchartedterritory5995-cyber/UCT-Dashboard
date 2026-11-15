@@ -5438,12 +5438,11 @@ export const CHART_CLOCK_WITHHELD = Object.freeze({
     + 'guessed. What would settle it: a capture of this indicator on TradingView.',
   // ⭐⭐ ENGINE 56 (S4-2) — a tie in a `highestbars` / `lowestbars` window over a computed source.
   [TIE_UNWITNESSED]: () => 'When two bars of a `highestbars` / `lowestbars` window hold the same extreme, '
-    + 'TradingView names the NEWEST of them over a price the bar itself holds (`high`, `low`, `close`, `open`, '
-    + '`hl2`, …) at every version, and over ANY source in Pine v4 and v5 (all measured), which is drawn. '
-    + 'Over a computed source in Pine v6 the one measurement names the OLDEST, and v1 to v3 are not measured, '
-    + 'so on the bars whose window holds such a tie what this indicator draws from it is withheld rather than '
-    + 'guessed; every other bar is drawn. What would settle it: the tie probe captured on TradingView at this '
-    + 'version.',
+    + 'TradingView names the NEWEST of them, over any source and at every Pine version measured (v4, v5 and '
+    + 'v6), and a pasted Pine script draws exactly that. This formula is written in this engine\'s own '
+    + 'language, where the rule over a source that is not a bar price is not settled, so on the bars whose '
+    + 'window holds such a tie what it draws from it is withheld rather than guessed; every other bar is '
+    + 'drawn.',
 })
 export const CHART_CLOCK_WHOLE = Object.freeze(['time-anchor:other-bars', 'time-clock:unreadable',
   'time-anchor:not-daily', 'time-anchor:weekend-bars', 'time-own:chart-unwitnessed', 'time-close:not-daily',
@@ -6526,16 +6525,17 @@ function windowHoldsTie(series, lo, hi, better) {
   return 0
 }
 
-/** ⭐⭐ ENGINE 56 (S4-2) — THE BARS WHERE A `highestbars` / `lowestbars` OVER A COMPUTED
+/** ⭐⭐ ENGINE 56 (S4-2, S1, S10) — THE BARS WHERE A `highestbars` / `lowestbars` OVER A COMPUTED
  *  SOURCE NAMES ONE OF TWO TIED BARS, as a 0/1 column (1 = withheld), or null.
  *
- *  Over a price the bar itself holds (`isBarPriceTree`) TradingView names the NEWEST tied
- *  bar, and that is served (`windowArgExtreme`, witnessed by the builtin Aroon at v6 and a
- *  v4 pivot script). Over anything else the one measurement
- *  (`divergences.json::argextreme-ties-resolve-to-the-newest-bar`, a two-valued computed
- *  source at v6) names the OLDEST: the two readings are not reconciled, so a computed
- *  source's tied windows are withheld by name, never guessed. The window is the call's own
- *  (`FINITE_WINDOW`'s span and `restart` policy); which root bars it reaches is `witnessMask`'s. */
+ *  TradingView names the NEWEST tied bar over ANY source (bar prices: the builtin Aroon at v6,
+ *  a v4 pivot script; a two-valued computed source at v4, v5 and v6: S1, and the S10 capture
+ *  `vw-cs2-highestbars-computed-v6`, which refutes `divergences.json::argextreme-ties-resolve-
+ *  to-the-newest-bar`). The Pine door therefore marks every computed source `tieNewest` and no
+ *  Pine tree reaches this mask. It stays for a formula of this engine's own language, whose rule
+ *  over a computed source is not settled: there a tied window is withheld by name. The window is
+ *  the call's own (`FINITE_WINDOW`'s span and `restart` policy); which root bars it reaches is
+ *  `witnessMask`'s. */
 export function argExtremeTieMask(tree, bars, inputs, budget, scalars, opts) {
   const n = Array.isArray(bars) ? bars.length : 0
   return witnessMask(tree, bars, inputs, budget, scalars, opts,

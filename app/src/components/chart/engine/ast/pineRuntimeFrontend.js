@@ -37,7 +37,7 @@ import {
   OUTPUT_CALLS as PINE_OUTPUT_CALLS, BAR_SERIES_DEFAULTS, paramDefaultShapeOk,
   declarationWordsOf, pineConstIntValue, constIntWritesOf, pineTupleBuiltinCallParts, pineNamespacedName,
   legacyBarsSignUnstated, LEGACY_BARS_SIGN_SENTENCE, REFUSALS, selfReferenceSentence,
-  selfReferencingDeclaration, blockDeclarationReadsOwnHistory, barPriceVarsOf, neverNaBoolNamesOf,
+  selfReferencingDeclaration, blockDeclarationReadsOwnHistory, neverNaBoolNamesOf,
 } from './pine.js'
 import { CLOCK_REALTIME } from '../../indicators.js'
 // ⭐⭐ L1 — an imported library's exports are linked in as the script's own.
@@ -371,7 +371,7 @@ export const RUNTIME_REFUSALS = Object.freeze({
   // (a column it reads), or where this lane would compute one of the shapes itself, it
   // declines by the same code: never draws the value the columnar lane will not.
   [BOOL_NA_UNWITNESSED]: 'a Pine v1-v5 `bool` that can be `na` meeting `==` or `!=` where this lane cannot answer `na` (TradingView answers `na` there), or one whose `na` bars are not followed',
-  [TIE_UNWITNESSED]: 'a `highestbars` / `lowestbars` window over a computed source (Pine v6, or v1-v3) that holds a tied extreme, where no capture says which bar TradingView names',
+  [TIE_UNWITNESSED]: 'a `highestbars` / `lowestbars` window over a computed source that holds a tied extreme, in a formula of this engine\'s own language (Pine names the newest)',
 })
 
 /** ⭐ ENGINE 56 — the bar's own prices (the arg-extreme tie rule) and the operators that
@@ -2425,7 +2425,6 @@ function buildRuntimeIrLinked(source, opts, holder) {
   const constIntCtx = { version: pineVersion, declWords }
   const constIntWrites = constIntWritesOf(stmts, constIntCtx)
   // ⭐ ENGINE 56 (finding 6) — top-level variables that hold a bar price on every bar they are read
-  const barPriceVars = barPriceVarsOf(stmts)
   // ⭐ ENGINE 56 (finding 6) — names whose every write is a `bool` never `na` at this version
   const neverNaBoolNames = neverNaBoolNamesOf(stmts, pineVersion)
   // ⛔ W1 (review, 2026-11-02) — THE OBJECT DOOR TELLS THE RESOLVER, and the
@@ -8995,16 +8994,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
           // only a variable has one — `sma(x + 1, 5)` needs its own series exactly
           // as `(x + 1)[1]` does, and is refused by the same name.
           const srcNode = given[0]
-          // ⭐⭐ ENGINE 56 (S4-2) — over a price the bar itself holds the NEWEST tied bar wins
-          // (`interpret.js::windowArgExtreme`); over anything else a tied window is withheld by
-          // the columnar lane, and this lane, which has no per-bar withholding, STOPS BY NAME on the first
-          // bar whose window holds a tie (`tieGuard`, `runtime/vm.js`): a window with no tie is served.
-          const barPriceSrc = !!srcNode && srcNode.type === 'name' && ((RUNTIME_BAR_PRICES.has(srcNode.name)
-            && scope.lookup(srcNode.name) === null)
-            || (owner === null && barPriceVars.has(srcNode.name) && scope.lookup(srcNode.name) === root.names.get(srcNode.name)))
-          // ⭐ ENGINE 56 (S1) — Pine v4 / v5 name the newest of a tie over ANY source (witnessed)
-          const tieNewestAll = pineVersion === 4 || pineVersion === 5
-          const tieGuard = (win.table === 'highestbars' || win.table === 'lowestbars') && !barPriceSrc && !tieNewestAll
+          // ⭐⭐ ENGINE 56 (S4-2, S1, S10) — Pine names the NEWEST of a tie in a `highestbars` /
+          // `lowestbars` window over ANY source: witnessed over bar prices (aroon v6, pivots v4) and
+          // over a two-valued computed source at v4, v5 and v6 (`vw-cs2-highestbars-computed-v6`).
+          // (v1-v3 spell it bare, which refuses by name: its sign is unstated.)
           let varSlot = srcNode && srcNode.type === 'name' ? scope.lookup(srcNode.name) : null
           let srcLabel = srcNode && srcNode.type === 'name' ? srcNode.name : null
           // ⭐⭐ INSIDE A REQUEST, THE SOURCE IS GIVEN ITS OWN COMMITTED SERIES.
@@ -9097,8 +9090,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
           // call sites shared would interleave two series into one window.
           const entry = { fn: win.table, name: `${node.name}(${srcLabel},${lenExpr ? 'per bar' : n})`, historySlot: histIndex, span }
           // ⭐ ENGINE 56 (S4-2) — the plan says which reducer: `reduceNewest` over a bar price
-          if ((barPriceSrc || tieNewestAll) && FINITE_WINDOW[win.table].reduceNewest) entry.newest = true
-          if (tieGuard) entry.tieGuard = true
+          if (FINITE_WINDOW[win.table].reduceNewest) entry.newest = true
           // ⭐ W4-T8 — the plan says the length is read per bar; `span` is then the RING (the ceiling)
           if (lenExpr) entry.dynamic = true
           let widx

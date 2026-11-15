@@ -14735,11 +14735,10 @@ export class Resolver {
           ? resolvedRaw.map((a, k) => (k === resolvedRaw.length - 1 ? foldLength(a) : a))
           : resolvedRaw)
       const shifted = PINE_NAMESPACED_TREE[namespacedName](resolved)
-      // ⭐ ENGINE 56 (S1) — Pine v4 / v5 name the NEWEST of a tie over ANY source (a two-valued
-      // computed one included; v4 = v5, witnessed): the source is marked so (`tieNewest`). v6 and
-      // v1-v3 keep the rule: newest over a bar price, a computed source's tie withheld.
+      // ⭐ ENGINE 56 (S1, S10) — Pine names the NEWEST of a tie over ANY source (a two-valued
+      // computed one included: witnessed at v4, v5 and v6, `vw-cs2-highestbars-computed-v6`): a
+      // source that is not a bar price is marked so (`tieNewest`)
       if ((namespacedName === 'ta.highestbars' || namespacedName === 'ta.lowestbars')
-        && (Number(this.pineVersion) === 4 || Number(this.pineVersion) === 5)
         && shifted && shifted.type === 'op' && shifted.name === 'u-' && shifted.args[0]
         && shifted.args[0].type === 'call' && Array.isArray(shifted.args[0].args)
         && !isBarPriceTree(shifted.args[0].args[0])) {

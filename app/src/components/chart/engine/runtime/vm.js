@@ -22,7 +22,7 @@
 // forever, and the budget lives on the call rather than the module so that a
 // screener pass over 5,000 symbols cannot let symbol 4,000 inherit 3,999's spend.
 
-import { BINARY, UNARY, TERNARY, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED, CARRIED2, TIE_UNWITNESSED } from '../ast/interpret.js'
+import { BINARY, UNARY, TERNARY, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED, CARRIED2 } from '../ast/interpret.js'
 import { OP, OP_NAME, IMPLEMENTED, SERIES_NAMES, CLOCK_FIELDS } from './program.js'
 import { TEXT_IMPL as TEXT_FNS } from './text.js'
 import { COLOUR_FNS, colourArgKind } from './colours.js'
@@ -1270,14 +1270,6 @@ export function execute(program, ctx, limits, opts) {
             if (!Number.isFinite(live)) { stack[sp++] = NaN; break }
             let lo = span - 1
             while (lo > 0 && Number.isFinite(buf[lo - 1])) lo -= 1
-            // ⭐⭐ ENGINE 56 (S4-2) — a `highestbars` / `lowestbars` over a computed source (`tieGuard`)
-            // whose window holds a tie is not a bar this lane can answer (the columnar lane withholds
-            // it by name, `argExtremeTieMask`): the run stops BY NAME, never drawing the guess
-            if (w.tieGuard === true && FINITE_WINDOW[w.fn].holdsTie(buf, lo, span - 1) === 1) {
-              const stop = new Error(`${TIE_UNWITNESSED} — \`${w.name}\`: this bar's window holds a tied extreme, and no capture says which bar TradingView names over a computed source`)
-              stop.guard = TIE_UNWITNESSED
-              throw stop
-            }
             stack[sp++] = winReduce[wi](buf, lo, span - 1)
             break
           }
