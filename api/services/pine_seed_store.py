@@ -11,19 +11,28 @@ writes `output/RSRATING.csv` ONCE and copies the SAME file to the private seed r
 and its git history holds every daily upload. Ingesting it reproduces the seed
 itself, not a substitute for it (`docs/pine/RS-RATING-TRANSFER.md`, L6).
 
-⛔⛔ THE SERIES IS THE REPLAY OF EVERY UPLOAD, NOT THE NEWEST FILE ALONE. One upload
+⛔⛔ THE SERIES IS THE NEWEST UPLOAD ALONE: an upload REPLACES the seed. One upload
 carries 35 rows dated back from "yesterday" (`rs_ranking.py::generate_tradingview_csv`).
-The seed keeps rows that a later upload no longer covers, so the series a script reads
-is the union of the uploads, a later upload winning on a date both carry. Upserting
-the commits OLDEST FIRST gives exactly that rule. Each row keeps the commit that set
-it, so a capture that disagrees with the rule can be answered from the store without
-refetching anything.
+⚰️ This file first served the UNION of every upload (a later upload winning per date),
+which is how a version-controlled data repo looks like it should behave. The capture said
+otherwise. `rs-seed-rsrating` on NYSE:RDDT 1D (Q-RS2, 2026-11-15, s10) reads `na` on
+every chart bar before 2026-10-07 and EXACTLY the newest upload's 25 weekday rows after
+it (0 mismatches), where the union held 549 different values on older bars. So
+TradingView's seed is the newest upload only.
+- Every upload stays in `pine_seed_commits` (provenance).
+- An upload whose file is absent (empty) does not wipe the series: there is nothing to
+  replace it with, and no capture shows what the vendor does then.
 
-⚠️ A MIRROR IS AN ASSERTION, AND THE CAPTURE IS WHAT PROVES IT. The workflow says the
-two copies are the same file, but a TradingView-side validation step
-(`check_data.yaml` in the seed repo) can still refuse an upload. A vendor capture of
-the seed symbol is the witness; until one MATCHes, the harness grades with the
-capture's own seed bars, not these.
+⭐ THIS IS WHAT RS RATING'S NUMBER DEPENDS ON. Its `var` array collects the seed's
+distinct values on the FIRST bars that see them, in date order. With only the newest
+upload present it collects 199.57, 125, …, 12.5 (descending, the order its comments
+expect). The vendor's label read 16 for RDDT, and a hand computation from the capture's
+own inputs gives 16.43.
+
+⚠️ A MIRROR IS AN ASSERTION, AND THE CAPTURE IS WHAT PROVES IT. Q-RS2 MATCHed the
+newest upload exactly on 2026-11-15. A TradingView-side validation step
+(`check_data.yaml` in the seed repo) could still refuse a future upload, so the harness
+keeps grading with the capture's own seed bars.
 
 ⛔ NOTHING HERE IS FABRICATED. A malformed row is skipped and counted, never repaired,
 and a seed with no rows serves `[]`. Every consumer reads an empty series as absence.
@@ -185,10 +194,15 @@ def parse_csv(text: str) -> tuple[list[dict], int]:
 
 
 def ingest_upload(seed: str, sha: str, committed_at: str, text: str) -> int:
-    """Upsert one upload's rows. Callers apply uploads OLDEST FIRST (the replay rule)."""
+    """Apply one upload. An upload WITH rows REPLACES the seed's series; an empty one
+    (the file absent at that commit) is recorded and changes nothing. Callers apply
+    uploads oldest first, so the series ends as the newest non-empty upload, which is
+    what TradingView serves (Q-RS2, see the module docstring)."""
     _ensure_init()
     rows, skipped = parse_csv(text)
     with _WRITE_LOCK, _conn() as c:
+        if rows:
+            c.execute("DELETE FROM pine_seed_rows WHERE seed=?", (seed,))
         c.executemany(
             "INSERT OR REPLACE INTO pine_seed_rows (seed, date, o, h, l, c, v, commit_sha, "
             "committed_at) VALUES (?,?,?,?,?,?,?,?,?)",
