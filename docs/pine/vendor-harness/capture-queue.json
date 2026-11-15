@@ -60,7 +60,7 @@
   ],
   "coverageMeasuredOn": "2026-11-05",
   "coverageMasterSha": "3ca4b0d358",
-  "fixtures": 360,
+  "fixtures": 450,
   "ledgerRows": 103
  },
  "definitions": {
@@ -83,17 +83,17 @@
  "counts": {
   "targets": 301,
   "byStatus": {
-   "CAPTURED": 83,
+   "CAPTURED": 84,
    "NEEDS_CHART": 39,
    "NEEDS_LIVE": 2,
-   "QUEUED": 177
+   "QUEUED": 176
   },
   "byPlanWave": {
    "E": {
-    "CAPTURED": 70,
+    "CAPTURED": 71,
     "NEEDS_CHART": 37,
     "NEEDS_LIVE": 2,
-    "QUEUED": 144
+    "QUEUED": 143
    },
    "W1": {
     "QUEUED": 6
@@ -119,9 +119,9 @@
     "QUEUED": 167
    },
    "1-2": {
-    "CAPTURED": 22,
+    "CAPTURED": 23,
     "NEEDS_CHART": 1,
-    "QUEUED": 10
+    "QUEUED": 9
    }
   },
   "byDocWave": {
@@ -294,8 +294,9 @@
     "QUEUED": 6
    },
    "wse": {
+    "CAPTURED": 1,
     "NEEDS_CHART": 1,
-    "QUEUED": 3
+    "QUEUED": 2
    },
    "wsf-realtime": {
     "NEEDS_CHART": 1
@@ -1421,8 +1422,10 @@
   },
   {
    "id": "multi-timeframe-trend-indicator__fa4022ecf5@NYSE:RDDT@D",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/multi-timeframe-trend-indicator-rddt-1d-2026-11-14.json"
+   ],
    "source": "corpus/committed/multi-timeframe-trend-indicator__fa4022ecf5.pine",
    "sourceKind": "corpus",
    "sha256": "a45b057a05e86612bd60275f34d86825f69b4b24bc78f4f3f1dd62f60533fae0",
@@ -1435,7 +1438,9 @@
    "chartDefaulted": false,
    "chartSource": "row",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "NYSE:RDDT D"
+   ],
    "licence": "corpus",
    "needsLive": false,
    "priority": 1,
@@ -9659,7 +9664,9 @@
    "chartDefaulted": false,
    "chartSource": "row",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "NYSE:RDDT D"
+   ],
    "licence": "probe",
    "needsLive": false,
    "priority": 0,
