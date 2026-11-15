@@ -401,6 +401,39 @@ def _sort_expr(overlay, sort_key):
     return f"COALESCE({overlay.col_expr(sort_key)}, {overlay.col_expr(fb)})"
 
 
+#: The directions a SECOND sort key may name. (The first key's rule is older and
+#: looser: anything but "asc" reads as descending, and saved screens rely on it.)
+_SORT_DIRS = {"asc": "ASC", "desc": "DESC"}
+
+
+def _then_sort(sort, known):
+    """``(column, "ASC" | "DESC")`` for the ONE secondary sort key a spec may carry
+    (``sort.then = {key, dir}``, RS screens unit U4), or ``None`` when it carries none.
+
+    RS New Highs orders by the age of the RS high, and dozens of names share "today";
+    without a second key they came out in ticker order.
+
+    ⛔ VALIDATED EXACTLY LIKE THE FIRST KEY, because it reaches ``col_expr`` through the
+    same door: a name that is not a snapshot column is refused by name, and a declared
+    column this pod's table does not hold yet is the readiness refusal (X27 F1), never
+    a silent no-op. A direction is "asc", "desc" or absent (descending, the first
+    key's default); anything else is refused rather than read as descending."""
+    then = sort.get("then")
+    if then is None:
+        return None
+    if not isinstance(then, dict) or then.get("then") is not None:
+        raise ValueError("the second sort key must be one object with a key and a direction")
+    key = then.get("key")
+    if not isinstance(key, str) or key not in _SORTABLE:
+        raise ValueError(f"unknown sort key: {key}")
+    if key not in known:
+        raise _readiness_refusal(_member_label(key))
+    raw_dir = then.get("dir", "desc")
+    if not isinstance(raw_dir, str) or raw_dir not in _SORT_DIRS:
+        raise ValueError(f"unknown sort direction: {raw_dir!r} (use asc or desc)")
+    return key, _SORT_DIRS[raw_dir]
+
+
 def _overlay(conn, user=None) -> _Overlay:
     """The live decision (`_live_overlay`, unchanged) plus the extended-hours one.
 
@@ -1503,6 +1536,11 @@ def build_scan_sql(spec, overlay=None, *, user_id=None, conn=None) -> dict:
         # the member reads an unsorted list as "the screen answered this way".
         raise _readiness_refusal(_member_label(sort_key))
     sort_dir = "ASC" if (sort.get("dir") == "asc") else "DESC"
+    # The optional second key (unit U4). Checked here, before any SQL exists and
+    # whether or not a rank will own the order, so a malformed one is always refused.
+    then = _then_sort(sort, known)
+    if then is not None and then[0] == sort_key:
+        then = None                 # the same column twice orders nothing further
     page = max(int(spec.get("page", 1)), 1)
     page_size = min(max(int(spec.get("page_size", 50)), 1), _MAX_PAGE)
     offset = (page - 1) * page_size
@@ -1523,7 +1561,7 @@ def build_scan_sql(spec, overlay=None, *, user_id=None, conn=None) -> dict:
         # the client can always show why the rows are in this order. Dedupe
         # preserves first position.
         seen, select_cols = set(), []
-        for c in ["ticker", *cols_req, sort_key]:
+        for c in ["ticker", *cols_req, sort_key, *([then[0]] if then else [])]:
             if c not in seen:
                 seen.add(c)
                 select_cols.append(c)
@@ -1595,11 +1633,15 @@ def build_scan_sql(spec, overlay=None, *, user_id=None, conn=None) -> dict:
         # through `col_expr` because with the overlay joined a bare `ticker`
         # is ambiguous between the two tables. (Sorting BY ticker needs no
         # second key — it is unique.)
-        tiebreak = ("" if sort_key == "ticker"
+        # The second key (unit U4) sits after the first and before the ticker; with
+        # none, `then_sql` is empty and this is the statement it always was.
+        then_sql = (f", {_sort_expr(overlay, then[0])} {then[1]} NULLS LAST"
+                    if then else "")
+        tiebreak = ("" if "ticker" in (sort_key, then[0] if then else None)
                     else f", {overlay.col_expr('ticker')} ASC")
         sql = (f"SELECT {select_sql} FROM {overlay.from_sql()}{where} "
                f"ORDER BY {_sort_expr(overlay, sort_key)} {sort_dir} NULLS LAST"
-               f"{tiebreak} LIMIT ? OFFSET ?")
+               f"{then_sql}{tiebreak} LIMIT ? OFFSET ?")
     # The join's own parameter (the in-session freshness cutoff) binds BEFORE
     # the where clause's, because the ON clause is earlier in the statement.
     describe_params = [*overlay.join_params, *where_params]
@@ -2108,3 +2150,97 @@ def run_scan(spec, user_id=None, user=None):
             "scan_joins": plan["scan_joins"],
             "list_joins": plan["list_joins"],
             "rank": rank_receipt}
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# ONE STOCK'S ROW, BY TICKER (RS screens unit U8, "Why isn't a stock here?")
+#
+# The Focus screener lets a member name a ticker and see which of the open
+# screen's rules it misses. The page evaluates the rules itself; what it needs
+# from here is that one stock's row, for the columns the rules read.
+#
+# ⛔ NOT A SCAN, AND NOT THE DARK TICKER SCOPE. `{key: "tickers"}` (FT-029 v2)
+# would do this through `run_scan`, and it is refused while its own flag is
+# off (`build_where`), which is today. This reader takes no spec at all: no
+# filter, no pool, no sort, no rank, so nothing a member types can widen it
+# past "these named rows, these registered columns".
+#
+# ⭐ THE VALUES ARE THE ONES THE SCAN SERVES. Every column goes through the same
+# `_Overlay.select_item` as a scan's, over the same FROM, so during the session
+# a live-tier column answers with its live value here exactly as it does on the
+# list the member is comparing against.
+#
+# ⭐ `stale` SAYS WHAT THE SCAN WOULD HAVE DONE WITH THE ROW. A row whose own
+# bars stopped is left out of every scan (`stale_gate`); returned bare, the page
+# would call it "passes every rule" beside a list it can never be on.
+# ═══════════════════════════════════════════════════════════════════════════
+
+#: How many rows one request may name.
+MAX_ROW_TICKERS = 25
+_ROW_TICKER_CHARS = frozenset("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-")
+_ROW_TICKER_MAX_LEN = 12
+
+
+def row_tickers(raw) -> list:
+    """The tickers a row request names: upper-cased, each once, in the order given.
+
+    ``raw`` is one ticker or a comma-separated list. A name that cannot be a ticker
+    (empty, too long, a character outside letters, digits, dot and dash, or not
+    starting with a letter or digit) is DROPPED: it names no row, and it never
+    reaches the statement even as a bound parameter."""
+    out = []
+    for part in str(raw or "").split(","):
+        t = part.strip().upper()
+        if (t and len(t) <= _ROW_TICKER_MAX_LEN and set(t) <= _ROW_TICKER_CHARS
+                and t[0] not in ".-" and t not in out):
+            out.append(t)
+    return out
+
+
+def rows_for(tickers, columns, user=None) -> dict:
+    """``{TICKER: {"row": {...}, "stale": bool}}`` for each named ticker that has a
+    screener row. A ticker with no row is simply absent.
+
+    ``tickers`` come from :func:`row_tickers` (at most :data:`MAX_ROW_TICKERS`, or
+    ``ValueError``). ``columns`` are snapshot COLUMN names; ``ticker`` always leads
+    the row. Refused exactly as an explicit ``columns=`` on a scan is: an
+    undeclared name is ``ValueError("unknown columns: ...")``, and a declared one
+    this pod's table does not carry yet is the readiness refusal.
+
+    ``stale`` is True when the stale-row gate would leave the row out of every
+    scan; False otherwise, and always False when the gate does not bite."""
+    syms = list(dict.fromkeys(str(t).upper() for t in (tickers or [])))
+    if len(syms) > MAX_ROW_TICKERS:
+        raise ValueError(f"a row request can name at most {MAX_ROW_TICKERS} tickers")
+    cols = list(dict.fromkeys(["ticker", *[str(c) for c in (columns or [])]]))
+    declared = set(snapshot_db.COLUMNS)
+    bad = [c for c in cols if c not in declared]
+    if bad:
+        raise ValueError(f"unknown columns: {', '.join(sorted(bad))}")
+    with snapshot_db.connect() as conn:
+        known = _known_columns(conn)
+        unready = [c for c in cols if c not in known]
+        if unready:
+            raise _readiness_refusal(_member_label(unready[0]))
+        if not syms:
+            return {}
+        overlay = _overlay(conn, user)
+        tick = overlay.col_expr("ticker")
+        named = f"UPPER({tick}) IN ({','.join('?' for _ in syms)})"
+        select_sql = ", ".join(overlay.select_item(c) for c in cols)
+        rows = conn.execute(
+            f"SELECT {select_sql} FROM {overlay.from_sql()} WHERE {named}",
+            [*overlay.join_params, *syms]).fetchall()
+        kept = None
+        stale = stale_gate(conn)
+        if stale:
+            kept = {str(r[0]).upper() for r in conn.execute(
+                f"SELECT {tick} FROM {overlay.from_sql()} WHERE {named} AND {stale['sql']}",
+                [*overlay.join_params, *syms, *stale["params"]])}
+    out = {}
+    for r in rows:
+        row = dict(r)
+        t = str(row.get("ticker") or "").upper()
+        if t:
+            out[t] = {"row": row, "stale": kept is not None and t not in kept}
+    return out
