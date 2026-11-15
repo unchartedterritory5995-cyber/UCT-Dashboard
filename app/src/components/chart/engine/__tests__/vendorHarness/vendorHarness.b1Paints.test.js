@@ -108,6 +108,16 @@ describe('B1 — paints graded against the captures that record them', () => {
     'artemis-oscillator-pro-rddt-1d-2026-09-28.json': ['supply bar0 warmup=0', 'plot_32 naBoth 632/632 painted=0'],
     'mcclellan-indicators-rddt-1d-2026-09-28.json': ['supply bar0 warmup=0', 'plot_4 naBoth 632/632 painted=0', 'plot_15 naBoth 632/632 painted=0'],
     'mcclellan-indicators-spy-1d-2026-10-03.json': ['supply warm vw-clock-close-tfchange-spy-1d-2026-09-28.json 6677 notReplayed', 'plot_4 naBoth 1800/1800 painted=0', 'plot_15 naBoth 1800/1800 painted=0'],
+    // ⭐ the 2026-11-14 captures (S3 prove-drawn fixtures, S1 vw-cs1 probes) reached master
+    // unpinned, so this rail was red there too. Each line below is what `lines(gradeOf(f))`
+    // computed from the capture's own recorded paint rows (engine 55 review), never hand-typed.
+    'one-sided-gaussian-support-resistance-rate-loxx-rddt-1d-2026-11-14.json': ['refused pine:block'],
+    'session-hilo-rddt-1d-2026-11-14.json': ['supply bar0 warmup=0', 'plot_5 agree 666/666 painted=0'],
+    'smart-money-interest-index-algoalpha-rddt-1d-2026-11-14.json': ['supply bar0 warmup=0', 'plot_10 agree 666/666 painted=0'],
+    'visualizing-displacement-tfo-rddt-1d-2026-11-14.json': ['refused member door refused: this script declares nothing a chart can draw'],
+    'vw-cs1-transp-v1-rddt-1d-2026-11-14.json': ['supply bar0 warmup=0', 'plot_2 withheld'],
+    'vw-cs1-transp-v2-rddt-1d-2026-11-14.json': ['supply bar0 warmup=0', 'plot_2 withheld'],
+    'vw-cs1-transp-v3-rddt-1d-2026-11-14.json': ['supply bar0 warmup=0', 'plot_2 withheld'],
     'renko-candles-overlay-rddt-1d-2026-10-03.json': ['refused pine:collection'],
     'renko-candles-overlay-spy-1d-2026-10-03.json': ['refused pine:collection'],
     'supertrend-strategy-rddt-1d-2026-10-02.json': ['supply bar0 warmup=0', 'plot_9 withheld'],

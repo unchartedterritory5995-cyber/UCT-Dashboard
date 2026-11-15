@@ -229,6 +229,23 @@ export function colourReaderMessage(name, message) {
   return `${name} is not drawn: its colour ${why}`
 }
 
+/** ⭐⭐ ENGINE 55 (review F1, narrowed) — A PLOT THAT CAN NEVER DRAW: its value tree IS the `na`
+ *  literal (`0 / 0`, how the translator spells `na` — e.g. an input-folded
+ *  `Indicator == 'MSI RSI' ? msirsi : na` whose branch the inputs did not choose). It draws
+ *  nothing on any bar, and neither does TradingView, so its colour is never seen: a colour
+ *  that reads a refused symbol is NOT a reason to refuse it (that only adds a strip sentence
+ *  about a plot the member did not choose; McClellan's MSI RSI / MACD Histogram, CAP3). The ONE
+ *  authority for the bind (`refuseColourReaders`) and the member door (`staticPlotRefusalsOf`),
+ *  which share one translation. A member who chooses the branch retranslates, and the value
+ *  then reads the symbol and is refused on its own.
+ *  ⛔ The import screen never reaches this question: its translation folds every input to its
+ *  default, and an output whose value is then `na` is offered as "hidden by the script itself"
+ *  (`importOutcome`, pre-existing) — for a live input's branch too, which the bind refuses. */
+export function plotValueIsNaLiteral(tree) {
+  return !!tree && tree.type === 'op' && tree.name === '/' && Array.isArray(tree.args) && tree.args.length === 2
+    && tree.args.every((a) => !!a && a.type === 'num' && a.value === 0)
+}
+
 /** ⭐⭐ ENGINE 55 (review F1) — the refusal a plot inherits when its colour reads a refused
  *  helper column: the helper's guard and code, the reader's sentence. */
 export function colourReaderRefusal(name, helperErr) {
@@ -260,7 +277,7 @@ export function staticPlotRefusalsOf(def) {
   }
   const helperOf = (mode) => (typeof mode === 'string' && mode.startsWith('column:') ? mode.slice('column:'.length) : null)
   for (const p of plots) {
-    if (!p || typeof p.key !== 'string' || out[p.key]) continue
+    if (!p || typeof p.key !== 'string' || out[p.key] || plotValueIsNaLiteral(treeOf(p.key))) continue
     const hit = [helperOf(p.colorMode), p.fill ? helperOf(p.fill.colorMode) : null]
       .filter((k) => k && k !== p.key).map((k) => out[k]).find(Boolean)
     if (hit) out[p.key] = colourReaderRefusal(`\`${p.label || p.title || p.key}\``, hit)

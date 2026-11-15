@@ -106,7 +106,7 @@ import { ENGINE_ERROR, isRefusal } from './ast/parse'
 import { foldBound, bindConstsFor } from './ast/bind'
 import {
   isPineOriginDoc, otherSymbolPending, otherSymbolRefusalOfTree, staticOtherSymbolMessage,
-  isOtherSymbolRefusal, colourReaderRefusal, colourReaderMessage,
+  isOtherSymbolRefusal, colourReaderRefusal, colourReaderMessage, plotValueIsNaLiteral,
 } from './otherSymbols'
 import { resolveLowerTf } from './lowerTf'
 import { blockRunsRefusal, BLOCK_RUNS_GUARD } from './blockRuns'
@@ -2441,10 +2441,14 @@ const visiblePlotName = (p) => `\`${(p && (p.label || p.title)) || (p && p.key) 
  *  and the plot was not: the binder found no colour column, `pointColour` answered null, and the
  *  series' DEFAULT colour was drawn on every bar — a colour the script never chose.
  *  ⛔ A band's PARTNER (`fill.with`) refused is not this: that partner is a visible plot refused
- *  by name, the band has no edge to draw, and the owner's own line is still exact. */
+ *  by name, the band has no edge to draw, and the owner's own line is still exact.
+ *  ⛔ A plot whose VALUE is the `na` literal draws nothing on any bar, so its colour is never
+ *  seen: it is not refused (`plotValueIsNaLiteral`). */
 function refuseColourReaders(def, out, errors) {
+  const trees = def && def.compute && def.compute.trees
   for (const p of (def && def.plots) || []) {
     if (!p || typeof p.key !== 'string' || errors[p.key]) continue
+    if (trees && plotValueIsNaLiteral(trees[p.key])) continue
     const helpers = [colourHelperKeyOf(p.colorMode), p.fill ? colourHelperKeyOf(p.fill.colorMode) : null]
       .filter((k) => typeof k === 'string' && k && k !== p.key)
     const hit = helpers.map((k) => errors[k]).find(isOtherSymbolRefusal)

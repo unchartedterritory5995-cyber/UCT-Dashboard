@@ -31,7 +31,7 @@ import { computeFor, columnErrors, externalReadNotices } from '../nativeRegistry
 import { objectReaderFor } from '../objectColumns'
 import {
   staticallyUnservable, spellingUnservable, staticOtherSymbolMessage, staticOtherSymbolRefusalOf,
-  colourReaderMessage, staticPlotRefusalsOf, OTHER_SYMBOL_REFUSAL as R,
+  colourReaderMessage, staticPlotRefusalsOf, plotValueIsNaLiteral, OTHER_SYMBOL_REFUSAL as R,
 } from '../otherSymbols'
 import { inspectSource } from '../../builder/PineBox'
 
@@ -280,8 +280,55 @@ describe('⭐⭐ review F1 — a plot whose colour reads a refused symbol is ref
     expect(Array.from(cols[keyOf(d.definition, 'own')]).some(Number.isFinite)).toBe(true)
   })
 
+  // ⭐ review F1, narrowed (McClellan MSI RSI / MACD Histogram, CAP3): a plot whose VALUE is `na`
+  // on every bar draws nothing, and neither does TradingView, so a colour reading the refused
+  // symbol is never seen. It is NOT refused. CONTROL: the same plot with a value IS.
+  // ⛔ STATICALLY na only (the value tree IS the `na` literal, as McClellan's input-folded branches
+  // are). A value that is na only at RUN time (`mode == "B" ? close : na` with mode a live input)
+  // is still refused: the member can choose the branch without a retranslation.
+  const HIDDEN_BY_SCRIPT = 'hidden by the script itself, so not offered'
+  const QUIET = (value) => [`plot(${value}, "quiet", color = ${SPX} > 100 ? color.green : color.red)`, 'plot(open, "o")']
+
+  it('a plot whose value is na on every bar and whose colour reads SPX is NOT refused by the bind or the member door, and draws nothing', () => {
+    const lines = QUIET('na')
+    const d = doorOf(lines)
+    expect(d.ok, d.reason).toBe(true)
+    const quiet = keyOf(d.definition, 'quiet')
+    expect(plotValueIsNaLiteral(d.definition.compute.trees[quiet])).toBe(true)     // non-vacuity: the input folded to na
+    const cols = computeFor(d.definition, BARS, undefined, CTX)
+    expect(columnErrors(cols)[quiet]).toBeUndefined()
+    expect(Array.from(cols[quiet])).toHaveLength(BARS.length)
+    expect(Array.from(cols[quiet]).some(Number.isFinite)).toBe(false)               // draws nothing, as TradingView
+    expect((d.staticRefusals || {})[quiet]).toBeUndefined()
+    expect(Array.from(cols[keyOf(d.definition, 'o')]).some(Number.isFinite)).toBe(true)
+    // the import screen (pre-existing, unchanged here) offers an all-na output as hidden by the script
+    const screen = screenOf(lines)
+    expect((screen.missing || []).map((m) => m.name)).not.toContain('quiet')
+    expect(screen.info).toContainEqual(expect.objectContaining({ name: 'quiet', note: HIDDEN_BY_SCRIPT }))
+  })
+
+  it.each(['close', 'mode == "B" ? close : na'])('CONTROL: the same plot with value `%s` (drawable) is refused by name at every door', (value) => {
+    const lines = value === 'close' ? QUIET(value) : ['mode = input.string("A", "Mode", options = ["A", "B"])', ...QUIET(value)]
+    const d = doorOf(lines)
+    expect(d.ok, d.reason).toBe(true)
+    const quiet = keyOf(d.definition, 'quiet')
+    expect(plotValueIsNaLiteral(d.definition.compute.trees[quiet])).toBe(false)
+    const want = { guard: 'pine:request', code: R.BARE, message: colourReaderMessage('`quiet`', spx) }
+    const cols = computeFor(d.definition, BARS, undefined, CTX)
+    expect(columnErrors(cols)[quiet]).toEqual(want)
+    expect(cols[quiet]).toBeUndefined()
+    expect(d.staticRefusals[quiet]).toEqual(want)
+    const screen = screenOf(lines)
+    if (value === 'close') expect(screen.missing).toEqual([{ name: 'quiet', guard: 'pine:request', message: want.message }])
+    // ⚠️ KNOWN, PRE-EXISTING (not this change): the import screen folds the live input to its
+    // default, reads the value as na and offers the plot as hidden, while the bind refuses it by name
+    else expect(screen.info).toContainEqual(expect.objectContaining({ name: 'quiet', note: HIDDEN_BY_SCRIPT }))
+  })
+
   it('the member door\'s `staticRefusals` equals what the bind refuses by spelling, for every shape here', () => {
     for (const lines of [
+      QUIET('na'),
+      QUIET('close'),
       [`plot(close, "own", color = ${SPX} > 100 ? color.green : color.red)`],
       ['plot(close, "own")', `plot(${SPX}, "spx")`],
       ['x = ' + SPX, 'plot(close - x, "diff")', 'plot(close, "own")'],
