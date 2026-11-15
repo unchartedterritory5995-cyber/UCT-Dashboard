@@ -289,3 +289,45 @@ def test_history_afterEvent_is_local_only_and_replays_as_a_value_free_note():
     # a request that does not validate says nothing (never a guess)
     bad = {**row, "data": {**row["data"], "requests": [{"symbol": "QQQ", "indicator": "volume"}]}}
     assert turn.outcome_for_model(bad) == turn.LOCAL_RESULT_NOTE
+
+
+# ── AUDIT disclosure: with episodes="first" a run of consecutive qualifying sessions counts ONCE ───────────────────
+def _two_day_gap_down_bars():
+    """Sessions 80 AND 81 both open 7 % below the previous close (one run of two qualifying days); nothing else gaps."""
+    bars = []
+    for i, d in enumerate(S):
+        c = 100.0 + i * 0.1
+        prev = 100.0 + (i - 1) * 0.1 if i else c
+        o = prev * 0.93 if i in (80, 81) else prev * 1.001
+        bars.append({"t": d, "o": round(o, 4), "h": max(o, c) + 1, "l": min(o, c) - 1, "c": c, "v": 1000})
+    return bars
+
+
+def test_a_run_of_consecutive_qualifying_days_counts_once_and_the_answer_says_so(monkeypatch):
+    fx.install(monkeypatch, bars=_two_day_gap_down_bars())
+    monkeypatch.setattr(sessions, "last_completed_session", lambda now=None: 20241231)
+    ask = {"symbol": "QQQ", "indicator": "gap_pct", "op": "below", "threshold": -5, "horizons": [5]}
+    first = _read({**ask, "episodes": "first"}, turn_id="f1")
+    assert first["status"] == "ok" and first["data"]["summary"]["events_used"] == 1      # the run's first day only
+    assert first["data"]["summary"]["first_of_run"] is True and hes.NOTE_FIRST_OF_RUN in first["notes"]
+    every = _read({**ask, "episodes": "all"}, turn_id="f2")
+    assert every["data"]["summary"]["events_used"] == 2
+    assert every["data"]["summary"]["first_of_run"] is False and hes.NOTE_FIRST_OF_RUN not in every["notes"]
+    # the default IS "first": the note rides with it
+    dflt = _read(ask, turn_id="f3")
+    assert dflt["data"]["summary"]["first_of_run"] is True
+
+
+def test_the_first_of_run_note_is_absent_when_no_run_was_merged(world):
+    # three isolated one-day gaps: "first" merged nothing, so there is nothing to disclose
+    out = _read({"symbol": "QQQ", "indicator": "gap_pct", "op": "above", "threshold": 5, "horizons": [5]})
+    assert out["data"]["summary"]["first_of_run"] is False and hes.NOTE_FIRST_OF_RUN not in out["notes"]
+
+
+def test_first_of_run_is_never_claimed_for_crossings_or_episodes_all():
+    base = {"request": {"episodes": "first", "conditions": [{"op": "below"}]}, "counts": {"qualifying_sessions": 5, "episodes_or_crossings": 2}}
+    assert hes.first_of_run_applied(base) is True
+    assert hes.first_of_run_applied({**base, "request": {"episodes": "all", "conditions": [{"op": "below"}]}}) is False
+    assert hes.first_of_run_applied({**base, "request": {"episodes": "first", "conditions": [{"op": "cross_below"}]}}) is False
+    assert hes.first_of_run_applied({**base, "counts": {"qualifying_sessions": 2, "episodes_or_crossings": 2}}) is False
+    assert hes.first_of_run_applied({}) is False
