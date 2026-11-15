@@ -1,0 +1,12381 @@
+{
+ "schema": "uct.vendor-capture/v1",
+ "id": "delta-imbalance-map-joat-rddt-1d-2026-11-15",
+ "capturedAtUTC": "2026-11-15T10:05:52.725Z",
+ "tool": {
+  "snippet": "tools/vendor_harness/tv_capture.js",
+  "version": 2
+ },
+ "page": {
+  "url": "https://www.tradingview.com/chart/01f1AcIj/",
+  "visibilityState": "visible",
+  "hasFocus": true
+ },
+ "symbol": {
+  "name": "RDDT",
+  "full_name": "NYSE:RDDT",
+  "pro_name": "NYSE:RDDT",
+  "exchange": "NYSE",
+  "listed_exchange": "NYSE",
+  "type": "stock",
+  "session": "0930-1600",
+  "timezone": "America/New_York",
+  "pricescale": 100,
+  "minmov": 1,
+  "currency": "USD"
+ },
+ "timeframe": "1D",
+ "newestBarIsForming": false,
+ "newestBar": {
+  "time": 1794580200,
+  "source": "derived",
+  "derived": false,
+  "periodEndUTC": "2026-11-13T21:00:00.000Z",
+  "rule": "the session close of the bar's trading day (session_holidays read)",
+  "asserted": null
+ },
+ "history": {
+  "startsAtBar0": true,
+  "why": "listed 2024-03-21; first loaded bar is the listing day after requestMoreData stopped growing (666 bars)"
+ },
+ "source": {
+  "text": "// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/\n// © officialjackofalltrades\n//@version=6\nindicator(\"Delta Imbalance Map [JOAT]\", \"DIM [JOAT]\", overlay = true, max_boxes_count = 300, max_labels_count = 200, max_lines_count = 200)\n\ncolor cBull = #089981\ncolor cBear = #f23645\ncolor cText = #d7dde6\ncolor cSub = #87919c\ncolor cBack = #111418\ncolor cPanel = #151b22\ncolor cEdge = #27313b\ncolor cCyan = #00e5ff\ncolor cViolet = #9c27b0\ncolor cBullGlow = #00ff9f\ncolor cBearGlow = #ff174d\n\nstring grpDet = \"Detection\"\nstring grpVis = \"Visuals\"\nstring grpDash = \"Dashboard\"\n\nstring mitTouch = \"Touch\"\nstring mitFull = \"Full Fill\"\n\nstring posTopRight = \"Top Right\"\nstring posBotRight = \"Bottom Right\"\nstring posBotLeft = \"Bottom Left\"\n\nstring sizeTiny = \"Tiny\"\nstring sizeSmall = \"Small\"\nstring sizeNormal = \"Normal\"\nstring sizeLarge = \"Large\"\nstring sizeHuge = \"Huge\"\n\ntype GapNode\n    box glowBox\n    box topBox\n    box botBox\n    line topRail\n    line bottomRail\n    line midLine\n    label tag\n    float top\n    float bottom\n    float score\n    bool bull\n    bool done\n    float buyPct\n    float sellPct\n    float volRank\n    float atrSize\n    int born\n\nvar array<GapNode> gapNodes = array.new<GapNode>()\n\ngapTf = input.timeframe(\"1\", \"Delta lower TF\", group = grpDet, tooltip = \"Lower timeframe used to split volume inside each bar.\")\nminGapAtr = input.float(0.05, \"Min gap ATR\", minval = 0.0, step = 0.01, group = grpDet)\nminBias = input.float(0.0, \"Min delta tilt\", minval = 0.0, step = 1.0, group = grpDet, tooltip = \"Minimum lower-TF participation tilt needed to accept a new zone.\")\nminVolRank = input.float(0.0, \"Min volume rank\", minval = 0.0, maxval = 100.0, step = 1.0, group = grpDet)\nmitMode = input.string(mitTouch, \"Mitigation\", options = [mitTouch, mitFull], group = grpDet)\nuseOverlapGuard = input.bool(true, \"Prefer stronger overlap\", group = grpDet)\nzoneAge = input.int(140, \"Zone life bars\", minval = 10, maxval = 1000, group = grpDet)\n\nmaxZones = input.int(32, \"Max tracked zones\", minval = 1, maxval = 100, group = grpVis)\nshowFilled = input.bool(true, \"Keep filled zones\", group = grpVis)\nsplitOpacity = input.int(68, \"Base opacity\", minval = 0, maxval = 100, group = grpVis)\nshowLabels = input.bool(true, \"Show zone tags\", group = grpVis)\nmaxVisibleTags = input.int(24, \"Max visible tags\", minval = 0, maxval = 50, group = grpVis)\nshowFilledTags = input.bool(true, \"Show filled tags\", group = grpVis)\nshowRails = input.bool(true, \"Show price rails\", group = grpVis)\nshowTiltTint = input.bool(true, \"Tint candles by active tilt\", group = grpVis)\n\nshowDash = input.bool(true, \"Show dashboard\", group = grpDash)\ndashPos = input.string(posTopRight, \"Position\", options = [posTopRight, posBotRight, posBotLeft], group = grpDash)\ndashSize = input.string(sizeNormal, \"Size\", options = [sizeTiny, sizeSmall, sizeNormal, sizeLarge, sizeHuge], group = grpDash)\n\nvar tablePos = switch dashPos\n    posTopRight => position.top_right\n    posBotRight => position.bottom_right\n    => position.bottom_left\n\nvar tableSize = switch dashSize\n    sizeTiny => size.tiny\n    sizeSmall => size.small\n    sizeNormal => size.normal\n    sizeLarge => size.large\n    => size.huge\n\ndash_cell(table t, int col, int row, string txt, color txtColor, color bgColor, align = text.align_right) =>\n    table.cell(t, col, row, txt, text_color = txtColor, bgcolor = bgColor, text_halign = align, text_size = tableSize)\n\nzone_tag_text(GapNode node, bool compact) =>\n    string sideTxt = node.bull ? \"Bull FVG\" : \"Bear FVG\"\n    string biasTxt = node.buyPct >= node.sellPct ? \"Buy \" + str.tostring(node.buyPct, \"#\") + \"%\" : \"Sell \" + str.tostring(node.sellPct, \"#\") + \"%\"\n    compact ? sideTxt + \" | \" + str.tostring(node.score, \"#\") + \"\\n\" + str.tostring(node.bottom, format.mintick) + \" - \" + str.tostring(node.top, format.mintick) + \"\\n\" + biasTxt + \" | \" + str.tostring(node.atrSize, \"#.##\") + \" ATR\" : sideTxt + \"\\nScore \" + str.tostring(node.score, \"#.#\") + \" | Vol \" + str.tostring(node.volRank, \"#\") + \"\\nTop \" + str.tostring(node.top, format.mintick) + \"\\nBot \" + str.tostring(node.bottom, format.mintick) + \"\\nBuy \" + str.tostring(node.buyPct, \"#.#\") + \"% / Sell \" + str.tostring(node.sellPct, \"#.#\") + \"%\\nGap \" + str.tostring(node.atrSize, \"#.##\") + \" ATR\"\n\nerase_gap(GapNode node) =>\n    if not na(node.glowBox)\n        node.glowBox.delete()\n    if not na(node.topBox)\n        node.topBox.delete()\n    if not na(node.botBox)\n        node.botBox.delete()\n    if not na(node.topRail)\n        node.topRail.delete()\n    if not na(node.bottomRail)\n        node.bottomRail.delete()\n    if not na(node.midLine)\n        node.midLine.delete()\n    if not na(node.tag)\n        node.tag.delete()\n\nsplit_delta() =>\n    float upVol = 0.0\n    float dnVol = 0.0\n    [vArr, cArr, oArr] = request.security_lower_tf(syminfo.tickerid, gapTf, [volume, close, open], ignore_invalid_timeframe = true)\n\n    if not na(vArr) and array.size(vArr) > 0\n        for i = 0 to array.size(vArr) - 1\n            float vv = nz(array.get(vArr, i))\n            float cc = nz(array.get(cArr, i))\n            float oo = nz(array.get(oArr, i))\n            if cc > oo\n                upVol += vv\n            else if cc < oo\n                dnVol += vv\n            else\n                upVol += vv * 0.5\n                dnVol += vv * 0.5\n    else\n        float fbVol = nz(volume, 0.0)\n        if close >= open\n            upVol += fbVol\n        else\n            dnVol += fbVol\n\n    float total = math.max(upVol + dnVol, 0.0)\n    float upPct = total > 0.0 ? (upVol / total) * 100.0 : 50.0\n    float dnPct = total > 0.0 ? (dnVol / total) * 100.0 : 50.0\n    [upPct, dnPct]\n\natr = nz(ta.atr(14), high - low)\nvolRank = nz(ta.percentrank(nz(volume, 0.0), 50), 50.0)\n[buyPctRaw, sellPctRaw] = split_delta()\nfloat buyPct = nz(buyPctRaw[1], 50.0)\nfloat sellPct = nz(sellPctRaw[1], 50.0)\n\nbool newBullZone = false\nbool newBearZone = false\n\nif barstate.isconfirmed\n    bool bullGap = low > high[2]\n    bool bearGap = high < low[2]\n    float gapSize = bullGap ? low - high[2] : bearGap ? low[2] - high : 0.0\n    float minSize = atr * minGapAtr\n\n    float tilt = bullGap ? buyPct - sellPct : bearGap ? sellPct - buyPct : 0.0\n    float bodyDrive = math.abs(close[1] - open[1]) / math.max(atr, syminfo.mintick)\n    float gapScore = math.min(100.0, (gapSize / math.max(minSize, syminfo.mintick)) * 30.0 + math.max(tilt, 0.0) * 0.7 + bodyDrive * 12.0 + volRank * 0.12)\n\n    bool passSize = gapSize >= minSize\n    bool passTilt = math.abs(tilt) >= minBias\n    bool passVol = volRank >= minVolRank\n\n    if (bullGap or bearGap) and passSize and passTilt and passVol\n        float top = bullGap ? low : low[2]\n        float bottom = bullGap ? high[2] : high\n        float height = top - bottom\n        float splitY = bottom + height * (sellPct / 100.0)\n\n        bool acceptZone = true\n        if useOverlapGuard and array.size(gapNodes) > 0\n            for i = array.size(gapNodes) - 1 to 0\n                GapNode old = array.get(gapNodes, i)\n                bool overlap = math.max(bottom, old.bottom) < math.min(top, old.top)\n                if overlap\n                    if old.done or gapScore > old.score\n                        erase_gap(old)\n                        array.remove(gapNodes, i)\n                    else\n                        acceptZone := false\n                        break\n\n        if acceptZone\n            color dirBase = bullGap ? cBullGlow : cBearGlow\n            color contraBase = bullGap ? cBear : cBull\n            color topTint = color.new(dirBase, splitOpacity)\n            color botTint = color.new(contraBase, math.min(splitOpacity + 12, 96))\n            color edgeRaw = color.from_gradient(gapScore, 0.0, 100.0, bullGap ? cBull : cBear, dirBase)\n            color edgeTint = color.new(edgeRaw, 4)\n            color lineTint = color.new(edgeTint, 5)\n            color glowTint = color.new(edgeRaw, 90)\n            float zoneAtr = gapSize / math.max(atr, syminfo.mintick)\n\n            box glowBox = box.new(bar_index[2], top, bar_index + 8, bottom, bgcolor = glowTint, border_color = color.new(edgeTint, 65), border_width = 2, border_style = line.style_solid)\n            box topBox = box.new(bar_index[2], top, bar_index + 4, splitY, bgcolor = topTint, border_color = edgeTint, border_width = 2, border_style = line.style_dashed)\n            box botBox = box.new(bar_index[2], splitY, bar_index + 4, bottom, bgcolor = botTint, border_color = edgeTint, border_width = 2, border_style = line.style_dashed)\n            line topRail = showRails ? line.new(bar_index[2], top, bar_index + 10, top, color = color.new(edgeTint, 12), style = line.style_dashed, width = 1) : na\n            line bottomRail = showRails ? line.new(bar_index[2], bottom, bar_index + 10, bottom, color = color.new(edgeTint, 12), style = line.style_dashed, width = 1) : na\n            line midLine = line.new(bar_index[2], splitY, bar_index + 10, splitY, color = lineTint, style = line.style_dotted, width = 2)\n\n            string tagTxt = (bullGap ? \"Bull FVG\" : \"Bear FVG\") + \" | \" + str.tostring(gapScore, \"#\") + \"\\n\" + str.tostring(bottom, format.mintick) + \" - \" + str.tostring(top, format.mintick)\n            label tag = na\n            if showLabels\n                tag := label.new(bar_index + 10, (top + bottom) * 0.5, tagTxt, style = label.style_label_left, color = color.new(cPanel, 5), textcolor = edgeTint, size = size.small)\n\n            GapNode node = GapNode.new(glowBox, topBox, botBox, topRail, bottomRail, midLine, tag, top, bottom, gapScore, bullGap, false, buyPct, sellPct, volRank, zoneAtr, bar_index)\n            array.push(gapNodes, node)\n            newBullZone := bullGap\n            newBearZone := bearGap\n\n            if array.size(gapNodes) > maxZones\n                GapNode oldNode = array.shift(gapNodes)\n                erase_gap(oldNode)\n\nint visibleTagCount = 0\n\nif array.size(gapNodes) > 0\n    for i = array.size(gapNodes) - 1 to 0\n        GapNode node = array.get(gapNodes, i)\n        bool expired = (bar_index - node.born) > zoneAge\n        bool canMitigate = bar_index > node.born\n        bool fillHit = canMitigate and (node.bull ? (mitMode == mitTouch ? low < node.top : low <= node.bottom) : (mitMode == mitTouch ? high > node.bottom : high >= node.top))\n\n        if not node.done and (expired or fillHit)\n            node.done := true\n            if not showFilled\n                erase_gap(node)\n                array.remove(gapNodes, i)\n            else\n                color filledRaw = node.bull ? cBullGlow : cBearGlow\n                color fadedEdge = color.new(filledRaw, 78)\n                node.glowBox.set_bgcolor(color.new(filledRaw, 96))\n                node.glowBox.set_border_color(color.new(filledRaw, 88))\n                node.topBox.set_bgcolor(color.new(cBull, 91))\n                node.botBox.set_bgcolor(color.new(cBear, 93))\n                node.topBox.set_border_color(fadedEdge)\n                node.botBox.set_border_color(fadedEdge)\n                node.glowBox.set_right(bar_index)\n                node.topBox.set_right(bar_index)\n                node.botBox.set_right(bar_index)\n                if not na(node.topRail)\n                    node.topRail.set_color(color.new(filledRaw, 82))\n                    node.topRail.set_x2(bar_index)\n                if not na(node.bottomRail)\n                    node.bottomRail.set_color(color.new(filledRaw, 82))\n                    node.bottomRail.set_x2(bar_index)\n                node.midLine.set_color(color.new(filledRaw, 78))\n                node.midLine.set_x2(bar_index)\n                if not na(node.tag)\n                    if showFilledTags and visibleTagCount < maxVisibleTags\n                        int filledTagOffset = 2 + (visibleTagCount % 6) * 3\n                        node.tag.set_x(bar_index + filledTagOffset)\n                        node.tag.set_y((node.top + node.bottom) * 0.5)\n                        node.tag.set_text(zone_tag_text(node, true))\n                        node.tag.set_color(color.new(cPanel, 12))\n                        node.tag.set_textcolor(color.new(filledRaw, 8))\n                        visibleTagCount += 1\n                    else\n                        node.tag.set_text(\"\")\n                        node.tag.set_color(color.new(cPanel, 100))\n                        node.tag.set_textcolor(color.new(chart.fg_color, 100))\n        else if not node.done\n            color activeRaw = node.bull ? cBullGlow : cBearGlow\n            color activeEdge = color.from_gradient(node.score, 0.0, 100.0, node.bull ? cBull : cBear, activeRaw)\n            node.glowBox.set_right(bar_index + 8)\n            node.topBox.set_right(bar_index + 4)\n            node.botBox.set_right(bar_index + 4)\n            if not na(node.topRail)\n                node.topRail.set_x2(bar_index + 10)\n            if not na(node.bottomRail)\n                node.bottomRail.set_x2(bar_index + 10)\n            node.midLine.set_x2(bar_index + 10)\n            if not na(node.tag)\n                bool showThisTag = showLabels and visibleTagCount < maxVisibleTags\n                int tagOffset = 10 + (visibleTagCount % 6) * 3\n                node.tag.set_x(bar_index + tagOffset)\n                node.tag.set_y((node.top + node.bottom) * 0.5)\n                node.tag.set_text(showThisTag ? zone_tag_text(node, true) : \"\")\n                node.tag.set_color(showThisTag ? color.new(cPanel, 8) : color.new(cPanel, 100))\n                node.tag.set_textcolor(showThisTag ? color.new(activeEdge, 0) : color.new(activeEdge, 100))\n                if showThisTag\n                    visibleTagCount += 1\n\nbullCount = 0\nbearCount = 0\nactiveCount = 0\ntrackedCount = array.size(gapNodes)\nfilledCount = 0\nfloat scoreSum = 0.0\nfloat tiltSum = 0.0\n\nif array.size(gapNodes) > 0\n    for i = 0 to array.size(gapNodes) - 1\n        GapNode node = array.get(gapNodes, i)\n        if not node.done\n            activeCount += 1\n            scoreSum += node.score\n            tiltSum += node.buyPct - node.sellPct\n            if node.bull\n                bullCount += 1\n            else\n                bearCount += 1\n        else\n            filledCount += 1\n\nfloat avgScore = activeCount > 0 ? scoreSum / activeCount : 0.0\nfloat avgTilt = activeCount > 0 ? tiltSum / activeCount : 0.0\nstring stateTxt = avgTilt > 4 ? \"Buyer lead\" : avgTilt < -4 ? \"Seller lead\" : \"Balanced\"\ncolor stateCol = avgTilt > 4 ? cBull : avgTilt < -4 ? cBear : cSub\ncolor tiltTint = color.from_gradient(avgTilt, -35.0, 35.0, cViolet, cCyan)\nbarcolor(showTiltTint and activeCount > 0 ? color.new(tiltTint, 78) : na, title = \"Active Imbalance Tilt\")\n\nvar table dash = table.new(tablePos, 2, 9, bgcolor = cBack, border_width = 0, frame_color = cEdge, frame_width = 1)\n\nif showDash and barstate.islast\n    color scoreBg = color.new(color.from_gradient(avgScore, 0.0, 100.0, cViolet, cCyan), 84)\n    color stateBg = color.new(stateCol, 84)\n    dash_cell(dash, 0, 0, \"Delta Imbalance [JOAT]\", cText, color.new(tiltTint, 72), text.align_center)\n    dash_cell(dash, 1, 0, \"Zones\", cText, color.new(tiltTint, 72), text.align_center)\n    table.merge_cells(dash, 0, 0, 1, 0)\n\n    dash_cell(dash, 0, 1, \"Active\", cSub, color.new(cPanel, 8), text.align_left)\n    dash_cell(dash, 1, 1, str.tostring(activeCount), activeCount > 0 ? tiltTint : cSub, color.new(cPanel, 8), text.align_right)\n\n    dash_cell(dash, 0, 2, \"Filled\", cSub, na, text.align_left)\n    dash_cell(dash, 1, 2, str.tostring(filledCount), cText, na, text.align_right)\n\n    dash_cell(dash, 0, 3, \"Bull / Bear\", cSub, na, text.align_left)\n    dash_cell(dash, 1, 3, str.tostring(bullCount) + \" / \" + str.tostring(bearCount), bullCount >= bearCount ? cBull : cBear, na, text.align_right)\n\n    dash_cell(dash, 0, 4, \"Avg score\", cSub, na, text.align_left)\n    dash_cell(dash, 1, 4, str.tostring(avgScore, \"#.#\"), cText, scoreBg, text.align_right)\n\n    dash_cell(dash, 0, 5, \"Tilt\", cSub, na, text.align_left)\n    dash_cell(dash, 1, 5, str.tostring(avgTilt, \"#.#\"), tiltTint, stateBg, text.align_right)\n\n    dash_cell(dash, 0, 6, \"Lower TF\", cSub, na, text.align_left)\n    dash_cell(dash, 1, 6, gapTf, cText, na, text.align_right)\n\n    dash_cell(dash, 0, 7, \"State\", cSub, na, text.align_left)\n    dash_cell(dash, 1, 7, stateTxt, stateCol, stateBg, text.align_right)\n\n    dash_cell(dash, 0, 8, \"Fill mode\", cSub, na, text.align_left)\n    dash_cell(dash, 1, 8, mitMode, cText, na, text.align_right)\n\nalertcondition(newBullZone, \"DIM Bull Zone\", \"Delta Imbalance Map [JOAT] created a bullish imbalance on {{ticker}}.\")\nalertcondition(newBearZone, \"DIM Bear Zone\", \"Delta Imbalance Map [JOAT] created a bearish imbalance on {{ticker}}.\")\n",
+  "sha256": "3b149853a0925db2fceb449a8790fd3e223a55c75e061e84845d9e5b2bdcf1ad",
+  "chars": 16660,
+  "declaredTitle": "Delta Imbalance Map [JOAT]"
+ },
+ "census": {
+  "studies": 3,
+  "events": [
+   "Splits",
+   "Earnings"
+  ],
+  "indicators": 1,
+  "controlProbeSawSomething": true,
+  "controlFilterRemovedExactlyTheEvents": true
+ },
+ "study": {
+  "id": "Script$USER;6a17cb6595e6407f8b76c162ed6bb027@tv-scripting",
+  "fullId": "Script$USER;6a17cb6595e6407f8b76c162ed6bb027@tv-scripting-101",
+  "title": "DIM [JOAT]",
+  "description": "Delta Imbalance Map [JOAT]",
+  "shortDescription": "DIM [JOAT]",
+  "status": {
+   "type": 2
+  },
+  "plots": [
+   {
+    "id": "plot_0",
+    "type": "bar_colorer",
+    "title": "Active Imbalance Tilt"
+   },
+   {
+    "id": "plot_1",
+    "type": "alertcondition",
+    "title": "DIM Bull Zone"
+   },
+   {
+    "id": "plot_2",
+    "type": "alertcondition",
+    "title": "DIM Bear Zone"
+   }
+  ],
+  "styles": {
+   "plot_0": {
+    "isHidden": false,
+    "title": "Active Imbalance Tilt"
+   },
+   "plot_1": {
+    "text": "Delta Imbalance Map [JOAT] created a bullish imbalance on {{ticker}}.",
+    "title": "DIM Bull Zone"
+   },
+   "plot_2": {
+    "text": "Delta Imbalance Map [JOAT] created a bearish imbalance on {{ticker}}.",
+    "title": "DIM Bear Zone"
+   }
+  },
+  "styleState": {
+   "plot_0": {
+    "display": 4294967295,
+    "color": "#2962FF",
+    "linestyle": 0,
+    "linewidth": 2,
+    "plottype": "bar_colorer",
+    "trackPrice": false,
+    "transparency": 0,
+    "title": "plot_0"
+   },
+   "plot_1": {
+    "display": 4294967295,
+    "color": "#2962FF",
+    "linestyle": 0,
+    "linewidth": 2,
+    "plottype": "alertcondition",
+    "trackPrice": false,
+    "title": "plot_1"
+   },
+   "plot_2": {
+    "display": 4294967295,
+    "color": "#2962FF",
+    "linestyle": 0,
+    "linewidth": 2,
+    "plottype": "alertcondition",
+    "trackPrice": false,
+    "title": "plot_2"
+   }
+  },
+  "palettes": {},
+  "paletteState": {},
+  "inputs": [
+   {
+    "id": "text",
+    "name": "ILScript",
+    "type": "text",
+    "defval": "",
+    "isHidden": true,
+    "value": "bmI9Ks46_jGOQfzdPgN0the58TBuE1w==_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"
+   },
+   {
+    "id": "pineId",
+    "name": "pineId",
+    "type": "text",
+    "defval": "",
+    "isHidden": true,
+    "value": ""
+   },
+   {
+    "id": "pineVersion",
+    "name": "pineVersion",
+    "type": "text",
+    "defval": "",
+    "isHidden": true,
+    "value": ""
+   },
+   {
+    "id": "pineFeatures",
+    "name": "pineFeatures",
+    "type": "text",
+    "defval": "{\"indicator\":1,\"plot\":1,\"str\":1,\"array\":1,\"ta\":1,\"math\":1,\"alertcondition\":1,\"line\":1,\"box\":1,\"label\":1,\"table\":1,\"request.security\":1,\"type\":1,\"builtin_methods\":1}",
+    "isHidden": true,
+    "value": "{\"indicator\":1,\"plot\":1,\"str\":1,\"array\":1,\"ta\":1,\"math\":1,\"alertcondition\":1,\"line\":1,\"box\":1,\"label\":1,\"table\":1,\"request.security\":1,\"type\":1,\"builtin_methods\":1}"
+   },
+   {
+    "id": "in_0",
+    "name": "Delta lower TF",
+    "type": "resolution",
+    "defval": "1",
+    "isHidden": false,
+    "value": "1"
+   },
+   {
+    "id": "in_1",
+    "name": "Min gap ATR",
+    "type": "float",
+    "defval": 0.05,
+    "isHidden": false,
+    "value": 0.05
+   },
+   {
+    "id": "in_2",
+    "name": "Min delta tilt",
+    "type": "float",
+    "defval": 0,
+    "isHidden": false,
+    "value": 0
+   },
+   {
+    "id": "in_3",
+    "name": "Min volume rank",
+    "type": "float",
+    "defval": 0,
+    "isHidden": false,
+    "value": 0
+   },
+   {
+    "id": "in_4",
+    "name": "Mitigation",
+    "type": "text",
+    "defval": "Touch",
+    "isHidden": false,
+    "value": "Touch"
+   },
+   {
+    "id": "in_5",
+    "name": "Prefer stronger overlap",
+    "type": "bool",
+    "defval": true,
+    "isHidden": false,
+    "value": true
+   },
+   {
+    "id": "in_6",
+    "name": "Zone life bars",
+    "type": "integer",
+    "defval": 140,
+    "isHidden": false,
+    "value": 140
+   },
+   {
+    "id": "in_7",
+    "name": "Max tracked zones",
+    "type": "integer",
+    "defval": 32,
+    "isHidden": false,
+    "value": 32
+   },
+   {
+    "id": "in_8",
+    "name": "Keep filled zones",
+    "type": "bool",
+    "defval": true,
+    "isHidden": false,
+    "value": true
+   },
+   {
+    "id": "in_9",
+    "name": "Base opacity",
+    "type": "integer",
+    "defval": 68,
+    "isHidden": false,
+    "value": 68
+   },
+   {
+    "id": "in_10",
+    "name": "Show zone tags",
+    "type": "bool",
+    "defval": true,
+    "isHidden": false,
+    "value": true
+   },
+   {
+    "id": "in_11",
+    "name": "Max visible tags",
+    "type": "integer",
+    "defval": 24,
+    "isHidden": false,
+    "value": 24
+   },
+   {
+    "id": "in_12",
+    "name": "Show filled tags",
+    "type": "bool",
+    "defval": true,
+    "isHidden": false,
+    "value": true
+   },
+   {
+    "id": "in_13",
+    "name": "Show price rails",
+    "type": "bool",
+    "defval": true,
+    "isHidden": false,
+    "value": true
+   },
+   {
+    "id": "in_14",
+    "name": "Tint candles by active tilt",
+    "type": "bool",
+    "defval": true,
+    "isHidden": false,
+    "value": true
+   },
+   {
+    "id": "in_15",
+    "name": "Show dashboard",
+    "type": "bool",
+    "defval": true,
+    "isHidden": false,
+    "value": true
+   },
+   {
+    "id": "in_16",
+    "name": "Position",
+    "type": "text",
+    "defval": "Top Right",
+    "isHidden": false,
+    "value": "Top Right"
+   },
+   {
+    "id": "in_17",
+    "name": "Size",
+    "type": "text",
+    "defval": "Normal",
+    "isHidden": false,
+    "value": "Normal"
+   },
+   {
+    "id": "__chart_fgcolor",
+    "name": "chart.fgcolor",
+    "type": "color",
+    "defval": "rgba(0,0,0,0)",
+    "isHidden": true,
+    "value": "#000000"
+   },
+   {
+    "id": "__fast_calc",
+    "name": "Fast calculation",
+    "type": "bool",
+    "defval": false,
+    "isHidden": true,
+    "value": false
+   },
+   {
+    "id": "__profile",
+    "name": "",
+    "type": "bool",
+    "defval": false,
+    "isHidden": true,
+    "value": false
+   }
+  ]
+ },
+ "window": {
+  "chartBarsLoaded": 666,
+  "studyBarsLoaded": 666,
+  "firstBarTime": 1711027800,
+  "lastBarTime": 1794580200
+ },
+ "bars": {
+  "fields": [
+   "time",
+   "open",
+   "high",
+   "low",
+   "close",
+   "volume"
+  ],
+  "timeUnit": "unix-s",
+  "count": 666,
+  "rows": [
+   [
+    1711027800,
+    47,
+    57.8,
+    45.05,
+    50.44,
+    48705533
+   ],
+   [
+    1711114200,
+    48.88,
+    51,
+    45.34,
+    46,
+    15983139
+   ],
+   [
+    1711373400,
+    47.09,
+    61.9399,
+    46.08,
+    59.8,
+    24398838
+   ],
+   [
+    1711459800,
+    67.71,
+    74.9,
+    63.21,
+    65.11,
+    35330978
+   ],
+   [
+    1711546200,
+    63.76,
+    63.76,
+    55.62,
+    57.75,
+    18758308
+   ],
+   [
+    1711632600,
+    54.52,
+    55.3,
+    49.1,
+    49.32,
+    12694482
+   ],
+   [
+    1711978200,
+    48.95,
+    49.28,
+    44.395,
+    45.97,
+    12987945
+   ],
+   [
+    1712064600,
+    45.055,
+    51.35,
+    44,
+    50.45,
+    9442857
+   ],
+   [
+    1712151000,
+    49.7,
+    51.2399,
+    46.55,
+    46.99,
+    4822866
+   ],
+   [
+    1712237400,
+    46.7,
+    48.43,
+    45.1,
+    45.78,
+    4618377
+   ],
+   [
+    1712323800,
+    45.68,
+    48.29,
+    44.68,
+    47.56,
+    2930772
+   ],
+   [
+    1712583000,
+    47.86,
+    49.1799,
+    45.04,
+    46.15,
+    2661470
+   ],
+   [
+    1712669400,
+    46.4,
+    47.49,
+    44.9,
+    45,
+    2277342
+   ],
+   [
+    1712755800,
+    44,
+    44.5975,
+    41.72,
+    42.09,
+    4350147
+   ],
+   [
+    1712842200,
+    42.05,
+    46.35,
+    42.01,
+    44.53,
+    4263001
+   ],
+   [
+    1712928600,
+    43.47,
+    43.86,
+    42.16,
+    42.27,
+    2021261
+   ],
+   [
+    1713187800,
+    41.94,
+    42.1,
+    39.68,
+    40,
+    3448536
+   ],
+   [
+    1713274200,
+    40.5,
+    42.14,
+    39.32,
+    41.14,
+    1699046
+   ],
+   [
+    1713360600,
+    40.4,
+    40.6054,
+    38.7,
+    39.17,
+    2153817
+   ],
+   [
+    1713447000,
+    38.8,
+    42.13,
+    37.35,
+    41.72,
+    2284138
+   ],
+   [
+    1713533400,
+    40.57,
+    43.83,
+    40.17,
+    40.88,
+    2540622
+   ],
+   [
+    1713792600,
+    40.88,
+    42.57,
+    40.51,
+    42.04,
+    1486416
+   ],
+   [
+    1713879000,
+    42.07,
+    44.0599,
+    41.8216,
+    42.82,
+    1956480
+   ],
+   [
+    1713965400,
+    42.66,
+    43.97,
+    42.45,
+    43.15,
+    1384024
+   ],
+   [
+    1714051800,
+    41.64,
+    42.64,
+    40.85,
+    42.45,
+    1485825
+   ],
+   [
+    1714138200,
+    42.98,
+    46.199,
+    42.65,
+    45.43,
+    2764203
+   ],
+   [
+    1714397400,
+    46.05,
+    48.88,
+    45.85,
+    46.28,
+    2683917
+   ],
+   [
+    1714483800,
+    45.47,
+    46.755,
+    44.15,
+    44.44,
+    1752875
+   ],
+   [
+    1714570200,
+    44.87,
+    47.7,
+    44.6,
+    45.88,
+    1598960
+   ],
+   [
+    1714656600,
+    46.61,
+    49.639,
+    45.72,
+    47.7,
+    2364999
+   ],
+   [
+    1714743000,
+    48.44,
+    48.7,
+    46.24,
+    46.64,
+    1188304
+   ],
+   [
+    1715002200,
+    46.99,
+    49.8699,
+    46.75,
+    48.27,
+    2116653
+   ],
+   [
+    1715088600,
+    47.73,
+    50.33,
+    47.4,
+    49.4,
+    6241675
+   ],
+   [
+    1715175000,
+    55,
+    55.16,
+    49.7,
+    51.4,
+    13509264
+   ],
+   [
+    1715261400,
+    51.24,
+    51.25,
+    48.25,
+    50.11,
+    3909140
+   ],
+   [
+    1715347800,
+    50.64,
+    54.75,
+    50.38,
+    53.53,
+    4450785
+   ],
+   [
+    1715607000,
+    56.49,
+    61.21,
+    55.59,
+    58.19,
+    8179370
+   ],
+   [
+    1715693400,
+    62.57,
+    64.5,
+    59.5,
+    62.34,
+    7674013
+   ],
+   [
+    1715779800,
+    60.23,
+    60.93,
+    56.25,
+    59.63,
+    4897634
+   ],
+   [
+    1715866200,
+    59.5,
+    60.46,
+    56.29,
+    56.38,
+    3219432
+   ],
+   [
+    1715952600,
+    61.2,
+    66.15,
+    60.62,
+    62.04,
+    15131435
+   ],
+   [
+    1716211800,
+    61.9,
+    62,
+    57.27,
+    61.22,
+    5975244
+   ],
+   [
+    1716298200,
+    60.74,
+    62.46,
+    58.84,
+    59.31,
+    2694029
+   ],
+   [
+    1716384600,
+    59,
+    60.4499,
+    55.86,
+    56.69,
+    3272328
+   ],
+   [
+    1716471000,
+    56.88,
+    57.26,
+    53.11,
+    54.16,
+    3289560
+   ],
+   [
+    1716557400,
+    53.96,
+    56,
+    53.21,
+    54.72,
+    2019797
+   ],
+   [
+    1716903000,
+    55.12,
+    59.275,
+    53.8634,
+    58.49,
+    3536946
+   ],
+   [
+    1716989400,
+    57.45,
+    58.63,
+    56.801,
+    57.64,
+    1319960
+   ],
+   [
+    1717075800,
+    57,
+    59.49,
+    55.76,
+    56.3,
+    1860520
+   ],
+   [
+    1717162200,
+    56.21,
+    57.52,
+    53.45,
+    54.24,
+    2036766
+   ],
+   [
+    1717421400,
+    57.55,
+    58.64,
+    54.15,
+    55.8,
+    2573080
+   ],
+   [
+    1717507800,
+    55.2,
+    55.4,
+    53.955,
+    54.5,
+    1291039
+   ],
+   [
+    1717594200,
+    54.79,
+    60.24,
+    54.5709,
+    60.07,
+    3030031
+   ],
+   [
+    1717680600,
+    58.99,
+    63.57,
+    58.38,
+    63.46,
+    3375228
+   ],
+   [
+    1717767000,
+    61.63,
+    63.8,
+    59.21,
+    59.8,
+    3414026
+   ],
+   [
+    1718026200,
+    60.01,
+    61.38,
+    58.26,
+    59.63,
+    1459111
+   ],
+   [
+    1718112600,
+    60.12,
+    62.0492,
+    58.495,
+    61.55,
+    2024061
+   ],
+   [
+    1718199000,
+    62.875,
+    69.59,
+    61.85,
+    65.93,
+    6825736
+   ],
+   [
+    1718285400,
+    66.83,
+    69.0417,
+    63.64,
+    63.96,
+    2874509
+   ],
+   [
+    1718371800,
+    63.54,
+    64.94,
+    60.11,
+    60.94,
+    2454885
+   ],
+   [
+    1718631000,
+    61,
+    61.13,
+    58.1,
+    60.35,
+    2096260
+   ],
+   [
+    1718717400,
+    61.11,
+    61.6387,
+    57.5,
+    60.21,
+    2213121
+   ],
+   [
+    1718890200,
+    60,
+    60.1,
+    55.47,
+    57.42,
+    3372050
+   ],
+   [
+    1718976600,
+    56.4,
+    57.65,
+    54.45,
+    57.3,
+    4441047
+   ],
+   [
+    1719235800,
+    57.32,
+    58.89,
+    55.95,
+    56.48,
+    1789202
+   ],
+   [
+    1719322200,
+    56.56,
+    61.57,
+    56.42,
+    61.38,
+    2828497
+   ],
+   [
+    1719408600,
+    60.5,
+    63.88,
+    60.33,
+    63.61,
+    3828425
+   ],
+   [
+    1719495000,
+    62.834,
+    64.7,
+    62.03,
+    63.58,
+    1704769
+   ],
+   [
+    1719581400,
+    64.07,
+    65.82,
+    62.67,
+    63.89,
+    1921903
+   ],
+   [
+    1719840600,
+    64.2,
+    66.69,
+    62.2,
+    66.59,
+    3609070
+   ],
+   [
+    1719927000,
+    65.99,
+    73.52,
+    65.65,
+    73.51,
+    6089633
+   ],
+   [
+    1720013400,
+    71.93,
+    73.9722,
+    70.18,
+    73.62,
+    2718149
+   ],
+   [
+    1720186200,
+    73.78,
+    76.2,
+    71.58,
+    72.97,
+    2587222
+   ],
+   [
+    1720445400,
+    72.76,
+    74.1155,
+    70.9,
+    72.81,
+    2191086
+   ],
+   [
+    1720531800,
+    73.48,
+    76.74,
+    69.2,
+    70.59,
+    2889761
+   ],
+   [
+    1720618200,
+    71.23,
+    72.28,
+    67.62,
+    69.4,
+    2156086
+   ],
+   [
+    1720704600,
+    70.5,
+    71.891,
+    68.3283,
+    70.29,
+    2170320
+   ],
+   [
+    1720791000,
+    70.75,
+    76.73,
+    69.4,
+    73.85,
+    3512646
+   ],
+   [
+    1721050200,
+    74.69,
+    78.08,
+    72.5312,
+    72.98,
+    2782760
+   ],
+   [
+    1721136600,
+    70.67,
+    70.69,
+    66.77,
+    70.44,
+    4589263
+   ],
+   [
+    1721223000,
+    68.48,
+    69.79,
+    63.79,
+    65.21,
+    3318987
+   ],
+   [
+    1721309400,
+    66.74,
+    66.74,
+    63.9377,
+    65.92,
+    2064082
+   ],
+   [
+    1721395800,
+    65.75,
+    68.27,
+    64.5,
+    64.7,
+    1997292
+   ],
+   [
+    1721655000,
+    66.93,
+    70.46,
+    65.545,
+    68.13,
+    3644792
+   ],
+   [
+    1721741400,
+    67.8,
+    71.41,
+    67.01,
+    67.84,
+    2486464
+   ],
+   [
+    1721827800,
+    65.665,
+    66.3,
+    62.1814,
+    62.95,
+    2869117
+   ],
+   [
+    1721914200,
+    62.9,
+    64.36,
+    59.73,
+    62.06,
+    2644529
+   ],
+   [
+    1722000600,
+    62.9,
+    64.32,
+    61.23,
+    62.36,
+    2044272
+   ],
+   [
+    1722259800,
+    62.97,
+    62.98,
+    58.72,
+    59.98,
+    2202874
+   ],
+   [
+    1722346200,
+    60.06,
+    60.59,
+    57.36,
+    58.44,
+    2211163
+   ],
+   [
+    1722432600,
+    59.38,
+    61.27,
+    59.31,
+    60.85,
+    1652089
+   ],
+   [
+    1722519000,
+    64.4,
+    64.64,
+    59.2,
+    59.38,
+    2520441
+   ],
+   [
+    1722605400,
+    56.24,
+    57.81,
+    54.11,
+    57.58,
+    3254160
+   ],
+   [
+    1722864600,
+    53.25,
+    59.13,
+    52.76,
+    56.81,
+    3078910
+   ],
+   [
+    1722951000,
+    58.1,
+    58.5,
+    54.34,
+    54.36,
+    6498267
+   ],
+   [
+    1723037400,
+    54.8,
+    55.24,
+    49.13,
+    50.69,
+    7772162
+   ],
+   [
+    1723123800,
+    51.95,
+    57.7422,
+    51.76,
+    54.94,
+    5653307
+   ],
+   [
+    1723210200,
+    53.97,
+    54.11,
+    51.5,
+    52.91,
+    14509834
+   ],
+   [
+    1723469400,
+    52.5,
+    52.97,
+    50.8,
+    52.51,
+    3397997
+   ],
+   [
+    1723555800,
+    53.05,
+    54.69,
+    52.54,
+    54.52,
+    3967761
+   ],
+   [
+    1723642200,
+    53.7,
+    55.03,
+    53.2,
+    54.95,
+    3874030
+   ],
+   [
+    1723728600,
+    55.25,
+    56.85,
+    54.18,
+    55.55,
+    4841780
+   ],
+   [
+    1723815000,
+    54.87,
+    55.14,
+    53.9,
+    54.92,
+    3005713
+   ],
+   [
+    1724074200,
+    54.79,
+    54.9,
+    52.49,
+    54.36,
+    4487378
+   ],
+   [
+    1724160600,
+    53.5,
+    55.06,
+    52.39,
+    55.02,
+    4206307
+   ],
+   [
+    1724247000,
+    54.88,
+    57.1097,
+    54.27,
+    56.89,
+    4179385
+   ],
+   [
+    1724333400,
+    56.5,
+    57.45,
+    55.3,
+    56.43,
+    3938958
+   ],
+   [
+    1724419800,
+    56.51,
+    59.68,
+    56.13,
+    59.21,
+    5286654
+   ],
+   [
+    1724679000,
+    59.29,
+    59.98,
+    57.51,
+    58.26,
+    2555743
+   ],
+   [
+    1724765400,
+    57.7204,
+    60.27,
+    56.54,
+    59,
+    3716275
+   ],
+   [
+    1724851800,
+    57.88,
+    57.93,
+    55.02,
+    56.14,
+    4033137
+   ],
+   [
+    1724938200,
+    57.585,
+    60.29,
+    57.1,
+    58.75,
+    5040140
+   ],
+   [
+    1725024600,
+    59,
+    60.41,
+    58.475,
+    60.03,
+    4152512
+   ],
+   [
+    1725370200,
+    59.245,
+    60.075,
+    57.49,
+    57.53,
+    3016014
+   ],
+   [
+    1725456600,
+    56.72,
+    58.81,
+    56.06,
+    57,
+    2772124
+   ],
+   [
+    1725543000,
+    56.8,
+    59.565,
+    56.38,
+    58.71,
+    2699564
+   ],
+   [
+    1725629400,
+    59.24,
+    60.41,
+    55.8,
+    56.85,
+    3074512
+   ],
+   [
+    1725888600,
+    57.14,
+    58.5,
+    55.2511,
+    57.46,
+    4540553
+   ],
+   [
+    1725975000,
+    57.52,
+    57.87,
+    55.48,
+    56.87,
+    2615552
+   ],
+   [
+    1726061400,
+    56.5,
+    60,
+    55.84,
+    59.87,
+    3466522
+   ],
+   [
+    1726147800,
+    60,
+    62.6594,
+    59.38,
+    59.63,
+    4785681
+   ],
+   [
+    1726234200,
+    59.63,
+    60.25,
+    58.04,
+    59.09,
+    3726014
+   ],
+   [
+    1726493400,
+    58.6,
+    60.1,
+    57.22,
+    59.15,
+    2683768
+   ],
+   [
+    1726579800,
+    61.37,
+    61.98,
+    59.31,
+    61.89,
+    3824420
+   ],
+   [
+    1726666200,
+    61.92,
+    64.09,
+    61.54,
+    63.66,
+    4688405
+   ],
+   [
+    1726752600,
+    64.99,
+    67.19,
+    63.9,
+    64.56,
+    5105663
+   ],
+   [
+    1726839000,
+    64.82,
+    66.94,
+    64.17,
+    66.17,
+    8518333
+   ],
+   [
+    1727098200,
+    66,
+    66.96,
+    64.78,
+    65,
+    3645624
+   ],
+   [
+    1727184600,
+    65.28,
+    67.28,
+    63.6,
+    66.96,
+    4444864
+   ],
+   [
+    1727271000,
+    66.96,
+    69.11,
+    66.35,
+    67.88,
+    4321053
+   ],
+   [
+    1727357400,
+    69,
+    69,
+    65.71,
+    66.52,
+    4310254
+   ],
+   [
+    1727443800,
+    66.59,
+    68.35,
+    66.12,
+    67.08,
+    3922269
+   ],
+   [
+    1727703000,
+    66.94,
+    67.81,
+    65.32,
+    65.92,
+    3558824
+   ],
+   [
+    1727789400,
+    65.93,
+    66.61,
+    64.515,
+    65.97,
+    3150485
+   ],
+   [
+    1727875800,
+    65.49,
+    68.31,
+    64.9,
+    67.78,
+    3992032
+   ],
+   [
+    1727962200,
+    68.06,
+    68.97,
+    67.35,
+    67.47,
+    4120349
+   ],
+   [
+    1728048600,
+    69.52,
+    72.88,
+    68.8,
+    72.38,
+    7419214
+   ],
+   [
+    1728307800,
+    72.99,
+    73.42,
+    70.13,
+    70.44,
+    2811169
+   ],
+   [
+    1728394200,
+    70.75,
+    72.98,
+    70.24,
+    70.77,
+    2494671
+   ],
+   [
+    1728480600,
+    73.64,
+    75.2,
+    70.44,
+    71,
+    5018988
+   ],
+   [
+    1728567000,
+    70.69,
+    71.66,
+    69.3001,
+    69.9,
+    3974118
+   ],
+   [
+    1728653400,
+    69.95,
+    73.25,
+    69.74,
+    73.25,
+    5076331
+   ],
+   [
+    1728912600,
+    73.75,
+    75.67,
+    72.82,
+    74.87,
+    5488824
+   ],
+   [
+    1728999000,
+    74.8,
+    76.48,
+    74.14,
+    75.17,
+    5701323
+   ],
+   [
+    1729085400,
+    75.16,
+    77.87,
+    73.59,
+    77.26,
+    4455191
+   ],
+   [
+    1729171800,
+    76.98,
+    78.74,
+    75.94,
+    76.29,
+    3074850
+   ],
+   [
+    1729258200,
+    76.61,
+    81.36,
+    76.42,
+    80.9,
+    5428484
+   ],
+   [
+    1729517400,
+    80.555,
+    80.555,
+    77.9,
+    78.55,
+    3750578
+   ],
+   [
+    1729603800,
+    77.77,
+    78.5,
+    76.54,
+    77.29,
+    3284956
+   ],
+   [
+    1729690200,
+    77.69,
+    80.13,
+    76.651,
+    77.68,
+    4083658
+   ],
+   [
+    1729776600,
+    77.855,
+    78.715,
+    77.14,
+    78.6,
+    2174123
+   ],
+   [
+    1729863000,
+    79.02,
+    81.72,
+    79.02,
+    81.36,
+    3889070
+   ],
+   [
+    1730122200,
+    82.21,
+    82.53,
+    79.45,
+    79.68,
+    6567464
+   ],
+   [
+    1730208600,
+    79.725,
+    82.975,
+    79.1,
+    81.74,
+    12718705
+   ],
+   [
+    1730295000,
+    104.9,
+    118.2494,
+    104.11,
+    116.05,
+    37764574
+   ],
+   [
+    1730381400,
+    117.405,
+    123.6,
+    114.8,
+    119.3,
+    17033460
+   ],
+   [
+    1730467800,
+    114,
+    115.5,
+    110.5,
+    112.98,
+    12024739
+   ],
+   [
+    1730730600,
+    110.765,
+    112.98,
+    108.6847,
+    109.03,
+    7719250
+   ],
+   [
+    1730817000,
+    110.5,
+    122.68,
+    110.27,
+    122.57,
+    10831246
+   ],
+   [
+    1730903400,
+    124.15,
+    124.9296,
+    117.16,
+    121.08,
+    6506131
+   ],
+   [
+    1730989800,
+    121.57,
+    133.25,
+    121.57,
+    131.44,
+    7756027
+   ],
+   [
+    1731076200,
+    130.03,
+    134.8,
+    128.33,
+    134.8,
+    4402023
+   ],
+   [
+    1731335400,
+    139,
+    139.04,
+    128.3,
+    129.23,
+    5711378
+   ],
+   [
+    1731421800,
+    126.66,
+    130.47,
+    125.69,
+    127.75,
+    5247916
+   ],
+   [
+    1731508200,
+    128.8,
+    135.07,
+    128.8,
+    132.06,
+    4567415
+   ],
+   [
+    1731594600,
+    132.06,
+    133.99,
+    129.72,
+    131.88,
+    2667713
+   ],
+   [
+    1731681000,
+    128.79,
+    131.6899,
+    123.14,
+    124.78,
+    4605078
+   ],
+   [
+    1731940200,
+    125.56,
+    130.13,
+    124.66,
+    129.42,
+    4320716
+   ],
+   [
+    1732026600,
+    129.01,
+    138.54,
+    128.72,
+    137.16,
+    6889242
+   ],
+   [
+    1732113000,
+    137.155,
+    138.39,
+    130.01,
+    136.27,
+    5497907
+   ],
+   [
+    1732199400,
+    141.27,
+    158.49,
+    139.57,
+    158.02,
+    12275538
+   ],
+   [
+    1732285800,
+    145.41,
+    149,
+    142.91,
+    146.67,
+    18665539
+   ],
+   [
+    1732545000,
+    149.5,
+    152.14,
+    139.22,
+    141.9,
+    8403896
+   ],
+   [
+    1732631400,
+    141.65,
+    144.81,
+    132.475,
+    135.61,
+    7697103
+   ],
+   [
+    1732717800,
+    137.8,
+    141.19,
+    134.45,
+    140.04,
+    5531021
+   ],
+   [
+    1732890600,
+    143.43,
+    143.93,
+    140.26,
+    140.69,
+    2105949
+   ],
+   [
+    1733149800,
+    144,
+    145.58,
+    138.75,
+    141.64,
+    3263219
+   ],
+   [
+    1733236200,
+    141,
+    151.56,
+    141,
+    149.83,
+    5966670
+   ],
+   [
+    1733322600,
+    150.84,
+    157.75,
+    150.63,
+    154.23,
+    6568466
+   ],
+   [
+    1733409000,
+    155.58,
+    156.667,
+    151.25,
+    153.09,
+    4500182
+   ],
+   [
+    1733495400,
+    152.06,
+    163.72,
+    149.33,
+    162.76,
+    7910663
+   ],
+   [
+    1733754600,
+    171.5,
+    180.74,
+    157.05,
+    167.17,
+    16640769
+   ],
+   [
+    1733841000,
+    168.31,
+    176.6731,
+    151.76,
+    155.93,
+    10972806
+   ],
+   [
+    1733927400,
+    164,
+    168.6605,
+    161,
+    165.92,
+    5981887
+   ],
+   [
+    1734013800,
+    164.01,
+    172.5,
+    163.2393,
+    163.51,
+    4024652
+   ],
+   [
+    1734100200,
+    164.35,
+    174,
+    163.51,
+    172.65,
+    4893316
+   ],
+   [
+    1734359400,
+    169.27,
+    180.36,
+    166.2,
+    178.1,
+    8934913
+   ],
+   [
+    1734445800,
+    177.15,
+    177.57,
+    167.32,
+    168.79,
+    6894464
+   ],
+   [
+    1734532200,
+    172.45,
+    174.385,
+    157.75,
+    160.65,
+    7792824
+   ],
+   [
+    1734618600,
+    163.9,
+    166.6,
+    157.22,
+    163.72,
+    4761558
+   ],
+   [
+    1734705000,
+    162.99,
+    174.11,
+    158.77,
+    170.71,
+    7705642
+   ],
+   [
+    1734964200,
+    171.25,
+    173.82,
+    166.3731,
+    168.61,
+    3728886
+   ],
+   [
+    1735050600,
+    169,
+    178.1,
+    168.89,
+    177.41,
+    2098732
+   ],
+   [
+    1735223400,
+    177.8,
+    182.2,
+    174.77,
+    176.74,
+    2444126
+   ],
+   [
+    1735309800,
+    175.53,
+    176.53,
+    167.8,
+    173.54,
+    2606090
+   ],
+   [
+    1735569000,
+    167.375,
+    169.79,
+    162.26,
+    165.53,
+    7541139
+   ],
+   [
+    1735655400,
+    166,
+    167.678,
+    162.64,
+    163.44,
+    3438493
+   ],
+   [
+    1735828200,
+    164.43,
+    168.4999,
+    156.0357,
+    165.91,
+    4076541
+   ],
+   [
+    1735914600,
+    167.53,
+    181.22,
+    166.965,
+    177.74,
+    9436014
+   ],
+   [
+    1736173800,
+    182,
+    187.69,
+    174.5,
+    179.49,
+    5416360
+   ],
+   [
+    1736260200,
+    180.25,
+    183.12,
+    171.1078,
+    172.32,
+    4201077
+   ],
+   [
+    1736346600,
+    167.59,
+    174.34,
+    166,
+    172.01,
+    4202606
+   ],
+   [
+    1736519400,
+    169,
+    169.6999,
+    159.8,
+    167.08,
+    4003804
+   ],
+   [
+    1736778600,
+    160.44,
+    165.5,
+    156.58,
+    164.65,
+    4368150
+   ],
+   [
+    1736865000,
+    169.6,
+    172.1888,
+    161.06,
+    164.82,
+    4913996
+   ],
+   [
+    1736951400,
+    170.09,
+    178.83,
+    167.5,
+    170.69,
+    5164845
+   ],
+   [
+    1737037800,
+    171.76,
+    176.8193,
+    169.73,
+    174.87,
+    3341636
+   ],
+   [
+    1737124200,
+    178.28,
+    179.87,
+    172.15,
+    175.33,
+    3375496
+   ],
+   [
+    1737469800,
+    177.5,
+    191,
+    175.6,
+    188.32,
+    7475493
+   ],
+   [
+    1737556200,
+    187.47,
+    188.19,
+    181.52,
+    183.74,
+    4999437
+   ],
+   [
+    1737642600,
+    182,
+    187.7,
+    178.5,
+    181.99,
+    3568417
+   ],
+   [
+    1737729000,
+    183.63,
+    190.5,
+    180,
+    182.4,
+    3923229
+   ],
+   [
+    1737988200,
+    174.22,
+    183.59,
+    170.2,
+    180.83,
+    4068590
+   ],
+   [
+    1738074600,
+    184,
+    196.83,
+    181.81,
+    194.75,
+    5422760
+   ],
+   [
+    1738161000,
+    201,
+    205.57,
+    195.671,
+    202,
+    5863404
+   ],
+   [
+    1738247400,
+    204.99,
+    208.62,
+    195.69,
+    198.93,
+    4168870
+   ],
+   [
+    1738333800,
+    201.84,
+    206.6,
+    197.05,
+    199.55,
+    3248356
+   ],
+   [
+    1738593000,
+    189.12,
+    205.5,
+    188.95,
+    202.31,
+    3611053
+   ],
+   [
+    1738679400,
+    208.865,
+    218.25,
+    207.143,
+    215.31,
+    5509422
+   ],
+   [
+    1738765800,
+    213.5,
+    221.18,
+    211,
+    221.16,
+    3563599
+   ],
+   [
+    1738852200,
+    222.44,
+    222.44,
+    209,
+    216.51,
+    6409250
+   ],
+   [
+    1738938600,
+    218.59,
+    227.05,
+    218.2001,
+    225.23,
+    5448021
+   ],
+   [
+    1739197800,
+    228.8,
+    230.41,
+    221.5001,
+    224.93,
+    4314758
+   ],
+   [
+    1739284200,
+    222.03,
+    222.48,
+    211.33,
+    213.76,
+    6210474
+   ],
+   [
+    1739370600,
+    213.6,
+    220.75,
+    211,
+    216.47,
+    11245549
+   ],
+   [
+    1739457000,
+    203.915,
+    214.3,
+    195.98,
+    204.95,
+    21066721
+   ],
+   [
+    1739543400,
+    202,
+    203.95,
+    192.5701,
+    196.38,
+    8424934
+   ],
+   [
+    1739889000,
+    193.4,
+    196.758,
+    183.8,
+    187.13,
+    9020178
+   ],
+   [
+    1739975400,
+    185.5,
+    190.9174,
+    183.96,
+    189.66,
+    4444134
+   ],
+   [
+    1740061800,
+    187.7,
+    187.75,
+    170.6,
+    175.44,
+    10625813
+   ],
+   [
+    1740148200,
+    175.5,
+    176.505,
+    161.883,
+    166.4,
+    9938974
+   ],
+   [
+    1740407400,
+    164.77,
+    166.38,
+    154.2,
+    165.57,
+    7908151
+   ],
+   [
+    1740493800,
+    164,
+    166.99,
+    154.74,
+    159.99,
+    6115769
+   ],
+   [
+    1740580200,
+    161.96,
+    170.3,
+    161.22,
+    168.1,
+    6358362
+   ],
+   [
+    1740666600,
+    170.41,
+    172.14,
+    156,
+    159.78,
+    5342560
+   ],
+   [
+    1740753000,
+    156.9,
+    163.38,
+    155.45,
+    161.78,
+    9356938
+   ],
+   [
+    1741012200,
+    165.455,
+    174.22,
+    160.4,
+    162.45,
+    7176780
+   ],
+   [
+    1741098600,
+    157.86,
+    164.65,
+    148.2651,
+    159.17,
+    7780740
+   ],
+   [
+    1741185000,
+    161,
+    169.99,
+    158.3173,
+    168.52,
+    4355851
+   ],
+   [
+    1741271400,
+    160.5,
+    166.11,
+    150.53,
+    150.72,
+    5336036
+   ],
+   [
+    1741357800,
+    147.02,
+    148.3,
+    131.26,
+    133.98,
+    13834948
+   ],
+   [
+    1741613400,
+    127.75,
+    127.75,
+    105.51,
+    107.29,
+    20956740
+   ],
+   [
+    1741699800,
+    111,
+    123.49,
+    110,
+    122.73,
+    14629574
+   ],
+   [
+    1741786200,
+    134.79,
+    136.47,
+    126.12,
+    130.68,
+    11368675
+   ],
+   [
+    1741872600,
+    130,
+    131.68,
+    118.57,
+    121.53,
+    7288624
+   ],
+   [
+    1741959000,
+    126.51,
+    130.83,
+    123.45,
+    128.21,
+    6818919
+   ],
+   [
+    1742218200,
+    123.62,
+    142,
+    119.92,
+    125.56,
+    19261720
+   ],
+   [
+    1742304600,
+    120.57,
+    121.94,
+    108.1285,
+    110.1,
+    13232158
+   ],
+   [
+    1742391000,
+    110.1,
+    113.48,
+    105.5,
+    109.91,
+    9529586
+   ],
+   [
+    1742477400,
+    109.18,
+    112.99,
+    107.04,
+    108.75,
+    7803443
+   ],
+   [
+    1742563800,
+    107.8,
+    116.29,
+    106,
+    115.7,
+    7987117
+   ],
+   [
+    1742823000,
+    119.81,
+    126.5,
+    119.76,
+    124.94,
+    9012069
+   ],
+   [
+    1742909400,
+    124,
+    127.27,
+    120.02,
+    125.43,
+    5815589
+   ],
+   [
+    1742995800,
+    124.6,
+    125.6,
+    117.17,
+    120.2,
+    4869412
+   ],
+   [
+    1743082200,
+    117.5,
+    117.5,
+    110.05,
+    110.23,
+    6775399
+   ],
+   [
+    1743168600,
+    110.25,
+    112.78,
+    103.74,
+    107.71,
+    8001920
+   ],
+   [
+    1743427800,
+    102.295,
+    106.59,
+    97.61,
+    104.9,
+    9511550
+   ],
+   [
+    1743514200,
+    105.795,
+    111.6,
+    104.3491,
+    110.05,
+    6568167
+   ],
+   [
+    1743600600,
+    104.85,
+    113.75,
+    104.85,
+    109.5,
+    10073457
+   ],
+   [
+    1743687000,
+    99.5,
+    100.5,
+    93.63,
+    96.9,
+    11840669
+   ],
+   [
+    1743773400,
+    92.18,
+    92.91,
+    82.8,
+    86.91,
+    13290250
+   ],
+   [
+    1744032600,
+    81.01,
+    97,
+    79.7499,
+    93,
+    11772338
+   ],
+   [
+    1744119000,
+    97.14,
+    97.8999,
+    86.88,
+    88.89,
+    9633597
+   ],
+   [
+    1744205400,
+    88.74,
+    113.9,
+    87.1242,
+    110.86,
+    13906473
+   ],
+   [
+    1744291800,
+    103.98,
+    107.46,
+    98.77,
+    102.01,
+    7351305
+   ],
+   [
+    1744378200,
+    101,
+    101.81,
+    96.43,
+    101.15,
+    4217575
+   ],
+   [
+    1744637400,
+    105.75,
+    106.5,
+    97.5001,
+    98.26,
+    3943375
+   ],
+   [
+    1744723800,
+    98.66,
+    99.79,
+    94.56,
+    96.46,
+    4061699
+   ],
+   [
+    1744810200,
+    93.07,
+    95.49,
+    91.61,
+    95.38,
+    3685336
+   ],
+   [
+    1744896600,
+    94.52,
+    96.87,
+    93.0801,
+    96.16,
+    2858279
+   ],
+   [
+    1745242200,
+    94,
+    95.41,
+    90.78,
+    94.15,
+    3090751
+   ],
+   [
+    1745328600,
+    96.24,
+    101.9,
+    95.4,
+    101.66,
+    5108777
+   ],
+   [
+    1745415000,
+    109.51,
+    113.55,
+    105.82,
+    107.17,
+    5873665
+   ],
+   [
+    1745501400,
+    106.9,
+    112.96,
+    106.16,
+    112.25,
+    4141140
+   ],
+   [
+    1745587800,
+    115.03,
+    120.56,
+    114.2556,
+    118.1,
+    8702704
+   ],
+   [
+    1745847000,
+    118.58,
+    123,
+    116.3,
+    121.21,
+    8891410
+   ],
+   [
+    1745933400,
+    119.57,
+    123.29,
+    118.2,
+    122.14,
+    3766968
+   ],
+   [
+    1746019800,
+    113.875,
+    116.94,
+    108.5,
+    116.57,
+    8008405
+   ],
+   [
+    1746106200,
+    125.635,
+    126.1,
+    117.49,
+    118.79,
+    14328186
+   ],
+   [
+    1746192600,
+    120.25,
+    125.3899,
+    111.62,
+    113.83,
+    29599202
+   ],
+   [
+    1746451800,
+    113.09,
+    120.87,
+    111.63,
+    116.33,
+    11529504
+   ],
+   [
+    1746538200,
+    113.65,
+    114.78,
+    108.6301,
+    109.99,
+    8954682
+   ],
+   [
+    1746624600,
+    109.33,
+    111.58,
+    102.8,
+    105.53,
+    9219438
+   ],
+   [
+    1746711000,
+    108.25,
+    109.66,
+    105.2,
+    107.83,
+    5758976
+   ],
+   [
+    1746797400,
+    109.85,
+    112.35,
+    105.52,
+    108.46,
+    4836052
+   ],
+   [
+    1747056600,
+    114.15,
+    114.535,
+    109.6021,
+    111.21,
+    7070511
+   ],
+   [
+    1747143000,
+    113.04,
+    116.4,
+    111.5,
+    112.84,
+    6684765
+   ],
+   [
+    1747229400,
+    114.725,
+    130.11,
+    113.8,
+    125.32,
+    20753506
+   ],
+   [
+    1747315800,
+    122.08,
+    122.08,
+    112.85,
+    113.59,
+    13711046
+   ],
+   [
+    1747402200,
+    117.5,
+    117.59,
+    110.82,
+    113.23,
+    8626997
+   ],
+   [
+    1747661400,
+    104.89,
+    110.09,
+    104.8,
+    107.99,
+    10494178
+   ],
+   [
+    1747747800,
+    107.35,
+    107.9899,
+    104.47,
+    105.64,
+    7178322
+   ],
+   [
+    1747834200,
+    103.09,
+    103.5,
+    94.89,
+    95.85,
+    17448231
+   ],
+   [
+    1747920600,
+    97.29,
+    100.4491,
+    95.6972,
+    98.32,
+    8522905
+   ],
+   [
+    1748007000,
+    95.83,
+    102.265,
+    95.23,
+    100.76,
+    6753505
+   ],
+   [
+    1748352600,
+    103,
+    104.9111,
+    99.1401,
+    104.62,
+    6944411
+   ],
+   [
+    1748439000,
+    104.94,
+    106.7068,
+    103.09,
+    105.43,
+    5399868
+   ],
+   [
+    1748525400,
+    108.19,
+    113.7999,
+    107.594,
+    109.03,
+    10701351
+   ],
+   [
+    1748611800,
+    107.31,
+    112.62,
+    106.3402,
+    112.35,
+    7555536
+   ],
+   [
+    1748871000,
+    109.16,
+    113.66,
+    109.16,
+    112.11,
+    4539438
+   ],
+   [
+    1748957400,
+    112.46,
+    115.3872,
+    109.92,
+    110.86,
+    5462482
+   ],
+   [
+    1749043800,
+    110.87,
+    119.69,
+    110.87,
+    118.21,
+    8683435
+   ],
+   [
+    1749130200,
+    118.76,
+    119.23,
+    111.8499,
+    112.24,
+    6231754
+   ],
+   [
+    1749216600,
+    113.63,
+    121.29,
+    112.77,
+    121.29,
+    6773380
+   ],
+   [
+    1749475800,
+    119.65,
+    121.98,
+    116.3801,
+    117.53,
+    5636117
+   ],
+   [
+    1749562200,
+    116.2,
+    119.15,
+    115.26,
+    117.09,
+    5631152
+   ],
+   [
+    1749648600,
+    117.4,
+    120.6215,
+    114.45,
+    115.03,
+    5988200
+   ],
+   [
+    1749735000,
+    113.02,
+    118.12,
+    110.85,
+    116.2,
+    4824351
+   ],
+   [
+    1749821400,
+    112.3,
+    120.3,
+    112.3,
+    118.18,
+    6509246
+   ],
+   [
+    1750080600,
+    121.425,
+    126.59,
+    121.425,
+    126.2,
+    8405053
+   ],
+   [
+    1750167000,
+    133.65,
+    146.164,
+    132.41,
+    133.84,
+    23521813
+   ],
+   [
+    1750253400,
+    132.32,
+    143.89,
+    132.25,
+    141.16,
+    12180683
+   ],
+   [
+    1750426200,
+    141.51,
+    147.999,
+    138.098,
+    139.15,
+    8787293
+   ],
+   [
+    1750685400,
+    135.77,
+    141.67,
+    133.28,
+    134.14,
+    7057617
+   ],
+   [
+    1750771800,
+    136.35,
+    143.77,
+    136.03,
+    140.79,
+    6547750
+   ],
+   [
+    1750858200,
+    150.91,
+    153.94,
+    141.44,
+    141.68,
+    9090189
+   ],
+   [
+    1750944600,
+    145.1,
+    147,
+    140.75,
+    143.95,
+    6587070
+   ],
+   [
+    1751031000,
+    143.51,
+    145.5,
+    139.26,
+    143.01,
+    17684836
+   ],
+   [
+    1751290200,
+    148.08,
+    155,
+    146.78,
+    150.57,
+    9904695
+   ],
+   [
+    1751376600,
+    151.82,
+    156.37,
+    146.55,
+    152.23,
+    8713533
+   ],
+   [
+    1751463000,
+    152,
+    164.55,
+    151.8,
+    159.34,
+    11005410
+   ],
+   [
+    1751549400,
+    159,
+    160.99,
+    155.4,
+    157.03,
+    4041162
+   ],
+   [
+    1751895000,
+    154.95,
+    155.39,
+    149.56,
+    153.37,
+    6308084
+   ],
+   [
+    1751981400,
+    155.2,
+    155.85,
+    145.2,
+    145.96,
+    7055549
+   ],
+   [
+    1752067800,
+    147.31,
+    147.95,
+    141.3,
+    145.65,
+    4609569
+   ],
+   [
+    1752154200,
+    148.73,
+    148.8,
+    141.28,
+    143,
+    3941435
+   ],
+   [
+    1752240600,
+    141.64,
+    147.4,
+    141.3,
+    145.59,
+    3686176
+   ],
+   [
+    1752499800,
+    146,
+    150.39,
+    145.3,
+    146.38,
+    4438737
+   ],
+   [
+    1752586200,
+    147.29,
+    148.05,
+    142.9,
+    144.8,
+    4426493
+   ],
+   [
+    1752672600,
+    144.95,
+    146.19,
+    138.3,
+    144.31,
+    5853169
+   ],
+   [
+    1752759000,
+    144.3,
+    147.05,
+    140.89,
+    142.52,
+    4454730
+   ],
+   [
+    1752845400,
+    142.51,
+    149.09,
+    138.11,
+    148.24,
+    6405912
+   ],
+   [
+    1753104600,
+    145.02,
+    149.7288,
+    144.41,
+    146.29,
+    5134872
+   ],
+   [
+    1753191000,
+    145.4,
+    147.8,
+    138.6,
+    145.8,
+    5183121
+   ],
+   [
+    1753277400,
+    147.97,
+    152.25,
+    144.3202,
+    146.1,
+    5664369
+   ],
+   [
+    1753363800,
+    147.85,
+    150.75,
+    142.9,
+    148.13,
+    5460455
+   ],
+   [
+    1753450200,
+    149.94,
+    152.78,
+    147.9,
+    149.66,
+    4505610
+   ],
+   [
+    1753709400,
+    150.84,
+    153.2,
+    147.55,
+    151.6,
+    4008671
+   ],
+   [
+    1753795800,
+    151.55,
+    152,
+    141.6,
+    144.85,
+    6464107
+   ],
+   [
+    1753882200,
+    145.72,
+    150.38,
+    144.085,
+    149.33,
+    5280716
+   ],
+   [
+    1753968600,
+    160.88,
+    162.88,
+    154.83,
+    160.59,
+    19988941
+   ],
+   [
+    1754055000,
+    182,
+    196.6799,
+    177.77,
+    188.64,
+    27258289
+   ],
+   [
+    1754314200,
+    191.7,
+    203.73,
+    188.98,
+    201.76,
+    15113312
+   ],
+   [
+    1754400600,
+    198.67,
+    208.68,
+    197.51,
+    199.09,
+    10585061
+   ],
+   [
+    1754487000,
+    199.01,
+    212.98,
+    198.75,
+    212.81,
+    8279389
+   ],
+   [
+    1754573400,
+    215.745,
+    217.3,
+    205.72,
+    211.82,
+    6074456
+   ],
+   [
+    1754659800,
+    211.85,
+    219,
+    208.85,
+    215.44,
+    4726955
+   ],
+   [
+    1754919000,
+    215.23,
+    225.35,
+    211.8001,
+    220.75,
+    5563370
+   ],
+   [
+    1755005400,
+    221.175,
+    229.4469,
+    220.69,
+    224.02,
+    4803252
+   ],
+   [
+    1755091800,
+    225.92,
+    237.3531,
+    224.3,
+    234.77,
+    7466951
+   ],
+   [
+    1755178200,
+    229.955,
+    244.85,
+    229.955,
+    243.47,
+    7579693
+   ],
+   [
+    1755264600,
+    242.575,
+    248.015,
+    235.79,
+    246.5,
+    6434008
+   ],
+   [
+    1755523800,
+    245.63,
+    253.14,
+    237.54,
+    241.76,
+    6933845
+   ],
+   [
+    1755610200,
+    238.22,
+    238.84,
+    225.5001,
+    228.18,
+    8655674
+   ],
+   [
+    1755696600,
+    221.5,
+    225.0318,
+    205.374,
+    218.37,
+    13073431
+   ],
+   [
+    1755783000,
+    217.44,
+    221.73,
+    215.1,
+    218.65,
+    4002415
+   ],
+   [
+    1755869400,
+    215,
+    230.25,
+    214.1,
+    217.31,
+    7640575
+   ],
+   [
+    1756128600,
+    214.27,
+    222.47,
+    212.57,
+    219.73,
+    4580555
+   ],
+   [
+    1756215000,
+    218.84,
+    220.5,
+    214.99,
+    219.43,
+    5316164
+   ],
+   [
+    1756301400,
+    220.97,
+    226.6688,
+    208.24,
+    211.1,
+    4906088
+   ],
+   [
+    1756387800,
+    212.8,
+    227,
+    212.4,
+    225.54,
+    5146994
+   ],
+   [
+    1756474200,
+    225.54,
+    227.9,
+    219.62,
+    225.08,
+    3922315
+   ],
+   [
+    1756819800,
+    219.98,
+    223.44,
+    213.15,
+    220.06,
+    4639979
+   ],
+   [
+    1756906200,
+    226.28,
+    239.37,
+    218.7,
+    223.14,
+    8426761
+   ],
+   [
+    1756992600,
+    225,
+    234.38,
+    223.5,
+    232.11,
+    4269990
+   ],
+   [
+    1757079000,
+    234,
+    241.18,
+    230.24,
+    240,
+    5567611
+   ],
+   [
+    1757338200,
+    245.09,
+    246.99,
+    229.86,
+    229.98,
+    5949183
+   ],
+   [
+    1757424600,
+    235.35,
+    240.3,
+    232.05,
+    240.2,
+    3655873
+   ],
+   [
+    1757511000,
+    245.14,
+    261.1273,
+    244.845,
+    259.03,
+    7445754
+   ],
+   [
+    1757597400,
+    260.57,
+    266.6395,
+    257.45,
+    260.54,
+    3726896
+   ],
+   [
+    1757683800,
+    262.22,
+    266.15,
+    251.19,
+    254.29,
+    3683657
+   ],
+   [
+    1757943000,
+    256.66,
+    265.54,
+    255.42,
+    263.64,
+    4584343
+   ],
+   [
+    1758029400,
+    265.075,
+    268.15,
+    260.5,
+    266.66,
+    3671286
+   ],
+   [
+    1758115800,
+    263.1,
+    270.36,
+    249.22,
+    266.47,
+    10028725
+   ],
+   [
+    1758202200,
+    271.99,
+    282.95,
+    269.92,
+    270.71,
+    6843943
+   ],
+   [
+    1758288600,
+    270.5,
+    271.99,
+    251.5,
+    264.48,
+    11586079
+   ],
+   [
+    1758547800,
+    257.45,
+    262.99,
+    253.34,
+    257.56,
+    5281151
+   ],
+   [
+    1758634200,
+    255.575,
+    255.78,
+    235.85,
+    237.45,
+    8042236
+   ],
+   [
+    1758720600,
+    241.51,
+    244,
+    234.89,
+    235.69,
+    4821560
+   ],
+   [
+    1758807000,
+    228.15,
+    236.52,
+    223.5,
+    232.75,
+    4646075
+   ],
+   [
+    1758893400,
+    234.08,
+    240.61,
+    231.2379,
+    240.11,
+    3280330
+   ],
+   [
+    1759152600,
+    244.804,
+    246.43,
+    239.3,
+    241.98,
+    3784584
+   ],
+   [
+    1759239000,
+    240.335,
+    240.99,
+    225.09,
+    229.99,
+    4885384
+   ],
+   [
+    1759325400,
+    213,
+    218.319,
+    202.26,
+    202.6,
+    15773953
+   ],
+   [
+    1759411800,
+    206.85,
+    209,
+    198.8,
+    200.92,
+    7759210
+   ],
+   [
+    1759498200,
+    212.02,
+    213.38,
+    205.41,
+    207.2,
+    8463205
+   ],
+   [
+    1759757400,
+    207.3,
+    211.15,
+    198.87,
+    203.63,
+    4985092
+   ],
+   [
+    1759843800,
+    206.24,
+    209.7364,
+    202.5071,
+    205.92,
+    3706730
+   ],
+   [
+    1759930200,
+    206.225,
+    206.225,
+    195.01,
+    202.29,
+    6644149
+   ],
+   [
+    1760016600,
+    203.25,
+    212.34,
+    199.38,
+    211.7,
+    5196443
+   ],
+   [
+    1760103000,
+    214.4,
+    214.4,
+    198,
+    198.55,
+    5568990
+   ],
+   [
+    1760362200,
+    201.89,
+    204.7085,
+    197.85,
+    203.68,
+    2942264
+   ],
+   [
+    1760448600,
+    199.925,
+    205.52,
+    194.77,
+    196.35,
+    3826450
+   ],
+   [
+    1760535000,
+    201.36,
+    203.8638,
+    196.8,
+    200.76,
+    2697387
+   ],
+   [
+    1760621400,
+    202.54,
+    203.88,
+    196,
+    198.97,
+    3036135
+   ],
+   [
+    1760707800,
+    195.16,
+    200.5999,
+    189.02,
+    194.95,
+    4531453
+   ],
+   [
+    1760967000,
+    201,
+    211.11,
+    200.65,
+    202.48,
+    6314955
+   ],
+   [
+    1761053400,
+    207.52,
+    208,
+    203.01,
+    205.71,
+    4186027
+   ],
+   [
+    1761139800,
+    204.03,
+    205,
+    191.28,
+    197.05,
+    5863525
+   ],
+   [
+    1761226200,
+    201,
+    205.32,
+    200.37,
+    200.82,
+    2798175
+   ],
+   [
+    1761312600,
+    206.02,
+    215.94,
+    205.1213,
+    214.2,
+    6280385
+   ],
+   [
+    1761571800,
+    219.7,
+    224.75,
+    216.5417,
+    219.24,
+    4888247
+   ],
+   [
+    1761658200,
+    222.22,
+    222.22,
+    212.75,
+    212.97,
+    4564973
+   ],
+   [
+    1761744600,
+    211.27,
+    214.13,
+    204.7501,
+    210.77,
+    4374596
+   ],
+   [
+    1761831000,
+    209.41,
+    209.4702,
+    193.81,
+    194.42,
+    12953265
+   ],
+   [
+    1761917400,
+    219.2,
+    230.97,
+    208.41,
+    208.95,
+    17708306
+   ],
+   [
+    1762180200,
+    211.06,
+    214.25,
+    199.1125,
+    204.98,
+    8198719
+   ],
+   [
+    1762266600,
+    199.19,
+    199.69,
+    187.4,
+    187.77,
+    8202421
+   ],
+   [
+    1762353000,
+    187.78,
+    199.3,
+    186.3601,
+    196.27,
+    5074567
+   ],
+   [
+    1762439400,
+    195.985,
+    196.7023,
+    182.74,
+    183.64,
+    4918877
+   ],
+   [
+    1762525800,
+    178,
+    195.16,
+    173.56,
+    194.58,
+    6446711
+   ],
+   [
+    1762785000,
+    200.03,
+    208.28,
+    198.3401,
+    204.19,
+    4657076
+   ],
+   [
+    1762871400,
+    201.94,
+    211.08,
+    201.34,
+    208.21,
+    3861782
+   ],
+   [
+    1762957800,
+    208.85,
+    213,
+    200.08,
+    202.82,
+    3168008
+   ],
+   [
+    1763044200,
+    201.775,
+    201.96,
+    185.44,
+    189.42,
+    5213307
+   ],
+   [
+    1763130600,
+    186.405,
+    198.59,
+    183.8,
+    193.31,
+    4284859
+   ],
+   [
+    1763389800,
+    191.34,
+    194.3399,
+    185.25,
+    187.55,
+    2598440
+   ],
+   [
+    1763476200,
+    184.18,
+    189.5,
+    180.89,
+    185.69,
+    3722343
+   ],
+   [
+    1763562600,
+    185.69,
+    192.45,
+    185.21,
+    187.78,
+    2728451
+   ],
+   [
+    1763649000,
+    192.955,
+    195.48,
+    178.2448,
+    181.88,
+    5161269
+   ],
+   [
+    1763735400,
+    185.04,
+    190.15,
+    180.01,
+    183.48,
+    4009229
+   ],
+   [
+    1763994600,
+    186.6,
+    195.69,
+    184.78,
+    195,
+    5268047
+   ],
+   [
+    1764081000,
+    198,
+    219.8,
+    196.57,
+    218.48,
+    7751496
+   ],
+   [
+    1764167400,
+    216,
+    220.7642,
+    207.29,
+    207.56,
+    4680879
+   ],
+   [
+    1764340200,
+    209.15,
+    218,
+    207.34,
+    216.47,
+    2388670
+   ],
+   [
+    1764599400,
+    211.72,
+    226.25,
+    211.5,
+    223.4,
+    4819797
+   ],
+   [
+    1764685800,
+    224.69,
+    231.51,
+    221.72,
+    222.76,
+    3445339
+   ],
+   [
+    1764772200,
+    222.66,
+    225.82,
+    220,
+    220.84,
+    2706064
+   ],
+   [
+    1764858600,
+    222.19,
+    225.87,
+    215,
+    222.75,
+    3493497
+   ],
+   [
+    1764945000,
+    225.15,
+    237.59,
+    224.175,
+    234.11,
+    6141274
+   ],
+   [
+    1765204200,
+    230,
+    238.2,
+    225.26,
+    236.95,
+    3685849
+   ],
+   [
+    1765290600,
+    230.85,
+    237.5,
+    229.55,
+    236.11,
+    2791563
+   ],
+   [
+    1765377000,
+    235.3,
+    240.18,
+    231.47,
+    238.11,
+    3816555
+   ],
+   [
+    1765463400,
+    235.54,
+    238,
+    227.2971,
+    233.54,
+    4386042
+   ],
+   [
+    1765549800,
+    233.06,
+    237.4,
+    222.85,
+    224.78,
+    4932169
+   ],
+   [
+    1765809000,
+    222.045,
+    225.77,
+    213.35,
+    218.5,
+    5415763
+   ],
+   [
+    1765895400,
+    215.264,
+    224.63,
+    215.264,
+    224,
+    4332179
+   ],
+   [
+    1765981800,
+    226.83,
+    235.42,
+    226.83,
+    227.34,
+    5721755
+   ],
+   [
+    1766068200,
+    232.82,
+    246.15,
+    229.4544,
+    231.34,
+    6060380
+   ],
+   [
+    1766154600,
+    235.85,
+    239.44,
+    230.99,
+    233.19,
+    5942860
+   ],
+   [
+    1766413800,
+    235.95,
+    240.4899,
+    230.3,
+    233.15,
+    4042041
+   ],
+   [
+    1766500200,
+    231.53,
+    237.5,
+    225.45,
+    225.82,
+    3487745
+   ],
+   [
+    1766586600,
+    225.77,
+    228.4,
+    222.785,
+    225.85,
+    982577
+   ],
+   [
+    1766759400,
+    225.79,
+    226.22,
+    220.26,
+    225.77,
+    1904008
+   ],
+   [
+    1767018600,
+    225.15,
+    236,
+    223.9101,
+    234.65,
+    3901188
+   ],
+   [
+    1767105000,
+    235.92,
+    236.9299,
+    229.08,
+    233.36,
+    2489821
+   ],
+   [
+    1767191400,
+    232.24,
+    233.7128,
+    227.5,
+    229.87,
+    2149087
+   ],
+   [
+    1767364200,
+    232.18,
+    242.8699,
+    228.15,
+    241.89,
+    3547051
+   ],
+   [
+    1767623400,
+    248.84,
+    250,
+    241,
+    244.05,
+    3365244
+   ],
+   [
+    1767709800,
+    248.21,
+    254.78,
+    242.1517,
+    253.81,
+    4159940
+   ],
+   [
+    1767796200,
+    252,
+    260.5,
+    251.05,
+    255.5,
+    3002303
+   ],
+   [
+    1767882600,
+    255.34,
+    259.55,
+    248.1,
+    253.95,
+    3015212
+   ],
+   [
+    1767969000,
+    257.67,
+    263.4999,
+    235.01,
+    244.56,
+    5542455
+   ],
+   [
+    1768228200,
+    244.72,
+    251.87,
+    240.61,
+    244.02,
+    2595300
+   ],
+   [
+    1768314600,
+    246.22,
+    263.335,
+    246.1,
+    258.93,
+    4516253
+   ],
+   [
+    1768401000,
+    258.8,
+    258.8,
+    246.85,
+    252.38,
+    4829883
+   ],
+   [
+    1768487400,
+    250.09,
+    251,
+    225.2501,
+    228.75,
+    10876269
+   ],
+   [
+    1768573800,
+    228.5,
+    236.499,
+    222.85,
+    231.01,
+    5450428
+   ],
+   [
+    1768919400,
+    220.125,
+    228.98,
+    217.34,
+    225.36,
+    3747976
+   ],
+   [
+    1769005800,
+    224.485,
+    224.925,
+    208.5,
+    210.13,
+    5204258
+   ],
+   [
+    1769092200,
+    214,
+    216,
+    209.78,
+    214.54,
+    2708186
+   ],
+   [
+    1769178600,
+    212.6,
+    220.82,
+    209,
+    218.88,
+    2612780
+   ],
+   [
+    1769437800,
+    216.64,
+    222.65,
+    212.6287,
+    213.63,
+    2621510
+   ],
+   [
+    1769524200,
+    203.14,
+    204.56,
+    193.11,
+    196.3,
+    7123070
+   ],
+   [
+    1769610600,
+    195,
+    199.05,
+    189.526,
+    193.14,
+    4372417
+   ],
+   [
+    1769697000,
+    200,
+    201.1214,
+    188.65,
+    190.05,
+    3936159
+   ],
+   [
+    1769783400,
+    188.24,
+    190.471,
+    180,
+    180.27,
+    4248199
+   ],
+   [
+    1770042600,
+    180,
+    184.35,
+    176.14,
+    177.15,
+    5887556
+   ],
+   [
+    1770129000,
+    178.4,
+    179.01,
+    161.71,
+    165.41,
+    6876714
+   ],
+   [
+    1770215400,
+    162.51,
+    163.265,
+    146.35,
+    152.69,
+    9451444
+   ],
+   [
+    1770301800,
+    151.005,
+    155.34,
+    148.5,
+    151.05,
+    11083865
+   ],
+   [
+    1770388200,
+    161.53,
+    164.3999,
+    137.02,
+    139.83,
+    22081617
+   ],
+   [
+    1770647400,
+    139.39,
+    145.9376,
+    136.61,
+    141.74,
+    8487343
+   ],
+   [
+    1770733800,
+    145.06,
+    152.44,
+    143.51,
+    149.98,
+    9003182
+   ],
+   [
+    1770820200,
+    148.86,
+    152.44,
+    137.25,
+    139.29,
+    8409677
+   ],
+   [
+    1770906600,
+    138.45,
+    138.45,
+    127.705,
+    131.07,
+    8703535
+   ],
+   [
+    1770993000,
+    141.85,
+    141.85,
+    135.37,
+    139.65,
+    7462441
+   ],
+   [
+    1771338600,
+    138.2,
+    143.92,
+    135.85,
+    139.23,
+    5470594
+   ],
+   [
+    1771425000,
+    140.9,
+    148.18,
+    139.26,
+    147.46,
+    5965873
+   ],
+   [
+    1771511400,
+    146.08,
+    147.395,
+    141.8001,
+    146.13,
+    4097101
+   ],
+   [
+    1771597800,
+    144.4,
+    151.25,
+    143.3936,
+    150.17,
+    7650931
+   ],
+   [
+    1771857000,
+    148.42,
+    150.94,
+    140.34,
+    142.46,
+    4529936
+   ],
+   [
+    1771943400,
+    142.93,
+    147.4999,
+    141.09,
+    142.08,
+    4012700
+   ],
+   [
+    1772029800,
+    143.395,
+    150.51,
+    141.05,
+    149.67,
+    4499385
+   ],
+   [
+    1772116200,
+    148.38,
+    156.39,
+    146.48,
+    151.25,
+    4908816
+   ],
+   [
+    1772202600,
+    149.51,
+    150.45,
+    143.05,
+    145.81,
+    4747671
+   ],
+   [
+    1772461800,
+    142.25,
+    147.5,
+    141.534,
+    147.11,
+    3473107
+   ],
+   [
+    1772548200,
+    141.88,
+    146.51,
+    137.5001,
+    145.69,
+    4480492
+   ],
+   [
+    1772634600,
+    146.59,
+    149.85,
+    144.35,
+    147.29,
+    5053306
+   ],
+   [
+    1772721000,
+    146.97,
+    153.78,
+    142.3,
+    144.34,
+    6249860
+   ],
+   [
+    1772807400,
+    142,
+    142.33,
+    137.9,
+    139.39,
+    5084037
+   ],
+   [
+    1773063000,
+    136.75,
+    139.39,
+    132.41,
+    138.86,
+    7991145
+   ],
+   [
+    1773149400,
+    141.875,
+    142.46,
+    133.8,
+    134.13,
+    6156821
+   ],
+   [
+    1773235800,
+    135.05,
+    137.9699,
+    133.28,
+    137.12,
+    5087266
+   ],
+   [
+    1773322200,
+    135.59,
+    139.7934,
+    131.5,
+    132.25,
+    3330337
+   ],
+   [
+    1773408600,
+    133.67,
+    136.98,
+    131.31,
+    132.36,
+    3049052
+   ],
+   [
+    1773667800,
+    133.97,
+    140.08,
+    133.18,
+    140,
+    4488671
+   ],
+   [
+    1773754200,
+    140.02,
+    147.45,
+    140,
+    144.33,
+    6424794
+   ],
+   [
+    1773840600,
+    144.01,
+    146.75,
+    142.04,
+    142.79,
+    4155921
+   ],
+   [
+    1773927000,
+    138.75,
+    142.27,
+    135.33,
+    138.12,
+    4878269
+   ],
+   [
+    1774013400,
+    139,
+    143.85,
+    135.68,
+    139.85,
+    6532902
+   ],
+   [
+    1774272600,
+    140,
+    144.19,
+    138.7,
+    140.96,
+    3514653
+   ],
+   [
+    1774359000,
+    139.7,
+    141.24,
+    134.585,
+    136.12,
+    3481309
+   ],
+   [
+    1774445400,
+    139,
+    143.22,
+    138.43,
+    139.63,
+    3192842
+   ],
+   [
+    1774531800,
+    135.49,
+    137.52,
+    124,
+    127.26,
+    8196909
+   ],
+   [
+    1774618200,
+    125.04,
+    125.51,
+    120.5,
+    121.84,
+    5776499
+   ],
+   [
+    1774877400,
+    122.5,
+    126.38,
+    119.27,
+    124.13,
+    4487532
+   ],
+   [
+    1774963800,
+    126.06,
+    135.9,
+    125.12,
+    134.65,
+    5443807
+   ],
+   [
+    1775050200,
+    136.375,
+    139.34,
+    133.25,
+    136.18,
+    3931961
+   ],
+   [
+    1775136600,
+    129.67,
+    137.12,
+    128.63,
+    136,
+    3077714
+   ],
+   [
+    1775482200,
+    138.46,
+    140.555,
+    136.2234,
+    138.34,
+    3208678
+   ],
+   [
+    1775568600,
+    137.5,
+    141.27,
+    136.35,
+    141.14,
+    2340455
+   ],
+   [
+    1775655000,
+    151.59,
+    154.77,
+    143.86,
+    145,
+    3995814
+   ],
+   [
+    1775741400,
+    144.54,
+    145.17,
+    135,
+    138.38,
+    5076466
+   ],
+   [
+    1775827800,
+    141.05,
+    142.2996,
+    135.99,
+    139.73,
+    3259543
+   ],
+   [
+    1776087000,
+    138.97,
+    149.45,
+    138.81,
+    149.35,
+    3638886
+   ],
+   [
+    1776173400,
+    152.61,
+    156.5,
+    151.78,
+    154.54,
+    4453050
+   ],
+   [
+    1776259800,
+    156.78,
+    160.3799,
+    155.33,
+    158.48,
+    4173876
+   ],
+   [
+    1776346200,
+    163.11,
+    164,
+    157.01,
+    162.45,
+    4032329
+   ],
+   [
+    1776432600,
+    165.505,
+    168.7,
+    161.364,
+    163.8,
+    4068576
+   ],
+   [
+    1776691800,
+    162.15,
+    166.79,
+    161.01,
+    166.28,
+    3055068
+   ],
+   [
+    1776778200,
+    166.5,
+    167.92,
+    156.085,
+    156.82,
+    4777225
+   ],
+   [
+    1776864600,
+    161.38,
+    164.41,
+    158.95,
+    164.31,
+    2890108
+   ],
+   [
+    1776951000,
+    162.3,
+    162.3,
+    151.22,
+    152.96,
+    3707926
+   ],
+   [
+    1777037400,
+    154.3,
+    154.93,
+    150.55,
+    154.89,
+    3242219
+   ],
+   [
+    1777296600,
+    154.375,
+    163.15,
+    154.05,
+    160.21,
+    3311661
+   ],
+   [
+    1777383000,
+    153.02,
+    153.73,
+    146.55,
+    147.93,
+    5156330
+   ],
+   [
+    1777469400,
+    146,
+    148.78,
+    143.09,
+    147.75,
+    3373206
+   ],
+   [
+    1777555800,
+    146.85,
+    150.2,
+    143.39,
+    147.23,
+    9383433
+   ],
+   [
+    1777642200,
+    165.51,
+    173,
+    156.49,
+    166.48,
+    14252200
+   ],
+   [
+    1777901400,
+    170.08,
+    175.29,
+    164.65,
+    169.07,
+    6091958
+   ],
+   [
+    1777987800,
+    171,
+    177.13,
+    167.62,
+    171.63,
+    7080642
+   ],
+   [
+    1778074200,
+    172.025,
+    172.65,
+    162.55,
+    166.56,
+    7179755
+   ],
+   [
+    1778160600,
+    168.5,
+    169.1,
+    159.6,
+    163.95,
+    5444650
+   ],
+   [
+    1778247000,
+    162.62,
+    162.9,
+    155.2101,
+    155.8,
+    5778954
+   ],
+   [
+    1778506200,
+    153.5,
+    162.45,
+    153.5,
+    159.51,
+    5077727
+   ],
+   [
+    1778592600,
+    159.3,
+    161.04,
+    150.32,
+    152.35,
+    4698065
+   ],
+   [
+    1778679000,
+    152,
+    154.7,
+    148.5,
+    154.12,
+    4151093
+   ],
+   [
+    1778765400,
+    155.775,
+    157.23,
+    149.0301,
+    156.31,
+    3265989
+   ],
+   [
+    1778851800,
+    153.55,
+    159.16,
+    153.14,
+    158.17,
+    3340033
+   ],
+   [
+    1779111000,
+    157,
+    160.98,
+    153.5701,
+    159.11,
+    3457184
+   ],
+   [
+    1779197400,
+    158.23,
+    161.49,
+    154.15,
+    154.88,
+    4080695
+   ],
+   [
+    1779283800,
+    154.02,
+    154.7599,
+    143.91,
+    146.72,
+    10395714
+   ],
+   [
+    1779370200,
+    144.31,
+    153.45,
+    144.1,
+    150.04,
+    3494463
+   ],
+   [
+    1779456600,
+    145.23,
+    145.795,
+    140.67,
+    141.67,
+    7849884
+   ],
+   [
+    1779802200,
+    143.495,
+    145.89,
+    139.55,
+    144.64,
+    5398443
+   ],
+   [
+    1779888600,
+    144.5,
+    158.551377,
+    144.24,
+    154.19,
+    5704894
+   ],
+   [
+    1779975000,
+    155.01,
+    167.72,
+    151.66,
+    167.69,
+    5726049
+   ],
+   [
+    1780061400,
+    168.705,
+    176.69,
+    166.49,
+    176,
+    9360119
+   ],
+   [
+    1780320600,
+    179.9,
+    182.645,
+    174.85,
+    177.85,
+    5794886
+   ],
+   [
+    1780407000,
+    174.52,
+    175.75,
+    166.66,
+    169.13,
+    4316517
+   ],
+   [
+    1780493400,
+    167,
+    170.49,
+    159.11,
+    169.49,
+    3399142
+   ],
+   [
+    1780579800,
+    170.3999,
+    187.34,
+    169.81,
+    183.91,
+    7380981
+   ],
+   [
+    1780666200,
+    182.18,
+    186.4499,
+    167.04,
+    173.45,
+    5965647
+   ],
+   [
+    1780925400,
+    171.51,
+    173.45,
+    166.16,
+    171.13,
+    3031435
+   ],
+   [
+    1781011800,
+    178.55,
+    183.12,
+    166.9,
+    178.11,
+    5237658
+   ],
+   [
+    1781098200,
+    174.45,
+    179.8,
+    170.8,
+    172.21,
+    3235173
+   ],
+   [
+    1781184600,
+    168.7,
+    174,
+    163.77,
+    173.26,
+    3207924
+   ],
+   [
+    1781271000,
+    172.49,
+    173,
+    158.36,
+    162.1,
+    5767960
+   ],
+   [
+    1781530200,
+    168.81,
+    182,
+    167.905,
+    181.88,
+    4843966
+   ],
+   [
+    1781616600,
+    181.95,
+    182.41,
+    174.721,
+    175.39,
+    3562101
+   ],
+   [
+    1781703000,
+    174.41,
+    175.4094,
+    165.95,
+    165.95,
+    4405012
+   ],
+   [
+    1781789400,
+    169,
+    176.22,
+    165.88,
+    174.96,
+    5337416
+   ],
+   [
+    1782135000,
+    171.86,
+    182.3,
+    167.01,
+    170.44,
+    4386396
+   ],
+   [
+    1782221400,
+    167,
+    174,
+    164.67,
+    165.63,
+    3364922
+   ],
+   [
+    1782307800,
+    164.7,
+    167.7,
+    157.27,
+    160.72,
+    4166337
+   ],
+   [
+    1782394200,
+    160.35,
+    160.35,
+    152.65,
+    158.02,
+    2783047
+   ],
+   [
+    1782480600,
+    156.62,
+    169.02,
+    155.7,
+    166.94,
+    6325811
+   ],
+   [
+    1782739800,
+    168.29,
+    176.35,
+    166.6,
+    174.39,
+    3132761
+   ],
+   [
+    1782826200,
+    172.6,
+    175.38,
+    169.75,
+    173.58,
+    2477773
+   ],
+   [
+    1782912600,
+    175.01,
+    201.16,
+    175.01,
+    197.76,
+    8763460
+   ],
+   [
+    1782999000,
+    194.01,
+    198.7199,
+    184.38,
+    194.67,
+    4469802
+   ],
+   [
+    1783344600,
+    197.96,
+    207.54,
+    196.44,
+    200.86,
+    5568881
+   ],
+   [
+    1783431000,
+    200.83,
+    206.4899,
+    198.8118,
+    199.44,
+    4133928
+   ],
+   [
+    1783517400,
+    195.63,
+    199.19,
+    189.33,
+    195.31,
+    2823751
+   ],
+   [
+    1783603800,
+    193.01,
+    200.85,
+    189.64,
+    200.31,
+    2248683
+   ],
+   [
+    1783690200,
+    205.8,
+    208.05,
+    192.61,
+    195.34,
+    3756482
+   ],
+   [
+    1783949400,
+    199,
+    204.065,
+    193.88,
+    200.93,
+    4372093
+   ],
+   [
+    1784035800,
+    197.18,
+    204.89,
+    197.18,
+    203.27,
+    2433304
+   ],
+   [
+    1784122200,
+    204.61,
+    207,
+    189.75,
+    198.03,
+    4070498
+   ],
+   [
+    1784208600,
+    199.69,
+    200.32,
+    184.62,
+    185.26,
+    3758329
+   ],
+   [
+    1784295000,
+    181.54,
+    184.95,
+    173.71,
+    181.18,
+    3327326
+   ],
+   [
+    1784554200,
+    179,
+    187.43,
+    174.46,
+    181.64,
+    4055443
+   ],
+   [
+    1784640600,
+    181.5,
+    186.99,
+    178,
+    185.84,
+    2602790
+   ],
+   [
+    1784727000,
+    172.9,
+    174,
+    166,
+    170.38,
+    8986993
+   ],
+   [
+    1784813400,
+    174.42,
+    179.283,
+    168.285,
+    168.78,
+    3842575
+   ],
+   [
+    1784899800,
+    169.5,
+    173.1999,
+    165.55,
+    168.73,
+    3539598
+   ],
+   [
+    1785159000,
+    173.335,
+    183.8823,
+    172.73,
+    179.23,
+    4263859
+   ],
+   [
+    1785245400,
+    179.25,
+    180.8,
+    173.61,
+    178.44,
+    2898108
+   ],
+   [
+    1785331800,
+    181.94,
+    185.9099,
+    176.3251,
+    177.99,
+    4231276
+   ],
+   [
+    1785418200,
+    180,
+    182.42,
+    175,
+    178.04,
+    11864896
+   ],
+   [
+    1785504600,
+    147.7,
+    151.38,
+    135.2223,
+    140.67,
+    29916722
+   ],
+   [
+    1785763800,
+    141.9,
+    157.7195,
+    140.0501,
+    154.71,
+    10648269
+   ],
+   [
+    1785850200,
+    153.62,
+    162.82,
+    152.78,
+    159.97,
+    6155487
+   ],
+   [
+    1785936600,
+    159.28,
+    160.79,
+    153.5,
+    155.26,
+    4169310
+   ],
+   [
+    1786023000,
+    150.94,
+    155.27,
+    149.51,
+    150.87,
+    3466403
+   ],
+   [
+    1786109400,
+    153.3,
+    163.9,
+    153.22,
+    161.7,
+    4509577
+   ],
+   [
+    1786368600,
+    161.49,
+    163.24,
+    157.65,
+    158.72,
+    3101668
+   ],
+   [
+    1786455000,
+    158,
+    161.98,
+    155.62,
+    156.19,
+    2735440
+   ],
+   [
+    1786541400,
+    157.64,
+    158,
+    152.0101,
+    153.45,
+    3318575
+   ],
+   [
+    1786627800,
+    154.51,
+    159.29,
+    152.67,
+    158.12,
+    4658023
+   ],
+   [
+    1786714200,
+    175.78,
+    184.284,
+    174,
+    178.09,
+    21500412
+   ],
+   [
+    1786973400,
+    177.51,
+    178.34,
+    164.18,
+    164.5,
+    37846236
+   ],
+   [
+    1787059800,
+    166.1,
+    167.54,
+    157.45,
+    158.25,
+    7447327
+   ],
+   [
+    1787146200,
+    156.66,
+    158.25,
+    151.367,
+    151.71,
+    8157153
+   ],
+   [
+    1787232600,
+    149.61,
+    150.77,
+    144.05,
+    150.31,
+    7672007
+   ],
+   [
+    1787319000,
+    151.79,
+    155.3,
+    150.0381,
+    153.29,
+    4554891
+   ],
+   [
+    1787578200,
+    150.01,
+    154.4,
+    149.2,
+    152.7,
+    3530314
+   ],
+   [
+    1787664600,
+    153.49,
+    162.625,
+    152.77,
+    162.45,
+    4386581
+   ],
+   [
+    1787751000,
+    161,
+    165.91,
+    155.27,
+    155.36,
+    3687227
+   ],
+   [
+    1787837400,
+    155.76,
+    158.99,
+    153.5,
+    153.95,
+    2716403
+   ],
+   [
+    1787923800,
+    152.25,
+    158.86,
+    152.0565,
+    153,
+    2756736
+   ],
+   [
+    1788183000,
+    151.32,
+    151.9418,
+    146.62,
+    147.81,
+    3864821
+   ],
+   [
+    1788269400,
+    144.79,
+    147.8625,
+    143.8,
+    144.64,
+    3799133
+   ],
+   [
+    1788355800,
+    144.02,
+    158.27,
+    143.47,
+    158.1,
+    6237700
+   ],
+   [
+    1788442200,
+    159.26,
+    162.5,
+    154.6305,
+    155.99,
+    4036001
+   ],
+   [
+    1788528600,
+    155.74,
+    156.49,
+    152.35,
+    154.46,
+    2834665
+   ],
+   [
+    1788874200,
+    155.01,
+    156.6,
+    148.46,
+    149.38,
+    5017908
+   ],
+   [
+    1788960600,
+    148.64,
+    149.215,
+    145.1663,
+    146.44,
+    4820395
+   ],
+   [
+    1789047000,
+    146.34,
+    156.9499,
+    144.8,
+    155.34,
+    5813363
+   ],
+   [
+    1789133400,
+    157.55,
+    159.4999,
+    154.61,
+    157.77,
+    3196541
+   ],
+   [
+    1789392600,
+    160,
+    166.18,
+    157.11,
+    162.38,
+    4553745
+   ],
+   [
+    1789479000,
+    157.9,
+    164.16,
+    157.3053,
+    159.63,
+    5093147
+   ],
+   [
+    1789565400,
+    160.62,
+    162.04,
+    156.1601,
+    157.6,
+    2907225
+   ],
+   [
+    1789651800,
+    154.71,
+    156.5299,
+    149.21,
+    152.83,
+    5751110
+   ],
+   [
+    1789738200,
+    152.69,
+    154.1,
+    150.2,
+    150.85,
+    13897539
+   ],
+   [
+    1789997400,
+    152.67,
+    160.35,
+    151.74,
+    158.73,
+    5464335
+   ],
+   [
+    1790083800,
+    161.28,
+    161.67,
+    152.33,
+    155.67,
+    4258708
+   ],
+   [
+    1790170200,
+    154.01,
+    154.94,
+    147.77,
+    151.98,
+    4576417
+   ],
+   [
+    1790256600,
+    151.5,
+    153.88,
+    150.2,
+    152.72,
+    3262609
+   ],
+   [
+    1790343000,
+    152.73,
+    154.76,
+    149.82,
+    149.84,
+    2879230
+   ],
+   [
+    1790602200,
+    149,
+    149.29,
+    143.08,
+    143.08,
+    4339871
+   ],
+   [
+    1790688600,
+    144.95,
+    147.55,
+    141.3217,
+    145.36,
+    4988528
+   ],
+   [
+    1790775000,
+    147.48,
+    151.8899,
+    142.42,
+    142.44,
+    4906704
+   ],
+   [
+    1790861400,
+    144.14,
+    150.225,
+    143.02,
+    149.53,
+    4108171
+   ],
+   [
+    1790947800,
+    149.775,
+    151.5,
+    144.8,
+    147.86,
+    3125951
+   ],
+   [
+    1791207000,
+    150.73,
+    152.85,
+    148.2435,
+    150.42,
+    5203377
+   ],
+   [
+    1791293400,
+    151.5,
+    151.5,
+    147.7801,
+    148.95,
+    3846272
+   ],
+   [
+    1791379800,
+    147.255,
+    154.52,
+    146.2486,
+    152.71,
+    2689893
+   ],
+   [
+    1791466200,
+    152.81,
+    157.3,
+    152,
+    156.47,
+    4577704
+   ],
+   [
+    1791552600,
+    161.06,
+    162.96,
+    158.32,
+    159.91,
+    5067158
+   ],
+   [
+    1791811800,
+    160.9,
+    162,
+    151.4201,
+    159.93,
+    5102400
+   ],
+   [
+    1791898200,
+    155.51,
+    164.18,
+    154.99,
+    155.29,
+    4927911
+   ],
+   [
+    1791984600,
+    154.15,
+    156.37,
+    148.46,
+    148.6,
+    3557188
+   ],
+   [
+    1792071000,
+    146.42,
+    159.66,
+    145.5101,
+    159.36,
+    4037550
+   ],
+   [
+    1792157400,
+    160,
+    164.94,
+    153.3242,
+    156.14,
+    3842497
+   ],
+   [
+    1792416600,
+    157.9,
+    158.8,
+    151.59,
+    155.14,
+    3410296
+   ],
+   [
+    1792503000,
+    155.14,
+    158.7599,
+    153.32,
+    155.65,
+    3037626
+   ],
+   [
+    1792589400,
+    156.49,
+    160.415,
+    152.81,
+    153.28,
+    3189160
+   ],
+   [
+    1792675800,
+    151.54,
+    152.46,
+    147.77,
+    150.26,
+    3298955
+   ],
+   [
+    1792762200,
+    148.01,
+    149.4999,
+    143.92,
+    144.25,
+    4070812
+   ],
+   [
+    1793021400,
+    144.25,
+    144.5499,
+    133.33,
+    138.45,
+    7884346
+   ],
+   [
+    1793107800,
+    138.39,
+    140.979,
+    135.07,
+    136.46,
+    4626407
+   ],
+   [
+    1793194200,
+    135.25,
+    138.155,
+    133.95,
+    134.7,
+    5378098
+   ],
+   [
+    1793280600,
+    129.95,
+    131.89,
+    126.37,
+    129.6,
+    17872159
+   ],
+   [
+    1793367000,
+    100.25,
+    101.98,
+    89.28,
+    91.73,
+    33411609
+   ],
+   [
+    1793629800,
+    92.21,
+    95.82,
+    90.5,
+    90.97,
+    11807787
+   ],
+   [
+    1793716200,
+    92.11,
+    96.21,
+    91.64,
+    96.15,
+    7914501
+   ],
+   [
+    1793802600,
+    97.9,
+    104.55,
+    97.78,
+    101.89,
+    8274830
+   ],
+   [
+    1793889000,
+    101.63,
+    101.72,
+    91.2,
+    93.81,
+    8310752
+   ],
+   [
+    1793975400,
+    95.11,
+    96.81,
+    93.5,
+    95.1,
+    6295330
+   ],
+   [
+    1794234600,
+    95.1,
+    101.405,
+    94.1001,
+    100.79,
+    5879937
+   ],
+   [
+    1794321000,
+    98.91,
+    102.325,
+    95.08,
+    98.67,
+    5468243
+   ],
+   [
+    1794407400,
+    100.73,
+    106.38,
+    99.6501,
+    105.66,
+    4959391
+   ],
+   [
+    1794493800,
+    101.27,
+    103.2824,
+    98.51,
+    99.55,
+    5824416
+   ],
+   [
+    1794580200,
+    98.75,
+    100.59,
+    97.98,
+    98.45,
+    3272144
+   ]
+  ]
+ },
+ "plotValues": {
+  "fields": [
+   "time",
+   "plot_0",
+   "plot_1",
+   "plot_2"
+  ],
+  "rows": [
+   [
+    1711027800,
+    null,
+    0,
+    0
+   ],
+   [
+    1711114200,
+    null,
+    0,
+    0
+   ],
+   [
+    1711373400,
+    null,
+    0,
+    0
+   ],
+   [
+    1711459800,
+    956294400,
+    1,
+    0
+   ],
+   [
+    1711546200,
+    null,
+    0,
+    0
+   ],
+   [
+    1711632600,
+    951068572,
+    0,
+    1
+   ],
+   [
+    1711978200,
+    951068572,
+    0,
+    0
+   ],
+   [
+    1712064600,
+    951068572,
+    0,
+    0
+   ],
+   [
+    1712151000,
+    951068572,
+    0,
+    0
+   ],
+   [
+    1712237400,
+    951068572,
+    0,
+    0
+   ],
+   [
+    1712323800,
+    951068572,
+    0,
+    0
+   ],
+   [
+    1712583000,
+    951068572,
+    0,
+    0
+   ],
+   [
+    1712669400,
+    951068572,
+    0,
+    0
+   ],
+   [
+    1712755800,
+    951068572,
+    0,
+    1
+   ],
+   [
+    1712842200,
+    951068572,
+    0,
+    0
+   ],
+   [
+    1712928600,
+    951068572,
+    0,
+    0
+   ],
+   [
+    1713187800,
+    951068572,
+    0,
+    0
+   ],
+   [
+    1713274200,
+    951068572,
+    0,
+    0
+   ],
+   [
+    1713360600,
+    951068572,
+    0,
+    0
+   ],
+   [
+    1713447000,
+    951068572,
+    0,
+    0
+   ],
+   [
+    1713533400,
+    951068572,
+    0,
+    0
+   ],
+   [
+    1713792600,
+    951068572,
+    0,
+    0
+   ],
+   [
+    1713879000,
+    951068572,
+    0,
+    0
+   ],
+   [
+    1713965400,
+    951068572,
+    0,
+    0
+   ],
+   [
+    1714051800,
+    951068572,
+    0,
+    0
+   ],
+   [
+    1714138200,
+    951068572,
+    0,
+    0
+   ],
+   [
+    1714397400,
+    953648718,
+    1,
+    0
+   ],
+   [
+    1714483800,
+    951068572,
+    0,
+    0
+   ],
+   [
+    1714570200,
+    951068572,
+    0,
+    0
+   ],
+   [
+    1714656600,
+    951068572,
+    0,
+    0
+   ],
+   [
+    1714743000,
+    951068572,
+    0,
+    0
+   ],
+   [
+    1715002200,
+    951068572,
+    0,
+    0
+   ],
+   [
+    1715088600,
+    951068572,
+    0,
+    0
+   ],
+   [
+    1715175000,
+    951068572,
+    0,
+    0
+   ],
+   [
+    1715261400,
+    951068572,
+    0,
+    0
+   ],
+   [
+    1715347800,
+    951068572,
+    0,
+    0
+   ],
+   [
+    1715607000,
+    null,
+    0,
+    0
+   ],
+   [
+    1715693400,
+    956294400,
+    1,
+    0
+   ],
+   [
+    1715779800,
+    null,
+    0,
+    0
+   ],
+   [
+    1715866200,
+    null,
+    0,
+    0
+   ],
+   [
+    1715952600,
+    null,
+    0,
+    0
+   ],
+   [
+    1716211800,
+    null,
+    0,
+    0
+   ],
+   [
+    1716298200,
+    null,
+    0,
+    0
+   ],
+   [
+    1716384600,
+    null,
+    0,
+    0
+   ],
+   [
+    1716471000,
+    951068572,
+    0,
+    1
+   ],
+   [
+    1716557400,
+    951068572,
+    0,
+    0
+   ],
+   [
+    1716903000,
+    null,
+    0,
+    0
+   ],
+   [
+    1716989400,
+    956294400,
+    1,
+    0
+   ],
+   [
+    1717075800,
+    null,
+    0,
+    0
+   ],
+   [
+    1717162200,
+    null,
+    0,
+    0
+   ],
+   [
+    1717421400,
+    null,
+    0,
+    0
+   ],
+   [
+    1717507800,
+    null,
+    0,
+    0
+   ],
+   [
+    1717594200,
+    null,
+    0,
+    0
+   ],
+   [
+    1717680600,
+    956294400,
+    1,
+    0
+   ],
+   [
+    1717767000,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1718026200,
+    null,
+    0,
+    0
+   ],
+   [
+    1718112600,
+    null,
+    0,
+    0
+   ],
+   [
+    1718199000,
+    956294400,
+    1,
+    0
+   ],
+   [
+    1718285400,
+    956294400,
+    1,
+    0
+   ],
+   [
+    1718371800,
+    null,
+    0,
+    0
+   ],
+   [
+    1718631000,
+    951068572,
+    0,
+    1
+   ],
+   [
+    1718717400,
+    null,
+    0,
+    0
+   ],
+   [
+    1718890200,
+    null,
+    0,
+    0
+   ],
+   [
+    1718976600,
+    null,
+    0,
+    0
+   ],
+   [
+    1719235800,
+    null,
+    0,
+    0
+   ],
+   [
+    1719322200,
+    null,
+    0,
+    0
+   ],
+   [
+    1719408600,
+    956294400,
+    1,
+    0
+   ],
+   [
+    1719495000,
+    956294400,
+    1,
+    0
+   ],
+   [
+    1719581400,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1719840600,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1719927000,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1720013400,
+    956294400,
+    1,
+    0
+   ],
+   [
+    1720186200,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1720445400,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1720531800,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1720618200,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1720704600,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1720791000,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1721050200,
+    956294400,
+    1,
+    0
+   ],
+   [
+    1721136600,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1721223000,
+    956162051,
+    0,
+    1
+   ],
+   [
+    1721309400,
+    956162051,
+    0,
+    0
+   ],
+   [
+    1721395800,
+    956162051,
+    0,
+    0
+   ],
+   [
+    1721655000,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1721741400,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1721827800,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1721914200,
+    951068572,
+    0,
+    1
+   ],
+   [
+    1722000600,
+    951068572,
+    0,
+    0
+   ],
+   [
+    1722259800,
+    951068572,
+    0,
+    0
+   ],
+   [
+    1722346200,
+    951068572,
+    0,
+    1
+   ],
+   [
+    1722432600,
+    951068572,
+    0,
+    0
+   ],
+   [
+    1722519000,
+    null,
+    0,
+    0
+   ],
+   [
+    1722605400,
+    951068572,
+    0,
+    1
+   ],
+   [
+    1722864600,
+    null,
+    0,
+    0
+   ],
+   [
+    1722951000,
+    null,
+    0,
+    0
+   ],
+   [
+    1723037400,
+    null,
+    0,
+    0
+   ],
+   [
+    1723123800,
+    null,
+    0,
+    0
+   ],
+   [
+    1723210200,
+    null,
+    0,
+    0
+   ],
+   [
+    1723469400,
+    null,
+    0,
+    0
+   ],
+   [
+    1723555800,
+    null,
+    0,
+    0
+   ],
+   [
+    1723642200,
+    956294400,
+    1,
+    0
+   ],
+   [
+    1723728600,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1723815000,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1724074200,
+    null,
+    0,
+    0
+   ],
+   [
+    1724160600,
+    null,
+    0,
+    0
+   ],
+   [
+    1724247000,
+    null,
+    0,
+    0
+   ],
+   [
+    1724333400,
+    956294400,
+    1,
+    0
+   ],
+   [
+    1724419800,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1724679000,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1724765400,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1724851800,
+    null,
+    0,
+    0
+   ],
+   [
+    1724938200,
+    null,
+    0,
+    0
+   ],
+   [
+    1725024600,
+    956294400,
+    1,
+    0
+   ],
+   [
+    1725370200,
+    null,
+    0,
+    0
+   ],
+   [
+    1725456600,
+    null,
+    0,
+    0
+   ],
+   [
+    1725543000,
+    null,
+    0,
+    0
+   ],
+   [
+    1725629400,
+    null,
+    0,
+    0
+   ],
+   [
+    1725888600,
+    null,
+    0,
+    0
+   ],
+   [
+    1725975000,
+    null,
+    0,
+    0
+   ],
+   [
+    1726061400,
+    null,
+    0,
+    0
+   ],
+   [
+    1726147800,
+    956294400,
+    1,
+    0
+   ],
+   [
+    1726234200,
+    null,
+    0,
+    0
+   ],
+   [
+    1726493400,
+    null,
+    0,
+    0
+   ],
+   [
+    1726579800,
+    null,
+    0,
+    0
+   ],
+   [
+    1726666200,
+    956294400,
+    1,
+    0
+   ],
+   [
+    1726752600,
+    956294400,
+    1,
+    0
+   ],
+   [
+    1726839000,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1727098200,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1727184600,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1727271000,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1727357400,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1727443800,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1727703000,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1727789400,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1727875800,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1727962200,
+    956294400,
+    1,
+    0
+   ],
+   [
+    1728048600,
+    956162051,
+    1,
+    0
+   ],
+   [
+    1728307800,
+    956294400,
+    1,
+    0
+   ],
+   [
+    1728394200,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1728480600,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1728567000,
+    956162051,
+    0,
+    0
+   ],
+   [
+    1728653400,
+    956162051,
+    0,
+    0
+   ],
+   [
+    1728912600,
+    956294400,
+    1,
+    0
+   ],
+   [
+    1728999000,
+    956294400,
+    1,
+    0
+   ],
+   [
+    1729085400,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1729171800,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1729258200,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1729517400,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1729603800,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1729690200,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1729776600,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1729863000,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1730122200,
+    956294400,
+    1,
+    0
+   ],
+   [
+    1730208600,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1730295000,
+    956294400,
+    1,
+    0
+   ],
+   [
+    1730381400,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1730467800,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1730730600,
+    956162051,
+    0,
+    1
+   ],
+   [
+    1730817000,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1730903400,
+    956294400,
+    1,
+    0
+   ],
+   [
+    1730989800,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1731076200,
+    956294400,
+    1,
+    0
+   ],
+   [
+    1731335400,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1731421800,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1731508200,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1731594600,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1731681000,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1731940200,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1732026600,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1732113000,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1732199400,
+    956294400,
+    1,
+    0
+   ],
+   [
+    1732285800,
+    956294400,
+    1,
+    0
+   ],
+   [
+    1732545000,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1732631400,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1732717800,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1732890600,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1733149800,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1733236200,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1733322600,
+    956294400,
+    1,
+    0
+   ],
+   [
+    1733409000,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1733495400,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1733754600,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1733841000,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1733927400,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1734013800,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1734100200,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1734359400,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1734445800,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1734532200,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1734618600,
+    956294400,
+    0,
+    1
+   ],
+   [
+    1734705000,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1734964200,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1735050600,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1735223400,
+    956294400,
+    1,
+    0
+   ],
+   [
+    1735309800,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1735569000,
+    956294400,
+    0,
+    1
+   ],
+   [
+    1735655400,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1735828200,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1735914600,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1736173800,
+    956294400,
+    1,
+    0
+   ],
+   [
+    1736260200,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1736346600,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1736519400,
+    956294400,
+    0,
+    1
+   ],
+   [
+    1736778600,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1736865000,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1736951400,
+    956294400,
+    1,
+    0
+   ],
+   [
+    1737037800,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1737124200,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1737469800,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1737556200,
+    956294400,
+    1,
+    0
+   ],
+   [
+    1737642600,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1737729000,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1737988200,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1738074600,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1738161000,
+    956294400,
+    1,
+    0
+   ],
+   [
+    1738247400,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1738333800,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1738593000,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1738679400,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1738765800,
+    956294400,
+    1,
+    0
+   ],
+   [
+    1738852200,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1738938600,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1739197800,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1739284200,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1739370600,
+    955500822,
+    0,
+    1
+   ],
+   [
+    1739457000,
+    955500822,
+    0,
+    0
+   ],
+   [
+    1739543400,
+    956162051,
+    0,
+    1
+   ],
+   [
+    1739889000,
+    956162051,
+    0,
+    0
+   ],
+   [
+    1739975400,
+    955169825,
+    0,
+    1
+   ],
+   [
+    1740061800,
+    955169825,
+    0,
+    0
+   ],
+   [
+    1740148200,
+    955169825,
+    0,
+    1
+   ],
+   [
+    1740407400,
+    954310201,
+    0,
+    1
+   ],
+   [
+    1740493800,
+    955169825,
+    0,
+    0
+   ],
+   [
+    1740580200,
+    955169825,
+    0,
+    0
+   ],
+   [
+    1740666600,
+    955169825,
+    0,
+    0
+   ],
+   [
+    1740753000,
+    955169825,
+    0,
+    0
+   ],
+   [
+    1741012200,
+    955169825,
+    0,
+    0
+   ],
+   [
+    1741098600,
+    955169825,
+    0,
+    0
+   ],
+   [
+    1741185000,
+    955169825,
+    0,
+    0
+   ],
+   [
+    1741271400,
+    955169825,
+    0,
+    0
+   ],
+   [
+    1741357800,
+    954310201,
+    0,
+    1
+   ],
+   [
+    1741613400,
+    953648718,
+    0,
+    0
+   ],
+   [
+    1741699800,
+    952986978,
+    0,
+    1
+   ],
+   [
+    1741786200,
+    953648718,
+    0,
+    0
+   ],
+   [
+    1741872600,
+    953648718,
+    0,
+    0
+   ],
+   [
+    1741959000,
+    953648718,
+    0,
+    0
+   ],
+   [
+    1742218200,
+    953648718,
+    0,
+    0
+   ],
+   [
+    1742304600,
+    954310201,
+    0,
+    1
+   ],
+   [
+    1742391000,
+    953648718,
+    0,
+    1
+   ],
+   [
+    1742477400,
+    953648718,
+    0,
+    0
+   ],
+   [
+    1742563800,
+    954310201,
+    0,
+    0
+   ],
+   [
+    1742823000,
+    954310201,
+    1,
+    0
+   ],
+   [
+    1742909400,
+    954310201,
+    0,
+    0
+   ],
+   [
+    1742995800,
+    953648718,
+    0,
+    0
+   ],
+   [
+    1743082200,
+    952986978,
+    0,
+    1
+   ],
+   [
+    1743168600,
+    951597962,
+    0,
+    1
+   ],
+   [
+    1743427800,
+    951135128,
+    0,
+    1
+   ],
+   [
+    1743514200,
+    951597962,
+    0,
+    0
+   ],
+   [
+    1743600600,
+    952127354,
+    0,
+    0
+   ],
+   [
+    1743687000,
+    952986978,
+    0,
+    1
+   ],
+   [
+    1743773400,
+    952986978,
+    0,
+    0
+   ],
+   [
+    1744032600,
+    952986978,
+    0,
+    0
+   ],
+   [
+    1744119000,
+    952986978,
+    0,
+    0
+   ],
+   [
+    1744205400,
+    952127354,
+    0,
+    0
+   ],
+   [
+    1744291800,
+    952986978,
+    1,
+    0
+   ],
+   [
+    1744378200,
+    951135128,
+    0,
+    0
+   ],
+   [
+    1744637400,
+    951135128,
+    0,
+    0
+   ],
+   [
+    1744723800,
+    951135128,
+    0,
+    0
+   ],
+   [
+    1744810200,
+    951068572,
+    0,
+    1
+   ],
+   [
+    1744896600,
+    951135128,
+    0,
+    0
+   ],
+   [
+    1745242200,
+    951135128,
+    0,
+    0
+   ],
+   [
+    1745328600,
+    951135128,
+    0,
+    0
+   ],
+   [
+    1745415000,
+    952127354,
+    1,
+    0
+   ],
+   [
+    1745501400,
+    952127354,
+    0,
+    0
+   ],
+   [
+    1745587800,
+    953648718,
+    1,
+    0
+   ],
+   [
+    1745847000,
+    953648718,
+    0,
+    0
+   ],
+   [
+    1745933400,
+    952788838,
+    0,
+    0
+   ],
+   [
+    1746019800,
+    952590189,
+    0,
+    0
+   ],
+   [
+    1746106200,
+    952590189,
+    0,
+    0
+   ],
+   [
+    1746192600,
+    952590189,
+    0,
+    0
+   ],
+   [
+    1746451800,
+    952590189,
+    0,
+    0
+   ],
+   [
+    1746538200,
+    952590189,
+    0,
+    0
+   ],
+   [
+    1746624600,
+    951135128,
+    0,
+    0
+   ],
+   [
+    1746711000,
+    951068572,
+    0,
+    0
+   ],
+   [
+    1746797400,
+    951068572,
+    0,
+    0
+   ],
+   [
+    1747056600,
+    951068572,
+    0,
+    0
+   ],
+   [
+    1747143000,
+    951068572,
+    0,
+    0
+   ],
+   [
+    1747229400,
+    951068572,
+    0,
+    0
+   ],
+   [
+    1747315800,
+    951068572,
+    0,
+    0
+   ],
+   [
+    1747402200,
+    951068572,
+    0,
+    0
+   ],
+   [
+    1747661400,
+    951068572,
+    0,
+    1
+   ],
+   [
+    1747747800,
+    951068572,
+    0,
+    0
+   ],
+   [
+    1747834200,
+    951068572,
+    0,
+    1
+   ],
+   [
+    1747920600,
+    951068572,
+    0,
+    0
+   ],
+   [
+    1748007000,
+    951068572,
+    0,
+    0
+   ],
+   [
+    1748352600,
+    951068572,
+    0,
+    0
+   ],
+   [
+    1748439000,
+    951068572,
+    1,
+    0
+   ],
+   [
+    1748525400,
+    952590189,
+    1,
+    0
+   ],
+   [
+    1748611800,
+    951135128,
+    0,
+    0
+   ],
+   [
+    1748871000,
+    951135128,
+    0,
+    0
+   ],
+   [
+    1748957400,
+    951135128,
+    0,
+    0
+   ],
+   [
+    1749043800,
+    951135128,
+    0,
+    0
+   ],
+   [
+    1749130200,
+    951135128,
+    0,
+    0
+   ],
+   [
+    1749216600,
+    951135128,
+    0,
+    0
+   ],
+   [
+    1749475800,
+    951135128,
+    0,
+    0
+   ],
+   [
+    1749562200,
+    951135128,
+    0,
+    0
+   ],
+   [
+    1749648600,
+    951135128,
+    0,
+    0
+   ],
+   [
+    1749735000,
+    951135128,
+    0,
+    0
+   ],
+   [
+    1749821400,
+    951135128,
+    0,
+    0
+   ],
+   [
+    1750080600,
+    952590189,
+    1,
+    0
+   ],
+   [
+    1750167000,
+    952590189,
+    0,
+    0
+   ],
+   [
+    1750253400,
+    953648718,
+    1,
+    0
+   ],
+   [
+    1750426200,
+    953648718,
+    0,
+    0
+   ],
+   [
+    1750685400,
+    953648718,
+    0,
+    0
+   ],
+   [
+    1750771800,
+    953648718,
+    0,
+    0
+   ],
+   [
+    1750858200,
+    954706990,
+    0,
+    0
+   ],
+   [
+    1750944600,
+    954706990,
+    0,
+    0
+   ],
+   [
+    1751031000,
+    954706990,
+    0,
+    0
+   ],
+   [
+    1751290200,
+    954706990,
+    0,
+    0
+   ],
+   [
+    1751376600,
+    955500822,
+    1,
+    0
+   ],
+   [
+    1751463000,
+    955500822,
+    0,
+    0
+   ],
+   [
+    1751549400,
+    955500822,
+    0,
+    0
+   ],
+   [
+    1751895000,
+    955500822,
+    0,
+    0
+   ],
+   [
+    1751981400,
+    954706990,
+    0,
+    0
+   ],
+   [
+    1752067800,
+    953648718,
+    0,
+    1
+   ],
+   [
+    1752154200,
+    954706990,
+    0,
+    0
+   ],
+   [
+    1752240600,
+    954706990,
+    0,
+    0
+   ],
+   [
+    1752499800,
+    954706990,
+    0,
+    0
+   ],
+   [
+    1752586200,
+    954706990,
+    0,
+    0
+   ],
+   [
+    1752672600,
+    954706990,
+    0,
+    0
+   ],
+   [
+    1752759000,
+    954706990,
+    0,
+    0
+   ],
+   [
+    1752845400,
+    954706990,
+    0,
+    0
+   ],
+   [
+    1753104600,
+    954706990,
+    0,
+    0
+   ],
+   [
+    1753191000,
+    954706990,
+    0,
+    0
+   ],
+   [
+    1753277400,
+    954706990,
+    0,
+    0
+   ],
+   [
+    1753363800,
+    954706990,
+    0,
+    0
+   ],
+   [
+    1753450200,
+    954706990,
+    0,
+    0
+   ],
+   [
+    1753709400,
+    954706990,
+    0,
+    0
+   ],
+   [
+    1753795800,
+    954706990,
+    0,
+    0
+   ],
+   [
+    1753882200,
+    954706990,
+    0,
+    0
+   ],
+   [
+    1753968600,
+    955500822,
+    1,
+    0
+   ],
+   [
+    1754055000,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1754314200,
+    956294400,
+    1,
+    0
+   ],
+   [
+    1754400600,
+    956294400,
+    1,
+    0
+   ],
+   [
+    1754487000,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1754573400,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1754659800,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1754919000,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1755005400,
+    956294400,
+    1,
+    0
+   ],
+   [
+    1755091800,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1755178200,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1755264600,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1755523800,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1755610200,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1755696600,
+    956294400,
+    0,
+    1
+   ],
+   [
+    1755783000,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1755869400,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1756128600,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1756215000,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1756301400,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1756387800,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1756474200,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1756819800,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1756906200,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1756992600,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1757079000,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1757338200,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1757424600,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1757511000,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1757597400,
+    956294400,
+    1,
+    0
+   ],
+   [
+    1757683800,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1757943000,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1758029400,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1758115800,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1758202200,
+    956294400,
+    1,
+    0
+   ],
+   [
+    1758288600,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1758547800,
+    956294400,
+    0,
+    1
+   ],
+   [
+    1758634200,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1758720600,
+    956294400,
+    0,
+    1
+   ],
+   [
+    1758807000,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1758893400,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1759152600,
+    956294400,
+    1,
+    0
+   ],
+   [
+    1759239000,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1759325400,
+    956294400,
+    0,
+    1
+   ],
+   [
+    1759411800,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1759498200,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1759757400,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1759843800,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1759930200,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1760016600,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1760103000,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1760362200,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1760448600,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1760535000,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1760621400,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1760707800,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1760967000,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1761053400,
+    956294400,
+    1,
+    0
+   ],
+   [
+    1761139800,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1761226200,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1761312600,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1761571800,
+    956294400,
+    1,
+    0
+   ],
+   [
+    1761658200,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1761744600,
+    956294400,
+    0,
+    1
+   ],
+   [
+    1761831000,
+    955500822,
+    0,
+    1
+   ],
+   [
+    1761917400,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1762180200,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1762266600,
+    956162051,
+    0,
+    1
+   ],
+   [
+    1762353000,
+    956162051,
+    0,
+    0
+   ],
+   [
+    1762439400,
+    956162051,
+    0,
+    0
+   ],
+   [
+    1762525800,
+    956162051,
+    0,
+    0
+   ],
+   [
+    1762785000,
+    956294400,
+    1,
+    0
+   ],
+   [
+    1762871400,
+    956294400,
+    1,
+    0
+   ],
+   [
+    1762957800,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1763044200,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1763130600,
+    956294400,
+    0,
+    1
+   ],
+   [
+    1763389800,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1763476200,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1763562600,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1763649000,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1763735400,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1763994600,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1764081000,
+    956294400,
+    1,
+    0
+   ],
+   [
+    1764167400,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1764340200,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1764599400,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1764685800,
+    956294400,
+    1,
+    0
+   ],
+   [
+    1764772200,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1764858600,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1764945000,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1765204200,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1765290600,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1765377000,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1765463400,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1765549800,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1765809000,
+    956294400,
+    0,
+    1
+   ],
+   [
+    1765895400,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1765981800,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1766068200,
+    956029958,
+    1,
+    0
+   ],
+   [
+    1766154600,
+    956029958,
+    0,
+    0
+   ],
+   [
+    1766413800,
+    956029958,
+    0,
+    0
+   ],
+   [
+    1766500200,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1766586600,
+    956294400,
+    0,
+    1
+   ],
+   [
+    1766759400,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1767018600,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1767105000,
+    956294400,
+    1,
+    0
+   ],
+   [
+    1767191400,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1767364200,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1767623400,
+    956294400,
+    1,
+    0
+   ],
+   [
+    1767709800,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1767796200,
+    955103779,
+    1,
+    0
+   ],
+   [
+    1767882600,
+    955368474,
+    0,
+    0
+   ],
+   [
+    1767969000,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1768228200,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1768314600,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1768401000,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1768487400,
+    956294400,
+    0,
+    0
+   ],
+   [
+    1768573800,
+    956096005,
+    0,
+    1
+   ],
+   [
+    1768919400,
+    956096005,
+    0,
+    0
+   ],
+   [
+    1769005800,
+    956096005,
+    0,
+    0
+   ],
+   [
+    1769092200,
+    955302428,
+    0,
+    1
+   ],
+   [
+    1769178600,
+    956096005,
+    0,
+    0
+   ],
+   [
+    1769437800,
+    956096005,
+    0,
+    0
+   ],
+   [
+    1769524200,
+    955765518,
+    0,
+    1
+   ],
+   [
+    1769610600,
+    955765518,
+    0,
+    0
+   ],
+   [
+    1769697000,
+    955765518,
+    0,
+    0
+   ],
+   [
+    1769783400,
+    955765518,
+    0,
+    0
+   ],
+   [
+    1770042600,
+    955170080,
+    0,
+    1
+   ],
+   [
+    1770129000,
+    954773036,
+    0,
+    1
+   ],
+   [
+    1770215400,
+    953185883,
+    0,
+    1
+   ],
+   [
+    1770301800,
+    953185372,
+    0,
+    1
+   ],
+   [
+    1770388200,
+    953185372,
+    0,
+    0
+   ],
+   [
+    1770647400,
+    953251674,
+    0,
+    1
+   ],
+   [
+    1770733800,
+    953185372,
+    0,
+    0
+   ],
+   [
+    1770820200,
+    953185372,
+    0,
+    0
+   ],
+   [
+    1770906600,
+    953251929,
+    0,
+    1
+   ],
+   [
+    1770993000,
+    953185372,
+    0,
+    0
+   ],
+   [
+    1771338600,
+    953185372,
+    0,
+    0
+   ],
+   [
+    1771425000,
+    953185372,
+    0,
+    0
+   ],
+   [
+    1771511400,
+    953185372,
+    0,
+    0
+   ],
+   [
+    1771597800,
+    953185372,
+    0,
+    0
+   ],
+   [
+    1771857000,
+    953185372,
+    0,
+    0
+   ],
+   [
+    1771943400,
+    953185372,
+    0,
+    0
+   ],
+   [
+    1772029800,
+    953185372,
+    0,
+    0
+   ],
+   [
+    1772116200,
+    953185372,
+    0,
+    0
+   ],
+   [
+    1772202600,
+    953185372,
+    0,
+    0
+   ],
+   [
+    1772461800,
+    953185372,
+    0,
+    0
+   ],
+   [
+    1772548200,
+    953185372,
+    0,
+    0
+   ],
+   [
+    1772634600,
+    953185372,
+    0,
+    0
+   ],
+   [
+    1772721000,
+    953185372,
+    0,
+    0
+   ],
+   [
+    1772807400,
+    953251674,
+    0,
+    1
+   ],
+   [
+    1773063000,
+    953317975,
+    0,
+    1
+   ],
+   [
+    1773149400,
+    953185372,
+    0,
+    0
+   ],
+   [
+    1773235800,
+    953185372,
+    0,
+    0
+   ],
+   [
+    1773322200,
+    953185372,
+    0,
+    0
+   ],
+   [
+    1773408600,
+    953185372,
+    0,
+    0
+   ],
+   [
+    1773667800,
+    953185372,
+    0,
+    0
+   ],
+   [
+    1773754200,
+    953582416,
+    1,
+    0
+   ],
+   [
+    1773840600,
+    953781065,
+    1,
+    0
+   ],
+   [
+    1773927000,
+    953185372,
+    0,
+    0
+   ],
+   [
+    1774013400,
+    953185372,
+    0,
+    0
+   ],
+   [
+    1774272600,
+    953185372,
+    0,
+    0
+   ],
+   [
+    1774359000,
+    953185372,
+    0,
+    0
+   ],
+   [
+    1774445400,
+    953185372,
+    0,
+    0
+   ],
+   [
+    1774531800,
+    953185372,
+    0,
+    0
+   ],
+   [
+    1774618200,
+    952987233,
+    0,
+    1
+   ],
+   [
+    1774877400,
+    953185372,
+    0,
+    0
+   ],
+   [
+    1774963800,
+    953185372,
+    0,
+    0
+   ],
+   [
+    1775050200,
+    953450068,
+    1,
+    0
+   ],
+   [
+    1775136600,
+    953185372,
+    0,
+    0
+   ],
+   [
+    1775482200,
+    953185372,
+    0,
+    0
+   ],
+   [
+    1775568600,
+    953185372,
+    0,
+    0
+   ],
+   [
+    1775655000,
+    953516114,
+    1,
+    0
+   ],
+   [
+    1775741400,
+    953185372,
+    0,
+    0
+   ],
+   [
+    1775827800,
+    953185372,
+    0,
+    1
+   ],
+   [
+    1776087000,
+    953185372,
+    0,
+    0
+   ],
+   [
+    1776173400,
+    953516114,
+    1,
+    0
+   ],
+   [
+    1776259800,
+    953516114,
+    0,
+    0
+   ],
+   [
+    1776346200,
+    953648206,
+    1,
+    0
+   ],
+   [
+    1776432600,
+    953714764,
+    1,
+    0
+   ],
+   [
+    1776691800,
+    953648206,
+    0,
+    0
+   ],
+   [
+    1776778200,
+    953516114,
+    0,
+    0
+   ],
+   [
+    1776864600,
+    953516114,
+    0,
+    0
+   ],
+   [
+    1776951000,
+    953185372,
+    0,
+    0
+   ],
+   [
+    1777037400,
+    953053279,
+    0,
+    1
+   ],
+   [
+    1777296600,
+    953185372,
+    0,
+    0
+   ],
+   [
+    1777383000,
+    953185372,
+    0,
+    0
+   ],
+   [
+    1777469400,
+    953185627,
+    0,
+    1
+   ],
+   [
+    1777555800,
+    953185372,
+    0,
+    0
+   ],
+   [
+    1777642200,
+    953251418,
+    1,
+    0
+   ],
+   [
+    1777901400,
+    953251418,
+    0,
+    0
+   ],
+   [
+    1777987800,
+    953251418,
+    0,
+    0
+   ],
+   [
+    1778074200,
+    953251418,
+    0,
+    0
+   ],
+   [
+    1778160600,
+    953251418,
+    0,
+    0
+   ],
+   [
+    1778247000,
+    953185372,
+    0,
+    0
+   ],
+   [
+    1778506200,
+    953185372,
+    0,
+    0
+   ],
+   [
+    1778592600,
+    953185372,
+    0,
+    0
+   ],
+   [
+    1778679000,
+    953185372,
+    0,
+    0
+   ],
+   [
+    1778765400,
+    953185372,
+    0,
+    0
+   ],
+   [
+    1778851800,
+    953185372,
+    0,
+    0
+   ],
+   [
+    1779111000,
+    953185372,
+    0,
+    0
+   ],
+   [
+    1779197400,
+    953185372,
+    0,
+    0
+   ],
+   [
+    1779283800,
+    953185372,
+    0,
+    0
+   ],
+   [
+    1779370200,
+    953185372,
+    0,
+    1
+   ],
+   [
+    1779456600,
+    953185372,
+    0,
+    0
+   ],
+   [
+    1779802200,
+    953185372,
+    0,
+    0
+   ],
+   [
+    1779888600,
+    953185372,
+    0,
+    0
+   ],
+   [
+    1779975000,
+    953450068,
+    1,
+    0
+   ],
+   [
+    1780061400,
+    953714763,
+    1,
+    0
+   ],
+   [
+    1780320600,
+    953780554,
+    1,
+    0
+   ],
+   [
+    1780407000,
+    953847111,
+    0,
+    0
+   ],
+   [
+    1780493400,
+    953450068,
+    0,
+    1
+   ],
+   [
+    1780579800,
+    953582415,
+    0,
+    0
+   ],
+   [
+    1780666200,
+    953582415,
+    0,
+    0
+   ],
+   [
+    1780925400,
+    953582415,
+    0,
+    0
+   ],
+   [
+    1781011800,
+    953582415,
+    0,
+    0
+   ],
+   [
+    1781098200,
+    953582415,
+    0,
+    0
+   ],
+   [
+    1781184600,
+    953582415,
+    0,
+    0
+   ],
+   [
+    1781271000,
+    953582415,
+    0,
+    0
+   ],
+   [
+    1781530200,
+    953582415,
+    0,
+    0
+   ],
+   [
+    1781616600,
+    953979459,
+    1,
+    0
+   ],
+   [
+    1781703000,
+    953582415,
+    0,
+    0
+   ],
+   [
+    1781789400,
+    953582415,
+    0,
+    0
+   ],
+   [
+    1782135000,
+    953582415,
+    0,
+    0
+   ],
+   [
+    1782221400,
+    953582415,
+    0,
+    0
+   ],
+   [
+    1782307800,
+    953582415,
+    0,
+    0
+   ],
+   [
+    1782394200,
+    953714763,
+    0,
+    1
+   ],
+   [
+    1782480600,
+    953582415,
+    0,
+    0
+   ],
+   [
+    1782739800,
+    953714508,
+    1,
+    0
+   ],
+   [
+    1782826200,
+    953714763,
+    1,
+    0
+   ],
+   [
+    1782912600,
+    953714763,
+    0,
+    0
+   ],
+   [
+    1782999000,
+    953912902,
+    1,
+    0
+   ],
+   [
+    1783344600,
+    953979715,
+    0,
+    0
+   ],
+   [
+    1783431000,
+    953979715,
+    0,
+    0
+   ],
+   [
+    1783517400,
+    953979715,
+    0,
+    0
+   ],
+   [
+    1783603800,
+    953979715,
+    0,
+    0
+   ],
+   [
+    1783690200,
+    953979715,
+    0,
+    0
+   ],
+   [
+    1783949400,
+    953979715,
+    0,
+    0
+   ],
+   [
+    1784035800,
+    953979715,
+    0,
+    0
+   ],
+   [
+    1784122200,
+    953979715,
+    0,
+    0
+   ],
+   [
+    1784208600,
+    953979715,
+    0,
+    0
+   ],
+   [
+    1784295000,
+    953714508,
+    0,
+    1
+   ],
+   [
+    1784554200,
+    953846856,
+    0,
+    0
+   ],
+   [
+    1784640600,
+    953846856,
+    0,
+    0
+   ],
+   [
+    1784727000,
+    953714763,
+    0,
+    0
+   ],
+   [
+    1784813400,
+    953714763,
+    0,
+    0
+   ],
+   [
+    1784899800,
+    953714763,
+    0,
+    0
+   ],
+   [
+    1785159000,
+    953714763,
+    0,
+    0
+   ],
+   [
+    1785245400,
+    953714763,
+    0,
+    0
+   ],
+   [
+    1785331800,
+    953714763,
+    0,
+    0
+   ],
+   [
+    1785418200,
+    953714763,
+    0,
+    0
+   ],
+   [
+    1785504600,
+    952920676,
+    0,
+    0
+   ],
+   [
+    1785763800,
+    953053535,
+    0,
+    1
+   ],
+   [
+    1785850200,
+    953516114,
+    1,
+    0
+   ],
+   [
+    1785936600,
+    953516114,
+    0,
+    0
+   ],
+   [
+    1786023000,
+    952920676,
+    0,
+    0
+   ],
+   [
+    1786109400,
+    952920676,
+    0,
+    0
+   ],
+   [
+    1786368600,
+    953979459,
+    1,
+    0
+   ],
+   [
+    1786455000,
+    null,
+    0,
+    0
+   ],
+   [
+    1786541400,
+    null,
+    0,
+    0
+   ],
+   [
+    1786627800,
+    null,
+    0,
+    0
+   ],
+   [
+    1786714200,
+    954640689,
+    1,
+    0
+   ],
+   [
+    1786973400,
+    null,
+    0,
+    0
+   ],
+   [
+    1787059800,
+    952060798,
+    0,
+    1
+   ],
+   [
+    1787146200,
+    952590189,
+    0,
+    1
+   ],
+   [
+    1787232600,
+    952656490,
+    0,
+    1
+   ],
+   [
+    1787319000,
+    952590189,
+    0,
+    0
+   ],
+   [
+    1787578200,
+    952590189,
+    0,
+    0
+   ],
+   [
+    1787664600,
+    952060798,
+    0,
+    0
+   ],
+   [
+    1787751000,
+    953582160,
+    1,
+    0
+   ],
+   [
+    1787837400,
+    952060798,
+    0,
+    0
+   ],
+   [
+    1787923800,
+    952060798,
+    0,
+    0
+   ],
+   [
+    1788183000,
+    952854629,
+    0,
+    1
+   ],
+   [
+    1788269400,
+    952854629,
+    0,
+    0
+   ],
+   [
+    1788355800,
+    952060798,
+    0,
+    0
+   ],
+   [
+    1788442200,
+    953582415,
+    1,
+    0
+   ],
+   [
+    1788528600,
+    952060798,
+    0,
+    0
+   ],
+   [
+    1788874200,
+    952060798,
+    0,
+    0
+   ],
+   [
+    1788960600,
+    952524143,
+    0,
+    1
+   ],
+   [
+    1789047000,
+    952060798,
+    0,
+    0
+   ],
+   [
+    1789133400,
+    953185883,
+    1,
+    0
+   ],
+   [
+    1789392600,
+    953185883,
+    0,
+    0
+   ],
+   [
+    1789479000,
+    953185883,
+    0,
+    0
+   ],
+   [
+    1789565400,
+    953185883,
+    0,
+    0
+   ],
+   [
+    1789651800,
+    952524143,
+    0,
+    1
+   ],
+   [
+    1789738200,
+    952656235,
+    0,
+    1
+   ],
+   [
+    1789997400,
+    952060798,
+    0,
+    0
+   ],
+   [
+    1790083800,
+    952060798,
+    0,
+    0
+   ],
+   [
+    1790170200,
+    952060798,
+    0,
+    0
+   ],
+   [
+    1790256600,
+    952060798,
+    0,
+    0
+   ],
+   [
+    1790343000,
+    952060798,
+    0,
+    0
+   ],
+   [
+    1790602200,
+    952193145,
+    0,
+    1
+   ],
+   [
+    1790688600,
+    951664264,
+    0,
+    1
+   ],
+   [
+    1790775000,
+    952060798,
+    0,
+    0
+   ],
+   [
+    1790861400,
+    952060798,
+    0,
+    0
+   ],
+   [
+    1790947800,
+    952060798,
+    0,
+    0
+   ],
+   [
+    1791207000,
+    952060798,
+    0,
+    0
+   ],
+   [
+    1791293400,
+    952060798,
+    0,
+    0
+   ],
+   [
+    1791379800,
+    952060798,
+    0,
+    0
+   ],
+   [
+    1791466200,
+    953185627,
+    1,
+    0
+   ],
+   [
+    1791552600,
+    953516625,
+    1,
+    0
+   ],
+   [
+    1791811800,
+    952060798,
+    0,
+    0
+   ],
+   [
+    1791898200,
+    952060798,
+    0,
+    0
+   ],
+   [
+    1791984600,
+    952060798,
+    0,
+    0
+   ],
+   [
+    1792071000,
+    952060798,
+    0,
+    0
+   ],
+   [
+    1792157400,
+    952060798,
+    0,
+    0
+   ],
+   [
+    1792416600,
+    952060798,
+    0,
+    0
+   ],
+   [
+    1792503000,
+    952060798,
+    0,
+    0
+   ],
+   [
+    1792589400,
+    952060798,
+    0,
+    0
+   ],
+   [
+    1792675800,
+    952656491,
+    0,
+    1
+   ],
+   [
+    1792762200,
+    953185627,
+    0,
+    1
+   ],
+   [
+    1793021400,
+    953185627,
+    0,
+    1
+   ],
+   [
+    1793107800,
+    953185882,
+    0,
+    1
+   ],
+   [
+    1793194200,
+    953185882,
+    0,
+    0
+   ],
+   [
+    1793280600,
+    953251418,
+    0,
+    1
+   ],
+   [
+    1793367000,
+    953251418,
+    0,
+    0
+   ],
+   [
+    1793629800,
+    953053279,
+    0,
+    1
+   ],
+   [
+    1793716200,
+    953251418,
+    0,
+    0
+   ],
+   [
+    1793802600,
+    953384021,
+    1,
+    0
+   ],
+   [
+    1793889000,
+    953251418,
+    0,
+    0
+   ],
+   [
+    1793975400,
+    953185372,
+    0,
+    1
+   ],
+   [
+    1794234600,
+    953251418,
+    0,
+    0
+   ],
+   [
+    1794321000,
+    953251418,
+    0,
+    0
+   ],
+   [
+    1794407400,
+    953251418,
+    0,
+    0
+   ],
+   [
+    1794493800,
+    953251418,
+    0,
+    0
+   ],
+   [
+    1794580200,
+    953251418,
+    0,
+    0
+   ]
+  ]
+ },
+ "objects": {
+  "counts": {
+   "lines": 69,
+   "labels": 23,
+   "boxes": 69,
+   "tables": 1,
+   "tableCells": 18,
+   "linefills": 0
+  },
+  "records": {
+   "lines": [
+    {
+     "id": 187,
+     "x1": 0,
+     "y1": 68.8,
+     "x2": 10,
+     "y2": 68.8,
+     "ex": "n",
+     "st": "dsh",
+     "ci": 782237440,
+     "w": 1
+    },
+    {
+     "id": 188,
+     "x1": 0,
+     "y1": 68.31,
+     "x2": 10,
+     "y2": 68.31,
+     "ex": "n",
+     "st": "dsh",
+     "ci": 782237440,
+     "w": 1
+    },
+    {
+     "id": 189,
+     "x1": 0,
+     "y1": 68.8,
+     "x2": 10,
+     "y2": 68.8,
+     "ex": "n",
+     "st": "dot",
+     "ci": 950009600,
+     "w": 2
+    },
+    {
+     "id": 194,
+     "x1": 1,
+     "y1": 70.13,
+     "x2": 2,
+     "y2": 70.13,
+     "ex": "n",
+     "st": "dsh",
+     "ci": 782237440,
+     "w": 1
+    },
+    {
+     "id": 195,
+     "x1": 1,
+     "y1": 68.97,
+     "x2": 2,
+     "y2": 68.97,
+     "ex": "n",
+     "st": "dsh",
+     "ci": 782237440,
+     "w": 1
+    },
+    {
+     "id": 196,
+     "x1": 1,
+     "y1": 68.97,
+     "x2": 2,
+     "y2": 68.97,
+     "ex": "n",
+     "st": "dot",
+     "ci": 950009600,
+     "w": 2
+    },
+    {
+     "id": 201,
+     "x1": 2,
+     "y1": 72.82,
+     "x2": 11,
+     "y2": 72.82,
+     "ex": "n",
+     "st": "dsh",
+     "ci": 782237440,
+     "w": 1
+    },
+    {
+     "id": 202,
+     "x1": 2,
+     "y1": 71.66,
+     "x2": 11,
+     "y2": 71.66,
+     "ex": "n",
+     "st": "dsh",
+     "ci": 782237440,
+     "w": 1
+    },
+    {
+     "id": 203,
+     "x1": 2,
+     "y1": 71.66,
+     "x2": 11,
+     "y2": 71.66,
+     "ex": "n",
+     "st": "dot",
+     "ci": 950009600,
+     "w": 2
+    },
+    {
+     "id": 208,
+     "x1": 3,
+     "y1": 74.14,
+     "x2": 5,
+     "y2": 74.14,
+     "ex": "n",
+     "st": "dsh",
+     "ci": 782237440,
+     "w": 1
+    },
+    {
+     "id": 209,
+     "x1": 3,
+     "y1": 73.25,
+     "x2": 5,
+     "y2": 73.25,
+     "ex": "n",
+     "st": "dsh",
+     "ci": 782237440,
+     "w": 1
+    },
+    {
+     "id": 210,
+     "x1": 3,
+     "y1": 73.25,
+     "x2": 5,
+     "y2": 73.25,
+     "ex": "n",
+     "st": "dot",
+     "ci": 950009600,
+     "w": 2
+    },
+    {
+     "id": 215,
+     "x1": 7,
+     "y1": 79.45,
+     "x2": 8,
+     "y2": 79.45,
+     "ex": "n",
+     "st": "dsh",
+     "ci": 782237440,
+     "w": 1
+    },
+    {
+     "id": 216,
+     "x1": 7,
+     "y1": 78.715,
+     "x2": 8,
+     "y2": 78.715,
+     "ex": "n",
+     "st": "dsh",
+     "ci": 782237440,
+     "w": 1
+    },
+    {
+     "id": 217,
+     "x1": 7,
+     "y1": 78.715,
+     "x2": 8,
+     "y2": 78.715,
+     "ex": "n",
+     "st": "dot",
+     "ci": 950009600,
+     "w": 2
+    },
+    {
+     "id": 565,
+     "x1": 14,
+     "y1": 269.92,
+     "x2": 28,
+     "y2": 269.92,
+     "ex": "n",
+     "st": "dsh",
+     "ci": 776804351,
+     "w": 1
+    },
+    {
+     "id": 566,
+     "x1": 14,
+     "y1": 262.99,
+     "x2": 28,
+     "y2": 262.99,
+     "ex": "n",
+     "st": "dsh",
+     "ci": 776804351,
+     "w": 1
+    },
+    {
+     "id": 567,
+     "x1": 14,
+     "y1": 269.92,
+     "x2": 28,
+     "y2": 269.92,
+     "ex": "n",
+     "st": "dot",
+     "ci": 944576511,
+     "w": 2
+    },
+    {
+     "id": 614,
+     "x1": 15,
+     "y1": 212.75,
+     "x2": 16,
+     "y2": 212.75,
+     "ex": "n",
+     "st": "dsh",
+     "ci": 776804351,
+     "w": 1
+    },
+    {
+     "id": 615,
+     "x1": 15,
+     "y1": 209.4702,
+     "x2": 16,
+     "y2": 209.4702,
+     "ex": "n",
+     "st": "dsh",
+     "ci": 776804351,
+     "w": 1
+    },
+    {
+     "id": 616,
+     "x1": 15,
+     "y1": 212.75,
+     "x2": 16,
+     "y2": 212.75,
+     "ex": "n",
+     "st": "dot",
+     "ci": 944576511,
+     "w": 2
+    },
+    {
+     "id": 642,
+     "x1": 18,
+     "y1": 200.08,
+     "x2": 20,
+     "y2": 200.08,
+     "ex": "n",
+     "st": "dsh",
+     "ci": 776804351,
+     "w": 1
+    },
+    {
+     "id": 643,
+     "x1": 18,
+     "y1": 198.59,
+     "x2": 20,
+     "y2": 198.59,
+     "ex": "n",
+     "st": "dsh",
+     "ci": 776804351,
+     "w": 1
+    },
+    {
+     "id": 644,
+     "x1": 18,
+     "y1": 199.4028818760326,
+     "x2": 20,
+     "y2": 199.4028818760326,
+     "ex": "n",
+     "st": "dot",
+     "ci": 944576511,
+     "w": 2
+    },
+    {
+     "id": 649,
+     "x1": 19,
+     "y1": 196.57,
+     "x2": 34,
+     "y2": 196.57,
+     "ex": "n",
+     "st": "dsh",
+     "ci": 782237440,
+     "w": 1
+    },
+    {
+     "id": 650,
+     "x1": 19,
+     "y1": 190.15,
+     "x2": 34,
+     "y2": 190.15,
+     "ex": "n",
+     "st": "dsh",
+     "ci": 782237440,
+     "w": 1
+    },
+    {
+     "id": 651,
+     "x1": 19,
+     "y1": 193.1209467113167,
+     "x2": 34,
+     "y2": 193.1209467113167,
+     "ex": "n",
+     "st": "dot",
+     "ci": 950009600,
+     "w": 2
+    },
+    {
+     "id": 656,
+     "x1": 21,
+     "y1": 221.72,
+     "x2": 22,
+     "y2": 221.72,
+     "ex": "n",
+     "st": "dsh",
+     "ci": 782237440,
+     "w": 1
+    },
+    {
+     "id": 657,
+     "x1": 21,
+     "y1": 218,
+     "x2": 22,
+     "y2": 218,
+     "ex": "n",
+     "st": "dsh",
+     "ci": 782237440,
+     "w": 1
+    },
+    {
+     "id": 658,
+     "x1": 21,
+     "y1": 219.5630805305634,
+     "x2": 22,
+     "y2": 219.5630805305634,
+     "ex": "n",
+     "st": "dot",
+     "ci": 950009600,
+     "w": 2
+    },
+    {
+     "id": 684,
+     "x1": 24,
+     "y1": 229.08,
+     "x2": 25,
+     "y2": 229.08,
+     "ex": "n",
+     "st": "dsh",
+     "ci": 782237440,
+     "w": 1
+    },
+    {
+     "id": 685,
+     "x1": 24,
+     "y1": 226.22,
+     "x2": 25,
+     "y2": 226.22,
+     "ex": "n",
+     "st": "dsh",
+     "ci": 782237440,
+     "w": 1
+    },
+    {
+     "id": 686,
+     "x1": 24,
+     "y1": 227.51528199771138,
+     "x2": 25,
+     "y2": 227.51528199771138,
+     "ex": "n",
+     "st": "dot",
+     "ci": 950009600,
+     "w": 2
+    },
+    {
+     "id": 698,
+     "x1": 26,
+     "y1": 251.05,
+     "x2": 27,
+     "y2": 251.05,
+     "ex": "n",
+     "st": "dsh",
+     "ci": 782237440,
+     "w": 1
+    },
+    {
+     "id": 699,
+     "x1": 26,
+     "y1": 250,
+     "x2": 27,
+     "y2": 250,
+     "ex": "n",
+     "st": "dsh",
+     "ci": 782237440,
+     "w": 1
+    },
+    {
+     "id": 700,
+     "x1": 26,
+     "y1": 250.5224712171311,
+     "x2": 27,
+     "y2": 250.5224712171311,
+     "ex": "n",
+     "st": "dot",
+     "ci": 950009600,
+     "w": 2
+    },
+    {
+     "id": 705,
+     "x1": 30,
+     "y1": 246.85,
+     "x2": 41,
+     "y2": 246.85,
+     "ex": "n",
+     "st": "dsh",
+     "ci": 776804351,
+     "w": 1
+    },
+    {
+     "id": 706,
+     "x1": 30,
+     "y1": 236.499,
+     "x2": 41,
+     "y2": 236.499,
+     "ex": "n",
+     "st": "dsh",
+     "ci": 776804351,
+     "w": 1
+    },
+    {
+     "id": 707,
+     "x1": 30,
+     "y1": 242.20056875819378,
+     "x2": 41,
+     "y2": 242.20056875819378,
+     "ex": "n",
+     "st": "dot",
+     "ci": 944576511,
+     "w": 2
+    },
+    {
+     "id": 712,
+     "x1": 31,
+     "y1": 217.34,
+     "x2": 33,
+     "y2": 217.34,
+     "ex": "n",
+     "st": "dsh",
+     "ci": 776804351,
+     "w": 1
+    },
+    {
+     "id": 713,
+     "x1": 31,
+     "y1": 216,
+     "x2": 33,
+     "y2": 216,
+     "ex": "n",
+     "st": "dsh",
+     "ci": 776804351,
+     "w": 1
+    },
+    {
+     "id": 714,
+     "x1": 31,
+     "y1": 216.7264334240916,
+     "x2": 33,
+     "y2": 216.7264334240916,
+     "ex": "n",
+     "st": "dot",
+     "ci": 944576511,
+     "w": 2
+    },
+    {
+     "id": 719,
+     "x1": 33,
+     "y1": 209,
+     "x2": 36,
+     "y2": 209,
+     "ex": "n",
+     "st": "dsh",
+     "ci": 776804351,
+     "w": 1
+    },
+    {
+     "id": 720,
+     "x1": 33,
+     "y1": 204.56,
+     "x2": 36,
+     "y2": 204.56,
+     "ex": "n",
+     "st": "dsh",
+     "ci": 776804351,
+     "w": 1
+    },
+    {
+     "id": 721,
+     "x1": 33,
+     "y1": 206.87808055221782,
+     "x2": 36,
+     "y2": 206.87808055221782,
+     "ex": "n",
+     "st": "dot",
+     "ci": 944576511,
+     "w": 2
+    },
+    {
+     "id": 936,
+     "x1": 37,
+     "y1": 189.75,
+     "x2": 38,
+     "y2": 189.75,
+     "ex": "n",
+     "st": "dsh",
+     "ci": 776804351,
+     "w": 1
+    },
+    {
+     "id": 937,
+     "x1": 37,
+     "y1": 184.95,
+     "x2": 38,
+     "y2": 184.95,
+     "ex": "n",
+     "st": "dsh",
+     "ci": 776804351,
+     "w": 1
+    },
+    {
+     "id": 938,
+     "x1": 37,
+     "y1": 187.4911653343242,
+     "x2": 38,
+     "y2": 187.4911653343242,
+     "ex": "n",
+     "st": "dot",
+     "ci": 944576511,
+     "w": 2
+    },
+    {
+     "id": 971,
+     "x1": 42,
+     "y1": 174,
+     "x2": 56,
+     "y2": 174,
+     "ex": "n",
+     "st": "dsh",
+     "ci": 3763148799,
+     "w": 1
+    },
+    {
+     "id": 972,
+     "x1": 42,
+     "y1": 167.54,
+     "x2": 56,
+     "y2": 167.54,
+     "ex": "n",
+     "st": "dsh",
+     "ci": 3763148799,
+     "w": 1
+    },
+    {
+     "id": 973,
+     "x1": 42,
+     "y1": 171.4666178664854,
+     "x2": 56,
+     "y2": 171.4666178664854,
+     "ex": "n",
+     "st": "dot",
+     "ci": 4065138687,
+     "w": 2
+    },
+    {
+     "id": 1062,
+     "x1": 44,
+     "y1": 158.32,
+     "x2": 45,
+     "y2": 158.32,
+     "ex": "n",
+     "st": "dsh",
+     "ci": 782237440,
+     "w": 1
+    },
+    {
+     "id": 1063,
+     "x1": 44,
+     "y1": 154.52,
+     "x2": 45,
+     "y2": 154.52,
+     "ex": "n",
+     "st": "dsh",
+     "ci": 782237440,
+     "w": 1
+    },
+    {
+     "id": 1064,
+     "x1": 44,
+     "y1": 156.27112024853722,
+     "x2": 45,
+     "y2": 156.27112024853722,
+     "ex": "n",
+     "st": "dot",
+     "ci": 950009600,
+     "w": 2
+    },
+    {
+     "id": 1076,
+     "x1": 47,
+     "y1": 152.81,
+     "x2": 56,
+     "y2": 152.81,
+     "ex": "n",
+     "st": "dsh",
+     "ci": 3763148799,
+     "w": 1
+    },
+    {
+     "id": 1077,
+     "x1": 47,
+     "y1": 149.4999,
+     "x2": 56,
+     "y2": 149.4999,
+     "ex": "n",
+     "st": "dsh",
+     "ci": 3763148799,
+     "w": 1
+    },
+    {
+     "id": 1078,
+     "x1": 47,
+     "y1": 151.00379416546198,
+     "x2": 56,
+     "y2": 151.00379416546198,
+     "ex": "n",
+     "st": "dot",
+     "ci": 4065138687,
+     "w": 2
+    },
+    {
+     "id": 1083,
+     "x1": 48,
+     "y1": 147.77,
+     "x2": 56,
+     "y2": 147.77,
+     "ex": "n",
+     "st": "dsh",
+     "ci": 3763148799,
+     "w": 1
+    },
+    {
+     "id": 1084,
+     "x1": 48,
+     "y1": 144.5499,
+     "x2": 56,
+     "y2": 144.5499,
+     "ex": "n",
+     "st": "dsh",
+     "ci": 3763148799,
+     "w": 1
+    },
+    {
+     "id": 1085,
+     "x1": 48,
+     "y1": 146.25028774312653,
+     "x2": 56,
+     "y2": 146.25028774312653,
+     "ex": "n",
+     "st": "dot",
+     "ci": 4065138687,
+     "w": 2
+    },
+    {
+     "id": 1090,
+     "x1": 49,
+     "y1": 143.92,
+     "x2": 56,
+     "y2": 143.92,
+     "ex": "n",
+     "st": "dsh",
+     "ci": 3763148799,
+     "w": 1
+    },
+    {
+     "id": 1091,
+     "x1": 49,
+     "y1": 140.979,
+     "x2": 56,
+     "y2": 140.979,
+     "ex": "n",
+     "st": "dsh",
+     "ci": 3763148799,
+     "w": 1
+    },
+    {
+     "id": 1092,
+     "x1": 49,
+     "y1": 142.52505269230423,
+     "x2": 56,
+     "y2": 142.52505269230423,
+     "ex": "n",
+     "st": "dot",
+     "ci": 4065138687,
+     "w": 2
+    },
+    {
+     "id": 1097,
+     "x1": 50,
+     "y1": 135.07,
+     "x2": 56,
+     "y2": 135.07,
+     "ex": "n",
+     "st": "dsh",
+     "ci": 3763148799,
+     "w": 1
+    },
+    {
+     "id": 1098,
+     "x1": 50,
+     "y1": 131.89,
+     "x2": 56,
+     "y2": 131.89,
+     "ex": "n",
+     "st": "dsh",
+     "ci": 3763148799,
+     "w": 1
+    },
+    {
+     "id": 1099,
+     "x1": 50,
+     "y1": 133.56779054724186,
+     "x2": 56,
+     "y2": 133.56779054724186,
+     "ex": "n",
+     "st": "dot",
+     "ci": 4065138687,
+     "w": 2
+    },
+    {
+     "id": 1118,
+     "x1": 51,
+     "y1": 97.78,
+     "x2": 52,
+     "y2": 97.78,
+     "ex": "n",
+     "st": "dsh",
+     "ci": 776804351,
+     "w": 1
+    },
+    {
+     "id": 1119,
+     "x1": 51,
+     "y1": 96.81,
+     "x2": 52,
+     "y2": 96.81,
+     "ex": "n",
+     "st": "dsh",
+     "ci": 776804351,
+     "w": 1
+    },
+    {
+     "id": 1120,
+     "x1": 51,
+     "y1": 97.34104661970838,
+     "x2": 52,
+     "y2": 97.34104661970838,
+     "ex": "n",
+     "st": "dot",
+     "ci": 944576511,
+     "w": 2
+    }
+   ],
+   "labels": [
+    {
+     "id": 190,
+     "x": 12,
+     "y": 68.555,
+     "yl": "pr",
+     "t": "Bull FVG | 100\n68.31 - 68.80\nSell 100% | 0.16 ATR",
+     "st": "llf",
+     "ci": 3760331541,
+     "tci": 3953131264,
+     "sz": "small",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 197,
+     "x": 4,
+     "y": 69.55,
+     "yl": "pr",
+     "t": "Bull FVG | 100\n68.97 - 70.13\nBuy 100% | 0.37 ATR",
+     "st": "llf",
+     "ci": 3760331541,
+     "tci": 3953131264,
+     "sz": "small",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 204,
+     "x": 13,
+     "y": 72.24,
+     "yl": "pr",
+     "t": "Bull FVG | 100\n71.66 - 72.82\nBuy 100% | 0.37 ATR",
+     "st": "llf",
+     "ci": 3760331541,
+     "tci": 3953131264,
+     "sz": "small",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 211,
+     "x": 6,
+     "y": 73.695,
+     "yl": "pr",
+     "t": "Bull FVG | 100\n73.25 - 74.14\nBuy 100% | 0.29 ATR",
+     "st": "llf",
+     "ci": 3760331541,
+     "tci": 3953131264,
+     "sz": "small",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 218,
+     "x": 9,
+     "y": 79.08250000000001,
+     "yl": "pr",
+     "t": "Bull FVG | 100\n78.72 - 79.45\nBuy 100% | 0.24 ATR",
+     "st": "llf",
+     "ci": 3760331541,
+     "tci": 3953131264,
+     "sz": "small",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 568,
+     "x": 32,
+     "y": 266.45500000000004,
+     "yl": "pr",
+     "t": "Bear FVG | 100\n262.99 - 269.92\nSell 100% | 0.5 ATR",
+     "st": "llf",
+     "ci": 3760331541,
+     "tci": 3947698175,
+     "sz": "small",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 617,
+     "x": 17,
+     "y": 211.1101,
+     "yl": "pr",
+     "t": "Bear FVG | 100\n209.47 - 212.75\nSell 100% | 0.27 ATR",
+     "st": "llf",
+     "ci": 3760331541,
+     "tci": 3947698175,
+     "sz": "small",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 645,
+     "x": 22,
+     "y": 199.335,
+     "yl": "pr",
+     "t": "Bear FVG | 83\n198.59 - 200.08\nSell 55% | 0.1 ATR",
+     "st": "llf",
+     "ci": 3760331541,
+     "tci": 3947698175,
+     "sz": "small",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 652,
+     "x": 35,
+     "y": 193.36,
+     "yl": "pr",
+     "t": "Bull FVG | 100\n190.15 - 196.57\nBuy 54% | 0.46 ATR",
+     "st": "llf",
+     "ci": 3760331541,
+     "tci": 3953131264,
+     "sz": "small",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 659,
+     "x": 23,
+     "y": 219.86,
+     "yl": "pr",
+     "t": "Bull FVG | 100\n218.00 - 221.72\nBuy 58% | 0.28 ATR",
+     "st": "llf",
+     "ci": 3760331541,
+     "tci": 3953131264,
+     "sz": "small",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 687,
+     "x": 26,
+     "y": 227.65,
+     "yl": "pr",
+     "t": "Bull FVG | 100\n226.22 - 229.08\nBuy 55% | 0.26 ATR",
+     "st": "llf",
+     "ci": 3760331541,
+     "tci": 3953131264,
+     "sz": "small",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 701,
+     "x": 29,
+     "y": 250.525,
+     "yl": "pr",
+     "t": "Bull FVG | 67\n250.00 - 251.05\nBuy 50% | 0.1 ATR",
+     "st": "llf",
+     "ci": 3760331541,
+     "tci": 3953131264,
+     "sz": "small",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 708,
+     "x": 43,
+     "y": 241.6745,
+     "yl": "pr",
+     "t": "Bear FVG | 100\n236.50 - 246.85\nSell 55% | 0.76 ATR",
+     "st": "llf",
+     "ci": 3760331541,
+     "tci": 3947698175,
+     "sz": "small",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 715,
+     "x": 34,
+     "y": 216.67000000000002,
+     "yl": "pr",
+     "t": "Bear FVG | 81\n216.00 - 217.34\nSell 54% | 0.1 ATR",
+     "st": "llf",
+     "ci": 3760331541,
+     "tci": 3947698175,
+     "sz": "small",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 722,
+     "x": 40,
+     "y": 206.78,
+     "yl": "pr",
+     "t": "Bear FVG | 100\n204.56 - 209.00\nSell 52% | 0.33 ATR",
+     "st": "llf",
+     "ci": 3760331541,
+     "tci": 3947698175,
+     "sz": "small",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 939,
+     "x": 39,
+     "y": 187.35,
+     "yl": "pr",
+     "t": "Bear FVG | 100\n184.95 - 189.75\nSell 53% | 0.39 ATR",
+     "st": "llf",
+     "ci": 3760331541,
+     "tci": 3947698175,
+     "sz": "small",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 974,
+     "x": 60,
+     "y": 170.76999999999998,
+     "yl": "pr",
+     "t": "Bear FVG | 100\n167.54 - 174.00\nSell 61% | 0.53 ATR",
+     "st": "llf",
+     "ci": 3944880917,
+     "tci": 4283242495,
+     "sz": "small",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 1065,
+     "x": 46,
+     "y": 156.42000000000002,
+     "yl": "pr",
+     "t": "Bull FVG | 100\n154.52 - 158.32\nBuy 54% | 0.54 ATR",
+     "st": "llf",
+     "ci": 3760331541,
+     "tci": 3953131264,
+     "sz": "small",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 1079,
+     "x": 59,
+     "y": 151.15494999999999,
+     "yl": "pr",
+     "t": "Bear FVG | 100\n149.50 - 152.81\nBuy 55% | 0.43 ATR",
+     "st": "llf",
+     "ci": 3944880917,
+     "tci": 4283242495,
+     "sz": "small",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 1086,
+     "x": 58,
+     "y": 146.15995,
+     "yl": "pr",
+     "t": "Bear FVG | 100\n144.55 - 147.77\nSell 53% | 0.41 ATR",
+     "st": "llf",
+     "ci": 3944880917,
+     "tci": 4283242495,
+     "sz": "small",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 1093,
+     "x": 57,
+     "y": 142.4495,
+     "yl": "pr",
+     "t": "Bear FVG | 100\n140.98 - 143.92\nSell 53% | 0.38 ATR",
+     "st": "llf",
+     "ci": 3944880917,
+     "tci": 4283242495,
+     "sz": "small",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 1100,
+     "x": 56,
+     "y": 133.48,
+     "yl": "pr",
+     "t": "Bear FVG | 100\n131.89 - 135.07\nSell 53% | 0.42 ATR",
+     "st": "llf",
+     "ci": 3944880917,
+     "tci": 4283242495,
+     "sz": "small",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 1121,
+     "x": 53,
+     "y": 97.295,
+     "yl": "pr",
+     "t": "Bear FVG | 93\n96.81 - 97.78\nSell 55% | 0.11 ATR",
+     "st": "llf",
+     "ci": 3760331541,
+     "tci": 3947698175,
+     "sz": "small",
+     "ta": "center",
+     "tt": ""
+    }
+   ],
+   "boxes": [
+    {
+     "id": 184,
+     "x1": 0,
+     "x2": 10,
+     "y1": 68.8,
+     "y2": 68.31,
+     "c": 530579200,
+     "bc": 178257664,
+     "ex": "n",
+     "st": "sol",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 185,
+     "x1": 0,
+     "x2": 10,
+     "y1": 68.8,
+     "y2": 68.8,
+     "c": 950009600,
+     "bc": 394369288,
+     "ex": "n",
+     "st": "dsh",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 186,
+     "x1": 0,
+     "x2": 10,
+     "y1": 68.8,
+     "y2": 68.31,
+     "c": 950009600,
+     "bc": 306525938,
+     "ex": "n",
+     "st": "dsh",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 191,
+     "x1": 1,
+     "x2": 2,
+     "y1": 70.13,
+     "y2": 68.97,
+     "c": 530579200,
+     "bc": 178257664,
+     "ex": "n",
+     "st": "sol",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 192,
+     "x1": 1,
+     "x2": 2,
+     "y1": 70.13,
+     "y2": 68.97,
+     "c": 950009600,
+     "bc": 394369288,
+     "ex": "n",
+     "st": "dsh",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 193,
+     "x1": 1,
+     "x2": 2,
+     "y1": 68.97,
+     "y2": 68.97,
+     "c": 950009600,
+     "bc": 306525938,
+     "ex": "n",
+     "st": "dsh",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 198,
+     "x1": 2,
+     "x2": 11,
+     "y1": 72.82,
+     "y2": 71.66,
+     "c": 530579200,
+     "bc": 178257664,
+     "ex": "n",
+     "st": "sol",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 199,
+     "x1": 2,
+     "x2": 11,
+     "y1": 72.82,
+     "y2": 71.66,
+     "c": 950009600,
+     "bc": 394369288,
+     "ex": "n",
+     "st": "dsh",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 200,
+     "x1": 2,
+     "x2": 11,
+     "y1": 71.66,
+     "y2": 71.66,
+     "c": 950009600,
+     "bc": 306525938,
+     "ex": "n",
+     "st": "dsh",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 205,
+     "x1": 3,
+     "x2": 5,
+     "y1": 74.14,
+     "y2": 73.25,
+     "c": 530579200,
+     "bc": 178257664,
+     "ex": "n",
+     "st": "sol",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 206,
+     "x1": 3,
+     "x2": 5,
+     "y1": 74.14,
+     "y2": 73.25,
+     "c": 950009600,
+     "bc": 394369288,
+     "ex": "n",
+     "st": "dsh",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 207,
+     "x1": 3,
+     "x2": 5,
+     "y1": 73.25,
+     "y2": 73.25,
+     "c": 950009600,
+     "bc": 306525938,
+     "ex": "n",
+     "st": "dsh",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 212,
+     "x1": 7,
+     "x2": 8,
+     "y1": 79.45,
+     "y2": 78.715,
+     "c": 530579200,
+     "bc": 178257664,
+     "ex": "n",
+     "st": "sol",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 213,
+     "x1": 7,
+     "x2": 8,
+     "y1": 79.45,
+     "y2": 78.715,
+     "c": 950009600,
+     "bc": 394369288,
+     "ex": "n",
+     "st": "dsh",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 214,
+     "x1": 7,
+     "x2": 8,
+     "y1": 78.715,
+     "y2": 78.715,
+     "c": 950009600,
+     "bc": 306525938,
+     "ex": "n",
+     "st": "dsh",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 562,
+     "x1": 14,
+     "x2": 28,
+     "y1": 269.92,
+     "y2": 262.99,
+     "c": 525146111,
+     "bc": 172824575,
+     "ex": "n",
+     "st": "sol",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 563,
+     "x1": 14,
+     "x2": 28,
+     "y1": 269.92,
+     "y2": 269.92,
+     "c": 944576511,
+     "bc": 394369288,
+     "ex": "n",
+     "st": "dsh",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 564,
+     "x1": 14,
+     "x2": 28,
+     "y1": 269.92,
+     "y2": 262.99,
+     "c": 944576511,
+     "bc": 306525938,
+     "ex": "n",
+     "st": "dsh",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 611,
+     "x1": 15,
+     "x2": 16,
+     "y1": 212.75,
+     "y2": 209.4702,
+     "c": 525146111,
+     "bc": 172824575,
+     "ex": "n",
+     "st": "sol",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 612,
+     "x1": 15,
+     "x2": 16,
+     "y1": 212.75,
+     "y2": 212.75,
+     "c": 944576511,
+     "bc": 394369288,
+     "ex": "n",
+     "st": "dsh",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 613,
+     "x1": 15,
+     "x2": 16,
+     "y1": 212.75,
+     "y2": 209.4702,
+     "c": 944576511,
+     "bc": 306525938,
+     "ex": "n",
+     "st": "dsh",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 639,
+     "x1": 18,
+     "x2": 20,
+     "y1": 200.08,
+     "y2": 198.59,
+     "c": 525146111,
+     "bc": 172824575,
+     "ex": "n",
+     "st": "sol",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 640,
+     "x1": 18,
+     "x2": 20,
+     "y1": 200.08,
+     "y2": 199.4028818760326,
+     "c": 944576511,
+     "bc": 394369288,
+     "ex": "n",
+     "st": "dsh",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 641,
+     "x1": 18,
+     "x2": 20,
+     "y1": 199.4028818760326,
+     "y2": 198.59,
+     "c": 944576511,
+     "bc": 306525938,
+     "ex": "n",
+     "st": "dsh",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 646,
+     "x1": 19,
+     "x2": 34,
+     "y1": 196.57,
+     "y2": 190.15,
+     "c": 530579200,
+     "bc": 178257664,
+     "ex": "n",
+     "st": "sol",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 647,
+     "x1": 19,
+     "x2": 34,
+     "y1": 196.57,
+     "y2": 193.1209467113167,
+     "c": 950009600,
+     "bc": 394369288,
+     "ex": "n",
+     "st": "dsh",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 648,
+     "x1": 19,
+     "x2": 34,
+     "y1": 193.1209467113167,
+     "y2": 190.15,
+     "c": 950009600,
+     "bc": 306525938,
+     "ex": "n",
+     "st": "dsh",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 653,
+     "x1": 21,
+     "x2": 22,
+     "y1": 221.72,
+     "y2": 218,
+     "c": 530579200,
+     "bc": 178257664,
+     "ex": "n",
+     "st": "sol",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 654,
+     "x1": 21,
+     "x2": 22,
+     "y1": 221.72,
+     "y2": 219.5630805305634,
+     "c": 950009600,
+     "bc": 394369288,
+     "ex": "n",
+     "st": "dsh",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 655,
+     "x1": 21,
+     "x2": 22,
+     "y1": 219.5630805305634,
+     "y2": 218,
+     "c": 950009600,
+     "bc": 306525938,
+     "ex": "n",
+     "st": "dsh",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 681,
+     "x1": 24,
+     "x2": 25,
+     "y1": 229.08,
+     "y2": 226.22,
+     "c": 530579200,
+     "bc": 178257664,
+     "ex": "n",
+     "st": "sol",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 682,
+     "x1": 24,
+     "x2": 25,
+     "y1": 229.08,
+     "y2": 227.51528199771138,
+     "c": 950009600,
+     "bc": 394369288,
+     "ex": "n",
+     "st": "dsh",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 683,
+     "x1": 24,
+     "x2": 25,
+     "y1": 227.51528199771138,
+     "y2": 226.22,
+     "c": 950009600,
+     "bc": 306525938,
+     "ex": "n",
+     "st": "dsh",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 695,
+     "x1": 26,
+     "x2": 27,
+     "y1": 251.05,
+     "y2": 250,
+     "c": 530579200,
+     "bc": 178257664,
+     "ex": "n",
+     "st": "sol",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 696,
+     "x1": 26,
+     "x2": 27,
+     "y1": 251.05,
+     "y2": 250.5224712171311,
+     "c": 950009600,
+     "bc": 394369288,
+     "ex": "n",
+     "st": "dsh",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 697,
+     "x1": 26,
+     "x2": 27,
+     "y1": 250.5224712171311,
+     "y2": 250,
+     "c": 950009600,
+     "bc": 306525938,
+     "ex": "n",
+     "st": "dsh",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 702,
+     "x1": 30,
+     "x2": 41,
+     "y1": 246.85,
+     "y2": 236.499,
+     "c": 525146111,
+     "bc": 172824575,
+     "ex": "n",
+     "st": "sol",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 703,
+     "x1": 30,
+     "x2": 41,
+     "y1": 246.85,
+     "y2": 242.20056875819378,
+     "c": 944576511,
+     "bc": 394369288,
+     "ex": "n",
+     "st": "dsh",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 704,
+     "x1": 30,
+     "x2": 41,
+     "y1": 242.20056875819378,
+     "y2": 236.499,
+     "c": 944576511,
+     "bc": 306525938,
+     "ex": "n",
+     "st": "dsh",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 709,
+     "x1": 31,
+     "x2": 33,
+     "y1": 217.34,
+     "y2": 216,
+     "c": 525146111,
+     "bc": 172824575,
+     "ex": "n",
+     "st": "sol",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 710,
+     "x1": 31,
+     "x2": 33,
+     "y1": 217.34,
+     "y2": 216.7264334240916,
+     "c": 944576511,
+     "bc": 394369288,
+     "ex": "n",
+     "st": "dsh",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 711,
+     "x1": 31,
+     "x2": 33,
+     "y1": 216.7264334240916,
+     "y2": 216,
+     "c": 944576511,
+     "bc": 306525938,
+     "ex": "n",
+     "st": "dsh",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 716,
+     "x1": 33,
+     "x2": 36,
+     "y1": 209,
+     "y2": 204.56,
+     "c": 525146111,
+     "bc": 172824575,
+     "ex": "n",
+     "st": "sol",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 717,
+     "x1": 33,
+     "x2": 36,
+     "y1": 209,
+     "y2": 206.87808055221782,
+     "c": 944576511,
+     "bc": 394369288,
+     "ex": "n",
+     "st": "dsh",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 718,
+     "x1": 33,
+     "x2": 36,
+     "y1": 206.87808055221782,
+     "y2": 204.56,
+     "c": 944576511,
+     "bc": 306525938,
+     "ex": "n",
+     "st": "dsh",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 933,
+     "x1": 37,
+     "x2": 38,
+     "y1": 189.75,
+     "y2": 184.95,
+     "c": 525146111,
+     "bc": 172824575,
+     "ex": "n",
+     "st": "sol",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 934,
+     "x1": 37,
+     "x2": 38,
+     "y1": 189.75,
+     "y2": 187.4911653343242,
+     "c": 944576511,
+     "bc": 394369288,
+     "ex": "n",
+     "st": "dsh",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 935,
+     "x1": 37,
+     "x2": 38,
+     "y1": 187.4911653343242,
+     "y2": 184.95,
+     "c": 944576511,
+     "bc": 306525938,
+     "ex": "n",
+     "st": "dsh",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 968,
+     "x1": 42,
+     "x2": 55,
+     "y1": 174,
+     "y2": 167.54,
+     "c": 1498224639,
+     "bc": 424482815,
+     "ex": "n",
+     "st": "sol",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 969,
+     "x1": 42,
+     "x2": 54,
+     "y1": 174,
+     "y2": 171.4666178664854,
+     "c": 4115470335,
+     "bc": 1380784127,
+     "ex": "n",
+     "st": "dsh",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 970,
+     "x1": 42,
+     "x2": 54,
+     "y1": 171.4666178664854,
+     "y2": 167.54,
+     "c": 4115470335,
+     "bc": 864131336,
+     "ex": "n",
+     "st": "dsh",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 1059,
+     "x1": 44,
+     "x2": 45,
+     "y1": 158.32,
+     "y2": 154.52,
+     "c": 530579200,
+     "bc": 178257664,
+     "ex": "n",
+     "st": "sol",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 1060,
+     "x1": 44,
+     "x2": 45,
+     "y1": 158.32,
+     "y2": 156.27112024853722,
+     "c": 950009600,
+     "bc": 394369288,
+     "ex": "n",
+     "st": "dsh",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 1061,
+     "x1": 44,
+     "x2": 45,
+     "y1": 156.27112024853722,
+     "y2": 154.52,
+     "c": 950009600,
+     "bc": 306525938,
+     "ex": "n",
+     "st": "dsh",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 1073,
+     "x1": 47,
+     "x2": 55,
+     "y1": 152.81,
+     "y2": 149.4999,
+     "c": 1498224639,
+     "bc": 424482815,
+     "ex": "n",
+     "st": "sol",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 1074,
+     "x1": 47,
+     "x2": 54,
+     "y1": 152.81,
+     "y2": 151.00379416546198,
+     "c": 4115470335,
+     "bc": 1380784127,
+     "ex": "n",
+     "st": "dsh",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 1075,
+     "x1": 47,
+     "x2": 54,
+     "y1": 151.00379416546198,
+     "y2": 149.4999,
+     "c": 4115470335,
+     "bc": 864131336,
+     "ex": "n",
+     "st": "dsh",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 1080,
+     "x1": 48,
+     "x2": 55,
+     "y1": 147.77,
+     "y2": 144.5499,
+     "c": 1498224639,
+     "bc": 424482815,
+     "ex": "n",
+     "st": "sol",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 1081,
+     "x1": 48,
+     "x2": 54,
+     "y1": 147.77,
+     "y2": 146.25028774312653,
+     "c": 4115470335,
+     "bc": 1380784127,
+     "ex": "n",
+     "st": "dsh",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 1082,
+     "x1": 48,
+     "x2": 54,
+     "y1": 146.25028774312653,
+     "y2": 144.5499,
+     "c": 4115470335,
+     "bc": 864131336,
+     "ex": "n",
+     "st": "dsh",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 1087,
+     "x1": 49,
+     "x2": 55,
+     "y1": 143.92,
+     "y2": 140.979,
+     "c": 1498224639,
+     "bc": 424482815,
+     "ex": "n",
+     "st": "sol",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 1088,
+     "x1": 49,
+     "x2": 54,
+     "y1": 143.92,
+     "y2": 142.52505269230423,
+     "c": 4115470335,
+     "bc": 1380784127,
+     "ex": "n",
+     "st": "dsh",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 1089,
+     "x1": 49,
+     "x2": 54,
+     "y1": 142.52505269230423,
+     "y2": 140.979,
+     "c": 4115470335,
+     "bc": 864131336,
+     "ex": "n",
+     "st": "dsh",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 1094,
+     "x1": 50,
+     "x2": 55,
+     "y1": 135.07,
+     "y2": 131.89,
+     "c": 1498224639,
+     "bc": 424482815,
+     "ex": "n",
+     "st": "sol",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 1095,
+     "x1": 50,
+     "x2": 54,
+     "y1": 135.07,
+     "y2": 133.56779054724186,
+     "c": 4115470335,
+     "bc": 1380784127,
+     "ex": "n",
+     "st": "dsh",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 1096,
+     "x1": 50,
+     "x2": 54,
+     "y1": 133.56779054724186,
+     "y2": 131.89,
+     "c": 4115470335,
+     "bc": 864131336,
+     "ex": "n",
+     "st": "dsh",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 1115,
+     "x1": 51,
+     "x2": 52,
+     "y1": 97.78,
+     "y2": 96.81,
+     "c": 525146111,
+     "bc": 172824575,
+     "ex": "n",
+     "st": "sol",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 1116,
+     "x1": 51,
+     "x2": 52,
+     "y1": 97.78,
+     "y2": 97.34104661970838,
+     "c": 944576511,
+     "bc": 394369288,
+     "ex": "n",
+     "st": "dsh",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    },
+    {
+     "id": 1117,
+     "x1": 51,
+     "x2": 52,
+     "y1": 97.34104661970838,
+     "y2": 96.81,
+     "c": 944576511,
+     "bc": 306525938,
+     "ex": "n",
+     "st": "dsh",
+     "w": 2,
+     "t": "",
+     "ts": "auto",
+     "tc": 4294967295,
+     "tva": "center",
+     "tha": "center",
+     "tw": "none"
+    }
+   ],
+   "tables": [
+    {
+     "id": 1,
+     "pos": "top_right",
+     "rows": 9,
+     "cols": 2,
+     "bgc": 4279768081,
+     "frmc": 4282069287,
+     "frmw": 1,
+     "brdc": null,
+     "brdw": 0
+    }
+   ],
+   "tableCells": [
+    {
+     "id": 1122,
+     "tid": 1,
+     "col": 0,
+     "row": 0,
+     "t": "Delta Imbalance [JOAT]",
+     "w": null,
+     "h": null,
+     "tc": 4293320151,
+     "tha": "center",
+     "tva": "center",
+     "ts": "normal",
+     "bgc": 1204909658,
+     "tt": "",
+     "colspan": 2,
+     "rowspan": 1
+    },
+    {
+     "id": 1123,
+     "tid": 1,
+     "col": 1,
+     "row": 0,
+     "t": "Zones",
+     "w": null,
+     "h": null,
+     "tc": 4293320151,
+     "tha": "center",
+     "tva": "center",
+     "ts": "normal",
+     "bgc": 1204909658,
+     "tt": "",
+     "colspan": 1,
+     "rowspan": 1
+    },
+    {
+     "id": 1124,
+     "tid": 1,
+     "col": 0,
+     "row": 1,
+     "t": "Active",
+     "w": null,
+     "h": null,
+     "tc": 4288450951,
+     "tha": "left",
+     "tva": "center",
+     "ts": "normal",
+     "bgc": 3944880917,
+     "tt": "",
+     "colspan": 1,
+     "rowspan": 1
+    },
+    {
+     "id": 1125,
+     "tid": 1,
+     "col": 1,
+     "row": 1,
+     "t": "5",
+     "w": null,
+     "h": null,
+     "tc": 4291917402,
+     "tha": "right",
+     "tva": "center",
+     "ts": "normal",
+     "bgc": 3944880917,
+     "tt": "",
+     "colspan": 1,
+     "rowspan": 1
+    },
+    {
+     "id": 1126,
+     "tid": 1,
+     "col": 0,
+     "row": 2,
+     "t": "Filled",
+     "w": null,
+     "h": null,
+     "tc": 4288450951,
+     "tha": "left",
+     "tva": "center",
+     "ts": "normal",
+     "bgc": null,
+     "tt": "",
+     "colspan": 1,
+     "rowspan": 1
+    },
+    {
+     "id": 1127,
+     "tid": 1,
+     "col": 1,
+     "row": 2,
+     "t": "18",
+     "w": null,
+     "h": null,
+     "tc": 4293320151,
+     "tha": "right",
+     "tva": "center",
+     "ts": "normal",
+     "bgc": null,
+     "tt": "",
+     "colspan": 1,
+     "rowspan": 1
+    },
+    {
+     "id": 1128,
+     "tid": 1,
+     "col": 0,
+     "row": 3,
+     "t": "Bull / Bear",
+     "w": null,
+     "h": null,
+     "tc": 4288450951,
+     "tha": "left",
+     "tva": "center",
+     "ts": "normal",
+     "bgc": null,
+     "tt": "",
+     "colspan": 1,
+     "rowspan": 1
+    },
+    {
+     "id": 1129,
+     "tid": 1,
+     "col": 1,
+     "row": 3,
+     "t": "0 / 5",
+     "w": null,
+     "h": null,
+     "tc": 4282726130,
+     "tha": "right",
+     "tva": "center",
+     "ts": "normal",
+     "bgc": null,
+     "tt": "",
+     "colspan": 1,
+     "rowspan": 1
+    },
+    {
+     "id": 1130,
+     "tid": 1,
+     "col": 0,
+     "row": 4,
+     "t": "Avg score",
+     "w": null,
+     "h": null,
+     "tc": 4288450951,
+     "tha": "left",
+     "tva": "center",
+     "ts": "normal",
+     "bgc": null,
+     "tt": "",
+     "colspan": 1,
+     "rowspan": 1
+    },
+    {
+     "id": 1131,
+     "tid": 1,
+     "col": 1,
+     "row": 4,
+     "t": "100",
+     "w": null,
+     "h": null,
+     "tc": 4293320151,
+     "tha": "right",
+     "tva": "center",
+     "ts": "normal",
+     "bgc": 704636160,
+     "tt": "",
+     "colspan": 1,
+     "rowspan": 1
+    },
+    {
+     "id": 1132,
+     "tid": 1,
+     "col": 0,
+     "row": 5,
+     "t": "Tilt",
+     "w": null,
+     "h": null,
+     "tc": 4288450951,
+     "tha": "left",
+     "tva": "center",
+     "ts": "normal",
+     "bgc": null,
+     "tt": "",
+     "colspan": 1,
+     "rowspan": 1
+    },
+    {
+     "id": 1133,
+     "tid": 1,
+     "col": 1,
+     "row": 5,
+     "t": "-5.7",
+     "w": null,
+     "h": null,
+     "tc": 4291917402,
+     "tha": "right",
+     "tva": "center",
+     "ts": "normal",
+     "bgc": 692401906,
+     "tt": "",
+     "colspan": 1,
+     "rowspan": 1
+    },
+    {
+     "id": 1134,
+     "tid": 1,
+     "col": 0,
+     "row": 6,
+     "t": "Lower TF",
+     "w": null,
+     "h": null,
+     "tc": 4288450951,
+     "tha": "left",
+     "tva": "center",
+     "ts": "normal",
+     "bgc": null,
+     "tt": "",
+     "colspan": 1,
+     "rowspan": 1
+    },
+    {
+     "id": 1135,
+     "tid": 1,
+     "col": 1,
+     "row": 6,
+     "t": "1",
+     "w": null,
+     "h": null,
+     "tc": 4293320151,
+     "tha": "right",
+     "tva": "center",
+     "ts": "normal",
+     "bgc": null,
+     "tt": "",
+     "colspan": 1,
+     "rowspan": 1
+    },
+    {
+     "id": 1136,
+     "tid": 1,
+     "col": 0,
+     "row": 7,
+     "t": "State",
+     "w": null,
+     "h": null,
+     "tc": 4288450951,
+     "tha": "left",
+     "tva": "center",
+     "ts": "normal",
+     "bgc": null,
+     "tt": "",
+     "colspan": 1,
+     "rowspan": 1
+    },
+    {
+     "id": 1137,
+     "tid": 1,
+     "col": 1,
+     "row": 7,
+     "t": "Seller lead",
+     "w": null,
+     "h": null,
+     "tc": 4282726130,
+     "tha": "right",
+     "tva": "center",
+     "ts": "normal",
+     "bgc": 692401906,
+     "tt": "",
+     "colspan": 1,
+     "rowspan": 1
+    },
+    {
+     "id": 1138,
+     "tid": 1,
+     "col": 0,
+     "row": 8,
+     "t": "Fill mode",
+     "w": null,
+     "h": null,
+     "tc": 4288450951,
+     "tha": "left",
+     "tva": "center",
+     "ts": "normal",
+     "bgc": null,
+     "tt": "",
+     "colspan": 1,
+     "rowspan": 1
+    },
+    {
+     "id": 1139,
+     "tid": 1,
+     "col": 1,
+     "row": 8,
+     "t": "Touch",
+     "w": null,
+     "h": null,
+     "tc": 4293320151,
+     "tha": "right",
+     "tva": "center",
+     "ts": "normal",
+     "bgc": null,
+     "tt": "",
+     "colspan": 1,
+     "rowspan": 1
+    }
+   ],
+   "linefills": []
+  },
+  "texts": {
+   "labels": [
+    "Bull FVG | 100\n68.31 - 68.80\nSell 100% | 0.16 ATR",
+    "Bull FVG | 100\n68.97 - 70.13\nBuy 100% | 0.37 ATR",
+    "Bull FVG | 100\n71.66 - 72.82\nBuy 100% | 0.37 ATR",
+    "Bull FVG | 100\n73.25 - 74.14\nBuy 100% | 0.29 ATR",
+    "Bull FVG | 100\n78.72 - 79.45\nBuy 100% | 0.24 ATR",
+    "Bear FVG | 100\n262.99 - 269.92\nSell 100% | 0.5 ATR",
+    "Bear FVG | 100\n209.47 - 212.75\nSell 100% | 0.27 ATR",
+    "Bear FVG | 83\n198.59 - 200.08\nSell 55% | 0.1 ATR",
+    "Bull FVG | 100\n190.15 - 196.57\nBuy 54% | 0.46 ATR",
+    "Bull FVG | 100\n218.00 - 221.72\nBuy 58% | 0.28 ATR",
+    "Bull FVG | 100\n226.22 - 229.08\nBuy 55% | 0.26 ATR",
+    "Bull FVG | 67\n250.00 - 251.05\nBuy 50% | 0.1 ATR",
+    "Bear FVG | 100\n236.50 - 246.85\nSell 55% | 0.76 ATR",
+    "Bear FVG | 81\n216.00 - 217.34\nSell 54% | 0.1 ATR",
+    "Bear FVG | 100\n204.56 - 209.00\nSell 52% | 0.33 ATR",
+    "Bear FVG | 100\n184.95 - 189.75\nSell 53% | 0.39 ATR",
+    "Bear FVG | 100\n167.54 - 174.00\nSell 61% | 0.53 ATR",
+    "Bull FVG | 100\n154.52 - 158.32\nBuy 54% | 0.54 ATR",
+    "Bear FVG | 100\n149.50 - 152.81\nBuy 55% | 0.43 ATR",
+    "Bear FVG | 100\n144.55 - 147.77\nSell 53% | 0.41 ATR",
+    "Bear FVG | 100\n140.98 - 143.92\nSell 53% | 0.38 ATR",
+    "Bear FVG | 100\n131.89 - 135.07\nSell 53% | 0.42 ATR",
+    "Bear FVG | 93\n96.81 - 97.78\nSell 55% | 0.11 ATR"
+   ],
+   "tableCells": [
+    "Delta Imbalance [JOAT]",
+    "Zones",
+    "Active",
+    "5",
+    "Filled",
+    "18",
+    "Bull / Bear",
+    "0 / 5",
+    "Avg score",
+    "100",
+    "Tilt",
+    "-5.7",
+    "Lower TF",
+    "1",
+    "State",
+    "Seller lead",
+    "Fill mode",
+    "Touch"
+   ]
+  },
+  "unreadable": []
+ },
+ "warnings": [],
+ "receipt": {
+  "algo": "fnv1a32-utf16",
+  "over": "JSON.stringify(capture without its receipt key)",
+  "chars": 117804,
+  "fnv1a": 3160294733
+ }
+}

@@ -37,7 +37,7 @@ function grade(cap) {
   return gradeCapture(cap)
 }
 const item = (v, title) => v.plots.find((p) => p.title === title)
-const SUPPLIER = 'vw-clock-close-tfchange-spy-1d-2026-09-28.json'
+const SUPPLIER = 'vw-object-gc-b-spy-1d-2026-09-28.json'
 
 describe('DIV-1 — columnsInWindow', () => {
   const full = { a: [1, 2, 3, 4, 5], b: Float64Array.from([10, 20, 30, 40, 50]) }
