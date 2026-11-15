@@ -550,7 +550,20 @@ def pine_runtime_admission(script, registry) -> list[str]:
 #     captures;
 #   * for an object family (`obj:*`), each counted entry ALSO carries
 #     `objectsV2: MATCH` and `objectsLane: runtime` (a v2 objects grade with the
-#     RUN drawing them). No capture carries that today, so no `obj:*` row admits.
+#     RUN drawing them) AND `objectsPaired`, a positive count of the records that
+#     grade paired (`objectsV2.pairedNothing` false: a MATCH that paired nothing
+#     compared nothing). U1 (2026-11-15) admits line, label, box, delete and
+#     collection on that evidence, graded on y (owner ruling G1);
+#   * ⛔ AND NO ENTRY OF AN `obj:*` ROW MAY CARRY AN x GRADE THAT DIVERGES
+#     (`objectsX: DIVERGE`, U13): one wrong bar vetoes the whole family, whatever
+#     else its evidence says (coordinator ruling 2026-11-15). Where an x grade
+#     exists it is recorded beside the y evidence;
+#   * ⛔ a capability whose FORMING bar no capture grades (`PINE_CAPABILITY_FORMING_UNGRADED`:
+#     `realtime-state`) admits ONLY with `scope: closed-bar-history` (coordinator ruling
+#     2026-11-15, under G6). Its evidence is closed-bar history; the member door refuses
+#     it BY NAME on a chart whose newest bar is forming or not known to be closed
+#     (`runtime_definitions.runtime_admission` -> `historyOnly`, `runtimeKill.js::
+#     runtimeFormingRefusalOf`).
 #
 # Pure: no env, no I/O, never raises; a malformed row admits nothing. Whether an
 # evidence id is a real capture graded MATCH is held by the rail
@@ -588,6 +601,12 @@ def pine_evidence_script(title, capture_id):
         fam = base
 PINE_CAPABILITY_OBJECT_PREFIX = "obj:"
 PINE_OBJECTS_LANE_RUNTIME = "runtime"
+#: U13 x grade on an object evidence entry (`objectsX`): any DIVERGE vetoes the family.
+PINE_OBJECTS_X_DIVERGE = "DIVERGE"
+#: G6 (2026-11-15): capabilities no capture grades on a FORMING bar. Each admits only with
+#: `scope: closed-bar-history`; the member door then refuses it by name on a forming bar.
+PINE_CAPABILITY_FORMING_UNGRADED = frozenset({"realtime-state"})
+PINE_CAPABILITY_SCOPE_CLOSED_BARS = "closed-bar-history"
 
 
 def _pine_ledger_entry_fresh(entry) -> bool:
@@ -611,9 +630,17 @@ def _pine_capability_evidence_counts(name: str, entry) -> bool:
     if "ledger" in entry and not (entry.get("ledger") is True and _pine_ledger_entry_fresh(entry)):
         return False
     if name.startswith(PINE_CAPABILITY_OBJECT_PREFIX):
+        paired = entry.get("objectsPaired")
         return (entry.get("objectsV2") == PINE_CAPTURE_MATCH
-                and entry.get("objectsLane") == PINE_OBJECTS_LANE_RUNTIME)
+                and entry.get("objectsLane") == PINE_OBJECTS_LANE_RUNTIME
+                and isinstance(paired, int) and not isinstance(paired, bool) and paired > 0)
     return True
+
+
+def pine_capability_history_only(name, row) -> bool:
+    """Is admitted capability `name` admitted for CLOSED-BAR HISTORY only (G6)? Pure."""
+    return (isinstance(name, str) and name in PINE_CAPABILITY_FORMING_UNGRADED
+            and isinstance(row, dict) and row.get("scope") == PINE_CAPABILITY_SCOPE_CLOSED_BARS)
 
 
 def pine_capability_admission(name, row) -> list[str]:
@@ -630,6 +657,15 @@ def pine_capability_admission(name, row) -> list[str]:
     if row.get("status") != PINE_CAPABILITY_CONFORMANT:
         reasons.append(f"capability `{name}` is {row.get('status') or 'ungraded'}, not conformant")
     evidence = row.get("evidence")
+    if name in PINE_CAPABILITY_FORMING_UNGRADED and row.get("scope") != PINE_CAPABILITY_SCOPE_CLOSED_BARS:
+        reasons.append(f"capability `{name}` is graded on closed bars only (no capture grades a forming "
+                       f"bar, G6), so it admits only with scope `{PINE_CAPABILITY_SCOPE_CLOSED_BARS}`")
+    if name.startswith(PINE_CAPABILITY_OBJECT_PREFIX):
+        x_bad = sorted({e.get("capture") for e in (evidence if isinstance(evidence, list) else [])
+                        if isinstance(e, dict) and e.get("objectsX") == PINE_OBJECTS_X_DIVERGE}, key=str)
+        if x_bad:
+            reasons.append(f"capability `{name}` has an x grade that DIVERGES ({', '.join(map(str, x_bad))}): "
+                           "a drawing on another bar vetoes the family")
     counted = [e for e in (evidence if isinstance(evidence, list) else [])
                if _pine_capability_evidence_counts(name, e)]
     captures = {e["capture"] for e in counted}
@@ -639,7 +675,7 @@ def pine_capability_admission(name, row) -> list[str]:
         reasons.append(f"capability `{name}` has no community script among its evidence (only our "
                        "probes); admission needs at least one")
     if len(captures) < PINE_CAPABILITY_MIN_CAPTURES or len(scripts) < PINE_CAPABILITY_MIN_SCRIPTS:
-        what = ("objects v2 MATCH captures with the run drawing them"
+        what = ("objects v2 MATCH captures with the run drawing them and records paired"
                 if name.startswith(PINE_CAPABILITY_OBJECT_PREFIX)
                 else "MATCH captures with the runtime pane on")
         reasons.append(f"capability `{name}` has {len(captures)} {what} from {len(scripts)} "

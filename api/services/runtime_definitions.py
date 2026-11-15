@@ -566,7 +566,10 @@ def capability_deny() -> list[str]:
 
 def admitted_capabilities() -> dict:
     """WS-I Part 2 -- the capabilities admitted for capability admission, read per call:
-    ``{"admitted": [...], "withheld": {name: [reasons]}, "denied": [...]}``.
+    ``{"admitted": [...], "withheld": {name: [reasons]}, "denied": [...], "historyOnly": [...]}``.
+    ``historyOnly`` names the admitted capabilities admitted for CLOSED-BAR HISTORY only (G6,
+    `rollout_gate.pine_capability_history_only`): a script using one is drawn bar by bar only on a
+    chart whose newest bar is known to be closed (`runtime_admission`).
 
     A registry row admits its capability only when `rollout_gate.pine_capability_admission`
     says so, the name is one the detector can return (`pine_capabilities.CAPABILITY_IDS`) and
@@ -579,6 +582,7 @@ def admitted_capabilities() -> dict:
     admitted: list[str] = []
     withheld: dict[str, list[str]] = {}
     denied: list[str] = []
+    history_only: list[str] = []
     for name in sorted(k for k in registry if isinstance(k, str)) if isinstance(registry, dict) else []:
         if name not in pine_capabilities.CAPABILITY_IDS:
             withheld[name] = [f"`{name}` is not a capability the detector names"]
@@ -591,7 +595,9 @@ def admitted_capabilities() -> dict:
             denied.append(name)
         else:
             admitted.append(name)
-    return {"admitted": admitted, "withheld": withheld, "denied": denied}
+            if rollout_gate.pine_capability_history_only(name, registry[name]):
+                history_only.append(name)
+    return {"admitted": admitted, "withheld": withheld, "denied": denied, "historyOnly": history_only}
 
 
 #: ─── WHERE A SOURCE'S CAPABILITY SET COMES FROM (re-verify of #1204, 2026-11-13) ─────────────
@@ -930,7 +936,8 @@ def capability_admitted(source: Any, *, budget: Optional[DetectorBudget] = None,
 
 def runtime_admission(source: Any, member: Any = None) -> dict:
     """``POST /api/user-definitions/runtime-admission`` -- ``{sha256, admitted, missing}`` for one
-    source, the client's per-hash verdict (`engine/runtimeKill.js`). ``admitted`` is True only
+    source, the client's per-hash verdict (`engine/runtimeKill.js`), plus ``historyOnly`` (the ids it
+    uses that are admitted for closed-bar history only, G6) when it is admitted and uses one. ``admitted`` is True only
     when capability admission is ON, the script is not on the kill list, and
     `capability_admitted` admits it. The allowlist is NOT folded in (the client asks its own
     latched allowlist first). Nothing is stored and the source is never logged."""
@@ -953,7 +960,23 @@ def runtime_admission(source: Any, member: Any = None) -> dict:
         except Exception:  # noqa: BLE001 - telemetry never reaches the verdict
             pass
     admitted = bool(ok and not killed(None, source))
-    return {"sha256": h, "admitted": admitted, "missing": missing}
+    out = {"sha256": h, "admitted": admitted, "missing": missing}
+    if admitted:
+        # ⭐ G6 (coordinator ruling 2026-11-15): an admitted script using a capability admitted for
+        # CLOSED-BAR HISTORY only carries those ids; the client refuses it BY NAME on a chart whose
+        # newest bar is forming or not known to be closed (`runtimeKill.js::runtimeFormingRefusalOf`).
+        # ⛔ FAIL CLOSED: a set that cannot be re-read is not admitted at all.
+        try:
+            caps = capabilities_for(source, persist=False, verdict_member=str(member) if member is not None
+                                    else "<anonymous>")
+            hist = sorted(set(caps) & set(admitted_capabilities()["historyOnly"])) if caps is not None else None
+        except Exception:  # noqa: BLE001 - fail closed
+            hist = None
+        if hist is None:
+            return {"sha256": h, "admitted": False, "missing": [PENDING]}
+        if hist:
+            out["historyOnly"] = hist
+    return out
 
 
 def save_permission(role: Any, user_id: Any = None) -> Optional[str]:
