@@ -37,7 +37,7 @@ import {
   OUTPUT_CALLS as PINE_OUTPUT_CALLS, BAR_SERIES_DEFAULTS, paramDefaultShapeOk,
   declarationWordsOf, pineConstIntValue, constIntWritesOf, pineTupleBuiltinCallParts, pineNamespacedName,
   legacyBarsSignUnstated, LEGACY_BARS_SIGN_SENTENCE, REFUSALS, selfReferenceSentence,
-  selfReferencingDeclaration, blockDeclarationReadsOwnHistory,
+  selfReferencingDeclaration, blockDeclarationReadsOwnHistory, declarationCalcBars,
 } from './pine.js'
 import { CLOCK_REALTIME } from '../../indicators.js'
 // ⭐⭐ L1 — an imported library's exports are linked in as the script's own.
@@ -1378,16 +1378,14 @@ export function paramDefaultsOf(toks, arrow) {
   return any ? { names, defaults } : null
 }
 
-/** ⭐ WS-E — a resolved tree with every `barindex` / `lastbarindex` leaf read `k`
- *  bars further on (`barindex + k`). Pure: a new tree, the input untouched. */
-function shiftBarIndexLeaves(tree, k) {
-  if (!tree || typeof tree !== 'object') return tree
-  if (Array.isArray(tree)) return tree.map((x) => shiftBarIndexLeaves(x, k))
-  if (tree.type === 'series' && (tree.name === 'barindex' || tree.name === 'lastbarindex')) {
-    return { type: 'op', name: '+', args: [tree, { type: 'num', value: k }] }
-  }
-  if (!Array.isArray(tree.args)) return tree
-  return { ...tree, args: tree.args.map((x) => shiftBarIndexLeaves(x, k)) }
+/** ⭐⭐ CBC-FMT — a declaration's `calc_bars_count` by the host lane's ONE reader
+ *  (`pine.js::declarationCalcBars`): `0` and a count that is not a whole-number literal
+ *  refuse by the host lane's names, so the doors agree. A positive literal is not this
+ *  front end's to read: the window is the document's stamp (`meta.calcBarsCount`), applied
+ *  by `runtime/runtimeColumns.js` through `engine/calcBarsWindow.js`. */
+function calcBarsRefusal(toks) {
+  const cbc = declarationCalcBars(toks)
+  if (cbc && cbc.guard) throw new PineRefusal(cbc.guard, cbc.why, locate(cbc.tok))
 }
 
 export function buildRuntimeIr(source, opts = {}) {
@@ -3277,12 +3275,6 @@ function buildRuntimeIrLinked(source, opts, holder) {
       // `pine:builtin` as a runtime gap would send an engineer to the wrong
       // subsystem and lose the real next dependency.
       throw e
-    }
-    // ⭐ WS-E — a MEASUREMENT build (`runtimeColumns.js::calcBarsIndexDependence`):
-    // every `bar_index` / `last_bar_index` leaf reads `barIndexShift` more, so the
-    // caller can ask whether the run's answer depends on the count's base.
-    if (Number.isInteger(opts.barIndexShift) && opts.barIndexShift !== 0) {
-      canonical = shiftBarIndexLeaves(canonical, opts.barIndexShift)
     }
     if (statefulTree(canonical)) {
       if (owner !== null) functions[owner].rt5History = true
@@ -11837,7 +11829,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
       }
 
       // ── declarations of the script itself ──
-      if (word === 'indicator' || word === 'study') continue
+      if (word === 'indicator' || word === 'study') {
+        // ⭐⭐ CBC-FMT — `calc_bars_count` by the host lane's ONE reader: a count that is not
+        // a positive literal refuses here by the same name it refuses there.
+        calcBarsRefusal(toks)
+        continue
+      }
       // ⭐⭐ R1 (2026-10-02) - A STRATEGY DRAWS LIKE AN INDICATOR, in this lane as in the
       // host lane (C50, `pine.js`). The declaration is read exactly as `indicator(...)` is
       // here - this lane reads nothing from either; title and overlay come from the host
@@ -11848,6 +11845,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       // position is not a declaration and keeps refusing.
       if (word === 'strategy' && isPunct(toks[1], '(')) {
         note('runtime:strategy-chart')
+        calcBarsRefusal(toks)
         // ⭐⭐ S1 — the broker's properties come from this declaration ([B-DECL]).
         if (brokerMode) {
           try { brokerDecl = readStrategyDeclaration(parseWholeExpression(toks), pineVersion) } catch (e) {

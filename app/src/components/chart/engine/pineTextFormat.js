@@ -287,9 +287,9 @@ export function formatMessageNumber(n, fmt) {
 // renders with the functions below, so the two cannot drift.
 //
 //   no format          ten decimals, trailing zeros trimmed (C43,
-//                      `objectRuntime.js::defaultNumberText`)
-//   `#`/`0` pattern    `formatPlainNumber` — the C13 implementation, moved here
-//                      unchanged from `objectRuntime.js::formatNumber`
+//                      `objectRuntime.js::defaultNumberText`), through the one core
+//                      (`tostringNumberText`, CBC-FMT, below)
+//   `#`/`0` pattern    `formatPlainNumber` — the C13 integer padding over the one core
 //   `format.mintick`   `tickNumberText` — rounds to the symbol's tick and prints
 //                      that tick's decimals, trailing zeros KEPT. MEASURED:
 //                      trend-targets-algoalpha RDDT (tick 0.01)
@@ -303,14 +303,13 @@ export function formatMessageNumber(n, fmt) {
 //                      RDDT 282.95 / 119.27, SPY 697.84 / 629.28).
 //
 // ⛔ WHAT IS WITHHELD (null), each because no capture shows it:
-//   * a grouping separator that would APPEAR — every captured value sits below
-//     the group size, so "1,234.5" vs "1234.5" is unpinned;
-//   * a `format.mintick` magnitude of 1000 or more (grouping, same reason);
+//   * a grouping separator of any size but three that would APPEAR (CBC-FMT: three is
+//     witnessed, S10 T20 1234.5 through "#,###.##" -> "1,234.5");
 //   * a negative value under a literal prefix (Java puts the minus BEFORE the
 //     prefix; no capture shows TradingView doing so);
-//   * a value that rounds to a negative zero;
-//   * an exact tie at the tick (`format.mintick`'s "ties round up" is the
-//     reference's sentence, not a capture);
+//   * a `format.mintick` NEGATIVE exact tie, and a tie at a tick that is not a power of ten
+//     (`0.25`); `format.mintick` itself rounds `n / tick` in binary (CBC-FMT, S10 T08-T12);
+//   * every withhold of the one core (`tostringNumberWhy`, CBC-FMT);
 //   * `%`, `‰`, `¤`, a quote or `;` anywhere — each changes what the number is.
 
 /** Characters Java's DecimalFormat gives a meaning in a prefix or suffix; a
@@ -319,9 +318,6 @@ const FORMAT_SPECIAL_AFFIX = /[%‰¤';#0-9.,]/
 
 /** `#`/`0` digits, optional grouping commas, optional `.` and fraction. */
 const FORMAT_CORE = /^([#0,]*)(?:\.([#0]*))?$/
-
-/** The largest magnitude a grouped or tick-formatted capture reached. */
-export const TOSTRING_GROUPING_LIMIT = 1000
 
 /**
  * Read a `str.tostring` format string into its parts, or `null` when this
@@ -364,32 +360,190 @@ export function tostringPatternOf(fmt) {
 export const isPlainNumberPattern = (fmt) => typeof fmt === 'string' && fmt !== ''
   && /^[#0]*(\.[#0]*)?$/.test(fmt)
 
-/** `#`/`0` patterns: required decimals are the `0`s, optional the `#`s, up to
- *  ten; a leading `00` pads the integer part. MOVED here unchanged from
- *  `objectRuntime.js::formatNumber` (C13), so `str.tostring`'s renderings live
- *  in one module. `null` for a pattern it does not read whole. */
-export function formatPlainNumber(n, fmt) {
-  if (!isPlainNumberPattern(fmt)) return null
+// ─── ⭐⭐ CBC-FMT — THE ONE `str.tostring` NUMBER CORE ─────────────────────────────
+//
+// `tostringNumberText(n, {min, max})`: `n` with at most `max` and at least `min` decimals,
+// the way TradingView prints it, or `null` (WITHHELD, by the name `tostringNumberWhy`
+// gives) where no capture settles the characters. Every `str.tostring` number written with
+// no format (`defaultNumberText`, {0, 10}), a `#`/`0` pattern (`formatPlainNumber`) or a
+// pattern with words around it (`formatPatternedNumber`) goes through it. ⛔ Two other
+// formatters are NOT this one, each by its own capture: `format.mintick` rounds `n / tick` in
+// BINARY (`tickNumberText`, below), and `str.format`'s `{N}` is Java's `#,##0.###` on the
+// exact binary value (952.4295 prints "952.429" there and "952.43" through `#.###` here) and
+// keeps its own (`formatMessageNumber`, F7).
+//
+// THE RULES, each read off a capture (W = witnessed; inv-fmt-1115 and capture session S10's
+// `vw-fmt-tie-readings-rddt-1d-2026-11-15`, rows T01-T30):
+//   F1 no format: up to 10 decimals, trailing zeros trimmed, no grouping, not the symbol's
+//      precision (W: w3-format, 300 rows; 88 graded tokens; S10 `vw-cs2-label-number-format`
+//      "32.8166666667", "0.8175176096", "1").
+//   F2 `na` prints "NaN" under any format (W).
+//   F3 an int prints its digits; an integral float prints "2", not "2.0" (W; T28 "5/5").
+//   F4 a `#`/`0` pattern keeps as many decimals as it has digits after the point, with NO
+//      ten-decimal cap (W at 16: the LRC builtin's `str.tostring(pearsonR,
+//      "#.################")` prints 0.8175176096085278; T16, T17; and at 20, T15 0.1 -> "0.1");
+//      `#` is optional, `0` required. ⚰️ `formatPlainNumber` capped at 10.
+//   F5 an EXACT binary tie rounds half AWAY from zero: 1.5 -> 2, 2.5 -> 3, -1.5 -> -2,
+//      -0.5 -> -1 (W: vw-int-array-avg R06/R09/R10/R14/R17/R19, -neg A11-A13).
+//   F6 a DECIMAL tie rounds UP, read on the SHORTEST decimal of the double ("decup"): 1.005 ->
+//      "1.01", 163.265 -> "163.27", 145.795 -> "145.8", 1.255 -> "1.26", -1.005 -> "-1.01"
+//      (W: T01-T04, T07, where rounding |x| · 10^k in binary would print 1, 163.26, 145.79,
+//      1.25, -1), 127.705 -> "127.71", 2.675 -> "2.68" (T05, T06), at the tenth decimal with no
+//      format (T19 1.00000000005 -> "1.0000000001"), and through a carry (T30 99999.995 ->
+//      "100000"). ⚰️ `n.toFixed(k)` rounds the double 127.70499999… DOWN (127.7).
+//   F7 a value that rounds to zero prints WITHOUT a sign: -0.004 "#.##" -> "0" (T13),
+//      -1e-12 -> "0" (T14), -0.4 "#" -> "0" (T26), 1e-11 -> "0" (T29).
+//   F8 no format at 1e21 or more prints JavaScript's exponent form: 1e21 -> "1e+21" (T18).
+//   F9 "," groups the integer part by three: 1234.5 through "#,###.##" -> "1,234.5" (T20).
+// ⛔ STILL WITHHELD BY NAME: a PATTERN at 1e21 or more (`format:magnitude-uncaptured`: only the
+//   default's exponent is witnessed), a grouping of any size but three
+//   (`format:grouping-uncaptured`), a negative value under a literal prefix
+//   (`format:negative-under-prefix`).
+
+/** From here JavaScript prints an exponent (F8: witnessed for the default only). */
+export const TOSTRING_MAGNITUDE_LIMIT = 1e21
+/** `str.tostring(n)` with no format: up to ten decimals (F1), the exponent form from 1e21 (F8). */
+export const TOSTRING_DEFAULT_BOUNDS = Object.freeze({ min: 0, max: 10, exponent: true })
+/** The one grouping size a capture shows (F9). */
+export const TOSTRING_GROUP_SIZE = 3
+
+/** The shortest round-trip decimal of `a >= 0` as `{int, frac}` digit strings, never in
+ *  exponent form (`a` below `TOSTRING_MAGNITUDE_LIMIT`). */
+function plainDigits(a) {
+  let s = String(a)
+  const m = /^(\d)(?:\.(\d+))?e([+-]\d+)$/.exec(s)
+  if (m) {
+    const digits = m[1] + (m[2] || '')
+    const e = Number(m[3])
+    if (e < 0) s = `0.${'0'.repeat(-e - 1)}${digits}`
+    else s = digits.length > e + 1 ? `${digits.slice(0, e + 1)}.${digits.slice(e + 1)}` : digits + '0'.repeat(e + 1 - digits.length)
+  }
+  const [int, frac = ''] = s.split('.')
+  return { int, frac }
+}
+
+/** `{int, frac}` plus one unit in the last place of `frac`, in decimal. */
+function plusOneUlp(int, frac) {
+  const all = (int + frac).split('').map(Number)
+  let i = all.length - 1
+  while (i >= 0) {
+    if (all[i] === 9) { all[i] = 0; i -= 1 } else { all[i] += 1; break }
+  }
+  let s = all.join('')
+  if (i < 0) s = `1${s}`
+  const cut = s.length - frac.length
+  return { int: s.slice(0, cut), frac: s.slice(cut) }
+}
+
+/** F5 / F6 ("decup"): the shortest decimal of `a`, rounded half-up at `k` decimals. */
+function decupDigits(a, k) {
+  const { int, frac } = plainDigits(a)
+  if (frac.length <= k) return { int, frac }
+  const keep = frac.slice(0, k)
+  return Number(frac[k]) >= 5 ? plusOneUlp(int, keep) : { int, frac: keep }
+}
+
+/** The body text of `{int, frac}` under `min`/`max` decimals: padded with required zeros,
+ *  optional trailing zeros trimmed, a bare point dropped. */
+function renderDigits(d, min, max) {
+  let f = d.frac.padEnd(min, '0')
+  if (f.length > max) f = f.slice(0, max)
+  while (f.length > min && f.endsWith('0')) f = f.slice(0, -1)
+  return f ? `${d.int}.${f}` : d.int
+}
+
+const boundsOf = (b) => {
+  const max = b && Number.isInteger(b.max) && b.max >= 0 ? b.max : TOSTRING_DEFAULT_BOUNDS.max
+  const min = b && Number.isInteger(b.min) && b.min >= 0 ? Math.min(b.min, max) : 0
+  return { min, max, exponent: !!(b && b.exponent === true) }
+}
+
+/**
+ * ⭐⭐ CBC-FMT — WHY `tostringNumberText(n, bounds)` withholds `n`, BY NAME, or `null` when
+ * every rule above settles the characters (`na` included: it prints "NaN"). The ONE
+ * authority: `tostringNumberText` asks it.
+ * @returns {null|'format:not-a-number'|'format:magnitude-uncaptured'}
+ */
+export function tostringNumberWhy(n, bounds) {
+  if (typeof n !== 'number') return 'format:not-a-number'
+  if (!Number.isFinite(n)) return null
+  if (Math.abs(n) >= TOSTRING_MAGNITUDE_LIMIT && !boundsOf(bounds).exponent) return 'format:magnitude-uncaptured'
+  return null
+}
+
+/**
+ * ⭐⭐ CBC-FMT — ONE `str.tostring` NUMBER, as TradingView prints it with `min`..`max`
+ * decimals, or `null` (WITHHELD: `tostringNumberWhy` names why). `na` prints "NaN".
+ * @param {number} n
+ * @param {{min?: number, max?: number, exponent?: boolean}} [bounds]  default: no format
+ * @returns {string|null}
+ */
+export function tostringNumberText(n, bounds = TOSTRING_DEFAULT_BOUNDS) {
+  if (typeof n !== 'number') return null
+  if (!Number.isFinite(n)) return 'NaN'
+  if (tostringNumberWhy(n, bounds) !== null) return null
+  if (Math.abs(n) >= TOSTRING_MAGNITUDE_LIMIT) return String(n) // F8
+  const { min, max } = boundsOf(bounds)
+  const body = renderDigits(decupDigits(Math.abs(n), max), min, max)
+  // F7: a value that rounds to zero carries no sign
+  return n < 0 && !/^0+(\.0*)?$/.test(body) ? `-${body}` : body
+}
+
+/** A plain `#`/`0` pattern's decimals: `max` = the digits after the point, `min` = its `0`s
+ *  (F4: no ten-decimal cap), and how many integer digits its `0`s require. */
+export function plainPatternBounds(fmt) {
   const dot = fmt.indexOf('.')
   const frac = dot < 0 ? '' : fmt.slice(dot + 1)
   const intPart = dot < 0 ? fmt : fmt.slice(0, dot)
-  const max = Math.max(0, Math.min(10, frac.length))
-  const min = Math.min(max, (frac.match(/0/g) || []).length)
-  let out = n.toFixed(max)
-  if (max > min) {
-    out = out.replace(/0+$/, (z) => z.slice(0, Math.max(0, min - (max - z.length))))
-    out = out.replace(/\.$/, '')
-  }
-  const wantInt = (intPart.match(/0/g) || []).length
-  if (wantInt > 1) {
+  const max = frac.length
+  return { min: Math.min(max, (frac.match(/0/g) || []).length), max, intDigits: (intPart.match(/0/g) || []).length }
+}
+
+/** Why `formatPlainNumber(n, fmt)` withholds `n` (a name), or `null`. */
+export function plainNumberWhy(n, fmt) {
+  if (!isPlainNumberPattern(fmt)) return 'format:pattern-unread'
+  return tostringNumberWhy(n, plainPatternBounds(fmt))
+}
+
+/** `#`/`0` patterns: required decimals are the `0`s, optional the `#`s (F4, no cap); a
+ *  leading `00` pads the integer part (C13). The number itself is the one core's
+ *  (`tostringNumberText`). `null` for a pattern it does not read whole, or for a value the
+ *  core withholds (`plainNumberWhy` names it). */
+export function formatPlainNumber(n, fmt) {
+  if (!isPlainNumberPattern(fmt)) return null
+  const b = plainPatternBounds(fmt)
+  let out = tostringNumberText(n, b)
+  if (out === null || out === 'NaN') return out
+  if (b.intDigits > 1) {
     const neg = out.startsWith('-')
     const body = neg ? out.slice(1) : out
     const head = body.split('.')[0]
-    if (head.length < wantInt) {
-      out = (neg ? '-' : '') + '0'.repeat(wantInt - head.length) + body
-    }
+    if (head.length < b.intDigits) out = (neg ? '-' : '') + '0'.repeat(b.intDigits - head.length) + body
   }
   return out
+}
+
+/** Why `formatPatternedNumber(n, fmt)` withholds `n` (a name), or `null`. The ONE answer
+ *  `formatPatternedNumber` asks. */
+export function patternedNumberWhy(n, fmt) {
+  if (typeof n !== 'number' || !Number.isFinite(n)) return 'format:not-a-number'
+  const p = tostringPatternOf(fmt)
+  if (!p) return 'format:pattern-unread'
+  const why = plainNumberWhy(n, p.core)
+  if (why !== null) return why
+  const body = formatPlainNumber(n, p.core)
+  if (body.startsWith('-') && p.prefix) return 'format:negative-under-prefix'
+  if (p.grouping > 0 && p.grouping !== TOSTRING_GROUP_SIZE
+    && body.replace(/^-/, '').split('.')[0].length > p.grouping) return 'format:grouping-uncaptured'
+  return null
+}
+
+/** F9: the integer part grouped by three with ",". */
+function grouped(body) {
+  const neg = body.startsWith('-')
+  const [int, frac] = (neg ? body.slice(1) : body).split('.')
+  const g = int.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+  return `${neg ? '-' : ''}${g}${frac !== undefined ? `.${frac}` : ''}`
 }
 
 /**
@@ -398,26 +552,24 @@ export function formatPlainNumber(n, fmt) {
  * A plain pattern is `formatPlainNumber`'s; this is the rest of the grammar.
  */
 export function formatPatternedNumber(n, fmt) {
-  if (typeof n !== 'number' || !Number.isFinite(n)) return null
+  if (patternedNumberWhy(n, fmt) !== null) return null
   const p = tostringPatternOf(fmt)
-  if (!p) return null
   const body = formatPlainNumber(n, p.core)
-  if (body === null) return null
-  if (/^-0(\.0*)?$/.test(body)) return null
-  if (body.startsWith('-') && p.prefix) return null
-  if (p.grouping > 0) {
-    const head = body.replace(/^-/, '').split('.')[0]
-    if (head.length > p.grouping) return null
-  }
-  return `${p.prefix}${body}${p.suffix}`
+  return `${p.prefix}${p.grouping === TOSTRING_GROUP_SIZE ? grouped(body) : body}${p.suffix}`
 }
 
 /**
  * ⭐⭐ `str.tostring(n, format.mintick)` given the symbol's tick as its decimal
  * text (`"0.01"`, `"0.25"`) — rounded to a multiple of the tick and printed with
- * the tick's decimals, trailing zeros kept. `null` (WITHHELD) with no settled
- * tick, at 1000 or more, at an exact tie, or for a negative zero. `na` prints
- * `NaN`, as every other `str.tostring` does.
+ * the tick's decimals, trailing zeros kept. `null` (WITHHELD) with no settled tick.
+ * `na` prints `NaN`, as every other `str.tostring` does.
+ * ⭐⭐ CBC-FMT (S10, `vw-fmt-tie-readings` T08-T12) — THE TICK IS ROUNDED IN BINARY, `n / tick`,
+ * NOT the pattern's decimal reading: 1.005 -> "1.00" and 163.265 -> "163.26" (T08, T09:
+ * 1.005 / 0.01 = 100.49999…, where "#.##" prints 1.01), an exact tie rounds up (T10 0.125 ->
+ * "0.13"), a value that rounds to zero prints unsigned (T11 -0.004 -> "0.00"), and no
+ * grouping at 1000 or more (T12 1234.5 -> "1234.50"). 127.705 / 0.01 is 12770.5 exactly:
+ * "127.71" (support-resistance-mtf-flux RDDT). ⛔ Still withheld: a NEGATIVE exact tie (which
+ * way it goes is not captured) and any tie at a tick that is not a power of ten (`0.25`).
  */
 export function tickNumberText(n, tickText) {
   if (typeof tickText !== 'string' || !/^\d+(\.\d+)?$/.test(tickText)) return null
@@ -425,18 +577,18 @@ export function tickNumberText(n, tickText) {
   if (!(tick > 0)) return null
   if (typeof n !== 'number') return null
   if (!Number.isFinite(n)) return 'NaN'
-  if (Math.abs(n) >= TOSTRING_GROUPING_LIMIT) return null
   const dot = tickText.indexOf('.')
   const decimals = dot < 0 ? 0 : tickText.length - dot - 1
   const q = n / tick
-  const frac = Math.abs(q - Math.trunc(q))
-  // a tie at the tick: exact for a power-of-ten tick, to 1e-9 for any other
   const powerOfTen = /^(1|0\.0*1)$/.test(tickText)
-  if (powerOfTen ? exactTieAt(n, decimals) : Math.abs(frac - 0.5) < 1e-9) return null
+  if (powerOfTen) {
+    if (q - Math.floor(q) === 0.5 && q < 0) return null
+  } else if (Math.abs(Math.abs(q - Math.trunc(q)) - 0.5) < 1e-9) {
+    return null
+  }
   const k = Math.round(q)
-  // a negative value that rounds to zero: "-0.00" or "0.00" — no capture says
-  if (k === 0 && n < 0) return null
-  return (k * tick).toFixed(Math.min(decimals, 20))
+  const s = (k * tick).toFixed(Math.min(decimals, 20))
+  return /^-0+(\.0*)?$/.test(s) ? s.slice(1) : s
 }
 
 /**

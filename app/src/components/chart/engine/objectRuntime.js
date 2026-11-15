@@ -53,7 +53,8 @@ import { NOT_SHOWN, notShownSentence, stoppedRunSentence, STOPPED_KEY } from './
 import { BINARY, UNARY, CARRIED2, POINTWISE_FOR_PARITY as PW, historyBackOf, historyReadable } from './ast/interpret'
 // ⭐ `str.format`'s number rendering — the SAME module whose grammar the
 // translator compiled the pattern with (C15, objects-triage step 13).
-import { formatMessageNumber, formatPlainNumber, formatPatternedNumber, isPlainNumberPattern, tickNumberText, volumeNumberText } from './pineTextFormat'
+import { formatMessageNumber, formatPlainNumber, formatPatternedNumber, isPlainNumberPattern, tickNumberText, volumeNumberText,
+  tostringNumberText, tostringNumberWhy, plainNumberWhy, patternedNumberWhy, TOSTRING_DEFAULT_BOUNDS } from './pineTextFormat'
 
 /** Own-property test — a family name must not reach `POOL_LIMITS` through the
  *  prototype chain (`constructor`, `toString`) and read as a declared pool. */
@@ -76,13 +77,23 @@ const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
 
 /** ⭐⭐ C43 — `str.tostring(x)` with NO format: ten decimals, trailing zeros
  *  trimmed (see `formatNumber`). Exported for the rails that replay a vendor
- *  text, so they ask the formatter instead of restating it. */
+ *  text, so they ask the formatter instead of restating it.
+ *  ⭐⭐ CBC-FMT — the one core (`pineTextFormat.js::tostringNumberText` at {0, 10}): `null`
+ *  (WITHHELD, named by `formatNumberWhy`) where it was "-0" or "1e+21" — texts no capture shows
+ *  TradingView printing — or where the two tie readings part. ⚰️ `toFixed(10)` rounded a
+ *  decimal tie DOWN (F6) and printed `-1e-12` as "-0". */
 export function defaultNumberText(n) {
-  if (!Number.isFinite(n)) return 'NaN'
-  const s = n.toFixed(10)
-  // `toFixed` answers in exponent form from 1e21 up; the plain number is all there is
-  if (!/^-?\d+\.\d{10}$/.test(s)) return String(n)
-  return s.replace(/0+$/, '').replace(/\.$/, '')
+  return tostringNumberText(n, TOSTRING_DEFAULT_BOUNDS)
+}
+
+/** ⭐⭐ CBC-FMT — why `formatNumber(n, fmt)` withholds `n`, BY NAME (`format:*`), or null.
+ *  The same dispatch `formatNumber` takes, asking each branch's own authority. */
+export function formatNumberWhy(n, fmt) {
+  if (typeof n !== 'number') return 'format:not-a-number'
+  if (!Number.isFinite(n)) return null
+  if (typeof fmt !== 'string' || !fmt) return tostringNumberWhy(n, TOSTRING_DEFAULT_BOUNDS)
+  if (isPlainNumberPattern(fmt)) return plainNumberWhy(n, fmt)
+  return patternedNumberWhy(n, fmt)
 }
 
 /** ⭐ RT5 — lifted to module level, unchanged, so the runtime lane's
@@ -525,6 +536,13 @@ export function beginObjects(program, ctx) {
    *  capture pins a rendering for (`formatMessageNumber` → `null`). The object's
    *  text is then `null` and the render state does not draw it. */
   let textsWithheld = 0
+  /** ⭐⭐ CBC-FMT — the withheld number texts BY NAME (`formatNumberWhy`), for diagnostics. */
+  const textsWithheldWhy = {}
+  const numberWithheld = (n, fmt) => {
+    textsWithheld += 1
+    const why = formatNumberWhy(n, fmt) || 'format:withheld'
+    textsWithheldWhy[why] = (textsWithheldWhy[why] || 0) + 1
+  }
   // ⭐ C29 — history reads past the measured automatic buffer, withheld (not read).
   let atBeyondAuto = 0
   /** ⭐ CELLS REMOVED BY `table.clear`, counted separately from `deleted` —
@@ -916,7 +934,7 @@ export function beginObjects(program, ctx) {
             return s
           }
           const s = formatNumber(n, t.fmt)
-          if (s === null) textsWithheld += 1
+          if (s === null) numberWithheld(n, t.fmt)
           return s
         }
         // ⭐⭐ A VALUE THAT IS ALREADY TEXT. ⛔ A non-string answers the EMPTY
@@ -948,7 +966,7 @@ export function beginObjects(program, ctx) {
           const n = value(t.v)
           if (typeof n !== 'number') { textsWithheld += 1; return null }
           const s = formatNumber(n, t.fmt)
-          if (s === null) textsWithheld += 1
+          if (s === null) numberWithheld(n, t.fmt)
           return s
         }
         default: return ''
@@ -2384,6 +2402,7 @@ export function beginObjects(program, ctx) {
       ...(fillsReplaced ? { fillsReplaced } : {}),
       ...(fillsWithoutLines ? { fillsWithoutLines } : {}),
       ...(textsWithheld ? { textsWithheld } : {}),
+      ...(Object.keys(textsWithheldWhy).length ? { textsWithheldWhy: { ...textsWithheldWhy } } : {}),
       ...(atBeyondAuto ? { atBeyondAutoBuffer: atBeyondAuto } : {}),
       ...(withheldUnknown ? { withheldUnknown } : {}),
       ...(withheldBarIndex ? { withheldBarIndex } : {}),

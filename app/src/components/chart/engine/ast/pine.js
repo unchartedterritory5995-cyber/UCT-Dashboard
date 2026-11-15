@@ -103,6 +103,8 @@ import { yieldsOf, compileRules, SENTENCE_RULES, didYouMean } from './sentence.j
 import { FN, MAX_SELF_LAG, SEED_RESIDUAL_TOLERANCE, TF_RESAMPLABLE, TF_LADDER, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed, heldFalseSeed, naConditionIsFalse, periodFirstCondition, readingSeed, chartOwnTimeNode, OWN_TIME_WITNESSED_TF, periodCloseNode, PERIOD_CLOSE_CODES, periodAnchorNode, chartSixtyTimeNode, SIXTY_WITNESSED_TF, PERIOD_ANCHOR_WITNESSED_TF, PERIOD_CLOSE_WITNESSED_TF, requestBaseNode, treeReadsLowerTf, listingSeedIsUnpinned } from './interpret.js'
 import { isLowerTfRequest, lowerTfRefusal, LOWER_TF_REFUSAL } from '../lowerTf.js'
 import { memberNumber } from './memberValue.js'
+// ⭐⭐ CBC-FMT — the request reads a `calc_bars_count` window refuses (pure, imports nothing).
+import { CALC_BARS_REQUEST_SOURCE } from '../calcBarsWindow.js'
 import { timeInputDefaultOf, isTimeInputCall } from '../runtime/runtimeInputs.js'
 // ⭐ The budget's own verdict, asked at the translate door (see the row builder
 // in `translatePine`). ⚠️ NOT A CYCLE: `budget.js` imports `interpret.js` and
@@ -398,6 +400,14 @@ export const REFUSALS = Object.freeze({
   'pine:window-dependent':
     'this value depends on how much history was loaded, so the same script would '
     + 'answer differently for the same stock on the same day',
+  // ⭐⭐ CBC-FMT — `indicator(calc_bars_count = …)`, read by ONE reader
+  // (`declarationCalcBars`) for every door. A positive whole-number literal is the window
+  // TradingView computes the script on (witnessed, `engine/calcBarsWindow.js`), `0` is every
+  // bar (S10 `vw-cbc-zero`, MATCH), and anything else is TradingView's own compile error
+  // (S10 `vw-cbc-input-count-rddt-1d-2026-11-15`: CE10123, "calc_bars_count needs a const int").
+  'pine:calc-bars-count-expr':
+    '`calc_bars_count` must be a constant whole number (TradingView does not compile a count read '
+    + 'from an input or an expression: its compile error CE10123), so this script is not drawn',
   'pine:function':
     'this Pine function maps to nothing the engine grammar declares',
   'pine:arity':
@@ -5181,6 +5191,10 @@ let LIBRARY_LINK_SINK = null
  *  and closed by `translatePine` beside the sinks above; read only by
  *  `pineConstIntValue`. */
 let DECL_WORDS_SINK = null
+/** ⭐⭐ CBC-FMT — the HOST-lane `calc_bars_count` of the translation in flight
+ *  (`declarationCalcBars`, written at the declaration), stamped by `translatePine` on
+ *  every return — a refused script's too, so the runtime lane's document carries it. */
+let CALC_BARS_SINK = null
 
 /** ⭐⭐ F1 — DOES PINE TRUNCATE THIS `/`? Before v6 it does exactly when BOTH
  *  operands are `const int`; from v6 a `const int` quotient keeps its fraction
@@ -20324,6 +20338,17 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
    *  (`lesson_a_guard_repeated_is_a_guard_unproved`). */
   const numNode = (ast, fmt, implicit = false) => {
     if (enumLeaves) return null
+    // ⭐⭐ CBC-FMT (F11) — A NUMBER NOBODY STRINGIFIED, IN A TEXT SLOT, IS A COMPILE ERROR on
+    // TradingView: `text` (a label's, a cell's, a tooltip) is a series STRING and Pine does not
+    // convert a number into one (`str.tostring` does). Such a script never draws there, so the
+    // drawing is refused by name rather than printed with a format TradingView never applies.
+    // ⛔ Only OUTSIDE a `str.format` argument: there an implicit number is exactly what `{N}`
+    // is handed (`messageNumber`, below).
+    if (implicit && !messageNumber) {
+      textRefuse('pine:type', 'a number stands where Pine takes text (a label, box or cell `text` is a '
+        + 'series string, and TradingView does not compile a number there): `str.tostring(…)` makes it text')
+      return null
+    }
     const ref = internTree(ast)
     if (!ref) return null
     // ⭐⭐ A NUMBER NOBODY STRINGIFIED, INSIDE A `str.format` ARGUMENT, is
@@ -26040,6 +26065,9 @@ export function translatePine(source, opts = {}) {
   const outerDeclWords = DECL_WORDS_SINK
   const outerTaintAt = strategyTaintAtLine
   const outerTaintDrawingAt = strategyTaintDrawingAtLine
+  const outerCalcBars = CALC_BARS_SINK
+  const calcBarsSink = { count: null }
+  CALC_BARS_SINK = calcBarsSink
   LIBRARY_LINK_SINK = null
   DECL_WORDS_SINK = null
   const sink = new Map()
@@ -26061,8 +26089,16 @@ export function translatePine(source, opts = {}) {
     DECL_WORDS_SINK = outerDeclWords
     strategyTaintAtLine = outerTaintAt
     strategyTaintDrawingAtLine = outerTaintDrawingAt
+    CALC_BARS_SINK = outerCalcBars
   }
   if (!t || typeof t !== 'object') return t
+  // ⭐⭐ CBC-FMT — the window the host lane computes this script on (`declarationCalcBars`),
+  // and whether it requests other bars (refused inside a window by name,
+  // `engine/calcBarsWindow.js`): on every return. Absent for a script that declares no count.
+  if (calcBarsSink.count !== null) {
+    t.calcBarsCount = calcBarsSink.count
+    if (CALC_BARS_REQUEST_SOURCE.test(strippedForScan(String(source || '')))) t.calcBarsRequest = true
+  }
   // ⭐⭐ L1 — WHAT WAS LINKED, AND WHERE A LIBRARY'S REFUSAL REALLY POINTS. Present
   // only when a library was linked, so every other result is byte-identical. A
   // refusal located inside a library's code is moved to the member's own import
@@ -26229,6 +26265,28 @@ function translatePineResult(source, opts = {}) {
   let declaration = null
   let title = null
   const hardRefusals = []
+  /** ⭐⭐ CBC-FMT — the declaration's `calc_bars_count`, read by the one reader. A count
+   *  that is not a positive literal refuses by name on every lane. A positive count is the
+   *  window the HOST lane computes on (`CALC_BARS_SINK`, stamped on every return by
+   *  `translatePine`); a SCREEN is computed over a symbol's whole stored history, so its
+   *  value would be a different number under the same name, and it refuses by name instead. */
+  const calcBarsDeclared = (toks, word) => {
+    const cbc = declarationCalcBars(toks)
+    if (!cbc) return
+    if (cbc.guard) {
+      hardRefusals.push(refusalValue(cbc.guard, cbc.why, locate(cbc.tok)))
+      return
+    }
+    if (isHostLane(opts)) {
+      if (CALC_BARS_SINK) CALC_BARS_SINK.count = cbc.count
+      return
+    }
+    hardRefusals.push(refusalValue('pine:window-dependent',
+      `${REFUSALS['pine:window-dependent']} — \`${word}(calc_bars_count = ${cbc.count})\` makes TradingView `
+      + `compute the script on the chart's last ${cbc.count} bars only, and a screen computes it on the whole `
+      + 'history it reads, so every value would be a different number under the same name.',
+      locate(cbc.tok)))
+  }
   // ⭐⭐ TRACK F (DEC-006) — created ONCE per `translatePine` call (never per
   // output/per-Resolver, see `Resolver.paramMint`'s own comment for why),
   // `null` unless `opts.paramManifest` asked for it — the same opt-in, off-
@@ -26751,6 +26809,7 @@ function translatePineResult(source, opts = {}) {
       notes.push(noteOf('pine:declaration',
         'the indicator() declaration decides how a chart draws, and a screen reads none of it',
         first))
+      calcBarsDeclared(toks, word)
       // ⭐⭐ P0 0H (2026-10-05) — THESE ARGUMENTS USED TO VANISH. `timeframe =`
       // moves EVERY output onto other bars; computing on the chart's own instead
       // is a different number under the same name, so it refuses by name.
@@ -26787,6 +26846,7 @@ function translatePineResult(source, opts = {}) {
         title = firstString ? firstString.value : null
         overlay = declarationOverlay(toks)
         notes.push(noteOf('pine:strategy-chart', STRATEGY_CHART_NOTE, first))
+        calcBarsDeclared(toks, word)
         continue
       }
       hardRefusals.push(refusalValue('pine:declaration-strategy',
@@ -28960,6 +29020,8 @@ function translatePineResult(source, opts = {}) {
     version,
     declaration,
     title,
+    // (CBC-FMT — `calcBarsCount` / `calcBarsRequest` are stamped by `translatePine` on EVERY
+    // return, this one and the early ones alike, as `mode` is: `CALC_BARS_SINK`.)
     // ⭐⭐ WAVE B — THE SCRIPT'S OWN VISUAL PROGRAM, alongside its calculations.
     // `overlay` is the author's pane intent, read from the declaration this door
     // previously only glanced at for a title. `levels` are the `hline` values it
@@ -31734,6 +31796,37 @@ function callNamedArgToks(toks, name) {
     }
   }
   return null
+}
+
+/** ⭐⭐ CBC-FMT — THE ONE READER OF `calc_bars_count` IN A DECLARATION (the
+ *  `indicator(...)` / `study(...)` / `strategy(...)` statement's tokens), for every door:
+ *  the host lane stamps what it answers (`translatePine` → `calcBarsCount`, which the
+ *  member door writes to `meta.calcBarsCount`), the runtime front end refuses by the same
+ *  names (`pineRuntimeFrontend.js`), and nothing else reads the count. ⚰️ It replaces a
+ *  regex over the whole source (`objectStore.js::declaredCalcBarsOf`), which took the FIRST
+ *  `calc_bars_count = <digits>` anywhere — a `request.security(…, calc_bars_count = 200000)`
+ *  argument included — and so windowed scripts that declare no window (review D2).
+ *
+ *  → `null` (absent, `na` or `0`: every bar), `{count, tok}` (a positive whole-number
+ *  literal), or `{guard, why, tok}` (refused by name: anything that is not a literal count). */
+export function declarationCalcBars(toks) {
+  const found = callNamedArgToks(toks, 'calc_bars_count')
+  if (!found) return null
+  const v = found.value
+  if (v.length === 1 && v[0].kind === 'ident' && v[0].value === 'na') return null
+  const raw = v.length === 1 && v[0].kind === 'number' ? String(v[0].raw ?? v[0].value) : null
+  if (raw !== null && /^\d+$/.test(raw)) {
+    const n = Number(raw)
+    // ⭐ S10 (`vw-cbc-zero-rddt-1d-2026-11-15`, MATCH): `0` computes every bar, as no count does
+    if (n === 0) return null
+    if (Number.isSafeInteger(n)) return { count: n, tok: found.nameTok }
+  }
+  const text = v.length ? v.map((t) => (t.raw ?? t.value)).join(' ') : 'nothing'
+  return {
+    guard: 'pine:calc-bars-count-expr',
+    why: `${REFUSALS['pine:calc-bars-count-expr']} (it reads \`${text}\`)`,
+    tok: found.nameTok,
+  }
 }
 
 /** ⭐⭐ P0 0H — `indicator(timeframe = …)` / v4 `study(resolution = …)`: the

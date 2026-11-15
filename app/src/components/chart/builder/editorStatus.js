@@ -199,7 +199,7 @@ export const FAMILIES = Object.freeze([
     id: 'presentation',
     exact: ['pine:colour-value', 'pine:text-value', 'pine:plot-offset', 'pine:alert-message',
       'pine:paint-pane', 'runtime:colour', 'runtime:presentation', 'runtime:plot-id'],
-    prefix: ['pine:offset-negative', 'paint:', 'runtime:fill-'],
+    prefix: ['pine:offset-negative', 'paint:', 'runtime:fill-', 'format:'],
     label: 'How it is drawn',
     why: 'The value is computed, but this way of drawing it is not supported yet, so it is not drawn '
       + 'rather than drawn differently.',
@@ -209,7 +209,7 @@ export const FAMILIES = Object.freeze([
     exact: ['pine:window', 'pine:window-dependent', 'pine:budget', 'pine:timeout', 'runtime:limit',
       'runtime:time-budget', 'runtime:history-start', 'runtime:warmup-never-converges',
       'chart:scalar-current-only'],
-    prefix: ['runtime:calc-bars-'],
+    prefix: ['runtime:calc-bars-', 'pine:calc-bars-'],
     label: 'History and compute limits',
     why: 'This needs more history or more computing than a chart here allows, so it is withheld.',
   },

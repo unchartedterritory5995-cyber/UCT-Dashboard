@@ -19,6 +19,7 @@ import { registerRuntimeLane } from '../nativeRegistry.js'
 import { notifyColumnsLanded } from '../serverCompute.js'
 import { withRuntimeObjects, RUNTIME_WARMUP_KEY } from './runtimeObjects.js'
 import { withStrategyRecord } from './strategyRecord.js'
+import { CALC_BARS_KEY } from '../calcBarsWindow.js'
 import {
   runtimeColumnsFor, computeRuntimeColumns, setRuntimeRunner, onRuntimeColumnsLanded,
   RUNTIME_PANE_TIME_BUDGET_MS, RUNTIME_TIME_BUDGET_GUARD, RUNTIME_LIMIT_GUARD, RUNTIME_FAILED_GUARD,
@@ -229,7 +230,7 @@ function workerOf(factory) {
     return null
   }
   _worker.onmessage = (event) => {
-    const { id, ok, columns, error, objects, warmup, strategy } = event.data || {}
+    const { id, ok, columns, error, objects, warmup, strategy, calcBars } = event.data || {}
     const job = _jobs.get(id)
     if (!job) return
     _jobs.delete(id)
@@ -240,6 +241,10 @@ function workerOf(factory) {
     }
     // ⭐⭐ W9-T11 — the run's `strategy` record, re-attached as the worker found it
     if (landed && strategy) withStrategyRecord(landed, strategy)
+    // ⭐⭐ CBC-FMT — and its `calc_bars_count` window record (the disclosure strip reads it)
+    if (landed && calcBars) {
+      Object.defineProperty(landed, CALC_BARS_KEY, { value: calcBars, enumerable: false, configurable: true })
+    }
     settle(job, ok ? null : errorOf(error), landed)
     postHeld(job.coalesce, factory)
   }
@@ -255,7 +260,12 @@ function messageOf(id, def, rows, ctx) {
   const plainDef = {
     id: def && def.id,
     compute: def && def.compute,
-    meta: { runtimeHistory: def && def.meta ? def.meta.runtimeHistory : undefined },
+    meta: {
+      runtimeHistory: def && def.meta ? def.meta.runtimeHistory : undefined,
+      // ⭐⭐ CBC-FMT — the `calc_bars_count` window stamp: the run takes its window from it
+      // (`engine/calcBarsWindow.js`). ⛔ Without it a worker run would compute every bar.
+      ...(def && def.meta && Number.isInteger(def.meta.calcBarsCount) ? { calcBarsCount: def.meta.calcBarsCount } : {}),
+    },
   }
   const plainCtx = {
     tf: ctx && ctx.tf,
