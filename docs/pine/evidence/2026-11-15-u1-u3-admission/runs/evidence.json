@@ -3,7 +3,9 @@
   "U1/U3 (2026-11-15): per capability, the registry rule's evidence over the runtime-on harness at master",
   "5819d9363e (584 captures, tests/fixtures/vendor): runtime-lane-drawn (CAPADMIT_MODE=lanes), runtime-on MATCH, the script uses it;",
   "obj:* also objects v2 MATCH with records paired. 'admits' is rollout_gate.pine_capability_admission over exactly that evidence.",
-  "No ledger (licence-held) evidence contributed (capability_admission.py evidence, same run)."
+  "No ledger (licence-held) evidence contributed (capability_admission.py evidence, same run).",
+  "obj:box 'admits' here on the rule alone; it is WITHHELD from the registry by coordinator ruling (the v4 default",
+  "border colour bug, inside-bar-boxes-rddt-1d-2026-11-14). See EVIDENCE.md."
  ],
  "capabilities": {
   "calc-bars": {

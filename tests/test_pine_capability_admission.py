@@ -122,8 +122,9 @@ def test_the_committed_admitted_set_is_the_evidence_supported_one():
     assert rt.admitted_capabilities()["admitted"] == sorted([
         "core", "reassign", "ternary", "if-block", "var", "fn-single", "fn-multi", "for",
         "compound-assign", "history-expr", "tuple-destructure",
-        # U1 (2026-11-15): the five object families, objects v2 runtime-on MATCH with records paired
-        "obj:line", "obj:label", "obj:box", "obj:delete", "obj:collection",
+        # U1 (2026-11-15): object families on objects v2 runtime-on MATCH with records paired;
+        # obj:box withheld by ruling (the v4 default border colour, test_A7_obj_box_waits_...)
+        "obj:line", "obj:label", "obj:delete", "obj:collection",
         # U3 (2026-11-15): each on the one evidence rule over the S1-era corpus; realtime-state for
         # closed-bar history only (G6); max_bars_back by coordinator ruling (a)
         "obj:getter", "obj:linefill", "switch", "for-in", "max_bars_back", "realtime-state",
@@ -399,17 +400,44 @@ def test_A7_an_x_grade_that_DIVERGES_vetoes_the_family():
 
 
 #: U1 (2026-11-15): the object families admitted on objects v2 runtime-on evidence (y graded, G1).
-U1_OBJECT_FAMILIES = ["obj:box", "obj:collection", "obj:delete", "obj:label", "obj:line"]
+U1_OBJECT_FAMILIES = ["obj:collection", "obj:delete", "obj:label", "obj:line"]
 #: U3 (2026-11-15): two more object operations met the rule on S1's community scripts.
 U3_OBJECT_FAMILIES = ["obj:getter", "obj:linefill"]
 
 
-def test_A7_the_committed_object_families_are_U1s_five_and_U3s_two():
+def test_A7_the_committed_object_families_are_U1s_four_and_U3s_two():
     rep = rt.admitted_capabilities()
     assert sorted(c for c in rep["admitted"] if c.startswith("obj:")) == sorted(U1_OBJECT_FAMILIES + U3_OBJECT_FAMILIES)
-    # table and polyline have no runtime-drawn evidence at all (U3 shortfall)
-    for c in ("obj:table", "obj:polyline"):
+    # table and polyline have no runtime-drawn evidence at all (U3 shortfall); box waits for a fix
+    for c in ("obj:table", "obj:polyline", "obj:box"):
         assert c not in rep["admitted"], c
+
+
+#: ⛔ Coordinator ruling 2026-11-15: obj:box's y evidence passes the rule, but the runtime lane draws a
+#: v4 `box.new` with no `border_color` in #2962ff (v5+ color.blue) where TradingView draws #2196f3
+#: (v4 color.blue). The family waits for runtime object defaults made version-aware.
+OBJ_BOX_BUG_CAPTURE = "inside-bar-boxes-rddt-1d-2026-11-14"
+
+
+def test_A7_obj_box_waits_for_version_aware_object_defaults():
+    doc = json.loads(Path(rt.ALLOWLIST_PATH).read_text(encoding="utf-8"))
+    assert "obj:box" not in doc["capabilities"]
+    readme = " ".join(doc["_readme"])
+    assert "obj:box IS DELIBERATELY ABSENT" in readme and OBJ_BOX_BUG_CAPTURE in readme
+    assert "#2962ff" in readme and "#2196f3" in readme
+    # the evidence the ruling names is what it says: runtime-drawn, objects v2 DIVERGE on a box colour
+    r = _verdicts()[OBJ_BOX_BUG_CAPTURE]
+    o = r["objectsV2"]
+    assert o["verdict"] == "DIVERGE" and "boxes border_color" in o["reason"], o["reason"]
+    assert "#2196f3" in o["reason"] and "#2962ff" in o["reason"]
+    src = (json.loads((ROOT / r["file"]).read_text(encoding="utf-8")).get("source") or {}).get("text")
+    assert "obj:box" in pc.capabilities_of(src)
+
+
+def test_A7_a_box_drawing_member_script_is_withheld(on):
+    src = MEMBER_COPY + "var box b = na" + chr(10) + "b := box.new(bar_index - 1, high, bar_index, low)" + chr(10)
+    ok, missing = rt.capability_admitted(src)
+    assert not ok and missing == ["obj:box"], missing
 
 
 def test_A7_an_object_drawing_member_script_is_withheld_while_its_family_is(on):

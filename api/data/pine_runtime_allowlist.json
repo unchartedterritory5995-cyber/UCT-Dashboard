@@ -39,7 +39,14 @@
     "",
     "G6 (2026-11-15, coordinator ruling): `realtime-state` admits ONLY with scope `closed-bar-history`. A script",
     "admitted by capability that uses it is drawn bar by bar only while the chart's newest bar is known to be",
-    "closed; on a forming or untold bar it is refused by name (runtimeKill.js::runtimeFormingRefusalOf)."
+    "closed; on a forming or untold bar it is refused by name (runtimeKill.js::runtimeFormingRefusalOf).",
+    "",
+    "obj:box IS DELIBERATELY ABSENT (coordinator ruling 2026-11-15). Its y evidence passes the rule (6 / 4 / 3),",
+    "but the runtime lane's object defaults are not version-aware: a v4 box.new with no border_color draws",
+    "#2962ff (v5+ color.blue) where TradingView draws #2196f3 (v4 color.blue). Evidence: capture",
+    "inside-bar-boxes-rddt-1d-2026-11-14, runtime-drawn, objects v2 DIVERGE on box border_color. The family",
+    "waits for runtime object defaults made version-aware (engine 58's palette table). Absent = withheld:",
+    "tests/test_pine_capability_admission.py rails that it stays out until that fix lands."
   ],
   "scripts": [
     {
@@ -405,19 +412,6 @@
         {"capture": "zigzag-multi-time-frame-with-fibonacci-retracement-rddt-1d-2026-11-14", "script": "ZZMTF", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 7}
       ],
       "note": "label.* drawings (U1, 2026-11-15): objectsPaired is the capture's paired LABEL records. Each entry: objects v2 MATCH with the run drawing (objectsLane runtime) and objectsPaired records paired (never pairedNothing). y graded (owner ruling G1); x recorded where a U13 x grade exists (objectsX, runs/x-grades.json); any x DIVERGE vetoes the family. Evidence: the runtime-on harness over tests/fixtures/vendor at master 5819d9363e (2026-11-15, VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json is that run), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes); docs/pine/evidence/2026-11-15-u1-u3-admission."
-    },
-    "obj:box": {
-      "status": "conformant",
-      "admitted": true,
-      "evidence": [
-        {"capture": "fair-value-gap-rddt-1d-2026-11-14", "script": "Fair Value Gap SpaceManBTC", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 21},
-        {"capture": "renko-candles-overlay-rddt-1d-2026-10-03", "script": "Renko Candles Overlay", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 142},
-        {"capture": "renko-candles-overlay-spy-1d-2026-10-03", "script": "Renko Candles Overlay", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 141},
-        {"capture": "vw-forin-collections-rddt-1d-2026-10-01", "script": "UCTPROBE_VW_FORIN_COLLECTIONS", "community": false, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 3},
-        {"capture": "wyckoff-accumulation-distribution-rddt-1d-2026-10-02", "script": "Wyckoff Accumulation Distribution", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 12},
-        {"capture": "wyckoff-accumulation-distribution-spy-1d-2026-10-02", "script": "Wyckoff Accumulation Distribution", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 22}
-      ],
-      "note": "box.* drawings (U1, 2026-11-15): objectsPaired is the capture's paired BOX records. Each entry: objects v2 MATCH with the run drawing (objectsLane runtime) and objectsPaired records paired (never pairedNothing). y graded (owner ruling G1); x recorded where a U13 x grade exists (objectsX, runs/x-grades.json); any x DIVERGE vetoes the family. Evidence: the runtime-on harness over tests/fixtures/vendor at master 5819d9363e (2026-11-15, VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json is that run), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes); docs/pine/evidence/2026-11-15-u1-u3-admission."
     },
     "obj:delete": {
       "status": "conformant",

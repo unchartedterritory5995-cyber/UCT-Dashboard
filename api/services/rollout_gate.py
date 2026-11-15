@@ -552,8 +552,10 @@ def pine_runtime_admission(script, registry) -> list[str]:
 #     `objectsV2: MATCH` and `objectsLane: runtime` (a v2 objects grade with the
 #     RUN drawing them) AND `objectsPaired`, a positive count of the records that
 #     grade paired (`objectsV2.pairedNothing` false: a MATCH that paired nothing
-#     compared nothing). U1 (2026-11-15) admits line, label, box, delete and
-#     collection on that evidence, graded on y (owner ruling G1);
+#     compared nothing). U1 (2026-11-15) admits line, label, delete and
+#     collection on that evidence, graded on y (owner ruling G1); `obj:box` passes
+#     it too but is WITHHELD by ruling (its v4 default border colour is wrong on
+#     the runtime lane: inside-bar-boxes-rddt-1d-2026-11-14), absent from the registry;
 #   * ⛔ AND NO ENTRY OF AN `obj:*` ROW MAY CARRY AN x GRADE THAT DIVERGES
 #     (`objectsX: DIVERGE`, U13): one wrong bar vetoes the whole family, whatever
 #     else its evidence says (coordinator ruling 2026-11-15). Where an x grade

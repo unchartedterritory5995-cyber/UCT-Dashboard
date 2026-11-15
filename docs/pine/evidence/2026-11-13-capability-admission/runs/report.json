@@ -2,26 +2,26 @@
  "populations": {
   "capture": {
    "scripts": 584,
-   "admitted": 267,
-   "runtimeLane": 24,
-   "hostLane": 162,
-   "refused": 81,
+   "admitted": 239,
+   "runtimeLane": 22,
+   "hostLane": 144,
+   "refused": 73,
    "coreOnly": 35
   },
   "committed": {
    "scripts": 266,
-   "admitted": 58,
-   "runtimeLane": 12,
-   "hostLane": 34,
-   "refused": 12,
+   "admitted": 46,
+   "runtimeLane": 11,
+   "hostLane": 29,
+   "refused": 6,
    "coreOnly": 4
   },
   "reference": {
    "scripts": 271,
-   "admitted": 99,
+   "admitted": 91,
    "runtimeLane": 8,
-   "hostLane": 69,
-   "refused": 22,
+   "hostLane": 66,
+   "refused": 17,
    "coreOnly": 7
   },
   "builtin": {
@@ -70,42 +70,6 @@
     "for",
     "reassign",
     "ternary"
-   ]
-  },
-  {
-   "capture": "atr-support-and-resistance-rddt-1d-2026-09-28",
-   "lane": "host",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "core",
-    "for",
-    "if-block",
-    "method-call",
-    "obj:box",
-    "obj:collection",
-    "obj:line",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "atr-support-and-resistance-spy-1d-2026-10-03",
-   "lane": "host",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "core",
-    "for",
-    "if-block",
-    "method-call",
-    "obj:box",
-    "obj:collection",
-    "obj:line",
-    "ternary",
-    "var"
    ]
   },
   {
@@ -200,40 +164,6 @@
    "production": "MATCH",
    "caps": [
     "core"
-   ]
-  },
-  {
-   "capture": "contraction-box-doji-lines-rddt-1d-2026-09-28",
-   "lane": "host",
-   "runtimeOn": "MATCH",
-   "production": "MATCH",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "obj:box",
-    "obj:line",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "contraction-box-doji-lines-spy-1d-2026-10-03",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "obj:box",
-    "obj:line",
-    "reassign",
-    "ternary",
-    "var"
    ]
   },
   {
@@ -480,23 +410,6 @@
    ]
   },
   {
-   "capture": "ict-killzone-index-version-rddt-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "obj:box",
-    "obj:line",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
    "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-09-28",
    "lane": "runtime",
    "runtimeOn": "MATCH",
@@ -527,52 +440,6 @@
     "obj:line",
     "reassign",
     "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "institutional-smc-order-flow-matrix-pro-rddt-1d-2026-09-28",
-   "lane": "host",
-   "runtimeOn": "MATCH",
-   "production": "MATCH",
-   "caps": [
-    "collections:array",
-    "core",
-    "fn-single",
-    "for",
-    "if-block",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:getter",
-    "obj:label",
-    "obj:line",
-    "reassign",
-    "ternary",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
-   "capture": "institutional-smc-order-flow-matrix-pro-spy-1d-2026-10-03",
-   "lane": "host",
-   "runtimeOn": "MATCH",
-   "production": "MATCH",
-   "caps": [
-    "collections:array",
-    "core",
-    "fn-single",
-    "for",
-    "if-block",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:getter",
-    "obj:label",
-    "obj:line",
-    "reassign",
-    "ternary",
-    "typed-array",
     "var"
    ]
   },
@@ -726,60 +593,6 @@
    ]
   },
   {
-   "capture": "makuchaku039s-trade-tools-fair-value-gaps-rddt-1d-2026-09-28",
-   "lane": "host",
-   "runtimeOn": "MATCH",
-   "production": "MATCH",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "obj:box"
-   ]
-  },
-  {
-   "capture": "makuchaku039s-trade-tools-fair-value-gaps-spy-1d-2026-10-03",
-   "lane": "host",
-   "runtimeOn": "MATCH",
-   "production": "MATCH",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "obj:box"
-   ]
-  },
-  {
-   "capture": "market-structure-break-order-block-rddt-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "for-in",
-    "history-expr",
-    "if-block",
-    "max_bars_back",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:getter",
-    "obj:label",
-    "obj:line",
-    "reassign",
-    "ternary",
-    "tuple-destructure",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
    "capture": "market-structure-by-leviathan-rddt-1d-2026-09-28",
    "lane": "host",
    "runtimeOn": "MATCH",
@@ -879,29 +692,6 @@
    ]
   },
   {
-   "capture": "order-blocks-rddt-1d-2026-11-14",
-   "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "core",
-    "for",
-    "if-block",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:getter",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "ternary",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
    "capture": "parabolic-sar-rddt-1d-2026-10-03",
    "lane": "runtime",
    "runtimeOn": "MATCH",
@@ -978,30 +768,6 @@
     "obj:label",
     "reassign",
     "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "previous-day-high-and-low-separators-dailyweekly-rddt-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
-    "if-block",
-    "obj:box",
-    "obj:collection",
-    "obj:label",
-    "obj:line",
-    "reassign",
-    "ternary",
-    "tuple-destructure",
-    "typed-array",
     "var"
    ]
   },
@@ -1117,34 +883,6 @@
     "if-block",
     "reassign",
     "var"
-   ]
-  },
-  {
-   "capture": "rs-arm-label-last-bar-rddt-1d-2026-11-15",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "obj:box",
-    "obj:delete",
-    "obj:label",
-    "realtime-state",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "rs-arm-label-last-bar-spy-1d-2026-11-15",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "obj:box",
-    "obj:delete",
-    "obj:label",
-    "realtime-state",
-    "ternary"
    ]
   },
   {
@@ -1568,86 +1306,6 @@
    ]
   },
   {
-   "capture": "sonarlab-order-blocks-aapl-1d-2026-10-02",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "core",
-    "for",
-    "if-block",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:getter",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "sonarlab-order-blocks-brk-a-1d-2026-10-02",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "core",
-    "for",
-    "if-block",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:getter",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "sonarlab-order-blocks-rddt-1d-2026-10-02",
-   "lane": "host",
-   "runtimeOn": "MATCH",
-   "production": "MATCH",
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "core",
-    "for",
-    "if-block",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:getter",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "sonarlab-order-blocks-spy-1d-2026-10-02",
-   "lane": "host",
-   "runtimeOn": "MATCH",
-   "production": "MATCH",
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "core",
-    "for",
-    "if-block",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:getter",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
    "capture": "supertrend-kivancozbilgic-rddt-1d-2026-10-02",
    "lane": "host",
    "runtimeOn": "INCONCLUSIVE",
@@ -1666,22 +1324,6 @@
    "caps": [
     "core",
     "if-block",
-    "realtime-state",
-    "reassign",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "support-and-resistance-7538ddd8-rddt-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "for",
-    "max_bars_back",
-    "obj:box",
-    "obj:delete",
     "realtime-state",
     "reassign",
     "ternary"
@@ -1817,27 +1459,6 @@
    "caps": [
     "core",
     "ternary"
-   ]
-  },
-  {
-   "capture": "volume-profile-auto-line-v2-rddt-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "core",
-    "for",
-    "if-block",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:getter",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "ternary",
-    "var"
    ]
   },
   {
@@ -2381,56 +2002,6 @@
    ]
   },
   {
-   "capture": "vw-forin-collections-2-rddt-1d-2026-10-02",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "for-in",
-    "if-block",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:getter",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "typed-array"
-   ]
-  },
-  {
-   "capture": "vw-forin-collections-rddt-1d-2026-10-01",
-   "lane": "runtime",
-   "runtimeOn": "MATCH",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "core",
-    "for",
-    "for-in",
-    "if-block",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:getter",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "typed-array",
-    "var",
-    "while"
-   ]
-  },
-  {
    "capture": "vw-getter-history-2-spy-1d-2026-10-02",
    "lane": null,
    "runtimeOn": "INCONCLUSIVE",
@@ -2662,100 +2233,6 @@
    "caps": [
     "core",
     "ternary"
-   ]
-  },
-  {
-   "capture": "vw-object-gc-a-spy-1d-2026-09-28",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "if-block",
-    "obj:box",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "vw-object-gc-a-spy-1d-2026-09-28",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "if-block",
-    "obj:box",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "vw-object-gc-b-spy-1d-2026-09-28",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "if-block",
-    "obj:box",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "vw-object-gc-b-spy-1d-2026-09-28",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "if-block",
-    "obj:box",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "vw-object-gc-c-spy-1d-2026-09-28",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "if-block",
-    "obj:box",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "vw-object-gc-c-spy-1d-2026-09-28",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "if-block",
-    "obj:box",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "ternary",
-    "var"
    ]
   },
   {
@@ -3494,24 +2971,6 @@
    ]
   },
   {
-   "key": "committed:power-of-3-ict-01-tradingfinder-amd-ict-smc-accumulations__c8dd500862",
-   "lane": null,
-   "guard": "pine:no-output",
-   "declined": "pine:builtin",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "max_bars_back",
-    "obj:box",
-    "obj:label",
-    "obj:line",
-    "reassign",
-    "var"
-   ]
-  },
-  {
    "key": "committed:session-highs-and-lows-indicator-smc-sessions-dst-safe__c0ca8cf749",
    "lane": null,
    "guard": "pine:function",
@@ -3840,23 +3299,6 @@
    ]
   },
   {
-   "key": "reference:edufx-amd__0ca9b3c747",
-   "lane": null,
-   "guard": "pine:no-output",
-   "declined": "runtime:colour",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "obj:box",
-    "reassign",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
    "key": "reference:elliot-wave-oscillator-lazybear__14",
    "lane": "host",
    "guard": null,
@@ -3920,31 +3362,6 @@
    ]
   },
   {
-   "key": "reference:fabio-style-order-flow-lvn-volumeprofile-fvgob-liquiditygrabs-dashboar__d7293b07f6",
-   "lane": "host",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "max_bars_back",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "ternary",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
    "key": "reference:fibonacci-bollinger-bands__2835",
    "lane": "host",
    "guard": null,
@@ -3995,28 +3412,6 @@
    ]
   },
   {
-   "key": "reference:fvg-instantaneous-mitigation-signals-luxalgo__4769478b4b",
-   "lane": null,
-   "guard": "pine:tuple",
-   "declined": "runtime:call-undeclared-builtin-state",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "method-call",
-    "obj:box",
-    "obj:getter",
-    "obj:label",
-    "obj:line",
-    "reassign",
-    "switch",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
    "key": "reference:fxn-week-and-day-separator__ingZSaBNLa",
    "lane": "host",
    "guard": null,
@@ -4053,21 +3448,6 @@
    ]
   },
   {
-   "key": "reference:ict-implied-fair-value-gap-ifvg-luxalgo__0c4a257b58",
-   "lane": "host",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "core",
-    "if-block",
-    "obj:box",
-    "obj:line",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
    "key": "reference:inside-bar-setup__a1528b4d74",
    "lane": "host",
    "guard": null,
@@ -4081,25 +3461,6 @@
     "obj:label",
     "obj:line",
     "realtime-state",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "key": "reference:kalman-trend-levels-bigbeluga__3fb104b310",
-   "lane": null,
-   "guard": "pine:state",
-   "declined": "pine:function",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "method-call",
-    "obj:box",
-    "obj:getter",
-    "obj:label",
     "reassign",
     "ternary",
     "var"
@@ -4153,29 +3514,6 @@
     "obj:delete",
     "obj:getter",
     "obj:line",
-    "typed-array",
-    "var"
-   ]
-  },
-  {
-   "key": "reference:liquidity-heatmap-swiftedge__8291fe0662",
-   "lane": "host",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "collections:array",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "reassign",
-    "ternary",
     "typed-array",
     "var"
    ]
@@ -4492,24 +3830,6 @@
    ]
   },
   {
-   "key": "reference:rth-opening-range-with-extensions__88bbcc36f3",
-   "lane": null,
-   "guard": "pine:no-output",
-   "declined": "runtime:call-conversion-state",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "obj:box",
-    "obj:line",
-    "reassign",
-    "switch",
-    "ternary",
-    "var"
-   ]
-  },
-  {
    "key": "reference:simple-moving-averages__kWRFasqqym",
    "lane": "host",
    "guard": null,
@@ -4622,25 +3942,6 @@
     "fn-single",
     "history-expr",
     "ternary"
-   ]
-  },
-  {
-   "key": "reference:trend-range-detector-zeiierman__56816eee0d",
-   "lane": null,
-   "guard": "pine:no-output",
-   "declined": "budget:lookback",
-   "caps": [
-    "collections:array",
-    "core",
-    "for",
-    "if-block",
-    "method-call",
-    "obj:box",
-    "obj:getter",
-    "obj:line",
-    "reassign",
-    "ternary",
-    "var"
    ]
   },
   {
@@ -5541,23 +4842,6 @@
    ]
   },
   {
-   "capture": "contraction-box-doji-lines-spy-1d-2026-10-03",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "obj:box",
-    "obj:line",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
    "capture": "pivot-high-low-points-rddt-1d-2026-11-14",
    "lane": "host",
    "runtimeOn": "DIVERGE",
@@ -5574,46 +4858,6 @@
    "caps": [
     "core",
     "ternary"
-   ]
-  },
-  {
-   "capture": "sonarlab-order-blocks-aapl-1d-2026-10-02",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "core",
-    "for",
-    "if-block",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:getter",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "sonarlab-order-blocks-brk-a-1d-2026-10-02",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "core",
-    "for",
-    "if-block",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:getter",
-    "reassign",
-    "ternary",
-    "var"
    ]
   },
   {
@@ -5818,100 +5062,6 @@
     "if-block",
     "obj:label",
     "realtime-state"
-   ]
-  },
-  {
-   "capture": "vw-object-gc-a-spy-1d-2026-09-28",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "if-block",
-    "obj:box",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "vw-object-gc-a-spy-1d-2026-09-28",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "if-block",
-    "obj:box",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "vw-object-gc-b-spy-1d-2026-09-28",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "if-block",
-    "obj:box",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "vw-object-gc-b-spy-1d-2026-09-28",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "if-block",
-    "obj:box",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "vw-object-gc-c-spy-1d-2026-09-28",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "if-block",
-    "obj:box",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "vw-object-gc-c-spy-1d-2026-09-28",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "if-block",
-    "obj:box",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "ternary",
-    "var"
    ]
   },
   {

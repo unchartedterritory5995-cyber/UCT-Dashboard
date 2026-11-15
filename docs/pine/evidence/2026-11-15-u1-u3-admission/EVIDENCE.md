@@ -48,7 +48,6 @@ them a COMMUNITY script, each drawn by the runtime lane with the runtime pane on
 |---|---|---|
 | obj:line | 14 / 9 / 7 | **AlgoAlpha Trend Targets, FVG Finder, Fibonacci Retracement (x MATCH), IBRBVC, Renko, Trendline Pivots, ZZMTF**; probes VW_FORIN, VW_INT_ARRAY_AVG |
 | obj:label | 15 / 11 / 8 | **AlgoAlpha Trend Targets, FVG Finder, Fair Value Gap SpaceManBTC, Fibonacci Retracement (x MATCH), Renko, SAR, Trendline Pivots, ZZMTF**; probes VW_FORIN, VW_INT_ARRAY_AVG, VW_LOOP_IN_BLOCK |
-| obj:box | 6 / 4 / 3 | **Renko, Wyckoff, Fair Value Gap SpaceManBTC**; VW_FORIN |
 | obj:delete | 12 / 8 / 7 | **AlgoAlpha Trend Targets, Fair Value Gap SpaceManBTC, Fibonacci Retracement (x MATCH), IBRBVC, Renko, Trendline Pivots, ZZMTF**; probe VW_FORIN |
 | obj:collection | 8 / 6 / 5 | **AlgoAlpha Trend Targets, Fair Value Gap SpaceManBTC, Renko, Trendline Pivots, ZZMTF**; probe VW_FORIN |
 | obj:getter (U3) | 5 / 4 / 2 | **Fair Value Gap SpaceManBTC, Trendline Pivots** (S1); probes VW_FORIN, VW_INT_ARRAY_AVG |
@@ -64,6 +63,7 @@ The full per-entry list is in `runs/evidence.json` and in the registry rows.
 
 | capability | measured | why not |
 |---|---|---|
+| **obj:box** | 6 / 4 / 3 (**Renko, Wyckoff, Fair Value Gap SpaceManBTC**; VW_FORIN) | **passes the rule, WITHHELD by coordinator ruling 2026-11-15**: the v4 default border colour bug below. Absent from the registry, with the reason in its `_readme`; railed (`test_A7_obj_box_waits_for_version_aware_object_defaults`) |
 | udt | 1 / 1 / 1 (Trendline Pivots) | one script |
 | generics | 2 / 1 / 0 (one probe family) | one family, no community script |
 | calc-bars | 2 / 1 / 1 (Wyckoff) | one script |
@@ -91,36 +91,42 @@ design (RS-RATING-TRANSFER.md L7) they never count as MATCH for admission, so no
   (`withRuntimeColours`).
 - **Who is exempt:** the graded allowlist and the test grant are never asked.
 
-## Census, before -> after (member door, admission ON)
+## Census, before -> after (member door, admission ON; the registry as merged, obj:box withheld)
 
-**Sample of 679 scripts:** admitted 141 -> 220. Runtime lane fully drawn:
+Re-run after the obj:box ruling, one lock hold (`input` + `CAPADMIT_MODE=admission`): `runs/census.json`
+`final`. The first measurement, with the obj:box row, is kept there as `withObjBox`.
 
-| population | before | after |
-|---|---:|---:|
-| committed | 7 | 11 |
-| reference | 4 | 6 |
-| builtin | 4 | 5 |
-| **total** | **15** | **22** |
+**Sample of 679 scripts:** admitted 141 -> 200 (with obj:box it was 220). Runtime lane fully drawn:
 
-**Newly fully drawn by the runtime lane: 7**, each refused before:
+| population | before | after | with obj:box |
+|---|---:|---:|---:|
+| committed | 7 | 10 | 11 |
+| reference | 4 | 6 | 6 |
+| builtin | 4 | 5 | 5 |
+| **total** | **15** | **21** | **22** |
+
+**Newly fully drawn by the runtime lane: 6**, each refused before:
 - committed: inside-bar-range-mother-candle (obj:line, obj:delete), parabolic-sar (obj:label),
-  order-blocks, zigzag-multi-time-frame-with-fibonacci-retracement;
+  zigzag-multi-time-frame-with-fibonacci-retracement;
 - reference: auto-fibonacci-and-gann-fan, best-sr-indicator-with-candlestick-patterns;
 - builtin: linear-regression-channel.
 
-Three of them (linreg, order-blocks, zigzag-mtf) read bar state, so they draw on closed bars only.
-That count reads RT5's provenance sentence as a disclosure. Counted strictly as a "not drawn" note
-(analyse.py's way), the number is 1: inside-bar-range.
+**What the ruling changed:** `order-blocks` (committed) is no longer drawn: it draws boxes. Its rddt
+capture and the `vw-forin-collections` probe capture also leave the runtime lane.
+
+Two of the six (linreg, zigzag-mtf) read bar state, so they draw on closed bars only. The count of 6
+reads RT5's provenance sentence as a disclosure. Counted strictly as a "not drawn" note (analyse.py's
+way), the number is 1: inside-bar-range.
 
 **Newly partial (named undrawn parts): 2.** order-block-finder (per-bar colour shapes, a plot fill)
 and uptrick-volatility-adjusted-trail (a plot fill).
 
 **Lost: 0.**
 
-**Captures:** admitted 167 -> 263; runtime-drawn 15 -> 23. The 8 new runtime-drawn captures:
-- MATCH: inside-bar-range rddt + spy, parabolic-sar rddt, zigzag-mtf rddt, vw-forin-collections,
-  vw-loop-in-block;
-- INCONCLUSIVE: order-blocks rddt ("the run drew nothing" in the harness), vw-clock-close-tfchange.
+**Captures:** admitted 167 -> 238 (with obj:box: 263); runtime-drawn 15 -> 21 (23). The 6 new
+runtime-drawn captures:
+- MATCH: inside-bar-range rddt + spy, parabolic-sar rddt, zigzag-mtf rddt, vw-loop-in-block;
+- INCONCLUSIVE: vw-clock-close-tfchange.
 
 **Newly PROVEN community scripts: inside-bar-range-mother-candle, parabolic-sar, zigzag-mtf.**
 
@@ -133,11 +139,16 @@ and uptrick-volatility-adjusted-trail (a plot fill).
 - **What:** the default `border_color` of `box.new` without one is `#2962ff` on our side and `#2196f3`
   on TradingView. That is the v5/v6 `color.blue` served to a v4 script: the runtime lane's object
   default colour is not version-aware.
-- **Why it is not a stop:** the script also uses `varip`, which stays unadmitted.
-- **The risk:** a v4 script that draws a default-coloured box and is admitted by capability would draw
-  the wrong border colour. Every `obj:box` MATCH in the evidence sets its colours or is v5+.
-- **Follow-up:** the engine lane should take it. `PINE_RUNTIME_CAPABILITY_DENY=obj:box` withholds the
-  family meanwhile if wanted.
+- **Not a REACH stop on its own:** the script also uses `varip`, which stays unadmitted.
+- **But it is a known wrong drawing:** a v4 script that draws a default-coloured box and is admitted by
+  capability would draw the wrong border colour. Every `obj:box` MATCH in the evidence sets its colours
+  or is v5+.
+- **RULING (coordinator, 2026-11-15): obj:box is WITHHELD** until runtime object defaults are made
+  version-aware (from the same palette table engine 58 introduces). The row is dropped from the
+  registry, and its `_readme` names the bug and this capture. `test_A7_obj_box_waits_for_version_aware_
+  object_defaults` holds both, and also checks that this capture still shows the divergence it names.
+  `test_A7_a_box_drawing_member_script_is_withheld` holds the door. Mutant U1-M8 (the row re-added)
+  turns 4 rails red. Every generic `obj:*` rail stays.
 
 ## Rails and mutants
 
@@ -146,7 +157,7 @@ The rails are in `tests/test_pine_capability_admission.py` (A1, A7, A8, G6, REAC
 `capabilityEvidenceLane.test.js`. The last one holds every new evidence id to the runtime lane, and the
 reach run's lanes to the door: 319 tests.
 
-**19 mutants, all KILLED, each restored from a saved copy and checked byte-equal** (`runs/mutants.json`).
+**20 mutants, all KILLED, each restored from a saved copy and checked byte-equal** (`runs/mutants.json`).
 - **U1-M1:** the objectsV2 requirement dropped.
 - **U1-M1b:** the objectsLane requirement dropped.
 - **U1-M2:** a pairedNothing capture counted as evidence.
@@ -163,3 +174,4 @@ reach run's lanes to the door: 319 tests.
 - **G6-M6:** a malformed historyOnly fails open.
 - **G6-M7:** an untold bar read as closed.
 - **G6-M8 / M9 / M10:** each run door stops asking.
+- **U1-M8:** obj:box re-added to the registry against the ruling.

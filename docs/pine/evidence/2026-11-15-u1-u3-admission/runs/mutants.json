@@ -232,6 +232,17 @@
    "seconds": 61.6,
    "killed": true,
    "restoredByteEqual": true
+  },
+  {
+   "id": "U1-M8",
+   "mutant": "registry data: obj:box re-added with its (passing) y evidence, against the ruling",
+   "file": "api/data/pine_runtime_allowlist.json",
+   "rail": "tests/test_pine_capability_admission.py -k obj_box/committed_admitted_set/box_drawing/U1s_four",
+   "applied": true,
+   "rc": 1,
+   "summary": "4 failed, 124 deselected in 1.71s",
+   "killed": true,
+   "restoredByteEqual": true
   }
  ]
 }
