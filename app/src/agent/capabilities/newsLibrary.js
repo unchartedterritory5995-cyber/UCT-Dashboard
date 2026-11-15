@@ -205,7 +205,7 @@ async function runOp(L, o, rec) {
 export const newsLibraryKind = {
   name: 'newsLibrary',
   source: 'widgets',
-  unavailable: 'Your UCT News library is on the Charts board — open Charts to save or organise headlines.',
+  unavailable: "Your UCT News library isn't available on this page — open Charts to save or organise headlines.",
   list: (host) => { const s = readLibrary(host); return s ? [s] : [] },
   read: (host, ref) => (ref === REF ? readLibrary(host) : null),
   stateOf: (s) => ({ ...clone(s), ops: [] }),
@@ -352,8 +352,9 @@ export function registerNewsLibraryCapabilities() {
     prepare: prepareSaved,
     fast: ({ lower, raw, typed, host }) => {
       noteTurn(typed || raw, host)
-      let m = /^(?:save|bookmark)(?: the| my)? (.+?)(?: to my library| to the library)?$/i.exec(lower)
-      if (m) { const r = refOfWords(m[1]); return r ? { headline: r, saved: true } : null }
+      let m = /^(?:save|bookmark)(?: the| my)? (.+?)( to my library| to the library)?$/i.exec(lower)
+      // ⛔ a bare "save it" / "save this" is not this family's (an indicator draft, a layout): only with a headline word or the library
+      if (m && (m[2] || !/^(?:this|that|it)$/i.test(m[1].trim()))) { const r = refOfWords(m[1]); return r ? { headline: r, saved: true } : null }
       m = /^(?:unsave|unbookmark|remove)(?: the| my)? (.+?)(?: from my library| from the library| from my saved headlines)?$/i.exec(lower)
       if (m && /\b(?:headline|story|article|news item)\b|^(?:this|that|it)$/i.test(m[1]) && (/^unsave|^unbookmark/i.test(lower) || /\b(?:library|saved headlines)\b/.test(lower))) { const r = refOfWords(m[1]); return r ? { headline: r, saved: false } : null }
       return null

@@ -276,8 +276,9 @@ export const CLASS = {
   layout: /\b(?:layouts?(?! bar)|arrangements?|workspaces?)\b/i,
   layoutBar: /\b(?:layout bar|the bar|bar)\b/i,
   template: /\btemplates?\b/i,
-  // newsLibrary.* (2026-11-15): the member's saved UCT News headlines and their collections
-  newsLibrary: /\b(?:headlines?|stor(?:y|ies)|articles?|bookmarks?|collections?|(?:news )?library)\b/i,
+  // newsLibrary.* (2026-11-15): the member's saved UCT News headlines and their collections. A bare "collection" is NOT
+  // this class (a watchlist is a collection too: "retire the Momentum collection") — a collection is named by its own name
+  newsLibrary: /\b(?:headlines?|stor(?:y|ies)|articles?|bookmarks?|(?:news|headline) collections?|(?:news )?library)\b/i,
 }
 const classesOf = (e) => e.classes || [e.state]
 const phrase = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()

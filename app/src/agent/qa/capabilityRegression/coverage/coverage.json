@@ -7882,12 +7882,12 @@
     "nl": [
      "newsLibrary.deleteCollection: \"delete my Earnings collection\"",
      "newsLibrary.deleteCollection: \"remove the Earnings collection\"",
-     "newsLibrary.deleteCollection: \"delete the news collection Earnings\""
+     "newsLibrary.deleteCollection: \"delete the Earnings collection\""
     ],
     "routing": [
      "newsLibrary.deleteCollection: \"delete my Earnings collection\"",
      "newsLibrary.deleteCollection: \"remove the Earnings collection\"",
-     "newsLibrary.deleteCollection: \"delete the news collection Earnings\""
+     "newsLibrary.deleteCollection: \"delete the Earnings collection\""
     ],
     "args": [
      "corpus newsLibrary.deleteCollection"
