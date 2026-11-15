@@ -41,10 +41,14 @@ BANNED = re.compile(r"\b(buy|buys|buying|buyable|sell|sells|selling|RSI)\b", re.
 
 # ───────────────────────── the flag ─────────────────────────
 
-def test_the_flag_has_a_ledger_row_and_ships_dark():
+def test_the_flag_has_a_ledger_row_that_says_who_is_served():
+    # Pin moved 2026-11-15: this said the row ships dark. The owner set the value `admin` on
+    # web that night (his preview), and the ledger records a flip (CLAUDE.md). It is armed for
+    # admins and NOT released to members, and the row has to say both.
     row = json.loads((ROOT / "docs" / "feature_flags.json").read_text(encoding="utf-8"))["flags"][pp.FLAG]
     assert pp.FLAG == "RS_SCREENS_ENABLED"
-    assert row["status"] == "dark" and row["where"] == ["web"]
+    assert row["status"] == "armed" and row["where"] == ["web"]
+    assert row["note"].startswith("ARMED FOR ADMINS ONLY") and "not released to members" in row["note"]
     assert "rs_post_pass.enabled" in row["note"] and "RS_SCREENS_KEYS" in row["note"]
 
 
