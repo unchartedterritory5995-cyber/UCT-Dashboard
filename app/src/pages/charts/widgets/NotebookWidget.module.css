@@ -372,3 +372,188 @@
 }
 .footBack:hover { color: var(--nb-accent, var(--accent, #dcbb5e)); }
 .saveStatus { flex: 1 1 auto; font-size: 10.5px; color: var(--nb-chrome, var(--text-muted, #706b5e)); }
+
+/* ── UCT frame (owner 11-13, /charts board only — :global(.uct-frame) set by WidgetHost):
+      the frame header already names the widget, so in the LIST view the inner "Notebook"
+      title folds away and its link + gear ride at the right end of the search row (an open
+      note keeps its bar — the ‹ Notes back button lives there). Soft search field, quiet
+      "New" — the chart widget's style. ── */
+:global(.uct-frame).root,
+:global(.uct-frame) .root { position: relative; }
+:global(.uct-frame) .bar:has(> .brand) {
+  position: absolute;
+  top: 7px;
+  right: 8px;
+  z-index: 2;
+  gap: 2px;
+  padding: 0;
+  border: none;
+}
+:global(.uct-frame) .bar:has(> .brand) > .brand,
+:global(.uct-frame) .bar:has(> .brand) > .spacer { display: none; }
+:global(.uct-frame) .bar:has(> .brand) ~ .toolbar { padding-right: 66px; }
+:global(.uct-frame) .gearBtn { width: 24px; height: 22px; padding: 0; border-radius: 6px; }
+:global(.uct-frame) .gearBtnActive { color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); }
+:global(.uct-frame) .toolbar { padding: 6px 8px; min-height: 38px; }
+:global(.uct-frame) .search {
+  padding: 6px 10px;
+  border-radius: 8px;
+  border-color: transparent;
+  font-size: 12.5px;
+  background: color-mix(in srgb, var(--widget-text, #cfcac0) 8%, transparent);
+}
+:global(.uct-frame) .search:focus { outline: none; border-color: color-mix(in srgb, var(--widget-accent, var(--accent, #dcbb5e)) 32%, transparent); }
+:global(.uct-frame) .newBtn {
+  border: none;
+  background: none;
+  font-size: 12px;
+  color: var(--widget-text-strong, var(--text-bright, #f8f7f3));
+}
+:global(.uct-frame) .newBtn:hover { background: var(--widget-row-hover, rgba(255, 255, 255, 0.07)); }
+
+/* ═══ UCT board look — Option A "Library" (owner 11-14). Rendered only inside the UCT frame
+   (NotebookWidget's onBoard branch), so the Journal / pop-out / off-board widget keep the
+   look above. Same measures as the Watchlist / Theme Tracker / News: 36px search row,
+   26px controls, 30px rows and footer, the library rail's grey + gold rail selection. ═══ */
+.uRoot {
+  --u-text: var(--nb-text, var(--widget-text-strong, var(--text-bright, #f8f7f3)));
+  --u-head: var(--nb-header-text, var(--widget-text-strong, var(--text-bright, #f8f7f3)));
+  --u-muted: var(--nb-chrome, var(--widget-text, var(--text-muted, #a9a59b)));
+  --u-dim: color-mix(in srgb, var(--u-muted) 68%, transparent);
+  --u-line: var(--nb-divider, var(--widget-divider, var(--border, #24262b)));
+  --u-hover: var(--nb-row-hover, var(--widget-row-hover, rgba(248, 247, 243, 0.06)));
+  --u-sel: color-mix(in srgb, var(--u-text) 9%, transparent);
+  --u-field: color-mix(in srgb, var(--u-muted) 9%, transparent);
+  --u-gold: var(--nb-accent, var(--widget-accent, var(--accent, #dcbb5e)));
+  position: relative;
+  font-size: 12.5px;
+}
+/* Title row (portaled into the frame's header) */
+.uTitle { display: flex; align-items: center; font-size: 12.5px; font-weight: 700; color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); white-space: nowrap; padding-left: 6px !important; }
+.uCrumb { display: flex; align-items: center; gap: 1px; min-width: 0; overflow: hidden; }
+.uCrumbBtn {
+  display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto; height: 26px; padding: 0 6px;
+  border: none; border-radius: 6px; background: none; cursor: pointer; white-space: nowrap;
+  font: 600 12.5px var(--font-sans, inherit); color: var(--widget-text, var(--text-muted, #cfcac0));
+}
+.uCrumbBtn:hover { color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); background: var(--widget-row-hover, rgba(255, 255, 255, 0.07)); }
+.uCrumbPath { display: inline-flex; align-items: center; gap: 1px; min-width: 0; flex: 0 1 auto; }
+.uCrumbPath .uCrumbBtn { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; max-width: 160px; display: inline-block; line-height: 26px; }
+.uCrumbSep { flex: 0 0 auto; padding: 0 2px; color: color-mix(in srgb, var(--widget-text, #cfcac0) 55%, transparent); }
+.uCrumbCur { flex: 1 1 auto; min-width: 24px; padding: 0 4px; font-size: 12.5px; font-weight: 700; color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Narrow widget: the folder path folds away; ‹ Notes / note name stays. */
+@container uctw (max-width: 440px) { .uCrumbPath { display: none; } }
+/* Narrower still: ‹ alone, so the note's name keeps the room. */
+@container uctw (max-width: 360px) { .uCrumbBack { display: none; } .uCrumb .uCrumbSep { display: none; } }
+/* Gear in the window-control group (same size / grey / hover as + · float · pop out · close) */
+.uIc { width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center; border: none; border-radius: 6px; background: none; cursor: pointer; color: var(--widget-text, var(--text-muted, #cfcac0)); opacity: 0.85; padding: 0; }
+.uIc:hover, .uIcOn { opacity: 1; color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); background: var(--widget-row-hover, rgba(255, 255, 255, 0.07)); }
+
+/* Search row */
+.uSearchRow { height: 36px; flex: 0 0 36px; display: flex; align-items: center; gap: 6px; padding: 0 8px; border-bottom: 1px solid var(--u-line); }
+.uSearch { position: relative; flex: 1 1 auto; min-width: 0; display: flex; align-items: center; color: var(--u-dim); }
+.uSearch > svg { position: absolute; left: 9px; pointer-events: none; }
+.uSearch input { width: 100%; height: 26px; border: 1px solid transparent; border-radius: 7px; background: var(--u-field); color: var(--u-text); font: 12.5px var(--font-sans, inherit); padding: 0 8px 0 28px; }
+.uSearch input::placeholder { color: var(--u-dim); }
+.uSearch input:focus { outline: none; border-color: color-mix(in srgb, var(--u-gold) 32%, transparent); }
+.uNewWrap { position: relative; flex: 0 1 auto; min-width: 0; }
+.uNewBtn { height: 26px; max-width: 100%; display: inline-flex; align-items: center; gap: 5px; padding: 0 10px; border: none; border-radius: 7px; background: var(--u-field); color: var(--u-text); font: 600 12px var(--font-sans, inherit); cursor: pointer; white-space: nowrap; overflow: hidden; }
+.uNewBtn:hover { background: color-mix(in srgb, var(--u-muted) 15%, transparent); }
+.uNewBtn:disabled { opacity: 0.55; cursor: default; }
+.uNewInto { color: var(--u-dim); font-weight: 500; overflow: hidden; text-overflow: ellipsis; max-width: 120px; }
+@container uctw (max-width: 380px) { .uNewInto { display: none; } }
+
+/* Menu (the board's menus: dark panel, 6px items, small grey label) */
+.uMenu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; width: 260px; max-width: calc(100vw - 24px); padding: 6px; border-radius: 10px; background: var(--menu-bg, #1b1c20); border: 1px solid var(--menu-border, #383b41); box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5); }
+.uMenuScroll { max-height: 220px; overflow-y: auto; scrollbar-width: thin; }
+.uMenuLabel { padding: 6px 10px 4px; font-size: 11px; font-weight: 600; color: var(--menu-text-muted, #a9a59b); }
+.uMenuSep { height: 1px; margin: 5px 6px; background: var(--menu-border, #2c2e33); }
+.uMenuItem { display: flex; width: 100%; align-items: center; gap: 8px; min-width: 0; padding: 7px 10px 7px 6px; border: none; border-radius: 6px; background: none; color: var(--menu-text, #f8f7f3); font: 13px var(--font-sans, inherit); text-align: left; cursor: pointer; }
+.uMenuItem:hover { background: var(--menu-hover, rgba(248, 247, 243, 0.06)); }
+.uMenuItem small { margin-left: auto; padding-left: 8px; color: var(--menu-text-muted, #77736b); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px; }
+.uMenuGlyph { width: 22px; height: 22px; flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; background: rgba(248, 247, 243, 0.06); color: var(--menu-text-muted, #a9a59b); }
+.uMenuCheck { width: 22px; flex: 0 0 auto; display: inline-flex; justify-content: center; color: var(--menu-text-muted, #a9a59b); }
+.uMenuCheck .folderGlyph { color: inherit; opacity: 1; }
+
+/* Tree */
+.uBody { flex: 1 1 auto; min-height: 0; overflow-y: auto; scrollbar-width: thin; }
+.uTree { padding: 6px 0 10px; }
+.uRow { display: flex; width: 100%; align-items: center; gap: 6px; height: 30px; padding: 0 10px 0 6px; border: none; background: none; cursor: pointer; text-align: left; font: 500 12.5px var(--font-sans, inherit); color: var(--u-text); min-width: 0; }
+.uRow:hover { background: var(--u-hover); }
+.uRowOn, .uRowOn:hover { background: var(--u-sel); box-shadow: inset 2px 0 0 var(--u-gold); }
+.uFolder { font-weight: 600; color: var(--u-head); }
+.uFolder .folderGlyph { color: var(--u-dim); opacity: 1; }
+.uChev { width: 16px; flex: 0 0 16px; display: inline-flex; justify-content: center; color: var(--u-dim); }
+.uName { min-width: 0; flex: 0 1 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.uTarget { flex: 0 0 auto; margin-left: 4px; font-size: 10px; font-weight: 700; color: var(--u-gold); white-space: nowrap; }
+@container uctw (max-width: 380px) { .uTarget { display: none; } }
+.uCount { margin-left: auto; flex: 0 0 auto; padding-left: 8px; font-size: 11px; font-weight: 500; color: var(--u-dim); font-variant-numeric: tabular-nums; }
+.uNote > svg { flex: 0 0 auto; color: var(--u-dim); }
+.uWhen { margin-left: auto; flex: 0 0 auto; padding-left: 10px; font-size: 11px; font-weight: 500; color: var(--u-dim); white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+/* Search results */
+.uGroup { display: flex; align-items: center; gap: 8px; padding: 10px 12px 4px; font-size: 11px; font-weight: 600; color: var(--u-muted); }
+.uGroup span { margin-left: auto; font-weight: 500; color: var(--u-dim); }
+.uResult { display: flex; flex-direction: column; gap: 3px; width: 100%; padding: 8px 12px; border: none; border-bottom: 1px solid color-mix(in srgb, var(--u-text) 5%, transparent); background: none; text-align: left; cursor: pointer; font-family: var(--font-sans, inherit); color: var(--u-text); }
+.uResult:hover { background: var(--u-hover); }
+.uResTitle { display: flex; align-items: baseline; gap: 8px; min-width: 0; font-size: 12.5px; font-weight: 700; }
+.uResSnip { font-size: 12px; line-height: 1.45; color: var(--u-muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.uResFolder { font-size: 11px; color: var(--u-dim); }
+.uMark { background: color-mix(in srgb, var(--u-gold) 24%, transparent); color: inherit; border-radius: 3px; padding: 0 1px; }
+
+/* Editor */
+.uRoot .editorScroll { padding: 14px 18px 24px; }
+.uEdTitle { display: block; width: 100%; padding: 0; border: none; background: none; outline: none; font-family: var(--font-display, "Space Grotesk", var(--font-sans)); font-size: 20px; font-weight: 600; color: var(--u-head); }
+.uEdTitle::placeholder { color: var(--u-dim); }
+.uEdMeta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin: 6px 0 14px; font-size: 11px; color: var(--u-dim); }
+.uMetaPath { display: inline-flex; align-items: center; gap: 5px; }
+.uMetaPath .folderGlyph { color: inherit; opacity: 1; }
+.uRoot .editorBody :global(.ProseMirror) { font-size: 13.5px; line-height: 1.6; color: var(--nb-text, var(--widget-text-strong, #e0dac8)); }
+.uRoot .editorBody :global(.ProseMirror) :is(h1, h2, h3) { font-family: var(--font-display, "Space Grotesk", var(--font-sans)); font-weight: 600; color: var(--u-head); }
+.uRoot .editorBody :global(.ProseMirror) h3 { font-size: 15px; margin: 1em 0 0.35em; }
+.uRoot .editorBody :global(.ProseMirror) ul[data-type="taskList"] { list-style: none; padding-left: 0; }
+.uRoot .editorBody :global(.ProseMirror) ul[data-type="taskList"] li { display: flex; gap: 8px; align-items: flex-start; }
+.uRoot .editorBody :global(.ProseMirror) ul[data-type="taskList"] li > label { flex: 0 0 auto; margin-top: 2px; }
+.uRoot .editorBody :global(.ProseMirror) ul[data-type="taskList"] li > div { flex: 1 1 auto; min-width: 0; }
+.uRoot .editorBody :global(.ProseMirror) ul[data-type="taskList"] li > div > p { margin: 0; }
+.uRoot .editorBody :global(.ProseMirror) ul[data-type="taskList"] li[data-checked="true"] > div { color: var(--u-dim); text-decoration: line-through; }
+.uRoot .editorBody :global(.ProseMirror) input[type="checkbox"] { accent-color: var(--u-gold); width: 14px; height: 14px; }
+
+/* Footer: 30px, as the Watchlist / Theme Tracker / News */
+.uFoot { height: 30px; flex: 0 0 30px; display: flex; align-items: center; gap: 6px; padding: 0 6px 0 12px; border-top: 1px solid var(--u-line); font-size: 11.5px; color: var(--u-muted); min-width: 0; }
+.uFoot b { color: var(--u-text); font-weight: 600; }
+.uFootCount { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.uFoot .uFootBtn:first-child { margin-left: -6px; }
+.uFootBtn { height: 22px; display: inline-flex; align-items: center; gap: 5px; padding: 0 8px; border: none; border-radius: 6px; background: none; color: var(--u-muted); font: 600 11.5px var(--font-sans, inherit); text-decoration: none; cursor: pointer; white-space: nowrap; flex: 0 0 auto; }
+.uFootBtn:hover { color: var(--u-text); background: var(--u-hover); }
+.uSaved { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--u-dim); white-space: nowrap; }
+.uSavedOn { color: var(--up, #3fd47a); }
+
+/* owner 11-14: the search row matches the Theme Tracker's / Watchlist's exactly — 36px row,
+   12px sides, a 26px field (7px radius, the same soft fill + hairline, 12px text, glyph at 11px)
+   and a 26px picker-style New button with ▾ (the Theme set picker's look). */
+.uSearchRow { padding: 0 12px; gap: 8px; }
+.uSearch > svg { left: 11px; color: var(--widget-text, var(--text-muted, #cfcac0)); opacity: 0.8; }
+.uSearch input {
+  height: 26px; padding: 0 10px 0 32px; border-radius: 7px; font-size: 12px;
+  color: var(--widget-text-strong, var(--text-bright, #f8f7f3));
+  background: color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 8%, transparent);
+}
+.uSearch input::placeholder { color: var(--widget-text, var(--text-muted, #cfcac0)); opacity: 0.85; }
+.uSearch input:focus { border-color: color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 22%, transparent); background: color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 8%, transparent); }
+.uNewBtn {
+  height: 26px; gap: 6px; padding: 0 9px 0 11px; max-width: 170px; border: 1px solid transparent; border-radius: 7px;
+  background: color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 5%, transparent);
+  color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); font-size: 11.5px; font-weight: 600;
+}
+.uNewBtn:hover, .uNewBtn[aria-expanded="true"] { background: color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 9%, transparent); }
+.uNewBtn > svg { flex: 0 0 auto; color: var(--widget-text, var(--text-muted, #a9a59b)); }
+.uNewCar { display: inline-flex; flex: 0 0 auto; color: var(--widget-text, var(--text-muted, #a9a59b)); transition: transform 0.15s ease; }
+.uNewBtn[aria-expanded="true"] .uNewCar { transform: rotate(180deg); }
+.uNewInto { color: var(--widget-text, var(--text-muted, #a9a59b)); font-weight: 500; }
+
+/* Dark menu, dark scrollbar (owner 11-14): the browser draws a thin dark scrollbar, never the
+   white light-theme one, inside this always-dark menu. */
+.uMenu { color-scheme: dark; }
+.uMenuScroll { scrollbar-color: rgba(248, 247, 243, 0.22) transparent; }

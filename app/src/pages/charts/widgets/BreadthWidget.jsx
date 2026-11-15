@@ -36,6 +36,7 @@ import {
   LIGHT_TIER_CELL_COLORS, LIGHT_TIER_TIP_COLORS,
 } from './breadthWidgetSettings'
 import styles from './BreadthWidget.module.css'
+import UctCtrlPortal from '../UctCtrlPortal'  // owner 11-14: the ⚙ goes top-right on the board
 
 const fetcher = (url) => fetch(url).then(r => r.json())
 
@@ -545,11 +546,11 @@ export default function BreadthWidget({
         ><UIcon name="plus" size={14} /></button>
         )}
         {!readOnly && (
-        <button
+        <UctCtrlPortal><button
           ref={settingsBtnRef} type="button"
           className={`${styles.iconBtn}${settingsOpen ? ' ' + styles.iconBtnActive : ''}`}
           data-guide="widget.settings" onClick={() => setSettingsOpen(o => !o)} title="Breadth widget settings" aria-label="Breadth widget settings"
-        ><UIcon name="gear" size={13} /></button>
+        ><UIcon name="gear" size={13} /></button></UctCtrlPortal>
         )}
         {addOpen && (
           <AddMenu

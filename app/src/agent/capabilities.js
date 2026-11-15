@@ -31,6 +31,7 @@ const PROVIDERS = new Map()
 
 // The manifest wire contract shared with the server (api/services/uct_agent/turn.py reads the
 // same numbers; tests/test_uct_agent_contract.py and agentContracts.test.js hold both to it).
+import { isTimeframeEnum, parseTimeframe } from './capabilities/timeframeWords'
 import MANIFEST_CONTRACT from './contract/manifest.contract.json'
 export { MANIFEST_CONTRACT }
 export const MANIFEST_VERSION = MANIFEST_CONTRACT.manifestVersion
@@ -177,6 +178,12 @@ function coerceSchema(spec, v, path, applied) {
     if (enumVals.length && !enumVals.includes(v)) {
       const hit = enumVals.find(e => typeof e === 'string' && e.trim().toLowerCase() === low)
       if (hit !== undefined) { applied.push(`${path}:enum-case`); return hit }
+      // ⛔ BUG C (11-14, capabilities/timeframeWords.js): a TIMEFRAME enum (by schema) reads "15 minutes" / "1-hour" / "weekly" by
+      // its grammar — only a value this enum offers; "1m", "4 hours" or "2 weeks" stay as said (refused). Mirrors turn.py.
+      if (isTimeframeEnum(spec)) {
+        const tf = parseTimeframe(v, enumVals)
+        if (tf != null) { applied.push(`${path}:timeframe`); return tf }
+      }
     }
     return v
   }

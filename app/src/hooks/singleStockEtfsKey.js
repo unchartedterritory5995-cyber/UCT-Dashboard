@@ -5,6 +5,7 @@
 // never land under a key, or in a shape, the hook would not have produced itself.
 
 /** The SWR key for a symbol. Null for none and for a synthetic pseudo-ticker ($IDX:...). */
+
 export function singleStockEtfsKey(sym) {
   const skip = !sym || String(sym).startsWith('$IDX:')
   return skip ? null : `/api/single-stock-etfs/${encodeURIComponent(String(sym).toUpperCase())}`

@@ -1,0 +1,18 @@
+//@version=6
+indicator("UCTPROBE_VW_CBC_HISTORY_READS", overlay = false, calc_bars_count = 100)
+
+// PROVENANCE: written 2026-11-15 (inv-fmt-1115). NEVER COMPILED ON TRADINGVIEW.
+// calc_bars_count = 100 on a chart of more bars: does a history read reach bars BEFORE the window
+// (the chart holds them), and what do last_bar_index / barstate.isfirst read inside the window?
+// CAPTURE: NYSE:RDDT 1D from the listing (666 bars), inputs at defaults.
+
+plot(bar_index, "A00_bar_index_CONTROL")
+plot(close[1], "A01_close_1")                        // window bar 0: na (window is all history) or the chart's previous close?
+plot(close[150], "A02_close_150")                    // na on every window bar, or real closes from before the window?
+plot(nz(close[100], -1), "A03_nz_close_100")
+plot(ta.highest(high, 150), "A04_highest_150")       // warm-up starts inside the window (S1 sma10 says yes)
+plot(last_bar_index, "A05_last_bar_index")           // 99, or 665?
+plot(barstate.isfirst ? 1 : 0, "A06_isfirst")        // 1 on window bar 0?
+plot(ta.cum(1), "A07_cum_one")
+plot(time[1], "A08_time_1")
+plot(bar_index[1], "A09_bar_index_1")

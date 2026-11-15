@@ -102,7 +102,7 @@ def test_an_action_the_request_did_not_carry_never_runs(flag_on):
     hidden = {"action": "widget.add", "target": "c1", "args": {}}
     assert "widget.add" not in {c["name"] for c in caps}
     # the model names it (twice: the server's one repair does not make it real) → refused, nothing is planned
-    with pytest.raises(turn.TurnError, match="unreadable|doesn.t exist|couldn.t fill in the details"):
+    with pytest.raises(turn.TurnError, match="unreadable|doesn.t exist|couldn.t fill in the details|couldn.t read the|couldn.t fill in one of the steps"):
         run(caps, routing, [nl1_env("apply", [hidden]), nl1_env("apply", [hidden])])
 
 

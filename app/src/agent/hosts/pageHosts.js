@@ -38,11 +38,12 @@ export function buildPageHost({ surface, location, navigate = null, ...rest }) {
 
 // ── /screener ──
 const ROWS_SHOWN = 25
-export function buildScreenerPageHost({ read, saved, applyScreen, refreshSaved, location, navigate }) {
+export function buildScreenerPageHost({ read, saved, applyScreen, quickChoices, refreshSaved, location, navigate }) {
   const readPage = fn(read, {})
   const readSaved = fn(saved, { saved: [], starters: [] })
   const applyFn = typeof applyScreen === 'function' ? applyScreen : null
   const refreshFn = fn(refreshSaved, undefined)
+  const choicesFn = fn(quickChoices, false)
   return buildPageHost({
     surface: 'screener', location, navigate,
     screenerPage: {
@@ -63,7 +64,16 @@ export function buildScreenerPageHost({ read, saved, applyScreen, refreshSaved, 
       },
       saved() {
         const lib = readSaved() || {}
-        const one = (s, kind) => ({ id: str(s?.id), name: str(s?.name), kind, spec: s?.spec || null })
+        // `hidden` rides along (RS screens, unit U7): the page still serves a retired starter so its id resolves; the
+        // Agent's lists leave it out (capabilities/screenerPage.js, guide.js), as the page's own Screen menu does
+        // `aliases` and `controls` ride along too (RS screens, unit U11), only on a starter that carries them: the
+        // words a member may call the screen by ("RSNHBP") and the quick choices it offers, so a choice named with
+        // the open is matched against the starter's own options. Neither reaches the model's context (screenerPage.js)
+        const extras = s => ({
+          ...(Array.isArray(s?.aliases) && s.aliases.length ? { aliases: s.aliases.map(str) } : {}),
+          ...(Array.isArray(s?.controls) && s.controls.length ? { controls: s.controls } : {}),
+        })
+        const one = (s, kind) => ({ id: str(s?.id), name: str(s?.name), kind, spec: s?.spec || null, ...(s?.hidden ? { hidden: true } : {}), ...(kind === 'starter' ? extras(s) : {}) })
         return {
           saved: (lib.saved || []).map(s => one(s, 'saved')),
           starters: (lib.starters || []).map(s => one(s, 'starter')),
@@ -71,6 +81,9 @@ export function buildScreenerPageHost({ read, saved, applyScreen, refreshSaved, 
       },
       // the page's own door (what the Screen menu / Pinned chips call); null = this layout offers none
       apply: applyFn ? (item) => applyFn(item.spec || { filters: [] }, item) : null,
+      // does this layout lay a quick choice named with the open (`item.choices`) over the screen? The Focus layout
+      // does (its quick controls); the Table layout has none, and a choice asked there is refused, never dropped
+      canChoose: () => !!applyFn && choicesFn() === true,
       refreshSaved: () => refreshFn(),
     },
   })
