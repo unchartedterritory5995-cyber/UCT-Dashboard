@@ -25,6 +25,10 @@
    "best stocks right now",
    "order the results by 3 month performance, best first"
   ],
+  "best→rest": [
+   "best stocks right now",
+   "order the results by 3 month performance, best first"
+  ],
   "best→test": [
    "best stocks right now",
    "order the results by 3 month performance, best first"
@@ -171,19 +175,24 @@
    "put the fib tool on my favorites toolbar"
   ],
   "fell→bell": [
-   "count the times the % of stocks above the 50dma fell below 20%"
+   "count the times the % of stocks above the 50dma fell below 20%",
+   "what happened to SPY after the last 5 times it fell 3% in a day"
   ],
   "fell→cell": [
-   "count the times the % of stocks above the 50dma fell below 20%"
+   "count the times the % of stocks above the 50dma fell below 20%",
+   "what happened to SPY after the last 5 times it fell 3% in a day"
   ],
   "fell→fill": [
-   "count the times the % of stocks above the 50dma fell below 20%"
+   "count the times the % of stocks above the 50dma fell below 20%",
+   "what happened to SPY after the last 5 times it fell 3% in a day"
   ],
   "fell→full": [
-   "count the times the % of stocks above the 50dma fell below 20%"
+   "count the times the % of stocks above the 50dma fell below 20%",
+   "what happened to SPY after the last 5 times it fell 3% in a day"
   ],
   "fell→tell": [
-   "count the times the % of stocks above the 50dma fell below 20%"
+   "count the times the % of stocks above the 50dma fell below 20%",
+   "what happened to SPY after the last 5 times it fell 3% in a day"
   ],
   "figure→figures": [
    "point and figure pls"
@@ -227,6 +236,9 @@
   "gridlines→gridline": [
    "lose the gridlines",
    "remove the gridlines"
+  ],
+  "happened→append": [
+   "what happened to SPY after the last 5 times it fell 3% in a day"
   ],
   "help→held": [
    "help me build an indicator that marks days where close is above the 21 EMA on 1.5x the 50-day average volume, don't save it yet"
