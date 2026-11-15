@@ -17,6 +17,18 @@
  */
 import { useEffect, useRef } from 'react'
 import styles from './drills.module.css'
+import ChoiceList, { revealLabels } from './ChoiceList'
+
+/** Owner 2026-11-12 ("make these ones multiple choice"): a size item that carries `choices` is answered by picking one. */
+export const choicesOf = (item) => (Array.isArray(item?.prompt_json?.choices) && item.prompt_json.choices.length ? item.prompt_json.choices : null)
+
+/** A picked choice as the answer score_size reads: a skip, or a whole share count ("1,640 shares"). Anything else
+ *  ("Buy 1 share anyway") carries no shares, so it can only be right where the key says skip and it says skip. */
+export function answerFromChoice(choice) {
+  const c = String(choice ?? '')
+  const m = c.match(/^([\d,]+) shares?$/)
+  return { choice: c, skip: /^skip/i.test(c), shares: m ? Number(m[1].replace(/,/g, '')) : null }
+}
 
 export function variantOf(item) {
   const p = item?.prompt_json || {}
@@ -79,11 +91,33 @@ function NumberField({ label, prefix, suffix, value, onChange, disabled, inputRe
   )
 }
 
-export function Body({ item, state, setState, locked }) {
+export function Body({ item, state, setState, locked, reveal }) {
   const variant = variantOf(item)
   const refs = useRef([])
   useVisualViewportGuard(refs)
   const s = state || {}
+  const choices = choicesOf(item)
+  if (choices) {
+    return (
+      <div>
+        <dl className={styles.facts}>
+          {factsFor(item).map((f, i) => (
+            <div key={i} style={{ display: 'contents' }}>
+              <dt>{f.label}</dt>
+              <dd>{f.value}</dd>
+            </div>
+          ))}
+        </dl>
+        <ChoiceList {...revealLabels(reveal, s)}
+          choices={choices}
+          value={s.choice ?? null}
+          onChange={(choice) => setState({ choice })}
+          disabled={locked}
+          label="How many shares?"
+        />
+      </div>
+    )
+  }
   const set = (k) => (v) => setState({ ...s, [k]: v })
   return (
     <div>
@@ -135,6 +169,7 @@ export function Body({ item, state, setState, locked }) {
 const num = (v) => { const n = Number(v); return Number.isFinite(n) && String(v ?? '').trim() !== '' ? n : null }
 
 export function answerFromState(state, item) {
+  if (choicesOf(item)) return answerFromChoice(state?.choice)
   const variant = variantOf(item)
   const risk = num(state?.risk_dollars)
   const out = { dollars: risk, risk_dollars: risk }
@@ -148,6 +183,7 @@ export function answerFromState(state, item) {
 }
 
 export function isAnswerable(state, item) {
+  if (choicesOf(item)) return state?.choice != null
   const variant = variantOf(item)
   if (num(state?.risk_dollars) == null) return false
   if (variant === 'forward') return num(state?.shares) != null

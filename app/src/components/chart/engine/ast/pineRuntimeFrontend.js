@@ -2701,7 +2701,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (!n || typeof n !== 'object') return false
     if (n.type === 'offset') return !chartPure((n.args || [])[0], frame)
 
-    if (n.type === 'tf' || n.type === 'sym' || n.type === 'tf_live') return true
+    if (n.type === 'tf' || n.type === 'sym' || n.type === 'tf_live' || n.type === 'tf_merge') return true
     if (n.type === 'call') {
       const spec = TABLE.functions[n.name]
       if (!spec || !isPointwise(spec)) return true
@@ -6032,6 +6032,28 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // chart's own period the expression runs in THIS context, which is the
     // whole reason it folds.
     if (identity) return requestValueIr(identity.positional[2], scope)
+
+    // ⭐⭐ ENGINE 55 — AN OTHER-SYMBOL SPELLING NO BINDING CAN SERVE (a bare index, pair
+    // or foreign spelling; punctuation that names no listing; review L5: a foreign
+    // exchange or `BRK/B`, which this lane would otherwise read as bars that never come)
+    // is the HOST's question, asked once (`Resolver.otherSymbolStaticDeclineOf` →
+    // `otherSymbols.js::staticallyUnservable` / `spellingUnservable`) and refused with
+    // the ONE sentence the bind writes for the plots that read it
+    // (`staticOtherSymbolMessage`). This lane runs the whole program, so it refuses the
+    // program; the member door draws such a script from the host lane, which refuses
+    // only those plots (review M1, the C41 pattern).
+    // ⛔ FAILS CLOSED (review L5): a throw while asking is a refusal by name, never a read.
+    const hopeless = (() => {
+      if (!targetReader || (positional[0] && reachesSlotThroughEnv(argOf(positional[0]), scope))) return null
+      try { return targetReader.otherSymbolStaticDeclineOf(node) } catch (err) {
+        return { message: `${REFUSALS['pine:request']} — \`${node.name}\`: the symbol this request names `
+          + `could not be read (${String((err && err.message) || err)}), so the request is refused rather than read` }
+      }
+    })()
+    if (hopeless) {
+      note('pine:request')
+      throw new PineRefusal('pine:request', hopeless.message, at)
+    }
 
     // ⭐⭐ C35 — A TIMEFRAME BELOW THE CHART'S OWN IS THE HOST'S QUESTION, ASKED
     // ONCE (`Resolver.lowerTfDeclineOf` → `lowerTf.js::lowerTfRefusal`, C27). It

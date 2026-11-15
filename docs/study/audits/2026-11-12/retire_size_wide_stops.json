@@ -1,0 +1,27 @@
+{
+ "why": "owner 2026-11-12: a share-count question with a stop past 5% is invalid (D-005); replaced by tighter-stop items",
+ "ids": {
+  "size.house_rule": [
+   "si_06bdc596f418",
+   "si_111811fac905",
+   "si_47fdf43a3b0d",
+   "si_4f7a0c7a1af7",
+   "si_50d28d98a52a",
+   "si_631b66603744",
+   "si_64c7c21fadcb",
+   "si_718773c087f6",
+   "si_9d442ebbc314",
+   "si_c049b16f2ba8",
+   "si_d629ce42cc44",
+   "si_f01a3aa596c3"
+  ]
+ },
+ "approved_on_pod": [
+  "si_111811fac905",
+  "si_4f7a0c7a1af7",
+  "si_718773c087f6",
+  "si_9d442ebbc314",
+  "si_c049b16f2ba8"
+ ],
+ "note": "retire_ids.py skips approved items; the approved ones need the owner's reject on the review screen or an explicit owner OK for a pod-side reject"
+}

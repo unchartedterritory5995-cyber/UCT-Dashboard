@@ -253,13 +253,37 @@ def check_daily_grid(dates: Sequence[str], recent: int = 30) -> Verdict:
     return Verdict(FAIL if off else PASS, f"off_calendar={len(off)}")
 
 
+def gap_touches_rth(last_t: int, expected_start: int, tf: str) -> bool:
+    """Does any bucket of the ``tf`` grid that is missing -- starting after the tail ``last_t``
+    and at or before ``expected_start`` -- start inside a REGULAR session? Real bucket starts
+    from the session grid (half-days, DST, the short 15:30 hourly bucket), never clock math."""
+    if int(expected_start) <= int(last_t):
+        return False
+    d, end = et_dt(last_t).date(), et_dt(expected_start).date()
+    while d <= end:
+        if is_trading_day(d):
+            _pre, opn, close, _post = session_minutes(d)
+            o, c = et_epoch(d, opn), et_epoch(d, close)
+            if any(last_t < s <= expected_start and o <= s < c
+                   for s, _e in day_buckets(d, str(tf), "eth")):
+                return True
+        d = date.fromordinal(d.toordinal() + 1)
+    return False
+
+
 def check_tail(now: int, tf: str, last_t: int, *, session: str = "eth", thin: bool = False,
-               grace: int = 90) -> Verdict:
+               grace: int = 90, tail_status: Optional[str] = None) -> Verdict:
     """The tail is within ONE bucket of the expected frontier.
 
     Tolerances (WARN, never an alert) are the legitimate quiet cases: a thin name; an
     extended-hours minute on 1/5m with nothing printed (<= 3 buckets); the thin post tail
-    after the close (<= 30 min on 1/5m)."""
+    after the close (<= 30 min on 1/5m); and (2026-11-15) a tail the server marks
+    ``verified`` -- the provider was asked after the expected bucket closed and had nothing
+    newer -- when every missing bucket is OUTSIDE the regular session. ⚰️ ONON: no after-hours
+    print after 18:09 ET Friday, so its 1/5/15/30m charts were complete and the monitor held six
+    alerts open all weekend. ⛔ A missing REGULAR-session bucket stays a FAIL even when
+    "verified": a provider that answers nothing for everyone would mark every tail verified,
+    and the monitor must not go blind to that."""
     fr = frontier(now, tf, session, grace)
     upper = fr.developing_start if fr.developing_start is not None else fr.expected_start
     if last_t > max(upper, fr.expected_start):
@@ -269,6 +293,8 @@ def check_tail(now: int, tf: str, last_t: int, *, session: str = "eth", thin: bo
         return Verdict(PASS, f"lag={lag}bkt")
     lag_min = (fr.expected_start - last_t) // 60
     detail = f"lag={lag}bkt/{lag_min}min last={et_str(last_t)} expected>={et_str(fr.expected_start)}"
+    if tail_status == "verified" and not gap_touches_rth(last_t, fr.expected_start, tf):
+        return Verdict(WARN, detail + " (provider-verified: no prints outside regular hours)")
     ph = phase_at(now)
     if thin:
         return Verdict(WARN, detail)
@@ -429,6 +455,30 @@ class LabelWindow:
         for _, lab in self.items:
             out[lab] = out.get(lab, 0) + 1
         return out
+
+
+#: `X-Bars-Edge` values that mean bars-api did NOT answer: the edge Worker hedged to web after
+#: BARS_HEDGE_MS, or fell back to web on a tier failure (edge/bars-edge-router/worker.js).
+EDGE_FALLBACK_LABELS = frozenset({"web-hedge", "web-fallback"})
+
+
+def check_edge_fallback(edges: Sequence[Optional[str]], budget_share: float,
+                        min_samples: int = 20) -> Verdict:
+    """Share of member-path answers bars-api did not serve (2026-11-15).
+
+    ⭐ THE FALLBACK HIDES A TIER OUTAGE FROM EVERY OTHER CHECK. Since the edge hedges to web
+    after 1.2 s, a down or stalled bars-api still yields 200s with correct bars, ~1.3 s each:
+    the data checks pass and a p90 budget of seconds never trips. Only the share of answers
+    stamped web-hedge / web-fallback says the tier is gone. Answers with no stamp (breadth and
+    market-indicator series route straight to web) are not counted either way."""
+    stamped = [e for e in edges if e]
+    if len(stamped) < min_samples:
+        return Verdict(SKIP, f"n={len(stamped)}")
+    bad = [e for e in stamped if e in EDGE_FALLBACK_LABELS]
+    share = len(bad) / len(stamped)
+    kinds = " ".join(f"{k}={bad.count(k)}" for k in sorted(set(bad)))
+    return Verdict(FAIL if share > budget_share else PASS,
+                   f"not-tier={len(bad)}/{len(stamped)} ({share:.0%}) budget={budget_share:.0%} {kinds}".strip())
 
 
 def check_label_budget(counts: dict, budget_share: float, min_samples: int = 40) -> Verdict:

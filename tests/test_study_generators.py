@@ -164,7 +164,12 @@ def test_size_answers_match_the_house_formula_and_never_exceed_the_ceiling(segme
             assert key["shares"] == cap_shares == f["capped_shares"], it["id"]
             assert key["shares"] * (p["entry"] - p["stop"]) / p["account"] * 100 <= RISK_CEILING_PCT + 1e-9
         else:
-            assert key == {"shares": res["shares"], "dollars": res["dollars"]}, it["id"]
+            assert key == {"shares": res["shares"], "answer": gen_size._choice_shares(res["shares"])}, it["id"]
+        # owner 2026-11-12: share-count items are multiple choice, and the key's label is one of the four
+        if p.get("format") == "size":
+            assert len(set(p["choices"])) == 4 and key["answer"] in p["choices"], it["id"]
+        if it["skill_id"] == "size.formula":
+            assert f["stop_pct"] <= gen_size.MAX_STOP_PCT, it["id"]          # D-005: past 5% is not a question
         assert it["lesson_origin"] == "template" and si.grounding_check(it) == []
 
 
@@ -180,13 +185,14 @@ def test_size_rulings_2026_10_19_wide_stop_over_cap_tight_batch_and_plural(segme
     """docs/study/corrections/size.house_rule.jsonl: the three segment rulings."""
     items = segments["size.house_rule"]
     forward = [i for i in items if "#3-forward" in i["source_ref"]]
-    tight = [i for i in forward if "forward-tight" in i["source_ref"]]
+    tight = [i for i in forward if "forward-tight" in i["source_ref"] or "forward-refill" in i["source_ref"]]
     assert len(tight) >= 12
-    assert all(i["reveal_json"]["facts"]["stop_pct"] <= 8 for i in tight)
-    assert sum(1 for i in tight if i["reveal_json"]["facts"]["stop_pct"] <= 6) >= len(tight) * 0.75
-    # the original forward items keep their ids: the owner's verdicts still land
+    # owner 2026-11-12 (D-005): no share-count stop past 5%; the wide ones were replaced on their own stream
+    assert all(i["reveal_json"]["facts"]["stop_pct"] <= gen_size.MAX_STOP_PCT for i in forward)
+    # the surviving original forward items keep their ids: the owner's verdicts still land
     ids = {i["id"] for i in items}
-    assert {"si_a811f438b0f5", "si_50d28d98a52a", "si_7417247555f3"} <= ids
+    assert {"si_a811f438b0f5", "si_7417247555f3"} <= ids
+    assert "si_9d442ebbc314" not in ids and "si_50d28d98a52a" not in ids          # 15% stops, retired 2026-11-12
     for it in forward:
         f = it["reveal_json"]["facts"]
         wide = "far wider than the desk would ever use" in it["lesson_text"]
@@ -540,12 +546,17 @@ def test_the_committed_bank_never_prints_a_missing_number():
     """A lesson template that read a fact the scan had not stored printed
     'None%' (seen live 2026-11-04 on three Gap Support items). The grounding
     check cannot catch it (None is not a number), so this reads every
-    committed segment: the bars decide the number or the clause is left out."""
+    committed segment: the bars decide the number or the clause is left out.
+    The English "None of it" (the course units' own words, 2026-11-09) is not a missing value, so it passes; a bare
+    None anywhere else still fails."""
+    leak = re.compile(r"\bNone\b(?!\s+of\b)")
+    assert leak.search("The gap held None% of the range.") and leak.search("Volume was None.")
+    assert not leak.search("None of it stops every loss.")
     bad = []
     for path in sorted((REPO / "docs" / "study" / "bank").glob("*.json")):
         for it in json.loads(path.read_text(encoding="utf-8")):
             for field, text in si.lesson_texts(it):
-                if re.search(r"\bNone\b", text):
+                if leak.search(text):
                     bad.append(f"{path.stem}:{it.get('id')}:{field}")
     assert not bad, bad[:12]
 

@@ -1,0 +1,20 @@
+//@version=5
+indicator("UCTPROBE_VW_CS2_RISING_FALLING_NA_V5", overlay=false)
+
+// PROVENANCE: written 2026-11-15 for the Pine parity programme, capture session S17
+// (objects-lane PROBES-NEXT.md item 11, engine 56-values review). ta.rising / ta.falling over a
+// source that is na on its warm-up (s = ta.sma(close, 20) is na on bars 0..18): does Pine answer
+// na, false or a value there? Encoded na -> -1, true -> 1, false -> 0. Lengths 1, 2 and 5.
+// CAPTURE: NYSE:RDDT 1D from the listing, inputs at defaults.
+
+s = ta.sma(close, 20)
+enc(bool v) => na(v) ? -1 : v ? 1 : 0
+
+plot(bar_index, "A00_bar_index_CONTROL")
+plot(na(s) ? 1 : 0, "A01_s_is_na")
+plot(enc(ta.rising(s, 1)), "R01_rising_1")
+plot(enc(ta.falling(s, 1)), "F01_falling_1")
+plot(enc(ta.rising(s, 2)), "R02_rising_2")
+plot(enc(ta.falling(s, 2)), "F02_falling_2")
+plot(enc(ta.rising(s, 5)), "R05_rising_5")
+plot(enc(ta.falling(s, 5)), "F05_falling_5")

@@ -1,34 +1,34 @@
 {
  "populations": {
   "capture": {
-   "scripts": 369,
-   "admitted": 139,
-   "runtimeLane": 15,
-   "hostLane": 81,
-   "refused": 43,
-   "coreOnly": 31
+   "scripts": 584,
+   "admitted": 239,
+   "runtimeLane": 22,
+   "hostLane": 144,
+   "refused": 73,
+   "coreOnly": 35
   },
   "committed": {
    "scripts": 266,
-   "admitted": 26,
-   "runtimeLane": 7,
-   "hostLane": 17,
-   "refused": 2,
+   "admitted": 46,
+   "runtimeLane": 11,
+   "hostLane": 29,
+   "refused": 6,
    "coreOnly": 4
   },
   "reference": {
    "scripts": 271,
-   "admitted": 64,
-   "runtimeLane": 5,
-   "hostLane": 50,
-   "refused": 9,
+   "admitted": 91,
+   "runtimeLane": 8,
+   "hostLane": 66,
+   "refused": 17,
    "coreOnly": 7
   },
   "builtin": {
    "scripts": 142,
-   "admitted": 51,
-   "runtimeLane": 4,
-   "hostLane": 42,
+   "admitted": 63,
+   "runtimeLane": 5,
+   "hostLane": 53,
    "refused": 5,
    "coreOnly": 30
   }
@@ -68,6 +68,38 @@
     "fn-multi",
     "fn-single",
     "for",
+    "reassign",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "atr-trailing-stop-by-ceyhun-rddt-1d-2026-10-02",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "obj:delete",
+    "obj:label",
+    "realtime-state",
+    "reassign",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "atr-trailing-stop-by-ceyhun-spy-1d-2026-10-02",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "obj:delete",
+    "obj:label",
+    "realtime-state",
     "reassign",
     "ternary"
    ]
@@ -231,6 +263,92 @@
    ]
   },
   {
+   "capture": "extrapolated-pivot-connector-rddt-1d-2026-09-28",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "max_bars_back",
+    "obj:delete",
+    "obj:label",
+    "obj:line"
+   ]
+  },
+  {
+   "capture": "extrapolated-pivot-connector-spy-1d-2026-10-03",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "max_bars_back",
+    "obj:delete",
+    "obj:label",
+    "obj:line"
+   ]
+  },
+  {
+   "capture": "fib-retracement-extrafibs-rddt-1d-2026-10-02",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "max_bars_back",
+    "obj:delete",
+    "obj:label",
+    "obj:line",
+    "realtime-state",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "capture": "fib-retracement-rddt-1d-2026-10-02",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "max_bars_back",
+    "obj:delete",
+    "obj:label",
+    "obj:line",
+    "realtime-state",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "capture": "fib-retracement-spy-1d-2026-10-03",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "max_bars_back",
+    "obj:delete",
+    "obj:label",
+    "obj:line",
+    "realtime-state",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
    "capture": "fvg-trend-rddt-1d-2026-09-27",
    "lane": "runtime",
    "runtimeOn": "INCONCLUSIVE",
@@ -292,6 +410,40 @@
    ]
   },
   {
+   "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-09-28",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "obj:delete",
+    "obj:line",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-10-03",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "obj:delete",
+    "obj:line",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
    "capture": "kalman-price-filter-backquant-rddt-1d-2026-10-03",
    "lane": "runtime",
    "runtimeOn": "MATCH",
@@ -328,6 +480,59 @@
    ]
   },
   {
+   "capture": "kernel-channel-backquant-rddt-1d-2026-11-14",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "compound-assign",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "if-block",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "capture": "liquidation-levels-rddt-1d-2026-09-28",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "history-expr",
+    "if-block",
+    "obj:label",
+    "realtime-state",
+    "ternary",
+    "tuple-destructure",
+    "var"
+   ]
+  },
+  {
+   "capture": "liquidation-levels-spy-1d-2026-10-03",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "history-expr",
+    "if-block",
+    "obj:label",
+    "realtime-state",
+    "ternary",
+    "tuple-destructure",
+    "var"
+   ]
+  },
+  {
    "capture": "liquidity-engulfing-candles-upslidedown-rddt-1d-2026-09-28",
    "lane": "host",
    "runtimeOn": "MATCH",
@@ -352,6 +557,78 @@
    ]
   },
   {
+   "capture": "liquidity-pools-rddt-1d-2026-09-28",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "if-block",
+    "method-call",
+    "obj:label",
+    "obj:line",
+    "obj:linefill",
+    "realtime-state",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "capture": "liquidity-pools-spy-1d-2026-10-03",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "if-block",
+    "method-call",
+    "obj:label",
+    "obj:line",
+    "obj:linefill",
+    "realtime-state",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "capture": "market-structure-by-leviathan-rddt-1d-2026-09-28",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "obj:label",
+    "obj:line",
+    "reassign",
+    "switch",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "capture": "market-structure-by-leviathan-spy-1d-2026-10-03",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "obj:label",
+    "obj:line",
+    "reassign",
+    "switch",
+    "ternary",
+    "var"
+   ]
+  },
+  {
    "capture": "nadaraya-watson-rational-quadratic-kernel-non-repainting-rddt-1d-2026-10-03",
    "lane": "runtime",
    "runtimeOn": "INCONCLUSIVE",
@@ -364,6 +641,24 @@
     "fn-single",
     "for",
     "ternary"
+   ]
+  },
+  {
+   "capture": "nubia-auto-midas-anchored-vwap-xdecow-rddt-1d-2026-11-14",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "history-expr",
+    "if-block",
+    "max_bars_back",
+    "reassign",
+    "ternary",
+    "tuple-destructure"
    ]
   },
   {
@@ -397,6 +692,28 @@
    ]
   },
   {
+   "capture": "parabolic-sar-rddt-1d-2026-10-03",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "reassign",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "pivot-high-low-points-rddt-1d-2026-11-14",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core"
+   ]
+  },
+  {
    "capture": "pivot-point-supertrend-rddt-1d-2026-09-27",
    "lane": "host",
    "runtimeOn": "MATCH",
@@ -417,6 +734,80 @@
    "caps": [
     "core",
     "if-block",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "capture": "position-size-calculator-rddt-1d-2026-09-28",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "obj:delete",
+    "obj:label",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "capture": "position-size-calculator-spy-1d-2026-10-03",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "obj:delete",
+    "obj:label",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "capture": "price-action-as-in-book-fibonacci-supportresistant-trendline-rddt-1d-2026-09-28",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "method-call",
+    "obj:delete",
+    "obj:label",
+    "obj:line",
+    "obj:linefill",
+    "realtime-state",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "capture": "price-action-as-in-book-fibonacci-supportresistant-trendline-spy-1d-2026-10-03",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "method-call",
+    "obj:delete",
+    "obj:label",
+    "obj:line",
+    "obj:linefill",
+    "realtime-state",
     "reassign",
     "ternary",
     "var"
@@ -495,6 +886,302 @@
    ]
   },
   {
+   "capture": "rs-syminfo-industry-aapl-1d-2026-11-15",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "realtime-state",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "rs-syminfo-industry-amd-1d-2026-11-15",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "realtime-state",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "rs-syminfo-industry-arkk-1d-2026-11-15",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "realtime-state",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "rs-syminfo-industry-coin-1d-2026-11-15",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "realtime-state",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "rs-syminfo-industry-gld-1d-2026-11-15",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "realtime-state",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "rs-syminfo-industry-iwm-1d-2026-11-15",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "realtime-state",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "rs-syminfo-industry-jpm-1d-2026-11-15",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "realtime-state",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "rs-syminfo-industry-ko-1d-2026-11-15",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "realtime-state",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "rs-syminfo-industry-msft-1d-2026-11-15",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "realtime-state",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "rs-syminfo-industry-nvda-1d-2026-11-15",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "realtime-state",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "rs-syminfo-industry-pltr-1d-2026-11-15",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "realtime-state",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "rs-syminfo-industry-qqq-1d-2026-11-15",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "realtime-state",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "rs-syminfo-industry-rddt-1d-2026-11-15",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "realtime-state",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "rs-syminfo-industry-smh-1d-2026-11-15",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "realtime-state",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "rs-syminfo-industry-spy-1d-2026-11-15",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "realtime-state",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "rs-syminfo-industry-tlt-1d-2026-11-15",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "realtime-state",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "rs-syminfo-industry-tsla-1d-2026-11-15",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "realtime-state",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "rs-syminfo-industry-unh-1d-2026-11-15",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "realtime-state",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "rs-syminfo-industry-xlk-1d-2026-11-15",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "realtime-state",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "rs-syminfo-industry-xom-1d-2026-11-15",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "realtime-state",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "rsi-swing-indicator-rddt-1d-2026-09-28",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "max_bars_back",
+    "obj:getter",
+    "obj:label",
+    "obj:line",
+    "reassign",
+    "var"
+   ]
+  },
+  {
+   "capture": "rsi-swing-indicator-spy-1d-2026-10-03",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "max_bars_back",
+    "obj:getter",
+    "obj:label",
+    "obj:line",
+    "reassign",
+    "var"
+   ]
+  },
+  {
    "capture": "rt1-na-test-v4-rddt-1d-2026-10-02",
    "lane": "host",
    "runtimeOn": "INCONCLUSIVE",
@@ -565,12 +1252,79 @@
    ]
   },
   {
+   "capture": "session-hilo-rddt-1d-2026-11-14",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "compound-assign",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "history-expr",
+    "if-block",
+    "max_bars_back",
+    "obj:line",
+    "reassign",
+    "ternary",
+    "tuple-destructure",
+    "var"
+   ]
+  },
+  {
+   "capture": "sessions-rddt-1d-2026-11-14",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "reassign",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "smart-money-interest-index-algoalpha-rddt-1d-2026-11-14",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "smart-money-volume-index-algoalpha-rddt-1d-2026-11-14",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
    "capture": "supertrend-kivancozbilgic-rddt-1d-2026-10-02",
    "lane": "host",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
     "core",
+    "reassign",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "support-and-resistance-5f95e90f-rddt-1d-2026-11-13",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "if-block",
+    "realtime-state",
     "reassign",
     "ternary"
    ]
@@ -640,6 +1394,68 @@
    "lane": null,
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "trend-line-harrybot-rddt-1d-2026-11-14",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "if-block",
+    "max_bars_back",
+    "obj:delete",
+    "obj:getter",
+    "obj:line",
+    "realtime-state",
+    "reassign",
+    "ternary",
+    "tuple-destructure",
+    "var"
+   ]
+  },
+  {
+   "capture": "trendlines-rddt-1d-2026-09-27",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "obj:line",
+    "reassign",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "trendlines-spy-1d-2026-10-03",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "obj:line",
+    "reassign",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "visualizing-displacement-tfo-rddt-1d-2026-11-14",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
    "caps": [
     "core",
     "ternary"
@@ -737,6 +1553,86 @@
    ]
   },
   {
+   "capture": "vw-bar-origin-rddt-5-2026-10-02",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "compound-assign",
+    "core",
+    "if-block",
+    "max_bars_back",
+    "realtime-state",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "capture": "vw-bar-origin-rddt-60-2026-10-02",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "compound-assign",
+    "core",
+    "if-block",
+    "max_bars_back",
+    "realtime-state",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "capture": "vw-bar-origin-spy-1d-300-2026-10-02",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "compound-assign",
+    "core",
+    "if-block",
+    "max_bars_back",
+    "realtime-state",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "capture": "vw-bar-origin-spy-1m-2026-10-02",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "compound-assign",
+    "core",
+    "if-block",
+    "max_bars_back",
+    "realtime-state",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "capture": "vw-bar-origin-spy-1w-2026-10-02",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "compound-assign",
+    "core",
+    "if-block",
+    "max_bars_back",
+    "realtime-state",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
    "capture": "vw-bgcolor-barcolor-spy-1d-2026-10-02",
    "lane": "host",
    "runtimeOn": "DIVERGE",
@@ -805,6 +1701,30 @@
    ]
   },
   {
+   "capture": "vw-clock-close-tfchange-spy-1d-2026-09-28",
+   "lane": "runtime",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-single",
+    "realtime-state",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-clock-close-tfchange-spy-1d-2026-09-28",
+   "lane": "runtime",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-single",
+    "realtime-state",
+    "ternary"
+   ]
+  },
+  {
    "capture": "vw-clock-vwap-spy-5-ext-2026-09-28",
    "lane": "host",
    "runtimeOn": "INCONCLUSIVE",
@@ -825,6 +1745,239 @@
    ]
   },
   {
+   "capture": "vw-cs1-bool-na-v2-rddt-1d-2026-11-14",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-cs1-bool-na-v4-rddt-1d-2026-11-14",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-cs1-bool-na-v5-rddt-1d-2026-11-14",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-cs1-palette-v1-rddt-1d-2026-11-14",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "capture": "vw-cs1-palette-v2-rddt-1d-2026-11-14",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "capture": "vw-cs1-rci-p1-rddt-1d-2026-11-14",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "capture": "vw-cs1-stoch-p2-rddt-1d-2026-11-14",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-cs1-ties-v4-rddt-1d-2026-11-14",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-cs1-ties-v5-rddt-1d-2026-11-14",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-cs1-transp-v1-rddt-1d-2026-11-14",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-cs1-transp-v2-rddt-1d-2026-11-14",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-cs1-transp-v3-rddt-1d-2026-11-14",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-cs2-highestbars-computed-v6-rddt-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-cs2-holed-highest-stoch-v6-rddt-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-cs2-holed-highest-stoch-v6-spy-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-cs2-holed-highest-v5-rddt-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-cs2-holed-highest-v5-spy-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-cs2-holed-highest-v6-rddt-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-cs2-holed-highest-v6-spy-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-cs2-label-number-format-rddt-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "fn-single",
+    "if-block",
+    "obj:label",
+    "realtime-state"
+   ]
+  },
+  {
+   "capture": "vw-cs2-sma-exact-tie-rddt-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-cs2-sma-exact-tie-spy-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-cs2-stoch-flat-window-rddt-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
    "capture": "vw-default-param-spy-1d-2026-10-02",
    "lane": "host",
    "runtimeOn": "MATCH",
@@ -833,6 +1986,55 @@
     "core",
     "fn-single",
     "ternary"
+   ]
+  },
+  {
+   "capture": "vw-fmt-tie-readings-rddt-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "fn-single",
+    "if-block",
+    "obj:label",
+    "realtime-state"
+   ]
+  },
+  {
+   "capture": "vw-getter-history-2-spy-1d-2026-10-02",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "history-expr",
+    "if-block",
+    "obj:getter",
+    "obj:line",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "capture": "vw-getter-history-spy-1d-2026-10-01",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "history-expr",
+    "if-block",
+    "obj:delete",
+    "obj:getter",
+    "obj:label",
+    "obj:line",
+    "realtime-state",
+    "reassign",
+    "var"
    ]
   },
   {
@@ -891,6 +2093,32 @@
    ]
   },
   {
+   "capture": "vw-input-tf-text-v5-spy-1d-2026-10-01",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "realtime-state",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-input-tf-text-v6-spy-1d-2026-10-01",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "realtime-state",
+    "ternary"
+   ]
+  },
+  {
    "capture": "vw-int-div-assign-spy-1d-2026-10-02",
    "lane": "host",
    "runtimeOn": "INCONCLUSIVE",
@@ -899,6 +2127,20 @@
     "compound-assign",
     "core",
     "reassign"
+   ]
+  },
+  {
+   "capture": "vw-loop-in-block-spy-1d-2026-10-02",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "for",
+    "if-block",
+    "obj:label",
+    "reassign",
+    "while"
    ]
   },
   {
@@ -994,6 +2236,30 @@
    ]
   },
   {
+   "capture": "vw-offset-na-spy-1d-2026-09-30",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "max_bars_back",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-rt5-arm-draw-block-history-rddt-1d-2026-10-03",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "reassign",
+    "ternary"
+   ]
+  },
+  {
    "capture": "vw-rt6-runtime-colour-rddt-1d-2026-10-03",
    "lane": "host",
    "runtimeOn": "DIVERGE",
@@ -1028,6 +2294,75 @@
     "collections:array",
     "core",
     "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-runtime-error-spy-1d-2026-09-30",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "if-block",
+    "method-call",
+    "obj:label"
+   ]
+  },
+  {
+   "capture": "vw-ternary-draw-helper-rddt-1d-2026-10-02",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "obj:delete",
+    "obj:label",
+    "obj:line",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "capture": "vw-tf-period-spy-1d-2026-09-30",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "realtime-state",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-tf-period-spy-1m-2026-09-30",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "realtime-state",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-tf-period-spy-1w-2026-09-30",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "realtime-state",
     "ternary"
    ]
   },
@@ -1396,6 +2731,30 @@
    ]
   },
   {
+   "capture": "vw-w3n-draw-block-history-d-rddt-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "reassign"
+   ]
+  },
+  {
+   "capture": "vw-w3n-draw-block-history-d-spy-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "reassign"
+   ]
+  },
+  {
    "capture": "w4-cross-round-spy-1d-2026-09-30",
    "lane": "host",
    "runtimeOn": "INCONCLUSIVE",
@@ -1403,6 +2762,29 @@
    "caps": [
     "core",
     "ternary"
+   ]
+  },
+  {
+   "capture": "zigzag-multi-time-frame-with-fibonacci-retracement-rddt-1d-2026-11-14",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "collections:array",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "if-block",
+    "max_bars_back",
+    "obj:collection",
+    "obj:delete",
+    "obj:label",
+    "obj:line",
+    "realtime-state",
+    "reassign",
+    "ternary",
+    "var"
    ]
   },
   {
@@ -1570,33 +2952,26 @@
  ],
  "admittedUngraded": [
   {
-   "key": "committed:kernel-channel-backquant__d8c4b7f75c",
-   "lane": null,
-   "guard": "pine:block",
-   "declined": "runtime:conditional-history",
+   "key": "committed:order-block-finder__fVSb3j0I87",
+   "lane": "runtime",
+   "guard": null,
+   "declined": null,
    "caps": [
-    "compound-assign",
     "core",
     "fn-multi",
     "fn-single",
     "for",
     "if-block",
+    "obj:delete",
+    "obj:label",
+    "obj:line",
     "reassign",
     "ternary",
     "var"
    ]
   },
   {
-   "key": "committed:pivot-high-low-points__hoTsDQRY3L",
-   "lane": "host",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "core"
-   ]
-  },
-  {
-   "key": "committed:sessions__2677",
+   "key": "committed:session-highs-and-lows-indicator-smc-sessions-dst-safe__c0ca8cf749",
    "lane": null,
    "guard": "pine:function",
    "declined": "pine:function",
@@ -1604,39 +2979,35 @@
     "core",
     "fn-multi",
     "fn-single",
+    "history-expr",
     "if-block",
+    "method-call",
+    "obj:delete",
+    "obj:label",
+    "obj:line",
+    "realtime-state",
     "reassign",
-    "ternary"
+    "tuple-destructure",
+    "var"
    ]
   },
   {
-   "key": "committed:smart-money-interest-index-algoalpha__effdd7852c",
-   "lane": "host",
-   "guard": null,
-   "declined": null,
+   "key": "committed:volume-profile-v054beta__PNSKf75832",
+   "lane": null,
+   "guard": "pine:no-output",
+   "declined": "runtime:statement",
    "caps": [
     "core",
-    "ternary"
-   ]
-  },
-  {
-   "key": "committed:smart-money-volume-index-algoalpha__6663950b80",
-   "lane": "host",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "core",
-    "ternary"
-   ]
-  },
-  {
-   "key": "committed:visualizing-displacement-tfo__5b861441c2",
-   "lane": "host",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "core",
-    "ternary"
+    "fn-multi",
+    "fn-single",
+    "for",
+    "if-block",
+    "max_bars_back",
+    "obj:line",
+    "realtime-state",
+    "reassign",
+    "ternary",
+    "var"
    ]
   },
   {
@@ -1652,6 +3023,44 @@
    ]
   },
   {
+   "key": "reference:accumulationdistribution-volume-adv-ci8dh__OC6f7EUAOj",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "obj:line",
+    "reassign",
+    "ternary"
+   ]
+  },
+  {
+   "key": "reference:accumulationdistribution-with-markers__549",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "obj:line",
+    "ternary"
+   ]
+  },
+  {
+   "key": "reference:anti-volume-stop-loss__QyDEhGL8DB",
+   "lane": null,
+   "guard": "pine:block",
+   "declined": "runtime:history-dynamic-offset",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "if-block",
+    "max_bars_back",
+    "reassign"
+   ]
+  },
+  {
    "key": "reference:auto-fib-levels__01de230c0a",
    "lane": "host",
    "guard": null,
@@ -1659,6 +3068,29 @@
    "caps": [
     "core",
     "ternary"
+   ]
+  },
+  {
+   "key": "reference:auto-fibonacci-and-gann-fanretracements-combo__e764b93365",
+   "lane": "runtime",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "collections:array",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "history-expr",
+    "if-block",
+    "obj:collection",
+    "obj:delete",
+    "obj:label",
+    "obj:line",
+    "reassign",
+    "ternary",
+    "tuple-destructure",
+    "var"
    ]
   },
   {
@@ -1680,6 +3112,30 @@
     "core",
     "if-block",
     "ternary"
+   ]
+  },
+  {
+   "key": "reference:best-sr-indicator-with-candlestick-patterns__4af8b3cc84",
+   "lane": "runtime",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "collections:array",
+    "compound-assign",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "if-block",
+    "method-call",
+    "obj:collection",
+    "obj:label",
+    "obj:line",
+    "obj:linefill",
+    "reassign",
+    "typed-array",
+    "var",
+    "while"
    ]
   },
   {
@@ -1735,6 +3191,16 @@
    ]
   },
   {
+   "key": "reference:cm-donchian-channels-modified__45",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "obj:line"
+   ]
+  },
+  {
    "key": "reference:cm-forex-sessions-highlight-v1__41",
    "lane": null,
    "guard": "pine:no-output",
@@ -1754,6 +3220,17 @@
     "core",
     "fn-single",
     "history-expr",
+    "ternary"
+   ]
+  },
+  {
+   "key": "reference:cm-rsi-2-strat-low__568",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "obj:line",
     "ternary"
    ]
   },
@@ -1795,6 +3272,30 @@
    "caps": [
     "core",
     "ternary"
+   ]
+  },
+  {
+   "key": "reference:dynamic-linear-regression-channels__17ec799bc1",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "compound-assign",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "history-expr",
+    "if-block",
+    "max_bars_back",
+    "method-call",
+    "obj:line",
+    "obj:linefill",
+    "realtime-state",
+    "reassign",
+    "ternary",
+    "tuple-destructure",
+    "var"
    ]
   },
   {
@@ -1911,6 +3412,21 @@
    ]
   },
   {
+   "key": "reference:fxn-week-and-day-separator__ingZSaBNLa",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "obj:line",
+    "reassign",
+    "ternary"
+   ]
+  },
+  {
    "key": "reference:heatmap-volume-xdecow__2lteb6l2tk",
    "lane": "runtime",
    "guard": null,
@@ -1919,6 +3435,35 @@
     "core",
     "reassign",
     "ternary"
+   ]
+  },
+  {
+   "key": "reference:hurst-cycle-channel-clone-lazybear__1192",
+   "lane": null,
+   "guard": "pine:offset-literal",
+   "declined": "pine:offset-literal",
+   "caps": [
+    "core",
+    "obj:line"
+   ]
+  },
+  {
+   "key": "reference:inside-bar-setup__a1528b4d74",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "collections:array",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "obj:label",
+    "obj:line",
+    "realtime-state",
+    "reassign",
+    "ternary",
+    "var"
    ]
   },
   {
@@ -1954,6 +3499,26 @@
    ]
   },
   {
+   "key": "reference:liquidity-by-makuchaku-efe__8db03bf972",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "collections:array",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "if-block",
+    "obj:collection",
+    "obj:delete",
+    "obj:getter",
+    "obj:line",
+    "typed-array",
+    "var"
+   ]
+  },
+  {
    "key": "reference:macd-trend-heatmap-by-chartart__1985",
    "lane": "host",
    "guard": null,
@@ -1970,6 +3535,25 @@
    "declined": null,
    "caps": [
     "core"
+   ]
+  },
+  {
+   "key": "reference:market-structure-confluence-algoalpha__bf28f1838f",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "max_bars_back",
+    "obj:label",
+    "obj:line",
+    "realtime-state",
+    "reassign",
+    "ternary",
+    "var"
    ]
   },
   {
@@ -2011,6 +3595,59 @@
    "caps": [
     "core",
     "ternary"
+   ]
+  },
+  {
+   "key": "reference:multi-timeframe-vwap-v5__Au03ORcOFj",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "history-expr",
+    "if-block",
+    "obj:label",
+    "reassign",
+    "ternary",
+    "tuple-destructure",
+    "var"
+   ]
+  },
+  {
+   "key": "reference:nadaraya-watson-trend-quantalgo__052bdb2a18",
+   "lane": null,
+   "guard": "pine:reassign",
+   "declined": "runtime:block-value",
+   "caps": [
+    "compound-assign",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "if-block",
+    "max_bars_back",
+    "reassign",
+    "switch",
+    "ternary",
+    "tuple-destructure"
+   ]
+  },
+  {
+   "key": "reference:nylondonasian-sessions-ict-swings__14bce3660b",
+   "lane": null,
+   "guard": "pine:function",
+   "declined": "pine:function",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "obj:line",
+    "reassign",
+    "ternary",
+    "var"
    ]
   },
   {
@@ -2056,12 +3693,41 @@
    ]
   },
   {
+   "key": "reference:pivot-based-swing-highs-and-lows__b230ea4c6d",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "if-block",
+    "obj:line",
+    "reassign",
+    "var"
+   ]
+  },
+  {
    "key": "reference:pivot-points-high-low-extension__Pxr8FVNWPB",
    "lane": "host",
    "guard": null,
    "declined": null,
    "caps": [
     "core",
+    "ternary"
+   ]
+  },
+  {
+   "key": "reference:pivot-points-high-low-hhhllhll-anan__b04lNFHeme",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "obj:label",
+    "realtime-state",
+    "reassign",
     "ternary"
    ]
   },
@@ -2081,6 +3747,20 @@
    "declined": null,
    "caps": [
     "core",
+    "ternary"
+   ]
+  },
+  {
+   "key": "reference:relative-strength-index-divergences-libertus__g2odvjJQz8",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "if-block",
+    "obj:delete",
+    "obj:label",
+    "reassign",
     "ternary"
    ]
   },
@@ -2171,6 +3851,31 @@
    ]
   },
   {
+   "key": "reference:smc-target-liquidity-v35-manual-distance-control__811da09c25",
+   "lane": null,
+   "guard": "pine:no-output",
+   "declined": "runtime:history-expression",
+   "caps": [
+    "collections:array",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "history-expr",
+    "if-block",
+    "obj:collection",
+    "obj:delete",
+    "obj:getter",
+    "obj:label",
+    "obj:line",
+    "reassign",
+    "switch",
+    "ternary",
+    "typed-array",
+    "var"
+   ]
+  },
+  {
    "key": "reference:squeeze-momentum-indicator-lazybear__2439",
    "lane": "host",
    "guard": null,
@@ -2204,6 +3909,20 @@
    ]
   },
   {
+   "key": "reference:swing-highs-lows__pkMwWmV2Mf",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "max_bars_back",
+    "reassign",
+    "ternary"
+   ]
+  },
+  {
    "key": "reference:trade-archer-on-balance-volume-moving-averages-v1__897",
    "lane": "host",
    "guard": null,
@@ -2223,6 +3942,28 @@
     "fn-single",
     "history-expr",
     "ternary"
+   ]
+  },
+  {
+   "key": "reference:trendlines-jd__BYXZzZURrT",
+   "lane": null,
+   "guard": "pine:collection",
+   "declined": "runtime:conditional-history",
+   "caps": [
+    "collections:array",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "history-expr",
+    "if-block",
+    "obj:delete",
+    "obj:line",
+    "reassign",
+    "ternary",
+    "tuple-destructure",
+    "typed-array",
+    "var"
    ]
   },
   {
@@ -2257,6 +3998,23 @@
    ]
   },
   {
+   "key": "reference:uptrick-volatility-adjusted-trail__ff9f0f608f",
+   "lane": "runtime",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "compound-assign",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "obj:label",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
    "key": "reference:ut-bot-cooldown-visual-fvg__17b93cb3b0",
    "lane": "host",
    "guard": null,
@@ -2266,6 +4024,42 @@
     "if-block",
     "reassign",
     "ternary",
+    "var"
+   ]
+  },
+  {
+   "key": "reference:volume-profile-free-pro-by-rrb__a7xsrJkK2R",
+   "lane": null,
+   "guard": "pine:reassign",
+   "declined": "pine:builtin",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "if-block",
+    "max_bars_back",
+    "obj:line",
+    "realtime-state",
+    "reassign",
+    "ternary"
+   ]
+  },
+  {
+   "key": "reference:vp-period__iO1NrPRRG5",
+   "lane": null,
+   "guard": "pine:no-output",
+   "declined": "pine:function",
+   "caps": [
+    "collections:array",
+    "core",
+    "for",
+    "if-block",
+    "max_bars_back",
+    "obj:label",
+    "obj:line",
+    "realtime-state",
+    "reassign",
     "var"
    ]
   },
@@ -2299,6 +4093,56 @@
     "if-block",
     "reassign",
     "ternary"
+   ]
+  },
+  {
+   "key": "reference:ytc-swing-highs-lows__H94Z0NbN5P",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "max_bars_back",
+    "reassign",
+    "ternary"
+   ]
+  },
+  {
+   "key": "reference:zig-zag-channels-luxalgo__c253c72883",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "for",
+    "history-expr",
+    "if-block",
+    "max_bars_back",
+    "obj:delete",
+    "obj:label",
+    "obj:line",
+    "realtime-state",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "key": "builtin:accumulationdistribution__Accumulation",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "compound-assign",
+    "core",
+    "if-block",
+    "method-call",
+    "realtime-state",
+    "ternary",
+    "var"
    ]
   },
   {
@@ -2358,6 +4202,18 @@
    ]
   },
   {
+   "key": "builtin:bbtrend__BBTrend",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "history-expr",
+    "switch",
+    "tuple-destructure"
+   ]
+  },
+  {
    "key": "builtin:bollinger-bands-b__Bollinger_Ba",
    "lane": "host",
    "guard": null,
@@ -2393,6 +4249,35 @@
    "caps": [
     "core",
     "ternary"
+   ]
+  },
+  {
+   "key": "builtin:chaikin-money-flow__Chaikin_Mone",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "compound-assign",
+    "core",
+    "if-block",
+    "method-call",
+    "realtime-state",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "key": "builtin:chaikin-oscillator__Chaikin_Osci",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "compound-assign",
+    "core",
+    "if-block",
+    "method-call",
+    "realtime-state",
+    "var"
    ]
   },
   {
@@ -2495,6 +4380,34 @@
    ]
   },
   {
+   "key": "builtin:ease-of-movement__EOM",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "compound-assign",
+    "core",
+    "if-block",
+    "method-call",
+    "realtime-state",
+    "var"
+   ]
+  },
+  {
+   "key": "builtin:elder039s-force-index__EFI",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "compound-assign",
+    "core",
+    "if-block",
+    "method-call",
+    "realtime-state",
+    "var"
+   ]
+  },
+  {
    "key": "builtin:envelope__ENV",
    "lane": "host",
    "guard": null,
@@ -2536,12 +4449,56 @@
    ]
   },
   {
+   "key": "builtin:klinger-oscillator__Klinger1Osci",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "compound-assign",
+    "core",
+    "if-block",
+    "method-call",
+    "realtime-state",
+    "ternary",
+    "var"
+   ]
+  },
+  {
    "key": "builtin:least-squares-moving-average__Least1Square",
    "lane": "host",
    "guard": null,
    "declined": null,
    "caps": [
     "core"
+   ]
+  },
+  {
+   "key": "builtin:linear-regression-channel__Linear_Regre",
+   "lane": "runtime",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "compound-assign",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "history-expr",
+    "if-block",
+    "max_bars_back",
+    "method-call",
+    "obj:collection",
+    "obj:delete",
+    "obj:getter",
+    "obj:label",
+    "obj:line",
+    "obj:linefill",
+    "realtime-state",
+    "reassign",
+    "switch",
+    "ternary",
+    "tuple-destructure",
+    "var"
    ]
   },
   {
@@ -2603,12 +4560,63 @@
    ]
   },
   {
+   "key": "builtin:negative-volume-index__Negative_Vol",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "if-block",
+    "method-call",
+    "realtime-state"
+   ]
+  },
+  {
    "key": "builtin:parabolic-sar__PSAR",
    "lane": null,
    "guard": "pine:function",
    "declined": "pine:function",
    "caps": [
     "core"
+   ]
+  },
+  {
+   "key": "builtin:pivot-points-high-low__Pivot1Points",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "obj:label"
+   ]
+  },
+  {
+   "key": "builtin:positive-volume-index__Positive_Vol",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "core",
+    "if-block",
+    "method-call",
+    "realtime-state"
+   ]
+  },
+  {
+   "key": "builtin:price-volume-trend__Price_Volume",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "compound-assign",
+    "core",
+    "if-block",
+    "method-call",
+    "realtime-state",
+    "var"
    ]
   },
   {
@@ -2802,6 +4810,57 @@
  "stops": [],
  "hostDiverge": [
   {
+   "capture": "atr-trailing-stop-by-ceyhun-rddt-1d-2026-10-02",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "obj:delete",
+    "obj:label",
+    "realtime-state",
+    "reassign",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "atr-trailing-stop-by-ceyhun-spy-1d-2026-10-02",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "obj:delete",
+    "obj:label",
+    "realtime-state",
+    "reassign",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "pivot-high-low-points-rddt-1d-2026-11-14",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "capture": "smart-money-volume-index-algoalpha-rddt-1d-2026-11-14",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
    "capture": "vw-bgcolor-barcolor-spy-1d-2026-10-02",
    "lane": "host",
    "runtimeOn": "DIVERGE",
@@ -2809,6 +4868,200 @@
    "caps": [
     "core",
     "ternary"
+   ]
+  },
+  {
+   "capture": "vw-cs1-bool-na-v4-rddt-1d-2026-11-14",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-cs1-bool-na-v5-rddt-1d-2026-11-14",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-cs1-rci-p1-rddt-1d-2026-11-14",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core"
+   ]
+  },
+  {
+   "capture": "vw-cs1-stoch-p2-rddt-1d-2026-11-14",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-cs1-ties-v4-rddt-1d-2026-11-14",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-cs1-ties-v5-rddt-1d-2026-11-14",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-cs1-transp-v1-rddt-1d-2026-11-14",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-cs1-transp-v2-rddt-1d-2026-11-14",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-cs1-transp-v3-rddt-1d-2026-11-14",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-cs2-highestbars-computed-v6-rddt-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-cs2-holed-highest-stoch-v6-rddt-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-cs2-holed-highest-stoch-v6-spy-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-cs2-holed-highest-v5-rddt-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-cs2-holed-highest-v5-spy-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-cs2-holed-highest-v6-rddt-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-cs2-holed-highest-v6-spy-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-cs2-sma-exact-tie-spy-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-cs2-stoch-flat-window-rddt-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-fmt-tie-readings-rddt-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "fn-single",
+    "if-block",
+    "obj:label",
+    "realtime-state"
    ]
   },
   {
@@ -2846,6 +5099,30 @@
     "core",
     "fn-single",
     "ternary"
+   ]
+  },
+  {
+   "capture": "vw-w3n-draw-block-history-d-rddt-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "reassign"
+   ]
+  },
+  {
+   "capture": "vw-w3n-draw-block-history-d-spy-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "reassign"
    ]
   },
   {

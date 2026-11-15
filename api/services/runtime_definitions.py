@@ -131,6 +131,9 @@ PINE_RUNTIME_MODE_FLAGS = {
     "PINE_RUNTIME_SERVER_STAGE": (STAGE_OFF, (STAGE_OFF, STAGE_ADMINS, STAGE_COHORT, STAGE_ALL)),
     # WS-I Part 2 (2026-11-13): admission by capability, off until the owner arms it.
     "PINE_RUNTIME_CAPABILITY_ADMISSION": ("off", ("off", "on")),
+    # U5 (2026-11-14): the capability detector in its own process (pine_capability_worker), off
+    # the request GIL. Off: in-process, byte for byte as before.
+    "PINE_CAPABILITY_DETECTOR_WORKER": ("off", ("off", "on")),
 }
 assert STAGE_ENV in PINE_RUNTIME_MODE_FLAGS
 assert SERVER_STAGE_ENV in PINE_RUNTIME_MODE_FLAGS
@@ -566,7 +569,10 @@ def capability_deny() -> list[str]:
 
 def admitted_capabilities() -> dict:
     """WS-I Part 2 -- the capabilities admitted for capability admission, read per call:
-    ``{"admitted": [...], "withheld": {name: [reasons]}, "denied": [...]}``.
+    ``{"admitted": [...], "withheld": {name: [reasons]}, "denied": [...], "historyOnly": [...]}``.
+    ``historyOnly`` names the admitted capabilities admitted for CLOSED-BAR HISTORY only (G6,
+    `rollout_gate.pine_capability_history_only`): a script using one is drawn bar by bar only on a
+    chart whose newest bar is known to be closed (`runtime_admission`).
 
     A registry row admits its capability only when `rollout_gate.pine_capability_admission`
     says so, the name is one the detector can return (`pine_capabilities.CAPABILITY_IDS`) and
@@ -579,6 +585,7 @@ def admitted_capabilities() -> dict:
     admitted: list[str] = []
     withheld: dict[str, list[str]] = {}
     denied: list[str] = []
+    history_only: list[str] = []
     for name in sorted(k for k in registry if isinstance(k, str)) if isinstance(registry, dict) else []:
         if name not in pine_capabilities.CAPABILITY_IDS:
             withheld[name] = [f"`{name}` is not a capability the detector names"]
@@ -591,7 +598,9 @@ def admitted_capabilities() -> dict:
             denied.append(name)
         else:
             admitted.append(name)
-    return {"admitted": admitted, "withheld": withheld, "denied": denied}
+            if rollout_gate.pine_capability_history_only(name, registry[name]):
+                history_only.append(name)
+    return {"admitted": admitted, "withheld": withheld, "denied": denied, "historyOnly": history_only}
 
 
 #: ─── WHERE A SOURCE'S CAPABILITY SET COMES FROM (re-verify of #1204, 2026-11-13) ─────────────
@@ -848,7 +857,7 @@ def capabilities_for(source: str, *, budget: Optional[DetectorBudget] = None,
     `wait` (the save door): wait up to that long for the gate and the cool-down, then run once.
     `verdict_member` (the verdict door): run only if that member's rolling detector spend has room
     and the detector is idle for persisted work AND for the verdict door (it yields; F2)."""
-    from api.services import pine_capabilities
+    from api.services import pine_capabilities, pine_capability_worker
     key = source_hash(source)
     hit = _lru_get(key)
     if hit is not None:
@@ -877,8 +886,20 @@ def capabilities_for(source: str, *, budget: Optional[DetectorBudget] = None,
             else:
                 return None              # cooling down: pending, never wait
         t0 = time.perf_counter()
-        caps = pine_capabilities.capabilities_of(source)
-        elapsed = time.perf_counter() - t0
+        worker_ran = None
+        if pine_capability_worker.worker_enabled():
+            # ⭐⭐ U5 -- OFF THE REQUEST GIL. The run goes to the detector process and this thread
+            # WAITS ON A PIPE (the GIL released), still under the gate and the duty cycle below.
+            # ⛔ A busy, starting, crashed, hung (killed at its timeout) or confused worker answers
+            # None: PENDING, never an admission, and never run inline here instead. The save door
+            # may wait for a starting worker, within its own deadline only.
+            caps, worker_ran, _status = pine_capability_worker.detect(
+                source, ready_wait=max(0.0, deadline - time.monotonic()) if wait > 0 else 0.0)
+        else:
+            caps = pine_capabilities.capabilities_of(source)
+        # review L2: a worker run is charged with the CHILD's run time, never the parent's wall
+        # time (a wait for READY, the pipe, a timeout); in-process, the run IS the wall time
+        elapsed = worker_ran if worker_ran is not None else time.perf_counter() - t0
         if verdict_member is not None:
             # a verdict run cools only the verdict door (persisted work keeps priority)
             _VERDICT_IDLE_UNTIL[0] = time.monotonic() + elapsed * (1 / VERDICT_DUTY_CYCLE - 1)
@@ -887,6 +908,12 @@ def capabilities_for(source: str, *, budget: Optional[DetectorBudget] = None,
             _DETECTOR_IDLE_UNTIL[0] = time.monotonic() + elapsed * (1 / DETECTOR_DUTY_CYCLE - 1)
     finally:
         _DETECTOR_GATE.release()
+    if caps is None:
+        # U5: the worker could not answer. The attempt still costs the request a run (no retry
+        # storm across its rows) and the cool-down above already ran; nothing is stored.
+        if budget is not None:
+            budget.charge(nbytes, elapsed)
+        return None
     if nbytes >= 1024:
         _SECONDS_PER_BYTE[0] = 0.7 * _SECONDS_PER_BYTE[0] + 0.3 * (elapsed / nbytes)
     if budget is not None:
@@ -930,7 +957,8 @@ def capability_admitted(source: Any, *, budget: Optional[DetectorBudget] = None,
 
 def runtime_admission(source: Any, member: Any = None) -> dict:
     """``POST /api/user-definitions/runtime-admission`` -- ``{sha256, admitted, missing}`` for one
-    source, the client's per-hash verdict (`engine/runtimeKill.js`). ``admitted`` is True only
+    source, the client's per-hash verdict (`engine/runtimeKill.js`), plus ``historyOnly`` (the ids it
+    uses that are admitted for closed-bar history only, G6) when it is admitted and uses one. ``admitted`` is True only
     when capability admission is ON, the script is not on the kill list, and
     `capability_admitted` admits it. The allowlist is NOT folded in (the client asks its own
     latched allowlist first). Nothing is stored and the source is never logged."""
@@ -943,8 +971,33 @@ def runtime_admission(source: Any, member: Any = None) -> dict:
     # rolling detector budget (re-review F2); a member is never None here (the route passes its id)
     ok, missing = capability_admitted(source, persist=False,
                                       verdict_member=str(member) if member is not None else "<anonymous>")
+    if not ok and member is not None:
+        # ⭐ U4: the refusal becomes a ranked work item (support loop, kind `capability`):
+        # the capability ids only, under the member's keyed hash. Never the source. ⛔ `pending`
+        # is not a refusal: `indicator_support.clean_capabilities` drops it (the ONE guard).
+        try:
+            from api.services import indicator_support
+            indicator_support.record_capability_gaps(member, missing)
+        except Exception:  # noqa: BLE001 - telemetry never reaches the verdict
+            pass
     admitted = bool(ok and not killed(None, source))
-    return {"sha256": h, "admitted": admitted, "missing": missing}
+    out = {"sha256": h, "admitted": admitted, "missing": missing}
+    if admitted:
+        # ⭐ G6 (coordinator ruling 2026-11-15): an admitted script using a capability admitted for
+        # CLOSED-BAR HISTORY only carries those ids; the client refuses it BY NAME on a chart whose
+        # newest bar is forming or not known to be closed (`runtimeKill.js::runtimeFormingRefusalOf`).
+        # ⛔ FAIL CLOSED: a set that cannot be re-read is not admitted at all.
+        try:
+            caps = capabilities_for(source, persist=False, verdict_member=str(member) if member is not None
+                                    else "<anonymous>")
+            hist = sorted(set(caps) & set(admitted_capabilities()["historyOnly"])) if caps is not None else None
+        except Exception:  # noqa: BLE001 - fail closed
+            hist = None
+        if hist is None:
+            return {"sha256": h, "admitted": False, "missing": [PENDING]}
+        if hist:
+            out["historyOnly"] = hist
+    return out
 
 
 def save_permission(role: Any, user_id: Any = None) -> Optional[str]:
