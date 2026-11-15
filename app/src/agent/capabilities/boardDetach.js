@@ -21,6 +21,17 @@ import { registerCapability } from '../capabilities'
 import { labelMap } from '../../widgets/registry'
 import { positionWord } from '../host'
 import { moveIntoTabs, sanitizeWidgetTabs } from '../../pages/charts/widgetTabs'
+import { GROUPS } from '../routing'
+
+// ⛔ AUDIT T2 (#1304): intoTabs runs only when the member's OWN words say the into-tabs move STRUCTURALLY — a verb, the target
+// widget phrase and the into … tabs relation: the SAME words its routing group selects on (routing.js boardDetach, its
+// into-tabs pattern), never a second list. "move the news widget to the right" (a modify verb on the widget class, which
+// the kind-matched state rail would license) never moves a widget into tabs.
+export const INTO_TABS_ASKED = (() => {
+  const g = GROUPS.find(x => x.id === 'boardDetach')
+  const re = (g?.words || []).find(r => r instanceof RegExp && /into/.test(r.source) && /tabs/.test(r.source))
+  return re || /(?!)/
+})()
 
 export const BOARD_DETACH_ACTIONS = Object.freeze(['boardDetach.float', 'boardDetach.dock', 'boardDetach.intoTabs', 'boardDetach.setMerged'])
 const common = { target: 'board', surfaces: ['charts'], available: (ctx) => ctx.surface === 'charts',
@@ -166,6 +177,9 @@ export function registerBoardDetachCapabilities() {
     ...common,
     name: 'boardDetach.intoTabs',
     risk: 'confirm',
+    // useAgent's askedBy gate (as setMerged's): dropped unless the member's words name the into-tabs move
+    askedBy: INTO_TABS_ASKED,
+    askedByWhy: 'a widget moves into another widget’s tabs only when you ask for exactly that (“move the news widget into the chart’s tabs”).',
     summary: 'Move ONE widget into another widget\'s tabs (it leaves its spot on the board, which stays empty), as the floating panel\'s "Move into tabs" does. Shown first; Undo puts it back exactly.',
     hints: 'target = the board entry; widget = the id of the widget that moves; into = the id of the widget whose tabs it joins. Adding a NEW tab = widget.addTab.',
     args: { type: 'object', properties: { widget: { type: 'string' }, into: { type: 'string' } }, required: ['widget', 'into'], additionalProperties: false },

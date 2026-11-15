@@ -1633,7 +1633,9 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       const kept = (opsIn || []).filter(asked)
       if (kept.length !== (opsIn || []).length) {
         if (!kept.length) {
-          const text = 'I didn’t change anything: the board’s merged view changes only when you ask for it (“merge the board” / “unmerge the widgets”).'
+          // each capability says what its own words are (askedByWhy); the merged view's sentence is the default
+          const dropped = (opsIn || []).find(o => !asked(o))
+          const text = `I didn’t change anything: ${getCapability(dropped?.action)?.askedByWhy || 'the board’s merged view changes only when you ask for it (“merge the board” / “unmerge the widgets”).'}`
           push({ role: 'refusal', text })
           record({ member, outcome: text, outcomeData: { kind: 'refused', actions: (opsIn || []).map(o => o?.action) }, telemetry: { path, refused: true, voice } })
           return undefined
