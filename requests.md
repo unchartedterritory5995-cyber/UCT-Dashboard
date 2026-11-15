@@ -786,3 +786,33 @@ What that does and does not show:
 
 Suggested next measurement for the door's owner: the same 30 "cannot" prompts through the
 full turn, counting how many end as UNSUPPORTED versus a built indicator.
+
+### R9 follow-up, appended 2026-11-14: the model half, measured on production
+
+The same 30 "should end in cannot" prompts through the FULL turn: `POST
+/api/user-definitions/converse` with an empty compact view (a brand-new indicator), signed in
+as the synthetic smoke account in its own browser context. The door stores and applies
+nothing; the only side effect was model spend on that account's ledger.
+
+| outcome (`disposition`) | count |
+|---|---|
+| `unsupported`: a plain refusal that names what is missing | 29 |
+| `clarify`: one question | 1 |
+| a patch (something built) | 0 |
+
+- No request was answered with a look-alike. Several refusals say so in as many words
+  ("I won't build a look-alike under that name") and then offer a real alternative from
+  price and volume.
+- The one `clarify` was "Play a sound when price hits my level": it asked for the level and
+  said the sound is chosen in the alert settings. That is the right answer, and the prompt
+  was mis-filed as impossible by its author.
+- Every turn was one model call. So the unrelated terms the planner attaches on these
+  prompts (R9 above) did not mislead the model on this set.
+- Two prompts are worth the owner's eye: institutional ownership and analyst price targets
+  were refused as "not available from price and volume bars", while the planner matched
+  declared columns for both (`inst_pct`, `pt_target`). The refusal is honest for the chart
+  door as it is; whether those columns should be reachable from it is a product question.
+- This is a 30-prompt set written by one author. It shows the door is honest on plainly
+  impossible requests; it does not measure subtler ones, where a weaker answer would be a
+  quiet substitution. A 40-prompt hidden set written by a separate session exists for that
+  (kept outside the repo); it has not been run.

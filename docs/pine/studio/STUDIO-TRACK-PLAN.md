@@ -140,6 +140,31 @@ entry chunk (`python tools/notebook_perf_budgets.py --dist app/dist` after a bui
 | A model that writes Pine (was S4 + S5) | The existing patch-based layer already turns a description into an indicator, with a stronger guarantee. A Pine-writing model is only needed for adapted copies and for Pine-fluent authors who want editable Pine | Section 7's conditions hold, or Pine authors ask for it |
 | S11 Adapted copies | See section 7 | Every condition in section 7 holds |
 
+## 4a. What TradingView's Pine Screener does (their help article, read 2026-11-14)
+
+Source: TradingView's help article "Pine Screener: key features and requirements", read
+through a page summariser; treat each line as a pointer to check, not a quotation. Where
+their documents were silent, it says so.
+
+- **A scan:** one source (a watchlist or a major index), one indicator, one timeframe, then
+  filters, then Scan. On demand: values load only after a scan, and any change needs a rescan.
+- **Outputs that become columns:** `plot`, `plotbar`, `plotcandle`, `plotchar`, `plotshape`,
+  `plotarrow`, `hline`, and `alertcondition`. The first ten plots become columns and filters,
+  and two alert conditions are added. An indicator with none of these cannot be chosen.
+- **Filters:** a condition plus a target value on a plot. The operator list is not documented.
+- **Inputs:** editable in a settings dialog, except `input.timeframe`, `input.symbol` and
+  `input.time`, which use the script's defaults.
+- **Limits:** the last 500 bars only; fixed timeframes (1, 5, 15, 30 minutes; 1, 2, 4 hours;
+  day, week, month); an index source capped at 4,000 symbols; indicators only (no
+  strategies); `request.*` allowed up to 40 calls a script.
+- **Not documented:** what is shown when a script errors or returns `na`; saving a screen;
+  export; alerts from results; the plan tier.
+
+**What this means for S6.** Their screener shows every plot as a column; ours accepts one
+condition plot. That gap is the deferred "S6 full" lane and waits for the server
+interpreter. The first cut can already beat them on two things their documents do not
+offer: a per-symbol reason when a value is withheld, and saving the run as a scan or alert.
+
 ## 5. If a Pine-writing model is ever built: the rules it must follow
 
 Deferred (section 4). Kept because the security and cost review applies to any model door,
