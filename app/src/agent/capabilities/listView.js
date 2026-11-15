@@ -24,6 +24,7 @@ import { afterRender } from '../frames'
 import { andList, lookupTickers, tickerProblem } from './watchlist'
 import { resolvedTicker } from '../nl/tickers'
 import { OPTIONAL_COLS, EXTRA_COLS, TEXT_COLS, columnLabel, firstSortDir, resolveColumn, withColumn, withoutColumn } from '../../pages/watchlist/watchlistColumns'
+import { FACT_COLUMNS, LIVE_COLUMNS } from '../../pages/watchlist/watchlistColumnCatalog'
 
 const SHOW_IN_CONTEXT = 40             // rows per widget the model is shown
 const COMPACT_SHOW = 8                 // …when the context is over budget
@@ -34,7 +35,11 @@ const FLAG_REF = 'flagged'
 const quote = (n) => `“${n}”`
 const upper = (s) => String(s || '').trim().toUpperCase().replace(/^\$/, '')
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b)
-const ALL_COLUMNS = [...OPTIONAL_COLS, ...EXTRA_COLS].map(c => columnLabel(c.key)).join(', ')
+// The Watchlist column library (owner 11-14) is the MEMBER's menu. UCT Agent's column vocabulary
+// stays the set it was built, golden-pinned and tested on — a library column is refused like
+// any other unknown word until the Agent is taught it as its own reviewed change.
+const LIBRARY_KEYS = new Set([...Object.keys(LIVE_COLUMNS), ...Object.keys(FACT_COLUMNS)])
+const ALL_COLUMNS = [...OPTIONAL_COLS, ...EXTRA_COLS].filter(c => !LIBRARY_KEYS.has(c.key)).map(c => columnLabel(c.key)).join(', ')
 
 const viewsOf = (host) => (host?.listViews ? host.listViews.snapshot() : [])
 // F6: a column Undo when NO layout was saved before the change. The widget's writer removes its storage key for it
@@ -137,7 +142,7 @@ function unknownColumn(word, st) {
   const here = st.columns.filter(k => k !== 'flag').map(columnLabel)
   return `${quote(String(word))} isn't a column here. Columns: ${[...new Set([...here, ...ALL_COLUMNS.split(', ')])].join(', ')}.`
 }
-const keyOf = (word, st) => resolveColumn(word, st.columns)
+const keyOf = (word, st) => { const k = resolveColumn(word, st.columns); return k && LIBRARY_KEYS.has(k) ? null : k }
 
 let registered = false
 export function registerListViewCapabilities() {

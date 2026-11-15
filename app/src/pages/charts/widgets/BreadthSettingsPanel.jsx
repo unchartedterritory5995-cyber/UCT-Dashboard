@@ -5,9 +5,9 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import ColorPanel from '../../../components/chart/ColorPanel'
-import UIcon from '../../../components/ui/UIcon'
 import WidgetThemeSection from './WidgetThemeSection'
 import styles from './BreadthSettingsPanel.module.css'
+import useWidgetMenuPlacement from './useWidgetMenuPlacement'
 
 const PANEL_W = 268
 
@@ -52,25 +52,7 @@ export default function BreadthSettingsPanel({ settings: s, onChange, onReset, o
   const [colorPos, setColorPos] = useState(null)
 
   // Place beside the widget on the side CLOSEST TO THE MIDDLE of the layout.
-  useLayoutEffect(() => {
-    if (!hostEl) return
-    const place = () => {
-      const r = hostEl.getBoundingClientRect()
-      const gap = 8
-      const preferRight = (r.left + r.width / 2) < window.innerWidth / 2
-      let left = preferRight ? r.right + gap : r.left - gap - PANEL_W
-      if (preferRight && left + PANEL_W > window.innerWidth - 8) left = r.left - gap - PANEL_W
-      if (!preferRight && left < 8) left = Math.min(window.innerWidth - PANEL_W - 8, r.right + gap)
-      left = Math.max(8, Math.min(left, window.innerWidth - PANEL_W - 8))
-      let top = Math.max(8, r.top)
-      const panelH = Math.min(460, Math.round(window.innerHeight * 0.8))
-      if (top + panelH > window.innerHeight - 8) top = Math.max(8, window.innerHeight - 8 - panelH)
-      setPos({ left: Math.round(left), top: Math.round(top) })
-    }
-    place()
-    window.addEventListener('resize', place)
-    return () => window.removeEventListener('resize', place)
-  }, [hostEl])
+  useWidgetMenuPlacement({ hostEl, gearEl, panelW: PANEL_W, setPos, onClose })
 
   // ColorPanel pops to the RIGHT of the menu (flip left if tight).
   useLayoutEffect(() => {
@@ -135,14 +117,15 @@ export default function BreadthSettingsPanel({ settings: s, onChange, onReset, o
     <>
       <div
         ref={panelRef}
+        data-side={pos?.side}
         className={styles.panel}
-        style={{ ...(themeVars || {}), ...(pos ? { left: pos.left, top: pos.top } : { visibility: 'hidden' }) }}
+        style={{ ...(themeVars || {}), ...(pos ? { left: pos.left, top: pos.top, maxHeight: pos.maxHeight } : { visibility: 'hidden' }) }}
         onClick={e => e.stopPropagation()}
       >
         <div className={styles.head}>
-          <span className={styles.title}><UIcon name="gear" size={13} /> Breadth Settings</span>
+          <span className={styles.title}>Breadth Settings</span>
           <div className={styles.headRight}>
-            <button className="btn btn-ghost btn-sm" onClick={onReset} title="Restore breadth widget settings to defaults">↺ Reset</button>
+            <button className={styles.uReset} onClick={onReset} title="Restore breadth widget settings to defaults">Reset</button>
             <button className={styles.close} onClick={onClose} title="Close">✕</button>
           </div>
         </div>
@@ -150,7 +133,7 @@ export default function BreadthSettingsPanel({ settings: s, onChange, onReset, o
         <div className={styles.body}>
           <div className={styles.sectionLabel}>Theme</div>
           <Row label="UCT theme" hint="whole-widget look">
-            <WidgetThemeSection widgetType={widgetType} currentSettings={s} onSettings={(next) => onChange(next)} themeVars={themeVars} buttonClass="btn btn-ghost btn-sm" />
+            <WidgetThemeSection widgetType={widgetType} currentSettings={s} onSettings={(next) => onChange(next)} themeVars={themeVars} buttonClass={styles.uBtn} buttonLabel="UCT Themes" />
           </Row>
           {/* Canvas */}
           <div className={styles.sectionLabel}>Canvas</div>
