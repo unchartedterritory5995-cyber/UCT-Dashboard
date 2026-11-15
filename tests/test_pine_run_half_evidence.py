@@ -9,7 +9,11 @@ app/src/components/chart/engine/runHalfEvidenceLatch.test.js). Here:
   E1 by default nothing is served and the kill read keeps exactly its keys;
   E2 a served record's objects-v2 captures are passed on as the facts they record;
   E3 a withheld record, a prefix sha, a record with no objects-v2 capture contribute nothing;
-  E4 every committed objects-v2 claim is a real runtime-on grade (with a control that can fail).
+  E4 every committed objects-v2 claim is a real runtime-on grade (with a control that can fail);
+  E5 (L9) the L7 substituted path: a substituted record's MATCH_SUBSTITUTED captures count only when
+     their own names equal the record's; a record without `admission` never counts them; < 2 never;
+  E6 (L9) the server rule answers every case of tests/fixtures/ast/run_half_evidence_parity.json,
+     which the client rule (runHalfEvidenceLatch.test.js) answers too.
 """
 from __future__ import annotations
 
@@ -121,3 +125,73 @@ def test_E4_every_committed_objects_v2_claim_is_a_real_runtime_on_grade():
     fake = [{"slug": "fake", "captures": [_cap(real["id"]), _cap("no-such-capture")]}]
     got = _false_claims(fake, results)
     assert any("says MATCH, graded DIVERGE" in g for g in got) and any("not in the runtime-on verdicts" in g for g in got)
+
+
+# ── E5 (RS RATING L9) ── the L7 substituted path, never a looser rule ─────────────────────
+# A record with `admission: "substituted"` and `substituted: [names]` counts captures graded
+# MATCH_SUBSTITUTED (objects-v2 MATCH, runtime pane on) whose OWN names equal the record's; a
+# record without `admission` still counts MATCH only. The server serves only entries the rule
+# admits; the client re-applies the same rule on what it receives. Both read
+# tests/fixtures/ast/run_half_evidence_parity.json, so the two cannot drift.
+
+NAMES = ["syminfo.industry"]
+PARITY = json.loads((REPO / "tests" / "fixtures" / "ast" / "run_half_evidence_parity.json")
+                    .read_text(encoding="utf-8"))
+
+
+def _sub(cid, names=NAMES, verdict="MATCH_SUBSTITUTED", v2="MATCH", pane="on"):
+    c = _cap(cid, verdict=verdict, v2=v2, pane=pane)
+    if names is not None:
+        c["substituted"] = list(names)
+    return c
+
+
+def _sub_record(captures, names=NAMES):
+    return {"slug": "rs", "sha256": "e" * 64, "capabilities": ["a"], "admission": "substituted",
+            "substituted": list(names), "captures": captures}
+
+
+def test_E5_control_substituted_record_is_served_with_what_the_client_needs(tmp_path, monkeypatch):
+    _allowlist(tmp_path, monkeypatch, [_sub_record([_sub("x-rddt"), _sub("x-nvda")])])
+    ev = rt.run_half_evidence()
+    assert ev == [{"sha256": "e" * 64, "admission": "substituted", "substituted": NAMES, "captures": [
+        {"capture": "x-rddt", "verdict": "MATCH_SUBSTITUTED", "objectsV2": True, "runtimeOn": True,
+         "substituted": NAMES},
+        {"capture": "x-nvda", "verdict": "MATCH_SUBSTITUTED", "objectsV2": True, "runtimeOn": True,
+         "substituted": NAMES},
+    ]}]
+    assert _kill_read()["run_half_evidence"] == ev
+
+
+def test_E5_substituted_captures_on_a_record_without_admission_are_not_evidence(tmp_path, monkeypatch):
+    # served on R1 by its MATCH capture (no objects-v2 grade); its two objects-v2 captures are
+    # MATCH_SUBSTITUTED, which the plain path never counts
+    rec = {"slug": "rs", "sha256": "e" * 64, "capabilities": ["a"],
+           "captures": [_cap("x-served", v2=None), _sub("x-rddt"), _sub("x-nvda")]}
+    _allowlist(tmp_path, monkeypatch, [rec])
+    assert rt.allow_report(with_capabilities=False)["served"], "the record itself is served"
+    assert rt.run_half_evidence() == []
+
+
+def test_E5_captures_naming_other_inputs_are_not_evidence(tmp_path, monkeypatch):
+    rec = _sub_record([_sub("x-served", v2=None),                       # serves the record (R1/L7)
+                       _sub("x-rddt", names=["syminfo.sector"]),
+                       _sub("x-nvda", names=["syminfo.industry", "syminfo.sector"])])
+    _allowlist(tmp_path, monkeypatch, [rec])
+    assert rt.allow_report(with_capabilities=False)["served"], "the record itself is served"
+    assert rt.run_half_evidence() == []
+
+
+def test_E5_fewer_than_two_distinct_substituted_captures_are_not_evidence(tmp_path, monkeypatch):
+    for caps in ([_sub("x-rddt")], [_sub("x-rddt"), _sub("x-rddt")]):
+        _allowlist(tmp_path, monkeypatch, [_sub_record(caps)])
+        assert rt.run_half_evidence() == [], caps
+
+
+# ── E6 ── the parity cases, server side ────────────────────────────────────────────────────
+
+def test_E6_the_server_rule_answers_every_parity_case():
+    assert PARITY["min_captures"] == rt.RUN_HALF_EVIDENCE_MIN_CAPTURES
+    wrong = [c["name"] for c in PARITY["cases"] if rt.run_half_entry_admits(c["entry"]) is not c["admits"]]
+    assert wrong == []
+    assert any(c["admits"] for c in PARITY["cases"]) and any(not c["admits"] for c in PARITY["cases"])

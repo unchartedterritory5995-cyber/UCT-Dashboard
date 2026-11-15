@@ -490,16 +490,26 @@ def run_half_evidence() -> list:
 
     A host document's run half whose host draws none of its drawings (``run-half:no-comparable-
     objects``) is drawn only on recorded evidence (`engine/runHalfRailSeam.js::runHalfEvidenceAdmits`:
-    at least 2 distinct captures, each graded MATCH, objects-v2 MATCH, with the runtime pane on). That
+    at least 2 distinct captures, each graded on the record's path (MATCH, or MATCH_SUBSTITUTED on the
+    L7 substituted path, below), objects-v2 MATCH, with the runtime pane on). That
     evidence is NOT a second list: it is the ``captures`` of a SERVED record (``allow_report``'s
     `pine_runtime_admission` answer, the one the allowlist itself serves by) that carry an
     ``objectsV2`` grade, each passed on as the fact it records::
 
-        [{"sha256": <64 hex>, "captures": [{"capture", "verdict", "objectsV2": bool, "runtimeOn": bool}]}]
+        [{"sha256": <64 hex>, ["admission", "substituted",] "captures": [{"capture", "verdict",
+          "objectsV2": bool, "runtimeOn": bool[, "substituted"]}]}]
 
-    The client decides admission (one rule, in the browser); this only reports. A withheld record, a
-    record whose sha256 is a prefix, or one with no ``objectsV2`` capture contributes nothing. ``[]``
-    while no record carries one (today), and on an unreadable file (fail closed). Read per call."""
+    A withheld record, a record whose sha256 is a prefix, or one with no ``objectsV2`` capture
+    contributes nothing. ``[]`` while no record carries one (today), and on an unreadable file (fail
+    closed). Read per call.
+
+    ⭐⭐ RS RATING L9 — THE L7 SUBSTITUTED PATH, NEVER A LOOSER RULE. A record on the substituted path
+    (``admission: "substituted"``, ``substituted: [names]``) is served with both, and each capture with
+    its own ``substituted`` names, because a stock capture of a script reading ``syminfo.industry`` can
+    at best grade MATCH_SUBSTITUTED. ONE rule decides what counts (`run_half_entry_admits`): the server
+    serves only the entries it admits, and the client (`runHalfRailSeam.js::runHalfEvidenceAdmits`)
+    re-applies it to what it receives. Both answer every case of
+    ``tests/fixtures/ast/run_half_evidence_parity.json``, so they cannot drift."""
     from api.services import rollout_gate
     doc = _allowlist_doc()
     scripts = doc.get("scripts") if doc else None
@@ -515,11 +525,60 @@ def run_half_evidence() -> list:
                 if isinstance(c, dict) and "objectsV2" in c and isinstance(c.get("id"), str) and c.get("id")]
         if not caps:
             continue
-        out.append({"sha256": sha[0], "captures": [
-            {"capture": c["id"], "verdict": c.get("verdict"),
-             "objectsV2": c.get("objectsV2") == "MATCH", "runtimeOn": c.get("runtimePane") == "on"}
-            for c in caps]})
+        entry = {"sha256": sha[0]}
+        if "admission" in s:
+            entry["admission"] = s.get("admission")
+            entry["substituted"] = s.get("substituted")
+        entry["captures"] = []
+        for c in caps:
+            fact = {"capture": c["id"], "verdict": c.get("verdict"),
+                    "objectsV2": c.get("objectsV2") == "MATCH", "runtimeOn": c.get("runtimePane") == "on"}
+            if "substituted" in c:
+                fact["substituted"] = c.get("substituted")
+            entry["captures"].append(fact)
+        if run_half_entry_admits(entry):
+            out.append(entry)
     return out
+
+
+#: At least this many DISTINCT captures must count (mirrors `runHalfRailSeam.js`, pinned by the
+#: parity fixture's ``min_captures``).
+RUN_HALF_EVIDENCE_MIN_CAPTURES = 2
+
+
+def run_half_entry_admits(entry) -> bool:
+    """⭐⭐ RS RATING L9 — THE ONE RULE over one served ``run_half_evidence`` entry (mirrored by
+    `runHalfRailSeam.js::runHalfEntryAdmits`, both pinned by
+    ``tests/fixtures/ast/run_half_evidence_parity.json``). A capture counts when it has an id, its
+    objects-v2 grade is MATCH and the runtime pane was on, and:
+      * on a record WITHOUT ``admission`` (R1): its verdict is MATCH;
+      * on ``admission: "substituted"``: its verdict is MATCH_SUBSTITUTED and its OWN ``substituted``
+        names are exactly the record's (`rollout_gate._pine_substituted_names`: a non-empty list of
+        distinct names, compared as a set); a malformed record list counts nothing;
+      * on any other ``admission``: nothing counts.
+    Admits on at least `RUN_HALF_EVIDENCE_MIN_CAPTURES` distinct counted captures."""
+    from api.services import rollout_gate as rg
+    if not isinstance(entry, dict):
+        return False
+    admission = entry.get("admission")
+    if admission is None:
+        want, names = rg.PINE_CAPTURE_MATCH, None
+    elif admission == rg.PINE_ADMISSION_SUBSTITUTED:
+        want, names = rg.PINE_CAPTURE_MATCH_SUBSTITUTED, rg._pine_substituted_names(entry.get("substituted"))
+        if names is None:
+            return False
+    else:
+        return False
+    seen = set()
+    for c in entry.get("captures") if isinstance(entry.get("captures"), list) else []:
+        if not isinstance(c, dict) or not isinstance(c.get("capture"), str) or not c.get("capture"):
+            continue
+        if c.get("verdict") != want or c.get("objectsV2") is not True or c.get("runtimeOn") is not True:
+            continue
+        if names is not None and rg._pine_substituted_names(c.get("substituted")) != names:
+            continue
+        seen.add(c["capture"])
+    return len(seen) >= RUN_HALF_EVIDENCE_MIN_CAPTURES
 
 
 def allow_list() -> list[str]:

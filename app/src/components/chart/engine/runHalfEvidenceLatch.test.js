@@ -10,7 +10,9 @@ import { describe, it, expect, afterEach } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import { latchRuntimeLists, runtimeSourceHash, runtimeKillList } from './runtimeKill'
-import { runHalfEvidenceAdmits, setRunHalfObjectEvidence } from './runHalfRailSeam'
+import {
+  runHalfEvidenceAdmits, runHalfEntryAdmits, setRunHalfObjectEvidence, RUN_HALF_EVIDENCE_MIN_CAPTURES,
+} from './runHalfRailSeam'
 
 const SRC = '//@version=5\nindicator("rs")\nplot(close)\n'
 const OTHER = '//@version=5\nindicator("rs")\nplot(open)\n'
@@ -61,5 +63,56 @@ describe('L8 — the kill read latches the run half\'s evidence', () => {
     const recheck = kill.slice(kill.indexOf('function maybeRefreshRuntimeLists'), kill.indexOf('export function latchRuntimeLists'))
     expect(recheck.length).toBeGreaterThan(100)
     expect(recheck).toMatch(/latchRuntimeLists\(d\)/)
+  })
+})
+
+// ─── ⭐⭐ RS RATING L9 — THE L7 SUBSTITUTED PATH, NEVER A LOOSER RULE ──────────────────────────
+// A record with `admission: "substituted"` and `substituted: [names]` counts captures graded
+// MATCH_SUBSTITUTED whose OWN names equal the record's; a record without `admission` still counts
+// MATCH only. ONE rule, pinned for both sides by tests/fixtures/ast/run_half_evidence_parity.json
+// (`runtime_definitions.py::run_half_entry_admits` reads the same cases).
+const PARITY = JSON.parse(fs.readFileSync(
+  path.resolve(process.cwd(), '..', 'tests/fixtures/ast/run_half_evidence_parity.json'), 'utf8'))
+const sub = (capture, names = ['syminfo.industry']) => ({
+  capture, verdict: 'MATCH_SUBSTITUTED', objectsV2: true, runtimeOn: true, substituted: names })
+const subRead = (captures, extra = {}) => read([{ sha256: runtimeSourceHash(SRC), admission: 'substituted',
+  substituted: ['syminfo.industry'], captures, ...extra }])
+
+describe('L9 — run-half evidence on the substituted path', () => {
+  it('CONTROL: two substituted captures naming exactly the record\'s inputs admit', () => {
+    latchRuntimeLists(subRead([sub('rddt'), sub('nvda')]))
+    expect(runHalfEvidenceAdmits(runtimeSourceHash(SRC))).toBe(true)
+  })
+
+  it('⛔ substituted captures on a record WITHOUT admission do not admit', () => {
+    latchRuntimeLists(read([{ sha256: runtimeSourceHash(SRC), captures: [sub('rddt'), sub('nvda')] }]))
+    expect(runHalfEvidenceAdmits(runtimeSourceHash(SRC))).toBe(false)
+  })
+
+  it('⛔ captures naming other inputs than the record\'s do not admit', () => {
+    latchRuntimeLists(subRead([sub('rddt'), sub('nvda', ['syminfo.sector'])]))
+    expect(runHalfEvidenceAdmits(runtimeSourceHash(SRC))).toBe(false)
+    latchRuntimeLists(subRead([sub('rddt'), sub('nvda', ['syminfo.industry', 'syminfo.sector'])]))
+    expect(runHalfEvidenceAdmits(runtimeSourceHash(SRC))).toBe(false)
+  })
+
+  it('⛔ fewer than 2 distinct substituted captures do not admit', () => {
+    for (const captures of [[sub('rddt')], [sub('rddt'), sub('rddt')]]) {
+      latchRuntimeLists(subRead(captures))
+      expect(runHalfEvidenceAdmits(runtimeSourceHash(SRC)), JSON.stringify(captures)).toBe(false)
+    }
+  })
+
+  it('the client rule answers every parity case (the server reads the same file)', () => {
+    expect(PARITY.min_captures).toBe(RUN_HALF_EVIDENCE_MIN_CAPTURES)
+    const wrong = PARITY.cases.filter((c) => runHalfEntryAdmits(c.entry) !== c.admits).map((c) => c.name)
+    expect(wrong).toEqual([])
+    // and through the latch, as a member's chart reads it
+    const h = runtimeSourceHash(SRC)
+    const viaLatch = PARITY.cases.filter((c) => c.entry).filter((c) => {
+      latchRuntimeLists(read([{ ...c.entry, sha256: h }]))
+      return runHalfEvidenceAdmits(h) !== c.admits
+    }).map((c) => c.name)
+    expect(viaLatch).toEqual([])
   })
 })
