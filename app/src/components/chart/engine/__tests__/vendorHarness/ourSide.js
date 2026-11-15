@@ -406,6 +406,7 @@ const RUNNING_TOTAL_NODES = new Set(['cum', 'cumFrom', 'sum'])
 /** ⭐ (review #1265 finding 4) the calls that are LINEAR in their source: a total's float-order
  *  error passes through them unscaled by any other value. */
 const LINEAR_OF_SOURCE = new Set(['sma', 'ema', 'rma', 'wma', 'change'])
+const TOTAL_PASS_THROUGH = new Set(['tf', 'tf_live', 'tf_merge', 'ltf'])
 const hasTotal = (n) => !!n && typeof n === 'object'
   && ((n.type === 'call' && RUNNING_TOTAL_NODES.has(n.name)) || (Array.isArray(n.args) && n.args.some(hasTotal)))
 /** The running totals a plot is a LINEAR combination of (sums and differences of totals, a
@@ -427,6 +428,9 @@ export function linearTotalsOf(tree) {
       return false
     }
     if (n.type === 'offset') return walk(args[0])
+    // a read of the SAME symbol on other bars (`security(tickerid, res, hist)`): the same total's
+    // float order, read where that timeframe's bar closes (never another symbol's, `sym`)
+    if (TOTAL_PASS_THROUGH.has(n.type)) return walk(args[0])
     if (n.type === 'call' && LINEAR_OF_SOURCE.has(n.name)) return walk(args[0]) && args.slice(1).every((x) => !hasTotal(x))
     return false
   }

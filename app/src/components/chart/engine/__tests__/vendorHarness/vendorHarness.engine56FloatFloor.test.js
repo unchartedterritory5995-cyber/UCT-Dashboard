@@ -107,6 +107,11 @@ describe('review #1265 finding 4 - the floor applies to a LINEAR combination of 
     expect(linearTotalsOf(op('*', [ad, ad]))).toBeNull()
     expect(linearTotalsOf(call('abs', [ad]))).toBeNull()
     expect(linearTotalsOf(op('/', [ad, num(1000)]))).toHaveLength(1)
+    // accdist-macd's histogram is read through `security(tickerid, res, hist)`: the same symbol's
+    // total on that timeframe keeps its floor; another symbol's does not
+    const hist = op('-', [call('ema', [ad, num(12)]), call('ema', [ad, num(26)])])
+    expect(linearTotalsOf({ type: 'tf', value: 'D', args: [hist] })).toHaveLength(2)
+    expect(linearTotalsOf({ type: 'sym', value: 'SPY', args: [hist] })).toBeNull()
   })
   it('a VWAP-shaped plot gets no floor, and a 1e-7 relative error DIVERGES', () => {
     const bars = [100, 101, 99, 102].map((c, i) => ({ t: 1700000000 + i * 86400, o: c, h: c, l: c, c, v: 1e9 }))
