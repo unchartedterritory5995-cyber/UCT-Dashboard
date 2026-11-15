@@ -185,13 +185,60 @@ def _proxy_ratio(target_yahoo: str, etf_sym: str) -> Optional[float]:
         return None
 
 
+#: How far back the FMP daily read reaches (calendar days); yfinance's daily period is 5y.
+FMP_DAILY_LOOKBACK_DAYS = int(os.environ.get("INDEX_FMP_LOOKBACK_DAYS", str(365 * 5 + 2)))
+
+
+def _fetch_fmp_daily(index_symbol: str, divisor: float) -> List[Dict[str, Any]]:
+    """Daily bars from FMP → [{t,o,h,l,c,v}] oldest first, `t` the UTC midnight of the
+    session date: the same key `_fetch_yf` produces for a daily index bar (yfinance's
+    daily index is a tz-naive date, which `.timestamp()` reads as UTC). [] on any
+    failure, so the caller falls back to yfinance.
+
+    ⭐ PRIMARY for daily bars by owner ruling 2026-11-14 (FMP top plan, Yahoo the
+    fallback; docs/pine/RS-RATING-TRANSFER.md). ⛔ A row that does not parse completely is
+    dropped, never repaired."""
+    import datetime as _dt
+    try:
+        from api.services import fmp_client
+        to_d = _dt.date.today()
+        from_d = to_d - _dt.timedelta(days=FMP_DAILY_LOOKBACK_DAYS)
+        res = fmp_client.get_index_history_eod_full(index_symbol, from_d.isoformat(),
+                                                    to_d.isoformat())
+        raw = res.value
+    except Exception as e:                        # noqa: BLE001 — the caller falls back
+        logger.warning(f"[index_bars] FMP daily {index_symbol} failed: {e}")
+        return []
+    rows = raw if isinstance(raw, list) else []
+    out: List[Dict[str, Any]] = []
+    for r in rows:
+        try:
+            d = _dt.date.fromisoformat(str(r["date"])[:10])
+            o, h, l, c = (float(r[k]) / divisor for k in ("open", "high", "low", "close"))
+            v_raw = r.get("volume") or 0
+            v = int(v_raw) if v_raw == v_raw else 0
+        except (KeyError, ValueError, TypeError):
+            continue
+        if any(x != x for x in (o, h, l, c)):
+            continue
+        t = int(_dt.datetime(d.year, d.month, d.day, tzinfo=_dt.timezone.utc).timestamp())
+        out.append({"t": t, "o": o, "h": h, "l": l, "c": c, "v": v})
+    out.sort(key=lambda b: b["t"])
+    return out
+
+
 def _fetch_full_series(sym: str, tf: str) -> List[Dict[str, Any]]:
-    """Fetch the full available index series for (sym, tf) from yfinance, with the
-    intraday ETF-proxy fallback (ratio cached)."""
+    """Fetch the full available index series for (sym, tf): daily from FMP first
+    (owner ruling 2026-11-14), everything else and every FMP miss from yfinance, with
+    the intraday ETF-proxy fallback (ratio cached)."""
     yahoo_sym, divisor = INDEX_MAP[sym]
     interval = TF_MAP.get(tf)
     if not interval:
         return []
+    if interval == "1d":
+        out = _fetch_fmp_daily(yahoo_sym, divisor)
+        if out:
+            return out
     period = PERIOD_MAP.get(interval, "60d")
     out = _fetch_yf(yahoo_sym, interval, period, divisor)
     if (interval in INTRADAY_INTERVALS and len(out) < INTRADAY_SPARSE_THRESHOLD
