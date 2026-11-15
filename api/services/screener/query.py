@@ -599,6 +599,43 @@ def stale_gate(conn):
     return gate
 
 
+#: One spelling for a ticker comparison, the SQL side of `deal_status._norm`
+#: (upper case, class shares with a hyphen: BRK.B and BRK/B both read BRK-B).
+_DEAL_TICKER_SQL = f"UPPER(REPLACE(REPLACE({_ROWS}.ticker, '.', '-'), '/', '-'))"
+
+
+def deal_gate():
+    """The pending-acquisition exclusion every scan carries, or ``None``.
+
+    ``{"sql", "params", "symbols"}``: ``sql`` keeps a row whose ticker is NOT in the
+    screener's buyout exclude set (`deal_status.screener_excludes`: the owner's hand
+    list plus every pending deal, the one answer the rest of the app already uses).
+
+    ⛔ WHY AT SCAN TIME. Before this the set was applied in ONE place, when
+    `screener_universe.build_and_save` wrote the universe file, and nothing runs that
+    on a schedule. A deal announced after the last rebuild stayed in the universe, so
+    the snapshot carried the row and every screen served it: on 2026-11-14 "Tight
+    bases near highs" listed TECH, UTZ, HZO, SLN, ARX and ADT, all six in the app's own
+    pending set. A stock pinned at its deal price is the tightest base there is.
+
+    ``None`` while DEAL_STATUS_ENABLED is off (the statement is the one it was), when the
+    set is empty, and on any error (fail safe: a fault excludes nothing, logged)."""
+    try:
+        from api.services import deal_status
+        if not deal_status.enabled():
+            return None
+        syms = sorted({deal_status._norm(s) for s in deal_status.screener_excludes() if s})
+    except Exception as exc:  # noqa: BLE001 -- a fault must never cost the member a scan
+        import logging
+        logging.getLogger(__name__).warning(
+            "[screener] deal gate unavailable, excluding nothing: %s", exc)
+        return None
+    if not syms:
+        return None
+    ph = ",".join("?" for _ in syms)
+    return {"sql": f"{_DEAL_TICKER_SQL} NOT IN ({ph})", "params": syms, "symbols": syms}
+
+
 def _ymd_text(v) -> str:
     s = str(v)
     return f"{s[:4]}-{s[4:6]}-{s[6:8]}" if len(s) == 8 and s.isdigit() else s
@@ -1497,6 +1534,13 @@ def build_scan_sql(spec, overlay=None, *, user_id=None, conn=None) -> dict:
     # where), the count route (`preview_count` plans through here) and the
     # rank receipt all exclude the same rows. The pre-gate where is kept only
     # so `run_scan` can say how many were excluded.
+    # 🔴 A PENDING ACQUISITION IS NOT SCANNED — see `deal_gate`. ANDed in BEFORE the
+    # stale gate so the stale count, the rows, `total` and the count route all leave the
+    # same names out.
+    deal = deal_gate()
+    if deal:
+        where = f"{where}{' AND ' if where.strip() else ' WHERE '}{deal['sql']}"
+        where_params = [*where_params, *deal["params"]]
     pre_stale_where, pre_stale_params = where, list(where_params)
     stale = stale_gate(conn)
     if stale:
@@ -1761,6 +1805,12 @@ def coverage_for(spec, user_id=None, user=None) -> dict:
         scope = [f for f in (spec.get("filters") or []) if f.get("key") in _SCOPE_KEYS]
         where, params = build_where(scope, None, overlay, list_joins=[], user_id=user_id,
                                     conn=conn)
+        # A pending acquisition is outside every scan's universe (`deal_gate`), so it is
+        # not "evaluated" either: the four counts describe the rows the scan can return.
+        deal = deal_gate()
+        if deal:
+            where = f"{where}{' AND ' if where.strip() else ' WHERE '}{deal['sql']}"
+            params = [*params, *deal["params"]]
         base = [*plan["overlay"].join_params, *params]
         evaluated = conn.execute(f"SELECT COUNT(*) FROM {plan['from_sql']}{where}",
                                  base).fetchone()[0]
