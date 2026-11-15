@@ -163,17 +163,69 @@ def test_the_skip_is_off_unless_asked_for(tmp_path, merged):
     assert merged == [("AAA", "D"), ("BBB", "D"), ("CCC", "D")]
 
 
-def test_the_base_backstop_restores_a_row_deleted_under_an_unchanged_window(tmp_path, merged):
+def _local_write(local, sql, key, **bump):
+    """A local write the way every store writer makes one: the rows and the series rev
+    bump in ONE transaction (bars_sqlite's ONE WRITER RULE)."""
+    from api.services import bars_sqlite
+    c = sqlite3.connect(local)
+    c.execute(sql)
+    bars_sqlite.bump_series_revs(c, [key], **bump)
+    c.commit()
+    c.close()
+
+
+def test_a_local_write_since_the_last_merge_gets_the_pair_merged_again(tmp_path, merged):
+    """The skip is exact: a pair whose local series was written after its last merge (here a
+    delete, as a heal or a purge makes one) is merged again by an IDENTICAL delta, and the
+    row comes back, exactly as before this change."""
+    local, snap = _setup(tmp_path)
+    data_sync._merge_ohlcv_from(snap, local_db=local, skip_unchanged=True)
+    _local_write(local, "DELETE FROM ohlcv WHERE ticker = 'CCC'", ("CCC", "D"), deleted=True)
+    merged.clear()
+    data_sync._merge_ohlcv_from(snap, local_db=local, skip_unchanged=True)
+    assert merged == [("CCC", "D")]
+    assert ("CCC", "D", 100) in _rows(local)
+
+
+def test_a_value_rewritten_after_the_merge_gets_the_pair_merged_again(tmp_path, merged):
+    """e.g. bars-api re-storing its own lower-volume copy of a bar: a rev bump with no row
+    added or removed still makes the next identical delta merge the pair."""
+    local, snap = _setup(tmp_path)
+    data_sync._merge_ohlcv_from(snap, local_db=local, skip_unchanged=True)
+    _local_write(local, "UPDATE ohlcv SET v = 1 WHERE ticker = 'BBB'", ("BBB", "D"))
+    merged.clear()
+    data_sync._merge_ohlcv_from(snap, local_db=local, skip_unchanged=True)
+    assert merged == [("BBB", "D")]
+
+
+def test_a_wholesale_change_merges_every_pair(tmp_path, merged):
+    """`bump_store_floor` (a snapshot install, a bulk delete across series) persists a newer
+    `rev_floor_ms`: no per-pair rev can vouch for the rows any more."""
     local, snap = _setup(tmp_path)
     data_sync._merge_ohlcv_from(snap, local_db=local, skip_unchanged=True)
     c = sqlite3.connect(local)
-    c.execute("DELETE FROM ohlcv WHERE ticker = 'CCC'")
+    c.execute("CREATE TABLE IF NOT EXISTS store_meta (k TEXT PRIMARY KEY, v REAL)")
+    c.execute("INSERT OR REPLACE INTO store_meta VALUES ('rev_floor_ms', 9e15)")
     c.commit()
     c.close()
+    merged.clear()
     data_sync._merge_ohlcv_from(snap, local_db=local, skip_unchanged=True)
-    assert ("CCC", "D", 100) not in _rows(local)      # the documented gap: the delta skips it
-    data_sync._merge_ohlcv_from(snap, local_db=local)  # the daily base (never skips)
-    assert ("CCC", "D", 100) in _rows(local)
+    assert merged == [("AAA", "D"), ("BBB", "D"), ("CCC", "D")]
+    merged.clear()
+    data_sync._merge_ohlcv_from(snap, local_db=local, skip_unchanged=True)
+    assert merged == []                              # the new floor is recorded
+
+
+def test_a_store_without_series_revs_never_skips(tmp_path, merged):
+    local, snap = _setup(tmp_path)
+    data_sync._merge_ohlcv_from(snap, local_db=local, skip_unchanged=True)
+    c = sqlite3.connect(local)
+    c.execute("DROP TABLE series_meta")
+    c.commit()
+    c.close()
+    merged.clear()
+    data_sync._merge_ohlcv_from(snap, local_db=local, skip_unchanged=True)
+    assert merged == [("AAA", "D"), ("BBB", "D"), ("CCC", "D")]
 
 
 # ── apply_delta is the door that asks for the skip ──────────────────────────────────────
@@ -257,13 +309,15 @@ def test_a_locked_adoption_pass_does_not_rest(tmp_path, naps):
 # ── every statement on the local store is a primary-key seek ───────────────────────────
 
 def test_the_fingerprint_statements_never_scan_the_local_store():
+    from api.services import bars_sqlite
     c = sqlite3.connect(":memory:")
     c.execute("ATTACH ':memory:' AS snap")
     c.execute("CREATE TABLE snap.ohlcv (ticker TEXT NOT NULL, tf TEXT NOT NULL, ts INTEGER NOT NULL,"
               " o REAL, h REAL, l REAL, c REAL, v INTEGER, PRIMARY KEY (ticker, tf, ts))")
-    c.execute(data_sync._DELTA_FP_TEMP_DDL)
-    c.execute(data_sync._DELTA_FP_DDL)
-    for sql in (data_sync._DELTA_FP_CHANGED_SQL, data_sync._DELTA_FP_RECORD_SQL):
-        plan = [r[3] for r in c.execute("EXPLAIN QUERY PLAN " + sql)]
-        local = [p for p in plan if re.search(r"\bp\b", p)]
-        assert local and all(p.startswith("SEARCH") for p in local), plan
+    for ddl in data_sync._DELTA_FP_TEMP_DDL + data_sync._DELTA_FP_DDL + bars_sqlite._META_DDL:
+        c.execute(ddl)
+    plan = [r[3] for r in c.execute("EXPLAIN QUERY PLAN " + data_sync._DELTA_FP_CHANGED_SQL)]
+    local = [p for p in plan if re.search(r"\b[pm]\b", p)]
+    assert len(local) == 2 and all(p.startswith("SEARCH") for p in local), plan
+    plan = [r[3] for r in c.execute("EXPLAIN QUERY PLAN " + data_sync._DELTA_FP_NOTE_SQL, ("A", "D") * 2)]
+    assert not any(re.match(r"SCAN\b", p) for p in plan), plan

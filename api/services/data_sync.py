@@ -1586,24 +1586,32 @@ _MERGE_YIELD_MAX_S = float(os.environ.get("DATA_SYNC_MERGE_YIELD_MAX_S", "0.1"))
 # Every delta carries a 7-45 day WINDOW of every pair the worker holds, so consecutive
 # deltas are nearly identical: each one merged 77,612 pairs for 49-83 new rows, 24-34 s
 # of per-pair reads in a ~20 GB store every 20-40 minutes, all day, and member chart reads
-# that missed the page cache waited 1-5 s behind it. The apply now fingerprints each pair
-# of the delta (row count, newest ts, and the sums of o/h/l/c/v, all computed inside
-# sqlite in one pass over the delta) and merges only the pairs whose fingerprint differs
-# from the one recorded when that pair was last merged from a delta.
+# that missed the page cache waited 1-5 s behind it.
+#
+# ⭐ A PAIR IS SKIPPED ONLY WHEN NEITHER SIDE CHANGED SINCE IT WAS LAST MERGED, which makes
+# the skip exact (merging it again would write nothing):
+#   1. its rows in this delta fingerprint the same (row count, newest ts, and the sums of
+#      o/h/l/c/v, computed inside sqlite in one pass over the delta);
+#   2. its local series has not been written since: `series_meta.rev` is the same as the
+#      one read INSIDE the merge's own write transaction, right after the pair was merged
+#      (every row writer bumps it in its own transaction, deletes included -- the
+#      `bars_sqlite` ONE WRITER RULE, held by a census rail in tests/test_bar_contract.py),
+#      so bars-api re-storing a lower-volume row still gets it corrected by the next delta;
+#   3. no wholesale change since (`store_meta` `rev_floor_ms`, `bump_store_floor`): a newer
+#      floor, or no series_meta table to read revs from, merges every pair.
 #
 # ⛔ THE FINGERPRINTS LIVE IN bars.db ITSELF (`delta_merge_fp`) so they can never outlive
 # the rows they vouch for: a store installed or swapped wholesale has no such table (the
 # worker never applies deltas), and its first delta merges every pair, as before. They
-# are recorded only after a merge returns, never after one that raised. The daily base
-# merge never skips, so it stays the backstop for anything a skipped pair could miss
-# (a local delete under an unchanged window is restored by the next base, or by the next
-# delta that changes that pair -- every pair's window slides daily).
+# are recorded only after a merge returns, never after one that raised.
 _DELTA_FP_TABLE = "delta_merge_fp"
+_DELTA_FP_META = "delta_merge_fp_meta"
 _DELTA_FP_DDL = (
     f"CREATE TABLE IF NOT EXISTS main.{_DELTA_FP_TABLE} ("
     " ticker TEXT NOT NULL, tf TEXT NOT NULL, n INTEGER NOT NULL, mx INTEGER,"
-    " so REAL, sh REAL, sl REAL, sc REAL, sv REAL,"
-    " PRIMARY KEY (ticker, tf)) WITHOUT ROWID"
+    " so REAL, sh REAL, sl REAL, sc REAL, sv REAL, rev INTEGER,"
+    " PRIMARY KEY (ticker, tf)) WITHOUT ROWID",
+    f"CREATE TABLE IF NOT EXISTS main.{_DELTA_FP_META} (k TEXT PRIMARY KEY, v REAL)",
 )
 #: The delta's own fingerprints, one row per pair, built in sqlite (no row ever crosses
 #: into Python, so a pass over the delta costs one step, not one GIL handoff per pair).
@@ -1612,28 +1620,68 @@ _DELTA_FP_TEMP_DDL = (
     "CREATE TEMP TABLE _delta_fp ("
     " ticker TEXT NOT NULL, tf TEXT NOT NULL, n INTEGER NOT NULL, mx INTEGER,"
     " so REAL, sh REAL, sl REAL, sc REAL, sv REAL,"
-    " PRIMARY KEY (ticker, tf)) WITHOUT ROWID"
+    " PRIMARY KEY (ticker, tf)) WITHOUT ROWID",
+    #: each pair this merge merged, with its series rev read in the same transaction
+    "CREATE TEMP TABLE _delta_merged ("
+    " ticker TEXT NOT NULL, tf TEXT NOT NULL, rev INTEGER,"
+    " PRIMARY KEY (ticker, tf)) WITHOUT ROWID",
 )
 _DELTA_FP_BUILD_SQL = (
     "INSERT INTO temp._delta_fp SELECT ticker, tf, count(*), max(ts),"
     " total(o), total(h), total(l), total(c), total(v)"
     " FROM snap.ohlcv GROUP BY ticker, tf"
 )
-#: After a merge returns: store the fingerprint of every pair whose stored one differs
-#: (exactly the pairs this merge was given), and nothing else.
-_DELTA_FP_RECORD_SQL = (
-    f"INSERT OR REPLACE INTO main.{_DELTA_FP_TABLE} SELECT d.* FROM temp._delta_fp d"
-    f" WHERE NOT EXISTS (SELECT 1 FROM main.{_DELTA_FP_TABLE} p"
-    " WHERE p.ticker = d.ticker AND p.tf = d.tf AND p.n IS d.n AND p.mx IS d.mx"
-    " AND p.so IS d.so AND p.sh IS d.sh AND p.sl IS d.sl AND p.sc IS d.sc AND p.sv IS d.sv)"
+#: Inside the chunk's transaction, right after `_merge_pair`: the rev the pair now has.
+_DELTA_FP_NOTE_SQL = (
+    "INSERT OR REPLACE INTO temp._delta_merged (ticker, tf, rev) VALUES (?, ?,"
+    " (SELECT rev FROM main.series_meta WHERE ticker = ? AND tf = ?))"
 )
-#: Pairs to merge: new to the fingerprint table, or any fingerprint field different.
+#: After a merge returns: the fingerprint and rev of every pair it merged.
+_DELTA_FP_RECORD_SQL = (
+    f"INSERT OR REPLACE INTO main.{_DELTA_FP_TABLE}"
+    " SELECT d.ticker, d.tf, d.n, d.mx, d.so, d.sh, d.sl, d.sc, d.sv, g.rev"
+    " FROM temp._delta_merged g JOIN temp._delta_fp d ON d.ticker = g.ticker AND d.tf = g.tf"
+)
+#: Pairs to merge: new to the table, any fingerprint field different, or written since.
 _DELTA_FP_CHANGED_SQL = (
     f"SELECT d.ticker, d.tf FROM temp._delta_fp d LEFT JOIN main.{_DELTA_FP_TABLE} p"
     " ON p.ticker = d.ticker AND p.tf = d.tf"
+    " LEFT JOIN main.series_meta m ON m.ticker = d.ticker AND m.tf = d.tf"
     " WHERE p.ticker IS NULL OR p.n IS NOT d.n OR p.mx IS NOT d.mx OR p.so IS NOT d.so"
     " OR p.sh IS NOT d.sh OR p.sl IS NOT d.sl OR p.sc IS NOT d.sc OR p.sv IS NOT d.sv"
+    " OR p.rev IS NOT m.rev"
 )
+
+
+def _delta_fp_floor(conn) -> float:
+    """The store's wholesale-change floor as this store persists it (`bump_store_floor`),
+    merged with this process's own; 0 when the store has none."""
+    v = 0.0
+    try:
+        row = conn.execute("SELECT v FROM main.store_meta WHERE k = 'rev_floor_ms'").fetchone()
+        v = float(row[0]) if row and row[0] is not None else 0.0
+    except sqlite3.OperationalError:          # no store_meta: a store with no floors yet
+        pass
+    try:
+        from api.services import bars_sqlite as _bs
+        main_file = next((r[2] for r in conn.execute("PRAGMA database_list") if r[1] == "main"), "")
+        if main_file and os.path.realpath(main_file) == os.path.realpath(_bs._DB_PATH):
+            v = max(v, float(_bs._mem_floors.get(_bs.REV_FLOOR_KEY, 0.0)))
+    except Exception:                         # noqa: BLE001 -- the persisted floor still stands
+        pass
+    return v
+
+
+def _delta_fp_known(conn, floor: float) -> bool:
+    """True when the stored fingerprints can be trusted for this store: both tables are
+    there, revs can be read, and no wholesale change has landed since they were taken."""
+    names = {r[0] for r in conn.execute(
+        "SELECT name FROM main.sqlite_master WHERE type = 'table' AND name IN (?, ?, ?)",
+        (_DELTA_FP_TABLE, _DELTA_FP_META, "series_meta"))}
+    if names != {_DELTA_FP_TABLE, _DELTA_FP_META, "series_meta"}:
+        return False
+    row = conn.execute(f"SELECT v FROM main.{_DELTA_FP_META} WHERE k = 'rev_floor_ms'").fetchone()
+    return row is not None and row[0] is not None and float(row[0]) >= floor
 #: Interior heal reach below local MAX (holes + corrections), intraday only.
 _MERGE_HEAL_WINDOW_S = int(float(os.environ.get("DATA_SYNC_MERGE_HEAL_DAYS", "5")) * 86400)
 #: Closes at common rows must agree to this relative tolerance to share a basis.
@@ -1847,14 +1895,18 @@ def _merge_ohlcv_from(src_db: str, local_db: Optional[str] = None, *,
             # aborts between chunks -- both for a store adoption's locked pass.
             record_fp = False
             skipped = 0
+            fp_floor = 0.0
             if pairs is None and skip_unchanged:
-                conn.execute("DROP TABLE IF EXISTS temp._delta_fp")
-                conn.execute(_DELTA_FP_TEMP_DDL)
+                for t in ("_delta_fp", "_delta_merged"):
+                    conn.execute(f"DROP TABLE IF EXISTS temp.{t}")
+                for ddl in _DELTA_FP_TEMP_DDL:
+                    conn.execute(ddl)
                 conn.execute(_DELTA_FP_BUILD_SQL)
                 in_delta = conn.execute("SELECT count(*) FROM temp._delta_fp").fetchone()[0]
-                known = conn.execute(
-                    "SELECT 1 FROM main.sqlite_master WHERE type = 'table' AND name = ?",
-                    (_DELTA_FP_TABLE,)).fetchone() is not None
+                # Read BEFORE choosing pairs: a wholesale change during this merge leaves
+                # the next one a newer floor than the one recorded, so it merges everything.
+                fp_floor = _delta_fp_floor(conn)
+                known = _delta_fp_known(conn, fp_floor)
                 pairs = (conn.execute(_DELTA_FP_CHANGED_SQL).fetchall() if known
                          else conn.execute("SELECT ticker, tf FROM temp._delta_fp").fetchall())
                 skipped = in_delta - len(pairs)
@@ -1869,6 +1921,7 @@ def _merge_ohlcv_from(src_db: str, local_db: Optional[str] = None, *,
             max_lock = total_lock = 0.0
             size = _MERGE_CHUNK_PAIRS
             i = 0
+            note = False        # series_meta seen (fingerprint revs can be read)
             while i < len(pairs):
                 if deadline is not None and time.monotonic() > deadline:
                     raise TimeoutError(f"merge over budget after {i}/{len(pairs)} pairs")
@@ -1880,6 +1933,18 @@ def _merge_ohlcv_from(src_db: str, local_db: Optional[str] = None, *,
                         a, c = _merge_pair(conn, ticker, tf)
                         added += a
                         corrected += c
+                        if record_fp:
+                            # the pair's rev as THIS transaction leaves it (no writer can
+                            # land in between: the chunk holds the write lock). A store that
+                            # predates series_meta gets it from the merge's first write.
+                            note = note or conn.execute(
+                                "SELECT 1 FROM main.sqlite_master WHERE type = 'table'"
+                                " AND name = 'series_meta'").fetchone() is not None
+                            if note:
+                                conn.execute(_DELTA_FP_NOTE_SQL, (ticker, tf, ticker, tf))
+                            else:
+                                conn.execute("INSERT OR REPLACE INTO temp._delta_merged"
+                                             " (ticker, tf, rev) VALUES (?, ?, NULL)", (ticker, tf))
                     conn.execute("COMMIT")
                 except BaseException:
                     conn.execute("ROLLBACK")
@@ -1902,8 +1967,11 @@ def _merge_ohlcv_from(src_db: str, local_db: Optional[str] = None, *,
                 # so its pairs are merged again next time.
                 conn.execute("BEGIN IMMEDIATE")
                 try:
-                    conn.execute(_DELTA_FP_DDL)
+                    for ddl in _DELTA_FP_DDL:
+                        conn.execute(ddl)
                     conn.execute(_DELTA_FP_RECORD_SQL)
+                    conn.execute(f"INSERT OR REPLACE INTO main.{_DELTA_FP_META} (k, v)"
+                                 " VALUES ('rev_floor_ms', ?)", (fp_floor,))
                     conn.execute("COMMIT")
                 except BaseException:
                     conn.execute("ROLLBACK")
