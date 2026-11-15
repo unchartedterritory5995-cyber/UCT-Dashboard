@@ -115,19 +115,43 @@ describe('a chart\'s pace is the faster of its last two steps', () => {
     expect(sent[sent.length - 1], 'sent 1.3 x the slower step after the chart appeared').toBe('S2')
   })
 
-  it('the hold has a ceiling: a pause after a run does not hold the next chart for seconds', async () => {
+  it('the hold has a ceiling: a slow step in a run is never waited on for longer than SETTLE_MAX_MS', async () => {
     expect(SETTLE_MAX_MS).toBe(500)
     server(null)
     const slot = {}
     paint(slot, 'S0')
-    await tick(100); paint(slot, 'S1')
-    await tick(2000); paint(slot, 'S2')                 // 2 s on S1, then a step: pace 100 (still "a run"), stride 2,000
+    await tick(450); paint(slot, 'S1')                  // a 450 ms step (under the ceiling, so still part of a run) ...
+    await tick(100); paint(slot, 'S2')                  // ... then a fast one: racing, stride 450, and 1.3 x 450 is over the ceiling
     await tick()
     const before = sent.length
+    expect(450 * SETTLE_FACTOR).toBeGreaterThan(SETTLE_MAX_MS)
     await tick(SETTLE_MAX_MS - 2)
     expect(sent.length).toBe(before)
     await tick(4)
     expect(sent[sent.length - 1]).toBe('S2')
+  })
+
+  it('⭐ a step taken after a pause is not part of the run: the first chart after a held key asks at once', async () => {
+    server(null)
+    const slot = {}
+    paint(slot, 'S0')
+    await tick(100); paint(slot, 'S1')
+    await tick(100); paint(slot, 'S2')                  // a run
+    await tick(2000)                                    // the member stopped on S2 (its held ask went out)
+    expect(sent[sent.length - 1]).toBe('S2')
+    paint(slot, 'S3')                                   // and then steps once
+    await tick()
+    expect(sent[sent.length - 1], 'not held: the run ended when S2 rested').toBe('S3')
+    // CONTROL: a gap at the ceiling itself is still a step of the run
+    clearServerColumns()
+    server(null)
+    sent.length = 0
+    const other = {}
+    paint(other, 'T0')
+    await tick(100); paint(other, 'T1')
+    await tick(SETTLE_MAX_MS); paint(other, 'T2')
+    await tick()
+    expect(sent.includes('T2'), 'held').toBe(false)
   })
 
   it('⭐ the production run: uneven steps around 200 ms cost one ask at the start and ONE at the end', async () => {

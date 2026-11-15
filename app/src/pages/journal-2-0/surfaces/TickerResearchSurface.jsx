@@ -10,10 +10,12 @@
 import { useNavigate, useParams } from 'react-router-dom'
 import TickerResearchWorkspace from '../components/notebook/TickerResearchWorkspace'
 import { notePath } from '../../../hooks/useNoteBacklinks'
+import { useRouteOpened } from '../lib/notebookUsage'
 
 export default function TickerResearchSurface() {
   const { symbol } = useParams()
   const navigate = useNavigate()
+  useRouteOpened('research_page')   // follow-up A: never the symbol
   return (
     <TickerResearchWorkspace
       symbol={(symbol || '').toUpperCase()}

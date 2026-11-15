@@ -377,13 +377,16 @@ export const SHORTCUTS = Object.freeze([
   }),
   decl({
     // W11-R86: wave 11's My tools Templates tab added this raw (TemplatesTab.jsx); migrated unchanged. Wave 10's
-    // Widgets tab and the Routines / Trackers tab (ToolsTab.jsx) added the same listener raw; they share this id,
-    // because My tools mounts exactly ONE tab at a time (MyToolsSheet renders `active === key && <Tab/>`).
+    // Widgets tab and the Routines / Trackers tab (ToolsTab.jsx) added the same listener raw. Since follow-up C the
+    // template manager holds it too (StylesManager.jsx while an Active panel is open; myTools/TemplateList.jsx in its
+    // Archived and Recently deleted views). They share this id through sheetKeys.js (`holdSheetKeys('myToolsTab')`),
+    // which keeps ONE registration while any of them holds it and calls each live handler; each handler acts only
+    // when its own sheet panel is the topmost one, so two holders at once (a closing sheet and the next) never both act.
     id: 'myTools.tabEscape',
     chord: { keys: ['Escape'] },
     target: 'window', capture: true, inEditable: true, repeat: true,
-    why: 'Escape on the open My tools tab closes its open menu, else steps back from a panel to '
-      + 'the list. Bound while the tab is mounted; it acts only when the sheet panel it sits in is the topmost '
+    why: "Escape on My tools' open tab or Manage templates closes an open menu, else steps back from "
+      + 'a panel. Bound while one is mounted; it acts only when the sheet panel it sits in is the topmost '
       + 'one, and stops propagation when it acts. Window capture, inside a field too.',
   }),
   // Wave 9/10 Notebook sheets that added raw window-capture listeners (ToolEditor.jsx, WidgetBuilderSheet.jsx),
@@ -557,7 +560,7 @@ const SURFACE_ESCAPES = ['archive.lightboxClose', 'screener.gridMenuClose', 'stu
 /** The Notebook sheet Escapes (window capture, each acting only when its own sheet panel is the topmost one). */
 const SHEET_ESCAPES = ['myTools.tabEscape', 'notebook.toolEditorEscape', 'notebook.builderEscape']
 const SHEET_WHAT = {
-  'myTools.tabEscape': 'The open My tools tab closes its menu, or steps back from a panel, on it.',
+  'myTools.tabEscape': "My tools' open tab or Manage templates closes its menu, or steps back from a panel, on it.",
   'notebook.toolEditorEscape': 'The routine or tracker editor steps back from an inner level on it.',
   'notebook.builderEscape': 'The widget builder steps back from a picker or question on it.',
 }

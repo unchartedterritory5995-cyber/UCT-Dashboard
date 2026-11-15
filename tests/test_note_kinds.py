@@ -183,7 +183,7 @@ def test_a_kind_held_by_a_trashed_note_cannot_be_deleted(db_path):
     with pytest.raises(nk.KindInUse) as e:
         nk.delete_kind("u1", k["id"])
     assert "1 note" in str(e.value) and "Trash" in str(e.value)
-    assert "Restore or empty" in str(e.value) and "another kind" in str(e.value)
+    assert "Restore or empty" in str(e.value) and "another note type" in str(e.value)
     notes.restore_note("u1", n["id"])
     assert notes.get_note("u1", n["id"])["propertiesJson"][nk.NOTE_KIND_PROPERTY] == k["id"]
 

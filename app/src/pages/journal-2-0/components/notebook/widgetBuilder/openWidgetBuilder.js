@@ -44,7 +44,8 @@ class BuilderBoundary extends Component {
   }
 }
 
-export function openWidgetBuilder({ editor = null, from = null, start, uid, returnFocus = null, navigate = null } = {}) {
+// Follow-up A fix I4: `via` is the insert door the press that opened the builder ran in (`block_inserted`).
+export function openWidgetBuilder({ editor = null, from = null, start, uid, returnFocus = null, navigate = null, via = null } = {}) {
   if (_open) return _open
   const host = document.createElement('div')
   host.setAttribute('data-widget-builder-root', '')
@@ -79,8 +80,8 @@ export function openWidgetBuilder({ editor = null, from = null, start, uid, retu
   // The signed-in member keys the kept draft (`uct.nb.widgetDraft.<uid>`), as the slash menu's caches are keyed.
   // Task 9.19: the door (the note's editor and this close) for the examples gallery's first step (builderDoor.js).
   root.render(createElement(BuilderBoundary, { onError: () => close() }, createElement(BuilderDoor.Provider,
-    { value: { editor, close } }, createElement(WidgetBuilderSheet, {
-      editor, from, start, uid: uid ?? editor?.storage?.uctJournalWidgets?.uid, onClose: close,
+    { value: { editor, close, via } }, createElement(WidgetBuilderSheet, {
+      editor, from, start, via, uid: uid ?? editor?.storage?.uctJournalWidgets?.uid, onClose: close,
       navigate: typeof navigate === 'function' ? navigate : null,
       registerLeave: (fn) => { leave = fn },
     }))))

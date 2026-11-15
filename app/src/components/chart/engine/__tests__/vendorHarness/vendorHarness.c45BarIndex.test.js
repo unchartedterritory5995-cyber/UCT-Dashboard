@@ -202,10 +202,14 @@ describe('C45 — a capture that PROVES it starts at the vendor\'s bar 0 is grad
     }
     walk(src)
     const product = hits.filter((f) => !/__tests__\//.test(f) && !/\.test\.js$/.test(f)).sort()
-    // the reader, and the two places a caller's statement is passed through
+    // the reader, and the places a caller's statement is passed through (⭐ engine 54: the
+    // binder's object-reader options moved, unchanged, into `runHalfObjectRail.js::
+    // hostObjectReaderOpts`, the one host object evaluation the binder and the run half's
+    // object rail share)
     expect(product).toEqual([
       'components/chart/engine/binder.js',
       'components/chart/engine/nativeRegistry.js',
+      'components/chart/engine/runHalfObjectRail.js',
     ])
     // ⛔ non-vacuity: the walk does see the chart surface it is clearing
     expect(fs.existsSync(path.join(src, 'components/StockChart.jsx'))).toBe(true)

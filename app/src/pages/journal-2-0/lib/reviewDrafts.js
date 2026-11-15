@@ -493,6 +493,8 @@ export async function draftDailyReview({ accountId, day, templateId = '', seedTo
   const seed = seedToday === true && d === todayDayIso()
   const { note: daily, created = false } = await openDailyNote({
     today: () => d, ...(templateId ? { templateId } : {}), ...(seed ? { seedToday: true } : {}),
+    // Follow-up A: counted as a today's-note door only when the day drafted IS today.
+    ...(d === todayDayIso() ? { door: 'recap' } : {}),
   })
   const verdict = await noteHasUnsentWork(daily.id, { connect: openNotebookDb })
   if (verdict.unsent) {

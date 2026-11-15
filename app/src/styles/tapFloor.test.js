@@ -322,9 +322,10 @@ function minHeightAt(css, cls, width) {
   return won
 }
 
+// Follow-up C: the rows live in myTools/TemplateList.jsx (the list the tab and the template manager both render).
 // Wave 11 (Task 11.19): the Templates tab's rows are My tools rows too (56px), and every control in the tab wears a
 // class from myTools.module.css, so the floors above cover it. Read from the source, never a list typed here.
-const TEMPLATES_TAB = join(SRC, 'pages', 'journal-2-0', 'components', 'notebook', 'myTools', 'TemplatesTab.jsx')
+const TEMPLATES_TAB = join(SRC, 'pages', 'journal-2-0', 'components', 'notebook', 'myTools', 'TemplateList.jsx')
 const classNamesIn = (src) => [...src.matchAll(/styles\.([A-Za-z][\w]*)/g)].map((m) => m[1])
 
 describe('My tools: the Templates tab rows are 56px and every control is floored', () => {

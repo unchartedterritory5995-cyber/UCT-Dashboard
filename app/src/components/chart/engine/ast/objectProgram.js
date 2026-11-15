@@ -281,6 +281,20 @@ export const RUNTIME_VALUE_KINDS = Object.freeze(['text', 'colour'])
  *  program's loop op and the reader's per-pass columns both ask this. */
 export const rtLoopId = (loop) => `rt_${Number(loop && loop.line)}_${Number(loop && loop.column)}`
 
+/** ⭐⭐ ENGINE 54 — THE SOURCE CALL A DRAWING WAS MADE AT, as both lanes name it:
+ *  `<line>:<column>` of the `<family>.new` (or `.copy`) call's own token in the lexed
+ *  script (`pine.js::lexPine`, the one lexer both lanes read). The host object pass
+ *  records it per create site (`buildObjectProgram`, `OBJECT_SITE_SOURCES`); the per-bar
+ *  run stamps it on every object it makes (`objectStore.js`, `site`). The run half's
+ *  object rail (`runHalfObjectRail.js`) pairs a host object and a run object only when
+ *  they were made at the same source call. A token without a position names no call:
+ *  null, and the object is never paired. */
+export const objectSiteKey = (tok) => (tok && Number.isInteger(tok.line) && Number.isInteger(tok.column)
+  ? `${tok.line}:${tok.column}` : null)
+
+/** The shape of an `objectSiteKey`. */
+export const OBJECT_SITE_KEY_RE = /^\d+:\d+$/
+
 /** ⭐⭐ C20 — A DRAWING COLOUR WITH ITS TRANSPARENCY SET, as the object lane
  *  writes it: `#RRGGBB` for an opaque colour, `#RRGGBBAA` otherwise, alpha
  *  `round((1 − t/100) × 255)`. ONE formula for a colour the program folds at

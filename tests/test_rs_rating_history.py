@@ -276,6 +276,97 @@ def test_window_at_slices_point_in_time_and_refuses_a_lagging_name():
     assert rh.window_at(ts, closes, 20200101) is None
 
 
+def _recycled_ticker(old_bars=200, new_bars=150, gap_days=104, end=date(2026, 11, 12)):
+    """A symbol's two lives in one store: ``old_bars`` closes near 10 from an earlier
+    security, a ``gap_days`` calendar break, then ``new_bars`` closes near 150 from the
+    stock that carries the symbol now (BNY on production, 2026-11-12: a fund at $10
+    until February, the bank at $139 from May)."""
+    new_days = _weekdays_ending(end, new_bars)
+    old_days = _weekdays_ending(new_days[0] - timedelta(days=gap_days), old_bars)
+    ts = [_ymd(d) for d in old_days + new_days]
+    closes = [10.0 + 0.001 * i for i in range(old_bars)] + [140.0 + 0.05 * i for i in range(new_bars)]
+    return ts, closes
+
+
+def test_the_window_stops_at_a_break_in_the_listing():
+    ts, closes = _recycled_ticker()
+    win = rh.window_at(ts, closes, 20261112)
+    assert len(win) == 150, "only the closes after the break belong to this stock"
+    assert min(win) >= 140.0, "no close from the earlier security under the same symbol"
+    assert rh._window_bounds(ts, 20261112, closes) == (200, 350)
+
+
+def test_a_recycled_symbol_is_not_rated_on_the_earlier_securitys_closes():
+    ts, closes = _recycled_ticker()
+    steady = [100.0 + 0.2 * i for i in range(270)]
+    ratings = rh.compute_ratings({"BNY": rh.window_at(ts, closes, 20261112), "OLD": steady, "MID": steady[:269] + [140.0]}, set())
+    row = ratings["BNY"]
+    assert row["bars"] == 150
+    assert row["m9"] is None and row["m12"] is None, "150 bars cover neither the 9M nor the 12M window"
+    assert row["score"] < 1.2, "scored on its own 63- and 126-bar ratios, not on 150 / 10"
+    unguarded = rh.ibd_score(closes[-rh.READ_BARS:])
+    assert unguarded > 5.0, "the reading the guard exists to refuse (a fifteen-fold 'gain')"
+
+
+def test_a_short_hole_in_the_bars_does_not_cut_the_window():
+    days = _weekdays_ending(date(2026, 11, 12), 300)
+    hole = [d for d in days if not (date(2026, 8, 8) <= d <= date(2026, 8, 23))]
+    ts = [_ymd(d) for d in hole]
+    closes = [float(i) for i in range(len(ts))]
+    longest = max((b - a).days for a, b in zip(hole, hole[1:]))
+    assert rh.MAX_BAR_LAG_DAYS < longest < rh.LISTING_GAP_DAYS, "a 17-day hole, the BSP case"
+    assert len(rh.window_at(ts, closes, 20261112)) == rh.READ_BARS
+
+
+def test_a_session_before_the_break_reads_the_earlier_listing_whole():
+    ts, closes = _recycled_ticker()
+    last_old = ts[199]
+    win = rh.window_at(ts, closes, last_old)
+    assert len(win) == 200 and max(win) < 11.0, "point in time: that session saw one continuous listing"
+
+
+def _two_runs(gap_days, old_close, new_close, old_bars=200, new_bars=150, end=date(2026, 11, 12)):
+    new_days = _weekdays_ending(end, new_bars)
+    old_days = _weekdays_ending(new_days[0] - timedelta(days=gap_days), old_bars)
+    ts = [_ymd(d) for d in old_days + new_days]
+    return ts, [float(old_close)] * old_bars + [float(new_close)] * new_bars
+
+
+def test_a_long_halt_of_the_same_company_keeps_its_history():
+    ts, closes = _two_runs(60, 50.0, 55.0)
+    assert len(rh.window_at(ts, closes, 20261112)) == rh.READ_BARS, "two months dark at a similar price: one company"
+    ts, closes = _two_runs(60, 50.0, 190.0)
+    assert len(rh.window_at(ts, closes, 20261112)) == rh.READ_BARS, "under four-fold: not a new listing on the gap alone"
+
+
+def test_a_gap_with_a_fourfold_price_jump_either_way_is_a_new_listing():
+    for old, new in ((10.0, 40.0), (200.0, 50.0)):
+        ts, closes = _two_runs(30, old, new)
+        assert len(rh.window_at(ts, closes, 20261112)) == 150, (old, new)
+    ts, closes = _two_runs(14, 10.0, 150.0)
+    widest = max((date(b // 10000, b // 100 % 100, b % 100) - date(a // 10000, a // 100 % 100, a % 100)).days
+                 for a, b in zip(ts, ts[1:]))
+    assert 10 < widest < rh.LISTING_GAP_DAYS
+    assert len(rh.window_at(ts, closes, 20261112)) == rh.READ_BARS, "under 21 days is never a listing break"
+
+
+def test_a_very_long_gap_is_a_new_listing_whatever_the_price():
+    ts, closes = _two_runs(rh.LISTING_GAP_STANDALONE_DAYS + 5, 50.0, 55.0)
+    assert len(rh.window_at(ts, closes, 20261112)) == 150
+
+
+def test_a_dead_reference_close_never_cuts_or_raises():
+    ts, closes = _two_runs(60, 0.0, 55.0)
+    assert len(rh.window_at(ts, closes, 20261112)) == rh.READ_BARS
+
+
+def test_the_ratings_listing_break_is_the_shared_one():
+    from api.services import listing_break
+    assert rh.LISTING_GAP_DAYS == listing_break.GAP_DAYS
+    assert rh.LISTING_GAP_STANDALONE_DAYS == listing_break.GAP_STANDALONE_DAYS
+    assert rh.LISTING_PRICE_FACTOR == listing_break.PRICE_FACTOR
+
+
 def test_closes_from_rows_reads_the_bars_store_projection():
     rows = [(20261103, 1, 2, 0.5, 10.0, 7), (20261104, 1, 2, 0.5, None, 7),
             (20261105, 1, 2, 0.5, 0.0, 7), (20261106, 1, 2, 0.5, "12.5", 7)]

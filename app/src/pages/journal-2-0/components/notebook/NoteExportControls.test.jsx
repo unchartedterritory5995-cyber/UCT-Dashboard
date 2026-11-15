@@ -455,22 +455,32 @@ describe('NoteExportControls: the palette door opens the Export menu (lane KEYS3
     await waitFor(() => expect(document.activeElement).toBe(within(menu).getByRole('menuitem', { name: 'PNG' })))
   })
 
+  // Follow-up B, item 3a: Tab in the Export view does what Tab does in the panel's first view: the panel is a
+  // disclosure (lib/useDisclosureFocus.js, wave 10 K2), so Tab stays inside and wraps, and the panel stays open;
+  // Escape is still layered (the first goes back to the panel, the second closes it). `tab: 'stays'` asserts that.
   it('C3: Export meets the shared second-view contract (Back, Left, Escape; a second Escape closes the panel)', async () => {
     render(<InMore />)
     await expectSecondView({
       openMenu: openPanel, parentRowName: 'Export', childRowNames: FORMAT_NAMES,
-      trigger: () => screen.getByRole('button', { name: 'More note actions' }),
+      trigger: () => screen.getByRole('button', { name: 'More note actions' }), tab: 'stays',
     })
   })
 
   it('C3: a format picked from the panel still downloads, and focus comes back to Export', async () => {
-    global.fetch.mockResolvedValueOnce(fileResponse('attachment; filename="Plan.json"'))
+    // Follow-up A: the format press also posts `menu_row_used` to the telemetry door, so the file is answered by URL.
+    global.fetch.mockImplementation(async (url) => (url === '/api/j2/telemetry'
+      ? { ok: true } : fileResponse('attachment; filename="Plan.json"')))
     render(<InMore />)
     const panel = openPanel()
     fireEvent.click(within(panel).getByRole('button', { name: /^Export/ }))
     fireEvent.click(within(panel).getByRole('menuitem', { name: 'JSON' }))
     await waitFor(() => expect(screen.getByTestId('chrome-msg').textContent).toBe('downloaded'))
-    expect(global.fetch.mock.calls[0][0]).toContain('format=json')
+    expect(featureCalls(global.fetch)[0][0]).toContain('format=json')
+    // Follow-up A: the Export row and the JSON row each count once, by their ids (exactly these props).
+    expect(telemetryBodies(global.fetch).filter((b) => b.event === 'menu_row_used')).toEqual([
+      { event: 'menu_row_used', props: { menu: 'note_more', row: 'export' } },
+      { event: 'menu_row_used', props: { menu: 'note_more', row: 'export_json' } },
+    ])
     expect(within(panel).queryByRole('menu')).toBeNull()
     await waitFor(() => expect(document.activeElement).toBe(within(panel).getByRole('button', { name: /^Export/ })))
   })

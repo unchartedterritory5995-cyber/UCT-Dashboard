@@ -171,6 +171,15 @@ export function createNetwork({
     if (before === after) return
     for (const cb of [...(budgetSubs.get(key) || [])]) { try { cb() } catch { /* ignore */ } }
   }
+  /** key → Set<cb>: listeners of the key's first settled tail request of this life (`answered`). */
+  const answerSubs = new Map()
+  /** A tail request of this key's CURRENT life settled with the server's word (rows, no_data or
+   *  an error) — after its action was dispatched, so a listener reads the snapshot it produced. */
+  function _noteAnswered(r) {
+    if (r.answered || keys.get(r.key) !== r) return
+    r.answered = true
+    for (const cb of [...(answerSubs.get(r.key) || [])]) { try { cb() } catch { /* ignore */ } }
+  }
 
   function _rec(key) {
     let r = keys.get(key)
@@ -181,6 +190,7 @@ export function createNetwork({
         queue: [],                // pending scroll-back jobs
         timer: null, paused: false, lastStart: -Infinity, errors: 0,
         pollSt: createTailPollState(),
+        answered: false,          // a tail request of THIS life settled (see `answered`)
       }
       keys.set(key, r)
     }
@@ -252,12 +262,15 @@ export function createNetwork({
         const gen = registry.getSnapshot(r.key).gen
         if (kind === 'tail') {
           registry.dispatch(r.key, { type: ACTION.REST_ERROR, key: r.key, gen, payload: { error: e?.warming ? 'warming' : String(e?.status || 'network') } })
+          _noteAnswered(r)
         }
         return { error: true, retryAfterMs: e?.retryAfterMs ?? null }
       }
       if (ac?.signal.aborted) return { aborted: true }   // a joined request outlived our abort
       if (json?.error && !json.no_data && quiet()) return { error: true, warmShed: true, retryAfterSec: json.retry_after ?? null }
-      return onJson(json)
+      const out = await onJson(json)
+      if (kind === 'tail') _noteAnswered(r)
+      return out
     })()
     rec.promise = promise
     r.inflight = rec
@@ -458,6 +471,23 @@ export function createNetwork({
       if (!set) { set = new Set(); budgetSubs.set(key, set) }
       set.add(cb)
       return () => { set.delete(cb); if (!set.size && budgetSubs.get(key) === set) budgetSubs.delete(key) }
+    },
+    /**
+     * ⭐ HAS THE SERVER SPOKEN IN THIS LIFE? True once a tail request of `key` settled (rows,
+     * no_data or an error — never an aborted request, never a shed `&warm=1` a subscriber
+     * ignores) since the key's record was created: its first `start`, or a one-shot ask still
+     * riding. A record dies with its last ref (`stop`), so a key re-subscribed later starts
+     * unanswered again — whatever its snapshot still holds (an answer or an error from an
+     * EARLIER life, taken while no live feed and no poll kept it) is not this life's word.
+     * The chart's timeframe-switch hold keys on it (useBarSnapshotBars).
+     */
+    answered(key) { return !!keys.get(key)?.answered },
+    /** Listen to `answered(key)` turning true. Returns the unsubscribe function. */
+    subscribeAnswered(key, cb) {
+      let set = answerSubs.get(key)
+      if (!set) { set = new Set(); answerSubs.set(key, set) }
+      set.add(cb)
+      return () => { set.delete(cb); if (!set.size && answerSubs.get(key) === set) answerSubs.delete(key) }
     },
     /** Requests in flight for `key` (0|1), or across all keys. */
     inflight(key) {

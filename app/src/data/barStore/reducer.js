@@ -1100,9 +1100,17 @@ export function refreshStatus(state, ctx = {}) {
  * on it — a subscriber that renders the BASE (setData, indicators, resample) is not woken by
  * it; the developing-bar channel (series.update) is. Generic over every snapshot field, so a
  * field added later is base by default.
+ * ⭐ ONLY WITHIN ONE BUCKET. A developing bar that OPENS a bucket (none before, or another `t`)
+ * or goes away is a BASE change: the base view's newest bar is always the developing bar's
+ * bucket. Every reader of the base (the legend's newest bar, prevBarsRef, the render plan) can
+ * then trust that the developing channel only ever moves the bar it already holds. (2026-11-13
+ * NVDA 1m: a REST answer closed 09:50 with no developing bar; the tick that opened 09:51 was a
+ * "dev-only" change, so the candle painted 09:51 by update() while the base — and the legend
+ * reading it — stayed on 09:50 until the next base change jumped it to 09:52.)
  */
 export function isDevOnlyChange(prev, next) {
   if (!prev || !next || prev === next || prev.developing === next.developing) return false
+  if (!prev.developing || !next.developing || prev.developing.t !== next.developing.t) return false
   for (const k of Object.keys(next)) {
     if (k === 'developing' || k === 'devRev') continue
     if (next[k] !== prev[k]) return false

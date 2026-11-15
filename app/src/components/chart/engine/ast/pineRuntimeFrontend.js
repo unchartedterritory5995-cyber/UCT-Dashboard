@@ -100,6 +100,8 @@ import { readFunctionDefs } from './objectFnInline.js'
 // over which drawing calls exist, what they take and what they return.
 import { OBJECT_OPS, ANY_METHODS, paramsOfAny, declaredCapsOf, isArmSafeObjectOp } from '../runtime/objectStore.js'
 import { setterPineParams, setterPineParamsOfAny } from '../objectSetterParams.js'
+// ⭐⭐ ENGINE 54 — the source call a drawing is made at, as the host object pass names it
+import { objectSiteKey } from './objectProgram.js'
 
 /** Array calls whose RESULT is one element of the array. ⭐ Used only to carry
  *  a collection's element KIND to the value that reads it out. */
@@ -4029,7 +4031,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
       slotsOf[at] = lowerExpr(v, scope)
     }
     objectOpsLowered += 1
-    return objectCall(fn, slotsOf, returns)
+    // ⭐⭐ ENGINE 54 — a call that MAKES a drawing (`.new`, `.copy`) carries its source call
+    // (`objectSiteKey` of its own token, the id the host object pass gives the same call), so
+    // every object the run makes says where it was made (`objectStore.js`, `site`).
+    const makes = spec ? (spec.kind === 'create' || spec.kind === 'copy') : method === 'copy'
+    return objectCall(fn, slotsOf, returns, makes ? objectSiteKey(tok) : null)
   }
   /** A drawing CALL node (name form, or a method form on a name) → the
    *  canonical store name and the receiver, or null when it is not one. */

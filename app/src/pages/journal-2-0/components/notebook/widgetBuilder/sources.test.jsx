@@ -176,7 +176,7 @@ describe('Options strategies and Notes in the builder (Task 10.17)', () => {
 
     fireEvent.click(screen.getByRole('radio', { name: 'Notes' }))
     await flush(PREVIEW_DEBOUNCE_MS)
-    // Simplify pass 2 (Task 1 fix round 1): the catalog serves "Note kind"; the member reads "Note type".
+    // Simplify pass 2 (Task 1 fix round 1): the member reads "Note type" (the catalog itself says so since follow-up B, 5a).
     for (const [field, pick, chip] of [['Folder', 'Playbook', 'Folder is Playbook'], ['Note type', 'Post-mortem', 'Note type is Post-mortem'],
       ['Tag', 'psychology', 'Tag includes psychology']]) {
       fireEvent.click(screen.getByRole('button', { name: 'Filter' }))

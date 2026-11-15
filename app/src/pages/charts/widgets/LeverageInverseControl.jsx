@@ -10,7 +10,7 @@
 // liquidity-desc as delivered by the API) for manual fund overrides.
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import useSingleStockEtfs from '../../../hooks/useSingleStockEtfs'
+import { useChartSingleStockEtfs as useSingleStockEtfs } from '../../../components/chart/restedReaders'
 import styles from './LeverageInverseControl.module.css'
 import { formatCompact } from '../../../lib/presentation/presentationPrimitives'
 

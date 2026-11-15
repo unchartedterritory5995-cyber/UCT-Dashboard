@@ -32,7 +32,7 @@ describe('compute.runtimeObjects — one rule set, both sides', () => {
   it('the closed field list is the server\'s, field for field', () => {
     const m = /RUNTIME_OBJECTS_FIELDS = \(([^)]*)\)/.exec(SERVER)
     expect(m, 'presentation_schema.RUNTIME_OBJECTS_FIELDS').toBeTruthy()
-    const server = [...m[1].matchAll(/"([A-Za-z]+)"/g)].map((x) => x[1])
+    const server = [...m[1].matchAll(/"([A-Za-z][A-Za-z0-9]*)"/g)].map((x) => x[1])
     expect(server).toEqual([...RUNTIME_OBJECTS_FIELDS])
   })
 

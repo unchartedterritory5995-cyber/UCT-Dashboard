@@ -84,6 +84,8 @@ import useVolumeCurve from '../hooks/useVolumeCurve'
 import { RVOL_TOOLTIP, formatRvol } from '../lib/volumeCurve'
 import { watchlistRvol } from './watchlist/watchlistRvol'
 import useWatchlistThemes from '../hooks/useWatchlistThemes'
+import useWatchlistRsExit from '../hooks/useWatchlistRsExit'
+import { rsExitBadge, rsExitSortValue } from './watchlist/rsExitBadge'
 import { sendCaptureToJournal } from './journal-2-0/lib/sendToJournal'
 import { buildWatchlistCapture } from './charts/widgets/captures/watchlistCapture'
 import { useJournalToast, JournalToast } from './journal-2-0/lib/useJournalToast'
@@ -182,6 +184,8 @@ const COL_META = {
   atr: { def: 66, min: 46 }, a50: { def: 76, min: 54 },
   // Watchlist Intelligence V1: deterministic "why is this active" badge.
   attention: { def: 84, min: 60 },
+  // RS Exit Warnings (Mike Webster's method): the newest warning + its age, from the nightly screener row.
+  rsexit: { def: 112, min: 70 },
 }
 // The min column width to still show the full word of a COL_LABELS pair.
 const COL_FULL_MINW = {
@@ -190,6 +194,7 @@ const COL_FULL_MINW = {
   sector: 40, industry: 40, theme: 40, perf5d: 40, perf30d: 40, perf60d: 40, perf90d: 40, periodchg: 40, grpcount: 40, weight: 56,
   atr: 44, a50: 96,
   attention: 60,
+  rsexit: 112,
 }
 // The column library's new columns (owner 11-14): a width each, and the width at which the
 // full label fits (shorter → the short label).
@@ -387,6 +392,7 @@ const WatchRow = React.memo(function WatchRow({
   ipoDate = null,
   dchg = null, fromOpen = null, fromHigh = null, fromLow = null, dcr = null, dolvol = null, rvol = null,
   coName = null, sector = null, industry = null, theme = null,
+  rsExitLast = null, rsExitAgo = null,
   perf5d = null, perf30d = null, perf60d = null, perf90d = null, periodchg = null,
   weight = null, atr = null, a50 = null,
   // The column library's columns: { [key]: { v, t, signed?, text?, bar? } } (owner 11-14).
@@ -540,6 +546,19 @@ const WatchRow = React.memo(function WatchRow({
     if (key === 'sector') return <span key="sector" className={styles.textCell} title={sector || ''}>{sector || '—'}</span>
     if (key === 'industry') return <span key="industry" className={styles.textCell} title={industry || ''}>{industry || '—'}</span>
     if (key === 'theme') return <span key="theme" className={styles.textCell} title={theme || ''}>{theme || '—'}</span>
+    // RS Exit Warnings: a coloured dot + the warning and its age while it is recent, a muted dash
+    // otherwise (the tooltip still names an older one). Pure data from watchlist/rsExitBadge.js.
+    if (key === 'rsexit') {
+      if (isGroup) return <span key="rsexit" className={styles.metaCell} />
+      const b = rsExitBadge(rsExitLast ? { last: rsExitLast, bars_ago: rsExitAgo } : null)
+      if (!b.recent) return <span key="rsexit" className={styles.metaCell} title={b.title} style={{ opacity: 0.4 }}>—</span>
+      return (
+        <span key="rsexit" className={`${styles.textCell} ${styles.rsExitCell}`} title={b.title} data-rs-exit={b.tone}>
+          <span className={`${styles.rsExitDot} ${styles['rsExit_' + b.tone]}`} aria-hidden="true" />
+          <span className={styles.rsExitText}>{b.text}</span>
+        </span>
+      )
+    }
     // N-day performance columns (signed %, green/red like % Change).
     if (key === 'perf5d') return pctCell('perf5d', perf5d)
     if (key === 'perf30d') return pctCell('perf30d', perf30d)
@@ -1630,6 +1649,8 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   }, [rawPerfData, perfOverride])
   // Theme batch: only when the Theme column is shown.
   const { themeData } = useWatchlistThemes(_colKeys.includes('theme') ? allTickers : [])
+  // RS Exit Warnings batch: only when the RS Exit column is shown (nightly data, no poll).
+  const { rsExitData } = useWatchlistRsExit(_colKeys.includes('rsexit') ? allTickers : [])
 
   // ⚰️ A SECOND `prewarmVisibleList(allTickers)` STOOD HERE, debounced 1200 ms, and
   // it is gone rather than kept. Its comment described warming "every ticker across
@@ -2465,6 +2486,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       // weighted/opaque score. Symbols with no intel data yet (still loading)
       // sort as not-notable rather than sinking to the bottom via a null.
       if (key === 'attention') return intelData?.[s]?.notable ? 1 : 0
+      if (key === 'rsexit') return rsExitSortValue(rsExitData?.[s])
       return 0
     }
     // Text columns sort alphabetically off the meta / theme batch.
@@ -2503,7 +2525,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       return mul * (va - vb)
     })
   // eslint-disable-next-line react-hooks/exhaustive-deps -- sessionQuote reads only extMode / onSessionMode
-  }, [colSort, sortBasis, prices, metaData, perfData, themeData, intelData, volCurve, extMode, factsData])
+  }, [colSort, sortBasis, prices, metaData, perfData, themeData, intelData, volCurve, extMode, factsData, rsExitData])
 
   // ── The sorted order of every expanded list, computed ONCE ──────────────────
   //
@@ -2861,6 +2883,8 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         sector={metaData[sym]?.sector ?? null}
         industry={metaData[sym]?.industry ?? null}
         theme={themeData[sym] ?? null}
+        rsExitLast={rsExitData[sym]?.last ?? null}
+        rsExitAgo={rsExitData[sym]?.bars_ago ?? null}
         perf5d={perfLive('5d')}
         perf30d={perfLive('30d')}
         perf60d={perfLive('60d')}

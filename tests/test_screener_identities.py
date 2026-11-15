@@ -134,6 +134,16 @@ _CASES: dict[str, tuple[dict, dict]] = {
     "rs_new_high_implies_age_zero": (
         {"rs_new_high": 1, "rs_nh_bars_ago": 0},
         {"rs_new_high": 1, "rs_nh_bars_ago": 3}),
+    # RS Exit Warnings: the newest warning is no older than any one of the three
+    "rs_exit_bars_ago_le_rs_quick_break_bars_ago": (
+        {"rs_exit_bars_ago": 1, "rs_quick_break_bars_ago": 1},
+        {"rs_exit_bars_ago": 4, "rs_quick_break_bars_ago": 2}),
+    "rs_exit_bars_ago_le_rs_quicksand_bars_ago": (
+        {"rs_exit_bars_ago": 1, "rs_quicksand_bars_ago": 3},
+        {"rs_exit_bars_ago": 4, "rs_quicksand_bars_ago": 0}),
+    "rs_exit_bars_ago_le_rs_dead_break_bars_ago": (
+        {"rs_exit_bars_ago": 0, "rs_dead_break_bars_ago": 0},
+        {"rs_exit_bars_ago": 9, "rs_dead_break_bars_ago": 8}),
 
     # size ───────────────────────────────────────────────────────────────
     "dollar_volume_is_price_times_volume": (

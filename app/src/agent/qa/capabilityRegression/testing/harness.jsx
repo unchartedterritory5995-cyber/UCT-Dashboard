@@ -100,7 +100,13 @@ export const BOARDS = {
   GRID: () => [[chart('c1', 0, 0, 24, 20)], { 'N:c1': 'NVDA' }, { grid: true }],
   FOUR: () => [['c1', 'c2', 'c3', 'c4'].map((id, i) => chart(id, (i % 2) * 12, Math.floor(i / 2) * 10, 12, 10)),
     { 'N:c1': 'SPY', 'N:c2': 'QQQ', 'N:c3': 'NVDA', 'N:c4': 'TSLA' }],
+  // uctIntelligence.set: a chart whose StockChart offers the UCT Intelligence row (S/R and Setups released; Candlestick
+  // patterns and Caution not) — never added, and with it added (Auto patterns on, Support & resistance chosen)
+  UCTI: () => [[chart('c1', 0, 0, 24, 20)], { 'N:c1': 'NVDA' }, { uctIntel: UCTI_GATES }],
+  UCTI_ADDED: () => [[{ ...chart('c1', 0, 0, 24, 20), opts: { settings: { ...bareSettings(), showPatterns: true, uctIntelligence: { added: true, labels: true, supportResistance: true } } } }],
+    { 'N:c1': 'NVDA' }, { uctIntel: UCTI_GATES }],
 }
+const UCTI_GATES = { available: true, known: true, availability: { supportResistance: true, supportResistanceEmpty: false, candles: false, setups: true, caution: false } }
 
 // Synthetic screener catalog / universe (never real values)
 const FIELDS = [{ key: 'adr_pct', label: 'ADR %', type: 'range', unit: '%' }, { key: 'price', label: 'Price', type: 'range', unit: '$' },
@@ -437,7 +443,9 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
     const viewOf = (ref) => views[ref] || (views[ref] = { firstMs: BAR_DAYS[0], lastMs: BAR_DAYS.at(-1), rightMs: BAR_DAYS.at(-1), fullyLoaded: true,
       activeRange: null, atDefaultView: false, indicatorsHidden: false, priceAuto: false, frame: { fromRight: 120, toRight: -8, activeRange: null, locked: false, lock: null },
       // the Position Calculator (StockChart getDateMeta.positionCalc): closed, its panel empty
-      positionCalc: { can: true, open: false, entry: '', stop: '', target: '', direction: 'long' } })
+      positionCalc: { can: true, open: false, entry: '', stop: '', target: '', direction: 'long' },
+      // chartReplay.playback: the Replay / Time Machine bar (StockChart getDateMeta.replay): off, 1×
+      replay: { can: true, mode: false, playing: false, speed: 1, index: null, total: BAR_DAYS.length, dateMs: null, firstMs: BAR_DAYS[0], lastMs: BAR_DAYS.at(-1) } })
     st.replay = null
     const charts = mounted.h.charts
     // C1-127: the chart's own Chart Settings door (ChartWidget adapter → ChartPane.openSettings), read back as open
@@ -461,6 +469,21 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
         if (op === 'zoom') { const c = (v.frame.fromRight + v.frame.toRight) / 2, half = ((v.frame.fromRight - v.frame.toRight) * Math.pow(arg.out ? 1.25 : 0.8, arg.steps)) / 2; v.frame = { ...v.frame, fromRight: c + half, toRight: c - half, activeRange: null } }
         // the Position Calculator (StockChart.positionCalc): the tool armed or disarmed, the panel's three prices as strings
         if (op === 'positionCalc') v.positionCalc = { ...v.positionCalc, open: !!arg.open, entry: String(arg.entry ?? ''), stop: String(arg.stop ?? ''), target: String(arg.target ?? ''), direction: arg.direction || v.positionCalc.direction }
+        // the Replay bar's own handlers (StockChart replayDo: toggle at 70%, play / pause, step and seek pause it, speed)
+        if (op === 'replay') {
+          const r = { ...v.replay }, n = r.total, clamp = (i) => Math.max(0, Math.min(n - 1, i))
+          if (arg.op === 'enter' && !r.mode) Object.assign(r, { mode: true, playing: false, index: Math.floor(n * 0.7) })
+          else if (arg.op === 'restore') Object.assign(r, { mode: true, playing: false, index: clamp(arg.index) })
+          else if (r.mode && arg.op === 'exit') Object.assign(r, { mode: false, playing: false, index: null })
+          else if (r.mode && arg.op === 'play') r.playing = true
+          else if (r.mode && arg.op === 'pause') r.playing = false
+          else if (r.mode && arg.op === 'step') Object.assign(r, { playing: false, index: clamp((r.index ?? 0) + arg.n) })
+          else if (r.mode && arg.op === 'seek') Object.assign(r, { playing: false, index: clamp(arg.index) })
+          else if (r.mode && arg.op === 'seekDate') Object.assign(r, { playing: false, index: Math.max(0, BAR_DAYS.findLastIndex(d => d <= arg.ms + 86399999)) })
+          else if (r.mode && arg.op === 'speed') r.speed = arg.speed
+          r.dateMs = r.mode && r.index != null ? BAR_DAYS[r.index] : null
+          v.replay = r
+        }
         return true
       },
       setReplay: (iso) => { st.replay = iso ?? null; return true },
@@ -511,6 +534,11 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
     mounted.h.drawings = buildDrawingSource({ list: () => mounted.h.charts.list().map(c => ({ ...c, drawSym: c.symbol })) })      // (a TIMED board's charts carry their view: the loaded history)
     // a case may SEED drawings the Agent cannot draw itself (seed.drawings: { SYM: [drawing] }, e.g. a position for its alerts)
     for (const [sym, list] of Object.entries(seed.drawings || {})) for (const d of list) drawingsStore.addDrawing(sym, d)
+  }
+  // uctIntelligence.set: each chart's UCT Intelligence gates as StockChart publishes them (ChartPane → ChartWidget agent.uctIntelligence)
+  if (extra.uctIntel) {
+    const c0 = mounted.h.charts, withUci = (x) => (x ? { ...x, uctIntel: { ...extra.uctIntel } } : x)
+    mounted.h.charts = { ...c0, list: () => c0.list().map(withUci), read: (r) => withUci(c0.read(r)) }
   }
   return { p, st, srv, ...mounted }
 }

@@ -28,13 +28,19 @@ _GROUP_OF = {"chart": "charts", "volume": "charts", "widget": "workspace", "layo
              "guide": "guide",
              # W1-B (2026-11-02): indicator alerts in their own fillLast group (app/src/agent/routing.js)
              "indicatorAlert": "indicatorAlerts",
+             # Charts family (2026-11-12): a chart's Volume Profile overlay, its own words-only group (app/src/agent/routing.js)
+             "volumeProfile": "volumeProfile",
              "indicatorTemplate": "chartSetup",
+             # Charts family (2026-11-12): the UCT Intelligence chart indicator, its own words-only group (app/src/agent/routing.js)
+             "uctIntelligence": "uctIntelligence",
              # Wave 3 (2026-11-03): the coach's own fillLast group (registered only while UCT_AGENT_COACH is on)
              "coach": "coach", "journal": "coach", "calendar": "calendar",
              # family C (2026-11-11): the chart's right-click Ask AI + watermark Reset, own words-only group
              "chartMenu": "chartMenu",
              # Charts family (2026-11-12): the chart's Company Info panel + Earnings Strip, own words-only group
              "chartFeatures": "chartFeatures",
+             # Charts family (2026-11-12): ONE chart's bar replay playback, own words-only group
+             "chartReplay": "chartReplay",
              # C3-205..207 (pl-exec6): Tools → Custom-Period Sort, its own words-only group (app/src/agent/routing.js)
              "periodSort": "periodSort",
              # Charts family (2026-11-12): Tools → Compare Symbols' Rotation / Overlay view, its own words-only group
@@ -166,6 +172,15 @@ def test_catalog_contract_distinguishes_catalog_from_request():
     cat = CONTRACT["catalog"]
     assert cat["maxRegistered"] > CONTRACT["limits"]["maxCapabilities"]
     assert cat["maxGroupSize"] < CONTRACT["routingThreshold"] <= CONTRACT["limits"]["maxCapabilities"]
+
+
+def test_v2_capability_cap_equals_client_catalog_cap():
+    """Planner v2 sends the WHOLE available catalog in one request and REFUSES the request whole when it is over
+    MAX_CAPABILITIES_V2 (turn_v2 -> turn.validate_manifest). The browser's catalog is bounded by
+    catalog.maxRegistered (agentContracts.test.js, against the MAX-ARMED catalog). A split between the two would
+    make v2 refuse every request once the catalog outgrows the smaller one, so they move TOGETHER."""
+    from api.services.uct_agent import turn_v2
+    assert turn_v2.MAX_CAPABILITIES_V2 == CONTRACT["catalog"]["maxRegistered"]
 
 
 def _union_enum_nodes(node, path="", out=None):

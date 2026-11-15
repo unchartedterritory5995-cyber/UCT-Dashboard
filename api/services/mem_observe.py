@@ -227,12 +227,31 @@ def _resident_bytes(path, size):
         os.close(fd)
 
 
+# ⛔⛔ NEVER OPEN A SQLITE FILE HERE (2026-11-13: this was the flow.db corruption, 8 damages in 5 days).
+# `_resident_bytes` does os.open() + os.close() on each file. On Linux, closing ANY descriptor for a file
+# drops EVERY POSIX lock the process holds on it, SQLite's included. The next ordinary SQLite close then
+# believes it is the last connection and checkpoints and DELETES the -wal/-shm while other connections
+# still use them: two write-ahead logs, and the database corrupts. This ran ~150 s after every boot and
+# every 10 min after (flow-worker's flow.db, the worker's bars.db on 11/09). A database file, its
+# sidecars and journals are skipped by NAME, before anything opens them (reading a header would itself be
+# the open+close).
+_SQLITE_SUFFIXES = (".db", ".db-wal", ".db-shm", ".db-journal", ".sqlite", ".sqlite3", ".sqlite-wal",
+                    ".sqlite-shm", ".sqlite3-wal", ".sqlite3-shm", "-journal", "-wal", "-shm")
+
+
+def _is_sqlite_name(label: str) -> bool:
+    name = label[:-len(" (deleted)")] if label.endswith(" (deleted)") else label
+    return name.lower().endswith(_SQLITE_SUFFIXES)
+
+
 def _candidate_files(roots):
     """(label, open_path, size) for big regular files under `roots` plus every file this process holds open
-    (including deleted-but-open ones, which a directory walk cannot see)."""
+    (including deleted-but-open ones, which a directory walk cannot see). SQLite files are never candidates."""
     seen, out = set(), []
 
     def add(label, open_path):
+        if _is_sqlite_name(label):
+            return
         try:
             st = os.stat(open_path)
         except OSError:

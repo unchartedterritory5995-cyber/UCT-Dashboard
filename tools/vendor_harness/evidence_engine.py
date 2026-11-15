@@ -54,8 +54,10 @@ sys.path.insert(0, str(REPO / "tools"))
 sys.path.insert(0, str(REPO / "tools" / "pine_coverage"))
 sys.path.insert(0, str(REPO / "tools" / "pine_survey"))
 
+import evidence_ledger as el  # noqa: E402 -- the ledger row, its freshness and its append: one authority
+
 QUEUE_SCHEMA = "uct.capture-queue/v1"
-LEDGER_SCHEMA = "uct.evidence-ledger/v1"
+LEDGER_SCHEMA = el.SCHEMA          # the ledger row is evidence_ledger's (one authority)
 PACKET_SCHEMA = "uct.promotion-packet/v1"
 MANIFEST_SCHEMA = "uct.vendor-batch-manifest/v1"
 
@@ -69,7 +71,7 @@ FIXTURE_ROOT = REPO / "tests" / "fixtures" / "vendor"
 FIXTURES = FIXTURE_ROOT / "harness"          # where `promote` files a new capture
 COVERAGE = DOCS / "coverage-map.json"
 QUEUE_OUT = DOCS / "vendor-harness" / "capture-queue.json"
-LEDGER = DOCS / "vendor-harness" / "evidence-ledger.jsonl"
+LEDGER = el.LEDGER
 DOOR_FLAG = "VITE_PINE_OBJECTS_ONLY_PANE_ENABLED"
 #: The desktop's heavy-job lock tool; `$HEAVY_LOCK` (set by the laptop's env) wins. See `heavy_lock_tool`.
 DESKTOP_HEAVY_LOCK = r"C:\Users\Patrick\uct-clips\tools\heavy_lock.py"
@@ -775,8 +777,10 @@ def fixture_status(world: World, path, sha: str, symbol: str, tf: str):
     if exact:
         return "CAPTURED", [f["file"] for f in exact]
     for r in world.ledger:
+        has_verdict = r.get("verdict") or any(isinstance(v, dict) and v.get("verdict")
+                                              for v in (r.get("verdicts") or {}).values())
         if r.get("sourceSha256") == sha and str(r.get("symbol", "")).upper() == symbol.upper() \
-                and norm_tf(r.get("timeframe")) == t and r.get("verdict"):
+                and norm_tf(r.get("timeframe")) == t and has_verdict:
             return "VERDICT_LOCAL", [r.get("captureId")]
     # a capture of an OLDER version of this file, found by its capture stem (never a sibling probe's
     # `x-v4-...` fixture, never another corpus file's that shares the slug: that one carries its -sha8)
@@ -1138,8 +1142,40 @@ def build_packet(run_dir: pathlib.Path, world: World | None = None, verifier=Non
             "action": ("REFUSE" if problems else "LEDGER_ONLY" if held else "PROMOTE"),
         })
     body = {"schema": PACKET_SCHEMA, "runDir": run_dir.name, "items": items,
-            "counts": dict(collections.Counter(i["action"] for i in items))}
+            "counts": dict(collections.Counter(i["action"] for i in items)),
+            "lane": read_lane(run_dir), "gradeStamp": read_grade_stamp(run_dir)}
     return body
+
+
+#: Written by `grade` beside verdicts.json: the engine and grader the verdicts were graded AT.
+GRADE_STAMP = "grade-stamp.json"
+
+
+def write_grade_stamp(run_dir: pathlib.Path) -> dict:
+    stamp = {"scriptEngineVersion": el.engine_version(), "graderVersion": el.grader_version(),
+             "gradedAtUTC": _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}
+    write_atomic(pathlib.Path(run_dir) / GRADE_STAMP, json.dumps(stamp, sort_keys=True) + "\n")
+    return stamp
+
+
+def read_grade_stamp(run_dir: pathlib.Path):
+    try:
+        d = json.loads((pathlib.Path(run_dir) / GRADE_STAMP).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if not isinstance(d, dict) or not isinstance(d.get("scriptEngineVersion"), int) or not d.get("graderVersion"):
+        return None
+    return {k: d.get(k) for k in ("scriptEngineVersion", "graderVersion", "gradedAtUTC")}
+
+
+def read_lane(run_dir: pathlib.Path) -> str:
+    """The lane the run's verdicts.json was graded in (a file that names none is production)."""
+    try:
+        d = json.loads((pathlib.Path(run_dir) / "verdicts.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return el.LANES[0]
+    lane = d.get("lane") if isinstance(d, dict) else None
+    return lane if lane in el.LANES else el.LANES[0]
 
 
 def packet_text(body: dict) -> str:
@@ -1179,25 +1215,9 @@ class PromoteRefused(Exception):
 
 
 def append_ledger(path: pathlib.Path, rows) -> int:
-    path = pathlib.Path(path)
-    have = set()
-    if path.exists():
-        for ln in path.read_text(encoding="utf-8").splitlines():
-            try:
-                r = json.loads(ln)
-                have.add((r.get("captureId"), r.get("receipt")))
-            except ValueError:
-                continue
-    new = [r for r in rows if (r["captureId"], r["receipt"]) not in have]
-    if not new:
-        return 0
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with io.open(path, "a", encoding="utf-8", newline="\n") as fh:
-        for r in new:
-            fh.write(json.dumps(r, ensure_ascii=False, sort_keys=True) + "\n")
-        fh.flush()
-        os.fsync(fh.fileno())
-    return len(new)
+    """Append ledger rows: each checked (`evidence_ledger.row_problems`: no source text, no field
+    outside the schema), each capture filed once per engine x grader (`evidence_ledger.row_key`)."""
+    return el.append(path, rows)
 
 
 def promote(run_dir: pathlib.Path, packet_sha: str, world: World | None = None, verifier=None,
@@ -1219,6 +1239,11 @@ def promote(run_dir: pathlib.Path, packet_sha: str, world: World | None = None, 
         raise PromoteRefused("the run changed since the packet was written (a capture, a verdict or a fixture "
                              "moved): run `packet` again and read the new one")
     body = json.loads(on_disk.decode("utf-8"))
+    gs = body.get("gradeStamp")
+    if not gs:
+        raise PromoteRefused(f"the run carries no {GRADE_STAMP} (the engine and grader its verdicts were graded "
+                             "at): run `grade` again, then `packet`")
+    lane = body.get("lane") or el.LANES[0]
     promoted, filed, refused = [], [], []
     ledger_rows = []
     stamp = _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -1238,16 +1263,17 @@ def promote(run_dir: pathlib.Path, packet_sha: str, world: World | None = None, 
             promoted.append(i["id"])
         else:
             filed.append(i["id"])
-        ledger_rows.append({
-            "schema": LEDGER_SCHEMA, "filedAtUTC": stamp, "packetSha256": sha,
-            "captureId": i["id"], "receipt": i["receipt"], "sourceSha256": i["sourceSha256"],
-            "symbol": i["symbol"], "timeframe": i["timeframe"], "bars": i["bars"], "startsAtBar0": i["startsAtBar0"],
-            "verdict": i["verdict"], "reason": i["reason"], "firstDivergence": i["firstDivergence"],
-            "licence": i["licence"], "promoted": i["action"] == "PROMOTE",
-            "fixture": (rel(pathlib.Path(fixtures_dir) / f"{i['id']}.json") if i["action"] == "PROMOTE" else None),
-            "queueTargetId": i["queueTargetId"], "rows": i["rows"], "chartDefaulted": i.get("chartDefaulted"),
-            "provenance": i["provenance"],
-        })
+        src_path = REPO / i["file"] if not pathlib.Path(i["file"]).is_absolute() else pathlib.Path(i["file"])
+        cap_bytes = src_path.read_bytes()
+        # ⛔ the row is the VERDICT and what re-checks it: never the source, never the provenance/account
+        ledger_rows.append(el.make_row(
+            capture=json.loads(cap_bytes.decode("utf-8")), capture_bytes=cap_bytes,
+            verdicts={lane: {"verdict": i["verdict"], "reason": i["reason"]}}, filed_by="promote",
+            licence=i["licence"], engine=gs["scriptEngineVersion"], grader=gs["graderVersion"],
+            stamp=gs.get("gradedAtUTC") or stamp, packetSha256=sha, firstDivergence=i["firstDivergence"],
+            promoted=i["action"] == "PROMOTE",
+            fixture=(rel(pathlib.Path(fixtures_dir) / f"{i['id']}.json") if i["action"] == "PROMOTE" else None),
+            queueTargetId=i["queueTargetId"], rows=i["rows"], chartDefaulted=i.get("chartDefaulted")))
     n = append_ledger(ledger, ledger_rows)
     log(f"[promote] promoted {len(promoted)} · ledger-only {len(filed)} · refused {len(refused)} · ledger +{n}")
     log("[promote] nothing was committed: review `git status`, then commit with the packet sha in the message")
@@ -1557,7 +1583,116 @@ def cmd_grade(run_dir) -> int:
         print(f"[grade] REFUSED: {no_lock_reason()}. Grading runs the corpus harness, a heavy job: never unlocked.")
         return 2
     print(f"[grade] {' '.join(wrapped)}")
-    return subprocess.call(wrapped, cwd=str(REPO))
+    code = subprocess.call(wrapped, cwd=str(REPO))
+    if code == 0:
+        write_grade_stamp(pathlib.Path(run_dir))
+    return code
+
+
+# ─── R: the local regrade (LEDGER_ONLY evidence stays fresh across engine bumps) ─────────────────
+def harness_lane(captures_dir: pathlib.Path, out_dir: pathlib.Path, lane: str) -> dict:
+    """Run the corpus harness over `captures_dir` in `lane` (the production or runtime-on lane,
+    `tools/pine_coverage/runtime_lane.mjs`) and return its verdicts.json. ⛔ Called only under the
+    heavy lock (`cmd_regrade` holds it)."""
+    from batch_capture import CORPUS_TEST  # noqa: E402 -- the harness the batch grades with
+    node = shutil.which("node")
+    if not node:
+        raise RuntimeError("node is not on PATH")
+    out_dir.mkdir(parents=True, exist_ok=True)
+    env = dict(os.environ, VENDOR_HARNESS_DIR=str(captures_dir), VENDOR_HARNESS_OUT=str(out_dir),
+               VENDOR_HARNESS_RUNTIME_ON="1" if lane == "runtime-on" else "0")
+    proc = subprocess.run([node, "node_modules/vitest/vitest.mjs", "run", CORPUS_TEST, "--maxWorkers=1"],
+                          cwd=str(REPO / "app"), env=env, capture_output=True, text=True, encoding="utf-8",
+                          errors="replace", timeout=7200)
+    (out_dir / "grade.log").write_text((proc.stdout or "") + (proc.stderr or ""), encoding="utf-8")
+    vd = json.loads((out_dir / "verdicts.json").read_text(encoding="utf-8"))
+    got = vd.get("lane") or el.LANES[0]
+    if got != lane:
+        raise RuntimeError(f"the harness graded lane {got!r}, not {lane!r} (see {out_dir / 'grade.log'})")
+    return vd
+
+
+def store_captures(store: pathlib.Path, exclude_runs=()) -> list:
+    """Every capture under `<store>/*/captures/*.json`, once per (id, receipt): [(path, capture)].
+    Every run directory is read, so a new capture session's run is picked up with no configuration;
+    `exclude_runs` names run directories to leave out (a session still writing its captures)."""
+    seen, out = set(), []
+    skip = set(exclude_runs or ())
+    for f in sorted(pathlib.Path(store).glob("*/captures/*.json")):
+        if f.parent.parent.name in skip:
+            continue
+        try:
+            cap = json.loads(f.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if not isinstance(cap, dict) or not cap.get("id") or not (cap.get("source") or {}).get("sha256"):
+            continue
+        k = (cap.get("id"), (cap.get("receipt") or {}).get("fnv1a"))
+        if k in seen:
+            continue
+        seen.add(k)
+        out.append((f, cap))
+    return out
+
+
+def regrade(store: pathlib.Path, ledger: pathlib.Path = LEDGER, lanes=el.LANES, world: World | None = None,
+            grade=harness_lane, log=print, exclude_runs=()) -> dict:
+    """Re-grade every capture in the out-of-git store at TODAY's engine, both lanes, and append one
+    fresh ledger row per capture. The captures (and their source) never leave the store's side:
+    they are staged into a temp dir for the harness and only the verdict is filed."""
+    world = world or World()
+    engine, grader = el.engine_version(), el.grader_version()
+    if not isinstance(engine, int):
+        raise RuntimeError("SCRIPT_ENGINE_VERSION could not be read; nothing is graded")
+    caps = store_captures(store, exclude_runs)
+    if not caps:
+        log(f"[regrade] no captures under {store}")
+        return {"captures": 0, "ledgerRows": 0}
+    stamp = _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    with tempfile.TemporaryDirectory(prefix="uct-regrade-") as tmp:
+        stage = pathlib.Path(tmp) / "captures"
+        stage.mkdir()
+        for f, cap in caps:
+            shutil.copyfile(f, stage / f"{cap['id']}.json")
+        per_lane = {}
+        for lane in lanes:
+            vd = grade(stage, pathlib.Path(tmp) / f"out-{lane}", lane)
+            per_lane[lane] = {r.get("id"): r for r in vd.get("results") or [] if r.get("id")}
+    rows = []
+    for f, cap in caps:
+        verdicts = {lane: per_lane.get(lane, {}).get(cap["id"]) for lane in el.LANES}
+        if not any(verdicts.values()):
+            continue
+        rows.append(el.make_row(capture=cap, capture_bytes=f.read_bytes(), verdicts=verdicts, filed_by="regrade",
+                                licence=licence_of_capture(world, cap), engine=engine, grader=grader, stamp=stamp))
+    n = append_ledger(ledger, rows)
+    # a legacy (v1, engine-less) row the regrade has now filed again as v2 is retired
+    legacy = el.retire_legacy(ledger)
+    log(f"[regrade] {len(caps)} captures · {len(rows)} graded · ledger +{n} (engine {engine}, grader {grader})"
+        f" · legacy rows retired {len(legacy['retired'])}, still without a v2 row {len(legacy['kept'])}")
+    return {"captures": len(caps), "graded": len(rows), "ledgerRows": n, "engine": engine, "grader": grader,
+            "legacyRetired": legacy["retired"], "legacyKept": legacy["kept"]}
+
+
+def cmd_regrade(store, ledger, lanes, locked: bool, exclude_runs=()) -> int:
+    store = pathlib.Path(store) if store else el.capture_store()
+    if not locked:
+        cmd = [sys.executable, str(HERE / "evidence_engine.py"), "regrade", "--store", str(store),
+               "--ledger", str(ledger), "--lanes", ",".join(lanes), "--locked"]
+        for run in exclude_runs or ():
+            cmd += ["--exclude-run", run]
+        wrapped = heavy("evidence-regrade", cmd)
+        if wrapped is None:
+            print(f"[regrade] REFUSED: {no_lock_reason()}. The regrade runs the corpus harness: never unlocked.")
+            return 2
+        return subprocess.call(wrapped, cwd=str(REPO))
+    try:
+        regrade(store, pathlib.Path(ledger), lanes=tuple(lanes), exclude_runs=tuple(exclude_runs or ()))
+    except (RuntimeError, ValueError, OSError) as exc:
+        print(f"[regrade] FAILED: {exc}")
+        return 1
+    print("[regrade] nothing was committed: review `git diff docs/pine/vendor-harness/evidence-ledger.jsonl`")
+    return 0
 
 
 def main(argv=None) -> int:
@@ -1596,12 +1731,26 @@ def main(argv=None) -> int:
     pr.add_argument("--run-dir", required=True)
     pr.add_argument("--packet-sha", required=True)
     pr.add_argument("--only", action="append", default=None)
+    rg_ = sub.add_parser("regrade", help="re-grade the out-of-git capture store at today's engine, file ledger rows")
+    rg_.add_argument("--store", default=None, help=f"default ${el.CAPTURE_STORE_ENV} or {el.DEFAULT_CAPTURE_STORE}")
+    rg_.add_argument("--ledger", default=str(LEDGER))
+    rg_.add_argument("--lanes", default=",".join(el.LANES))
+    rg_.add_argument("--exclude-run", action="append", default=[],
+                     help="a run directory under the store to leave out (a capture session still running)")
+    rg_.add_argument("--locked", action="store_true", help=argparse.SUPPRESS)
     pn = sub.add_parser("pins", help="resolve brokerPins.json against the committed verdicts (W9-T2)")
     pn.add_argument("--check", action="store_true")
     args = ap.parse_args(argv)
 
     if args.cmd == "pins":
         return cmd_pins(check=args.check)
+
+    if args.cmd == "regrade":
+        lanes = [x for x in args.lanes.split(",") if x]
+        if not lanes or set(lanes) - set(el.LANES):
+            print(f"[regrade] --lanes must name lanes of {list(el.LANES)}")
+            return 2
+        return cmd_regrade(args.store, args.ledger, lanes, args.locked, exclude_runs=args.exclude_run)
 
     if args.cmd == "queue":
         qd = build_queue(World())

@@ -39,8 +39,7 @@ import { crosshairModeOf } from './chart/crosshairMode'
 const LEGEND_MODE_MENU_LABELS = { always: 'Always', hold: 'Hold to peek', off: 'Off' }
 import { createWatermarkPrimitive, composeWatermarkLines, DEFAULT_BOX_W } from './chart/watermarkPrimitive'
 import { clusterDarkPoolPrints } from './chart/darkPoolCluster'
-import useTickerMeta from '../hooks/useTickerMeta'
-import useTickerIpo from '../hooks/useTickerIpo'
+import { useChartTickerMeta as useTickerMeta, useChartTickerIpo as useTickerIpo } from './chart/restedReaders'
 import useStrategyHistoryWindow from '../hooks/useStrategyHistoryWindow'
 import { isStrategyWindowDefinition } from './chart/engine/strategyWindow'
 import { historyFromListingOf, listingReferenceDate } from './chart/engine/listingSeed'
@@ -194,6 +193,7 @@ import { paneTableFits, paneTableOwners } from './chart/engine/paneTable'
 // price-pane host (`engine/endLabel.js`, `chart/pane/PlotEndLabel.jsx`).
 import PlotEndLabel from './chart/pane/PlotEndLabel'
 import { lastFinitePoint, endLabelText, endLabelPlacement } from './chart/engine/endLabel'
+import { plotWindowDisabled, plotWindowRows, plotWindowStart, plotWindowTooNarrow } from './chart/engine/plotWindow'
 import chipStyles from './chart/legend/IndicatorChip.module.css'
 import { chipMenuItems, paneMenuItems, presetLabelOf } from './chart/legend/chipMenu'
 // ⭐ UCT RS Phase 4 (unit 4-05) — the teaching surfaces on the chip menu: the
@@ -1610,6 +1610,7 @@ import { archiveHref } from '../utils/traderArchive'
 import { createAdaptiveFrameLoop } from './chart/adaptiveFrameLoop'
 import { markFirstChartPaint, afterFirstChartPaint } from '../lib/barsPackClient'
 import { armSymbolResourceWarm, useSymbolResource } from '../lib/symbolResourceWarm'
+import { useRestedSWR } from '../lib/symbolPace'
 import { useLegacyChartBars } from './chart/useLegacyChartBars'
 import { useBarSnapshotBars } from './chart/useBarSnapshotBars'
 import { BARSTORE } from './chart/barStoreSwitch'
@@ -4143,7 +4144,8 @@ export default function StockChart({
     } catch { /* ignore */ }
   }, [])
 
-  const { data: markersData } = useSWR(
+  // (through the rest gate: a symbol the member is racing past is not asked for, lib/symbolPace.js)
+  const { data: markersData } = useRestedSWR(
     // Request the full window so earnings markers load back to inception alongside
     // the deep price history (backend caps + post-filters; badges cull off-screen).
     markersEnabled && sym && !_econId && !_study ? markersKeyOf(sym) : null,
@@ -5097,6 +5099,10 @@ export default function StockChart({
   // ⚠️ `lastBarSymRef` below already stamps the DEVELOPING bar for the same reason;
   // this is the same guard for the BASE bar, which that one never covered.
   const prevBarsSymRef = useRef(null)
+  // ⛔ …AND OF WHICH TIMEFRAME. The readout shows the newest bar of the CURRENT key or
+  // nothing: during a timeframe-switch hold the series still holds the OUTGOING timeframe's
+  // bars (updateChart keeps them on screen), and they are not the new key's newest bar.
+  const prevBarsTfRef = useRef(null)
   // A2: the bars actually PAINTED at the last setData (i.e. displayBars, which carries
   // the session-preview candle). Distinct from prevBarsRef (pure regular-session bars):
   // the no-op/incremental render plan must be measured against what's on screen, or a
@@ -5918,6 +5924,9 @@ export default function StockChart({
     // `_legendSymOk` below guards only the DEVELOPING bar and the live-price
     // overlay; the base o/h/l/c was taken from this array unconditionally.
     if (prevBarsSymRef.current !== symRef.current) return null
+    // The same identity, for the timeframe: a held switch (the outgoing tf's bars still on
+    // screen) prints nothing until the new key's own bars are painted.
+    if (prevBarsTfRef.current !== resolvedTfRef.current) return null
     const last = bars[bars.length - 1]
     let o = last.o, h = last.h, l = last.l
     let c = last.c
@@ -6567,6 +6576,8 @@ export default function StockChart({
   // Imperative handle to ChartToolbar so a menu item can open its settings
   // panel. Refs are stable, so the builder below can stay pure-ish.
   const toolbarRef = useRef(null)
+  // UCT Agent (uctIntelligence.set): the UCT Intelligence row/panel gates, filled where they are computed (below)
+  const uctIntelAgentRef = useRef(null)
 
   // Publish the toolbar's imperative API to a host-supplied ref (see the
   // toolbarApiRef prop). toolbarRef is read at CALL time, so the entries stay
@@ -6577,6 +6588,9 @@ export default function StockChart({
       openIndicatorLibrary: () => {
         try { return toolbarRef.current?.openIndicatorLibrary?.() ?? false } catch { return false }
       },
+      // UCT Agent (uctIntelligence.set): what the Indicators library row and the UCT Intelligence panel offer NOW
+      // ({ available, known, availability }), read at call time; null before the first render reached the pattern block
+      uctIntelligence: () => (uctIntelAgentRef.current ? { ...uctIntelAgentRef.current } : null),
       // ⭐ 4-11 — a first add of a toured definition made OUTSIDE this chart's own
       // library (Chart Settings → Indicators, held by the pane until its modal
       // closes): the same handler the library's `onFirstAdd` reaches, with the same
@@ -7573,6 +7587,7 @@ export default function StockChart({
   const {
     detections: patternDetections, drawn: patternDrawn, dealStatus: patternDealStatus,
     levelsSr: patternLevelsSr, candleMarks: patternCandleMarks, setupDraws: patternSetupDraws,
+    isLoading: patternsLoading, error: patternsError,
   } = usePatternDetections(
     sym, resolvedTf, patternsFetch, 50,
     { includeStructures: autoStructuresScope === 'trusted' || (autoStructuresOn && ['D', 'W', 'M'].includes(resolvedTf)) },
@@ -7582,6 +7597,13 @@ export default function StockChart({
     levelsSr: patternLevelsSr, candleMarks: patternCandleMarks, setupsReleased, setupDraws: patternSetupDraws,
   })
   const uctIntelLayers = effectiveLayers(cs, uctIntelAvailability)
+  // UCT Agent (uctIntelligence.set) reads these gates, never its own copy: `available` = the library row is offered;
+  // `known` = the patterns response has answered, so a gated layer it does not carry is NOT released (not "not loaded yet")
+  uctIntelAgentRef.current = {
+    available: uctIntelAvailable, known: !!patternsFetch && !patternsLoading && !patternsError, availability: uctIntelAvailability,
+    // a patterns request IN FLIGHT right now: only then may the Agent say "still loading" (AUDIT #1172)
+    loading: !!patternsFetch && !!patternsLoading,
+  }
   // The confirmed-setup LIST is the Technical tab's, released with it; the setup-drawing lines can light the same
   // toggle on their own, and must not pull a list that is not released to this viewer.
   const uctIntelSetups = useChartSetups(sym, uctIntelOn && uctIntelLayers.setups && setupsReleased === true)
@@ -8046,6 +8068,13 @@ export default function StockChart({
   // Overlay modes (compare / index pane / multi-symbol comparisons) keep the
   // full fetch so their overlays align across the whole range.
   const [fetchDepth, setFetchDepth] = useState(FIRST_PAINT_BARS)
+  // ⭐ 2026-11-13 — THE INDICATOR WINDOW (`chart/engine/plotWindow.js`). On a deep chart an
+  // indicator's series is handed only a recent window of rows; `_plotWindowFullKey` names the
+  // (symbol, timeframe) whose view came near that window's start and is therefore drawn whole
+  // (any other key is another chart, so nothing resets it). The ref is what `updateChart`
+  // decided on its last pass: the rows, the first row drawn and that row's time.
+  const [_plotWindowFullKey, _setPlotWindowFullKey] = useState(null)
+  const plotWindowRef = useRef({ key: null, rows: 0, start: 0, fromTime: null })
   // Phase 3' Part 3: armed ~900ms after the sym/tf settles → fires the ONE off-critical-path
   // intraday deep-backfill fetch. Reset synchronously on sym/tf change (the _depthKey block below)
   // so quick ticker-flips while scanning never deepen.
@@ -8790,6 +8819,8 @@ export default function StockChart({
   const [replayIndex, setReplayIndex] = useState(null)
   const [replayPlaying, setReplayPlaying] = useState(false)
   const [replaySpeed, setReplaySpeed] = useState(1)
+  // the Replay bar's handlers + state for the UCT Agent's door (written each render below; never read during render)
+  const replayCtlRef = useRef(null)
 
   // ── Extended-hours session preview (Charts workspace; D/W/M only) ──────────
   // `sessionView` is non-null only on the workspace. `marketSession` is the live
@@ -10833,6 +10864,7 @@ export default function StockChart({
       // its own feedback-loop history — this fix is about data identity, not framing.
       prevBarsRef.current = null
       prevBarsSymRef.current = null
+      prevBarsTfRef.current = null
       return
     }
 
@@ -10850,10 +10882,49 @@ export default function StockChart({
     // not 'incremental' → full paint; a config change coinciding with a bar tick
     // is caught by the cfgSig compare. Bias is hard to 'full' — a needless full
     // repaint is a wasted frame; a wrong incremental would be a data bug.
+    // ⭐ 2026-11-13 — WHICH ROWS OF AN INDICATOR'S SERIES THE RENDERER IS HANDED
+    // (`chart/engine/plotWindow.js`). Decided HERE, before the signature below, because a
+    // change of window changes what the series hold: it has to read as a new configuration
+    // and repaint, never as the `noop` an identical set of bars would otherwise be.
+    // The row count is decided once per (symbol, timeframe) load, from the zoom the chart has
+    // as it opens (a ticker switch keeps the zoom); after that only the bar count moves the
+    // start, a whole step at a time, so a live bar never does.
+    // ⛔ WHOLE, ALWAYS: a pinned / replay / override chart (it frames history on purpose), a
+    // chart with a compare or index overlay (a logical index is then not a bar index), a
+    // chart whose view already came near the window start, and a browser with the switch set.
+    let _plotStart = 0
+    let _plotFrom = null
+    {
+      const _pw = plotWindowRef.current
+      const _pwKey = `${sym}_${resolvedTf}`
+      if (_pw.key !== _pwKey) {
+        let _span = 0
+        try {
+          const _r0 = chartRef.current?.timeScale().getVisibleLogicalRange()
+          if (_r0 && _r0.to > _r0.from) _span = _r0.to - _r0.from
+        } catch { /* no chart yet: the floor */ }
+        // Where the view's left edge sits, in bars left of the newest bar: the outgoing
+        // frame's own geometry, measured at the top of this pass (`paintedGeomRef`), which
+        // is the geometry a symbol switch carries when it keeps a scrolled-back view.
+        const _geom = paintedGeomRef.current
+        const _left = _geom && Number.isFinite(_geom.width) && Number.isFinite(_geom.ro) ? _geom.width - _geom.ro : 0
+        _pw.key = _pwKey
+        _pw.rows = plotWindowRows(_span, _left)
+      }
+      const _whole = _plotWindowFullKey === _pwKey || _pinnedFull || _overlayActive || _hasOverride
+        || replayMode || plotWindowDisabled()
+      _plotStart = _whole ? 0 : plotWindowStart(filteredBars.length, _pw.rows)
+      if (_plotStart > 0 && filteredBars[_plotStart]) _plotFrom = adjustTime(filteredBars[_plotStart].t)
+      else _plotStart = 0
+      _pw.start = _plotStart
+      _pw.fromTime = _plotFrom
+    }
     let _cfgSig
     try {
       _cfgSig = JSON.stringify({
         sym, resolvedTf, chartType: cs.chartType, showVolume,
+        // the first row of the indicator window (0: every row), see above
+        plotWin: _plotStart,
         // canvasTheme (workspace theme toggle, e.g. Sunset↔Default) recolors the
         // candles + volume AND recreates the price series via _priceStyleKey below.
         // It is NOT part of `cs`, so without it here a theme-only flip keeps an
@@ -11167,6 +11238,9 @@ export default function StockChart({
           // The newest candle the renderer holds: its time (unix seconds, or a date string for D/W/M)
           // and close. The desktop all-day soak (uct-desktop scripts/proofs/soak.mjs) samples it to
           // prove a chart left open all day is still live (time advances, close moves).
+          // What the last paint decided for the indicator window (`plotWindow.js`): the rows
+          // it holds, the first row drawn (0: every row) and that row's time.
+          plotWindow: () => ({ ...plotWindowRef.current }),
           newestBar: () => {
             try {
               const d = candleSeriesRef.current?.data?.()
@@ -12931,6 +13005,9 @@ export default function StockChart({
         historyWindowPending: strategyWindowPending,
         adjustTime,
         applyData: _applyData,
+        // ⭐ 2026-11-13 — the time of the first row an indicator's series is handed, or
+        // null for every row (`plotWindow.js`, decided above the signature).
+        plotWindowFrom: _plotFrom,
         // ⭐⭐ B1 — Pine `bgcolor` on an overlay script that binds no series of its
         // own is drawn on the price pane, through the candles' series.
         priceSeries: () => candleSeriesRef.current,
@@ -14029,6 +14106,7 @@ export default function StockChart({
     // `symRef` is mirrored, which stamped B's bars as A — the readout then saw a
     // mismatch and printed NOTHING (the A → blank → B legend flicker).
     prevBarsSymRef.current = sym   // whose bars these are — see the ref's note
+    prevBarsTfRef.current = resolvedTf   // …and of which timeframe (the same render's own tf)
     // Baseline for the next render plan — the bars this paint actually put on screen.
     prevPaintBarsRef.current = displayBars
     // ⚠️ `userDefsGeneration` IS A DEPENDENCY ON MODULE STATE, AND IT IS
@@ -14039,7 +14117,7 @@ export default function StockChart({
     // (mutation M3 SURVIVED): something else in this list is already unstable per
     // render. Kept as the one declaration that names this dependency; the full
     // reasoning is at the `useInstalledUserDefinitions` call site above.
-  }, [volumePaneHeightPct, filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, calcFrames, applyAverageZOrder, showExtended, _intradayLike, fundamentalSources, marketCapAuthoritySources, economicSources, _econId, historyFromListing, strategyHistoryWindow, strategyWindowPending, otherSymbolExchangeOf, lowerTfSources, csView, secondarySources, serverColumnsGeneration, compactAxes])
+  }, [volumePaneHeightPct, filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, calcFrames, applyAverageZOrder, showExtended, _intradayLike, fundamentalSources, marketCapAuthoritySources, economicSources, _econId, historyFromListing, strategyHistoryWindow, strategyWindowPending, otherSymbolExchangeOf, lowerTfSources, csView, secondarySources, serverColumnsGeneration, compactAxes, _plotWindowFullKey, _pinnedFull, _overlayActive, _hasOverride])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   useEffect(() => {
@@ -18051,6 +18129,47 @@ export default function StockChart({
     }
   }, [sym, resolvedTf, fetchDepth, _overlayActive, entryDate, exactDateRange, _hasOverride, _fullTarget, _histPrependOn])
 
+  // ⭐ 2026-11-13 — THE VIEW CAME NEAR THE START OF THE INDICATOR WINDOW: DRAW EVERY ROW.
+  // (`chart/engine/plotWindow.js`.) A member who pans, zooms out, fits the chart or jumps to a
+  // date must never reach the row an indicator's series starts on. This watches the chart's
+  // own visible range (whatever moved it) and, a screen before the view would get there,
+  // names this (symbol, timeframe) as whole: `updateChart` repaints with every row and it
+  // stays whole until the chart shows something else. Asked once on mount too, for a chart
+  // that opens on a zoom wider than its window.
+  useEffect(() => {
+    const chart = chartRef.current
+    if (!chart) return undefined
+    const key = `${sym}_${resolvedTf}`
+    if (_plotWindowFullKey === key) return undefined
+    let raf = null
+    const check = () => {
+      raf = null
+      const pw = plotWindowRef.current
+      if (pw.key !== key || !(pw.start > 0)) return
+      let range = null
+      let x = null
+      let w = 0
+      try {
+        const ts = chart.timeScale()
+        range = ts.getVisibleLogicalRange()
+        x = ts.timeToCoordinate(pw.fromTime)
+        w = ts.width()
+      } catch { /* mid-load: the next range change asks again */ }
+      if (plotWindowTooNarrow({
+        start: pw.start, fromIndex: range ? range.from : NaN, toIndex: range ? range.to : NaN,
+        startX: x, plotWidth: w,
+      })) _setPlotWindowFullKey(key)
+    }
+    const onRange = () => { if (raf == null) raf = requestAnimationFrame(check) }
+    let ts = null
+    try { ts = chart.timeScale(); ts.subscribeVisibleLogicalRangeChange(onRange) } catch { ts = null }
+    onRange()
+    return () => {
+      if (ts) { try { ts.unsubscribeVisibleLogicalRangeChange(onRange) } catch { /* disposed */ } }
+      if (raf != null) cancelAnimationFrame(raf)
+    }
+  }, [sym, resolvedTf, _plotWindowFullKey, chartReady])
+
   // Native intraday scroll-back: load the next LEFT window while the visible left edge is
   // still LOOKAHEAD_SCREENS away from the oldest bar, so a member panning at normal speed
   // reaches bars that are already there. A landed window re-anchors the view (bars-from-
@@ -18222,6 +18341,7 @@ export default function StockChart({
         lastCfgSigRef.current = null
         prevBarsRef.current = null
         prevBarsSymRef.current = null           // the stamp goes with the bars it names
+        prevBarsTfRef.current = null
         prevPaintBarsRef.current = null
         lastBarCountRef.current = 0
         zoomKeyRef.current = null
@@ -18506,6 +18626,62 @@ export default function StockChart({
     } catch { /* noop */ }
   }
 
+  // ── Replay / Time Machine bar: its OWN handlers. The toolbar's buttons (ChartToolbar onReplay*) and the UCT Agent's
+  // onDateNavApi.replay (chartReplay.playback) call these SAME functions; replayCtlRef is a plain ref write per render
+  // (no state, no effect), so the Agent's door always reaches this render's handlers and reads this render's state.
+  const replayToggle = () => {
+    if (replayMode) {
+      setReplayMode(false)
+      setReplayPlaying(false)
+      setReplayIndex(null)
+    } else {
+      setReplayMode(true)
+      setReplayPlaying(false)
+      setReplayIndex(Math.floor((sessionBars?.length || 1) * 0.7))
+    }
+  }
+  const replayPlayPause = () => setReplayPlaying(p => !p)
+  const replayStep = (dir) => {
+    setReplayPlaying(false)
+    setReplayIndex(i => {
+      const max = (sessionBars?.length || 1) - 1
+      return Math.max(0, Math.min(max, (i ?? 0) + dir))
+    })
+  }
+  const replayIndexChange = (idx) => {
+    setReplayPlaying(false)
+    const max = (sessionBars?.length || 1) - 1
+    setReplayIndex(Math.max(0, Math.min(max, idx)))
+  }
+  // the Replay button is on this chart only where the primary toolbar mounts visibly with it (not a grid cell, not the phone shell)
+  replayCtlRef.current = { toggle: replayToggle, playPause: replayPlayPause, step: replayStep, seek: replayIndexChange, setSpeed: setReplaySpeed,
+    can: !!showDrawingTools && !hideReplay && !mobileDrawBar, mode: replayMode, playing: replayPlaying, speed: replaySpeed, index: replayIndex, bars: sessionBars }
+  // ⭐ UCT Agent's replay door: one op → the button that op names, only when that button would do it (never a toggle by accident)
+  const replayDo = (a) => {
+    const c = replayCtlRef.current
+    if (!c?.can || !a || typeof a !== 'object') return
+    const n = c.bars?.length || 0
+    if (a.op === 'enter') { if (!c.mode && n) c.toggle(); return }
+    if (a.op === 'restore') { if (!c.mode && n) c.toggle(); if (Number.isInteger(a.index)) c.seek(a.index); return }   // Undo of an exit
+    if (!c.mode) return
+    if (a.op === 'exit') c.toggle()
+    else if (a.op === 'play') { if (!c.playing) c.playPause() }
+    else if (a.op === 'pause') { if (c.playing) c.playPause() }
+    else if (a.op === 'step' && Number.isInteger(a.n)) c.step(a.n)
+    else if (a.op === 'seek' && Number.isInteger(a.index)) c.seek(a.index)
+    else if (a.op === 'seekDate' && Number.isFinite(a.ms)) {
+      // the scrubber at the last bar on or before that day (the bar's own day; never past the replay's bars)
+      let idx = -1
+      for (let i = 0; i < n; i++) { if (_dateToMs(c.bars[i].t) <= a.ms + 86399999) idx = i; else break }
+      if (idx >= 0) c.seek(idx)
+    } else if (a.op === 'speed' && [1, 5, 20].includes(a.speed)) c.setSpeed(a.speed)
+  }
+  const replayMeta = () => {
+    const c = replayCtlRef.current, b = c?.bars, n = b?.length || 0, i = c?.index
+    return { can: !!c?.can && n > 0, mode: !!c?.mode, playing: !!c?.playing, speed: c?.speed ?? 1, index: c?.mode && i != null ? i : null, total: n,
+      dateMs: c?.mode && i != null && b?.[i] ? _dateToMs(b[i].t) : null, firstMs: n ? _dateToMs(b[0].t) : null, lastMs: n ? _dateToMs(b[n - 1].t) : null }
+  }
+
   // ── Imperative date-nav API (published to the host via onDateNavApi) ──
   // Drives the top-bar Time Navigator box (ChartDateNav): jump to a date at the
   // right edge, frame a whole year, step one bar, and read the loaded date span.
@@ -18603,6 +18779,8 @@ export default function StockChart({
       // panel's own entry / stop / target strings (PositionPanel onChange writes the same state)
       positionCalc: { can: !!showDrawingToolsRef.current, open: !!showDrawingToolsRef.current && activeToolRef.current === 'position', entry: positionToolRef.current.entry, stop: positionToolRef.current.stop,
         target: positionToolRef.current.target, direction: positionToolRef.current.direction },
+      // ⭐ UCT Agent (chartReplay.playback): the Replay / Time Machine bar as it is now — on, playing, speed, scrubber index
+      replay: replayMeta(),
     }
   }
   // ⭐ UCT Agent (drawing extras): the Position Calculator through the tool's OWN state — the toolbar button's
@@ -18629,7 +18807,7 @@ export default function StockChart({
   }
   useEffect(() => {
     if (typeof onDateNavApi !== 'function') return undefined
-    onDateNavApi({ goToDate, goToYear, stepBar, ensureFullHistory, getDateMeta, applyRange, restoreView, resetView: () => resetViewRef.current?.(), setIndicatorsHidden, autoScale: () => autoScaleRef.current?.(), zoom: (z) => zoomTimeAxis(chartRef.current, !!z?.out, z?.steps), positionCalc })
+    onDateNavApi({ goToDate, goToYear, stepBar, ensureFullHistory, getDateMeta, applyRange, restoreView, resetView: () => resetViewRef.current?.(), setIndicatorsHidden, autoScale: () => autoScaleRef.current?.(), zoom: (z) => zoomTimeAxis(chartRef.current, !!z?.out, z?.steps), positionCalc, replay: replayDo })
     return () => onDateNavApi(null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onDateNavApi, barCount, isValidating, fetchDepth, originLoading])
@@ -21111,30 +21289,11 @@ export default function StockChart({
             replayDate={replayMode && filteredBars?.length ? filteredBars[filteredBars.length - 1]?.t : null}
             replayIndex={replayIndex ?? 0}
             replayTotal={sessionBars?.length || 0}
-            onReplayToggle={() => {
-              if (replayMode) {
-                setReplayMode(false)
-                setReplayPlaying(false)
-                setReplayIndex(null)
-              } else {
-                setReplayMode(true)
-                setReplayPlaying(false)
-                setReplayIndex(Math.floor((sessionBars?.length || 1) * 0.7))
-              }
-            }}
-            onReplayPlayPause={() => setReplayPlaying(p => !p)}
-            onReplayStep={dir => {
-              setReplayPlaying(false)
-              setReplayIndex(i => {
-                const max = (sessionBars?.length || 1) - 1
-                return Math.max(0, Math.min(max, (i ?? 0) + dir))
-              })
-            }}
-            onReplayIndexChange={idx => {
-              setReplayPlaying(false)
-              const max = (sessionBars?.length || 1) - 1
-              setReplayIndex(Math.max(0, Math.min(max, idx)))
-            }}
+            /* the Replay bar's own handlers (defined above the date-nav API: the Agent's replay door calls the same ones) */
+            onReplayToggle={replayToggle}
+            onReplayPlayPause={replayPlayPause}
+            onReplayStep={replayStep}
+            onReplayIndexChange={replayIndexChange}
             onReplaySpeedChange={setReplaySpeed}
             showPatterns={showPatterns}
             onTogglePatterns={handleTogglePatterns}

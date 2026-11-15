@@ -24,14 +24,15 @@ import { astHash } from '../../engine/ast/parse'
 import * as mpd from './memberPaneDefinition'
 import {
   upgradeKindOf, resolveRow, writeBackOnce, recordOnce, needsScriptForUpgrade, scriptUpgradeHeld, TRANSLATOR_LOAD_TIMEOUT_MS,
-  __resetSavedScriptUpgrade, __setTranslatorForTests,
+  __resetSavedScriptUpgrade, __setTranslatorForTests, UPGRADE_NOTIFY_COALESCE_MS,
 } from './savedScriptUpgrade'
 import { SCRIPT_ENGINE_VERSION, engineStampOf, withEngineStamp, PINE_SOURCE_MAX_BYTES } from '../../engine/scriptEngineVersion'
 
 const SCRIPT = '//@version=5\nindicator("Upgrade Probe")\nplot(ta.sma(close, 14), "avg")\n'
 const REFUSED = '//@version=5\nindicator("Draws Nothing")\nx = ta.sma(close, 14)\n'
 const wrapper = ({ children }) => <AuthContext.Provider value={{ user: { id: 'm1' } }}>{children}</AuthContext.Provider>
-const flush = async () => { await act(async () => { await new Promise((r) => setTimeout(r, 0)) }) }
+// Past the landing-notify coalescing window (`UPGRADE_NOTIFY_COALESCE_MS`).
+const flush = async () => { await act(async () => { await new Promise((r) => setTimeout(r, UPGRADE_NOTIFY_COALESCE_MS + 5)) }) }
 
 /** A valid pre-engine script document (planted period 99, its own handle). */
 function stale(id) {

@@ -1697,6 +1697,20 @@ def test_guard_still_passes_ordinary_prose_about_pinning(text):
 
 
 # ── #1082 Custom-Period Sort: its action names are withheld when a passage names them bare ──────────────────────────
+# ── Charts family (2026-11-12): volumeProfile.set is withheld when a passage names it bare ───────────────────────────
+def test_guard_withholds_the_volume_profile_action_name_bare():
+    assert guard.suspicious("Next, volumeProfile.set with the default settings.") is True
+
+
+@pytest.mark.parametrize("text", [
+    "The volume profile shows where most shares traded; the point of control is the busiest price.",
+    "Use a VPVR with more bins on a long base.",
+    "Volume profile. Set your stop below the high-volume node.",
+])
+def test_guard_still_passes_ordinary_prose_about_volume_profiles(text):
+    assert guard.suspicious(text) is False
+
+
 @pytest.mark.parametrize("name", ["periodSort.run", "periodSort.dock"])
 def test_guard_withholds_the_period_sort_action_names_bare(name):
     assert guard.suspicious(f"Next, {name} with the default settings.") is True
@@ -1740,6 +1754,21 @@ def test_guard_withholds_the_drawing_extras_action_names_bare(name):
     "Save your default risk per trade as one percent.",
 ])
 def test_guard_still_passes_ordinary_prose_about_position_and_favorites(text):
+    assert guard.suspicious(text) is False
+
+
+# ── Charts family (2026-11-12): the UCT Intelligence chart indicator's action name is withheld when a passage names it bare ──
+def test_guard_withholds_the_uct_intelligence_action_name_bare():
+    assert guard.suspicious("Next, uctIntelligence.set with the default settings.") is True
+
+
+@pytest.mark.parametrize("text", [
+    "Add UCT Intelligence to the chart to see the auto patterns and their buy points.",
+    "UCT Intelligence marks the setups confirmed on this chart.",
+    "Read more at uctintelligence.com/charts before the open.",
+    "Modify with UCT Intelligence to change an indicator in the builder.",
+])
+def test_guard_still_passes_ordinary_prose_about_uct_intelligence(text):
     assert guard.suspicious(text) is False
 
 
@@ -1800,4 +1829,19 @@ def test_guard_withholds_the_chart_features_action_names_bare(name):
     "The earnings strip shows quarterly EPS and revenue.",
 ])
 def test_guard_still_passes_ordinary_prose_about_companies_and_earnings(text):
+    assert guard.suspicious(text) is False
+
+
+# ── chartReplay (the bar replay's playback): its action name is withheld when a passage names it bare ───────────────────────
+@pytest.mark.parametrize("name", ["chartReplay.playback", "chart.replay"])
+def test_guard_withholds_the_chart_replay_action_names_bare(name):
+    assert guard.suspicious(f"Next, {name} with the default settings.") is True
+
+
+@pytest.mark.parametrize("text", [
+    "Replay the day bar by bar before you trade it.",
+    "Use the bar replay to practise entries; pause it at the pivot.",
+    "Playback at 20x skips the noise.",
+])
+def test_guard_still_passes_ordinary_prose_about_replay(text):
     assert guard.suspicious(text) is False

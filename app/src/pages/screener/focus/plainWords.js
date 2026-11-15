@@ -72,6 +72,12 @@ export const PLAIN_COLUMN_LABELS = {
   rrg_quadrant: 'Rotation vs SPY (weekly)',
   clenow_score: 'Clenow trend score (90 days)',
   vars_state: 'Volatility-adjusted RS vs SPY',
+  // UCT RS Exit Warnings (Mike Webster's method): the RS line against SPY, daily.
+  rs_exit_last: 'Latest RS exit warning',
+  rs_exit_bars_ago: 'Sessions since an RS exit warning',
+  rs_quicksand_bars_ago: 'Sessions since a Quicksand',
+  rs_quick_break_bars_ago: 'Sessions since a Quick Break',
+  rs_dead_break_bars_ago: 'Sessions since a Grateful Dead Break',
 }
 
 export const plainColumnLabel = key => PLAIN_COLUMN_LABELS[key] || null
@@ -133,6 +139,11 @@ const FACTS = {
   rs_rating_12m: v => `12-month weighted return rank ${Math.round(v)} of 99`,
   // UCT RS Phase 3 (unit 3-11): the Clenow score is a fraction, so it prints as the number, never a %.
   clenow_score: v => `Clenow trend score ${v.toFixed(2)} over 90 sessions`,
+  // RS Exit Warnings: an age of 0 is "today"; a warning is a prompt to review, never "sell".
+  rs_exit_bars_ago: v => v === 0 ? 'RS exit warning today' : `RS exit warning ${sessions(v)} ago`,
+  rs_quicksand_bars_ago: v => v === 0 ? 'RS Quicksand today' : `RS Quicksand ${sessions(v)} ago`,
+  rs_quick_break_bars_ago: v => v === 0 ? 'RS Quick Break today' : `RS Quick Break ${sessions(v)} ago`,
+  rs_dead_break_bars_ago: v => v === 0 ? 'RS Grateful Dead Break today' : `RS Grateful Dead Break ${sessions(v)} ago`,
 }
 
 export function plainFact(key, v) {

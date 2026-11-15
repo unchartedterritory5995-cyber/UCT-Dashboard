@@ -283,7 +283,8 @@ def test_file_cache_sees_a_cached_file_and_not_a_dropped_one(droppable_dir):
 @linux_only
 def test_file_cache_reports_top_files_and_deleted_open_files(droppable_dir):
     tmp_path = droppable_dir
-    big = tmp_path / "big.db"
+    # A non-database name: *.db files are never candidates (f0790b6129, test_mem_observe_never_opens_sqlite.py).
+    big = tmp_path / "big.bin"
     big.write_bytes(b"y" * (4 << 20))
     big.read_bytes()
     gone = tmp_path / "gone.tmp"
@@ -296,7 +297,7 @@ def test_file_cache_reports_top_files_and_deleted_open_files(droppable_dir):
     finally:
         fh.close()
     names = [r[0] for r in rec["files"]]
-    assert any(n.endswith("big.db") for n in names)
+    assert any(n.endswith("big.bin") for n in names)
     assert any("gone.tmp" in n for n in names), names      # found through /proc/self/fd although deleted
     assert rec["files_cached_mb"] >= 6
 

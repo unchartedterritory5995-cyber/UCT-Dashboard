@@ -5,12 +5,13 @@ import { watchlistThemesKey, watchlistThemesFetcher } from './watchlistThemesKey
 // membership rarely changes, so this is cached long (30 min) and fetched ONLY when
 // the Theme column is visible (pass [] to disable). Response: { results: { SYM:
 // '<theme name>' | null } }.
-export default function useWatchlistThemes(tickers = []) {
+export default function useWatchlistThemes(tickers = [], isPaused) {
   const key = watchlistThemesKey(tickers)
   const { data, error } = useSWR(key, watchlistThemesFetcher, {
     refreshInterval: 30 * 60 * 1000,
     dedupingInterval: 60 * 1000,
     revalidateOnFocus: false,
+    ...(isPaused && { isPaused }),   // (optional: a chart's rest gate, components/chart/restedReaders.js)
   })
   return { themeData: (data && data.results) || {}, isLoading: !data && !error && !!key }
 }

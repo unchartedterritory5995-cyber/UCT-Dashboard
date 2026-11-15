@@ -445,7 +445,7 @@ export function makeObjectStore({ pineVersion = 6, caps = {}, tableCap = 40, fil
     return typeof p === 'string' && p ? p : null
   }
 
-  function create(name, spec, args, bar, heldNow) {
+  function create(name, spec, args, bar, heldNow, site = null) {
     const fam = spec.family
     if (fam === 'linefill') {
       const a = instOf(args[0])
@@ -482,7 +482,8 @@ export function makeObjectStore({ pineVersion = 6, caps = {}, tableCap = 40, fil
     const id = nextId
     nextId += 1
     const handle = objectHandle(fam, id)
-    const inst = { family: fam, id, createdBar: bar, props, handle }
+    // ⭐⭐ ENGINE 54 — the source call that made it (`objectSiteKey`), or null
+    const inst = { family: fam, id, createdBar: bar, props, handle, site: typeof site === 'string' ? site : null }
     if (fam === 'table') inst.cells = new Map()
     live.set(id, inst)
     handles.set(id, handle)
@@ -514,10 +515,11 @@ export function makeObjectStore({ pineVersion = 6, caps = {}, tableCap = 40, fil
 
   /**
    * Execute one call. `args` is positional on `spec.params` (undefined = not
-   * passed). Returns the call's value (a handle, a number, text, an array, or
+   * passed). ⭐⭐ ENGINE 54 — `site`: the source call (`objectSiteKey`) a create or a copy
+   * was written at; the object it makes carries it (`finish().live[].site`). Returns the call's value (a handle, a number, text, an array, or
    * `undefined` for a void call).
    */
-  function call(name, args, bar, heldNow) {
+  function call(name, args, bar, heldNow, site = null) {
     let spec = OBJECT_OPS[name] || null
     if (!spec && name.startsWith('any.')) {
       const recv = args[0]
@@ -537,7 +539,7 @@ export function makeObjectStore({ pineVersion = 6, caps = {}, tableCap = 40, fil
     }
     if (!spec) throw new ObjectRunError(`no drawing operation \`${name}\``)
     switch (spec.kind) {
-      case 'create': return create(name, spec, args, bar, heldNow)
+      case 'create': return create(name, spec, args, bar, heldNow, site)
       case 'all': {
         const out = []
         for (const inst of live.values()) if (inst.family === spec.family) out.push(inst.handle)
@@ -556,7 +558,7 @@ export function makeObjectStore({ pineVersion = 6, caps = {}, tableCap = 40, fil
         if (!inst) return NaN
         const values = spec.family === 'line' ? LINE_NEW : spec.family === 'label' ? LABEL_NEW : BOX_NEW
         const fresh = create(`${spec.family}.new`, OBJECT_OPS[`${spec.family}.new`],
-          values.map(() => undefined), bar, heldNow)
+          values.map(() => undefined), bar, heldNow, site)
         live.get(fresh.id).props = { ...inst.props }
         return fresh
       }
@@ -666,7 +668,7 @@ export function makeObjectStore({ pineVersion = 6, caps = {}, tableCap = 40, fil
         const rec = {
           family: inst.family,
           id: inst.id,
-          site: null,
+          site: inst.site || null,
           createdBar: inst.createdBar,
           props: {},
         }

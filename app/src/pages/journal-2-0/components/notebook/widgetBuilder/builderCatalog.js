@@ -199,8 +199,8 @@ export function indexCatalog(raw) {
     if (!isRecord(s) || typeof s.key !== 'string') continue
     const fields = new Map()
     for (const f of Array.isArray(s.fields) ? s.fields : []) {
-      // Simplify pass 2 (A4): the catalog's "Note kind" reads "Note type" (the server's words otherwise, as served).
-      if (isRecord(f) && typeof f.key === 'string') fields.set(f.key, f.label === 'Note kind' ? { ...f, label: 'Note type' } : f)
+      // Simplify pass 2 (A4) relabelled the catalog's "Note kind" here; the server says "Note type" now (follow-up B, 5a).
+      if (isRecord(f) && typeof f.key === 'string') fields.set(f.key, f)
     }
     sources.set(s.key, { ...s, fields, measureKeys: Array.isArray(s.measures) ? s.measures : [] })
   }

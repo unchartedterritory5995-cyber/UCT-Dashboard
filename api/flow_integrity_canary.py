@@ -279,6 +279,13 @@ def run_tick() -> None:
     r = check_once()
     check_disk()
     check_stall(r.get("max_id"))
+    # ⛔ Tripwire (2026-11-13): a handle to a DELETED flow.db/-wal/-shm means two write-ahead logs
+    # are in play; restart cleanly before damage builds (api/flow_db_guard.py).
+    try:
+        from api import flow_db_guard
+        flow_db_guard.check_and_heal(DB_PATH)
+    except Exception:  # noqa: BLE001
+        pass
     # ⭐ Self-repair (2026-11-13): after consecutive FATAL failures the newest good backup is
     # swapped in. Fail-soft: the canary never raises.
     try:

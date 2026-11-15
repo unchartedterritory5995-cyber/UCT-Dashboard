@@ -31,6 +31,7 @@ from typing import Any, Callable, Optional, Sequence
 import requests
 
 from api.services.cache import cache
+from api.services import fmp_response_cache as _response_cache
 from api.services.log_redaction import safe_exc as _safe_exc
 from api.services import provider_errors as _pe
 from api.services import provider_licensing_class as _plc
@@ -139,6 +140,12 @@ def _get_raw(path: str, params: dict, timeout: Optional[int] = None) -> Any:
     if forbidden_since is not None:
         return _CachedForbidden(since=forbidden_since)
 
+    # 2026-11-13: the same answer is never downloaded twice inside its TTL (fmp_response_cache's
+    # docstring: 150 GB in 30 days, the account cut off). A hit spends no token and no bandwidth.
+    stored = _response_cache.get(path, params)
+    if stored is not None:
+        return stored
+
     if not _take_token():
         raise _ERR.rate_limited(f"local FMP budget exhausted for {path}")
 
@@ -171,9 +178,11 @@ def _get_raw(path: str, params: dict, timeout: Optional[int] = None) -> Any:
     except requests.exceptions.HTTPError as exc:
         raise _ERR.transient(f"FMP {path} unexpected status {resp.status_code}") from exc
     try:
-        return resp.json()
+        body = resp.json()
     except ValueError as exc:
         raise _ERR.transient(f"FMP {path} returned non-JSON body") from exc
+    _response_cache.put(path, params, body)
+    return body
 
 
 _CLASS_DOT_RE = re.compile(r"^[A-Z]{1,5}\.[A-Z]$")

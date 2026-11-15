@@ -31,6 +31,7 @@ import logging
 import os
 import shutil
 import sqlite3
+import threading
 import time
 
 log = logging.getLogger(__name__)
@@ -71,10 +72,10 @@ def is_fatal(detail: str) -> bool:
 def reads_cleanly(path: str, window: int = 2000):
     """(ok, max_id, detail): SQLite header, MAX(id), and a full-row read of the newest `window`
     rows (the canary's bounded write-head shape). Read-only; never raises."""
+    # ⛔ Through SQLite ONLY, never a plain open(): closing any plain descriptor on the live file
+    # drops every POSIX lock this process holds on it (flow_db_guard). A damaged page 1 surfaces
+    # as "file is not a database" from the connection below.
     try:
-        with open(path, "rb") as f:
-            if f.read(16) != _MAGIC:
-                return False, None, "header is not SQLite (page 1 damaged)"
         conn = sqlite3.connect("file:%s?mode=ro" % path, uri=True, timeout=20)
         try:
             mx = conn.execute("SELECT MAX(id) FROM flow").fetchone()[0]
@@ -176,6 +177,13 @@ def restore(reason: str = "", now: float | None = None) -> dict:
         os.rename(tmp, db)
         out.update(status="restored", backup=src, backup_max_id=bk_max, kept=kept,
                    copy_s=round(time.time() - t0, 1))
+        # Restart cleanly: long-lived connections still point at the swapped-out file and its log.
+        try:
+            from api import flow_db_guard
+            threading.Timer(3.0, flow_db_guard.request_restart,
+                            args=("restored backup %s" % os.path.basename(src),)).start()
+        except Exception:  # noqa: BLE001
+            pass
         _shout("[flow-autorestore] ✅ flow.db was unreadable (%s). Restored backup %s (max id %s, "
                "copied in %.0fs); live writes resume on it now. Damaged file KEPT at %s. Rows written "
                "after the backup are missing: run the gap-fill for each day since the backup was taken."

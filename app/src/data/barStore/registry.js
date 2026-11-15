@@ -11,8 +11,8 @@
 //     subscribers stay attached and are notified.
 //   • A subscriber is called only when its key's snapshot identity changes, and only for
 //     its own key (S7).
-//   • ⭐ SPLIT NOTIFY (render cost). A change that moves ONLY the developing bar (devRev —
-//     reducer.isDevOnlyChange) is not a base change. Subscribers say what they need:
+//   • ⭐ SPLIT NOTIFY (render cost). A change that moves ONLY the developing bar WITHIN its
+//     bucket (devRev — reducer.isDevOnlyChange) is not a base change; opening a bucket is. Subscribers say what they need:
 //       wake 'all'  (default) every change, synchronously (persist, the D/W/M fold);
 //       wake 'base' only base changes — `getBaseSnapshot` is the snapshot as of the last one
 //                   (the chart's setData / indicators / resample input, identity-stable

@@ -65,14 +65,35 @@ Three more variables, all read per call, and one function the server lanes ask:
 * ``server_lane_refusal(row, lane=...)`` -- the ONE admission question a server lane asks:
   kill list, allowlist (graded MATCH), pane stage, server stage, service set up, in that
   order. NOTHING CALLS IT YET (T13 onward wire it), so no member's behaviour changes.
+
+WS-I PART 2 (2026-11-13) -- ADMISSION BY CAPABILITY. A member's own copy of a script differs by a
+byte from any graded copy, so the per-script allowlist admits nothing a member brings. Two more
+variables, both read per call:
+
+* ``PINE_RUNTIME_CAPABILITY_ADMISSION`` -- ``off`` (the default; unset, empty or unrecognised all
+  read ``off``) or ``on``. With ``on``, `not_graded` ALSO admits a script whose every capability
+  (`pine_capabilities.capabilities_of`, one detector, over-declaring, closed world) is admitted
+  in the committed registry (`pine_runtime_allowlist.json` ``capabilities``, each admitted row
+  carrying vendor-graded MATCH evidence: `rollout_gate.pine_capability_admission`). The served
+  stamp, the save door and the allow report follow it because they ask `not_graded`. ⛔ The
+  SERVER lanes do not: `server_lane_refusal` asks ``graded_only=True``, which stays per-script.
+  With ``off`` every answer here is the one before Part 2, byte for byte.
+* ``PINE_RUNTIME_CAPABILITY_DENY`` -- capability ids SUBTRACTED from the admitted set (comma- or
+  whitespace-separated). ⛔ SUBTRACT-ONLY: no variable ever adds a capability; admitting one is a
+  commit to the registry, with its evidence. The kill list stays the per-script safety net and is
+  asked before admission at every door.
 """
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 import logging
 import os
 import re
+import threading
+import time
+from collections import OrderedDict
 from typing import Any, Optional
 
 from api.services import runtime_repaint
@@ -108,9 +129,19 @@ PINE_RUNTIME_MODE_FLAGS = {
     "PINE_RUNTIME_STAGE": (STAGE_OFF, (STAGE_OFF, STAGE_ADMINS, STAGE_COHORT, STAGE_ALL)),
     # W5 T12 (ruling Q4): the SERVER lanes' stage, the same ladder in a variable of its own.
     "PINE_RUNTIME_SERVER_STAGE": (STAGE_OFF, (STAGE_OFF, STAGE_ADMINS, STAGE_COHORT, STAGE_ALL)),
+    # WS-I Part 2 (2026-11-13): admission by capability, off until the owner arms it.
+    "PINE_RUNTIME_CAPABILITY_ADMISSION": ("off", ("off", "on")),
 }
 assert STAGE_ENV in PINE_RUNTIME_MODE_FLAGS
 assert SERVER_STAGE_ENV in PINE_RUNTIME_MODE_FLAGS
+
+# ─── WS-I Part 2: admission by capability (both variables read per call) ─────
+CAPABILITY_ADMISSION_ENV = "PINE_RUNTIME_CAPABILITY_ADMISSION"
+CAPABILITY_ADMISSION_OFF = "off"
+CAPABILITY_ADMISSION_ON = "on"
+CAPABILITY_DENY_ENV = "PINE_RUNTIME_CAPABILITY_DENY"
+assert CAPABILITY_ADMISSION_ENV in PINE_RUNTIME_MODE_FLAGS
+assert PINE_RUNTIME_MODE_FLAGS[CAPABILITY_ADMISSION_ENV][0] == CAPABILITY_ADMISSION_OFF
 
 # ─── GT: the starter allowlist (D6) ──────────────────────────────────────────
 ALLOW_ENV = "PINE_RUNTIME_ALLOWLIST"
@@ -393,11 +424,16 @@ def _allowlist_doc() -> Optional[dict]:
     return doc if isinstance(doc, dict) else None
 
 
-def allow_report() -> dict:
+def allow_report(*, with_capabilities: bool = True) -> dict:
     """WS-I (R1) — what the committed allowlist SERVES and what it WITHHOLDS, and
     why, plus the variable's entries (which carry no evidence: an operator
     override outside R1, reported so it is never invisible). Never raises on
-    the file: an unreadable one serves nothing (fail closed)."""
+    the file: an unreadable one serves nothing (fail closed).
+
+    WS-I Part 2: while ``PINE_RUNTIME_CAPABILITY_ADMISSION=on`` it also carries
+    ``capability_admission`` (`admitted_capabilities`: what is admitted, what is withheld and
+    why, what the deny variable subtracted). With the variable off the report is the one
+    before Part 2, key for key."""
     from api.services import rollout_gate
     doc = _allowlist_doc()
     served: list[dict] = []
@@ -417,7 +453,10 @@ def allow_report() -> dict:
         else:
             served.append(row)
     overrides = _allow_entries_from(re.split(r"[\s,]+", os.environ.get(ALLOW_ENV, "")))
-    return {"served": served, "withheld": withheld, "env_overrides": overrides}
+    report = {"served": served, "withheld": withheld, "env_overrides": overrides}
+    if with_capabilities and capability_admission_on():
+        report["capability_admission"] = admitted_capabilities()
+    return report
 
 
 def graded_allow_list() -> list[str]:
@@ -427,7 +466,7 @@ def graded_allow_list() -> list[str]:
     ⭐ The single authority for "graded" (W5 T12, ruling Q8): `allow_list` builds on it and
     the SERVER lanes ask it directly (`not_graded(..., graded_only=True)`), so the two can
     never disagree about what is graded. Read per call; an unreadable JSON serves nothing."""
-    return [r["sha256"] for r in allow_report()["served"]]
+    return [r["sha256"] for r in allow_report(with_capabilities=False)["served"]]
 
 
 def allow_list() -> list[str]:
@@ -455,18 +494,457 @@ def allow_list() -> list[str]:
     return entries
 
 
-def not_graded(source: Optional[str], *, graded_only: bool = False) -> Optional[str]:
+def not_graded(source: Optional[str], *, graded_only: bool = False,
+               budget: "Optional[DetectorBudget]" = None, capability: bool = True) -> Optional[str]:
     """Why this script is NOT served by the runtime lane (D6), or ``None``.
 
     The sentence is the reason; the code the member door declines with is
     ``runtime:not-yet-graded``. `graded_only=True` (the SERVER lanes, ruling Q8) admits
     only `graded_allow_list`, so an operator-variable entry is refused there; the default
-    (the browser pane) admits `allow_list`, the variable included."""
+    (the browser pane) admits `allow_list`, the variable included.
+
+    WS-I Part 2: with ``PINE_RUNTIME_CAPABILITY_ADMISSION=on`` the browser pane (never
+    ``graded_only``, never ``capability=False``) ALSO admits a script `capability_admitted`
+    admits, within the request's `budget`; a source whose set the budget could not compute is
+    answered "still being checked" (fail closed) and fills on a later request. Off, nothing changes."""
+    sentence, _pending = not_graded_reason(source, graded_only=graded_only, budget=budget,
+                                           capability=capability)
+    return sentence
+
+
+def not_graded_at_save(source: Optional[str]) -> Optional[str]:
+    """The save door's question. ⛔ D6 HOLDS: only a graded script is stored. With capability
+    admission on, the save waits (at most `SAVE_WAIT_SECONDS`) for the process-wide gate and the
+    cool-down and runs the detector once; if it still cannot, it raises `CapabilityCheckBusy`
+    (retryable, nothing saved). It never stores an unadmitted runtime row (re-review F1). With
+    admission off the call is exactly the one before Part 2."""
+    if not capability_admission_on():
+        return not_graded(source)
+    sentence, pending = not_graded_reason(source, wait=SAVE_WAIT_SECONDS)
+    if pending:
+        h = source_hash(source) if isinstance(source, str) else ""
+        raise CapabilityCheckBusy(SAVE_BUSY_SENTENCE.format(h=h[:12]))
+    return sentence
+
+
+def not_graded_reason(source: Optional[str], *, graded_only: bool = False,
+                      budget: "Optional[DetectorBudget]" = None, capability: bool = True,
+                      wait: float = 0.0) -> tuple:
+    """``(sentence or None, pending)``: `not_graded`'s answer, and whether it is only "still being
+    checked" (the capability set is not known yet: the budget or the process-wide gate was busy)."""
     h = source_hash(source) if isinstance(source, str) else ""
     if h and any(h.startswith(e) for e in (graded_allow_list() if graded_only else allow_list())):
-        return None
+        return None, False
+    if h and capability and not graded_only and capability_admission_on():
+        ok, missing = capability_admitted(source, budget=budget, wait=wait)
+        if ok:
+            return None, False
+        if missing == [PENDING]:
+            return (PENDING_SENTENCE.format(h=h[:12]), True)
     return (f"this script (sha256 {h[:12] or '?'}…) has not yet been graded against "
-            "TradingView, so it is not drawn bar by bar")
+            "TradingView, so it is not drawn bar by bar"), False
+
+
+def capability_admission_on() -> bool:
+    """`PINE_RUNTIME_CAPABILITY_ADMISSION == "on"`, read PER CALL. ⛔ Unset, empty or any other
+    value (a typo: "1", "true", "yes") is ``off``: a typo never widens what the lane serves."""
+    v = os.environ.get(CAPABILITY_ADMISSION_ENV, CAPABILITY_ADMISSION_OFF).strip().lower()
+    return v == CAPABILITY_ADMISSION_ON
+
+
+def capability_deny() -> list[str]:
+    """`PINE_RUNTIME_CAPABILITY_DENY`, read per call: the capability ids to SUBTRACT from the
+    admitted set, lowercased, deduplicated. ⛔ It can only subtract (`admitted_capabilities`
+    takes them out); an id it names that is not admitted changes nothing."""
+    out: list[str] = []
+    for part in re.split(r"[\s,]+", os.environ.get(CAPABILITY_DENY_ENV, "")):
+        v = part.strip().lower()
+        if v and v not in out:
+            out.append(v)
+    return out
+
+
+def admitted_capabilities() -> dict:
+    """WS-I Part 2 -- the capabilities admitted for capability admission, read per call:
+    ``{"admitted": [...], "withheld": {name: [reasons]}, "denied": [...]}``.
+
+    A registry row admits its capability only when `rollout_gate.pine_capability_admission`
+    says so, the name is one the detector can return (`pine_capabilities.CAPABILITY_IDS`) and
+    `PINE_RUNTIME_CAPABILITY_DENY` does not name it. ⛔ FAIL CLOSED: an unreadable or malformed
+    JSON admits nothing. Never raises."""
+    from api.services import pine_capabilities, rollout_gate
+    doc = _allowlist_doc()
+    registry = doc.get("capabilities") if doc else None
+    deny = set(capability_deny())
+    admitted: list[str] = []
+    withheld: dict[str, list[str]] = {}
+    denied: list[str] = []
+    for name in sorted(k for k in registry if isinstance(k, str)) if isinstance(registry, dict) else []:
+        if name not in pine_capabilities.CAPABILITY_IDS:
+            withheld[name] = [f"`{name}` is not a capability the detector names"]
+            continue
+        reasons = rollout_gate.pine_capability_admission(name, registry[name])
+        if reasons:
+            withheld[name] = reasons
+        elif name in deny:
+            withheld[name] = [f"`{name}` is subtracted by {CAPABILITY_DENY_ENV}"]
+            denied.append(name)
+        else:
+            admitted.append(name)
+    return {"admitted": admitted, "withheld": withheld, "denied": denied}
+
+
+#: ─── WHERE A SOURCE'S CAPABILITY SET COMES FROM (re-verify of #1204, 2026-11-13) ─────────────
+#: The detector is linear but not free (~0.15 s on a near-128 KiB source), and serving rows
+#: (`stamp_served`: the list, history, one row, a share) must never re-run it per row. In order:
+#:   1. this process's LRU (`_CAPS_LRU`, a TRUE least-recently-used map; a fallback only);
+#:   2. the PERSISTED set, computed once per source (`runtime_capabilities` in user_definitions.db,
+#:      keyed by source sha256, valid only for `pine_capabilities.DETECTOR_VERSION`);
+#:   3. a FRESH run of the detector, only while the request's `DetectorBudget` lasts: a saved row is
+#:      computed at its save (flag on), an older row on its first serve, and a row past the budget
+#:      is served fail-closed ("still being checked") and filled on a later request.
+#: ⛔ The table holds no member identifier: a source's sha256 and the ids the detector named.
+CAPS_TABLE = "runtime_capabilities"
+_CAPS_DDL = (f"CREATE TABLE IF NOT EXISTS {CAPS_TABLE} (source_sha256 TEXT PRIMARY KEY, "
+             "detector_version INTEGER NOT NULL, capabilities TEXT NOT NULL, computed_at INTEGER NOT NULL)")
+#: The id `capability_admitted` reports for a source whose set is not known yet (budget spent).
+#: Never in the vocabulary: a pending source is withheld, fail closed.
+PENDING = "pending"
+#: What a pending row is served with (`meta.runtimeNotGraded`, beside `meta.runtimePending: true`).
+PENDING_SENTENCE = ("this script (sha256 {h}…) is still being checked against the parts of Pine graded "
+                    "against TradingView, so it is not drawn bar by bar yet")
+#: The served stamp that marks a `runtimeNotGraded` sentence as "being checked", not a refusal.
+PENDING_STAMP = "runtimePending"
+#: At most this many fresh detector runs per request, and no new one that would cross this much
+#: time (its cost PROJECTED from the source's size before it starts).
+DETECTOR_RUNS_PER_REQUEST = 8
+DETECTOR_SECONDS_PER_REQUEST = 0.3
+#: A source over this size gets at most ONE fresh run per request (adversarial near-cap sources cost
+#: 0.3-0.6 s each: a second one would cross a second).
+DETECTOR_BIG_SOURCE_BYTES = 64 * 1024
+#: ⛔⛔ THE PROCESS-WIDE GATE (final verify of #1204, A2). The per-request budget bounds ONE request,
+#: but the detector holds the GIL, so eight requests each spending their budget at once stall each
+#: other (measured 3.5-5.1 s per request). ONE detector run at a time in the process; a request
+#: that cannot take the gate WITHOUT WAITING serves the row "still being checked" and moves on.
+_DETECTOR_GATE = threading.Semaphore(1)
+#: ⛔ AND A DUTY CYCLE ON TOP OF IT. One run at a time is not enough: eight requests taking the gate
+#: in turn still each wait out the other seven runs under the GIL (measured: every one of 8
+#: concurrent cold lists 3.8 s with the gate alone). After a run of cost c, no new run starts until
+#: the detector has been idle for c x (1/DUTY - 1), so detector work is at most DUTY of wall time,
+#: process-wide. A request that finds it cooling serves the row "still being checked".
+DETECTOR_DUTY_CYCLE = 1 / 3
+_DETECTOR_IDLE_UNTIL = [0.0]
+#: F1 (re-review of #1204): the SAVE door waits for the gate and the cool-down, bounded: a save
+#: either computes its set within this long, or is refused as busy (retryable). It never stores an
+#: unadmitted runtime row.
+SAVE_WAIT_SECONDS = 0.7
+#: F2: the VERDICT door (a preview's question, nothing persisted) yields to persisted work. It runs
+#: only when the gate is free AND the persisted cool-down has passed AND its OWN cool-down has passed
+#: (at most `VERDICT_DUTY_CYCLE` of wall time; a verdict run does not extend the persisted
+#: cool-down, so a hammering preview never starves a save or a serve), and each member may spend at
+#: most `VERDICT_MEMBER_SECONDS` of detector time in any `VERDICT_MEMBER_WINDOW` seconds.
+VERDICT_DUTY_CYCLE = 1 / 6
+_VERDICT_IDLE_UNTIL = [0.0]
+VERDICT_MEMBER_SECONDS = 3.0
+VERDICT_MEMBER_WINDOW = 60.0
+_VERDICT_SPENT: dict = {}            # member -> [(monotonic end, seconds), ...]
+_VERDICT_LOCK = threading.Lock()
+
+
+class CapabilityCheckBusy(ValueError):
+    """F1: the save door could not compute the script's capability set within `SAVE_WAIT_SECONDS`
+    (the detector was busy). Retryable; nothing was saved. The router answers 503 + Retry-After."""
+
+
+#: What a busy save door says (`CapabilityCheckBusy`).
+SAVE_BUSY_SENTENCE = ("this script (sha256 {h}…) could not be checked against the parts of Pine graded "
+                      "against TradingView right now because the check is busy; try again in a moment. "
+                      "Nothing was saved")
+
+
+def _verdict_member_spent(member: str, now: float) -> float:
+    with _VERDICT_LOCK:
+        runs = [(t, c) for t, c in _VERDICT_SPENT.get(member, ()) if now - t < VERDICT_MEMBER_WINDOW]
+        _VERDICT_SPENT[member] = runs
+        if len(_VERDICT_SPENT) > 5000:
+            for m in [m for m, r in _VERDICT_SPENT.items() if not r]:
+                _VERDICT_SPENT.pop(m, None)
+        return sum(c for _t, c in runs)
+
+
+def _verdict_member_charge(member: str, now: float, seconds: float) -> None:
+    with _VERDICT_LOCK:
+        _VERDICT_SPENT.setdefault(member, []).append((now, seconds))
+#: A running estimate of the detector's cost per source byte (an exponential average of the runs
+#: measured), so a run is projected before it starts. Seeded conservatively (5 us/byte = 0.65 s
+#: for a 128 KiB source).
+_SECONDS_PER_BYTE = [5e-6]
+_CAPS_LRU_MAX = 4096
+_CAPS_LRU: "OrderedDict[str, frozenset]" = OrderedDict()
+_CAPS_LRU_LOCK = threading.Lock()
+
+
+class DetectorBudget:
+    """How much fresh detector work ONE request may do. A run may start only when:
+    runs remain; the request has not run one yet, OR the run's PROJECTED cost (source bytes x the
+    running per-byte estimate) still fits under `seconds`; and, for a source over
+    `DETECTOR_BIG_SOURCE_BYTES`, the request has not run a big one yet. (The first run is always
+    allowed, or a large source would never be checked.) `None` where a budget is taken means one
+    source only (the save door, the verdict door). Every fresh run also needs the process-wide
+    gate (`_DETECTOR_GATE`), taken without waiting."""
+
+    def __init__(self, runs: int = DETECTOR_RUNS_PER_REQUEST, seconds: float = DETECTOR_SECONDS_PER_REQUEST):
+        self.runs = runs
+        self.seconds = seconds
+        self.spent = 0.0
+        self.done = 0
+        self.big_done = 0
+        #: sources whose stored set this request already looked up (`prefetch_capabilities`)
+        self.store_checked: set = set()
+        #: the admitted set, read ONCE per request (the registry is a file read and a policy pass)
+        self.admitted: Optional[set] = None
+
+    def allows(self, nbytes: int = 0) -> bool:
+        if self.runs <= 0:
+            return False
+        if nbytes > DETECTOR_BIG_SOURCE_BYTES and self.big_done:
+            return False
+        projected = nbytes * _SECONDS_PER_BYTE[0]
+        return self.done == 0 or self.spent + projected <= self.seconds
+
+    def charge(self, nbytes: int, elapsed: float) -> None:
+        self.runs -= 1
+        self.done += 1
+        self.spent += elapsed
+        if nbytes > DETECTOR_BIG_SOURCE_BYTES:
+            self.big_done += 1
+
+    def take(self, nbytes: int = 0) -> bool:
+        """`allows` and, when it does, reserve the run (rails and simple callers)."""
+        if not self.allows(nbytes):
+            return False
+        self.runs -= 1
+        self.done += 1
+        if nbytes > DETECTOR_BIG_SOURCE_BYTES:
+            self.big_done += 1
+        return True
+
+
+def _lru_get(key: str) -> Optional[frozenset]:
+    with _CAPS_LRU_LOCK:
+        hit = _CAPS_LRU.get(key)
+        if hit is not None:
+            _CAPS_LRU.move_to_end(key)
+        return hit
+
+
+def _lru_put(key: str, caps: frozenset) -> None:
+    with _CAPS_LRU_LOCK:
+        _CAPS_LRU[key] = caps
+        _CAPS_LRU.move_to_end(key)
+        while len(_CAPS_LRU) > _CAPS_LRU_MAX:
+            _CAPS_LRU.popitem(last=False)
+
+
+def _reset_capability_cache(*, persisted: bool = False) -> None:
+    """Tests only: forget this process's LRU, and with `persisted` the stored sets too. Also ends
+    any detector cool-down and the verdict door's per-member spend (a fresh process has none)."""
+    with _CAPS_LRU_LOCK:
+        _CAPS_LRU.clear()
+    _DETECTOR_IDLE_UNTIL[0] = 0.0
+    _VERDICT_IDLE_UNTIL[0] = 0.0
+    with _VERDICT_LOCK:
+        _VERDICT_SPENT.clear()
+    if persisted:
+        from api.services import user_definitions as svc
+        try:
+            with contextlib.closing(svc._connect()) as c:
+                c.execute(_CAPS_DDL)
+                c.execute(f"DELETE FROM {CAPS_TABLE}")
+                c.commit()
+        except Exception:  # noqa: BLE001
+            pass
+
+
+def _store_get(key: str) -> Optional[frozenset]:
+    """The persisted set for this source at the CURRENT detector version, or None. Never raises."""
+    from api.services import pine_capabilities
+    from api.services import user_definitions as svc
+    try:
+        with contextlib.closing(svc._connect()) as c:
+            r = c.execute(f"SELECT capabilities FROM {CAPS_TABLE} WHERE source_sha256 = ? "
+                          "AND detector_version = ?", (key, pine_capabilities.DETECTOR_VERSION)).fetchone()
+    except Exception:  # noqa: BLE001 - an unreadable store (or no table yet) is a miss, never an admission
+        return None
+    return _caps_from_json(r[0]) if r is not None else None
+
+
+def _caps_from_json(raw: Any) -> Optional[frozenset]:
+    try:
+        caps = json.loads(raw)
+    except (TypeError, ValueError):
+        return None
+    return frozenset(caps) if isinstance(caps, list) and all(isinstance(x, str) for x in caps) else None
+
+
+def prefetch_capabilities(rows: Any, budget: "Optional[DetectorBudget]" = None) -> None:
+    """Load the persisted capability sets of every row a request is about to serve, in ONE query, into
+    the LRU (final verify of #1204: one connection per row cost a list of 50 rows ~0.09 s). Only while
+    capability admission is on; a row with no stored set stays a miss. Never raises."""
+    if not capability_admission_on():
+        return
+    from api.services import pine_capabilities
+    from api.services import user_definitions as svc
+    keys = []
+    for row in rows if isinstance(rows, (list, tuple)) else ():
+        definition = row.get("definition") if isinstance(row, dict) else None
+        src = run_read_source(definition)
+        if src is None and is_runtime(definition):
+            src = (definition.get("compute") or {}).get("source")
+        if isinstance(src, str) and src:
+            k = source_hash(src)
+            if _lru_get(k) is None:
+                keys.append(k)
+    if not keys:
+        return
+    if budget is not None:
+        budget.store_checked.update(keys)       # a miss here is not looked up again per row
+    try:
+        with contextlib.closing(svc._connect()) as c:
+            for i in range(0, len(keys), 500):
+                part = keys[i:i + 500]
+                for key, raw in c.execute(
+                        f"SELECT source_sha256, capabilities FROM {CAPS_TABLE} WHERE detector_version = ? "
+                        f"AND source_sha256 IN ({','.join('?' * len(part))})",
+                        [pine_capabilities.DETECTOR_VERSION, *part]):
+                    caps = _caps_from_json(raw)
+                    if caps is not None:
+                        _lru_put(key, caps)
+    except Exception:  # noqa: BLE001 - a failed prefetch only means per-row reads
+        return
+
+
+def _store_put(key: str, caps: frozenset) -> None:
+    from api.services import pine_capabilities
+    from api.services import user_definitions as svc
+    try:
+        with contextlib.closing(svc._connect()) as c:
+            c.execute(_CAPS_DDL)
+            c.execute(f"INSERT OR REPLACE INTO {CAPS_TABLE} (source_sha256, detector_version, capabilities, "
+                      "computed_at) VALUES (?, ?, ?, ?)",
+                      (key, pine_capabilities.DETECTOR_VERSION, json.dumps(sorted(caps)), int(time.time())))
+            c.commit()
+    except Exception:  # noqa: BLE001 - a failed write only means the next serve computes again
+        log.warning("[runtime_definitions] capability set not persisted")
+
+
+def capabilities_for(source: str, *, budget: Optional[DetectorBudget] = None,
+                     persist: bool = True, wait: float = 0.0,
+                     verdict_member: Optional[str] = None) -> Optional[frozenset]:
+    """This source's capability set: the LRU, then the persisted set, then (budget allowing) a
+    fresh run, persisted unless `persist=False` (the verdict door stores nothing). ``None`` when
+    the set is not known and no run may start now: the caller serves it fail-closed.
+
+    `wait` (the save door): wait up to that long for the gate and the cool-down, then run once.
+    `verdict_member` (the verdict door): run only if that member's rolling detector spend has room
+    and the detector is idle for persisted work AND for the verdict door (it yields; F2)."""
+    from api.services import pine_capabilities
+    key = source_hash(source)
+    hit = _lru_get(key)
+    if hit is not None:
+        return hit
+    stored = None if (budget is not None and key in budget.store_checked) else _store_get(key)
+    if stored is not None:
+        _lru_put(key, stored)
+        return stored
+    nbytes = len(source)
+    if budget is not None and not budget.allows(nbytes):
+        return None
+    if verdict_member is not None:
+        now = time.monotonic()
+        if (_verdict_member_spent(verdict_member, now) >= VERDICT_MEMBER_SECONDS
+                or now < _VERDICT_IDLE_UNTIL[0] or now < _DETECTOR_IDLE_UNTIL[0]):
+            return None                  # the verdict door yields: pending, never wait
+    deadline = time.monotonic() + max(0.0, wait)
+    got = _DETECTOR_GATE.acquire(timeout=wait) if wait > 0 else _DETECTOR_GATE.acquire(blocking=False)
+    if not got:
+        return None                      # another run holds the process: pending
+    try:
+        now = time.monotonic()
+        if now < _DETECTOR_IDLE_UNTIL[0]:
+            if wait > 0 and _DETECTOR_IDLE_UNTIL[0] <= deadline:
+                time.sleep(_DETECTOR_IDLE_UNTIL[0] - now)   # the save door waits out the cool-down
+            else:
+                return None              # cooling down: pending, never wait
+        t0 = time.perf_counter()
+        caps = pine_capabilities.capabilities_of(source)
+        elapsed = time.perf_counter() - t0
+        if verdict_member is not None:
+            # a verdict run cools only the verdict door (persisted work keeps priority)
+            _VERDICT_IDLE_UNTIL[0] = time.monotonic() + elapsed * (1 / VERDICT_DUTY_CYCLE - 1)
+            _verdict_member_charge(verdict_member, time.monotonic(), elapsed)
+        else:
+            _DETECTOR_IDLE_UNTIL[0] = time.monotonic() + elapsed * (1 / DETECTOR_DUTY_CYCLE - 1)
+    finally:
+        _DETECTOR_GATE.release()
+    if nbytes >= 1024:
+        _SECONDS_PER_BYTE[0] = 0.7 * _SECONDS_PER_BYTE[0] + 0.3 * (elapsed / nbytes)
+    if budget is not None:
+        budget.charge(nbytes, elapsed)
+    if persist:
+        _store_put(key, caps)
+    _lru_put(key, caps)
+    return caps
+
+
+def capability_admitted(source: Any, *, budget: Optional[DetectorBudget] = None,
+                        persist: bool = True, wait: float = 0.0,
+                        verdict_member: Optional[str] = None) -> tuple:
+    """``(ok, missing)``: does EVERY capability this source uses carry admission? ``missing``
+    names, sorted, each capability it uses that is not admitted (a capability absent from the
+    registry is missing: CLOSED WORLD; an unreadable source is missing ``unreadable``; a source
+    whose set is not known yet because the request's budget is spent is missing ``pending``).
+
+    Pure policy: it does NOT read `PINE_RUNTIME_CAPABILITY_ADMISSION` (`not_graded` does) and
+    does NOT read the kill list (every door asks `killed` first). Never raises."""
+    from api.services import pine_capabilities
+    if not isinstance(source, str) or not source.strip():
+        return False, [pine_capabilities.UNREADABLE]
+    try:
+        caps = capabilities_for(source, budget=budget, persist=persist, wait=wait,
+                                verdict_member=verdict_member)
+        if caps is None:
+            return False, [PENDING]
+        if budget is not None:
+            if budget.admitted is None:
+                budget.admitted = set(admitted_capabilities()["admitted"])
+            admitted = budget.admitted
+        else:
+            admitted = set(admitted_capabilities()["admitted"])
+    except Exception:  # noqa: BLE001 - fail closed: what cannot be read is not admitted
+        log.warning("[runtime_definitions] capability admission unreadable; not admitted")
+        return False, [pine_capabilities.UNREADABLE]
+    missing = sorted(c for c in caps if c not in admitted)
+    return (not missing), missing
+
+
+def runtime_admission(source: Any, member: Any = None) -> dict:
+    """``POST /api/user-definitions/runtime-admission`` -- ``{sha256, admitted, missing}`` for one
+    source, the client's per-hash verdict (`engine/runtimeKill.js`). ``admitted`` is True only
+    when capability admission is ON, the script is not on the kill list, and
+    `capability_admitted` admits it. The allowlist is NOT folded in (the client asks its own
+    latched allowlist first). Nothing is stored and the source is never logged."""
+    h = source_hash(source) if isinstance(source, str) else None
+    # ⛔ B1 (review 2026-11-13): with the flag OFF the detector is NEVER run. The answer is a
+    # constant, so no request can spend server time on a door that admits nothing.
+    if not capability_admission_on():
+        return {"sha256": h, "admitted": False, "missing": []}
+    # the verdict door stores nothing, yields to persisted work, and spends from the member's own
+    # rolling detector budget (re-review F2); a member is never None here (the route passes its id)
+    ok, missing = capability_admitted(source, persist=False,
+                                      verdict_member=str(member) if member is not None else "<anonymous>")
+    admitted = bool(ok and not killed(None, source))
+    return {"sha256": h, "admitted": admitted, "missing": missing}
 
 
 def save_permission(role: Any, user_id: Any = None) -> Optional[str]:
@@ -620,7 +1098,18 @@ def repaint_stamp(definition: dict) -> dict:
     return {k: mode for k in definition["compute"]["outputs"]}
 
 
-def stamp_served(row: dict) -> dict:
+def _not_graded_for_stamp(source: Any, budget: "Optional[DetectorBudget]", capability: bool) -> tuple:
+    """`not_graded` as a served row asks it: the call before Part 2 (`not_graded(source)`) unless a
+    budget or `capability=False` is in play WHILE capability admission is on. With it off neither can
+    change the answer, so the call is exactly the one before Part 2 (every caller and test double
+    sees the same call)."""
+    if not capability_admission_on():
+        return not_graded(source), False
+    return not_graded_reason(source, budget=budget, capability=capability)
+
+
+def stamp_served(row: dict, *, budget: "Optional[DetectorBudget]" = None,
+                 capability: bool = True) -> dict:
     """A stored runtime row as SERVED: the kill switch stamped on, never stored.
 
     Returns a copy; the stored row is not touched.
@@ -633,7 +1122,7 @@ def stamp_served(row: dict) -> dict:
     A stale stamp a client wrote back is dropped, so the row reads today's lists."""
     definition = row.get("definition")
     if run_read_source(definition) is not None:
-        return _stamp_run_read_ast(row, definition)
+        return _stamp_run_read_ast(row, definition, budget=budget, capability=capability)
     if not is_runtime(definition):
         return row
     source = (definition.get("compute") or {}).get("source")
@@ -649,19 +1138,40 @@ def stamp_served(row: dict) -> dict:
     # allowlist is SERVED stamped, never deleted and never rewritten, exactly as
     # a kill is: the install door refuses the stamp, and listing the script
     # brings the row back on the next read.
-    ungraded = not_graded(source)
-    if not why and not ungraded:
+    # WS-I Part 2: `budget` bounds the fresh detector runs a whole request may do; `capability=False`
+    # (a non-latest history version, never drawn) asks no capability question at all.
+    ungraded, pending = _not_graded_for_stamp(source, budget, capability)
+    meta_in = definition.get("meta") if isinstance(definition.get("meta"), dict) else {}
+    # re-review F4: a stamp a client wrote back (`runtimeKilled` / `runtimeNotGraded` /
+    # `runtimePending`) is dropped, so a stored row can never be pinned in a served state
+    if not why and not ungraded and not any(k in meta_in for k in RUN_READ_STAMPS):
         return row
     out = dict(row)
-    d = json.loads(json.dumps(definition))
+    # only `meta` is written: a shallow copy with its own `meta` serves the same document without a
+    # JSON round trip of the whole script per row (final verify of #1204: a list of near-cap rows)
+    d = dict(definition)
+    d["meta"] = dict(definition["meta"]) if isinstance(definition.get("meta"), dict) else definition.get("meta")
     meta = d.get("meta") if isinstance(d.get("meta"), dict) else {}
+    for k in RUN_READ_STAMPS:
+        meta.pop(k, None)
     if why:
         meta["runtimeKilled"] = why
     if ungraded:
         meta["runtimeNotGraded"] = ungraded
+        if pending:
+            meta[PENDING_STAMP] = True
     d["meta"] = meta
     out["definition"] = d
     return out
+
+
+def scrub_served_stamps(definition: Any) -> Any:
+    """The definition without any served stamp (`RUN_READ_STAMPS`): what the save door stores
+    (re-review F4: a stamp a client wrote back is never stored). The SAME object when it carries none."""
+    meta = definition.get("meta") if isinstance(definition, dict) else None
+    if not isinstance(meta, dict) or not any(k in meta for k in RUN_READ_STAMPS):
+        return definition
+    return dict(definition, meta={k: v for k, v in meta.items() if k not in RUN_READ_STAMPS})
 
 
 def run_read_source(definition: Any) -> Optional[str]:
@@ -680,7 +1190,8 @@ def run_read_source(definition: Any) -> Optional[str]:
     return None
 
 
-def _stamp_run_read_ast(row: dict, definition: dict) -> dict:
+def _stamp_run_read_ast(row: dict, definition: dict, *, budget: "Optional[DetectorBudget]" = None,
+                        capability: bool = True) -> dict:
     """`stamp_served` for an ``ast`` row with a run-read part: today's kill / stage / allowlist
     answer on ``meta``, a stale one dropped. Returns a copy; the stored row is not touched."""
     source = run_read_source(definition)
@@ -688,19 +1199,24 @@ def _stamp_run_read_ast(row: dict, definition: dict) -> dict:
     if not why and stage() == STAGE_OFF:
         why = (f"scripts drawn bar by bar are switched off for every member right now "
                f"({STAGE_ENV}={STAGE_OFF}), so this one is not drawn bar by bar")
-    ungraded = not_graded(source)
+    ungraded, pending = _not_graded_for_stamp(source, budget, capability)
     meta_in = definition.get("meta") if isinstance(definition.get("meta"), dict) else {}
-    if not why and not ungraded and "runtimeKilled" not in meta_in and "runtimeNotGraded" not in meta_in:
+    if not why and not ungraded and not any(k in meta_in for k in RUN_READ_STAMPS):
         return row
     out = dict(row)
-    d = json.loads(json.dumps(definition))
+    # only `meta` is written: a shallow copy with its own `meta` serves the same document without a
+    # JSON round trip of the whole script per row (final verify of #1204: a list of near-cap rows)
+    d = dict(definition)
+    d["meta"] = dict(definition["meta"]) if isinstance(definition.get("meta"), dict) else definition.get("meta")
     meta = d.get("meta") if isinstance(d.get("meta"), dict) else {}
-    meta.pop("runtimeKilled", None)
-    meta.pop("runtimeNotGraded", None)
+    for k in RUN_READ_STAMPS:
+        meta.pop(k, None)
     if why:
         meta["runtimeKilled"] = why
     if ungraded:
         meta["runtimeNotGraded"] = ungraded
+        if pending:
+            meta[PENDING_STAMP] = True
     d["meta"] = meta
     out["definition"] = d
     return out
@@ -748,7 +1264,7 @@ def run_half_source_refusal(definition: Any, pine_source: Optional[str]) -> Opti
 RUN_READ_KEYS = ("runtimeObjects", "runtimeColours")
 
 #: The served stamps (`_stamp_run_read_ast`) that answer only for a run-read part: dropped with it.
-RUN_READ_STAMPS = ("runtimeKilled", "runtimeNotGraded")
+RUN_READ_STAMPS = ("runtimeKilled", "runtimeNotGraded", "runtimePending")
 
 #: `objectLoss.js::RUN_HALF_DRAWING_SENTENCE`, said on the drawing note of a document carrying a
 #: run half (`memberPaneDefinition.js`). A copy without its run half drops it, exactly as the
@@ -756,8 +1272,14 @@ RUN_READ_STAMPS = ("runtimeKilled", "runtimeNotGraded")
 #: `tests/test_share_strips_run_reads.py::test_the_run_half_sentence_is_the_clients`.
 RUN_HALF_DRAWING_SENTENCE = (
     "Where this chart can run the script bar by bar the way TradingView does (at the script's own "
+    "settings, with every plot and every drawing this chart makes agreeing with that run), its drawings "
+    "are made by that run instead, complete.")
+#: ENGINE 54 -- the sentence a document minted under engine 53 carries (before the object rail): a
+#: copy of such a document drops it too.
+RUN_HALF_DRAWING_SENTENCES_PRIOR = (
+    "Where this chart can run the script bar by bar the way TradingView does (at the script's own "
     "settings, with every plot agreeing with that run), its drawings are made by that run instead, "
-    "complete.")
+    "complete.",)
 
 #: What the door says of a run-read paint (`memberPaneDefinition.js`, the `rtReadLines` note):
 #: recognised by this lead, after the paint's own name.
@@ -832,12 +1354,13 @@ def without_run_reads(definition: Any) -> Any:
     # the disclosures that promised the run
     if isinstance(new_meta, dict) and isinstance(new_meta.get("disclosures"), list):
         gone_names = {_paint_name(p) for p in dropped}
-        tail = " " + RUN_HALF_DRAWING_SENTENCE
+        tails = [" " + t for t in (RUN_HALF_DRAWING_SENTENCE, *RUN_HALF_DRAWING_SENTENCES_PRIOR)]
         notes = []
         for n in new_meta["disclosures"]:
             note = n.get("note") if isinstance(n, dict) else None
             if isinstance(note, str):
-                if "runtimeObjects" in present and note.endswith(tail):
+                tail = next((t for t in tails if note.endswith(t)), None) if "runtimeObjects" in present else None
+                if tail is not None:
                     n = {**n, "note": note[:-len(tail)]}
                 else:
                     name = next((g for g in gone_names if note.startswith(g + RUN_READ_PAINT_LEAD)), None)

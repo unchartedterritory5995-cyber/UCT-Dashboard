@@ -1032,7 +1032,8 @@ export function execute(program, ctx, limits, opts) {
           heldTop = localsTop
           // ⭐ P1 HARDENING — every drawing call is counted (`OBJECT_OPERATIONS`).
           budget.charge('OBJECT_OPERATIONS', 1)
-          const ov = store.call(oop.fn, oargs, bar, heldNow)
+          // ⭐⭐ ENGINE 54 — and where in the script it was written (`site`, on a drawing it makes)
+          const ov = store.call(oop.fn, oargs, bar, heldNow, oop.site || null)
           if (oop.returns !== 'void') stack[sp++] = ov === undefined ? NaN : ov
           break
         }

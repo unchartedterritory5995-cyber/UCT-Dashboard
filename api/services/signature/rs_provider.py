@@ -29,7 +29,7 @@ import threading
 import time
 
 from api.services.cache import cache
-from api.services.signature import registry_defs
+from api.services.signature import registry_defs, rs_store
 from api.services.signature.flow_breakout import _bar_date_iso
 
 logger = logging.getLogger(__name__)
@@ -58,8 +58,9 @@ def timing_reset() -> None:
 
 
 def last_timing() -> dict | None:
-    """``{"tier": "cold" | "cache", "total_ms": float, "stages": {name: ms}}``
-    for the newest `rs_line_envelope` call on this thread, or None."""
+    """``{"tier": "cold" | "cache" | "disk", "total_ms": float, "stages": {name: ms}}``
+    for the newest `rs_line_envelope` call on this thread, or None. (``"disk"``: read
+    back from `rs_store`, nothing computed; the stages are empty, as for ``"cache"``.)"""
     rec = getattr(_TIMING, "last", None)
     return None if rec is None else {"tier": rec["tier"], "total_ms": rec["total_ms"],
                                      "stages": dict(rec["stages"])}
@@ -217,12 +218,9 @@ def rs_line_envelope(sym: str, tf: str, inputs: dict, *, fetch_bars, cache_key, 
     ck = cache_key(f"rs{rev}{shape}",
              f"{sym.upper()}:{store}:{requested}:{json.dumps(params, sort_keys=True)}:"
              f"{json.dumps(toggles, sort_keys=True)}:{gen}{day}")
-    try:
-        hit = cache.get(ck)
-    except Exception:                                  # noqa: BLE001 — a cache read is bookkeeping
-        hit = None
+    hit, tier = _rs_kept(ck, intraday)
     if hit:
-        _record_timing("cache", t0, {})
+        _record_timing(tier, t0, {})
         return hit
 
     stages: dict = {"bars": 0.0}
@@ -441,6 +439,7 @@ def rs_line_envelope(sym: str, tf: str, inputs: dict, *, fetch_bars, cache_key, 
         if times:
             ttl = 60 if no_bench else (900 if intraday else _seconds_to_next_et_close())
             cache.set(ck, envelope, ttl=ttl)
+            rs_store.put(ck, envelope, ttl)        # and past this process (never the 60 s answer)
     except Exception:                                  # noqa: BLE001 — see the DPL cache-write note
         logger.exception("signature: rs cache write failed for %s", sym)
     _record_timing("cold", t0, _stage_order(stages, (t_built - t_build) * 1000.0))
@@ -2034,16 +2033,67 @@ def _rs_split_history(core: dict, count: int) -> dict:
     return {"bars": len(core["times"]), "requested": int(count), "short": core["short_history"]}
 
 
-def _rs_split_cached(ck):
-    try:
-        return cache.get(ck)
-    except Exception:                                  # noqa: BLE001 — a cache read is bookkeeping
+#: While a regular session is open, a D/W/M answer read back from the FILE is
+#: used for this long after it was built, and no longer. The forming day's cells
+#: (and the readout's numbers) are a snapshot of the minute of the build; the RS
+#: line itself is moved live by the chart (`plots[].liveTail`), the other panes
+#: are not. Memory keeps its own rule, unchanged.
+_RS_DISK_SESSION_MAX_AGE_S = 600.0
+
+
+def _rs_session_open(now_et=None) -> bool:
+    """Monday to Friday, 9:30 to 16:05 ET (16:05 is when the day's bars have
+    settled, `_seconds_to_next_et_close`). A holiday reads as open: the cost is
+    a rebuild, never an old answer."""
+    n = now_et or _et_now()
+    if n.weekday() >= 5:
+        return False
+    minute = n.hour * 60 + n.minute
+    return 9 * 60 + 30 <= minute < 16 * 60 + 5
+
+
+def _rs_disk_max_age(intraday: bool) -> float | None:
+    """The age bound on a read from the file: None (the row's own expiry is the
+    only bound) for an intraday answer, which lives 900 s in all, and for a
+    D/W/M one while nothing is forming."""
+    if intraday:
         return None
+    return _RS_DISK_SESSION_MAX_AGE_S if _rs_session_open() else None
+
+
+def _rs_kept(ck, intraday: bool):
+    """``(envelope, tier)`` for an answer already built, ``(None, None)`` when
+    there is none. ``"cache"``: this process's memory. ``"disk"``: the store
+    that outlives the process and the shared cache's 1,000 entries (`rs_store`,
+    2026-11-13), which hands back the seconds the answer has LEFT; it goes back
+    into memory for exactly that long, so nothing lives past the instant
+    `cache.set(ck, envelope, ttl)` gave it when it was built (and, while a
+    session is open, not past ten minutes from its build: `_rs_disk_max_age`).
+    Never raises: a read that fails is a build."""
+    try:
+        hit = cache.get(ck)
+    except Exception:                                  # noqa: BLE001 — a cache read is bookkeeping
+        hit = None
+    if hit:
+        return hit, "cache"
+    try:
+        kept = rs_store.get(ck, max_age=_rs_disk_max_age(intraday))
+    except Exception:                                  # noqa: BLE001 — the store answers None, never raises; belt and braces
+        kept = None
+    if kept is None:
+        return None, None
+    envelope, left = kept
+    try:
+        cache.set(ck, envelope, ttl=left)
+    except Exception:                                  # noqa: BLE001
+        pass
+    return envelope, "disk"
 
 
 def _rs_split_store(ck, envelope: dict, ttl: int, def_id: str, sym: str) -> None:
     try:
         cache.set(ck, envelope, ttl=ttl)
+        rs_store.put(ck, envelope, ttl)
     except Exception:                                  # noqa: BLE001 — see the DPL cache-write note
         logger.exception("signature: %s cache write failed for %s", def_id, sym)
 
@@ -2076,9 +2126,9 @@ def rs_rating_envelope(sym: str, tf: str, inputs: dict, *, fetch_bars, cache_key
     day = _et_session_day()
     ck = cache_key(f"rsRating{rev}p{_RS_RATING_PAYLOAD_SHAPE}",
                    f"{sym.upper()}:{store}:{_rs_data_generation()}:{day}")
-    hit = _rs_split_cached(ck)
+    hit, tier = _rs_kept(ck, intraday)
     if hit:
-        _record_timing("cache", t0, {})
+        _record_timing(tier, t0, {})
         return hit
     stages: dict = {"bars": 0.0}
     t_build = time.perf_counter()
@@ -2170,9 +2220,9 @@ def rs_phases_envelope(sym: str, tf: str, inputs: dict, *, fetch_bars, cache_key
     day = _et_session_day()
     ck = cache_key(f"rsPhases{rev}p{_RS_PHASES_PAYLOAD_SHAPE}",
                    f"{sym.upper()}:{store}:{json.dumps(params, sort_keys=True)}:{day}")
-    hit = _rs_split_cached(ck)
+    hit, tier = _rs_kept(ck, intraday)
     if hit:
-        _record_timing("cache", t0, {})
+        _record_timing(tier, t0, {})
         return hit
     stages: dict = {"bars": 0.0}
     t_build = time.perf_counter()
@@ -2227,9 +2277,9 @@ def rs_vs_ema_envelope(sym: str, tf: str, inputs: dict, *, fetch_bars, cache_key
     day = _et_session_day()
     ck = cache_key(f"rsVsEma{rev}p{_RS_VS_EMA_PAYLOAD_SHAPE}",
                    f"{sym.upper()}:{store}:{json.dumps(params, sort_keys=True)}:{day}")
-    hit = _rs_split_cached(ck)
+    hit, tier = _rs_kept(ck, intraday)
     if hit:
-        _record_timing("cache", t0, {})
+        _record_timing(tier, t0, {})
         return hit
     stages: dict = {"bars": 0.0}
     t_build = time.perf_counter()
@@ -2275,9 +2325,9 @@ def rs_vs_ema_envelope(sym: str, tf: str, inputs: dict, *, fetch_bars, cache_key
 # minute chart means nothing, so any other timeframe answers blank columns and
 # says so (`state: "daily-weekly-only"`), reading no benchmark at all.
 
-_RS_EXIT_KIND_LABELS = {"quickBreak": "Quick Break", "quicksand": "Quicksand", "deadBreak": "Grateful Dead Break"}
-#: Most severe first: on a bar where two fire, the legend names the worse one.
-_RS_EXIT_SEVERITY = ("deadBreak", "quicksand", "quickBreak")
+#: The names and the severity order live with the maths (`relative_strength.RS_EXIT_LABELS`
+#: / `RS_EXIT_SEVERITY`, read lazily below like every `relative_strength` use in this module)
+#: so the chart legend and the screener's `rs_exit_last` column print one word.
 _RS_EXIT_BLANK_WHY = "daily and weekly charts only"
 
 
@@ -2289,12 +2339,12 @@ def _rs_exit_last_warning(cols: dict) -> dict | None:
     """The newest warning in the columns: ``{kind, label, index, barsAgo}`` (``barsAgo``
     counted from the newest bar, 0 = that bar), the worse one when two share a bar,
     or None when no warning has fired in the bars held."""
+    from api.services import relative_strength as rsmod
     n = len(cols["rsLine"])
-    for i in range(n - 1, -1, -1):
-        for kind in _RS_EXIT_SEVERITY:
-            if cols[kind][i] == 1.0:
-                return {"kind": kind, "label": _RS_EXIT_KIND_LABELS[kind], "index": i, "barsAgo": n - 1 - i}
-    return None
+    kind, i = rsmod.rs_exit_latest(cols)        # the screener's `rs_exit_last` reads the same function
+    if kind is None:
+        return None
+    return {"kind": kind, "label": rsmod.RS_EXIT_LABELS[kind], "index": i, "barsAgo": n - 1 - i}
 
 
 def _rs_exit_legend(cols: dict, times, params: dict, why: str | None) -> dict:
@@ -2367,9 +2417,9 @@ def rs_exit_envelope(sym: str, tf: str, inputs: dict, *, fetch_bars, cache_key, 
     day = _et_session_day()
     ck = cache_key(f"rsExit{rev}p{_RS_EXIT_PAYLOAD_SHAPE}",
                    f"{sym.upper()}:{store}:{json.dumps(params, sort_keys=True)}:{day}")
-    hit = _rs_split_cached(ck)
+    hit, tier = _rs_kept(ck, intraday)
     if hit:
-        _record_timing("cache", t0, {})
+        _record_timing(tier, t0, {})
         return hit
     stages: dict = {"bars": 0.0}
     t_build = time.perf_counter()

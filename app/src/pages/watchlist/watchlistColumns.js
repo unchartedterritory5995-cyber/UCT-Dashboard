@@ -32,6 +32,7 @@ export const EXTRA_COLS = [
   { key: 'attention', label: 'Attention' },
   { key: 'atr', label: 'ATR %' },
   { key: 'a50', label: 'ATR from 50SMA' },
+  { key: 'rsexit', label: 'RS Exit Warning' },
   // The column library's new columns (owner 11-14) — live-quote and nightly-snapshot ones.
   ...Object.entries(LIVE_COLUMNS).map(([key, c]) => ({ key, label: c.label })),
   ...Object.entries(FACT_COLUMNS).map(([key, c]) => ({ key, label: c.label })),
@@ -52,6 +53,7 @@ export const COL_LABELS = {
   weight: ['Weight %', 'Wt %'],
   atr: ['ATR %', 'ATR%'], a50: ['ATR from 50SMA', '50SMA'],
   attention: ['Attention', 'Attn'],
+  rsexit: ['RS Exit Warning', 'RS Exit'],
   ...Object.fromEntries([...Object.entries(LIVE_COLUMNS), ...Object.entries(FACT_COLUMNS)].map(([k, c]) => [k, [c.label, c.short || c.label]])),
 }
 // Text columns — sorted alphabetically, not numerically.

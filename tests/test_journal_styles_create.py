@@ -152,7 +152,7 @@ def test_unknown_style_and_kind(client):
     _as(client)
     assert client.post("/api/j2/notes", json={"styleId": "nope"}).status_code == 404
     r = client.post("/api/j2/notes", json={"kindId": "nope"})
-    assert r.status_code == 400 and r.json()["detail"] == "Choose a kind of note."
+    assert r.status_code == 400 and r.json()["detail"] == "Choose a note type."
     assert client.post("/api/j2/notes", json={"styleId": 5}).status_code == 400
     assert client.post("/api/j2/notes", json={"kindId": "thesis", "ticker": "no way"}).status_code == 400
 

@@ -46,6 +46,7 @@ import { useEffect } from 'react'
 import { preload, mutate, unstable_serialize } from 'swr'
 import { SWRGlobalState, cache as swrCache } from 'swr/_internal'
 import { isAppVisible } from './deskVisibility'
+import { createPace, restGateDisabled } from './symbolPace'
 
 /** A priority call of at most this many symbols is "the rows the member is about to reach". */
 export const NEAR_MAX = 12
@@ -69,6 +70,30 @@ let _painted = false           // the page's first chart has painted
 let _armed = false
 let _freshMs = FRESH_MS
 let _retryMs = RETRY_MS
+
+// ⭐ 2026-11-13 — NOTHING NEW IS STARTED FOR ROWS A MEMBER IS RACING PAST. One priority call is
+// one step of a scan (the watchlist announces the rows ahead on every selection). Measured on
+// production with the arrow key held through 40 charts: this queue kept three requests in
+// flight for rows the member passed a quarter of a second later, on top of what each chart
+// asked for itself, and the pod took 4 to 6 s to answer the chart the member stopped on. While
+// the steps come faster than `RACE_MS` apart the queue only takes the newest rows; it starts
+// asking again once the member has stopped (`lib/symbolPace.js`, the readers' own rule).
+const _pace = createPace()
+let _racing = false
+let _restTimer = null
+
+function _noteStep() {
+  if (restGateDisabled()) return
+  _racing = _pace.step(Date.now())
+  if (_restTimer !== null) { clearTimeout(_restTimer); _restTimer = null }
+  if (!_racing) return
+  _restTimer = setTimeout(() => {
+    _restTimer = null
+    _racing = false
+    _pace.rested()
+    _pump()
+  }, _pace.restMs())
+}
 
 function _disabled() {
   try { return localStorage.getItem('uct.indwarm.off') === '1' } catch { return false }
@@ -126,6 +151,7 @@ export function useSymbolResource(keyOf, fetcher) {
 function _pump() {
   if (!_painted) return
   if (!isAppVisible()) { _queue.length = 0; return }
+  if (_racing) return
   while (_active < ACTIVE_MAX && _queue.length) {
     const { key, id, fetcher } = _queue.shift()
     if (_held(id) || _busy(id)) continue
@@ -165,6 +191,7 @@ function _pump() {
 export function warmSymbolResources(syms, _tf, opts = {}) {
   if (!opts.priority || !Array.isArray(syms) || !syms.length || syms.length > NEAR_MAX) return 0
   if (_disabled()) return 0
+  _noteStep()
   const now = Date.now()
   if (_failed.size > 256) for (const [k, at] of _failed) if (now - at >= _retryMs) _failed.delete(k)
   const fresh = []
@@ -213,7 +240,7 @@ export function armSymbolResourceWarm(deps) {
 
 /** Diagnostic + test seam. */
 export function symbolResourceWarmStats() {
-  return { resources: _resources.size, queued: _queue.length, active: _active, painted: _painted, failed: _failed.size }
+  return { resources: _resources.size, queued: _queue.length, active: _active, painted: _painted, failed: _failed.size, racing: _racing }
 }
 
 /** Test seam: forget everything, as a new page load would (and, for a test, shorten the two windows). */
@@ -226,4 +253,8 @@ export function __resetSymbolResourceWarm({ painted = false, freshMs = FRESH_MS,
   _armed = false
   _freshMs = freshMs
   _retryMs = retryMs
+  if (_restTimer !== null) { clearTimeout(_restTimer); _restTimer = null }
+  _racing = false
+  _pace.rested()
+  _pace.forget()
 }

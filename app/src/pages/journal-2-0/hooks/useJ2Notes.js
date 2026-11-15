@@ -4,6 +4,7 @@ import useSWR, { mutate as globalMutate, useSWRConfig } from 'swr'
 import { invalidateNoteLinkTarget } from '../lib/noteLinkTargetsBatch'
 import { settleNoteWrite } from '../lib/offline/settleNoteWrite'
 import { notebookSchemaHeaders } from '../lib/notebookSchema'
+import { noteReadKey } from '../lib/noteReadKey'
 import {
   NOTE_TAGS_KEY, rememberBounded, stampListRead, tagReadServes, tagSignature,
 } from './useJ2NoteTags'
@@ -208,7 +209,7 @@ export default function useJ2Notes({
 }
 
 export function useJ2Note(noteId) {
-  const url = noteId ? `/api/j2/notes/${noteId}` : null
+  const url = noteReadKey(noteId)
   const { data, error, isLoading, mutate } = useSWR(url, fetcher, {
     revalidateOnFocus: false,
     shouldRetryOnError: false,

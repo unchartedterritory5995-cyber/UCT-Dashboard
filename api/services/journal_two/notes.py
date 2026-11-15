@@ -6026,6 +6026,23 @@ def delete_folder(
             conn.close()
 
 
+def find_folder_segment(conn, user_id: str, parent: str, name: str):
+    """The existing folder one segment of a folder path names, or None: the segment rule of `ensure_folder_path` and
+    of the connector engine's read half (`note_connectors/engine.py` `_existing_folder`), written once.
+
+    Follow-up B, item 4c: at the ROOT a name matches IGNORING CASE, so an import or a connector (Roam files its daily
+    pages under "Daily Notes") reuses a member's root "Daily notes" instead of making a second one beside it. An
+    exact-case match is still preferred when both exist, then the oldest. Nested segments match exactly, as before."""
+    if not parent:
+        return conn.execute(
+            "SELECT id FROM j2_note_folders WHERE user_id = ? AND (parent_id IS NULL OR parent_id = '')"
+            " AND name = ? COLLATE NOCASE ORDER BY (name = ?) DESC, created_at, id LIMIT 1",
+            (user_id, name, name)).fetchone()
+    return conn.execute(
+        "SELECT id FROM j2_note_folders WHERE user_id = ? AND parent_id = ? AND name = ?",
+        (user_id, parent, name)).fetchone()
+
+
 def ensure_folder_path(user_id: str, path_parts: list[str], dest_folder_id: str = "", conn=None,
                        *, import_source: str | None = None) -> str:
     """Upsert a folder chain under dest_folder_id; returns leaf folder id.
@@ -6057,9 +6074,7 @@ def ensure_folder_path(user_id: str, path_parts: list[str], dest_folder_id: str 
         pid = dest_folder_id or ""
 
         def existing(parent: str, name: str):
-            return conn.execute(
-                "SELECT id FROM j2_note_folders WHERE user_id = ? AND parent_id = ? AND name = ?",
-                (user_id, parent, name)).fetchone()
+            return find_folder_segment(conn, user_id, parent, name)
 
         for raw in path_parts:
             name = (raw or "").strip()[:80] or "Untitled"

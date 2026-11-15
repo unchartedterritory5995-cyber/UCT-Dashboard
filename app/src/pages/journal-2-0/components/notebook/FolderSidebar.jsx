@@ -36,6 +36,7 @@ import ContextPopover from '../../../../components/mobile/ContextPopover'
 import useTreeRoving from '../../lib/useTreeRoving'
 import useToolbarRoving from '../../lib/useToolbarRoving'
 import useGridRoving from '../../lib/useGridRoving'
+import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../../lib/notebookTelemetry'
 
 // Debounce before the search query reaches the server (below) — short enough
 // to feel instant, long enough that fast typing doesn't fire a request per
@@ -207,7 +208,17 @@ function NoteIcon() {
 // queries `[data-note-card-id]` against the WHOLE document, so a note row
 // with no such attribute was simply invisible to it, silently. Competitive
 // audit finding UX #11 / Accessibility QW-6.
-function RecencySection({ label, icon, notes, activeNoteId, onOpenNote }) {
+// Follow-up A (usage counting): a press on a left-panel row counts once as `panel_row_used`, by the `data-panel-row`
+// id the row (or its list) carries where it is drawn. Never a folder's or a tag's name: the id says only "folder".
+function countPanelRow(e) {
+  const row = e.target?.closest?.('[data-panel-row]')
+  if (row && e.currentTarget.contains(row)) {
+    trackNotebookEvent(NOTEBOOK_EVENTS.PANEL_ROW_USED, { row: row.getAttribute('data-panel-row') })
+  }
+}
+const SHELF_ROW = { __unfiled__: 'unfiled', __archived__: 'archived', __trash__: 'trash' }
+
+function RecencySection({ label, icon, notes, activeNoteId, onOpenNote, usage }) {
   const [expanded, setExpanded] = useState(true)
   // Wave 6 item 7: Ctrl/Cmd+click opens the note beside (desktop split view).
   const openRow = useOpenFromList(onOpenNote)
@@ -232,7 +243,7 @@ function RecencySection({ label, icon, notes, activeNoteId, onOpenNote }) {
         </span>
       </div>
       {expanded && (
-        <div role="group" aria-label={label} ref={rows.ref} onKeyDown={rows.onKeyDown} onFocus={rows.onFocus}>
+        <div role="group" aria-label={label} ref={rows.ref} onKeyDown={rows.onKeyDown} onFocus={rows.onFocus} data-panel-row={usage}>
           {notes.map((note) => (
             <div key={note.id} className={styles.rowWrap}>
               <span className={styles.disclosureSpacer} aria-hidden="true" />
@@ -380,6 +391,7 @@ function TagRenameableRow({
           type="button"
           className={`${styles.row} ${active ? styles.rowActive : ''}`}
           onClick={onSelect}
+          data-panel-row="tag"
           aria-current={active ? 'true' : undefined}
           aria-label={ariaLabel}
           title={title}
@@ -631,6 +643,7 @@ function FolderNode({
             // rows already carried this; folders and All notes did not).
             aria-current={activeFolderId === node.id ? 'true' : undefined}
             onClick={() => { onSelectFolder(node.id); onSelectTag(null) }}
+            data-panel-row="folder"
             onDoubleClick={() => { setEditingId(node.id); setEditName(node.name) }}
             // F7 Part C: where focus goes after a neighbouring folder is deleted.
             data-folder-row={node.id}
@@ -1363,7 +1376,7 @@ export default function FolderSidebar({
   }
 
   return (
-    <aside ref={asideRef} className={styles.sidebar} data-tour="sidebar">
+    <aside ref={asideRef} className={styles.sidebar} data-tour="sidebar" onClick={countPanelRow}>
       <SkipLinkPortal>
         <a href="#notebook-folder-nav" className={styles.skipLink} onClick={skipToSidebar}>
           Skip to folder navigation
@@ -1399,6 +1412,7 @@ export default function FolderSidebar({
             aria-selected={mode === 'search'}
             className={`${styles.sbHeaderBtn} ${mode === 'search' ? styles.sbHeaderBtnActive : ''}`}
             onClick={() => setMode('search')}
+            data-panel-row="search_tab"
             title="Search notes"
             aria-label="Search notes"
             data-tour="search"
@@ -1807,6 +1821,7 @@ export default function FolderSidebar({
           ]} />
           <RecencySection
             label="Favorites"
+            usage="favorites"
             icon="star-fill"
             notes={favoriteNotes}
             activeNoteId={activeNoteId}
@@ -1814,6 +1829,7 @@ export default function FolderSidebar({
           />
           <RecencySection
             label="Recents"
+            usage="recents"
             icon="clock"
             notes={recentNotes}
             activeNoteId={activeNoteId}
@@ -1840,6 +1856,7 @@ export default function FolderSidebar({
                 onClick={onSelectAllNotes || (() => { onSelectFolder(null); onSelectTag(null) })}
                 // F7 Part C: the list's standing control, focus's last landing after a delete.
                 data-all-notes-row=""
+                data-panel-row="all_notes"
               >
                 <span>All notes</span>
                 {/* The TRUE total (from SQL), never `notes.length` — that page
@@ -1863,6 +1880,7 @@ export default function FolderSidebar({
                   aria-current={isToday ? 'true' : undefined}
                   onClick={onSelectToday}
                   data-today-row=""
+                  data-panel-row="daily_brief"
                 >
                   <span>Daily brief</span>
                 </button>
@@ -1950,6 +1968,7 @@ export default function FolderSidebar({
                       aria-current={active ? 'true' : undefined}
                       onClick={() => { onSelectFolder(id); onSelectTag(null) }}
                       data-shelf-row={id}
+                      data-panel-row={SHELF_ROW[id]}
                     >
                       <span>{name}</span>
                       {shown && <span className={styles.count}>{shown}</span>}
@@ -1964,7 +1983,7 @@ export default function FolderSidebar({
                 <div className={styles.rowWrap} role="treeitem" aria-level={1} aria-label="My Playbook">
                   <span className={styles.disclosureSpacer} aria-hidden="true" />
                   <Link to={PLAYBOOK_IN_NOTEBOOK_PATH} tabIndex={-1} data-tree-primary="" className={styles.row}
-                    data-sidebar-playbook="">
+                    data-sidebar-playbook="" data-panel-row="playbook">
                     <span><UIcon name="book" size={12} gold={false} /> My Playbook</span>
                   </Link>
                 </div>

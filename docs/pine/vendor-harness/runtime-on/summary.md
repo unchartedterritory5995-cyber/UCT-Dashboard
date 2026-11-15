@@ -66,7 +66,7 @@ atr-stepped-pdf-ma-loxx-rddt-1d-2026-10-03   NYSE:RDDT 1D     3      INCONCLUSIV
     Short                                    INCONCLUSIVE   — our side produced no column for this plot — the member pane did not carry this output (hidden helper or beyond its row ceiling)
     objects                                  MATCH         neither side draws an object
     paints                                   MATCH         1 paint agree bar for bar
-atr-support-and-resistance-rddt-1d-2026-09-2 NYSE:RDDT 1D     9      INCONCLUSIVE  1 of 11 items could not be compared
+atr-support-and-resistance-rddt-1d-2026-09-2 NYSE:RDDT 1D     9      MATCH         all 11 items agree
     Impulse Up                               MATCH         cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
     Impulse Down                             MATCH         cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
     RSI Mid Line Support                     MATCH         cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
@@ -76,9 +76,9 @@ atr-support-and-resistance-rddt-1d-2026-09-2 NYSE:RDDT 1D     9      INCONCLUSIV
     Ran Previous High                        MATCH         cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
     Ran Previous Low                         MATCH         cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
     Moving Average                           MATCH         cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
-    objects                                  INCONCLUSIVE  our lines, boxes are withheld by name (objects:not-carried: No line or box is shown on this chart: the script makes them in steps this chart can't follow yet, so none are drawn here, though TradingView may draw some.); every other object family's counts and texts agree
+    objects                                  MATCH         object counts and texts agree; colours agree on 60 paired slots; coordinates are NOT compared by v1
     paints                                   MATCH         4 paints agree bar for bar
-atr-support-and-resistance-spy-1d-2026-10-03 AMEX:SPY 1D      9      INCONCLUSIVE  1 of 11 items could not be compared
+atr-support-and-resistance-spy-1d-2026-10-03 AMEX:SPY 1D      9      MATCH         all 11 items agree
     Impulse Up                               MATCH         cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     Impulse Down                             MATCH         cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     RSI Mid Line Support                     MATCH         cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
@@ -88,7 +88,7 @@ atr-support-and-resistance-spy-1d-2026-10-03 AMEX:SPY 1D      9      INCONCLUSIV
     Ran Previous High                        MATCH         cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     Ran Previous Low                         MATCH         cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     Moving Average                           MATCH         cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
-    objects                                  INCONCLUSIVE  our lines, boxes are withheld by name (objects:not-carried: No line or box is shown on this chart: the script makes them in steps this chart can't follow yet, so none are drawn here, though TradingView may draw some.); every other object family's counts and texts agree
+    objects                                  MATCH         object counts and texts agree; colours agree on 414 paired slots; coordinates are NOT compared by v1
     paints                                   MATCH         4 paints agree bar for bar
 atr-trailing-stop-by-ceyhun-rddt-1d-2026-10- NYSE:RDDT 1D     4      DIVERGE       1 of 6 compared items diverge
     Fast Trail                               MATCH         cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 2.17e-16
@@ -621,7 +621,7 @@ keltner-center-of-gravity-channel-rddt-1d-20 NYSE:RDDT 1D     18     MATCH      
     inlow                                    MATCH         cmp 634 ok 634 warm 0/0 steady 0/634 maxRel 0.00e+0
     outlow                                   MATCH         cmp 634 ok 634 warm 0/0 steady 0/634 maxRel 0.00e+0
     HMA                                      MATCH         cmp 634 ok 634 warm 0/0 steady 0/634 maxRel 0.00e+0
-    objects                                  MATCH         object counts and texts agree; colours agree on 6 paired slots; coordinates are NOT compared by v1
+    objects                                  MATCH         object counts and texts agree; colours agree on 8 paired slots; coordinates are NOT compared by v1
 keltner-center-of-gravity-channel-spy-1d-202 AMEX:SPY 1D      18     MATCH         all 19 items agree
     extra high line                          MATCH         cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     outerhigh                                MATCH         cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 2.17e-16
@@ -641,7 +641,7 @@ keltner-center-of-gravity-channel-spy-1d-202 AMEX:SPY 1D      18     MATCH      
     inlow                                    MATCH         cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     outlow                                   MATCH         cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     HMA                                      MATCH         cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
-    objects                                  MATCH         object counts and texts agree; colours agree on 6 paired slots; coordinates are NOT compared by v1
+    objects                                  MATCH         object counts and texts agree; colours agree on 8 paired slots; coordinates are NOT compared by v1
 keltner-channels-bands-rddt-1d-2026-09-27    NYSE:RDDT D      7      MATCH         all 8 items agree
     Basis                                    MATCH         cmp 631 ok 631 warm 0/0 steady 0/631 maxRel 4.41e-16
     Upper 1                                  MATCH         cmp 631 ok 631 warm 0/0 steady 0/631 maxRel 4.78e-16
@@ -899,7 +899,7 @@ multicator-table-spy-1d-2026-10-02           AMEX:SPY 1D      28     DIVERGE    
     MACD bear div                            MATCH         cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     objects                                  DIVERGE       TradingView holds 72 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-removal-lost) — the object gate withheld the whole drawing program for a lost removal (coll:diverged, coll:push)
 nadaraya-watson-rational-quadratic-kernel-no NYSE:RDDT 1D     2      INCONCLUSIVE  1 of 3 items could not be compared
-    Rational Quadratic Kernel Estimate       MATCH         cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 1.59e-16
+    Rational Quadratic Kernel Estimate       MATCH         cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     Alert Stream                             INCONCLUSIVE   — our side produced no column for this plot — the translator refused this plot (pine:block)
     objects                                  MATCH         neither side draws an object
 opening-range-initial-balance-opening-price- NYSE:RDDT 1D     14     INCONCLUSIVE  11 of 15 items could not be compared
@@ -2692,10 +2692,10 @@ w2-warmup-spy-12m-2026-09-22                 SPY 12M          14     MATCH      
     W13_cum_close_FROM_BAR0                  MATCH         cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 0.00e+0
     W14_sma1_DEGENERATE_WINDOW               MATCH         cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 0.00e+0
 
-TOTAL 369 captures — MATCH 181 · DIVERGE 48 · INCONCLUSIVE 140
-WITHOUT OBJECT COLOUR (the verdict before C44; colour graded on 112 captures) — MATCH 181 · DIVERGE 48 · INCONCLUSIVE 140
+TOTAL 369 captures — MATCH 183 · DIVERGE 48 · INCONCLUSIVE 138
+WITHOUT OBJECT COLOUR (the verdict before C44; colour graded on 114 captures) — MATCH 183 · DIVERGE 48 · INCONCLUSIVE 138
 CHANGED BY OBJECT COLOUR (0): none
-WITHOUT PAINTS (the verdict before B1; paints graded on 41 captures) — MATCH 182 · DIVERGE 46 · INCONCLUSIVE 141
+WITHOUT PAINTS (the verdict before B1; paints graded on 41 captures) — MATCH 184 · DIVERGE 46 · INCONCLUSIVE 139
 CHANGED BY PAINTS (2): vw-bgcolor-barcolor-spy-1d-2026-10-02 MATCH → DIVERGE; vw-deadband-ticks-brk-a-1d-2026-09-28 INCONCLUSIVE → DIVERGE
 ```
 

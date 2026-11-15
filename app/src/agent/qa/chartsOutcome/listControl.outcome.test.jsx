@@ -538,6 +538,7 @@ describe('5. several at once, including everything except these', () => {
     await m.say('undo')
     await waitFor(() => expect(server(m, 'Momentum')).toEqual(SAVED))
   })
+  // ⛔ AUDIT #1247 (D19): "all five" names the whole list when it holds exactly five — acted on (its clear card, as before)
   it('listing EVERY ticker is a clear by another name, so it is proposed', async () => {
     const m = board()
     await m.say('remove all five', (c) => [op('watchlist.remove', listRef(c, 'Momentum'), { symbols: SAVED })])
@@ -548,11 +549,13 @@ describe('5. several at once, including everything except these', () => {
     await m.say('undo')
     await waitFor(() => expect(server(m, 'Momentum')).toEqual(SAVED))
   })
-  it('more than ten at once is proposed', async () => {
+  // ⛔ AUDIT #1247 (D19): "twelve" of fourteen — which twelve the words do not fix: ASKS, nothing written, no card
+  it('"remove twelve" (12 of 14: which twelve is not fixed by the words): asks, nothing written, no card', async () => {
     const big = Array.from({ length: 14 }, (_, i) => `T${i}`)
     const m = board(ON_MOMENTUM(), { lists: [{ id: 'w1', name: 'Momentum', symbols: big }] })
-    await m.say('remove twelve', (c) => [op('watchlist.remove', listRef(c, 'Momentum'), { symbols: big.slice(0, 12) })])
-    expect(proposalsNow()).toHaveLength(1)
+    const out = await m.say('remove twelve', (c) => [op('watchlist.remove', listRef(c, 'Momentum'), { symbols: big.slice(0, 12) })])
+    expect(out).toMatch(/didn’t change anything/)
+    expect(proposalsNow()).toHaveLength(0)
     expect(server(m, 'Momentum')).toEqual(big)
   })
   it('a list too big to take apart at once is refused and says where', async () => {
@@ -577,6 +580,7 @@ describe('7. what a list shows, so a follow-up can act on "the top three"', () =
     expect(out).toContain(`“Momentum” (5, sorted by RVOL, high to low): ${RVOL_ORDER.join(', ')}`)
     expect(out).not.toMatch(/\$\d/)
   })
+  // ⛔ AUDIT #1247 (D19): "the top three" = the rows the earlier view showed, the list unchanged since — acted on
   it('"remove the top three": the three on SCREEN, not the first three saved', async () => {
     const m = board()
     await sortRvol(m)

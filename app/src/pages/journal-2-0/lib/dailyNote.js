@@ -14,6 +14,7 @@
  * properties included), so no existing revision moves.
  */
 import { todayET } from './calendar'
+import { NOTEBOOK_EVENTS, trackNotebookEvent } from './notebookTelemetry'
 
 /** The preference that names the member's daily template (a template id, or ''). */
 export const DAILY_TEMPLATE_PREF = 'notebook_daily_template'
@@ -57,8 +58,10 @@ export function takeQueuedNotebookNotice({ noteId = null, now = Date.now() } = {
 }
 
 /** Open (or make) today's note. Resolves `{note, created, templateMissing}`. `seedToday` (Tier 3b fix round 1, I3/I9):
- *  a note this call MAKES starts with the Today home's plan -- the first run's Build and Today's "Start a fresh one". */
-export async function openDailyNote({ templateId, today = todayET, seedToday = false } = {}) {
+ *  a note this call MAKES starts with the Today home's plan -- the first run's Build and Today's "Start a fresh one".
+ *  Follow-up A: `door` (a `today_door_used` door id) counts one use of that door once the note is there, with whether
+ *  this call made it. A caller with no door (the first run) counts nothing. */
+export async function openDailyNote({ templateId, today = todayET, seedToday = false, door = null } = {}) {
   const res = await fetch('/api/j2/notes/daily', {
     method: 'POST',
     credentials: 'include',
@@ -70,7 +73,9 @@ export async function openDailyNote({ templateId, today = todayET, seedToday = f
     err.status = res.status
     throw err
   }
-  return res.json()
+  const out = await res.json()
+  if (door) trackNotebookEvent(NOTEBOOK_EVENTS.TODAY_DOOR_USED, { door, created: out?.created === true })
+  return out
 }
 
 /**
