@@ -120,7 +120,10 @@ def test_the_offset_node_this_file_writes_is_a_canonical_one():
     (WEEK, ("time-anchor:not-daily",), ("time-clock:unreadable",)),
     (WEEK_CHANGED, ("time-anchor:not-daily",), ("time-clock:unreadable",)),
     (WEEK_CLOSE, ("time-close:not-daily",), ("time-clock:unreadable",)),
-    (OWN_TIME, ("time-own:chart-unwitnessed",), ()),
+    # C49 (merged with C45 in 628609475d): the sweep's date-int keys carry no clock, so
+    # time(timeframe.period) is withheld whole there like every other chart-clock tree
+    # (the fixture's `na(W) · date ints · D (the scan sweep)` names the same code).
+    (OWN_TIME, ("time-own:chart-unwitnessed",), ("time-clock:unreadable",)),
     (ABOVE_AVERAGE, (), ()),
     (CLOSE, (), ()),
 ])
@@ -166,9 +169,17 @@ def test_the_question_agrees_with_what_interpret_does_on_the_same_bars(name):
 def test_the_question_is_not_vacuous_and_can_answer_no():
     cases = [ANCHOR[n]["ast"] for n in ANCHOR]
     sweep = [ai.whole_series_withheld(t, ai.DATE_KEYED_PROBE_BARS, opts={"tf": "D"}) for t in cases]
-    alert = [ai.whole_series_withheld(t, []) for t in cases]
     assert sum(1 for c in sweep if c) >= 40 and sum(1 for c in sweep if not c) >= 5
-    assert all(alert), "with no tf every chart-clock tree is withheld whole"
+    # C49 added request.security translations (`reqD`, `nz(reqW)`, `reqOwn`) to the shared
+    # fixture after this rail was written. They are not chart-clock trees: the fixture's
+    # own `reqD · weekdays · no tf` case draws values with codes []. Split by the fixture's
+    # `pine` field, and require BOTH halves non-empty so neither claim passes vacuously.
+    request = {n for n in ANCHOR if ANCHOR[n]["pine"].replace("nz(", "").startswith("req")}
+    clock = [ANCHOR[n]["ast"] for n in ANCHOR if n not in request]
+    assert len(request) >= 3 and len(clock) >= 40
+    assert ANCHOR["reqD · weekdays · no tf"]["codes"] == []
+    assert all(ai.whole_series_withheld(t, []) for t in clock),         "with no tf every chart-clock tree is withheld whole"
+    assert not any(ai.whole_series_withheld(ANCHOR[n]["ast"], []) for n in request),         "a request.security tree is not a chart-clock tree"
 
 
 # ═══ 2. the sweep's door ═════════════════════════════════════════════════════

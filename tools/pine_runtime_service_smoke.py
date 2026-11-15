@@ -50,6 +50,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
+import conftest  # noqa: E402,F401 -- the shared-data-root census + tripwire (tests/test_tools_pin_the_root.py); inert on a Railway service
 
 DOCUMENTS = ROOT / "tests" / "fixtures" / "runtime_documents" / "documents.json"
 FIXTURE = ROOT / "tests" / "fixtures" / "pine_runtime" / "service_smoke.json"

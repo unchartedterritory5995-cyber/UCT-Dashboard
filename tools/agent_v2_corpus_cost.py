@@ -47,6 +47,7 @@ import types
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, ROOT)
+import conftest  # noqa: E402,F401 -- the shared-data-root census + tripwire (tests/test_tools_pin_the_root.py); inert on a Railway service
 
 EXPORT = os.path.join(ROOT, "tests", "fixtures", "agent_v2_corpus_requests.json")
 _TOK = re.compile(r"[A-Za-z]+|\d+|[^\sA-Za-z\d]")
