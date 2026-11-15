@@ -130,9 +130,16 @@ describe('RT5 — conditional-call history refuses by name', () => {
   })
 })
 
-describe('RT5 — a drawing call in one arm of ?: refuses by name', () => {
-  it('refuses', () => {
-    const r = build('l = bar_index % 10 == 0 ? label.new(bar_index, close) : na\n')
+// ⭐ L4c (re-pinned): the witnessed shape `l = c ? label.new(…) : na` is now SERVED as a jump
+// (Q-RT5a T01/T02, rails in `l4cArmDrawing.test.js`); every other drawing in an arm still
+// refuses by name.
+describe('RT5 — a drawing call in one arm of ?:', () => {
+  it('L4c: `l = c ? label.new(…) : na` builds and draws only on the taken bars, as the `if` does', () => {
+    const { fin } = run('l = bar_index % 10 == 0 ? label.new(bar_index, close) : na\n')
+    expect(ofFamily(fin, 'label')).toHaveLength(30)
+  })
+  it('refuses by name in the ELSE arm (no capture witnesses it)', () => {
+    const r = build('l = bar_index % 10 == 0 ? na : label.new(bar_index, close)\n')
     expect(r.ok).toBe(false)
     expect(r.refusal.guard).toBe('runtime:object-op')
     expect(r.refusal.message).toMatch(/\?:/)

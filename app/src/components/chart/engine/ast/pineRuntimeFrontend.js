@@ -3966,6 +3966,52 @@ function buildRuntimeIrLinked(source, opts, holder) {
     const m = RUN_DRAW_CALL.exec(String(name || ''))
     return !!(m && Object.hasOwn(OBJECT_OPS, `${m[1]}.${m[2]}`))
   }
+  // ── ⭐⭐ L4c — A DRAWING MADE IN THE THEN ARM OF A ROOT `?:` WHOSE ELSE IS `na` ──
+  //
+  // Pine evaluates only the arm a `?:` picks. WITNESSED: Q-RT5a
+  // (`vw-rt5-arm-draw-block-history-rddt-1d-2026-10-03`, v6) T01/T02 — `t = close > open ?
+  // label.new(…) : na` makes 308 labels on the 308 UP bars and `t` is `na` on the rest;
+  // Q-O1a (`vw-ternary-draw-helper-rddt-1d-2026-10-02`, v5) — a label / line drawn in the
+  // THEN arm appears on exactly the bars its test is true (and TradingView's to-v5 guide:
+  // "the ternary operator is evaluated lazily"). So that shape is lowered as a JUMP
+  // (`lowerIr.js` `EXPR.TERNARY` `lazy`) and the arm runs only when it is taken.
+  // ⛔ EXACTLY THAT SHAPE, and every other drawing in an arm keeps `runtime:object-op`:
+  //   · the WHOLE value of a root declaration (`t = …`: no function body, loop, block,
+  //     request value, nor another arm), marked at the declaration (`drawArmRoots`);
+  //   · THEN a bare `label.new(…)` / `line.new(…)` (the witnessed families), ELSE Pine's `na`;
+  //   · arguments that keep no history and make no effect: a `ta.*` there would step only
+  //     on the taken bars, which no capture of a drawing argument settles. ⛔ TWO CHECKS, and
+  //     neither covers the other: `lexArmHistory` (before) is the ONLY one that sees a
+  //     `ta.sma(close, 5)` argument, which lowers to a COLUMN — the every-bar value, the wrong
+  //     one here (mutation-proved, `l4cArmDrawing.test.js`); `drawArmArgsPure` (after, over
+  //     the lowered tree) is the one that sees a user call or a collection / drawing effect.
+  const DRAW_ARM_CREATE = /^(label|line)\.new$/
+  /** The family `c ? <family>.new(…) : na` makes, or null when `value` is not that shape. */
+  const drawArmFamily = (value, scope) => {
+    if (!objectsInRun || !value || value.type !== 'ternary') return null
+    const yes = value.yes
+    if (!yes || yes.type !== 'call' || !DRAW_ARM_CREATE.test(String(yes.name || ''))) return null
+    if (!isBuiltinNa(value.no, scope)) return null
+    return String(yes.name).slice(0, String(yes.name).indexOf('.'))
+  }
+  const drawArmRoots = new WeakSet()
+  const markDrawArmRoot = (value, scope) => {
+    if (atObjectDoor || owner !== null || loopDepth > 0 || condDepth > 0 || inRequestValue || armDepth > 0) return
+    if (!drawArmFamily(value, scope)) return
+    if (lexArmHistory(value.yes)) return     // history in the arm: `armHistoryGuard` names it
+    drawArmRoots.add(value)
+  }
+  const DRAW_ARM_PURE_KINDS = new Set([EXPR.NUM, EXPR.STR, EXPR.CONCAT, EXPR.COLOUR, EXPR.TEXT,
+    EXPR.SERIES, EXPR.CLOCK, EXPR.COLUMN, EXPR.READ, EXPR.HIST, EXPR.HIST_DYN, EXPR.HIST_SLOT_DYN,
+    EXPR.BINARY, EXPR.UNARY, EXPR.TERNARY, EXPR.BUILTIN])
+  /** Does a lowered argument tree only READ (no state that steps, no effect)? */
+  const drawArmArgsPure = (ir, d = 0) => {
+    if (d > 96) return false
+    if (Array.isArray(ir)) return ir.every((x) => drawArmArgsPure(x, d + 1))
+    if (!ir || typeof ir !== 'object') return true
+    if (typeof ir.kind === 'string' && !DRAW_ARM_PURE_KINDS.has(ir.kind)) return false
+    return Object.keys(ir).every((k) => k === 'kind' || drawArmArgsPure(ir[k], d + 1))
+  }
   /** What a run-dispatched `any.<method>` leaves on the stack. */
   const anyReturns = (method) => {
     const kinds = new Set((ANY_METHODS[method] || []).map((f) => OBJECT_OPS[`${f}.${method}`].returns))
@@ -3986,7 +4032,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // RT5: this lane evaluates BOTH arms of `?:` every bar; Pine runs only the
     // taken arm. A drawing made in an arm would be made on every bar.
     // ⭐ WS-E — a GETTER makes nothing, so it may stand in an arm (`objectStore.isArmSafeObjectOp`).
-    if (armDepth > 0 && !isArmSafeObjectOp(fn)) refuseObject(fn, 'a drawing call inside one arm of `?:` — Pine makes it only when that arm is taken, this lane evaluates both', tok)
+    if (armDepth > 0 && !isArmSafeObjectOp(fn)) {
+      refuseObject(fn, 'a drawing call inside one arm of `?:` — Pine makes it only when that arm is taken, this lane evaluates both '
+        + '(served only as `t = c ? label.new(…) : na` or `line.new`, the whole value of a root declaration, Q-RT5a)', tok)
+    }
     if (/^polyline\./.test(fn) || /^chart\.point/.test(fn)) {
       refuseObject(fn, 'the chart this lane draws on has no polyline, so a polyline is not drawn rather '
         + 'than drawn as something else', tok)
@@ -4716,6 +4765,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (objectsInRun && value && value.type === 'call') {
       const m = /^(line|label|box|table|linefill)\.(new|copy)$/.exec(String(value.name || ''))
       if (m) return makeTy('drawing', { name: m[1] })
+    }
+    // ⭐ L4c — `c ? label.new(…) : na` holds that family's handle or `na`
+    {
+      const fam = drawArmFamily(value, scope)
+      if (fam) return makeTy('drawing', { name: fam })
     }
     if (holdsText(value, scope)) return makeTy('text')
     if (holdsColour(value, scope)) return makeTy('colour')
@@ -8058,6 +8112,19 @@ function buildRuntimeIrLinked(source, opts, holder) {
           const fixed = fixedTestOf(node.test, scope)
           if (fixed !== null) return lowerExpr(fixed ? node.yes : node.no, scope)
         }
+        // ⭐⭐ L4c — `t = c ? label.new(…) : na` at the root (`drawArmRoots`): a JUMP, so the
+        // label is made only on the bars `c` is true (Q-RT5a T01/T02, Q-O1a). The THEN arm is
+        // lowered at this `?:`'s own depth so its ONE create is admitted; a `?:` inside its
+        // arguments is still an arm (`lowerArm`) and keeps the refusal.
+        if (drawArmRoots.has(node)) {
+          const test = lowerExpr(node.test, scope)
+          const yes = lowerExpr(node.yes, scope)
+          if (!yes || yes.kind !== EXPR.OBJECT_OP || !drawArmArgsPure(yes.args)) {
+            refuseObject(String(node.yes.name), 'a drawing call inside one arm of `?:` whose arguments keep history or '
+              + 'have an effect — Pine runs them only on the bars that arm is taken, and no capture settles that for a drawing', node.yes.tok)
+          }
+          return { ...ternary(test, yes, lowerArm(node.no, scope)), lazy: true }
+        }
         // ⭐⭐⭐ W4 T4 — AN ARM WITH WITNESSED HISTORY RUNS ONLY WHEN IT IS CHOSEN
         // (`armHistoryGuard` cleared this node). Each arm is its own conditional
         // region, so its `ta.sma` / `ta.ema` / `ta.rma` / `ta.change` take per-call-
@@ -10628,7 +10695,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     'time_tradingday', 'timeframe.period', 'timeframe.multiplier', 'syminfo.mintick', 'syminfo.pointvalue',
     'syminfo.pricescale', 'syminfo.minmove', 'syminfo.ticker', 'syminfo.tickerid', 'syminfo.prefix',
     'syminfo.root', 'syminfo.currency', 'syminfo.basecurrency', 'syminfo.description', 'syminfo.type',
-    'syminfo.timezone', 'syminfo.session'])
+    'syminfo.timezone', 'syminfo.session', 'syminfo.industry', 'syminfo.sector'])
   const NUMERIC_CALL = /^(ta\.(sma|ema|rma|wma|hma|vwma|swma|alma|linreg|atr|tr|rsi|cci|mfi|stdev|variance|dev|highest|lowest|highestbars|lowestbars|mom|roc|cum|percentrank|median|mode|range|barssince|correlation|vwap|wpr|cmo|tsi|obv|pvt|accdist|iii|wvad|nvi|pvi|sar|supertrend|bb|bbw|kc|kcw|dmi|macd|stoch|pivothigh|pivotlow|max|min)|math\.[a-z_]+|input\.(int|float|source|price|string|color|timeframe|symbol|session|text_area|time)|str\.(tostring|format|length|replace|replace_all|lower|upper|substring|trim|repeat|tonumber|pos)|color\.[a-z_]+|int|float|string)$/
   // ⛔ (review 3 M-1a, re-review H-2) `ta.valuewhen`, `ta.change` and `nz` return their
   // SOURCE's type: provably non-bool exactly when that source argument is.
@@ -13113,6 +13180,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
         if (!mutable) {
           frameLocalDefs.set(slot, { expr: value, scope })
         }
+        // ⭐⭐ L4c — `t = c ? label.new(…) : na`, the whole value of this declaration
+        if (objectsInRun && !mutable) markDrawArmRoot(value, scope)
         out.push(declare(slot, lowerExpr(value, scope)))
         continue
       }

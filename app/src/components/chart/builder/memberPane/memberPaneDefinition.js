@@ -61,6 +61,8 @@ import { buildDefinition } from '../BuilderSheet'
 import { DOOR_VERSION } from '../../engine/memberDocumentMigration'
 import { evaluateFormula } from '../FormulaField'
 import { BUILDER_INPUT_SCOPE, seriesNamesOf, memberInputKey } from '../builderInputs'
+// ⭐ RS RATING L3 — the substituted-value disclosure (`syminfo.industry` / `sector` from UCT data).
+import { substitutionNotesFor } from '../../engine/ast/symbolSubstitution'
 
 /** ⭐ ≈ A QUARTER OF THE CHART, and the unit is the schema's own.
  *  `defSchema` validates `placement.pane.height` as a FRACTION in (0, 1) — a
@@ -849,6 +851,13 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
   if (drawingNote) {
     seen.add(`${drawingNote.name} :: ${drawingNote.note}`)
     notes.push(drawingNote)
+  }
+  // ⭐⭐ RS RATING L3 — A VALUE FROM UCT DATA IN PLACE OF TRADINGVIEW'S IS SAID SO, BY NAME
+  // (`syminfo.industry` / `syminfo.sector`, `bind.js::classificationWith`). The program's
+  // substitution rule: disclosed at the member door, never passed off as TradingView's.
+  for (const n of substitutionNotesFor(source)) {
+    seen.add(`${n.name} :: ${n.note}`)
+    notes.push(n)
   }
   for (const o of (t.outputs || [])) {
     for (const n of [...alertNoteForOutput(o), ...foldNotesForOutput(o)]) {
@@ -2040,6 +2049,8 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
         + 'which a script drawn bar by bar does not draw here yet. Its lines are drawn; those are not.',
     })
   }
+  // ⭐⭐ RS RATING L3 — the substituted-value disclosure, the same sentence the host document says.
+  notes.push(...substitutionNotesFor(source))
   const drawingNote = ownObjects || own.hostWithheld ? null : objectLossNote(objectsGate.loss, { withheld: !objectsGate.draw })
   if (drawingNote) notes.unshift(drawingNote)
   if (!ownObjects && own.hostWithheld && hostWouldDraw) {

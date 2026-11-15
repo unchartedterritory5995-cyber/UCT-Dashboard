@@ -73,26 +73,29 @@ def test_a_row_that_does_not_parse_completely_is_skipped_never_half_read():
     assert skipped == 2
 
 
-def test_replay_later_upload_wins_and_uncovered_rows_survive():
+def test_the_series_is_the_newest_upload_alone():
+    """Q-RS2 (NYSE:RDDT 1D, 2026-11-15): TradingView's seed is `na` on every bar
+    before the newest upload's first row and equals that upload exactly after it. An
+    upload REPLACES the series; rows only an older upload covered are gone."""
     gh = FakeGitHub([("bbb", "2026-11-11T03:04:36Z", upload(D2, V2)),
                      ("aaa", "2026-11-10T04:52:42Z", upload(D1, V1))])
     res = store.refresh([SEED], get=gh, max_pages=3)
     assert res["ok"] and res["ingested"][SEED] == 2
     by_date = {b["t"]: b["c"] for b in store.bars(SEED)}
-    # newest upload wins on the overlap
     assert by_date["2026-11-10"] == 12.5 and by_date["2026-11-06"] == 12.5
-    # the oldest day only the first upload covered keeps that upload's value
-    assert by_date["2026-10-06"] == 199.0
-    assert len(by_date) == 36
+    # 2026-10-06 only the OLDER upload covered: not served
+    assert "2026-10-06" not in by_date
+    assert len(by_date) == 35
+    assert store.coverage()[SEED]["uploads"] == 2          # provenance keeps both
 
 
-def test_replay_order_matters_control():
-    """Control: replaying NEWEST first gives a different series, so the test above
-    really pins the order and is not true of any order."""
+def test_upload_order_matters_control():
+    """Control: applying the NEWEST upload first leaves the older one in force, so the
+    test above really pins oldest-first application."""
     store.ingest_upload(SEED, "bbb", "2026-11-11T03:04:36Z", upload(D2, V2))
     store.ingest_upload(SEED, "aaa", "2026-11-10T04:52:42Z", upload(D1, V1))
     by_date = {b["t"]: b["c"] for b in store.bars(SEED)}
-    assert by_date["2026-11-09"] != 12.5
+    assert by_date["2026-11-09"] != 12.5 and "2026-10-06" in by_date
 
 
 def test_refresh_is_incremental_and_stops_at_the_first_known_commit():
@@ -135,6 +138,12 @@ def test_a_file_absent_at_a_commit_is_an_empty_upload_and_the_replay_continues()
     assert res["ok"] and res["ingested"][SEED] == 3
     assert {b["t"]: b["c"] for b in store.bars(SEED)}["2026-11-10"] == 12.5
     assert store.coverage()[SEED]["uploads"] == 3
+
+
+def test_an_empty_upload_does_not_wipe_the_series():
+    store.ingest_upload(SEED, "aaa", "2026-11-10T04:52:42Z", upload(D2, V2))
+    store.ingest_upload(SEED, "bbb", "2026-11-11T04:52:42Z", "")
+    assert len(store.bars(SEED)) == 35
 
 
 def test_any_other_fetch_error_still_stops_and_is_retried_control():

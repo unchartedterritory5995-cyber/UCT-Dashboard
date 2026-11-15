@@ -11,7 +11,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { validateCapture } from '../../../../../../../tools/vendor_harness/schema.mjs'
-import { compareCapture, renderSummary, compareObjectsV2 } from '../../../../../../../tools/vendor_harness/compare.mjs'
+import { compareCapture, renderSummary, compareObjectsV2, MATCH_SUBSTITUTED } from '../../../../../../../tools/vendor_harness/compare.mjs'
 import { detectFormat, fromObservation, fromProbeRows } from '../../../../../../../tools/vendor_harness/adapters.mjs'
 import { runOurSide } from './ourSide'
 import { pairObjects } from './objectColours'
@@ -97,7 +97,11 @@ export function gradeCapture(capture, opts = {}) {
     : null
   const paints = paintsGraded(opts) && ours && ours.ok ? gradePaints(capture, ours) : null
   const verdict = compareCapture(capture, ours, { integrity, objectColours, paints })
-  return { verdict, ours, integrity, objectsV2: objectsV2Of(capture, ours, verdict) }
+  const objectsV2 = objectsV2Of(capture, ours, verdict)
+  // ⭐ L7 — a run with substituted inputs never reads MATCH, the v2 objects report included
+  // (capability admission reads `objectsV2: MATCH` for an `obj:*` family).
+  if (objectsV2 && verdict.substituted && objectsV2.verdict === 'MATCH') objectsV2.verdict = MATCH_SUBSTITUTED
+  return { verdict, ours, integrity, objectsV2 }
 }
 
 /** ⭐ OBJECTS v2 — every paired record graded field by field

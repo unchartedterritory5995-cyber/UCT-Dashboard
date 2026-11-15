@@ -30,6 +30,8 @@ import { SLOT } from './ir.js'
 import { lowerIrProgram, naTestsOf } from './lowerIr.js'
 import { execute } from './vm.js'
 import { symbolConstants, minContractOf } from '../ast/bind.js'
+// ⭐ RS RATING L3 — the symbol fields the fold reads, from the one list that names them.
+import { bindSymbolOf } from '../ast/bind.js'
 import { Budget, RuntimeLimitError, DEFAULT_LIMITS, LIMIT_PLAIN } from './limits.js'
 import { MAX_COLLECTION_CAP as ITER_SLOTS, rtLoopId } from '../ast/objectProgram.js'
 // ⭐ W5-T2 — through the leaf seam, never `objectColumns.js` (which reaches the registry)
@@ -81,13 +83,21 @@ const injectedNow = (opts) => (opts && typeof opts.now === 'function' ? { now: o
  *  (`symbolAtBind`); every build with bars carries the chart's symbol instead. */
 const COMPILE_ON_A_PANE = Object.freeze({ pane: true, symbolAtBind: true })
 
-/** The chart's `{ticker, exchange}` as the binder hands it, or undefined — the
- *  SAME object the object reader folds its trees with (`objectColumns.js`
- *  `bindConstsFor({… symbol: opts.symbol})`), so a run and the trees beside it
- *  settle `syminfo.*` from one symbol. */
+/** The chart's symbol as the binder hands it, or undefined — the SAME object the object
+ *  reader folds its trees with (`objectColumns.js` `bindConstsFor({… symbol: opts.symbol})`),
+ *  so a run and the trees beside it settle `syminfo.*` from one symbol.
+ *  ⭐ RS RATING L3 — every field the fold reads (`bind.js::BIND_SYMBOL_FIELDS`: ticker,
+ *  exchange, and the classification fields industry / sector / securityType). This copied
+ *  `{ticker, exchange}` only, so a run refused `syminfo.industry` the host lane settled. */
 const symbolOf = (ctx) => (ctx && ctx.symbol && typeof ctx.symbol === 'object'
-  ? { ticker: ctx.symbol.ticker, exchange: ctx.symbol.exchange } : undefined)
-const symbolKey = (s) => (s ? `${s.ticker}@${s.exchange}` : '-')
+  ? { ticker: ctx.symbol.ticker, exchange: ctx.symbol.exchange, ...bindSymbolOf(ctx.symbol) } : undefined)
+/** ⛔ The run caches key on this, so a field the fold reads is in it: two charts of one ticker
+ *  whose classification differs must not share a run. Unchanged for a symbol without one. */
+const symbolKey = (s) => {
+  if (!s) return '-'
+  const cls = ['industry', 'sector', 'securityType'].map((f) => (s[f] == null ? '' : String(s[f])))
+  return `${s.ticker}@${s.exchange}${cls.some((v) => v !== '') ? `#${cls.join('#')}` : ''}`
+}
 
 /** ⭐ RT1 — the guard a fallback document carries on a chart whose history does
  *  not start at the listing (see `runtimeColumnsFor`). */
