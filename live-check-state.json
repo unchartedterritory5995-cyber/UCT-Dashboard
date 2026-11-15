@@ -1,5 +1,5 @@
 {
-  "fingerprint": "service:terminal-next-monitor=694 changed files on master not deployed; the branch moved 28 min ago and Railway started no deploy",
-  "posted_at": "2026-11-15T20:50:48.853276+00:00",
+  "fingerprint": "service:bars-api=running 9c09fc3135, which is NOT on master: a rollback or a hand deploy of other code|service:terminal-next-monitor=698 changed files on master not deployed; the branch moved 24 min ago and Railway started no deploy",
+  "posted_at": "2026-11-15T21:16:49.311645+00:00",
   "reason": "new stuck item"
 }
