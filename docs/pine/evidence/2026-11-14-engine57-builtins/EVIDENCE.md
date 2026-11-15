@@ -186,8 +186,13 @@ that code (review N1): the runtime lane never draws zero bars under no name. Rai
   `test_ast_interpret` / `test_ast_scalars`, the corpus case `stoch_pine_last_finite_values_held_answer`, the
   input-compat saved document, `docs/formulas/GRAMMAR.md` (regenerated), the stoch observation's
   `pasteLowersTo` (as `atr-14` has).
-- Focused vitest set (14 files, 441 tests) green under the heavy lock after the merge of `origin/master`
-  (`8785237ce7`); `test_engine57_builtins` 18 green. Earlier in this branch, one file at a time:
+- Focused vitest set (16 files, 487 tests, with the runtime refusal-vocabulary rails) green under the heavy
+  lock after the merge of `origin/master` (`6522dfdac5`); `test_engine57_builtins` 20 green. Re-review rails:
+  N1 (off the listing, `ta.ema(ta.stoch(rsi, rsi, rsi, 14), 3)` drawn from bar 30 and `ta.ema(ta.rci(ta.sma(close,
+  5), 10), 3)` from bar 16, every later bar drawn, the code named; the runtime lane draws or declines by a name; a
+  17-bar chart whose every bar is edge declines `stoch:left-edge` in the runtime lane), N2 (a (lo, hi) pair whose
+  100 is not the double 100, served through a flat window on the scan, the kernel and Python; a 40 kept through
+  two `na` sources into a flat window, withheld). Earlier in this branch, one file at a time:
   `test_call_expansions_parity` 13, `test_ast_interpret` 105, `test_ast_scalars` 174, `test_ast_input_compat` 15,
   `test_ast_lookback_agreement` 5, `test_ast_conformance` 57 (+5 skipped), `test_ast_bounded_state` 38,
   `test_vendor_parity_stoch` 13, `test_saved_script_prebump` 60, `test_script_engine_version_gate` 6. Not run:
@@ -198,10 +203,11 @@ Run on this branch's code with the engine identity pinned to master's 54 (`SCRIP
 copy-aside edit, restored byte for byte), against `origin/master`'s `expected-digests.json`: 166 cases, **158
 unchanged, 8 moved, every move a value digest**: `rsi_stoch@{calcbars,d5000,forming,listing,m5_32768}` and
 `supertrend@{calcbars,forming,listing}`. 0 status or guard changes, 0 cases added or lost. Then regenerated at 57
-with `--write`: the file is byte-identical to the one already committed at 57.
+with `--write`: the file is byte-identical to the one already committed at 57. Re-run after N1 / N2 (merged
+`6522dfdac5`): the same 8 moves, and `--check` reads `HP-1 GREEN: 166/166 cases equal the committed digests`.
 
 ## Mutants (copy aside, mutate, focused rail, restore from the copy, `git hash-object` == HEAD blob)
-45 mutants, 45 killed, every restore matched the HEAD blob; the control (no edit) is the green rails run.
+52 mutants, 52 killed, every restore matched the HEAD blob; the control (no edit) is the green rails run.
 Supertrend: S1/S2 a band body without `nz`, S3 seed `up`, S4 no `na(atr[1])` arm, S5 no guard, S6 guard one
 window deep, S7 the old offset guard back, S8 Python twin without `nz`. Stochastic: K1 flat = 0, K2 `ta.stoch`
 back on the house column, K3 RESTART windows, K4 no keep, K5 flat witness off, K6 kernel gate on the run, K7
@@ -212,16 +218,19 @@ off, X3 mask without reach. Review: F1a the mask ignores the listing fact, F1b r
 short window off the listing unflagged, F1d Python ignores the listing fact; F2a / F2b the curtain 2W (JS /
 Python); F3a / F3b the hold chain drops the flag (JS / Python); F5b a `tf` child does not name its withholding.
 S10: S10a / S10d a kept 100 not pinned (JS / Python), S10b / S10e the source off the level counted as pinned (JS /
-Python), S10c the kernel's level check off. (F5a, a self-reading site served, was dropped: that branch is
+Python), S10c the kernel's level check off. Re-review: N1a / N1c a left-edge flag under a smoother withholds
+every later bar again (JS / Python), N1b the runtime draws a column withheld on every bar as a silent 0; N2a / N2c
+/ N2d the scan / kernel / Python pin by the number (`prev === 100`) instead of provenance, N2b every kept value
+counted as from the high or low. (F5a, a self-reading site served, was dropped: that branch is
 unreachable, because the interpreter refuses a window over `self` first. The rail asserts that refusal.)
 
-## Vendor harness, both lanes (BEFORE = `origin/master` `8785237ce7`'s product files swapped into this tree)
+## Vendor harness, both lanes (BEFORE = `origin/master` `6522dfdac5`'s product files swapped into this tree; re-measured after N1 / N2)
 | set | lane | before M/D/I | after M/D/I | moves |
 |---|---|---|---|---|
 | held store (321, incl. S1 probes and S10) | production | 140/110/71 | 145/105/71 | supertrend, stochastic-rsi, rank-correlation-index, rci-ribbon, `vw-cs2-stoch-flat-window` D -> M |
 | held store | runtime-on | 154/116/51 | 159/111/51 | the same five |
-| fixtures (549, master's S10 fixtures included) | production | 158/81/310 | 160/80/309 | `vw-cs2-stoch-flat-window` D -> M; `stoch-k-14` I -> M (the swap, below) |
-| fixtures | runtime-on | 188/82/279 | 190/81/278 | the same two |
+| fixtures (579, master's S10 / S11 fixtures included) | production | 158/81/340 | 160/80/339 | `vw-cs2-stoch-flat-window` D -> M; `stoch-k-14` I -> M (the swap, below) |
+| fixtures | runtime-on | 188/82/309 | 190/81/308 | the same two |
 
 (`stoch-k-14`: a swap that keeps this branch's `pasteLowersTo` reads that one capture INCONCLUSIVE on master's
 code; that comes from the swap, it is not a move.) **0 MATCH -> DIVERGE, 0 new DIVERGE, in every set and lane.**
@@ -268,8 +277,12 @@ production MATCH 141 / DIVERGE 89 / INCONCLUSIVE 84; runtime-on MATCH 157 / DIVE
    its dark subject; after this branch that plot is no longer dark, so the rail needs another subject at the
    rebase.
 5. SCRIPT_ENGINE_VERSION is 57 with history lines 55 and 56 missing on this branch (they are on #1264 / #1265);
-   the coordinator rebases after they merge (order 55 -> 56 -> 57 -> 58; at the rebase take master + 1,
-   regenerate the digests, regrade the ledger, and move engine 55's census rail subject, note 4).
+   the coordinator rebases after they merge. The merge order is now 55 -> 56 -> 58 -> 57: with this branch's
+   supertrend, `dual-supertrend-ichimoku-and-dmi`'s values are exact (0 mismatches), but its colour
+   `dirIchi == dirIchi[1] ? ichiColor : na` would draw the default gold on 653 bars until engine 58's colour path
+   lands. So this branch rebases onto 58 last and takes master + 1 then, regenerates the digests, has the
+   ledger regraded centrally, and moves engine 55's census rail subject (note 4). The ledger rows committed
+   earlier on this branch (`7b28e88686`) predate the rule that the ledger is never committed from a branch.
 6. **Runtime lane, weekly self-request (finding, predates this engine).** `request.security(syminfo.tickerid,
    "W", close)` refuses `interpret:bind-time-text` on `syminfo.tickerid` through `computeRuntimeColumns`, even with
    `ctx.symbol = {ticker: 'RDDT', exchange: 'NYSE'}` (a confirmed `symbolScope.json` row) and through
