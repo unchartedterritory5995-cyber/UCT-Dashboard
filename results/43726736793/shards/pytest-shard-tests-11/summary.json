@@ -1,0 +1,19 @@
+{
+  "suite": "pytest",
+  "collected": 3675,
+  "passed": 3595,
+  "failed": 76,
+  "errored": 0,
+  "skipped": 4,
+  "wall_s": 536.72,
+  "failed_files": [
+    "tests/test_registry_string_inputs.py",
+    "tests/test_render_token_never_logged.py",
+    "tests/test_rig_sandbox_never_inside_a_worktree.py",
+    "tests/test_rs_discord_post.py",
+    "tests/test_rs_fix_u2_kernel_parity.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "76 failed, 3595 passed, 4 skipped, 3 xfailed, 10 warnings in 536.72s (0:08:56)",
+  "ok": true
+}

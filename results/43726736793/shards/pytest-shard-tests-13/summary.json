@@ -1,0 +1,20 @@
+{
+  "suite": "pytest",
+  "collected": 1842,
+  "passed": 1824,
+  "failed": 14,
+  "errored": 0,
+  "skipped": 4,
+  "wall_s": 844.16,
+  "failed_files": [
+    "tests/test_secret_scrub.py",
+    "tests/test_shared_data_root_guard.py",
+    "tests/test_shared_root_guard.py",
+    "tests/test_shared_state_landmines.py",
+    "tests/test_shelf_pivot_parity.py",
+    "tests/test_single_authority_rails.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "14 failed, 1824 passed, 4 skipped, 1 xfailed, 31 warnings in 844.16s (0:14:04)",
+  "ok": true
+}

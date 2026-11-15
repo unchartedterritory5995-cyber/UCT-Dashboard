@@ -1,0 +1,661 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  2%]
+........................................................................ [  5%]
+........................................................................ [  7%]
+........................................................................ [ 10%]
+........................................................................ [ 13%]
+........................................................................ [ 15%]
+........................................................................ [ 18%]
+........................................................................ [ 21%]
+...................F.................................................... [ 23%]
+........................................................................ [ 26%]
+...................F.FF................................................. [ 29%]
+........................................................................ [ 31%]
+........................................................................ [ 34%]
+........................................................................ [ 37%]
+...s.........................[activity] Failed to log j2:notebook_ai_actions_planned for u1: FOREIGN KEY constraint failed
+..............................[activity] Failed to log j2:notebook_ai_actions_planned for u1: FOREIGN KEY constraint failed
+............. [ 39%]
+........................................................................ [ 42%]
+.................................................F.................FF... [ 45%]
+.....................................s....................FF............ [ 47%]
+.....F.................................................................. [ 50%]
+........................................................................ [ 53%]
+......F..................................................F.............. [ 55%]
+........................................................................ [ 58%]
+........................................................................ [ 61%]
+........................................................................ [ 63%]
+.........F.............................................................. [ 66%]
+........................................................................ [ 69%]
+........................................................................ [ 71%]
+................F....................................................... [ 74%]
+........................................................................ [ 77%]
+........................................................................ [ 79%]
+........................................................................ [ 82%]
+........................................................................ [ 85%]
+................................................................ssssssss [ 87%]
+ssssssssssssss.......................................................... [ 90%]
+.........................s.............................................. [ 92%]
+........................................................................ [ 95%]
+........................................................................ [ 98%]
+..............................................                           [100%]
+==================================== ERRORS ====================================
+_______ ERROR collecting tests/test_notebook_fin_walk_followup_group.py ________
+ImportError while importing test module '/home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_notebook_fin_walk_followup_group.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+tests/test_notebook_fin_walk_followup_group.py:18: in <module>
+    import notebook_fin_walk_features as F  # noqa: E402
+tools/notebook_fin_walk_features.py:30: in <module>
+    from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+E   ModuleNotFoundError: No module named 'playwright'
+_____ ERROR collecting tests/test_notebook_fin_walk_page_layouts_group.py ______
+ImportError while importing test module '/home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_notebook_fin_walk_page_layouts_group.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+tests/test_notebook_fin_walk_page_layouts_group.py:20: in <module>
+    import notebook_fin_walk_features as F  # noqa: E402
+tools/notebook_fin_walk_features.py:30: in <module>
+    from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+E   ModuleNotFoundError: No module named 'playwright'
+__________ ERROR collecting tests/test_notebook_fin_walk_prep_gap.py ___________
+ImportError while importing test module '/home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_notebook_fin_walk_prep_gap.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+tests/test_notebook_fin_walk_prep_gap.py:15: in <module>
+    import notebook_fin_walk_features as F  # noqa: E402
+tools/notebook_fin_walk_features.py:30: in <module>
+    from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+E   ModuleNotFoundError: No module named 'playwright'
+_______________ ERROR collecting tests/test_notebook_p5_walk.py ________________
+ImportError while importing test module '/home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_notebook_p5_walk.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+tests/test_notebook_p5_walk.py:22: in <module>
+    import notebook_p5_walk as w  # noqa: E402
+tools/notebook_p5_walk.py:80: in <module>
+    import mobile_audit as ma  # noqa: E402  -- _dismiss_intro
+tools/mobile_audit.py:28: in <module>
+    from playwright.sync_api import sync_playwright
+E   ModuleNotFoundError: No module named 'playwright'
+=================================== FAILURES ===================================
+__________ test_every_door_that_reads_a_member_template_body_is_named __________
+
+    def test_every_door_that_reads_a_member_template_body_is_named():
+        found = _readers()
+        assert "api/services/journal_two/note_daily.py" in found                 # non-vacuity: the census sees the door
+>       assert found <= set(DOORS), f"a new door reads a member template's body: {sorted(found - set(DOORS))}"
+E       AssertionError: a new door reads a member template's body: ['api/services/journal_two/notebook_today.py']
+E       assert {'api/routers...e_gallery.py'} <= {'api/routers...e_gallery.py'}
+E         
+E         Extra items in the left set:
+E         'api/services/journal_two/notebook_today.py'
+
+tests/test_note_creation_doors_no_block_tokens.py:83: AssertionError
+_ test_PLAN_RAIL_flag_unset_the_handler_runs_exactly_lane_Is_statements[why did I cut my winners early] _
+
+db_path = '/tmp/tmpvonmkrxu.db'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x70114652da60>
+q = 'why did I cut my winners early'
+
+    @pytest.mark.parametrize("q", ["why did I cut my winners early", "NVDA", None])
+    def test_PLAN_RAIL_flag_unset_the_handler_runs_exactly_lane_Is_statements(db_path, monkeypatch, q):
+        monkeypatch.delenv(GATE, raising=False)
+        _note(U, "Winners diary", "why did I cut my winners early today")
+        _, handler = _record_handler(monkeypatch, q=q)
+        direct = _record_direct(monkeypatch, q)
+        assert handler, "non-vacuity: the handler ran no statement at all"
+>       assert [s for s, _ in handler] == [s for s, _ in direct]          # byte-identical SQL
+E       assert ['SELECT 1 FR...age = 1', ...] == ['SELECT 1 FR...age = 1', ...]
+E         
+E         Left contains one more item: 'SELECT id, name, type, options_json, config_json, updated_at FROM j2_note_properties WHERE user_id = ? AND deleted_at IS NULL ORDER BY sort_order, name'
+E         
+E         Full diff:
+E           [
+E               'SELECT 1 FROM j2_schema_builds WHERE name = ?',
+E               'SELECT 1 FROM j2_schema_builds WHERE name = ?',
+E               'SELECT m.note_rowid FROM j2_notes_fts_map m WHERE m.fts_rowid IN (SELECT '
+E               'rowid FROM j2_notes_fts WHERE j2_notes_fts MATCH ?) UNION ALL SELECT '
+E               't.note_rowid FROM j2_note_tag_index t WHERE t.user_id = ? AND t.fold = ? '
+E               'AND j2_tag_is(t.tag, ?) UNION ALL SELECT t.note_rowid FROM '
+E               'j2_note_tag_index t WHERE t.user_id = ? AND t.fold IS NULL AND '
+E               'j2_tag_is(t.tag, ?) UNION ALL SELECT rowid FROM j2_notes WHERE user_id = '
+E               '? AND ticker = ?',
+E               'SELECT id, user_id, account_id, folder_id, title, subtitle, '
+E               "substr(coalesce(body_plain, ''), 1, 400) AS body_plain, hero_image_url, "
+E               'first_image_url, ticker, tags, created_at, updated_at, deleted_at, '
+E               'properties_json, archived_at, locked FROM j2_notes WHERE user_id = ? AND '
+E               'deleted_at IS NULL AND archived_at IS NULL AND j2_notes.rowid IN (SELECT '
+E               'value FROM json_each(?)) ORDER BY updated_at DESC LIMIT ? OFFSET ?',
+E               'SELECT note_id, fts_rowid FROM j2_notes_fts_map WHERE note_id IN (?)',
+E               'SELECT rid, body_snippet, title_highlight FROM ( SELECT rowid AS rid, '
+E               "CASE WHEN rowid IN (?) THEN snippet(j2_notes_fts, 3, '<mark>', '</mark>', "
+E               "'…', 12) END AS body_snippet, CASE WHEN rowid IN (?) THEN "
+E               "highlight(j2_notes_fts, 2, '<mark>', '</mark>') END AS title_highlight, "
+E               'CASE WHEN rowid IN (?) THEN 1 END AS on_page FROM j2_notes_fts WHERE '
+E               'j2_notes_fts MATCH ?) WHERE on_page = 1',
+E               'SELECT 1 FROM j2_schema_builds WHERE name = ?',
+E               'SELECT 1 FROM j2_schema_builds WHERE name = ?',
+E               'SELECT COUNT(*) AS c FROM j2_notes WHERE user_id = ? AND deleted_at IS '
+E               'NULL AND archived_at IS NULL AND j2_notes.rowid IN (SELECT value FROM '
+E               'json_each(?))',
+E         +     'SELECT id, name, type, options_json, config_json, updated_at FROM '
+E         +     'j2_note_properties WHERE user_id = ? AND deleted_at IS NULL ORDER BY '
+E         +     'sort_order, name',
+E           ]
+
+tests/test_note_semantic.py:402: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at /tmp/tmpvonmkrxu.db
+----------------------------- Captured stdout call -----------------------------
+[activity] Failed to log j2:notebook_note_created for u-sem: FOREIGN KEY constraint failed
+[activity] Failed to log j2:notebook_search_used for u-sem: FOREIGN KEY constraint failed
+[activity] Failed to log j2:notebook_search_used for u-sem: FOREIGN KEY constraint failed
+_ test_PLAN_RAIL_flag_unset_the_handler_runs_exactly_lane_Is_statements[None] __
+
+db_path = '/tmp/tmp_4wyrc6e.db'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x70114652f890>
+q = None
+
+    @pytest.mark.parametrize("q", ["why did I cut my winners early", "NVDA", None])
+    def test_PLAN_RAIL_flag_unset_the_handler_runs_exactly_lane_Is_statements(db_path, monkeypatch, q):
+        monkeypatch.delenv(GATE, raising=False)
+        _note(U, "Winners diary", "why did I cut my winners early today")
+        _, handler = _record_handler(monkeypatch, q=q)
+        direct = _record_direct(monkeypatch, q)
+        assert handler, "non-vacuity: the handler ran no statement at all"
+>       assert [s for s, _ in handler] == [s for s, _ in direct]          # byte-identical SQL
+E       assert ['SELECT id, ..._order, name'] == ['SELECT id, ...d_at IS NULL']
+E         
+E         Left contains one more item: 'SELECT id, name, type, options_json, config_json, updated_at FROM j2_note_properties WHERE user_id = ? AND deleted_at IS NULL ORDER BY sort_order, name'
+E         
+E         Full diff:
+E           [
+E               'SELECT id, user_id, account_id, folder_id, title, subtitle, '
+E               "substr(coalesce(body_plain, ''), 1, 400) AS body_plain, hero_image_url, "
+E               'first_image_url, ticker, tags, created_at, updated_at, deleted_at, '
+E               'properties_json, archived_at, locked FROM j2_notes WHERE user_id = ? AND '
+E               'deleted_at IS NULL AND archived_at IS NULL ORDER BY updated_at DESC LIMIT '
+E               '? OFFSET ?',
+E               'SELECT COUNT(*) AS c FROM j2_notes WHERE user_id = ? AND deleted_at IS '
+E               'NULL AND archived_at IS NULL',
+E         +     'SELECT id, name, type, options_json, config_json, updated_at FROM '
+E         +     'j2_note_properties WHERE user_id = ? AND deleted_at IS NULL ORDER BY '
+E         +     'sort_order, name',
+E           ]
+
+tests/test_note_semantic.py:402: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at /tmp/tmp_4wyrc6e.db
+----------------------------- Captured stdout call -----------------------------
+[activity] Failed to log j2:notebook_note_created for u-sem: FOREIGN KEY constraint failed
+_ test_PLAN_RAIL_CONTROL_flag_on_a_natural_language_query_adds_only_bounded_reads _
+
+db_path = '/tmp/tmpyqhddkyf.db'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x70114652c2f0>
+on_noop = None
+
+    def test_PLAN_RAIL_CONTROL_flag_on_a_natural_language_query_adds_only_bounded_reads(db_path, monkeypatch, on_noop):
+        """⭐ CONTROL: the recorder SEES the semantic statements when they run, so
+        the flag-off equality above is not an instrument that cannot see them."""
+        _note(U, "Winners diary", "why did I cut my winners early today")
+        ns.index_member(U)
+        body, handler = _record_handler(monkeypatch, q="why did I cut my winners early")
+        direct = _record_direct(monkeypatch, "why did I cut my winners early")
+        extra = handler[len(direct):]
+        assert [s for s, _ in handler[:len(direct)]] == [s for s, _ in direct]   # lexical first, unchanged
+        assert any("j2_note_embeddings" in s for s, _ in extra)
+        # ⛔ never a second whole-library pass: every extra read is the member's
+        # vectors or a by-id fetch of the hits
+        for s, _ in extra:
+>           assert ("j2_note_embeddings" in s) or (" id IN (" in s) or s.lstrip().upper().startswith("CREATE"), s
+E           AssertionError: SELECT id, name, type, options_json, config_json, updated_at FROM j2_note_properties WHERE user_id = ? AND deleted_at IS NULL ORDER BY sort_order, name
+E           assert ('j2_note_embeddings' in 'SELECT id, name, type, options_json, config_json, updated_at FROM j2_note_properties WHERE user_id = ? AND deleted_at IS NULL ORDER BY sort_order, name' or ' id IN (' in 'SELECT id, name, type, options_json, config_json, updated_at FROM j2_note_properties WHERE user_id = ? AND deleted_at IS NULL ORDER BY sort_order, name' or False)
+E            +  where False = <built-in method startswith of str object at 0x701144828330>('CREATE')
+E            +    where <built-in method startswith of str object at 0x701144828330> = 'SELECT ID, NAME, TYPE, OPTIONS_JSON, CONFIG_JSON, UPDATED_AT FROM J2_NOTE_PROPERTIES WHERE USER_ID = ? AND DELETED_AT IS NULL ORDER BY SORT_ORDER, NAME'.startswith
+E            +      where 'SELECT ID, NAME, TYPE, OPTIONS_JSON, CONFIG_JSON, UPDATED_AT FROM J2_NOTE_PROPERTIES WHERE USER_ID = ? AND DELETED_AT IS NULL ORDER BY SORT_ORDER, NAME' = <built-in method upper of str object at 0x70114d305470>()
+E            +        where <built-in method upper of str object at 0x70114d305470> = 'SELECT id, name, type, options_json, config_json, updated_at FROM j2_note_properties WHERE user_id = ? AND deleted_at IS NULL ORDER BY sort_order, name'.upper
+E            +          where 'SELECT id, name, type, options_json, config_json, updated_at FROM j2_note_properties WHERE user_id = ? AND deleted_at IS NULL ORDER BY sort_order, name' = <built-in method lstrip of str object at 0x70114d305470>()
+E            +            where <built-in method lstrip of str object at 0x70114d305470> = 'SELECT id, name, type, options_json, config_json, updated_at FROM j2_note_properties WHERE user_id = ? AND deleted_at IS NULL ORDER BY sort_order, name'.lstrip
+
+tests/test_note_semantic.py:420: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at /tmp/tmpyqhddkyf.db
+----------------------------- Captured stdout call -----------------------------
+[activity] Failed to log j2:notebook_note_created for u-sem: FOREIGN KEY constraint failed
+[activity] Failed to log j2:notebook_search_used for u-sem: FOREIGN KEY constraint failed
+[activity] Failed to log j2:notebook_search_used for u-sem: FOREIGN KEY constraint failed
+______ test_every_notebook_tool_that_imports_api_applies_the_census_first ______
+
+    def test_every_notebook_tool_that_imports_api_applies_the_census_first():
+        """A notebook tool run as a script (the CI benchmark, the 50k gate, a bridge) is outside
+        pytest: only its OWN module-level `import conftest`, before its first `api` import in
+        statement order, pins every shared-root path and arms the tripwire. Scoped to
+        `tools/notebook_*.py` on purpose (the comment above says why, with the measurement)."""
+        problems = []
+        for path in _notebook_api_tools():
+            if path.name in LIVE_ROOT_READERS:
+                continue
+            found = _problems(path.read_text(encoding="utf-8"), path.name)
+            if path.name in ENV_WRITES_AFTER_THE_CENSUS:
+                # Only the hand-set-variable finding is excused. A missing or late `import conftest`
+                # in the same tool still fails here.
+                found = [f for f in found if _BY_HAND not in f]
+            problems.extend(found)
+>       assert not problems, "\n".join(problems)
+E       AssertionError: notebook_usage_report.py: no module-level `import conftest` -- the census and the tripwire never run
+E       assert not ['notebook_usage_report.py: no module-level `import conftest` -- the census and the tripwire never run']
+
+tests/test_notebook_bridges_pin_the_root.py:236: AssertionError
+____________ test_the_shared_data_root_is_refused[C:\\DATA\\clock] _____________
+
+path = 'C:\\DATA\\clock'
+
+    @pytest.mark.parametrize("path", [r"C:\data", r"C:\DATA\clock", r"c:\data\sub\x", "/data", "/data/x"])
+    def test_the_shared_data_root_is_refused(path):
+>       assert sc.refuse_data_dir(path)
+E       AssertionError: assert None
+E        +  where None = <function refuse_data_dir at 0x7011645e0180>('C:\\DATA\\clock')
+E        +    where <function refuse_data_dir at 0x7011645e0180> = sc.refuse_data_dir
+
+tests/test_notebook_campaign_clock.py:66: AssertionError
+____________ test_the_shared_data_root_is_refused[c:\\data\\sub\\x] ____________
+
+path = 'c:\\data\\sub\\x'
+
+    @pytest.mark.parametrize("path", [r"C:\data", r"C:\DATA\clock", r"c:\data\sub\x", "/data", "/data/x"])
+    def test_the_shared_data_root_is_refused(path):
+>       assert sc.refuse_data_dir(path)
+E       AssertionError: assert None
+E        +  where None = <function refuse_data_dir at 0x7011645e0180>('c:\\data\\sub\\x')
+E        +    where <function refuse_data_dir at 0x7011645e0180> = sc.refuse_data_dir
+
+tests/test_notebook_campaign_clock.py:66: AssertionError
+___________ test_the_shared_data_root_is_refused[C:\\DATA\\auth.db] ____________
+
+path = 'C:\\DATA\\auth.db'
+
+    @pytest.mark.parametrize("path", [r"C:\data", r"C:\DATA\auth.db", r"c:\data\sub", "/data", "/data/x"])
+    def test_the_shared_data_root_is_refused(path):
+>       assert sm.refuse_shared_root(path)
+E       AssertionError: assert None
+E        +  where None = <function refuse_shared_root at 0x701164539580>('C:\\DATA\\auth.db')
+E        +    where <function refuse_shared_root at 0x701164539580> = sm.refuse_shared_root
+
+tests/test_notebook_campaign_tooling.py:22: AssertionError
+_____________ test_the_shared_data_root_is_refused[c:\\data\\sub] ______________
+
+path = 'c:\\data\\sub'
+
+    @pytest.mark.parametrize("path", [r"C:\data", r"C:\DATA\auth.db", r"c:\data\sub", "/data", "/data/x"])
+    def test_the_shared_data_root_is_refused(path):
+>       assert sm.refuse_shared_root(path)
+E       AssertionError: assert None
+E        +  where None = <function refuse_shared_root at 0x701164539580>('c:\\data\\sub')
+E        +    where <function refuse_shared_root at 0x701164539580> = sm.refuse_shared_root
+
+tests/test_notebook_campaign_tooling.py:22: AssertionError
+______________ test_every_in_tree_sentence_is_still_in_its_source ______________
+
+    def test_every_in_tree_sentence_is_still_in_its_source():
+        """A sentence is quoted from its source, never typed as a second authority: its fragment must be in the
+        file it names. Sources on another branch are read with git by the runner and, if absent, reported."""
+        got = rc.verify_sentences(SPEC, REPO)
+        local = [k for k, s in SPEC["sentences"].items() if not s["source"].startswith("origin/")]
+        assert local
+        bad = {k: got[k]["why"] for k in local if not got[k]["ok"]}
+>       assert not bad, bad
+E       AssertionError: {'empty_templates': "fragment not in app/src/pages/journal-2-0/components/notebook/myTools/myToolsLib.js:64: 'No templates yet. Save a note’s setup as a template, or use one from the Template library.'"}
+E       assert not {'empty_templates': "fragment not in app/src/pages/journal-2-0/components/notebook/myTools/myToolsLib.js:64: 'No templates yet. Save a note’s setup as a template, or use one from the Template library.'"}
+
+tests/test_notebook_campaign_tooling.py:93: AssertionError
+_________ test_m3_an_evidence_folder_under_the_shared_root_is_refused __________
+
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_m3_an_evidence_folder_und0')
+capsys = <_pytest.capture.CaptureFixture object at 0x7011442c5fd0>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x701166e16570>
+
+    def test_m3_an_evidence_folder_under_the_shared_root_is_refused(tmp_path, capsys, monkeypatch):
+        data = tmp_path / "sandbox"
+        data.mkdir()
+        (data / sm.MANIFEST_NAME).write_text(json.dumps({"members": {}}), encoding="utf-8")
+        monkeypatch.setattr(rc, "load_walk_libs", lambda root: pytest.fail("the walk libs were loaded"))
+>       code = rc.main(["--run-id", "x", "--base", "http://127.0.0.1:1", "--data-dir", str(data), "--out", r"C:\data\x"])
+
+tests/test_notebook_campaign_tooling.py:1153: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tools/notebook_campaign/run_campaign.py:3400: in main
+    libs = load_walk_libs(app_root)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+root = PosixPath('/home/runner/work/UCT-Dashboard/UCT-Dashboard')
+
+>   monkeypatch.setattr(rc, "load_walk_libs", lambda root: pytest.fail("the walk libs were loaded"))
+E   Failed: the walk libs were loaded
+
+tests/test_notebook_campaign_tooling.py:1152: Failed
+________ test_g4_every_sentence_is_in_the_merged_tree_on_its_cited_line ________
+
+    def test_g4_every_sentence_is_in_the_merged_tree_on_its_cited_line():
+        """In the tree being SERVED (W11-R83 I-3: this checkout, merged with the wave branch before every campaign run, is
+        the code the server runs; a fixed ref goes stale under it): the fragment is in the file and on the cited line,
+        whether the source names a ref or not."""
+        read = rc.tree_reader(REPO)
+        bad = {}
+        for k, s in SPEC["sentences"].items():
+            m = rc._SOURCE_RE.match(s["source"])
+            text = read(m["path"])
+            frag = s.get("fragment") or s["text"]
+            if text is None or frag not in text:
+                bad[k] = f"{frag!r} not in {m['path']}"
+                continue
+            lines = text.splitlines()
+            n = int(m["line"]) if m["line"] else 0
+            if not rc.fragment_on_line(lines, n, frag):                     # the WHOLE fragment (review m6)
+                bad[k] = f"line {n} of {m['path']} does not hold {frag[:24]!r}"
+>       assert not bad, bad
+E       AssertionError: {'adopt_title': "line 28 of app/src/pages/journal-2-0/components/notebook/library/AdoptSheet.jsx does not hold 'Make i... of app/src/pages/journal-2-0/components/notebook/myTools/myToolsLib.js does not hold 'emptyActive: `No ${many}'", ...}
+E       assert not {'adopt_title': "line 28 of app/src/pages/journal-2-0/components/notebook/library/AdoptSheet.jsx does not hold 'Make i... of app/src/pages/journal-2-0/components/notebook/myTools/myToolsLib.js does not hold 'emptyActive: `No ${many}'", ...}
+
+tests/test_notebook_campaign_tooling.py:2005: AssertionError
+___ test_the_import_graph_never_reaches_alphavantage_or_the_recap_generator ____
+
+    def test_the_import_graph_never_reaches_alphavantage_or_the_recap_generator():
+        reached = _reach(["api.services.journal_two.earnings_prep", "api.routers.notebook_earnings_prep"])
+        # non-vacuity: the walk really follows function-level imports into the services it reuses
+        assert {"api.services.calendar_alerts", "api.services.earnings_intel", "api.services.implied_store",
+                "api.services.call_recap_store", "api.services.journal_two.ticker_research"} <= reached
+>       assert not reached & FORBIDDEN_MODULES, sorted(reached & FORBIDDEN_MODULES)
+E       AssertionError: ['api.routers.earnings', 'api.routers.earnings_intel', 'api.services.alphavantage_client', 'api.services.av_transcripts', 'api.services.call_recap', 'api.services.call_recap_grounded', ...]
+E       assert not ({'api', 'api.alert_tester', 'api.alpha_gold_eod', 'api.apply_cancel_patches', 'api.apply_gap_fill', 'api.auth_surface_check', ...} & {'api.routers.earnings', 'api.routers.earnings_intel', 'api.services.alphavantage_client', 'api.services.av_transcripts', 'api.services.call_recap', 'api.services.call_recap_grounded', ...})
+
+tests/test_notebook_earnings_prep.py:932: AssertionError
+______ test_the_step_is_registered_and_runs_before_the_sample_is_removed _______
+
+    def test_the_step_is_registered_and_runs_before_the_sample_is_removed():
+>       import notebook_fin_walk_features as feat
+
+tests/test_notebook_fin_walk_followups.py:63: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    """Notebook finish program, lane WALK -- configuration c2's steps (every wave 11-14 switch ON).
+    
+    Driven by tools/notebook_fin_walk.py (`--config c2`), which owns the sandbox, the recorder and the
+    per-step instrumentation; this module holds what a member does. It reuses, by import, the chart
+    drawing helpers of the 13H-2 walk and the tour walker of the W14-Q2 walk, so a check here means
+    what it meant there.
+    
+    Trades: the sample notebook seeds none by design, and logging a trade is not a wave 12-15 surface,
+    so positions and closes go through the member's own API routes (recorded with request and
+    response). Everything wave 12-15 adds is driven through the page.
+    
+    Never run on import; running it directly prints how to run the walk.
+    """
+    from __future__ import annotations
+    
+    import ast
+    import base64
+    import json
+    import math
+    import re
+    import sys
+    import time
+    import traceback
+    import uuid
+    from datetime import datetime, timedelta, timezone
+    from decimal import ROUND_HALF_UP, Decimal
+    from pathlib import Path
+    from zoneinfo import ZoneInfo
+    
+>   from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+E   ModuleNotFoundError: No module named 'playwright'
+
+tools/notebook_fin_walk_features.py:30: ModuleNotFoundError
+=============================== warnings summary ===============================
+<unknown>:964: 1 warning
+tests/test_node_vocabulary_parity.py: 1 warning
+tests/test_notebook_campaign_clock.py: 1 warning
+tests/test_notebook_door_guard_flag.py: 1 warning
+tests/test_notebook_earnings_prep.py: 2 warnings
+tests/test_notebook_flag_parse.py: 2 warnings
+tests/test_notebook_flag_table_form.py: 8 warnings
+tests/test_notebook_plan_grading.py: 1 warning
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/services/journal_two/note_connectors/providers/obsidian.py:964
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/journal_two/note_connectors/providers/obsidian.py:964: SyntaxWarning: invalid escape sequence '\`'
+    taken off, cut at the first `?` or `#`, percent-decoded ONCE and every `\` read as `/`
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_note_sync_router.py::test_start_initial_sync_never_raises_into_a_successful_connect
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/routers/note_sync.py:610: RuntimeWarning: coroutine '_start_initial_sync.<locals>._run' was never awaited
+    log.warning("[note_sync] no event loop; initial sync for %s deferred to the scheduler", source_id)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_notebook_body_order.py::test_every_converted_route_has_a_request_body_schema_in_the_api_docs
+tests/test_notebook_body_order.py::test_documenting_the_bodies_changes_nothing_about_how_a_request_is_handled
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/fastapi/openapi/utils.py:225: UserWarning: Duplicate Operation ID chart_markers_endpoint_api_chart_markers__ticker__get for function chart_markers_endpoint at /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/routers/earnings.py
+    warnings.warn(message, stacklevel=1)
+
+tests/test_notebook_body_order.py::test_every_converted_route_has_a_request_body_schema_in_the_api_docs
+tests/test_notebook_body_order.py::test_documenting_the_bodies_changes_nothing_about_how_a_request_is_handled
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/fastapi/openapi/utils.py:225: UserWarning: Duplicate Operation ID test_discord_post_api_live_test_discord_post_post for function test_discord_post at /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/liveflow_router.py
+    warnings.warn(message, stacklevel=1)
+
+tests/test_notebook_body_order.py::test_every_converted_route_has_a_request_body_schema_in_the_api_docs
+tests/test_notebook_body_order.py::test_documenting_the_bodies_changes_nothing_about_how_a_request_is_handled
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/fastapi/openapi/utils.py:225: UserWarning: Duplicate Operation ID admin_clear_before_date_api_live_admin_clear_before_date_post for function admin_clear_before_date at /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/liveflow_router.py
+    warnings.warn(message, stacklevel=1)
+
+tests/test_notebook_campaign_clock.py::test_every_spelling_in_scope_is_shifted_and_out_of_scope_is_not
+  /tmp/pytest-of-runner/pytest-0/test_every_spelling_in_scope_i0/clockprobe_pkg/early.py:11: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    return {"now_utc": datetime.now(timezone.utc), "naive": datetime.now(), "utcnow": datetime.utcnow(),
+
+tests/test_notebook_campaign_clock.py::test_every_spelling_in_scope_is_shifted_and_out_of_scope_is_not
+  /tmp/pytest-of-runner/pytest-0/test_every_spelling_in_scope_i0/clockprobe_pkg/late.py:11: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    return {"now_utc": datetime.now(timezone.utc), "naive": datetime.now(), "utcnow": datetime.utcnow(),
+
+tests/test_notebook_campaign_clock.py: 2 warnings
+tests/test_notebook_flag_parse.py: 2 warnings
+tests/test_notebook_flag_table_form.py: 8 warnings
+  <unknown>:7: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_notebook_campaign_tooling.py::test_c2_a_use_that_needs_answers_without_a_preview_or_a_value_sends_nothing
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/_pytest/threadexception.py:82: PytestUnhandledThreadExceptionWarning: Exception in thread Thread-649 (process_request_thread)
+  
+  Traceback (most recent call last):
+    File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/threading.py", line 1075, in _bootstrap_inner
+      self.run()
+    File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/threading.py", line 1012, in run
+      self._target(*self._args, **self._kwargs)
+    File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/socketserver.py", line 697, in process_request_thread
+      self.finish_request(request, client_address)
+    File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/socketserver.py", line 362, in finish_request
+      self.RequestHandlerClass(request, client_address, self)
+    File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/socketserver.py", line 766, in __init__
+      self.handle()
+    File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/http/server.py", line 440, in handle
+      self.handle_one_request()
+    File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/http/server.py", line 428, in handle_one_request
+      method()
+    File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_notebook_campaign_tooling.py", line 459, in _do
+      status, obj = stub.answer(self.command, self.path, dict(self.headers), body)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_notebook_campaign_tooling.py", line 853, in a
+      return answer(method, path, headers, body)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_notebook_campaign_tooling.py", line 883, in <lambda>
+      lib_two(stub, lambda *a: pytest.fail("a Use was sent"))
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/_pytest/outcomes.py", line 178, in fail
+      raise Failed(msg=reason, pytrace=pytrace)
+  Failed: a Use was sent
+  
+    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_note_upload_doors_media_policy.py:127: pi_heif is installed
+SKIPPED [1] tests/test_notebook_campaign_clock.py:470: junctions are a Windows reparse point
+SKIPPED [1] tests/test_notebook_nvda_pass.py:34: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:41: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:50: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:64: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:81: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:95: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:109: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:119: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:198: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:214: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:232: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:272: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:282: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:293: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:305: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:317: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:357: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:370: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:385: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:398: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:432: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:439: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_perf_harness.py:563: the SIGBREAK re-raise is Windows-only
+ERROR tests/test_notebook_fin_walk_followup_group.py
+ERROR tests/test_notebook_fin_walk_page_layouts_group.py
+ERROR tests/test_notebook_fin_walk_prep_gap.py
+ERROR tests/test_notebook_p5_walk.py
+FAILED tests/test_note_creation_doors_no_block_tokens.py::test_every_door_that_reads_a_member_template_body_is_named - AssertionError: a new door reads a member template's body: ['api/services/journal_two/notebook_today.py']
+assert {'api/routers...e_gallery.py'} <= {'api/routers...e_gallery.py'}
+  
+  Extra items in the left set:
+  'api/services/journal_two/notebook_today.py'
+FAILED tests/test_note_semantic.py::test_PLAN_RAIL_flag_unset_the_handler_runs_exactly_lane_Is_statements[why did I cut my winners early] - assert ['SELECT 1 FR...age = 1', ...] == ['SELECT 1 FR...age = 1', ...]
+  
+  Left contains one more item: 'SELECT id, name, type, options_json, config_json, updated_at FROM j2_note_properties WHERE user_id = ? AND deleted_at IS NULL ORDER BY sort_order, name'
+  
+  Full diff:
+    [
+        'SELECT 1 FROM j2_schema_builds WHERE name = ?',
+        'SELECT 1 FROM j2_schema_builds WHERE name = ?',
+        'SELECT m.note_rowid FROM j2_notes_fts_map m WHERE m.fts_rowid IN (SELECT '
+        'rowid FROM j2_notes_fts WHERE j2_notes_fts MATCH ?) UNION ALL SELECT '
+        't.note_rowid FROM j2_note_tag_index t WHERE t.user_id = ? AND t.fold = ? '
+        'AND j2_tag_is(t.tag, ?) UNION ALL SELECT t.note_rowid FROM '
+        'j2_note_tag_index t WHERE t.user_id = ? AND t.fold IS NULL AND '
+        'j2_tag_is(t.tag, ?) UNION ALL SELECT rowid FROM j2_notes WHERE user_id = '
+        '? AND ticker = ?',
+        'SELECT id, user_id, account_id, folder_id, title, subtitle, '
+        "substr(coalesce(body_plain, ''), 1, 400) AS body_plain, hero_image_url, "
+        'first_image_url, ticker, tags, created_at, updated_at, deleted_at, '
+        'properties_json, archived_at, locked FROM j2_notes WHERE user_id = ? AND '
+        'deleted_at IS NULL AND archived_at IS NULL AND j2_notes.rowid IN (SELECT '
+        'value FROM json_each(?)) ORDER BY updated_at DESC LIMIT ? OFFSET ?',
+        'SELECT note_id, fts_rowid FROM j2_notes_fts_map WHERE note_id IN (?)',
+        'SELECT rid, body_snippet, title_highlight FROM ( SELECT rowid AS rid, '
+        "CASE WHEN rowid IN (?) THEN snippet(j2_notes_fts, 3, '<mark>', '</mark>', "
+        "'…', 12) END AS body_snippet, CASE WHEN rowid IN (?) THEN "
+        "highlight(j2_notes_fts, 2, '<mark>', '</mark>') END AS title_highlight, "
+        'CASE WHEN rowid IN (?) THEN 1 END AS on_page FROM j2_notes_fts WHERE '
+        'j2_notes_fts MATCH ?) WHERE on_page = 1',
+        'SELECT 1 FROM j2_schema_builds WHERE name = ?',
+        'SELECT 1 FROM j2_schema_builds WHERE name = ?',
+        'SELECT COUNT(*) AS c FROM j2_notes WHERE user_id = ? AND deleted_at IS '
+        'NULL AND archived_at IS NULL AND j2_notes.rowid IN (SELECT value FROM '
+        'json_each(?))',
+  +     'SELECT id, name, type, options_json, config_json, updated_at FROM '
+  +     'j2_note_properties WHERE user_id = ? AND deleted_at IS NULL ORDER BY '
+  +     'sort_order, name',
+    ]
+FAILED tests/test_note_semantic.py::test_PLAN_RAIL_flag_unset_the_handler_runs_exactly_lane_Is_statements[None] - assert ['SELECT id, ..._order, name'] == ['SELECT id, ...d_at IS NULL']
+  
+  Left contains one more item: 'SELECT id, name, type, options_json, config_json, updated_at FROM j2_note_properties WHERE user_id = ? AND deleted_at IS NULL ORDER BY sort_order, name'
+  
+  Full diff:
+    [
+        'SELECT id, user_id, account_id, folder_id, title, subtitle, '
+        "substr(coalesce(body_plain, ''), 1, 400) AS body_plain, hero_image_url, "
+        'first_image_url, ticker, tags, created_at, updated_at, deleted_at, '
+        'properties_json, archived_at, locked FROM j2_notes WHERE user_id = ? AND '
+        'deleted_at IS NULL AND archived_at IS NULL ORDER BY updated_at DESC LIMIT '
+        '? OFFSET ?',
+        'SELECT COUNT(*) AS c FROM j2_notes WHERE user_id = ? AND deleted_at IS '
+        'NULL AND archived_at IS NULL',
+  +     'SELECT id, name, type, options_json, config_json, updated_at FROM '
+  +     'j2_note_properties WHERE user_id = ? AND deleted_at IS NULL ORDER BY '
+  +     'sort_order, name',
+    ]
+FAILED tests/test_note_semantic.py::test_PLAN_RAIL_CONTROL_flag_on_a_natural_language_query_adds_only_bounded_reads - AssertionError: SELECT id, name, type, options_json, config_json, updated_at FROM j2_note_properties WHERE user_id = ? AND deleted_at IS NULL ORDER BY sort_order, name
+assert ('j2_note_embeddings' in 'SELECT id, name, type, options_json, config_json, updated_at FROM j2_note_properties WHERE user_id = ? AND deleted_at IS NULL ORDER BY sort_order, name' or ' id IN (' in 'SELECT id, name, type, options_json, config_json, updated_at FROM j2_note_properties WHERE user_id = ? AND deleted_at IS NULL ORDER BY sort_order, name' or False)
+ +  where False = <built-in method startswith of str object at 0x701144828330>('CREATE')
+ +    where <built-in method startswith of str object at 0x701144828330> = 'SELECT ID, NAME, TYPE, OPTIONS_JSON, CONFIG_JSON, UPDATED_AT FROM J2_NOTE_PROPERTIES WHERE USER_ID = ? AND DELETED_AT IS NULL ORDER BY SORT_ORDER, NAME'.startswith
+ +      where 'SELECT ID, NAME, TYPE, OPTIONS_JSON, CONFIG_JSON, UPDATED_AT FROM J2_NOTE_PROPERTIES WHERE USER_ID = ? AND DELETED_AT IS NULL ORDER BY SORT_ORDER, NAME' = <built-in method upper of str object at 0x70114d305470>()
+ +        where <built-in method upper of str object at 0x70114d305470> = 'SELECT id, name, type, options_json, config_json, updated_at FROM j2_note_properties WHERE user_id = ? AND deleted_at IS NULL ORDER BY sort_order, name'.upper
+ +          where 'SELECT id, name, type, options_json, config_json, updated_at FROM j2_note_properties WHERE user_id = ? AND deleted_at IS NULL ORDER BY sort_order, name' = <built-in method lstrip of str object at 0x70114d305470>()
+ +            where <built-in method lstrip of str object at 0x70114d305470> = 'SELECT id, name, type, options_json, config_json, updated_at FROM j2_note_properties WHERE user_id = ? AND deleted_at IS NULL ORDER BY sort_order, name'.lstrip
+FAILED tests/test_notebook_bridges_pin_the_root.py::test_every_notebook_tool_that_imports_api_applies_the_census_first - AssertionError: notebook_usage_report.py: no module-level `import conftest` -- the census and the tripwire never run
+assert not ['notebook_usage_report.py: no module-level `import conftest` -- the census and the tripwire never run']
+FAILED tests/test_notebook_campaign_clock.py::test_the_shared_data_root_is_refused[C:\\DATA\\clock] - AssertionError: assert None
+ +  where None = <function refuse_data_dir at 0x7011645e0180>('C:\\DATA\\clock')
+ +    where <function refuse_data_dir at 0x7011645e0180> = sc.refuse_data_dir
+FAILED tests/test_notebook_campaign_clock.py::test_the_shared_data_root_is_refused[c:\\data\\sub\\x] - AssertionError: assert None
+ +  where None = <function refuse_data_dir at 0x7011645e0180>('c:\\data\\sub\\x')
+ +    where <function refuse_data_dir at 0x7011645e0180> = sc.refuse_data_dir
+FAILED tests/test_notebook_campaign_tooling.py::test_the_shared_data_root_is_refused[C:\\DATA\\auth.db] - AssertionError: assert None
+ +  where None = <function refuse_shared_root at 0x701164539580>('C:\\DATA\\auth.db')
+ +    where <function refuse_shared_root at 0x701164539580> = sm.refuse_shared_root
+FAILED tests/test_notebook_campaign_tooling.py::test_the_shared_data_root_is_refused[c:\\data\\sub] - AssertionError: assert None
+ +  where None = <function refuse_shared_root at 0x701164539580>('c:\\data\\sub')
+ +    where <function refuse_shared_root at 0x701164539580> = sm.refuse_shared_root
+FAILED tests/test_notebook_campaign_tooling.py::test_every_in_tree_sentence_is_still_in_its_source - AssertionError: {'empty_templates': "fragment not in app/src/pages/journal-2-0/components/notebook/myTools/myToolsLib.js:64: 'No templates yet. Save a note’s setup as a template, or use one from the Template library.'"}
+assert not {'empty_templates': "fragment not in app/src/pages/journal-2-0/components/notebook/myTools/myToolsLib.js:64: 'No templates yet. Save a note’s setup as a template, or use one from the Template library.'"}
+FAILED tests/test_notebook_campaign_tooling.py::test_m3_an_evidence_folder_under_the_shared_root_is_refused - Failed: the walk libs were loaded
+FAILED tests/test_notebook_campaign_tooling.py::test_g4_every_sentence_is_in_the_merged_tree_on_its_cited_line - AssertionError: {'adopt_title': "line 28 of app/src/pages/journal-2-0/components/notebook/library/AdoptSheet.jsx does not hold 'Make i... of app/src/pages/journal-2-0/components/notebook/myTools/myToolsLib.js does not hold 'emptyActive: `No ${many}'", ...}
+assert not {'adopt_title': "line 28 of app/src/pages/journal-2-0/components/notebook/library/AdoptSheet.jsx does not hold 'Make i... of app/src/pages/journal-2-0/components/notebook/myTools/myToolsLib.js does not hold 'emptyActive: `No ${many}'", ...}
+FAILED tests/test_notebook_earnings_prep.py::test_the_import_graph_never_reaches_alphavantage_or_the_recap_generator - AssertionError: ['api.routers.earnings', 'api.routers.earnings_intel', 'api.services.alphavantage_client', 'api.services.av_transcripts', 'api.services.call_recap', 'api.services.call_recap_grounded', ...]
+assert not ({'api', 'api.alert_tester', 'api.alpha_gold_eod', 'api.apply_cancel_patches', 'api.apply_gap_fill', 'api.auth_surface_check', ...} & {'api.routers.earnings', 'api.routers.earnings_intel', 'api.services.alphavantage_client', 'api.services.av_transcripts', 'api.services.call_recap', 'api.services.call_recap_grounded', ...})
+FAILED tests/test_notebook_fin_walk_followups.py::test_the_step_is_registered_and_runs_before_the_sample_is_removed - ModuleNotFoundError: No module named 'playwright'
+14 failed, 2671 passed, 25 skipped, 42 warnings, 4 errors in 676.12s (0:11:16)

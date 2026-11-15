@@ -1,0 +1,2059 @@
+{
+  "verdict": "COVERAGE_LOST",
+  "counts": {
+    "new": 120,
+    "fixed": 20,
+    "unchanged": 377,
+    "missing": 1,
+    "baseline": 398,
+    "current": 497,
+    "current_ran": 157650,
+    "new_flaky": 0,
+    "flaky_size": 11,
+    "flaky_new": 1,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 1,
+    "new_ours": 0,
+    "new_others": 14,
+    "new_unattributed": 106
+  },
+  "arithmetic": "baseline 398 = unchanged 377 + fixed 20 + missing 1  |  current 497 = unchanged 377 + new 120 + new-but-flaky 0",
+  "invalid_because": [],
+  "baseline_run_id": "43453601293",
+  "current_run_id": "43726736793",
+  "baseline_sha": "3d6045258e3b546a10a07ae60e8f5d6f10a81fe0",
+  "current_sha": "fd670de1ee23ec73cff593e51f0bb95681b9d4ea",
+  "commit_range": "3d6045258e3b546a10a07ae60e8f5d6f10a81fe0..fd670de1ee23ec73cff593e51f0bb95681b9d4ea",
+  "first_run": false,
+  "new": [
+    "pytest|?|tests.test_notebook_fin_walk_prep_gap",
+    "pytest|tests.test_account_tombstones_bounded_put|test_the_shared_data_sync_client_is_left_as_other_callers_rely_on_it",
+    "pytest|tests.test_bars_server_timing|test_layer_sqlite_on_fresh_stored_rows",
+    "pytest|tests.test_breadth_industries|test_status_endpoint",
+    "pytest|tests.test_breadth_library_serve|test_the_warm_loop_warms_uct_plus_the_participation_family",
+    "pytest|tests.test_deep_backfill_sync|test_deep_daily_request_keeps_background_path",
+    "pytest|tests.test_massive_ws_stop|test_stop_idempotency_and_stop_before_start",
+    "pytest|tests.test_massive_ws_stop|test_stop_sends_close_frame_and_joins",
+    "pytest|tests.test_notebook_bridges_pin_the_root|test_every_notebook_tool_that_imports_api_applies_the_census_first",
+    "pytest|tests.test_notebook_campaign_tooling|test_every_in_tree_sentence_is_still_in_its_source",
+    "pytest|tests.test_notebook_fin_walk_followups|test_the_step_is_registered_and_runs_before_the_sample_is_removed",
+    "pytest|tests.test_pine_capability_admission|test_A2_every_vocabulary_id_outside_the_admitted_set_withholds",
+    "pytest|tests.test_pine_capability_admission|test_B1_with_the_flag_off_the_door_never_runs_the_detector",
+    "pytest|tests.test_pine_capability_admission|test_C1_a_matrix_or_map_script_is_withheld",
+    "pytest|tests.test_pine_capability_admission|test_C3_an_id_outside_the_vocabulary_counts_missing",
+    "pytest|tests.test_pine_capability_admission|test_GATE_8_concurrent_cold_list_requests_each_finish_under_1s",
+    "pytest|tests.test_pine_capability_admission|test_GATE_a_run_in_progress_refuses_a_second_concurrently",
+    "pytest|tests.test_pine_capability_admission|test_GATE_a_run_is_projected_before_it_starts",
+    "pytest|tests.test_pine_capability_admission|test_SERVE_a_saved_row_is_computed_at_save_and_never_on_the_hot_path",
+    "pytest|tests.test_pine_capability_admission|test_SERVE_a_set_from_an_older_detector_is_recomputed",
+    "pytest|tests.test_pine_capability_admission|test_SERVE_history_with_300_versions_asks_only_the_latest",
+    "pytest|tests.test_pine_capability_admission|test_SERVE_the_list_with_50_near_cap_rows_cold_is_under_1s",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_on_float_close_lists_and_steady_leaders",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[10]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[11]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[12]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[13]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[14]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[15]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[16]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[17]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[19]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[1]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[20]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[21]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[22]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[23]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[24]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[25]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[26]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[27]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[28]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[29]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[2]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[30]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[31]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[33]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[34]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[35]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[36]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[37]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[38]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[39]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[3]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[40]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[41]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[42]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[43]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[44]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[47]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[48]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[4]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[51]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[52]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[53]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[54]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[55]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[57]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[58]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[59]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[5]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[60]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[61]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[62]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[63]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[64]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[66]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[67]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[68]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[69]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[6]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[70]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[71]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[72]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[73]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[74]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[75]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[76]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[77]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[78]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[79]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[7]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[8]",
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[9]",
+    "pytest|tests.test_study_spot_setup|test_the_game_comes_in_one_request_yes_charts_only_mixed_across_setups",
+    "vitest|src/components/chart/engine/__tests__/colorUpDownSubstitution.test.js|UCT RS \u2014 one hue on Classic, two on Phase, and a hidden condition plot > every RS input label fits the inspector column (17 characters) and the long form is in the tooltip",
+    "vitest|src/components/chart/engine/__tests__/markerPixels.test.js|the hue budget per preset \u2014 \u2264 2 non-neutral hues + the neutral over the plots a preset DRAWS; Phase \u2264 3 (its documented exception) > the colour inputs are the ten the dialog shows, every default a Classic token role, and the neutral is the token",
+    "vitest|src/components/chart/engine/__tests__/vendorHarness/vendorHarness.b1Paints.test.js|B1 \u2014 paints graded against the captures that record them > artemis-oscillator-pro-spy-1d-2026-10-03.json grades as pinned",
+    "vitest|src/components/chart/engine/__tests__/vendorHarness/vendorHarness.b1Paints.test.js|B1 \u2014 paints graded against the captures that record them > atr-support-and-resistance-spy-1d-2026-10-03.json grades as pinned",
+    "vitest|src/components/chart/engine/__tests__/vendorHarness/vendorHarness.b1Paints.test.js|B1 \u2014 paints graded against the captures that record them > atr-trailing-stop-by-ceyhun-spy-1d-2026-10-02.json grades as pinned",
+    "vitest|src/components/chart/engine/__tests__/vendorHarness/vendorHarness.b1Paints.test.js|B1 \u2014 paints graded against the captures that record them > atr-trailing-stoploss-spy-1d-2026-10-03.json grades as pinned",
+    "vitest|src/components/chart/engine/__tests__/vendorHarness/vendorHarness.b1Paints.test.js|B1 \u2014 paints graded against the captures that record them > btc-charlie-trader-xo-macro-trend-scanner-spy-1d-2026-10-03.json grades as pinned",
+    "vitest|src/components/chart/engine/__tests__/vendorHarness/vendorHarness.b1Paints.test.js|B1 \u2014 paints graded against the captures that record them > elliott-wave-3-finder-v2-spy-1d-2026-10-03.json grades as pinned",
+    "vitest|src/components/chart/engine/__tests__/vendorHarness/vendorHarness.b1Paints.test.js|B1 \u2014 paints graded against the captures that record them > ema-ribbon-trend-filter-strixedge-spy-1d-2026-10-03.json grades as pinned",
+    "vitest|src/components/chart/engine/__tests__/vendorHarness/vendorHarness.b1Paints.test.js|B1 \u2014 paints graded against the captures that record them > every capture that records a paint is pinned \u2014 none added or dropped silently",
+    "vitest|src/components/chart/engine/__tests__/vendorHarness/vendorHarness.b1Paints.test.js|B1 \u2014 paints graded against the captures that record them > fibonacci-pivot-points-cc-spy-1d-2026-10-03.json grades as pinned",
+    "vitest|src/components/chart/engine/__tests__/vendorHarness/vendorHarness.b1Paints.test.js|B1 \u2014 paints graded against the captures that record them > heat-map-seasons-spy-1d-2026-10-03.json grades as pinned",
+    "vitest|src/components/chart/engine/__tests__/vendorHarness/vendorHarness.b1Paints.test.js|B1 \u2014 paints graded against the captures that record them > mcclellan-indicators-spy-1d-2026-10-03.json grades as pinned",
+    "vitest|src/components/chart/engine/__tests__/vendorHarness/vendorHarness.b1Paints.test.js|B1 \u2014 paints graded against the captures that record them > supertrend-strategy-spy-1d-2026-10-02.json grades as pinned",
+    "vitest|src/components/chart/engine/__tests__/vendorHarness/vendorHarness.b1Paints.test.js|B1 \u2014 paints graded against the captures that record them > vw-rt6-runtime-colour-spy-1d-2026-10-03.json grades as pinned",
+    "vitest|src/components/chart/engine/__tests__/vendorHarness/vendorHarness.div1WarmHistory.test.js|DIV-1 \u2014 SPY 1D, replayed over the listing > our side says which history it computed on: 6,677 bars from the listing supplier",
+    "vitest|src/components/dailyFirstPaintAcceptance.test.jsx|BARSTORE=false > DAILY first-paint acceptance > NC-D camera moved after first paint",
+    "vitest|src/components/dailyFirstPaintAcceptance.test.jsx|BARSTORE=true > DAILY first-paint acceptance > NC-D camera moved after first paint",
+    "vitest|src/hooks/pollingSites.rail.test.js|polling sites \u2014 the opt-in helper gets a rail > no NEW bare polling site, and no allow-listed one that has since moved",
+    "vitest|src/hooks/usePreferences.additionsOnly.test.js|S5 CP2 \u2014 additions only > NO NEW opaque-key call site appears \u2014 the way around this rail is railed",
+    "vitest|src/hooks/usePreferences.asyncBoundaries.test.js|callers \u2014 a write after an await of their own carries the op begun before it > no unlisted write after an await without the op",
+    "vitest|src/hub/writePathsTransitive.test.js|transitive write reachability from the hub's own call sites > \u26d4 pages/journal-2-0/hooks/useJ2Notes.js: only PUT /api/j2/notes/{param}, PATCH /api/j2/notes/{param}/tags is reachable from `useJ2Note`",
+    "vitest|src/pages/charts/mobile/__tests__/rsVisualVA5Sheet.test.jsx|A5c \u2014 swatches: the current colour, always present, always marked > on a fresh Classic instance every colour row is stacked and marks exactly one swatch, the drawn colour",
+    "vitest|src/pages/screener/focus/__tests__/FocusScreener.pane.test.jsx|B13: the first flag shows its actions inside the list head, not in a new row above the list",
+    "vitest|src/utils/modalOpen.test.js|\ud83d\udd34 every chart key handler actually CONSULTS it > \ud83d\udd34 every chart file with a global keydown is either guarded or modal-owned"
+  ],
+  "missing": [
+    "pytest|tests.test_cadence_heartbeat|test_the_flag_is_declared_in_the_ledger_as_dark"
+  ],
+  "fixed": [
+    "pytest|tests.test_bar_contract|test_every_ohlcv_writer_bumps_series_rev_or_the_store_floor",
+    "pytest|tests.test_flow_tape_spool|test_a_window_the_spool_COVERED_is_not_re_read_over_rest",
+    "pytest|tests.test_flow_tape_spool|test_a_window_with_no_spooled_frames_is_handed_to_rest",
+    "pytest|tests.test_flow_tape_spool|test_it_never_raises_when_the_qpool_is_unavailable",
+    "pytest|tests.test_hub_nav_smoke_routes|test_nav_items_reads_alsoActive_off_the_row_and_only_that_row",
+    "pytest|tests.test_hub_nav_smoke_routes|test_the_real_nav_puts_terminal_in_the_sweep_right_after_its_owner",
+    "pytest|tests.test_rs_evidence_job|test_package_imports_its_maths_from_relative_strength_only",
+    "vitest|src/components/StockChart.focusWarmStep.test.jsx|a Focus walk draws every step from the cache > 8 consecutive ArrowDowns after the bell: each pane is ready before any network answer could land",
+    "vitest|src/components/chart/rails/oneKey.census.test.js|one key / one url / one freshness (shrink-only allowlists) > keyBuilders: no NEW site outside the allowlist (owner: data/barStore/types.js (BarStore key owner) + utils/barsMemCache.js + utils/barsIDB.js (cacheKey) -> P1: server-issued key)",
+    "vitest|src/content/rs/teaching.export.test.js|rs teaching export > the committed api/data/rs_teaching.json equals a fresh in-memory export",
+    "vitest|src/lib/persistence/persistenceManifest.test.js|the persistence census sees the tree before anything is compared > classifies every storage-shaped call and resolves every key",
+    "vitest|src/lib/persistence/persistenceManifest.test.js|the persistence census sees the tree before anything is compared > finds known keys in every store, including ones only reachable through imports and wrappers",
+    "vitest|src/pages/journal-2-0/components/notebook/NoteEditorPage.rails.test.jsx|NoteEditorPage editor toolbar row > a visible Find button opens NoteFindBar, the same as Ctrl+F",
+    "vitest|src/pages/journal-2-0/components/notebook/routines/TrackerEditorSheet.test.jsx|editing a tracker > tracker_kind_fixed_after_create",
+    "vitest|src/pages/journal-2-0/lib/captureContext.test.js|\u26d4\u26d4 a real door actually uses it > \u26d4 every door that opens capture is one we checked",
+    "vitest|src/pages/journal-2-0/lib/offline/doorEnumeration.test.js|\u26d4\u26d4 \u2463b \u2014 helper-forwarded and dynamic-method writes are SEEN, resolved, and checked > every request in a note-touching file has a readable method, and every door write lands its revision",
+    "vitest|src/pages/journal-2-0/lib/offline/doorEnumeration.test.js|\u26d4\u26d4 \u2463b \u2014 helper-forwarded and dynamic-method writes are SEEN, resolved, and checked > \u2b50 the GENERAL check (not only the control above) goes RED when journalStyles.js loses a settle",
+    "vitest|src/pages/journal-2-0/lib/offline/noteCopy.test.js|fix round 4 \u2014 a refused copy shows its words and speaks for itself > each of the server\u2019s create refusals lands in its class (sentences parsed from notes.py)",
+    "vitest|src/utils/prefetchBars.paintContract.test.js|one owner: no second copy of the paint rule in the warmers or the chart gates > StockChart's mem and IDB first-frame gates call isCacheCurrentForView",
+    "vitest|src/utils/prefetchBars.urgent.test.js|urgent key matches the chart > StockChart still requests /api/bars/<sym>?tf=<tf>&bars=<first-paint bars> and urgent builds the same"
+  ],
+  "new_flaky": [],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "pytest|tests.test_stream_charge_first_delta|test_a_CHARGE_while_auth_db_is_write_locked_never_stalls_the_loop[ask]",
+    "pytest|tests.test_stream_charge_first_delta|test_a_REFUND_while_auth_db_is_write_locked_never_stalls_the_loop[writing_help]",
+    "vitest|src/components/research/sections/CatalystsSection.test.jsx|CatalystsSection > shows the finding state while catalysts generate and lands on its own (polls)",
+    "vitest|src/components/voice/VoiceHallucinationsPanel.test.jsx|VoiceHallucinationsPanel (Packet AD CP2) > populates the session dropdown and fires a POST re-audit for the selected session, then refreshes the flag list",
+    "vitest|src/pages/charts/widgets/IndexesWidget.test.jsx|CONTROL \u2014 the toast rail fails when the door says nothing",
+    "vitest|src/pages/journal-2-0/components/notebook/CaptureHost.test.jsx|capture preserves the member context (\u00a75/\u00a720) > closing returns the dialog to nothing",
+    "vitest|src/pages/journal-2-0/tabs/NotebookTab.daily.test.jsx|Today > a daily template that no longer exists is said in words; the day still opens"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [
+    "pytest|tests.test_cadence_heartbeat|test_the_flag_is_declared_in_the_ledger_as_dark"
+  ],
+  "missing_buckets": {
+    "pytest|tests.test_cadence_heartbeat|test_the_flag_is_declared_in_the_ledger_as_dark": [
+      "DE-COLLECTED",
+      "tests/test_cadence_heartbeat.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ]
+  },
+  "attribution": {
+    "pytest|?|tests.test_notebook_fin_walk_prep_gap": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no test-file path or no commit range"
+    },
+    "pytest|tests.test_account_tombstones_bounded_put|test_the_shared_data_sync_client_is_left_as_other_callers_rely_on_it": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_account_tombstones_bounded_put.py or anything it imports"
+    },
+    "pytest|tests.test_bars_server_timing|test_layer_sqlite_on_fresh_stored_rows": {
+      "class": "imported-file-change",
+      "commits": [
+        "7c15c3673"
+      ],
+      "workstreams": [
+        {
+          "commit": "7c15c3673",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_breadth_industries|test_status_endpoint": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_breadth_industries.py or anything it imports"
+    },
+    "pytest|tests.test_breadth_library_serve|test_the_warm_loop_warms_uct_plus_the_participation_family": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_breadth_library_serve.py or anything it imports"
+    },
+    "pytest|tests.test_deep_backfill_sync|test_deep_daily_request_keeps_background_path": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_deep_backfill_sync.py or anything it imports"
+    },
+    "pytest|tests.test_massive_ws_stop|test_stop_idempotency_and_stop_before_start": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_massive_ws_stop.py or anything it imports"
+    },
+    "pytest|tests.test_massive_ws_stop|test_stop_sends_close_frame_and_joins": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_massive_ws_stop.py or anything it imports"
+    },
+    "pytest|tests.test_notebook_bridges_pin_the_root|test_every_notebook_tool_that_imports_api_applies_the_census_first": {
+      "class": "imported-file-change",
+      "commits": [
+        "c0c704eae"
+      ],
+      "workstreams": [
+        {
+          "commit": "c0c704eae",
+          "workstream": "perf",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_notebook_campaign_tooling|test_every_in_tree_sentence_is_still_in_its_source": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_notebook_campaign_tooling.py or anything it imports"
+    },
+    "pytest|tests.test_notebook_fin_walk_followups|test_the_step_is_registered_and_runs_before_the_sample_is_removed": {
+      "class": "test-file-change",
+      "commits": [
+        "b846ca27e"
+      ],
+      "workstreams": [
+        {
+          "commit": "b846ca27e",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_pine_capability_admission|test_A2_every_vocabulary_id_outside_the_admitted_set_withholds": {
+      "class": "test-file-change",
+      "commits": [
+        "588572033",
+        "3e4761fb6",
+        "b2bda9260",
+        "549deeb91",
+        "f344fbd52",
+        "175273594",
+        "7d178ef05",
+        "3dd645315",
+        "316c46b7e",
+        "0a6180b13",
+        "0f32d6163",
+        "701e7cd3a"
+      ],
+      "workstreams": [
+        {
+          "commit": "588572033",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "3e4761fb6",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "b2bda9260",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "549deeb91",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "f344fbd52",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "175273594",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "7d178ef05",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "3dd645315",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "316c46b7e",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "0a6180b13",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "0f32d6163",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "701e7cd3a",
+          "workstream": "perf",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_pine_capability_admission|test_B1_with_the_flag_off_the_door_never_runs_the_detector": {
+      "class": "test-file-change",
+      "commits": [
+        "588572033",
+        "3e4761fb6",
+        "b2bda9260",
+        "549deeb91",
+        "f344fbd52",
+        "175273594",
+        "7d178ef05",
+        "3dd645315",
+        "316c46b7e",
+        "0a6180b13",
+        "0f32d6163",
+        "701e7cd3a"
+      ],
+      "workstreams": [
+        {
+          "commit": "588572033",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "3e4761fb6",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "b2bda9260",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "549deeb91",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "f344fbd52",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "175273594",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "7d178ef05",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "3dd645315",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "316c46b7e",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "0a6180b13",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "0f32d6163",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "701e7cd3a",
+          "workstream": "perf",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_pine_capability_admission|test_C1_a_matrix_or_map_script_is_withheld": {
+      "class": "test-file-change",
+      "commits": [
+        "588572033",
+        "3e4761fb6",
+        "b2bda9260",
+        "549deeb91",
+        "f344fbd52",
+        "175273594",
+        "7d178ef05",
+        "3dd645315",
+        "316c46b7e",
+        "0a6180b13",
+        "0f32d6163",
+        "701e7cd3a"
+      ],
+      "workstreams": [
+        {
+          "commit": "588572033",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "3e4761fb6",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "b2bda9260",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "549deeb91",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "f344fbd52",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "175273594",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "7d178ef05",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "3dd645315",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "316c46b7e",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "0a6180b13",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "0f32d6163",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "701e7cd3a",
+          "workstream": "perf",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_pine_capability_admission|test_C3_an_id_outside_the_vocabulary_counts_missing": {
+      "class": "test-file-change",
+      "commits": [
+        "588572033",
+        "3e4761fb6",
+        "b2bda9260",
+        "549deeb91",
+        "f344fbd52",
+        "175273594",
+        "7d178ef05",
+        "3dd645315",
+        "316c46b7e",
+        "0a6180b13",
+        "0f32d6163",
+        "701e7cd3a"
+      ],
+      "workstreams": [
+        {
+          "commit": "588572033",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "3e4761fb6",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "b2bda9260",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "549deeb91",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "f344fbd52",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "175273594",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "7d178ef05",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "3dd645315",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "316c46b7e",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "0a6180b13",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "0f32d6163",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "701e7cd3a",
+          "workstream": "perf",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_pine_capability_admission|test_GATE_8_concurrent_cold_list_requests_each_finish_under_1s": {
+      "class": "test-file-change",
+      "commits": [
+        "588572033",
+        "3e4761fb6",
+        "b2bda9260",
+        "549deeb91",
+        "f344fbd52",
+        "175273594",
+        "7d178ef05",
+        "3dd645315",
+        "316c46b7e",
+        "0a6180b13",
+        "0f32d6163",
+        "701e7cd3a"
+      ],
+      "workstreams": [
+        {
+          "commit": "588572033",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "3e4761fb6",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "b2bda9260",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "549deeb91",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "f344fbd52",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "175273594",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "7d178ef05",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "3dd645315",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "316c46b7e",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "0a6180b13",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "0f32d6163",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "701e7cd3a",
+          "workstream": "perf",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_pine_capability_admission|test_GATE_a_run_in_progress_refuses_a_second_concurrently": {
+      "class": "test-file-change",
+      "commits": [
+        "588572033",
+        "3e4761fb6",
+        "b2bda9260",
+        "549deeb91",
+        "f344fbd52",
+        "175273594",
+        "7d178ef05",
+        "3dd645315",
+        "316c46b7e",
+        "0a6180b13",
+        "0f32d6163",
+        "701e7cd3a"
+      ],
+      "workstreams": [
+        {
+          "commit": "588572033",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "3e4761fb6",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "b2bda9260",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "549deeb91",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "f344fbd52",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "175273594",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "7d178ef05",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "3dd645315",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "316c46b7e",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "0a6180b13",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "0f32d6163",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "701e7cd3a",
+          "workstream": "perf",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_pine_capability_admission|test_GATE_a_run_is_projected_before_it_starts": {
+      "class": "test-file-change",
+      "commits": [
+        "588572033",
+        "3e4761fb6",
+        "b2bda9260",
+        "549deeb91",
+        "f344fbd52",
+        "175273594",
+        "7d178ef05",
+        "3dd645315",
+        "316c46b7e",
+        "0a6180b13",
+        "0f32d6163",
+        "701e7cd3a"
+      ],
+      "workstreams": [
+        {
+          "commit": "588572033",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "3e4761fb6",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "b2bda9260",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "549deeb91",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "f344fbd52",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "175273594",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "7d178ef05",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "3dd645315",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "316c46b7e",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "0a6180b13",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "0f32d6163",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "701e7cd3a",
+          "workstream": "perf",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_pine_capability_admission|test_SERVE_a_saved_row_is_computed_at_save_and_never_on_the_hot_path": {
+      "class": "test-file-change",
+      "commits": [
+        "588572033",
+        "3e4761fb6",
+        "b2bda9260",
+        "549deeb91",
+        "f344fbd52",
+        "175273594",
+        "7d178ef05",
+        "3dd645315",
+        "316c46b7e",
+        "0a6180b13",
+        "0f32d6163",
+        "701e7cd3a"
+      ],
+      "workstreams": [
+        {
+          "commit": "588572033",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "3e4761fb6",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "b2bda9260",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "549deeb91",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "f344fbd52",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "175273594",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "7d178ef05",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "3dd645315",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "316c46b7e",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "0a6180b13",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "0f32d6163",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "701e7cd3a",
+          "workstream": "perf",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_pine_capability_admission|test_SERVE_a_set_from_an_older_detector_is_recomputed": {
+      "class": "test-file-change",
+      "commits": [
+        "588572033",
+        "3e4761fb6",
+        "b2bda9260",
+        "549deeb91",
+        "f344fbd52",
+        "175273594",
+        "7d178ef05",
+        "3dd645315",
+        "316c46b7e",
+        "0a6180b13",
+        "0f32d6163",
+        "701e7cd3a"
+      ],
+      "workstreams": [
+        {
+          "commit": "588572033",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "3e4761fb6",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "b2bda9260",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "549deeb91",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "f344fbd52",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "175273594",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "7d178ef05",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "3dd645315",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "316c46b7e",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "0a6180b13",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "0f32d6163",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "701e7cd3a",
+          "workstream": "perf",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_pine_capability_admission|test_SERVE_history_with_300_versions_asks_only_the_latest": {
+      "class": "test-file-change",
+      "commits": [
+        "588572033",
+        "3e4761fb6",
+        "b2bda9260",
+        "549deeb91",
+        "f344fbd52",
+        "175273594",
+        "7d178ef05",
+        "3dd645315",
+        "316c46b7e",
+        "0a6180b13",
+        "0f32d6163",
+        "701e7cd3a"
+      ],
+      "workstreams": [
+        {
+          "commit": "588572033",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "3e4761fb6",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "b2bda9260",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "549deeb91",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "f344fbd52",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "175273594",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "7d178ef05",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "3dd645315",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "316c46b7e",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "0a6180b13",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "0f32d6163",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "701e7cd3a",
+          "workstream": "perf",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_pine_capability_admission|test_SERVE_the_list_with_50_near_cap_rows_cold_is_under_1s": {
+      "class": "test-file-change",
+      "commits": [
+        "588572033",
+        "3e4761fb6",
+        "b2bda9260",
+        "549deeb91",
+        "f344fbd52",
+        "175273594",
+        "7d178ef05",
+        "3dd645315",
+        "316c46b7e",
+        "0a6180b13",
+        "0f32d6163",
+        "701e7cd3a"
+      ],
+      "workstreams": [
+        {
+          "commit": "588572033",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "3e4761fb6",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "b2bda9260",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "549deeb91",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "f344fbd52",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "175273594",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "7d178ef05",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "3dd645315",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "316c46b7e",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "0a6180b13",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "0f32d6163",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "701e7cd3a",
+          "workstream": "perf",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_on_float_close_lists_and_steady_leaders": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[10]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[11]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[12]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[13]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[14]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[15]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[16]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[17]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[19]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[1]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[20]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[21]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[22]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[23]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[24]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[25]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[26]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[27]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[28]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[29]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[2]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[30]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[31]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[33]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[34]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[35]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[36]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[37]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[38]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[39]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[3]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[40]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[41]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[42]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[43]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[44]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[47]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[48]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[4]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[51]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[52]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[53]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[54]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[55]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[57]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[58]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[59]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[5]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[60]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[61]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[62]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[63]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[64]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[66]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[67]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[68]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[69]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[6]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[70]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[71]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[72]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[73]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[74]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[75]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[76]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[77]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[78]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[79]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[7]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[8]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_rs_fix_u2_kernel_parity|test_collect_one_matches_the_old_collector_exactly[9]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_rs_fix_u2_kernel_parity.py or anything it imports"
+    },
+    "pytest|tests.test_study_spot_setup|test_the_game_comes_in_one_request_yes_charts_only_mixed_across_setups": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched tests/test_study_spot_setup.py or anything it imports"
+    },
+    "vitest|src/components/chart/engine/__tests__/colorUpDownSubstitution.test.js|UCT RS \u2014 one hue on Classic, two on Phase, and a hidden condition plot > every RS input label fits the inspector column (17 characters) and the long form is in the tooltip": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched src/components/chart/engine/__tests__/colorUpDownSubstitution.test.js or anything it imports"
+    },
+    "vitest|src/components/chart/engine/__tests__/markerPixels.test.js|the hue budget per preset \u2014 \u2264 2 non-neutral hues + the neutral over the plots a preset DRAWS; Phase \u2264 3 (its documented exception) > the colour inputs are the ten the dialog shows, every default a Classic token role, and the neutral is the token": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched src/components/chart/engine/__tests__/markerPixels.test.js or anything it imports"
+    },
+    "vitest|src/components/chart/engine/__tests__/vendorHarness/vendorHarness.b1Paints.test.js|B1 \u2014 paints graded against the captures that record them > artemis-oscillator-pro-spy-1d-2026-10-03.json grades as pinned": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched src/components/chart/engine/__tests__/vendorHarness/vendorHarness.b1Paints.test.js or anything it imports"
+    },
+    "vitest|src/components/chart/engine/__tests__/vendorHarness/vendorHarness.b1Paints.test.js|B1 \u2014 paints graded against the captures that record them > atr-support-and-resistance-spy-1d-2026-10-03.json grades as pinned": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched src/components/chart/engine/__tests__/vendorHarness/vendorHarness.b1Paints.test.js or anything it imports"
+    },
+    "vitest|src/components/chart/engine/__tests__/vendorHarness/vendorHarness.b1Paints.test.js|B1 \u2014 paints graded against the captures that record them > atr-trailing-stop-by-ceyhun-spy-1d-2026-10-02.json grades as pinned": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched src/components/chart/engine/__tests__/vendorHarness/vendorHarness.b1Paints.test.js or anything it imports"
+    },
+    "vitest|src/components/chart/engine/__tests__/vendorHarness/vendorHarness.b1Paints.test.js|B1 \u2014 paints graded against the captures that record them > atr-trailing-stoploss-spy-1d-2026-10-03.json grades as pinned": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched src/components/chart/engine/__tests__/vendorHarness/vendorHarness.b1Paints.test.js or anything it imports"
+    },
+    "vitest|src/components/chart/engine/__tests__/vendorHarness/vendorHarness.b1Paints.test.js|B1 \u2014 paints graded against the captures that record them > btc-charlie-trader-xo-macro-trend-scanner-spy-1d-2026-10-03.json grades as pinned": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched src/components/chart/engine/__tests__/vendorHarness/vendorHarness.b1Paints.test.js or anything it imports"
+    },
+    "vitest|src/components/chart/engine/__tests__/vendorHarness/vendorHarness.b1Paints.test.js|B1 \u2014 paints graded against the captures that record them > elliott-wave-3-finder-v2-spy-1d-2026-10-03.json grades as pinned": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched src/components/chart/engine/__tests__/vendorHarness/vendorHarness.b1Paints.test.js or anything it imports"
+    },
+    "vitest|src/components/chart/engine/__tests__/vendorHarness/vendorHarness.b1Paints.test.js|B1 \u2014 paints graded against the captures that record them > ema-ribbon-trend-filter-strixedge-spy-1d-2026-10-03.json grades as pinned": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched src/components/chart/engine/__tests__/vendorHarness/vendorHarness.b1Paints.test.js or anything it imports"
+    },
+    "vitest|src/components/chart/engine/__tests__/vendorHarness/vendorHarness.b1Paints.test.js|B1 \u2014 paints graded against the captures that record them > every capture that records a paint is pinned \u2014 none added or dropped silently": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched src/components/chart/engine/__tests__/vendorHarness/vendorHarness.b1Paints.test.js or anything it imports"
+    },
+    "vitest|src/components/chart/engine/__tests__/vendorHarness/vendorHarness.b1Paints.test.js|B1 \u2014 paints graded against the captures that record them > fibonacci-pivot-points-cc-spy-1d-2026-10-03.json grades as pinned": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched src/components/chart/engine/__tests__/vendorHarness/vendorHarness.b1Paints.test.js or anything it imports"
+    },
+    "vitest|src/components/chart/engine/__tests__/vendorHarness/vendorHarness.b1Paints.test.js|B1 \u2014 paints graded against the captures that record them > heat-map-seasons-spy-1d-2026-10-03.json grades as pinned": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched src/components/chart/engine/__tests__/vendorHarness/vendorHarness.b1Paints.test.js or anything it imports"
+    },
+    "vitest|src/components/chart/engine/__tests__/vendorHarness/vendorHarness.b1Paints.test.js|B1 \u2014 paints graded against the captures that record them > mcclellan-indicators-spy-1d-2026-10-03.json grades as pinned": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched src/components/chart/engine/__tests__/vendorHarness/vendorHarness.b1Paints.test.js or anything it imports"
+    },
+    "vitest|src/components/chart/engine/__tests__/vendorHarness/vendorHarness.b1Paints.test.js|B1 \u2014 paints graded against the captures that record them > supertrend-strategy-spy-1d-2026-10-02.json grades as pinned": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched src/components/chart/engine/__tests__/vendorHarness/vendorHarness.b1Paints.test.js or anything it imports"
+    },
+    "vitest|src/components/chart/engine/__tests__/vendorHarness/vendorHarness.b1Paints.test.js|B1 \u2014 paints graded against the captures that record them > vw-rt6-runtime-colour-spy-1d-2026-10-03.json grades as pinned": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched src/components/chart/engine/__tests__/vendorHarness/vendorHarness.b1Paints.test.js or anything it imports"
+    },
+    "vitest|src/components/chart/engine/__tests__/vendorHarness/vendorHarness.div1WarmHistory.test.js|DIV-1 \u2014 SPY 1D, replayed over the listing > our side says which history it computed on: 6,677 bars from the listing supplier": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched src/components/chart/engine/__tests__/vendorHarness/vendorHarness.div1WarmHistory.test.js or anything it imports"
+    },
+    "vitest|src/components/dailyFirstPaintAcceptance.test.jsx|BARSTORE=false > DAILY first-paint acceptance > NC-D camera moved after first paint": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched src/components/dailyFirstPaintAcceptance.test.jsx or anything it imports"
+    },
+    "vitest|src/components/dailyFirstPaintAcceptance.test.jsx|BARSTORE=true > DAILY first-paint acceptance > NC-D camera moved after first paint": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched src/components/dailyFirstPaintAcceptance.test.jsx or anything it imports"
+    },
+    "vitest|src/hooks/pollingSites.rail.test.js|polling sites \u2014 the opt-in helper gets a rail > no NEW bare polling site, and no allow-listed one that has since moved": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched src/hooks/pollingSites.rail.test.js or anything it imports"
+    },
+    "vitest|src/hooks/usePreferences.additionsOnly.test.js|S5 CP2 \u2014 additions only > NO NEW opaque-key call site appears \u2014 the way around this rail is railed": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched src/hooks/usePreferences.additionsOnly.test.js or anything it imports"
+    },
+    "vitest|src/hooks/usePreferences.asyncBoundaries.test.js|callers \u2014 a write after an await of their own carries the op begun before it > no unlisted write after an await without the op": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched src/hooks/usePreferences.asyncBoundaries.test.js or anything it imports"
+    },
+    "vitest|src/hub/writePathsTransitive.test.js|transitive write reachability from the hub's own call sites > \u26d4 pages/journal-2-0/hooks/useJ2Notes.js: only PUT /api/j2/notes/{param}, PATCH /api/j2/notes/{param}/tags is reachable from `useJ2Note`": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched src/hub/writePathsTransitive.test.js or anything it imports"
+    },
+    "vitest|src/pages/charts/mobile/__tests__/rsVisualVA5Sheet.test.jsx|A5c \u2014 swatches: the current colour, always present, always marked > on a fresh Classic instance every colour row is stacked and marks exactly one swatch, the drawn colour": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched src/pages/charts/mobile/__tests__/rsVisualVA5Sheet.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/screener/focus/__tests__/FocusScreener.pane.test.jsx|B13: the first flag shows its actions inside the list head, not in a new row above the list": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched src/pages/screener/focus/__tests__/FocusScreener.pane.test.jsx or anything it imports"
+    },
+    "vitest|src/utils/modalOpen.test.js|\ud83d\udd34 every chart key handler actually CONSULTS it > \ud83d\udd34 every chart file with a global keydown is either guarded or modal-owned": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched src/utils/modalOpen.test.js or anything it imports"
+    },
+    "pytest|tests.test_bar_contract|test_every_ohlcv_writer_bumps_series_rev_or_the_store_floor": {
+      "class": "test-file-change",
+      "commits": [
+        "7470658fb"
+      ],
+      "workstreams": [
+        {
+          "commit": "7470658fb",
+          "workstream": "perf",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_flow_tape_spool|test_a_window_the_spool_COVERED_is_not_re_read_over_rest": {
+      "class": "imported-file-change",
+      "commits": [
+        "df8d7a45c"
+      ],
+      "workstreams": [
+        {
+          "commit": "df8d7a45c",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_flow_tape_spool|test_a_window_with_no_spooled_frames_is_handed_to_rest": {
+      "class": "imported-file-change",
+      "commits": [
+        "df8d7a45c"
+      ],
+      "workstreams": [
+        {
+          "commit": "df8d7a45c",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_flow_tape_spool|test_it_never_raises_when_the_qpool_is_unavailable": {
+      "class": "imported-file-change",
+      "commits": [
+        "df8d7a45c"
+      ],
+      "workstreams": [
+        {
+          "commit": "df8d7a45c",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_hub_nav_smoke_routes|test_nav_items_reads_alsoActive_off_the_row_and_only_that_row": {
+      "class": "test-file-change",
+      "commits": [
+        "e9d80c1e4"
+      ],
+      "workstreams": [
+        {
+          "commit": "e9d80c1e4",
+          "workstream": "tools",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_hub_nav_smoke_routes|test_the_real_nav_puts_terminal_in_the_sweep_right_after_its_owner": {
+      "class": "test-file-change",
+      "commits": [
+        "e9d80c1e4"
+      ],
+      "workstreams": [
+        {
+          "commit": "e9d80c1e4",
+          "workstream": "tools",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_rs_evidence_job|test_package_imports_its_maths_from_relative_strength_only": {
+      "class": "test-file-change",
+      "commits": [
+        "64ae54222"
+      ],
+      "workstreams": [
+        {
+          "commit": "64ae54222",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "vitest|src/components/StockChart.focusWarmStep.test.jsx|a Focus walk draws every step from the cache > 8 consecutive ArrowDowns after the bell: each pane is ready before any network answer could land": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched src/components/StockChart.focusWarmStep.test.jsx or anything it imports"
+    },
+    "vitest|src/components/chart/rails/oneKey.census.test.js|one key / one url / one freshness (shrink-only allowlists) > keyBuilders: no NEW site outside the allowlist (owner: data/barStore/types.js (BarStore key owner) + utils/barsMemCache.js + utils/barsIDB.js (cacheKey) -> P1: server-issued key)": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched src/components/chart/rails/oneKey.census.test.js or anything it imports"
+    },
+    "vitest|src/content/rs/teaching.export.test.js|rs teaching export > the committed api/data/rs_teaching.json equals a fresh in-memory export": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched src/content/rs/teaching.export.test.js or anything it imports"
+    },
+    "vitest|src/lib/persistence/persistenceManifest.test.js|the persistence census sees the tree before anything is compared > classifies every storage-shaped call and resolves every key": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched src/lib/persistence/persistenceManifest.test.js or anything it imports"
+    },
+    "vitest|src/lib/persistence/persistenceManifest.test.js|the persistence census sees the tree before anything is compared > finds known keys in every store, including ones only reachable through imports and wrappers": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched src/lib/persistence/persistenceManifest.test.js or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/notebook/NoteEditorPage.rails.test.jsx|NoteEditorPage editor toolbar row > a visible Find button opens NoteFindBar, the same as Ctrl+F": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched src/pages/journal-2-0/components/notebook/NoteEditorPage.rails.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/components/notebook/routines/TrackerEditorSheet.test.jsx|editing a tracker > tracker_kind_fixed_after_create": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched src/pages/journal-2-0/components/notebook/routines/TrackerEditorSheet.test.jsx or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/lib/captureContext.test.js|\u26d4\u26d4 a real door actually uses it > \u26d4 every door that opens capture is one we checked": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched src/pages/journal-2-0/lib/captureContext.test.js or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/lib/offline/doorEnumeration.test.js|\u26d4\u26d4 \u2463b \u2014 helper-forwarded and dynamic-method writes are SEEN, resolved, and checked > every request in a note-touching file has a readable method, and every door write lands its revision": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched src/pages/journal-2-0/lib/offline/doorEnumeration.test.js or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/lib/offline/doorEnumeration.test.js|\u26d4\u26d4 \u2463b \u2014 helper-forwarded and dynamic-method writes are SEEN, resolved, and checked > \u2b50 the GENERAL check (not only the control above) goes RED when journalStyles.js loses a settle": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched src/pages/journal-2-0/lib/offline/doorEnumeration.test.js or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/lib/offline/noteCopy.test.js|fix round 4 \u2014 a refused copy shows its words and speaks for itself > each of the server\u2019s create refusals lands in its class (sentences parsed from notes.py)": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched src/pages/journal-2-0/lib/offline/noteCopy.test.js or anything it imports"
+    },
+    "vitest|src/utils/prefetchBars.paintContract.test.js|one owner: no second copy of the paint rule in the warmers or the chart gates > StockChart's mem and IDB first-frame gates call isCacheCurrentForView": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched src/utils/prefetchBars.paintContract.test.js or anything it imports"
+    },
+    "vitest|src/utils/prefetchBars.urgent.test.js|urgent key matches the chart > StockChart still requests /api/bars/<sym>?tf=<tf>&bars=<first-paint bars> and urgent builds the same": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 3d6045258..fd670de1e touched src/utils/prefetchBars.urgent.test.js or anything it imports"
+    }
+  },
+  "run_attempt": "1",
+  "rerun_flaky": []
+}

@@ -1,0 +1,19 @@
+{
+  "suite": "pytest",
+  "collected": 3680,
+  "passed": 3641,
+  "failed": 7,
+  "errored": 1,
+  "skipped": 31,
+  "wall_s": 573.56,
+  "failed_files": [
+    "tests/test_budget_isolation.py",
+    "tests/test_c45_withheld_doors.py",
+    "tests/test_calendar_week_post.py",
+    "tests/test_canonical_indicator_axis.py",
+    "tests/test_chart_health_severity_vocabulary.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "7 failed, 3641 passed, 31 skipped, 1 xfailed, 229 warnings, 1 error in 573.56s (0:09:33)",
+  "ok": true
+}
