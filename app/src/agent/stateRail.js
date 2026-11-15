@@ -436,7 +436,8 @@ export function permits(e, words, subjects = null, previous = null, previousSet 
     if (!negated && e.state === 'indicator' && e.type === 'overwrite' && SAME_OTHER.test(c) && e.defId) {
       // the ONE indicator the previous turn changed, on ANOTHER chart: the instance with the same definition and settings
       const src = (previousSet || []).filter(o => String(o.id).startsWith('ind:'))
-      if (src.length === 1 && chartOfId(src[0].id) !== chartOfId(e.id) && src[0].defId === e.defId && sameJson(settingsOf(src[0].inputs), settingsOf(e.inputs))) return true
+      // (matched against what the changed one WAS before the change — "change the 20 to a 50" then "the same" finds the 20s)
+      if (src.length === 1 && chartOfId(src[0].id) !== chartOfId(e.id) && src[0].defId === e.defId && sameJson(settingsOf(src[0].beforeInputs || src[0].inputs), settingsOf(e.inputs))) return true
     }
     if (!negated && JUST_MADE.test(c) && e.id && made && made.has(e.id)) return true
     if (!negated) {
@@ -664,11 +665,15 @@ function rawCandidates(memory, epoch, drawing, host) {
       const rows = indicatorRowsOf(host?.charts?.read?.(chart)?.cs)
       // by id, or by the portable form an instant edit names it with ("#20:ema": the ONE average of that length and type)
       const pm = /^#(\d{1,4})(?::(\w+))?$/.exec(o.args.instance)
-      const byLen = pm ? rows.filter(r => r.defId === 'movingAverage' && Number(r.inputs?.period) === Number(pm[1]) && (!pm[2] || String(r.inputs?.maType) === pm[2])) : []
-      const row = rows.find(r => r.instanceId === o.args.instance) || (byLen.length === 1 ? byLen[0] : null)
+      // (a settings change renamed it: "#20:ema" names what it WAS — read against the rows before the change)
+      const beforeRows = beforeRowsOf(memory, chart) || rows
+      const byLen = pm ? beforeRows.filter(r => r.defId === 'movingAverage' && Number(r.inputs?.period) === Number(pm[1]) && (!pm[2] || String(r.inputs?.maType) === pm[2])) : []
+      const hitId = rows.find(r => r.instanceId === o.args.instance)?.instanceId || (byLen.length === 1 ? byLen[0].instanceId : null)
+      const row = hitId ? rows.find(r => r.instanceId === hitId) : null
       if (!row || seen.has(`${chart}:${row.instanceId}`)) continue
       seen.add(`${chart}:${row.instanceId}`)
-      out.push({ id: `ind:${chart}:${row.instanceId}`, label: `the ${row.name}`, defId: row.defId, inputs: row.inputs,
+      const was = (beforeRowsOf(memory, chart) || []).find(r => r.instanceId === row.instanceId)
+      out.push({ id: `ind:${chart}:${row.instanceId}`, label: `the ${row.name}`, defId: row.defId, inputs: row.inputs, beforeInputs: was?.inputs || null,
         remove: { action: 'indicator.remove', target: `ixe:${chart}`, args: { instance: row.instanceId } }, fp: () => rowFp(host, chart, row.instanceId) })
     }
     if (acts.some(a => a === 'indicator.add' || a.startsWith('indicatorCopy.'))) {
@@ -709,5 +714,19 @@ export function previousCandidatesOf(memory, epoch = null, drawing = null, host 
   if (!rec || rec.turn !== (t?.id ?? null)) return []
   return all.filter(c => { const was = rec.fps.get(c.id); const now = c.fp(); return was != null && now != null && was === now })
 }
+// (D19) each chart's indicator rows as they stood just BEFORE the latest change landed on it — "do the same on the other charts"
+// after "change the 20 to a 50" finds the other charts' EMA 20 (what the changed one WAS), never the 50 it became
+const BEFORE = new WeakMap()
+/** Record, for a plan that is about to land, every chart's indicator rows before it (indicatorEdits plans' own `before`). */
+export function noteBeforeRows(memory, plan) {
+  if (!memory || !plan?.plans) return
+  try {
+    const by = new Map(BEFORE.get(memory) || [])
+    for (const p of plan.plans) if (p.kind === 'indicatorEdits' && p.before?.chartRef && Array.isArray(p.before.rows)) by.set(String(p.before.chartRef), p.before.rows.map(r => ({ instanceId: r.instanceId, defId: r.defId, name: r.name, inputs: r.inputs })))
+    BEFORE.set(memory, by)
+  } catch { /* best effort */ }
+}
+/** That chart's rows as they stood before the latest change on it (null when none was recorded). */
+export const beforeRowsOf = (memory, chart) => { try { return BEFORE.get(memory)?.get(String(chart)) || null } catch { return null } }
 /** The list rows the last applied turn left on screen. */
 export const appliedViewsOf = (memory) => APPLIED.get(memory)?.views || []

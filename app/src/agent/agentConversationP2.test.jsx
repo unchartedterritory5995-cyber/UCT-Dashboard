@@ -184,6 +184,30 @@ describe('S · "my other charts", "the same", "match this one"', () => {
     expect(out).toContain('Not on Chart (')
   }, 60000)
 
+  // ⛔ AUDIT #1247 (D19): a SETTINGS change repeated — matched against what the changed one WAS (an EMA 20), the same delta applied
+  it('S2e "change the 20 ema on the top left chart to 50" → "do the same on the other charts": each other EMA 20 becomes 50 (none → named, two → asked); exact Undo', async () => {
+    const { board, say, click } = p.mount(...FOUR())
+    await say('add the 20 ema to the top left chart')
+    await say('add the 20 ema to the top right chart')
+    await say('add the 20 ema to the bottom left chart')
+    await say('add another 20 ema to the bottom left chart')
+    const ma = (id, n) => (board.state.widgets.find(w => w.id === id).opts.settings?.indicatorInstances || []).filter(i => i.defId === 'movingAverage' && !i.deleted && i.inputs?.period === n)
+    await say('change the 20 ema on the top left chart to 50')
+    expect(ma('c0', 50)).toHaveLength(1)
+    const out = await say('do the same on the other charts')
+    expect(ma('c1', 50), 'top right: its EMA 20 became 50').toHaveLength(1)
+    expect(ma('c1', 20)).toHaveLength(0)
+    expect(ma('c2', 50), 'bottom left (two EMA 20s): asked, not acted on').toHaveLength(0)
+    expect(out).toContain('has more than one EMA 20')
+    expect(out).toContain('it has no EMA 20')
+    await click('EMA 20 (the first in the legend)')
+    await waitFor(() => expect(ma('c2', 50)).toHaveLength(1))
+    expect(ma('c2', 20)).toHaveLength(1)
+    await say('undo')
+    await waitFor(() => expect(ma('c2', 50)).toHaveLength(0))
+    expect(ma('c2', 20)).toHaveLength(2)
+  }, 90000)
+
   it('S3 "make the top left chart weekly" → "make all my charts match this one" — ONE proposal for the three others (a look copy is approved first); nothing changed yet', async () => {
     const { h, say } = p.mount(...FOUR())
     await say('make the top left chart weekly')

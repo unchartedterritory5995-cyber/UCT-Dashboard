@@ -29,6 +29,7 @@ import { getCapability, getTargetKind } from './capabilities'
 import { indicatorRowsOf, indicatorEditsRef, defIdOfWords, inputsOfEditWords } from './capabilities/indicatorEdits'
 import { colorValueOf } from './capabilities/indicatorControls'
 import { selectedChart, ordinalChart } from './deixis'
+import { beforeRowsOf } from './stateRail'
 import { subjectChart } from './references'
 import { correctTypos, lexiconFor } from './nl/lexicon'
 
@@ -677,12 +678,13 @@ function copySource(last, host) {
 const COLOURISH = /^(?:#[0-9a-f]{3,8}|rgba?\(|hsla?\()/i
 const settingsOfRow = (r) => JSON.stringify(Object.fromEntries(Object.entries(r?.inputs || {}).filter(([, v]) => !(typeof v === 'string' && COLOURISH.test(v))).sort(([a], [b]) => (a < b ? -1 : 1))))
 const fullRows = (host, chart) => { const c = chartSnap(host, chart); return c ? indicatorRowsOf(c.cs) : [] }
-function repeatExact(last, dests, host) {
+function repeatExact(last, dests, host, memory = null) {
   const ops = [], missing = [], ambiguous = []
   for (const o of last.ops) {
     const cap = getCapability(o.action)
     if (cap?.target !== 'indicatorEdits' || typeof o.args?.instance !== 'string') return null
-    const srcRows = fullRows(host, String(o.target))
+    // the changed instance as it WAS before the change (a settings change: "the 20" that became a 50), else as it is
+    const srcRows = beforeRowsOf(memory, String(o.target)) || fullRows(host, String(o.target))
     // by id, or by the portable form an instant edit names it with ("#20:ema": the ONE average of that length and type)
     const pm = /^#(\d{1,4})(?::(\w+))?$/.exec(o.args.instance)
     const byLen = pm ? srcRows.filter(r => r.defId === 'movingAverage' && Number(r.inputs?.period) === Number(pm[1]) && (!pm[2] || String(r.inputs?.maType) === pm[2])) : []
@@ -791,7 +793,7 @@ function readOnce(t, ctx) {
     if (!dests.length) return { kind: 'say', text: 'That change is already on that chart.' }
     const plain = { ops: last.ops.map(o => ({ ...o, target: String(o.target).replace(/^ixe:/, '') })) }
     // an indicator change: by exact instance on each chart (none → named; two → that chart asked)
-    const exact = repeatExact(plain, dests, host)
+    const exact = repeatExact(plain, dests, host, memory)
     if (exact) {
       if (!exact.ops.length && !exact.ambiguous.length) return { kind: 'say', text: `None of those charts has that indicator, so nothing changed — not on ${exact.missing.join('; not on ')}. Which chart did you mean?` }
       const note = exact.missing.length ? `Not on ${exact.missing.join('; not on ')}.` : null

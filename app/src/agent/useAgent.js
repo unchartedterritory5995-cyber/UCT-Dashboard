@@ -17,7 +17,7 @@
 
 import { protectionRefusal, undoProtectionRefusal, protectedOpenLayout, isProtected, protectedRenameRefusal } from './protectedLayouts'
 import { chartRailRefusal, RAIL_MARK, chartEffects } from './chartRail'
-import { stateRailDecision, noteApplied, STATE_RAIL_MARK, notDoneAdds, notDoneLine, subjectIdsOf, nextTurnSubjects } from './stateRail'
+import { stateRailDecision, noteApplied, noteBeforeRows, STATE_RAIL_MARK, notDoneAdds, notDoneLine, subjectIdsOf, nextTurnSubjects } from './stateRail'
 import { lastTouchedDrawing } from './capabilities/drawings'
 import { lastCreatedList } from './capabilities/watchlist'
 import { replyRelation, QUESTION_TTL_MS, CONTINUE_CHOICES, continueQuestion } from './pendingTask'
@@ -829,7 +829,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     let made = new Set()
     try { const lc = lastCreatedList(); if (lc?.id) made = new Set([`list:${lc.id}`]) } catch { /* none */ }
     const info = new Map((ts.candidates || []).map(c => [c.id, c]))
-    return { previous: ts.previous, previousSet: (ts.previousAll || []).map(id => ({ id, position: chartPos(id), defId: info.get(id)?.defId, inputs: info.get(id)?.inputs })), made, views: ts.views || [] }
+    return { previous: ts.previous, previousSet: (ts.previousAll || []).map(id => ({ id, position: chartPos(id), defId: info.get(id)?.defId, inputs: info.get(id)?.inputs, beforeInputs: info.get(id)?.beforeInputs || null })), made, views: ts.views || [] }
   }
   // (D19) the choices the state rail asks with — each an exact object and the ops that act on exactly it
   const railChoicesOf = (ask, ops) => {
@@ -1480,6 +1480,8 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     const commitStartedAt = Date.now()
     const receiptNotes = (after = null) => [...(onTarget ? [onTarget] : []), ...(after ? [after] : []), ...(wholly ? [] : plan.noops), ...undoNotesFor(plan, res)]
     try {
+      // (D19) the rows as they stand before this change: "do the same" next finds what the changed one WAS
+      noteBeforeRows(memoryRef.current, plan)
       res = await commitPlan(host, plan, { env, ctx: capCtx })
       mark('commit:end')
       if (res.ok && wholly) {
