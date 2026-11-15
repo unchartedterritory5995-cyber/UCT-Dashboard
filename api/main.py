@@ -8429,21 +8429,10 @@ async def lifespan(app: FastAPI):
             print("[startup] Similar-matches nightly job registered")
 
         def _cot_daily_catchup():
+            # holiday-aware: the decision lives in cot_service.daily_catchup (tests/test_cot_release_calendar.py pins its
+            # firing days against the old "8+ days old" rule); this is also what fetches a holiday week's Monday release
             try:
-                from datetime import date as _dt
-                from zoneinfo import ZoneInfo as _ZI
-                latest = _cot_service.get_latest_date()
-                if latest:
-                    import datetime as _dtm
-                    # holiday-aware (cot_service.expected_latest_report_date): the old "8+ days old" rule re-downloaded
-                    # every evening of a holiday week whose report CFTC moved to Monday, and this is also what fetches
-                    # that Monday release (the Friday jobs never run on a Monday)
-                    expected = _cot_service.expected_latest_report_date(_dtm.datetime.now(_ZI("America/New_York")))
-                    if _dt.fromisoformat(latest) < expected:
-                        print(f"[scheduler] COT daily catchup: latest {latest} < expected {expected} -- refreshing...")
-                        _cot_service.refresh_from_current()
-                    else:
-                        print(f"[scheduler] COT daily catchup: latest {latest} covers expected {expected} -- skipping")
+                _cot_service.daily_catchup()
             except Exception as e:
                 print(f"[scheduler] COT daily catchup error: {e}")
 

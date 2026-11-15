@@ -310,6 +310,10 @@ def test_a_run_of_consecutive_qualifying_days_counts_once_and_the_answer_says_so
     first = _read({**ask, "episodes": "first"}, turn_id="f1")
     assert first["status"] == "ok" and first["data"]["summary"]["events_used"] == 1      # the run's first day only
     assert first["data"]["summary"]["first_of_run"] is True and hes.NOTE_FIRST_OF_RUN in first["notes"]
+    # the 2025-04-03 / 04-04 SHAPE (synthetic prices): of two consecutive qualifying sessions, the event is the FIRST one
+    row = first["data"]["study"]["table"]["rows"][0]
+    assert S[80] in row["best"] and S[80] in row["worst"] and S[81] not in json.dumps(first["data"]["study"]["table"])
+    assert first["data"]["summary"]["events_detected"] == 1
     every = _read({**ask, "episodes": "all"}, turn_id="f2")
     assert every["data"]["summary"]["events_used"] == 2
     assert every["data"]["summary"]["first_of_run"] is False and hes.NOTE_FIRST_OF_RUN not in every["notes"]

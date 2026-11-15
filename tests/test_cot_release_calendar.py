@@ -185,3 +185,78 @@ def test_the_retry_falls_back_to_downloading_when_the_calendar_cannot_decide(ref
     _Clock.NOW = _at(date(2026, 11, 13), 16, 15)
     _store(monkeypatch, "2026-11-03")
     assert svc.refresh_if_stale() == 1 and refresh == ["download"]
+
+
+# ── AUDIT T2 evidence: the 18:00 ET daily catch-up, OLD ("8+ days old") vs NEW (holiday-aware) firing days ─────────
+def _old_catchup(latest: str, now: datetime) -> bool:
+    """The api/main.py `_cot_daily_catchup` rule before this change, verbatim in effect: download when the newest stored
+    report is 8 or more calendar days old."""
+    return (now.date() - date.fromisoformat(latest)).days >= 8
+
+
+def _published_asof(now: datetime) -> str:
+    """What a download at `now` actually gets: CFTC's newest report by its PUBLISHED schedule (3:30 PM ET release)."""
+    out = [r for r, _ in RELEASES if r < now.date() or (r == now.date() and (now.hour, now.minute) >= (15, 30))]
+    return _asof(max(out)).isoformat()
+
+
+def _simulate(rule, start_latest: str, first_day: date, monkeypatch) -> list[tuple[str, str, bool, str]]:
+    """Fri → the following Thu at 18:00 ET over a simulated store: each download stores what CFTC had published."""
+    state = {"latest": start_latest, "downloads": 0}
+    monkeypatch.setattr(svc, "_latest_record_date", lambda: state["latest"])
+
+    def download():
+        state["downloads"] += 1
+        state["latest"] = _published_asof(state["now"])
+        return 1
+    monkeypatch.setattr(svc, "refresh_from_current", download)
+    rows = []
+    for i in range(7):
+        now = _at(first_day + timedelta(days=i), 18)
+        state["now"] = now
+        before = state["latest"]
+        fired = svc.daily_catchup(now) if rule == "new" else (_old_catchup(before, now) and bool(download()))
+        rows.append((now.strftime("%a %m-%d"), before, fired, state["latest"]))
+    return rows
+
+
+CATCHUP_CASES = {
+    # (a) HOLIDAY week: Veterans Day Wed 11-11 moves the 11-10 report to Mon 11-16
+    "holiday": ("2026-11-03", date(2026, 11, 13), {
+        "old": ["Fri 11-13", "Sat 11-14", "Sun 11-15", "Mon 11-16", "Wed 11-18", "Thu 11-19"],
+        "new": ["Mon 11-16"]}),
+    # (b) NORMAL week: the 10-27 report released Fri 10-30
+    "normal": ("2026-10-20", date(2026, 10, 30), {
+        "old": ["Fri 10-30", "Wed 11-04", "Thu 11-05"],
+        "new": ["Fri 10-30"]}),
+}
+
+
+@pytest.mark.parametrize("case", list(CATCHUP_CASES))
+def test_the_daily_catchup_fires_only_when_cftc_has_published_something_new(case, monkeypatch, capsys):
+    start, first, want = CATCHUP_CASES[case]
+    table = {rule: _simulate(rule, start, first, monkeypatch) for rule in ("old", "new")}
+    with capsys.disabled():
+        print(f"\n[{case} week] 18:00 ET catch-up — day | store before | OLD downloads | NEW downloads")
+        for o, n in zip(table["old"], table["new"]):
+            print(f"  {o[0]} | {n[1]:>10} | {'DOWNLOAD' if o[2] else '-':>8} | {'DOWNLOAD' if n[2] else '-':>8}")
+    for rule in ("old", "new"):
+        assert [d for d, _b, fired, _a in table[rule] if fired] == want[rule], rule
+    # the NEW rule ends the week holding the newest report CFTC published, exactly like the old one did
+    assert table["new"][-1][3] == table["old"][-1][3]
+
+
+def test_a_delayed_monday_release_is_fetched_that_monday_after_1630_by_the_catchup_and_the_self_heal(refresh, monkeypatch):
+    # the store holds 11-03; CFTC publishes the 11-10 report on Monday 11-16 (Veterans Day week)
+    _store(monkeypatch, "2026-11-03")
+    assert svc.daily_catchup(_at(date(2026, 11, 16), 16, 29)) is False and refresh == []     # not yet due
+    assert svc.daily_catchup(_at(date(2026, 11, 16), 18)) is True and refresh == ["download"]  # the 18:00 catch-up fetches it
+    refresh.clear()
+    _Clock.NOW = _at(date(2026, 11, 16), 16, 31)                                            # any COT-tab visit after 16:30
+    svc._maybe_auto_refresh_if_stale()
+    assert refresh == ["self-heal"]
+
+
+def test_the_catchup_does_nothing_on_an_empty_store(refresh, monkeypatch):
+    monkeypatch.setattr(svc, "_latest_record_date", lambda: None)
+    assert svc.daily_catchup(_at(date(2026, 11, 16), 18)) is False and refresh == []

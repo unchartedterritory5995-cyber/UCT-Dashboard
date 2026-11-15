@@ -588,6 +588,29 @@ def expected_latest_report_date(now_et: datetime) -> _date_cls:
         return _friday_rule_report_date(now_et)
 
 
+def daily_catchup(now_et: datetime | None = None) -> bool:
+    """The 18:00 ET daily catch-up (api/main.py `cot_daily_catchup`): download the current-year file when the store
+    lacks the report CFTC should have published by now. Returns True when it downloaded.
+
+    Holiday-aware through expected_latest_report_date. It replaced an inline "latest is 8+ days old" rule, which
+    re-downloaded every evening of a holiday week (the report not out until Monday) and every Wednesday / Thursday of a
+    normal week (last week's report is 8-9 days old by then, and current). It is also the scheduled path that fetches a
+    holiday week's DELAYED MONDAY release: the Friday cron jobs never run on a Monday."""
+    if now_et is None:
+        from zoneinfo import ZoneInfo
+        now_et = datetime.now(ZoneInfo("America/New_York"))
+    latest = _latest_record_date()
+    if not latest:
+        return False                        # empty store: seed_from_historical's job, as before
+    expected = expected_latest_report_date(now_et)
+    if _date_cls.fromisoformat(latest) < expected:
+        logger.info("COT: daily catch-up — latest %s < expected %s, refreshing", latest, expected)
+        refresh_from_current()
+        return True
+    logger.info("COT: daily catch-up — latest %s covers expected %s, skipping", latest, expected)
+    return False
+
+
 def _maybe_auto_refresh_if_stale() -> None:
     """If the DB's latest report is older than the expected current report,
     kick off a background refresh — provided we haven't tried in the last 30 min.
