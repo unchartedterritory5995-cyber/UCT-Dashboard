@@ -2437,7 +2437,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "3.5x",
     "0.4x",
@@ -2448,6 +2448,37 @@
     "3.5x": "Measured the shadow from the $50.40 close, not the body bottom.",
     "0.4x": "Flipped it: divided the body by the shadow.",
     "3.75x": "Used the whole high-to-low range, not just the lower shadow."
+   },
+   "visual": {
+    "kind": "ladder",
+    "title": "The candle",
+    "side": "long",
+    "levels": [
+     {
+      "key": "high",
+      "label": "High",
+      "price": 50.5
+     },
+     {
+      "key": "close",
+      "label": "Close",
+      "price": 50.4
+     },
+     {
+      "key": "open",
+      "label": "Open",
+      "price": 50.0
+     },
+     {
+      "key": "low",
+      "label": "Low",
+      "price": 49.0
+     }
+    ],
+    "find": {
+     "label": "Lower shadow, times the body",
+     "as": "times"
+    }
    }
   },
   {
@@ -3610,7 +3641,7 @@
      "computed key"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$1.20",
     "$1.50",
@@ -3621,6 +3652,37 @@
     "$1.90": "Used high minus low, which counts the shadows.",
     "$1.50": "Measured open to the high, which counts the upper shadow.",
     "$1.60": "Measured low to the close, which adds the lower shadow."
+   },
+   "visual": {
+    "kind": "ladder",
+    "title": "The candle",
+    "side": "long",
+    "levels": [
+     {
+      "key": "high",
+      "label": "High",
+      "price": 41.5
+     },
+     {
+      "key": "close",
+      "label": "Close",
+      "price": 41.2
+     },
+     {
+      "key": "open",
+      "label": "Open",
+      "price": 40.0
+     },
+     {
+      "key": "low",
+      "label": "Low",
+      "price": 39.6
+     }
+    ],
+    "find": {
+     "label": "The real body",
+     "as": "dollars"
+    }
    }
   },
   {
@@ -3656,7 +3718,7 @@
      "computed key"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$2.10",
     "$2.30",
@@ -3667,6 +3729,37 @@
     "$2.40": "Measured from the open, which is the bottom of this body.",
     "$2.60": "Used high minus low, the whole range.",
     "$2.30": "Added the lower shadow, which is not part of the upper one."
+   },
+   "visual": {
+    "kind": "ladder",
+    "title": "The candle",
+    "side": "long",
+    "levels": [
+     {
+      "key": "high",
+      "label": "High",
+      "price": 27.4
+     },
+     {
+      "key": "close",
+      "label": "Close",
+      "price": 25.3
+     },
+     {
+      "key": "open",
+      "label": "Open",
+      "price": 25.0
+     },
+     {
+      "key": "low",
+      "label": "Low",
+      "price": 24.8
+     }
+    ],
+    "find": {
+     "label": "The upper shadow",
+     "as": "dollars"
+    }
    }
   },
   {
@@ -3706,7 +3799,7 @@
      "computed key"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$2.40",
     "$0.70",
@@ -3717,6 +3810,37 @@
     "$0.60": "That is the body, not the lower shadow.",
     "$0.70": "Measured up from the close to the high, which is not the lower shadow.",
     "$0.10": "That is the upper shadow: the high minus the open."
+   },
+   "visual": {
+    "kind": "ladder",
+    "title": "The candle",
+    "side": "long",
+    "levels": [
+     {
+      "key": "high",
+      "label": "High",
+      "price": 60.1
+     },
+     {
+      "key": "open",
+      "label": "Open",
+      "price": 60.0
+     },
+     {
+      "key": "close",
+      "label": "Close",
+      "price": 59.4
+     },
+     {
+      "key": "low",
+      "label": "Low",
+      "price": 57.0
+     }
+    ],
+    "find": {
+     "label": "The lower shadow",
+     "as": "dollars"
+    }
    }
   },
   {
@@ -3949,8 +4073,8 @@
   "q25": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "(50-49)/(50.40-50)=2.5; 3.5, 0.4, 3.75 recomputed; fine."
+   "fixed": true,
+   "notes": "'Lower shadow vs the body' does not say which is divided by which; the answer is the lower shadow as a multiple of the body."
   },
   "q26": {
    "status": "pass",
@@ -4146,19 +4270,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Sorted rank matches target; each wrong choice recomputed as a real mistake on this math; no new tell."
+   "notes": "OHLC on one ruler; label 'The real body' with $ slot $1.20."
   },
   "q58": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Sorted rank matches target; each wrong choice recomputed as a real mistake on this math; no new tell."
+   "notes": "OHLC on one ruler; slot $2.10 matches key."
   },
   "q59": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Sorted rank matches target; each wrong choice recomputed as a real mistake on this math; no new tell."
+   "notes": "OHLC on one ruler; slot $2.40 matches key."
   },
   "q60": {
    "status": "pass",

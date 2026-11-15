@@ -1105,8 +1105,8 @@
   "q01": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "keep agrees with ruling"
+   "fixed": false,
+   "notes": "FTNT ex 5: reds 09-17 15:30 and 09-18 9:30/10:00/10:30, pivot 11:00 (green, low 166.95). Last bar is the pivot candle. No ticker, no trade. OK."
   },
   "q02": {
    "status": "pass",
@@ -1118,7 +1118,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c02, c03, c19, c53, h22 support the key. r01 supports the Raschke sentence. Key is not the longest. Minor: the Raschke line in the why pre-answers q37, but it is true and cited."
+   "notes": "HALO ex 4: pivot candle 10:00 (green after reds, low 105.77), buy 106.65 comes at 10:30. Last bar is the pivot candle. OK."
   },
   "q04": {
    "status": "cut",
@@ -1153,8 +1153,8 @@
   "q09": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "keep agrees with ruling"
+   "fixed": false,
+   "notes": "HOOD: first green candle is the 10:30 bar, low 101.20 exactly as the why says (stop 101.16, 4 cents under). Ticker only in the after-answer why. OK."
   },
   "q10": {
    "status": "pass",
@@ -1196,7 +1196,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
+   "notes": "Roles right. Stop price not drawn (not stated); the find label says distance to the stop. Keep."
   },
   "q17": {
    "status": "pass",
@@ -1244,13 +1244,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
+   "notes": "PSX ex 2: buy 238.91, stop 237.09, 3R 244.37 correct. Fill is inside the 11:30 bar; replay best 10.8R, stop not hit, consistent with 3R the next session."
   },
   "q25": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
+   "fixed": true,
+   "notes": "Roles ok; 'Risk' and 'Position cap' were bare percents. Now say what they are a percent of."
   },
   "q26": {
    "status": "pass",
@@ -1299,7 +1299,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with the rulings; text checked"
+   "notes": "HALO ex 4: buy 106.65 at 10:30 (inside that bar), stop 105.74 (3 cents under pivot low 105.77), 4.4R arithmetic correct and reached in the replay (best 8.6R)."
   },
   "q34": {
    "status": "pass",
@@ -1329,7 +1329,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with the rulings; text checked"
+   "notes": "AXON failure 4: 6 reds, pivot 13:00 is the day's low 595.11 and closes in the upper half, buy 601.49, stop 595.08 (1.07%), 0.35R, stopped on 08-25 first candle: replay stopped at 08-25 09:30, best 0.3R (rounding of 0.35). OK."
   },
   "q39": {
    "status": "pass",
@@ -1340,14 +1340,14 @@
   "q40": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "agrees with the rulings; text checked"
+   "fixed": true,
+   "notes": "AAPL failure 1 matches the dossier and replay (stopped at 10-19 09:30). BUT the words say 'It never ticked above the buy', and the chart's own fill bar (15:30) trades to 344.39, about 1R over the 343.15 buy, so the claim is contradicted by the visible bar. Also the next morning opened at 340.775, under the 341.10 stop, so the loss was a little over 1R, not exactly 1R. Removed the 'never ticked above' sentence and made the loss 'about 1R'."
   },
   "q41": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "D-021 edit fine, but why and two choices/wrongs still teach the stale hard 3% stop limit ('skip a stop over 3%'); D-005 is 1-3% preferred, up to 5% acceptable. Re-keyed to r11 wording. (q63 in the same lesson still keys the 3% skip but is not on this list.)"
+   "fixed": false,
+   "notes": "MSFT failure 2: buy 501.07 at 13:00 (inside that bar), stop 498.97 (0.42%), 0.48R then stopped next morning's first candle: replay best 0.5R, stopped 09-02 09:30. OK."
   },
   "q42": {
    "status": "cut",
@@ -1389,13 +1389,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with the rulings; text checked"
+   "notes": "CRWD near-miss 2: one red candle (10:00), green 10:30 candle with high 211.78, bought 211.78 at 11:00, 1.42R, stopped 13:30 same day; all dossier. Fill is inside the 11:00 bar. No trade drawn (no stop in dossier)."
   },
   "q49": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c09 and d21 verbatim: a trade under the pivot low before the trigger voids the pivot. 'Under our card' pins it. d22 supports 143.81 and the stop on the trigger candle. Key 31, longest wrong 36."
+   "notes": "MRNA near-miss 3: pivot low 142.41 (11:00 bar), 11:30 bar trades 142.25 under it, 12:00 trades over the pivot high 143.8, bought 143.81, stopped on the trigger candle. Bars agree."
   },
   "q50": {
    "status": "pass",
@@ -1449,7 +1449,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with the rulings; text checked"
+   "notes": "PSX ex 2: 5 reds, pivot 11:00 is the day's low (237.125 on the real bar, 237.12 in the dossier), trigger 11:30 buy 238.91 stop 237.09 (0.76%). Last bar is the pivot candle, the story names the next candle's trigger. Ticker and date removed. OK."
   },
   "q59": {
    "status": "pass",
@@ -1581,7 +1581,14 @@
      "+2 the unit stands on D-002, the turn candle at support"
     ]
    },
-   "batch": "rulings"
+   "batch": "intraday-charts-2026-11-15",
+   "chart": {
+    "sym": "FTNT",
+    "tf": "30",
+    "asof": "2026-09-18 11:00",
+    "window": 43,
+    "forward": 30
+   }
   },
   {
    "key": "q02",
@@ -1651,7 +1658,14 @@
    "depends_on": [
     "D-127"
    ],
-   "batch": "wave4"
+   "batch": "intraday-charts-2026-11-15",
+   "chart": {
+    "sym": "HALO",
+    "tf": "30",
+    "asof": "2026-09-16 10:00",
+    "window": 41,
+    "forward": 30
+   }
   },
   {
    "key": "q04",
@@ -1844,7 +1858,14 @@
      "which stop is ours is the held decision D-008; this item asks only what the originator does"
     ]
    },
-   "batch": "rulings"
+   "batch": "intraday-charts-2026-11-15",
+   "chart": {
+    "sym": "HOOD",
+    "tf": "30",
+    "asof": "2026-08-31 10:30",
+    "window": 42,
+    "forward": 30
+   }
   },
   {
    "key": "q10",
@@ -2068,7 +2089,7 @@
      "+2 computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "1.12%",
     "0.78%",
@@ -2079,6 +2100,27 @@
     "1.12%": "Used the candle low as the stop. The stop sits 3 cents under it.",
     "0.78%": "Read the dollar gap as a percent. Divide it by the fill first.",
     "11.67%": "Slipped the decimal point one place right."
+   },
+   "visual": {
+    "kind": "ladder",
+    "side": "long",
+    "levels": [
+     {
+      "key": "fill",
+      "label": "Fill",
+      "price": 66.83
+     },
+     {
+      "key": "low",
+      "label": "Candle low",
+      "price": 66.08
+     }
+    ],
+    "find": {
+     "label": "Stop distance below fill",
+     "as": "pct"
+    },
+    "title": "The candle"
    }
   },
   {
@@ -2333,7 +2375,7 @@
      "+2 rests on the owner's rulebook (B19)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "intraday-charts-2026-11-15",
    "choices": [
     "$242.55",
     "$244.37",
@@ -2344,6 +2386,17 @@
     "$242.55": "Added three R to the stop instead of to the fill.",
     "$233.45": "Subtracted three R. A long's target sits above the fill.",
     "$241.91": "Added 3 dollars, not three R. R is the fill minus the stop."
+   },
+   "chart": {
+    "sym": "PSX",
+    "tf": "30",
+    "asof": "2026-08-27 11:30",
+    "window": 44,
+    "forward": 60,
+    "trade": {
+     "entry": 238.91,
+     "stop": 237.09
+    }
    }
   },
   {
@@ -2381,7 +2434,7 @@
      "+2 rests on the owner's rulebook (A5, A7)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "549 shares",
     "167 shares",
@@ -2392,6 +2445,52 @@
     "549 shares": "That is the formula's size. The cap is smaller, so the cap wins.",
     "219 shares": "Took 40% of the 549 shares. The cap is 40% of the account in dollars, divided by the fill.",
     "418 shares": "Used the whole account. The cap is 40% of it, not all of it."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The size",
+    "rows": [
+     {
+      "key": "account",
+      "label": "Account",
+      "value": 100000,
+      "fmt": "$"
+     },
+     {
+      "key": "risk",
+      "label": "Risk, % of account",
+      "value": 1,
+      "fmt": "%"
+     },
+     {
+      "key": "entry",
+      "label": "Fill",
+      "value": 238.91,
+      "fmt": "$"
+     },
+     {
+      "key": "stop",
+      "label": "Stop",
+      "value": 237.09,
+      "fmt": "$"
+     },
+     {
+      "key": "formula",
+      "label": "Formula says",
+      "value": 549,
+      "fmt": "shares"
+     },
+     {
+      "key": "cap",
+      "label": "Position cap, % of account",
+      "value": 40,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "Shares we buy",
+     "as": "shares"
+    }
    }
   },
   {
@@ -2662,7 +2761,7 @@
      "+2 rests on the owner's rulebook (E51)"
     ]
    },
-   "batch": "sweep-2026-11-14",
+   "batch": "intraday-charts-2026-11-15",
    "choices": [
     "3.8R",
     "5.4R",
@@ -2673,6 +2772,17 @@
     "5.4R": "Measured the gain from the stop instead of from the fill.",
     "3.8R": "Used the percent gain and called it R. R is gain over the stop distance.",
     "0.2R": "Inverted it: R divided by the gain instead of gain divided by R."
+   },
+   "chart": {
+    "sym": "HALO",
+    "tf": "30",
+    "asof": "2026-09-16 10:30",
+    "window": 42,
+    "forward": 60,
+    "trade": {
+     "entry": 106.65,
+     "stop": 105.74
+    }
    }
   },
   {
@@ -2862,7 +2972,18 @@
      "+2 rests on the owner's rulebook (A4)"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "intraday-charts-2026-11-15",
+   "chart": {
+    "sym": "AXON",
+    "tf": "30",
+    "asof": "2026-08-24 13:30",
+    "window": 48,
+    "forward": 20,
+    "trade": {
+     "entry": 601.49,
+     "stop": 595.08
+    }
+   }
   },
   {
    "key": "q39",
@@ -2918,7 +3039,7 @@
     "Allowed, and graded like any other"
    ],
    "answer": "Allowed, but it is a named mistake",
-   "why": "Allowed, but a named mistake. We have no time-of-day rule, so a 15:30 trigger is not banned. The card names buying a pivot in the last hour as a mistake, because no session is left to work. The stop did its job: the loss was 1R.",
+   "why": "Allowed, but a named mistake. We have no time-of-day rule, so a 15:30 trigger is not banned. The card names buying a pivot in the last hour as a mistake, because no session is left to work. The stop did its job: the next morning's first candle took it, a loss of about 1R.",
    "lesson_line": "Late pivots are legal, but the card names them a mistake. The stop still holds the loss.",
    "facts": [
     "h30",
@@ -2936,7 +3057,7 @@
    "house": true,
    "simple": "The trade was allowed but a named mistake, because a trigger in the last hour leaves no session to work.",
    "deeper": {
-    "trap": "Turning a mistake into a ban. The rulebook has no time-of-day rule, so a late trigger is not barred. The card names it a mistake, because a last-hour pivot has no session left to work. Here the 15:00 pivot was bought at 343.15 on the day's last candle. It never ticked above the buy, and the next morning's first candle took the stop."
+    "trap": "Turning a mistake into a ban. The rulebook has no time-of-day rule, so a late trigger is not barred. The card names it a mistake, because a last-hour pivot has no session left to work. Here the 15:00 pivot was bought at 343.15 on the day's last candle, and the next morning's first candle took the stop."
    },
    "tier": "extended",
    "risk": {
@@ -2949,7 +3070,18 @@
    "depends_on": [
     "D-127"
    ],
-   "batch": "sweep-2026-11-14"
+   "batch": "intraday-charts-2026-11-15",
+   "chart": {
+    "sym": "AAPL",
+    "tf": "30",
+    "asof": "2026-10-16 15:30",
+    "window": 52,
+    "forward": 8,
+    "trade": {
+     "entry": 343.15,
+     "stop": 341.1
+    }
+   }
   },
   {
    "key": "q41",
@@ -2991,7 +3123,18 @@
      "+2 the card names a tiny stop on a slow mega-cap a mistake (c25)"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "intraday-charts-2026-11-15",
+   "chart": {
+    "sym": "MSFT",
+    "tf": "30",
+    "asof": "2026-09-01 13:00",
+    "window": 47,
+    "forward": 14,
+    "trade": {
+     "entry": 501.07,
+     "stop": 498.97
+    }
+   }
   },
   {
    "key": "q42",
@@ -3261,7 +3404,14 @@
    "depends_on": [
     "D-126"
    ],
-   "batch": "sweep-2026-11-14"
+   "batch": "intraday-charts-2026-11-15",
+   "chart": {
+    "sym": "CRWD",
+    "tf": "30",
+    "asof": "2026-09-10 11:00",
+    "window": 43,
+    "forward": 14
+   }
   },
   {
    "key": "q49",
@@ -3302,7 +3452,14 @@
      "one proposed card line with a dated example"
     ]
    },
-   "batch": "wave4"
+   "batch": "intraday-charts-2026-11-15",
+   "chart": {
+    "sym": "MRNA",
+    "tf": "30",
+    "asof": "2026-09-15 12:00",
+    "window": 45,
+    "forward": 10
+   }
   },
   {
    "key": "q50",
@@ -3659,7 +3816,7 @@
    "rung": 9,
    "format": "scenario",
    "criterion": "pvt.stop",
-   "story": "PSX, 2026-08-27: 5 reds down to its rising daily average. The 11:00 candle is the pivot and the day's low, 237.12. The 11:30 candle takes its high.",
+   "story": "5 reds down to its rising daily average. The 11:00 candle is the pivot and the day's low, 237.12. The 11:30 candle takes its high.",
    "q": "Which plan fits our rules?",
    "choices": [
     "Over the high; stop under the low",
@@ -3698,7 +3855,14 @@
      "+2 rests on the owner's rulebook (F62)"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "intraday-charts-2026-11-15",
+   "chart": {
+    "sym": "PSX",
+    "tf": "30",
+    "asof": "2026-08-27 11:00",
+    "window": 43,
+    "forward": 60
+   }
   },
   {
    "key": "q59",

@@ -1257,7 +1257,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "3,200",
     "2,140",
@@ -1268,6 +1268,28 @@
     "3,200": "Added the two counts instead of subtracting.",
     "-1,080": "Subtracted in the wrong order, advances from decliners.",
     "2,140": "Counted only the advancing stocks."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Net advances",
+    "rows": [
+     {
+      "key": "stocks_that_rose",
+      "label": "Stocks that rose",
+      "value": 2140,
+      "fmt": "count"
+     },
+     {
+      "key": "stocks_that_fell",
+      "label": "Stocks that fell",
+      "value": 1060,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "Net advances",
+     "as": "num"
+    }
    }
   },
   {
@@ -1303,7 +1325,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "15,850",
     "13,300",
@@ -1314,6 +1336,34 @@
     "15,850": "Added the fall when it should be subtracted.",
     "13,300": "Subtracted only the decliners and ignored the advancers.",
     "18,350": "Added both counts to the old value."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The A/D line",
+    "rows": [
+     {
+      "key": "a/d_line_yesterday",
+      "label": "A/D line yesterday",
+      "value": 15200,
+      "fmt": "count"
+     },
+     {
+      "key": "stocks_that_rose",
+      "label": "Stocks that rose",
+      "value": 1250,
+      "fmt": "count"
+     },
+     {
+      "key": "stocks_that_fell",
+      "label": "Stocks that fell",
+      "value": 1900,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "A/D line now",
+     "as": "num"
+    }
    }
   },
   {
@@ -1448,7 +1498,7 @@
      "computed key"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "43%",
     "70%",
@@ -1459,6 +1509,28 @@
     "43%": "Divided new highs by new lows, leaving out the highs in the total.",
     "70%": "Gave the new lows' share, not the new highs'.",
     "233%": "Flipped the ratio: new lows over new highs."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "New highs and lows",
+    "rows": [
+     {
+      "key": "new_52-week_highs",
+      "label": "New 52-week highs",
+      "value": 60,
+      "fmt": "count"
+     },
+     {
+      "key": "new_52-week_lows",
+      "label": "New 52-week lows",
+      "value": 140,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "Highs, % of the total",
+     "as": "pct"
+    }
    }
   },
   {
@@ -1493,7 +1565,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "210",
     "-90",
@@ -1504,6 +1576,28 @@
     "210": "Added the two averages instead of subtracting.",
     "-90": "Subtracted in the wrong order.",
     "2.5": "Divided the two averages instead of subtracting."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The McClellan Oscillator",
+    "rows": [
+     {
+      "key": "19-day_ema_of_net_ad",
+      "label": "19-day EMA of net advances",
+      "value": 150,
+      "fmt": "count"
+     },
+     {
+      "key": "39-day_ema",
+      "label": "39-day EMA",
+      "value": 60,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "McClellan Oscillator",
+     "as": "num"
+    }
    }
   },
   {
@@ -1616,7 +1710,7 @@
      "fixed before (restored 'typically'; named the McClellan version)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "15",
     "135",
@@ -1627,6 +1721,28 @@
     "-135": "Reversed the direction of the move.",
     "15": "Subtracted 75 from 60 and ignored the sign.",
     "75": "Counted only the climb up to zero."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "A jump in a week",
+    "rows": [
+     {
+      "key": "before:_below_zero",
+      "label": "Before: below zero",
+      "value": 75,
+      "fmt": "count"
+     },
+     {
+      "key": "after:_above_zero",
+      "label": "After: above zero",
+      "value": 60,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "Points climbed",
+     "as": "num"
+    }
    }
   },
   {
@@ -1713,7 +1829,13 @@
      "fixed before (the story now names the 2008 bear market)"
     ]
    },
-   "batch": "wave6"
+   "batch": "history-charts-2026-11-15",
+   "chart": {
+    "sym": "SPY",
+    "asof": "2007-10-31",
+    "window": 200,
+    "forward": 60
+   }
   },
   {
    "key": "q21",
@@ -2103,13 +2225,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed calc; answer shows it; wrong choices are real mistakes and clearly apart; no tell; why walks the steps."
+   "notes": "advances and decliners; key '1,080'"
   },
   "q10": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed calc; answer shows it; wrong choices are real mistakes and clearly apart; no tell; why walks the steps."
+   "notes": "prior A/D line, advances, declines; key '14,550'"
   },
   "q11": {
    "status": "pass",
@@ -2133,13 +2255,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged and at the target rank after sorting. Each wrong choice follows from a real slip on this math and none is within rounding of the answer."
+   "notes": "new highs/lows; highs as % of total; key '30%'"
   },
   "q15": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed calc; answer shows it; wrong choices are real mistakes and clearly apart; no tell; why walks the steps."
+   "notes": "19-day and 39-day EMAs of net advances; key '90'"
   },
   "q16": {
    "status": "pass",
@@ -2156,8 +2278,8 @@
   "q18": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Why gave no step."
+   "fixed": false,
+   "notes": "the validator cannot show -75, so 'Before: below zero' 75 carries the sign in its label; accepted; key '135'"
   },
   "q19": {
    "status": "pass",
@@ -2170,7 +2292,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from f11, f12, f89 ('just over 4 months'), f54. Hedges balanced ('can warn' against 'can time'); key not longest. Deeper on f42, f13."
+   "notes": "cold re-read 2026-11-15 (session lead): the chart and the words agree; check_course_charts 0 problems; the outcome the words name confirmed in the closes"
   },
   "q21": {
    "status": "pass",

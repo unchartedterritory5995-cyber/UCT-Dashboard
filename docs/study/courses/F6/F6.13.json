@@ -901,7 +901,35 @@
      "an older 2013 guide lets the premium count toward the cash (conflicts note, f74)"
     ]
    },
-   "batch": "wave7"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "The cash-secured put",
+    "rows": [
+     {
+      "key": "stock_price",
+      "label": "Stock price",
+      "value": 48.0,
+      "fmt": "$"
+     },
+     {
+      "key": "put_strike",
+      "label": "Put strike",
+      "value": 45.0,
+      "fmt": "$"
+     },
+     {
+      "key": "puts_sold",
+      "label": "Puts sold",
+      "value": 1.0,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "Cash set aside",
+     "as": "dollars"
+    }
+   }
   },
   {
    "key": "q09",
@@ -959,7 +987,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$2.00",
     "$1.50",
@@ -970,6 +998,34 @@
     "$2.00": "Forgets the 1.50 premium you received.",
     "$1.50": "Counts only the premium and ignores the gain on the shares up to 50.",
     "$0.50": "Takes the premium off instead of adding it."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The covered call",
+    "rows": [
+     {
+      "key": "bought_the_stock_at",
+      "label": "Bought the stock at",
+      "value": 48.0,
+      "fmt": "$"
+     },
+     {
+      "key": "call_strike",
+      "label": "Call strike",
+      "value": 50.0,
+      "fmt": "$"
+     },
+     {
+      "key": "call_premium",
+      "label": "Call premium collected",
+      "value": 1.5,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Most we make",
+     "as": "per_share"
+    }
    }
   },
   {
@@ -1027,7 +1083,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$46.20",
     "$45.00",
@@ -1038,6 +1094,28 @@
     "$46.20": "Adds the premium to the strike instead of taking it off.",
     "$45.80": "Starts from today's price of 47 instead of the strike.",
     "$45.00": "Stops at the strike and forgets the 1.20 premium you kept."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The assigned put",
+    "rows": [
+     {
+      "key": "put_strike",
+      "label": "Put strike",
+      "value": 45.0,
+      "fmt": "$"
+     },
+     {
+      "key": "premium_collected",
+      "label": "Premium collected",
+      "value": 1.2,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Our real cost",
+     "as": "per_share"
+    }
    }
   },
   {
@@ -1136,7 +1214,29 @@
      "computed key"
     ]
    },
-   "batch": "wave7"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "The covered call",
+    "rows": [
+     {
+      "key": "bought_the_stock_at",
+      "label": "Bought the stock at",
+      "value": 40.0,
+      "fmt": "$"
+     },
+     {
+      "key": "call_premium",
+      "label": "Call premium collected",
+      "value": 1.5,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Most we can lose",
+     "as": "per_share"
+    }
+   }
   },
   {
    "key": "q16",
@@ -1265,7 +1365,29 @@
      "computed key"
     ]
    },
-   "batch": "wave7"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "Assigned on the call",
+    "rows": [
+     {
+      "key": "call_strike",
+      "label": "Call strike",
+      "value": 42.5,
+      "fmt": "$"
+     },
+     {
+      "key": "call_premium",
+      "label": "Call premium collected",
+      "value": 1.8,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "What we take in",
+     "as": "per_share"
+    }
+   }
   },
   {
    "key": "q19",
@@ -1316,7 +1438,41 @@
      "fixed before (2026-11-09 wrong-note reworded)"
     ]
    },
-   "batch": "wave7"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "The breakout and the call",
+    "rows": [
+     {
+      "key": "bought_the_breakout_",
+      "label": "Bought the breakout at",
+      "value": 44.0,
+      "fmt": "$"
+     },
+     {
+      "key": "our_run_target",
+      "label": "Our run target",
+      "value": 54.0,
+      "fmt": "$"
+     },
+     {
+      "key": "call_strike",
+      "label": "Call strike",
+      "value": 45.0,
+      "fmt": "$"
+     },
+     {
+      "key": "call_premium",
+      "label": "Call premium we'd collect",
+      "value": 3.0,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Sale price if called away",
+     "as": "price"
+    }
+   }
   },
   {
    "key": "q20",
@@ -1354,7 +1510,7 @@
      "computed key"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$13",
     "$15",
@@ -1365,6 +1521,40 @@
     "$15": "Counts the move above the strike and forgets the premium you were paid.",
     "$17": "Adds the premium instead of taking it off.",
     "$20": "Gives the whole gain on the shares, not how much more they made."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Shares against the call",
+    "rows": [
+     {
+      "key": "bought_at",
+      "label": "Bought at",
+      "value": 50.0,
+      "fmt": "$"
+     },
+     {
+      "key": "call_strike",
+      "label": "Call strike",
+      "value": 55.0,
+      "fmt": "$"
+     },
+     {
+      "key": "call_premium",
+      "label": "Call premium collected",
+      "value": 2.0,
+      "fmt": "$"
+     },
+     {
+      "key": "stock_at_expiry",
+      "label": "Stock at expiry",
+      "value": 70.0,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Shares alone made more by",
+     "as": "per_share"
+    }
    }
   },
   {
@@ -1432,7 +1622,35 @@
      "computed key"
     ]
    },
-   "batch": "rank"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "The assigned put",
+    "rows": [
+     {
+      "key": "put_strike",
+      "label": "Put strike",
+      "value": 50.0,
+      "fmt": "$"
+     },
+     {
+      "key": "premium_collected",
+      "label": "Premium collected",
+      "value": 3.0,
+      "fmt": "$"
+     },
+     {
+      "key": "market_price_now",
+      "label": "Market price now",
+      "value": 40.0,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "We are down",
+     "as": "per_share"
+    }
+   }
   },
   {
    "key": "q23",
@@ -1550,7 +1768,35 @@
      "fixed before (2026-11-09 choice reworded)"
     ]
    },
-   "batch": "wave7"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "Put against shares",
+    "rows": [
+     {
+      "key": "put_strike",
+      "label": "Put strike",
+      "value": 45.0,
+      "fmt": "$"
+     },
+     {
+      "key": "premium_collected",
+      "label": "Premium collected",
+      "value": 1.2,
+      "fmt": "$"
+     },
+     {
+      "key": "shares_compared",
+      "label": "Shares compared",
+      "value": 100.0,
+      "fmt": "shares"
+     }
+    ],
+    "find": {
+     "label": "Total premium collected",
+     "as": "dollars"
+    }
+   }
   }
  ],
  "conflicts": [
@@ -1624,9 +1870,9 @@
   },
   "q08": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q09": {
    "status": "cut",
@@ -1644,7 +1890,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 3."
+   "notes": "Sold call's premium: say collected"
   },
   "q11": {
    "status": "pass",
@@ -1655,8 +1901,8 @@
   "q12": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 2."
+   "fixed": false,
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q13": {
    "status": "pass",
@@ -1672,9 +1918,9 @@
   },
   "q15": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Sold call's premium: say collected"
   },
   "q16": {
    "status": "pass",
@@ -1691,21 +1937,21 @@
   },
   "q18": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Sold call's premium: say collected"
   },
   "q19": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Find label 'Our exit is capped at' gives away the verdict (it caps the exit); say what the calc is, strike plus premium as a price if called away"
   },
   "q20": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
+   "fixed": true,
+   "notes": "Sold call's premium: say collected"
   },
   "q21": {
    "status": "cut",
@@ -1723,7 +1969,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q23": {
    "status": "pass",
@@ -1741,7 +1987,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "My answer before the key: the put kept 1.20 x 100 = $120; the shares made 12 x 100 = $1,200; the shares win. The key matches. All choices are 20-25 chars with no lone hedge or absolute, and the key no longer repeats the story. Defect: the deeper trap ends with 'A short put suits only the case where the price matters more.' That overreaches f76, which says 'primarily a stock acquisition strategy for a price-sensitive investor' (verbatim on OIC 2026-11-12), not 'only'. It also contradicts the conflicts note (Fidelity's income framing). Rewrote the trap on f65, f29 and f76 as quoted. No new numbe"
+   "notes": "'Premium we keep' echoes the answer 'Kept $120'; neutral label for premium x 100"
   }
  }
 }

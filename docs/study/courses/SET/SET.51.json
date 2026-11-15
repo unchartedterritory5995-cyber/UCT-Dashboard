@@ -1353,7 +1353,7 @@
      "rests on a proposed card criterion the owner has not ruled on"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "6.83 ATR",
     "4.10 ATR",
@@ -1364,6 +1364,28 @@
     "4.10 ATR": "Gave the dollar drop and skipped the ATR division.",
     "0.44 ATR": "Flipped the division, ATR over the drop.",
     "6.83 ATR": "Used the percent drop as ATR."
+   },
+   "visual": {
+    "kind": "ladder",
+    "side": "long",
+    "levels": [
+     {
+      "key": "close",
+      "label": "Prior close",
+      "price": 60.0
+     },
+     {
+      "key": "low",
+      "label": "Day's low",
+      "price": 55.9
+     }
+    ],
+    "find": {
+     "label": "Drop in ATR",
+     "as": "num",
+     "unit": "ATR"
+    },
+    "title": "The drop (ATR 1.80)"
    }
   },
   {
@@ -3789,7 +3811,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "4.10/1.80 = 2.28. 4.10 skipped ATR, 0.44 flipped, 6.83 = 4.1/60 percent. Verified."
+   "notes": "Roles, find label, slot format and ladder checked; ok."
   },
   "q14": {
    "status": "pass",

@@ -1047,7 +1047,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "0.1 days",
     "5.25 days",
@@ -1058,6 +1058,29 @@
     "0.1 days": "Flipped it: divided the daily volume by the short interest.",
     "5.25 days": "Subtracted the two figures. Days to cover divides them.",
     "80 days": "A decimal slip: ten times too big."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Days to cover",
+    "rows": [
+     {
+      "key": "short_interest",
+      "label": "Short interest",
+      "value": 6000000,
+      "fmt": "shares"
+     },
+     {
+      "key": "average_daily_volume",
+      "label": "Average daily volume",
+      "value": 750000,
+      "fmt": "shares"
+     }
+    ],
+    "find": {
+     "label": "Days to cover",
+     "as": "num",
+     "unit": "days"
+    }
    }
   },
   {
@@ -1321,7 +1344,7 @@
      "fixed before"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$6,000",
     "$20,000",
@@ -1332,6 +1355,46 @@
     "$12,000": "That is the minimum at $40. The question asks how much it rises.",
     "$20,000": "That is the stock's $20 move on 1,000 shares, not the margin rise.",
     "$5,000": "Used the $5 a share floor. At these prices 30% of the value is more."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The minimum margin",
+    "rows": [
+     {
+      "key": "shares_short",
+      "label": "Shares short",
+      "value": 1000,
+      "fmt": "shares"
+     },
+     {
+      "key": "price_before",
+      "label": "Price before",
+      "value": 20,
+      "fmt": "$"
+     },
+     {
+      "key": "price_after",
+      "label": "Price after",
+      "value": 40,
+      "fmt": "$"
+     },
+     {
+      "key": "minimum:_share_of_va",
+      "label": "Minimum: share of value",
+      "value": 30,
+      "fmt": "%"
+     },
+     {
+      "key": "minimum:_per_share",
+      "label": "Minimum: per share",
+      "value": 5,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Rise in the minimum",
+     "as": "dollars"
+    }
    }
   },
   {
@@ -1901,7 +1964,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "6,000,000 / 750,000 = 8. 0.1 flipped (0.125), 5.25 subtracted (millions), 80 slip. Why is fine."
+   "notes": "short interest and ADV; num unit days; key '8 days'"
   },
   "q10": {
    "status": "pass",
@@ -1936,8 +1999,8 @@
   "q15": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc 6000 (30% x 1000 x 20). Choices real (12,000 = minimum at $40, 20,000 = price move, 5,000 = $5 floor). Why did not show the two minimums; added."
+   "fixed": false,
+   "notes": "shares, both prices and both FINRA tests as stated; 'Rise in the minimum'; key '$6,000'"
   },
   "q16": {
    "status": "pass",

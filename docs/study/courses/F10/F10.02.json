@@ -1092,7 +1092,7 @@
      "computed key"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "35%",
     "40%",
@@ -1103,6 +1103,34 @@
     "50%": "Counted the gain to the $60 peak. You get out at the stop, not at the peak.",
     "135%": "Gave the stop as a percent of cost and forgot to take off your whole cost.",
     "40%": "Used 10% of the $40 entry as the trail, not 10% of the $60 peak."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The trailing stop",
+    "rows": [
+     {
+      "key": "bought_at",
+      "label": "Bought at",
+      "value": 40,
+      "fmt": "$"
+     },
+     {
+      "key": "peak",
+      "label": "Peak",
+      "value": 60,
+      "fmt": "$"
+     },
+     {
+      "key": "trail_below_the_peak",
+      "label": "Trail below the peak",
+      "value": 10,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "Gain at the stop",
+     "as": "pct"
+    }
    }
   },
   {
@@ -1704,8 +1732,8 @@
   "q12": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed; fixed rank or note so the answer sits at the target rank with genuine mistakes."
+   "fixed": false,
+   "notes": "entry, peak, trail percent right; label names the gain at the stop; key '35%'"
   },
   "q13": {
    "status": "pass",

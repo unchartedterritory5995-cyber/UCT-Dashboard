@@ -2011,7 +2011,7 @@
      "fixed before (term removed)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$3.45",
     "$3,450",
@@ -2022,6 +2022,28 @@
     "$3.45": "Gave the quote per share and skipped the 100 shares.",
     "$103.45": "Added 100 to the quote instead of multiplying.",
     "$3,450": "Slipped a decimal place."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The contract",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Quote per share",
+      "value": 3.45,
+      "fmt": "$"
+     },
+     {
+      "key": "r2",
+      "label": "Shares per contract",
+      "value": 100,
+      "fmt": "shares"
+     }
+    ],
+    "find": {
+     "label": "One contract costs",
+     "as": "dollars"
+    }
    }
   },
   {
@@ -2894,7 +2916,7 @@
      "fixed before (term removed)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$0.40",
     "$2.00",
@@ -2905,6 +2927,28 @@
     "$0.40": "Used delta for one dollar and ignored the $2 move.",
     "$2.00": "Gave the stock's move, as if delta were 1.",
     "$5.00": "Divided the move by delta instead of multiplying."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The delta",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Delta",
+      "value": 0.4,
+      "fmt": "count"
+     },
+     {
+      "key": "r2",
+      "label": "Stock rises",
+      "value": 2,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Option gain per share",
+     "as": "per_share"
+    }
    }
   },
   {
@@ -3707,7 +3751,7 @@
      "fixed before (term removed)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$650",
     "$350",
@@ -3718,6 +3762,37 @@
     "$650": "Added the credit to the width instead of subtracting.",
     "$1,000": "Added both wings together, though only one can lose.",
     "$500": "Gave the full width and forgot the $1.50 credit."
+   },
+   "visual": {
+    "kind": "ladder",
+    "title": "The iron condor, $1.50 credit",
+    "side": "long",
+    "levels": [
+     {
+      "key": "long_put",
+      "label": "Bought put",
+      "price": 50
+     },
+     {
+      "key": "short_put",
+      "label": "Sold put",
+      "price": 55
+     },
+     {
+      "key": "short_call",
+      "label": "Sold call",
+      "price": 65
+     },
+     {
+      "key": "long_call",
+      "label": "Bought call",
+      "price": 70
+     }
+    ],
+    "find": {
+     "label": "Max loss per contract",
+     "as": "dollars"
+    }
    }
   },
   {
@@ -4050,7 +4125,36 @@
      "computed key"
     ]
    },
-   "batch": "wave8"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "The call series",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Open interest",
+      "value": 1200,
+      "fmt": "count"
+     },
+     {
+      "key": "r2",
+      "label": "Bought to open",
+      "value": 300,
+      "fmt": "count"
+     },
+     {
+      "key": "r3",
+      "label": "Sold to close",
+      "value": 300,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "Open interest after",
+     "as": "num",
+     "unit": "contracts"
+    }
+   }
   },
   {
    "key": "q60",
@@ -4400,7 +4504,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc recomputed; answer shows it; wrong choices checked. Answer shows the calc, no tell, why walks the steps."
+   "notes": "Quote per share and 100 shares per contract labelled; slot $345 matches key."
   },
   "q06": {
    "status": "pass",
@@ -4539,7 +4643,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc recomputed; answer shows it; wrong choices checked. Answer shows the calc, no tell, why walks the steps."
+   "notes": "Delta and the stock's rise labelled; slot $0.80 matches key (per share)."
   },
   "q29": {
    "status": "pass",
@@ -4674,7 +4778,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Calc 350 matches; wrongs real (650 = width + credit, 1,000 = both wings, 500 = no credit). Why showed no figures for the width or the net; added."
+   "notes": "Strikes on one ruler is fine, but the $1.50 credit sat in the answer label (reads oddly) and 'per contract' was missing; move the credit to the title and name the unit in the label."
   },
   "q51": {
    "status": "pass",
@@ -4728,7 +4832,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Volume 300 now given by 'Today's only trade'; open interest 1,200 by calc and f180. Distractor numbers are sums of question numbers."
+   "notes": "Open interest before, contracts bought to open and sold to close clear; label says only 'Open interest after' (the volume half is not claimed); slot '1,200 contracts'."
   },
   "q60": {
    "status": "pass",

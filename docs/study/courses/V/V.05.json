@@ -1350,7 +1350,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$12.04",
     "$10.94",
@@ -1361,6 +1361,23 @@
     "$11.14": "A dime over the high, not a cent.",
     "$12.04": "A dollar over the high, not a cent.",
     "$10.94": "A dime under the high, so the entry has not triggered yet."
+   },
+   "visual": {
+    "kind": "ladder",
+    "title": "The kicker",
+    "side": "long",
+    "levels": [
+     {
+      "key": "high",
+      "label": "Red day's high",
+      "price": 11.04
+     }
+    ],
+    "find": {
+     "label": "What you pay",
+     "as": "price",
+     "tag": "You pay"
+    }
    }
   },
   {
@@ -2286,7 +2303,7 @@
      "computed key"
     ]
    },
-   "batch": "sweep-2026-11-14",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$47.00",
     "$47.50",
@@ -2297,6 +2314,34 @@
     "$47.50": "Used the 50 SMA itself and took nothing off.",
     "$48.00": "Used the 20 EMA itself and took nothing off.",
     "$48.50": "Added a quarter ATR to the 20 EMA instead of subtracting."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The launchpad",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "20 EMA",
+      "value": 48,
+      "fmt": "$"
+     },
+     {
+      "key": "r2",
+      "label": "50 SMA",
+      "value": 47.5,
+      "fmt": "$"
+     },
+     {
+      "key": "r3",
+      "label": "ATR",
+      "value": 2,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "The line-based stop",
+     "as": "price"
+    }
    }
   },
   {
@@ -3324,8 +3369,8 @@
   "q17": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Content passes; reordered only to vary the answer slot."
+   "fixed": false,
+   "notes": "Red day's high on the ruler; 'a cent over' is stated in the question; slot $11.05 matches key."
   },
   "q18": {
    "status": "cut",
@@ -3476,7 +3521,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Math checks: 47.50 - 0.25 x 2.00 = 47.00; wrong answers are real slips; D-008 low of day stays primary."
+   "notes": "Both lines and the ATR given with their names; which line to use (the lower) is not handed over; slot $47.00 matches key."
   },
   "q43": {
    "status": "pass",

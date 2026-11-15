@@ -1569,7 +1569,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$0.40",
     "$70.00",
@@ -1580,6 +1580,28 @@
     "$0.40": "Divided the shares by the income, upside down.",
     "$25.00": "Slipped a decimal place.",
     "$70.00": "Added income and shares instead of dividing."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The company",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Net income, in millions",
+      "value": 50,
+      "fmt": "count"
+     },
+     {
+      "key": "r2",
+      "label": "Shares, in millions",
+      "value": 20,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "Earnings per share",
+     "as": "per_share"
+    }
    }
   },
   {
@@ -2385,7 +2407,29 @@
      "computed key"
     ]
    },
-   "batch": "wave8"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "The report",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Expected loss a share",
+      "value": 0.2,
+      "fmt": "$"
+     },
+     {
+      "key": "r2",
+      "label": "Reported loss a share",
+      "value": 0.1,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "The surprise",
+     "as": "pct"
+    }
+   }
   },
   {
    "key": "q27",
@@ -3341,7 +3385,7 @@
      "fixed before (rebuilt from a fill)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$3.2 billion",
     "$2 billion",
@@ -3352,6 +3396,34 @@
     "$3.2 billion": "Divided the shares by the price instead of multiplying.",
     "$1.25 billion": "Used the 50 million float instead of all shares.",
     "$20 billion": "Slipped a decimal place."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The stock",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Price",
+      "value": 25,
+      "fmt": "$"
+     },
+     {
+      "key": "r2",
+      "label": "Shares out, in millions",
+      "value": 80,
+      "fmt": "count"
+     },
+     {
+      "key": "r3",
+      "label": "Float, in millions",
+      "value": 50,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "Market cap",
+     "as": "dollars"
+    }
    }
   },
   {
@@ -3424,7 +3496,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "30 million",
     "100 million",
@@ -3435,6 +3507,29 @@
     "30 million": "Gave the restricted shares, not what is left.",
     "100 million": "Called every outstanding share float.",
     "130 million": "Added the restricted shares instead of subtracting."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The shares",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Shares out, in millions",
+      "value": 100,
+      "fmt": "count"
+     },
+     {
+      "key": "r2",
+      "label": "Restricted, in millions",
+      "value": 30,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "Float, in millions",
+     "as": "num",
+     "unit": "million shares"
+    }
    }
   },
   {
@@ -3580,7 +3675,7 @@
      "Schwab page refused the fetch on 2026-11-12 (unreachable), quotes not re-confirmed"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "7.7%",
     "7.2%",
@@ -3591,6 +3686,28 @@
     "0.8%": "Slipped a decimal place.",
     "7.2%": "Divided by the high end of the range instead of the price.",
     "3.9%": "Halved it as if the move were split."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The expected move",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Stock price",
+      "value": 216.88,
+      "fmt": "$"
+     },
+     {
+      "key": "r2",
+      "label": "Expected move, each way",
+      "value": 16.74,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Move as a % of price",
+     "as": "pct"
+    }
    }
   },
   {
@@ -3976,8 +4093,8 @@
   "q06": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc 2.5 matches; wrongs real. Why did not state the quotient; added."
+   "fixed": false,
+   "notes": "Units (millions) stated on both rows; slot $2.50 matches key."
   },
   "q07": {
    "status": "pass",
@@ -4099,7 +4216,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "(-0.10 - -0.20)/0.20*100 = +50 per f140; -50 and 100 distractors are the two real formula errors and their notes compute correctly. Some convergence remains (beat x2, 50% x2), but the item is a computation and each label and size now appears twice."
+   "notes": "Expected and reported loss per share both shown as losses; slot 50% (key too long to reuse); label 'The surprise' is plain."
   },
   "q27": {
    "status": "pass",
@@ -4245,8 +4362,8 @@
   "q50": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc 2 matches. Wrongs real (3.2 = 80/25, 1.25 = float, 20 decimal). Why added the product step."
+   "fixed": false,
+   "notes": "Price, shares out and float labelled with units; float is the question's own distractor; slot '$2 billion' comes from the key."
   },
   "q51": {
    "status": "pass",
@@ -4259,7 +4376,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc recomputed; answer shows it; wrong choices checked. Answer shows the calc, no tell, why walks the steps."
+   "notes": "Shares out and restricted shares in millions; slot '70 million' equals key."
   },
   "q53": {
    "status": "pass",
@@ -4283,7 +4400,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Sorted rank matches target; each wrong choice recomputed as a real mistake on this math; no new tell."
+   "notes": "Price and expected move each way stated; slot 7.7% matches key."
   },
   "q57": {
    "status": "pass",

@@ -1186,7 +1186,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "100 shares",
     "50 shares",
@@ -1197,6 +1197,27 @@
     "100 shares": "Divided your cost by the $30 entry price. Use today's $60 price.",
     "30 shares": "Used the $30 entry price as a share count.",
     "25 shares": "Halved twice. Half the shares, not a quarter, return the cost."
+   },
+   "visual": {
+    "kind": "ladder",
+    "side": "long",
+    "levels": [
+     {
+      "key": "entry",
+      "label": "Bought",
+      "price": 30.0
+     },
+     {
+      "key": "price",
+      "label": "Now",
+      "price": 60.0
+     }
+    ],
+    "find": {
+     "label": "Shares to sell",
+     "as": "shares"
+    },
+    "shares": 100
    }
   },
   {
@@ -1325,7 +1346,32 @@
      "computed key"
     ]
    },
-   "batch": "wave6"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "ladder",
+    "side": "long",
+    "levels": [
+     {
+      "key": "entry",
+      "label": "Both bought 200",
+      "price": 10.0
+     },
+     {
+      "key": "part",
+      "label": "You sold 100",
+      "price": 12.5
+     },
+     {
+      "key": "top",
+      "label": "You sold 100, friend 200",
+      "price": 15.0
+     }
+    ],
+    "find": {
+     "label": "Friend's profit minus ours",
+     "as": "dollars"
+    }
+   }
   },
   {
    "key": "q20",
@@ -1442,7 +1488,27 @@
      "computed key"
     ]
    },
-   "batch": "wave6"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "ladder",
+    "side": "long",
+    "levels": [
+     {
+      "key": "entry",
+      "label": "Bought 200, stop here too",
+      "price": 10.0
+     },
+     {
+      "key": "part",
+      "label": "Sold 100",
+      "price": 12.5
+     }
+    ],
+    "find": {
+     "label": "Partial vs holding all",
+     "as": "dollars"
+    }
+   }
   },
   {
    "key": "q23",
@@ -2136,8 +2202,8 @@
   "q15": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc 50.0. Choices acceptable. Moved the answer from slot 4 to slot 2 to vary slots in this lesson."
+   "fixed": false,
+   "notes": "bought/now prices, shares held; slot '50 shares'"
   },
   "q16": {
    "status": "pass",
@@ -2160,8 +2226,8 @@
   "q19": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Own answer: you 100x2.50 + 100x5 = $750, friend 200x5 = $1,000, friend by $250; calc matches. Lengths 20-25, '$250' appears only in the key, no convergence. Bulkowski test f33/f34 has the same shape. Deeper no longer states q22's answer."
+   "fixed": true,
+   "notes": "Label 'Friend's extra profit' tells the member the friend made more, which is the question ('who made more?'). The slot's key is too long to show, so the label is all the member sees. Neutral label for what the calc computes (friend profit minus ours)."
   },
   "q20": {
    "status": "cut",
@@ -2179,7 +2245,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: partial 100x2.50 = $250, holding all to the $10 stop = $0, so $250 more; calc matches. All four choices 18 characters. Story fixes the fill at $10, so no gap ambiguity. $220 is in the f36 quote; the gap line rests on f49."
+   "notes": "breakeven stop equals entry; 'Partial vs holding all' names the difference computed; key 'Made you $250 more' fits 18 chars and fills the slot"
   },
   "q23": {
    "status": "cut",

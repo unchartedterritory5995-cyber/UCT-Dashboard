@@ -1095,7 +1095,7 @@
      "computed key (calc)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$55.00",
     "$159.00",
@@ -1106,6 +1106,31 @@
     "$55.00": "Used only the close. The pivot averages the high, low and close.",
     "$52.00": "Averaged just the high and low. The close goes in too.",
     "$159.00": "Added the three prices and forgot to divide by 3."
+   },
+   "visual": {
+    "kind": "ladder",
+    "side": "long",
+    "levels": [
+     {
+      "key": "high",
+      "label": "Yesterday's high",
+      "price": 56.0
+     },
+     {
+      "key": "close",
+      "label": "Yesterday's close",
+      "price": 55.0
+     },
+     {
+      "key": "low",
+      "label": "Yesterday's low",
+      "price": 48.0
+     }
+    ],
+    "find": {
+     "label": "Base pivot",
+     "as": "price"
+    }
    }
   },
   {
@@ -1183,7 +1208,7 @@
      "fixed before (lesson line softened)"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "150 days",
     "180 days",
@@ -1194,6 +1219,29 @@
     "210 days": "Counted every calendar day in a week. Only trading days count.",
     "180 days": "Counted six days a week. Markets are open five.",
     "1,500 days": "A decimal slip: ten times too big."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The 30-week average",
+    "rows": [
+     {
+      "key": "weeks_long",
+      "label": "Weeks long",
+      "value": 30,
+      "fmt": "count"
+     },
+     {
+      "key": "trading_days_a_week",
+      "label": "Trading days a week",
+      "value": 5,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "Days on a daily chart",
+     "as": "num",
+     "unit": "days"
+    }
    }
   },
   {
@@ -1732,7 +1780,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "(56+48+55)/3 = 53. 55 close only, 52 high/low only, 159 forgot to divide. Why shows the steps."
+   "notes": "yesterday's high/close/low on one price ruler; base pivot; key '$53.00'"
   },
   "q10": {
    "status": "pass",
@@ -1744,7 +1792,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
+   "notes": "weeks and days per week; num unit days; key '150 days'"
   },
   "q12": {
    "status": "pass",

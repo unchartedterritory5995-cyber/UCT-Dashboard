@@ -1101,7 +1101,7 @@
      "fixed before (+1)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$60",
     "$1,200",
@@ -1112,6 +1112,28 @@
     "$1,200": "Charged half a year, not a quarter.",
     "$2,400": "Charged a full year. You held it for a quarter.",
     "$60": "A decimal slip: ten times too small."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "A quarter year's borrow",
+    "rows": [
+     {
+      "key": "short_position",
+      "label": "Short position",
+      "value": 20000,
+      "fmt": "$"
+     },
+     {
+      "key": "borrow_fee,_per_year",
+      "label": "Borrow fee, per year",
+      "value": 12,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "Borrow cost",
+     "as": "dollars"
+    }
    }
   },
   {
@@ -1261,7 +1283,7 @@
      "computed key (+2)"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$300",
     "$0",
@@ -1272,6 +1294,28 @@
     "$0": "Thought a short seller owes nothing. You pay the dividend to the lender.",
     "$0.75": "Gave the dividend per share and never multiplied by the shares.",
     "$30": "A decimal slip: ten times too small."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The dividend we owe",
+    "rows": [
+     {
+      "key": "shares_short",
+      "label": "Shares short",
+      "value": 400,
+      "fmt": "shares"
+     },
+     {
+      "key": "dividend_per_share",
+      "label": "Dividend per share",
+      "value": 0.75,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "We owe the lender",
+     "as": "dollars"
+    }
    }
   },
   {
@@ -1320,7 +1364,41 @@
      "fixed before (+1)"
     ]
    },
-   "batch": "wave6"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "Maintenance margin",
+    "rows": [
+     {
+      "key": "shares_short",
+      "label": "Shares short",
+      "value": 1000,
+      "fmt": "shares"
+     },
+     {
+      "key": "stock_price",
+      "label": "Stock price",
+      "value": 10,
+      "fmt": "$"
+     },
+     {
+      "key": "minimum_a_share",
+      "label": "Minimum a share",
+      "value": 5.0,
+      "fmt": "$"
+     },
+     {
+      "key": "or_this_share_of_val",
+      "label": "Or this share of value",
+      "value": 30,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "FINRA minimum",
+     "as": "dollars"
+    }
+   }
   },
   {
    "key": "q17",
@@ -1492,7 +1570,35 @@
      "fixed before (+1)"
     ]
    },
-   "batch": "wave6"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "Two months of borrow",
+    "rows": [
+     {
+      "key": "short_position",
+      "label": "Short position",
+      "value": 30000,
+      "fmt": "$"
+     },
+     {
+      "key": "borrow_fee,_per_year",
+      "label": "Borrow fee, per year",
+      "value": 40,
+      "fmt": "%"
+     },
+     {
+      "key": "months_short",
+      "label": "Months short",
+      "value": 2,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "Two months' borrow cost",
+     "as": "dollars"
+    }
+   }
   },
   {
    "key": "q21",
@@ -1635,7 +1741,53 @@
      "computed key (+2)"
     ]
    },
-   "batch": "wave6"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "The short trade",
+    "rows": [
+     {
+      "key": "shares_short",
+      "label": "Shares short",
+      "value": 1000,
+      "fmt": "shares"
+     },
+     {
+      "key": "short_at",
+      "label": "Short at",
+      "value": 40.0,
+      "fmt": "$"
+     },
+     {
+      "key": "covered_at",
+      "label": "Covered at",
+      "value": 36.0,
+      "fmt": "$"
+     },
+     {
+      "key": "borrow_fee,_per_year",
+      "label": "Borrow fee, per year",
+      "value": 8,
+      "fmt": "%"
+     },
+     {
+      "key": "months_short",
+      "label": "Months short",
+      "value": 3,
+      "fmt": "count"
+     },
+     {
+      "key": "dividend_per_share",
+      "label": "Dividend per share",
+      "value": 0.5,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Net result",
+     "as": "dollars"
+    }
+   }
   },
   {
    "key": "q24",
@@ -1806,8 +1958,8 @@
   "q11": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc 600. Choices real. The answer sat in slot 3 for three of four questions; moved to slot 1. Why jumped to the answer; added the full-year step."
+   "fixed": false,
+   "notes": "title carries the quarter year (no number for it may appear); key '$600'"
   },
   "q12": {
    "status": "pass",
@@ -1831,13 +1983,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
+   "notes": "shares short and dividend per share; 'We owe the lender'; key '$300'"
   },
   "q16": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key $5,000 = greater of $5.00 a share (calc) and 30% ($3,000, a given choice), per f47. Why ends on f49 instead of f65's range. $10,000 and $3,000 are in the choices, so they are givens. Pass."
+   "notes": "shows all of FINRA's givens, no method added; key '$5,000'"
   },
   "q17": {
    "status": "pass",
@@ -1861,7 +2013,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc 30000 x 0.40 x 2 / 12 = 2000. Key not longest. The lesson line teaches D48 and the why says our rule skips a hard-to-borrow short, so the math is framed against the rulebook. Pass (owner flag on the framing stands)."
+   "notes": "position, fee, months; label names two months; key too long so slot '$2,000'"
   },
   "q21": {
    "status": "pass",
@@ -1880,7 +2032,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc 4000 - 800 - 500 = 2700. The story now states the short ran through the ex-dividend date (f63), so the dividend is owed. Each distractor drops one cost and its note says which. Pass."
+   "notes": "all six inputs as stated; net result; key '$2,700'"
   },
   "q24": {
    "status": "pass",

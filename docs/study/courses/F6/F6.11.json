@@ -1095,7 +1095,30 @@
      "the why and a wrong note rest on the owner's rulebook (B25)"
     ]
    },
-   "batch": "wave7"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "Sizing by premium",
+    "rows": [
+     {
+      "key": "risk_we_accept",
+      "label": "Risk we accept",
+      "value": 750.0,
+      "fmt": "$"
+     },
+     {
+      "key": "call_price,_per_shar",
+      "label": "Call price, per share",
+      "value": 2.5,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Contracts to buy",
+     "as": "num",
+     "unit": "contract(s)"
+    }
+   }
   },
   {
    "key": "q16",
@@ -1252,7 +1275,41 @@
      "story reworded so it no longer models a buy into earnings"
     ]
    },
-   "batch": "wave7"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "Plan A or Plan B",
+    "rows": [
+     {
+      "key": "stock_price",
+      "label": "Stock price",
+      "value": 50.0,
+      "fmt": "$"
+     },
+     {
+      "key": "plan_a_shares",
+      "label": "Plan A shares",
+      "value": 100.0,
+      "fmt": "shares"
+     },
+     {
+      "key": "plan_a_stop",
+      "label": "Plan A stop",
+      "value": 47.0,
+      "fmt": "$"
+     },
+     {
+      "key": "plan_b_call_price",
+      "label": "Plan B call price",
+      "value": 2.0,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Plan B's premium paid",
+     "as": "dollars"
+    }
+   }
   },
   {
    "key": "q20",
@@ -1304,7 +1361,20 @@
      "fixed before (closing-trade wording)"
     ]
    },
-   "batch": "wave7"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "payoff",
+    "title": "The 50 call at expiry",
+    "option": "call",
+    "side": "long",
+    "strike": 50.0,
+    "premium": 1.6,
+    "underlying": 44.0,
+    "find": {
+     "label": "Premium per contract",
+     "as": "dollars"
+    }
+   }
   },
   {
    "key": "q21",
@@ -1428,7 +1498,41 @@
      "fixed before ('likely' wording)"
     ]
    },
-   "batch": "wave7"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "Expiry day",
+    "rows": [
+     {
+      "key": "calls",
+      "label": "Calls",
+      "value": 2.0,
+      "fmt": "count"
+     },
+     {
+      "key": "call_strike",
+      "label": "Call strike",
+      "value": 100.0,
+      "fmt": "$"
+     },
+     {
+      "key": "stock_at_expiry",
+      "label": "Stock at expiry",
+      "value": 104.0,
+      "fmt": "$"
+     },
+     {
+      "key": "cash_in_the_account",
+      "label": "Cash in the account",
+      "value": 3000.0,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Cash if exercised",
+     "as": "dollars"
+    }
+   }
   },
   {
    "key": "q24",
@@ -1569,7 +1673,36 @@
      "fixed before (sentence split)"
     ]
    },
-   "batch": "wave7"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "Calls for 100 shares",
+    "rows": [
+     {
+      "key": "stock_price",
+      "label": "Stock price",
+      "value": 50.0,
+      "fmt": "$"
+     },
+     {
+      "key": "shares_we'd_normally",
+      "label": "Shares we'd normally buy",
+      "value": 100.0,
+      "fmt": "shares"
+     },
+     {
+      "key": "call_price",
+      "label": "Call price",
+      "value": 5.0,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Contracts to buy",
+     "as": "num",
+     "unit": "contract(s)"
+    }
+   }
   },
   {
    "key": "q27",
@@ -1743,8 +1876,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer 3 contracts: 750 / (2.50 x 100) = 3, recomputed; calc matches. The story fixes the whole premium as the risk and h3 (B25) says the premium paid is the stop, so '6 contracts, out if it halves' is excluded by the story and the rulebook. Cash note hedged 'could' since the story gives no cash figure. f45, f37, f59 support. Choice lengths 28-30, no tell. No overlap with q12 (cut) or q26 beyond the 100-share multiplier.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q16": {
    "status": "pass",
@@ -1773,15 +1905,14 @@
   "q19": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Own answer Plan B (f3, f45 cap; f65, f66 gap through stop). Calc 2 x 100 = 200. Holds under B20: at 40 the loss is already past 2R, so our rule exits and the open sets the loss. Deeper matches A7 ('a gap can jump the stop'). Note: '$300 at most' in a wrong choice is plain arithmetic from the story, not in a calc."
+   "fixed": true,
+   "notes": "Find label 'Plan B's worst case' announces Plan B is the answer to 'which plan'; the calc is the call's premium paid"
   },
   "q20": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (stock 65 below the 70 strike, call worthless, f42/f43). But the story is the SEC example word for word and walkthrough w2 tells exactly this case with the answer ('The whole $220 is gone'), so q20 is answered by w2 (the previous checker flagged this for the integrator; still unresolved). Fixed by new numbers in the question itself (stock 47, the 50 call at 1.60, 58 and 8.40 two weeks later, 44 at expiry): calc 1.60 x 100 = 160; 680 = (8.40 - 1.60) x 100 and 51.60 = 50 + 1.60 and 300 = (47 - 44) x 100 are spelled out where used. Facts now carry the principle (f11 OTM worth zero at ex",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Result slot would print $160 beside 'Result per contract' for what is a loss; the calc is premium x 100, so name that"
   },
   "q21": {
    "status": "pass",
@@ -1799,8 +1930,8 @@
   "q23": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Own answer exercise (f48 'generally automatically exercised', re-fetched; f49, f52). Calc 2 x 100 x 100 = 20,000. 'Likely' hedge covers broker procedures (f67, conflicts line). Choices 30-33."
+   "fixed": true,
+   "notes": "'Cash to exercise' presupposes exercise, the answer; make it conditional"
   },
   "q24": {
    "status": "pass",
@@ -1818,7 +1949,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc 100/100 = 1; $500 and $5,000 in f31/f32. Why and deeper now teach the leverage trap (f30, f33, f34), not share-matching as a sizing rule. Easy for rung 9 (rung left to the integrator, as the Resolver said)."
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q27": {
    "status": "pass",

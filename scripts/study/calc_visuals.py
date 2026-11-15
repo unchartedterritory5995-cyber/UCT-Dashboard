@@ -508,9 +508,125 @@ def _given_values(card: dict) -> list:
     return []
 
 
+# ── a card written by hand (2026-11-15, the second half of step 3) ──────────────────────────────────────────────────
+# A question whose expression no shape above can read ("(a - b) / c", an ATR depth) may carry its own `visual`, written
+# by a writer who read the question and checked by a cold checker. It is held to the SAME contract as a built card,
+# enforced here (and by unit_problems, so gen_courses refuses a bad one): a known kind with its fields, the inputs only,
+# every number on it (labels included) stated in the question's words, never the result.
+KINDS = ("ladder", "move", "recover", "size", "range", "quote", "share", "expectancy", "payoff")
+FIND_AS = ("price", "r", "r_loss", "per_share", "dollars", "pct", "frac", "shares", "times", "num")
+_LABEL_MAX = 30
+
+
+def _strings(obj) -> list[str]:
+    if isinstance(obj, str):
+        return [obj]
+    if isinstance(obj, dict):
+        return [s for k, v in obj.items() if k not in ("kind", "as", "side", "option", "fmt", "key") for s in _strings(v)]
+    if isinstance(obj, list):
+        return [s for v in obj for s in _strings(v)]
+    return []
+
+
+def _shape_problems(v: dict) -> list[str]:
+    k = v.get("kind")
+    fin = lambda x: isinstance(x, (int, float)) and not isinstance(x, bool) and math.isfinite(float(x))  # noqa: E731
+    if k == "ladder":
+        lv = v.get("levels")
+        if not isinstance(lv, list) or not lv or not all(isinstance(x, dict) and fin(x.get("price")) and x.get("key") for x in lv):
+            return ["ladder needs levels [{key, label, price}]"]
+        r = v.get("r")
+        if r is not None:
+            prices = {float(x["price"]) for x in lv}
+            if not (isinstance(r, dict) and fin(r.get("entry")) and fin(r.get("stop")) and r["entry"] != r["stop"]
+                    and {float(r["entry"]), float(r["stop"])} <= prices):
+                return ["ladder r needs an entry and a stop that are both levels on the ruler"]
+        if v.get("side", "long") not in ("long", "short"):
+            return ["ladder side is long or short"]
+    elif k == "move":
+        if not (isinstance(v.get("from"), dict) and isinstance(v.get("to"), dict) and fin(v["from"].get("value"))
+                and fin(v["to"].get("value")) and v["from"]["value"] > 0 and v["to"]["value"] >= 0):
+            return ["move needs from.value > 0 and to.value >= 0"]
+    elif k == "recover":
+        if not (fin(v.get("loss_pct")) and 0 < v["loss_pct"] < 100):
+            return ["recover needs 0 < loss_pct < 100"]
+    elif k == "size":
+        rows = v.get("rows")
+        if not isinstance(rows, list) or len(rows) < 2 or not all(isinstance(x, dict) and fin(x.get("value")) and x.get("label") for x in rows):
+            return ["size needs 2+ rows [{key, label, value, fmt}]"]
+        if any(x.get("fmt") not in (None, "$", "%", "sh", "shares", "count") for x in rows):
+            return ["a size row's fmt is $, %, shares or count"]
+    elif k == "range":
+        if not (fin(v.get("high")) and fin(v.get("low")) and fin(v.get("close")) and v["low"] < v["high"]
+                and v["low"] <= v["close"] <= v["high"]):
+            return ["range needs low < high with the value between them"]
+    elif k == "quote":
+        if not (fin(v.get("bid")) and fin(v.get("ask")) and v["ask"] >= v["bid"]):
+            return ["quote needs bid <= ask"]
+    elif k == "share":
+        w = v.get("whole")
+        if not (isinstance(w, dict) and fin(w.get("value")) and w["value"] > 0):
+            return ["share needs whole.value > 0"]
+        p = v.get("part")
+        if p is not None and not (isinstance(p, dict) and fin(p.get("value")) and 0 <= p["value"] <= w["value"]):
+            return ["share part must lie between 0 and the whole"]
+        if p is None and not (fin(v.get("pct")) and 0 < v["pct"] <= 100):
+            return ["share needs a part or a pct"]
+    elif k == "expectancy":
+        if not (fin(v.get("win_pct")) and 0 < v["win_pct"] < 100 and fin(v.get("avg_win_r")) and fin(v.get("avg_loss_r"))):
+            return ["expectancy needs win_pct, avg_win_r, avg_loss_r"]
+    elif k == "payoff":
+        if v.get("option") not in ("call", "put"):
+            return ["payoff option is call or put"]
+        if not fin(v.get("strike")) and not (isinstance(v.get("legs"), list) and len(v["legs"]) == 2
+                                              and all(fin((x or {}).get("strike")) for x in v["legs"])):
+            return ["payoff needs a strike or two legs"]
+    return []
+
+
+def written_problems(q: dict) -> list[str]:
+    """The problems with a question's hand-written `visual` ([] when it has none, or a good one)."""
+    v = q.get("visual")
+    if v is None:
+        return []
+    if not isinstance(v, dict) or v.get("kind") not in KINDS:
+        return [f"visual kind must be one of {', '.join(KINDS)}"]
+    if q.get("chart"):
+        return ["a chart question takes no visual (the chart is its picture)"]
+    if not isinstance(q.get("calc"), dict):
+        return ["a visual needs the question's calc (its answer fills in from it)"]
+    out = _shape_problems(v)
+    f = v.get("find")
+    if not (isinstance(f, dict) and isinstance(f.get("label"), str) and f["label"].strip() and f.get("as") in FIND_AS):
+        out.append(f"visual find needs a label and an `as` in {', '.join(FIND_AS)}")
+    for s in _strings(v):
+        if len(s) > _LABEL_MAX:
+            out.append(f"visual label longer than {_LABEL_MAX} characters: {s!r}")
+    if out:
+        return out
+    text = stated_text(q)
+    nums = numbers_stated(text)
+    vals = [abs(x) if v["kind"] == "payoff" else x for x in _given_values(v)]
+    for s in _strings(v):                                   # a number inside a label is on the card too
+        vals += [float(m.replace(",", "")) for m in re.findall(r"\d[\d,]*(?:\.\d+)?", s)]
+    unstated = [x for x in vals if not _is_stated(x, nums)]
+    if unstated:
+        out.append(f"visual shows numbers the question's words do not state: {sorted(set(unstated))}")
+    try:
+        from scripts.study.courses_lib import calc_value
+        result = calc_value(q["calc"])
+    except Exception:  # noqa: BLE001 - the calc's own problems are reported by the validator
+        result = None
+    if result is not None and result in [float(x) for x in vals] and not _is_stated(result, nums):
+        out.append(f"visual shows the answer ({result:g}) before it is given")
+    return out
+
+
 def visual_for(q: dict) -> Optional[dict]:
     """The card for a computed question, or None (no calc, a chart question, an unknown shape, or a number the words
-    do not state)."""
+    do not state). A good hand-written `visual` wins; a bad one draws nothing (and unit_problems names it)."""
+    if q.get("visual") is not None:
+        return dict(q["visual"]) if not written_problems(q) else None
     calc = q.get("calc")
     if not isinstance(calc, dict) or q.get("chart"):
         return None
