@@ -57,6 +57,7 @@ import {
 import { runHarness, loadCapture, VENDOR_DIR, REPO } from './harness'
 import { runtimePaneEnabled, __permitRuntimePaneForTests } from '../../runtimePaneGate'
 import { __allowEveryRuntimeScriptForTests } from '../../runtimeKill'
+import { __admitEveryRunHalfForTests } from '../../runHalfRailSeam'
 import { objectsOnlyPaneEnabled } from '../../objectsOnlyPaneGate'
 import { memberPaneDefinition } from '../../../builder/memberPane/memberPaneDefinition'
 
@@ -71,6 +72,9 @@ if (REQUESTED) {
   if (REQUESTED === LANE_RUNTIME_ON) {
     __permitRuntimePaneForTests()
     __allowEveryRuntimeScriptForTests()
+    // ⭐ RS RATING L8 — and every run half, for the same reason: its evidence is this lane's
+    // grade of the run's drawings (`runHalfRailSeam.js`)
+    __admitEveryRunHalfForTests()
   }
 }
 

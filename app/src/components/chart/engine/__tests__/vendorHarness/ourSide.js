@@ -41,7 +41,7 @@ import { runtimeDeclinedTag } from '../../../../../../../tools/pine_coverage/run
 import { maxLookback, CHART_CLOCK_WHOLE, TF_MERGE_NEWEST_CODE, TF_MERGE_FIRST_CODE } from '../../ast/interpret'
 import { setRuntimeDoorClock } from '../../runtime/runtimeColumns'
 import { paneObjectsGate } from '../../ast/paneGate'
-import { otherSymbolRequestsOf, storeTickerOf } from '../../otherSymbols'
+import { otherSymbolRequestsOf, storeTickerOf, witnessRowOf } from '../../otherSymbols'
 import { lowerTfCodesOf, LOWER_TF_SOURCE } from '../../lowerTf'
 import SYMBOL_SCOPE from '../../ast/symbolScope.json'
 import { createFakeChart } from '../fakeChart'
@@ -214,6 +214,74 @@ function lowerTfSupply(def, capture) {
   return { lowerTf, notes }
 }
 
+// ─── ⭐⭐ RS RATING L8 — THE BARS OUR SERVER SERVES, RECORDED BESIDE A CAPTURE ────────
+//
+// C26 supplies another symbol from committed CAPTURES: TradingView's own bars of that listing.
+// For a symbol TradingView's own bars must NOT feed (an index such as `SP:SPX`, where grading
+// on the vendor's values would be circular, and a Pine seed, which no capture holds as bars),
+// the honest supply is what OUR SERVER serves, recorded: `tests/fixtures/vendor-supply/<capture
+// id>.json` (`uct.harness-supply/v1`). Each `other.<STORE TICKER>` is either
+//   * `{servedBy, source, recordedAtUTC, bars}`: the served bars, in the shape the server
+//     serves them, with where they came from (a fallback says so in `source`); or
+//   * `{notRecorded}`: the source a member is served was not recorded, so NOTHING is supplied
+//     (the read refuses by name, the grade is INCONCLUSIVE), never a stand-in.
+// and `symbol.<field>` feeds a classification field the capture does not carry with the
+// VENDOR's value read off a committed capture (`vendorValueFrom: 'committed:<path>'`), checked
+// here against that capture's own text before it is fed.
+// ⛔ A record that names another capture, or a malformed one, throws: it is never half-read.
+const SUPPLY_DIR = path.resolve(process.cwd(), '..', 'tests/fixtures/vendor-supply')
+export const HARNESS_SUPPLY_SCHEMA = 'uct.harness-supply/v1'
+
+/** The Q-RS4 probe's label keys (`IND=<industry>|SEC=<sector>|TYPE=<type>`). */
+const CLASSIFICATION_PROBE_KEY = Object.freeze({ industry: 'IND', sector: 'SEC' })
+
+/** The recorded supply beside this capture, or null when none is committed. */
+export function recordedSupplyOf(capture, dir = SUPPLY_DIR) {
+  const id = capture && capture.id
+  if (typeof id !== 'string' || !id) return null
+  const file = path.join(dir, `${id}.json`)
+  if (!fs.existsSync(file)) return null
+  const rec = JSON.parse(fs.readFileSync(file, 'utf8'))
+  const bad = (why) => { throw new Error(`ourSide: recorded supply ${path.basename(file)} refused: ${why}`) }
+  if (!rec || rec.schema !== HARNESS_SUPPLY_SCHEMA) bad(`schema is not ${HARNESS_SUPPLY_SCHEMA}`)
+  if (rec.capture !== id) bad(`it is the record of ${JSON.stringify(rec.capture)}, not of ${id}`)
+  for (const [ticker, e] of Object.entries(rec.other || {})) {
+    if (!e || typeof e !== 'object') bad(`other.${ticker} is not an object`)
+    const recorded = Array.isArray(e.bars)
+    if (recorded === (typeof e.notRecorded === 'string' && e.notRecorded.length > 0)) {
+      bad(`other.${ticker} must hold exactly one of \`bars\` or \`notRecorded\``)
+    }
+    if (recorded && !(typeof e.source === 'string' && e.source && typeof e.servedBy === 'string' && e.servedBy)) {
+      bad(`other.${ticker} records bars without naming \`source\` and \`servedBy\``)
+    }
+  }
+  for (const [field, e] of Object.entries(rec.symbol || {})) {
+    if (!CLASSIFICATION_PROBE_KEY[field]) bad(`symbol.${field} is not a classification field`)
+    if (!e || typeof e.value !== 'string' || !e.value) bad(`symbol.${field} carries no value`)
+    const from = String(e.vendorValueFrom || '')
+    if (!from.startsWith('committed:')) bad(`symbol.${field} must cite a committed capture (\`committed:<path>\`)`)
+    const probe = path.resolve(process.cwd(), '..', from.slice('committed:'.length))
+    if (!fs.existsSync(probe)) bad(`symbol.${field} cites ${from}, which is not committed`)
+    const texts = ((JSON.parse(fs.readFileSync(probe, 'utf8')).objects || {}).texts || {}).labels || []
+    const key = CLASSIFICATION_PROBE_KEY[field]
+    const said = texts.map((t) => String(t).split('|').find((part) => part.startsWith(`${key}=`)))
+      .filter(Boolean).map((part) => part.slice(key.length + 1))
+    if (!said.includes(e.value)) {
+      bad(`symbol.${field} = ${JSON.stringify(e.value)} is not what ${from} printed (${JSON.stringify(said)})`)
+    }
+  }
+  return rec
+}
+
+/** The classification fields the recorded supply feeds, and the committed capture each cites. */
+function recordedClassificationOf(capture) {
+  const rec = recordedSupplyOf(capture)
+  const fields = {}
+  const from = {}
+  for (const [field, e] of Object.entries((rec && rec.symbol) || {})) { fields[field] = e.value; from[field] = e.vendorValueFrom }
+  return { fields, from }
+}
+
 /** The secondary supply a capture's script asks for, and the notes naming what
  *  could not be supplied. */
 function otherSymbolSupply(def, capture) {
@@ -223,7 +291,28 @@ function otherSymbolSupply(def, capture) {
   const index = otherCaptureIndex()
   const secondary = new Map()
   const notes = []
-  for (const { ticker } of requests) {
+  // ⭐ RS RATING L8 — a recorded server supply beside this capture answers first, for the
+  // symbols it names (`recordedSupplyOf`); every other symbol keeps C26's committed captures.
+  const recorded = recordedSupplyOf(capture)
+  const unrecorded = []
+  for (const { ticker, spellings } of requests) {
+    // the key the chart fetches it under: a witnessed spelling's row's store key (`SPX`,
+    // `SEED_FRED6725_RS_RATING:RSRATING`), else our store's ticker (`fetchableOtherSymbols`)
+    const row = (spellings || []).map((v) => witnessRowOf(v, ticker)).find(Boolean)
+    const storeKey = row ? row.store : storeTickerOf(ticker)
+    const rec = recorded && recorded.other ? recorded.other[storeKey] : null
+    if (rec) {
+      if (Array.isArray(rec.bars)) {
+        secondary.set(storeKey, { bars: rec.bars, status: 'available' })
+        notes.push(`other symbol ${ticker}: the bars our server serves, recorded beside the capture `
+          + `(${rec.servedBy}; ${rec.source})`)
+      } else {
+        secondary.set(storeKey, { bars: [], status: 'no_data' })
+        notes.push(`other symbol ${ticker}: not supplied: ${rec.notRecorded}`)
+        unrecorded.push(`other symbol ${ticker}: ${rec.notRecorded}`)
+      }
+      continue
+    }
     const hit = index.get(`${ticker}|${tf}`)
     if (hit) {
       // ⭐ C29 — keyed as the product keys it: our store's ticker (`BRK-B`).
@@ -239,7 +328,7 @@ function otherSymbolSupply(def, capture) {
     const e = secondary.get(t)
     return e && e.exchange ? e.exchange : null
   }
-  return { secondary, exchangeOf, notes }
+  return { secondary, exchangeOf, notes, unrecorded }
 }
 
 // ─── ⭐⭐ RC1 — WARM BARS: THE SAME SERIES' OWN HISTORY, FROM COMMITTED CAPTURES ─
@@ -519,7 +608,10 @@ function symbolOf(capture) {
   // supply uses; where no witness links it, the vendor's spelling is kept (what
   // the harness did before, so nothing unlinked changes).
   const exchange = storeExchangeOfCapture(capture, tv) || tv
-  return { ticker, exchange, ...vendorClassificationOf(capture) }
+  // ⭐ RS RATING L8 — a field the capture does not carry may be fed from its recorded supply
+  // (the vendor's value off a committed probe, checked in `recordedSupplyOf`); the capture's
+  // own value, where it has one, wins.
+  return { ticker, exchange, ...recordedClassificationOf(capture).fields, ...vendorClassificationOf(capture) }
 }
 
 /** ⭐⭐ RS RATING L3 — THE GRADE FEEDS OUR SIDE THE VENDOR'S OWN VALUE of each substituted input
@@ -542,8 +634,15 @@ function vendorClassificationOf(capture) {
 /** ⭐⭐ RS RATING L3 — THIS run's substituted inputs: each classification field the script reads
  *  that the binding served from the substitution path (`symbolSubstitution.js::substitutedFor`),
  *  with `value`, what our side was fed for it (the capture's own value, `vendorClassificationOf`). */
-function classificationSubstitutions(source, symbol) {
-  return substitutedFor(source, symbol).map((e) => ({ ...e, value: symbol[e.name.slice('syminfo.'.length)] }))
+function classificationSubstitutions(source, symbol, capture = null) {
+  // ⭐ RS RATING L8 — a field fed from the recorded supply (not off the capture) cites the
+  // committed capture it was read from, so the comparator never looks for it on this one.
+  const viaRecord = capture ? recordedClassificationOf(capture) : { fields: {}, from: {} }
+  return substitutedFor(source, symbol).map((e) => {
+    const field = e.name.slice('syminfo.'.length)
+    const fromRecord = !vendorValueOf(capture || {}, `capture.symbol.${field}`).found && viaRecord.from[field]
+    return { ...e, value: symbol[field], ...(fromRecord ? { vendorValueFrom: viaRecord.from[field] } : {}) }
+  })
 }
 
 /** The reach of a plot's per-bar colour rule, or null when it has none. */
@@ -1059,6 +1158,13 @@ function runOurSideOnTheParityClock(capture) {
     const supply = otherSymbolSupply(def, capture)
     if (supply.secondary) { ctx.secondary = supply.secondary; ctx.exchangeOf = supply.exchangeOf }
     notes.push(...supply.notes)
+    // ⭐ RS RATING L8 — a capture whose recorded supply says the served source was NOT recorded is
+    // not graded at all: a grade over another source (a fallback, or TradingView's own bars) would
+    // speak for bars no member is served. INCONCLUSIVE, by name.
+    if (supply.unrecorded && supply.unrecorded.length) {
+      return { ok: false, refusal: `the supply this grade needs is not recorded — ${supply.unrecorded.join('; ')}`,
+        plots: [], notes }
+    }
     // ⭐ C41 — the chart symbol's own intraday bars, from committed captures only.
     const lower = lowerTfSupply(def, capture)
     if (lower.lowerTf) ctx.lowerTf = lower.lowerTf
@@ -1318,7 +1424,7 @@ function runOurSideOnTheParityClock(capture) {
       // ⭐ L7 — the inputs this run answered with the VENDOR's value in place of UCT data
       // (`substitutedInputsOf`); `[]` until a lane feeds one.
       // ⭐ RS RATING L3 — `syminfo.industry` / `sector`, fed the capture's value (`symbolOf`).
-      substituted: substitutedInputsOf(capture, classificationSubstitutions(source, ctx.symbol)),
+      substituted: substitutedInputsOf(capture, classificationSubstitutions(source, ctx.symbol, capture)),
     }
   } finally {
     registry.uninstallUserDefinition(HARNESS_DEF_ID)

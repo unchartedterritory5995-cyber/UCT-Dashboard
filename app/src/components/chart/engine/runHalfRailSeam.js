@@ -50,6 +50,7 @@ export function setRunHalfObjectEvidence(list) {
  *  `RUN_HALF_EVIDENCE_MIN_CAPTURES` or more DISTINCT captures, each an objects-v2 MATCH of the
  *  run's drawings with the runtime pane on. */
 export function runHalfEvidenceAdmits(sha256) {
+  if (_admitEveryForGrade) return true
   const caps = typeof sha256 === 'string' ? _evidence.get(sha256.toLowerCase()) : null
   if (!caps) return false
   const seen = new Set()
@@ -60,3 +61,17 @@ export function runHalfEvidenceAdmits(sha256) {
   }
   return seen.size >= RUN_HALF_EVIDENCE_MIN_CAPTURES
 }
+
+// ⭐⭐ RS RATING L8 — THE RUNTIME-ON GRADE IS THE EVIDENCE, SO IT GRADES EVERY RUN HALF.
+// The evidence above IS a runtime-on objects-v2 grade of the RUN's drawings. That lane already
+// grades every script as an admitted member would see it (`__allowEveryRuntimeScriptForTests`,
+// the starter allowlist not applied: an upper bound), because the allowlist is derived FROM its
+// verdicts; the run-half evidence is derived from the same verdicts, so the lane admits every
+// run half the same way, or the evidence could never be produced (a refused run half has its
+// drawings never graded). ⛔ Rails and the vendor harness's runtime-on lane ONLY: never set by a
+// member surface; production admits by `setRunHalfObjectEvidence` alone.
+let _admitEveryForGrade = false
+/** Rails / the runtime-on harness lane only. */
+export function __admitEveryRunHalfForTests() { _admitEveryForGrade = true }
+/** Rails only. */
+export function __resetRunHalfAdmissionForTests() { _admitEveryForGrade = false }
