@@ -145,6 +145,9 @@ describe('COND-TA — 1. the screener lane refuses by name what no chart is boun
       'a bound call read in a block': [pine(6, 'ma = ta.sma(close, 3)', 'float v = na', 'if close > open', '    v := ma', 'plot(v, "v")'), null],
       // a screen reads the VALUE: a colour whose own call runs only on some bars is no reason to refuse it
       'a conditional call in the colour only': [pine(6, 'plot(close, "v", color = close > open ? (ta.rsi(close, 14) > 50 ? color.red : color.blue) : color.gray)'), 'close'],
+      // …and a colour that can HIDE the plot (an `na` entry): the host keeps that gate on the plot
+      // (withheld whole, `colourWithholdsAlone`), but a screen's value is still every bar's close
+      'a hiding colour with a conditional call': [pine(6, 'plot(close, "v", color = close > open and ta.rsi(close, 14) > 50 ? color.red : na)'), 'close'],
       'a conditional var read only by the colour': [pine(6, 'float s = na', 'if close > open', '    s := ta.sma(close, 3)', 'plot(close, "v", color = close > s ? color.red : color.blue)'), 'close'],
     }
     for (const [name, [src, formula]] of Object.entries(keep)) {

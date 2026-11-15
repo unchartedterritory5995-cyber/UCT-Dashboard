@@ -93,6 +93,34 @@ same reason (T03 / K02).
   the block skips; nothing is REFUSED at translation for it, so no refusal is recorded.
 - Same question as the #1326 review (block-local `x[1]`): the same answer applies to both.
 
+## Mutation pass (copy aside, mutate, focused rail, restore from the copy; hash-object == HEAD blob for every one)
+
+Rail: `ast/condTaLanes.test.js` (M12: `vendorHarness.c48CallSite.test.js`). Control (no mutation): green.
+
+| # | mutant | result |
+|---|---|---|
+| M1 | `isTaCallName` hears the `ta.` prefix only | KILLED (v4 / v3 block, arm, if-expression, helper) |
+| M2 | the screener lane does not refuse its value gates | KILLED |
+| M3 | the screener lane resolves without `condGate` | KILLED |
+| M4 | v1-v4 `?:` arms unstamped again | KILLED |
+| M5 | the runtime lane serves v1-v3 bare calls per call site | KILLED |
+| M6 | the arm walk hears the `ta.` prefix only | KILLED |
+| M7 | the legacy predicate is not restored after a translation | KILLED |
+| M8 | the roster drops a name (`cog`) | KILLED (parity with `_COND_TA_BARE`) |
+| M9 | a tuple part ignores bare calls | KILLED |
+| M10 | the object lane's colour arm ignores bare calls | KILLED |
+| M11 | the screener lane refuses a value for its COLOUR's gates too | SURVIVED on the first pass: every colour rail was one the host withholds ALONE (`colourWithholdsAlone`), where the mutant is equivalent. Rail added (`a hiding colour with a conditional call`: an `na` entry, so the host keeps the gate on the plot); re-run pending (lock moratorium) |
+| M12 | the c48 pin with the screener serving again | KILLED |
+
 ## Measurements
 
-(filled below)
+PENDING — the coordinator's lock moratorium (2026-11-15: no new heavy runs until engine 55 and #1326
+merge) stopped the queued phases. To run, in order, each one heavy-lock hold:
+1. lenient + strict lanes over every `.pine` (repo + sample), base worktree then this one;
+2. census both lanes, harness both lanes over the fixtures + the held store (base, then this branch);
+   gates: 0 MATCH->DIVERGE, 0 new DIVERGE;
+3. capability admission measure (admission mode) + `capability_admission.py report` -> this folder's
+   `runs/report.json` (REACH and `capabilityEvidenceLane.test.js` then read it);
+4. `tools/pine_runtime_host_parity.mjs --write` (engine identity moved);
+5. engine / builder suites in shards, focused pytest files one at a time; M11 re-run;
+6. regrade of the held store (ledger restored before commit, coordinator rule).
