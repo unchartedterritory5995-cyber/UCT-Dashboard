@@ -45,7 +45,7 @@
 //     keeps its refusal (`other-symbol:class-share`).
 
 import { SYMBOL_EXCHANGE_CONFIRMED } from './ast/bind'
-import { isoDay } from './ast/interpret'
+import { isoDay, SERIES_GAPS_READ_NA } from './ast/interpret'
 import REQUEST_WITNESSES from './requestWitnesses.json'
 
 /** The venue spelling `pine.js::otherSymbolOf` records for the chart's own
@@ -73,6 +73,9 @@ export const OTHER_SYMBOL_REFUSAL = Object.freeze({
   // whose capture has not landed, and one read on a timeframe its witness does not cover.
   WITNESS_PENDING: 'other-symbol:witness-pending',
   WITNESS_TIMEFRAME: 'other-symbol:witness-timeframe',
+  // ⭐ RS RATING L6b — `request.seed(source, symbol, …)` naming a seed our store does not
+  // register (`requestWitnesses.json`'s `seed` rows = `pine_seed_store.py::SEEDS`).
+  SEED_UNREGISTERED: 'other-symbol:seed-unregistered',
 })
 
 const CONFIRMED_PINE = new Set(Object.values(SYMBOL_EXCHANGE_CONFIRMED))
@@ -139,6 +142,9 @@ export const WITNESS_ALIGNMENTS = Object.freeze({
   // each series bar is read on the chart's NEXT session (Q-RS3: TradingView's `SP:SPX` on a
   // stock's daily chart reads the previous session's SPX bar, as "D" and as timeframe.period)
   PREVIOUS_SESSION: 'previous-session',
+  // ⭐ RS RATING L6b — each row on the chart bar of the same date, and a chart bar with no row
+  // reads `na` (no carry-forward), as witnessed (Q-RS2: TradingView's `request.seed`)
+  SAME_DATE_GAPS_NA: 'same-date-gaps-na',
 })
 
 function witnessRowsOf(rows) {
@@ -170,6 +176,9 @@ export function witnessRowOf(venue, ticker) {
   return _witnessRows[`${v}:${t}`] || null
 }
 
+/** ⭐ RS RATING L6b — a Pine seed's spelling, `SEED_<SOURCE>:<SYMBOL>`. */
+export const SEED_SPELLING = /^(SEED_[A-Z0-9_]+):([A-Z0-9_.]+)$/
+
 /** Is this row's capture in, and does this module know how to place its bars? */
 export function witnessRowServes(row) {
   return !!row && typeof row.witness === 'string' && row.witness.trim() !== ''
@@ -192,6 +201,10 @@ function witnessedBarsOf(row, bars) {
   for (const b of bars) {
     const day = b && isoDay(b.t)
     if (day) keyed.push(typeof b.t === 'string' && b.t === day ? b : { ...b, t: day })
+  }
+  if (row.alignment === WITNESS_ALIGNMENTS.SAME_DATE_GAPS_NA) {
+    Object.defineProperty(keyed, SERIES_GAPS_READ_NA, { value: true, enumerable: false })
+    return keyed
   }
   if (row.alignment !== WITNESS_ALIGNMENTS.PREVIOUS_SESSION) return keyed
   // each bar is read on the NEXT session; the newest has none yet, so nothing reads it
@@ -260,6 +273,18 @@ export function staticallyUnservable(ticker, venue) {
 export function spellingUnservable(raw) {
   const s = String(raw == null ? '' : raw).trim().toUpperCase()
   if (!s) return null
+  // ⭐ RS RATING L6b — a Pine seed (`request.seed` reads `<SOURCE>:<SYMBOL>`, the source
+  // `SEED_…`): its row's decision, or `other-symbol:seed-unregistered`
+  const seed = SEED_SPELLING.exec(s)
+  if (seed) {
+    if (witnessRowOf(seed[1], seed[2])) {
+      const why = staticallyUnservable(seed[2], seed[1])
+      return why ? { ticker: seed[2], ...why } : null
+    }
+    return { ticker: s, code: OTHER_SYMBOL_REFUSAL.SEED_UNREGISTERED, reason: `\`${s}\` is a Pine Seeds series our `
+      + 'store does not hold (the seeds it serves are listed in `requestWitnesses.json`), so what this indicator draws '
+      + 'from it is not computed.' }
+  }
   const m = /^([A-Z][A-Z0-9_.]{0,15}):(.*)$/.exec(s)
   const venue = m ? m[1] : ''
   const ticker = m ? m[2].trim() : s
@@ -638,8 +663,14 @@ export function otherSymbolRefusalOfTree(tree, decision) {
 export function otherSymbolsSignature(def, secondary) {
   const tickers = symTickersOf(def)
   if (!tickers.length) return ''
+  // ⭐ RS RATING L6b — a witnessed spelling's series is held under its row's store key
+  const recorded = new Map(otherSymbolRequestsOf(def).map((r) => [r.ticker, r.spellings]))
+  const keyOf = (t) => {
+    const row = (recorded.get(t) || []).map((v) => witnessRowOf(v, t)).find(Boolean)
+    return row ? row.store : storeTickerOf(t)
+  }
   return tickers.map((t) => {
-    const e = secondary && typeof secondary.get === 'function' ? secondary.get(storeTickerOf(t)) : null
+    const e = secondary && typeof secondary.get === 'function' ? secondary.get(keyOf(t)) : null
     const bars = e && Array.isArray(e.bars) ? e.bars : null
     const last = bars && bars.length ? bars[bars.length - 1] : null
     return `${t}:${e ? e.status || '' : '-'}:${bars ? bars.length : 0}:${last ? `${last.t}/${last.c}` : ''}`

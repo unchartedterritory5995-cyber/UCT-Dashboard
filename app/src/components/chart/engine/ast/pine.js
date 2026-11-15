@@ -102,7 +102,7 @@ import { yieldsOf, compileRules, SENTENCE_RULES, didYouMean } from './sentence.j
 // evaluation time, which is a refusal at the wrong door.
 import { FN, MAX_SELF_LAG, SEED_RESIDUAL_TOLERANCE, TF_RESAMPLABLE, TF_LADDER, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed, heldFalseSeed, naConditionIsFalse, periodFirstCondition, readingSeed, chartOwnTimeNode, OWN_TIME_WITNESSED_TF, periodCloseNode, PERIOD_CLOSE_CODES, periodAnchorNode, chartSixtyTimeNode, SIXTY_WITNESSED_TF, PERIOD_ANCHOR_WITNESSED_TF, PERIOD_CLOSE_WITNESSED_TF, requestBaseNode, treeReadsLowerTf, listingSeedIsUnpinned } from './interpret.js'
 import { isLowerTfRequest, lowerTfRefusal, LOWER_TF_REFUSAL } from '../lowerTf.js'
-import { staticallyUnservable, spellingUnservable, staticOtherSymbolMessage, US_EQUITY_VENUES, witnessRowOf } from '../otherSymbols.js'
+import { staticallyUnservable, spellingUnservable, staticOtherSymbolMessage, US_EQUITY_VENUES, witnessRowOf, SEED_SPELLING } from '../otherSymbols.js'
 import { memberNumber } from './memberValue.js'
 import { timeInputDefaultOf, isTimeInputCall } from '../runtime/runtimeInputs.js'
 // ⭐ The budget's own verdict, asked at the translate door (see the row builder
@@ -5788,7 +5788,7 @@ function parsePostfix(cur) {
       if (node.type === 'name') {
         const joined = `${node.name}.${member}`
         node = isCall
-          ? { type: 'call', name: joined, args, tok: node.tok, endTok }
+          ? seedAsSecurity({ type: 'call', name: joined, args, tok: node.tok, endTok })
           : { type: 'name', name: joined, tok: node.tok }
         continue
       }
@@ -5961,7 +5961,7 @@ function parsePrimary(cur) {
       // `endTok` is the whole of what would change this." This is that.
       // `parseArguments` consumes through the `)`, so the last token it ate IS
       // the closing paren — the same way `thinkscript.js::parseCall` gets it.
-      return { type: 'call', name: tok.value, args, tok, endTok: cur.toks[cur.i - 1] || null }
+      return seedAsSecurity({ type: 'call', name: tok.value, args, tok, endTok: cur.toks[cur.i - 1] || null })
     }
     return { type: 'name', name: tok.value, tok }
   }
@@ -5991,6 +5991,43 @@ function parseArguments(cur) {
 }
 
 /** One statement's tokens → one Pine expression, with nothing left over. */
+/** ⭐⭐ RS RATING L6b — `request.seed(source, symbol, expression)` IS AN OTHER-SYMBOL READ.
+ *  A Pine Seeds series is daily data under the symbol `<SOURCE>:<SYMBOL>`, so the call is
+ *  rewritten here, once, into the read every lane already has:
+ *  `request.security("<SOURCE>:<SYMBOL>", "D", expression)` — both lanes parse with this
+ *  module, so neither can read a seed differently. Whether that spelling is SERVED is
+ *  `otherSymbols.js`'s (`requestWitnesses.json`'s `seed` rows, the frontend's manifest of
+ *  `pine_seed_store.py::SEEDS`): an unregistered seed refuses by name.
+ *  ⛔ ONLY THE THREE-ARGUMENT CALL WITH TEXT LITERALS for source and symbol (positional or
+ *  named `source` / `symbol` / `expression`): `ignore_invalid_symbol` and `calc_bars_count`
+ *  change the read, and a computed source names no series this door can know. Anything else
+ *  is left as it was (and refuses as it always did). */
+function seedAsSecurity(node) {
+  if (!node || node.type !== 'call' || node.name !== 'request.seed') return node
+  const args = node.args || []
+  if (args.length !== 3) return node
+  const names = ['source', 'symbol', 'expression']
+  const slots = [undefined, undefined, undefined]
+  let k = 0
+  for (const a of args) {
+    if (!a) return node
+    const at = a.name ? names.indexOf(a.name) : k++
+    if (at < 0 || slots[at] !== undefined) return node
+    slots[at] = a.value
+  }
+  const [src, sym, expr] = slots
+  if (!src || src.type !== 'string' || !sym || sym.type !== 'string' || !expr) return node
+  const key = `${String(src.value).trim().toUpperCase()}:${String(sym.value).trim().toUpperCase()}`
+  return {
+    type: 'call', name: 'request.security', tok: node.tok, endTok: node.endTok, seed: true,
+    args: [
+      { name: null, value: { type: 'string', value: key, tok: src.tok } },
+      { name: null, value: { type: 'string', value: 'D', tok: sym.tok } },
+      { name: null, value: expr },
+    ],
+  }
+}
+
 export function parseWholeExpression(toks) {
   const cur = new Cursor(toks)
   const node = parseExpression(cur, 0)
@@ -13320,6 +13357,10 @@ export class Resolver {
       // one string, and both are judged by `US_EQUITY_VENUES` so they cannot
       // disagree about one script.
       const raw = String(node.value).trim().toUpperCase()
+      // ⭐ RS RATING L6b — a registered Pine seed (`SEED_<SOURCE>:<SYMBOL>`, whose source can be
+      // longer than any exchange spelling): its symbol is the ticker, its source the venue
+      const seed = SEED_SPELLING.exec(raw)
+      if (seed && witnessRowOf(seed[1], seed[2]) && TICKER_SHAPE.test(seed[2])) return { ticker: seed[2], venue: seed[1] }
       const ticker = tickerWithoutVenue(raw)
       // ⭐ READ, NEVER RE-TYPED — `parse.js` owns what a ticker may look like.
       if (ticker === null || !TICKER_SHAPE.test(ticker)) return null

@@ -220,3 +220,14 @@ describe('L5 — `lookahead = barmerge.lookahead_off` written out is the default
       .toThrow(/lookahead/)
   })
 })
+
+describe('L5 — a request inside a call\'s arguments is the run\'s request, never a starved column', () => {
+  it('`nz(request.security("AMEX:SPY", timeframe.period, close), -1)` reads SPY, as the bare call does', () => {
+    const out = runDoc('plot(nz(request.security("AMEX:SPY", timeframe.period, close), -1))')
+    expect(Array.from(out.a)).toEqual(SPY.map((b) => b.c))
+  })
+  it('⛔ and with SPY\'s bars not in hand it is refused by name, never drawn as -1 on every bar', () => {
+    expect(() => runDoc('plot(nz(request.security("AMEX:SPY", timeframe.period, close), -1))',
+      ctxOf({ secondary: new Map([['SPY', { bars: [], status: 'no_data' }]]) }))).toThrow(/other-symbol:no-bars/)
+  })
+})

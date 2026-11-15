@@ -5441,6 +5441,19 @@ function buildRuntimeIrLinked(source, opts, holder) {
     return false
   }
 
+  /** ⭐ RS RATING L5 — does this subtree (a call argument) hold a `request.security` call
+   *  anywhere? A generic walk: a hand-listed set of keys fails open on the one nobody named. */
+  const callArgReadsRequest = (node, depth = 0) => {
+    if (!node || typeof node !== 'object' || depth > 64) return false
+    if (node.type === 'call' && node.name === 'request.security') return true
+    for (const v of Object.values(node)) {
+      if (Array.isArray(v)) {
+        if (v.some((x) => callArgReadsRequest(x && x.value !== undefined && x.type === undefined ? x.value : x, depth + 1))) return true
+      } else if (v && typeof v === 'object' && v.type && callArgReadsRequest(v, depth + 1)) return true
+    }
+    return false
+  }
+
   const dependsOnTextInput = (node, scope, seen) => {
     if (!node || typeof node !== 'object') return false
     // ⛔ A REQUEST NEVER GOES TO THE COLUMNAR LANE EITHER, and for a stronger
@@ -5450,6 +5463,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (node.type === 'call') {
       return (atObjectDoor ? MASTER_TEXT_INPUTS.has(node.name) : textInputIsMemberSet(textInputKindOf(node)))
         || node.name === 'request.security'
+        // ⭐⭐ RS RATING L5 — AND A REQUEST INSIDE A CALL'S ARGUMENTS (`nz(request.security(…))`).
+        // ⚰️ The walk below never entered a call's `args`, so such a subtree went to the columnar
+        // lane, which translated the request into a `sym` / `tf_merge` column and evaluated it
+        // with no other-symbol supply: `na` on every bar, drawn, nothing said. It is the run's
+        // request (`admitRequest`), supplied by the host's rules, or refused by name there.
+        || (node.args || []).some((a) => callArgReadsRequest(a && a.value !== undefined ? a.value : a))
     }
     if (node.type === 'name') {
       if (scope.lookup(node.name) !== null) return false

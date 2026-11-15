@@ -10,7 +10,10 @@
       "queue_row": "Q-RS3",
       "probe": "tools/visual_conformance/probes/rs-spx-daily.pine",
       "alignment": "previous-session",
-      "source": "api/index_bars.py: daily from FMP ^GSPC first, yfinance ^GSPC as the fallback (owner ruling 2026-11-14); `t` is unix seconds at the session date's UTC midnight, keyed by session date at bind"
+      "source": "api/index_bars.py: daily from FMP ^GSPC first, yfinance ^GSPC as the fallback (owner ruling 2026-11-14); `t` is unix seconds at the session date's UTC midnight, keyed by session date at bind",
+      "witness": "rs-spx-daily-rddt-1d-2026-11-15, rs-spx-daily-spy-1d-2026-11-15 (s10 batch, local; UCT probes)",
+      "captured": "2026-11-15",
+      "how": "TradingView's request.security(\"SP:SPX\", \"D\" and timeframe.period, open/high/low/close) on NYSE:RDDT 1D (666 bars, from the listing) and AMEX:SPY 1D: on EVERY chart bar both spellings read the PREVIOUS session's SPX bar, never the same day's. Graded against yfinance ^GSPC (the fallback; FMP needs a key): close 0/666 and 0/679 mismatches against the previous session (max 0.0102), low 0; open 20 and high 4 differ from yfinance's own opens/highs (yfinance quirks, not alignment). X04 (\"D\") == X05 (timeframe.period) on every bar. Hence `previous-session`: each SPX bar is read on the chart's NEXT session."
     },
     "SEED_FRED6725_RS_RATING:RSRATING": {
       "kind": "seed",
@@ -21,7 +24,10 @@
       "queue_row": "Q-RS2",
       "probe": "tools/visual_conformance/probes/rs-seed-rsrating.pine",
       "alignment": "same-date-gaps-na",
-      "source": "api/services/pine_seed_store.py: the NEWEST upload of the public mirror Fred6725/rs-log output/RSRATING.csv (replace-on-upload, 01ce0d567f); calendar-day rows, ISO `t`"
+      "source": "api/services/pine_seed_store.py: the NEWEST upload of the public mirror Fred6725/rs-log output/RSRATING.csv (replace-on-upload, 01ce0d567f); calendar-day rows, ISO `t`",
+      "witness": "rs-seed-rsrating-rddt-1d-2026-11-15 (s10 batch, local; UCT probe)",
+      "captured": "2026-11-15",
+      "how": "TradingView's request.seed('seed_fred6725_rs_rating','RSRATING', close/open/high) on NYSE:RDDT 1D (666 bars): na on every chart bar before 2026-10-07, then exactly the newest upload's weekday rows, each on the chart bar of the SAME DATE; weekend rows never land, and chart bars after the last row read na (no carry-forward). pine_seed_store replace-on-upload gives 0 mismatches on all 666 bars, values and na-ness (peer, 2026-11-15). Hence `same-date-gaps-na`: a chart bar with no row of its date reads na, which is known, not withheld."
     }
   }
 }

@@ -9,7 +9,7 @@
 // committed (pending) rows refuse, and the same rows with a witness injected
 // (`setRequestWitnessRows`, the one data edit that turns a row on) serve.
 
-import { describe, it, expect, afterEach } from 'vitest'
+import { describe, it, expect, afterEach, beforeEach } from 'vitest'
 import { translatePine } from './ast/pine'
 import {
   resolveOtherSymbols, fetchableOtherSymbols, staticallyUnservable, spellingUnservable,
@@ -33,7 +33,13 @@ function docOf(src) {
   }
 }
 
-/** The committed rows with a witness written in: the one data edit a landed capture makes. */
+/** ⭐ The rows as they stood BEFORE their captures landed (no `witness`, no `captured`): the
+ *  pending state, injected. The committed file carries the witnesses (L6b, 2026-11-15). */
+const PENDING = Object.fromEntries(Object.entries(WITNESSES.rows).map(([k, v]) => {
+  const { witness: _w, captured: _c, how: _h, ...rest } = v
+  return [k, rest]
+}))
+/** The rows with a witness written in: the one data edit a landed capture makes. */
 const WITNESSED = Object.fromEntries(Object.entries(WITNESSES.rows).map(([k, v]) => [k,
   { ...v, witness: `tests/fixtures/vendor/harness/${v.queue_row}-witness.json`, captured: '2026-11-15' }]))
 
@@ -54,8 +60,20 @@ const ctxOf = (over = {}) => ({
 
 afterEach(() => { setRequestWitnessRows(null) })
 
-describe('the committed rows are PENDING: refused by name, citing the queue row', () => {
-  it('every committed row is pending (no witness yet), and the pending state is not vacuous', () => {
+describe('the committed rows are WITNESSED (Q-RS2 / Q-RS3 landed, 2026-11-15)', () => {
+  it('both rows carry a witness and a known alignment, so both serve', () => {
+    const rows = requestWitnessRows()
+    expect(Object.keys(rows).sort()).toEqual(['SEED_FRED6725_RS_RATING:RSRATING', 'SP:SPX'])
+    for (const row of Object.values(rows)) expect(witnessRowServes(row)).toBe(true)
+    expect(rows['SP:SPX'].alignment).toBe('previous-session')
+    expect(rows['SEED_FRED6725_RS_RATING:RSRATING'].alignment).toBe('same-date-gaps-na')
+  })
+})
+
+describe('a PENDING row: refused by name, citing the queue row', () => {
+  beforeEach(() => { setRequestWitnessRows(PENDING) })
+
+  it('every pending row refuses to serve, and the pending state is not vacuous', () => {
     const rows = requestWitnessRows()
     expect(Object.keys(rows).sort()).toEqual(['SEED_FRED6725_RS_RATING:RSRATING', 'SP:SPX'])
     for (const row of Object.values(rows)) expect(witnessRowServes(row)).toBe(false)
@@ -146,6 +164,7 @@ describe('end to end through the member door: the plot that reads SP:SPX', () =>
   const SRC = pine(['plot(close, "own")', 'plot(request.security("SP:SPX", timeframe.period, close), "spx")'])
 
   it('pending: only that plot is refused, by name, citing Q-RS3; the other is drawn', () => {
+    setRequestWitnessRows(PENDING)
     const d = memberPaneDefinition({ source: SRC, id: 'u_l1bspx', name: 'l1b' })
     expect(d.ok, d.reason).toBe(true)
     const cols = computeFor(d.definition, CHART, undefined, CTX)

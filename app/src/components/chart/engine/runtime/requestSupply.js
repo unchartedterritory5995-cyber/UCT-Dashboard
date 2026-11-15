@@ -172,6 +172,12 @@ export function runtimeRequestSupply(requests, rows, ctx = {}) {
       for (const [c, text] of sink) {
         if (!out.codes.includes(c)) { out.codes.push(c); out.sentences.push(text) }
       }
+      // a missing counterpart names no chart-clock code: say which series and which session
+      if (!sink.size) {
+        out.codes.push(REQUEST_GUARD)
+        out.sentences.push(`\`${other}\` has no bar for ${String(rows[n - 1] && rows[n - 1].t)} yet, so what the `
+          + "script reads from it on the newest bar is not known; that bar's values and drawings are withheld")
+      }
     }
     supply.push({ runBars: aligned.runBars, index: aligned.index })
   }

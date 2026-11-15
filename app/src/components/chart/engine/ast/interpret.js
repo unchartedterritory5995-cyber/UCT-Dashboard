@@ -6418,6 +6418,13 @@ export function treeReadsSym(tree) {
   return false
 }
 
+/** ⭐⭐ RS RATING L6b — the mark on a supplied other-symbol series (non-enumerable, set by
+ *  `otherSymbols.js` from a witness row) saying a chart bar with no bar of the same `t` reads
+ *  Pine's `na`, as witnessed, not an unknown carried value: `symAlignmentMask` withholds none
+ *  of its gaps. Q-RS2: `request.seed` lands each row on the chart bar of the same date, and a
+ *  chart bar with no row reads `na` (no carry-forward). */
+export const SERIES_GAPS_READ_NA = '__gapsReadNa'
+
 /** ⭐⭐ C26 — THE BARS OF A TREE WHOSE ANSWER DEPENDS ON AN OTHER-SYMBOL BAR WE
  *  DO NOT HOLD, as a 0/1 column (1 = withheld), or null when nothing is withheld.
  *
@@ -6467,6 +6474,9 @@ export function symAlignmentMask(tree, bars, opts) {
   for (const a of nodes) {
     const series = supplied[String(a.value).trim().toUpperCase()]
     if (!Array.isArray(series) || series.length === 0) { mask.fill(1); return mask }
+    // ⭐ RS RATING L6b — a series whose WITNESS says a chart bar with no bar of its date reads
+    // `na` (`SERIES_GAPS_READ_NA`: Q-RS2, a Pine seed) has no unknown bar: its gaps are known.
+    if (series[SERIES_GAPS_READ_NA] === true) continue
     let reach = Math.max(0, rootReach - maxLookback(a))
     if (!Number.isFinite(reach)) reach = n
     const held = new Set()
