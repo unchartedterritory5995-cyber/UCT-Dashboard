@@ -1056,28 +1056,12 @@ def live_bars_for(daily_bars: Sequence[Mapping[str, Any]], quote: Any, *,
 # --------------------------------------------------------------------------- #
 
 def _read_bars(sym: str, tf: str, want: int) -> list:
-    """One symbol's bars, LOCAL. ⛔ No network, ever -- the whole affordability
-    argument for a sequential universe sweep is that `bars_sqlite` is a local
-    SQLite read, exactly as `snapshot_builder._read_daily_bars` does it.
-
-    DAILY BARS ARE THE CURRENT LISTING ONLY, by the same cut that reader and the chart
-    apply (`listing_break.current_listing`): the store keeps a recycled or renamed
-    symbol's earlier security in front of its own bars, and an average read across the
-    two is a number about neither. Only the daily store carries the `YYYYMMDD` keys the
-    rule reads, so every other timeframe is handed on as stored."""
-    from api.services import bars_sqlite
-    rows = bars_sqlite.get_bars(sym, tf, want) or []
-    out = []
-    for r in rows:
-        try:
-            out.append({"t": r[0], "o": r[1], "h": r[2], "l": r[3],
-                        "c": r[4], "v": r[5]})
-        except Exception:                                    # pragma: no cover
-            continue
-    if tf == DEFAULT_TF:
-        from api.services import listing_break
-        out = listing_break.current_listing(out)
-    return out
+    """One symbol's bars, LOCAL (`local_bars.read_bars`: `bars_sqlite`, no network, daily
+    bars cut to the current listing). Kept as this module's own name so the sweep's
+    callers and tests read it here; the alert lane reads `local_bars` directly, so the
+    two share one loader without the alert lane reaching this module."""
+    from api.services import local_bars
+    return local_bars.read_bars(sym, tf, want)
 
 
 def _scalar_columns(names: Sequence[str]) -> dict:
