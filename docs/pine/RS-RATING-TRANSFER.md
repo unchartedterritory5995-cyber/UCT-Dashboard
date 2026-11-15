@@ -138,6 +138,14 @@ Design (2026-11-14):
   - each threshold = percentile_k(stock scores) / ibd_score(SPX) * 100;
   - SPX closes come from FMP (owner ruling).
 
+**L7: what the new verdict touches** (surveyed 2026-11-14). Every consumer compares
+`verdict == "MATCH"` exactly, so a new `MATCH_SUBSTITUTED` already fails closed everywhere. Three
+consumers would mis-file it and need a real change:
+- `tools/pine_coverage/coverage_map.py:542/561/919` would bucket it as DIVERGE;
+- `tools/vendor_harness/evidence_ledger.py:39` (`VERDICTS`) would reject it;
+- `tools/pine_coverage/capability_admission.py` / `api/services/rollout_gate.py::PINE_CAPTURE_MATCH`
+  give it no admission row.
+
 **L7 grade + admission**: the `MATCH_SUBSTITUTED` verdict in `tools/vendor_harness/compare.mjs`,
 the ledger and `coverage_map`. An allowlist row kind for runtime admission. The member-door
 disclosure.
