@@ -868,6 +868,8 @@ def reset_cache() -> None:
     with _LOCK:
         _STATE.clear()
         _SYM_CACHE.clear()
+        _SETS["v"] = None
+        _SETS["gen"] += 1
 
 
 def _snapshot() -> dict:
@@ -1083,19 +1085,105 @@ def deal_status(sym: str, bars=None) -> dict:
         return _not_pending(s)
 
 
+# -- the day's deal sets: built once, then never rebuilt on a reader's thread ------------------
+# ⛔ WHY (2026-11-15). Every consumer that picks names (RS rankings, the scans, groups, the
+# screener) asked `pending_deal_symbols()`, and it rebuilt on the caller's thread whenever the
+# snapshot expired: every DEAL_STATUS_REFRESH_S (4 h), every DEAL_STATUS_COLD_REFRESH_S (5 min)
+# while company names are cold after a boot, and after a PC push reset. That rebuild reads
+# every stored deal headline and scans the daily bars for clear pins, and two readers at once
+# each did the whole thing. A route census found 27 member routes that reach it. Now the sets
+# are built ONCE per day on a reader's thread (one build at a time; other first readers wait
+# for that one), and from then on an expired set is served at once while ONE background
+# refresh replaces it. A new ET day is not served from yesterday: its first reader builds.
+
+_SETS: dict = {"v": None, "busy": False, "gen": 0}
+_SETS_BUILD_LOCK = threading.Lock()
+
+
+def _spawn_sets_refresh() -> None:
+    """Run `_refresh_sets` off the reader's thread (tests replace this)."""
+    threading.Thread(target=_refresh_sets, daemon=True, name="deal-status-sets").start()
+
+
+def _build_sets() -> dict:
+    """The pending and completed sets for today, in one pass over the snapshot's news deals."""
+    snap = _snapshot()
+    pending = set(snap["hand"]) | set(snap["mirror"])
+    completed = set()
+    for sym, d in snap["news"].items():
+        if not d["active"]:
+            continue
+        st = deal_status(sym)
+        if st.get("completed"):
+            completed.add(sym)
+        if sym not in pending and st["pending"]:
+            pending.add(sym)
+    pending |= clear_pin_symbols()
+    with _LOCK:
+        cold = bool(_STATE.get("cold"))
+    return {"pending": frozenset(pending), "completed": frozenset(completed),
+            "day": snap["day"], "at": time.time(),
+            "ttl": _cold_refresh_s() if cold else _refresh_s()}
+
+
+def _store_sets(got: dict, gen: int) -> None:
+    with _LOCK:
+        if _SETS["gen"] == gen:           # a reset since this build began: it is discarded
+            _SETS["v"] = got
+
+
+def _refresh_sets() -> None:
+    with _LOCK:
+        gen = _SETS["gen"]
+    try:
+        with _SETS_BUILD_LOCK:
+            got = _build_sets()
+        _store_sets(got, gen)
+    except Exception as exc:  # noqa: BLE001 -- a failed refresh keeps the last good sets
+        _log.warning("[deal-status] deal set refresh failed, keeping the last sets: %s", exc)
+    finally:
+        with _LOCK:
+            _SETS["busy"] = False
+
+
+def _sets() -> dict:
+    today = _today()
+    now = time.time()
+    spawn = False
+    with _LOCK:
+        cur = _SETS["v"]
+        if cur is not None and cur["day"] != today:
+            cur = None
+        if cur is not None and now - cur["at"] >= cur["ttl"] and not _SETS["busy"]:
+            _SETS["busy"] = spawn = True
+        gen = _SETS["gen"]
+    if cur is not None:
+        if spawn:
+            try:
+                _spawn_sets_refresh()
+            except Exception as exc:  # noqa: BLE001 -- no thread: the next reader tries again
+                _log.warning("[deal-status] deal set refresh not started: %s", exc)
+                with _LOCK:
+                    _SETS["busy"] = False
+        return cur
+    with _SETS_BUILD_LOCK:                  # the day's first build: one at a time
+        with _LOCK:
+            cur = _SETS["v"]
+        if cur is not None and cur["day"] == today:
+            return cur
+        got = _build_sets()
+        _store_sets(got, gen)
+        return got
+
+
 def pending_deal_symbols() -> frozenset:
     """Every symbol that is `pending` today: hand lists, fresh news deals, and old news
     deals still confirmed by a price pin, and every CLEAR price pin (`clear_pin_symbols`: a
-    +30% gap then a collapsed band; the weak 8% pin alone still never adds a name). Never
-    raises: an error yields the hand lists alone (logged)."""
+    +30% gap then a collapsed band; the weak 8% pin alone still never adds a name). Built
+    once a day; an expired set is served while one background refresh runs (see `_SETS`).
+    Never raises: an error yields the hand lists alone (logged)."""
     try:
-        snap = _snapshot()
-        out = set(snap["hand"]) | set(snap["mirror"])
-        for sym, d in snap["news"].items():
-            if d["active"] and sym not in out and deal_status(sym)["pending"]:
-                out.add(sym)
-        out |= clear_pin_symbols()
-        return frozenset(out)
+        return _sets()["pending"]
     except Exception as exc:  # noqa: BLE001
         _log.warning("[deal-status] pending set failed, hand lists only: %s", exc)
         return hand_deals() | mirror_list()
@@ -1111,9 +1199,7 @@ def completed_deal_symbols() -> frozenset:
     SCREENER_STALE_PRICE_SESSIONS (10) sessions: BWMN and KVUE sat in three screens each,
     flat at the deal price, until they were hand-listed."""
     try:
-        snap = _snapshot()
-        return frozenset(sym for sym, d in snap["news"].items()
-                         if d["active"] and deal_status(sym).get("completed"))
+        return _sets()["completed"]
     except Exception as exc:  # noqa: BLE001
         _log.warning("[deal-status] completed deal set failed, none added: %s", exc)
         return frozenset()
