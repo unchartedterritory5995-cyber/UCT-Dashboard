@@ -33,7 +33,8 @@
 //      `na(x[1]) ? ta.sma(…) : …` seed, Pine v5 `and` / `or` (strict), v4 `?:` and
 //      `iff` (not witnessed: see `docs/pine/capture-queue-2026-10-31-prod-ternary.md`);
 //   5. nothing is refused at TRANSLATION, so the parameters a plot mints do not move,
-//      and the screener lane (which binds no chart) reads as it always has;
+//      and the screener lane (which binds no chart) REFUSES each such row by name
+//      (COND-TA, engine 55: its every-bar reading was this capture's wrong number);
 //   6. (review round 2) an `if` used as an EXPRESSION (`y = if up` / `ta.sma(…)` /
 //      `else` / `close`) is the same rule — its branches are blocks, which C48's
 //      statement-form mark never covered (H2); a `var` initialiser runs once, on
@@ -46,7 +47,7 @@ import { loadCapture } from './harness'
 import { toProductBars, enterMemberDoor, HARNESS_DEF_ID } from './ourSide'
 import * as registry from '../../nativeRegistry'
 import { BLOCK_RUNS_GUARD } from '../../blockRuns'
-import { translatePine } from '../../ast/pine'
+import { translatePine, SCREEN_GATE_SENTENCE } from '../../ast/pine'
 import { createBinder } from '../../binder'
 import { createFakeChart } from '../fakeChart'
 import { memberPaneDefinition } from '../../../builder/memberPane/memberPaneDefinition'
@@ -684,10 +685,17 @@ describe('C45 — ⛔ nothing moves at translation', () => {
     expect(t.inputParams.map((p) => [p.id, p.label || p.title])).toEqual([
       ['__uct_param_1001', 'Arm length'], ['__uct_param_1002', 'Mult'], ['__uct_param_1003', 'Other length']])
     expect(t.outputs[0].formula).toBe('(close > open ? sma(close, 5) : close) * 2')
+    // ⭐⭐ COND-TA (engine 55) — FLIPPED, DELIBERATELY: the screener lane's "reads as it
+    // always has" was the every-bar number (T03 / K02 above: wrong on 291 / 317 of RDDT's
+    // bars), with no chart bound there to withhold it. Each stamped row is refused by name.
     const screen = translatePine(source, { paramManifest: true })
     expect(screen.mode).toBe('screener')
     expect(screen.blockRuns).toBeUndefined()
-    expect(screen.outputs.map((o) => o.formula)).toEqual(t.outputs.map((o) => o.formula))
+    expect(screen.outputs.map((o) => (o.refusal ? o.refusal.guard : 'ok'))).toEqual(['pine:block', 'pine:block', 'ok'])
+    expect(screen.outputs[0].refusal.message).toMatch(/`ta\.sma` is called in one arm of a `\?:`/)
+    expect(screen.outputs[1].refusal.message).toMatch(/on the right of a Pine v6 `and`/)
+    for (const o of screen.outputs.slice(0, 2)) expect(o.refusal.message).toContain(SCREEN_GATE_SENTENCE)
+    expect(screen.outputs[2].formula).toBe(t.outputs[2].formula)
   })
 })
 

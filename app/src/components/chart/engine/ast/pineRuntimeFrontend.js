@@ -3203,7 +3203,13 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (owner !== null || loopDepth > 0 || r4Level() <= 0) return null
     if (!node || node.type !== 'call' || fnByName.has(node.name)) return null
     const name = String(node.name || '')
-    const bare = name.startsWith('ta.') ? name.slice(3) : (pineVersion < 5 ? name : null)
+    // ⭐ COND-TA (engine 55) — the bare spelling is served per call site in Pine v4 only, where
+    // the v4 User Manual documents a call's history as its own ("created through each
+    // successive call to the function … not … executed every bar, as would be the case for
+    // a `label.new` function call inside an if branch"). ⚰️ `pineVersion < 5` served v1-v3
+    // and a script with no `//@version` too, which no manual and no capture speaks for:
+    // those keep the R4 refusal (`runtime:conditional-history`), by name.
+    const bare = name.startsWith('ta.') ? name.slice(3) : (pineVersion === 4 ? name : null)
     const inLazyArm = lazyArmRegion !== null && r4Region === lazyArmRegion
     const kind = bare ? (SERVED_COND[bare] || (inLazyArm && name.startsWith('ta.') ? ARM_ONLY_SERVED_COND[bare] : undefined)) : undefined
     if (!kind) return null

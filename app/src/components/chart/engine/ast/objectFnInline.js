@@ -1269,11 +1269,39 @@ function literalCountOf(toks, bind, locals, min) {
   return Number.isInteger(n) && n >= min ? n : null
 }
 
-/** ⭐ C42 — the first `ta.*(` call in these tokens, or null. */
+// ⭐⭐ COND-TA (engine 55) — GAP G-b CLOSED: Pine v1-v4 SPELL THE SAME CALLS BARE.
+// `sma(close, 3)` in a v4 `if` block is `ta.sma(close, 3)` in v5, and it keeps the same
+// per-call-site history (the v4 User Manual, "Execution of Pine functions and historical
+// context inside function blocks": "The history of series variables used inside Pine
+// functions is created through each successive call to the function. … Such functions will
+// not return expected results if they are placed in contexts where they are not executed
+// every bar, as would be the case for a `label.new` function call inside an if branch",
+// with `barssince` in "a ternary operator's conditional branch" as its worked example).
+// ⚰️ Every reader here matched the `ta.` PREFIX only, so a v4 block calling `sma` was drawn
+// off the EVERY-BAR number with no gate (`capture-queue-2026-10-31-prod-ternary.md`, G-b).
+// The translator sets, for the length of ONE translation, the predicate that says which
+// bare names are Pine's own `ta.*` calls in that script's version (`pine.js`, from
+// `pineNamespacedName`, the one legacy-name authority); null (v5+, or outside a
+// translation) keeps the prefix rule alone.
+let LEGACY_TA_CALL = null
+/** Install the legacy bare-name predicate; returns the previous one (restore it). */
+export function setLegacyTaCall(pred) {
+  const prev = LEGACY_TA_CALL
+  LEGACY_TA_CALL = typeof pred === 'function' ? pred : null
+  return prev
+}
+/** Is `name` a call to one of Pine's `ta.*` built-ins in the script being translated? */
+export function isTaCallName(name) {
+  const s = String(name || '')
+  return s.startsWith('ta.') || (LEGACY_TA_CALL !== null && !s.includes('.') && LEGACY_TA_CALL(s) === true)
+}
+
+/** ⭐ C42 — the first `ta.*(` call in these tokens (or, in Pine v1-v4, its bare
+ *  spelling: `isTaCallName`), or null. */
 export function taCallIn(toks) {
   for (let i = 0; i + 1 < (toks || []).length; i += 1) {
     const tk = toks[i]
-    if (tk && tk.kind === 'ident' && !tk.member && String(tk.value).startsWith('ta.')
+    if (tk && tk.kind === 'ident' && !tk.member && isTaCallName(tk.value)
       && toks[i + 1].kind === 'punct' && toks[i + 1].value === '(') return tk
   }
   return null
@@ -1405,7 +1433,7 @@ export function oneExecutionTokens(toks, h, {
   const left = taCallIn(out) || historyCallIn(out, historyFns)
   if (flagRest && left) {
     out = out.map((tk, i) => (historyCallAt(out, i, historyFns) || (tk.kind === 'ident' && !tk.member
-      && String(tk.value).startsWith('ta.') && out[i + 1] && out[i + 1].kind === 'punct' && out[i + 1].value === '(')
+      && isTaCallName(tk.value) && out[i + 1] && out[i + 1].kind === 'punct' && out[i + 1].value === '(')
       ? { ...tk, onceUnwitnessed: true } : tk))
   }
   return { toks: out, why, left }
