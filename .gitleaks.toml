@@ -1,0 +1,25 @@
+# gitleaks config for the public repo. It EXTENDS the default rules and turns none of them off.
+#
+# Owner-approved 2026-11-15. The single narrow allowlist below covers
+# docs/pine/vendor-harness/evidence-ledger.jsonl. That file's rows carry public identifiers whose
+# JSON field names contain "key" / "Sha256":
+#   - "scriptKey": "committed:<public-script-slug>__<10-char hash>"
+#   - "captureId"
+#   - sha256 digests of capture files and source files
+# gitleaks' generic-api-key rule reads those as credentials. PR #1328 hit 11 false positives on
+# 2026-11-15.
+#
+# Scope (condition = AND): this one file, and only these four fields. Every other string in the
+# ledger, and every other file in the repo, is still scanned by every default rule.
+# None of these values can be a credential: they are public script slugs and sha256 digests of
+# files. If a real secret is ever found anywhere, ROTATE IT FIRST (see PUBLIC-REPO-PLAN.md Part 4).
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "evidence ledger: public script identifiers and sha256 digests, not credentials"
+condition = "AND"
+paths = ['''^docs/pine/vendor-harness/evidence-ledger\.jsonl$''']
+regexTarget = "line"
+regexes = ['''"(scriptKey|captureId|captureSha256|sourceSha256)"\s*:\s*"[A-Za-z0-9:._/+-]{1,200}"''']
