@@ -93,6 +93,20 @@
       ]
     },
     {
+      "id": "class_row_wins_even_where_an_our_string_row_also_matches",
+      "symbol": {
+        "ticker": "SMH",
+        "securityType": "ETF",
+        "industry": "Semiconductors",
+        "sector": "Technology"
+      },
+      "values": {
+        "syminfo.industry": "Investment Trusts/Mutual Funds",
+        "syminfo.sector": "Electronic Technology"
+      },
+      "substituted": []
+    },
+    {
       "id": "our_string_rows_serve_tradingview_untagged",
       "symbol": {
         "ticker": "NVDA",

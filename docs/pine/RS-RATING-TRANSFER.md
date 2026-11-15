@@ -63,6 +63,17 @@ After W1-W3 alone the door draws only the RS line. The rating number and the new
   - otherwise serve OUR string, tagged SUBSTITUTED and disclosed (`MATCH_SUBSTITUTED`, L7);
   - with no data at all, refuse by name.
 
+**L3 status (2026-11-15, engine 62 placeholder):** built. `symbolScope.json::classification`
+(by_class keyed by `screener_universe.types()`'s Stock/ADR/ETF, threaded as `securityType` from
+`ticker_meta.security_type`; by_ours keyed by our string) ships with no rows until Q-RS4 lands;
+`bind.js::classificationWith` (mirrored by `ast_bind.py::classification_with`, pinned by
+`tests/fixtures/ast/symbol_classification_parity.json`) serves a witnessed row untagged, else our
+string tagged `{name, source: 'uct:ticker_meta', vendorValueFrom: 'capture.symbol.<field>'}`,
+else refuses by name. The harness feeds `capture.symbol.industry` and declares it on the L7
+contract (`ourSide.substituted`); the member door's notes name the field. ⚠️ No capture's
+`symbol` block carries `industry` yet: `tv_capture.js` must record it (or the Q-RS4 label text must
+be mapped onto it) before an RS Rating grade can be MATCH_SUBSTITUTED rather than INCONCLUSIVE.
+
 **L3 `syminfo.industry` (and its siblings `sector`)**: a bind-time text fold from our ticker meta,
 tagged SUBSTITUTED (our classification is not TradingView's FactSet taxonomy). Accept: the micro
 script `plot(syminfo.industry == 'X' ? 1 : 0)` attaches on both lanes. The read-back names the
