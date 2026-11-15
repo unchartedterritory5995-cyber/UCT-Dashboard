@@ -97,6 +97,19 @@ in the corpus are all still withheld:
 grading, because their captures have no x table: inside-bar-range, parabolic-sar, zigzag-mtf. Their
 plot verdicts stay MATCH. They need x re-captures before they count as proven with x.
 
+## Engine 56 (#1264) landed during this PR
+
+Master moved to engine 56 (`5443154808`) after the measurement, so the branch merged it and the
+runtime-on harness was run again at engine 56.
+
+- **6 verdicts moved**, all host-drawn and none of them evidence or a runtime-lane reach capture:
+  - k-clustering rddt/spy: DIVERGE -> INCONCLUSIVE;
+  - mcclellan-indicators rddt/spy: DIVERGE -> INCONCLUSIVE;
+  - support-and-resistance-multi-time-frame rddt/spy: DIVERGE -> MATCH.
+- Every evidence entry and every admitted runtime-lane capture grades exactly as committed.
+- The committed snapshots stay the engine-55 measurement at `7a74a90f45`, so REACH reads both lanes
+  at one engine.
+
 ## Rails and mutants
 
 The rails are in `tests/test_pine_capability_admission.py`:
