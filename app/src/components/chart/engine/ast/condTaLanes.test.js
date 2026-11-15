@@ -188,8 +188,7 @@ describe('COND-TA — 2. ⚰️ the number the screener lane served, against the
 // mismatches 662 / 666 from bar 4. So a v1 arm is drawn as before, on every lane.
 const OBV_V1 = ['study("v1 obv")', 'src = close',
   'obv(src) => ', '    cum(change(src) > 0 ? volume : change(src) < 0 ? -volume : 0*volume)',
-  'o = obv(src)', 'plot(o, title="OBV")'].join('
-')
+  'o = obv(src)', 'plot(o, title="OBV")'].join('\n')
 describe('COND-TA — 2c. Pine v1 (no pragma) `?:` arms are eager (witnessed): drawn as before', () => {
   it('the OBV construct: not stamped, served on the screener lane, drawn on the host lane, equal to the eager reading', () => {
     const t = strict(OBV_V1)
@@ -212,13 +211,11 @@ describe('COND-TA — 2c. Pine v1 (no pragma) `?:` arms are eager (witnessed): d
   })
 
   it('a v1 arm calling `sma` stays drawn (no gate); the same arm in v2, v3 and v4 is withheld by name', () => {
-    const v1 = ['study("v1 arm")', 'plot(close > open ? sma(close, 3) : close, "v")'].join('
-')
+    const v1 = ['study("v1 arm")', 'plot(close > open ? sma(close, 3) : close, "v")'].join('\n')
     expect(strict(v1).blockRuns).toBeUndefined()
     expect(lenient(v1).outputs[0].refusal).toBeFalsy()
     for (const v of [2, 3, 4]) {
-      const src = [`//@version=${v}`, 'study("arm")', 'plot(close > open ? sma(close, 3) : close, "v")'].join('
-')
+      const src = [`//@version=${v}`, 'study("arm")', 'plot(close > open ? sma(close, 3) : close, "v")'].join('\n')
       expect(strict(src).blockRuns, `v${v}`).toBeTruthy()
       expect(lenient(src).outputs[0].refusal && lenient(src).outputs[0].refusal.guard, `v${v}`).toBe('pine:block')
     }
