@@ -231,3 +231,60 @@ describe('L5 — a request inside a call\'s arguments is the run\'s request, nev
       ctxOf({ secondary: new Map([['SPY', { bars: [], status: 'no_data' }]]) }))).toThrow(/other-symbol:no-bars/)
   })
 })
+
+// ─── ⭐ RS RATING L8 (4b) — THE CHART'S OWN SYMBOL IS THE REQUEST'S SYMBOL, AT ANY TIMEFRAME ───
+// Peer report (engine-57 builder): `request.security(syminfo.tickerid, <tf>, close)` at a timeframe
+// the host does not read (a daily read on a weekly chart, RS Rating line 187 `'D'` there; a daily
+// read on an intraday chart) refused `interpret:bind-time-text` on `syminfo.tickerid`: the symbol
+// was lowered as TEXT because the host had no reading of the request, so a binding that does not
+// witness the exchange's `tickerid` spelling refused the symbol instead of the timeframe. The
+// chart's own symbol needs no text: it is the chart's own series at that timeframe. The read
+// itself is still not served (no lane reads a timeframe below a weekly chart, or a daily read on
+// an intraday chart, bar by bar), so it is refused by THAT name, never drawn.
+describe('L8 (4b) — the chart\'s own symbol at a timeframe the host does not read', () => {
+  const SELF = (tf) => `plot(request.security(syminfo.tickerid, "${tf}", close))`
+  for (const [chartTf, asked] of [['W', 'D'], ['60', 'D']]) {
+    it(`a \`"${asked}"\` read on a \`${chartTf}\` chart refuses by the TIMEFRAME, never by the symbol's text`, () => {
+      let err = null
+      try { runDoc(SELF(asked), ctxOf({ tf: chartTf })) } catch (e) { err = e }
+      expect(err, 'the read is not served on this chart').toBeTruthy()
+      expect(String(err.message)).not.toMatch(/syminfo\.tickerid|bind-time-text/)
+      expect(err.guard || String(err.message)).toMatch(/runtime:request/)
+      expect(String(err.message)).toContain(`\`${asked}\``)
+    })
+  }
+
+  it('the door records the read as the chart\'s own, unread by the host (a static refusal names the timeframe)', () => {
+    const built = buildRuntimeIr(`//@version=5\nindicator("x")\n${SELF('D')}`,
+      { bars: CHART, inputs: {}, tf: 'W', basePeriod: 'W', symbol: { ticker: 'RDDT', exchange: 'NYSE' } })
+    expect(built.ok, built.ok ? '' : built.refusal.message).toBe(true)
+    const program = lowerIrProgram(built.ir)
+    expect(program.requests[0].target).toMatchObject({ own: true, ticker: null, unread: true })
+    expect(requestTargetsUnservable(program.requests.map((r) => r.target), 1)).toMatch(/`D`/)
+  })
+
+  it('⛔ CONTROL: another symbol at that timeframe is not the chart\'s own (no own target, refused as unreadable)', () => {
+    const built = buildRuntimeIr('//@version=5\nindicator("x")\nplot(request.security("AMEX:SPY", "D", close))',
+      { bars: CHART, inputs: {}, tf: 'W', basePeriod: 'W', symbol: { ticker: 'RDDT', exchange: 'NYSE' } })
+    expect(built.ok, built.ok ? '' : built.refusal.message).toBe(true)
+    expect(lowerIrProgram(built.ir).requests[0].target).toBe(null)
+    expect(() => runDoc('plot(request.security("AMEX:SPY", "D", close))', ctxOf({ tf: 'W' })))
+      .toThrow(/cannot be read before/)
+  })
+
+  it('⛔ an own read the host DECLINES for another reason (`gaps_on` on a merge) is never served as the merge', () => {
+    const body = 'plot(request.security(syminfo.tickerid, "W", close, gaps = barmerge.gaps_on))'
+    const built = buildRuntimeIr(`//@version=5\nindicator("x")\n${body}`,
+      { bars: CHART, inputs: {}, tf: 'D', basePeriod: 'D', symbol: { ticker: 'RDDT', exchange: 'NYSE' } })
+    expect(built.ok, built.ok ? '' : built.refusal.message).toBe(true)
+    const target = lowerIrProgram(built.ir).requests[0].target
+    expect(target).toMatchObject({ own: true, unread: true, code: 'W' })
+    expect(requestTargetsUnservable([target], 1), 'the door does not mint it either').toMatch(/does not read either/)
+    expect(() => runDoc(body)).toThrow(/host lane does not read either/)
+  })
+
+  it('CONTROL: the weekly merge on a daily chart is served exactly as before', () => {
+    const out = runDoc(SELF('W'))
+    expect(Number.isNaN(out.a[CHART.length - 1])).toBe(false)
+  })
+})

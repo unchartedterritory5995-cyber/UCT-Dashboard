@@ -41,6 +41,18 @@ function ladderCode(tf) {
 /** Where a request was written, for a sentence. */
 const at = (site) => (site && site.target && Number.isInteger(site.target.line) ? ` (line ${site.target.line})` : '')
 
+/** ⭐⭐ RS RATING L8 (4b) — WHY THE CHART'S OWN SYMBOL AT THIS TIMEFRAME IS NOT READ. The
+ *  front end records such a request `{own: true, unread: true, code: <the literal>}` where the
+ *  host's reader has no reading of it (a daily read on a weekly or an intraday chart): the
+ *  symbol is this chart's, the TIMEFRAME is what no lane reads bar by bar. ⚰️ It refused
+ *  `interpret:bind-time-text` on `syminfo.tickerid`, blaming the symbol. */
+function unreadOwnSentence(target, chartTf, where = '') {
+  const on = chartTf ? ` on a \`${chartTf}\` chart` : ''
+  return `a \`request.security\`${where} reads this chart's own symbol at the \`${target.code}\` timeframe${on}, `
+    + 'in a form the host lane does not read either (a timeframe below or beside the chart\'s own, or an argument '
+    + 'such as `gaps` it does not honour), so nothing is drawn bar by bar rather than a guess'
+}
+
 /** The host bind's decision for ONE other-symbol read: a document holding just that
  *  read, spelled as the script spelled it, decided against this chart's supply. */
 function decideOther(target, ctx) {
@@ -77,6 +89,7 @@ export function requestTargetsUnservable(targets, count) {
       return 'a `request.security` names a symbol or timeframe that cannot be read before the script runs, '
         + 'so which bars it needs is unknown'
     }
+    if (target.unread === true) return unreadOwnSentence(target, null)
     if (target.live === true) return 'a `request.security` looks ahead (`barmerge.lookahead_on`), which the run does not serve'
     const code = target.code == null ? null : ladderCode(target.code)
     if (code !== null && !TF_RESAMPLABLE.includes(code)) {
@@ -114,6 +127,8 @@ export function runtimeRequestSupply(requests, rows, ctx = {}) {
       return refuse(`a \`request.security\`${at(site)} names a symbol or timeframe that cannot be read before `
         + 'the script runs, so which bars it needs is unknown and nothing is drawn rather than a blank line')
     }
+    // ⭐ RS RATING L8 (4b) — the chart's own symbol at a timeframe the host does not read
+    if (target.unread === true) return refuse(unreadOwnSentence(target, ctx && ctx.tf, at(site)))
     if (target.live === true) {
       return refuse(`a \`request.security\`${at(site)} looks ahead (\`barmerge.lookahead_on\`), and the realtime `
         + 'half of that alignment is not measured yet, so nothing is drawn bar by bar')

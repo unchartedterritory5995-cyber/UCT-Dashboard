@@ -6223,7 +6223,16 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // read it as this chart's (`hostTarget`), and the run's supply hands its bars per site, so
     // the symbol is a marker, never `syminfo.tickerid` settled as text (which a binding may
     // not witness: `symbolScope.json::pending_measurement`).
-    const symbolIr = hostTarget && hostTarget.own !== null && hostTarget.other === null
+    // ⭐⭐ RS RATING L8 (4b) — AND WHERE THE HOST HAS NO READING OF THE REQUEST AT ALL (a daily
+    // read on a weekly or intraday chart: `requestTargetOf` answers null), the symbol is STILL
+    // the chart's own when the host's reader says so (`ownSymbolNameOf`, the same reader). ⚰️ It
+    // was lowered as text there, so a binding with no `tickerid` witness for the exchange refused
+    // `interpret:bind-time-text` on the SYMBOL, about a read whose real gap is the TIMEFRAME.
+    // The read is recorded as the chart's own and `unread`, and the supply refuses it by the
+    // timeframe (`requestSupply.js`): never drawn, never blamed on the symbol.
+    const ownUnread = !hostTarget && !!targetReader && !reachesSlotThroughEnv(argOf(positional[0]), scope)
+      && (() => { try { return targetReader.ownSymbolNameOf(argOf(positional[0])) !== null } catch { return false } })()
+    const symbolIr = (hostTarget && hostTarget.own !== null && hostTarget.other === null) || ownUnread
       ? str('@chart') : lowerExpr(argOf(positional[0]), scope)
 
     // ⛔ THE VALUE IS LOWERED IN A SCOPE OF ITS OWN. It runs in another symbol's
@@ -6294,6 +6303,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
         venue: hostTarget.venue,
         code: hostTarget.code,
         live: hostTarget.live === true,
+        line: node.tok ? node.tok.line : null,
+      }) : ownUnread ? Object.freeze({
+        // ⭐ RS RATING L8 (4b) — the chart's own symbol at a timeframe the host does not read:
+        // `code` is the literal as written, never a served code; `unread` refuses it in the supply
+        own: true, ticker: null, venue: null, code: tfIr.value, live: false, unread: true,
         line: node.tok ? node.tok.line : null,
       }) : null })
     return requestCall(site, symbolIr, results)
