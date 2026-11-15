@@ -23,12 +23,34 @@ from api.services import user_definitions as svc
 ROOT = Path(__file__).resolve().parents[1]
 JS = ROOT / "app" / "src" / "components" / "chart" / "engine" / "scriptEngineVersion.js"
 
-FORMULA = {"id": "u_imported", "compute": {"kind": "ast", "ast": {"type": "series", "name": "close"}},
-           "meta": {"name": "imported"}}
+S = lambda name: {"type": "series", "name": name}  # noqa: E731
+CALL = lambda name, *a: {"type": "call", "name": name, "args": [{"value": x} for x in a]}  # noqa: E731
+OP = lambda name, *a: {"type": "op", "name": name, "args": list(a)}  # noqa: E731
+NUM = lambda v: {"type": "num", "value": v}  # noqa: E731
+NA = OP("/", NUM(0), NUM(0))
+UP = OP(">", S("close"), S("open"))
+#: what the old screener lane printed for `if close > open` / `v := ta.sma(close, 3)`: a CANDIDATE
+BLOCK_SMA = OP("?:", UP, CALL("sma", S("close"), NUM(3)), NA)
+#: #1326's block-local `x[1]`: an offset under a `?:` arm
+ARM_OFFSET = OP("?:", UP, {"type": "offset", "value": 1, "args": [OP("*", S("close"), NUM(2))]}, NA)
+#: v4 `iff(c, sma(…), close)`
+IFF_CALL = CALL("iff", UP, CALL("sma", S("close"), NUM(3)), S("close"))
+#: NOT candidates: no conditional at all, a call in the TEST only, an offset outside any arm
+PLAIN = OP("-", CALL("sma", S("close"), NUM(3)), {"type": "offset", "value": 1, "args": [S("close")]})
+CALL_IN_TEST = OP("?:", OP(">", CALL("rsi", S("close"), NUM(14)), NUM(50)), S("close"), S("open"))
+ARMS_PLAIN = OP("?:", UP, S("high"), S("low"))
+#: an offset under an `iff` arm is not the ruling's shape (only a call is)
+IFF_OFFSET = CALL("iff", UP, {"type": "offset", "value": 1, "args": [S("close")]}, S("close"))
+
+FORMULA = {"id": "u_imported", "compute": {"kind": "ast", "ast": BLOCK_SMA}, "meta": {"name": "imported"}}
 
 
-def row(importedFrom=None, pine_source=None, engine_status=None):
+def row(importedFrom=None, pine_source=None, engine_status=None, ast=None, trees=None):
     d = copy.deepcopy(FORMULA)
+    if ast is not None:
+        d["compute"]["ast"] = ast
+    if trees is not None:
+        d["compute"]["trees"] = trees
     if importedFrom is not None:
         d["meta"]["importedFrom"] = importedFrom
     r = {"def_id": "u_imported", "definition": d}
@@ -74,6 +96,30 @@ def test_a_RE_APPLIED_import_is_served():
 def test_what_is_UNTOUCHED(r):
     assert svc.engine_withheld_reason(r) is None
     assert svc.pine_import_stale(r) is False
+
+
+@pytest.mark.parametrize("tree", [BLOCK_SMA, ARM_OFFSET, IFF_CALL])
+def test_NARROWED_a_structural_candidate_is_held(tree):
+    assert svc.conditional_history_candidate({"compute": {"ast": tree}}) is True
+    assert svc.engine_withheld_reason(row(OLD, ast=tree))
+
+
+@pytest.mark.parametrize("tree", [PLAIN, CALL_IN_TEST, ARMS_PLAIN, IFF_OFFSET])
+def test_NARROWED_a_pine_import_with_no_conditional_history_is_SERVED(tree):
+    assert svc.conditional_history_candidate({"compute": {"ast": tree}}) is False
+    assert svc.engine_withheld_reason(row(OLD, ast=tree)) is None
+
+
+def test_NARROWED_every_plot_tree_is_read_not_only_the_scan_plot():
+    assert svc.engine_withheld_reason(row(OLD, ast=PLAIN, trees={"value": PLAIN, "out2": BLOCK_SMA}))
+    assert svc.engine_withheld_reason(row(OLD, ast=PLAIN, trees={"value": PLAIN, "out2": ARMS_PLAIN})) is None
+
+
+def test_NARROWED_a_tree_too_deep_to_read_fails_closed():
+    deep = S("close")
+    for _ in range(600):
+        deep = OP("-", deep, NUM(1))
+    assert svc.conditional_history_candidate({"compute": {"ast": deep}}) is True
 
 
 def test_an_engine_flag_that_is_not_an_integer_never_lifts_it():

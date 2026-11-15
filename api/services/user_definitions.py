@@ -2253,7 +2253,9 @@ SCRIPT_ENGINE_VERSION = read_script_engine_version()
 #: formula document with no script and no engine stamp; before COND-TA the translator that wrote it
 #: served a `ta.*` call that runs only on some bars (and #1326's block-local `x[1]`) as the
 #: every-bar number, and which saved formulas hold that shape cannot be told without the script.
-#: So such a row applied before the fix engine is WITHHELD BY NAME on every server lane
+#: So such a row applied before the fix engine, whose saved trees are a STRUCTURAL CANDIDATE
+#: (`conditional_history_candidate`: a call under a `?:` / `iff` arm, an offset under a `?:` arm), is
+#: WITHHELD BY NAME on every server lane
 #: (`engine_withheld_reason`); re-applying the import stamps `importedFrom.engine` and lifts it.
 #: The number is the browser's declaration, read like `SCRIPT_ENGINE_VERSION` (one authority).
 _PINE_IMPORT_FIX_RE = re.compile(
@@ -2282,9 +2284,50 @@ PINE_IMPORT_HELD_SENTENCE = ("This script was imported from Pine before a calcul
                              "Re-apply the import to update it.")
 
 
+def conditional_history_candidate(definition: Any) -> bool:
+    """⭐ NARROWED (coordinator ruling after the #1326 review, 2026-11-15) — the browser's
+    `conditionalHistoryCandidate`, node for node: do the saved trees (`compute.ast`,
+    `compute.trees`) hold a CALL under an arm of a `?:` or of `iff(c, a, b)`, or an OFFSET under
+    a `?:` arm — the shapes the old screener lane misread? A tree too deep to read fails closed."""
+    compute = definition.get("compute") if isinstance(definition, Mapping) else None
+    if not isinstance(compute, Mapping):
+        return False
+    trees = compute.get("trees")
+    roots = [compute.get("ast"), *(trees.values() if isinstance(trees, Mapping) else ())]
+
+    def arm(a):
+        return a["value"] if isinstance(a, Mapping) and "value" in a and "type" not in a else a
+
+    def walk(n, in_arm, in_ternary_arm, d):
+        if d > 256:
+            return True
+        if isinstance(n, list):
+            return any(walk(x, in_arm, in_ternary_arm, d + 1) for x in n)
+        if not isinstance(n, Mapping):
+            return False
+        if in_arm and n.get("type") == "call":
+            return True
+        if in_ternary_arm and n.get("type") == "offset":
+            return True
+        args = n.get("args") if isinstance(n.get("args"), list) else None
+        ternary = n.get("type") == "op" and n.get("name") == "?:" and args is not None and len(args) == 3
+        iff = (n.get("type") == "call" and str(n.get("name") or "").lower() == "iff"
+               and args is not None and len(args) == 3)
+        if ternary or iff:
+            if walk(arm(args[0]), in_arm, in_ternary_arm, d + 1):
+                return True
+            sub = in_ternary_arm or ternary
+            return walk(arm(args[1]), True, sub, d + 1) or walk(arm(args[2]), True, sub, d + 1)
+        return any(walk(v, in_arm, in_ternary_arm, d + 1)
+                   for k, v in n.items() if k not in ("tok", "endTok") and isinstance(v, (Mapping, list)))
+
+    return any(walk(r, False, False, 0) for r in roots)
+
+
 def pine_import_stale(row: Any, fix_engine: Any = "default") -> bool:
     """Is this stored row a Pine import (`meta.importedFrom.dialect == 'pine'`) holding no script,
-    applied before `PINE_IMPORT_FIX_ENGINE`? Reads provenance only, never the script."""
+    applied before `PINE_IMPORT_FIX_ENGINE`, whose saved trees are a structural candidate
+    (`conditional_history_candidate`)? Reads provenance and the saved trees, never the script."""
     fix = PINE_IMPORT_FIX_ENGINE if fix_engine == "default" else fix_engine
     definition = row.get("definition") if isinstance(row, Mapping) else None
     meta = definition.get("meta") if isinstance(definition, Mapping) else None
@@ -2296,7 +2339,7 @@ def pine_import_stale(row: Any, fix_engine: Any = "default") -> bool:
     eng = imp.get("engine")
     applied_at_fix = (isinstance(eng, int) and not isinstance(eng, bool)
                       and isinstance(fix, int) and not isinstance(fix, bool) and eng >= fix)
-    return not applied_at_fix
+    return not applied_at_fix and conditional_history_candidate(definition)
 if SCRIPT_ENGINE_VERSION is None:
     _log.error("[user-definitions] script engine version unreadable from %s — every "
                "recorded refusal binds until it is readable", _SCRIPT_ENGINE_JS)

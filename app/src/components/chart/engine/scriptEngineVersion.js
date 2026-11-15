@@ -147,9 +147,10 @@ export const SCRIPT_ENGINE_VERSION = 56
 // (`savedScriptUpgrade.upgradeKindOf` answered `none`). Before COND-TA the screener lane that wrote
 // those formulas served a `ta.*` call that runs only on some bars as its EVERY-BAR number (242 of
 // 635 RDDT bars wrong, `vw-call-site-history` C03), and #1326's block-local `x[1]` the same way.
-// Which saved formulas hold such a shape cannot be told without the script, so every Pine import
-// with no script, applied before this engine, is WITHHELD BY NAME on the chart and on every server
-// lane (`pineImportHeld`, the twin of `user_definitions.py::pine_import_stale`, which reads THIS
+// Which saved formulas hold such a shape cannot be told for certain without the script, so a Pine
+// import with no script, applied before this engine, whose saved trees are a STRUCTURAL CANDIDATE
+// (`conditionalHistoryCandidate`) is WITHHELD BY NAME on the chart and on every server lane
+// (`pineImportHeld`, the twin of `user_definitions.py::pine_import_stale`, which reads THIS
 // declaration): `PINE_IMPORT_HELD_SENTENCE`. Re-applying the import stamps `importedFrom.engine`
 // with today's engine (`BuilderSheet.applyProvenanceFor`), which lifts it.
 // ⛔ It is the engine that LANDED COND-TA: renumber it with that bump (it equals the number of the
@@ -161,16 +162,55 @@ export const PINE_IMPORT_FIX_ENGINE = 55
 export const PINE_IMPORT_HELD_SENTENCE = 'This script was imported from Pine before a calculation fix. '
   + 'Re-apply the import to update it.'
 
-/** Is this stored row a Pine import with no script, applied before `PINE_IMPORT_FIX_ENGINE`?
- *  `row` is a store row (`definition`, and `pine_source` / `has_pine_source` when it holds its
- *  script). Reads provenance only — never the script. */
+/** ⭐ NARROWED (coordinator ruling after the #1326 review, 2026-11-15): only a STRUCTURAL
+ *  CANDIDATE is held — a document whose saved trees could be one of the shapes the old screener
+ *  lane misread: a CALL under an arm of a `?:` (an `if` block and an `if` expression print as
+ *  one) or of `iff(c, a, b)`, or an OFFSET under a `?:` arm (a block local's `x[1]`, #1326).
+ *  Prod (read-only, 2026-11-15): 3 current Pine Apply saves, 1 such candidate. Every other Pine
+ *  import is served as before. Walks the canonical trees (`compute.ast`, `compute.trees`),
+ *  never the script. */
+export function conditionalHistoryCandidate(def) {
+  const compute = def && typeof def === 'object' && def.compute && typeof def.compute === 'object' ? def.compute : null
+  if (!compute) return false
+  const roots = [compute.ast, ...(compute.trees && typeof compute.trees === 'object' ? Object.values(compute.trees) : [])]
+  const seen = new Set()
+  // `armOffsets`: an offset counts under a `?:` arm only (the ruling's shape), a call under any arm
+  const walk = (n, inArm, inTernaryArm, d) => {
+    if (!n || typeof n !== 'object' || d > 256) return d > 256   // fail closed on a tree too deep to read (the server's bound)
+    if (Array.isArray(n)) return n.some((x) => walk(x, inArm, inTernaryArm, d + 1))
+    if (seen.has(n) && !inArm) return false
+    seen.add(n)
+    if (inArm && n.type === 'call') return true
+    if (inTernaryArm && n.type === 'offset') return true
+    const args = Array.isArray(n.args) ? n.args : null
+    const ternary = n.type === 'op' && n.name === '?:' && args && args.length === 3
+    const iff = n.type === 'call' && String(n.name || '').toLowerCase() === 'iff' && args && args.length === 3
+    if (ternary || iff) {
+      const arm = (a) => (a && typeof a === 'object' && a.value !== undefined && !a.type ? a.value : a)
+      if (walk(arm(args[0]), inArm, inTernaryArm, d + 1)) return true
+      return walk(arm(args[1]), true, inTernaryArm || ternary, d + 1) || walk(arm(args[2]), true, inTernaryArm || ternary, d + 1)
+    }
+    for (const [k, v] of Object.entries(n)) {
+      if (k === 'tok' || k === 'endTok' || !v || typeof v !== 'object') continue
+      if (walk(v, inArm, inTernaryArm, d + 1)) return true
+    }
+    return false
+  }
+  return roots.some((r) => walk(r, false, false, 0))
+}
+
+/** Is this stored row a Pine import with no script, applied before `PINE_IMPORT_FIX_ENGINE`,
+ *  whose trees are a structural candidate (`conditionalHistoryCandidate`)? `row` is a store row
+ *  (`definition`, and `pine_source` / `has_pine_source` when it holds its script). Reads
+ *  provenance and the saved trees only — never the script. */
 export function pineImportHeld(row, fixEngine = PINE_IMPORT_FIX_ENGINE) {
   const def = row && typeof row === 'object' ? row.definition : null
   const meta = def && typeof def === 'object' && def.meta && typeof def.meta === 'object' ? def.meta : null
   const imp = meta && meta.importedFrom && typeof meta.importedFrom === 'object' ? meta.importedFrom : null
   if (!imp || String(imp.dialect || '').toLowerCase() !== 'pine') return false
   if ((typeof row.pine_source === 'string' && row.pine_source.trim()) || row.has_pine_source === true) return false
-  return !(Number.isInteger(imp.engine) && Number.isInteger(fixEngine) && imp.engine >= fixEngine)
+  if (Number.isInteger(imp.engine) && Number.isInteger(fixEngine) && imp.engine >= fixEngine) return false
+  return conditionalHistoryCandidate(def)
 }
 
 /** The meta key the stamp lives under. `defSchema` keeps unknown `meta` keys

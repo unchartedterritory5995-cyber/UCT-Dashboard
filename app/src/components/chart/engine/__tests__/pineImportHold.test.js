@@ -14,17 +14,32 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 import {
-  SCRIPT_ENGINE_VERSION, PINE_IMPORT_FIX_ENGINE, PINE_IMPORT_HELD_SENTENCE, pineImportHeld,
+  SCRIPT_ENGINE_VERSION, PINE_IMPORT_FIX_ENGINE, PINE_IMPORT_HELD_SENTENCE, pineImportHeld, conditionalHistoryCandidate,
 } from '../scriptEngineVersion'
 import { upgradeKindOf, resolveRow } from '../../builder/memberPane/savedScriptUpgrade'
 import { applyProvenanceFor, withApplyProvenance } from '../../builder/BuilderSheet'
 
 const ROOT = path.resolve(process.cwd(), '..')
-const FORMULA = { id: 'u_imported', compute: { kind: 'ast', ast: { type: 'series', name: 'close' } }, meta: { name: 'imported' } }
+const S = (name) => ({ type: 'series', name })
+const CALL = (name, ...a) => ({ type: 'call', name, args: a.map((value) => ({ value })) })
+const OP = (name, ...args) => ({ type: 'op', name, args })
+const NUM = (value) => ({ type: 'num', value })
+const NA = OP('/', NUM(0), NUM(0))
+const UP = OP('>', S('close'), S('open'))
+// the trees the old screener lane wrote (CANDIDATES) — the same cases `tests/test_pine_import_hold.py` holds
+const BLOCK_SMA = OP('?:', UP, CALL('sma', S('close'), NUM(3)), NA)
+const ARM_OFFSET = OP('?:', UP, { type: 'offset', value: 1, args: [OP('*', S('close'), NUM(2))] }, NA)
+const IFF_CALL = CALL('iff', UP, CALL('sma', S('close'), NUM(3)), S('close'))
+// NOT candidates
+const PLAIN = OP('-', CALL('sma', S('close'), NUM(3)), { type: 'offset', value: 1, args: [S('close')] })
+const CALL_IN_TEST = OP('?:', OP('>', CALL('rsi', S('close'), NUM(14)), NUM(50)), S('close'), S('open'))
+const ARMS_PLAIN = OP('?:', UP, S('high'), S('low'))
+const IFF_OFFSET = CALL('iff', UP, { type: 'offset', value: 1, args: [S('close')] }, S('close'))
+const FORMULA = { id: 'u_imported', compute: { kind: 'ast', ast: BLOCK_SMA }, meta: { name: 'imported' } }
 const OLD = { dialect: 'pine', via: 'apply', sourceLength: 40, sourceFingerprint: 'fnv1a:0123456789abcdef' }
-const rowOf = (importedFrom, extra = {}) => ({
+const rowOf = (importedFrom, extra = {}, ast = BLOCK_SMA) => ({
   def_id: 'u_imported', version: 3,
-  definition: { ...FORMULA, meta: { ...FORMULA.meta, ...(importedFrom ? { importedFrom } : {}) } },
+  definition: { ...FORMULA, compute: { ...FORMULA.compute, ast }, meta: { ...FORMULA.meta, ...(importedFrom ? { importedFrom } : {}) } },
   ...extra,
 })
 
@@ -37,6 +52,21 @@ describe('COND-TA — a Pine import applied before the fix is held on the chart,
       expect(res.definition).toBeNull()
       expect(res.refusal).toBe(`imported: ${PINE_IMPORT_HELD_SENTENCE}`)
     }
+  })
+
+  it('⭐ NARROWED: only a structural candidate is held; a Pine import with no conditional history is drawn', () => {
+    for (const ast of [BLOCK_SMA, ARM_OFFSET, IFF_CALL]) {
+      expect(conditionalHistoryCandidate({ compute: { ast } })).toBe(true)
+      expect(upgradeKindOf(rowOf(OLD, {}, ast))).toBe('import-held')
+    }
+    for (const ast of [PLAIN, CALL_IN_TEST, ARMS_PLAIN, IFF_OFFSET]) {
+      expect(conditionalHistoryCandidate({ compute: { ast } })).toBe(false)
+      const r = rowOf(OLD, {}, ast)
+      expect(upgradeKindOf(r)).toBe('none')
+      expect(resolveRow(r).refusal).toBeNull()
+    }
+    // every plot's tree is read, not only the scan plot's
+    expect(conditionalHistoryCandidate({ compute: { ast: PLAIN, trees: { value: PLAIN, out2: BLOCK_SMA } } })).toBe(true)
   })
 
   it('a RE-APPLIED import is drawn: the Apply door stamps today\'s engine', () => {
