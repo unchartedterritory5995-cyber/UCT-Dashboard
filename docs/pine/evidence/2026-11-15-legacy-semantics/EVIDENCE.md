@@ -1,6 +1,6 @@
 # Legacy semantics (B1, B2, B3, B5, B7): `n`, v1 `barssince`, the ytc chain, version-aware object defaults, two runtime gaps
 
-Branch `fix/pine-engine-legacy-semantics`, on `origin/master` `fc6dea95ce` (engine 55). Engine-output
+Branch `fix/pine-engine-legacy-semantics`, cut from `origin/master` `fc6dea95ce` (engine 55), master `d067c1c1b8` (engine 57) merged in. Engine-output
 change: `SCRIPT_ENGINE_VERSION` takes master + 1 at merge; until then the branch keeps 55 and the history
 line says NUMBER PENDING. B4 (the colour reader) is on its own branch, `fix/pine-engine-colour-reader`,
 stacked on #1330 (engine 58), because it builds on that PR's palette work and #1330 is not merged.
@@ -143,6 +143,31 @@ TradingView's own error text. Not changed here.
   defaults by version; no hex in `OBJECT_DEFAULTS`; the runtime lane's borders. Mutant (the version
   resolved at the base) killed.
 
+- `__tests__/vendorHarness/vendorHarness.b3FnHistoryInBlock.test.js` (B3): the six captures are our
+  probes; TradingView's own columns (CARRY at v2/v3, EVERY BAR at v4/v5 and in ternary arms); the runtime
+  lane on all seven columns x 666 bars at v2-v5 and both ternary captures; the host lane at v4, v5 and the
+  ternary captures, refusing v2/v3 by name; v1 block calls and a block-plus-arm mix refused by name.
+  Mutants, 6 of 6 killed (listed under B3). 25 tests.
+- `__tests__/vendorHarness/vendorHarness.b7RuntimeGaps.test.js` (B7) and `runtime/__tests__/w6ArrayMembers.test.js`:
+  mutants 2 of 2 killed (listed under B7).
+- `__tests__/vendorHarness/vendorHarness.c37ObjectColours.test.js` (unchanged rail, kept green): v1-v3 and
+  unknown versions stay at the base palette; it went red on the first B5 cut (v3 resolved at its own
+  palette) and B5 now resolves names only at v4-v6.
+
 ## Tests run
 
-FOCUSED_PLACEHOLDER
+Branch head before this record: `f9240dcc1e` (origin/master `d067c1c1b8`, engine 57, merged in).
+
+- Part B sweep (the legacy-affected engine files, `builder/memberPane`, the B-rails and C37), sharded 3
+  ways, `--maxWorkers` per the RAM rule: shard 1 34 files / 645 passed (3 skipped), shard 2 34 files /
+  1213 passed (1 skipped), shard 3 35 files / 890 passed. 0 failed.
+- Python: `test_queue_dispositions`, `test_evidence_engine`, `test_ast_conformance`, `test_ast_interpret`:
+  231 passed, 5 skipped.
+- `evidence_engine.py queue --check`: PASS.
+- ytc decomposition (run store, licence-held, scratch only): runtime lane 17 of 17 columns 0 mismatches,
+  CHAIN bar 46 = 1; host lane refuses `pine:fn-history-in-block`.
+
+**Not run here (the landing train's, by the coordinator's process):** the before/after census and the
+vendor harness run, `SCRIPT_ENGINE_VERSION` (this branch keeps master's 57 and the history line says
+NUMBER PENDING), host parity `--write` / `--check`, the service smoke re-record, and section 8.
+
