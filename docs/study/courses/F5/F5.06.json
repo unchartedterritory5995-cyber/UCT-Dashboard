@@ -970,7 +970,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "5%",
     "15%",
@@ -981,6 +981,28 @@
     "5%": "Subtracted the gap from the position size instead of multiplying.",
     "1.3%": "Divided the position size by the gap.",
     "15%": "Gave the stock's drop and ignored how big the position was."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "A gap on a big position",
+    "rows": [
+     {
+      "key": "position,_of_the_acc",
+      "label": "Position, of the account",
+      "value": 20,
+      "fmt": "%"
+     },
+     {
+      "key": "gap_down",
+      "label": "Gap down",
+      "value": 15,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "Share of account lost",
+     "as": "pct"
+    }
    }
   },
   {
@@ -1095,7 +1117,7 @@
      "inputs changed in wave6 so it no longer reuses q09's numbers"
     ]
    },
-   "batch": "owner-review-6",
+   "batch": "cards-2026-11-15",
    "choices": [
     "1.5%",
     "3%",
@@ -1106,6 +1128,34 @@
     "3%": "Let the whole position take the gap and ignored the sale.",
     "15%": "Gave the size of the half you kept, not the loss on it.",
     "7.5%": "Took half of the 15% you kept instead of 10% of it."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Selling half first",
+    "rows": [
+     {
+      "key": "in_one_name,_of_acco",
+      "label": "In one name, of account",
+      "value": 30,
+      "fmt": "%"
+     },
+     {
+      "key": "share_sold_(half)",
+      "label": "Share sold (half)",
+      "value": 0.5,
+      "fmt": "count"
+     },
+     {
+      "key": "gap_down",
+      "label": "Gap down",
+      "value": 10,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "The account's fall",
+     "as": "pct"
+    }
    }
   },
   {
@@ -1142,7 +1192,7 @@
      "computed key"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "13.3%",
     "1.3%",
@@ -1153,6 +1203,28 @@
     "15.3%": "Took the gap off the higher price but forgot to subtract your gain.",
     "1.3%": "Slipped a decimal place.",
     "11.0%": "Took the gain off the gap twice."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Up, then gapped",
+    "rows": [
+     {
+      "key": "gain_so_far",
+      "label": "Gain so far",
+      "value": 2,
+      "fmt": "%"
+     },
+     {
+      "key": "gap_down",
+      "label": "Gap down",
+      "value": 15,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "Below your entry",
+     "as": "pct"
+    }
    }
   },
   {
@@ -1240,7 +1312,35 @@
      "computed key"
     ]
    },
-   "batch": "wave6"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "The hit vs normal risk",
+    "rows": [
+     {
+      "key": "position,_of_the_acc",
+      "label": "Position, of the account",
+      "value": 25,
+      "fmt": "%"
+     },
+     {
+      "key": "expected_move",
+      "label": "Expected move",
+      "value": 8,
+      "fmt": "%"
+     },
+     {
+      "key": "normal_risk_a_trade",
+      "label": "Normal risk a trade",
+      "value": 1,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "Hit vs normal risk",
+     "as": "times"
+    }
+   }
   },
   {
    "key": "q16",
@@ -1596,7 +1696,29 @@
      "story text changed in wave6"
     ]
    },
-   "batch": "wave6"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "A leader through the gap",
+    "rows": [
+     {
+      "key": "gain_so_far",
+      "label": "Gain so far",
+      "value": 40,
+      "fmt": "%"
+     },
+     {
+      "key": "priced_move",
+      "label": "Priced move",
+      "value": 9,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "Change vs entry after the gap",
+     "as": "pct"
+    }
+   }
   },
   {
    "key": "q25",
@@ -1900,8 +2022,8 @@
   "q09": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 2."
+   "fixed": false,
+   "notes": "position share and gap; key '3%'"
   },
   "q10": {
    "status": "pass",
@@ -1919,13 +2041,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold solve: 30% x 0.5 = 15% kept, 10% of 15% = 1.5% of the account; matches the answer and calc. The question now asks plainly how much the account falls, and the why separates the gap cost from the profit already built, which answers his note (profit is unrealized, the trade can still end up). No new number; sentences short; no new fact."
+   "notes": "30% position, half sold (0.5), 10% gap; key '1.5%'"
   },
   "q13": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Owner good, untouched by the upgrade."
+   "notes": "gain so far and gap down; 'Below your entry'; key '13.3%'"
   },
   "q14": {
    "status": "pass",
@@ -1937,7 +2059,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Owner good; his note is about topic focus only. Untouched, correct (25% x 8% = 2% = 2x the 1% risk)."
+   "notes": "position, expected move, normal risk; slot '2x' format 2×"
   },
   "q16": {
    "status": "pass",
@@ -1991,7 +2113,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Calc rechecked: 1.40 x 0.91 = 1.274, about 27%; key right and every distractor wrong (f32, f27, f3/f5). Two repairs. (1) The story's 'It's a normal-size position' clashes with section 9: a leader held for months at 8R would already have sold a third at 3R (B19) and a third at 5R (E51), so a member who knows our rules stalls on it. The sentence plays no part in the key, so it is dropped. (2) The simple line's 'even a full 9% gap' hints the priced move is the full move, the exact belief a distractor tests; reworded. f3 added for the 'Leaders don't gap down' note ('shares might jump or tumble'). "
+   "notes": "Label 'Still up after a 9% gap' echoes the correct choice ('Still up about 27% after a 9% gap') and so gives the answer away before it is picked. Name what the calc computes without its sign: the change vs entry after the gap."
   },
   "q25": {
    "status": "cut",

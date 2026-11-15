@@ -1914,7 +1914,29 @@
      "trailing buy stop mechanics come from one Tier 2 publisher (Schwab f86, f87); the SEC f17 covers the general trail"
     ]
    },
-   "batch": "wave8"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "ladder",
+    "title": "The short",
+    "side": "short",
+    "levels": [
+     {
+      "key": "entry",
+      "label": "Short at",
+      "price": 40
+     },
+     {
+      "key": "low",
+      "label": "Low",
+      "price": 31
+     }
+    ],
+    "find": {
+     "label": "Buy stop, $3 trail",
+     "as": "price",
+     "tag": "Buy stop"
+    }
+   }
   },
   {
    "key": "q22",
@@ -2320,7 +2342,7 @@
      "computed key (calc)"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "500 shares",
     "800 shares",
@@ -2331,6 +2353,28 @@
     "800 shares": "Canceled the whole order, which is fill-or-kill, not IOC.",
     "1,100 shares": "Added the filled shares to the order.",
     "240,000 shares": "Multiplied the two numbers instead of subtracting."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The IOC order",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Order",
+      "value": 800,
+      "fmt": "shares"
+     },
+     {
+      "key": "r2",
+      "label": "Filled right away",
+      "value": 300,
+      "fmt": "shares"
+     }
+    ],
+    "find": {
+     "label": "Shares canceled",
+     "as": "shares"
+    }
    }
   },
   {
@@ -3609,7 +3653,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc 31+3 = 34; f86/f87 support trailing above the low and resetting lower. Deeper's $43 is a choice in the question (entry plus trail), $40 and $31 are in the story. 'A bounce of $3 or more off the low triggers it' matches f87 exactly."
+   "notes": "Short entry and low on one ruler, side short with no r; '$3 trail' stated in the story; slot $34."
   },
   "q22": {
    "status": "pass",
@@ -3677,7 +3721,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Sorted rank matches target; each wrong choice recomputed as a real mistake on this math; no new tell."
+   "notes": "Order size and immediate fill clear; slot '500 shares' equals key."
   },
   "q33": {
    "status": "pass",

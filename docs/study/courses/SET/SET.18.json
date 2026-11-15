@@ -4027,7 +4027,7 @@
      "card line is proposed"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "0.75x",
     "0.25x",
@@ -4039,7 +4039,23 @@
     "1.33x": "Flipped it: the average divided by the volume so far.",
     "0.43x": "Divided by the two volumes added together."
    },
-   "prefix": ""
+   "prefix": "",
+   "visual": {
+    "kind": "move",
+    "title": "The volume",
+    "from": {
+     "label": "Average day",
+     "value": 2000000.0
+    },
+    "to": {
+     "label": "Traded by 10:00",
+     "value": 1500000.0
+    },
+    "find": {
+     "label": "Multiple of average",
+     "as": "times"
+    }
+   }
   },
   {
    "key": "q68",
@@ -4689,7 +4705,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Right answer unchanged, sorts to the target rank, wrong choices real and similar in form."
+   "notes": "Roles, find label, slot format and ladder checked; ok."
   },
   "q68": {
    "status": "cut",

@@ -1323,7 +1323,47 @@
    ],
    "kind": "mcq",
    "q": "The last five closes are $20, $22, $24, $25 and $23. What is the 5-day simple moving average?",
-   "subject": "simple moving average"
+   "subject": "simple moving average",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "5-day moving average"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "r1",
+      "label": "First close",
+      "value": 20
+     },
+     {
+      "fmt": "$",
+      "key": "r2",
+      "label": "Second close",
+      "value": 22
+     },
+     {
+      "fmt": "$",
+      "key": "r3",
+      "label": "Third close",
+      "value": 24
+     },
+     {
+      "fmt": "$",
+      "key": "r4",
+      "label": "Fourth close",
+      "value": 25
+     },
+     {
+      "fmt": "$",
+      "key": "r5",
+      "label": "Fifth close",
+      "value": 23
+     }
+    ],
+    "title": "The five closes"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -4213,7 +4253,28 @@
    ],
    "kind": "mcq",
    "q": "Today's high is $52.40 and today's low is $50.10. What is the day's range?",
-   "subject": "range"
+   "subject": "range",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "The day's range"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "high",
+      "label": "High",
+      "price": 52.4
+     },
+     {
+      "key": "low",
+      "label": "Low",
+      "price": 50.1
+     }
+    ],
+    "side": "long",
+    "title": "The day"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -4283,7 +4344,33 @@
    ],
    "kind": "mcq",
    "q": "A stock rallies from $40 to $60, then pulls back to $50. What percent of the rally has it given back?",
-   "subject": "retracement"
+   "subject": "retracement",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "Share of the rally given back"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "start",
+      "label": "Rally start",
+      "price": 40
+     },
+     {
+      "key": "top",
+      "label": "Rally top",
+      "price": 60
+     },
+     {
+      "key": "now",
+      "label": "Price now",
+      "price": 50
+     }
+    ],
+    "side": "long",
+    "title": "The rally"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -7333,7 +7420,38 @@
    ],
    "kind": "mcq",
    "q": "Open $50.00, high $50.50, low $49.00, close $50.40. How many times the body is the lower shadow?",
-   "subject": "hammer"
+   "subject": "hammer",
+   "visual": {
+    "find": {
+     "as": "times",
+     "label": "Lower shadow, times the body"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "high",
+      "label": "High",
+      "price": 50.5
+     },
+     {
+      "key": "close",
+      "label": "Close",
+      "price": 50.4
+     },
+     {
+      "key": "open",
+      "label": "Open",
+      "price": 50.0
+     },
+     {
+      "key": "low",
+      "label": "Low",
+      "price": 49.0
+     }
+    ],
+    "side": "long",
+    "title": "The candle"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -10091,7 +10209,38 @@
    ],
    "kind": "mcq",
    "q": "Open $40.00, high $41.50, low $39.60, close $41.20. How big is the real body?",
-   "subject": "real body"
+   "subject": "real body",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "The real body"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "high",
+      "label": "High",
+      "price": 41.5
+     },
+     {
+      "key": "close",
+      "label": "Close",
+      "price": 41.2
+     },
+     {
+      "key": "open",
+      "label": "Open",
+      "price": 40.0
+     },
+     {
+      "key": "low",
+      "label": "Low",
+      "price": 39.6
+     }
+    ],
+    "side": "long",
+    "title": "The candle"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -10168,7 +10317,38 @@
    ],
    "kind": "mcq",
    "q": "Open $25.00, high $27.40, low $24.80, close $25.30. How long is the upper shadow?",
-   "subject": "upper shadow"
+   "subject": "upper shadow",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "The upper shadow"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "high",
+      "label": "High",
+      "price": 27.4
+     },
+     {
+      "key": "close",
+      "label": "Close",
+      "price": 25.3
+     },
+     {
+      "key": "open",
+      "label": "Open",
+      "price": 25.0
+     },
+     {
+      "key": "low",
+      "label": "Low",
+      "price": 24.8
+     }
+    ],
+    "side": "long",
+    "title": "The candle"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -10252,7 +10432,38 @@
    ],
    "kind": "mcq",
    "q": "Open $60.00, high $60.10, low $57.00, close $59.40. How long is the lower shadow?",
-   "subject": "lower shadow"
+   "subject": "lower shadow",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "The lower shadow"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "high",
+      "label": "High",
+      "price": 60.1
+     },
+     {
+      "key": "open",
+      "label": "Open",
+      "price": 60.0
+     },
+     {
+      "key": "close",
+      "label": "Close",
+      "price": 59.4
+     },
+     {
+      "key": "low",
+      "label": "Low",
+      "price": 57.0
+     }
+    ],
+    "side": "long",
+    "title": "The candle"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -12489,7 +12700,29 @@
    ],
    "kind": "mcq",
    "q": "Cup low $40. Right lip and breakout $50. Add the cup's depth to the breakout: what's the textbook target?",
-   "subject": "cup with handle"
+   "subject": "cup with handle",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "The textbook target",
+     "tag": "Target"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "low",
+      "label": "Cup low",
+      "price": 40
+     },
+     {
+      "key": "breakout",
+      "label": "Right lip, breakout",
+      "price": 50
+     }
+    ],
+    "side": "long",
+    "title": "The cup"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -12824,7 +13057,34 @@
    ],
    "kind": "mcq",
    "q": "The flagpole runs from $20 to $30. The flag breaks out at $28. Add the pole's length to the breakout: what's the target?",
-   "subject": "flagpole"
+   "subject": "flagpole",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "The target",
+     "tag": "Target"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "bottom",
+      "label": "Pole bottom",
+      "price": 20
+     },
+     {
+      "key": "top",
+      "label": "Pole top",
+      "price": 30
+     },
+     {
+      "key": "breakout",
+      "label": "Breakout",
+      "price": 28
+     }
+    ],
+    "side": "long",
+    "title": "The flag"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -13955,7 +14215,29 @@
    ],
    "kind": "mcq",
    "q": "Head at $60, neckline at $50. Measure head to neckline and subtract that from the neckline. What's the target?",
-   "subject": "head and shoulders"
+   "subject": "head and shoulders",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "The target",
+     "tag": "Target"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "head",
+      "label": "Head",
+      "price": 60
+     },
+     {
+      "key": "neck",
+      "label": "Neckline",
+      "price": 50
+     }
+    ],
+    "side": "short",
+    "title": "The head and shoulders"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -17219,7 +17501,24 @@
    ],
    "kind": "mcq",
    "q": "Kicker day. The red day before it topped at $11.04. You enter a cent over that high as it trades through. What do you pay?",
-   "subject": "Kicker"
+   "subject": "Kicker",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "What you pay",
+     "tag": "You pay"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "high",
+      "label": "Red day's high",
+      "price": 11.04
+     }
+    ],
+    "side": "long",
+    "title": "The kicker"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -18967,7 +19266,35 @@
    ],
    "kind": "mcq",
    "q": "Launchpad. The 20 EMA is $48.00, the 50 SMA is $47.50 and the ATR is $2.00. Where does the line-based stop sit?",
-   "subject": "Launchpad"
+   "subject": "Launchpad",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "The line-based stop"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "r1",
+      "label": "20 EMA",
+      "value": 48
+     },
+     {
+      "fmt": "$",
+      "key": "r2",
+      "label": "50 SMA",
+      "value": 47.5
+     },
+     {
+      "fmt": "$",
+      "key": "r3",
+      "label": "ATR",
+      "value": 2
+     }
+    ],
+    "title": "The launchpad"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -22113,7 +22440,35 @@
    "kind": "mcq",
    "q": "Your win rate is 1%. What is the net result?",
    "story": "Over 100 trades, 99 lose $1 each. One trade makes $500.",
-   "subject": "Win rate"
+   "subject": "Win rate",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "The net result"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "count",
+      "key": "r1",
+      "label": "Losing trades",
+      "value": 99
+     },
+     {
+      "fmt": "$",
+      "key": "r2",
+      "label": "Each loss",
+      "value": 1
+     },
+     {
+      "fmt": "$",
+      "key": "r3",
+      "label": "The one winner",
+      "value": 500
+     }
+    ],
+    "title": "Over 100 trades"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -22837,7 +23192,33 @@
    "kind": "mcq",
    "q": "Roughly how much of the account did you lose?",
    "story": "You risk 1% of the account. Entry $170, with a stop order at $155 resting with your broker. Bad news hits overnight, and the stock opens at $140.",
-   "subject": "Gap risk"
+   "subject": "Gap risk",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "Account lost, at 1% risk"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "price",
+      "label": "Gap open",
+      "price": 140
+     },
+     {
+      "key": "stop",
+      "label": "Stop order",
+      "price": 155
+     },
+     {
+      "key": "entry",
+      "label": "Entry",
+      "price": 170
+     }
+    ],
+    "side": "long",
+    "title": "The gap"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -24034,7 +24415,29 @@
    ],
    "kind": "mcq",
    "q": "You hold four trades. Each one risks 1.5% of the account to its stop. What is your portfolio heat?",
-   "subject": "Portfolio heat"
+   "subject": "Portfolio heat",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "Portfolio heat"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "count",
+      "key": "r1",
+      "label": "Open trades",
+      "value": 4
+     },
+     {
+      "fmt": "%",
+      "key": "r2",
+      "label": "Risk on each",
+      "value": 1.5
+     }
+    ],
+    "title": "Your heat"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -24173,7 +24576,29 @@
    "kind": "mcq",
    "q": "If chips have a bad day, how much of the account is at risk?",
    "story": "You hold five chip stocks. Each one risks 1% of the account to its stop.",
-   "subject": "Concentration risk"
+   "subject": "Concentration risk",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "Account at risk, all stops hit"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "count",
+      "key": "r1",
+      "label": "Chip stocks held",
+      "value": 5
+     },
+     {
+      "fmt": "%",
+      "key": "r2",
+      "label": "Risk on each",
+      "value": 1
+     }
+    ],
+    "title": "The chip stocks"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -24854,7 +25279,33 @@
    "kind": "mcq",
    "q": "What does the stop lock in if it fills at $45?",
    "story": "You bought at $30. The stock ran to $60, and your 25% trailing stop now sits at $45. Then the stock turns down.",
-   "subject": "Trailing stop"
+   "subject": "Trailing stop",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Locked in per share"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "entry",
+      "label": "Entry",
+      "price": 30
+     },
+     {
+      "key": "high",
+      "label": "High of the run",
+      "price": 60
+     },
+     {
+      "key": "stop",
+      "label": "Trailing stop",
+      "price": 45
+     }
+    ],
+    "side": "long",
+    "title": "The trailing stop"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -25156,7 +25607,41 @@
    "kind": "mcq",
    "q": "Which one moves more for its price?",
    "story": "Stock A trades at $300 with a daily ATR of $6. Stock B trades at $20 with a daily ATR of $1.50.",
-   "subject": "ATR"
+   "subject": "ATR",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "Bigger mover, daily move in %"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "r1",
+      "label": "A's price",
+      "value": 300
+     },
+     {
+      "fmt": "$",
+      "key": "r2",
+      "label": "A's ATR",
+      "value": 6
+     },
+     {
+      "fmt": "$",
+      "key": "r3",
+      "label": "B's price",
+      "value": 20
+     },
+     {
+      "fmt": "$",
+      "key": "r4",
+      "label": "B's ATR",
+      "value": 1.5
+     }
+    ],
+    "title": "Two stocks"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -25319,7 +25804,33 @@
    "kind": "mcq",
    "q": "What is today's true range?",
    "story": "Yesterday the stock closed at $50. Today it gaps up: high $54, low $52.50.",
-   "subject": "True range"
+   "subject": "True range",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Today's true range"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "high",
+      "label": "High",
+      "price": 54
+     },
+     {
+      "key": "low",
+      "label": "Low",
+      "price": 52.5
+     },
+     {
+      "key": "prev",
+      "label": "Yesterday's close",
+      "price": 50
+     }
+    ],
+    "side": "long",
+    "title": "The gap up"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -25485,7 +25996,35 @@
    ],
    "kind": "mcq",
    "q": "The 22-day high is $80 and the 22-day ATR is $2.50. Where is a long Chandelier Exit set 3 ATRs down?",
-   "subject": "Chandelier Exit"
+   "subject": "Chandelier Exit",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "The long exit"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "r1",
+      "label": "22-day high",
+      "value": 80
+     },
+     {
+      "fmt": "$",
+      "key": "r2",
+      "label": "22-day ATR",
+      "value": 2.5
+     },
+     {
+      "fmt": "count",
+      "key": "r3",
+      "label": "ATRs down",
+      "value": 3
+     }
+    ],
+    "title": "The Chandelier Exit"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -27853,7 +28392,29 @@
    "kind": "mcq",
    "q": "Where does your buy stop trigger?",
    "story": "You're short at $40 with a $3 trailing buy stop. The stock falls to a low of $31, then bounces.",
-   "subject": "Trailing buy stop"
+   "subject": "Trailing buy stop",
+   "visual": {
+    "find": {
+     "as": "price",
+     "label": "Buy stop, $3 trail",
+     "tag": "Buy stop"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "entry",
+      "label": "Short at",
+      "price": 40
+     },
+     {
+      "key": "low",
+      "label": "Low",
+      "price": 31
+     }
+    ],
+    "side": "short",
+    "title": "The short"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -28754,7 +29315,29 @@
    ],
    "kind": "mcq",
    "q": "You send an immediate-or-cancel (IOC) order to buy 800 shares. Only 300 can fill right away. How many shares get canceled?",
-   "subject": "IOC"
+   "subject": "IOC",
+   "visual": {
+    "find": {
+     "as": "shares",
+     "label": "Shares canceled"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "shares",
+      "key": "r1",
+      "label": "Order",
+      "value": 800
+     },
+     {
+      "fmt": "shares",
+      "key": "r2",
+      "label": "Filled right away",
+      "value": 300
+     }
+    ],
+    "title": "The IOC order"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -31818,7 +32401,29 @@
    ],
    "kind": "mcq",
    "q": "A call is quoted at $3.45. One contract covers 100 shares. What does one contract cost, before fees?",
-   "subject": "V.08#q05"
+   "subject": "V.08#q05",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "One contract costs"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "r1",
+      "label": "Quote per share",
+      "value": 3.45
+     },
+     {
+      "fmt": "shares",
+      "key": "r2",
+      "label": "Shares per contract",
+      "value": 100
+     }
+    ],
+    "title": "The contract"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -33737,7 +34342,29 @@
    ],
    "kind": "mcq",
    "q": "Your call has a delta of 0.40. The stock rises $2, all else equal. About how much does the option gain per share?",
-   "subject": "V.08#q28"
+   "subject": "V.08#q28",
+   "visual": {
+    "find": {
+     "as": "per_share",
+     "label": "Option gain per share"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "count",
+      "key": "r1",
+      "label": "Delta",
+      "value": 0.4
+     },
+     {
+      "fmt": "$",
+      "key": "r2",
+      "label": "Stock rises",
+      "value": 2
+     }
+    ],
+    "title": "The delta"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -35477,7 +36104,38 @@
    ],
    "kind": "mcq",
    "q": "Iron condor: sell the 65 call, buy the 70 call, sell the 55 put, buy the 50 put, for a $1.50 credit. Max loss per contract?",
-   "subject": "V.08#q50"
+   "subject": "V.08#q50",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Max loss per contract"
+    },
+    "kind": "ladder",
+    "levels": [
+     {
+      "key": "long_put",
+      "label": "Bought put",
+      "price": 50
+     },
+     {
+      "key": "short_put",
+      "label": "Sold put",
+      "price": 55
+     },
+     {
+      "key": "short_call",
+      "label": "Sold call",
+      "price": 65
+     },
+     {
+      "key": "long_call",
+      "label": "Bought call",
+      "price": 70
+     }
+    ],
+    "side": "long",
+    "title": "The iron condor, $1.50 credit"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -36209,7 +36867,36 @@
    "kind": "mcq",
    "q": "What happened to volume and open interest?",
    "story": "A call series has open interest of 1,200. Today's only trade: one trader buys 300 to open. The seller was closing 300 calls she owned.",
-   "subject": "Volume"
+   "subject": "Volume",
+   "visual": {
+    "find": {
+     "as": "num",
+     "label": "Open interest after",
+     "unit": "contracts"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "count",
+      "key": "r1",
+      "label": "Open interest",
+      "value": 1200
+     },
+     {
+      "fmt": "count",
+      "key": "r2",
+      "label": "Bought to open",
+      "value": 300
+     },
+     {
+      "fmt": "count",
+      "key": "r3",
+      "label": "Sold to close",
+      "value": 300
+     }
+    ],
+    "title": "The call series"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -37434,7 +38121,29 @@
    ],
    "kind": "mcq",
    "q": "A company earns $50 million in net income. It has 20 million shares outstanding. What is its EPS?",
-   "subject": "EPS"
+   "subject": "EPS",
+   "visual": {
+    "find": {
+     "as": "per_share",
+     "label": "Earnings per share"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "count",
+      "key": "r1",
+      "label": "Net income, in millions",
+      "value": 50
+     },
+     {
+      "fmt": "count",
+      "key": "r2",
+      "label": "Shares, in millions",
+      "value": 20
+     }
+    ],
+    "title": "The company"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -38985,7 +39694,29 @@
    "kind": "mcq",
    "q": "How does that report read?",
    "story": "Analysts expect a loss of $0.20 a share. The company reports a loss of $0.10 a share.",
-   "subject": "Earnings surprise"
+   "subject": "Earnings surprise",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "The surprise"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "r1",
+      "label": "Expected loss a share",
+      "value": 0.2
+     },
+     {
+      "fmt": "$",
+      "key": "r2",
+      "label": "Reported loss a share",
+      "value": 0.1
+     }
+    ],
+    "title": "The report"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -41028,7 +41759,35 @@
    ],
    "kind": "mcq",
    "q": "A stock trades at $25. It has 80 million shares outstanding and a float of 50 million. What is its market cap?",
-   "subject": "Market cap"
+   "subject": "Market cap",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Market cap"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "r1",
+      "label": "Price",
+      "value": 25
+     },
+     {
+      "fmt": "count",
+      "key": "r2",
+      "label": "Shares out, in millions",
+      "value": 80
+     },
+     {
+      "fmt": "count",
+      "key": "r3",
+      "label": "Float, in millions",
+      "value": 50
+     }
+    ],
+    "title": "The stock"
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -41197,7 +41956,30 @@
    ],
    "kind": "mcq",
    "q": "A company has 100 million shares outstanding. Insiders hold 30 million restricted shares. Roughly how many shares float?",
-   "subject": "Float"
+   "subject": "Float",
+   "visual": {
+    "find": {
+     "as": "num",
+     "label": "Float, in millions",
+     "unit": "million shares"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "count",
+      "key": "r1",
+      "label": "Shares out, in millions",
+      "value": 100
+     },
+     {
+      "fmt": "count",
+      "key": "r2",
+      "label": "Restricted, in millions",
+      "value": 30
+     }
+    ],
+    "title": "The shares"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -41499,7 +42281,29 @@
    ],
    "kind": "mcq",
    "q": "A stock at $216.88 has an expected move of $16.74 either way. What is that as a percent of the price, to one decimal?",
-   "subject": "Expected move"
+   "subject": "Expected move",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "Move as a % of price"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "r1",
+      "label": "Stock price",
+      "value": 216.88
+     },
+     {
+      "fmt": "$",
+      "key": "r2",
+      "label": "Expected move, each way",
+      "value": 16.74
+     }
+    ],
+    "title": "The expected move"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -45112,7 +45916,24 @@
    ],
    "kind": "mcq",
    "q": "Oct. 1, 2026: the 10-year Treasury yielded 5.24%. Oct. 30: 4.94%. How many basis points did it fall?",
-   "subject": "Basis point"
+   "subject": "Basis point",
+   "visual": {
+    "find": {
+     "as": "num",
+     "label": "The fall",
+     "unit": "basis points"
+    },
+    "from": {
+     "label": "Oct. 1",
+     "value": 5.24
+    },
+    "kind": "move",
+    "title": "The 10-year yield, in %",
+    "to": {
+     "label": "Oct. 30",
+     "value": 4.94
+    }
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -47088,7 +47909,24 @@
    ],
    "kind": "mcq",
    "q": "Oct. 30, 2026: the 2-year Treasury yields 4.56%, the 10-year 4.94%. What is the 10-year minus 2-year spread?",
-   "subject": "10-year minus 2-year spread"
+   "subject": "10-year minus 2-year spread",
+   "visual": {
+    "find": {
+     "as": "num",
+     "label": "10-year minus 2-year",
+     "unit": "basis points"
+    },
+    "from": {
+     "label": "2-year",
+     "value": 4.56
+    },
+    "kind": "move",
+    "title": "Yields on Oct. 30, in %",
+    "to": {
+     "label": "10-year",
+     "value": 4.94
+    }
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -47899,7 +48737,30 @@
    ],
    "kind": "mcq",
    "q": "2,150 stocks advanced today and 950 declined. What were net advances?",
-   "subject": "Net advances"
+   "subject": "Net advances",
+   "visual": {
+    "find": {
+     "as": "num",
+     "label": "Net advances",
+     "unit": "stocks"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "count",
+      "key": "r1",
+      "label": "Advanced",
+      "value": 2150
+     },
+     {
+      "fmt": "count",
+      "key": "r2",
+      "label": "Declined",
+      "value": 950
+     }
+    ],
+    "title": "The day's breadth"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -48086,7 +48947,35 @@
    ],
    "kind": "mcq",
    "q": "The A/D line stood at 5,000 yesterday. Today 1,200 stocks rose and 2,000 fell. Where is the A/D line now?",
-   "subject": "Advance-decline line"
+   "subject": "Advance-decline line",
+   "visual": {
+    "find": {
+     "as": "num",
+     "label": "The A/D line now"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "count",
+      "key": "r1",
+      "label": "A/D line yesterday",
+      "value": 5000
+     },
+     {
+      "fmt": "count",
+      "key": "r2",
+      "label": "Stocks that rose today",
+      "value": 1200
+     },
+     {
+      "fmt": "count",
+      "key": "r3",
+      "label": "Stocks that fell today",
+      "value": 2000
+     }
+    ],
+    "title": "The A/D line"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -48485,7 +49374,30 @@
    ],
    "kind": "mcq",
    "q": "2,400 stocks advanced and 800 declined. What is the advance-decline ratio?",
-   "subject": "Advance-decline ratio"
+   "subject": "Advance-decline ratio",
+   "visual": {
+    "find": {
+     "as": "num",
+     "label": "Advance-decline ratio",
+     "unit": "ratio"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "count",
+      "key": "r1",
+      "label": "Advanced",
+      "value": 2400
+     },
+     {
+      "fmt": "count",
+      "key": "r2",
+      "label": "Declined",
+      "value": 800
+     }
+    ],
+    "title": "The day's breadth"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -49193,7 +50105,30 @@
    ],
    "kind": "mcq",
    "q": "Today 180 stocks hit 52-week highs and 45 hit 52-week lows. What are net new highs?",
-   "subject": "Net new highs"
+   "subject": "Net new highs",
+   "visual": {
+    "find": {
+     "as": "num",
+     "label": "Net new highs",
+     "unit": "stocks"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "count",
+      "key": "r1",
+      "label": "52-week highs",
+      "value": 180
+     },
+     {
+      "fmt": "count",
+      "key": "r2",
+      "label": "52-week lows",
+      "value": 45
+     }
+    ],
+    "title": "The day's extremes"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -49349,7 +50284,29 @@
    ],
    "kind": "mcq",
    "q": "60 stocks made 52-week highs and 20 made 52-week lows. What is the Record High Percent?",
-   "subject": "Record High Percent"
+   "subject": "Record High Percent",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "Record High Percent"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "count",
+      "key": "r1",
+      "label": "52-week highs",
+      "value": 60
+     },
+     {
+      "fmt": "count",
+      "key": "r2",
+      "label": "52-week lows",
+      "value": 20
+     }
+    ],
+    "title": "The day's extremes"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -50063,7 +51020,30 @@
    ],
    "kind": "mcq",
    "q": "The 19-day EMA of net advances is +140. The 39-day EMA is +65. What is the McClellan Oscillator?",
-   "subject": "McClellan Oscillator"
+   "subject": "McClellan Oscillator",
+   "visual": {
+    "find": {
+     "as": "num",
+     "label": "McClellan Oscillator",
+     "unit": "points"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "count",
+      "key": "r1",
+      "label": "19-day EMA of net adv.",
+      "value": 140
+     },
+     {
+      "fmt": "count",
+      "key": "r2",
+      "label": "39-day EMA of net adv.",
+      "value": 65
+     }
+    ],
+    "title": "The two EMAs"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -50703,7 +51683,30 @@
    ],
    "kind": "mcq",
    "q": "Up volume was 3.6 billion shares and down volume was 1.2 billion. What is the up/down volume ratio?",
-   "subject": "Up/down volume ratio"
+   "subject": "Up/down volume ratio",
+   "visual": {
+    "find": {
+     "as": "num",
+     "label": "Up/down volume ratio",
+     "unit": "ratio"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "count",
+      "key": "r1",
+      "label": "Up volume, in billions",
+      "value": 3.6
+     },
+     {
+      "fmt": "count",
+      "key": "r2",
+      "label": "Down volume, in billions",
+      "value": 1.2
+     }
+    ],
+    "title": "The day's volume"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -50951,7 +51954,41 @@
    ],
    "kind": "mcq",
    "q": "1,800 advancers and 1,200 decliners. Up volume 3 billion, down volume 1 billion. What is TRIN?",
-   "subject": "Arms Index (TRIN)"
+   "subject": "Arms Index (TRIN)",
+   "visual": {
+    "find": {
+     "as": "num",
+     "label": "TRIN"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "count",
+      "key": "r1",
+      "label": "Advancers",
+      "value": 1800
+     },
+     {
+      "fmt": "count",
+      "key": "r2",
+      "label": "Decliners",
+      "value": 1200
+     },
+     {
+      "fmt": "count",
+      "key": "r3",
+      "label": "Up volume, billions",
+      "value": 3
+     },
+     {
+      "fmt": "count",
+      "key": "r4",
+      "label": "Down volume, billions",
+      "value": 1
+     }
+    ],
+    "title": "The day's breadth"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -53492,7 +54529,24 @@
    ],
    "kind": "mcq",
    "q": "Barber and Odean: the heaviest traders earned 11.4% a year and the market 17.9%. How many points a year did they trail by?",
-   "subject": "Overtrading"
+   "subject": "Overtrading",
+   "visual": {
+    "find": {
+     "as": "num",
+     "label": "Points a year behind",
+     "unit": "points"
+    },
+    "from": {
+     "label": "The market",
+     "value": 17.9
+    },
+    "kind": "move",
+    "title": "Barber and Odean, % a year",
+    "to": {
+     "label": "Heaviest traders",
+     "value": 11.4
+    }
+   }
   },
   "reveal_json": {
    "deeper": {
@@ -59638,7 +60692,25 @@
    ],
    "kind": "mcq",
    "q": "You made 25 trades: 10 winners and 15 losers. What's your win rate?",
-   "subject": "Win rate"
+   "subject": "Win rate",
+   "visual": {
+    "find": {
+     "as": "pct",
+     "label": "Win rate"
+    },
+    "kind": "share",
+    "part": {
+     "fmt": "count",
+     "label": "Winners",
+     "value": 10
+    },
+    "title": "Your record",
+    "whole": {
+     "fmt": "count",
+     "label": "All trades",
+     "value": 25
+    }
+   }
   },
   "reveal_json": {
    "depth": {
@@ -59872,7 +60944,35 @@
    ],
    "kind": "mcq",
    "q": "Your three winning trades made $300, $500 and $400. What's your average win?",
-   "subject": "Average win"
+   "subject": "Average win",
+   "visual": {
+    "find": {
+     "as": "dollars",
+     "label": "Average win"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "r1",
+      "label": "First win",
+      "value": 300
+     },
+     {
+      "fmt": "$",
+      "key": "r2",
+      "label": "Second win",
+      "value": 500
+     },
+     {
+      "fmt": "$",
+      "key": "r3",
+      "label": "Third win",
+      "value": 400
+     }
+    ],
+    "title": "Your winners"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -60018,7 +61118,30 @@
    ],
    "kind": "mcq",
    "q": "Your average win is 6%. Your average loss is 2%. What's your payoff ratio?",
-   "subject": "Payoff ratio"
+   "subject": "Payoff ratio",
+   "visual": {
+    "find": {
+     "as": "num",
+     "label": "Payoff ratio",
+     "unit": "ratio"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "%",
+      "key": "r1",
+      "label": "Average win",
+      "value": 6
+     },
+     {
+      "fmt": "%",
+      "key": "r2",
+      "label": "Average loss",
+      "value": 2
+     }
+    ],
+    "title": "Your record"
+   }
   },
   "reveal_json": {
    "depth": {
@@ -60163,7 +61286,30 @@
    ],
    "kind": "mcq",
    "q": "Your winners made $9,000 in total. Your losers lost $6,000 in total. What's your profit factor?",
-   "subject": "Profit factor"
+   "subject": "Profit factor",
+   "visual": {
+    "find": {
+     "as": "num",
+     "label": "Profit factor",
+     "unit": "ratio"
+    },
+    "kind": "size",
+    "rows": [
+     {
+      "fmt": "$",
+      "key": "r1",
+      "label": "Winners made, total",
+      "value": 9000
+     },
+     {
+      "fmt": "$",
+      "key": "r2",
+      "label": "Losers lost, total",
+      "value": 6000
+     }
+    ],
+    "title": "Your record"
+   }
   },
   "reveal_json": {
    "depth": {

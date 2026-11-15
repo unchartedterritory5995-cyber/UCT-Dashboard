@@ -1168,7 +1168,29 @@
      "fixed before (distractor replaced, 2026-11-09)"
     ]
    },
-   "batch": "wave9"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "Two linked stops",
+    "rows": [
+     {
+      "key": "risk,_first_trade",
+      "label": "Risk, first trade",
+      "value": 1,
+      "fmt": "%"
+     },
+     {
+      "key": "risk,_second_trade",
+      "label": "Risk, second trade",
+      "value": 1,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "Total lost",
+     "as": "pct"
+    }
+   }
   },
   {
    "key": "q19",
@@ -1463,8 +1485,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "2% re-derived by calc 1+1; f26 (double risk if both stops hit) and f42 (gaps) support the why. No correlation rule taught as ours (struck by the owner, section 5); Investopedia's 'must decide' credited to Investopedia. Choices 28-30, all in one pattern.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "two 1% risks; 'Total lost' is what the sum computes; slot '2%'"
   },
   "q19": {
    "status": "pass",

@@ -4170,7 +4170,7 @@
      "rests on the owner's rulebook"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$46.56",
     "$48.60",
@@ -4734,8 +4734,8 @@
   "q78": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Answer unchanged and at the target rank after sorting. Each wrong choice follows from a real slip on this math and none is within rounding of the answer."
+   "fixed": true,
+   "notes": "Single pivot line with a '?': the percent is withheld, so the card only restates the words. Dropped."
   },
   "q79": {
    "status": "cut",

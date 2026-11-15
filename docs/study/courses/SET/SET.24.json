@@ -3646,7 +3646,7 @@
      "fixed before"
     ]
    },
-   "batch": "sweep-2026-11-14",
+   "batch": "cards-2026-11-15",
    "choices": [
     "8.6%",
     "108.6%",
@@ -3657,6 +3657,22 @@
     "108.6%": "Divided entry by average and forgot to subtract one.",
     "86.0%": "Slipped the decimal one place to the right.",
     "92.0%": "Divided the average by the entry, upside down."
+   },
+   "visual": {
+    "kind": "move",
+    "title": "The stretch",
+    "from": {
+     "label": "9 EMA",
+     "value": 38.2
+    },
+    "to": {
+     "label": "Entry",
+     "value": 41.5
+    },
+    "find": {
+     "label": "Entry above the 9 EMA",
+     "as": "pct"
+    }
    }
   },
   {
@@ -4371,7 +4387,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Final text agrees with the rulings it touches; key right, wrongs wrong, quotes and numbers grounded, style ok."
+   "notes": "Roles, find label, slot format and ladder checked; ok."
   },
   "q69": {
    "status": "cut",

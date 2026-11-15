@@ -1005,7 +1005,7 @@
      "fixed before (checker added 'standard' and fixed the lesson line)"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$6,000",
     "$3,000",
@@ -1016,6 +1016,34 @@
     "$3,000": "Counted one put instead of two.",
     "$12,000": "Multiplied the strike by the 200 shares you own and by the two puts.",
     "$60,000": "Slipped a decimal place."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The put exercise",
+    "rows": [
+     {
+      "key": "shares_we_own",
+      "label": "Shares we own",
+      "value": 200.0,
+      "fmt": "shares"
+     },
+     {
+      "key": "puts_we_exercise",
+      "label": "Puts we exercise",
+      "value": 2.0,
+      "fmt": "count"
+     },
+     {
+      "key": "put_strike",
+      "label": "Put strike",
+      "value": 30.0,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Cash we receive",
+     "as": "dollars"
+    }
    }
   },
   {
@@ -1596,7 +1624,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q15": {
    "status": "pass",

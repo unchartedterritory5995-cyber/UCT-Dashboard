@@ -1141,7 +1141,7 @@
      "fixed before (2026-11-09 checker)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$300",
     "$40",
@@ -1152,6 +1152,37 @@
     "$300": "Only the 9:31 cost. Subtract the 10:30 cost to get the extra.",
     "$340": "Added the two spreads. The extra cost is their difference.",
     "$40": "Only the 10:30 cost, on 1,000 shares."
+   },
+   "visual": {
+    "kind": "ladder",
+    "side": "long",
+    "levels": [
+     {
+      "key": "ask1",
+      "label": "9:31 ask",
+      "price": 25.1
+     },
+     {
+      "key": "ask2",
+      "label": "10:30 ask",
+      "price": 25.02
+     },
+     {
+      "key": "bid2",
+      "label": "10:30 bid",
+      "price": 24.98
+     },
+     {
+      "key": "bid1",
+      "label": "9:31 bid",
+      "price": 24.8
+     }
+    ],
+    "find": {
+     "label": "Extra cost at 9:31",
+     "as": "dollars"
+    },
+    "shares": 1000
    }
   },
   {
@@ -1677,8 +1708,8 @@
   "q11": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc 260 (0.30 - 0.04) x 1000. Choices real (300 = 9:31 only, 340 = sum, 40 = 10:30 only). Why skipped the two spreads; added."
+   "fixed": false,
+   "notes": "9:31 and 10:30 bid/ask labelled right; 1,000 shares; label names the extra cost at 9:31; key '$260'"
   },
   "q12": {
    "status": "pass",

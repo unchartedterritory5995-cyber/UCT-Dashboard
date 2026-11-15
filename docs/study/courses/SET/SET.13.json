@@ -2281,7 +2281,7 @@
      "fixed before"
     ]
    },
-   "batch": "sweep-2026-11-14",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$55.00",
     "$60.00",
@@ -2911,7 +2911,7 @@
      "+2 computed key"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$22.00",
     "$15.00",
@@ -2922,6 +2922,32 @@
     "$15.00": "That adds half the pole to the pole low, not to the flag low.",
     "$17.00": "That is the flag low. The half pole must be added.",
     "$12.00": "That takes half the pole off the flag low."
+   },
+   "visual": {
+    "kind": "ladder",
+    "side": "long",
+    "levels": [
+     {
+      "key": "high",
+      "label": "Pole high",
+      "price": 20.0
+     },
+     {
+      "key": "flag",
+      "label": "Flag low",
+      "price": 17.0
+     },
+     {
+      "key": "low",
+      "label": "Pole low",
+      "price": 10.0
+     }
+    ],
+    "find": {
+     "label": "Bulkowski's reference level",
+     "as": "price"
+    },
+    "title": "The pole and flag"
    }
   },
   {
@@ -4667,8 +4693,8 @@
   "q28": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "D-021 rename agrees; 10% and 55.00 key unchanged, choices intact; r08 quote word for word."
+   "fixed": true,
+   "notes": "Single 9 EMA line with a '?' and no percent shown; adds nothing the words do not say. Dropped."
   },
   "q29": {
    "status": "pass",
@@ -4766,7 +4792,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Right answer unchanged, sorts to the target rank, wrong choices real and similar in form."
+   "notes": "Roles, find label, slot format and ladder checked; ok."
   },
   "q45": {
    "status": "pass",

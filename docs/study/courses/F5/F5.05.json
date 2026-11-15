@@ -912,7 +912,7 @@
      "fixed before (strike set to the stock price)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "55%",
     "18.2%",
@@ -923,6 +923,28 @@
     "18.2%": "You flipped it and divided the stock price by the straddle.",
     "2.8%": "You used about half the straddle, only one leg.",
     "55%": "A decimal slip: you moved the point one place."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The priced move",
+    "rows": [
+     {
+      "key": "stock",
+      "label": "Stock",
+      "value": 80,
+      "fmt": "$"
+     },
+     {
+      "key": "call_and_put_togethe",
+      "label": "Call and put together",
+      "value": 4.4,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Move priced, in percent",
+     "as": "pct"
+    }
    }
   },
   {
@@ -1014,7 +1036,7 @@
      "fixed before (OIC f53 and f54 added)"
     ]
    },
-   "batch": "review4",
+   "batch": "cards-2026-11-15",
    "choices": [
     "2.5x",
     "0.4x",
@@ -1026,7 +1048,35 @@
     "14.0x": "You added the 4% and the 10% instead of dividing.",
     "0.4x": "You flipped it and divided the priced 4% by the realized 10%. Put the realized move on top."
    },
-   "story": "HXLR closed at $50 before earnings. Its at-the-money straddle cost $2. It closed at $55 after."
+   "story": "HXLR closed at $50 before earnings. Its at-the-money straddle cost $2. It closed at $55 after.",
+   "visual": {
+    "kind": "size",
+    "title": "Realized vs implied",
+    "rows": [
+     {
+      "key": "close_before_earning",
+      "label": "Close before earnings",
+      "value": 50,
+      "fmt": "$"
+     },
+     {
+      "key": "straddle_cost",
+      "label": "Straddle cost",
+      "value": 2,
+      "fmt": "$"
+     },
+     {
+      "key": "close_after_earnings",
+      "label": "Close after earnings",
+      "value": 55,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Realized / implied move",
+     "as": "times"
+    }
+   }
   },
   {
    "key": "q12",
@@ -1423,7 +1473,7 @@
      "pairs two writers' figures (IBKR priced, Reuters close)"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "2.3x",
     "0.2x",
@@ -1434,6 +1484,22 @@
     "0.4x": "You flipped it and divided the 9% by the 20.3%.",
     "0.2x": "A decimal slip: you moved the point one place.",
     "1.3x": "You divided the extra move past 9 by 9, not the whole move."
+   },
+   "visual": {
+    "kind": "move",
+    "from": {
+     "label": "Implied move (%)",
+     "value": 9
+    },
+    "to": {
+     "label": "Realized move (%)",
+     "value": 20.3
+    },
+    "find": {
+     "label": "Realized / implied",
+     "as": "times"
+    },
+    "title": "Realized vs implied"
    }
   },
   {
@@ -1639,7 +1705,29 @@
      "single Tier 1 source (OIC, June 2026)"
     ]
    },
-   "batch": "review5"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "The ordinary day's move",
+    "rows": [
+     {
+      "key": "stock",
+      "label": "Stock",
+      "value": 50,
+      "fmt": "$"
+     },
+     {
+      "key": "implied_volatility",
+      "label": "Implied volatility",
+      "value": 32,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "Typical daily move",
+     "as": "dollars"
+    }
+   }
   },
   {
    "key": "q93",
@@ -1767,7 +1855,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc by hand; answer shows it; every wrong choice is a real, distinct mistake; no tell; why walks the steps."
+   "notes": "stock and straddle price; move priced in percent; key '5.5%'"
   },
   "q10": {
    "status": "pass",
@@ -1778,8 +1866,8 @@
   "q11": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Answers his note (different style: ticker story, dollar straddle, two steps, steps shown, how to work it out by hand). Math right: 2/50=4%, 5/50=10%, 10/4=2.5; wrong answers are real slips (flip, subtract, add). HXLR is not a real ticker (search found none), and no real company's numbers are claimed. Claims backed by f7, f26, f35, f54. Only change: the stem ended on the bare 'Realized divided by implied?' and 'After earnings it is $55' left the close-to-close basis and the percent unstated, so a second read was needed (learnings rule 5). Made explicit; 133 chars. No cuts, no new questions, no "
+   "fixed": false,
+   "notes": "close before, straddle cost, close after; label states the ratio the question names; key '2.5x'"
   },
   "q12": {
    "status": "pass",
@@ -1840,7 +1928,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
+   "notes": "implied and realized moves both in percent; like quantities; key '2.3x'"
   },
   "q22": {
    "status": "cut",
@@ -1875,8 +1963,8 @@
   "q92": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Math right: 32% of $50 = $16, /16 = $1.00; OIC quotes f58/f59 verified word for word on the OIC page (weekly sqrt 52 and monthly sqrt 12 also on that page, so $2.20 and $4.60 are the weekly and monthly results). Different skill from the ratio drills (rule 18). Fix: the wrong notes said 'the weekly figure' and 'the monthly figure' with no explanation, which a member cannot follow; reworded plainly."
+   "fixed": false,
+   "notes": "stock and IV; typical daily move; key '$1.00'"
   },
   "q93": {
    "status": "pass",

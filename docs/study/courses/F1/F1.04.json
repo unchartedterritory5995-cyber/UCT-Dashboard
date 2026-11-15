@@ -1511,7 +1511,29 @@
      "new question (review rework 2026-11-12)"
     ]
    },
-   "batch": "review1"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "Dollar volume",
+    "rows": [
+     {
+      "key": "price",
+      "label": "Price",
+      "value": 40,
+      "fmt": "$"
+     },
+     {
+      "key": "shares_a_day",
+      "label": "Shares a day",
+      "value": 2500000,
+      "fmt": "shares"
+     }
+    ],
+    "find": {
+     "label": "Dollar volume a day",
+     "as": "dollars"
+    }
+   }
   },
   {
    "key": "q92",
@@ -1879,7 +1901,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "2,500,000 x 40 = 100M. Distractors are real slips (a zero short, a zero long, divides instead of multiplies: 2,500,000/40 = 62,500). Steps shown. Replaces typed q08 per rule 4. f43/f41 support."
+   "notes": "price and daily shares right; slot shows '$100 million' from the key"
   },
   "q92": {
    "status": "pass",

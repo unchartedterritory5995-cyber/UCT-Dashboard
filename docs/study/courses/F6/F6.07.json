@@ -923,7 +923,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "0.40",
     "0.95",
@@ -934,6 +934,35 @@
     "0.40": "Subtracted the gamma instead of adding it.",
     "0.95": "Slipped a decimal place on the gamma.",
     "0.45": "Kept the old delta and ignored the gamma."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Gamma's step",
+    "rows": [
+     {
+      "key": "call_delta",
+      "label": "Call delta",
+      "value": 0.45,
+      "fmt": "count"
+     },
+     {
+      "key": "gamma",
+      "label": "Gamma",
+      "value": 0.05,
+      "fmt": "count"
+     },
+     {
+      "key": "stock_rises",
+      "label": "Stock rises",
+      "value": 1.0,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "New delta",
+     "as": "num",
+     "unit": "delta"
+    }
    }
   },
   {
@@ -979,7 +1008,36 @@
      "computed key"
     ]
    },
-   "batch": "wave7"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "Gamma's step",
+    "rows": [
+     {
+      "key": "put_delta,_a_negativ",
+      "label": "Put delta, a negative",
+      "value": 0.3,
+      "fmt": "count"
+     },
+     {
+      "key": "gamma",
+      "label": "Gamma",
+      "value": 0.05,
+      "fmt": "count"
+     },
+     {
+      "key": "stock_drops",
+      "label": "Stock drops",
+      "value": 1.0,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Put's new delta",
+     "as": "num",
+     "unit": "delta"
+    }
+   }
   },
   {
    "key": "q10",
@@ -1058,7 +1116,7 @@
      "computed key"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "39 shares",
     "35 shares",
@@ -1069,6 +1127,34 @@
     "35 shares": "Used the old delta and ignored the gamma.",
     "390 shares": "Slipped a decimal place.",
     "43 shares": "Added the gamma twice."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Gamma's step",
+    "rows": [
+     {
+      "key": "call_delta",
+      "label": "Call delta",
+      "value": 0.35,
+      "fmt": "count"
+     },
+     {
+      "key": "gamma",
+      "label": "Gamma",
+      "value": 0.04,
+      "fmt": "count"
+     },
+     {
+      "key": "stock_rises",
+      "label": "Stock rises",
+      "value": 1.0,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "One contract acts like",
+     "as": "shares"
+    }
    }
   },
   {
@@ -1607,14 +1693,14 @@
   "q08": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 3."
+   "fixed": false,
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q09": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "calc checked: -0.30 + 0.05 x (-1) = -0.35. Each wrong value is a real slip: the wrong sign, no change, or the change alone. The notes rest on f7 and f23."
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q10": {
    "status": "pass",
@@ -1626,7 +1712,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
+   "notes": "Roles, numbers, format and label checked against the question."
   },
   "q12": {
    "status": "pass",

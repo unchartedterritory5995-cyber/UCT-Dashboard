@@ -1432,7 +1432,7 @@
      "+1 fixed before (now gives the ATR so the 4% and the 1.5 ATR caps agree)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$53.00",
     "$52.00",
@@ -3557,8 +3557,8 @@
   "q17": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
+   "fixed": true,
+   "notes": "Single line with a '?'; the 1.5 ATR / 3.00 distractor is not drawn, so the card does not help see the problem. Dropped."
   },
   "q18": {
    "status": "pass",

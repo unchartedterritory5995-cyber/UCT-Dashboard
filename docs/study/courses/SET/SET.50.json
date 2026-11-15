@@ -1472,7 +1472,7 @@
      "rests on a proposed card criterion awaiting the owner's review (0.1 to 1 ATR)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "cards-2026-11-15",
    "choices": [
     "0.9 ATR",
     "0.3 ATR",
@@ -1483,6 +1483,28 @@
     "0.9 ATR": "Gave the dollars under the floor and skipped the ATR.",
     "3.3 ATR": "Flipped the division, ATR over the dollars.",
     "0.6 ATR": "Used the percent under the floor as ATR."
+   },
+   "visual": {
+    "kind": "ladder",
+    "side": "long",
+    "levels": [
+     {
+      "key": "line",
+      "label": "The floor",
+      "price": 150.0
+     },
+     {
+      "key": "low",
+      "label": "Spring low",
+      "price": 149.1
+     }
+    ],
+    "find": {
+     "label": "Dip depth",
+     "as": "num",
+     "unit": "ATR"
+    },
+    "title": "The spring (ATR 3.00)"
    }
   },
   {
@@ -2333,7 +2355,37 @@
      "fixed before"
     ]
    },
-   "batch": "wave5"
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "ladder",
+    "side": "long",
+    "levels": [
+     {
+      "key": "entry",
+      "label": "Bought at",
+      "price": 100.0
+     },
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 98.0
+     },
+     {
+      "key": "price",
+      "label": "First 30-min low",
+      "price": 95.0
+     }
+    ],
+    "find": {
+     "label": "R lost at the low",
+     "as": "r_loss"
+    },
+    "r": {
+     "entry": 100.0,
+     "stop": 98.0
+    },
+    "title": "The gap down"
+   }
   },
   {
    "key": "q39",
@@ -3466,7 +3518,7 @@
      "rests on the owner's rulebook (B23)"
     ]
    },
-   "batch": "rank",
+   "batch": "cards-2026-11-15",
    "choices": [
     "$18,000,000",
     "$36,000,000",
@@ -3477,6 +3529,28 @@
     "$180,000,000": "Slipped the decimal point a place.",
     "$36,000,000": "Counted each share twice, once buying and once selling.",
     "$432,000,000": "Multiplied by the price twice."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Dollar volume",
+    "rows": [
+     {
+      "key": "shares",
+      "label": "Shares a day",
+      "value": 750000,
+      "fmt": "shares"
+     },
+     {
+      "key": "price",
+      "label": "Price",
+      "value": 24,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Dollars traded a day",
+     "as": "dollars"
+    }
    }
   },
   {
@@ -3669,7 +3743,7 @@
      "fixed before"
     ]
    },
-   "batch": "sweep-2026-11-14",
+   "batch": "cards-2026-11-15",
    "choices": [
     "300 shares",
     "200 shares",
@@ -3680,6 +3754,34 @@
     "100 shares": "That sells far too much. Two sells of 300 each leave 300.",
     "200 shares": "That counts one sell as bigger than 300. Two sells of 300 each leave 300.",
     "150 shares": "That halves the 300 left. No third sell is in the question."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The position",
+    "rows": [
+     {
+      "key": "bought",
+      "label": "Position",
+      "value": 900,
+      "fmt": "shares"
+     },
+     {
+      "key": "s1",
+      "label": "First sell",
+      "value": 300,
+      "fmt": "shares"
+     },
+     {
+      "key": "s2",
+      "label": "Later sell",
+      "value": 300,
+      "fmt": "shares"
+     }
+    ],
+    "find": {
+     "label": "Left to trail",
+     "as": "shares"
+    }
    }
   },
   {
@@ -3904,7 +4006,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "0.9/3 = 0.3. 0.9 skipped ATR, 3.3 = 3/0.9 flipped, 0.6 = 0.9/150 percent. Verified."
+   "notes": "Roles, find label, slot format and ladder checked; ok."
   },
   "q18": {
    "status": "pass",
@@ -3989,7 +4091,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc re-derived: (100 - 95) / (100 - 98) = 2.5R. B20 + its 2R ceiling (h06, h07, c16) give Out; the 'gap rule without its ceiling' distractor is the real mistake. No longer contradicts A4's exception."
+   "notes": "r_loss ticks run down from 100: -1R 98, -2R 96, -3R 94. Result 2.5R is fractional so the app draws to -3R, just under the 95 low. Direction right. Acceptable."
   },
   "q39": {
    "status": "pass",
@@ -4240,7 +4342,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Sorted rank matches target; each wrong choice recomputed as a real mistake on this math; no new tell."
+   "notes": "Roles, find label, slot format and ladder checked; ok."
   },
   "q70": {
    "status": "pass",
@@ -4270,7 +4372,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Share count is given amounts (300 and 300), flagged as example numbers and a judgment; no fixed thirds presumed."
+   "notes": "Roles, find label, slot format and ladder checked; ok."
   },
   "q75": {
    "status": "pass",
