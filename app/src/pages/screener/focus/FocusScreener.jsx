@@ -196,7 +196,7 @@ function FocusList({ mode, onMode }) {
   const [retryNonce, setRetryNonce] = useState(0)
   // ── screen identity (which starter or saved screen is applied). Read BEFORE the scan is built:
   // the columns the list asks for depend on the open starter (RS screens, below).
-  const { saved, starters, rsMarket, rsAlerts, setRsAlert, error: savedError, loaded: savedLoaded, refresh } = useSavedScreens()
+  const { saved, starters, rsMarket, rsPending, rsAlerts, setRsAlert, error: savedError, loaded: savedLoaded, refresh } = useSavedScreens()
   const [current, setCurrent] = useState(() => (arrivedBare.current ? null : readNamed()[normalSpec(s.baseSpec)] || null))
   // ── RS screens (unit U5): what the open screen's STARTER adds to it ──────
   // The starter on view, from the live starters payload by id; it may carry `controls`, `row`
@@ -910,8 +910,17 @@ function FocusList({ mode, onMode }) {
   const [density, setDensity] = useState(() => (readLS(DENSITY_KEY, 'compact') === 'comfortable' ? 'comfortable' : 'compact'))
   const [showCompany, setShowCompany] = useState(() => readLS(COMPANY_KEY, '0') === '1')
 
+  // The first night (the saved-screens payload's `rs_pending`): an RS screen that came back empty
+  // because the lists have not been built yet. It says so in the server's words, and neither the
+  // coverage sentence ("11,176 stocks have no RS Rating") nor the filter pills are shown: both
+  // describe a screen that ran, and this one has nothing to run on yet. Only while it IS empty,
+  // so a page left open over the run shows the list the moment the scan brings one back.
+  // `rsStarter` is ANY open starter; one of the RS screens is a starter that carries the contract's
+  // `controls`, `row` or `empty`, and only those wait on the pass.
+  const rsWaiting = total === 0 && !error && rsStarter && (rsStarter.controls || rsStarter.row || rsStarter.empty)
+    && rsPending && typeof rsPending.text === 'string' && rsPending.text ? rsPending : null
   const drops = []
-  if (coverageHasDrop(listed?.coverage)) {
+  if (!rsWaiting && coverageHasDrop(listed?.coverage)) {
     // Said as the ordinary fact it usually is: on any RS screen thousands of names have no
     // rating to compare, and "could not be checked" read as broken data on the first screen a
     // member opens (member walk, 2026-10-17: 7,765 on the default Leaders screen).
@@ -1012,7 +1021,9 @@ function FocusList({ mode, onMode }) {
   } else if (total === 0) {
     // The pills are built from the screen that CAME BACK empty, never the live spec: a filter
     // being edited in the drawer must not grow a pill for a screen nobody has run yet.
-    body = rsEmpty
+    body = rsWaiting
+      ? <>{flagsOutsideList}<RsEmptyState text={rsWaiting.text} pending={pending} /></>
+      : rsEmpty
       ? <>{flagsOutsideList}<RsEmptyState text={rsEmpty.text} actions={rsEmptyActions} pending={pending} /></>
       : <>{flagsOutsideList}<EmptyState filterCount={filterCount} lastChange={lastChange} onUndo={undoLast} onOpenFilters={() => openFilters()}
         pending={pending} spec={answered.shown?.baseSpec || null} meta={meta} coverage={listed?.coverage || null} onRemoveFilter={k => ed.setFilter(k, null)} onRemoveLogic={() => ed.setLogic(null)} /></>

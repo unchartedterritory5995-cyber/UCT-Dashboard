@@ -107,6 +107,9 @@ export default function useSavedScreens({ enabled = true } = {}) {
     // RS screens unit U8: the market caution state the server puts in this payload while the RS
     // screens are on ({ state, text, asof }); null when it sent none.
     rsMarket: data?.rs_market ?? null,
+    // The first night: { text } while the RS lists have not been built yet (no row has a place);
+    // null when the payload carries no such key, which is every other day.
+    rsPending: data?.rs_pending ?? null,
     // RS screens unit U13: { available, subscribed: [starter ids] } while the daily joined-and-left
     // message is on for this member; null when the payload carries no such key.
     rsAlerts: data?.rs_alerts ?? null,
