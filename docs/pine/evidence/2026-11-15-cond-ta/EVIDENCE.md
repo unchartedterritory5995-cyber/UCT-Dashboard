@@ -110,8 +110,28 @@ same reason (T03 / K02).
   - provenance only: nothing reads or logs the script (the row keeps none).
   - this also covers #1326's stale-tree case (a block-local `x[1]` the lenient lane read as the previous
     BAR): an Apply document saved before the fix is held whichever shape it holds.
-  - rails: `tests/test_pine_import_hold.py` (10; mutants P1-P5 all KILLED, restored, control green) and
-    `engine/__tests__/pineImportHold.test.js` (run pending, lock moratorium).
+  - **NARROWED** (ruling after the #1326 review; prod read-only: 3 current Pine Apply saves, 0 with a
+    guarded offset, 1 with a call under a ternary arm): only a STRUCTURAL CANDIDATE is held —
+    `conditionalHistoryCandidate` / `conditional_history_candidate` (node for node): a CALL under an arm
+    of a `?:` (an `if` block and an `if` expression print as one) or of `iff(c, a, b)`, or an OFFSET under
+    a `?:` arm, anywhere in `compute.ast` or `compute.trees`; a tree too deep to read fails closed. Every
+    other Pine import is served as before.
+  - rails: `tests/test_pine_import_hold.py` (19; mutants P1-P7 all KILLED — P6 the narrowing removed,
+    P7 an arm offset unseen — restored, control green) and `engine/__tests__/pineImportHold.test.js`
+    (run pending, lock moratorium; mutants J1-J5 queued).
+- **F3 (ruling): the Apply door keeps its script.** An Apply save whose maths is still exactly what the
+  Apply wrote (the scan formula and every row's, recorded once the Apply's state renders) sends the
+  applied script as `options.pineSource` -> the row's own `pine_source` column, as `attachPineAs` does;
+  never inside the document; a share install strips it (`install_share`, owner ruling, all documents).
+  A hand edit after Apply sends none, so a later re-translation can never undo it (L2). Rails:
+  `BuilderSheet.pine.test.jsx` (two cases; mutants J6 / J7 queued).
+
+## The #1326 review's sibling shapes (F1, F2)
+
+| shape | before | after |
+|---|---|---|
+| F1 `h(s) => s[1]`, `if close > open` / `p := h(close)` (WITNESSED: `vw-call-site-history` H01) | screener `ok`, `close > open ? close[1] : 0/0` (the previous BAR), wrong on 163 / 634 | screener refused by name (`h` reads its own history); host gated and withheld at the bind; rail pins the every-bar tree's wrong-bar count against H01 |
+| F2 `p := (x + 0)[1]`, `x` a block local | read as the previous BAR on EVERY lane, no gate (`blockLocalHistory` asked `name[k]` only) | `blockLocalHistory` reads any block-local name the offset's own expression reads (fail closed): host gated, screener refused; runtime already refused `(expr)[k]` in a block (review M1). Control: `(close + 0)[1]` (the chart's own series) is not gated. Mutant M13 queued |
 
 ## Mutation pass (copy aside, mutate, focused rail, restore from the copy; hash-object == HEAD blob for every one)
 
