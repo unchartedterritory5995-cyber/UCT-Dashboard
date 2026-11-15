@@ -52,7 +52,7 @@ import json
 import logging
 import os
 from datetime import datetime, timedelta, timezone
-from typing import Any, Literal, Optional
+from typing import Annotated, Any, Literal, Optional
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends
@@ -324,3 +324,225 @@ def run_half_report(days: int = 7) -> dict[str, Any]:
 def run_halves(days: int = 7, user: dict = Depends(require_admin)) -> dict[str, Any]:
     """The operator's read. ADMIN ONLY."""
     return run_half_report(days)
+
+
+# ─── U4 -- THE RUN COUNT AND PERF BEACON (the cohort gate's denominator) ────────────────
+#
+# The stop beacon above counts STOPS once per (script, stop) per tab, so "stops under 2% of
+# runs" (the runtime pane's admins -> cohort exit gate) had no denominator. The browser lane
+# now counts every run it ANSWERS, by outcome, and sends one batch at most once a minute
+# (`engine/runtimeRunTelemetry.js`):
+#
+#     started, ok, declined     integers
+#     stops                     {code: n}: a `STOP_GUARDS` code, or `runtime:limit:<LIMIT_NAME>`
+#     ms                        {bucket: n}: the round-trip histogram, `RUN_MS_BUCKETS` upper
+#                               edges (ms) plus `inf`
+#
+# ⛔⛔ NO SOURCE, NO HASH, NO MEMBER ID: a batch is integers under closed keys, and it is
+# AGGREGATED on arrival into `pine_runtime_run_daily(day, metric, key, n)`: per ET day, per
+# code, summed. No row says who, or which script. Every key is re-checked here against the
+# closed sets (an unknown key refuses the WHOLE batch), every value is a strict int in
+# 1..`RUNS_MAX_PER_FIELD`, and an unknown field is a 422. The same two durable daily caps the
+# other beacons use bound how many batches one member (keyed hash, `member_subject`) and
+# everyone may land per day; over either, the batch is answered and not stored.
+#
+# The admin read (`GET /runs`) gives the stop rate per day: stops / runs, where runs = ok +
+# stops + declined (every answered run), with p50/p95 round trip read off the SUMMED
+# histogram (an upper edge: "p95 <= 300 ms"), and the cohort criterion stated as booleans.
+
+RUNS_SCOPE = "pine_runtime_runs"
+RUNS_DAILY_CAP = 50_000           # batches, global, per ET day
+RUNS_MEMBER_DAILY_CAP = 1_500     # batches, per member, per ET day (one a minute is 1,440)
+RUNS_MAX_PER_FIELD = 10_000
+RUNS_RETAIN_DAYS = 400
+RUN_TELEMETRY_ENV = "PINE_RUNTIME_RUN_TELEMETRY"
+#: Pinned to the client's `RUN_MS_BUCKETS` by the rail.
+RUN_MS_BUCKETS = (1, 2, 3, 5, 7, 10, 15, 20, 30, 50, 70, 100, 150, 200, 300, 500, 700, 1000,
+                  1500, 2000, 3000, 5000, 10000, 20000)
+RUN_MS_KEYS = tuple(str(b) for b in RUN_MS_BUCKETS) + ("inf",)
+RUN_COUNT_KEYS = ("started", "ok", "declined")
+COHORT_STOP_RATE = 0.02
+RUNS_TABLE = "pine_runtime_run_daily"
+_RUNS_DDL = (f"CREATE TABLE IF NOT EXISTS {RUNS_TABLE} (day TEXT NOT NULL, metric TEXT NOT NULL, "
+             "key TEXT NOT NULL, n INTEGER NOT NULL, PRIMARY KEY (day, metric, key))")
+_runs_pruned_day = [""]
+
+
+def run_telemetry_enabled() -> bool:
+    """`PINE_RUNTIME_RUN_TELEMETRY`, read per call: on unless set to `off` (a kill switch
+    for storage; the beacon is still answered)."""
+    return os.environ.get("PINE_RUNTIME_RUN_TELEMETRY", "on").strip().lower() != "off"
+
+
+def run_stop_code_ok(code: Any) -> bool:
+    if not isinstance(code, str):
+        return False
+    if code in STOP_GUARDS:
+        return True
+    head, _, name = code.rpartition(":")
+    return head == "runtime:limit" and name in LIMIT_NAMES
+
+
+_Count = Annotated[int, Field(ge=1, le=RUNS_MAX_PER_FIELD, strict=True)]
+
+
+class RunsBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    started: int = Field(0, ge=0, le=RUNS_MAX_PER_FIELD, strict=True)
+    ok: int = Field(0, ge=0, le=RUNS_MAX_PER_FIELD, strict=True)
+    declined: int = Field(0, ge=0, le=RUNS_MAX_PER_FIELD, strict=True)
+    stops: dict[Annotated[str, Field(max_length=64)], _Count] = Field(default_factory=dict, max_length=32)
+    ms: dict[Annotated[str, Field(max_length=8)], _Count] = Field(default_factory=dict,
+                                                                  max_length=len(RUN_MS_KEYS))
+
+    def violation(self) -> Optional[str]:
+        for code in self.stops:
+            if not run_stop_code_ok(code):
+                return "a stop code is not a declared runtime stop"
+        for key in self.ms:
+            if key not in RUN_MS_KEYS:
+                return "a histogram key is not a declared bucket"
+        answered = self.ok + self.declined + sum(self.stops.values())
+        if sum(self.ms.values()) > answered:
+            return "the histogram counts more runs than were answered"
+        if not (answered or self.started):
+            return "the batch is empty"
+        return None
+
+
+def _runs_rows(body: RunsBody) -> list:
+    rows = [("count", k, getattr(body, k)) for k in RUN_COUNT_KEYS if getattr(body, k)]
+    rows += [("stop", k, v) for k, v in sorted(body.stops.items())]
+    rows += [("ms", k, v) for k, v in sorted(body.ms.items())]
+    return rows
+
+
+def record_runs(body: RunsBody, user_id: Any = None, *, day: Optional[str] = None) -> bool:
+    """Aggregate one batch into the day's per-code sums. True when stored. Never raises."""
+    if body.violation() is not None or not run_telemetry_enabled():
+        return False
+    d = day or _et_day()
+    try:
+        charges = [daily_counters.Charge(RUNS_SCOPE, daily_counters.GLOBAL, 1, RUNS_DAILY_CAP)]
+        if user_id is not None:
+            charges.insert(0, daily_counters.Charge(RUNS_SCOPE, member_subject(user_id), 1,
+                                                    RUNS_MEMBER_DAILY_CAP))
+        refused = daily_counters.take(_et_day(), charges)
+    except Exception:  # noqa: BLE001
+        refused = None
+    if refused is not None:
+        return False
+    try:
+        conn = get_connection()
+    except Exception:  # noqa: BLE001
+        log.exception("[pine-runtime-telemetry] no connection")
+        return False
+    try:
+        conn.execute(_RUNS_DDL)
+        conn.executemany(
+            f"INSERT INTO {RUNS_TABLE} (day, metric, key, n) VALUES (?, ?, ?, ?) "
+            "ON CONFLICT(day, metric, key) DO UPDATE SET n = n + excluded.n",
+            [(d, m, k, v) for m, k, v in _runs_rows(body)])
+        if _runs_pruned_day[0] != d:
+            cutoff = (datetime.fromisoformat(d) - timedelta(days=RUNS_RETAIN_DAYS)).date().isoformat()
+            conn.execute(f"DELETE FROM {RUNS_TABLE} WHERE day < ?", (cutoff,))
+            _runs_pruned_day[0] = d
+        conn.commit()
+        return True
+    except Exception:  # noqa: BLE001
+        log.exception("[pine-runtime-telemetry] runs write failed")
+        return False
+    finally:
+        conn.close()
+
+
+@router.post("/runs")
+def runs(body: RunsBody, user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    """⛔ Signed in, as `/stop`. The member's id keys the per-member cap as a keyed hash only."""
+    reason = body.violation()
+    if reason is not None:
+        return {"ok": False, "logged": False, "reason": reason}
+    return {"ok": True, "logged": record_runs(body, user.get("id"))}
+
+
+def _hist_quantile(hist: dict, q: float):
+    """The upper edge (ms) of the bucket holding the q-quantile of a summed histogram, the
+    string ">20000" for the overflow bucket, or None for an empty one."""
+    total = sum(hist.values())
+    if total <= 0:
+        return None
+    need = q * total
+    seen = 0
+    for key in RUN_MS_KEYS:
+        seen += hist.get(key, 0)
+        if seen >= need and seen > 0:
+            return int(key) if key != "inf" else f">{RUN_MS_BUCKETS[-1]}"
+    return f">{RUN_MS_BUCKETS[-1]}"
+
+
+def _summary(counts: dict, stops: dict, hist: dict) -> dict:
+    n_stops = sum(stops.values())
+    answered = counts.get("ok", 0) + counts.get("declined", 0) + n_stops
+    return {
+        "runs": answered, "started": counts.get("started", 0), "ok": counts.get("ok", 0),
+        "declined": counts.get("declined", 0), "stops": n_stops,
+        "stop_rate": (round(n_stops / answered, 6) if answered else None),
+        "by_code": dict(sorted(stops.items(), key=lambda kv: (-kv[1], kv[0]))),
+        "worker_failed": stops.get("runtime:worker-failed", 0),
+        "load_failed": stops.get("runtime:load-failed", 0),
+        "ms_p50_le": _hist_quantile(hist, 0.5), "ms_p95_le": _hist_quantile(hist, 0.95),
+        "ms_histogram": {k: hist[k] for k in RUN_MS_KEYS if hist.get(k)},
+    }
+
+
+def runs_report(days: int = 14, *, today: Optional[str] = None) -> dict:
+    """⭐ The cohort gate's read: per ET day and over the window, runs, stops by code, the
+    stop rate, and p50/p95 round trip. Aggregates only."""
+    days = max(1, min(int(days), 90))
+    end = today or _et_day()
+    since = (datetime.fromisoformat(end) - timedelta(days=days - 1)).date().isoformat()
+    rows: list = []
+    try:
+        conn = get_connection()
+    except Exception:  # noqa: BLE001
+        conn = None
+    if conn is not None:
+        try:
+            conn.execute(_RUNS_DDL)
+            rows = conn.execute(f"SELECT day, metric, key, n FROM {RUNS_TABLE} WHERE day >= ? AND day <= ?",
+                                (since, end)).fetchall()
+        except Exception:  # noqa: BLE001
+            log.exception("[pine-runtime-telemetry] runs report read failed")
+        finally:
+            conn.close()
+    slot = {"count": 0, "stop": 1, "ms": 2}
+    per_day: dict = {}
+    tot: tuple = ({}, {}, {})
+    for day, metric, key, n in rows:
+        idx = slot.get(metric)
+        if idx is None:
+            continue
+        cell = per_day.setdefault(day, ({}, {}, {}))
+        for target in (cell[idx], tot[idx]):
+            target[key] = target.get(key, 0) + int(n)
+    total = _summary(*tot)
+    return {
+        "days": days, "since": since, "through": end,
+        "by_day": [{"day": d, **_summary(*per_day[d])} for d in sorted(per_day, reverse=True)],
+        "total": total,
+        "cohort_criterion": {
+            "stop_rate_threshold": COHORT_STOP_RATE,
+            "has_runs": total["runs"] > 0,
+            "stop_rate_under_threshold": (total["stop_rate"] is not None
+                                          and total["stop_rate"] < COHORT_STOP_RATE),
+            "no_worker_failed": total["worker_failed"] == 0,
+            "no_load_failed": total["load_failed"] == 0,
+        },
+    }
+
+
+@router.get("/runs")
+def runs_read(days: int = 14, user: dict = Depends(require_admin)) -> dict:
+    """The operator's read of the run count and the stop rate. ADMIN ONLY."""
+    return runs_report(days)

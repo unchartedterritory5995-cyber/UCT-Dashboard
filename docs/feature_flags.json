@@ -3684,6 +3684,14 @@
   },
   "knobs": {
     "_readme": "X-16 (TERMINAL-NEXT ledger hygiene, 2026-10-02). Env vars that DECIDE behaviour but that `flags` cannot hold, because its rail admits only names the AST index classifies as a gate (ENABLED/DISABLE/_ON), a visibility flag or a *_MODE_FLAGS entry: a CUTOVER switch, a SAMPLE RATE, and a gate that lives in ANOTHER REPO. Each row says where it is read and what its unset value does. tests/test_flag_ledger_knobs.py holds every `repo: uct-dashboard` row to the AST scan (a name the code no longer reads fails) and every row to the same status vocabulary as `flags`.",
+    "PINE_RUNTIME_RUN_TELEMETRY": {
+      "repo": "uct-dashboard",
+      "read_at": "api/routers/pine_runtime_telemetry.py::run_telemetry_enabled (read per batch; only the literal off disables)",
+      "kind": "kill-switch",
+      "status": "armed",
+      "default": "on",
+      "note": "2026-11-14 (U4, feat/pine-runtime-telemetry): storage of the runtime lane's run-count and perf beacon (POST /api/pine-runtime-telemetry/runs), the denominator of the runtime pane's admins -> cohort exit gate (stops under 2% of runs). The default IS the decision: on, set on no service, because the gate cannot be measured without it and a batch carries no member content (integers under closed keys, aggregated per ET day and code; no source, no script hash, no member id; the per-member daily cap is a keyed hash). The beacon only fires where the runtime lane runs (PINE_RUNTIME_STAGE, admins today), at most once a minute per tab, fire-and-forget. Set off to stop STORING batches (the endpoint still answers {ok, logged:false}); a variable, no deploy. Admin read: GET /api/pine-runtime-telemetry/runs. Rails: tests/test_pine_runtime_run_telemetry.py, app/src/components/chart/engine/__tests__/runtimeRunTelemetry.test.js."
+    },
     "PY_SWITCH_INTERVAL_MS": {
       "repo": "uct-dashboard",
       "read_at": "api/services/gil_tuning.py::apply (read once at web boot from api/main.py's lifespan; milliseconds; blank means the default; a value that is not a number in [0.05, 10] is REFUSED and the interpreter's interval is left as it was)",

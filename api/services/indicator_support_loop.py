@@ -206,11 +206,17 @@ def build_digest(*, days: int = DIGEST_WINDOW_DAYS, top: int = DIGEST_TOP,
                  manifest_path: Optional[Path] = None) -> dict:
     manifest, sha = load_door_manifest(manifest_path)
     ranking = svc.gap_ranking(days, 1000)
-    open_gaps, fixed, unlisted = [], [], None
+    open_gaps, fixed, unlisted, unlisted_codes = [], [], None, None
     groups: dict[tuple[str, str], list[dict]] = {}
     for g in ranking:
         if g["name"] == svc.UNLISTED:
-            unlisted = {k: g[k] for k in ("members", "hits", "first_day", "last_day")}
+            # U4: an unlisted refusal CODE is its own line, never folded into (or
+            # overwriting) the unnamed built-in gaps
+            cell = {k: g[k] for k in ("members", "hits", "first_day", "last_day")}
+            if g["kind"] == svc.GUARD_KIND:
+                unlisted_codes = cell
+            else:
+                unlisted = cell
             continue
         groups.setdefault((g["name"], effective_kind(manifest, g["name"], g["kind"])), []).append(g)
     for (name, kind), rows in groups.items():
@@ -241,6 +247,7 @@ def build_digest(*, days: int = DIGEST_WINDOW_DAYS, top: int = DIGEST_TOP,
             "fixed_on_master": [{k: g[k] for k in ("name", "kind", "members", "hits", "door_status")}
                                 for g in fixed],
             "unlisted": unlisted,
+            "unlisted_refusal_codes": unlisted_codes,
         },
         "reports": {
             "counts": {s: sum(1 for r in reports if r["status"] == s) for s in OPEN_REPORT_STATUSES},
