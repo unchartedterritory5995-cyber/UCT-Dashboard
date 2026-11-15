@@ -13326,26 +13326,48 @@ export class Resolver {
     // does and for the same recorded reason: TradingView's own Pine Screener
     // "falls back to defaults for `input.symbol`". Every fold lands in
     // `usedInputs`, so a frozen input is never silent.
-    if (node.type === 'call' && (node.name === 'input.symbol' || node.name === 'input.string')) {
-      const args = node.args || []
-      for (let i = 0; i < args.length; i += 1) {
-        const a = args[i]
-        if (a && (a.name === 'defval' || (!a.name && i === 0))) {
-          const folded = this.otherSymbolOf(a.value, depth + 1)
-          if (folded !== null && node.tok) {
-            this.usedInputs.set(`${node.tok.line}:${node.tok.column}`, {
-              call: node.name,
-              title: null,
-              folded: `'${folded.ticker}'`,
-              line: node.tok.line,
-              column: node.tok.column,
-            })
-          }
-          return folded
-        }
+    const dv = this.symbolInputDefaultOf(node)
+    if (dv !== undefined) {
+      if (dv === null) return null
+      const folded = this.otherSymbolOf(dv, depth + 1)
+      if (folded !== null && node.tok) {
+        this.usedInputs.set(`${node.tok.line}:${node.tok.column}`, {
+          call: node.name,
+          title: null,
+          folded: `'${folded.ticker}'`,
+          line: node.tok.line,
+          column: node.tok.column,
+        })
       }
+      return folded
     }
     return null
+  }
+
+  /** ⭐⭐ RS RATING L2 — THE DEFAULT AN INPUT HANDS A REQUEST'S SYMBOL ARGUMENT: the
+   *  `defval` node of `input.symbol(…)` / `input.string(…)` / an UNTYPED `input(…)`;
+   *  `null` for one of those calls with no
+   *  readable default; `undefined` for any other node. ONE reader for `otherSymbolOf`
+   *  and `rawSymbolSpellingOf`, so the fold and the spelling refusal cannot disagree.
+   *  ⭐ Pine types an untyped `input()` by its default's literal type (reference,
+   *  `input`: "the type of the input is determined by the type of the default value"),
+   *  so `input('SP:SPX', title = …)` IS a string input — the shape RS Rating writes for
+   *  its comparative symbol. ⛔ A default that is not text (`input(4200)`, `input(close)`)
+   *  folds to no symbol — `otherSymbolOf` answers null for it — and a `type =` argument
+   *  (v4's `input(…, type = input.resolution)`) is its own declaration, never read here. */
+  symbolInputDefaultOf(node) {
+    if (!node || node.type !== 'call') return undefined
+    const untyped = node.name === 'input'
+    if (!untyped && node.name !== 'input.symbol' && node.name !== 'input.string') return undefined
+    const args = node.args || []
+    if (untyped && args.some((a) => a && a.name === 'type')) return undefined
+    for (let i = 0; i < args.length; i += 1) {
+      const a = args[i]
+      if (a && (a.name === 'defval' || (!a.name && i === 0))) {
+        return a.value
+      }
+    }
+    return untyped ? undefined : null
   }
 
   /** `request.security(<symbol>, <timeframe>, expr)` → the node it means, or null.
@@ -13506,13 +13528,8 @@ export class Resolver {
       // a computed or chart-own prefix (`?`, `@syminfo.prefix`) spells no literal
       return prefix === '?' || String(prefix).startsWith('@') ? null : `${prefix}:${inner}`
     }
-    if (node.type === 'call' && (node.name === 'input.symbol' || node.name === 'input.string')) {
-      const args = node.args || []
-      for (let i = 0; i < args.length; i += 1) {
-        const a = args[i]
-        if (a && (a.name === 'defval' || (!a.name && i === 0))) return this.rawSymbolSpellingOf(a.value, depth + 1)
-      }
-    }
+    const dv = this.symbolInputDefaultOf(node)
+    if (dv) return this.rawSymbolSpellingOf(dv, depth + 1)
     return null
   }
 
