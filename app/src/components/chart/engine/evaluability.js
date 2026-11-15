@@ -207,6 +207,8 @@ export function otherSymbolsDecision(def, ctx) {
     exchangeOf: ctx && ctx.exchangeOf,
     symbol: ctx && ctx.symbol,
     framed: !!(ctx && ctx.framed),
+    // ⭐ RS RATING L1b — a witnessed spelling is served on the timeframes its witness covers
+    tf: ctx && ctx.tf,
   })
 }
 

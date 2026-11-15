@@ -2584,6 +2584,15 @@ function buildRuntimeIrLinked(source, opts, holder) {
   // and its own measurements. Refused by name, never approximated.
   let condDepth = 0
   const slotDepth = []
+  // ⭐ L4 — AN `if` ARM WHOSE TEST IS A SCRIPT CONSTANT (`invariantTest`: inputs at
+  // their values, literals, `timeframe.isweekly`…) runs on EVERY bar or on NONE, so a
+  // `ta.*` inside it keeps the history of an unconditional call, or never runs. Such
+  // an arm's statement list still counts in `condDepth` (the slot ledger and the
+  // `strategy.risk.*` location rule read it lexically); `rt5EveryBar` counts the lists
+  // opened that way, and RT5 asks `condDepth - rt5EveryBar` instead.
+  // `everyBarArmNext` hands the fact to the ONE `lowerStmts` call that opens the arm.
+  let rt5EveryBar = 0
+  let everyBarArmNext = false
   // ⭐⭐ WS-C / R4 — HOW MANY ENCLOSING REGIONS RUN ON SOME BARS ONLY. Separate
   // from `condDepth` (which RT5 and the slot ledger read unchanged): an arm
   // whose test reads no per-bar value (an input, a literal) runs on EVERY bar or
@@ -2705,7 +2714,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // window's run ring) steps only when its call runs, which is the call
     // site's history — except in a LOOP, where it would step once per pass.
     if (!objectsInRun && what === 'a stateful built-in' && loopDepth > 0) r4Guard(what, at)
-    if (!(objectsInRun && condDepth > 0)) return
+    if (!(objectsInRun && condDepth - rt5EveryBar > 0)) return
     note('runtime:conditional-history')
     throw new RuntimeRefusal('runtime:conditional-history',
       `${what} inside a block or function that does not run on every bar — Pine keeps that history per call site`, at)
@@ -3186,20 +3195,25 @@ function buildRuntimeIrLinked(source, opts, holder) {
     }
     return split
   }
+  // ⭐⭐ L4d — THE ONE SERVED SET, FOR BOTH BUILDS, EACH KIND ON ITS OWN WITNESSES: a PLOT
+  // (C48 `vw-call-site-history`, vw-arm-history) and a DRAWING (W3N-D1, queue
+  // capture-queue-2026-11-05-w3w4-d1.md, graded 2026-11-15 on the s10 captures
+  // `vw-w3n-draw-block-history-{a,b,c}-{rddt,spy}-1d-2026-11-15`, evidence
+  // docs/pine/evidence/2026-11-15-w3n-d1/): sma = W3N-D1a, ema = W3N-D1b, rma = W3N-D1c, every
+  // label's bar (through the capture's x map), y and text equal ours, 316 of 316 on RDDT from the
+  // listing (warm-up `na` included) and the newest 501 on SPY.
+  // ⛔ A kind added here is served to the drawing build too: it needs a DRAWING witness as well.
+  // Row d (a block local's `[1]`) DIVERGED: TradingView reads the previous RUN's value (RDDT bar
+  // 2: vendor 100.88, the every-bar column 92); the drawing build refuses it by name (`drawRefuse`).
+  // ⚰️ A drawing-build filter on this table (kind ∈ witnessed, not in a `?:` arm region) was
+  // written and removed on its own measurement: a mutation deleting it left every rail green,
+  // because the table IS the witnessed set and the drawing build refuses history in every `?:`
+  // arm before it gets here (`armHistoryGuard`; rail `l4dDrawingHistory.test.js`).
   const SERVED_COND = { sma: 'window', ema: 'carried', rma: 'carried' }
   // ⭐ W4 T4 — served in a `?:` ARM only (its region is `lazyArmRegion`): the
   // previous RUN's value is witnessed there (vw-arm-history T05 / K03), not yet in
   // an `if` block (queue H2), so a block keeps the refusal.
   const ARM_ONLY_SERVED_COND = { change: 'change' }
-  // ⛔⛔ W3W4-D1 capture gate (queue row W3N-D1, capture-queue-2026-11-05-w3w4-d1.md): the C48 witnesses
-  // pin sma/ema as PLOT values and nothing pins rma at all, so no capture shows a DRAWING reading the
-  // per-call-site set. Until W3N-D1 MATCHes, the drawing build keeps the named refusal
-  // (`runtime:conditional-history`). Flip to true ONLY once it does. Product callers never set the
-  // test-only `opts.w3nD1ServeDrawingHistory`; a rail uses it to prove the machinery without the gate.
-  const DRAWING_HISTORY_CAPTURED = false
-  // ONE gate: only the drawing build's `condHistory` (below, at the lowering of a pure subtree) reads it;
-  // `servedCondCall` is reached from there alone, so it needs no second copy.
-  const drawingHistoryServed = DRAWING_HISTORY_CAPTURED || opts.w3nD1ServeDrawingHistory === true
   const servedCondCall = (node, scope) => {
     if (owner !== null || loopDepth > 0 || r4Level() <= 0) return null
     if (!node || node.type !== 'call' || fnByName.has(node.name)) return null
@@ -3955,6 +3969,73 @@ function buildRuntimeIrLinked(source, opts, holder) {
     const m = RUN_DRAW_CALL.exec(String(name || ''))
     return !!(m && Object.hasOwn(OBJECT_OPS, `${m[1]}.${m[2]}`))
   }
+  // ── ⭐⭐ L4c — A DRAWING MADE IN THE THEN ARM OF A ROOT `?:` WHOSE ELSE IS `na` ──
+  //
+  // Pine evaluates only the arm a `?:` picks. WITNESSED: Q-RT5a
+  // (`vw-rt5-arm-draw-block-history-rddt-1d-2026-10-03`, v6) T01/T02 — `t = close > open ?
+  // label.new(…) : na` makes 308 labels on the 308 UP bars and `t` is `na` on the rest;
+  // Q-O1a (`vw-ternary-draw-helper-rddt-1d-2026-10-02`, v5) — a label / line drawn in the
+  // THEN arm appears on exactly the bars its test is true (and TradingView's to-v5 guide:
+  // "the ternary operator is evaluated lazily"). So that shape is lowered as a JUMP
+  // (`lowerIr.js` `EXPR.TERNARY` `lazy`) and the arm runs only when it is taken.
+  // ⛔ EXACTLY THAT SHAPE, and every other drawing in an arm keeps `runtime:object-op`:
+  //   · the WHOLE value of a root declaration (`t = …`: no function body, loop, block,
+  //     request value, nor another arm), marked at the declaration (`drawArmRoots`);
+  //   · THEN a bare `label.new(…)` / `line.new(…)` (the witnessed families), ELSE Pine's `na`;
+  //   · arguments that keep no history and make no effect: a `ta.*` there would step only
+  //     on the taken bars, which no capture of a drawing argument settles. ⛔ TWO CHECKS, and
+  //     neither covers the other: `lexArmHistory` (before) is the ONLY one that sees a
+  //     `ta.sma(close, 5)` argument, which lowers to a COLUMN — the every-bar value, the wrong
+  //     one here (mutation-proved, `l4cArmDrawing.test.js`); `drawArmArgsPure` (after, over
+  //     the lowered tree) is the one that sees a user call or a collection / drawing effect.
+  // ⭐⭐ L4d — THE WITNESSED (arm, family) PAIRS, one table, each with its witness. The arm
+  // that is NOT the drawing must be Pine's `na`.
+  //   yes · label  Q-RT5a T01/T02 (v6), Q-O1a (v5)
+  //   yes · line   Q-O1a (v5)
+  //   yes · box    Q-RS5 X01 (`rs-arm-label-last-bar-{rddt,spy}-1d-2026-11-15`, v5): 67 boxes on
+  //                RDDT, every box's left/right (via the capture's x map), top and bottom equal
+  //   no  · label  Q-RS5 E01 (same captures): `c ? na : label.new(…)`, 96 labels on RDDT, every
+  //                bar, y and text equal
+  // ⛔ Any other pair (a line or a box in the ELSE arm, a table, a linefill) keeps
+  // `runtime:object-op` by name: no capture shows it.
+  const DRAW_ARM_WITNESSED = Object.freeze({
+    yes: Object.freeze(new Set(['label', 'line', 'box'])),
+    no: Object.freeze(new Set(['label'])),
+  })
+  const drawArmCreateFamily = (node) => {
+    if (!node || node.type !== 'call') return null
+    const m = /^([a-z]+)\.new$/.exec(String(node.name || ''))
+    return m ? m[1] : null
+  }
+  /** `{family, arm}` for `c ? <family>.new(…) : na` (arm `yes`) or `c ? na : <family>.new(…)`
+   *  (arm `no`), a witnessed pair only; null for any other value. */
+  const drawArmFamily = (value, scope) => {
+    if (!objectsInRun || !value || value.type !== 'ternary') return null
+    for (const [arm, other] of [['yes', 'no'], ['no', 'yes']]) {
+      const family = drawArmCreateFamily(value[arm])
+      if (family && DRAW_ARM_WITNESSED[arm].has(family) && isBuiltinNa(value[other], scope)) return { family, arm, other }
+    }
+    return null
+  }
+  const drawArmRoots = new WeakMap()
+  const markDrawArmRoot = (value, scope) => {
+    if (atObjectDoor || owner !== null || loopDepth > 0 || condDepth > 0 || inRequestValue || armDepth > 0) return
+    const shape = drawArmFamily(value, scope)
+    if (!shape) return
+    if (lexArmHistory(value[shape.arm])) return     // history in the arm: `armHistoryGuard` names it
+    drawArmRoots.set(value, shape)
+  }
+  const DRAW_ARM_PURE_KINDS = new Set([EXPR.NUM, EXPR.STR, EXPR.CONCAT, EXPR.COLOUR, EXPR.TEXT,
+    EXPR.SERIES, EXPR.CLOCK, EXPR.COLUMN, EXPR.READ, EXPR.HIST, EXPR.HIST_DYN, EXPR.HIST_SLOT_DYN,
+    EXPR.BINARY, EXPR.UNARY, EXPR.TERNARY, EXPR.BUILTIN])
+  /** Does a lowered argument tree only READ (no state that steps, no effect)? */
+  const drawArmArgsPure = (ir, d = 0) => {
+    if (d > 96) return false
+    if (Array.isArray(ir)) return ir.every((x) => drawArmArgsPure(x, d + 1))
+    if (!ir || typeof ir !== 'object') return true
+    if (typeof ir.kind === 'string' && !DRAW_ARM_PURE_KINDS.has(ir.kind)) return false
+    return Object.keys(ir).every((k) => k === 'kind' || drawArmArgsPure(ir[k], d + 1))
+  }
   /** What a run-dispatched `any.<method>` leaves on the stack. */
   const anyReturns = (method) => {
     const kinds = new Set((ANY_METHODS[method] || []).map((f) => OBJECT_OPS[`${f}.${method}`].returns))
@@ -3975,7 +4056,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // RT5: this lane evaluates BOTH arms of `?:` every bar; Pine runs only the
     // taken arm. A drawing made in an arm would be made on every bar.
     // ⭐ WS-E — a GETTER makes nothing, so it may stand in an arm (`objectStore.isArmSafeObjectOp`).
-    if (armDepth > 0 && !isArmSafeObjectOp(fn)) refuseObject(fn, 'a drawing call inside one arm of `?:` — Pine makes it only when that arm is taken, this lane evaluates both', tok)
+    if (armDepth > 0 && !isArmSafeObjectOp(fn)) {
+      refuseObject(fn, 'a drawing call inside one arm of `?:` — Pine makes it only when that arm is taken, this lane evaluates both '
+        + '(served only as `t = c ? label.new(…) : na`, `line.new` or `box.new`, or `t = c ? na : label.new(…)`, '
+        + 'the whole value of a root declaration, Q-RT5a / Q-RS5)', tok)
+    }
     if (/^polyline\./.test(fn) || /^chart\.point/.test(fn)) {
       refuseObject(fn, 'the chart this lane draws on has no polyline, so a polyline is not drawn rather '
         + 'than drawn as something else', tok)
@@ -4706,6 +4791,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
       const m = /^(line|label|box|table|linefill)\.(new|copy)$/.exec(String(value.name || ''))
       if (m) return makeTy('drawing', { name: m[1] })
     }
+    // ⭐ L4c / L4d — `c ? label.new(…) : na` (or `c ? na : label.new(…)`) holds that family's handle or `na`
+    {
+      const shape = drawArmFamily(value, scope)
+      if (shape) return makeTy('drawing', { name: shape.family })
+    }
     if (holdsText(value, scope)) return makeTy('text')
     if (holdsColour(value, scope)) return makeTy('colour')
     return null
@@ -5349,6 +5439,19 @@ function buildRuntimeIrLinked(source, opts, holder) {
     return false
   }
 
+  /** ⭐ RS RATING L5 — does this subtree (a call argument) hold a `request.security` call
+   *  anywhere? A generic walk: a hand-listed set of keys fails open on the one nobody named. */
+  const callArgReadsRequest = (node, depth = 0) => {
+    if (!node || typeof node !== 'object' || depth > 64) return false
+    if (node.type === 'call' && node.name === 'request.security') return true
+    for (const v of Object.values(node)) {
+      if (Array.isArray(v)) {
+        if (v.some((x) => callArgReadsRequest(x && x.value !== undefined && x.type === undefined ? x.value : x, depth + 1))) return true
+      } else if (v && typeof v === 'object' && v.type && callArgReadsRequest(v, depth + 1)) return true
+    }
+    return false
+  }
+
   const dependsOnTextInput = (node, scope, seen) => {
     if (!node || typeof node !== 'object') return false
     // ⛔ A REQUEST NEVER GOES TO THE COLUMNAR LANE EITHER, and for a stronger
@@ -5358,6 +5461,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (node.type === 'call') {
       return (atObjectDoor ? MASTER_TEXT_INPUTS.has(node.name) : textInputIsMemberSet(textInputKindOf(node)))
         || node.name === 'request.security'
+        // ⭐⭐ RS RATING L5 — AND A REQUEST INSIDE A CALL'S ARGUMENTS (`nz(request.security(…))`).
+        // ⚰️ The walk below never entered a call's `args`, so such a subtree went to the columnar
+        // lane, which translated the request into a `sym` / `tf_merge` column and evaluated it
+        // with no other-symbol supply: `na` on every bar, drawn, nothing said. It is the run's
+        // request (`admitRequest`), supplied by the host's rules, or refused by name there.
+        || (node.args || []).some((a) => callArgReadsRequest(a && a.value !== undefined ? a.value : a))
     }
     if (node.type === 'name') {
       if (scope.lookup(node.name) !== null) return false
@@ -5991,12 +6100,19 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // `tickerid` or `period` would read as the built-in to a reader that cannot
     // see it. Those keep the request path below and its refusals.
     let targetReader = null
+    // ⭐⭐ RS RATING L5 — THE HOST'S READING OF THIS REQUEST, kept for the run's supply
+    // (`runtime/requestSupply.js`): whose bars and which period, by the same reader the plot
+    // lane composes from, so the runtime lane fetches exactly what the host lane would. Kept
+    // only where the host's world is this lane's (no slot reached), else null: refused there.
+    let hostTarget = null
     const identity = (() => {
       let t = null
       try {
         targetReader = new Resolver(env, TABLE, new Map(), { ...resolverOpts, basePeriod: lanePeriod })
         t = targetReader.requestTargetOf(node)
       } catch { return null } // a refusal on the way is "not the identity": the path below names it
+      if (t && t.lower !== true && !reachesSlotThroughEnv(t.positional[0], scope)
+        && !reachesSlotThroughEnv(t.positional[1], scope)) hostTarget = t
       if (!t || t.own === null || t.other !== null || t.code !== null) return null
       return reachesSlotThroughEnv(t.positional[0], scope) || reachesSlotThroughEnv(t.positional[1], scope)
         ? null : t
@@ -6081,8 +6197,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // the realtime half needs an open market and is still owed. Serving
     // lookahead on a guess would put a number on screen that nobody could have
     // traded on — the most valuable-LOOKING wrong answer available.
+    // ⭐ RS RATING L5 — `lookahead = barmerge.lookahead_off` WRITTEN OUT is the default merge,
+    // which the host read (`hostTarget.live === false`) and the run's supply serves; only a
+    // look-ahead the host did not read as off keeps this refusal.
+    const lookaheadOff = !!hostTarget && hostTarget.live === false
     for (const a2 of node.args) {
-      if (a2 && a2.name === 'lookahead') {
+      if (a2 && a2.name === 'lookahead' && !lookaheadOff) {
         throw new RuntimeRefusal('runtime:request',
           '`lookahead` — the realtime half of this alignment is not measured yet, '
           + 'and a guess here reads as a number that could have been traded on', at)
@@ -6097,7 +6217,21 @@ function buildRuntimeIrLinked(source, opts, holder) {
         + 'it decides which bars must be fetched before the run', at)
     }
 
-    const symbolIr = lowerExpr(argOf(positional[0]), scope)
+    // ⭐ RS RATING L5 — THIS chart's own symbol at another timeframe needs no text: the host
+    // read it as this chart's (`hostTarget`), and the run's supply hands its bars per site, so
+    // the symbol is a marker, never `syminfo.tickerid` settled as text (which a binding may
+    // not witness: `symbolScope.json::pending_measurement`).
+    // ⭐⭐ RS RATING L8 (4b) — AND WHERE THE HOST HAS NO READING OF THE REQUEST AT ALL (a daily
+    // read on a weekly or intraday chart: `requestTargetOf` answers null), the symbol is STILL
+    // the chart's own when the host's reader says so (`ownSymbolNameOf`, the same reader). ⚰️ It
+    // was lowered as text there, so a binding with no `tickerid` witness for the exchange refused
+    // `interpret:bind-time-text` on the SYMBOL, about a read whose real gap is the TIMEFRAME.
+    // The read is recorded as the chart's own and `unread`, and the supply refuses it by the
+    // timeframe (`requestSupply.js`): never drawn, never blamed on the symbol.
+    const ownUnread = !hostTarget && !!targetReader && !reachesSlotThroughEnv(argOf(positional[0]), scope)
+      && (() => { try { return targetReader.ownSymbolNameOf(argOf(positional[0])) !== null } catch { return false } })()
+    const symbolIr = (hostTarget && hostTarget.own !== null && hostTarget.other === null) || ownUnread
+      ? str('@chart') : lowerExpr(argOf(positional[0]), scope)
 
     // ⛔ THE VALUE IS LOWERED IN A SCOPE OF ITS OWN. It runs in another symbol's
     // context, so a mutable value from THIS script has no meaning inside it.
@@ -6160,7 +6294,20 @@ function buildRuntimeIrLinked(source, opts, holder) {
 
     const results = valueIr && valueIr.kind === EXPR.TUPLE ? valueIr.elements.length : 1
     const site = requests.length
-    requests.push({ timeframe: tfIr.value, value: valueIr, results, statements: hoisted })
+    requests.push({ timeframe: tfIr.value, value: valueIr, results, statements: hoisted,
+      target: hostTarget ? Object.freeze({
+        own: hostTarget.own !== null,
+        ticker: hostTarget.other,
+        venue: hostTarget.venue,
+        code: hostTarget.code,
+        live: hostTarget.live === true,
+        line: node.tok ? node.tok.line : null,
+      }) : ownUnread ? Object.freeze({
+        // ⭐ RS RATING L8 (4b) — the chart's own symbol at a timeframe the host does not read:
+        // `code` is the literal as written, never a served code; `unread` refuses it in the supply
+        own: true, ticker: null, venue: null, code: tfIr.value, live: false, unread: true,
+        line: node.tok ? node.tok.line : null,
+      }) : null })
     return requestCall(site, symbolIr, results)
   }
 
@@ -6309,16 +6456,111 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  refusal: a `%`, a call, a slot that is not a counter, a counter the body
    *  assigns. A counter whose bound did not fold THROWS that bound's refusal,
    *  which names the frame parameter a call site may fix (`simpleSpecialisation`).
-   *  @returns {{lo:number, hi:number}|null} */
-  const offsetRange = (e, at, scope, depth = 0) => {
+   *
+   *  ⭐⭐ L4b (RS Rating, `n63 = bar_index < 63 ? bar_index : 63`) — MORE SHAPES,
+   *  each sound on its own, and nothing else:
+   *    · the chart's `bar_index` is `[0, +inf)` (it is never `na` and never
+   *      negative), narrowed by the facts its enclosing `?:` tests prove (`refine`);
+   *    · `c ? a : b` is the UNION of its arms' ranges, whatever `c` is (Pine takes
+   *      one arm; an `na` test takes the second). A test `bar_index < k` /
+   *      `<= k` / `> k` / `>= k` (either side), `k` ranged, narrows `bar_index` in
+   *      the arm it guards: `hi <= k.hi` where it holds and `lo >= k.lo` where it
+   *      fails (non-strict on purpose: a wider range is still a true one, and it
+   *      needs no integer argument). Only `bar_index` is narrowed: its negation is
+   *      exact because it is never `na`;
+   *    · `math.min` / `math.max` (v1-v4 `min` / `max`) of ranged arguments;
+   *    · a main-body name bound once to an expression (`n63 = …`, an `env` macro:
+   *      never reassigned), or a main-body slot declared once and never reassigned,
+   *      is its expression's range;
+   *    · `ta.barssince(c)` is `[0, +inf)` and may be `na` (`na: true`, carried
+   *      through every combination): an `na` offset reads the current bar (C29), so
+   *      it stays inside any ring, but an `na` bound proves no `bar_index` fact.
+   *  A `for` counter whose bounds do not fold is the union of their ranges
+   *  (`forCounterRange`). `hi` may be `+inf`: a ring is then sized only by a
+   *  declared buffer (`declaredBufferOf`), never by this function.
+   *  ⛔ Anything else stays `null`. The range only SIZES the ring: the offset is
+   *  still computed bar by bar, and the VM still stops past the ring.
+   *  @returns {{lo:number, hi:number, na?:true}|null} */
+  const mayNa = (r, ...from) => (from.some((x) => x && x.na) ? { ...r, na: true } : r)
+  const isChartBarIndex = (e, scope) => !!(e && e.type === 'name' && e.name === 'bar_index'
+    && (!scope || scope.lookup('bar_index') === null) && !env.has('bar_index'))
+  const RANGE_CMP = new Set(['<', '<=', '>', '>='])
+  /** The `bar_index` facts a `?:` test proves: `{yes, no}` ranges to intersect, or null. */
+  const barIndexFacts = (test, at, scope, depth, refine) => {
+    if (!test || test.type !== 'binary' || !RANGE_CMP.has(test.op)) return null
+    let op = test.op
+    let other = null
+    if (isChartBarIndex(test.left, scope)) other = test.right
+    else if (isChartBarIndex(test.right, scope)) {
+      other = test.left
+      op = op === '<' ? '>' : op === '<=' ? '>=' : op === '>' ? '<' : '<='
+    } else return null
+    const k = offsetRange(other, at, scope, depth + 1, refine)
+    // ⛔ a `k` that may be `na` makes the test FALSE without `bar_index >= k`: no fact
+    if (!k || k.na || !Number.isFinite(k.lo) || !Number.isFinite(k.hi)) return null
+    // `bar_index < k` holds: bar_index <= k.hi; fails: bar_index >= k.lo (and mirrored)
+    return op === '<' || op === '<='
+      ? { yes: { lo: 0, hi: k.hi }, no: { lo: k.lo, hi: Infinity } }
+      : { yes: { lo: k.lo, hi: Infinity }, no: { lo: 0, hi: k.hi } }
+  }
+  const offsetRange = (e, at, scope, depth = 0, refine = null) => {
     if (!e || typeof e !== 'object' || depth > 32) return null
     if (e.type === 'number') return Number.isFinite(e.value) ? { lo: e.value, hi: e.value } : null
+    if (isChartBarIndex(e, scope)) {
+      const lo = refine ? Math.max(0, refine.lo) : 0
+      const hi = refine ? refine.hi : Infinity
+      return lo <= hi ? { lo, hi } : null
+    }
+    if (e.type === 'ternary') {
+      const facts = barIndexFacts(e.test, at, scope, depth, refine)
+      const meet = (f) => (!f ? refine : !refine ? f
+        : { lo: Math.max(f.lo, refine.lo), hi: Math.min(f.hi, refine.hi) })
+      const y = offsetRange(e.yes, at, scope, depth + 1, facts ? meet(facts.yes) : refine)
+      if (!y) return null
+      const n = offsetRange(e.no, at, scope, depth + 1, facts ? meet(facts.no) : refine)
+      if (!n) return null
+      return mayNa({ lo: Math.min(y.lo, n.lo), hi: Math.max(y.hi, n.hi) }, y, n)
+    }
+    if (e.type === 'call' && !fnByName.has(e.name)
+      && (e.name === 'math.min' || e.name === 'math.max'
+        || (pineVersion !== null && pineVersion < 5 && (e.name === 'min' || e.name === 'max')))) {
+      const args = (e.args || []).map((a) => (a && a.value !== undefined ? a : { value: a }))
+      if (args.length < 2 || args.some((a) => a.name)) return null
+      const rs = args.map((a) => offsetRange(a.value, at, scope, depth + 1, refine))
+      if (rs.some((r) => !r)) return null
+      const pick = /min$/.test(e.name) ? Math.min : Math.max
+      return mayNa({ lo: pick(...rs.map((r) => r.lo)), hi: pick(...rs.map((r) => r.hi)) }, ...rs)
+    }
+    // `ta.barssince(c)` counts bars, so it is never negative; before `c` first holds it is
+    // `na`, and an `na` offset reads the current bar (C29, `vw-offset-na-spy-1d`): offset 0
+    if (e.type === 'call' && !fnByName.has(e.name)
+      && (e.name === 'ta.barssince' || (pineVersion !== null && pineVersion < 5 && e.name === 'barssince'))) {
+      return { lo: 0, hi: Infinity, na: true }
+    }
     if (e.type === 'name' && scope) {
       const s = scope.lookup(e.name)
       if (s !== null && loopRanges.has(s)) {
         const r = loopRanges.get(s)
         if (r && r.blocked) throw r.blocked
         return r && Number.isFinite(r.lo) ? r : null
+      }
+      // a main-body slot declared once and never reassigned (`delta = ta.barssince(…)`,
+      // a slot under `objectsInRun` because it keeps history): its initialiser's range,
+      // the value it is given on every bar it is read
+      if (s !== null && owner === null && slots[s] && slots[s].owner === null && !(slotDepth[s] > 0)
+        && slots[s].kind === SLOT.LOCAL) {
+        const def = frameLocalDefs.get(s)
+        if (def && def.scope === root) return offsetRange(def.expr, at, root, depth + 1, refine)
+      }
+      // a main-body expression binding, read in the main body: its expression's range
+      if (s === null && owner === null) {
+        const b = env.get(e.name)
+        if (b && b.kind === 'expr' && b.node && !b.frame && (b.owner === null || b.owner === undefined)
+          && !(b.r4 > 0) && !(b.depth > 0) && constValueOf(e, scope) === null) {
+          // its names are the main body's: read in the ROOT scope, so a loop counter
+          // of the same name where the offset is read cannot answer for them
+          return offsetRange(b.node, at, root, depth + 1, refine)
+        }
       }
     }
     if (e.type === 'name' || e.type === 'binary' || e.type === 'unary') {
@@ -6332,18 +6574,18 @@ function buildRuntimeIrLinked(source, opts, holder) {
       }
     }
     if (e.type === 'unary' && e.op === '-') {
-      const r = offsetRange(e.arg, at, scope, depth + 1)
-      return r ? { lo: -r.hi, hi: -r.lo } : null
+      const r = offsetRange(e.arg, at, scope, depth + 1, refine)
+      return r ? mayNa({ lo: -r.hi, hi: -r.lo }, r) : null
     }
     if (e.type === 'binary' && (e.op === '+' || e.op === '-' || e.op === '*')) {
-      const a = offsetRange(e.left, at, scope, depth + 1)
+      const a = offsetRange(e.left, at, scope, depth + 1, refine)
       if (!a) return null
-      const b = offsetRange(e.right, at, scope, depth + 1)
+      const b = offsetRange(e.right, at, scope, depth + 1, refine)
       if (!b) return null
-      if (e.op === '+') return { lo: a.lo + b.lo, hi: a.hi + b.hi }
-      if (e.op === '-') return { lo: a.lo - b.hi, hi: a.hi - b.lo }
+      if (e.op === '+') return mayNa({ lo: a.lo + b.lo, hi: a.hi + b.hi }, a, b)
+      if (e.op === '-') return mayNa({ lo: a.lo - b.hi, hi: a.hi - b.lo }, a, b)
       const ps = [a.lo * b.lo, a.lo * b.hi, a.hi * b.lo, a.hi * b.hi]
-      return { lo: Math.min(...ps), hi: Math.max(...ps) }
+      return mayNa({ lo: Math.min(...ps), hi: Math.max(...ps) }, a, b)
     }
     return null
   }
@@ -6666,7 +6908,19 @@ function buildRuntimeIrLinked(source, opts, holder) {
       return { lo: Math.min(a.value, b.value), hi: Math.max(a.value, b.value) }
     }
     const fname = [a, b].map((c) => c && c.frameName).find((x) => typeof x === 'string')
-    return { blocked: fname ? frameBoundRefusal(fname, at) : null }
+    if (fname) return { blocked: frameBoundRefusal(fname, at) }
+    // ⭐ L4b — bounds that do not fold may still be RANGED (`for i = delta to 34 + delta`,
+    // `delta = ta.barssince(…)`): the counter stays between them, so its range is their
+    // union (`hi` may be `+inf`; only a declared buffer can then size a ring on it).
+    const ranged = (toks) => {
+      let e
+      try { e = parseWholeExpression(toks) } catch { return null }
+      try { return offsetRange(e, at, scope) } catch { return null }
+    }
+    const ra = ranged(fromToks)
+    const rb = ra ? ranged(toToks) : null
+    if (ra && rb) return mayNa({ lo: Math.min(ra.lo, rb.lo), hi: Math.max(ra.hi, rb.hi) }, ra, rb)
+    return { blocked: null }
   }
 
   /** ⭐⭐ RT3 — `x[n]` over a variable's ring with `n` only known while the bar
@@ -6684,9 +6938,19 @@ function buildRuntimeIrLinked(source, opts, holder) {
       if (err instanceof RuntimeRefusal && typeof err.frameName === 'string') throw frameBoundRefusal(err.frameName, at)
       throw err
     }
-    if (!r || !Number.isFinite(r.lo) || !Number.isFinite(r.hi) || r.lo < 0) throw refusal
-    const depth = Math.ceil(r.hi)
-    if (depth > MAX_DYNAMIC_HISTORY_DEPTH) throw refusal
+    // ⛔ the BOTTOM must always be proved: a negative offset has no answer this lane owes
+    if (!r || !Number.isFinite(r.lo) || r.lo < 0) throw refusal
+    let depth = Number.isFinite(r.hi) ? Math.ceil(r.hi) : Infinity
+    // ⭐⭐ L4b — NO PROVED TOP (or one past Pine's ceiling): a DECLARED buffer sizes the
+    // ring (`declaredBufferOf`), and a read past it stops the run in the VM (`mbbDyn`'s
+    // limit, or the 5,000 ceiling), never `na`. No declaration: the refusal stands.
+    if (depth > MAX_DYNAMIC_HISTORY_DEPTH) {
+      const declared = declaredBufferOf(varSlot)
+      if (declared === null) throw refusal
+      depth = declared
+    }
+    // a read past a declared `max_bars_back` stops before it reaches the ring's end
+    if (MBB_DECLARED) depth = Math.min(depth, MBB_DECLARED)
     if (depth === 0) return read(varSlot)
     const h = owner !== null
       ? fnHistorySlotFor(owner, varSlot, depth, at)
@@ -7509,10 +7773,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
       // runs on some bars is that call site's. `servedCondCall` is the ONE served set; every
       // other shape is refused BY NAME below (never read from the every-bar column, which for a
       // block local's `[1]` was a silent wrong value: the rt5 witness B01 pins the previous RUN).
-      // ⛔ GATED (DRAWING_HISTORY_CAPTURED): with the gate off the drawing build is exactly master's, so
-      // every output, including a block local's `[1]`, is unchanged until W3N-D1 MATCHes.
+      // ⭐ L4d — OPEN, per shape: `servedCondCall` serves only the kinds W3N-D1 witnessed for a drawing
+      // (`SERVED_COND`); a block local's `[1]` (W3N-D1d DIVERGE) is refused here by name.
       const drawingHistory = objectsInRun && owner === null && r4Level() > 0
-        && drawingHistoryServed
       const condHistory = (!objectsInRun || drawingHistory)
         && (r4Level() > 0 || owner !== null) && lexCondHistory(node)
       if (condHistory && owner !== null) functions[owner].rt5Lex = true
@@ -7930,6 +8193,22 @@ function buildRuntimeIrLinked(source, opts, holder) {
           const fixed = fixedTestOf(node.test, scope)
           if (fixed !== null) return lowerExpr(fixed ? node.yes : node.no, scope)
         }
+        // ⭐⭐ L4c — `t = c ? label.new(…) : na` at the root (`drawArmRoots`): a JUMP, so the
+        // label is made only on the bars `c` is true (Q-RT5a T01/T02, Q-O1a). The THEN arm is
+        // lowered at this `?:`'s own depth so its ONE create is admitted; a `?:` inside its
+        // arguments is still an arm (`lowerArm`) and keeps the refusal.
+        // ⭐ L4d — the same for the witnessed ELSE-arm label and THEN-arm box (`DRAW_ARM_WITNESSED`).
+        if (drawArmRoots.has(node)) {
+          const shape = drawArmRoots.get(node)
+          const test = lowerExpr(node.test, scope)
+          const made = lowerExpr(node[shape.arm], scope)
+          if (!made || made.kind !== EXPR.OBJECT_OP || !drawArmArgsPure(made.args)) {
+            refuseObject(String(node[shape.arm].name), 'a drawing call inside one arm of `?:` whose arguments keep history or '
+              + 'have an effect — Pine runs them only on the bars that arm is taken, and no capture settles that for a drawing', node[shape.arm].tok)
+          }
+          const naArm = lowerArm(node[shape.other], scope)
+          return { ...(shape.arm === 'yes' ? ternary(test, made, naArm) : ternary(test, naArm, made)), lazy: true }
+        }
         // ⭐⭐⭐ W4 T4 — AN ARM WITH WITNESSED HISTORY RUNS ONLY WHEN IT IS CHOSEN
         // (`armHistoryGuard` cleared this node). Each arm is its own conditional
         // region, so its `ta.sma` / `ta.ema` / `ta.rma` / `ta.change` take per-call-
@@ -8062,7 +8341,14 @@ function buildRuntimeIrLinked(source, opts, holder) {
           }
           return mbbDyn(histDyn(column(columnOf(node.arg, offAt)), lowerExpr(offExpr, scope)))
         }
-        const back = Number(node.n)
+        let back = Number(node.n)
+        // ⭐ L4b — a NAMED constant (`n63 = 63`, `spx[n63]`) is the constant it folds to
+        // (`constValueOf`, no side effect): it read "counts backwards" while the dynamic
+        // spelling of the same offset built. Anything that does not fold keeps that refusal.
+        if (offExpr) {
+          const c = constValueOf(offExpr, scope)
+          if (c && Number.isInteger(c.value) && c.value >= 0) back = c.value
+        }
         if (!Number.isInteger(back) || back < 0) {
           throw new RuntimeRefusal('runtime:statement', 'a bar offset counts backwards in whole bars', locate(node.tok))
         }
@@ -9519,6 +9805,37 @@ function buildRuntimeIrLinked(source, opts, holder) {
     return Number.isInteger(n) && n >= 1 && n < MAX_BARS_BACK_CEILING ? n : null
   })()
   const MBB_LIMIT = MBB_DECLARED || MAX_BARS_BACK_CEILING
+  // ⭐ L4b — `max_bars_back(x, 5000)` written at the ROOT (the one shape `DIRECTIVE_CALLS`
+  // admits, `maxBarsBackIsCeiling`) declares `x`'s buffer: Pine's ceiling, 5,000 bars.
+  const MBB_SERIES = (() => {
+    const out = new Set()
+    let text = ''
+    try { text = strippedForScan(source) } catch { return out }
+    const re = /^max_bars_back[ \t]*\([ \t]*([A-Za-z_][A-Za-z0-9_]*)[ \t]*,[ \t]*5000[ \t]*\)[ \t]*\r?$/gm
+    for (const m of text.matchAll(re)) out.add(m[1])
+    return out
+  })()
+  // the declaration naming Pine's ceiling itself (`max_bars_back = 5000`) declares it too;
+  // `MBB_DECLARED` leaves it out because the VM's own ceiling already is 5,000
+  const MBB_DECLARES_CEILING = (() => {
+    let m = null
+    try { m = /\bmax_bars_back\s*=\s*(\d+)/.exec(strippedForScan(source)) } catch { m = null }
+    return !!m && Number(m[1]) === MAX_BARS_BACK_CEILING
+  })()
+  /** ⭐⭐ L4b — THE HISTORY BUFFER A SCRIPT DECLARES FOR THIS SLOT, or `null`: the
+   *  declaration's `max_bars_back = N` (every series), else a root `max_bars_back(x,
+   *  5000)` naming this main-body slot. With both, the declaration's (smaller) buffer
+   *  stands: a run stopped by name where Pine might still draw is visible, a line drawn
+   *  where Pine stops would be a wrong picture. Only this sizes a ring whose offset has
+   *  no proved top. */
+  const declaredBufferOf = (varSlot) => {
+    if (MBB_DECLARED) return MBB_DECLARED
+    if (MBB_DECLARES_CEILING) return MAX_BARS_BACK_CEILING
+    const s = slots[varSlot]
+    if (s && owner === null && s.owner === null && MBB_SERIES.has(s.name)
+      && root.lookup(s.name) === varSlot) return MAX_BARS_BACK_CEILING
+    return null
+  }
   const mbbRefusal = (back, at, what) => {
     note('runtime:directive')
     return new RuntimeRefusal('runtime:directive',
@@ -10468,7 +10785,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     'time_tradingday', 'timeframe.period', 'timeframe.multiplier', 'syminfo.mintick', 'syminfo.pointvalue',
     'syminfo.pricescale', 'syminfo.minmove', 'syminfo.ticker', 'syminfo.tickerid', 'syminfo.prefix',
     'syminfo.root', 'syminfo.currency', 'syminfo.basecurrency', 'syminfo.description', 'syminfo.type',
-    'syminfo.timezone', 'syminfo.session'])
+    'syminfo.timezone', 'syminfo.session', 'syminfo.industry', 'syminfo.sector'])
   const NUMERIC_CALL = /^(ta\.(sma|ema|rma|wma|hma|vwma|swma|alma|linreg|atr|tr|rsi|cci|mfi|stdev|variance|dev|highest|lowest|highestbars|lowestbars|mom|roc|cum|percentrank|median|mode|range|barssince|correlation|vwap|wpr|cmo|tsi|obv|pvt|accdist|iii|wvad|nvi|pvi|sar|supertrend|bb|bbw|kc|kcw|dmi|macd|stoch|pivothigh|pivotlow|max|min)|math\.[a-z_]+|input\.(int|float|source|price|string|color|timeframe|symbol|session|text_area|time)|str\.(tostring|format|length|replace|replace_all|lower|upper|substring|trim|repeat|tonumber|pos)|color\.[a-z_]+|int|float|string)$/
   // ⛔ (review 3 M-1a, re-review H-2) `ta.valuewhen`, `ta.change` and `nz` return their
   // SOURCE's type: provably non-bool exactly when that source argument is.
@@ -11808,8 +12125,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
     const out = []
     const outerStmtSink = stmtHoistSink
     stmtHoistSink = null
-    // RT5: every list but the root runs only on some bars (or per call).
+    // RT5: every list but the root runs only on some bars (or per call) —
+    // except an arm whose test is a script constant (L4, `everyBarArmNext`).
+    const everyBarArm = !rootHoist && everyBarArmNext
+    everyBarArmNext = false
     if (!rootHoist) condDepth += 1
+    if (everyBarArm) rt5EveryBar += 1
     try {
     for (let i = 0; i < list.length; i += 1) {
       // ⭐ RE-ESTABLISHED PER STATEMENT so it survives a nested list lowered
@@ -12470,14 +12791,15 @@ function buildRuntimeIrLinked(source, opts, holder) {
           const test = lowerExpr(a.test, scope)
           allInv = allInv && invariantTest(a.test, scope)
           const armScope = new Scope(scope)
-          const body = inR4Region(allInv, () => lowerStmts(a.from.sub || [], armScope))
+          // L4: a constant arm (and every arm before it constant) is an every-bar list for RT5
+          const body = inR4Region(allInv, () => { everyBarArmNext = allInv; return lowerStmts(a.from.sub || [], armScope) })
           objectBlocks.push({ scope: armScope, body })
           return { test, body }
         })
         let tail = []
         if (finalElse) {
           const elseScope = new Scope(scope)
-          tail = inR4Region(allInv, () => lowerStmts(finalElse.sub || [], elseScope))
+          tail = inR4Region(allInv, () => { everyBarArmNext = allInv; return lowerStmts(finalElse.sub || [], elseScope) })
           objectBlocks.push({ scope: elseScope, body: tail })
         }
         // ⛔ NESTED IFs, NEVER A FLATTENED CONDITION. `else if b` is not `if not a
@@ -12954,6 +13276,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
         if (!mutable) {
           frameLocalDefs.set(slot, { expr: value, scope })
         }
+        // ⭐⭐ L4c — `t = c ? label.new(…) : na`, the whole value of this declaration
+        if (objectsInRun && !mutable) markDrawArmRoot(value, scope)
         out.push(declare(slot, lowerExpr(value, scope)))
         continue
       }
@@ -13212,6 +13536,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     } finally {
       stmtHoistSink = outerStmtSink
       if (!rootHoist) condDepth -= 1
+      if (everyBarArm) rt5EveryBar -= 1
     }
     return out
   }
@@ -13297,6 +13622,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // RT5: a body is judged at its CALL SITE; its own list starts at depth 0.
     const prevCondDepth = condDepth
     condDepth = -1
+    // L4: and no enclosing constant arm discounts the body's own lists
+    const prevEveryBar = rt5EveryBar
+    rt5EveryBar = 0
+    everyBarArmNext = false
     // WS-C: a body is judged at its CALL SITE, so its own regions start at 0.
     const prevR4 = r4Cond
     const prevRegion = r4Region
@@ -13601,6 +13930,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       frameConsts = prevFrameConsts
       stmtHoistSink = prevHoistSink
       condDepth = prevCondDepth
+      rt5EveryBar = prevEveryBar
       r4Cond = prevR4
       r4Region = prevRegion
     }

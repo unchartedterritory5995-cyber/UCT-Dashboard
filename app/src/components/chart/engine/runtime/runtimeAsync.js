@@ -26,6 +26,7 @@ import {
 } from './runtimeColumns.js'
 import { LIMIT_NAMES } from './limits.js'
 import { runtimeSourceHash } from '../runtimeKill.js'
+import { bindSymbolOf } from '../ast/bind.js'
 import { noteRuntimeRunStarted, noteRuntimeRunSettled, resetRuntimeRunTelemetry } from '../runtimeRunTelemetry.js'
 
 let _ready = false
@@ -279,11 +280,25 @@ function messageOf(id, def, rows, ctx) {
     ...(ctx && ctx.runtimeInputs && typeof ctx.runtimeInputs === 'object'
       ? { runtimeInputs: { ...ctx.runtimeInputs } } : {}),
     ...(ctx && ctx.symbol && typeof ctx.symbol === 'object'
-      ? { symbol: { ticker: ctx.symbol.ticker, exchange: ctx.symbol.exchange } } : {}),
+      // ⭐ RS RATING L3 — every field the fold reads (`bind.js::BIND_SYMBOL_FIELDS`), not only
+      // `{ticker, exchange}`: the worker's run settles `syminfo.industry` from the same symbol.
+      ? { symbol: { ticker: ctx.symbol.ticker, exchange: ctx.symbol.exchange, ...bindSymbolOf(ctx.symbol) } } : {}),
     // ⭐ P3 WS-F — a framed instance's window slides, so the run refuses a `varip` there
     ...(ctx && ctx.framed === true ? { framed: true } : {}),
     // ⭐⭐ W9-T11 — the window a broker run takes (design 3.4), as the context holds it
     ...(ctx && ctx.historyWindowBars !== undefined ? { historyWindowBars: ctx.historyWindowBars } : {}),
+    // ⭐⭐ RS RATING L5 — the chart's other-symbol cache, for a run that reads another symbol
+    // (`requestSupply.js` decides from it by the host bind's rules): plain entries, each with
+    // the store exchange the bind matches a spelling against (`exchangeOf` is a function and
+    // does not cross), rebuilt as a Map on the other side (`runtimeWorker.js`).
+    ...(ctx && ctx.secondary && typeof ctx.secondary.entries === 'function' ? {
+      secondaryEntries: [...ctx.secondary.entries()].map(([k, e]) => [k, {
+        bars: e && Array.isArray(e.bars) ? e.bars.map((b) => ({ t: b.t, o: b.o, h: b.h, l: b.l, c: b.c, v: b.v })) : [],
+        status: e && e.status,
+        exchange: (e && typeof e.exchange === 'string' && e.exchange)
+          || (typeof ctx.exchangeOf === 'function' ? ctx.exchangeOf(k) : null) || null,
+      }]),
+    } : {}),
   }
   const plainRows = rows.map((b) => ({ t: b.t, o: b.o, h: b.h, l: b.l, c: b.c, v: b.v }))
   return { id, def: plainDef, rows: plainRows, ctx: plainCtx }

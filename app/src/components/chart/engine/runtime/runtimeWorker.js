@@ -30,9 +30,17 @@ registerStrategyBrokerGate(strategyBrokerEnabled)
 const clock = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now())
 
 self.onmessage = (event) => {
-  const { id, def, rows, ctx } = event.data || {}
+  const { id, def, rows, ctx: plainCtx } = event.data || {}
   const startedAt = clock()
   try {
+    // ⭐ RS RATING L5 — the other-symbol cache crosses as plain entries (`runtimeAsync.js::messageOf`)
+    const ctx = plainCtx && Array.isArray(plainCtx.secondaryEntries)
+      ? (() => {
+        const { secondaryEntries, ...rest } = plainCtx
+        const secondary = new Map(secondaryEntries)
+        return { ...rest, secondary, exchangeOf: (k) => { const e = secondary.get(k); return (e && e.exchange) || null } }
+      })()
+      : plainCtx
     const columns = computeRuntimeColumns(def, rows || [], ctx || {}, { budgetMs: RUNTIME_PANE_TIME_BUDGET_MS })
     // ⭐ RT5 — the run's drawings are non-enumerable on the record, so a
     // structured clone would drop them; they cross beside it. ⭐ UIE PHASE 2 — the raw

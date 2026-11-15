@@ -50,7 +50,7 @@ const same = (a, b, tol = 1e-9) => (a == null || Number.isNaN(a)
   : (b != null && !Number.isNaN(b) && Math.abs(a - b) <= tol * Math.max(1, Math.abs(b))))
 
 function drawn(bars, src) {
-  const built = buildRuntimeIr(src, { bars, inputs: {}, objectsInRun: true, tf: 'D', basePeriod: 'D', w3nD1ServeDrawingHistory: true })
+  const built = buildRuntimeIr(src, { bars, inputs: {}, objectsInRun: true, tf: 'D', basePeriod: 'D' })
   if (!built.ok) throw new Error(`drawing build refused ${built.refusal.guard}: ${built.refusal.message}`)
   const program = lowerIrProgram(built.ir)
   const res = execute(program, {
@@ -69,10 +69,9 @@ function plotted(bars, src) {
   const r = execute(program, { bars: bars.length, series: seriesOf(bars), columns: program.columns, confirmed: true })
   return Array.from(r.outputs[0])
 }
-// `serve` = the TEST-ONLY option that lifts the capture gate (DRAWING_HISTORY_CAPTURED = false in product)
-const refusal = (bars, body, serve = true) => {
-  const b = buildRuntimeIr(SRC(...body), { bars, inputs: {}, objectsInRun: true, tf: 'D', basePeriod: 'D',
-    ...(serve ? { w3nD1ServeDrawingHistory: true } : {}) })
+// (L4d: the test-only gate switch is gone; every build here is the product's)
+const refusal = (bars, body) => {
+  const b = buildRuntimeIr(SRC(...body), { bars, inputs: {}, objectsInRun: true, tf: 'D', basePeriod: 'D' })
   return b.ok ? null : b.refusal.guard
 }
 
@@ -143,32 +142,19 @@ describe('W3W4-D1 - everything else keeps runtime:conditional-history by name', 
   })
 })
 
-describe('W3W4-D1 - the capture gate (DRAWING_HISTORY_CAPTURED = false): no drawing capture, so refused by name', () => {
+// ⭐ L4d — THE GATE IS PER SHAPE NOW (`DRAWING_HISTORY_WITNESSED`, W3N-D1 graded 2026-11-15:
+// a/b/c MATCH, d DIVERGE; rails with the vendor digests in `l4dDrawingHistory.test.js`). The
+// product build serves sma / ema / rma in a block and refuses a block local's `[1]` by name.
+describe('L4d - the per-shape gate: sma / ema / rma served in the product build, a block local [1] refused', () => {
   const bars = barsOf(CAPS.rddt)
   it.each([
     ['ta.sma', 'ta.sma(close, 3)'], ['ta.ema', 'ta.ema(close, 3)'], ['ta.rma', 'ta.rma(close, 4)'],
     ['sma inside arithmetic', 'ta.sma(close, 3) + 1'],
-  ])('%s is refused without the test option', (_n, expr) => {
-    expect(refusal(bars, ['if close > open', `    label.new(bar_index, ${expr}, "x")`], false)).toBe(R4)
+  ])('%s builds with product options (W3N-D1a/b/c)', (_n, expr) => {
+    expect(refusal(bars, ['if close > open', `    label.new(bar_index, ${expr}, "x")`])).toBeNull()
   })
-  it('the same shapes build with the test option (control: the gate, not the shape, refused)', () => {
-    expect(refusal(bars, ['if close > open', '    label.new(bar_index, ta.sma(close, 3), "x")'], true)).toBeNull()
-    expect(refusal(bars, ['if close > open', '    label.new(bar_index, ta.rma(close, 4), "x")'], true)).toBeNull()
-  })
-  it('the option is read from opts only (a product caller passes none): default build refuses', () => {
-    const b = buildRuntimeIr(SRC('if close > open', '    label.new(bar_index, ta.ema(close, 3), "x")'),
-      { bars, inputs: {}, objectsInRun: true, tf: 'D', basePeriod: 'D' })
-    expect(b.ok).toBe(false)
-    expect(b.refusal.guard).toBe(R4)
-  })
-})
-
-describe('W3W4-D1 - gate off leaves the drawing build exactly as master (nothing member-visible moves)', () => {
-  const bars = barsOf(CAPS.rddt)
-  it('a block local [1] is NOT refused with the gate off (master behaviour, kept until W3N-D1 D04 MATCHes); it IS refused with the option', () => {
-    const body = ['if close > open', '    bx = bar_index', '    label.new(bar_index, bx[1], "x")']
-    expect(refusal(bars, body, false)).toBeNull()
-    expect(refusal(bars, body, true)).toBe(R4)
+  it('a block local [1] refuses runtime:conditional-history (W3N-D1d: the vendor reads the previous RUN)', () => {
+    expect(refusal(bars, ['if close > open', '    bx = bar_index', '    label.new(bar_index, bx[1], "x")'])).toBe(R4)
   })
 })
 
@@ -179,8 +165,7 @@ describe('W3W4-D1 - the gate-on path is the MAIN BODY only (a function body is n
   // would refuse it, so gate on must leave it exactly as it was.
   const FN = ['f() =>', '    if close > open', '        ta.sma(close, 3)', '    else', '        close',
     'label.new(bar_index, f(), "x")']
-  it('builds with the gate off AND with the test option (identical)', () => {
-    expect(refusal(bars, FN, false)).toBeNull()
-    expect(refusal(bars, FN, true)).toBeNull()
+  it('builds (the drawing history path does not reopen a function body)', () => {
+    expect(refusal(bars, FN)).toBeNull()
   })
 })

@@ -227,9 +227,14 @@ describe('WS-E 2 — the run draws what the host object program lost', () => {
     expect(toRenderState(payload.live, { bars: BARS, tf: 'D' }).lines).toHaveLength(1)
   })
 
+  // ⭐ RS RATING L8 (4c) — this control asked `c ? label.new(…) : na`, the THEN-arm label that
+  // L4c (`cc8e627354`) now SERVES on its witnesses (Q-RT5a T01/T02, Q-O1a; L4d's
+  // `DRAW_ARM_WITNESSED`), so it went red on this branch by design and stays green on master
+  // (which has no L4c). The guard it exists for is unchanged: a getter in an arm licenses no
+  // drawing an arm may NOT make, so it asks an UNWITNESSED pair (a line in the ELSE arm).
   it('⛔ CONTROL — a getter in an arm is not a licence to MAKE a drawing there', () => {
     flags()
-    const d = door(`${H}${ACC}${HOST_LABELS}x = acc > 20000 ? label.new(bar_index, close, "y") : na\n`)
+    const d = door(`${H}${ACC}${HOST_LABELS}x = acc > 20000 ? na : line.new(bar_index - 1, close, bar_index, close)\n`)
     expect(d.ok).toBe(false)
     expect(d.runtimeDeclined.why).toMatch(/one arm of `\?:`/)
   })

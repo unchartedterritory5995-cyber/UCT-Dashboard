@@ -102,7 +102,7 @@ import { yieldsOf, compileRules, SENTENCE_RULES, didYouMean } from './sentence.j
 // evaluation time, which is a refusal at the wrong door.
 import { FN, MAX_SELF_LAG, SEED_RESIDUAL_TOLERANCE, TF_RESAMPLABLE, TF_LADDER, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed, heldFalseSeed, naConditionIsFalse, periodFirstCondition, readingSeed, chartOwnTimeNode, OWN_TIME_WITNESSED_TF, periodCloseNode, PERIOD_CLOSE_CODES, periodAnchorNode, chartSixtyTimeNode, SIXTY_WITNESSED_TF, PERIOD_ANCHOR_WITNESSED_TF, PERIOD_CLOSE_WITNESSED_TF, requestBaseNode, treeReadsLowerTf, listingSeedIsUnpinned } from './interpret.js'
 import { isLowerTfRequest, lowerTfRefusal, LOWER_TF_REFUSAL } from '../lowerTf.js'
-import { staticallyUnservable, spellingUnservable, staticOtherSymbolMessage, US_EQUITY_VENUES } from '../otherSymbols.js'
+import { staticallyUnservable, spellingUnservable, staticOtherSymbolMessage, US_EQUITY_VENUES, witnessRowOf, SEED_SPELLING } from '../otherSymbols.js'
 import { memberNumber } from './memberValue.js'
 // ⭐⭐ CBC-FMT — the request reads a `calc_bars_count` window refuses (pure, imports nothing).
 import { CALC_BARS_REQUEST_SOURCE } from '../calcBarsWindow.js'
@@ -2023,6 +2023,12 @@ export const BUILTIN_SYMBOL_SCOPED = Object.freeze({
   'syminfo.currency': 'currency',
   'syminfo.timezone': 'timezone',
   'syminfo.session': 'session',
+  // ⭐ RS RATING L3 (2026-11-15) — the classification fields (`symbolScope.json::classification`).
+  // They settle per BINDING from the symbol's class and strings: TradingView's where a capture
+  // witnesses it, else OUR string tagged substituted (`bind.js::classificationWith`), else refused
+  // by name from the fold.
+  'syminfo.industry': 'industry',
+  'syminfo.sector': 'sector',
 })
 
 /** The `syminfo.*` fields REFUSED BY NAME, with their reasons — read straight off
@@ -5137,7 +5143,10 @@ const VENUE_QUALIFIED = /^([A-Z][A-Z0-9_.]{0,15}):([A-Z][A-Z0-9.-]{0,9})$/
 function tickerWithoutVenue(raw) {
   const found = VENUE_QUALIFIED.exec(raw)
   if (!found) return raw
-  return US_EQUITY_VENUES.has(found[1]) ? found[2] : null
+  if (US_EQUITY_VENUES.has(found[1])) return found[2]
+  // ⭐ RS RATING L1b — a spelling with a witness row (`SP:SPX`, `otherSymbols.js::witnessRowOf`)
+  // names its ticker too; whether it is SERVED is the row's (the static gate and the bind ask it)
+  return witnessRowOf(found[1], found[2]) ? found[2] : null
 }
 
 /** The same question asked of `ticker.new`'s SEPARATE exchange argument.
@@ -5793,7 +5802,7 @@ function parsePostfix(cur) {
       if (node.type === 'name') {
         const joined = `${node.name}.${member}`
         node = isCall
-          ? { type: 'call', name: joined, args, tok: node.tok, endTok }
+          ? seedAsSecurity({ type: 'call', name: joined, args, tok: node.tok, endTok })
           : { type: 'name', name: joined, tok: node.tok }
         continue
       }
@@ -5966,7 +5975,7 @@ function parsePrimary(cur) {
       // `endTok` is the whole of what would change this." This is that.
       // `parseArguments` consumes through the `)`, so the last token it ate IS
       // the closing paren — the same way `thinkscript.js::parseCall` gets it.
-      return { type: 'call', name: tok.value, args, tok, endTok: cur.toks[cur.i - 1] || null }
+      return seedAsSecurity({ type: 'call', name: tok.value, args, tok, endTok: cur.toks[cur.i - 1] || null })
     }
     return { type: 'name', name: tok.value, tok }
   }
@@ -5996,6 +6005,43 @@ function parseArguments(cur) {
 }
 
 /** One statement's tokens → one Pine expression, with nothing left over. */
+/** ⭐⭐ RS RATING L6b — `request.seed(source, symbol, expression)` IS AN OTHER-SYMBOL READ.
+ *  A Pine Seeds series is daily data under the symbol `<SOURCE>:<SYMBOL>`, so the call is
+ *  rewritten here, once, into the read every lane already has:
+ *  `request.security("<SOURCE>:<SYMBOL>", "D", expression)` — both lanes parse with this
+ *  module, so neither can read a seed differently. Whether that spelling is SERVED is
+ *  `otherSymbols.js`'s (`requestWitnesses.json`'s `seed` rows, the frontend's manifest of
+ *  `pine_seed_store.py::SEEDS`): an unregistered seed refuses by name.
+ *  ⛔ ONLY THE THREE-ARGUMENT CALL WITH TEXT LITERALS for source and symbol (positional or
+ *  named `source` / `symbol` / `expression`): `ignore_invalid_symbol` and `calc_bars_count`
+ *  change the read, and a computed source names no series this door can know. Anything else
+ *  is left as it was (and refuses as it always did). */
+function seedAsSecurity(node) {
+  if (!node || node.type !== 'call' || node.name !== 'request.seed') return node
+  const args = node.args || []
+  if (args.length !== 3) return node
+  const names = ['source', 'symbol', 'expression']
+  const slots = [undefined, undefined, undefined]
+  let k = 0
+  for (const a of args) {
+    if (!a) return node
+    const at = a.name ? names.indexOf(a.name) : k++
+    if (at < 0 || slots[at] !== undefined) return node
+    slots[at] = a.value
+  }
+  const [src, sym, expr] = slots
+  if (!src || src.type !== 'string' || !sym || sym.type !== 'string' || !expr) return node
+  const key = `${String(src.value).trim().toUpperCase()}:${String(sym.value).trim().toUpperCase()}`
+  return {
+    type: 'call', name: 'request.security', tok: node.tok, endTok: node.endTok, seed: true,
+    args: [
+      { name: null, value: { type: 'string', value: key, tok: src.tok } },
+      { name: null, value: { type: 'string', value: 'D', tok: sym.tok } },
+      { name: null, value: expr },
+    ],
+  }
+}
+
 export function parseWholeExpression(toks) {
   const cur = new Cursor(toks)
   const node = parseExpression(cur, 0)
@@ -13332,6 +13378,10 @@ export class Resolver {
       // one string, and both are judged by `US_EQUITY_VENUES` so they cannot
       // disagree about one script.
       const raw = String(node.value).trim().toUpperCase()
+      // ⭐ RS RATING L6b — a registered Pine seed (`SEED_<SOURCE>:<SYMBOL>`, whose source can be
+      // longer than any exchange spelling): its symbol is the ticker, its source the venue
+      const seed = SEED_SPELLING.exec(raw)
+      if (seed && witnessRowOf(seed[1], seed[2]) && TICKER_SHAPE.test(seed[2])) return { ticker: seed[2], venue: seed[1] }
       const ticker = tickerWithoutVenue(raw)
       // ⭐ READ, NEVER RE-TYPED — `parse.js` owns what a ticker may look like.
       if (ticker === null || !TICKER_SHAPE.test(ticker)) return null
@@ -13347,26 +13397,48 @@ export class Resolver {
     // does and for the same recorded reason: TradingView's own Pine Screener
     // "falls back to defaults for `input.symbol`". Every fold lands in
     // `usedInputs`, so a frozen input is never silent.
-    if (node.type === 'call' && (node.name === 'input.symbol' || node.name === 'input.string')) {
-      const args = node.args || []
-      for (let i = 0; i < args.length; i += 1) {
-        const a = args[i]
-        if (a && (a.name === 'defval' || (!a.name && i === 0))) {
-          const folded = this.otherSymbolOf(a.value, depth + 1)
-          if (folded !== null && node.tok) {
-            this.usedInputs.set(`${node.tok.line}:${node.tok.column}`, {
-              call: node.name,
-              title: null,
-              folded: `'${folded.ticker}'`,
-              line: node.tok.line,
-              column: node.tok.column,
-            })
-          }
-          return folded
-        }
+    const dv = this.symbolInputDefaultOf(node)
+    if (dv !== undefined) {
+      if (dv === null) return null
+      const folded = this.otherSymbolOf(dv, depth + 1)
+      if (folded !== null && node.tok) {
+        this.usedInputs.set(`${node.tok.line}:${node.tok.column}`, {
+          call: node.name,
+          title: null,
+          folded: `'${folded.ticker}'`,
+          line: node.tok.line,
+          column: node.tok.column,
+        })
       }
+      return folded
     }
     return null
+  }
+
+  /** ⭐⭐ RS RATING L2 — THE DEFAULT AN INPUT HANDS A REQUEST'S SYMBOL ARGUMENT: the
+   *  `defval` node of `input.symbol(…)` / `input.string(…)` / an UNTYPED `input(…)`;
+   *  `null` for one of those calls with no
+   *  readable default; `undefined` for any other node. ONE reader for `otherSymbolOf`
+   *  and `rawSymbolSpellingOf`, so the fold and the spelling refusal cannot disagree.
+   *  ⭐ Pine types an untyped `input()` by its default's literal type (reference,
+   *  `input`: "the type of the input is determined by the type of the default value"),
+   *  so `input('SP:SPX', title = …)` IS a string input — the shape RS Rating writes for
+   *  its comparative symbol. ⛔ A default that is not text (`input(4200)`, `input(close)`)
+   *  folds to no symbol — `otherSymbolOf` answers null for it — and a `type =` argument
+   *  (v4's `input(…, type = input.resolution)`) is its own declaration, never read here. */
+  symbolInputDefaultOf(node) {
+    if (!node || node.type !== 'call') return undefined
+    const untyped = node.name === 'input'
+    if (!untyped && node.name !== 'input.symbol' && node.name !== 'input.string') return undefined
+    const args = node.args || []
+    if (untyped && args.some((a) => a && a.name === 'type')) return undefined
+    for (let i = 0; i < args.length; i += 1) {
+      const a = args[i]
+      if (a && (a.name === 'defval' || (!a.name && i === 0))) {
+        return a.value
+      }
+    }
+    return untyped ? undefined : null
   }
 
   /** `request.security(<symbol>, <timeframe>, expr)` → the node it means, or null.
@@ -13527,13 +13599,8 @@ export class Resolver {
       // a computed or chart-own prefix (`?`, `@syminfo.prefix`) spells no literal
       return prefix === '?' || String(prefix).startsWith('@') ? null : `${prefix}:${inner}`
     }
-    if (node.type === 'call' && (node.name === 'input.symbol' || node.name === 'input.string')) {
-      const args = node.args || []
-      for (let i = 0; i < args.length; i += 1) {
-        const a = args[i]
-        if (a && (a.name === 'defval' || (!a.name && i === 0))) return this.rawSymbolSpellingOf(a.value, depth + 1)
-      }
-    }
+    const dv = this.symbolInputDefaultOf(node)
+    if (dv) return this.rawSymbolSpellingOf(dv, depth + 1)
     return null
   }
 
