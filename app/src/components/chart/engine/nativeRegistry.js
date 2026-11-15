@@ -4867,10 +4867,10 @@ const RS_LINE_V5_RAW = {
     // And for the slim line's second average (2026-11-13): its switch, length, type
     // and colour, legacy here with the slim types, ranges and options exactly.
     { key: 'showAverage2', type: 'bool', label: 'Second average', default: false, group: 'Line', legacy: true },
-    { key: 'maLength2', type: 'int', label: 'Second average (bars)', default: 50, min: 2, max: 200, step: 1, group: 'Line', legacy: true },
-    { key: 'maType2', type: 'enum', label: 'Second average type', default: 'SMA', group: 'Line', legacy: true,
+    { key: 'maLength2', type: 'int', label: 'Average 2 (bars)', default: 50, min: 2, max: 200, step: 1, group: 'Line', legacy: true },
+    { key: 'maType2', type: 'enum', label: 'Average 2 type', default: 'SMA', group: 'Line', legacy: true,
       options: RS_MA_TYPE_OPTIONS },
-    { ...colorInput('ma2Color', 'Second average colour', RS_MA2), group: 'Line', legacy: true },
+    { ...colorInput('ma2Color', 'Average 2 colour', RS_MA2), group: 'Line', legacy: true },
     { key: 'lineWidth', type: 'int', label: 'Line width', default: 1, min: 1, max: 4, step: 1, group: 'Line' },
     { key: 'lookback', type: 'int', label: 'Lookback (bars)', default: 252, min: 20, max: 500, step: 1, group: 'New highs',
       tooltip: 'New-high lookback: bars for a new high. 252 bars is one trading year on a daily chart; on a weekly chart use 52. Shorter reacts faster and fires more often.' },
@@ -5584,13 +5584,14 @@ const RS_LINE_SLIM_RAW = {
     // Declared OFF, so every saved chart draws exactly as before.
     { key: 'showAverage2', type: 'bool', label: 'Second average', default: false, group: 'Average',
       tooltip: 'Draw a second moving average on the RS line, dotted, with no shading (a 50-day simple average by default, the slower read beside the 21). Off by default.' },
-    { key: 'maLength2', type: 'int', label: 'Second average (bars)', default: 50, min: 2, max: 200, step: 1, group: 'Average',
+    { key: 'maLength2', type: 'int', label: 'Average 2 (bars)', default: 50, min: 2, max: 200, step: 1, group: 'Average',
       activeWhen: RS_AVERAGE2_ON,
       tooltip: 'Second average length in bars. 50 is the slower read many traders pair with the 21.' },
-    { key: 'maType2', type: 'enum', label: 'Second average type', default: 'SMA', group: 'Average',
+    { key: 'maType2', type: 'enum', label: 'Average 2 type', default: 'SMA', group: 'Average',
       options: RS_MA_TYPE_OPTIONS, activeWhen: RS_AVERAGE2_ON,
       tooltip: 'Simple by default (Deepvue draws its second RS average as a 50 SMA); exponential reacts faster.' },
-    { ...colorInput('ma2Color', 'Second average colour', RS_MA2), group: 'Average', activeWhen: RS_AVERAGE2_ON },
+    { ...colorInput('ma2Color', 'Average 2 colour', RS_MA2), group: 'Average', activeWhen: RS_AVERAGE2_ON,
+      tooltip: 'Colour of the second average on the RS line.' },
     // ── rendered: Line (folded) ──
     { ...colorInput('color', 'Line colour', RS_INFO), group: 'Line', tooltip: 'Colour of the RS line' },
     { key: 'lineWidth', type: 'int', label: 'Line width', default: 1, min: 1, max: 4, step: 1, group: 'Line' },
