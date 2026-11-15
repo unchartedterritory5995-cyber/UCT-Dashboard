@@ -154,13 +154,78 @@ def hand_deals() -> frozenset:
 
 
 def mirror_list() -> frozenset:
-    """The PC's manual buyout names as the breadth server mirrors them (its non-deal
-    entries removed by name). Empty on any fault."""
+    """The PC's buyout names: its manual list as the breadth server mirrors them (non-deal
+    entries removed by name) plus every target its buyout sweep has CONFIRMED
+    (`pc_confirmed`). Empty on any fault."""
     try:
         from api.services import breadth_server_universe as bsu
-        return frozenset(bsu.EXCLUDE - bsu.NOT_DEALS)
+        manual = frozenset(bsu.EXCLUDE - bsu.NOT_DEALS)
     except Exception as exc:  # noqa: BLE001
         _log.warning("[deal-status] mirror list unavailable: %s", exc)
+        manual = frozenset()
+    return manual | pc_confirmed()
+
+
+# -- the PC buyout sweep's confirmed targets, pushed daily ---------------------------------
+# WHY. `scripts/buyout_sweep.py` (uct-intelligence) confirms deal targets against filings and
+# news and writes them to the PC's `universe_exclude_auto.json`, which nothing on the server
+# read: on 2026-11-14 nineteen confirmed targets (BRZE, DV, PCRX, RXO among them, all in
+# "Tight bases near highs") were excluded on the PC and served by every server screen. The
+# sweep now pushes its WHOLE confirmed set after each run (`POST
+# /api/catalysts/pc-confirmed-deals-internal`), so an `--unconfirm` on the PC clears the name
+# here on the next push.
+
+PC_CONFIRMED_FILENAME = "pc_buyout_confirmed.json"
+PC_CONFIRMED_MAX = 1000
+_TICKER_RE = re.compile(r"^[A-Z0-9][A-Z0-9.\-/]{0,9}$")
+
+
+def _pc_confirmed_path() -> str:
+    return os.path.join(_data_dir(), PC_CONFIRMED_FILENAME)
+
+
+def clean_pc_symbols(symbols) -> list:
+    """The pushed symbols a store will keep: upper-cased tickers, sorted, de-duplicated.
+    Raises ValueError on anything that is not a list of ticker strings, or on too many."""
+    if not isinstance(symbols, list):
+        raise ValueError("symbols must be a list")
+    out = set()
+    for s in symbols:
+        if not isinstance(s, str) or not _TICKER_RE.match(s.strip().upper()):
+            raise ValueError(f"not a ticker: {s!r}")
+        out.add(s.strip().upper())
+    if len(out) > PC_CONFIRMED_MAX:
+        raise ValueError(f"at most {PC_CONFIRMED_MAX} symbols")
+    return sorted(out)
+
+
+def store_pc_confirmed(symbols, as_of=None) -> dict:
+    """Replace the stored PC-confirmed set with `symbols` (validated) and drop the day's
+    cache so the next read sees it. Atomic: a failed write leaves the previous file."""
+    syms = clean_pc_symbols(symbols)
+    path = _pc_confirmed_path()
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    payload = {"symbols": syms, "as_of": str(as_of or ""),
+               "received_at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as fh:
+        json.dump(payload, fh)
+    os.replace(tmp, path)
+    reset_cache()
+    return {"stored": len(syms), "as_of": payload["as_of"]}
+
+
+def pc_confirmed() -> frozenset:
+    """The PC sweep's confirmed targets as last pushed. Empty when nothing was pushed yet or
+    on any fault (fail safe: not pending), logged."""
+    try:
+        with open(_pc_confirmed_path(), "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+        return frozenset(clean_pc_symbols(data.get("symbols")))
+    except FileNotFoundError:
+        return frozenset()
+    except Exception as exc:  # noqa: BLE001
+        _log.warning("[deal-status] PC confirmed list unreadable, not used: %s", exc)
         return frozenset()
 
 
