@@ -1,13 +1,14 @@
 # Studio track: the plan, beside the Pine full-parity programme
 
-FINAL v4, 2026-11-14. v1 was reviewed the same day by four independent reviewers (engine
+FINAL v5, 2026-11-14. v1 was reviewed the same day by four independent reviewers (engine
 fit, security and cost, product and member experience, adversarial delivery); v2 carried
 their findings. v3 corrects a miss that neither v1, v2 nor any reviewer caught: plain-English
 indicator authoring ALREADY EXISTS in this repo (section 1a). Section 11 lists every change
 and why. v4 adds the census in section 9: a second look found the formula reference page,
 the published-formula library, share links and indicator templates already live, so the rule
 from here on is CENSUS BEFORE DESIGN (decision D13). The owner delegated every open decision;
-the rulings are in section 8.
+the rulings are in section 8. v5 adds section 9a, a ledger of what was MEASURED on
+production (how well the existing pieces work, what is wrong, who fixes it) and lane S-L.
 
 This repo is public. Only this plan and generated engine references are committed. The
 competitor review that informed it, and the competitor's own documents, stay local.
@@ -275,6 +276,61 @@ safely in front of members, add the Pine half of the reference, show the verdict
 script travels, and build the two things that are genuinely missing (an inspector, a
 script-over-a-list surface).
 
+## 9a. Ecosystem ledger: what was measured, what is wrong, who fixes it
+
+The census says what exists. This ledger says how well it works, from measurements on
+production as the synthetic smoke account on 2026-11-14. A row is only here if it was
+measured or read in code; each says which. Rows for other owners are requests, not edits.
+
+### Intelligence (does it understand and answer well)
+
+| # | finding | evidence | fix | owner |
+|---|---|---|---|---|
+| I1 | Create Indicator refuses plainly impossible requests honestly | 30 prompts through the full turn: 29 `unsupported`, 1 `clarify`, 0 built (measured) | none; keep as a regression set | authoring |
+| I2 | It builds ordinary trader requests in one call | first 7 of 30 member-style prompts: 7 built, each patch matching the request on reading (three EMAs with a rising/falling colour, ADR %, volume-spike marker, background above a rising 50, 52-week high from weekly bars, distance from the 50 in ATRs, inside-bar paint). The other 23 are queued behind the hourly limit. Patches were read, not applied | finish the 30; then run the hidden 40 | this track measures; authoring fixes |
+| I3 | Colour words are not honoured literally: "green" came back teal (`#26A69A`) twice, and the read-back says "teal" | measured, dock and API | map the member's colour word to that colour, or say "green" when the house green is used | authoring (R8) |
+| I4 | "Average daily range percent" was built as range over close; the common definition averages high over low | measured (M02) | a named house definition for ADR %, so the term means one thing here | authoring |
+| I5 | The planner attaches unrelated terms on some sentences ("email ... at the close" -> `close`) | measured, 60 prompts | exclude a term when its word is not used as a series in the clause | authoring (R9) |
+| I6 | Columns the app already has (institutional ownership, analyst targets) are refused at the chart door as "not available from price and volume" while the planner matches them | measured (X02, X13) | decide whether declared columns are reachable from an indicator as a current value, labelled "UCT data" | owner decision |
+| I7 | No measure yet of subtle impossible requests, or of whether a built indicator's VALUES are right | not measured | the hidden 40; a numeric subset checked against independently computed values | this track |
+
+### Surface (can a member find it and read it)
+
+| # | finding | evidence | fix | owner |
+|---|---|---|---|---|
+| U1 | Create Indicator works and is dark | dock opened, preview drawn in about 14 s, Undo / Discard / Add to Chart (measured) | the rollout decision (lane S-R) | owner |
+| U2 | Its door is three levels down: the chart's gear -> Indicators -> Create Indicator | measured | a direct entry beside the chart toolbar and in the command palette | authoring (R8) |
+| U3 | The door was not found at phone size | one scripted attempt; unverified | find the phone path or add one | authoring |
+| U4 | `/formulas/reference` shows template placeholders to members: "the absolute value of {0}" | read in code (`FormulaReference.jsx` renders `item.sentence` as is) and seen on the page | fill the placeholders with the signature's argument names | reference owner (R10) |
+| U5 | `/formulas/reference` has no Pine names | read in code | the S1 reference, as a Pine section | this track + R10 |
+| U6 | `/formulas/library` is empty | seen: "Nothing has been published yet" | lane S-L below | this track + owner |
+| U7 | A first-run coach card overlays the reference and library pages for a new account | seen | dismiss on route change, or anchor it | its owner |
+| U8 | The status panel is dark | ledger | lane S1b | engine (R2) |
+| U9 | No per-bar value inspector; one condition plot per screen | census | S3, S6 | this track after R3 |
+
+### Infrastructure (can the work be done and trusted)
+
+| # | finding | evidence | fix | owner |
+|---|---|---|---|---|
+| N1 | One heavy job at a time: this track's first test run waited over 70 minutes behind one engine job and had not started | measured | engine-free unit tests by design (done for S1); ask the coordinator whether Studio's engine-free files may run outside the lock; run the opt-in reference build in off-hours | coordinator |
+| N2 | The authoring door's shared hourly window is 40 turns; a member exploring can hit it in one sitting, and a measuring run does | measured (HTTP 429 on turn 41) | a member-facing message with the reset time; a higher window for the cohort if cost allows (about $0.02 to $0.03 a turn measured) | authoring / owner |
+| N3 | The member daily cap falls back to a default that was sized for a far higher per-turn cost than measured | read in code + measured cost | set `CONVERSE_USER_CAP_DAILY` from measured cost | owner |
+| N4 | The reference would have been measured under flags no member has | found in review | profiles from the flag ledger (done in S1) | this track |
+| N5 | A sparse worktree keeps a lane near 200 to 400 MB | measured | use it for every Studio lane | this track |
+
+### New lane from the ledger
+
+**S-L Starter library, authored through the existing door.** The library is empty, and the
+competitor review shows what traders build first (follow-through and distribution-day
+counters, base recognition with zones, RS new highs, ATR extension and stops, anchored
+VWAPs, earnings tables, position sizing). Describe each of about 20 in plain words to Create
+Indicator, as an admin, and record for each: built in one turn / needed refinement / could
+not be built, and why. Indicators the owner approves are published to the library as house
+formulas. This does three things at once: it is a demand-shaped test of the authoring door,
+it fills the library before launch, and every "could not be built" is a ranked gap for the
+authoring and engine teams. Proof: the count in each bucket. Nothing is published without
+the owner's approval of each one.
+
 ## 10. What this track will not do
 
 - Edit engine-owned files, bump the engine version, or draw anything the engine refused.
@@ -298,5 +354,6 @@ script-over-a-list surface).
 | The budget could fail open; the repair loop could be amplified; synced shares are an update channel | Section 5 and D9 |
 | Adapted copies risked the failure this track criticises | Section 7 |
 | A second vocabulary was forming | Section 3 |
+| **v5:** the plan said what exists but not how well it works | Section 9a: 30 impossible and 7 ordinary requests run through the existing authoring door on production, a tour of the reference and library pages, and the defects and fixes that came out of it; lane S-L (a starter library authored through the existing door) |
 | **v4:** a second look found a live formula reference page, a live published-formula library, live share links and live indicator templates. v3 still planned a new reference tab and listed a community feed as deferred work | Section 9 census; decision D13; the reference lane became a request to add Pine names to the existing page; the feed is no longer planned |
 | **v3:** v1 and v2 planned a new authoring dock and a Pine-writing model. A conversational Create Indicator dock already exists, dark, built on validated patches over the engine. The Studio session found it while preparing the dock lane; the plan and all four reviews had missed it because they were pointed at the Pine documents, not `docs/indicators/` | The dock lane and the generation lane are withdrawn; section 1a; lanes S-P and S-R; requests R7 to R9 |
