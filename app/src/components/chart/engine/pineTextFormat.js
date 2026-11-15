@@ -586,9 +586,10 @@ export function tickNumberText(n, tickText) {
   } else if (Math.abs(Math.abs(q - Math.trunc(q)) - 0.5) < 1e-9) {
     return null
   }
+  // (a value that rounds to zero: `Math.round` answers -0, and `(-0).toFixed` prints "0.00",
+  // the unsigned zero T11 shows — no guard is needed for it)
   const k = Math.round(q)
-  const s = (k * tick).toFixed(Math.min(decimals, 20))
-  return /^-0+(\.0*)?$/.test(s) ? s.slice(1) : s
+  return (k * tick).toFixed(Math.min(decimals, 20))
 }
 
 /**
