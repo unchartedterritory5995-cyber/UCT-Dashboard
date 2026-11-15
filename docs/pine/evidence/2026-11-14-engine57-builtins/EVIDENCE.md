@@ -308,3 +308,41 @@ production MATCH 141 / DIVERGE 89 / INCONCLUSIVE 84; runtime-on MATCH 157 / DIVE
 10. **N3 (pre-existing, recorded):** a strategy's windows bypass the runtime lane's off-listing curtain
     (`computeOffListing`), so off the listing a strategy's early bars are not withheld the way an indicator's
     are. Not changed here.
+
+## Takeover at the master merge (2026-11-15, parked for the landing train)
+The original builder left. This section records what the takeover did and measured. Everything above is the
+original builder's evidence, measured before this merge.
+
+- **Review state.** #1294 has no GitHub review comments. The last coordinator review item, R1 (`aed0178cbc`), was
+  committed but not pushed; its rails and mutants R1a / R1b had been written but not run.
+- **Merge.** `origin/master` merged (`e3f5818fed`, a merge commit).
+  - `interpret.js`: `withheldReadMask` keeps both masks, this branch's `builtinWitnessMask` and master's
+    `tfMergeMask`, and both blocks are kept.
+  - `scriptEngineVersion.js`: master's 55 and 56 lines kept. This branch's line is **NUMBER PENDING** (master + 1 at
+    the landing train), provisionally 57. Master is at 57 since #1342, so the train assigns the number and re-merges.
+  - `expected-digests.json`: master's. The host-parity digests are **not** regenerated here; the train does that at
+    its number.
+  - `evidence-ledger.jsonl`: master's. A branch never commits ledger rows; the regrade is central.
+- **Rails after the merge (normal heavy lock).** 23 vitest files, 676 passed and 2 skipped. These are the 16 of this
+  branch's set plus `engine55HtfMerge`, `engine55OtherSymbolDoors`, `vendorHarness.e55NamedGaps`,
+  `coverageMapDoorCensus.measure`, `savedDocumentRoundTrip`, `savedScriptUpgrade` and `editorStatus`. Python: 9
+  files, 412 passed.
+  - Before the fixes below, 3 failed. All three came from this branch meeting master's engine 55 / 56 rails, and
+    `8c8945b258` fixes them:
+    - `savedDocumentRoundTrip`: `corpus/committed/multicator-table` moves by engine 57. `MOVED_BY_ENGINE` entries now
+      carry an undo kind. Engine 57's undo REBUILDS the script, and replays the member's edits, with engine 57's two
+      table changes put back: `ta.stoch` on the house `stoch`, and `ta.supertrend` on a verbatim engine-56 expansion
+      (`__fixtures__/supertrendTreesEngine56.js`, copied from `origin/master` `839617cdb2`). Both are restored in
+      `finally`. The undone document EQUALS the saved one, and a plain build after it is today's document again.
+      This script's `ta.stoch` feeds only tables and votes, so its digest moves by the supertrend.
+    - `coverageMapDoorCensus`: the dark-plot rail's subject (open note 4). It is now the real engine-56 dark
+      Supertrend: the door's translation with engine 56's tree swapped in. A control asserts that today's tree on
+      the same script has no dark-plot blocker.
+- **Mutants at the takeover.** Run on the merged tree (`8c8945b258`) in the original lists' copy-aside discipline, with a passing CONTROL per command first (5 of 5 green), each run in its own normal heavy-lock hold, and every file restored from its copy (`git hash-object` == HEAD). Parked at the deadline after **41 of 54**: **40 killed, 1 SURVIVED (F5b)**. R1a / R1b, written at R1 and never run before, are both **killed**.
+  - Killed: R1a R1b F1a F1b F1c F1d F2a F2b F3a F3b S10a-S10e N1a N1b N1c N2a-N2d S1-S8 K1-K10.
+  - Not run (deadline): K11 (interrupted, no verdict; its file restored == HEAD), R1-R9, X1-X3. X2's anchor was re-pointed to the same edit, because master's `tfMergeMask` now follows the witness mask in `withheldReadMask`.
+  - **F5b SURVIVES after the merge.** The mutant drops `chartClockSink` from the `tf` child's options in `interpret.js`, and every engine57Builtins rail stays green (33/33). Before the merge it was killed. The likely cause: master's engine-56 `tf_merge` path now names a weekly `request.security` site's withholding through its own channel, so the F5 rail no longer depends on the `tf` child's sink. This was **not investigated**: the branch is parked. Either the F5 rail needs a `tf` (look-ahead-on) subject the merge does not route through `tf_merge`, or that line is no longer load-bearing. Open for the landing train.
+- **Not done here.** Phase C (the harness on both lanes and the census, before and after) and the number /
+  host-parity / service-smoke steps. This branch is parked for the landing train's shared engine number and
+  shared census and harness run. The harness and census numbers above are the original builder's, from before this
+  merge.
