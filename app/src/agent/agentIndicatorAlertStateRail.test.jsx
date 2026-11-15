@@ -54,7 +54,7 @@ describe('an EXISTING indicator alert is state: a delete is a destroy, licensed 
   it.each(ADDITIVE)('an additive (or permit-less) request never deletes an existing alert: "%s"', async (w) => {
     expect(stateRailRefusal(await planOf(DELETE_RSI_ALERT), { words: w })).toMatch(REFUSED)
   })
-  const EXPLICIT = ['delete the RSI alert', 'remove my rsi alert', 'Delete that alert', 'get rid of the alert', 'delete the alert on SPY', 'trash the alarm']
+  const EXPLICIT = ['delete the RSI alert', 'remove my rsi alert', 'Delete the alert', 'get rid of the alert', 'delete the alert on SPY', 'trash the alarm']
   it.each(EXPLICIT)('its own words delete it: "%s"', async (w) => {
     expect(stateRailRefusal(await planOf(DELETE_RSI_ALERT), { words: w })).toBe(null)
   })
@@ -73,26 +73,35 @@ describe('"the RSI alert" names the ALERT, never the RSI indicator', () => {
   it.each(['delete the RSI alert', 'remove my rsi alert', 'remove RSI alert', 'delete the 14 RSI alerts'])('a plan removing the RSI INDICATOR is refused for "%s"', async (w) => {
     expect(stateRailRefusal(await planOf(REMOVE_RSI), { words: w })).toMatch(REFUSED)
   })
-  it('…while naming both still licenses both ("remove the RSI and its alert")', async () => {
-    const both = await planOf([...REMOVE_RSI, ...DELETE_RSI_ALERT])
-    expect(stateEffects(both).map(e => e.state).sort()).toEqual(['alert', 'indicator'])
-    expect(stateRailRefusal(both, { words: 'remove the RSI and its alert' })).toBe(null)
-    expect(stateRailRefusal(both, { words: 'remove the RSI' })).toMatch(REFUSED)            // the alert was never asked for
+  it('…while naming both licenses each ("remove the RSI and delete the RSI alert"; an indicator edit is its own step)', async () => {
+    const ind = await planOf(REMOVE_RSI)
+    const alert = await planOf(DELETE_RSI_ALERT)
+    for (const plan of [ind, alert]) expect(stateRailRefusal(plan, { words: 'remove the RSI and delete the RSI alert' })).toBe(null)
+    // the rail's object rule: a verb's object ends at "and" — "remove the RSI and its alert" names the RSI only (fail closed)
+    expect(stateRailRefusal(alert, { words: 'remove the RSI and its alert' })).toMatch(REFUSED)
+    expect(stateRailRefusal(ind, { words: 'remove the RSI' })).toBe(null)
+    expect(stateRailRefusal(alert, { words: 'remove the RSI' })).toMatch(REFUSED)          // the alert was never asked for
+  })
+  it('"delete that alert" only POINTS: with nothing named before it, a destroy is not licensed (the pointer rule of the rail)', async () => {
+    expect(stateRailRefusal(await planOf(DELETE_RSI_ALERT), { words: 'Delete that alert' })).toMatch(REFUSED)
   })
 })
 
 describe('#1289 step identity: the alert addressed while its indicator changes is the same alert', () => {
-  it('"change the RSI length to 21 and delete the RSI alert": one plan, the RSI updated and alert 901 (by id) deleted', async () => {
-    const plan = await planOf([op('indicator.update', 'ixe:c1', { instance: 'inst:rsi:1', inputs: [{ key: 'period', value: 21 }] }), ...DELETE_RSI_ALERT])
-    expect(plan.ok).toBe(true)
-    const eff = stateEffects(plan)
-    expect(eff.find(e => e.state === 'alert').id).toBe('alert:901')
-    expect(eff.find(e => e.state === 'indicator').id).toBe('ind:c1:inst:rsi:1')
-    expect(stateRailRefusal(plan, { words: 'change the RSI length to 21 and delete the RSI alert' })).toBe(null)
-    expect(stateRailRefusal(plan, { words: 'change the RSI length to 21' })).toMatch(REFUSED)   // the delete needs its own words
-    // the alert the plan deletes is the row read BEFORE the change, bound by id — its indicator's new length does not move it
-    expect(plan.plans.find(p => p.kind === 'indicatorAlert').ref).toBe('901')
+  it('"change the RSI length to 21 and delete the RSI alert": two steps (an indicator edit is its own); the alert is 901 by id', async () => {
+    const WORDS = 'change the RSI length to 21 and delete the RSI alert'
+    const edit = await planOf([op('indicator.update', 'ixe:c1', { instance: 'inst:rsi:1', inputs: [{ key: 'period', value: 21 }] })])
+    expect(edit.ok).toBe(true)
+    expect(stateEffects(edit).map(e => e.id)).toEqual(['ind:c1:inst:rsi:1'])
+    expect(stateRailRefusal(edit, { words: WORDS })).toBe(null)
+    // step 2 is planned AFTER step 1 changed the RSI: the alert book is the same rows (an indicator edit never rewrites an
+    // alert), so the RSI alert is still 901, bound to the same instance — the id the delete names
     expect(indicatorAlertKind.read(fx.host, '901').instanceId).toBe('inst:rsi:1')
+    const del = await planOf(DELETE_RSI_ALERT)
+    expect(stateEffects(del).map(e => e.id)).toEqual(['alert:901'])
+    expect(del.plans[0].ref).toBe('901')
+    expect(stateRailRefusal(del, { words: WORDS })).toBe(null)
+    expect(stateRailRefusal(del, { words: 'change the RSI length to 21' })).toMatch(REFUSED)   // the delete needs its own words
   })
 })
 
