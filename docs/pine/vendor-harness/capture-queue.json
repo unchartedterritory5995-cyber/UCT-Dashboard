@@ -56,12 +56,13 @@
    "docs/pine/capture-queue-2026-11-07-honesty-sweep.md",
    "docs/pine/capture-queue-2026-11-07-i6a-n4.md",
    "docs/pine/capture-queue-2026-11-09-div3-merged-head.md",
-   "docs/pine/capture-queue-2026-11-10-c22-array-gc.md"
+   "docs/pine/capture-queue-2026-11-10-c22-array-gc.md",
+   "docs/pine/capture-queue-2026-11-15-calc-bars.md"
   ],
   "coverageMeasuredOn": "2026-11-05",
   "coverageMasterSha": "3ca4b0d358",
-  "fixtures": 672,
-  "ledgerRows": 103
+  "fixtures": 673,
+  "ledgerRows": 883
  },
  "definitions": {
   "priority": "|firm ∪ named ∪ direct| — firm: non-transferring sample scripts whose every host wall is a guard the target's rows name; named: non-transferring scripts the rows name; direct: the target IS a transferring, never-MATCHed sample script (its capture verifies it)",
@@ -81,19 +82,19 @@
   }
  },
  "counts": {
-  "targets": 301,
+  "targets": 304,
   "byStatus": {
-   "CAPTURED": 93,
+   "CAPTURED": 94,
    "NEEDS_CHART": 39,
    "NEEDS_LIVE": 2,
-   "QUEUED": 167
+   "QUEUED": 169
   },
   "byPlanWave": {
    "E": {
-    "CAPTURED": 80,
+    "CAPTURED": 81,
     "NEEDS_CHART": 37,
     "NEEDS_LIVE": 2,
-    "QUEUED": 134
+    "QUEUED": 136
    },
    "W1": {
     "QUEUED": 6
@@ -113,10 +114,10 @@
   },
   "byPriorityBand": {
    "0": {
-    "CAPTURED": 69,
+    "CAPTURED": 70,
     "NEEDS_CHART": 38,
     "NEEDS_LIVE": 2,
-    "QUEUED": 159
+    "QUEUED": 161
    },
    "1-2": {
     "CAPTURED": 24,
@@ -154,6 +155,11 @@
    "c49-clock": {
     "CAPTURED": 8,
     "NEEDS_CHART": 1
+   },
+   "calc-bars": {
+    "CAPTURED": 1,
+    "NEEDS_CHART": 1,
+    "QUEUED": 2
    },
    "call-site-history": {
     "CAPTURED": 2
@@ -302,14 +308,14 @@
     "NEEDS_CHART": 1
    }
   },
-  "rowsNeedingProbe": 4,
+  "rowsNeedingProbe": 5,
   "rowsNeedingProbeLive": 0,
   "licenceHeldCensus": 156,
-  "rowsNotCaptureQuestions": 42,
+  "rowsNotCaptureQuestions": 47,
   "rowsNotCaptureByDisposition": {
    "builtin": 1,
    "by-design": 2,
-   "closed": 2,
+   "closed": 7,
    "engine-gap": 12,
    "ruling": 4,
    "superseded": 11,
@@ -9732,14 +9738,18 @@
     "upperSample": []
    },
    "statedUnblocks": null,
-   "guards": [],
+   "guards": [
+    "pine:calc-bars-forming"
+   ],
    "planWave": "E",
    "docWaves": [
+    "calc-bars",
     "wse"
    ],
    "oldestDoc": "2026-10-31",
    "rows": [
-    "capture-queue-2026-10-31-wse#Q-WSE2"
+    "capture-queue-2026-10-31-wse#Q-WSE2",
+    "capture-queue-2026-11-15-calc-bars#Q-CBC6"
    ],
    "origins": [
     "queue-doc"
@@ -14496,6 +14506,146 @@
    "origins": [
     "queue-doc"
    ]
+  },
+  {
+   "id": "vw-cbc-security@AMEX:SPY@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-cbc-security.pine",
+   "sourceKind": "probe",
+   "sha256": "b22fb239020630cb210ac76cb421c857a82b07a09afa6e1ccf59028319f0f396",
+   "bytes": 1085,
+   "stem": "vw-cbc-security",
+   "captureStem": "vw-cbc-security",
+   "symbol": "AMEX:SPY",
+   "tf": "1D",
+   "fromListing": true,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [
+    "NYSE:RDDT D"
+   ],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [
+    "pine:calc-bars-request"
+   ],
+   "planWave": "E",
+   "docWaves": [
+    "calc-bars"
+   ],
+   "oldestDoc": "2026-11-15",
+   "rows": [
+    "capture-queue-2026-11-15-calc-bars#Q-CBC2"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-cbc-security@NYSE:RDDT@D",
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/vw-cbc-security-rddt-1d-2026-11-15.json"
+   ],
+   "source": "tools/visual_conformance/probes/vw-cbc-security.pine",
+   "sourceKind": "probe",
+   "sha256": "b22fb239020630cb210ac76cb421c857a82b07a09afa6e1ccf59028319f0f396",
+   "bytes": 1085,
+   "stem": "vw-cbc-security",
+   "captureStem": "vw-cbc-security",
+   "symbol": "NYSE:RDDT",
+   "tf": "1D",
+   "fromListing": true,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [
+    "NYSE:RDDT D"
+   ],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [
+    "pine:calc-bars-request"
+   ],
+   "planWave": "E",
+   "docWaves": [
+    "calc-bars"
+   ],
+   "oldestDoc": "2026-11-15",
+   "rows": [
+    "capture-queue-2026-11-15-calc-bars#Q-CBC2"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-cbc-security@NYSE:SPY@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-cbc-security.pine",
+   "sourceKind": "probe",
+   "sha256": "b22fb239020630cb210ac76cb421c857a82b07a09afa6e1ccf59028319f0f396",
+   "bytes": 1085,
+   "stem": "vw-cbc-security",
+   "captureStem": "vw-cbc-security",
+   "symbol": "NYSE:SPY",
+   "tf": "1D",
+   "fromListing": true,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [
+    "NYSE:RDDT D"
+   ],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [
+    "pine:calc-bars-request"
+   ],
+   "planWave": "E",
+   "docWaves": [
+    "calc-bars"
+   ],
+   "oldestDoc": "2026-11-15",
+   "rows": [
+    "capture-queue-2026-11-15-calc-bars#Q-CBC2"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
   }
  ],
  "rowsNeedingProbe": [
@@ -14542,6 +14692,17 @@
    "guards": [],
    "namedScripts": [],
    "text": "G-f | (object lane, pre-existing; found while merging #604) a `ta.*` call written in a drawing's NON-colour argument inside a block that varies (`if close > close[1]` / `label.new(…, str.tostring(ta.sma(close, 5)))`) is drawn off the every-bar call; and a colour `var` written in such a block (`c := … ta.rising(…) …`) is not carried at all, so the drawing paints the renderer's default. PT-GAPS (202"
+  },
+  {
+   "key": "capture-queue-2026-11-15-calc-bars#Q-FMT2",
+   "doc": "docs/pine/capture-queue-2026-11-15-calc-bars.md",
+   "line": 20,
+   "docWave": "calc-bars",
+   "needsProbe": "no probe file named (an inline shape or prose)",
+   "needsLive": false,
+   "guards": [],
+   "namedScripts": [],
+   "text": "Q-FMT2 | a probe of `str.tostring` corners S10 did not hold: a PATTERN at 1e21 or more, a grouping of a size other than three (`#,##`), a negative value under a literal prefix (`\"H (#.##)\"`), a NEGATIVE exact tie through `format.mintick` (-0.125), a tie at a non-power-of-ten tick (0.25) | NYSE:RDDT 1D (tick 0.01) | what TradingView prints for each | each WITHHELD by name (`format:magnitude-uncaptu"
   }
  ],
  "rowsNotCaptureQuestions": [
@@ -14964,6 +15125,56 @@
    "reason": "the row's own probe cell says \"none: measure-pair\": what lifts runtime:object-door is our own C18 diff (0 diffs with the door gate lifted), a build and a measure-pair of our two doors, not a TradingView reading",
    "dispositionLine": 27,
    "text": "object door | none: measure-pair | — | `runtime:object-door` \"a `for … in` loop is served on the runtime pane only …\" | the C18 door serving `for … in` | a follow-up that shows 0 C18 diffs with the door gate lifted"
+  },
+  {
+   "key": "capture-queue-2026-11-15-calc-bars#Q-CBC1",
+   "doc": "docs/pine/capture-queue-2026-11-15-calc-bars.md",
+   "line": 13,
+   "docWave": "calc-bars",
+   "disposition": "closed",
+   "reason": "S10 vw-cbc-history-reads-rddt-1d-2026-11-15: no history read reaches before the window; last_bar_index 99, barstate.isfirst on the window's first bar, ta.cum(1) 1..100 — served as printed",
+   "dispositionLine": 28,
+   "text": "Q-CBC1 | `vw-cbc-history-reads.pine` (S10, captured) | NYSE:RDDT 1D from the listing | does a history read inside a `calc_bars_count` window reach bars before the window, and what are `last_bar_index`, `barstate.isfirst` and `ta.cum(1)` there? | ANSWERED by S10 (see the dispositions below): served as printed | nothing: closed"
+  },
+  {
+   "key": "capture-queue-2026-11-15-calc-bars#Q-CBC3",
+   "doc": "docs/pine/capture-queue-2026-11-15-calc-bars.md",
+   "line": 14,
+   "docWave": "calc-bars",
+   "disposition": "closed",
+   "reason": "S10 vw-cbc-mbb-and-input-rddt-1d-2026-11-15: max_bars_back = 500 does not reach before the window — served as printed",
+   "dispositionLine": 29,
+   "text": "Q-CBC3 | `vw-cbc-mbb-and-input.pine` (S10, captured) | NYSE:RDDT 1D from the listing | does `max_bars_back` reach before the window? | ANSWERED by S10: served as printed | nothing: closed"
+  },
+  {
+   "key": "capture-queue-2026-11-15-calc-bars#Q-CBC4",
+   "doc": "docs/pine/capture-queue-2026-11-15-calc-bars.md",
+   "line": 15,
+   "docWave": "calc-bars",
+   "disposition": "closed",
+   "reason": "S10 vw-cbc-input-count: VENDOR_COMPILE_ERROR CE10123 (calc_bars_count needs a const int) — refused by name, pine:calc-bars-count-expr",
+   "dispositionLine": 30,
+   "text": "Q-CBC4 | `vw-cbc-input-count.pine` (S10, captured) | NYSE:RDDT 1D | is a non-literal `calc_bars_count` accepted? | ANSWERED by S10 (CE10123): refused by name, `pine:calc-bars-count-expr` | nothing: closed"
+  },
+  {
+   "key": "capture-queue-2026-11-15-calc-bars#Q-CBC5",
+   "doc": "docs/pine/capture-queue-2026-11-15-calc-bars.md",
+   "line": 16,
+   "docWave": "calc-bars",
+   "disposition": "closed",
+   "reason": "S10 vw-cbc-zero-rddt-1d-2026-11-15 (MATCH): 0 computes every bar — served as no window",
+   "dispositionLine": 31,
+   "text": "Q-CBC5 | `vw-cbc-zero.pine` (S10, captured) | NYSE:RDDT 1D from the listing | is `calc_bars_count = 0` every bar? | ANSWERED by S10 (MATCH): served as no window | nothing: closed"
+  },
+  {
+   "key": "capture-queue-2026-11-15-calc-bars#Q-FMT1",
+   "doc": "docs/pine/capture-queue-2026-11-15-calc-bars.md",
+   "line": 17,
+   "docWave": "calc-bars",
+   "disposition": "closed",
+   "reason": "S10 vw-fmt-tie-readings-rddt-1d-2026-11-15: all 30 texts; the decimal reading rounds the shortest decimal half up, format.mintick rounds n / tick in binary, zero is unsigned, the default prints 1e+21, grouping by three — served as printed",
+   "dispositionLine": 32,
+   "text": "Q-FMT1 | `vw-fmt-tie-readings.pine` (S10, captured) | NYSE:RDDT 1D (tick 0.01) | how does `str.tostring` round a decimal tie, a mintick tie, a zero, an exponent, a grouping? | ANSWERED by S10: rules F1-F9, served as printed | nothing: closed"
   }
  ],
  "licenceHeldCensus": [
@@ -16539,6 +16750,12 @@
    "doc": "docs/pine/capture-queue-2026-11-10-c22-array-gc.md",
    "wave": "c22-array-gc",
    "rows": 1,
+   "contextTables": 0
+  },
+  {
+   "doc": "docs/pine/capture-queue-2026-11-15-calc-bars.md",
+   "wave": "calc-bars",
+   "rows": 8,
    "contextTables": 0
   }
  ]

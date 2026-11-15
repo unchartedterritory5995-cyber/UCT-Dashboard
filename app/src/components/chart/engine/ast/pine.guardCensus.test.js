@@ -157,6 +157,13 @@ describe('the Pine guard census, by name', () => {
 // constructed self-cycles in `pine.test.js` / `pine.depth.test.js`.
 const EXPECTED_UNEXERCISED = [
   'pine:arity',
+  // ⭐⭐ ARRIVED 2026-11-15 (CBC-FMT), declared with no published witness on purpose: the
+  // `calc_bars_count` reader (`declarationCalcBars`) refuses a count that is not a positive
+  // whole-number literal (an input, an expression: TradingView's own compile error CE10123,
+  // S10 `vw-cbc-input-count`). No script in these two corpora declares a count at all; the
+  // four committed declarers (`corpus/committed`) write positive literals. Railed by
+  // `calcBarsWindow.cbcfmt.test.js` (W4), on the host lane and the runtime front end.
+  'pine:calc-bars-count-expr',
   'pine:character',
   'pine:colour-value',
   'pine:constant-only',

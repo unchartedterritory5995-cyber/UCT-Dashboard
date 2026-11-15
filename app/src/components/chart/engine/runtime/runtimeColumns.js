@@ -45,21 +45,10 @@ import { makeWarmupProbe, sameProgram } from './warmupProbe.js'
 export { RUNTIME_WARMUP_KEY, runtimeWarmupOf }
 // W5-T1: the identity constants the server bundle's entry re-exports (it must not import the front end itself: pineRuntimeFrontendGate).
 export { RUNTIME_FRONTEND_LANGUAGE, RUNTIME_FRONTEND_VERSION }
-import { declaredCalcBarsOf } from './objectStore.js'
-import { calcBarsWindowOf, widenToChart, readsBarIndex, barIndexDependenceOf, CALC_BARS_INDEX_GUARD,
-  CALC_BARS_INDEX_PROBE, placesByBarIndex, probeVerdictKey } from './calcBarsWindow.js'
-
-/** ⭐ WS-E re-review M-B — the window's `bar_index` probe verdicts, by
- *  `probeVerdictKey`: `null` = no dependence, a string = what moved. Bounded. */
-const probeVerdictCache = new Map()
-const PROBE_VERDICT_CAP = 64
-function rememberProbeVerdict(key, v) {
-  probeVerdictCache.delete(key)
-  probeVerdictCache.set(key, v)
-  while (probeVerdictCache.size > PROBE_VERDICT_CAP) probeVerdictCache.delete(probeVerdictCache.keys().next().value)
-}
-/** Test seam: forget every cached verdict. */
-export function __resetBarIndexProbeCacheForTests() { probeVerdictCache.clear() }
+// ⭐⭐ CBC-FMT — `calc_bars_count`: ONE window for both lanes (`engine/calcBarsWindow.js`), read
+// off the document's own stamp (`meta.calcBarsCount`, `pine.js::declarationCalcBars`).
+import { calcBarsWindowOf, widenToChart, windowContext, withCalcBarsRecord,
+  CALC_BARS_REQUEST_GUARD, CALC_BARS_REQUEST_SOURCE, calcBarsRequestSentence } from '../calcBarsWindow.js'
 import { strippedForScan, withTranslateClock } from '../ast/pine.js'
 
 // ─── ⭐⭐ W5-T2 — EVERY WALL CLOCK A RUN READS IS THE HOST'S TO INJECT (design 2.2 H5) ──
@@ -465,82 +454,28 @@ export function computeRuntimeColumns(def, rows, ctx, opts = {}) {
   // ⭐⭐ W9-T11 — a strategy document runs over the most recent `ctx.historyWindowBars` bars
   if (def && def.meta && def.meta.runtimeHistory === STRATEGY_WINDOW_HISTORY) return computeStrategyWindow(def, rows, ctx, opts)
   // ⭐ WS-E — `calc_bars_count = N`: the run takes the chart's last N bars, as
-  // TradingView does, and its answer is widened back (`calcBarsWindow.js`).
-  const win = calcBarsWindowOf(def, rows, (src) => declaredCalcBarsOf(strippedForScan(src)))
+  // TradingView does, and its answer is widened back (`engine/calcBarsWindow.js`).
+  // ⭐⭐ CBC-FMT — `bar_index` on the window's first bar is WITNESSED (0, `vw-cs1-calc-bars`),
+  // so the second run that probed for a dependence on its base is gone (review D3):
+  // `plot(bar_index)` is drawn, as are `last_bar_index` and `barstate.isfirst` (the window's
+  // own, S10). What a window still does not witness is refused by name BEFORE the run: any
+  // request of other bars.
+  const win = calcBarsWindowOf(def, rows)
   if (win) {
-    const wctx = { ...(ctx || {}), historyFromListing: true }
-    const clock = clockOf(opts)
-    const t0 = Number.isFinite(opts.budgetMs) ? clock() : 0
+    const stripped = strippedForScan(String(((def && def.compute) || {}).source || ''))
+    if (CALC_BARS_REQUEST_SOURCE.test(stripped)) {
+      throw refusal(CALC_BARS_REQUEST_GUARD, calcBarsRequestSentence(win.count))
+    }
     let cols
     try {
-      // ⛔ P3 WS-F — the window slides: a `varip` is refused by name, before any probe runs
-      cols = computeRuntimeColumns(def, win.rows, wctx, { ...opts, slidingWindow: true })
+      // ⛔ P3 WS-F — the window slides: a `varip` is refused by name
+      cols = computeRuntimeColumns(def, win.rows, windowContext(ctx), { ...opts, slidingWindow: true })
     } catch (err) {
       if (err && Number.isInteger(err.bar)) err.bar += win.cut
       throw err
     }
-    // ⛔ review H1 — the window's `bar_index` is uncaptured: a run whose answer moves
-    // with its base is refused by name (`calcBarsWindow.js`, `CALC_BARS_INDEX_GUARD`).
-    // ⭐ re-review M-A — a run that places a drawing BY bar index is probed too, even
-    // when its source never names `bar_index` (`label.new(10, …)`).
-    if (readsBarIndex(strippedForScan(String(((def && def.compute) || {}).source || '')))
-      || placesByBarIndex(cols[RUNTIME_OBJECTS_KEY])) {
-      // ⭐ re-review M-B — THE VERDICT IS CACHED per (document, settings, the window's
-      // bar times, its CLOSED bars' values) (`calcBarsWindow.js::probeVerdictKey`), so a
-      // tick that changes only the forming bar does not pay a second N-bar run. The probe
-      // keeps NO session (`incremental: false`): it never resumes, so nothing about it
-      // depends on what an earlier run left behind.
-      // ⚠️ SAID PLAINLY: on a cached tick the forming bar's own values are not re-probed;
-      // the bar is probed when it closes (its values join the key). A script whose
-      // dependence on `bar_index` shows ONLY on a forming bar's price would draw that bar
-      // until it closes, then be refused.
-      const key = probeVerdictKey(def, ctx, win.rows)
-      let moved = probeVerdictCache.get(key)
-      if (moved === undefined) {
-        // the probe spends only what the main run LEFT of the budget
-        const left = Number.isFinite(opts.budgetMs) ? opts.budgetMs - (clock() - t0) : null
-        if (left !== null && left <= 0) {
-          throw refusal(RUNTIME_TIME_BUDGET_GUARD, `this script took more than ${opts.budgetMs} ms to draw bar by bar `
-            + 'and to check that it does not depend on what `bar_index` reads, which is this pane’s budget for '
-            + 'one indicator, so it is stopped and nothing is drawn rather than part of it.')
-        }
-        try {
-          if (typeof opts.onBarIndexProbe === 'function') opts.onBarIndexProbe()
-          const shifted = computeRuntimeColumns(def, win.rows, wctx, {
-            ...opts, barIndexShift: CALC_BARS_INDEX_PROBE, incremental: false, sessionRole: undefined,
-            probe: undefined, probeIfCold: undefined, onBudget: undefined, onBarIndexProbe: undefined,
-            ...(left !== null ? { budgetMs: left } : {}),
-          })
-          moved = barIndexDependenceOf(cols, shifted, CALC_BARS_INDEX_PROBE, RUNTIME_OBJECTS_KEY)
-        } catch (err) {
-          // ⛔ review M-C — THE MAIN RUN ALREADY PASSED under the same limits, so what
-          // the probe ALONE reaches — a VM limit, a collection failure (`runtime:failed`),
-          // the script's own `runtime.error`, an unnamed throw — is evidence that the run
-          // depends on the count (`for i = 0 to bar_index`, `array.new_float(bar_index +
-          // 1)`, `if bar_index > 5000` then `runtime.error`), and is named as such.
-          // Rethrown under its OWN name is only a stop that cannot depend on `bar_index`:
-          // the time budget (the probe spends the main run's leftover), and every other
-          // guard (`runtime:varip`, a build / version / compile refusal).
-          // ⚰️ re-review M-B rethrew limits and `runtime.error` too, so a member read
-          // "boom" from a script that never raises it on this chart.
-          const countsAsDependence = !err || err.name === 'runtime.error' || !err.guard
-            || err.guard === RUNTIME_LIMIT_GUARD || err.guard === RUNTIME_FAILED_GUARD
-          if (!countsAsDependence) {
-            if (Number.isInteger(err.bar)) err.bar += win.cut
-            throw err
-          }
-          moved = 'whether it runs at all'
-        }
-        rememberProbeVerdict(key, moved || null)
-      }
-      if (moved) {
-        throw refusal(CALC_BARS_INDEX_GUARD, `this script runs on its last ${win.rows.length} bars only `
-          + "(`calc_bars_count`), and what `bar_index` reads on the first of them on TradingView has not been "
-          + `measured; ${moved} depends on that number, so nothing is drawn rather than a guess. `
-          + 'A script that reads `bar_index` only as a distance between bars, or to place a drawing on a bar, is drawn.')
-      }
-    }
-    return widenToChart(cols, win.cut, RUNTIME_OBJECTS_KEY)
+    // ⛔ CBC-FMT (realtime ruling) — the newest bar is withheld by name while it may be forming
+    return withCalcBarsRecord(widenToChart(cols, win.cut, RUNTIME_OBJECTS_KEY), win, ctx, RUNTIME_OBJECTS_KEY)
   }
   const compute = (def && def.compute) || {}
   if (compute.objects !== true) return computeRuntimeColumnsOnce(def, rows, ctx, opts)
@@ -1258,28 +1193,13 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
   // ⭐⭐ RT5 — a document that draws its OWN objects builds them into the run
   // (`objectsInRun`); every other runtime document keeps the host lane's.
   const ownObjects = compute.objects === true
-  // ⛔ RT5 — `calc_bars_count = N` makes TradingView run the script on the LAST N
-  // bars only; a run from this chart's first bar would make other drawings. No
-  // lane honours it yet, so a run that owns its drawings refuses by name.
-  if (ownObjects) {
-    const calcBars = declaredCalcBarsOf(strippedForScan(String(compute.source || '')))
-    if (calcBars !== null && rows.length > calcBars) {
-      throw refusal('runtime:calc-bars-count', `this script runs on its last ${calcBars} bars only `
-        + `(\`calc_bars_count = ${calcBars}\`), and this chart holds ${rows.length}; its drawings from a run over `
-        + 'every bar would be a different picture. Nothing is drawn rather than a guess.')
-    }
-  }
   const tooBig = sourceSizeRefusal(compute.source)
   if (tooBig) throw refusal(RUNTIME_LIMIT_GUARD, tooBig, 'PROGRAM_SIZE')
   // ⭐ UIE PHASE 5 (M2) — the session, and whether this run resumes from it
-  // ⭐ P3 WS-F x WS-E — a `bar_index`-shifted build (the calc_bars window's probe) is a
-  // MEASUREMENT: it never keeps or resumes a session, so its build, checkpoint and realtime
-  // ledger can never stand in for the real run's (the key does not carry the shift).
-  const shiftedProbe = Number.isInteger(opts.barIndexShift) && opts.barIndexShift !== 0
   // ⛔⛔ (re-review M1, M2) a run over a window that SLIDES: a calc_bars_count window
   // (`opts.slidingWindow`, set by the window itself) or a framed instance (`ctx.framed`)
   const slides = opts.slidingWindow === true || !!(ctx && ctx.framed === true)
-  const sessionKey = opts.incremental === false || opts.limits || shiftedProbe ? null
+  const sessionKey = opts.incremental === false || opts.limits ? null
     // ⛔ a sliding run keeps its OWN session: a build made with a ledger (a `varip` built) must
     // never be reused by a run that refuses one
     : `${runKey(def, ctx)}|${opts.sessionRole || 'run'}${slides ? '|slides' : ''}`
@@ -1315,8 +1235,6 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
     // front end too, so a `?:` folded into a pure column reads an `na` test as
     // the VM does (`pineRuntimeFrontend.js::columnInterpretOpts`).
     ...(ctx && ctx.historyFromListing === true ? { historyFromListing: true } : {}),
-    // ⭐ WS-E — the calc_bars window's `bar_index` probe (measurement only)
-    ...(Number.isInteger(opts.barIndexShift) && opts.barIndexShift !== 0 ? { barIndexShift: opts.barIndexShift } : {}),
   }))
   if (!built.ok) {
     const r = built.refusal || {}

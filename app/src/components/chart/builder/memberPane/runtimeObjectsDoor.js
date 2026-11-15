@@ -44,8 +44,6 @@
 // script draws, and the vendor harness grades it.
 import { paneObjectsGate } from '../../engine/ast/paneGate'
 import { probeRuntimeProgram } from '../../engine/runtime/runtimeColumns'
-import { declaredCalcBarsOf } from '../../engine/runtime/objectStore'
-import { strippedForScan } from '../../engine/ast/pine'
 
 /** The value build's refusal that only the drawing build can answer. */
 export const VALUE_BUILD_DRAWING_GUARD = 'runtime:object-op'
@@ -80,7 +78,9 @@ export function runtimeOwnObjectsOf({ source, t }) {
     // nothing on the host side does, so a host program would draw over the WHOLE chart
     // beside plots drawn over the window. The run's own drawings (the same window) are
     // asked for, and a host program is never carried for such a document.
-    windowed = declaredCalcBarsOf(strippedForScan(String(source || ''))) !== null
+    // ⭐⭐ CBC-FMT — the declaration's own count, as the translation read it (`pine.js::
+    // declarationCalcBars`); a `request.security(calc_bars_count = …)` argument is not one.
+    windowed = Number.isInteger(t && t.calcBarsCount)
     if (!refusedForDrawing && !hostPartial && !windowed) return { probe: null, why: null, valueProbe }
     if (hostPartial && gate.loss) replaced = { dropped: gate.loss.dropped, attempted: gate.loss.attempted }
   }
