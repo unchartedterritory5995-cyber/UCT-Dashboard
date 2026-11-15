@@ -4789,6 +4789,19 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] thread switch interval tuning failed (non-fatal): {e}")
 
+    # ⭐ U5 (2026-11-14): the capability detector's own process, off the request GIL
+    # (PINE_CAPABILITY_DETECTOR_WORKER=on). Started 30 s after boot, off the boot path; until it
+    # is READY every detector call answers "still being checked" (fail closed). Off: nothing.
+    try:
+        from api.services import pine_capability_worker
+        if pine_capability_worker.worker_enabled():
+            _cw = threading.Timer(30.0, pine_capability_worker.prestart)
+            _cw.daemon = True
+            _cw.start()
+            print("[startup] capability detector process: starting in 30 s")
+    except Exception as e:
+        print(f"[startup] capability detector process failed to schedule (non-fatal): {e}")
+
     # Self-logging burst capture (2026-06-09/10 thread-exhaustion incident).
     try:
         _start_thread_burst_watch()
@@ -6845,6 +6858,19 @@ async def lifespan(app: FastAPI):
 
         threading.Thread(target=_market_indicator_jobs, daemon=True,
                          name="market_indicator_jobs").start()
+
+    # ⭐ PINE SEEDS (`request.seed`), ingested from each seed's PUBLIC mirror
+    # (`api/services/pine_seed_store.py`, docs/pine/RS-RATING-TRANSFER.md L6). Same lesson
+    # as Cboe above: a store nothing running fills serves an empty chart. On the web pod,
+    # because `/api/bars` answers seed symbols from this pod's `/data/pine_seeds.db`. A
+    # few small CSVs from GitHub every 2 h; the first boot replays the file's history
+    # (at most PINE_SEEDS_MAX_PAGES x 100 uploads).
+    if os.environ.get("PINE_SEEDS_REFRESH", "1") != "0":
+        def _pine_seed_jobs():
+            from api.services import pine_seed_store as _seeds
+            _seeds.refresh_loop()
+
+        threading.Thread(target=_pine_seed_jobs, daemon=True, name="pine_seed_jobs").start()
 
     # Self-healing breadth: refuse a degraded collector push (guard is in the push
     # route) AND recompute any degraded recent day from OUR bars so the Monitor's
@@ -10986,6 +11012,12 @@ async def lifespan(app: FastAPI):
     _boot_mark("ready"); _boot_log()
     yield
     _shutdown_t0 = time.monotonic()  # the deploy gap includes this pod's shutdown (2026-11-12)
+    # U5 (review L4): stop the capability detector process (a no-op when it never started)
+    try:
+        from api.services import pine_capability_worker as _pcw_stop
+        _pcw_stop.shutdown()
+    except Exception as e:
+        print(f"[shutdown] capability detector stop failed (non-fatal): {type(e).__name__}")
     try:
         trade_exchange_news_router.stop_background()
     except Exception as e:

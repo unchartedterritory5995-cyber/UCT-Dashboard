@@ -183,7 +183,7 @@ def test_the_coverage_map_reads_the_ledger_by_default_and_keys_samples_like_capt
     assert cm.sample_slug("committed:cdc-btc-rainbow-road__d880789793") == "cdc-btc-rainbow-road"
     src = (REPO / "tools" / "pine_coverage" / "coverage_map.py").read_text(encoding="utf-8")
     assert 'ap.add_argument("--ledger", default=str(el.LEDGER)' in src
-    assert "fold_ledger(scripts, led, cap_rows, verified_items, diverge_items)" in src
+    assert "fold_ledger(scripts, led, cap_rows, verified_items, diverge_items, substituted_items)" in src
 
 
 # ── L7: the regrade ──────────────────────────────────────────────────────────────

@@ -29,6 +29,7 @@
 
 /** The top-level keys the running product reads. The rail re-derives this. */
 export const KEEP = Object.freeze([
+  'classification',
   'confirmed',
   'listing_fields',
   'min_contract',

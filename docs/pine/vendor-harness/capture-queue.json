@@ -60,7 +60,7 @@
   ],
   "coverageMeasuredOn": "2026-11-05",
   "coverageMasterSha": "3ca4b0d358",
-  "fixtures": 568,
+  "fixtures": 672,
   "ledgerRows": 103
  },
  "definitions": {
@@ -1669,7 +1669,8 @@
    "id": "opening-range-initial-balance-opening-price__4a7416ab01@NYSE:RDDT@D",
    "status": "CAPTURED",
    "evidence": [
-    "tests/fixtures/vendor/harness/opening-range-initial-balance-opening-price-rddt-1d-2026-10-02.json"
+    "tests/fixtures/vendor/harness/opening-range-initial-balance-opening-price-rddt-1d-2026-10-02.json",
+    "tests/fixtures/vendor/harness/opening-range-initial-balance-opening-price-rddt-1d-2026-11-15.json"
    ],
    "source": "corpus/committed/opening-range-initial-balance-opening-price__4a7416ab01.pine",
    "sourceKind": "corpus",
@@ -1762,7 +1763,8 @@
    "id": "poor-man039s-volume-profile__ZnFTCYyvGJ@NYSE:RDDT@D",
    "status": "CAPTURED",
    "evidence": [
-    "tests/fixtures/vendor/harness/poor-man039s-volume-profile-rddt-1d-2026-09-28.json"
+    "tests/fixtures/vendor/harness/poor-man039s-volume-profile-rddt-1d-2026-09-28.json",
+    "tests/fixtures/vendor/harness/poor-man039s-volume-profile-rddt-1d-2026-11-15.json"
    ],
    "source": "corpus/committed/poor-man039s-volume-profile__ZnFTCYyvGJ.pine",
    "sourceKind": "corpus",
@@ -1947,7 +1949,8 @@
    "id": "smt-divergence-ict-01-tradingfinder-smart-money-technique__3f66e16b3c@NYSE:RDDT@D",
    "status": "CAPTURED",
    "evidence": [
-    "tests/fixtures/vendor/harness/smt-divergence-ict-01-tradingfinder-smart-money-technique-rddt-1d-2026-09-28.json"
+    "tests/fixtures/vendor/harness/smt-divergence-ict-01-tradingfinder-smart-money-technique-rddt-1d-2026-09-28.json",
+    "tests/fixtures/vendor/harness/smt-divergence-ict-01-tradingfinder-smart-money-technique-rddt-1d-2026-11-15.json"
    ],
    "source": "corpus/committed/smt-divergence-ict-01-tradingfinder-smart-money-technique__3f66e16b3c.pine",
    "sourceKind": "corpus",
@@ -5532,7 +5535,8 @@
    "chartSource": "section",
    "unparsedCharts": [],
    "capturedOn": [
-    "AMEX:SPY D"
+    "AMEX:SPY D",
+    "NYSE:RDDT D"
    ],
    "licence": "probe",
    "needsLive": false,
@@ -13867,7 +13871,9 @@
    "chartDefaulted": false,
    "chartSource": "row",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "NYSE:RDDT D"
+   ],
    "licence": "probe",
    "needsLive": false,
    "priority": 0,
@@ -14295,7 +14301,9 @@
    "chartDefaulted": false,
    "chartSource": "row",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "NYSE:RDDT D"
+   ],
    "licence": "probe",
    "needsLive": false,
    "priority": 0,

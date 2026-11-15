@@ -371,7 +371,7 @@ test('Minor 2: after a scan error the old screen coverage note is gone with its 
     return { ok: true, json: async () => ({ rows: rowsX, total: 2, page: 1, snapshot_date: '2026-10-12', coverage: { evaluated: 10, answered: 7, dropped: 3, not_computable: 0 } }) }
   }
   mount()
-  await waitFor(() => expect(screen.getByText(/3 stocks have no value for one of these filters/)).toBeInTheDocument())
+  await waitFor(() => expect(screen.getByText(/3 stocks have no recent price data/)).toBeInTheDocument())
   goTo({ universe: UCT })
   await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent("The screen didn't load"))
   expect(screen.queryByText(/not in this list/)).toBeNull()
@@ -397,5 +397,66 @@ test('an RS screen says calmly that the missing stocks have no RS Rating, and bl
   expect(screen.queryByText(/smaller stocks|\$300M|market cap/)).toBeNull()
   // a screen without the RS filter keeps the general sentence
   expect(screen.queryByText(/have no value for one of these filters/)).toBeNull()
+})
+
+// 2026-11-15, the first morning the RS screens held rows on the live site: UCT RS Leaders (twelve
+// filters, one of them the rating) read "10,811 stocks have no RS Rating" when 231 had none. The
+// receipt now says which columns were blank (`missing_keys`), and the rating is named only when it
+// is the one column that was.
+test.each([
+  ['the rating is the one blank column', { rs_rank: 7 }, '7 stocks have no RS Rating, so they are not in this list.'],
+  ['another column is blank as well', { rs_rank: 2, market_cap: 6 }, '7 stocks have no value for one of these filters, so they are not in this list.'],
+  ['only another column is blank', { market_cap: 7 }, '7 stocks have no value for one of these filters, so they are not in this list.'],
+  ['nothing was blank (the count is stale bars)', {}, '7 stocks have no value for one of these filters, so they are not in this list.'],
+  ['a zero is not a blank column', { rs_rank: 7, market_cap: 0 }, '7 stocks have no RS Rating, so they are not in this list.'],
+])('a screen that filters on the rating names it only when it is the cause: %s', async (_n, missing_keys, sentence) => {
+  extra = (url, opts) => {
+    if (url !== '/api/screener/scan') return null
+    const rs = keysOf(JSON.parse(opts.body)).includes('rs_rank')
+    return { ok: true, json: async () => ({ rows: rowsX, total: 2, page: 1, snapshot_date: '2026-10-16',
+      coverage: { evaluated: 10, answered: 3, dropped: 0, not_computable: rs ? 7 : 0, missing_keys } }) }
+  }
+  mount()
+  await waitFor(() => screen.getByTestId('focus-row-MU'))
+  goTo({ rs_rank: RS90 })
+  await waitFor(() => expect(screen.getByText(sentence)).toBeInTheDocument())
+  expect(screen.getAllByText(/so they are not in this list/)).toHaveLength(1)
+})
+
+// `dropped` is the scan's stale gate. When it is the whole count, no filter lacked a value.
+test.each([
+  ['stale bars only', { dropped: 7, not_computable: 0, missing_keys: {} }, '7 stocks have no recent price data, so they are not in this list.'],
+  ['stale bars only, from an older server', { dropped: 7, not_computable: 0 }, '7 stocks have no recent price data, so they are not in this list.'],
+  ['stale bars and a blank rating', { dropped: 3, not_computable: 4, missing_keys: { rs_rank: 4 } }, '7 stocks have no RS Rating, so they are not in this list.'],
+  ['stale bars and another blank column', { dropped: 3, not_computable: 4, missing_keys: { market_cap: 4 } }, '7 stocks have no value for one of these filters, so they are not in this list.'],
+])('stocks left out for stale bars are not called a missing filter value: %s', async (_n, counts, sentence) => {
+  extra = (url, opts) => {
+    if (url !== '/api/screener/scan') return null
+    const rs = keysOf(JSON.parse(opts.body)).includes('rs_rank')
+    return { ok: true, json: async () => ({ rows: rowsX, total: 2, page: 1, snapshot_date: '2026-10-16',
+      coverage: rs ? { evaluated: 10, answered: 3, ...counts } : { evaluated: 10, answered: 10, dropped: 0, not_computable: 0 } }) }
+  }
+  mount()
+  await waitFor(() => screen.getByTestId('focus-row-MU'))
+  goTo({ rs_rank: RS90 })
+  await waitFor(() => expect(screen.getByText(sentence)).toBeInTheDocument())
+  expect(screen.getAllByText(/so they are not in this list/)).toHaveLength(1)
+})
+
+test.each([
+  ['a list', ['rs_rank']],
+  ['a string', 'rs_rank'],
+  ['null', null],
+])('a receipt whose map is unreadable (%s) keeps the sentence it had', async (_n, missing_keys) => {
+  extra = (url, opts) => {
+    if (url !== '/api/screener/scan') return null
+    const rs = keysOf(JSON.parse(opts.body)).includes('rs_rank')
+    return { ok: true, json: async () => ({ rows: rowsX, total: 2, page: 1, snapshot_date: '2026-10-16',
+      coverage: { evaluated: 10, answered: 3, dropped: 0, not_computable: rs ? 7 : 0, missing_keys } }) }
+  }
+  mount()
+  await waitFor(() => screen.getByTestId('focus-row-MU'))
+  goTo({ rs_rank: RS90 })
+  await waitFor(() => expect(screen.getByText('7 stocks have no RS Rating, so they are not in this list.')).toBeInTheDocument())
 })
 

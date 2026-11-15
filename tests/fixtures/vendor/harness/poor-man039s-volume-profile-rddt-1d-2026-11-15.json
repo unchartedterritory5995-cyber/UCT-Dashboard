@@ -1,0 +1,6170 @@
+{
+ "schema": "uct.vendor-capture/v1",
+ "id": "poor-man039s-volume-profile-rddt-1d-2026-11-15",
+ "capturedAtUTC": "2026-11-15T15:59:11.872Z",
+ "tool": {
+  "snippet": "tools/vendor_harness/tv_capture.js",
+  "version": 2
+ },
+ "page": {
+  "url": "https://www.tradingview.com/chart/01f1AcIj/",
+  "visibilityState": "visible",
+  "hasFocus": true
+ },
+ "symbol": {
+  "name": "RDDT",
+  "full_name": "NYSE:RDDT",
+  "pro_name": "NYSE:RDDT",
+  "exchange": "NYSE",
+  "listed_exchange": "NYSE",
+  "type": "stock",
+  "session": "0930-1600",
+  "timezone": "America/New_York",
+  "pricescale": 100,
+  "minmov": 1,
+  "currency": "USD"
+ },
+ "timeframe": "1D",
+ "newestBarIsForming": false,
+ "newestBar": {
+  "time": 1794580200,
+  "source": "derived",
+  "derived": false,
+  "periodEndUTC": "2026-11-13T21:00:00.000Z",
+  "rule": "the session close of the bar's trading day (session_holidays read)",
+  "asserted": null
+ },
+ "history": {
+  "startsAtBar0": true,
+  "why": "listed 2024-03-21; first loaded bar is the listing day after requestMoreData stopped growing (666 bars)"
+ },
+ "source": {
+  "text": "// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/\n// © Ildar Akhmetgaleev (AkhIL)\n// See https://github.com/akhilman/vol-poorofile\n// vim: shiftwidth=2 tabstop=2\n\n//@version=4\nstudy(\"Poor man's volume profile\", \"PMVolProf\", overlay=true, max_bars_back=500)\n\nblock_size = input(200, \"Bars in profile block\", minval=10, maxval=500)\nvisual_row_width = input(100, \"Visual row width\", minval=10)\nshow_peaks = input(true, \"Show peaks\")\nuse_custom_volume_source = input(false, \"Use custom volume source\")\nvolume_source_symbol = input(\"\", \"Custom volume source symbol\", input.symbol)\n\nBOUNDS_COLOR = color.gray\nPROFILE_COLOR = color.new(color.gray, 50)\nPEAK_COLOR = color.new(color.orange, 50)\n\ncustom_volume = use_custom_volume_source ? security(volume_source_symbol, timeframe.period, volume, lookahead=barmerge.lookahead_on) : volume\n\n////\n// Calculate profile\n///\n\nblock_high = highest(high, block_size)\nblock_low = lowest(low, block_size)\nfloat highest_row_value = 0\n\nfloat row0_price = na\nint row0_width = 0\nfloat row0_value = 0.0\nrow0_is_peak = false\nfloat row1_price = na\nint row1_width = 0\nfloat row1_value = 0.0\nrow1_is_peak = false\nfloat row2_price = na\nint row2_width = 0\nfloat row2_value = 0.0\nrow2_is_peak = false\nfloat row3_price = na\nint row3_width = 0\nfloat row3_value = 0.0\nrow3_is_peak = false\nfloat row4_price = na\nint row4_width = 0\nfloat row4_value = 0.0\nrow4_is_peak = false\nfloat row5_price = na\nint row5_width = 0\nfloat row5_value = 0.0\nrow5_is_peak = false\nfloat row6_price = na\nint row6_width = 0\nfloat row6_value = 0.0\nrow6_is_peak = false\nfloat row7_price = na\nint row7_width = 0\nfloat row7_value = 0.0\nrow7_is_peak = false\nfloat row8_price = na\nint row8_width = 0\nfloat row8_value = 0.0\nrow8_is_peak = false\nfloat row9_price = na\nint row9_width = 0\nfloat row9_value = 0.0\nrow9_is_peak = false\nfloat row10_price = na\nint row10_width = 0\nfloat row10_value = 0.0\nrow10_is_peak = false\nfloat row11_price = na\nint row11_width = 0\nfloat row11_value = 0.0\nrow11_is_peak = false\nfloat row12_price = na\nint row12_width = 0\nfloat row12_value = 0.0\nrow12_is_peak = false\nfloat row13_price = na\nint row13_width = 0\nfloat row13_value = 0.0\nrow13_is_peak = false\nfloat row14_price = na\nint row14_width = 0\nfloat row14_value = 0.0\nrow14_is_peak = false\nfloat row15_price = na\nint row15_width = 0\nfloat row15_value = 0.0\nrow15_is_peak = false\nfloat row16_price = na\nint row16_width = 0\nfloat row16_value = 0.0\nrow16_is_peak = false\nfloat row17_price = na\nint row17_width = 0\nfloat row17_value = 0.0\nrow17_is_peak = false\nfloat row18_price = na\nint row18_width = 0\nfloat row18_value = 0.0\nrow18_is_peak = false\nfloat row19_price = na\nint row19_width = 0\nfloat row19_value = 0.0\nrow19_is_peak = false\nfloat row20_price = na\nint row20_width = 0\nfloat row20_value = 0.0\nrow20_is_peak = false\nfloat row21_price = na\nint row21_width = 0\nfloat row21_value = 0.0\nrow21_is_peak = false\nfloat row22_price = na\nint row22_width = 0\nfloat row22_value = 0.0\nrow22_is_peak = false\nfloat row23_price = na\nint row23_width = 0\nfloat row23_value = 0.0\nrow23_is_peak = false\nfloat row24_price = na\nint row24_width = 0\nfloat row24_value = 0.0\nrow24_is_peak = false\nfloat row25_price = na\nint row25_width = 0\nfloat row25_value = 0.0\nrow25_is_peak = false\nfloat row26_price = na\nint row26_width = 0\nfloat row26_value = 0.0\nrow26_is_peak = false\nfloat row27_price = na\nint row27_width = 0\nfloat row27_value = 0.0\nrow27_is_peak = false\nfloat row28_price = na\nint row28_width = 0\nfloat row28_value = 0.0\nrow28_is_peak = false\nfloat row29_price = na\nint row29_width = 0\nfloat row29_value = 0.0\nrow29_is_peak = false\nfloat row30_price = na\nint row30_width = 0\nfloat row30_value = 0.0\nrow30_is_peak = false\nfloat row31_price = na\nint row31_width = 0\nfloat row31_value = 0.0\nrow31_is_peak = false\nfloat row32_price = na\nint row32_width = 0\nfloat row32_value = 0.0\nrow32_is_peak = false\nfloat row33_price = na\nint row33_width = 0\nfloat row33_value = 0.0\nrow33_is_peak = false\nfloat row34_price = na\nint row34_width = 0\nfloat row34_value = 0.0\nrow34_is_peak = false\nfloat row35_price = na\nint row35_width = 0\nfloat row35_value = 0.0\nrow35_is_peak = false\nfloat row36_price = na\nint row36_width = 0\nfloat row36_value = 0.0\nrow36_is_peak = false\nfloat row37_price = na\nint row37_width = 0\nfloat row37_value = 0.0\nrow37_is_peak = false\nfloat row38_price = na\nint row38_width = 0\nfloat row38_value = 0.0\nrow38_is_peak = false\nfloat row39_price = na\nint row39_width = 0\nfloat row39_value = 0.0\nrow39_is_peak = false\n\nif barstate.islast\n\n\tblock_height = block_high - block_low\n\trow_height =  block_height / 40\n\n\trow0_low = block_low + row_height * 0\n\trow0_high = block_low + row_height * 1\n\trow1_low = block_low + row_height * 1\n\trow1_high = block_low + row_height * 2\n\trow2_low = block_low + row_height * 2\n\trow2_high = block_low + row_height * 3\n\trow3_low = block_low + row_height * 3\n\trow3_high = block_low + row_height * 4\n\trow4_low = block_low + row_height * 4\n\trow4_high = block_low + row_height * 5\n\trow5_low = block_low + row_height * 5\n\trow5_high = block_low + row_height * 6\n\trow6_low = block_low + row_height * 6\n\trow6_high = block_low + row_height * 7\n\trow7_low = block_low + row_height * 7\n\trow7_high = block_low + row_height * 8\n\trow8_low = block_low + row_height * 8\n\trow8_high = block_low + row_height * 9\n\trow9_low = block_low + row_height * 9\n\trow9_high = block_low + row_height * 10\n\trow10_low = block_low + row_height * 10\n\trow10_high = block_low + row_height * 11\n\trow11_low = block_low + row_height * 11\n\trow11_high = block_low + row_height * 12\n\trow12_low = block_low + row_height * 12\n\trow12_high = block_low + row_height * 13\n\trow13_low = block_low + row_height * 13\n\trow13_high = block_low + row_height * 14\n\trow14_low = block_low + row_height * 14\n\trow14_high = block_low + row_height * 15\n\trow15_low = block_low + row_height * 15\n\trow15_high = block_low + row_height * 16\n\trow16_low = block_low + row_height * 16\n\trow16_high = block_low + row_height * 17\n\trow17_low = block_low + row_height * 17\n\trow17_high = block_low + row_height * 18\n\trow18_low = block_low + row_height * 18\n\trow18_high = block_low + row_height * 19\n\trow19_low = block_low + row_height * 19\n\trow19_high = block_low + row_height * 20\n\trow20_low = block_low + row_height * 20\n\trow20_high = block_low + row_height * 21\n\trow21_low = block_low + row_height * 21\n\trow21_high = block_low + row_height * 22\n\trow22_low = block_low + row_height * 22\n\trow22_high = block_low + row_height * 23\n\trow23_low = block_low + row_height * 23\n\trow23_high = block_low + row_height * 24\n\trow24_low = block_low + row_height * 24\n\trow24_high = block_low + row_height * 25\n\trow25_low = block_low + row_height * 25\n\trow25_high = block_low + row_height * 26\n\trow26_low = block_low + row_height * 26\n\trow26_high = block_low + row_height * 27\n\trow27_low = block_low + row_height * 27\n\trow27_high = block_low + row_height * 28\n\trow28_low = block_low + row_height * 28\n\trow28_high = block_low + row_height * 29\n\trow29_low = block_low + row_height * 29\n\trow29_high = block_low + row_height * 30\n\trow30_low = block_low + row_height * 30\n\trow30_high = block_low + row_height * 31\n\trow31_low = block_low + row_height * 31\n\trow31_high = block_low + row_height * 32\n\trow32_low = block_low + row_height * 32\n\trow32_high = block_low + row_height * 33\n\trow33_low = block_low + row_height * 33\n\trow33_high = block_low + row_height * 34\n\trow34_low = block_low + row_height * 34\n\trow34_high = block_low + row_height * 35\n\trow35_low = block_low + row_height * 35\n\trow35_high = block_low + row_height * 36\n\trow36_low = block_low + row_height * 36\n\trow36_high = block_low + row_height * 37\n\trow37_low = block_low + row_height * 37\n\trow37_high = block_low + row_height * 38\n\trow38_low = block_low + row_height * 38\n\trow38_high = block_low + row_height * 39\n\trow39_low = block_low + row_height * 39\n\trow39_high = block_low + row_height * 40\n\n\tfor i = 0 to block_size + 1\n\t\tn_rows_affected = 0\n\t\tbar_row0_value = 0.0\n\t\tif low[i] < row0_high and high[i] > row0_low\n\t\t\tbar_row0_value := nz(custom_volume[i])\n\t\t\tn_rows_affected := n_rows_affected + 1\n\t\tbar_row1_value = 0.0\n\t\tif low[i] < row1_high and high[i] > row1_low\n\t\t\tbar_row1_value := nz(custom_volume[i])\n\t\t\tn_rows_affected := n_rows_affected + 1\n\t\tbar_row2_value = 0.0\n\t\tif low[i] < row2_high and high[i] > row2_low\n\t\t\tbar_row2_value := nz(custom_volume[i])\n\t\t\tn_rows_affected := n_rows_affected + 1\n\t\tbar_row3_value = 0.0\n\t\tif low[i] < row3_high and high[i] > row3_low\n\t\t\tbar_row3_value := nz(custom_volume[i])\n\t\t\tn_rows_affected := n_rows_affected + 1\n\t\tbar_row4_value = 0.0\n\t\tif low[i] < row4_high and high[i] > row4_low\n\t\t\tbar_row4_value := nz(custom_volume[i])\n\t\t\tn_rows_affected := n_rows_affected + 1\n\t\tbar_row5_value = 0.0\n\t\tif low[i] < row5_high and high[i] > row5_low\n\t\t\tbar_row5_value := nz(custom_volume[i])\n\t\t\tn_rows_affected := n_rows_affected + 1\n\t\tbar_row6_value = 0.0\n\t\tif low[i] < row6_high and high[i] > row6_low\n\t\t\tbar_row6_value := nz(custom_volume[i])\n\t\t\tn_rows_affected := n_rows_affected + 1\n\t\tbar_row7_value = 0.0\n\t\tif low[i] < row7_high and high[i] > row7_low\n\t\t\tbar_row7_value := nz(custom_volume[i])\n\t\t\tn_rows_affected := n_rows_affected + 1\n\t\tbar_row8_value = 0.0\n\t\tif low[i] < row8_high and high[i] > row8_low\n\t\t\tbar_row8_value := nz(custom_volume[i])\n\t\t\tn_rows_affected := n_rows_affected + 1\n\t\tbar_row9_value = 0.0\n\t\tif low[i] < row9_high and high[i] > row9_low\n\t\t\tbar_row9_value := nz(custom_volume[i])\n\t\t\tn_rows_affected := n_rows_affected + 1\n\t\tbar_row10_value = 0.0\n\t\tif low[i] < row10_high and high[i] > row10_low\n\t\t\tbar_row10_value := nz(custom_volume[i])\n\t\t\tn_rows_affected := n_rows_affected + 1\n\t\tbar_row11_value = 0.0\n\t\tif low[i] < row11_high and high[i] > row11_low\n\t\t\tbar_row11_value := nz(custom_volume[i])\n\t\t\tn_rows_affected := n_rows_affected + 1\n\t\tbar_row12_value = 0.0\n\t\tif low[i] < row12_high and high[i] > row12_low\n\t\t\tbar_row12_value := nz(custom_volume[i])\n\t\t\tn_rows_affected := n_rows_affected + 1\n\t\tbar_row13_value = 0.0\n\t\tif low[i] < row13_high and high[i] > row13_low\n\t\t\tbar_row13_value := nz(custom_volume[i])\n\t\t\tn_rows_affected := n_rows_affected + 1\n\t\tbar_row14_value = 0.0\n\t\tif low[i] < row14_high and high[i] > row14_low\n\t\t\tbar_row14_value := nz(custom_volume[i])\n\t\t\tn_rows_affected := n_rows_affected + 1\n\t\tbar_row15_value = 0.0\n\t\tif low[i] < row15_high and high[i] > row15_low\n\t\t\tbar_row15_value := nz(custom_volume[i])\n\t\t\tn_rows_affected := n_rows_affected + 1\n\t\tbar_row16_value = 0.0\n\t\tif low[i] < row16_high and high[i] > row16_low\n\t\t\tbar_row16_value := nz(custom_volume[i])\n\t\t\tn_rows_affected := n_rows_affected + 1\n\t\tbar_row17_value = 0.0\n\t\tif low[i] < row17_high and high[i] > row17_low\n\t\t\tbar_row17_value := nz(custom_volume[i])\n\t\t\tn_rows_affected := n_rows_affected + 1\n\t\tbar_row18_value = 0.0\n\t\tif low[i] < row18_high and high[i] > row18_low\n\t\t\tbar_row18_value := nz(custom_volume[i])\n\t\t\tn_rows_affected := n_rows_affected + 1\n\t\tbar_row19_value = 0.0\n\t\tif low[i] < row19_high and high[i] > row19_low\n\t\t\tbar_row19_value := nz(custom_volume[i])\n\t\t\tn_rows_affected := n_rows_affected + 1\n\t\tbar_row20_value = 0.0\n\t\tif low[i] < row20_high and high[i] > row20_low\n\t\t\tbar_row20_value := nz(custom_volume[i])\n\t\t\tn_rows_affected := n_rows_affected + 1\n\t\tbar_row21_value = 0.0\n\t\tif low[i] < row21_high and high[i] > row21_low\n\t\t\tbar_row21_value := nz(custom_volume[i])\n\t\t\tn_rows_affected := n_rows_affected + 1\n\t\tbar_row22_value = 0.0\n\t\tif low[i] < row22_high and high[i] > row22_low\n\t\t\tbar_row22_value := nz(custom_volume[i])\n\t\t\tn_rows_affected := n_rows_affected + 1\n\t\tbar_row23_value = 0.0\n\t\tif low[i] < row23_high and high[i] > row23_low\n\t\t\tbar_row23_value := nz(custom_volume[i])\n\t\t\tn_rows_affected := n_rows_affected + 1\n\t\tbar_row24_value = 0.0\n\t\tif low[i] < row24_high and high[i] > row24_low\n\t\t\tbar_row24_value := nz(custom_volume[i])\n\t\t\tn_rows_affected := n_rows_affected + 1\n\t\tbar_row25_value = 0.0\n\t\tif low[i] < row25_high and high[i] > row25_low\n\t\t\tbar_row25_value := nz(custom_volume[i])\n\t\t\tn_rows_affected := n_rows_affected + 1\n\t\tbar_row26_value = 0.0\n\t\tif low[i] < row26_high and high[i] > row26_low\n\t\t\tbar_row26_value := nz(custom_volume[i])\n\t\t\tn_rows_affected := n_rows_affected + 1\n\t\tbar_row27_value = 0.0\n\t\tif low[i] < row27_high and high[i] > row27_low\n\t\t\tbar_row27_value := nz(custom_volume[i])\n\t\t\tn_rows_affected := n_rows_affected + 1\n\t\tbar_row28_value = 0.0\n\t\tif low[i] < row28_high and high[i] > row28_low\n\t\t\tbar_row28_value := nz(custom_volume[i])\n\t\t\tn_rows_affected := n_rows_affected + 1\n\t\tbar_row29_value = 0.0\n\t\tif low[i] < row29_high and high[i] > row29_low\n\t\t\tbar_row29_value := nz(custom_volume[i])\n\t\t\tn_rows_affected := n_rows_affected + 1\n\t\tbar_row30_value = 0.0\n\t\tif low[i] < row30_high and high[i] > row30_low\n\t\t\tbar_row30_value := nz(custom_volume[i])\n\t\t\tn_rows_affected := n_rows_affected + 1\n\t\tbar_row31_value = 0.0\n\t\tif low[i] < row31_high and high[i] > row31_low\n\t\t\tbar_row31_value := nz(custom_volume[i])\n\t\t\tn_rows_affected := n_rows_affected + 1\n\t\tbar_row32_value = 0.0\n\t\tif low[i] < row32_high and high[i] > row32_low\n\t\t\tbar_row32_value := nz(custom_volume[i])\n\t\t\tn_rows_affected := n_rows_affected + 1\n\t\tbar_row33_value = 0.0\n\t\tif low[i] < row33_high and high[i] > row33_low\n\t\t\tbar_row33_value := nz(custom_volume[i])\n\t\t\tn_rows_affected := n_rows_affected + 1\n\t\tbar_row34_value = 0.0\n\t\tif low[i] < row34_high and high[i] > row34_low\n\t\t\tbar_row34_value := nz(custom_volume[i])\n\t\t\tn_rows_affected := n_rows_affected + 1\n\t\tbar_row35_value = 0.0\n\t\tif low[i] < row35_high and high[i] > row35_low\n\t\t\tbar_row35_value := nz(custom_volume[i])\n\t\t\tn_rows_affected := n_rows_affected + 1\n\t\tbar_row36_value = 0.0\n\t\tif low[i] < row36_high and high[i] > row36_low\n\t\t\tbar_row36_value := nz(custom_volume[i])\n\t\t\tn_rows_affected := n_rows_affected + 1\n\t\tbar_row37_value = 0.0\n\t\tif low[i] < row37_high and high[i] > row37_low\n\t\t\tbar_row37_value := nz(custom_volume[i])\n\t\t\tn_rows_affected := n_rows_affected + 1\n\t\tbar_row38_value = 0.0\n\t\tif low[i] < row38_high and high[i] > row38_low\n\t\t\tbar_row38_value := nz(custom_volume[i])\n\t\t\tn_rows_affected := n_rows_affected + 1\n\t\tbar_row39_value = 0.0\n\t\tif low[i] < row39_high and high[i] > row39_low\n\t\t\tbar_row39_value := nz(custom_volume[i])\n\t\t\tn_rows_affected := n_rows_affected + 1\n\n\t\trow0_value := row0_value + (n_rows_affected != 0 ? bar_row0_value / n_rows_affected : 0)\n\t\trow1_value := row1_value + (n_rows_affected != 0 ? bar_row1_value / n_rows_affected : 0)\n\t\trow2_value := row2_value + (n_rows_affected != 0 ? bar_row2_value / n_rows_affected : 0)\n\t\trow3_value := row3_value + (n_rows_affected != 0 ? bar_row3_value / n_rows_affected : 0)\n\t\trow4_value := row4_value + (n_rows_affected != 0 ? bar_row4_value / n_rows_affected : 0)\n\t\trow5_value := row5_value + (n_rows_affected != 0 ? bar_row5_value / n_rows_affected : 0)\n\t\trow6_value := row6_value + (n_rows_affected != 0 ? bar_row6_value / n_rows_affected : 0)\n\t\trow7_value := row7_value + (n_rows_affected != 0 ? bar_row7_value / n_rows_affected : 0)\n\t\trow8_value := row8_value + (n_rows_affected != 0 ? bar_row8_value / n_rows_affected : 0)\n\t\trow9_value := row9_value + (n_rows_affected != 0 ? bar_row9_value / n_rows_affected : 0)\n\t\trow10_value := row10_value + (n_rows_affected != 0 ? bar_row10_value / n_rows_affected : 0)\n\t\trow11_value := row11_value + (n_rows_affected != 0 ? bar_row11_value / n_rows_affected : 0)\n\t\trow12_value := row12_value + (n_rows_affected != 0 ? bar_row12_value / n_rows_affected : 0)\n\t\trow13_value := row13_value + (n_rows_affected != 0 ? bar_row13_value / n_rows_affected : 0)\n\t\trow14_value := row14_value + (n_rows_affected != 0 ? bar_row14_value / n_rows_affected : 0)\n\t\trow15_value := row15_value + (n_rows_affected != 0 ? bar_row15_value / n_rows_affected : 0)\n\t\trow16_value := row16_value + (n_rows_affected != 0 ? bar_row16_value / n_rows_affected : 0)\n\t\trow17_value := row17_value + (n_rows_affected != 0 ? bar_row17_value / n_rows_affected : 0)\n\t\trow18_value := row18_value + (n_rows_affected != 0 ? bar_row18_value / n_rows_affected : 0)\n\t\trow19_value := row19_value + (n_rows_affected != 0 ? bar_row19_value / n_rows_affected : 0)\n\t\trow20_value := row20_value + (n_rows_affected != 0 ? bar_row20_value / n_rows_affected : 0)\n\t\trow21_value := row21_value + (n_rows_affected != 0 ? bar_row21_value / n_rows_affected : 0)\n\t\trow22_value := row22_value + (n_rows_affected != 0 ? bar_row22_value / n_rows_affected : 0)\n\t\trow23_value := row23_value + (n_rows_affected != 0 ? bar_row23_value / n_rows_affected : 0)\n\t\trow24_value := row24_value + (n_rows_affected != 0 ? bar_row24_value / n_rows_affected : 0)\n\t\trow25_value := row25_value + (n_rows_affected != 0 ? bar_row25_value / n_rows_affected : 0)\n\t\trow26_value := row26_value + (n_rows_affected != 0 ? bar_row26_value / n_rows_affected : 0)\n\t\trow27_value := row27_value + (n_rows_affected != 0 ? bar_row27_value / n_rows_affected : 0)\n\t\trow28_value := row28_value + (n_rows_affected != 0 ? bar_row28_value / n_rows_affected : 0)\n\t\trow29_value := row29_value + (n_rows_affected != 0 ? bar_row29_value / n_rows_affected : 0)\n\t\trow30_value := row30_value + (n_rows_affected != 0 ? bar_row30_value / n_rows_affected : 0)\n\t\trow31_value := row31_value + (n_rows_affected != 0 ? bar_row31_value / n_rows_affected : 0)\n\t\trow32_value := row32_value + (n_rows_affected != 0 ? bar_row32_value / n_rows_affected : 0)\n\t\trow33_value := row33_value + (n_rows_affected != 0 ? bar_row33_value / n_rows_affected : 0)\n\t\trow34_value := row34_value + (n_rows_affected != 0 ? bar_row34_value / n_rows_affected : 0)\n\t\trow35_value := row35_value + (n_rows_affected != 0 ? bar_row35_value / n_rows_affected : 0)\n\t\trow36_value := row36_value + (n_rows_affected != 0 ? bar_row36_value / n_rows_affected : 0)\n\t\trow37_value := row37_value + (n_rows_affected != 0 ? bar_row37_value / n_rows_affected : 0)\n\t\trow38_value := row38_value + (n_rows_affected != 0 ? bar_row38_value / n_rows_affected : 0)\n\t\trow39_value := row39_value + (n_rows_affected != 0 ? bar_row39_value / n_rows_affected : 0)\n\n\thighest_row_value := max(highest_row_value, row0_value)\n\thighest_row_value := max(highest_row_value, row1_value)\n\thighest_row_value := max(highest_row_value, row2_value)\n\thighest_row_value := max(highest_row_value, row3_value)\n\thighest_row_value := max(highest_row_value, row4_value)\n\thighest_row_value := max(highest_row_value, row5_value)\n\thighest_row_value := max(highest_row_value, row6_value)\n\thighest_row_value := max(highest_row_value, row7_value)\n\thighest_row_value := max(highest_row_value, row8_value)\n\thighest_row_value := max(highest_row_value, row9_value)\n\thighest_row_value := max(highest_row_value, row10_value)\n\thighest_row_value := max(highest_row_value, row11_value)\n\thighest_row_value := max(highest_row_value, row12_value)\n\thighest_row_value := max(highest_row_value, row13_value)\n\thighest_row_value := max(highest_row_value, row14_value)\n\thighest_row_value := max(highest_row_value, row15_value)\n\thighest_row_value := max(highest_row_value, row16_value)\n\thighest_row_value := max(highest_row_value, row17_value)\n\thighest_row_value := max(highest_row_value, row18_value)\n\thighest_row_value := max(highest_row_value, row19_value)\n\thighest_row_value := max(highest_row_value, row20_value)\n\thighest_row_value := max(highest_row_value, row21_value)\n\thighest_row_value := max(highest_row_value, row22_value)\n\thighest_row_value := max(highest_row_value, row23_value)\n\thighest_row_value := max(highest_row_value, row24_value)\n\thighest_row_value := max(highest_row_value, row25_value)\n\thighest_row_value := max(highest_row_value, row26_value)\n\thighest_row_value := max(highest_row_value, row27_value)\n\thighest_row_value := max(highest_row_value, row28_value)\n\thighest_row_value := max(highest_row_value, row29_value)\n\thighest_row_value := max(highest_row_value, row30_value)\n\thighest_row_value := max(highest_row_value, row31_value)\n\thighest_row_value := max(highest_row_value, row32_value)\n\thighest_row_value := max(highest_row_value, row33_value)\n\thighest_row_value := max(highest_row_value, row34_value)\n\thighest_row_value := max(highest_row_value, row35_value)\n\thighest_row_value := max(highest_row_value, row36_value)\n\thighest_row_value := max(highest_row_value, row37_value)\n\thighest_row_value := max(highest_row_value, row38_value)\n\thighest_row_value := max(highest_row_value, row39_value)\n\n\trow0_price := (row0_low + row0_high ) / 2\n\trow0_width := floor(visual_row_width * row0_value / highest_row_value)\n\trow1_price := (row1_low + row1_high ) / 2\n\trow1_width := floor(visual_row_width * row1_value / highest_row_value)\n\trow2_price := (row2_low + row2_high ) / 2\n\trow2_width := floor(visual_row_width * row2_value / highest_row_value)\n\trow3_price := (row3_low + row3_high ) / 2\n\trow3_width := floor(visual_row_width * row3_value / highest_row_value)\n\trow4_price := (row4_low + row4_high ) / 2\n\trow4_width := floor(visual_row_width * row4_value / highest_row_value)\n\trow5_price := (row5_low + row5_high ) / 2\n\trow5_width := floor(visual_row_width * row5_value / highest_row_value)\n\trow6_price := (row6_low + row6_high ) / 2\n\trow6_width := floor(visual_row_width * row6_value / highest_row_value)\n\trow7_price := (row7_low + row7_high ) / 2\n\trow7_width := floor(visual_row_width * row7_value / highest_row_value)\n\trow8_price := (row8_low + row8_high ) / 2\n\trow8_width := floor(visual_row_width * row8_value / highest_row_value)\n\trow9_price := (row9_low + row9_high ) / 2\n\trow9_width := floor(visual_row_width * row9_value / highest_row_value)\n\trow10_price := (row10_low + row10_high ) / 2\n\trow10_width := floor(visual_row_width * row10_value / highest_row_value)\n\trow11_price := (row11_low + row11_high ) / 2\n\trow11_width := floor(visual_row_width * row11_value / highest_row_value)\n\trow12_price := (row12_low + row12_high ) / 2\n\trow12_width := floor(visual_row_width * row12_value / highest_row_value)\n\trow13_price := (row13_low + row13_high ) / 2\n\trow13_width := floor(visual_row_width * row13_value / highest_row_value)\n\trow14_price := (row14_low + row14_high ) / 2\n\trow14_width := floor(visual_row_width * row14_value / highest_row_value)\n\trow15_price := (row15_low + row15_high ) / 2\n\trow15_width := floor(visual_row_width * row15_value / highest_row_value)\n\trow16_price := (row16_low + row16_high ) / 2\n\trow16_width := floor(visual_row_width * row16_value / highest_row_value)\n\trow17_price := (row17_low + row17_high ) / 2\n\trow17_width := floor(visual_row_width * row17_value / highest_row_value)\n\trow18_price := (row18_low + row18_high ) / 2\n\trow18_width := floor(visual_row_width * row18_value / highest_row_value)\n\trow19_price := (row19_low + row19_high ) / 2\n\trow19_width := floor(visual_row_width * row19_value / highest_row_value)\n\trow20_price := (row20_low + row20_high ) / 2\n\trow20_width := floor(visual_row_width * row20_value / highest_row_value)\n\trow21_price := (row21_low + row21_high ) / 2\n\trow21_width := floor(visual_row_width * row21_value / highest_row_value)\n\trow22_price := (row22_low + row22_high ) / 2\n\trow22_width := floor(visual_row_width * row22_value / highest_row_value)\n\trow23_price := (row23_low + row23_high ) / 2\n\trow23_width := floor(visual_row_width * row23_value / highest_row_value)\n\trow24_price := (row24_low + row24_high ) / 2\n\trow24_width := floor(visual_row_width * row24_value / highest_row_value)\n\trow25_price := (row25_low + row25_high ) / 2\n\trow25_width := floor(visual_row_width * row25_value / highest_row_value)\n\trow26_price := (row26_low + row26_high ) / 2\n\trow26_width := floor(visual_row_width * row26_value / highest_row_value)\n\trow27_price := (row27_low + row27_high ) / 2\n\trow27_width := floor(visual_row_width * row27_value / highest_row_value)\n\trow28_price := (row28_low + row28_high ) / 2\n\trow28_width := floor(visual_row_width * row28_value / highest_row_value)\n\trow29_price := (row29_low + row29_high ) / 2\n\trow29_width := floor(visual_row_width * row29_value / highest_row_value)\n\trow30_price := (row30_low + row30_high ) / 2\n\trow30_width := floor(visual_row_width * row30_value / highest_row_value)\n\trow31_price := (row31_low + row31_high ) / 2\n\trow31_width := floor(visual_row_width * row31_value / highest_row_value)\n\trow32_price := (row32_low + row32_high ) / 2\n\trow32_width := floor(visual_row_width * row32_value / highest_row_value)\n\trow33_price := (row33_low + row33_high ) / 2\n\trow33_width := floor(visual_row_width * row33_value / highest_row_value)\n\trow34_price := (row34_low + row34_high ) / 2\n\trow34_width := floor(visual_row_width * row34_value / highest_row_value)\n\trow35_price := (row35_low + row35_high ) / 2\n\trow35_width := floor(visual_row_width * row35_value / highest_row_value)\n\trow36_price := (row36_low + row36_high ) / 2\n\trow36_width := floor(visual_row_width * row36_value / highest_row_value)\n\trow37_price := (row37_low + row37_high ) / 2\n\trow37_width := floor(visual_row_width * row37_value / highest_row_value)\n\trow38_price := (row38_low + row38_high ) / 2\n\trow38_width := floor(visual_row_width * row38_value / highest_row_value)\n\trow39_price := (row39_low + row39_high ) / 2\n\trow39_width := floor(visual_row_width * row39_value / highest_row_value)\n\n\tif row0_value >= row1_value and row0_value >= row2_value and row0_value >= row3_value and row0_value >= row4_value and row0_value >= row5_value\n\t\trow0_is_peak := true\n\tif row1_value >= row0_value and row1_value >= row2_value and row1_value >= row3_value and row1_value >= row4_value and row1_value >= row5_value and row1_value >= row6_value\n\t\trow1_is_peak := true\n\tif row2_value >= row0_value and row2_value >= row1_value and row2_value >= row3_value and row2_value >= row4_value and row2_value >= row5_value and row2_value >= row6_value and row2_value >= row7_value\n\t\trow2_is_peak := true\n\tif row3_value >= row0_value and row3_value >= row1_value and row3_value >= row2_value and row3_value >= row4_value and row3_value >= row5_value and row3_value >= row6_value and row3_value >= row7_value and row3_value >= row8_value\n\t\trow3_is_peak := true\n\tif row4_value >= row0_value and row4_value >= row1_value and row4_value >= row2_value and row4_value >= row3_value and row4_value >= row5_value and row4_value >= row6_value and row4_value >= row7_value and row4_value >= row8_value and row4_value >= row9_value\n\t\trow4_is_peak := true\n\tif row5_value >= row0_value and row5_value >= row1_value and row5_value >= row2_value and row5_value >= row3_value and row5_value >= row4_value and row5_value >= row6_value and row5_value >= row7_value and row5_value >= row8_value and row5_value >= row9_value and row5_value >= row10_value\n\t\trow5_is_peak := true\n\tif row6_value >= row1_value and row6_value >= row2_value and row6_value >= row3_value and row6_value >= row4_value and row6_value >= row5_value and row6_value >= row7_value and row6_value >= row8_value and row6_value >= row9_value and row6_value >= row10_value and row6_value >= row11_value\n\t\trow6_is_peak := true\n\tif row7_value >= row2_value and row7_value >= row3_value and row7_value >= row4_value and row7_value >= row5_value and row7_value >= row6_value and row7_value >= row8_value and row7_value >= row9_value and row7_value >= row10_value and row7_value >= row11_value and row7_value >= row12_value\n\t\trow7_is_peak := true\n\tif row8_value >= row3_value and row8_value >= row4_value and row8_value >= row5_value and row8_value >= row6_value and row8_value >= row7_value and row8_value >= row9_value and row8_value >= row10_value and row8_value >= row11_value and row8_value >= row12_value and row8_value >= row13_value\n\t\trow8_is_peak := true\n\tif row9_value >= row4_value and row9_value >= row5_value and row9_value >= row6_value and row9_value >= row7_value and row9_value >= row8_value and row9_value >= row10_value and row9_value >= row11_value and row9_value >= row12_value and row9_value >= row13_value and row9_value >= row14_value\n\t\trow9_is_peak := true\n\tif row10_value >= row5_value and row10_value >= row6_value and row10_value >= row7_value and row10_value >= row8_value and row10_value >= row9_value and row10_value >= row11_value and row10_value >= row12_value and row10_value >= row13_value and row10_value >= row14_value and row10_value >= row15_value\n\t\trow10_is_peak := true\n\tif row11_value >= row6_value and row11_value >= row7_value and row11_value >= row8_value and row11_value >= row9_value and row11_value >= row10_value and row11_value >= row12_value and row11_value >= row13_value and row11_value >= row14_value and row11_value >= row15_value and row11_value >= row16_value\n\t\trow11_is_peak := true\n\tif row12_value >= row7_value and row12_value >= row8_value and row12_value >= row9_value and row12_value >= row10_value and row12_value >= row11_value and row12_value >= row13_value and row12_value >= row14_value and row12_value >= row15_value and row12_value >= row16_value and row12_value >= row17_value\n\t\trow12_is_peak := true\n\tif row13_value >= row8_value and row13_value >= row9_value and row13_value >= row10_value and row13_value >= row11_value and row13_value >= row12_value and row13_value >= row14_value and row13_value >= row15_value and row13_value >= row16_value and row13_value >= row17_value and row13_value >= row18_value\n\t\trow13_is_peak := true\n\tif row14_value >= row9_value and row14_value >= row10_value and row14_value >= row11_value and row14_value >= row12_value and row14_value >= row13_value and row14_value >= row15_value and row14_value >= row16_value and row14_value >= row17_value and row14_value >= row18_value and row14_value >= row19_value\n\t\trow14_is_peak := true\n\tif row15_value >= row10_value and row15_value >= row11_value and row15_value >= row12_value and row15_value >= row13_value and row15_value >= row14_value and row15_value >= row16_value and row15_value >= row17_value and row15_value >= row18_value and row15_value >= row19_value and row15_value >= row20_value\n\t\trow15_is_peak := true\n\tif row16_value >= row11_value and row16_value >= row12_value and row16_value >= row13_value and row16_value >= row14_value and row16_value >= row15_value and row16_value >= row17_value and row16_value >= row18_value and row16_value >= row19_value and row16_value >= row20_value and row16_value >= row21_value\n\t\trow16_is_peak := true\n\tif row17_value >= row12_value and row17_value >= row13_value and row17_value >= row14_value and row17_value >= row15_value and row17_value >= row16_value and row17_value >= row18_value and row17_value >= row19_value and row17_value >= row20_value and row17_value >= row21_value and row17_value >= row22_value\n\t\trow17_is_peak := true\n\tif row18_value >= row13_value and row18_value >= row14_value and row18_value >= row15_value and row18_value >= row16_value and row18_value >= row17_value and row18_value >= row19_value and row18_value >= row20_value and row18_value >= row21_value and row18_value >= row22_value and row18_value >= row23_value\n\t\trow18_is_peak := true\n\tif row19_value >= row14_value and row19_value >= row15_value and row19_value >= row16_value and row19_value >= row17_value and row19_value >= row18_value and row19_value >= row20_value and row19_value >= row21_value and row19_value >= row22_value and row19_value >= row23_value and row19_value >= row24_value\n\t\trow19_is_peak := true\n\tif row20_value >= row15_value and row20_value >= row16_value and row20_value >= row17_value and row20_value >= row18_value and row20_value >= row19_value and row20_value >= row21_value and row20_value >= row22_value and row20_value >= row23_value and row20_value >= row24_value and row20_value >= row25_value\n\t\trow20_is_peak := true\n\tif row21_value >= row16_value and row21_value >= row17_value and row21_value >= row18_value and row21_value >= row19_value and row21_value >= row20_value and row21_value >= row22_value and row21_value >= row23_value and row21_value >= row24_value and row21_value >= row25_value and row21_value >= row26_value\n\t\trow21_is_peak := true\n\tif row22_value >= row17_value and row22_value >= row18_value and row22_value >= row19_value and row22_value >= row20_value and row22_value >= row21_value and row22_value >= row23_value and row22_value >= row24_value and row22_value >= row25_value and row22_value >= row26_value and row22_value >= row27_value\n\t\trow22_is_peak := true\n\tif row23_value >= row18_value and row23_value >= row19_value and row23_value >= row20_value and row23_value >= row21_value and row23_value >= row22_value and row23_value >= row24_value and row23_value >= row25_value and row23_value >= row26_value and row23_value >= row27_value and row23_value >= row28_value\n\t\trow23_is_peak := true\n\tif row24_value >= row19_value and row24_value >= row20_value and row24_value >= row21_value and row24_value >= row22_value and row24_value >= row23_value and row24_value >= row25_value and row24_value >= row26_value and row24_value >= row27_value and row24_value >= row28_value and row24_value >= row29_value\n\t\trow24_is_peak := true\n\tif row25_value >= row20_value and row25_value >= row21_value and row25_value >= row22_value and row25_value >= row23_value and row25_value >= row24_value and row25_value >= row26_value and row25_value >= row27_value and row25_value >= row28_value and row25_value >= row29_value and row25_value >= row30_value\n\t\trow25_is_peak := true\n\tif row26_value >= row21_value and row26_value >= row22_value and row26_value >= row23_value and row26_value >= row24_value and row26_value >= row25_value and row26_value >= row27_value and row26_value >= row28_value and row26_value >= row29_value and row26_value >= row30_value and row26_value >= row31_value\n\t\trow26_is_peak := true\n\tif row27_value >= row22_value and row27_value >= row23_value and row27_value >= row24_value and row27_value >= row25_value and row27_value >= row26_value and row27_value >= row28_value and row27_value >= row29_value and row27_value >= row30_value and row27_value >= row31_value and row27_value >= row32_value\n\t\trow27_is_peak := true\n\tif row28_value >= row23_value and row28_value >= row24_value and row28_value >= row25_value and row28_value >= row26_value and row28_value >= row27_value and row28_value >= row29_value and row28_value >= row30_value and row28_value >= row31_value and row28_value >= row32_value and row28_value >= row33_value\n\t\trow28_is_peak := true\n\tif row29_value >= row24_value and row29_value >= row25_value and row29_value >= row26_value and row29_value >= row27_value and row29_value >= row28_value and row29_value >= row30_value and row29_value >= row31_value and row29_value >= row32_value and row29_value >= row33_value and row29_value >= row34_value\n\t\trow29_is_peak := true\n\tif row30_value >= row25_value and row30_value >= row26_value and row30_value >= row27_value and row30_value >= row28_value and row30_value >= row29_value and row30_value >= row31_value and row30_value >= row32_value and row30_value >= row33_value and row30_value >= row34_value and row30_value >= row35_value\n\t\trow30_is_peak := true\n\tif row31_value >= row26_value and row31_value >= row27_value and row31_value >= row28_value and row31_value >= row29_value and row31_value >= row30_value and row31_value >= row32_value and row31_value >= row33_value and row31_value >= row34_value and row31_value >= row35_value and row31_value >= row36_value\n\t\trow31_is_peak := true\n\tif row32_value >= row27_value and row32_value >= row28_value and row32_value >= row29_value and row32_value >= row30_value and row32_value >= row31_value and row32_value >= row33_value and row32_value >= row34_value and row32_value >= row35_value and row32_value >= row36_value and row32_value >= row37_value\n\t\trow32_is_peak := true\n\tif row33_value >= row28_value and row33_value >= row29_value and row33_value >= row30_value and row33_value >= row31_value and row33_value >= row32_value and row33_value >= row34_value and row33_value >= row35_value and row33_value >= row36_value and row33_value >= row37_value and row33_value >= row38_value\n\t\trow33_is_peak := true\n\tif row34_value >= row29_value and row34_value >= row30_value and row34_value >= row31_value and row34_value >= row32_value and row34_value >= row33_value and row34_value >= row35_value and row34_value >= row36_value and row34_value >= row37_value and row34_value >= row38_value and row34_value >= row39_value\n\t\trow34_is_peak := true\n\tif row35_value >= row30_value and row35_value >= row31_value and row35_value >= row32_value and row35_value >= row33_value and row35_value >= row34_value and row35_value >= row36_value and row35_value >= row37_value and row35_value >= row38_value and row35_value >= row39_value\n\t\trow35_is_peak := true\n\tif row36_value >= row31_value and row36_value >= row32_value and row36_value >= row33_value and row36_value >= row34_value and row36_value >= row35_value and row36_value >= row37_value and row36_value >= row38_value and row36_value >= row39_value\n\t\trow36_is_peak := true\n\tif row37_value >= row32_value and row37_value >= row33_value and row37_value >= row34_value and row37_value >= row35_value and row37_value >= row36_value and row37_value >= row38_value and row37_value >= row39_value\n\t\trow37_is_peak := true\n\tif row38_value >= row33_value and row38_value >= row34_value and row38_value >= row35_value and row38_value >= row36_value and row38_value >= row37_value and row38_value >= row39_value\n\t\trow38_is_peak := true\n\tif row39_value >= row34_value and row39_value >= row35_value and row39_value >= row36_value and row39_value >= row37_value and row39_value >= row38_value\n\t\trow39_is_peak := true\n\n////\n// Draw profile\n///\n\nvar int first_bar_time = time\nif barstate.isfirst\n\tfirst_bar_time := time\n\nvar line block_high_line = line.new(bar_index, high, bar_index, high, color=BOUNDS_COLOR)\nvar line block_low_line = line.new(bar_index, low, bar_index, low, color=BOUNDS_COLOR)\nvar label row0_label = label.new(time_close, close, \"\", xloc=xloc.bar_time, yloc=yloc.price, color=PROFILE_COLOR, style=label.style_label_left, size=size.auto)\nvar label row1_label = label.new(time_close, close, \"\", xloc=xloc.bar_time, yloc=yloc.price, color=PROFILE_COLOR, style=label.style_label_left, size=size.auto)\nvar label row2_label = label.new(time_close, close, \"\", xloc=xloc.bar_time, yloc=yloc.price, color=PROFILE_COLOR, style=label.style_label_left, size=size.auto)\nvar label row3_label = label.new(time_close, close, \"\", xloc=xloc.bar_time, yloc=yloc.price, color=PROFILE_COLOR, style=label.style_label_left, size=size.auto)\nvar label row4_label = label.new(time_close, close, \"\", xloc=xloc.bar_time, yloc=yloc.price, color=PROFILE_COLOR, style=label.style_label_left, size=size.auto)\nvar label row5_label = label.new(time_close, close, \"\", xloc=xloc.bar_time, yloc=yloc.price, color=PROFILE_COLOR, style=label.style_label_left, size=size.auto)\nvar label row6_label = label.new(time_close, close, \"\", xloc=xloc.bar_time, yloc=yloc.price, color=PROFILE_COLOR, style=label.style_label_left, size=size.auto)\nvar label row7_label = label.new(time_close, close, \"\", xloc=xloc.bar_time, yloc=yloc.price, color=PROFILE_COLOR, style=label.style_label_left, size=size.auto)\nvar label row8_label = label.new(time_close, close, \"\", xloc=xloc.bar_time, yloc=yloc.price, color=PROFILE_COLOR, style=label.style_label_left, size=size.auto)\nvar label row9_label = label.new(time_close, close, \"\", xloc=xloc.bar_time, yloc=yloc.price, color=PROFILE_COLOR, style=label.style_label_left, size=size.auto)\nvar label row10_label = label.new(time_close, close, \"\", xloc=xloc.bar_time, yloc=yloc.price, color=PROFILE_COLOR, style=label.style_label_left, size=size.auto)\nvar label row11_label = label.new(time_close, close, \"\", xloc=xloc.bar_time, yloc=yloc.price, color=PROFILE_COLOR, style=label.style_label_left, size=size.auto)\nvar label row12_label = label.new(time_close, close, \"\", xloc=xloc.bar_time, yloc=yloc.price, color=PROFILE_COLOR, style=label.style_label_left, size=size.auto)\nvar label row13_label = label.new(time_close, close, \"\", xloc=xloc.bar_time, yloc=yloc.price, color=PROFILE_COLOR, style=label.style_label_left, size=size.auto)\nvar label row14_label = label.new(time_close, close, \"\", xloc=xloc.bar_time, yloc=yloc.price, color=PROFILE_COLOR, style=label.style_label_left, size=size.auto)\nvar label row15_label = label.new(time_close, close, \"\", xloc=xloc.bar_time, yloc=yloc.price, color=PROFILE_COLOR, style=label.style_label_left, size=size.auto)\nvar label row16_label = label.new(time_close, close, \"\", xloc=xloc.bar_time, yloc=yloc.price, color=PROFILE_COLOR, style=label.style_label_left, size=size.auto)\nvar label row17_label = label.new(time_close, close, \"\", xloc=xloc.bar_time, yloc=yloc.price, color=PROFILE_COLOR, style=label.style_label_left, size=size.auto)\nvar label row18_label = label.new(time_close, close, \"\", xloc=xloc.bar_time, yloc=yloc.price, color=PROFILE_COLOR, style=label.style_label_left, size=size.auto)\nvar label row19_label = label.new(time_close, close, \"\", xloc=xloc.bar_time, yloc=yloc.price, color=PROFILE_COLOR, style=label.style_label_left, size=size.auto)\nvar label row20_label = label.new(time_close, close, \"\", xloc=xloc.bar_time, yloc=yloc.price, color=PROFILE_COLOR, style=label.style_label_left, size=size.auto)\nvar label row21_label = label.new(time_close, close, \"\", xloc=xloc.bar_time, yloc=yloc.price, color=PROFILE_COLOR, style=label.style_label_left, size=size.auto)\nvar label row22_label = label.new(time_close, close, \"\", xloc=xloc.bar_time, yloc=yloc.price, color=PROFILE_COLOR, style=label.style_label_left, size=size.auto)\nvar label row23_label = label.new(time_close, close, \"\", xloc=xloc.bar_time, yloc=yloc.price, color=PROFILE_COLOR, style=label.style_label_left, size=size.auto)\nvar label row24_label = label.new(time_close, close, \"\", xloc=xloc.bar_time, yloc=yloc.price, color=PROFILE_COLOR, style=label.style_label_left, size=size.auto)\nvar label row25_label = label.new(time_close, close, \"\", xloc=xloc.bar_time, yloc=yloc.price, color=PROFILE_COLOR, style=label.style_label_left, size=size.auto)\nvar label row26_label = label.new(time_close, close, \"\", xloc=xloc.bar_time, yloc=yloc.price, color=PROFILE_COLOR, style=label.style_label_left, size=size.auto)\nvar label row27_label = label.new(time_close, close, \"\", xloc=xloc.bar_time, yloc=yloc.price, color=PROFILE_COLOR, style=label.style_label_left, size=size.auto)\nvar label row28_label = label.new(time_close, close, \"\", xloc=xloc.bar_time, yloc=yloc.price, color=PROFILE_COLOR, style=label.style_label_left, size=size.auto)\nvar label row29_label = label.new(time_close, close, \"\", xloc=xloc.bar_time, yloc=yloc.price, color=PROFILE_COLOR, style=label.style_label_left, size=size.auto)\nvar label row30_label = label.new(time_close, close, \"\", xloc=xloc.bar_time, yloc=yloc.price, color=PROFILE_COLOR, style=label.style_label_left, size=size.auto)\nvar label row31_label = label.new(time_close, close, \"\", xloc=xloc.bar_time, yloc=yloc.price, color=PROFILE_COLOR, style=label.style_label_left, size=size.auto)\nvar label row32_label = label.new(time_close, close, \"\", xloc=xloc.bar_time, yloc=yloc.price, color=PROFILE_COLOR, style=label.style_label_left, size=size.auto)\nvar label row33_label = label.new(time_close, close, \"\", xloc=xloc.bar_time, yloc=yloc.price, color=PROFILE_COLOR, style=label.style_label_left, size=size.auto)\nvar label row34_label = label.new(time_close, close, \"\", xloc=xloc.bar_time, yloc=yloc.price, color=PROFILE_COLOR, style=label.style_label_left, size=size.auto)\nvar label row35_label = label.new(time_close, close, \"\", xloc=xloc.bar_time, yloc=yloc.price, color=PROFILE_COLOR, style=label.style_label_left, size=size.auto)\nvar label row36_label = label.new(time_close, close, \"\", xloc=xloc.bar_time, yloc=yloc.price, color=PROFILE_COLOR, style=label.style_label_left, size=size.auto)\nvar label row37_label = label.new(time_close, close, \"\", xloc=xloc.bar_time, yloc=yloc.price, color=PROFILE_COLOR, style=label.style_label_left, size=size.auto)\nvar label row38_label = label.new(time_close, close, \"\", xloc=xloc.bar_time, yloc=yloc.price, color=PROFILE_COLOR, style=label.style_label_left, size=size.auto)\nvar label row39_label = label.new(time_close, close, \"\", xloc=xloc.bar_time, yloc=yloc.price, color=PROFILE_COLOR, style=label.style_label_left, size=size.auto)\n\nif barstate.islast\n\tline.set_xloc(block_high_line, max(time[block_size], first_bar_time), time_close, xloc.bar_time)\n\tline.set_y1(block_high_line, block_high)\n\tline.set_y2(block_high_line, block_high)\n\n\tline.set_xloc(block_low_line, max(time[block_size], first_bar_time), time_close, xloc.bar_time)\n\tline.set_y1(block_low_line, block_low)\n\tline.set_y2(block_low_line, block_low)\n\n\trow0_text = \"\"\n\tfor i = 0 to row0_width + 1\n\t\trow0_text := row0_text + \"#\"\n\trow0_color = show_peaks and row0_is_peak ? PEAK_COLOR : PROFILE_COLOR\n\tlabel.set_x(row0_label, time_close)\n\tlabel.set_y(row0_label, row0_price)\n\tlabel.set_color(row0_label, row0_color)\n\tlabel.set_textcolor(row0_label, row0_color)\n\tlabel.set_text(row0_label, row0_text)\n\trow1_text = \"\"\n\tfor i = 0 to row1_width + 1\n\t\trow1_text := row1_text + \"#\"\n\trow1_color = show_peaks and row1_is_peak ? PEAK_COLOR : PROFILE_COLOR\n\tlabel.set_x(row1_label, time_close)\n\tlabel.set_y(row1_label, row1_price)\n\tlabel.set_color(row1_label, row1_color)\n\tlabel.set_textcolor(row1_label, row1_color)\n\tlabel.set_text(row1_label, row1_text)\n\trow2_text = \"\"\n\tfor i = 0 to row2_width + 1\n\t\trow2_text := row2_text + \"#\"\n\trow2_color = show_peaks and row2_is_peak ? PEAK_COLOR : PROFILE_COLOR\n\tlabel.set_x(row2_label, time_close)\n\tlabel.set_y(row2_label, row2_price)\n\tlabel.set_color(row2_label, row2_color)\n\tlabel.set_textcolor(row2_label, row2_color)\n\tlabel.set_text(row2_label, row2_text)\n\trow3_text = \"\"\n\tfor i = 0 to row3_width + 1\n\t\trow3_text := row3_text + \"#\"\n\trow3_color = show_peaks and row3_is_peak ? PEAK_COLOR : PROFILE_COLOR\n\tlabel.set_x(row3_label, time_close)\n\tlabel.set_y(row3_label, row3_price)\n\tlabel.set_color(row3_label, row3_color)\n\tlabel.set_textcolor(row3_label, row3_color)\n\tlabel.set_text(row3_label, row3_text)\n\trow4_text = \"\"\n\tfor i = 0 to row4_width + 1\n\t\trow4_text := row4_text + \"#\"\n\trow4_color = show_peaks and row4_is_peak ? PEAK_COLOR : PROFILE_COLOR\n\tlabel.set_x(row4_label, time_close)\n\tlabel.set_y(row4_label, row4_price)\n\tlabel.set_color(row4_label, row4_color)\n\tlabel.set_textcolor(row4_label, row4_color)\n\tlabel.set_text(row4_label, row4_text)\n\trow5_text = \"\"\n\tfor i = 0 to row5_width + 1\n\t\trow5_text := row5_text + \"#\"\n\trow5_color = show_peaks and row5_is_peak ? PEAK_COLOR : PROFILE_COLOR\n\tlabel.set_x(row5_label, time_close)\n\tlabel.set_y(row5_label, row5_price)\n\tlabel.set_color(row5_label, row5_color)\n\tlabel.set_textcolor(row5_label, row5_color)\n\tlabel.set_text(row5_label, row5_text)\n\trow6_text = \"\"\n\tfor i = 0 to row6_width + 1\n\t\trow6_text := row6_text + \"#\"\n\trow6_color = show_peaks and row6_is_peak ? PEAK_COLOR : PROFILE_COLOR\n\tlabel.set_x(row6_label, time_close)\n\tlabel.set_y(row6_label, row6_price)\n\tlabel.set_color(row6_label, row6_color)\n\tlabel.set_textcolor(row6_label, row6_color)\n\tlabel.set_text(row6_label, row6_text)\n\trow7_text = \"\"\n\tfor i = 0 to row7_width + 1\n\t\trow7_text := row7_text + \"#\"\n\trow7_color = show_peaks and row7_is_peak ? PEAK_COLOR : PROFILE_COLOR\n\tlabel.set_x(row7_label, time_close)\n\tlabel.set_y(row7_label, row7_price)\n\tlabel.set_color(row7_label, row7_color)\n\tlabel.set_textcolor(row7_label, row7_color)\n\tlabel.set_text(row7_label, row7_text)\n\trow8_text = \"\"\n\tfor i = 0 to row8_width + 1\n\t\trow8_text := row8_text + \"#\"\n\trow8_color = show_peaks and row8_is_peak ? PEAK_COLOR : PROFILE_COLOR\n\tlabel.set_x(row8_label, time_close)\n\tlabel.set_y(row8_label, row8_price)\n\tlabel.set_color(row8_label, row8_color)\n\tlabel.set_textcolor(row8_label, row8_color)\n\tlabel.set_text(row8_label, row8_text)\n\trow9_text = \"\"\n\tfor i = 0 to row9_width + 1\n\t\trow9_text := row9_text + \"#\"\n\trow9_color = show_peaks and row9_is_peak ? PEAK_COLOR : PROFILE_COLOR\n\tlabel.set_x(row9_label, time_close)\n\tlabel.set_y(row9_label, row9_price)\n\tlabel.set_color(row9_label, row9_color)\n\tlabel.set_textcolor(row9_label, row9_color)\n\tlabel.set_text(row9_label, row9_text)\n\trow10_text = \"\"\n\tfor i = 0 to row10_width + 1\n\t\trow10_text := row10_text + \"#\"\n\trow10_color = show_peaks and row10_is_peak ? PEAK_COLOR : PROFILE_COLOR\n\tlabel.set_x(row10_label, time_close)\n\tlabel.set_y(row10_label, row10_price)\n\tlabel.set_color(row10_label, row10_color)\n\tlabel.set_textcolor(row10_label, row10_color)\n\tlabel.set_text(row10_label, row10_text)\n\trow11_text = \"\"\n\tfor i = 0 to row11_width + 1\n\t\trow11_text := row11_text + \"#\"\n\trow11_color = show_peaks and row11_is_peak ? PEAK_COLOR : PROFILE_COLOR\n\tlabel.set_x(row11_label, time_close)\n\tlabel.set_y(row11_label, row11_price)\n\tlabel.set_color(row11_label, row11_color)\n\tlabel.set_textcolor(row11_label, row11_color)\n\tlabel.set_text(row11_label, row11_text)\n\trow12_text = \"\"\n\tfor i = 0 to row12_width + 1\n\t\trow12_text := row12_text + \"#\"\n\trow12_color = show_peaks and row12_is_peak ? PEAK_COLOR : PROFILE_COLOR\n\tlabel.set_x(row12_label, time_close)\n\tlabel.set_y(row12_label, row12_price)\n\tlabel.set_color(row12_label, row12_color)\n\tlabel.set_textcolor(row12_label, row12_color)\n\tlabel.set_text(row12_label, row12_text)\n\trow13_text = \"\"\n\tfor i = 0 to row13_width + 1\n\t\trow13_text := row13_text + \"#\"\n\trow13_color = show_peaks and row13_is_peak ? PEAK_COLOR : PROFILE_COLOR\n\tlabel.set_x(row13_label, time_close)\n\tlabel.set_y(row13_label, row13_price)\n\tlabel.set_color(row13_label, row13_color)\n\tlabel.set_textcolor(row13_label, row13_color)\n\tlabel.set_text(row13_label, row13_text)\n\trow14_text = \"\"\n\tfor i = 0 to row14_width + 1\n\t\trow14_text := row14_text + \"#\"\n\trow14_color = show_peaks and row14_is_peak ? PEAK_COLOR : PROFILE_COLOR\n\tlabel.set_x(row14_label, time_close)\n\tlabel.set_y(row14_label, row14_price)\n\tlabel.set_color(row14_label, row14_color)\n\tlabel.set_textcolor(row14_label, row14_color)\n\tlabel.set_text(row14_label, row14_text)\n\trow15_text = \"\"\n\tfor i = 0 to row15_width + 1\n\t\trow15_text := row15_text + \"#\"\n\trow15_color = show_peaks and row15_is_peak ? PEAK_COLOR : PROFILE_COLOR\n\tlabel.set_x(row15_label, time_close)\n\tlabel.set_y(row15_label, row15_price)\n\tlabel.set_color(row15_label, row15_color)\n\tlabel.set_textcolor(row15_label, row15_color)\n\tlabel.set_text(row15_label, row15_text)\n\trow16_text = \"\"\n\tfor i = 0 to row16_width + 1\n\t\trow16_text := row16_text + \"#\"\n\trow16_color = show_peaks and row16_is_peak ? PEAK_COLOR : PROFILE_COLOR\n\tlabel.set_x(row16_label, time_close)\n\tlabel.set_y(row16_label, row16_price)\n\tlabel.set_color(row16_label, row16_color)\n\tlabel.set_textcolor(row16_label, row16_color)\n\tlabel.set_text(row16_label, row16_text)\n\trow17_text = \"\"\n\tfor i = 0 to row17_width + 1\n\t\trow17_text := row17_text + \"#\"\n\trow17_color = show_peaks and row17_is_peak ? PEAK_COLOR : PROFILE_COLOR\n\tlabel.set_x(row17_label, time_close)\n\tlabel.set_y(row17_label, row17_price)\n\tlabel.set_color(row17_label, row17_color)\n\tlabel.set_textcolor(row17_label, row17_color)\n\tlabel.set_text(row17_label, row17_text)\n\trow18_text = \"\"\n\tfor i = 0 to row18_width + 1\n\t\trow18_text := row18_text + \"#\"\n\trow18_color = show_peaks and row18_is_peak ? PEAK_COLOR : PROFILE_COLOR\n\tlabel.set_x(row18_label, time_close)\n\tlabel.set_y(row18_label, row18_price)\n\tlabel.set_color(row18_label, row18_color)\n\tlabel.set_textcolor(row18_label, row18_color)\n\tlabel.set_text(row18_label, row18_text)\n\trow19_text = \"\"\n\tfor i = 0 to row19_width + 1\n\t\trow19_text := row19_text + \"#\"\n\trow19_color = show_peaks and row19_is_peak ? PEAK_COLOR : PROFILE_COLOR\n\tlabel.set_x(row19_label, time_close)\n\tlabel.set_y(row19_label, row19_price)\n\tlabel.set_color(row19_label, row19_color)\n\tlabel.set_textcolor(row19_label, row19_color)\n\tlabel.set_text(row19_label, row19_text)\n\trow20_text = \"\"\n\tfor i = 0 to row20_width + 1\n\t\trow20_text := row20_text + \"#\"\n\trow20_color = show_peaks and row20_is_peak ? PEAK_COLOR : PROFILE_COLOR\n\tlabel.set_x(row20_label, time_close)\n\tlabel.set_y(row20_label, row20_price)\n\tlabel.set_color(row20_label, row20_color)\n\tlabel.set_textcolor(row20_label, row20_color)\n\tlabel.set_text(row20_label, row20_text)\n\trow21_text = \"\"\n\tfor i = 0 to row21_width + 1\n\t\trow21_text := row21_text + \"#\"\n\trow21_color = show_peaks and row21_is_peak ? PEAK_COLOR : PROFILE_COLOR\n\tlabel.set_x(row21_label, time_close)\n\tlabel.set_y(row21_label, row21_price)\n\tlabel.set_color(row21_label, row21_color)\n\tlabel.set_textcolor(row21_label, row21_color)\n\tlabel.set_text(row21_label, row21_text)\n\trow22_text = \"\"\n\tfor i = 0 to row22_width + 1\n\t\trow22_text := row22_text + \"#\"\n\trow22_color = show_peaks and row22_is_peak ? PEAK_COLOR : PROFILE_COLOR\n\tlabel.set_x(row22_label, time_close)\n\tlabel.set_y(row22_label, row22_price)\n\tlabel.set_color(row22_label, row22_color)\n\tlabel.set_textcolor(row22_label, row22_color)\n\tlabel.set_text(row22_label, row22_text)\n\trow23_text = \"\"\n\tfor i = 0 to row23_width + 1\n\t\trow23_text := row23_text + \"#\"\n\trow23_color = show_peaks and row23_is_peak ? PEAK_COLOR : PROFILE_COLOR\n\tlabel.set_x(row23_label, time_close)\n\tlabel.set_y(row23_label, row23_price)\n\tlabel.set_color(row23_label, row23_color)\n\tlabel.set_textcolor(row23_label, row23_color)\n\tlabel.set_text(row23_label, row23_text)\n\trow24_text = \"\"\n\tfor i = 0 to row24_width + 1\n\t\trow24_text := row24_text + \"#\"\n\trow24_color = show_peaks and row24_is_peak ? PEAK_COLOR : PROFILE_COLOR\n\tlabel.set_x(row24_label, time_close)\n\tlabel.set_y(row24_label, row24_price)\n\tlabel.set_color(row24_label, row24_color)\n\tlabel.set_textcolor(row24_label, row24_color)\n\tlabel.set_text(row24_label, row24_text)\n\trow25_text = \"\"\n\tfor i = 0 to row25_width + 1\n\t\trow25_text := row25_text + \"#\"\n\trow25_color = show_peaks and row25_is_peak ? PEAK_COLOR : PROFILE_COLOR\n\tlabel.set_x(row25_label, time_close)\n\tlabel.set_y(row25_label, row25_price)\n\tlabel.set_color(row25_label, row25_color)\n\tlabel.set_textcolor(row25_label, row25_color)\n\tlabel.set_text(row25_label, row25_text)\n\trow26_text = \"\"\n\tfor i = 0 to row26_width + 1\n\t\trow26_text := row26_text + \"#\"\n\trow26_color = show_peaks and row26_is_peak ? PEAK_COLOR : PROFILE_COLOR\n\tlabel.set_x(row26_label, time_close)\n\tlabel.set_y(row26_label, row26_price)\n\tlabel.set_color(row26_label, row26_color)\n\tlabel.set_textcolor(row26_label, row26_color)\n\tlabel.set_text(row26_label, row26_text)\n\trow27_text = \"\"\n\tfor i = 0 to row27_width + 1\n\t\trow27_text := row27_text + \"#\"\n\trow27_color = show_peaks and row27_is_peak ? PEAK_COLOR : PROFILE_COLOR\n\tlabel.set_x(row27_label, time_close)\n\tlabel.set_y(row27_label, row27_price)\n\tlabel.set_color(row27_label, row27_color)\n\tlabel.set_textcolor(row27_label, row27_color)\n\tlabel.set_text(row27_label, row27_text)\n\trow28_text = \"\"\n\tfor i = 0 to row28_width + 1\n\t\trow28_text := row28_text + \"#\"\n\trow28_color = show_peaks and row28_is_peak ? PEAK_COLOR : PROFILE_COLOR\n\tlabel.set_x(row28_label, time_close)\n\tlabel.set_y(row28_label, row28_price)\n\tlabel.set_color(row28_label, row28_color)\n\tlabel.set_textcolor(row28_label, row28_color)\n\tlabel.set_text(row28_label, row28_text)\n\trow29_text = \"\"\n\tfor i = 0 to row29_width + 1\n\t\trow29_text := row29_text + \"#\"\n\trow29_color = show_peaks and row29_is_peak ? PEAK_COLOR : PROFILE_COLOR\n\tlabel.set_x(row29_label, time_close)\n\tlabel.set_y(row29_label, row29_price)\n\tlabel.set_color(row29_label, row29_color)\n\tlabel.set_textcolor(row29_label, row29_color)\n\tlabel.set_text(row29_label, row29_text)\n\trow30_text = \"\"\n\tfor i = 0 to row30_width + 1\n\t\trow30_text := row30_text + \"#\"\n\trow30_color = show_peaks and row30_is_peak ? PEAK_COLOR : PROFILE_COLOR\n\tlabel.set_x(row30_label, time_close)\n\tlabel.set_y(row30_label, row30_price)\n\tlabel.set_color(row30_label, row30_color)\n\tlabel.set_textcolor(row30_label, row30_color)\n\tlabel.set_text(row30_label, row30_text)\n\trow31_text = \"\"\n\tfor i = 0 to row31_width + 1\n\t\trow31_text := row31_text + \"#\"\n\trow31_color = show_peaks and row31_is_peak ? PEAK_COLOR : PROFILE_COLOR\n\tlabel.set_x(row31_label, time_close)\n\tlabel.set_y(row31_label, row31_price)\n\tlabel.set_color(row31_label, row31_color)\n\tlabel.set_textcolor(row31_label, row31_color)\n\tlabel.set_text(row31_label, row31_text)\n\trow32_text = \"\"\n\tfor i = 0 to row32_width + 1\n\t\trow32_text := row32_text + \"#\"\n\trow32_color = show_peaks and row32_is_peak ? PEAK_COLOR : PROFILE_COLOR\n\tlabel.set_x(row32_label, time_close)\n\tlabel.set_y(row32_label, row32_price)\n\tlabel.set_color(row32_label, row32_color)\n\tlabel.set_textcolor(row32_label, row32_color)\n\tlabel.set_text(row32_label, row32_text)\n\trow33_text = \"\"\n\tfor i = 0 to row33_width + 1\n\t\trow33_text := row33_text + \"#\"\n\trow33_color = show_peaks and row33_is_peak ? PEAK_COLOR : PROFILE_COLOR\n\tlabel.set_x(row33_label, time_close)\n\tlabel.set_y(row33_label, row33_price)\n\tlabel.set_color(row33_label, row33_color)\n\tlabel.set_textcolor(row33_label, row33_color)\n\tlabel.set_text(row33_label, row33_text)\n\trow34_text = \"\"\n\tfor i = 0 to row34_width + 1\n\t\trow34_text := row34_text + \"#\"\n\trow34_color = show_peaks and row34_is_peak ? PEAK_COLOR : PROFILE_COLOR\n\tlabel.set_x(row34_label, time_close)\n\tlabel.set_y(row34_label, row34_price)\n\tlabel.set_color(row34_label, row34_color)\n\tlabel.set_textcolor(row34_label, row34_color)\n\tlabel.set_text(row34_label, row34_text)\n\trow35_text = \"\"\n\tfor i = 0 to row35_width + 1\n\t\trow35_text := row35_text + \"#\"\n\trow35_color = show_peaks and row35_is_peak ? PEAK_COLOR : PROFILE_COLOR\n\tlabel.set_x(row35_label, time_close)\n\tlabel.set_y(row35_label, row35_price)\n\tlabel.set_color(row35_label, row35_color)\n\tlabel.set_textcolor(row35_label, row35_color)\n\tlabel.set_text(row35_label, row35_text)\n\trow36_text = \"\"\n\tfor i = 0 to row36_width + 1\n\t\trow36_text := row36_text + \"#\"\n\trow36_color = show_peaks and row36_is_peak ? PEAK_COLOR : PROFILE_COLOR\n\tlabel.set_x(row36_label, time_close)\n\tlabel.set_y(row36_label, row36_price)\n\tlabel.set_color(row36_label, row36_color)\n\tlabel.set_textcolor(row36_label, row36_color)\n\tlabel.set_text(row36_label, row36_text)\n\trow37_text = \"\"\n\tfor i = 0 to row37_width + 1\n\t\trow37_text := row37_text + \"#\"\n\trow37_color = show_peaks and row37_is_peak ? PEAK_COLOR : PROFILE_COLOR\n\tlabel.set_x(row37_label, time_close)\n\tlabel.set_y(row37_label, row37_price)\n\tlabel.set_color(row37_label, row37_color)\n\tlabel.set_textcolor(row37_label, row37_color)\n\tlabel.set_text(row37_label, row37_text)\n\trow38_text = \"\"\n\tfor i = 0 to row38_width + 1\n\t\trow38_text := row38_text + \"#\"\n\trow38_color = show_peaks and row38_is_peak ? PEAK_COLOR : PROFILE_COLOR\n\tlabel.set_x(row38_label, time_close)\n\tlabel.set_y(row38_label, row38_price)\n\tlabel.set_color(row38_label, row38_color)\n\tlabel.set_textcolor(row38_label, row38_color)\n\tlabel.set_text(row38_label, row38_text)\n\trow39_text = \"\"\n\tfor i = 0 to row39_width + 1\n\t\trow39_text := row39_text + \"#\"\n\trow39_color = show_peaks and row39_is_peak ? PEAK_COLOR : PROFILE_COLOR\n\tlabel.set_x(row39_label, time_close)\n\tlabel.set_y(row39_label, row39_price)\n\tlabel.set_color(row39_label, row39_color)\n\tlabel.set_textcolor(row39_label, row39_color)\n\tlabel.set_text(row39_label, row39_text)\n",
+  "sha256": "85b2dd7ca093b474bf2aa422dbcdd61eb4859407f55ba1611bb4e11ecd57090e",
+  "chars": 58676,
+  "declaredTitle": null
+ },
+ "census": {
+  "studies": 3,
+  "events": [
+   "Splits",
+   "Earnings"
+  ],
+  "indicators": 1,
+  "controlProbeSawSomething": true,
+  "controlFilterRemovedExactlyTheEvents": true
+ },
+ "study": {
+  "id": "Script$USER;6a17cb6595e6407f8b76c162ed6bb027@tv-scripting",
+  "fullId": "Script$USER;6a17cb6595e6407f8b76c162ed6bb027@tv-scripting-101",
+  "title": "PMVolProf",
+  "description": "Poor man&#039;s volume profile",
+  "shortDescription": "PMVolProf",
+  "status": {
+   "type": 2
+  },
+  "plots": [],
+  "styles": {},
+  "styleState": {},
+  "palettes": {
+   "palette_common": {
+    "valToIndex": {
+     "0": 0,
+     "1": 1,
+     "2": 2,
+     "3": 3
+    },
+    "colors": {
+     "0": {
+      "color": "#787B86"
+     },
+     "1": {
+      "color": "rgba(120,123,134,0.5)"
+     },
+     "2": {
+      "color": "#363A45"
+     },
+     "3": {
+      "color": "rgba(255,152,0,0.5)"
+     }
+    }
+   }
+  },
+  "paletteState": {
+   "palette_common": {
+    "colors": {
+     "0": {
+      "color": "#787B86"
+     },
+     "1": {
+      "color": "rgba(120,123,134,0.5)"
+     },
+     "2": {
+      "color": "#363A45"
+     },
+     "3": {
+      "color": "rgba(255,152,0,0.5)"
+     }
+    }
+   }
+  },
+  "inputs": [
+   {
+    "id": "text",
+    "name": "ILScript",
+    "type": "text",
+    "defval": "",
+    "isHidden": true,
+    "value": "bmI9Ks46_ndVa0C9X2zrClqdlsb8QUw==_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"
+   },
+   {
+    "id": "pineId",
+    "name": "pineId",
+    "type": "text",
+    "defval": "",
+    "isHidden": true,
+    "value": ""
+   },
+   {
+    "id": "pineVersion",
+    "name": "pineVersion",
+    "type": "text",
+    "defval": "",
+    "isHidden": true,
+    "value": ""
+   },
+   {
+    "id": "in_0",
+    "name": "Bars in profile block",
+    "type": "integer",
+    "defval": 200,
+    "isHidden": false,
+    "value": 200
+   },
+   {
+    "id": "in_1",
+    "name": "Visual row width",
+    "type": "integer",
+    "defval": 100,
+    "isHidden": false,
+    "value": 100
+   },
+   {
+    "id": "in_2",
+    "name": "Show peaks",
+    "type": "bool",
+    "defval": true,
+    "isHidden": false,
+    "value": true
+   },
+   {
+    "id": "in_3",
+    "name": "Use custom volume source",
+    "type": "bool",
+    "defval": false,
+    "isHidden": false,
+    "value": false
+   },
+   {
+    "id": "in_4",
+    "name": "Custom volume source symbol",
+    "type": "symbol",
+    "defval": "",
+    "isHidden": false,
+    "value": ""
+   }
+  ]
+ },
+ "window": {
+  "chartBarsLoaded": 666,
+  "studyBarsLoaded": 0,
+  "firstBarTime": 1711027800,
+  "lastBarTime": 1794580200
+ },
+ "bars": {
+  "fields": [
+   "time",
+   "open",
+   "high",
+   "low",
+   "close",
+   "volume"
+  ],
+  "timeUnit": "unix-s",
+  "count": 666,
+  "rows": [
+   [
+    1711027800,
+    47,
+    57.8,
+    45.05,
+    50.44,
+    48705533
+   ],
+   [
+    1711114200,
+    48.88,
+    51,
+    45.34,
+    46,
+    15983139
+   ],
+   [
+    1711373400,
+    47.09,
+    61.9399,
+    46.08,
+    59.8,
+    24398838
+   ],
+   [
+    1711459800,
+    67.71,
+    74.9,
+    63.21,
+    65.11,
+    35330978
+   ],
+   [
+    1711546200,
+    63.76,
+    63.76,
+    55.62,
+    57.75,
+    18758308
+   ],
+   [
+    1711632600,
+    54.52,
+    55.3,
+    49.1,
+    49.32,
+    12694482
+   ],
+   [
+    1711978200,
+    48.95,
+    49.28,
+    44.395,
+    45.97,
+    12987945
+   ],
+   [
+    1712064600,
+    45.055,
+    51.35,
+    44,
+    50.45,
+    9442857
+   ],
+   [
+    1712151000,
+    49.7,
+    51.2399,
+    46.55,
+    46.99,
+    4822866
+   ],
+   [
+    1712237400,
+    46.7,
+    48.43,
+    45.1,
+    45.78,
+    4618377
+   ],
+   [
+    1712323800,
+    45.68,
+    48.29,
+    44.68,
+    47.56,
+    2930772
+   ],
+   [
+    1712583000,
+    47.86,
+    49.1799,
+    45.04,
+    46.15,
+    2661470
+   ],
+   [
+    1712669400,
+    46.4,
+    47.49,
+    44.9,
+    45,
+    2277342
+   ],
+   [
+    1712755800,
+    44,
+    44.5975,
+    41.72,
+    42.09,
+    4350147
+   ],
+   [
+    1712842200,
+    42.05,
+    46.35,
+    42.01,
+    44.53,
+    4263001
+   ],
+   [
+    1712928600,
+    43.47,
+    43.86,
+    42.16,
+    42.27,
+    2021261
+   ],
+   [
+    1713187800,
+    41.94,
+    42.1,
+    39.68,
+    40,
+    3448536
+   ],
+   [
+    1713274200,
+    40.5,
+    42.14,
+    39.32,
+    41.14,
+    1699046
+   ],
+   [
+    1713360600,
+    40.4,
+    40.6054,
+    38.7,
+    39.17,
+    2153817
+   ],
+   [
+    1713447000,
+    38.8,
+    42.13,
+    37.35,
+    41.72,
+    2284138
+   ],
+   [
+    1713533400,
+    40.57,
+    43.83,
+    40.17,
+    40.88,
+    2540622
+   ],
+   [
+    1713792600,
+    40.88,
+    42.57,
+    40.51,
+    42.04,
+    1486416
+   ],
+   [
+    1713879000,
+    42.07,
+    44.0599,
+    41.8216,
+    42.82,
+    1956480
+   ],
+   [
+    1713965400,
+    42.66,
+    43.97,
+    42.45,
+    43.15,
+    1384024
+   ],
+   [
+    1714051800,
+    41.64,
+    42.64,
+    40.85,
+    42.45,
+    1485825
+   ],
+   [
+    1714138200,
+    42.98,
+    46.199,
+    42.65,
+    45.43,
+    2764203
+   ],
+   [
+    1714397400,
+    46.05,
+    48.88,
+    45.85,
+    46.28,
+    2683917
+   ],
+   [
+    1714483800,
+    45.47,
+    46.755,
+    44.15,
+    44.44,
+    1752875
+   ],
+   [
+    1714570200,
+    44.87,
+    47.7,
+    44.6,
+    45.88,
+    1598960
+   ],
+   [
+    1714656600,
+    46.61,
+    49.639,
+    45.72,
+    47.7,
+    2364999
+   ],
+   [
+    1714743000,
+    48.44,
+    48.7,
+    46.24,
+    46.64,
+    1188304
+   ],
+   [
+    1715002200,
+    46.99,
+    49.8699,
+    46.75,
+    48.27,
+    2116653
+   ],
+   [
+    1715088600,
+    47.73,
+    50.33,
+    47.4,
+    49.4,
+    6241675
+   ],
+   [
+    1715175000,
+    55,
+    55.16,
+    49.7,
+    51.4,
+    13509264
+   ],
+   [
+    1715261400,
+    51.24,
+    51.25,
+    48.25,
+    50.11,
+    3909140
+   ],
+   [
+    1715347800,
+    50.64,
+    54.75,
+    50.38,
+    53.53,
+    4450785
+   ],
+   [
+    1715607000,
+    56.49,
+    61.21,
+    55.59,
+    58.19,
+    8179370
+   ],
+   [
+    1715693400,
+    62.57,
+    64.5,
+    59.5,
+    62.34,
+    7674013
+   ],
+   [
+    1715779800,
+    60.23,
+    60.93,
+    56.25,
+    59.63,
+    4897634
+   ],
+   [
+    1715866200,
+    59.5,
+    60.46,
+    56.29,
+    56.38,
+    3219432
+   ],
+   [
+    1715952600,
+    61.2,
+    66.15,
+    60.62,
+    62.04,
+    15131435
+   ],
+   [
+    1716211800,
+    61.9,
+    62,
+    57.27,
+    61.22,
+    5975244
+   ],
+   [
+    1716298200,
+    60.74,
+    62.46,
+    58.84,
+    59.31,
+    2694029
+   ],
+   [
+    1716384600,
+    59,
+    60.4499,
+    55.86,
+    56.69,
+    3272328
+   ],
+   [
+    1716471000,
+    56.88,
+    57.26,
+    53.11,
+    54.16,
+    3289560
+   ],
+   [
+    1716557400,
+    53.96,
+    56,
+    53.21,
+    54.72,
+    2019797
+   ],
+   [
+    1716903000,
+    55.12,
+    59.275,
+    53.8634,
+    58.49,
+    3536946
+   ],
+   [
+    1716989400,
+    57.45,
+    58.63,
+    56.801,
+    57.64,
+    1319960
+   ],
+   [
+    1717075800,
+    57,
+    59.49,
+    55.76,
+    56.3,
+    1860520
+   ],
+   [
+    1717162200,
+    56.21,
+    57.52,
+    53.45,
+    54.24,
+    2036766
+   ],
+   [
+    1717421400,
+    57.55,
+    58.64,
+    54.15,
+    55.8,
+    2573080
+   ],
+   [
+    1717507800,
+    55.2,
+    55.4,
+    53.955,
+    54.5,
+    1291039
+   ],
+   [
+    1717594200,
+    54.79,
+    60.24,
+    54.5709,
+    60.07,
+    3030031
+   ],
+   [
+    1717680600,
+    58.99,
+    63.57,
+    58.38,
+    63.46,
+    3375228
+   ],
+   [
+    1717767000,
+    61.63,
+    63.8,
+    59.21,
+    59.8,
+    3414026
+   ],
+   [
+    1718026200,
+    60.01,
+    61.38,
+    58.26,
+    59.63,
+    1459111
+   ],
+   [
+    1718112600,
+    60.12,
+    62.0492,
+    58.495,
+    61.55,
+    2024061
+   ],
+   [
+    1718199000,
+    62.875,
+    69.59,
+    61.85,
+    65.93,
+    6825736
+   ],
+   [
+    1718285400,
+    66.83,
+    69.0417,
+    63.64,
+    63.96,
+    2874509
+   ],
+   [
+    1718371800,
+    63.54,
+    64.94,
+    60.11,
+    60.94,
+    2454885
+   ],
+   [
+    1718631000,
+    61,
+    61.13,
+    58.1,
+    60.35,
+    2096260
+   ],
+   [
+    1718717400,
+    61.11,
+    61.6387,
+    57.5,
+    60.21,
+    2213121
+   ],
+   [
+    1718890200,
+    60,
+    60.1,
+    55.47,
+    57.42,
+    3372050
+   ],
+   [
+    1718976600,
+    56.4,
+    57.65,
+    54.45,
+    57.3,
+    4441047
+   ],
+   [
+    1719235800,
+    57.32,
+    58.89,
+    55.95,
+    56.48,
+    1789202
+   ],
+   [
+    1719322200,
+    56.56,
+    61.57,
+    56.42,
+    61.38,
+    2828497
+   ],
+   [
+    1719408600,
+    60.5,
+    63.88,
+    60.33,
+    63.61,
+    3828425
+   ],
+   [
+    1719495000,
+    62.834,
+    64.7,
+    62.03,
+    63.58,
+    1704769
+   ],
+   [
+    1719581400,
+    64.07,
+    65.82,
+    62.67,
+    63.89,
+    1921903
+   ],
+   [
+    1719840600,
+    64.2,
+    66.69,
+    62.2,
+    66.59,
+    3609070
+   ],
+   [
+    1719927000,
+    65.99,
+    73.52,
+    65.65,
+    73.51,
+    6089633
+   ],
+   [
+    1720013400,
+    71.93,
+    73.9722,
+    70.18,
+    73.62,
+    2718149
+   ],
+   [
+    1720186200,
+    73.78,
+    76.2,
+    71.58,
+    72.97,
+    2587222
+   ],
+   [
+    1720445400,
+    72.76,
+    74.1155,
+    70.9,
+    72.81,
+    2191086
+   ],
+   [
+    1720531800,
+    73.48,
+    76.74,
+    69.2,
+    70.59,
+    2889761
+   ],
+   [
+    1720618200,
+    71.23,
+    72.28,
+    67.62,
+    69.4,
+    2156086
+   ],
+   [
+    1720704600,
+    70.5,
+    71.891,
+    68.3283,
+    70.29,
+    2170320
+   ],
+   [
+    1720791000,
+    70.75,
+    76.73,
+    69.4,
+    73.85,
+    3512646
+   ],
+   [
+    1721050200,
+    74.69,
+    78.08,
+    72.5312,
+    72.98,
+    2782760
+   ],
+   [
+    1721136600,
+    70.67,
+    70.69,
+    66.77,
+    70.44,
+    4589263
+   ],
+   [
+    1721223000,
+    68.48,
+    69.79,
+    63.79,
+    65.21,
+    3318987
+   ],
+   [
+    1721309400,
+    66.74,
+    66.74,
+    63.9377,
+    65.92,
+    2064082
+   ],
+   [
+    1721395800,
+    65.75,
+    68.27,
+    64.5,
+    64.7,
+    1997292
+   ],
+   [
+    1721655000,
+    66.93,
+    70.46,
+    65.545,
+    68.13,
+    3644792
+   ],
+   [
+    1721741400,
+    67.8,
+    71.41,
+    67.01,
+    67.84,
+    2486464
+   ],
+   [
+    1721827800,
+    65.665,
+    66.3,
+    62.1814,
+    62.95,
+    2869117
+   ],
+   [
+    1721914200,
+    62.9,
+    64.36,
+    59.73,
+    62.06,
+    2644529
+   ],
+   [
+    1722000600,
+    62.9,
+    64.32,
+    61.23,
+    62.36,
+    2044272
+   ],
+   [
+    1722259800,
+    62.97,
+    62.98,
+    58.72,
+    59.98,
+    2202874
+   ],
+   [
+    1722346200,
+    60.06,
+    60.59,
+    57.36,
+    58.44,
+    2211163
+   ],
+   [
+    1722432600,
+    59.38,
+    61.27,
+    59.31,
+    60.85,
+    1652089
+   ],
+   [
+    1722519000,
+    64.4,
+    64.64,
+    59.2,
+    59.38,
+    2520441
+   ],
+   [
+    1722605400,
+    56.24,
+    57.81,
+    54.11,
+    57.58,
+    3254160
+   ],
+   [
+    1722864600,
+    53.25,
+    59.13,
+    52.76,
+    56.81,
+    3078910
+   ],
+   [
+    1722951000,
+    58.1,
+    58.5,
+    54.34,
+    54.36,
+    6498267
+   ],
+   [
+    1723037400,
+    54.8,
+    55.24,
+    49.13,
+    50.69,
+    7772162
+   ],
+   [
+    1723123800,
+    51.95,
+    57.7422,
+    51.76,
+    54.94,
+    5653307
+   ],
+   [
+    1723210200,
+    53.97,
+    54.11,
+    51.5,
+    52.91,
+    14509834
+   ],
+   [
+    1723469400,
+    52.5,
+    52.97,
+    50.8,
+    52.51,
+    3397997
+   ],
+   [
+    1723555800,
+    53.05,
+    54.69,
+    52.54,
+    54.52,
+    3967761
+   ],
+   [
+    1723642200,
+    53.7,
+    55.03,
+    53.2,
+    54.95,
+    3874030
+   ],
+   [
+    1723728600,
+    55.25,
+    56.85,
+    54.18,
+    55.55,
+    4841780
+   ],
+   [
+    1723815000,
+    54.87,
+    55.14,
+    53.9,
+    54.92,
+    3005713
+   ],
+   [
+    1724074200,
+    54.79,
+    54.9,
+    52.49,
+    54.36,
+    4487378
+   ],
+   [
+    1724160600,
+    53.5,
+    55.06,
+    52.39,
+    55.02,
+    4206307
+   ],
+   [
+    1724247000,
+    54.88,
+    57.1097,
+    54.27,
+    56.89,
+    4179385
+   ],
+   [
+    1724333400,
+    56.5,
+    57.45,
+    55.3,
+    56.43,
+    3938958
+   ],
+   [
+    1724419800,
+    56.51,
+    59.68,
+    56.13,
+    59.21,
+    5286654
+   ],
+   [
+    1724679000,
+    59.29,
+    59.98,
+    57.51,
+    58.26,
+    2555743
+   ],
+   [
+    1724765400,
+    57.7204,
+    60.27,
+    56.54,
+    59,
+    3716275
+   ],
+   [
+    1724851800,
+    57.88,
+    57.93,
+    55.02,
+    56.14,
+    4033137
+   ],
+   [
+    1724938200,
+    57.585,
+    60.29,
+    57.1,
+    58.75,
+    5040140
+   ],
+   [
+    1725024600,
+    59,
+    60.41,
+    58.475,
+    60.03,
+    4152512
+   ],
+   [
+    1725370200,
+    59.245,
+    60.075,
+    57.49,
+    57.53,
+    3016014
+   ],
+   [
+    1725456600,
+    56.72,
+    58.81,
+    56.06,
+    57,
+    2772124
+   ],
+   [
+    1725543000,
+    56.8,
+    59.565,
+    56.38,
+    58.71,
+    2699564
+   ],
+   [
+    1725629400,
+    59.24,
+    60.41,
+    55.8,
+    56.85,
+    3074512
+   ],
+   [
+    1725888600,
+    57.14,
+    58.5,
+    55.2511,
+    57.46,
+    4540553
+   ],
+   [
+    1725975000,
+    57.52,
+    57.87,
+    55.48,
+    56.87,
+    2615552
+   ],
+   [
+    1726061400,
+    56.5,
+    60,
+    55.84,
+    59.87,
+    3466522
+   ],
+   [
+    1726147800,
+    60,
+    62.6594,
+    59.38,
+    59.63,
+    4785681
+   ],
+   [
+    1726234200,
+    59.63,
+    60.25,
+    58.04,
+    59.09,
+    3726014
+   ],
+   [
+    1726493400,
+    58.6,
+    60.1,
+    57.22,
+    59.15,
+    2683768
+   ],
+   [
+    1726579800,
+    61.37,
+    61.98,
+    59.31,
+    61.89,
+    3824420
+   ],
+   [
+    1726666200,
+    61.92,
+    64.09,
+    61.54,
+    63.66,
+    4688405
+   ],
+   [
+    1726752600,
+    64.99,
+    67.19,
+    63.9,
+    64.56,
+    5105663
+   ],
+   [
+    1726839000,
+    64.82,
+    66.94,
+    64.17,
+    66.17,
+    8518333
+   ],
+   [
+    1727098200,
+    66,
+    66.96,
+    64.78,
+    65,
+    3645624
+   ],
+   [
+    1727184600,
+    65.28,
+    67.28,
+    63.6,
+    66.96,
+    4444864
+   ],
+   [
+    1727271000,
+    66.96,
+    69.11,
+    66.35,
+    67.88,
+    4321053
+   ],
+   [
+    1727357400,
+    69,
+    69,
+    65.71,
+    66.52,
+    4310254
+   ],
+   [
+    1727443800,
+    66.59,
+    68.35,
+    66.12,
+    67.08,
+    3922269
+   ],
+   [
+    1727703000,
+    66.94,
+    67.81,
+    65.32,
+    65.92,
+    3558824
+   ],
+   [
+    1727789400,
+    65.93,
+    66.61,
+    64.515,
+    65.97,
+    3150485
+   ],
+   [
+    1727875800,
+    65.49,
+    68.31,
+    64.9,
+    67.78,
+    3992032
+   ],
+   [
+    1727962200,
+    68.06,
+    68.97,
+    67.35,
+    67.47,
+    4120349
+   ],
+   [
+    1728048600,
+    69.52,
+    72.88,
+    68.8,
+    72.38,
+    7419214
+   ],
+   [
+    1728307800,
+    72.99,
+    73.42,
+    70.13,
+    70.44,
+    2811169
+   ],
+   [
+    1728394200,
+    70.75,
+    72.98,
+    70.24,
+    70.77,
+    2494671
+   ],
+   [
+    1728480600,
+    73.64,
+    75.2,
+    70.44,
+    71,
+    5018988
+   ],
+   [
+    1728567000,
+    70.69,
+    71.66,
+    69.3001,
+    69.9,
+    3974118
+   ],
+   [
+    1728653400,
+    69.95,
+    73.25,
+    69.74,
+    73.25,
+    5076331
+   ],
+   [
+    1728912600,
+    73.75,
+    75.67,
+    72.82,
+    74.87,
+    5488824
+   ],
+   [
+    1728999000,
+    74.8,
+    76.48,
+    74.14,
+    75.17,
+    5701323
+   ],
+   [
+    1729085400,
+    75.16,
+    77.87,
+    73.59,
+    77.26,
+    4455191
+   ],
+   [
+    1729171800,
+    76.98,
+    78.74,
+    75.94,
+    76.29,
+    3074850
+   ],
+   [
+    1729258200,
+    76.61,
+    81.36,
+    76.42,
+    80.9,
+    5428484
+   ],
+   [
+    1729517400,
+    80.555,
+    80.555,
+    77.9,
+    78.55,
+    3750578
+   ],
+   [
+    1729603800,
+    77.77,
+    78.5,
+    76.54,
+    77.29,
+    3284956
+   ],
+   [
+    1729690200,
+    77.69,
+    80.13,
+    76.651,
+    77.68,
+    4083658
+   ],
+   [
+    1729776600,
+    77.855,
+    78.715,
+    77.14,
+    78.6,
+    2174123
+   ],
+   [
+    1729863000,
+    79.02,
+    81.72,
+    79.02,
+    81.36,
+    3889070
+   ],
+   [
+    1730122200,
+    82.21,
+    82.53,
+    79.45,
+    79.68,
+    6567464
+   ],
+   [
+    1730208600,
+    79.725,
+    82.975,
+    79.1,
+    81.74,
+    12718705
+   ],
+   [
+    1730295000,
+    104.9,
+    118.2494,
+    104.11,
+    116.05,
+    37764574
+   ],
+   [
+    1730381400,
+    117.405,
+    123.6,
+    114.8,
+    119.3,
+    17033460
+   ],
+   [
+    1730467800,
+    114,
+    115.5,
+    110.5,
+    112.98,
+    12024739
+   ],
+   [
+    1730730600,
+    110.765,
+    112.98,
+    108.6847,
+    109.03,
+    7719250
+   ],
+   [
+    1730817000,
+    110.5,
+    122.68,
+    110.27,
+    122.57,
+    10831246
+   ],
+   [
+    1730903400,
+    124.15,
+    124.9296,
+    117.16,
+    121.08,
+    6506131
+   ],
+   [
+    1730989800,
+    121.57,
+    133.25,
+    121.57,
+    131.44,
+    7756027
+   ],
+   [
+    1731076200,
+    130.03,
+    134.8,
+    128.33,
+    134.8,
+    4402023
+   ],
+   [
+    1731335400,
+    139,
+    139.04,
+    128.3,
+    129.23,
+    5711378
+   ],
+   [
+    1731421800,
+    126.66,
+    130.47,
+    125.69,
+    127.75,
+    5247916
+   ],
+   [
+    1731508200,
+    128.8,
+    135.07,
+    128.8,
+    132.06,
+    4567415
+   ],
+   [
+    1731594600,
+    132.06,
+    133.99,
+    129.72,
+    131.88,
+    2667713
+   ],
+   [
+    1731681000,
+    128.79,
+    131.6899,
+    123.14,
+    124.78,
+    4605078
+   ],
+   [
+    1731940200,
+    125.56,
+    130.13,
+    124.66,
+    129.42,
+    4320716
+   ],
+   [
+    1732026600,
+    129.01,
+    138.54,
+    128.72,
+    137.16,
+    6889242
+   ],
+   [
+    1732113000,
+    137.155,
+    138.39,
+    130.01,
+    136.27,
+    5497907
+   ],
+   [
+    1732199400,
+    141.27,
+    158.49,
+    139.57,
+    158.02,
+    12275538
+   ],
+   [
+    1732285800,
+    145.41,
+    149,
+    142.91,
+    146.67,
+    18665539
+   ],
+   [
+    1732545000,
+    149.5,
+    152.14,
+    139.22,
+    141.9,
+    8403896
+   ],
+   [
+    1732631400,
+    141.65,
+    144.81,
+    132.475,
+    135.61,
+    7697103
+   ],
+   [
+    1732717800,
+    137.8,
+    141.19,
+    134.45,
+    140.04,
+    5531021
+   ],
+   [
+    1732890600,
+    143.43,
+    143.93,
+    140.26,
+    140.69,
+    2105949
+   ],
+   [
+    1733149800,
+    144,
+    145.58,
+    138.75,
+    141.64,
+    3263219
+   ],
+   [
+    1733236200,
+    141,
+    151.56,
+    141,
+    149.83,
+    5966670
+   ],
+   [
+    1733322600,
+    150.84,
+    157.75,
+    150.63,
+    154.23,
+    6568466
+   ],
+   [
+    1733409000,
+    155.58,
+    156.667,
+    151.25,
+    153.09,
+    4500182
+   ],
+   [
+    1733495400,
+    152.06,
+    163.72,
+    149.33,
+    162.76,
+    7910663
+   ],
+   [
+    1733754600,
+    171.5,
+    180.74,
+    157.05,
+    167.17,
+    16640769
+   ],
+   [
+    1733841000,
+    168.31,
+    176.6731,
+    151.76,
+    155.93,
+    10972806
+   ],
+   [
+    1733927400,
+    164,
+    168.6605,
+    161,
+    165.92,
+    5981887
+   ],
+   [
+    1734013800,
+    164.01,
+    172.5,
+    163.2393,
+    163.51,
+    4024652
+   ],
+   [
+    1734100200,
+    164.35,
+    174,
+    163.51,
+    172.65,
+    4893316
+   ],
+   [
+    1734359400,
+    169.27,
+    180.36,
+    166.2,
+    178.1,
+    8934913
+   ],
+   [
+    1734445800,
+    177.15,
+    177.57,
+    167.32,
+    168.79,
+    6894464
+   ],
+   [
+    1734532200,
+    172.45,
+    174.385,
+    157.75,
+    160.65,
+    7792824
+   ],
+   [
+    1734618600,
+    163.9,
+    166.6,
+    157.22,
+    163.72,
+    4761558
+   ],
+   [
+    1734705000,
+    162.99,
+    174.11,
+    158.77,
+    170.71,
+    7705642
+   ],
+   [
+    1734964200,
+    171.25,
+    173.82,
+    166.3731,
+    168.61,
+    3728886
+   ],
+   [
+    1735050600,
+    169,
+    178.1,
+    168.89,
+    177.41,
+    2098732
+   ],
+   [
+    1735223400,
+    177.8,
+    182.2,
+    174.77,
+    176.74,
+    2444126
+   ],
+   [
+    1735309800,
+    175.53,
+    176.53,
+    167.8,
+    173.54,
+    2606090
+   ],
+   [
+    1735569000,
+    167.375,
+    169.79,
+    162.26,
+    165.53,
+    7541139
+   ],
+   [
+    1735655400,
+    166,
+    167.678,
+    162.64,
+    163.44,
+    3438493
+   ],
+   [
+    1735828200,
+    164.43,
+    168.4999,
+    156.0357,
+    165.91,
+    4076541
+   ],
+   [
+    1735914600,
+    167.53,
+    181.22,
+    166.965,
+    177.74,
+    9436014
+   ],
+   [
+    1736173800,
+    182,
+    187.69,
+    174.5,
+    179.49,
+    5416360
+   ],
+   [
+    1736260200,
+    180.25,
+    183.12,
+    171.1078,
+    172.32,
+    4201077
+   ],
+   [
+    1736346600,
+    167.59,
+    174.34,
+    166,
+    172.01,
+    4202606
+   ],
+   [
+    1736519400,
+    169,
+    169.6999,
+    159.8,
+    167.08,
+    4003804
+   ],
+   [
+    1736778600,
+    160.44,
+    165.5,
+    156.58,
+    164.65,
+    4368150
+   ],
+   [
+    1736865000,
+    169.6,
+    172.1888,
+    161.06,
+    164.82,
+    4913996
+   ],
+   [
+    1736951400,
+    170.09,
+    178.83,
+    167.5,
+    170.69,
+    5164845
+   ],
+   [
+    1737037800,
+    171.76,
+    176.8193,
+    169.73,
+    174.87,
+    3341636
+   ],
+   [
+    1737124200,
+    178.28,
+    179.87,
+    172.15,
+    175.33,
+    3375496
+   ],
+   [
+    1737469800,
+    177.5,
+    191,
+    175.6,
+    188.32,
+    7475493
+   ],
+   [
+    1737556200,
+    187.47,
+    188.19,
+    181.52,
+    183.74,
+    4999437
+   ],
+   [
+    1737642600,
+    182,
+    187.7,
+    178.5,
+    181.99,
+    3568417
+   ],
+   [
+    1737729000,
+    183.63,
+    190.5,
+    180,
+    182.4,
+    3923229
+   ],
+   [
+    1737988200,
+    174.22,
+    183.59,
+    170.2,
+    180.83,
+    4068590
+   ],
+   [
+    1738074600,
+    184,
+    196.83,
+    181.81,
+    194.75,
+    5422760
+   ],
+   [
+    1738161000,
+    201,
+    205.57,
+    195.671,
+    202,
+    5863404
+   ],
+   [
+    1738247400,
+    204.99,
+    208.62,
+    195.69,
+    198.93,
+    4168870
+   ],
+   [
+    1738333800,
+    201.84,
+    206.6,
+    197.05,
+    199.55,
+    3248356
+   ],
+   [
+    1738593000,
+    189.12,
+    205.5,
+    188.95,
+    202.31,
+    3611053
+   ],
+   [
+    1738679400,
+    208.865,
+    218.25,
+    207.143,
+    215.31,
+    5509422
+   ],
+   [
+    1738765800,
+    213.5,
+    221.18,
+    211,
+    221.16,
+    3563599
+   ],
+   [
+    1738852200,
+    222.44,
+    222.44,
+    209,
+    216.51,
+    6409250
+   ],
+   [
+    1738938600,
+    218.59,
+    227.05,
+    218.2001,
+    225.23,
+    5448021
+   ],
+   [
+    1739197800,
+    228.8,
+    230.41,
+    221.5001,
+    224.93,
+    4314758
+   ],
+   [
+    1739284200,
+    222.03,
+    222.48,
+    211.33,
+    213.76,
+    6210474
+   ],
+   [
+    1739370600,
+    213.6,
+    220.75,
+    211,
+    216.47,
+    11245549
+   ],
+   [
+    1739457000,
+    203.915,
+    214.3,
+    195.98,
+    204.95,
+    21066721
+   ],
+   [
+    1739543400,
+    202,
+    203.95,
+    192.5701,
+    196.38,
+    8424934
+   ],
+   [
+    1739889000,
+    193.4,
+    196.758,
+    183.8,
+    187.13,
+    9020178
+   ],
+   [
+    1739975400,
+    185.5,
+    190.9174,
+    183.96,
+    189.66,
+    4444134
+   ],
+   [
+    1740061800,
+    187.7,
+    187.75,
+    170.6,
+    175.44,
+    10625813
+   ],
+   [
+    1740148200,
+    175.5,
+    176.505,
+    161.883,
+    166.4,
+    9938974
+   ],
+   [
+    1740407400,
+    164.77,
+    166.38,
+    154.2,
+    165.57,
+    7908151
+   ],
+   [
+    1740493800,
+    164,
+    166.99,
+    154.74,
+    159.99,
+    6115769
+   ],
+   [
+    1740580200,
+    161.96,
+    170.3,
+    161.22,
+    168.1,
+    6358362
+   ],
+   [
+    1740666600,
+    170.41,
+    172.14,
+    156,
+    159.78,
+    5342560
+   ],
+   [
+    1740753000,
+    156.9,
+    163.38,
+    155.45,
+    161.78,
+    9356938
+   ],
+   [
+    1741012200,
+    165.455,
+    174.22,
+    160.4,
+    162.45,
+    7176780
+   ],
+   [
+    1741098600,
+    157.86,
+    164.65,
+    148.2651,
+    159.17,
+    7780740
+   ],
+   [
+    1741185000,
+    161,
+    169.99,
+    158.3173,
+    168.52,
+    4355851
+   ],
+   [
+    1741271400,
+    160.5,
+    166.11,
+    150.53,
+    150.72,
+    5336036
+   ],
+   [
+    1741357800,
+    147.02,
+    148.3,
+    131.26,
+    133.98,
+    13834948
+   ],
+   [
+    1741613400,
+    127.75,
+    127.75,
+    105.51,
+    107.29,
+    20956740
+   ],
+   [
+    1741699800,
+    111,
+    123.49,
+    110,
+    122.73,
+    14629574
+   ],
+   [
+    1741786200,
+    134.79,
+    136.47,
+    126.12,
+    130.68,
+    11368675
+   ],
+   [
+    1741872600,
+    130,
+    131.68,
+    118.57,
+    121.53,
+    7288624
+   ],
+   [
+    1741959000,
+    126.51,
+    130.83,
+    123.45,
+    128.21,
+    6818919
+   ],
+   [
+    1742218200,
+    123.62,
+    142,
+    119.92,
+    125.56,
+    19261720
+   ],
+   [
+    1742304600,
+    120.57,
+    121.94,
+    108.1285,
+    110.1,
+    13232158
+   ],
+   [
+    1742391000,
+    110.1,
+    113.48,
+    105.5,
+    109.91,
+    9529586
+   ],
+   [
+    1742477400,
+    109.18,
+    112.99,
+    107.04,
+    108.75,
+    7803443
+   ],
+   [
+    1742563800,
+    107.8,
+    116.29,
+    106,
+    115.7,
+    7987117
+   ],
+   [
+    1742823000,
+    119.81,
+    126.5,
+    119.76,
+    124.94,
+    9012069
+   ],
+   [
+    1742909400,
+    124,
+    127.27,
+    120.02,
+    125.43,
+    5815589
+   ],
+   [
+    1742995800,
+    124.6,
+    125.6,
+    117.17,
+    120.2,
+    4869412
+   ],
+   [
+    1743082200,
+    117.5,
+    117.5,
+    110.05,
+    110.23,
+    6775399
+   ],
+   [
+    1743168600,
+    110.25,
+    112.78,
+    103.74,
+    107.71,
+    8001920
+   ],
+   [
+    1743427800,
+    102.295,
+    106.59,
+    97.61,
+    104.9,
+    9511550
+   ],
+   [
+    1743514200,
+    105.795,
+    111.6,
+    104.3491,
+    110.05,
+    6568167
+   ],
+   [
+    1743600600,
+    104.85,
+    113.75,
+    104.85,
+    109.5,
+    10073457
+   ],
+   [
+    1743687000,
+    99.5,
+    100.5,
+    93.63,
+    96.9,
+    11840669
+   ],
+   [
+    1743773400,
+    92.18,
+    92.91,
+    82.8,
+    86.91,
+    13290250
+   ],
+   [
+    1744032600,
+    81.01,
+    97,
+    79.7499,
+    93,
+    11772338
+   ],
+   [
+    1744119000,
+    97.14,
+    97.8999,
+    86.88,
+    88.89,
+    9633597
+   ],
+   [
+    1744205400,
+    88.74,
+    113.9,
+    87.1242,
+    110.86,
+    13906473
+   ],
+   [
+    1744291800,
+    103.98,
+    107.46,
+    98.77,
+    102.01,
+    7351305
+   ],
+   [
+    1744378200,
+    101,
+    101.81,
+    96.43,
+    101.15,
+    4217575
+   ],
+   [
+    1744637400,
+    105.75,
+    106.5,
+    97.5001,
+    98.26,
+    3943375
+   ],
+   [
+    1744723800,
+    98.66,
+    99.79,
+    94.56,
+    96.46,
+    4061699
+   ],
+   [
+    1744810200,
+    93.07,
+    95.49,
+    91.61,
+    95.38,
+    3685336
+   ],
+   [
+    1744896600,
+    94.52,
+    96.87,
+    93.0801,
+    96.16,
+    2858279
+   ],
+   [
+    1745242200,
+    94,
+    95.41,
+    90.78,
+    94.15,
+    3090751
+   ],
+   [
+    1745328600,
+    96.24,
+    101.9,
+    95.4,
+    101.66,
+    5108777
+   ],
+   [
+    1745415000,
+    109.51,
+    113.55,
+    105.82,
+    107.17,
+    5873665
+   ],
+   [
+    1745501400,
+    106.9,
+    112.96,
+    106.16,
+    112.25,
+    4141140
+   ],
+   [
+    1745587800,
+    115.03,
+    120.56,
+    114.2556,
+    118.1,
+    8702704
+   ],
+   [
+    1745847000,
+    118.58,
+    123,
+    116.3,
+    121.21,
+    8891410
+   ],
+   [
+    1745933400,
+    119.57,
+    123.29,
+    118.2,
+    122.14,
+    3766968
+   ],
+   [
+    1746019800,
+    113.875,
+    116.94,
+    108.5,
+    116.57,
+    8008405
+   ],
+   [
+    1746106200,
+    125.635,
+    126.1,
+    117.49,
+    118.79,
+    14328186
+   ],
+   [
+    1746192600,
+    120.25,
+    125.3899,
+    111.62,
+    113.83,
+    29599202
+   ],
+   [
+    1746451800,
+    113.09,
+    120.87,
+    111.63,
+    116.33,
+    11529504
+   ],
+   [
+    1746538200,
+    113.65,
+    114.78,
+    108.6301,
+    109.99,
+    8954682
+   ],
+   [
+    1746624600,
+    109.33,
+    111.58,
+    102.8,
+    105.53,
+    9219438
+   ],
+   [
+    1746711000,
+    108.25,
+    109.66,
+    105.2,
+    107.83,
+    5758976
+   ],
+   [
+    1746797400,
+    109.85,
+    112.35,
+    105.52,
+    108.46,
+    4836052
+   ],
+   [
+    1747056600,
+    114.15,
+    114.535,
+    109.6021,
+    111.21,
+    7070511
+   ],
+   [
+    1747143000,
+    113.04,
+    116.4,
+    111.5,
+    112.84,
+    6684765
+   ],
+   [
+    1747229400,
+    114.725,
+    130.11,
+    113.8,
+    125.32,
+    20753506
+   ],
+   [
+    1747315800,
+    122.08,
+    122.08,
+    112.85,
+    113.59,
+    13711046
+   ],
+   [
+    1747402200,
+    117.5,
+    117.59,
+    110.82,
+    113.23,
+    8626997
+   ],
+   [
+    1747661400,
+    104.89,
+    110.09,
+    104.8,
+    107.99,
+    10494178
+   ],
+   [
+    1747747800,
+    107.35,
+    107.9899,
+    104.47,
+    105.64,
+    7178322
+   ],
+   [
+    1747834200,
+    103.09,
+    103.5,
+    94.89,
+    95.85,
+    17448231
+   ],
+   [
+    1747920600,
+    97.29,
+    100.4491,
+    95.6972,
+    98.32,
+    8522905
+   ],
+   [
+    1748007000,
+    95.83,
+    102.265,
+    95.23,
+    100.76,
+    6753505
+   ],
+   [
+    1748352600,
+    103,
+    104.9111,
+    99.1401,
+    104.62,
+    6944411
+   ],
+   [
+    1748439000,
+    104.94,
+    106.7068,
+    103.09,
+    105.43,
+    5399868
+   ],
+   [
+    1748525400,
+    108.19,
+    113.7999,
+    107.594,
+    109.03,
+    10701351
+   ],
+   [
+    1748611800,
+    107.31,
+    112.62,
+    106.3402,
+    112.35,
+    7555536
+   ],
+   [
+    1748871000,
+    109.16,
+    113.66,
+    109.16,
+    112.11,
+    4539438
+   ],
+   [
+    1748957400,
+    112.46,
+    115.3872,
+    109.92,
+    110.86,
+    5462482
+   ],
+   [
+    1749043800,
+    110.87,
+    119.69,
+    110.87,
+    118.21,
+    8683435
+   ],
+   [
+    1749130200,
+    118.76,
+    119.23,
+    111.8499,
+    112.24,
+    6231754
+   ],
+   [
+    1749216600,
+    113.63,
+    121.29,
+    112.77,
+    121.29,
+    6773380
+   ],
+   [
+    1749475800,
+    119.65,
+    121.98,
+    116.3801,
+    117.53,
+    5636117
+   ],
+   [
+    1749562200,
+    116.2,
+    119.15,
+    115.26,
+    117.09,
+    5631152
+   ],
+   [
+    1749648600,
+    117.4,
+    120.6215,
+    114.45,
+    115.03,
+    5988200
+   ],
+   [
+    1749735000,
+    113.02,
+    118.12,
+    110.85,
+    116.2,
+    4824351
+   ],
+   [
+    1749821400,
+    112.3,
+    120.3,
+    112.3,
+    118.18,
+    6509246
+   ],
+   [
+    1750080600,
+    121.425,
+    126.59,
+    121.425,
+    126.2,
+    8405053
+   ],
+   [
+    1750167000,
+    133.65,
+    146.164,
+    132.41,
+    133.84,
+    23521813
+   ],
+   [
+    1750253400,
+    132.32,
+    143.89,
+    132.25,
+    141.16,
+    12180683
+   ],
+   [
+    1750426200,
+    141.51,
+    147.999,
+    138.098,
+    139.15,
+    8787293
+   ],
+   [
+    1750685400,
+    135.77,
+    141.67,
+    133.28,
+    134.14,
+    7057617
+   ],
+   [
+    1750771800,
+    136.35,
+    143.77,
+    136.03,
+    140.79,
+    6547750
+   ],
+   [
+    1750858200,
+    150.91,
+    153.94,
+    141.44,
+    141.68,
+    9090189
+   ],
+   [
+    1750944600,
+    145.1,
+    147,
+    140.75,
+    143.95,
+    6587070
+   ],
+   [
+    1751031000,
+    143.51,
+    145.5,
+    139.26,
+    143.01,
+    17684836
+   ],
+   [
+    1751290200,
+    148.08,
+    155,
+    146.78,
+    150.57,
+    9904695
+   ],
+   [
+    1751376600,
+    151.82,
+    156.37,
+    146.55,
+    152.23,
+    8713533
+   ],
+   [
+    1751463000,
+    152,
+    164.55,
+    151.8,
+    159.34,
+    11005410
+   ],
+   [
+    1751549400,
+    159,
+    160.99,
+    155.4,
+    157.03,
+    4041162
+   ],
+   [
+    1751895000,
+    154.95,
+    155.39,
+    149.56,
+    153.37,
+    6308084
+   ],
+   [
+    1751981400,
+    155.2,
+    155.85,
+    145.2,
+    145.96,
+    7055549
+   ],
+   [
+    1752067800,
+    147.31,
+    147.95,
+    141.3,
+    145.65,
+    4609569
+   ],
+   [
+    1752154200,
+    148.73,
+    148.8,
+    141.28,
+    143,
+    3941435
+   ],
+   [
+    1752240600,
+    141.64,
+    147.4,
+    141.3,
+    145.59,
+    3686176
+   ],
+   [
+    1752499800,
+    146,
+    150.39,
+    145.3,
+    146.38,
+    4438737
+   ],
+   [
+    1752586200,
+    147.29,
+    148.05,
+    142.9,
+    144.8,
+    4426493
+   ],
+   [
+    1752672600,
+    144.95,
+    146.19,
+    138.3,
+    144.31,
+    5853169
+   ],
+   [
+    1752759000,
+    144.3,
+    147.05,
+    140.89,
+    142.52,
+    4454730
+   ],
+   [
+    1752845400,
+    142.51,
+    149.09,
+    138.11,
+    148.24,
+    6405912
+   ],
+   [
+    1753104600,
+    145.02,
+    149.7288,
+    144.41,
+    146.29,
+    5134872
+   ],
+   [
+    1753191000,
+    145.4,
+    147.8,
+    138.6,
+    145.8,
+    5183121
+   ],
+   [
+    1753277400,
+    147.97,
+    152.25,
+    144.3202,
+    146.1,
+    5664369
+   ],
+   [
+    1753363800,
+    147.85,
+    150.75,
+    142.9,
+    148.13,
+    5460455
+   ],
+   [
+    1753450200,
+    149.94,
+    152.78,
+    147.9,
+    149.66,
+    4505610
+   ],
+   [
+    1753709400,
+    150.84,
+    153.2,
+    147.55,
+    151.6,
+    4008671
+   ],
+   [
+    1753795800,
+    151.55,
+    152,
+    141.6,
+    144.85,
+    6464107
+   ],
+   [
+    1753882200,
+    145.72,
+    150.38,
+    144.085,
+    149.33,
+    5280716
+   ],
+   [
+    1753968600,
+    160.88,
+    162.88,
+    154.83,
+    160.59,
+    19988941
+   ],
+   [
+    1754055000,
+    182,
+    196.6799,
+    177.77,
+    188.64,
+    27258289
+   ],
+   [
+    1754314200,
+    191.7,
+    203.73,
+    188.98,
+    201.76,
+    15113312
+   ],
+   [
+    1754400600,
+    198.67,
+    208.68,
+    197.51,
+    199.09,
+    10585061
+   ],
+   [
+    1754487000,
+    199.01,
+    212.98,
+    198.75,
+    212.81,
+    8279389
+   ],
+   [
+    1754573400,
+    215.745,
+    217.3,
+    205.72,
+    211.82,
+    6074456
+   ],
+   [
+    1754659800,
+    211.85,
+    219,
+    208.85,
+    215.44,
+    4726955
+   ],
+   [
+    1754919000,
+    215.23,
+    225.35,
+    211.8001,
+    220.75,
+    5563370
+   ],
+   [
+    1755005400,
+    221.175,
+    229.4469,
+    220.69,
+    224.02,
+    4803252
+   ],
+   [
+    1755091800,
+    225.92,
+    237.3531,
+    224.3,
+    234.77,
+    7466951
+   ],
+   [
+    1755178200,
+    229.955,
+    244.85,
+    229.955,
+    243.47,
+    7579693
+   ],
+   [
+    1755264600,
+    242.575,
+    248.015,
+    235.79,
+    246.5,
+    6434008
+   ],
+   [
+    1755523800,
+    245.63,
+    253.14,
+    237.54,
+    241.76,
+    6933845
+   ],
+   [
+    1755610200,
+    238.22,
+    238.84,
+    225.5001,
+    228.18,
+    8655674
+   ],
+   [
+    1755696600,
+    221.5,
+    225.0318,
+    205.374,
+    218.37,
+    13073431
+   ],
+   [
+    1755783000,
+    217.44,
+    221.73,
+    215.1,
+    218.65,
+    4002415
+   ],
+   [
+    1755869400,
+    215,
+    230.25,
+    214.1,
+    217.31,
+    7640575
+   ],
+   [
+    1756128600,
+    214.27,
+    222.47,
+    212.57,
+    219.73,
+    4580555
+   ],
+   [
+    1756215000,
+    218.84,
+    220.5,
+    214.99,
+    219.43,
+    5316164
+   ],
+   [
+    1756301400,
+    220.97,
+    226.6688,
+    208.24,
+    211.1,
+    4906088
+   ],
+   [
+    1756387800,
+    212.8,
+    227,
+    212.4,
+    225.54,
+    5146994
+   ],
+   [
+    1756474200,
+    225.54,
+    227.9,
+    219.62,
+    225.08,
+    3922315
+   ],
+   [
+    1756819800,
+    219.98,
+    223.44,
+    213.15,
+    220.06,
+    4639979
+   ],
+   [
+    1756906200,
+    226.28,
+    239.37,
+    218.7,
+    223.14,
+    8426761
+   ],
+   [
+    1756992600,
+    225,
+    234.38,
+    223.5,
+    232.11,
+    4269990
+   ],
+   [
+    1757079000,
+    234,
+    241.18,
+    230.24,
+    240,
+    5567611
+   ],
+   [
+    1757338200,
+    245.09,
+    246.99,
+    229.86,
+    229.98,
+    5949183
+   ],
+   [
+    1757424600,
+    235.35,
+    240.3,
+    232.05,
+    240.2,
+    3655873
+   ],
+   [
+    1757511000,
+    245.14,
+    261.1273,
+    244.845,
+    259.03,
+    7445754
+   ],
+   [
+    1757597400,
+    260.57,
+    266.6395,
+    257.45,
+    260.54,
+    3726896
+   ],
+   [
+    1757683800,
+    262.22,
+    266.15,
+    251.19,
+    254.29,
+    3683657
+   ],
+   [
+    1757943000,
+    256.66,
+    265.54,
+    255.42,
+    263.64,
+    4584343
+   ],
+   [
+    1758029400,
+    265.075,
+    268.15,
+    260.5,
+    266.66,
+    3671286
+   ],
+   [
+    1758115800,
+    263.1,
+    270.36,
+    249.22,
+    266.47,
+    10028725
+   ],
+   [
+    1758202200,
+    271.99,
+    282.95,
+    269.92,
+    270.71,
+    6843943
+   ],
+   [
+    1758288600,
+    270.5,
+    271.99,
+    251.5,
+    264.48,
+    11586079
+   ],
+   [
+    1758547800,
+    257.45,
+    262.99,
+    253.34,
+    257.56,
+    5281151
+   ],
+   [
+    1758634200,
+    255.575,
+    255.78,
+    235.85,
+    237.45,
+    8042236
+   ],
+   [
+    1758720600,
+    241.51,
+    244,
+    234.89,
+    235.69,
+    4821560
+   ],
+   [
+    1758807000,
+    228.15,
+    236.52,
+    223.5,
+    232.75,
+    4646075
+   ],
+   [
+    1758893400,
+    234.08,
+    240.61,
+    231.2379,
+    240.11,
+    3280330
+   ],
+   [
+    1759152600,
+    244.804,
+    246.43,
+    239.3,
+    241.98,
+    3784584
+   ],
+   [
+    1759239000,
+    240.335,
+    240.99,
+    225.09,
+    229.99,
+    4885384
+   ],
+   [
+    1759325400,
+    213,
+    218.319,
+    202.26,
+    202.6,
+    15773953
+   ],
+   [
+    1759411800,
+    206.85,
+    209,
+    198.8,
+    200.92,
+    7759210
+   ],
+   [
+    1759498200,
+    212.02,
+    213.38,
+    205.41,
+    207.2,
+    8463205
+   ],
+   [
+    1759757400,
+    207.3,
+    211.15,
+    198.87,
+    203.63,
+    4985092
+   ],
+   [
+    1759843800,
+    206.24,
+    209.7364,
+    202.5071,
+    205.92,
+    3706730
+   ],
+   [
+    1759930200,
+    206.225,
+    206.225,
+    195.01,
+    202.29,
+    6644149
+   ],
+   [
+    1760016600,
+    203.25,
+    212.34,
+    199.38,
+    211.7,
+    5196443
+   ],
+   [
+    1760103000,
+    214.4,
+    214.4,
+    198,
+    198.55,
+    5568990
+   ],
+   [
+    1760362200,
+    201.89,
+    204.7085,
+    197.85,
+    203.68,
+    2942264
+   ],
+   [
+    1760448600,
+    199.925,
+    205.52,
+    194.77,
+    196.35,
+    3826450
+   ],
+   [
+    1760535000,
+    201.36,
+    203.8638,
+    196.8,
+    200.76,
+    2697387
+   ],
+   [
+    1760621400,
+    202.54,
+    203.88,
+    196,
+    198.97,
+    3036135
+   ],
+   [
+    1760707800,
+    195.16,
+    200.5999,
+    189.02,
+    194.95,
+    4531453
+   ],
+   [
+    1760967000,
+    201,
+    211.11,
+    200.65,
+    202.48,
+    6314955
+   ],
+   [
+    1761053400,
+    207.52,
+    208,
+    203.01,
+    205.71,
+    4186027
+   ],
+   [
+    1761139800,
+    204.03,
+    205,
+    191.28,
+    197.05,
+    5863525
+   ],
+   [
+    1761226200,
+    201,
+    205.32,
+    200.37,
+    200.82,
+    2798175
+   ],
+   [
+    1761312600,
+    206.02,
+    215.94,
+    205.1213,
+    214.2,
+    6280385
+   ],
+   [
+    1761571800,
+    219.7,
+    224.75,
+    216.5417,
+    219.24,
+    4888247
+   ],
+   [
+    1761658200,
+    222.22,
+    222.22,
+    212.75,
+    212.97,
+    4564973
+   ],
+   [
+    1761744600,
+    211.27,
+    214.13,
+    204.7501,
+    210.77,
+    4374596
+   ],
+   [
+    1761831000,
+    209.41,
+    209.4702,
+    193.81,
+    194.42,
+    12953265
+   ],
+   [
+    1761917400,
+    219.2,
+    230.97,
+    208.41,
+    208.95,
+    17708306
+   ],
+   [
+    1762180200,
+    211.06,
+    214.25,
+    199.1125,
+    204.98,
+    8198719
+   ],
+   [
+    1762266600,
+    199.19,
+    199.69,
+    187.4,
+    187.77,
+    8202421
+   ],
+   [
+    1762353000,
+    187.78,
+    199.3,
+    186.3601,
+    196.27,
+    5074567
+   ],
+   [
+    1762439400,
+    195.985,
+    196.7023,
+    182.74,
+    183.64,
+    4918877
+   ],
+   [
+    1762525800,
+    178,
+    195.16,
+    173.56,
+    194.58,
+    6446711
+   ],
+   [
+    1762785000,
+    200.03,
+    208.28,
+    198.3401,
+    204.19,
+    4657076
+   ],
+   [
+    1762871400,
+    201.94,
+    211.08,
+    201.34,
+    208.21,
+    3861782
+   ],
+   [
+    1762957800,
+    208.85,
+    213,
+    200.08,
+    202.82,
+    3168008
+   ],
+   [
+    1763044200,
+    201.775,
+    201.96,
+    185.44,
+    189.42,
+    5213307
+   ],
+   [
+    1763130600,
+    186.405,
+    198.59,
+    183.8,
+    193.31,
+    4284859
+   ],
+   [
+    1763389800,
+    191.34,
+    194.3399,
+    185.25,
+    187.55,
+    2598440
+   ],
+   [
+    1763476200,
+    184.18,
+    189.5,
+    180.89,
+    185.69,
+    3722343
+   ],
+   [
+    1763562600,
+    185.69,
+    192.45,
+    185.21,
+    187.78,
+    2728451
+   ],
+   [
+    1763649000,
+    192.955,
+    195.48,
+    178.2448,
+    181.88,
+    5161269
+   ],
+   [
+    1763735400,
+    185.04,
+    190.15,
+    180.01,
+    183.48,
+    4009229
+   ],
+   [
+    1763994600,
+    186.6,
+    195.69,
+    184.78,
+    195,
+    5268047
+   ],
+   [
+    1764081000,
+    198,
+    219.8,
+    196.57,
+    218.48,
+    7751496
+   ],
+   [
+    1764167400,
+    216,
+    220.7642,
+    207.29,
+    207.56,
+    4680879
+   ],
+   [
+    1764340200,
+    209.15,
+    218,
+    207.34,
+    216.47,
+    2388670
+   ],
+   [
+    1764599400,
+    211.72,
+    226.25,
+    211.5,
+    223.4,
+    4819797
+   ],
+   [
+    1764685800,
+    224.69,
+    231.51,
+    221.72,
+    222.76,
+    3445339
+   ],
+   [
+    1764772200,
+    222.66,
+    225.82,
+    220,
+    220.84,
+    2706064
+   ],
+   [
+    1764858600,
+    222.19,
+    225.87,
+    215,
+    222.75,
+    3493497
+   ],
+   [
+    1764945000,
+    225.15,
+    237.59,
+    224.175,
+    234.11,
+    6141274
+   ],
+   [
+    1765204200,
+    230,
+    238.2,
+    225.26,
+    236.95,
+    3685849
+   ],
+   [
+    1765290600,
+    230.85,
+    237.5,
+    229.55,
+    236.11,
+    2791563
+   ],
+   [
+    1765377000,
+    235.3,
+    240.18,
+    231.47,
+    238.11,
+    3816555
+   ],
+   [
+    1765463400,
+    235.54,
+    238,
+    227.2971,
+    233.54,
+    4386042
+   ],
+   [
+    1765549800,
+    233.06,
+    237.4,
+    222.85,
+    224.78,
+    4932169
+   ],
+   [
+    1765809000,
+    222.045,
+    225.77,
+    213.35,
+    218.5,
+    5415763
+   ],
+   [
+    1765895400,
+    215.264,
+    224.63,
+    215.264,
+    224,
+    4332179
+   ],
+   [
+    1765981800,
+    226.83,
+    235.42,
+    226.83,
+    227.34,
+    5721755
+   ],
+   [
+    1766068200,
+    232.82,
+    246.15,
+    229.4544,
+    231.34,
+    6060380
+   ],
+   [
+    1766154600,
+    235.85,
+    239.44,
+    230.99,
+    233.19,
+    5942860
+   ],
+   [
+    1766413800,
+    235.95,
+    240.4899,
+    230.3,
+    233.15,
+    4042041
+   ],
+   [
+    1766500200,
+    231.53,
+    237.5,
+    225.45,
+    225.82,
+    3487745
+   ],
+   [
+    1766586600,
+    225.77,
+    228.4,
+    222.785,
+    225.85,
+    982577
+   ],
+   [
+    1766759400,
+    225.79,
+    226.22,
+    220.26,
+    225.77,
+    1904008
+   ],
+   [
+    1767018600,
+    225.15,
+    236,
+    223.9101,
+    234.65,
+    3901188
+   ],
+   [
+    1767105000,
+    235.92,
+    236.9299,
+    229.08,
+    233.36,
+    2489821
+   ],
+   [
+    1767191400,
+    232.24,
+    233.7128,
+    227.5,
+    229.87,
+    2149087
+   ],
+   [
+    1767364200,
+    232.18,
+    242.8699,
+    228.15,
+    241.89,
+    3547051
+   ],
+   [
+    1767623400,
+    248.84,
+    250,
+    241,
+    244.05,
+    3365244
+   ],
+   [
+    1767709800,
+    248.21,
+    254.78,
+    242.1517,
+    253.81,
+    4159940
+   ],
+   [
+    1767796200,
+    252,
+    260.5,
+    251.05,
+    255.5,
+    3002303
+   ],
+   [
+    1767882600,
+    255.34,
+    259.55,
+    248.1,
+    253.95,
+    3015212
+   ],
+   [
+    1767969000,
+    257.67,
+    263.4999,
+    235.01,
+    244.56,
+    5542455
+   ],
+   [
+    1768228200,
+    244.72,
+    251.87,
+    240.61,
+    244.02,
+    2595300
+   ],
+   [
+    1768314600,
+    246.22,
+    263.335,
+    246.1,
+    258.93,
+    4516253
+   ],
+   [
+    1768401000,
+    258.8,
+    258.8,
+    246.85,
+    252.38,
+    4829883
+   ],
+   [
+    1768487400,
+    250.09,
+    251,
+    225.2501,
+    228.75,
+    10876269
+   ],
+   [
+    1768573800,
+    228.5,
+    236.499,
+    222.85,
+    231.01,
+    5450428
+   ],
+   [
+    1768919400,
+    220.125,
+    228.98,
+    217.34,
+    225.36,
+    3747976
+   ],
+   [
+    1769005800,
+    224.485,
+    224.925,
+    208.5,
+    210.13,
+    5204258
+   ],
+   [
+    1769092200,
+    214,
+    216,
+    209.78,
+    214.54,
+    2708186
+   ],
+   [
+    1769178600,
+    212.6,
+    220.82,
+    209,
+    218.88,
+    2612780
+   ],
+   [
+    1769437800,
+    216.64,
+    222.65,
+    212.6287,
+    213.63,
+    2621510
+   ],
+   [
+    1769524200,
+    203.14,
+    204.56,
+    193.11,
+    196.3,
+    7123070
+   ],
+   [
+    1769610600,
+    195,
+    199.05,
+    189.526,
+    193.14,
+    4372417
+   ],
+   [
+    1769697000,
+    200,
+    201.1214,
+    188.65,
+    190.05,
+    3936159
+   ],
+   [
+    1769783400,
+    188.24,
+    190.471,
+    180,
+    180.27,
+    4248199
+   ],
+   [
+    1770042600,
+    180,
+    184.35,
+    176.14,
+    177.15,
+    5887556
+   ],
+   [
+    1770129000,
+    178.4,
+    179.01,
+    161.71,
+    165.41,
+    6876714
+   ],
+   [
+    1770215400,
+    162.51,
+    163.265,
+    146.35,
+    152.69,
+    9451444
+   ],
+   [
+    1770301800,
+    151.005,
+    155.34,
+    148.5,
+    151.05,
+    11083865
+   ],
+   [
+    1770388200,
+    161.53,
+    164.3999,
+    137.02,
+    139.83,
+    22081617
+   ],
+   [
+    1770647400,
+    139.39,
+    145.9376,
+    136.61,
+    141.74,
+    8487343
+   ],
+   [
+    1770733800,
+    145.06,
+    152.44,
+    143.51,
+    149.98,
+    9003182
+   ],
+   [
+    1770820200,
+    148.86,
+    152.44,
+    137.25,
+    139.29,
+    8409677
+   ],
+   [
+    1770906600,
+    138.45,
+    138.45,
+    127.705,
+    131.07,
+    8703535
+   ],
+   [
+    1770993000,
+    141.85,
+    141.85,
+    135.37,
+    139.65,
+    7462441
+   ],
+   [
+    1771338600,
+    138.2,
+    143.92,
+    135.85,
+    139.23,
+    5470594
+   ],
+   [
+    1771425000,
+    140.9,
+    148.18,
+    139.26,
+    147.46,
+    5965873
+   ],
+   [
+    1771511400,
+    146.08,
+    147.395,
+    141.8001,
+    146.13,
+    4097101
+   ],
+   [
+    1771597800,
+    144.4,
+    151.25,
+    143.3936,
+    150.17,
+    7650931
+   ],
+   [
+    1771857000,
+    148.42,
+    150.94,
+    140.34,
+    142.46,
+    4529936
+   ],
+   [
+    1771943400,
+    142.93,
+    147.4999,
+    141.09,
+    142.08,
+    4012700
+   ],
+   [
+    1772029800,
+    143.395,
+    150.51,
+    141.05,
+    149.67,
+    4499385
+   ],
+   [
+    1772116200,
+    148.38,
+    156.39,
+    146.48,
+    151.25,
+    4908816
+   ],
+   [
+    1772202600,
+    149.51,
+    150.45,
+    143.05,
+    145.81,
+    4747671
+   ],
+   [
+    1772461800,
+    142.25,
+    147.5,
+    141.534,
+    147.11,
+    3473107
+   ],
+   [
+    1772548200,
+    141.88,
+    146.51,
+    137.5001,
+    145.69,
+    4480492
+   ],
+   [
+    1772634600,
+    146.59,
+    149.85,
+    144.35,
+    147.29,
+    5053306
+   ],
+   [
+    1772721000,
+    146.97,
+    153.78,
+    142.3,
+    144.34,
+    6249860
+   ],
+   [
+    1772807400,
+    142,
+    142.33,
+    137.9,
+    139.39,
+    5084037
+   ],
+   [
+    1773063000,
+    136.75,
+    139.39,
+    132.41,
+    138.86,
+    7991145
+   ],
+   [
+    1773149400,
+    141.875,
+    142.46,
+    133.8,
+    134.13,
+    6156821
+   ],
+   [
+    1773235800,
+    135.05,
+    137.9699,
+    133.28,
+    137.12,
+    5087266
+   ],
+   [
+    1773322200,
+    135.59,
+    139.7934,
+    131.5,
+    132.25,
+    3330337
+   ],
+   [
+    1773408600,
+    133.67,
+    136.98,
+    131.31,
+    132.36,
+    3049052
+   ],
+   [
+    1773667800,
+    133.97,
+    140.08,
+    133.18,
+    140,
+    4488671
+   ],
+   [
+    1773754200,
+    140.02,
+    147.45,
+    140,
+    144.33,
+    6424794
+   ],
+   [
+    1773840600,
+    144.01,
+    146.75,
+    142.04,
+    142.79,
+    4155921
+   ],
+   [
+    1773927000,
+    138.75,
+    142.27,
+    135.33,
+    138.12,
+    4878269
+   ],
+   [
+    1774013400,
+    139,
+    143.85,
+    135.68,
+    139.85,
+    6532902
+   ],
+   [
+    1774272600,
+    140,
+    144.19,
+    138.7,
+    140.96,
+    3514653
+   ],
+   [
+    1774359000,
+    139.7,
+    141.24,
+    134.585,
+    136.12,
+    3481309
+   ],
+   [
+    1774445400,
+    139,
+    143.22,
+    138.43,
+    139.63,
+    3192842
+   ],
+   [
+    1774531800,
+    135.49,
+    137.52,
+    124,
+    127.26,
+    8196909
+   ],
+   [
+    1774618200,
+    125.04,
+    125.51,
+    120.5,
+    121.84,
+    5776499
+   ],
+   [
+    1774877400,
+    122.5,
+    126.38,
+    119.27,
+    124.13,
+    4487532
+   ],
+   [
+    1774963800,
+    126.06,
+    135.9,
+    125.12,
+    134.65,
+    5443807
+   ],
+   [
+    1775050200,
+    136.375,
+    139.34,
+    133.25,
+    136.18,
+    3931961
+   ],
+   [
+    1775136600,
+    129.67,
+    137.12,
+    128.63,
+    136,
+    3077714
+   ],
+   [
+    1775482200,
+    138.46,
+    140.555,
+    136.2234,
+    138.34,
+    3208678
+   ],
+   [
+    1775568600,
+    137.5,
+    141.27,
+    136.35,
+    141.14,
+    2340455
+   ],
+   [
+    1775655000,
+    151.59,
+    154.77,
+    143.86,
+    145,
+    3995814
+   ],
+   [
+    1775741400,
+    144.54,
+    145.17,
+    135,
+    138.38,
+    5076466
+   ],
+   [
+    1775827800,
+    141.05,
+    142.2996,
+    135.99,
+    139.73,
+    3259543
+   ],
+   [
+    1776087000,
+    138.97,
+    149.45,
+    138.81,
+    149.35,
+    3638886
+   ],
+   [
+    1776173400,
+    152.61,
+    156.5,
+    151.78,
+    154.54,
+    4453050
+   ],
+   [
+    1776259800,
+    156.78,
+    160.3799,
+    155.33,
+    158.48,
+    4173876
+   ],
+   [
+    1776346200,
+    163.11,
+    164,
+    157.01,
+    162.45,
+    4032329
+   ],
+   [
+    1776432600,
+    165.505,
+    168.7,
+    161.364,
+    163.8,
+    4068576
+   ],
+   [
+    1776691800,
+    162.15,
+    166.79,
+    161.01,
+    166.28,
+    3055068
+   ],
+   [
+    1776778200,
+    166.5,
+    167.92,
+    156.085,
+    156.82,
+    4777225
+   ],
+   [
+    1776864600,
+    161.38,
+    164.41,
+    158.95,
+    164.31,
+    2890108
+   ],
+   [
+    1776951000,
+    162.3,
+    162.3,
+    151.22,
+    152.96,
+    3707926
+   ],
+   [
+    1777037400,
+    154.3,
+    154.93,
+    150.55,
+    154.89,
+    3242219
+   ],
+   [
+    1777296600,
+    154.375,
+    163.15,
+    154.05,
+    160.21,
+    3311661
+   ],
+   [
+    1777383000,
+    153.02,
+    153.73,
+    146.55,
+    147.93,
+    5156330
+   ],
+   [
+    1777469400,
+    146,
+    148.78,
+    143.09,
+    147.75,
+    3373206
+   ],
+   [
+    1777555800,
+    146.85,
+    150.2,
+    143.39,
+    147.23,
+    9383433
+   ],
+   [
+    1777642200,
+    165.51,
+    173,
+    156.49,
+    166.48,
+    14252200
+   ],
+   [
+    1777901400,
+    170.08,
+    175.29,
+    164.65,
+    169.07,
+    6091958
+   ],
+   [
+    1777987800,
+    171,
+    177.13,
+    167.62,
+    171.63,
+    7080642
+   ],
+   [
+    1778074200,
+    172.025,
+    172.65,
+    162.55,
+    166.56,
+    7179755
+   ],
+   [
+    1778160600,
+    168.5,
+    169.1,
+    159.6,
+    163.95,
+    5444650
+   ],
+   [
+    1778247000,
+    162.62,
+    162.9,
+    155.2101,
+    155.8,
+    5778954
+   ],
+   [
+    1778506200,
+    153.5,
+    162.45,
+    153.5,
+    159.51,
+    5077727
+   ],
+   [
+    1778592600,
+    159.3,
+    161.04,
+    150.32,
+    152.35,
+    4698065
+   ],
+   [
+    1778679000,
+    152,
+    154.7,
+    148.5,
+    154.12,
+    4151093
+   ],
+   [
+    1778765400,
+    155.775,
+    157.23,
+    149.0301,
+    156.31,
+    3265989
+   ],
+   [
+    1778851800,
+    153.55,
+    159.16,
+    153.14,
+    158.17,
+    3340033
+   ],
+   [
+    1779111000,
+    157,
+    160.98,
+    153.5701,
+    159.11,
+    3457184
+   ],
+   [
+    1779197400,
+    158.23,
+    161.49,
+    154.15,
+    154.88,
+    4080695
+   ],
+   [
+    1779283800,
+    154.02,
+    154.7599,
+    143.91,
+    146.72,
+    10395714
+   ],
+   [
+    1779370200,
+    144.31,
+    153.45,
+    144.1,
+    150.04,
+    3494463
+   ],
+   [
+    1779456600,
+    145.23,
+    145.795,
+    140.67,
+    141.67,
+    7849884
+   ],
+   [
+    1779802200,
+    143.495,
+    145.89,
+    139.55,
+    144.64,
+    5398443
+   ],
+   [
+    1779888600,
+    144.5,
+    158.551377,
+    144.24,
+    154.19,
+    5704894
+   ],
+   [
+    1779975000,
+    155.01,
+    167.72,
+    151.66,
+    167.69,
+    5726049
+   ],
+   [
+    1780061400,
+    168.705,
+    176.69,
+    166.49,
+    176,
+    9360119
+   ],
+   [
+    1780320600,
+    179.9,
+    182.645,
+    174.85,
+    177.85,
+    5794886
+   ],
+   [
+    1780407000,
+    174.52,
+    175.75,
+    166.66,
+    169.13,
+    4316517
+   ],
+   [
+    1780493400,
+    167,
+    170.49,
+    159.11,
+    169.49,
+    3399142
+   ],
+   [
+    1780579800,
+    170.3999,
+    187.34,
+    169.81,
+    183.91,
+    7380981
+   ],
+   [
+    1780666200,
+    182.18,
+    186.4499,
+    167.04,
+    173.45,
+    5965647
+   ],
+   [
+    1780925400,
+    171.51,
+    173.45,
+    166.16,
+    171.13,
+    3031435
+   ],
+   [
+    1781011800,
+    178.55,
+    183.12,
+    166.9,
+    178.11,
+    5237658
+   ],
+   [
+    1781098200,
+    174.45,
+    179.8,
+    170.8,
+    172.21,
+    3235173
+   ],
+   [
+    1781184600,
+    168.7,
+    174,
+    163.77,
+    173.26,
+    3207924
+   ],
+   [
+    1781271000,
+    172.49,
+    173,
+    158.36,
+    162.1,
+    5767960
+   ],
+   [
+    1781530200,
+    168.81,
+    182,
+    167.905,
+    181.88,
+    4843966
+   ],
+   [
+    1781616600,
+    181.95,
+    182.41,
+    174.721,
+    175.39,
+    3562101
+   ],
+   [
+    1781703000,
+    174.41,
+    175.4094,
+    165.95,
+    165.95,
+    4405012
+   ],
+   [
+    1781789400,
+    169,
+    176.22,
+    165.88,
+    174.96,
+    5337416
+   ],
+   [
+    1782135000,
+    171.86,
+    182.3,
+    167.01,
+    170.44,
+    4386396
+   ],
+   [
+    1782221400,
+    167,
+    174,
+    164.67,
+    165.63,
+    3364922
+   ],
+   [
+    1782307800,
+    164.7,
+    167.7,
+    157.27,
+    160.72,
+    4166337
+   ],
+   [
+    1782394200,
+    160.35,
+    160.35,
+    152.65,
+    158.02,
+    2783047
+   ],
+   [
+    1782480600,
+    156.62,
+    169.02,
+    155.7,
+    166.94,
+    6325811
+   ],
+   [
+    1782739800,
+    168.29,
+    176.35,
+    166.6,
+    174.39,
+    3132761
+   ],
+   [
+    1782826200,
+    172.6,
+    175.38,
+    169.75,
+    173.58,
+    2477773
+   ],
+   [
+    1782912600,
+    175.01,
+    201.16,
+    175.01,
+    197.76,
+    8763460
+   ],
+   [
+    1782999000,
+    194.01,
+    198.7199,
+    184.38,
+    194.67,
+    4469802
+   ],
+   [
+    1783344600,
+    197.96,
+    207.54,
+    196.44,
+    200.86,
+    5568881
+   ],
+   [
+    1783431000,
+    200.83,
+    206.4899,
+    198.8118,
+    199.44,
+    4133928
+   ],
+   [
+    1783517400,
+    195.63,
+    199.19,
+    189.33,
+    195.31,
+    2823751
+   ],
+   [
+    1783603800,
+    193.01,
+    200.85,
+    189.64,
+    200.31,
+    2248683
+   ],
+   [
+    1783690200,
+    205.8,
+    208.05,
+    192.61,
+    195.34,
+    3756482
+   ],
+   [
+    1783949400,
+    199,
+    204.065,
+    193.88,
+    200.93,
+    4372093
+   ],
+   [
+    1784035800,
+    197.18,
+    204.89,
+    197.18,
+    203.27,
+    2433304
+   ],
+   [
+    1784122200,
+    204.61,
+    207,
+    189.75,
+    198.03,
+    4070498
+   ],
+   [
+    1784208600,
+    199.69,
+    200.32,
+    184.62,
+    185.26,
+    3758329
+   ],
+   [
+    1784295000,
+    181.54,
+    184.95,
+    173.71,
+    181.18,
+    3327326
+   ],
+   [
+    1784554200,
+    179,
+    187.43,
+    174.46,
+    181.64,
+    4055443
+   ],
+   [
+    1784640600,
+    181.5,
+    186.99,
+    178,
+    185.84,
+    2602790
+   ],
+   [
+    1784727000,
+    172.9,
+    174,
+    166,
+    170.38,
+    8986993
+   ],
+   [
+    1784813400,
+    174.42,
+    179.283,
+    168.285,
+    168.78,
+    3842575
+   ],
+   [
+    1784899800,
+    169.5,
+    173.1999,
+    165.55,
+    168.73,
+    3539598
+   ],
+   [
+    1785159000,
+    173.335,
+    183.8823,
+    172.73,
+    179.23,
+    4263859
+   ],
+   [
+    1785245400,
+    179.25,
+    180.8,
+    173.61,
+    178.44,
+    2898108
+   ],
+   [
+    1785331800,
+    181.94,
+    185.9099,
+    176.3251,
+    177.99,
+    4231276
+   ],
+   [
+    1785418200,
+    180,
+    182.42,
+    175,
+    178.04,
+    11864896
+   ],
+   [
+    1785504600,
+    147.7,
+    151.38,
+    135.2223,
+    140.67,
+    29916722
+   ],
+   [
+    1785763800,
+    141.9,
+    157.7195,
+    140.0501,
+    154.71,
+    10648269
+   ],
+   [
+    1785850200,
+    153.62,
+    162.82,
+    152.78,
+    159.97,
+    6155487
+   ],
+   [
+    1785936600,
+    159.28,
+    160.79,
+    153.5,
+    155.26,
+    4169310
+   ],
+   [
+    1786023000,
+    150.94,
+    155.27,
+    149.51,
+    150.87,
+    3466403
+   ],
+   [
+    1786109400,
+    153.3,
+    163.9,
+    153.22,
+    161.7,
+    4509577
+   ],
+   [
+    1786368600,
+    161.49,
+    163.24,
+    157.65,
+    158.72,
+    3101668
+   ],
+   [
+    1786455000,
+    158,
+    161.98,
+    155.62,
+    156.19,
+    2735440
+   ],
+   [
+    1786541400,
+    157.64,
+    158,
+    152.0101,
+    153.45,
+    3318575
+   ],
+   [
+    1786627800,
+    154.51,
+    159.29,
+    152.67,
+    158.12,
+    4658023
+   ],
+   [
+    1786714200,
+    175.78,
+    184.284,
+    174,
+    178.09,
+    21500412
+   ],
+   [
+    1786973400,
+    177.51,
+    178.34,
+    164.18,
+    164.5,
+    37846236
+   ],
+   [
+    1787059800,
+    166.1,
+    167.54,
+    157.45,
+    158.25,
+    7447327
+   ],
+   [
+    1787146200,
+    156.66,
+    158.25,
+    151.367,
+    151.71,
+    8157153
+   ],
+   [
+    1787232600,
+    149.61,
+    150.77,
+    144.05,
+    150.31,
+    7672007
+   ],
+   [
+    1787319000,
+    151.79,
+    155.3,
+    150.0381,
+    153.29,
+    4554891
+   ],
+   [
+    1787578200,
+    150.01,
+    154.4,
+    149.2,
+    152.7,
+    3530314
+   ],
+   [
+    1787664600,
+    153.49,
+    162.625,
+    152.77,
+    162.45,
+    4386581
+   ],
+   [
+    1787751000,
+    161,
+    165.91,
+    155.27,
+    155.36,
+    3687227
+   ],
+   [
+    1787837400,
+    155.76,
+    158.99,
+    153.5,
+    153.95,
+    2716403
+   ],
+   [
+    1787923800,
+    152.25,
+    158.86,
+    152.0565,
+    153,
+    2756736
+   ],
+   [
+    1788183000,
+    151.32,
+    151.9418,
+    146.62,
+    147.81,
+    3864821
+   ],
+   [
+    1788269400,
+    144.79,
+    147.8625,
+    143.8,
+    144.64,
+    3799133
+   ],
+   [
+    1788355800,
+    144.02,
+    158.27,
+    143.47,
+    158.1,
+    6237700
+   ],
+   [
+    1788442200,
+    159.26,
+    162.5,
+    154.6305,
+    155.99,
+    4036001
+   ],
+   [
+    1788528600,
+    155.74,
+    156.49,
+    152.35,
+    154.46,
+    2834665
+   ],
+   [
+    1788874200,
+    155.01,
+    156.6,
+    148.46,
+    149.38,
+    5017908
+   ],
+   [
+    1788960600,
+    148.64,
+    149.215,
+    145.1663,
+    146.44,
+    4820395
+   ],
+   [
+    1789047000,
+    146.34,
+    156.9499,
+    144.8,
+    155.34,
+    5813363
+   ],
+   [
+    1789133400,
+    157.55,
+    159.4999,
+    154.61,
+    157.77,
+    3196541
+   ],
+   [
+    1789392600,
+    160,
+    166.18,
+    157.11,
+    162.38,
+    4553745
+   ],
+   [
+    1789479000,
+    157.9,
+    164.16,
+    157.3053,
+    159.63,
+    5093147
+   ],
+   [
+    1789565400,
+    160.62,
+    162.04,
+    156.1601,
+    157.6,
+    2907225
+   ],
+   [
+    1789651800,
+    154.71,
+    156.5299,
+    149.21,
+    152.83,
+    5751110
+   ],
+   [
+    1789738200,
+    152.69,
+    154.1,
+    150.2,
+    150.85,
+    13897539
+   ],
+   [
+    1789997400,
+    152.67,
+    160.35,
+    151.74,
+    158.73,
+    5464335
+   ],
+   [
+    1790083800,
+    161.28,
+    161.67,
+    152.33,
+    155.67,
+    4258708
+   ],
+   [
+    1790170200,
+    154.01,
+    154.94,
+    147.77,
+    151.98,
+    4576417
+   ],
+   [
+    1790256600,
+    151.5,
+    153.88,
+    150.2,
+    152.72,
+    3262609
+   ],
+   [
+    1790343000,
+    152.73,
+    154.76,
+    149.82,
+    149.84,
+    2879230
+   ],
+   [
+    1790602200,
+    149,
+    149.29,
+    143.08,
+    143.08,
+    4339871
+   ],
+   [
+    1790688600,
+    144.95,
+    147.55,
+    141.3217,
+    145.36,
+    4988528
+   ],
+   [
+    1790775000,
+    147.48,
+    151.8899,
+    142.42,
+    142.44,
+    4906704
+   ],
+   [
+    1790861400,
+    144.14,
+    150.225,
+    143.02,
+    149.53,
+    4108171
+   ],
+   [
+    1790947800,
+    149.775,
+    151.5,
+    144.8,
+    147.86,
+    3125951
+   ],
+   [
+    1791207000,
+    150.73,
+    152.85,
+    148.2435,
+    150.42,
+    5203377
+   ],
+   [
+    1791293400,
+    151.5,
+    151.5,
+    147.7801,
+    148.95,
+    3846272
+   ],
+   [
+    1791379800,
+    147.255,
+    154.52,
+    146.2486,
+    152.71,
+    2689893
+   ],
+   [
+    1791466200,
+    152.81,
+    157.3,
+    152,
+    156.47,
+    4577704
+   ],
+   [
+    1791552600,
+    161.06,
+    162.96,
+    158.32,
+    159.91,
+    5067158
+   ],
+   [
+    1791811800,
+    160.9,
+    162,
+    151.4201,
+    159.93,
+    5102400
+   ],
+   [
+    1791898200,
+    155.51,
+    164.18,
+    154.99,
+    155.29,
+    4927911
+   ],
+   [
+    1791984600,
+    154.15,
+    156.37,
+    148.46,
+    148.6,
+    3557188
+   ],
+   [
+    1792071000,
+    146.42,
+    159.66,
+    145.5101,
+    159.36,
+    4037550
+   ],
+   [
+    1792157400,
+    160,
+    164.94,
+    153.3242,
+    156.14,
+    3842497
+   ],
+   [
+    1792416600,
+    157.9,
+    158.8,
+    151.59,
+    155.14,
+    3410296
+   ],
+   [
+    1792503000,
+    155.14,
+    158.7599,
+    153.32,
+    155.65,
+    3037626
+   ],
+   [
+    1792589400,
+    156.49,
+    160.415,
+    152.81,
+    153.28,
+    3189160
+   ],
+   [
+    1792675800,
+    151.54,
+    152.46,
+    147.77,
+    150.26,
+    3298955
+   ],
+   [
+    1792762200,
+    148.01,
+    149.4999,
+    143.92,
+    144.25,
+    4070812
+   ],
+   [
+    1793021400,
+    144.25,
+    144.5499,
+    133.33,
+    138.45,
+    7884346
+   ],
+   [
+    1793107800,
+    138.39,
+    140.979,
+    135.07,
+    136.46,
+    4626407
+   ],
+   [
+    1793194200,
+    135.25,
+    138.155,
+    133.95,
+    134.7,
+    5378098
+   ],
+   [
+    1793280600,
+    129.95,
+    131.89,
+    126.37,
+    129.6,
+    17872159
+   ],
+   [
+    1793367000,
+    100.25,
+    101.98,
+    89.28,
+    91.73,
+    33411609
+   ],
+   [
+    1793629800,
+    92.21,
+    95.82,
+    90.5,
+    90.97,
+    11807787
+   ],
+   [
+    1793716200,
+    92.11,
+    96.21,
+    91.64,
+    96.15,
+    7914501
+   ],
+   [
+    1793802600,
+    97.9,
+    104.55,
+    97.78,
+    101.89,
+    8274830
+   ],
+   [
+    1793889000,
+    101.63,
+    101.72,
+    91.2,
+    93.81,
+    8310752
+   ],
+   [
+    1793975400,
+    95.11,
+    96.81,
+    93.5,
+    95.1,
+    6295330
+   ],
+   [
+    1794234600,
+    95.1,
+    101.405,
+    94.1001,
+    100.79,
+    5879937
+   ],
+   [
+    1794321000,
+    98.91,
+    102.325,
+    95.08,
+    98.67,
+    5468243
+   ],
+   [
+    1794407400,
+    100.73,
+    106.38,
+    99.6501,
+    105.66,
+    4959391
+   ],
+   [
+    1794493800,
+    101.27,
+    103.2824,
+    98.51,
+    99.55,
+    5824416
+   ],
+   [
+    1794580200,
+    98.75,
+    100.59,
+    97.98,
+    98.45,
+    3272144
+   ]
+  ]
+ },
+ "plotValues": {
+  "fields": [
+   "time"
+  ],
+  "rows": []
+ },
+ "objects": {
+  "counts": {
+   "lines": 2,
+   "labels": 40,
+   "boxes": 0,
+   "tables": 0,
+   "tableCells": 0,
+   "linefills": 0
+  },
+  "records": {
+   "lines": [
+    {
+     "id": 1,
+     "x1": 0,
+     "y1": 208.05,
+     "x2": 1,
+     "y2": 208.05,
+     "ex": "n",
+     "st": "sol",
+     "ci": 0,
+     "w": 1
+    },
+    {
+     "id": 2,
+     "x1": 0,
+     "y1": 89.28,
+     "x2": 1,
+     "y2": 89.28,
+     "ex": "n",
+     "st": "sol",
+     "ci": 0,
+     "w": 1
+    }
+   ],
+   "labels": [
+    {
+     "id": 3,
+     "x": 1,
+     "y": 90.764625,
+     "yl": "pr",
+     "t": "###################",
+     "st": "llf",
+     "ci": 1,
+     "tci": 1,
+     "sz": "auto",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 4,
+     "x": 1,
+     "y": 93.73387500000001,
+     "yl": "pr",
+     "t": "##########################",
+     "st": "llf",
+     "ci": 1,
+     "tci": 1,
+     "sz": "auto",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 5,
+     "x": 1,
+     "y": 96.703125,
+     "yl": "pr",
+     "t": "##############################",
+     "st": "llf",
+     "ci": 3,
+     "tci": 3,
+     "sz": "auto",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 6,
+     "x": 1,
+     "y": 99.67237499999999,
+     "yl": "pr",
+     "t": "########################",
+     "st": "llf",
+     "ci": 1,
+     "tci": 1,
+     "sz": "auto",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 7,
+     "x": 1,
+     "y": 102.641625,
+     "yl": "pr",
+     "t": "######################",
+     "st": "llf",
+     "ci": 1,
+     "tci": 1,
+     "sz": "auto",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 8,
+     "x": 1,
+     "y": 105.610875,
+     "yl": "pr",
+     "t": "######",
+     "st": "llf",
+     "ci": 1,
+     "tci": 1,
+     "sz": "auto",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 9,
+     "x": 1,
+     "y": 108.58012500000001,
+     "yl": "pr",
+     "t": "##",
+     "st": "llf",
+     "ci": 1,
+     "tci": 1,
+     "sz": "auto",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 10,
+     "x": 1,
+     "y": 111.549375,
+     "yl": "pr",
+     "t": "##",
+     "st": "llf",
+     "ci": 1,
+     "tci": 1,
+     "sz": "auto",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 11,
+     "x": 1,
+     "y": 114.51862500000001,
+     "yl": "pr",
+     "t": "##",
+     "st": "llf",
+     "ci": 1,
+     "tci": 1,
+     "sz": "auto",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 12,
+     "x": 1,
+     "y": 117.487875,
+     "yl": "pr",
+     "t": "##",
+     "st": "llf",
+     "ci": 1,
+     "tci": 1,
+     "sz": "auto",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 13,
+     "x": 1,
+     "y": 120.457125,
+     "yl": "pr",
+     "t": "#####",
+     "st": "llf",
+     "ci": 1,
+     "tci": 1,
+     "sz": "auto",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 14,
+     "x": 1,
+     "y": 123.42637500000001,
+     "yl": "pr",
+     "t": "#######",
+     "st": "llf",
+     "ci": 1,
+     "tci": 1,
+     "sz": "auto",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 15,
+     "x": 1,
+     "y": 126.395625,
+     "yl": "pr",
+     "t": "#################",
+     "st": "llf",
+     "ci": 1,
+     "tci": 1,
+     "sz": "auto",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 16,
+     "x": 1,
+     "y": 129.364875,
+     "yl": "pr",
+     "t": "##############",
+     "st": "llf",
+     "ci": 1,
+     "tci": 1,
+     "sz": "auto",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 17,
+     "x": 1,
+     "y": 132.334125,
+     "yl": "pr",
+     "t": "############################",
+     "st": "llf",
+     "ci": 1,
+     "tci": 1,
+     "sz": "auto",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 18,
+     "x": 1,
+     "y": 135.30337500000002,
+     "yl": "pr",
+     "t": "################################################",
+     "st": "llf",
+     "ci": 1,
+     "tci": 1,
+     "sz": "auto",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 19,
+     "x": 1,
+     "y": 138.272625,
+     "yl": "pr",
+     "t": "##############################################################",
+     "st": "llf",
+     "ci": 1,
+     "tci": 1,
+     "sz": "auto",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 20,
+     "x": 1,
+     "y": 141.241875,
+     "yl": "pr",
+     "t": "###################################################################",
+     "st": "llf",
+     "ci": 1,
+     "tci": 1,
+     "sz": "auto",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 21,
+     "x": 1,
+     "y": 144.21112499999998,
+     "yl": "pr",
+     "t": "####################################################################################",
+     "st": "llf",
+     "ci": 1,
+     "tci": 1,
+     "sz": "auto",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 22,
+     "x": 1,
+     "y": 147.18037500000003,
+     "yl": "pr",
+     "t": "################################################################################################",
+     "st": "llf",
+     "ci": 1,
+     "tci": 1,
+     "sz": "auto",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 23,
+     "x": 1,
+     "y": 150.14962500000001,
+     "yl": "pr",
+     "t": "######################################################################################################",
+     "st": "llf",
+     "ci": 3,
+     "tci": 3,
+     "sz": "auto",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 24,
+     "x": 1,
+     "y": 153.118875,
+     "yl": "pr",
+     "t": "####################################################################################################",
+     "st": "llf",
+     "ci": 1,
+     "tci": 1,
+     "sz": "auto",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 25,
+     "x": 1,
+     "y": 156.088125,
+     "yl": "pr",
+     "t": "################################################################################################",
+     "st": "llf",
+     "ci": 1,
+     "tci": 1,
+     "sz": "auto",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 26,
+     "x": 1,
+     "y": 159.05737499999998,
+     "yl": "pr",
+     "t": "############################################################################",
+     "st": "llf",
+     "ci": 1,
+     "tci": 1,
+     "sz": "auto",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 27,
+     "x": 1,
+     "y": 162.02662500000002,
+     "yl": "pr",
+     "t": "#########################################################",
+     "st": "llf",
+     "ci": 1,
+     "tci": 1,
+     "sz": "auto",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 28,
+     "x": 1,
+     "y": 164.995875,
+     "yl": "pr",
+     "t": "##################################################",
+     "st": "llf",
+     "ci": 1,
+     "tci": 1,
+     "sz": "auto",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 29,
+     "x": 1,
+     "y": 167.965125,
+     "yl": "pr",
+     "t": "##################################################",
+     "st": "llf",
+     "ci": 1,
+     "tci": 1,
+     "sz": "auto",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 30,
+     "x": 1,
+     "y": 170.934375,
+     "yl": "pr",
+     "t": "###########################################",
+     "st": "llf",
+     "ci": 1,
+     "tci": 1,
+     "sz": "auto",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 31,
+     "x": 1,
+     "y": 173.903625,
+     "yl": "pr",
+     "t": "###########################################################",
+     "st": "llf",
+     "ci": 1,
+     "tci": 1,
+     "sz": "auto",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 32,
+     "x": 1,
+     "y": 176.87287500000002,
+     "yl": "pr",
+     "t": "################################################",
+     "st": "llf",
+     "ci": 1,
+     "tci": 1,
+     "sz": "auto",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 33,
+     "x": 1,
+     "y": 179.842125,
+     "yl": "pr",
+     "t": "###############################",
+     "st": "llf",
+     "ci": 1,
+     "tci": 1,
+     "sz": "auto",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 34,
+     "x": 1,
+     "y": 182.811375,
+     "yl": "pr",
+     "t": "###########################",
+     "st": "llf",
+     "ci": 1,
+     "tci": 1,
+     "sz": "auto",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 35,
+     "x": 1,
+     "y": 185.780625,
+     "yl": "pr",
+     "t": "#############",
+     "st": "llf",
+     "ci": 1,
+     "tci": 1,
+     "sz": "auto",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 36,
+     "x": 1,
+     "y": 188.74987500000003,
+     "yl": "pr",
+     "t": "###########",
+     "st": "llf",
+     "ci": 1,
+     "tci": 1,
+     "sz": "auto",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 37,
+     "x": 1,
+     "y": 191.71912500000002,
+     "yl": "pr",
+     "t": "##########",
+     "st": "llf",
+     "ci": 1,
+     "tci": 1,
+     "sz": "auto",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 38,
+     "x": 1,
+     "y": 194.688375,
+     "yl": "pr",
+     "t": "##########",
+     "st": "llf",
+     "ci": 1,
+     "tci": 1,
+     "sz": "auto",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 39,
+     "x": 1,
+     "y": 197.657625,
+     "yl": "pr",
+     "t": "##############",
+     "st": "llf",
+     "ci": 1,
+     "tci": 1,
+     "sz": "auto",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 40,
+     "x": 1,
+     "y": 200.62687499999998,
+     "yl": "pr",
+     "t": "############",
+     "st": "llf",
+     "ci": 1,
+     "tci": 1,
+     "sz": "auto",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 41,
+     "x": 1,
+     "y": 203.59612500000003,
+     "yl": "pr",
+     "t": "########",
+     "st": "llf",
+     "ci": 1,
+     "tci": 1,
+     "sz": "auto",
+     "ta": "center",
+     "tt": ""
+    },
+    {
+     "id": 42,
+     "x": 1,
+     "y": 206.56537500000002,
+     "yl": "pr",
+     "t": "######",
+     "st": "llf",
+     "ci": 1,
+     "tci": 1,
+     "sz": "auto",
+     "ta": "center",
+     "tt": ""
+    }
+   ],
+   "boxes": [],
+   "tables": [],
+   "tableCells": [],
+   "linefills": []
+  },
+  "texts": {
+   "labels": [
+    "###################",
+    "##########################",
+    "##############################",
+    "########################",
+    "######################",
+    "######",
+    "##",
+    "##",
+    "##",
+    "##",
+    "#####",
+    "#######",
+    "#################",
+    "##############",
+    "############################",
+    "################################################",
+    "##############################################################",
+    "###################################################################",
+    "####################################################################################",
+    "################################################################################################",
+    "######################################################################################################",
+    "####################################################################################################",
+    "################################################################################################",
+    "############################################################################",
+    "#########################################################",
+    "##################################################",
+    "##################################################",
+    "###########################################",
+    "###########################################################",
+    "################################################",
+    "###############################",
+    "###########################",
+    "#############",
+    "###########",
+    "##########",
+    "##########",
+    "##############",
+    "############",
+    "########",
+    "######"
+   ],
+   "tableCells": []
+  },
+  "unreadable": [],
+  "xIndex": {
+   "schema": "uct.object-x-index/v1",
+   "unit": "an object x is a position in `indexes`; each entry is a model bar index (mainSeries().bars()); `times` is that bar's time (unix-s), null off the loaded bars",
+   "modelBars": {
+    "first": -366,
+    "last": 299,
+    "count": 666,
+    "contiguous": true
+   },
+   "found": true,
+   "path": "graphics()._indexes",
+   "alsoAt": [],
+   "indexes": [
+    99,
+    300
+   ],
+   "times": [
+    1769697000,
+    null
+   ]
+  }
+ },
+ "warnings": [
+  "objects-only study: it declares no plots, so plotValues is empty and its drawings are the whole answer"
+ ],
+ "receipt": {
+  "algo": "fnv1a32-utf16",
+  "over": "JSON.stringify(capture without its receipt key)",
+  "chars": 137503,
+  "fnv1a": 3098710456
+ }
+}

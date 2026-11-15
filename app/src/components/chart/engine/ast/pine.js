@@ -102,6 +102,7 @@ import { yieldsOf, compileRules, SENTENCE_RULES, didYouMean } from './sentence.j
 // evaluation time, which is a refusal at the wrong door.
 import { FN, MAX_SELF_LAG, SEED_RESIDUAL_TOLERANCE, TF_RESAMPLABLE, TF_LADDER, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed, heldFalseSeed, naConditionIsFalse, periodFirstCondition, readingSeed, chartOwnTimeNode, OWN_TIME_WITNESSED_TF, periodCloseNode, PERIOD_CLOSE_CODES, periodAnchorNode, chartSixtyTimeNode, SIXTY_WITNESSED_TF, PERIOD_ANCHOR_WITNESSED_TF, PERIOD_CLOSE_WITNESSED_TF, requestBaseNode, treeReadsLowerTf, listingSeedIsUnpinned } from './interpret.js'
 import { isLowerTfRequest, lowerTfRefusal, LOWER_TF_REFUSAL } from '../lowerTf.js'
+import { staticallyUnservable, spellingUnservable, staticOtherSymbolMessage, US_EQUITY_VENUES, witnessRowOf, SEED_SPELLING } from '../otherSymbols.js'
 import { memberNumber } from './memberValue.js'
 import { timeInputDefaultOf, isTimeInputCall } from '../runtime/runtimeInputs.js'
 // ⭐ The budget's own verdict, asked at the translate door (see the row builder
@@ -2012,6 +2013,12 @@ export const BUILTIN_SYMBOL_SCOPED = Object.freeze({
   'syminfo.currency': 'currency',
   'syminfo.timezone': 'timezone',
   'syminfo.session': 'session',
+  // ⭐ RS RATING L3 (2026-11-15) — the classification fields (`symbolScope.json::classification`).
+  // They settle per BINDING from the symbol's class and strings: TradingView's where a capture
+  // witnesses it, else OUR string tagged substituted (`bind.js::classificationWith`), else refused
+  // by name from the fold.
+  'syminfo.industry': 'industry',
+  'syminfo.sector': 'sector',
 })
 
 /** The `syminfo.*` fields REFUSED BY NAME, with their reasons — read straight off
@@ -5111,9 +5118,8 @@ function smaOfBareObv(node) {
  *  refuses, both spellings agree), never the membership, so adding a venue is a
  *  one-line change that nothing else has to follow.
  */
-const US_EQUITY_VENUES = Object.freeze(new Set([
-  'NASDAQ', 'NYSE', 'AMEX', 'ARCA', 'NYSEARCA', 'BATS', 'CBOE', 'OTC', 'IEX',
-]))
+// ⭐ ENGINE 55 (review L5) — `US_EQUITY_VENUES` now lives in `otherSymbols.js`, read by
+// this translator and by `spellingUnservable`, so the two lanes judge one list.
 
 /** `"AMEX:SPY"` → `'SPY'`; a bare `"SPY"` → `'SPY'`; a venue we do not serve →
  *  null, which the callers turn into the ordinary `pine:request` refusal.
@@ -5127,7 +5133,10 @@ const VENUE_QUALIFIED = /^([A-Z][A-Z0-9_.]{0,15}):([A-Z][A-Z0-9.-]{0,9})$/
 function tickerWithoutVenue(raw) {
   const found = VENUE_QUALIFIED.exec(raw)
   if (!found) return raw
-  return US_EQUITY_VENUES.has(found[1]) ? found[2] : null
+  if (US_EQUITY_VENUES.has(found[1])) return found[2]
+  // ⭐ RS RATING L1b — a spelling with a witness row (`SP:SPX`, `otherSymbols.js::witnessRowOf`)
+  // names its ticker too; whether it is SERVED is the row's (the static gate and the bind ask it)
+  return witnessRowOf(found[1], found[2]) ? found[2] : null
 }
 
 /** The same question asked of `ticker.new`'s SEPARATE exchange argument.
@@ -5779,7 +5788,7 @@ function parsePostfix(cur) {
       if (node.type === 'name') {
         const joined = `${node.name}.${member}`
         node = isCall
-          ? { type: 'call', name: joined, args, tok: node.tok, endTok }
+          ? seedAsSecurity({ type: 'call', name: joined, args, tok: node.tok, endTok })
           : { type: 'name', name: joined, tok: node.tok }
         continue
       }
@@ -5952,7 +5961,7 @@ function parsePrimary(cur) {
       // `endTok` is the whole of what would change this." This is that.
       // `parseArguments` consumes through the `)`, so the last token it ate IS
       // the closing paren — the same way `thinkscript.js::parseCall` gets it.
-      return { type: 'call', name: tok.value, args, tok, endTok: cur.toks[cur.i - 1] || null }
+      return seedAsSecurity({ type: 'call', name: tok.value, args, tok, endTok: cur.toks[cur.i - 1] || null })
     }
     return { type: 'name', name: tok.value, tok }
   }
@@ -5982,6 +5991,43 @@ function parseArguments(cur) {
 }
 
 /** One statement's tokens → one Pine expression, with nothing left over. */
+/** ⭐⭐ RS RATING L6b — `request.seed(source, symbol, expression)` IS AN OTHER-SYMBOL READ.
+ *  A Pine Seeds series is daily data under the symbol `<SOURCE>:<SYMBOL>`, so the call is
+ *  rewritten here, once, into the read every lane already has:
+ *  `request.security("<SOURCE>:<SYMBOL>", "D", expression)` — both lanes parse with this
+ *  module, so neither can read a seed differently. Whether that spelling is SERVED is
+ *  `otherSymbols.js`'s (`requestWitnesses.json`'s `seed` rows, the frontend's manifest of
+ *  `pine_seed_store.py::SEEDS`): an unregistered seed refuses by name.
+ *  ⛔ ONLY THE THREE-ARGUMENT CALL WITH TEXT LITERALS for source and symbol (positional or
+ *  named `source` / `symbol` / `expression`): `ignore_invalid_symbol` and `calc_bars_count`
+ *  change the read, and a computed source names no series this door can know. Anything else
+ *  is left as it was (and refuses as it always did). */
+function seedAsSecurity(node) {
+  if (!node || node.type !== 'call' || node.name !== 'request.seed') return node
+  const args = node.args || []
+  if (args.length !== 3) return node
+  const names = ['source', 'symbol', 'expression']
+  const slots = [undefined, undefined, undefined]
+  let k = 0
+  for (const a of args) {
+    if (!a) return node
+    const at = a.name ? names.indexOf(a.name) : k++
+    if (at < 0 || slots[at] !== undefined) return node
+    slots[at] = a.value
+  }
+  const [src, sym, expr] = slots
+  if (!src || src.type !== 'string' || !sym || sym.type !== 'string' || !expr) return node
+  const key = `${String(src.value).trim().toUpperCase()}:${String(sym.value).trim().toUpperCase()}`
+  return {
+    type: 'call', name: 'request.security', tok: node.tok, endTok: node.endTok, seed: true,
+    args: [
+      { name: null, value: { type: 'string', value: key, tok: src.tok } },
+      { name: null, value: { type: 'string', value: 'D', tok: sym.tok } },
+      { name: null, value: expr },
+    ],
+  }
+}
+
 export function parseWholeExpression(toks) {
   const cur = new Cursor(toks)
   const node = parseExpression(cur, 0)
@@ -6520,6 +6566,9 @@ export function printFormula(node, parentBp = 0) {
       // ⚠️ ITS OWN SPELLING, never `tf` with a flag — a member reading the formula
       // back must be able to see that this one reads the FORMING period.
       return `tf_live(${printFormula(node.args[0], 0)}, '${node.value}')`
+    case 'tf_merge':
+      // ⭐ ENGINE 55 — Pine's look-ahead-off request, in the spelling `parse.js` reads back.
+      return `tf_merge(${printFormula(node.args[0], 0)}, '${node.value}')`
     case 'ltf':
       // ⭐ C41 — the read BELOW the chart, in the spelling `parse.js` reads back.
       return `ltf(${printFormula(node.args[0], 0)}, '${node.value}')`
@@ -7549,14 +7598,6 @@ export class Resolver {
      *  can see their `'D'` became the chart's own series. A fold nobody is told about
      *  is a script that quietly stopped being the one they pasted. */
     this.baseFolds = new Map()
-    /** ⭐⭐ P0 (inv + imp, 2026-10-05) — every look-ahead-OFF higher-timeframe read
-     *  this run emitted as `tf`. `tf` reads the last CLOSED period on every bar, so
-     *  on the bar that completes a week/month UCT still shows the PREVIOUS period
-     *  where TradingView already shows the completed one: one bar later on the last
-     *  bar of every period. The evaluator is not changed in P0; the difference is
-     *  DISCLOSED through the `_folds` seam (`closedTable.json::_folds.
-     *  htfLookaheadOffStepBacks`), surfaced per output exactly like `baseFolds`. */
-    this.htfStepBacks = new Map()
     /** Which bound input names this run may emit as identifiers: `'all'`, a Set,
      *  or null for the shipped default (fold everything, as before). */
     this.declareInputs = null
@@ -8453,9 +8494,14 @@ export class Resolver {
         })
         if (!out) {
           // ⭐ C27 — a tuple element of a request below the chart names why.
+          // ⭐ ENGINE 55 — …and one naming a spelling this door cannot even turn into a
+          // listing (a foreign exchange, `BRK/B`): the one sentence both lanes say.
           const lower = this.lowerTfDeclineOf(bound.call)
+          const spelled = lower ? null : this.otherSymbolSpellingDeclineOf(bound.call)
+          if (spelled) throw new PineRefusal('pine:request', spelled.message, bound.at || locate(tok))
+          const why = lower ? lower.why : null
           throw new PineRefusal('pine:request',
-            `${REFUSALS['pine:request']} — \`${name}\`${lower ? `: ${lower.why}` : ''}`,
+            `${REFUSALS['pine:request']} — \`${name}\`${why ? `: ${why}` : ''}`,
             bound.at || locate(tok))
         }
         return out
@@ -11189,12 +11235,18 @@ export class Resolver {
    *  (`vw-getter-history`, G03: `ya[1]` in the last-bar block is `close[1]`), and
    *  so do the chart's own series (A13 / A14, C06).
    *  ⛔ Minting, and which resolver asks, as `resolveBinding` says. null → not
-   *  such a read (or one a chart's plot reads on, for the bind to decide). */
+   *  such a read (or one a chart's plot reads on, for the bind to decide).
+   *  ⭐ Engine 55 — THE SCREENER LANE ASKS TOO (`this.screen`). It binds no chart, so
+   *  nothing carries the block's guard to a bind: the read refuses here, by this
+   *  sentence, and a once-run block reads `na` as above. ⚰️ It read on through
+   *  `barOffsetNode`, the previous BAR's value: s10 probe `vw-w3n-draw-block-history-d`
+   *  translated `ok` and disagreed with TradingView on 169 of 315 RDDT bars (bar 2:
+   *  100.88 vs 92). Rails: `lenientBlockLocalHistory.test.js`. */
   blockLocalHistory(node) {
     if (this.mintOnly > 0 || !(node.n >= 1) || !node.arg || node.arg.type !== 'name') return null
     const bound = this.env.get(node.arg.name)
     if (!bound || typeof bound !== 'object' || !bound.blockLocal) return null
-    if (!this.refuseCondCalls && !this.condGate) return null
+    if (!this.refuseCondCalls && !this.condGate && !this.screen) return null
     if (bound.blockLocal === 'once') {
       if (this.paramMint) this.mintOnlyRead(() => this.resolve(node))
       return cOp('/', [cNum(0), cNum(0)])
@@ -11204,7 +11256,7 @@ export class Resolver {
       + 'RUN, not the previous bar\'s (capture `vw-call-site-history`, rows C05 / D03), and that history is not kept here'
     const err = new PineRefusal('pine:block', `${REFUSALS['pine:block']} — ${why}`, locate(node.tok))
     err.noRuntime = true
-    if (this.refuseCondCalls) throw err
+    if (this.refuseCondCalls || this.screen) throw err
     // a chart's plot reads on, and the bind decides (`resolveBinding`)
     this.noteBlockRun(bound, why, err)
     return null
@@ -12100,8 +12152,10 @@ export class Resolver {
       if (name === 'request.security' || name === 'security') {
         const decline = this.securityDeclineReason(node)
         if (decline) {
+          // ⭐ ENGINE 55 (review L5) — a spelling no binding serves carries its OWN whole
+          // sentence (`staticOtherSymbolMessage`), said verbatim by the runtime lane too.
           throw new PineRefusal(guard,
-            `${REFUSALS[guard]} — \`${name}\`: ${decline.why}`,
+            decline.message || `${REFUSALS[guard]} — \`${name}\`: ${decline.why}`,
             locate(node.tok), decline.suggest)
         }
       }
@@ -12188,11 +12242,12 @@ export class Resolver {
   /** A ternary whose CONDITION is a constant → the branch that actually runs,
    *  else null. THE ONE PLACE THAT DECIDES, read by both timeframe readers.
    *
-   *  ⭐⭐ `res = useCurrentRes ? period : resCustom` IS THE MTF TOGGLE IDIOM and
-   *  two community scripts are nothing but it. `pine.security.test.js` recorded
+   *  ⭐⭐ THE MTF TOGGLE IDIOM: a boolean input picks either the chart's own
+   *  timeframe (`period`) or a second, timeframe-typed input, and the result
+   *  feeds `security`. Two community scripts are nothing but it. `pine.security.test.js` recorded
    *  the case as unwinnable in the words "a TERNARY. No literal exists to fold
    *  to." True — and beside the point, because nobody has to fold the ternary
-   *  itself. `useCurrentRes = input(true, …)` is a CONSTANT, so exactly one arm
+   *  itself. The boolean input's default is a CONSTANT, so exactly one arm
    *  is reachable and the other is dead code in the script as shipped.
    *
    *  ⛔ THE CONDITION IS READ, NEVER ASSUMED. Taking `yes` unconditionally passes
@@ -12989,6 +13044,12 @@ export class Resolver {
     // ⭐ P0 0H — a value-changing argument this door cannot honour, named first.
     const argDecline = this.requestArgsDecline(placed)
     if (argDecline) return argDecline
+    // ⭐⭐ ENGINE 55 (review L5) — a spelling this door cannot even turn into a listing (a
+    // foreign exchange, `BRK/B`), by its code and the one sentence. ⛔ A spelling it CAN
+    // turn into a listing (`XAUUSD`, `SPX`) never reaches here: it is a `sym` node, and the
+    // bind refuses only the plots that read it (review M1).
+    const spelled = this.otherSymbolSpellingDeclineOf(node)
+    if (spelled) return { why: spelled.why, message: spelled.message }
 
     // 1. THE SESSION. `ticker.new(prefix, sym, session.extended)` asks for pre- and
     //    post-market prints; `sym` serves the regular session. The rewrite keeps
@@ -13134,7 +13195,7 @@ export class Resolver {
       const n = stack.pop()
       if (!n || typeof n !== 'object' || seen.has(n)) continue
       seen.add(n)
-      if (n.type === 'tf' || n.type === 'tf_live' || n.type === 'sym' || n.type === 'ltf') {
+      if (n.type === 'tf' || n.type === 'tf_live' || n.type === 'tf_merge' || n.type === 'sym' || n.type === 'ltf') {
         what = 'another request'
       } else if (n.type === 'call' && own(RECURRENCES, n.name)) {
         what = 'a running value (a `var` or a self-reference), whose value depends on where the series starts'
@@ -13303,6 +13364,10 @@ export class Resolver {
       // one string, and both are judged by `US_EQUITY_VENUES` so they cannot
       // disagree about one script.
       const raw = String(node.value).trim().toUpperCase()
+      // ⭐ RS RATING L6b — a registered Pine seed (`SEED_<SOURCE>:<SYMBOL>`, whose source can be
+      // longer than any exchange spelling): its symbol is the ticker, its source the venue
+      const seed = SEED_SPELLING.exec(raw)
+      if (seed && witnessRowOf(seed[1], seed[2]) && TICKER_SHAPE.test(seed[2])) return { ticker: seed[2], venue: seed[1] }
       const ticker = tickerWithoutVenue(raw)
       // ⭐ READ, NEVER RE-TYPED — `parse.js` owns what a ticker may look like.
       if (ticker === null || !TICKER_SHAPE.test(ticker)) return null
@@ -13318,26 +13383,48 @@ export class Resolver {
     // does and for the same recorded reason: TradingView's own Pine Screener
     // "falls back to defaults for `input.symbol`". Every fold lands in
     // `usedInputs`, so a frozen input is never silent.
-    if (node.type === 'call' && (node.name === 'input.symbol' || node.name === 'input.string')) {
-      const args = node.args || []
-      for (let i = 0; i < args.length; i += 1) {
-        const a = args[i]
-        if (a && (a.name === 'defval' || (!a.name && i === 0))) {
-          const folded = this.otherSymbolOf(a.value, depth + 1)
-          if (folded !== null && node.tok) {
-            this.usedInputs.set(`${node.tok.line}:${node.tok.column}`, {
-              call: node.name,
-              title: null,
-              folded: `'${folded.ticker}'`,
-              line: node.tok.line,
-              column: node.tok.column,
-            })
-          }
-          return folded
-        }
+    const dv = this.symbolInputDefaultOf(node)
+    if (dv !== undefined) {
+      if (dv === null) return null
+      const folded = this.otherSymbolOf(dv, depth + 1)
+      if (folded !== null && node.tok) {
+        this.usedInputs.set(`${node.tok.line}:${node.tok.column}`, {
+          call: node.name,
+          title: null,
+          folded: `'${folded.ticker}'`,
+          line: node.tok.line,
+          column: node.tok.column,
+        })
       }
+      return folded
     }
     return null
+  }
+
+  /** ⭐⭐ RS RATING L2 — THE DEFAULT AN INPUT HANDS A REQUEST'S SYMBOL ARGUMENT: the
+   *  `defval` node of `input.symbol(…)` / `input.string(…)` / an UNTYPED `input(…)`;
+   *  `null` for one of those calls with no
+   *  readable default; `undefined` for any other node. ONE reader for `otherSymbolOf`
+   *  and `rawSymbolSpellingOf`, so the fold and the spelling refusal cannot disagree.
+   *  ⭐ Pine types an untyped `input()` by its default's literal type (reference,
+   *  `input`: "the type of the input is determined by the type of the default value"),
+   *  so `input('SP:SPX', title = …)` IS a string input — the shape RS Rating writes for
+   *  its comparative symbol. ⛔ A default that is not text (`input(4200)`, `input(close)`)
+   *  folds to no symbol — `otherSymbolOf` answers null for it — and a `type =` argument
+   *  (v4's `input(…, type = input.resolution)`) is its own declaration, never read here. */
+  symbolInputDefaultOf(node) {
+    if (!node || node.type !== 'call') return undefined
+    const untyped = node.name === 'input'
+    if (!untyped && node.name !== 'input.symbol' && node.name !== 'input.string') return undefined
+    const args = node.args || []
+    if (untyped && args.some((a) => a && a.name === 'type')) return undefined
+    for (let i = 0; i < args.length; i += 1) {
+      const a = args[i]
+      if (a && (a.name === 'defval' || (!a.name && i === 0))) {
+        return a.value
+      }
+    }
+    return untyped ? undefined : null
   }
 
   /** `request.security(<symbol>, <timeframe>, expr)` → the node it means, or null.
@@ -13403,15 +13490,14 @@ export class Resolver {
       if (LOWER_TF_SINK) LOWER_TF_SINK.add(code)
       return { type: 'ltf', value: code, args: [out] }
     }
-    if (code) out = { type: live ? 'tf_live' : 'tf', value: code, args: [out] }
-    if (code && !live) {
-      this.htfStepBacks.set(`${node.tok ? node.tok.line : '?'}:${code}`, {
-        line: node.tok ? node.tok.line : null,
-        column: node.tok ? node.tok.column : null,
-        requested: code,
-        base: this.basePeriod,
-      })
-    }
+    // ⭐⭐ ENGINE 55 — LOOK-AHEAD OFF IS `tf_merge`, TRADINGVIEW'S MERGE: the period's
+    // value on the bar that closes it, the last closed period on every other bar, the
+    // newest finished bar withheld by name (`interpret.js`'s `tf_merge` arm). ⚰️ It was
+    // `tf` (the last CLOSED period on every bar) plus a disclosed one-bar lag on each
+    // period's last bar (`htfLookaheadOffStepBacks`, deleted): 213 wrong bars on the
+    // two `support-and-resistance-multi-time-frame` captures. Formula `tf` keeps its
+    // own meaning; only this door writes `tf_merge`.
+    if (code) out = { type: live ? 'tf_live' : 'tf_merge', value: code, args: [out] }
     // ⭐⭐ C49 — A REQUEST FOR ANOTHER TIMEFRAME CARRIES THE GATE OF THE BASE IT
     // WAS TRANSLATED FOR, ON A CHART PANE. The pane translates once (for a daily
     // base) and its tree is bound on every chart; on any chart but the base's the
@@ -13438,6 +13524,70 @@ export class Resolver {
       if (gateBase) out = requestBaseNode(gateBase, out)
     }
     return out
+  }
+
+  /** ⭐⭐ ENGINE 55 — the other-symbol spelling this request names, when NO binding can
+   *  serve it (`otherSymbols.js::staticallyUnservable`): `{code, why}`, or null. ONE
+   *  reader for the screen, the pane and the runtime lane (`pineRuntimeFrontend.js`
+   *  asks it through its own `Resolver`), so the refusal is one sentence everywhere:
+   *  `pine:request — \`request.security\`: <code> — <reason>`. */
+  otherSymbolStaticDeclineOf(node) {
+    const placed = positionaliseSecurityArgs(node.args || [])
+    if (!placed || placed[0] === undefined) return null
+    if (this.ownSymbolNameOf(placed[0]) !== null) return null
+    const otherSym = this.otherSymbolOf(placed[0])
+    if (!otherSym) return this.otherSymbolSpellingDeclineOf(node)
+    const s = staticallyUnservable(otherSym.ticker, otherSym.venue)
+    return s ? { code: s.code, ticker: otherSym.ticker, why: `${s.code} — ${s.reason}`,
+      message: staticOtherSymbolMessage(otherSym.ticker, s) } : null
+  }
+
+  /** ⭐⭐ ENGINE 55 (review L5) — a request whose symbol is a LITERAL spelling this door
+   *  cannot turn into a listing at all (`otherSymbolOf` takes no foreign exchange and no
+   *  `BRK/B`), when `otherSymbols.js::spellingUnservable` names why: `{code, ticker, why,
+   *  message}`, or null. The runtime lane asks the same question (through
+   *  `otherSymbolStaticDeclineOf`), so a spelling one lane refuses the other refuses too,
+   *  in the same words, instead of the runtime lane reading bars that never come. */
+  otherSymbolSpellingDeclineOf(node) {
+    const placed = positionaliseSecurityArgs(node.args || [])
+    if (!placed || placed[0] === undefined) return null
+    if (this.ownSymbolNameOf(placed[0]) !== null || this.otherSymbolOf(placed[0])) return null
+    const raw = this.rawSymbolSpellingOf(placed[0])
+    if (raw === null) return null
+    const s = spellingUnservable(raw)
+    return s ? { code: s.code, ticker: s.ticker, why: `${s.code} — ${s.reason}`,
+      message: staticOtherSymbolMessage(s.ticker, s) } : null
+  }
+
+  /** The literal string a request's symbol argument spells, followed through the shapes
+   *  `otherSymbolOf` follows (a name's binding, a constant ternary branch, an
+   *  `input.symbol` / `input.string` default, `ticker.new(prefix, sym)`), or null. */
+  rawSymbolSpellingOf(node, depth = 0) {
+    if (!node || depth > 4) return null
+    if (node.value && typeof node.value === 'object' && node.value.type && node.name !== undefined && !node.type) {
+      return this.rawSymbolSpellingOf(node.value, depth + 1)
+    }
+    if (node.type === 'string') return String(node.value)
+    if (node.type === 'ternary') {
+      const taken = this.constantBranchOf(node)
+      return taken ? this.rawSymbolSpellingOf(taken, depth + 1) : null
+    }
+    if (node.type === 'name') {
+      const bound = this.env && this.env.get(node.name)
+      return bound && bound.kind === 'expr' ? this.rawSymbolSpellingOf(bound.node, depth + 1) : null
+    }
+    const tick = this.tickerCallArg(node)
+    if (tick) {
+      const inner = this.rawSymbolSpellingOf(tick, depth + 1)
+      if (inner === null) return null
+      const prefix = tickerCallPrefixOf(node)
+      if (prefix === undefined) return inner
+      // a computed or chart-own prefix (`?`, `@syminfo.prefix`) spells no literal
+      return prefix === '?' || String(prefix).startsWith('@') ? null : `${prefix}:${inner}`
+    }
+    const dv = this.symbolInputDefaultOf(node)
+    if (dv) return this.rawSymbolSpellingOf(dv, depth + 1)
+    return null
   }
 
   /** ⭐⭐ C23 — WHAT A `request.security(…)` ASKS FOR, without resolving its value:
@@ -13485,6 +13635,12 @@ export class Resolver {
     const other = otherSym ? otherSym.ticker : null
     const venue = otherSym ? otherSym.venue : null
     if (own === null && other === null) return null
+    // ⭐⭐ ENGINE 55 (review M1) — A SPELLING NO BINDING CAN SERVE (`XAUUSD`, `SPX`, `ADVN`,
+    // `ADVDEC.NY`) STAYS A `sym` NODE HERE, and the BIND refuses the plots that read it,
+    // by name (`otherSymbols.js::otherSymbolRefusalOfTree`, one sentence:
+    // `staticOtherSymbolMessage`), while every other plot is drawn. ⚰️ The first engine-55
+    // cut declined it here; the member door then refused the WHOLE script, so a saved
+    // copy with two correct plots and one such read went `refused` on the 54 -> 55 upgrade.
 
     // 2. WHICH PERIOD: the chart's own (`timeframe.period`) or a code `tf` can
     //    resample. A computed timeframe is exactly what the node shape forbids.
@@ -27858,7 +28014,7 @@ function translatePineResult(source, opts = {}) {
     const outerSymbols = OTHER_SYMBOL_SINK
     const outerPeriod = PERIOD_READ_SINK
     const readsOther = (n, d = 0) => !!n && typeof n === 'object' && d < 256
-      && (n.type === 'sym' || n.type === 'tf' || (Array.isArray(n.args) && n.args.some((a) => readsOther(a, d + 1))))
+      && (n.type === 'sym' || n.type === 'tf' || n.type === 'tf_merge' || (Array.isArray(n.args) && n.args.some((a) => readsOther(a, d + 1))))
     // the calls that vary bar to bar whatever they are handed (`readsBars`'s own set)
     const barFns = barVaryingNamesFor(table)
     for (const site of runtimeErrorPlan.sites) {
@@ -27889,7 +28045,7 @@ function translatePineResult(source, opts = {}) {
             if (!n || typeof n !== 'object') continue
             if (n.type === 'series' && typeof n.name === 'string') series.add(n.name)
             if (n.type === 'call' && barFns.has(n.name)) barCalls = true
-            if (n.type === 'offset' || n.type === 'tf' || n.type === 'sym') barCalls = true
+            if (n.type === 'offset' || n.type === 'tf' || n.type === 'tf_merge' || n.type === 'sym') barCalls = true
             if (Array.isArray(n.args)) stack.push(...n.args)
             else if (n.arg && typeof n.arg === 'object') stack.push(n.arg)
           }
@@ -28048,10 +28204,10 @@ function translatePineResult(source, opts = {}) {
       const flat = !readsBars(ast)
       // ⭐⭐ THE OTHER SPELLING OF "SCAFFOLDING", AND IT IS THE AUTHOR'S OWN STATEMENT
       // TOO. `outputHidden` reads `display = display.none`; this reads the plot the
-      // author gave NO TITLE and then handed to `fill()` as a band edge —
-      //     mPlot = plot(ohlc4, title="", style=plot.style_circles, linewidth=0)
-      //     fill(mPlot, pPlot, …)
-      // which is `high_engagement__03-supertrend-kivancozbilgic` line 29, the script
+      // author gave NO TITLE and then handed to `fill()` as a band edge (an empty-
+      // titled, zero-width plot of `ohlc4` used only as one side of a `fill`), which is
+      // `high_engagement__03-supertrend-kivancozbilgic` line 29 (licence-held, so
+      // described and not quoted: docs/pine/LICENSING.md §2d), the script
       // that made this a ruling. Both facts are required: an untitled plot that nothing
       // fills is still a column, and a NAMED plot handed to `fill()` is a series the
       // author labelled and may well want screened.
@@ -28103,8 +28259,6 @@ function translatePineResult(source, opts = {}) {
         formula,
         ast,
         baseTimeframeFolds: [...resolver.baseFolds.values()],
-        // ⭐ P0 — see `htfStepBacks`; the `_folds` channel of the same name words it.
-        htfLookaheadOffStepBacks: [...resolver.htfStepBacks.values()],
         inputsFolded: [...resolver.usedInputs.values()].map((e) => {
           // ⛔ `windowBound` TRAVELS WITH THE ENTRY rather than being re-derived
           // by the reader. Whether an input reached an `int` slot is a fact about
@@ -31986,6 +32140,7 @@ export function conditionKindOf(node, table = TABLE) {
       case 'sym':
       case 'tf':
       case 'tf_live':
+      case 'tf_merge':
       case 'ltf':
         return Array.isArray(n.args) && n.args.length === 1 ? kindOf(n.args[0], depth + 1) : 'unknown'
       case 'textop':
