@@ -262,6 +262,48 @@ export function tickerSetAside(words, ticker) {
   if (!t) return false
   return new RegExp(String.raw`\b${NEGATOR}\s+(?:(?:the|my|your|on|to|for|of)\s+)?\$?${t}\b`, 'i').test(String(words || ''))
 }
+// ⛔ SEEN vs CHANGED (AUDIT probe 52a, STRUCTURAL — never a phrase list): a ticker already on the board is one the words ask to
+// SEE only when a see verb GOVERNS it — the verb, then nothing but tickers and coordination up to it ("show SPY and AAPL",
+// "pull up SPY, AAPL") — and it is never the OBJECT OF A CHANGE: the ticker on one side of a relation word whose other side is
+// another named ticker ("SPY for AAPL", "AAPL where SPY", "SPY into / to AAPL", "AAPL in place of / instead of SPY"), a ticker taken
+// "off", or a ticker a replace verb takes ("replace SPY", "swap out SPY"). Everything else is not asked to see.
+const SEE_VERB = /\b(?:show(?:ing)?|open(?:ing)?|(?:pull|bring)(?:ing)?\s+up|see|view(?:ing)?|display(?:ing)?)\b/gi
+const SEE_FILLER = new Set(['and', '&', 'plus', 'also', 'both', 'the', 'me', 'my', 'us', 'a', 'an', 'up', 'of', 'chart', 'charts', 'too', 'as', 'well'])
+const reEsc = (s) => String(s || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+export function tickerChanged(words, ticker, others = []) {
+  const w = String(words || '')
+  const t = reEsc(up(ticker))
+  if (!t) return false
+  const T = String.raw`\$?${t}(?![A-Za-z0-9])`
+  const det = String.raw`(?:(?:the|my|that|this|a|an)\s+)?`
+  if (new RegExp(String.raw`\b(?:replac(?:e|es|ed|ing)|swap(?:ping|ped)?\s+out|get(?:ting)?\s+rid\s+of|switch(?:ing)?\s+out|instead\s+of|in\s+place\s+of|rather\s+than)\s+${det}${T}`, 'i').test(w)) return true
+  if (new RegExp(String.raw`(?:^|[^A-Za-z0-9])${T}(?:['’]s)?\s+(?:(?:chart|one|panel|graph)\s+)?off\b|\boff\s+${det}${T}`, 'i').test(w)) return true
+  for (const o of others) {
+    if (up(o) === up(ticker)) continue
+    const O = String.raw`\$?${reEsc(up(o))}(?![A-Za-z0-9])`
+    // the ticker, then a relation word, then the other ticker ("SPY for AAPL", "SPY into AAPL", "SPY to AAPL"; a participle
+    // between them states the change outright: "SPY switched to AAPL", "SPY swapped for AAPL")
+    if (new RegExp(String.raw`(?:^|[^A-Za-z0-9])${T}(?:['’]s)?\s+(?:(?:chart|one|panel|graph)\s+)?(?:[a-z]+(?:ed|en)\s+)?(?:for|into|to)\s+${det}${O}`, 'i').test(w)) return true
+    // the other ticker, then a relation word that points back at this one ("AAPL where SPY is", "AAPL in place of SPY")
+    if (new RegExp(String.raw`(?:^|[^A-Za-z0-9])${O}\b(?:[^.;!?]|\.(?=\S)){0,40}?\b(?:where|instead\s+of|in\s+place\s+of|rather\s+than|over)\s+${det}${T}`, 'i').test(w)) return true
+  }
+  return false
+}
+export function tickerAskedToSee(words, ticker, others = []) {
+  const w = String(words || '')
+  const want = up(ticker)
+  if (!want || tickerChanged(w, want, others)) return false
+  for (const m of w.matchAll(SEE_VERB)) {
+    const rest = w.slice(m.index + m[0].length).split(/[.;!?](?=\s|$)/)[0]     // (a dotted ticker is no sentence end)
+    for (const tok of rest.match(/[^\s,]+/g) || []) {
+      const t = up(tok.replace(/^\$/, ''))
+      if (t === want) return true
+      if (SEE_FILLER.has(tok.toLowerCase()) || others.some(o => up(o) === t)) continue
+      break
+    }
+  }
+  return false
+}
 export function chartPickStale(pick, host) {
   if (!pick?.chartRef) return false
   let now = null
@@ -346,10 +388,10 @@ export function chartRailRefusal(plan, { words = '', host = null, mode = 'apply'
       // (a ticker the words set aside — "but not NVDA", "leave TSLA", "except AMD" — is never one they ask to see)
       const setAside = (t) => tickerSetAside(w, t)
       const asked = [...new Set(tickersIn(w))].filter(t => !before.has(t) && !setAside(t))
-      // (every ticker the words ask to SEE — a shown one counts as on the board only while it STAYS there: #1275 reuse)
-      // (a ticker named as the CHART being changed — 'replace SPY with …', 'the SPY chart' — is the target, not one to see)
-      const asChart = (t) => REPLACE.test(w) || new RegExp(String.raw`\b${t}(?:['’]s)?\s+(?:chart|one|panel|graph)\b`, 'i').test(w)
-      const named = [...new Set(tickersIn(w))].filter(t => !setAside(t) && !(before.has(t) && asChart(t)))
+      // (every ticker the words ask to SEE — a shown one counts as on the board only while it STAYS there: #1275 reuse.
+      //  ⛔ AUDIT probe 52a: a SHOWN ticker counts only when a see verb governs it and it is never the object of a change)
+      const spoken = [...new Set(tickersIn(w))]
+      const named = spoken.filter(t => !setAside(t) && (!before.has(t) || tickerAskedToSee(w, t, spoken)))
       // (a stated grid is checked by its own COUNT rule)
       const gridded = (plan.plans || []).some(p => p.kind === 'board' || p.kind === 'multiChart') || gridStated(w, known) || requestedPanels(w) != null
       // (on the SOLE chart: a multi-step request on several charts lands its tickers one step at a time)
