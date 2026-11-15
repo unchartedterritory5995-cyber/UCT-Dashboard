@@ -480,7 +480,8 @@ function warmCandidates() {
     if (!warmCandidateIndex.has(key)) warmCandidateIndex.set(key, [])
     warmCandidateIndex.get(key).push({ file: name, timeUnit: cap.bars.timeUnit,
       firstT: rows[0][0], lastT: rows[rows.length - 1][0],
-      listing: !!(cap.history && cap.history.startsAtBar0 === true) })
+      listing: !!(cap.history && cap.history.startsAtBar0 === true),
+      capturedAt: typeof cap.capturedAtUTC === 'string' ? cap.capturedAtUTC : '' })
   }
   return warmCandidateIndex
 }
@@ -496,6 +497,24 @@ function warmCandidateRowsOf(file) {
     warmCandidateRows.set(file, rows)
   }
   return warmCandidateRows.get(file)
+}
+
+/** The order among proved warm suppliers: the deepest prehistory first; on equal depth the
+ *  earliest `capturedAtUTC`; a supplier with NO stamp (missing or empty) sorts AFTER every
+ *  stamped one, so an unstamped capture can never take over a tie; then the file name.
+ *  @param {{rows: any[], capturedAt?: string, file: string}} a
+ *  @param {{rows: any[], capturedAt?: string, file: string}} b */
+export function compareWarmSuppliers(a, b) {
+  const depth = b.rows.length - a.rows.length
+  if (depth) return depth
+  const sa = typeof a.capturedAt === 'string' && a.capturedAt ? a.capturedAt : null
+  const sb = typeof b.capturedAt === 'string' && b.capturedAt ? b.capturedAt : null
+  if (sa !== sb) {
+    if (sa === null) return 1
+    if (sb === null) return -1
+    return sa < sb ? -1 : 1
+  }
+  return a.file < b.file ? -1 : a.file > b.file ? 1 : 0
 }
 
 /** The prehistory a capture's paints, plots and objects are replayed over (DIV-1:
@@ -538,14 +557,24 @@ export function warmBarsSupply(capture) {
       if (why) break
     }
     if (why) { refused.push(`${cand.file}: ${why}`); continue }
-    proved.push({ file: cand.file, rows: cand.rows.slice(0, at), listing: cand.listing })
+    proved.push({ file: cand.file, rows: cand.rows.slice(0, at), listing: cand.listing, capturedAt: meta.capturedAt })
   }
   if (!proved.length) {
     return none('cold', refused.length
       ? `every candidate supplier was refused, cold replay (${refused.join('; ')})`
       : `no committed capture of ${key} holds bars before ${first}, cold replay`, refused)
   }
-  proved.sort((a, b) => (b.rows.length - a.rows.length) || (a.file < b.file ? -1 : 1))
+  // Deepest prehistory wins. On a tie (every listing capture of a series offers the same
+  // bars, and each is proved bar for bar against the window, so the replay is identical)
+  // the EARLIEST-CAPTURED supplier wins, then the name: a later capture of the same series
+  // must never relabel a replay that is already pinned. (2026-11-15: ordering by name alone
+  // let S9's `supply-demand-mtf-flux-charts-spy-1d-2026-11-14.json` (#1296), then
+  // `3-level-zigzag-semafor-spy-1d-2026-11-14.json` (#1307), take over from
+  // `vw-clock-close-tfchange-spy-1d-2026-09-28.json` and turned 13 pins red with no change
+  // in any bar or grade. Under this rule the SPY 1D supplier is
+  // `vw-object-gc-b-spy-1d-2026-09-28.json`, the earliest proved one, and a new capture can
+  // no longer displace it.)
+  proved.sort(compareWarmSuppliers)
   const pick = proved[0]
   return { kind: 'warm', rows: pick.rows, file: pick.file, bars: pick.rows.length, refused,
     historyFromListing: pick.listing === true,
