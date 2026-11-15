@@ -14,8 +14,10 @@ visual representation or example or card or lesson to enhance the experience and
   run-on, which the owner called ugly. The games (Trade Story, Daily Chart, Draw It) already replay bars.
 - The setup cards hold **440 winners, 244 failures, 176 near-misses, 20 owner-graded, 27 UCT-named and 10 owner
   model** examples, each with ticker, date and the dossier's measured numbers (entry, stop, outcome).
-- No price bars on this PC: charts can only be drawn on the pod, so the owner sees them on the site's review screen
-  after PR #1046 is merged and imported.
+- Members see charts only after PR #1046 is merged and imported (the pod draws them from its own bars.db). A copy of
+  that bars.db (2026-11-09) sits at `_study-resume/data/bars.db`: `python -m scripts.study.check_course_charts --bars
+  <it>` resolves every course chart the way the server will and checks it (asof is a bar, the trade traded that day,
+  the stop beyond the day's low) and prints each trade's outcome in the bars the member replays.
 
 ## The visual for each kind of question
 
@@ -63,6 +65,9 @@ Rules every chart question follows (the validator enforces the starred ones):
 - The ticker is not in the question, the story or the choices.* A story shows only on a scenario.* A number is never
   cut between the story and the question* (2026-11-14: three were, "bought at 73." / "16 with the stop").
 - The lines named in the words are the lines on the chart: the 9 and 20 EMA, the 50 and 200 SMA (D-021).
+- `forward` is how many days the replay plays after the answer: the reveal carries the first 20 and the drill fetches
+  the rest, up to the server's 60. Pick it so the outcome the words name (3R on day 5, the stop in week three) plays.
+- Run check_course_charts before committing a chart batch; it must report 0 failing.
 
 ## After the merge (pod steps, in order)
 
