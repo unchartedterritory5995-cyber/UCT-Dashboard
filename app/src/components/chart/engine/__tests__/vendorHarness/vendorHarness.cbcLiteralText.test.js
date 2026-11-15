@@ -11,7 +11,8 @@
 //   str.tostring(math.round(close))        -> "98"
 //   str.tostring(0.000012345678901234)     -> "0.000012345678901234"  (a LITERAL: in full)
 //   str.tostring(close, format.mintick)    -> "98.45"
-// ⛔ AND S10 `vw-cs2-label-number-format-rddt-1d-2026-11-15` (//@version=6, the call an argument of
+// ⭐ AND THE VERSION DECIDES (all four cells witnessed: S17 and s21 at v5, S10 and s21 at v6).
+// S10 `vw-cs2-label-number-format-rddt-1d-2026-11-15` (//@version=6, the call an argument of
 // a helper that concatenates it) printed the SAME literal to TEN decimals ("0.8175176096"). The two
 // cells differ in the version AND the shape, so only they are served; every other cell where the
 // readings part is withheld by name (`format:literal-uncaptured`, `pineTextFormat.js::literalTostringText`).
@@ -100,51 +101,58 @@ describe('⭐⭐ the runtime lane asks the same rule', () => {
   it('⭐ v5 direct: the five texts, the two literals in full', () => {
     expect(runLabels(cap(S17), FIVE)).toEqual({ texts: cap(S17).objects.texts.labels.slice(0, 5) })
   })
-  it('⛔ v6 direct (unwitnessed): withheld by the same name', () => {
+  it('⭐ v6 direct (s21): the literals at ten decimals', () => {
     const r = runLabels(cap(S17), FIVE.replace('//@version=5', '//@version=6'))
-    expect(r.withheld && r.withheld.guard).toBe(LITERAL_TOSTRING_UNCAPTURED)
+    expect(r).toEqual({ texts: ['98.45', '32.8166666667', '0.8175176096', '98', '0.0000123457'] })
+  })
+  it('⛔ v4 (unwitnessed): withheld by the same name', () => {
+    const r = runLabels(cap(S17), FIVE.replace('//@version=5', '//@version=4').replace(/str\.tostring/g, 'tostring').replace(/math\.round/g, 'round').replace('indicator(', 'study('))
+    expect(r.withheld && r.withheld.guard, JSON.stringify(r)).toBe(LITERAL_TOSTRING_UNCAPTURED)
   })
 })
 
-describe('⭐ the rule (`literalTostringText`): two witnessed cells, the rest withheld where the readings part', () => {
+describe('⭐ the rule (`literalTostringText`): the version decides', () => {
   const FULL = '0.8175176096085278'
-  it('v5 direct literal: FULL; v6 not direct: the ten-decimal core (null here)', () => {
-    expect(literalTostringText(NUM(FULL), { version: 5, direct: true })).toEqual({ text: FULL })
-    expect(literalTostringText(NUM('0.000012345678901234'), { version: 5, direct: true })).toEqual({ text: '0.000012345678901234' })
-    expect(literalTostringText(NUM(FULL), { version: 6, direct: false })).toBeNull()
-    expect(literalTostringText(NEG('0.000000000001'), { version: 6, direct: false })).toBeNull()
+  const W = { why: LITERAL_TOSTRING_UNCAPTURED }
+  it('v5: a literal in FULL (S17 direct, s21 through a helper); v6: ten decimals (S10, s21)', () => {
+    expect(literalTostringText(NUM(FULL), { version: 5 })).toEqual({ text: FULL })
+    expect(literalTostringText(NUM('0.000012345678901234'), { version: 5 })).toEqual({ text: '0.000012345678901234' })
+    for (const n of [NUM(FULL), NEG('0.000000000001'), NUM('1.00000000005'),
+      { type: 'binary', op: '/', left: NUM('1.0'), right: NUM('3.0') }]) {
+      expect(literalTostringText(n, { version: 6 })).toBeNull()
+    }
   })
-  it('⛔ every unwitnessed cell is withheld by name', () => {
-    const W = { why: LITERAL_TOSTRING_UNCAPTURED }
-    expect(literalTostringText(NUM(FULL), { version: 5, direct: false })).toEqual(W)
-    expect(literalTostringText(NUM(FULL), { version: 6, direct: true })).toEqual(W)
-    expect(literalTostringText(NUM(FULL), { version: 4, direct: true })).toEqual(W)
-    expect(literalTostringText(NUM(FULL), { version: null, direct: true })).toEqual(W)
-    // v5 direct, but not a plain literal: a negated literal, a constant expression, a source text
-    // that is not the shortest decimal, an exponent
-    expect(literalTostringText(NEG(FULL), { version: 5, direct: true })).toEqual(W)
-    const third = { type: 'binary', op: '/', left: NUM('1.0'), right: NUM('3.0') }
-    expect(literalTostringText(third, { version: 5, direct: true })).toEqual(W)
-    expect(literalTostringText(NUM('0.81751760960852780'), { version: 5, direct: true })).toEqual(W)
-    expect(literalTostringText(NUM('0.0000001234567890123'), { version: 5, direct: true })).toEqual(W)
+  it('⛔ every unwitnessed version or spelling is withheld by name', () => {
+    expect(literalTostringText(NUM(FULL), { version: 4 })).toEqual(W)
+    expect(literalTostringText(NUM(FULL), { version: 3 })).toEqual(W)
+    expect(literalTostringText(NUM(FULL), { version: null })).toEqual(W)
+    // v5, but not a plain literal: a negated literal, a constant expression, a source text that is not
+    // the shortest decimal, an exponent
+    expect(literalTostringText(NEG(FULL), { version: 5 })).toEqual(W)
+    expect(literalTostringText({ type: 'binary', op: '/', left: NUM('1.0'), right: NUM('3.0') }, { version: 5 })).toEqual(W)
+    expect(literalTostringText(NUM('0.81751760960852780'), { version: 5 })).toEqual(W)
+    expect(literalTostringText(NUM('0.0000001234567890123'), { version: 5 })).toEqual(W)
   })
   it('where both readings print the same characters, nothing is decided here', () => {
     for (const v of [5, 6, 4, null]) {
-      for (const direct of [true, false]) {
-        expect(literalTostringText(NUM('0.5'), { version: v, direct })).toBeNull()
-        expect(literalTostringText(NUM('5'), { version: v, direct })).toBeNull()
-        expect(literalTostringText(NEG('1.25'), { version: v, direct })).toBeNull()
-        expect(literalTostringText({ type: 'name', name: 'close' }, { version: v, direct })).toBeNull()
-      }
+      expect(literalTostringText(NUM('0.5'), { version: v })).toBeNull()
+      expect(literalTostringText(NUM('5'), { version: v })).toBeNull()
+      expect(literalTostringText(NEG('1.25'), { version: v })).toBeNull()
+      expect(literalTostringText({ type: 'name', name: 'close' }, { version: v })).toBeNull()
     }
   })
-  it('⛔ the host lane holds an unwitnessed cell\'s label, named (v6 direct)', () => {
+  it('⭐ the host lane, v6 direct (s21): the literals at ten decimals, nothing withheld', () => {
     const v6 = PROBE.replace('//@version=5', '//@version=6')
     const t = translatePine(v6, { strict: true })
-    expect(JSON.stringify(t.objectDiagnostics || {})).toMatch(/format:literal-uncaptured v6/)
-    const texts = hostLabels(cap(S17), v6)
-    expect(texts).not.toContain('0.8175176096085278')
-    expect(texts).not.toContain('0.8175176096')
-    expect(texts).toContain('32.8166666667')
+    expect(JSON.stringify(t.objectDiagnostics || {})).not.toMatch(/literal-uncaptured/)
+    expect(hostLabels(cap(S17), v6)).toEqual(['98.45', '32.8166666667', '0.8175176096', '98', '0.0000123457', '98.45'])
+  })
+  it('⭐ the host lane, v5 through a helper (s21): S10\'s probe at v5 prints the literal in full', () => {
+    const c = cap('vw-cs2-label-number-format-rddt-1d-2026-11-15.json')
+    const v5 = c.source.text.replace('//@version=6', '//@version=5')
+    const texts = hostLabels(c, v5)
+    expect(texts).toContain('F03 0.8175176096085278|0.8175176096085278')
+    // the computed rows are unchanged (ten decimals in both versions)
+    expect(texts).toContain('F02 close/3|32.8166666667')
   })
 })

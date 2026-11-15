@@ -370,10 +370,6 @@ export const RUNTIME_REFUSALS = Object.freeze({
   [LITERAL_TOSTRING_UNCAPTURED]: '`str.tostring` of a numeric constant in a shape no TradingView capture prints',
 })
 
-/** ⭐ CBC-FMT (S17) — every value node lowered as a drawing call's own argument
- *  (`lowerObjectCall`): a `str.tostring` among them is DIRECT for `literalTostringText`. */
-const DIRECT_DRAWING_ARGS = new WeakSet()
-
 export class RuntimeRefusal extends Error {
   constructor(guard, detail, at) {
     super(`${RUNTIME_REFUSALS[guard] || guard}${detail ? ` — ${detail}` : ''}`)
@@ -4027,9 +4023,6 @@ function buildRuntimeIrLinked(source, opts, holder) {
       if (v && v.type === 'call' && /^chart\.point\./.test(String(v.name || ''))) {
         refuseObject(fn, 'a `chart.point` coordinate is not one this lane carries', tok)
       }
-      // ⭐ CBC-FMT (S17) — a value given straight to a drawing call: what `literalTostringText` calls
-      // DIRECT (the host lane's `textNodeOf` at depth 0)
-      if (v && typeof v === 'object') DIRECT_DRAWING_ARGS.add(v)
       slotsOf[at] = lowerExpr(v, scope)
     }
     objectOpsLowered += 1
@@ -8511,10 +8504,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
             }
             return textCall('str.tostring/fmt', [lowerExpr(v0, scope), str(String(f.value))])
           }
-          // ⭐⭐ CBC-FMT (S17) — a numeric constant with no format, where TradingView's two witnessed
-          // readings part (`pineTextFormat.js::literalTostringText`, the host lane's same question):
-          // FULL is this text as a constant; any unwitnessed shape is refused by that name.
-          const lit = literalTostringText(v0, { version: pineVersion, direct: DIRECT_DRAWING_ARGS.has(node) })
+          // ⭐⭐ CBC-FMT (S17, s21) — a numeric constant with no format: the version decides
+          // (`pineTextFormat.js::literalTostringText`, the host lane's same question): FULL is this text as
+          // a constant; an unwitnessed version or spelling is refused by that name.
+          const lit = literalTostringText(v0, { version: pineVersion })
           if (lit && lit.text !== undefined) return str(lit.text)
           if (lit) throw new RuntimeRefusal(lit.why, LITERAL_TOSTRING_SENTENCE, locate(node.tok))
           return textCall('str.tostring', [lowerExpr(v0, scope)])

@@ -20772,15 +20772,14 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       const arg0 = node.args && node.args[0] && node.args[0].value
       if (arg0 && arg0.type === 'name' && own(BUILTIN_SYMBOL_SCOPED, arg0.name)
         && !(node.args[1])) return { t: 'sym', name: arg0.name }
-      // ⭐⭐ CBC-FMT (S17) — A NUMERIC CONSTANT WITH NO FORMAT, where TradingView's two witnessed
-      // readings part (`pineTextFormat.js::literalTostringText`): FULL (v5, this call directly the
-      // drawing's argument, `depth === 0`) is printed as that text; TEN (v6 through a helper) falls
-      // through to the one core below; any other shape is held like an unwitnessed
-      // `input.timeframe` text (`UNWITNESSED_TF_TEXT`: the op runs, the property is unknown).
+      // ⭐⭐ CBC-FMT (S17, s21) — A NUMERIC CONSTANT WITH NO FORMAT: the version decides
+      // (`pineTextFormat.js::literalTostringText`). FULL (a v5 literal) is printed as that text; TEN (v6)
+      // falls through to the one core below; an unwitnessed version or spelling is held like an
+      // unwitnessed `input.timeframe` text (`UNWITNESSED_TF_TEXT`: the op runs, the property is unknown).
       if (arg0 && node.args && node.args.length === 1) {
         let version = null
         try { version = makeResolver(scopeEnv).pineVersion } catch { version = null }
-        const lit = literalTostringText(arg0, { version, direct: depth === 0 })
+        const lit = literalTostringText(arg0, { version })
         if (lit && lit.text !== undefined) return { t: 'lit', s: lit.text }
         if (lit) {
           const why = `${lit.why} v${version}`

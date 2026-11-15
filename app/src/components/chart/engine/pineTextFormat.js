@@ -623,29 +623,27 @@ export function volumeNumberText(n) {
 }
 
 /**
- * ⭐⭐ CBC-FMT (S17 follow-up) — `str.tostring(<a numeric constant>)` with NO format, where the two
- * readings TradingView has been seen to apply PART. `null` when this function has nothing to say
- * (the argument is not a constant, or both readings print the same characters): the caller then
- * prints the one core's ten-decimal text (`tostringNumberText`, {0, 10}). Otherwise
- * `{ text }` (print exactly this) or `{ why }` (withhold by that name).
+ * ⭐⭐ CBC-FMT (S17 follow-up) — `str.tostring(<a numeric constant>)` with NO format. `null` when this
+ * function has nothing to say (the argument is not a constant, or both readings print the same
+ * characters): the caller prints the one core's ten-decimal text (`tostringNumberText`, {0, 10}).
+ * Otherwise `{ text }` (print exactly this) or `{ why }` (withhold by that name).
  *
- * The two readings: FULL, the constant's shortest round-trip decimal (JS `String(v)`), and TEN,
- * the ten-decimal default every computed value takes (`close / 3` -> "32.8166666667").
- * WITNESSED, two cells only:
- *   - `//@version=5`, the call DIRECTLY a drawing's argument
- *     (`label.new(x, y, str.tostring(0.8175176096085278))`): FULL for a numeric LITERAL —
- *     "0.8175176096085278", "0.000012345678901234" (S17 `vw-cs2-label-format-rddt-1d-2026-11-15`).
- *   - `//@version=6`, the call an argument of a script's own helper that concatenates it
- *     (`f(id, s) => label.new(…, id + "|" + s)`; `f("…", str.tostring(0.8175176096085278))`):
- *     TEN for a literal ("0.8175176096", S10 `vw-cs2-label-number-format` F03), a negated literal
- *     ("0", `vw-fmt-tie-readings` T14) and a constant expression ("0.3333333333", F05 `1.0 / 3.0`).
- * The two cells differ in TWO things (the version and whether the call is direct), so neither alone
- * is known to be the cause. Every other cell — v5 not direct, v6 direct, v1-v4, a negated literal
- * or a constant expression in v5, a literal whose source text is not its shortest decimal, or a
- * full text in exponent form — is WITHHELD by name where the readings part
- * (`format:literal-uncaptured`), never guessed.
- * @param {object} node  the parsed argument (`{type: 'number', value}`, `{type: 'unary', op: '-'}`, …)
- * @param {{version: number|null, direct: boolean}} at
+ * The two readings: FULL, the literal's shortest decimal (its source text), and TEN, the ten-decimal
+ * default every computed value takes (`close / 3` -> "32.8166666667"). ⭐ THE VERSION DECIDES — all four
+ * cells of {v5, v6} x {the call directly a label's text, the call through a concatenating helper} are
+ * witnessed (NYSE:RDDT 1D):
+ *   - //@version=5: a numeric LITERAL prints IN FULL, direct (S17 `vw-cs2-label-format`:
+ *     "0.8175176096085278", "0.000012345678901234") or through a helper (s21
+ *     `vw-cs2-label-format-v5-helper`);
+ *   - //@version=6: every number prints at ten decimals, direct (s21 `vw-cs2-label-format-v6-direct`) or
+ *     through a helper (S10 `vw-cs2-label-number-format` F03 "0.8175176096"; `vw-fmt-tie-readings` T14 a
+ *     negated literal, T19 / T29; F05 `1.0 / 3.0`).
+ * Computed values print at ten decimals in both. WITHHELD by name where the readings part
+ * (`format:literal-uncaptured`): v4 and earlier (and no pragma); at v5 a negated literal or a constant
+ * expression (neither is captured there), a literal whose source text is not its shortest decimal
+ * (`1.50`, `.5`), and a full text in exponent form.
+ * @param {object} node  the parsed argument (`{type: 'number', value, tok}`, `{type: 'unary', op: '-'}`, …)
+ * @param {{version: number|null}} at
  * @returns {null|{text: string}|{why: string}}
  */
 export const LITERAL_TOSTRING_UNCAPTURED = 'format:literal-uncaptured'
@@ -678,17 +676,16 @@ export function literalTostringText(node, at) {
   const full = String(c.v)
   if (full === ten) return null
   const version = at && Number.isFinite(at.version) ? at.version : null
-  const direct = !!(at && at.direct)
-  if (version === 6 && !direct) return null // TEN, witnessed (S10)
+  if (version !== null && version >= 6) return null // TEN, witnessed (S10, s21)
   // the literal's SOURCE text (`tok.raw`) must be the shortest decimal too: `1.50`, `.5`, `5e-1` are not witnessed
   const raw = node.tok && node.tok.raw !== undefined ? String(node.tok.raw) : String(node.value)
-  if (version === 5 && direct && c.kind === 'literal' && raw === full && !/e/i.test(full)) {
-    return { text: full } // FULL, witnessed (S17)
+  if (version === 5 && c.kind === 'literal' && raw === full && !/e/i.test(full)) {
+    return { text: full } // FULL, witnessed (S17, s21)
   }
   return { why: LITERAL_TOSTRING_UNCAPTURED }
 }
-export const LITERAL_TOSTRING_SENTENCE = '`str.tostring` of a numeric constant with no format: TradingView has been '
-  + 'seen printing such a constant IN FULL (//@version=5, the call directly a label\'s text, capture '
-  + '`vw-cs2-label-format-rddt-1d-2026-11-15`) and to TEN decimals (//@version=6, through a helper, '
-  + '`vw-cs2-label-number-format-rddt-1d-2026-11-15`), and this script is neither shape, so the text is '
-  + 'withheld rather than printed one way when TradingView may print the other'
+export const LITERAL_TOSTRING_SENTENCE = '`str.tostring` of a numeric constant with no format: TradingView prints a '
+  + 'numeric literal IN FULL at //@version=5 and every number to TEN decimals at //@version=6 (captures '
+  + '`vw-cs2-label-format`, `vw-cs2-label-number-format` and their s21 re-takes), and no capture shows what this '
+  + 'script\'s version (or this constant\'s spelling) prints, so the text is withheld rather than printed one way '
+  + 'when TradingView may print the other'

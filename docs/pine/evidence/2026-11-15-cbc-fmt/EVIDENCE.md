@@ -59,31 +59,31 @@ byte-equal to the run-store copy, probe sha256 matching the capture's). Each lab
 `0.000012345678901234` **"0.000012345678901234"**, `close, format.mintick` "98.45". We printed the two literals to
 ten decimals ("0.8175176096", "0.0000123457").
 
-⛔ **The rule is narrower than "a literal prints in full".** S10's committed `vw-cs2-label-number-format`
-(//@version=6, the call an argument of a helper `f(id, s)` that concatenates it) printed the SAME literal to ten
-decimals (F03 "0.8175176096"), as did `vw-fmt-tie-readings` T14 (a negated literal), T19, T29 and F05
-(`1.0 / 3.0`). The two captures differ in TWO things, the version and whether the call is direct, so neither
-alone is known to be the cause. `pineTextFormat.js::literalTostringText` (one function, both lanes) therefore
-decides only where the two readings (FULL = the shortest round-trip decimal, TEN = the one core at {0, 10})
-print different characters, and only for an argument that is a numeric constant (a literal, a negated
-literal, or literal arithmetic):
-- v5, the call directly a drawing's argument, a plain literal whose source text is its shortest decimal and not
-  in exponent form: FULL (S17);
-- v6, not direct: TEN (S10), the one core as before;
-- every other cell: withheld by name, `format:literal-uncaptured` (the host lane holds the property like an
-  unwitnessed `input.timeframe` text, `UNWITNESSED_TF_TEXT`, and counts it in `textFormatRefusals`; the runtime
-  lane refuses the build, `RuntimeRefusal`, registered in `RUNTIME_REFUSALS`).
-DIRECT is the host's `textNodeOf` at depth 0 and the runtime's `lowerObjectCall` argument
-(`DIRECT_DRAWING_ARGS`). Computed values are unchanged everywhere (ten decimals); `round()` and `format.mintick`
-are untouched.
+⭐ **THE VERSION DECIDES** (coordinator ruling after probe 14). The first cut of this follow-up served
+only two cells, because S10's committed `vw-cs2-label-number-format` (//@version=6, the call an argument of a
+concatenating helper) printed the same literal to ten decimals ("0.8175176096", also `vw-fmt-tie-readings`
+T14 / T19 / T29) and differed from S17 in two things at once. Capture session s21 (RDDT 1D from the listing)
+then took the other two cells: `vw-cs2-label-format-v5-helper` FULL, `vw-cs2-label-format-v6-direct` TEN. So
+`pineTextFormat.js::literalTostringText` (one function, both lanes) reads:
+- //@version=5: a numeric LITERAL whose source text is its shortest decimal (not exponent form) prints IN
+  FULL, whether the call is the label's own text or goes through a helper and a concatenation;
+- //@version=6: every number prints at ten decimals (the one core, as before);
+- computed values print at ten decimals in both;
+- withheld by name where the readings part (`format:literal-uncaptured`): v4 and earlier (and no pragma),
+  and at v5 a negated literal, a constant expression or a non-shortest spelling (none captured).
+The host lane holds an unwitnessed text's property like an unwitnessed `input.timeframe` text
+(`UNWITNESSED_TF_TEXT`, counted in `textFormatRefusals`); the runtime lane refuses the build
+(`RuntimeRefusal`, registered in `RUNTIME_REFUSALS`). `round()` and `format.mintick` are untouched.
 
 Rails: `__tests__/vendorHarness/vendorHarness.cbcLiteralText.test.js` (the capture is what it says; the host lane
-prints all six S17 texts; S10 still prints all its texts, F03 at ten decimals; the runtime lane prints the
-first five S17 texts, the sixth being CBC-FMT's standing `format.mintick` refusal in that lane; v6 direct
-withheld by name in both lanes; the rule cell by cell). `vendorHarness.c42DefaultDecimals.test.js`: its
+prints all six S17 texts; S10 still prints all its texts, F03 at ten decimals; the S17 probe at v6 prints the
+s21 v6-direct texts and S10's probe at v5 prints the literal in full (the s21 v5-helper cell) on the host
+lane; the runtime lane prints the first five S17 texts (the sixth is CBC-FMT's standing `format.mintick`
+refusal in that lane) and the v6 texts, and withholds a v4 copy by name; the rule cell by cell). The s21
+captures themselves join the rails when the capture agent commits them. `vendorHarness.c42DefaultDecimals.test.js`: its
 constructed `str.tostring(4.0 / 3)` (v5, concatenated: an unwitnessed cell, now withheld) is asked through a
-series instead. Mutants (copy aside, mutate, the two rails, restore byte-equal): 7 of 7 killed (FULL cell,
-host DIRECT, runtime DIRECT, the v6 cell, the readings-agree short cut, host wiring, runtime wiring).
+series instead. Mutants (copy aside, mutate, the rail, restore byte-equal), version rule: 6 of 6 killed (v6 printed full,
+v4 printed full, v5 not full, host wiring, runtime refusal, runtime FULL text). The first cut's 7 were killed too.
 
 ## Rails and mutants
 
