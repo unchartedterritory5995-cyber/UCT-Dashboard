@@ -1,9 +1,22 @@
 {
  "schema": "uct.licence-held/v1",
- "_what": "Committed fixtures whose embedded third-party Pine source is NOT permitted by tools/pine_survey/corpus_licence.py (docs/pine/LICENSING.md section 1: an explicit MPL-2.0 / MIT / Apache-2.0 header, nothing else; no licence line is not permissive). Removed from the tree on 2026-11-15. Each file is kept out of git in the local capture store ($UCT_VENDOR_CAPTURE_STORE, default %LOCALAPPDATA%/uct-vendor-batch/runs) at storedAt; a rail that reads one runs when the file is on the machine (sha-verified against fileSha256) and SKIPS by name, with the ledger verdict, when it is not.",
+ "_what": "Committed fixtures whose embedded third-party Pine source (or, kind `derived`, a translated document made from one) is NOT permitted by tools/pine_survey/corpus_licence.py (docs/pine/LICENSING.md section 1: an explicit MPL-2.0 / MIT / Apache-2.0 header, nothing else; no licence line is not permissive). Removed from the tree on 2026-11-15. Each file is kept out of git in the local capture store ($UCT_VENDOR_CAPTURE_STORE, default %LOCALAPPDATA%/uct-vendor-batch/runs) at storedAt; a rail that reads one runs when the file is on the machine (sha-verified against fileSha256) and SKIPS by name, with the ledger verdict, when it is not.",
  "_history": "No history rewrite: the commits named in admittedBy still contain these files. This record carries hashes and names only, never source text.",
  "removedOn": "2026-11-15",
  "entries": [
+  {
+   "path": "tests/fixtures/graph_wire/u_c2d900000005.json",
+   "fileSha256": "70b83416e675b962a00b1b879efe1449e236da6230d373bcc87e22efe2b35a5a",
+   "kind": "derived",
+   "sourceSha256": "b2d3cb9902331b8b249d29ecac10e595663c7797880ed97d1fbd25807e49e472",
+   "licenceInSource": "CC-BY-NC-SA",
+   "derivedFrom": "tools/c0_oos_fixtures/high_engagement__24-coppock-curve-multi-filter-markittick.pine",
+   "record": "tests/fixtures/pine_oos/high_engagement__24-coppock-curve-multi-filter-markittick.json",
+   "recordLicence": "Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (stated in script header)",
+   "recordStorage": "local-only",
+   "admittedBy": "e855f62cdb",
+   "storedAt": "licence-moved-2026-11-15/sources/tests/fixtures/graph_wire/u_c2d900000005.json"
+  },
   {
    "path": "tests/fixtures/vendor/harness/supertrend-kivancozbilgic-rddt-1d-2026-10-02.json",
    "fileSha256": "7e84be205097be54e3f7a7d90b7c5591656232458f2bc3c9f9950443ecd4fde1",

@@ -22,7 +22,7 @@ import { translatePine } from './pine.js'
  *   05-mtf-structure-bias        `tf2 = input.timeframe("60")`  → FOLDS, to a
  *                                 timeframe we cannot resample from daily bars.
  *                                 The fold worked; the answer is still no.
- *   19-cm-macd-ult-mtf           `res = useCurrentRes ? period : resCustom`
+ *   19-cm-macd-ult-mtf           a ternary: chart timeframe, or a timeframe input
  *   20-cm-ultimate-ma-mtf         — ✅ SOLVED 27 Aug, see `pine.tfternary.test.js`.
  *                                 This row read "a TERNARY. No literal exists to
  *                                 fold to", which is TRUE and was doing duty as

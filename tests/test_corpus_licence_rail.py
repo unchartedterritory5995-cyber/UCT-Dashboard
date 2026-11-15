@@ -257,3 +257,49 @@ class TestEmbeddedSources:
             assert len(e["fileSha256"]) == 64 and len(e["sourceSha256"]) == 64
         raw = open(HELD_REGISTRY, encoding="utf-8").read()
         assert "//@version" not in raw
+
+
+class TestDerivedDocuments:
+    """The third door (2026-11-15): a TRANSLATED definition document of a held script carries no Pine
+    text, so the sweep above cannot see it. `fixture_licence.derived_sweep` flags one by its name."""
+
+    def test_no_committed_document_is_named_after_a_held_script(self):
+        seen, offenders = fl.derived_sweep(REPO)
+        assert offenders == [], (
+            "These committed definition documents are translations of a script whose source may not "
+            "be committed (docs/pine/LICENSING.md section 2d). Remove each, keep it in the capture "
+            "store and register it in docs/pine/vendor-harness/licence-held.json:\n"
+            + "\n".join(f"  {f}  {w}  <- {h} ({why})" for f, w, h, why in offenders)
+        )
+        assert seen >= 20, seen   # ⛔ NOT VACUOUS: the scope finds the documents it exists for
+
+    def test_the_derived_sweep_reports_by_name(self, tmp_path):
+        """⭐ THE CONTROL: a held pine_oos member, a held reference script, a committed one sharing no
+        slug, and a document named after each (one cut to 40 characters, as the save door does)."""
+        def put(rel, obj):
+            p = tmp_path / rel
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text(json.dumps(obj), encoding="utf-8")
+            return rel
+
+        held_oos = "high_engagement__99-someone-elses-long-script-name"
+        files = [
+            put(f"tests/fixtures/pine_oos/{held_oos}.json", {"storage": "local-only", "license": "not stated"}),
+            put("tests/fixtures/pine_oos/long_tail__98-ours.json", {"storage": "git", "license": "MPL-2.0"}),
+            put("corpus/reference/held-ref__abc.json", {"verdict": "reference", "licence": "NONE-IN-SOURCE"}),
+            put("corpus/reference/ok-ref__def.json", {"verdict": "commit", "licence": "MIT"}),
+        ]
+        doc = lambda name: {"compute": {"source": "close"}, "meta": {"name": name}}  # noqa: E731
+        files += [
+            put("tests/fixtures/a/cut.json", doc(held_oos[:40])),
+            put("tests/fixtures/a/ref.json", {"docs": [doc("held-ref")]}),
+            put("tests/fixtures/a/fine.json", doc("long_tail__98-ours")),
+            put("tests/fixtures/a/fine2.json", doc("ok-ref")),
+            put("tests/fixtures/a/notadoc.json", {"meta": {"name": held_oos}}),
+        ]
+        seen, offenders = fl.derived_sweep(str(tmp_path), files)
+        assert [(f, w, h) for f, w, h, _why in offenders] == [
+            ("tests/fixtures/a/cut.json", "$", held_oos),
+            ("tests/fixtures/a/ref.json", ".docs[0]", "held-ref"),
+        ]
+        assert seen == 4

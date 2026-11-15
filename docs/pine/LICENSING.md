@@ -127,6 +127,17 @@ under `tests/fixtures/vendor/`, and every `.pine` under `tools/`, and fails by f
 embedded source that is not a committed probe, a `UCTPROBE_` probe, a `corpus/committed/` file, an
 explicit permitted header, or a source written here and listed **by hash** in `IN_HOUSE`.
 
+**A translation is a derivative too.** `tests/fixtures/graph_wire/u_c2d900000005.json` held no Pine
+text: it was the save door's translated document of the CC BY-NC-SA `coppock-curve-multi-filter`
+member. It left the tree on 2026-11-15 the same way (registry kind `derived`, gitignored so the
+emitter's local re-write can never be committed). `TestDerivedDocuments` flags any committed
+definition document (`compute` + `meta.name`) named after a held script: a local-only or unpublished
+`pine_oos` member, or a `corpus/reference/` script whose verdict is not `commit`.
+
+**Quoting is copying.** A comment or test does not reproduce a recognisable line of a held script; it
+describes the shape in our own words. Shared Pine idioms and lines of MPL-licensed derivatives are
+not quotes of the held script.
+
 ## 3. Legacy fixtures are exempt
 
 `tests/fixtures/pine`, `pine_community`, `pine_blind` and `pine_screener` predate this

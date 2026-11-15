@@ -7,7 +7,7 @@ left, by path and hash only, is `docs/pine/vendor-harness/licence-held.json`. Th
 git in the capture store `regrade` already reads (`evidence_ledger.capture_store()`):
 
     <store>/<run>/captures/<file>.json     a vendor capture
-    <store>/<run>/sources/<repo path>      a .pine source
+    <store>/<run>/sources/<repo path>      a .pine source, or (kind `derived`) a translated document
 
 A rail that reads one of these files asks `fixture_path(rel)`: the tree first, then the store, and a
 store copy counts ONLY at its recorded `fileSha256` (a wrong file raises). `None` means the file is
@@ -36,7 +36,7 @@ SCHEMA = "uct.licence-held/v1"
 #: Every key an entry may carry. Hashes and names only: never source text.
 ENTRY_FIELDS = frozenset({
     "path", "kind", "fileSha256", "sourceSha256", "licenceInSource", "record", "recordLicence",
-    "recordStorage", "admittedBy", "captureId", "symbol", "timeframe", "storedAt",
+    "recordStorage", "admittedBy", "captureId", "symbol", "timeframe", "storedAt", "derivedFrom",
 })
 
 
@@ -99,7 +99,8 @@ def ledger_verdict(e: dict, ledger: pathlib.Path = el.LEDGER) -> str:
                     or row.get("sourceSha256") == e.get("sourceSha256")):
                 rows.append(row)
     if not rows:
-        return "evidence ledger: NO ROW FILED YET"
+        return ("evidence ledger: NO ROW FILED YET" if e.get("kind") == "capture"
+                else "evidence ledger: no row (not a vendor capture; licence verdict per the record)")
     v = rows[-1].get("verdicts") or {}
     return (f"evidence ledger: {rows[-1].get('captureId')} production {(v.get('production') or {}).get('verdict')}"
             f" / runtime-on {(v.get('runtime-on') or {}).get('verdict')}"
