@@ -3347,6 +3347,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
         if (String(code).startsWith('time-')) {
           throw new RuntimeRefusal('runtime:chart-clock', `${code}: ${sentence}`, at)
         }
+        // ⭐ ENGINE HL — ⛔ not `window-extreme:left-edge`: those bars depend on where the chart
+        // starts, and this lane's own off-listing curtain (`runtimeColumns.js::computeOffListing`)
+        // withholds them. (⚰️ `arg-extreme:holed-window` declined here until S17 measured its rule.)
       }
     }
     let arr
