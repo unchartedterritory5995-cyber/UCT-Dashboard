@@ -55,7 +55,7 @@ function libRoute(url, init = {}) {
   if (mm) {
     const b = srv.bookmarks.get(decodeURIComponent(mm[1]))
     if (!b) return send({ detail: 'Save the headline before adding a note.', reason: 'not_saved' }, 404)
-    b.note = body.note; b.note_updated_at_ms = 2
+    if (!srv.lieNote) { b.note = body.note; b.note_updated_at_ms = 2 }   // lieNote: answers ok, stores nothing (the read-back catches it)
     return send({ bookmark: b })
   }
   mm = /^\/bookmarks\/([^/]+)$/.exec(path)
@@ -89,7 +89,7 @@ function libRoute(url, init = {}) {
   if (mm) {
     const cid = decodeURIComponent(mm[1]), id = decodeURIComponent(mm[2])
     const b = srv.bookmarks.get(id)
-    if (m === 'PUT') { if (!b) return send({ detail: 'Save the headline before adding it to a collection.', reason: 'not_saved' }, 404); if (!b.collection_ids.includes(cid)) b.collection_ids.push(cid); return send({ bookmark: b }) }
+    if (m === 'PUT') { if (!b) return send({ detail: 'Save the headline before adding it to a collection.', reason: 'not_saved' }, 404); if (!srv.liePlace && !b.collection_ids.includes(cid)) b.collection_ids.push(cid); return send({ bookmark: b }) }
     if (m === 'DELETE') { if (b) b.collection_ids = b.collection_ids.filter(x => x !== cid); return send({ bookmark: b || null }) }
   }
   return send({ detail: 'not found' }, 404)
@@ -236,8 +236,10 @@ describe('setNote — APPEND by default; REPLACE only when asked; the state rail
   it('a note on an unsaved headline: asked to save first, nothing written', async () => {
     door.selected = 'evB'
     const { say } = await mountOn()
+    // the AGENT refuses before any write — never left to the server's 404 (which would count a write)
     expect(await say('add a note to that headline: hm')).toMatch(/Save the headline before adding a note/)
     expect(srv.bookmarks.size).toBe(0)
+    expect(srv.writes).toBe(0)
   }, 40000)
 })
 
@@ -300,6 +302,29 @@ describe('refusals — the server\'s limits mid-plan, and the library off', () =
     expect(out).toMatch(/Saved the headline “NVIDIA beats estimates/)
     expect(out).toMatch(/Not done: save the headline “AMD unveils new accelerator lineup” to your library — That’s a lot of changes in a minute\. Try again shortly\./)
     expect(savedIds()).toEqual(['evA'])
+  }, 40000)
+  it('read back: a note write the server answers ok but never stores is NOT claimed — the note is untouched', async () => {
+    saved('evA', { note: 'first thought' }); door.selected = 'evA'; srv.lieNote = true
+    const { say } = await mountOn()
+    const out = await say('add a note to that headline: second thought')
+    expect(out).not.toMatch(/Added to the note/)
+    expect(out).toContain('The note did not save.')
+    expect(srv.bookmarks.get('evA').note).toBe('first thought')
+  }, 40000)
+  it('read back: a collection place the server answers ok but never stores is NOT claimed', async () => {
+    srv.collections.push({ id: 'k1', name: 'Earnings' }); saved('evB'); door.selected = 'evB'; srv.liePlace = true
+    const { say } = await mountOn()
+    const out = await say('add that headline to my Earnings collection')
+    expect(out).not.toMatch(/Put the headline/)
+    expect(out).toContain('The collection did not change.')
+    expect(srv.bookmarks.get('evB').collection_ids).toEqual([])
+  }, 40000)
+  it('an id the model chose (never offered, never selected, never the previous subject) is not licensed: nothing saved', async () => {
+    const { say } = await mountOn()
+    p.st.envelopes.push(plan('apply', [SAVE, { headline: 'evB', saved: true }]))
+    const out = await say('save one of these headlines to my library')
+    expect(out).not.toMatch(/Saved the headline/)
+    expect(savedIds()).toEqual([])
   }, 40000)
   it.each(['save that headline', 'create a collection called Earnings'])('library OFF (the routes answer 404): "%s" says it isn\'t available — no card, no write, nothing claimed', async (t) => {
     srv.flagOff = true
