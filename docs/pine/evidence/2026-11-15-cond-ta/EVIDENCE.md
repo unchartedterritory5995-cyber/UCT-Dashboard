@@ -70,8 +70,9 @@ same reason (T03 / K02).
 - Consequence for admission: the capture is admitted with `conditional-ta` and drawn by nobody. The
   REACH rail names it in a closed set (`WITHHELD_WHOLE`) and RE-PROVES the shape from its own record on
   every run (all plots no-column INCONCLUSIVE, no objects, paints-only DIVERGE); any drift, or any other
-  capture, is a REACH stop. **Coordinator decision requested**: keep the named exception, or re-capture
-  BRK.A with `startsAtBar0` asserted (it would then grade MATCH, per the probe above).
+  capture, is a REACH stop. **Coordinator ruling (2026-11-15): re-capture preferred.** The capture agent
+  re-takes BRK.A 1D with `startsAtBar0` asserted; the named exception is TEMPORARY, with a TODO in
+  `tests/test_pine_capability_admission.py` to remove it when that capture lands.
 
 ## Saved screens / alerts that hold a now-refused shape (scope 4)
 
@@ -92,6 +93,25 @@ same reason (T03 / K02).
   next chart load (engine 55): a v1-v4 document gains its block gates and is withheld at the bind where
   the block skips; nothing is REFUSED at translation for it, so no refusal is recorded.
 - Same question as the #1326 review (block-local `x[1]`): the same answer applies to both.
+- **Coordinator ruling (2026-11-15): HOLD THEM.** Read-only prod count: 109 live definitions, 6 with
+  `meta.importedFrom.dialect == 'pine'`, all 6 formula-only (no `pine_source`). Built here:
+  - `scriptEngineVersion.js`: `PINE_IMPORT_FIX_ENGINE` (the engine that landed COND-TA; renumbered with
+    it), `PINE_IMPORT_HELD_SENTENCE`, `pineImportHeld(row)`: a Pine import holding no script whose
+    `importedFrom.engine` is missing, not an integer, or below the fix engine.
+  - server: `user_definitions.pine_import_stale` inside `engine_withheld_reason` — the one question
+    alerts, the sweep, on-demand runs, backtests and the scannable stamp already ask — answering
+    `engine-refused: This script was imported from Pine before a calculation fix. Re-apply the import
+    to update it.` The fix engine is READ from the browser's declaration (one authority); unreadable
+    fails closed (every such import held).
+  - chart: `savedScriptUpgrade.upgradeKindOf` -> `import-held`; `resolveRow` does not draw it and reports
+    the same sentence by name (`useUserDefinitions` uninstalls it), so the chart and the server agree.
+  - re-applying: `BuilderSheet.applyProvenanceFor` stamps `importedFrom.engine = SCRIPT_ENGINE_VERSION`,
+    which lifts the hold. A formula edit that is not a re-apply keeps the old provenance and stays held.
+  - provenance only: nothing reads or logs the script (the row keeps none).
+  - this also covers #1326's stale-tree case (a block-local `x[1]` the lenient lane read as the previous
+    BAR): an Apply document saved before the fix is held whichever shape it holds.
+  - rails: `tests/test_pine_import_hold.py` (10; mutants P1-P5 all KILLED, restored, control green) and
+    `engine/__tests__/pineImportHold.test.js` (run pending, lock moratorium).
 
 ## Mutation pass (copy aside, mutate, focused rail, restore from the copy; hash-object == HEAD blob for every one)
 

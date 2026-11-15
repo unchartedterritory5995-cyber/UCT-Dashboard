@@ -746,6 +746,11 @@ REPORT = ROOT / "docs" / "pine" / "evidence" / "2026-11-13-capability-admission"
 VERDICTS_PROD = ROOT / "docs" / "pine" / "vendor-harness" / "production" / "verdicts.json"
 
 
+#: ⛔⛔ TEMPORARY (coordinator ruling 2026-11-15: RE-CAPTURE is preferred over a named exception).
+#: TODO(COND-TA): remove `vw-deadband-ticks-brk-a-1d-2026-09-28` from this set — and the set and
+#: `withheld_whole` with it, if it is then empty — when the capture agent's re-take of NYSE:BRK.A 1D
+#: with `history.startsAtBar0` asserted lands; that capture is expected to grade MATCH on the
+#: runtime lane (D03_dbhf already equals TradingView on 11,335 / 11,335 bars with the listing stated).
 #: ⭐ COND-TA (engine 55, 2026-11-15) — ADMITTED CAPTURES THE RUNTIME LANE WITHHOLDS WHOLE, BY NAME.
 #: Named one by one, each with why, and each re-proved from its own verdict record on every run
 #: (`withheld_whole`): every plot INCONCLUSIVE because our side computed NO column for it, no
