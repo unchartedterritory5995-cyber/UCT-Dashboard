@@ -16,7 +16,7 @@
 // conversation, so the model's next turn remembers what UCT DID.
 
 import { protectionRefusal, undoProtectionRefusal, protectedOpenLayout, isProtected, protectedRenameRefusal } from './protectedLayouts'
-import { chartRailRefusal, RAIL_MARK, chartEffects } from './chartRail'
+import { chartRailRefusal, RAIL_MARK, chartEffects, chartPickStale } from './chartRail'
 import { stateRailDecision, noteApplied, noteBeforeRows, STATE_RAIL_MARK, notDoneAdds, notDoneLine, subjectIdsOf, nextTurnSubjects } from './stateRail'
 import { lastTouchedDrawing } from './capabilities/drawings'
 import { lastCreatedList } from './capabilities/watchlist'
@@ -2120,9 +2120,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       if (!pick) return
       // ⛔ D23 (AUDIT T2 6): a chart pick applies only to THAT chart, still showing what it showed when asked
       if (pick.chartRef) {
-        let now = null
-        try { now = host?.charts?.read?.(pick.chartRef) || null } catch { now = null }
-        if (!now || (pick.fp != null && String(now.symbol || '').toUpperCase() !== pick.fp)) {
+        if (chartPickStale(pick, host)) {
           const text = 'Your board changed since I asked, so I didn’t change anything — ask again and pick from the charts as they are now.'
           push({ role: 'refusal', text })
           record({ member: label, outcome: text, outcomeData: { kind: 'refused-stale-pick' }, telemetry: { path: p.path, refused: true } })

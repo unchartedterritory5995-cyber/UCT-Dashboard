@@ -248,6 +248,13 @@ export function chartsInScope(host) {
   } catch { onBoard = 0 }
   return { listed, count: Math.max(listed.length, onBoard) }
 }
+/** ⛔ D23 (AUDIT T2 6): is a chart pick from the rail's choices STALE — its chart gone, or showing another ticker than when asked? */
+export function chartPickStale(pick, host) {
+  if (!pick?.chartRef) return false
+  let now = null
+  try { now = host?.charts?.read?.(pick.chartRef) || null } catch { now = null }
+  return !now || (pick.fp != null && up(now.symbol) !== pick.fp)
+}
 /** How the words identify this existing chart (for a re-symbol), or null: 'pick' | 'name' | 'position' | 'deixis' | 'class' | 'replace'. */
 export function identifiesChart(w, e, host, { selected = null, subject = null, picked = null, sole = false, made = null } = {}) {
   if (!e.symbol) return 'empty'                                    // an EMPTY chart filled replaces nothing

@@ -228,3 +228,15 @@ describe('D23 · sole = exactly one chart in scope (hidden chart tabs and widget
     expect(chartsInScope(host([{ id: 'c0', type: 'chart', color: 'A', opts: { chartTabs: [{ id: 'x1', color: 'A' }] } }], one)).count).toBe(1)
   })
 })
+
+// ── D23 · a STALE pick (AUDIT T2 6): bound to the chart's ref AND the ticker it showed when asked ──
+import { chartPickStale } from './chartRail'
+describe('D23 · a pick from the rail\'s chart choices is stale when its chart is gone or shows another ticker', () => {
+  const host = (list) => ({ charts: { read: (r) => list.find(c => c.ref === r) || null } })
+  it.each([
+    ['same chart, same ticker', [{ ref: 'c0', symbol: 'SPY' }], { chartRef: 'c0', fp: 'SPY' }, false],
+    ['the chart now shows another ticker', [{ ref: 'c0', symbol: 'IWM' }], { chartRef: 'c0', fp: 'SPY' }, true],
+    ['the chart is gone', [{ ref: 'c1', symbol: 'SPY' }], { chartRef: 'c0', fp: 'SPY' }, true],
+    ['not a chart pick', [], { id: 'ind:c0:i1' }, false],
+  ])('%s → stale %s', (_n, list, pick, want) => { expect(chartPickStale(pick, host(list))).toBe(want) })
+})
