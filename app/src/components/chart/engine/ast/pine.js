@@ -102,7 +102,7 @@ import { yieldsOf, compileRules, SENTENCE_RULES, didYouMean } from './sentence.j
 // evaluation time, which is a refusal at the wrong door.
 import { FN, MAX_SELF_LAG, SEED_RESIDUAL_TOLERANCE, TF_RESAMPLABLE, TF_LADDER, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed, heldFalseSeed, naConditionIsFalse, periodFirstCondition, readingSeed, chartOwnTimeNode, OWN_TIME_WITNESSED_TF, periodCloseNode, PERIOD_CLOSE_CODES, periodAnchorNode, chartSixtyTimeNode, SIXTY_WITNESSED_TF, PERIOD_ANCHOR_WITNESSED_TF, PERIOD_CLOSE_WITNESSED_TF, requestBaseNode, treeReadsLowerTf, listingSeedIsUnpinned } from './interpret.js'
 import { isLowerTfRequest, lowerTfRefusal, LOWER_TF_REFUSAL } from '../lowerTf.js'
-import { staticallyUnservable, spellingUnservable, staticOtherSymbolMessage, US_EQUITY_VENUES } from '../otherSymbols.js'
+import { staticallyUnservable, spellingUnservable, staticOtherSymbolMessage, US_EQUITY_VENUES, witnessRowOf } from '../otherSymbols.js'
 import { memberNumber } from './memberValue.js'
 import { timeInputDefaultOf, isTimeInputCall } from '../runtime/runtimeInputs.js'
 // ⭐ The budget's own verdict, asked at the translate door (see the row builder
@@ -5133,7 +5133,10 @@ const VENUE_QUALIFIED = /^([A-Z][A-Z0-9_.]{0,15}):([A-Z][A-Z0-9.-]{0,9})$/
 function tickerWithoutVenue(raw) {
   const found = VENUE_QUALIFIED.exec(raw)
   if (!found) return raw
-  return US_EQUITY_VENUES.has(found[1]) ? found[2] : null
+  if (US_EQUITY_VENUES.has(found[1])) return found[2]
+  // ⭐ RS RATING L1b — a spelling with a witness row (`SP:SPX`, `otherSymbols.js::witnessRowOf`)
+  // names its ticker too; whether it is SERVED is the row's (the static gate and the bind ask it)
+  return witnessRowOf(found[1], found[2]) ? found[2] : null
 }
 
 /** The same question asked of `ticker.new`'s SEPARATE exchange argument.

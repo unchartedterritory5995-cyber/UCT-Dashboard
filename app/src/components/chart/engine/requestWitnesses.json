@@ -1,0 +1,27 @@
+{
+  "_": "⭐⭐ RS RATING L1b / L6b (2026-11-14) — OTHER-SYMBOL SPELLINGS THAT ARE SERVED ONLY BEHIND A CAPTURE WITNESS. Each key is the spelling a script writes (`request.security(\"SP:SPX\", …)`; a seed as `request.seed(source, symbol, …)` spells `<SOURCE>:<SYMBOL>`, upper-cased). `store` is the key our bars route serves it under (`/api/bars/<store>`), `timeframes` the chart timeframes the witness covers, `queue_row` / `probe` the capture that settles it, `alignment` how the witness places the series' bars on a chart's bars (`otherSymbols.js::WITNESS_ALIGNMENTS`). ⛔ A ROW SERVES ONLY WHEN IT CARRIES `witness` (the capture) AND `captured` (its date) — the rule `symbolScope.json::confirmed` keeps: a row without a witness is an assertion wearing a data structure. Without them the spelling is refused BY NAME, citing its queue row (`otherSymbols.js::staticallyUnservable`, the one gate both lanes ask). Turning a row on is ONE data edit. ⭐ The `seed` rows are the frontend's manifest of `api/services/pine_seed_store.py::SEEDS`; `tests/test_pine_seed_manifest.py` rails that the two agree.",
+  "rows": {
+    "SP:SPX": {
+      "kind": "index",
+      "store": "SPX",
+      "timeframes": [
+        "D"
+      ],
+      "queue_row": "Q-RS3",
+      "probe": "tools/visual_conformance/probes/rs-spx-daily.pine",
+      "alignment": "previous-session",
+      "source": "api/index_bars.py: daily from FMP ^GSPC first, yfinance ^GSPC as the fallback (owner ruling 2026-11-14); `t` is unix seconds at the session date's UTC midnight, keyed by session date at bind"
+    },
+    "SEED_FRED6725_RS_RATING:RSRATING": {
+      "kind": "seed",
+      "store": "SEED_FRED6725_RS_RATING:RSRATING",
+      "timeframes": [
+        "D"
+      ],
+      "queue_row": "Q-RS2",
+      "probe": "tools/visual_conformance/probes/rs-seed-rsrating.pine",
+      "alignment": "same-date-gaps-na",
+      "source": "api/services/pine_seed_store.py: the NEWEST upload of the public mirror Fred6725/rs-log output/RSRATING.csv (replace-on-upload, 01ce0d567f); calendar-day rows, ISO `t`"
+    }
+  }
+}
