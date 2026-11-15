@@ -45,6 +45,9 @@ SERVICES = {
     "web": "railway.web.json",
     "worker": "railway.json",
     "flow-worker": "railway.json",
+    # Created 2026-11-14 as a NEW service, which never reads a config file: its first
+    # deploy ran the default start command. Its stored settings were typed in by hand.
+    "stream-ingest": "railway.ingest.json",
 }
 
 #: (section, key) in a config file -> field of Railway's `ServiceInstanceUpdateInput`.
