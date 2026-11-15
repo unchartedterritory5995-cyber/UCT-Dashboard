@@ -285,6 +285,55 @@ graded on the real supply; NOT admitted. What is and is not proven:
   - every host plot is refused `other-symbol:witness-timeframe` (SP:SPX is witnessed on D only);
   - the run half is refused `pine:request`.
 
+**L9 status (2026-11-15, engine 68 placeholder, branch `pine/rs-l5-runtime-requests`):** the
+three L8 blockers are addressed. RDDT grades MATCH_SUBSTITUTED; NVDA still DIVERGEs on the RS line
+by FMP-vs-TradingView history; still NOT admitted.
+
+- **(b) Depth: built.** `api/index_bars.py` reads daily index bars from 1990-01-01
+  (`INDEX_DAILY_HISTORY_START`):
+  - FMP is paged in 5-year windows (`FMP_PAGE_DAYS`, `INDEX_FMP_PAGE_DAYS`), oldest first, rows
+    oldest-first and deduplicated by session.
+  - A page that errors, an empty page after the history began, or a gap over 10 calendar days
+    (the 9/11 closure leaves 7) is never served; the read falls back.
+  - The yfinance fallback reads `period="max"` and is cut at the same start.
+  - `INDEX_FMP_LOOKBACK_DAYS` still overrides both.
+  - `/api/bars` slices the cached series, so the first-paint request (bars=600) is unchanged. A
+    deep request (bars=12500, e.g. an indicator reading SPX) gets 9286 sessions (~223 KB gzip, was
+    1255 / ~33 KB). `/api/bars-history` still refuses indices. A member's own SPX chart in the
+    split-fetch cohort (100%) therefore still paints 600 bars and gets no deeper history.
+    Serving index depth through the history door is open.
+- **(c) Run-half evidence: built along L7.** `runtime_definitions.run_half_entry_admits` and
+  `runHalfRailSeam.js::runHalfEntryAdmits` are one rule, pinned by
+  `tests/fixtures/ast/run_half_evidence_parity.json`.
+  - A record without `admission` counts MATCH captures.
+  - `admission: "substituted"` counts MATCH_SUBSTITUTED captures whose own `substituted` names
+    equal the record's.
+  - Each counted capture has objects-v2 MATCH and the runtime pane on; at least 2 distinct.
+  - The server serves only admitted entries; the client re-applies the rule.
+  - ⚠️ Measured on Q-RS1: a substituted capture's objects-v2 grade is itself MATCH_SUBSTITUTED,
+    never MATCH. As written, the rule cannot count a real substituted capture's drawings. Whether
+    the substituted path should count objects-v2 MATCH_SUBSTITUTED is an open ruling.
+- **securityType in the harness: built.** A supply record's `store.securityType` (`Stock` / `ADR`
+  / `ETF`, naming its `source`) reaches `ctx.symbol`, so an ETF keys the L3 class row. No committed
+  record states one: our store's class is not readable on this machine.
+- **The supply is FMP, kept out of git.** FMP ^GSPC (the primary) was recorded by the owner
+  (2026-11-15T13:50:55Z, 9286 sessions from 1990-01-02). The repo is public, and FMP (R/LA,
+  member display) and Yahoo (X) data may not be redistributed. So
+  `tests/fixtures/vendor-supply/<id>.json` names the rows by manifest
+  (`rows: {file, sha256, count, first, last}`). The rows live in
+  `$UCT_HARNESS_SUPPLY_STORE` (default `%LOCALAPPDATA%/uct-vendor-batch/supply`). Without the
+  file, the grade is refused by name. The L8 yfinance rows were removed from the tip; they remain
+  in history at `bce0de1ecb`.
+
+  | capture | verdict | why |
+  |---|---|---|
+  | `rs-rating-fred6724-rddt-1d-2026-11-15` | MATCH_SUBSTITUTED | RS line 666/666 exact (maxRel 0), MA plots, labels (objects v2 MATCH_SUBSTITUTED). Substituted: `syminfo.industry`. |
+  | `rs-rating-fred6724-nvda-1d-2026-11-15` | DIVERGE | Labels exact (objects v2 MATCH_SUBSTITUTED). RS line valued on all 6997 bars, 5705 exact. The 1292 that differ are all before 2023-12-05: 89 by more than 1e-4 relative, the largest 1.83e-2 on 2006-01-20. This is FMP's history against TradingView's. |
+  | `rs-rating-fred6724-spy-1d-2026-11-15` | INCONCLUSIVE | Not graded (owner ruling). |
+
+- **Still not admitted.** Only one capture grades MATCH_SUBSTITUTED, and the run-half rule needs
+  two (plus the objects-v2 ruling above). No allowlist record was added.
+
 ## Owner rulings
 
 - **2026-11-14, SPX source for members:** "We have the highest plan for FMP, I am fine using
