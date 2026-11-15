@@ -245,6 +245,12 @@ export function buildChartSource({ chartApiById, getWidgets, selectedChart = nul
     },
     // The chart's own view controls (range bar, Reset view, hide all indicators); chart.js waits for the read-back.
     viewDo: (ref, op, arg) => !!entries().find(x => x.ref === ref)?.api.agent.viewDo?.(op, arg),
+    // chart.replayStep (D20): THIS chart's bar times, read-only (a Multi Chart cell has no door: null)
+    replayBarTimes: async (ref, arg) => {
+      const fn = entries().find(x => x.ref === ref)?.api.agent.replayBarTimes
+      if (typeof fn !== 'function') return null
+      try { return await fn(arg) } catch { return null }
+    },
   }
 }
 
