@@ -56,6 +56,37 @@ LICENCE_GUARD = "pine:library-licence"
 _NON_COMMERCIAL_RX = re.compile(r"(?:^|[^A-Za-z])NC(?:[^A-Za-z]|$)|non[\s-]?commercial", re.I)
 
 
+#: ⭐⭐ U15 (coordinator ruling 2026-11-15) -- THE DENY LIST, one file for every door: the browser
+#: and server bundles import it (`pineLibraryStore.js`) and this module reads it. A version named
+#: there is never served, whatever this store holds. The web image ships `app/src` (`COPY . /app`).
+DENY_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+                         "app", "src", "components", "chart", "engine", "ast", "pineLibraryDeny.json")
+DENIED = "library:denied"
+DENIED_GUARD = "pine:library-denied"
+
+
+def _deny_doc() -> dict:
+    """The deny list, read per call (small). ⛔ FAIL CLOSED: an unreadable list denies EVERY
+    version (`*`), because serving a version the list may name is the one wrong answer."""
+    try:
+        with open(DENY_FILE, encoding="utf-8") as f:
+            doc = json.load(f)
+        if not isinstance(doc, dict) or not isinstance(doc.get("deny"), list):
+            raise ValueError("no deny list")
+        return doc
+    except (OSError, ValueError):
+        return {"deny": [{"path": "*"}], "memberSentence": None}
+
+
+def denied(path: str) -> Optional[str]:
+    """The member's sentence when `path` is on the deny list (or the list cannot be read), else None."""
+    doc = _deny_doc()
+    names = {d.get("path") for d in doc["deny"] if isinstance(d, dict)}
+    if path in names or "*" in names:
+        return doc.get("memberSentence") or "this library version is withheld until its drawing is verified against TradingView"
+    return None
+
+
 def licence_problem(entry: Any) -> Optional[str]:
     """Why `entry`'s licence keeps it off this product, or None. ONE rule, read by every door
     (`validate_entry`, so the read door, the list, the server run and `fetch_library`): a
@@ -126,6 +157,10 @@ def entry_status(path: str, root: Optional[str] = None) -> tuple:
     parsed = parse_import_path(path)
     if not parsed:
         return "missing", None
+    # ⭐⭐ U15 -- a denied version is never served, whatever the store holds (or does not)
+    deny = denied(path)
+    if deny:
+        return "denied", [deny]
     fp = entry_file(*parsed, root=root)
     if not os.path.isfile(fp):
         return "missing", None
@@ -161,6 +196,8 @@ def pinned_entries(pins, root: Optional[str] = None) -> tuple:
         status, got = entry_status(path, root=root)
         if status == "missing":
             return None, ("runtime:library", "the library %s is not in the library store" % path)
+        if status == "denied":
+            return None, (DENIED_GUARD, "the library %s is not served: %s" % (path, "; ".join(got)))
         if status == "licence":
             return None, (LICENCE_GUARD, "the library %s is not served: %s" % (path, "; ".join(got)))
         if status == "unservable":
@@ -180,20 +217,9 @@ def read_entry(path: str, root: Optional[str] = None) -> Optional[dict]:
     served): a library whose licence or source cannot be read is not one the
     chart may compile.
     """
-    parsed = parse_import_path(path)
-    if not parsed:
-        return None
-    fp = entry_file(*parsed, root=root)
-    if not os.path.isfile(fp):
-        return None
-    try:
-        with open(fp, encoding="utf-8") as f:
-            entry = json.load(f)
-    except (OSError, ValueError):
-        return None
-    if validate_entry(entry):
-        return None
-    return entry
+    # ⭐ U15 -- ONE authority over what is served: `entry_status` (denied, licence, sha, shape)
+    status, entry = entry_status(path, root=root)
+    return entry if status == "ok" else None
 
 
 def write_entry(entry: dict, root: Optional[str] = None) -> str:

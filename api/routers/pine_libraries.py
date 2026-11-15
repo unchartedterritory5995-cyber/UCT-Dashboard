@@ -35,6 +35,10 @@ def get_library(author: str, name: str, version: str,
     if not store.parse_import_path(path):
         raise HTTPException(status_code=400, detail="not an Author/Library/Version import path")
     status, entry = store.entry_status(path)
+    if status == "denied":
+        # ⭐⭐ U15 -- on the deny list: never served, whatever the store holds, by name
+        raise HTTPException(status_code=409, detail={
+            "code": store.DENIED, "reason": "the library %s is not served: %s" % (path, "; ".join(entry))})
     if status == "licence":
         # ⭐⭐ U15 -- a non-commercial licence is never served on this paid product, by name
         raise HTTPException(status_code=409, detail={

@@ -283,3 +283,44 @@ def test_a_non_commercial_library_is_stored_but_answered_409_by_name_and_never_r
     # control: an MPL-2.0 entry beside it is served
     store.write_entry(entry(path="tester/pinlib/3"))
     assert store.entry_status("tester/pinlib/3")[0] == "ok"
+
+
+# ── the deny list: a version withheld until its drawing is verified (ruling 2026-11-15) ──────
+
+DENY_PATH = "Fontiramisu/fontilab/11"
+
+
+def test_the_deny_list_names_exactly_the_ruled_versions_with_reasons():
+    doc = json.load(open(store.DENY_FILE, encoding="utf-8"))
+    paths = [d["path"] for d in doc["deny"]]
+    assert sorted(paths) == ["Fontiramisu/fontilab/11", "TradingView/ValueAtTime/2", "loxx/loxxexpandedsourcetypes/4"]
+    assert all(d.get("reason") and d.get("evidence") for d in doc["deny"])
+    # ruled OUT of the list: ta/11 (three scripts MATCH; Aroon's red is the engine's tie bug)
+    # and VisibleChart/3 (INCONCLUSIVE is not wrong)
+    assert "TradingView/ta/11" not in paths and "PineCoders/VisibleChart/3" not in paths
+    assert "RE-GRADE TO MATCH" in " ".join(doc["_"])
+    assert doc["memberSentence"] == "this library version is withheld until its drawing is verified against TradingView"
+
+
+def test_a_denied_version_is_never_served_whatever_the_store_holds(root):
+    a, n, v = DENY_PATH.split("/")
+    store.write_entry(entry(path=DENY_PATH, source="//@version=5\nlibrary(\"fontilab\")\nexport f() => 1\n"))
+    assert store.read_entry(DENY_PATH) is None
+    assert [e["path"] for e in store.list_entries()] == []
+    status, why = store.entry_status(DENY_PATH)
+    assert status == "denied" and "withheld until its drawing is verified" in why[0]
+    r = _client().get("/api/pine/libraries/" + DENY_PATH)
+    assert r.status_code == 409 and r.json()["detail"]["code"] == store.DENIED
+    _, refusal = store.pinned_entries([{"path": DENY_PATH, "sha256": sha("//@version=5\nlibrary(\"fontilab\")\nexport f() => 1\n")}])
+    assert refusal[0] == store.DENIED_GUARD == "pine:library-denied"
+    # denied even when the store does not hold it at all (never a plain 404)
+    assert store.entry_status("TradingView/ValueAtTime/2")[0] == "denied"
+    # control: a version not on the list is served as before
+    store.write_entry(entry())
+    assert store.entry_status("tester/pinlib/1")[0] == "ok"
+
+
+def test_an_unreadable_deny_list_denies_every_version(root, monkeypatch):
+    store.write_entry(entry())
+    monkeypatch.setattr(store, "DENY_FILE", os.path.join(root, "no-such-deny.json"))
+    assert store.entry_status("tester/pinlib/1")[0] == "denied"

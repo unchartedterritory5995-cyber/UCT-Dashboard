@@ -58,17 +58,20 @@
   {
    "path": "Fontiramisu/fontilab/11",
    "sha256": "ee3343eb454a6e5f6fe3cfb4c0a898cfd2339b812369de9d63a032c8d8f5b3c3",
-   "reason": "imported by ATR Trend Bands [Misu] (DIVERGE: a colour on bar 0)"
+   "reason": "imported by ATR Trend Bands [Misu] (DIVERGE: a colour on bar 0)",
+   "denied": "on the deny list (app/src/components/chart/engine/ast/pineLibraryDeny.json): never served, whatever a store holds, until a re-grade to MATCH"
   },
   {
    "path": "loxx/loxxexpandedsourcetypes/4",
    "sha256": "b3ffddf3442cc534a7a1904247b46ff623f690d89456073c22cb5c5959c3ba90",
-   "reason": "imported by Black-Scholes Option Pricing Model w/ Greeks [Loxx] (DIVERGE on 4 captures)"
+   "reason": "imported by Black-Scholes Option Pricing Model w/ Greeks [Loxx] (DIVERGE on 4 captures)",
+   "denied": "on the deny list (app/src/components/chart/engine/ast/pineLibraryDeny.json): never served, whatever a store holds, until a re-grade to MATCH"
   },
   {
    "path": "TradingView/ValueAtTime/2",
    "sha256": "74c0a0943c6331fdd754391a68fb285feca6ea942dde35e0ec7d01bad8d58169",
-   "reason": "imported by Performance (DIVERGE on RDDT and SPY)"
+   "reason": "imported by Performance (DIVERGE on RDDT and SPY)",
+   "denied": "on the deny list (app/src/components/chart/engine/ast/pineLibraryDeny.json): never served, whatever a store holds, until a re-grade to MATCH"
   },
   {
    "path": "PineCoders/VisibleChart/3",

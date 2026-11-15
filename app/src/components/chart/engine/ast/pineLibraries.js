@@ -48,7 +48,7 @@
 // order the statements run in. `remapLibraryLocation` turns a library line back
 // into the member's import line plus "in library X, line L".
 
-import { pineLibraryEntry, pineLibraryHeld, libraryEntryProblem, libraryLicenceProblem } from './pineLibraryStore.js'
+import { pineLibraryEntry, pineLibraryHeld, libraryEntryProblem, libraryLicenceProblem, libraryDenied } from './pineLibraryStore.js'
 
 export { importPathsOf } from './pineLibraryStore.js'
 
@@ -115,6 +115,8 @@ export const LIBRARY_CHANGED = 'pine:library-changed'
 export const LIBRARY_NO_SHA = 'pine:library-no-sha'
 // ⭐⭐ U15 (coordinator ruling 2026-11-15) — a non-commercial licence, never served on this paid product
 export const LIBRARY_LICENCE = 'pine:library-licence'
+// ⭐⭐ U15 (coordinator ruling 2026-11-15) — a version on the deny list (`pineLibraryDeny.json`)
+export const LIBRARY_DENIED = 'pine:library-denied'
 
 /** `opts.libraryPins` (a document's `meta.libraries`: `[{path, sha256}]`) -> path -> sha. */
 function pinsOf(opts) {
@@ -301,13 +303,16 @@ export function linkLibraries(lexed, opts, { lexPine, blockStatements }) {
   /** Link one library (and, first, what it imports). Returns its unit. */
   const link = (imp, needed, stack) => {
     if (stack.includes(imp.path)) throw new LinkRefusal(`the libraries import each other in a cycle (${[...stack, imp.path].join(' → ')})`)
+    // ⭐⭐ U15 — DENIED BEFORE ANYTHING IS READ: whatever any store or caller holds
+    const denied = libraryDenied(imp.path)
+    if (denied) throw new LinkRefusal(`the library \`${imp.path}\` is not served: ${denied}`, LIBRARY_DENIED)
     const entry = resolve(imp.path)
     if (!entry || typeof entry.source !== 'string') {
       // ⭐ U15 — the store holds it and will not serve it: say so, under its own name
       const held = heldOf(imp.path)
       if (held) {
         throw new LinkRefusal(`the library \`${imp.path}\` is not served: ${held.reason}`,
-          held.code === 'licence' ? LIBRARY_LICENCE : LIBRARY_NO_SHA)
+          held.code === 'licence' ? LIBRARY_LICENCE : held.code === 'denied' ? LIBRARY_DENIED : LIBRARY_NO_SHA)
       }
       throw new LinkRefusal(`the library \`${imp.path}\` is not in this engine's library registry, so its code cannot be compiled`)
     }

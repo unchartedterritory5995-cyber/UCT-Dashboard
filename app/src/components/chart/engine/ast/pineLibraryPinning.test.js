@@ -17,10 +17,10 @@ import { translatePine } from './pine.js'
 import { buildRuntimeIr } from './pineRuntimeFrontend.js'
 import { runtimeClockOpts } from './pineRuntimeClock.js'
 import { sha256Hex } from './parse.js'
-import { LIBRARY_CHANGED, LIBRARY_NO_SHA, LIBRARY_LICENCE } from './pineLibraries.js'
+import { LIBRARY_CHANGED, LIBRARY_NO_SHA, LIBRARY_LICENCE, LIBRARY_DENIED } from './pineLibraries.js'
 import {
   registerPineLibrary, clearPineLibraries, pineLibraryUnservable, libraryEntryProblem, ensurePineLibraries,
-  markPineLibraryUnservable, libraryLicenceProblem,
+  markPineLibraryUnservable, libraryLicenceProblem, libraryDenied,
 } from './pineLibraryStore.js'
 import { fixtureLibrary } from './__tests__/libraryFixture.js'
 import * as registry from '../nativeRegistry'
@@ -119,6 +119,35 @@ describe('U15 — a non-commercial library is never served on this paid product'
     const noSha = vi.fn(async () => ({ ok: false, status: 409, json: async () => ({ detail: { code: 'library:no-sha', reason: 'x' } }) }))
     await ensurePineLibraries(SRC, { fetchImpl: noSha })
     expect(said(host({}).refusal)).toContain(LIBRARY_NO_SHA)
+  })
+})
+
+describe('U15 — the deny list (pineLibraryDeny.json): withheld until verified against TradingView', () => {
+  const DENIED_PATH = 'Fontiramisu/fontilab/11'
+  const DENIED_SRC = `${HEAD}import ${DENIED_PATH} as fl\nplot(fl.f(), "F")\n`
+  const LIBF = fixtureLibrary({ path: DENIED_PATH, source: '//@version=5\nlibrary("fontilab")\nexport f() => close\n', licence: 'MPL-2.0', attribution: 'stand-in (test fixture)' })
+
+  it('⭐ a denied version is refused in both lanes by name, whatever is handed in, with the member sentence', () => {
+    expect(libraryDenied(DENIED_PATH)).toBe('this library version is withheld until its drawing is verified against TradingView')
+    expect(registerPineLibrary(LIBF)).toBe(null)
+    const t = translatePine(DENIED_SRC, { mode: 'host', libraries: { [DENIED_PATH]: LIBF } })
+    expect(said(t.refusal)).toContain(LIBRARY_DENIED)
+    expect(said(t.refusal)).toContain('withheld until its drawing is verified against TradingView')
+    const b = buildRuntimeIr(DENIED_SRC, { ...runtimeClockOpts(false), inputs: {}, libraries: { [DENIED_PATH]: LIBF } })
+    expect(b.ok).toBe(false)
+    expect(said(b.refusal)).toContain(LIBRARY_DENIED)
+  })
+
+  it('⛔ CONTROL — ruled off the list: TradingView/ta/11 and PineCoders/VisibleChart/3 are not denied', () => {
+    expect(libraryDenied('TradingView/ta/11')).toBe(null)
+    expect(libraryDenied('PineCoders/VisibleChart/3')).toBe(null)
+    expect(libraryDenied(PATH)).toBe(null)
+  })
+
+  it('⭐ the store\'s 409 `library:denied` is remembered under the deny refusal', async () => {
+    const fetchImpl = vi.fn(async () => ({ ok: false, status: 409, json: async () => ({ detail: { code: 'library:denied', reason: 'withheld' } }) }))
+    await ensurePineLibraries(SRC, { fetchImpl })
+    expect(said(host({}).refusal)).toContain(LIBRARY_DENIED)
   })
 })
 

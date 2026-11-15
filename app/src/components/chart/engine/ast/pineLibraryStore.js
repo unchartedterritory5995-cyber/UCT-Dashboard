@@ -16,6 +16,20 @@
 // entries and never stand in for each other.
 
 import { sha256Hex } from './parse.js'
+import DENY from './pineLibraryDeny.json'
+
+// ⭐⭐ U15 (coordinator ruling 2026-11-15) — THE DENY LIST: a version named in
+// `pineLibraryDeny.json` is never compiled, whatever a store holds (the Python store reads
+// the same file). An entry is removed only by a re-grade to MATCH (the file says how).
+const DENIED = new Map((Array.isArray(DENY && DENY.deny) ? DENY.deny : [])
+  .filter((d) => d && typeof d.path === 'string').map((d) => [d.path, d]))
+export const LIBRARY_DENIED_SENTENCE = String((DENY && DENY.memberSentence)
+  || 'this library version is withheld until its drawing is verified against TradingView')
+
+/** ⭐⭐ U15 — the member's sentence when `path` is on the deny list, or null. */
+export function libraryDenied(path) {
+  return DENIED.has(String(path)) ? LIBRARY_DENIED_SENTENCE : null
+}
 
 const IMPORT_PATH = /^([A-Za-z0-9_]{1,80})\/([A-Za-z0-9_]{1,80})\/([1-9][0-9]{0,5})$/
 const SHA256 = /^[0-9a-f]{64}$/
@@ -70,6 +84,12 @@ export function registerPineLibrary(entry) {
   const path = String(entry.path || '')
   if (!IMPORT_PATH.test(path) || typeof entry.source !== 'string' || !entry.source) return null
   if (!entry.licence) return null
+  const denied = libraryDenied(path)
+  if (denied) {
+    unservable.set(path, { reason: denied, code: 'denied' })
+    entries.delete(path)
+    return null
+  }
   const licence = libraryLicenceProblem(entry)
   const problem = licence || libraryEntryProblem(entry)
   if (problem) {
@@ -95,7 +115,8 @@ export function registerPineLibrary(entry) {
  *  (`code`: `'no-sha'`, or `'licence'` for a non-commercial licence). */
 export function markPineLibraryUnservable(path, reason, code = 'no-sha') {
   if (!IMPORT_PATH.test(String(path || ''))) return
-  unservable.set(String(path), { reason: String(reason || 'the library store will not serve it'), code: code === 'licence' ? 'licence' : 'no-sha' })
+  unservable.set(String(path), { reason: String(reason || 'the library store will not serve it'),
+    code: code === 'licence' || code === 'denied' ? code : 'no-sha' })
 }
 
 /** The reason `path` is held but not served, or null. */
@@ -146,8 +167,9 @@ export async function ensurePineLibraries(source, { fetchImpl, base = '/api/pine
           let body = null
           try { body = await res.json() } catch { body = null }
           const d = body && body.detail
+          const code = d && typeof d === 'object' ? d.code : null
           markPineLibraryUnservable(path, d && typeof d === 'object' && d.reason ? d.reason : null,
-            d && typeof d === 'object' && d.code === 'library:licence' ? 'licence' : 'no-sha')
+            code === 'library:licence' ? 'licence' : code === 'library:denied' ? 'denied' : 'no-sha')
           loaded.push(path)
         }
       } catch { entry = null }
