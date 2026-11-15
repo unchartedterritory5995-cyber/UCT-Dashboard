@@ -128,13 +128,17 @@ const GATED = {
 }
 
 describe('COND-TA — 1. the screener lane refuses by name what no chart is bound to withhold', () => {
-  it.each(Object.entries(GATED))('%s', (_, [src, why]) => {
+  // ⭐ A block local's own `x[k]` may refuse at the read (#1326's early screener throw,
+  // `Resolver.blockLocalHistory`) before the value's gates are asked: either named sentence is a
+  // refusal by name (coordinator ruling 2026-11-15), so those shapes need not carry the screener's.
+  const EARLY_READ = new Set(['v6 block local [1]', 'v6 expression history over a block local (F2)'])
+  it.each(Object.entries(GATED))('%s', (name, [src, why]) => {
     const t = lenient(src)
     expect(t.mode).toBe('screener')
     const o = t.outputs[0]
     expect(o.refusal && o.refusal.guard, o.formula || '').toBe('pine:block')
     expect(o.refusal.message).toMatch(why)
-    expect(o.refusal.message).toContain(SCREEN_GATE_SENTENCE)
+    if (!EARLY_READ.has(name)) expect(o.refusal.message).toContain(SCREEN_GATE_SENTENCE)
     // ⛔ nothing is stamped on that lane: there is no bind to read a stamp
     expect(t.blockRuns).toBeUndefined()
   })
