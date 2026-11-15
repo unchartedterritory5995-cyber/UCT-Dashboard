@@ -304,6 +304,45 @@ def last_run() -> dict | None:
         return None
 
 
+#: What an RS screen says while the table holds rows and not one of them has been placed:
+#: the first night after the flag is set (the build's extra columns and this pass have not
+#: run under it yet), or a table rebuilt with no pass behind it. The first sentence is the
+#: headline of the page's empty state and the second its body (`RsEmptyState`).
+PENDING_TEXT = ("This list is not ready yet. It fills after the overnight rating run, "
+                "at about 4:15 AM Eastern.")
+
+
+def pending() -> dict | None:
+    """``{"text": PENDING_TEXT}`` while the RS screens are computed (:func:`enabled`), the
+    table holds rows, and NOT ONE row has an exact place (``rs_rating_pos``); else ``None``.
+
+    Every RS screen filters on a column only this pass writes, so until the first pass
+    under the flag each of them is empty, and the page's ordinary empty state blames the
+    member's filters ("No stocks match all 12 filters") and the coverage line says every
+    stock has no RS Rating. Neither is true: the lists have not been built. The
+    saved-screens payload carries this as ``rs_pending`` so the page can say that instead.
+
+    ``None`` for everything that is not exactly that state: the flag off, no table, no rows
+    (a pod with no snapshot has its own states), the column absent, one placed row, or a
+    read that failed. Read-only and never raises."""
+    try:
+        if not enabled():
+            return None
+        with closing(snapshot_db.connect()) as conn:
+            if not _table_exists(conn, "screener_rows"):
+                return None
+            have = {r[1] for r in conn.execute("PRAGMA table_info(screener_rows)")}
+            if "rs_rating_pos" not in have:
+                return None
+            if conn.execute("SELECT 1 FROM screener_rows LIMIT 1").fetchone() is None:
+                return None
+            placed = conn.execute(
+                "SELECT 1 FROM screener_rows WHERE rs_rating_pos IS NOT NULL LIMIT 1").fetchone()
+        return None if placed is not None else {"text": PENDING_TEXT}
+    except Exception:                                        # noqa: BLE001
+        return None
+
+
 # --------------------------------------------------------------------------- #
 # the pass
 # --------------------------------------------------------------------------- #
