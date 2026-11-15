@@ -335,7 +335,8 @@ export function chartRailRefusal(plan, { words = '', host = null, mode = 'apply'
       const asked = [...new Set(tickersIn(w))].filter(t => !before.has(t) && !setAside(t))
       // (a stated grid is checked by its own COUNT rule)
       const gridded = (plan.plans || []).some(p => p.kind === 'board' || p.kind === 'multiChart') || gridStated(w, known) || requestedPanels(w) != null
-      if (!gridded && asked.length >= 2 && effects.some(e => e.type === 'symbol' && e.to)) {
+      // (on the SOLE chart: a multi-step request on several charts lands its tickers one step at a time)
+      if (!gridded && asked.length >= 2 && chartsInScope(host).count === 1 && effects.some(e => e.type === 'symbol' && e.to)) {
         const final = new Map(liveCharts(host).map(c => [c.ref, up(c.symbol)]))
         for (const e of effects) if (e.type === 'symbol' && e.to) final.set(e.ref, up(e.to))
         const shown = new Set([...final.values(), ...(plan.plans || []).filter(p => p.virtual && p.after?.symbol).map(p => up(p.after.symbol)),

@@ -39,7 +39,7 @@
         "expect": { "bySymbol": { "NVDA": { "tf": "W" }, "AMD": { "tf": "D" } } } },
       { "say": "undo", "expect": { "restored": true } } ] },
     { "id": "P5.symbol-tf-indicator-one-existing", "board": "ONE", "steps": [
-      { "request": "switch to AMD on the weekly with the 50 sma", "names": "switch to AMD",
+      { "request": "switch to AMD on the weekly with the 50 sma",
         "plan": { "ops": [
           { "id": "c", "action": "chart.setSymbol", "target": "$charts[0]", "args": { "symbol": "AMD" } },
           { "action": "chart.setTimeframe", "target": "$c.chart", "args": { "timeframe": "W" } },
@@ -61,7 +61,7 @@
           { "id": "later", "action": "widget.add", "target": "$workspace", "args": { "type": "chart" } } ] },
         "expect": { "unchanged": true, "refusal": true, "says": ["didn't run any of that plan", "names no earlier step"] } } ] },
     { "id": "P8.failed-step-mid-plan-partial-said", "board": "ONE", "steps": [
-      { "request": "switch to AMD, add the (non-existent) zigzag study and make it orange", "names": "switch to AMD",
+      { "request": "switch to AMD, add the (non-existent) zigzag study and make it orange",
         "plan": { "ops": [
           { "id": "s1", "action": "chart.setSymbol", "target": "$charts[0]", "args": { "symbol": "AMD" } },
           { "id": "s2", "action": "indicator.add", "target": "$s1.chart", "args": { "defId": "zigzagDoesNotExist", "inputs": null } },
