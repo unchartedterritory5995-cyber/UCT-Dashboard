@@ -129,3 +129,34 @@ describe('L6 question filter (useAgent dropExcluded), the spatial net stubbed ou
       expect(weekly(m.board)).toEqual([])
     }, 40000)
 })
+
+// ── volumeProfile.set (Charts family, AUDIT #1173): the SAME L4 / L5 layers, for the Volume Profile action — a skip of
+// volumeProfile.set alone in withoutExcludedCharts (the earlier survivor mutant) turns these red ──
+const vpPlan = (ids, disp = 'apply') => (body) => p.env(disp, ids.map(id => ({ action: 'volumeProfile.set', target: refOf(body, id), args: { enabled: true, bins: null, color: null, pocColor: null } })))
+const vpOn = (b) => b.state.widgets.filter(x => x.opts?.settings?.indicators?.volumeProfile?.enabled === true).map(x => x.id).sort()
+const VP_WORDS = ["turn on volume profile on all charts, but leave NVDA's alone", 'volume profile on every chart; dont touch NVDA', 'add volume profile to every chart — hands off the NVDA one']
+describe('L4 plan-exclusion step for volumeProfile.set, the spatial net and the set question stubbed out', () => {
+  it.each(VP_WORDS.map(t => [t]))('"%s": the plan on all four never turns it on on NVDA; NVDA not on the card', async (t) => {
+    const m = mount()
+    off.spatial = true; off.set = true
+    p.st.envelopes.push(vpPlan(ALL))
+    await m.say(t)
+    expect(vpOn(m.board), transcript()).not.toContain('BL')
+    expect(carded(), transcript()).not.toContain('Chart (BL)')
+    expect(carded(), transcript()).toContain('Chart (TL)')
+  }, 40000)
+})
+describe('L5 approval gate for volumeProfile.set: an approved card that carries the excluded chart is refused', () => {
+  it.each(VP_WORDS.map(t => [t]))('"%s": a forced card carrying NVDA is refused on Apply — nothing turned on', async (t) => {
+    const m = mount()
+    off.spatial = true; off.set = true; off.gate = true
+    p.st.envelopes.push(vpPlan(ALL, 'propose'))
+    await m.say(t)
+    off.gate = false
+    expect(carded(), `the forced card must carry NVDA: ${transcript()}`).toContain('Chart (BL)')
+    fireEvent.click(screen.getAllByRole('button', { name: 'Apply' }).at(-1))
+    await p.idle()
+    expect(vpOn(m.board), transcript()).toEqual([])
+    expect(transcript()).toMatch(/excludes/)
+  }, 40000)
+})

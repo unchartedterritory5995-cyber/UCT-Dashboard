@@ -262,18 +262,22 @@ def test_the_LIBRARY_lists_no_script():
                                              "placement", "inputs", "published_at", "ast_hash"}
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "OPEN, owner call: a RUNTIME document (compute.kind == 'runtime') is its Pine "
-    "(`compute.source`), and WS-H S4 shares it whole. Not a run-read part; not stripped here. "
-    "See docs/pine/evidence/2026-11-13-share-strips-run-reads/EVIDENCE.md"))
-def test_OPEN_a_runtime_document_share_still_carries_its_script(monkeypatch):
+def test_a_runtime_document_share_carries_its_script_AND_says_so(monkeypatch):
+    """DECIDED 2026-11-13 (was a strict xfail, "OPEN, owner call"): a RUNTIME document
+    (compute.kind == 'runtime') IS its Pine (`compute.source`) -- the runtime lane cannot draw it
+    without the script, and members import TradingView scripts -- so its share carries the script.
+    What makes that honest is the disclosure: the answer says so (`includesSource`), and the panel
+    shows the author the sentence before a link exists (`SharePanel.test.jsx`,
+    `tests/test_share_privacy.py`)."""
     monkeypatch.setenv(rt.SAVE_ENV, "1")
     monkeypatch.setenv(rt.STAGE_ENV, "all")
     d = copy.deepcopy(RUNTIME_DOCS["adx-and-di-for-v4"]["definition"])
     svc.save(AUTHOR, d["id"], d)
-    token = svc.share(AUTHOR, d["id"])["token"]
-    body = _as(VIEWER).get(f"/api/user-definitions/shared/{token}").json()
-    assert body["definition"]["compute"].get("source") != d["compute"]["source"]
+    minted = svc.share(AUTHOR, d["id"])
+    assert minted["includesSource"] is True
+    body = _as(VIEWER).get(f"/api/user-definitions/shared/{minted['token']}").json()
+    assert body["definition"]["compute"]["source"] == d["compute"]["source"]   # (a) carried
+    assert body["includesSource"] is True                                      # (b) disclosed
 
 
 # -- 3. the rails: every outbound path --------------------------------------------------------------

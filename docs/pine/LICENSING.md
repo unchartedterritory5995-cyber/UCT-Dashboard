@@ -64,6 +64,42 @@ one, and the gate ends up matching intent rather than text. The cost of holding 
 single script out of 266 — it lives in `corpus/reference/` with its source in the cache, which
 is everything the survey needs.
 
+## 2c. Licence-held VERDICTS still count: the evidence ledger (2026-11-13)
+
+The gate keeps a licence-held script's CAPTURE out of git: no licence line, GPL or another
+non-permitted licence, or a builtin. It does not throw away the VERDICT. Such a capture is
+`LEDGER_ONLY`, and its verdict is filed in `docs/pine/vendor-harness/evidence-ledger.jsonl`. One
+authority owns the row and its freshness rule: `tools/vendor_harness/evidence_ledger.py`.
+
+A row carries:
+- the source sha256, never the source text;
+- the script key and title, symbol and timeframe;
+- the capture receipt and file sha256;
+- the verdict in both lanes (production, runtime-on);
+- `SCRIPT_ENGINE_VERSION` and the grader version at grade time, and the date.
+
+A row never carries source text, provenance or an account. `row_problems` refuses a row that does.
+
+**It counts only while fresh.** The coverage map (PROVEN-exact) and capability admission read a
+row only when it was graded at today's engine (or a newer regrade supersedes it) and its source
+sha256 is the sample's. Otherwise:
+- a stale row is `unproven (stale)`;
+- a sha mismatch is not counted;
+- a DIVERGE stays a DIVERGE.
+
+**Procedure:**
+- A new capture: `evidence_engine.py packet`, then `promote --packet-sha`. A held capture's verdict
+  is filed; the capture stays in the run directory.
+- After every `SCRIPT_ENGINE_VERSION` bump: `python tools/vendor_harness/evidence_engine.py regrade`
+  re-grades the out-of-git capture store in both lanes, under the heavy lock, and appends fresh
+  rows. The store is `$UCT_VENDOR_CAPTURE_STORE`, default
+  `%LOCALAPPDATA%/uct-vendor-batch/runs/*/captures`.
+- Every run directory in the store is read, so a new capture session needs no configuration.
+  `--exclude-run <dir>` leaves out a session that is still capturing.
+- Legacy v1 rows (written by the old promote, with no engine version) are never evidence. `regrade`
+  retires each one once a v2 row files the same capture; the file is otherwise append-only.
+- Commit the ledger diff. Never commit a held capture.
+
 ## 3. Legacy fixtures are exempt
 
 `tests/fixtures/pine`, `pine_community`, `pine_blind` and `pine_screener` predate this

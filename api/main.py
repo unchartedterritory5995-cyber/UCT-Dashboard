@@ -14,6 +14,14 @@ from zoneinfo import ZoneInfo
 from api.services.log_redaction import install as _install_log_redaction
 _install_log_redaction()
 
+# ⛔ The front-door service runs this same image. If its own start command is ever not
+# applied, the default command would boot THIS module there: a second copy of the whole
+# application (INC-1, 2026-09-16, docs/breadth/INC-1-second-app-instance.md). Stop here,
+# before any scheduler or job exists, so that deployment fails instead of succeeding as
+# the wrong program. See api/services/role_guard.py.
+from api.services.role_guard import refuse_full_app_on_front_door as _refuse_full_app_on_front_door
+_refuse_full_app_on_front_door()
+
 # APScheduler trap: a pre-built CronTrigger(...) resolves tzlocal (UTC on
 # Railway), NOT the scheduler's timezone -- every trigger below must carry
 # an explicit timezone or its "ET" schedule silently fires 4h early.
@@ -2484,6 +2492,11 @@ def _run_rs_history() -> None:
             return
         _print_rs_history_receipt("rs history", receipt)
         _alert_if_rs_history_short(receipt)
+        if receipt.get("ok"):
+            # The session the 03:00 build could not read is stored now. Chained HERE as
+            # well as at 04:40 because a run that finishes after 04:40 would otherwise
+            # leave the screener on the previous session until the next build.
+            _run_rs_post_pass("rating")
     except Exception as e:  # noqa: BLE001
         print(f"[scheduler] rs history error: {e}")
         _alert_if_rs_history_short({"crashed": f"{type(e).__name__}: {e}"})
@@ -2515,7 +2528,9 @@ def _print_rs_history_receipt(label: str, receipt: dict) -> None:
 #   - the screener's seven rs_rating_* columns are read ONCE per build
 #     (`snapshot_builder._read_rs_history_fields`, the newest stored session); the
 #     03:00 build runs before 04:15 by design, so the caught-up session reaches the
-#     screener at the next build exactly as an on-time run's would.
+#     screener at the next build exactly as an on-time run's would. (With
+#     RS_SCREENS_ENABLED on it reaches the screener at once: `_run_rs_lists` below
+#     starts with the RS post-pass, `_run_rs_post_pass`.)
 #   - `rs_discord_post` reads `screener_rows` only; `rs_evidence_pull` reads R2 only.
 #   - `rs_ranking`'s badge overlay memoises the newest session for 5 minutes.
 # What DOES: `rs_lists_nightly` (04:40) refuses while the history is behind the
@@ -2646,16 +2661,87 @@ def _run_rs_evidence_pull() -> None:
         print(f"[scheduler] rs evidence pull error: {e}")
 
 
+def _run_rs_post_pass(source: str) -> None:
+    """The RS screens post-pass after a rating run (RS screens unit U1). Never raises.
+
+    Off (`RS_SCREENS_ENABLED` unset, `0` or a value that spells nothing): returns before
+    touching anything, so every caller behaves exactly as it did. On, and at `admin` (the
+    owner's private look: the data runs for everyone): one `rs_post_pass.run()` (every screener
+    row's rating columns onto the settled session, the session stamp, the exact places;
+    its receipt is read back on `snapshot_db.status()` as `rs_post_pass`), and, when the
+    pass MOVED the ratings, screen membership is recorded again: the 03:00 record behind
+    "New today" was taken on the previous session's ratings. `membership.rerecord_all`
+    replaces that record and never creates one the nightly refused to take. A pass that
+    found the session not stored yet changed no rating, so nothing is recorded again.
+
+    The screener panel's measured bands are dropped and measured again first: they are
+    cached per snapshot fingerprint (row count, newest `built_at`, date), the pass moves
+    none of those, and the bands taken after the 03:00 build saw the nine pass-written
+    columns blank. `distribution.invalidate` exists for a rewrite that keeps the fingerprint.
+    """
+    try:
+        from api.services.screener import rs_post_pass
+        if not rs_post_pass.enabled():
+            return
+        r = rs_post_pass.run(source=source)
+        print(f"[scheduler] rs post-pass ({source}): ok={r.get('ok')} session={r.get('session')} "
+              f"rating_session={r.get('rating_session')} rewritten={r.get('rewritten')} "
+              f"reason={r.get('reason')} rows={r.get('rows')} ranked={r.get('ranked')} "
+              f"ms={r.get('duration_ms')}")
+        if r.get("rewritten"):
+            try:
+                from api.services.screener import distribution
+                distribution.invalidate()
+                distribution.distributions()
+            except Exception as e:  # noqa: BLE001 - bands are an aid; never cost the record below
+                print(f"[scheduler] rs post-pass ({source}): bands not refreshed: {e}")
+            from api.services.screener import membership
+            mr = membership.rerecord_all()
+            print(f"[scheduler] rs post-pass ({source}): screener membership re-recorded: {mr}")
+            _run_rs_screen_alerts(source, r)
+    except Exception as e:  # noqa: BLE001
+        print(f"[scheduler] rs post-pass ({source}) error: {type(e).__name__}: {e}")
+
+
+def _run_rs_screen_alerts(source: str, pass_receipt: dict) -> None:
+    """The RS screens' daily joined-and-left message (RS screens unit U13). Never raises.
+
+    Called by `_run_rs_post_pass` only, straight after membership was recorded again
+    for a pass that MOVED the ratings: the message describes the record that pass just
+    took, for the session it rated. So it has no cron of its own, and it comes through
+    every door that pass does (04:15 rating, 04:40 lists, the rating catch-up); the
+    module's (member, screen, session) row is what makes those say it once.
+
+    Off (`RS_SCREEN_ALERTS_ENABLED` unset or not "1"): returns before touching
+    anything. `recorded_after` is the pass's own finish time: a membership record older
+    than it was taken on the previous ratings (the nightly refused to record, or the
+    re-record failed) and is not described."""
+    try:
+        from api.services.screener import rs_screen_alerts
+        if not rs_screen_alerts.enabled():
+            return
+        ar = rs_screen_alerts.run_nightly(session=pass_receipt.get("rating_session"),
+                                          recorded_after=pass_receipt.get("finished_at"))
+        print(f"[scheduler] rs screen alerts ({source}): {ar}")
+    except Exception as e:  # noqa: BLE001
+        print(f"[scheduler] rs screen alerts ({source}) error: {type(e).__name__}: {e}")
+
+
 def _run_rs_lists() -> None:
     """The `rs_lists_nightly` job (Phase 4 unit 4-01, 04:40 ET). Never raises.
 
-    One `rs_lists.nightly_job()`: the module reads `RS_LISTS_ENABLED` per call (off, it
+    FIRST the RS screens post-pass (`_run_rs_post_pass`, its own flag, off by default):
+    this is the door both the 04:40 cron and a catch-up that stored come through, so the
+    screener rows are on the session the lists are about to read.
+
+    Then one `rs_lists.nightly_job()`: the module reads `RS_LISTS_ENABLED` per call (off, it
     returns before reading or writing anything), applies its guards (the rating history
     must have caught up to the screener session; an empty list never replaces a full one
     unless the session is fresh), rebuilds RS Leaders and RS Emerging in place through
     `watchlist_prebuilt.write_rs_list`, and records its receipt (read back on
     `snapshot_db.status()` as `rs_lists`). One log line here.
     """
+    _run_rs_post_pass("lists")
     try:
         from api.services import rs_lists
         r = rs_lists.nightly_job()
@@ -10637,13 +10723,14 @@ async def lifespan(app: FastAPI):
             print(f"[startup] j2 attachments backup registration failed (non-fatal): {e}")
         # TERM-083 (FB-X1-02): nightly R2 backup of the member-authored stores no rail
         # above covers (community.db, charts_layouts.db, user_definitions.db, ...).
-        # Ships dark (STORE_BACKUP_ENABLED unset); 03:05 ET daily. The evidence is the
+        # Ships dark (STORE_BACKUP_ENABLED unset); 03:05 ET daily, plus a catch-up every
+        # two hours that finishes a run a release killed. The evidence is the
         # restore rehearsal, tools/store_restore.py --rehearse, never this job's exit.
         _boot_mark("S10362")
         try:
             from api.services import store_backup
             if store_backup.register_jobs(_scheduler):
-                print("[startup] store backup registered (03:05 ET daily)")
+                print("[startup] store backup registered (03:05 ET daily + catch-up :35 odd hours)")
         except Exception as e:
             print(f"[startup] store backup registration failed (non-fatal): {e}")
         # Nightly closed-trade excursion (MFE/MAE/exit-efficiency) backfill
@@ -11130,12 +11217,11 @@ def _bundle_build_id() -> str:
         return cached
     result = ""
     try:
-        import json as _json
+        # The manifest has ONE reader (api/services/build_manifest.py), shared with any
+        # process that serves the built frontend without running this API.
+        from api.services import build_manifest as _build_manifest
 
-        with open(os.path.join(DIST, ".vite", "manifest.json"), encoding="utf-8") as f:
-            row = _json.load(f).get("index.html")
-        if isinstance(row, dict) and row.get("isEntry") and isinstance(row.get("file"), str):
-            result = row["file"].lstrip("/")
+        result = _build_manifest.entry_build_id(DIST)
     except Exception:
         result = ""
     _BUILD_ID_CACHE = result
@@ -11162,22 +11248,35 @@ def early_hint_link_header() -> str:
         return cached
     result = ""
     try:
-        import json as _json
+        from api.services import build_manifest as _build_manifest
 
-        with open(os.path.join(DIST, ".vite", "manifest.json"), encoding="utf-8") as f:
-            manifest = _json.load(f)
-        entry = manifest.get("index.html")
-        if isinstance(entry, dict) and entry.get("isEntry") and isinstance(entry.get("file"), str):
-            scripts = [entry["file"]] + [manifest[k]["file"] for k in entry.get("imports", [])
-                                         if isinstance(manifest.get(k), dict) and isinstance(manifest[k].get("file"), str)]
-            styles = [c for c in entry.get("css", []) if isinstance(c, str)]
-            parts = [f"</{f.lstrip('/')}>; rel=preload; as=script; crossorigin" for f in scripts]
-            parts += [f"</{c.lstrip('/')}>; rel=preload; as=style; crossorigin" for c in styles]
-            result = ", ".join(parts)
+        result = _build_manifest.early_hint_link(DIST)
     except Exception:
         result = ""
     _EARLY_HINTS_CACHE = result
     return result
+
+
+def _deployed_commit() -> str:
+    """The commit this process was deployed from (Railway sets it), or ""."""
+    return os.environ.get("RAILWAY_GIT_COMMIT_SHA") or ""
+
+
+@app.get("/build.json", include_in_schema=False)
+def build_json():
+    """The FRONTEND's identity: `{"build_id": "assets/index-<hash>.js", "commit": "<sha>"}`.
+
+    The page's update watcher asks this, not `/api/health`, which build is current
+    (`fetchBuildSafe`, app/src/lib/buildVersion.js). Today both answers name the same
+    build, because this process serves the frontend it was built with. They are separate
+    questions so that they can have separate answers: whichever process serves the built
+    frontend answers this one. `no-store` because a cached answer is a wrong answer, and
+    registered here, ahead of the SPA catch-all, which would otherwise hand back index.html.
+    """
+    return JSONResponse(
+        {"build_id": _bundle_build_id(), "commit": _deployed_commit()},
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 @app.get("/api/health")
@@ -11193,8 +11292,11 @@ def health():
         # Pod resource observability (2026-06-09 thread-exhaustion incident).
         "thread_count": threading.active_count(),
         "rss_mb": _process_rss_mb(),
-        # Bundle identity for the "new version available" watcher.
+        # The frontend this process was built with. The update watcher reads /build.json
+        # first and falls back to this.
         "build_id": _bundle_build_id(),
+        # The commit this process runs, so a frontend release can wait for its backend.
+        "commit": _deployed_commit(),
     }
 
 

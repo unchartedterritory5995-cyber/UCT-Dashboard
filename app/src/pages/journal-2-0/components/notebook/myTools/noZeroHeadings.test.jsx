@@ -27,8 +27,10 @@ function emptyServer() {
 }
 afterEach(() => { cleanup(); vi.unstubAllGlobals() })
 
+// Follow-up C: Templates draws no list (it points at Manage templates, whose Archived and Recently deleted views draw the
+// template list: their empty headings are railed in TemplateList.test.jsx).
 const TABS = [
-  ['Widgets', 'Your widgets'], ['Routines', 'Your routines'], ['Trackers', 'Your trackers'], ['Templates', 'Your templates'],
+  ['Widgets', 'Your widgets'], ['Routines', 'Your routines'], ['Trackers', 'Your trackers'],
 ]
 
 describe('no zeros in any My tools list heading', () => {
@@ -47,7 +49,7 @@ describe('no zeros in any My tools list heading', () => {
         seen += 1
       }
     }
-    expect(seen).toBe(12)                                                    // non-vacuity: 4 tabs x 3 lists
+    expect(seen).toBe(9)                                                     // non-vacuity: 3 tabs x 3 lists
   })
 
   it('the one heading rule counts when there is something, and never says 0', () => {

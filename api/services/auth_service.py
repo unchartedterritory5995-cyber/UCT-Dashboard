@@ -12,7 +12,7 @@ from datetime import datetime, timedelta, timezone
 
 import bcrypt
 
-from api.services.auth_db import get_connection, execute_with_retry
+from api.services.auth_db import get_connection, execute_with_retry, read_row
 from api.services.activity_retention import _STORED_FORMAT as _SQLITE_TS
 
 
@@ -135,75 +135,82 @@ def create_session(user_id: str, user_agent: str = None, ip_address: str = None)
     return token
 
 
+#: The read every authenticated request starts with (`validate_session`), and the same
+#: read for an auth.db that has no `users.toolkit` column.
+_SESSION_SQL = (
+    "SELECT s.user_id, s.expires_at, u.email, u.display_name, u.role, u.email_verified, u.created_at, "
+    "{toolkit} "
+    "FROM sessions s JOIN users u ON s.user_id = u.id "
+    "WHERE s.token = ?"
+)
+_SESSION_SQL_TOOLKIT = _SESSION_SQL.format(toolkit="u.toolkit")
+_SESSION_SQL_NO_TOOLKIT = _SESSION_SQL.format(toolkit="NULL AS toolkit")
+
+
+def _touch_last_login(user_id: str, token: str) -> None:
+    """The throttled "used just now" write: the user's last login and, in the same
+    transaction, the session's last_seen_at (the sessions list in Settings reads it)."""
+    conn = get_connection()
+    try:
+        conn.execute("UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = ?", (user_id,))
+        conn.execute("UPDATE sessions SET last_seen_at = CURRENT_TIMESTAMP WHERE token = ?", (token,))
+        conn.commit()
+    finally:
+        conn.close()
+
+
 def validate_session(token: str) -> dict | None:
     if not token:
         return None
-    conn = get_connection()
+    # ⭐ 2026-11-14: the read goes through `auth_db.read_row` (this thread's own reader: one
+    # statement instead of the pool's five). It reads the database every time, exactly as
+    # before; the two writes below go through the pool, as they are rare and every other
+    # write does.
     try:
+        row = read_row(_SESSION_SQL_TOOLKIT, (token,))
+    except sqlite3.OperationalError as e:
+        # TERM-081: an auth.db that never ran `auth_db.init_db` (flow-worker's
+        # cookie fallback never does) has no `users.toolkit`. Read it as "no
+        # toolkit assigned" -- the pre-TERM-081 projection -- never an error.
+        if "toolkit" not in str(e):
+            raise
+        row = read_row(_SESSION_SQL_NO_TOOLKIT, (token,))
+    if not row:
+        return None
+    expires = datetime.fromisoformat(row["expires_at"])
+    if expires.tzinfo is None:
+        expires = expires.replace(tzinfo=timezone.utc)
+    if expires < datetime.now(timezone.utc):
+        delete_session(token)
+        return None
+    user_id = row["user_id"]
+
+    # Update last login timestamp — throttled to at most once per user per
+    # interval so this universal-path write doesn't serialize under load
+    # (see _should_write_last_login + the 2026-07-01 incident note above).
+    if _should_write_last_login(user_id):
         try:
-            row = conn.execute(
-                "SELECT s.user_id, s.expires_at, u.email, u.display_name, u.role, u.email_verified, u.created_at, "
-                "u.toolkit "
-                "FROM sessions s JOIN users u ON s.user_id = u.id "
-                "WHERE s.token = ?",
-                (token,),
-            ).fetchone()
-        except sqlite3.OperationalError as e:
-            # TERM-081: an auth.db that never ran `auth_db.init_db` (flow-worker's
-            # cookie fallback never does) has no `users.toolkit`. Read it as "no
-            # toolkit assigned" -- the pre-TERM-081 projection -- never an error.
-            if "toolkit" not in str(e):
-                raise
-            row = conn.execute(
-                "SELECT s.user_id, s.expires_at, u.email, u.display_name, u.role, u.email_verified, u.created_at, "
-                "NULL AS toolkit "
-                "FROM sessions s JOIN users u ON s.user_id = u.id "
-                "WHERE s.token = ?",
-                (token,),
-            ).fetchone()
-        if not row:
-            return None
-        expires = datetime.fromisoformat(row["expires_at"])
-        if expires.tzinfo is None:
-            expires = expires.replace(tzinfo=timezone.utc)
-        if expires < datetime.now(timezone.utc):
-            conn.execute("DELETE FROM sessions WHERE token = ?", (token,))
-            conn.commit()
-            return None
-        user_id = row["user_id"]
+            _touch_last_login(user_id, token)
+        except Exception:                              # noqa: BLE001 — display-only; never fails a request
+            pass
 
-        # Update last login timestamp — throttled to at most once per user per
-        # interval so this universal-path write doesn't serialize under load
-        # (see _should_write_last_login + the 2026-07-01 incident note above).
-        if _should_write_last_login(user_id):
-            try:
-                conn.execute("UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = ?", (user_id,))
-                # Same-write bump of session's last_seen_at so the sessions list
-                # in Settings reflects "used just now" without a separate write.
-                conn.execute("UPDATE sessions SET last_seen_at = CURRENT_TIMESTAMP WHERE token = ?", (token,))
-                conn.commit()
-            except:
-                pass
-
-        user = {
-            "id": user_id,
-            "email": row["email"],
-            "display_name": row["display_name"],
-            "role": row["role"],
-            "email_verified": bool(row["email_verified"]),
-            # Powers the trial window on every authed request (trial.py).
-            "created_at": row["created_at"] if "created_at" in row.keys() else None,
-        }
-        # TERM-081: the column `entitlements.toolkit_for` reads. ⛔ Carried ONLY
-        # when set — `/api/auth/me` returns this dict verbatim, so an unassigned
-        # account (every account today) keeps a byte-identical payload, and
-        # `toolkit_for` resolves the absent key to `DEFAULT_TOOLKIT` as before.
-        # The value is passed through raw: validating it is `toolkit_for`'s job.
-        if row["toolkit"] is not None:
-            user["toolkit"] = row["toolkit"]
-        return user
-    finally:
-        conn.close()
+    user = {
+        "id": user_id,
+        "email": row["email"],
+        "display_name": row["display_name"],
+        "role": row["role"],
+        "email_verified": bool(row["email_verified"]),
+        # Powers the trial window on every authed request (trial.py).
+        "created_at": row["created_at"] if "created_at" in row.keys() else None,
+    }
+    # TERM-081: the column `entitlements.toolkit_for` reads. ⛔ Carried ONLY
+    # when set — `/api/auth/me` returns this dict verbatim, so an unassigned
+    # account (every account today) keeps a byte-identical payload, and
+    # `toolkit_for` resolves the absent key to `DEFAULT_TOOLKIT` as before.
+    # The value is passed through raw: validating it is `toolkit_for`'s job.
+    if row["toolkit"] is not None:
+        user["toolkit"] = row["toolkit"]
+    return user
 
 
 def delete_session(token: str):
@@ -261,12 +268,9 @@ def cleanup_expired_sessions():
 # ── Subscription helpers ─────────────────────────────────────────────────────
 
 def get_subscription(user_id: str) -> dict | None:
-    conn = get_connection()
-    try:
-        row = conn.execute("SELECT * FROM subscriptions WHERE user_id = ?", (user_id,)).fetchone()
-        return dict(row) if row else None
-    finally:
-        conn.close()
+    # (the second read of every authenticated request: `auth_db.read_row`, see validate_session)
+    row = read_row("SELECT * FROM subscriptions WHERE user_id = ?", (user_id,))
+    return dict(row) if row else None
 
 
 def upsert_subscription(user_id: str, stripe_customer_id: str, stripe_subscription_id: str,

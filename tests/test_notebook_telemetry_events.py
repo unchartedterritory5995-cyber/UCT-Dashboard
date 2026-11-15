@@ -68,7 +68,59 @@ def _client_schemas() -> dict[str, dict[str, object]]:
                 schemas[current][m.group(1)] = frozenset(re.findall(r"'([^']*)'", m.group(3)))
             else:
                 schemas[current][m.group(1)] = m.group(2)
+            continue
+        # Follow-up A fix round 1 (I5): an enum the client DERIVES from the list that owns its ids. The test evaluates
+        # the same derivation from the same sources; a derived line it does not know fails here by name.
+        m = re.match(r"^    ([a-zA-Z_]+): oneOfList\((.*)\),?$", line)
+        if m and current:
+            expr = m.group(2)
+            derive = _DERIVED.get(expr)
+            assert derive, f"{current}.{m.group(1)} is derived by `{expr}`, which this rail does not know how to evaluate"
+            schemas[current][m.group(1)] = frozenset(derive())
     return schemas
+
+
+REGISTRY = Path("app/src/widgets/registry.js")
+VIEW_MODES_SRC = Path("app/src/pages/journal-2-0/lib/savedViewModes.js")
+
+
+def registry_widget_ids() -> list[str]:
+    """WIDGET_IDS: the keys of PANEL_MANIFESTS in src/widgets/registry.js, in order (the registry's own derivation:
+    `Object.keys(WIDGET_REGISTRY)`, one entry per manifest). lib/notebookUsage.test.js holds this parse equal to the
+    real WIDGET_IDS, so the two sides cannot drift."""
+    src = REGISTRY.read_text(encoding="utf-8")
+    body = src.split("\nconst PANEL_MANIFESTS = {\n", 1)[1].split("\n}\n", 1)[0]
+    return re.findall(r"^  ([A-Za-z0-9_]+): ", body, re.MULTILINE)
+
+
+def _member_built_kind() -> str:
+    m = re.search(r"export const MEMBER_BUILT_KIND = '([^']+)'", CLIENT.read_text(encoding="utf-8"))
+    assert m, "MEMBER_BUILT_KIND not found in the client helper"
+    return m.group(1)
+
+
+def view_mode_ids() -> list[str]:
+    """VIEW_MODES ids, by evaluating lib/savedViewModes.js in Node (the module imports nothing)."""
+    import subprocess
+    script = ("import(process.argv[1]).then((m) => process.stdout.write(JSON.stringify(m.VIEW_MODES.map((v) => v.id))))")
+    out = subprocess.run(["node", "-e", script, VIEW_MODES_SRC.resolve().as_uri()], capture_output=True, text=True,
+                         check=True, timeout=60)
+    return json.loads(out.stdout)
+
+
+_DERIVED = {
+    "VIEW_MODES.map((m) => m.id)": view_mode_ids,
+    "[...WIDGET_IDS.filter((id) => id !== MEMBER_BUILT_KIND), 'custom']":
+        lambda: [i for i in registry_widget_ids() if i != _member_built_kind()] + ["custom"],
+}
+
+
+def test_the_derived_client_enums_were_evaluated_and_are_not_empty():
+    """Non-vacuity for the two derived enums (fix round 1, I5)."""
+    client = _client_schemas()
+    assert {"list", "table", "board", "calendar", "tasks", "graph", "timeline"} <= client["view_used"]["mode"]
+    kinds = client["block_inserted"]["kind"]
+    assert len(kinds) >= 60 and "tracker" in kinds and "custom" in kinds and "builtWidget" not in kinds
 
 
 def _server_schemas() -> dict[str, dict[str, object]]:
@@ -358,7 +410,9 @@ def _client_block_used_kind_line() -> list[str]:
     """`block_used.kind`'s values IN SOURCE ORDER, read off its ONE line (the schema parser above is single-line,
     P5-R-C8: a oneOf wrapped over two lines would not parse, so this also proves it is one line)."""
     src = CLIENT.read_text(encoding="utf-8")
-    lines = [ln for ln in src.splitlines() if re.match(r"^    kind: oneOf\(", ln)
+    # Follow-up A: block_inserted.kind also names 'positionSizing', so the line is the one INSIDE block_used's block.
+    body = src.split("\n  block_used: {\n", 1)[1].split("\n  },", 1)[0]
+    lines = [ln for ln in body.splitlines() if re.match(r"^    kind: oneOf\(", ln)
              and "'positionSizing'" in ln]
     assert len(lines) == 1, f"block_used.kind must be ONE oneOf line, found {len(lines)}"
     return re.findall(r"'([^']*)'", lines[0])
@@ -369,7 +423,8 @@ def test_the_p5_events_are_on_both_sides_and_read_not_typed():
     assert P5_EVENTS <= names, P5_EVENTS - names
     assert P5_EVENTS <= _J2_TELEMETRY_EVENTS
     # P5-R-C7: 17 + 3 = 20 names on the client; audit 2026-11-05 (S16, S20) adds five: 25; S15 adds today_opened: 26.
-    assert len(_client_event_names()) == 26
+    # Follow-up A (usage counting) adds eight: 34.
+    assert len(_client_event_names()) == 34
 
 
 S20_EVENTS = {"first_run_completed", "first_run_skipped", "first_live_widget", "recap_written", "trust_incident"}
@@ -436,4 +491,46 @@ def test_the_server_drops_style_names_ids_and_params_from_the_p5_events(telemetr
     assert got == [(f"j2:{e}", want) for e, _, want in sends]
     blob = json.dumps(got)
     for leaked in ("s_123", "NVDA", "private", "n_9", "123.45"):
+        assert leaked not in blob, leaked
+
+
+# Follow-up A (usage counting, 2026-11-13): the eight usage events.
+USAGE_EVENTS = {"view_used", "list_layout_used", "menu_row_used", "today_door_used", "template_started",
+                "block_inserted", "panel_row_used", "notebook_route_opened"}
+
+
+def test_the_usage_events_are_on_both_sides():
+    assert USAGE_EVENTS <= set(_client_event_names())
+    assert USAGE_EVENTS <= _J2_TELEMETRY_EVENTS
+    # Every usage prop is an enum or a bool: no number and no free string can carry a title, a ticker or a tag.
+    from api.routers.journal_two import _NOTEBOOK_PROP_SCHEMAS
+    for event in USAGE_EVENTS:
+        for key, spec in _NOTEBOOK_PROP_SCHEMAS[event].items():
+            assert isinstance(spec, tuple) or spec == "bool", (event, key, spec)
+
+
+def test_an_unknown_row_mode_or_kind_is_stored_as_other_and_free_text_never_lands(telemetry_app):
+    """The existing arrival rule, unchanged: a value off the enum is 'other', a key off the schema is dropped."""
+    client, logged = telemetry_app
+    sends = [
+        ("menu_row_used", {"menu": "note_more", "row": "My NVDA thesis"}, {"menu": "note_more", "row": "other"}),
+        ("menu_row_used", {"menu": "list_more", "row": "export", "label": "Export my notes"},
+         {"menu": "list_more", "row": "export"}),
+        ("view_used", {"mode": "kanban", "via": "menu"}, {"mode": "other", "via": "menu"}),
+        ("block_inserted", {"kind": "My private widget", "via": "slash", "name": "NVDA screen"},
+         {"kind": "other", "via": "slash"}),
+        ("block_inserted", {"kind": "builtWidget", "via": "palette"}, {"kind": "other", "via": "palette"}),
+        ("panel_row_used", {"row": "folder", "folderName": "NVDA ideas"}, {"row": "folder"}),
+        ("template_started", {"source": "own", "family": "my swing template", "title": "NVDA plan"},
+         {"source": "own", "family": "other"}),
+        ("today_door_used", {"door": "shortcut", "created": "yes"}, {"door": "shortcut"}),
+        ("notebook_route_opened", {"route": "/journal/notebook?folder=secret"}, {"route": "other"}),
+        ("list_layout_used", {"layout": "cards"}, {"layout": "cards"}),
+    ]
+    for event, props, _ in sends:
+        assert client.post("/api/j2/telemetry", json={"event": event, "props": props}).status_code == 200
+    got = [(a, json.loads(d)) for _, a, d in logged.rows]
+    assert got == [(f"j2:{e}", want) for e, _, want in sends]
+    blob = json.dumps(got)
+    for leaked in ("NVDA", "private", "secret", "Export my notes", "kanban", "builtWidget"):
         assert leaked not in blob, leaked

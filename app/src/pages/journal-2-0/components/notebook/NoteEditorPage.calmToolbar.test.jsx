@@ -287,6 +287,18 @@ describe('"Aa" (More formatting)', () => {
     })
   }, 60000)
 
+  // Follow-up B, item 3b: the kit runs over Size as well. Its choices are "Default" and the sizes the toolbar's own
+  // "Text size" select offers (read from it, so the list is not restated here).
+  it('Size meets the shared second-view contract too', async () => {
+    const { toolbar } = await mount()
+    const sizes = [...within(toolbar).getByRole('combobox', { name: 'Text size' }).querySelectorAll('option')]
+      .filter((o) => o.value).map((o) => o.textContent)
+    expect(sizes.length, 'non-vacuity: the toolbar offers sizes').toBeGreaterThan(3)
+    await expectSecondView({
+      openMenu: open, parentRowName: 'Size', childRowNames: ['Default', ...sizes], trigger: aa,
+    })
+  }, 60000)
+
   it('Attach a file presses the same file input as the row\'s Attach a file', async () => {
     const { toolbar } = await mount()
     const pressed = []

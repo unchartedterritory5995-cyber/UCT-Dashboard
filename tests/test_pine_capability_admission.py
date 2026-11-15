@@ -680,8 +680,10 @@ def _count_detector(monkeypatch) -> list:
 def test_SERVE_the_list_with_50_near_cap_rows_cold_is_under_1s(store, monkeypatch):
     ids = _seed_runtime_rows(monkeypatch, 50)
     monkeypatch.setenv(rt.CAPABILITY_ADMISSION_ENV, "on")
-    # the server-lane composition stamp re-lexes every runtime row (pre-existing on master, flag
-    # OFF too: ~10 s for these 50 rows, `EVIDENCE.md`); it is not admission, so it is held still here
+    # the server-lane composition stamp lexes each runtime source once per process (the repaint memo;
+    # it lexed every row three times before, ~10 s for these 50 rows, `EVIDENCE.md`). A cold lex of 50
+    # near-cap sources is still ~2 s and is not admission, so it is held still here; the rail below
+    # serves the full list, server lanes included
     monkeypatch.setattr(svc, "server_lanes_stamp", lambda row: {})
     monkeypatch.setattr(rt, "DETECTOR_DUTY_CYCLE", 1.0)   # the per-request budget alone (the gate rails test the cool-down)
     rt._reset_capability_cache(persisted=True)
@@ -705,6 +707,30 @@ def test_SERVE_the_list_with_50_near_cap_rows_cold_is_under_1s(store, monkeypatc
             break
     assert all("runtimeNotGraded" not in (r["definition"].get("meta") or {}) for r in body["definitions"])
     assert len(calls) == 50                                      # each source computed exactly once
+
+
+def test_SERVE_the_list_with_50_near_cap_rows_lexes_each_source_once_server_lanes_included(store, monkeypatch):
+    """The precondition before `PINE_RUNTIME_SAVE_ENABLED` (memoise the repaint lex per source hash):
+    the list's server-lane stamp asked `request_reads` three times per runtime row and each asked
+    the lexer (150 lexes, 7-16.8 s for these 50 rows, flag on or off). With the memo, the FULL serve
+    (nothing held still) lexes each distinct source once, and a second request lexes nothing."""
+    from api.services import runtime_repaint as rr
+    _seed_runtime_rows(monkeypatch, 50)
+    rr._reset_repaint_memo()                       # a fresh process: the seed's saves warmed nothing here
+    lexes = []
+    real = rr.lex
+    monkeypatch.setattr(rr, "lex", lambda src: (lexes.append(1), real(src))[1])
+    body = _client().get("/api/user-definitions").json()
+    assert len(body["definitions"]) == 50
+    assert all(set(r["server_lanes"]) == {"alerts", "screener", "scans"} for r in body["definitions"])
+    assert len(lexes) == 50, len(lexes)            # one per distinct source (was 150)
+    lexes.clear()
+    t0 = time.perf_counter()
+    again = _client().get("/api/user-definitions").json()
+    warm = time.perf_counter() - t0
+    assert lexes == []                             # warm: the stamp lexes nothing
+    assert again == body                           # and answers the same
+    assert warm < 3.0, warm                        # generous: the count above is the exact rail
 
 
 def test_SERVE_a_saved_row_is_computed_at_save_and_never_on_the_hot_path(store, monkeypatch):

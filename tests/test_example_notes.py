@@ -480,7 +480,7 @@ def test_a_note_of_another_kind_is_refused(api, conn, ex_on, ocr):
     for kind in ("trade_plan", None):
         nid = _note(conn, kind=kind)
         r = api.post(EX, json={"noteId": nid, "styleItemId": sid, "title": "Plan"})
-        assert (r.status_code, r.json()["detail"]) == (400, "This note is a different kind from the style.")
+        assert (r.status_code, r.json()["detail"]) == (400, "This note is a different note type from the style.")
 
 
 @pytest.mark.parametrize("bad", ["one", [1], [None], {"a": 1}, ["x" * 3000]])

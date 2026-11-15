@@ -367,13 +367,76 @@ class _FakeScheduler:
         self.jobs.append((fn, trigger, kw))
 
 
-def test_register_jobs_registers_nothing_while_dark_and_one_nightly_job_when_armed(monkeypatch):
+def test_register_jobs_registers_nothing_while_dark_and_nightly_plus_catchup_when_armed(monkeypatch):
     monkeypatch.delenv(sb.ENABLED_ENV, raising=False)
     s = _FakeScheduler()
     assert sb.register_jobs(s) is False and s.jobs == []
     monkeypatch.setenv(sb.ENABLED_ENV, "1")
     assert sb.register_jobs(s) is True
-    assert [kw["id"] for _, _, kw in s.jobs] == ["store_backup_nightly"]
+    assert [kw["id"] for _, _, kw in s.jobs] == ["store_backup_nightly", "store_backup_catchup"]
+    assert [fn for fn, _, _ in s.jobs] == [sb.run_backup, sb.run_catchup]
+
+
+# ── the catch-up: a nightly run killed part-way is finished the same day ────
+def _three_stores(tmp_path, monkeypatch):
+    monkeypatch.setenv(sb.ENABLED_ENV, "1")
+    paths = {}
+    for name in ("community", "modelbook", "education"):
+        sub = tmp_path / f"src_{name}"
+        sub.mkdir()
+        paths[name] = str(sub / f"{name}.db")
+        _wal_store(Path(paths[name])).close()
+    monkeypatch.setattr(sb, "resolve_path", lambda name: paths[name])
+    monkeypatch.setattr(sb, "_names", lambda stores=None: list(paths) if stores is None else list(stores))
+    return paths
+
+
+def _taken(r2, name):
+    return sorted(k for k in r2.objects if k.startswith(f"store_backups/{name}/") and k.endswith(".db.gz.enc"))
+
+
+def test_catchup_backs_up_only_the_stores_a_killed_run_left_behind(tmp_path, monkeypatch):
+    paths = _three_stores(tmp_path, monkeypatch)
+    r2 = FakeR2()
+    # the nightly run reached community, then the process was replaced: the other two are a day old
+    sb.backup_store("community", paths["community"], r2, "bucket", now=NOW)
+    for name in ("modelbook", "education"):
+        sb.backup_store(name, paths[name], r2, "bucket", now=NOW - dt.timedelta(hours=24))
+    later = NOW + dt.timedelta(hours=2)
+    out = sb.run_catchup(now=later, client=r2, bucket="bucket")
+    assert sorted(out) == ["education", "modelbook"]
+    assert all(v["status"] == "ok" for v in out.values())
+    assert len(_taken(r2, "community")) == 1  # the store the nightly run did copy is not copied twice
+    assert len(_taken(r2, "modelbook")) == 2 and len(_taken(r2, "education")) == 2
+
+
+def test_catchup_does_nothing_when_every_store_is_fresh(tmp_path, monkeypatch):
+    paths = _three_stores(tmp_path, monkeypatch)
+    r2 = FakeR2()
+    for name in paths:
+        sb.backup_store(name, paths[name], r2, "bucket", now=NOW)
+    before = dict(r2.objects)
+    assert sb.run_catchup(now=NOW + dt.timedelta(hours=19), client=r2, bucket="bucket") == {}
+    assert r2.objects == before
+
+
+def test_catchup_is_dark_until_the_flag_is_set_and_survives_a_listing_failure(monkeypatch):
+    monkeypatch.delenv(sb.ENABLED_ENV, raising=False)
+
+    class Spy(FakeR2):
+        listed = 0
+
+        def list_objects_v2(self, **kw):
+            Spy.listed += 1
+            return super().list_objects_v2(**kw)
+    assert sb.run_catchup(now=NOW, client=Spy(), bucket="bucket") is None
+    assert Spy.listed == 0  # dark means the bucket is not even read
+    monkeypatch.setenv(sb.ENABLED_ENV, "1")
+
+    class Broken(FakeR2):
+        def list_objects_v2(self, **kw):
+            raise RuntimeError("listing down")
+    assert sb.run_catchup(now=NOW, client=Broken(), bucket="bucket") is None
 
 
 # ── the registry ─────────────────────────────────────────────────────────────

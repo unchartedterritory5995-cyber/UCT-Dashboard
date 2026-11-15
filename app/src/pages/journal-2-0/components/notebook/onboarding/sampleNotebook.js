@@ -127,7 +127,9 @@ export async function heldTitles(hold, titleOf = () => null) {
     const gaveUp = new Promise((resolve) => { timer = setTimeout(() => { ctl?.abort(); resolve(null) }, HELD_TITLE_TIMEOUT_MS) })
     try {
       const read = (async () => {
-        const res = await fetch(`/api/j2/notes/${encodeURIComponent(id)}`, { credentials: 'include', ...(ctl ? { signal: ctl.signal } : {}) })
+        // A plain GET (a read): its options are a literal the door rail can read (lib/offline/doorEnumeration.test.js);
+        // `signal: undefined` (no AbortController) is the same as no signal.
+        const res = await fetch(`/api/j2/notes/${encodeURIComponent(id)}`, { credentials: 'include', signal: ctl?.signal })
         if (!res.ok) return null
         return (await res.json())?.note?.title
       })().catch(() => null)   // a failed or aborted read (even one that lands after the race) is "A note"

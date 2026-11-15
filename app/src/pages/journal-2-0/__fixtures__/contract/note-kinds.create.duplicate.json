@@ -9,6 +9,6 @@
     "status": 400
   },
   "body": {
-    "detail": "There is already a kind called trade plan."
+    "detail": "There is already a note type called trade plan."
   }
 }

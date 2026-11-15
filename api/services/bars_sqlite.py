@@ -67,6 +67,16 @@ def stop_write_tracking() -> set:
     return out
 
 
+def swap_write_tracking() -> set:
+    """Return the pairs written since the last start/swap and keep tracking from now, with
+    no gap between the two (one lock): the adoption's catch-up rounds re-carry each batch."""
+    global _tracked_writes
+    with _tracked_lock:
+        out = _tracked_writes or set()
+        _tracked_writes = set() if _tracked_writes is not None else None
+    return out
+
+
 def _track(pairs) -> None:
     if _tracked_writes is None:
         return
@@ -2574,10 +2584,19 @@ def integrity_smoke_ok() -> bool:
         try:
             c.execute("PRAGMA schema_version").fetchone()               # db header
             c.execute("SELECT count(*) FROM sqlite_master").fetchone()  # schema b-tree
-            # ohlcv table b-tree — head page (LIMIT 1) + tail page (rowid DESC).
+            # ohlcv table b-tree — head page (LIMIT 1) + tail page.
             # Any ticker: this validates STRUCTURE, not the presence of a symbol.
             c.execute("SELECT ticker,tf,ts,c FROM ohlcv LIMIT 1").fetchone()
-            c.execute("SELECT ts FROM ohlcv ORDER BY rowid DESC LIMIT 1").fetchone()
+            # ⛔ A CLUSTERED (WITHOUT ROWID) store has no rowid: `ORDER BY rowid` raises
+            # "no such column: rowid", an OperationalError, i.e. a DatabaseError -- and
+            # this probe read a HEALTHY store as corrupt, so web's boot force_resync
+            # deleted its freshly adopted 19.7 GB store (2026-11-14). Its tail page is
+            # the primary key's last entry.
+            if ohlcv_layout(c) == "clustered":
+                c.execute("SELECT ts FROM ohlcv ORDER BY ticker DESC, tf DESC, ts DESC "
+                          "LIMIT 1").fetchone()
+            else:
+                c.execute("SELECT ts FROM ohlcv ORDER BY rowid DESC LIMIT 1").fetchone()
             # Lookup index b-tree via the exact hot serve path (idx_ohlcv_lookup).
             c.execute("SELECT ts FROM ohlcv WHERE ticker='AAPL' AND tf='D' "
                       "ORDER BY ts DESC LIMIT 1").fetchone()

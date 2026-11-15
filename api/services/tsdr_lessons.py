@@ -113,6 +113,15 @@ DEFAULT_GUILD_ID = "882293203485720596"
 VIDEO_EXTENSIONS = (".mp4", ".mov", ".webm", ".m4v", ".mkv")
 KEEP_TYPES = frozenset({0, 19})              # DEFAULT, REPLY
 MAX_ATTEMPTS = 3
+# A video that used up its attempts is `failed`. A day later it gets another
+# round of MAX_ATTEMPTS, up to MAX_RETRY_ROUNDS times (reopen_failed): three bad
+# ticks are 45 minutes, which an outage at Discord or the model vendor covers
+# easily, and before this nothing ever read `failed` again.
+RETRY_AFTER_S = 24 * 3600
+MAX_RETRY_ROUNDS = 5
+# ...unless the failure cannot change: the video itself is over a cap, or the
+# model declined it. Matched against `last_error`.
+_NO_RETRY_ERRORS = ("download cap", "over the cap", "declined to write")
 MAX_PAGES_PER_TICK = 20   # TSDR_LESSONS_SCAN_PAGES overrides; one page is 100 messages
 MAX_DOWNLOAD_BYTES = 2 * 1024 * 1024 * 1024  # long recordings run past 600 MB; streamed to disk
 MAX_VIDEO_SECONDS = 2 * 60 * 60
@@ -310,7 +319,10 @@ _ADDED_COLUMNS = (("post_channel_id", "TEXT"), ("forward_post_id", "TEXT"),
                   # post, its "See also" lessons (JSON [{title, post}]) and when
                   # they were last worked out, and when its reactions were read
                   ("forum_post_id", "TEXT"), ("related", "TEXT"), ("related_at", "INTEGER"),
-                  ("reaction_checked_at", "INTEGER"))
+                  ("reaction_checked_at", "INTEGER"),
+                  # when the video last used up its attempts, and how many extra
+                  # rounds it has been given since (reopen_failed)
+                  ("failed_at", "INTEGER"), ("retry_rounds", "INTEGER NOT NULL DEFAULT 0"))
 
 
 def _connect() -> sqlite3.Connection:
@@ -366,6 +378,10 @@ def status_counts() -> dict:
         yt = c.execute("SELECT COUNT(*) AS n FROM tsdr_lessons WHERE youtube_id IS NOT NULL").fetchone()
     out = {r["status"]: r["n"] for r in rows}
     out["on_youtube"] = yt["n"]
+    # Link lessons posted under their title only, waiting for captions that have to be
+    # sent in from outside (tools/tsdr_link_transcripts.py; the pod is refused them).
+    # Counted from the ONE list that tool is given, never a second rule for "waiting".
+    out["links_waiting"] = len(links_needing_transcript())
     return out
 
 
@@ -774,7 +790,11 @@ def post_to_section(lesson: dict, link: str) -> dict:
                          youtube_video_body(lesson) if link_video_id(lesson)
                          else forward_body(lesson)) or {}
         forward_id = str(fwd.get("id") or "")
-    except DiscordError as e:
+    except Exception as e:  # noqa: BLE001
+        # ⛔ EVERYTHING, not only DiscordError. The recap is already in the thread:
+        # anything that escapes from here sends the video back to the queue and the
+        # next run posts the recap AGAIN. A timeout is an httpx error, not a
+        # DiscordError, and did exactly that.
         # Measured 2026-10-17: two lessons were refused every tick for 90 min
         # ("Maximum amount of forwarded attachment bytes reached"), so the
         # refusal is not only a rate: a large enough file is never forwarded.
@@ -787,7 +807,7 @@ def post_to_section(lesson: dict, link: str) -> dict:
                 yt = _in_thread("POST", thread, f"/channels/{thread}/messages",
                                 youtube_video_body(lesson)) or {}
                 forward_id = str(yt.get("id") or "")
-            except DiscordError as e2:
+            except Exception as e2:  # noqa: BLE001 -- same reason
                 log.warning("[tsdr-lessons] could not post the YouTube video for %s: %s",
                             lesson.get("attachment_id"), e2)
     return {"section": key, "thread": thread, "post_id": str(post.get("id") or ""),
@@ -1289,6 +1309,11 @@ def process_lesson(row: dict, lesson_channel: str) -> str:
                 transcript, seconds, segments = transcribe(video, work)
             finally:
                 shutil.rmtree(work, ignore_errors=True)
+            if transcript.strip():
+                # Kept AT ONCE. The recap call and the post can both still fail, and
+                # the retry takes the branch above instead of downloading and
+                # transcribing the same video again.
+                _update(aid, transcript=transcript, segments=json.dumps(segments), duration_s=seconds)
     twin = find_duplicate(transcript, row["author_id"], aid)
     if twin:
         # the same talk, posted again (or shared as a link after the file):
@@ -1359,9 +1384,11 @@ def run_lessons(*, limit: int, deadline: float) -> dict:
             out[process_lesson(row, lesson_channel)] += 1
         except Exception as e:  # noqa: BLE001 — one bad video never stops the queue
             attempts = int(row.get("attempts") or 0) + 1
-            _update(row["attachment_id"], attempts=attempts,
-                    status="failed" if attempts >= MAX_ATTEMPTS else "new",
-                    last_error=f"{type(e).__name__}: {str(e)[:300]}")
+            fields = {"attempts": attempts, "status": "new",
+                      "last_error": f"{type(e).__name__}: {str(e)[:300]}"}
+            if attempts >= MAX_ATTEMPTS:
+                fields.update(status="failed", failed_at=int(time.time()))
+            _update(row["attachment_id"], **fields)
             log.warning("[tsdr-lessons] video %s failed (attempt %d): %s",
                         row["attachment_id"], attempts, e)
             out["errors"] += 1
@@ -1852,6 +1879,28 @@ def reopen_skipped_clips() -> int:
     return n
 
 
+def reopen_failed(now: Optional[float] = None) -> int:
+    """Give each `failed` video another round of attempts, a day after it failed,
+    at most MAX_RETRY_ROUNDS times. Returns how many went back in the queue.
+
+    A failure that cannot change (_NO_RETRY_ERRORS) stays failed. `last_error` is
+    kept, so the reason is readable until the video posts. A row that failed
+    before `failed_at` existed is dated by its last change: those are the videos
+    this rule exists for."""
+    now = int(now if now is not None else time.time())
+    unchanged = "".join(" AND COALESCE(last_error, '') NOT LIKE ?" for _ in _NO_RETRY_ERRORS)
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        n = c.execute(
+            "UPDATE tsdr_lessons SET status = 'new', attempts = 0, "
+            "retry_rounds = COALESCE(retry_rounds, 0) + 1, updated_at = ? "
+            "WHERE status = 'failed' AND COALESCE(retry_rounds, 0) < ? "
+            "AND COALESCE(failed_at, updated_at) <= ?" + unchanged,
+            (now, MAX_RETRY_ROUNDS, now - RETRY_AFTER_S,
+             *(f"%{mark}%" for mark in _NO_RETRY_ERRORS))).rowcount
+        c.commit()
+    return n
+
+
 # ── library v2: the Forum channel ────────────────────────────────────────────
 # One forum post per lesson, tagged with its section, level and speaker, so
 # Discord's own tag filter and sort do the browsing. A pinned "Index" post
@@ -2019,14 +2068,14 @@ def post_to_forum(lesson: dict, link: str) -> dict:
                           youtube_video_body(lesson) if link_video_id(lesson)
                           else forward_body(lesson)) or {}
         video_id = str(sent.get("id") or "")
-    except DiscordError as e:
+    except Exception as e:  # noqa: BLE001 -- the post exists: nothing may escape (see post_to_section)
         log.warning("[tsdr-lessons] could not put the video in post %s: %s", pid, e)
         if lesson.get("youtube_id"):
             try:
                 sent = _in_thread("POST", pid, f"/channels/{pid}/messages",
                                   youtube_video_body(lesson)) or {}
                 video_id = str(sent.get("id") or "")
-            except DiscordError as e2:
+            except Exception as e2:  # noqa: BLE001
                 log.warning("[tsdr-lessons] could not post the YouTube copy in %s: %s", pid, e2)
     return {"post": pid, "video": video_id}
 
@@ -2139,6 +2188,12 @@ def best_moment(row: dict, pats: list) -> tuple[Optional[float], str]:
     part's text the words are (a part is five minutes long), less a short
     lead-in. Never earlier than the part's own start."""
     segs = [s for s in _json_list(row.get("segments")) if isinstance(s, (list, tuple)) and len(s) == 2]
+    if not segs and float(row.get("duration_s") or 0) > 0 and str(row.get("transcript") or "").strip():
+        # A lesson transcribed before part timings were kept (they arrived with library
+        # v2, 2026-10-18) has the words and the length but no parts. Read it as ONE part
+        # spanning the whole video: the same proportional placement locate_moments uses
+        # when it has no parts. ⚰️ Without this, older lessons never got a "Watch from".
+        segs = [[0, str(row.get("transcript"))]]
     best, best_hits = None, 0
     for i, (start, text) in enumerate(segs):
         low = str(text or "").lower()
@@ -2159,6 +2214,14 @@ def best_moment(row: dict, pats: list) -> tuple[Optional[float], str]:
     said = start + (at / float(max(1, len(text)))) * max(0.0, end - start)
     lo = max(0, at - _SNIPPET_CHARS // 3)
     hi = min(len(text), lo + _SNIPPET_CHARS)
+    # Whole words only: "…ow of 318.20" (seen in Discord 2026-11-14) reads as a typo. Move
+    # each cut to the nearest space INSIDE the window, never past the matched words.
+    if lo > 0:
+        space = text.find(" ", lo, at)
+        lo = space + 1 if space != -1 else lo
+    if hi < len(text):
+        space = text.rfind(" ", at, hi)
+        hi = space if space != -1 else hi
     quote = text[lo:hi].strip()
     if lo > 0:
         quote = "…" + quote.lstrip(" ,.;:")
@@ -2214,7 +2277,10 @@ def search_lessons(query: str, limit: int = _SEARCH_MAX) -> list[dict]:
             "SELECT attachment_id, title, recap, takeaway, question, tickers, tags, transcript, "
             "segments, duration_s, section, level, posted_at, post_channel_id, discord_post_id, "
             "forum_post_id, youtube_id FROM tsdr_lessons WHERE status = 'posted' "
-            "AND discord_post_id IS NOT NULL AND post_channel_id IS NOT NULL").fetchall()]
+            "AND discord_post_id IS NOT NULL AND post_channel_id IS NOT NULL "
+            # run_regroup leaves a lesson whose old post was deleted by hand `posted`,
+            # with this section: its link opens nothing, so it is never an answer.
+            "AND (section IS NULL OR section != 'removed')").fetchall()]
     # A word that is a ticker somewhere in the library, or was typed as one (in
     # capitals or with a $), is matched exactly: "hims" must never find "him".
     library = {str(t).lower().lstrip("$") for r in rows for t in _json_list(r.get("tickers"))}
@@ -2258,6 +2324,35 @@ def format_search_reply(query: str, hits: list[dict]) -> str:
     return "\n".join(lines)[:1900]
 
 
+def search_card(query: str, hits: list[dict]) -> dict:
+    """The /lesson reply as a card in the bot's one style (api/services/discord_cards.py),
+    the same frame as /news and /buzz: one entry per lesson, its title linking to the
+    recap, then the moment in the video that says it.
+
+    An embed shows no link previews, so the links need no <> wrapping here."""
+    from api.services import discord_cards
+    q = re.sub(r"\s+", " ", str(query or "")).strip()[:80]
+    title = f"Lessons on “{q}”"
+    if not hits:
+        return discord_cards.card("lessons", title=title, description=(
+            "Nothing in the lesson library says anything about that yet. "
+            "Try fewer or different words, or a ticker like `NVDA`."),
+            footer=["0 lessons", "TSDR & Bracco video lessons"])
+    blocks = []
+    for i, h in enumerate(hits, 1):
+        name = h["title"][:90]
+        head = f"**{i}. [{name}]({h['url']})**" if h.get("url") else f"**{i}. {name}**"
+        meta = " · ".join(x for x in (h.get("level", "").capitalize(), h.get("section"), h.get("day")) if x)
+        lines = [head] + ([meta] if meta else [])
+        if h.get("quote"):
+            where = (f"[▶ Watch from {h['at']}]({h['watch']})" if h.get("watch")
+                     else (f"At {h['at']}" if h.get("at") else ""))
+            lines.append(f"{where} — “{h['quote']}”" if where else f"“{h['quote']}”")
+        blocks.append("\n".join(lines))
+    return discord_cards.card("lessons", title=title, description="\n\n".join(blocks),
+                              footer=[discord_cards.plural(len(hits), "lesson"), "TSDR & Bracco video lessons"])
+
+
 def related_lessons(lesson: dict, limit: int = RELATED_MAX) -> list[dict]:
     """Up to `limit` other posted lessons, closest first: 3 points per shared
     ticker, 2 per shared tag, 1 for the same section; newer wins a tie. Clips
@@ -2275,7 +2370,7 @@ def related_lessons(lesson: dict, limit: int = RELATED_MAX) -> list[dict]:
             "SELECT attachment_id, title, tickers, tags, section, forum_post_id, posted_at, "
             "discord_post_id, post_channel_id FROM tsdr_lessons WHERE status = 'posted' "
             f"AND discord_post_id IS NOT NULL {scope}"
-            "AND attachment_id != ? AND (section IS NULL OR section != 'clips')",
+            "AND attachment_id != ? AND (section IS NULL OR section NOT IN ('clips', 'removed'))",
             (str(lesson.get("attachment_id") or ""),)).fetchall()
         rows = [dict(r) for r in rows]
     scored = []
@@ -2711,9 +2806,18 @@ def refresh_thread_index(*, force: bool = False) -> dict:
 
 # ── the scheduled entry point ────────────────────────────────────────────────
 
+_said_off = False
+
+
 def tick() -> dict:
     """Scan, lessons, regroup, then YouTube. Never raises; never overlaps itself."""
+    global _said_off
     if not is_enabled():
+        if not _said_off:
+            # Once per process. The scheduler logs "scheduled" whatever this flag says,
+            # and a switched-off pipeline otherwise leaves no line at all.
+            log.info("[tsdr-lessons] off: TSDR_LESSONS_ENABLED is not 1, nothing will be scanned or posted")
+            _said_off = True
         return {"ran": False, "reason": "TSDR_LESSONS_ENABLED is not 1"}
     if not _TICK_LOCK.acquire(blocking=False):
         return {"ran": False, "reason": "previous tick still running"}
@@ -2743,6 +2847,12 @@ def tick() -> dict:
                 out["reopened"] = reopened
         except Exception as e:  # noqa: BLE001
             log.warning("[tsdr-lessons] could not reopen skipped clips: %s", e)
+        try:
+            retrying = reopen_failed()
+            if retrying:
+                out["retrying_failed"] = retrying
+        except Exception as e:  # noqa: BLE001
+            log.warning("[tsdr-lessons] could not reopen failed videos: %s", e)
         # The daily AI budget (api/services/llm_budget.py, /admin/ai-spend): once this
         # feature's block-mode budget is spent, the model-calling stages skip the
         # tick instead of failing calls and burning each video's MAX_ATTEMPTS.
@@ -2751,14 +2861,20 @@ def tick() -> dict:
             ai_ok = llm_budget.allows("api/services/tsdr_lessons.py")
         except Exception:  # noqa: BLE001 -- a metering fault never stops the job
             ai_ok = True
+        # ⛔ TWO deadlines. `ai_deadline` is for the stages that call the model
+        # (run_lessons, run_level_backfill, run_forum_migration); it is already past
+        # when the budget is spent. Everything else reads `deadline`. ⚰️ There was
+        # one, and expiring it for the budget also stopped the regroup, the
+        # rewrite-request check, the video refill and the YouTube uploads.
+        ai_deadline = deadline
         if not ai_ok:
             out["lessons"] = {"skipped": "daily AI budget reached"}
             out["ai_budget"] = "reached"
-            deadline = time.time()  # the remaining model-calling stages see an expired deadline
+            ai_deadline = time.time()
         try:
             if ai_ok:
                 out["lessons"] = run_lessons(limit=_int_env("TSDR_LESSONS_PER_TICK", 3),
-                                             deadline=deadline)
+                                             deadline=ai_deadline)
         except Exception as e:  # noqa: BLE001 — e.g. the channel could not be created
             log.warning("[tsdr-lessons] lesson stage failed: %s", e)
             out["lessons"] = {"error": str(e)[:200]}
@@ -2768,7 +2884,7 @@ def tick() -> dict:
                                 ("rewrites", run_rewrite_requests),
                                 ("related", run_related_refresh)):
                 try:
-                    result = stage(deadline=deadline)
+                    result = stage(deadline=ai_deadline if stage is run_level_backfill else deadline)
                     if any(result.values()):
                         out[name] = result
                 except Exception as e:  # noqa: BLE001
@@ -2784,7 +2900,7 @@ def tick() -> dict:
                                 ("rewrites", run_rewrite_requests),
                                 ("related", run_related_refresh)):
                 try:
-                    result = stage(deadline=deadline)
+                    result = stage(deadline=ai_deadline if stage is run_forum_migration else deadline)
                     if any(result.values()):
                         out[name] = result
                 except Exception as e:  # noqa: BLE001
@@ -2822,6 +2938,13 @@ def tick() -> dict:
             except Exception as e:  # noqa: BLE001
                 log.warning("[tsdr-lessons] YouTube stage failed: %s", e)
                 out["youtube"] = {"error": str(e)[:200]}
+        # The library by status, in the line this tick is logged as: `failed` is
+        # the number to watch (docs/runbooks/tsdr-lessons.md). Before this, seeing
+        # it meant opening the database on the pod.
+        try:
+            out["library"] = status_counts()
+        except Exception as e:  # noqa: BLE001
+            log.warning("[tsdr-lessons] could not count the library: %s", e)
         return out
     finally:
         _TICK_LOCK.release()

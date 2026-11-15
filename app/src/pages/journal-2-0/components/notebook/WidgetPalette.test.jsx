@@ -12,6 +12,7 @@ import { Editor } from '@tiptap/core'
 import WidgetPalette from './WidgetPalette'
 import { buildExtensions } from '../../lib/tiptap'
 import { latchNotebookFlags, __resetNotebookFlags } from '../../lib/offline/notebookFlags'
+import { featureCalls, telemetryBodies } from '../../lib/testing/telemetryFetch'
 // jsdom has no Range layout; an editor focus() scrolls the caret into view on the next frame.
 if (!Range.prototype.getClientRects) Range.prototype.getClientRects = () => []
 if (!Range.prototype.getBoundingClientRect) {
@@ -395,8 +396,12 @@ describe('WidgetPalette snapshot widgets (Task 8)', () => {
     fireEvent.click(screen.getByText('My watchlist today'))
     answer(ok({ listLabel: 'Watchlist', rows: [], truncated: 0 }))
     expect(await screen.findByText('My watchlist today inserted')).toBeInTheDocument()
-    expect(global.fetch).toHaveBeenCalledTimes(1)
+    expect(featureCalls(global.fetch)).toHaveLength(1)
     expect(embeds()).toHaveLength(1)
+    // Follow-up A fix round 1 (I4): the widget lands after its fetch and counts once, under the palette's door.
+    expect(telemetryBodies(global.fetch)).toEqual([
+      { event: 'block_inserted', props: { kind: 'myWatchlistToday', via: 'palette' } },
+    ])
   })
 
   it('a failed fetch inserts nothing and says nothing was inserted', async () => {

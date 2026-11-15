@@ -449,6 +449,9 @@ export default function DrillPlayer({
           {chartMounted && (
             <StockChart
               {...lookProps}
+              // A drill chart keeps no saved pan/zoom on the device. Said outright (after the
+              // spread) so the settings census can read it: persistenceManifest.test.js.
+              viewLockKey={null}
               sym={chartItemId}
               tf={chartTf}
               height={CHART_HEIGHT}

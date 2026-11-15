@@ -16,6 +16,7 @@ import { RELOAD_TO_RECOVER, heldModule, pageReload, useHeldModule } from '../../
 // Final fix residual R2: the Notebook's toolbar icon size (the token lint allows 16 and 20 only).
 import { TOOLBAR_ICON } from '../../lib/notebookIcons'
 import styles from './NoteFindBar.module.css'
+import slotStyles from './EditorToolSlots.module.css'
 
 // A property, so a rail can hold or fail a fetch (jsdom cannot fetch a chunk), like `sourceSheetLoaders`.
 export const editorToolLoaders = {
@@ -120,4 +121,60 @@ export function FindBarSlot({ editor, initialReplace = false, onClose }) {
 export function TableToolbarSlot({ editor }) {
   const { Component } = useHeldModule(tableToolbarModule)
   return Component ? <Component editor={editor} /> : null
+}
+
+// ── The Insert palette (WidgetPalette), held the same way (follow-up B fix round 1, item 5) ──────────────────────────
+// It was `lazyChunk` + <Suspense>: a member who pressed Insert and typed a ticker at once could write into the note
+// while the reveal was held back. Now: fetched once the editor is idle and when a pointer or focus reaches Insert;
+// with the chunk in hand the palette mounts in the press's own commit; before it lands a frame is drawn at once that
+// takes focus (so nothing typed reaches the note) and becomes the palette when it lands; a failed fetch says so, with a
+// Reload the member presses. Escape or Close in the frame close it and hand focus back to the door.
+export const widgetPaletteLoaders = { palette: () => import('./WidgetPalette') }
+export const widgetPaletteModule = heldModule(() => widgetPaletteLoaders.palette())
+export const warmWidgetPalette = () => { widgetPaletteModule.warm() }
+export const INSERT_UNAVAILABLE = 'Insert could not be loaded.'
+export const INSERT_LOADING = 'Loading Insert…'
+
+// The frame itself takes focus (kept small: it is on the editor's first open). Fix round 2: in a PASSIVE effect, and
+// again one frame later if something took it: on a phone the palette is opened from the "+" menu, a Sheet, whose
+// passive cleanup hands focus back to "+" after any layout effect of ours (the real palette focuses passively too).
+// It sits in the palette's own absolute slot (EditorToolSlots.module.css), so the chrome never grows. Close (the real
+// palette's own name) or Escape closes it and hands focus back to the door ("Insert", or "+" on a phone).
+function PaletteFrame({ failed, onClose, returnFocusTo }) {
+  const ref = useRef(null)
+  useEffect(() => {
+    const el = ref.current
+    el?.focus()
+    const t = requestAnimationFrame(() => { if (el && !el.contains(document.activeElement)) el.focus() })
+    return () => cancelAnimationFrame(t)
+  }, [])
+  const close = () => {
+    onClose?.()
+    returnFocusTo?.current?.focus?.()
+  }
+  const onKeyDown = (e) => {
+    if (e.key !== 'Escape') return
+    e.stopPropagation()
+    close()
+  }
+  return (
+    <div ref={ref} tabIndex={-1} className={slotStyles.paletteFrame} role="dialog" aria-label="Insert widget"
+      data-palette-stand-in="" onKeyDown={onKeyDown}>
+      <span className={slotStyles.paletteFrameText} role={failed ? 'alert' : 'status'}>
+        {failed ? `${INSERT_UNAVAILABLE} ${RELOAD_TO_RECOVER}` : INSERT_LOADING}
+      </span>
+      {failed && <button type="button" className={slotStyles.paletteFrameBtn} onClick={pageReload.run}>Reload</button>}
+      <button type="button" className={slotStyles.paletteFrameBtn} onClick={close} aria-label="Close insert panel">
+        <UIcon name="x" {...TOOLBAR_ICON} />
+      </button>
+    </div>
+  )
+}
+
+export function WidgetPaletteSlot(props) {
+  const { status, Component } = useHeldModule(widgetPaletteModule)
+  // The press asks too: the idle warm may not have run yet, or may have failed while offline.
+  useEffect(() => { widgetPaletteModule.warm() }, [])
+  if (Component) return <Component {...props} />
+  return <PaletteFrame failed={status === 'failed'} onClose={props.onClose} returnFocusTo={props.returnFocusTo} />
 }

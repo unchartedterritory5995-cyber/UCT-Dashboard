@@ -13,7 +13,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from api.services.uct_agent.marketdata import envelope as env                    # noqa: E402
-from api.services.uct_agent.marketdata import (breadth as br, earnings as ern,    # noqa: E402
+from api.services.uct_agent.marketdata import (bars_daily as bd, breadth as br, cot as ct, earnings as ern,    # noqa: E402
                                               news_company as nc, quotes as q, ratings as rt, rs_leadership as rl,
                                               statements as stm, themes as th)
 
@@ -214,6 +214,26 @@ add("b-stale", "What was MSFT's last daily close?",
       stale=True, data={**bars, "through": "2026-10-28"},
       notes=["the newest bar held is 2026-10-28; the newest completed session is 2026-10-30"]),
     category="historical-stale")
+# Phase 2 history: tf W / M — a forming week is partial, never a closed bar; a pre-2003 row is labelled yfinance
+wk = lambda **k: {"date": "2026-10-30", "first_session": "2026-10-26", "last_session": "2026-10-28", "sessions": 3,  # noqa: E731
+                  "open": 1, "high": 2, "low": 0.5, "close": 1.5, "volume": 30, "change_pct": 1.0, **k}
+add("b-week-forming", "How has AAPL done this week?",
+    E("bars.daily", status="ok", freshness="historical", as_of="2026-10-28T20:00:00Z", source="uct-bars",
+      params={"symbol": "AAPL", "tf": "W", "bars": 1},
+      data={"symbol": "AAPL", "timeframe": "W", "bars": [wk(partial=True, partial_reason="forming")],
+            "through": "2026-10-28", "latest_completed_session": "2026-10-28", "current_period_partial": True},
+      notes=[bd.NOTE_COMPLETED, bd.NOTE_RESAMPLED["W"], bd.NOTE_FORMING.format(unit="week", d="2026-10-30")]),
+    category="historical", disclose=["still forming", "partial"])
+add("b-month-pre-floor", "What are MSFT's monthly closes back to 2003, through the latest month?",
+    E("bars.daily", status="ok", freshness="historical", as_of="2003-12-31T21:00:00Z", source="uct-bars",
+      params={"symbol": "MSFT", "tf": "M", "from": "2003-01-01", "to": "2003-12-31"},
+      data={"symbol": "MSFT", "timeframe": "M", "bars": [wk(date="2003-08-01", first_session="2003-08-01",
+                                                           last_session="2003-08-29", sessions=21, partial=False,
+                                                           pre_vendor_floor=True)],
+            "through": "2003-12-31", "latest_completed_session": "2003-12-31", "current_period_partial": False,
+            "window_from": "2003-01-01"},
+      notes=[bd.NOTE_COMPLETED, bd.NOTE_RESAMPLED["M"], bd.NOTE_FROM.format(d="2003-01-01"), bd.NOTE_PRE_FLOOR]),
+    category="historical", disclose=["yfinance"])
 
 # ── fundamentals / earnings / news ────────────────────────────────────────────────────────────────────
 add("f-current", "What's AAPL's revenue now?",
@@ -267,6 +287,32 @@ add("t-closed", "What were the best themes this week?",
       coverage={"evaluated": 1, "answered": 1, "dropped": 0, "not_computable": 0}),
     category="periodic", disclose=["last completed session"])
 add("t-warming", "What themes are hot now?", U("themes", th.NOTE_WARMING), category="unavailable")
+
+# ── cot.positioning (Phase 2 COT research): the as_of is the Tuesday REPORT date; the Friday publish delay is disclosed ──
+cdata = lambda report, stale: {"series": [{"symbol": "GC", "name": "Gold", "first_date": "2016-11-01",  # noqa: E731
+                                           "report_date": report, "weeks": 2, "missing_weeks": 0, "stale": stale,
+                                           "rows": [{"date": report, "large_spec_net": 1, "commercial_net": -1,
+                                                     "small_spec_net": 0, "open_interest": 10}]}],
+                               "not_covered": [], "no_history": [], "covered": None, "report_date": report,
+                               "expected_report_date": "2026-10-27", "delay_days": 3}
+add("cot-current", "Where are large speculators positioned in gold this week?",
+    E("cot.positioning", status="ok", freshness="periodic", as_of="2026-10-27T00:00:00Z", source="cftc-cot",
+      data=cdata("2026-10-27", False), delay_s=ct.DELAY_S, notes=[ct.NOTE_WEEKLY, ct.NOTE_DELAY],
+      coverage={"requested": 1, "answered": 1}),
+    category="periodic", disclose=["tuesday report date", "following friday", "weekly"])
+add("cot-stale", "What is the latest COT positioning in gold?",
+    E("cot.positioning", status="ok", freshness="periodic", as_of="2026-10-20T00:00:00Z", source="cftc-cot",
+      stale=True, data=cdata("2026-10-20", True), delay_s=ct.DELAY_S,
+      notes=[ct.NOTE_WEEKLY, ct.NOTE_DELAY, ct.NOTE_STALE.format(got="2026-10-20", want="2026-10-27")],
+      coverage={"requested": 1, "answered": 1}),
+    category="periodic-stale", disclose=["not the latest week"])
+add("cot-not-covered", "How are traders positioned in lithium right now?",
+    E("cot.positioning", status="partial", freshness="periodic", as_of=None, source="cftc-cot",
+      data={"series": [], "not_covered": ["lithium"], "no_history": [], "covered": [{"symbol": "GC", "name": "Gold",
+            "group": "Metals"}], "expected_report_date": "2026-10-27", "delay_days": 3}, delay_s=ct.DELAY_S,
+      notes=[ct.NOTE_WEEKLY, ct.NOTE_DELAY, ct.NOTE_NOT_COVERED.format(words="lithium"),
+             "no market in this request has stored COT data"], coverage={"requested": 1, "answered": 0}),
+    category="partial", disclose=["not covered", "lithium"])
 
 # ── breadth / ratings (model-isolated: answer only) ───────────────────────────────────────────────────
 bdata = lambda **k: {"universe": "us", "metric": "pct_above_50sma", "value": 61.4, "status": "intraday",  # noqa: E731

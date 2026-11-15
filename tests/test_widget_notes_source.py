@@ -181,7 +181,7 @@ def test_split_by_folder_kind_tag_ticker_with_none_labels(conn):
     add_n(conn, UID, folder="", kind=None, tags=[], ticker="", created_kind="thesis")
     by = lambda key: groups(scan_eval(conn, raw(split={"by": key}, view={"type": "bar"}))[2])  # noqa: E731
     assert by("folder") == {"Ideas": 2.0, "No folder": 1.0}
-    assert by("kind") == {"Setup": 1.0, "Thesis": 1.0, "No kind": 1.0}
+    assert by("kind") == {"Setup": 1.0, "Thesis": 1.0, "No note type": 1.0}
     assert by("tag") == {"earnings": 2.0, "swing": 1.0, "No tags": 1.0}
     assert by("ticker") == {"NVDA": 2.0, "No ticker": 1.0}
     # a filter on each narrows (SQL and its Python twin agree)
@@ -441,7 +441,7 @@ def test_notes_source_fields_and_measures():
     assert (f["updated"].label, f["updated"].hour_key) == ("Updated", "updated_hour")
     assert (f["folder"].label_from, f["folder"].none_label) == ("folder_name", "No folder")
     assert (f["kind"].label, f["kind"].label_from, f["kind"].none_label) == (
-        "Note kind", "kind_name", "No kind")
+        "Note type", "kind_name", "No note type")
     assert (f["tag"].type, f["tag"].none_label) == ("tag", "No tags")
     assert (f["ticker"].type, f["ticker"].ci, f["ticker"].none_label) == ("text", True, "No ticker")
     assert f["property"].split is False and f["property"].filterable is True
@@ -463,7 +463,7 @@ def test_a_folder_or_kind_that_is_not_the_members_reads_as_none(conn):
     their_folder = add_folder(conn, OTHER, "B-FOLDER-CANARY")
     their_kind = add_kind(conn, OTHER, "B-KIND-CANARY")
     add_n(conn, UID, folder=their_folder, kind=their_kind)
-    for key, none in (("folder", "No folder"), ("kind", "No kind")):
+    for key, none in (("folder", "No folder"), ("kind", "No note type")):
         res = scan_eval(conn, raw(split={"by": key}, view={"type": "bar"}))[2]
         assert groups(res) == {none: 1.0}, key
         assert scan_eval(conn, raw(filters=[{"field": key, "op": "in",

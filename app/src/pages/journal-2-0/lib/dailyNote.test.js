@@ -70,3 +70,30 @@ describe('the queued Notebook notice is fresh and for the right note', () => {
     expect(NOTICE_MAX_AGE_MS).toBeLessThanOrEqual(30_000)
   })
 })
+
+// Follow-up A (fix round 1, I3): a door named by its caller counts once as today_door_used, after the server answered.
+describe('openDailyNote: today_door_used', () => {
+  const telemetry = (spy) => spy.mock.calls.filter(([u]) => u === '/api/j2/telemetry').map(([, i]) => JSON.parse(i.body))
+
+  it("the Journal Today page's door sends one {journal_panel, created} and nothing about the note", async () => {
+    const spy = vi.fn(async (url) => (url === '/api/j2/notes/daily'
+      ? { ok: true, json: async () => ({ note: { id: 'n7', title: 'NVDA day' }, created: true }) }
+      : { ok: true }))
+    vi.stubGlobal('fetch', spy)
+    await openDailyNote({ door: 'journal_panel' })
+    expect(telemetry(spy)).toEqual([{ event: 'today_door_used', props: { door: 'journal_panel', created: true } }])
+    expect(JSON.stringify(telemetry(spy))).not.toContain('NVDA')
+    vi.unstubAllGlobals()
+  })
+
+  it('CONTROL: a caller with no door (the first run) sends nothing, and a failed request sends nothing', async () => {
+    const spy = vi.fn(async (url) => (url === '/api/j2/notes/daily'
+      ? { ok: true, json: async () => ({ note: { id: 'n7' }, created: false }) } : { ok: true }))
+    vi.stubGlobal('fetch', spy)
+    await openDailyNote({})
+    spy.mockImplementation(async () => ({ ok: false, status: 500 }))
+    await openDailyNote({ door: 'shortcut' }).catch(() => {})
+    expect(telemetry(spy)).toEqual([])
+    vi.unstubAllGlobals()
+  })
+})

@@ -18,6 +18,7 @@
 
 import { registerCapability, registerTargetKind, registerContextProvider } from '../capabilities'
 import { loadSaved, savedScreensNow, lastScreenNow, screenerExpressible } from './screener'
+import { offeredStarters } from '../../pages/screener/focus/screenGroups'
 
 const ROUTE = '/api/screener/saved-screens'
 const MAX_NAME = 80
@@ -38,7 +39,8 @@ function snap() {
   return {
     ref: 'screens', label: 'Saved screens', loaded: !!lib,
     mine: (lib?.saved || []).map(s => ({ id: String(s.id), name: s.name, spec: s.spec })),
-    starters: (lib?.starters || []).map(s => ({ id: String(s.id), name: s.name, spec: s.spec })),
+    // a hidden starter stays findable by id (findAny); the count the model is told is the offered ones
+    starters: (lib?.starters || []).map(s => ({ id: String(s.id), name: s.name, spec: s.spec, ...(s.hidden ? { hidden: true } : {}) })),
     last: lastScreenNow()?.spec || null,
   }
 }
@@ -142,7 +144,7 @@ export function registerSavedScreenCapabilities() {
       const s = snap()
       return [{
         ref: refFor('savedScreens', 'screens'), label: 'Saved screens (save, rename, copy, delete here)',
-        ...(s.loaded ? { yours: s.mine.slice(0, 40).map(x => ({ id: x.id, name: x.name })), starters: s.starters.length } : { status: 'loading' }),
+        ...(s.loaded ? { yours: s.mine.slice(0, 40).map(x => ({ id: x.id, name: x.name })), starters: offeredStarters(s.starters).length } : { status: 'loading' }),
         lastScreenHere: s.last ? `${(s.last.filters || []).length} filter${(s.last.filters || []).length === 1 ? '' : 's'}` : null,
       }]
     },

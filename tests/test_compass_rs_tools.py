@@ -308,7 +308,8 @@ def test_chat_reaches_the_voice_implementation(gate_on, served):
 def test_the_ledger_declares_the_gate_dark_on_web():
     flags = json.loads((ROOT / "docs" / "feature_flags.json").read_text(encoding="utf-8"))["flags"]
     e = flags[GATE]
-    assert e["status"] == "dark" and e["where"] == ["web"] and "report card" in e["note"].lower()
+    # read live as 1 on web, 2026-11-14 (the ledger had kept the merge-time dark)
+    assert e["status"] == "armed" and e["where"] == ["web"] and "report card" in e["note"].lower()
 
 
 # ── the golden set ──────────────────────────────────────────────────────────

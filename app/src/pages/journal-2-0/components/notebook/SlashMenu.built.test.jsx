@@ -19,6 +19,7 @@ import { FAILURE_COPY } from '../../lib/builtWidgets'
 import { writeDraft, DRAFT_TTL_MS, RESUME_OFFER } from './widgetBuilder/builderDraft'
 import { openWidgetBuilder } from './widgetBuilder/openWidgetBuilder.js'
 import { openMyTools } from './myTools/openMyTools.js'
+import { withInsertDoor } from '../../lib/notebookUsage'
 
 if (!Range.prototype.getClientRects) Range.prototype.getClientRects = () => []
 if (!Range.prototype.getBoundingClientRect) {
@@ -291,13 +292,14 @@ describe('the Mine group (wave 8 on)', () => {
     const build = menuItems('build', ed)
     expect(build[0]).toMatchObject({ title: 'Build a widget', cmd: 'build' })
     await build[0].command({ editor: ed, range: { from: 1, to: 7 } })
-    expect(openWidgetBuilder).toHaveBeenLastCalledWith({ editor: ed, start: 'examples' })
+    // Follow-up A fix round 1 (I4): the builder is handed the insert door the press ran in (none here).
+    expect(openWidgetBuilder).toHaveBeenLastCalledWith({ editor: ed, start: 'examples', via: null })
     // /widgets: the examples gallery.
     const gallery = menuItems('widgets', ed)
     expect(gallery[0]).toMatchObject({ cmd: 'widgets' })
-    await gallery[0].command({ editor: ed, range: { from: 1, to: 9 } })
+    await withInsertDoor('slash', () => gallery[0].command({ editor: ed, range: { from: 1, to: 9 } }))
     expect(openWidgetBuilder).toHaveBeenCalledTimes(2)
-    expect(openWidgetBuilder).toHaveBeenLastCalledWith({ editor: ed, start: 'examples' })
+    expect(openWidgetBuilder).toHaveBeenLastCalledWith({ editor: ed, start: 'examples', via: 'slash' })
     // "Manage my tools" opens My tools on its Widgets tab.
     const tools = menuItems('tools', ed)
     expect(tools[0]).toMatchObject({ title: 'Manage my tools', cmd: 'tools' })
