@@ -20,7 +20,7 @@ import { spawnSync } from 'node:child_process'
 import { SCHEMA_ID, BAR_FIELDS, sealCapture, sha256Hex, validateCapture } from '../../../../../../../tools/vendor_harness/schema.mjs'
 import {
   PROPERTY_TABLE, REQUIRED_PROPERTY_KEYS, REPORT_SLOTS, isStrategyCapture, settingsAgreement, declaredStrategyArgs,
-  guardsIn, extractReportFields, readReport, propertiesByKey, chartDataOf,
+  guardsIn, extractReportFields, readReport, propertiesByKey, chartDataOf, pineVersionOf, requiredPropertyKeys,
 } from '../../../../../../../tools/vendor_harness/strategy_capture.mjs'
 import { REPO, VENDOR_DIR } from './harness'
 
@@ -145,7 +145,11 @@ describe('W9-T3a · 1 · a v3 strategy capture is held to its settings (SYNTHETI
 })
 
 describe('W9-T3a · 2 · existing captures verify unchanged', () => {
-  it('every committed StrategyScript fixture (tool v2) still validates, and is not held to provenance', () => {
+  // ⚰️ This asserted every committed StrategyScript fixture is tool v2. Session S11 (#1321, 2026-11-15)
+  // committed the first live v3 strategy capture (trailing-take-profit-trailing-stop-loss-rddt-1d),
+  // which turned it red on master. A v3 fixture is held to provenance and must validate under it; the
+  // v2 set (2026-10-02/03) must still validate WITHOUT it. Both halves are asserted below.
+  it('every committed StrategyScript fixture validates: tool v2 without provenance, tool v3 with it', () => {
     const dir = VENDOR_DIR || path.join(REPO, 'tests/fixtures/vendor')
     const files = []
     const walk = (d) => {
@@ -155,16 +159,18 @@ describe('W9-T3a · 2 · existing captures verify unchanged', () => {
       }
     }
     walk(dir)
-    let strategies = 0
+    let v2 = 0
     for (const f of files) {
       let c
       try { c = JSON.parse(fs.readFileSync(f, 'utf8')) } catch { continue }
       if (!c || c.schema !== SCHEMA_ID || !isStrategyCapture(c)) continue
-      strategies += 1
-      expect(c.tool && c.tool.version, f).toBe(2)
+      const v = c.tool && c.tool.version
+      expect([2, 3], f).toContain(v)
+      if (v === 2) { v2 += 1; expect(c.provenance, f).toBeUndefined() }
+      else expect(c.provenance && c.provenance.strategySettings, f).toBeTruthy()
       expect(validateCapture(c), f).toEqual({ ok: true, errors: [] })
     }
-    expect(strategies).toBeGreaterThanOrEqual(10)
+    expect(v2).toBeGreaterThanOrEqual(10)
   })
 
   it('the same real fixture as a v3 capture with no provenance is REFUSED (the gate can fail)', () => {
@@ -181,6 +187,62 @@ describe('W9-T3a · 2 · existing captures verify unchanged', () => {
     const visible = c.study.inputs.filter((i) => !i.isHidden && i.id !== '__profile')
     const { missing } = propertiesByKey({ properties: visible })
     expect(missing).toEqual([])
+  })
+})
+
+// ── S12: the Properties table is VERSION-AWARE (measured 2026-11-15, session S11) ──
+// A //@version=5 strategy() reads `risk_free_rate` back under its raw parameter name and has NO
+// "Calculate Strategy on every History Tick" input; a //@version=6 one reads both back by name.
+// Each rail below pairs the relaxed case with the SAME capture at the other version, so a table
+// that stopped requiring the key everywhere (or still required it everywhere) goes red.
+describe('W9-T3a · 2b · the required Properties inputs depend on the source\'s //@version', () => {
+  const SRC_V5 = SRC.replace('//@version=6', '//@version=5')
+  const SRC_NONE = SRC.replace('//@version=6\n', '')
+  const HISTORY_TICK = 'Calculate Strategy on every History Tick'
+  const withProps = (source, properties) => strategyCapture({
+    source,
+    provenance: { strategySettings: { properties, chartData: { adjustments: [] } }, gradeMethod: 'a' },
+  })
+
+  it('pineVersionOf reads the annotation, and null when there is none', () => {
+    expect(pineVersionOf(SRC)).toBe(6)
+    expect(pineVersionOf(SRC_V5)).toBe(5)
+    expect(pineVersionOf('  // @version = 4\nindicator("x")')).toBe(4)
+    expect(pineVersionOf(SRC_NONE)).toBe(null)
+    expect(pineVersionOf('indicator("//@version=5")')).toBe(null)
+  })
+
+  it('a v5 read-back with no History Tick input validates; the SAME read-back under //@version=6 fails and names it', () => {
+    const noTick = props().filter((p) => p.name !== HISTORY_TICK)
+    expect(validateCapture(withProps(SRC_V5, noTick))).toEqual({ ok: true, errors: [] })
+    expect(errs(withProps(SRC, noTick))).toMatch(/lacks 1 required input\(s\): calc_on_every_history_tick/)
+  })
+
+  it('⛔ a source with no //@version is held to every key (a missing annotation can only make the gate stricter)', () => {
+    const noTick = props().filter((p) => p.name !== HISTORY_TICK)
+    expect(errs(withProps(SRC_NONE, noTick))).toMatch(/lacks 1 required input\(s\): calc_on_every_history_tick/)
+    expect(requiredPropertyKeys(null)).toEqual(REQUIRED_PROPERTY_KEYS)
+    expect(requiredPropertyKeys(5)).not.toContain('calc_on_every_history_tick')
+    expect(requiredPropertyKeys(6)).toContain('calc_on_every_history_tick')
+  })
+
+  it('a v5 read-back naming the risk-free rate `risk_free_rate` is found under its key; with neither name it is still required', () => {
+    const v5 = props().filter((p) => p.name !== HISTORY_TICK).map((p) => (p.name === 'Risk free rate' ? { ...p, name: 'risk_free_rate' } : p))
+    expect(validateCapture(withProps(SRC_V5, v5))).toEqual({ ok: true, errors: [] })
+    expect(propertiesByKey({ properties: v5 }, 5).found.risk_free_rate.value).toBe(2)
+    const none = v5.filter((p) => p.name !== 'risk_free_rate')
+    expect(errs(withProps(SRC_V5, none))).toMatch(/lacks 1 required input\(s\): risk_free_rate/)
+  })
+
+  it('the v5 settings agreement still compares a declared literal read back under the alias (it is a read, not a skip)', () => {
+    const src = SRC_V5.replace('commission_value = 0.1)', 'commission_value = 0.1, risk_free_rate = 2)')
+    const v5 = props().filter((p) => p.name !== HISTORY_TICK).map((p) => (p.name === 'Risk free rate' ? { ...p, name: 'risk_free_rate' } : p))
+    const agree = settingsAgreement(withProps(src, v5))
+    expect(agree.verdict).toBe('AGREE')
+    const off = v5.map((p) => (p.name === 'risk_free_rate' ? { ...p, value: 5 } : p))
+    const a = settingsAgreement(withProps(src, off))
+    expect(a.verdict).toBe('INCONCLUSIVE')
+    expect(a.disagreements.map((d) => d.key)).toContain('risk_free_rate')
   })
 })
 
