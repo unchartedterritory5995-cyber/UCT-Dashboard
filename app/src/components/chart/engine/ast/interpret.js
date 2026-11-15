@@ -2621,6 +2621,9 @@ export function stochPineScan(h, l, c, n, offListing = false) {
   let prev = NaN
   let prevFlag = 0
   let prevEdge = 0
+  // the kept value's provenance: was it computed with the source AT the window's high or low
+  // (a 100 or a 0 by construction, whatever its last bit, review N2)
+  let prevAtExtreme = false
   for (let i = 0; i < len; i++) {
     if (Number.isFinite(h[i])) { hs.push(h[i]); if (hs.length > n) hs.shift() }
     if (Number.isFinite(l[i])) { ls.push(l[i]); if (ls.length > n) ls.shift() }
@@ -2628,13 +2631,15 @@ export function stochPineScan(h, l, c, n, offListing = false) {
     let v = NaN
     let flat = false
     let onLevel = false
+    let atExtreme = false
     if (hs.length && ls.length && Number.isFinite(c[i])) {
       const hi = Math.max(...hs)
       const lo = Math.min(...ls)
       if (hi - lo === 0) { flat = true; onLevel = c[i] === lo }
-      else v = (100 * (c[i] - lo)) / (hi - lo)
+      else { v = (100 * (c[i] - lo)) / (hi - lo); atExtreme = c[i] === hi || c[i] === lo }
     }
     if (Number.isFinite(v)) {
+      prevAtExtreme = atExtreme
       prevFlag = 0
       // ⛔ off the listing a window of fewer than `n` finite values reaches before the loaded
       // bars, where TradingView holds values this chart does not
@@ -2642,7 +2647,7 @@ export function stochPineScan(h, l, c, n, offListing = false) {
     } else {
       // ⛔ A HELD value carries its flags: a hold of an unpinned value is unpinned too, and
       // off the listing a hold of nothing (or of an edge value) is a value from before the bars
-      prevFlag = (flat && Number.isFinite(prev) && !stochFlatPinned(prev, onLevel))
+      prevFlag = (flat && Number.isFinite(prev) && !stochFlatPinned(prevAtExtreme, onLevel))
         || (prevFlag === 1 && Number.isFinite(prev)) ? 1 : 0
       prevEdge = offListing && (!Number.isFinite(prev) || prevEdge === 1) ? 1 : 0
       v = prev
@@ -2659,9 +2664,13 @@ export function stochPineScan(h, l, c, n, offListing = false) {
  *  window's one level, and a kept value of 0 (probe P2's flat run after a 0) or 100 (S10's
  *  `vw-cs2-stoch-flat-window`, three lead-ins into one flat run, all after a 100). One rule fits
  *  every witness, "keep the previous value"; a flat window after any other value, or with the
- *  source off the level, is a case no capture has reached. Shared by the scan and the kernel. */
-export function stochFlatPinned(prev, onLevel) {
-  return onLevel && (prev === 0 || prev === 100)
+ *  source off the level, is a case no capture has reached. Shared by the scan and the kernel.
+ *  ⛔ PINNED BY PROVENANCE, NOT BY THE NUMBER (review N2): `atExtreme` says the kept value was
+ *  computed with the source exactly at the window's high or low. `(100 · (hi − lo)) / (hi − lo)`
+ *  is not always the double 100 (99.99999999999999 and 100.00000000000001 both occur), so a test
+ *  of `prev === 100` withheld a real 100 about one time in twenty. */
+export function stochFlatPinned(atExtreme, onLevel) {
+  return onLevel === true && atExtreme === true
 }
 
 /** `ta.stoch` as a column (`stochPineScan`). */
@@ -2964,7 +2973,7 @@ const crossStep = (fired) => (st, off, a, b) => {
  *  ⛔ Off the listing this kernel's first bars depend on where the run starts; the runtime lane's own
  *  off-listing curtain (`runtimeColumns.js::computeOffListing`, measured per run) withholds them,
  *  as it does for every carried value — the columnar lane names them `stoch:left-edge`. */
-const STOCH_PINE_CELLS = (n) => 2 * n + 6
+const STOCH_PINE_CELLS = (n) => 2 * n + 7
 function stochPineInit(st, off, n) {
   for (let i = 0; i < 2 * n; i += 1) st[off + i] = NaN
   const at = off + 2 * n
@@ -2974,6 +2983,7 @@ function stochPineInit(st, off, n) {
   st[at + 3] = 0      // lows held
   st[at + 4] = 0      // bars seen
   st[at + 5] = NaN    // the previous answer
+  st[at + 6] = 0      // 1 when that answer was computed with the source at the window's high or low
 }
 function stochPineStep(st, off, c, h, n, l) {
   const at = off + 2 * n
@@ -2993,6 +3003,7 @@ function stochPineStep(st, off, c, h, n, l) {
   let v = NaN
   let flat = false
   let onLevel = false
+  let atExtreme = false
   const heldH = st[at + 1]
   const heldL = st[at + 3]
   if (heldH > 0 && heldL > 0 && Number.isFinite(c)) {
@@ -3003,10 +3014,11 @@ function stochPineStep(st, off, c, h, n, l) {
     for (let j = 0; j < heldL; j += 1) if (st[off + n + j] < lowestLow) lowestLow = st[off + n + j]
     const range = highestHigh - lowestLow
     if (range === 0) { flat = true; onLevel = c === lowestLow }
-    else v = (100 * (c - lowestLow)) / range
+    else { v = (100 * (c - lowestLow)) / range; atExtreme = c === highestHigh || c === lowestLow }
   }
-  if (!Number.isFinite(v)) {
-    if (flat && Number.isFinite(prev) && !stochFlatPinned(prev, onLevel)) throw stochFlatWindowStop(n)
+  if (Number.isFinite(v)) st[at + 6] = atExtreme ? 1 : 0
+  else {
+    if (flat && Number.isFinite(prev) && !stochFlatPinned(st[at + 6] === 1, onLevel)) throw stochFlatWindowStop(n)
     v = prev
   }
   st[at + 5] = v
@@ -5512,15 +5524,19 @@ export const CHART_CLOCK_WITHHELD = Object.freeze({
     + 'chart\'s loaded bars start later, so where fewer than `length` such values exist here — the first bars of a '
     + 'source that is warming up on this chart, such as `ta.stoch(rsi, rsi, rsi, 14)` — TradingView also reads '
     + 'values from before the loaded bars, which this chart does not hold. What this indicator draws from it on '
-    + 'those bars is withheld rather than drawn from a shorter window; every later bar is drawn. On a chart whose '
-    + 'bars start at the symbol\'s listing it draws. What would settle it: nothing to capture — bars reaching the '
+    + 'those bars is withheld rather than drawn from a shorter window, and so is each bar that reads them within '
+    + 'the indicator\'s own lookback; later bars are drawn (a smoother that carries its value forward, such as '
+    + '`ta.ema`, starts on this chart there, as it does over any source). On a chart whose bars start at the '
+    + 'symbol\'s listing it draws. What would settle it: nothing to capture — bars reaching the '
     + 'listing.',
   [RCI_LEFT_EDGE]: () => 'TradingView\'s `ta.rci` ranks an `na` of its source inside the window as the lowest '
     + 'value; that is measured from the symbol\'s listing. This chart\'s loaded bars start later, so where the '
     + 'window reaches the first bars of a source that is warming up on this chart, such as '
     + '`ta.rci(ta.sma(close, 5), 10)`, TradingView has values there and this chart has `na`. What this indicator '
-    + 'draws from it on those bars is withheld rather than ranked differently; every later bar is drawn. On a '
-    + 'chart whose bars start at the symbol\'s listing it draws. What would settle it: nothing to capture — bars '
+    + 'draws from it on those bars is withheld rather than ranked differently, and so is each bar that reads them '
+    + 'within the indicator\'s own lookback; later bars are drawn (a smoother that carries its value forward, '
+    + 'such as `ta.ema`, starts on this chart there, as it does over any source). On a chart whose bars start '
+    + 'at the symbol\'s listing it draws. What would settle it: nothing to capture — bars '
     + 'reaching the listing.',
 })
 export const CHART_CLOCK_WHOLE = Object.freeze(['time-anchor:other-bars', 'time-clock:unreadable',
@@ -6419,9 +6435,10 @@ const WITNESS_CARRIED_CALLS = new Set(['ema', 'rma', 'rsi', 'atr', 'atrPine', 'a
  *      `rci:left-edge` (`rciLeftEdge`), a window reaching before the source's first finite value —
  *      the two rules measured from the listing would answer a different window there.
  *  Every root bar within the tree's reach of a flagged bar is withheld — `barIndexMask`'s rule:
- *  `maxLookback(tree) − maxLookback(site)` bars forward, or every later bar when the site sits
- *  under a call that carries state (review F4: a flagged bar under `ema` withholds the rest of the
- *  series; the probe of a flat run after a non-zero value is queued to settle it).
+ *  `maxLookback(tree) − maxLookback(site)` bars forward. A FLAT-WINDOW flag under a call that
+ *  carries state withholds every later bar (review F4: one unpinned value under `ema` moves the
+ *  rest of the series). A LEFT-EDGE flag never does (review N1): past the reach, a carried
+ *  smoother is where it is over any source that starts on this chart, and is served the same.
  *  A site inside a read of other bars (`tf`, `tf_live`, `sym`, `ltf`) is not walked here: those
  *  nodes evaluate their child through `interpret` on their own bars, so this mask runs THERE, on the
  *  bars the site reads, and names its code in the same channel (review F5). A site that reads a
@@ -6472,11 +6489,22 @@ export function builtinWitnessMask(tree, bars, inputs, budget, scalars, opts) {
       codeAt = (i) => (flags[i] === 1 ? STOCH_FLAT_WINDOW : edge[i] === 1 ? STOCH_LEFT_EDGE : null)
     }
     const reach = Math.max(0, rootReach - maxLookback(node))
-    let last = -Infinity
+    // ⛔ ONLY A FLAT-WINDOW FLAG IS CARRIED FOREVER BY A SMOOTHER THAT CARRIES STATE (review F4).
+    // A LEFT-EDGE flag reaches what the tree's own lookback reaches and no further (review N1):
+    // past it, a smoother such as `ta.ema` is in the same place as over any source that starts on
+    // this chart (its own seed is this chart's, and this engine serves that decay everywhere).
+    // ⚰️ It used to take the flat-window reach, so `ta.ema(ta.stoch(rsi, rsi, rsi, 14), 3)` off
+    // the listing drew 0 of 566 bars, and the runtime lane drew 0 under no name.
+    let lastFlat = -Infinity
+    let lastEdge = -Infinity
     for (let i = 0; i < n; i++) {
       const code = codeAt(i)
-      if (code) { codes.add(code); last = unbounded && last !== -Infinity ? last : i }
-      if (last !== -Infinity && (unbounded || i - last <= reach)) { mask[i] = 1; any = true }
+      if (code) codes.add(code)
+      if (code === STOCH_FLAT_WINDOW) lastFlat = unbounded && lastFlat !== -Infinity ? lastFlat : i
+      else if (code) lastEdge = i
+      const flatHeld = lastFlat !== -Infinity && (unbounded || i - lastFlat <= reach)
+      const edgeHeld = lastEdge !== -Infinity && i - lastEdge <= reach
+      if (flatHeld || edgeHeld) { mask[i] = 1; any = true }
     }
   }
   if (!any) return null

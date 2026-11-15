@@ -65,6 +65,12 @@ over 666 bars: Stoch RSI K and D, S6; P2's `ta.stoch(x, x, x, 10)`, `ta.stoch(x,
   bar before a flat window always reads 0 or 100, so this case needs a source other than the high / low
   columns. Until S10 every flat window after a non-zero value was withheld, which withheld S10's six
   bars 209..214 (100 each, exactly TradingView's) and the hold at 215.
+  Pinned by PROVENANCE (review N2): a kept value is a 0 or a 100 when it was computed with the source exactly
+  at the window's low or high, whatever its last bit. `(100 * (hi - lo)) / (hi - lo)` is not always the double
+  100 (99.99999999999999 and 100.00000000000001 both occur, about 1 time in 20), so the first test, `prev ===
+  100`, withheld real 100s. The scan, the kernel (one more state cell) and Python carry the provenance through
+  every hold. Railed with a (lo, hi) pair whose 100 is not the double 100 (served), and with a 40 kept through two
+  `na` sources into a flat window on its level (withheld).
 - Runtime kernel `CARRIED2.stochPine` steps the same rule (rings of finite values, bars seen, the kept
   answer) and stops by name on the withheld case.
 - ⚠️ P2's fourth column, `ta.highest(x, 10)` over the same holed source, reads the same "last n finite values"
@@ -97,9 +103,18 @@ own argument columns:
   TradingView has real values. The reviewer measured, through the member door, `ta.rci(ta.sma(close, 5), 10)`
   serving 97.55 / 98.48 against 98.79 and `ta.stoch(s, s, s, 14)` wrong on bars 13..16. Both are now withheld
   by name, and every later bar equals the listing's answer (railed).
-- How far a flagged bar reaches: every root bar within the tree's reach (`barIndexMask`'s rule), and every
-  later bar under a call that carries state (review F4, kept for now). One flagged bar under `ta.ema`
-  withholds the rest of the series; the queued probe of a flat run after a non-zero %K settles it.
+- How far a flagged bar reaches: every root bar within the tree's reach (`barIndexMask`'s rule:
+  `maxLookback(tree) - maxLookback(site)` bars forward). A `stoch:flat-window` flag under a call that carries
+  state withholds every later bar (review F4, kept): one unpinned value under `ta.ema` moves the rest of the
+  series. A LEFT-EDGE flag never does (review N1). Past its reach, a carried smoother is where it is over
+  any source that starts on this chart: its own seed is this chart's, and this engine serves that decay
+  everywhere. `ta.ema(ta.stoch(close, high, low, 14), 3)` off the listing, for example, is served from bar 15
+  with no code. ⚰️ The left-edge flag used to take the flat-window reach, so off the listing
+  `r = ta.rsi(close, 14); plot(ta.ema(ta.stoch(r, r, r, 14), 3))` drew 0 of 566 bars, and so did
+  `ta.ema(ta.rci(ta.sma(close, 5), 10), 3)`. The runtime lane drew 0 under no name, and the sentence said
+  "every later bar is drawn". Now they are drawn from bar 30 (engine 56's house `stoch` drew from 29) and bar 16,
+  every later bar drawn, and both sentences say what is withheld: the edge bars and each bar that reads them
+  within the indicator's lookback.
 - A site inside a read of other bars (`tf`, `tf_live`, `sym`, `ltf`): the mask is not walked from the root.
   Those nodes evaluate their child through `interpret` on their own bars, so the mask runs THERE, on the bars
   the site reads, and names its code in the same channel (railed: a weekly `request.security` flat run is
@@ -110,8 +125,11 @@ own argument columns:
 - A site that reads a recurrence's own value never reaches the mask: the interpreter already refuses a window
   over `self` by name (`accum(0, stochPine(high, low, close + self * 0, 5), 20)` throws; railed, F5).
 The runtime lane declines a column withheld by `stoch:flat-window` (`RuntimeRefusal`), and the VM kernel
-stops by it at the first such bar. The left-edge codes do not decline: off the listing, the runtime lane's
-own measured curtain (`computeOffListing`) withholds the bars that depend on where the chart starts.
+stops by it at the first such bar. The left-edge codes do not decline a column that draws: off the
+listing, the runtime lane's own measured curtain (`computeOffListing`) withholds the bars that depend on where
+the chart starts. ⛔ A column the columnar lane withheld on EVERY bar by any engine-57 code declines the run by
+that code (review N1): the runtime lane never draws zero bars under no name. Railed with a 12-bar chart under
+`ta.stoch(s, s, s, 14)`: the host lane names `stoch:left-edge`, and the runtime refuses `stoch:left-edge`.
 
 ### The coordinator's S1 rules, checked against the captures
 - RCI: served exactly as ruled (above).
@@ -263,4 +281,8 @@ production MATCH 141 / DIVERGE 89 / INCONCLUSIVE 84; runtime-on MATCH 157 / DIVE
    every consumer of an off-listing RSI.
 8. Supertrend at long periods off the listing: the base's RMA-convergence residual (6,756 bars at n = 50 in the
    reviewer's 20 walks, both versions), stated in `SUPERTREND_NOTE` and above.
-9. `origin/master` moved after the measurement merge (`8785237ce7` -> `48e1a6cbfc`, S11 capture data only).
+9. `origin/master` moved after the first measurement merge (`8785237ce7` -> `48e1a6cbfc`, S11 capture data
+   only).
+10. **N3 (pre-existing, recorded):** a strategy's windows bypass the runtime lane's off-listing curtain
+    (`computeOffListing`), so off the listing a strategy's early bars are not withheld the way an indicator's
+    are. Not changed here.

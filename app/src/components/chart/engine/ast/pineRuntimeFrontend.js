@@ -50,7 +50,7 @@ import LENGTH_QUALIFIERS from './windowLengthQualifiers.json'
 import NAMED_CONSTANT_TYPES from './namedConstantTypes.json'
 import { splitCommaStatements } from './objectFnInline.js'
 import { interpret, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED, TableRefusal, hullWindows, naConditionIsFalse, listingSeedIsUnpinned,
-  STOCH_FLAT_WINDOW } from './interpret.js'
+  STOCH_FLAT_WINDOW, STOCH_LEFT_EDGE, RCI_LEFT_EDGE } from './interpret.js'
 import { bindConstsFor, foldBound, foldScalar, NotFoldable } from './bind.js'
 import { LOWER_TF_REFUSAL } from '../lowerTf.js'
 import {
@@ -370,7 +370,11 @@ export const RUNTIME_REFUSALS = Object.freeze({
   // the columnar lane withholds them by name, and this lane, which has no per-bar withholding,
   // declines by the same code rather than draw them.
   [STOCH_FLAT_WINDOW]: 'a `ta.stoch` window that is flat after a value other than 0 or 100 (or with its source off the flat level), a case no TradingView capture has reached',
+  [STOCH_LEFT_EDGE]: 'off the listing, a `ta.stoch` whose every bar reads a window that reaches before the loaded bars',
+  [RCI_LEFT_EDGE]: 'off the listing, a `ta.rci` whose every bar reads a window that reaches before the loaded bars',
 })
+/** The engine-57 witness codes a column withheld on EVERY bar declines by (review N1). */
+const BUILTIN_WITNESS_REFUSALS = new Set([STOCH_FLAT_WINDOW, STOCH_LEFT_EDGE, RCI_LEFT_EDGE])
 
 export class RuntimeRefusal extends Error {
   constructor(guard, detail, at) {
@@ -3369,6 +3373,14 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (arr.length !== bars.length) {
       throw new RuntimeRefusal('runtime:statement',
         `a column holds ${arr.length} values for ${bars.length} bars`, at)
+    }
+    // ⛔⛔ ENGINE 57 (review N1) — NEVER A SILENT BLANK. A column the columnar lane withheld on
+    // EVERY bar by a built-in's witness code would draw nothing here under no name; the run
+    // declines by that code instead.
+    if (bars.length > 0 && !arr.some(Number.isFinite)) {
+      for (const [code, sentence] of clockSink) {
+        if (BUILTIN_WITNESS_REFUSALS.has(code)) throw new RuntimeRefusal(code, sentence, at)
+      }
     }
     columns.push(arr)
     const i = columns.length - 1

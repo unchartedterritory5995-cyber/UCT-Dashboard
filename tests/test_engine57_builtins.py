@@ -163,8 +163,42 @@ def test_stoch_unpinned_flat_run_is_withheld_by_name():
     assert col[108] == 100          # kept through the run as in S10, but the source is off the level
     assert all(col[i] is None for i in range(109, 120))
     assert col[120] is not None
-    assert ast_interpret._stoch_flat_pinned(0, True) and ast_interpret._stoch_flat_pinned(100, True)
-    assert not ast_interpret._stoch_flat_pinned(50, True) and not ast_interpret._stoch_flat_pinned(100, False)
+    assert ast_interpret._stoch_flat_pinned(True, True)
+    assert not ast_interpret._stoch_flat_pinned(False, True) and not ast_interpret._stoch_flat_pinned(True, False)
+
+
+def test_n2_a_kept_100_that_is_not_the_double_100_is_pinned_by_provenance():
+    pair = None
+    for t in range(5000):
+        lo = 1 + t * 0.37
+        hi = lo + 3.3 + t * 0.011
+        if (100 * (hi - lo)) / (hi - lo) != 100:
+            pair = (lo, hi)
+            break
+    assert pair is not None
+    lo, hi = pair
+    out, flags, _ = ast_interpret._stoch_pine_scan([hi] * 7, [lo, lo, lo, hi, hi, hi, hi], [hi] * 7, 3)
+    assert out[4] != 100 and abs(out[4] - 100) < 1e-12
+    assert flags == [0] * 7 and out[5] == out[4]
+    out2, flags2, _ = ast_interpret._stoch_pine_scan([10, 10, 10, 5, 5, 5], [0, 0, 0, 5, 5, 5],
+                                                     [4, 4, 4, math.nan, math.nan, 5], 3)
+    assert out2[5] == 40 and flags2 == [0, 0, 0, 0, 0, 1]
+
+
+def test_n1_a_left_edge_under_ema_withholds_only_its_reach():
+    bars = _bars()
+    suffix = bars[100:]
+    for tree, code in [
+        (C("ema", C("stochPine", C("rsi", S("close"), N(14)), C("rsi", S("close"), N(14)),
+                    C("rsi", S("close"), N(14)), N(14)), N(3)), ast_interpret.STOCH_LEFT_EDGE),
+        (C("ema", C("rci", C("sma", S("close"), N(5)), N(10)), N(3)), ast_interpret.RCI_LEFT_EDGE),
+    ]:
+        sink = {}
+        off = _run(tree, suffix, sink=sink, listing=False)
+        assert list(sink) == [code]
+        first = _first(off)
+        assert 10 < first < 40, (code, first)
+        assert all(v is not None for v in off[first:]), code
 
 
 # --------------------------------------------------------------------------- #

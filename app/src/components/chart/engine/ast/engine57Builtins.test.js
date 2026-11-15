@@ -330,9 +330,37 @@ describe('ta.stoch lands on `stochPine` (S6 builtin `stochastic-rsi`, S1 probe P
     expect(CHART_CLOCK_WITHHELD[STOCH_FLAT_WINDOW]()).toMatch(/strictly between 0 and 100/)
   })
 
-  it('`stochFlatPinned`: only a kept 0 or 100 with the source on the level is pinned', () => {
-    expect([stochFlatPinned(0, true), stochFlatPinned(100, true)]).toEqual([true, true])
-    expect([stochFlatPinned(50, true), stochFlatPinned(100, false), stochFlatPinned(0, false)]).toEqual([false, false, false])
+  it('`stochFlatPinned`: pinned only by provenance (the kept value computed at the high or low) with the source on the level', () => {
+    expect(stochFlatPinned(true, true)).toBe(true)
+    expect([stochFlatPinned(false, true), stochFlatPinned(true, false), stochFlatPinned(false, false)]).toEqual([false, false, false])
+  })
+
+  it('review N2: a kept 100 that is not the double 100 is pinned by provenance; a kept 40 is not', () => {
+    // a (lo, hi) pair whose 100 * (hi - lo) / (hi - lo) is not exactly 100
+    let pair = null
+    for (let t = 0; t < 5000 && !pair; t += 1) {
+      const lo = 1 + t * 0.37
+      const hi = lo + 3.3 + t * 0.011
+      if ((100 * (hi - lo)) / (hi - lo) !== 100) pair = { lo, hi }
+    }
+    expect(pair).not.toBe(null)
+    const { lo, hi } = pair
+    // n = 3: bars 0..2 at the high (≈100), then the lows rise to the high: flat on the level from bar 5
+    const H = Float64Array.from([hi, hi, hi, hi, hi, hi, hi])
+    const L = Float64Array.from([lo, lo, lo, hi, hi, hi, hi])
+    const C = Float64Array.from([hi, hi, hi, hi, hi, hi, hi])
+    const near100 = stochPineScan(H, L, C, 3)
+    expect(near100.out[4]).not.toBe(100)
+    expect(Math.abs(near100.out[4] - 100)).toBeLessThan(1e-12)
+    expect(Array.from(near100.flags)).toEqual([0, 0, 0, 0, 0, 0, 0])
+    expect(near100.out[5]).toBe(near100.out[4])
+    // a 40 kept through two `na` sources, then a flat window on its level: no capture pins it
+    const H2 = Float64Array.from([10, 10, 10, 5, 5, 5])
+    const L2 = Float64Array.from([0, 0, 0, 5, 5, 5])
+    const C2 = Float64Array.from([4, 4, 4, NaN, NaN, 5])
+    const kept40 = stochPineScan(H2, L2, C2, 3)
+    expect(kept40.out[5]).toBe(40)
+    expect(Array.from(kept40.flags)).toEqual([0, 0, 0, 0, 0, 1])
   })
 })
 
@@ -499,6 +527,54 @@ describe('review #1294 — off the listing, the left edge of a warming-up source
     const { off, clock } = edgeOf('plot(ta.rci(close, 10))')
     expect(clock).toEqual([])
     expect(firstDrawn(off)).toBe(10)
+  })
+})
+
+describe('review #1294 N1 — a left-edge flag under a carried smoother reaches the tree\'s own lookback, never every later bar', () => {
+  const K = 100
+  const SUFFIX = RDDT.slice(K)
+  const OFF = { ...CTX, historyFromListing: false }
+  // the first bar drawn: the edge (the last window short of `n` finite values) plus the tree's own reach
+  const FIRST = { [STOCH_LEFT_EDGE]: 30, [RCI_LEFT_EDGE]: 16 }
+  const cases = [
+    ['r = ta.rsi(close, 14)\nplot(ta.ema(ta.stoch(r, r, r, 14), 3))', STOCH_LEFT_EDGE],
+    ['s = ta.sma(close, 5)\nplot(ta.ema(ta.rci(s, 10), 3))', RCI_LEFT_EDGE],
+  ]
+  for (const [body, code] of cases) {
+    it(`off the listing \`${body.split('\n')[1]}\` draws, withholding only the edge's reach by \`${code}\``, () => {
+      const src = `//@version=6\nindicator("e57 n1")\n${body}`
+      const off = doorColumns(src, SUFFIX, OFF)
+      expect(off.clock).toEqual([code])
+      const col = off.cols[0]
+      expect(drawn(col)).toBeGreaterThan(520)
+      const f = firstDrawn(col)
+      // the edge bars and their lookback reach are withheld, then every bar is drawn
+      expect(f).toBeGreaterThan(10)
+      expect(f).toBeLessThan(40)
+      expect(col.slice(f).every(Number.isFinite)).toBe(true)
+      expect(f).toBe(FIRST[code])
+      // the runtime lane: drawn, or declined by a name; never a silent 0 (measured: the stoch case
+      // declines `runtime:warmup-never-converges`, the rci case draws behind its own curtain)
+      resetRuntimeSessions(); resetRuntimeLedgers()
+      let rt = null
+      let err = null
+      try { rt = Array.from(computeRuntimeColumns(runtimeDoc(src, { a: 0 }), SUFFIX, OFF).a) } catch (e) { err = e }
+      if (err) expect(typeof err.guard === 'string' && err.guard.length > 0, String(err.message)).toBe(true)
+      else expect(drawn(rt)).toBeGreaterThan(300)
+    })
+  }
+  it('the runtime lane declines by the code a column the edge withholds on EVERY bar (never a silent 0)', () => {
+    const src = '//@version=6\nindicator("e57 n1 short")\ns = ta.sma(close, 5)\nplot(ta.stoch(s, s, s, 14))'
+    // 17 bars: bars 0..12 are the window's warm-up (`na` everywhere), bars 13..16 read fewer than 14
+    // finite values of the 5-bar mean: every bar past the warm-up is edge, so nothing is drawn
+    const SHORT = RDDT.slice(100, 117)
+    const host = doorColumns(src, SHORT, { ...CTX, historyFromListing: false })
+    expect(host.clock).toEqual([STOCH_LEFT_EDGE])
+    expect(drawn(host.cols[0])).toBe(0)
+    let err = null
+    let rt = null
+    try { rt = computeRuntimeColumns(runtimeDoc(src, { a: 0 }), SHORT, { ...CTX, historyFromListing: false }) } catch (e) { err = e }
+    expect(err && err.guard, rt ? `drew ${drawn(Array.from(rt.a))}` : '').toBe(STOCH_LEFT_EDGE)
   })
 })
 

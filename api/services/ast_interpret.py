@@ -2418,10 +2418,12 @@ def _fn_stoch(h, l, c, n):  # noqa: E741
                          lambda bars: compute_stoch_raw(bars, n, 1)[0])
 
 
-def _stoch_flat_pinned(prev, on_level):
+def _stoch_flat_pinned(at_extreme, on_level):
     """``interpret.js::stochFlatPinned`` -- the flat windows the captures pin: the source on the
-    window's level and a kept value of 0 (probe P2) or 100 (S10 ``vw-cs2-stoch-flat-window``)."""
-    return bool(on_level) and (prev == 0 or prev == 100)
+    window's level and a kept value of 0 (probe P2) or 100 (S10 ``vw-cs2-stoch-flat-window``), pinned
+    by PROVENANCE (computed with the source at the window's high or low), never by the number:
+    ``(100 * (hi - lo)) / (hi - lo)`` is not always the double 100 (review N2)."""
+    return on_level is True and at_extreme is True
 
 
 def _stoch_pine_scan(h, l, c, n, off_listing=False):  # noqa: E741
@@ -2444,6 +2446,7 @@ def _stoch_pine_scan(h, l, c, n, off_listing=False):  # noqa: E741
     prev = NAN
     prev_flag = 0
     prev_edge = 0
+    prev_at_extreme = False     # the kept value was computed with the source at the high / low (N2)
     for i in range(length):
         if _finite(h[i]):
             hs.append(h[i])
@@ -2458,6 +2461,7 @@ def _stoch_pine_scan(h, l, c, n, off_listing=False):  # noqa: E741
         v = NAN
         flat = False
         on_level = False
+        at_extreme = False
         if hs and ls and _finite(c[i]):
             hi = max(hs)
             lo = min(ls)
@@ -2466,11 +2470,13 @@ def _stoch_pine_scan(h, l, c, n, off_listing=False):  # noqa: E741
                 on_level = c[i] == lo
             else:
                 v = (100 * (c[i] - lo)) / (hi - lo)
+                at_extreme = c[i] == hi or c[i] == lo
         if math.isfinite(v):
+            prev_at_extreme = at_extreme
             prev_flag = 0
             prev_edge = 1 if off_listing and (len(hs) < n or len(ls) < n) else 0
         else:
-            prev_flag = 1 if ((flat and math.isfinite(prev) and not _stoch_flat_pinned(prev, on_level))
+            prev_flag = 1 if ((flat and math.isfinite(prev) and not _stoch_flat_pinned(prev_at_extreme, on_level))
                               or (prev_flag == 1 and math.isfinite(prev))) else 0
             prev_edge = 1 if off_listing and (not math.isfinite(prev) or prev_edge == 1) else 0
             v = prev
@@ -4846,12 +4852,21 @@ def builtin_witness_mask(tree: Any, bars: List[dict],
             code_at = [STOCH_FLAT_WINDOW if flags[i] == 1 else STOCH_LEFT_EDGE if edge[i] == 1 else None
                        for i in range(n)]
         reach = max(0, root_reach - max_lookback(node))
-        last = -math.inf
+        # only a flat-window flag is carried forever under a smoother; a left-edge flag reaches the
+        # tree's own lookback and no further (review N1, ``builtinWitnessMask``)
+        last_flat = -math.inf
+        last_edge = -math.inf
         for i in range(n):
-            if code_at[i]:
-                codes.add(code_at[i])
-                last = last if (unbounded and last != -math.inf) else i
-            if last != -math.inf and (unbounded or i - last <= reach):
+            code = code_at[i]
+            if code:
+                codes.add(code)
+            if code == STOCH_FLAT_WINDOW:
+                last_flat = last_flat if (unbounded and last_flat != -math.inf) else i
+            elif code:
+                last_edge = i
+            flat_held = last_flat != -math.inf and (unbounded or i - last_flat <= reach)
+            edge_held = last_edge != -math.inf and i - last_edge <= reach
+            if flat_held or edge_held:
                 mask[i] = 1
                 held = True
     if not held:

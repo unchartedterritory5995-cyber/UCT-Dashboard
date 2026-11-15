@@ -326,6 +326,24 @@ describe('⭐⭐ W4 T10 — ta.stoch over values the run computes', () => {
     for (let i = 34; i <= 44; i += 1) expect(held[i], `bar ${i}`).toBe(0)
   })
 
+  // ⭐⭐ ENGINE 57 (review N2) — a kept 100 is pinned by where it came from, not by its last bit
+  it('a kept 100 that is not the double 100 is pinned by provenance: the run keeps it', () => {
+    let pair = null
+    for (let t = 0; t < 5000 && !pair; t += 1) {
+      const lo = 1 + t * 0.37
+      const hi = lo + 3.3 + t * 0.011
+      if ((100 * (hi - lo)) / (hi - lo) !== 100) pair = { lo, hi }
+    }
+    expect(pair).not.toBe(null)
+    const { lo, hi } = pair
+    const L = `(bar_index < 3 ? ${lo} : ${hi})`
+    const [out] = run(5, `${state('h', String(hi))}${state('l', L)}${state('c', String(hi))}plot(ta.stoch(c, h, l, 3))\n`)
+    expect(out[4]).not.toBe(100)
+    expect(Math.abs(out[4] - 100)).toBeLessThan(1e-12)
+    expect(out[5]).toBe(out[4])
+    expect(out[9]).toBe(out[4])
+  })
+
   it('two call sites of one function keep two states', () => {
     const [a, b] = run(5, `${state('c', 'close')}f(s) => ta.stoch(s, s, s, 6)\nplot(f(c))\nplot(f(c * 3))\n`)
     // stoch is scale invariant: the second site must agree with the first
