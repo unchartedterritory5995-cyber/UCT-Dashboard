@@ -356,6 +356,8 @@ export function registerChartSetupCapabilities() {
       if (!Number.isInteger(bars) || bars < 1 || bars > MAX_STEP) return `I can step 1 to ${MAX_STEP} bars at a time. For a bigger jump, go to a date.`
       // chartReplay.playback: in the bar replay a step means the REPLAY's bars — ask, never scroll the window under it
       if (st.view?.replay?.mode) return 'This chart is in bar replay: say “step the replay forward / back” to move the replay, or exit the replay to scroll the chart.'
+      // D20: in Tools → Replay Mode a step means the CUTOFF — ask, never scroll the window under it
+      if (st.replay) return 'Replay Mode is on: say “step Replay Mode forward / back” to move its cutoff by bars, or exit Replay Mode to scroll the chart. Nothing was changed.'
       return st.view?.frame ? null : NOT_READY
     },
     // the chart's own stepBar(n) moves the logical window by n bars; the read-back expects exactly that window

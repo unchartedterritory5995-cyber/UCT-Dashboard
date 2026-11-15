@@ -7,6 +7,7 @@ import { useState } from 'react'
 import styles from './PeriodSortPanel.module.css'
 import Input from '../../components/ui/Input'
 import Select from '../../components/ui/Select'
+import { cutoffDay, isPreciseCutoff } from '../../components/chart/replayCutoff'
 
 const isoToday = () => {
   const d = new Date()
@@ -25,9 +26,13 @@ const TF_OPTS = [
 ]
 
 export default function ReplayPanel({ active = false, cutoff = null, onStart, onArmPick, onExit, onClose }) {
-  const [date, setDate] = useState(cutoff || '')
+  // D20: a PRECISE cutoff (Replay Mode stepped by intraday bars) shows its time, and "Update" with the date unchanged keeps
+  // it exactly; a new date is the member's explicit choice and writes that day (day-only)
+  const precise = isPreciseCutoff(cutoff)
+  const [date, setDate] = useState(cutoff ? cutoffDay(cutoff) : '')
   const [tf, setTf] = useState('D')
   const valid = !!date
+  const keepsTime = precise && date === cutoffDay(cutoff)
 
   return (
     <div className={styles.cfgBackdrop} onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
@@ -45,6 +50,12 @@ export default function ReplayPanel({ active = false, cutoff = null, onStart, on
               onChange={(e) => setDate(e.target.value)}
             />
           </div>
+          {precise && (
+            <div className={styles.cfgRow} data-testid="replay-cutoff-time">
+              <span className={styles.cfgLabel}>Time</span>
+              <span>{keepsTime ? `${cutoff.slice(11, 16)} ET (stepped by bars)` : 'end of day'}</span>
+            </div>
+          )}
           {onArmPick && (
             <div className={styles.cfgRow}>
               <span className={styles.cfgLabel} />
@@ -77,7 +88,7 @@ export default function ReplayPanel({ active = false, cutoff = null, onStart, on
             className={styles.cfgBtn}
             data-guide="replay.start"
             disabled={!valid}
-            onClick={() => { if (valid) onStart(date, tf) }}
+            onClick={() => { if (valid) onStart(keepsTime ? cutoff : date, tf) }}
           >{active ? 'Update' : 'Start replay'}</button>
         </div>
       </div>

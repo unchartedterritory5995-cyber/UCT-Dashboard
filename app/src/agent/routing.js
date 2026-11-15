@@ -65,7 +65,7 @@ export const GROUPS = [
     // named by "describe / summarise / walk me through … setup"
     // Phase 1: indicator templates here by action name — the group's own `templates?` word already names them, and a
     // member's saved template NAME brings the group (NAME_GROUPS), so no new phrase rule
-    actions: ['chart.replay', 'chart.describeSetup', 'indicatorTemplate.list', 'indicatorTemplate.apply', 'indicatorTemplate.save', 'indicatorTemplate.delete'],
+    actions: ['chart.replay', 'chart.replayStep', 'chart.describeSetup', 'indicatorTemplate.list', 'indicatorTemplate.apply', 'indicatorTemplate.save', 'indicatorTemplate.delete'],
     // CG-33 (corpus #774, live LT-7): Replay Mode had no words of its own — "replay", "bar replay", "as of <date>", "hide
     // what came after", "step through", "exit / stop replay" (routing only ADDS this group) — the first words below
     // W2 (CG-5): "what's the setup here" names chart.describeSetup too (not only describe / summarise / walk me through)
@@ -571,6 +571,8 @@ function namedGroups(q, names) {
   if (names?.widgetItems?.length && itemNamedTypes(q, names.widgetItems).length) out.add('boardEdit')
   // chartReplay: while a chart's bar replay is on, its bare playback words ("next bar", "pause", "5x") mean the replay
   if (names?.replayOn === true && REPLAY_ON_WORDS.test(q)) out.add('chartReplay')
+  // D20: while Tools → Replay Mode is on, a bare step ("next bar", "step forward 2 bars") steps IT (chart.replayStep, chartSetup)
+  if (names?.cutoffOn === true && REPLAY_ON_WORDS.test(q)) out.add('chartSetup')
   return out
 }
 
@@ -590,6 +592,8 @@ export function routingNames(host) {
     })),
     // chartReplay: is any chart's bar replay (the Replay / Time Machine button) on right now
     replayOn: (() => { try { return !!host?.charts?.list?.()?.some(s => s?.view?.replay?.mode === true) } catch { return false } })(),
+    // D20: is Tools → Replay Mode (the workspace cutoff) on right now
+    cutoffOn: (() => { try { return !!host?.charts?.list?.()?.some(s => !!s?.replay) } catch { return false } })(),
     indicatorTemplates: read(() => {
       const raw = host?.prefs?.read?.()?.indicator_templates
       const list = typeof raw === 'string' ? JSON.parse(raw) : raw
@@ -621,6 +625,9 @@ export function selectGroups(message, { pendingActions = [], recentActions = [],
     if (texts.some(t => g.words.some(re => re.test(t)))) hits.add(g.id)
   }
   for (const t of texts) for (const id of namedGroups(t, names)) hits.add(id)
+  // D20 (owner req 1/4): which replay is active is STATE — while only Replay Mode is on, the bar replay's group is never sent
+  // (its words — play / step the replay — would otherwise reach chartReplay.playback); Replay Mode's own group is
+  if (names?.cutoffOn === true && names?.replayOn !== true && hits.delete('chartReplay')) hits.add('chartSetup')
   // "put NVDA on the left", "Switch to AMD": a ticker-shaped word (case-sensitive, on the raw
   // text) after a show/switch verb is a chart symbol request.
   if (SYMBOL_VERB.test(q) && tickerWords(raw).length) hits.add('charts')
