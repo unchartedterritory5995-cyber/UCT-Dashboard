@@ -14,3 +14,8 @@ Program: `docs/pine/RS-RATING-TRANSFER.md`. Manifest: `docs/pine/rs-rating/captu
 
 Licence: Q-RS1's script is MPL-2.0 (header line 7), so its capture may be committed. Q-RS2..5
 are UCT probes.
+
+Q-RS5 captured 2026-11-15 (s10, `rs-arm-label-last-bar-{rddt,spy}-1d-2026-11-15`, local only) and
+graded by lane L4d through the run's x map: A01, R01, E01 and X01 MATCH on both symbols (RDDT: 96
+E01 labels, 67 boxes; SPY: the newest 502 E01 labels and 503 boxes). E01 and X01 are now served;
+digests in `docs/pine/evidence/2026-11-15-w3n-d1/evidence.json`.

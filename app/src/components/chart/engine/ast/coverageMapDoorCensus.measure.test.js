@@ -546,10 +546,12 @@ describe('W4 T0: the runtime probe asks the build the door asked (objects in the
   // explains it. Here the drawing build's own refusal is `runtime:conditional-history`
   // (a `ta.*` assigned in an `if`, read by `line.new`), and the host lane refused the
   // unknown function first so the runtime lane was consulted.
+  // ⭐ L4d (re-pinned): `ta.sma` / `ta.ema` / `ta.rma` in an `if` are now served to a drawing per
+  // call site (W3N-D1a/b/c), so the fixture uses `ta.wma`, which no drawing capture witnesses.
   const OBJECT_OP = [...FIXTURE_HEAD,
     'var float lo = na',
     'if close > open',
-    '    lo := ta.sma(close, 3)',
+    '    lo := ta.wma(close, 3)',
     'ln = line.new(bar_index, lo, bar_index + 1, lo)',
     'plot(math.nosuch(close))',
   ].join(LF)

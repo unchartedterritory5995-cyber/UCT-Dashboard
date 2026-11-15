@@ -85,6 +85,22 @@ unconditional ones. Admit that case only; a per-bar condition keeps refusing. Ac
 RT-HISTORY sample scripts regrade against the s7-ahead captures with no new DIVERGE, and the RS
 Rating rating math builds on the runtime lane.
 
+**L4d status (2026-11-15, engine 63 placeholder):** built, on the s10 captures (local only;
+digests in `docs/pine/evidence/2026-11-15-w3n-d1/evidence.json`).
+- W3N-D1 per shape: the drawing build serves `ta.sma` / `ta.ema` / `ta.rma` in an `if` block
+  (rows a/b/c MATCH on RDDT and SPY); a block local's `x[1]` read by a drawing (row d DIVERGE:
+  the previous RUN, not the previous bar) now refuses `runtime:conditional-history`.
+- Q-RS5: `t = c ? na : label.new(…)` (E01) and `t = c ? box.new(…) : na` (X01) MATCH on both
+  symbols and are served (`DRAW_ARM_WITNESSED`); other (arm, family) pairs keep
+  `runtime:object-op`.
+- The vendor's label/box `x` is a rank into `graphics()._indexes`; the grade reads it through the
+  run's `xmap/<id>.json` sidecar. The harness's objects v2 leaves `x` ungraded by name (it never
+  reads it as a bar index), so no harness change was needed.
+- At the member door (runtime-on harness) these probes still do not reach the drawing build:
+  W3N grades DIVERGE with the drawing withheld (`pine:object-ops-refused`, its one create dropped
+  as `pine:block`), Q-RS5 INCONCLUSIVE (`pine:drawing`). Why the door mints no run half for them
+  is not yet traced. The runtime-on grades of s7 (38) and s9 (160) are unchanged.
+
 **L5 the runtime lane reads other symbols and timeframes** (re-scoped 2026-11-14, after reading
 the door):
 - RS Rating's labels cannot come from the host lane. Their TEXT is the rating, which only the
