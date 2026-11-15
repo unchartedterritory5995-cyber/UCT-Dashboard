@@ -76,8 +76,14 @@ class Config:
     fail_runs: int = 2
     clear_runs: int = 2
     remind_s: float = 7200
-    latency_p90_ms: float = 3000
+    # ⭐ 1,000 ms (was 3,000, 2026-11-15). Measured that day through the edge: p90 87 ms warm,
+    # ~220 ms for cold reads under parallel load. 3 s could not see the edge's 1.2 s hedge
+    # (a stalled tier answered ~1.3 s, every one), so it slept through a tier outage.
+    latency_p90_ms: float = 1000
     label_budget: float = 0.15
+    # Share of stamped answers bars-api did not serve (web-hedge / web-fallback), see
+    # checks.check_edge_fallback. 20%: a restart's minute fits under it, a dead tier does not.
+    edge_fallback_budget: float = 0.2
     label_window_s: int = 1800
     stream: bool = True
     stream_seconds: float = 120
@@ -99,8 +105,9 @@ class Config:
             fail_runs=max(1, int(_env_num("CHART_MONITOR_FAIL_RUNS", 2))),
             clear_runs=max(1, int(_env_num("CHART_MONITOR_CLEAR_RUNS", 2))),
             remind_s=_env_num("CHART_MONITOR_REMIND_S", 7200),
-            latency_p90_ms=_env_num("CHART_MONITOR_LATENCY_P90_MS", 3000),
+            latency_p90_ms=_env_num("CHART_MONITOR_LATENCY_P90_MS", 1000),
             label_budget=_env_num("CHART_MONITOR_LABEL_BUDGET", 0.15),
+            edge_fallback_budget=_env_num("CHART_MONITOR_EDGE_FALLBACK_BUDGET", 0.2),
             stream=os.environ.get("CHART_MONITOR_STREAM_ENABLED", "1") != "0",
             cycle_deadline_s=max(60.0, _env_num("CHART_MONITOR_CYCLE_DEADLINE_S", 240)),
             max_transport_fails=max(1, int(_env_num("CHART_MONITOR_MAX_TRANSPORT_FAILS", 5))),
@@ -322,6 +329,8 @@ def run_cycle(http: Http, cfg: Config, labels: C.LabelWindow, now_fn: Callable[[
         if p90 is not None:
             cyc.latency_p90[lab] = int(p90)
     cyc.verdicts["serve_labels|intraday"] = C.check_label_budget(labels.counts(now_fn()), cfg.label_budget)
+    cyc.verdicts["edge_fallback|all"] = C.check_edge_fallback(
+        [r.get("edge") for r in results if r.get("status") == 200], cfg.edge_fallback_budget)
 
     if th is not None:
         th.join(timeout=max(1.0, min(cfg.stream_seconds + cfg.stream_settle_s + 60,
