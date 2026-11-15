@@ -4125,6 +4125,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
                     type="button"
                     className={styles.addMenuItem}
                     aria-pressed={gridMode}
+                    aria-label="Multi Chart"
                     data-guide="workspace.multiChart"
                     onClick={() => setLayoutsSub('mc')}
                   ><TbItem icon="rows" label="Multi Chart" on={gridMode} sub /></button>
@@ -4153,6 +4154,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
                   type="button"
                   className={styles.addMenuItem}
                   aria-pressed={periodSortMode}
+                  aria-label="Custom-Period Sort"
                   data-guide="workspace.tools.periodSort"
                   onClick={() => { setPeriodSortSel(null); setPeriodSortMode(true); closeToolbarMenus() }}
                 ><TbItem icon="sliders" label="Custom-Period Sort" on={periodSortMode} /></button>
@@ -4160,6 +4162,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
                   type="button"
                   className={styles.addMenuItem}
                   aria-pressed={compareOpen}
+                  aria-label="Compare Symbols"
                   data-guide="workspace.tools.compare"
                   onClick={() => { openCompare(); closeToolbarMenus() }}
                 ><TbItem icon="graph" label="Compare Symbols" on={compareOpen} /></button>
@@ -4167,6 +4170,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
                   type="button"
                   className={styles.addMenuItem}
                   aria-pressed={!!replayCutoff}
+                  aria-label="Replay Mode"
                   data-guide="workspace.tools.replay"
                   onClick={() => { openReplay(); closeToolbarMenus() }}
                 ><TbItem icon="play" label="Replay Mode" on={!!replayCutoff} /></button>

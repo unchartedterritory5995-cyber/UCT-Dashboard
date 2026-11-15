@@ -254,9 +254,9 @@ export default function WatchlistWidget({ color, opts, onOptsChange }) {
     clearTimeout(closeTimerRef.current)
     closeTimerRef.current = setTimeout(() => { setRailClosing(false); setOverlayOpen(false); after?.() }, RAIL_OUT_MS)
   }
-  const clearFresh = () => { if (freshOpen) onOptsChange?.({ ...(opts || {}), libraryFresh: null }) }
+  const dropLibraryOpenedFlag = () => { if (freshOpen) onOptsChange?.({ ...(opts || {}), libraryFresh: null }) }
   const toggleRail = () => {
-    if (narrow) { if (railShown && !railClosing) closeOverlay(clearFresh); else if (!railShown) setOverlayOpen(true) }
+    if (narrow) { if (railShown && !railClosing) closeOverlay(dropLibraryOpenedFlag); else if (!railShown) setOverlayOpen(true) }
     else onOptsChange?.({ ...(opts || {}), libraryRail: opts?.libraryRail === false, libraryFresh: null })
   }
   // Narrow: the list switches at once, and the library slides away over it.
@@ -315,7 +315,7 @@ export default function WatchlistWidget({ color, opts, onOptsChange }) {
           <div className={railStyles.pane}>{listView}</div>
           {railShown && narrow && (
             <>
-              <button type="button" className={`${railStyles.scrim}${railClosing ? ' ' + railStyles.scrimOut : ''}`} aria-label="Close the library" onClick={() => closeOverlay(clearFresh)} />
+              <button type="button" className={`${railStyles.scrim}${railClosing ? ' ' + railStyles.scrimOut : ''}`} aria-label="Close the library" onClick={() => closeOverlay(dropLibraryOpenedFlag)} />
               <LibraryRail overlay closing={railClosing} currentKey={watchKey} tab={railTab} onTab={setRailTab} onPick={railPick} />
             </>
           )}
