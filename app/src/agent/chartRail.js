@@ -346,6 +346,10 @@ export function chartRailRefusal(plan, { words = '', host = null, mode = 'apply'
       // (a ticker the words set aside — "but not NVDA", "leave TSLA", "except AMD" — is never one they ask to see)
       const setAside = (t) => tickerSetAside(w, t)
       const asked = [...new Set(tickersIn(w))].filter(t => !before.has(t) && !setAside(t))
+      // (every ticker the words ask to SEE — a shown one counts as on the board only while it STAYS there: #1275 reuse)
+      // (a ticker named as the CHART being changed — 'replace SPY with …', 'the SPY chart' — is the target, not one to see)
+      const asChart = (t) => REPLACE.test(w) || new RegExp(String.raw`\b${t}(?:['’]s)?\s+(?:chart|one|panel|graph)\b`, 'i').test(w)
+      const named = [...new Set(tickersIn(w))].filter(t => !setAside(t) && !(before.has(t) && asChart(t)))
       // (a stated grid is checked by its own COUNT rule)
       const gridded = (plan.plans || []).some(p => p.kind === 'board' || p.kind === 'multiChart') || gridStated(w, known) || requestedPanels(w) != null
       // (on the SOLE chart: a multi-step request on several charts lands its tickers one step at a time)
@@ -355,13 +359,13 @@ export function chartRailRefusal(plan, { words = '', host = null, mode = 'apply'
         const got = [...new Set((stacked.items || []).filter(i => i.op?.action === 'chart.setSymbol').map(i => up(i.op?.args?.symbol)))]
         return `I didn’t change anything: this would put ${listOf(got)} on ONE chart one after the other, and only ${got[got.length - 1]} would stay. Say “add ${listOf(asked)}” for new charts, or which chart each one replaces.`
       }
-      if (!gridded && asked.length >= 2 && chartsInScope(host).count === 1 && effects.some(e => e.type === 'symbol' && e.to)) {
+      if (!gridded && named.length >= 2 && chartsInScope(host).count === 1 && effects.some(e => e.type === 'symbol' && e.to)) {
         const final = new Map(liveCharts(host).map(c => [c.ref, up(c.symbol)]))
         for (const e of effects) if (e.type === 'symbol' && e.to) final.set(e.ref, up(e.to))
         const shown = new Set([...final.values(), ...(plan.plans || []).filter(p => p.virtual && p.after?.symbol).map(p => up(p.after.symbol)),
           ...(plan.plans || []).flatMap(p => (p.after?.grid?.add || []).map(a => up(a.symbol)))].filter(Boolean))
-        const missing = asked.filter(t => !shown.has(t))
-        if (missing.length) return `I didn’t change anything: you asked for ${listOf(asked)}, but this would leave ${listOf(missing)} off your board. Say “add ${listOf(asked)}” for new charts, or which chart each one replaces.`
+        const missing = named.filter(t => !shown.has(t))
+        if (missing.length) return `I didn’t change anything: you asked for ${listOf(named)}, but this would leave ${listOf(missing)} off your board. Say “add ${listOf(asked)}” for new charts, or which chart each one replaces.`
       }
     }
     // REMOVAL: never at once without the words for it

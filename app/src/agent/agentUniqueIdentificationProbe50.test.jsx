@@ -98,3 +98,13 @@ describe('50e1 · a linked pair (one link colour) is ONE object', () => {
   }, 40000)
 })
 void chartRailRefusal
+
+// ── a SHOWN ticker the words ask to see counts as on the board only while it STAYS there (#1275 reuse) ──
+describe('final board · "open SPY and AAPL" on the sole SPY chart', () => {
+  it('re-symbolling SPY to AAPL drops SPY → refused, SPY kept', async () => {
+    const m = p.mount([chart('c0', 0, 24)], { 'N:c0': 'SPY' }, { decorate })
+    p.st.envelopes.push(b => p.env('apply', [{ action: 'chart.setSymbol', target: b.context.charts[0].ref, args: { symbol: 'AAPL' } }]))
+    const out = await m.say('open SPY and AAPL')
+    expect(symsOf(m), out).toEqual(['SPY'])
+  }, 40000)
+})
