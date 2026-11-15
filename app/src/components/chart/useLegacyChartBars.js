@@ -52,6 +52,42 @@ const _IDB_FIRST_PAINT_TIMEOUT_MS = 600
 const _IDB_FIRST_PAINT_TIMEOUT_CACHED_MS = 4000
 let _browserHasCachedBars = false
 
+// ⚡ A DAILY / WEEKLY / MONTHLY CHART DOES NOT WAIT ON A BUSY DEVICE CACHE (2026-11-14).
+//
+// ⚰️ MEASURED ON PRODUCTION 2026-11-14 (bench member, a list this device had never opened,
+// 40 charts at 0.7 s each): 32 painted in 10-44 ms from IndexedDB; 8 sat EMPTY for 217-484 ms
+// because that one read queued behind writes, and the chart's request to the server did not
+// even START until the read came back (170-480 ms after the key), then took 70-120 ms.
+//
+// For D/W/M the request is the same request whether or not the device has answered: it never
+// carries a `since=` (see "ALWAYS full-fetch" below) and it is made on every load anyway. So
+// waiting buys nothing. After `IDB_DWM_GRACE_MS` the gate opens and the request goes out; the
+// device read is still awaited, and whichever lands first paints. No extra request is made.
+//
+// ⛔ THE STORE IS NEVER LEFT SHALLOWER. The server's answer is the first-paint window (600
+// bars); the device may hold the whole history. If the answer lands while the read is still
+// out it is drawn but kept OUT of IndexedDB and the mem cache (`_netHeldRef`); when the read
+// lands, the entry is folded under it by the full-answer rule (deeper and suffix-compatible:
+// keep the depth; otherwise the server's set stands) and only then written, even if the
+// member has already left the symbol.
+//
+// Intraday is untouched: its tail request already starts on the first render and races the
+// read for `_IDB_TAIL_WAIT_MS`. Per-browser switch: localStorage['uct.barsgrace.off'] = '1'.
+/**
+ * The intraday tail's first ask is the FULL window (not `since=`) when the series `since` was taken
+ * from is a STORED one (`storedLen` > 0) holding fewer than half the bars the load asks for (`want`),
+ * and no full answer has landed for this load yet (`fullDone`). See `_tailFetcher`.
+ */
+export function askFullForShortStore({ since, storedLen, want, fullDone }) {
+  return since != null && storedLen > 0 && storedLen < want / 2 && !fullDone
+}
+
+export const IDB_DWM_GRACE_MS = 50
+export const BARS_GRACE_OFF_KEY = 'uct.barsgrace.off'
+function _dwmGraceOff() {
+  try { return localStorage.getItem(BARS_GRACE_OFF_KEY) === '1' } catch { return false }
+}
+
 /** The comparison symbol's bars (an SWR of its own URL). P3-S1: BOTH bar sources call this one
  *  hook, so a compare overlay is identical under either switch value; P3-S3 moves it onto a store key. */
 export function useCompareBars({ compareSymbol, resolvedTf, barCount, _gridQ, instFetcher }) {
@@ -150,6 +186,10 @@ export function useLegacyChartBars({
   // assignment site below for why an unscoped repair is wrong.
   const dailyRepairTodayRef = useRef(false)
   const idbReadyForRef  = useRef(null)  // string `${sym}_${tf}` once IDB load completes
+  // ⚡ IDB_DWM_GRACE_MS: the key whose gate opened while its device read was still out, and
+  // the server's answer that landed meanwhile (`{ key, bars }`, not yet written to a store).
+  const _idbPendingRef = useRef(null)
+  const _netHeldRef = useRef(null)
   // Always-current mirror of idbBars. The SWR-merge effect keys on [data] and would
   // otherwise read a STALE closured idbBars: when the shallow full set resolves right
   // after a deep IDB paint, the closure can still be pre-deep → the deep-preserve check
@@ -223,15 +263,48 @@ export function useLegacyChartBars({
     // server request at all, and a screenshot caught "Loading chart…" at 4 s. While the pack
     // is still ingesting, "busy" means the ingest, not "has data": keep the short wait.
     const _patient = _browserHasCachedBars && !_packStillIngesting()
-    const _t = setTimeout(() => {
+    const _dwm = !isIntraday          // the ONE place this rule is scoped to D/W/M
+    const _openGate = () => {
       if (settled) return
+      // (D/W/M) the read is still out: a full answer landing now is held out of the stores
+      // until it lands (see IDB_DWM_GRACE_MS).
+      if (_dwm) _idbPendingRef.current = key
       idbReadyForRef.current = key   // open the gate; idbBars stays null → full fetch
       setIdbLoaded(true)
-    }, _patient ? _IDB_FIRST_PAINT_TIMEOUT_CACHED_MS : _IDB_FIRST_PAINT_TIMEOUT_MS)
+    }
+    const _t = setTimeout(_openGate, _patient ? _IDB_FIRST_PAINT_TIMEOUT_CACHED_MS : _IDB_FIRST_PAINT_TIMEOUT_MS)
+    // ⚡ D/W/M: the same request either way, so it waits IDB_DWM_GRACE_MS, not 0.6-4 s.
+    const _early = (_dwm && !_dwmGraceOff()) ? setTimeout(_openGate, IDB_DWM_GRACE_MS) : null
     const _read = (_idbReadRef.current?.key === key) ? _idbReadRef.current.p : idbGet(sym, _barsTf)
     let _gone = false   // this (sym, tf) was left: a late read must not stamp the NEW key's state
+    // The server's answer, if it landed while this read was out (kept out of the stores).
+    const _takeHeld = () => {
+      if (_idbPendingRef.current === key) _idbPendingRef.current = null
+      const held = _netHeldRef.current?.key === key ? _netHeldRef.current.bars : null
+      if (held) _netHeldRef.current = null
+      return held
+    }
     _read.then(entry => {
-      settled = true; clearTimeout(_t)
+      settled = true; clearTimeout(_t); clearTimeout(_early)
+      const _held = _takeHeld()
+      if (_held) {
+        // Fold this entry UNDER the answer by the full-answer rule, THEN write: the store
+        // gets the deep series with the server's bars winning the overlap, never the bare
+        // first-paint window. Written even when the member has left the symbol.
+        const _deeper = entry?.bars?.length >= _held.length && _held[0] && entry.bars[0]
+          && _held[0].t >= entry.bars[0].t
+        const _m = _deeper ? mergeDelta(entry.bars, _held) : _held
+        idbPut(sym, _barsTf, _m)
+        memPut(sym, _barsTf, _m)
+        if (_gone) return
+        if (entry?.bars?.length) _browserHasCachedBars = true
+        if (idbReadyForRef.current === key && _m !== idbBarsRef.current) {
+          idbBarsRef.current = _m
+          setIdbBars(_m)
+          idbSinceRef.current = _m[_m.length - 1]?.t ?? idbSinceRef.current
+        }
+        return
+      }
       if (_gone) return
       // ⛔ A tail that already landed for THIS key (a `since=` seeded from the mem cache
       // can beat the IDB read) is NEWER than the entry: fold the entry UNDER it instead
@@ -248,6 +321,7 @@ export function useLegacyChartBars({
         // A mem base used for an in-flight `since=` is folded in too, so the delta the
         // server returns lands on a series that reaches the tail it was asked from.
         const _bars = _memBase?.length ? mergeDelta(entry.bars, _memBase) : entry.bars
+        idbBarsRef.current = _bars   // the mirror is current at once, as in the branch above (the tail fetcher reads it)
         setIdbBars(_bars)
         idbSinceRef.current = _bars[_bars.length - 1]?.t ?? entry.lastT ?? null
         idbRepairFromRef.current = (typeof entry.repairFromT === 'number') ? entry.repairFromT : null
@@ -260,8 +334,14 @@ export function useLegacyChartBars({
       }
       idbReadyForRef.current = key
       setIdbLoaded(true)
-    }).catch(() => { settled = true; clearTimeout(_t); if (_gone) return; idbReadyForRef.current = key; setIdbLoaded(true) })
-    return () => { settled = true; _gone = true; clearTimeout(_t) }
+    }).catch(() => {
+      settled = true; clearTimeout(_t); clearTimeout(_early)
+      const _held = _takeHeld()          // the read failed: the answer is all there is to keep
+      if (_held) { idbPut(sym, _barsTf, _held); memPut(sym, _barsTf, _held) }
+      if (_gone) return
+      idbReadyForRef.current = key; setIdbLoaded(true)
+    })
+    return () => { settled = true; _gone = true; clearTimeout(_t); clearTimeout(_early) }
   }, [sym, resolvedTf, _barsTf, _econId])
 
   // SWR URL: only set if IDB state is for the CURRENT sym+tf. Stale idbLoaded
@@ -554,7 +634,7 @@ export function useLegacyChartBars({
   const _tailReqRef = useRef(null)
   _tailReqRef.current = {
     key: `${sym}_${_barsTf}`, sym, tf: resolvedTf, ck: _barsTf, base: _primaryBase,
-    forceFull: _primaryForceFull, sinceFromIdb: _sinceFromIdbNow,
+    forceFull: _primaryForceFull, sinceFromIdb: _sinceFromIdbNow, want: _primaryBars,
   }
   const _tailFullDoneRef = useRef(null)
   const _tailFetcher = useCallback(async (k) => {
@@ -569,9 +649,11 @@ export function useLegacyChartBars({
     // A key that is no longer this chart's load never reaches the network.
     if (!req || _left()) throw _canceled()
     let since = null
+    let storedLen = 0   // bars in the STORED series `since` is taken from (0 = not from the store)
     if (!(req.forceFull && _tailFullDoneRef.current !== base)) {
       if (idbReadyForRef.current === req.key) {
         since = req.sinceFromIdb()
+        storedLen = idbBarsRef.current?.length || 0
       } else {
         // IDB for this key has not landed. Seed from the mem cache, else race the read.
         let seed = null
@@ -591,12 +673,30 @@ export function useLegacyChartBars({
         // ⛔ RE-CHECK AFTER THE AWAIT: on a fast A→B scan the A request must not fire,
         // and on A→B→A it must not overwrite the NEW A load's base with an older one.
         if (_left()) throw _canceled()
-        if (idbReadyForRef.current === req.key) since = req.sinceFromIdb()   // landed meanwhile
-        else if (seed) {
+        if (idbReadyForRef.current === req.key) {                              // landed meanwhile
+          since = req.sinceFromIdb()
+          storedLen = idbBarsRef.current?.length || 0
+        } else if (seed) {
           since = Math.max(0, (seed.rf != null ? Math.min(seed.rf, seed.t) : seed.t) - 1)
           _sinceBaseRef.current = { key: req.key, seq, bars: seed.bars }
         }
       }
+    }
+    // ⚡ A SHORT STORED SERIES GETS THE FULL WINDOW AT ONCE (2026-11-15). Measured on production
+    // (5-minute charts, S&P 100): 5 of 40 symbols had only 107-151 bars stored (the intraday
+    // pack seeds about a day and a half), the chart asked only for bars after them (`since=`), so
+    // a 200-bar average stayed blank until the deep-history step 0.9 s later filled it (drawn at
+    // +1,056 to +1,106 ms). When the series `since` comes from holds fewer than half the window
+    // this load asks for, the first ask is the FULL window (one request, the cold-open shape):
+    // the candles still paint at once from what is stored, and the full set lands ~0.1 s later.
+    // Once per load: after a full answer for this base (`_tailFullDoneRef`), polls ask `since=`.
+    // Only the series the IDB effect has taken FROM THE STORE counts (never a mem or race seed: a
+    // mem copy can be shallower than what IndexedDB holds), so a full answer only replaces
+    // something it is deeper than. (A read that lands inside the race lands through the IDB
+    // effect first: its `.then` is queued before the race's, so the branch above sees it.)
+    if (askFullForShortStore({ since, storedLen, want: req.want, fullDone: _tailFullDoneRef.current === base })) {
+      since = null
+      if (_sinceBaseRef.current?.key === req.key && _sinceBaseRef.current.seq === seq) _sinceBaseRef.current = null
     }
     const url = since != null ? `${base}&since=${encodeURIComponent(String(since))}` : base
     // A cold open whose exact URL an urgent/intent warm is already fetching joins it.
@@ -839,7 +939,8 @@ export function useLegacyChartBars({
     // Belt-and-suspenders: only merge if idbBars is known to belong to this sym+tf.
     // Without this, a delta response could merge with leftover bars from another
     // ticker still sitting in idbBars state (the cross-ticker race).
-    const sameSymTf = idbReadyForRef.current === `${sym}_${_barsTf}`
+    const _dataKey = `${sym}_${_barsTf}`   // this effect's one key (the one-key census counts sites)
+    const sameSymTf = idbReadyForRef.current === _dataKey
     // TEMP DIAGNOSTIC (enable in DevTools: window.__uctBarsDebug = true) — traces
     // the delta-sync path to find the "missing candles until ~10s later" stall on
     // a stale-cache revisit. Logs the since sent, the delta response, the cached
@@ -853,7 +954,7 @@ export function useLegacyChartBars({
     // merge it onto the base it was asked from, and make that the IDB state for this key
     // (the late IDB read folds UNDER it — see the IDB effect).
     const _sb = _sinceBaseRef.current
-    if (data.delta && !(idbBars?.length && sameSymTf) && _sb?.key === `${sym}_${_barsTf}`
+    if (data.delta && !(idbBars?.length && sameSymTf) && _sb?.key === _dataKey
         && _sb.seq === _loadSeqRef.current && _sb.bars?.length) {
       const merged = (_deltaMergedRef.current?.data === data) ? _deltaMergedRef.current.bars : mergeDelta(_sb.bars, data.bars)
       idbBarsRef.current = merged
@@ -861,7 +962,7 @@ export function useLegacyChartBars({
       idbSinceRef.current = merged[merged.length - 1]?.t ?? idbSinceRef.current
       idbSavedAtRef.current = Date.now()
       idbRepairFromRef.current = null
-      idbReadyForRef.current = `${sym}_${_barsTf}`
+      idbReadyForRef.current = _dataKey
       setIdbLoaded(true)
       idbPut(sym, _barsTf, merged)
       memPut(sym, _barsTf, merged)
@@ -927,8 +1028,15 @@ export function useLegacyChartBars({
       setIdbBars(next)
       idbSinceRef.current = next[next.length - 1]?.t ?? null
       idbSavedAtRef.current = Date.now()        // healed from the server — see above
-      idbPut(sym, _barsTf, next)
-      memPut(sym, _barsTf, next)
+      if (_idbPendingRef.current === _dataKey) {
+        // ⚡ The device read for this key is still out (the request did not wait for it:
+        // IDB_DWM_GRACE_MS). What it holds may be DEEPER than this answer, so nothing is
+        // written yet: the IDB effect folds the entry under these bars and writes then.
+        _netHeldRef.current = { key: _dataKey, bars: next }
+      } else {
+        idbPut(sym, _barsTf, next)
+        memPut(sym, _barsTf, next)
+      }
     }
   }, [data])  // eslint-disable-line react-hooks/exhaustive-deps
 

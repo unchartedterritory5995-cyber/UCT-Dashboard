@@ -15,9 +15,12 @@ The broadcaster runs on an injected clock (the tape's `at`) and an injected sche
 fully deterministic, `rev` included. Subscribers are real asyncio queues on a real
 loop, reached through the broadcaster's default (call_soon_threadsafe) publisher.
 
-Used by tests/test_ingest_golden_tapes.py, and by PR4's stream-ingest E2E to prove the
-service emits the same frames as the in-web reader. Regenerate goldens ONLY for an
-intended behaviour change: python -m tests.fixtures._gen_golden_tapes --regen
+Used by tests/test_ingest_golden_tapes.py, and by the stream-ingest E2E
+(`run_tape_via_ingest`, PR4b): the same tape through the real reader into the ingest
+service's runtime, its feed buffer, the wire codec and the web relay helpers, whose
+frame lines must equal the goldens' frame lines byte for byte, `rev` included.
+Regenerate goldens ONLY for an intended behaviour change:
+python -m tests.fixtures._gen_golden_tapes --regen
 """
 from __future__ import annotations
 
@@ -165,6 +168,117 @@ async def _run(tape: dict, via: str) -> list[str]:
     else:
         raise ValueError(via)
     return out
+
+
+# ── stream-ingest E2E (PR4b) ────────────────────────────────────────────────────
+
+def _label_key(tf: str, sess: str) -> str:
+    return "60e" if (tf == "60" and sess == "eth") else tf
+
+
+def run_tape_via_ingest(name: str) -> list[str]:
+    """Replay one tape through the stream-ingest path; return its FRAME lines.
+
+        tape --real bar_stream._run_websocket (fake socket)--> IngestRuntime.on_bar
+             --BarBroadcaster (ingest's, v2 sinks)--> the client's CoalescingBuffer
+             --drain + encode/decode (the wire)--> feed_protocol.relay_bars
+             --LegacyFilter.deliver--> one line per (subscriber label, frame)
+
+    The client wants exactly the harness SUBSCRIBERS' keys for the tape's symbols
+    and holds the tape's active set on every channel. The buffer is drained at each
+    point where run_tape drains its queues, at the same tape clock, so the relay's
+    rev clock sees the same `now` the in-web dispatch saw."""
+    tape = load_tape(name)
+    with _pinned_condition_rules():
+        return asyncio.run(_run_ingest(tape))
+
+
+async def _run_ingest(tape: dict) -> list[str]:
+    import copy
+
+    from api.services import bar_stream as bs
+    from api.services import feed_protocol as fp
+    from api.services import ingest_feed_server as ifs
+    from api.services import ingest_runtime
+
+    header, rows = tape["header"], tape["rows"]
+    out: list[str] = []
+    now = [rows[0]["at"] if rows else 0]
+    timers: list = []
+    seq = itertools.count()
+
+    def scheduler(delay_s: float, fn) -> None:
+        heapq.heappush(timers, (now[0] + int(round(delay_s * 1000)), next(seq), fn))
+
+    saved = {n: copy.deepcopy(getattr(bs, n)) for n in
+             ("_active", "_active_channels", "_sub_owners", "_pending_subscribe", "_pending_unsubscribe")}
+    runtime = ingest_runtime.IngestRuntime(
+        broadcaster_kw={"clock_ms": lambda: now[0], "scheduler": scheduler,
+                        "seed_fetcher": lambda s: []},
+        seeding=False)
+    srv = ifs.IngestFeedServer(secret="golden", epoch=1, monotonic=lambda: now[0] / 1000.0,
+                               on_delta=runtime.on_delta, limits=ingest_runtime.BUFFER_LIMITS,
+                               data=runtime)
+    active = set(header.get("active", header["symbols"]))
+    universe = bool(header.get("universe"))
+    try:
+        srv.union.hello("golden", 1, now[0] / 1000.0)
+        client = ifs._Client(client_id="golden", conn=None,
+                             buffer=fp.CoalescingBuffer(srv.epoch, srv._limits), connected_at=0.0)
+        srv.clients["golden"] = client
+        keys = frozenset((sym, _label_key(tf, sess)) for sym in header["symbols"]
+                         for tf, sess, _ in SUBSCRIBERS)
+        desired = fp.Desired(gen=1, owners={"bars": {s: frozenset(fp.CHANNELS) for s in sorted(active)}},
+                             keys=keys)
+        srv._apply(srv.union.set_desired("golden", desired, now[0] / 1000.0))
+        runtime.client_updated(client)
+        if bs._sub_owners.get(next(iter(sorted(active))), {}).get(ingest_runtime.REMOTE_OWNER) is None:
+            raise AssertionError("the runtime did not subscribe the active set upstream")
+
+        labels = [(f"{sym}/{tf}/{sess}/{'v2' if v2 else 'legacy'}", sym, _label_key(tf, sess), v2)
+                  for sym in header["symbols"] for tf, sess, v2 in SUBSCRIBERS]
+        legacy, revs = fp.LegacyFilter(), fp.RevClock()
+
+        async def drain() -> None:
+            runtime.before_flush()
+            batch = client.buffer.drain()
+            if batch is None:
+                return
+            batch = fp.decode(fp.encode(batch))          # through the wire codec
+            assert batch.epoch == srv.epoch
+            frames_out = fp.relay_bars(batch.bars, legacy, revs, now[0])
+            for label, sym, key, v2 in labels:
+                for f in frames_out:
+                    if f.sym == sym and f.key == key and fp.LegacyFilter.deliver(f.legacy_ok, v2):
+                        out.append(_dumps({"at": now[0], "frame": label, "msg": f.msg}))
+
+        def fire_timers_until(t: int) -> None:
+            while timers and timers[0][0] <= t:
+                due, _, fn = heapq.heappop(timers)
+                now[0] = max(now[0], due)
+                fn()
+
+        async def frames():
+            await drain()
+            for row in rows:
+                fire_timers_until(row["at"])
+                await drain()
+                now[0] = row["at"]
+                yield row["frame"]
+                await drain()
+            fire_timers_until(now[0] + DRAIN_MS)
+            await drain()
+
+        # The real reader; every listener/universe hook is a no-op here (bars only).
+        await _run_reader(frames, runtime.on_bar, active, [], universe,
+                          (lambda s, p: None) if universe else None)
+    finally:
+        for n, v in saved.items():
+            cur = getattr(bs, n)
+            cur.clear()
+            cur.update(v)
+    return out
+
 
 
 async def _run_reader(frames, on_bar, active, listeners, universe, on_universe_am) -> None:

@@ -96,7 +96,7 @@ def _defn(tree, key="value"):
 
 def test_P5_alert_lane_admits_a_servable_sym_and_loads_it_at_the_alerts_timeframe(monkeypatch):
     """ASKED: an alert on `close / sym('SPY', close)` at tf D. CLAIMED: admitted; at
-    evaluation SPY is read from the SCAN's local loader at the alert's own timeframe;
+    evaluation SPY is read from the scan's local loader (local_bars.read_bars) at the alert's own timeframe;
     the column is UNKNOWN (None) exactly where SPY has no bar. DID (SUPPLY / UNKNOWN)."""
     reads = []
 
@@ -104,7 +104,7 @@ def test_P5_alert_lane_admits_a_servable_sym_and_loads_it_at_the_alerts_timefram
         reads.append((sym_, tf, want))
         return PARITY["symbols"].get(sym_, [])
 
-    monkeypatch.setattr("api.services.screener.scan_evaluator._read_bars", fake_read)
+    monkeypatch.setattr("api.services.local_bars.read_bars", fake_read)
     aus._SYMBOL_CACHE.clear()
     tree = op("/", CLOSE, sym("SPY"))
     fn = aus._make_value_fn("u_00000000p501", "value", _defn(tree))
@@ -123,7 +123,7 @@ def test_P5_alert_lane_admits_a_servable_sym_and_loads_it_at_the_alerts_timefram
 
 def test_P5_alert_lane_class_share_is_read_under_the_stores_key(monkeypatch):
     seen = []
-    monkeypatch.setattr("api.services.screener.scan_evaluator._read_bars",
+    monkeypatch.setattr("api.services.local_bars.read_bars",
                         lambda s, tf, want: seen.append(s) or [])
     aus._SYMBOL_CACHE.clear()
     fn = aus._make_value_fn("u_00000000p501", "value", _defn(op("/", CLOSE, sym("BRK.B"))))
@@ -146,7 +146,7 @@ def test_P5_alert_lane_refuses_what_it_cannot_supply_BY_NAME(tree, code):
 
 def test_P5_the_symbol_cache_is_short_lived_and_bounded(monkeypatch):
     n = []
-    monkeypatch.setattr("api.services.screener.scan_evaluator._read_bars",
+    monkeypatch.setattr("api.services.local_bars.read_bars",
                         lambda s, tf, want: n.append(1) or [])
     aus._SYMBOL_CACHE.clear()
     aus._symbol_bars("SPY", "D", 10)

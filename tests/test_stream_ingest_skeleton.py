@@ -1,4 +1,7 @@
-"""stream-ingest PR4a: the dark skeleton (feed server + entrypoint), no vendor socket."""
+"""stream-ingest: the feed server + entrypoint (PR4a), dark by default.
+
+PR4b's data plane (ingest_runtime) has its own suite, tests/test_stream_ingest_runtime.py;
+here the entrypoint runs with STREAM_INGEST_CONNECT unset, so no vendor socket opens."""
 from __future__ import annotations
 
 import asyncio
@@ -95,6 +98,20 @@ def make_server(**kw):
 def fast_intervals(monkeypatch):
     monkeypatch.setattr(ifs, "BATCH_INTERVAL_S", 0.005)
     monkeypatch.setattr(ifs, "HELLO_TIMEOUT_S", 0.2)
+    monkeypatch.delenv("STREAM_INGEST_CONNECT", raising=False)
+
+
+@pytest.fixture(autouse=True)
+def restore_bar_stream_state():
+    """The entrypoint's runtime subscribes into bar_stream's module state: put it back."""
+    from api.services import bar_stream as bs
+    names = ("_active", "_active_channels", "_sub_owners", "_pending_subscribe", "_pending_unsubscribe")
+    saved = {n: __import__("copy").deepcopy(getattr(bs, n)) for n in names}
+    yield
+    for n in names:
+        cur = getattr(bs, n)
+        cur.clear()
+        cur.update(saved[n])
 
 
 async def run_until(conn, srv, cond, timeout=2.0):
@@ -357,7 +374,10 @@ def test_real_socket_health_auth_and_feed(monkeypatch):
         assert (await loop.run_in_executor(None, http, "/api/health"))[0] == 200
         assert (await loop.run_in_executor(None, http, "/status"))[0] == 401
         code, body = await loop.run_in_executor(None, http, "/status", f"Bearer {SECRET}")
-        assert code == 200 and json.loads(body)["stage"] == "pr4a-dark"
+        st = json.loads(body)
+        assert code == 200 and st["stage"] == "pr4b" and st["vendor_socket"] == "none"
+        assert st["connect_requested"] is False
+        assert st["runtime"]["connect"]["why_not"] == "STREAM_INGEST_CONNECT is not 1"
         assert SECRET not in body
         assert (await loop.run_in_executor(None, http, "/nope"))[0] == 404
 
@@ -426,24 +446,52 @@ def test_real_socket_shutdown_does_not_hang_on_a_late_hello(monkeypatch):
 
 # ── rails ──────────────────────────────────────────────────────────────────────
 
-def test_entrypoint_import_closure_has_no_web_app_and_no_vendor_reader():
-    code = ("import sys, api.stream_ingest_main\n"
-            "bad = [m for m in ('api.main', 'fastapi', 'api.services.bar_stream',"
-            " 'api.services.bar_broadcaster', 'api.services.massive_ws_worker',"
-            " 'api.services.realtime_stream') if m in sys.modules]\n"
-            "print(','.join(bad))\n")
+def test_entrypoint_import_closure_has_no_web_app():
+    """The service is NOT the web app: no api.main, no FastAPI, no other vendor reader.
+    (bar_stream / bar_broadcaster are its reader and state since PR4b; importing them
+    opens nothing: start_stream is never called here.)"""
+    code = ("import sys, threading, api.stream_ingest_main\n"
+            "bad = [m for m in ('api.main', 'fastapi', 'uvicorn', 'api.massive_ws_worker',"
+            " 'api.services.realtime_stream', 'api.services.bars_fetch') if m in sys.modules]\n"
+            "print(','.join(bad) + '|' + str(threading.active_count()))\n")
     out = subprocess.run([sys.executable, "-c", code], cwd=ROOT, capture_output=True, text=True, timeout=120)
     assert out.returncode == 0, out.stderr[-2000:]
-    assert out.stdout.strip() == "", f"stream-ingest PR4a must not import: {out.stdout.strip()}"
+    bad, threads = out.stdout.strip().rsplit("|", 1)
+    assert bad == "", f"stream-ingest must not import: {bad}"
+    assert threads == "1", "importing the entrypoint must start no thread"
 
 
-def test_skeleton_sources_open_no_vendor_socket():
+def _code_only(rel: str) -> str:
+    """Source minus the module docstring and comment lines."""
+    src = (ROOT / rel).read_text(encoding="utf-8")
+    code = "\n".join(l for l in src.splitlines() if not l.lstrip().startswith("#"))
+    return code.split('"""', 2)[-1]
+
+
+def test_transport_sources_open_no_vendor_socket():
+    """The feed server and the entrypoint never touch a vendor socket themselves."""
     for rel in ("api/stream_ingest_main.py", "api/services/ingest_feed_server.py"):
-        src = (ROOT / rel).read_text(encoding="utf-8")
-        code = "\n".join(l for l in src.splitlines() if not l.lstrip().startswith("#"))
-        for banned in ("socket.massive.com", "MASSIVE_API_KEY", "bar_stream", "start_stream",
+        code = _code_only(rel)
+        for banned in ("socket.massive.com", "MASSIVE_API_KEY", "start_stream",
                        "_run_websocket", "websockets.connect", "client import connect"):
-            assert banned not in code.split('"""', 2)[-1], f"{rel} references {banned}"
+            assert banned not in code, f"{rel} references {banned}"
+    assert "bar_stream" not in _code_only("api/services/ingest_feed_server.py")
+
+
+def test_the_one_vendor_socket_path_is_behind_every_gate():
+    """ingest_runtime opens the Massive socket in exactly one place, start_reader, and
+    only after connect_decision() said yes (STREAM_INGEST_CONNECT=1 + guard + key)."""
+    import ast
+    code = _code_only("api/services/ingest_runtime.py")
+    assert code.count("_run_websocket(") == 1 and "start_stream" not in code
+    tree = ast.parse((ROOT / "api/services/ingest_runtime.py").read_text(encoding="utf-8"))
+    fn = next(n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == "start_reader")
+    body = ast.unparse(fn)
+    assert body.index("connect_decision()") < body.index("if not ok:") < body.index("_run_websocket(")
+    dec = next(n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == "connect_decision")
+    dsrc = ast.unparse(dec)
+    for gate in ("connect_requested()", "vendor_socket_guard.may_open", "MASSIVE_API_KEY"):
+        assert gate in dsrc, gate
 
 
 def test_railway_ingest_config_is_its_own_file():
@@ -452,3 +500,21 @@ def test_railway_ingest_config_is_its_own_file():
     assert cfg["deploy"]["healthcheckPath"] == "/api/health"
     shared = (ROOT / "railway.json").read_text(encoding="utf-8")
     assert "stream_ingest" not in shared, "never route the ingest service through the shared railway.json"
+
+
+def test_watch_paths_cover_the_services_own_code():
+    """railway.ingest.json watches ONLY the service's own code, so an unrelated web change
+    never redeploys it (a redeploy is a Massive reconnect). Every api module the
+    entrypoint imports, plus the two the runtime imports lazily, must be watched."""
+    cfg = json.loads((ROOT / "railway.ingest.json").read_text(encoding="utf-8"))
+    watched = set(cfg["build"]["watchPatterns"])
+    assert not any("*" in w for w in watched), "keep the ingest watch list narrow: no globs"
+    code = ("import sys, api.stream_ingest_main\n"
+            "print(' '.join(sorted(m for m in sys.modules if m.startswith('api.') and m != 'api.services')))\n")
+    out = subprocess.run([sys.executable, "-c", code], cwd=ROOT, capture_output=True, text=True, timeout=120)
+    assert out.returncode == 0, out.stderr[-2000:]
+    mods = out.stdout.split() + ["api.services.vendor_socket_guard", "api.services.bars_live_ingest"]
+    missing = [m for m in mods if m.replace(".", "/") + ".py" not in watched]
+    assert not missing, f"add to railway.ingest.json watchPatterns: {missing}"
+    for f in ("railway.ingest.json", "requirements.txt"):
+        assert f in watched

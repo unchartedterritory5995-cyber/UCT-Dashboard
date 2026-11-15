@@ -1176,11 +1176,11 @@
       "script": "corpus/committed/k-clustering__8e82f5aa4b.pine",
       "state": "on",
       "signature": {
-        "verdict": "DIVERGE",
-        "reason": null,
+        "verdict": "INCONCLUSIVE",
+        "reason": "1 of 1 items could not be compared",
         "plots": [],
         "objects": [
-          "DIVERGE",
+          "INCONCLUSIVE",
           [
             [
               "lines",
@@ -1188,9 +1188,14 @@
               null
             ],
             [
+              "tables",
+              1,
+              null
+            ],
+            [
               "tableCells",
               8,
-              5
+              null
             ]
           ]
         ],
@@ -1705,16 +1710,13 @@
       "script": "corpus/committed/mcclellan-indicators__29fdf0235d.pine",
       "state": "on",
       "signature": {
-        "verdict": "DIVERGE",
+        "verdict": "INCONCLUSIVE",
         "reason": null,
         "plots": [
           [
             "Osc",
-            "DIVERGE",
-            39,
-            "na",
-            1761,
-            "persistent"
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — computeFor returned no column for va"
           ],
           [
             "MSI",

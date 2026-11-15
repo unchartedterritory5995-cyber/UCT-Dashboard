@@ -1349,7 +1349,7 @@ def test_the_user_namespace_cannot_collide_with_a_SHIPPED_definition(js):
 #: a newer engine's verdict on the caller's OWN live version. Its OWN `require_paid` verified.
 #: 2026-11-13 (WS-I Part 2, admission by capability): 20 -> 21 -- `POST /runtime-admission`,
 #: a verdict about a script the caller sends (stores nothing). Its OWN `require_paid` verified.
-EXPECTED_ROUTE_COUNT = 21
+EXPECTED_ROUTE_COUNT = 22  # 2026-11-15 (U5): 21 -> 22 with `GET /capability-worker` (its OWN require_paid, then require_admin in the body)
 
 
 def _routes():

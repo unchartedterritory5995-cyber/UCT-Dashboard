@@ -5,14 +5,18 @@
 // screen's centre for a moment, then clears, leaving the inline seal beside the verdict.
 import s from './study.module.css'
 
+/** A word this short reads at a legible size on the small inline seal (study.module.css .stampWordShort). */
+export const STAMP_SHORT_WORD = 5
+
 export default function Stamp({ ok, word = null, inline = false, pop = false }) {
+  const said = word || (ok ? 'Named it' : 'Miss')
   return (
     <div className={pop ? s.stampPop : inline ? s.stampInline : s.stampWrap} aria-hidden="true">
       <div className={`${s.stamp} ${ok ? '' : s.miss}`}>
         <svg viewBox="0 0 24 24" width="44" height="44" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round">
           {ok ? <path d="M4 12.5l5 5L20 7" /> : <path d="M6 6l12 12M18 6L6 18" />}
         </svg>
-        <span className={s.stampWord}>{word || (ok ? 'Named it' : 'Miss')}</span>
+        <span className={`${s.stampWord} ${said.length <= STAMP_SHORT_WORD ? s.stampWordShort : ''}`} data-word={said}>{said}</span>
       </div>
     </div>
   )

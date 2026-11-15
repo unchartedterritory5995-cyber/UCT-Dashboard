@@ -12,6 +12,7 @@
 // whose capabilities this member cannot use is not shown (guide/registry.guideFeatures).
 
 import { registerCapability, registerTargetKind, registerContextProvider, getTargetKind } from '../capabilities'
+import { offeredStarters } from '../../pages/screener/focus/screenGroups'
 import { GUIDE_IDS, GUIDE_FEATURES, guideFeature, guideFeatures, matchFeature, surfaceOf, featuresOn } from '../guide/registry'
 import { explainTopic, explainWords } from '../guide/explain'
 import { startGuide, lastShownGuide, forgetLastShown, endGuide, guideState } from '../guide/guideStore'
@@ -171,7 +172,7 @@ function pageChoices(from, host) {
   if (from === 'savedScreens') {
     let lib = null
     try { lib = host?.screenerPage?.saved?.() || null } catch { lib = null }
-    return [...(lib?.saved || []), ...(lib?.starters || [])].filter(x => x.id && x.name).slice(0, 8).map(x => [x.id, x.name])
+    return [...(lib?.saved || []), ...offeredStarters(lib?.starters)].filter(x => x.id && x.name).slice(0, 8).map(x => [x.id, x.name])
   }
   return []
 }

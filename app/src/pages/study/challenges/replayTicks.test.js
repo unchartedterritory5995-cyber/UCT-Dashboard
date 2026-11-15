@@ -96,6 +96,20 @@ describe('the replay within the day', () => {
     expect(dueCheck(due, 7, new Set(['t1', 't2']))).toBe(null)
   })
 
+  it('says what the day changes in the why: day 1 or 2 is too early to sell, day 3 on is a judgment (D-013; the buy day is day 1)', () => {
+    const checks = [{ at: 't1', q: 'q1', choices: ['Hold', 'Sell a third'], answer: 0, why: '3R is a mark.', early: 'Too early.', later: 'A judgment.' },
+      { at: 't2', q: 'q2', choices: ['Sell some', 'Sell it all'], answer: 0, why: '5R is in the zone.', early: 'Hold today.', later: 'Sell some.' }]
+    // 3R on session 1 (day 2) and 5R on session 2 (day 3): the line between them
+    const [a, b] = replayChecks({ kind: 'plan', t1At: 1, t2At: 2, checks })
+    expect(a.why).toBe('3R is a mark. This is day 2 of the trade. Too early.')
+    expect(b.why).toBe('5R is in the zone. This is day 3 of the trade. Sell some.')
+    expect(replayChecks({ kind: 'plan', t1At: 4, t2At: 9, checks }).map((c) => c.why)).toEqual([
+      '3R is a mark. This is day 5 of the trade. A judgment.', '5R is in the zone. This is day 10 of the trade. Sell some.'])
+    // the keyed answer never moves with the day, and a check from an older server keeps its why as it came
+    expect(a.answer).toBe(0)
+    expect(replayChecks({ kind: 'plan', t1At: 1, checks: [{ at: 't1', q: 'q', choices: ['a', 'b'], answer: 0, why: 'As it came.' }] })[0].why).toBe('As it came.')
+  })
+
   it('holds at a question and runs on once it is answered', () => {
     vi.useFakeTimers()
     const fwd = [DAY, { ...DAY, t: '2024-06-04' }, { ...DAY, t: '2024-06-05' }]

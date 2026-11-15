@@ -590,6 +590,30 @@
       ]
     },
     {
+      "key": "screener_rs_controls",
+      "store": "server-preference",
+      "scope": "cross-device",
+      "surface": "Screener",
+      "kind": "setting",
+      "label": "RS screen quick controls",
+      "serverAllowlisted": true,
+      "files": [
+        "app/src/pages/screener/focus/FocusScreener.jsx"
+      ]
+    },
+    {
+      "key": "screener_rs_note_seen",
+      "store": "server-preference",
+      "scope": "cross-device",
+      "surface": "Screener",
+      "kind": "state",
+      "label": "RS screens first-visit note dismissed",
+      "serverAllowlisted": true,
+      "files": [
+        "app/src/pages/screener/focus/FocusScreener.jsx"
+      ]
+    },
+    {
       "key": "shared_tag_colors",
       "store": "server-preference",
       "scope": "cross-device",
@@ -694,6 +718,220 @@
       "serverAllowlisted": true,
       "files": [
         "app/src/components/chart/useTracingsSync.js"
+      ]
+    },
+    {
+      "key": "study.blitz.best",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Study",
+      "kind": "state",
+      "label": "Your best Blitz score",
+      "files": [
+        "app/src/pages/study/StudyLanding.jsx",
+        "app/src/pages/study/challenges/BlitzChallenge.jsx"
+      ]
+    },
+    {
+      "key": "study.blitz.tutorialSeen",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Study",
+      "kind": "state",
+      "label": "The Blitz tutorial was shown",
+      "files": [
+        "app/src/lab/pieces/Piece47BlitzV2.jsx",
+        "app/src/lab/pieces/Piece53BlitzV3.jsx"
+      ]
+    },
+    {
+      "key": "study.daily.*",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Study",
+      "kind": "work",
+      "label": "Each day's Daily Chart result (the last 60 days)",
+      "pattern": true,
+      "files": [
+        "app/src/pages/study/challenges/DailyChartGame.jsx"
+      ]
+    },
+    {
+      "key": "study.daily.streak",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Study",
+      "kind": "state",
+      "label": "Your Daily Chart streak",
+      "files": [
+        "app/src/pages/study/challenges/DailyChartGame.jsx"
+      ]
+    },
+    {
+      "key": "study.earnings.best",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Study",
+      "kind": "state",
+      "label": "Your best Earnings Desk score",
+      "files": [
+        "app/src/pages/study/challenges/EarningsDeskGame.jsx"
+      ]
+    },
+    {
+      "key": "study.greeks.best",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Study",
+      "kind": "state",
+      "label": "Your best Greeks Lab score",
+      "files": [
+        "app/src/pages/study/challenges/GreeksLabGame.jsx"
+      ]
+    },
+    {
+      "key": "study.history.best",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Study",
+      "kind": "state",
+      "label": "Your best History Detective score",
+      "files": [
+        "app/src/pages/study/challenges/HistoryDetectiveGame.jsx"
+      ]
+    },
+    {
+      "key": "study.howto.*",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Study",
+      "kind": "state",
+      "label": "\"how it plays\" cards already shown",
+      "pattern": true,
+      "files": [
+        "app/src/pages/study/ui/HowItPlays.jsx"
+      ]
+    },
+    {
+      "key": "study.match.best.*",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Study",
+      "kind": "state",
+      "label": "Your best Word Match scores",
+      "pattern": true,
+      "files": [
+        "app/src/pages/study/challenges/WordMatchGame.jsx"
+      ]
+    },
+    {
+      "key": "study.mistake.best",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Study",
+      "kind": "state",
+      "label": "Your best Spot the Mistake score",
+      "files": [
+        "app/src/pages/study/challenges/SpotMistakeGame.jsx"
+      ]
+    },
+    {
+      "key": "study.outbox",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Study",
+      "kind": "work",
+      "label": "Answers waiting to send when back online",
+      "files": [
+        "app/src/pages/study/studyOutbox.js"
+      ]
+    },
+    {
+      "key": "study.payoff.best",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Study",
+      "kind": "state",
+      "label": "Your best Options Payoff score",
+      "files": [
+        "app/src/pages/study/challenges/OptionsPayoffGame.jsx"
+      ]
+    },
+    {
+      "key": "study.sectors.best",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Study",
+      "kind": "state",
+      "label": "Your best Sector Race score",
+      "files": [
+        "app/src/pages/study/challenges/SectorRaceGame.jsx"
+      ]
+    },
+    {
+      "key": "study.set.cache",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Study",
+      "kind": "cache",
+      "label": "The lesson in progress, for a quick reopen",
+      "files": [
+        "app/src/pages/study/useStudySession.js"
+      ]
+    },
+    {
+      "key": "study.sfx.muted",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Study",
+      "kind": "setting",
+      "label": "Game sound effects muted",
+      "files": [
+        "app/src/lab/sfx.js"
+      ]
+    },
+    {
+      "key": "study.size.best",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Study",
+      "kind": "state",
+      "label": "Your best Size It score",
+      "files": [
+        "app/src/pages/study/challenges/SizeItGame.jsx"
+      ]
+    },
+    {
+      "key": "study.survive.best",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Study",
+      "kind": "state",
+      "label": "Your best Survive score",
+      "files": [
+        "app/src/pages/study/challenges/SurviveGame.jsx"
+      ]
+    },
+    {
+      "key": "study.tf.best",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Study",
+      "kind": "state",
+      "label": "Your best True or False score",
+      "files": [
+        "app/src/pages/study/challenges/TrueFalseGame.jsx"
+      ]
+    },
+    {
+      "key": "study.ticket.best",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Study",
+      "kind": "state",
+      "label": "Your best Order Ticket score",
+      "files": [
+        "app/src/pages/study/challenges/OrderTicketGame.jsx"
       ]
     },
     {
@@ -1671,6 +1909,28 @@
       "label": "Chart data rollout switch",
       "files": [
         "app/src/components/chart/barStoreSwitch.js"
+      ]
+    },
+    {
+      "key": "uct.barsgrace.off",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Charts",
+      "kind": "internal",
+      "label": "Chart loading rollout switch",
+      "files": [
+        "app/src/components/chart/useLegacyChartBars.js"
+      ]
+    },
+    {
+      "key": "uct.barspack.deltaProgress",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Charts",
+      "kind": "internal",
+      "label": "Daily market data update progress",
+      "files": [
+        "app/src/lib/barsPackClient.js"
       ]
     },
     {
@@ -2724,6 +2984,17 @@
       ]
     },
     {
+      "key": "uct.study.sound",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Study",
+      "kind": "setting",
+      "label": "Sound and haptics on or off",
+      "files": [
+        "app/src/pages/study/studySound.js"
+      ]
+    },
+    {
       "key": "uct.switchAbort.bucket",
       "store": "localStorage",
       "scope": "device-local",
@@ -3077,6 +3348,17 @@
       "label": "Which named screen the current filters came from",
       "files": [
         "app/src/pages/screener/focus/FocusScreener.jsx"
+      ]
+    },
+    {
+      "key": "uct.screener.rsMarketHidden",
+      "store": "sessionStorage",
+      "scope": "device-local",
+      "surface": "Screener",
+      "kind": "state",
+      "label": "RS screens market note hidden for today",
+      "files": [
+        "app/src/pages/screener/focus/rsMarket.js"
       ]
     },
     {

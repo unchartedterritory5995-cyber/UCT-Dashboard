@@ -128,8 +128,22 @@ describe('C3-104: looks — save, apply, delete — through the ⚙ panel\'s Tem
     const m = board([wl('wa', MINE)])
     await ready()
     const was = JSON.stringify(optsOf(m))
-    await m.say(text, setOption(c.args))
-    if (c.saves || c.deletes) {
+    const out = await m.say(text, setOption(c.args))
+    if (c.deletes) {
+      // ⛔ AUDIT #1247 (D19): "delete the Paper watchlist look" names "Paper" beside ANOTHER class (watchlist) — ASKED WITH
+      // CHOICES (the saved look "Paper"; a watchlist "Paper" when there is one), nothing deleted; the pick is the look → its card
+      expect(out).toMatch(/Which one do you mean\?/)
+      expect(proposalsNow()).toHaveLength(0)
+      expect(templates()).toEqual([PAPER])
+      fireEvent.click(screen.getAllByRole('button', { name: /saved look “Paper”/ }).at(-1))
+      await waitFor(() => expect(proposalsNow()).toHaveLength(1))
+      expect(templates()).toEqual([PAPER])
+      await m.apply()
+      await waitFor(() => expect(templates()).toEqual([]))
+      expect(JSON.stringify(optsOf(m))).toBe(was)
+      return
+    }
+    if (c.saves) {
       // saving replaces a look of the same name and deleting cannot be undone: both are shown first
       expect(proposalsNow()).toHaveLength(1)
       expect(templates()).toEqual([PAPER])

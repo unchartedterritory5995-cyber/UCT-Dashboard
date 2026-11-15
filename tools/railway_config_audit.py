@@ -9,7 +9,11 @@ This audit catches that drift weekly.
 
 Checks (all READ-ONLY — GraphQL queries + local git reads only):
   1. Worker serviceInstance watchPatterns == the 6 root-anchored api/build patterns.
-  2. Web serviceInstance watchPatterns == [] (deliberate — web must deploy on every commit).
+  2. Web serviceInstance watchPatterns == the list in origin/master railway.web.json.
+     (Until 2026-11-14 this expected [] : the stored list was empty and the config file's
+     list was what deploys used. Railway stops reading config files on 2026-12-01, so the
+     stored settings were written to match the files; tools/railway_stored_settings.py
+     compares every such setting, this check keeps only the watch list.)
   3. Env placement: web MASSIVE_WS_ENABLED=1 + MASSIVE_WS_DRY_RUN=0; worker
      MASSIVE_WS_ENABLED=0 + LIVEFLOW_MONITOR_ENABLED=1; NEITHER service carries
      RAILWAY_DEPLOYMENT_DRAINING_SECONDS / RAILWAY_DEPLOYMENT_OVERLAP_SECONDS as an
@@ -272,6 +276,19 @@ def fetch_master_railway_json() -> dict:
         raise AuditScriptError(f"origin/master railway.json is not valid JSON: {exc}") from exc
 
 
+def fetch_master_web_watch() -> list:
+    """`build.watchPatterns` of origin/master:railway.web.json (the main server's config file)."""
+    show = subprocess.run(["git", "-C", REPO, "show", "origin/master:railway.web.json"],
+                          capture_output=True, text=True, timeout=60)
+    if show.returncode != 0:
+        raise AuditScriptError(
+            f"git show origin/master:railway.web.json failed: {(show.stderr or '').strip()[:300]}")
+    try:
+        return list((json.loads(show.stdout).get("build") or {}).get("watchPatterns") or [])
+    except json.JSONDecodeError as exc:
+        raise AuditScriptError(f"origin/master railway.web.json is not valid JSON: {exc}") from exc
+
+
 def _find_key_paths(obj, key: str, path: str = "") -> list:
     hits = []
     if isinstance(obj, dict):
@@ -309,9 +326,10 @@ class Auditor:
             worker_watch,
         )
         web_watch = fetch_watch_patterns(SERVICES["web"][0])
+        want_web = fetch_master_web_watch()
         self.check(
-            web_watch == [],
-            "web watchPatterns == [] (deliberate — web deploys on every commit)",
+            sorted(web_watch) == sorted(want_web),
+            "web watchPatterns == the list in origin/master railway.web.json",
             web_watch,
         )
 

@@ -41,8 +41,11 @@ USER = "u-capadmit"
 #: ⭐ THE CASE THIS SLICE EXISTS FOR: the graded ADX script with one comment line added, as a
 #: member's own copy would be. Same capabilities, a different sha256, so the allowlist misses it.
 MEMBER_COPY = ADX["compute"]["source"] + "\n// my own copy\n"
-SWITCH_SCRIPT = ("//@version=5\nindicator('s')\nlen = input.int(14)\n"
-                 "x = switch len\n    14 => close\n    => open\nplot(x)\n")
+#: A script using a capability the committed registry does NOT admit (`udt`: one script's evidence,
+#: U3 2026-11-15). Was a `switch` script until U3 admitted `switch` on S1's second community script.
+UNADMITTED_CAP = "udt"
+UNADMITTED_SCRIPT = ("//@version=5\nindicator('u')\ntype P\n    float v\n"
+                     "p = P.new(close)\nplot(p.v)\n")
 
 
 def member_doc(source: str = MEMBER_COPY) -> dict:
@@ -119,6 +122,12 @@ def test_the_committed_admitted_set_is_the_evidence_supported_one():
     assert rt.admitted_capabilities()["admitted"] == sorted([
         "core", "reassign", "ternary", "if-block", "var", "fn-single", "fn-multi", "for",
         "compound-assign", "history-expr", "tuple-destructure",
+        # U1 (2026-11-15): object families on objects v2 runtime-on MATCH with records paired;
+        # obj:box withheld by ruling (the v4 default border colour, test_A7_obj_box_waits_...)
+        "obj:line", "obj:label", "obj:delete", "obj:collection",
+        # U3 (2026-11-15): each on the one evidence rule over the S1-era corpus; realtime-state for
+        # closed-bar history only (G6); max_bars_back by coordinator ruling (a)
+        "obj:getter", "obj:linefill", "switch", "for-in", "max_bars_back", "realtime-state",
         # coordinator rulings 2026-11-13: the one evidence rule, no exceptions in either direction;
         # distinct script families, at least one community script (generics: probes only, out);
         # the array namespace on its own evidence (matrix and map have none)
@@ -170,7 +179,7 @@ def test_the_save_door_follows_the_same_rule(store, monkeypatch):
 
 def test_the_allow_report_carries_the_admission_only_while_ON(on):
     rep = rt.allow_report()["capability_admission"]
-    assert "for" in rep["admitted"] and "switch" not in rep["admitted"]
+    assert "for" in rep["admitted"] and UNADMITTED_CAP not in rep["admitted"]
     assert "conditional-ta" in rep["withheld"]
     assert rt.graded_allow_list() == ["d0853c4724651a1d3c63542a2ae767861030137cb1c75ea57a376c53a1630499"]
 
@@ -219,9 +228,9 @@ def test_A1_a_script_using_a_withheld_capability_is_not_admitted(tmp_path, monke
 # ═══ A2 — closed world: an unknown capability withholds ════════════════════════
 
 def test_A2_a_capability_absent_from_the_registry_withholds(on):
-    ok, missing = rt.capability_admitted(SWITCH_SCRIPT)
-    assert not ok and "switch" in missing
-    assert rt.not_graded(SWITCH_SCRIPT)
+    ok, missing = rt.capability_admitted(UNADMITTED_SCRIPT)
+    assert not ok and UNADMITTED_CAP in missing
+    assert rt.not_graded(UNADMITTED_SCRIPT)
 
 
 def test_A2_every_vocabulary_id_outside_the_admitted_set_withholds(on):
@@ -294,9 +303,9 @@ def test_A3_no_variable_adds_a_capability(monkeypatch, on):
     base = set(rt.admitted_capabilities()["admitted"])
     for env in (rt.CAPABILITY_DENY_ENV, rt.ALLOW_ENV, rt.KILL_ENV, "PINE_RUNTIME_CAPABILITY_ALLOW",
                 "PINE_RUNTIME_CAPABILITY_ADMIT"):
-        monkeypatch.setenv(env, "switch,while,obj:line,conditional-ta," + "a" * 64)
+        monkeypatch.setenv(env, "udt,while,obj:table,conditional-ta," + "a" * 64)
         assert set(rt.admitted_capabilities()["admitted"]) <= base, env
-        assert not rt.capability_admitted(SWITCH_SCRIPT)[0], env
+        assert not rt.capability_admitted(UNADMITTED_SCRIPT)[0], env
         monkeypatch.delenv(env)
 
 
@@ -342,30 +351,161 @@ def test_A5_a_missing_file_admits_nothing(monkeypatch, on, tmp_path):
 
 # ═══ A7 — an object family needs objects v2 MATCH with the run drawing ═════════
 
+OBJ_EV2 = [dict(e, objectsV2="MATCH", objectsLane="runtime", objectsPaired=12) for e in EV2]
+
+
 def test_A7_an_object_family_without_v2_run_evidence_is_not_admitted():
     assert rg.pine_capability_admission("obj:line", ROW)
-    half = [dict(EV2[0], objectsV2="MATCH", objectsLane="runtime"), dict(EV2[1], objectsV2="MATCH")]
+    half = [OBJ_EV2[0], dict(EV2[1], objectsV2="MATCH", objectsPaired=12)]
     assert rg.pine_capability_admission("obj:line", dict(ROW, evidence=half))
-    host = [dict(e, objectsV2="MATCH", objectsLane="host") for e in EV2]
+    host = [dict(e, objectsLane="host") for e in OBJ_EV2]
     assert rg.pine_capability_admission("obj:line", dict(ROW, evidence=host))
+    v1_only = [dict(e, objectsV2="INCONCLUSIVE") for e in OBJ_EV2]
+    assert rg.pine_capability_admission("obj:line", dict(ROW, evidence=v1_only))
+
+
+@pytest.mark.parametrize("paired", [None, 0, -1, True, "12", 1.5])
+def test_A7_a_capture_that_paired_nothing_is_not_evidence(paired):
+    """U1: objects v2 MATCH over NO paired record compared nothing (`objectsV2.pairedNothing`)."""
+    ev = [OBJ_EV2[0], {k: v for k, v in OBJ_EV2[1].items() if k != "objectsPaired"}]
+    if paired is not None:
+        ev[1]["objectsPaired"] = paired
+    reasons = rg.pine_capability_admission("obj:line", dict(ROW, evidence=ev))
+    assert reasons and any("records paired" in r for r in reasons), reasons
 
 
 def test_A7_control_with_v2_run_evidence_it_would_admit():
-    full = [dict(e, objectsV2="MATCH", objectsLane="runtime") for e in EV2]
-    assert rg.pine_capability_admission("obj:line", dict(ROW, evidence=full)) == []
+    assert rg.pine_capability_admission("obj:line", dict(ROW, evidence=OBJ_EV2)) == []
 
 
-def test_A7_no_object_family_is_admitted_in_the_committed_registry():
+def test_A7_probe_only_object_evidence_is_not_admitted():
+    """U1 mutant 'a family admitted on probe-only evidence': two probe families, objects v2 MATCH."""
+    probes = [dict(e, community=False) for e in OBJ_EV2]
+    reasons = rg.pine_capability_admission("obj:line", dict(ROW, evidence=probes))
+    assert reasons and any("no community script" in r for r in reasons), reasons
+
+
+def test_A7_an_x_grade_that_DIVERGES_vetoes_the_family():
+    """Coordinator ruling 2026-11-15: one x DIVERGE (U13) and the family is not admitted, even
+    with otherwise sufficient evidence, and even on an entry that would not count."""
+    veto = OBJ_EV2 + [dict(OBJ_EV2[0], capture="c-3", objectsX="DIVERGE")]
+    reasons = rg.pine_capability_admission("obj:line", dict(ROW, evidence=veto))
+    assert reasons and any("x grade that DIVERGES (c-3)" in r for r in reasons), reasons
+    uncounted = OBJ_EV2 + [{"capture": "c-4", "objectsX": "DIVERGE"}]
+    assert rg.pine_capability_admission("obj:line", dict(ROW, evidence=uncounted))
+    # CONTROL: an x MATCH or INCONCLUSIVE is recorded and admits
+    for x in ("MATCH", "INCONCLUSIVE"):
+        ok = [dict(OBJ_EV2[0], objectsX=x), OBJ_EV2[1]]
+        assert rg.pine_capability_admission("obj:line", dict(ROW, evidence=ok)) == [], x
+
+
+#: U1 (2026-11-15): the object families admitted on objects v2 runtime-on evidence (y graded, G1).
+U1_OBJECT_FAMILIES = ["obj:collection", "obj:delete", "obj:label", "obj:line"]
+#: U3 (2026-11-15): two more object operations met the rule on S1's community scripts.
+U3_OBJECT_FAMILIES = ["obj:getter", "obj:linefill"]
+
+
+def test_A7_the_committed_object_families_are_U1s_four_and_U3s_two():
     rep = rt.admitted_capabilities()
-    assert not [c for c in rep["admitted"] if c.startswith("obj:")]
+    assert sorted(c for c in rep["admitted"] if c.startswith("obj:")) == sorted(U1_OBJECT_FAMILIES + U3_OBJECT_FAMILIES)
+    # table and polyline have no runtime-drawn evidence at all (U3 shortfall); box waits for a fix
+    for c in ("obj:table", "obj:polyline", "obj:box"):
+        assert c not in rep["admitted"], c
+
+
+#: ⛔ Coordinator ruling 2026-11-15: obj:box's y evidence passes the rule, but the runtime lane draws a
+#: v4 `box.new` with no `border_color` in #2962ff (v5+ color.blue) where TradingView draws #2196f3
+#: (v4 color.blue). The family waits for runtime object defaults made version-aware.
+OBJ_BOX_BUG_CAPTURE = "inside-bar-boxes-rddt-1d-2026-11-14"
+
+
+def test_A7_obj_box_waits_for_version_aware_object_defaults():
     doc = json.loads(Path(rt.ALLOWLIST_PATH).read_text(encoding="utf-8"))
-    assert not [c for c, r in doc["capabilities"].items() if c.startswith("obj:") and r.get("admitted") is True]
+    assert "obj:box" not in doc["capabilities"]
+    readme = " ".join(doc["_readme"])
+    assert "obj:box IS DELIBERATELY ABSENT" in readme and OBJ_BOX_BUG_CAPTURE in readme
+    assert "#2962ff" in readme and "#2196f3" in readme
+    # the evidence the ruling names is what it says: runtime-drawn, objects v2 DIVERGE on a box colour
+    r = _verdicts()[OBJ_BOX_BUG_CAPTURE]
+    o = r["objectsV2"]
+    assert o["verdict"] == "DIVERGE" and "boxes border_color" in o["reason"], o["reason"]
+    assert "#2196f3" in o["reason"] and "#2962ff" in o["reason"]
+    src = (json.loads((ROOT / r["file"]).read_text(encoding="utf-8")).get("source") or {}).get("text")
+    assert "obj:box" in pc.capabilities_of(src)
 
 
-def test_A7_an_object_drawing_member_script_is_withheld(on):
-    src = MEMBER_COPY + "var line l = na\nl := line.new(bar_index, low, bar_index, high)\n"
+def test_A7_a_box_drawing_member_script_is_withheld(on):
+    src = MEMBER_COPY + "var box b = na" + chr(10) + "b := box.new(bar_index - 1, high, bar_index, low)" + chr(10)
     ok, missing = rt.capability_admitted(src)
-    assert not ok and "obj:line" in missing
+    assert not ok and missing == ["obj:box"], missing
+
+
+def test_A7_an_object_drawing_member_script_is_withheld_while_its_family_is(on):
+    src = MEMBER_COPY + "var table t = table.new(position.top_right, 1, 1)\n"
+    ok, missing = rt.capability_admitted(src)
+    assert not ok and "obj:table" in missing
+    # CONTROL: a line drawing alone now admits (U1)
+    line = MEMBER_COPY + "var line l = na\nl := line.new(bar_index, low, bar_index, high)\n"
+    assert rt.capability_admitted(line) == (True, [])
+
+
+# ═══ G6 — realtime-state admits for CLOSED-BAR HISTORY only (ruling 2026-11-15) ══
+
+RT_SCRIPT = MEMBER_COPY + "plot(barstate.isconfirmed ? close : open)" + chr(10)
+
+
+def _with_realtime_row(tmp_path, monkeypatch, **extra):
+    def add(doc):
+        doc["capabilities"]["realtime-state"] = dict(ROW, **extra)
+        return doc
+    _registry_file(tmp_path, monkeypatch, add)
+
+
+def test_G6_realtime_state_without_the_closed_bar_scope_is_not_admitted():
+    for row in (ROW, dict(ROW, scope="all-bars"), dict(ROW, scope=None)):
+        reasons = rg.pine_capability_admission("realtime-state", row)
+        assert reasons and any("closed-bar-history" in r for r in reasons), reasons
+    assert rg.pine_capability_admission("realtime-state", dict(ROW, scope="closed-bar-history")) == []
+    # CONTROL: the scope is asked of the forming-ungraded ids only
+    assert rg.pine_capability_admission("for", ROW) == []
+    assert not rg.pine_capability_history_only("for", dict(ROW, scope="closed-bar-history"))
+
+
+def test_G6_the_admitted_set_names_it_history_only(tmp_path, monkeypatch):
+    _with_realtime_row(tmp_path, monkeypatch, scope="closed-bar-history")
+    rep = rt.admitted_capabilities()
+    assert "realtime-state" in rep["admitted"] and rep["historyOnly"] == ["realtime-state"]
+
+
+def test_G6_the_door_answers_history_only_for_a_script_that_reads_bar_state(tmp_path, monkeypatch, store, on):
+    _with_realtime_row(tmp_path, monkeypatch, scope="closed-bar-history")
+    assert "realtime-state" in pc.capabilities_of(RT_SCRIPT)
+    body = _client().post("/api/user-definitions/runtime-admission", json={"source": RT_SCRIPT}).json()
+    assert body == {"sha256": rt.source_hash(RT_SCRIPT), "admitted": True, "missing": [],
+                    "historyOnly": ["realtime-state"]}
+    # CONTROL: a script that reads no bar state carries no restriction
+    body = _client().post("/api/user-definitions/runtime-admission", json={"source": MEMBER_COPY}).json()
+    assert body == {"sha256": rt.source_hash(MEMBER_COPY), "admitted": True, "missing": []}
+
+
+def test_G6_a_set_that_cannot_be_re_read_is_not_admitted(tmp_path, monkeypatch, store, on):
+    """FAIL CLOSED: the second read of the capability set fails -> pending, never admitted."""
+    _with_realtime_row(tmp_path, monkeypatch, scope="closed-bar-history")
+    calls = []
+    real = rt.capabilities_for
+
+    def flaky(source, **kw):
+        calls.append(1)
+        return real(source, **kw) if len(calls) == 1 else None
+    monkeypatch.setattr(rt, "capabilities_for", flaky)
+    got = rt.runtime_admission(RT_SCRIPT, member="u-x")
+    assert got["admitted"] is False and got["missing"] == [rt.PENDING]
+
+
+def test_G6_without_the_scope_the_door_withholds_it(tmp_path, monkeypatch, store, on):
+    _with_realtime_row(tmp_path, monkeypatch)
+    body = _client().post("/api/user-definitions/runtime-admission", json={"source": RT_SCRIPT}).json()
+    assert body["admitted"] is False and "realtime-state" in body["missing"] and "historyOnly" not in body
 
 
 # ═══ A8 — every evidence id is a real capture graded MATCH, drawn by the run ═══
@@ -400,7 +540,38 @@ def _phantoms(registry: dict) -> list:
             text = (json.loads(fixture.read_text(encoding="utf-8")).get("source") or {}).get("text")
             if cap not in pc.capabilities_of(text):
                 bad.append((cap, cid, "the capture's script does not use it"))
+            if cap.startswith(rg.PINE_CAPABILITY_OBJECT_PREFIX):
+                bad += [(cap, cid, why) for why in _object_evidence_problems(cap, e, r)]
     return bad
+
+
+#: The objects v2 family whose OWN paired records witness an object capability; the operations
+#: (delete, collection, getter) are witnessed by every paired record of the capture.
+OBJECT_FAMILY_OF = {"obj:line": "lines", "obj:label": "labels", "obj:box": "boxes", "obj:table": "tables",
+                    "obj:linefill": "linefills"}
+X_GRADES = ROOT / "docs" / "pine" / "evidence" / "2026-11-15-u1-u3-admission" / "runs" / "x-grades.json"
+
+
+def _object_evidence_problems(cap: str, e: dict, r: dict) -> list:
+    """An `obj:*` evidence entry's objects claims, held to the committed runtime-on verdict: objects v2
+    MATCH, records paired (never `pairedNothing`), the count it states, and any x grade it records
+    (`objectsX`) held to the committed x-grade record (U13)."""
+    out = []
+    o = r.get("objectsV2") or {}
+    if e.get("objectsV2") != o.get("verdict") or o.get("verdict") != "MATCH":
+        out.append("its objects v2 grade is not a runtime-on MATCH")
+    if o.get("pairedNothing") is not False:
+        out.append("its objects v2 MATCH paired nothing")
+    by = {f["family"]: f.get("paired") or 0 for f in o.get("families") or []}
+    want = by.get(OBJECT_FAMILY_OF[cap], 0) if cap in OBJECT_FAMILY_OF else sum(by.values())
+    if e.get("objectsPaired") != want or not want:
+        out.append(f"states {e.get('objectsPaired')} paired records; the verdict pairs {want}")
+    if "objectsX" in e:
+        grades = {g["of"]: g for g in json.loads(X_GRADES.read_text(encoding="utf-8"))["grades"]}
+        xg = grades.get(r["id"])
+        if not xg or xg.get("verdict") != e.get("objectsX") or xg.get("capture") != e.get("objectsXCapture"):
+            out.append("its x grade is not the committed x-grade record")
+    return out
 
 
 def test_A8_no_phantom_evidence():
@@ -426,7 +597,17 @@ def test_A8_the_rail_can_fail():
         {"capture": match, "script": "somebody else", "community": comm},
         {"capture": match, "script": fam, "community": not comm}]},
         "obj:polyline": {"admitted": True, "evidence": [{"capture": match, "script": fam, "community": comm}]}}
+    # U1: an object entry whose capture paired nothing, or that overstates its paired records
+    empty = next(i for i, r in v.items() if r["verdict"] == "MATCH"
+                 and (r.get("objectsV2") or {}).get("verdict") == "MATCH" and r["objectsV2"].get("pairedNothing") is True)
+    fe, ce = rg.pine_evidence_script(v[empty]["script"], empty)
+    fake["obj:delete"] = {"admitted": True, "evidence": [
+        {"capture": empty, "script": fe, "community": ce, "objectsV2": "MATCH", "objectsPaired": 3,
+         "objectsX": "MATCH", "objectsXCapture": "no-such-recapture"}]}
     got = {(c, why) for c, _id, why in _phantoms(fake)}
+    assert ("obj:delete", "its objects v2 MATCH paired nothing") in got
+    assert ("obj:delete", "states 3 paired records; the verdict pairs 0") in got
+    assert ("obj:delete", "its x grade is not the committed x-grade record") in got
     assert ("for", "no such capture in the runtime-on verdicts") in got
     assert ("for", "runtime-on verdict is DIVERGE") in got
     assert ("for", "names another script") in got
@@ -454,8 +635,8 @@ def test_A9_a_server_lane_never_admits_by_capability(monkeypatch, on):
 def test_the_door_answers_sha_admitted_missing(store, on):
     body = _client().post("/api/user-definitions/runtime-admission", json={"source": MEMBER_COPY}).json()
     assert body == {"sha256": rt.source_hash(MEMBER_COPY), "admitted": True, "missing": []}
-    body = _client().post("/api/user-definitions/runtime-admission", json={"source": SWITCH_SCRIPT}).json()
-    assert body["admitted"] is False and "switch" in body["missing"]
+    body = _client().post("/api/user-definitions/runtime-admission", json={"source": UNADMITTED_SCRIPT}).json()
+    assert body["admitted"] is False and UNADMITTED_CAP in body["missing"]
 
 
 def test_the_door_with_the_flag_off_admits_nothing(store):
@@ -993,7 +1174,7 @@ def test_F1_a_save_of_an_unadmitted_script_is_refused_not_stored(store, monkeypa
     monkeypatch.setenv(rt.SAVE_ENV, "1")
     monkeypatch.setenv(rt.STAGE_ENV, "admins")
     monkeypatch.setenv(rt.CAPABILITY_ADMISSION_ENV, "on")
-    doc = member_doc(MEMBER_COPY + "var line l = na\nl := line.new(bar_index, low, bar_index, high)\n")
+    doc = member_doc(MEMBER_COPY + "var table t = table.new(position.top_right, 1, 1)\n")
     with pytest.raises(ValueError, match="not yet been graded"):
         svc.save(USER, ADX["id"], doc, role="admin")
     assert svc.get(USER, ADX["id"]) is None

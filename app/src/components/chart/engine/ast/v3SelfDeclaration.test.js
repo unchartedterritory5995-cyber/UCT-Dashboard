@@ -316,7 +316,10 @@ describe('⭐⭐ engine 50 — controls: nothing here reads an undeclared variab
     blockDeclaredBefore: [() => ['x = close', 'x = if close > open', '    nz(x[1]) + 1', 'else', '    0.0', 'plot(x)'], ['OK', 'OK', 'OK', 'OK']],
     blockGlobalShadowFn: [() => ['x = close', 'f(s) =>', '    x = if s > 100', '        nz(x[1]) + 1', '    else', '        0.0', '    x', 'plot(f(close))'], ['OK', 'OK', 'OK', 'OK']],
     blockOther: [() => ['y = close', 'x = if close > open', '    nz(y[1]) + 1', 'else', '    0.0', 'plot(x)'], ['OK', 'OK', 'OK', 'OK']],
-    blockInnerDecl: [() => ['x = if close > open', '    x = close', '    x[1]', 'else', '    0.0', 'plot(x)'], ['pine:state', 'pine:state', 'OK', 'pine:state']],
+    // engine 55: the screen door names the block local's history read (`x[1]` of the INNER `x`, a
+    // previous-RUN read) before `pine:state` is reached; it refused before and refuses now
+    // (`lenientBlockLocalHistory.test.js`)
+    blockInnerDecl: [() => ['x = if close > open', '    x = close', '    x[1]', 'else', '    0.0', 'plot(x)'], ['pine:block', 'pine:state', 'OK', 'pine:state']],
     blockVar: [() => ['var x = if close > open', '    nz(x[1]) + 1', 'else', '    0.0', 'plot(x)'], ['pine:block', 'pine:block', 'OK', 'pine:block']],
     blockMutable: [() => ['x = 0.0', 'x := if close > open', '    nz(x[1]) + 1', 'else', '    0.0', 'plot(x)'], ['OK', 'OK', 'OK', 'OK']],
     blockString: [() => ['x = if close > open', '    str.length("x[1]") * 1.0', 'else', '    0.0', 'plot(x)'], ['OK', 'OK', 'OK', 'OK']],

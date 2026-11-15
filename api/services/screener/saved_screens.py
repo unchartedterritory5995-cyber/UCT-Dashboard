@@ -493,14 +493,15 @@ def premarket_starters():
 #: shape as `archive_starters()`. The group label has its own row in the
 #: client's `screenGroups.js` GROUPS (it used to fall back to Momentum leaders).
 #:
-#: ⛔ NO STARTER ON A RATING COLUMN UNTIL IT FILLS IN PROD. `rs_rating_ibd` and
-#: the six beside it read the `rs_rating_history` side table, and the job that
-#: writes it (`rs_history_nightly`, 04:15 ET) is DARK behind `RS_HISTORY_ENABLED`
-#: (unit 2a-04's ledger entry): non-null on zero prod rows BY CONSTRUCTION, so a
-#: starter on one would return nothing forever — the exact class
-#: `test_screener_saved._KNOWN_EMPTY_IN_PROD` exists for, and the seven are named
-#: there, dated. HELD BACK on 2026-11-06, to ship after the first clean fill
-#: (delete the seven ban entries the same day):
+#: ⚰️ This said "NO STARTER ON A RATING COLUMN UNTIL IT FILLS IN PROD":
+#: `rs_rating_ibd` and the columns beside it read the `rs_rating_history` side
+#: table, whose writer (`rs_history_nightly`, 04:15 ET) was dark behind
+#: `RS_HISTORY_ENABLED` on 2026-11-06, so `test_screener_saved.
+#: _KNOWN_EMPTY_IN_PROD` banned them. They filled: the flag was armed on
+#: 2026-11-07 and on 2026-11-13 2,390 of 2,404 liquid stocks carried a rating,
+#: so the ban entries were deleted on 2026-11-14 and a starter may filter a
+#: rating column. The three HELD BACK on 2026-11-06 are still not shipped here
+#: (the rating screens are their own piece of work, not this comment's):
 #:   "RS 90+ (IBD-style)"          rs_rating_ibd >= 90
 #:   "RS 90+ in a leading sector"  rs_rating_ibd >= 90 and sector_rs_pct >= 80
 #:   "RS rating climbing"          rs_rating_chg_20 >= 10 and rs_rating_ibd >= 70
@@ -532,16 +533,40 @@ def rs_v2_enabled() -> bool:
         return False
 
 
-def rs_starters():
-    """The nine RS starters (seven, plus the two RS Exit Warning screens), or
-    none while RS_V2_ENABLED is off (see above)."""
+def rs_screens_served(user=None) -> bool:
+    """Is THIS user served the five RS screens (``rs_post_pass.surfaces_on``: the flag
+    on for everyone, or ``admin`` and the user is an admin; unit U10), read at call
+    time. No user is a member's answer. Unreadable is off: today's starters.
+
+    Only the starters payload is gated. The scan and count routes need no gate: a
+    column that exists may be filtered by anyone."""
+    try:
+        from . import rs_post_pass  # noqa: PLC0415 - lazy
+        return bool(rs_post_pass.surfaces_on(user))
+    except Exception:  # noqa: BLE001 -- an unreadable gate changes nothing
+        return False
+
+
+def rs_starters(screens=None):
+    """The RS starters, or none while RS_V2_ENABLED is off (see above).
+
+    ``screens``: are the five served to the user being answered (`starters(user)`
+    passes `rs_screens_served(user)`; left out, it is a member's answer).
+
+    Not served (production today): the nine below, exactly as they were.
+    Served (RS screens unit U4): the five screens of `rs_screens` (Top RS Rating, RS New
+    Highs, RS New High Before Price, UCT RS Leaders, RS exit warnings; three keep the
+    id of the starter they replace), then the six single-rule lists they absorb,
+    each carrying ``hidden: true`` so the picker leaves it out while a pinned or
+    last-used id still resolves. Both flags are needed: the five read columns the
+    RS_V2 `bars_rs` step writes."""
     if not rs_v2_enabled():
         return []
 
     def liquid():
         return [dict(f) for f in _RS_LIQUID]
 
-    return [
+    previous = [
         {"id": "starter_rs_new_high", "name": "RS new highs (52-week)",
          "group": RS_STARTER_GROUP,
          "description": "Stocks whose RS line against SPY closed the last session at a 52-week high on daily bars, $10M+ traded, price $5+",
@@ -549,8 +574,14 @@ def rs_starters():
              {"key": "rs_new_high", "op": "eq", "value": 1},
              *liquid()],
           "view": "relative_strength", "sort": {"key": "rs_rank", "dir": "desc"}}},
+        # `aliases` (optional, any starter): extra words the screen picker's search
+        # matches and never shows (ScreenMenu.jsx `match`). Members look for this
+        # screen by the names it already has elsewhere: "RSNHBP", and the blue dot
+        # that marks it on a chart. The key rides through `_stocks_only` and the
+        # saved-screens route untouched; a starter without search words has no key.
         {"id": "starter_rs_nh_before_price", "name": "RS new high before price",
          "group": RS_STARTER_GROUP,
+         "aliases": ["RSNHBP", "RS new high before price", "blue dot"],
          "description": "Stocks whose RS line made a 52-week high on the last session while price is still more than 2% below its own 52-week high, $10M+ traded, price $5+",
          "spec": {"filters": [
              {"key": "rs_nh_before_price", "op": "eq", "value": 1},
@@ -622,15 +653,48 @@ def rs_starters():
              *liquid()],
           "view": "relative_strength", "sort": {"key": "rs_quicksand_bars_ago", "dir": "asc"}}},
     ]
+    if not (rs_screens_served() if screens is None else screens):
+        return previous
+    from . import rs_screens  # noqa: PLC0415 - lazy
+    return rs_screens.starters(previous)
 
 
 def starters(user=None):
     """Every starter this user may see. The Extended hours pair joins only when
-    `premarket.served_to(user)`; with no user that is a member's answer, so a caller
-    that does not pass one fails closed at `admin`."""
+    `premarket.served_to(user)`, and the five RS screens (with the hidden marks on the
+    lists they absorb) only when `rs_screens_served(user)`; with no user each is a
+    member's answer, so a caller that does not pass one fails closed at `admin`."""
     from api.services.screener import premarket  # noqa: PLC0415
     extra = premarket_starters() if premarket.served_to(user) else []
-    return [_stocks_only(s) for s in [*_starter_defs(), *extra]]
+    return [_stocks_only(s) for s in [*_starter_defs(rs_screens_served(user)), *extra]]
+
+
+def starters_to_record():
+    """The starters the nightly membership record takes (`membership.record_all`).
+
+    One list while there is one: `starters()`, as before. While RS_SCREENS_ENABLED is
+    `admin` there are two (a member is served the nine RS lists, the owner the five
+    screens), and the record takes both: the lists so "new today" keeps working for
+    members, the five so it works for the owner now and for everyone on the first day
+    of a full release. The record is keyed by a screen's criteria, so a list both
+    carry is recorded once."""
+    member = starters()
+    try:
+        from . import rs_post_pass  # noqa: PLC0415 - lazy
+        owner_only = rs_post_pass.enabled() and not rs_post_pass.surfaces_on()
+    except Exception:  # noqa: BLE001 -- an unreadable gate records what is served
+        owner_only = False
+    if not owner_only:
+        return member
+    return member + [_stocks_only(s) for s in _starter_defs(True)]
+
+
+def starters_with_the_rs_screens() -> list:
+    """The starter list as it is served to a user the RS screens are shown to, whoever
+    asks: the five screens with their controls, the retired seven marked hidden. The
+    nightly jobs that speak about the five (the join/leave messages) read this, because
+    under RS_SCREENS_ENABLED=admin `starters()` with no user is the members' list."""
+    return [_stocks_only(s) for s in _starter_defs(True)]
 
 
 def _live_volume_or_nightly(min_x):
@@ -660,7 +724,11 @@ def _live_volume_or_nightly(min_x):
     ]}
 
 
-def _starter_defs():
+def _starter_defs(rs_screens_on=None):
+    # `rs_screens_on`: are the five RS screens served to the user being answered
+    # (`starters(user)`); left out, a member's answer (`rs_screens_served()`).
+    if rs_screens_on is None:
+        rs_screens_on = rs_screens_served()
     # ── UCT Preset Scans — the firm's curated setups ──────────────────────────
     # ⛔ candle_starters() is NO LONGER surfaced here (owner call, 2026-09-20):
     # the candle-shape wall was noise as a "preset scan" list. The function is
@@ -671,7 +739,7 @@ def _starter_defs():
     # keep the ids and the vol_nweek_low / dollar_vol literals exactly.
     # More can be added later; every entry must be a runnable spec (that rail
     # derives its check from THIS list).
-    return [
+    core = [
         # UCT 50 — top 50 by composite rating (rank owns ordering; top_n caps).
         {"id": "starter_uct_50", "name": "UCT 50",
          "group": "Momentum leaders",
@@ -914,4 +982,12 @@ def _starter_defs():
              {"key": "optionable", "op": "eq", "value": 1},
              {"key": "rs_rank", "op": "gte", "min": 70}],
           "view": "events", "sort": {"key": "days_to_earnings", "dir": "asc"}}},
-    ] + rs_starters() + (pattern_starters() if pattern_presets_enabled() else []) + archive_starters()
+    ]
+    rs = rs_starters(rs_screens_on)
+    if rs and rs_screens_on:
+        # The five RS screens are served: "Leaders (RS >= 90)" leaves the picker with
+        # the six RS lists (`rs_screens.RETIRED_IDS`). Hidden, not removed: its id still
+        # resolves. Only while the five are really there (`rs` is empty without RS_V2).
+        from . import rs_screens  # noqa: PLC0415 - lazy
+        core = [rs_screens.retire(s) for s in core]
+    return core + rs + (pattern_starters() if pattern_presets_enabled() else []) + archive_starters()
