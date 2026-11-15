@@ -1030,9 +1030,9 @@
   {
    "id": "htf.trail",
    "field": "management",
-   "statement": "Trail what is left: sell on a close below the 10-day average. An HTF is a fast mover by definition.",
+   "statement": "Trail what is left: sell on a close below the 9 EMA. An HTF is a fast mover by definition.",
    "measure": {
-    "what": "close against the 10-day average",
+    "what": "close against the 9 EMA",
     "op": "<",
     "value": "10-day average",
     "timeframe": "daily"
@@ -1064,6 +1064,11 @@
      "statement": "Trail the last third: sell on a close below the 10-day average. An HTF is a fast mover by definition.",
      "on": "2026-11-12",
      "by": "D-013"
+    },
+    {
+     "statement": "Trail what is left: sell on a close below the 10-day average. An HTF is a fast mover by definition.",
+     "on": "2026-11-14",
+     "by": "D-021"
     }
    ],
    "ruling": "D-013"
@@ -1367,7 +1372,7 @@
  "management": {
   "trim_1": "first sell by judgment, usually day 3 or later, into a 3, 5 or 7 day push or at about 5 to 10R (D-013, 2026-11-12)",
   "trim_2": "later sells by judgment into strength, then trail the rest (D-013, 2026-11-12)",
-  "trail": "a close under the 10-day average: an HTF is a fast mover (E52); the 20-day EMA as he used on WULF is the option (D-024)",
+  "trail": "a close under the 9 EMA: an HTF is a fast mover (E52, read as the 9 and 20 EMA: D-021); the 20-day EMA as he used on WULF is the option (D-024)",
   "breakeven": "between 2R and 5R, or at the first sell (B19)",
   "time_stop": "under 1R after 10 trading days, sell (C33)",
   "gap_open": "optional: selling part into a big gap at the open is a judgment, never a rule (owner, 2026-11-12)",
@@ -1377,7 +1382,8 @@
   "superseded": {
    "trim_1": "a third at 3R (B19)",
    "trim_2": "a third at 5R (E51)",
-   "gap_open": "a trim level the day opens past is taken at the open (F63)"
+   "gap_open": "a trim level the day opens past is taken at the open (F63)",
+   "trail": "a close under the 10-day average: an HTF is a fast mover (E52); the 20-day EMA as he used on WULF is the option (D-024)"
   }
  },
  "examples": {

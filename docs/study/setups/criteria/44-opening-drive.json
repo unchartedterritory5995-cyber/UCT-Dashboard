@@ -722,9 +722,9 @@
   {
    "id": "od.trail",
    "field": "management",
-   "statement": "Trail the rest under the 10-day for a fast mover, the 21-day for a steadier one, sold on a close below.",
+   "statement": "Trail the rest under the 9 EMA for a fast mover, the 20 EMA for a steadier one, sold on a close below.",
    "measure": {
-    "what": "close against the 10-day (fast) or 21-day (steadier) average",
+    "what": "close against the 9 EMA (fast) or 20 EMA (steadier)",
     "op": "<",
     "value": "the average",
     "timeframe": "daily"
@@ -736,7 +736,14 @@
    "status": "settled",
    "gate": false,
    "grade_cue": false,
-   "dossier_ref": "8.4"
+   "dossier_ref": "8.4",
+   "superseded": [
+    {
+     "statement": "Trail the rest under the 10-day for a fast mover, the 21-day for a steadier one, sold on a close below.",
+     "on": "2026-11-14",
+     "by": "D-021"
+    }
+   ]
   },
   {
    "id": "od.time_stop",
@@ -1089,7 +1096,7 @@
  "management": {
   "trim_1": "first sell by judgment, usually day 3 or later, into a 3, 5 or 7 day push or at about 5 to 10R (D-013, 2026-11-12)",
   "trim_2": "later sells by judgment into strength, then trail the rest (D-013, 2026-11-12)",
-  "trail": "a close under the 10-day for a fast mover, the 21-day for a steadier one (E52)",
+  "trail": "a close under the 9 EMA for a fast mover, the 20 EMA for a steadier one (E52, read as the 9 and 20 EMA: D-021)",
   "breakeven": "between 2R and 5R, or at the first sell (B19)",
   "time_stop": "under 1R after 10 trading days, sell (C33)",
   "gap_open": "optional: selling part into a big gap at the open is a judgment, never a rule (owner, 2026-11-12)",
@@ -1098,7 +1105,8 @@
   "superseded": {
    "trim_1": "a third at 3R (B19)",
    "trim_2": "a third at 5R (E51)",
-   "gap_open": "a trim level the day opens past is taken at the open (F63); LRCX and STX reached 3R at the next open"
+   "gap_open": "a trim level the day opens past is taken at the open (F63); LRCX and STX reached 3R at the next open",
+   "trail": "a close under the 10-day for a fast mover, the 21-day for a steadier one (E52)"
   }
  },
  "examples": {

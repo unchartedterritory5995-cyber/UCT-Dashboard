@@ -85,6 +85,14 @@
    "title": "Setup decisions: the owner's rulings (2026-11-12)",
    "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
   }
  ],
  "facts": [
@@ -126,9 +134,9 @@
   },
   {
    "id": "h05",
-   "source": "h1",
-   "quote": "Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
-   "claim": "B19: breakeven between 2R and 5R; the hard rule for the first trim is a third at 3R."
+   "source": "hw",
+   "quote": "The stop may move up to breakeven between 2R and 5R, or at the first sell.",
+   "claim": "Our stop may move up to breakeven between 2R and 5R, or at the first sell."
   },
   {
    "id": "h06",
@@ -192,15 +200,15 @@
   },
   {
    "id": "h20",
-   "source": "h1",
-   "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
-   "claim": "E51: another third at 5R, then trail the last third."
+   "source": "hw",
+   "quote": "Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
+   "claim": "Later sells are a judgment: sell more into strength on a later push, and trail what is left."
   },
   {
    "id": "h21",
-   "source": "h1",
-   "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
-   "claim": "E52: trail the 10-day for fast movers, the 21-day for steadier ones; sell on a close below it."
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
   },
   {
    "id": "h22",
@@ -241,8 +249,8 @@
   {
    "id": "tp2",
    "source": "t1",
-   "quote": "The stop on what is left moves up to breakeven at the first trim",
-   "claim": "Our plans move the stop on the rest to breakeven at the first trim."
+   "quote": "the stop may move to breakeven between 2R and 5R, or at the first sell",
+   "claim": "Our stop may move to breakeven between 2R and 5R, or at the first sell."
   },
   {
    "id": "cp",
@@ -684,15 +692,27 @@
   },
   {
    "id": "r04",
-   "source": "h2",
-   "quote": "I usually wait until day 3 at the earliest.",
-   "claim": "D-013: the first sell usually waits until day 3 at the earliest."
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
   },
   {
    "id": "r05",
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
+  },
+  {
+   "id": "r06",
    "source": "h2",
-   "quote": "I very rarely sell on the day 1 of the buy day.",
-   "claim": "D-013: a day-1 sell on the buy day is very rare."
+   "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+   "claim": "D-021: the course teaches the 9 and 20 EMA everywhere, with the 50 and 200 SMA."
+  },
+  {
+   "id": "r07",
+   "source": "h2",
+   "quote": "Below the 200-day is a hard no for stocks.",
+   "claim": "D-009: below the 200-day is a hard no for stocks."
   }
  ],
  "walkthroughs": [
@@ -1096,25 +1116,26 @@
    "criterion": "oops.location",
    "q": "What should the Oops-day low tag?",
    "choices": [
-    "A rising 21-day or 50-day average",
+    "A rising 20 EMA or 50 SMA",
     "The 5-day average, a fast read",
-    "The 10-day average, our trail",
+    "The 9 EMA, our fast trail",
     "The 100-day average, mid line"
    ],
-   "answer": "A rising 21-day or 50-day average",
-   "why": "The Oops-day low should sit within 0.5 ATR of the rising 21-day EMA or 50-day SMA. Or it should undercut a visible level. That could be a flag low, a double-bottom low, a gap-support level, a high-volume close or a round number. The undercut should tag something the market can see.",
+   "answer": "A rising 20 EMA or 50 SMA",
+   "why": "The Oops-day low should sit within 0.5 ATR of the rising 20 EMA or 50 SMA. Or it should undercut a visible level. That could be a flag low, a double-bottom low, a gap-support level, a high-volume close or a round number. The undercut should tag something the market can see.",
    "lesson_line": "The undercut should tag something the market can see.",
    "facts": [
     "o_loc",
-    "h21"
+    "h21",
+    "r06"
    ],
    "wrong": {
-    "The 5-day average, a fast read": "The card names the rising 21-day EMA or 50-day SMA, or a visible level. A 5-day average is not on that list.",
-    "The 10-day average, our trail": "The 10-day is our trail for fast movers, not where the Oops-day low should tag. The card names the 21-day EMA or 50-day SMA.",
-    "The 100-day average, mid line": "The card names the rising 21-day EMA or 50-day SMA. A 100-day average is not on that list."
+    "The 5-day average, a fast read": "Our rule names the rising 20 EMA or 50 SMA, or a visible level. A 5-day average is not on that list.",
+    "The 100-day average, mid line": "Our rule names the rising 20 EMA or 50 SMA. A 100-day average is not on that list.",
+    "The 9 EMA, our fast trail": "The 9 EMA is our trail for fast movers, not where the Oops-day low should tag. Our rule names the 20 EMA or 50 SMA."
    },
    "house": true,
-   "simple": "The low should tag a rising 21-day or 50-day average, or a clear level. The undercut needs something the market can see.",
+   "simple": "The low should tag a rising 20 EMA or 50 SMA, or a clear level. The undercut needs something the market can see.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -1122,7 +1143,7 @@
      "one cited fact only"
     ]
    },
-   "batch": "wave3"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q13",
@@ -2053,15 +2074,17 @@
    "criterion": "oops.trim_1",
    "q": "Williams' exit, the first profitable open, is our exit.",
    "answer": "False",
-   "why": "False. Williams' bailout exits on the first profitable open, even for 1c of profit. Ours is a third at 3R, a third at 5R and a trail on the last third.",
-   "lesson_line": "Williams' exit is his. Ours is thirds and a trail.",
+   "why": "False. Williams' bailout exits on the first profitable open, even for 1c of profit. We very rarely sell on day 1; our first sell is a judgment, and the rest trails.",
+   "lesson_line": "Williams' exit is his. Ours is a judged first sell and a trail.",
    "facts": [
     "w5",
     "h05",
-    "h20"
+    "h20",
+    "r02",
+    "r04"
    ],
    "house": true,
-   "simple": "No. Williams sells at the first profitable open, but our plan sells a third at 3R and a third at 5R.",
+   "simple": "No. Williams sells at the first profitable open, but our first sell is a judgment, rarely on day 1.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2118,24 +2141,25 @@
    "criterion": "oops.trail",
    "q": "Which average is the default trail for a steadier name?",
    "choices": [
-    "The 21-day",
+    "The 20 EMA",
     "The 50-day",
     "The 200-day",
-    "The 10-day"
+    "The 9 EMA"
    ],
-   "answer": "The 21-day",
-   "why": "The 21-day. Our default trail is the 10-day average for fast movers and the 21-day for steadier ones. Sell on a close below it. What is left after the first sells trails it.",
-   "lesson_line": "Fast mover, 10-day. Steadier name, 21-day. Sell on a close below.",
+   "answer": "The 20 EMA",
+   "why": "The 20 EMA. Our default trail is the 9 EMA for fast movers and the 20 EMA for steadier ones. Sell on a close below it. What is left after the first sells trails it.",
+   "lesson_line": "Fast mover, 9 EMA. Steadier name, 20 EMA. Sell on a close below.",
    "facts": [
-    "h21"
+    "h21",
+    "r06"
    ],
    "wrong": {
-    "The 50-day": "Our default trails are the 10-day and the 21-day, not the 50-day.",
-    "The 200-day": "Our default trails are the 10-day and the 21-day, not the 200-day.",
-    "The 10-day": "That is the fast-mover trail. Steadier names trail the 21-day."
+    "The 50-day": "Our default trails are the 9 EMA and the 20 EMA, not the 50-day.",
+    "The 200-day": "Our default trails are the 9 EMA and the 20 EMA, not the 200-day.",
+    "The 9 EMA": "That is the fast-mover trail. Steadier names trail the 20 EMA."
    },
    "house": true,
-   "simple": "The 21-day, because steadier names trail it and you sell on a close below it.",
+   "simple": "The 20 EMA, because steadier names trail it and you sell on a close below it.",
    "tier": "extended",
    "risk": {
     "score": 6,
@@ -2145,7 +2169,7 @@
      "fixed before"
     ]
    },
-   "batch": "rulings2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q40",
@@ -2299,11 +2323,11 @@
    "criterion": "oops.ma200_rising",
    "q": "An Oops is better above a rising 200-day than a falling one.",
    "answer": "True",
-   "why": "True. We prefer a rising 200-day, meaning its value is higher than it was 20 sessions ago. That is a preference. The hard rule is separate: no longs below the 200-day simple moving average, unless it is a parabolic long.",
+   "why": "True. We prefer a rising 200-day, meaning its value is higher than it was 20 sessions ago. That is a preference. The hard rule is separate: below the 200-day is a hard no for stocks.",
    "lesson_line": "A rising 200-day under the stock is the better floor.",
    "facts": [
     "o_200r",
-    "h10"
+    "r07"
    ],
    "house": true,
    "simple": "True. We prefer a rising 200-day, meaning it is higher than it was 20 sessions ago.",
@@ -2945,7 +2969,7 @@
     "Take it; buy the open before the dip"
    ],
    "answer": "Take it; a drift onto two averages",
-   "why": "Take it. The stock drifted three weeks onto its converging 21-day EMA and 50-day SMA, 5.2% off its high. That is inside the 3% to 12% range for a real pullback, and those averages are where the Oops-day low is asked to tag.",
+   "why": "Take it. The stock drifted three weeks onto its two converging averages, 5.2% off its high. That is inside the 3% to 12% range for a real pullback, and those averages are where the Oops-day low is asked to tag.",
    "lesson_line": "Judge the setup yesterday: orderly drift onto averages.",
    "facts": [
     "dADBE",
@@ -2967,7 +2991,7 @@
     "window": 120,
     "forward": 20
    },
-   "simple": "Take it, because the stock drifted onto its 21-day and 50-day averages in an orderly pullback.",
+   "simple": "Take it, because the stock drifted onto its two averages in an orderly pullback.",
    "deeper": {
     "trap": "Trap: judging the Oops day instead of the setup. The decision is made on yesterday's chart: a clean drift of 5.2% onto two averages. A strong close is a grade mark, not a guarantee, and expecting every good Oops to work is a named mistake."
    },
@@ -2978,7 +3002,7 @@
      "fixed before"
     ]
    },
-   "batch": "wave3"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q61",
@@ -3191,7 +3215,7 @@
    "rung": 4,
    "format": "mcq",
    "criterion": "oops.not_stretched",
-   "q": "We skip a long more than 10% above its 10-day average. If that average is 80.00, what is the most we pay?",
+   "q": "We skip a long more than 10% above its 9 EMA. If the 9 EMA is 80.00, what is the most we pay?",
    "answer": "$88.00",
    "calc": {
     "fn": "arith",
@@ -3201,16 +3225,17 @@
     },
     "round": 2
    },
-   "why": "88.00. We skip a long more than 10% above its 10-day average. 80.00 plus 10% is 88.00. This is a different rule from the 4% limit above the prior close.",
-   "lesson_line": "No more than 10% over the 10-day average. Past that, skip.",
+   "why": "88.00. We skip a long more than 10% above its 9 EMA. 80.00 plus 10% is 88.00. This is a different rule from the 4% limit above the prior close.",
+   "lesson_line": "No more than 10% over the 9 EMA. Past that, skip.",
    "facts": [
     "h13",
     "o_stretch",
-    "o_chase"
+    "o_chase",
+    "r06"
    ],
    "house": true,
    "prefix": "$",
-   "simple": "The most we pay is 88.00, which is the 10-day average of 80.00 plus 10%.",
+   "simple": "The most we pay is 88.00, which is the 9 EMA of 80.00 plus 10%.",
    "tier": "core",
    "risk": {
     "score": 4,
@@ -3219,7 +3244,7 @@
      "rests on the owner's rulebook (C29)"
     ]
    },
-   "batch": "rank",
+   "batch": "sweep-2026-11-14",
    "choices": [
     "$88.00",
     "$90.00",
@@ -3245,22 +3270,23 @@
     "Yes, it passes every Oops test",
     "Yes, a hard reversal is strength"
    ],
-   "story": "A pullback reverses hard. The Oops reclaims the prior close at 56.00. The 10-day average sits at 50.00.",
+   "story": "A pullback reverses hard. The Oops reclaims the prior close at 56.00. The 9 EMA sits at 50.00.",
    "answer": "No, it is too stretched to buy",
-   "why": "No. 56.00 is more than 10% above the 10-day average of 50.00. We skip a long that is more than 10% above its 10-day average, even a clean Oops. The stretch rule is a separate gate from the candle tests.",
-   "lesson_line": "Over 10% above the 10-day average, skip the long, even a clean Oops.",
+   "why": "No. 56.00 is more than 10% above the 9 EMA of 50.00. We skip a long that is more than 10% above its 9 EMA, even a clean Oops. The stretch rule is a separate gate from the candle tests.",
+   "lesson_line": "Over 10% above the 9 EMA, skip the long, even a clean Oops.",
    "facts": [
     "h13",
     "o_stretch",
-    "o_red"
+    "o_red",
+    "r06"
    ],
    "wrong": {
     "No, it needs a red prior day": "A red prior day is preferred, not required. The stretch rule is what stops this buy.",
     "Yes, it passes every Oops test": "The candle tests can pass, but the stretch rule is a separate gate.",
-    "Yes, a hard reversal is strength": "Strength does not beat the stretch rule. A long more than 10% over its 10-day average is skipped."
+    "Yes, a hard reversal is strength": "Strength does not beat the stretch rule. A long more than 10% over its 9 EMA is skipped."
    },
    "house": true,
-   "simple": "No. At 56.00 the stock is more than 10% above its 10-day average, which is too stretched to buy.",
+   "simple": "No. At 56.00 the stock is more than 10% above its 9 EMA, which is too stretched to buy.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -3268,7 +3294,7 @@
      "rests on the owner's stretch rule (C29)"
     ]
    },
-   "batch": "wave3"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q69",
@@ -3287,10 +3313,10 @@
     },
     "round": 2
    },
-   "why": "33.46. One R is the fill minus the stop. Five R is 5 x (31.51 - 31.12). Add that to the fill: 31.51 + 5 x (31.51 - 31.12) = 33.46. The second third comes off there, and the last third trails.",
-   "lesson_line": "Know your 5R too. The second third comes off there.",
+   "why": "33.46. One R is the fill minus the stop. Five R is 5 x (31.51 - 31.12). Add that to the fill: 31.51 + 5 x (31.51 - 31.12) = 33.46. Five R is a mark on the ruler. Selling there is a judgment, and what is left trails.",
+   "lesson_line": "Know your 5R too. It is a mark on the ruler, and selling there is a judgment.",
    "facts": [
-    "h20",
+    "r03",
     "dACN",
     "h21"
    ],
@@ -3305,7 +3331,7 @@
      "rests on the owner's rulebook (E51)"
     ]
    },
-   "batch": "rank",
+   "batch": "sweep-2026-11-14",
    "choices": [
     "$33.46",
     "$33.85",
@@ -3499,9 +3525,8 @@
   "q12": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key matches o_loc (rising 21-day EMA or 50-day SMA). No second defensible choice; 10-day wrong note grounded in h21. No cross-answer.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "Wrong-choice notes said 'the card names the 20 EMA' but the card (o_loc) still says the 21-day EMA; attribute to our rule instead."
   },
   "q13": {
    "status": "pass",
@@ -3520,7 +3545,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold check: key re-derived from the cited quotes/calc; no tell, no second answer found."
+   "notes": "Final text agrees with the rulings it touches; key right, wrongs wrong, quotes and numbers grounded, style ok."
   },
   "q16": {
    "status": "cut",
@@ -3636,7 +3661,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "hold on day 1; D-013"
+   "notes": "Final text agrees with the rulings it touches; key right, wrongs wrong, quotes and numbers grounded, style ok."
   },
   "q35": {
    "status": "cut",
@@ -3667,7 +3692,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "ok"
+   "notes": "Final text agrees with the rulings it touches; key right, wrongs wrong, quotes and numbers grounded, style ok."
   },
   "q40": {
    "status": "pass",
@@ -3696,9 +3721,9 @@
   },
   "q44": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave3; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "KEEP was wrong: why taught 'no longs below the 200-day unless a parabolic long', which D-009 supersedes for stocks (exception only for indexes and leveraged ETFs). Re-stated as a hard no for stocks, cited to the D-009 quote."
   },
   "q45": {
    "status": "pass",
@@ -3797,7 +3822,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold check: key re-derived from the cited quotes/calc; no tell, no second answer found."
+   "notes": "Final text agrees with the rulings it touches; key right, wrongs wrong, quotes and numbers grounded, style ok."
   },
   "q61": {
    "status": "pass",
@@ -3839,19 +3864,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
+   "notes": "Final text agrees with the rulings it touches; key right, wrongs wrong, quotes and numbers grounded, style ok."
   },
   "q68": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (56.00 is over 55.00, 10% above 50.00; C29 and o_stretch agree). The red-prior-day wrong note ('preferred, not required') cites no fact; o_red is the card quote. Add it."
+   "fixed": false,
+   "notes": "Final text agrees with the rulings it touches; key right, wrongs wrong, quotes and numbers grounded, style ok."
   },
   "q69": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
+   "notes": "Final text agrees with the rulings it touches; key right, wrongs wrong, quotes and numbers grounded, style ok."
   },
   "q70": {
    "status": "cut",
@@ -3862,8 +3887,8 @@
   "q71": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key is right: low 49.10 under the 49.40 prior low, never over the 50.00 prior close, close 49.85 under it, so no trigger under any D-003 option (A, B or C) and the day is not even an Oops under the settled o_main. Breaks found: (1) tell, a lone 'No trade' against three 'Buy' choices; replaced the half-size choice with a second no-trade choice that is wrong ('it never broke the prior low', but 49.10 < 49.40), so h31 leaves the facts. (2) why and one wrong note taught the proposed oops.inv_no_reclaim as settled ('On our card, that is a no-trade'); the why now rests on settled o_main and the buy "
+   "fixed": false,
+   "notes": "Final text agrees with the rulings it touches; key right, wrongs wrong, quotes and numbers grounded, style ok."
   }
  }
 }

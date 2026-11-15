@@ -164,6 +164,22 @@
    "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
    "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
   }
  ],
  "facts": [
@@ -733,15 +749,21 @@
   },
   {
    "id": "h02",
-   "source": "s19",
-   "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
-   "claim": "Our default trail (E52): the 10-day or 21-day average, sold on a close below it."
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
   },
   {
    "id": "h03",
    "source": "s19",
    "quote": "Total open risk and position size by market condition are guides that vary, not hard caps.",
    "claim": "Our rule (A10): sizing by market condition is a guide that varies, not a hard cap."
+  },
+  {
+   "id": "rd21",
+   "source": "h2",
+   "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+   "claim": "Our rule: the course teaches the 9 and 20 EMA, with the 50 and 200 SMA."
   }
  ],
  "walkthroughs": [
@@ -1757,7 +1779,7 @@
     "Short it now, before the break": "That's guessing the break. You can't tell which way a range will break until it does, and Dow Theory warns against anticipating it.",
     "Hold it all, the long trend is up": "The climb has stalled. In Stage 3 the method takes profits, and a downside break means sell."
    },
-   "why": "Trim it, and sell if it breaks down. A long climb that goes sideways while the 30-week average flattens and slices through price is Stage 3, the top area. Weinstein has traders take profits and investors sell half. If price breaks up into a new Stage 2 advance, hold. A downward break from the range is a sale. That is Weinstein's way. At UCT our default trail is the 10-day or 21-day average, and we sell on a close below it.",
+   "why": "Trim it, and sell if it breaks down. A long climb that goes sideways while the 30-week average flattens and slices through price is Stage 3, the top area. Weinstein has traders take profits and investors sell half. If price breaks up into a new Stage 2 advance, hold. A downward break from the range is a sale. That is Weinstein's way. At UCT our default trail is the 9 EMA or 20 EMA, and we sell on a close below it.",
    "lesson_line": "In Weinstein's method, a long climb that goes flat is a warning: lighten up and let the break decide.",
    "facts": [
     "f68",
@@ -1766,7 +1788,8 @@
     "f56",
     "f57",
     "f62",
-    "h02"
+    "h02",
+    "rd21"
    ],
    "simple": "Trim it. A long climb that goes flat is Stage 3, and a break down out of the range is a sale.",
    "deeper": {
@@ -1777,7 +1800,7 @@
     "score": 0,
     "reasons": []
    },
-   "batch": "wave6"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q27",
@@ -2054,8 +2077,8 @@
   "q26": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Own answer before key: long climb, then months sideways with the 30-week flattening and slicing price = Stage 3 (f68); Weinstein: traders take profits, investors sell half, hold on an upside break, sell on a downside break (f69, f70, re-read on thepatternsite.com/Stages.html 2026-11-12, verbatim). 'Trim it, and sell if it breaks down' is the best choice; no second defensible one. Why already frames this as Weinstein's way and gives our E52 trail (h02), so no rulebook conflict. Defect: the 'Short it now' wrong note says 'A range is neutral until it breaks'. f56 says a range is accumulation OR d"
+   "fixed": false,
+   "notes": "Weinstein 30-week untouched; UCT default trail now 9 EMA or 20 EMA, rd21 cited."
   },
   "q27": {
    "status": "pass",

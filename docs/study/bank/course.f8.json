@@ -3464,9 +3464,16 @@
       "quote": "Too stretched to buy: skip a long that is more than 10% above its 10-day average.",
       "tier": 3,
       "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      }
     ],
-    "summary": "Our rule C28: never buy more than 4% above the buy point. Our rule C28: a chase keeps the dollar risk; the stop stays under the buy point, so the shares shrink. IBD's buy zone runs 5% past the buy point after a breakout. The further past the buy point you buy, the greater the risk of getting shaken out. Our rule C29: skip a long more than 10% above its 10-day average."
+    "summary": "Our rule C28: never buy more than 4% above the buy point. Our rule C28: a chase keeps the dollar risk; the stop stays under the buy point, so the shares shrink. IBD's buy zone runs 5% past the buy point after a breakout. The further past the buy point you buy, the greater the risk of getting shaken out. Our rule C29: skip a long more than 10% above its 10-day average. Our rule: the course teaches the 9 and 20 EMA, with the 50 and 200 SMA."
    },
    "facts": {
     "given": "By our rule, how far above the buy point can you still buy? Up to 4% above the buy point Up to 5% above buy point Up to 10% above buy point Any, if the shares shrink"
@@ -3478,7 +3485,7 @@
    "why": "Up to 4% above the buy point. Our rule: never buy more than 4% above the buy point. Inside that line, the stop stays under the buy point, so the distance grows and the shares shrink. IBD talks of a 5% buy zone; our line is 4%.",
    "wrong": {
     "Any, if the shares shrink": "Fewer shares is the cost of buying above the buy point, not a pass. Past 4%, we don't buy at all.",
-    "Up to 10% above buy point": "That's a different rule: we skip a long more than 10% above its 10-day average. The buy-point line is 4%.",
+    "Up to 10% above buy point": "That's a different rule: we skip a long more than 10% above its 9 EMA. The buy-point line is 4%.",
     "Up to 5% above buy point": "That's IBD's buy zone. Our rule draws the line tighter: never more than 4% above the buy point."
    }
   },
@@ -4462,7 +4469,7 @@
   "difficulty": 2,
   "id": "si_bb496e383931",
   "lesson_origin": "session",
-  "lesson_text": "Cutting a winner early. The dip to $40.80 was nowhere near your $38 stop or your $46 trim, so no level in your plan said sell. Fear of giving back the gain made the call. Investopedia notes fear of loss can make investors sell winners too quickly. Farley's rule: stay in until price action gives you a reason to get out. Stay in until price gives you a reason to get out, not your nerves.",
+  "lesson_text": "Cutting a winner early. The dip to $40.80 was nowhere near your $38 stop, and nothing in the plan said sell. We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest. Fear of giving back the gain made the call. Investopedia notes fear of loss can make investors sell winners too quickly. Farley's rule: stay in until price action gives you a reason to get out. Stay in until price gives you a reason to get out, not your nerves.",
   "module": "F8",
   "prompt_json": {
    "choices": [
@@ -4473,7 +4480,7 @@
    ],
    "kind": "mcq",
    "q": "What was that sale?",
-   "story": "You bought at $40. Stop $38, first trim $46. It runs to $41.20, then dips to $40.80. You sell it all to lock in the gain.",
+   "story": "You bought at $40, stop $38. On day 1 it runs to $41.20, then dips to $40.80. You sell it all to lock in the gain.",
    "subject": "F8.03#q10"
   },
   "reveal_json": {
@@ -4499,20 +4506,27 @@
       "quote": "The trick is to stay positioned until price action gives you a reason to get out.",
       "tier": 2,
       "url": "https://www.investopedia.com/articles/active-trading/020915/mustknow-simple-effective-exit-trading-strategies.asp"
+     },
+     {
+      "accessed": "2026-11-14",
+      "name": "UCT house rule: Our rules, in our words (2026-11-14)",
+      "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14"
      }
     ],
-    "summary": "Fear of loss leads investors to hold losers too long and sell winners too quickly. People tend to grab quick profits and sell a stock as soon as it shows a gain. Stay in the trade until price action gives you a reason to exit."
+    "summary": "Fear of loss leads investors to hold losers too long and sell winners too quickly. People tend to grab quick profits and sell a stock as soon as it shows a gain. Stay in the trade until price action gives you a reason to exit. We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
    },
    "facts": {
-    "given": "What was that sale? You bought at $40. Stop $38, first trim $46. It runs to $41.20, then dips to $40.80. You sell it all to lock in the gain. Cutting a winner early Freezing at entry A planned partial Respecting your stop"
+    "given": "What was that sale? You bought at $40, stop $38. On day 1 it runs to $41.20, then dips to $40.80. You sell it all to lock in the gain. Cutting a winner early Freezing at entry A planned partial Respecting your stop"
    },
    "lesson_line": "Stay in until price gives you a reason to get out, not your nerves.",
-   "simple": "You cut a winner early, because you sold it all on a small dip far from your stop and your trim.",
+   "simple": "You cut a winner early, because you sold it all on day 1 on a small dip far from your stop.",
    "tier": "core",
    "unit": "F8.03",
-   "why": "Cutting a winner early. The dip to $40.80 was nowhere near your $38 stop or your $46 trim, so no level in your plan said sell. Fear of giving back the gain made the call. Investopedia notes fear of loss can make investors sell winners too quickly. Farley's rule: stay in until price action gives you a reason to get out.",
+   "why": "Cutting a winner early. The dip to $40.80 was nowhere near your $38 stop, and nothing in the plan said sell. We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest. Fear of giving back the gain made the call. Investopedia notes fear of loss can make investors sell winners too quickly. Farley's rule: stay in until price action gives you a reason to get out.",
    "wrong": {
-    "A planned partial": "A partial is a piece sold into strength at a level you set. This was all of it, on a dip.",
+    "A planned partial": "A partial is a piece sold into strength on a judgment, usually from day 3 on. This was all of it, on a day-1 dip.",
     "Freezing at entry": "Freezing happens before you're in. You were already in the trade.",
     "Respecting your stop": "Your stop was $38. The stock never got close."
    }
@@ -5138,7 +5152,7 @@
       "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-stop-stop-limit-trailing-stop"
      }
     ],
-    "summary": "Our rule: hold winners by selling partials into strength and trailing the rising moving averages. The owner's ruling: the first sell is a judgment, not a fixed third at 3R. Selling too soon can hurt returns almost as much as losing trades; take some gains, then trail a stop. A trailing stop moves up behind the price as the trade goes your way."
+    "summary": "Our rule: hold winners by selling partials into strength and trailing the rising moving averages. Our rule: the first sell is a judgment, not a fixed third at 3R. Selling too soon can hurt returns almost as much as losing trades; take some gains, then trail a stop. A trailing stop moves up behind the price as the trade goes your way."
    },
    "facts": {
     "given": "What does our approach say? Your swing trade is up 3R. It's still above its rising moving averages. You want to sell it all. Sell some by judgment, trail the rest Sell it all, a profit is a profit Hold it all, skip any partial sale Sell it all once it hits 5R"

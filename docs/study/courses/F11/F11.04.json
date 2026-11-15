@@ -1652,7 +1652,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "ok"
+   "notes": "Keep is right: 0.25% until 50 journaled trades is the new-trader sizing rule (f75), not the shorting bar that D-001 replaced."
   },
   "q16": {
    "status": "pass",

@@ -129,6 +129,14 @@
    "title": "Setup decisions: the owner's rulings (2026-11-12)",
    "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
   }
  ],
  "facts": [
@@ -272,9 +280,9 @@
   },
   {
    "id": "h05",
-   "source": "h1",
-   "quote": "Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
-   "claim": "B19: breakeven between 2R and 5R; the hard rule for the first trim is a third at 3R."
+   "source": "hw",
+   "quote": "The stop may move up to breakeven between 2R and 5R, or at the first sell.",
+   "claim": "Our stop may move up to breakeven between 2R and 5R, or at the first sell."
   },
   {
    "id": "h06",
@@ -362,15 +370,15 @@
   },
   {
    "id": "h20",
-   "source": "h1",
-   "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
-   "claim": "E51: another third at 5R, then trail the last third."
+   "source": "hw",
+   "quote": "Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
+   "claim": "Later sells are a judgment: sell more into strength on a later push, and trail what is left."
   },
   {
    "id": "h21",
-   "source": "h1",
-   "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
-   "claim": "E52: trail the 10-day for fast movers, the 21-day for steadier ones; sell on a close below it."
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
   },
   {
    "id": "h22",
@@ -710,9 +718,9 @@
   },
   {
    "id": "c48",
-   "source": "c1",
-   "quote": "Trail the last third under the 10-day for a fast mover, the 21-day for a steadier one, selling on a close below it.",
-   "claim": "Trail the last third under the 10 or 21-day, selling on a close below it."
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
   },
   {
    "id": "c49",
@@ -980,9 +988,33 @@
   },
   {
    "id": "r23",
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
+  },
+  {
+   "id": "r31",
    "source": "h2",
-   "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
-   "claim": "He rarely sells on day 1 and usually waits until day 3 at the earliest."
+   "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+   "claim": "Owner: the course teaches the 9 and 20 EMA, with the 50 and 200 SMA."
+  },
+  {
+   "id": "r32",
+   "source": "h2",
+   "quote": "Below the 200-day is a hard no for stocks.",
+   "claim": "Owner: below the 200-day is a hard no for stocks."
+  },
+  {
+   "id": "r41",
+   "source": "h2",
+   "quote": "A gap up past 3R at the open is not an automatic sell.",
+   "claim": "Owner: a gap up past 3R at the open is not an automatic sell."
+  },
+  {
+   "id": "r42",
+   "source": "h2",
+   "quote": "Selling part at the open on a big gap is one choice he may make by judgment, never a rule",
+   "claim": "Owner: selling part into a big gap at the open is a judgment, never a rule."
   }
  ],
  "walkthroughs": [
@@ -1098,7 +1130,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "B26 (h10) hard 200-day rule; pivot is not a parabolic long. No-time-of-day wrong note matches C30. Key ties for longest at 36, acceptable."
+   "notes": "agrees with the rulings; text checked"
   },
   "q06": {
    "status": "pass",
@@ -1109,8 +1141,8 @@
   "q07": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Keep is right (4% chase limit used on every pivot entry). The new why defines the pivot candle, which is fact c01, but q07 does not cite c01. Fix adds c01 to its facts."
+   "fixed": false,
+   "notes": "agrees with the rulings; text checked"
   },
   "q08": {
    "status": "pass",
@@ -1152,7 +1184,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "h08 and c40: Monday buy before a Wednesday report is inside 3 days. 2 No / 2 Yes, lengths 31 to 33, key not longest. RS wrong note ties to h14 and c42."
+   "notes": "agrees with the rulings; text checked"
   },
   "q15": {
    "status": "pass",
@@ -1200,7 +1232,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with D-013/D-003; quotes verbatim"
+   "notes": "kept: first sell a judgment, day 3 earliest; fixed third only a named wrong choice"
   },
   "q23": {
    "status": "cut",
@@ -1242,13 +1274,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Decided False before the key: E52 (h21) and the card (c48) both sell the trail on a close below the average, not an intraday dip. Both quotes verified in sizing_rule.md and the card. No second answer, no tell; simple line matches the why. Stem does not answer q22, q23 or q60."
+   "notes": "agrees with the rulings; text checked"
   },
   "q30": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with D-013/D-003; quotes verbatim"
+   "notes": "re-key agrees with GAP-TRIM and D-013; quotes r41/r42 are word for word substrings of the reading"
   },
   "q31": {
    "status": "pass",
@@ -1267,7 +1299,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
+   "notes": "agrees with the rulings; text checked"
   },
   "q34": {
    "status": "pass",
@@ -1279,13 +1311,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "C29 (h13): skip a long more than 10% above its 10-day. Story states 12% at the buy. Single defensible answer among the choices."
+   "notes": "agrees with the rulings; text checked"
   },
   "q36": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c14 verbatim: best when the pivot candle's low is the pullback low and it closes in the upper half. Asked as 'on our card', so E50 is respected. Choices are minimal pairs."
+   "notes": "agrees with the rulings; text checked"
   },
   "q37": {
    "status": "pass",
@@ -1297,25 +1329,25 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "d14, d15, d16, d18, h02 verbatim. Stop 595.08 is 3 cents under 595.11. 1.07% is in the 1% to 2% normal range (c05). Minor: the sell-the-pop wrong note says the exits are the stop and the trims, which omits the trail and time stop; harmless."
+   "notes": "agrees with the rulings; text checked"
   },
   "q39": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave4; awaiting cold re-read"
+   "notes": "agrees with the rulings; text checked"
   },
   "q40": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "d08 and d09 verbatim: 15:00 pivot, 15:30 buy 343.15, stop 341.10 (3 cents under 341.13), last candle of the day. C30 no time-of-day rule, c26 named mistake. Depends on pending D-127; it keys 'allowed but a named mistake' and never a ban, so it holds either way."
+   "notes": "agrees with the rulings; text checked"
   },
   "q41": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "d10 and d11 verbatim: (501.07-498.97)/501.07 = 0.42%. c25 names a tiny stop on a slow mega-cap a mistake; keys only what the card says, not a skip rule."
+   "fixed": true,
+   "notes": "D-021 edit fine, but why and two choices/wrongs still teach the stale hard 3% stop limit ('skip a stop over 3%'); D-005 is 1-3% preferred, up to 5% acceptable. Re-keyed to r11 wording. (q63 in the same lesson still keys the 3% skip but is not on this list.)"
   },
   "q42": {
    "status": "cut",
@@ -1345,20 +1377,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c19, c18, c17, c22 verbatim: a 14:00 turn is a pivot, not a Go Signal; still under yesterday's close rules out red to green; ORB is the morning high. Key is the shortest choice. The 30-minute echo is incidental because the clock and the line decide it.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "agrees with the rulings; text checked"
   },
   "q47": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c28, c27, c21 verbatim; d19 URI 0.28R verified. No ungrounded number. Mild tell: three choices say 'pivot' and the key is the lone 'not a pivot'. Acceptable because the question is exactly pivot or not; wrong notes true."
+   "notes": "agrees with the rulings; text checked"
   },
   "q48": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave4; awaiting cold re-read"
+   "notes": "agrees with the rulings; text checked"
   },
   "q49": {
    "status": "pass",
@@ -1376,14 +1407,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Decided 'Yesterday's close, 50.40' before the key from c22 (verified on card line 946). Distractors are clean; 50.40 and 51.10 come from the story. c17 is cited but unused (harmless). Mild overlap with q46 (a pivot can sit under yesterday's close), but the same card tell is taught at the same rung on purpose and q51 does not resolve q46's Go Signal or ORB choices."
+   "notes": "agrees with the rulings; text checked"
   },
   "q52": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key B is right on the card's a_plus rows (c13 string, c29 shake). Problems: (1) the story never says B's 6 reds are clean, yet the why and simple lean on 'a clean string'; (2) the simple line garbles the cue ('a clean string ... that undercuts and closes back above': the candle undercuts, not the string); (3) the trap and the 'Equal' note use D38 (grades set the size) but h35 is not cited, while c04 (stop skip) is cited and unused; (4) the 'fewer reds, less risk' note asserts 'Fewer reds do not mean less risk' with no quote behind it. Fixed: story says 'a clean string of 6 reds', why and simpl",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": false,
+   "notes": "agrees with the rulings; text checked"
   },
   "q53": {
    "status": "cut",
@@ -1401,37 +1431,37 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with D-013/D-003; quotes verbatim"
+   "notes": "kept: agrees with D-013"
   },
   "q56": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c41 and c42 verbatim; h35 sizes B- or lower down. Asked as 'our card', graded down not banned. Single defensible answer."
+   "notes": "agrees with the rulings; text checked"
   },
   "q57": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
+   "notes": "measured on the real 10-day EMA, line name kept and r31 says charts draw 9 and 20 EMA; ok"
   },
   "q58": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "keep agrees with ruling"
+   "fixed": false,
+   "notes": "agrees with the rulings; text checked"
   },
   "q59": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c10 verbatim: a close under the level the pivot was meant to hold breaks the setup. d13 verbatim for INTC. The wrong 'three tries used up' note is true to the story (one stop). Slight risk: a remount could be read as a new setup, but the card's break rule decides it."
+   "notes": "agrees with the rulings; text checked"
   },
   "q60": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "agrees with D-013/D-003; quotes verbatim"
+   "fixed": true,
+   "notes": "why fine; simple still says 'the last part' (fixed-parts language); use 'what is left'."
   },
   "q61": {
    "status": "cut",
@@ -1510,7 +1540,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with D-013/D-003; quotes verbatim"
+   "notes": "agrees with the rulings; text checked"
   }
  },
  "questions": [
@@ -1663,12 +1693,12 @@
     "Buy; the 20-day EMA is still rising"
    ],
    "answer": "Skip it; our hard line bars the long",
-   "why": "Skip it. We take no long below the 200-day simple moving average, unless it is a parabolic long. This is a pivot at the 20-day EMA, not a parabolic long. A clean candle or a rising 20-day does not move the line. The rule looks at where the stock sits, whatever timer you use.",
+   "why": "Skip it. Below the 200-day is a hard no for a stock. Only index products are an exception, on a reversal extension or a parabolic long. This is a plain stock pivot at the 20-day EMA. A clean candle or a rising 20-day does not move the line. The rule looks at where the stock sits, whatever timer you use.",
    "lesson_line": "Under the 200-day there is no pivot long to take.",
    "facts": [
-    "h10",
     "h30",
-    "c12"
+    "c12",
+    "r32"
    ],
    "wrong": {
     "Skip it; we never buy before 10:30": "We have no time-of-day rule. The reason to skip is the 200-day line, not the clock.",
@@ -1676,7 +1706,7 @@
     "Buy; the 20-day EMA is still rising": "A rising 20-day is one test. The 200-day line is a separate hard rule: no long below it."
    },
    "house": true,
-   "simple": "We skip the long, because we take no long under the 200-day line unless it is a parabolic long.",
+   "simple": "We skip the long, because below the 200-day line is a hard no for a stock.",
    "tier": "core",
    "risk": {
     "score": 5,
@@ -1685,7 +1715,7 @@
      "+2 rests on the owner's rulebook"
     ]
    },
-   "batch": "wave4"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q06",
@@ -1729,7 +1759,7 @@
     "8"
    ],
    "answer": "4",
-   "why": "4%. We never buy more than 4% above the buy point, and for a pivot the buy point is a cent over the pivot candle's high. The pivot candle is the first green 30-minute candle after a string of red ones. Past that, skip the trade. Chasing costs size, not risk: the stop stays under the buy point, so the distance grows and the shares shrink. It is not the 10% stretch rule over the 10-day, and not the 3% stop line.",
+   "why": "4%. We never buy more than 4% above the buy point, and for a pivot the buy point is a cent over the pivot candle's high. The pivot candle is the first green 30-minute candle after a string of red ones. Past that, skip the trade. Chasing costs size, not risk: the stop stays under the buy point, so the distance grows and the shares shrink. It is not the 10% stretch rule over the 9 EMA, and not the stop-distance guide.",
    "lesson_line": "Past 4% over the pivot high, the trade is gone. Wait for the next one.",
    "facts": [
     "h11",
@@ -1737,7 +1767,8 @@
     "h13",
     "h04",
     "c02",
-    "c01"
+    "c01",
+    "r31"
    ],
    "house": true,
    "simple": "Four percent, because we never buy more than 4% above the buy point, which sits just over the pivot high.",
@@ -1748,7 +1779,7 @@
      "+2 rests on the owner's rulebook (C28)"
     ]
    },
-   "batch": "fills"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q08",
@@ -1944,7 +1975,7 @@
    "rung": 2,
    "format": "scenario",
    "criterion": "pvt.earnings_window",
-   "story": "A leader forms a clean pivot at its 10-day EMA on Monday. The company reports Wednesday before the open.",
+   "story": "A leader forms a clean pivot at its 9 EMA on Monday. The company reports Wednesday before the open.",
    "q": "Take the pivot?",
    "choices": [
     "No; the report is inside 3 days",
@@ -1976,7 +2007,7 @@
      "rests on the owner's rulebook (B22), a number"
     ]
    },
-   "batch": "wave4"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q15",
@@ -2471,16 +2502,17 @@
    "rung": 4,
    "format": "tf",
    "criterion": "pvt.trail",
-   "q": "The last third of a pivot winner is sold on an intraday dip under its trailing average.",
+   "q": "What is left of a pivot winner is sold on an intraday dip under its trailing average.",
    "answer": "False",
-   "why": "False. We trail the last third under the 10-day average for a fast mover or the 21-day for a steadier one. We sell on a close below it. A dip during the day is not a close.",
-   "lesson_line": "The pivot gets you in. A daily close takes the last third out.",
+   "why": "False. We trail what is left under the 9 EMA for a fast mover or the 20 EMA for a steadier one. We sell on a close below it. A dip during the day is not a close.",
+   "lesson_line": "The pivot gets you in. A daily close takes what is left out.",
    "facts": [
     "c48",
-    "h21"
+    "h21",
+    "r31"
    ],
    "house": true,
-   "simple": "False. The last third is sold on a close below the trailing average, not on a dip during the day.",
+   "simple": "False. What is left is sold on a close below the trailing average, not on a dip during the day.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -2488,7 +2520,7 @@
      "rests on the owner's rulebook (E52), a default trail"
     ]
    },
-   "batch": "wave4"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q30",
@@ -2496,30 +2528,29 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "pvt.trim_gap_open",
-   "story": "You sold a first piece into the push on day 3. Your plan has the next sell at 5R. It finished yesterday at 4.2R, and this morning it gaps open at 5.6R.",
-   "q": "Where is the 5R sell taken?",
+   "story": "You sold a first piece into the push on day 3. It finished yesterday at 4.2R, and this morning it gaps open at 5.6R, past the 5R mark.",
+   "q": "How do we treat the gap past 5R?",
    "choices": [
-    "At the open; 5R is already past",
-    "At 5R exactly, by limit order",
-    "At the close, if it holds up",
-    "Nowhere; let the trade run"
+    "Sell a piece at the open, always",
+    "Sell part or hold; it is our call",
+    "Sell nothing until it is back at 5R",
+    "Sell it all; the gap ends the trade"
    ],
-   "answer": "At the open; 5R is already past",
-   "why": "At the open. If a stock opens above a trim level, take that trim at the open. It finished at 4.2R and gapped open at 5.6R, so the 5R level is already behind it. Pivot winners often gap through a trim level.",
-   "lesson_line": "A gap through a trim level is the trim. Take it at the open.",
+   "answer": "Sell part or hold; it is our call",
+   "why": "A gap up past a profit level at the open is not an automatic sell. Selling part at the open on a big gap is one choice we may make by judgment, never a rule. Holding and trailing what is left is the other choice.",
+   "lesson_line": "A gap past a sell level is a choice, not a rule. Sell part, or hold and trail.",
    "facts": [
-    "h25",
-    "c39",
-    "h20",
-    "r23"
+    "r41",
+    "r42",
+    "c39"
    ],
    "wrong": {
-    "At 5R exactly, by limit order": "5R is already behind you. The rule is to take the trim at the open, not to aim at a level the stock has passed.",
-    "At the close, if it holds up": "The rule says take it at the open. Waiting leaves the gain open to the rest of the day.",
-    "Nowhere; let the trade run": "The second third comes off at 5R. Only the last third runs on the trail."
+    "Sell a piece at the open, always": "The gap is not an automatic sell. Selling part at the open is a judgment we may make, never a rule.",
+    "Sell nothing until it is back at 5R": "Waiting for a price the stock has already passed is not a plan. A gap is not an order to sell or to wait.",
+    "Sell it all; the gap ends the trade": "A gap through a level does not end the trade. What is left can keep running on the trail."
    },
    "house": true,
-   "simple": "Take the trim at the open, because the stock opened past the 5R level.",
+   "simple": "It is optional. We may sell part at the open or hold, by judgment, but a gap is never an automatic sell.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2527,7 +2558,7 @@
      "rests on the owner's rulebook (F63)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q31",
@@ -2605,10 +2636,10 @@
    "criterion": "pvt.trim_2",
    "q": "Bought 106.65, stop 105.74. The stock trades 110.65. How many R is that?",
    "answer": "4.4R",
-   "why": "4.4R. One R is the fill minus the stop: 106.65 minus 105.74. The gain is 110.65 minus 106.65. Divide the gain by one R and you get about 4.4. That is short of 5R, where the second third comes off.",
-   "lesson_line": "Count in R. The second trim waits for 5R.",
+   "why": "4.4R. One R is the fill minus the stop: 106.65 minus 105.74. The gain is 110.65 minus 106.65. Divide the gain by one R and you get about 4.4. That is short of 5R, a mark on the ruler where a later sell may come.",
+   "lesson_line": "Count in R. At 4.4R the 5R mark has not come yet.",
    "facts": [
-    "h20",
+    "r22",
     "d07"
    ],
    "house": true,
@@ -2622,7 +2653,7 @@
     "round": 1
    },
    "suffix": "R",
-   "simple": "The gain from the fill, divided by one R, comes to 4.4R, short of the 5R second trim.",
+   "simple": "The gain from the fill, divided by one R, comes to 4.4R, which is short of the 5R mark.",
    "tier": "extended",
    "risk": {
     "score": 4,
@@ -2631,7 +2662,7 @@
      "+2 rests on the owner's rulebook (E51)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "sweep-2026-11-14",
    "choices": [
     "3.8R",
     "5.4R",
@@ -2687,7 +2718,7 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "pvt.not_stretched",
-   "story": "A leader trades 12% above its 10-day average. This morning: three red 30-minute candles, then a green one, with the stock still 12% above the average.",
+   "story": "A leader trades 12% above its 9 EMA. This morning: three red 30-minute candles, then a green one, with the stock still 12% above the 9 EMA.",
    "q": "What do we do with this pivot, and why?",
    "choices": [
     "Skip it; the stock is too stretched",
@@ -2696,20 +2727,21 @@
     "Take it if volume rises on the break"
    ],
    "answer": "Skip it; the stock is too stretched",
-   "why": "No. We skip a long more than 10% above its 10-day average. This stock is 12% above, so the pivot is a skip even though the candles are right. The card wants the buy not more than 10% above the 10-day, and a pivot is a dip to the average.",
+   "why": "No. We skip a long more than 10% above its 9 EMA. This stock is 12% above, so the pivot is a skip even though the candles are right. A pivot is a dip to the average, and this stock is far from it.",
    "lesson_line": "A pivot is a dip to the average. Far above the average, it is not a dip.",
    "facts": [
     "h13",
     "c43",
-    "c13"
+    "c13",
+    "r31"
    ],
    "wrong": {
-    "Take it; the candle shape is right": "The shape is fine. The stretch is the problem: more than 10% over the 10-day is a skip.",
+    "Take it; the candle shape is right": "The shape is fine. The stretch is the problem: more than 10% over the 9 EMA is a skip.",
     "Skip it; three reds make a weak string": "Three reds is a clean string, and 3 or more is the A+ version. The reason to skip is the stretch.",
-    "Take it if volume rises on the break": "Volume does not change how far the stock sits above its 10-day average."
+    "Take it if volume rises on the break": "Volume does not change how far the stock sits above its 9 EMA."
    },
    "house": true,
-   "simple": "No, because we skip any long that sits more than 10% above its 10-day average.",
+   "simple": "No, because we skip any long that sits more than 10% above its 9 EMA.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -2718,7 +2750,7 @@
      "+1 fixed before"
     ]
    },
-   "batch": "wave4"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q36",
@@ -2726,7 +2758,7 @@
    "rung": 5,
    "format": "mcq",
    "criterion": "pvt.pivot_quality",
-   "q": "Four pivot candles at the 10-day EMA. Which grades highest on our card?",
+   "q": "Four pivot candles at the 9 EMA. Which grades highest on our card?",
    "choices": [
     "Pullback low, closes in upper half",
     "Pullback low, but closes in lower half",
@@ -2754,7 +2786,7 @@
      "+3 one cited fact, the card's best-candle line (c14)"
     ]
    },
-   "batch": "wave4"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q37",
@@ -2793,7 +2825,7 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "pvt.stop",
-   "story": "6 reds into the rising 21-day EMA. The pivot candle is the day's low and closes in its upper half. Bought 601.49, stop 595.08. It reaches 0.35R, then the next morning's first candle takes the stop.",
+   "story": "6 reds into a rising daily average. The pivot candle is the day's low and closes in its upper half. Bought 601.49, stop 595.08. It reaches 0.35R, then the next morning's first candle takes the stop.",
    "q": "What went wrong?",
    "choices": [
     "Nothing; the stop was the exit",
@@ -2802,7 +2834,7 @@
     "You should have sold into the pop"
    ],
    "answer": "Nothing; the stop was the exit",
-   "why": "Nothing went wrong. AXON had the A+ shape and every rule was met. Six reds ran into the 21-day EMA, and the pivot closed in its upper half. The pivot low still broke, and the stop was the exit. The fixed stop that only moves up kept the loss at 1R.",
+   "why": "Nothing went wrong. AXON had the A+ shape and every rule was met. Six reds ran into the rising average, and the pivot closed in its upper half. The pivot low still broke, and the stop was the exit. The fixed stop that only moves up kept the loss at 1R.",
    "lesson_line": "You will take this loss again. The stop is why it stays small.",
    "facts": [
     "d14",
@@ -2830,7 +2862,7 @@
      "+2 rests on the owner's rulebook (A4)"
     ]
    },
-   "batch": "wave4"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q39",
@@ -2838,7 +2870,7 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "pvt.ema20_rising",
-   "story": "Three reds into the 10-day EMA, then a green pivot candle. The 20-day EMA is 262.69; five sessions ago it was 264.36.",
+   "story": "Three reds, then a green pivot candle. The 20-day EMA is 262.69; five sessions ago it was 264.36.",
    "q": "Take it?",
    "choices": [
     "Pass; the 20-day EMA is falling",
@@ -2869,7 +2901,7 @@
      "a plain test on a proposed card line, numbers given in the story"
     ]
    },
-   "batch": "wave4"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q40",
@@ -2877,7 +2909,7 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "pvt.trigger",
-   "story": "5 reds into the 10-day EMA. The pivot candle prints at 15:00 and the 15:30 candle takes its high. Bought 343.15, stop 341.10. The next morning's first candle takes the stop.",
+   "story": "5 reds down to a daily average. The pivot candle prints at 15:00 and the 15:30 candle takes its high. Bought 343.15, stop 341.10. The next morning's first candle takes the stop.",
    "q": "How do you read the loss?",
    "choices": [
     "Allowed, but it is a named mistake",
@@ -2917,7 +2949,7 @@
    "depends_on": [
     "D-127"
    ],
-   "batch": "wave4"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q41",
@@ -2925,16 +2957,16 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "pvt.stop_width",
-   "story": "A slow mega-cap: 4 reds into the 10-day EMA, then a pivot. Bought 501.07 with the stop at 498.97, 0.42% away. It reaches 0.48R, then the next morning's first candle takes the stop.",
+   "story": "A slow mega-cap: 4 reds down to a daily average, then a pivot. Bought 501.07 with the stop at 498.97, 0.42% away. It reaches 0.48R, then the next morning's first candle takes the stop.",
    "q": "What does our card say about that stop?",
    "choices": [
     "Too tight; it sits in the noise",
     "Fine; it sits under the pivot low",
-    "Fine; far inside the 3% limit",
+    "Fine; far inside the 5% limit",
     "Too tight; skip any stop under 1%"
    ],
    "answer": "Too tight; it sits in the noise",
-   "why": "Too tight for that stock. A stop of a few tenths of a percent on a slow mega-cap sits inside the noise, a coin flip. The card names it a mistake. The 3% line is a ceiling, and 0.42% is far under it. The loss was still 1R, as planned.",
+   "why": "Too tight for that stock. A stop of a few tenths of a percent on a slow mega-cap sits inside the noise, a coin flip. The card names it a mistake. We prefer a stop 1 to 3% away and accept up to 5%. 0.42% is far under that range. The loss was still 1R, as planned.",
    "lesson_line": "A tight stop is only good if the stock's normal wiggle fits above it.",
    "facts": [
     "c25",
@@ -2942,12 +2974,13 @@
     "c05",
     "d10",
     "d11",
-    "d18"
+    "d18",
+    "r11"
    ],
    "wrong": {
     "Fine; it sits under the pivot low": "Under the pivot low is the right place. But a few tenths of a percent on a slow name is a coin flip.",
-    "Fine; far inside the 3% limit": "The card skips a stop over 3% away. This one is far under it, and the problem is the other end.",
-    "Too tight; skip any stop under 1%": "The card has no such cutoff, and calls 1% to 2% normal. Here the trouble is a slow mega-cap, where a stop this small sits inside the noise."
+    "Too tight; skip any stop under 1%": "The card has no such skip rule, and 1 to 3% is only our preferred range. Here the trouble is a slow mega-cap, where a stop this small sits inside the noise.",
+    "Fine; far inside the 5% limit": "Up to 5% is the far end of what we accept. This stop is far under it, and the problem is the tight end."
    },
    "house": true,
    "simple": "The stop is too tight for a slow mega-cap, so it sits inside the noise, though the loss stays 1R.",
@@ -2958,7 +2991,7 @@
      "+2 the card names a tiny stop on a slow mega-cap a mistake (c25)"
     ]
    },
-   "batch": "wave4"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q42",
@@ -3035,12 +3068,13 @@
    "criterion": "pvt.breakeven",
    "q": "Our default moves a pivot's stop to breakeven at 1R.",
    "answer": "False",
-   "why": "False. Breakeven comes between 2R and 5R, at the first trim by default. The first trim is a third at 3R. The stop only moves up, never down or wider.",
+   "why": "False. Breakeven comes between 2R and 5R, at the first trim by default. The first sell is a judgment, not a fixed third at 3R. The stop only moves up, never down or wider.",
    "lesson_line": "Breakeven at the first trim, not at the first wiggle.",
    "facts": [
     "h05",
     "c44",
-    "h02"
+    "h02",
+    "r21"
    ],
    "house": true,
    "simple": "False, because the default moves the stop to breakeven at the first trim, between 2R and 5R.",
@@ -3102,7 +3136,7 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "pvt.trigger",
-   "story": "A leader drifts down all morning to its 10-day EMA. At 14:00 a green 30-minute candle closes near its high, still under yesterday's close.",
+   "story": "A leader drifts down all morning to its 9 EMA. At 14:00 a green 30-minute candle closes near its high, still under yesterday's close.",
    "q": "Which trade is this turn?",
    "choices": [
     "A 30-minute pivot",
@@ -3136,7 +3170,7 @@
      "two proposed card lines that agree"
     ]
    },
-   "batch": "wave4"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q47",
@@ -3144,12 +3178,12 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "pvt.level",
-   "story": "Four reds, then a green 30-minute candle. Its low sits well above the 10-day EMA, and no daily average or prior low is near it.",
+   "story": "Four reds, then a green 30-minute candle. Its low sits well above its daily averages, and no prior low is near it.",
    "q": "What is it?",
    "choices": [
     "A green candle, not a pivot",
     "An A+ pivot, the top grade",
-    "A pivot at the 10-day EMA",
+    "A pivot at a daily average",
     "A weak pivot, just graded lower"
    ],
    "answer": "A green candle, not a pivot",
@@ -3162,9 +3196,9 @@
     "d19"
    ],
    "wrong": {
-    "A pivot at the 10-day EMA": "The candle sits well above the average, so it is not at it. It has nothing under it.",
     "An A+ pivot, the top grade": "The A+ pivot sits on a rising average. This one floats above every daily level.",
-    "A weak pivot, just graded lower": "No level, no setup. With no daily level near the candle it is not a weaker pivot, it is no pivot."
+    "A weak pivot, just graded lower": "No level, no setup. With no daily level near the candle it is not a weaker pivot, it is no pivot.",
+    "A pivot at a daily average": "The candle sits well above the averages, so it is not at one. It has nothing under it."
    },
    "house": true,
    "simple": "It is just a green candle, because no daily level sits under it. No level, no setup.",
@@ -3181,7 +3215,7 @@
    "depends_on": [
     "D-125"
    ],
-   "batch": "wave4"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q48",
@@ -3189,7 +3223,7 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "pvt.red_string",
-   "story": "One red 30-minute candle dips to the 10-day EMA, then a green one. You buy over the green candle's high at 211.78.",
+   "story": "One red 30-minute candle dips to a daily average, then a green one. You buy over the green candle's high at 211.78.",
    "q": "What is missing?",
    "choices": [
     "A string of red candles",
@@ -3227,7 +3261,7 @@
    "depends_on": [
     "D-126"
    ],
-   "batch": "wave4"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q49",
@@ -3318,12 +3352,12 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "pvt.trigger",
-   "story": "Yesterday's close was 50.40 and its high was 51.10. This morning a pivot candle forms at the 10-day EMA with a high of 49.84. You buy at 49.85, a cent over it.",
+   "story": "Yesterday's close was 50.40 and its high was 51.10. This morning a pivot candle forms at the 9 EMA with a high of 49.84. You buy at 49.85, a cent over it.",
    "q": "A red to green is a different entry. What line does it buy?",
    "choices": [
     "Yesterday's close, 50.40",
     "The pivot candle high, 49.84",
-    "The 10-day EMA at the pivot",
+    "The 9 EMA at the pivot",
     "Yesterday's high, 51.10"
    ],
    "answer": "Yesterday's close, 50.40",
@@ -3336,8 +3370,8 @@
    ],
    "wrong": {
     "The pivot candle high, 49.84": "That is the pivot's line, the one you bought. A red to green waits for yesterday's close.",
-    "The 10-day EMA at the pivot": "The average is where the dip ended, the daily level. Neither a red to green nor a pivot buys the average itself.",
-    "Yesterday's high, 51.10": "The card's red to green line is yesterday's close, not its high."
+    "Yesterday's high, 51.10": "The card's red to green line is yesterday's close, not its high.",
+    "The 9 EMA at the pivot": "The average is where the dip ended, the daily level. Neither a red to green nor a pivot buys the average itself."
    },
    "house": true,
    "simple": "A red to green buys the first trade through yesterday's close, which is 50.40, while a pivot buys its own high.",
@@ -3351,7 +3385,7 @@
      "+3 one cited fact, the card's lookalike line (c22)"
     ]
    },
-   "batch": "wave4"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q52",
@@ -3359,7 +3393,7 @@
    "rung": 8,
    "format": "scenario",
    "criterion": "pvt.red_string_three",
-   "story": "Two pivots at the rising 10-day EMA. Pivot A follows two small reds. Pivot B follows a clean string of 6 reds, and its candle undercuts the average and closes back over it.",
+   "story": "Two pivots at the rising 9 EMA. Pivot A follows two small reds. Pivot B follows a clean string of 6 reds, and its candle undercuts the average and closes back over it.",
    "q": "Which grades higher on our card?",
    "choices": [
     "Pivot B; it has the A+ cues",
@@ -3397,7 +3431,7 @@
    "depends_on": [
     "D-126"
    ],
-   "batch": "wave4"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q53",
@@ -3533,7 +3567,7 @@
    "rung": 8,
    "format": "scenario",
    "criterion": "pvt.pullback_length",
-   "story": "A leader makes its fourth pullback to the 10-day EMA since its breakout. The 30-minute pivot there is clean.",
+   "story": "A leader makes its fourth pullback to the 9 EMA since its breakout. The 30-minute pivot there is clean.",
    "q": "How does our card grade it?",
    "choices": [
     "Lower grade; the count is late",
@@ -3566,7 +3600,7 @@
      "+2 the count cue is a card proposal, and grades size the position (D38)"
     ]
    },
-   "batch": "wave4"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q57",
@@ -3574,13 +3608,14 @@
    "rung": 8,
    "format": "mcq",
    "criterion": "pvt.level",
-   "q": "The 10-day EMA is 236.78 and the pivot candle's low is 237.12. How far above the average is the low?",
+   "q": "On PSX the 10-day EMA read 236.78 and the pivot candle's low was 237.12. How far above that line is the low?",
    "answer": "0.14%",
-   "why": "0.14%. The gap is the low minus the average: 237.12 minus 236.78. Divide by the average, 236.78, and show it as a percent. The result is about 0.14%. PSX's pivot candle sat just above its 10-day EMA.",
+   "why": "0.14%. The gap is the low minus the average: 237.12 minus 236.78. Divide by the average, 236.78, and show it as a percent. The result is about 0.14%. This real day was measured on the 10-day EMA, while our charts draw the 9 and 20 EMA.",
    "lesson_line": "Read the gap between the candle and the line as a number.",
    "facts": [
     "d03",
-    "c01"
+    "c01",
+    "r31"
    ],
    "house": true,
    "calc": {
@@ -3605,7 +3640,7 @@
    "depends_on": [
     "D-125"
    ],
-   "batch": "tomcq",
+   "batch": "sweep-2026-11-14",
    "choices": [
     "0.34%",
     "1.44%",
@@ -3624,13 +3659,13 @@
    "rung": 9,
    "format": "scenario",
    "criterion": "pvt.stop",
-   "story": "PSX, 2026-08-27: 5 reds into the rising 10-day EMA. The 11:00 candle is the pivot and the day's low, 237.12. The 11:30 candle takes its high.",
+   "story": "PSX, 2026-08-27: 5 reds down to its rising daily average. The 11:00 candle is the pivot and the day's low, 237.12. The 11:30 candle takes its high.",
    "q": "Which plan fits our rules?",
    "choices": [
     "Over the high; stop under the low",
     "Over the high; stop 3% under buy",
     "Over the high; stop in your head",
-    "At the 10-day EMA; stop 230.00"
+    "At the average; stop 230.00"
    ],
    "answer": "Over the high; stop under the low",
    "why": "Buy over the pivot high at market, with the stop a few cents under 237.12. Here the pivot candle is also the day's low, so both stop choices agree. PSX bought 238.91 with the stop at 237.09, 0.76% away. Every position has a real stop order with the broker.",
@@ -3648,7 +3683,7 @@
    "wrong": {
     "Over the high; stop 3% under buy": "The stop sits a few cents under the low, not 3% away. Stop first, from the chart; the size comes after.",
     "Over the high; stop in your head": "Every position has a real stop order with the broker, not a stop kept in your head.",
-    "At the 10-day EMA; stop 230.00": "That buys the average before any turn, with a stop nowhere near a low. The buy waits for the trade through the pivot high."
+    "At the average; stop 230.00": "That buys the average before any turn, with a stop nowhere near a low. The buy waits for the trade through the pivot high."
    },
    "house": true,
    "simple": "Buy over the pivot high at market and put the stop a few cents under 237.12, the low.",
@@ -3663,7 +3698,7 @@
      "+2 rests on the owner's rulebook (F62)"
     ]
    },
-   "batch": "rulings"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q59",
@@ -3671,7 +3706,7 @@
    "rung": 9,
    "format": "scenario",
    "criterion": "pvt.inv_context",
-   "story": "Your pivot at the 21-day EMA stopped out. The stock then closes under that 21-day EMA. A new pivot forms the next day.",
+   "story": "Your pivot at the 20 EMA stopped out. The stock then closes under that 20 EMA. A new pivot forms the next day.",
    "q": "Take it?",
    "choices": [
     "No; the daily context has broken",
@@ -3694,7 +3729,7 @@
     "No; three tries a week are used up": "The story shows one stopped trade, not three. The cap is 3 tries a week on one stock, and this stock has used one."
    },
    "house": true,
-   "simple": "No. The stock closed under its 21-day EMA, the level the pivot was meant to hold, so the daily setup is broken.",
+   "simple": "No. The stock closed under its 20 EMA, the level the pivot was meant to hold, so the daily setup is broken.",
    "deeper": {
     "trap": "The tries cap can mislead you into thinking the count is the problem. In INTC the count mattered, with three stabs in six sessions, but the daily trend had already turned. Fix the daily picture first, then count the tries."
    },
@@ -3705,7 +3740,7 @@
      "two proposed card lines that agree, with a dated example"
     ]
    },
-   "batch": "wave4"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q60",
@@ -3722,14 +3757,15 @@
     "Nothing sold; wait for the stop"
    ],
    "answer": "Sell into strength, trail the rest",
-   "why": "Sell into strength, then trail the rest. The first sell is a judgment, often into a 3, 5 or 7 day push or at about 5 to 10R. The last part trails and sells on a close under the 10-day or 21-day. It likely left well before the old stop. Most scan trades touched the fixed stop at some point, usually after the targets. What was sold into strength kept the result.",
+   "why": "Sell into strength, then trail the rest. The first sell is a judgment, often into a 3, 5 or 7 day push or at about 5 to 10R. What is left trails and sells on a close under the 9 EMA or the 20 EMA. It likely left well before the old stop. Most scan trades touched the fixed stop at some point, usually after the targets. What was sold into strength kept the result.",
    "lesson_line": "Sell partials into strength. What you sold is what you keep when the move gives it back.",
    "facts": [
     "c38",
     "r21",
     "r22",
     "h21",
-    "d01"
+    "d01",
+    "r31"
    ],
    "wrong": {
     "Half at 2R, rest at the stop": "2R is too early to sell. The first sell is a judgment into the push, and the rest trails.",
@@ -3737,7 +3773,7 @@
     "Nothing sold; wait for the stop": "A stop hit after a 19.8R run hands the gain back. Sell part into the push."
    },
    "house": true,
-   "simple": "Sell part into strength and trail the last part, so the reversal does not hand back the gain.",
+   "simple": "Sell part into strength and trail what is left, so the reversal does not hand back the gain.",
    "deeper": {
     "counter": "The scan shows why: 90% of its trades touched the fixed stop at some point in 20 sessions, usually after the targets. Judge a pivot trade by what was sold into strength, not by where the price ended."
    },
@@ -3748,7 +3784,7 @@
      "rests on the owner's rulebook ladder (B19, E51)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q61",
@@ -4142,7 +4178,7 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "pvt.breakeven",
-   "story": "A pivot long was bought at 50.00 with the stop at 49.40. On day 3 it reaches 51.80, its 3R price, and you sell the first third.",
+   "story": "A pivot long was bought at 50.00 with the stop at 49.40. On day 3 it reaches 51.80, its 3R price, and you sell the first piece.",
    "q": "Where does the stop go now, by our default?",
    "choices": [
     "The entry price, 50.00",
@@ -4160,7 +4196,7 @@
     "r23"
    ],
    "wrong": {
-    "The 3R price, 51.80": "That is where the first third sold. Breakeven is the entry price, not the trim price.",
+    "The 3R price, 51.80": "That is where the first piece sold. Breakeven is the entry price, not the sell price.",
     "Lower, to give it more room": "The stop only moves up, never down or wider. At the first trim it moves up to the entry.",
     "Above the entry, to lock in 1R": "Our default is breakeven, and breakeven is the entry price. It is not a locked-in profit of 1R."
    },
@@ -4173,7 +4209,7 @@
      "+2 rests on the owner's rulebook (B19, A4)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "sweep-2026-11-14"
   }
  ]
 }

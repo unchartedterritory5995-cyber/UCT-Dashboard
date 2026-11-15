@@ -70,6 +70,14 @@
    "title": "Setup decisions: the owner's rulings (2026-11-12)",
    "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
   }
  ],
  "facts": [
@@ -123,9 +131,9 @@
   },
   {
    "id": "hB19",
-   "source": "h1",
-   "quote": "Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is a third at 3R",
-   "claim": "B19: breakeven at 2R to 5R; the hard rule for the first trim is a third at 3R."
+   "source": "hw",
+   "quote": "The stop may move up to breakeven between 2R and 5R, or at the first sell.",
+   "claim": "Our stop may move up to breakeven between 2R and 5R, or at the first sell."
   },
   {
    "id": "hB20",
@@ -171,9 +179,9 @@
   },
   {
    "id": "hE52",
-   "source": "h1",
-   "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
-   "claim": "E52: trail under the 10-day for fast movers, the 21-day for steadier ones."
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
   },
   {
    "id": "hE57",
@@ -285,9 +293,9 @@
   },
   {
    "id": "n16",
-   "source": "c1",
-   "quote": "Trail the last third with a close beyond the 10-day for a fast mover or the 21-day for a steadier one.",
-   "claim": "Card: trail the last third with a close beyond the 10-day or 21-day."
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
   },
   {
    "id": "n17",
@@ -639,9 +647,9 @@
   },
   {
    "id": "hE51",
-   "source": "h1",
-   "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
-   "claim": "E51: after the first third at 3R, another third at 5R, then trail the last third."
+   "source": "hw",
+   "quote": "Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
+   "claim": "Later sells are a judgment: sell more into strength on a later push, and trail what is left."
   },
   {
    "id": "hF63",
@@ -801,21 +809,45 @@
   },
   {
    "id": "r12",
-   "source": "h2",
-   "quote": "I usually wait until day 3 at the earliest.",
-   "claim": "Owner: he usually waits until day 3 at the earliest to sell."
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
   },
   {
    "id": "r13",
-   "source": "h2",
-   "quote": "I very rarely sell on the day 1 of the buy day.",
-   "claim": "Owner: he very rarely sells on day 1 of the buy day."
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
   },
   {
    "id": "rg1",
    "source": "h2",
    "quote": "A gap up past 3R at the open is not an automatic sell. Selling part at the open on a big gap is one choice he may make by judgment, never a rule",
    "claim": "Owner: a gap past 3R is not an automatic sell. Selling part at the open is a judgment, never a rule."
+  },
+  {
+   "id": "r21",
+   "source": "h2",
+   "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+   "claim": "Owner: the 9 and 20 EMA everywhere, with the 50 and 200 SMA."
+  },
+  {
+   "id": "r06",
+   "source": "h2",
+   "quote": "Below the 200-day is a hard no for stocks.",
+   "claim": "Owner: below the 200-day is a hard no for stocks."
+  },
+  {
+   "id": "r07",
+   "source": "h2",
+   "quote": "The one exception: indexes and leveraged ETFs may be bought under their 200-day on a reversal extension or a parabolic long.",
+   "claim": "Owner: only indexes and leveraged ETFs may be bought under the 200-day, on a reversal extension or a parabolic long."
+  },
+  {
+   "id": "hB26s",
+   "source": "h1",
+   "quote": "shorts only below the 200-day, never above it unless it is a parabolic short",
+   "claim": "B26: shorts only below the 200-day, unless parabolic."
   }
  ],
  "walkthroughs": [
@@ -1033,16 +1065,16 @@
    "rung": 1,
    "format": "tf",
    "criterion": "nf.above_200",
-   "q": "A News Failure long must be above the 200-day, unless it is a parabolic long.",
+   "q": "A News Failure long on a stock must be above the 200-day.",
    "answer": "True",
-   "why": "True. No longs below the 200-day simple moving average, unless it is a parabolic long. The News Failure long follows that hard rule. The rulebook's mirror for shorts: only below the 200-day, unless parabolic.",
-   "lesson_line": "Longs live above the 200-day. The News Failure is no exception.",
+   "why": "True. Below the 200-day is a hard no for stocks. Only an index or a levered ETF may be bought under it, on a reversal extension or a parabolic long. The News Failure long follows that rule.",
+   "lesson_line": "Stock longs live above the 200-day. The News Failure is no exception.",
    "facts": [
-    "n3",
-    "hB26"
+    "r06",
+    "r07"
    ],
    "house": true,
-   "simple": "True. We take no longs below the 200-day average unless the move is parabolic, and this setup follows that rule.",
+   "simple": "True. A stock is a hard no as a long under the 200-day, and this setup follows that rule.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1568,27 +1600,26 @@
    "rung": 3,
    "format": "mcq",
    "criterion": "nf.trail",
-   "q": "How is the last third of a News Failure trailed?",
+   "q": "How is what is left of a News Failure trailed?",
    "choices": [
-    "A close beyond the 10-day or 21-day",
+    "A close beyond the 9 or 20 EMA",
     "A close beyond the 200-day average",
     "A fixed 5% under the move's high",
-    "An intraday touch of the 10-day average"
+    "An intraday touch of the 9 EMA"
    ],
-   "answer": "A close beyond the 10-day or 21-day",
-   "why": "A close beyond the 10-day or 21-day. Trail the last third with a close beyond the 10-day for a fast mover, or the 21-day for a steadier one. For a long, sell on a close below it. It takes a close, not an intraday touch. Not the 200-day, and not a fixed percent.",
-   "lesson_line": "The last third rides the trail and leaves on a close beyond it.",
+   "answer": "A close beyond the 9 or 20 EMA",
+   "why": "A close beyond the 9 or 20 EMA. Trail what is left with a close beyond the 9 EMA for a fast mover, or the 20 EMA for a steadier one. For a long, sell on a close below it. It takes a close, not an intraday touch. Not the 200-day, and not a fixed percent.",
+   "lesson_line": "What is left rides the trail and leaves on a close beyond it.",
    "facts": [
-    "n16",
-    "hE52"
+    "r21"
    ],
    "wrong": {
-    "A close beyond the 200-day average": "The trail is the 10-day for fast movers or the 21-day for steadier ones.",
+    "A close beyond the 200-day average": "The trail is the 9 EMA for fast movers or the 20 EMA for steadier ones.",
     "A fixed 5% under the move's high": "A fixed percent ignores the chart. The trail is the average.",
-    "An intraday touch of the 10-day average": "The trail sells on a close beyond the average, not on an intraday touch."
+    "An intraday touch of the 9 EMA": "The trail sells on a close beyond the average, not on an intraday touch."
    },
    "house": true,
-   "simple": "It rides until a daily close beyond the 10-day average for a fast mover, or the 21-day for a steadier one.",
+   "simple": "It rides until a daily close beyond the 9 EMA for a fast mover, or the 20 EMA for a steadier one.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1596,7 +1627,7 @@
      "rests on the owner's rulebook (E52)"
     ]
    },
-   "batch": "wave5"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q21",
@@ -1608,7 +1639,7 @@
    "choices": [
     "The prior day's close or the open",
     "The extreme of the first 30 minutes",
-    "The 10-day average at the open",
+    "The 9 EMA at the open",
     "The extreme of the first 5-minute bar"
    ],
    "answer": "The extreme of the first 30 minutes",
@@ -1617,12 +1648,13 @@
    "facts": [
     "n13",
     "hB20",
-    "hA4b"
+    "hA4b",
+    "r21"
    ],
    "wrong": {
     "The prior day's close or the open": "The extreme of the first 30 minutes sets the new stop.",
-    "The 10-day average at the open": "The 10-day is the trail, not the gap stop.",
-    "The extreme of the first 5-minute bar": "The rule uses the first 30 minutes, not the first 5."
+    "The extreme of the first 5-minute bar": "The rule uses the first 30 minutes, not the first 5.",
+    "The 9 EMA at the open": "The 9 EMA is the trail, not the gap stop."
    },
    "house": true,
    "simple": "The first 30 minutes of the gap day set the new stop, and if that loss is past 2R you get out.",
@@ -1633,7 +1665,7 @@
      "rests on the owner's rulebook (B20)"
     ]
    },
-   "batch": "wave5"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q22",
@@ -2001,7 +2033,7 @@
    "lesson_line": "Shorts live below the 200-day. This one is above.",
    "facts": [
     "dUNHn",
-    "hB26",
+    "hB26s",
     "n1",
     "dNear"
    ],
@@ -3262,21 +3294,21 @@
    "choices": [
     "Up to breakeven, at 31.83",
     "Stays at 30.23 until it hits 8R",
-    "Up under the 10-day average",
+    "Up under the 9 EMA",
     "Up to 3R, where you just sold"
    ],
    "answer": "Up to breakeven, at 31.83",
-   "why": "Up to breakeven, 31.83. The stop moves to breakeven between 2R and 5R, and 3R is inside that window. It only moves up, never down or wider. The 10-day trail comes later, for what is left.",
+   "why": "Up to breakeven, 31.83. The stop moves to breakeven between 2R and 5R, and 3R is inside that window. It only moves up, never down or wider. The 9 EMA trail comes later, for what is left.",
    "lesson_line": "At 3R the stop moves up to your entry.",
    "facts": [
-    "hB19",
+    "n23",
     "hA4",
-    "hE52"
+    "r21"
    ],
    "wrong": {
-    "Up under the 10-day average": "The 10-day is the trail for what is left. The stop moves to breakeven first.",
     "Up to 3R, where you just sold": "The stop goes to breakeven, your entry. Not up to the price where you sold.",
-    "Stays at 30.23 until it hits 8R": "That is past the window. Breakeven comes between 2R and 5R, so 8R is too late."
+    "Stays at 30.23 until it hits 8R": "That is past the window. Breakeven comes between 2R and 5R, so 8R is too late.",
+    "Up under the 9 EMA": "The 9 EMA is the trail for what is left. The stop moves to breakeven first."
    },
    "house": true,
    "story": "You bought a News Failure long at 31.83 with the stop at 30.23. The stock reaches 3R and you sell part of the position.",
@@ -3288,7 +3320,7 @@
      "rests on the owner's rulebook (section 9) (B19, A4)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q67",
@@ -3441,29 +3473,28 @@
    "q": "Your News Failure short also qualifies as a parabolic short. Where is the cover target?",
    "choices": [
     "At the daily 9 EMA",
-    "The daily 21 EMA",
+    "At the daily 20 EMA",
     "At the 50-day SMA",
     "At the 200-day"
    ],
    "answer": "At the daily 9 EMA",
-   "why": "At the daily 9 EMA. If the short also qualifies as a parabolic short, it uses Bracco's 9 EMA target instead of the trims. Our rule says the same: a parabolic short's target is the 9-day average. The 21-day is a trail for steadier movers, not this target.",
+   "why": "At the daily 9 EMA. If the short also qualifies as a parabolic short, it uses Bracco's 9 EMA target instead of the trims. Our rule says the same: a parabolic short's target is the 9 EMA. The 20 EMA is a trail for steadier movers, not this target.",
    "lesson_line": "A parabolic short covers at the 9 EMA, not on the trims.",
    "facts": [
     "n26",
     "hD47",
-    "hE52",
-    "n15",
-    "n24"
+    "r10",
+    "r21"
    ],
    "wrong": {
-    "The daily 21 EMA": "The 21-day is a trail for a steadier mover. Bracco's parabolic target is the 9 EMA.",
     "At the 50-day SMA": "The 50-day is not the target. Bracco's target for a parabolic short is the 9 EMA.",
-    "At the 200-day": "The 200-day is the line for the side rule, not the cover target."
+    "At the 200-day": "The 200-day is the line for the side rule, not the cover target.",
+    "At the daily 20 EMA": "The 20 EMA is a trail for a steadier mover. Bracco's parabolic target is the 9 EMA."
    },
    "house": true,
    "simple": "Cover at the daily 9 EMA, because a parabolic short uses that average as its target instead of the usual trims.",
    "deeper": {
-    "trap": "The trap is mixing the two plans. A plain News Failure short covers a third at 3R and a third at 5R, then trails the rest. Once it qualifies as a parabolic short, the 9 EMA target replaces those trims."
+    "trap": "The trap is mixing the two plans. A plain News Failure short covers part by judgment and trails what is left. Once it qualifies as a parabolic short, the 9 EMA target replaces that plan."
    },
    "tier": "extended",
    "risk": {
@@ -3472,7 +3503,7 @@
      "rests on the owner's rulebook (section 9) (D47); the card's settled parabolic target"
     ]
    },
-   "batch": "wave5"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q72",
@@ -3558,8 +3589,8 @@
   "q05": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "True from n3 and hB26; why and simple grounded; no longer states q58's case. Teaching the short mirror is a rung-1 reveal for q33's rung-5 application, acceptable."
+   "fixed": true,
+   "notes": "D-009: below the 200-day is a hard no for stocks; only indexes and leveraged ETFs get the parabolic-long exception. The stem said 'unless it is a parabolic long' for a stock long, teaching a carve-out the ruling denies. Re-keyed to the ruling."
   },
   "q06": {
    "status": "pass",
@@ -3647,15 +3678,15 @@
   },
   "q20": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "Trail text now says what is left and the 9 or 20 EMA, cites r21; close-not-touch kept; distractors wrong; no fixed third."
   },
   "q21": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "Gap-through-stop rule, not an entry wait, so D-031 does not apply; 10-day distractor renamed to 9 EMA; kept."
   },
   "q22": {
    "status": "pass",
@@ -3673,7 +3704,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from l4 and n6; the out-of-frame choice is gone; wrong notes grounded. Note: 'News Failure; it reclaimed the close' is the same wrong choice as in q27; variety only."
+   "notes": "Answer rests on the gap size and the named catalyst; the 2x volume is part of the scanner stand-in definition and is not keyed as the answer."
   },
   "q25": {
    "status": "cut",
@@ -3727,14 +3758,14 @@
   "q33": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "agrees with its rulings"
+   "fixed": true,
+   "notes": "Answer correct (short side of the 200-day rule). The cited fact hB26 still prints the old 'no longs below the 200-day ... unless parabolic long' half; swapped for a fact quoting only the short half the question rests on."
   },
   "q34": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (3.1% gap under the 4% stand-in, dSTX/l4/n1). Weak spot: the wrong-answer note for 'The fall' is circular (only says the gate is the gap). It should say why a deep fall is not a fail: the card likes the crowded, fallen case (dTTD: 'The crowded case the rule likes (down 27% in 60 sessions)'). Added dTTD to facts."
+   "fixed": false,
+   "notes": "Answer is the 3.1% gap; the 2.5x volume is a cleared distractor, not keyed as a must-have."
   },
   "q35": {
    "status": "pass",
@@ -3946,8 +3977,8 @@
   "q66": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Wrong choice 'until 5R' is the window edge, so arguably defensible; swap to 8R, outside the window."
+   "fixed": false,
+   "notes": "Breakeven window 2R to 5R kept; 9 EMA trail for what is left cites r21; stale hB19 fact (third at 3R) already dropped; sell at 3R is only story context, not keyed."
   },
   "q67": {
    "status": "pass",
@@ -3965,7 +3996,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with GAP-TRIM/SHORT-ENTRY or not affected; key right, quote exact, style ok"
+   "notes": "Keys the gap sell as an optional judgment inside a 3 to 7 day window, never a rule; 'Sell a third; the gap makes it a rule' correctly wrong; R math checks (3R = 36.63, open 38.10 above)."
   },
   "q70": {
    "status": "pass",
@@ -3975,10 +4006,9 @@
   },
   "q71": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Content right (9 EMA, 20 EMA, no fixed thirds). Only cosmetic: the one choice without 'At the' started with 'The', so the choice set is made parallel."
   },
   "q72": {
    "status": "pass",

@@ -1541,8 +1541,8 @@
   "q09": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 1."
+   "fixed": false,
+   "notes": "Keep is right: the 21-day is a 3-week options plan length, not the 21-day average."
   },
   "q10": {
    "status": "pass",

@@ -79,6 +79,14 @@
    "title": "Setup decisions: the owner's rulings (2026-11-12)",
    "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
   }
  ],
  "facts": [
@@ -144,9 +152,9 @@
   },
   {
    "id": "h05",
-   "source": "h1",
-   "quote": "Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
-   "claim": "B19: breakeven between 2R and 5R; the hard rule for the first trim is a third at 3R."
+   "source": "hw",
+   "quote": "The stop may move up to breakeven between 2R and 5R, or at the first sell.",
+   "claim": "Our stop may move up to breakeven between 2R and 5R, or at the first sell."
   },
   {
    "id": "h06",
@@ -210,15 +218,15 @@
   },
   {
    "id": "h20",
-   "source": "h1",
-   "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
-   "claim": "E51: another third at 5R, then trail the last third."
+   "source": "hw",
+   "quote": "Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
+   "claim": "Later sells are a judgment: sell more into strength on a later push, and trail what is left."
   },
   {
    "id": "h21",
-   "source": "h1",
-   "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
-   "claim": "E52: trail the 10-day for fast movers, the 21-day for steadier ones; sell on a close below it."
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
   },
   {
    "id": "h22",
@@ -414,15 +422,15 @@
   },
   {
    "id": "c28",
-   "source": "c1",
-   "quote": "Sell a third at 3R (the hard rule).",
-   "claim": "Card: sell a third at 3R."
+   "source": "hw",
+   "quote": "The first sell is a judgment, not a fixed third at 3R.",
+   "claim": "Our rule: the first sell is a judgment, not a fixed third at 3R."
   },
   {
    "id": "c29",
-   "source": "c1",
-   "quote": "Sell a third at 5R.",
-   "claim": "Card: sell a third at 5R."
+   "source": "hw",
+   "quote": "Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
+   "claim": "Later sells are a judgment: sell more into strength on a later push, and trail what is left."
   },
   {
    "id": "c30",
@@ -822,15 +830,21 @@
   },
   {
    "id": "r12",
-   "source": "h2",
-   "quote": "I very rarely sell on the day 1 of the buy day. I usually wait until day 3 at the earliest.",
-   "claim": "Owner: very rarely sells on day 1, usually waits until day 3 at the earliest."
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
   },
   {
    "id": "r13",
    "source": "h2",
    "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
    "claim": "Owner: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
+  },
+  {
+   "id": "r91",
+   "source": "h2",
+   "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+   "claim": "Owner: the course teaches the 9 and 20 EMA with the 50 and 200 SMA."
   }
  ],
  "walkthroughs": [
@@ -1705,11 +1719,10 @@
     },
     "round": 1
    },
-   "why": "One R is the buy minus the stop: 12.37 minus 12.06. The gain is 13.92 minus 12.37. Divide the gain by one R to get 5.0R. The default plan sells the second third at 5R. This is AMD's buy.",
-   "lesson_line": "Count in R, not dollars. 5R is the second trim.",
+   "why": "One R is the buy minus the stop: 12.37 minus 12.06. The gain is 13.92 minus 12.37. Divide the gain by one R to get 5R. That is a mark on the ruler, not a sell order. This is AMD's buy.",
+   "lesson_line": "Count in R, not dollars. 5R is a mark on the ruler, not a sell order.",
    "facts": [
-    "c29",
-    "h20",
+    "r13",
     "d05"
    ],
    "suffix": "R",
@@ -1723,7 +1736,7 @@
      "the 5R trim is the owner's adjustable default (E51)"
     ]
    },
-   "batch": "rank",
+   "batch": "sweep-2026-11-14",
    "choices": [
     "5.0R",
     "6.0R",
@@ -2411,12 +2424,12 @@
    "facts": [
     "c26",
     "m05",
-    "c28"
+    "r12"
    ],
    "wrong": {
     "Yes; add on each higher low": "Adding to it on the way up is the named mistake.",
     "Yes, but add half the size": "A smaller add is still an add with a second price and a second stop.",
-    "No; sell half to lock gains": "The plan trims a third at 3R, then trails the rest. Selling half early is not the answer to an add."
+    "No; sell half to lock gains": "Selling half early is not the answer to an add. The first sell is a judgment, usually day 3 at the earliest, and the rest trails."
    },
    "house": true,
    "simple": "No. We size from the stop once and never add along the way, even when the trade works.",
@@ -2427,7 +2440,7 @@
      "rests on the owner's rulebook (A5)"
     ]
    },
-   "batch": "wave4"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q44",
@@ -3478,16 +3491,17 @@
    "rung": 4,
    "format": "tf",
    "criterion": "w4b.trail",
-   "q": "By default, on a steadier mover we trail the last third under the 21-day, not the 10-day.",
+   "q": "By default, on a steadier mover we trail what is left under the 20 EMA, not the 9 EMA.",
    "answer": "True",
-   "why": "True. A steadier mover trails the 21-day, and a fast mover trails the 10-day. We sell on a close below the line, not before it.",
-   "lesson_line": "Fast mover, 10-day. Steadier mover, 21-day. Sell on the close below.",
+   "why": "True. A steadier mover trails the 20 EMA, and a fast mover trails the 9 EMA. We sell on a close below the line, not before it.",
+   "lesson_line": "Fast mover, 9 EMA. Steadier mover, 20 EMA. Sell on the close below.",
    "facts": [
     "c31",
-    "h21"
+    "h21",
+    "r91"
    ],
    "house": true,
-   "simple": "True. Steadier movers trail the 21-day and fast movers trail the 10-day, selling on a close below.",
+   "simple": "True. Steadier movers trail the 20 EMA and fast movers trail the 9 EMA, selling on a close below.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -3495,7 +3509,7 @@
      "rests on the owner's rulebook (E52)"
     ]
    },
-   "batch": "wave4"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q73",
@@ -3848,8 +3862,8 @@
   "q25": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
+   "fixed": true,
+   "notes": "R math verified (1.55 / 0.31 = 5.0; wrongs 6.0, 44.9, 50.0 reproduce). Text now agrees with D-013. Card fact c29 'Sell a third at 5R.' is the superseded rule; dropped from facts."
   },
   "q26": {
    "status": "pass",
@@ -3910,7 +3924,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Decided cold: No, 12% over the 10-day breaks C29's 10% line (h13, c22). Two Yes, two No; the slope distractor is a real misreading and its note restates the distance rule. No tell; no other item asks C29."
+   "notes": "Kept: 10% stretch on the 10-day simple average (D-017 held); distance not a drawn line."
   },
   "q36": {
    "status": "pass",
@@ -3956,9 +3970,8 @@
   "q43": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Pass. Mild overlap with q05 (teach then test); criterion tag w4b.size_by_grade should be retagged at lesson level.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "Wrong text now teaches the judgment first sell. Card fact c28 'Sell a third at 3R (the hard rule)' is superseded and no longer used by the text; dropped from facts."
   },
   "q44": {
    "status": "cut",
@@ -4076,9 +4089,9 @@
   },
   "q63": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave4; awaiting cold re-read"
+   "notes": "Kept: 'past their first trim' only says two trades are working; no fixed third or day-1 sell keyed."
   },
   "q64": {
    "status": "pass",
@@ -4122,7 +4135,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key matches the cited quotes; no tell, no second answer found."
+   "notes": "Kept: stop-order question; 'after the first trim' is a wrong choice, no D-013 key."
   },
   "q71": {
    "status": "cut",
@@ -4133,7 +4146,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key matches the cited quotes; no tell, no second answer found."
+   "notes": "9 and 20 EMA trail with r91; 'what is left'; true statement correct."
   },
   "q73": {
    "status": "cut",

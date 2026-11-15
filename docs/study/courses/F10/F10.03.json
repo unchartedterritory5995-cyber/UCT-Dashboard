@@ -162,6 +162,14 @@
    "title": "Setup decisions: the owner's rulings (2026-11-12)",
    "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
   }
  ],
  "facts": [
@@ -623,21 +631,21 @@
   },
   {
    "id": "h2",
-   "source": "s16",
-   "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
-   "claim": "After the first third at 3R, we sell another third at 5R and trail the last third."
+   "source": "hw",
+   "quote": "Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
+   "claim": "Later sells are a judgment: sell more into strength on a later push, and trail what is left."
   },
   {
    "id": "h3",
    "source": "s17",
    "quote": "Hold your winners by selling partials into strength and trailing the rising moving averages.",
-   "claim": "In the owner's words: hold winners by selling partials into strength and trailing the rising moving averages."
+   "claim": "In our words: hold winners by selling partials into strength and trailing the rising moving averages."
   },
   {
    "id": "h4",
    "source": "s18",
-   "quote": "under each higher low, or under the 10-day average",
-   "claim": "Our Kicker plan trails the stop under each higher low, or under the 10-day average; the Oops Reversal, Slingshot and Launchpad plans also trail under each higher low."
+   "quote": "under each higher low, or under the 9 EMA",
+   "claim": "Our Kicker plan trails the stop under each higher low, or under the 9 EMA; the Oops Reversal, Slingshot and Launchpad plans also trail under each higher low."
   },
   {
    "id": "h5",
@@ -647,27 +655,27 @@
   },
   {
    "id": "h6",
-   "source": "s16",
-   "quote": "Move the stop to breakeven at 2R to 5R, ideally.",
-   "claim": "Our rule: once a trade is up 2R to 5R, the stop ideally moves to breakeven."
+   "source": "hw",
+   "quote": "The stop may move up to breakeven between 2R and 5R, or at the first sell.",
+   "claim": "Our stop may move up to breakeven between 2R and 5R, or at the first sell."
   },
   {
    "id": "r01",
    "source": "h2",
    "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
-   "claim": "The owner's ruling: the first sell is a judgment, not a fixed third at 3R."
+   "claim": "Our rule: the first sell is a judgment, not a fixed third at 3R."
   },
   {
    "id": "r02",
-   "source": "h2",
-   "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
-   "claim": "The owner rarely sells on day 1 of the buy and usually waits until day 3 at the earliest."
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
   },
   {
    "id": "r03",
    "source": "h2",
    "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
-   "claim": "The owner's ruling: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
+   "claim": "Our rule: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
   }
  ],
  "walkthroughs": [
@@ -1778,7 +1786,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "ok"
+   "notes": "Keep is right: why already says first sell is a judgment, not a fixed third at 3R, rarely day 1; answer sell partials and trail is consistent with D-013."
   }
  }
 }

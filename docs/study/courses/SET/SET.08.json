@@ -131,6 +131,14 @@
    "title": "Setup decisions: the owner's rulings (2026-11-12)",
    "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
   }
  ],
  "facts": [
@@ -382,9 +390,9 @@
   },
   {
    "id": "h05",
-   "source": "h1",
-   "quote": "Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
-   "claim": "B19: breakeven between 2R and 5R; the hard rule for the first trim is a third at 3R."
+   "source": "hw",
+   "quote": "The stop may move up to breakeven between 2R and 5R, or at the first sell.",
+   "claim": "Our stop may move up to breakeven between 2R and 5R, or at the first sell."
   },
   {
    "id": "h06",
@@ -472,15 +480,15 @@
   },
   {
    "id": "h20",
-   "source": "h1",
-   "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
-   "claim": "E51: another third at 5R, then trail the last third."
+   "source": "hw",
+   "quote": "Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
+   "claim": "Later sells are a judgment: sell more into strength on a later push, and trail what is left."
   },
   {
    "id": "h21",
-   "source": "h1",
-   "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
-   "claim": "E52: trail the 10-day for fast movers, the 21-day for steadier ones; sell on a close below it."
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
   },
   {
    "id": "h22",
@@ -748,9 +756,9 @@
   },
   {
    "id": "c37",
-   "source": "c1",
-   "quote": "Trail the last third: a close under the 10-day for a fast mover, under the 21-day for a steadier one.",
-   "claim": "Trail the last third on the 10-day or the 21-day."
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
   },
   {
    "id": "c38",
@@ -1060,9 +1068,9 @@
   },
   {
    "id": "r05",
-   "source": "h2",
-   "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
-   "claim": "D-013: he rarely sells on day 1 and usually waits until day 3 at the earliest."
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
   },
   {
    "id": "r06",
@@ -1093,6 +1101,24 @@
    "source": "c1",
    "quote": "Two or more heavy red days in the flag, each on 1.5 times average volume or more, are a warning to be mindful of and grade it down; they are not an invalidation by themselves.",
    "claim": "Two or more heavy red days in the flag are a warning and a lower grade, not an invalidation by themselves."
+  },
+  {
+   "id": "r07",
+   "source": "h2",
+   "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+   "claim": "D-021: the course teaches the 9 and 20 EMA, with the 50 and 200 SMA."
+  },
+  {
+   "id": "r08",
+   "source": "h2",
+   "quote": "The low of day (the entry day's low) is the primary stop. The pattern's low and a line minus a cushion are acceptable alternatives, not wrong answers.",
+   "claim": "D-008: the entry day's low is the primary stop; the pattern's low is an acceptable alternative."
+  },
+  {
+   "id": "g1",
+   "source": "h2",
+   "quote": "A gap up past 3R at the open is not an automatic sell. Selling part at the open on a big gap is one choice he may make by judgment, never a rule",
+   "claim": "GAP-TRIM: a gap past 3R is not an automatic sell; selling part at the open is an optional judgment."
   }
  ],
  "walkthroughs": [
@@ -1101,7 +1127,7 @@
    "title": "SHOP, May 2020: the flag that held the 21-day",
    "steps": [
     "SHOP, spring 2020. The stock doubled in 12 days to 66.57, then rested eight sessions, 59.50 to 66.26.",
-    "Every close of the flag held the rising 21-day EMA. Volume ran 0.85x the pole's. Above the 50 and 200-day.",
+    "The flag rode the rising 20 EMA. Volume ran 0.85x the pole's. Above the 50 and 200-day.",
     "2020-05-04: it trades over the prior day's high. Buy at market, 62.80, under the flag's high. Stop 61.65.",
     "Failure mode: the break stalls and rolls back through the entry day's low. Instead it ran to 41.7R."
    ],
@@ -1113,7 +1139,8 @@
     "c02",
     "c36",
     "h22",
-    "h24"
+    "h24",
+    "h21"
    ]
   },
   {
@@ -1133,7 +1160,8 @@
     "h22",
     "h24",
     "h05",
-    "h20"
+    "h20",
+    "r05"
    ]
   },
   {
@@ -1547,7 +1575,7 @@
     "c12",
     "p1",
     "c13",
-    "c09"
+    "cn1"
    ],
    "wrong": {
     "A warning the flag is dying": "A quiet, narrow day is what a healthy rest looks like. Heavy red days are the warning.",
@@ -1618,8 +1646,8 @@
    ],
    "wrong": {
     "Only at 3R; never by the clock": "Not a fixed 3R. The first sell is a judgment, often into a push of a few days.",
-    "Only at the measured move target": "Our first sell is set by R or by the days of the push, not by a measured move.",
-    "Never; let the whole trade run": "Our plan trims in stages and trails the last part. It does not let the whole trade run."
+    "Only at the measured move target": "A measured move target is a guess. Our first sell is a judgment, often into a push of a few days.",
+    "Never; let the whole trade run": "We sell part into strength and trail what is left. We do not let the whole trade run."
    },
    "house": true,
    "simple": "We sell the first piece into a strong push of a few days, not on a fixed rule.",
@@ -1641,28 +1669,29 @@
    "rung": 3,
    "format": "mcq",
    "criterion": "bf.rides_fast_averages",
-   "q": "Closes ride the 10-day average and never tag the 21-day EMA. How does our card read that flag?",
+   "q": "Closes ride the 9 EMA and never tag the 20 EMA. How does our card read that flag?",
    "choices": [
     "Stronger; buyers never let it sag",
     "Weaker; it never tested support",
     "Equal; the two read the same way",
-    "Not a flag; it must tag the 21-day"
+    "Not a flag; it must tag the 20 EMA"
    ],
    "answer": "Stronger; buyers never let it sag",
-   "why": "Stronger. Our card reads riding the 9 or 10-day average through the flag as the top version. Tagging the 20 or 21-day EMA and reclaiming it reads lower. Every close still has to hold the rising 21-day EMA.",
-   "lesson_line": "Riding the 10-day reads stronger than tagging the 21-day and reclaiming it.",
+   "why": "Stronger. Our card reads riding the 9 EMA through the flag as the top version. Tagging the 20 EMA and reclaiming it reads lower. Every close still has to hold the rising 20 EMA.",
+   "lesson_line": "Riding the 9 EMA reads stronger than tagging the 20 EMA and reclaiming it.",
    "facts": [
     "c11",
     "k3",
-    "c10"
+    "c10",
+    "r07"
    ],
    "wrong": {
-    "Not a flag; it must tag the 21-day": "Tagging the 21-day is allowed, not required. Every close just has to hold the rising 21-day EMA.",
-    "Weaker; it never tested support": "Not testing the 21-day is not a flaw. Our card puts riding the 10-day above tagging the 21-day and reclaiming it.",
-    "Equal; the two read the same way": "They differ. Our card reads riding the 9 or 10-day as the top version and tagging the 20 or 21-day and reclaiming it as a lower one."
+    "Weaker; it never tested support": "Not testing the 20 EMA is not a flaw. Our card puts riding the 9 EMA above tagging the 20 EMA and reclaiming it.",
+    "Equal; the two read the same way": "They differ. Our card reads riding the 9 EMA as the top version and tagging the 20 EMA and reclaiming it as a lower one.",
+    "Not a flag; it must tag the 20 EMA": "Tagging the 20 EMA is allowed, not required. Every close just has to hold the rising 20 EMA."
    },
    "house": true,
-   "simple": "Closes that ride the 10-day average read stronger than a flag that has to tag the 21-day and reclaim it.",
+   "simple": "Closes that ride the 9 EMA read stronger than a flag that has to tag the 20 EMA and reclaim it.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -1671,7 +1700,7 @@
      "+1 fixed before (the old B- note leaned on a pending rule)"
     ]
    },
-   "batch": "wave1"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q16",
@@ -1726,27 +1755,28 @@
    "rung": 3,
    "format": "mcq",
    "criterion": "bf.holds_21ema",
-   "q": "On flag day four price dips under the 21-day EMA at noon, then closes back above it on light volume. What is that?",
+   "q": "On flag day four price dips under the 20 EMA at noon, then closes back above it on light volume. What is that?",
    "choices": [
     "Allowed; the flag is not broken",
     "The flag is over; stand aside",
     "A heavy red day; the grade drops",
-    "Allowed; the 21-day line is optional"
+    "Allowed; the 20 EMA is optional"
    ],
    "answer": "Allowed; the flag is not broken",
-   "why": "Allowed. The card tests closes, not ticks: every flag close must sit at or above the rising 21-day EMA. An intraday undercut that closes back above is allowed. It is not a break. It is not a heavy red day either, which needs a red close on heavy volume.",
+   "why": "Allowed. The card tests closes, not ticks: every flag close must sit at or above the rising 20 EMA. An intraday undercut that closes back above is allowed. It is not a break. It is not a heavy red day either, which needs a red close on heavy volume.",
    "lesson_line": "An undercut that closes back above the line is allowed. Only the close counts.",
    "facts": [
     "c10",
-    "c09"
+    "cn1",
+    "r07"
    ],
    "wrong": {
     "The flag is over; stand aside": "The close is what counts, and it closed back above the line.",
     "A heavy red day; the grade drops": "A heavy red day is a red close on 1.5 times average volume or more. This one came on light volume.",
-    "Allowed; the 21-day line is optional": "The line still matters. Every flag close must sit at or above it. Only the noon dip is forgiven."
+    "Allowed; the 20 EMA is optional": "The line still matters. Every flag close must sit at or above it. Only the noon dip is forgiven."
    },
    "house": true,
-   "simple": "Allowed, because only the close counts and this one closed back above the 21-day EMA.",
+   "simple": "Allowed, because only the close counts and this one closed back above the 20 EMA.",
    "tier": "core",
    "risk": {
     "score": 6,
@@ -1759,7 +1789,7 @@
    "depends_on": [
     "D-047"
    ],
-   "batch": "wave1"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q18",
@@ -2122,7 +2152,7 @@
    "rung": 4,
    "format": "scenario",
    "criterion": "bf.inv_ema",
-   "q": "What does that second close under the 21-day EMA do to the flag?",
+   "q": "What does that second close under the 20 EMA do to the flag?",
    "choices": [
     "It ends the flag; we stand aside",
     "It changes nothing; the low holds",
@@ -2130,23 +2160,24 @@
     "It only matters on heavy volume"
    ],
    "answer": "It ends the flag; we stand aside",
-   "why": "It ends the flag. By our current default, a close under the rising 21-day EMA that is not reclaimed the next session ends the flag. Day six closed under it and day seven closed under it again. An intraday undercut that closes back above is allowed. This was a close.",
+   "why": "It ends the flag. By our current default, a close under the rising 20 EMA that is not reclaimed the next session ends the flag. Day six closed under it and day seven closed under it again. An intraday undercut that closes back above is allowed. This was a close.",
    "lesson_line": "A close under the line that is not reclaimed the next session ends the flag.",
    "facts": [
     "c10",
     "r1",
-    "c09"
+    "cn1",
+    "r07"
    ],
    "wrong": {
-    "It changes nothing; the low holds": "Before the entry the test is a close under the rising 21-day EMA, not the flag low.",
+    "It changes nothing; the low holds": "Before the entry the test is a close under the rising 20 EMA, not the flag low.",
     "It is allowed; wait one more session": "You waited one session already. Day seven closed under it again.",
-    "It only matters on heavy volume": "The 21-day line is judged on the close, not the volume. Heavy red days are a separate warning."
+    "It only matters on heavy volume": "The 20 EMA is judged on the close, not the volume. Heavy red days are a separate warning."
    },
    "house": true,
-   "story": "You have not bought yet. Day six of a flag closes under the rising 21-day EMA. Day seven closes under it again, on average volume.",
-   "simple": "It ends the flag. A close under the 21-day line that is not won back next session ends it, and day seven closed under again.",
+   "story": "You have not bought yet. Day six of a flag closes under the rising 20 EMA. Day seven closes under it again, on average volume.",
+   "simple": "It ends the flag. A close under the 20 EMA that is not won back next session ends it, and day seven closed under again.",
    "deeper": {
-    "trap": "An intraday undercut and a close under are different things. A dip under the 21-day EMA at noon that closes back above is allowed and is often the buy. Only the close counts, and here two closes sat under."
+    "trap": "An intraday undercut and a close under are different things. A dip under the 20 EMA at noon that closes back above is allowed and is often the buy. Only the close counts, and here two closes sat under."
    },
    "tier": "core",
    "risk": {
@@ -2160,7 +2191,7 @@
    "depends_on": [
     "D-047"
    ],
-   "batch": "wave1"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q28",
@@ -2181,12 +2212,13 @@
    "facts": [
     "c39",
     "h08",
-    "h13"
+    "h13",
+    "r07"
    ],
    "wrong": {
     "Yes; the flag is perfect": "A perfect shape does not lift the blackout. The report is two sessions away, inside the 3.",
     "Yes; sell before the report": "Buying inside the blackout and selling before the report still breaks the rule. No new buy in the 3 sessions before a report.",
-    "No; a 40% pole is extended": "Stretch is measured against the 10-day average, not the pole's size. We skip a long more than 10% above it."
+    "No; a 40% pole is extended": "Stretch is measured against the 9 EMA, not the pole's size. We skip a long more than 10% above it."
    },
    "house": true,
    "story": "A tight four-day flag after a 40% pole. Today it trades over the prior day's high. The company reports in two sessions.",
@@ -2198,7 +2230,7 @@
      "+2 rests on the owner's rulebook (B22)"
     ]
    },
-   "batch": "wave1"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q29",
@@ -2439,28 +2471,29 @@
    "criterion": "bf.not_after_burst",
    "q": "Buy the break?",
    "choices": [
-    "No; let the 10-day catch up",
+    "No; let the 9 EMA catch up",
     "Yes; the flag is a textbook one",
     "Yes; a 12% stretch is quite normal",
     "No; five days is too short a flag"
    ],
-   "answer": "No; let the 10-day catch up",
-   "why": "No. We skip a long more than 10% above its 10-day average. This one sits 12% above, so let the average catch up first.",
-   "lesson_line": "Skip a long more than 10% above its 10-day average. Let the average catch up first.",
+   "answer": "No; let the 9 EMA catch up",
+   "why": "No. We skip a long more than 10% above its 9 EMA. This one sits 12% above, so let the line catch up first.",
+   "lesson_line": "Skip a long more than 10% above its 9 EMA. Let the line catch up first.",
    "facts": [
     "h13",
-    "r2"
+    "r2",
+    "r07"
    ],
    "wrong": {
-    "Yes; the flag is a textbook one": "A tidy shape does not lift the stretch rule. Skip a long more than 10% above its 10-day average.",
-    "Yes; a 12% stretch is quite normal": "Skip a long more than 10% above its 10-day average. Twelve is past it.",
-    "No; five days is too short a flag": "Five days is a normal rest. The trouble is the stretch above the 10-day, not the length."
+    "Yes; the flag is a textbook one": "A tidy shape does not lift the stretch rule. Skip a long more than 10% above its 9 EMA.",
+    "Yes; a 12% stretch is quite normal": "Skip a long more than 10% above its 9 EMA. Twelve is past it.",
+    "No; five days is too short a flag": "Five days is a normal rest. The trouble is the stretch above the 9 EMA, not the length."
    },
    "house": true,
-   "story": "A one-day gap made the whole pole. Five days later a tidy flag sits 12% above the 10-day average and ticks over yesterday's high.",
-   "simple": "No, because the stock sits 12% above its 10-day average, which is too stretched to buy.",
+   "story": "A one-day gap made the whole pole. Five days later a tidy flag sits 12% above the 9 EMA and ticks over yesterday's high.",
+   "simple": "No, because the stock sits 12% above its 9 EMA, which is too stretched to buy.",
    "deeper": {
-    "trap": "A tidy flag is not enough. The test is the stretch: skip a long more than 10% above its 10-day average."
+    "trap": "A tidy flag is not enough. The test is the stretch: skip a long more than 10% above its 9 EMA."
    },
    "tier": "extended",
    "risk": {
@@ -2470,7 +2503,7 @@
      "+1 fixed before (the lesson line claimed a one-gap pole is never a leader's run, which the card does not say)"
     ]
    },
-   "batch": "wave1"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q36",
@@ -2568,15 +2601,16 @@
    "rung": 5,
    "format": "tf",
    "criterion": "bf.trim_gap_open",
-   "q": "If a flag trade opens above a level where you planned to sell, you wait until it trades back down to it.",
+   "q": "If a flag trade opens above a level where you planned to sell, you must sell at the open.",
    "answer": "False",
-   "why": "False. If a stock opens above a level where you planned to sell, take that sale at the open. The level has already come. Waiting for it to trade again is not the rule.",
-   "lesson_line": "A planned sell level the open jumps past is a sale at the open.",
+   "why": "False. A gap up past a planned sell level is not an automatic sell. Selling part at the open on a big gap is one choice we may make by judgment, never a rule.",
+   "lesson_line": "A gap past a planned sell level is not an automatic sell. Selling part is a judgment.",
    "facts": [
-    "h25"
+    "g1",
+    "r04"
    ],
    "house": true,
-   "simple": "False, because a stock that opens above a planned sell level gets that sale taken at the open.",
+   "simple": "False, because a gap above a planned sell level is not an automatic sell. Selling part at the open is only a judgment.",
    "tier": "extended",
    "risk": {
     "score": 5,
@@ -2585,7 +2619,7 @@
      "rests on the owner's rulebook (F63)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q39",
@@ -2642,15 +2676,16 @@
     "Buy more; it is a cheap re-entry"
    ],
    "answer": "Idea dead; your stop hit first",
-   "why": "The idea is dead. After the entry, a close under the flag's low means the idea failed. The stop at 30.95 sits above that close, so normally it was hit first and you were out. The flag low at 29.80 is the invalidation line, not the stop.",
+   "why": "The idea is dead. After the entry, a close under the flag's low means the idea failed. The stop at 30.95 sits above that close, so normally it was hit first and you were out. The flag low at 29.80 is the invalidation line, and your stop was higher.",
    "lesson_line": "By the time price closes under the flag low you should be long gone.",
    "facts": [
     "c18",
     "c14",
-    "h27"
+    "h27",
+    "r08"
    ],
    "wrong": {
-    "Widen the stop to the flag low": "The stop only moves up. The flag low was never the stop; it is the line that says the idea failed.",
+    "Widen the stop to the flag low": "The stop only moves up, never down or wider. The flag low is the line that says the idea failed, not a spot to widen to.",
     "Hold; the pole still counts for it": "The pole was the past. A close under the flag low says the run is over for now.",
     "Buy more; it is a cheap re-entry": "You are already out. A new buy needs a new trigger, as a new trade with its own stop."
    },
@@ -2668,7 +2703,7 @@
      "+1 fixed before (a choice was shortened and a false citation removed)"
     ]
    },
-   "batch": "wave1"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q41",
@@ -2713,29 +2748,29 @@
    "rung": 6,
    "format": "mcq",
    "criterion": "bf.trail",
-   "q": "The last third of a fast-moving flag trade. What takes it out?",
+   "q": "After the earlier sells, what takes out what is left of a fast flag trade?",
    "choices": [
-    "A close under the 10-day",
+    "A close under the 9 EMA",
     "A dip under the flag low",
     "A close under the 50-day",
     "Any red day, even a small one"
    ],
-   "answer": "A close under the 10-day",
-   "why": "A close under the 10-day. Our default trail is the 10-day for fast movers and the 21-day for steadier ones. We sell on a close below it. It rides the last part, after the earlier sells. Kullamagi also trails the rest with the 10- or 20-day.",
-   "lesson_line": "The last third rides the line. The close below it is the exit, not a dip under it.",
+   "answer": "A close under the 9 EMA",
+   "why": "A close under the 9 EMA. Our default trail is the 9 EMA for fast movers and the 20 EMA for steadier ones. We sell on a close below it. It rides what is left, after the earlier sells. Kullamagi trails the rest with the 10- or 20-day; we use the 9 and 20 EMA.",
+   "lesson_line": "What is left rides the line. The close below it is the exit, not a dip under it.",
    "facts": [
-    "c37",
-    "h21",
+    "r07",
     "k7",
-    "c18"
+    "c18",
+    "r04"
    ],
    "wrong": {
-    "A dip under the flag low": "Price normally hits the stop well before the flag low. The last third is sold on a close under the trail average.",
-    "A close under the 50-day": "The 50-day is not our trail. The default trail is the 10-day or the 21-day, sold on a close below it.",
-    "Any red day, even a small one": "One red day is not the rule. The close below the trail average is."
+    "A dip under the flag low": "Price normally hits the stop well before the flag low. What is left is sold on a close under the trail line.",
+    "A close under the 50-day": "The 50-day is not our trail. The default trail is the 9 EMA or the 20 EMA, sold on a close below it.",
+    "Any red day, even a small one": "One red day is not the rule. The close below the trail line is."
    },
    "house": true,
-   "simple": "The last third is sold when a day closes under the 10-day average, since this is a fast mover.",
+   "simple": "What is left is sold when a day closes under the 9 EMA, since this is a fast mover.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2743,7 +2778,7 @@
      "rests on the owner's rulebook trail default (E52), which is adjustable"
     ]
    },
-   "batch": "rulings2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q43",
@@ -3500,7 +3535,8 @@
     "h18",
     "r04",
     "r05",
-    "r06"
+    "r06",
+    "r07"
    ],
    "wrong": {
     "Limit under; mental stop; sell a push": "A limit under the level never fills on the break. A stop kept in your head is not a stop.",
@@ -3508,7 +3544,7 @@
     "Buy the close; day-low stop; no sell": "The trigger is the trade through the level, not the close, and the plan includes a first sell."
    },
    "house": true,
-   "story": "Eight quiet days after a doubled pole, every close holding the 21-day EMA. Tonight you plan tomorrow's buy at your trigger level, 66.26.",
+   "story": "Eight quiet days after a doubled pole, every close holding the 20 EMA. Tonight you plan tomorrow's buy at your trigger level, 66.26.",
    "simple": "Buy at market when the level trades, with a stop a few cents under the day's low. Plan to sell into a push.",
    "deeper": {
     "example": "The plan written tonight: set the alert at 66.26. Tomorrow, buy at market if it trades through. Put a real stop a few cents under that day's low. Plan the first sell into a 3, 5 or 7 day push, then trail the last part."
@@ -3521,7 +3557,7 @@
      "fixed before: the stop wording was clarified"
     ]
    },
-   "batch": "rulings2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q62",
@@ -3542,7 +3578,8 @@
    "facts": [
     "h16",
     "k8",
-    "c38"
+    "c38",
+    "r07"
    ],
    "wrong": {
     "Add; the trend is accelerating": "We never add to a flag trade. The full size goes in at one price with one stop.",
@@ -3550,10 +3587,10 @@
     "Nothing; let the trail handle it": "The trail is for the part you keep. Our rule is to sell a big part into a climax run, and the burst is the time to do it."
    },
    "house": true,
-   "story": "Three weeks after your flag buy the stock gaps up three mornings in a row on rising volume. It closes far above its 10-day.",
+   "story": "Three weeks after your flag buy the stock gaps up three mornings in a row on rising volume. It closes far above its 9 EMA.",
    "simple": "A burst of gaps like this is a climax, so sell a big part into the strength.",
    "deeper": {
-    "trap": "The trap is to read three gap-ups as proof the trend will go on. A climax is a burst of gaps and expanding bars far above the 10-day. The rule is to sell a big part into it, and it is a judgment call, not a number."
+    "trap": "The trap is to read three gap-ups as proof the trend will go on. A climax is a burst of gaps and expanding bars far above the 9 EMA. The rule is to sell a big part into it, and it is a judgment call, not a number."
    },
    "tier": "expert",
    "risk": {
@@ -3563,7 +3600,7 @@
      "fixed before: story split"
     ]
    },
-   "batch": "wave1"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q63",
@@ -3688,7 +3725,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "bf.holds_21ema",
-   "q": "Hidden ticker, the day before a prior-day-high break. Read the flag against its rising 21-day EMA. Take it or pass?",
+   "q": "Hidden ticker, the day before a prior-day-high break. Read the flag against its rising 20 EMA. Take it or pass?",
    "choices": [
     "Take it; every close held the line",
     "Pass; two closes sat under it",
@@ -3696,15 +3733,16 @@
     "Take it; the rest ran four days"
    ],
    "answer": "Take it; every close held the line",
-   "why": "Take it. An eight-day flag held the 21-day EMA on every close, after a doubled pole. An intraday undercut that closes back above is allowed.",
+   "why": "Take it. An eight-day flag held the 20 EMA on every close, after a doubled pole. An intraday undercut that closes back above is allowed.",
    "lesson_line": "The flag that never closes under its fast line is the one worth the alert.",
    "facts": [
     "c10",
     "d01",
-    "d02"
+    "d02",
+    "r07"
    ],
    "wrong": {
-    "Pass; two closes sat under it": "Look again: every close of the flag sits on or above the 21-day EMA.",
+    "Pass; two closes sat under it": "Look again: every close of the flag sits on or above the 20 EMA.",
     "Pass; the pole was too small": "The pole nearly doubled in 12 days. Small is not the word.",
     "Take it; the rest ran four days": "The rest ran eight sessions, not four. Count the bars on the chart before you give a reason."
    },
@@ -3715,9 +3753,9 @@
     "window": 120,
     "forward": 20
    },
-   "simple": "Every close of this flag held the rising 21-day line, so the flag is intact and we take it.",
+   "simple": "Every close of this flag held the rising 20 EMA, so the flag is intact and we take it.",
    "deeper": {
-    "example": "The pole was 99% in 12 days to 66.57. The flag then ran eight sessions between 59.50 and 66.26 on 0.85x the pole's volume. Every close held the rising 21-day EMA."
+    "example": "The pole was 99% in 12 days to 66.57. The flag then ran eight sessions between 59.50 and 66.26 on 0.85x the pole's volume. Every close held the rising 20 EMA."
    },
    "tier": "expert",
    "risk": {
@@ -3727,7 +3765,7 @@
      "the 41.7R run is from our own scan"
     ]
    },
-   "batch": "wave1"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q67",
@@ -3955,7 +3993,7 @@
    "rung": 5,
    "format": "mcq",
    "criterion": "bf.not_stretched",
-   "q": "You would buy at 56.60. The 10-day average is 50.00. How far above the 10-day is the buy, in percent?",
+   "q": "You would buy at 56.60. The 9 EMA is 50.00. How far above the 9 EMA is the buy, in percent?",
    "answer": "13.2%",
    "calc": {
     "fn": "arith",
@@ -3966,14 +4004,15 @@
     },
     "round": 1
    },
-   "why": "13.2%. Take the buy price minus the 10-day average and divide by the average, 50.00, not by the buy price. That is past 10%. Skip a long more than 10% above its 10-day average.",
-   "lesson_line": "Check the stretch before you buy. Over 10% above the 10-day, skip.",
+   "why": "13.2%. Take the buy price minus the 9 EMA and divide by the EMA, 50.00, not by the buy price. That is past 10%. Skip a long more than 10% above its 9 EMA.",
+   "lesson_line": "Check the stretch before you buy. Over 10% above the 9 EMA, skip.",
    "facts": [
-    "h13"
+    "h13",
+    "r07"
    ],
    "suffix": "%",
    "house": true,
-   "simple": "The buy is 13.2 percent above the 10-day, because the gap is divided by the 50.00 average.",
+   "simple": "The buy is 13.2 percent above the 9 EMA, because the gap is divided by the 50.00 line.",
    "tier": "extended",
    "risk": {
     "score": 7,
@@ -3983,7 +4022,7 @@
      "a computed key"
     ]
    },
-   "batch": "rank",
+   "batch": "sweep-2026-11-14",
    "choices": [
     "11.7%",
     "6.6%",
@@ -4042,21 +4081,21 @@
     "Up to your entry price",
     "Down to give it more room",
     "Cancel it; a piece is banked",
-    "Switch to the 10-day trail now"
+    "Switch to the 9 EMA trail now"
    ],
    "answer": "Up to your entry price",
    "why": "Up to your entry, 20.09. Our plan moves the stop to breakeven at the first sell, somewhere between 2R and 5R. The stop only moves up, never down or wider, and it stays a real stop order with the broker.",
    "lesson_line": "At the first sell the stop comes up to your entry.",
    "facts": [
-    "h05",
     "c47",
     "h02",
-    "h18"
+    "h18",
+    "r07"
    ],
    "wrong": {
-    "Switch to the 10-day trail now": "The trail comes later, once the stock has run. At the first sell the stop goes to your entry.",
     "Down to give it more room": "The stop only moves up, never down or wider.",
-    "Cancel it; a piece is banked": "Every position keeps a real stop order with the broker. A banked piece does not cancel it."
+    "Cancel it; a piece is banked": "Every position keeps a real stop order with the broker. A banked piece does not cancel it.",
+    "Switch to the 9 EMA trail now": "The trail comes later, once the stock has run. At the first sell the stop goes to your entry."
    },
    "house": true,
    "simple": "After the first sell the stop moves up to your entry price, which is breakeven.",
@@ -4068,7 +4107,7 @@
      "the 2R to 5R window is a range"
     ]
    },
-   "batch": "wave1"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q75",
@@ -4103,7 +4142,7 @@
    "format": "scenario",
    "criterion": "bf.inv_heavy_red",
    "q": "Is the flag still a buy?",
-   "story": "A tight flag rests on the 21-day EMA. On two of its days the stock closed red on 1.6 times its 50-day average volume. Today is quiet.",
+   "story": "A tight flag rests on the 20 EMA. On two of its days the stock closed red on 1.6 times its 50-day average volume. Today is quiet.",
    "choices": [
     "Yes; two heavy days lower the grade",
     "No; that is distribution, not a rest",
@@ -4111,13 +4150,14 @@
     "No; any red close ends a flag"
    ],
    "answer": "Yes; two heavy days lower the grade",
-   "why": "Yes, at a lower grade. Two heavy red days in the flag, each on 1.6 times its 50-day average volume, are a warning to be mindful of. They lower the grade and do not end the flag. Holding the 21-day EMA still counts.",
+   "why": "Yes, at a lower grade. Two heavy red days in the flag, each on 1.6 times its 50-day average volume, are a warning to be mindful of. They lower the grade and do not end the flag. Holding the 20 EMA still counts.",
    "lesson_line": "Two heavy red days are a warning and a lower grade, not the end of the flag.",
    "facts": [
     "cn2",
     "cn1",
     "hd1",
-    "hd2"
+    "hd2",
+    "r07"
    ],
    "wrong": {
     "Yes; heavy red days are normal in flags": "Heavy red days are not normal. They are selling to be mindful of, and they lower the grade.",
@@ -4127,7 +4167,7 @@
    "house": true,
    "simple": "Yes, but at a lower grade, because two heavy red days are a warning and do not end the flag.",
    "deeper": {
-    "trap": "Do not read heavy red days as a veto, and do not ignore them either. Each one is a warning and lowers the grade. The flag still ends on a close under the 21-day EMA that is not reclaimed, not on volume."
+    "trap": "Do not read heavy red days as a veto, and do not ignore them either. Each one is a warning and lowers the grade. The flag still ends on a close under the 20 EMA that is not reclaimed, not on volume."
    },
    "tier": "extended",
    "risk": {
@@ -4137,7 +4177,7 @@
      "the 1.5x line is a card number"
     ]
    },
-   "batch": "heavy"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q77",
@@ -4375,8 +4415,8 @@
   "q09": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "keep right: flag low is rarely a 3% stop; LOD stays primary | mechanical: depends_on left empty, restored to the ruling id(s)"
+   "fixed": false,
+   "notes": "keep ok: false either way; day's low primary, flag low not claimed wrong (D-008)"
   },
   "q10": {
    "status": "pass",
@@ -4393,8 +4433,8 @@
   "q12": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Nearer stop matches card c12 and Bonde. Opposite pair (nearer/wider) is mild, not a tell. Later q65 echoes the idea but does not state it."
+   "fixed": true,
+   "notes": "heavy-red wording fine, but cited fact c09 still says two heavy red days end the flag (HEAVY-DOWN superseded); cite cn1 instead"
   },
   "q13": {
    "status": "pass",
@@ -4405,14 +4445,14 @@
   "q14": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Re-keyed to push; old wrongs retained by merge."
+   "fixed": true,
+   "notes": "answer is D-013 right; two wrong explanations still say the first sell is 'set by R' and that the plan 'trims in stages'; reword as judgment"
   },
   "q15": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key is c11 (riding the 9 or 10-day is the top version, tagging and reclaiming reads lower). Stem asks how the card reads it, not a grade label. Still leans on a proposed grade row (E50 owner flag)."
+   "notes": "agrees with the rulings it touches"
   },
   "q16": {
    "status": "pass",
@@ -4423,8 +4463,8 @@
   "q17": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "c10: intraday undercut that closes back above is allowed; closes back above on light volume so not a heavy red day (c09). Right choice is not the longest. Two choices start 'Allowed' but the 'optional' one is plainly contradicted by c10."
+   "fixed": true,
+   "notes": "rename fine; cited c09 says two heavy red days end the flag (superseded); cite cn1"
   },
   "q18": {
    "status": "cut",
@@ -4483,15 +4523,14 @@
   "q27": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Day 7 close under again with no reclaim ends the flag per r1; story gives exactly the two closes. No second defensible answer."
+   "fixed": true,
+   "notes": "rename fine; cited c09 says two heavy red days end the flag (superseded); cite cn1"
   },
   "q28": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c39 and h08. The why no longer gives away q20's rule line. B22 'days' versus 'sessions' is an open owner flag.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "agrees with the rulings it touches"
   },
   "q29": {
    "status": "pass",
@@ -4533,7 +4572,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "h13 only (skip a long more than 10% above the 10-day); 12% is in the story. Two Yes, two No; key is the shortest, not a tell."
+   "notes": "agrees with the rulings it touches"
   },
   "q36": {
    "status": "pass",
@@ -4550,20 +4589,20 @@
   "q38": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Statement still presents 3R as the first trim; reword to a planned sell level. Answer stays False."
+   "fixed": false,
+   "notes": "GAP-TRIM re-key good; g1 quote is word for word from the reading"
   },
   "q39": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Re-key right: two heavy red days (1.8x) are a warning and a lower grade, the flag stays valid, per bf.inv_heavy_red. Facts hd1/hd2/cn1/cn2 quote the ruling and card verbatim. Stale 'drop a grade, no more' choice replaced. Only fix: one 23-word sentence in why cut to 21."
+   "fixed": false,
+   "notes": "agrees with the rulings it touches"
   },
   "q40": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Stop 30.95 above close 29.40, so stop hit first; flag low is invalidation not stop (c14, c18). Clean."
+   "notes": "agrees with the rulings it touches"
   },
   "q41": {
    "status": "pass",
@@ -4575,7 +4614,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Why no longer cites the B19 thirds; drop h20 citation."
+   "notes": "q reads as a broken sentence ('...after the earlier sells. What takes it out?'); rest is D-013/D-021 clean"
   },
   "q43": {
    "status": "pass",
@@ -4593,8 +4632,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Open 61.10 is 1.48R below the 62.80 fill (R = 1.15), under the 2R ceiling; key follows B20/h06/h07. Wrong notes grounded in A4, A5, B20.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "keep ok: gap DOWN through the stop (B20), an exit rule, not GAP-TRIM or an entry wait (D-031)"
   },
   "q46": {
    "status": "pass",
@@ -4649,7 +4687,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Re-keyed to judgment into a push; wrongs good."
+   "notes": "agrees with the rulings it touches"
   },
   "q55": {
    "status": "pass",
@@ -4691,14 +4729,14 @@
   "q61": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Plan re-keyed well; q still says first trim, make it first sell."
+   "fixed": false,
+   "notes": "agrees with the rulings it touches"
   },
   "q62": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key is C34's wording. Story is a Bracco-style burst. The k8 stair-steps sentence is decorative but a true quote; the owner may trim it."
+   "notes": "agrees with the rulings it touches"
   },
   "q63": {
    "status": "pass",
@@ -4722,8 +4760,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "d02: SHOP's eight-day flag held the 21-day EMA on every close; asof 2020-05-01 is the day before the 2020-05-04 trigger. Chart not viewed; confirm the chart shows the 21-day EMA.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "20 EMA rename; writer re-checked the SHOP closes against the 20 EMA (not independently re-measurable here: no bars.db)"
   },
   "q67": {
    "status": "pass",
@@ -4759,7 +4796,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged and at the target rank after sorting. Each wrong choice follows from a real slip on this math and none is within rounding of the answer."
+   "notes": "agrees with the rulings it touches"
   },
   "q73": {
    "status": "cut",
@@ -4771,7 +4808,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Story fixed the first sell as a third at 3R and wrong note taught the third at 5R; rewrite as a first sell, drop h20."
+   "notes": "cited h05 still says 'the hard rule is a third at 3R' (superseded by D-013); the breakeven teaching is fully grounded by c47, so drop h05"
   },
   "q75": {
    "status": "pass",
@@ -4782,21 +4819,20 @@
   "q76": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Not on the list but the same fact; re-keyed to yes at a lower grade, correct under bf.inv_heavy_red; the 21-day EMA close rule is left standing (agrees with q27/q51). Fix: right answer was the only choice with a comma and 'stay wary', so it stood out; reworded to the Yes; pattern."
+   "fixed": false,
+   "notes": "agrees with the rulings it touches"
   },
   "q77": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Arithmetic unchanged (2,700,000 / 1,800,000 = 1.5). Stale c09/c15 facts swapped for cn1/cn2, which match the updated card word for word. Added line keeps heavy as a warning, no over-reach."
+   "notes": "agrees with the rulings it touches"
   },
   "q78": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "A4/c46: the stop is the exit; half an R down is above the stop; breakeven only at the first trim; time stop is 10 days (c42). A feed post is not an exit (F66).",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "agrees with the rulings it touches"
   },
   "q79": {
    "status": "pass",

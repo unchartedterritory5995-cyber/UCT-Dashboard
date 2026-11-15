@@ -1539,7 +1539,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Only the 3% plan breaks A1/E49; flat 0.5% (A2 h2), 0.25-1.5% by grade (E49 h4), 0.25% while new (C37 h10) are all ours. Lengths 24-27, no tell."
+   "notes": "Keep is right: 0.25% until 50 journaled trades is the new-trader risk rule (C37), not the shorting bar of D-001."
   },
   "q21": {
    "status": "pass",

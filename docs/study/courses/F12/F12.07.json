@@ -264,6 +264,14 @@
    "title": "Setup decisions: the owner's rulings (2026-11-12)",
    "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
   }
  ],
  "facts": [
@@ -732,8 +740,8 @@
   {
    "id": "h05",
    "source": "s29",
-   "quote": "under each higher low, or under the 10-day average",
-   "claim": "Our trail: under each higher low, or under the 10-day average."
+   "quote": "under each higher low, or under the 9 EMA",
+   "claim": "Our trail: under each higher low, or under the 9 EMA."
   },
   {
    "id": "h06",
@@ -743,9 +751,9 @@
   },
   {
    "id": "h07",
-   "source": "s30",
-   "quote": "Move the stop to breakeven at 2R to 5R, ideally.",
-   "claim": "Our stop moves up to breakeven once the trade is 2R to 5R ahead; we teach it at the first trim."
+   "source": "hw",
+   "quote": "The stop may move up to breakeven between 2R and 5R, or at the first sell.",
+   "claim": "Our stop may move up to breakeven between 2R and 5R, or at the first sell."
   },
   {
    "id": "h08",
@@ -851,27 +859,33 @@
   },
   {
    "id": "h25",
-   "source": "s30",
-   "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
-   "claim": "Our rule E52: trail fast movers under the 10-day average and steadier ones under the 21-day, selling on a close below it."
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
   },
   {
    "id": "r01",
    "source": "h2",
    "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
-   "claim": "The owner's ruling: the first sell is a judgment, not a fixed third at 3R."
+   "claim": "Our rule: the first sell is a judgment, not a fixed third at 3R."
   },
   {
    "id": "r02",
-   "source": "h2",
-   "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
-   "claim": "The owner rarely sells on day 1 of the buy and usually waits until day 3 at the earliest."
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
   },
   {
    "id": "r03",
    "source": "h2",
    "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
-   "claim": "The owner's ruling: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
+   "claim": "Our rule: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
+  },
+  {
+   "id": "rd21",
+   "source": "h2",
+   "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+   "claim": "Our rule: the course teaches the 9 and 20 EMA, with the 50 and 200 SMA."
   }
  ],
  "walkthroughs": [
@@ -1051,7 +1065,7 @@
    "rung": 3,
    "format": "scenario",
    "house": true,
-   "story": "1. Size: 1,000 shares, then I'll find a stop that fits. 2. Setup: pullback to the rising 21-day average. 3. Entry: over the prior day's high. 4. Trail: under the 21-day average, out on a close below it.",
+   "story": "1. Size: 1,000 shares, then I'll find a stop that fits. 2. Setup: pullback to the rising 20 EMA. 3. Entry: over the prior day's high. 4. Trail: under the 20 EMA, out on a close below it.",
    "q": "Which line breaks the plan?",
    "choices": [
     "Line 1",
@@ -1069,12 +1083,13 @@
     "h20",
     "h25",
     "f11",
-    "f14"
+    "f14",
+    "rd21"
    ],
    "wrong": {
     "Line 2": "Line 2 is fine. Naming the setup is part of a written plan.",
     "Line 3": "Line 3 is fine. Over the prior day's high is an entry rule set before you buy.",
-    "Line 4": "Line 4 is fine. The 21-day average, sold on a close below it, is one of our default trails."
+    "Line 4": "Line 4 is fine. The 20 EMA, sold on a close below it, is one of our default trails."
    },
    "simple": "Line 1, because the size should come from the stop, not the other way round.",
    "tier": "core",
@@ -1085,7 +1100,7 @@
      "story Line 4 reworded here, and rewritten before (2026-11-09)"
     ]
    },
-   "batch": "wave9"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q05",
@@ -1722,7 +1737,7 @@
    "rung": 8,
    "format": "scenario",
    "house": true,
-   "story": "1. Bought at $62.30, stop at $60.90, under the prior day's low. 2. On day 4 I sold a third into strength and raised the stop to breakeven. 3. It dipped to $62.50, so I moved the stop back down to $60.90 for room. 4. Planned to trail the rest under the rising 10-day average.",
+   "story": "1. Bought at $62.30, stop at $60.90, under the prior day's low. 2. On day 4 I sold a third into strength and raised the stop to breakeven. 3. It dipped to $62.50, so I moved the stop back down to $60.90 for room. 4. Planned to trail the rest under the rising 9 EMA.",
    "q": "Which line breaks the plan?",
    "choices": [
     "Line 1",
@@ -1743,7 +1758,8 @@
     "h07",
     "h05",
     "h11",
-    "h22"
+    "h22",
+    "rd21"
    ],
    "wrong": {
     "Line 1": "Line 1 is fine. Under the prior day's low is our default stop.",
@@ -1762,7 +1778,7 @@
      "rewritten before (2026-11-09)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q22",
@@ -2033,7 +2049,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "My answer before the key: Line 1 (size picked before the stop). Matches. f58 and f59 re-read live on StockCharts today, word for word; h20 (A3) and h25 (E52) match sizing_rule.md section 9. The other lines are clean under the rulebook: a pullback to the rising 21-day line is a setup, over the prior day's high is an entry, and the 21-day trail closed below is E52. There is no second answer and no tell (the choices are the same four labels). The 'squeezed to fit' line comes from the story's own words ('find a stop that fits'). The wrong notes are grounded by f11, f14 and h25 and are not copied f"
+   "notes": "Lines 2 and 4 renamed to 20 EMA; Line 1 remains the only mistake."
   },
   "q05": {
    "status": "pass",
@@ -2134,8 +2150,8 @@
   "q21": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "deeper still said 'a third already sold at 3R'; now 'sold into strength' (D-013)."
+   "fixed": false,
+   "notes": "Rising 9 EMA in line 4; Line 3 (lowering the stop) still the only mistake; sell of a third on day 4 is a judgment and not keyed."
   },
   "q22": {
    "status": "pass",

@@ -88,6 +88,14 @@
    "title": "Setup decisions: the owner's rulings (2026-11-12)",
    "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
   }
  ],
  "facts": [
@@ -123,9 +131,9 @@
   },
   {
    "id": "h05",
-   "source": "h1",
-   "quote": "Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
-   "claim": "B19: breakeven between 2R and 5R; the hard rule for the first trim is a third at 3R."
+   "source": "hw",
+   "quote": "The stop may move up to breakeven between 2R and 5R, or at the first sell.",
+   "claim": "Our stop may move up to breakeven between 2R and 5R, or at the first sell."
   },
   {
    "id": "h06",
@@ -195,15 +203,15 @@
   },
   {
    "id": "h20",
-   "source": "h1",
-   "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
-   "claim": "E51: another third at 5R, then trail the last third."
+   "source": "hw",
+   "quote": "Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
+   "claim": "Later sells are a judgment: sell more into strength on a later push, and trail what is left."
   },
   {
    "id": "h21",
-   "source": "h1",
-   "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
-   "claim": "E52: trail the 10-day for fast movers, the 21-day for steadier ones; sell on a close below it."
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
   },
   {
    "id": "h22",
@@ -759,9 +767,9 @@
   },
   {
    "id": "r05",
-   "source": "h2",
-   "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
-   "claim": "Very rarely sells on day 1; usually waits until day 3 at the earliest (D-013)"
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
   },
   {
    "id": "g1",
@@ -786,6 +794,12 @@
    "source": "c1",
    "quote": "A down day in the second half of the base on 1.5 times the 50-day volume or more is worth noting, but most of the time it does not matter; it is no gate.",
    "claim": "A right-side down day on 1.5 times the 50-day volume is worth noting, but it is no gate (owner ruling VCP-HEAVY, 2026-11-14)."
+  },
+  {
+   "id": "r07",
+   "source": "h2",
+   "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+   "claim": "D-021: the course teaches the 9 and 20 EMA, with the 50 and 200 SMA."
   }
  ],
  "walkthroughs": [
@@ -1870,13 +1884,14 @@
    "criterion": "vcp.warning_signs",
    "q": "A close under the 20-day average soon after the breakout is a warning, not an exit.",
    "answer": "True",
-   "why": "True. The card lists a close under the 20-day soon after the breakout as a warning. So are three lower lows on rising volume. Minervini says the close cuts the odds about in half. A warning is not an exit. The trail is a separate line: after the trims, a close under the 10-day or 21-day trail sells the last third.",
+   "why": "True. The card lists a close under the 20-day soon after the breakout as a warning. So are three lower lows on rising volume. Minervini says the close cuts the odds about in half. A warning is not an exit. Before the first sell, the stop decides. After it, the trail sells what is left: a close under the 9 EMA, or the 20 EMA for a steadier mover.",
    "lesson_line": "Warnings tell you to watch. The stop, not a warning, decides the exit.",
    "facts": [
     "c17",
     "h02",
     "h21",
-    "h20"
+    "h20",
+    "r07"
    ],
    "house": true,
    "simple": "True. A close under the 20-day is a warning to watch, but the stop decides the exit.",
@@ -1887,7 +1902,7 @@
      "+2 rests on the owner's rulebook (A4) and a proposed card warning"
     ]
    },
-   "batch": "wave2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q30",
@@ -2378,25 +2393,26 @@
    "q": "Which average is the default trail for a fast-moving VCP?",
    "choices": [
     "The 50-day",
-    "The 10-day",
-    "The 20-day",
-    "The 21-day"
+    "The 9 EMA",
+    "The 200-day",
+    "The 20 EMA"
    ],
-   "answer": "The 10-day",
-   "why": "The 10-day for a fast mover. Our default trail is the 10-day average for fast movers and the 21-day for steadier ones. We sell on a close below it. The trail covers what is left after the first sell, which is a judgment.",
-   "lesson_line": "Fast mover: trail the 10-day. Steadier: trail the 21-day.",
+   "answer": "The 9 EMA",
+   "why": "The 9 EMA for a fast mover. Our default trail is the 9 EMA for fast movers and the 20 EMA for steadier ones. We sell on a close below it. The trail covers what is left after the first sell, which is a judgment.",
+   "lesson_line": "Fast mover: trail the 9 EMA. Steadier: trail the 20 EMA.",
    "facts": [
     "h21",
     "c17",
-    "r03"
+    "r03",
+    "r07"
    ],
    "wrong": {
-    "The 50-day": "The default trail is the 10-day for fast movers or the 21-day for steadier ones, not the 50-day.",
-    "The 20-day": "A close under the 20-day is a warning after the breakout, not our trail. The defaults are the 10-day and the 21-day.",
-    "The 21-day": "The 21-day is the default for steadier movers. A fast mover trails the 10-day."
+    "The 50-day": "The default trail is the 9 EMA for fast movers or the 20 EMA for steadier ones, not the 50-day.",
+    "The 200-day": "The 200-day is the line new longs must stay above, not a trail. The defaults are the 9 EMA and the 20 EMA.",
+    "The 20 EMA": "The 20 EMA is the default for steadier movers. A fast mover trails the 9 EMA."
    },
    "house": true,
-   "simple": "Trail the 10-day average on a fast mover. We sell on a close below it.",
+   "simple": "Trail the 9 EMA on a fast mover. We sell on a close below it.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2404,7 +2420,7 @@
      "+2 rests on the owner's rulebook (E52)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q44",
@@ -2709,10 +2725,11 @@
     "d15",
     "d16",
     "d10",
-    "h05"
+    "h05",
+    "r03"
    ],
    "wrong": {
-    "Yes; it should have been sold at 1R": "There is no 1R exit. The trims start at 3R.",
+    "Yes; it should have been sold at 1R": "There is no 1R exit. The first sell is a judgment, made into strength.",
     "Yes; the stop was too tight": "The stop was the honest one."
    },
    "house": true,
@@ -2759,22 +2776,23 @@
     "Buy; the 10% rule is for chases"
    ],
    "answer": "Pass; it is too stretched",
-   "why": "Pass. UCT skips a long that is more than 10% above its 10-day average, and this stock is 12% above it. The rule is separate from the 4% chase limit, which is measured from the pivot. It applies to every long, even a clean breakout. Wait for a new setup.",
-   "lesson_line": "Stretched above the 10-day is a skip, even at the pivot.",
+   "why": "Pass. UCT skips a long that is more than 10% above its 9 EMA, and this stock is 12% above it. The rule is separate from the 4% chase limit, which is measured from the pivot. It applies to every long, even a clean breakout. Wait for a new setup.",
+   "lesson_line": "Stretched above the 9 EMA is a skip, even at the pivot.",
    "facts": [
     "h13",
-    "h11"
+    "h11",
+    "r07"
    ],
    "wrong": {
     "Buy; the base is perfect": "The stretch limit applies to every long.",
-    "Buy; the 10% rule is for chases": "These are two rules. The chase limit is 4% above the pivot. The stretch limit is 10% above the 10-day average.",
+    "Buy; the 10% rule is for chases": "These are two rules. The chase limit is 4% above the pivot. The stretch limit is 10% above the 9 EMA.",
     "Pass; the base is too loose": "The story gives a clean VCP breakout. The skip comes from the stretch, not the base."
    },
    "house": true,
-   "story": "A VCP breaks out cleanly. But the stock is 12% above its 10-day average when you find it.",
-   "simple": "Pass. The stock is 12 percent above its 10-day average, and we skip a long more than 10 percent above it.",
+   "story": "A VCP breaks out cleanly. But the stock is 12% above its 9 EMA when you find it.",
+   "simple": "Pass. The stock is 12 percent above its 9 EMA, and we skip a long more than 10 percent above it.",
    "deeper": {
-    "trap": "The trap is the clean breakout. The pivot, the volume and the base can all pass. The trade is still a skip, because the stretch is measured from the 10-day average, not the pivot."
+    "trap": "The trap is the clean breakout. The pivot, the volume and the base can all pass. The trade is still a skip, because the stretch is measured from the 9 EMA, not the pivot."
    },
    "tier": "expert",
    "risk": {
@@ -2783,7 +2801,7 @@
      "+2 rests on the owner's rulebook (C29)"
     ]
    },
-   "batch": "wave2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q55",
@@ -3072,7 +3090,7 @@
     "One deep drop and a short handle"
    ],
    "answer": "Shrinking pullbacks, drying volume",
-   "why": "Shrinking pullbacks, drying volume. RNG's contractions were 16.6%, 11.0% and 3.5%, and the final swing rode the 10-day on volume 0.46x the average. It broke out the next day on 2.4x volume.",
+   "why": "Shrinking pullbacks, drying volume. RNG's contractions were 16.6%, 11.0% and 3.5%, and the final swing was quiet, on volume 0.46x the average. It broke out the next day on 2.4x volume.",
    "lesson_line": "Count the swings and check the volume before you look at the breakout.",
    "facts": [
     "d04",
@@ -3108,7 +3126,7 @@
    "depends_on": [
     "D-059"
    ],
-   "batch": "wave2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q63",
@@ -3278,12 +3296,13 @@
     "c01",
     "h13",
     "d06",
-    "d07"
+    "d07",
+    "r07"
    ],
    "wrong": {
     "Same grade; no location cue": "Location is one of our grade cues.",
     "Base B; more room to run": "Overhead supply sits above Base B's pivot. That is not room to run.",
-    "Base A; too extended to buy": "A pivot at an all-time high has no overhead supply. Stretch is a separate check against the 10-day average."
+    "Base A; too extended to buy": "A pivot at an all-time high has no overhead supply. Stretch is a separate check against the 9 EMA."
    },
    "house": true,
    "story": "Two VCPs have the same shape. Base A's pivot sits at an all-time high. Base B's pivot sits well below its left-side high.",
@@ -3300,7 +3319,7 @@
      "our own examples contradict the cue: the ten winners had pivots under the base high"
     ]
    },
-   "batch": "wave2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q68",
@@ -3650,7 +3669,7 @@
    "rung": 5,
    "format": "mcq",
    "criterion": "vcp.trim_2",
-   "q": "You bought 900 shares. Say you sell a third at 3R and another third at 5R. How many are left to trail?",
+   "q": "You bought 900 shares. You sold 300 on the first sell and 300 on a later sell. How many are left to trail?",
    "answer": "300 shares",
    "calc": {
     "fn": "arith",
@@ -3660,14 +3679,14 @@
     },
     "round": 0
    },
-   "why": "A third of 900 is 300. Sell 300 at 3R and another 300 at 5R. Both thirds are measured on the full 900, not on what is left. That leaves the last 300, which is trailed. When to sell each part is a judgment, but the arithmetic is fixed.",
-   "lesson_line": "Count each third on the full position. Trail what is left.",
+   "why": "900 minus 300 minus 300 leaves 300. Both sales are counted on the full 900, not on what is left. Those 300 shares that are left are trailed. When to sell each part is a judgment, but the arithmetic is fixed.",
+   "lesson_line": "Count each sale on the full position. Trail what is left.",
    "facts": [
     "r03"
    ],
    "house": true,
    "suffix": " shares",
-   "simple": "Each third is 300 shares. After two thirds are sold, the last 300 shares are left to trail.",
+   "simple": "Two sales of 300 from 900 shares leave 300. Those shares that are left go on the trail.",
    "tier": "extended",
    "risk": {
     "score": 5,
@@ -3677,7 +3696,7 @@
      "+1 fixed before"
     ]
    },
-   "batch": "rank",
+   "batch": "sweep-2026-11-14",
    "choices": [
     "300 shares",
     "100 shares",
@@ -3685,9 +3704,9 @@
     "150 shares"
    ],
    "wrong": {
-    "100 shares": "That is a third of the last 300, not the shares left.",
+    "100 shares": "That is a third of the 300 left, not the shares left.",
     "200 shares": "That is a third of what was left after one sale.",
-    "150 shares": "Divided 900 by six, mixing up thirds with sixths."
+    "150 shares": "That divides 900 by six. The question gives two sales of 300."
    }
   },
   {
@@ -3696,7 +3715,7 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "vcp.trim_2",
-   "q": "How many shares do you sell at 5R, and what happens to the rest?",
+   "q": "How many shares do you sell now, and what happens to the rest?",
    "choices": [
     "Sell 400 more; trail the rest",
     "Sell the 800 left to lock in",
@@ -3704,21 +3723,22 @@
     "Sell nothing; trail all 800"
    ],
    "answer": "Sell 400 more; trail the rest",
-   "why": "Sell 400 more. A third of the original 1,200 is 400, so 400 go and 400 are left. What is left trails the 10-day average for fast movers or the 21-day for steadier ones. We sell on a close below it. Selling at about 5 to 10R is often best, but when to sell is a judgment.",
-   "lesson_line": "A third is counted on the full position. The last part rides the trail.",
+   "why": "Sell 400 more. The same number as the first sale is 400, so 400 go and 400 are left. What is left trails the 9 EMA for fast movers or the 20 EMA for steadier ones. We sell on a close below it. Selling at about 5 to 10R is often best, but when to sell is a judgment.",
+   "lesson_line": "Count each sale on the full position. What is left rides the trail.",
    "facts": [
     "h21",
     "r03",
-    "r04"
+    "r04",
+    "r07"
    ],
    "wrong": {
-    "Sell the 800 left to lock in": "You chose a third, which is 400. Selling all 800 is not a third.",
-    "Sell 600 more; run the rest": "A third of the 1,200 is 400, not 600.",
-    "Sell nothing; trail all 800": "You chose to sell a third now, so 400 go. Only the last 400 ride the trail."
+    "Sell the 800 left to lock in": "You chose to sell the same number as before, which is 400. Selling all 800 is more than that.",
+    "Sell 600 more; run the rest": "The same number as before is 400, not 600.",
+    "Sell nothing; trail all 800": "You chose to sell 400 now. Only the 400 that are left ride the trail."
    },
    "house": true,
-   "story": "You bought 1,200 shares and sold 400 earlier, with the stop at breakeven. Price now touches 5R. You choose to sell another third of the original 1,200.",
-   "simple": "Sell another third, 400 shares, at 5R. Then trail the last 400 until they close below the trail.",
+   "story": "You bought 1,200 shares and sold 400 earlier, with the stop at breakeven. Price now touches 5R. You decide to sell the same number of shares again.",
+   "simple": "Sell 400 shares, the same as before, and trail the 400 that are left until they close below the trail.",
    "deeper": {
     "trap": "The trap is treating the sale as the finish line. Selling 400 leaves 400, and they stay on until a close below the trail average."
    },
@@ -3729,7 +3749,7 @@
      "+2 rests on the owner's rulebook (E51, E52)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q80",
@@ -3852,7 +3872,7 @@
    "format": "scenario",
    "criterion": "vcp.trigger",
    "q": "What is your move?",
-   "story": "A leader has RS 90, sits in a strong group and is above its 200-day. The market is Green. The final contraction is 4% deep. At 10:30 price trades through the 31.20 pivot, now 31.45. It is 3% above its 10-day average, and the report is 12 days away.",
+   "story": "A leader has RS 90, sits in a strong group and is above its 200-day. The market is Green. The final contraction is 4% deep. At 10:30 price trades through the 31.20 pivot, now 31.45. It is 3% above its 9 EMA, and the report is 12 days away.",
    "choices": [
     "Buy at market; stop under the low",
     "Buy half now and half on a dip",
@@ -3869,7 +3889,8 @@
     "h08",
     "h03b",
     "h14",
-    "h10"
+    "h10",
+    "r07"
    ],
    "wrong": {
     "Buy half now and half on a dip": "We do not scale in. One full buy, one stop.",
@@ -3884,7 +3905,7 @@
      "+2 rests on the owner's rulebook (E57 market orders, A3 stop, B22 earnings window)"
     ]
    },
-   "batch": "wave2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q84",
@@ -4087,7 +4108,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Right answer (volume dries up below the 50-day average) stands and matches c05. The wrong note on the heavy down day no longer says it ends the setup. The why now defines the 50-day average volume and adds RNG's real 0.46x final-swing volume; the number comes word for word from d05, which matches the dossier row for RNG (06-vcp.md line 990). Sentences short, no banned words."
+   "notes": "Keep ok: heavy down day called a warning to note."
   },
   "q23": {
    "status": "pass",
@@ -4128,8 +4149,8 @@
   "q29": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key re-derived cold from the cited quotes and agrees; wrong notes true; numbers grounded; no tell found; no rulebook conflict."
+   "fixed": true,
+   "notes": "Writer edit fine but the why had a 28-word sentence and a warning-vs-trail tension; clarified by timing (before the first sell the stop decides)."
   },
   "q30": {
    "status": "pass",
@@ -4148,7 +4169,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Right answer re-derived from the cited quotes and matches the key; no second defensible answer, tell or ungrounded number found."
+   "notes": "Keep ok: final-contraction ceiling is not one of the guide numbers."
   },
   "q33": {
    "status": "cut",
@@ -4166,7 +4187,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Re-keyed correctly to VCP-HEAVY and HEAVY-DOWN: buy it, note the heavy day, a warning and a lower grade, never a veto. Math checked (3.2 million / 2 million = 1.6, over the 1.5 line). Choices 29 to 35 characters, the right answer does not stand out, every wrong choice is clearly wrong and each wrong note teaches. Quotes c35 and c36 match the updated card word for word (06-vcp.json lines 1267 and 566). Cm2 is quoted accurately as the several-days caution. Where to look on the chart is given. No false claim left."
+   "notes": "Keep ok: matches HEAVY-DOWN and VCP-HEAVY."
   },
   "q36": {
    "status": "pass",
@@ -4215,7 +4236,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "edit ok, agrees with D-013"
+   "notes": "D-021 rename fine."
   },
   "q44": {
    "status": "pass",
@@ -4280,8 +4301,8 @@
   "q54": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (C29, 12% > 10%). Tell: one Pass against three Buy choices. Swapped 'Buy half size, tight stop' for a second Pass with a wrong reason."
+   "fixed": false,
+   "notes": "D-021 rename in invented scenario; fine."
   },
   "q55": {
    "status": "pass",
@@ -4330,7 +4351,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Pass on text and facts; chart bars unverified (owner flag stands)."
+   "notes": "Measured RNG claim dropped; fine."
   },
   "q63": {
    "status": "pass",
@@ -4360,8 +4381,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Right answer re-derived from the cited quotes and matches the key; no second defensible answer, tell or ungrounded number found.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "D-021 rename fine."
   },
   "q68": {
    "status": "cut",
@@ -4390,14 +4410,14 @@
   "q72": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Not in the upgrade, but its why still says 'this base still has selling on its right side' and the lesson line calls the day selling, and it cites c06, the superseded 'no heavy down day' line. That teaches the old rule the owner just overruled. Fixed: the arithmetic stays, the lesson becomes a heavy day to note and grade lower, never a gate. Shares written in millions (learning 9 style). The stale risk reason about a stricter one-day line is dropped."
+   "fixed": false,
+   "notes": "Keep ok: 3.3/2.2=1.5, warning and lower grade not a veto."
   },
   "q73": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Statement now asks whether one heavy right-side down day voids the setup; False is correct under VCP-HEAVY. The why defines the 1.5x line, calls it a distribution day, a warning and a lower grade, never a veto, with 'several' as the bigger warning (cm2). Simple is 21 words, no semicolons, no new numbers. It overlaps q35 in idea but a true/false teaching of the rule before the scenario is fine, and the lesson keeps its other formats."
+   "notes": "Keep ok: false, does not void the setup."
   },
   "q74": {
    "status": "pass",
@@ -4427,14 +4447,14 @@
   "q78": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Right answer unchanged, sorts to the target rank, wrong choices real and similar in form."
+   "fixed": true,
+   "notes": "Still keys \"a third, then another third\", language the ruling replaces; re-keyed to two sales of 300 (answer unchanged)."
   },
   "q79": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "edit ok, agrees with D-013"
+   "fixed": true,
+   "notes": "Still presumes \"another third\"; re-keyed to \"the same number as before\" (answer unchanged)."
   },
   "q80": {
    "status": "cut",
@@ -4446,7 +4466,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "re-keyed to your call; 5R reuses the 3R ruling as the same principle; ok"
+   "notes": "Keep ok: gap past a level is optional judgment."
   },
   "q82": {
    "status": "pass",
@@ -4459,7 +4479,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Buy at market is right (E57, F62, B22, C28 0.8% over pivot, C29 3%, RS 90, above 200-day, Green). Distractors fail on stated rules. Story omits volume and the day's low vs final low but no choice depends on them."
+   "notes": "D-021 rename in invented scenario; fine."
   },
   "q84": {
    "status": "pass",

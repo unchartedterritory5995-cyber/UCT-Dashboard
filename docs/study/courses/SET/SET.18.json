@@ -199,6 +199,14 @@
    "title": "Setup decisions: the owner's rulings (2026-11-12)",
    "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
   }
  ],
  "facts": [
@@ -546,9 +554,9 @@
   },
   {
    "id": "h05",
-   "source": "h1",
-   "quote": "Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
-   "claim": "B19: breakeven between 2R and 5R; the hard rule for the first trim is a third at 3R."
+   "source": "hw",
+   "quote": "The stop may move up to breakeven between 2R and 5R, or at the first sell.",
+   "claim": "Our stop may move up to breakeven between 2R and 5R, or at the first sell."
   },
   {
    "id": "h06",
@@ -636,15 +644,15 @@
   },
   {
    "id": "h20",
-   "source": "h1",
-   "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
-   "claim": "E51: another third at 5R, then trail the last third."
+   "source": "hw",
+   "quote": "Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
+   "claim": "Later sells are a judgment: sell more into strength on a later push, and trail what is left."
   },
   {
    "id": "h21",
-   "source": "h1",
-   "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
-   "claim": "E52: trail the 10-day for fast movers, the 21-day for steadier ones; sell on a close below it."
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
   },
   {
    "id": "h22",
@@ -924,9 +932,9 @@
   },
   {
    "id": "c36",
-   "source": "c1",
-   "quote": "Trail the last third on a close under the 10-day average while the stock moves fast, switching to the 21-day only after it builds its first base.",
-   "claim": "Trail the last third on a close under the 10-day while it moves fast."
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
   },
   {
    "id": "d01",
@@ -1164,15 +1172,21 @@
   },
   {
    "id": "r55",
-   "source": "h2",
-   "quote": "I very rarely sell on the day 1 of the buy day. I usually wait until day 3 at the earliest.",
-   "claim": "D-013: he very rarely sells on day 1 and usually waits until day 3 at the earliest."
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
   },
   {
    "id": "r56",
    "source": "h2",
    "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
    "claim": "D-013: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
+  },
+  {
+   "id": "r57",
+   "source": "h2",
+   "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+   "claim": "The course teaches one pair, the 9 and 20 EMA, with the 50 and 200 SMA (D-021)."
   }
  ],
  "walkthroughs": [
@@ -1204,7 +1218,7 @@
     "CACI, August 2004. An 11.3% earnings gap on 6.7x volume after six months of drift, down 5%.",
     "The one day-one entry of the ten: the gap day's low sat within 3% of the close. The stop fits.",
     "Buy at market as it trades through, 46.55. Stop a few cents under the low of the day, 45.42, 2.4% away.",
-    "A slower start: 3R on day 6, then a steady trend above a rising 10-day. Sell into the push; trail the rest."
+    "A slower start: 3R on day 6, then a steady trend. Sell into the push; trail the rest."
    ],
    "facts": [
     "d03",
@@ -1224,7 +1238,7 @@
    "steps": [
     "ENPH, October 2021. An 18.5% earnings gap on 8.3x volume, closing at 56% of its range: the upper half, just.",
     "Day three: it breaks the post-gap high, 227.59. Buy at market, 227.60. Stop 224.95, 1.2% under.",
-    "3R the next session, too soon to sell: stop to breakeven. We sell into the push; the rest trails the 10-day.",
+    "3R the next session, too soon to sell: stop to breakeven. We sell into the push; the rest trails the 9 EMA.",
     "Later it tops and collapses back through the old stop. The trims and the trail kept it a win."
    ],
    "facts": [
@@ -1333,7 +1347,7 @@
    "q": "What does neglect look like on the chart before the news?",
    "choices": [
     "Flat or down for months, no rally",
-    "A steady uptrend above the 10-day",
+    "A steady uptrend above the 20 EMA",
     "Flat for two weeks, then a sharp rally",
     "A new high every week into the report"
    ],
@@ -1346,9 +1360,9 @@
     "b14"
    ],
    "wrong": {
-    "A steady uptrend above the 10-day": "A stock already trending up has been noticed. Bonde wants one that has not rallied into earnings.",
     "A new high every week into the report": "New highs every week is a rally into the report. Bonde wants stocks that have not rallied in anticipation of earnings.",
-    "Flat for two weeks, then a sharp rally": "A rally into the report is the opposite of neglect. Bonde wants stocks that have not rallied in anticipation of earnings."
+    "Flat for two weeks, then a sharp rally": "A rally into the report is the opposite of neglect. Bonde wants stocks that have not rallied in anticipation of earnings.",
+    "A steady uptrend above the 20 EMA": "A stock already trending up has been noticed. Bonde wants one that has not rallied into earnings."
    },
    "simple": "Neglect means the stock has been flat or down for months, with no rally before the news.",
    "tier": "core",
@@ -1358,7 +1372,7 @@
      "stable idea; two Tier 2 originators agree"
     ]
    },
-   "batch": "wave2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q04",
@@ -1751,10 +1765,10 @@
     "Just under the trigger day's low",
     "Under the gap-day low, it holds",
     "Under the prior close, gap fill",
-    "Under the 10-day, the trail"
+    "Under the 9 EMA, the trail"
    ],
    "answer": "Just under the trigger day's low",
-   "why": "Just under the trigger day's low, by a few cents. Stop first: the size comes from the stop. Morales uses the gap-up day's low as his selling guide, and ours sits at or above it. If the honest stop is wider than about 3%, skip the trade. Every position has a real stop order with the broker.",
+   "why": "Just under the trigger day's low, by a few cents. Stop first: the size comes from the stop. Morales uses the gap-up day's low as his selling guide, and ours sits at or above it. Past 5% from the trigger, we mostly wait for a tighter trigger. Every position has a real stop order with the broker.",
    "lesson_line": "The trigger day's low is the stop. Not the gap-day low, not the base.",
    "facts": [
     "c17",
@@ -1763,14 +1777,13 @@
     "m02",
     "c32",
     "h18",
-    "c18",
-    "h20",
-    "h21"
+    "r52",
+    "r57"
    ],
    "wrong": {
     "Under the prior close, gap fill": "A gap fill is an invalidation before entry, not a stop after it. Far too wide.",
-    "Under the 10-day, the trail": "The 10-day is the trail for the last third, sold on a close below it. It is not the first stop.",
-    "Under the gap-day low, it holds": "Morales uses the gap-up day's low as his selling guide. Ours is the trigger day's low, which sits at or above it, so the stop is tighter."
+    "Under the gap-day low, it holds": "Morales uses the gap-up day's low as his selling guide. Ours is the trigger day's low, which sits at or above it, so the stop is tighter.",
+    "Under the 9 EMA, the trail": "The 9 EMA is the trail for what is left, sold on a close below it. It is not the first stop."
    },
    "house": true,
    "simple": "The stop goes a few cents under the low of the trigger day, which is tighter than the gap-day low.",
@@ -1781,7 +1794,7 @@
      "rests on the owner's rulebook (A3, F62, stop first)"
     ]
    },
-   "batch": "wave2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q16",
@@ -2486,32 +2499,33 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "ep.trail",
-   "q": "What happens to the last third?",
+   "q": "What happens to what is left?",
    "choices": [
-    "Sold on a close under the 10-day",
+    "Sold on a close under the 9 EMA",
     "Held; the stop is at breakeven",
     "Held until the gap-day low breaks",
     "Added; the dip is the entry"
    ],
-   "story": "Your EP has moved fast, riding above its 10-day for three weeks. You sold two thirds into the push on the way up. Today it closes under the 10-day for the first time.",
-   "answer": "Sold on a close under the 10-day",
-   "why": "Sold. A fast mover trails the 10-day average, and the last third goes on a close below it. You already sold two thirds into the push. Kullamagi trails the 10- or 20-day average once the stock surpasses the initial stop.",
-   "lesson_line": "Two thirds banked, the last third rides the 10-day. The close below it is the exit.",
+   "story": "Your EP has moved fast, riding above its 9 EMA for three weeks. You sold part into the push on the way up. Today it closes under the 9 EMA for the first time.",
+   "answer": "Sold on a close under the 9 EMA",
+   "why": "Sold. A fast mover trails the 9 EMA, and what is left goes on a close below it. You already sold part into the push. Kullamagi trails the 10- or 20-day average; we use the 9 and 20 EMA.",
+   "lesson_line": "Part banked, what is left rides the 9 EMA. The close below it is the exit.",
    "facts": [
     "h21",
     "c36",
     "k13",
-    "h31"
+    "h31",
+    "r57"
    ],
    "wrong": {
-    "Held; the stop is at breakeven": "Breakeven is a floor for the stop, not the exit plan. The trail is the exit for the last third.",
+    "Held; the stop is at breakeven": "Breakeven is a floor for the stop, not the exit plan. The trail is the exit for what is left.",
     "Added; the dip is the entry": "Full size at one price with one stop, and no adding. A close under the trail is an exit.",
-    "Held until the gap-day low breaks": "The trail, not the gap-day low, is the exit for the last third, and it sits much closer to price."
+    "Held until the gap-day low breaks": "The trail, not the gap-day low, is the exit for what is left, and it sits much closer to price."
    },
    "house": true,
-   "simple": "Sell it, because a fast mover trails the 10-day average and a close below that line is the exit.",
+   "simple": "Sell it, because a fast mover trails the 9 EMA and a close below that line is the exit.",
    "deeper": {
-    "counter": "Kullamagi trails the 10- or 20-day average. We use the 10-day for a fast mover and the 21-day for a steadier one. The lines are close but not the same, so know which one your plan names before the stock moves."
+    "counter": "Kullamagi trails the 10- or 20-day average. We use the 9 EMA for a fast mover and the 20 EMA for a steadier one. The lines are close but not the same, so know which one your plan names before the stock moves."
    },
    "tier": "extended",
    "risk": {
@@ -2521,7 +2535,7 @@
      "held decision D-024 (the trail line)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q35",
@@ -3254,7 +3268,7 @@
    "rung": 8,
    "format": "mcq",
    "criterion": "ep.trim_1",
-   "q": "Bought at 227.60, stop 224.95. You sell a third at 235.55. How many R did that third bank?",
+   "q": "Bought at 227.60, stop 224.95. You sell part at 235.55. How many R did that sale bank?",
    "answer": "3.0R",
    "calc": {
     "fn": "r_multiple",
@@ -3275,7 +3289,7 @@
    "suffix": "",
    "simple": "Divide the gain per share by the risk per share. Selling at 235.55 banks 3R.",
    "deeper": {
-    "trap": "The 3R belongs to the third you sold. The other two thirds are still open, so the whole trade has not banked 3R yet. Count each exit in R on the shares it covered."
+    "trap": "The 3R belongs to the shares you sold. The rest are still open, so the whole trade has not banked 3R yet. Count each exit in R on the shares it covered."
    },
    "tier": "expert",
    "risk": {
@@ -3285,7 +3299,7 @@
      "rests on the owner's rulebook (B19, first trim)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "sweep-2026-11-14",
    "choices": [
     "8.0R",
     "4.0R",
@@ -4153,7 +4167,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Derived blind: flat or down for months, no rally (b18, k05, b14). Near-miss 'flat two weeks then rally' is clearly wrong; no second answer; no overlap with q24/q25/q52/q62/q63 answers."
+   "notes": "Cold read of final text against D-013, D-021, D-003, GAP-TRIM, D-005, D-031, D-033: agrees; answer right, wrongs wrong, quotes verbatim, style ok."
   },
   "q04": {
    "status": "cut",
@@ -4165,7 +4179,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "edit ok: close-entry note now cites the trigger-not-close ruling and the 5% band; 7% figure is in card c32."
+   "notes": "Cold read of final text against D-013, D-021, D-003, GAP-TRIM, D-005, D-031, D-033: agrees; answer right, wrongs wrong, quotes verbatim, style ok."
   },
   "q06": {
    "status": "pass",
@@ -4183,7 +4197,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c20, k03, c07 support Not an EP; the short note rests on c33 and says nothing in the story gives a short. Choice mix is acceptable."
+   "notes": "Cold read of final text against D-013, D-021, D-003, GAP-TRIM, D-005, D-031, D-033: agrees; answer right, wrongs wrong, quotes verbatim, style ok."
   },
   "q09": {
    "status": "cut",
@@ -4195,7 +4209,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c03/k04 support 10:00 Eastern (first 30 minutes); half-day and lunch are real near-misses; Double is the B- row (c31)."
+   "notes": "Cold read of final text against D-013, D-021, D-003, GAP-TRIM, D-005, D-031, D-033: agrees; answer right, wrongs wrong, quotes verbatim, style ok."
   },
   "q11": {
    "status": "pass",
@@ -4226,8 +4240,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key re-derived from the cited quotes and matches; no second defensible answer, no tell beyond the accepted ones, numbers grounded.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Cold read of final text against D-013, D-021, D-003, GAP-TRIM, D-005, D-031, D-033: agrees; answer right, wrongs wrong, quotes verbatim, style ok."
   },
   "q16": {
    "status": "pass",
@@ -4246,7 +4259,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "keep: buys as price trades over the 5-minute high with the stop under the low of day, 2.1% away; agrees with D-003 and D"
+   "notes": "Cold read of final text against D-013, D-021, D-003, GAP-TRIM, D-005, D-031, D-033: agrees; answer right, wrongs wrong, quotes verbatim, style ok."
   },
   "q19": {
    "status": "pass",
@@ -4258,7 +4271,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "keep: a gap-fill read, no sell or close entry keyed; the 'buy at the close' choice is a wrong answer"
+   "notes": "Cold read of final text against D-013, D-021, D-003, GAP-TRIM, D-005, D-031, D-033: agrees; answer right, wrongs wrong, quotes verbatim, style ok."
   },
   "q21": {
    "status": "pass",
@@ -4300,7 +4313,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "h06/h07: stop 29.00; loss 1.00 on 0.60 risk is 1.67R, under the 2R ceiling; other choices each fail a cited rule."
+   "notes": "Cold read of final text against D-013, D-021, D-003, GAP-TRIM, D-005, D-031, D-033: agrees; answer right, wrongs wrong, quotes verbatim, style ok."
   },
   "q28": {
    "status": "pass",
@@ -4336,13 +4349,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "edit: breakeven 2R to 5R kept; dropped 'first trim is a third at 3R' from why"
+   "notes": "Cold read of final text against D-013, D-021, D-003, GAP-TRIM, D-005, D-031, D-033: agrees; answer right, wrongs wrong, quotes verbatim, style ok."
   },
   "q34": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "edit: story no longer presupposes a third at 3R and a third at 5R; the 10-day trail key is unchanged"
+   "fixed": true,
+   "notes": "Re-key correct (what is left, 9 EMA, part sold). Kullamagi's own 10/20 is named in the why without saying we use the 9 and 20 EMA; add it."
   },
   "q35": {
    "status": "pass",
@@ -4366,7 +4379,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "h16 climax exception; wrong notes now grounded in h31 and h16; key is a judgment call and the story is clearly parabolic."
+   "notes": "Cold read of final text against D-013, D-021, D-003, GAP-TRIM, D-005, D-031, D-033: agrees; answer right, wrongs wrong, quotes verbatim, style ok."
   },
   "q39": {
    "status": "pass",
@@ -4384,13 +4397,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c28/b04: record volume, no gap is an HVE; notes grounded."
+   "notes": "Cold read of final text against D-013, D-021, D-003, GAP-TRIM, D-005, D-031, D-033: agrees; answer right, wrongs wrong, quotes verbatim, style ok."
   },
   "q42": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c29: weak red close, small gap (2% over 1.5%), no named catalyst (c01/c22)."
+   "notes": "Cold read of final text against D-013, D-021, D-003, GAP-TRIM, D-005, D-031, D-033: agrees; answer right, wrongs wrong, quotes verbatim, style ok."
   },
   "q43": {
    "status": "pass",
@@ -4439,9 +4452,9 @@
   },
   "q50": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave2; awaiting cold re-read"
+   "notes": "Cold read of final text against D-013, D-021, D-003, GAP-TRIM, D-005, D-031, D-033: agrees; answer right, wrongs wrong, quotes verbatim, style ok."
   },
   "q51": {
    "status": "pass",
@@ -4459,13 +4472,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "calc recomputed, answer matches, wrong choices distinct and real, steps correct."
+   "notes": "Cold read of final text against D-013, D-021, D-003, GAP-TRIM, D-005, D-031, D-033: agrees; answer right, wrongs wrong, quotes verbatim, style ok."
   },
   "q54": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "edit: key was 'a third at 3R, a third at 5R, trail'; now a judgment call, day 3 or later, into a push (D-013); 'all at 3"
+   "notes": "Cold read of final text against D-013, D-021, D-003, GAP-TRIM, D-005, D-031, D-033: agrees; answer right, wrongs wrong, quotes verbatim, style ok."
   },
   "q55": {
    "status": "cut",
@@ -4541,7 +4554,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "edit: was True (take the 3R trim at the open); now False, the first sell is a judgment and he rarely sells day 1 (D-013)"
+   "notes": "Cold read of final text against D-013, D-021, D-003, GAP-TRIM, D-005, D-031, D-033: agrees; answer right, wrongs wrong, quotes verbatim, style ok."
   },
   "q67": {
    "status": "pass",

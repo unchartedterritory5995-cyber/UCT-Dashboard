@@ -21042,7 +21042,7 @@
       "url": "https://cdn.robinhood.com/assets/robinhood/legal/Characteristics%20and%20Risks%20of%20Standardized%20Options.pdf"
      }
     ],
-    "summary": "The owner's rule: trade shares. Our rule (A6): trade shares; options are only a defined-risk alternative. Our rule (B25): options occasionally, and the premium paid is the stop. Our rule (A5): buy the full size at one price with one stop, and never add. Options expire and lose value over time; stocks do not expire. A shareholder can keep holding and wait out a slow or adverse move; an option holder cannot. Further out of the money and shorter-dated means a bigger risk of losing the premium. Options magnify percentage moves both ways. The all-calls buyer loses everything if the stock is at or below 50 at expiry."
+    "summary": "Our rule: trade shares. Our rule (A6): trade shares; options are only a defined-risk alternative. Our rule (B25): options occasionally, and the premium paid is the stop. Our rule (A5): buy the full size at one price with one stop, and never add. Options expire and lose value over time; stocks do not expire. A shareholder can keep holding and wait out a slow or adverse move; an option holder cannot. Further out of the money and shorter-dated means a bigger risk of losing the premium. Options magnify percentage moves both ways. The all-calls buyer loses everything if the stock is at or below 50 at expiry."
    },
    "facts": {
     "given": "What is our default for a swing trade? Shares, which have no expiry date Calls, to control more for less Weeklies, because they're cheap Shares, added to as the trade works"

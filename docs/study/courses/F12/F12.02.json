@@ -266,6 +266,22 @@
    "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
    "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
   }
  ],
  "facts": [
@@ -769,15 +785,21 @@
   },
   {
    "id": "h13",
-   "source": "s51",
-   "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
-   "claim": "Our default trail is the 10-day average for fast movers or the 21-day for steadier ones, selling on a close below it."
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
   },
   {
    "id": "h14",
    "source": "s51",
    "quote": "The market reading as a guide (A10): Green, full risk per grade and up to 10 positions; Yellow, smaller and fewer; Orange, only A+ setups; Red, mostly cash and shorts.",
    "claim": "Our market reading guides how much we trade: in Orange only A+ setups, in Red mostly cash and shorts."
+  },
+  {
+   "id": "rd21",
+   "source": "h2",
+   "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+   "claim": "Our rule: the course teaches the 9 and 20 EMA, with the 50 and 200 SMA."
   }
  ],
  "walkthroughs": [
@@ -1671,24 +1693,25 @@
    "story": "After the close you run your recap. One holding is a fast mover, well above your stop and riding its rising averages.",
    "q": "What does our trail rule have you do in the recap?",
    "choices": [
-    "Check for a close below the 10-day",
-    "Look for a close below the 21-day",
+    "Check for a close below the 9 EMA",
+    "Look for a close below the 20 EMA",
     "Cancel the stop, it's working",
     "Raise the stop to today's close"
    ],
-   "answer": "Check for a close below the 10-day",
-   "why": "Check for a close below the 10-day. Our default trail is the 10-day average for fast movers, the 21-day for steadier ones. We sell on a close below it, so the recap after the close is when you check. Each day, review open positions and chances to adjust your stops. Our stop only moves up, never down or wider.",
+   "answer": "Check for a close below the 9 EMA",
+   "why": "Check for a close below the 9 EMA. Our default trail is the 9 EMA for fast movers, the 20 EMA for steadier ones. We sell on a close below it, so the recap after the close is when you check. Each day, review open positions and chances to adjust your stops. Our stop only moves up, never down or wider.",
    "lesson_line": "Stops move one way: up. Our trail is the rising average, checked after the close.",
-   "simple": "Check whether it closed below its 10-day average, because that is our default trail for a fast mover.",
+   "simple": "Check whether it closed below its 9 EMA, because that is our default trail for a fast mover.",
    "facts": [
     "ss2",
     "h11",
-    "h13"
+    "h13",
+    "rd21"
    ],
    "wrong": {
-    "Look for a close below the 21-day": "The 21-day is our trail for steadier names. For a fast mover, our default trail is the 10-day average.",
     "Cancel the stop, it's working": "The stop is the exit. Cancel it, and a working trade has no exit if it turns.",
-    "Raise the stop to today's close": "Our default trail is an average, not the close. For a fast mover, that is the 10-day average."
+    "Raise the stop to today's close": "Our default trail is an average, not the close. For a fast mover, that is the 9 EMA.",
+    "Look for a close below the 20 EMA": "The 20 EMA is our trail for steadier names. For a fast mover, our default trail is the 9 EMA."
    },
    "tier": "extended",
    "risk": {
@@ -1697,7 +1720,7 @@
      "re-keyed in wave9 to the owner's rulebook (E52, A4)"
     ]
    },
-   "batch": "wave9"
+   "batch": "sweep-2026-11-14"
   }
  ],
  "conflicts": [
@@ -1872,8 +1895,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "I reached the key on my own from E52 (h13) and the story's 'fast mover'. The 21-day is wrong by the same rule (steadier names only), so there is no second right answer. Choices are 31-35 characters and the key is not the longest. The cancel note rests on h11 ('The stop is the exit') and the close note on h13. The why's timing (sell on a close below it, so check in the recap) follows from h13. E51 puts the trail on the last third after trims, but the stem asks only what 'our trail rule' has you do, so it does not create a second answer. q15 is cut, so its 'Raise it to today's closing price' no ",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Trail renamed to 9 EMA / 20 EMA throughout; recap check on a close is an exit, fine."
   }
  }
 }

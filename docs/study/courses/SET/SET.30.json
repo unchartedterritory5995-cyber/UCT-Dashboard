@@ -177,6 +177,14 @@
    "title": "Setup decisions: the owner's rulings (2026-11-12)",
    "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
   }
  ],
  "facts": [
@@ -536,9 +544,9 @@
   },
   {
    "id": "h05",
-   "source": "h1",
-   "quote": "Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
-   "claim": "B19: breakeven between 2R and 5R; the hard rule for the first trim is a third at 3R."
+   "source": "hw",
+   "quote": "The stop may move up to breakeven between 2R and 5R, or at the first sell.",
+   "claim": "Our stop may move up to breakeven between 2R and 5R, or at the first sell."
   },
   {
    "id": "h06",
@@ -1112,15 +1120,33 @@
   },
   {
    "id": "r04",
-   "source": "h2",
-   "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
-   "claim": "D-013: he very rarely sells on day 1 and usually waits until day 3."
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
   },
   {
    "id": "r05",
    "source": "h2",
    "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
    "claim": "D-013: selling into a 3, 5 or 7 day push, or about 5 to 10R, is often best."
+  },
+  {
+   "id": "r06",
+   "source": "h2",
+   "quote": "Every setup buys as price trades through its trigger, during the day.",
+   "claim": "D-003: every setup buys as price trades through its trigger, during the day."
+  },
+  {
+   "id": "r07",
+   "source": "h2",
+   "quote": "A gap up past 3R at the open is not an automatic sell.",
+   "claim": "Gap-open sell: a gap up past 3R at the open is not an automatic sell."
+  },
+  {
+   "id": "r08",
+   "source": "h2",
+   "quote": "Optional, my judgment",
+   "claim": "The owner on selling into a gap: optional, his judgment."
   }
  ],
  "walkthroughs": [
@@ -1994,7 +2020,7 @@
    "rung": 3,
    "format": "scenario",
    "criterion": "pl.no_frontrun",
-   "q": "Buy the close, or wait?",
+   "q": "Friday afternoon. What is the plan?",
    "story": "It is Friday. The index is four down days deep and stretched under its 50-day. The VIX is 28. A liquid ETF has three boxes and a green close.",
    "choices": [
     "Wait; Monday may bring a flush",
@@ -2012,11 +2038,12 @@
     "h03b",
     "d18",
     "d19",
-    "c22"
+    "c22",
+    "r06"
    ],
    "house": true,
    "wrong": {
-    "Buy the close; the turn is in": "A green Friday close does not prove the turn. A Monday gap can run through the stop.",
+    "Buy the close; the turn is in": "We never buy at the close. A buy comes as price trades through its trigger. A green Friday close does not prove the turn.",
     "Buy half now, add more on Monday": "Half of a Friday buy still faces the gap. Our rule is one price, one stop, no adding.",
     "Short it into the Monday open": "That bets on more fall. A stretched index is Bracco's cue to watch for a turn."
    },
@@ -2031,7 +2058,7 @@
      "+1 fixed before"
     ]
    },
-   "batch": "wave3"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q24",
@@ -2544,17 +2571,17 @@
    "rung": 5,
    "format": "tf",
    "criterion": "pl.trim_gap_open",
-   "q": "If the stock opens above a level where you planned to sell, take that sell at the open.",
-   "answer": "True",
-   "why": "True. If a stock opens above a level where you planned to sell, take that sell at the open. Do not wait for the close to decide. This is about planned sell levels. A gap through the stop follows the gap rule instead.",
-   "lesson_line": "A gap through your planned sell level is the sell. Take it at the open.",
+   "q": "If the stock opens above a level where you planned to sell, you must sell at the open.",
+   "answer": "False",
+   "why": "False. A gap up past a level where we planned to sell is not an automatic sell. Selling part into a big gap at the open is an optional judgment, never a rule. This is about planned sell levels. A gap through the stop follows the gap rule instead.",
+   "lesson_line": "A gap past your sell level is a choice, not an order. Sell part or hold, by judgment.",
    "facts": [
-    "h25",
     "h06",
-    "r03"
+    "r07",
+    "r08"
    ],
    "house": true,
-   "simple": "True. When a stock opens past a level where we planned to sell, we sell at the open.",
+   "simple": "False. Selling part into a gap at the open is our choice by judgment, never a rule.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2562,7 +2589,7 @@
      "rests on the owner's rulebook (F63)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q38",
@@ -4050,8 +4077,8 @@
   "q08": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "agrees with ruling"
+   "fixed": false,
+   "notes": "Close entry is a wrong choice; key is the intraday VWAP reclaim (D-003)."
   },
   "q09": {
    "status": "pass",
@@ -4141,9 +4168,9 @@
   },
   "q23": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave3; awaiting cold re-read"
+   "notes": "Neutral stem; close-buy wrong text states D-003 (r06 quote verbatim); key wait unchanged."
   },
   "q24": {
    "status": "pass",
@@ -4165,9 +4192,9 @@
   },
   "q27": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave3; awaiting cold re-read"
+   "notes": "Gap DOWN through the stop, a different topic from GAP-TRIM."
   },
   "q28": {
    "status": "pass",
@@ -4228,7 +4255,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "re-keyed to planned sell level; no fixed 3R"
+   "notes": "Re-keyed True to False per GAP-TRIM; r07/r08 verbatim; gap-through-stop distinction stated."
   },
   "q38": {
    "status": "pass",
@@ -4401,7 +4428,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "index gap and VWAP long entry; not a trim or short entry; keep agrees"
+   "notes": "'Take it at the open' is a buy choice about the VWAP turn, not a gap trim; kept."
   },
   "q66": {
    "status": "cut",
@@ -4454,8 +4481,8 @@
   "q71": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "re-key right; wrong text 'never all of it' overclaims (a trailing exit can sell all)"
+   "fixed": false,
+   "notes": "Already the D-013 ruling; r03-r05 verbatim."
   },
   "q72": {
    "status": "pass",

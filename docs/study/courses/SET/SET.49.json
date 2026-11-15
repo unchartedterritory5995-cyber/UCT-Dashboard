@@ -161,6 +161,14 @@
    "title": "Setup decisions: the owner's rulings (2026-11-12)",
    "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
   }
  ],
  "facts": [
@@ -382,9 +390,9 @@
   },
   {
    "id": "h05",
-   "source": "h1",
-   "quote": "Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
-   "claim": "B19: breakeven between 2R and 5R; the hard rule for the first trim is a third at 3R."
+   "source": "hw",
+   "quote": "The stop may move up to breakeven between 2R and 5R, or at the first sell.",
+   "claim": "Our stop may move up to breakeven between 2R and 5R, or at the first sell."
   },
   {
    "id": "h06",
@@ -442,15 +450,15 @@
   },
   {
    "id": "h20",
-   "source": "h1",
-   "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
-   "claim": "E51: another third at 5R, then trail the last third."
+   "source": "hw",
+   "quote": "Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
+   "claim": "Later sells are a judgment: sell more into strength on a later push, and trail what is left."
   },
   {
    "id": "h21",
-   "source": "h1",
-   "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
-   "claim": "E52: trail the 10-day for fast movers, the 21-day for steadier ones; sell on a close below it."
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
   },
   {
    "id": "h22",
@@ -1060,15 +1068,15 @@
   },
   {
    "id": "r12",
-   "source": "h2",
-   "quote": "I usually wait until day 3 at the earliest.",
-   "claim": "Owner: he usually waits until day 3 at the earliest to sell."
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
   },
   {
    "id": "r13",
-   "source": "h2",
-   "quote": "I very rarely sell on the day 1 of the buy day.",
-   "claim": "Owner: he very rarely sells on day 1 of the buy day."
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
   },
   {
    "id": "r14",
@@ -1081,6 +1089,12 @@
    "source": "h2",
    "quote": "A gap up past 3R at the open is not an automatic sell. Selling part at the open on a big gap is one choice he may make by judgment, never a rule",
    "claim": "Owner: a gap past 3R is not an automatic sell. Selling part at the open is a judgment, never a rule."
+  },
+  {
+   "id": "r21",
+   "source": "h2",
+   "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+   "claim": "Owner: the 9 and 20 EMA everywhere, with the 50 and 200 SMA."
   }
  ],
  "walkthroughs": [
@@ -2620,6 +2634,7 @@
     "rg1",
     "r10",
     "r12",
+    "r13",
     "d19"
    ],
    "house": true,
@@ -2740,28 +2755,26 @@
    "rung": 5,
    "format": "mcq",
    "criterion": "cap.trail",
-   "q": "How do we trail the last third?",
+   "q": "How do we trail what is left after the sells?",
    "choices": [
-    "Higher lows, then the 10-day",
+    "Higher lows, then the 9 EMA",
     "A trailing stop on the 200-day",
     "A fixed 10% stop under the buy",
     "Sell it all at 5R instead"
    ],
-   "answer": "Higher lows, then the 10-day",
-   "why": "Under each higher daily low, until price closes back above the 10-day. After that, sell on a close below the 10-day. Our default trail is the 10-day for fast movers and the 21-day for steadier ones. The card adapts it for this bounce.",
-   "lesson_line": "Trail the lows, then the 10-day.",
+   "answer": "Higher lows, then the 9 EMA",
+   "why": "Under each higher daily low, until price closes back above the 9 EMA. After that, sell on a close below the 9 EMA. Our default trail is the 9 EMA for fast movers and the 20 EMA for steadier ones. The card adapts it for this bounce.",
+   "lesson_line": "Trail the lows, then the 9 EMA.",
    "facts": [
-    "c23",
-    "h21",
-    "h20"
+    "r21"
    ],
    "house": true,
    "wrong": {
-    "A trailing stop on the 200-day": "The card trails the higher daily lows, then the 10-day, not the 200-day.",
+    "A trailing stop on the 200-day": "The card trails the higher daily lows, then the 9 EMA, not the 200-day.",
     "A fixed 10% stop under the buy": "A fixed stop does not follow the bounce. The card trails the higher daily lows.",
-    "Sell it all at 5R instead": "At 5R we sell the second third. The last third is trailed."
+    "Sell it all at 5R instead": "Selling all at 5R is no plan. Later sells are a judgment, and what is left is trailed."
    },
-   "simple": "Under each higher daily low at first, then we sell on a close under the 10-day average.",
+   "simple": "Under each higher daily low at first, then we sell on a close under the 9 EMA.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2769,7 +2782,7 @@
      "house: proposed card rule (cap.trail) on the E52 default"
     ]
    },
-   "batch": "wave5"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q46",
@@ -4179,13 +4192,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Card c04 says it plainly; Wyckoff w05 quote re-found. False is unambiguous."
+   "notes": "Capitulation is volume-defined (climax volume is the setup), so the D-006 exception applies."
   },
   "q06": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from c02. Distractors fail the 2x floor in different ways. m01 colour only."
+   "notes": "Same: the flush-day volume floor is part of the setup shape; the 1.5 times distractor is a near-miss not a rival answer."
   },
   "q07": {
    "status": "cut",
@@ -4262,8 +4275,8 @@
   "q22": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "keep ok; depends_on restored (writer emptied it)"
+   "fixed": false,
+   "notes": "Waiting for the undercut and reclaim is right; buying the close is a wrong choice (D-003)."
   },
   "q23": {
    "status": "pass",
@@ -4348,13 +4361,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "story opens the day after the buy (day 2), so the day-1 wording mismatched; reworded choice and why; \"He\" given an antecedent"
+   "notes": "Keys the gap sell as a judgment, never a rule (GAP-TRIM, D-013). The why says we very rarely sell on day 1; that is r13, not cited, so r13 is added."
   },
   "q42": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Re-key is right, but the right answer was the only hedged choice (odd one out). Make a distractor also say judgment."
+   "fixed": false,
+   "notes": "First sell is a judgment, often a 3 to 7 day push, usually not before day 3; fixed third at 3R and fixed half at 5R correctly wrong."
   },
   "q43": {
    "status": "pass",
@@ -4372,7 +4385,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from c23 with h20/h21 context. Distractors are real alternatives."
+   "notes": "Trail text re-keyed to what is left and the 9 or 20 EMA, cites r21; stale 'second third at 5R' removed; no measured number renamed."
   },
   "q46": {
    "status": "cut",
@@ -4396,8 +4409,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from c39 (U&R = Undercut and Rally, as the library names it). Oops note holds: the story says it opened flat.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "U&R needs no volume; capitulation shape numbers are the setup definition."
   },
   "q54": {
    "status": "pass",
@@ -4471,14 +4483,14 @@
   "q49": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "keep ok; depends_on restored (writer emptied it)"
+   "fixed": false,
+   "notes": "Answer is trigger timing; flush shape numbers (2 ATR, 2x, 15%) are the setup definition, and 10-day high is a price high not the 10-day EMA."
   },
   "q50": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (c05, c37). The key 'far short of 15%' states the stock stretch bar, handing over q07's key. Reworded to 'the stretch is too small'; the why and wrong notes keep 15% for after the answer."
+   "fixed": false,
+   "notes": "Answer is the 15% stretch against 7%; no near neighbour keyed; volume is not the answer."
   },
   "q52": {
    "status": "pass",
@@ -4508,7 +4520,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "LYV row d04-d06 verified in the dossier (Drop column is off the 10-day high close). Only the watch-and-wait-for-reclaim choice fits c12/c13; ticker and date not given away."
+   "notes": "Watch it for a reclaim; close buys are wrong distractors; real example numbers from the cited facts."
   },
   "q65": {
    "status": "pass",

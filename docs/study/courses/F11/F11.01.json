@@ -147,6 +147,14 @@
    "title": "The house sizing rule, section 9: The account rulebook (the owner, 2026-11-09)",
    "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
   }
  ],
  "facts": [
@@ -506,9 +514,9 @@
   },
   {
    "id": "h05",
-   "source": "s17",
-   "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
-   "claim": "Our rule E52: trail under the 10-day average for fast movers or the 21-day for steadier ones, and sell on a close below it."
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
   },
   {
    "id": "h06",
@@ -1170,7 +1178,7 @@
    },
    "simple": "Hold through the pullback, because long trends have normal dips and a position trader stays in while the trend holds.",
    "deeper": {
-    "counter": "So when would our own rule sell? We swing trade. We trail under the 10-day or 21-day average and sell on a close below it. A two-week pullback can close below it while the weekly trend holds. Then our trade ends. The position trader in this story sits through it."
+    "counter": "So when would our own rule sell? We swing trade. We trail under the 9 EMA or the 20 EMA and sell on a close below it. A two-week pullback can close below it while the weekly trend holds. Then our trade ends. The position trader in this story sits through it."
    },
    "tier": "extended",
    "risk": {

@@ -142,6 +142,14 @@
    "title": "Setup decisions: the owner's rulings (2026-11-12)",
    "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
   }
  ],
  "facts": [
@@ -363,9 +371,9 @@
   },
   {
    "id": "h05",
-   "source": "h1",
-   "quote": "Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
-   "claim": "B19: breakeven between 2R and 5R; the hard rule for the first trim is a third at 3R."
+   "source": "hw",
+   "quote": "The stop may move up to breakeven between 2R and 5R, or at the first sell.",
+   "claim": "Our stop may move up to breakeven between 2R and 5R, or at the first sell."
   },
   {
    "id": "h06",
@@ -435,15 +443,15 @@
   },
   {
    "id": "h20",
-   "source": "h1",
-   "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
-   "claim": "E51: another third at 5R, then trail the last third."
+   "source": "hw",
+   "quote": "Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
+   "claim": "Later sells are a judgment: sell more into strength on a later push, and trail what is left."
   },
   {
    "id": "h21",
-   "source": "h1",
-   "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
-   "claim": "E52: trail the 10-day for fast movers, the 21-day for steadier ones."
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
   },
   {
    "id": "h22",
@@ -1029,15 +1037,21 @@
   },
   {
    "id": "r58",
-   "source": "h2",
-   "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
-   "claim": "We very rarely sell on day 1 and usually wait until day 3 at the earliest."
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
   },
   {
    "id": "r59",
    "source": "h2",
    "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
    "claim": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
+  },
+  {
+   "id": "r60",
+   "source": "h2",
+   "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+   "claim": "D-021: the course uses the 9 and 20 EMA, with the 50 and 200 SMA."
   }
  ],
  "walkthroughs": [
@@ -1224,12 +1238,13 @@
     "The 8 and 21-day EMAs"
    ],
    "answer": "The 10-day and 20-day EMAs",
-   "why": "The 10-day and 20-day EMAs. Kell's cycle revolves around them, and they guide the intermediate trend. The 50 and 200-day simple averages track the longer trend. We name the 10 and 20 here only as Kell's own pair.",
+   "why": "The 10-day and 20-day EMAs. Kell's cycle revolves around them, and they guide the intermediate trend. The 50 and 200-day simple averages track the longer trend. We name the 10 and 20 here only as Kell's own pair. We use the 9 and 20 EMA.",
    "lesson_line": "Kell's cycle lives on two short exponential averages. The slow lines are for the bigger trend.",
    "facts": [
     "y04",
     "p03",
-    "y05"
+    "y05",
+    "r60"
    ],
    "wrong": {
     "The 50 and 200-day SMAs": "Those track the longer trend, per the same pages. Kell's cycle revolves around the 10 and 20-day EMAs.",
@@ -1244,7 +1259,7 @@
      "the averages pair is a held decision, D-021"
     ]
    },
-   "batch": "wave2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q05",
@@ -1813,26 +1828,27 @@
    "rung": 3,
    "format": "mcq",
    "criterion": "wp.trail",
-   "q": "How do we trail the last third on a fast mover?",
+   "q": "How do we trail what is left on a fast mover?",
    "choices": [
-    "A close under the 10-day",
-    "A close under the 21-day",
+    "A close under the 9 EMA",
+    "A close under the 20 EMA",
     "A close under the 50-day",
     "A fixed 8% under the high"
    ],
-   "answer": "A close under the 10-day",
-   "why": "A close under the 10-day. We trail the 10-day average for fast movers and the 21-day for steadier ones. We sell the last third on a close below it.",
-   "lesson_line": "Fast movers ride the 10-day. Steady ones get the 21-day.",
+   "answer": "A close under the 9 EMA",
+   "why": "A close under the 9 EMA. We trail the 9 EMA for fast movers and the 20 EMA for steadier ones. We sell what is left on a close below it.",
+   "lesson_line": "Fast movers ride the 9 EMA. Steady ones get the 20 EMA.",
    "facts": [
-    "h21"
+    "h21",
+    "r60"
    ],
    "wrong": {
     "A fixed 8% under the high": "Our trail is an average with a close below it, not a fixed percent.",
-    "A close under the 21-day": "That is the trail for steadier movers. Fast movers get the 10-day.",
-    "A close under the 50-day": "Not our trail. Ours is the 10-day for fast movers and the 21-day for steadier ones."
+    "A close under the 50-day": "Not our trail. Ours is the 9 EMA for fast movers and the 20 EMA for steadier ones.",
+    "A close under the 20 EMA": "That is the trail for steadier movers. Fast movers get the 9 EMA."
    },
    "house": true,
-   "simple": "A close under the 10-day average, because the rule gives fast movers the 10-day trail and we sell on a close below it.",
+   "simple": "A close under the 9 EMA, because the rule gives fast movers the 9 EMA trail and we sell on a close below it.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1840,7 +1856,7 @@
      "rests on the owner's rulebook E52"
     ]
    },
-   "batch": "wave2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q22",
@@ -1915,13 +1931,14 @@
    "rung": 4,
    "format": "mcq",
    "criterion": "wp.not_stretched",
-   "q": "Your fill would be 55.40. The 10-day average is 50.00. How far above it, in percent?",
+   "q": "Your fill would be 55.40. The 9 EMA is 50.00. How far above it, in percent?",
    "answer": "10.8%",
-   "why": "10.8%. The fill is above the average by (55.40 - 50.00) / 50.00 = 10.8%. We skip a long that is more than 10% above its 10-day average. It is too stretched to buy.",
-   "lesson_line": "Read the stretch in percent before you buy. Past 10% over the 10-day, I pass.",
+   "why": "10.8%. The fill is above the average by (55.40 - 50.00) / 50.00 = 10.8%. We skip a long that is more than 10% above its 9 EMA. It is too stretched to buy.",
+   "lesson_line": "Read the stretch in percent before you buy. Past 10% over the 9 EMA, I pass.",
    "facts": [
     "h13",
-    "c15"
+    "c15",
+    "r60"
    ],
    "house": true,
    "calc": {
@@ -1933,7 +1950,7 @@
     "round": 1
    },
    "suffix": "",
-   "simple": "10.8%, which is past the 10% limit above the 10-day average, so the stock is too stretched and we skip it.",
+   "simple": "10.8%, which is past the 10% limit above the 9 EMA, so the stock is too stretched and we skip it.",
    "tier": "core",
    "risk": {
     "score": 4,
@@ -1942,7 +1959,7 @@
      "rests on the owner's rulebook C29"
     ]
    },
-   "batch": "tomcq",
+   "batch": "sweep-2026-11-14",
    "choices": [
     "9.7%",
     "5.4%",
@@ -2999,17 +3016,18 @@
     "h31",
     "c38",
     "h21",
-    "h30"
+    "h30",
+    "r60"
    ],
    "wrong": {
     "Sell it all at first sign": "Our rule is a big part, not all. The rest stays on the trail.",
     "Add more, it is strong now": "No adding. We take the full size at one price with one stop.",
-    "Hold it; the trail decides": "The trail sells on a close under the 10-day or 21-day average. In a climax the stock sits far above it, so the trail would act only after the top."
+    "Hold it; the trail decides": "The trail sells on a close under the 9 EMA or 20 EMA. In a climax the stock sits far above it, so the trail would act only after the top."
    },
    "house": true,
    "simple": "Sell a big part into the climax, because a run far above the averages is where we take profits by hand.",
    "deeper": {
-    "trap": "Why not let the trail decide? The trail is a close under the 10-day average for fast movers, or the 21-day for steadier ones. In a climax the stock sits far above that average, so the trail would act only well after the top. We sell a big part by hand into the strength, then let the trail handle the rest."
+    "trap": "Why not let the trail decide? The trail is a close under the 9 EMA for fast movers, or the 20 EMA for steadier ones. In a climax the stock sits far above that average, so the trail would act only well after the top. We sell a big part by hand into the strength, then let the trail handle the rest."
    },
    "tier": "extended",
    "risk": {
@@ -3018,7 +3036,7 @@
      "the climax sale is the owner's rulebook (C34), a judgment call"
     ]
    },
-   "batch": "wave2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q51",
@@ -3977,8 +3995,8 @@
   "q24": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc 10.8 ok. The 1.08% note said 'read the ratio as a percent', which would give 0.108%."
+   "fixed": false,
+   "notes": "agrees with rulings"
   },
   "q25": {
    "status": "pass",
@@ -4008,8 +4026,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Checked cold: key derived from the cited quotes first, matches; no second defensible answer, tell, ungrounded number or rulebook conflict found.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "breakeven between 2R and 5R at the first sell: agrees"
   },
   "q44": {
    "status": "pass",
@@ -4039,7 +4056,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with D-013; keep/edit judged correct"
+   "notes": "agrees with rulings"
   },
   "q53": {
    "status": "cut",
@@ -4069,7 +4086,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "edit verified against rulings, quotes word for word"
+   "notes": "agrees with rulings"
   },
   "q34": {
    "status": "pass",
@@ -4135,8 +4152,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from p03/y04; the 8 and 21 choice is a real near-miss and Kell's pair is the 10 and 20. Lengths even. D-021 dependency kept.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "explicitly Kell's pair; why now says we use the 9 and 20 EMA"
   },
   "q05": {
    "status": "pass",
@@ -4203,13 +4219,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with D-013; keep/edit judged correct"
+   "notes": "agrees with rulings"
   },
   "q21": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (E52/h21). The why says 'not on an intraday touch' and the simple says 'only on a close': both go past h21 ('sell on a close below it') and clash with the real broker stop (D41/h18). Removed the overreach."
+   "fixed": false,
+   "notes": "agrees with rulings"
   },
   "q22": {
    "status": "pass",
@@ -4240,8 +4256,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Checked cold: key derived from the cited quotes first, matches; no second defensible answer, tell, ungrounded number or rulebook conflict found.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "agrees with rulings"
   },
   "q56": {
    "status": "pass",
@@ -4289,13 +4304,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "edit verified against rulings, quotes word for word"
+   "notes": "agrees with rulings"
   },
   "q70": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key is right and the only defensible pick: c46 needs both falling 10/20 EMAs (vs 5 sessions ago) and a new 20-session low in the last 5 sessions; the 200-day, a lone heavy down day and rising EMAs all miss it. No length tell (37/35/38/36 chars), no Yes/No tell, rulebook silent. Fixes: (1) the wrong note for 'Rising EMAs off a fresh 20-session low' said rising averages 'fail the test', which reads as the opposite of the stem's 'fails that check' (it actually passes); rewritten. (2) Dropped the Kell w05 sentence: 'avoided long swings until...' leans toward the stricter no-trade outcome the owner"
+   "fixed": false,
+   "notes": "agrees with rulings"
   },
   "q98": {
    "status": "pass",

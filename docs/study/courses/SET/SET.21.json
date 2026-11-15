@@ -88,6 +88,14 @@
    "title": "Setup decisions: the owner's rulings (2026-11-12)",
    "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
   }
  ],
  "facts": [
@@ -189,9 +197,9 @@
   },
   {
    "id": "h05",
-   "source": "h1",
-   "quote": "Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
-   "claim": "B19: breakeven between 2R and 5R; the hard rule for the first trim is a third at 3R."
+   "source": "hw",
+   "quote": "The stop may move up to breakeven between 2R and 5R, or at the first sell.",
+   "claim": "Our stop may move up to breakeven between 2R and 5R, or at the first sell."
   },
   {
    "id": "h06",
@@ -249,9 +257,9 @@
   },
   {
    "id": "h20",
-   "source": "h1",
-   "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
-   "claim": "E51: another third at 5R, then trail the last third."
+   "source": "hw",
+   "quote": "Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
+   "claim": "Later sells are a judgment: sell more into strength on a later push, and trail what is left."
   },
   {
    "id": "h22",
@@ -653,7 +661,7 @@
    "id": "d09",
    "source": "d1",
    "quote": "the clearest picture in the set of why the last third is trailed.",
-   "claim": "INOD shows why the last third is trailed."
+   "claim": "INOD shows why what is left is trailed."
   },
   {
    "id": "d10",
@@ -825,15 +833,21 @@
   },
   {
    "id": "r04",
-   "source": "h2",
-   "quote": "I very rarely sell on the day 1 of the buy day. I usually wait until day 3 at the earliest.",
-   "claim": "D-013: he very rarely sells on day 1 and usually waits until day 3 at the earliest."
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
   },
   {
    "id": "r05",
    "source": "h2",
    "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
    "claim": "D-013: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
+  },
+  {
+   "id": "r06",
+   "source": "h2",
+   "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+   "claim": "The course teaches one pair, the 9 and 20 EMA, with the 50 and 200 SMA (D-021)."
   }
  ],
  "walkthroughs": [
@@ -1527,17 +1541,17 @@
    "rung": 3,
    "format": "tf",
    "criterion": "hve.breakeven",
-   "q": "On a High Volume Edge winner the stop stays at the day-2 low until the last third is sold.",
+   "q": "On a High Volume Edge winner the stop stays at the day-2 low until the last of it is sold.",
    "answer": "False",
-   "why": "False. The stop moves up to breakeven between 2R and 5R, at the first trim by default. A stop only moves up, never down or wider. So the stop should be above the day-2 low well before the last third is sold.",
-   "lesson_line": "At the first trim, the stop goes to breakeven.",
+   "why": "False. The stop moves up to breakeven between 2R and 5R, at the first sell by default. A stop only moves up, never down or wider. So the stop should be above the day-2 low well before the last of it is sold.",
+   "lesson_line": "At the first sell, the stop goes to breakeven.",
    "facts": [
     "c21",
     "h05",
     "h02"
    ],
    "house": true,
-   "simple": "False. The stop moves up to breakeven between 2R and 5R, at the first trim by default, not at the last third.",
+   "simple": "False. The stop moves up to breakeven between 2R and 5R, at the first sell by default, not at the last sale.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1545,7 +1559,7 @@
      "+2 rests on the owner's rulebook (B19); the card's failure notes put the move at 2R while its management line says the first trim"
     ]
    },
-   "batch": "wave2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q21",
@@ -2875,24 +2889,25 @@
     "No; there is no 50-day rule",
     "Yes; it must be over the 50-day",
     "Yes; the 50 must top the 200",
-    "No; the 21-day is the test"
+    "No; the 20 EMA is the test"
    ],
    "answer": "No; there is no 50-day rule",
-   "why": "No. The card has no 10, 21 or 50-day requirement on the HVE day. The 200-day is the line, and the trade, not the record day, must be above it at entry. Here the day-2 reclaim is above the 200-day, so the 50-day does not rule it out.",
+   "why": "No. The card has no 9 EMA, 20 EMA or 50-day requirement on the HVE day. The 200-day is the line, and the trade, not the record day, must be above it at entry. Here the day-2 reclaim is above the 200-day, so the 50-day does not rule it out.",
    "lesson_line": "The 200-day decides. The shorter averages do not.",
    "facts": [
     "c30",
-    "c06"
+    "c06",
+    "r06"
    ],
    "wrong": {
     "Yes; it must be over the 50-day": "No 50-day test applies on this card. The 200-day at the fill does.",
     "Yes; the 50 must top the 200": "That is a check for other setups. The HVE has no 50-day requirement.",
-    "No; the 21-day is the test": "The card has no 10, 21 or 50-day requirement. The 200-day at the fill is the one line."
+    "No; the 20 EMA is the test": "The card has no 9 EMA, 20 EMA or 50-day requirement. The 200-day at the fill is the one line."
    },
    "house": true,
-   "simple": "No, the card has no 10, 21 or 50-day rule on the record day. The 200-day at the fill is the line.",
+   "simple": "No, the card has no 9 EMA, 20 EMA or 50-day rule on the record day. The 200-day at the fill is the line.",
    "deeper": {
-    "trap": "The trap is importing a rule this card does not have. On the record day it names no 10, 21 or 50-day requirement. It checks the 200-day at the moment of entry, on the trade, not on the record day."
+    "trap": "The trap is importing a rule this card does not have. On the record day it names no 9 EMA, 20 EMA or 50-day requirement. It checks the 200-day at the moment of entry, on the trade, not on the record day."
    },
    "tier": "expert",
    "risk": {
@@ -2902,7 +2917,7 @@
      "+1 fixed before (a wrong note was reworded)"
     ]
    },
-   "batch": "wave2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q54",
@@ -3576,7 +3591,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Fits c07/c01/c36. 'Ordinary' earnings beat is a PEG per c07, so no second answer."
+   "notes": "Cold read of final text against D-013, D-021, D-003, GAP-TRIM, D-005, D-031, D-033: agrees; answer right, wrongs wrong, quotes verbatim, style ok."
   },
   "q10": {
    "status": "pass",
@@ -3643,7 +3658,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "False is correct. 'Should be above' matches the owner's 'ideally' (h05) and c21."
+   "notes": "Cold read of final text against D-013, D-021, D-003, GAP-TRIM, D-005, D-031, D-033: agrees; answer right, wrongs wrong, quotes verbatim, style ok."
   },
   "q21": {
    "status": "pass",
@@ -3728,7 +3743,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "holds on day 2 per D-013; no required sell at open; keep agrees"
+   "notes": "Cold read of final text against D-013, D-021, D-003, GAP-TRIM, D-005, D-031, D-033: agrees; answer right, wrongs wrong, quotes verbatim, style ok."
   },
   "q35": {
    "status": "pass",
@@ -3845,7 +3860,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Only the deeper trap changed. It now matches c30 and c06 and no longer claims the 200-day is the only average."
+   "notes": "Cold read of final text against D-013, D-021, D-003, GAP-TRIM, D-005, D-031, D-033: agrees; answer right, wrongs wrong, quotes verbatim, style ok."
   },
   "q54": {
    "status": "pass",
@@ -3882,7 +3897,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "edit: was True (first trim is still a third at 3R); now False, 3R is a mark and the first sell is a judgment (D-013)"
+   "notes": "Cold read of final text against D-013, D-021, D-003, GAP-TRIM, D-005, D-031, D-033: agrees; answer right, wrongs wrong, quotes verbatim, style ok."
   },
   "q60": {
    "status": "pass",
@@ -3906,7 +3921,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "edit: dropped the 'third at 3R' from every choice; plan is entry and stop; a 'buy at the close' choice is added as a wro"
+   "notes": "Cold read of final text against D-013, D-021, D-003, GAP-TRIM, D-005, D-031, D-033: agrees; answer right, wrongs wrong, quotes verbatim, style ok."
   },
   "q64": {
    "status": "pass",
@@ -3918,7 +3933,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "INSM d10-d12; 200-day trap is handled by c06; no run per c10."
+   "notes": "Cold read of final text against D-013, D-021, D-003, GAP-TRIM, D-005, D-031, D-033: agrees; answer right, wrongs wrong, quotes verbatim, style ok."
   },
   "q66": {
    "status": "pass",
@@ -3930,7 +3945,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "keep: no trigger, no trade; the 'buy at the close' choice is a wrong answer; agrees with D-003"
+   "notes": "Cold read of final text against D-013, D-021, D-003, GAP-TRIM, D-005, D-031, D-033: agrees; answer right, wrongs wrong, quotes verbatim, style ok."
   },
   "q68": {
    "status": "cut",

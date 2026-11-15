@@ -3043,7 +3043,7 @@
    "wrong": {
     "Big sellers are taking over": "Big sellers leave heavy volume behind. This dip is quiet.",
     "Likely weak demand ahead": "Light volume on the way down means sellers aren't pressing. Schwab reads a decline without above average volume as a sign that concern is limited.",
-    "Volume doesn't matter on a dip": "It matters a lot. Schwab reads a decline without heavy volume as limited concern."
+    "Volume doesn't matter on a dip": "It matters some. Schwab reads a decline without heavy volume as limited concern."
    }
   },
   "review_status": "draft",
@@ -16218,7 +16218,7 @@
      {
       "accessed": "2026-11-09",
       "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "the prior close, reclaimed during the day | the day's low | a third at 3R, a third at 5R | under each higher low",
+      "quote": "the prior close, reclaimed during the day | the day's low | 3R and 5R are marks; the first sell is a judgment (D-013) | under each higher low",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      },
@@ -16251,7 +16251,7 @@
       "url": "https://www.investopedia.com/terms/k/kickerpattern.asp"
      }
     ],
-    "summary": "Our Oops Reversal buys the prior close when it is reclaimed during the day, stops at the day's low, sells a third at 3R and a third at 5R, and trails under each higher low. Our Kicker entry is over the red day's high, on the Kicker day, at market as it trades through: in the JBI example, $11.05 over an $11.04 high. The first sell is a judgment, not a fixed third at 3R. Every setup buys as price trades through its trigger, during the day, never at the close. A bullish kicker is a down candle followed by a gap up; the bearish kicker is the mirror image."
+    "summary": "Our Oops Reversal buys the prior close when it is reclaimed during the day, stops at the day's low, treats 3R and 5R as marks, and trails under each higher low. Our Kicker entry is over the red day's high, on the Kicker day, at market as it trades through: in the JBI example, $11.05 over an $11.04 high. The first sell is a judgment, not a fixed third at 3R. Every setup buys as price trades through its trigger, during the day, never at the close. A bullish kicker is a down candle followed by a gap up; the bearish kicker is the mirror image."
    },
    "facts": {
     "given": "In our setup list, what is an Oops Reversal? The prior close, reclaimed intraday A gap up the day after a red day A move back over a 4-day high average A move out of a tight MA cluster"
@@ -16276,19 +16276,19 @@
  },
  {
   "answer_json": {
-   "answer": "A close out of a tight MA cluster"
+   "answer": "A break out of a tight MA cluster"
   },
   "difficulty": 1,
   "id": "si_b39e4512672a",
   "lesson_origin": "session",
-  "lesson_text": "A close out of a tight MA cluster. The moving averages squeeze together, and the entry is the close that breaks out of the cluster. The stop sits under the 21-day and 50-day averages, a quarter of an ATR below the lower one. It is not the Slingshot, whose line is the 4-day average of the highs. Launchpad: averages squeezed together, then price closes out of the squeeze.",
+  "lesson_text": "A break out of a tight MA cluster. The moving averages squeeze together, and we buy as price trades out of the cluster, never at the close. The line-based stop sits under the 20 EMA and 50 SMA, a quarter of an ATR below the lower one. It is not the Slingshot, whose line is the 4-day average of the highs. Launchpad: averages squeezed together, then price breaks out of the squeeze.",
   "module": "V",
   "prompt_json": {
    "choices": [
-    "A close back over a 4-day high average",
+    "A move back over a 4-day high average",
     "A weak open that buyers turn up",
     "A pullback that holds an old gap",
-    "A close out of a tight MA cluster"
+    "A break out of a tight MA cluster"
    ],
    "kind": "mcq",
    "q": "What is a Launchpad in our setup list?",
@@ -16300,28 +16300,7 @@
      {
       "accessed": "2026-11-09",
       "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "the close out of the tight cluster of averages",
-      "tier": 3,
-      "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
       "quote": "under the 21-day and 50-day averages, a quarter of an ATR below the lower one",
-      "tier": 3,
-      "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "the close back over the 4-day average of the highs",
-      "tier": 3,
-      "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "the close, as the gap holds | the gap top or the day's low, whichever is lower",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      },
@@ -16331,21 +16310,42 @@
       "quote": "It is an intraday entry in a stock that has already shown it can move. The session opens weak, sweeps a nearby support, and buyers step in and turn it.",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#the-go-signal"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "Every setup buys as price trades through its trigger, during the day.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "The low of day (the entry day's low) is the primary stop. The pattern's low and a line minus a cushion are acceptable alternatives, not wrong answers.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      }
     ],
-    "summary": "Our Launchpad enters on the close out of a tight cluster of moving averages. The Launchpad stop sits under the 21-day and 50-day averages, a quarter of an ATR below whichever is lower. Our Slingshot enters on the close back over the 4-day average of the highs. Our Gap Support buys the close as the gap holds; the stop is the gap top or the day's low, whichever is lower. The Go Signal is an intraday entry in a stock that has already moved: it opens weak, sweeps nearby support, and buyers turn it."
+    "summary": "The Launchpad stop sits under the 21-day and 50-day averages, a quarter of an ATR below whichever is lower. The Go Signal is an intraday entry in a stock that has already moved: it opens weak, sweeps nearby support, and buyers turn it. Every setup buys as price trades through its trigger, during the day, never at the close. D-021: the course uses the 9 and 20 EMA everywhere, with the 50 and 200 SMA. D-008: the low of day is the primary stop; a line minus a cushion is an acceptable alternative."
    },
    "facts": {
-    "given": "What is a Launchpad in our setup list? A close out of a tight MA cluster A close back over a 4-day high average A pullback that holds an old gap A weak open that buyers turn up"
+    "given": "What is a Launchpad in our setup list? A break out of a tight MA cluster A move back over a 4-day high average A pullback that holds an old gap A weak open that buyers turn up"
    },
-   "lesson_line": "Launchpad: averages squeezed together, then price closes out of the squeeze.",
-   "simple": "A Launchpad is when the moving averages bunch up tight and price then closes out of that bunch.",
+   "lesson_line": "Launchpad: averages squeezed together, then price breaks out of the squeeze.",
+   "simple": "A Launchpad is when the moving averages bunch up tight and price then breaks out of that bunch.",
    "tier": "core",
    "unit": "V.05",
-   "why": "A close out of a tight MA cluster. The moving averages squeeze together, and the entry is the close that breaks out of the cluster. The stop sits under the 21-day and 50-day averages, a quarter of an ATR below the lower one. It is not the Slingshot, whose line is the 4-day average of the highs.",
+   "why": "A break out of a tight MA cluster. The moving averages squeeze together, and we buy as price trades out of the cluster, never at the close. The line-based stop sits under the 20 EMA and 50 SMA, a quarter of an ATR below the lower one. It is not the Slingshot, whose line is the 4-day average of the highs.",
    "wrong": {
-    "A close back over a 4-day high average": "That's the Slingshot. Its line is a short average of the highs, not a cluster.",
-    "A pullback that holds an old gap": "That's Gap Support: we buy the close as the gap holds.",
+    "A move back over a 4-day high average": "That's the Slingshot. Its line is a short average of the highs, not a cluster.",
+    "A pullback that holds an old gap": "That's Gap Support, a pullback that holds an old gap.",
     "A weak open that buyers turn up": "That's the Go Signal."
    }
   },
@@ -16363,7 +16363,7 @@
   "difficulty": 1,
   "id": "si_9d2b35f0789d",
   "lesson_origin": "session",
-  "lesson_text": "Buying a pullback that holds a gap. The stock gaps up and runs, then comes back to the gap and holds. We buy the close as it holds. The stop is the gap top or the day's low, whichever is lower. If it drifts sideways at the gap, the stop tightens to just under the gap top. It is not buying the open of a fresh gap, and it does not wait for the gap to fill. Gap Support: the gap holds, you buy, and the gap is your line.",
+  "lesson_text": "Buying a pullback that holds a gap. The stock gaps up and runs, then comes back to the gap and holds. We buy as price trades up through the trigger while the gap holds, never at the close. The stop is the gap top or the day's low, whichever is lower. If it drifts sideways at the gap, the stop tightens to just under the gap top. It is not buying the open of a fresh gap, and it does not wait for the gap to fill. Gap Support: the gap holds, you buy, and the gap is your line.",
   "module": "V",
   "prompt_json": {
    "choices": [
@@ -16413,9 +16413,16 @@
       "quote": "Gaps are places of weak support or resistance, but you can use them for a stop location. Place a stop a few cents below the gap (upward breakouts) or above the gap (downward breakouts).",
       "tier": 2,
       "url": "https://thepatternsite.com/gaps.html"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "Every setup buys as price trades through its trigger, during the day.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      }
     ],
-    "summary": "Our Gap Support buys the close as the gap holds; the stop is the gap top or the day's low, whichever is lower. In Gap Support, the high made after the gap is the first place to take some off. If a Gap Support trade drifts sideways at the gap, the stop tightens to just under the gap top. The Bear gap is a short-side lesson with no trade defined: a close must stay under the gap day's high, and the fall is measured, not traded. A gap is weak support, but it works as a stop location: a few cents below an up gap."
+    "summary": "Our Gap Support buys the close as the gap holds; the stop is the gap top or the day's low, whichever is lower. In Gap Support, the high made after the gap is the first place to take some off. If a Gap Support trade drifts sideways at the gap, the stop tightens to just under the gap top. The Bear gap is a short-side lesson with no trade defined: a close must stay under the gap day's high, and the fall is measured, not traded. A gap is weak support, but it works as a stop location: a few cents below an up gap. Every setup buys as price trades through its trigger, during the day, never at the close."
    },
    "facts": {
     "given": "What is Gap Support in our setup list? Buying a pullback that holds a gap Shorting a gap down off the highs Buying the open of any gap up Waiting for a gap to fill, then buying"
@@ -16424,11 +16431,11 @@
    "simple": "Gap Support means buying when a stock pulls back to an old gap and the gap holds.",
    "tier": "core",
    "unit": "V.05",
-   "why": "Buying a pullback that holds a gap. The stock gaps up and runs, then comes back to the gap and holds. We buy the close as it holds. The stop is the gap top or the day's low, whichever is lower. If it drifts sideways at the gap, the stop tightens to just under the gap top. It is not buying the open of a fresh gap, and it does not wait for the gap to fill.",
+   "why": "Buying a pullback that holds a gap. The stock gaps up and runs, then comes back to the gap and holds. We buy as price trades up through the trigger while the gap holds, never at the close. The stop is the gap top or the day's low, whichever is lower. If it drifts sideways at the gap, the stop tightens to just under the gap top. It is not buying the open of a fresh gap, and it does not wait for the gap to fill.",
    "wrong": {
-    "Buying the open of any gap up": "Gap Support waits for the gap to prove it holds. The entry is the close.",
+    "Buying the open of any gap up": "Gap Support waits for the gap to prove it holds. The buy comes later, as price trades up through its trigger.",
     "Shorting a gap down off the highs": "Gap Support buys. A short off a gap down is the Bear gap lesson, and that one is measured, not traded.",
-    "Waiting for a gap to fill, then buying": "Our entry is the close while the gap still holds, not after it fills."
+    "Waiting for a gap to fill, then buying": "We buy while the gap still holds, not after it fills."
    }
   },
   "review_status": "draft",
@@ -16445,7 +16452,7 @@
   "difficulty": 1,
   "id": "si_90d8a901f362",
   "lesson_origin": "session",
-  "lesson_text": "The close of a high-volume day. Our catalog files HVC with the High Volume Edge, and that setup's entry is the high-volume close. The entry is a price. It is not a volume reading, a gap, or the day's high. High Volume Edge: the entry is where the heavy-volume day closed.",
+  "lesson_text": "The close of a high-volume day. Our catalog files HVC with the High Volume Edge, and the HVC is the price where the heavy day closed. We mark it as a level, and we buy as price trades through the trigger, never at the close. It is not a volume reading, a gap, or the day's high. High Volume Edge: the HVC is where the heavy-volume day closed, a level we mark.",
   "module": "V",
   "prompt_json": {
    "choices": [
@@ -16455,7 +16462,7 @@
     "The highest price of the day"
    ],
    "kind": "mcq",
-   "q": "Our catalog lists HVC with the High Volume Edge. What does that setup enter on?",
+   "q": "Our catalog lists HVC with the High Volume Edge. What is the HVC?",
    "subject": "HVC"
   },
   "reveal_json": {
@@ -16464,7 +16471,7 @@
      {
       "accessed": "2026-11-09",
       "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "the high-volume close | the edge bar's low (its high on a down close)",
+      "quote": "the first return to the high-volume close is the cleanest decision point",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      },
@@ -16474,22 +16481,29 @@
       "quote": "\"setupGroups\": \"HVC\", \"templates\": \"HVC\"",
       "tier": 3,
       "url": "repo:docs/study/skill_map.json#setups"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "Every setup buys as price trades through its trigger, during the day.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      }
     ],
-    "summary": "The High Volume Edge enters at the high-volume close; the stop is the edge bar's low, or its high when the bar closed down. In our catalog, HVC is the High Volume Edge's other name."
+    "summary": "The first time price comes back to the high-volume close is the cleanest place to decide. In our catalog, HVC is the High Volume Edge's other name. Every setup buys as price trades through its trigger, during the day, never at the close."
    },
    "facts": {
-    "given": "Our catalog lists HVC with the High Volume Edge. What does that setup enter on? The close of a high-volume day The highest price of the day A high-volume gap at the open Volume above its 50-day average"
+    "given": "Our catalog lists HVC with the High Volume Edge. What is the HVC? The close of a high-volume day The highest price of the day A high-volume gap at the open Volume above its 50-day average"
    },
-   "lesson_line": "High Volume Edge: the entry is where the heavy-volume day closed.",
-   "simple": "The High Volume Edge enters at the close of a heavy-volume day, not at its high or on a volume reading.",
+   "lesson_line": "High Volume Edge: the HVC is where the heavy-volume day closed, a level we mark.",
+   "simple": "The HVC is the close of the heavy-volume day, not its high or a volume reading.",
    "tier": "core",
    "unit": "V.05",
-   "why": "The close of a high-volume day. Our catalog files HVC with the High Volume Edge, and that setup's entry is the high-volume close. The entry is a price. It is not a volume reading, a gap, or the day's high.",
+   "why": "The close of a high-volume day. Our catalog files HVC with the High Volume Edge, and the HVC is the price where the heavy day closed. We mark it as a level, and we buy as price trades through the trigger, never at the close. It is not a volume reading, a gap, or the day's high.",
    "wrong": {
-    "A high-volume gap at the open": "It isn't about a gap. Our entry is where the heavy-volume day closed.",
-    "The highest price of the day": "That's the high. Our entry is the high-volume close.",
-    "Volume above its 50-day average": "That's a volume reading, not a price. Our entry is the close of that heavy day."
+    "A high-volume gap at the open": "It isn't about a gap. The HVC is where the heavy-volume day closed.",
+    "The highest price of the day": "That's the high. The HVC is the close of the heavy-volume day.",
+    "Volume above its 50-day average": "That's a volume reading, not a price. The HVC is the close of that heavy day."
    }
   },
   "review_status": "draft",
@@ -16512,7 +16526,7 @@
    "choices": [
     "A weak open that buyers turn back up",
     "A pullback that holds an older gap up",
-    "A close out of a tight MA cluster",
+    "A break out of a tight MA cluster",
     "A gap up the day after a red day"
    ],
    "kind": "mcq",
@@ -16575,7 +16589,7 @@
     "summary": "The Go Signal is an intraday entry in a stock that has already moved: it opens weak, sweeps nearby support, and buyers turn it. On a Go Signal day the stock opens under the prior close. The day's low sweeps a support: the prior low, the 5-bar low, or a 9, 20 or 50-day average. Our Kicker entry is over the red day's high, on the Kicker day, at market as it trades through: in the JBI example, $11.05 over an $11.04 high. Our Gap Support buys the close as the gap holds; the stop is the gap top or the day's low, whichever is lower. Our Launchpad enters on the close out of a tight cluster of moving averages. A bullish kicker is a down candle followed by a gap up; the bearish kicker is the mirror image."
    },
    "facts": {
-    "given": "What is our Go Signal? A weak open that buyers turn back up A gap up the day after a red day A pullback that holds an older gap up A close out of a tight MA cluster"
+    "given": "What is our Go Signal? A weak open that buyers turn back up A gap up the day after a red day A pullback that holds an older gap up A break out of a tight MA cluster"
    },
    "lesson_line": "Go Signal: a strong stock opens weak, flushes support, and buyers turn it.",
    "simple": "The Go Signal is a strong stock that opens weak, dips through support, and then buyers turn it back up.",
@@ -16583,9 +16597,9 @@
    "unit": "V.05",
    "why": "A weak open that buyers turn back up. It is an intraday entry in a stock that has already shown it can move. The day opens under the prior close. The low sweeps a nearby support. Then buyers step in and turn it.",
    "wrong": {
-    "A close out of a tight MA cluster": "That's the Launchpad.",
+    "A break out of a tight MA cluster": "That's the Launchpad.",
     "A gap up the day after a red day": "That's the Kicker: a red day, then a gap up the next day.",
-    "A pullback that holds an older gap up": "That's Gap Support: we buy the close as the gap holds."
+    "A pullback that holds an older gap up": "That's Gap Support, a pullback that holds an older gap."
    }
   },
   "review_status": "draft",
@@ -16602,7 +16616,7 @@
   "difficulty": 1,
   "id": "si_4a2a57b7bf8e",
   "lesson_origin": "session",
-  "lesson_text": "Slingshot. The stock slips under the 4-day average of the highs, then closes back over it, and that close is the entry. The Launchpad closes out of a cluster of averages. The Oops takes back the prior close during the day. The Go Signal turns a weak open back up intraday. Slingshot: back over the 4-day average of the highs, on the close.",
+  "lesson_text": "Slingshot. The stock slips under the 4-day average of the highs, then trades back over it, and that move through the line is the entry. The Launchpad breaks out of a cluster of averages. The Oops takes back the prior close during the day. The Go Signal turns a weak open back up intraday. Slingshot: back over the 4-day average of the highs, as price trades through it.",
   "module": "V",
   "prompt_json": {
    "choices": [
@@ -16612,7 +16626,7 @@
     "Launchpad"
    ],
    "kind": "mcq",
-   "q": "Which of our setups enters on the close back over the 4-day average of the highs?",
+   "q": "Which of our setups enters as price trades back over the 4-day average of the highs?",
    "subject": "Slingshot"
   },
   "reveal_json": {
@@ -16621,21 +16635,7 @@
      {
       "accessed": "2026-11-09",
       "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "the close back over the 4-day average of the highs",
-      "tier": 3,
-      "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "the close out of the tight cluster of averages",
-      "tier": 3,
-      "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "the prior close, reclaimed during the day | the day's low | a third at 3R, a third at 5R | under each higher low",
+      "quote": "the prior close, reclaimed during the day | the day's low | 3R and 5R are marks; the first sell is a judgment (D-013) | under each higher low",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      },
@@ -16645,21 +16645,28 @@
       "quote": "It is an intraday entry in a stock that has already shown it can move. The session opens weak, sweeps a nearby support, and buyers step in and turn it.",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#the-go-signal"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "Every setup buys as price trades through its trigger, during the day.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      }
     ],
-    "summary": "Our Slingshot enters on the close back over the 4-day average of the highs. Our Launchpad enters on the close out of a tight cluster of moving averages. Our Oops Reversal buys the prior close when it is reclaimed during the day, stops at the day's low, sells a third at 3R and a third at 5R, and trails under each higher low. The Go Signal is an intraday entry in a stock that has already moved: it opens weak, sweeps nearby support, and buyers turn it."
+    "summary": "Our Oops Reversal buys the prior close when it is reclaimed during the day, stops at the day's low, treats 3R and 5R as marks, and trails under each higher low. The Go Signal is an intraday entry in a stock that has already moved: it opens weak, sweeps nearby support, and buyers turn it. Every setup buys as price trades through its trigger, during the day, never at the close."
    },
    "facts": {
-    "given": "Which of our setups enters on the close back over the 4-day average of the highs? Slingshot Launchpad Oops Reversal Go Signal"
+    "given": "Which of our setups enters as price trades back over the 4-day average of the highs? Slingshot Launchpad Oops Reversal Go Signal"
    },
-   "lesson_line": "Slingshot: back over the 4-day average of the highs, on the close.",
-   "simple": "The Slingshot enters when the stock closes back over the 4-day average of the highs after slipping under it.",
+   "lesson_line": "Slingshot: back over the 4-day average of the highs, as price trades through it.",
+   "simple": "The Slingshot enters as price trades back over the 4-day average of the highs after slipping under it.",
    "tier": "core",
    "unit": "V.05",
-   "why": "Slingshot. The stock slips under the 4-day average of the highs, then closes back over it, and that close is the entry. The Launchpad closes out of a cluster of averages. The Oops takes back the prior close during the day. The Go Signal turns a weak open back up intraday.",
+   "why": "Slingshot. The stock slips under the 4-day average of the highs, then trades back over it, and that move through the line is the entry. The Launchpad breaks out of a cluster of averages. The Oops takes back the prior close during the day. The Go Signal turns a weak open back up intraday.",
    "wrong": {
     "Go Signal": "The Go Signal turns a weak open back up during the day.",
-    "Launchpad": "The Launchpad closes out of a tight cluster of averages.",
+    "Launchpad": "The Launchpad breaks out of a tight cluster of averages.",
     "Oops Reversal": "The Oops reclaims the prior close during the day."
    }
   },
@@ -16694,7 +16701,7 @@
      {
       "accessed": "2026-11-09",
       "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "the prior close, reclaimed during the day | the day's low | a third at 3R, a third at 5R | under each higher low",
+      "quote": "the prior close, reclaimed during the day | the day's low | 3R and 5R are marks; the first sell is a judgment (D-013) | under each higher low",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      },
@@ -16706,7 +16713,7 @@
       "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ],
-    "summary": "Our Oops Reversal buys the prior close when it is reclaimed during the day, stops at the day's low, sells a third at 3R and a third at 5R, and trails under each higher low. Our rulebook puts the stop order a few cents under the day's low, not exactly on it."
+    "summary": "Our Oops Reversal buys the prior close when it is reclaimed during the day, stops at the day's low, treats 3R and 5R as marks, and trails under each higher low. Our rulebook puts the stop order a few cents under the day's low, not exactly on it."
    },
    "facts": {
     "given": "Our Oops Reversal plan puts the stop just under the day's low."
@@ -16816,11 +16823,11 @@
       "url": "repo:docs/study/sizing_rule.md#6-management-so-the-sizing-drills-can-go-full-circle"
      },
      {
-      "accessed": "2026-11-12",
-      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
-      "quote": "I very rarely sell on the day 1 of the buy day.",
+      "accessed": "2026-11-14",
+      "name": "UCT house rule: Our rules, in our words (2026-11-14)",
+      "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
       "tier": 3,
-      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14"
      },
      {
       "accessed": "2026-11-12",
@@ -16830,7 +16837,7 @@
       "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      }
     ],
-    "summary": "In the owner's words, every setup is taught as Entry, Stop, Trim, Trail, Advance. Our rule for winners: sell partials into strength and trail the rising moving averages. The owner very rarely sells on day 1 of the buy day. The first sell is a judgment, not a fixed third at 3R."
+    "summary": "In the owner's words, every setup is taught as Entry, Stop, Trim, Trail, Advance. Our rule for winners: sell partials into strength and trail the rising moving averages. We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest. The first sell is a judgment, not a fixed third at 3R."
    },
    "facts": {
     "given": "In our trade plans, what does Trim mean? Taking some shares off Selling the whole position Moving your stop higher Cutting size before you buy"
@@ -16949,7 +16956,7 @@
   "difficulty": 1,
   "id": "si_d889ccbb1700",
   "lesson_origin": "session",
-  "lesson_text": "Reversals & Reclaims. The Slingshot takes back a line the stock just lost: it closes back over the 4-day average of the highs. The Oops Reversal sits in the same family. Gaps & Catalysts holds the Kicker, the High Volume Edge and Gap Support. Intraday holds the Go Signal and the ORB. Slingshot and Oops Reversal: both in Reversals & Reclaims.",
+  "lesson_text": "Reversals & Reclaims. The Slingshot takes back a line the stock just lost: it trades back over the 4-day average of the highs. The Oops Reversal sits in the same family. Gaps & Catalysts holds the Kicker, the High Volume Edge and Gap Support. Intraday holds the Go Signal and the ORB. Slingshot and Oops Reversal: both in Reversals & Reclaims.",
   "module": "V",
   "prompt_json": {
    "choices": [
@@ -17031,10 +17038,10 @@
    "simple": "The Slingshot sits in Reversals and Reclaims, because it takes back a line the stock just lost.",
    "tier": "core",
    "unit": "V.05",
-   "why": "Reversals & Reclaims. The Slingshot takes back a line the stock just lost: it closes back over the 4-day average of the highs. The Oops Reversal sits in the same family. Gaps & Catalysts holds the Kicker, the High Volume Edge and Gap Support. Intraday holds the Go Signal and the ORB.",
+   "why": "Reversals & Reclaims. The Slingshot takes back a line the stock just lost: it trades back over the 4-day average of the highs. The Oops Reversal sits in the same family. Gaps & Catalysts holds the Kicker, the High Volume Edge and Gap Support. Intraday holds the Go Signal and the ORB.",
    "wrong": {
     "Gaps & Catalysts": "That family holds the Kicker, the High Volume Edge and Gap Support.",
-    "Intraday": "Intraday holds the Go Signal and the ORB. The Slingshot enters on the close.",
+    "Intraday": "Intraday holds the Go Signal and the ORB. The Slingshot is filed as a reclaim.",
     "Momentum & Trend": "The Slingshot feels like momentum, but our catalog files it as a reclaim."
    }
   },
@@ -17243,7 +17250,7 @@
   "difficulty": 1,
   "id": "si_8c14aad09e4b",
   "lesson_origin": "session",
-  "lesson_text": "Moving the stop up behind the price. Our plans trail under each higher low, or under a rising average such as the 21-day. A trailing stop moves up as the stock rises and stays put when it falls. Trailing changes the stop, not the number of shares you hold. Trail: the stop follows the stock up, never down.",
+  "lesson_text": "Moving the stop up behind the price. Our plans trail under each higher low, or under a rising average such as the 20 EMA. A trailing stop moves up as the stock rises and stays put when it falls. Trailing changes the stop, not the number of shares you hold. Trail: the stop follows the stock up, never down.",
   "module": "V",
   "prompt_json": {
    "choices": [
@@ -17262,14 +17269,14 @@
      {
       "accessed": "2026-11-09",
       "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "under each higher low, or under the 10-day average",
+      "quote": "under each higher low, or under the 9 EMA",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      },
      {
       "accessed": "2026-11-09",
       "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "under the rising 21-day average, or under each higher low",
+      "quote": "under the rising 20 EMA, or under each higher low",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      },
@@ -17300,9 +17307,16 @@
       "quote": "Hold your winners by selling partials into strength and trailing the rising moving averages.",
       "tier": 3,
       "url": "repo:docs/study/sizing_rule.md#6-management-so-the-sizing-drills-can-go-full-circle"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      }
     ],
-    "summary": "Our Kicker plan trails the stop under each higher low, or under the 10-day average. The Launchpad trails under the rising 21-day average, or under each higher low. A trailing stop moves up behind the price as the trade works. When price moves against you, a trailing stop stays where it is. A close through a set moving average is one common way to trail a stop. Our rule for winners: sell partials into strength and trail the rising moving averages."
+    "summary": "Our Kicker plan trails the stop under each higher low, or under the 9 EMA. The Launchpad trails under the rising 20 EMA, or under each higher low. A trailing stop moves up behind the price as the trade works. When price moves against you, a trailing stop stays where it is. A close through a set moving average is one common way to trail a stop. Our rule for winners: sell partials into strength and trail the rising moving averages. D-021: the course uses the 9 and 20 EMA everywhere, with the 50 and 200 SMA."
    },
    "facts": {
     "given": "In our trade plans, what does Trail mean? Moving the stop up behind the price Taking some shares off into strength Adding more shares as it rises Lowering the stop for more room"
@@ -17311,7 +17325,7 @@
    "simple": "Trail means moving your stop up behind the stock as it rises, and never moving it back down.",
    "tier": "core",
    "unit": "V.05",
-   "why": "Moving the stop up behind the price. Our plans trail under each higher low, or under a rising average such as the 21-day. A trailing stop moves up as the stock rises and stays put when it falls. Trailing changes the stop, not the number of shares you hold.",
+   "why": "Moving the stop up behind the price. Our plans trail under each higher low, or under a rising average such as the 20 EMA. A trailing stop moves up as the stock rises and stays put when it falls. Trailing changes the stop, not the number of shares you hold.",
    "wrong": {
     "Adding more shares as it rises": "That's adding to a winner, a different decision. The trail moves the stop, not the size.",
     "Lowering the stop for more room": "That's widening the stop. A trail only ever tightens.",
@@ -17393,7 +17407,7 @@
      {
       "accessed": "2026-11-09",
       "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "the prior close, reclaimed during the day | the day's low | a third at 3R, a third at 5R | under each higher low",
+      "quote": "the prior close, reclaimed during the day | the day's low | 3R and 5R are marks; the first sell is a judgment (D-013) | under each higher low",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      },
@@ -17412,7 +17426,7 @@
       "url": "https://www.investopedia.com/terms/k/kickerpattern.asp"
      }
     ],
-    "summary": "The Kicker's other entry is the break of the 30-minute opening range on day one. The owner's Kicker entry: over the previous day's high, or the day-one Kicker ORB on the 30-minute chart. Our Kicker entry is over the red day's high, on the Kicker day, at market as it trades through: in the JBI example, $11.05 over an $11.04 high. Our catalog files the ORB (Opening Range Break) under Intraday. Day traders often use the first half hour's range and buy a break above it. Our Slingshot enters on the close back over the 4-day average of the highs. Our Oops Reversal buys the prior close when it is reclaimed during the day, stops at the day's low, sells a third at 3R and a third at 5R, and trails under each higher low. Our Gap Support buys the close as the gap holds; the stop is the gap top or the day's low, whichever is lower. A bullish kicker is a down candle followed by a gap up; the bearish kicker is the mirror image."
+    "summary": "The Kicker's other entry is the break of the 30-minute opening range on day one. The owner's Kicker entry: over the previous day's high, or the day-one Kicker ORB on the 30-minute chart. Our Kicker entry is over the red day's high, on the Kicker day, at market as it trades through: in the JBI example, $11.05 over an $11.04 high. Our catalog files the ORB (Opening Range Break) under Intraday. Day traders often use the first half hour's range and buy a break above it. Our Slingshot enters on the close back over the 4-day average of the highs. Our Oops Reversal buys the prior close when it is reclaimed during the day, stops at the day's low, treats 3R and 5R as marks, and trails under each higher low. Our Gap Support buys the close as the gap holds; the stop is the gap top or the day's low, whichever is lower. A bullish kicker is a down candle followed by a gap up; the bearish kicker is the mirror image."
    },
    "facts": {
     "given": "Our Kicker has two entries. Besides the break over the red day's high, what is the other? A break of day one's 30-minute range A close over the 4-day average of highs The prior close, reclaimed intraday A pullback that holds the gap"
@@ -17622,18 +17636,18 @@
    "depth": {
     "sources": [
      {
-      "accessed": "2026-11-12",
-      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
-      "quote": "I very rarely sell on the day 1 of the buy day.",
+      "accessed": "2026-11-14",
+      "name": "UCT house rule: Our rules, in our words (2026-11-14)",
+      "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
       "tier": 3,
-      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14"
      },
      {
-      "accessed": "2026-11-12",
-      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
-      "quote": "I usually wait until day 3 at the earliest.",
+      "accessed": "2026-11-14",
+      "name": "UCT house rule: Our rules, in our words (2026-11-14)",
+      "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
       "tier": 3,
-      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14"
      },
      {
       "accessed": "2026-11-12",
@@ -17650,7 +17664,7 @@
       "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      }
     ],
-    "summary": "The owner very rarely sells on day 1 of the buy day. The owner usually waits until day 3 at the earliest for the first sell. The first sell is a judgment, not a fixed third at 3R. A 3, 5 or 7 day push, or about 5 to 10R, is often the best first sell."
+    "summary": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest. We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest. The first sell is a judgment, not a fixed third at 3R. A 3, 5 or 7 day push, or about 5 to 10R, is often the best first sell."
    },
    "facts": {
     "given": "Our plan fixes the first sell at a third of the position at 3R."
@@ -17822,7 +17836,7 @@
      {
       "accessed": "2026-11-09",
       "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "the prior close, reclaimed during the day | the day's low | a third at 3R, a third at 5R | under each higher low",
+      "quote": "the prior close, reclaimed during the day | the day's low | 3R and 5R are marks; the first sell is a judgment (D-013) | under each higher low",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      },
@@ -17841,7 +17855,7 @@
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      }
     ],
-    "summary": "Our Kicker entry is over the red day's high, on the Kicker day, at market as it trades through: in the JBI example, $11.05 over an $11.04 high. A bullish kicker is a down candle followed by a gap up; the bearish kicker is the mirror image. Our Oops Reversal buys the prior close when it is reclaimed during the day, stops at the day's low, sells a third at 3R and a third at 5R, and trails under each higher low. Our Gap Support buys the close as the gap holds; the stop is the gap top or the day's low, whichever is lower. Our Slingshot enters on the close back over the 4-day average of the highs."
+    "summary": "Our Kicker entry is over the red day's high, on the Kicker day, at market as it trades through: in the JBI example, $11.05 over an $11.04 high. A bullish kicker is a down candle followed by a gap up; the bearish kicker is the mirror image. Our Oops Reversal buys the prior close when it is reclaimed during the day, stops at the day's low, treats 3R and 5R as marks, and trails under each higher low. Our Gap Support buys the close as the gap holds; the stop is the gap top or the day's low, whichever is lower. Our Slingshot enters on the close back over the 4-day average of the highs."
    },
    "facts": {
     "given": "Which setup of ours is this? Yesterday a stock opened at $20.50 and closed red at $20.00, near its low. Its high was $20.60. Today it opens at $20.55 and trades up through $20.60. Kicker Oops Reversal Gap Support Slingshot"
@@ -17891,7 +17905,7 @@
      {
       "accessed": "2026-11-09",
       "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "the prior close, reclaimed during the day | the day's low | a third at 3R, a third at 5R | under each higher low",
+      "quote": "the prior close, reclaimed during the day | the day's low | 3R and 5R are marks; the first sell is a judgment (D-013) | under each higher low",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      },
@@ -17917,7 +17931,7 @@
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      }
     ],
-    "summary": "Our Oops Reversal buys the prior close when it is reclaimed during the day, stops at the day's low, sells a third at 3R and a third at 5R, and trails under each higher low. Our Kicker entry is over the red day's high, on the Kicker day, at market as it trades through: in the JBI example, $11.05 over an $11.04 high. The Bear gap is a short-side lesson with no trade defined: a close must stay under the gap day's high, and the fall is measured, not traded. Our Gap Support buys the close as the gap holds; the stop is the gap top or the day's low, whichever is lower."
+    "summary": "Our Oops Reversal buys the prior close when it is reclaimed during the day, stops at the day's low, treats 3R and 5R as marks, and trails under each higher low. Our Kicker entry is over the red day's high, on the Kicker day, at market as it trades through: in the JBI example, $11.05 over an $11.04 high. The Bear gap is a short-side lesson with no trade defined: a close must stay under the gap day's high, and the fall is measured, not traded. Our Gap Support buys the close as the gap holds; the stop is the gap top or the day's low, whichever is lower."
    },
    "facts": {
     "given": "Which setup of ours fits? A stock closed at $30.00 yesterday, with a low of $29.20. Today it opens at $29.60 and trades down to $29.00. By midday it's back at $30.05. Oops Reversal Kicker Bear gap Gap Support"
@@ -17966,7 +17980,7 @@
      {
       "accessed": "2026-11-09",
       "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "the prior close, reclaimed during the day | the day's low | a third at 3R, a third at 5R | under each higher low",
+      "quote": "the prior close, reclaimed during the day | the day's low | 3R and 5R are marks; the first sell is a judgment (D-013) | under each higher low",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      },
@@ -17999,7 +18013,7 @@
       "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      }
     ],
-    "summary": "Our Oops Reversal buys the prior close when it is reclaimed during the day, stops at the day's low, sells a third at 3R and a third at 5R, and trails under each higher low. Our rulebook puts the stop order a few cents under the day's low, not exactly on it. Investopedia: traders may take profits at a multiple of risk, such as a 60-cent target on a 30-cent stop. R is your initial risk per share. The first sell is a judgment, not a fixed third at 3R."
+    "summary": "Our Oops Reversal buys the prior close when it is reclaimed during the day, stops at the day's low, treats 3R and 5R as marks, and trails under each higher low. Our rulebook puts the stop order a few cents under the day's low, not exactly on it. Investopedia: traders may take profits at a multiple of risk, such as a 60-cent target on a 30-cent stop. R is your initial risk per share. The first sell is a judgment, not a fixed third at 3R."
    },
    "facts": {
     "calc": {
@@ -18038,7 +18052,7 @@
   "difficulty": 2,
   "id": "si_ad2b797f5264",
   "lesson_origin": "session",
-  "lesson_text": "Launchpad. The short-term, 21-day and 50-day averages are bunched tight, and today's close breaks out of the cluster. Our Launchpad enters on that close. Its stop goes under the 21-day and 50-day averages, a quarter of an ATR below the lower one. Tight cluster of averages, then a close out of it: Launchpad.",
+  "lesson_text": "Launchpad. The short-term average, 20 EMA and 50 SMA are bunched tight, and today's move breaks out of the cluster. Our Launchpad buys as price trades out of it. The line-based stop goes under the 20 EMA and 50 SMA, a quarter of an ATR below the lower one. Tight cluster of averages, then price breaks out of it: Launchpad.",
   "module": "V",
   "prompt_json": {
    "choices": [
@@ -18049,19 +18063,12 @@
    ],
    "kind": "mcq",
    "q": "What is our name for this setup?",
-   "story": "A stock's short-term, 21-day and 50-day averages have bunched tightly together. Price has sat just on top of the bunch for days. Today it closes higher, out of the cluster.",
+   "story": "A stock's short-term average, 20 EMA and 50 SMA have bunched tightly together. Price has sat just on top of the bunch for days. Today it trades up and out of the cluster.",
    "subject": "Launchpad"
   },
   "reveal_json": {
    "depth": {
     "sources": [
-     {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "the close out of the tight cluster of averages",
-      "tier": 3,
-      "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
-     },
      {
       "accessed": "2026-11-09",
       "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
@@ -18077,30 +18084,30 @@
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      },
      {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "the close, as the gap holds | the gap top or the day's low, whichever is lower",
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "Every setup buys as price trades through its trigger, during the day.",
       "tier": 3,
-      "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      },
      {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "the high-volume close | the edge bar's low (its high on a down close)",
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
       "tier": 3,
-      "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      }
     ],
-    "summary": "Our Launchpad enters on the close out of a tight cluster of moving averages. The Launchpad stop sits under the 21-day and 50-day averages, a quarter of an ATR below whichever is lower. Our Slingshot enters on the close back over the 4-day average of the highs. Our Gap Support buys the close as the gap holds; the stop is the gap top or the day's low, whichever is lower. The High Volume Edge enters at the high-volume close; the stop is the edge bar's low, or its high when the bar closed down."
+    "summary": "The Launchpad stop sits under the 21-day and 50-day averages, a quarter of an ATR below whichever is lower. Our Slingshot enters on the close back over the 4-day average of the highs. Every setup buys as price trades through its trigger, during the day, never at the close. D-021: the course uses the 9 and 20 EMA everywhere, with the 50 and 200 SMA."
    },
    "facts": {
-    "given": "What is our name for this setup? A stock's short-term, 21-day and 50-day averages have bunched tightly together. Price has sat just on top of the bunch for days. Today it closes higher, out of the cluster. Launchpad Slingshot Gap Support High Volume Edge"
+    "given": "What is our name for this setup? A stock's short-term average, 20 EMA and 50 SMA have bunched tightly together. Price has sat just on top of the bunch for days. Today it trades up and out of the cluster. Launchpad Slingshot Gap Support High Volume Edge"
    },
-   "lesson_line": "Tight cluster of averages, then a close out of it: Launchpad.",
-   "simple": "Launchpad, because the averages are bunched tight and today's close breaks out of that bunch.",
+   "lesson_line": "Tight cluster of averages, then price breaks out of it: Launchpad.",
+   "simple": "Launchpad, because the averages are bunched tight and price breaks out of that bunch.",
    "tier": "extended",
    "unit": "V.05",
-   "why": "Launchpad. The short-term, 21-day and 50-day averages are bunched tight, and today's close breaks out of the cluster. Our Launchpad enters on that close. Its stop goes under the 21-day and 50-day averages, a quarter of an ATR below the lower one.",
+   "why": "Launchpad. The short-term average, 20 EMA and 50 SMA are bunched tight, and today's move breaks out of the cluster. Our Launchpad buys as price trades out of it. The line-based stop goes under the 20 EMA and 50 SMA, a quarter of an ATR below the lower one.",
    "wrong": {
     "Gap Support": "There's no gap in this story.",
     "High Volume Edge": "Nothing says the volume was heavy. The cluster of averages is the tell.",
@@ -18141,7 +18148,7 @@
      {
       "accessed": "2026-11-09",
       "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "under each higher low, or under the 10-day average",
+      "quote": "under each higher low, or under the 9 EMA",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      },
@@ -18160,7 +18167,7 @@
       "url": "https://www.investopedia.com/terms/t/trailingstop.asp"
      }
     ],
-    "summary": "Our Kicker plan trails the stop under each higher low, or under the 10-day average. An uptrend is a run of higher swing lows and higher swing highs; it is intact while they keep coming. A break of the low a healthy pullback just made is a strong exit signal, so a stop can go there."
+    "summary": "Our Kicker plan trails the stop under each higher low, or under the 9 EMA. An uptrend is a run of higher swing lows and higher swing highs; it is intact while they keep coming. A break of the low a healthy pullback just made is a strong exit signal, so a stop can go there."
    },
    "facts": {
     "given": "Trailing under each higher low, where does the stop go now? You're long a Kicker. It pulled back to $31 and rallied. Now it has pulled back again, held $33, and turned up. Just under the $33 low Just under a $31 low Under the setup's low At today's close"
@@ -18258,7 +18265,7 @@
   "difficulty": 2,
   "id": "si_71302421d44a",
   "lesson_origin": "session",
-  "lesson_text": "False. Our Launchpad trails under the rising 21-day average, or under each higher low. The 4-day average of the highs is the Slingshot's entry line, not a Launchpad trail. Launchpad trail: the rising 21-day average, or each higher low.",
+  "lesson_text": "False. Our Launchpad trails under the rising 20 EMA, or under each higher low. The 4-day average of the highs is the Slingshot's entry line, not a Launchpad trail. Launchpad trail: the rising 20 EMA, or each higher low.",
   "module": "V",
   "prompt_json": {
    "choices": [
@@ -18275,7 +18282,7 @@
      {
       "accessed": "2026-11-09",
       "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "under the rising 21-day average, or under each higher low",
+      "quote": "under the rising 20 EMA, or under each higher low",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      },
@@ -18285,18 +18292,25 @@
       "quote": "the close back over the 4-day average of the highs",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      }
     ],
-    "summary": "The Launchpad trails under the rising 21-day average, or under each higher low. Our Slingshot enters on the close back over the 4-day average of the highs."
+    "summary": "The Launchpad trails under the rising 20 EMA, or under each higher low. Our Slingshot enters on the close back over the 4-day average of the highs. D-021: the course uses the 9 and 20 EMA everywhere, with the 50 and 200 SMA."
    },
    "facts": {
     "given": "Our Launchpad plan trails the stop under the 4-day average of the highs."
    },
-   "lesson_line": "Launchpad trail: the rising 21-day average, or each higher low.",
-   "simple": "False, the Launchpad trails under the rising 21-day average or each higher low, not the 4-day line.",
+   "lesson_line": "Launchpad trail: the rising 20 EMA, or each higher low.",
+   "simple": "False, the Launchpad trails under the rising 20 EMA or each higher low, not the 4-day line.",
    "tier": "extended",
    "unit": "V.05",
-   "why": "False. Our Launchpad trails under the rising 21-day average, or under each higher low. The 4-day average of the highs is the Slingshot's entry line, not a Launchpad trail."
+   "why": "False. Our Launchpad trails under the rising 20 EMA, or under each higher low. The 4-day average of the highs is the Slingshot's entry line, not a Launchpad trail."
   },
   "review_status": "draft",
   "skill_id": "vocab.setup_terms",
@@ -18318,12 +18332,12 @@
    "choices": [
     "$49.60, today's low",
     "$50.00, the gap top",
-    "Under the 10-day average",
+    "Under the rising 9 EMA",
     "3.5% under your entry"
    ],
    "kind": "mcq",
    "q": "Which level sets our stop?",
-   "story": "The gap top is $50.00. Today the stock dipped to $49.60, then closed at $52.00. You buy that close as Gap Support.",
+   "story": "The gap top is $50.00. Today the stock dipped to $49.60, then turned up and traded through your trigger. You buy as Gap Support.",
    "subject": "Gap Support"
   },
   "reveal_json": {
@@ -18351,24 +18365,24 @@
       "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      },
      {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "under each higher low, or under the 10-day average",
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "Every setup buys as price trades through its trigger, during the day.",
       "tier": 3,
-      "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      },
      {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "under the 10-day average, or under each higher low",
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
       "tier": 3,
-      "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      }
     ],
-    "summary": "Our Gap Support buys the close as the gap holds; the stop is the gap top or the day's low, whichever is lower. Our Kicker stop goes under the Kicker's low, or 3.5% under the entry when that is closer. Our rulebook puts the stop a few cents under the day's low, not exactly on it. Our Kicker plan trails the stop under each higher low, or under the 10-day average. The Slingshot trails under the 10-day average, or under each higher low."
+    "summary": "Our Gap Support buys the close as the gap holds; the stop is the gap top or the day's low, whichever is lower. Our Kicker stop goes under the Kicker's low, or 3.5% under the entry when that is closer. Our rulebook puts the stop a few cents under the day's low, not exactly on it. Every setup buys as price trades through its trigger, during the day, never at the close. D-021: the course uses the 9 and 20 EMA everywhere, with the 50 and 200 SMA."
    },
    "facts": {
-    "given": "Which level sets our stop? The gap top is $50.00. Today the stock dipped to $49.60, then closed at $52.00. You buy that close as Gap Support. $49.60, today's low $50.00, the gap top 3.5% under your entry Under the 10-day average"
+    "given": "Which level sets our stop? The gap top is $50.00. Today the stock dipped to $49.60, then turned up and traded through your trigger. You buy as Gap Support. $49.60, today's low $50.00, the gap top 3.5% under your entry Under the rising 9 EMA"
    },
    "lesson_line": "Two candidates, take the lower one. That's the Gap Support stop.",
    "simple": "Today's $49.60 low sets the stop, because our Gap Support stop takes the lower of the gap top and the day's low.",
@@ -18378,7 +18392,7 @@
    "wrong": {
     "$50.00, the gap top": "That's the higher of the two here. Our rule takes the lower.",
     "3.5% under your entry": "That's part of the Kicker's stop rule, not Gap Support's.",
-    "Under the 10-day average": "That's a trail line in our Kicker and Slingshot plans, used once a trade works. Gap Support's first stop is the lower of the gap top and the day's low."
+    "Under the rising 9 EMA": "That's a trail line in our Kicker and Slingshot plans, used once a trade works. Gap Support's first stop is the lower of the gap top and the day's low."
    }
   },
   "review_status": "draft",
@@ -18395,13 +18409,13 @@
   "difficulty": 3,
   "id": "si_5fcd8032d3d7",
   "lesson_origin": "session",
-  "lesson_text": "Under the Kicker low, 2% away. Our Kicker stop goes under the Kicker's low, or 3.5% under the entry if that is closer. Here the $39.20 low is 2% under the $40.00 entry, so it is the closer one and wins. The red day's low is not the stop, and the 10-day average is how the trade trails later. Kicker stop: the Kicker's low, or 3.5% under entry, whichever is closer.",
+  "lesson_text": "Under the Kicker low, 2% away. Our Kicker stop goes under the Kicker's low, or 3.5% under the entry if that is closer. Here the $39.20 low is 2% under the $40.00 entry, so it is the closer one and wins. The red day's low is not the stop, and the 9 EMA is how the trade trails later. Kicker stop: the Kicker's low, or 3.5% under entry, whichever is closer.",
   "module": "V",
   "prompt_json": {
    "choices": [
     "3.5% under your $40.00 entry",
     "Under the prior red day's low",
-    "Under the rising 10-day average",
+    "Under the rising 9 EMA",
     "Under the Kicker low, 2% away"
    ],
    "kind": "mcq",
@@ -18432,12 +18446,19 @@
      {
       "accessed": "2026-11-09",
       "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "under each higher low, or under the 10-day average",
+      "quote": "under each higher low, or under the 9 EMA",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      }
     ],
-    "summary": "Our Kicker stop goes under the Kicker's low, or 3.5% under the entry when that is closer. The owner's Kicker stop: under the Kicker candle's low, or a 3.5% stop from entry. Our Kicker plan trails the stop under each higher low, or under the 10-day average."
+    "summary": "Our Kicker stop goes under the Kicker's low, or 3.5% under the entry when that is closer. The owner's Kicker stop: under the Kicker candle's low, or a 3.5% stop from entry. Our Kicker plan trails the stop under each higher low, or under the 9 EMA. D-021: the course uses the 9 and 20 EMA everywhere, with the 50 and 200 SMA."
    },
    "facts": {
     "calc": {
@@ -18449,17 +18470,17 @@
      "fn": "arith",
      "result": 2.0
     },
-    "given": "Where does our stop go? You buy our Kicker at $40.00. The Kicker candle's low is $39.20. Under the Kicker low, 2% away 3.5% under your $40.00 entry Under the prior red day's low Under the rising 10-day average"
+    "given": "Where does our stop go? You buy our Kicker at $40.00. The Kicker candle's low is $39.20. Under the Kicker low, 2% away 3.5% under your $40.00 entry Under the prior red day's low Under the rising 9 EMA"
    },
    "lesson_line": "Kicker stop: the Kicker's low, or 3.5% under entry, whichever is closer.",
    "simple": "Under the Kicker low, because it is only 2% below your entry, closer than 3.5%, and our rule takes the closer stop.",
    "tier": "extended",
    "unit": "V.05",
-   "why": "Under the Kicker low, 2% away. Our Kicker stop goes under the Kicker's low, or 3.5% under the entry if that is closer. Here the $39.20 low is 2% under the $40.00 entry, so it is the closer one and wins. The red day's low is not the stop, and the 10-day average is how the trade trails later.",
+   "why": "Under the Kicker low, 2% away. Our Kicker stop goes under the Kicker's low, or 3.5% under the entry if that is closer. Here the $39.20 low is 2% under the $40.00 entry, so it is the closer one and wins. The red day's low is not the stop, and the 9 EMA is how the trade trails later.",
    "wrong": {
     "3.5% under your $40.00 entry": "That's the other half of the rule. Here the Kicker's low is only 2% under, so it is closer and wins.",
     "Under the prior red day's low": "The red day came before the Kicker. Our stop hangs off the Kicker candle itself.",
-    "Under the rising 10-day average": "That's how the Kicker trails later, under the 10-day average or each higher low. The first stop hangs off the Kicker's low."
+    "Under the rising 9 EMA": "That's how the Kicker trails later, under the 9 EMA or each higher low. The first stop hangs off the Kicker's low."
    }
   },
   "review_status": "draft",
@@ -18681,11 +18702,11 @@
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      },
      {
-      "accessed": "2026-11-12",
-      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
-      "quote": "I very rarely sell on the day 1 of the buy day.",
+      "accessed": "2026-11-14",
+      "name": "UCT house rule: Our rules, in our words (2026-11-14)",
+      "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
       "tier": 3,
-      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14"
      },
      {
       "accessed": "2026-11-12",
@@ -18695,7 +18716,7 @@
       "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      }
     ],
-    "summary": "In Gap Support, the high made after the gap is the first place to take some off. R is your initial risk per share. Our Gap Support buys the close as the gap holds; the stop is the gap top or the day's low, whichever is lower. The owner very rarely sells on day 1 of the buy day. The first sell is a judgment, not a fixed third at 3R."
+    "summary": "In Gap Support, the high made after the gap is the first place to take some off. R is your initial risk per share. Our Gap Support buys the close as the gap holds; the stop is the gap top or the day's low, whichever is lower. We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest. The first sell is a judgment, not a fixed third at 3R."
    },
    "facts": {
     "given": "What does our plan say about $90? You bought Gap Support at $82 as the gap held. Since the gap, the best price was $90, which is 3R on this trade. It's heading back up there now. Where we look first to take some off Where our 5R target sits Where to add a few more shares Where we sell everything"
@@ -18801,7 +18822,7 @@
   "difficulty": 3,
   "id": "si_697ae202518d",
   "lesson_origin": "session",
-  "lesson_text": "$47.00. The Launchpad stop sits under the 21-day and 50-day averages, a quarter of an ATR below the lower one. The lower one is the 50-day at $47.50. A quarter of the $2.00 ATR below $47.50 is $47.50 - 0.25 x $2.00 = $47.00. An easy slip is starting from the higher average, the 21-day at $48.00. Launchpad stop: a quarter of an ATR under the lower of the 21-day and 50-day.",
+  "lesson_text": "$47.00. The line-based Launchpad stop sits under the 20 EMA and 50 SMA, a quarter of an ATR below the lower one. The lower one is the 50 SMA at $47.50. A quarter of the $2.00 ATR below $47.50 is $47.50 - 0.25 x $2.00 = $47.00. An easy slip is starting from the higher average, the 20 EMA at $48.00. The low of day stays our primary stop. Launchpad line stop: a quarter of an ATR under the lower of the 20 EMA and 50 SMA.",
   "module": "V",
   "prompt_json": {
    "choices": [
@@ -18811,12 +18832,12 @@
     "$48.50"
    ],
    "kind": "mcq",
-   "q": "Launchpad. The 21-day average is $48.00, the 50-day is $47.50, and the ATR is $2.00. Where does our stop go?",
+   "q": "Launchpad. The 20 EMA is $48.00, the 50 SMA is $47.50 and the ATR is $2.00. Where does the line-based stop sit?",
    "subject": "Launchpad"
   },
   "reveal_json": {
    "deeper": {
-    "trap": "The stop hangs off the lower of the two averages, not the one you watch most. Here the 21-day is $48.00 and the 50-day is $47.50. So the 50-day sets the line, and the quarter ATR goes below that."
+    "trap": "The stop hangs off the lower of the two averages, not the one you watch most. Here the 20 EMA is $48.00 and the 50 SMA is $47.50. So the 50 SMA sets the line, and the quarter ATR goes below that."
    },
    "depth": {
     "sources": [
@@ -18833,9 +18854,23 @@
       "quote": "The ATR shows investors the average range of prices for an investment over a specified period.",
       "tier": 2,
       "url": "https://www.investopedia.com/terms/a/atr.asp"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "The low of day (the entry day's low) is the primary stop. The pattern's low and a line minus a cushion are acceptable alternatives, not wrong answers.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      }
     ],
-    "summary": "The Launchpad stop sits under the 21-day and 50-day averages, a quarter of an ATR below whichever is lower. ATR is the average size of a stock's price range over a set period."
+    "summary": "The Launchpad stop sits under the 21-day and 50-day averages, a quarter of an ATR below whichever is lower. ATR is the average size of a stock's price range over a set period. D-021: the course uses the 9 and 20 EMA everywhere, with the 50 and 200 SMA. D-008: the low of day is the primary stop; a line minus a cushion is an acceptable alternative."
    },
    "facts": {
     "calc": {
@@ -18847,17 +18882,17 @@
      "fn": "arith",
      "result": 47.0
     },
-    "given": "Launchpad. The 21-day average is $48.00, the 50-day is $47.50, and the ATR is $2.00. Where does our stop go? $47.00 $47.50 $48.00 $48.50"
+    "given": "Launchpad. The 20 EMA is $48.00, the 50 SMA is $47.50 and the ATR is $2.00. Where does the line-based stop sit? $47.00 $47.50 $48.00 $48.50"
    },
-   "lesson_line": "Launchpad stop: a quarter of an ATR under the lower of the 21-day and 50-day.",
-   "simple": "$47.00, because the lower average is the 50-day at $47.50, and our stop sits a quarter of the $2.00 ATR below it.",
+   "lesson_line": "Launchpad line stop: a quarter of an ATR under the lower of the 20 EMA and 50 SMA.",
+   "simple": "$47.00, because the lower average is the 50 SMA at $47.50, and the stop sits a quarter of the $2.00 ATR below it.",
    "tier": "extended",
    "unit": "V.05",
-   "why": "$47.00. The Launchpad stop sits under the 21-day and 50-day averages, a quarter of an ATR below the lower one. The lower one is the 50-day at $47.50. A quarter of the $2.00 ATR below $47.50 is $47.50 - 0.25 x $2.00 = $47.00. An easy slip is starting from the higher average, the 21-day at $48.00.",
+   "why": "$47.00. The line-based Launchpad stop sits under the 20 EMA and 50 SMA, a quarter of an ATR below the lower one. The lower one is the 50 SMA at $47.50. A quarter of the $2.00 ATR below $47.50 is $47.50 - 0.25 x $2.00 = $47.00. An easy slip is starting from the higher average, the 20 EMA at $48.00. The low of day stays our primary stop.",
    "wrong": {
-    "$47.50": "Used the 50-day itself and took nothing off.",
-    "$48.00": "Used the 21-day itself and took nothing off.",
-    "$48.50": "Added a quarter ATR to the 21-day instead of subtracting."
+    "$47.50": "Used the 50 SMA itself and took nothing off.",
+    "$48.00": "Used the 20 EMA itself and took nothing off.",
+    "$48.50": "Added a quarter ATR to the 20 EMA instead of subtracting."
    }
   },
   "review_status": "draft",
@@ -18916,11 +18951,11 @@
       "url": "repo:docs/study/sizing_rule.md#6-management-so-the-sizing-drills-can-go-full-circle"
      },
      {
-      "accessed": "2026-11-12",
-      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
-      "quote": "I very rarely sell on the day 1 of the buy day.",
+      "accessed": "2026-11-14",
+      "name": "UCT house rule: Our rules, in our words (2026-11-14)",
+      "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
       "tier": 3,
-      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14"
      },
      {
       "accessed": "2026-11-12",
@@ -18930,7 +18965,7 @@
       "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      }
     ],
-    "summary": "Investopedia: traders may take profits at a multiple of risk, such as a 60-cent target on a 30-cent stop. R is your initial risk per share. Our rule for winners: sell partials into strength and trail the rising moving averages. The owner very rarely sells on day 1 of the buy day. The first sell is a judgment, not a fixed third at 3R."
+    "summary": "Investopedia: traders may take profits at a multiple of risk, such as a 60-cent target on a 30-cent stop. R is your initial risk per share. Our rule for winners: sell partials into strength and trail the rising moving averages. We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest. The first sell is a judgment, not a fixed third at 3R."
    },
    "facts": {
     "calc": {
@@ -19553,14 +19588,14 @@
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      },
      {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "Move the stop to breakeven at 2R to 5R, ideally.",
+      "accessed": "2026-11-14",
+      "name": "UCT house rule: Our rules, in our words (2026-11-14)",
+      "quote": "The stop may move up to breakeven between 2R and 5R, or at the first sell.",
       "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14"
      }
     ],
-    "summary": "If a Gap Support trade drifts sideways at the gap, the stop tightens to just under the gap top. Our Gap Support buys the close as the gap holds; the stop is the gap top or the day's low, whichever is lower. Our stop moves up to breakeven once the trade is 2R to 5R ahead; we teach it at the first trim."
+    "summary": "If a Gap Support trade drifts sideways at the gap, the stop tightens to just under the gap top. Our Gap Support buys the close as the gap holds; the stop is the gap top or the day's low, whichever is lower. Our stop may move up to breakeven between 2R and 5R, or at the first sell."
    },
    "facts": {
     "given": "What does our plan do with the stop? Your Gap Support trade hasn't gone anywhere. For a week the stock drifts sideways right at the gap. Tighten it just under the gap top Widen it to give the trade room Leave it where it is and wait for 3R Raise it to breakeven, your entry"
@@ -19590,7 +19625,7 @@
   "difficulty": 3,
   "id": "si_0ceb7e8c7102",
   "lesson_origin": "session",
-  "lesson_text": "Gap Support. Six weeks ago it gapped up on big volume, and the gap is still open. Now the pullback is holding the gap top. We buy the close as the gap holds. The stop is the gap top or the day's low, whichever is lower. An old gap that holds on the pullback: Gap Support.",
+  "lesson_text": "Gap Support. Six weeks ago it gapped up on big volume, and the gap is still open. Now the pullback is holding the gap top. We buy as price trades up through the trigger while the gap holds. The stop is the gap top or the day's low, whichever is lower. An old gap that holds on the pullback: Gap Support.",
   "module": "V",
   "prompt_json": {
    "choices": [
@@ -19627,7 +19662,7 @@
      {
       "accessed": "2026-11-09",
       "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "the prior close, reclaimed during the day | the day's low | a third at 3R, a third at 5R | under each higher low",
+      "quote": "the prior close, reclaimed during the day | the day's low | 3R and 5R are marks; the first sell is a judgment (D-013) | under each higher low",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      },
@@ -19644,9 +19679,16 @@
       "quote": "Gaps are places of weak support or resistance, but you can use them for a stop location. Place a stop a few cents below the gap (upward breakouts) or above the gap (downward breakouts).",
       "tier": 2,
       "url": "https://thepatternsite.com/gaps.html"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "Every setup buys as price trades through its trigger, during the day.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      }
     ],
-    "summary": "Our Gap Support buys the close as the gap holds; the stop is the gap top or the day's low, whichever is lower. Our Kicker entry is over the red day's high, on the Kicker day, at market as it trades through: in the JBI example, $11.05 over an $11.04 high. Our Oops Reversal buys the prior close when it is reclaimed during the day, stops at the day's low, sells a third at 3R and a third at 5R, and trails under each higher low. The Bear gap is a short-side lesson with no trade defined: a close must stay under the gap day's high, and the fall is measured, not traded. A gap is weak support, but it works as a stop location: a few cents below an up gap."
+    "summary": "Our Gap Support buys the close as the gap holds; the stop is the gap top or the day's low, whichever is lower. Our Kicker entry is over the red day's high, on the Kicker day, at market as it trades through: in the JBI example, $11.05 over an $11.04 high. Our Oops Reversal buys the prior close when it is reclaimed during the day, stops at the day's low, treats 3R and 5R as marks, and trails under each higher low. The Bear gap is a short-side lesson with no trade defined: a close must stay under the gap day's high, and the fall is measured, not traded. A gap is weak support, but it works as a stop location: a few cents below an up gap. Every setup buys as price trades through its trigger, during the day, never at the close."
    },
    "facts": {
     "given": "Which of our setups is this? Six weeks ago a stock gapped up on big volume and never filled the gap. Now it has pulled back to the top of the gap and is holding. Gap Support Kicker Oops Reversal Bear gap"
@@ -19655,7 +19697,7 @@
    "simple": "Gap Support, because the stock is pulling back to an old gap up and the gap is holding.",
    "tier": "extended",
    "unit": "V.05",
-   "why": "Gap Support. Six weeks ago it gapped up on big volume, and the gap is still open. Now the pullback is holding the gap top. We buy the close as the gap holds. The stop is the gap top or the day's low, whichever is lower.",
+   "why": "Gap Support. Six weeks ago it gapped up on big volume, and the gap is still open. Now the pullback is holding the gap top. We buy as price trades up through the trigger while the gap holds. The stop is the gap top or the day's low, whichever is lower.",
    "wrong": {
     "Bear gap": "A Bear gap is a gap down. This one gapped up.",
     "Kicker": "A Kicker is the gap day itself, off a red day. This is weeks later.",
@@ -19819,13 +19861,13 @@
   "difficulty": 2,
   "id": "si_31114b37c941",
   "lesson_origin": "session",
-  "lesson_text": "The 5-bar low. Our Go Signal's sweep list has three kinds of level. They are the prior low, the 5-bar low, or a 9, 20 or 50-day average the prior close was above. The 200-day and the 10-day are not on it. Yesterday's close is the line the stock reclaims for the entry, not a support it sweeps. Go Signal sweeps: the prior low, the 5-bar low, or the 9, 20 or 50-day average.",
+  "lesson_text": "The 5-bar low. Our Go Signal's sweep list has three kinds of level. They are the prior low, the 5-bar low, or a 9, 20 or 50-day average the prior close was above. The 200-day line and the prior day's high are not on it. Yesterday's close is the line the stock reclaims for the entry, not a support it sweeps. Go Signal sweeps: the prior low, the 5-bar low, or the 9, 20 or 50-day average.",
   "module": "V",
   "prompt_json": {
    "choices": [
     "The 5-bar low",
     "Yesterday's close",
-    "The 10-day line",
+    "The prior day's high",
     "The 200-day line"
    ],
    "kind": "mcq",
@@ -19855,35 +19897,21 @@
       "quote": "It is an intraday entry in a stock that has already shown it can move. The session opens weak, sweeps a nearby support, and buyers step in and turn it.",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#the-go-signal"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "under each higher low, or under the 10-day average",
-      "tier": 3,
-      "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "under the 10-day average, or under each higher low",
-      "tier": 3,
-      "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      }
     ],
-    "summary": "The day's low sweeps a support: the prior low, the 5-bar low, or a 9, 20 or 50-day average. Go Signal entry: the prior close when it trades that session (red to green), otherwise the close; the stop is the session's low. The Go Signal is an intraday entry in a stock that has already moved: it opens weak, sweeps nearby support, and buyers turn it. Our Kicker plan trails the stop under each higher low, or under the 10-day average. The Slingshot trails under the 10-day average, or under each higher low."
+    "summary": "The day's low sweeps a support: the prior low, the 5-bar low, or a 9, 20 or 50-day average. Go Signal entry: the prior close when it trades that session (red to green), otherwise the close; the stop is the session's low. The Go Signal is an intraday entry in a stock that has already moved: it opens weak, sweeps nearby support, and buyers turn it."
    },
    "facts": {
-    "given": "On a Go Signal day, the low sweeps support. Which of these levels counts? The 5-bar low The 200-day line Yesterday's close The 10-day line"
+    "given": "On a Go Signal day, the low sweeps support. Which of these levels counts? The 5-bar low The 200-day line Yesterday's close The prior day's high"
    },
    "lesson_line": "Go Signal sweeps: the prior low, the 5-bar low, or the 9, 20 or 50-day average.",
    "simple": "The 5-bar low, because it is on our sweep list with the prior low and the 9, 20 and 50-day averages.",
    "tier": "extended",
    "unit": "V.05",
-   "why": "The 5-bar low. Our Go Signal's sweep list has three kinds of level. They are the prior low, the 5-bar low, or a 9, 20 or 50-day average the prior close was above. The 200-day and the 10-day are not on it. Yesterday's close is the line the stock reclaims for the entry, not a support it sweeps.",
+   "why": "The 5-bar low. Our Go Signal's sweep list has three kinds of level. They are the prior low, the 5-bar low, or a 9, 20 or 50-day average the prior close was above. The 200-day line and the prior day's high are not on it. Yesterday's close is the line the stock reclaims for the entry, not a support it sweeps.",
    "wrong": {
-    "The 10-day line": "Not on the sweep list, which names the 9, 20 and 50-day. The 10-day is a trail line in our Kicker and Slingshot plans.",
     "The 200-day line": "Our list stops at the 9, 20 and 50-day averages. The 200-day isn't on it.",
+    "The prior day's high": "Not on the sweep list. A sweep dips under a support, and the prior day's high sits overhead.",
     "Yesterday's close": "That's the line it reclaims for the entry, red to green. The sweep happens lower."
    }
   },
@@ -19901,7 +19929,7 @@
   "difficulty": 3,
   "id": "si_cf64b40aea77",
   "lesson_origin": "session",
-  "lesson_text": "Trail under the 4-day line. Our Slingshot trails under the 10-day average, or under each higher low. The 4-day average of the highs is the entry line, not the trail. The entry, the stop and the first sell in the note all match our plan. Slingshot: enter as price trades over the 4-day highs line, trail the 10-day or the higher lows.",
+  "lesson_text": "Trail under the 4-day line. Our Slingshot trails under the 9 EMA, or under each higher low. The 4-day average of the highs is the entry line, not the trail. The entry, the stop and the first sell in the note all match our plan. Slingshot: enter as price trades over the 4-day highs line, trail the 9 EMA or the higher lows.",
   "module": "V",
   "prompt_json": {
    "choices": [
@@ -19917,7 +19945,7 @@
   },
   "reveal_json": {
    "deeper": {
-    "trap": "The 4-day line is already in the note as the entry, so reusing it for the trail feels natural. The plan uses a different line for each job. The 4-day average of the highs gets you in. The 10-day average or each higher low trails."
+    "trap": "The 4-day line is already in the note as the entry, so reusing it for the trail feels natural. The plan uses a different line for each job. The 4-day average of the highs gets you in. The 9 EMA or each higher low trails."
    },
    "depth": {
     "sources": [
@@ -19931,23 +19959,23 @@
      {
       "accessed": "2026-11-09",
       "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "under the 10-day average, or under each higher low",
+      "quote": "under the 9 EMA, or under each higher low",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      },
      {
-      "accessed": "2026-11-12",
-      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
-      "quote": "I very rarely sell on the day 1 of the buy day.",
+      "accessed": "2026-11-14",
+      "name": "UCT house rule: Our rules, in our words (2026-11-14)",
+      "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
       "tier": 3,
-      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14"
      },
      {
-      "accessed": "2026-11-12",
-      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
-      "quote": "I usually wait until day 3 at the earliest.",
+      "accessed": "2026-11-14",
+      "name": "UCT house rule: Our rules, in our words (2026-11-14)",
+      "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
       "tier": 3,
-      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14"
      },
      {
       "accessed": "2026-11-12",
@@ -19962,18 +19990,25 @@
       "quote": "It is always just the trigger for each trade never the close.",
       "tier": 3,
       "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      }
     ],
-    "summary": "The Slingshot stop is the trigger day's low; the day before's low is the wider choice. The Slingshot trails under the 10-day average, or under each higher low. The owner very rarely sells on day 1 of the buy day. The owner usually waits until day 3 at the earliest for the first sell. Every setup buys as price trades through its trigger, during the day, never at the close. The owner buys at the trigger for each trade, never the close."
+    "summary": "The Slingshot stop is the trigger day's low; the day before's low is the wider choice. The Slingshot trails under the 9 EMA, or under each higher low. We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest. We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest. Every setup buys as price trades through its trigger, during the day, never at the close. The owner buys at the trigger for each trade, never the close. D-021: the course uses the 9 and 20 EMA everywhere, with the 50 and 200 SMA."
    },
    "facts": {
     "given": "One line in the note doesn't match our plan. Which? Your note reads: 'Slingshot. Entry as price trades up through the 4-day average of the highs. Stop under the trigger day's low. First sell: day 3 at the earliest. Trail under the 4-day line.' Trail under the 4-day line Entry as it trades up through it Stop under the trigger day's low First sell: day 3 at the earliest"
    },
-   "lesson_line": "Slingshot: enter as price trades over the 4-day highs line, trail the 10-day or the higher lows.",
-   "simple": "The trail line is wrong, because our Slingshot trails under the 10-day average or each higher low, not the 4-day line.",
+   "lesson_line": "Slingshot: enter as price trades over the 4-day highs line, trail the 9 EMA or the higher lows.",
+   "simple": "The trail line is wrong, because our Slingshot trails under the 9 EMA or each higher low, not the 4-day line.",
    "tier": "expert",
    "unit": "V.05",
-   "why": "Trail under the 4-day line. Our Slingshot trails under the 10-day average, or under each higher low. The 4-day average of the highs is the entry line, not the trail. The entry, the stop and the first sell in the note all match our plan.",
+   "why": "Trail under the 4-day line. Our Slingshot trails under the 9 EMA, or under each higher low. The 4-day average of the highs is the entry line, not the trail. The entry, the stop and the first sell in the note all match our plan.",
    "wrong": {
     "Entry as it trades up through it": "That's our entry: price trading up through the line, not a close.",
     "First sell: day 3 at the earliest": "That fits how we sell. We very rarely sell on day 1, and the first sell is a judgment.",
@@ -20075,7 +20110,7 @@
      {
       "accessed": "2026-11-09",
       "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "the prior close, reclaimed during the day | the day's low | a third at 3R, a third at 5R | under each higher low",
+      "quote": "the prior close, reclaimed during the day | the day's low | 3R and 5R are marks; the first sell is a judgment (D-013) | under each higher low",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      },
@@ -20087,7 +20122,7 @@
       "url": "repo:docs/study/TRADE_PLANS.md#the-go-signal"
      }
     ],
-    "summary": "Our Oops Reversal buys the prior close when it is reclaimed during the day, stops at the day's low, sells a third at 3R and a third at 5R, and trails under each higher low. Buyers stepping in shows as a lower wick of 40% of the range, or a low under the open with the close in the upper half."
+    "summary": "Our Oops Reversal buys the prior close when it is reclaimed during the day, stops at the day's low, treats 3R and 5R as marks, and trails under each higher low. Buyers stepping in shows as a lower wick of 40% of the range, or a low under the open with the close in the upper half."
    },
    "facts": {
     "given": "Did our Oops Reversal trigger? A stock closed at $50.00 yesterday. Today it opens at $49.20, dips to $48.80, and climbs. Its high for the day is $49.90, and it closes at $49.60. No: it never reclaimed $50.00 Yes: it bounced off the low Yes: it closed in the upper half No: the dip went too deep"
@@ -20186,11 +20221,11 @@
    "depth": {
     "sources": [
      {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "Move the stop to breakeven at 2R to 5R, ideally.",
+      "accessed": "2026-11-14",
+      "name": "UCT house rule: Our rules, in our words (2026-11-14)",
+      "quote": "The stop may move up to breakeven between 2R and 5R, or at the first sell.",
       "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14"
      },
      {
       "accessed": "2026-11-12",
@@ -20200,7 +20235,7 @@
       "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      }
     ],
-    "summary": "Our stop moves up to breakeven once the trade is 2R to 5R ahead; we teach it at the first trim. The first sell is a judgment, not a fixed third at 3R."
+    "summary": "Our stop may move up to breakeven between 2R and 5R, or at the first sell. The first sell is a judgment, not a fixed third at 3R."
    },
    "facts": {
     "given": "Our rulebook moves the stop on the whole position to breakeven once it is 2R to 5R ahead, ideally."
@@ -20249,11 +20284,11 @@
       "url": "repo:docs/study/OWNER_PRINCIPLES.md#b-teaching"
      },
      {
-      "accessed": "2026-11-12",
-      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
-      "quote": "I very rarely sell on the day 1 of the buy day.",
+      "accessed": "2026-11-14",
+      "name": "UCT house rule: Our rules, in our words (2026-11-14)",
+      "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
       "tier": 3,
-      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14"
      },
      {
       "accessed": "2026-11-12",
@@ -20263,7 +20298,7 @@
       "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      }
     ],
-    "summary": "In the owner's words, every setup is taught as Entry, Stop, Trim, Trail, Advance. The owner very rarely sells on day 1 of the buy day. The first sell is a judgment, not a fixed third at 3R."
+    "summary": "In the owner's words, every setup is taught as Entry, Stop, Trim, Trail, Advance. We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest. The first sell is a judgment, not a fixed third at 3R."
    },
    "facts": {
     "given": "Which order do our setup plans run in? Entry, Stop, Trim, Trail Entry, Trim, Stop, Trail Stop, Entry, Trail, Trim Entry, Stop, Trail, Trim"
@@ -20317,11 +20352,11 @@
       "url": "repo:docs/study/sizing_rule.md#6-management-so-the-sizing-drills-can-go-full-circle"
      },
      {
-      "accessed": "2026-11-12",
-      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
-      "quote": "I very rarely sell on the day 1 of the buy day.",
+      "accessed": "2026-11-14",
+      "name": "UCT house rule: Our rules, in our words (2026-11-14)",
+      "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
       "tier": 3,
-      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14"
      },
      {
       "accessed": "2026-11-12",
@@ -20331,7 +20366,7 @@
       "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      }
     ],
-    "summary": "Our rule for winners: sell partials into strength and trail the rising moving averages. The owner very rarely sells on day 1 of the buy day. The first sell is a judgment, not a fixed third at 3R."
+    "summary": "Our rule for winners: sell partials into strength and trail the rising moving averages. We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest. The first sell is a judgment, not a fixed third at 3R."
    },
    "facts": {
     "given": "A trade is working. Which line is ours for holding a winner? Sell partials, trail the rising averages Sell the whole position at the first pop Hold the full size until the stop hits Move the stop down to give it room"
@@ -20393,11 +20428,11 @@
       "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      },
      {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
+      "accessed": "2026-11-14",
+      "name": "UCT house rule: Our rules, in our words (2026-11-14)",
+      "quote": "Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
       "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14"
      },
      {
       "accessed": "2026-11-09",
@@ -20409,14 +20444,14 @@
      {
       "accessed": "2026-11-09",
       "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "under each higher low, or under the 10-day average",
+      "quote": "under each higher low, or under the 9 EMA",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      },
      {
       "accessed": "2026-11-09",
       "name": "UCT house rule: Study: the trade plan for every setup (the setup table, from the app's own detectors and the owner's rulings)",
-      "quote": "under the rising 21-day average, or under each higher low",
+      "quote": "under the rising 20 EMA, or under each higher low",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      },
@@ -20430,7 +20465,7 @@
      {
       "accessed": "2026-11-09",
       "name": "UCT house rule: Study: the trade plan for every setup, section: The levels",
-      "quote": "Each lesson's levels are the plan's: the entry, the stop, and the trims at 3R and 5R",
+      "quote": "Each lesson's levels are the plan's: the entry, the stop, and the marks at 3R and 5R",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#the-levels"
      }
@@ -20589,11 +20624,11 @@
       "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      },
      {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
+      "accessed": "2026-11-14",
+      "name": "UCT house rule: Our rules, in our words (2026-11-14)",
+      "quote": "Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
       "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14"
      }
     ]
    },
@@ -21264,7 +21299,7 @@
   "difficulty": 1,
   "id": "si_67b288c342b7",
   "lesson_origin": "session",
-  "lesson_text": "It trails after the earlier sells. The first sell is a judgment: we very rarely sell on day 1 and usually wait until day 3 at the earliest. A 3, 5 or 7 day push, or about 5 to 10R, is often best. What is left then trails on a close below the 10-day average, or the 21-day for steadier movers. The first sell is a judgment, not a fixed third. Then trail what is left.",
+  "lesson_text": "It trails after the earlier sells. The first sell is a judgment: we very rarely sell on day 1 and usually wait until day 3 at the earliest. A 3, 5 or 7 day push, or about 5 to 10R, is often best. What is left then trails on a close below the 9 EMA, or the 20 EMA for steadier movers. The first sell is a judgment, not a fixed third. Then trail what is left.",
   "module": "V",
   "prompt_json": {
    "choices": [
@@ -21281,18 +21316,18 @@
    "depth": {
     "sources": [
      {
-      "accessed": "2026-11-12",
-      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
-      "quote": "I very rarely sell on the day 1 of the buy day.",
+      "accessed": "2026-11-14",
+      "name": "UCT house rule: Our rules, in our words (2026-11-14)",
+      "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
       "tier": 3,
-      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14"
      },
      {
-      "accessed": "2026-11-12",
-      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
-      "quote": "I usually wait until day 3 at the earliest.",
+      "accessed": "2026-11-14",
+      "name": "UCT house rule: Our rules, in our words (2026-11-14)",
+      "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
       "tier": 3,
-      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14"
      },
      {
       "accessed": "2026-11-12",
@@ -21309,14 +21344,21 @@
       "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      },
      {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
+      "accessed": "2026-11-14",
+      "name": "UCT house rule: Our rules, in our words (2026-11-14)",
+      "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
       "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      }
     ],
-    "summary": "The owner very rarely sells on day 1 of the buy day. The owner usually waits until day 3 at the earliest for the first sell. The first sell is a judgment, not a fixed third at 3R. A 3, 5 or 7 day push, or about 5 to 10R, is often the best first sell. Our default trail sells on a close below the 10-day average for fast movers or the 21-day for steadier ones."
+    "summary": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest. We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest. The first sell is a judgment, not a fixed third at 3R. A 3, 5 or 7 day push, or about 5 to 10R, is often the best first sell. Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left. D-021: the course uses the 9 and 20 EMA everywhere, with the 50 and 200 SMA."
    },
    "facts": {
     "given": "Our plan sells in parts. What happens to the last part? It trails after the earlier sells It sells together with the first sell It sells at a set percent gain It sells at a 2R profit target"
@@ -21325,7 +21367,7 @@
    "simple": "The last part trails, because the first sell is a judgment and what is left rides the trail.",
    "tier": "core",
    "unit": "V.06",
-   "why": "It trails after the earlier sells. The first sell is a judgment: we very rarely sell on day 1 and usually wait until day 3 at the earliest. A 3, 5 or 7 day push, or about 5 to 10R, is often best. What is left then trails on a close below the 10-day average, or the 21-day for steadier movers.",
+   "why": "It trails after the earlier sells. The first sell is a judgment: we very rarely sell on day 1 and usually wait until day 3 at the earliest. A 3, 5 or 7 day push, or about 5 to 10R, is often best. What is left then trails on a close below the 9 EMA, or the 20 EMA for steadier movers.",
    "wrong": {
     "It sells at a 2R profit target": "Our plan has no fixed 2R target. The first sell is a judgment, and the last part trails.",
     "It sells at a set percent gain": "Our plan does not sell the last part at a set percent. It trails.",
@@ -24017,14 +24059,14 @@
       "url": "https://www.aaii.com/journal/article/sell-rules-to-build-your-stock-investing-performance"
      },
      {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "Move the stop to breakeven at 2R to 5R, ideally.",
+      "accessed": "2026-11-14",
+      "name": "UCT house rule: Our rules, in our words (2026-11-14)",
+      "quote": "The stop may move up to breakeven between 2R and 5R, or at the first sell.",
       "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14"
      }
     ],
-    "summary": "A breakeven stop is a stop at your entry price, placed once a set profit is reached. O'Neil: don't let a worthwhile profit turn into a loss. We move the stop to breakeven once the trade is up 2R to 5R, ideally."
+    "summary": "A breakeven stop is a stop at your entry price, placed once a set profit is reached. O'Neil: don't let a worthwhile profit turn into a loss. Our stop may move up to breakeven between 2R and 5R, or at the first sell."
    },
    "facts": {
     "given": "What is a breakeven stop? A stop moved up to your entry price A stop that trails the session's high A stop just under the day's low A target set at a 1R profit level"
@@ -24110,11 +24152,11 @@
       "url": "https://help.tradestation.com/10_00/eng/TradeStationHelp/elanalysis/signal/breakeven_stop_signal_.htm"
      },
      {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "Move the stop to breakeven at 2R to 5R, ideally.",
+      "accessed": "2026-11-14",
+      "name": "UCT house rule: Our rules, in our words (2026-11-14)",
+      "quote": "The stop may move up to breakeven between 2R and 5R, or at the first sell.",
       "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14"
      },
      {
       "accessed": "2026-11-09",
@@ -24124,7 +24166,7 @@
       "url": "https://help.tradestation.com/10_00/eng/TradeStationHelp/elanalysis/signal/breakeven_stop_signal_.htm"
      }
     ],
-    "summary": "A quick drop can trigger a stop, and then the stock can bounce right back. One systematic trader sets stops from volatility and never moves them to breakeven. A stop too close to price gets hit by normal daily swings. O'Neil: don't let a worthwhile profit turn into a loss. A breakeven stop becomes a market order when price falls back to entry. We move the stop to breakeven once the trade is up 2R to 5R, ideally. A breakeven stop is a stop at your entry price, placed once a set profit is reached."
+    "summary": "A quick drop can trigger a stop, and then the stock can bounce right back. One systematic trader sets stops from volatility and never moves them to breakeven. A stop too close to price gets hit by normal daily swings. O'Neil: don't let a worthwhile profit turn into a loss. A breakeven stop becomes a market order when price falls back to entry. Our stop may move up to breakeven between 2R and 5R, or at the first sell. A breakeven stop is a stop at your entry price, placed once a set profit is reached."
    },
    "facts": {
     "given": "What did the breakeven stop cost you here? Your breakout is up 1R, so you move the stop to your entry. The stock dips a few cents under your entry and sells you out. Then it rallies hard. It let normal swings stop you out It locked in a gain on the trade It capped your upside at your entry It made the stop a limit order"
@@ -24265,7 +24307,7 @@
   },
   "reveal_json": {
    "deeper": {
-    "counter": "A percent trail is one way to trail. Our own default is not a percent. We sell on a close below the 10-day average for fast movers, or the 21-day for steadier ones."
+    "counter": "A percent trail is one way to trail. Our own default is not a percent. We sell on a close below the 9 EMA for fast movers, or the 20 EMA for steadier ones."
    },
    "depth": {
     "sources": [
@@ -24291,14 +24333,14 @@
       "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-stop-stop-limit-trailing-stop"
      },
      {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
+      "accessed": "2026-11-14",
+      "name": "UCT house rule: Our rules, in our words (2026-11-14)",
+      "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
       "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14"
      }
     ],
-    "summary": "A 25% trailing stop under a $60 high sits at $45 and is never moved back down. When price moves against you, a trailing stop stays where it is until price reaches it. A trailing stop is set a percent or dollar amount away from the market price. Our default trail sells on a close below the 10-day average for fast movers or the 21-day for steadier ones."
+    "summary": "A 25% trailing stop under a $60 high sits at $45 and is never moved back down. When price moves against you, a trailing stop stays where it is until price reaches it. A trailing stop is set a percent or dollar amount away from the market price. Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
    },
    "facts": {
     "calc": {
@@ -24438,7 +24480,7 @@
   },
   "reveal_json": {
    "deeper": {
-    "counter": "A wider trail is not always worse. A tight trail can stop you out on a normal dip and miss the rest of the run. The wide trail loses more only at the final turn. Our default trail is the 10-day average for fast movers and the 21-day for steadier ones."
+    "counter": "A wider trail is not always worse. A tight trail can stop you out on a normal dip and miss the rest of the run. The wide trail loses more only at the final turn. Our default trail is the 9 EMA for fast movers and the 20 EMA for steadier ones."
    },
    "depth": {
     "sources": [
@@ -24471,14 +24513,14 @@
       "url": "https://www.schwab.com/learn/story/help-protect-your-position-using-stop-orders"
      },
      {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
+      "accessed": "2026-11-14",
+      "name": "UCT house rule: Our rules, in our words (2026-11-14)",
+      "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
       "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14"
      }
     ],
-    "summary": "A trail set too loose gives back more profit in a real reversal. A trail set too tight gets hit by normal swings. A stop too far away can cost a sizable loss before you're out. A stop too close to price gets hit by normal daily swings. Our default trail is the 10-day average for fast movers and the 21-day for steadier ones."
+    "summary": "A trail set too loose gives back more profit in a real reversal. A trail set too tight gets hit by normal swings. A stop too far away can cost a sizable loss before you're out. A stop too close to price gets hit by normal daily swings. Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
    },
    "facts": {
     "given": "A wider trailing stop gives back more profit when the trend finally turns."
@@ -24720,7 +24762,7 @@
   "difficulty": 2,
   "id": "si_d94728e604b7",
   "lesson_origin": "session",
-  "lesson_text": "A quarter of an ATR below. Our Launchpad plan puts the stop under both the 21-day and 50-day averages, a quarter of an ATR below the lower one. It is the setup's own stop, set from the averages and ATR, not a flat percent. Our Launchpad stop: under both averages, plus a quarter ATR.",
+  "lesson_text": "A quarter of an ATR below. Our Launchpad plan puts the line-based stop under both the 20 EMA and 50 SMA, a quarter of an ATR below the lower one. It is set from the averages and ATR, not a flat percent. The low of day stays our primary stop. Launchpad line stop: under both averages, plus a quarter ATR.",
   "module": "V",
   "prompt_json": {
    "choices": [
@@ -24730,7 +24772,7 @@
     "Three full ATRs below it"
    ],
    "kind": "mcq",
-   "q": "Our Launchpad stop goes under the 21-day and 50-day averages. How far under the lower one?",
+   "q": "Our Launchpad line-based stop goes under the 20 EMA and 50 SMA. How far under the lower one?",
    "subject": "ATR"
   },
   "reveal_json": {
@@ -24756,18 +24798,32 @@
       "quote": "Developed by Charles Le Beau and featured in Alexander Elder's books, the Chandelier Exit sets a trailing stop-loss based on the Average True Range (ATR).",
       "tier": 2,
       "url": "https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-overlays/chandelier-exit"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "The low of day (the entry day's low) is the primary stop. The pattern's low and a line minus a cushion are acceptable alternatives, not wrong answers.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      }
     ],
-    "summary": "Our Launchpad stop sits under the 21-day and 50-day averages, a quarter ATR below the lower one. The long Chandelier Exit sits three ATRs under the 22-day high. The Chandelier Exit is an ATR-based trailing stop."
+    "summary": "Our Launchpad stop sits under the 21-day and 50-day averages, a quarter ATR below the lower one. The long Chandelier Exit sits three ATRs under the 22-day high. The Chandelier Exit is an ATR-based trailing stop. D-021: the course uses the 9 and 20 EMA everywhere, with the 50 and 200 SMA. D-008: the low of day is the primary stop; a line minus a cushion is an acceptable alternative."
    },
    "facts": {
-    "given": "Our Launchpad stop goes under the 21-day and 50-day averages. How far under the lower one? A quarter of an ATR below Three full ATRs below it A flat 10% of the price Right on it, with no cushion"
+    "given": "Our Launchpad line-based stop goes under the 20 EMA and 50 SMA. How far under the lower one? A quarter of an ATR below Three full ATRs below it A flat 10% of the price Right on it, with no cushion"
    },
-   "lesson_line": "Our Launchpad stop: under both averages, plus a quarter ATR.",
-   "simple": "Our Launchpad stop sits a quarter of an ATR under the lower of the 21-day and 50-day averages.",
+   "lesson_line": "Launchpad line stop: under both averages, plus a quarter ATR.",
+   "simple": "Our line-based Launchpad stop sits a quarter of an ATR under the lower of the 20 EMA and 50 SMA.",
    "tier": "extended",
    "unit": "V.06",
-   "why": "A quarter of an ATR below. Our Launchpad plan puts the stop under both the 21-day and 50-day averages, a quarter of an ATR below the lower one. It is the setup's own stop, set from the averages and ATR, not a flat percent.",
+   "why": "A quarter of an ATR below. Our Launchpad plan puts the line-based stop under both the 20 EMA and 50 SMA, a quarter of an ATR below the lower one. It is set from the averages and ATR, not a flat percent. The low of day stays our primary stop.",
    "wrong": {
     "A flat 10% of the price": "Our Launchpad stop comes from the averages and ATR, not a flat percent.",
     "Right on it, with no cushion": "The plan adds a quarter-ATR cushion under the lower average.",
@@ -25348,14 +25404,14 @@
       "url": "https://www.interactivebrokers.com/campus/ibkr-quant-news/exiting-your-trades-what-works-best/"
      },
      {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "Move the stop to breakeven at 2R to 5R, ideally.",
+      "accessed": "2026-11-14",
+      "name": "UCT house rule: Our rules, in our words (2026-11-14)",
+      "quote": "The stop may move up to breakeven between 2R and 5R, or at the first sell.",
       "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14"
      }
     ],
-    "summary": "A breakeven stop only goes in after a set profit. A breakeven stop is a stop at your entry price, placed once a set profit is reached. O'Neil: don't let a worthwhile profit turn into a loss. One systematic trader sets stops from volatility and never moves them to breakeven. We move the stop to breakeven somewhere from 2R to 5R, ideally."
+    "summary": "A breakeven stop only goes in after a set profit. A breakeven stop is a stop at your entry price, placed once a set profit is reached. O'Neil: don't let a worthwhile profit turn into a loss. One systematic trader sets stops from volatility and never moves them to breakeven. Our stop may move up to breakeven between 2R and 5R, or at the first sell."
    },
    "facts": {
     "given": "TradeStation's breakeven stop only takes effect once the trade reaches a set profit."
@@ -30518,17 +30574,17 @@
  },
  {
   "answer_json": {
-   "answer": "A close below the 10- or 21-day line"
+   "answer": "A close below the 9 or 20 EMA"
   },
   "difficulty": 2,
   "id": "si_8480ec819115",
   "lesson_origin": "session",
-  "lesson_text": "A close below the 10- or 21-day line. Our default trail is the 10-day average for fast movers and the 21-day for steadier ones. We sell on a close below it, not on a touch. A trailing stop order is a broker tool this lesson teaches, but it is not our default trail. We trail with the 10-day or 21-day average and sell on a close below it.",
+  "lesson_text": "A close below the 9 or 20 EMA. Our default trail is the 9 EMA for fast movers and the 20 EMA for steadier ones. We sell on a close below it, not on a touch. A trailing stop order is a broker tool this lesson teaches, but it is not our default trail. We trail with the 9 or 20 EMA and sell on a close below it.",
   "module": "V",
   "prompt_json": {
    "choices": [
-    "A close below the 10- or 21-day line",
-    "Its first touch of the 10-day line",
+    "A close below the 9 or 20 EMA",
+    "Its first touch of the 9 EMA",
     "A trailing stop a set percent under it",
     "A stop moved up under each day's low"
    ],
@@ -30540,11 +30596,11 @@
    "depth": {
     "sources": [
      {
-      "accessed": "2026-11-12",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "E52. Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
+      "accessed": "2026-11-14",
+      "name": "UCT house rule: Our rules, in our words (2026-11-14)",
+      "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
       "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14"
      },
      {
       "accessed": "2026-11-09",
@@ -30559,22 +30615,29 @@
       "quote": "As the price of the security moves in a favorable direction the trailing stop price adjusts or “trails” the market price of the security by the specified amount.",
       "tier": 1,
       "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-understanding-order-types"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      }
     ],
-    "summary": "Our default trail: the 10-day average for fast movers, the 21-day for steadier ones, sold on a close below it. The trail is a set percent or dollar amount away from the market price. When price moves your way, the trailing stop follows it by the set amount."
+    "summary": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left. The trail is a set percent or dollar amount away from the market price. When price moves your way, the trailing stop follows it by the set amount. D-021: the course uses the 9 and 20 EMA everywhere, with the 50 and 200 SMA."
    },
    "facts": {
-    "given": "By default, what makes us sell a winner we're trailing? A close below the 10- or 21-day line Its first touch of the 10-day line A trailing stop a set percent under it A stop moved up under each day's low"
+    "given": "By default, what makes us sell a winner we're trailing? A close below the 9 or 20 EMA Its first touch of the 9 EMA A trailing stop a set percent under it A stop moved up under each day's low"
    },
-   "lesson_line": "We trail with the 10-day or 21-day average and sell on a close below it.",
-   "simple": "By default we sell a trailed winner when it closes below its 10-day or 21-day average.",
+   "lesson_line": "We trail with the 9 or 20 EMA and sell on a close below it.",
+   "simple": "By default we sell a trailed winner when it closes below its 9 or 20 EMA.",
    "tier": "extended",
    "unit": "V.07",
-   "why": "A close below the 10- or 21-day line. Our default trail is the 10-day average for fast movers and the 21-day for steadier ones. We sell on a close below it, not on a touch. A trailing stop order is a broker tool this lesson teaches, but it is not our default trail.",
+   "why": "A close below the 9 or 20 EMA. Our default trail is the 9 EMA for fast movers and the 20 EMA for steadier ones. We sell on a close below it, not on a touch. A trailing stop order is a broker tool this lesson teaches, but it is not our default trail.",
    "wrong": {
-    "A stop moved up under each day's low": "Our default trail is an average, not each day's low. We sell on a close below the 10-day or 21-day.",
-    "A trailing stop a set percent under it": "That's a trailing stop order, a broker tool. Our default trail is the 10-day or 21-day average.",
-    "Its first touch of the 10-day line": "A touch is not enough. Our rule sells on a close below the average."
+    "A stop moved up under each day's low": "Our default trail is an average, not each day's low. We sell on a close below the 9 or 20 EMA.",
+    "A trailing stop a set percent under it": "That's a trailing stop order, a broker tool. Our default trail is the 9 or 20 EMA.",
+    "Its first touch of the 9 EMA": "A touch is not enough. Our rule sells on a close below the average."
    }
   },
   "review_status": "draft",

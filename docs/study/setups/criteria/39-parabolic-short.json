@@ -1102,14 +1102,15 @@
  "management": {
   "trim_1": "the setup's own target: cover at the daily 9 EMA (D47; Bracco). DECISIONS D-013's default takes the first third there and the rest by the thirds; the dossier covers all of it there (pending)",
   "trim_2": "later sells by judgment into strength, then trail the rest (D-013, 2026-11-12)",
-  "trail": "intraday, after the second leg down, over the previous 5-minute bar high, then the 5-minute 20 EMA or VWAP (Bracco, from Breitstein); the house 10/21-day trail does not fit a trade that ends at the 9 EMA",
+  "trail": "intraday, after the second leg down, over the previous 5-minute bar high, then the 5-minute 20 EMA or VWAP (Bracco, from Breitstein); the house 10/20 EMA trail does not fit a trade that ends at the 9 EMA",
   "breakeven": "at 2R if held (B19); overnight only if the trade is in profit, with the stop no worse than breakeven",
   "time_stop": "cover if the 9 EMA is not reached within 3 sessions (proposed); C33's 10 days is the outer limit",
   "gap_against": "a gap up through the stop: the first 30-minute high is the new stop; out if past 2R (B20)",
   "retries": "a 1 to 2 day window; at most 3 tries in a week (E56); a new trigger may be taken (B21, D-142 settled)",
   "overrides": "the 9 EMA cover replaces the 3R/5R thirds and the 10/21-day trail (D47 names the target; D-013 pending); the intraday trail; the 3-session time limit; mostly a day trade (D-035 pending). The test found the house trims added nothing (+0.20R against +0.54R at the 9 EMA). Not ours: the scanner's 50-bar-low target and 1%-over-the-climax-high stop; the voice knowledge base's 21 EMA then 50-day targets; the plan template's 'size small' and 'do not re-short'.",
   "superseded": {
-   "trim_2": "a third at 5R (E51) only if the trade runs past the 9 EMA; usually never reached (the 9 EMA sits about 2R from a close entry)"
+   "trim_2": "a third at 5R (E51) only if the trade runs past the 9 EMA; usually never reached (the 9 EMA sits about 2R from a close entry)",
+   "trail": "intraday, after the second leg down, over the previous 5-minute bar high, then the 5-minute 20 EMA or VWAP (Bracco, from Breitstein); the house 10/21-day trail does not fit a trade that ends at the 9 EMA"
   }
  },
  "examples": {

@@ -225,6 +225,14 @@
    "title": "Setup decisions: the owner's rulings (2026-11-12)",
    "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
   }
  ],
  "facts": [
@@ -580,7 +588,13 @@
    "id": "r01",
    "source": "h2",
    "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
-   "claim": "The owner's ruling: the first sell is a judgment, not a fixed third at 3R."
+   "claim": "Our rule: the first sell is a judgment, not a fixed third at 3R."
+  },
+  {
+   "id": "r02",
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
   }
  ],
  "walkthroughs": [
@@ -923,7 +937,7 @@
    "skill": "psych.fear",
    "rung": 4,
    "format": "scenario",
-   "story": "You bought at $40. Stop $38, first trim $46. It runs to $41.20, then dips to $40.80. You sell it all to lock in the gain.",
+   "story": "You bought at $40, stop $38. On day 1 it runs to $41.20, then dips to $40.80. You sell it all to lock in the gain.",
    "q": "What was that sale?",
    "choices": [
     "Cutting a winner early",
@@ -932,19 +946,20 @@
     "Respecting your stop"
    ],
    "answer": "Cutting a winner early",
-   "why": "Cutting a winner early. The dip to $40.80 was nowhere near your $38 stop or your $46 trim, so no level in your plan said sell. Fear of giving back the gain made the call. Investopedia notes fear of loss can make investors sell winners too quickly. Farley's rule: stay in until price action gives you a reason to get out.",
+   "why": "Cutting a winner early. The dip to $40.80 was nowhere near your $38 stop, and nothing in the plan said sell. We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest. Fear of giving back the gain made the call. Investopedia notes fear of loss can make investors sell winners too quickly. Farley's rule: stay in until price action gives you a reason to get out.",
    "lesson_line": "Stay in until price gives you a reason to get out, not your nerves.",
    "facts": [
     "f11",
     "f25",
-    "f32"
+    "f32",
+    "r02"
    ],
    "wrong": {
     "Freezing at entry": "Freezing happens before you're in. You were already in the trade.",
-    "A planned partial": "A partial is a piece sold into strength at a level you set. This was all of it, on a dip.",
+    "A planned partial": "A partial is a piece sold into strength on a judgment, usually from day 3 on. This was all of it, on a day-1 dip.",
     "Respecting your stop": "Your stop was $38. The stock never got close."
    },
-   "simple": "You cut a winner early, because you sold it all on a small dip far from your stop and your trim.",
+   "simple": "You cut a winner early, because you sold it all on day 1 on a small dip far from your stop.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -953,7 +968,7 @@
      "the $46 trim follows the owner's rulebook (B19)"
     ]
    },
-   "batch": "wave9"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q11",
@@ -1588,8 +1603,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "All prices from the story; $46 = 3R matches B19. f11 hedge ('can make') kept. f32 Farley line fits.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Story now a day-1 sell of everything on a small dip, mistake is cutting a winner early per r02; r02 quote verbatim from the D-013 reading; the planned-partial wrong note is clear."
   },
   "q11": {
    "status": "pass",
@@ -1643,7 +1657,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "ok"
+   "notes": "Keep is right: sell some by judgment and trail the rest, 'not a fixed third at 3R' already cited verbatim."
   },
   "q20": {
    "status": "cut",

@@ -9890,108 +9890,12 @@
  },
  {
   "answer_json": {
-   "answer": "A gap would hit fewer shares"
-  },
-  "difficulty": 2,
-  "id": "si_f4ad8d3f8ff3",
-  "lesson_origin": "session",
-  "lesson_text": "A gap would hit fewer shares. A stop can't protect you from a gap, so size sets what a gap costs. Cabot suggests buying smaller when a report is close. Our own rule is about timing instead. We make no new buys in the 3 days before a report, and we hold through only if up 5R. Size changes the cost of a gap, not the fill or the odds. Size sets what a gap can cost. A stop can't save you from a gap.",
-  "module": "F5",
-  "prompt_json": {
-   "choices": [
-    "It cuts the odds of a gap down",
-    "A gap would hit fewer shares",
-    "Reports tend to push stocks down",
-    "Your stop fills nearer its price"
-   ],
-   "kind": "mcq",
-   "q": "Some traders buy a smaller position than usual when a report is a week away. Why does the smaller size help?",
-   "subject": "F5.06#q11"
-  },
-  "reveal_json": {
-   "depth": {
-    "sources": [
-     {
-      "accessed": "2026-11-08",
-      "name": "Cabot Wealth Network: 5 Rules for Trading Earnings Season (Mike Cintolo, August 14, 2026)",
-      "quote": "be sure to buy a smaller-than-normal amount (about half your normal size, dollar-wise) if earnings are due out within two weeks.",
-      "tier": 2,
-      "url": "https://www.cabotwealth.com/daily/how-to-invest/rules-handling-earnings-season/"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "Fidelity Investments: Exit Strategies (Learning Center)",
-      "quote": "Beware: Stop orders will not protect you from sudden price drops, known as gaps.",
-      "tier": 2,
-      "url": "https://www.fidelity.com/learning-center/trading-investing/trading/exit-strategies"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Charles Schwab: Stop Orders: Mastering Order Types",
-      "quote": "Stop orders are vulnerable to pricing gaps, which can sometimes occur between trading sessions or during pauses in trading, such as trading halts.",
-      "tier": 2,
-      "url": "https://www.schwab.com/learn/story/stop-orders-mastering-order-types"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "Cabot Wealth Network: 5 Rules for Trading Earnings Season (Mike Cintolo, August 14, 2026)",
-      "quote": "We don’t predict earnings because a stock’s reaction is mostly a roll of the dice.",
-      "tier": 2,
-      "url": "https://www.cabotwealth.com/daily/how-to-invest/rules-handling-earnings-season/"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "Cboe: Why Trade Options Around Earnings Season (Cboe Insights)",
-      "quote": "For traders holding stock, that means binary outcomes with full exposure to a potential move in either direction.",
-      "tier": 2,
-      "url": "https://www.cboe.com/insights/posts/why-trade-options-around-earnings-season"
-     },
-     {
-      "accessed": "2026-11-12",
-      "name": "UCT house rule: The house sizing rule, section 9: The account rulebook (the owner, 2026-11-09)",
-      "quote": "No new buys in the 3 days before an earnings report; hold through a report only if the trade is up 5R.",
-      "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
-     },
-     {
-      "accessed": "2026-11-12",
-      "name": "UCT house rule: The house sizing rule, section 9: The account rulebook (the owner, 2026-11-09)",
-      "quote": "A tight stop never justifies a bigger position than that: a gap can jump the stop.",
-      "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
-     }
-    ],
-    "summary": "With a report close, buy a smaller position than normal. Stop orders do not protect you from gaps. Gaps between sessions are a known weakness of stop orders. The reaction to a report is close to a coin flip, so don't try to predict it. Shares held into a report carry the full move, either way. B22: no new buys in the 3 days before a report, and we hold through a report only if the trade is up 5R. A7: a tight stop never justifies a bigger position, because a gap can jump the stop."
-   },
-   "facts": {
-    "given": "Some traders buy a smaller position than usual when a report is a week away. Why does the smaller size help? A gap would hit fewer shares Your stop fills nearer its price Reports tend to push stocks down It cuts the odds of a gap down"
-   },
-   "lesson_line": "Size sets what a gap can cost. A stop can't save you from a gap.",
-   "simple": "A gap would hit fewer shares, since a stop can't protect you from a gap and size sets the cost.",
-   "tier": "core",
-   "unit": "F5.06",
-   "why": "A gap would hit fewer shares. A stop can't protect you from a gap, so size sets what a gap costs. Cabot suggests buying smaller when a report is close. Our own rule is about timing instead. We make no new buys in the 3 days before a report, and we hold through only if up 5R. Size changes the cost of a gap, not the fill or the odds.",
-   "wrong": {
-    "It cuts the odds of a gap down": "Your size has no effect on how the stock reacts. It only changes how much a gap costs you.",
-    "Reports tend to push stocks down": "No direction is known. The reaction is close to a coin flip. The risk is the size of the move.",
-    "Your stop fills nearer its price": "Size doesn't change the fill. A gap fills your stop at the open either way."
-   }
-  },
-  "review_status": "draft",
-  "skill_id": "fund.earnings_decision",
-  "source_kind": "course",
-  "source_ref": "docs/study/courses/F5/F5.06.json#q11",
-  "type": "recall",
-  "version": 1
- },
- {
-  "answer_json": {
    "answer": "1.5%"
   },
   "difficulty": 2,
   "id": "si_01635d066403",
   "lesson_origin": "session",
-  "lesson_text": "1.5% of the account. You sold half before the report, so you kept half of a 30% position. Half of 30% is 15%. A 10% gap on 15% of the account is 1.5%. A trim lowers what a gap costs. It doesn't remove it. Selling half before a report halves what the gap costs. The shares you keep take the full drop.",
+  "lesson_text": "1.5% of the account. You sold half before the report, so you kept half of a 30% position. Half of 30% is 15%. A 10% gap on 15% of the account is 1.5%. That is the fall from the night before the report. Whether the trade as a whole ends up or down also depends on the profit you had built. A trim lowers what a gap costs. It doesn't remove it. Selling half before a report halves what the gap costs. The shares you keep take the full drop.",
   "module": "F5",
   "prompt_json": {
    "choices": [
@@ -10001,7 +9905,7 @@
     "15%"
    ],
    "kind": "mcq",
-   "q": "Your position is 30% of the account. You sell half before the report. It gaps down 10%. What share of the account did you lose?",
+   "q": "You hold 30% of the account in one name and sell half before the report. It gaps down 10%. How much does the account fall?",
    "subject": "F5.06#q12"
   },
   "reveal_json": {
@@ -10042,13 +9946,13 @@
      "fn": "arith",
      "result": 1.5
     },
-    "given": "Your position is 30% of the account. You sell half before the report. It gaps down 10%. What share of the account did you lose? 1.5% 3% 7.5% 15%"
+    "given": "You hold 30% of the account in one name and sell half before the report. It gaps down 10%. How much does the account fall? 1.5% 3% 7.5% 15%"
    },
    "lesson_line": "Selling half before a report halves what the gap costs. The shares you keep take the full drop.",
    "simple": "1.5%, because you kept half the shares, so the 10% gap hit only half of a 30% position.",
    "tier": "extended",
    "unit": "F5.06",
-   "why": "1.5% of the account. You sold half before the report, so you kept half of a 30% position. Half of 30% is 15%. A 10% gap on 15% of the account is 1.5%. A trim lowers what a gap costs. It doesn't remove it.",
+   "why": "1.5% of the account. You sold half before the report, so you kept half of a 30% position. Half of 30% is 15%. A 10% gap on 15% of the account is 1.5%. That is the fall from the night before the report. Whether the trade as a whole ends up or down also depends on the profit you had built. A trim lowers what a gap costs. It doesn't remove it.",
    "wrong": {
     "15%": "Gave the size of the half you kept, not the loss on it.",
     "3%": "Let the whole position take the gap and ignored the sale.",
@@ -10901,28 +10805,28 @@
  },
  {
   "answer_json": {
-   "answer": "Stock B"
+   "answer": "XVRP"
   },
   "difficulty": 3,
   "id": "si_ec9e86ba7053",
   "lesson_origin": "session",
-  "lesson_text": "Stock B. The same 10% gap costs each stock's share of the account. B is 25% of the account, so it costs the most. A at 8% and C at 5% cost far less. B is also up only 1%, so it ends below your entry. A, up 35%, stays in profit. Size sets the cost. The gain sets the cushion. Biggest size and the thinnest cushion: that's the riskiest one to carry into a report.",
+  "lesson_text": "XVRP. The same 10% gap costs each name's share of the account. XVRP is 25% of the account, so it costs the most. QZLA at 8% and JKQN at 5% cost far less. XVRP is also up only 1%, so it ends below your entry. QZLA, up 35%, stays in profit. Size sets the cost. The gain sets the cushion. Biggest size and the thinnest cushion: that's the riskiest one to carry into a report.",
   "module": "F5",
   "prompt_json": {
    "choices": [
-    "Stock B",
+    "XVRP",
     "All equal",
-    "Stock A",
-    "Stock C"
+    "QZLA",
+    "JKQN"
    ],
    "kind": "mcq",
    "q": "A 10% gap down hits all three. Which one costs the account the most?",
-   "story": "Three of your stocks report this week. A is 8% of the account, up 35%. B is 25%, up 1%. C is 5%, up 12%.",
+   "story": "Three of your names report this week. QZLA is 8% of the account, up 35%. XVRP is 25%, up 1%. JKQN is 5%, up 12%.",
    "subject": "F5.06#q23"
   },
   "reveal_json": {
    "deeper": {
-    "trap": "The biggest gain draws the eye, but a gain is cushion, not cost. A's 35% gain keeps it in profit after the gap. B's thin 1% gain is gone at once. Rank by size for the cost, then by gain for the cushion."
+    "trap": "The biggest gain draws the eye, but a gain is cushion, not cost. QZLA's 35% gain keeps it in profit after the gap. XVRP's thin 1% gain is gone at once. Rank by size for the cost, then by gain for the cushion."
    },
    "depth": {
     "sources": [
@@ -10951,17 +10855,17 @@
     "summary": "Shares held into a report carry the full move, either way. Where you have no profit yet, sell some shares before the report. Checking the expected move on a position you own helps you decide whether to hold through the report."
    },
    "facts": {
-    "given": "A 10% gap down hits all three. Which one costs the account the most? Three of your stocks report this week. A is 8% of the account, up 35%. B is 25%, up 1%. C is 5%, up 12%. Stock A Stock B Stock C All equal"
+    "given": "A 10% gap down hits all three. Which one costs the account the most? Three of your names report this week. QZLA is 8% of the account, up 35%. XVRP is 25%, up 1%. JKQN is 5%, up 12%. QZLA XVRP JKQN All equal"
    },
    "lesson_line": "Biggest size and the thinnest cushion: that's the riskiest one to carry into a report.",
-   "simple": "Stock B, because it's the biggest position at 25% of the account, so the same 10% gap costs the account the most.",
+   "simple": "XVRP, because it's the biggest position at 25% of the account, so the same 10% gap costs the account the most.",
    "tier": "expert",
    "unit": "F5.06",
-   "why": "Stock B. The same 10% gap costs each stock's share of the account. B is 25% of the account, so it costs the most. A at 8% and C at 5% cost far less. B is also up only 1%, so it ends below your entry. A, up 35%, stays in profit. Size sets the cost. The gain sets the cushion.",
+   "why": "XVRP. The same 10% gap costs each name's share of the account. XVRP is 25% of the account, so it costs the most. QZLA at 8% and JKQN at 5% cost far less. XVRP is also up only 1%, so it ends below your entry. QZLA, up 35%, stays in profit. Size sets the cost. The gain sets the cushion.",
    "wrong": {
-    "All equal": "Each stock drops the same 10%, but the account feels it only on what you hold. The biggest position costs the most.",
-    "Stock A": "A has the biggest gain, but at 8% of the account it's a small position. The same gap costs the account less, and A stays in profit.",
-    "Stock C": "C is the smallest position, at 5% of the account, so the same gap costs the account the least."
+    "All equal": "Each name drops the same 10%, but the account feels it only on what you hold. The biggest position costs the most.",
+    "JKQN": "JKQN is the smallest position, at 5% of the account, so the same gap costs the account the least.",
+    "QZLA": "QZLA has the biggest gain, but at 8% of the account it's a small position. The same gap costs the account less, and QZLA stays in profit."
    }
   },
   "review_status": "draft",
@@ -13578,7 +13482,7 @@
   "difficulty": 3,
   "id": "si_df37c197db06",
   "lesson_origin": "session",
-  "lesson_text": "Skip it. Our rule is to skip a long that is more than 10% above its 10-day average, and this one is 14% above. A strong close and huge volume do not change that distance. A tighter stop does not fix it either, since our stop goes a few cents under the day's low. Buying half and adding later breaks our one-price, one-stop rule. A great earnings gap can still be too stretched to buy. Check the distance from the 10-day average first.",
+  "lesson_text": "Skip it. Our rule is to skip a long that is more than 10% above its 9 EMA, and this one is 14% above. A strong close and huge volume do not change that distance. A tighter stop does not fix it either, since our stop goes a few cents under the day's low. Buying half and adding later breaks our one-price, one-stop rule. A great earnings gap can still be too stretched to buy. Check the distance from the 9 EMA first.",
   "module": "F5",
   "prompt_json": {
    "choices": [
@@ -13589,12 +13493,12 @@
    ],
    "kind": "mcq",
    "q": "What do you do?",
-   "story": "A stock gaps up on strong earnings and closes near its high on huge volume. At your planned entry it sits 14% above its 10-day average.",
+   "story": "A stock gaps up on strong earnings and closes near its high on huge volume. At your planned entry it sits 14% above its 9 EMA.",
    "subject": "F5.07#q27"
   },
   "reveal_json": {
    "deeper": {
-    "trap": "A strong close and heavy volume make a gap feel safe to buy. They say nothing about how far price has run from its 10-day average. Our rule checks that distance first."
+    "trap": "A strong close and heavy volume make a gap feel safe to buy. They say nothing about how far price has run from its 9 EMA. Our rule checks that distance first."
    },
    "depth": {
     "sources": [
@@ -13618,22 +13522,29 @@
       "quote": "Stop first (by default a few cents under the day's low or the prior day's low, F62); the size comes from the stop; if the honest stop does not fit the risk, skip the trade.",
       "tier": 3,
       "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      }
     ],
-    "summary": "We skip a long that is more than 10% above its 10-day average. We buy the full size at one price with one stop, and never add to it. Our stop goes first, a few cents under the day's low or the prior day's low, and the size comes from it."
+    "summary": "We skip a long that is more than 10% above its 10-day average. We buy the full size at one price with one stop, and never add to it. Our stop goes first, a few cents under the day's low or the prior day's low, and the size comes from it. Our rule: the course teaches the 9 and 20 EMA, with the 50 and 200 SMA."
    },
    "facts": {
-    "given": "What do you do? A stock gaps up on strong earnings and closes near its high on huge volume. At your planned entry it sits 14% above its 10-day average. Skip it: it's too stretched to buy Buy it: the close and volume are strong Buy half now, add on a pullback Buy it, but set a tighter stop"
+    "given": "What do you do? A stock gaps up on strong earnings and closes near its high on huge volume. At your planned entry it sits 14% above its 9 EMA. Skip it: it's too stretched to buy Buy it: the close and volume are strong Buy half now, add on a pullback Buy it, but set a tighter stop"
    },
-   "lesson_line": "A great earnings gap can still be too stretched to buy. Check the distance from the 10-day average first.",
-   "simple": "Skip it, because we skip a long more than 10% above its 10-day average, and this one is 14% above.",
+   "lesson_line": "A great earnings gap can still be too stretched to buy. Check the distance from the 9 EMA first.",
+   "simple": "Skip it, because we skip a long more than 10% above its 9 EMA, and this one is 14% above.",
    "tier": "expert",
    "unit": "F5.07",
-   "why": "Skip it. Our rule is to skip a long that is more than 10% above its 10-day average, and this one is 14% above. A strong close and huge volume do not change that distance. A tighter stop does not fix it either, since our stop goes a few cents under the day's low. Buying half and adding later breaks our one-price, one-stop rule.",
+   "why": "Skip it. Our rule is to skip a long that is more than 10% above its 9 EMA, and this one is 14% above. A strong close and huge volume do not change that distance. A tighter stop does not fix it either, since our stop goes a few cents under the day's low. Buying half and adding later breaks our one-price, one-stop rule.",
    "wrong": {
     "Buy half now, add on a pullback": "We buy the full size at one price with one stop, and never add. And this one is too stretched to buy.",
     "Buy it, but set a tighter stop": "Our stop goes a few cents under the day's low or the prior day's low. A tighter stop does not fix the stretch.",
-    "Buy it: the close and volume are strong": "A strong close and big volume do not change the distance. We skip a long more than 10% above its 10-day average."
+    "Buy it: the close and volume are strong": "A strong close and big volume do not change the distance. We skip a long more than 10% above its 9 EMA."
    }
   },
   "review_status": "draft",

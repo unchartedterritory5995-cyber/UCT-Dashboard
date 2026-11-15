@@ -228,6 +228,14 @@
    "title": "Setup decisions: the owner's rulings (2026-11-12)",
    "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
   }
  ],
  "facts": [
@@ -533,9 +541,9 @@
   },
   {
    "id": "h14",
-   "source": "s26",
-   "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
-   "claim": "After the first third at 3R, we sell another third at 5R and trail the last third."
+   "source": "hw",
+   "quote": "Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
+   "claim": "Later sells are a judgment: sell more into strength on a later push, and trail what is left."
   },
   {
    "id": "h03",
@@ -546,14 +554,14 @@
   {
    "id": "h04",
    "source": "s20",
-   "quote": "under each higher low, or under the 10-day average",
-   "claim": "Our Kicker trail: under each higher low, or under the 10-day average."
+   "quote": "under each higher low, or under the 9 EMA",
+   "claim": "Our Kicker trail: under each higher low, or under the 9 EMA."
   },
   {
    "id": "h05",
    "source": "s20",
-   "quote": "under the rising 21-day average, or under each higher low",
-   "claim": "Our Launchpad trail: under the rising 21-day average, or under each higher low."
+   "quote": "under the rising 20 EMA, or under each higher low",
+   "claim": "Our Launchpad trail: under the rising 20 EMA, or under each higher low."
   },
   {
    "id": "h06",
@@ -595,7 +603,7 @@
    "id": "h12",
    "source": "s24",
    "quote": "if it's a 1% stop then technically a 50% size would be 0.5% risk.",
-   "claim": "In the owner's words: position size times stop distance is the risk."
+   "claim": "In our words: position size times stop distance is the risk."
   },
   {
    "id": "h13",
@@ -703,13 +711,19 @@
    "id": "r01",
    "source": "h2",
    "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
-   "claim": "The owner's ruling: the first sell is a judgment, not a fixed third at 3R."
+   "claim": "Our rule: the first sell is a judgment, not a fixed third at 3R."
   },
   {
    "id": "r02",
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
+  },
+  {
+   "id": "rd21",
    "source": "h2",
-   "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
-   "claim": "The owner rarely sells on day 1 of the buy and usually waits until day 3 at the earliest."
+   "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+   "claim": "Our rule: the course teaches the 9 and 20 EMA, with the 50 and 200 SMA."
   }
  ],
  "walkthroughs": [
@@ -1074,15 +1088,15 @@
    "skill": "styles.method_by_style",
    "rung": 5,
    "format": "mcq",
-   "q": "Several of our setup plans trail under the 10-day or 21-day average. Which of these gives the best read on a hold of up to a year?",
+   "q": "Several of our setup plans trail under the 9 EMA or 20 EMA. Which of these gives the best read on a hold of up to a year?",
    "choices": [
     "The 200-day average",
-    "The 10-day average",
-    "The 21-day average",
+    "The 9 EMA",
+    "The 20 EMA",
     "The 100-hour average"
    ],
    "answer": "The 200-day average",
-   "why": "The 200-day average. The average you read should fit how long you hold. Schwab says a position trader willing to hold up to a year gets a better read from the 200-day. ChartSchool says long-term investors often use 100 or more periods. We use the 200-day too: no longs below it, unless it is a parabolic long. It is a line we read, not our trail. Our setup plans still trail under the 10-day or 21-day average.",
+   "why": "The 200-day average. The average you read should fit how long you hold. Schwab says a position trader willing to hold up to a year gets a better read from the 200-day. ChartSchool says long-term investors often use 100 or more periods. We use the 200-day too: no longs below it, unless it is a parabolic long. It is a line we read, not our trail. Our setup plans still trail under the 9 EMA or 20 EMA.",
    "lesson_line": "Same rule, longer clock: the average you watch should fit how long you hold.",
    "facts": [
     "f26",
@@ -1095,12 +1109,13 @@
     "h05",
     "h13",
     "f21",
-    "h23"
+    "h23",
+    "rd21"
    ],
    "wrong": {
-    "The 10-day average": "Schwab ties the 10 and 20-day to holds of 10 trading days or less. It hugs price and turns quickly, too fast for a hold of up to a year.",
-    "The 21-day average": "ChartSchool puts 20 to 60 periods with medium-term trends. A hold of up to a year calls for a longer one.",
-    "The 100-hour average": "That is 100 periods, but of hourly bars. A longer-term trader judges exits on a longer timeframe, not intraday levels."
+    "The 100-hour average": "That is 100 periods, but of hourly bars. A longer-term trader judges exits on a longer timeframe, not intraday levels.",
+    "The 9 EMA": "Schwab ties the 10 and 20-day to holds of 10 trading days or less. A short line like the 9 EMA hugs price and turns quickly, too fast for a hold of up to a year.",
+    "The 20 EMA": "ChartSchool puts 20 to 60 periods with medium-term trends. A hold of up to a year calls for a longer one."
    },
    "simple": "The 200-day, because a long hold needs a long average, and Schwab says it reads best for holds up to a year.",
    "deeper": {
@@ -1114,7 +1129,7 @@
      "touches the rulebook's E52 trail (owner flag)"
     ]
    },
-   "batch": "wave9"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q11",
@@ -1737,7 +1752,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "The 200-day is right on f26 (Schwab, up to a year) and f44 (ChartSchool, 100 or more periods): two Tier 2 publishers. It now also teaches B26 (h23) and says plainly the 200-day is not our trail (E52), so it agrees with the rulebook. Choices 18-20 chars, no tell; the 100-hour distractor is a real 100-period mix-up. The open owner flag on the unit fit stays."
+   "notes": "Choices renamed 9 EMA / 20 EMA; Schwab's own 10 and 20-day wording kept as the source's, which is acceptable; 200-day answer right."
   },
   "q11": {
    "status": "pass",

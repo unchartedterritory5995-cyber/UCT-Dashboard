@@ -133,6 +133,14 @@
    "title": "Setup decisions: the owner's rulings (2026-11-12)",
    "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
   }
  ],
  "facts": [
@@ -276,9 +284,9 @@
   },
   {
    "id": "hB19",
-   "source": "h1",
-   "quote": "Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is a third at 3R",
-   "claim": "B19: breakeven at 2R to 5R; the hard rule for the first trim is a third at 3R."
+   "source": "hw",
+   "quote": "The stop may move up to breakeven between 2R and 5R, or at the first sell.",
+   "claim": "Our stop may move up to breakeven between 2R and 5R, or at the first sell."
   },
   {
    "id": "hB21",
@@ -312,9 +320,9 @@
   },
   {
    "id": "hE52",
-   "source": "h1",
-   "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
-   "claim": "E52: trail under the 10-day for fast movers, the 21-day for steadier ones."
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
   },
   {
    "id": "hE57",
@@ -462,9 +470,9 @@
   },
   {
    "id": "a27",
-   "source": "c1",
-   "quote": "Trail the last third: a close under the 10-day for a fast mover, under the 21-day for a steadier one.",
-   "claim": "Card: trail the last third under the 10-day or 21-day, sold on a close."
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
   },
   {
    "id": "a29",
@@ -900,9 +908,9 @@
   },
   {
    "id": "hE51",
-   "source": "h1",
-   "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
-   "claim": "E51: after the first third at 3R, another third at 5R, then trail the last third."
+   "source": "hw",
+   "quote": "Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
+   "claim": "Later sells are a judgment: sell more into strength on a later push, and trail what is left."
   },
   {
    "id": "hF63",
@@ -1128,9 +1136,9 @@
   },
   {
    "id": "r71",
-   "source": "h2",
-   "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
-   "claim": "Owner: he very rarely sells on day 1 and usually waits until day 3."
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
   },
   {
    "id": "r72",
@@ -1149,6 +1157,18 @@
    "source": "h2",
    "quote": "This replaces the proposed one-ADR rule.",
    "claim": "Owner ruling D-005: the 1-3% to 5% stop distance replaces the proposed one-ADR rule."
+  },
+  {
+   "id": "r21",
+   "source": "h2",
+   "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+   "claim": "Owner ruling D-021: we use the 9 and 20 EMA everywhere, with the 50 and 200 SMA."
+  },
+  {
+   "id": "r06",
+   "source": "h2",
+   "quote": "Volume raises the grade; it is not a requirement for the setup to count (except where volume IS the setup, as proposed: HVE and the burst setups).",
+   "claim": "Owner ruling D-006: volume raises the grade and is not a requirement, except where volume is the setup."
   }
  ],
  "walkthroughs": [
@@ -1907,15 +1927,16 @@
    "criterion": "qk.breakout_trail",
    "q": "Kullamagi trails the rest of the position with the 10- or 20-day average.",
    "answer": "True",
-   "why": "True. Kullamagi trails the rest with the 10- or the 20-day moving average. Ours is nearly the same line: a close under the 10-day for fast movers, or under the 21-day for steadier ones. In our plan the rest is what is left after the first sells.",
-   "lesson_line": "Trail what is left under the 10-day or 21-day.",
+   "why": "True. Kullamagi trails the rest with the 10- or the 20-day moving average. We use the 9 and 20 EMA: a close under the 9 EMA for fast movers, or under the 20 EMA for steadier ones. In our plan the rest is what is left after the first sells.",
+   "lesson_line": "Trail what is left under the 9 EMA or 20 EMA.",
    "facts": [
     "K6",
     "a27",
-    "hE52"
+    "hE52",
+    "r21"
    ],
    "house": true,
-   "simple": "Yes. He trails the rest with the 10- or 20-day average, and we use a close under the 10-day or 21-day.",
+   "simple": "Yes. He trails the rest with the 10- or 20-day average, and we use a close under the 9 or 20 EMA.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1923,7 +1944,7 @@
      "Rests on the owner's rulebook (E52, the trail)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q83",
@@ -2705,11 +2726,12 @@
     "dAMZNw",
     "a21",
     "hB22",
-    "hB20"
+    "hB20",
+    "r04"
    ],
    "wrong": {
     "No buy over 4% above the trigger": "That rule limits how far above the trigger you buy. This story is about a report that came that evening.",
-    "Stop no wider than the stock's ADR": "That rule limits how wide the stop is. It does not keep you out ahead of a report.",
+    "Stop no wider than the stock's ADR": "Kullamagi caps the stop at the ADR, but we no longer use that rule. It would not keep you out ahead of a report.",
     "Let a gap's first 30 minutes decide": "That rule manages a gap after you own the stock. It does not keep you out of the buy."
    },
    "house": true,
@@ -2725,7 +2747,7 @@
      "rests on the owner's rulebook"
     ]
    },
-   "batch": "wave4"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q51",
@@ -3099,16 +3121,17 @@
    "rung": 1,
    "format": "tf",
    "criterion": "qk.kell_up_cycle",
-   "q": "On our card, a 10-day EMA under the 20-day EMA with both falling is a down cycle: no new longs.",
+   "q": "On our card, a 9 EMA under the 20 EMA with both falling is a down cycle: no new longs.",
    "answer": "True",
-   "why": "True. In a down cycle the 10 EMA is below the 20 EMA and both are falling. Our card says no longs there. Kell says that with the 10 under the 20 there is no reason to be long.",
-   "lesson_line": "10 under 20, both falling, is a down cycle. No longs.",
+   "why": "True. In a down cycle the 9 EMA is below the 20 EMA and both are falling. Our card says no longs there. Kell, with his 10-day EMA, says there is no reason to be long.",
+   "lesson_line": "9 under 20, both falling, is a down cycle. No longs.",
    "facts": [
     "b1",
-    "L2"
+    "L2",
+    "r21"
    ],
    "house": true,
-   "simple": "True, because a down cycle is the 10 under the 20 with both falling, and our card takes no longs there.",
+   "simple": "True, because a down cycle is the 9 under the 20 with both falling, and our card takes no longs there.",
    "deeper": {
     "trap": "Kell's line comes from his note on selling short into resistance, and he states it without 'both falling'. Our card adds that both averages must be falling."
    },
@@ -3120,7 +3143,7 @@
      "Kell's line comes from a note about selling short"
     ]
    },
-   "batch": "wave4"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q60",
@@ -3168,25 +3191,26 @@
    "criterion": "qk.kell_up_cycle",
    "q": "On our card, how is an up cycle defined?",
    "choices": [
-    "10 EMA above the 20 EMA, both rising",
+    "9 EMA above the 20 EMA, both rising",
     "Price stays above the 200-day",
-    "10 EMA under the 20, both falling",
-    "Price closes above the 10 EMA once"
+    "9 EMA under the 20, both falling",
+    "Price closes above the 9 EMA once"
    ],
-   "answer": "10 EMA above the 20 EMA, both rising",
-   "why": "The 10 EMA is above the 20 EMA, and both are rising. In a down cycle the 10 is below the 20 and both are falling. Kell reads the 10 and 20-day EMAs to guide the intermediate-term trend.",
-   "lesson_line": "Up cycle: the 10 over the 20, both rising.",
+   "answer": "9 EMA above the 20 EMA, both rising",
+   "why": "The 9 EMA is above the 20 EMA, and both are rising. In a down cycle the 9 is below the 20 and both are falling. Kell reads the 10 and 20-day EMAs; we use the 9 and 20 EMA.",
+   "lesson_line": "Up cycle: the 9 over the 20, both rising.",
    "facts": [
     "b1",
-    "L1"
+    "L1",
+    "r21"
    ],
    "wrong": {
-    "Price stays above the 200-day": "The cycle is read on the 10 and 20-day EMAs, not a longer average.",
-    "10 EMA under the 20, both falling": "That is a down cycle.",
-    "Price closes above the 10 EMA once": "One close above a line is not a cycle. It is read on the 10 and 20-day EMAs."
+    "Price stays above the 200-day": "The cycle is read on the 9 and 20 EMA, not a longer average.",
+    "9 EMA under the 20, both falling": "That is a down cycle.",
+    "Price closes above the 9 EMA once": "One close above a line is not a cycle. It is read on the 9 and 20 EMA."
    },
    "house": true,
-   "simple": "An up cycle is when the 10-day average sits above the 20-day and both are rising.",
+   "simple": "An up cycle is when the 9 EMA sits above the 20 EMA and both are rising.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -3194,7 +3218,7 @@
      "rests on a held decision"
     ]
    },
-   "batch": "wave4"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q62",
@@ -3205,24 +3229,25 @@
    "q": "What does 'air' mean in Kell's cycle?",
    "choices": [
     "The day's low is under the 20 EMA",
-    "The day's low is above the 10 EMA",
+    "The day's low is above the 9 EMA",
     "Volume is under the 50-day average",
-    "A gap down through the 10 EMA"
+    "A gap down through the 9 EMA"
    ],
-   "answer": "The day's low is above the 10 EMA",
-   "why": "The day's low is above the 10 EMA. That gap between the low and the 10 EMA is the air. Kell: start to get defensive when there is air between the day's low and the 10 EMA. Above both averages is a different test, a close above the 10 and the 20 EMA.",
-   "lesson_line": "Air means the low is above the 10 EMA. Get defensive.",
+   "answer": "The day's low is above the 9 EMA",
+   "why": "The day's low is above the 9 EMA. That gap between the low and the line is the air. Kell says get defensive when there is air between the day's low and his 10 EMA; we use the 9 and 20 EMA. Above both is a different test, a close above the 9 and the 20 EMA.",
+   "lesson_line": "Air means the low is above the 9 EMA. Get defensive.",
    "facts": [
     "b2",
-    "L13"
+    "L13",
+    "r21"
    ],
    "wrong": {
-    "The day's low is under the 20 EMA": "Air is above the 10 EMA, not under the 20.",
-    "Volume is under the 50-day average": "Air is about price against the 10 EMA, not volume.",
-    "A gap down through the 10 EMA": "Air is the day's low above the 10 EMA, not a gap down through it."
+    "The day's low is under the 20 EMA": "Air is above the 9 EMA, not under the 20.",
+    "Volume is under the 50-day average": "Air is about price against the 9 EMA, not volume.",
+    "A gap down through the 9 EMA": "Air is the day's low above the 9 EMA, not a gap down through it."
    },
    "house": true,
-   "simple": "Air means the day's low is above the 10 EMA, which is a sign to get defensive.",
+   "simple": "Air means the day's low is above the 9 EMA, which is a sign to get defensive.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -3230,7 +3255,7 @@
      "the 10 EMA pairing waits on a held decision (D-021)"
     ]
    },
-   "batch": "wave4"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q63",
@@ -3238,17 +3263,19 @@
    "rung": 2,
    "format": "tf",
    "criterion": "qk.kell_wp_trigger",
-   "q": "Once the 10-day EMA crosses the 20-day EMA, you have a Wedge Pop.",
+   "q": "Once the 9 EMA crosses the 20 EMA, you have a Wedge Pop.",
    "answer": "False",
-   "why": "False. A cross alone is not a Wedge Pop. Kell says many traders mistakenly believe it is simply about crossing the averages. The pop trades through the pivot and closes above both averages, on volume at least the 50-day average.",
-   "lesson_line": "Watch the price bar and volume, not just the cross.",
+   "why": "False. A cross alone is not a Wedge Pop. Kell says many traders mistakenly believe it is simply about crossing the averages. The pop trades through the pivot and closes above both averages. Volume raises the grade.",
+   "lesson_line": "Watch the price bar, not just the cross.",
    "facts": [
     "b4b",
     "L5",
-    "b4"
+    "b4",
+    "r21",
+    "r06"
    ],
    "house": true,
-   "simple": "No. A cross of the averages is not enough, because the pop also needs a price break and volume.",
+   "simple": "No. A cross of the averages is not enough, because the pop also needs a price break and a close above both.",
    "tier": "core",
    "risk": {
     "score": 4,
@@ -3257,7 +3284,7 @@
      "Volume floor is the card's proposed number"
     ]
    },
-   "batch": "wave4"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q64",
@@ -3307,18 +3334,19 @@
     "Exhaustion Extension"
    ],
    "answer": "Base n' Break",
-   "why": "Base n' Break. Kell calls it another pullback into the averages after the EMA Crossback. On our card it is a tight base of 5 to 15 sessions in an up cycle. Its lows hold the rising 10/20 EMA. Buy the break into new highs.",
+   "why": "Base n' Break. Kell calls it another pullback into the averages after the EMA Crossback. On our card it is a tight base of 5 to 15 sessions in an up cycle. Its lows hold the rising 9 and 20 EMA. Buy the break into new highs.",
    "lesson_line": "A tight base on the averages near the highs is a Base n' Break.",
    "facts": [
     "b9",
     "L9",
     "bBnT",
-    "b16"
+    "b16",
+    "r21"
    ],
    "wrong": {
     "Wedge Pop": "A Wedge Pop comes before the Crossback, from under the averages after a Reversal Extension or correction.",
-    "Wedge Drop": "A Wedge Drop closes below both averages on volume above the 50-day average.",
-    "Exhaustion Extension": "An extension is far above the 10 EMA, not a pullback into the averages."
+    "Wedge Drop": "A Wedge Drop closes below both averages, so it breaks them instead of holding them.",
+    "Exhaustion Extension": "An extension is far above the 9 EMA, not a pullback into the averages."
    },
    "house": true,
    "simple": "A short, tight base that sits on the rising averages near the highs is a Base n' Break.",
@@ -3330,7 +3358,7 @@
      "5 to 15 sessions is the card's proposed number"
     ]
    },
-   "batch": "wave4"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q66",
@@ -3376,7 +3404,7 @@
    "rung": 3,
    "format": "mcq",
    "criterion": "qk.kell_ee_definition",
-   "q": "On our card, how far above the 10-day marks a stock's Exhaustion Extension?",
+   "q": "On our card, how far above the 9 EMA marks a stock's Exhaustion Extension?",
    "choices": [
     "A close 10% or more above",
     "A close 3% to 4% above",
@@ -3384,23 +3412,24 @@
     "A touch of the rising 20 EMA"
    ],
    "answer": "A close 10% or more above",
-   "why": "A close 10% or more above the 10-day, with air under it. For a stock, it is air, the day's low above the 10 EMA, and a close far above the 10 EMA. Kell calls it a euphoric blowoff well above the 10-day. Count the extensions: after 3 to 4 of them, expect a longer base.",
-   "lesson_line": "Ten percent over the 10-day, and the low above it: extended.",
+   "why": "A close 10% or more above the 9 EMA, with the day's low above it. For a stock, it is air and a close far above the 9 EMA. Kell calls it a euphoric blowoff well above his 10-day; we use the 9 EMA. Count the extensions: after 3 to 4 of them, expect a longer base.",
+   "lesson_line": "Ten percent over the 9 EMA, and the low above it: extended.",
    "facts": [
     "b14",
     "b14b",
     "L12",
     "L16",
     "b15",
-    "hC29"
+    "hC29",
+    "r21"
    ],
    "wrong": {
     "A close 3% to 4% above": "Kell found 3-4% above the averages too much to buy. That is a buying line, not the mark for an extension.",
     "A close 5% to 6% above": "A close 5% to 6% above is under the card's mark. The mark is 10% or more.",
-    "A touch of the rising 20 EMA": "An extension is far above the 10 EMA, not at the 20."
+    "A touch of the rising 20 EMA": "An extension is far above the 9 EMA, not at the 20."
    },
    "house": true,
-   "simple": "An Exhaustion Extension is a close 10% or more above the 10-day average, with the day's low above it.",
+   "simple": "An Exhaustion Extension is a close 10% or more above the 9 EMA, with the day's low above it.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -3409,7 +3438,7 @@
      "a number that may change"
     ]
    },
-   "batch": "wave4"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q69",
@@ -3417,7 +3446,7 @@
    "rung": 4,
    "format": "mcq",
    "criterion": "qk.kell_ee_definition",
-   "q": "A stock's 10-day EMA is 100.00. It closes at 111.50 with its low at 102.00. How far above the 10-day is the close, in percent?",
+   "q": "A stock's 9 EMA is 100.00. It closes at 111.50 with its low at 102.00. How far above the 9 EMA is the close, in percent?",
    "answer": "11.5%",
    "calc": {
     "fn": "arith",
@@ -3428,16 +3457,17 @@
     },
     "round": 1
    },
-   "why": "The close of 111.50 is 11.50 over the 10-day of 100.00. Divide by the 10-day to get 11.5%. That is 10% or more. The low of 102.00 is also above the 10-day, so there is air. On the daily chart that fits our card's Exhaustion Extension test, and we skip a long more than 10% above its 10-day.",
-   "lesson_line": "Measure the close against the 10-day. Ten percent or more with air is extended.",
+   "why": "The close of 111.50 is 11.50 over the 9 EMA of 100.00. Divide by the 9 EMA to get 11.5%. That is 10% or more. The low of 102.00 is also above the 9 EMA, so there is air. On the daily chart that fits our card's Exhaustion Extension test, and we skip a long more than 10% above its 9 EMA.",
+   "lesson_line": "Measure the close against the 9 EMA. Ten percent or more with air is extended.",
    "facts": [
     "b14",
     "b14b",
-    "hC29"
+    "hC29",
+    "r21"
    ],
    "house": true,
    "suffix": "%",
-   "simple": "The close is 11.5 percent above the 10-day average, which is past 10 percent, so it is extended.",
+   "simple": "The close is 11.5 percent above the 9 EMA, which is past 10 percent, so it is extended.",
    "tier": "core",
    "risk": {
     "score": 4,
@@ -3446,7 +3476,7 @@
      "rests on the criteria card, which the owner has not yet ruled on"
     ]
    },
-   "batch": "rank",
+   "batch": "sweep-2026-11-14",
    "choices": [
     "11.5%",
     "111.5%",
@@ -3454,8 +3484,8 @@
     "89.7%"
    ],
    "wrong": {
-    "111.5%": "Never took off the 10-day, just compared close to average.",
-    "89.7%": "Divided the 10-day by the close, upside down.",
+    "111.5%": "Never took off the 9 EMA, just compared close to average.",
+    "89.7%": "Divided the 9 EMA by the close, upside down.",
     "115.0%": "Slipped the decimal point one place right."
    }
   },
@@ -3467,12 +3497,14 @@
    "criterion": "qk.kell_wd_exit",
    "q": "For a long, a Wedge Drop is already an exit under our trail.",
    "answer": "True",
-   "why": "True. A Wedge Drop closes below both the 10 and 20 EMA on volume above the 50-day average. Our trail already sells on a close under the 10-day or 21-day. Holding through a Wedge Drop is a mistake.",
-   "lesson_line": "A close under the 10-day or 21-day is your exit.",
+   "why": "True. A Wedge Drop closes below both the 9 and 20 EMA. Heavy volume adds weight but is not required. Our trail already sells on a close under the 9 EMA for fast movers or the 20 EMA for steadier ones. Holding through a Wedge Drop is a mistake.",
+   "lesson_line": "A close under the 9 EMA or 20 EMA is your exit.",
    "facts": [
     "b17",
     "hE52",
-    "b16"
+    "b16",
+    "r21",
+    "r06"
    ],
    "house": true,
    "simple": "True, because a Wedge Drop is a close under the averages, and our trail already sells there.",
@@ -3483,7 +3515,7 @@
      "rests on the criteria card, which the owner has not yet ruled on"
     ]
    },
-   "batch": "wave4"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q71",
@@ -3495,25 +3527,27 @@
    "choices": [
     "No; it needs a gap up on open",
     "No; it needs volume far above average",
-    "Yes; pivot, close and volume all met",
+    "Yes; pivot and close both met",
     "Yes; any close above the 20 EMA counts"
    ],
-   "answer": "Yes; pivot, close and volume all met",
-   "why": "Yes. After a correction of 15% or more, price tightened for at least 3 sessions. Today it traded through the pivot, the high of the tight range. It closed above both the 10 and 20 EMA, on volume at least the 50-day average. Here that is 1.4 times. A gap up would raise the grade. It is not required.",
-   "lesson_line": "Through the pivot, above both averages, on volume: that is a Wedge Pop.",
+   "answer": "Yes; pivot and close both met",
+   "why": "Yes. After a correction of 15% or more, price tightened for at least 3 sessions. Today it traded through the pivot, the high of the tight range, and closed above both the 9 and 20 EMA. Volume of 1.4 times the 50-day average raises the grade. So would a gap up. Neither is required.",
+   "lesson_line": "Through the pivot and above both averages: a Wedge Pop. Volume raises the grade.",
    "facts": [
     "b4",
     "b3",
-    "L6"
+    "L6",
+    "r21",
+    "r06"
    ],
    "wrong": {
     "No; it needs a gap up on open": "A gap up raises the grade. It is not required.",
-    "No; it needs volume far above average": "The card asks for volume at least the 50-day average, not far above it. Here it is 1.4 times.",
-    "Yes; any close above the 20 EMA counts": "One close above one average is not the trigger. The pop trades through the pivot, closes above both averages and has volume at least the 50-day average."
+    "No; it needs volume far above average": "Volume raises the grade and is not required. Here 1.4 times the 50-day volume is already a plus.",
+    "Yes; any close above the 20 EMA counts": "One close above one average is not the trigger. The pop trades through the pivot and closes above both averages."
    },
    "house": true,
-   "story": "After a 20% drop, a stock tightens under its 10 and 20 EMA for five sessions. Today it trades through the high of that range and closes above both, on 1.4 times its 50-day volume.",
-   "simple": "Yes, because price broke the high of the tight range, closed above both averages, and volume was strong enough.",
+   "story": "After a 20% drop, a stock tightens under its 9 and 20 EMA for five sessions. Today it trades through the high of that range and closes above both, on 1.4 times its 50-day volume.",
+   "simple": "Yes, because price broke the high of the tight range and closed above both averages, and volume only adds to the grade.",
    "tier": "core",
    "risk": {
     "score": 5,
@@ -3523,7 +3557,7 @@
      "Fixed before"
     ]
    },
-   "batch": "wave4"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q73",
@@ -3613,7 +3647,7 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "qk.kell_air",
-   "q": "What does being 4% above the 10-day do to the buy?",
+   "q": "What does being 4% above the 9 EMA do to the buy?",
    "choices": [
     "It grades down; Kell found it too much",
     "It grades up; the trend is very strong",
@@ -3621,25 +3655,26 @@
     "It is a skip; 4% is our hard chase limit"
    ],
    "answer": "It grades down; Kell found it too much",
-   "why": "It grades down. Kell found 3-4% above the averages too much, and our card lists 3-4% or more above the averages as a B- cue. It is not a skip yet: we skip a long only when it is more than 10% above its 10-day.",
-   "lesson_line": "Extended above the averages grades down. Past 10% over the 10-day, skip.",
+   "why": "It grades down. Kell found 3-4% above the averages too much, and our card lists 3-4% or more above the averages as a B- cue. It is not a skip yet: we skip a long only when it is more than 10% above its 9 EMA.",
+   "lesson_line": "Extended above the averages grades down. Past 10% over the 9 EMA, skip.",
    "facts": [
     "g5",
     "b2b",
     "L16",
     "hC29",
-    "hC28"
+    "hC28",
+    "r21"
    ],
    "wrong": {
     "It grades up; the trend is very strong": "Kell found 3-4% above the averages too much on his losers. Our card lists it as a B- cue.",
-    "Nothing; only the stop size matters": "Distance above the averages counts. Past 10% above the 10-day we skip the buy.",
-    "It is a skip; 4% is our hard chase limit": "The 4% limit is above the buy point, not the 10-day. The skip line above the 10-day is 10%."
+    "Nothing; only the stop size matters": "Distance above the averages counts. Past 10% above the 9 EMA we skip the buy.",
+    "It is a skip; 4% is our hard chase limit": "The 4% limit is above the buy point, not the 9 EMA. The skip line above the 9 EMA is 10%."
    },
    "house": true,
-   "story": "A leader trades 4% above its 10-day average, with its day's low above the line. A fresh buy tempts you.",
+   "story": "A leader trades 4% above its 9 EMA, with its day's low above the line. A fresh buy tempts you.",
    "simple": "It grades lower, because Kell found buying this far above the averages was too much.",
    "deeper": {
-    "trap": "Two lines get mixed up. Never buy more than 4% above the buy point. Skip a long more than 10% above its 10-day average. A buy 4% above the 10-day grades down, but the 10% line does not skip it."
+    "trap": "Two lines get mixed up. Never buy more than 4% above the buy point. Skip a long more than 10% above its 9 EMA. A buy 4% above the 9 EMA grades down, but the 10% line does not skip it."
    },
    "tier": "extended",
    "risk": {
@@ -3649,7 +3684,7 @@
      "fixed before"
     ]
    },
-   "batch": "wave4"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q76",
@@ -3661,29 +3696,31 @@
    "choices": [
     "Exit; the trail already sells it",
     "Hold; one close proves nothing",
-    "Trim a third; keep the rest",
+    "Trim part; keep the rest",
     "Wait; volume must double first"
    ],
    "answer": "Exit; the trail already sells it",
-   "why": "Exit. The stock traded tight into the averages after a blowoff. Then it closed below both the 10 and 20 EMA on volume above the 50-day average. That is a Wedge Drop, which follows an Exhaustion Extension. For longs, the house trail already exits on a close under the 10-day or 21-day. Holding through it is a mistake.",
+   "why": "Exit. The stock traded tight into the averages after a blowoff. Then it closed below both the 9 and 20 EMA on volume above the 50-day average. That is a Wedge Drop, which follows an Exhaustion Extension. For longs, the house trail already exits on a close under the 9 EMA or 20 EMA. Holding through it is a mistake.",
    "lesson_line": "A close under both averages on volume after an extension: out.",
    "facts": [
     "b16",
     "b17",
     "L15",
     "a27",
-    "hE52"
+    "hE52",
+    "r21",
+    "r06"
    ],
    "wrong": {
     "Hold; one close proves nothing": "Holding through a Wedge Drop is a mistake. The trail exits.",
-    "Trim a third; keep the rest": "The trail exits on this close. A trim does not replace the exit.",
-    "Wait; volume must double first": "Volume above the 50-day average is the test, not double it. Holding through a Wedge Drop is a mistake."
+    "Wait; volume must double first": "Volume does not have to double. The trail sells on a close under both averages.",
+    "Trim part; keep the rest": "The trail exits on this close. A trim does not replace the exit."
    },
    "house": true,
-   "story": "After a blowoff far above its 10-day, a stock trades tight into the averages. Then it closes below both the 10 and 20 EMA on volume above the 50-day average. You hold a long.",
+   "story": "After a blowoff far above its 9 EMA, a stock trades tight into the averages. Then it closes below both the 9 and 20 EMA on volume above the 50-day average. You hold a long.",
    "simple": "Get out. A close under both averages on strong volume after a blowoff is a Wedge Drop, and the trail already sells it.",
    "deeper": {
-    "trap": "Do not mistake the exit for a short. Kell teaches the Wedge Drop as a short setup, but here you hold a long. For longs the trail already exits on a close under the 10-day or 21-day. Shorting is not taught in this unit."
+    "trap": "Do not mistake the exit for a short. Kell teaches the Wedge Drop as a short setup, but here you hold a long. For longs the trail already exits on a close under the 9 EMA or 20 EMA. Shorting is not taught in this unit."
    },
    "tier": "expert",
    "risk": {
@@ -3694,7 +3731,7 @@
      "Fixed before"
     ]
    },
-   "batch": "wave4"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q77",
@@ -3704,28 +3741,29 @@
    "criterion": "qk.kell_cb_setting",
    "q": "Is this a Crossback or a Base n' Break?",
    "choices": [
-    "EMA Crossback; it touched the 10 EMA",
+    "EMA Crossback; it touched the 9 EMA",
     "Base n' Break; a later pullback",
     "Wedge Pop; it is above the averages",
     "Exhaustion Extension; it sits near highs"
    ],
    "answer": "Base n' Break; a later pullback",
-   "why": "Base n' Break. The leader popped weeks ago and has already had its first pullback, so the Crossback is behind it. Now it sits near its high, and for eight sessions its lows hold the rising 10 EMA in a tight shelf. That is a tight base of 5 to 15 sessions in an up cycle. The buy is through the pivot into new highs.",
+   "why": "Base n' Break. The leader popped weeks ago and has already had its first pullback, so the Crossback is behind it. Now it sits near its high, and for eight sessions its lows hold the rising 9 EMA in a tight shelf. That is a tight base of 5 to 15 sessions in an up cycle. The buy is through the pivot into new highs.",
    "lesson_line": "A shelf near the highs on the averages is a Base n' Break.",
    "facts": [
     "b9",
     "b6",
     "L9",
     "L11",
-    "b14b"
+    "b14b",
+    "r21"
    ],
    "wrong": {
-    "EMA Crossback; it touched the 10 EMA": "A Crossback is the first pullback after the pop. That first pullback is already done.",
     "Wedge Pop; it is above the averages": "A Wedge Pop comes from under the averages.",
-    "Exhaustion Extension; it sits near highs": "An extension has air above the 10 EMA and a close far above it. Here the lows hold the 10 EMA."
+    "Exhaustion Extension; it sits near highs": "An extension has air above the 9 EMA and a close far above it. Here the lows hold the 9 EMA.",
+    "EMA Crossback; it touched the 9 EMA": "A Crossback is the first pullback after the pop. That first pullback is already done."
    },
    "house": true,
-   "story": "A leader popped weeks ago and has already had its first pullback to the averages. Now it sits near its high, and for eight sessions its lows hold the rising 10 EMA in a tight shelf.",
+   "story": "A leader popped weeks ago and has already had its first pullback to the averages. Now it sits near its high, and for eight sessions its lows hold the rising 9 EMA in a tight shelf.",
    "simple": "It is a Base n' Break, because the first dip is done and a tight shelf now sits near the highs.",
    "deeper": {
     "trap": "The Crossback and the Base n' Break both sit on the averages, so the order is the tell. The Crossback is the first pullback after the pop. The Base n' Break is another pullback that comes after it, near the highs."
@@ -3739,7 +3777,7 @@
      "Fixed before"
     ]
    },
-   "batch": "wave4"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q78",
@@ -3796,14 +3834,15 @@
     "No; that bar can never lead to a setup"
    ],
    "answer": "Not necessarily; a change of mindset",
-   "why": "Not necessarily. Kell: the Reversal Extension is not necessarily a playable setup but more of a change in mindset. A Wedge Pop can follow it. That needs at least 3 sessions where price tightens under or against the 10/20 EMA and the two averages converge.",
+   "why": "Not necessarily. Kell: the Reversal Extension is not necessarily a playable setup but more of a change in mindset. A Wedge Pop can follow it. That needs at least 3 sessions where price tightens under or against the 9 and 20 EMA and the two averages converge.",
    "lesson_line": "Kell: a Reversal Extension is a change of mindset, not necessarily a setup.",
    "facts": [
     "L3",
     "b3",
     "b4",
     "a23",
-    "r01"
+    "r01",
+    "r21"
    ],
    "wrong": {
     "Yes; the bottom is in, so buy it": "Kell calls it not necessarily a playable setup, more a change in mindset.",
@@ -3811,10 +3850,10 @@
     "No; that bar can never lead to a setup": "Kell says not necessarily, and a Wedge Pop can follow a Reversal Extension, so never goes too far."
    },
    "house": true,
-   "story": "The index prints a hard drop far under its 10 EMA on heavy volume, then snaps back.",
+   "story": "The index prints a hard drop far under its 9 EMA on heavy volume, then snaps back.",
    "simple": "Not necessarily. Kell calls a Reversal Extension more a change of mindset than a playable setup.",
    "deeper": {
-    "trap": "The snap back feels like a bottom, but it is one bar. The playable setup that can follow is the Wedge Pop: at least 3 sessions where price tightens under or against the 10/20 EMA, then a trade through the pivot that closes above both averages."
+    "trap": "The snap back feels like a bottom, but it is one bar. The playable setup that can follow is the Wedge Pop: at least 3 sessions where price tightens under or against the 9 and 20 EMA, then a trade through the pivot that closes above both averages."
    },
    "tier": "expert",
    "risk": {
@@ -3828,7 +3867,7 @@
    "depends_on": [
     "D-081"
    ],
-   "batch": "wave4"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q80",
@@ -4182,26 +4221,27 @@
     "Yes; flat averages show a tight base"
    ],
    "answer": "No; the averages show no up cycle",
-   "why": "No. On the breakout day our card needs the 10-day EMA above the 20-day EMA, with both rising. That is an up cycle. Here the 10 is under the 20 and both are flat, so it fails even though the base and volume look fine. Volume only raises the grade. Kell sees no reason to be long with the 10-day EMA under the 20-day.",
-   "lesson_line": "Breakout day: the 10 over the 20, both rising.",
+   "why": "No. On the breakout day our card needs the 9 EMA above the 20 EMA, with both rising. That is an up cycle. Here the 9 is under the 20 and both are flat, so it fails even though the base and volume look fine. Volume only raises the grade. Kell, with his 10-day EMA, sees no reason to be long when it is under the 20-day.",
+   "lesson_line": "Breakout day: the 9 over the 20, both rising.",
    "facts": [
     "aMA",
     "L2",
     "a14",
     "b1",
     "a2",
-    "a9"
+    "a9",
+    "r21"
    ],
    "wrong": {
-    "Yes; the base and volume are enough": "The card also asks for the 10-day EMA above the 20-day EMA, both rising.",
+    "Yes; the base and volume are enough": "The card also asks for the 9 EMA above the 20 EMA, both rising.",
     "No; the base needs 25 sessions or more": "The base runs 10 to 40 sessions, so 20 fits.",
     "Yes; flat averages show a tight base": "Flat averages fail the test. Both lines must be rising."
    },
    "house": true,
-   "story": "A leader breaks out of a 20-session base on good volume. It closes above its 50-day and 200-day, and the 50 is above the 200. Its 10-day EMA sits just under the 20-day EMA, and both are flat.",
-   "simple": "No, because the 10-day average must sit above the 20-day, with both rising, and here it sits under and both are flat.",
+   "story": "A leader breaks out of a 20-session base on good volume. It closes above its 50-day and 200-day, and the 50 is above the 200. Its 9 EMA sits just under its 20 EMA, and both are flat.",
+   "simple": "No, because the 9 EMA must sit above the 20 EMA, with both rising, and here it sits under and both are flat.",
    "deeper": {
-    "counter": "A long base and good volume do not rescue a bad order of the averages. The check reads the breakout day itself, and volume only raises the grade. A 10 under the 20 means no up cycle yet, and no longs in a down cycle."
+    "counter": "A long base and good volume do not rescue a bad order of the averages. The check reads the breakout day itself, and volume only raises the grade. A 9 under the 20 means no up cycle yet, and no longs in a down cycle."
    },
    "tier": "extended",
    "risk": {
@@ -4212,7 +4252,7 @@
      "Fixed before"
     ]
    },
-   "batch": "wave4"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q93",
@@ -4286,7 +4326,7 @@
    "rung": 4,
    "format": "mcq",
    "criterion": "qk.breakout_not_stretched",
-   "q": "The 10-day average is 50.00. At what price does a long become too stretched to buy?",
+   "q": "The 9 EMA is 50.00. At what price does a long become too stretched to buy?",
    "answer": "$55.00",
    "calc": {
     "fn": "arith",
@@ -4296,14 +4336,15 @@
     },
     "round": 2
    },
-   "why": "Ten percent is added to 50.00: 50.00 times 1.1 is 55.00. We skip a long more than 10% above its 10-day average, so a price above 55.00 is skipped.",
-   "lesson_line": "Skip a long more than 10% above its 10-day.",
+   "why": "Ten percent is added to 50.00: 50.00 times 1.1 is 55.00. We skip a long more than 10% above its 9 EMA, so a price above 55.00 is skipped.",
+   "lesson_line": "Skip a long more than 10% above its 9 EMA.",
    "facts": [
-    "hC29"
+    "hC29",
+    "r21"
    ],
    "house": true,
    "prefix": "$",
-   "simple": "Add ten percent of the 10-day average to itself, and any price above that is too stretched to buy.",
+   "simple": "Add ten percent of the 9 EMA to itself, and any price above that is too stretched to buy.",
    "tier": "core",
    "risk": {
     "score": 4,
@@ -4312,7 +4353,7 @@
      "rests on the owner's rulebook"
     ]
    },
-   "batch": "rank",
+   "batch": "sweep-2026-11-14",
    "choices": [
     "$55.00",
     "$45.00",
@@ -4333,17 +4374,18 @@
    "criterion": "qk.breakout_not_stretched",
    "q": "Buy at market, or pass? Choose the call and the reason.",
    "choices": [
-    "Pass; over 10% above its 10-day",
+    "Pass; over 10% above its 9 EMA",
     "Buy; it is inside 4% of the high",
     "Buy half now and half on a dip",
     "Pass; 3% over the high is too far"
    ],
-   "answer": "Pass; over 10% above its 10-day",
-   "why": "Pass. It is within 4% of the base high, so the chase test passes. But 41.20 is more than 10% above the 36.00 average, so the stretch test fails.",
+   "answer": "Pass; over 10% above its 9 EMA",
+   "why": "Pass. It is within 4% of the base high, so the chase test passes. But 41.20 is more than 10% above the 9 EMA of 36.00, so the stretch test fails.",
    "lesson_line": "Two checks: under 4% past the high, and under 10% stretched.",
    "facts": [
     "hC29",
-    "hC28"
+    "hC28",
+    "r21"
    ],
    "wrong": {
     "Buy; it is inside 4% of the high": "That test passes, but the stretch test fails. Both apply.",
@@ -4351,10 +4393,10 @@
     "Pass; 3% over the high is too far": "3% is inside the 4% limit, so the chase test passes. The stretch test is what fails."
    },
    "house": true,
-   "story": "The base high is 40.00. After a run, the stock opens at 41.20, just 3% over it. Its 10-day average is 36.00.",
-   "simple": "Pass, because the stock is more than 10 percent above its 10-day average, even though it is near the high.",
+   "story": "The base high is 40.00. After a run, the stock opens at 41.20, just 3% over it. Its 9 EMA is 36.00.",
+   "simple": "Pass, because the stock is more than 10 percent above its 9 EMA, even though it is near the high.",
    "deeper": {
-    "trap": "Both lines must pass. Never buy more than 4% above the buy point, and skip a long more than 10% above its 10-day average. This open is 3% over the high but far over the average, so the second line fails."
+    "trap": "Both lines must pass. Never buy more than 4% above the buy point, and skip a long more than 10% above its 9 EMA. This open is 3% over the high but far over the EMA, so the second line fails."
    },
    "tier": "extended",
    "risk": {
@@ -4364,7 +4406,7 @@
      "the key needs a little arithmetic"
     ]
    },
-   "batch": "wave4"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q97",
@@ -4701,30 +4743,31 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "qk.breakout_trim_2",
-   "q": "You sell a second third. How many shares do you sell?",
+   "q": "How many shares are left to trail?",
    "choices": [
-    "300, leaving 300 to trail",
-    "600, leaving none",
-    "200, a third of what is left",
-    "450, half the position"
+    "300 shares",
+    "600 shares",
+    "450 shares",
+    "None, it is all sold"
    ],
-   "answer": "300, leaving 300 to trail",
-   "why": "300, leaving 300 to trail. A third of 900 is 300. You sold 300 already, so 600 were left. Selling another 300 leaves 300 on the trail.",
-   "lesson_line": "A third, another third, then trail the rest.",
+   "answer": "300 shares",
+   "why": "300 shares are left. You started with 900 and sold 300, leaving 600. Selling 300 more leaves 300 to trail. When and how much to sell is a judgment.",
+   "lesson_line": "Sell part, then more by judgment. Trail what is left.",
    "facts": [
-    "a27",
-    "hE52"
+    "r70",
+    "r72",
+    "r21"
    ],
    "wrong": {
-    "600, leaving none": "That sells everything. Our plan trails the last third so winners can run.",
-    "200, a third of what is left": "That leaves more than a third to trail. A third of 900 is 300.",
-    "450, half the position": "Half is not thirds. A third of 900 is 300."
+    "600 shares": "That is what was left before this sale. Selling 300 more leaves 300.",
+    "450 shares": "That is half of 900. Selling 300 and then 300 more leaves 300.",
+    "None, it is all sold": "That sells everything. Our plan trails what is left so winners can run."
    },
    "house": true,
-   "story": "You bought 900 shares and sold a third on the way up. Now you sell a second third and trail the rest.",
-   "simple": "Sell 300 shares, a third of the position, and trail the last 300.",
+   "story": "You bought 900 shares and sold 300 of them on the way up. Today you sell another 300 by judgment, not by a fixed rule.",
+   "simple": "300 are left, because 900 less the two sales of 300 is 300, and that is what trails.",
    "deeper": {
-    "example": "Walk it through. 900 shares. A third, 300, goes first, leaving 600. Another 300 goes next, leaving 300. That last 300 trails: a close under the 10-day for a fast mover, or under the 21-day for a steadier one, is the sale."
+    "example": "Walk it through. You hold 900 shares. 300 go first, leaving 600. Another 300 go next, leaving 300. That 300 trails: a close under the 9 EMA for a fast mover, or under the 20 EMA for a steadier one, is the sale. When and how much to sell is a judgment."
    },
    "tier": "extended",
    "risk": {
@@ -4733,7 +4776,7 @@
      "rests on the owner's rulebook (E51, adjustable)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q106",
@@ -4881,7 +4924,7 @@
    "choices": [
     "Sell a big part into the burst",
     "Add; it is working best right now",
-    "Hold it all and wait for the 10-day",
+    "Hold it all and wait for the 9 EMA",
     "Trim a small piece, hold the rest"
    ],
    "answer": "Sell a big part into the burst",
@@ -4891,18 +4934,19 @@
     "hC34",
     "hB26b",
     "aCl",
-    "a27"
+    "a27",
+    "r21"
    ],
    "wrong": {
     "Add; it is working best right now": "A climax is where you take profit, not where you add.",
-    "Hold it all and wait for the 10-day": "The rule says sell a big part into the burst. The trail comes after.",
-    "Trim a small piece, hold the rest": "The rule is to sell a big part into a climax, not a token amount."
+    "Trim a small piece, hold the rest": "The rule is to sell a big part into a climax, not a token amount.",
+    "Hold it all and wait for the 9 EMA": "The rule says sell a big part into the burst. The trail comes after."
    },
    "house": true,
    "story": "Your long has jumped three straight days with two overnight gaps up. Volume rose two days running, and today it gaps up again.",
    "simple": "Sell a big part into the burst, because a climax run is a time to sell into strength.",
    "deeper": {
-    "trap": "Adding feels right because the stock is working best right now. But a climax is the moment the move is most stretched, and the rule is to sell a big part into it, not add. The rest still trails: a close under the 10-day for a fast mover, or under the 21-day for a steadier one."
+    "trap": "Adding feels right because the stock is working best right now. But a climax is the moment the move is most stretched, and the rule is to sell a big part into it, not add. The rest still trails: a close under the 9 EMA for a fast mover, or under the 20 EMA for a steadier one."
    },
    "tier": "extended",
    "risk": {
@@ -4912,7 +4956,7 @@
      "a judgment call by the owner's own words"
     ]
    },
-   "batch": "wave4"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q111",
@@ -5238,7 +5282,8 @@
     "L11",
     "bBnT",
     "hE57",
-    "b9"
+    "b9",
+    "r21"
    ],
    "wrong": {
     "Wait for a dip to the 20 EMA": "A dip to the 20 EMA is the Crossback, a different phase.",
@@ -5246,7 +5291,7 @@
     "Skip it; it needs 10 sessions": "That is the breakout's base length. A Base n' Break is a tight base of 5 to 15 sessions."
    },
    "house": true,
-   "story": "A leader in an up cycle holds a tight 8-session shelf on its rising 10 EMA, near its highs. You treat it as a Base n' Break. Today it trades through the shelf's high to a new high.",
+   "story": "A leader in an up cycle holds a tight 8-session shelf on its rising 9 EMA, near its highs. You treat it as a Base n' Break. Today it trades through the shelf's high to a new high.",
    "simple": "Buy at market right as it trades through the top of the shelf to a new high.",
    "tier": "extended",
    "risk": {
@@ -5255,7 +5300,7 @@
      "rests on the owner's rulebook"
     ]
    },
-   "batch": "wave4"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q120",
@@ -5582,9 +5627,9 @@
   },
   "q06": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave4; awaiting cold re-read"
+   "notes": "pass: agrees with D-005 (1-3% preferred, 3.5% good, 5% acceptable); ADR named only as Kullamagi's cap."
   },
   "q07": {
    "status": "pass",
@@ -5670,7 +5715,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Trail; first-sells wording softened."
+   "notes": "pass: question is about Kullamagi's own 10/20-day and says we use the 9 and 20 EMA (D-021 exception)."
   },
   "q83": {
    "status": "cut",
@@ -5759,9 +5804,9 @@
   },
   "q38": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave4; awaiting cold re-read"
+   "notes": "pass: stop inside 3% is an A+ grade cue (not a stop cap); D-005 consistent."
   },
   "q39": {
    "status": "pass",
@@ -5791,13 +5836,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Reworded away from 2R trim and third at 3R; ok."
+   "notes": "pass: late base and a stop-out; no rule sells at 2R, first sell a judgment (D-013); 1.7% stop checks (2.52/144.43)."
   },
   "q50": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Wrong note 'A broker stop is required' rests on D41, not in the facts list. 'A flag breaks out' clashes with this lesson's rule that a flag is under 10 sessions (q30, q53). The key was the only choice echoing the story's report and gap. Swap the broker-stop choice for the gap rule (hB20), call it a base."
+   "fixed": false,
+   "notes": "pass: ADR-stop distractor now flagged as no longer used; earnings-window answer unchanged."
   },
   "q51": {
    "status": "pass",
@@ -5821,7 +5866,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold-checked: key matches cited facts, no second defensible answer, no tell found."
+   "notes": "pass: 'thirds' are the base box, not trims."
   },
   "q55": {
    "status": "pass",
@@ -5839,7 +5884,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from dBIDUw and a7/a30. Note for owner: q54 (outside this check) narrates the same BIDU 2007 near-miss with the same reason and prices; consider changing q54, not q57."
+   "notes": "pass: base shape; nothing in the rulings touched."
   },
   "q58": {
    "status": "pass",
@@ -5851,7 +5896,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "b1 states the down cycle and no longs; L2 confirmed in dossier. Deeper note accurate."
+   "notes": "pass: 9/20 EMA for our card; Kell's 10-day credited by name."
   },
   "q60": {
    "status": "pass",
@@ -5863,20 +5908,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "b1 supports, choices balanced. Mirror of q59 but different ask.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "pass: 9 over 20 both rising; Kell's 10 and 20 named as his, with the 9/20 note."
   },
   "q62": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave4; awaiting cold re-read"
+   "notes": "pass: air on the 9 EMA, Kell's 10 EMA named as his; wrong choices all wrong."
   },
   "q63": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Cold-checked: key matches cited facts, no second defensible answer, no tell found."
+   "fixed": true,
+   "notes": "fix: why/simple/lesson_line made volume part of the Wedge Pop definition; D-006 says volume only raises the grade. Reworded and cited D-006."
   },
   "q64": {
    "status": "cut",
@@ -5887,8 +5931,8 @@
   "q65": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Cold-checked: key matches cited facts, no second defensible answer, no tell found."
+   "fixed": true,
+   "notes": "fix: a wrong-choice explanation still said the 10 EMA (D-021); Wedge Drop distractor no longer leans on a volume gate."
   },
   "q66": {
    "status": "pass",
@@ -5900,25 +5944,25 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Checked cold: key follows from the cited quotes; no second defensible answer or tell found."
+   "notes": "pass: measured against the 9 EMA, Kell's 10-day named as his; 10% is the card's guide."
   },
   "q69": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Fixed format tell or ladder pattern; recomputed and verified rank."
+   "fixed": false,
+   "notes": "pass: 11.5/100 = 11.5%; made-up numbers; 9 EMA used."
   },
   "q70": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave4; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "fix: said a Wedge Drop needs volume above the 50-day average; D-006 makes volume a plus, not a must. The exit answer stands."
   },
   "q71": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Cold-checked: key matches cited facts, no second defensible answer, no tell found."
+   "fixed": true,
+   "notes": "fix: right answer and a distractor made volume at least the 50-day average a requirement of the Wedge Pop; D-006 makes it a grade plus. Re-keyed to pivot and close above both, volume as a plus, cited D-006."
   },
   "q73": {
    "status": "pass",
@@ -5934,21 +5978,21 @@
   },
   "q75": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave4; awaiting cold re-read"
+   "notes": "pass: 4% above the 9 EMA grades down, skip only past 10%; Kell's 3-4% named as his."
   },
   "q76": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Cold-checked: key matches cited facts, no second defensible answer, no tell found."
+   "fixed": true,
+   "notes": "fix: a distractor presumed a fixed third ('Trim a third') and another treated volume above the 50-day average as the test; reworded and cited D-006. The exit answer stands."
   },
   "q77": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Pass. Shares its key (Base n' Break) with q65 but from the opposite direction (definition vs identification); not a leak."
+   "notes": "pass: 9 EMA rename done; Base n' Break answer right."
   },
   "q78": {
    "status": "pass",
@@ -5959,8 +6003,8 @@
   "q79": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "simple says Kell calls it 'not a setup', stronger than L3 ('not necessarily a playable setup'). lesson_line 'a signal to watch, not a setup to chase' rules on held D-081 (card evidence: the owner tries them on 1-3 day trades). Keep both to L3's words."
+   "fixed": false,
+   "notes": "pass: 9 and 20 EMA; Kell's Reversal Extension as a mindset change; wide-stop distractor consistent with 5% line."
   },
   "q80": {
    "status": "pass",
@@ -6040,7 +6084,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold-checked: key matches cited facts, no second defensible answer, no tell found."
+   "notes": "pass: 9 under 20, both flat, fails the up-cycle test; volume only raises the grade (D-006)."
   },
   "q93": {
    "status": "pass",
@@ -6059,13 +6103,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
+   "notes": "pass: 50 x 1.1 = 55.00; 4% chase limit distractor = 52.00; made-up numbers."
   },
   "q96": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc: 41.20/40.00 = +3% (inside 4%), 41.20/36.00 = +14.4% (over 10%). Only the stretch pass holds. hC28, hC29 verbatim."
+   "notes": "pass: 41.20 is 3% over 40.00 and 14.4% over the 36.00 9 EMA; both tests explained; no scaling."
   },
   "q97": {
    "status": "pass",
@@ -6084,7 +6128,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Pass. 47.20 is the story number, but the rule (hB20) still has to be known; 46.00 = 50.00 minus 2 x 2.00 from the question. R is not defined in the lesson (owner flag already raised)."
+   "notes": "pass: a gap DOWN through the stop (B20), not the gap-up trim; arithmetic checks (2R under 50 is 46.00)."
   },
   "q100": {
    "status": "pass",
@@ -6102,7 +6146,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key 2R to 5R matches hB19 (formatting bold aside) and aBE; distractors do not overlap the window; q103 builds on it as intended."
+   "notes": "pass: breakeven 2R to 5R or at the first sell is the D-013 text; no fixed third keyed."
   },
   "q103": {
    "status": "pass",
@@ -6120,7 +6164,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Share arithmetic with no 3R/5R trigger; ok."
+   "notes": "pass: share math; the second sale is by judgment, trail renamed to 9/20 EMA; 900-300-300=300."
   },
   "q106": {
    "status": "cut",
@@ -6132,7 +6176,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with GAP-TRIM/SHORT-ENTRY or not affected; key right, quote exact, style ok"
+   "notes": "pass: weigh selling into the push, never a rule; day 5 gap; D-013 and GAP-TRIM agree."
   },
   "q108": {
    "status": "pass",
@@ -6149,9 +6193,9 @@
   },
   "q110": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave4; awaiting cold re-read"
+   "notes": "pass: sell a big part into a climax is C34 'a judgment call' (hC34), not superseded; trail named 9/20 EMA."
   },
   "q111": {
    "status": "pass",
@@ -6169,8 +6213,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Checked cold: key follows from the cited quotes; no second defensible answer or tell found.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "pass: gap DOWN on news, a different topic from the gap-up trim; stop is the exit."
   },
   "q114": {
    "status": "pass",
@@ -6206,8 +6249,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Story names the Base n' Break, so 'needs 10 sessions' is out; bBnT, L11, hE57 and b9 support buy at market through the pivot. 8 sessions is the question's own number.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "pass: 9 EMA rename done; entry is through the pivot at market (D-003)."
   },
   "q120": {
    "status": "pass",
@@ -6255,8 +6297,8 @@
   "q133": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "qk.breakout_adr: D-005 (1-3% preferred, 3.5% good, up to 5% acceptable, replaces the one-ADR rule): a 4.0% stop on a 2.9% ADR is a trade, sized from the stop; wrong answers are the old ADR cap, moving the stop up (r03) and a hard 3% pass. Fixed: the claim that the ADR no longer caps the stop had no cited fact, so new fact r04 quotes the RULINGS sentence \"This replaces the proposed one-ADR rule.\" word for word via h2; removed \"no minimum is set\" (from card fact a4, now stale). WARNING for the owner pass: live q06 (a stop wider than the ADR is a skip), q38 and card facts a4, a23, K5 still teach "
+   "fixed": false,
+   "notes": "pass: D-005 respected; 4.0% within 5%, ADR no longer caps, never move the stop to fit."
   }
  }
 }

@@ -2771,3 +2771,26 @@ Still open (he asked what these mean; the defaults stand until he answers):
   Rule: A heavy-volume down day during a pullback (for example 1.5 times the 50-day volume into the line) does not void the setup. Treat it as a distribution day to be mindful of, a warning and a lower grade, never an invalidation.
 - **VCP heavy down day (chat, 2026-11-14).** His words: "Eh doesn't matter most of the time honestly"
   Rule: In a VCP, a heavy-volume down day in the right side of the base does not end the setup; most of the time it does not matter. At most it is a warning to note, never an invalidation.
+
+## The rulings in our words (for lessons, 2026-11-14)
+
+The owner's rulings above, said the way a lesson says them: in our voice ("we"), one sentence each, so a lesson can
+quote the house rule word for word without naming the owner (his standing rule: member text says we). Each line names
+the ruling it restates; where a line and a ruling above differ, the ruling wins.
+
+- The first sell is a judgment, not a fixed third at 3R. (D-013)
+- We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest. (D-013)
+- Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. (D-013)
+- Later sells are a judgment too: sell more into strength on a later push, and trail what is left. (D-013)
+- The stop may move up to breakeven between 2R and 5R, or at the first sell. (B19's breakeven window, with D-013)
+- Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it. (E52, read through D-021)
+- We use the 9 and 20 EMA, with the 50 and 200 SMA. (D-021)
+- Every setup, long or short, enters as price trades through its trigger during the day, never at the close. (D-003, short entry)
+- Stop distance: 1-3% is preferred, 3.5% is good, and up to 5% is acceptable; past 5%, we mostly wait for a tighter trigger. (D-005)
+- The low of day is the primary stop; the pattern's low or a line minus a cushion are acceptable too. (D-008)
+- Volume raises the grade; it is not a requirement, except where volume is the setup. (D-006)
+- Below the 200-day is a hard no for stocks; indexes and leveraged ETFs are the one exception, on a reversal extension or a parabolic long. (D-009)
+- A gap up past a profit level at the open is not an automatic sell; selling part into a big gap is an optional judgment. (gap-open sell)
+- A heavy-volume down day in a pullback does not void the setup; it is a distribution day to be mindful of, a warning and a lower grade. (heavy-volume down day)
+- Shorting is recommended only for traders who have already made $1 million trading. (D-001)
+- A strong move may be bought at the trigger right at the open; waiting for the first 30 minutes is the default, not a must. (D-031)

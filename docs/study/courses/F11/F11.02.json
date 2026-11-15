@@ -202,6 +202,14 @@
    "title": "Setup decisions: the owner's rulings (2026-11-12)",
    "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
   }
  ],
  "facts": [
@@ -610,14 +618,14 @@
   {
    "id": "h3",
    "source": "s20",
-   "quote": "under each higher low, or under the 10-day average",
-   "claim": "The Kicker trails under each higher low, or under the 10-day average."
+   "quote": "under each higher low, or under the 9 EMA",
+   "claim": "The Kicker trails under each higher low, or under the 9 EMA."
   },
   {
    "id": "h4",
    "source": "s20",
-   "quote": "under the rising 21-day average, or under each higher low",
-   "claim": "The Launchpad trails under the rising 21-day average, or under each higher low."
+   "quote": "under the rising 20 EMA, or under each higher low",
+   "claim": "The Launchpad trails under the rising 20 EMA, or under each higher low."
   },
   {
    "id": "h5",
@@ -645,9 +653,9 @@
   },
   {
    "id": "h8",
-   "source": "s23",
-   "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
-   "claim": "After the first third at 3R, we sell another third at 5R and trail the last third."
+   "source": "hw",
+   "quote": "Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
+   "claim": "Later sells are a judgment: sell more into strength on a later push, and trail what is left."
   },
   {
    "id": "h9",
@@ -693,21 +701,27 @@
   },
   {
    "id": "h15",
-   "source": "s23",
-   "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
-   "claim": "Our rule E52: trail under the 10-day or 21-day average and sell on a close below it."
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
   },
   {
    "id": "r01",
    "source": "h2",
    "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
-   "claim": "The owner's ruling: the first sell is a judgment, not a fixed third at 3R."
+   "claim": "Our rule: the first sell is a judgment, not a fixed third at 3R."
   },
   {
    "id": "r02",
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
+  },
+  {
+   "id": "rd21",
    "source": "h2",
-   "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
-   "claim": "The owner rarely sells on day 1 of the buy and usually waits until day 3 at the earliest."
+   "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+   "claim": "Our rule: the course teaches the 9 and 20 EMA, with the 50 and 200 SMA."
   }
  ],
  "walkthroughs": [
@@ -760,7 +774,7 @@
    "steps": [
     "Use three charts. The longer sets the trend, your main one gives the signal, a shorter one times the entry.",
     "Our Kicker is a daily setup. One entry is the day-one break of the 30-minute opening range.",
-    "The trail is each higher low or the 10-day average. The intraday entry doesn't make it a day trade."
+    "The trail is each higher low or the 9 EMA. The intraday entry doesn't make it a day trade."
    ],
    "facts": [
     "f57",
@@ -768,7 +782,8 @@
     "h1",
     "h2",
     "h6",
-    "h3"
+    "h3",
+    "h15"
    ]
   }
  ],
@@ -972,7 +987,7 @@
    "rung": 3,
    "format": "mcq",
    "house": true,
-   "q": "Our Launchpad trails under the rising 21-day average. Which chart do you manage that trade on?",
+   "q": "Our Launchpad trails under the rising 20 EMA. Which chart do you manage that trade on?",
    "choices": [
     "The daily chart",
     "The 5-minute chart",
@@ -980,7 +995,7 @@
     "The hourly chart"
    ],
    "answer": "The daily chart",
-   "why": "The daily chart. Our Launchpad trails under the rising 21-day average, or under each higher low. A 21-day average is built from daily bars, one bar per day. Our default trail sells on a close below the 10-day or 21-day average. So the trail and the higher lows both live on the daily chart. A shorter chart can still time the entry, but it does not change where the trade is managed.",
+   "why": "The daily chart. Our Launchpad trails under the rising 20 EMA, or under each higher low. A 20 EMA on the daily chart is built from daily bars, one bar per day. Our default trail sells on a close below the 9 EMA or 20 EMA. So the trail and the higher lows both live on the daily chart. A shorter chart can still time the entry, but it does not change where the trade is managed.",
    "lesson_line": "Read the trail to find the clock. A daily average means a daily-chart trade.",
    "facts": [
     "h4",
@@ -988,14 +1003,15 @@
     "f30",
     "f36",
     "f27",
-    "f29"
+    "f29",
+    "rd21"
    ],
    "wrong": {
-    "The 5-minute chart": "A 21-day average gets one new bar a day. Five-minute bars add noise the plan doesn't trade on.",
+    "The 5-minute chart": "A daily 20 EMA gets one new bar a day. Five-minute bars add noise the plan doesn't trade on.",
     "The weekly chart": "Too slow. One weekly bar runs Monday to Friday and hides the daily higher lows the trail steps up under.",
-    "The hourly chart": "An hourly chart can time a swing entry. But a 21-period line there spans 21 hours, not 21 days, so it is a different trail."
+    "The hourly chart": "An hourly chart can time a swing entry. But a 20-period line there spans 20 hours, not 20 days, so it is a different trail."
    },
-   "simple": "The daily chart, because a 21-day average is built from daily bars, so the trail lives there.",
+   "simple": "The daily chart, because a daily 20 EMA is built from daily bars, so the trail lives there.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -1004,7 +1020,7 @@
      "fixed before (weekly wrong note)"
     ]
    },
-   "batch": "wave9"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q08",
@@ -1224,7 +1240,7 @@
    "format": "tf",
    "q": "VWAP works as a trailing stop for a three-week swing trade.",
    "answer": "False",
-   "why": "False. VWAP starts fresh at every open, unrelated to the day before. So it can't follow a trade across three weeks. A three-week swing needs a line that spans days: ChartSchool says 5- to 20-period averages suit short-term trading. Our default trail is the 10-day or the 21-day average, and we sell on a close below it.",
+   "why": "False. VWAP starts fresh at every open, unrelated to the day before. So it can't follow a trade across three weeks. A three-week swing needs a line that spans days: ChartSchool says 5- to 20-period averages suit short-term trading. Our default trail is the 9 EMA or the 20 EMA, and we sell on a close below it.",
    "lesson_line": "Trail with a line that lasts as long as the trade.",
    "facts": [
     "f44",
@@ -1232,7 +1248,8 @@
     "f31",
     "h3",
     "h4",
-    "h15"
+    "h15",
+    "rd21"
    ],
    "simple": "False, because VWAP starts over at every open, so it can't follow a trade that lasts three weeks.",
    "tier": "extended",
@@ -1242,7 +1259,7 @@
      "ChartSchool and Schwab agree; the house trails appear only in the why"
     ]
    },
-   "batch": "wave9"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q14",
@@ -1388,7 +1405,7 @@
     "Hold it; trail on the 30-minute chart"
    ],
    "answer": "Hold it; trail on the daily chart",
-   "why": "Hold it, and trail on the daily chart. The day-one 30-minute break was only the entry. The Kicker trails under each higher low or under the 10-day average, and we sell on a close below it. We swing trade: days to a few weeks. He very rarely sells on day 1 of the buy and usually waits until day 3 at the earliest. Nothing in the plan sells at the close. The stop stays with the broker overnight as a real order.",
+   "why": "Hold it, and trail on the daily chart. The day-one 30-minute break was only the entry. The Kicker trails under each higher low or under the 9 EMA, and we sell on a close below it. We swing trade: days to a few weeks. We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest. Nothing in the plan sells at the close. The stop stays with the broker overnight as a real order.",
    "lesson_line": "The entry chart times the buy. The trail sets the clock.",
    "facts": [
     "h2",
@@ -1402,12 +1419,13 @@
     "h12",
     "h13",
     "f42",
-    "f36"
+    "f36",
+    "rd21"
    ],
    "wrong": {
     "Sell it, it was an intraday entry": "The entry chart doesn't set the clock. Swing traders often take a daily setup and time the entry on a shorter chart.",
-    "Sell half of it before the close": "He very rarely sells on day 1 of the buy. Nothing in the plan sells at the close.",
-    "Hold it; trail on the 30-minute chart": "The 30-minute bar only timed the buy. Our Kicker trails under each higher low or the 10-day average, a daily-chart trail."
+    "Sell half of it before the close": "We very rarely sell on day 1 of the buy. Nothing in the plan sells at the close.",
+    "Hold it; trail on the 30-minute chart": "The 30-minute bar only timed the buy. Our Kicker trails under each higher low or the 9 EMA, a daily-chart trail."
    },
    "simple": "Hold it, because the 30-minute break only timed the buy, and the plan trails the trade on the daily chart.",
    "deeper": {
@@ -1421,7 +1439,7 @@
      "fixed before (rewritten to the rulebook 2026-11-09)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q18",
@@ -1702,7 +1720,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Derived the daily chart. h4 matches the TRADE_PLANS.md Launchpad row word for word. h15 matches sizing_rule.md E52, and the key agrees with E52 (sell on a close below the 21-day). The hourly choice is the strongest rival, since Schwab f36 says an hourly chart can time exits. It fails because the trail is a close below a daily average. The '21-day' to 'daily' echo is the skill being tested at rung 3, not a giveaway. f30, f27, f29 and f36 were re-fetched and match. The why's line that a shorter entry chart does not move where the trade is managed overlaps q17's theme. q17 also needs the Kicker's"
+   "notes": "Launchpad trail renamed to the 20 EMA; hourly 20-period note correct; rd21 cited. House fact h4 still quotes the 21-day as the lesson's own source line."
   },
   "q08": {
    "status": "pass",
@@ -1738,7 +1756,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "False re-derived from f44 and f12. The trail line now teaches E52 (h15). It shares a fact with q02 (rung 1 fact, rung 5 use), but neither stem gives away the other's answer."
+   "notes": "Default trail 9 EMA or 20 EMA; VWAP answer unchanged and correct."
   },
   "q14": {
    "status": "pass",
@@ -1763,7 +1781,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "ok"
+   "notes": "Kicker trail renamed to the 9 EMA, pronoun fixed, day-1 sell wrong choice agrees with D-013; the 30-minute break is an entry option, not a mandatory wait (D-031 ok)."
   },
   "q18": {
    "status": "pass",

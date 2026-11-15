@@ -116,3 +116,10 @@ def test_a_typed_number_question_may_become_multiple_choice_and_nothing_else_cha
     t = {"key": "q2", "format": "tf", "answer": "True"}
     au._set_fields(t, {"format": "mcq"})
     assert t["format"] == "tf"
+    # the visuals plan (2026-11-14): a chart question gains its story by becoming a scenario; never the other way
+    m = {"key": "q3", "format": "mcq", "answer": "Wait"}
+    au._set_fields(m, {"format": "scenario", "story": "Hidden ticker, the day before the trigger."})
+    assert m["format"] == "scenario" and m["story"].startswith("Hidden ticker")
+    s = {"key": "q4", "format": "scenario", "answer": "Wait"}
+    au._set_fields(s, {"format": "mcq"})
+    assert s["format"] == "scenario"

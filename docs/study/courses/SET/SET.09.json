@@ -174,6 +174,14 @@
    "title": "Setup decisions: the owner's rulings (2026-11-12)",
    "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
   }
  ],
  "facts": [
@@ -449,9 +457,9 @@
   },
   {
    "id": "h05",
-   "source": "h1",
-   "quote": "Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
-   "claim": "B19: breakeven between 2R and 5R; the hard rule for the first trim is a third at 3R."
+   "source": "hw",
+   "quote": "The stop may move up to breakeven between 2R and 5R, or at the first sell.",
+   "claim": "Our stop may move up to breakeven between 2R and 5R, or at the first sell."
   },
   {
    "id": "h06",
@@ -491,15 +499,15 @@
   },
   {
    "id": "h20",
-   "source": "h1",
-   "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
-   "claim": "E51: another third at 5R, then trail the last third."
+   "source": "hw",
+   "quote": "Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
+   "claim": "Later sells are a judgment: sell more into strength on a later push, and trail what is left."
   },
   {
    "id": "h21",
-   "source": "h1",
-   "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
-   "claim": "E52: trail the 10-day for fast movers, the 21-day for steadier ones; sell on a close below it."
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
   },
   {
    "id": "h22",
@@ -1127,9 +1135,9 @@
   },
   {
    "id": "r03",
-   "source": "h2",
-   "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
-   "claim": "D-013: he rarely sells on day 1 and usually waits until day 3 at the earliest."
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
   },
   {
    "id": "r04",
@@ -1142,6 +1150,18 @@
    "source": "h2",
    "quote": "A gap up past 3R at the open is not an automatic sell. Selling part at the open on a big gap is one choice he may make by judgment, never a rule",
    "claim": "GAP-TRIM: a gap past 3R is not an automatic sell; selling part at the open is an optional judgment."
+  },
+  {
+   "id": "r05",
+   "source": "h2",
+   "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+   "claim": "D-021: the course teaches the 9 and 20 EMA, with the 50 and 200 SMA."
+  },
+  {
+   "id": "r06",
+   "source": "h2",
+   "quote": "Below the 200-day is a hard no for stocks. The one exception: indexes and leveraged ETFs may be bought under their 200-day on a reversal extension or a parabolic long.",
+   "claim": "D-009: below the 200-day is a hard no for stocks; only indexes and leveraged ETFs have an exception."
   }
  ],
  "walkthroughs": [
@@ -1194,7 +1214,7 @@
     "AX, 2026. A 72% run, then a 16.6-week U, 20.2% deep. The handle lasts 5 days, the IBD minimum.",
     "2026-01-05: it clears the handle high on 1.48x volume. Buy at market, 89.22. Stop under the day's low, 86.95.",
     "At 3R we hold; the first sell is a judgment. 5R comes in about 7 weeks: the stop goes to breakeven.",
-    "Failure mode: a fade back through the pivot. AX rolled over below it after 5R. The 21-day trail sells the rest."
+    "Failure mode: a fade back through the pivot. AX rolled over below it after 5R. The 20 EMA trail sells the rest."
    ],
    "facts": [
     "d06",
@@ -1206,7 +1226,8 @@
     "h05",
     "h20",
     "h21",
-    "c38"
+    "c38",
+    "r02"
    ]
   }
  ],
@@ -2842,29 +2863,30 @@
    "format": "scenario",
    "criterion": "ch.not_stretched",
    "q": "Buy it?",
-   "story": "The breakout gaps up 3% over the pivot. At your fill the stock sits 12% above its 10-day average.",
+   "story": "The breakout gaps up 3% over the pivot. At your fill the stock sits 12% above its 9 EMA.",
    "choices": [
     "Buy; it is inside the 4% limit",
-    "Skip; too far over the 10-day",
+    "Skip; too far over the 9 EMA",
     "Buy half size and keep the stop",
     "Skip; a 3% gap is already chasing"
    ],
    "wrong": {
     "Buy; it is inside the 4% limit": "Inside the chase line, but past the stretch line. Both must pass.",
     "Buy half size and keep the stop": "Size does not fix a stretched entry.",
-    "Skip; a 3% gap is already chasing": "The no-chase line is 4% above the buy point, and 3% is inside it. The stretch from the 10-day average is what fails."
+    "Skip; a 3% gap is already chasing": "The no-chase line is 4% above the buy point, and 3% is inside it. The stretch from the 9 EMA is what fails."
    },
-   "answer": "Skip; too far over the 10-day",
-   "why": "Skip it. A long more than 10% above its 10-day average is too stretched to buy, even inside the 4% chase line. The fill is only 3% over the pivot, so the first check passes. Both checks must pass, and this one fails the second.",
-   "lesson_line": "Two checks at the fill: distance from the pivot and distance from the 10-day.",
+   "answer": "Skip; too far over the 9 EMA",
+   "why": "Skip it. A long more than 10% above its 9 EMA is too stretched to buy, even inside the 4% chase line. The fill is only 3% over the pivot, so the first check passes. Both checks must pass, and this one fails the second.",
+   "lesson_line": "Two checks at the fill: distance from the pivot and distance from the 9 EMA.",
    "facts": [
     "h13",
-    "h11"
+    "h11",
+    "r05"
    ],
    "house": true,
-   "simple": "Skip it, since the stock is more than 10% above its 10-day average, even though it is inside the 4% chase limit.",
+   "simple": "Skip it, since the stock is more than 10% above its 9 EMA, even though it is inside the 4% chase limit.",
    "deeper": {
-    "trap": "These are two separate checks. One: never buy more than 4% above the buy point. Two: skip a long that is more than 10% above its 10-day average. Passing the first never excuses failing the second."
+    "trap": "These are two separate checks. One: never buy more than 4% above the buy point. Two: skip a long that is more than 10% above its 9 EMA. Passing the first never excuses failing the second."
    },
    "tier": "extended",
    "risk": {
@@ -2873,7 +2895,7 @@
      "rests on the owner's rulebook (C28 and C29, both settled)"
     ]
    },
-   "batch": "wave1"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q44",
@@ -3168,18 +3190,19 @@
    ],
    "wrong": {
     "Widen the stop to give it room": "Never wider. A tight stop is answered with breakeven.",
-    "Sell everything at 2.37R now": "The first trim is a third at 3R, not everything at 2.37R.",
+    "Sell everything at 2.37R now": "Selling it all gives up the trail. The first sell is a judgment, usually day 3 at the earliest, into a push.",
     "Add shares while it is strong": "Moving the stop to breakeven protects the trade. It does not call for more shares."
    },
    "answer": "Move the stop to breakeven",
    "why": "Move the stop to breakeven. Our rule puts that move between 2R and 5R, ideally, and 2.37R is inside it. It is a choice, not a must. The stop only moves up, never wider. A tight stop is cheap but fragile, and the answer is breakeven, not a wider stop. In BX one dip took the 1.2% stop after 2.37R, and a breakeven stop would have saved the loss.",
    "lesson_line": "A tight stop is cheap but fragile. From 2R, breakeven protects it; a wider stop never does.",
    "facts": [
-    "h05",
     "c39",
     "d22",
     "d23",
-    "h02"
+    "h02",
+    "r02",
+    "r03"
    ],
    "house": true,
    "simple": "Our rule lets the stop move to breakeven once the trade is up 2R to 5R. It never lets the stop get wider.",
@@ -3197,7 +3220,7 @@
    "depends_on": [
     "D-007"
    ],
-   "batch": "wave1"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q52",
@@ -3245,7 +3268,7 @@
    "wrong": {
     "Yes; never buy at a gap open": "No rule bans a gap fill inside 4% of the pivot.",
     "Yes; the stop was set too tight": "A tight stop is not a rule break. The stop sits a few cents under the day's low, and it only moves up.",
-    "No; anything under 10% is fine": "The chase line is 4% above the buy point. The 10% line belongs to the 10-day average, a different test."
+    "No; anything under 10% is fine": "The chase line is 4% above the buy point. The 10% line is measured from the 9 EMA, a different test."
    },
    "answer": "No; the fill was inside 4%",
    "why": "No. A fill 2.7% over the pivot is inside the 4% chase line, and the stop was the exit. Gap-open fills are not banned. A gap it cannot build on is the first sign the answer is no. That is a warning, not a broken rule.",
@@ -3256,7 +3279,8 @@
     "d27",
     "d33",
     "h02",
-    "h13"
+    "h13",
+    "r05"
    ],
    "house": true,
    "simple": "No rule was broken, since the fill was inside the 4% chase limit and the stop did its job.",
@@ -3274,7 +3298,7 @@
    "depends_on": [
     "D-007"
    ],
-   "batch": "wave1"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q54",
@@ -3314,8 +3338,8 @@
    "rung": 8,
    "format": "scenario",
    "criterion": "ch.trail",
-   "q": "What happens to the last third?",
-   "story": "A steady mover: you bought 89.22 with the stop at 86.95. You sold a third into each push on the way up. Weeks later it rolls over and closes under the 21-day.",
+   "q": "What happens to what is left?",
+   "story": "A steady mover: you bought 89.22 with the stop at 86.95. You sold pieces into pushes on the way up. Weeks later it rolls over and closes under its trail line.",
    "choices": [
     "Held until a close under the pivot",
     "Sold it, as the trail line broke",
@@ -3323,22 +3347,23 @@
     "Bought more on the dip back down"
    ],
    "wrong": {
-    "Held; the stop is at breakeven": "Breakeven guards the trade. The trail sells the last third.",
+    "Held; the stop is at breakeven": "Breakeven guards the trade. The trail sells what is left.",
     "Held until a close under the pivot": "The trail is the rising average, not the pivot.",
-    "Bought more on the dip back down": "The plan only sells from here. After 5R the last third trails the average."
+    "Bought more on the dip back down": "The plan only sells from here. After 5R what is left trails the average."
    },
    "answer": "Sold it, as the trail line broke",
-   "why": "Sold on that close. After the earlier sells, the last third trails a rising average. That is the 10-day for fast movers and the 21-day for steadier ones. We sell on a close below it. AX reached 5R, then rolled over below the pivot, the case for the 21-day trail.",
-   "lesson_line": "Part sold into strength, one piece on the trail. The close under the line is the exit.",
+   "why": "Sold on that close. After the earlier sells, what is left trails a rising average: the 9 EMA for fast movers, the 20 EMA for steadier ones. We sell on a close below it. AX reached 5R in about 7 weeks, then rolled over below the pivot, the kind of move a trail line is for.",
+   "lesson_line": "Part sold into strength, the rest on the trail. The close under the line is the exit.",
    "facts": [
-    "h21",
+    "r05",
     "d06",
-    "d07"
+    "d07",
+    "r04"
    ],
    "house": true,
-   "simple": "The last third trails the 21-day average, so a close under it is the signal to sell what is left.",
+   "simple": "What is left trails the 20 EMA, so a close under it is the signal to sell what is left.",
    "deeper": {
-    "example": "AX was bought at 89.22 with a stop at 86.95. It reached 5R in about 7 weeks, then rolled over below the pivot. That is the example for trailing the last third under the 21-day. A faster mover would trail the 10-day instead. The first sell is a judgment."
+    "example": "AX was bought at 89.22 with a stop at 86.95. It reached 5R in about 7 weeks, then rolled over below the pivot. That is the kind of case a trail is for. A faster mover would trail the 9 EMA instead. The first sell is a judgment."
    },
    "tier": "expert",
    "risk": {
@@ -3351,7 +3376,7 @@
    "depends_on": [
     "D-007"
    ],
-   "batch": "rulings2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q56",
@@ -3369,18 +3394,18 @@
    ],
    "wrong": {
     "On 63.78; a third at 2R": "The stop sits a few cents under the low, not on it, and the first sell is a judgment, not 2R.",
-    "Handle-low stop; out at 5R": "The handle low is the outer limit, not the stop. The first sell is a judgment, into a push.",
+    "Handle-low stop; out at 5R": "The first sell is a judgment, into a push, not a fixed 5R. The handle low is only the outer limit for the stop.",
     "7% under fill; half at 3R": "IBD's 7% to 8% is a reference, not ours. Our stop sits a few cents under the day's low, and the first sell is a judgment."
    },
    "answer": "Just under 63.78; sell into a push",
-   "why": "The stop goes just under 63.78, the lower of that day's and the prior day's low, by a few cents. The first sell is a judgment, day 3 at the earliest, into a push. The handle low is only the outer limit for the stop, never the stop itself.",
+   "why": "The stop goes just under 63.78, the lower of that day's and the prior day's low, by a few cents. The first sell is a judgment, day 3 at the earliest, into a push. The handle low is the outer limit for the stop.",
    "lesson_line": "Entry, stop, trim, trail. Write it before the open.",
    "facts": [
     "c15",
     "h24",
     "c16",
     "i30",
-    "h41",
+    "g1",
     "r02",
     "r03",
     "r04"
@@ -3388,7 +3413,7 @@
    "house": true,
    "simple": "The stop goes a few cents under the lower low, and the first sell is a judgment into a push.",
    "deeper": {
-    "example": "The stop is set first, and the sell levels follow from it. If a stock opens above a level where you planned to sell, take that sale at the open."
+    "example": "The stop is set first, and the sell levels follow from it. If a stock opens above a level where you planned to sell, selling part at the open is a judgment, never a rule."
    },
    "tier": "expert",
    "risk": {
@@ -3402,7 +3427,7 @@
    "depends_on": [
     "D-007"
    ],
-   "batch": "rulings2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q57",
@@ -3659,12 +3684,12 @@
     "r04",
     "c32",
     "i35",
-    "h21"
+    "r05"
    ],
    "house": true,
    "simple": "We sell the first piece into a strong push of a few days, then trail the rest.",
    "deeper": {
-    "counter": "IBD says take most profits at 20% to 25%. Bulkowski's measured-move target is a guess, and only 61% of cups reach it. Our first sell is a judgment, often into a 3, 5 or 7 day push. The last part trails the 10-day or the 21-day."
+    "counter": "IBD says take most profits at 20% to 25%. Bulkowski's measured-move target is a guess, and only 61% of cups reach it. Our first sell is a judgment, often into a 3, 5 or 7 day push. What is left trails the 9 EMA or the 20 EMA."
    },
    "tier": "expert",
    "risk": {
@@ -3674,7 +3699,7 @@
      "the 20% to 25% and 61% figures are web numbers that can change"
     ]
    },
-   "batch": "rulings2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q63",
@@ -3987,22 +4012,23 @@
     "No longs under the 200-day average",
     "No chasing more than 4% over the pivot",
     "No new buys within 3 days of earnings",
-    "Skip longs over 10% above the 10-day"
+    "Skip longs over 10% above the 9 EMA"
    ],
    "wrong": {
     "No chasing more than 4% over the pivot": "The buy is at the pivot, so there is no chase. The 200-day is the issue.",
     "No new buys within 3 days of earnings": "Nothing here mentions a report. The 200-day average decides this one.",
-    "Skip longs over 10% above the 10-day": "The story gives no 10-day average and price is at the pivot. The 200-day average decides this one."
+    "Skip longs over 10% above the 9 EMA": "The story gives no 9 EMA and price is at the pivot. The 200-day average decides this one."
    },
    "answer": "No longs under the 200-day average",
-   "why": "No longs under the 200-day average. Price trades through the 31.40 pivot, but the 200-day is 33.10, so price is under it. Our rule bans longs below the 200-day unless it is a parabolic long, and a cup is not one. The pivot test never gets a vote.",
+   "why": "No longs under the 200-day average. Price trades through the 31.40 pivot, but the 200-day is 33.10, so price is under it. Below the 200-day is a hard no for a stock, and a cup is a stock setup. The pivot test never gets a vote.",
    "lesson_line": "Check the 200-day before the pivot. Under it, no long.",
    "facts": [
-    "h37",
+    "r06",
     "c51",
     "h11",
     "h08",
-    "h13"
+    "h13",
+    "r05"
    ],
    "house": true,
    "simple": "Price is under its 200-day average, and we do not buy longs under that line.",
@@ -4013,7 +4039,7 @@
      "rests on the owner's rulebook B26"
     ]
    },
-   "batch": "wave1"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q72",
@@ -4862,7 +4888,7 @@
    "choices": [
     "Yes; no close was under the 50-day",
     "No; the intraday low went under it",
-    "No; it needs a close over the 21-day",
+    "No; it needs a close over the 20 EMA",
     "Yes; but only on light volume"
    ],
    "answer": "Yes; no close was under the 50-day",
@@ -4871,18 +4897,19 @@
    "simple": "Yes. The card counts closes, and every close in the handle stayed above the 50-day line.",
    "wrong": {
     "No; the intraday low went under it": "The card's test is the daily close. A low under the line that closes back above it does not end the handle. A close under the line would.",
-    "No; it needs a close over the 21-day": "The card names the 50-day for the handle. It does not ask for the 21-day.",
-    "Yes; but only on light volume": "Volume is its own test: the handle should average quieter than the cup. It does not change the 50-day test, which looks only at closes."
+    "Yes; but only on light volume": "Volume is its own test: the handle should average quieter than the cup. It does not change the 50-day test, which looks only at closes.",
+    "No; it needs a close over the 20 EMA": "The card names the 50-day for the handle. It does not ask for the 20 EMA."
    },
    "facts": [
     "c13",
     "c23",
     "i17",
-    "c12"
+    "c12",
+    "r05"
    ],
    "house": true,
    "tier": "extended",
-   "batch": "cover"
+   "batch": "sweep-2026-11-14"
   }
  ],
  "conflicts": [
@@ -4947,7 +4974,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "V fails the rounded-U test (c06, sc01, i05, b01). Two publishers plus card."
+   "notes": "concept (V vs U); not keyed on the number against a neighbour (D-029)"
   },
   "q05": {
    "status": "cut",
@@ -4983,7 +5010,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "i06, a03, c04; False is clear."
+   "notes": "tests direction (at least, not at most) (D-029)"
   },
   "q11": {
    "status": "pass",
@@ -5032,7 +5059,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Math right (0.70; 2.10; 40.70; 40.00; 39.30; 36.50). Why walks the steps."
+   "notes": "agrees with the rulings it touches"
   },
   "q19": {
    "status": "pass",
@@ -5067,8 +5094,8 @@
   "q24": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Math right (10.5/30=35.0; 25.9; 135; 10.5). Mixed precision made 35% stand out; one decimal on all. Why lacked 10.50."
+   "fixed": false,
+   "notes": "arithmetic; 35.0% against far distractors; 30% is stated as what IBD and AAII ask"
   },
   "q25": {
    "status": "pass",
@@ -5117,7 +5144,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key follows B20 (h06, h07). Loss at 52.10 is 2.47 against R 1.63, so 1.5R, inside 2R; the 52.40 open is 1.3R, so 'past 2R' is wrong. Choices 26-31 chars. Owner flag on broker stop (D41) vs gap rule stands; q92 teaches the rule first and does not collide."
+   "notes": "gap DOWN through the stop (B20), numbers check: 52.10 is about 1.5R, inside 2R"
   },
   "q33": {
    "status": "pass",
@@ -5141,7 +5168,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Four weeks plus a seven-day rest is about 5.4 weeks, under the 7-week floor (c05, i07, d29). 64% run passes (i06). Two Yes, two No; key 29 chars vs 30-32, no real tell."
+   "notes": "keyed on weeks; 64% is far from the 30% guide"
   },
   "q37": {
    "status": "pass",
@@ -5183,9 +5210,9 @@
   },
   "q43": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave1; awaiting cold re-read"
+   "notes": "agrees with the rulings it touches"
   },
   "q44": {
    "status": "cut",
@@ -5221,8 +5248,8 @@
   "q49": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key (high tight flag) holds by elimination, but the text states things the story never says: 'no rounded decline' (in why, simple and the cup wrong note) and 'about three weeks' (a computed number with no calc, in the flat-base wrong note). Rebuild on what the story and quotes give: 16 sessions is short of 7 weeks and of 5 weeks."
+   "fixed": false,
+   "notes": "keyed on time and a huge run, not on 30%"
   },
   "q50": {
    "status": "pass",
@@ -5234,8 +5261,8 @@
   "q51": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Breakeven at 2R-5R (h05), 2.37R inside it; never wider (h02); BX facts d22, d23, c39 check out. CONDITION: in this file q33 still reads 'Bought at 53.11, stop 52.49 ... 54.58 ... 2.37', the same trade and answer as q51's story. The final.json decisions say the SET.09-full resolver gave q33 its own trade; the integrator must confirm that landed, or q51 and q33 answer each other."
+   "fixed": true,
+   "notes": "wrong text now D-013 clean; cited h05 still says 'the hard rule is a third at 3R' (superseded); c39 and the story ground the 2R to 5R breakeven, so drop h05"
   },
   "q52": {
    "status": "cut",
@@ -5247,7 +5274,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "74.57 over 72.58 is 2.7%, inside the 4% line (h11); gap fills not banned; 10% belongs to the 10-day (h13). Key is 26 chars vs 28-31, too small a gap to be a tell."
+   "notes": "agrees with the rulings it touches"
   },
   "q54": {
    "status": "pass",
@@ -5259,13 +5286,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Story narrated a third at 3R and a third at 5R as the plan and cites B19 h20; narrate selling into pushes, drop h20."
+   "notes": "D-013 and rename good, but the story says it 'closes under the 20 EMA' for what is a real AX trade whose card evidence only says it rolled over below the pivot; no 20 EMA measurement exists, so do not state one. Name the trail line in the story generically"
   },
   "q56": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Re-keyed; stop rule unchanged."
+   "fixed": true,
+   "notes": "why and one wrong text say the handle low is 'never the stop itself' and 'not the stop', which contradicts D-008 (the pattern's low is an acceptable alternative). Keep the answer; fix the explanations so the first sell is what separates the choices"
   },
   "q57": {
    "status": "pass",
@@ -5302,7 +5329,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Re-keyed to push then trail; IBD and measured-move wrongs retained."
+   "notes": "agrees with the rulings it touches"
   },
   "q63": {
    "status": "pass",
@@ -5357,7 +5384,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Pivot 31.40 against 200-day 33.10 puts any buyable price (under 32.66, the 4% chase limit) below the 200-day, so the key is determinate. Distractor notes are accurate. Pairs with q70 as rule then application."
+   "notes": "D-009 clean: stock hard no, exception dropped; 9 EMA rename ok"
   },
   "q72": {
    "status": "pass",
@@ -5442,7 +5469,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "re-keyed to your call; 93.15 math ok; quote verbatim; style ok"
+   "notes": "GAP-TRIM compliant: answer is the judgment, 'it is the rule' options are wrong"
   },
   "q86": {
    "status": "cut",
@@ -5503,7 +5530,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Applies ch.handle_above_50 as the card measures it (daily closes vs the 50-day SMA, c13/c23). Numbers consistent (low 61.10 under the 61.40 line, closes above). Pass-side complement of q44 (a close under fails), not a duplicate. Distractors clearly wrong against the card; volume distractor supported by c12. i17 quote verbatim. Note: the card entry is status proposed (one-close test is the dossier's), so revisit if the owner rules otherwise."
+   "notes": "agrees with the rulings it touches"
   }
  }
 }

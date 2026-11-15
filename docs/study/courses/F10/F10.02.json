@@ -138,6 +138,22 @@
    "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
    "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
   }
  ],
  "facts": [
@@ -517,19 +533,19 @@
    "id": "h02",
    "source": "s15",
    "quote": "\"Hold your winners by selling partials into strength and trailing the rising moving averages.\" (Owner, 2026-06-14.)",
-   "claim": "In the owner's words: hold winners by selling partials into strength and trailing the rising moving averages."
+   "claim": "In our words: hold winners by selling partials into strength and trailing the rising moving averages."
   },
   {
    "id": "h03",
    "source": "s16",
-   "quote": "under each higher low, or under the 10-day average",
-   "claim": "Our Kicker plan trails the stop under each higher low, or under the 10-day average."
+   "quote": "under each higher low, or under the 9 EMA",
+   "claim": "Our Kicker plan trails the stop under each higher low, or under the 9 EMA."
   },
   {
    "id": "h04",
    "source": "s16",
-   "quote": "under the rising 21-day average, or under each higher low",
-   "claim": "Our Launchpad plan trails the stop under the rising 21-day average, or under each higher low."
+   "quote": "under the rising 20 EMA, or under each higher low",
+   "claim": "Our Launchpad plan trails the stop under the rising 20 EMA, or under each higher low."
   },
   {
    "id": "h05",
@@ -557,9 +573,9 @@
   },
   {
    "id": "h09",
-   "source": "s17",
-   "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
-   "claim": "E52: our trail is the 10-day for fast movers or the 21-day for steadier ones, selling on a close below it."
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
   },
   {
    "id": "h10",
@@ -584,6 +600,12 @@
    "source": "s17",
    "quote": "Sell some into strength and trail the rest under the rising averages.",
    "claim": "A11: we sell some into strength and trail the rest under the rising averages."
+  },
+  {
+   "id": "rd21",
+   "source": "h2",
+   "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+   "claim": "Our rule: the course teaches the 9 and 20 EMA, with the 50 and 200 SMA."
   }
  ],
  "walkthroughs": [
@@ -629,7 +651,7 @@
     "A trailing stop sits a set dollar amount or percent under the price. It rises with the stock, never falls.",
     "The SEC's example: a $1 trail, the stock peaks at $24, and the stop sits at $23.",
     "To trail a moving average, move your stop up yourself. A 10-day hugs price; a 50-day gives more room.",
-    "Several of our trade plans trail under each higher low, or under the 10-day or rising 21-day average."
+    "Several of our trade plans trail under each higher low, or under the 9 EMA or the rising 20 EMA."
    ],
    "facts": [
     "f11",
@@ -642,7 +664,8 @@
     "f61",
     "f59",
     "h03",
-    "h04"
+    "h04",
+    "h09"
    ]
   }
  ],
@@ -1256,13 +1279,13 @@
    "format": "mcq",
    "q": "You trail a fast mover on a moving average. Which one gets you out soonest after it turns?",
    "choices": [
-    "The 10-day",
-    "The 50-day",
-    "The 200-day",
-    "The 21-day"
+    "The 9 EMA",
+    "The 50 SMA",
+    "The 200 SMA",
+    "The 20 EMA"
    ],
-   "answer": "The 10-day",
-   "why": "The 10-day. A short average hugs price closely and turns soon after price turns. The longer the average, the more it lags, so the 21-day, 50-day and 200-day take you out later. The 10-day is also our default trail for fast movers. Steadier stocks get the 21-day.",
+   "answer": "The 9 EMA",
+   "why": "The 9 EMA. A short average hugs price closely and turns soon after price turns. The longer the average, the more it lags, so the 20 EMA, 50 SMA and 200 SMA take you out later. The 9 EMA is also our default trail for fast movers. Steadier stocks get the 20 EMA.",
    "lesson_line": "Shorter averages get you out sooner. Longer ones give more room, and give back more.",
    "facts": [
     "f58",
@@ -1271,14 +1294,15 @@
     "f62",
     "f63",
     "f52",
-    "h09"
+    "h09",
+    "rd21"
    ],
    "wrong": {
-    "The 50-day": "It tracks the intermediate trend and lags more. It keeps you in longer, through bigger pullbacks.",
-    "The 200-day": "That's the long-term trend line. It lags the most, so it's the last to take you out.",
-    "The 21-day": "It lags the 10-day, so it takes you out later. We trail the 21-day on steadier stocks, not fast movers."
+    "The 50 SMA": "It tracks the intermediate trend and lags more. It keeps you in longer, through bigger pullbacks.",
+    "The 200 SMA": "That's the long-term trend line. It lags the most, so it's the last to take you out.",
+    "The 20 EMA": "It lags the 9 EMA, so it takes you out later. We trail the 20 EMA on steadier stocks, not fast movers."
    },
-   "simple": "The 10-day, because a short average stays close to price and turns soon after price turns.",
+   "simple": "The 9 EMA, because a short average stays close to price and turns soon after price turns.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -1286,7 +1310,7 @@
      "rests on the owner's rulebook (E52)"
     ]
    },
-   "batch": "wave6"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q18",
@@ -1523,7 +1547,7 @@
    },
    "simple": "10%, because it sits wider than a typical 4% to 6% day but still keeps most of the gain.",
    "deeper": {
-    "trap": "The 30% trail feels safe because nothing trips it. But 30% off the high of a 60% winner hands back most of the gain. Where to set a trail depends on your time frame and how much the stock swings. Our own default trail is not a percent: it is the 10-day or 21-day average, sold on a close below it."
+    "trap": "The 30% trail feels safe because nothing trips it. But 30% off the high of a 60% winner hands back most of the gain. Where to set a trail depends on your time frame and how much the stock swings. Our own default trail is not a percent. It is the 9 EMA for fast movers or the 20 EMA for steadier ones. We sell on a close below it."
    },
    "tier": "expert",
    "risk": {
@@ -1540,7 +1564,7 @@
    "skill": "orders.stops",
    "rung": 9,
    "format": "scenario",
-   "story": "A trader keeps a resting stop order just under the 10-day average. Today the 10-day sits at $58.90, and it's rising.",
+   "story": "A trader keeps a resting stop order just under the 9 EMA. Today the 9 EMA sits at $58.90, and it's rising.",
    "q": "How does the trader keep that stop trailing the line?",
    "choices": [
     "Raise the stop by hand under the line",
@@ -1549,7 +1573,7 @@
     "Lower it to give the stock room on dips"
    ],
    "answer": "Raise the stop by hand under the line",
-   "why": "Raise it by hand. A standard trailing stop order trails by a set percent or dollar amount, not by a moving average. So the trader moves the stop up under the 10-day as it climbs. A 10% trailing stop follows a different line from the 10-day average.",
+   "why": "Raise it by hand. A standard trailing stop order trails by a set percent or dollar amount, not by a moving average. So the trader moves the stop up under the 9 EMA as it climbs. A 10% trailing stop follows a different line from the 9 EMA.",
    "lesson_line": "Trailing an average is your job. Move the stop up under it as it climbs.",
    "facts": [
     "f11",
@@ -1558,16 +1582,17 @@
     "f52",
     "f45",
     "h07",
-    "h09"
+    "h09",
+    "rd21"
    ],
    "wrong": {
-    "Enter a 10% trailing stop order": "That trails 10% under the high. It's a different line from the 10-day average.",
+    "Enter a 10% trailing stop order": "That trails 10% under the high. It's a different line from the 9 EMA.",
     "Set it at $58.90 once and leave it": "Then it stops trailing. The average keeps rising, and the stop falls behind.",
     "Lower it to give the stock room on dips": "Lowering a stop on a dip breaks our stop rule. It hands back the gain the stop protects."
    },
    "simple": "Move the stop up by hand, because a trailing stop order follows a set percent or dollar amount, not an average.",
    "deeper": {
-    "counter": "This is how a resting stop trails an average, not our default. Our default trail is judged on the close: we sell on a close below the 10-day or 21-day average. A resting stop under the line can trigger on an intraday dip instead."
+    "counter": "This is how a resting stop trails an average, not our default. Our default trail is judged on the close: we sell on a close below the 9 EMA or 20 EMA. A resting stop under the line can trigger on an intraday dip instead."
    },
    "tier": "expert",
    "risk": {
@@ -1576,7 +1601,7 @@
      "rests on the owner's rulebook (A4, E52)"
     ]
    },
-   "batch": "wave6"
+   "batch": "sweep-2026-11-14"
   }
  ],
  "conflicts": [
@@ -1709,9 +1734,9 @@
   },
   "q17": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "9/20 EMA and 50/200 SMA rename agrees with D-021; answer and wrongs sound; rd21 quote verbatim."
   },
   "q18": {
    "status": "pass",
@@ -1754,8 +1779,8 @@
   "q24": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key holds as order mechanics (f11 SEC: a trailing stop is a percent or dollar amount; f43, f45 Schwab; all verified live). Break: the story says 'Your plan says trail under the 10-day', and our plan is E52 (sell on a close below the average), while the key keys a resting stop under the line that triggers intraday. The deeper itself says 'Know which one your plan means', i.e. the story is too thin to say which. Fixed by making the story third person and stating a resting stop order, the same reframe used in q10, q20, q23; deeper becomes a counter that contrasts our close rule (h09). Choices, ke"
+   "fixed": false,
+   "notes": "Resting-stop story renamed to 9 EMA; $58.90 and 10% trailing stop are not EMA numbers; deeper agrees with D-021."
   }
  }
 }

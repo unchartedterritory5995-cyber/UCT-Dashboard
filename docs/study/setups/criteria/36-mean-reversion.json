@@ -818,9 +818,9 @@
   {
    "id": "mr.trail",
    "field": "management",
-   "statement": "Trail the rest under the 10-day for a fast mover or the 21-day for a steadier one, once a snapback turns into a trend.",
+   "statement": "Trail the rest under the 9 EMA for a fast mover or the 20 EMA for a steadier one, once a snapback turns into a trend.",
    "measure": {
-    "what": "close against the 10-day (fast) or 21-day (steadier) average",
+    "what": "close against the 9 EMA (fast) or 20 EMA (steadier)",
     "op": "<",
     "value": "the average",
     "timeframe": "daily"
@@ -835,7 +835,14 @@
    "gate": false,
    "grade_cue": false,
    "dossier_ref": "8.5; 7 E52 row",
-   "evidence": "Bracco's FIGR plan: \"My original plan was to trail the 20EMA and look for re-add spots.\" LITE 2016-11-01 chopped under the 20-day for a week, then ran to new highs inside 20 sessions (11.7R)."
+   "evidence": "Bracco's FIGR plan: \"My original plan was to trail the 20EMA and look for re-add spots.\" LITE 2016-11-01 chopped under the 20-day for a week, then ran to new highs inside 20 sessions (11.7R).",
+   "superseded": [
+    {
+     "statement": "Trail the rest under the 10-day for a fast mover or the 21-day for a steadier one, once a snapback turns into a trend.",
+     "on": "2026-11-14",
+     "by": "D-021"
+    }
+   ]
   },
   {
    "id": "mr.breakeven",
@@ -1282,7 +1289,7 @@
  "management": {
   "trim_1": "first sell by judgment, usually day 3 or later, into a 3, 5 or 7 day push or at about 5 to 10R (D-013, 2026-11-12)",
   "trim_2": "later sells by judgment into strength, then trail the rest (D-013, 2026-11-12)",
-  "trail": "a close under the 10-day for a fast mover, the 21-day for a steadier one, once the snapback turns into a trend (E52; Bracco's FIGR plan: trail the 20 EMA)",
+  "trail": "a close under the 9 EMA for a fast mover, the 20 EMA for a steadier one, once the snapback turns into a trend (E52; Bracco's FIGR plan: trail the 20 EMA)",
   "breakeven": "between 2R and 5R (B19); with Option 2, after the first trim at the average",
   "time_stop": "no close back above the flush day's high within 3 sessions, sell (the dossier's number, pending D-019; C33's 10 days is the outer limit)",
   "gap_open": "optional: selling part into a big gap at the open is a judgment, never a rule (owner, 2026-11-12)",
@@ -1291,7 +1298,8 @@
   "superseded": {
    "trim_2": "a third at 5R (E51)",
    "gap_open": "a trim level the day opens past is taken at the open (F63)",
-   "trim_1": "a third at 3R (B19); the dossier's Option 2 sells at least a third at the first test of the 20-day average instead (pending D-013)"
+   "trim_1": "a third at 3R (B19); the dossier's Option 2 sells at least a third at the first test of the 20-day average instead (pending D-013)",
+   "trail": "a close under the 10-day for a fast mover, the 21-day for a steadier one, once the snapback turns into a trend (E52; Bracco's FIGR plan: trail the 20 EMA)"
   }
  },
  "examples": {

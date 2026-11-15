@@ -130,6 +130,14 @@
    "title": "Setup decisions: the owner's rulings (2026-11-12)",
    "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
   }
  ],
  "facts": [
@@ -309,9 +317,9 @@
   },
   {
    "id": "h05",
-   "source": "h1",
-   "quote": "Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
-   "claim": "B19: breakeven between 2R and 5R; the hard rule for the first trim is a third at 3R."
+   "source": "hw",
+   "quote": "The stop may move up to breakeven between 2R and 5R, or at the first sell.",
+   "claim": "Our stop may move up to breakeven between 2R and 5R, or at the first sell."
   },
   {
    "id": "h06",
@@ -375,15 +383,15 @@
   },
   {
    "id": "h20",
-   "source": "h1",
-   "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
-   "claim": "E51: another third at 5R, then trail the last third."
+   "source": "hw",
+   "quote": "Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
+   "claim": "Later sells are a judgment: sell more into strength on a later push, and trail what is left."
   },
   {
    "id": "h21",
-   "source": "h1",
-   "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
-   "claim": "E52: trail the 10-day for fast movers, the 21-day for steadier ones; sell on a close below it."
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
   },
   {
    "id": "h22",
@@ -843,15 +851,15 @@
   },
   {
    "id": "r12",
-   "source": "h2",
-   "quote": "I usually wait until day 3 at the earliest.",
-   "claim": "Owner: he usually waits until day 3 at the earliest to sell."
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
   },
   {
    "id": "r13",
-   "source": "h2",
-   "quote": "I very rarely sell on the day 1 of the buy day.",
-   "claim": "Owner: he very rarely sells on day 1 of the buy day."
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
   },
   {
    "id": "r14",
@@ -864,6 +872,12 @@
    "source": "h2",
    "quote": "A gap up past 3R at the open is not an automatic sell. Selling part at the open on a big gap is one choice he may make by judgment, never a rule",
    "claim": "Owner: a gap past 3R is not an automatic sell. Selling part at the open is a judgment, never a rule."
+  },
+  {
+   "id": "r21",
+   "source": "h2",
+   "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+   "claim": "Owner ruling D-021: we use the 9 and 20 EMA everywhere, with the 50 and 200 SMA."
   }
  ],
  "walkthroughs": [
@@ -1313,15 +1327,16 @@
    "rung": 2,
    "format": "tf",
    "criterion": "av.not_stretched",
-   "q": "Skip an AVWAP reclaim long that is more than 10% above its 10-day average.",
+   "q": "Skip an AVWAP reclaim long that is more than 10% above its 9 EMA.",
    "answer": "True",
-   "why": "True. Our rule: a long more than 10% above its 10-day average is too stretched to buy, so skip it. The check uses the 10-day average, not the AVWAP or the trigger. The rule says skip, not buy smaller.",
-   "lesson_line": "A reclaim more than 10% over its 10-day is too stretched. Skip it.",
+   "why": "True. Our rule: a long more than 10% above its 9 EMA is too stretched to buy, so skip it. The check uses the 9 EMA, not the AVWAP or the trigger. The rule says skip, not buy smaller.",
+   "lesson_line": "A reclaim more than 10% over its 9 EMA is too stretched. Skip it.",
    "facts": [
-    "h13"
+    "h13",
+    "r21"
    ],
    "house": true,
-   "simple": "True. If the stock is more than 10% above its 10-day average, it has run too far, so we skip it.",
+   "simple": "True. If the stock is more than 10% above its 9 EMA, it has run too far, so we skip it.",
    "tier": "core",
    "risk": {
     "score": 5,
@@ -1330,7 +1345,7 @@
      "rests on the owner's rulebook (C29)"
     ]
    },
-   "batch": "wave4b"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q14",
@@ -1700,13 +1715,14 @@
    "rung": 3,
    "format": "tf",
    "criterion": "av.trail",
-   "q": "On the 10-day trail, a winner is sold the moment price touches the 10-day during the day.",
+   "q": "On the 9 EMA trail, a winner is sold the moment price touches the 9 EMA during the day.",
    "answer": "False",
-   "why": "False. Our default trail is the 10-day average for fast movers and the 21-day for steadier ones. The sale comes on a close below that average, not on a touch during the day. This trail is for what is left after the first sells.",
+   "why": "False. Our default trail is the 9 EMA for fast movers and the 20 EMA for steadier ones. The sale comes on a close below that average, not on a touch during the day. This trail is for what is left after the first sells.",
    "lesson_line": "Trail the rising average. Sell the close below it.",
    "facts": [
     "h21",
-    "r10"
+    "r10",
+    "r21"
    ],
    "house": true,
    "simple": "False. On the trail you sell when the price closes below the average, not when it only touches it.",
@@ -1717,7 +1733,7 @@
      "rests on the owner's rulebook (E51, E52)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q25",
@@ -2049,12 +2065,13 @@
    "rung": 4,
    "format": "mcq",
    "criterion": "av.not_stretched",
-   "q": "The stock ran for days after its reclaim. Its 10-day average is 40.00 and it trades 44.80. How far above the 10-day, in percent?",
+   "q": "The stock ran for days after its reclaim. Its 9 EMA is 40.00 and it trades 44.80. How far above the 9 EMA, in percent?",
    "answer": "12.0%",
-   "why": "The gap is 44.80 minus 40.00. Divide it by the 10-day average of 40.00 to get 12.0%. That is past our 10% line, so this one is a skip, not a smaller buy.",
-   "lesson_line": "Measure the stretch from the 10-day before you buy.",
+   "why": "The gap is 44.80 minus 40.00. Divide it by the 9 EMA of 40.00 to get 12.0%. That is past our 10% line, so this one is a skip, not a smaller buy.",
+   "lesson_line": "Measure the stretch from the 9 EMA before you buy.",
    "facts": [
-    "h13"
+    "h13",
+    "r21"
    ],
    "house": true,
    "calc": {
@@ -2076,7 +2093,7 @@
      "rests on the owner's rulebook (C29)"
     ]
    },
-   "batch": "rank",
+   "batch": "sweep-2026-11-14",
    "choices": [
     "12.0%",
     "48.0%",
@@ -2084,8 +2101,8 @@
     "120.0%"
    ],
    "wrong": {
-    "112.0%": "Never took off the 10-day, just compared price to average.",
-    "48.0%": "Divided the gap by 10, the days, not the average.",
+    "112.0%": "Never took off the 9 EMA, just compared price to average.",
+    "48.0%": "Divided the gap by 10, not by the 9 EMA.",
     "120.0%": "Slipped a decimal."
    }
   },
@@ -2927,27 +2944,28 @@
    "q": "What protects the rest of the position?",
    "story": "Your reclaim pushed to 5R and you made your sells into the strength. Then the market breaks hard and the stock starts to slide.",
    "choices": [
-    "The 10-day or 21-day trail",
+    "The 9 EMA or 20 EMA trail",
     "The original stop under the low",
     "A close back under the AVWAP",
     "The 50-day, sold on a touch"
    ],
-   "answer": "The 10-day or 21-day trail",
-   "why": "The trail. After the first sells, the rest rides a trail. The default trail is the 10-day average for fast movers or the 21-day for steadier ones. It sells on a close below that average. The first stop is only the starting point.",
+   "answer": "The 9 EMA or 20 EMA trail",
+   "why": "The trail. After the first sells, the rest rides a trail. The default trail is the 9 EMA for fast movers or the 20 EMA for steadier ones. It sells on a close below that average. The first stop is only the starting point.",
    "lesson_line": "Sell into strength; a trail decides the rest.",
    "facts": [
     "c29",
     "h21",
     "c13",
-    "r10"
+    "r10",
+    "r21"
    ],
    "wrong": {
     "The original stop under the low": "The stop can rise, but the plan for the rest is the trail, not the first stop.",
-    "A close back under the AVWAP": "After the buy, a close under the AVWAP is not an exit by itself. The trail decides the last third.",
-    "The 50-day, sold on a touch": "Our default trail is the 10-day or the 21-day. And it sells on a close below, not a touch."
+    "A close back under the AVWAP": "After the buy, a close under the AVWAP is not an exit by itself. The trail decides what is left.",
+    "The 50-day, sold on a touch": "Our default trail is the 9 EMA or the 20 EMA. And it sells on a close below, not a touch."
    },
    "house": true,
-   "simple": "The 10-day or 21-day trail, because the rest is sold on a close below that average.",
+   "simple": "The 9 EMA or 20 EMA trail, because the rest is sold on a close below that average.",
    "deeper": {
     "example": "Our card keeps O, January 2020, as the chart for this lesson: it reached 5R, then fell by half. Whatever you sold on the way up is safe whatever comes next. Only what is left still rides, and a close below the trailing average ends it."
    },
@@ -2959,7 +2977,7 @@
      "fixed before (cold check)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q57",
@@ -2967,7 +2985,7 @@
    "rung": 7,
    "format": "mcq",
    "criterion": "av.trim_2",
-   "q": "Bought at 52.67, stop 51.99. You sell a third at 56.07. How many R did that third bank?",
+   "q": "Bought at 52.67, stop 51.99. You sell part at 56.07. How many R did that sale bank?",
    "answer": "5.0R",
    "why": "5R. One R is the fill minus the stop, 52.67 minus 51.99. The gain is 56.07 minus 52.67. Divide the gain by one R to get 5R. When and how much to sell is a judgment. EPC reached 3R in six sessions and ran to 18.9R.",
    "lesson_line": "Count every exit in R. This sale banked 5R.",
@@ -2987,7 +3005,7 @@
     "round": 1
    },
    "suffix": "R",
-   "simple": "5R, because the gain on that third is five times the gap between the fill and the stop.",
+   "simple": "5R, because the gain on that sale is five times the gap between the fill and the stop.",
    "deeper": {
     "trap": "A common slip divides the gain by the fill price. That gives a percent gain, not an R count. Our sales are counted in R: the gain divided by the fill minus the stop."
    },
@@ -3000,7 +3018,7 @@
      "fixed before (cold check)"
     ]
    },
-   "batch": "rank",
+   "batch": "sweep-2026-11-14",
    "choices": [
     "5.0R",
     "3.4R",
@@ -3009,8 +3027,8 @@
    ],
    "wrong": {
     "3.4R": "Called the dollar gain the R multiple.",
-    "1.7R": "Split the R across the third that was sold.",
-    "0.8R": "Divided the gain by the gain measured from the stop."
+    "1.7R": "Halved the dollar gain by mistake.",
+    "0.8R": "Divided the gain by the whole run from the stop to the sale price."
    }
   },
   {
@@ -3491,13 +3509,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Trail answer kept; no fixed thirds."
+   "notes": "pass: trail renamed to 9/20 EMA, 'what is left' language; wrong choices all wrong."
   },
   "q57": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Sorted rank matches target; each wrong choice recomputed as a real mistake on this math; no new tell."
+   "fixed": true,
+   "notes": "fix: two wrong-choice explanations were vague or wrong (1.7R, 0.8R); 56.07 less 52.67 over 0.68 = 5.0R stands, the answer is right."
   },
   "q63": {
    "status": "cut",
@@ -3551,19 +3569,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "B20 (h06, h07): new stop is the first 30-minute low, 48.40; loss there is 1.60 on a 1.00 R, under the 2R ceiling, so no forced exit. Every wrong choice is wrong. Pass."
+   "notes": "pass: a gap DOWN through the stop (B20); 48.40 is 1.6R under 50.00, inside 2R."
   },
   "q32": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Sorted rank matches target; each wrong choice recomputed as a real mistake on this math; no new tell."
+   "fixed": true,
+   "notes": "fix: the 48.0% distractor explanation said 'the days' from the old 10-day wording; no 10 is in the question now."
   },
   "q38": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with GAP-TRIM/SHORT-ENTRY or not affected; key right, quote exact, style ok"
+   "notes": "pass: gap up into day 5, weigh selling some, never a rule (D-013, GAP-TRIM)."
   },
   "q48": {
    "status": "pass",
@@ -3618,7 +3636,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "D-001 is about shorts; this is long A+ sizing and the new-trader 0.25% line is separate."
+   "notes": "pass: new-trader 0.25% start is the C37 sizing rule, not the D-001 shorts bar."
   },
   "q65": {
    "status": "pass",
@@ -3736,7 +3754,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "True from C29 (h13). q32 computes a stretch but asks only the percent, so no cross-answer. Pass."
+   "notes": "pass: 9 EMA rename done, r21 cited; skip not buy smaller."
   },
   "q14": {
    "status": "pass",
@@ -3791,7 +3809,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Trail close rule; first sells no longer fixed."
+   "notes": "pass: trail 9/20 EMA on a close, not a touch; D-021 and D-013 consistent."
   },
   "q33": {
    "status": "pass",

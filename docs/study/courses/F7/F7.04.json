@@ -2072,9 +2072,9 @@
   },
   "q15": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "Keep is right: follow-through day is defined by higher volume on a major index; volume is the signal itself and D-006 is about setup grades."
   },
   "q16": {
    "status": "pass",

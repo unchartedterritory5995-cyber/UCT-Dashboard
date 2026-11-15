@@ -1727,7 +1727,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "calc 20000 x 10 / 100 = 2000. ± misreading wrong per f37; stop wrong per f34/f20; 'maybe more' per f38. Choices 28-34, the hedge is shared by the $800 choice. Overlaps q14's lesson_line ('plan for that loss') but adds the stop contrast; accepted as the resolver did. Consistent with B20's 2R ceiling (10% gap on a 4% stop is 2.5R, so out)."
+   "notes": "Keep is right: the 10% is an options-implied move, not an EP floor or scan guide."
   },
   "q22": {
    "status": "cut",

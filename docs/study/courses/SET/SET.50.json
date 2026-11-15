@@ -104,6 +104,14 @@
    "title": "Setup decisions: the owner's rulings (2026-11-12)",
    "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
   }
  ],
  "facts": [
@@ -271,9 +279,9 @@
   },
   {
    "id": "h05",
-   "source": "h1",
-   "quote": "Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
-   "claim": "B19: breakeven between 2R and 5R; the hard rule for the first trim is a third at 3R."
+   "source": "hw",
+   "quote": "The stop may move up to breakeven between 2R and 5R, or at the first sell.",
+   "claim": "Our stop may move up to breakeven between 2R and 5R, or at the first sell."
   },
   {
    "id": "h06",
@@ -325,15 +333,15 @@
   },
   {
    "id": "h20",
-   "source": "h1",
-   "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
-   "claim": "E51: another third at 5R, then trail the last third."
+   "source": "hw",
+   "quote": "Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
+   "claim": "Later sells are a judgment: sell more into strength on a later push, and trail what is left."
   },
   {
    "id": "h21",
-   "source": "h1",
-   "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
-   "claim": "E52: trail the 10-day for fast movers, the 21-day for steadier ones; sell on a close below it."
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
   },
   {
    "id": "h22",
@@ -469,9 +477,9 @@
   },
   {
    "id": "c17",
-   "source": "c1",
-   "quote": "A third at 3R.",
-   "claim": "A third at 3R."
+   "source": "hw",
+   "quote": "The first sell is a judgment, not a fixed third at 3R.",
+   "claim": "Our rule: the first sell is a judgment, not a fixed third at 3R."
   },
   {
    "id": "c18",
@@ -823,9 +831,9 @@
   },
   {
    "id": "r07",
-   "source": "h2",
-   "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
-   "claim": "He rarely sells on day 1 and usually waits until day 3 at the earliest."
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
   },
   {
    "id": "r08",
@@ -838,6 +846,24 @@
    "source": "h2",
    "quote": "Looking for 3-5-7 day push for our first sell and that might be 10-12-20R.",
    "claim": "The first sell is often day based: a 3, 5 or 7 day push, which can be 10, 12 or 20R."
+  },
+  {
+   "id": "r21",
+   "source": "h2",
+   "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+   "claim": "Owner: the 9 and 20 EMA everywhere, with the 50 and 200 SMA."
+  },
+  {
+   "id": "rg1",
+   "source": "h2",
+   "quote": "A gap up past 3R at the open is not an automatic sell. Selling part at the open on a big gap is one choice he may make by judgment, never a rule",
+   "claim": "Owner: a gap past 3R is not an automatic sell. Selling part at the open is a judgment, never a rule."
+  },
+  {
+   "id": "h05b",
+   "source": "hw",
+   "quote": "The stop may move up to breakeven between 2R and 5R, or at the first sell.",
+   "claim": "Our stop may move up to breakeven between 2R and 5R, or at the first sell."
   }
  ],
  "walkthroughs": [
@@ -1933,7 +1959,7 @@
    "rung": 5,
    "format": "mcq",
    "criterion": "spr.not_stretched",
-   "q": "At entry, how far above its 10-day average may a stock be?",
+   "q": "At entry, how far above its 9 EMA may a stock be?",
    "choices": [
     "No more than 10%",
     "No more than 1%",
@@ -1941,19 +1967,20 @@
     "There is no limit"
    ],
    "answer": "No more than 10%",
-   "why": "No more than 10%. Too stretched to buy: we skip a long more than 10% above its 10-day average. The card applies the same line at the spring entry. It measures the distance from the average, not from the floor.",
-   "lesson_line": "Too stretched above the 10-day means skip.",
+   "why": "No more than 10%. Too stretched to buy: we skip a long more than 10% above its 9 EMA. The card applies the same line at the spring entry. It measures the distance from the average, not from the floor.",
+   "lesson_line": "Too stretched above the 9 EMA means skip.",
    "facts": [
     "c14",
-    "h13"
+    "h13",
+    "r21"
    ],
    "house": true,
    "wrong": {
     "No more than 1%": "That is far tighter than the rule.",
-    "No more than 25%": "The rule is 10%. A stock 25% above its 10-day is far too stretched.",
-    "There is no limit": "There is a limit: 10% above the 10-day."
+    "No more than 25%": "The rule is 10%. A stock 25% above its 9 EMA is far too stretched.",
+    "There is no limit": "There is a limit: 10% above the 9 EMA."
    },
-   "simple": "No more than 10%, because a long more than 10% above its 10-day average is too stretched to buy.",
+   "simple": "No more than 10%, because a long more than 10% above its 9 EMA is too stretched to buy.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -1961,7 +1988,7 @@
      "rests on the owner's rulebook (C29)"
     ]
    },
-   "batch": "wave5"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q32",
@@ -2050,13 +2077,13 @@
    "criterion": "spr.trim_1",
    "q": "What do you do at 3R?",
    "choices": [
-    "Hold past 68.80; no sale before day 3",
+    "Hold past 68.80; usually wait to day 3",
     "Sell a third at 68.80; move stop to 64",
     "Sell half at 68.80; stop stays put",
     "Add to the winner at 68.80 on strength"
    ],
    "story": "You bought at 64.00 with a stop at 62.40. On the buy day itself, price runs to 68.80, which is 3R.",
-   "answer": "Hold past 68.80; no sale before day 3",
+   "answer": "Hold past 68.80; usually wait to day 3",
    "calc": {},
    "why": "Hold. The first sell is a judgment, not a fixed third at 3R. We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest. Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
    "lesson_line": "The first sell is a judgment, and it rarely comes on day 1.",
@@ -2069,7 +2096,7 @@
    ],
    "house": true,
    "wrong": {
-    "Sell half at 68.80; stop stays put": "Selling on day 1 is rare. The first sell waits for day 3 at the earliest.",
+    "Sell half at 68.80; stop stays put": "Selling on day 1 is rare. We usually wait until day 3 at the earliest.",
     "Sell a third at 68.80; move stop to 64": "The first sell is a judgment, not a fixed third at 3R. Day 1 is rarely the day to sell.",
     "Add to the winner at 68.80 on strength": "We never add. The full size goes on at one price with one stop."
    },
@@ -2096,28 +2123,26 @@
    "criterion": "spr.trail",
    "q": "How do we trail the rest of a spring?",
    "choices": [
-    "Under the 21-day, or 10-day if fast",
+    "Under the 20 EMA, or 9 EMA if fast",
     "Under the 200-day average line",
     "A fixed 3% stop under the entry",
     "Keep it under the spring low, unmoved"
    ],
-   "answer": "Under the 21-day, or 10-day if fast",
-   "why": "Under the 21-day, or the 10-day if it runs fast. Our default trail is the 10-day average for fast movers and the 21-day for steadier ones. We sell on a close below it. The card says most springs use the 21-day. The trail is for the last third, after the earlier sells.",
-   "lesson_line": "Trail the 21-day, or the 10-day when it runs.",
+   "answer": "Under the 20 EMA, or 9 EMA if fast",
+   "why": "Under the 20 EMA, or the 9 EMA if it runs fast. Our default trail is the 9 EMA for fast movers and the 20 EMA for steadier ones. We sell on a close below it. Most springs suit the 20 EMA. The trail is for what is left, after the earlier sells.",
+   "lesson_line": "Trail the 20 EMA, or the 9 EMA when it runs.",
    "facts": [
-    "c21",
-    "h21",
-    "h20",
     "h04",
-    "c15"
+    "c15",
+    "r21"
    ],
    "house": true,
    "wrong": {
-    "Under the 200-day average line": "Our trail is the 10-day or the 21-day average, not the 200-day.",
+    "Under the 200-day average line": "Our trail is the 9 EMA or the 20 EMA, not the 200-day.",
     "A fixed 3% stop under the entry": "A fixed stop does not follow the move. About 3% is where the first stop usually sits, not a trail.",
-    "Keep it under the spring low, unmoved": "That is the first stop. After the trims, the last third trails under the 21-day or the 10-day."
+    "Keep it under the spring low, unmoved": "That is the first stop. After the earlier sells, what is left trails under the 20 EMA or the 9 EMA."
    },
-   "simple": "Under the 21-day for most springs, or the 10-day for fast movers, selling on a close below it.",
+   "simple": "Under the 20 EMA for most springs, or the 9 EMA for fast movers, selling on a close below it.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2125,7 +2150,7 @@
      "rests on the owner's rulebook (E52)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q37",
@@ -2223,32 +2248,30 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "spr.trim_gap_open",
-   "q": "What does our plan say to do at the open?",
+   "q": "What do you do at the open?",
    "choices": [
-    "Make the planned sell at the open",
-    "Wait for 60.00 to make the sell",
-    "Hold everything and trail it",
+    "Weigh selling some into the gap",
+    "Sell a third; the gap makes it a rule",
+    "Sell it all at the open",
     "Add more at 57.50 on the gap"
    ],
-   "story": "You bought at 50.00 with a stop at 48.00. On day 3 you plan your first sell at 3R, 56.00. The stock opens at 57.50.",
-   "answer": "Make the planned sell at the open",
-   "why": "Make the planned sell at the open. You planned to sell at 56.00, which is 3R, and the day opened at 57.50, past it. Our rule: if a stock opens above a sell level, take that sell at the open. The first sell is a judgment, usually day 3 or later.",
-   "lesson_line": "If it opens past a sell level, sell at the open.",
+   "story": "You bought at 50.00 with a stop at 48.00. On day 3 you are weighing a first sell near 3R, 56.00. The stock opens at 57.50.",
+   "answer": "Weigh selling some into the gap",
+   "why": "Weigh selling some into the gap. It is day 3, the earliest we usually sell, and the open of 57.50 is past your 56.00 level. A gap up past 3R at the open is not an automatic sell. Selling part at the open is one choice we may make by judgment, never a rule.",
+   "lesson_line": "A gap past a sell level is a time to weigh a part sale. It is never a rule.",
    "facts": [
-    "c20",
-    "h25",
-    "h28b",
-    "h21",
+    "rg1",
     "r06",
-    "r07"
+    "r07",
+    "h28b"
    ],
    "house": true,
    "wrong": {
-    "Hold everything and trail it": "The plan sells at 56.00 first. The trail is only for the part left after the sell.",
     "Add more at 57.50 on the gap": "We never add. The full size goes on at one price with one stop.",
-    "Wait for 60.00 to make the sell": "You planned to sell at 56.00. A sell level the day opens past is taken at the open."
+    "Sell a third; the gap makes it a rule": "A gap is no rule. Selling part at the open is a judgment, never a requirement.",
+    "Sell it all at the open": "The first sell is part of the position. The rest keeps working."
    },
-   "simple": "Make the planned sell at the open, because the stock opened past your 56.00 level.",
+   "simple": "Weigh selling some into the gap, because the first sell is a judgment and a gap never forces it.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2256,7 +2279,7 @@
      "rests on the owner's rulebook (F63, B19)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q40",
@@ -2412,7 +2435,6 @@
    "why": "Pass. Below the 200-day is a hard no for stocks, and this stock is under it. Only an index or a levered ETF may go under it, on a reversal extension or a parabolic long. The rule is about where price sits, not how clean the pattern is. Our card also prefers a range after a rise, not a base after a decline.",
    "lesson_line": "Under the 200-day, no stock long, however clean the spring looks.",
    "facts": [
-    "h10",
     "c01",
     "r01",
     "r02"
@@ -3109,11 +3131,12 @@
     "At the open each day"
    ],
    "answer": "At the first trim, by default",
-   "why": "At the first trim by default, and anywhere between 2R and 5R. A third comes off at 3R.",
+   "why": "At the first trim by default, and anywhere between 2R and 5R. The first sell is a judgment, not a fixed third at 3R.",
    "lesson_line": "Breakeven comes with the first trim.",
    "facts": [
     "c18",
-    "h05"
+    "h05",
+    "r06"
    ],
    "house": true,
    "wrong": {
@@ -3425,7 +3448,7 @@
    "why": "True. We move the stop to breakeven between 2R and 5R, and the card sets it at the first sell by default. The first sell is a judgment, not a fixed third at 3R, but 3R sits inside that window.",
    "lesson_line": "Breakeven comes between 2R and 5R, by default at the first sell.",
    "facts": [
-    "h05",
+    "h05b",
     "c18",
     "r06"
    ],
@@ -3460,7 +3483,7 @@
    "why": "55.00. One R is the buy minus the stop: 52.40 minus 51.10. Add two of those to the 52.40 buy. That gives 55.00. Our breakeven window runs from 2R to 5R, and the card moves the stop to breakeven at the first trim by default. So 55.00 is where the window opens, not a point where you must move it.",
    "lesson_line": "Know your 2R before the open. The breakeven window starts there.",
    "facts": [
-    "h05",
+    "h05b",
     "c18"
    ],
    "house": true,
@@ -3493,7 +3516,7 @@
    "rung": 5,
    "format": "mcq",
    "criterion": "spr.trim_2",
-   "q": "A spring position is 900 shares. You sell a third of the 900 at 3R and another third of the 900 at 5R. How many are left to trail?",
+   "q": "A spring position is 900 shares. You sell 300 at your first sell and 300 more at a later sell. How many are left to trail?",
    "answer": "300 shares",
    "calc": {
     "fn": "arith",
@@ -3503,15 +3526,14 @@
     },
     "round": 0
    },
-   "why": "300 shares. A third of 900 is 300. Two sells of 300 each leave the last 300, which you trail. Our rulebook calls these thirds adjustable.",
-   "lesson_line": "Two thirds sold, then trail the last third.",
+   "why": "300 shares. 900 minus 300 minus 300 leaves 300, which you trail. How much you sell, and when, is a judgment, so these are example numbers.",
+   "lesson_line": "Whatever you sell, trail what is left.",
    "facts": [
-    "h20",
-    "c19"
+    "r06"
    ],
    "house": true,
    "suffix": " shares",
-   "simple": "300 shares are left, the last third, after selling a third in each of two sells.",
+   "simple": "300 shares are left, because two sells of 300 come off the 900 and you trail the rest.",
    "tier": "extended",
    "risk": {
     "score": 5,
@@ -3521,7 +3543,7 @@
      "fixed before"
     ]
    },
-   "batch": "rank",
+   "batch": "sweep-2026-11-14",
    "choices": [
     "300 shares",
     "200 shares",
@@ -3529,9 +3551,9 @@
     "100 shares"
    ],
    "wrong": {
-    "100 shares": "Took a third of a third.",
-    "200 shares": "Also sold a third of the last piece.",
-    "150 shares": "Halved the last piece, as if a third sell hit."
+    "100 shares": "That sells far too much. Two sells of 300 each leave 300.",
+    "200 shares": "That counts one sell as bigger than 300. Two sells of 300 each leave 300.",
+    "150 shares": "That halves the 300 left. No third sell is in the question."
    }
   },
   {
@@ -3540,33 +3562,32 @@
    "rung": 8,
    "format": "scenario",
    "criterion": "spr.trim_2",
-   "q": "What does the plan do at 5R?",
+   "q": "Price touches 5R after your first sell. What is the plan?",
    "choices": [
-    "Sell a third more; trail the rest",
+    "Weigh a later sell; trail what is left",
     "Sell everything and lock the gain in",
     "Add a third back on the strength",
-    "Trail all of it under the 10-day"
+    "Sell a fixed third more; trail the rest"
    ],
-   "answer": "Sell a third more; trail the rest",
-   "why": "Sell a third more and trail the rest. In this plan, another third comes off at 5R after the first sell. The last third is trailed, under the 10-day for fast movers or the 21-day for steadier ones. Nothing is added, and the plan does not sell it all at once.",
-   "lesson_line": "After the first sell, a third at 5R, then trail the last third.",
+   "answer": "Weigh a later sell; trail what is left",
+   "why": "Weigh a later sell and trail what is left. Later sells are a judgment, like the first, and selling at about 5 to 10R is often best. No fixed third comes off at 5R. What is left trails under the 9 EMA for fast movers or the 20 EMA for steadier ones. Nothing is added.",
+   "lesson_line": "After the first sell, a later sell is a judgment. Trail what is left.",
    "facts": [
-    "h20",
-    "c19",
+    "r06",
+    "r08",
     "h28b",
-    "h21",
-    "r06"
+    "r21"
    ],
    "wrong": {
-    "Sell everything and lock the gain in": "The plan sells in thirds and trails the last one.",
+    "Sell everything and lock the gain in": "The plan sells part by judgment and trails what is left.",
     "Add a third back on the strength": "No adds. The full size is one price with one stop.",
-    "Trail all of it under the 10-day": "The trail is only for the last third. A third comes off at 5R first."
+    "Sell a fixed third more; trail the rest": "Later sells are a judgment too. No fixed third comes off at 5R."
    },
    "house": true,
    "story": "Your spring buy has made its first sell. Price now touches 5R and the stop is at breakeven.",
-   "simple": "Sell another third at 5R, then trail the last third, because this plan sells in thirds.",
+   "simple": "Weigh a later sell and trail what is left, because later sells are a judgment, not a fixed third.",
    "deeper": {
-    "trap": "The trap is to sell it all at 5R. The plan sells a third there and trails the last third under a rising average."
+    "trap": "The trap is to sell a fixed third at 5R. A later sell is a judgment, and what is left trails under a rising average."
    },
    "tier": "expert",
    "risk": {
@@ -3575,7 +3596,7 @@
      "rests on the owner's rulebook (E51)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q76",
@@ -3804,9 +3825,9 @@
   },
   "q31": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "10-day to 9 EMA on a rule threshold (10% above the line), not a measured date; cites r21; why numbers in the question."
   },
   "q33": {
    "status": "pass",
@@ -3823,14 +3844,14 @@
   "q35": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "agrees with D-013; key and wrongs sound"
+   "fixed": true,
+   "notes": "Right in spirit (D-013), but 'no sale before day 3' keys day 3 as an absolute. The owner says very rarely day 1, usually day 3 at the earliest. Softened the right choice and one wrong explanation to 'usually'."
   },
   "q36": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with D-013; key and wrongs sound"
+   "notes": "20 EMA or 9 EMA trail for what is left, cites r21; 3% distractor explanation stays within D-005."
   },
   "q37": {
    "status": "pass",
@@ -3848,7 +3869,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with D-013; key and wrongs sound"
+   "notes": "Re-keyed to weigh a part sale as a judgment, never a rule (GAP-TRIM, D-013); numbers check (3R = 56.00)."
   },
   "q40": {
    "status": "pass",
@@ -3927,13 +3948,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "u04 verified verbatim on the Substack page; c04 on the card. Keep-for-later distractor is correctly excluded by 'take it off my list'."
+   "notes": "Spurious hit: buyout hard rule has nothing to do with D-013."
   },
   "q44": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Same: stock under 200 is a hard no; exception is index/leveraged ETF only."
+   "notes": "Answer matches D-009. The cited fact h10 still prints the old 'unless it is a parabolic long' for longs, which the ruling limits to indexes and leveraged ETFs; dropped it, r01 and r02 carry the rule."
   },
   "q46": {
    "status": "pass",
@@ -3970,8 +3991,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "d19/d20 give 7.2%, five touches, 0.75 ATR, 0.96x; c09/c10 the band. Stem now limits the call to the pattern. Chart asof is the spring day; no ticker or date in the text.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Answer is flat floor and a modest dip of 0.75 ATR inside the about 1 ATR guide; no near-neighbour number is keyed against it; volume not required."
   },
   "q55": {
    "status": "pass",
@@ -4112,25 +4132,25 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "q still keyed \"first third comes off at 3R\" as the premise"
+   "notes": "Answer right (breakeven 2R to 5R, default at the first sell). The cited fact h05 also prints the superseded 'hard rule is a third at 3R'; swapped for a fact quoting only the breakeven sentence."
   },
   "q73": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Sorted rank matches target; each wrong choice recomputed as a real mistake on this math; no new tell."
+   "fixed": true,
+   "notes": "R math checks (R = 1.30, 2R = 55.00, wrongs are +3R, +4R, +5R). Same stale fact h05 swapped for the breakeven-only quote."
   },
   "q74": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Sorted rank matches target; each wrong choice recomputed as a real mistake on this math; no new tell."
+   "notes": "Share count is given amounts (300 and 300), flagged as example numbers and a judgment; no fixed thirds presumed."
   },
   "q75": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "story still said the first third was sold at 3R"
+   "fixed": false,
+   "notes": "Later sell is a judgment, trail what is left under the 9 or 20 EMA; fixed third at 5R is the wrong choice."
   },
   "q76": {
    "status": "pass",

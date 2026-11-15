@@ -894,9 +894,9 @@
   {
    "id": "hg.trail",
    "field": "management",
-   "statement": "Trail what is left: sell on a close below the 10-day average. The 10-day, not the 21-day: a stock that has just pushed its ADX over 30 is usually moving fast.",
+   "statement": "Trail what is left: sell on a close below the 9 EMA. The 9 EMA, not the 20 EMA: a stock that has just pushed its ADX over 30 is usually moving fast.",
    "measure": {
-    "what": "close against the 10-day average",
+    "what": "close against the 9 EMA",
     "op": "<",
     "value": "the average",
     "timeframe": "daily"
@@ -915,6 +915,11 @@
      "statement": "Trail the last third: sell on a close below the 10-day average. The 10-day, not the 21-day: a stock that has just pushed its ADX over 30 is usually moving fast.",
      "on": "2026-11-12",
      "by": "D-013"
+    },
+    {
+     "statement": "Trail what is left: sell on a close below the 10-day average. The 10-day, not the 21-day: a stock that has just pushed its ADX over 30 is usually moving fast.",
+     "on": "2026-11-14",
+     "by": "D-021"
     }
    ],
    "ruling": "D-013"
@@ -1170,7 +1175,7 @@
  "management": {
   "trim_1": "first sell by judgment, usually day 3 or later, into a 3, 5 or 7 day push or at about 5 to 10R (D-013, 2026-11-12)",
   "trim_2": "later sells by judgment into strength, then trail the rest (D-013, 2026-11-12)",
-  "trail": "a close under the 10-day average by default, the 21-day only for a steadier name (E52; the 10-day default is the dossier's proposal)",
+  "trail": "a close under the 9 EMA by default, the 20 EMA only for a steadier name (E52; the 9 EMA default is the dossier's proposal)",
   "breakeven": "between 2R and 5R, or at the first sell (B19)",
   "time_stop": "under 1R after 10 trading days, sell (C33); Raschke's 5 quiet sessions is D-019",
   "gap_open": "optional: selling part into a big gap at the open is a judgment, never a rule (owner, 2026-11-12)",
@@ -1180,7 +1185,8 @@
   "superseded": {
    "trim_1": "a third at 3R (B19)",
    "trim_2": "a third at 5R (E51)",
-   "gap_open": "a trim level the day opens past is taken at the open (F63)"
+   "gap_open": "a trim level the day opens past is taken at the open (F63)",
+   "trail": "a close under the 10-day average by default, the 21-day only for a steadier name (E52; the 10-day default is the dossier's proposal)"
   }
  },
  "examples": {

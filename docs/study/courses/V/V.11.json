@@ -3966,7 +3966,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from f34/f80, with f147 for the High-Low Line and f24 for the 200-day note. For the resolver, outside this check: q29's existing why opens 'The High-Low Index is a 10-day average of Record High Percent', which is q30's key, and q29 comes first. Consider trimming q29. Minor: q30's 'Above/below 50' lines cite f36, which is about Record High Percent. f81 would back them for the index."
+   "notes": "Market-wide breadth or IBD index method; no ruling applies."
   },
   "q31": {
    "status": "pass",
@@ -4032,7 +4032,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from f43/f77/f103. The q42 'slower' text is gone. 'Oscillator readings above 100' is weak but tied to f76 (thrust of 100 points)."
+   "notes": "Market-wide breadth or IBD index method; no ruling applies."
   },
   "q42": {
    "status": "pass",
@@ -4111,50 +4111,49 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from f135/f112, f113. 'Prior session' overlaps q56, but w3 step 1 already teaches it, so no new giveaway."
+   "notes": "Market-wide breadth or IBD index method; no ruling applies."
   },
   "q55": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Keep agreed: the IBD distribution day threshold is what a trader counts; the why states the use and that it is IBD method."
+   "notes": "Market-wide breadth or IBD index method; no ruling applies."
   },
   "q56": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "Market-wide breadth or IBD index method; no ruling applies."
   },
   "q57": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f117, f114, f112). Break: the story itself labels the day 'the first distribution day in weeks', which rules out the 'a 0.3% dip doesn't count' choice before any knowledge is used. Story reworded so the student must apply the 0.2% rule. The cluster line is already taught in w3, so it stays."
+   "fixed": false,
+   "notes": "Market-wide breadth or IBD index method; no ruling applies."
   },
   "q58": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key is IBD's read (f118, f119, f137, f154, f155). The cluster rule is taught in w3; the question frames IBD's method, so no rulebook clash."
+   "notes": "Market-wide breadth or IBD index method; no ruling applies."
   },
   "q59": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "Market-wide breadth or IBD index method; no ruling applies."
   },
   "q60": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from f56 (StockCharts) plus f158/f123/f125 (IBD). The Day 4 note is from f122, also taught in w3. The why no longer gives q64's Day 1 key.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Market-wide breadth or IBD index method; no ruling applies."
   },
   "q61": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "Market-wide breadth or IBD index method; no ruling applies."
   },
   "q62": {
    "status": "pass",

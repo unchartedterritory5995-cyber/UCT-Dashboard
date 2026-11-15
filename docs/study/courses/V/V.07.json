@@ -258,6 +258,22 @@
    "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
    "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "h9",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
   }
  ],
  "facts": [
@@ -1067,9 +1083,15 @@
   },
   {
    "id": "h52",
-   "source": "sh9",
-   "quote": "E52. Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
-   "claim": "Our default trail: the 10-day average for fast movers, the 21-day for steadier ones, sold on a close below it."
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
+  },
+  {
+   "id": "r01",
+   "source": "h9",
+   "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+   "claim": "D-021: the course uses the 9 and 20 EMA everywhere, with the 50 and 200 SMA."
   }
  ],
  "walkthroughs": [
@@ -3401,25 +3423,26 @@
    "term": "Trailing stop",
    "q": "By default, what makes us sell a winner we're trailing?",
    "choices": [
-    "A close below the 10- or 21-day line",
-    "Its first touch of the 10-day line",
+    "A close below the 9 or 20 EMA",
+    "Its first touch of the 9 EMA",
     "A trailing stop a set percent under it",
     "A stop moved up under each day's low"
    ],
-   "answer": "A close below the 10- or 21-day line",
-   "why": "A close below the 10- or 21-day line. Our default trail is the 10-day average for fast movers and the 21-day for steadier ones. We sell on a close below it, not on a touch. A trailing stop order is a broker tool this lesson teaches, but it is not our default trail.",
-   "lesson_line": "We trail with the 10-day or 21-day average and sell on a close below it.",
+   "answer": "A close below the 9 or 20 EMA",
+   "why": "A close below the 9 or 20 EMA. Our default trail is the 9 EMA for fast movers and the 20 EMA for steadier ones. We sell on a close below it, not on a touch. A trailing stop order is a broker tool this lesson teaches, but it is not our default trail.",
+   "lesson_line": "We trail with the 9 or 20 EMA and sell on a close below it.",
    "facts": [
     "h52",
     "f17",
-    "f18"
+    "f18",
+    "r01"
    ],
    "wrong": {
-    "A trailing stop a set percent under it": "That's a trailing stop order, a broker tool. Our default trail is the 10-day or 21-day average.",
-    "A stop moved up under each day's low": "Our default trail is an average, not each day's low. We sell on a close below the 10-day or 21-day.",
-    "Its first touch of the 10-day line": "A touch is not enough. Our rule sells on a close below the average."
+    "A trailing stop a set percent under it": "That's a trailing stop order, a broker tool. Our default trail is the 9 or 20 EMA.",
+    "A stop moved up under each day's low": "Our default trail is an average, not each day's low. We sell on a close below the 9 or 20 EMA.",
+    "Its first touch of the 9 EMA": "A touch is not enough. Our rule sells on a close below the average."
    },
-   "simple": "By default we sell a trailed winner when it closes below its 10-day or 21-day average.",
+   "simple": "By default we sell a trailed winner when it closes below its 9 or 20 EMA.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -3427,7 +3450,7 @@
      "rests on the owner's rulebook (E52)"
     ]
    },
-   "batch": "wave8"
+   "batch": "sweep-2026-11-14"
   }
  ],
  "conflicts": [
@@ -3636,7 +3659,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Order-types question; market buy at close is only a wrong distractor; keep."
+   "notes": "Order mechanics of a day order; not a setup entry."
   },
   "q30": {
    "status": "pass",
@@ -3839,8 +3862,8 @@
   "q64": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key is right (h52 = E52 verbatim: 10-day for fast movers, 21-day for steadier, sell on a close below; a touch is not a close). But the question carries term 'Trailing stop' on an mcq, so the course export sets subject='Trailing stop' and Word Match (study_store.game_pool) pairs 'Trailing stop' with 'A close below the 10- or 21-day line'. That pair is false: the lesson itself (q17, f17/f18) defines a trailing stop as a stop that follows price by a set gap, and this question's own why says a trailing stop order is not our trail. Fix: remove the term field (README: term is for a word and its mean"
+   "fixed": false,
+   "notes": "9 or 20 EMA with D-021 fact h9/r01; sell on a close below it is an exit, fine."
   }
  }
 }

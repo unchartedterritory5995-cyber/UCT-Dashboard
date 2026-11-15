@@ -115,6 +115,14 @@
    "title": "Setup decisions: the owner's rulings (2026-11-12)",
    "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
   }
  ],
  "facts": [
@@ -150,9 +158,9 @@
   },
   {
    "id": "h05",
-   "source": "h1",
-   "quote": "Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
-   "claim": "B19: breakeven between 2R and 5R; the hard rule for the first trim is a third at 3R."
+   "source": "hw",
+   "quote": "The stop may move up to breakeven between 2R and 5R, or at the first sell.",
+   "claim": "Our stop may move up to breakeven between 2R and 5R, or at the first sell."
   },
   {
    "id": "h06",
@@ -204,9 +212,9 @@
   },
   {
    "id": "h21",
-   "source": "h1",
-   "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
-   "claim": "E52: trail the 10-day for fast movers, the 21-day for steadier ones; sell on a close below it."
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
   },
   {
    "id": "h22",
@@ -720,9 +728,9 @@
   },
   {
    "id": "h20",
-   "source": "h1",
-   "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
-   "claim": "E51: another third at 5R, then trail the last third."
+   "source": "hw",
+   "quote": "Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
+   "claim": "Later sells are a judgment: sell more into strength on a later push, and trail what is left."
   },
   {
    "id": "h23",
@@ -810,15 +818,33 @@
   },
   {
    "id": "r55",
-   "source": "h2",
-   "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
-   "claim": "We very rarely sell on day 1 and usually wait until day 3 at the earliest."
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
   },
   {
    "id": "r56",
    "source": "h2",
    "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
    "claim": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
+  },
+  {
+   "id": "r60",
+   "source": "h2",
+   "quote": "Below the 200-day is a hard no for stocks.",
+   "claim": "D-009: below the 200-day is a hard no for stocks."
+  },
+  {
+   "id": "r61",
+   "source": "h2",
+   "quote": "The one exception: indexes and leveraged ETFs may be bought under their 200-day on a reversal extension or a parabolic long.",
+   "claim": "D-009: indexes and leveraged ETFs are the one exception, on a reversal extension or a parabolic long."
+  },
+  {
+   "id": "r62",
+   "source": "h2",
+   "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+   "claim": "D-021: the course uses the 9 and 20 EMA, with the 50 and 200 SMA."
   }
  ],
  "walkthroughs": [
@@ -1254,11 +1280,12 @@
    "criterion": "xbk.above_200",
    "q": "A clean crossback under the 200-day average is fine for us.",
    "answer": "False",
-   "why": "False. We take no longs below the 200-day simple moving average, unless it is a parabolic long. A crossback is not a parabolic long, so the hold day must close above the 200-day. A clean shape does not lift the rule.",
+   "why": "False. Below the 200-day is a hard no for stocks. The one exception is indexes and ETFs built to magnify an index's moves, on a reversal extension or a parabolic long. A crossback is not a parabolic long, so the hold day must close above the 200-day. A clean shape does not lift the rule.",
    "lesson_line": "No longs under the 200-day, crossback or not.",
    "facts": [
     "x12",
-    "h10"
+    "r60",
+    "r61"
    ],
    "house": true,
    "simple": "No, we do not buy a stock under its 200-day line, even when the crossback looks clean.",
@@ -1269,7 +1296,7 @@
      "rests on the owner's rulebook (B26, the 200-day line)"
     ]
    },
-   "batch": "wave2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q14",
@@ -1731,18 +1758,19 @@
     "Exhaustion Extension; a climax"
    ],
    "answer": "Base n' Break; a later rest",
-   "why": "Base n' Break. The stock already pulled into its averages once and made a new high, so this is a later rest. The crossback is the first rest after the pop, and Kell's name for a later rest is the Base n' Break. An Exhaustion Extension is a different stage, a climax far above the 10-day EMA.",
+   "why": "Base n' Break. The stock already pulled into its averages once and made a new high, so this is a later rest. The crossback is the first rest after the pop, and Kell's name for a later rest is the Base n' Break. An Exhaustion Extension is a different stage, a climax far above the 9 EMA.",
    "lesson_line": "First rest is the crossback. Later rests are Base n' Breaks.",
    "facts": [
     "e09",
     "x24",
     "x25",
-    "x36"
+    "x36",
+    "r62"
    ],
    "wrong": {
     "EMA Crossback; the first rest": "The crossback is the first rest. This is the second.",
     "Wedge Pop; the move before": "The pop was the move before the first rest.",
-    "Exhaustion Extension; a climax": "An Exhaustion Extension is a climax run far above the 10-day EMA. This stock is resting at its averages."
+    "Exhaustion Extension; a climax": "An Exhaustion Extension is a climax run far above the 9 EMA. This stock is resting at its averages."
    },
    "house": true,
    "story": "A stock popped. It pulled into its averages once, then made a new high. Today it pulls back into the averages again.",
@@ -1758,7 +1786,7 @@
    "depends_on": [
     "D-026"
    ],
-   "batch": "wave2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q25",
@@ -2011,7 +2039,7 @@
     "No; it is just a Base n' Break": "A Base n' Break is another pullback after a crossback. Here an Exhaustion Extension came first."
    },
    "house": true,
-   "story": "A stock ran far above its 10-day average in an Exhaustion Extension. Now it pulls back into its averages.",
+   "story": "A stock ran far above its 9 EMA in an Exhaustion Extension. Now it pulls back into its averages.",
    "simple": "No. After an Exhaustion Extension the next stage is a drop, not a crossback.",
    "tier": "extended",
    "risk": {
@@ -2020,7 +2048,7 @@
      "a proposed card line built on Kell's cycle"
     ]
    },
-   "batch": "wave2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q33",
@@ -2361,24 +2389,25 @@
    "criterion": "xbk.trail",
    "q": "Which average is the default trail for a fast-moving crossback?",
    "choices": [
-    "The 10-day",
+    "The 9 EMA",
     "The 50-day",
     "The 200-day",
-    "The 21-day"
+    "The 20 EMA"
    ],
-   "answer": "The 10-day",
-   "why": "The 10-day. The default trail is the 10-day average for fast movers and the 21-day for steadier ones. We sell on a close below it. A crossback that is moving fast trails the 10-day. A steadier stock can use the 21-day.",
-   "lesson_line": "Fast mover: trail the 10-day. Steadier: trail the 21-day.",
+   "answer": "The 9 EMA",
+   "why": "The 9 EMA. The default trail is the 9 EMA for fast movers and the 20 EMA for steadier ones. We sell on a close below it. A crossback that is moving fast trails the 9 EMA. A steadier stock can use the 20 EMA.",
+   "lesson_line": "Fast mover: trail the 9 EMA. Steadier: trail the 20 EMA.",
    "facts": [
-    "h21"
+    "h21",
+    "r62"
    ],
    "wrong": {
-    "The 50-day": "The default trail is the 10-day for fast movers and the 21-day for steadier ones. It is not the 50-day.",
-    "The 200-day": "The default trail is the 10-day for fast movers and the 21-day for steadier ones. It is not the 200-day.",
-    "The 21-day": "The 21-day is the default for steadier movers. A fast mover trails the 10-day."
+    "The 50-day": "The default trail is the 9 EMA for fast movers and the 20 EMA for steadier ones. It is not the 50-day.",
+    "The 200-day": "The default trail is the 9 EMA for fast movers and the 20 EMA for steadier ones. It is not the 200-day.",
+    "The 20 EMA": "The 20 EMA is the default for steadier movers. A fast mover trails the 9 EMA."
    },
    "house": true,
-   "simple": "A fast mover trails its 10-day average, and we sell when it closes below that line.",
+   "simple": "A fast mover trails its 9 EMA, and we sell when it closes below that line.",
    "tier": "extended",
    "risk": {
     "score": 5,
@@ -2390,7 +2419,7 @@
    "depends_on": [
     "D-019"
    ],
-   "batch": "wave2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q43",
@@ -2829,28 +2858,29 @@
     "Yes, if you use a wider stop",
     "No; it chases past the 4% limit",
     "Yes; heavy volume confirms it",
-    "No; it is too far over the 10-day"
+    "No; it is too far over the 9 EMA"
    ],
    "answer": "No; it chases past the 4% limit",
-   "why": "No. We skip a buy if the fill is more than 4% above the trigger. 52.90 is past that against the 50.64 trigger. Heavy volume and a wider stop do not lift the limit. The 10-day average has its own separate 10% rule, and 52.90 passes it against 49.60.",
+   "why": "No. We skip a buy if the fill is more than 4% above the trigger. 52.90 is past that against the 50.64 trigger. Heavy volume and a wider stop do not lift the limit. The 9 EMA has its own separate 10% rule, and 52.90 passes it against 49.60.",
    "lesson_line": "Past 4% over the trigger you are chasing. Wait for the next hold day.",
    "facts": [
     "x15",
     "h11",
     "e11",
     "h13",
-    "h03"
+    "h03",
+    "r62"
    ],
    "wrong": {
     "Yes; heavy volume confirms it": "Volume does not lift the limit. Skip if the fill is more than 4% above the trigger.",
     "Yes, if you use a wider stop": "A wider stop only shrinks the share count. The limit still bars the buy.",
-    "No; it is too far over the 10-day": "The 10-day average is 49.60, and 52.90 is less than 10% above it, so that rule passes. The 4% limit from the trigger is what fails."
+    "No; it is too far over the 9 EMA": "The 9 EMA is 49.60, and 52.90 is less than 10% above it, so that rule passes. The 4% limit from the trigger is what fails."
    },
    "house": true,
-   "story": "The hold day printed yesterday and the trigger was 50.64. The 10-day average is 49.60. This morning the stock trades at 52.90 on heavy volume.",
+   "story": "The hold day printed yesterday and the trigger was 50.64. The 9 EMA is 49.60. This morning the stock trades at 52.90 on heavy volume.",
    "simple": "No, because the stock is already more than 4% above the trigger, and chasing past that breaks our rule.",
    "deeper": {
-    "trap": "Do not mix up two numbers. Kell said 3-4% above the averages was too much for him, and that is distance from the averages. Our 4% limit is measured from the trigger, and the 10-day average has its own 10% rule."
+    "trap": "Do not mix up two numbers. Kell said 3-4% above the averages was too much for him, and that is distance from the averages. Our 4% limit is measured from the trigger, and the 9 EMA has its own 10% rule."
    },
    "tier": "expert",
    "risk": {
@@ -2861,7 +2891,7 @@
      "fixed before (the old why mixed Kell's distance from the averages with the trigger)"
     ]
    },
-   "batch": "wave2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q55",
@@ -3496,7 +3526,7 @@
    "rung": 5,
    "format": "mcq",
    "criterion": "xbk.not_stretched",
-   "q": "A crossback trigger gaps and would fill at 54.60. The 10-day average is 49.00. How far above it, in percent?",
+   "q": "A crossback trigger gaps and would fill at 54.60. The 9 EMA is 49.00. How far above it, in percent?",
    "answer": "11.4%",
    "calc": {
     "fn": "pct_change",
@@ -3507,14 +3537,15 @@
     "round": 1
    },
    "suffix": "",
-   "why": "11.4%. The fill is above the average by (54.60 - 49.00) / 49.00 = 11.4%. That is more than 10% above the 10-day average, so we skip it as too stretched to buy.",
-   "lesson_line": "More than 10% over the 10-day is a chase. Skip it.",
+   "why": "11.4%. The fill is above the average by (54.60 - 49.00) / 49.00 = 11.4%. That is more than 10% above the 9 EMA, so we skip it as too stretched to buy.",
+   "lesson_line": "More than 10% over the 9 EMA is a chase. Skip it.",
    "facts": [
     "h13",
-    "x38"
+    "x38",
+    "r62"
    ],
    "house": true,
-   "simple": "The fill is 11.4% above the 10-day average, which is past the 10% limit, so we skip it.",
+   "simple": "The fill is 11.4% above the 9 EMA, which is past the 10% limit, so we skip it.",
    "tier": "extended",
    "risk": {
     "score": 4,
@@ -3523,7 +3554,7 @@
      "rests on the owner's rulebook (C29, the 10% stretch rule)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "sweep-2026-11-14",
    "choices": [
     "1.1%",
     "5.6%",
@@ -3532,7 +3563,7 @@
    ],
    "wrong": {
     "5.6%": "Used the dollar gap as if it were the percent.",
-    "10.3%": "Divided the gap by the fill, not by the 10-day average.",
+    "10.3%": "Divided the gap by the fill, not by the 9 EMA.",
     "1.1%": "A decimal slip, one place too far left."
    },
    "prefix": ""
@@ -3544,7 +3575,7 @@
    "format": "scenario",
    "criterion": "xbk.not_stretched",
    "q": "Which rule says to skip this buy?",
-   "story": "The hold day's high was 100.00, and the 10-day average is 93.00. The stock sits well above its 200-day. It opens next morning at 103.00, so a market buy fills near there.",
+   "story": "The hold day's high was 100.00, and the 9 EMA is 93.00. The stock sits well above its 200-day. It opens next morning at 103.00, so a market buy fills near there.",
    "choices": [
     "The 10% stretch rule",
     "The 4% chase limit",
@@ -3552,14 +3583,15 @@
     "The 3-session rule"
    ],
    "answer": "The 10% stretch rule",
-   "why": "The 10% stretch rule. A long more than 10% above its 10-day average is too stretched to buy. Here 103.00 is more than 10% above the 93.00 average. The fill is only a little over the 100.00 high, so the 4% chase limit passes. The stock is well above its 200-day, and the buy comes the next morning, inside the 3 sessions.",
-   "lesson_line": "Two checks at the fill: distance from the trigger and distance from the 10-day.",
+   "why": "The 10% stretch rule. A long more than 10% above its 9 EMA is too stretched to buy. Here 103.00 is more than 10% above the 93.00 average. The fill is only a little over the 100.00 high, so the 4% chase limit passes. The stock is well above its 200-day, and the buy comes the next morning, inside the 3 sessions.",
+   "lesson_line": "Two checks at the fill: distance from the trigger and distance from the 9 EMA.",
    "facts": [
     "h13",
     "x38",
     "h11",
     "x08",
-    "h10"
+    "h10",
+    "r62"
    ],
    "wrong": {
     "The 4% chase limit": "The fill is a little over the trigger, so the chase limit passes. The stretch rule is the one that fails.",
@@ -3567,9 +3599,9 @@
     "The 3-session rule": "The buy comes the next morning, one session after the hold day. That is inside the 3 sessions."
    },
    "house": true,
-   "simple": "The fill is more than 10% above the 10-day average, so the stretch rule says skip.",
+   "simple": "The fill is more than 10% above the 9 EMA, so the stretch rule says skip.",
    "deeper": {
-    "example": "Walk through it. The fill, 103.00, is a little over the 100.00 high, so the 4% limit passes. The 10-day average is 93.00, and 103.00 is more than 10% above it, so the 10% rule fails. Both checks run at the fill, and either one can say skip."
+    "example": "Walk through it. The fill, 103.00, is a little over the 100.00 high, so the 4% limit passes. The 9 EMA is 93.00, and 103.00 is more than 10% above it, so the 10% rule fails. Both checks run at the fill, and either one can say skip."
    },
    "tier": "expert",
    "risk": {
@@ -3580,7 +3612,7 @@
      "fixed before (the old story had the wrong prices)"
     ]
    },
-   "batch": "wave2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q73",
@@ -3827,24 +3859,26 @@
    "rung": 5,
    "format": "mcq",
    "criterion": "xbk.trim_2",
-   "q": "You hold 120 shares and sell a third of the 120 at each of two trims. How many shares are left to trail?",
+   "q": "You hold 120 shares, sell 30 at a first sell and 50 more at a later sell. How many shares are left to trail?",
    "answer": "40 shares",
    "calc": {
     "fn": "arith",
     "args": {
-     "expr": "n - 2 * (n / 3)",
-     "n": 120
+     "expr": "n - a - b",
+     "n": 120,
+     "a": 30,
+     "b": 50
     },
     "round": 0
    },
    "suffix": "",
-   "why": "40 shares. A third of 120 is 40. Two trims sell 2 x 40, and 120 - 2 x 40 = 40 are left to trail. When each sell comes is a judgment, but the sum is the same.",
-   "lesson_line": "Two thirds sold leaves one third to trail.",
+   "why": "40 shares. The two sells take 30 + 50 = 80 shares, and 120 - 80 = 40 are left to trail. When each sell comes is a judgment, but the sum is the same.",
+   "lesson_line": "Add up what you sold. What is left is what you trail.",
    "facts": [
     "r54"
    ],
    "house": true,
-   "simple": "Two thirds are sold, so one third of 120, which is 40 shares, is left to trail.",
+   "simple": "The two sells take 80 shares, so 120 minus 80 leaves 40 shares to trail.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -3853,17 +3887,17 @@
      "when each sell comes is the owner's D-013 judgment"
     ]
    },
-   "batch": "tomcq",
+   "batch": "sweep-2026-11-14",
    "choices": [
-    "60 shares",
+    "90 shares",
     "80 shares",
-    "53 shares",
+    "70 shares",
     "40 shares"
    ],
    "wrong": {
-    "80 shares": "Counted one trim only. Two trims sell two thirds.",
-    "53 shares": "Took the second third of what was left, not of the 120.",
-    "60 shares": "Sold half once, not a third twice."
+    "80 shares": "That is the amount sold, not what is left.",
+    "90 shares": "Took off the first sell only.",
+    "70 shares": "Took off the later sell only."
    },
    "prefix": ""
   },
@@ -3912,29 +3946,30 @@
    "format": "scenario",
    "criterion": "xbk.climax",
    "q": "Our rule for a climax run on your long: what is the move?",
-   "story": "Your crossback winner has run four days straight, gapping up each morning, now far above its 10-day average.",
+   "story": "Your crossback winner has run four days straight, gapping up each morning, now far above its 9 EMA.",
    "choices": [
     "Sell a big part into the run",
     "Sell a small part and trail the rest",
     "Add a third piece into strength",
-    "Hold all of it and trail the 10-day"
+    "Hold all of it and trail the 9 EMA"
    ],
    "answer": "Sell a big part into the run",
-   "why": "Sell a big part into it. Our rule for a climax run far above the 10-day on your own long is to sell a big part. It is a judgment call. We never add, because we buy once at one price with one stop.",
+   "why": "Sell a big part into it. Our rule for a climax run far above the 9 EMA on your own long is to sell a big part. It is a judgment call. We never add, because we buy once at one price with one stop.",
    "lesson_line": "A climax run is a place to sell a big part, not to add.",
    "facts": [
     "x36",
     "h16",
     "h03b",
-    "h21"
+    "h21",
+    "r62"
    ],
    "wrong": {
     "Add a third piece into strength": "We buy once at one price with one stop and never add. A climax run is a place to sell.",
-    "Hold all of it and trail the 10-day": "The trail is the default for the rest. Into a climax run the rule is to sell a big part first.",
-    "Sell a small part and trail the rest": "The rule says sell a big part into a climax run, not a small one."
+    "Sell a small part and trail the rest": "The rule says sell a big part into a climax run, not a small one.",
+    "Hold all of it and trail the 9 EMA": "The trail is the default for the rest. Into a climax run the rule is to sell a big part first."
    },
    "house": true,
-   "simple": "Sell a big part into the run, because a climax run far above the 10-day is a place to sell.",
+   "simple": "Sell a big part into the run, because a climax run far above the 9 EMA is a place to sell.",
    "deeper": {
     "trap": "The trap is the winner's pride. A run like this feels like proof to hold everything or to add. Our rule is the opposite: sell a big part into a climax run. Adding is never the answer, because we buy once, at one price with one stop."
    },
@@ -3946,7 +3981,7 @@
      "the exact share to sell is left to judgment"
     ]
    },
-   "batch": "wave2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q83",
@@ -4128,7 +4163,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key re-derived from the cited quotes before reading it; matches. No second defensible answer, no lone tell found, numbers grounded, wrong notes supported."
+   "notes": "kept: 10/20 are Kell's own lines in a sentence about his rule; question is the 9 and 20 EMA"
   },
   "q07": {
    "status": "cut",
@@ -4170,7 +4205,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold check: answer decided from the cited quotes first, matched the key; no second defensible answer, tell, ungrounded number or rulebook conflict found."
+   "notes": "agrees with rulings"
   },
   "q14": {
    "status": "pass",
@@ -4236,7 +4271,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold check: answer decided from the cited quotes first, matched the key; no second defensible answer, tell, ungrounded number or rulebook conflict found."
+   "notes": "agrees with rulings"
   },
   "q25": {
    "status": "pass",
@@ -4286,7 +4321,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key re-derived from the cited quotes before reading it; matches. No second defensible answer, no lone tell found, numbers grounded, wrong notes supported."
+   "notes": "agrees with rulings"
   },
   "q33": {
    "status": "pass",
@@ -4346,7 +4381,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold check: answer decided from the cited quotes first, matched the key; no second defensible answer, tell, ungrounded number or rulebook conflict found."
+   "notes": "agrees with rulings"
   },
   "q43": {
    "status": "pass",
@@ -4359,7 +4394,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "re-keyed to judgment, ok"
+   "notes": "keep ok: judge it, no fixed third, gap is not a rule"
   },
   "q45": {
    "status": "pass",
@@ -4415,14 +4450,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key re-derived from the cited quotes before reading it; matches. No second defensible answer, no lone tell found, numbers grounded, wrong notes supported.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "agrees with rulings"
   },
   "q54": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Cold check: answer decided from the cited quotes first, matched the key; no second defensible answer, tell, ungrounded number or rulebook conflict found."
+   "fixed": true,
+   "notes": "writer left the 10-day in the deeper trap; renamed to 9 EMA"
   },
   "q55": {
    "status": "pass",
@@ -4471,7 +4505,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Dossier row and d26: NET hold day 2023-11-10 closed at 0.88 of its range, 3-day drift after the 11-03 earnings-gap pop on 3.6x, so Take it is right; wrong choices break x06/x41. 28.9%/82.6% in the deeper match d24. Chart bars and the archive quotes could not be re-opened here (archive blocked), key rests on the dossier read."
+   "notes": "agrees with rulings"
   },
   "q63": {
    "status": "pass",
@@ -4524,15 +4558,14 @@
   "q71": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc 11.4 ok. The 1.1% note said 'read the ratio as a percent', which would give 0.1%, not 1.1%."
+   "fixed": false,
+   "notes": "agrees with rulings"
   },
   "q72": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold check: answer decided from the cited quotes first, matched the key; no second defensible answer, tell, ungrounded number or rulebook conflict found.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "agrees with rulings"
   },
   "q73": {
    "status": "pass",
@@ -4579,8 +4612,8 @@
   "q80": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc 40 ok. The 60-shares note was wrong: two halves would leave 30; 60 is one half sold."
+   "fixed": false,
+   "notes": "agrees with rulings"
   },
   "q81": {
    "status": "cut",
@@ -4592,7 +4625,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key re-derived from the cited quotes before reading it; matches. No second defensible answer, no lone tell found, numbers grounded, wrong notes supported."
+   "notes": "agrees with rulings"
   },
   "q83": {
    "status": "cut",

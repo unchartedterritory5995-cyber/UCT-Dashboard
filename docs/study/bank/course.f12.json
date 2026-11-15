@@ -349,16 +349,16 @@
       "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      },
      {
-      "accessed": "2026-11-12",
-      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
-      "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
+      "accessed": "2026-11-14",
+      "name": "UCT house rule: Our rules, in our words (2026-11-14)",
+      "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
       "tier": 3,
-      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14"
      },
      {
       "accessed": "2026-11-09",
       "name": "UCT house rule: Study: the trade plan for every setup (the Entry, Stop, Trim and Trail columns the app's detectors compute)",
-      "quote": "under each higher low, or under the 10-day average",
+      "quote": "under each higher low, or under the 9 EMA",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      },
@@ -384,7 +384,7 @@
       "url": "https://vantharpinstitute.com/glossary/r-value"
      }
     ],
-    "summary": "We lay out each trade we teach as Entry, Stop, Trim, Trail and the advance. The owner's ruling: the first sell is a judgment, not a fixed third at 3R. The owner rarely sells on day 1 of the buy and usually waits until day 3 at the earliest. One of our Trail lines (the Kicker's): the stop goes under each higher low, or under the 10-day average. The plan covers managing the open trade: moving the stop, taking partial profits, getting out. Size is worked out from the entry-to-stop distance, so the stop has to come first. R is the risk you took on a trade, set by your first stop."
+    "summary": "We lay out each trade we teach as Entry, Stop, Trim, Trail and the advance. Our rule: the first sell is a judgment, not a fixed third at 3R. We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest. One of our Trail lines (the Kicker's): the stop goes under each higher low, or under the 9 EMA. The plan covers managing the open trade: moving the stop, taking partial profits, getting out. Size is worked out from the entry-to-stop distance, so the stop has to come first. R is the risk you took on a trade, set by your first stop."
    },
    "facts": {
     "given": "Our trade plans include Entry, Stop, Trim and Trail lines. What does the Trim line tell you? Where to take some profit off Where you get out if you're wrong How the stop follows it higher How many shares to buy at entry"
@@ -1556,16 +1556,16 @@
      {
       "accessed": "2026-11-09",
       "name": "UCT house rule: Study: the trade plan for every setup (the Entry, Stop, Trim and Trail columns the app's detectors compute)",
-      "quote": "under each higher low, or under the 10-day average",
+      "quote": "under each higher low, or under the 9 EMA",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      },
      {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
+      "accessed": "2026-11-14",
+      "name": "UCT house rule: Our rules, in our words (2026-11-14)",
+      "quote": "Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
       "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14"
      }
     ]
    },
@@ -3326,19 +3326,19 @@
  },
  {
   "answer_json": {
-   "answer": "Check for a close below the 10-day"
+   "answer": "Check for a close below the 9 EMA"
   },
   "difficulty": 2,
   "id": "si_238bb2a25efd",
   "lesson_origin": "session",
-  "lesson_text": "Check for a close below the 10-day. Our default trail is the 10-day average for fast movers, the 21-day for steadier ones. We sell on a close below it, so the recap after the close is when you check. Each day, review open positions and chances to adjust your stops. Our stop only moves up, never down or wider. Stops move one way: up. Our trail is the rising average, checked after the close.",
+  "lesson_text": "Check for a close below the 9 EMA. Our default trail is the 9 EMA for fast movers, the 20 EMA for steadier ones. We sell on a close below it, so the recap after the close is when you check. Each day, review open positions and chances to adjust your stops. Our stop only moves up, never down or wider. Stops move one way: up. Our trail is the rising average, checked after the close.",
   "module": "F12",
   "prompt_json": {
    "choices": [
     "Cancel the stop, it's working",
     "Raise the stop to today's close",
-    "Look for a close below the 21-day",
-    "Check for a close below the 10-day"
+    "Look for a close below the 20 EMA",
+    "Check for a close below the 9 EMA"
    ],
    "kind": "mcq",
    "q": "What does our trail rule have you do in the recap?",
@@ -3363,27 +3363,34 @@
       "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      },
      {
-      "accessed": "2026-11-12",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
+      "accessed": "2026-11-14",
+      "name": "UCT house rule: Our rules, in our words (2026-11-14)",
+      "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
       "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      }
     ],
-    "summary": "Every day, review open positions for new support levels and chances to adjust your stops. Our stop only moves up, never down or wider. Our default trail is the 10-day average for fast movers or the 21-day for steadier ones, selling on a close below it."
+    "summary": "Every day, review open positions for new support levels and chances to adjust your stops. Our stop only moves up, never down or wider. Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left. Our rule: the course teaches the 9 and 20 EMA, with the 50 and 200 SMA."
    },
    "facts": {
-    "given": "What does our trail rule have you do in the recap? After the close you run your recap. One holding is a fast mover, well above your stop and riding its rising averages. Check for a close below the 10-day Look for a close below the 21-day Cancel the stop, it's working Raise the stop to today's close"
+    "given": "What does our trail rule have you do in the recap? After the close you run your recap. One holding is a fast mover, well above your stop and riding its rising averages. Check for a close below the 9 EMA Look for a close below the 20 EMA Cancel the stop, it's working Raise the stop to today's close"
    },
    "lesson_line": "Stops move one way: up. Our trail is the rising average, checked after the close.",
-   "simple": "Check whether it closed below its 10-day average, because that is our default trail for a fast mover.",
+   "simple": "Check whether it closed below its 9 EMA, because that is our default trail for a fast mover.",
    "tier": "extended",
    "unit": "F12.02",
-   "why": "Check for a close below the 10-day. Our default trail is the 10-day average for fast movers, the 21-day for steadier ones. We sell on a close below it, so the recap after the close is when you check. Each day, review open positions and chances to adjust your stops. Our stop only moves up, never down or wider.",
+   "why": "Check for a close below the 9 EMA. Our default trail is the 9 EMA for fast movers, the 20 EMA for steadier ones. We sell on a close below it, so the recap after the close is when you check. Each day, review open positions and chances to adjust your stops. Our stop only moves up, never down or wider.",
    "wrong": {
     "Cancel the stop, it's working": "The stop is the exit. Cancel it, and a working trade has no exit if it turns.",
-    "Look for a close below the 21-day": "The 21-day is our trail for steadier names. For a fast mover, our default trail is the 10-day average.",
-    "Raise the stop to today's close": "Our default trail is an average, not the close. For a fast mover, that is the 10-day average."
+    "Look for a close below the 20 EMA": "The 20 EMA is our trail for steadier names. For a fast mover, our default trail is the 9 EMA.",
+    "Raise the stop to today's close": "Our default trail is an average, not the close. For a fast mover, that is the 9 EMA."
    }
   },
   "review_status": "draft",
@@ -10226,14 +10233,14 @@
       "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      },
      {
-      "accessed": "2026-11-12",
-      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
-      "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
+      "accessed": "2026-11-14",
+      "name": "UCT house rule: Our rules, in our words (2026-11-14)",
+      "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
       "tier": 3,
-      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14"
      }
     ],
-    "summary": "The owner's ruling: the first sell is a judgment, not a fixed third at 3R. The owner rarely sells on day 1 of the buy and usually waits until day 3 at the earliest."
+    "summary": "Our rule: the first sell is a judgment, not a fixed third at 3R. We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
    },
    "facts": {
     "calc": {
@@ -11048,7 +11055,7 @@
   "difficulty": 1,
   "id": "si_28ce7d692d89",
   "lesson_origin": "session",
-  "lesson_text": "First sell: judgment, usually day 3 or later. Trail under each higher low or the 10-day average. That's the page.",
+  "lesson_text": "First sell: judgment, usually day 3 or later. Trail under each higher low or the 9 EMA. That's the page.",
   "module": "F12",
   "prompt_json": {
    "order": 3,
@@ -11058,7 +11065,7 @@
    "steps": [
     "Bellafiore trades intraday and says you may trade a different time frame. Build the page in a format that works for you.",
     "Kicker entry: over the red day's high, at market. Stop: under the Kicker candle's low, or 3.5% under entry if closer.",
-    "First sell: judgment, usually day 3 or later. Trail under each higher low or the 10-day average. That's the page."
+    "First sell: judgment, usually day 3 or later. Trail under each higher low or the 9 EMA. That's the page."
    ],
    "subject": "F12.06#w3"
   },
@@ -11110,16 +11117,23 @@
      {
       "accessed": "2026-11-09",
       "name": "UCT house rule: Study: the trade plan for every setup (the app's detectors; the owner's Kicker rulings)",
-      "quote": "under each higher low, or under the 10-day average",
+      "quote": "under each higher low, or under the 9 EMA",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      },
      {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
+      "accessed": "2026-11-14",
+      "name": "UCT house rule: Our rules, in our words (2026-11-14)",
+      "quote": "Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
       "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14"
+     },
+     {
+      "accessed": "2026-11-14",
+      "name": "UCT house rule: Our rules, in our words (2026-11-14)",
+      "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14"
      }
     ]
    },
@@ -11441,7 +11455,7 @@
    ],
    "kind": "mcq",
    "q": "Which line breaks the plan?",
-   "story": "1. Size: 1,000 shares, then I'll find a stop that fits. 2. Setup: pullback to the rising 21-day average. 3. Entry: over the prior day's high. 4. Trail: under the 21-day average, out on a close below it.",
+   "story": "1. Size: 1,000 shares, then I'll find a stop that fits. 2. Setup: pullback to the rising 20 EMA. 3. Entry: over the prior day's high. 4. Trail: under the 20 EMA, out on a close below it.",
    "subject": "F12.07#q04"
   },
   "reveal_json": {
@@ -11476,11 +11490,11 @@
       "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      },
      {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
+      "accessed": "2026-11-14",
+      "name": "UCT house rule: Our rules, in our words (2026-11-14)",
+      "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
       "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14"
      },
      {
       "accessed": "2026-11-09",
@@ -11495,12 +11509,19 @@
       "quote": "Determining your entry rules before you buy reduces the guesswork when deciding when to enter a trade.",
       "tier": 2,
       "url": "https://www.schwab.com/learn/story/5-elements-smart-trade-plan"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      }
     ],
-    "summary": "Choosing a size before measuring entry to stop is the mistake StockCharts calls the biggest; it risks losing big or winning too small. In a plan, the size is the one number you calculate, from the entry-to-stop distance and your risk limit. The stop goes where the trade idea is proven wrong. Our rule A3: the size comes from the stop, and if the honest stop does not fit the risk, we skip the trade. Our rule E52: trail fast movers under the 10-day average and steadier ones under the 21-day, selling on a close below it. Writing the trade's decisions into a plan before you trade helps you enter orders right and manage risk. Set the entry rule before you buy."
+    "summary": "Choosing a size before measuring entry to stop is the mistake StockCharts calls the biggest; it risks losing big or winning too small. In a plan, the size is the one number you calculate, from the entry-to-stop distance and your risk limit. The stop goes where the trade idea is proven wrong. Our rule A3: the size comes from the stop, and if the honest stop does not fit the risk, we skip the trade. Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left. Writing the trade's decisions into a plan before you trade helps you enter orders right and manage risk. Set the entry rule before you buy. Our rule: the course teaches the 9 and 20 EMA, with the 50 and 200 SMA."
    },
    "facts": {
-    "given": "Which line breaks the plan? 1. Size: 1,000 shares, then I'll find a stop that fits. 2. Setup: pullback to the rising 21-day average. 3. Entry: over the prior day's high. 4. Trail: under the 21-day average, out on a close below it. Line 1 Line 2 Line 3 Line 4"
+    "given": "Which line breaks the plan? 1. Size: 1,000 shares, then I'll find a stop that fits. 2. Setup: pullback to the rising 20 EMA. 3. Entry: over the prior day's high. 4. Trail: under the 20 EMA, out on a close below it. Line 1 Line 2 Line 3 Line 4"
    },
    "lesson_line": "Pick the stop from the chart. Let the math pick the shares.",
    "simple": "Line 1, because the size should come from the stop, not the other way round.",
@@ -11510,7 +11531,7 @@
    "wrong": {
     "Line 2": "Line 2 is fine. Naming the setup is part of a written plan.",
     "Line 3": "Line 3 is fine. Over the prior day's high is an entry rule set before you buy.",
-    "Line 4": "Line 4 is fine. The 21-day average, sold on a close below it, is one of our default trails."
+    "Line 4": "Line 4 is fine. The 20 EMA, sold on a close below it, is one of our default trails."
    }
   },
   "review_status": "draft",
@@ -12175,7 +12196,7 @@
       "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ],
-    "summary": "Moving the goal posts on a loser is a named mistake; take the small loss instead of digging in. Don't change the plan as a knee-jerk reaction when the price drops. Pulling a stop is usually a way to avoid admitting you were wrong, and the stock can keep falling. A plan should not change every time a trade goes against you. Our default stop is the low of the day or the prior day's low. The owner's ruling: the first sell is a judgment, not a fixed third at 3R. Our rule A4: the stop is the exit and only moves up, never down or wider; the one exception is the gap rule. Our rule F62: the default stop sits a few cents under the day's low, not exactly on it."
+    "summary": "Moving the goal posts on a loser is a named mistake; take the small loss instead of digging in. Don't change the plan as a knee-jerk reaction when the price drops. Pulling a stop is usually a way to avoid admitting you were wrong, and the stock can keep falling. A plan should not change every time a trade goes against you. Our default stop is the low of the day or the prior day's low. Our rule: the first sell is a judgment, not a fixed third at 3R. Our rule A4: the stop is the exit and only moves up, never down or wider; the one exception is the gap rule. Our rule F62: the default stop sits a few cents under the day's low, not exactly on it."
    },
    "facts": {
     "given": "Which line breaks the plan? 1. Bought at $25.40 with the stop at $24.60, just under the day's low. 2. By noon it traded at $24.80, close to my stop. 3. Moved the stop down to $23.90 to give it more room. 4. Set an alert at 3R to review the trade. Line 1 Line 2 Line 3 Line 4"
@@ -12446,11 +12467,11 @@
       "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      },
      {
-      "accessed": "2026-11-12",
-      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
-      "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
+      "accessed": "2026-11-14",
+      "name": "UCT house rule: Our rules, in our words (2026-11-14)",
+      "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
       "tier": 3,
-      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14"
      },
      {
       "accessed": "2026-11-09",
@@ -12467,7 +12488,7 @@
       "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ],
-    "summary": "Position size is the dollars you will risk divided by the risk per share. Choosing a size before measuring entry to stop is the mistake StockCharts calls the biggest; it risks losing big or winning too small. A common guide: risk up to 1% to 2% of the account per trade, and hold up to 5% to 10% in one position. No single position should be big enough to decide the whole account's future. The stop goes where the trade idea is proven wrong. The owner's ruling: the first sell is a judgment, not a fixed third at 3R. The owner rarely sells on day 1 of the buy and usually waits until day 3 at the earliest. Our rule A5: the size is the smaller of the risk-based size and the position cap. Our rule A7: one position is capped at 40% of the account."
+    "summary": "Position size is the dollars you will risk divided by the risk per share. Choosing a size before measuring entry to stop is the mistake StockCharts calls the biggest; it risks losing big or winning too small. A common guide: risk up to 1% to 2% of the account per trade, and hold up to 5% to 10% in one position. No single position should be big enough to decide the whole account's future. The stop goes where the trade idea is proven wrong. Our rule: the first sell is a judgment, not a fixed third at 3R. We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest. Our rule A5: the size is the smaller of the risk-based size and the position cap. Our rule A7: one position is capped at 40% of the account."
    },
    "facts": {
     "given": "Which line breaks the plan? 1. Setup: tight flag, entry over $48.50, the flag's high. 2. Size: as many shares as my cash buys. 3. Stop: $46.90, under the flag's low. 4. First sell: a judgment, not on day 1. Line 1 Line 2 Line 3 Line 4"
@@ -12557,14 +12578,14 @@
       "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      },
      {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "Move the stop to breakeven at 2R to 5R, ideally.",
+      "accessed": "2026-11-14",
+      "name": "UCT house rule: Our rules, in our words (2026-11-14)",
+      "quote": "The stop may move up to breakeven between 2R and 5R, or at the first sell.",
       "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14"
      }
     ],
-    "summary": "Never add to a losing trade. The problem with averaging down: a dip and the start of a much bigger fall look the same at the time. Buying more of a losing position to get even is an emotional trading mistake. The stop goes where the trade idea is proven wrong. Our rule: the whole position goes on at one price with one stop, and we never add to it. The owner's ruling: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. Our stop moves up to breakeven once the trade is 2R to 5R ahead; we teach it at the first trim."
+    "summary": "Never add to a losing trade. The problem with averaging down: a dip and the start of a much bigger fall look the same at the time. Buying more of a losing position to get even is an emotional trading mistake. The stop goes where the trade idea is proven wrong. Our rule: the whole position goes on at one price with one stop, and we never add to it. Our rule: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. Our stop may move up to breakeven between 2R and 5R, or at the first sell."
    },
    "facts": {
     "given": "Which line breaks the plan? 1. Setup: breakout from a flat base, entry over $50, the base's high. 2. Stop: $47.50, under the base's last low. 3. Add: if it slips to $48.50, buy more to lower my cost. 4. Trim: sell some into a 3, 5 or 7 day push, then the stop to breakeven. Line 1 Line 2 Line 3 Line 4"
@@ -12749,7 +12770,7 @@
      {
       "accessed": "2026-11-09",
       "name": "UCT house rule: The trade plan for every setup (the trails)",
-      "quote": "under each higher low, or under the 10-day average",
+      "quote": "under each higher low, or under the 9 EMA",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      },
@@ -12768,7 +12789,7 @@
       "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ],
-    "summary": "A gap between sessions can jump past a stop, so the fill can be far from the stop price. Disappointing earnings after the close can drop a stock fast before the next open. Once the stop price is hit, a stop turns into a market order, and the fill can be far from the stop. Earnings can surprise you, so it may be best to avoid trading around them. Our trail: under each higher low, or under the 10-day average. When a stock gaps past the stop, it sells at the next available price, not at the stop. Our rule B22: no new buys in the 3 days before a report, and we hold through a report only when the trade is up 5R."
+    "summary": "A gap between sessions can jump past a stop, so the fill can be far from the stop price. Disappointing earnings after the close can drop a stock fast before the next open. Once the stop price is hit, a stop turns into a market order, and the fill can be far from the stop. Earnings can surprise you, so it may be best to avoid trading around them. Our trail: under each higher low, or under the 9 EMA. When a stock gaps past the stop, it sells at the next available price, not at the stop. Our rule B22: no new buys in the 3 days before a report, and we hold through a report only when the trade is up 5R."
    },
    "facts": {
     "given": "Which line breaks the plan? 1. Holding a breakout bought eight trading days ago, up 3%, about 1R. 2. Earnings come out after tomorrow's close. 3. Stop: 4% under the price, under the last higher low. 4. Plan: hold full size through the report, since the stop caps the loss. Line 1 Line 2 Line 3 Line 4"
@@ -12980,7 +13001,7 @@
    ],
    "kind": "mcq",
    "q": "Which line breaks the plan?",
-   "story": "1. Bought at $62.30, stop at $60.90, under the prior day's low. 2. On day 4 I sold a third into strength and raised the stop to breakeven. 3. It dipped to $62.50, so I moved the stop back down to $60.90 for room. 4. Planned to trail the rest under the rising 10-day average.",
+   "story": "1. Bought at $62.30, stop at $60.90, under the prior day's low. 2. On day 4 I sold a third into strength and raised the stop to breakeven. 3. It dipped to $62.50, so I moved the stop back down to $60.90 for room. 4. Planned to trail the rest under the rising 9 EMA.",
    "subject": "F12.07#q21"
   },
   "reveal_json": {
@@ -13025,23 +13046,23 @@
       "url": "repo:docs/study/sizing_rule.md#6-management-so-the-sizing-drills-can-go-full-circle"
      },
      {
-      "accessed": "2026-11-12",
-      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
-      "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
+      "accessed": "2026-11-14",
+      "name": "UCT house rule: Our rules, in our words (2026-11-14)",
+      "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
       "tier": 3,
-      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14"
      },
      {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "Move the stop to breakeven at 2R to 5R, ideally.",
+      "accessed": "2026-11-14",
+      "name": "UCT house rule: Our rules, in our words (2026-11-14)",
+      "quote": "The stop may move up to breakeven between 2R and 5R, or at the first sell.",
       "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14"
      },
      {
       "accessed": "2026-11-09",
       "name": "UCT house rule: The trade plan for every setup (the trails)",
-      "quote": "under each higher low, or under the 10-day average",
+      "quote": "under each higher low, or under the 9 EMA",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      },
@@ -13058,12 +13079,19 @@
       "quote": "After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop and every rule.",
       "tier": 3,
       "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      }
     ],
-    "summary": "Moving the goal posts on a loser is a named mistake; take the small loss instead of digging in. Don't change the plan as a knee-jerk reaction when the price drops. Raising the stop to breakeven once the first target hits is a common move. Our default stop is the low of the day or the prior day's low. Our rule: hold winners by selling some into strength and trailing the rest under the rising moving averages. The owner rarely sells on day 1 of the buy and usually waits until day 3 at the earliest. Our stop moves up to breakeven once the trade is 2R to 5R ahead; we teach it at the first trim. Our trail: under each higher low, or under the 10-day average. Our rule A4: the stop is the exit and only moves up, never down or wider; the one exception is the gap rule. Our rule B21: after a stop-out, buy again only if the setup triggers again, as a new trade."
+    "summary": "Moving the goal posts on a loser is a named mistake; take the small loss instead of digging in. Don't change the plan as a knee-jerk reaction when the price drops. Raising the stop to breakeven once the first target hits is a common move. Our default stop is the low of the day or the prior day's low. Our rule: hold winners by selling some into strength and trailing the rest under the rising moving averages. We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest. Our stop may move up to breakeven between 2R and 5R, or at the first sell. Our trail: under each higher low, or under the 9 EMA. Our rule A4: the stop is the exit and only moves up, never down or wider; the one exception is the gap rule. Our rule B21: after a stop-out, buy again only if the setup triggers again, as a new trade. Our rule: the course teaches the 9 and 20 EMA, with the 50 and 200 SMA."
    },
    "facts": {
-    "given": "Which line breaks the plan? 1. Bought at $62.30, stop at $60.90, under the prior day's low. 2. On day 4 I sold a third into strength and raised the stop to breakeven. 3. It dipped to $62.50, so I moved the stop back down to $60.90 for room. 4. Planned to trail the rest under the rising 10-day average. Line 1 Line 2 Line 3 Line 4"
+    "given": "Which line breaks the plan? 1. Bought at $62.30, stop at $60.90, under the prior day's low. 2. On day 4 I sold a third into strength and raised the stop to breakeven. 3. It dipped to $62.50, so I moved the stop back down to $60.90 for room. 4. Planned to trail the rest under the rising 9 EMA. Line 1 Line 2 Line 3 Line 4"
    },
    "lesson_line": "A raised stop only moves up. Lowering it again hands back the protection you earned.",
    "simple": "Line 3, because once the stop is raised to breakeven it only moves up, and lowering it puts the loss back.",

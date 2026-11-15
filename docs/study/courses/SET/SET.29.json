@@ -157,6 +157,14 @@
    "title": "Setup decisions: the owner's rulings (2026-11-12)",
    "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
   }
  ],
  "facts": [
@@ -402,9 +410,9 @@
   },
   {
    "id": "h05",
-   "source": "h1",
-   "quote": "Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
-   "claim": "B19: breakeven between 2R and 5R; the hard rule for the first trim is a third at 3R."
+   "source": "hw",
+   "quote": "The stop may move up to breakeven between 2R and 5R, or at the first sell.",
+   "claim": "Our stop may move up to breakeven between 2R and 5R, or at the first sell."
   },
   {
    "id": "h06",
@@ -474,15 +482,15 @@
   },
   {
    "id": "h20",
-   "source": "h1",
-   "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
-   "claim": "E51: another third at 5R, then trail the last third."
+   "source": "hw",
+   "quote": "Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
+   "claim": "Later sells are a judgment: sell more into strength on a later push, and trail what is left."
   },
   {
    "id": "h21",
-   "source": "h1",
-   "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
-   "claim": "E52: trail the 10-day or the 21-day; sell on a close below it."
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
   },
   {
    "id": "h22",
@@ -768,9 +776,9 @@
   },
   {
    "id": "c47",
-   "source": "c1",
-   "quote": "Trail the last third: a close under the 10-day for a fast mover, under the 21-day for a steadier one.",
-   "claim": "Trail the last third on the 10-day or the 21-day."
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
   },
   {
    "id": "c48",
@@ -1116,15 +1124,33 @@
   },
   {
    "id": "r07",
-   "source": "h2",
-   "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
-   "claim": "D-013: he very rarely sells on day 1 and usually waits until day 3."
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
   },
   {
    "id": "r08",
    "source": "h2",
    "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
    "claim": "D-013: selling into a 3, 5 or 7 day push, or about 5 to 10R, is often best."
+  },
+  {
+   "id": "r09",
+   "source": "h2",
+   "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+   "claim": "D-021: the course uses the 9 and 20 EMA everywhere, with the 50 and 200 SMA."
+  },
+  {
+   "id": "r10",
+   "source": "h2",
+   "quote": "A gap up past 3R at the open is not an automatic sell.",
+   "claim": "Gap-open sell: a gap up past 3R at the open is not an automatic sell."
+  },
+  {
+   "id": "r11",
+   "source": "h2",
+   "quote": "Optional, my judgment",
+   "claim": "The owner on selling into a gap: optional, his judgment."
   }
  ],
  "walkthroughs": [
@@ -1388,13 +1414,12 @@
     "d37",
     "d05",
     "d06",
-    "c55",
-    "h05"
+    "r06"
    ],
    "wrong": {
     "The stop, just under it": "Using the undercut low as the stop is a named mistake. It is usually far more than 3% away.",
     "The price we buy back in": "The buy is over the right-shoulder high, well above that low.",
-    "The first trim's target": "The first trim is a third at 3R, a multiple of the risk. It is not a price taken from that low."
+    "The first trim's target": "The first sell is a judgment, not a price taken from that low."
    },
    "house": true,
    "simple": "That low is the invalidation line, and it sits too far from the buy to work as a stop.",
@@ -1409,7 +1434,7 @@
      "fixed before"
     ]
    },
-   "batch": "wave3"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q07",
@@ -2337,17 +2362,18 @@
    "rung": 5,
    "format": "tf",
    "criterion": "fh.trail",
-   "q": "The last third trails the 10-day for a fast mover or the 21-day for a steadier one, out on the first touch.",
+   "q": "What is left trails the 9 EMA for a fast mover or the 20 EMA for a steadier one. Sell on the first touch.",
    "answer": "False",
-   "why": "False. The rule is a close below the line, not a touch. Our rulebook trails the 10-day average for fast movers and the 21-day for steadier ones, and says to sell on a close below it. A dip that touches the line and closes back above it does not sell the position. ICLR took three weeks to reach 3R and then ran 25%, which is the case for letting the trail decide the exit.",
+   "why": "False. The rule is a close below the line, not a touch. We trail what is left on the 9 EMA for a fast mover and the 20 EMA for a steadier one. We sell on a close below the line. A dip that touches the line and closes back above it does not sell the position. ICLR took three weeks to reach 3R and then ran 25%, which is the case for letting the trail decide the exit.",
    "lesson_line": "Trail the rising average. Sell the close below it, not the touch.",
    "facts": [
     "c47",
     "h21",
-    "d12"
+    "d12",
+    "r09"
    ],
    "house": true,
-   "simple": "False, because you sell on a close below the average, not on a touch during the day.",
+   "simple": "False, because you sell on a close below the line, not on a touch during the day.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2355,7 +2381,7 @@
      "rests on the owner's rule E52"
     ]
    },
-   "batch": "wave3"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q33",
@@ -2685,37 +2711,37 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "fh.trim_gap_open",
-   "story": "Day 3 of your failed-top long. You planned to sell a third once it hit 3R. Yesterday it closed at 2.7R. This morning it opens at 3.3R.",
-   "q": "What do you do?",
+   "story": "Day 3 of your failed-top long. Yesterday it closed at 2.7R. This morning it gaps open at 3.3R, past the 3R mark on your ruler.",
+   "q": "What is our rule for selling into that gap?",
    "choices": [
-    "Sell the planned third right at the open",
-    "Wait for the close to decide",
-    "Sell all of it at the open",
-    "Cancel the plan and hold all of it"
+    "Optional: sell part or hold",
+    "Required: sell a third at the open",
+    "Required: sell all of it at the open",
+    "Forbidden: never sell into a gap"
    ],
-   "answer": "Sell the planned third right at the open",
-   "why": "Sell the planned third at the open. If a stock opens above a level where you planned to sell, take that sell at the open. Yesterday's close of 2.7R was under 3R, but the open at 3.3R is past it. The 3R mark is your plan's choice, not a rule. It is day 3, the earliest we usually sell.",
-   "lesson_line": "A gap through your planned sell level is the sell. Take it at the open.",
+   "answer": "Optional: sell part or hold",
+   "why": "Selling part at the open is optional. A gap up past 3R at the open is not an automatic sell. We may sell some into the gap if we judge the push is strong, or hold and trail it. It is day 3, the earliest we usually sell. The 2.7R and 3.3R are marks on the ruler, not orders.",
+   "lesson_line": "A gap past your sell mark is a choice, not an order. Sell part or hold, by judgment.",
    "facts": [
-    "c57",
-    "h25",
+    "r10",
+    "r11",
     "r07"
    ],
    "wrong": {
-    "Wait for the close to decide": "The rule is to take the sell at the open once the day opens above the level, not to wait for the close.",
-    "Sell all of it at the open": "The plan was a third. The rest waits for the trail.",
-    "Cancel the plan and hold all of it": "The rest does keep running. But the plan said to sell a third, and the gap already met it."
+    "Required: sell a third at the open": "A gap past 3R is not an automatic sell. Selling part into it is our option, never a rule.",
+    "Required: sell all of it at the open": "Selling everything is not required either. What is left can keep running, and a later sell is a judgment.",
+    "Forbidden: never sell into a gap": "Holding is allowed, but selling is not forbidden. Selling part into a big gap is a choice we may make."
    },
    "house": true,
-   "simple": "Take the planned sell at the open, because the open is already past your level.",
+   "simple": "It is our choice by judgment, never a rule. We may sell part into the gap or hold and trail.",
    "tier": "extended",
    "risk": {
     "score": 2,
     "reasons": [
-     "rests on the owner's rule F63"
+     "rests on the owner's ruling that selling into a gap is optional"
     ]
    },
-   "batch": "rulings2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q42",
@@ -3289,7 +3315,7 @@
    "rung": 8,
    "format": "mcq",
    "criterion": "fh.not_stretched",
-   "q": "At the trigger the stock sits 12% above its 10-day average. What is our rule?",
+   "q": "At the trigger the stock sits 12% above its 9 EMA. What is our rule?",
    "choices": [
     "Skip it; the limit is 10%",
     "Skip it; the limit is 5%",
@@ -3297,22 +3323,23 @@
     "Buy half size to be safe"
    ],
    "answer": "Skip it; the limit is 10%",
-   "why": "Skip. Our rule: skip a long that is more than 10% above its 10-day average, because it is too stretched to buy. At 12% above, this one is past the line. The card repeats it as an entry test: at entry, no more than 10% above the 10-day average. A clean pattern does not change the distance.",
+   "why": "Skip. Our rule: skip a long that is more than 10% above its 9 EMA, because it is too stretched to buy. At 12% above, this one is past the line. The card repeats it as an entry test: at entry, no more than 10% above the 9 EMA. A clean pattern does not change the distance.",
    "lesson_line": "A trigger that is already stretched is a chase with a different name.",
    "facts": [
     "c52",
     "h13",
-    "h11"
+    "h11",
+    "r09"
    ],
    "wrong": {
-    "Skip it; the limit is 5%": "The action is right, but the line is wrong. Our limit is 10% above the 10-day average, not 5%.",
+    "Skip it; the limit is 5%": "The action is right, but the line is wrong. Our limit is 10% above the 9 EMA, not 5%.",
     "Buy it; pattern decides": "The pattern is the trigger, not the whole rule. The stretch rule still applies at the fill.",
     "Buy half size to be safe": "Size does not fix a stretched entry. The rule is skip."
    },
    "house": true,
-   "simple": "Skip it, because a long more than 10% above its 10-day average is too stretched to buy.",
+   "simple": "Skip it, because a long more than 10% above its 9 EMA is too stretched to buy.",
    "deeper": {
-    "trap": "Two distance rules sit on the same trade, and mixing them up is the trap. One is the chase limit: the fill may not be too far above the buy point. The other is the stretch limit: the stock may not be more than 10% above its 10-day average. A fill can pass the first and fail the second."
+    "trap": "Two distance rules sit on the same trade, and mixing them up is the trap. One is the chase limit: the fill may not be too far above the buy point. The other is the stretch limit: the stock may not be more than 10% above its 9 EMA. A fill can pass the first and fail the second."
    },
    "tier": "expert",
    "risk": {
@@ -3321,7 +3348,7 @@
      "rests on the owner's rule C29"
     ]
    },
-   "batch": "wave3"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q57",
@@ -3569,7 +3596,7 @@
    "house": true,
    "simple": "Buy at market over the shoulder high, put the stop under the day's low, and sell into a push on day 3 or later.",
    "deeper": {
-    "example": "Buy at market over the shoulder high. Put the stop a few cents under the day's low. Sell into a push on day 3 or later. Trail the rest on the 10-day or the 21-day. MGM reached 3R in 5 days and 23.7R at best."
+    "example": "Buy at market over the shoulder high. Put the stop a few cents under the day's low. Sell into a push on day 3 or later. Trail the rest on the 9 EMA or the 20 EMA. MGM reached 3R in 5 days and 23.7R at best."
    },
    "tier": "expert",
    "risk": {
@@ -4023,7 +4050,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c37 hard rule plus h10. Same 200-day fact as q67 and q66 (outside chunk); trigger-day versus before-trigger framing keeps q04 answerable. Coverage of fh.above_200 also in q63 and q64."
+   "notes": "200-day hard rule for a stock (D-009) intact; no D-013 content."
   },
   "q05": {
    "status": "cut",
@@ -4034,9 +4061,8 @@
   "q06": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "c04, c23, d37, h04 and c55/h05 back the key and every wrong note. Four distinct uses, no tell.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "Wrong text re-keyed to D-013. But the question still cites superseded card fact c55 'Sell a third at 3R.' which nothing in the text uses now; drop it."
   },
   "q07": {
    "status": "pass",
@@ -4114,7 +4140,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "re-keyed False; verbatim r06-r08; no 3R rule taught"
+   "notes": "Already teaches D-013; quotes r06-r08 verbatim from the reading."
   },
   "q20": {
    "status": "pass",
@@ -4195,7 +4221,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "keep; trail on close"
+   "notes": "D-021 rename done; 'what is left' for 'last third'; close not touch stays right; ICLR 3R/25% not measured against a line; r09 quote verbatim."
   },
   "q33": {
    "status": "pass",
@@ -4251,7 +4277,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "plan-based gap sell is fine, but why said first sell is a fair choice on day 3 vaguely; made 3R explicitly the plan's mark, not a rule"
+   "notes": "Re-key to GAP-TRIM is right and quotes r10/r11 verbatim. But the right answer was the only hedged choice among 'always'/'never' absolutes, a tell. Made all four parallel (Optional / Required / Required / Forbidden)."
   },
   "q42": {
    "status": "pass",
@@ -4342,8 +4368,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "10% from c52 and h13; 12% is in the stem. 5% is a clean wrong line.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "D-021 rename of the 9 EMA done in q, why, wrong, simple, deeper; 10% is a rule, not a measurement; 12% is in the stem."
   },
   "q57": {
    "status": "pass",
@@ -4385,13 +4410,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "keep; 3R yardstick only"
+   "notes": "Context on trigger day; no ruling contradicted; volume only grades (D-006)."
   },
   "q64": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Checked AMZN split-adjusted bars: 2014-06-10 close 16.62 under 200-day 17.20; 6-11 close 16.76 vs 17.21 = 2.6% under (d32). The 200-day was rising slightly, so 'turning up' is a true but irrelevant trap, and its wrong note handles that correctly. c08 supports the volume note."
+   "notes": "200-day hard no (D-009); volume wrong option explained as grade only (D-006)."
   },
   "q65": {
    "status": "cut",
@@ -4432,8 +4457,8 @@
   "q71": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Tests fh.above_50 by application and agrees with D-003 (no close buys) and the 200-day rule. Facts u04, u05, c09, c37, c22, c02, c38, h10 support every claim. Fixed: the story's 'closed back over the neckline at 98.00, ending at 101.00' needed a second read, and the 'simple' said the failure is not complete until the 50-day is remounted, which clashes with q02 (the failure is complete on the trade over the right-shoulder high). Not a duplicate of q51 (the neckline return move) or q63."
+   "fixed": false,
+   "notes": "Close entry is the friend's wrong advice; key and wrong text state buy as price trades through the trigger (D-003)."
   },
   "q72": {
    "status": "pass",

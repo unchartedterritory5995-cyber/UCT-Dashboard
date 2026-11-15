@@ -148,6 +148,14 @@
    "title": "Setup decisions: the owner's rulings (2026-11-12)",
    "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
   }
  ],
  "facts": [
@@ -177,9 +185,9 @@
   },
   {
    "id": "h05",
-   "source": "h1",
-   "quote": "Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
-   "claim": "B19: breakeven between 2R and 5R; the hard rule for the first trim is a third at 3R."
+   "source": "hw",
+   "quote": "The stop may move up to breakeven between 2R and 5R, or at the first sell.",
+   "claim": "Our stop may move up to breakeven between 2R and 5R, or at the first sell."
   },
   {
    "id": "h06",
@@ -249,15 +257,15 @@
   },
   {
    "id": "h20",
-   "source": "h1",
-   "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
-   "claim": "E51: another third at 5R, then trail the last third."
+   "source": "hw",
+   "quote": "Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
+   "claim": "Later sells are a judgment: sell more into strength on a later push, and trail what is left."
   },
   {
    "id": "h21",
-   "source": "h1",
-   "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
-   "claim": "E52: trail the 10-day for fast movers, the 21-day for steadier ones; sell on a close below it."
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
   },
   {
    "id": "h22",
@@ -945,9 +953,9 @@
   },
   {
    "id": "r05",
-   "source": "h2",
-   "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
-   "claim": "D-013: he rarely sells on day 1 and usually waits until day 3 at the earliest."
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
   },
   {
    "id": "r06",
@@ -960,6 +968,24 @@
    "source": "h2",
    "quote": "A gap up past 3R at the open is not an automatic sell. Selling part at the open on a big gap is one choice he may make by judgment, never a rule",
    "claim": "GAP-TRIM: a gap past 3R is not an automatic sell; selling part at the open is an optional judgment."
+  },
+  {
+   "id": "r07",
+   "source": "h2",
+   "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+   "claim": "D-021: the course teaches the 9 and 20 EMA, with the 50 and 200 SMA."
+  },
+  {
+   "id": "r08",
+   "source": "h2",
+   "quote": "The low of day (the entry day's low) is the primary stop.",
+   "claim": "D-008: the entry day's low is the primary stop."
+  },
+  {
+   "id": "r09",
+   "source": "h2",
+   "quote": "The pattern's low and a line minus a cushion are acceptable alternatives, not wrong answers.",
+   "claim": "D-008: the pattern's low and a line minus a cushion are acceptable alternatives."
   }
  ],
  "walkthroughs": [
@@ -1164,27 +1190,30 @@
     "A few cents under the IPO price",
     "A few cents under the day's low",
     "Exactly on the breakout day's low",
-    "A few cents under the base low"
+    "At whatever price fits the size I want"
    ],
    "answer": "A few cents under the day's low",
-   "why": "A few cents under the breakout day's low. The prior day's low is the other default. Not exactly on it: the stop sits a few cents under the low. Not at the base low: widening the stop to sit through the base's depth is a named mistake. It is a real stop order with the broker.",
-   "lesson_line": "Stop first: a few cents under the day's low, never at the base low.",
+   "why": "A few cents under the breakout day's low, the primary stop. The prior day's low and the base low are acceptable alternatives. The base low can sit far away, and past 5% we mostly wait for a tighter trigger. It is a real stop order with the broker.",
+   "lesson_line": "Stop first: a few cents under the day's low. The base low is only an alternative.",
    "facts": [
     "c10",
     "h24",
     "h01",
-    "c42",
-    "h18"
+    "h18",
+    "r01",
+    "r02",
+    "r08",
+    "r09"
    ],
    "wrong": {
     "A few cents under the IPO price": "The stop comes from the breakout day's low, not from the IPO price.",
     "Exactly on the breakout day's low": "The rule is a few cents under the low, not exactly on it.",
-    "A few cents under the base low": "The base low can be far away. Widening the stop to sit through the base's depth is a named mistake."
+    "At whatever price fits the size I want": "The stop comes from the chart, and the size comes from the stop. Never move the stop to make a trade fit."
    },
    "house": true,
-   "simple": "Put the stop a few cents under the breakout day's low, not on it and not down at the base low.",
+   "simple": "Put the stop a few cents under the breakout day's low. That is the primary stop, and it goes under the low, not on it.",
    "deeper": {
-    "trap": "Pulling the stop in to fit a size and pushing it out to the base low both break the plan. Stop first, then size from it: shares equal account times risk percent, divided by entry minus stop, rounded down."
+    "trap": "Never move the stop just to fit a size. Stop first, then size from it: shares equal account times risk percent, divided by entry minus stop, rounded down."
    },
    "tier": "core",
    "risk": {
@@ -1193,7 +1222,7 @@
      "fixed before: variety rewrite 2026-11-10"
     ]
    },
-   "batch": "wave1"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q06",
@@ -1396,7 +1425,7 @@
     "10 cents over the left-side high",
     "At the right-side low of the base",
     "At the listing-day close, plus 10 cents",
-    "At the 21-day average, on a pullback"
+    "At the 20 EMA, on a pullback"
    ],
    "answer": "10 cents over the left-side high",
    "why": "10 cents over the left-side high. IBD says the buy point is 10 cents above the high on the left side, as in most regular bases. With a market order we do not need the 10 cents. We buy on the trade through the IPO high.",
@@ -1404,12 +1433,13 @@
    "facts": [
     "i05",
     "c03",
-    "m03"
+    "m03",
+    "r07"
    ],
    "wrong": {
     "At the listing-day close, plus 10 cents": "The buy point is the high on the left side, not the listing-day close.",
-    "At the 21-day average, on a pullback": "An average is a trail and a location check, not the buy point.",
-    "At the right-side low of the base": "IBD puts the buy point above the high on the left side, not at a low."
+    "At the right-side low of the base": "IBD puts the buy point above the high on the left side, not at a low.",
+    "At the 20 EMA, on a pullback": "An average is a trail and a location check, not the buy point."
    },
    "house": true,
    "simple": "IBD puts the buy point 10 cents above the left-side high. With a market order, we do not need the 10 cents.",
@@ -1421,7 +1451,7 @@
      "fixed before: variety rewrite 2026-11-10"
     ]
    },
-   "batch": "wave1"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q13",
@@ -2368,23 +2398,24 @@
    "choices": [
     "The 200-day",
     "The 50-day",
-    "The 10-day",
-    "The 21-day"
+    "The 9 EMA",
+    "The 20 EMA"
    ],
-   "answer": "The 10-day",
-   "why": "The 10-day. The default trail for a fast mover is the 10-day average, and we sell on a close below it. Our card treats a new issue as a fast mover by default.",
-   "lesson_line": "A new issue is a fast mover by default: trail the 10-day and sell on a close below it.",
+   "answer": "The 9 EMA",
+   "why": "The 9 EMA. The default trail for a fast mover is the 9 EMA, and we sell on a close below it. Our card treats a new issue as a fast mover by default.",
+   "lesson_line": "A new issue is a fast mover by default: trail the 9 EMA and sell on a close below it.",
    "facts": [
     "h21",
-    "c26"
+    "c26",
+    "r07"
    ],
    "wrong": {
-    "The 50-day": "The default trail for a fast mover is the 10-day, not the 50-day.",
-    "The 200-day": "A young listing may not have a 200-day yet, and the default for a fast mover is the 10-day.",
-    "The 21-day": "The 21-day is not the default for a fast-moving new issue. We trail the 10-day."
+    "The 50-day": "The default trail for a fast mover is the 9 EMA, not the 50-day.",
+    "The 200-day": "A young listing may not have a 200-day yet, and the default for a fast mover is the 9 EMA.",
+    "The 20 EMA": "The 20 EMA is the trail for a steadier mover. A fast-moving new issue trails the 9 EMA."
    },
    "house": true,
-   "simple": "The 10-day. A new issue is a fast mover by default, so we sell when the price closes below its 10-day average.",
+   "simple": "The 9 EMA. A new issue is a fast mover by default, so we sell when the price closes below its 9 EMA.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2392,7 +2423,7 @@
      "rests on the owner's rulebook, E52"
     ]
    },
-   "batch": "wave1"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q38",
@@ -2413,11 +2444,12 @@
    "facts": [
     "h15",
     "c27",
-    "h05"
+    "h05",
+    "r06"
    ],
    "wrong": {
     "Hold; the base was clean": "The time stop does not care about the base. Under 1R after 10 days, we sell.",
-    "Sell half now and hold the rest": "The time stop sells the whole trade. Our trims come at 3R and 5R, not at 0.4R.",
+    "Sell half now and hold the rest": "The time stop sells the whole trade. We sell part into strength, not into a stall at 0.4R.",
     "Move the stop up to breakeven": "Breakeven comes between 2R and 5R, not at 0.4R. A trade under 1R after 10 trading days is sold."
    },
    "house": true,
@@ -2497,24 +2529,25 @@
    "q": "Under our plan, what comes after the first sell?",
    "choices": [
     "Sell it all at 5R and move on",
-    "Add a third at 5R if it acts well",
+    "Add more at 5R if it acts well",
     "Sell more on strength, then trail",
-    "Hold the rest with no more trims"
+    "Hold the rest with no more sells"
    ],
    "answer": "Sell more on strength, then trail",
-   "why": "Sell more on strength, then trail the last part. The first sell is a judgment, not a fixed third at 3R. Another sell can come near 5R, and the step is adjustable.",
-   "lesson_line": "Sell into strength, then trail the last part.",
+   "why": "Sell more on strength, then trail what is left. The first sell is a judgment, not a fixed third at 3R. Later sells are a judgment too, often into a 3, 5 or 7 day push or at about 5 to 10R.",
+   "lesson_line": "Sell into strength, then trail what is left.",
    "facts": [
     "r04",
+    "r06",
     "h21"
    ],
    "wrong": {
-    "Add a third at 5R if it acts well": "Selling comes off, not on. The plan sells more into strength, then trails the last part.",
-    "Hold the rest with no more trims": "The plan can sell more near 5R. Holding the rest with no more trims skips that step.",
-    "Sell it all at 5R and move on": "The plan keeps the last third on the trail."
+    "Sell it all at 5R and move on": "The plan keeps what is left on the trail instead of selling it all at one mark.",
+    "Add more at 5R if it acts well": "Selling comes off, not on. The plan sells more into strength, then trails what is left.",
+    "Hold the rest with no more sells": "Later sells are a judgment too. Holding everything with no more sells skips that step."
    },
    "house": true,
-   "simple": "After the first sell, the plan sells more into strength and then trails the last part.",
+   "simple": "After the first sell, the plan sells more into strength and then trails what is left.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2522,7 +2555,7 @@
      "rests on the owner's rulebook (E51, B19)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q42",
@@ -2534,7 +2567,7 @@
    "choices": [
     "Sell a big part into the gap",
     "Add a little on the gap up",
-    "Hold it all and trail the 10-day",
+    "Hold it all and trail the 9 EMA",
     "Raise the stop and sell nothing"
    ],
    "answer": "Sell a big part into the gap",
@@ -2544,18 +2577,19 @@
     "h16",
     "h20",
     "h21",
-    "h02"
+    "h02",
+    "r07"
    ],
    "wrong": {
     "Add a little on the gap up": "A climax run on your own long is when we sell a big part into it, not when we buy more.",
     "Raise the stop and sell nothing": "Raising the stop is fine, but on a climax run the plan is to sell a big part, not only to tighten the stop.",
-    "Hold it all and trail the 10-day": "The 10-day trail is the exit for what is left. A climax run is a reason to sell a big part first."
+    "Hold it all and trail the 9 EMA": "The 9 EMA trail is the exit for what is left. A climax run is a reason to sell a big part first."
    },
    "house": true,
    "story": "Your new-issue long has run 400% in seven weeks. Today it gaps up again on huge volume.",
    "simple": "Sell a big part into the burst, because on a climax run our rule is to sell into strength.",
    "deeper": {
-    "trap": "A big part is not all of it. The rule calls it a judgment call, so the size of the sale is yours to weigh. The rest still trails under the 10-day average for a fast mover, and a close below it is the exit."
+    "trap": "A big part is not all of it. The rule calls it a judgment call, so the size of the sale is yours to weigh. The rest still trails under the 9 EMA for a fast mover, and a close below it is the exit."
    },
    "tier": "extended",
    "risk": {
@@ -2565,7 +2599,7 @@
      "rests on the owner's rulebook (C34, 'yes but depends')"
     ]
    },
-   "batch": "wave1"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q43",
@@ -2882,14 +2916,15 @@
     "No; it needs a close above first"
    ],
    "answer": "No; too stretched and past 4%",
-   "why": "No. We skip a long more than 10% above its 10-day average, and this one opens 18% over it. It also opens 12% above the IPO high, past the 4% chase limit. Skip it and wait for a new setup. Clearing the high or a tighter stop does not change the rule.",
+   "why": "No. We skip a long more than 10% above its 9 EMA, and this one opens 18% over it. It also opens 12% above the IPO high, past the 4% chase limit. Skip it and wait for a new setup. Clearing the high or a tighter stop does not change the rule.",
    "lesson_line": "A gap-and-go is not a buy. Skip it and let the next setup come.",
    "facts": [
     "h13",
     "c09",
     "h11",
     "h12",
-    "c04"
+    "c04",
+    "r07"
    ],
    "wrong": {
     "Yes, if you use a tight stop": "The stop stays honest. A bigger stop distance shrinks the shares and does not make a stretched entry fine.",
@@ -2897,8 +2932,8 @@
     "No; it needs a close above first": "The trigger is a trade through the IPO high in regular hours, not a close above it. The stretch and the 4% limit are the problem."
    },
    "house": true,
-   "story": "A new issue gaps up and opens 12% above its IPO high. At the open it is 18% over its 10-day average.",
-   "simple": "No, it opened more than 4% past the pivot and is over 10% above its 10-day, so we skip it.",
+   "story": "A new issue gaps up and opens 12% above its IPO high. At the open it is 18% over its 9 EMA.",
+   "simple": "No, it opened more than 4% past the pivot and is over 10% above its 9 EMA, so we skip it.",
    "deeper": {
     "trap": "A gap can look like a strong breakout and still be too late. The 4% chase limit and the 10% stretch limit are separate checks, and this entry fails both. Chasing costs size: the stop stays put, the distance grows and the shares shrink."
    },
@@ -2914,7 +2949,7 @@
    "depends_on": [
     "D-017"
    ],
-   "batch": "wave1"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q52",
@@ -3392,24 +3427,25 @@
     "A good sign; it replaces the trigger"
    ],
    "answer": "A good sign; it lifts the grade",
-   "why": "A good sign, so it lifts the grade. The A+ location is above the IPO AVWAP and the rising 10-day and 21-day averages. The IPO AVWAP is the volume-weighted average price anchored at the listing day. Sitting above the 10-day is normal, and we skip a long only when it is more than 10% above it.",
+   "why": "A good sign, so it lifts the grade. The A+ location is above the IPO AVWAP and the rising 9 and 20 EMA. The IPO AVWAP is the volume-weighted average price anchored at the listing day. Sitting above the 9 EMA is normal, and we skip a long only when it is more than 10% above it.",
    "lesson_line": "Above the IPO AVWAP and the rising short averages is the best location.",
    "facts": [
     "c37",
     "c19",
     "c22",
-    "h13"
+    "h13",
+    "r07"
    ],
    "wrong": {
     "Nothing; the averages do not matter": "Location is part of the grade. Above all three is the A+ version.",
-    "It is stretched; skip the trade": "Stretched means more than 10% over the 10-day. At 4% over it, this is not stretched.",
+    "It is stretched; skip the trade": "Stretched means more than 10% over the 9 EMA. At 4% over it, this is not stretched.",
     "A good sign; it replaces the trigger": "Location is a grade cue, not a trigger. The buy still needs a trade through the IPO high."
    },
    "house": true,
-   "story": "A breakout candidate sits above its IPO AVWAP. It is also above its rising 10-day and 21-day averages, and 4% over the 10-day.",
-   "simple": "A good sign, because sitting above the IPO AVWAP and the rising 10-day and 21-day is the best location.",
+   "story": "A breakout candidate sits above its IPO AVWAP. It is also above its rising 9 and 20 EMA, and 4% over the 9 EMA.",
+   "simple": "A good sign, because sitting above the IPO AVWAP and the rising 9 and 20 EMA is the best location.",
    "deeper": {
-    "trap": "Above the averages is a good place to be, not a reason to chase. Location is one grade cue. We still skip a long that is more than 10% above its 10-day average."
+    "trap": "Above the averages is a good place to be, not a reason to chase. Location is one grade cue. We still skip a long that is more than 10% above its 9 EMA."
    },
    "tier": "expert",
    "risk": {
@@ -3418,7 +3454,7 @@
      "one source: the criteria card, a proposed grade cue"
     ]
    },
-   "batch": "wave1"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q65",
@@ -3647,25 +3683,26 @@
    "q": "What does the location check ask of it?",
    "story": "A new issue listed 30 sessions ago and is breaking out. It has no 50-day yet.",
    "choices": [
-    "The 10 and 21-day; the 50-day later",
+    "The 9 and 20 EMA; the 50-day later",
     "The 50-day, so wait until it has formed",
-    "The 200-day first, then the 21-day",
+    "The 200-day first, then the 20 EMA",
     "No averages yet; judge the chart alone"
    ],
-   "answer": "The 10 and 21-day; the 50-day later",
-   "why": "The 10-day and 21-day now. Our card asks for a close above the rising 10-day and 21-day averages, and above the 50-day once it exists. At 30 sessions this stock has no 50-day yet, and a young listing has no 200-day.",
+   "answer": "The 9 and 20 EMA; the 50-day later",
+   "why": "The 9 and 20 EMA now. Our card asks for a close above the rising 9 and 20 EMA, and above the 50-day once it exists. At 30 sessions this stock has no 50-day yet, and a young listing has no 200-day.",
    "lesson_line": "A young stock is judged on the averages it has. The 50-day joins later.",
    "facts": [
     "c22",
-    "c32"
+    "c32",
+    "r07"
    ],
    "wrong": {
     "The 50-day, so wait until it has formed": "The 50-day is asked for only once it exists. A young stock does not have to wait for it.",
-    "The 200-day first, then the 21-day": "A young listing has no 200-day, and our card does not ask for one here.",
-    "No averages yet; judge the chart alone": "At 30 sessions it already has a 10-day and a 21-day. Our card asks for a close above both."
+    "No averages yet; judge the chart alone": "At 30 sessions it already has a 9 EMA and a 20 EMA. Our card asks for a close above both.",
+    "The 200-day first, then the 20 EMA": "A young listing has no 200-day, and our card does not ask for one here."
    },
    "house": true,
-   "simple": "It needs a close above the rising 10-day and 21-day averages now, and above the 50-day only once it exists.",
+   "simple": "It needs a close above the rising 9 and 20 EMA now, and above the 50-day only once it exists.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -3673,7 +3710,7 @@
      "one source: the criteria card (c22), a proposed gate"
     ]
    },
-   "batch": "wave1"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q72",
@@ -3774,7 +3811,7 @@
    "choices": [
     "Between 2R and 5R, at first trim",
     "Between 0.5R and 1R, at the pivot",
-    "Only after the last third is sold",
+    "Only after the last part is sold",
     "After the first higher close in a row"
    ],
    "answer": "Between 2R and 5R, at first trim",
@@ -3785,9 +3822,9 @@
     "h05"
    ],
    "wrong": {
-    "Only after the last third is sold": "The stop moves long before the last third goes. It follows the first trim.",
     "After the first higher close in a row": "A close is not a measure of R. The move is set in R, from 2R.",
-    "Between 0.5R and 1R, at the pivot": "Too soon. Our rule starts at 2R."
+    "Between 0.5R and 1R, at the pivot": "Too soon. Our rule starts at 2R.",
+    "Only after the last part is sold": "The stop moves long before the last part goes. It follows the first sell."
    },
    "house": true,
    "simple": "The stop goes to breakeven anywhere from 2R to 5R, and at the first trim by default.",
@@ -3798,7 +3835,7 @@
      "rests on the owner's rulebook (B19)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q76",
@@ -3818,17 +3855,18 @@
     "round": 2
    },
    "suffix": "",
-   "why": "Our breakeven window opens at 2R. One R is the fill minus the stop, 22.81 minus 21.73. Add two of those to the fill: 22.81 plus 2 times (22.81 minus 21.73) is 24.97. The window runs from 2R to 5R, and by default the stop moves at the first trim.",
+   "why": "Our breakeven window opens at 2R. One R is the fill minus the stop, 22.81 minus 21.73. Add two of those to the fill: 22.81 plus 2 times (22.81 minus 21.73) is 24.97. The window runs from 2R to 5R, and by default the stop moves at the first sell.",
    "lesson_line": "Count in R. From 2R the stop can move up to your entry.",
    "facts": [
     "h05",
     "c49",
-    "d07"
+    "d07",
+    "r04"
    ],
    "house": true,
    "simple": "The window opens at 24.97, which is 2R, the start of our 2R to 5R breakeven window.",
    "deeper": {
-    "trap": "2R is where the window opens, not the required spot. The default is the first trim, at 3R, which sits one more R above this price. Moving earlier leaves the trade less room; moving at the trim is the usual plan."
+    "trap": "2R is where the window opens, not the required spot. The default is the first sell, which is a judgment, not a fixed 3R mark. Moving earlier leaves the trade less room; moving at the first sell is the usual plan."
    },
    "tier": "core",
    "risk": {
@@ -3839,7 +3877,7 @@
     ]
    },
    "prefix": "$",
-   "batch": "rank",
+   "batch": "sweep-2026-11-14",
    "choices": [
     "$24.97",
     "$23.89",
@@ -4082,7 +4120,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Stem now says breakout day; key unique. Supported by c10, h24, c42. Choice C differs only by 'exactly', fine."
+   "notes": "D-008 edit sound: day low primary, base low alternative; 5% grounded by r01/r02."
   },
   "q06": {
    "status": "pass",
@@ -4125,7 +4163,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "IBD page quote (10 cents above the left-side high) confirmed on the cited Yahoo-hosted IBD page; c03 and m03 confirmed. No second answer, no tell (key not longest), no rulebook conflict (E57 market orders handled in why)."
+   "notes": "D-021 rename only; fine."
   },
   "q13": {
    "status": "pass",
@@ -4143,8 +4181,8 @@
   "q15": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "A 4R overshoot was added so the right answer is not always the largest; it replaced the 3% slip. Calc recomputed; the other wrong choices checked by hand."
+   "fixed": false,
+   "notes": "Keep ok: 3R is a ruler mark and the why says the first sell is a judgment."
   },
   "q16": {
    "status": "pass",
@@ -4168,7 +4206,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "4% over 24.80 is 25.79; 26.10 is past it, and still past it if the buy point is 24.90. C28/h11 and h12 match the repo text. Key is not the longest choice, 2 Yes vs 2 No. The gap-moves-pivot choice is a false-premise No, so the key is unique. Mild overlap with q51 (also a gap over the 4% line) and the q18 stem names the 4% limit; acceptable."
+   "notes": "Keep ok: heavy volume on a chase, 4% chase limit; no ruling touched."
   },
   "q20": {
    "status": "cut",
@@ -4211,7 +4249,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Story numbers are enough: Day B 2.2x clears 2x, Day A 1.5x does not, and neither is the heaviest since listing. Rests on a proposed card cue (c07) while E50 says grading is discretionary; the why says so and the owner flag is already raised."
+   "notes": "Keep ok: 10-day average VOLUME, exempt from D-021."
   },
   "q27": {
    "status": "pass",
@@ -4256,7 +4294,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "re-keyed to your call; 61.53 math ok; quote verbatim; style ok"
+   "notes": "Keep ok: gap past 3R is optional judgment, wait-30-minutes shown as a wrong answer."
   },
   "q34": {
    "status": "pass",
@@ -4280,8 +4318,8 @@
   "q37": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key is right (h21, c26). But the why/simple/lesson_line say 'IPOs are fast movers' as a universal, which q50 contradicts (a steady new issue late in its first year trails the 21-day). Soften to 'a new issue is a fast mover by default'."
+   "fixed": false,
+   "notes": "D-021 rename consistent; right and wrong answers sound."
   },
   "q38": {
    "status": "pass",
@@ -4304,14 +4342,14 @@
   "q41": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Drop B19 h20 citation (third at 3R then third at 5R); cite trail fact instead."
+   "fixed": false,
+   "notes": "D-013 edit removes fixed thirds; later sells a judgment; numbers grounded in r04/r06."
   },
   "q42": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Story says you already sold two thirds and trail the rest, so 'sell a big part' is muddled (a big part of one third?) and 'hold it all and trail the 10-day' becomes a second defensible answer. Also 400% is far past 3R and 5R, so the trims story is inconsistent. Drop the trims sentence and ask what our rule says (C34 is a judgment call)."
+   "fixed": false,
+   "notes": "D-021 rename fine. Climax-run rule (C34) is a separate judgment call, not GAP-TRIM; why says judgment call."
   },
   "q43": {
    "status": "pass",
@@ -4365,7 +4403,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "12% over pivot breaks 4% (h11/c08), 18% over 10-day breaks 10% (h13/c09). One answer."
+   "notes": "D-021 rename in invented scenario; fine."
   },
   "q52": {
    "status": "pass",
@@ -4444,7 +4482,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c37 A+ location; 4% over 10-day is under the 10% line (h13); D false by c04."
+   "notes": "D-021 rename in invented scenario; fine."
   },
   "q65": {
    "status": "pass",
@@ -4487,7 +4525,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c22/c32 support key."
+   "notes": "D-021 rename; 50-day still conditional; fine."
   },
   "q72": {
    "status": "cut",
@@ -4511,13 +4549,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Breakeven kept; 3R removed."
+   "notes": "Breakeven 2R to 5R, at first trim kept; last third now last part; fine."
   },
   "q76": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Right answer unchanged, sorts to the target rank, wrong choices real and similar in form."
+   "notes": "Arithmetic 22.81+2*1.08=24.97 correct; deeper no longer keys 3R first trim."
   },
   "q77": {
    "status": "cut",

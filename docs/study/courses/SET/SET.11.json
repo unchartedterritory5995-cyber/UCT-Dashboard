@@ -103,6 +103,14 @@
    "title": "Setup decisions: the owner's rulings (2026-11-12)",
    "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
   }
  ],
  "facts": [
@@ -228,9 +236,9 @@
   },
   {
    "id": "h05",
-   "source": "h1",
-   "quote": "Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
-   "claim": "B19: breakeven between 2R and 5R; the hard rule for the first trim is a third at 3R."
+   "source": "hw",
+   "quote": "The stop may move up to breakeven between 2R and 5R, or at the first sell.",
+   "claim": "Our stop may move up to breakeven between 2R and 5R, or at the first sell."
   },
   {
    "id": "h06",
@@ -306,15 +314,15 @@
   },
   {
    "id": "h20",
-   "source": "h1",
-   "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
-   "claim": "E51: another third at 5R, then trail the last third."
+   "source": "hw",
+   "quote": "Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
+   "claim": "Later sells are a judgment: sell more into strength on a later push, and trail what is left."
   },
   {
    "id": "h21",
-   "source": "h1",
-   "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
-   "claim": "E52: trail the 10-day for fast movers, the 21-day for steadier ones; sell on a close below it."
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
   },
   {
    "id": "h22",
@@ -474,9 +482,9 @@
   },
   {
    "id": "c19",
-   "source": "c1",
-   "quote": "Trail the last third on a close under the 21-day EMA, the steadier trail. Use the 10-day only if the stock is a fast mover.",
-   "claim": "Trail the last third on a close under the 21-day; the 10-day only for a fast mover."
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
   },
   {
    "id": "c20",
@@ -1008,9 +1016,27 @@
   },
   {
    "id": "r12",
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
+  },
+  {
+   "id": "r13",
    "source": "h2",
-   "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
-   "claim": "Very rarely sells on day 1; usually waits until day 3 at the earliest (D-013)"
+   "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+   "claim": "D-021: the course teaches the 9 and 20 EMA, with the 50 and 200 SMA."
+  },
+  {
+   "id": "r14",
+   "source": "h2",
+   "quote": "The low of day (the entry day's low) is the primary stop.",
+   "claim": "D-008: the entry day's low is the primary stop."
+  },
+  {
+   "id": "r15",
+   "source": "h2",
+   "quote": "The pattern's low and a line minus a cushion are acceptable alternatives, not wrong answers.",
+   "claim": "D-008: the pattern's low and a line minus a cushion are acceptable alternatives."
   }
  ],
  "walkthroughs": [
@@ -1060,8 +1086,8 @@
    "steps": [
     "DDOG, 2024. A 22.1% correction, a 1.66% bundle. On 2024-10-04 it launches up 4.4%, closing at 0.97, on 1.63x volume.",
     "Fill 122.69; stop 118.32, 3.6% away. Over 3%, so the size shrinks. Never pull the stop in to fit.",
-    "Then it dangles along the 21 EMA for four weeks. Over 1R inside 10 days, so the time stop stays quiet.",
-    "3R takes 33 sessions. Launchpads come out of long bases and trend along the 21-day. That is why the 21-day trails."
+    "Then it dangles along the 20 EMA for four weeks. Over 1R inside 10 days, so the time stop stays quiet.",
+    "3R takes 33 sessions. Launchpads leave long bases and trend along the 20 EMA, so the 20 EMA trails."
    ],
    "facts": [
     "d05",
@@ -1071,7 +1097,8 @@
     "c21",
     "h15",
     "c19",
-    "c20"
+    "c20",
+    "h21"
    ]
   }
  ],
@@ -1226,30 +1253,31 @@
    "criterion": "lp.trail",
    "q": "Which average does a launchpad's trail follow by default?",
    "choices": [
-    "The 21-day",
-    "The 10-day",
+    "The 20 EMA",
+    "The 9 EMA",
     "The 50-day",
     "The 200-day"
    ],
-   "answer": "The 21-day",
-   "why": "The 21-day, the steadier trail. Trail what is left on a close under the 21-day EMA. Launchpads come out of long bases and tend to trend along the 21-day. Use the 10-day only if the stock is a fast mover. The rulebook agrees: the 10-day for fast movers, the 21-day for steadier ones. How much is left depends on the first sell, which is a judgment.",
-   "lesson_line": "A pad trends along the 21-day. Trail it there and sell the close below.",
+   "answer": "The 20 EMA",
+   "why": "The 20 EMA, the steadier trail. Trail what is left on a close under the 20 EMA. Launchpads come out of long bases and tend to trend along the 20 EMA. Use the 9 EMA only if the stock is a fast mover. Our trail rule is the same split: the 9 EMA for fast movers, the 20 EMA for steadier ones. How much is left depends on the first sell, which is a judgment.",
+   "lesson_line": "A pad trends along the 20 EMA. Trail it there and sell the close below.",
    "facts": [
     "c19",
     "c20",
     "h21",
     "h10",
-    "r10"
+    "r10",
+    "r13"
    ],
    "house": true,
    "wrong": {
-    "The 10-day": "The 10-day is for a fast mover. A pad out of a long base tends to trend along the 21-day.",
-    "The 50-day": "That is not the trail. What is left trails the 21-day and sells on a close below it.",
-    "The 200-day": "The 200-day is the line new longs must stay above, not a trail. What is left trails the 21-day."
+    "The 50-day": "That is not the trail. What is left trails the 20 EMA and sells on a close below it.",
+    "The 200-day": "The 200-day is the line new longs must stay above, not a trail. What is left trails the 20 EMA.",
+    "The 9 EMA": "The 9 EMA is for a fast mover. A pad out of a long base tends to trend along the 20 EMA."
    },
-   "simple": "The 21-day is the default trail, because a launchpad out of a long base tends to trend along it.",
+   "simple": "The 20 EMA is the default trail, because a launchpad out of a long base tends to trend along it.",
    "deeper": {
-    "trap": "The sell signal is a close below the 21-day, not a dip under it during the day. Use the 10-day only for a fast mover."
+    "trap": "The sell signal is a close below the 20 EMA, not a dip under it during the day. Use the 9 EMA only for a fast mover."
    },
    "tier": "core",
    "risk": {
@@ -1258,7 +1286,7 @@
      "rests on the owner's rulebook (E52 trail)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q06",
@@ -1429,7 +1457,7 @@
    "rung": 2,
    "format": "mcq",
    "criterion": "lp.stop_not_bundle",
-   "q": "You buy at 50.00. The launch day's low is 48.60, the averages' bottom 46.20, the base low 44.10. Where does the stop go?",
+   "q": "You buy at 50.00. The launch day's low is 48.60, the averages' bottom 46.20, the base low 44.10. Where does our primary stop go?",
    "choices": [
     "A few cents under 48.60",
     "Just under 46.20",
@@ -1437,23 +1465,27 @@
     "At 50.00, the fill"
    ],
    "answer": "A few cents under 48.60",
-   "why": "A few cents under 48.60, the launch day's low. Our stops usually sit within about 3% of the buy. The bottom of the averages and the base low both sit far outside that. A stop at the fill is breakeven, which comes after 2R.",
-   "lesson_line": "The base low is not the stop. Neither is the bottom of the averages.",
+   "why": "A few cents under 48.60, the launch day's low, our primary stop. The averages' bottom and the base low are allowed stops in principle, but here both sit past 5% from the buy. Past 5% we mostly wait for a tighter trigger. A stop at the fill is breakeven, which comes after 2R.",
+   "lesson_line": "The launch day's low is the primary stop. The averages' bottom and the base low sit too far away here.",
    "facts": [
     "c17",
     "h24",
     "c18",
     "c41",
     "c52",
-    "h04"
+    "h04",
+    "r07",
+    "r08",
+    "r14",
+    "r15"
    ],
    "house": true,
    "wrong": {
-    "Just under 46.20": "That is the bottom of the averages. It sits far outside the 3% habit. The stop goes under the launch day's low.",
-    "Just under 44.10": "That is the base low. It sits far outside the 3% habit.",
+    "Just under 46.20": "That is the bottom of the averages, an allowed stop in general. Here it sits past 5% from the buy, so the primary stop is under the launch day's low.",
+    "Just under 44.10": "That is the base low, an allowed stop in general. Here it sits past 5% from the buy, so the primary stop is under the launch day's low.",
     "At 50.00, the fill": "A stop at the fill is breakeven. The stop moves there once 2R has traded, not on day one."
    },
-   "simple": "The stop goes a few cents under the launch day's low, not under the averages or the base low.",
+   "simple": "The primary stop goes a few cents under the launch day's low. The averages' bottom and the base low sit too far away.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1461,7 +1493,7 @@
      "rests on the owner's rulebook (A13 stop habit, D41, A4)"
     ]
    },
-   "batch": "wave1"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q12",
@@ -2502,7 +2534,7 @@
    "criterion": "lp.trim_gap_open",
    "q": "If a launchpad long opens above 3R, the first third must be sold at the open.",
    "answer": "False",
-   "why": "False. The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R. He very rarely sells on day 1 of the buy and usually waits until day 3 at the earliest.",
+   "why": "False. The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R. We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest.",
    "lesson_line": "A gap past 3R forces no sale. The first sell is a judgment.",
    "facts": [
     "r10",
@@ -2594,7 +2626,7 @@
    "choices": [
     "Sell a big part into the run",
     "Add to it; the run is working",
-    "Hold it all for the 21-day trail",
+    "Hold it all for the 20 EMA trail",
     "Sell a little and let it run"
    ],
    "answer": "Sell a big part into the run",
@@ -2604,13 +2636,14 @@
     "h16",
     "h32",
     "h31",
-    "h20"
+    "h20",
+    "r13"
    ],
    "house": true,
    "wrong": {
     "Add to it; the run is working": "Full size at one price with one stop; no adding. A climax is where you sell, not buy.",
-    "Hold it all for the 21-day trail": "The trail is for the last third. A climax run asks for a big sale before the trail ever triggers.",
-    "Sell a little and let it run": "The rule says sell a big part into a climax run, not a little. How big is a judgment call."
+    "Sell a little and let it run": "The rule says sell a big part into a climax run, not a little. How big is a judgment call.",
+    "Hold it all for the 20 EMA trail": "The trail is for what is left. A climax run asks for a big sale before the trail ever triggers."
    },
    "simple": "Sell a big part, because three straight up days, gaps and rising volume look like the parabolic burst, a climax run.",
    "tier": "extended",
@@ -2621,7 +2654,7 @@
      "+2 rests on the owner's rulebook (a judgment call, not a number)"
     ]
    },
-   "batch": "wave1"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q44",
@@ -3234,10 +3267,10 @@
     "Yes; sell half of it": "There is no half rule here. Either it is under 1R and sold, or it stays.",
     "No; any gain exempts it": "The line is 1R, not any profit. A trade still under 1R after 10 trading days is sold, even if it is slightly up."
    },
-   "story": "You bought the launch at 122.69, stop 118.32. The stock dangles along the 21-day for four weeks. On day ten it is over 1R but under 3R.",
+   "story": "You bought the launch at 122.69, stop 118.32. The stock dangles near its short averages for four weeks. On day ten it is over 1R but under 3R.",
    "simple": "No, because the time stop only sells a trade still under 1R after ten days, and this one was over.",
    "deeper": {
-    "example": "DDOG, launch 2024-10-04: bought 122.69, stop 118.32. It dangled along the 21 EMA for four weeks. 3R took 33 sessions, yet it was over 1R inside 10 days. It ran to 10.8R."
+    "example": "DDOG, launch 2024-10-04: bought 122.69, stop 118.32. It dangled near its short averages for four weeks. 3R took 33 sessions, yet it was over 1R inside 10 days. It ran to 10.8R."
    },
    "tier": "expert",
    "risk": {
@@ -3246,7 +3279,7 @@
      "rests on the owner's rulebook (C33 time stop)"
     ]
    },
-   "batch": "wave1"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q60",
@@ -3256,27 +3289,28 @@
    "criterion": "lp.trail",
    "q": "What happens to the rest of the position?",
    "choices": [
-    "Sold on that close under the 21-day",
+    "Sold on that close under the 20 EMA",
     "Held; the stop is at breakeven",
     "Held until a close under the 50-day",
-    "Sold after two closes under the 21-day"
+    "Sold after two closes under the 20 EMA"
    ],
-   "answer": "Sold on that close under the 21-day",
-   "why": "Sold. What is left trails the 21-day, the steadier trail, and comes off on a close below it. This stock is a steady mover, so the 21-day is the line, and today's close under it is the exit. The 10-day is only for a fast mover. Breakeven is a floor, not the exit.",
+   "answer": "Sold on that close under the 20 EMA",
+   "why": "Sold. What is left trails the 20 EMA, the steadier trail, and comes off on a close below it. This stock is a steady mover, so the 20 EMA is the line, and today's close under it is the exit. The 9 EMA is only for a fast mover. Breakeven is a floor, not the exit.",
    "lesson_line": "Part is banked, the rest is on the trail. The close below the line is the exit.",
    "facts": [
     "c19",
     "h21",
-    "r10"
+    "r10",
+    "r13"
    ],
    "house": true,
    "wrong": {
     "Held; the stop is at breakeven": "Breakeven is the stop's floor, not the plan. The trail is the exit for what is left.",
-    "Held until a close under the 50-day": "The trail for a steadier mover is the 21-day, not the 50-day.",
-    "Sold after two closes under the 21-day": "The rule sells on a close below the 21-day. One close is the signal, not two."
+    "Held until a close under the 50-day": "The trail for a steadier mover is the 20 EMA, not the 50-day.",
+    "Sold after two closes under the 20 EMA": "The rule sells on a close below the 20 EMA. One close is the signal, not two."
    },
-   "story": "You have sold part of the position into strength. Today the steady mover closes under the 21-day for the first time since the launch.",
-   "simple": "Sell it, because what is left rides the 21-day and one close below that line is the exit.",
+   "story": "You have sold part of the position into strength. Today the steady mover closes under the 20 EMA for the first time since the launch.",
+   "simple": "Sell it, because what is left rides the 20 EMA and one close below that line is the exit.",
    "tier": "expert",
    "risk": {
     "score": 2,
@@ -3284,7 +3318,7 @@
      "rests on the owner's rulebook (E52 trail)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q61",
@@ -3472,7 +3506,7 @@
    ],
    "house": true,
    "wrong": {
-    "Next open; 200-day stop; day 1": "The buy comes as price trades through the trigger, not at the next open. He very rarely sells on day 1.",
+    "Next open; 200-day stop; day 1": "The buy comes as price trades through the trigger, not at the next open. We very rarely sell on day 1.",
     "Limit below price; day-low stop; day 3": "Entries are market orders as price trades through the trigger, so a limit below the market is not the plan.",
     "At the close; day-low stop; day 3": "We never buy at the close. The buy comes as price trades through the trigger during the day."
    },
@@ -3645,7 +3679,7 @@
    "wrong": {
     "Pass; a launch needs 2x volume to count": "2x volume is the A+ version of the launch bar, not a rule. This bar passes on its push, its close and the four averages.",
     "Pass; wait for a 2x day to follow": "Waiting for volume is not a test. Volume grades the bar and does not gate it, and a 2x launch bar did not protect TEAM.",
-    "Take it; sell day one if volume fades": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest. The stop is the exit, not a volume read."
+    "Take it; sell day one if volume fades": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest. The stop is the exit, not a volume read."
    },
    "facts": [
     "c11",
@@ -3700,7 +3734,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Pass. Right answer decided from the quotes first and matches the key; no second defensible answer, no tell found, numbers grounded."
+   "notes": "Keep ok: 30% only a distractor shape."
   },
   "q02": {
    "status": "pass",
@@ -3725,7 +3759,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "edit ok, agrees with D-013"
+   "notes": "D-021 rename consistent with r13."
   },
   "q06": {
    "status": "pass",
@@ -3760,9 +3794,8 @@
   "q11": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Pass. Right answer decided from the quotes first and matches the key; no second defensible answer, no tell found, numbers grounded.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "Edit sound (day low primary, others allowed but past 5%). Small fix: 46.20 is 7.6% under 50.00, so \"far past 5%\" overstates it and the second sentence runs 24 words."
   },
   "q12": {
    "status": "pass",
@@ -3938,8 +3971,8 @@
   "q40": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "re-keyed to False; correct per D-013"
+   "fixed": true,
+   "notes": "Keep, but member text says \"He\"; style rule is \"we\"."
   },
   "q41": {
    "status": "cut",
@@ -3957,7 +3990,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key follows C34 ('sell a big part into it, a judgment call') with B26's burst boxes (three up days, two gap ups, rising volume) in the story. Wrong choices: Add contradicts A5 'no adding', Hold-all ignores C34, 'a little' is the opposite size. No tell: the key is not the longest choice. Residual risk is that C34 is a judgment call, which the why says out loud."
+   "notes": "D-021 and D-013 edit fine."
   },
   "q44": {
    "status": "pass",
@@ -4056,13 +4089,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "keep: time stop 1R, 3R only a yardstick"
+   "notes": "Measured DDOG claim dropped, not renamed; fine."
   },
   "q60": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "edit ok, agrees with D-013"
+   "notes": "D-021 rename fine."
   },
   "q61": {
    "status": "pass",
@@ -4091,8 +4124,8 @@
   "q65": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "D-003 and D-013 both met; day 3 earliest; r04 cited"
+   "fixed": true,
+   "notes": "Entry through the trigger is right; wrong text says \"He\"; change to \"We\"."
   },
   "q66": {
    "status": "pass",
@@ -4116,7 +4149,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Core is right: lp.launch_volume_2x is a grade cue, not a gate (c11, D-006), and 1.4x with every other test passing is a take. Fixed distractor 4: 'Take it if the stop is under the bundle' was a second 'take' that D-008 could make arguable (pattern-low stops are acceptable alternatives), so it could read as also right. Replaced with a clearly wrong 'sell day one if volume fades' (contradicts r12 day-1 sell ruling and h02, the stop is the exit). Not a duplicate of q44 (A+ ranking) or q63 (fails on 2% push)."
+   "notes": "Volume only lifts the grade: right; wrong text says \"He\"; change to \"We\"."
   }
  }
 }

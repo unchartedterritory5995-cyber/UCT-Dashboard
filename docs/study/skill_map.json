@@ -296,7 +296,7 @@
                 "F5"
               ],
               "supply": "authored",
-              "est_questions": 27,
+              "est_questions": 26,
               "course_file": "docs/study/courses/F5/F5.06.json"
             },
             {
@@ -1886,7 +1886,7 @@
                 "SET"
               ],
               "supply": "authored",
-              "est_questions": 66,
+              "est_questions": 65,
               "course_file": "docs/study/courses/SET/SET.07.json"
             },
             {

@@ -115,6 +115,14 @@
    "title": "Setup decisions: the owner's rulings (2026-11-12)",
    "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
   }
  ],
  "facts": [
@@ -144,9 +152,9 @@
   },
   {
    "id": "h05",
-   "source": "h1",
-   "quote": "Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
-   "claim": "B19: breakeven between 2R and 5R; the hard rule for the first trim is a third at 3R."
+   "source": "hw",
+   "quote": "The stop may move up to breakeven between 2R and 5R, or at the first sell.",
+   "claim": "Our stop may move up to breakeven between 2R and 5R, or at the first sell."
   },
   {
    "id": "h06",
@@ -210,15 +218,15 @@
   },
   {
    "id": "h20",
-   "source": "h1",
-   "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
-   "claim": "E51: another third at 5R, then trail the last third."
+   "source": "hw",
+   "quote": "Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
+   "claim": "Later sells are a judgment: sell more into strength on a later push, and trail what is left."
   },
   {
    "id": "h21",
-   "source": "h1",
-   "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
-   "claim": "E52: trail the 10-day for fast movers, the 21-day for steadier ones; sell on a close below it."
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
   },
   {
    "id": "h22",
@@ -864,9 +872,15 @@
   },
   {
    "id": "r03",
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
+  },
+  {
+   "id": "r04",
    "source": "h2",
-   "quote": "I very rarely sell on the day 1 of the buy day. I usually wait until day 3 at the earliest.",
-   "claim": "D-013: he very rarely sells on day 1 and usually waits until day 3 at the earliest."
+   "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+   "claim": "The course teaches one pair, the 9 and 20 EMA, with the 50 and 200 SMA (D-021)."
   }
  ],
  "walkthroughs": [
@@ -922,7 +936,7 @@
     "COCO, 2026. A report before the open on 2026-04-29 makes that day the PEG day: a 17.4% gap on 4.0x volume.",
     "The day closes at 0.98 of its range, the strong close we want. Then a six-day flag, 5.1% deep, before the buy.",
     "Buy at market over the pause high, 69.58. Stop a few cents under the low, 68.27, 1.9% away.",
-    "We sell part into the push within about two weeks, day 3 or later. The rest trails the 10-day."
+    "We sell part into the push within about two weeks, day 3 or later. The rest trails the 9 EMA."
    ],
    "facts": [
     "d14",
@@ -935,7 +949,8 @@
     "h24",
     "h05",
     "h20",
-    "h21"
+    "h21",
+    "r03"
    ]
   }
  ],
@@ -1581,32 +1596,32 @@
    "rung": 3,
    "format": "mcq",
    "criterion": "peg.trail",
-   "q": "How do we trail the last third of a PEG?",
+   "q": "How do we trail what is left of a PEG?",
    "choices": [
-    "A close under the 10- or 21-day",
+    "A close under the 9 or 20 EMA",
     "A single touch of the 50-day line",
     "Holding until the next report",
     "Selling at a fixed 10R target"
    ],
-   "answer": "A close under the 10- or 21-day",
-   "why": "Sell on a close under the 10-day for a fast mover or under the 21-day for a steadier one. That is the default trail for the last third. It takes a close, not a touch.",
-   "lesson_line": "Trail the last third under the 10- or 21-day.",
+   "answer": "A close under the 9 or 20 EMA",
+   "why": "Sell on a close under the 9 EMA for a fast mover or under the 20 EMA for a steadier one. That is the default trail for what is left. It takes a close, not a touch.",
+   "lesson_line": "Trail what is left under the 9 or 20 EMA.",
    "facts": [
     "h21",
-    "h20",
     "h08",
     "d04",
-    "d06"
+    "d06",
+    "r04"
    ],
    "wrong": {
     "Holding until the next report": "Holding into a report needs 5R. It is not the trail.",
     "Selling at a fixed 10R target": "A fixed target is not a trail. The average decides.",
-    "A single touch of the 50-day line": "The default trail is the 10-day or 21-day, and it sells on a close, not a touch."
+    "A single touch of the 50-day line": "The default trail is the 9 or 20 EMA, and it sells on a close, not a touch."
    },
    "house": true,
-   "simple": "We sell the last third on a close under the 10-day or 21-day line, not on a touch.",
+   "simple": "We sell what is left on a close under the 9 or 20 EMA, not on a touch.",
    "deeper": {
-    "example": "BIDU, 2010: after a four-month flat shelf and two tight days, the stock ran ten weeks up the 10-day."
+    "example": "BIDU, 2010: after a four-month flat shelf and two tight days, the stock ran ten weeks along its fast EMA."
    },
    "tier": "core",
    "risk": {
@@ -1615,7 +1630,7 @@
      "rests on the owner's rulebook E52; the trail choice is held under D-024"
     ]
    },
-   "batch": "wave2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q22",
@@ -1941,7 +1956,7 @@
     "h05"
    ],
    "house": true,
-   "simple": "False. We move the stop to breakeven later, by default when the first third is sold.",
+   "simple": "False. We move the stop to breakeven later, by default at the first sell.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1949,7 +1964,7 @@
      "rests on the owner's rulebook B19"
     ]
    },
-   "batch": "wave2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q31",
@@ -3687,7 +3702,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "E52 (h21) says 10-day fast, 21-day steady, sell on a close. Distractors are clearly wrong by the rules; BIDU example matches d04/d06."
+   "notes": "Cold read of final text against D-013, D-021, D-003, GAP-TRIM, D-005, D-031, D-033: agrees; answer right, wrongs wrong, quotes verbatim, style ok."
   },
   "q22": {
    "status": "cut",
@@ -3721,15 +3736,15 @@
   },
   "q29": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave2; awaiting cold re-read"
+   "notes": "Cold read of final text against D-013, D-021, D-003, GAP-TRIM, D-005, D-031, D-033: agrees; answer right, wrongs wrong, quotes verbatim, style ok."
   },
   "q30": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave2; awaiting cold re-read"
+   "notes": "Cold read of final text against D-013, D-021, D-003, GAP-TRIM, D-005, D-031, D-033: agrees; answer right, wrongs wrong, quotes verbatim, style ok."
   },
   "q31": {
    "status": "pass",
@@ -3760,7 +3775,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c12/c40/c43: the 45% run in three months is past the 30% cue; the five-month base is an A+ cue; c10 kills 'a 10% gap is small'. Note for owner: owner rulebook E50 says no fixed grading checklist is taught as ours, and the why states the 30% cue as 'for an A'. The card cue is the unit's whole design (house, owner review is the gate), so not failed here."
+   "notes": "Cold read of final text against D-013, D-021, D-003, GAP-TRIM, D-005, D-031, D-033: agrees; answer right, wrongs wrong, quotes verbatim, style ok."
   },
   "q37": {
    "status": "pass",
@@ -3778,7 +3793,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "edit: was sell a third at the open past 3R; now hold it all on day 2, the first sell is a judgment from day 3 (D-013); B"
+   "notes": "Cold read of final text against D-013, D-021, D-003, GAP-TRIM, D-005, D-031, D-033: agrees; answer right, wrongs wrong, quotes verbatim, style ok."
   },
   "q40": {
    "status": "pass",
@@ -3863,7 +3878,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c20: a trade at or under the prior close before a buy fills the gap; story says it traded back to the prior close, then rallied and closed over the PEG-day low. The why states that a recovery does not undo it, so c23 (slight undercut) does not apply: the move is the whole gap, not slight. Gap Support (c35) and drift (c22) choices are killed."
+   "notes": "Cold read of final text against D-013, D-021, D-003, GAP-TRIM, D-005, D-031, D-033: agrees; answer right, wrongs wrong, quotes verbatim, style ok."
   },
   "q57": {
    "status": "pass",

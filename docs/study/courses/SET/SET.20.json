@@ -107,6 +107,14 @@
    "title": "Setup decisions: the owner's rulings (2026-11-12)",
    "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
   }
  ],
  "facts": [
@@ -136,9 +144,9 @@
   },
   {
    "id": "h05",
-   "source": "h1",
-   "quote": "Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
-   "claim": "B19: breakeven between 2R and 5R; the hard rule for the first trim is a third at 3R."
+   "source": "hw",
+   "quote": "The stop may move up to breakeven between 2R and 5R, or at the first sell.",
+   "claim": "Our stop may move up to breakeven between 2R and 5R, or at the first sell."
   },
   {
    "id": "h08",
@@ -190,15 +198,15 @@
   },
   {
    "id": "h20",
-   "source": "h1",
-   "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
-   "claim": "E51: another third at 5R, then trail the last third."
+   "source": "hw",
+   "quote": "Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
+   "claim": "Later sells are a judgment: sell more into strength on a later push, and trail what is left."
   },
   {
    "id": "h21",
-   "source": "h1",
-   "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
-   "claim": "E52: trail the 10-day for fast movers, the 21-day for steadier ones; sell on a close below it."
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
   },
   {
    "id": "h22",
@@ -436,9 +444,9 @@
   },
   {
    "id": "c22",
-   "source": "c1",
-   "quote": "Trail the last third on a close under the 10-day for a fast mover or the 21-day for a steadier one.",
-   "claim": "Trail the last third on a close under the 10-day (fast) or the 21-day (steadier)."
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
   },
   {
    "id": "c23",
@@ -832,15 +840,21 @@
   },
   {
    "id": "r04",
-   "source": "h2",
-   "quote": "I very rarely sell on the day 1 of the buy day. I usually wait until day 3 at the earliest.",
-   "claim": "D-013: he very rarely sells on day 1 and usually waits until day 3 at the earliest."
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
   },
   {
    "id": "r05",
    "source": "h2",
    "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
    "claim": "D-013: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
+  },
+  {
+   "id": "r06",
+   "source": "h2",
+   "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+   "claim": "The course teaches one pair, the 9 and 20 EMA, with the 50 and 200 SMA (D-021)."
   }
  ],
  "walkthroughs": [
@@ -1477,16 +1491,17 @@
    "rung": 3,
    "format": "tf",
    "criterion": "ng.trail",
-   "q": "The last third trails a close under the 21-day for a fast mover or the 10-day for a steadier one.",
+   "q": "What is left trails a close under the 20 EMA for a fast mover or the 9 EMA for a steadier one.",
    "answer": "False",
-   "why": "False. It is the other way round. Sell on a close under the 10-day for a fast mover or the 21-day for a steadier one. The sell is on a close below the average, not an intraday dip.",
-   "lesson_line": "Trail the last third under the 10- or 21-day.",
+   "why": "False. It is the other way round. Sell on a close under the 9 EMA for a fast mover or the 20 EMA for a steadier one. The sell is on a close below the average, not an intraday dip.",
+   "lesson_line": "Trail what is left under the 9 or 20 EMA.",
    "facts": [
     "c22",
-    "h21"
+    "h21",
+    "r06"
    ],
    "house": true,
-   "simple": "False. A fast mover is trailed on the 10-day average and a steadier stock on the 21-day.",
+   "simple": "False. A fast mover is trailed on the 9 EMA and a steadier stock on the 20 EMA.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1494,7 +1509,7 @@
      "the trail pairing is the owner's rulebook default (E52), and the question swaps the pair"
     ]
    },
-   "batch": "wave2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q20",
@@ -1512,7 +1527,7 @@
     "10"
    ],
    "answer": "7",
-   "why": "7. We often sell into a 3, 5 or 7 day push, or at about 5 to 10R. The first sell is a judgment, not a fixed third at 3R. The rest can trail the 10-day or 21-day.",
+   "why": "7. We often sell into a 3, 5 or 7 day push, or at about 5 to 10R. The first sell is a judgment, not a fixed third at 3R. The rest can trail the 9 EMA or the 20 EMA.",
    "lesson_line": "A 3, 5 or 7 day push is often the place for the first sell.",
    "facts": [
     "r05",
@@ -2648,7 +2663,7 @@
     "Sells it and frees up the money",
     "Holds it; the stop has not been hit",
     "Adds to it; the stock is coiling",
-    "Holds it until the 21-day breaks"
+    "Holds it until the 20 EMA breaks"
    ],
    "answer": "Sells it and frees up the money",
    "why": "It sells the trade. The time stop: a trade still under 1R after 10 trading days is sold, freeing the money. This reclaim reached only 0.45R and drifted. The plan does not wait for the stop to be hit.",
@@ -2660,12 +2675,13 @@
     "h15",
     "c22",
     "c08",
-    "h31"
+    "h31",
+    "r06"
    ],
    "wrong": {
     "Holds it; the stop has not been hit": "The time stop exists for exactly this trade.",
-    "Holds it until the 21-day breaks": "The trail is for the last third. A trade still under 1R after 10 trading days is sold.",
-    "Adds to it; the stock is coiling": "Adding breaks one buy, one price, one stop."
+    "Adds to it; the stock is coiling": "Adding breaks one buy, one price, one stop.",
+    "Holds it until the 20 EMA breaks": "The trail is for what is left. A trade still under 1R after 10 trading days is sold."
    },
    "house": true,
    "simple": "It sells, because a trade still under 1R after ten sessions is sold to free the money.",
@@ -2680,7 +2696,7 @@
      "the day count is ambiguous in the old question text, now fixed"
     ]
    },
-   "batch": "wave2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q51",
@@ -3256,14 +3272,15 @@
    "criterion": "ng.trail",
    "q": "Day-one buys and pullback buys share the same trims, trail, breakeven and time stop.",
    "answer": "True",
-   "why": "True. A third at 3R, a third at 5R, the stop to breakeven at the first trim, the trail under the 10- or 21-day, and the time stop under 1R after 10 sessions apply to both.",
+   "why": "True. Both share one exit plan. The first sell is a judgment, then the stop goes to breakeven. The rest trails the 9 or 20 EMA. Under 1R after 10 sessions, either one is sold.",
    "lesson_line": "The exit plan is the same for both ways in.",
    "facts": [
     "c20",
     "c22",
     "c23",
     "h05",
-    "h20"
+    "h20",
+    "r03"
    ],
    "house": true
   },
@@ -3891,9 +3908,9 @@
   },
   "q19": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave2; awaiting cold re-read"
+   "notes": "Cold read of final text against D-013, D-021, D-003, GAP-TRIM, D-005, D-031, D-033: agrees; answer right, wrongs wrong, quotes verbatim, style ok."
   },
   "q20": {
    "status": "cut",
@@ -3936,13 +3953,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Story fits c25 (four up days, two gaps, wider ranges); key follows h16. Foils refuted by h31 and h16. No second defensible answer."
+   "notes": "Cold read of final text against D-013, D-021, D-003, GAP-TRIM, D-005, D-031, D-033: agrees; answer right, wrongs wrong, quotes verbatim, style ok."
   },
   "q29": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "edit: was sell the second third at the open past 5R; now hold on day 1 even at 3R, first sell day 3 at the earliest (D-0"
+   "notes": "Cold read of final text against D-013, D-021, D-003, GAP-TRIM, D-005, D-031, D-033: agrees; answer right, wrongs wrong, quotes verbatim, style ok."
   },
   "q30": {
    "status": "pass",
@@ -4053,7 +4070,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Time stop h15/c23; story matches dossier PEN (drifted ten sessions under 1R, 0.45R). 23.8% is under the 30% line (c08). Foils refuted."
+   "notes": "Cold read of final text against D-013, D-021, D-003, GAP-TRIM, D-005, D-031, D-033: agrees; answer right, wrongs wrong, quotes verbatim, style ok."
   },
   "q52": {
    "status": "pass",
@@ -4104,7 +4121,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "keep: buys the trade back over the prior day's high; the 'buy at the close' choice is a wrong answer; agrees with D-003"
+   "notes": "Cold read of final text against D-013, D-021, D-003, GAP-TRIM, D-005, D-031, D-033: agrees; answer right, wrongs wrong, quotes verbatim, style ok."
   },
   "q63": {
    "status": "pass",

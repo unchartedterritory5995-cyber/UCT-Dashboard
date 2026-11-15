@@ -1452,7 +1452,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "ok"
+   "notes": "Keep. C37 (0.25% until 50 journaled trades) is the new-trader size step, not the D-001 shorts bar; no ruling touches it."
   },
   "q08": {
    "status": "pass",

@@ -217,6 +217,14 @@
    "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
    "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -625,8 +633,8 @@
   {
    "id": "h2",
    "source": "s22",
-   "quote": "a cent over the red day's high, on the Kicker day",
-   "claim": "Our Kicker plan's first entry is a cent over the red day's high, on the Kicker day."
+   "quote": "over the red day's high, on the Kicker day, at market as it trades through",
+   "claim": "Our Kicker plan's first entry is over the red day's high, on the Kicker day, at market as it trades through."
   },
   {
    "id": "h3",
@@ -693,6 +701,18 @@
    "source": "s25",
    "quote": "Every planned buy has its entry, stop and size written down before the market opens.",
    "claim": "Our rule: every planned buy has its entry, stop and size written down before the market opens."
+  },
+  {
+   "id": "rd03",
+   "source": "h2",
+   "quote": "Every setup buys as price trades through its trigger, during the day.",
+   "claim": "Our rule: every setup buys as price trades through its trigger, during the day."
+  },
+  {
+   "id": "rd03b",
+   "source": "h2",
+   "quote": "The stop goes under the low of day, the prior day's low, or the range low.",
+   "claim": "Our rule: the stop goes under the low of day, the prior day's low, or the range low."
   }
  ],
  "walkthroughs": [
@@ -1154,11 +1174,11 @@
    "facts": [
     "h1",
     "h5",
-    "h3"
+    "rd03"
    ],
    "wrong": {
     "Buy now, before it runs further": "At 9:42 the 30-minute range isn't set yet, so there is nothing to break. The first entry has passed, and neither entry says buy now.",
-    "Buy the close, once the day is done": "Some of our setups buy the close, like the Slingshot. Both Kicker entries trigger during the day, not on the close.",
+    "Buy the close, once the day is done": "Every setup buys as price trades through its trigger, during the day, never at the close. Both Kicker entries trigger during the day.",
     "Wait for a quiet dip near midday": "A dip isn't in the plan. The trigger is the break of the opening range, whenever it comes."
    },
    "simple": "Wait for the stock to break the high of its first 30 minutes, the plan's second way in.",
@@ -1175,7 +1195,7 @@
      "fact h2's quote is no longer verbatim on TRADE_PLANS.md, so q12 now cites h5"
     ]
    },
-   "batch": "wave9"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q13",
@@ -1227,7 +1247,7 @@
    "skill": "styles.time_of_day",
    "rung": 6,
    "format": "scenario",
-   "story": "Thursday, Dec. 24, 2026. Your plan buys a stock on the close if it holds over its level. You set your usual alert for 3:55 p.m.",
+   "story": "Thursday, Dec. 24, 2026. Your plan sells a stock if it closes under its trail line. You set your usual alert for 3:55 p.m.",
    "q": "What's the problem with that alert?",
    "choices": [
     "The close is at 1:00 p.m. that day",
@@ -1236,8 +1256,8 @@
     "The market opens late that day"
    ],
    "answer": "The close is at 1:00 p.m. that day",
-   "why": "The close comes at 1:00 p.m. NYSE closes early on Thursday, Dec. 24, 2026. A 3:55 p.m. alert fires hours after the close you meant to trade. The next day, Christmas, the market is shut. Check the calendar for early closes, not just closed days.",
-   "lesson_line": "On an early-close day the close comes at 1:00 p.m. Move every close-based plan up.",
+   "why": "The close comes at 1:00 p.m. NYSE closes early on Thursday, Dec. 24, 2026. A 3:55 p.m. alert fires hours after the close you meant to act on. The next day, Christmas, the market is shut. Check the calendar for early closes, not just closed days.",
+   "lesson_line": "On an early-close day the close comes at 1:00 p.m. Move every close-based exit alert up.",
    "facts": [
     "f5",
     "f4",
@@ -1257,7 +1277,7 @@
      "dates that change each year"
     ]
    },
-   "batch": "wave9"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q15",
@@ -1407,33 +1427,32 @@
    "rung": 8,
    "format": "scenario",
    "house": true,
-   "story": "Friday, 3:45 p.m. A stock on your list is back over its 4-day average of the highs, a Slingshot. Fifteen minutes to the bell, then the weekend.",
+   "story": "Friday, 3:45 p.m. A stock on your list is trading back over its 4-day average of the highs, our Slingshot trigger. Fifteen minutes to the bell, then the weekend.",
    "q": "What does our plan say to do?",
    "choices": [
-    "Act on the close, if it still holds",
-    "Buy now, it's over the line",
+    "Buy as it trades through the trigger",
+    "Wait for the close to confirm it",
     "Skip it, Fridays are bad to buy",
     "Wait and buy Monday's open"
    ],
-   "answer": "Act on the close, if it still holds",
-   "why": "Act on the close, if it still holds. Our Slingshot entry is the close back over the 4-day average of the highs, not a 3:45 print. A move can still reverse in the final minutes. The last 10 to 15 minutes can help show whether it holds. Friday is not a reason to skip: no weekday has an edge on its own.",
-   "lesson_line": "A level crossed at 3:45 isn't a close. Let the close decide.",
+   "answer": "Buy as it trades through the trigger",
+   "why": "Buy as it trades through the trigger. Every setup buys as price trades through its trigger, during the day. The stop goes under the low of day, the prior day's low, or the range low. Friday is not a reason to skip: no weekday has an edge on its own.",
+   "lesson_line": "The trigger is the entry, whenever it trades through. The close is not our entry.",
    "facts": [
-    "h3",
-    "f46",
-    "f47",
+    "rd03",
+    "rd03b",
     "f63",
     "f57",
     "f43"
    ],
    "wrong": {
-    "Buy now, it's over the line": "Over now isn't over at the close. Reversals in the final hour can be severe, and the plan's trigger is the close.",
     "Skip it, Fridays are bad to buy": "That's folklore. The weekend effect weakened or disappeared once it was published, and no weekday has an edge on its own.",
-    "Wait and buy Monday's open": "The plan's entry is today's close. Monday's open is a different price, and weekend news can gap it far from your level."
+    "Wait and buy Monday's open": "Monday's open is a different price, and weekend news can gap it far from your level. Our entry is the trigger.",
+    "Wait for the close to confirm it": "Our entry is the trigger itself, as price trades through it. Waiting for the close is not the plan."
    },
-   "simple": "Wait for the close and buy only if it still holds over the line, because our Slingshot enters on the close.",
+   "simple": "Buy as it trades through the trigger, because our setups enter on the trigger during the day, not at the close.",
    "deeper": {
-    "trap": "Buying at 3:45 because it is over now turns a close entry into an intraday one. If it slips back under by the bell, you own a trade the plan never triggered. Reversals in the final hour can be severe."
+    "trap": "The trap is thinking the close makes the entry safer. Waiting for it can leave you well above the trigger, or out of the trade, and a higher entry means a wider stop. Our entry is the trigger itself."
    },
    "tier": "expert",
    "risk": {
@@ -1443,7 +1462,7 @@
      "house rule"
     ]
    },
-   "batch": "wave9"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q19",
@@ -1664,8 +1683,8 @@
   "q12": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Cold answer from h1: the day-1 30-minute opening-range break. 'high' in the key is a fair inference for a long Kicker. The story uses h5's current words. The 'Buy now' note no longer leans on time of day, so it fits C30. No second defensible choice. The leak from q21's deeper trap into q12 is fixed under q21."
+   "fixed": true,
+   "notes": "Wrong note now states D-003 (rd03 verbatim). Fix: drop h3 (Slingshot close-entry quote) from facts, it now contradicts D-003."
   },
   "q13": {
    "status": "pass",
@@ -1675,9 +1694,9 @@
   },
   "q14": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "Plan re-keyed from a close entry to an exit on a close under the trail line; early-close calendar point unchanged and right."
   },
   "q15": {
    "status": "pass",
@@ -1699,10 +1718,9 @@
   },
   "q18": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Re-keyed to D-003: buy as it trades through the trigger; 'wait for the close' becomes a wrong choice; Friday folklore distractor kept; rd03 and rd03b quotes verbatim."
   },
   "q19": {
    "status": "pass",

@@ -1067,7 +1067,7 @@
    "skill": "fund.earnings_decision",
    "rung": 5,
    "format": "mcq",
-   "q": "Your position is 30% of the account. You sell half before the report. It gaps down 10%. What share of the account did you lose?",
+   "q": "You hold 30% of the account in one name and sell half before the report. It gaps down 10%. How much does the account fall?",
    "answer": "1.5%",
    "calc": {
     "fn": "arith",
@@ -1079,7 +1079,7 @@
     }
    },
    "suffix": "%",
-   "why": "1.5% of the account. You sold half before the report, so you kept half of a 30% position. Half of 30% is 15%. A 10% gap on 15% of the account is 1.5%. A trim lowers what a gap costs. It doesn't remove it.",
+   "why": "1.5% of the account. You sold half before the report, so you kept half of a 30% position. Half of 30% is 15%. A 10% gap on 15% of the account is 1.5%. That is the fall from the night before the report. Whether the trade as a whole ends up or down also depends on the profit you had built. A trim lowers what a gap costs. It doesn't remove it.",
    "lesson_line": "Selling half before a report halves what the gap costs. The shares you keep take the full drop.",
    "facts": [
     "f48",
@@ -1095,7 +1095,7 @@
      "inputs changed in wave6 so it no longer reuses q09's numbers"
     ]
    },
-   "batch": "rank",
+   "batch": "owner-review-6",
    "choices": [
     "1.5%",
     "3%",
@@ -1509,16 +1509,16 @@
    "skill": "fund.earnings_decision",
    "rung": 8,
    "format": "scenario",
-   "story": "Three of your stocks report this week. A is 8% of the account, up 35%. B is 25%, up 1%. C is 5%, up 12%.",
+   "story": "Three of your names report this week. QZLA is 8% of the account, up 35%. XVRP is 25%, up 1%. JKQN is 5%, up 12%.",
    "q": "A 10% gap down hits all three. Which one costs the account the most?",
    "choices": [
-    "Stock A",
-    "Stock B",
-    "Stock C",
+    "QZLA",
+    "XVRP",
+    "JKQN",
     "All equal"
    ],
-   "answer": "Stock B",
-   "why": "Stock B. The same 10% gap costs each stock's share of the account. B is 25% of the account, so it costs the most. A at 8% and C at 5% cost far less. B is also up only 1%, so it ends below your entry. A, up 35%, stays in profit. Size sets the cost. The gain sets the cushion.",
+   "answer": "XVRP",
+   "why": "XVRP. The same 10% gap costs each name's share of the account. XVRP is 25% of the account, so it costs the most. QZLA at 8% and JKQN at 5% cost far less. XVRP is also up only 1%, so it ends below your entry. QZLA, up 35%, stays in profit. Size sets the cost. The gain sets the cushion.",
    "lesson_line": "Biggest size and the thinnest cushion: that's the riskiest one to carry into a report.",
    "facts": [
     "f35",
@@ -1526,13 +1526,13 @@
     "f28"
    ],
    "wrong": {
-    "Stock A": "A has the biggest gain, but at 8% of the account it's a small position. The same gap costs the account less, and A stays in profit.",
-    "Stock C": "C is the smallest position, at 5% of the account, so the same gap costs the account the least.",
-    "All equal": "Each stock drops the same 10%, but the account feels it only on what you hold. The biggest position costs the most."
+    "All equal": "Each name drops the same 10%, but the account feels it only on what you hold. The biggest position costs the most.",
+    "QZLA": "QZLA has the biggest gain, but at 8% of the account it's a small position. The same gap costs the account less, and QZLA stays in profit.",
+    "JKQN": "JKQN is the smallest position, at 5% of the account, so the same gap costs the account the least."
    },
-   "simple": "Stock B, because it's the biggest position at 25% of the account, so the same 10% gap costs the account the most.",
+   "simple": "XVRP, because it's the biggest position at 25% of the account, so the same 10% gap costs the account the most.",
    "deeper": {
-    "trap": "The biggest gain draws the eye, but a gain is cushion, not cost. A's 35% gain keeps it in profit after the gap. B's thin 1% gain is gone at once. Rank by size for the cost, then by gain for the cushion."
+    "trap": "The biggest gain draws the eye, but a gain is cushion, not cost. QZLA's 35% gain keeps it in profit after the gap. XVRP's thin 1% gain is gone at once. Rank by size for the cost, then by gain for the cushion."
    },
    "tier": "expert",
    "risk": {
@@ -1542,7 +1542,7 @@
      "fixed before (choices stripped of the account cost)"
     ]
    },
-   "batch": "wave6"
+   "batch": "owner-review-6"
   },
   {
    "key": "q24",
@@ -1910,35 +1910,34 @@
    "notes": "Own answer Wednesday's close (f1, f14, f10). 'Wednesday's open' is a real timing slip, not silly; its wrong note is right. No second defensible answer given 'no after hours' in the story."
   },
   "q11": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Own answer before the key: a gap hits every share, so fewer shares means a smaller hit (f35 Cboe, f32 Fidelity, f51 Cabot names the practice). Matches. Stem credits the practice to 'some traders', and a week away is outside B22's 3-day no-buy window, so no clash with section 9. No length tell (key 28 chars, others 30-32). Every distractor is a real misconception with a correct note. Numbers (3 days, 5R) come from h4. Minor: the wrong note 'A gap fills your stop at the open either way' means a gap down through the stop; readable in context. It restates B22 like q14, q27 and q18 do; prior checke"
+   "notes": "cut in owner-review-6: see the resolver's notes"
   },
   "q12": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Right answer stays smallest; 1.5% was the only decimal, so the 5% choice became 7.5%, a real slip with the 0.5 keep fraction."
+   "fixed": false,
+   "notes": "Cold solve: 30% x 0.5 = 15% kept, 10% of 15% = 1.5% of the account; matches the answer and calc. The question now asks plainly how much the account falls, and the why separates the gap cost from the profit already built, which answers his note (profit is unrealized, the trade can still end up). No new number; sentences short; no new fact."
   },
   "q13": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
+   "notes": "Owner good, untouched by the upgrade."
   },
   "q14": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: up 2% with a 6% stop, a 10% gap from today's price ends about 8% under entry, past the stop, so 'A loss past your stop'. The why states the comparison, not a computed number. 'far short' of 5R is qualitative. Lesson line is 22 words, at the limit. A13 flag (6% stop) already sent to the owner."
+   "notes": "Keep is right: implied move of about 10% in a risk drill; hold-only-if-up-5R is the house rule B22, not a trim rule."
   },
   "q15": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Only the lesson line changed: neutral, grounded in f28 and the calc (2x). 25% position is within A7's 40% cap.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Owner good; his note is about topic focus only. Untouched, correct (25% x 8% = 2% = 2x the 1% risk)."
   },
   "q16": {
    "status": "pass",
@@ -1956,7 +1955,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
+   "notes": "Keep is right: stop filling at the open on a gap DOWN."
   },
   "q19": {
    "status": "pass",
@@ -1972,9 +1971,9 @@
   },
   "q21": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "Keep is right: stop-limit on a gap DOWN."
   },
   "q22": {
    "status": "pass",
@@ -1986,7 +1985,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Only the lesson line changed: 'thinnest cushion' fits a 1% gain; comparative, so it does not recommend carrying any of them."
+   "notes": "Cold solve: 25% position is the biggest, 10% gap costs 2.5% of the account (8% -> 0.8%, 5% -> 0.5%): XVRP. Tickers are made-up four-letter symbols used nowhere else in the courses; no real company's numbers are claimed (rule 7). Ticker names do not clash with F5.03's made-up ones. Answer is not the longest or the only distinct option; wrong notes keyed by exact choice texts, each clearly wrong. Simple has no new numbers, why says up 35% stays in profit (1.35 x 0.9 = 1.215, true) and up 1% ends below entry (1.01 x 0.9 = 0.909, true). Old Stock A/B/C wrong keys are dropped by the merge because t"
   },
   "q24": {
    "status": "pass",

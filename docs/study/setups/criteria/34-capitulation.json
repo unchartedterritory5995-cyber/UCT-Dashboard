@@ -763,7 +763,7 @@
   {
    "id": "cap.trail",
    "field": "management",
-   "statement": "Trail the rest under each higher daily low until price closes back above the 10-day; after that, sell on a close below the 10-day.",
+   "statement": "Trail the rest under each higher daily low until price closes back above the 9 EMA; after that, sell on a close below the 9 EMA.",
    "measure": {
     "what": "the trail line",
     "op": "==",
@@ -780,7 +780,14 @@
    "gate": false,
    "grade_cue": false,
    "dossier_ref": "8.4 Trail the rest; 7 E52 row",
-   "evidence": "E52 adapted: at entry the 10-day is far above the price and falling, so until price closes back above it the trail has to be the higher daily lows. Bracco moved his SOXL stop \"in profit to last weeks low\"."
+   "evidence": "E52 adapted: at entry the 10-day is far above the price and falling, so until price closes back above it the trail has to be the higher daily lows. Bracco moved his SOXL stop \"in profit to last weeks low\".",
+   "superseded": [
+    {
+     "statement": "Trail the rest under each higher daily low until price closes back above the 10-day; after that, sell on a close below the 10-day.",
+     "on": "2026-11-14",
+     "by": "D-021"
+    }
+   ]
   },
   {
    "id": "cap.time_stop",
@@ -1196,7 +1203,7 @@
  "management": {
   "trim_1": "first sell by judgment, usually day 3 or later, into a 3, 5 or 7 day push or at about 5 to 10R (D-013, 2026-11-12)",
   "trim_2": "later sells by judgment into strength, then trail the rest (D-013, 2026-11-12)",
-  "trail": "under each higher daily low until price closes back above the 10-day, then a close below the 10-day (E52 adapted; the 21-day for a steadier one)",
+  "trail": "under each higher daily low until price closes back above the 9 EMA, then a close below the 9 EMA (E52 adapted; the 20 EMA for a steadier one)",
   "breakeven": "at 2R, the low end of B19's window, because these bounces fade",
   "time_stop": "1R not reached within 3 sessions, sell (the dossier's number, pending D-019; C33's 10 days is the fallback)",
   "gap_open": "optional: selling part into a big gap at the open is a judgment, never a rule (owner, 2026-11-12)",
@@ -1205,7 +1212,8 @@
   "superseded": {
    "trim_1": "a third at 3R, near the 9 EMA with the reclaim entry (B19)",
    "trim_2": "a third at 5R, near the 20 EMA (E51)",
-   "gap_open": "a trim level the day opens past is taken at the open (F63)"
+   "gap_open": "a trim level the day opens past is taken at the open (F63)",
+   "trail": "under each higher daily low until price closes back above the 10-day, then a close below the 10-day (E52 adapted; the 21-day for a steadier one)"
   }
  },
  "examples": {

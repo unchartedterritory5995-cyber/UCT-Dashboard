@@ -83,6 +83,14 @@
    "title": "Setup decisions: the owner's rulings (2026-11-12)",
    "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
   }
  ],
  "facts": [
@@ -106,9 +114,9 @@
   },
   {
    "id": "h05",
-   "source": "h1",
-   "quote": "Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
-   "claim": "B19: breakeven between 2R and 5R; the hard rule for the first trim is a third at 3R."
+   "source": "hw",
+   "quote": "The stop may move up to breakeven between 2R and 5R, or at the first sell.",
+   "claim": "Our stop may move up to breakeven between 2R and 5R, or at the first sell."
   },
   {
    "id": "h06",
@@ -166,15 +174,15 @@
   },
   {
    "id": "h20",
-   "source": "h1",
-   "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
-   "claim": "E51: another third at 5R, then trail the last third."
+   "source": "hw",
+   "quote": "Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
+   "claim": "Later sells are a judgment: sell more into strength on a later push, and trail what is left."
   },
   {
    "id": "h21",
-   "source": "h1",
-   "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
-   "claim": "E52: trail the 10-day for fast movers, the 21-day for steadier ones; sell on a close below it."
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
   },
   {
    "id": "h22",
@@ -376,9 +384,9 @@
   },
   {
    "id": "g21",
-   "source": "c1",
-   "quote": "Trail the last third: a close under the 10-day for a fast mover, under the 21-day for a steadier one.",
-   "claim": "Trail the last third under the 10-day (fast) or the 21-day (steadier)."
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
   },
   {
    "id": "g22",
@@ -820,15 +828,27 @@
   },
   {
    "id": "r08",
-   "source": "h2",
-   "quote": "I usually wait until day 3 at the earliest.",
-   "claim": "D-013: the first sell usually waits until day 3 at the earliest."
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
   },
   {
    "id": "r09",
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
+  },
+  {
+   "id": "r10",
    "source": "h2",
-   "quote": "I very rarely sell on the day 1 of the buy day.",
-   "claim": "D-013: a day-1 sell on the buy day is very rare."
+   "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+   "claim": "D-021: the course teaches the 9 and 20 EMA everywhere, with the 50 and 200 SMA."
+  },
+  {
+   "id": "r11",
+   "source": "h2",
+   "quote": "Optional, my judgment",
+   "claim": "Gap-open sell (owner, chat 2026-11-12): selling part at the open on a big gap is optional, his judgment, never a rule."
   }
  ],
  "walkthroughs": [
@@ -1046,11 +1066,11 @@
    "criterion": "gs.order",
    "q": "Gap Support buys are limit orders set just under the line.",
    "answer": "False",
-   "why": "False. Our rulebook says entries are market orders. The Gap Support card agrees: the close entry is a market order near the close.",
+   "why": "False. Our rulebook says entries are market orders. We buy as price trades through the trigger, not with a limit order resting under the line.",
    "lesson_line": "Entries are market orders.",
    "facts": [
-    "g23",
-    "h22"
+    "h22",
+    "r01"
    ],
    "house": true,
    "simple": "False. We buy Gap Support with market orders, not limit orders set under the line.",
@@ -1061,7 +1081,7 @@
      "rests on the owner's rulebook (E57)"
     ]
    },
-   "batch": "wave3"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q07",
@@ -2457,28 +2477,29 @@
    "format": "scenario",
    "criterion": "gs.not_stretched",
    "q": "Take the buy?",
-   "story": "A test day holds the line and price trades through your trigger, but it is 12% above the 10-day average.",
+   "story": "A test day holds the line and price trades through your trigger, but it is 12% above the 9 EMA.",
    "choices": [
-    "No; more than 10% over the 10-day",
-    "No; price must sit under the 10-day",
+    "No; more than 10% over the 9 EMA",
+    "No; price must sit under the 9 EMA",
     "Yes; the test day looks textbook",
     "Yes, but only at half the usual size"
    ],
-   "answer": "No; more than 10% over the 10-day",
-   "why": "No. We skip a long that is more than 10% above its 10-day average. At 12% over, the stock is too stretched to buy, however textbook the test looks. At 10% or less it passes this check.",
-   "lesson_line": "Skip a long more than 10% above its 10-day.",
+   "answer": "No; more than 10% over the 9 EMA",
+   "why": "No. We skip a long that is more than 10% above its 9 EMA. At 12% over, the stock is too stretched to buy, however textbook the test looks. At 10% or less it passes this check.",
+   "lesson_line": "Skip a long more than 10% above its 9 EMA.",
    "facts": [
     "g37",
     "h13",
-    "r01"
+    "r01",
+    "r10"
    ],
    "wrong": {
     "Yes; the test day looks textbook": "A textbook chart still has to pass the stretch rule.",
     "Yes, but only at half the usual size": "Half size does not fix a stretched entry.",
-    "No; price must sit under the 10-day": "Our stretch rule is about being more than 10% above the 10-day, not about sitting under it."
+    "No; price must sit under the 9 EMA": "Our stretch rule is about being more than 10% above the 9 EMA, not about sitting under it."
    },
    "house": true,
-   "simple": "No. We skip a long more than 10% above its 10-day average, and 12% is over that line.",
+   "simple": "No. We skip a long more than 10% above its 9 EMA, and 12% is over that line.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2487,7 +2508,7 @@
      "the question says buy the close, which waits on D-003"
     ]
    },
-   "batch": "rulings"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q47",
@@ -3534,27 +3555,28 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "gs.trim_gap_open",
-   "q": "What do you do this morning?",
+   "q": "Is selling at the open required here?",
    "choices": [
-    "Sell a first piece at the open",
-    "Wait for a dip, then sell",
-    "Sell it all at the open",
-    "Hold it all, no first sell yet"
+    "No; selling part now is optional",
+    "Yes; a gap past 3R is an auto sell",
+    "Yes; sell it all into the gap",
+    "No; never sell into a gap up"
    ],
-   "answer": "Sell a first piece at the open",
-   "why": "Sell a first piece at the open. Five days of push and about 8R is a good place for the first sell. Do not wait for a dip, because it may never come. The rest stays on the trail.",
-   "lesson_line": "A big gap after a multi-day push is a good first sell.",
+   "answer": "No; selling part now is optional",
+   "why": "No. After five days of push and about 8R, selling a first piece is often a good choice. A gap is a fine time for it, but it is our call, not an automatic rule. The rest trails.",
+   "lesson_line": "A gap past a profit level is not an automatic sell; it is a judgment.",
    "facts": [
-    "r07"
+    "r07",
+    "r11"
    ],
    "wrong": {
-    "Sell it all at the open": "The plan keeps some on the trail.",
-    "Hold it all, no first sell yet": "A push of five days and about 8R is often the best place for the first sell.",
-    "Wait for a dip, then sell": "A dip may never come. A gap this far up after a five-day push is a good place for the first sell."
+    "Yes; a gap past 3R is an auto sell": "A gap past a profit level is not an automatic sell. It is a judgment.",
+    "Yes; sell it all into the gap": "No gap forces a sell, and selling it all is not the plan. We keep some on the trail.",
+    "No; never sell into a gap up": "Never is too strong. After a five-day push and about 8R, selling a first piece is often best."
    },
    "house": true,
    "story": "You bought at 25.10 with the stop at 24.71, five days ago. Nothing is sold yet. Today it opens at 28.20, about 8R up after a five-day push.",
-   "simple": "Sell a first piece at the open. A gap after a five-day push is a good place for the first sell, and the rest trails.",
+   "simple": "No. Selling part at the open is our call, never a rule, and the rest trails.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -3563,7 +3585,7 @@
      "levels given in the story"
     ]
    },
-   "batch": "rulings2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q75",
@@ -3575,7 +3597,7 @@
    "choices": [
     "Sell a big part into the run",
     "Buy more while it is strong",
-    "Hold it all and trail the 10-day",
+    "Hold it all and trail the 9 EMA",
     "Move the stop to breakeven only"
    ],
    "answer": "Sell a big part into the run",
@@ -3585,12 +3607,13 @@
     "g55",
     "h36",
     "h37",
-    "h31"
+    "h31",
+    "r10"
    ],
    "wrong": {
     "Buy more while it is strong": "No adding. We buy the full size at one price with one stop.",
-    "Hold it all and trail the 10-day": "Trailing alone waits for the stock to turn. The rule is to sell a big part into the run.",
-    "Move the stop to breakeven only": "A stop at breakeven takes no profit. A climax run is when we sell a big part."
+    "Move the stop to breakeven only": "A stop at breakeven takes no profit. A climax run is when we sell a big part.",
+    "Hold it all and trail the 9 EMA": "Trailing alone waits for the stock to turn. The rule is to sell a big part into the run."
    },
    "house": true,
    "story": "You own a Gap Support winner up about 4R. It has risen three straight days on wider ranges and rising volume, with two gap ups in a row. Today it gaps up again.",
@@ -3606,7 +3629,7 @@
      "fixed before"
     ]
    },
-   "batch": "wave3"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q76",
@@ -3649,29 +3672,30 @@
    "format": "scenario",
    "criterion": "gs.trail",
    "q": "What is your move today?",
-   "story": "You hold the last third of a steadier Gap Support winner, both trims done. Today it closes under its 10-day but still above its 21-day.",
+   "story": "You hold what is left of a steadier Gap Support winner, with part already sold. Today it closes under its 9 EMA but still above its 20 EMA.",
    "choices": [
-    "Hold; the line for it is the 21-day",
-    "Sell the last third; the 10-day broke",
-    "Hold; sell if the 10-day stays broken",
+    "Hold; the line for it is the 20 EMA",
+    "Sell what is left; the 9 EMA broke",
+    "Hold; sell if the 9 EMA stays broken",
     "Sell half now and trail the rest"
    ],
-   "answer": "Hold; the line for it is the 21-day",
-   "why": "Hold. A steadier mover trails the 21-day, and we sell on a close below it. Today it closed under the 10-day but still above its 21-day. The 10-day is the fast mover's line.",
-   "lesson_line": "Steadier mover, 21-day line. A close under that line is the sell.",
+   "answer": "Hold; the line for it is the 20 EMA",
+   "why": "Hold. A steadier mover trails the 20 EMA, and we sell on a close below it. Today it closed under the 9 EMA but still above its 20 EMA. The 9 EMA is the fast mover's line.",
+   "lesson_line": "Steadier mover, 20 EMA line. A close under that line is the sell.",
    "facts": [
     "g21",
-    "h21"
+    "h21",
+    "r10"
    ],
    "wrong": {
-    "Sell the last third; the 10-day broke": "The 10-day is the fast mover's trail. This steadier mover trails the 21-day.",
-    "Hold; sell if the 10-day stays broken": "The 10-day is the fast mover's line. The steadier mover's line is the 21-day.",
-    "Sell half now and trail the rest": "Both trims are done. The last third rides until a close under its line."
+    "Sell half now and trail the rest": "Part is already sold. What is left rides until a close under its line.",
+    "Sell what is left; the 9 EMA broke": "The 9 EMA is the fast mover's trail. This steadier mover trails the 20 EMA.",
+    "Hold; sell if the 9 EMA stays broken": "The 9 EMA is the fast mover's line. The steadier mover's line is the 20 EMA."
    },
    "house": true,
-   "simple": "Hold. A steadier mover trails the 21-day and we sell on a close below it, because the 10-day is the fast mover's line.",
+   "simple": "Hold. A steadier mover trails the 20 EMA and we sell on a close below it, because the 9 EMA is the fast mover's line.",
    "deeper": {
-    "trap": "Using the fast mover's trail on a steadier winner. The 10-day is for fast movers and the 21-day for steadier ones. Trailing the 10-day here would sell today, while the stock's own line still holds."
+    "trap": "Using the fast mover's trail on a steadier winner. The 9 EMA is for fast movers and the 20 EMA for steadier ones. Trailing the 9 EMA here would sell today, while the stock's own line still holds."
    },
    "tier": "extended",
    "risk": {
@@ -3681,7 +3705,7 @@
      "choice added"
     ]
    },
-   "batch": "wave3"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q80",
@@ -3876,7 +3900,7 @@
     "When the first trim is made",
     "The moment the buy fills",
     "When the stock is up 1R",
-    "Only after the last third sells"
+    "Only after the final sell is made"
    ],
    "answer": "When the first trim is made",
    "why": "At the first trim, by default. Breakeven means moving the stop up to your entry price, so a stop-out costs about nothing. The rulebook's ideal window is 2R to 5R, and the Gap Support card sets the first trim as the default.",
@@ -3888,7 +3912,7 @@
    "wrong": {
     "The moment the buy fills": "Too early. At the fill the stop stays under the test day's low. Breakeven comes only after the trade has made 2R to 5R.",
     "When the stock is up 1R": "At 1R the trade has not made enough. The window opens at 2R, so the original stop stays.",
-    "Only after the last third sells": "That is too late. Breakeven comes at the first trim by default, while most of the position is still on."
+    "Only after the final sell is made": "That is too late. Breakeven comes at the first trim by default, while most of the position is still on."
    },
    "simple": "By default the stop moves to breakeven at the first trim, inside the ideal 2R to 5R window.",
    "tier": "core",
@@ -3899,7 +3923,7 @@
     ]
    },
    "house": true,
-   "batch": "fills"
+   "batch": "sweep-2026-11-14"
   }
  ],
  "conflicts": [
@@ -4062,7 +4086,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "False; h22 (E57) and g23 support it. Statement is about limit orders, so the key is safe."
+   "notes": "Final text agrees with the rulings it touches; key right, wrongs wrong, quotes and numbers grounded, style ok."
   },
   "q07": {
    "status": "pass",
@@ -4140,7 +4164,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "D-003 re-keyed; pass still right"
+   "notes": "Final text agrees with the rulings it touches; key right, wrongs wrong, quotes and numbers grounded, style ok."
   },
   "q27": {
    "status": "pass",
@@ -4165,7 +4189,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "time stop, 3R only in story"
+   "notes": "Final text agrees with the rulings it touches; key right, wrongs wrong, quotes and numbers grounded, style ok."
   },
   "q31": {
    "status": "pass",
@@ -4258,7 +4282,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "trigger buy wording agrees with D-003; 10% test unchanged"
+   "notes": "Final text agrees with the rulings it touches; key right, wrongs wrong, quotes and numbers grounded, style ok."
   },
   "q48": {
    "status": "pass",
@@ -4270,7 +4294,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Story matches e16 (stop next session, fill close two sessions later). Key follows g26. Overlap with q09 is rung-spaced."
+   "notes": "Final text agrees with the rulings it touches; key right, wrongs wrong, quotes and numbers grounded, style ok."
   },
   "q52": {
    "status": "pass",
@@ -4326,7 +4350,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Every A+ cue in the story is a cited card cue (g49, g43, g44, g45); 10% gap is no flag (g07), eight sessions is no minus (g51). Why states grading stays a judgment (E50). Wrong notes are supported. Mild: obvious maximal-cue story, accepted."
+   "notes": "Final text agrees with the rulings it touches; key right, wrongs wrong, quotes and numbers grounded, style ok."
   },
   "q65": {
    "status": "pass",
@@ -4387,13 +4411,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "orphan 27.05 in a choice no longer explained by the story; re-worded"
+   "notes": "Sentence over 22 words; split it. Re-key to optional is right (GAP-TRIM, r11 quote exact, 8R and five days from the story, r07)."
   },
   "q75": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Story matches the h37 burst description (three up days, two gap ups, range and volume expansion, gap up today); h36/g55 say sell a big part, a judgment call. Wrong notes rest on h31 and the same rule. Key is the shortest by under 20%."
+   "notes": "Final text agrees with the rulings it touches; key right, wrongs wrong, quotes and numbers grounded, style ok."
   },
   "q76": {
    "status": "cut",
@@ -4405,7 +4429,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from g21/h21; two Hold/two Sell split; trap supported."
+   "notes": "Final text agrees with the rulings it touches; key right, wrongs wrong, quotes and numbers grounded, style ok."
   },
   "q80": {
    "status": "pass",
@@ -4446,8 +4470,8 @@
   "q97": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Correct, supported by g19 and h05, no existing choice question on breakeven timing (q20 was the only one). Facts say the 2R to 5R window is the 'ideal' one, not an allowance; reworded why and simple to say ideal."
+   "fixed": false,
+   "notes": "Final text agrees with the rulings it touches; key right, wrongs wrong, quotes and numbers grounded, style ok."
   }
  }
 }

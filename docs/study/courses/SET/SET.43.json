@@ -121,6 +121,14 @@
    "title": "Setup decisions: the owner's rulings (2026-11-12)",
    "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
   }
  ],
  "facts": [
@@ -216,9 +224,9 @@
   },
   {
    "id": "hB19",
-   "source": "h1",
-   "quote": "Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is a third at 3R",
-   "claim": "B19: breakeven at 2R to 5R; the hard rule for the first trim is a third at 3R."
+   "source": "hw",
+   "quote": "The stop may move up to breakeven between 2R and 5R, or at the first sell.",
+   "claim": "Our stop may move up to breakeven between 2R and 5R, or at the first sell."
   },
   {
    "id": "hB20",
@@ -294,9 +302,9 @@
   },
   {
    "id": "hE52",
-   "source": "h1",
-   "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
-   "claim": "E52: trail under the 10-day for fast movers, the 21-day for steadier ones."
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
   },
   {
    "id": "hE56",
@@ -456,9 +464,9 @@
   },
   {
    "id": "c26",
-   "source": "c1",
-   "quote": "Trail the last third under the 10-day (fast movers) or the 21-day (steadier) average, sold on a close below it.",
-   "claim": "Card: trail the last third under the 10-day or the 21-day, sold on a close below it."
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
   },
   {
    "id": "c28",
@@ -888,9 +896,9 @@
   },
   {
    "id": "r71",
-   "source": "h2",
-   "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
-   "claim": "Owner: he very rarely sells on day 1 and usually waits until day 3."
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
   },
   {
    "id": "r72",
@@ -921,6 +929,12 @@
    "source": "c1",
    "quote": "A touch day that closes under the line is not the hold yet. Heavy volume on it, more than 1.5 times the 50-day, is a distribution day to be mindful of, not an invalidation by itself.",
    "claim": "Card: a close under the line is not the hold yet; heavy volume on it is a distribution day to be mindful of, not an invalidation."
+  },
+  {
+   "id": "r91",
+   "source": "h2",
+   "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+   "claim": "Owner: the course teaches the 9 and 20 EMA with the 50 and 200 SMA."
   }
  ],
  "walkthroughs": [
@@ -928,7 +942,7 @@
    "key": "w1",
    "title": "YELP, June 2013: the fast leader on its 10-day",
    "steps": [
-    "YELP, June 2013. A leader that had ridden its 10 EMA since February drifts four quiet days onto the line.",
+    "YELP, June 2013. A leader that had ridden its 9 EMA since February drifts four quiet days onto the line.",
     "The pattern checks out: a 1.42 ATR dip, 5.7% off the high, and a touch day on only 0.60x volume.",
     "2013-06-26: it trades over the hold day's high. Buy at market, 31.80. Stop a few cents under the low, 30.67.",
     "Stop 3.6% wide, past our preferred range: size comes down. Failure mode: the line gives way. Instead 3R came the next day."
@@ -942,7 +956,8 @@
     "hA13",
     "hF62",
     "fm",
-    "hE57"
+    "hE57",
+    "hE52"
    ]
   },
   {
@@ -969,7 +984,7 @@
    "key": "w3",
    "title": "MOH, June 2018: six quiet days on the 10-day",
    "steps": [
-    "MOH, 2018. Six days sideways on the lowest volume on the chart, with the 10 EMA rising underneath.",
+    "MOH, 2018. Six days sideways on the lowest volume on the chart, with the 9 EMA rising underneath.",
     "The shallowest dip of our ten examples: 1.01 ATR, 7.8% off the high. The rule is 1 ATR, so it just passes.",
     "2018-06-08: it trades over the hold day's high. Buy at market, 86.93. Stop a few cents under the low, 85.82.",
     "The stop is 1.3% wide. Failure mode: the line gives way. Instead 3R came in one session."
@@ -981,7 +996,8 @@
     "c09",
     "hF62",
     "fm",
-    "hE57"
+    "hE57",
+    "hE52"
    ]
   }
  ],
@@ -1680,11 +1696,11 @@
    "choices": [
     "Sell a third now; 3R is the rule",
     "Sell half now and lock the gain",
-    "Judge it; he rarely sells on day 1",
+    "Judge it; we rarely sell on day 1",
     "Sell it all before the close"
    ],
-   "answer": "Judge it; he rarely sells on day 1",
-   "why": "Judge it. The first sell is a judgment, not a fixed third at 3R. He very rarely sells on day 1 of the buy and usually waits until day 3 at the earliest.",
+   "answer": "Judge it; we rarely sell on day 1",
+   "why": "Judge it. The first sell is a judgment, not a fixed third at 3R. We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest.",
    "lesson_line": "The first sell is a judgment. Rarely day 1, often day 3 or later.",
    "facts": [
     "r70",
@@ -1693,13 +1709,13 @@
    ],
    "wrong": {
     "Sell a third now; 3R is the rule": "3R is no fixed sell point. The first sell is a judgment.",
-    "Sell half now and lock the gain": "He very rarely sells on day 1 of the buy.",
-    "Sell it all before the close": "He very rarely sells on day 1 of the buy."
+    "Sell half now and lock the gain": "We very rarely sell on day 1 of the buy.",
+    "Sell it all before the close": "We very rarely sell on day 1 of the buy."
    },
    "house": true,
-   "simple": "No fixed sale at 3R. The first sell is a judgment, and he rarely sells on day 1.",
+   "simple": "No fixed sale at 3R. The first sell is a judgment, and we rarely sell on day 1.",
    "deeper": {
-    "trap": "Treating 3R as a sell signal. It is a yardstick. He often sells into a 3, 5 or 7 day push, or at about 5 to 10R."
+    "trap": "Treating 3R as a sell signal. It is a yardstick. We often sell into a 3, 5 or 7 day push, or at about 5 to 10R."
    },
    "tier": "core",
    "risk": {
@@ -1708,7 +1724,7 @@
      "+2 rests on the owner's rulebook (settled) (B19: a third at 3R, breakeven 2R to 5R, default at the first trim)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q22",
@@ -1716,16 +1732,17 @@
    "rung": 3,
    "format": "tf",
    "criterion": "map.trail",
-   "q": "A steadier mover's last third is trailed under the 21-day and sold on a close below it.",
+   "q": "What is left of a steadier mover is trailed under the 20 EMA and sold on a close below it.",
    "answer": "True",
-   "why": "True. The default trail is the 10-day for fast movers and the 21-day for steadier ones. Either way it is sold on a close below the line.",
-   "lesson_line": "Fast mover, 10-day trail. Steadier, 21-day. Sell on a close below.",
+   "why": "True. The default trail is the 9 EMA for fast movers and the 20 EMA for steadier ones. Either way it is sold on a close below the line.",
+   "lesson_line": "Fast mover, 9 EMA trail. Steadier, 20 EMA. Sell on a close below.",
    "facts": [
     "hE52",
-    "c26"
+    "c26",
+    "r91"
    ],
    "house": true,
-   "simple": "True. A steadier mover's last third rides under the 21-day and is sold on a close below it.",
+   "simple": "True. What is left of a steadier mover rides under the 20 EMA and is sold on a close below it.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1733,7 +1750,7 @@
      "+2 rests on the owner's rulebook (settled) (E52: the trail line depends on how fast the stock moves)"
     ]
    },
-   "batch": "wave4"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q23",
@@ -1839,12 +1856,12 @@
     "c20",
     "hA5b",
     "hA4",
-    "c24"
+    "r71"
    ],
    "wrong": {
     "Buy more to lower the average cost": "Averaging down is not ours. A second buy lower is ruled out.",
     "Move the stop down under the new low": "The stop only moves up, never down or wider.",
-    "Sell half now to cut the risk": "The plan trims a third at 3R, not half on a dip."
+    "Sell half now to cut the risk": "The first sell is a judgment, usually day 3 at the earliest, not half on a dip."
    },
    "house": true,
    "story": "You bought the 50-day hold at 190. The stock dips to 186 and holds the line again.",
@@ -1856,7 +1873,7 @@
      "+2 rests on the owner's rulebook (settled) (A4, A5, adds settled as D-135)"
     ]
    },
-   "batch": "wave4"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q26",
@@ -2009,7 +2026,7 @@
    "criterion": "map.trim_2",
    "q": "Every trade sells a fixed third at 3R, then a third at 5R.",
    "answer": "False",
-   "why": "False. The first sell is a judgment, not a fixed third at 3R. He rarely sells on day 1 and often waits for a 3, 5 or 7 day push.",
+   "why": "False. The first sell is a judgment, not a fixed third at 3R. We rarely sell on day 1 and often wait for a 3, 5 or 7 day push.",
    "lesson_line": "The first sell is a judgment. Often day 3 or later, into a push.",
    "facts": [
     "r70",
@@ -2025,7 +2042,7 @@
      "+2 rests on the owner's rulebook (settled) (E51)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q31",
@@ -2298,22 +2315,23 @@
    "criterion": "map.one_setup",
    "q": "Which card does this belong to?",
    "choices": [
-    "This card, the 10-day form",
+    "This card, the 9 EMA form",
     "This card, the 50-day form",
     "The Remount card, a line lost",
     "The 20 EMA Pullback card"
    ],
    "answer": "The 20 EMA Pullback card",
-   "why": "The 20 EMA Pullback card. A low that tags the 20 EMA and holds above the 50-day is that card in full. This card's own trades are the 10-day in a fast leader that has ridden its 10 EMA. The other is the 50-day, when the low reaches it with the 200-day far below.",
+   "why": "The 20 EMA Pullback card. A low that tags the 20 EMA and holds above the 50-day is that card in full. This card's own trades are the 9 EMA in a fast leader that has ridden that line. The other is the 50-day, when the low reaches it with the 200-day far below.",
    "lesson_line": "Name the line the low touched. The 20 EMA has its own card.",
    "facts": [
     "l1",
-    "l1b"
+    "l1b",
+    "r91"
    ],
    "wrong": {
-    "This card, the 10-day form": "This card's trades are the 10-day in a fast leader and the 50-day. The 20 EMA has its own card.",
     "This card, the 50-day form": "The low tagged the 20 EMA, not the 50-day. This card's 50-day trades are for a low that reaches the 50-day with the 200-day far below.",
-    "The Remount card, a line lost": "Nothing was lost. The stock holds above its lines."
+    "The Remount card, a line lost": "Nothing was lost. The stock holds above its lines.",
+    "This card, the 9 EMA form": "This card's trades are the 9 EMA in a fast leader and the 50-day. The 20 EMA has its own card."
    },
    "house": true,
    "story": "A leader's low tags its 20 EMA and the stock holds above its 50-day. The 200-day sits far below.",
@@ -2326,7 +2344,7 @@
      "+2 rests on the card's own tell, which can change"
     ]
    },
-   "batch": "wave4"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q35",
@@ -2425,10 +2443,10 @@
    "criterion": "map.depth",
    "q": "Pullback to the averages, or Bull Flag?",
    "choices": [
-    "Pullback; it touched the 10 EMA",
+    "Pullback; it touched the 9 EMA",
     "Bull Flag; a fast gain came first",
     "Pullback; four days is too short",
-    "Remount; it fell to the 10 EMA"
+    "Remount; it fell to the 9 EMA"
    ],
    "answer": "Bull Flag; a fast gain came first",
    "why": "Bull Flag. A bull flag needs a 20% or larger gain inside 20 sessions, and 28% in 9 sessions is that pole. A pullback to the averages needs no pole. It needs a rising line in a stacked trend and a 1 ATR dip from the swing high to the line.",
@@ -2436,18 +2454,19 @@
    "facts": [
     "l5",
     "l5b",
-    "l2b"
+    "l2b",
+    "r91"
    ],
    "wrong": {
-    "Pullback; it touched the 10 EMA": "A pullback needs no pole. A 28% gain in 9 sessions is a bull flag's pole.",
     "Pullback; four days is too short": "Length is not what decides it. The pole is.",
-    "Remount; it fell to the 10 EMA": "A Remount is five or more closes under the 50-day or 200-day. This drift was 4 tight days onto the 10 EMA."
+    "Pullback; it touched the 9 EMA": "A pullback needs no pole. A 28% gain in 9 sessions is a bull flag's pole.",
+    "Remount; it fell to the 9 EMA": "A Remount is five or more closes under the 50-day or 200-day. This drift was 4 tight days onto the 9 EMA."
    },
    "house": true,
-   "story": "A stock gains 28% in 9 sessions, then drifts 4 tight days down onto its 10 EMA.",
+   "story": "A stock gains 28% in 9 sessions, then drifts 4 tight days down onto its 9 EMA.",
    "simple": "It is a bull flag, because the 28% gain in 9 sessions is a pole and a plain pullback needs no pole.",
    "deeper": {
-    "trap": "The pole decides the name. Take the same 4 tight days onto the 10 EMA with no 20% gain in the 20 sessions before. It can then be a pullback to the averages, if the line is rising and the dip is at least 1 ATR."
+    "trap": "The pole decides the name. Take the same 4 tight days onto the 9 EMA with no 20% gain in the 20 sessions before. It can then be a pullback to the averages, if the line is rising and the dip is at least 1 ATR."
    },
    "tier": "extended",
    "risk": {
@@ -2457,7 +2476,7 @@
      "the key rests on the card's own lookalike tell"
     ]
    },
-   "batch": "wave4"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q38",
@@ -2692,7 +2711,8 @@
    "lesson_line": "A tight reversal at the line keeps the stop small.",
    "facts": [
     "g4",
-    "hE50"
+    "hE50",
+    "r91"
    ],
    "wrong": {
     "Yes, since a hammer predicts a bounce": "A hammer is a cue, not a prediction. It helps because it keeps the stop at 3% or less.",
@@ -2700,7 +2720,7 @@
     "No, volume sets the grade, not candles": "Quiet volume is one cue. A tight reversal at the line is another."
    },
    "house": true,
-   "story": "A leader dips to its 10-day. The hold day is a hammer that closes on the line.",
+   "story": "A leader dips to its 9 EMA. The hold day is a hammer that closes on the line.",
    "simple": "Yes, a tight reversal at the line is an A+ cue, because it keeps the stop at 3 percent or less.",
    "deeper": {
     "trap": "A hammer alone is not a buy signal. On our card the reversal helps the grade because it keeps the stop at 3% or less. Grading stays a judgment call, so no single candle makes a setup an A+."
@@ -2714,7 +2734,7 @@
      "fixed before"
     ]
    },
-   "batch": "wave4"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q47",
@@ -2771,7 +2791,7 @@
     "Keep full size; it is close enough": "Over about 3%, the size comes down so the account risk is unchanged."
    },
    "house": true,
-   "story": "YELP, 2013. A fast leader that rode its 10 EMA since February drifts four quiet days. You plan to buy at 31.80 with the stop at 30.67.",
+   "story": "YELP, 2013. A fast leader drifts four quiet days down to its fast average. You plan to buy at 31.80 with the stop at 30.67.",
    "simple": "Cut the size, because a stop wider than 3 percent means fewer shares for the same account risk.",
    "deeper": {
     "trap": "The trap is tightening the stop to 3% so the full size fits. That is no longer the honest stop at the pullback low. Before the buy the chart sets the stop. After the buy it only moves up. The size does the adjusting."
@@ -2784,7 +2804,7 @@
      "fixed before"
     ]
    },
-   "batch": "wave4"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q49",
@@ -3190,7 +3210,7 @@
     "No cap if each try triggers anew": "There is a cap: at most 3 tries a week and 6 a month on the same stock."
    },
    "house": true,
-   "story": "PLTR, 2025. Bought at 127.78 on a 10-day pullback, stop 124.27, hit on day 1. It was a one-day shakeout and it climbed later without us.",
+   "story": "PLTR, 2025. Bought at 127.78 on a pullback, stop 124.27, hit on day 1. It was a one-day shakeout and it climbed later without us.",
    "simple": "At most 3 tries a week and 6 a month on one stock. Each one is a new trade.",
    "deeper": {
     "trap": "Hindsight says PLTR came back, so the shakeout looks like a gift. On the day, the stop was hit. The plan treats that as new information: the next buy needs its own trigger, its own stop and every rule again."
@@ -3202,7 +3222,7 @@
      "+2 rests on the owner's rulebook (settled) (B21 re-entry, E56 tries)"
     ]
    },
-   "batch": "wave4"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q60",
@@ -3371,7 +3391,7 @@
     "Pass; the dip is too shallow to count"
    ],
    "answer": "Take it; a calm dip held its line",
-   "why": "Take it. A stock that had ridden its 10 EMA since February drifted four quiet days onto the line. The dip was 1.42 ATR deep, past the 1 ATR minimum. The touch day ran on only 0.60x volume. 3R came the day after the buy. A clean read is not a promise of the result.",
+   "why": "Take it. A stock that had ridden its rising fast average since February drifted four quiet days onto the line. The dip was 1.42 ATR deep, past the 1 ATR minimum. The touch day ran on only 0.60x volume. 3R came the day after the buy. A clean read is not a promise of the result.",
    "lesson_line": "Rising line, quiet dip, a hold. That is the picture.",
    "facts": [
     "dYELPw",
@@ -3395,7 +3415,7 @@
     "window": 120,
     "forward": 20
    },
-   "simple": "Take it. A stock drifted four quiet days onto its rising 10 EMA and held, which is the picture we want.",
+   "simple": "Take it. A stock drifted four quiet days onto its rising fast average and held, which is the picture we want.",
    "deeper": {
     "trap": "Hindsight makes this easy, since 3R came the day after the buy. The day before, the test is the checklist. Look for a rising line, a dip of at least 1 ATR, quiet volume and a close at or above the line."
    },
@@ -3406,7 +3426,7 @@
      "+2 ties to held decision D-003 (the buy over the hold day's high is the default, not a ruling)"
     ]
    },
-   "batch": "rulings"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q65",
@@ -3416,14 +3436,14 @@
    "criterion": "map.near_high",
    "q": "Hidden ticker, the day before a would-be buy. Is this a leader's pullback? Take it or pass.",
    "choices": [
-    "Take it; the dip hit the 10-day",
+    "Take it; the dip hit the line",
     "Pass; it sits far under its high",
     "Pass; the dip is too short",
     "Take it; volume fell on the dip"
    ],
    "answer": "Pass; it sits far under its high",
-   "why": "Pass. At the hold day the stock sat 32.7% under its 52-week high of 34.14, and the card allows 25%. Only that one gate check fails. It is a recovering stock's 10-day, not a leader's pullback.",
-   "lesson_line": "A rising 10-day under a deep hole is a recovery, not a leader.",
+   "why": "Pass. At the hold day the stock sat 32.7% under its 52-week high of 34.14, and the card allows 25%. Only that one gate check fails. It is a recovering stock's bounce, not a leader's pullback.",
+   "lesson_line": "A rising line under a deep hole is a recovery, not a leader.",
    "facts": [
     "dAMD",
     "dAMDw",
@@ -3431,9 +3451,9 @@
     "c03"
    ],
    "wrong": {
-    "Take it; the dip hit the 10-day": "A touch of the line is not enough. The stock is too far from its 52-week high.",
     "Pass; the dip is too short": "That check passes here. The distance from the high is what fails.",
-    "Take it; volume fell on the dip": "Quiet volume does not fix the distance from the high. The card still wants price within 25% of it."
+    "Take it; volume fell on the dip": "Quiet volume does not fix the distance from the high. The card still wants price within 25% of it.",
+    "Take it; the dip hit the line": "A touch of the line is not enough. The stock is too far from its 52-week high."
    },
    "house": true,
    "chart": {
@@ -3444,7 +3464,7 @@
    },
    "simple": "Pass, because the stock sits 32.7 percent under its 52-week high and a leader must be within 25 percent.",
    "deeper": {
-    "trap": "A clean touch of a rising 10-day can fool you. The first question is whether this is a leader at all. Price must be within 25% of its 52-week high, and this stock was 32.7% under 34.14. A bounce from a deep hole is a recovery."
+    "trap": "A clean touch of a rising line can fool you. The first question is whether this is a leader at all. Price must be within 25% of its 52-week high, and this stock was 32.7% under 34.14. A bounce from a deep hole is a recovery."
    },
    "tier": "expert",
    "risk": {
@@ -3455,7 +3475,7 @@
      "fixed before"
     ]
    },
-   "batch": "wave4"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q66",
@@ -3537,30 +3557,31 @@
    "rung": 9,
    "format": "scenario",
    "criterion": "map.trail",
-   "q": "What does the plan do with the last third?",
+   "q": "What does the plan do with what is left?",
    "choices": [
     "Hold; the trail sells on a close below",
-    "Sell now; it broke the 10-day line",
-    "Hold, but trail under the 21-day instead",
-    "Add back the thirds you already sold"
+    "Sell now; it broke the 9 EMA line",
+    "Hold, but trail under the 20 EMA instead",
+    "Add back the shares you already sold"
    ],
    "answer": "Hold; the trail sells on a close below",
-   "why": "Hold. The last third of a fast mover is trailed under the 10-day and sold on a close below it. Today closed above the line, so nothing is sold. A dip under it during the day does not count.",
-   "lesson_line": "The last third rides the trail and leaves on a close below it, not on a dip.",
+   "why": "Hold. What is left of a fast mover is trailed under the 9 EMA and sold on a close below it. Today closed above the line, so nothing is sold. A dip under it during the day does not count.",
+   "lesson_line": "What is left rides the trail and leaves on a close below it, not on a dip.",
    "facts": [
     "hE52",
-    "c26"
+    "c26",
+    "r91"
    ],
    "wrong": {
-    "Sell now; it broke the 10-day line": "The sale comes on a close below the line, not on a dip under it during the day.",
-    "Hold, but trail under the 21-day instead": "A fast mover is trailed under the 10-day. The 21-day is for steadier movers.",
-    "Add back the thirds you already sold": "No adds. The plan trails the last third and sells it on a close below the line."
+    "Sell now; it broke the 9 EMA line": "The sale comes on a close below the line, not on a dip under it during the day.",
+    "Hold, but trail under the 20 EMA instead": "A fast mover is trailed under the 9 EMA. The 20 EMA is for steadier movers.",
+    "Add back the shares you already sold": "No adds. The plan trails what is left and sells it on a close below the line."
    },
    "house": true,
-   "story": "A fast mover you bought has run well past 5R, and you have sold two thirds on the way up. Today it trades under the 10-day at midday, then finishes the day above it.",
-   "simple": "Hold, because the last third is sold on a close below the 10-day, and today closed above it.",
+   "story": "A fast mover you bought has run well past 5R, and you have sold part of it on the way up. Today it trades under the 9 EMA at midday, then finishes the day above it.",
+   "simple": "Hold, because what is left is sold on a close below the 9 EMA, and today closed above it.",
    "deeper": {
-    "trap": "The trap is selling on the dip. The line is judged on the close. Today it closed above the 10-day, so the last third stays."
+    "trap": "The trap is selling on the dip. The line is judged on the close. Today it closed above the 9 EMA, so what is left stays."
    },
    "tier": "expert",
    "risk": {
@@ -3570,7 +3591,7 @@
      "fixed before"
     ]
    },
-   "batch": "rulings2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q72",
@@ -3988,7 +4009,6 @@
    "why": "One R is the buy minus the stop: 50.00 minus 48.00. Add two of those to the buy of 50.00 to get 54.00. The breakeven window runs from 2R to 5R, and by default the stop moves at the first trim. The window is a guide, not one exact price.",
    "lesson_line": "Know your 2R before the open. The breakeven window starts there.",
    "facts": [
-    "hB19",
     "c23"
    ],
    "house": true,
@@ -4100,8 +4120,8 @@
    "choices": [
     "Sell a big part into the burst",
     "Add at the gap; the leg is strong",
-    "Hold it all and trail the 21-day",
-    "Sell a third, as the trim plan says"
+    "Hold it all and trail the 20 EMA",
+    "Sell a fixed third, as the plan says"
    ],
    "answer": "Sell a big part into the burst",
    "why": "Sell a big part into the burst. On a climax run in your own long, our rule is to sell a big part into it. How much is a judgment call. No adds: the plan is one entry at one price.",
@@ -4109,12 +4129,13 @@
    "facts": [
     "hC34",
     "hA5b",
-    "r70"
+    "r70",
+    "r91"
    ],
    "wrong": {
     "Add at the gap; the leg is strong": "No adds. A climax is where we sell, not where we buy more.",
-    "Hold it all and trail the 21-day": "The rule is to sell a big part into a climax, not to wait for the trail.",
-    "Sell a third, as the trim plan says": "The first sell is a judgment, not a fixed third. The climax rule is separate: sell a big part into the burst."
+    "Hold it all and trail the 20 EMA": "The rule is to sell a big part into a climax, not to wait for the trail.",
+    "Sell a fixed third, as the plan says": "The first sell is a judgment, not a fixed third. The climax rule is separate: sell a big part into the burst."
    },
    "house": true,
    "story": "Your pullback buy has run four days and is still short of 3R. It gapped up twice on rising volume, and today it gaps up again on its widest range yet.",
@@ -4130,7 +4151,7 @@
      "rests on the owner's rulebook, whose answer was 'yes but depends'"
     ]
    },
-   "batch": "rulings2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q87",
@@ -4392,14 +4413,14 @@
   "q21": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Wrong-choice note claimed a plan rule about selling it all; why dropped 'at the earliest'."
+   "fixed": false,
+   "notes": "Key (judge it, rarely day 1) agrees with D-013; he->we done; r70-r72 quotes exact."
   },
   "q22": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "E52 and c26 say it word for word. It restates the rule q68 applies, which is reinforcement, not a giveaway."
+   "notes": "20 EMA / 9 EMA trail with r91; what is left; true statement correct."
   },
   "q23": {
    "status": "pass",
@@ -4416,8 +4437,8 @@
   "q25": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "c20, hA5b, hA4, c24 support every note. Action form removes the lone-No tell. Pass."
+   "fixed": true,
+   "notes": "Wrong text now teaches the judgment first sell (D-013). Card fact c24 'Sell a third at 3R.' is the superseded rule and no longer used; dropped from facts."
   },
   "q26": {
    "status": "pass",
@@ -4448,7 +4469,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Re-keyed to False; good."
+   "notes": "False statement about a fixed third at 3R then 5R; key right; he->we."
   },
   "q31": {
    "status": "pass",
@@ -4478,7 +4499,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed from the calc; answer shows it, wrong choices are distinct real mistakes with accurate notes, no tell, why walks the steps."
+   "notes": "Kept: pure percent math against the 10-day simple average (D-017 held); 5/48 = 10.4% verified."
   },
   "q33": {
    "status": "pass",
@@ -4490,7 +4511,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "l1 and l1b verbatim: a low tagging the 20 EMA above the 50-day is the 20 EMA Pullback card. Key moves if the owner rules D-021 the other way; held by depends_on and the owner flag."
+   "notes": "Card-choice question; 10-day form renamed 9 EMA form, r91 cited; 20 EMA card answer unchanged."
   },
   "q35": {
    "status": "pass",
@@ -4508,8 +4529,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Pass. The card's full tell (give back at most half the pole) is not in the story; D-002 pending.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Hypothetical; 10 EMA renamed 9 EMA in story, choices, wrong and deeper; no measurement against a real date."
   },
   "q38": {
    "status": "pass",
@@ -4552,8 +4572,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "g4 verbatim (tight reversal at the line, A+ cue, stop 3% or less); E50 caveat kept. Two Yes and two No choices, key tied for longest at 39 characters. Hammer-predicts-a-bounce is rejected in the wrong note. Hedged as a cue, so it does not teach a fixed checklist.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Hypothetical dip, 9 EMA, r91 cited; cue not guarantee; 3% or less is the card's A+ cue, no conflict."
   },
   "q47": {
    "status": "pass",
@@ -4565,7 +4584,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "dYELPs, c22, A13, A3 and A4 support it: a wide stop means a smaller size, never a tighter stop. Key is not the longest choice. The 'skip' choice is covered by c22 ('skip only if even that does not fit')."
+   "notes": "Real YELP 2013 trade; line name dropped so the measured 3.6% stop is not tied to a renamed line. Key (cut the size, same risk) still agrees with D-005 (size comes from the stop; never tighten it to fit)."
   },
   "q49": {
    "status": "cut",
@@ -4608,7 +4627,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Edit agrees with HEAVY-DOWN without over-reaching: 4.5x close under the line is a distribution warning and a lower grade, not a veto; 'close under the line is not the hold yet' and 'at most two closes, second reclaimed at once' are kept (l2 and c28n support them). Right answer right; the three wrong ones are wrong and their 'wrong' keys match the choice texts exactly. hv1 and hv2 quotes are word for word from the HEAVY-DOWN reading (DECISIONS.md line 2771, source h2 already in lesson); c28n quote matches statement of map.inv_heavy_close in 12-ma-pullbacks.json word for word. Style ok (q 54 cha"
+   "notes": "Kept: already teaches that a heavy-volume down day lowers the grade, no veto (HEAVY-DOWN); hv1/hv2 quotes exact."
   },
   "q57": {
    "status": "cut",
@@ -4626,7 +4645,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "No 3R/day-1 sell taught; keep."
+   "notes": "Real PLTR trade; '10-day' dropped from the story rather than renamed; try cap unaffected by the rulings."
   },
   "q60": {
    "status": "pass",
@@ -4656,14 +4675,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "3R only as hindsight yardstick; keep."
+   "notes": "Real YELP chart with a measured 1.42 ATR dip; line described as the rising fast average, no silent rename; numbers grounded."
   },
   "q65": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "32.7% under 34.14 fails the 25% rule. It still fails at the floated 10% or 15%, so the answer holds whatever he rules. dNear grounds 'only that one check fails'. Lesson-level: this is the same AMD example and numbers as q55, so a student who saw q55 may recognize the hidden chart. Recommend separating them in the run order.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Real AMD near-miss; 10-day dropped to 'the line', measured 32.7% unchanged; answer right."
   },
   "q66": {
    "status": "pass",
@@ -4680,8 +4698,8 @@
   "q68": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Story no longer uses 3R or 5R, so drop the old E51 fact that keys the third at 3R."
+   "fixed": false,
+   "notes": "9 EMA / 20 EMA with r91; fixed thirds language replaced by what is left and shares sold; key right."
   },
   "w1": {
    "status": "pass",
@@ -4771,8 +4789,8 @@
   "q83": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
+   "fixed": true,
+   "notes": "R math right (2R = 54.00). Breakeven window 2R to 5R and at the first sell agree with D-013. Fact hB19 carries the superseded 'hard rule is a third at 3R' and c23 already grounds the breakeven window; dropped hB19."
   },
   "q84": {
    "status": "cut",
@@ -4790,7 +4808,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Climax sell on day 4 fits ruling; wrong note softened."
+   "notes": "Climax: sell a big part, a judgment; the fixed-third distractor is wrong; 20 EMA trail with r91."
   },
   "q87": {
    "status": "pass",
@@ -4808,7 +4826,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with GAP-TRIM/SHORT-ENTRY or not affected; key right, quote exact, style ok"
+   "notes": "Kept: weigh selling into the gap as judgment, never a rule (GAP-TRIM, D-013); rg1 quote word for word; 'second third; 5R is a rule' is a wrong choice."
   }
  }
 }

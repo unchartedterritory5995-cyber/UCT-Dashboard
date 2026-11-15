@@ -811,9 +811,9 @@
   {
    "id": "spr.trail",
    "field": "management",
-   "statement": "Trail the rest under the 21-day (most springs) or the 10-day (fast movers), out on a close below it.",
+   "statement": "Trail the rest under the 20 EMA (most springs) or the 9 EMA (fast movers), out on a close below it.",
    "measure": {
-    "what": "close against the 21-day (most springs) or 10-day (fast) average",
+    "what": "close against the 20 EMA (most springs) or 9 EMA (fast) average",
     "op": "<",
     "value": "the average",
     "timeframe": "daily"
@@ -826,7 +826,14 @@
    "gate": false,
    "grade_cue": false,
    "dossier_ref": "8.4",
-   "evidence": "The dossier's check trailed the last third on a close through the 21-day EMA after 5R; DELL 2026-03-10 trailed out after 79 sessions for +12.8R."
+   "evidence": "The dossier's check trailed the last third on a close through the 21-day EMA after 5R; DELL 2026-03-10 trailed out after 79 sessions for +12.8R.",
+   "superseded": [
+    {
+     "statement": "Trail the rest under the 21-day (most springs) or the 10-day (fast movers), out on a close below it.",
+     "on": "2026-11-14",
+     "by": "D-021"
+    }
+   ]
   },
   {
    "id": "spr.range_top_resistance",
@@ -1042,7 +1049,7 @@
  "management": {
   "trim_1": "first sell by judgment, usually day 3 or later, into a 3, 5 or 7 day push or at about 5 to 10R (D-013, 2026-11-12)",
   "trim_2": "later sells by judgment into strength, then trail the rest (D-013, 2026-11-12)",
-  "trail": "a close under the 21-day for most springs, the 10-day for a fast mover (E52)",
+  "trail": "a close under the 20 EMA for most springs, the 9 EMA for a fast mover (E52, read as the 9 and 20 EMA: D-021)",
   "breakeven": "between 2R and 5R, or at the first sell (B19)",
   "time_stop": "under 1R after 10 trading days, sell (C33)",
   "gap_open": "optional: selling part into a big gap at the open is a judgment, never a rule (owner, 2026-11-12)",
@@ -1051,7 +1058,8 @@
   "superseded": {
    "trim_1": "a third at 3R (B19)",
    "trim_2": "a third at 5R (E51)",
-   "gap_open": "a trim level the day opens past is taken at the open (F63)"
+   "gap_open": "a trim level the day opens past is taken at the open (F63)",
+   "trail": "a close under the 21-day for most springs, the 10-day for a fast mover (E52)"
   }
  },
  "examples": {

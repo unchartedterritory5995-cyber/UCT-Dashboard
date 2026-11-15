@@ -989,7 +989,7 @@
   },
   "reveal_json": {
    "deeper": {
-    "counter": "So when would our own rule sell? We swing trade. We trail under the 10-day or 21-day average and sell on a close below it. A two-week pullback can close below it while the weekly trend holds. Then our trade ends. The position trader in this story sits through it."
+    "counter": "So when would our own rule sell? We swing trade. We trail under the 9 EMA or the 20 EMA and sell on a close below it. A two-week pullback can close below it while the weekly trend holds. Then our trade ends. The position trader in this story sits through it."
    },
    "depth": {
     "sources": [
@@ -1036,11 +1036,11 @@
       "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      },
      {
-      "accessed": "2026-11-12",
-      "name": "UCT house rule: The house sizing rule, section 9: The account rulebook (the owner, 2026-11-09)",
-      "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
+      "accessed": "2026-11-14",
+      "name": "UCT house rule: Our rules, in our words (2026-11-14)",
+      "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
       "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14"
      },
      {
       "accessed": "2026-11-12",
@@ -1050,7 +1050,7 @@
       "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ],
-    "summary": "Over months, most stocks go through many smaller rallies and pullbacks. A position trader sits through those pullbacks while the trend holds; a swing trader may trade several moves inside it. Position traders hope prices rise through the periodic downturns that frustrate shorter-term traders. Trading more often means more exposure to risk and more transaction costs. Our rule A11: sell some into strength and trail the rest under the rising averages. Our rule C35: UCT swing trades, days to a few weeks, and a winner can be held longer while it keeps working. Our rule E52: trail under the 10-day average for fast movers or the 21-day for steadier ones, and sell on a close below it. Our rule A4: the stop is the exit and only moves up, never down or wider."
+    "summary": "Over months, most stocks go through many smaller rallies and pullbacks. A position trader sits through those pullbacks while the trend holds; a swing trader may trade several moves inside it. Position traders hope prices rise through the periodic downturns that frustrate shorter-term traders. Trading more often means more exposure to risk and more transaction costs. Our rule A11: sell some into strength and trail the rest under the rising averages. Our rule C35: UCT swing trades, days to a few weeks, and a winner can be held longer while it keeps working. Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left. Our rule A4: the stop is the exit and only moves up, never down or wider."
    },
    "facts": {
     "given": "What fits your style here? You're a position trader. Your stock has trended up for months. It pulls back for two weeks, but the weekly uptrend is still intact. Hold through the pullback Sell before the pullback deepens Sell now, rebuy the next swing Hold, but lower your stop"
@@ -2204,7 +2204,7 @@
   "difficulty": 1,
   "id": "si_7f1bf6ff5f5a",
   "lesson_origin": "session",
-  "lesson_text": "The daily chart. Our Launchpad trails under the rising 21-day average, or under each higher low. A 21-day average is built from daily bars, one bar per day. Our default trail sells on a close below the 10-day or 21-day average. So the trail and the higher lows both live on the daily chart. A shorter chart can still time the entry, but it does not change where the trade is managed. Read the trail to find the clock. A daily average means a daily-chart trade.",
+  "lesson_text": "The daily chart. Our Launchpad trails under the rising 20 EMA, or under each higher low. A 20 EMA on the daily chart is built from daily bars, one bar per day. Our default trail sells on a close below the 9 EMA or 20 EMA. So the trail and the higher lows both live on the daily chart. A shorter chart can still time the entry, but it does not change where the trade is managed. Read the trail to find the clock. A daily average means a daily-chart trade.",
   "module": "F11",
   "prompt_json": {
    "choices": [
@@ -2214,7 +2214,7 @@
     "The daily chart"
    ],
    "kind": "mcq",
-   "q": "Our Launchpad trails under the rising 21-day average. Which chart do you manage that trade on?",
+   "q": "Our Launchpad trails under the rising 20 EMA. Which chart do you manage that trade on?",
    "subject": "F11.02#q07"
   },
   "reveal_json": {
@@ -2223,16 +2223,16 @@
      {
       "accessed": "2026-11-09",
       "name": "UCT house rule: The trade plan for every setup: Kicker and Launchpad rows (entry, stop, trail)",
-      "quote": "under the rising 21-day average, or under each higher low",
+      "quote": "under the rising 20 EMA, or under each higher low",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      },
      {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
+      "accessed": "2026-11-14",
+      "name": "UCT house rule: Our rules, in our words (2026-11-14)",
+      "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
       "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14"
      },
      {
       "accessed": "2026-11-09",
@@ -2261,21 +2261,28 @@
       "quote": "A weekly candlestick is based on Monday's open, the weekly high-low range, and Friday's close.",
       "tier": 2,
       "url": "https://chartschool.stockcharts.com/table-of-contents/chart-analysis/what-are-charts"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      }
     ],
-    "summary": "The Launchpad trails under the rising 21-day average, or under each higher low. Our rule E52: trail under the 10-day or 21-day average and sell on a close below it. On a daily chart, each bar is one day. A swing trader may find the setup on the daily chart and time the entry on an hourly chart. Short-term charts show detail, but also a lot of noise. A weekly bar covers Monday's open to Friday's close."
+    "summary": "The Launchpad trails under the rising 20 EMA, or under each higher low. Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left. On a daily chart, each bar is one day. A swing trader may find the setup on the daily chart and time the entry on an hourly chart. Short-term charts show detail, but also a lot of noise. A weekly bar covers Monday's open to Friday's close. Our rule: the course teaches the 9 and 20 EMA, with the 50 and 200 SMA."
    },
    "facts": {
-    "given": "Our Launchpad trails under the rising 21-day average. Which chart do you manage that trade on? The daily chart The 5-minute chart The weekly chart The hourly chart"
+    "given": "Our Launchpad trails under the rising 20 EMA. Which chart do you manage that trade on? The daily chart The 5-minute chart The weekly chart The hourly chart"
    },
    "lesson_line": "Read the trail to find the clock. A daily average means a daily-chart trade.",
-   "simple": "The daily chart, because a 21-day average is built from daily bars, so the trail lives there.",
+   "simple": "The daily chart, because a daily 20 EMA is built from daily bars, so the trail lives there.",
    "tier": "core",
    "unit": "F11.02",
-   "why": "The daily chart. Our Launchpad trails under the rising 21-day average, or under each higher low. A 21-day average is built from daily bars, one bar per day. Our default trail sells on a close below the 10-day or 21-day average. So the trail and the higher lows both live on the daily chart. A shorter chart can still time the entry, but it does not change where the trade is managed.",
+   "why": "The daily chart. Our Launchpad trails under the rising 20 EMA, or under each higher low. A 20 EMA on the daily chart is built from daily bars, one bar per day. Our default trail sells on a close below the 9 EMA or 20 EMA. So the trail and the higher lows both live on the daily chart. A shorter chart can still time the entry, but it does not change where the trade is managed.",
    "wrong": {
-    "The 5-minute chart": "A 21-day average gets one new bar a day. Five-minute bars add noise the plan doesn't trade on.",
-    "The hourly chart": "An hourly chart can time a swing entry. But a 21-period line there spans 21 hours, not 21 days, so it is a different trail.",
+    "The 5-minute chart": "A daily 20 EMA gets one new bar a day. Five-minute bars add noise the plan doesn't trade on.",
+    "The hourly chart": "An hourly chart can time a swing entry. But a 20-period line there spans 20 hours, not 20 days, so it is a different trail.",
     "The weekly chart": "Too slow. One weekly bar runs Monday to Friday and hides the daily higher lows the trail steps up under."
    }
   },
@@ -2721,7 +2728,7 @@
   "difficulty": 2,
   "id": "si_9a7ee0bcbdac",
   "lesson_origin": "session",
-  "lesson_text": "False. VWAP starts fresh at every open, unrelated to the day before. So it can't follow a trade across three weeks. A three-week swing needs a line that spans days: ChartSchool says 5- to 20-period averages suit short-term trading. Our default trail is the 10-day or the 21-day average, and we sell on a close below it. Trail with a line that lasts as long as the trade.",
+  "lesson_text": "False. VWAP starts fresh at every open, unrelated to the day before. So it can't follow a trade across three weeks. A three-week swing needs a line that spans days: ChartSchool says 5- to 20-period averages suit short-term trading. Our default trail is the 9 EMA or the 20 EMA, and we sell on a close below it. Trail with a line that lasts as long as the trade.",
   "module": "F11",
   "prompt_json": {
    "choices": [
@@ -2759,26 +2766,33 @@
      {
       "accessed": "2026-11-09",
       "name": "UCT house rule: The trade plan for every setup: Kicker and Launchpad rows (entry, stop, trail)",
-      "quote": "under each higher low, or under the 10-day average",
+      "quote": "under each higher low, or under the 9 EMA",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      },
      {
       "accessed": "2026-11-09",
       "name": "UCT house rule: The trade plan for every setup: Kicker and Launchpad rows (entry, stop, trail)",
-      "quote": "under the rising 21-day average, or under each higher low",
+      "quote": "under the rising 20 EMA, or under each higher low",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      },
      {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
+      "accessed": "2026-11-14",
+      "name": "UCT house rule: Our rules, in our words (2026-11-14)",
+      "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
       "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      }
     ],
-    "summary": "VWAP ends at the close and starts fresh at the next open. VWAP is built from one session's intraday data, open to close. Your horizon picks the average's length; 5 to 20 periods suit short-term trading. The Kicker trails under each higher low, or under the 10-day average. The Launchpad trails under the rising 21-day average, or under each higher low. Our rule E52: trail under the 10-day or 21-day average and sell on a close below it."
+    "summary": "VWAP ends at the close and starts fresh at the next open. VWAP is built from one session's intraday data, open to close. Your horizon picks the average's length; 5 to 20 periods suit short-term trading. The Kicker trails under each higher low, or under the 9 EMA. The Launchpad trails under the rising 20 EMA, or under each higher low. Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left. Our rule: the course teaches the 9 and 20 EMA, with the 50 and 200 SMA."
    },
    "facts": {
     "given": "VWAP works as a trailing stop for a three-week swing trade."
@@ -2787,7 +2801,7 @@
    "simple": "False, because VWAP starts over at every open, so it can't follow a trade that lasts three weeks.",
    "tier": "extended",
    "unit": "F11.02",
-   "why": "False. VWAP starts fresh at every open, unrelated to the day before. So it can't follow a trade across three weeks. A three-week swing needs a line that spans days: ChartSchool says 5- to 20-period averages suit short-term trading. Our default trail is the 10-day or the 21-day average, and we sell on a close below it."
+   "why": "False. VWAP starts fresh at every open, unrelated to the day before. So it can't follow a trade across three weeks. A three-week swing needs a line that spans days: ChartSchool says 5- to 20-period averages suit short-term trading. Our default trail is the 9 EMA or the 20 EMA, and we sell on a close below it."
   },
   "review_status": "draft",
   "skill_id": "styles.setups_fit",
@@ -3078,7 +3092,7 @@
   "difficulty": 3,
   "id": "si_6d3b7e92a915",
   "lesson_origin": "session",
-  "lesson_text": "Hold it, and trail on the daily chart. The day-one 30-minute break was only the entry. The Kicker trails under each higher low or under the 10-day average, and we sell on a close below it. We swing trade: days to a few weeks. He very rarely sells on day 1 of the buy and usually waits until day 3 at the earliest. Nothing in the plan sells at the close. The stop stays with the broker overnight as a real order. The entry chart times the buy. The trail sets the clock.",
+  "lesson_text": "Hold it, and trail on the daily chart. The day-one 30-minute break was only the entry. The Kicker trails under each higher low or under the 9 EMA, and we sell on a close below it. We swing trade: days to a few weeks. We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest. Nothing in the plan sells at the close. The stop stays with the broker overnight as a real order. The entry chart times the buy. The trail sets the clock.",
   "module": "F11",
   "prompt_json": {
    "choices": [
@@ -3115,16 +3129,16 @@
      {
       "accessed": "2026-11-09",
       "name": "UCT house rule: The trade plan for every setup: Kicker and Launchpad rows (entry, stop, trail)",
-      "quote": "under each higher low, or under the 10-day average",
+      "quote": "under each higher low, or under the 9 EMA",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      },
      {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
+      "accessed": "2026-11-14",
+      "name": "UCT house rule: Our rules, in our words (2026-11-14)",
+      "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
       "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14"
      },
      {
       "accessed": "2026-11-09",
@@ -3141,11 +3155,11 @@
       "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      },
      {
-      "accessed": "2026-11-12",
-      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
-      "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
+      "accessed": "2026-11-14",
+      "name": "UCT house rule: Our rules, in our words (2026-11-14)",
+      "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
       "tier": 3,
-      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14"
      },
      {
       "accessed": "2026-11-09",
@@ -3181,9 +3195,16 @@
       "quote": "they may use a longer period (like a daily chart) for the trade setup but refer to an hourly chart when planning and executing entry and exit points.",
       "tier": 2,
       "url": "https://www.schwab.com/learn/story/swing-trading-strategies"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      }
     ],
-    "summary": "The Kicker's other entry is the day-one 30-minute opening-range break. The owner's Kicker entry: over the prior day's high, or the day-one 30-minute range break. The Kicker trails under each higher low, or under the 10-day average. Our rule E52: trail under the 10-day or 21-day average and sell on a close below it. Our rule C35: we swing trade, holding days to a few weeks, longer for a winner that keeps working. The owner's ruling: the first sell is a judgment, not a fixed third at 3R. The owner rarely sells on day 1 of the buy and usually waits until day 3 at the earliest. Our rule D41: every position has a real stop order with the broker. Our rule B20: on a gap against the stop, the low of the first 30-minute bar becomes the new stop. Our rule B20's ceiling: if the first 30 minutes take the loss past 2R, get out. Holding overnight exposes a swing trader to gaps at the open. A swing trader may find the setup on the daily chart and time the entry on an hourly chart."
+    "summary": "The Kicker's other entry is the day-one 30-minute opening-range break. The owner's Kicker entry: over the prior day's high, or the day-one 30-minute range break. The Kicker trails under each higher low, or under the 9 EMA. Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left. Our rule C35: we swing trade, holding days to a few weeks, longer for a winner that keeps working. Our rule: the first sell is a judgment, not a fixed third at 3R. We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest. Our rule D41: every position has a real stop order with the broker. Our rule B20: on a gap against the stop, the low of the first 30-minute bar becomes the new stop. Our rule B20's ceiling: if the first 30 minutes take the loss past 2R, get out. Holding overnight exposes a swing trader to gaps at the open. A swing trader may find the setup on the daily chart and time the entry on an hourly chart. Our rule: the course teaches the 9 and 20 EMA, with the 50 and 200 SMA."
    },
    "facts": {
     "given": "What does the plan say to do? You buy our Kicker on the day-one 30-minute opening-range break. At 3:55 p.m. it's up, short of 3R, and well above your stop. Hold it; trail on the daily chart Sell it, it was an intraday entry Sell half of it before the close Hold it; trail on the 30-minute chart"
@@ -3192,10 +3213,10 @@
    "simple": "Hold it, because the 30-minute break only timed the buy, and the plan trails the trade on the daily chart.",
    "tier": "extended",
    "unit": "F11.02",
-   "why": "Hold it, and trail on the daily chart. The day-one 30-minute break was only the entry. The Kicker trails under each higher low or under the 10-day average, and we sell on a close below it. We swing trade: days to a few weeks. He very rarely sells on day 1 of the buy and usually waits until day 3 at the earliest. Nothing in the plan sells at the close. The stop stays with the broker overnight as a real order.",
+   "why": "Hold it, and trail on the daily chart. The day-one 30-minute break was only the entry. The Kicker trails under each higher low or under the 9 EMA, and we sell on a close below it. We swing trade: days to a few weeks. We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest. Nothing in the plan sells at the close. The stop stays with the broker overnight as a real order.",
    "wrong": {
-    "Hold it; trail on the 30-minute chart": "The 30-minute bar only timed the buy. Our Kicker trails under each higher low or the 10-day average, a daily-chart trail.",
-    "Sell half of it before the close": "He very rarely sells on day 1 of the buy. Nothing in the plan sells at the close.",
+    "Hold it; trail on the 30-minute chart": "The 30-minute bar only timed the buy. Our Kicker trails under each higher low or the 9 EMA, a daily-chart trail.",
+    "Sell half of it before the close": "We very rarely sell on day 1 of the buy. Nothing in the plan sells at the close.",
     "Sell it, it was an intraday entry": "The entry chart doesn't set the clock. Swing traders often take a daily setup and time the entry on a shorter chart."
    }
   },
@@ -3875,7 +3896,7 @@
   "difficulty": 1,
   "id": "si_0649d813416f",
   "lesson_origin": "session",
-  "lesson_text": "The trail is each higher low or the 10-day average. The intraday entry doesn't make it a day trade.",
+  "lesson_text": "The trail is each higher low or the 9 EMA. The intraday entry doesn't make it a day trade.",
   "module": "F11",
   "prompt_json": {
    "order": 3,
@@ -3885,7 +3906,7 @@
    "steps": [
     "Use three charts. The longer sets the trend, your main one gives the signal, a shorter one times the entry.",
     "Our Kicker is a daily setup. One entry is the day-one break of the 30-minute opening range.",
-    "The trail is each higher low or the 10-day average. The intraday entry doesn't make it a day trade."
+    "The trail is each higher low or the 9 EMA. The intraday entry doesn't make it a day trade."
    ],
    "subject": "F11.02#w3"
   },
@@ -3930,9 +3951,16 @@
      {
       "accessed": "2026-11-09",
       "name": "UCT house rule: The trade plan for every setup: Kicker and Launchpad rows (entry, stop, trail)",
-      "quote": "under each higher low, or under the 10-day average",
+      "quote": "under each higher low, or under the 9 EMA",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
+     },
+     {
+      "accessed": "2026-11-14",
+      "name": "UCT house rule: Our rules, in our words (2026-11-14)",
+      "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14"
      }
     ]
    },
@@ -4237,7 +4265,7 @@
       "url": "https://www.fidelity.com/bin-public/060_www_fidelity_com/documents/learning-center/trading-basics-4-transcript.pdf"
      }
     ],
-    "summary": "The owner's ruling: the first sell is a judgment, not a fixed third at 3R. Each of our setups comes with its own entry and stop. R is your risk per share: the entry minus the stop. A longer-term trader judges exits on a longer timeframe, not intraday levels; know your timeframe for every trade. A longer-term trader riding a trend might trail a stop 10% below the high."
+    "summary": "Our rule: the first sell is a judgment, not a fixed third at 3R. Each of our setups comes with its own entry and stop. R is your risk per share: the entry minus the stop. A longer-term trader judges exits on a longer timeframe, not intraday levels; know your timeframe for every trade. A longer-term trader riding a trend might trail a stop 10% below the high."
    },
    "facts": {
     "given": "Two trades share the same entry and stop. Their 3R price is the same, even if one is held longer."
@@ -4610,17 +4638,17 @@
   "difficulty": 2,
   "id": "si_2cbc8a6a9034",
   "lesson_origin": "session",
-  "lesson_text": "The 200-day average. The average you read should fit how long you hold. Schwab says a position trader willing to hold up to a year gets a better read from the 200-day. ChartSchool says long-term investors often use 100 or more periods. We use the 200-day too: no longs below it, unless it is a parabolic long. It is a line we read, not our trail. Our setup plans still trail under the 10-day or 21-day average. Same rule, longer clock: the average you watch should fit how long you hold.",
+  "lesson_text": "The 200-day average. The average you read should fit how long you hold. Schwab says a position trader willing to hold up to a year gets a better read from the 200-day. ChartSchool says long-term investors often use 100 or more periods. We use the 200-day too: no longs below it, unless it is a parabolic long. It is a line we read, not our trail. Our setup plans still trail under the 9 EMA or 20 EMA. Same rule, longer clock: the average you watch should fit how long you hold.",
   "module": "F11",
   "prompt_json": {
    "choices": [
-    "The 10-day average",
+    "The 9 EMA",
     "The 200-day average",
     "The 100-hour average",
-    "The 21-day average"
+    "The 20 EMA"
    ],
    "kind": "mcq",
-   "q": "Several of our setup plans trail under the 10-day or 21-day average. Which of these gives the best read on a hold of up to a year?",
+   "q": "Several of our setup plans trail under the 9 EMA or 20 EMA. Which of these gives the best read on a hold of up to a year?",
    "subject": "F11.03#q10"
   },
   "reveal_json": {
@@ -4674,14 +4702,14 @@
      {
       "accessed": "2026-11-09",
       "name": "UCT house rule: The trade plan for every setup: the app's own detector levels and the setup table (owner rulings 2026-11-02 and 2026-11-08)",
-      "quote": "under each higher low, or under the 10-day average",
+      "quote": "under each higher low, or under the 9 EMA",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      },
      {
       "accessed": "2026-11-09",
       "name": "UCT house rule: The trade plan for every setup: the app's own detector levels and the setup table (owner rulings 2026-11-02 and 2026-11-08)",
-      "quote": "under the rising 21-day average, or under each higher low",
+      "quote": "under the rising 20 EMA, or under each higher low",
       "tier": 3,
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      },
@@ -4705,22 +4733,29 @@
       "quote": "The 200-day line: no longs below the 200-day simple moving average, unless it is a parabolic long",
       "tier": 3,
       "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      }
     ],
-    "summary": "For a position trader holding up to a year, the 200-day average fits better. The moving average you use should fit how long you hold. Long-term holders use averages of 100 periods or more. For holds of about 10 trading days or less, the 10 or 20-day average fits. The average's length should match the time horizon: 5 to 20 periods short term, 20 to 60 medium term. A 10-day average hugs price and turns quickly. Our Kicker trail: under each higher low, or under the 10-day average. Our Launchpad trail: under the rising 21-day average, or under each higher low. Our rule: sell partials into strength and trail the rising moving averages. A longer-term trader judges exits on a longer timeframe, not intraday levels; know your timeframe for every trade. Our rule: no longs below the 200-day simple moving average, unless it is a parabolic long."
+    "summary": "For a position trader holding up to a year, the 200-day average fits better. The moving average you use should fit how long you hold. Long-term holders use averages of 100 periods or more. For holds of about 10 trading days or less, the 10 or 20-day average fits. The average's length should match the time horizon: 5 to 20 periods short term, 20 to 60 medium term. A 10-day average hugs price and turns quickly. Our Kicker trail: under each higher low, or under the 9 EMA. Our Launchpad trail: under the rising 20 EMA, or under each higher low. Our rule: sell partials into strength and trail the rising moving averages. A longer-term trader judges exits on a longer timeframe, not intraday levels; know your timeframe for every trade. Our rule: no longs below the 200-day simple moving average, unless it is a parabolic long. Our rule: the course teaches the 9 and 20 EMA, with the 50 and 200 SMA."
    },
    "facts": {
-    "given": "Several of our setup plans trail under the 10-day or 21-day average. Which of these gives the best read on a hold of up to a year? The 200-day average The 10-day average The 21-day average The 100-hour average"
+    "given": "Several of our setup plans trail under the 9 EMA or 20 EMA. Which of these gives the best read on a hold of up to a year? The 200-day average The 9 EMA The 20 EMA The 100-hour average"
    },
    "lesson_line": "Same rule, longer clock: the average you watch should fit how long you hold.",
    "simple": "The 200-day, because a long hold needs a long average, and Schwab says it reads best for holds up to a year.",
    "tier": "extended",
    "unit": "F11.03",
-   "why": "The 200-day average. The average you read should fit how long you hold. Schwab says a position trader willing to hold up to a year gets a better read from the 200-day. ChartSchool says long-term investors often use 100 or more periods. We use the 200-day too: no longs below it, unless it is a parabolic long. It is a line we read, not our trail. Our setup plans still trail under the 10-day or 21-day average.",
+   "why": "The 200-day average. The average you read should fit how long you hold. Schwab says a position trader willing to hold up to a year gets a better read from the 200-day. ChartSchool says long-term investors often use 100 or more periods. We use the 200-day too: no longs below it, unless it is a parabolic long. It is a line we read, not our trail. Our setup plans still trail under the 9 EMA or 20 EMA.",
    "wrong": {
-    "The 10-day average": "Schwab ties the 10 and 20-day to holds of 10 trading days or less. It hugs price and turns quickly, too fast for a hold of up to a year.",
     "The 100-hour average": "That is 100 periods, but of hourly bars. A longer-term trader judges exits on a longer timeframe, not intraday levels.",
-    "The 21-day average": "ChartSchool puts 20 to 60 periods with medium-term trends. A hold of up to a year calls for a longer one."
+    "The 20 EMA": "ChartSchool puts 20 to 60 periods with medium-term trends. A hold of up to a year calls for a longer one.",
+    "The 9 EMA": "Schwab ties the 10 and 20-day to holds of 10 trading days or less. A short line like the 9 EMA hugs price and turns quickly, too fast for a hold of up to a year."
    }
   },
   "review_status": "draft",
@@ -4761,11 +4796,11 @@
       "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      },
      {
-      "accessed": "2026-11-12",
-      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
-      "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
+      "accessed": "2026-11-14",
+      "name": "UCT house rule: Our rules, in our words (2026-11-14)",
+      "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
       "tier": 3,
-      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14"
      },
      {
       "accessed": "2026-11-09",
@@ -4782,7 +4817,7 @@
       "url": "https://vantharp.com/tharp-think-trading-concepts/"
      }
     ],
-    "summary": "The owner's ruling: the first sell is a judgment, not a fixed third at 3R. The owner rarely sells on day 1 of the buy and usually waits until day 3 at the earliest. Go Signal plan: buy the prior close when it trades that session (else the close); stop at the session's low. R is your risk per share: the entry minus the stop."
+    "summary": "Our rule: the first sell is a judgment, not a fixed third at 3R. We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest. Go Signal plan: buy the prior close when it trades that session (else the close); stop at the session's low. R is your risk per share: the entry minus the stop."
    },
    "facts": {
     "calc": {
@@ -5201,7 +5236,7 @@
       "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ],
-    "summary": "Hirsch never lets one position lose more than 2% of the portfolio. Hirsch, holding for the longer term, still caps each stop at 20%. In the owner's words: position size times stop distance is the risk. Put the stop where it belongs and change the size instead. Our stop usually sits within about 3% of the buy price."
+    "summary": "Hirsch never lets one position lose more than 2% of the portfolio. Hirsch, holding for the longer term, still caps each stop at 20%. In our words: position size times stop distance is the risk. Put the stop where it belongs and change the size instead. Our stop usually sits within about 3% of the buy price."
    },
    "facts": {
     "calc": {
@@ -5435,7 +5470,7 @@
       "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      }
     ],
-    "summary": "In the owner's words: position size times stop distance is the risk. Our risk per trade is 0.25% to 2% of the account, chosen by the setup, your results, the market and your edge; never above 2%. Shares are the dollars you'll risk divided by the distance from entry to stop. Picking a size before measuring entry to stop is the biggest sizing mistake. Our stop usually sits within about 3% of the buy price."
+    "summary": "In our words: position size times stop distance is the risk. Our risk per trade is 0.25% to 2% of the account, chosen by the setup, your results, the market and your edge; never above 2%. Shares are the dollars you'll risk divided by the distance from entry to stop. Picking a size before measuring entry to stop is the biggest sizing mistake. Our stop usually sits within about 3% of the buy price."
    },
    "facts": {
     "calc": {
@@ -5849,11 +5884,11 @@
       "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
      },
      {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
+      "accessed": "2026-11-14",
+      "name": "UCT house rule: Our rules, in our words (2026-11-14)",
+      "quote": "Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
       "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14"
      }
     ]
    },
@@ -8497,14 +8532,14 @@
       "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
      },
      {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: Study: the trade plan for every setup (the Entry column the app's detectors compute)",
-      "quote": "the close back over the 4-day average of the highs",
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "Every setup buys as price trades through its trigger, during the day.",
       "tier": 3,
-      "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      }
     ],
-    "summary": "Our Kicker plan has a second day-one entry: the break of the 30-minute opening range. Our Kicker plan's first entry is over the red day's high, on the Kicker day, bought at market as it trades through. Our Slingshot plan enters on the close back over the 4-day average of the highs."
+    "summary": "Our Kicker plan has a second day-one entry: the break of the 30-minute opening range. Our Kicker plan's first entry is over the red day's high, on the Kicker day, bought at market as it trades through. Our rule: every setup buys as price trades through its trigger, during the day."
    },
    "facts": {
     "given": "What's our plan's other way in today? Day one of a Kicker. At 9:42 a.m. it's already well up from the open. You missed the first entry, over the red day's high. A break of the opening range high Buy now, before it runs further Buy the close, once the day is done Wait for a quiet dip near midday"
@@ -8516,7 +8551,7 @@
    "why": "A break of the 30-minute opening range. That is our Kicker plan's second day-one entry. The first is over the red day's high, at market as it trades through. Let the first 30 minutes set the range, then act on the break. Both entries trigger during the Kicker day, not on the close.",
    "wrong": {
     "Buy now, before it runs further": "At 9:42 the 30-minute range isn't set yet, so there is nothing to break. The first entry has passed, and neither entry says buy now.",
-    "Buy the close, once the day is done": "Some of our setups buy the close, like the Slingshot. Both Kicker entries trigger during the day, not on the close.",
+    "Buy the close, once the day is done": "Every setup buys as price trades through its trigger, during the day, never at the close. Both Kicker entries trigger during the day.",
     "Wait for a quiet dip near midday": "A dip isn't in the plan. The trigger is the break of the opening range, whenever it comes."
    }
   },
@@ -8605,7 +8640,7 @@
   "difficulty": 2,
   "id": "si_17f50c6c0e2a",
   "lesson_origin": "session",
-  "lesson_text": "The close comes at 1:00 p.m. NYSE closes early on Thursday, Dec. 24, 2026. A 3:55 p.m. alert fires hours after the close you meant to trade. The next day, Christmas, the market is shut. Check the calendar for early closes, not just closed days. On an early-close day the close comes at 1:00 p.m. Move every close-based plan up.",
+  "lesson_text": "The close comes at 1:00 p.m. NYSE closes early on Thursday, Dec. 24, 2026. A 3:55 p.m. alert fires hours after the close you meant to act on. The next day, Christmas, the market is shut. Check the calendar for early closes, not just closed days. On an early-close day the close comes at 1:00 p.m. Move every close-based exit alert up.",
   "module": "F11",
   "prompt_json": {
    "choices": [
@@ -8616,7 +8651,7 @@
    ],
    "kind": "mcq",
    "q": "What's the problem with that alert?",
-   "story": "Thursday, Dec. 24, 2026. Your plan buys a stock on the close if it holds over its level. You set your usual alert for 3:55 p.m.",
+   "story": "Thursday, Dec. 24, 2026. Your plan sells a stock if it closes under its trail line. You set your usual alert for 3:55 p.m.",
    "subject": "F11.05#q14"
   },
   "reveal_json": {
@@ -8647,13 +8682,13 @@
     "summary": "NYSE closes early, at 1:00 p.m., on Thursday, Dec. 24, 2026. NYSE is closed for Christmas on Friday, Dec. 25, 2026. On NYSE the regular session runs 9:30 a.m. to 4:00 p.m. ET: an opening auction at 9:30, a closing imbalance period from 3:50, and the closing auction at 4:00."
    },
    "facts": {
-    "given": "What's the problem with that alert? Thursday, Dec. 24, 2026. Your plan buys a stock on the close if it holds over its level. You set your usual alert for 3:55 p.m. The close is at 1:00 p.m. that day Nothing, it's a normal full session The market is shut the whole day The market opens late that day"
+    "given": "What's the problem with that alert? Thursday, Dec. 24, 2026. Your plan sells a stock if it closes under its trail line. You set your usual alert for 3:55 p.m. The close is at 1:00 p.m. that day Nothing, it's a normal full session The market is shut the whole day The market opens late that day"
    },
-   "lesson_line": "On an early-close day the close comes at 1:00 p.m. Move every close-based plan up.",
+   "lesson_line": "On an early-close day the close comes at 1:00 p.m. Move every close-based exit alert up.",
    "simple": "The market closes early at 1:00 p.m. on Christmas Eve, so a 3:55 alert comes hours too late.",
    "tier": "extended",
    "unit": "F11.05",
-   "why": "The close comes at 1:00 p.m. NYSE closes early on Thursday, Dec. 24, 2026. A 3:55 p.m. alert fires hours after the close you meant to trade. The next day, Christmas, the market is shut. Check the calendar for early closes, not just closed days.",
+   "why": "The close comes at 1:00 p.m. NYSE closes early on Thursday, Dec. 24, 2026. A 3:55 p.m. alert fires hours after the close you meant to act on. The next day, Christmas, the market is shut. Check the calendar for early closes, not just closed days.",
    "wrong": {
     "Nothing, it's a normal full session": "Not this one. NYSE lists Dec. 24, 2026 as an early close at 1:00 p.m.",
     "The market is shut the whole day": "That's Christmas Day, Friday, Dec. 25. The 24th trades, but only until 1:00 p.m.",
@@ -9032,51 +9067,44 @@
  },
  {
   "answer_json": {
-   "answer": "Act on the close, if it still holds"
+   "answer": "Buy as it trades through the trigger"
   },
   "difficulty": 3,
   "id": "si_44876ae5a977",
   "lesson_origin": "session",
-  "lesson_text": "Act on the close, if it still holds. Our Slingshot entry is the close back over the 4-day average of the highs, not a 3:45 print. A move can still reverse in the final minutes. The last 10 to 15 minutes can help show whether it holds. Friday is not a reason to skip: no weekday has an edge on its own. A level crossed at 3:45 isn't a close. Let the close decide.",
+  "lesson_text": "Buy as it trades through the trigger. Every setup buys as price trades through its trigger, during the day. The stop goes under the low of day, the prior day's low, or the range low. Friday is not a reason to skip: no weekday has an edge on its own. The trigger is the entry, whenever it trades through. The close is not our entry.",
   "module": "F11",
   "prompt_json": {
    "choices": [
     "Wait and buy Monday's open",
     "Skip it, Fridays are bad to buy",
-    "Buy now, it's over the line",
-    "Act on the close, if it still holds"
+    "Wait for the close to confirm it",
+    "Buy as it trades through the trigger"
    ],
    "kind": "mcq",
    "q": "What does our plan say to do?",
-   "story": "Friday, 3:45 p.m. A stock on your list is back over its 4-day average of the highs, a Slingshot. Fifteen minutes to the bell, then the weekend.",
+   "story": "Friday, 3:45 p.m. A stock on your list is trading back over its 4-day average of the highs, our Slingshot trigger. Fifteen minutes to the bell, then the weekend.",
    "subject": "F11.05#q18"
   },
   "reveal_json": {
    "deeper": {
-    "trap": "Buying at 3:45 because it is over now turns a close entry into an intraday one. If it slips back under by the bell, you own a trade the plan never triggered. Reversals in the final hour can be severe."
+    "trap": "The trap is thinking the close makes the entry safer. Waiting for it can leave you well above the trigger, or out of the trade, and a higher entry means a wider stop. Our entry is the trigger itself."
    },
    "depth": {
     "sources": [
      {
-      "accessed": "2026-11-09",
-      "name": "UCT house rule: Study: the trade plan for every setup (the Entry column the app's detectors compute)",
-      "quote": "the close back over the 4-day average of the highs",
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "Every setup buys as price trades through its trigger, during the day.",
       "tier": 3,
-      "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      },
      {
-      "accessed": "2026-11-09",
-      "name": "Charles Schwab: Trading Near the Bells (Kevin Horner, Nov. 26, 2024)",
-      "quote": "Either way, the action in the final 10 to 15 minutes can help signal whether the day's trend will hold or reverse.",
-      "tier": 2,
-      "url": "https://www.schwab.com/learn/story/trading-near-bells"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Charles Schwab: Trading Near the Bells (Kevin Horner, Nov. 26, 2024)",
-      "quote": "And when reversals do occur in the final hour, they may be severe.",
-      "tier": 2,
-      "url": "https://www.schwab.com/learn/story/trading-near-bells"
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "The stop goes under the low of day, the prior day's low, or the range low.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      },
      {
       "accessed": "2026-11-09",
@@ -9100,20 +9128,20 @@
       "url": "https://www.schwab.com/learn/story/trading-near-bells"
      }
     ],
-    "summary": "Our Slingshot plan enters on the close back over the 4-day average of the highs. The last 10 to 15 minutes can help show whether the day's move holds or reverses. Reversals in the final hour can be severe. The weekend effect, among other famous anomalies, weakened or disappeared after it was published. Trading by the day of the week gains nothing, all else equal. News that breaks outside trading hours can unbalance orders and make a stock open far from the prior close."
+    "summary": "Our rule: every setup buys as price trades through its trigger, during the day. Our rule: the stop goes under the low of day, the prior day's low, or the range low. The weekend effect, among other famous anomalies, weakened or disappeared after it was published. Trading by the day of the week gains nothing, all else equal. News that breaks outside trading hours can unbalance orders and make a stock open far from the prior close."
    },
    "facts": {
-    "given": "What does our plan say to do? Friday, 3:45 p.m. A stock on your list is back over its 4-day average of the highs, a Slingshot. Fifteen minutes to the bell, then the weekend. Act on the close, if it still holds Buy now, it's over the line Skip it, Fridays are bad to buy Wait and buy Monday's open"
+    "given": "What does our plan say to do? Friday, 3:45 p.m. A stock on your list is trading back over its 4-day average of the highs, our Slingshot trigger. Fifteen minutes to the bell, then the weekend. Buy as it trades through the trigger Wait for the close to confirm it Skip it, Fridays are bad to buy Wait and buy Monday's open"
    },
-   "lesson_line": "A level crossed at 3:45 isn't a close. Let the close decide.",
-   "simple": "Wait for the close and buy only if it still holds over the line, because our Slingshot enters on the close.",
+   "lesson_line": "The trigger is the entry, whenever it trades through. The close is not our entry.",
+   "simple": "Buy as it trades through the trigger, because our setups enter on the trigger during the day, not at the close.",
    "tier": "expert",
    "unit": "F11.05",
-   "why": "Act on the close, if it still holds. Our Slingshot entry is the close back over the 4-day average of the highs, not a 3:45 print. A move can still reverse in the final minutes. The last 10 to 15 minutes can help show whether it holds. Friday is not a reason to skip: no weekday has an edge on its own.",
+   "why": "Buy as it trades through the trigger. Every setup buys as price trades through its trigger, during the day. The stop goes under the low of day, the prior day's low, or the range low. Friday is not a reason to skip: no weekday has an edge on its own.",
    "wrong": {
-    "Buy now, it's over the line": "Over now isn't over at the close. Reversals in the final hour can be severe, and the plan's trigger is the close.",
     "Skip it, Fridays are bad to buy": "That's folklore. The weekend effect weakened or disappeared once it was published, and no weekday has an edge on its own.",
-    "Wait and buy Monday's open": "The plan's entry is today's close. Monday's open is a different price, and weekend news can gap it far from your level."
+    "Wait and buy Monday's open": "Monday's open is a different price, and weekend news can gap it far from your level. Our entry is the trigger.",
+    "Wait for the close to confirm it": "Our entry is the trigger itself, as price trades through it. Waiting for the close is not the plan."
    }
   },
   "review_status": "draft",

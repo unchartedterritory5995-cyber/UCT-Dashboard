@@ -201,6 +201,14 @@
    "title": "Setup decisions: the owner's rulings (2026-11-12)",
    "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
   }
  ],
  "facts": [
@@ -404,9 +412,9 @@
   },
   {
    "id": "h05",
-   "source": "h1",
-   "quote": "Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
-   "claim": "B19: breakeven between 2R and 5R; the hard rule for the first trim is a third at 3R."
+   "source": "hw",
+   "quote": "The stop may move up to breakeven between 2R and 5R, or at the first sell.",
+   "claim": "Our stop may move up to breakeven between 2R and 5R, or at the first sell."
   },
   {
    "id": "h06",
@@ -494,15 +502,15 @@
   },
   {
    "id": "h20",
-   "source": "h1",
-   "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
-   "claim": "E51: another third at 5R, then trail the last third."
+   "source": "hw",
+   "quote": "Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
+   "claim": "Later sells are a judgment: sell more into strength on a later push, and trail what is left."
   },
   {
    "id": "h21",
-   "source": "h1",
-   "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
-   "claim": "E52: trail the 10-day for fast movers, the 21-day for steadier ones; sell on a close below it."
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
   },
   {
    "id": "h22",
@@ -831,8 +839,8 @@
   {
    "id": "d09",
    "source": "d1",
-   "quote": "The heaviest first-bar volume in the set; the drive ran all day (closed 85% of range), topped at 3R next morning, then round-tripped to the stop two days later: trim a third at 3R or keep nothing.",
-   "claim": "CNC: the heaviest first-bar volume in the set; it topped at 3R, round-tripped two days later: trim a third at 3R or keep nothing."
+   "quote": "The heaviest first-bar volume in the set; the drive ran all day (closed 85% of range), topped at 3R next morning, then round-tripped to the stop two days later",
+   "claim": "CNC: the heaviest first-bar volume in the set; it topped at 3R the next morning, then round-tripped to the stop two days later."
   },
   {
    "id": "d11",
@@ -1046,15 +1054,15 @@
   },
   {
    "id": "r05",
-   "source": "h2",
-   "quote": "I very rarely sell on the day 1 of the buy day.",
-   "claim": "The owner very rarely sells on day 1 of the buy day."
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
   },
   {
    "id": "r06",
-   "source": "h2",
-   "quote": "I usually wait until day 3 at the earliest.",
-   "claim": "The owner usually waits until day 3 at the earliest for the first sell."
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
   },
   {
    "id": "r07",
@@ -1067,6 +1075,12 @@
    "source": "h2",
    "quote": "SO 3-5-7 day or 5-10 R is often best.",
    "claim": "A 3, 5 or 7 day push, or about 5 to 10R, is often the best first sell."
+  },
+  {
+   "id": "r09",
+   "source": "h2",
+   "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+   "claim": "We use the 9 and 20 EMA everywhere, with the 50 and 200 SMA."
   }
  ],
  "walkthroughs": [
@@ -1730,7 +1744,7 @@
     "Whenever the first red candle prints": "A red candle is not a sell signal. The first sell is a judgment, usually day 3 or later."
    },
    "house": true,
-   "simple": "Day 3 at the earliest, because we very rarely sell on day one and picks the first sell by judgment.",
+   "simple": "Day 3 at the earliest, because we very rarely sell on day one and pick the first sell by judgment.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1738,7 +1752,7 @@
      "rests on the owner's rulebook (B19, E51)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q19",
@@ -2071,24 +2085,25 @@
    "criterion": "od.trail",
    "q": "Your last shares ride the trail on a fast mover. What takes you out of them?",
    "choices": [
-    "A close below the 10-day average",
-    "A dip under the 10-day average",
+    "A daily close below the 9 EMA",
+    "A dip under the 9 EMA intraday",
     "One red candle on the chart",
     "A close below the 50-day line"
    ],
-   "answer": "A close below the 10-day average",
-   "why": "A close below the 10-day average. After the first sells, what is left rides the trail. The default trail is the 10-day average for fast movers and the 21-day for steadier ones. It sells on a close below the line, not on a touch and not on one red candle.",
-   "lesson_line": "Trail what is left on a close under the 10-day, or the 21-day for a steadier stock.",
+   "answer": "A daily close below the 9 EMA",
+   "why": "A close below the 9 EMA. After the first sells, what is left rides the trail. The default trail is the 9 EMA for fast movers and the 20 EMA for steadier ones. It sells on a close below the line, not on a touch and not on one red candle.",
+   "lesson_line": "Trail what is left on a close under the 9 EMA, or the 20 EMA for a steadier stock.",
    "facts": [
-    "h21"
+    "h21",
+    "r09"
    ],
    "wrong": {
-    "A dip under the 10-day average": "The trail sells on a close below the line, not a touch.",
-    "A close below the 50-day line": "The default is the 10-day for fast movers, the 21-day for steadier ones.",
-    "One red candle on the chart": "A red candle is not the trail. The trail is a close below the 10-day for a fast mover."
+    "A close below the 50-day line": "The default is the 9 EMA for fast movers, the 20 EMA for steadier ones.",
+    "One red candle on the chart": "A red candle is not the trail. The trail is a close below the 9 EMA for a fast mover.",
+    "A dip under the 9 EMA intraday": "The trail sells on a close below the line, not a touch."
    },
    "house": true,
-   "simple": "A close under the 10-day average ends it. That is our trail for a fast mover, and a touch is not a close.",
+   "simple": "A close under the 9 EMA ends it. That is our trail for a fast mover, and a touch is not a close.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -2096,7 +2111,7 @@
      "rests on the owner's rulebook or a card proposal under owner review (house)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q29",
@@ -2200,7 +2215,7 @@
    "format": "scenario",
    "criterion": "od.not_stretched",
    "q": "Which is too stretched to buy?",
-   "story": "Two drives. One fills 9.8% over its 10-day average. The other fills 12% over its 10-day average.",
+   "story": "Two drives. One fills 9.8% over its 9 EMA. The other fills 12% over its 9 EMA.",
    "choices": [
     "The one 12% over",
     "The one 9.8% over",
@@ -2208,13 +2223,13 @@
     "Neither is too stretched"
    ],
    "answer": "The one 12% over",
-   "why": "The one 12% over. We skip a long that is more than 10% above its 10-day average. 12% is past that line; 9.8% sits just inside it. A gap on top of a run can be stretched before it opens, so measure at the buy. MXL filled 9.8% over its 10-day, the edge of the rule, and ran 5.2R at its best.",
-   "lesson_line": "More than 10% over the 10-day is stretched. A gap on top of a run can be stretched before it opens.",
+   "why": "The one 12% over. We skip a long that is more than 10% above its 9 EMA. 12% is past that line; 9.8% sits just inside it. A gap on top of a run can be stretched before it opens, so measure at the buy.",
+   "lesson_line": "More than 10% over the 9 EMA is stretched. A gap on top of a run can be stretched before it opens.",
    "facts": [
     "h13",
     "c26",
-    "d15",
-    "d17"
+    "d17",
+    "r09"
    ],
    "wrong": {
     "The one 9.8% over": "That is inside the 10% line, at the edge. It passes the stretch rule.",
@@ -2222,9 +2237,9 @@
     "Neither is too stretched": "12% is past the 10% line. It is too stretched to buy."
    },
    "house": true,
-   "simple": "The 12% one, because we skip a long that is more than 10% above its 10-day average.",
+   "simple": "The 12% one, because we skip a long that is more than 10% above its 9 EMA.",
    "deeper": {
-    "example": "MXL: bought 96.97 at 9:35 with the stop at 93.88, 9.8% over its 10-day. It passed the stretch rule by a hair, reached 3R at 3:55 the same day and 5.2R at its best. The line is a rule, not a forecast: 9.8% is allowed, and anything more than 10% is skipped, whatever happens next."
+    "example": "MXL: bought 96.97 at 9:35 with the stop at 93.88. It reached 3R at 3:55 the same day and 5.2R at its best. A run like that does not change the rule. The line is a rule, not a forecast: more than 10% over the 9 EMA is skipped, whatever happens next."
    },
    "tier": "extended",
    "risk": {
@@ -2233,7 +2248,7 @@
      "rests on the owner's rulebook or a card proposal under owner review (house)"
     ]
    },
-   "batch": "wave5"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q33",
@@ -3761,8 +3776,8 @@
   "q32": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key right (h13, c26). MXL figures in d15/d17. Lesson line 21 words. Easy for rung 5 but unambiguous."
+   "fixed": true,
+   "notes": "Text agrees with D-021 (9.8% and 12% are story numbers, MXL's measured 10-day figure dropped from why and deeper). Fix: drop d15 from facts. Its claim ('MXL: 73% above its 200-day and 9.8% over its 10-day') is a measurement against the 10-day and would sit under a 9 EMA story in the depth summary; nothing in the question needs it."
   },
   "q33": {
    "status": "pass",
@@ -3773,8 +3788,8 @@
   "q34": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "keep agrees (depends_on restored to the resolved ruling ids, empty list fails the validator)"
+   "fixed": false,
+   "notes": "Keep right: Market-on-close is keyed wrong; the second entry is the pullback break. Agrees with D-003."
   },
   "q36": {
    "status": "pass",
@@ -3798,13 +3813,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "CNC re-keyed to the first sell being a judgment; no 3R sell taught."
+   "notes": "Keep right: the answer is that the first sell is a judgment; 'a third at 3R is the rule' is keyed wrong. CNC math 72.00 + 3 x 1.84 = 77.52 checks."
   },
   "q41": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer from c06: first bar green, no trade back to the open, need not close in its top 30%, may dip. LRCX numbers match d01-d03 (63%, 5.7x, 16.8R). Two Yes, two No; key not longest."
+   "notes": "Keep right: 'the volume overrides it' is keyed wrong; volume is not a requirement. Agrees with D-006."
   },
   "q44": {
    "status": "cut",
@@ -3871,7 +3886,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Scan statistic kept; 3R/5R as marks; deeper softened."
+   "notes": "Keep right: the volume and 3% stop are the scan's own strict filter quoted as data, not taught as a rule; one-sample caveat present."
   },
   "q58": {
    "status": "pass",
@@ -3991,7 +4006,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Re-keyed to D-013: day 3 at the earliest, by judgment; distractors clearly wrong."
+   "notes": "Right under D-013 (day 3 at the earliest, judgment); only the 'and picks' grammar fixed. Quotes r05/r06/r08 are from the owner's chat text word for word; their claims say 'the owner' (lesson-level, pre-existing)."
   },
   "q19": {
    "status": "pass",
@@ -4021,7 +4036,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with GAP-TRIM/SHORT-ENTRY or not affected; key right, quote exact, style ok"
+   "notes": "Keep right: this is the gap-DOWN-through-the-stop rule (B20), a different topic from GAP-TRIM."
   },
   "q27": {
    "status": "pass",
@@ -4033,7 +4048,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Trail key kept; no 3R/5R thirds wording."
+   "notes": "Trail renamed to 9 EMA / 20 EMA with 'what is left'; answer right; wrongs wrong; D-021 cited."
   },
   "q29": {
    "status": "pass",
@@ -4051,14 +4066,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key right (c11, h02/A4); 24% under one third is from the story. Asked as 'our rules', correct since the warning is the card's.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Keep right: stop is the exit, weak close is a warning; selling at the open is a made-up extra exit, not the GAP-TRIM topic."
   },
   "q42": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Flipped to False: no fixed third at 3R."
+   "notes": "Keep right: False, no fixed third at 3R; first sell is a judgment, day 3, a 3 to 7 day push or 5 to 10R."
   },
   "q43": {
    "status": "pass",

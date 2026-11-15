@@ -31,10 +31,11 @@ FIELDS = ("simple", "why", "lesson_line", "deeper", "tier", "risk", "depends_on"
           "facts", "answer", "sentence", "bank", "prefix", "suffix", "order", "calc", "chart")
 
 
-#: owner 2026-11-12 ("make it a multiple choice"; standing rule 4 in docs/study/REVIEW_LEARNINGS.md): the one format
-#: change a writer or checker may make is a typed-number question becoming a multiple-choice one. Any other `format`
-#: in an upgrade is ignored.
-FORMAT_CHANGES = {("numeric", "mcq")}
+#: owner 2026-11-12 ("make it a multiple choice"; standing rule 4 in docs/study/REVIEW_LEARNINGS.md): a typed-number
+#: question may become a multiple-choice one. 2026-11-14 (the visuals plan): a multiple-choice question may become a
+#: scenario, the same four choices with a story on screen, which is how a chart question says what the chart shows (a
+#: story reaches the member only on a scenario). Any other `format` in an upgrade is ignored.
+FORMAT_CHANGES = {("numeric", "mcq"), ("mcq", "scenario")}
 
 
 def _set_fields(q: dict, up: dict) -> list[str]:

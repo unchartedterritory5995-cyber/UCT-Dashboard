@@ -1772,7 +1772,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "False (SEC f37, f38 Tier 1; f60 corroborates the gap). The statement is False under both the broker mechanics and B20, since either way the shares don't sell at 45, so no key clashes with the rulebook. The B20/D41 teaching gap stays with the owner flag."
+   "notes": "Keep is right: sell stop on a gap DOWN."
   },
   "q22": {
    "status": "pass",

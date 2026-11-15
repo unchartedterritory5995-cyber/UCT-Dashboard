@@ -113,6 +113,14 @@
    "title": "Setup decisions: the owner's rulings (2026-11-12)",
    "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
   }
  ],
  "facts": [
@@ -322,9 +330,9 @@
   },
   {
    "id": "h05",
-   "source": "h1",
-   "quote": "Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
-   "claim": "B19: breakeven between 2R and 5R; the hard rule for the first trim is a third at 3R."
+   "source": "hw",
+   "quote": "The stop may move up to breakeven between 2R and 5R, or at the first sell.",
+   "claim": "Our stop may move up to breakeven between 2R and 5R, or at the first sell."
   },
   {
    "id": "h06",
@@ -406,15 +414,15 @@
   },
   {
    "id": "h20",
-   "source": "h1",
-   "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
-   "claim": "E51: another third at 5R, then trail the last third."
+   "source": "hw",
+   "quote": "Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
+   "claim": "Later sells are a judgment: sell more into strength on a later push, and trail what is left."
   },
   {
    "id": "h21",
-   "source": "h1",
-   "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
-   "claim": "E52: trail the 10-day for fast movers, the 21-day for steadier ones; sell on a close below it."
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
   },
   {
    "id": "h22",
@@ -580,9 +588,9 @@
   },
   {
    "id": "c19",
-   "source": "c1",
-   "quote": "Trail the last third: sell on a close below the 10-day average.",
-   "claim": "This setup's trail: the last third sold on a close below the 10-day average."
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
   },
   {
    "id": "c19b",
@@ -1036,15 +1044,27 @@
   },
   {
    "id": "r71",
-   "source": "h2",
-   "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
-   "claim": "Owner: he very rarely sells on day 1 and usually waits until day 3."
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
   },
   {
    "id": "r72",
    "source": "h2",
    "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
    "claim": "Owner: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
+  },
+  {
+   "id": "r80",
+   "source": "h2",
+   "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+   "claim": "We use the 9 and 20 EMA everywhere, with the 50 and 200 SMA."
+  },
+  {
+   "id": "r81",
+   "source": "h2",
+   "quote": "Below the 200-day is a hard no for stocks. The one exception: indexes and leveraged ETFs may be bought under their 200-day on a reversal extension or a parabolic long.",
+   "claim": "Owner: below the 200-day is a hard no for stocks; indexes and leveraged ETFs are the one exception."
   }
  ],
  "walkthroughs": [
@@ -1126,11 +1146,11 @@
    "choices": [
     "The 20-day EMA of closes",
     "The 20-day SMA line",
-    "The 21-day EMA line",
+    "The 9-day EMA line",
     "The 50-day SMA line"
    ],
    "answer": "The 20-day EMA of closes",
-   "why": "The 20-day EMA of closes. Raschke says she uses a 20-period exponential moving average on all her markets. Our card says the same: not a 20 SMA, not the 21 EMA. Woods' page uses a 20-period simple average instead. The 50-day has a different job: the touch low holds above it.",
+   "why": "The 20-day EMA of closes. Raschke says she uses a 20-period exponential moving average on all her markets. Our card says the same: an exponential average, not a simple one. Woods' page uses a 20-period simple average instead. The 50-day has a different job: the touch low holds above it.",
    "lesson_line": "Twenty-day, exponential, closes. Draw the right line before you judge the touch.",
    "facts": [
     "c06",
@@ -1141,8 +1161,8 @@
    ],
    "wrong": {
     "The 20-day SMA line": "Woods' page says simple. Raschke names the exponential average every time, and so does our card.",
-    "The 21-day EMA line": "Our card says it plainly: not a 20 SMA, not the 21 EMA. Raschke uses a 20-period line.",
-    "The 50-day SMA line": "The 50-day is the floor under the touch, not the line it touches."
+    "The 50-day SMA line": "The 50-day is the floor under the touch, not the line it touches.",
+    "The 9-day EMA line": "Too fast. Raschke names a 20-period line, and so does our card."
    },
    "house": true,
    "simple": "It pulls back to the 20-day EMA of closes, because Raschke names the exponential average and so does our card.",
@@ -1469,7 +1489,7 @@
    "rung": 2,
    "format": "mcq",
    "criterion": "hg.not_stretched",
-   "q": "At the trigger, one stock sits 7% above its 10-day average and another sits 13% above. Which do we skip?",
+   "q": "At the trigger, one stock sits 7% above its 9 EMA and another sits 13% above. Which do we skip?",
    "choices": [
     "Only the one 13% above",
     "Both of the two stocks",
@@ -1477,19 +1497,19 @@
     "Neither of the two stocks"
    ],
    "answer": "Only the one 13% above",
-   "why": "Only the one 13% above. Our rule skips a long that is more than 10% above its 10-day average. 7% is inside that line, so that stock still passes this check. The other checks still apply to it. All ten of our examples filled within 2.5% of the 10-day.",
+   "why": "Only the one 13% above. Our rule skips a long that is more than 10% above its 9 EMA. 7% is inside that line, so that stock still passes this check. The other checks still apply to it.",
    "lesson_line": "A stock at its line is rarely stretched. When it is, pass.",
    "facts": [
     "h13",
-    "d14"
+    "r80"
    ],
    "wrong": {
     "Both of the two stocks": "7% is under the 10% line, so that one still passes the stretch rule.",
-    "Only the one 7% above": "Backwards. The further above the 10-day, the more stretched the entry.",
+    "Only the one 7% above": "Backwards. The further above the 9 EMA, the more stretched the entry.",
     "Neither of the two stocks": "13% is past the 10% line, so that one is skipped."
    },
    "house": true,
-   "simple": "Skip only the stock 13% above, because more than 10% over the 10-day average is too stretched to buy.",
+   "simple": "Skip only the stock 13% above, because more than 10% over the 9 EMA is too stretched to buy.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -1498,7 +1518,7 @@
      "fixed before: flagged-question fix 2026-11-11"
     ]
    },
-   "batch": "wave4b"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q12",
@@ -1607,14 +1627,14 @@
    "criterion": "hg.above_200",
    "q": "A Holy Grail touch under the 200-day is still a buy if the trend is strong enough.",
    "answer": "False",
-   "why": "False. No longs below the 200-day simple moving average, unless it is a parabolic long. Trend strength is not an exception. Our card puts the same rule as a location check: the close is above the 200-day SMA. Under it, there is no Holy Grail to buy.",
+   "why": "False. Below the 200-day is a hard no for a stock, and trend strength is not an exception. The one exception is indexes and ETFs built to magnify an index's moves, on a reversal extension or a parabolic long. Our card puts the same rule as a location check: the close is above the 200-day SMA. Under it, there is no Holy Grail to buy.",
    "lesson_line": "Under the 200-day, there is no Holy Grail to buy.",
    "facts": [
-    "h10",
+    "r81",
     "c04"
    ],
    "house": true,
-   "simple": "False. We never buy a long under the 200-day, however strong it looks, unless it is a parabolic long.",
+   "simple": "False. Under the 200-day a stock is a hard no, however strong it looks.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1622,7 +1642,7 @@
      "rests on the owner's rulebook (B26)"
     ]
    },
-   "batch": "wave4b"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q16",
@@ -1725,8 +1745,8 @@
     "A quarter, on the first green day"
    ],
    "answer": "A judgment, often day 3 or later",
-   "why": "A judgment. The first sell is not a fixed third at 3R. He very rarely sells on day 1 of the buy. Selling into a 3, 5 or 7 day push is often best.",
-   "lesson_line": "The first sell is a judgment. He waits, often to day 3 or later.",
+   "why": "A judgment. The first sell is not a fixed third at 3R. We very rarely sell on day 1 of the buy. Selling into a 3, 5 or 7 day push is often best.",
+   "lesson_line": "The first sell is a judgment. We wait, often to day 3 or later.",
    "facts": [
     "r70",
     "r71",
@@ -1735,10 +1755,10 @@
    "wrong": {
     "A third, the moment it hits 3R": "3R is no longer a fixed sell point. The first sell is a judgment.",
     "Half, the moment it hits 3R": "Half at 3R is not the plan. The first sell is a judgment.",
-    "A quarter, on the first green day": "He very rarely sells on day 1 of the buy, and the plan sets no quarter."
+    "A quarter, on the first green day": "We very rarely sell on day 1 of the buy, and the plan sets no quarter."
    },
    "house": true,
-   "simple": "The first sell is a judgment, not a fixed third at 3R, and he rarely sells on day 1.",
+   "simple": "The first sell is a judgment, not a fixed third at 3R, and we rarely sell on day 1.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -1747,7 +1767,7 @@
      "+1 fixed before (cold check 2026-11-10)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q19",
@@ -2129,7 +2149,7 @@
    ],
    "wrong": {
     "Sell a third; 3R is a fixed rule": "3R is no fixed sell point. The first sell is a judgment.",
-    "Sell the whole position at the open": "The plan sells in parts and trails the rest. It does not exit on a gap.",
+    "Sell the whole position at the open": "A gap is not a rule to exit everything. Any sell is a judgment, and what is left is trailed.",
     "Add shares because it gapped up": "No adds. The plan is one entry at one price with one stop."
    },
    "story": "You bought a Holy Grail long on Monday. Thursday it closes at 2.5R. Friday, the fifth session of the trade, it gaps open to 3.4R.",
@@ -2142,7 +2162,7 @@
      "rests on the owner's rulebook (F63, B19, E51)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q29",
@@ -2226,28 +2246,29 @@
    "rung": 4,
    "format": "mcq",
    "criterion": "hg.trail",
-   "q": "The last third of a Holy Grail winner trails which line, by our card?",
+   "q": "What is left of a Holy Grail winner trails which line, by our card?",
    "choices": [
-    "The 10-day, on a close below",
-    "The 21-day; it is steadier",
-    "The 20 EMA, Raschke's line",
+    "The 9 EMA, on a close below",
+    "The 20 EMA; it is steadier",
+    "The 20-day SMA, Woods' line",
     "The 50-day, to give it more room"
    ],
-   "answer": "The 10-day, on a close below",
-   "why": "The 10-day, sold on a close below it. Our rulebook's default trail is the 10-day average for fast movers and the 21-day for steadier ones. The card picks the 10-day here, for a stock that has just pushed its ADX. It is a close below the line, not a touch during the day.",
-   "lesson_line": "Trail the 10-day. Sell the close below it, not the touch.",
+   "answer": "The 9 EMA, on a close below",
+   "why": "The 9 EMA, sold on a close below it. Our default trail is the 9 EMA for fast movers and the 20 EMA for steadier ones. The card picks the 9 EMA here, for a stock that has just pushed its ADX. It is a close below the line, not a touch during the day.",
+   "lesson_line": "Trail the 9 EMA. Sell the close below it, not the touch.",
    "facts": [
     "c19",
     "c19b",
-    "h21"
+    "h21",
+    "r80"
    ],
    "wrong": {
-    "The 21-day; it is steadier": "The 21-day is for steadier names. The card picks the 10-day for a stock that just pushed its ADX.",
-    "The 20 EMA, Raschke's line": "The 20 EMA is the entry's line. The card trails the last third on the 10-day.",
-    "The 50-day, to give it more room": "Our default trail is the 10-day or the 21-day, not the 50-day. The card uses the 10-day here."
+    "The 50-day, to give it more room": "Our default trail is the 9 EMA or the 20 EMA, not the 50-day. The card uses the 9 EMA here.",
+    "The 20 EMA; it is steadier": "The 20 EMA is for steadier names. The card picks the 9 EMA for a stock that just pushed its ADX.",
+    "The 20-day SMA, Woods' line": "Our lines are exponential. The card trails what is left on the 9 EMA."
    },
    "house": true,
-   "simple": "Trail the last third on the 10-day, sold on a close below it. Our rule trails fast movers on the 10-day.",
+   "simple": "Trail what is left on the 9 EMA, sold on a close below it. Our rule trails fast movers on the 9 EMA.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -2256,7 +2277,7 @@
      "+1 fixed before (cold check 2026-11-10)"
     ]
    },
-   "batch": "wave4b"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q32",
@@ -2350,11 +2371,12 @@
     "h17",
     "c24",
     "h13",
-    "h32"
+    "h32",
+    "r80"
    ],
    "wrong": {
     "The laggard; it has room to run": "Room to run is a story. Lagging its group is the B- row.",
-    "Neither; an RS of 92 is overbought": "A high RS is what the A+ row asks for. Stretch is a different check: more than 10% over the 10-day.",
+    "Neither; an RS of 92 is overbought": "A high RS is what the A+ row asks for. Stretch is a different check: more than 10% over the 9 EMA.",
     "Both; the shape is what grades it": "The shape is the same here, so it cannot split them. Our card's A+ row asks for RS 90 or more, top group."
    },
    "house": true,
@@ -2367,7 +2389,7 @@
      "E50: grading is discretionary, the owner should confirm the card's grade rows"
     ]
    },
-   "batch": "wave4b"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q35",
@@ -3586,8 +3608,8 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "hg.climax",
-   "story": "You hold the last third of a Holy Grail winner on your trail. Then it goes vertical: three straight up days, the last two on overnight gap ups. Ranges widen and volume rises each day.",
-   "q": "What do you do with the last third?",
+   "story": "You hold what is left of a Holy Grail winner on your trail. Then it goes vertical: three straight up days, the last two on overnight gap ups. Ranges widen and volume rises each day.",
+   "q": "What do you do with what is left?",
    "choices": [
     "Sell a big part into the strength",
     "Hold it until the trail sells it",
@@ -3619,7 +3641,7 @@
      "+1 how much to sell is a judgment call, so the key stays at a big part"
     ]
    },
-   "batch": "polish"
+   "batch": "sweep-2026-11-14"
   }
  ],
  "conflicts": [
@@ -3665,9 +3687,8 @@
   "q01": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Derived the 20-day EMA of closes from r30/c06 before reading the key; matches. Choices balanced (24-26 chars), Woods' SMA shown as his (w02), 50-day note rests on c10. No second answer, no tell.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "Answer is right (20-day EMA). The 21-day EMA distractor and the 'not the 21 EMA' line still name a line that is not on the Study chart (D-021); replaced the distractor with the 9-day EMA and reworded why."
   },
   "q02": {
    "status": "pass",
@@ -3726,9 +3747,9 @@
   },
   "q11": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave4b; awaiting cold re-read"
+   "notes": "D-021 rename done, measured 2.5% line dropped, key right (13% skipped), wrongs right, style ok."
   },
   "q12": {
    "status": "cut",
@@ -3751,9 +3772,9 @@
   },
   "q15": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave4b; awaiting cold re-read"
+   "notes": "D-009 now limits the exception to indexes and leveraged ETFs; key False right; r81 quote verbatim."
   },
   "q16": {
    "status": "pass",
@@ -3771,7 +3792,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Re-keyed to judgment; quotes ok."
+   "notes": "Key is judgment/day 3 or later (D-013); fixed thirds only as wrong choices; owner voice is we; quotes r70-r72 verbatim."
   },
   "q19": {
    "status": "pass",
@@ -3811,9 +3832,9 @@
   },
   "q25": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave4b; awaiting cold re-read"
+   "notes": "Gap DOWN through a stop (B20 house rule), not a gap-up trim; R math 72.00-70.50=1.50, 2R line 69.00, 69.40 inside; keep."
   },
   "q26": {
    "status": "pass",
@@ -3831,7 +3852,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with GAP-TRIM/SHORT-ENTRY or not affected; key right, quote exact, style ok"
+   "notes": "Key weigh selling some = judgment, not a rule (D-013, GAP-TRIM); fixed third and sell-all are wrong; wrong notes consistent."
   },
   "q29": {
    "status": "pass",
@@ -3849,7 +3870,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from c19/c19b, consistent with E52 (h21). Not against the rulebook."
+   "notes": "D-021 and D-013 applied; key 9 EMA on a close below; each wrong is wrong; r80 cited; no new numbers."
   },
   "q32": {
    "status": "cut",
@@ -3867,7 +3888,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Derived the RS 92 leader from c25 (A+ row RS 90+, top group) and c26 (laggard = B-) first; matches. Stem scoped to 'our A+ cue', h32 carried in the why. Distractors are real misconceptions (room to run, overbought) with h13 for stretch; choices 28-34 chars, no tell."
+   "notes": "Only a wrong note renamed to the 9 EMA; key unchanged and right."
   },
   "q35": {
    "status": "pass",
@@ -3952,8 +3973,8 @@
   "q48": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key 'A or B; 10 sessions, not A+' right by c09, scoped to the length cue. But 'It stopped out with no excursion past 0.5R' is presented as our CELH case and no cited quote holds it: d24b, which the earlier fix says it added, is not in the facts array. Add it (verbatim in the dossier's CELH paragraph) and cite it. Nothing else changed."
+   "fixed": false,
+   "notes": "The 10-day pullback counts sessions, not an average; no ruling contradicted."
   },
   "q49": {
    "status": "cut",
@@ -4025,13 +4046,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Re-keyed first sell judgment, market entry unchanged; ok."
+   "notes": "Key judge the first sell; third at 3R only as a wrong choice; stop under swing low is an accepted pattern-low stop (D-008); trigger entry (D-003)."
   },
   "q61": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "D-003 agrees: buys the trigger, touch-at-close is the wrong choice; keep."
+   "notes": "Entry at the trigger is the key; buying the touch at the close is a wrong choice (D-003); nothing superseded taught."
   },
   "q62": {
    "status": "pass",
@@ -4073,8 +4094,8 @@
   "q68": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key from C34 (h16) agrees: sell a big part into a climax run on your own long. Three defects. (1) New fact h33 truncates B26 mid-list, so its claim and the why present two boxes as Bracco's whole definition; B26 lists five boxes and says 'the more boxes checked, the stronger'. With only two boxes ticked and the owner's 'yes but depends' on C34, holding on the trail was a second defensible answer. Widen h33 (below) and make the story tick most boxes. (2) The story, the why ('The 10-day trail stays the default') and a wrong note taught the 10-day trail as settled, but card criterion hg.trail is "
+   "fixed": false,
+   "notes": "'Last third' reworded to what is left (D-013); key big part into the burst is a judgment per the house rule h16."
   }
  }
 }

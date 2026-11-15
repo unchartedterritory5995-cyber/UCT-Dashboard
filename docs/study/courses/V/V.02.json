@@ -3545,7 +3545,7 @@
    ],
    "wrong": {
     "Big sellers are taking over": "Big sellers leave heavy volume behind. This dip is quiet.",
-    "Volume doesn't matter on a dip": "It matters a lot. Schwab reads a decline without heavy volume as limited concern.",
+    "Volume doesn't matter on a dip": "It matters some. Schwab reads a decline without heavy volume as limited concern.",
     "Likely weak demand ahead": "Light volume on the way down means sellers aren't pressing. Schwab reads a decline without above average volume as a sign that concern is limited."
    },
    "simple": "It's likely just a pullback, because light volume on the dip shows few people are rushing to sell.",
@@ -4631,7 +4631,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "False is right. Bulkowski page re-read 2026-11-12: 'Since year 2000, 58% of 10,305 chart patterns with upward breakouts had throwbacks', 30-day window confirmed. 'Usually' is a claim above 50%, so the 58% makes it false. No tell found."
+   "notes": "Chart-pattern throwback statistic; no ruling touched."
   },
   "q18": {
    "status": "pass",
@@ -4762,9 +4762,9 @@
   },
   "q39": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Reading of light volume on a dip is fine and agrees with HEAVY-DOWN; only the wrong note 'It matters a lot' overstates volume against D-006 (volume raises the grade, not a major requirement). Softened."
   },
   "q40": {
    "status": "pass",

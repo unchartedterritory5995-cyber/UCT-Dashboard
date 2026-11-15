@@ -131,6 +131,14 @@ def _first(doc, key):
     (lambda d: _first(d, "q01").update(story="A stock trades at 20.00 bid, 20.02 ask."), "a story only reaches the member on a scenario"),
     (lambda d: _first(d, "q04").update(story="Hidden ticker, bought on the breakout at 73.", q="16 with the stop at 72.24. Where is 3R?"),
      "a number is cut between the story and the question"),
+    (lambda d: _first(d, "q04").update(story="WSM rests under its pivot.", chart={"sym": "WSM", "asof": "2023-09-25"}),
+     "names the chart's ticker"),
+    (lambda d: _first(d, "q04").update(story="Bought at 73.16, stop 72.24.",
+                                       chart={"sym": "WSM", "asof": "2023-09-25", "trade": {"entry": 72.24, "stop": 73.16}}),
+     "the stop must sit below the entry"),
+    (lambda d: _first(d, "q04").update(story="Bought at 73.16, stop 72.24.",
+                                       chart={"sym": "WSM", "asof": "2023-09-25", "trade": {"entry": 73.16, "stop": 71.5}}),
+     "is not in the question's words"),
     (lambda d: _first(d, "q01").update(why="That's the bid. It is 42 cents."), "number 42 is not in a cited quote"),
     (lambda d: _first(d, "q01").update(q="It's important to know: which price is the bid?"), "importer: voice"),
     (lambda d: _first(d, "q01").update(lesson_line=" ".join(["w"] * 23)), "lesson_line is 23 words"),
@@ -142,6 +150,23 @@ def test_validator_catches(mutate, expect):
     mutate(d)
     probs = cl.unit_problems(d)
     assert any(expect in p for p in probs), probs
+
+
+def test_our_lines_are_the_9_and_20_ema_on_live_questions_only():
+    """D-021 (2026-11-12): our own trail / EMA is never the 10-day or 21-day in member text; an originator's own method,
+    a measured value and a question that is not live are left alone."""
+    stale = "We trail the rest under the 21-day EMA."
+    d = copy.deepcopy(_unit())
+    _first(d, "q01")["deeper"] = {"trap": stale}
+    assert any("names our line as the 10-day / 21-day" in p for p in cl.unit_problems(d))
+    for ok in ("Kell trails under the 10 EMA.", "It held the 21-day EMA at 41.20.", "We trail the rest under the 20 EMA."):
+        d = copy.deepcopy(_unit())
+        _first(d, "q01")["deeper"] = {"trap": ok}
+        assert not any("names our line" in p for p in cl.unit_problems(d)), ok
+    d = copy.deepcopy(_unit())
+    _first(d, "q01")["deeper"] = {"trap": stale}
+    d["verify"]["q01"]["status"] = "cut"
+    assert not any("names our line" in p for p in cl.unit_problems(d))
 
 
 def test_setup_track_is_registered_with_its_own_slug():

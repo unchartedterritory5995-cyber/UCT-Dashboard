@@ -157,6 +157,14 @@
    "title": "Setup decisions: the owner's rulings (2026-11-12)",
    "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
   }
  ],
  "facts": [
@@ -612,9 +620,9 @@
   },
   {
    "id": "h20",
-   "source": "h1",
-   "quote": "Move the stop to breakeven at 2R to 5R, ideally.",
-   "claim": "B19: breakeven at 2R to 5R, ideally."
+   "source": "hw",
+   "quote": "The stop may move up to breakeven between 2R and 5R, or at the first sell.",
+   "claim": "Our stop may move up to breakeven between 2R and 5R, or at the first sell."
   },
   {
    "id": "h21",
@@ -1203,6 +1211,12 @@
    "source": "h2",
    "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
    "claim": "D-013: the first sell is a judgment, not a fixed third at 3R."
+  },
+  {
+   "id": "r06",
+   "source": "h2",
+   "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+   "claim": "D-021: the course uses the 9 and 20 EMA everywhere, with the 50 and 200 SMA."
   }
  ],
  "walkthroughs": [
@@ -2919,11 +2933,12 @@
     "h03",
     "b01",
     "c21",
-    "h01"
+    "h01",
+    "r06"
    ],
    "wrong": {
     "The Parabolic Short, on the crack": "A short needs a burst up and a gap up. This burst ran down.",
-    "A Wedge Drop, on the gap down": "A Wedge Drop comes after a 3 to 10 day stall at the 10-day EMA, and only below the 200-day. This is a burst down, not a stall.",
+    "A Wedge Drop, on the gap down": "A Wedge Drop comes after a 3 to 10 day stall at the 9 EMA, and only below the 200-day. This is a burst down, not a stall.",
     "No trade; no longs below the 200-day": "Our 200-day rule has an exception for the parabolic long, the mirror image: a burst down."
    },
    "house": true,
@@ -2935,7 +2950,7 @@
      "rests on the owner's mirror rule (B26)"
     ]
    },
-   "batch": "wave3"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q45",
@@ -2951,14 +2966,15 @@
     "A News Failure on the breakdown"
    ],
    "answer": "A Wedge Drop on the breakdown",
-   "why": "A Wedge Drop. It comes days later, after a 3 to 10 day stall within 1 ATR of the 10-day EMA. It is taken only below the 200-day. A Parabolic Short is taken on the climax day itself, far above its 200-day. The Wedge Drop sits on the averages.",
+   "why": "A Wedge Drop. It comes days later, after a 3 to 10 day stall within 1 ATR of the 9 EMA. It is taken only below the 200-day. A Parabolic Short is taken on the climax day itself, far above its 200-day. The Wedge Drop sits on the averages.",
    "lesson_line": "Measure the distance from the averages. The climax is far from them; the Wedge Drop sits on them.",
    "facts": [
     "c21",
     "c20",
     "c22",
     "c42",
-    "c19"
+    "c19",
+    "r06"
    ],
    "wrong": {
     "A Parabolic Short on the breakdown": "The climax day is far above the averages. This stock is sitting on them, days after its top.",
@@ -2966,8 +2982,8 @@
     "A News Failure on the breakdown": "A News Failure is a good-news gap up that closes red. There was no gap here, just a stall and a break."
    },
    "house": true,
-   "story": "A stock under its 200-day topped days ago, then stalled five days at its 10-day EMA. Today it broke down out of that stall.",
-   "simple": "This is a Wedge Drop. It comes days after the top, from a stall at the 10-day EMA under the 200-day.",
+   "story": "A stock under its 200-day topped days ago, then stalled five days at its 9 EMA. Today it broke down out of that stall.",
+   "simple": "This is a Wedge Drop. It comes days after the top, from a stall at the 9 EMA under the 200-day.",
    "deeper": {
     "trap": "Both are shorts, so the names are easy to mix up. Ask two things: how far is the price from its averages, and is it above or below the 200-day? Far above on the climax day is the Parabolic Short. On the averages, days later, under the 200-day, is the Wedge Drop."
    },
@@ -2978,7 +2994,7 @@
      "rests on the card's setup definitions"
     ]
    },
-   "batch": "wave3"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q46",
@@ -4371,7 +4387,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key derived from the cited quotes before reading the key; no second defensible answer, no tell, numbers grounded, sentences and choices within limits."
+   "notes": "10-day is the 10 trading day time stop, not an average; 9 EMA already used."
   },
   "q37": {
    "status": "pass",
@@ -4420,13 +4436,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key derived from the cited quotes before reading the key; no second defensible answer, no tell, numbers grounded, sentences and choices within limits."
+   "notes": "D-021 rename done in the Wedge Drop wrong text; r06 verbatim."
   },
   "q45": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key derived from the cited quotes before reading the key; no second defensible answer, no tell, numbers grounded, sentences and choices within limits."
+   "notes": "D-021 rename in story, why, simple; nothing measured; entry on the breakdown is intraday."
   },
   "q46": {
    "status": "pass",
@@ -4476,7 +4492,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with GAP-TRIM/SHORT-ENTRY or not affected; key right, quote exact, style ok"
+   "notes": "Close entry is the wrong option, key is the intraday VWAP break; D-005 past-5% note and r01/r02 verbatim."
   },
   "q54": {
    "status": "cut",

@@ -802,7 +802,7 @@
     "Below the 200-day, unless parabolic",
     "Above the 200-day, in an uptrend",
     "Either side, if the setup is right",
-    "Below the 10-day, in any trend"
+    "Below the 20 EMA, in any trend"
    ],
    "answer": "Below the 200-day, unless parabolic",
    "why": "Below the 200-day, unless parabolic. Shorts go only below the 200-day, never above it unless it is a parabolic short. It mirrors the long rule: no longs below the line unless parabolic. In a Red market we sit mostly in cash, plus shorts below the 200-day.",
@@ -815,7 +815,7 @@
    "wrong": {
     "Above the 200-day, in an uptrend": "That's backwards. Above the 200-day is where our longs live. A short goes there only as a parabolic short.",
     "Either side, if the setup is right": "No. The one short above the 200-day we take is a parabolic short. Every other short waits for the stock to be below the line.",
-    "Below the 10-day, in any trend": "The 10-day isn't our short line. Shorts go only below the 200-day, unless it's a parabolic short."
+    "Below the 20 EMA, in any trend": "The 20 EMA isn't our short line. Shorts go only below the 200-day, unless it's a parabolic short."
    },
    "simple": "Below the 200-day, because shorts mirror our long rule, and only a parabolic short may sit above the line.",
    "tier": "core",
@@ -826,7 +826,7 @@
      "fixed before"
     ]
    },
-   "batch": "wave9"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q05",
@@ -1757,7 +1757,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "True by h05 + h07, exception carried so False is not defensible. Previews q13/q26 only as rung-1 recall of a rule the walkthrough w2 already states; acceptable."
+   "notes": "Keep. 'Hard rule' is the 200-day rule (B26/D-009), not D-013; agrees with the rulings."
   },
   "q03": {
    "status": "cut",
@@ -1769,8 +1769,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Decided cold from h05 (shorts only below the 200-day, never above it unless parabolic): key matches. Lengths 35/32/36/35, key not longest, no lone absolute. Each wrong note rests on h05. It shows the parabolic exception that q22 tests, but q22 (rung 7) tests spotting the burst from the story, and q02/w2 already state the exception, so it gives nothing away. h04, h05, h06 match sizing_rule.md B26 and D46 word for word.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "D-021 distractor rename fine; answer unchanged; wrong text accurate; choice lengths ok."
   },
   "q05": {
    "status": "pass",
@@ -1824,7 +1823,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "No by h05/h07; story rules out a burst. Short note grounded in h14. Lengths 28-33, key not longest."
+   "notes": "Keep. 200-day hard rule agrees with D-009; stair-step decline is not parabolic."
   },
   "q14": {
    "status": "pass",
@@ -1905,7 +1904,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Only the key breaks anything (h05/h07); other three follow h02/h37/h04. Deliberately no Orange-guide distractor, which would be defensible as firm (conflicts note)."
+   "notes": "Keep. Hard rule vs guide framing agrees with D-009 and D-006/D-029 spirit."
   },
   "q27": {
    "status": "pass",

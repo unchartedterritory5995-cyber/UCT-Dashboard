@@ -452,6 +452,14 @@
    "title": "Setup decisions: the owner's rulings (2026-11-12)",
    "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
   }
  ],
  "facts": [
@@ -1347,13 +1355,13 @@
    "id": "h04",
    "source": "h3",
    "quote": "Hold your winners by selling partials into strength and trailing the rising moving averages.",
-   "claim": "In the owner's words: sell partials into strength and trail the rising moving averages."
+   "claim": "In our words: sell partials into strength and trail the rising moving averages."
   },
   {
    "id": "h09",
-   "source": "h4",
-   "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
-   "claim": "After the first third at 3R, we sell another third at 5R and trail the last third."
+   "source": "hw",
+   "quote": "Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
+   "claim": "Later sells are a judgment: sell more into strength on a later push, and trail what is left."
   },
   {
    "id": "h4a3",
@@ -1381,15 +1389,15 @@
   },
   {
    "id": "h4b19",
-   "source": "h4",
-   "quote": "Move the stop to breakeven at 2R to 5R, ideally.",
-   "claim": "We move the stop to breakeven once the trade is up 2R to 5R, ideally."
+   "source": "hw",
+   "quote": "The stop may move up to breakeven between 2R and 5R, or at the first sell.",
+   "claim": "Our stop may move up to breakeven between 2R and 5R, or at the first sell."
   },
   {
    "id": "h4e52",
-   "source": "h4",
-   "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
-   "claim": "Our default trail sells on a close below the 10-day average for fast movers or the 21-day for steadier ones."
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
   },
   {
    "id": "h4d41",
@@ -1429,9 +1437,9 @@
   },
   {
    "id": "hB19",
-   "source": "h4",
-   "quote": "Move the stop to breakeven at 2R to 5R, ideally.",
-   "claim": "We move the stop to breakeven somewhere from 2R to 5R, ideally."
+   "source": "hw",
+   "quote": "The stop may move up to breakeven between 2R and 5R, or at the first sell.",
+   "claim": "Our stop may move up to breakeven between 2R and 5R, or at the first sell."
   },
   {
    "id": "hB22",
@@ -1447,9 +1455,9 @@
   },
   {
    "id": "hE52",
-   "source": "h4",
-   "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
-   "claim": "Our default trail is the 10-day average for fast movers and the 21-day for steadier ones."
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
   },
   {
    "id": "hA4",
@@ -1459,15 +1467,15 @@
   },
   {
    "id": "r01",
-   "source": "h5",
-   "quote": "I very rarely sell on the day 1 of the buy day.",
-   "claim": "The owner very rarely sells on day 1 of the buy day."
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
   },
   {
    "id": "r02",
-   "source": "h5",
-   "quote": "I usually wait until day 3 at the earliest.",
-   "claim": "The owner usually waits until day 3 at the earliest for the first sell."
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
   },
   {
    "id": "r03",
@@ -1480,6 +1488,18 @@
    "source": "h5",
    "quote": "SO 3-5-7 day or 5-10 R is often best.",
    "claim": "A 3, 5 or 7 day push, or about 5 to 10R, is often the best first sell."
+  },
+  {
+   "id": "r05",
+   "source": "h5",
+   "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+   "claim": "D-021: the course uses the 9 and 20 EMA everywhere, with the 50 and 200 SMA."
+  },
+  {
+   "id": "r06",
+   "source": "h5",
+   "quote": "The low of day (the entry day's low) is the primary stop. The pattern's low and a line minus a cushion are acceptable alternatives, not wrong answers.",
+   "claim": "D-008: the low of day is the primary stop; a line minus a cushion is an acceptable alternative."
   }
  ],
  "walkthroughs": [
@@ -1887,14 +1907,15 @@
     "It sells at a 2R profit target"
    ],
    "answer": "It trails after the earlier sells",
-   "why": "It trails after the earlier sells. The first sell is a judgment: we very rarely sell on day 1 and usually wait until day 3 at the earliest. A 3, 5 or 7 day push, or about 5 to 10R, is often best. What is left then trails on a close below the 10-day average, or the 21-day for steadier movers.",
+   "why": "It trails after the earlier sells. The first sell is a judgment: we very rarely sell on day 1 and usually wait until day 3 at the earliest. A 3, 5 or 7 day push, or about 5 to 10R, is often best. What is left then trails on a close below the 9 EMA, or the 20 EMA for steadier movers.",
    "lesson_line": "The first sell is a judgment, not a fixed third. Then trail what is left.",
    "facts": [
     "r01",
     "r02",
     "r03",
     "r04",
-    "h4e52"
+    "h4e52",
+    "r05"
    ],
    "wrong": {
     "It sells at a set percent gain": "Our plan does not sell the last part at a set percent. It trails.",
@@ -1912,7 +1933,7 @@
      "fixed before (was 2R and 3R)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q11",
@@ -3593,7 +3614,7 @@
    ],
    "simple": "Your stop is at $68, because it sits 20% under the $85 high and never moves down.",
    "deeper": {
-    "counter": "A percent trail is one way to trail. Our own default is not a percent. We sell on a close below the 10-day average for fast movers, or the 21-day for steadier ones."
+    "counter": "A percent trail is one way to trail. Our own default is not a percent. We sell on a close below the 9 EMA for fast movers, or the 20 EMA for steadier ones."
    },
    "tier": "extended",
    "risk": {
@@ -3684,7 +3705,7 @@
    ],
    "simple": "True, a trail set far away lets the price fall further before you are out, so you give back more.",
    "deeper": {
-    "counter": "A wider trail is not always worse. A tight trail can stop you out on a normal dip and miss the rest of the run. The wide trail loses more only at the final turn. Our default trail is the 10-day average for fast movers and the 21-day for steadier ones."
+    "counter": "A wider trail is not always worse. A tight trail can stop you out on a normal dip and miss the rest of the run. The wide trail loses more only at the final turn. Our default trail is the 9 EMA for fast movers and the 20 EMA for steadier ones."
    },
    "tier": "extended",
    "risk": {
@@ -3828,7 +3849,7 @@
    "rung": 5,
    "format": "mcq",
    "term": "ATR",
-   "q": "Our Launchpad stop goes under the 21-day and 50-day averages. How far under the lower one?",
+   "q": "Our Launchpad line-based stop goes under the 20 EMA and 50 SMA. How far under the lower one?",
    "choices": [
     "A quarter of an ATR below",
     "Three full ATRs below it",
@@ -3836,12 +3857,14 @@
     "Right on it, with no cushion"
    ],
    "answer": "A quarter of an ATR below",
-   "why": "A quarter of an ATR below. Our Launchpad plan puts the stop under both the 21-day and 50-day averages, a quarter of an ATR below the lower one. It is the setup's own stop, set from the averages and ATR, not a flat percent.",
-   "lesson_line": "Our Launchpad stop: under both averages, plus a quarter ATR.",
+   "why": "A quarter of an ATR below. Our Launchpad plan puts the line-based stop under both the 20 EMA and 50 SMA, a quarter of an ATR below the lower one. It is set from the averages and ATR, not a flat percent. The low of day stays our primary stop.",
+   "lesson_line": "Launchpad line stop: under both averages, plus a quarter ATR.",
    "facts": [
     "h02",
     "f111",
-    "f110"
+    "f110",
+    "r05",
+    "r06"
    ],
    "wrong": {
     "Three full ATRs below it": "That's the long Chandelier Exit: three ATRs under the 22-day high, a trailing stop.",
@@ -3849,7 +3872,7 @@
     "Right on it, with no cushion": "The plan adds a quarter-ATR cushion under the lower average."
    },
    "house": true,
-   "simple": "Our Launchpad stop sits a quarter of an ATR under the lower of the 21-day and 50-day averages.",
+   "simple": "Our line-based Launchpad stop sits a quarter of an ATR under the lower of the 20 EMA and 50 SMA.",
    "tier": "extended",
    "risk": {
     "score": 5,
@@ -3858,7 +3881,7 @@
      "house setup plan not yet reviewed against the rulebook"
     ]
    },
-   "batch": "wave8"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q62",
@@ -4339,7 +4362,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Re-keyed to judgment first sell then trail; ruling quotes cited."
+   "notes": "D-013 and D-021 correct; last part trails; numbers from r02/r04/r05."
   },
   "q11": {
    "status": "pass",
@@ -4431,7 +4454,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key right (f102, f71, f119, f05). Mechanics of a resting stop order are correct; the owner flag on B20 (our gap rule, untaught here) stands. Note: its why ('the loss can be well beyond what you planned') restates q08, but q25 defines the term q08 then applies, so it is teaching, not a giveaway."
+   "notes": "Stop filling past the stop on a gap down, kept by GAP-TRIM; not a sell-into-gap-up rule."
   },
   "q26": {
    "status": "pass",
@@ -4651,7 +4674,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key is h02 verbatim from TRADE_PLANS.md (Launchpad row checked). Choices 23-28 chars. Owner flag stands (setup plans not yet reviewed against section 9; A13's ~3% stop may differ)."
+   "notes": "20 EMA / 50 SMA, quarter ATR; low of day primary stated (D-008); distractors fine."
   },
   "q62": {
    "status": "pass",

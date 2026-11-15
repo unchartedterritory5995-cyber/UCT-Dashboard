@@ -170,6 +170,14 @@
    "title": "Setup decisions: the owner's rulings (2026-11-12)",
    "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
   }
  ],
  "facts": [
@@ -529,9 +537,9 @@
   },
   {
    "id": "h02",
-   "source": "s18",
-   "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
-   "claim": "After the first third at 3R, we sell another third at 5R and trail the last third."
+   "source": "hw",
+   "quote": "Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
+   "claim": "Later sells are a judgment: sell more into strength on a later push, and trail what is left."
   },
   {
    "id": "h03",
@@ -567,19 +575,19 @@
    "id": "r01",
    "source": "h2",
    "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
-   "claim": "The owner's ruling: the first sell is a judgment, not a fixed third at 3R."
+   "claim": "Our rule: the first sell is a judgment, not a fixed third at 3R."
   },
   {
    "id": "r02",
-   "source": "h2",
-   "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
-   "claim": "The owner rarely sells on day 1 of the buy and usually waits until day 3 at the earliest."
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
   },
   {
    "id": "r03",
    "source": "h2",
    "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
-   "claim": "The owner's ruling: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
+   "claim": "Our rule: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
   }
  ],
  "walkthroughs": [
@@ -931,7 +939,7 @@
     "Always on the day you buy"
    ],
    "answer": "A judgment, usually from day 3 on",
-   "why": "A judgment, usually from day 3 on. The stop sets R, and R is the measuring stick. The first sell depends on a variety of factors, not a fixed third at 3R. He very rarely sells on day 1 and usually waits until day 3 at the earliest. Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
+   "why": "A judgment, usually from day 3 on. The stop sets R, and R is the measuring stick. The first sell depends on a variety of factors, not a fixed third at 3R. We very rarely sell on day 1 and usually wait until day 3 at the earliest. Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
    "lesson_line": "R is the measuring stick. The first sell is a judgment, usually day 3 or later.",
    "facts": [
     "r01",
@@ -942,7 +950,7 @@
    "wrong": {
     "A fixed third at 3R every time": "That was the old rule. The first sell is a judgment, not a fixed third at 3R.",
     "A fixed 10% gain, set in percent": "A fixed percent ignores the stop and the trade. The first sell is a judgment.",
-    "Always on the day you buy": "He very rarely sells on day 1 of the buy. He usually waits until day 3 at the earliest."
+    "Always on the day you buy": "We very rarely sell on day 1 of the buy. We usually wait until day 3 at the earliest."
    },
    "simple": "A judgment call, usually from day 3 on, because it depends on the trade and not on one fixed price.",
    "tier": "core",
@@ -953,7 +961,7 @@
      "rewritten 2026-11-09 to the rulebook"
     ]
    },
-   "batch": "rulings2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q11",
@@ -1866,7 +1874,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "ok"
+   "notes": "Pronoun He -> We only; key already agrees with D-013."
   },
   "q11": {
    "status": "pass",

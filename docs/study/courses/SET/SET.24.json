@@ -84,6 +84,14 @@
    "title": "Setup decisions: the owner's rulings (2026-11-12)",
    "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
   }
  ],
  "facts": [
@@ -155,9 +163,9 @@
   },
   {
    "id": "h05",
-   "source": "h1",
-   "quote": "Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
-   "claim": "B19: breakeven between 2R and 5R; the hard rule for the first trim is a third at 3R."
+   "source": "hw",
+   "quote": "The stop may move up to breakeven between 2R and 5R, or at the first sell.",
+   "claim": "Our stop may move up to breakeven between 2R and 5R, or at the first sell."
   },
   {
    "id": "h06",
@@ -215,15 +223,15 @@
   },
   {
    "id": "h20",
-   "source": "h1",
-   "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
-   "claim": "E51: another third at 5R, then trail the last third."
+   "source": "hw",
+   "quote": "Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
+   "claim": "Later sells are a judgment: sell more into strength on a later push, and trail what is left."
   },
   {
    "id": "h21",
-   "source": "h1",
-   "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
-   "claim": "E52: trail the 10-day for fast movers, the 21-day for steadier ones; sell on a close below it."
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
   },
   {
    "id": "h22",
@@ -270,8 +278,8 @@
   {
    "id": "tp2",
    "source": "t1",
-   "quote": "The stop on what is left moves up to breakeven at the first trim",
-   "claim": "Our plans move the stop on the rest to breakeven at the first trim."
+   "quote": "the stop may move to breakeven between 2R and 5R, or at the first sell",
+   "claim": "Our stop may move to breakeven between 2R and 5R, or at the first sell."
   },
   {
    "id": "cp2",
@@ -713,15 +721,21 @@
   },
   {
    "id": "r05",
-   "source": "h2",
-   "quote": "I usually wait until day 3 at the earliest.",
-   "claim": "D-013: the first sell usually waits until day 3 at the earliest."
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
   },
   {
    "id": "r06",
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
+  },
+  {
+   "id": "r07",
    "source": "h2",
-   "quote": "I very rarely sell on the day 1 of the buy day.",
-   "claim": "D-013: a day-1 sell on the buy day is very rare."
+   "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+   "claim": "D-021: the course teaches the 9 and 20 EMA everywhere, with the 50 and 200 SMA."
   }
  ],
  "walkthroughs": [
@@ -783,7 +797,8 @@
     "cf1",
     "h05",
     "tp2",
-    "t_200r"
+    "t_200r",
+    "r05"
    ]
   }
  ],
@@ -2263,21 +2278,21 @@
    "criterion": "tb.trail",
    "q": "Which average is the default trail for a steadier name?",
    "choices": [
-    "The 21-day",
+    "The 20 EMA",
     "The 50-day",
     "The 200-day",
     "The 5-day"
    ],
-   "answer": "The 21-day",
-   "why": "The 21-day. Sell on a close below it. Fast movers trail the 10-day.",
-   "lesson_line": "Steadier name, 21-day. Fast mover, 10-day. Sell on a close below.",
+   "answer": "The 20 EMA",
+   "why": "The 20 EMA. Sell on a close below it. Fast movers trail the 9 EMA.",
+   "lesson_line": "Steadier name, 20 EMA. Fast mover, 9 EMA. Sell on a close below.",
    "facts": [
     "h21"
    ],
    "wrong": {
     "The 50-day": "Too slow for the default trail.",
     "The 200-day": "That is the long-term line, far too slow for a trail.",
-    "The 5-day": "The defaults are the 10-day and the 21-day."
+    "The 5-day": "The defaults are the 9 EMA and the 20 EMA."
    },
    "house": true
   },
@@ -3226,28 +3241,29 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "tb.trail",
-   "q": "What do you do with the last third?",
+   "q": "What do you do with what is left?",
    "choices": [
     "Sell it; the trail is broken",
     "Hold; it is over the 50-day",
-    "Add back the thirds sold",
+    "Add back what we sold",
     "Move the stop down for room"
    ],
-   "story": "You have sold two thirds into strength. The steadier stock now closes under its 21-day average.",
+   "story": "You have sold part into strength and trail what is left. The steadier stock now closes under its 20 EMA.",
    "answer": "Sell it; the trail is broken",
-   "why": "Sell it. The last third is trailed, and for a steadier name the default trail is the 21-day, so a close below it is the exit. For a fast mover the default is the 10-day.",
-   "lesson_line": "Trail the last third and sell on a close below the average.",
+   "why": "Sell it. What is left is trailed, and for a steadier name the default trail is the 20 EMA. A close below it is the exit. For a fast mover the default is the 9 EMA.",
+   "lesson_line": "Trail what is left and sell on a close below the average.",
    "facts": [
     "h21",
-    "h02"
+    "h02",
+    "r07"
    ],
    "wrong": {
-    "Hold; it is over the 50-day": "The 50-day is not the trail for a steadier name. The 21-day is.",
-    "Add back the thirds sold": "The plan sells in thirds and trails the last one. A close under the trail is the exit.",
-    "Move the stop down for room": "A stop only moves up, never down or wider."
+    "Hold; it is over the 50-day": "The 50-day is not the trail for a steadier name. The 20 EMA is.",
+    "Move the stop down for room": "A stop only moves up, never down or wider.",
+    "Add back what we sold": "The plan trails what is left. A close under the trail is the exit."
    },
    "house": true,
-   "simple": "Sell it. The last third trails the 21-day average, and a close below it is the sell signal.",
+   "simple": "Sell it. What is left trails the 20 EMA, and a close below it is the sell signal.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -3256,7 +3272,7 @@
      "+1 the trail is a default and adjustable"
     ]
    },
-   "batch": "rulings2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q66",
@@ -3335,13 +3351,14 @@
    "rung": 4,
    "format": "mcq",
    "criterion": "tb.not_stretched",
-   "q": "Entry 41.50, 10-day average 38.20. How far above the 10-day average is the entry, in percent?",
+   "q": "Entry 41.50, 9 EMA 38.20. How far above the 9 EMA is the entry, in percent?",
    "answer": "8.6%",
-   "why": "8.6%. The entry minus the average is 41.50 minus 38.20. Divide that by the average, 38.20, to get 8.6%. That is under the 10% line, so the stretch test passes. Skip a long that is more than 10% above its 10-day average.",
-   "lesson_line": "Check the stretch: no more than 10% over the 10-day.",
+   "why": "8.6%. The entry minus the 9 EMA is 41.50 minus 38.20. Divide that by 38.20 to get 8.6%. That is under the 10% line, so the stretch test passes. Skip a long that is more than 10% above its 9 EMA.",
+   "lesson_line": "Check the stretch: no more than 10% over the 9 EMA.",
    "facts": [
     "h13",
-    "t_str"
+    "t_str",
+    "r07"
    ],
    "calc": {
     "fn": "arith",
@@ -3354,7 +3371,7 @@
    },
    "house": true,
    "suffix": "%",
-   "simple": "8.6 percent. The 41.50 entry is 8.6 percent above the 38.20 average.",
+   "simple": "8.6 percent. The 41.50 entry is 8.6 percent above the 38.20 9 EMA.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -3364,7 +3381,7 @@
      "fixed before"
     ]
    },
-   "batch": "rank",
+   "batch": "sweep-2026-11-14",
    "choices": [
     "8.6%",
     "108.6%",
@@ -3884,7 +3901,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "hold on day 1; D-013"
+   "notes": "Final text agrees with the rulings it touches; key right, wrongs wrong, quotes and numbers grounded, style ok."
   },
   "q38": {
    "status": "pass",
@@ -4054,8 +4071,8 @@
   "q64": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "ok"
+   "fixed": true,
+   "notes": "Why sentence was 25 words; split. D-013 and D-021 handled correctly."
   },
   "q66": {
    "status": "pass",
@@ -4073,7 +4090,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
+   "notes": "Final text agrees with the rulings it touches; key right, wrongs wrong, quotes and numbers grounded, style ok."
   },
   "q69": {
    "status": "cut",
@@ -4085,7 +4102,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
+   "notes": "Final text agrees with the rulings it touches; key right, wrongs wrong, quotes and numbers grounded, style ok."
   },
   "q71": {
    "status": "pass",

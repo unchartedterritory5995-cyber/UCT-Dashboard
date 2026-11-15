@@ -2166,7 +2166,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "(50-35)*1,000 = 15,000. Wrong choices are real slips (5,000 = fill at stop; 10,000 = extra beyond plan; 20,000 = double count). Stop becomes a market order per Investor.gov (f17); gap cost per Investopedia (f34). 15,000 is 3 times the planned 5,000. Good teaching question."
+   "notes": "Keep is right: stop fill at the open on a gap DOWN, a different topic from gap-up trims."
   },
   "q96": {
    "status": "pass",

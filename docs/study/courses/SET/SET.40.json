@@ -146,6 +146,14 @@
    "title": "Setup decisions: the owner's rulings (2026-11-12)",
    "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
   }
  ],
  "facts": [
@@ -265,9 +273,9 @@
   },
   {
    "id": "h05",
-   "source": "h1",
-   "quote": "Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
-   "claim": "B19: breakeven between 2R and 5R; the hard rule for the first trim is a third at 3R."
+   "source": "hw",
+   "quote": "The stop may move up to breakeven between 2R and 5R, or at the first sell.",
+   "claim": "Our stop may move up to breakeven between 2R and 5R, or at the first sell."
   },
   {
    "id": "h06",
@@ -325,15 +333,15 @@
   },
   {
    "id": "h20",
-   "source": "h1",
-   "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
-   "claim": "E51: another third at 5R, then trail the last third."
+   "source": "hw",
+   "quote": "Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
+   "claim": "Later sells are a judgment: sell more into strength on a later push, and trail what is left."
   },
   {
    "id": "h21",
-   "source": "h1",
-   "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
-   "claim": "E52: trail the 10-day for fast movers, the 21-day for steadier ones; sell on a close below it."
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
   },
   {
    "id": "h22",
@@ -469,9 +477,9 @@
   },
   {
    "id": "c20",
-   "source": "c1",
-   "quote": "Sell a third at 5R.",
-   "claim": "Sell a third at 5R."
+   "source": "hw",
+   "quote": "Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
+   "claim": "Later sells are a judgment: sell more into strength on a later push, and trail what is left."
   },
   {
    "id": "c21",
@@ -643,9 +651,9 @@
   },
   {
    "id": "c51",
-   "source": "c1",
-   "quote": "Trail the last third: a close under the 10-day for a fast mover, under the 21-day for a steadier one.",
-   "claim": "Trail the last third on a close under the 10-day or the 21-day."
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
   },
   {
    "id": "c53",
@@ -907,15 +915,21 @@
   },
   {
    "id": "r22",
-   "source": "h2",
-   "quote": "I very rarely sell on the day 1 of the buy day. I usually wait until day 3 at the earliest.",
-   "claim": "Owner: very rarely sells on day 1, usually waits until day 3 at the earliest."
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
   },
   {
    "id": "r23",
    "source": "h2",
    "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
    "claim": "Owner: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
+  },
+  {
+   "id": "r91",
+   "source": "h2",
+   "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+   "claim": "Owner: the course teaches the 9 and 20 EMA with the 50 and 200 SMA."
   }
  ],
  "walkthroughs": [
@@ -1545,29 +1559,30 @@
    "rung": 3,
    "format": "mcq",
    "criterion": "id.inv_close_under_21",
-   "q": "The stock closed under its 21-day EMA yesterday. Today it prints an inside day, still under that line. Our read?",
+   "q": "The stock closed under its 20 EMA yesterday. Today it prints an inside day, still under that line. Our read?",
    "choices": [
     "A pause in a range, not a setup",
     "A buy; any inside day will work",
-    "Skip it; the 8-day is under the 21",
+    "Skip it; the 9 EMA is under the 20 EMA",
     "A continuation; buy over its high"
    ],
    "answer": "A pause in a range, not a setup",
-   "why": "Not this setup. A close under the 21-day EMA before the entry invalidates it. An inside day under the fast average is a pause in a range, not a continuation.",
+   "why": "Not this setup. A close under the 20 EMA before the entry invalidates it. An inside day under the fast average is a pause in a range, not a continuation.",
    "lesson_line": "Under the fast average, a quiet day is a stall, not a spring.",
    "facts": [
     "c22",
     "c23",
     "c35",
-    "c05"
+    "c05",
+    "r91"
    ],
    "house": true,
    "wrong": {
     "A buy; any inside day will work": "Buying every inside day is the named mistake. The location decides.",
-    "Skip it; the 8-day is under the 21": "The story gives no 8-day reading, and the full stack is only a cue. The reason to skip is the close under the 21-day EMA.",
-    "A continuation; buy over its high": "An inside day under the fast average is a pause in a range, not a continuation."
+    "A continuation; buy over its high": "An inside day under the fast average is a pause in a range, not a continuation.",
+    "Skip it; the 9 EMA is under the 20 EMA": "The story gives no 9 EMA reading, and the full stack is only a cue. The reason to skip is the close under the 20 EMA."
    },
-   "simple": "Skip it. After a close under the 21-day EMA, a quiet day is only a pause in a range.",
+   "simple": "Skip it. After a close under the 20 EMA, a quiet day is only a pause in a range.",
    "tier": "core",
    "risk": {
     "score": 4,
@@ -1576,7 +1591,7 @@
      "fixed before"
     ]
    },
-   "batch": "wave4"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q18",
@@ -2314,10 +2329,10 @@
    "house": true,
    "wrong": {
     "Yes; strength is strength": "Strength 6% over the high is a gap trade. The inside-day rules stop at 4%.",
-    "Yes; the stop is the inside low": "That stop would be 6.95% away. Far outside the 3% habit, and the wrong setup anyway.",
+    "Yes; the stop is the inside low": "That stop would be 6.95% away. Far too wide to keep the loss small, and the wrong setup anyway.",
     "No; we skip gaps over the high": "A gap up to 4% over the high is bought at the open. This one is 6.0% over, past the line."
    },
-   "story": "AAPL, August 2017: a clean inside day sits at the 21-day EMA. Earnings come after the close, and the next open is 6.0% over its high.",
+   "story": "AAPL, August 2017: a clean inside day prints. Earnings come after the close, and the next open is 6.0% over its high.",
    "simple": "No, because an open more than 4% over the high is a gap trade, not an inside-day buy.",
    "deeper": {
     "trap": "Strength after a report feels like confirmation. But the gap is the report's reaction, and the setup caps a gap at 4% over the inside day's high. Past that, the stop under the inside low sits too far away to keep the loss small."
@@ -2330,7 +2345,7 @@
      "fixed before"
     ]
    },
-   "batch": "wave4"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q38",
@@ -2338,27 +2353,28 @@
    "rung": 5,
    "format": "mcq",
    "criterion": "id.trail",
-   "q": "The last third of an inside-day winner trails which line?",
+   "q": "What is left of an inside-day winner trails which line?",
    "choices": [
-    "The 10-day or the 21-day line",
-    "The 20-day or the 50-day line",
+    "The 9 EMA or the 20 EMA",
+    "The 50-day or the 200-day line",
     "The mother bar's low as a floor",
     "No trail; hold until it stops out"
    ],
-   "answer": "The 10-day or the 21-day line",
-   "why": "The 10-day for a fast mover, the 21-day for a steadier one, sold on a close below it. A touch is not a sale; a close under is.",
+   "answer": "The 9 EMA or the 20 EMA",
+   "why": "The 9 EMA for a fast mover, the 20 EMA for a steadier one, sold on a close below it. A touch is not a sale; a close under is.",
    "lesson_line": "Trail the rising average. Sell the close below it, not the touch.",
    "facts": [
     "c51",
-    "h21"
+    "h21",
+    "r91"
    ],
    "house": true,
    "wrong": {
-    "The 20-day or the 50-day line": "The trail is the 10-day or the 21-day, not these.",
     "The mother bar's low as a floor": "The mother bar is history by then. The trail is a moving average.",
-    "No trail; hold until it stops out": "The last third needs an exit rule, and the rule is the trail: a close under the 10-day or the 21-day."
+    "No trail; hold until it stops out": "What is left needs an exit rule, and the rule is the trail: a close under the 9 EMA or the 20 EMA.",
+    "The 50-day or the 200-day line": "The trail is the 9 EMA or the 20 EMA. These lines sit too far away to protect a gain."
    },
-   "simple": "We trail the last third on the 10-day or 21-day line and sell on a close below it.",
+   "simple": "We trail what is left on the 9 EMA or the 20 EMA and sell on a close below it.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -2367,7 +2383,7 @@
      "fixed before"
     ]
    },
-   "batch": "wave4"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q39",
@@ -3081,7 +3097,7 @@
    "story": "NVDA, January 2024: an inside day four days after a breakout, on light volume. The next session opens a hair over the high.",
    "simple": "Buy at market, put the stop just under the inside low, and wait until day 3 to make the first sell.",
    "deeper": {
-    "example": "Walk the plan in R. The inside low sets one R at 55.02 minus 54.28. R is the measuring stick, not the sell signal. The first sell waits for day 3 at the earliest, then the rest trails the 10-day or the 21-day. Written before the open, the plan leaves nothing to argue about when the stock moves."
+    "example": "Walk the plan in R. The inside low sets one R at 55.02 minus 54.28. R is the measuring stick, not the sell signal. The first sell waits for day 3 at the earliest, then the rest trails the 9 EMA or the 20 EMA. Written before the open, the plan leaves nothing to argue about when the stock moves."
    },
    "tier": "expert",
    "risk": {
@@ -3654,7 +3670,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c22, c23 support the key. Two buys and two skips. The 'Skip it; 8-day' choice shares the action but its reason is not in the story and the note says so, same design as q39/q45. Accepted."
+   "notes": "Renamed to 20 EMA / 9 EMA, hypothetical so no measurement; r91 cited; style ok."
   },
   "q18": {
    "status": "pass",
@@ -3769,19 +3785,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Re-keyed TF: always a fixed third at 3R = False; cites r21/r22."
+   "notes": "False statement about a fixed third at 3R; key agrees with D-013."
   },
   "q37": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "6.0% over, 4% line (c13, d15); 21-day EMA is on the card's own AAPL line; 6.95% from d16. The two No choices differ by reason and the 'we skip gaps' absolute is false by c13."
+   "fixed": true,
+   "notes": "Story fine. The wrong text 'Far outside the 3% habit' implies 3% is the cap; D-005 allows up to 5%. Reworded without a new number."
   },
   "q38": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "10-day or 21-day, close below (h21, c51); distractors false by the same facts."
+   "notes": "9/20 EMA trail with r91, 'what is left' replaces last third; keyed answer right, wrongs wrong."
   },
   "q39": {
    "status": "pass",
@@ -3853,8 +3869,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "14% over the 10-day is past 10% (h13). The 3-day earnings rule does not apply to a past report. D-017 stays flagged.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Kept: a measured distance against the 10-day simple average (D-017 held), not a drawn EMA line; teaches no superseded ruling."
   },
   "q51": {
    "status": "pass",

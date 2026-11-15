@@ -148,6 +148,14 @@
    "title": "Setup decisions: the owner's rulings (2026-11-12)",
    "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
   }
  ],
  "facts": [
@@ -357,9 +365,9 @@
   },
   {
    "id": "h05",
-   "source": "h1",
-   "quote": "Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
-   "claim": "B19: breakeven between 2R and 5R; the hard rule for the first trim is a third at 3R."
+   "source": "hw",
+   "quote": "The stop may move up to breakeven between 2R and 5R, or at the first sell.",
+   "claim": "Our stop may move up to breakeven between 2R and 5R, or at the first sell."
   },
   {
    "id": "h06",
@@ -441,15 +449,15 @@
   },
   {
    "id": "h20",
-   "source": "h1",
-   "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
-   "claim": "E51: another third at 5R, then trail the last third."
+   "source": "hw",
+   "quote": "Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
+   "claim": "Later sells are a judgment: sell more into strength on a later push, and trail what is left."
   },
   {
    "id": "h21",
-   "source": "h1",
-   "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
-   "claim": "E52: trail the 10-day for fast movers, the 21-day for steadier ones; sell on a close below it."
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
   },
   {
    "id": "h22",
@@ -903,9 +911,9 @@
   },
   {
    "id": "r57",
-   "source": "h2",
-   "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
-   "claim": "Very rarely sells on day 1; usually waits until day 3 at the earliest (D-013)"
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
   },
   {
    "id": "r58",
@@ -936,6 +944,24 @@
    "source": "c1",
    "quote": "A down day into the line on more than 1.5 times the 50-day average volume is a distribution day to be mindful of: a warning and a lower grade, not an invalidation.",
    "claim": "A down day into the line on more than 1.5 times the 50-day volume is a warning and a lower grade, not an invalidation."
+  },
+  {
+   "id": "r59",
+   "source": "h2",
+   "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+   "claim": "House rule (D-021): the course uses the 9 and 20 EMA with the 50 and 200 SMA."
+  },
+  {
+   "id": "r60",
+   "source": "h2",
+   "quote": "Selling part at the open on a big gap is one choice he may make by judgment, never a rule",
+   "claim": "House rule (gap-open sell): selling part into a gap at the open is an optional judgment, never a rule."
+  },
+  {
+   "id": "r61",
+   "source": "h2",
+   "quote": "A gap up past 3R at the open is not an automatic sell.",
+   "claim": "House rule (gap-open sell): a gap up past a sell level at the open is not an automatic sell."
   }
  ],
  "walkthroughs": [
@@ -1533,7 +1559,7 @@
     "Crossing it that session"
    ],
    "answer": "Above a rising 50-day SMA",
-   "why": "Above a 50-day SMA that is itself higher than 10 sessions earlier. Keller's proper order runs price over the 21-day EMA, the 21-day over the 50-day, and the 50-day over the 200-day. Our card asks for the 20 EMA over a rising 50-day.",
+   "why": "Above a 50-day SMA that is itself higher than 10 sessions earlier. Keller's proper order stacks price over the fast EMA, the fast EMA over the 50-day, and the 50-day over the 200-day. Our card asks for the 20 EMA over a rising 50-day.",
    "lesson_line": "Stacked and rising: the 20 EMA over a rising 50-day, with the 200-day not falling. Then look at the dip.",
    "facts": [
     "c07",
@@ -1554,7 +1580,7 @@
      "the 20-over-50 order is a proposed card line, not the owner's B26"
     ]
    },
-   "batch": "wave2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q17",
@@ -1690,26 +1716,27 @@
    "criterion": "e20.trail",
    "q": "What is left of a 20 EMA pullback winner trails which line, by our default?",
    "choices": [
-    "The 10-day or the 21-day line",
+    "The 9 EMA or the 20 EMA",
     "The 50-day or 200-day line",
     "The prior day's low, daily",
     "No trail; sell it all at 5R"
    ],
-   "answer": "The 10-day or the 21-day line",
-   "why": "The 10-day line for a fast mover, the 21-day line for a steadier one, sold on a close below it. Kullamagi also waits for the first close below the 10-day. What is left rides this trail after the first sells, which are a judgment.",
+   "answer": "The 9 EMA or the 20 EMA",
+   "why": "The 9 EMA for a fast mover, the 20 EMA for a steadier one, sold on a close below it. Kullamagi's own trail is the first close below his 10-day. What is left rides this trail after the first sells, which are a judgment.",
    "lesson_line": "Trail the rising average. Sell the close below it, not the touch.",
    "facts": [
     "h21",
     "q04",
-    "r55"
+    "r55",
+    "r59"
    ],
    "wrong": {
-    "The 50-day or 200-day line": "Our default trail is the 10-day or the 21-day line, not these.",
+    "The 50-day or 200-day line": "Our default trail is the 9 EMA or the 20 EMA, not these.",
     "The prior day's low, daily": "Our default trails an average and sells on a close below it, not a daily low.",
     "No trail; sell it all at 5R": "5R is not a fixed exit. What is left rides the trail."
    },
    "house": true,
-   "simple": "We trail the 10-day line for fast movers or the 21-day line for steadier ones, and sell on a close below it.",
+   "simple": "We trail the 9 EMA for fast movers or the 20 EMA for steadier ones, and sell on a close below it.",
    "tier": "core",
    "risk": {
     "score": 6,
@@ -1719,7 +1746,7 @@
      "fixed before by the checker"
     ]
    },
-   "batch": "rulings2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q21",
@@ -2304,16 +2331,16 @@
    "rung": 5,
    "format": "tf",
    "criterion": "e20.trim_2",
-   "q": "On a 20 EMA pullback our hard rule sells the first third at 3R.",
-   "answer": "False",
-   "why": "False. The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R. He very rarely sells on day 1 of the buy and usually waits until day 3 at the earliest.",
+   "q": "On a 20 EMA pullback, our first sell is a judgment, and we rarely make it before day 3.",
+   "answer": "True",
+   "why": "True. The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R. We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest.",
    "lesson_line": "The first sell is a judgment, not a fixed third at 3R.",
    "facts": [
     "r55",
     "r57"
    ],
    "house": true,
-   "simple": "False. The first sell is a judgment, usually no earlier than day 3, not a fixed third at 3R.",
+   "simple": "True. The first sell is a judgment, usually no earlier than day 3, not a fixed third at 3R.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2483,7 +2510,7 @@
    "q": "By our rule, a long 8% above its 10-day average is too stretched to buy.",
    "answer": "False",
    "why": "False. The rulebook skips a long that is more than 10% above its 10-day average. At 8% it passes this test. Other rules, such as the 4% no-chase line, still apply.",
-   "lesson_line": "The stretch line is 10% above the 10-day. At 8% this test passes.",
+   "lesson_line": "The stretch line is 10% above the 10-day average. At 8% this test passes.",
    "facts": [
     "h13",
     "h11"
@@ -2499,7 +2526,7 @@
      "fixed before by the checker"
     ]
    },
-   "batch": "wave2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q42",
@@ -2518,12 +2545,13 @@
     },
     "round": 1
    },
-   "why": "The gain is the exit minus the fill, 32.64 minus 28.79. One R is the fill minus the stop, 28.79 minus 28.02. The gain divided by one R is 5. That is where the second third comes off.",
-   "lesson_line": "Count in R, not dollars. 5R is the second trim.",
+   "why": "The gain is the exit minus the fill, 32.64 minus 28.79. One R is the fill minus the stop, 28.79 minus 28.02. The gain divided by one R is 5. That is a mark on the ruler, and a later sell is a judgment.",
+   "lesson_line": "Count in R, not dollars. 5R is a mark on the ruler, not a fixed sale.",
    "facts": [
-    "h20",
     "d03",
-    "d04"
+    "d04",
+    "r55",
+    "r56"
    ],
    "house": true,
    "suffix": "R",
@@ -2536,7 +2564,7 @@
      "rests on the owner's rulebook E51, which is adjustable"
     ]
    },
-   "batch": "rank",
+   "batch": "sweep-2026-11-14",
    "choices": [
     "5.0R",
     "6.0R",
@@ -2597,15 +2625,16 @@
    "rung": 6,
    "format": "tf",
    "criterion": "e20.trim_gap_open",
-   "q": "A stock opens at 5.4R, past the 5R level you planned to sell at. You take that sale at the open.",
-   "answer": "True",
-   "why": "True. If a stock opens above a level you planned to sell at, take that sale at the open.",
-   "lesson_line": "A gap through a planned sell level is the sale. Take it at the open.",
+   "q": "A stock opens at 5.4R, past the 5R level you planned to sell at. Our rule makes you sell at the open.",
+   "answer": "False",
+   "why": "False. A gap up past a profit level at the open is not an automatic sell. Selling part at the open is an optional judgment, never a rule.",
+   "lesson_line": "A gap past a profit level is not an automatic sale. Selling into it is a judgment.",
    "facts": [
-    "h25"
+    "r60",
+    "r61"
    ],
    "house": true,
-   "simple": "True, because a stock that opens past a sell level you planned gets sold right at the open.",
+   "simple": "False, because a gap past a sell level is not an automatic sale. Selling part at the open is an optional judgment.",
    "tier": "extended",
    "risk": {
     "score": 5,
@@ -2614,7 +2643,7 @@
      "rests on the owner's rulebook F63"
     ]
    },
-   "batch": "rulings2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q45",
@@ -3238,7 +3267,7 @@
    "criterion": "e20.inv_line_flat",
    "q": "A 20 EMA that crosses under the 50-day SMA before the trigger ends the pullback setup.",
    "answer": "True",
-   "why": "True. A 20 EMA that flattens, turns down or crosses under the 50-day SMA ends the setup before entry. Keller's proper order has the 21-day EMA over the 50-day.",
+   "why": "True. A 20 EMA that flattens, turns down or crosses under the 50-day SMA ends the setup before entry. Keller's proper order has the fast EMA over the 50-day.",
    "lesson_line": "The fast line under the slow line is not a pullback. It is a trend in trouble.",
    "facts": [
     "c15",
@@ -3256,7 +3285,7 @@
      "the cross test is a proposed card line"
     ]
    },
-   "batch": "wave2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q61",
@@ -3846,7 +3875,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key rests on B26 and c90. 'By our hard rule' separates it from the 50-day option."
+   "notes": "About the 200-day close (D-009); agrees, stocks below it are a hard no."
   },
   "q03": {
    "status": "pass",
@@ -3893,8 +3922,8 @@
   "q10": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Re-keyed to 'grades best' (A+ cue quiet pullback), heavy day stays a wrong answer as a lower grade; the 2 ATR orderly rule untouched. cn3/cn4/hd1 verbatim. Fix: a 24-word sentence in why cut to 21."
+   "fixed": false,
+   "notes": "HEAVY-DOWN agrees: a heavy red day is a warning and a lower grade, not a veto; quiet drift grades best."
   },
   "q11": {
    "status": "cut",
@@ -3931,7 +3960,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key c07, e02, c08. Notes fine."
+   "notes": "D-021 wording: Keller's 21-day replaced by 'the fast EMA'; key unchanged, our line is the 20 EMA."
   },
   "q17": {
    "status": "pass",
@@ -3956,7 +3985,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "edit ok, agrees with D-013"
+   "notes": "D-021 agrees: answer is the 9 EMA or the 20 EMA; Kullamagi's 10-day kept as his own line next to our trail; r59 quote word for word."
   },
   "q21": {
    "status": "pass",
@@ -3967,8 +3996,8 @@
   "q22": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Answer 1.5 unchanged; stem and why now say warning and lower grade, matching e20.inv_heavy_down verbatim. Fix: one 23-word sentence trimmed to 22 (dropped 'average' in why and stem)."
+   "fixed": false,
+   "notes": "HEAVY-DOWN agrees: warning and a lower grade; 1.5 is the ruling's own example and the card's line."
   },
   "q23": {
    "status": "pass",
@@ -4028,8 +4057,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Re-derived: R is 2.10, loss at 96.10 is 4.10, which is 1.95R, under the 2R ceiling. Key h06/h07. B20 vs D41 flag stands (rulebook B20 wins).",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Gap DOWN through the stop (B20); not the gap-up trim; keep."
   },
   "q33": {
    "status": "pass",
@@ -4052,14 +4080,14 @@
   "q36": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "edit ok, agrees with D-013"
+   "fixed": true,
+   "notes": "Agrees with D-013 (key False). Only fix: the why says 'He' for the owner; member text says 'we'. | 2026-11-14: stated as the current rule (True) instead of the old one (False); keeps the lesson's true/false balance."
   },
   "q37": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "keep agrees with ruling"
+   "notes": "Quiet pullback is a grading cue; no heavy day voids the setup."
   },
   "q38": {
    "status": "pass",
@@ -4083,13 +4111,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "C29 verbatim (more than 10% above the 10-day); 8% passes. Statement is plain, no tell."
+   "notes": "D-021 rename agrees; 8% passes the 10% line, key False unchanged. | 2026-11-14: stretch rule kept as the rulebook's C29 (10-day average) until the owner rules D-017."
   },
   "q42": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Right answer unchanged, sorts to the target rank, wrong choices real and similar in form."
+   "notes": "D-013 edit agrees: 5R is a mark on the ruler, later sells a judgment. 3.85 / 0.77 = 5.0R checks."
   },
   "q43": {
    "status": "pass",
@@ -4102,7 +4130,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "edit ok; gap-open rule kept for a planned sell level, not overruled by D-013"
+   "notes": "GAP-TRIM re-key to False agrees: a gap past a profit level is not an automatic sell. r60 and r61 are word-for-word substrings of the gap-open reading in RULINGS_2026-11-12.json."
   },
   "q45": {
    "status": "pass",
@@ -4162,8 +4190,8 @@
   "q54": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Re-keyed to yes at a lower grade: right under e20.inv_heavy_down and the HEAVY-DOWN ruling; hold close above the line stays required (nothing else loosened). hd1/hd2/cn4 verbatim, no 'the owner'. d18 INTC fact kept as the real 2.3x example. Fix: a 25-word sentence in why cut to 19."
+   "fixed": false,
+   "notes": "HEAVY-DOWN agrees: lower grade, setup stands; 2.3x is in the story."
   },
   "q55": {
    "status": "cut",
@@ -4199,7 +4227,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key c15."
+   "notes": "D-021 wording agrees; key True unchanged (a 20 EMA crossing under the 50-day ends the setup before entry)."
   },
   "q61": {
    "status": "pass",
@@ -4284,8 +4312,8 @@
   "q99": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Follows the ruling; text says 'we', no 'the owner'; no contradiction with q10/q22/q37/q54 (all: heavy day = warning and lower grade). cn4/hd1/c24/c25/r58 cited. Fix: the right answer broke the 'Verb it; reason' pattern of the other three choices and stood out; reworded to match."
+   "fixed": false,
+   "notes": "HEAVY-DOWN and D-006 agree: volume grades the setup, it does not gate it."
   }
  }
 }

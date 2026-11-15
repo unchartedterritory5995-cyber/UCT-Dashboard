@@ -25,6 +25,40 @@ def ordered_units(idx):
     return sorted(idx["units"], key=lambda u: rank.get(u["track"], len(TRACK_ORDER)))
 
 
+#: the setup cards' example charts (one image per winner, failure and near-miss), drawn from the pod's bars with the
+#: ticker, the buy, the stop and the R marks: the owner's view of the example, never a member's
+SHEETS = r"C:\Users\pgosz\uct-worktrees\_study-resume\scratchpad\setups"
+
+
+def chart_image(card, chart):
+    """The example image for a question's chart: same ticker, the image's date within 14 days of the chart's last day
+    (a question shows the day before the breakout or up to two weeks into the trade; the image is named on the signal day)."""
+    import datetime as dt
+    if not chart or not card:
+        return None
+    # a lesson names its card by path ("docs/study/setups/criteria/01-flat-base.json"); the sheets sit under its stem
+    folder = os.path.join(SHEETS, os.path.splitext(os.path.basename(str(card)))[0], "final")
+    if not os.path.isdir(folder):
+        return None
+    sym, asof = str(chart.get("sym") or "").upper(), str(chart.get("asof") or "")
+    try:
+        day = dt.date.fromisoformat(asof)
+    except ValueError:
+        return None
+    best = None
+    for name in os.listdir(folder):
+        parts = name[:-4].split("_") if name.endswith(".png") else []
+        if len(parts) < 3 or parts[-2].upper() != sym:
+            continue
+        try:
+            gap = abs((dt.date.fromisoformat(parts[-1]) - day).days)
+        except ValueError:
+            continue
+        if gap <= 14 and (best is None or gap < best[0]):
+            best = (gap, os.path.join(folder, name))
+    return best[1] if best else None
+
+
 def load(name):
     return json.load(open(os.path.join(HOME, "data", name), encoding="utf-8"))
 
@@ -80,6 +114,11 @@ def show(n):
             print(f"Answer: **{(qq.get('prefix') or '')}{qq.get('answer')}{(qq.get('suffix') or '')}**")
         if qq.get("simple"):
             print(f"_Why:_ {qq['simple']}")
+        if qq.get("chart"):
+            c = qq["chart"]
+            img = chart_image(tracks[u["track"]][u["unit"]].get("card"), c)
+            print(f"Chart: {c.get('sym')} up to {c.get('asof')}" + (f" (trade {c['trade']['entry']} / {c['trade']['stop']})" if c.get("trade") else ""))
+            print(f"IMAGE: {img}" if img else "IMAGE: none on file")
         print()
 
 

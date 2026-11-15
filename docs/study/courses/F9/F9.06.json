@@ -134,6 +134,14 @@
    "title": "Setup decisions: the owner's rulings (2026-11-12)",
    "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
   }
  ],
  "facts": [
@@ -379,15 +387,15 @@
   },
   {
    "id": "h02",
-   "source": "h3",
-   "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
-   "claim": "After the first third at 3R, we sell another third at 5R and trail the last third."
+   "source": "hw",
+   "quote": "Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
+   "claim": "Later sells are a judgment: sell more into strength on a later push, and trail what is left."
   },
   {
    "id": "h03",
    "source": "h1",
-   "quote": "under each higher low, or under the 10-day average | his rulings 2026-11-02; `uct_kicker.py`",
-   "claim": "Kicker row of our setup table: trail under each higher low, or under the 10-day average."
+   "quote": "under each higher low, or under the 9 EMA | his rulings 2026-11-02; `uct_kicker.py`",
+   "claim": "Kicker row of our setup table: trail under each higher low, or under the 9 EMA."
   },
   {
    "id": "h05",
@@ -398,32 +406,32 @@
   {
    "id": "h06",
    "source": "h1",
-   "quote": "under the 10-day average, or under each higher low | `uct_slingshot.py`",
-   "claim": "Slingshot row: trail under the 10-day average, or under each higher low."
+   "quote": "under the 9 EMA, or under each higher low | `uct_slingshot.py`",
+   "claim": "Slingshot row: trail under the 9 EMA, or under each higher low."
   },
   {
    "id": "h07",
    "source": "h1",
-   "quote": "under the rising 21-day average, or under each higher low | `uct_launch_pad.py`",
-   "claim": "Launchpad row: trail under the rising 21-day average, or under each higher low."
+   "quote": "under the rising 20 EMA, or under each higher low | `uct_launch_pad.py`",
+   "claim": "Launchpad row: trail under the rising 20 EMA, or under each higher low."
   },
   {
    "id": "h04",
    "source": "h2",
    "quote": "Hold your winners by selling partials into strength and trailing the rising moving averages.",
-   "claim": "The owner's rule: sell partials into strength and trail the rest under the rising moving averages."
+   "claim": "Our rule: sell partials into strength and trail the rest under the rising moving averages."
   },
   {
    "id": "h08",
-   "source": "h3",
-   "quote": "Move the stop to breakeven at 2R to 5R, ideally.",
-   "claim": "Our stop moves up to breakeven once the trade is 2R to 5R ahead; we teach it at the first trim."
+   "source": "hw",
+   "quote": "The stop may move up to breakeven between 2R and 5R, or at the first sell.",
+   "claim": "Our stop may move up to breakeven between 2R and 5R, or at the first sell."
   },
   {
    "id": "h09",
-   "source": "h3",
-   "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
-   "claim": "Our default trail: sell on a close under the 10-day average for a fast mover, or the 21-day for a steadier one."
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
   },
   {
    "id": "h10",
@@ -435,19 +443,25 @@
    "id": "r01",
    "source": "h9",
    "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
-   "claim": "The owner's ruling: the first sell is a judgment, not a fixed third at 3R."
+   "claim": "Our rule: the first sell is a judgment, not a fixed third at 3R."
   },
   {
    "id": "r02",
-   "source": "h9",
-   "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
-   "claim": "The owner rarely sells on day 1 of the buy and usually waits until day 3 at the earliest."
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
   },
   {
    "id": "r03",
    "source": "h9",
    "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
-   "claim": "The owner's ruling: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
+   "claim": "Our rule: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
+  },
+  {
+   "id": "r04",
+   "source": "h9",
+   "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+   "claim": "We use the 9 and 20 EMA everywhere, with the 50 and 200 SMA."
   }
  ],
  "walkthroughs": [
@@ -726,7 +740,7 @@
    "house": true,
    "q": "Our plan fixes the first sell at a third of the position, sold at 3R every time.",
    "answer": "False",
-   "why": "False. The first sell is a judgment, not a fixed third at 3R. He very rarely sells on day 1 of the buy and usually waits until day 3 at the earliest. Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. Plan the price marks before you buy.",
+   "why": "False. The first sell is a judgment, not a fixed third at 3R. We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest. Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. Plan the price marks before you buy.",
    "lesson_line": "The first sell is a judgment, not a fixed third. Mark the R prices before you buy.",
    "facts": [
     "r01",
@@ -734,7 +748,7 @@
     "r03",
     "f37"
    ],
-   "simple": "False, because the first sell is a judgment call, and he usually waits until day 3 at the earliest.",
+   "simple": "False, because the first sell is a judgment call, and we usually wait until day 3 at the earliest.",
    "tier": "core",
    "risk": {
     "score": 4,
@@ -743,7 +757,7 @@
      "a rule the owner marks adjustable"
     ]
    },
-   "batch": "rulings2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q08",
@@ -1159,14 +1173,15 @@
     "Under the 200-day average"
    ],
    "answer": "Under the stock's higher lows",
-   "why": "Under the stock's higher lows. Our Kicker, Oops Reversal, Slingshot and Launchpad plans all trail under each higher low. Three of them also name a moving average: the 10-day, or the rising 21-day. Our rulebook's default trail is a close under the 10-day average for a fast mover, or the 21-day for a steadier one. None of our plans uses a fixed amount or the 200-day.",
-   "lesson_line": "Most of our plans trail under each higher low. Our default trail is a close under the 10- or 21-day.",
+   "why": "Under the stock's higher lows. Our Kicker, Oops Reversal, Slingshot and Launchpad plans all trail under each higher low. Our default trail is a close under the 9 EMA for a fast mover, or the 20 EMA for a steadier one. None of our plans uses a fixed amount or the 200-day.",
+   "lesson_line": "Most of our plans trail under each higher low. Our default trail is a close under the 9 or 20 EMA.",
    "facts": [
     "h03",
     "h05",
     "h06",
     "h07",
     "h09",
+    "r04",
     "f03",
     "f16",
     "f15",
@@ -1191,7 +1206,7 @@
      "fixed before"
     ]
    },
-   "batch": "wave9"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q19",
@@ -1486,14 +1501,15 @@
    "rung": 6,
    "format": "tf",
    "house": true,
-   "q": "Our default trail sells a fast mover when it dips under its 10-day average during the day.",
+   "q": "Our default trail sells a fast mover when it dips under its 9 EMA during the day.",
    "answer": "False",
    "simple": "False, because our default trail sells on a close below the average, not on a dip during the day.",
-   "why": "False. Our default trail waits for a close below the average. That's the 10-day for fast movers, the 21-day for steadier ones. A dip that recovers by the close is not a sell under this rule.",
-   "lesson_line": "Our default trail: a close under the 10-day for fast movers, the 21-day for steadier ones.",
+   "why": "False. Our default trail waits for a close below the average. That's the 9 EMA for fast movers, the 20 EMA for steadier ones. A dip that recovers by the close is not a sell under this rule.",
+   "lesson_line": "Our default trail: a close under the 9 EMA for fast movers, the 20 EMA for steadier ones.",
    "facts": [
     "h09",
-    "f15"
+    "f15",
+    "r04"
    ],
    "tier": "extended",
    "risk": {
@@ -1502,7 +1518,7 @@
      "rests on the owner's rulebook (E52)"
     ]
    },
-   "batch": "wave9"
+   "batch": "sweep-2026-11-14"
   }
  ],
  "conflicts": [
@@ -1565,8 +1581,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answered cold: a stop at entry is there to keep a winner from becoming a loss (f14, f38, f01/f08). Distractors are each wrong on cited facts: a pullback above entry does not reach the stop, a gap goes through it (f09, f35), and a close stop raises the shake-out risk (f13). Choices are 26-29 chars with no tell, and the stem is 96 chars. h08 is quoted word for word from rulebook B19. The wrong note on the dip covers the same idea as q20's key, but walkthrough w3 step 3 already teaches it and q20 asks it as a case, so q05 does not give q20 away.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Keep. Distractor 'A gap down at the open' is the stop-fills-on-a-gap-down topic, not GAP-TRIM; breakeven 2R to 5R agrees with D-013."
   },
   "q06": {
    "status": "pass",
@@ -1578,7 +1593,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "ok"
+   "notes": "Agrees with D-013: first sell a judgment, day 3 at the earliest, 3/5/7 day push or about 5 to 10R; quotes r01-r03 word for word; styled."
   },
   "q08": {
    "status": "pass",
@@ -1644,7 +1659,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Checked against TRADE_PLANS.md rows: Kicker, Oops Reversal, Slingshot and Launchpad all name 'under each higher low'. That is 4 of the 6 trade plans (HVE names no trail, Gap Support names the gap top), so 'most' holds. The why's 'three also name a moving average' (10, 10, rising 21) is correct. E52's default (a close under the 10/21-day) is not among the choices, so no second answer, and TRADE_PLANS line 9 lets a detector's own trail stand beside E52, so the key does not go against section 9. The 200-day lure is wrong under E52. Fixed amount is a real trailing stop (f03) but not ours. Choices "
+   "notes": "D-021 rename correct; r04 cited; answer and wrongs hold."
   },
   "q19": {
    "status": "pass",
@@ -1687,7 +1702,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "False keyed on h09 verbatim ('sell on a close below it'); 10-day for fast movers is true, so the only false element is intraday vs close. Rung 6 before q18; q18's why cannot answer it first. Lengths and voice OK."
+   "notes": "D-021 rename correct; answer False holds; close-not-touch rule intact."
   }
  }
 }

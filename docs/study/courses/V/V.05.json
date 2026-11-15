@@ -163,6 +163,14 @@
    "title": "Setup decisions: the owner's rulings (2026-11-12)",
    "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
   }
  ],
  "facts": [
@@ -180,9 +188,9 @@
   },
   {
    "id": "h03",
-   "source": "s18",
-   "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
-   "claim": "After the first third at 3R, we sell another third at 5R and trail the last third."
+   "source": "hw",
+   "quote": "Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
+   "claim": "Later sells are a judgment: sell more into strength on a later push, and trail what is left."
   },
   {
    "id": "h05",
@@ -205,14 +213,14 @@
   {
    "id": "h08",
    "source": "s1",
-   "quote": "under each higher low, or under the 10-day average",
-   "claim": "Our Kicker plan trails the stop under each higher low, or under the 10-day average."
+   "quote": "under each higher low, or under the 9 EMA",
+   "claim": "Our Kicker plan trails the stop under each higher low, or under the 9 EMA."
   },
   {
    "id": "h09",
    "source": "s1",
-   "quote": "the prior close, reclaimed during the day | the day's low | a third at 3R, a third at 5R | under each higher low",
-   "claim": "Our Oops Reversal buys the prior close when it is reclaimed during the day, stops at the day's low, sells a third at 3R and a third at 5R, and trails under each higher low."
+   "quote": "the prior close, reclaimed during the day | the day's low | 3R and 5R are marks; the first sell is a judgment (D-013) | under each higher low",
+   "claim": "Our Oops Reversal buys the prior close when it is reclaimed during the day, stops at the day's low, treats 3R and 5R as marks, and trails under each higher low."
   },
   {
    "id": "h11",
@@ -229,8 +237,8 @@
   {
    "id": "h13",
    "source": "s1",
-   "quote": "under the 10-day average, or under each higher low",
-   "claim": "The Slingshot trails under the 10-day average, or under each higher low."
+   "quote": "under the 9 EMA, or under each higher low",
+   "claim": "The Slingshot trails under the 9 EMA, or under each higher low."
   },
   {
    "id": "h14",
@@ -247,8 +255,8 @@
   {
    "id": "h16",
    "source": "s1",
-   "quote": "under the rising 21-day average, or under each higher low",
-   "claim": "The Launchpad trails under the rising 21-day average, or under each higher low."
+   "quote": "under the rising 20 EMA, or under each higher low",
+   "claim": "The Launchpad trails under the rising 20 EMA, or under each higher low."
   },
   {
    "id": "h17",
@@ -349,8 +357,8 @@
   {
    "id": "l01",
    "source": "s3",
-   "quote": "Each lesson's levels are the plan's: the entry, the stop, and the trims at 3R and 5R",
-   "claim": "Every setup lesson draws the same levels: the entry, the stop, and the trims at 3R and 5R."
+   "quote": "Each lesson's levels are the plan's: the entry, the stop, and the marks at 3R and 5R",
+   "claim": "Every setup lesson draws the same levels: the entry, the stop, and the marks at 3R and 5R."
   },
   {
    "id": "o01",
@@ -576,9 +584,9 @@
   },
   {
    "id": "h24",
-   "source": "s18",
-   "quote": "Move the stop to breakeven at 2R to 5R, ideally.",
-   "claim": "Our stop moves up to breakeven once the trade is 2R to 5R ahead; we teach it at the first trim."
+   "source": "hw",
+   "quote": "The stop may move up to breakeven between 2R and 5R, or at the first sell.",
+   "claim": "Our stop may move up to breakeven between 2R and 5R, or at the first sell."
   },
   {
    "id": "h25",
@@ -601,8 +609,8 @@
   {
    "id": "h28",
    "source": "s1",
-   "quote": "The stop on what is left moves up to breakeven at the first trim",
-   "claim": "Our plan moves the stop on the shares still held up to breakeven at the first trim."
+   "quote": "the stop may move to breakeven between 2R and 5R, or at the first sell",
+   "claim": "Our stop may move to breakeven between 2R and 5R, or at the first sell."
   },
   {
    "id": "h62",
@@ -624,15 +632,15 @@
   },
   {
    "id": "r03",
-   "source": "h2",
-   "quote": "I very rarely sell on the day 1 of the buy day.",
-   "claim": "The owner very rarely sells on day 1 of the buy day."
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
   },
   {
    "id": "r04",
-   "source": "h2",
-   "quote": "I usually wait until day 3 at the earliest.",
-   "claim": "The owner usually waits until day 3 at the earliest for the first sell."
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
   },
   {
    "id": "r05",
@@ -663,6 +671,18 @@
    "source": "h2",
    "quote": "My stop is always LOD or PLOD or range low.",
    "claim": "The owner's stop is the low of day, the prior day's low or the range low."
+  },
+  {
+   "id": "r10",
+   "source": "h2",
+   "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+   "claim": "D-021: the course uses the 9 and 20 EMA everywhere, with the 50 and 200 SMA."
+  },
+  {
+   "id": "r11",
+   "source": "h2",
+   "quote": "The low of day (the entry day's low) is the primary stop. The pattern's low and a line minus a cushion are acceptable alternatives, not wrong answers.",
+   "claim": "D-008: the low of day is the primary stop; a line minus a cushion is an acceptable alternative."
   }
  ],
  "walkthroughs": [
@@ -878,27 +898,27 @@
    "house": true,
    "q": "What is a Launchpad in our setup list?",
    "choices": [
-    "A close out of a tight MA cluster",
-    "A close back over a 4-day high average",
+    "A break out of a tight MA cluster",
+    "A move back over a 4-day high average",
     "A pullback that holds an old gap",
     "A weak open that buyers turn up"
    ],
-   "answer": "A close out of a tight MA cluster",
-   "why": "A close out of a tight MA cluster. The moving averages squeeze together, and the entry is the close that breaks out of the cluster. The stop sits under the 21-day and 50-day averages, a quarter of an ATR below the lower one. It is not the Slingshot, whose line is the 4-day average of the highs.",
-   "lesson_line": "Launchpad: averages squeezed together, then price closes out of the squeeze.",
+   "answer": "A break out of a tight MA cluster",
+   "why": "A break out of a tight MA cluster. The moving averages squeeze together, and we buy as price trades out of the cluster, never at the close. The line-based stop sits under the 20 EMA and 50 SMA, a quarter of an ATR below the lower one. It is not the Slingshot, whose line is the 4-day average of the highs.",
+   "lesson_line": "Launchpad: averages squeezed together, then price breaks out of the squeeze.",
    "facts": [
-    "h14",
     "h15",
-    "h11",
-    "h19",
-    "g01"
+    "g01",
+    "r07",
+    "r10",
+    "r11"
    ],
    "wrong": {
-    "A close back over a 4-day high average": "That's the Slingshot. Its line is a short average of the highs, not a cluster.",
     "A weak open that buyers turn up": "That's the Go Signal.",
-    "A pullback that holds an old gap": "That's Gap Support: we buy the close as the gap holds."
+    "A pullback that holds an old gap": "That's Gap Support, a pullback that holds an old gap.",
+    "A move back over a 4-day high average": "That's the Slingshot. Its line is a short average of the highs, not a cluster."
    },
-   "simple": "A Launchpad is when the moving averages bunch up tight and price then closes out of that bunch.",
+   "simple": "A Launchpad is when the moving averages bunch up tight and price then breaks out of that bunch.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -906,7 +926,7 @@
      "house definition from TRADE_PLANS.md; stable"
     ]
    },
-   "batch": "wave8"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q06",
@@ -923,19 +943,20 @@
     "Waiting for a gap to fill, then buying"
    ],
    "answer": "Buying a pullback that holds a gap",
-   "why": "Buying a pullback that holds a gap. The stock gaps up and runs, then comes back to the gap and holds. We buy the close as it holds. The stop is the gap top or the day's low, whichever is lower. If it drifts sideways at the gap, the stop tightens to just under the gap top. It is not buying the open of a fresh gap, and it does not wait for the gap to fill.",
+   "why": "Buying a pullback that holds a gap. The stock gaps up and runs, then comes back to the gap and holds. We buy as price trades up through the trigger while the gap holds, never at the close. The stop is the gap top or the day's low, whichever is lower. If it drifts sideways at the gap, the stop tightens to just under the gap top. It is not buying the open of a fresh gap, and it does not wait for the gap to fill.",
    "lesson_line": "Gap Support: the gap holds, you buy, and the gap is your line.",
    "facts": [
     "h19",
     "h20",
     "h21",
     "h22",
-    "t13"
+    "t13",
+    "r07"
    ],
    "wrong": {
     "Shorting a gap down off the highs": "Gap Support buys. A short off a gap down is the Bear gap lesson, and that one is measured, not traded.",
-    "Buying the open of any gap up": "Gap Support waits for the gap to prove it holds. The entry is the close.",
-    "Waiting for a gap to fill, then buying": "Our entry is the close while the gap still holds, not after it fills."
+    "Buying the open of any gap up": "Gap Support waits for the gap to prove it holds. The buy comes later, as price trades up through its trigger.",
+    "Waiting for a gap to fill, then buying": "We buy while the gap still holds, not after it fills."
    },
    "simple": "Gap Support means buying when a stock pulls back to an old gap and the gap holds.",
    "tier": "core",
@@ -945,7 +966,7 @@
      "fixed before"
     ]
    },
-   "batch": "wave8"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q07",
@@ -954,7 +975,7 @@
    "format": "mcq",
    "term": "HVC",
    "house": true,
-   "q": "Our catalog lists HVC with the High Volume Edge. What does that setup enter on?",
+   "q": "Our catalog lists HVC with the High Volume Edge. What is the HVC?",
    "choices": [
     "The close of a high-volume day",
     "The highest price of the day",
@@ -962,18 +983,19 @@
     "Volume above its 50-day average"
    ],
    "answer": "The close of a high-volume day",
-   "why": "The close of a high-volume day. Our catalog files HVC with the High Volume Edge, and that setup's entry is the high-volume close. The entry is a price. It is not a volume reading, a gap, or the day's high.",
-   "lesson_line": "High Volume Edge: the entry is where the heavy-volume day closed.",
+   "why": "The close of a high-volume day. Our catalog files HVC with the High Volume Edge, and the HVC is the price where the heavy day closed. We mark it as a level, and we buy as price trades through the trigger, never at the close. It is not a volume reading, a gap, or the day's high.",
+   "lesson_line": "High Volume Edge: the HVC is where the heavy-volume day closed, a level we mark.",
    "facts": [
-    "h17",
-    "m09"
+    "h18",
+    "m09",
+    "r07"
    ],
    "wrong": {
-    "The highest price of the day": "That's the high. Our entry is the high-volume close.",
-    "A high-volume gap at the open": "It isn't about a gap. Our entry is where the heavy-volume day closed.",
-    "Volume above its 50-day average": "That's a volume reading, not a price. Our entry is the close of that heavy day."
+    "The highest price of the day": "That's the high. The HVC is the close of the heavy-volume day.",
+    "A high-volume gap at the open": "It isn't about a gap. The HVC is where the heavy-volume day closed.",
+    "Volume above its 50-day average": "That's a volume reading, not a price. The HVC is the close of that heavy day."
    },
-   "simple": "The High Volume Edge enters at the close of a heavy-volume day, not at its high or on a volume reading.",
+   "simple": "The HVC is the close of the heavy-volume day, not its high or a volume reading.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -982,7 +1004,7 @@
      "fixed before"
     ]
    },
-   "batch": "wave8"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q08",
@@ -996,7 +1018,7 @@
     "A weak open that buyers turn back up",
     "A gap up the day after a red day",
     "A pullback that holds an older gap up",
-    "A close out of a tight MA cluster"
+    "A break out of a tight MA cluster"
    ],
    "answer": "A weak open that buyers turn back up",
    "why": "A weak open that buyers turn back up. It is an intraday entry in a stock that has already shown it can move. The day opens under the prior close. The low sweeps a nearby support. Then buyers step in and turn it.",
@@ -1011,9 +1033,9 @@
     "t01"
    ],
    "wrong": {
-    "A close out of a tight MA cluster": "That's the Launchpad.",
     "A gap up the day after a red day": "That's the Kicker: a red day, then a gap up the next day.",
-    "A pullback that holds an older gap up": "That's Gap Support: we buy the close as the gap holds."
+    "A pullback that holds an older gap up": "That's Gap Support, a pullback that holds an older gap.",
+    "A break out of a tight MA cluster": "That's the Launchpad."
    },
    "simple": "The Go Signal is a strong stock that opens weak, dips through support, and then buyers turn it back up.",
    "tier": "core",
@@ -1023,7 +1045,7 @@
      "house definition from TRADE_PLANS.md; stable"
     ]
    },
-   "batch": "wave8"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q09",
@@ -1032,7 +1054,7 @@
    "format": "mcq",
    "term": "Slingshot",
    "house": true,
-   "q": "Which of our setups enters on the close back over the 4-day average of the highs?",
+   "q": "Which of our setups enters as price trades back over the 4-day average of the highs?",
    "choices": [
     "Slingshot",
     "Launchpad",
@@ -1040,20 +1062,19 @@
     "Go Signal"
    ],
    "answer": "Slingshot",
-   "why": "Slingshot. The stock slips under the 4-day average of the highs, then closes back over it, and that close is the entry. The Launchpad closes out of a cluster of averages. The Oops takes back the prior close during the day. The Go Signal turns a weak open back up intraday.",
-   "lesson_line": "Slingshot: back over the 4-day average of the highs, on the close.",
+   "why": "Slingshot. The stock slips under the 4-day average of the highs, then trades back over it, and that move through the line is the entry. The Launchpad breaks out of a cluster of averages. The Oops takes back the prior close during the day. The Go Signal turns a weak open back up intraday.",
+   "lesson_line": "Slingshot: back over the 4-day average of the highs, as price trades through it.",
    "facts": [
-    "h11",
-    "h14",
     "h09",
-    "g01"
+    "g01",
+    "r07"
    ],
    "wrong": {
-    "Launchpad": "The Launchpad closes out of a tight cluster of averages.",
+    "Launchpad": "The Launchpad breaks out of a tight cluster of averages.",
     "Oops Reversal": "The Oops reclaims the prior close during the day.",
     "Go Signal": "The Go Signal turns a weak open back up during the day."
    },
-   "simple": "The Slingshot enters when the stock closes back over the 4-day average of the highs after slipping under it.",
+   "simple": "The Slingshot enters as price trades back over the 4-day average of the highs after slipping under it.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -1061,7 +1082,7 @@
      "house definition; stable"
     ]
    },
-   "batch": "wave8"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q10",
@@ -1247,7 +1268,7 @@
     "Intraday"
    ],
    "answer": "Reversals & Reclaims",
-   "why": "Reversals & Reclaims. The Slingshot takes back a line the stock just lost: it closes back over the 4-day average of the highs. The Oops Reversal sits in the same family. Gaps & Catalysts holds the Kicker, the High Volume Edge and Gap Support. Intraday holds the Go Signal and the ORB.",
+   "why": "Reversals & Reclaims. The Slingshot takes back a line the stock just lost: it trades back over the 4-day average of the highs. The Oops Reversal sits in the same family. Gaps & Catalysts holds the Kicker, the High Volume Edge and Gap Support. Intraday holds the Go Signal and the ORB.",
    "lesson_line": "Slingshot and Oops Reversal: both in Reversals & Reclaims.",
    "facts": [
     "m05",
@@ -1262,7 +1283,7 @@
    "wrong": {
     "Momentum & Trend": "The Slingshot feels like momentum, but our catalog files it as a reclaim.",
     "Gaps & Catalysts": "That family holds the Kicker, the High Volume Edge and Gap Support.",
-    "Intraday": "Intraday holds the Go Signal and the ORB. The Slingshot enters on the close."
+    "Intraday": "Intraday holds the Go Signal and the ORB. The Slingshot is filed as a reclaim."
    },
    "simple": "The Slingshot sits in Reversals and Reclaims, because it takes back a line the stock just lost.",
    "tier": "core",
@@ -1272,7 +1293,7 @@
      "fixed before"
     ]
    },
-   "batch": "wave8"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q16",
@@ -1464,7 +1485,7 @@
     "Lowering the stop for more room"
    ],
    "answer": "Moving the stop up behind the price",
-   "why": "Moving the stop up behind the price. Our plans trail under each higher low, or under a rising average such as the 21-day. A trailing stop moves up as the stock rises and stays put when it falls. Trailing changes the stop, not the number of shares you hold.",
+   "why": "Moving the stop up behind the price. Our plans trail under each higher low, or under a rising average such as the 20 EMA. A trailing stop moves up as the stock rises and stays put when it falls. Trailing changes the stop, not the number of shares you hold.",
    "lesson_line": "Trail: the stop follows the stock up, never down.",
    "facts": [
     "h08",
@@ -1472,7 +1493,8 @@
     "t14",
     "t15",
     "t17",
-    "p01"
+    "p01",
+    "r10"
    ],
    "wrong": {
     "Lowering the stop for more room": "That's widening the stop. A trail only ever tightens.",
@@ -1485,7 +1507,7 @@
     "score": 0,
     "reasons": []
    },
-   "batch": "wave8"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q22",
@@ -1818,7 +1840,7 @@
    "format": "scenario",
    "term": "Launchpad",
    "house": true,
-   "story": "A stock's short-term, 21-day and 50-day averages have bunched tightly together. Price has sat just on top of the bunch for days. Today it closes higher, out of the cluster.",
+   "story": "A stock's short-term average, 20 EMA and 50 SMA have bunched tightly together. Price has sat just on top of the bunch for days. Today it trades up and out of the cluster.",
    "q": "What is our name for this setup?",
    "choices": [
     "Launchpad",
@@ -1827,21 +1849,20 @@
     "High Volume Edge"
    ],
    "answer": "Launchpad",
-   "why": "Launchpad. The short-term, 21-day and 50-day averages are bunched tight, and today's close breaks out of the cluster. Our Launchpad enters on that close. Its stop goes under the 21-day and 50-day averages, a quarter of an ATR below the lower one.",
-   "lesson_line": "Tight cluster of averages, then a close out of it: Launchpad.",
+   "why": "Launchpad. The short-term average, 20 EMA and 50 SMA are bunched tight, and today's move breaks out of the cluster. Our Launchpad buys as price trades out of it. The line-based stop goes under the 20 EMA and 50 SMA, a quarter of an ATR below the lower one.",
+   "lesson_line": "Tight cluster of averages, then price breaks out of it: Launchpad.",
    "facts": [
-    "h14",
     "h15",
     "h11",
-    "h19",
-    "h17"
+    "r07",
+    "r10"
    ],
    "wrong": {
     "Slingshot": "The Slingshot's line is the 4-day average of the highs, not a squeeze of longer averages.",
     "Gap Support": "There's no gap in this story.",
     "High Volume Edge": "Nothing says the volume was heavy. The cluster of averages is the tell."
    },
-   "simple": "Launchpad, because the averages are bunched tight and today's close breaks out of that bunch.",
+   "simple": "Launchpad, because the averages are bunched tight and price breaks out of that bunch.",
    "tier": "extended",
    "risk": {
     "score": 6,
@@ -1851,7 +1872,7 @@
      "fixed or rewritten before"
     ]
    },
-   "batch": "wave8"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q32",
@@ -1937,14 +1958,15 @@
    "house": true,
    "q": "Our Launchpad plan trails the stop under the 4-day average of the highs.",
    "answer": "False",
-   "why": "False. Our Launchpad trails under the rising 21-day average, or under each higher low. The 4-day average of the highs is the Slingshot's entry line, not a Launchpad trail.",
-   "lesson_line": "Launchpad trail: the rising 21-day average, or each higher low.",
+   "why": "False. Our Launchpad trails under the rising 20 EMA, or under each higher low. The 4-day average of the highs is the Slingshot's entry line, not a Launchpad trail.",
+   "lesson_line": "Launchpad trail: the rising 20 EMA, or each higher low.",
    "facts": [
     "h16",
-    "h11"
+    "h11",
+    "r10"
    ],
    "term": "Launchpad",
-   "simple": "False, the Launchpad trails under the rising 21-day average or each higher low, not the 4-day line.",
+   "simple": "False, the Launchpad trails under the rising 20 EMA or each higher low, not the 4-day line.",
    "tier": "extended",
    "risk": {
     "score": 5,
@@ -1953,7 +1975,7 @@
      "a house plan rule (TRADE_PLANS.md) the owner reviews next"
     ]
    },
-   "batch": "wave8"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q35",
@@ -1962,13 +1984,13 @@
    "format": "scenario",
    "term": "Gap Support",
    "house": true,
-   "story": "The gap top is $50.00. Today the stock dipped to $49.60, then closed at $52.00. You buy that close as Gap Support.",
+   "story": "The gap top is $50.00. Today the stock dipped to $49.60, then turned up and traded through your trigger. You buy as Gap Support.",
    "q": "Which level sets our stop?",
    "choices": [
     "$49.60, today's low",
     "$50.00, the gap top",
     "3.5% under your entry",
-    "Under the 10-day average"
+    "Under the rising 9 EMA"
    ],
    "answer": "$49.60, today's low",
    "why": "$49.60, today's low. Our Gap Support stop is the gap top or the day's low, whichever is lower. Today's low, $49.60, sits under the $50.00 gap top, so it sets the stop. Our rulebook puts the order a few cents under that low, not exactly on it.",
@@ -1977,13 +1999,13 @@
     "h19",
     "h07",
     "h62",
-    "h08",
-    "h13"
+    "r07",
+    "r10"
    ],
    "wrong": {
     "$50.00, the gap top": "That's the higher of the two here. Our rule takes the lower.",
     "3.5% under your entry": "That's part of the Kicker's stop rule, not Gap Support's.",
-    "Under the 10-day average": "That's a trail line in our Kicker and Slingshot plans, used once a trade works. Gap Support's first stop is the lower of the gap top and the day's low."
+    "Under the rising 9 EMA": "That's a trail line in our Kicker and Slingshot plans, used once a trade works. Gap Support's first stop is the lower of the gap top and the day's low."
    },
    "simple": "Today's $49.60 low sets the stop, because our Gap Support stop takes the lower of the gap top and the day's low.",
    "tier": "extended",
@@ -1995,7 +2017,7 @@
      "rests on the owner's account rulebook (sizing_rule.md section 9)"
     ]
    },
-   "batch": "wave8"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q36",
@@ -2010,7 +2032,7 @@
     "Under the Kicker low, 2% away",
     "3.5% under your $40.00 entry",
     "Under the prior red day's low",
-    "Under the rising 10-day average"
+    "Under the rising 9 EMA"
    ],
    "answer": "Under the Kicker low, 2% away",
    "calc": {
@@ -2021,17 +2043,18 @@
      "low": 39.2
     }
    },
-   "why": "Under the Kicker low, 2% away. Our Kicker stop goes under the Kicker's low, or 3.5% under the entry if that is closer. Here the $39.20 low is 2% under the $40.00 entry, so it is the closer one and wins. The red day's low is not the stop, and the 10-day average is how the trade trails later.",
+   "why": "Under the Kicker low, 2% away. Our Kicker stop goes under the Kicker's low, or 3.5% under the entry if that is closer. Here the $39.20 low is 2% under the $40.00 entry, so it is the closer one and wins. The red day's low is not the stop, and the 9 EMA is how the trade trails later.",
    "lesson_line": "Kicker stop: the Kicker's low, or 3.5% under entry, whichever is closer.",
    "facts": [
     "h07",
     "o03",
-    "h08"
+    "h08",
+    "r10"
    ],
    "wrong": {
     "3.5% under your $40.00 entry": "That's the other half of the rule. Here the Kicker's low is only 2% under, so it is closer and wins.",
     "Under the prior red day's low": "The red day came before the Kicker. Our stop hangs off the Kicker candle itself.",
-    "Under the rising 10-day average": "That's how the Kicker trails later, under the 10-day average or each higher low. The first stop hangs off the Kicker's low."
+    "Under the rising 9 EMA": "That's how the Kicker trails later, under the 9 EMA or each higher low. The first stop hangs off the Kicker's low."
    },
    "simple": "Under the Kicker low, because it is only 2% below your entry, closer than 3.5%, and our rule takes the closer stop.",
    "deeper": {
@@ -2044,7 +2067,7 @@
      "computed key"
     ]
    },
-   "batch": "wave8"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q37",
@@ -2232,7 +2255,7 @@
    "rung": 7,
    "format": "mcq",
    "house": true,
-   "q": "Launchpad. The 21-day average is $48.00, the 50-day is $47.50, and the ATR is $2.00. Where does our stop go?",
+   "q": "Launchpad. The 20 EMA is $48.00, the 50 SMA is $47.50 and the ATR is $2.00. Where does the line-based stop sit?",
    "answer": "$47.00",
    "calc": {
     "fn": "arith",
@@ -2243,16 +2266,18 @@
     }
    },
    "prefix": "$",
-   "why": "$47.00. The Launchpad stop sits under the 21-day and 50-day averages, a quarter of an ATR below the lower one. The lower one is the 50-day at $47.50. A quarter of the $2.00 ATR below $47.50 is $47.50 - 0.25 x $2.00 = $47.00. An easy slip is starting from the higher average, the 21-day at $48.00.",
-   "lesson_line": "Launchpad stop: a quarter of an ATR under the lower of the 21-day and 50-day.",
+   "why": "$47.00. The line-based Launchpad stop sits under the 20 EMA and 50 SMA, a quarter of an ATR below the lower one. The lower one is the 50 SMA at $47.50. A quarter of the $2.00 ATR below $47.50 is $47.50 - 0.25 x $2.00 = $47.00. An easy slip is starting from the higher average, the 20 EMA at $48.00. The low of day stays our primary stop.",
+   "lesson_line": "Launchpad line stop: a quarter of an ATR under the lower of the 20 EMA and 50 SMA.",
    "facts": [
     "h15",
-    "t20"
+    "t20",
+    "r10",
+    "r11"
    ],
    "term": "Launchpad",
-   "simple": "$47.00, because the lower average is the 50-day at $47.50, and our stop sits a quarter of the $2.00 ATR below it.",
+   "simple": "$47.00, because the lower average is the 50 SMA at $47.50, and the stop sits a quarter of the $2.00 ATR below it.",
    "deeper": {
-    "trap": "The stop hangs off the lower of the two averages, not the one you watch most. Here the 21-day is $48.00 and the 50-day is $47.50. So the 50-day sets the line, and the quarter ATR goes below that."
+    "trap": "The stop hangs off the lower of the two averages, not the one you watch most. Here the 20 EMA is $48.00 and the 50 SMA is $47.50. So the 50 SMA sets the line, and the quarter ATR goes below that."
    },
    "tier": "extended",
    "risk": {
@@ -2261,7 +2286,7 @@
      "computed key"
     ]
    },
-   "batch": "rank",
+   "batch": "sweep-2026-11-14",
    "choices": [
     "$47.00",
     "$47.50",
@@ -2269,9 +2294,9 @@
     "$48.50"
    ],
    "wrong": {
-    "$47.50": "Used the 50-day itself and took nothing off.",
-    "$48.00": "Used the 21-day itself and took nothing off.",
-    "$48.50": "Added a quarter ATR to the 21-day instead of subtracting."
+    "$47.50": "Used the 50 SMA itself and took nothing off.",
+    "$48.00": "Used the 20 EMA itself and took nothing off.",
+    "$48.50": "Added a quarter ATR to the 20 EMA instead of subtracting."
    }
   },
   {
@@ -2724,14 +2749,15 @@
     "Bear gap"
    ],
    "answer": "Gap Support",
-   "why": "Gap Support. Six weeks ago it gapped up on big volume, and the gap is still open. Now the pullback is holding the gap top. We buy the close as the gap holds. The stop is the gap top or the day's low, whichever is lower.",
+   "why": "Gap Support. Six weeks ago it gapped up on big volume, and the gap is still open. Now the pullback is holding the gap top. We buy as price trades up through the trigger while the gap holds. The stop is the gap top or the day's low, whichever is lower.",
    "lesson_line": "An old gap that holds on the pullback: Gap Support.",
    "facts": [
     "h19",
     "h05",
     "h09",
     "h22",
-    "t13"
+    "t13",
+    "r07"
    ],
    "wrong": {
     "Kicker": "A Kicker is the gap day itself, off a red day. This is weeks later.",
@@ -2750,7 +2776,7 @@
      "a house plan rule (TRADE_PLANS.md) the owner reviews next"
     ]
    },
-   "batch": "wave8"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q54",
@@ -2869,22 +2895,20 @@
     "The 5-bar low",
     "The 200-day line",
     "Yesterday's close",
-    "The 10-day line"
+    "The prior day's high"
    ],
    "answer": "The 5-bar low",
-   "why": "The 5-bar low. Our Go Signal's sweep list has three kinds of level. They are the prior low, the 5-bar low, or a 9, 20 or 50-day average the prior close was above. The 200-day and the 10-day are not on it. Yesterday's close is the line the stock reclaims for the entry, not a support it sweeps.",
+   "why": "The 5-bar low. Our Go Signal's sweep list has three kinds of level. They are the prior low, the 5-bar low, or a 9, 20 or 50-day average the prior close was above. The 200-day line and the prior day's high are not on it. Yesterday's close is the line the stock reclaims for the entry, not a support it sweeps.",
    "lesson_line": "Go Signal sweeps: the prior low, the 5-bar low, or the 9, 20 or 50-day average.",
    "facts": [
     "g05",
     "g08",
-    "g01",
-    "h08",
-    "h13"
+    "g01"
    ],
    "wrong": {
     "Yesterday's close": "That's the line it reclaims for the entry, red to green. The sweep happens lower.",
     "The 200-day line": "Our list stops at the 9, 20 and 50-day averages. The 200-day isn't on it.",
-    "The 10-day line": "Not on the sweep list, which names the 9, 20 and 50-day. The 10-day is a trail line in our Kicker and Slingshot plans."
+    "The prior day's high": "Not on the sweep list. A sweep dips under a support, and the prior day's high sits overhead."
    },
    "simple": "The 5-bar low, because it is on our sweep list with the prior low and the 9, 20 and 50-day averages.",
    "tier": "extended",
@@ -2895,7 +2919,7 @@
      "a house plan rule (TRADE_PLANS.md) the owner reviews next"
     ]
    },
-   "batch": "wave8"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q58",
@@ -2913,24 +2937,25 @@
     "First sell: day 3 at the earliest"
    ],
    "answer": "Trail under the 4-day line",
-   "why": "Trail under the 4-day line. Our Slingshot trails under the 10-day average, or under each higher low. The 4-day average of the highs is the entry line, not the trail. The entry, the stop and the first sell in the note all match our plan.",
-   "lesson_line": "Slingshot: enter as price trades over the 4-day highs line, trail the 10-day or the higher lows.",
+   "why": "Trail under the 4-day line. Our Slingshot trails under the 9 EMA, or under each higher low. The 4-day average of the highs is the entry line, not the trail. The entry, the stop and the first sell in the note all match our plan.",
+   "lesson_line": "Slingshot: enter as price trades over the 4-day highs line, trail the 9 EMA or the higher lows.",
    "facts": [
     "h12",
     "h13",
     "r03",
     "r04",
     "r07",
-    "r08"
+    "r08",
+    "r10"
    ],
    "wrong": {
     "Stop under the trigger day's low": "That's our stop. The day before's low is the wider choice.",
     "Entry as it trades up through it": "That's our entry: price trading up through the line, not a close.",
     "First sell: day 3 at the earliest": "That fits how we sell. We very rarely sell on day 1, and the first sell is a judgment."
    },
-   "simple": "The trail line is wrong, because our Slingshot trails under the 10-day average or each higher low, not the 4-day line.",
+   "simple": "The trail line is wrong, because our Slingshot trails under the 9 EMA or each higher low, not the 4-day line.",
    "deeper": {
-    "trap": "The 4-day line is already in the note as the entry, so reusing it for the trail feels natural. The plan uses a different line for each job. The 4-day average of the highs gets you in. The 10-day average or each higher low trails."
+    "trap": "The 4-day line is already in the note as the entry, so reusing it for the trail feels natural. The plan uses a different line for each job. The 4-day average of the highs gets you in. The 9 EMA or each higher low trails."
    },
    "tier": "expert",
    "risk": {
@@ -2940,7 +2965,7 @@
      "a house plan rule (TRADE_PLANS.md) the owner reviews next"
     ]
    },
-   "batch": "rulings2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q59",
@@ -3226,33 +3251,33 @@
   },
   "q05": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Edit agrees with D-003/D-021/D-008. Stale house facts h14, h11, h19 quote 'close' entries that now contradict the text; dropped from facts (r07 carries the entry, h15 the quarter-ATR)."
   },
   "q06": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Wrong notes now rest on h19 and h22; 'pullback' is inferable from h20 (post-gap high) and h21 (drifts sideways at the gap). Longest choice is a distractor."
+   "notes": "Trade-through entry, never at the close (D-003). h19 kept only because it grounds the stop rule."
   },
   "q07": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Entry = the high-volume close (h17); the HVC alias is verified in skill_map.json (m09). HVC is not expanded, so the owner flag on the expansion is respected. 'high-volume' also appears in a distractor, so there is no word-echo tell."
+   "notes": "Re-asked as what the HVC is; no entry rule invented; volume is the setup here so D-006 n/a."
   },
   "q08": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Matches the g01 quote word for word in the TRADE_PLANS Go Signal section. Distractors are the Kicker, Gap Support and Launchpad. Answer 36 chars vs the longest distractor at 37."
+   "notes": "Go Signal answer unchanged; wrong notes no longer say close entry."
   },
   "q09": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Matches h11. Note for the lesson owner: this stem (the Slingshot enters on the close) answers q23 (outside this check). q04's choices and q58's story carry the same definition, so the overlap belongs to q23, not q09."
+   "fixed": true,
+   "notes": "Entry now trade-through (D-003). Stale facts h11 and h14 quote 'close' entries; dropped, r07 carries the entry."
   },
   "q10": {
    "status": "pass",
@@ -3288,7 +3313,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "m05 key. The key is the longest choice, but family names are fixed labels and Reversals & Reclaims is the longest of the five, so this tell cannot be avoided when it is keyed. Families are taught in w2, so the Intraday line overlapping q27 is teach-then-test, as q14 already does."
+   "notes": "Family answer unchanged; text now trade-through. h11 kept to ground the Slingshot line."
   },
   "q16": {
    "status": "pass",
@@ -3322,9 +3347,9 @@
   },
   "q21": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "20 EMA with D-021 fact cited; D-013 untouched (trim wrong note is generic)."
   },
   "q22": {
    "status": "pass",
@@ -3354,7 +3379,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Flipped to False per D-013."
+   "notes": "Already teaches D-013: False to a fixed third at 3R; quotes r03-r06 word for word."
   },
   "q27": {
    "status": "pass",
@@ -3382,9 +3407,9 @@
   },
   "q31": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Writer missed lesson_line, which still says 'a close out of it' (D-003). Also dropped stale close-entry facts h14, h11, h19, h17. h11 kept to ground the 4-day number in the Slingshot wrong note."
   },
   "q32": {
    "status": "pass",
@@ -3401,21 +3426,21 @@
   },
   "q34": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "21-day to 20 EMA with D-021 fact; key unchanged."
   },
   "q35": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "h19: the lower of the gap top ($50.00) and the day's low ($49.60) is $49.60. The why notes F62's few cents. Distractors are real mix-ups: the higher candidate, the Kicker's 3.5% rule, a trail line. The stem does not give away q18's 'lower'."
+   "fixed": true,
+   "notes": "Writer missed the story: 'closed at $52.00. You buy that close as Gap Support' is a close entry (D-003). Re-told as a trade-through entry; the $52.00 is not used in the why. Dropped stale 10-day facts h08, h13, added r07."
   },
   "q36": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "10-day renamed to 9 EMA; key (Kicker low 2% away vs 3.5%) unchanged and arithmetic 0.80/40 = 2% correct."
   },
   "q37": {
    "status": "pass",
@@ -3451,7 +3476,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Sorted rank matches target; each wrong choice recomputed as a real mistake on this math; no new tell."
+   "notes": "Math checks: 47.50 - 0.25 x 2.00 = 47.00; wrong answers are real slips; D-008 low of day stays primary."
   },
   "q43": {
    "status": "pass",
@@ -3516,9 +3541,9 @@
   },
   "q53": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "Trade-through entry; stop rule per house."
   },
   "q54": {
    "status": "pass",
@@ -3542,14 +3567,14 @@
   "q57": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key from g05. The 200-day and 10-day are not on the list, and yesterday's close is the reclaim line (g08). Choices 13-17 characters, inside 25% of the longest."
+   "fixed": true,
+   "notes": "Answer and distractors fine (prior day's high is not on the g05 sweep list). Dropped stale 10-day facts h08, h13 that no longer apply to the question."
   },
   "q58": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Story and key moved to trade-through entry and day-3 first sell; consistent with D-003 and D-013."
+   "notes": "Trail 9 EMA per D-021; first sell day 3 at the earliest matches D-013; key unchanged."
   },
   "q59": {
    "status": "pass",

@@ -255,6 +255,14 @@
    "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
    "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -689,6 +697,12 @@
    "source": "s30",
    "quote": "Too stretched to buy: skip a long that is more than 10% above its 10-day average.",
    "claim": "Our rule C29: skip a long more than 10% above its 10-day average."
+  },
+  {
+   "id": "rd21",
+   "source": "h2",
+   "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+   "claim": "Our rule: the course teaches the 9 and 20 EMA, with the 50 and 200 SMA."
   }
  ],
  "walkthroughs": [
@@ -1681,11 +1695,12 @@
     "h05",
     "f47",
     "f48",
-    "h14"
+    "h14",
+    "rd21"
    ],
    "wrong": {
     "Up to 5% above buy point": "That's IBD's buy zone. Our rule draws the line tighter: never more than 4% above the buy point.",
-    "Up to 10% above buy point": "That's a different rule: we skip a long more than 10% above its 10-day average. The buy-point line is 4%.",
+    "Up to 10% above buy point": "That's a different rule: we skip a long more than 10% above its 9 EMA. The buy-point line is 4%.",
     "Any, if the shares shrink": "Fewer shares is the cost of buying above the buy point, not a pass. Past 4%, we don't buy at all."
    },
    "tier": "core",
@@ -1696,7 +1711,7 @@
      "+1 new in this batch"
     ]
    },
-   "batch": "wave9"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q27",
@@ -1978,8 +1993,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from h04. Choices 28-30 chars, key not longest. 5% and 10% are real named rules (f47 IBD, h14 C29); 'Any distance, if shares shrink' is a real misreading of h05. Reveals in q05/q06 teach the same line, which is teach-then-recall, not a giveaway in question text.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Wrong note renamed to 9 EMA, 4% buy-point line unchanged and right."
   },
   "q27": {
    "status": "pass",

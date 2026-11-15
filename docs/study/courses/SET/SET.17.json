@@ -177,6 +177,14 @@
    "title": "Setup decisions: the owner's rulings (2026-11-12)",
    "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
   }
  ],
  "facts": [
@@ -434,9 +442,9 @@
   },
   {
    "id": "h05",
-   "source": "h1",
-   "quote": "Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
-   "claim": "B19: breakeven between 2R and 5R; the hard rule for the first trim is a third at 3R."
+   "source": "hw",
+   "quote": "The stop may move up to breakeven between 2R and 5R, or at the first sell.",
+   "claim": "Our stop may move up to breakeven between 2R and 5R, or at the first sell."
   },
   {
    "id": "h06",
@@ -512,15 +520,15 @@
   },
   {
    "id": "h18",
-   "source": "h1",
-   "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
-   "claim": "E51: another third at 5R, then trail the last third."
+   "source": "hw",
+   "quote": "Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
+   "claim": "Later sells are a judgment: sell more into strength on a later push, and trail what is left."
   },
   {
    "id": "h19",
-   "source": "h1",
-   "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
-   "claim": "E52: trail the 10-day for fast movers, the 21-day for steadier ones; exit on a close through it."
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
   },
   {
    "id": "h20",
@@ -866,9 +874,9 @@
   },
   {
    "id": "c51",
-   "source": "c1",
-   "quote": "Trail the last third: cover on a close back above the 10-day EMA for a fast mover, the 21-day for a steadier one.",
-   "claim": "Trail the last third on the 10-day EMA or the 21-day; cover on a close back above it."
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
   },
   {
    "id": "c52",
@@ -1112,9 +1120,9 @@
   },
   {
    "id": "r55",
-   "source": "h2",
-   "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
-   "claim": "We very rarely sell on day 1 and usually wait until day 3 at the earliest."
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
   },
   {
    "id": "r56",
@@ -1127,6 +1135,12 @@
    "source": "h2",
    "quote": "Shorts enter like buys: as price trades through the trigger, never at the close.",
    "claim": "SHORT-ENTRY: shorts enter as price trades through the trigger, never at the close."
+  },
+  {
+   "id": "r60",
+   "source": "h2",
+   "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+   "claim": "D-021: the course uses the 9 and 20 EMA, with the 50 and 200 SMA."
   }
  ],
  "walkthroughs": [
@@ -1171,7 +1185,8 @@
     "h18",
     "h19",
     "c47",
-    "k07"
+    "k07",
+    "r54"
    ]
   },
   {
@@ -1669,7 +1684,7 @@
    "rung": 2,
    "format": "mcq",
    "criterion": "wd.stall_tight",
-   "q": "In the stall, how far may a close sit from the 10-day EMA on our card?",
+   "q": "In the stall, how far may a close sit from the 9 EMA on our card?",
    "choices": [
     "No more than 0.5 ATR",
     "No more than 1 ATR",
@@ -1677,20 +1692,21 @@
     "No more than 5%"
    ],
    "answer": "No more than 1 ATR",
-   "why": "No more than 1 ATR. Through the stall no close is more than 1 ATR from the 10-day EMA. ATR is the stock's own usual daily range, so the test fits each stock. Kell: price trades tight into the moving averages. The 1 ATR is the card's proposed number.",
-   "lesson_line": "The stall hugs the 10-day EMA. Far from it is not a stall.",
+   "why": "No more than 1 ATR. Through the stall no close is more than 1 ATR from the 9 EMA. ATR is the stock's own usual daily range, so the test fits each stock. Kell: price trades tight into the moving averages. The 1 ATR is the card's proposed number.",
+   "lesson_line": "The stall hugs the 9 EMA. Far from it is not a stall.",
    "facts": [
     "c09",
     "y01",
-    "t02"
+    "t02",
+    "r60"
    ],
    "house": true,
    "wrong": {
     "No more than 5%": "The stall test is set in ATR, the stock's own usual daily range, not in a fixed percent.",
     "No more than 0.5 ATR": "That is stricter than the card. The line is 1 ATR.",
-    "No more than 2 ATR": "Too loose. The card's line is 1 ATR from the 10-day EMA."
+    "No more than 2 ATR": "Too loose. The card's line is 1 ATR from the 9 EMA."
    },
-   "simple": "No close in the stall sits more than one typical day's range away from the 10-day average.",
+   "simple": "No close in the stall sits more than one typical day's range away from the 9 EMA.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1699,7 +1715,7 @@
      "tied to a held decision (D-021)"
     ]
    },
-   "batch": "wave2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q16",
@@ -1776,29 +1792,30 @@
    "rung": 3,
    "format": "scenario",
    "criterion": "wd.not_stretched",
-   "story": "The trigger day gaps down and opens 12% under its 10-day average. The stall and the averages all checked out.",
+   "story": "The trigger day gaps down and opens 12% under its 9 EMA. The stall and the averages all checked out.",
    "q": "Short at the open, or pass?",
    "choices": [
-    "Pass; over 10% under the 10-day",
+    "Pass; over 10% under the 9 EMA",
     "Pass; the stall was too short",
     "Short; gap confirms the top",
     "Short at half size, same stop"
    ],
-   "answer": "Pass; over 10% under the 10-day",
-   "why": "Pass. We skip a short more than 10% under its 10-day average, checked at the open on a gap down. This one opens 12% under, so it fails, even with the stall and averages in order. The long rule is 10% above the 10-day. The short is its mirror.",
+   "answer": "Pass; over 10% under the 9 EMA",
+   "why": "Pass. We skip a short more than 10% under its 9 EMA, checked at the open on a gap down. This one opens 12% under, so it fails, even with the stall and averages in order. The long rule is 10% above the 9 EMA. The short is its mirror.",
    "lesson_line": "A drop that is already stretched is a chase with a different name.",
    "facts": [
     "h12",
     "c50",
-    "h16"
+    "h16",
+    "r60"
    ],
    "house": true,
    "wrong": {
-    "Pass; the stall was too short": "The story says the stall checked out. The reason to pass is the stretch under the 10-day.",
+    "Pass; the stall was too short": "The story says the stall checked out. The reason to pass is the stretch under the 9 EMA.",
     "Short; gap confirms the top": "A gap down can look like confirmation. The rule checks the stretch at the open, and it says skip.",
     "Short at half size, same stop": "Size does not fix a stretched entry. The rule is skip."
    },
-   "simple": "Pass. The open is more than 10% under the 10-day average, so the drop is already stretched and we skip it.",
+   "simple": "Pass. The open is more than 10% under the 9 EMA, so the drop is already stretched and we skip it.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1806,7 +1823,7 @@
      "+2 rests on the owner's rulebook (C29, mirrored by D47)"
     ]
    },
-   "batch": "wave2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q19",
@@ -2544,7 +2561,7 @@
     "A Wedge Pop, buy the breakout"
    ],
    "answer": "An extension; price is stretched",
-   "why": "An extension; price is stretched. Kell called QQQ a little ahead of itself at 4-5% above its daily 10-day EMA on February 2nd. The Wedge Drop came on 2/16 and 2/17. Our card sets about 4% or more over the 10-day for an index. The extension is the top. The drop is the close down through the averages days later.",
+   "why": "An extension; price is stretched. Kell called QQQ a little ahead of itself at 4-5% above its daily 10-day EMA on February 2nd. We use the 9 and 20 EMA. The Wedge Drop came on 2/16 and 2/17. Our card sets about 4% or more over the 9 EMA for an index. The extension is the top. The drop is the close down through the averages days later.",
    "lesson_line": "Far above the fast average, the rally is tired. Watch for the stall.",
    "facts": [
     "k03",
@@ -2552,7 +2569,8 @@
     "k08",
     "t01",
     "d38",
-    "k04"
+    "k04",
+    "r60"
    ],
    "house": true,
    "wrong": {
@@ -2569,7 +2587,7 @@
      "fixed before (cold check)"
     ]
    },
-   "batch": "wave2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q38",
@@ -2736,7 +2754,7 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "wd.crossback_hold",
-   "story": "You are short and have already covered a third. Now the stock rallies into its falling 10 and 20-day EMAs and stalls under them.",
+   "story": "You are short and have already covered part of it. Now the stock rallies into its falling 9 and 20 EMAs and stalls under them.",
    "q": "What is that?",
    "choices": [
     "A crossback; hold, trail decides",
@@ -2745,14 +2763,15 @@
     "A Wedge Pop; buy the rally"
    ],
    "answer": "A crossback; hold, trail decides",
-   "why": "A crossback. Kell: a downside EMA Crossback retests the moving averages and is met with more resistance, pushing the stock lower. A rally that stalls under the falling averages is a place to hold, not to panic. The trail still covers on a close back above the 10 or 21-day. It is not a place to add: that would be a new trade with its own stop.",
+   "why": "A crossback. Kell: a downside EMA Crossback retests the moving averages and is met with more resistance, pushing the stock lower. A rally that stalls under the falling averages is a place to hold, not to panic. The trail still covers on a close back above the 9 or 20 EMA. It is not a place to add: that would be a new trade with its own stop.",
    "lesson_line": "The first rally into the falling averages is expected. Hold it, and let the trail speak.",
    "facts": [
     "y04",
     "c18",
     "k08",
     "c19",
-    "x03"
+    "x03",
+    "r60"
    ],
    "house": true,
    "wrong": {
@@ -2772,7 +2791,7 @@
      "tied to a held decision (D-002)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q43",
@@ -2876,31 +2895,31 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "wd.stall_tight",
-   "story": "In a five-day stall, one close sits 1.42 ATR over the 10-day EMA. Then the stock closes under both averages.",
+   "story": "In a five-day stall, one close sits 1.6 ATR over the 9 EMA. Then the stock closes under both averages.",
    "q": "Does that pass our stall test?",
    "choices": [
     "No; one close was past 1 ATR",
     "Yes; five days is enough",
-    "Yes; 1.42 ATR is fine",
+    "Yes; 1.6 ATR is fine",
     "No; five days is too short"
    ],
    "answer": "No; one close was past 1 ATR",
-   "why": "No. Through the stall no close is more than 1 ATR from the 10-day EMA. One close at 1.42 ATR fails that test. Five days is inside the 3 to 10 the card allows, so length is not the problem. WFC 2016-09-09 missed the same way: a stall close sat 1.42 ATR from the 10-day EMA. The 1 ATR is the card's proposed number.",
-   "lesson_line": "Count the quiet days. One close too far from the 10-day EMA and it is not a stall.",
+   "why": "No. Through the stall no close is more than 1 ATR from the 9 EMA. One close at 1.6 ATR fails that test. Five days is inside the 3 to 10 the card allows, so length is not the problem. The 1 ATR is the card's proposed number.",
+   "lesson_line": "Count the quiet days. One close too far from the 9 EMA and it is not a stall.",
    "facts": [
     "c09",
     "c08",
-    "d30"
+    "r60"
    ],
    "house": true,
    "wrong": {
     "Yes; five days is enough": "Length is one test. The distance is another, and one close failed it.",
-    "Yes; 1.42 ATR is fine": "The card says no close is more than 1 ATR from the 10-day EMA. This one is past it.",
-    "No; five days is too short": "Five days is inside the 3 to 10 sessions the card allows."
+    "No; five days is too short": "Five days is inside the 3 to 10 sessions the card allows.",
+    "Yes; 1.6 ATR is fine": "The card says no close is more than 1 ATR from the 9 EMA. This one is past it."
    },
-   "simple": "No. One close past 1 ATR from the 10-day EMA breaks the stall test, even in a five-day stall.",
+   "simple": "No. One close past 1 ATR from the 9 EMA breaks the stall test, even in a five-day stall.",
    "deeper": {
-    "trap": "One stretched close breaks a stall. WFC's close sat 1.42 ATR from the 10-day EMA, past the 1 ATR limit. It was an extension turn with no real stall, so it was not a Wedge Drop."
+    "trap": "One stretched close breaks a stall. A close that far from the 9 EMA means the move is still extended with no real stall, so it is not a Wedge Drop."
    },
    "tier": "extended",
    "risk": {
@@ -2909,7 +2928,7 @@
      "rests on a proposed card criterion awaiting owner review"
     ]
    },
-   "batch": "wave2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q47",
@@ -2967,13 +2986,14 @@
     "A downside crossback, a retest"
    ],
    "answer": "The Parabolic Short, climax day",
-   "why": "The Parabolic Short. It is shorted on the climax day of a 3 to 5 day burst, 10% or more over the 9-day EMA. Here the stock is 25% over it on the fifth straight up day. A Wedge Drop comes days later, after a stall within 1 ATR of the 10-day EMA. Bracco's target for a parabolic short is the 9-day EMA, which acts as a magnet for mean reversion.",
+   "why": "The Parabolic Short. It is shorted on the climax day of a 3 to 5 day burst, 10% or more over the 9-day EMA. Here the stock is 25% over it on the fifth straight up day. A Wedge Drop comes days later, after a stall within 1 ATR of the 9 EMA. Bracco's target for a parabolic short is the 9-day EMA, which acts as a magnet for mean reversion.",
    "lesson_line": "Measure the distance to the averages. Far above them on the climax day is the other setup.",
    "facts": [
     "c29",
     "c25",
     "u04",
-    "y04"
+    "y04",
+    "r60"
    ],
    "house": true,
    "wrong": {
@@ -2983,7 +3003,7 @@
    },
    "simple": "A stock far above its 9-day average after a short burst is a Parabolic Short, taken on its climax day.",
    "deeper": {
-    "trap": "Distance is the tell. A Wedge Drop stalls within 1 ATR of the 10-day EMA. A Parabolic Short sits 10% or more over the 9-day EMA after a burst of 3 to 5 days. The same red close can show up in both, one at the averages and the other far above them."
+    "trap": "Distance is the tell. A Wedge Drop stalls within 1 ATR of the 9 EMA. A Parabolic Short sits 10% or more over the 9-day EMA after a burst of 3 to 5 days. The same red close can show up in both, one at the averages and the other far above them."
    },
    "tier": "extended",
    "risk": {
@@ -2993,7 +3013,7 @@
      "tied to a held decision (D-040)"
     ]
    },
-   "batch": "wave2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q49",
@@ -3074,7 +3094,7 @@
    "rung": 7,
    "format": "mcq",
    "criterion": "wd.not_stretched",
-   "q": "The 10-day average is 40.00 and the stock opens at 36.40. How far under the average is the open, in percent?",
+   "q": "The 9 EMA is 40.00 and the stock opens at 36.40. How far under the average is the open, in percent?",
    "answer": "9.0%",
    "calc": {
     "fn": "arith",
@@ -3085,11 +3105,12 @@
     },
     "round": 1
    },
-   "why": "9.0%. The open is under the average by (40.00 - 36.40) / 40.00 x 100 = 9.0%. That is under 10%, so this test does not stop the short at that open. We skip a short more than 10% under its 10-day average, checked at the open on a gap down.",
-   "lesson_line": "Check the stretch at the open on a gap down. Past 10% under the 10-day, pass.",
+   "why": "9.0%. The open is under the average by (40.00 - 36.40) / 40.00 x 100 = 9.0%. That is under 10%, so this test does not stop the short at that open. We skip a short more than 10% under its 9 EMA, checked at the open on a gap down.",
+   "lesson_line": "Check the stretch at the open on a gap down. Past 10% under the 9 EMA, pass.",
    "facts": [
     "c50",
-    "h12"
+    "h12",
+    "r60"
    ],
    "house": true,
    "suffix": "",
@@ -3104,7 +3125,7 @@
      "+2 a computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "sweep-2026-11-14",
    "choices": [
     "0.9%",
     "9.9%",
@@ -3876,7 +3897,7 @@
    "rung": 3,
    "format": "mcq",
    "criterion": "wd.trail",
-   "q": "You hold the last third of a short and trail the 10-day EMA. Price pokes above it at noon, then closes under it. Cover?",
+   "q": "You hold what is left of a short and trail the 9 EMA. Price pokes above it at noon, then closes under it. Cover?",
    "choices": [
     "No, the close under it keeps you in",
     "Yes, any trade above it is a cover",
@@ -3884,20 +3905,21 @@
     "Yes, a poke shows buyers are back"
    ],
    "answer": "No, the close under it keeps you in",
-   "why": "No. The trail is the 10-day EMA for a fast mover or the 21-day for a steadier one. We cover the last third on a close back above it, not on a touch. Here the stock closed under the line, so the short stays on. A rally that stalls under the falling averages is a place to hold.",
+   "why": "No. The trail is the 9 EMA for a fast mover or the 20 EMA for a steadier one. We cover what is left on a close back above it, not on a touch. Here the stock closed under the line, so the short stays on. A rally that stalls under the falling averages is a place to hold.",
    "lesson_line": "Cover on the close back above the line, not on the poke.",
    "facts": [
     "h19",
     "c51",
     "y04",
-    "c18"
+    "c18",
+    "r60"
    ],
    "wrong": {
     "Yes, any trade above it is a cover": "A touch is not a close. We cover only on a close back above the trail, so a poke that fades by the close changes nothing.",
-    "Yes, cover half and trail the rest": "You hold only the last third, and it comes off in one piece on a close back above the line. A poke that fades by the close changes nothing.",
+    "Yes, cover half and trail the rest": "What is left comes off in one piece on a close back above the line. A poke that fades by the close changes nothing.",
     "Yes, a poke shows buyers are back": "A poke is not buyers taking over. A rally that stalls under the falling averages is a place to hold."
    },
-   "simple": "No. We cover the last third only on a close back above the trail line, not on an intraday poke.",
+   "simple": "No. We cover what is left only on a close back above the trail line, not on an intraday poke.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -3906,7 +3928,7 @@
     ]
    },
    "house": true,
-   "batch": "fills"
+   "batch": "sweep-2026-11-14"
   }
  ],
  "conflicts": [
@@ -4015,7 +4037,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c09 gives 1 ATR; key is mid-ladder; 5% note fair."
+   "notes": "agrees with rulings"
   },
   "q16": {
    "status": "pass",
@@ -4033,14 +4055,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "12% is over the 10% line (c50, mirror of h12 via D47). Two Pass, two Short; the lengths are close. Stall is stated as checked, so no second answer.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "agrees with rulings"
   },
   "q19": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with D-013; keep/edit judged correct"
+   "notes": "agrees with rulings"
   },
   "q20": {
    "status": "pass",
@@ -4136,7 +4157,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with D-013; keep/edit judged correct"
+   "notes": "agrees with rulings"
   },
   "q36": {
    "status": "pass",
@@ -4147,9 +4168,9 @@
   },
   "q37": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave2; awaiting cold re-read"
+   "notes": "Kell's own 10-day note kept with 'we use the 9 and 20 EMA'; question names Kell's note"
   },
   "q38": {
    "status": "pass",
@@ -4179,7 +4200,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with D-013; keep/edit judged correct"
+   "notes": "agrees with rulings"
   },
   "q43": {
    "status": "pass",
@@ -4204,8 +4225,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c09/d30 give 1 ATR and 1.42; 5 days inside c08; two Yes, two No. Rung 7 application of q15, not a duplicate.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "measured 1.42 ATR vs 10-day dropped, invented 1.6 ATR vs 9 EMA is a hypothetical; acceptable"
   },
   "q47": {
    "status": "pass",
@@ -4217,7 +4237,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c29 gives the 10% and 3-5 day burst; u04 for the target; choices are all Kell setup names."
+   "notes": "agrees with rulings"
   },
   "q49": {
    "status": "pass",
@@ -4236,7 +4256,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "calc recomputed, answer matches, wrong choices distinct and real, steps correct."
+   "notes": "agrees with rulings"
   },
   "q52": {
    "status": "cut",
@@ -4291,7 +4311,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "entry through trigger; at-the-close is a wrong choice; quote verbatim; R figures labeled as from the close"
+   "notes": "agrees with rulings"
   },
   "q61": {
    "status": "pass",
@@ -4368,8 +4388,8 @@
   "q97": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Correct and supported by h19, c51, c18. The wrong note for 'cover half' invented a 'no half step' rule no fact supports; replaced with a note from the facts (only the last third is held, covered on a close)."
+   "fixed": false,
+   "notes": "agrees with rulings"
   }
  }
 }

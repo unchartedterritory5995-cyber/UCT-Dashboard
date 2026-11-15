@@ -387,6 +387,14 @@
    "url": "https://vantharpinstitute.com/glossary/r-multiple",
    "accessed": "2026-11-09",
    "why_reliable": "The institute founded by Van K. Tharp, PhD, who popularised R-multiples; its own glossary definition (also cited in F9.03 and V.06)."
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
   }
  ],
  "facts": [
@@ -1059,14 +1067,14 @@
   {
    "id": "h2",
    "source": "s38",
-   "quote": "Each lesson's levels are the plan's: the entry, the stop, and the trims at 3R and 5R",
-   "claim": "Our plan's levels are the entry, the stop, and the trims at 3R and 5R."
+   "quote": "Each lesson's levels are the plan's: the entry, the stop, and the marks at 3R and 5R",
+   "claim": "Our plan's levels are the entry, the stop, and the marks at 3R and 5R."
   },
   {
    "id": "h4",
-   "source": "s37",
-   "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
-   "claim": "After the first third at 3R, we sell another third at 5R and trail the last third."
+   "source": "hw",
+   "quote": "Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
+   "claim": "Later sells are a judgment: sell more into strength on a later push, and trail what is left."
   },
   {
    "id": "h3",

@@ -146,6 +146,14 @@
    "title": "Setup decisions: the owner's rulings (2026-11-12)",
    "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
   }
  ],
  "facts": [
@@ -367,9 +375,9 @@
   },
   {
    "id": "h05",
-   "source": "h1",
-   "quote": "Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
-   "claim": "B19: breakeven between 2R and 5R; the hard rule for the first trim is a third at 3R."
+   "source": "hw",
+   "quote": "The stop may move up to breakeven between 2R and 5R, or at the first sell.",
+   "claim": "Our stop may move up to breakeven between 2R and 5R, or at the first sell."
   },
   {
    "id": "h06",
@@ -439,15 +447,15 @@
   },
   {
    "id": "h20",
-   "source": "h1",
-   "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
-   "claim": "E51: another third at 5R, then trail the last third."
+   "source": "hw",
+   "quote": "Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
+   "claim": "Later sells are a judgment: sell more into strength on a later push, and trail what is left."
   },
   {
    "id": "h21",
-   "source": "h1",
-   "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
-   "claim": "E52: trail the 10-day for fast movers, the 21-day for steadier ones; sell on a close below it."
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
   },
   {
    "id": "h22",
@@ -877,15 +885,21 @@
   },
   {
    "id": "r23",
-   "source": "h2",
-   "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
-   "claim": "He rarely sells on day 1 and usually waits until day 3 at the earliest."
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
   },
   {
    "id": "r24",
    "source": "h2",
    "quote": "Every setup buys as price trades through its trigger, during the day.",
    "claim": "Every setup buys as price trades through its trigger, during the day."
+  },
+  {
+   "id": "r25",
+   "source": "h2",
+   "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+   "claim": "D-021: the course uses the 9 and 20 EMA everywhere, with the 50 and 200 SMA."
   }
  ],
  "walkthroughs": [
@@ -907,7 +921,8 @@
     "h22",
     "h24",
     "c11",
-    "h05"
+    "h05",
+    "r21"
    ]
   },
   {
@@ -1001,7 +1016,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with D-013/D-003; quotes verbatim"
+   "notes": "Close entry is a wrong choice with D-003 explained; 200-day hard rule intact."
   },
   "q07": {
    "status": "pass",
@@ -1043,7 +1058,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with D-013/D-003; quotes verbatim"
+   "notes": "Close entry is a wrong choice with D-003 explained."
   },
   "q14": {
    "status": "pass",
@@ -1080,13 +1095,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "h18 and h02 verbatim; sentences short."
+   "notes": "Stop-in-head statement is False; no fixed first sell taught."
   },
   "q20": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with D-013/D-003; quotes verbatim"
+   "notes": "D-013 keyed correctly; third at 3R and day-1 sells are wrong choices."
   },
   "q21": {
    "status": "pass",
@@ -1128,7 +1143,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "B19 (breakeven 2R to 5R, ideally) and A4 (stop only moves up) support False. Mild reliance on \"ideally\" but the why states it honestly."
+   "notes": "'Last of it' fixes the fixed-thirds language; breakeven 2R to 5R kept per D-013."
   },
   "q28": {
    "status": "pass",
@@ -1164,7 +1179,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with D-013/D-003; quotes verbatim"
+   "notes": "D-021 rename done, 'what is left' language, still a close under the line; r25 verbatim."
   },
   "q34": {
    "status": "pass",
@@ -1176,13 +1191,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with D-013/D-003; quotes verbatim"
+   "notes": "Usual plan is not yet; gap past 3R is not automatic; consistent with D-013 and GAP-TRIM."
   },
   "q36": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with D-013/D-003; quotes verbatim"
+   "notes": "D-013 keyed correctly; 'Not ours' lists the fixed third."
   },
   "q37": {
    "status": "pass",
@@ -1273,7 +1288,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with D-013/D-003; quotes verbatim"
+   "notes": "Close entry is a wrong choice with D-003 explained."
   },
   "q52": {
    "status": "pass",
@@ -1309,14 +1324,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with D-013/D-003; quotes verbatim"
+   "notes": "Judged sell keyed; stop a few cents under LOD (D-008); 10.05R grounded in d01."
   },
   "q58": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calcs check: R = 1.41, 2R below 60.92 = 58.10; 57.20 is a 2.64R loss, past the ceiling (h06, h07). Key unique.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Gap DOWN through the stop, a different topic from GAP-TRIM."
   },
   "q59": {
    "status": "pass",
@@ -1375,8 +1389,8 @@
   "q65": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Solved cold from c14: 63.90 prior close > 63.30 50-day, so Yes; the key matches and c35 is verbatim on the card (evidence, orb.above_50). Break: the item's whole teaching point ('today's open does not change it', the lesson_line 'not this morning's open') is the exact case the writer's own owner flag 2 says is unruled, and the card's B- row ('orb.above_50: a counter-trend break') makes 'No; it opened under the 50-day' defensible for an owner who reads a 62.80 open and a 10:05 break possibly under 63.30 as counter-trend. That decides an unruled point. Fix: drop the open from the story and repla"
+   "fixed": false,
+   "notes": "Card tests the 50 and 200-day; the 20-day is Bysshe's own test as a distractor; no D-013 content."
   }
  },
  "questions": [
@@ -2344,16 +2358,16 @@
    "rung": 4,
    "format": "tf",
    "criterion": "orb.breakeven",
-   "q": "On an ORB winner the stop stays at the first stop until the last third is sold.",
+   "q": "On an ORB winner the stop stays at the first stop until the last of it is sold.",
    "answer": "False",
-   "why": "False. The stop goes to breakeven somewhere from 2R to 5R, ideally. The stop only moves up, and it does not sit at the first stop until the last third is sold.",
+   "why": "False. The stop goes to breakeven somewhere from 2R to 5R, ideally. The stop only moves up, and it does not sit at the first stop until the last of it is sold.",
    "lesson_line": "Breakeven comes between 2R and 5R. The stop only moves up.",
    "facts": [
     "h05",
     "h02"
    ],
    "house": true,
-   "simple": "False. Breakeven comes somewhere from 2R to 5R, ideally, so the stop does not wait for the last third.",
+   "simple": "False. Breakeven comes somewhere from 2R to 5R, ideally, so the stop does not wait for the final sell.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -2363,7 +2377,7 @@
      "fixed before"
     ]
    },
-   "batch": "wave4"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q28",
@@ -2578,27 +2592,28 @@
    "rung": 5,
    "format": "mcq",
    "criterion": "orb.trail",
-   "q": "Two thirds of an ORB winner are already sold into strength. What takes you out of the last third?",
+   "q": "Part of an ORB winner is already sold into strength. What takes you out of what is left?",
    "choices": [
-    "A close under the 10 or 21-day",
+    "A close under the 9 or 20 EMA",
     "A touch of the 30-minute low",
     "The next earnings report",
     "A fixed 10R, whatever the chart"
    ],
-   "answer": "A close under the 10 or 21-day",
-   "why": "A close under the trail line. Once the earlier sells are done, the last third trails: the 10-day average for fast movers, the 21-day for steadier ones. We sell on a close below it.",
+   "answer": "A close under the 9 or 20 EMA",
+   "why": "A close under the trail line. Once the earlier sells are done, what is left trails the line. That is the 9 EMA for a fast mover and the 20 EMA for a steadier one. We sell on a close below it.",
    "lesson_line": "Trail the rising average. Sell the close below it, not the touch.",
    "facts": [
     "h21",
-    "h08"
+    "h08",
+    "r25"
    ],
    "wrong": {
     "A touch of the 30-minute low": "That was the first day's stop. By the trail stage the stop is at breakeven or higher.",
     "The next earnings report": "Hold through a report only if up 5R. That is a separate rule, not the trail.",
-    "A fixed 10R, whatever the chart": "The last third trails the average. Selling near 5 to 10R is a judgment, not a fixed exit."
+    "A fixed 10R, whatever the chart": "What is left trails the average. Selling near 5 to 10R is a judgment, not a fixed exit."
    },
    "house": true,
-   "simple": "Sell the last third on a close below the 10-day or 21-day average, not on a touch.",
+   "simple": "Sell what is left on a close below the 9 or 20 EMA, not on a touch.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2606,7 +2621,7 @@
      "rests on rulebook E52 and E51 (E51 is marked adjustable)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q34",

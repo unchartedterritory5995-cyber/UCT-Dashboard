@@ -189,6 +189,14 @@
    "title": "Setup decisions: the owner's rulings (2026-11-12)",
    "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
   }
  ],
  "facts": [
@@ -512,21 +520,21 @@
   },
   {
    "id": "h03",
-   "source": "s20",
-   "quote": "Move the stop to breakeven at 2R to 5R, ideally.",
-   "claim": "Our stop moves up to breakeven once the trade is 2R to 5R ahead; we teach it at the first trim."
+   "source": "hw",
+   "quote": "The stop may move up to breakeven between 2R and 5R, or at the first sell.",
+   "claim": "Our stop may move up to breakeven between 2R and 5R, or at the first sell."
   },
   {
    "id": "h04",
-   "source": "s20",
-   "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
-   "claim": "After the first third at 3R, we sell another third at 5R and trail the last third."
+   "source": "hw",
+   "quote": "Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
+   "claim": "Later sells are a judgment: sell more into strength on a later push, and trail what is left."
   },
   {
    "id": "h05",
-   "source": "s20",
-   "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
-   "claim": "Our trail is the 10-day average for fast movers or the 21-day for steadier ones; a close below it sells the last third."
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
   },
   {
    "id": "h06",
@@ -598,19 +606,25 @@
    "id": "r01",
    "source": "h2",
    "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
-   "claim": "The owner's ruling: the first sell is a judgment, not a fixed third at 3R."
+   "claim": "Our rule: the first sell is a judgment, not a fixed third at 3R."
   },
   {
    "id": "r02",
-   "source": "h2",
-   "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
-   "claim": "The owner rarely sells on day 1 of the buy and usually waits until day 3 at the earliest."
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
   },
   {
    "id": "r03",
    "source": "h2",
    "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
-   "claim": "The owner's ruling: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
+   "claim": "Our rule: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
+  },
+  {
+   "id": "rd21",
+   "source": "h2",
+   "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+   "claim": "Our rule: the course teaches the 9 and 20 EMA, with the 50 and 200 SMA."
   }
  ],
  "walkthroughs": [
@@ -935,7 +949,7 @@
     "Some once up 20% to 25%"
    ],
    "answer": "A judgment, usually from day 3 on",
-   "why": "A judgment, usually from day 3 on. The first sell depends on a variety of factors, not a fixed third at 3R. He very rarely sells on day 1 of the buy and usually waits until day 3 at the earliest. Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. R is only the measuring stick: your entry minus your stop.",
+   "why": "A judgment, usually from day 3 on. The first sell depends on a variety of factors, not a fixed third at 3R. We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest. Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. R is only the measuring stick: your entry minus your stop.",
    "lesson_line": "First sell: a judgment, usually day 3 or later. R is the ruler, not the trigger.",
    "facts": [
     "r01",
@@ -959,7 +973,7 @@
      "fixed before (rewritten 2026-11-09)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q10",
@@ -1111,7 +1125,7 @@
     "Hold them with no stop at all"
    ],
    "answer": "Let them ride on a trailing stop",
-   "why": "Let them ride on a trailing stop. The partial banks some gain, and the rest stays on for more of the move. Hirsch's version: harvest gains, then set trailing stops. Ours: the stop goes to breakeven at the first trim, and the last third trails the 10-day or 21-day average. The stop rises as the stock does.",
+   "why": "Let them ride on a trailing stop. The partial banks some gain, and the rest stays on for more of the move. Hirsch's version: harvest gains, then set trailing stops. Ours: the stop can move to breakeven at the first sell, and what is left trails the 9 EMA or 20 EMA. The stop rises as the stock does.",
    "lesson_line": "Sell some, then trail the rest. The stop rises as the stock does.",
    "facts": [
     "f18",
@@ -1121,10 +1135,11 @@
     "h11",
     "h03",
     "h05",
-    "h01"
+    "h01",
+    "rd21"
    ],
    "wrong": {
-    "Keep the original stop under them": "On a winner, that stop sits well below. Our stop moves up to breakeven at the first trim, so a reversal costs far less.",
+    "Keep the original stop under them": "On a winner, that stop sits well below. Our stop can move up to breakeven at the first sell, so a reversal costs far less.",
     "Buy more on the next dip": "We don't add to a position. The shares you kept have one job: ride the trail.",
     "Hold them with no stop at all": "A winner can still reverse. The rest needs a stop that rises with it."
    },
@@ -1136,7 +1151,7 @@
      "fixed before (note rewritten to A5)"
     ]
    },
-   "batch": "wave6"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q15",
@@ -1533,7 +1548,8 @@
     "h01",
     "h04",
     "h11",
-    "h13"
+    "h13",
+    "r01"
    ],
    "wrong": {
     "Add more while it's running": "We never add to a position. And buying an extended stock is chasing: O'Neil warns those buys get shaken out on normal pullbacks.",
@@ -1542,7 +1558,7 @@
    },
    "simple": "Sell part of it and trail the rest. You bank some of the run and keep shares on for more.",
    "deeper": {
-    "trap": "The trap is reading 'extended' as a signal to buy more or to sell everything. For us it is neither. A stretched stock is a place to sell some into strength. Our trims also have set levels: a third at 3R and a third at 5R."
+    "trap": "The trap is reading 'extended' as a signal to buy more or to sell everything. For us it is neither. A stretched stock is a place to sell some into strength. The first sell is a judgment, not a fixed third at 3R."
    },
    "tier": "expert",
    "risk": {
@@ -1723,7 +1739,7 @@
    "rung": 5,
    "format": "mcq",
    "house": true,
-   "q": "Entry $80, stop $77. Where is 5R, our second trim?",
+   "q": "Entry $80, stop $77. Where does the 5R mark sit?",
    "answer": "$95.00",
    "calc": {
     "fn": "arith",
@@ -1734,13 +1750,13 @@
     }
    },
    "prefix": "$",
-   "why": "One R is the distance from the $80 entry down to the $77 stop. Five times that, added above the entry, is 5R: $95. That is our second trim. Another third comes off there, and the last third trails.",
-   "lesson_line": "5R: the second third comes off. The last third trails.",
+   "why": "One R is the distance from the $80 entry down to the $77 stop. Five times that, added above the entry, is 5R: $95. That is a mark on the ruler, not an order to sell. Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. What is left trails.",
+   "lesson_line": "5R is a mark on the ruler, not a sell order. A later sell is a judgment.",
    "facts": [
-    "h04",
-    "h02"
+    "r01",
+    "r03"
    ],
-   "simple": "$95. Five times the gap between your $80 entry and $77 stop, added to the entry, is the second trim.",
+   "simple": "$95. Five times the gap between your $80 entry and $77 stop, added to the entry, is the 5R mark.",
    "tier": "extended",
    "risk": {
     "score": 4,
@@ -1749,7 +1765,7 @@
      "computed key"
     ]
    },
-   "batch": "rank",
+   "batch": "sweep-2026-11-14",
    "choices": [
     "$95.00",
     "$98.00",
@@ -1768,27 +1784,28 @@
    "rung": 5,
    "format": "mcq",
    "house": true,
-   "q": "Your last third is trailing. Which line do we trail under, and what makes us sell?",
+   "q": "What is left is trailing. Which line do we trail under, and what makes us sell?",
    "choices": [
-    "The 10 or 21-day; close below it",
-    "The 50-day; any dip below it",
-    "The 200-day; a close below it",
+    "The 9 or 20 EMA; close below it",
+    "The 50 SMA; any dip below it",
+    "The 200 SMA; a close below it",
     "A 10% trailing stop from the high"
    ],
-   "answer": "The 10 or 21-day; close below it",
-   "why": "The 10-day or 21-day average, and a close below it. The 10-day suits fast movers, the 21-day steadier ones. An intraday dip under the line is not a sale; a close below it is. The trail follows a moving average, not a fixed percent.",
-   "lesson_line": "Trail the 10-day or 21-day. A close below it sells the last third.",
+   "answer": "The 9 or 20 EMA; close below it",
+   "why": "The 9 EMA or 20 EMA, and a close below it. The 9 EMA suits fast movers, the 20 EMA steadier ones. An intraday dip under the line is not a sale; a close below it is. The trail follows a moving average, not a fixed percent.",
+   "lesson_line": "Trail the 9 EMA or 20 EMA. A close below it sells what is left.",
    "facts": [
     "h05",
     "h01",
-    "f16"
+    "f16",
+    "rd21"
    ],
    "wrong": {
-    "The 50-day; any dip below it": "Our default lines are the 10-day and 21-day. And a dip isn't a close.",
-    "The 200-day; a close below it": "Our default lines are the 10-day for fast movers and the 21-day for steadier ones, not the 200-day.",
-    "A 10% trailing stop from the high": "That's a percent trail. Ours follows a moving average, the 10-day or 21-day, and a close below it sells."
+    "A 10% trailing stop from the high": "That's a percent trail. Ours follows a moving average, the 9 EMA or 20 EMA, and a close below it sells.",
+    "The 50 SMA; any dip below it": "Our default lines are the 9 EMA and 20 EMA. And a dip isn't a close.",
+    "The 200 SMA; a close below it": "Our default lines are the 9 EMA for fast movers and the 20 EMA for steadier ones, not the 200 SMA."
    },
-   "simple": "The 10-day or 21-day average. A close below that line sells the last third.",
+   "simple": "The 9 EMA or 20 EMA. A close below that line sells what is left.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -1797,7 +1814,7 @@
      "fixed before (200-day note)"
     ]
    },
-   "batch": "wave6"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q32",
@@ -1808,25 +1825,25 @@
    "story": "You bought at $20 with the stop at $19. By noon on the same day, the stock trades at $23, 3R, on news.",
    "q": "What do you do about the first sell?",
    "choices": [
-    "Hold; he rarely sells on day 1",
+    "Hold; we rarely sell on day 1",
     "Sell a third now, it is at 3R",
     "Sell it all, a gain is a gain",
     "Sell half now and lift the stop"
    ],
-   "answer": "Hold; he rarely sells on day 1",
-   "why": "Hold. He very rarely sells on day 1 of the buy and usually waits until day 3 at the earliest. The 3R price is a mark, not an order to sell. Selling into a 3, 5 or 7 day push is often best. Meanwhile the stop stays where it is.",
-   "lesson_line": "Rarely sell on day 1. The first sell usually waits until day 3 or later.",
+   "answer": "Hold; we rarely sell on day 1",
+   "why": "Hold. We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest. The 3R price is a mark, not an order to sell. Selling into a 3, 5 or 7 day push is often best.",
+   "lesson_line": "We rarely sell on day 1. The first sell usually waits until day 3 or later.",
    "facts": [
     "r01",
     "r02",
     "r03"
    ],
    "wrong": {
-    "Sell a third now, it is at 3R": "That was the old fixed rule. The first sell is a judgment, and he rarely sells on day 1.",
+    "Sell a third now, it is at 3R": "That was the old fixed rule. The first sell is a judgment, and we rarely sell on day 1.",
     "Sell it all, a gain is a gain": "That cuts a winner short. Selling into a 3, 5 or 7 day push is often best.",
-    "Sell half now and lift the stop": "Day 1 is too early to sell by rule. He usually waits until day 3 at the earliest."
+    "Sell half now and lift the stop": "Day 1 is too early to sell by rule. We usually wait until day 3 at the earliest."
    },
-   "simple": "Hold, because he very rarely sells on day 1 of the buy and usually waits until day 3 at the earliest.",
+   "simple": "Hold, because we very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -1835,7 +1852,7 @@
      "fixed before (facts)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q33",
@@ -1953,7 +1970,7 @@
    "rung": 9,
    "format": "scenario",
    "house": true,
-   "story": "You bought 300 shares at $40, stop $38, in one order. By day 5 it has run to $46, 3R, and it sits well above its rising 10-day average.",
+   "story": "You bought 300 shares at $40, stop $38, in one order. By day 5 it has run to $46, 3R, and it sits well above its rising 9 EMA.",
    "q": "What does our plan do now?",
    "choices": [
     "Sell some at $46, trail the rest",
@@ -1970,14 +1987,15 @@
      "stop": 38
     }
    },
-   "why": "Sell some at $46, trail the rest. On a $40 entry with a $38 stop, $46 is 3R, a mark on the trade and not an order. Selling into a 3, 5 or 7 day push is often best, and this is day 5. The rest rides the rising 10-day and sells on a close below it.",
+   "why": "Sell some at $46, trail the rest. On a $40 entry with a $38 stop, $46 is 3R, a mark on the trade and not an order. Selling into a 3, 5 or 7 day push is often best, and this is day 5. What is left rides the rising 9 EMA and sells on a close below it.",
    "lesson_line": "Entry, stop, then a first sell on judgment, often into a 3, 5 or 7 day push. Trail the rest.",
    "facts": [
     "r01",
     "r02",
     "r03",
     "h05",
-    "h11"
+    "h11",
+    "rd21"
    ],
    "wrong": {
     "Sell all 300 at $46, one target": "That banks everything at one price. We sell some into strength and trail the rest.",
@@ -1986,7 +2004,7 @@
    },
    "simple": "Sell some at $46 and trail the rest, because a 5 day push is a good place for a first sell.",
    "deeper": {
-    "example": "Count it in R. $46 is 3R. It is a mark, not a sell order. The first sell is a judgment into a 3, 5 or 7 day push, or at about 5 to 10R. The rest has no target: it rides the 10-day until a close below it."
+    "example": "Count it in R. $46 is 3R. It is a mark, not a sell order. The first sell is a judgment into a 3, 5 or 7 day push, or at about 5 to 10R. The rest has no target: it rides the 9 EMA until a close below it."
    },
    "tier": "expert",
    "risk": {
@@ -1996,7 +2014,7 @@
      "computed key"
     ]
    },
-   "batch": "rulings2"
+   "batch": "sweep-2026-11-14"
   }
  ],
  "conflicts": [
@@ -2083,7 +2101,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "ok"
+   "notes": "Pronoun He -> We only; key already agrees with D-013; r01-r03 quotes verbatim."
   },
   "q10": {
    "status": "cut",
@@ -2113,7 +2131,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: trail the kept shares (f16 Hirsch + f18 Schwab + h01, h05). The breakeven move at the first trim is the course's teaching point inside B19's 2R-5R window (owner flag 3). The 'a reversal costs far less' note is reasoning from the story, not a fact; acceptable. Overlaps q25 (A11) at a lower rung but asks a different decision."
+   "notes": "Breakeven now 'can move at the first sell', what is left trails 9 EMA or 20 EMA, no fixed thirds; consistent with D-013 and D-021."
   },
   "q15": {
    "status": "pass",
@@ -2222,19 +2240,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
+   "notes": "Re-keyed to a pure R-math question (5R mark = $95), 'second trim' and 'another third' gone; distractors are real slips ($98 six times, $110 doubled risk, $400 entry x5)."
   },
   "q31": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: 10-day or 21-day, sell on a close below (h05, E52). Key 32 characters, longest is the 33-character percent trail; no convergence. The absolute 'only a close sells' is gone, so no clash with the broker stop (D41). 50-day and 200-day notes rest on h05."
+   "notes": "Renamed to 9/20 EMA and 50/200 SMA, 'last third' -> 'what is left'; close-below exit is fine."
   },
   "q32": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "ok"
+   "notes": "Hold on day 1 at 3R matches D-013 (r02); pronouns now we; no fixed-third key."
   },
   "q33": {
    "status": "pass",
@@ -2258,7 +2276,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "ok"
+   "notes": "Rising 9 EMA in story, why and deeper; first sell stays a day-5 judgment into a push; consistent with D-013 and D-021."
   }
  }
 }

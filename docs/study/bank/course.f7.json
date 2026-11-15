@@ -1989,7 +1989,7 @@
   "difficulty": 3,
   "id": "si_fca9b0088285",
   "lesson_origin": "session",
-  "lesson_text": "Trim it, and sell if it breaks down. A long climb that goes sideways while the 30-week average flattens and slices through price is Stage 3, the top area. Weinstein has traders take profits and investors sell half. If price breaks up into a new Stage 2 advance, hold. A downward break from the range is a sale. That is Weinstein's way. At UCT our default trail is the 10-day or 21-day average, and we sell on a close below it. In Weinstein's method, a long climb that goes flat is a warning: lighten up and let the break decide.",
+  "lesson_text": "Trim it, and sell if it breaks down. A long climb that goes sideways while the 30-week average flattens and slices through price is Stage 3, the top area. Weinstein has traders take profits and investors sell half. If price breaks up into a new Stage 2 advance, hold. A downward break from the range is a sale. That is Weinstein's way. At UCT our default trail is the 9 EMA or 20 EMA, and we sell on a close below it. In Weinstein's method, a long climb that goes flat is a warning: lighten up and let the break decide.",
   "module": "F7",
   "prompt_json": {
    "choices": [
@@ -2052,14 +2052,21 @@
       "url": "https://www.thepatternsite.com/Stages.html"
      },
      {
-      "accessed": "2026-11-12",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
+      "accessed": "2026-11-14",
+      "name": "UCT house rule: Our rules, in our words (2026-11-14)",
+      "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
       "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "UCT house rule: Setup decisions: the owner's rulings (2026-11-12)",
+      "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+      "tier": 3,
+      "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      }
     ],
-    "summary": "Stage 3 is the top: after the climb, price goes sideways and the flattening average slices through it. In Stage 3, Weinstein has traders take profits and investors sell half. If Stage 3 breaks up into a new advance, hold; a downward break from the range is a sell. A sideways trading range can be accumulation or distribution, and you can't tell which until it breaks up or down. Hamilton warned against trying to guess the breakout before it happens. Stan Weinstein's method names the stage a chart is in, using a 30-week moving average. Our default trail (E52): the 10-day or 21-day average, sold on a close below it."
+    "summary": "Stage 3 is the top: after the climb, price goes sideways and the flattening average slices through it. In Stage 3, Weinstein has traders take profits and investors sell half. If Stage 3 breaks up into a new advance, hold; a downward break from the range is a sell. A sideways trading range can be accumulation or distribution, and you can't tell which until it breaks up or down. Hamilton warned against trying to guess the breakout before it happens. Stan Weinstein's method names the stage a chart is in, using a 30-week moving average. Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left. Our rule: the course teaches the 9 and 20 EMA, with the 50 and 200 SMA."
    },
    "facts": {
     "given": "What does Weinstein's method say to do? You hold a stock after a two-year climb. For months now it chops sideways. Its 30-week average has flattened, and price keeps slicing through it. Trim it, and sell if it breaks down Add more, it's resting for the next leg Short it now, before the break Hold it all, the long trend is up"
@@ -2068,7 +2075,7 @@
    "simple": "Trim it. A long climb that goes flat is Stage 3, and a break down out of the range is a sale.",
    "tier": "expert",
    "unit": "F7.01",
-   "why": "Trim it, and sell if it breaks down. A long climb that goes sideways while the 30-week average flattens and slices through price is Stage 3, the top area. Weinstein has traders take profits and investors sell half. If price breaks up into a new Stage 2 advance, hold. A downward break from the range is a sale. That is Weinstein's way. At UCT our default trail is the 10-day or 21-day average, and we sell on a close below it.",
+   "why": "Trim it, and sell if it breaks down. A long climb that goes sideways while the 30-week average flattens and slices through price is Stage 3, the top area. Weinstein has traders take profits and investors sell half. If price breaks up into a new Stage 2 advance, hold. A downward break from the range is a sale. That is Weinstein's way. At UCT our default trail is the 9 EMA or 20 EMA, and we sell on a close below it.",
    "wrong": {
     "Add more, it's resting for the next leg": "It might break up into a new Stage 2, and then you hold. Adding before that is guessing the break.",
     "Hold it all, the long trend is up": "The climb has stalled. In Stage 3 the method takes profits, and a downside break means sell.",

@@ -46,6 +46,54 @@ visual representation or example or card or lesson to enhance the experience and
 Step 1 and step 2 go first; step 2 runs in parallel with the owner's review, lesson by lesson, setups first (his
 "core first" order).
 
+## Status and what the 2026-11-14 check found
+
+**Step 1 is built** (DrillPlayer): the replay after the answer, Skip and Replay, the replay clock; a course question
+whose chart ends on the buy day carries its trade (`chart.trade: {entry, stop}`, from the research), drawn after the
+answer as the entry and stop lines with 3R and 5R as marks on the ruler, and BOUGHT / 3R / 5R / STOPPED landing only
+when the replay reaches their day; a course chart with no trade marks its DECISION DAY once the bars after it play.
+**Step 2 pilot:** Flat Base (SET.07), 19 charts, 4 with trades.
+
+Rules every chart question follows (the validator enforces the starred ones):
+- `asof` is the last day the member sees: the day before the breakout for "what is it / where is the pivot"
+  questions, the buy day for trade questions. A trade (`chart.trade`) goes only on a buy-day chart.*
+- The trade's entry and stop are the same numbers the question's words give.* Every number comes from the research
+  dossier's table (docs/study/setups/research/NN-*.md), which was measured on the same bars.db the chart draws
+  (split-adjusted), so the words and the chart agree.
+- The ticker is not in the question, the story or the choices.* A story shows only on a scenario.* A number is never
+  cut between the story and the question* (2026-11-14: three were, "bought at 73." / "16 with the stop").
+- The lines named in the words are the lines on the chart: the 9 and 20 EMA, the 50 and 200 SMA (D-021).
+
+## After the merge (pod steps, in order)
+
+1. Import the bank (the usual import). Course charts resolve through `bars_sqlite.get_bars_before`; a miss is
+   reported, never fetched.
+2. The owner approves the charted questions on the site's review screen (D-007).
+3. **Fill the replay within the day** for the approved charts:
+   `railway ssh --service web -- /opt/venv/bin/python scripts/study/fill_replay_intraday.py --max-minutes 25`
+   (repeat until "left": 0). It picks up approved course charts by itself (`study_store.intraday_candidates`: any
+   approved daily chart item with a symbol). Without it the replay runs day by day; charts before 2003-09-10 always
+   do (the provider's intraday floor).
+4. Reject the 5 approved size items retired on 2026-11-12 (corrections/size.house_rule.jsonl).
+
+## How the owner approves charts with less work
+
+Every setup card has its examples drawn as images (44 setups, about 24 each:
+`_study-resume/scratchpad/setups/<card>/final/`, the ticker, buy, stop and R marks on them, for his eyes only). The
+chat review (`chat_review.py next`) prints the matching image for each charted question, and it is sent with the
+question. An example he approves once can back every question that uses it, so the approvals scale with the
+examples (about 18 per setup), not with the questions.
+
+## Step 3, made concrete (cards for non-chart questions)
+
+- Draw a card from the question's own `calc` when it has one, never from hand-typed numbers: `shares_from_risk`
+  (44 live) -> the size card; `r_multiple` (33) and the R-level `arith` forms -> the R ruler; `pct_change` (50),
+  `drawdown_pct` (30), `gain_to_recover` -> a move bar; `option_breakeven`, `option_payoff`, `vertical_payoff`,
+  `intrinsic`, `extrinsic` -> the payoff diagram (the Options Payoff game's drawing). About 220 questions get a card
+  with no new content work; the 588 generic `arith` ones are mapped by expression where the shape is known.
+- Before the answer the card shows only what the question gives; after it, the card fills in the answer (the same
+  way the chart replays after the answer).
+
 ## Open needs
 
 - PR #1046 merged and imported, so the charts can be seen on the site (all this work is local until then).

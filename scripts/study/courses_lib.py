@@ -46,6 +46,32 @@ OUR_NAME = re.compile(r"\bthe firm('s)?\b", re.I)
 #: dude that I hate on Twitter").
 BANNED_PHRASES = re.compile(r"\bstock ?talk\b", re.I)
 VERIFY_STATUSES = ("pass", "fix", "cut")
+#: D-021 (the owner, 2026-11-12): one pair everywhere, the 9 and 20 EMA with the 50 and 200 SMA, and the Study charts
+#: draw exactly those lines, so our own trail or EMA named as the 10-day / 21-day sends a member looking for a line that
+#: is not on the chart. Allowed: an originator's own method named in the sentence or the question (Kell's 10/20), a
+#: measured research value ("as measured"), and the rulebook's stretch line C29 (10% over the 10-day average), which
+#: is not a trail and waits on D-017.
+OUR_OLD_LINES = re.compile(r"\btrail\w*\b[^.]{0,60}\b(?:10|21)[- ]day\b|\b(?:10|21)[- ]day\b[^.]{0,40}\b(?:trail\w*|fast movers?|steadier)\b"
+                           r"|\b(?:10|21)[- ]?(?:day )?EMAs?\b|\b10- and 21-day\b", re.I)
+ORIGINATOR = re.compile(r"Kell|Qullamaggie|Kullam[aä]gi|Minervini|O'Neil|IBD|Weinstein|Zanger|Raschke|TraderLion|Bonde|"
+                        r"Duncan|Haber|Elder|MarketSmith|StockCharts|Investopedia|Schwab|Fidelity|scanners?\b|Bracco|"
+                        r"\btheir\b|his own|measured", re.I)
+MEASURED = re.compile(r"\b\d+\.\d+\b|\b\d{4}-\d{2}-\d{2}\b")
+
+
+def old_lines_problems(texts, context: str = "") -> list[str]:
+    """D-021: sentences in member text naming our own trail / EMA as the 10-day or 21-day (see OUR_OLD_LINES)."""
+    if ORIGINATOR.search(context or ""):
+        return []
+    out = []
+    for t in texts:
+        for s in re.split(r"(?<=[.!?])\s+", str(t or "")):
+            # a measured research value (a price, a date) names the line it was measured on
+            if MEASURED.search(s):
+                continue
+            if OUR_OLD_LINES.search(s) and not ORIGINATOR.search(s):
+                out.append(f"names our line as the 10-day / 21-day (we use the 9 and 20 EMA, D-021): {s[:80]!r}")
+    return out
 
 # ── the overbuild fields (docs/study/OVERBUILD_PLAN.md): all optional, all additive ──────────────────────────────
 #: A question that carries `simple` is an UPGRADED question: a mcq / scenario then has exactly four choices.
@@ -512,8 +538,26 @@ def question_problems(q: dict, *, unit: dict, facts: dict, sources: dict, skills
             out.append("chart.asof must be YYYY-MM-DD (the last visible day)")
         if not 20 <= int(chart.get("window", 120)) <= 400 or not 0 <= int(chart.get("forward", 20)) <= 250:
             out.append("chart.window must be 20-400 bars and chart.forward 0-250")
-        if str(chart.get("sym") or "").upper() in (q.get("q") or "").upper().split():
+        sym = str(chart.get("sym") or "")
+        before = " ".join([str(q.get("q") or ""), str(q.get("story") or "")] + [str(c) for c in q.get("choices") or []])
+        if sym.upper() in (q.get("q") or "").upper().split() or (sym and re.search(rf"(?<![A-Za-z]){re.escape(sym)}(?![A-Za-z])", before)):
             out.append("the question names the chart's ticker (a member must not see it before answering)")
+        # the trade drawn after the answer (entry, stop, 3R, 5R, the marks as the replay lands): from the research, on a
+        # chart whose last visible day is the buy day, and the same two numbers the question's own words give
+        tr = chart.get("trade")
+        if tr is not None:
+            try:
+                e, s = float(tr["entry"]), float(tr["stop"])
+            except (KeyError, TypeError, ValueError):
+                out.append("chart.trade needs a numeric entry and stop")
+            else:
+                short = tr.get("direction") == "bearish"
+                if (s <= e) if short else (s >= e):
+                    out.append("chart.trade: the stop must sit below the entry (above it for a short)")
+                said = " ".join(str(q.get(f) or "") for f in ("story", "q", "why")).replace(",", "")
+                for v in (e, s):
+                    if f"{v:.2f}" not in said and _num_text(v) not in said:
+                        out.append(f"chart.trade {v} is not in the question's words (the drawn trade must match them)")
     if not (q.get("why") or "").strip():
         out.append("no why")
     ll = q.get("lesson_line") or ""
@@ -585,6 +629,11 @@ def unit_problems(doc: dict, *, path: Optional[pathlib.Path] = None) -> list[str
         keys.add(key)
         for p in question_problems(q, unit=doc, facts=facts, sources=sources, skills=skills):
             out.append(f"{key}: {p}")
+        if ((doc.get("verify") or {}).get(key) or {}).get("status") == "pass":   # what reaches a member
+            said = [q.get(f) for f in ("q", "story", "why", "lesson_line", "sentence", "simple")] + list(q.get("choices") or []) \
+                + list((q.get("wrong") or {}).values()) + list((q.get("deeper") or {}).values())
+            for p in old_lines_problems(said, " ".join(str(q.get(f) or "") for f in ("q", "story"))):
+                out.append(f"{key}: {p}")
         fmts[q.get("format")] = fmts.get(q.get("format"), 0) + 1
         r = q.get("rung") if isinstance(q.get("rung"), int) else 0
         if 1 <= r <= 9:
@@ -605,6 +654,7 @@ def unit_problems(doc: dict, *, path: Optional[pathlib.Path] = None) -> list[str
         for f in w.get("facts") or []:
             if f not in facts:
                 out.append(f"walkthrough {w.get('key')}: unknown fact {f!r}")
+        out.extend(f"walkthrough {w.get('key')}: {p}" for p in old_lines_problems(steps, str(w.get("title") or "")))
     verify = doc.get("verify") or {}
     for key, v in verify.items():
         if key not in keys and not str(key).startswith("w"):
@@ -745,6 +795,15 @@ def build_items(doc: dict, *, only_passed: bool = True) -> list[dict]:
             # a real chart under the question (History Detective, a dated example): the importer resolves the bars from
             # bars.db by this spec (get_bars_before, split-adjusted); the ticker never reaches a member before scoring
             prompt["chart"] = {"window_bars": int(chart.get("window", 120)), "tf": "D"}
+            tr = chart.get("trade")
+            if tr:
+                # after the answer only (the reveal): the drill player draws it as Hard mode does (entry, stop, 3R and 5R
+                # as marks on the ruler, BOUGHT / 3R / 5R / STOPPED as the replay lands); bought during the buy day
+                e, s = float(tr["entry"]), float(tr["stop"])
+                sign = -1.0 if tr.get("direction") == "bearish" else 1.0
+                risk = abs(e - s)
+                reveal["trade"] = {"entry": e, "stop": s, "t1": round(e + sign * 3 * risk, 2), "t2": round(e + sign * 5 * risk, 2),
+                                   "direction": "bearish" if sign < 0 else "bullish", "enters_intraday": True, "trim_r": [3, 5]}
         it = {
             "id": item_id(ref_base, f"q:{key}"), "version": 1, "type": "scenario" if fmt == "scenario" else "recall",
             "skill_id": q.get("skill"), "module": track, "difficulty": _difficulty(int(q.get("rung") or 1)),

@@ -206,6 +206,14 @@
    "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
    "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
   }
  ],
  "facts": [
@@ -742,6 +750,12 @@
    "source": "s24",
    "quote": "Too stretched to buy: skip a long that is more than 10% above its 10-day average.",
    "claim": "We skip a long that is more than 10% above its 10-day average."
+  },
+  {
+   "id": "rd21",
+   "source": "h2",
+   "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+   "claim": "Our rule: the course teaches the 9 and 20 EMA, with the 50 and 200 SMA."
   }
  ],
  "walkthroughs": [
@@ -1727,7 +1741,7 @@
    "rung": 8,
    "format": "scenario",
    "house": true,
-   "story": "A stock gaps up on strong earnings and closes near its high on huge volume. At your planned entry it sits 14% above its 10-day average.",
+   "story": "A stock gaps up on strong earnings and closes near its high on huge volume. At your planned entry it sits 14% above its 9 EMA.",
    "q": "What do you do?",
    "choices": [
     "Skip it: it's too stretched to buy",
@@ -1739,18 +1753,19 @@
    "wrong": {
     "Buy half now, add on a pullback": "We buy the full size at one price with one stop, and never add. And this one is too stretched to buy.",
     "Buy it, but set a tighter stop": "Our stop goes a few cents under the day's low or the prior day's low. A tighter stop does not fix the stretch.",
-    "Buy it: the close and volume are strong": "A strong close and big volume do not change the distance. We skip a long more than 10% above its 10-day average."
+    "Buy it: the close and volume are strong": "A strong close and big volume do not change the distance. We skip a long more than 10% above its 9 EMA."
    },
-   "simple": "Skip it, because we skip a long more than 10% above its 10-day average, and this one is 14% above.",
-   "why": "Skip it. Our rule is to skip a long that is more than 10% above its 10-day average, and this one is 14% above. A strong close and huge volume do not change that distance. A tighter stop does not fix it either, since our stop goes a few cents under the day's low. Buying half and adding later breaks our one-price, one-stop rule.",
-   "lesson_line": "A great earnings gap can still be too stretched to buy. Check the distance from the 10-day average first.",
+   "simple": "Skip it, because we skip a long more than 10% above its 9 EMA, and this one is 14% above.",
+   "why": "Skip it. Our rule is to skip a long that is more than 10% above its 9 EMA, and this one is 14% above. A strong close and huge volume do not change that distance. A tighter stop does not fix it either, since our stop goes a few cents under the day's low. Buying half and adding later breaks our one-price, one-stop rule.",
+   "lesson_line": "A great earnings gap can still be too stretched to buy. Check the distance from the 9 EMA first.",
    "deeper": {
-    "trap": "A strong close and heavy volume make a gap feel safe to buy. They say nothing about how far price has run from its 10-day average. Our rule checks that distance first."
+    "trap": "A strong close and heavy volume make a gap feel safe to buy. They say nothing about how far price has run from its 9 EMA. Our rule checks that distance first."
    },
    "facts": [
     "h5",
     "h4",
-    "h2"
+    "h2",
+    "rd21"
    ],
    "tier": "expert",
    "risk": {
@@ -1760,7 +1775,7 @@
      "the 14% is an invented drill number; whether earnings gaps are an exception is flagged for the owner"
     ]
    },
-   "batch": "wave6"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q97",
@@ -1839,7 +1854,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: buy orders pile up overnight (f10). Key matches. f4 now backs the thin-trading note (wider spreads). Choices 28-32 chars, key shortest, no tell. Simple is 22 words."
+   "notes": "Keep is right: why stocks gap up on good news, no sell or trim rule."
   },
   "q03": {
    "status": "cut",
@@ -1993,7 +2008,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: skip (C29; h5 matches sizing_rule.md section 9 C29 word for word). 14% comes from the story, 10% from h5. No section 9 exception for earnings gaps; B22 (3 days before a report) does not apply after the report. Distractors are real temptations each refuted by a rule: A5/h4 no adding, A3/h2 and section 2.4 never tighten the stop. Key not the longest (34 vs 39). Its stop wrong-note appears only after answering and q16 sits on a lower rung, so it gives nothing away."
+   "notes": "10-day -> 9 EMA in story, why, wrong, simple, lesson_line, deeper; 10% and 14% are rule threshold and an invented drill, not measurements; rd21 cited. The C29 rule's own stale quote (h5) stays."
   },
   "q97": {
    "status": "pass",

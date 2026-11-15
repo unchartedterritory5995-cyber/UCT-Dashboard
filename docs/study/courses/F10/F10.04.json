@@ -1782,9 +1782,9 @@
   },
   "q17": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "Keep is right: the 'sells at the open' text is a distractor on a canceled after-hours order, no gap-up trim rule."
   },
   "q18": {
    "status": "pass",

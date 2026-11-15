@@ -947,9 +947,9 @@
   {
    "id": "bg.trail",
    "field": "management",
-   "statement": "Trail what is left: cover on a close back above the 10-day average for a fast mover, the 21-day for a steadier one.",
+   "statement": "Trail what is left: cover on a close back above the 9 EMA for a fast mover, the 20 EMA for a steadier one.",
    "measure": {
-    "what": "close against the 10-day (fast) or 21-day (steadier) average",
+    "what": "close against the 9 EMA (fast) or 20 EMA (steadier)",
     "op": ">",
     "value": "the average",
     "timeframe": "daily"
@@ -967,6 +967,11 @@
      "statement": "Trail the last third: cover on a close back above the 10-day average for a fast mover, the 21-day for a steadier one.",
      "on": "2026-11-12",
      "by": "D-013"
+    },
+    {
+     "statement": "Trail what is left: cover on a close back above the 10-day average for a fast mover, the 21-day for a steadier one.",
+     "on": "2026-11-14",
+     "by": "D-021"
     }
    ],
    "ruling": "D-013"
@@ -1378,7 +1383,7 @@
  "management": {
   "trim_1": "first sell by judgment, usually day 3 or later, into a 3, 5 or 7 day push or at about 5 to 10R (D-013, 2026-11-12)",
   "trim_2": "later sells by judgment into strength, then trail the rest (D-013, 2026-11-12)",
-  "trail": "cover the last third on a close back above the 10-day average for a fast mover, the 21-day for a steadier one (E52)",
+  "trail": "cover what is left on a close back above the 9 EMA for a fast mover, the 20 EMA for a steadier one (E52, read as the 9 and 20 EMA: D-021)",
   "breakeven": "between 2R and 5R, at the first cover by default (B19)",
   "time_stop": "under 1R of profit after 10 sessions, cover (C33)",
   "gap_open": "optional: selling part into a big gap at the open is a judgment, never a rule (owner, 2026-11-12)",
@@ -1387,7 +1392,8 @@
   "superseded": {
    "trim_2": "cover a third at 5R (E51)",
    "gap_open": "a cover level the day opens past is taken at the open (F63)",
-   "trim_1": "cover a third at 3R (B19); Version P covers at least a third at the daily 9 EMA even if under 3R (D47, pending D-013)"
+   "trim_1": "cover a third at 3R (B19); Version P covers at least a third at the daily 9 EMA even if under 3R (D47, pending D-013)",
+   "trail": "cover the last third on a close back above the 10-day average for a fast mover, the 21-day for a steadier one (E52)"
   }
  },
  "examples": {

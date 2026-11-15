@@ -79,6 +79,14 @@
    "title": "Setup decisions: the owner's rulings (2026-11-12)",
    "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
   }
  ],
  "facts": [
@@ -138,9 +146,9 @@
   },
   {
    "id": "h05",
-   "source": "h1",
-   "quote": "Move the stop to breakeven at 2R to 5R, ideally. The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
-   "claim": "B19: breakeven between 2R and 5R; the hard rule for the first trim is a third at 3R."
+   "source": "hw",
+   "quote": "The stop may move up to breakeven between 2R and 5R, or at the first sell.",
+   "claim": "Our stop may move up to breakeven between 2R and 5R, or at the first sell."
   },
   {
    "id": "h06",
@@ -204,15 +212,15 @@
   },
   {
    "id": "h20",
-   "source": "h1",
-   "quote": "After the first third at 3R: another third at 5R, then trail the last third; adjustable.",
-   "claim": "E51: another third at 5R, then trail the last third."
+   "source": "hw",
+   "quote": "Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
+   "claim": "Later sells are a judgment: sell more into strength on a later push, and trail what is left."
   },
   {
    "id": "h21",
-   "source": "h1",
-   "quote": "Default trail: the 10-day average for fast movers, the 21-day for steadier ones; sell on a close below it.",
-   "claim": "E52: trail the 10-day for fast movers, the 21-day for steadier ones; sell on a close below it."
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
   },
   {
    "id": "h22",
@@ -696,9 +704,15 @@
   },
   {
    "id": "r23",
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
+  },
+  {
+   "id": "r31",
    "source": "h2",
-   "quote": "He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest.",
-   "claim": "He rarely sells on day 1 and usually waits until day 3 at the earliest."
+   "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+   "claim": "Owner: the course teaches the 9 and 20 EMA, with the 50 and 200 SMA."
   }
  ],
  "walkthroughs": [
@@ -719,14 +733,15 @@
     "g04",
     "g08",
     "h24",
-    "h05"
+    "h05",
+    "r21"
    ]
   },
   {
    "key": "w2",
    "title": "VIAV, February 2026: the second-candle turn (hourly bars)",
    "steps": [
-    "VIAV, 2026, hourly bars. A leader pulls back to its 10-day EMA. The prior close is 26.33.",
+    "VIAV, 2026, hourly bars. A leader pulls back to its 9 EMA. The prior close is 26.33.",
     "2026-02-19: candle one is red and stays under the prior close. Candle two closes green back above it.",
     "Study entry 26.43, that close; live we buy through the prior close. Stop under the session low: 25.66, 2.91% away.",
     "Failure mode: no follow-through and the stop takes it. Instead 3R came in 3 days, and it ran to 44.2R."
@@ -738,7 +753,8 @@
     "g04",
     "g08",
     "h24",
-    "h04"
+    "h04",
+    "h21"
    ]
   },
   {
@@ -1521,7 +1537,7 @@
    "choices": [
     "No new buy 3 sessions before a report",
     "No new buy over 4% above the buy point",
-    "Skip a long 10% over its 10-day line",
+    "Skip a long 10% over its 9 EMA",
     "Buy only in regular trading hours"
    ],
    "answer": "No new buy 3 sessions before a report",
@@ -1536,8 +1552,8 @@
    ],
    "wrong": {
     "No new buy over 4% above the buy point": "That rule is real, but the story gives no price above the buy point.",
-    "Skip a long 10% over its 10-day line": "That rule is real, but the story says nothing about the 10-day line.",
-    "Buy only in regular trading hours": "That rule is real, but the story is a first-hour reclaim, inside regular hours."
+    "Buy only in regular trading hours": "That rule is real, but the story is a first-hour reclaim, inside regular hours.",
+    "Skip a long 10% over its 9 EMA": "That rule is real, but the story says nothing about the 9 EMA."
    },
    "house": true,
    "story": "A perfect first-hour reclaim at the 20-day line. The stock reports earnings in two sessions.",
@@ -1553,7 +1569,7 @@
      "fixed before (+1)"
     ]
    },
-   "batch": "wave4"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q26",
@@ -1667,13 +1683,13 @@
     "g23",
     "d13",
     "h02",
-    "h20",
+    "r22",
     "g09"
    ],
    "wrong": {
     "Move the stop up to 90.55": "Never raise the stop to the reclaimed level.",
     "Sell at the close; it failed": "Selling at that close did not improve the average. The stop is the exit.",
-    "Cut half now and hold the rest": "The plan trims at 3R and 5R, not on a warning. The stop is the exit."
+    "Cut half now and hold the rest": "The plan sells by judgment into a push, not on a warning. The stop is the exit."
    },
    "house": true,
    "story": "You bought a first-candle reclaim at 90.98 with the stop at 89.39. At 15:50 the stock is 90.41, under the prior close 90.55, above your stop.",
@@ -1689,7 +1705,7 @@
      "a statistic from our own scan (+2)"
     ]
    },
-   "batch": "wave4"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q29",
@@ -1779,29 +1795,29 @@
    "rung": 5,
    "format": "mcq",
    "criterion": "go.trail",
-   "q": "What trails the last third of a Go Signal in a fast mover?",
+   "q": "What trails what is left of a Go Signal in a fast mover?",
    "choices": [
-    "A close under the 10-day line",
+    "A close under the 9 EMA",
     "A close under the 200-day line",
     "A new 5-day closing low",
     "The low of the entry day"
    ],
-   "answer": "A close under the 10-day line",
-   "why": "A close under the 10-day average. The last third trails the 10-day for fast movers and the 21-day for steadier ones. You sell on a close below it.",
-   "lesson_line": "Fast stock, 10-day. Steady stock, 21-day.",
+   "answer": "A close under the 9 EMA",
+   "why": "A close under the 9 EMA. What is left trails the 9 EMA for fast movers and the 20 EMA for steadier ones. You sell on a close below it.",
+   "lesson_line": "Fast stock, 9 EMA. Steady stock, 20 EMA.",
    "facts": [
     "h21",
-    "h20",
     "h01",
-    "h02"
+    "h02",
+    "r31"
    ],
    "wrong": {
-    "A close under the 200-day line": "That is not our trail. We trail the 10-day for fast movers and the 21-day for steadier ones.",
-    "A new 5-day closing low": "A short-term low is not our trail. We use the 10-day or the 21-day.",
-    "The low of the entry day": "That is the first stop, and it only moves up. The last third trails an average instead."
+    "A close under the 200-day line": "That is not our trail. We trail the 9 EMA for fast movers and the 20 EMA for steadier ones.",
+    "A new 5-day closing low": "A short-term low is not our trail. We use the 9 EMA or the 20 EMA.",
+    "The low of the entry day": "That is the first stop, and it only moves up. What is left trails an average instead."
    },
    "house": true,
-   "simple": "A fast mover is trailed with the 10-day average, and you sell on a close below it.",
+   "simple": "A fast mover is trailed with the 9 EMA, and you sell on a close below it.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -1810,7 +1826,7 @@
      "fixed before: variety rewrite (+1)"
     ]
    },
-   "batch": "wave4"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q32",
@@ -3077,15 +3093,16 @@
    "criterion": "go.not_stretched",
    "q": "Skip the buy if the stock is more than 10% above its 200-day average.",
    "answer": "False",
-   "why": "False. The stretch test is against the 10-day average, not the 200-day. Skip a long that is more than 10% above its 10-day average. The card says not more than 10% above the 10-day at the buy. The 200-day is a separate trend rule: no longs below it.",
-   "lesson_line": "Ten percent over the 10-day: skip.",
+   "why": "False. The stretch test is against the 9 EMA, not the 200-day. Skip a long that is more than 10% above its 9 EMA at the buy. The 200-day is a separate trend rule: no longs below it.",
+   "lesson_line": "Ten percent over the 9 EMA: skip.",
    "facts": [
     "g17",
     "h13",
-    "h10"
+    "h10",
+    "r31"
    ],
    "house": true,
-   "simple": "False, because the stretch test is against the 10-day average, not the 200-day.",
+   "simple": "False, because the stretch test is against the 9 EMA, not the 200-day.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -3094,7 +3111,7 @@
      "fixed before (+1)"
     ]
    },
-   "batch": "wave4"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q65",
@@ -3383,21 +3400,22 @@
     "Not yet; breakeven starts at 2R",
     "No; a stop never moves once set",
     "Yes; 1R is enough to move it up",
-    "Yes; trail it under the 10-day line"
+    "Yes; trail it under the 9 EMA"
    ],
    "answer": "Not yet; breakeven starts at 2R",
-   "why": "Not yet. The stop moves to breakeven between 2R and 5R, ideally. This trade is up less than 1R, so it is not near 2R. The test is R. The trail comes later, for the last third after the trims.",
+   "why": "Not yet. The stop moves to breakeven between 2R and 5R, ideally. This trade is up less than 1R, so it is not near 2R. The test is R. The trail comes later, for what is left after the sells.",
    "lesson_line": "Breakeven is earned in R, from 2R on.",
    "facts": [
     "h05",
     "d04",
-    "h20",
-    "h02"
+    "r21",
+    "h02",
+    "r31"
    ],
    "wrong": {
     "Yes; 1R is enough to move it up": "Too soon, and it is not even at 1R. The rule starts at 2R.",
     "No; a stop never moves once set": "The stop can move. It only moves up, never down or wider. Breakeven comes from 2R.",
-    "Yes; trail it under the 10-day line": "The trail is for the last third, after the trims at 3R and 5R. At this price it is far too early."
+    "Yes; trail it under the 9 EMA": "The trail is for what is left after the sells, not the start of a trade. At this price it is far too early."
    },
    "house": true,
    "simple": "Not yet, because our breakeven window starts at 2R and this trade is still under 1R.",
@@ -3409,7 +3427,7 @@
      "fixed before (+1)"
     ]
    },
-   "batch": "wave4"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q74",
@@ -3466,26 +3484,27 @@
    "format": "scenario",
    "criterion": "go.trim_2",
    "q": "What comes next?",
-   "story": "You sold your first third into a push of several days. Now the stock trades through 5R.",
+   "story": "You sold your first piece into a push of several days. Now the stock trades through 5R.",
    "choices": [
-    "Sell a third more; trail the rest",
-    "Skip the trim and trail it all",
-    "Sell the last two thirds now",
+    "Judge a later sell; trail what is left",
+    "Sell another third at 5R by the book",
+    "Sell everything left at the 5R mark",
     "Move the stop to breakeven, then hold"
    ],
-   "answer": "Sell a third more; trail the rest",
-   "why": "Sell another third and trail the rest. After the first sell, another third comes off at 5R by default, then you trail the last third. The plan is adjustable.",
-   "lesson_line": "A first sell, another third at 5R, then trail.",
+   "answer": "Judge a later sell; trail what is left",
+   "why": "Judge a later sell and trail what is left. The first sell is a judgment, not a fixed third at 3R. Later sells are a judgment too, so 5R is a mark on the ruler, not an order.",
+   "lesson_line": "A later sell is a judgment. Trail what is left.",
    "facts": [
-    "h20"
+    "r21",
+    "r22"
    ],
    "wrong": {
-    "Skip the trim and trail it all": "The plan takes another third at 5R first, then trails the last third.",
-    "Sell the last two thirds now": "The plan trails the last third. It does not sell everything at 5R.",
-    "Move the stop to breakeven, then hold": "Breakeven comes earlier than this. At 5R the plan takes another third."
+    "Move the stop to breakeven, then hold": "Breakeven comes at the first sell or earlier, so the stop is already there. What is open is a later sell and the trail.",
+    "Sell another third at 5R by the book": "There is no fixed third at 5R. Later sells are a judgment, and what is left is trailed.",
+    "Sell everything left at the 5R mark": "5R is a mark on the ruler, not a signal to sell it all. What is left trails."
    },
    "house": true,
-   "simple": "Sell another third at 5R and trail the last third, because that is the default plan after the first sell.",
+   "simple": "Judge a later sell and trail what is left, because 5R is a mark on the ruler, not a fixed sell.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -3494,7 +3513,7 @@
      "fixed before (+1)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "sweep-2026-11-14"
   },
   {
    "key": "q76",
@@ -3792,14 +3811,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "B22/g15 right; story gives 2 sessions, inside the window under either wording; wrong notes true."
+   "notes": "agrees with the rulings; text checked"
   },
   "q26": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave4; awaiting cold re-read",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "kept: volume not a rule; agrees with D-006"
   },
   "q27": {
    "status": "pass",
@@ -3810,8 +3828,8 @@
   "q28": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Pass. Numbers match d13; rests on proposed g23 (owner flag)."
+   "fixed": true,
+   "notes": "text fine, but facts still cite h20 (the superseded 'another third at 5R' rule); swap for r22, which backs 'sells by judgment into a push'."
   },
   "q29": {
    "status": "pass",
@@ -3824,13 +3842,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with D-013/D-003; quotes verbatim"
+   "notes": "kept: day-2 gap, hold; agrees with D-013 and GAP-TRIM"
   },
   "q31": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (h21: 10-day for fast movers, sell on a close below it; h20: the last third is trailed). Breaks: the why's 'After the trims at 3R and 5R' gives q75's answer (rung 7: another third at 5R, trail the rest) and q74's 5R level; the 'entry day low' wrong note says the stop 'only moves up', which no cited fact supports. Fix drops the trims from the why and cites h01/h02 for the stop note."
+   "notes": "text fine, but facts cite h20 (superseded fixed-third rule); drop it."
   },
   "q32": {
    "status": "cut",
@@ -3877,14 +3895,14 @@
   "q39": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "keep agrees with ruling"
+   "fixed": false,
+   "notes": "kept: agrees with D-006"
   },
   "q40": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Pass. Key from cited quotes; no tell or second answer found."
+   "notes": "kept: hard 200-day rule for a stock; agrees with D-009"
   },
   "q41": {
    "status": "pass",
@@ -4031,7 +4049,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "False is right: stretch test is 10-day (g17/h13), 200-day is a separate trend rule (h10)."
+   "notes": "agrees with the rulings; text checked"
   },
   "q65": {
    "status": "pass",
@@ -4067,7 +4085,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Pass. Key from cited quotes; no tell or second answer found."
+   "notes": "kept: real stop order; unaffected"
   },
   "q71": {
    "status": "pass",
@@ -4085,7 +4103,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "27.00-26.43 = 0.57 = 0.74R, under 1R; breakeven from 2R (h05). Choices balanced."
+   "notes": "agrees with the rulings; text checked"
   },
   "q74": {
    "status": "pass",
@@ -4097,7 +4115,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with D-013/D-003; quotes verbatim"
+   "notes": "agrees with the rulings; text checked"
   },
   "q76": {
    "status": "pass",
