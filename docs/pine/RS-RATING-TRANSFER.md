@@ -341,6 +341,50 @@ by FMP-vs-TradingView history; still NOT admitted.
   two. No allowlist record was added. Next: Q-RS1b (RS Rating on NASDAQ:ALAB and NASDAQ:CRWV 1D, both
   listed after 2023-12-05, where FMP is exact) and Q-RS4b (the industry probe on the same).
 
+**Integration status (2026-11-15, engine 68 placeholder, branch `pine/rs-rating-integrate`):**
+the program branch merged with master `fd670de1ee`. Graded on three captures; NOT admitted.
+
+- **Q-RS1b / Q-RS4b graded** (s13-2026-11-15, from the listing, committed as harness fixtures with
+  their supply records in the RDDT pattern: the same FMP ^GSPC rows and seed replay, the industry
+  read off each probe). Runtime-on, objects v2, tolerance unchanged (1e-9 relative):
+
+  | capture | verdict | why |
+  |---|---|---|
+  | `rs-rating-fred6724-alab-1d-2026-11-15` | MATCH_SUBSTITUTED | RS line and the three MAs 667/667 exact (maxRel 0); labels objects v2 MATCH_SUBSTITUTED (18/18 fields, v1 MATCH, rating 76). Substituted: `syminfo.industry` (`Semiconductors`). |
+  | `rs-rating-fred6724-crwv-1d-2026-11-15` | MATCH_SUBSTITUTED | 411/411 exact on every plot; labels objects v2 MATCH_SUBSTITUTED (18/18, rating 13). Substituted: `syminfo.industry` (`Packaged Software`). |
+  | `rs-rating-fred6724-rddt-1d-2026-11-15` | MATCH_SUBSTITUTED | regraded in the same run; the row is identical to the committed one. |
+
+  The four new rows (two Q-RS1b, two Q-RS4b probes, INCONCLUSIVE as the RDDT probe is) are spliced
+  into `docs/pine/vendor-harness/runtime-on/verdicts.json` under `spliced`. The xmap sidecars are
+  not committed: objects v2 never grades `x`, so the grade does not read them (L4d).
+- **The run-half rule is met** (three distinct MATCH_SUBSTITUTED captures, each objects v2
+  MATCH_SUBSTITUTED with equal names, pane on). **The allowlist record is not.** R1
+  (`rollout_gate.pine_runtime_admission`, the per-script gate both the browser pane and the server
+  lanes ask) withholds the record by name, because the census detector
+  (`coverage_map.features_of`) finds 11 capabilities in the original source and three are not
+  conformant:
+  - `conditional-ta` is `divergent` (R4). RS Rating's conditional `ta.*` sit under constant
+    conditions, the case L4 built; the registry row does not tell that case apart.
+  - `switch` and `max_bars_back` have no registry row.
+
+  A committed record would therefore be WITHHELD, and `test_WSI_R1_every_COMMITTED_script_passes_R1`
+  would go red by name, as it is meant to. So no record was added. Admission needs a ruling on
+  the registry: split or regrade `conditional-ta` for constant conditions, and add conformant
+  `switch` / `max_bars_back` rows with named evidence. Then the record is: `admission:
+  "substituted"`, `substituted: ["syminfo.industry"]`, sha256 `caa94fe31a87...` (the original
+  source), captures RDDT / ALAB / CRWV each `objectsV2: "MATCH_SUBSTITUTED"`,
+  `objectsV2Substituted: ["syminfo.industry"]`.
+- **The server lane (HP-7).** `services/pine_runtime/job.mjs` declares what a server run does not
+  carry:
+  - the L3 symbol fields (the wire symbol is `{ticker, exchange}`), so a server run refuses
+    `syminfo.industry` by name (`interpret:bind-time-text`);
+  - the L5 other-symbol cache, so a server run of `request.security('SP:SPX', …)` is refused
+    `runtime:request` by name (`otherSymbolSupply: false`). Before this it was held as "still
+    loading", which on the server never ends.
+
+  An admitted RS Rating would therefore draw on a member's chart and be refused by name on alerts
+  and scans.
+
 ## Owner rulings
 
 - **2026-11-14, SPX source for members:** "We have the highest plan for FMP, I am fine using
