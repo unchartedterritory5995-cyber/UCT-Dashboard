@@ -11278,6 +11278,170 @@
       ]
     },
     {
+      "id": "boardDetach.float",
+      "source": "Charts family 11-15: the widget header float (ChartsWorkspace handleFloatWidget); floating until reload",
+      "capabilities": [
+        "boardDetach.float"
+      ],
+      "board": "DETACH",
+      "needs": [
+        "boardDetach.float"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "boardDetach.float",
+            "target": "$board",
+            "args": {
+              "widget": "news1"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "detach": {
+          "floating": [
+            "news1"
+          ]
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "float the news widget",
+        "float my news panel over the board",
+        "detach the news widget"
+      ]
+    },
+    {
+      "id": "boardDetach.dock",
+      "source": "Charts family 11-15: the floating panel Dock (handleDockFloatWidget)",
+      "capabilities": [
+        "boardDetach.dock"
+      ],
+      "board": "DETACH_FLOATING",
+      "needs": [
+        "boardDetach.dock"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "boardDetach.dock",
+            "target": "$board",
+            "args": {
+              "widget": "news1"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "detach": {
+          "floating": []
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "dock the news widget back",
+        "dock it back",
+        "dock all the floating widgets"
+      ]
+    },
+    {
+      "id": "boardDetach.intoTabs",
+      "source": "Charts family 11-15: the floating panel Move into tabs (handleFloatWidgetToTab -> widgetTabs.moveIntoTabs); a card",
+      "capabilities": [
+        "boardDetach.intoTabs"
+      ],
+      "board": "DETACH",
+      "needs": [
+        "boardDetach.intoTabs"
+      ],
+      "model": {
+        "disposition": "propose",
+        "ops": [
+          {
+            "action": "boardDetach.intoTabs",
+            "target": "$board",
+            "args": {
+              "widget": "news1",
+              "into": "c1"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "proposal": true,
+        "unchanged": true
+      },
+      "approve": true,
+      "afterApprove": {
+        "detach": {
+          "widgets": [
+            "c1"
+          ]
+        },
+        "receipt": true
+      },
+      "phrasings": [
+        "move the news widget into the chart tabs",
+        "move the news panel into the tabs of the chart",
+        "move the news widget into the chart widget tabs"
+      ]
+    },
+    {
+      "id": "boardDetach.setMerged",
+      "source": "Charts family 11-15: the Merge widgets toggle (toggleMerged, charts_merged); on every layout",
+      "capabilities": [
+        "boardDetach.setMerged"
+      ],
+      "board": "DETACH",
+      "needs": [
+        "boardDetach.setMerged"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "boardDetach.setMerged",
+            "target": "$board",
+            "args": {
+              "merged": true
+            }
+          }
+        ]
+      },
+      "expect": {
+        "detach": {
+          "merged": true
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        "merge the board",
+        "merge the widgets on the board",
+        "turn on the merged view"
+      ]
+    },
+    {
       "id": "chartMenu.resetWatermark",
       "source": "C1-061 (family C, 11-11): Chart Settings → Watermark → Reset to center (opts.watermarkPos = null)",
       "capabilities": [

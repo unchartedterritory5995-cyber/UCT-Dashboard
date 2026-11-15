@@ -8034,6 +8034,125 @@
    "shape": null
   },
   {
+   "name": "boardDetach.float",
+   "domain": "boardDetach",
+   "target": "board",
+   "summary": "Float ONE widget over the board, as its header's float button does (it keeps its slot). Floating until reload. Undo docks it.",
+   "hints": "target = the board entry; widget = its id. Not a pop-out window. Dock = boardDetach.dock.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "widget": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "widget"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "boardDetach.dock",
+   "domain": "boardDetach",
+   "target": "board",
+   "summary": "Dock a floating widget back into its spot on the board (widget null = every floating one), as the floating panel's Dock does. Undo floats it again.",
+   "hints": "target = the board entry; widget = the id of a floating widget, or null for all of them.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "widget": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "widget"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "boardDetach.intoTabs",
+   "domain": "boardDetach",
+   "target": "board",
+   "summary": "Move ONE widget into another widget's tabs (it leaves its spot on the board, which stays empty), as the floating panel's \"Move into tabs\" does. Shown first; Undo puts it back exactly.",
+   "hints": "target = the board entry; widget = the id of the widget that moves; into = the id of the widget whose tabs it joins. Adding a NEW tab = widget.addTab.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "widget": {
+      "type": "string"
+     },
+     "into": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "widget",
+     "into"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "boardDetach.setMerged",
+   "domain": "boardDetach",
+   "target": "board",
+   "summary": "Turn the merged board view on or off (no gaps, widget borders touching), as the Merge widgets toggle does — on every layout. Undo puts it back.",
+   "hints": "target = the board entry; merged = true to merge, false to unmerge. Only when they ask to merge / unmerge the board or its widgets.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "merged": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "merged"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
    "name": "multiChart.set",
    "domain": "multiChart",
    "target": "multiChart",

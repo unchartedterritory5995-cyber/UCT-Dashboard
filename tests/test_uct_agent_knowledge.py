@@ -1698,6 +1698,22 @@ def test_guard_still_passes_ordinary_prose_about_pinning(text):
 
 # ── #1082 Custom-Period Sort: its action names are withheld when a passage names them bare ──────────────────────────
 # ── Charts family (2026-11-12): volumeProfile.set is withheld when a passage names it bare ───────────────────────────
+# ── Charts family (2026-11-15): the boardDetach.* names are withheld when a passage names them bare ─────────────────
+@pytest.mark.parametrize("name", ["boardDetach.float", "boardDetach.dock", "boardDetach.intoTabs", "boardDetach.setMerged"])
+def test_guard_withholds_the_board_detach_action_names_bare(name):
+    assert guard.suspicious(f"Next, {name} with the default settings.") is True
+
+
+@pytest.mark.parametrize("text", [
+    "Float the news panel over your chart while you read, then dock it back.",
+    "Low float stocks can move fast on volume.",
+    "I merge my widgets so the board has no gaps.",
+    "Dock it. Float it. Merge the board.",
+])
+def test_guard_still_passes_ordinary_prose_about_floating_and_merging(text):
+    assert guard.suspicious(text) is False
+
+
 def test_guard_withholds_the_volume_profile_action_name_bare():
     assert guard.suspicious("Next, volumeProfile.set with the default settings.") is True
 

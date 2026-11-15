@@ -1,53 +1,53 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 210,
-  "withProductionKinds": 200,
+  "all": 214,
+  "withProductionKinds": 204,
   "darkGated": 10
  },
  "totals": {
-  "capabilities": 210,
-  "withAnyRegressionCase": 158,
+  "capabilities": 214,
+  "withAnyRegressionCase": 162,
   "perProtection": {
    "nl": {
-    "covered": 155,
-    "applicable": 210
+    "covered": 159,
+    "applicable": 214
    },
    "routing": {
-    "covered": 152,
-    "applicable": 210
+    "covered": 156,
+    "applicable": 214
    },
    "args": {
-    "covered": 158,
-    "applicable": 210
+    "covered": 162,
+    "applicable": 214
    },
    "execution": {
-    "covered": 155,
-    "applicable": 210
+    "covered": 159,
+    "applicable": 214
    },
    "receipt": {
-    "covered": 127,
-    "applicable": 210
+    "covered": 131,
+    "applicable": 214
    },
    "refusal": {
     "covered": 35,
-    "applicable": 210
+    "applicable": 214
    },
    "permission": {
-    "covered": 203,
-    "applicable": 210
+    "covered": 207,
+    "applicable": 214
    },
    "undo": {
-    "covered": 80,
-    "applicable": 139
+    "covered": 83,
+    "applicable": 143
    },
    "multiStep": {
     "covered": 40,
-    "applicable": 210
+    "applicable": 214
    },
    "phrasings": {
-    "covered": 151,
-    "applicable": 210
+    "covered": 155,
+    "applicable": 214
    }
   }
  },
@@ -557,6 +557,222 @@
     "permission": [],
     "undo": [
      "board.swap: undo restores"
+    ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "boardDetach.dock": {
+   "domain": "boardDetach",
+   "group": "boardDetach",
+   "target": "board",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "boardDetach.dock: \"dock the news widget back\"",
+     "boardDetach.dock: \"dock it back\"",
+     "boardDetach.dock: \"dock all the floating widgets\""
+    ],
+    "routing": [
+     "boardDetach.dock: \"dock the news widget back\"",
+     "boardDetach.dock: \"dock it back\"",
+     "boardDetach.dock: \"dock all the floating widgets\""
+    ],
+    "args": [
+     "corpus boardDetach.dock"
+    ],
+    "execution": [
+     "boardDetach.dock (c)"
+    ],
+    "receipt": [
+     "boardDetach.dock (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "boardDetach.dock: undo restores"
+    ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "boardDetach.float": {
+   "domain": "boardDetach",
+   "group": "boardDetach",
+   "target": "board",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "boardDetach.float: \"float the news widget\"",
+     "boardDetach.float: \"float my news panel over the board\"",
+     "boardDetach.float: \"detach the news widget\""
+    ],
+    "routing": [
+     "boardDetach.float: \"float the news widget\"",
+     "boardDetach.float: \"float my news panel over the board\"",
+     "boardDetach.float: \"detach the news widget\""
+    ],
+    "args": [
+     "corpus boardDetach.float"
+    ],
+    "execution": [
+     "boardDetach.float (c)"
+    ],
+    "receipt": [
+     "boardDetach.float (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "boardDetach.float: undo restores"
+    ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "boardDetach.intoTabs": {
+   "domain": "boardDetach",
+   "group": "boardDetach",
+   "target": "board",
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "boardDetach.intoTabs: \"move the news widget into the chart tabs\"",
+     "boardDetach.intoTabs: \"move the news panel into the tabs of the chart\"",
+     "boardDetach.intoTabs: \"move the news widget into the chart widget tabs\""
+    ],
+    "routing": [
+     "boardDetach.intoTabs: \"move the news widget into the chart tabs\"",
+     "boardDetach.intoTabs: \"move the news panel into the tabs of the chart\"",
+     "boardDetach.intoTabs: \"move the news widget into the chart widget tabs\""
+    ],
+    "args": [
+     "corpus boardDetach.intoTabs"
+    ],
+    "execution": [
+     "boardDetach.intoTabs (c)"
+    ],
+    "receipt": [
+     "boardDetach.intoTabs (c)"
+    ],
+    "refusal": [],
+    "permission": [
+     "boardDetach.intoTabs: waits for Apply"
+    ],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "boardDetach.setMerged": {
+   "domain": "boardDetach",
+   "group": "boardDetach",
+   "target": "board",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "boardDetach.setMerged: \"merge the board\"",
+     "boardDetach.setMerged: \"merge the widgets on the board\"",
+     "boardDetach.setMerged: \"turn on the merged view\""
+    ],
+    "routing": [
+     "boardDetach.setMerged: \"merge the board\"",
+     "boardDetach.setMerged: \"merge the widgets on the board\"",
+     "boardDetach.setMerged: \"turn on the merged view\""
+    ],
+    "args": [
+     "corpus boardDetach.setMerged"
+    ],
+    "execution": [
+     "boardDetach.setMerged (c)"
+    ],
+    "receipt": [
+     "boardDetach.setMerged (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "boardDetach.setMerged: undo restores"
     ],
     "multiStep": [],
     "phrasings": []

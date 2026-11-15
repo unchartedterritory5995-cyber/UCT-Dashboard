@@ -70,6 +70,9 @@ export const BOARDS = {
   // chartFeatures: a chart whose Company Info panel is added (collapsed, on Ownership, dragged to 520px) and Earnings Strip shown
   DOCKED: () => [[{ ...chart('c1', 0, 0, 24, 20), opts: { settings: bareSettings(), dock: { company: true, open: false, tab: 'ownership', rightW: 520, strip: true, stripH: 140 } } }], { 'N:c1': 'NVDA' }],
   WATERMARK: () => [[{ ...chart('c1', 0, 0, 24, 20), opts: { settings: bareSettings(), watermarkPos: { x: 0.2, y: 0.8, anchor: null } } }], { 'N:c1': 'NVDA' }],
+  // boardDetach.*: a chart beside a News widget, with the workspace's float / merged state (the fixture's `detach` source)
+  DETACH: () => [[chart('c1', 0, 0, 12, 20), { id: 'news1', type: 'news', x: 12, y: 0, w: 12, h: 20, color: 'A', opts: {} }], { 'N:c1': 'NVDA' }, { geometry: { detach: {} } }],
+  DETACH_FLOATING: () => [[chart('c1', 0, 0, 12, 20), { id: 'news1', type: 'news', x: 12, y: 0, w: 12, h: 20, color: 'A', opts: {} }], { 'N:c1': 'NVDA' }, { geometry: { detach: { floating: ['news1'] } } }],
   // a chart drawn with a GRADIENT background (live LT-3: "turn the gradient off on this chart")
   GRADIENT: () => [[{ ...chart('c1', 0, 0, 24, 20), opts: { settings: { ...bareSettings(), bgMode: 'gradient' } } }], { 'N:c1': 'NVDA' }],
   // one chart on its DEFAULT settings (EMA 9/20, SMA 50/200) with the indicator-alert library
