@@ -11235,12 +11235,18 @@ export class Resolver {
    *  (`vw-getter-history`, G03: `ya[1]` in the last-bar block is `close[1]`), and
    *  so do the chart's own series (A13 / A14, C06).
    *  ⛔ Minting, and which resolver asks, as `resolveBinding` says. null → not
-   *  such a read (or one a chart's plot reads on, for the bind to decide). */
+   *  such a read (or one a chart's plot reads on, for the bind to decide).
+   *  ⭐ Engine 55 — THE SCREENER LANE ASKS TOO (`this.screen`). It binds no chart, so
+   *  nothing carries the block's guard to a bind: the read refuses here, by this
+   *  sentence, and a once-run block reads `na` as above. ⚰️ It read on through
+   *  `barOffsetNode`, the previous BAR's value: s10 probe `vw-w3n-draw-block-history-d`
+   *  translated `ok` and disagreed with TradingView on 169 of 315 RDDT bars (bar 2:
+   *  100.88 vs 92). Rails: `lenientBlockLocalHistory.test.js`. */
   blockLocalHistory(node) {
     if (this.mintOnly > 0 || !(node.n >= 1) || !node.arg || node.arg.type !== 'name') return null
     const bound = this.env.get(node.arg.name)
     if (!bound || typeof bound !== 'object' || !bound.blockLocal) return null
-    if (!this.refuseCondCalls && !this.condGate) return null
+    if (!this.refuseCondCalls && !this.condGate && !this.screen) return null
     if (bound.blockLocal === 'once') {
       if (this.paramMint) this.mintOnlyRead(() => this.resolve(node))
       return cOp('/', [cNum(0), cNum(0)])
@@ -11250,7 +11256,7 @@ export class Resolver {
       + 'RUN, not the previous bar\'s (capture `vw-call-site-history`, rows C05 / D03), and that history is not kept here'
     const err = new PineRefusal('pine:block', `${REFUSALS['pine:block']} — ${why}`, locate(node.tok))
     err.noRuntime = true
-    if (this.refuseCondCalls) throw err
+    if (this.refuseCondCalls || this.screen) throw err
     // a chart's plot reads on, and the bind decides (`resolveBinding`)
     this.noteBlockRun(bound, why, err)
     return null

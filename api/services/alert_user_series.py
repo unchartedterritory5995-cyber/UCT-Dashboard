@@ -464,7 +464,8 @@ _SYMBOL_LOCK = threading.Lock()
 
 def _symbol_bars(ticker: str, tf: str, want: int) -> list:
     """Another symbol's latest ``want`` bars at ``tf`` -- THE SCAN'S OWN LOCAL LOADER
-    (``scan_evaluator._read_bars``: ``bars_sqlite``, no network), so ``t`` is the
+    (``local_bars.read_bars``, which ``scan_evaluator._read_bars`` also reads:
+    ``bars_sqlite``, no network), so ``t`` is the
     same store key the alert's own bars carry and ``sym``'s exact-``t`` alignment
     holds. A bar the benchmark lacks is NaN there (UNKNOWN), never forward-filled."""
     import time as _time
@@ -474,9 +475,9 @@ def _symbol_bars(ticker: str, tf: str, want: int) -> list:
         hit = _SYMBOL_CACHE.get(key)
         if hit is not None and now - hit[0] < _SYMBOL_TTL_S:
             return hit[1]
-    from api.services.screener.scan_evaluator import _read_bars
+    from api.services import local_bars
     try:
-        series = _read_bars(store_ticker(ticker), str(tf), int(want))
+        series = local_bars.read_bars(store_ticker(ticker), str(tf), int(want))
     except Exception:                                    # noqa: BLE001 -- unknown, not wrong
         series = []
     with _SYMBOL_LOCK:
