@@ -227,10 +227,13 @@ function lowerTfSupply(def, capture) {
 //     serves them, with where they came from (a fallback says so in `source`); or
 //   * `{notRecorded}`: the source a member is served was not recorded, so NOTHING is supplied
 //     (the read refuses by name, the grade is INCONCLUSIVE), never a stand-in; or
+//     ⚠️ Inline PROVIDER bars (FMP, Yahoo) are committed only under an owner ruling the entry
+//     quotes in `licence` (the RS Rating records: 2026-11-15, "That's fine, I accept it all",
+//     covering those records only; railed in vendorHarness.l9LocalSupply.test.js); or
 //   * (RS RATING L9) `{servedBy, source, recordedAtUTC, rows: {file, sha256, count, first, last}}`:
-//     the served bars are PROVIDER DATA THE REPO MAY NOT REDISTRIBUTE (the repo is public; FMP is
-//     class R/LA for member display only and Yahoo class X, `provider_licensing_class.py`), so git
-//     holds only this manifest and the rows live OUT of git, in the local supply store
+//     for provider data NO ruling covers (the repo is public; FMP is class R/LA for member display
+//     and Yahoo class X, `provider_licensing_class.py`), git holds only this manifest and the rows
+//     live OUT of git, in the local supply store
 //     (`$UCT_HARNESS_SUPPLY_STORE`, default `%LOCALAPPDATA%/uct-vendor-batch/supply`), the way a
 //     licence-held capture lives in the capture store. The file is read only when its sha256, row
 //     count and first / last session are the manifest's (else the record throws); a machine

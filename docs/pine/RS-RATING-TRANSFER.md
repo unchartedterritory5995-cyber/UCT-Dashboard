@@ -316,14 +316,17 @@ by FMP-vs-TradingView history; still NOT admitted.
 - **securityType in the harness: built.** A supply record's `store.securityType` (`Stock` / `ADR`
   / `ETF`, naming its `source`) reaches `ctx.symbol`, so an ETF keys the L3 class row. No committed
   record states one: our store's class is not readable on this machine.
-- **The supply is FMP, kept out of git.** FMP ^GSPC (the primary) was recorded by the owner
-  (2026-11-15T13:50:55Z, 9286 sessions from 1990-01-02). The repo is public, and FMP (R/LA,
-  member display) and Yahoo (X) data may not be redistributed. So
-  `tests/fixtures/vendor-supply/<id>.json` names the rows by manifest
-  (`rows: {file, sha256, count, first, last}`). The rows live in
-  `$UCT_HARNESS_SUPPLY_STORE` (default `%LOCALAPPDATA%/uct-vendor-batch/supply`). Without the
-  file, the grade is refused by name. The L8 yfinance rows were removed from the tip; they remain
-  in history at `bce0de1ecb`.
+- **The supply is FMP, committed under the owner ruling below.** FMP ^GSPC (the primary) was
+  recorded by the owner (2026-11-15T13:50:55Z, 9286 sessions from 1990-01-02).
+  - It was read back through the server's own `_fetch_fmp_daily`, and is committed in the RDDT and
+    NVDA records with `source` FMP and the ruling quoted in `licence`.
+  - It replaces the L8 yfinance rows, which the grade does not need; those stay in history at
+    `bce0de1ecb`.
+  - A rail (`vendorHarness.l9LocalSupply.test.js`) allows inline provider bars only in these
+    RS Rating records, and only when they quote the ruling.
+  - Provider supply no ruling covers uses a manifest (`rows: {file, sha256, count, first, last}`).
+    Its rows live in `$UCT_HARNESS_SUPPLY_STORE` (default `%LOCALAPPDATA%/uct-vendor-batch/supply`),
+    and without the file the grade is refused by name.
 
   | capture | verdict | why |
   |---|---|---|
@@ -353,3 +356,12 @@ by FMP-vs-TradingView history; still NOT admitted.
   - Before this ruling the repo recorded Massive Indices as `U` (403 for this key) and yfinance as
     `X` ("never a member path"), while `/api/bars/SPX` already served yfinance
     (`api/routers/bars.py`).
+- **2026-11-15, provider index bars in the RS Rating supply records:** "That's fine, I accept it
+  all".
+  - The question: the repo is public, and FMP (class R / LA, member display) and Yahoo (class X)
+    data were being committed as harness supply.
+  - The ruling covers the RS Rating grade's supply records (`tests/fixtures/vendor-supply/
+    rs-rating-fred6724-*.json`) ONLY. It is not a general licence to commit provider data
+    elsewhere.
+  - So the yfinance ^GSPC rows already committed in `bce0de1ecb` stay, with no history rewrite,
+    and the FMP ^GSPC rows are committed as these records' SPX supply, labelled by source.

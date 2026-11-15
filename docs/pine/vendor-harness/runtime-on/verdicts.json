@@ -136024,7 +136024,7 @@
    ],
    "ourNotes": [
     "other symbol RSRATING: the bars our server serves, recorded beside the capture (api/services/pine_seed_store.py::build_bars (the /api/bars seed door); pine_seed_store's replay of Fred6725/rs-log output/RSRATING.csv (812 uploads applied oldest first, each non-empty upload replacing the series; newest upload 64440c2a0187a53f8f9da3b6f6563306d97482af, 2026-11-11T03:04:36Z), read back through build_bars)",
-    "other symbol SPX: the bars our server serves, recorded beside the capture (api/index_bars.py::_fetch_full_series(SPX, D): FMP ^GSPC first (_fetch_fmp_daily, paged from 1990-01-01); FMP ^GSPC, the server's PRIMARY: fmp_client.get_index_history_eod_full('^GSPC'), paged in 5-year windows, recorded by the owner under `railway run` at 2026-11-15T13:50:55.537466+00:00; read back through api/index_bars.py::_fetch_fmp_daily('^GSPC', 1.0) (the served shape)); kept out of git, read from the local supply store as spx-fmp-gspc-1d-recorded-2026-11-15.json (sha256 9d47e0fb163c)",
+    "other symbol SPX: the bars our server serves, recorded beside the capture (api/index_bars.py::_fetch_full_series(SPX, D): FMP ^GSPC first (_fetch_fmp_daily, paged from 1990-01-01); FMP ^GSPC, the server's PRIMARY: fmp_client.get_index_history_eod_full('^GSPC'), paged in 5-year windows, recorded by the owner under `railway run` at 2026-11-15T13:50:55.537466+00:00; read back through api/index_bars.py::_fetch_fmp_daily('^GSPC', 1.0) (the served shape))",
     "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0",
     "other symbol RSRATING: served",
     "other symbol SPX: served"
@@ -136509,7 +136509,7 @@
    ],
    "ourNotes": [
     "other symbol RSRATING: the bars our server serves, recorded beside the capture (api/services/pine_seed_store.py::build_bars (the /api/bars seed door); pine_seed_store's replay of Fred6725/rs-log output/RSRATING.csv (812 uploads applied oldest first, each non-empty upload replacing the series; newest upload 64440c2a0187a53f8f9da3b6f6563306d97482af, 2026-11-11T03:04:36Z), read back through build_bars)",
-    "other symbol SPX: the bars our server serves, recorded beside the capture (api/index_bars.py::_fetch_full_series(SPX, D): FMP ^GSPC first (_fetch_fmp_daily, paged from 1990-01-01); FMP ^GSPC, the server's PRIMARY: fmp_client.get_index_history_eod_full('^GSPC'), paged in 5-year windows, recorded by the owner under `railway run` at 2026-11-15T13:50:55.537466+00:00; read back through api/index_bars.py::_fetch_fmp_daily('^GSPC', 1.0) (the served shape)); kept out of git, read from the local supply store as spx-fmp-gspc-1d-recorded-2026-11-15.json (sha256 9d47e0fb163c)",
+    "other symbol SPX: the bars our server serves, recorded beside the capture (api/index_bars.py::_fetch_full_series(SPX, D): FMP ^GSPC first (_fetch_fmp_daily, paged from 1990-01-01); FMP ^GSPC, the server's PRIMARY: fmp_client.get_index_history_eod_full('^GSPC'), paged in 5-year windows, recorded by the owner under `railway run` at 2026-11-15T13:50:55.537466+00:00; read back through api/index_bars.py::_fetch_fmp_daily('^GSPC', 1.0) (the served shape))",
     "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0",
     "other symbol RSRATING: served",
     "other symbol SPX: served"
@@ -137231,6 +137231,6 @@
    "rs-syminfo-industry-rddt-1d-2026-11-15",
    "rs-syminfo-industry-nvda-1d-2026-11-15"
   ],
-  "from": "a runtime-on corpus run on branch pine/rs-l5-runtime-requests (RS RATING L9, engine 68 placeholder): RDDT / NVDA / SPY Q-RS1 regraded on the server's PRIMARY SPX (FMP ^GSPC, recorded 2026-11-15T13:50:55Z, 9286 sessions from 1990-01-02, kept out of git and named by manifest in tests/fixtures/vendor-supply/); the two Q-RS4 rows are L8's run; every other row is this snapshot's own run, unchanged (docs/pine/RS-RATING-TRANSFER.md, L9 status)"
+  "from": "a runtime-on corpus run on branch pine/rs-l5-runtime-requests (RS RATING L9, engine 68 placeholder): RDDT / NVDA / SPY Q-RS1 regraded on the server's PRIMARY SPX (FMP ^GSPC, recorded 2026-11-15T13:50:55Z, 9286 sessions from 1990-01-02, committed in tests/fixtures/vendor-supply/ under the owner ruling of 2026-11-15); the two Q-RS4 rows are L8's run; every other row is this snapshot's own run, unchanged (docs/pine/RS-RATING-TRANSFER.md, L9 status)"
  }
 }
