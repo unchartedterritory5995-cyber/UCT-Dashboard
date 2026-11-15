@@ -81,9 +81,9 @@ export function objectColourGraded(opts = {}) {
 }
 
 /** ⭐⭐ B1 (step 61) — PAINTS ARE PART OF THE VERDICT, ON BY DEFAULT.
- *  A capture whose `bgcolor` / `barcolor` paints differ from TradingView's — or
- *  that the door withholds — grades DIVERGE (`compare.mjs::comparePaints` states
- *  the rule). Same contract as `objectColourGraded`: `gradeCapture(c, {paints:
+ *  A capture whose `bgcolor` / `barcolor` paints differ from TradingView's grades
+ *  DIVERGE; one the door withholds BY NAME grades INCONCLUSIVE, as a plot does
+ *  (G5 ruling 2026-11-15; `compare.mjs::comparePaints` states the rule). Same contract as `objectColourGraded`: `gradeCapture(c, {paints:
  *  false})`, or `VENDOR_HARNESS_PAINTS=0` for a whole run, reproduces the verdict
  *  as it was before; every graded verdict also carries `verdictWithoutPaints`,
  *  so both numbers are read side by side from ONE run.

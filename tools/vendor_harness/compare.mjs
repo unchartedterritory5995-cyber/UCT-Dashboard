@@ -1429,9 +1429,17 @@ export function compareObjectsV2(v1, pairing, oursWithheldFamilies = []) {
 //   titleMismatch               DIFFERS — the pairing itself disagrees
 //   hiddenVendorOnly            DIFFERS — we draw a paint TradingView does not
 //   hiddenOursOnly              DIFFERS — TradingView draws a paint we hide
-//   withheld                    DIFFERS — the door refused it by name (a GAP, and
-//                               counted as one), unless TradingView does not draw
-//                               it either, when neither side paints a bar
+//   withheld (with a reason)    INCONCLUSIVE — the door refused it BY NAME: nothing
+//                               is drawn, and the member is told why. Graded the
+//                               way a plot withheld by name is (coordinator ruling
+//                               2026-11-15, G5 of s245-bugs-1115). ⚰️ It graded
+//                               DIFFERS until then ("a GAP, counted as one"), so a
+//                               paint the bind refused by name kept a capture
+//                               DIVERGE when its plots were INCONCLUSIVE.
+//                               Where TradingView does not draw it either, neither
+//                               side paints a bar: NOT GRADED (`undrawn`)
+//   withheld (no reason)        DIFFERS — a withholding nobody can read is not
+//                               "by name" (fail closed)
 //   notDrawn                    DIFFERS where TradingView painted a bar; where it
 //                               painted NONE (every bar `na` at the defaults) the
 //                               picture agrees and the paint is NOT GRADED —
@@ -1454,12 +1462,15 @@ export function comparePaints(grade) {
   let undecodable = 0
   const differing = []
   const undrawnIds = []
+  const withheldByName = []
   for (const r of rows) {
     const s = r.state
     if (PAINT_AGREES.has(s)) agreeing += 1
     else if (PAINT_DIFFERS.has(s)) differing.push(r)
     else if (s === 'withheld') {
-      if (r.displayed === false) { undrawn += 1; undrawnIds.push(r.id) } else differing.push(r)
+      if (r.displayed === false) { undrawn += 1; undrawnIds.push(r.id) }
+      else if (typeof r.reason === 'string' && r.reason.trim()) withheldByName.push(r)
+      else differing.push(r)
     } else if (s === 'notDrawn') {
       if (r.vendorPainted === 0) { undrawn += 1; undrawnIds.push(r.id) } else differing.push(r)
     } else if (s === 'vendorUnreadable') undecodable += 1
@@ -1470,7 +1481,16 @@ export function comparePaints(grade) {
   const graded = agreeing + differing.length + unpaired.length
   const undrawnSaid = undrawn ? `; ${undrawn} paint${undrawn === 1 ? '' : 's'} neither side draws not graded (${undrawnIds.join(', ')})` : ''
   const undecodableSaid = undecodable ? `; ${undecodable} unreadable in the capture` : ''
+  const w0 = withheldByName[0]
+  const withheldSaid = w0
+    ? `; ${withheldByName.length} paint${withheldByName.length === 1 ? '' : 's'} withheld by name, not graded (first: ${w0.kind} ${w0.id}${w0.title ? ` "${w0.title}"` : ''} — ${w0.reason})`
+    : ''
+  const rowsOut = () => rows.map((r) => ({ id: r.id, kind: r.kind, state: r.state, ...(r.reason ? { reason: r.reason } : {}) }))
   if (!graded) {
+    // ⭐ G5 — a paint withheld BY NAME is an item that could not be compared, as a plot is
+    if (withheldByName.length) {
+      return { verdict: 'INCONCLUSIVE', reason: `no paint was graded${withheldSaid}${undrawnSaid}${undecodableSaid}`, agreeing, differing: 0, withheld: withheldByName.length, undrawn, undecodable, unpaired, rows: rowsOut() }
+    }
     return { verdict: null, reason: `no paint was graded${undrawnSaid}${undecodableSaid}`, agreeing, differing: 0, undrawn, undecodable, unpaired }
   }
   const first = differing[0]
@@ -1479,16 +1499,17 @@ export function comparePaints(grade) {
     : null
   const diverge = differing.length + unpaired.length
   return {
-    verdict: diverge ? 'DIVERGE' : 'MATCH',
+    verdict: diverge ? 'DIVERGE' : (withheldByName.length ? 'INCONCLUSIVE' : 'MATCH'),
     reason: diverge
-      ? `${diverge} paint${diverge === 1 ? '' : 's'} differ${diverge === 1 ? 's' : ''}${firstSaid ? ` (first: ${firstSaid})` : ''}${unpairedSaid.length ? `; unpaired — ${unpairedSaid.join('; ')}` : ''}${undrawnSaid}${undecodableSaid}`
-      : `${agreeing} paint${agreeing === 1 ? '' : 's'} agree bar for bar${undrawnSaid}${undecodableSaid}`,
+      ? `${diverge} paint${diverge === 1 ? '' : 's'} differ${diverge === 1 ? 's' : ''}${firstSaid ? ` (first: ${firstSaid})` : ''}${unpairedSaid.length ? `; unpaired — ${unpairedSaid.join('; ')}` : ''}${withheldSaid}${undrawnSaid}${undecodableSaid}`
+      : `${agreeing} paint${agreeing === 1 ? '' : 's'} agree bar for bar${withheldSaid}${undrawnSaid}${undecodableSaid}`,
     agreeing,
     differing: differing.length,
+    withheld: withheldByName.length,
     undrawn,
     undecodable,
     unpaired,
-    rows: rows.map((r) => ({ id: r.id, kind: r.kind, state: r.state, ...(r.reason ? { reason: r.reason } : {}) })),
+    rows: rowsOut(),
   }
 }
 
