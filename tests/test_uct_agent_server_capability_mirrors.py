@@ -200,3 +200,18 @@ def test_the_guard_still_passes_ordinary_history_prose():
     for text in ("History shows that stocks often gap after earnings.", "NVDA's daily bars closed higher after the report.",
                  "After a 3% down day, SPY recovered the following week.", "The stock's price history goes back to 2003."):
         assert guard.suspicious(text) is False, text
+
+
+# ── P3 earnings calendar: stock.earningsCalendar is SERVER-GATED (registered only while the server serves `earnings.calendar`),
+#    so it is not in manifest.golden.json and the ratchets above cannot see it — pinned by name here instead ──
+def test_the_earnings_calendar_capability_is_a_DATA_action_withheld_bare_and_local_only():
+    assert v2.domain_for("stock.earningsCalendar") == "data"
+    assert guard.suspicious(_bare("stock.earningsCalendar")) is True
+    assert "stock.earningsCalendar" in turn.LOCAL_ONLY_ACTIONS          # the model never sees a calendar row
+    assert "stock.earningsCalendar" not in turn.DATA_READ_ACTIONS       # the two sets are disjoint
+
+
+def test_the_guard_still_passes_ordinary_earnings_calendar_prose():
+    for text in ("NVDA reports earnings after the close on Wednesday.", "The earnings calendar is busy this week.",
+                 "Several retailers report before the open tomorrow."):
+        assert guard.suspicious(text) is False, text

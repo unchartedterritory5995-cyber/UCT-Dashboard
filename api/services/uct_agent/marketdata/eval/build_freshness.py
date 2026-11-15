@@ -14,6 +14,7 @@ from zoneinfo import ZoneInfo
 
 from api.services.uct_agent.marketdata import envelope as env                    # noqa: E402
 from api.services.uct_agent.marketdata import (bars_daily as bd, breadth as br, cot as ct, earnings as ern,    # noqa: E402
+                                              earnings_calendar as ecal,
                                               news_company as nc, quotes as q, ratings as rt,
                                               statements as stm, themes as th)
 
@@ -314,6 +315,28 @@ add("cot-not-covered", "How are traders positioned in lithium right now?",
       notes=[ct.NOTE_WEEKLY, ct.NOTE_DELAY, ct.NOTE_NOT_COVERED.format(words="lithium"),
              "no market in this request has stored COT data"], coverage={"requested": 1, "answered": 0}),
     category="partial", disclose=["not covered", "lithium"])
+
+# ── earnings.calendar (P3): as_of = the calendar payload's BUILD time; a slot past its TTL is stale; a cold week is
+#    unavailable ("not loaded yet"), never a build ──
+erow = lambda sym, d, sess, src, when: {"symbol": sym, "name": None, "date": d, "when": when, "session": sess,  # noqa: E731
+                                        "eps_est": 1.0, "rev_est_m": 100.0, "eps_act": None, "rev_act_m": None,
+                                        "date_estimated": False, "source": src}
+edata = lambda rows: {"week_start": "2026-11-02", "week_end": "2026-11-06", "date": None, "session": "any",  # noqa: E731
+                      "rows": rows, "total": len(rows), "truncated": False, "excluded": {"unknown": 0, "other": 0},
+                      "not_on_calendar": [], "sources": sorted({r["source"] for r in rows}), "today": "2026-11-02"}
+add("ec-current", "Who reports earnings this week?",
+    E("earnings.calendar", status="ok", freshness="periodic", as_of="2026-11-02T13:05:00Z", source="earningswhispers+finnhub",
+      data=edata([erow("AAA", "2026-11-02", "bmo", "finnhub", "today"), erow("BBB", "2026-11-04", "unknown", "earningswhispers", "upcoming")]),
+      notes=[ecal.NOTE_SCHEDULE, ecal.NOTE_ESTIMATES]),
+    category="periodic", disclose=["can change", "consensus as uct stored it"])
+add("ec-stale", "Which stocks report next, before the open tomorrow?",
+    E("earnings.calendar", status="ok", freshness="periodic", as_of="2026-11-02T12:30:00Z", source="earningswhispers",
+      stale=True, data=edata([erow("CCC", "2026-11-03", "bmo", "earningswhispers", "upcoming")]),
+      notes=[ecal.NOTE_SCHEDULE, ecal.NOTE_ESTIMATES, ecal.NOTE_STALE.format(minutes=25)]),
+    category="periodic-stale", disclose=["last good calendar", "25 minutes ago"])
+add("ec-not-loaded", "Who reports earnings next month, the week of December 7?",
+    U("earnings.calendar", ecal.NOTE_COLD.format(monday="2026-12-07"), {"week": "2026-12-07"}),
+    category="unavailable", disclose=["has not loaded the earnings calendar"])
 
 # ── breadth / ratings (model-isolated: answer only) ───────────────────────────────────────────────────
 bdata = lambda **k: {"universe": "us", "metric": "pct_above_50sma", "value": 61.4, "status": "intraday",  # noqa: E731

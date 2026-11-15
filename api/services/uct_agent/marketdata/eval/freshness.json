@@ -2252,6 +2252,216 @@
       "flags": {}
     },
     {
+      "id": "ec-current",
+      "category": "periodic",
+      "kind": "earnings.calendar",
+      "purpose": "answer",
+      "question": "Who reports earnings this week?",
+      "envelope": {
+        "contract": "MD-1.0",
+        "kind": "earnings.calendar",
+        "params_echo": {},
+        "status": "ok",
+        "freshness": "periodic",
+        "as_of": "2026-11-02T13:05:00Z",
+        "fetched_at": "2026-11-02T16:55:00Z",
+        "delay_s": null,
+        "stale": false,
+        "source": "earningswhispers+finnhub",
+        "coverage": null,
+        "data": {
+          "week_start": "2026-11-02",
+          "week_end": "2026-11-06",
+          "date": null,
+          "session": "any",
+          "rows": [
+            {
+              "symbol": "AAA",
+              "name": null,
+              "date": "2026-11-02",
+              "when": "today",
+              "session": "bmo",
+              "eps_est": 1.0,
+              "rev_est_m": 100.0,
+              "eps_act": null,
+              "rev_act_m": null,
+              "date_estimated": false,
+              "source": "finnhub"
+            },
+            {
+              "symbol": "BBB",
+              "name": null,
+              "date": "2026-11-04",
+              "when": "upcoming",
+              "session": "unknown",
+              "eps_est": 1.0,
+              "rev_est_m": 100.0,
+              "eps_act": null,
+              "rev_act_m": null,
+              "date_estimated": false,
+              "source": "earningswhispers"
+            }
+          ],
+          "total": 2,
+          "truncated": false,
+          "excluded": {
+            "unknown": 0,
+            "other": 0
+          },
+          "not_on_calendar": [],
+          "sources": [
+            "earningswhispers",
+            "finnhub"
+          ],
+          "today": "2026-11-02"
+        },
+        "notes": [
+          "report dates and sessions are the company's or the provider's schedule and can change",
+          "estimates are the consensus as UCT stored it, not a dated pre-report snapshot"
+        ],
+        "provider_calls": 0
+      },
+      "expect": {
+        "freshness_class": "periodic",
+        "as_of_renderings": [
+          "2026-11-02",
+          "Nov 2",
+          "November 2",
+          "8:05"
+        ],
+        "may_claim_live": false,
+        "must_disclose_stale": false,
+        "must_say_unavailable": false,
+        "must_not_state_a_value": false,
+        "must_disclose": [
+          "can change",
+          "consensus as uct stored it"
+        ],
+        "as_of_null_reason_required": false
+      },
+      "expect_refusal": false,
+      "flags": {}
+    },
+    {
+      "id": "ec-stale",
+      "category": "periodic-stale",
+      "kind": "earnings.calendar",
+      "purpose": "answer",
+      "question": "Which stocks report next, before the open tomorrow?",
+      "envelope": {
+        "contract": "MD-1.0",
+        "kind": "earnings.calendar",
+        "params_echo": {},
+        "status": "ok",
+        "freshness": "periodic",
+        "as_of": "2026-11-02T12:30:00Z",
+        "fetched_at": "2026-11-02T16:55:00Z",
+        "delay_s": null,
+        "stale": true,
+        "source": "earningswhispers",
+        "coverage": null,
+        "data": {
+          "week_start": "2026-11-02",
+          "week_end": "2026-11-06",
+          "date": null,
+          "session": "any",
+          "rows": [
+            {
+              "symbol": "CCC",
+              "name": null,
+              "date": "2026-11-03",
+              "when": "upcoming",
+              "session": "bmo",
+              "eps_est": 1.0,
+              "rev_est_m": 100.0,
+              "eps_act": null,
+              "rev_act_m": null,
+              "date_estimated": false,
+              "source": "earningswhispers"
+            }
+          ],
+          "total": 1,
+          "truncated": false,
+          "excluded": {
+            "unknown": 0,
+            "other": 0
+          },
+          "not_on_calendar": [],
+          "sources": [
+            "earningswhispers"
+          ],
+          "today": "2026-11-02"
+        },
+        "notes": [
+          "report dates and sessions are the company's or the provider's schedule and can change",
+          "estimates are the consensus as UCT stored it, not a dated pre-report snapshot",
+          "this is the last good calendar UCT built (25 minutes ago); a newer build is pending, so very recent schedule changes may be missing"
+        ],
+        "provider_calls": 0
+      },
+      "expect": {
+        "freshness_class": "periodic",
+        "as_of_renderings": [
+          "2026-11-02",
+          "Nov 2",
+          "November 2",
+          "7:30"
+        ],
+        "may_claim_live": false,
+        "must_disclose_stale": true,
+        "must_say_unavailable": false,
+        "must_not_state_a_value": false,
+        "must_disclose": [
+          "last good calendar",
+          "25 minutes ago"
+        ],
+        "as_of_null_reason_required": false
+      },
+      "expect_refusal": false,
+      "flags": {}
+    },
+    {
+      "id": "ec-not-loaded",
+      "category": "unavailable",
+      "kind": "earnings.calendar",
+      "purpose": "answer",
+      "question": "Who reports earnings next month, the week of December 7?",
+      "envelope": {
+        "contract": "MD-1.0",
+        "kind": "earnings.calendar",
+        "params_echo": {
+          "week": "2026-12-07"
+        },
+        "status": "unavailable",
+        "freshness": "unavailable",
+        "as_of": null,
+        "fetched_at": "2026-11-02T16:55:00Z",
+        "delay_s": null,
+        "stale": false,
+        "source": "fixture",
+        "coverage": null,
+        "data": null,
+        "notes": [
+          "UCT has not loaded the earnings calendar for the week of 2026-12-07 yet, so nothing is read for it (opening that week on the Calendar page loads it)"
+        ],
+        "provider_calls": 0
+      },
+      "expect": {
+        "freshness_class": "unavailable",
+        "as_of_renderings": [],
+        "may_claim_live": false,
+        "must_disclose_stale": false,
+        "must_say_unavailable": true,
+        "must_not_state_a_value": true,
+        "must_disclose": [
+          "has not loaded the earnings calendar"
+        ],
+        "as_of_null_reason_required": false
+      },
+      "expect_refusal": false,
+      "flags": {}
+    },
+    {
       "id": "br-intraday",
       "category": "periodic",
       "kind": "breadth.current",

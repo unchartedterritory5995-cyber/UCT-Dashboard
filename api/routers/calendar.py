@@ -202,6 +202,7 @@ def _from_wire(wire_calendar: dict, week_dates: list[date], today: date, cap_uni
                 eps_est = _clean_eps(c.get("eps_est_backup"), sym)
             return {
                 "sym":     sym,
+                "src":     "uct-wire",   # the provider that placed this row (Agent earnings.calendar)
                 "eps_est": eps_est,
                 "eps_act": _clean_eps(c.get("eps_act"), sym),
                 "rev_est": _to_m(c.get("rev_est")),
@@ -311,6 +312,7 @@ def _build_live(week_dates: list[date], today: date) -> dict:
             time_et = item.get("report_time_et") or item.get("time_et") or None
             entry = {
                 "sym":     sym,
+                "src":     "earningswhispers",   # the provider that placed this row (Agent earnings.calendar)
                 "eps_est": _clean_eps_live(item.get("eps_estimate")),
                 "eps_act": _clean_eps_live(item.get("eps_actual")),
                 "rev_est": item.get("rev_estimate"),  # already in millions from _fetch_ew_live
@@ -634,6 +636,7 @@ def _restore_sticky_reporters(days: dict, today_str: str) -> None:
                     bucket = held.get("session") if held.get("session") in ("bmo", "amc", "tbd") else "tbd"
                     day.setdefault(bucket, []).append({
                         "sym": sym, "eps_est": held.get("eps_est"), "eps_act": None,
+                        "src":     "uct-roster",   # the provider that placed this row (Agent earnings.calendar)
                         "rev_est": held.get("rev_est"), "rev_act": None,
                         "ew": int(held.get("ew") or 0), "mc_b": None, "time_et": None})
                     present.add(sym)
@@ -644,6 +647,7 @@ def _restore_sticky_reporters(days: dict, today_str: str) -> None:
                         continue                 # only re-add names we have a print for
                     day.setdefault("tbd", []).append({
                         "sym": sym, "eps_est": held.get("eps_est"), "eps_act": held.get("eps_act"),
+                        "src":     "uct-actuals",   # the provider that placed this row (Agent earnings.calendar)
                         "rev_est": held.get("rev_est"), "rev_act": held.get("rev_act"),
                         "ew": 0, "mc_b": None, "time_et": None})
                     present.add(sym)
@@ -857,6 +861,7 @@ def _merge_finviz_sessions(days: dict, target_ds: set[str], filt: str,
             if existing is None:
                 day.setdefault(timing, []).append({
                     "sym": sym, "eps_est": None, "eps_act": None,
+                    "src":     "finviz",   # the provider that placed this row (Agent earnings.calendar)
                     "rev_est": None, "rev_act": None,
                     "ew": 0, "mc_b": None, "time_et": None,
                 })
@@ -978,6 +983,7 @@ def _backfill_past_days(days: dict, week_dates: list[date], today: date,
             timing = hour if hour in ("bmo", "amc") else "tbd"
             entry = {
                 "sym": sym, **fields,
+                "src":     "finnhub",   # the provider that placed this row (Agent earnings.calendar)
                 "ew": 0, "mc_b": None, "time_et": None,
             }
             day.setdefault(timing, []).append(entry)
@@ -1022,6 +1028,7 @@ def _backfill_past_days(days: dict, week_dates: list[date], today: date,
 
                 entry = {
                     "sym": sym,
+                    "src":     "fmp",   # the provider that placed this row (Agent earnings.calendar)
                     "eps_est": _clean_eps(row.get("epsEstimated")),
                     "eps_act": _clean_eps(row.get("epsActual")),
                     "rev_est": round(rev_est_raw / 1_000_000, 1) if rev_est_raw else None,
@@ -1210,6 +1217,7 @@ def _supplement_live_days(days: dict, today_str: str, cap_uni: set | None) -> in
             rev_act_raw = row.get("revenueActual")
             entry = {
                 "sym":     sym,
+                "src":     "finnhub",   # the provider that placed this row (Agent earnings.calendar)
                 "eps_est": _clean_eps(row.get("epsEstimate")),
                 "eps_act": _clean_eps(row.get("epsActual")),
                 "rev_est": round(rev_est_raw / 1_000_000, 1) if rev_est_raw else None,
@@ -1245,6 +1253,7 @@ def _supplement_live_days(days: dict, today_str: str, cap_uni: set | None) -> in
             rev_act_raw = row.get("revenueActual")
             entry = {
                 "sym":     sym,
+                "src":     "fmp",   # the provider that placed this row (Agent earnings.calendar)
                 "eps_est": _clean_eps(row.get("epsEstimated")),
                 "eps_act": _clean_eps(row.get("epsActual")),
                 "rev_est": round(rev_est_raw / 1_000_000, 1) if rev_est_raw else None,
@@ -1746,6 +1755,7 @@ def _build_range_week(monday: date) -> dict:
             rev_act_raw = row.get("revenueActual")
             entry = {
                 "sym":      sym,
+                "src":     "finnhub",   # the provider that placed this row (Agent earnings.calendar)
                 "eps_est":  _clean_eps(row.get("epsEstimate")),
                 "eps_act":  _clean_eps(row.get("epsActual")),
                 "rev_est":  round(rev_est_raw / 1_000_000, 1) if rev_est_raw else None,
@@ -1806,6 +1816,7 @@ def _build_range_week(monday: date) -> dict:
                 continue
             entry = {
                 "sym":      sym,
+                "src":     "fmp",   # the provider that placed this row (Agent earnings.calendar)
                 "eps_est":  _clean_eps(row.get("epsEstimated")),
                 "eps_act":  _clean_eps(row.get("epsActual")),
                 "rev_est":  round(rev_est_raw / 1_000_000, 1) if rev_est_raw else None,
@@ -2238,6 +2249,34 @@ def _get_calendar_payload(week: str | None = None):
         build=_build_current_week,
         good=_weekly_payload_is_good,
     )
+
+
+def peek_week_payload(monday: date | None = None) -> dict:
+    """READ-ONLY view of a week the calendar has ALREADY built (UCT Agent `earnings.calendar`, MD-1 rule 2).
+
+    Never builds, never kicks a refresh, never reaches a provider or the admin refresh path: a cold week is reported
+    cold. `monday` None (or the current anchor Monday) = the current week: its TTL cache, else its last-good
+    ServeStale slot within the slot's own bound (state "stale"). Any other week: its range-week cache only.
+    → {"state": fresh|stale|cold|out_of_range, "monday": iso, "payload": dict|None, "age_s": float|None}."""
+    cur_monday = _week_dates()[0]
+    target = cur_monday if monday is None else _monday_of(monday)
+    out = {"state": "cold", "monday": target.isoformat(), "payload": None, "age_s": None}
+    if abs((target - cur_monday).days) // 7 > _WEEK_HORIZON_WEEKS:
+        out["state"] = "out_of_range"
+        return out
+    if target == cur_monday:
+        hit = cache.get("calendar_weekly")
+        if hit is not None:
+            out.update(state="fresh", payload=hit)
+            return out
+        value, age = _WEEKLY_STALE.peek("current")
+        if value is not None and age is not None and age <= _WEEKLY_STALE.max_age:
+            out.update(state="stale", payload=value, age_s=age)
+        return out
+    hit = cache.get(f"calendar_week_{target.isoformat()}")
+    if hit is not None:
+        out.update(state="fresh", payload=hit)
+    return out
 
 
 # Perf wave 2 (2026-10-08): /api/calendar was 7.2 s cold on prod. The serve-stale slot above only
