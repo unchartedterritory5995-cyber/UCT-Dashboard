@@ -137,16 +137,21 @@ export default function WatchlistWidget({ color, opts, onOptsChange }) {
   // `libraryFresh` marks that auto-open (library shown on Prebuilt, over the list when narrow)
   // until the member picks a list or toggles the library.
   const freshOpen = uctFrame && opts?.libraryFresh === true
+  const groupList = useChannel(offerable ? listChannel : null)
+  const offered = groupList && SUBSCRIBABLE_SOURCES.includes(groupList.source) ? groupList : null
+  // Owner 11-15: on the board a fresh widget ALWAYS opens the library (list subscriptions on or
+  // off — live has them on, which used to leave the old picker showing). Only a list another
+  // widget in this colour group publishes (`offered`) keeps the empty widget's offer view; the
+  // saved-screen offer moved into the library's My Lists tab (mineFooter below).
   useEffect(() => {
-    if (!uctFrame || watchKey || opts?.browse || opts?.source || subOn || listSub) return
+    if (!uctFrame || watchKey || opts?.browse || opts?.source || listSub || offered) return
     const last = readLastList()
     const sel = last || flaggedPick(lib.flaggedLabel)
     onOptsChange?.({ ...(opts || {}), watchKey: sel.key, watchName: sel.name, watchTab: sel.tab, libraryRail: true, libraryFresh: true })
-  }, [uctFrame, watchKey, opts, subOn, listSub, lib.flaggedLabel, onOptsChange])
-  const groupList = useChannel(offerable ? listChannel : null)
-  const offered = groupList && SUBSCRIBABLE_SOURCES.includes(groupList.source) ? groupList : null
+  }, [uctFrame, watchKey, opts, listSub, offered, lib.flaggedLabel, onOptsChange])
   const subscribe = useCallback((sub) => {
-    onOptsChange?.({ ...(opts || {}), listSub: sub })
+    // a subscription replaces the open list (the library's My Lists offer subscribes with one open)
+    onOptsChange?.({ ...(opts || {}), listSub: sub, watchKey: null, watchName: null, libraryFresh: null })
   }, [opts, onOptsChange])
   const unsubscribe = useCallback(() => {
     onOptsChange?.({ ...(opts || {}), listSub: null })
@@ -246,6 +251,8 @@ export default function WatchlistWidget({ color, opts, onOptsChange }) {
     ? (PREBUILT_COL_DEFAULTS[opts?.watchName || ''] || PREBUILT_COL_FALLBACK)
     : null
   // ── Library rail (UCT frame only) ──
+  // the saved-screen offer, now the last row of the library's My Lists (owner 11-15)
+  const screenOffer = subOn && !opts?.source ? <ScreenSourceOffer onSubscribe={subscribe} /> : null
   const railShown = uctFrame && (narrow ? (overlayOpen || freshOpen || railClosing) : opts?.libraryRail !== false)
   const RAIL_OUT_MS = 170
   const closeOverlay = (after) => {
@@ -309,14 +316,14 @@ export default function WatchlistWidget({ color, opts, onOptsChange }) {
         <div ref={setSplitEl} className={railStyles.split} data-library-rail={railShown ? (narrow ? 'over' : 'side') : 'off'}>
           {railShown && !narrow && (
             <div className={railStyles.side}>
-              <LibraryRail currentKey={watchKey} tab={railTab} onTab={setRailTab} onPick={railPick} />
+              <LibraryRail currentKey={watchKey} tab={railTab} onTab={setRailTab} onPick={railPick} mineFooter={screenOffer} />
             </div>
           )}
           <div className={railStyles.pane}>{listView}</div>
           {railShown && narrow && (
             <>
               <button type="button" className={`${railStyles.scrim}${railClosing ? ' ' + railStyles.scrimOut : ''}`} aria-label="Close the library" onClick={() => closeOverlay(dropLibraryOpenedFlag)} />
-              <LibraryRail overlay closing={railClosing} currentKey={watchKey} tab={railTab} onTab={setRailTab} onPick={railPick} />
+              <LibraryRail overlay closing={railClosing} currentKey={watchKey} tab={railTab} onTab={setRailTab} onPick={railPick} mineFooter={screenOffer} />
             </>
           )}
         </div>

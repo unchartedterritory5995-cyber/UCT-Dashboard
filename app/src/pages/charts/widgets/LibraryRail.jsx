@@ -17,7 +17,9 @@ import styles from './LibraryRail.module.css'
 // My Lists (round 4): a new list is created right here (name → Enter → it opens), and each of
 // the member's own lists has a ⋯ menu — Rename (in place), Duplicate, Copy tickers, Share with
 // community / Make private, Delete (asks once more). Same server calls as the Watchlists page.
-export default function LibraryRail({ currentKey, initialTab = 'prebuilt', tab: tabProp = null, onTab = null, onPick, overlay = false, closing = false }) {
+export default function LibraryRail({ currentKey, initialTab = 'prebuilt', tab: tabProp = null, onTab = null, onPick, overlay = false, closing = false,
+  // My Lists' last row (owner 11-15): the widget's "track or freeze a saved screen" offer, when list subscriptions are on
+  mineFooter = null }) {
   // The widget owns which tab shows (it remembers it per widget); uncontrolled when not given.
   const [tabState, setTabState] = useState(initialTab || 'prebuilt')
   const tab = tabProp || tabState
@@ -165,6 +167,7 @@ export default function LibraryRail({ currentKey, initialTab = 'prebuilt', tab: 
             <UIcon name="plus" size={13} gold={false} /> New list
           </button>
         )}
+        {mineFooter}
       </div>
     )
   }
