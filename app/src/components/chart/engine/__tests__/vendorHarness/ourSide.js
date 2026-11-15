@@ -431,6 +431,9 @@ export function linearTotalsOf(tree) {
     // a read of the SAME symbol on other bars (`security(tickerid, res, hist)`): the same total's
     // float order, read where that timeframe's bar closes (never another symbol's, `sym`)
     if (TOTAL_PASS_THROUGH.has(n.type)) return walk(args[0])
+    // a `?:` draws ONE of its arms on each bar (its test selects, it adds nothing to the value):
+    // the arms decide (accdist-macd's `sh and hist ? hist : na`)
+    if (n.type === 'op' && n.name === '?:' && args.length === 3) return walk(args[1]) && walk(args[2])
     if (n.type === 'call' && LINEAR_OF_SOURCE.has(n.name)) return walk(args[0]) && args.slice(1).every((x) => !hasTotal(x))
     return false
   }

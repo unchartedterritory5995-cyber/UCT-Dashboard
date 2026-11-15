@@ -112,6 +112,10 @@ describe('review #1265 finding 4 - the floor applies to a LINEAR combination of 
     const hist = op('-', [call('ema', [ad, num(12)]), call('ema', [ad, num(26)])])
     expect(linearTotalsOf({ type: 'tf', value: 'D', args: [hist] })).toHaveLength(2)
     expect(linearTotalsOf({ type: 'sym', value: 'SPY', args: [hist] })).toBeNull()
+    // …and as the capture's plot draws it, `sh and hist ? hist : na`: the arms decide, the test selects
+    const na = op('/', [num(0), num(0)])
+    expect(linearTotalsOf(op('?:', [op('&&', [num(1), hist]), hist, na]))).toHaveLength(2)
+    expect(linearTotalsOf(op('?:', [op('>', [hist, num(0)]), op('*', [hist, hist]), na]))).toBeNull()
   })
   it('a VWAP-shaped plot gets no floor, and a 1e-7 relative error DIVERGES', () => {
     const bars = [100, 101, 99, 102].map((c, i) => ({ t: 1700000000 + i * 86400, o: c, h: c, l: c, c, v: 1e9 }))
