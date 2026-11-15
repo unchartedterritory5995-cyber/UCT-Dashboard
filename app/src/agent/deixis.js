@@ -1113,9 +1113,11 @@ export function chartsNamedBySymbol(text, charts = []) {
   const bySym = new Map()
   for (const c of charts) { const k = String(c.symbol || '').toUpperCase(); if (k) bySym.set(k, [...(bySym.get(k) || []), c]) }
   for (const [sym, list] of bySym) {
-    if (list.length !== 1) continue
+    // ⛔ (AUDIT 53) a link group is ONE object: every chart showing the symbol following one link colour is named together
+    const objs = new Set(list.map(c => (typeof c.group === 'string' && c.group && !c.group.startsWith('N') ? `g:${c.group}` : `c:${c.ref}`)))
+    if (objs.size !== 1) continue
     const re = new RegExp(`(?:^|[^A-Za-z0-9.])${escapeRe(sym)}(?![A-Za-z0-9])`, sym.length <= 2 ? '' : 'i')
-    if (re.test(s)) named.add(list[0].ref)
+    if (re.test(s)) for (const c of list) named.add(c.ref)
   }
   return named
 }

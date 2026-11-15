@@ -69,6 +69,7 @@ _BOOT_QUIET_S = {
     "bars_continuous_audit": 300,
     "breadth_self_heal": 240,
     "theme_index_prewarm": 150,
+    "screener_deal_gate_warm": 120,
 }
 
 
@@ -5568,6 +5569,18 @@ async def lifespan(app: FastAPI):
             _t.start()
         except Exception:
             logging.getLogger(__name__).exception("[startup] failed to schedule theme_index prewarm")
+
+    # 🔴 The screener's buyout exclude set (query.deal_gate) is built off the request thread, but
+    # only once something asks. Before this the first SCAN after a deploy started it, and until it
+    # landed (~2 min) every scan used the hand lists plus the saved set alone. Start it on boot,
+    # after the reconnect burst (it reads every deal headline and scans daily bars for pins).
+    try:
+        from api.services.screener import query as _scr_query
+        _dg = threading.Timer(_BOOT_QUIET_S["screener_deal_gate_warm"], _scr_query.warm_deal_gate)
+        _dg.daemon = True
+        _dg.start()
+    except Exception:
+        logging.getLogger(__name__).exception("[startup] failed to schedule the deal gate warm")
 
     try:
         readiness.register("rs_rankings")
