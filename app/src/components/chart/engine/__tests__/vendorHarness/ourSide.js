@@ -228,15 +228,26 @@ function lowerTfSupply(def, capture) {
 // and `symbol.<field>` feeds a classification field the capture does not carry with the
 // VENDOR's value read off a committed capture (`vendorValueFrom: 'committed:<path>'`), checked
 // here against that capture's own text before it is fed.
+// and (RS RATING L9) `store.securityType` feeds OUR STORE's instrument class for the chart symbol
+// (`{value: 'Stock'|'ADR'|'ETF', source}`), the field a member's chart threads from
+// `ticker_meta.security_type` (`StockChart.jsx`). It is ours, never the vendor's (a capture carries
+// TradingView's `type`, which is not our class), so it names where it was read, and a record that
+// states none feeds none: the bind then keys no class row, exactly as before.
 // ⛔ A record that names another capture, or a malformed one, throws: it is never half-read.
 const SUPPLY_DIR = path.resolve(process.cwd(), '..', 'tests/fixtures/vendor-supply')
+let _supplyDir = SUPPLY_DIR
+/** Rails only: read recorded supply from a scratch directory (null restores the committed one). */
+export function __setSupplyDirForTests(dir) { _supplyDir = dir || SUPPLY_DIR }
 export const HARNESS_SUPPLY_SCHEMA = 'uct.harness-supply/v1'
+/** Our store's instrument classes (`screener_universe.COARSE_TYPES`, keyed by `bind.js`'s
+ *  `by_class` rows). */
+export const STORE_SECURITY_TYPES = Object.freeze(['Stock', 'ADR', 'ETF'])
 
 /** The Q-RS4 probe's label keys (`IND=<industry>|SEC=<sector>|TYPE=<type>`). */
 const CLASSIFICATION_PROBE_KEY = Object.freeze({ industry: 'IND', sector: 'SEC' })
 
 /** The recorded supply beside this capture, or null when none is committed. */
-export function recordedSupplyOf(capture, dir = SUPPLY_DIR) {
+export function recordedSupplyOf(capture, dir = _supplyDir) {
   const id = capture && capture.id
   if (typeof id !== 'string' || !id) return null
   const file = path.join(dir, `${id}.json`)
@@ -270,7 +281,24 @@ export function recordedSupplyOf(capture, dir = SUPPLY_DIR) {
       bad(`symbol.${field} = ${JSON.stringify(e.value)} is not what ${from} printed (${JSON.stringify(said)})`)
     }
   }
+  for (const [field, e] of Object.entries(rec.store || {})) {
+    if (field !== 'securityType') bad(`store.${field} is not a store field the bind reads`)
+    if (!e || !STORE_SECURITY_TYPES.includes(e.value)) {
+      bad(`store.securityType must be one of ${STORE_SECURITY_TYPES.join(' / ')} (our store's class), not ${JSON.stringify(e && e.value)}`)
+    }
+    if (!(typeof e.source === 'string' && e.source)) bad('store.securityType does not say where our store\'s class was read (`source`)')
+    if (Object.prototype.hasOwnProperty.call(e, 'vendorValueFrom')) {
+      bad('store.securityType is our store\'s class, never a vendor value (`vendorValueFrom`)')
+    }
+  }
   return rec
+}
+
+/** ⭐ RS RATING L9 — our store's class for the chart symbol, from the recorded supply, or {}. */
+function recordedStoreOf(capture) {
+  const rec = recordedSupplyOf(capture)
+  const e = rec && rec.store && rec.store.securityType
+  return e ? { securityType: e.value } : {}
 }
 
 /** The classification fields the recorded supply feeds, and the committed capture each cites. */
@@ -611,7 +639,10 @@ function symbolOf(capture) {
   // ⭐ RS RATING L8 — a field the capture does not carry may be fed from its recorded supply
   // (the vendor's value off a committed probe, checked in `recordedSupplyOf`); the capture's
   // own value, where it has one, wins.
-  return { ticker, exchange, ...recordedClassificationOf(capture).fields, ...vendorClassificationOf(capture) }
+  // ⭐ RS RATING L9 — and our store's class (`securityType`), so an ETF keys the witnessed L3
+  // `by_class` row as on a member's chart; absent unless the record states it.
+  return { ticker, exchange, ...recordedStoreOf(capture), ...recordedClassificationOf(capture).fields,
+    ...vendorClassificationOf(capture) }
 }
 
 /** ⭐⭐ RS RATING L3 — THE GRADE FEEDS OUR SIDE THE VENDOR'S OWN VALUE of each substituted input
@@ -621,7 +652,8 @@ function symbolOf(capture) {
  *  is the one `bind.js::classificationWith` writes into its tag (`capture.symbol.<field>`), so
  *  what is fed and what is declared cannot name different fields. A capture without them leaves the
  *  fields unsettled (a script reading one refuses by name): nothing is invented. ⛔ No
- *  `securityType`: that is our store's class, and a capture carries TradingView's `type`. */
+ *  `securityType` HERE: that is our store's class, and a capture carries TradingView's `type`;
+ *  it comes from the recorded supply's `store` block (`recordedStoreOf`, RS RATING L9). */
 function vendorClassificationOf(capture) {
   const out = {}
   for (const f of CLASSIFICATION_FIELD_NAMES) {
@@ -1158,6 +1190,10 @@ function runOurSideOnTheParityClock(capture) {
     const supply = otherSymbolSupply(def, capture)
     if (supply.secondary) { ctx.secondary = supply.secondary; ctx.exchangeOf = supply.exchangeOf }
     notes.push(...supply.notes)
+    if (ctx.symbol.securityType) {
+      const rec = recordedSupplyOf(capture)
+      notes.push(`symbol class ${ctx.symbol.securityType}: our store's, recorded beside the capture (${rec.store.securityType.source})`)
+    }
     // ⭐ RS RATING L8 — a capture whose recorded supply says the served source was NOT recorded is
     // not graded at all: a grade over another source (a fallback, or TradingView's own bars) would
     // speak for bars no member is served. INCONCLUSIVE, by name.
