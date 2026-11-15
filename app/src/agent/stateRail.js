@@ -377,7 +377,7 @@ const strengthOf = (verb0, e) => {
   if (e.type === 'pause') return PAUSE_ANY.test(verb0)
   // ("turn off the 78.6 fib level": the pause verbs' multi-word forms are read first; for anything else they are the change
   // verb they always were — "turn" / "switch" / "shut")
-  const verb = String(verb0).replace(/\s+off$/i, '')
+  const verb = /^(?:turn|switch|shut)\w*\s+off$/i.test(String(verb0)) ? String(verb0).replace(/\s+off$/i, '') : verb0
   if (e.type === 'replace' && e.state === 'widget') return DISPLAY.test(verb) || MODIFY_ANY.test(verb)
   // a save-over is asked for by a SAVE (or "overwrite / replace my layout"), never by a delete of something else
   if (e.via === 'save') return SAVE.test(verb) || /^(?:overwrit\w*|replac\w*)$/i.test(verb)
