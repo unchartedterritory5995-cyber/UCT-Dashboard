@@ -187,6 +187,40 @@ def drift(header_modules: set[str], patterns: list[str]) -> tuple[set[str], set[
     return header_modules - real, real - header_modules
 
 
+# ─── terminal-next-monitor's mirror ────────────────────────────────────────
+# flow-worker's mirror is `api/{a,b,c}.py`, a brace list that expands to
+# `api/<name>.py` — it CANNOT express a nested path, and this service's list is
+# mostly nested (`api/services/research/iv_history.py`). So it carries its own
+# block, one literal path per line, and is compared as WHOLE PATHS rather than
+# module names. ⛔ Do not "unify" the two formats: collapsing a nested path to a
+# module name would make `api/services/alerts.py` and a hypothetical
+# `api/alerts.py` the same entry, and the check would pass across a real move.
+MONITOR_ENTRY = "api/terminal_next_monitor_main.py"
+_MONITOR_RE = re.compile(r"WATCH-BEGIN\s*\n(.*?)WATCH-END", re.S)
+
+
+def monitor_mirror(root: str) -> set[str]:
+    """The literal watch paths terminal-next-monitor declares in its own header."""
+    with open(os.path.join(root, MONITOR_ENTRY), encoding="utf-8") as fh:
+        src = fh.read()
+    m = _MONITOR_RE.search(src)
+    if not m:
+        raise RuntimeError(
+            "could not find the WATCH-BEGIN/WATCH-END block in %s — the header "
+            "format changed, and a silently empty mirror would make this rail "
+            "pass for everything" % MONITOR_ENTRY)
+    return {ln.strip() for ln in m.group(1).splitlines() if ln.strip()}
+
+
+def path_drift(mirror: set[str], patterns: list[str]) -> tuple[set[str], set[str]]:
+    """(in_mirror_not_railway, in_railway_not_mirror), compared as whole paths.
+
+    Pure, so the tests mean something without a token.
+    """
+    real = {p.strip() for p in patterns if p.strip()}
+    return mirror - real, real - mirror
+
+
 def main(argv: list[str]) -> int:
     print("[watch-patterns] auth: %s" % auth_source())
     payload, reason = fetch()
@@ -214,6 +248,16 @@ def main(argv: list[str]) -> int:
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from tools import flow_worker_watch_coverage as wc
     root = wc.repo_root()
+
+    # ⛔ BOTH CHECKS RUN, AND THE WORST CODE WINS. An early `return 1` on the
+    # first drift would mean the second service is never checked at all — and a
+    # rail that stops looking after one finding reports "one problem" when there
+    # are two, which is the same vacuous-pass defect in a different coat.
+    return max(_check_flow_worker(wc, root, by_svc),
+               _check_monitor(root, by_svc))
+
+
+def _check_flow_worker(wc, root: str, by_svc: dict[str, list[str]]) -> int:
     header = wc.watched_modules(root)
     pats = by_svc.get("flow-worker", [])
     if has_broad_glob(pats):
@@ -235,6 +279,43 @@ def main(argv: list[str]) -> int:
     print("\n  The DASHBOARD is the authority. Fix the header, not Railway — unless "
           "you\n  meant to change the watch list, in which case remember a wider "
           "list means\n  more flow-worker restarts and every restart gaps the OPRA tape.")
+    return 1
+
+
+def _check_monitor(root: str, by_svc: dict[str, list[str]]) -> int:
+    mirror = monitor_mirror(root)
+    pats = by_svc.get("terminal-next-monitor", [])
+    # ⛔ AN EMPTY RAILWAY LIST IS THE DEFECT THIS CHECK EXISTS FOR, and a plain
+    # set diff would report it as "every path drifted" — 33 lines of noise for
+    # one fact. It means NO FILTER: the service rebuilds on every push to its
+    # branch, which is what it was doing, as a cron, until 2026-11-15.
+    if not pats:
+        print("\n[watch-patterns] terminal-next-monitor has NO watch patterns on "
+              "Railway.")
+        print("[watch-patterns] that is NOT 'never deploys' — it is NO FILTER: it "
+              "rebuilds on\n  every master push, and it runs as a cron 24x a day. "
+              "Restore the %d paths\n  this module's header declares." % len(mirror))
+        return 1
+    if has_broad_glob(pats):
+        print("\n[watch-patterns] terminal-next-monitor carries a BROAD glob (%s)."
+              % pats)
+        print("[watch-patterns] the header's explicit list no longer describes it — "
+              "re-scope both together.")
+        return 1
+    missing, extra = path_drift(mirror, pats)
+    if not missing and not extra:
+        print("[watch-patterns] OK — %s's header mirror matches Railway (%d paths)"
+              % (MONITOR_ENTRY, len(mirror)))
+        return 0
+    print("\n[watch-patterns] DRIFT — %s's header disagrees with the dashboard:"
+          % MONITOR_ENTRY)
+    for m in sorted(missing):
+        print("    in header, NOT on Railway: %s" % m)
+    for m in sorted(extra):
+        print("    on Railway, NOT in header: %s" % m)
+    print("\n  The DASHBOARD is the authority. Re-derive the list (BFS the "
+          "`from api.X import`\n  graph three levels out from the entry) and fix "
+          "whichever side is wrong.")
     return 1
 
 

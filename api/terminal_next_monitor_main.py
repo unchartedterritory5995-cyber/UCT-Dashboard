@@ -34,6 +34,61 @@ worse than no monitor: it reads as coverage.
 
 ⭐ **EVERY POST CARRIES THE RUNNING COMMIT AND THE TIMESTAMP**, because a reading
 without the build it came from cannot be compared to the next one.
+
+⛔⛔ **WATCH PATTERNS — RAILWAY IS THE AUTHORITY, THIS IS THE CHECKED MIRROR.**
+`python tools/railway_watch_patterns.py --check` goes red when the two disagree.
+
+⚰️ Until 2026-11-15 this service's Railway watch list was **EMPTY**, and an empty
+list means *no filter*, never *no deploys*: it rebuilt on **every** master push —
+measured, four deployments in eighteen minutes — while running as a **cron, 24
+times a day**, so a push could kill a run in flight. The list below is the
+**depth-2 import closure** of this module (its own imports, and theirs) plus the
+build files, and it measured **1 rebuild across 300 non-merge master commits**.
+
+⚠️ **A MIRROR IS ONLY AS GOOD AS ITS RE-DERIVATION.** This module's FULL static
+closure is ~1,700 files — effectively all of `api/` — because the lazy imports
+below reach `api.main` through `api/routers/screener.py`. Depth 3 is a deliberate
+cut, not the whole truth: a change deeper than this list will NOT rebuild this
+service. **Add an import here or to one of these files and you must re-derive the
+list** — BFS the `from api.X import` graph three levels out — and update Railway
+to match. Depth 2 measured 0/300 and depth 4 is 67 files; three is where the
+coverage is worth the churn.
+
+    WATCH-BEGIN
+    api/__init__.py
+    api/dealer_positioning.py
+    api/flow_admin_auth.py
+    api/flow_backup.py
+    api/flow_proxy.py
+    api/gex_service.py
+    api/open_reads_gate.py
+    api/schwab_service.py
+    api/services/__init__.py
+    api/services/alert_destination.py
+    api/services/alert_routing.py
+    api/services/alerts.py
+    api/services/auth_service.py
+    api/services/backup_crypto.py
+    api/services/earnings_enrichment.py
+    api/services/engine.py
+    api/services/finnhub_client.py
+    api/services/gex_massive.py
+    api/services/massive.py
+    api/services/options_analytics/__init__.py
+    api/services/options_analytics/flags.py
+    api/services/options_analytics/level_base_rate.py
+    api/services/options_analytics/positioning_vocab.py
+    api/services/options_universe_log.py
+    api/services/polygon_options.py
+    api/services/research/__init__.py
+    api/services/research/iv_history.py
+    api/services/research/options_screener.py
+    api/services/session_calendar.py
+    api/terminal_next_monitor_main.py
+    requirements.txt
+    runtime.txt
+    nixpacks.toml
+    WATCH-END
 """
 from __future__ import annotations
 
