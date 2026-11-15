@@ -1,0 +1,200 @@
+{
+ "mode": "BROWSER-MOCK-MODEL",
+ "evidence": "LOCAL agent harness, scripted model, synthetic bars and fixtures: not production, not gate evidence",
+ "at": "2026-11-11T05:57:32.221Z",
+ "base": "http://127.0.0.1:5317",
+ "results": [
+  {
+   "id": "C1-044",
+   "say": "how do I pick the cutoff on the chart",
+   "feature": "panelAction",
+   "title": "Picking the replay date on the chart",
+   "given": [],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Open Tools ▾.",
+     "onPrimary": true,
+     "pr": [
+      340,
+      17,
+      81,
+      26
+     ],
+     "rr": [
+      336,
+      13,
+      89,
+      34
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Click Replay Mode.",
+     "onPrimary": true,
+     "pr": [
+      341,
+      104,
+      198,
+      28
+     ],
+     "rr": [
+      337,
+      100,
+      206,
+      36
+     ]
+    },
+    {
+     "i": 2,
+     "text": "Click Pick on chart. This panel closes and the chart waits for your click.",
+     "onPrimary": true,
+     "pr": [
+      657,
+      423,
+      296,
+      33
+     ],
+     "rr": [
+      653,
+      419,
+      304,
+      41
+     ]
+    },
+    {
+     "i": 3,
+     "text": "Click the bar to replay to: every bar after it will be hidden. Replay Mode opens again with that date in it.",
+     "onPrimary": true,
+     "pr": [
+      13,
+      168,
+      785,
+      741
+     ],
+     "rr": [
+      9,
+      164,
+      793,
+      749
+     ]
+    },
+    {
+     "i": 4,
+     "text": "That’s the date you clicked. Click Start replay (it says Update while a replay is running).",
+     "onPrimary": true,
+     "pr": [
+      888,
+      584,
+      65,
+      32
+     ],
+     "rr": [
+      884,
+      580,
+      73,
+      40
+     ]
+    }
+   ],
+   "consoleErrors": []
+  },
+  {
+   "id": "C3-211",
+   "say": "how do I pick the cutoff by clicking the chart",
+   "feature": "panelAction",
+   "title": "Picking the replay date on the chart",
+   "given": [],
+   "pass": true,
+   "steps": [
+    {
+     "i": 0,
+     "text": "Open Tools ▾.",
+     "onPrimary": true,
+     "pr": [
+      340,
+      17,
+      81,
+      26
+     ],
+     "rr": [
+      336,
+      13,
+      89,
+      34
+     ]
+    },
+    {
+     "i": 1,
+     "text": "Click Replay Mode.",
+     "onPrimary": true,
+     "pr": [
+      341,
+      104,
+      198,
+      28
+     ],
+     "rr": [
+      337,
+      100,
+      206,
+      36
+     ]
+    },
+    {
+     "i": 2,
+     "text": "Click Pick on chart. This panel closes and the chart waits for your click.",
+     "onPrimary": true,
+     "pr": [
+      657,
+      423,
+      296,
+      33
+     ],
+     "rr": [
+      653,
+      419,
+      304,
+      41
+     ]
+    },
+    {
+     "i": 3,
+     "text": "Click the bar to replay to: every bar after it will be hidden. Replay Mode opens again with that date in it.",
+     "onPrimary": true,
+     "pr": [
+      13,
+      168,
+      785,
+      741
+     ],
+     "rr": [
+      9,
+      164,
+      793,
+      749
+     ]
+    },
+    {
+     "i": 4,
+     "text": "That’s the date you clicked. Click Start replay (it says Update while a replay is running).",
+     "onPrimary": true,
+     "pr": [
+      888,
+      584,
+      65,
+      32
+     ],
+     "rr": [
+      884,
+      580,
+      73,
+      40
+     ]
+    }
+   ],
+   "consoleErrors": []
+  }
+ ]
+}
