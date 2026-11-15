@@ -106,14 +106,21 @@ describe('⭐ ta.valuewhen is a declared, occurrence-indexed, namespace-routed f
     expect(Number.isNaN(occ1[2]), 'only one true bar exists by bar 2').toBe(true)
   })
 
-  it('⛔ an NaN condition bar stops the backward scan, exactly as the bounded valuewhen does', () => {
-    const cond = [1, NaN, 1]
-    const src = [100, 200, 300]
+  // ⚰️ WAS: an NaN condition bar stopped the backward scan. ⭐ ENGINE 56 (re-review #1265, 7):
+  // Pine reads an `na` condition as false and keeps the occurrences before it, as the runtime
+  // lane's `valueWhenPineStep` already did
+  it('an NaN condition bar is false: it neither fires nor forgets the occurrences before it', () => {
+    const cond = [1, NaN, 1, NaN]
+    const src = [100, 200, 300, 400]
     const occ0 = FN.valuewhenOccurrence(cond, src, 0)
-    // bar 0's true hit is erased by the NaN at bar 1, so bar 1 answers NaN
-    expect(Number.isNaN(occ0[1])).toBe(true)
-    // bar 2's own true hit is unaffected -- occurrence 0 there is bar 2 itself
+    const occ1 = FN.valuewhenOccurrence(cond, src, 1)
+    // bar 0's true hit survives the NaN at bar 1
+    expect(occ0[1]).toBe(src[0])
     expect(occ0[2]).toBe(src[2])
+    expect(occ0[3]).toBe(src[2])
+    // and still counts as an occurrence after it
+    expect(occ1[2]).toBe(src[0])
+    expect(occ1[3]).toBe(src[0])
   })
 
   // ⛔⛔ THE SINGLE MOST IMPORTANT REGRESSION THIS FIX MUST NOT CAUSE: a bare

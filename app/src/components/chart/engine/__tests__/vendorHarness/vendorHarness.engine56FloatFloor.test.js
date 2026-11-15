@@ -55,8 +55,9 @@ describe('S4-4 — the float-order floor of a plot a running total feeds', () =>
     expect(floatOrderFloorOf({ type: 'series', name: 'close' }, bars, 0)).toBeNull()
     const cumClose = { type: 'call', name: 'cum', args: [{ type: 'series', name: 'close' }] }
     const out = floatOrderFloorOf({ type: 'op', name: '*', args: [cumClose, { type: 'num', value: 2 }] }, bars, 1)
-    // totals 1, -2, 0, 5: running max |total| 1, 2, 2, 5; the window starts at bar 1
-    expect(out).toEqual([2, 2, 5].map((m) => FLOAT_ORDER_ULPS * Number.EPSILON * m))
+    // totals 1, -2, 0, 5: running max |total| 1, 2, 2, 5, times the constant 2 (re-review 4);
+    // the window starts at bar 1
+    expect(out).toEqual([2, 2, 5].map((m) => FLOAT_ORDER_ULPS * Number.EPSILON * 2 * m))
   })
 })
 
@@ -124,6 +125,28 @@ describe('review #1265 finding 4 - the floor applies to a LINEAR combination of 
     const v = 100.5
     const r = comparePlot({ times: times(1), vendor: [v], ours: [v * (1 + 1e-7)], tol: TOL, floatOrderFloor: null })
     expect(verdictOf(r)).toBe('DIVERGE')
+  })
+  it('re-review 4: the floor is scaled by the constant (`total / c`, `total * c`); a non-constant one gets no floor', () => {
+    expect(linearTotalsOf(op('/', [ad, num(1e9)]))[0].scale).toBe(1e-9)
+    expect(linearTotalsOf(op('*', [num(-4), ad]))[0].scale).toBe(4)
+    expect(linearTotalsOf(op('*', [ad, op('/', [num(1), num(2)])]))[0].scale).toBe(0.5)
+    expect(linearTotalsOf(op('*', [ad, ser('close')]))).toBeNull()
+    expect(linearTotalsOf(op('*', [ser('close'), ad]))).toBeNull()
+    expect(linearTotalsOf(op('/', [ad, ser('volume')]))).toBeNull()
+    expect(linearTotalsOf(op('/', [ad, num(0)]))).toBeNull()
+  })
+  it('re-review 4: OBV / 1e9 with a 1e-7 relative error DIVERGES (the unscaled floor would have admitted it)', () => {
+    const bars = [100, 101, 102, 103, 104].map((c, i) => ({ t: 1700000000 + i * 86400, o: c, h: c, l: c, c, v: 1e9 }))
+    const obv = call('cum', [op('*', [call('sign', [call('change', [ser('close')])]), ser('volume')])])
+    const floor = floatOrderFloorOf(op('/', [obv, num(1e9)]), bars, 0)
+    expect(floor).not.toBeNull()
+    const last = floor[floor.length - 1]
+    expect(last).toBeLessThan(1e-13)
+    const v = 4
+    const r = comparePlot({ times: times(1), vendor: [v], ours: [v * (1 + 1e-7)], tol: TOL, floatOrderFloor: [last] })
+    expect(verdictOf(r)).toBe('DIVERGE')
+    const unscaled = FLOAT_ORDER_ULPS * Number.EPSILON * 4e9
+    expect(verdictOf(comparePlot({ times: times(1), vendor: [v], ours: [v * (1 + 1e-7)], tol: TOL, floatOrderFloor: [unscaled] }))).toBe('MATCH')
   })
   it('the floor used is in the verdict reason', () => {
     const r = comparePlot({ times: times(1), vendor: [1], ours: [1 + 5e-7], tol: { rel: 1e-12, abs: 1e-12 }, floatOrderFloor: [1e-6] })

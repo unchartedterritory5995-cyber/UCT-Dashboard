@@ -37,7 +37,7 @@ import {
   OUTPUT_CALLS as PINE_OUTPUT_CALLS, BAR_SERIES_DEFAULTS, paramDefaultShapeOk,
   declarationWordsOf, pineConstIntValue, constIntWritesOf, pineTupleBuiltinCallParts, pineNamespacedName,
   legacyBarsSignUnstated, LEGACY_BARS_SIGN_SENTENCE, REFUSALS, selfReferenceSentence,
-  selfReferencingDeclaration, blockDeclarationReadsOwnHistory, neverNaBoolNamesOf,
+  selfReferencingDeclaration, blockDeclarationReadsOwnHistory, neverNaBoolNamesOf, isBoolishTree,
 } from './pine.js'
 import { CLOCK_REALTIME } from '../../indicators.js'
 // ⭐⭐ L1 — an imported library's exports are linked in as the script's own.
@@ -2187,6 +2187,19 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  result is read as a condition, never drawn as a value. Both need the whole program, so the
    *  site is decided once it is lowered (`boolNaFaithfulness`) and declines by name otherwise.
    *  A comparison of two finite literals or bar prices is never `na` and is served. */
+  /** A canonical (columnar) tree that is never `na` (a finite literal, a bar price, `+ - *` and
+   *  comparisons of those, a `?:` of those, an `and` / `or` / `not`). */
+  const canonNeverTree = (t, d = 0) => {
+    if (!t || typeof t !== 'object' || d > 64) return false
+    if (t.type === 'num') return Number.isFinite(t.value)
+    if (t.type === 'series') return RUNTIME_BAR_PRICES.has(t.name)
+    const a = Array.isArray(t.args) ? t.args : []
+    if (t.type !== 'op') return false
+    if (['+', '-', '*', '<', '>', '<=', '>=', '==', '!='].includes(t.name)) return a.length === 2 && a.every((x) => canonNeverTree(x, d + 1))
+    if (t.name === '?:') return a.length === 3 && canonNeverTree(a[1], d + 1) && canonNeverTree(a[2], d + 1)
+    if (t.name === '&&' || t.name === '||' || t.name === '!') return true
+    return false
+  }
   const boolNaOnThisLane = (op, l, r, at, pineL = null, pineR = null) => {
     const v = pineVersion === null ? 1 : pineVersion
     if (!(v <= 5)) return
@@ -2202,6 +2215,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
       if (!e) return false
       if (boolSlot(e)) return !slotNeverNa(e)
       if (e.kind === EXPR.HIST) return boolSlot(e.of) || mayBeNaBool(e.of)
+      // ⭐ (re-review #1265, 1) a PURE subexpression lowers to ONE column: a `bool` column that is
+      // not known on every bar (`close > ta.sma(close, 20)`) can be `na` where the VM reads 0
+      if (e.kind === EXPR.COLUMN) {
+        const t = columnTrees[e.index]
+        return !!t && isBoolishTree(t) && !(t.type === 'num') && !canonNeverTree(t)
+      }
       if (e.kind !== EXPR.BINARY || !CMP.includes(e.op)) return false
       return !(known(e.left) && known(e.right))
     }
@@ -2289,19 +2308,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
     }
     const CMP = new Set(['<', '>', '<=', '>=', '==', '!='])
     const ARITH = new Set(['+', '-', '*'])
-    const CANON_BAR = new Set([...RUNTIME_BAR_PRICES])
     // a canonical (columnar) tree that is never `na`, and one whose `na` is a real `na`
-    const canonNever = (t, d = 0) => {
-      if (!t || typeof t !== 'object' || d > 64) return false
-      if (t.type === 'num') return Number.isFinite(t.value)
-      if (t.type === 'series') return CANON_BAR.has(t.name)
-      const a = Array.isArray(t.args) ? t.args : []
-      if (t.type !== 'op') return false
-      if (ARITH.has(t.name) || CMP.has(t.name)) return a.length === 2 && a.every((x) => canonNever(x, d + 1))
-      if (t.name === '?:') return a.length === 3 && canonNever(a[1], d + 1) && canonNever(a[2], d + 1)
-      if (t.name === '&&' || t.name === '||' || t.name === '!') return true
-      return false
-    }
+    const canonNever = canonNeverTree
     const canonKeeps = (t, d = 0) => {
       if (canonNever(t, d)) return true
       if (!t || typeof t !== 'object' || d > 64) return false

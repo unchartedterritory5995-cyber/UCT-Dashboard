@@ -1580,7 +1580,9 @@ def _fn_valuewhen_occurrence(
     citation and why ``pine.js`` routes only the NAMESPACED ``ta.valuewhen(...)``
     here, never a bare ``valuewhen(...)`` call.
 
-    ⛔ AN NaN CONDITION BAR STOPS THE BACKWARD SCAN, exactly as it does for the
+    ENGINE 56 (re-review #1265, 7): AN NaN CONDITION BAR IS FALSE -- it neither fires nor
+    clears the occurrences before it (Pine; the runtime lane's ``valueWhenPineStep``). WAS:
+    an NaN condition bar stopped the backward scan, exactly as it does for the
     bounded ``_fn_valuewhen`` above and for the same reason: a not-computable
     condition bar MIGHT have been true, so counting occurrences from before it
     would report a distance to the wrong bar. The growing occurrence list is
@@ -1595,10 +1597,9 @@ def _fn_valuewhen_occurrence(
     true_idx: List[int] = []
     for i in range(len(cond)):
         c = cond[i]
-        if math.isnan(c):
-            true_idx = []
-            continue
-        if c != 0.0:
+        # ENGINE 56 (re-review #1265, 7): an ``na`` condition is false -- it neither fires nor
+        # forgets the occurrences before it (Pine; the runtime lane's ``valueWhenPineStep``)
+        if not math.isnan(c) and c != 0.0:
             true_idx.append(i)
         pos = len(true_idx) - 1 - occurrence
         if pos >= 0:
@@ -4870,7 +4871,7 @@ def _witness_mask(tree: Any, bars: List[dict], inputs, budget, scalars, opts,
                 u = None
                 for a in args:
                     u = or_into(u, unk(a))
-                out = windowed(u, _window_literal(node, 2), _window_literal(node, 1))
+                out = windowed(u, _window_literal(node, 1), _window_literal(node, 2))
             elif (spec is not None and not stateful and (name in _WITNESS_FINITE or name in _WITNESS_WINDOW_CALLS)
                   and (isinstance(spec.get("lookback"), int) or str(spec.get("lookback")).startswith("arg"))):
                 u = None

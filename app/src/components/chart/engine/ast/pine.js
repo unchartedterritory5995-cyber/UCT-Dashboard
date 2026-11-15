@@ -6967,7 +6967,7 @@ function naOfNumber(x, version) {
  *  the shapes that carry one: an offset, a timeframe / symbol / lower-timeframe read, a
  *  `valuewhen` whose source is one, an `accum` whose seed and every step arm are one (a
  *  `var bool`). `selfIsBool` is true inside such an `accum`'s body. */
-function isBoolishTree(t, selfIsBool = false) {
+export function isBoolishTree(t, selfIsBool = false) {
   if (!t || typeof t !== 'object') return false
   if (t.type === 'num') return t.value === 0 || t.value === 1
   if (isStaticNa(t)) return selfIsBool
@@ -7052,8 +7052,11 @@ function naInfoUncached(t, v, boolCtx) {
     const lift = (m, gap) => cCall('nz', [{ ...t, args: [naTree(m)] }, cNum(gap)])
     return naInfoOf(lift(inner.na, 1), isNaNever(inner.maybe) ? NA_NEVER : lift(inner.maybe, 0))
   }
-  if (t.type === 'call' && (t.name === 'crossOver' || t.name === 'crossUnder' || t.name === 'na'
-    || t.name === 'rising' || t.name === 'falling')) return NA_INFO_NEVER
+  if (t.type === 'call' && t.name === 'na') return NA_INFO_NEVER
+  // ⭐ (re-review #1265, 6) a crossing / monotone test is `na` where this engine's own column is
+  // (its warm-up): nothing beyond that is witnessed, so nothing more is claimed
+  if (t.type === 'call' && (t.name === 'crossOver' || t.name === 'crossUnder'
+    || t.name === 'rising' || t.name === 'falling')) return naInfoOf(cCall('na', [t]), NA_NEVER)
   // `nz(b, S)` of a `bool`: `na` only where `b` is and `S` is too
   if (t.type === 'call' && t.name === 'nz' && Array.isArray(t.args) && t.args.length === 2) {
     const x = naInfo(t.args[0], v, boolCtx)
@@ -7180,6 +7183,42 @@ export function naArmsReadFalse(t) {
   const a2 = naArmsReadFalse(a)
   const b2 = naArmsReadFalse(b)
   return a2 === a && b2 === b ? t : cOp('?:', [c, a2, b2])
+}
+
+/** ⭐ ENGINE 56 (re-review #1265, 2) — `t` with every `bool` VALUE form (`boolNaValue`:
+ *  `(flag) ? na : (a == b)`) replaced by its comparison: the tree engine 54 built. The same
+ *  object where there is none. */
+const STRIP_NA_VALUE_MEMO = new WeakMap()
+export function stripBoolNaValues(t, d = 0) {
+  if (!t || typeof t !== 'object' || !Array.isArray(t.args) || d > 256) return t
+  if (STRIP_NA_VALUE_MEMO.has(t)) return STRIP_NA_VALUE_MEMO.get(t)
+  let out = t
+  const a = t.args
+  if (t.type === 'op' && t.name === '?:' && a.length === 3 && isStaticNa(a[1])
+    && a[2] && a[2].type === 'op' && (a[2].name === '==' || a[2].name === '!=')) {
+    out = stripBoolNaValues(a[2], d + 1)
+  } else {
+    const args = a.map((x) => stripBoolNaValues(x, d + 1))
+    if (args.some((x, i) => x !== a[i])) out = { ...t, args }
+  }
+  STRIP_NA_VALUE_MEMO.set(t, out)
+  return out
+}
+
+/** ⭐ ENGINE 56 (re-review #1265, 2; coordinator ruling) — a condition (`and` / `or` / `not`
+ *  operand, a `?:` test) in Pine v1-v3 that reads a `bool` VALUE form `naArmsReadFalse` did not
+ *  reach (under an offset, another timeframe, …): where it is `na` and engine 54's tree was not,
+ *  the answer is not witnessed at v1 / v3 and is WITHHELD by name (`boolNaWithheld`,
+ *  `pine:bool-na-unwitnessed`), never drawn as a blank. v2 is witnessed (S1: `na` reads false
+ *  in `and` / `or`, a `?:` on `na` takes the else branch, `not na` is true): read as `x != 0`.
+ *  Every other tree comes back as the very same object. */
+export function legacyBoolNaCondition(tree, version) {
+  const v = version === null || version === undefined ? 1 : Number(version)
+  if (!(v <= 3)) return tree
+  const engine54 = stripBoolNaValues(tree)
+  if (engine54 === tree) return tree
+  if (v === 2) return cOp('!=', [tree, cNum(0)])
+  return cCall('boolNaWithheld', [tree, cOp('&&', [cCall('na', [tree]), cOp('!', [cCall('na', [engine54])])])])
 }
 
 /** A WRITTEN `and` / `or` / `not` (a parse node): never `na` in v1-v5 (S1). */
@@ -10857,7 +10896,10 @@ export class Resolver {
       tree = naArmsReadFalse(tree)
     }
     const cast = implicitBoolCast(tree, this.pineVersion, this.table)
-    const out = naOperandReadAsFalse(cast, site, this.pineVersion)
+    const read = naOperandReadAsFalse(cast, site, this.pineVersion)
+    // ⭐ ENGINE 56 (re-review #1265, 2) — v1-v3: a value form under an offset / another read
+    const legacy = legacyBoolNaCondition(read.tree, this.pineVersion)
+    const out = legacy === read.tree ? read : { ...read, tree: legacy }
     if (this.onCondition) {
       const at = locate(tok)
       this.onCondition({

@@ -157,6 +157,10 @@ S10).
   `docs/formulas/GRAMMAR.md` (regenerated), `tools/lookback_agreement.json` (written by its own rail),
   host-parity digests (`--write`, every case moves with the engine identity; 0 status or guard changes).
 
+> ⚠️ **OWED AT THE REBASE (coordinator, re-review of `c5715efa9b`, item 3).** The census and both
+> harness sets are re-measured on the FINAL head of the `-v2` branch, and every table below is replaced
+> with those numbers and that commit. Until then the tables name the commit they were measured at.
+>
 > ⚠️ **Measured at `86dc5eeb5d` (the review round + S1).** The S10 change (newest over every Pine source,
 > `b39a7b9828`) and the two floor follow-ups were railed and mutation-proved, and the four vitest roots,
 > the Python rails and the mutant run were re-run at `b39a7b9828`; the census and harness re-measure at
@@ -164,7 +168,7 @@ S10).
 > moves: v6 computed-source ties drawn instead of withheld (none occurs in the captures), accdist-macd's
 > Histogram floor.
 
-## Census (1,816 sources: corpus 266, repo `.pine` 507, committed vendor captures 173, licence-held sample 679, held capture store 191)
+## Census, measured at `86dc5eeb5d` (1,816 sources: corpus 266, repo `.pine` 507, committed vendor captures 173, licence-held sample 679, held capture store 191)
 BEFORE = this tree with the merge base's product files (`cc608bb582`, engine 54) swapped in (`ast_interpret.py`,
 `interpret.js`, `pine.js`, `pineRuntimeFrontend.js`, `thinkscript.js`, `closedTable.json`, `nativeRegistry.js`,
 `vm.js`, `scriptEngineVersion.js`, `ourSide.js`, `compare.mjs`), restored from saved copies afterwards (`git
@@ -190,7 +194,7 @@ columns computed over the same bars.
   plot MATCHes TradingView (value level 1 -> 0, below). Plots no longer blank: 3
   (`08-smoothed-heiken-ashi-candles`, A1).
 
-## Vendor harness, both lanes (BEFORE = engine 54's product files swapped in, as the census)
+## Vendor harness, both lanes, measured at `86dc5eeb5d` (BEFORE = engine 54's product files swapped in, as the census)
 Committed fixtures (`tests/fixtures/vendor`, 376 files) and the licence-held store
 (`runs/{ext,probes,probes2,s2,s3,s4,s5,s6}`, 246 captures; verdicts only, nothing committed). M/D/I counted
 per capture id.
@@ -216,6 +220,7 @@ accumulation-distribution, the ATR trailing stop, uptrick, accdist-macd and bill
 COLOUR only (the v1-v3 palette and default transparency: engine 57's lane).
 
 ## Mutants
+### Phase 1 (at `301a351ec7`)
 Copy aside, edit, run the focused rails (`engine56Values.test.js`; the harness mutants run
 `vendorHarness.engine56FloatFloor.test.js`; the Python ones `tests/test_engine56_values.py`), restore FROM THE
 SAVED COPY, `git hash-object` == the HEAD blob. Everything ran under one heavy lock. C0 (no edit) was green;
@@ -289,7 +294,7 @@ R6a, R6c) were replaced:
 | (dropped) | M15 / M15b (the runtime tie stop) and R6b (bar-price variables): the code is removed by S10 | - |
 
 
-## Evidence ledger regrade (`python tools/vendor_harness/evidence_engine.py regrade`, LICENSING 2c)
+## Evidence ledger regrade, at `c244cee6bc` (`python tools/vendor_harness/evidence_engine.py regrade`, LICENSING 2c)
 246 captures graded, ledger +246 rows at engine 56 (grader `a730737b43ef`); 0 legacy rows retired.
 - 103 of the 246 already had an engine-54 row: **0 verdict moves** among them, in either lane.
 - The other 143 (S3-S6 sessions) are filed for the first time.
@@ -373,6 +378,44 @@ withholding the first cut of findings 1, 2 and 5 relied on with Pine's own answe
 6. `and` / `or` / `not` are never `na` (every version, S1); a variable whose every write is a bar price
    names the newest tie on the runtime lane (now the rule for every source, S10).
 7. Nested `sym` / `tf` / `tf_merge` / `ltf` child interpret calls drop `withheldBarsSink`.
+
+## Re-review of `c5715efa9b` (FIX FIRST): items 1-7
+Code and rails are written; the rails and mutants run at the coordinator's go (heavy runs paused), and
+this section takes their numbers then.
+1. **HIGH, runtime.** A pure subexpression lowers to ONE `EXPR.COLUMN`, which `mayBeNaBool` did not ask:
+   `(close > ta.sma(close, 20)) != inPos` (a latch written only with literals) drew TRUE on the warm-up
+   where Pine and the door draw false. A `bool` column (`pine.js::isBoolishTree`, now exported) that is not
+   known on every bar (`canonNeverTree`, hoisted so both checks read one rule) is now a side that can be
+   `na`, and so is a history read of one; the whole-program check then declines it by name
+   (`canonKeeps`). Rails: the latch "state changed" form, `trendCol[1] == inPos`, and a never-`na` column
+   (`(close > open) != inPos`) still served, equal to the door. Mutant RR1.
+2. **MEDIUM, v1 / v3 (coordinator ruling).** Not probed, so S1 is not half-applied: a condition (`and` /
+   `or` / `not` operand, a `?:` test) that reads a `bool` VALUE form `naArmsReadFalse` cannot reach (under an
+   offset, another read) is withheld by name where it is `na` and engine 54's tree was not
+   (`pine.js::legacyBoolNaCondition`, `stripBoolNaValues`; `boolNaWithheld(tree, na(tree) and not
+   na(engine54))`). Today it blanked silently. The witnessed v1 `==` form (AD bar 14) is untouched (a value
+   form at the top of a condition is still read false). v2 is witnessed (S1), so the same trees are read as
+   Pine reads them: `x != 0` (`na` false in `and` / `or` and a `?:` test, `not na` true). The member's
+   sentence names the v1 / v3 condition case. Rails: four sites at v1 and v3 (bars 1..4 withheld, the rest
+   drawn), the same four at v2 served, the AD form. Mutants RR2a-RR2c. The vw-cs1 v1 / v3 probes (queued)
+   replace the withholding with the witnessed answers.
+3. **MEDIUM.** The stale ledger rows go with the `-v2` rebuild (no ledger commit); census and harness are
+   re-measured on its final head (banner above).
+4. **LOW-MEDIUM, harness.** `linearTotalsOf` carries the factor each total reaches the plot by (`|c|` for
+   `total * c`, `1 / |c|` for `total / c`, constants folded); a non-constant multiplier or divisor, or a 0
+   divisor, gets no floor. Rails: the factors, the refusals, and OBV / 1e9 with a 1e-7 relative error
+   DIVERGES (the unscaled floor would have admitted it). Mutants RR4a / RR4b; R4 re-pointed.
+5. **LOW.** `pivothigh(src, left, right)` at centre c reads c-left .. c+right, so an unknown bar u reaches
+   centres u-right .. u+left: the `witnessMask` / `_witness_mask` arguments were swapped. Rails with left 2,
+   right 5, both lanes. Mutants RR5a / RR5b.
+6. **LOW.** `crossover` / `crossunder` / `rising` / `falling` are `na` where the engine's own column is
+   (`naInfo` flag `na(t)`), so `crossover(close, warm) == false` is `na` on the warm-up, false as a
+   condition; nothing beyond that is claimed. Rail on all four. Mutant RR6.
+7. **LOW.** `valuewhenOccurrence` no longer clears its occurrences on an `na` condition: an `na` condition
+   is false (neither fires nor forgets), both lanes, as the runtime lane's `valueWhenPineStep` already did.
+   The rail that pinned the old reset (`pineValuewhenOccurrenceAccept.test.js`) now pins the new rule; a
+   Python rail is added. Mutants RR7a / RR7b. Expected census move: a bare v1-v4 `barssince` /
+   `valuewhen` over a condition with `na` bars mid-series keeps its count across them.
 
 ## Open notes
 - **Engine 55 merges first.** This branch says 56 and was measured on `origin/master` (54) plus this

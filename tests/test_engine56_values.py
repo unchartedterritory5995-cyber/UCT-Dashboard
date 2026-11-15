@@ -158,3 +158,22 @@ def test_review_finding5_barssince_and_valuewhen_stop_withholding_once_known():
     # a running total cannot forget: every bar from the first unknown one on
     total = call("cum", op("?:", cond, num(1), num(0)))
     assert all(ast_interpret.bool_na_mask(total, RDDT))
+
+
+def test_rereview5_an_unknown_bar_reaches_the_pivot_centers_right_before_to_left_after():
+    # `pivothigh(src, left, right)` at centre c reads bars c-left .. c+right, so an unknown bar u
+    # reaches the centres u-right .. u+left (left 2 != right 5: the orientation shows)
+    sma = call("sma", s("close"), num(20))
+    tree = call("pivothigh", call("boolNaWithheld", s("high"), call("na", sma)), num(2), num(5))
+    mask = ast_interpret.bool_na_mask(tree, RDDT)
+    assert mask is not None
+    # unknown bars 0..18 -> centres 0 .. 18 + 2
+    assert mask[:21] == [1] * 21
+    assert not any(mask[21:])
+
+
+def test_rereview7_an_na_condition_is_false_and_keeps_the_occurrences_before_it():
+    out0 = ast_interpret._fn_valuewhen_occurrence([1.0, NAN, 1.0, NAN], [100.0, 200.0, 300.0, 400.0], 0)
+    out1 = ast_interpret._fn_valuewhen_occurrence([1.0, NAN, 1.0, NAN], [100.0, 200.0, 300.0, 400.0], 1)
+    assert out0[1:] == [100.0, 300.0, 300.0]
+    assert math.isnan(out1[1]) and out1[2:] == [100.0, 100.0]

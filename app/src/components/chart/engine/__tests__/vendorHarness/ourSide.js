@@ -398,7 +398,8 @@ export function withheldBarsOf(report, key, pre) {
  *  correct engines that add the same terms in a different order differ by a few ulps of the
  *  TOTAL, not of the plot (an `ema(ad, 12) - ema(ad, 26)` of a 1e9 accumulation is a 1e6
  *  difference carrying 1e9's rounding). So the absolute floor on bar i is
- *  `8 · ε · max |total|` over bars 0..i of the computed series (prehistory included). Only
+ *  `8 · ε · max |c · total|` over bars 0..i of the computed series (prehistory included; `c` the
+ *  constant the total is scaled by on its way to the plot, `linearTotalsOf`). Only
  *  the running-total operand's own magnitude enters: a relative 1e-6 error in the plot is
  *  still a DIVERGE (railed in `vendorHarness.engine56FloatFloor.test.js`). */
 export const FLOAT_ORDER_ULPS = 8
@@ -409,35 +410,56 @@ const LINEAR_OF_SOURCE = new Set(['sma', 'ema', 'rma', 'wma', 'change'])
 const TOTAL_PASS_THROUGH = new Set(['tf', 'tf_live', 'tf_merge', 'ltf'])
 const hasTotal = (n) => !!n && typeof n === 'object'
   && ((n.type === 'call' && RUNNING_TOTAL_NODES.has(n.name)) || (Array.isArray(n.args) && n.args.some(hasTotal)))
+/** A written constant (a finite literal, its negation, `+ - * /` of constants), or null. */
+const constantOf = (n, d = 0) => {
+  if (!n || typeof n !== 'object' || d > 32) return null
+  if (n.type === 'num') return Number.isFinite(n.value) ? n.value : null
+  const a = Array.isArray(n.args) ? n.args.map((x) => constantOf(x, d + 1)) : []
+  if (n.type !== 'op' || a.some((x) => x === null)) return null
+  if (n.name === 'u-' && a.length === 1) return -a[0]
+  if (a.length !== 2) return null
+  const v = n.name === '+' ? a[0] + a[1] : n.name === '-' ? a[0] - a[1] : n.name === '*' ? a[0] * a[1]
+    : n.name === '/' ? a[0] / a[1] : NaN
+  return Number.isFinite(v) ? v : null
+}
 /** The running totals a plot is a LINEAR combination of (sums and differences of totals, a
- *  total times or over a constant, an offset, a linear smoother of one), or null when a total
- *  reaches the plot any other way (a ratio or product of totals, `abs`, a comparison, …). Only
- *  then is the absolute floor sound: through a ratio (`cum(hlc3 * v) / cum(v)`) the total's
- *  ulps are divided away, and the plot is graded by REL 1e-9 on its own magnitude. */
+ *  total times or over a CONSTANT, an offset, a linear smoother of one), each with the factor
+ *  its float-order error reaches the plot by (`|c|` for `total * c`, `1 / |c|` for `total / c`;
+ *  re-review #1265, 4), or null when a total reaches the plot any other way (a ratio or product
+ *  of totals, a non-constant multiplier or divisor, `abs`, a comparison, …). Only then is the
+ *  absolute floor sound: through a ratio (`cum(hlc3 * v) / cum(v)`) the total's ulps are
+ *  divided away, and the plot is graded by REL 1e-9 on its own magnitude. */
 export function linearTotalsOf(tree) {
   const totals = []
-  const walk = (n) => {
+  const walk = (n, scale) => {
     if (!n || typeof n !== 'object' || !hasTotal(n)) return true
-    if (n.type === 'call' && RUNNING_TOTAL_NODES.has(n.name)) { totals.push(n); return true }
+    if (n.type === 'call' && RUNNING_TOTAL_NODES.has(n.name)) { totals.push({ node: n, scale }); return true }
     const args = Array.isArray(n.args) ? n.args : []
-    if (n.type === 'op' && (n.name === '+' || n.name === '-' || n.name === 'u-')) return args.every(walk)
+    if (n.type === 'op' && (n.name === '+' || n.name === '-' || n.name === 'u-')) return args.every((x) => walk(x, scale))
     if (n.type === 'op' && (n.name === '*' || n.name === '/')) {
       const [a, b] = args
-      if (n.name === '*' && !hasTotal(a)) return walk(b)
-      if (!hasTotal(b)) return walk(a)
+      if (n.name === '*' && !hasTotal(a)) {
+        const c = constantOf(a)
+        return c !== null && walk(b, scale * Math.abs(c))
+      }
+      if (!hasTotal(b)) {
+        const c = constantOf(b)
+        if (c === null || c === 0) return false
+        return walk(a, n.name === '*' ? scale * Math.abs(c) : scale / Math.abs(c))
+      }
       return false
     }
-    if (n.type === 'offset') return walk(args[0])
+    if (n.type === 'offset') return walk(args[0], scale)
     // a read of the SAME symbol on other bars (`security(tickerid, res, hist)`): the same total's
     // float order, read where that timeframe's bar closes (never another symbol's, `sym`)
-    if (TOTAL_PASS_THROUGH.has(n.type)) return walk(args[0])
+    if (TOTAL_PASS_THROUGH.has(n.type)) return walk(args[0], scale)
     // a `?:` draws ONE of its arms on each bar (its test selects, it adds nothing to the value):
     // the arms decide (accdist-macd's `sh and hist ? hist : na`)
-    if (n.type === 'op' && n.name === '?:' && args.length === 3) return walk(args[1]) && walk(args[2])
-    if (n.type === 'call' && LINEAR_OF_SOURCE.has(n.name)) return walk(args[0]) && args.slice(1).every((x) => !hasTotal(x))
+    if (n.type === 'op' && n.name === '?:' && args.length === 3) return walk(args[1], scale) && walk(args[2], scale)
+    if (n.type === 'call' && LINEAR_OF_SOURCE.has(n.name)) return walk(args[0], scale) && args.slice(1).every((x) => !hasTotal(x))
     return false
   }
-  return walk(tree) && totals.length ? totals : null
+  return walk(tree, 1) && totals.length ? totals : null
 }
 export function floatOrderFloorOf(tree, calcBars, pre) {
   if (!tree || typeof tree !== 'object') return null
@@ -445,13 +467,13 @@ export function floatOrderFloorOf(tree, calcBars, pre) {
   if (!totals) return null
   const len = calcBars.length
   const mag = new Float64Array(len)
-  for (const node of totals) {
+  for (const { node, scale } of totals) {
     let col
     try { col = interpretTree(node, calcBars, undefined, undefined, undefined, {}) } catch { return null }
     if (!col || typeof col.length !== 'number' || col.length !== len) return null
     let m = 0
     for (let i = 0; i < len; i++) {
-      const v = Math.abs(col[i])
+      const v = scale * Math.abs(col[i])
       if (Number.isFinite(v) && v > m) m = v
       if (m > mag[i]) mag[i] = m
     }

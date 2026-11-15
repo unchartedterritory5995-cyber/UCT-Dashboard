@@ -1636,7 +1636,10 @@ function valueWhen(cond, src, n) {
  *  occurrence function on those versions (`pine.js::resolveTableCall`,
  *  `legacyPineValuewhen`; rail `pineHostWalls5.test.js`).
  *
- *  ⛔ AN NaN CONDITION BAR STOPS THE BACKWARD SCAN, exactly as it does for the
+ *  ⭐ ENGINE 56 (re-review #1265, 7) — AN NaN CONDITION BAR IS FALSE: it neither fires nor
+ *  clears the occurrences before it, as Pine reads an `na` condition and as the runtime lane's
+ *  `valueWhenPineStep` already did. ⚰️ WAS (kept for the record): an NaN condition bar stopped
+ *  the backward scan, as it does for the
  *  bounded `valueWhen` above and for the same reason: a not-computable
  *  condition bar MIGHT have been true, so counting occurrences from before it
  *  would report a distance to the wrong bar. The growing occurrence list is
@@ -1651,8 +1654,9 @@ function valueWhenOccurrence(cond, src, occurrence) {
   let trueIdx = []
   for (let i = 0; i < cond.length; i++) {
     const c = cond[i]
-    if (Number.isNaN(c)) { trueIdx = []; continue }
-    if (c !== 0) trueIdx.push(i)
+    // ⭐ (re-review #1265, 7) an `na` condition is false: it neither fires nor forgets the
+    // occurrences before it (Pine; the runtime lane's `valueWhenPineStep` does the same)
+    if (!Number.isNaN(c) && c !== 0) trueIdx.push(i)
     const pos = trueIdx.length - 1 - occurrence
     if (pos >= 0) out[i] = src[trueIdx[pos]]
   }
@@ -5434,8 +5438,9 @@ export const CHART_CLOCK_WITHHELD = Object.freeze({
     + 'condition, in `and` and in `or`, and answers true for `not` of it (measured on v2, v4 and v5); this '
     + 'indicator draws exactly that wherever it can tell where the `bool` is `na`. Here it meets `==` or `!=` '
     + 'with a `bool` whose `na` bars this engine cannot follow (a value carried from another series this way, '
-    + 'or a recurrence it does not track), so what it draws from that comparison is withheld rather than '
-    + 'guessed. What would settle it: a capture of this indicator on TradingView.',
+    + 'or a recurrence it does not track), or, in Pine v1 or v3 (not measured), a condition reads such an `na` '
+    + '(`and`, `or`, `not` or a `?:` test over an earlier bar of one), so what it draws from it is withheld '
+    + 'rather than guessed. What would settle it: a capture of this indicator on TradingView.',
   // ⭐⭐ ENGINE 56 (S4-2) — a tie in a `highestbars` / `lowestbars` window over a computed source.
   [TIE_UNWITNESSED]: () => 'When two bars of a `highestbars` / `lowestbars` window hold the same extreme, '
     + 'TradingView names the NEWEST of them, over any source and at every Pine version measured (v4, v5 and '
@@ -6454,7 +6459,7 @@ function witnessMask(tree, bars, inputs, budget, scalars, opts, isSite, flagged,
         } else if (node.name === 'pivothigh' || node.name === 'pivotlow') {
           let u = null
           for (const a of args) u = orInto(u, unk(a))
-          out = windowed(u, windowLiteral(node, 2), windowLiteral(node, 1))
+          out = windowed(u, windowLiteral(node, 1), windowLiteral(node, 2))
         } else if (spec && !isStatefulCall(node) && (own(FINITE_WINDOW, node.name) || WITNESS_WINDOW_CALLS.has(node.name))
           && (typeof spec.lookback === 'number' || /^arg\d+$/.test(String(spec.lookback)))) {
           let u = null

@@ -290,6 +290,51 @@ describe('A3 — the forms, version by version (S1 witnessed: v2 = v4 = v5; v1 /
   })
 })
 
+describe('re-review #1265, 2 — a v1 / v3 `bool` VALUE form a condition reads under an offset is withheld (not probed); v2 is served', () => {
+  // `ch = c != false` is `na` on bars 0..3 (where `c` is), so `ch[1]` is `na` on bars 1..4 where
+  // engine 54 read 0; bar 0 is `na` in both (before the first bar)
+  const src = (v, plotted) => [...head(v), `c = close > ${sma(v)}(close, 5)`, 'ch = c != false', `plot(${plotted})`].join('\n')
+  const SITES = ['(ch[1] and close > 0) ? 1 : 2', '(ch[1] or close < 0) ? 1 : 2', '(not ch[1]) ? 1 : 2', 'ch[1] ? 1 : 2']
+  it.each([[null, 'v1'], [3, 'v3']].flatMap(([v, name]) => SITES.map((p) => [v, name, p])))('%s (%s): `%s` withholds bars 1..4 by name, draws the rest', (v, _name, plotted) => {
+    const { col, held, mask } = doorColumn(src(v, plotted))
+    expect(held).toEqual([BOOL_NA_UNWITNESSED])
+    for (let i = 1; i <= 4; i++) expect(mask[i], `bar ${i}`).toBe(1)
+    for (let i = 5; i < N; i++) { expect(mask[i], `bar ${i}`).toBe(0); expect(Number.isFinite(col[i]), `bar ${i}`).toBe(true) }
+  })
+  it('v2 (S1 witnessed): `na` reads false in `and` / `or` and a `?:` test, `not na` is true — served, nothing withheld', () => {
+    const want = { '(ch[1] and close > 0) ? 1 : 2': 2, '(ch[1] or close < 0) ? 1 : 2': 2, '(not ch[1]) ? 1 : 2': 1, 'ch[1] ? 1 : 2': 2 }
+    for (const [plotted, w] of Object.entries(want)) {
+      const { col, held } = doorColumn(src(2, plotted))
+      expect(held, plotted).toEqual([])
+      for (let i = 1; i <= 4; i++) expect(col[i], `${plotted} bar ${i}`).toBe(w)
+      for (let i = 1; i < N; i++) expect(Number.isFinite(col[i]), `${plotted} bar ${i}`).toBe(true)
+    }
+  })
+  it('the witnessed v1 `==` form (accumulation/distribution, `x == true and x[1] == false`) is untouched', () => {
+    const v1 = [...head(null), 'c = close > sma(close, 5)', 'plot((c == true and c[1] == false) ? 1 : 2)'].join('\n')
+    const { held } = doorColumn(v1)
+    expect(held).toEqual([])
+    expect(translatePine(v1).outputs[0].formula).not.toMatch(/boolNaWithheld/)
+  })
+})
+
+describe('re-review #1265, 6 — `crossover` / `crossunder` / `rising` / `falling` are `na` where the engine column is', () => {
+  it('v5: `ta.crossover(close, ta.sma(close, 20)) == false` is `na` on the warm-up (the crossing is), false as a condition', () => {
+    for (const call of ['ta.crossover(close, ta.sma(close, 20))', 'ta.crossunder(close, ta.sma(close, 20))', 'ta.rising(ta.sma(close, 20), 2)', 'ta.falling(ta.sma(close, 20), 2)']) {
+      const asValue = hostColumn(`//@version=5
+indicator("rr6")
+plot(na(${call} == false) ? 1 : 2)`)
+      expect(asValue.held.size, call).toBe(0)
+      for (let i = 0; i < 19; i++) expect(asValue.col[i], `${call} bar ${i}`).toBe(1)
+      expect(asValue.col.slice(40).every((x) => x === 2), call).toBe(true)
+      const asCondition = hostColumn(`//@version=5
+indicator("rr6")
+plot((${call} == false) ? 1 : 2)`)
+      for (let i = 0; i < 19; i++) expect(asCondition.col[i], `${call} bar ${i}`).toBe(2)
+    }
+  })
+})
+
 describe('A3 — the fallback marker, for a `bool` whose `na` this engine does not follow', () => {
   it('`boolNaWithheld(c, na(sma))` is its operand and withholds by name exactly where the flag is 1', () => {
     const smaT = { type: 'call', name: 'sma', args: [{ type: 'series', name: 'close' }, { type: 'num', value: 5 }] }
@@ -622,6 +667,35 @@ describe('finding 2 - the runtime lane declines a mutable `bool` that can be `na
     expect(b.ok).toBe(false)
     expect(b.refusal.guard).toBe(BOOL_NA_UNWITNESSED)
   })
+  // ⭐ re-review #1265, 1: a pure subexpression lowers to ONE column, so a `bool` column over a
+  // value that can be `na` meeting a never-`na` latch must be asked like a comparison is
+  const LATCH = ['var bool inPos = false', 'if close > open', '    inPos := true', 'else if close < open', '    inPos := false']
+  const servedOrDeclined = (src) => {
+    const { col } = doorOn(src)
+    const b = buildRuntimeIr(src, { bars: RDDT, inputs: {}, pane: true, historyFromListing: true })
+    if (!b.ok) { expect(b.refusal.guard).toBe(BOOL_NA_UNWITNESSED); return { col, served: null } }
+    const rt = runtimeRun(src)
+    expect(rt.err).toBeUndefined()
+    expect(rt.col).toEqual(col)
+    return { col, served: rt.col }
+  }
+  it('re-review 1: the latch "state changed" pattern `(close > ta.sma(close, 20)) != inPos` is never TRUE on the warm-up (the door draws 0)', () => {
+    const src = ['//@version=5', 'indicator("rr1")', ...LATCH, 'plot((close > ta.sma(close, 20)) != inPos ? 1 : 0)'].join('\n')
+    const { col, served } = servedOrDeclined(src)
+    for (let i = 0; i < 19; i++) expect(col[i], `bar ${i}`).toBe(0)
+    expect(served).toBeNull()
+  })
+  it('re-review 1: the same through a history read of the column (`trendCol[1] == inPos`) declines or matches the door', () => {
+    const src = ['//@version=5', 'indicator("rr1b")', 'trendCol = close > ta.sma(close, 20)', ...LATCH, 'plot(trendCol[1] == inPos ? 1 : 0)'].join('\n')
+    const { col, served } = servedOrDeclined(src)
+    for (let i = 0; i < 20; i++) expect(col[i], `bar ${i}`).toBe(0)
+    expect(served).toBeNull()
+  })
+  it('re-review 1: a column known on every bar (`(close > open) != inPos`) is served, equal to the door', () => {
+    const src = ['//@version=5', 'indicator("rr1c")', ...LATCH, 'plot((close > open) != inPos ? 1 : 0)'].join('\n')
+    const { served } = servedOrDeclined(src)
+    expect(served).not.toBeNull()
+  })
   it('round 2: an unmatched v5 `if` block\'s `na`, read through a function and its history, is served (`na == true` is 0)', () => {
     // the member door refuses a block value (`pine:block`); the answer is Pine's: `b[1]` is `na`
     // on bar 0 and wherever the previous close was not above 60, and `na == true` is false
@@ -675,6 +749,16 @@ describe('finding 5 - the withholding ENDS once the answer no longer depends on 
     const m = held.get(TIE_UNWITNESSED)
     return { col: Array.from(col), held: m ? Array.from(m).filter(Boolean).length : 0 }
   }
+  it('re-review 5: an unknown bar reaches the pivot centres `right` before it to `left` after it (left 2, right 5)', () => {
+    const sma20 = { type: 'call', name: 'sma', args: [ser('close'), num(20)] }
+    const tree = { type: 'call', name: 'pivothigh', args: [{ type: 'call', name: 'boolNaWithheld', args: [ser('high'), { type: 'call', name: 'na', args: [sma20] }] }, num(2), num(5)] }
+    const held = new Map()
+    interpret(tree, RDDT, undefined, undefined, undefined, { ...LISTING, tf: 'D', withheldBarsSink: held })
+    const m = Array.from(held.get(BOOL_NA_UNWITNESSED))
+    // unknown bars 0..18 -> centres 0 .. 18 + 2
+    expect(m.slice(0, 21).every((x) => x === 1)).toBe(true)
+    expect(m.slice(21).every((x) => x === 0)).toBe(true)
+  })
   it('a recurrence withholds every later bar; `barssince` (bare and bounded) and `valuewhen` stop withholding', () => {
     const cum = run({ type: 'call', name: 'cum', args: [{ type: 'op', name: '?:', args: [cond, num(1), num(0)] }] })
     expect(cum.held).toBeGreaterThan(RDDT.length - 20)
