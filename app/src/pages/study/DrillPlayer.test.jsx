@@ -150,6 +150,27 @@ describe('DrillPlayer', () => {
     await waitFor(() => expect(screen.getByTestId('stock-chart').getAttribute('data-markers')).toContain('STOPPED'))
   })
 
+  // the reveal carries the first 20 bars after the decision; a course chart that wants more (prompt chart.forward_bars)
+  // fetches the rest once from POST /attempts/{id}/step and the replay runs on through them
+  it('fetches the rest of a course chart replay past the reveal bars', async () => {
+    const set = tenSet()
+    set.items[0] = item('recall', 'si_c3', { question: 'What is a pivot?', kind: 'mcq', choices: ['The buy point', 'The stop', 'The target', 'The low'], chart: { window_bars: 20, tf: 'D', forward_bars: 8 } }, true)
+    const base = makeFetcher(set)
+    const fetcher = vi.fn(async (url, opts = {}) => {
+      if (url === '/api/study/attempts/1/step') return { bars: bars(3, '2025-01-27'), next_offset: 8, done: true, forward_total: 8 }
+      const r = await base(url, opts)
+      if (url === '/api/study/attempts' && opts.body?.item_id === 'si_c3') r.reveal = { ...r.reveal, forward_total: 8 }
+      return r
+    })
+    render(<DrillPlayer open onClose={() => {}} fetcher={fetcher} />)
+    const before = Number((await screen.findByTestId('stock-chart')).getAttribute('data-bars'))
+    await answerChoice('The buy point')
+    fireEvent.click(screen.getByTestId('drill-takeover-go'))
+    fireEvent.click(await screen.findByTestId('drill-replay-skip'))
+    await waitFor(() => expect(Number(screen.getByTestId('stock-chart').getAttribute('data-bars'))).toBe(before + 8))
+    expect(fetcher).toHaveBeenCalledWith('/api/study/attempts/1/step', expect.objectContaining({ method: 'POST', body: { offset: 5, n: 3 } }))
+  })
+
   it('marks the decision day on a course chart with no trade once the bars after it play', async () => {
     const set = tenSet()
     set.items[0] = item('recall', 'si_c2', { question: 'What is a pivot?', kind: 'mcq', choices: ['The buy point', 'The stop', 'The target', 'The low'] }, true)

@@ -68,7 +68,7 @@ import Prompt from './ui/Prompt'
 import VerdictTakeover from './ui/VerdictTakeover'
 import UiStamp from './ui/Stamp'
 import { memberSettingsOverride } from './studyChartLook'
-import { SETUP_SKILLS, setupName } from './challenges/challengeBank'
+import { SETUP_SKILLS, fetchForwardRest, setupName } from './challenges/challengeBank'
 import d5 from '../../lab/duo.module.css'
 import styles from './DrillPlayer.module.css'
 import { registerShortcuts } from '../command/shortcutRegistry'
@@ -239,15 +239,34 @@ export default function DrillPlayer({
   const [intraday, setIntraday] = useState(null)
   const [skipped, setSkipped] = useState(false)
   const attemptId = result?.attempt_id ?? null
+  const hasForward = forwardCount > 0
   useEffect(() => {
     setIntraday(null)
     setSkipped(false)
-    if (!forwardCount || !attemptId) return undefined
+    if (!hasForward || !attemptId) return undefined
     let live = true
     // through the drill's own fetcher (a test or an embed injects one), never a bare network call
     fetchIntraday({ attempt_id: attemptId }, fetcher || undefined).then((d) => { if (live && d) setIntraday(d) })
     return () => { live = false }
-  }, [attemptId, forwardCount, fetcher])
+  }, [attemptId, hasForward, fetcher])
+  // THE WHOLE REPLAY (2026-11-14): the reveal carries the first 20 bars after the decision (the server's
+  // REVEAL_FORWARD_BARS); a course chart that wants more (prompt_json.chart.forward_bars, the writer's count: the
+  // story's outcome can come in week four) gets the rest from POST /attempts/{id}/step once, up to what the server holds.
+  // They join the same strip, so the replay runs on through them.
+  const wantForward = Number(item?.prompt_json?.chart?.forward_bars) || 0
+  const revealTotal = Number(reveal?.forward_total) || 0
+  const itemId = item?.id ?? null
+  const moreForward = useRef(null)
+  moreForward.current = s.moreForward
+  const fetchedMore = useRef(null)
+  useEffect(() => {
+    if (phase !== 'reveal' || !attemptId || !itemId || fetchedMore.current === attemptId) return
+    const total = Math.min(revealTotal, wantForward)
+    if (total <= forwardCount) return
+    fetchedMore.current = attemptId
+    fetchForwardRest({ attempt_id: attemptId, reveal: { forward_total: total } }, forwardCount, fetcher || undefined)
+      .then((more) => { if (more.length) moreForward.current?.(itemId, more) })
+  }, [phase, attemptId, itemId, wantForward, revealTotal, forwardCount, fetcher])
   const ticks = useMemo(() => alignTicks(fwdBars, intraday), [fwdBars, intraday])
   const replayOn = phase === 'reveal' && forwardCount > 0 && !skipped
   const run = useRunOnTicks(baseBars, fwdBars, forwardCount, replayOn, { slowMs: RUN_ON_MS, ticks, develop: developing })
