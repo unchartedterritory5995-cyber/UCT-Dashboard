@@ -52,7 +52,9 @@ import { CLASSIFICATION_FIELD_NAMES } from '../../ast/bind'
 import { validateCapture } from '../../../../../../../tools/vendor_harness/schema.mjs'
 import { fullBarsFor } from '../../../../../utils/barsBackfill'
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
+import crypto from 'node:crypto'
 
 // ─── ⭐⭐ C26 — ANOTHER SYMBOL'S BARS, FROM COMMITTED CAPTURES ONLY ─────────────
 //
@@ -224,7 +226,16 @@ function lowerTfSupply(def, capture) {
 //   * `{servedBy, source, recordedAtUTC, bars}`: the served bars, in the shape the server
 //     serves them, with where they came from (a fallback says so in `source`); or
 //   * `{notRecorded}`: the source a member is served was not recorded, so NOTHING is supplied
-//     (the read refuses by name, the grade is INCONCLUSIVE), never a stand-in.
+//     (the read refuses by name, the grade is INCONCLUSIVE), never a stand-in; or
+//   * (RS RATING L9) `{servedBy, source, recordedAtUTC, rows: {file, sha256, count, first, last}}`:
+//     the served bars are PROVIDER DATA THE REPO MAY NOT REDISTRIBUTE (the repo is public; FMP is
+//     class R/LA for member display only and Yahoo class X, `provider_licensing_class.py`), so git
+//     holds only this manifest and the rows live OUT of git, in the local supply store
+//     (`$UCT_HARNESS_SUPPLY_STORE`, default `%LOCALAPPDATA%/uct-vendor-batch/supply`), the way a
+//     licence-held capture lives in the capture store. The file is read only when its sha256, row
+//     count and first / last session are the manifest's (else the record throws); a machine
+//     without it supplies NOTHING and the grade is refused by name (INCONCLUSIVE), never run on a
+//     stand-in.
 // and `symbol.<field>` feeds a classification field the capture does not carry with the
 // VENDOR's value read off a committed capture (`vendorValueFrom: 'committed:<path>'`), checked
 // here against that capture's own text before it is fed.
@@ -239,6 +250,20 @@ let _supplyDir = SUPPLY_DIR
 /** Rails only: read recorded supply from a scratch directory (null restores the committed one). */
 export function __setSupplyDirForTests(dir) { _supplyDir = dir || SUPPLY_DIR }
 export const HARNESS_SUPPLY_SCHEMA = 'uct.harness-supply/v1'
+/** The out-of-git rows file a manifest names (`uct.harness-supply-rows/v1`: `{ticker, source,
+ *  servedBy, recordedAtUTC, bars}`). */
+export const HARNESS_SUPPLY_ROWS_SCHEMA = 'uct.harness-supply-rows/v1'
+export const SUPPLY_STORE_ENV = 'UCT_HARNESS_SUPPLY_STORE'
+let _supplyStoreForTests = null
+/** Rails only: read out-of-git rows from a scratch store (null restores the configured one). */
+export function __setSupplyStoreForTests(dir) { _supplyStoreForTests = dir || null }
+/** The local supply store, read per call. */
+export function supplyStoreDir() {
+  if (_supplyStoreForTests) return _supplyStoreForTests
+  if (process.env[SUPPLY_STORE_ENV]) return path.resolve(process.env[SUPPLY_STORE_ENV])
+  const base = process.env.LOCALAPPDATA || process.env.TEMP || os.tmpdir()
+  return path.join(base, 'uct-vendor-batch', 'supply')
+}
 /** Our store's instrument classes (`screener_universe.COARSE_TYPES`, keyed by `bind.js`'s
  *  `by_class` rows). */
 export const STORE_SECURITY_TYPES = Object.freeze(['Stock', 'ADR', 'ETF'])
@@ -258,13 +283,15 @@ export function recordedSupplyOf(capture, dir = _supplyDir) {
   if (rec.capture !== id) bad(`it is the record of ${JSON.stringify(rec.capture)}, not of ${id}`)
   for (const [ticker, e] of Object.entries(rec.other || {})) {
     if (!e || typeof e !== 'object') bad(`other.${ticker} is not an object`)
-    const recorded = Array.isArray(e.bars)
-    if (recorded === (typeof e.notRecorded === 'string' && e.notRecorded.length > 0)) {
-      bad(`other.${ticker} must hold exactly one of \`bars\` or \`notRecorded\``)
+    const forms = [Array.isArray(e.bars), !!(e.rows && typeof e.rows === 'object'),
+      typeof e.notRecorded === 'string' && e.notRecorded.length > 0]
+    if (forms.filter(Boolean).length !== 1) {
+      bad(`other.${ticker} must hold exactly one of \`bars\`, \`rows\` or \`notRecorded\``)
     }
-    if (recorded && !(typeof e.source === 'string' && e.source && typeof e.servedBy === 'string' && e.servedBy)) {
+    if (!forms[2] && !(typeof e.source === 'string' && e.source && typeof e.servedBy === 'string' && e.servedBy)) {
       bad(`other.${ticker} records bars without naming \`source\` and \`servedBy\``)
     }
+    if (forms[1]) e.bars = outOfGitRows(ticker, e, bad)            // [] -> e.notOnThisMachine
   }
   for (const [field, e] of Object.entries(rec.symbol || {})) {
     if (!CLASSIFICATION_PROBE_KEY[field]) bad(`symbol.${field} is not a classification field`)
@@ -292,6 +319,34 @@ export function recordedSupplyOf(capture, dir = _supplyDir) {
     }
   }
   return rec
+}
+
+/** ⭐ RS RATING L9 — the bars an out-of-git manifest names, read from the local supply store and
+ *  checked against the manifest; `undefined` (with `e.notOnThisMachine` set) when the file is not
+ *  on this machine. A file that IS here but is not the manifest's throws (`bad`). */
+function outOfGitRows(ticker, e, bad) {
+  const m = e.rows
+  const name = typeof m.file === 'string' ? m.file : ''
+  if (!name || name !== path.basename(name)) bad(`other.${ticker}.rows.file must be a bare file name in the supply store`)
+  if (!/^[0-9a-f]{64}$/.test(String(m.sha256 || ''))) bad(`other.${ticker}.rows names no sha256`)
+  if (!Number.isInteger(m.count) || m.count < 1) bad(`other.${ticker}.rows names no row count`)
+  const file = path.join(supplyStoreDir(), name)
+  if (!fs.existsSync(file)) {
+    e.notOnThisMachine = `the served bars (${e.source}) are kept out of git (provider data; the repo `
+      + `is public) and ${name} is not in the local supply store (${supplyStoreDir()}, \`${SUPPLY_STORE_ENV}\`)`
+    return undefined
+  }
+  const raw = fs.readFileSync(file)
+  const sha = crypto.createHash('sha256').update(raw).digest('hex')
+  if (sha !== m.sha256) bad(`other.${ticker}.rows: ${name} is not the recorded file (sha256 ${sha.slice(0, 12)}, the manifest says ${m.sha256.slice(0, 12)})`)
+  const doc = JSON.parse(raw.toString('utf8'))
+  if (!doc || doc.schema !== HARNESS_SUPPLY_ROWS_SCHEMA || !Array.isArray(doc.bars)) bad(`other.${ticker}.rows: ${name} is not a ${HARNESS_SUPPLY_ROWS_SCHEMA} file`)
+  if (doc.ticker !== ticker) bad(`other.${ticker}.rows: ${name} holds ${JSON.stringify(doc.ticker)}`)
+  const day = (b) => new Date(b.t * 1000).toISOString().slice(0, 10)
+  if (doc.bars.length !== m.count || day(doc.bars[0]) !== m.first || day(doc.bars[doc.bars.length - 1]) !== m.last) {
+    bad(`other.${ticker}.rows: ${name} holds ${doc.bars.length} sessions ${day(doc.bars[0])}..${day(doc.bars[doc.bars.length - 1])}, the manifest ${m.count} ${m.first}..${m.last}`)
+  }
+  return doc.bars
 }
 
 /** ⭐ RS RATING L9 — our store's class for the chart symbol, from the recorded supply, or {}. */
@@ -333,7 +388,12 @@ function otherSymbolSupply(def, capture) {
       if (Array.isArray(rec.bars)) {
         secondary.set(storeKey, { bars: rec.bars, status: 'available' })
         notes.push(`other symbol ${ticker}: the bars our server serves, recorded beside the capture `
-          + `(${rec.servedBy}; ${rec.source})`)
+          + `(${rec.servedBy}; ${rec.source})`
+          + (rec.rows ? `; kept out of git, read from the local supply store as ${rec.rows.file} (sha256 ${rec.rows.sha256.slice(0, 12)})` : ''))
+      } else if (rec.notOnThisMachine) {
+        secondary.set(storeKey, { bars: [], status: 'no_data' })
+        notes.push(`other symbol ${ticker}: not supplied: ${rec.notOnThisMachine}`)
+        unrecorded.push(`other symbol ${ticker}: ${rec.notOnThisMachine}`)
       } else {
         secondary.set(storeKey, { bars: [], status: 'no_data' })
         notes.push(`other symbol ${ticker}: not supplied: ${rec.notRecorded}`)

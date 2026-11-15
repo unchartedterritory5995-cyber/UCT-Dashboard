@@ -9,7 +9,7 @@ import { describe, it, expect, vi } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { recordedSupplyOf, runOurSide, HARNESS_SUPPLY_SCHEMA } from './ourSide'
+import { recordedSupplyOf, runOurSide, HARNESS_SUPPLY_SCHEMA, supplyStoreDir } from './ourSide'
 import { loadCapture, HARNESS_DIR, REPO } from './harness'
 
 vi.setConfig({ testTimeout: 120000 })
@@ -28,12 +28,14 @@ function dirWith(id, rec) {
 }
 
 describe('L8 — recordedSupplyOf reads only a well-formed record of THIS capture', () => {
-  it('CONTROL: the committed RDDT record is read: SPX from the server\'s fallback, the seed replay, the industry', () => {
+  it('CONTROL: the committed RDDT record is read: SPX from the server\'s PRIMARY (out of git), the seed replay, the industry', () => {
     const rec = recordedSupplyOf(capOf(RDDT))
     expect(rec.schema).toBe(HARNESS_SUPPLY_SCHEMA)
-    expect(rec.other.SPX.bars.length).toBeGreaterThan(1000)
-    expect(rec.other.SPX.source).toMatch(/FALLBACK/)
-    expect(rec.other.SPX.primaryRecorded).toBe(false)
+    // ⭐ L9 — FMP's rows are named by a manifest, never committed (vendorHarness.l9LocalSupply.test.js)
+    expect(committed(RDDT).other.SPX.bars).toBeUndefined()
+    expect(rec.other.SPX.rows.count).toBe(9286)
+    expect(rec.other.SPX.source).toMatch(/FMP \^GSPC, the server's PRIMARY/)
+    expect(rec.other.SPX.primaryRecorded).toBe(true)
     expect(rec.other['SEED_FRED6725_RS_RATING:RSRATING'].bars.length).toBeGreaterThan(0)
     expect(rec.symbol.industry.value).toBe('Internet Software/Services')
   })
@@ -57,7 +59,7 @@ describe('L8 — recordedSupplyOf reads only a well-formed record of THIS captur
 
   it('⛔ recorded bars that do not say where they came from are refused', () => {
     const rec = committed(RDDT)
-    const nameless = { ...rec, other: { SPX: { bars: rec.other.SPX.bars } } }
+    const nameless = { ...rec, other: { SPX: { bars: [{ t: 1, o: 1, h: 1, l: 1, c: 1, v: 0 }] } } }
     expect(() => recordedSupplyOf(capOf(RDDT), dirWith(RDDT, nameless))).toThrow(/without naming/)
   })
 
@@ -73,17 +75,25 @@ describe('L8 — recordedSupplyOf reads only a well-formed record of THIS captur
 describe('L8 — what the grade is handed', () => {
   it('RDDT: SPX and the seed come from the record, and the industry is declared substituted, citing the probe', () => {
     const ours = runOurSide(capOf(RDDT))
+    // ⭐ L9 — SPX's rows live out of git: a machine without the local supply store is refused by
+    // name (never graded on a stand-in), and that is the whole of what can be asserted there
+    if (!fs.existsSync(path.join(supplyStoreDir(), committed(RDDT).other.SPX.rows.file))) {
+      expect(ours.ok).toBe(false)
+      expect(String(ours.refusal)).toMatch(/kept out of git .* is not in the local supply store/)
+      return
+    }
     expect(ours.ok, String(ours.refusal)).toBe(true)
+    expect(ours.notes.join(' ')).toMatch(/kept out of git, read from the local supply store/)
     expect(ours.notes.join(' ')).toMatch(/other symbol SPX: the bars our server serves, recorded/)
     expect(ours.notes.join(' ')).toMatch(/other symbol RSRATING: the bars our server serves, recorded/)
     expect(ours.substituted).toEqual([expect.objectContaining({ name: 'syminfo.industry',
       vendorValueFrom: 'committed:tests/fixtures/vendor/harness/rs-syminfo-industry-rddt-1d-2026-11-15.json' })])
   })
 
-  it('⛔ SPY: the served SPX source is not recorded, so the capture is not graded at all (INCONCLUSIVE by name)', () => {
+  it('⛔ SPY: deliberately not supplied (owner ruling), so the capture is not graded at all (INCONCLUSIVE by name)', () => {
     const ours = runOurSide(capOf(SPY))
     expect(ours.ok).toBe(false)
-    expect(String(ours.refusal)).toMatch(/not recorded — other symbol SPX: our served SPX source, FMP, not recorded locally/)
+    expect(String(ours.refusal)).toMatch(/not recorded — other symbol SPX: not graded, by owner ruling 2026-11-15/)
   })
 })
 

@@ -1,11 +1,11 @@
 {
  "schema": "uct.harness-supply/v1",
  "capture": "rs-rating-fred6724-spy-1d-2026-11-15",
- "why": "RS RATING L8 (docs/pine/RS-RATING-TRANSFER.md): the bars OUR SERVER serves for this capture's other symbols, recorded beside it, so the grade runs on the real supply (never on TradingView's own SPX, which would be circular). Read by app/src/components/chart/engine/__tests__/vendorHarness/ourSide.js::recordedSupplyOf.",
+ "why": "RS RATING L8 (docs/pine/RS-RATING-TRANSFER.md): the bars OUR SERVER serves for this capture's other symbols, recorded beside it, so the grade runs on the real supply (never on TradingView's own SPX, which would be circular). Read by app/src/components/chart/engine/__tests__/vendorHarness/ourSide.js::recordedSupplyOf. RS RATING L9: index bars are kept OUT of git (`rows` manifest); the L8 record's yfinance ^GSPC rows were removed from this file (they remain in history at bce0de1ecb).",
  "other": {
   "SPX": {
-   "notRecorded": "our served SPX source, FMP, not recorded locally (no FMP key on this machine). This capture is not graded on the yfinance fallback: the L5 builder's local probe on it read a rating of 63 where TradingView draws 64, so the fallback and the primary may answer differently here and only the primary is what a member is served.",
-   "primaryRecorded": false
+   "notRecorded": "not graded, by owner ruling 2026-11-15 (\"Leave spy blank imo\"). The served SPX source (FMP) is recorded since L9 (local supply store, out of git), but this capture is deliberately not supplied, so no verdict implies a pass or a fail for it. Before the ruling, the L5 builder's probe on the yfinance fallback read a rating of 63 where TradingView draws 64.",
+   "primaryRecorded": true
   },
   "SEED_FRED6725_RS_RATING:RSRATING": {
    "servedBy": "api/services/pine_seed_store.py::build_bars (the /api/bars seed door)",
