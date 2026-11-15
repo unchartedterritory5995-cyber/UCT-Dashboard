@@ -1,8 +1,8 @@
 // THE TRADE ON THE CHART, every mode (the owner, batch 24 on the lesson: "the visual graphic of the chart ... can also
 // list the levels and action items in the chart as well ... so they can see it all by looking at the chart"). The levels
-// are dashed lines with their price on the scale (ENTRY gold, STOP red, the trims green: 3R and 5R, the house trims of
-// docs/study/sizing_rule.md §9, read from the plan's trim_r); the action items sit on the bars where they happened
-// (BOUGHT, the trims reached, STOPPED OUT). What each level is and why it sits there is the chart key directly under the
+// are dashed lines with their price on the scale (ENTRY gold, STOP red, the marks green: 3R and 5R, marks on the ruler
+// and never fixed sells since the owner's D-013, read from the plan's trim_r); the action items sit on the bars where
+// they happened (BOUGHT, the marks reached, STOPPED OUT). What each level is and why it sits there is the chart key directly under the
 // chart (ui/ChartKey.jsx): the floating level chips it replaces overlapped each other and ran under the price scale.
 // THE ACTION ITEMS (2026-11-08, found on the phone screens: text boxes drawn on the chart ran under the price scale,
 // landed on each other and, kept clear of the candles, floated away from their own bar on a trend). They are the chart's

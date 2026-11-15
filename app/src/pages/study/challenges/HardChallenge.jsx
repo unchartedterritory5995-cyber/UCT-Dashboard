@@ -50,10 +50,10 @@ import { calloutLook, hardCallouts } from '../ui/callout'
 import s from '../ui/study.module.css'
 
 // The trade drawn on the chart as it runs on (round 23, the owner's rule 3: "they can see it all by looking at the chart
-// the why and the what and where"). For a setup with its plan (the detector's own entry and stop, the house trims at 3R
-// and 5R, sizing_rule.md §9): dashed rays from the signal candle for ENTRY, STOP, 3R and 5R, each with its price, and the
-// action items on the bars where they happened: BOUGHT (or SHORTED), 3R, 5R, STOPPED. Without a plan, the line a close
-// must not break. The levels' names come from the plan's trim_r (tradeMarks.js); nothing here hardcodes one.
+// the why and the what and where"). For a setup with its plan (the detector's own entry and stop, the marks at 3R and
+// 5R, never fixed sells since the owner's D-013): dashed rays from the signal candle for ENTRY, STOP, 3R and 5R, each
+// with its price, and the action items on the bars where they happened: BOUGHT (or SHORTED), 3R, 5R, STOPPED. Without a
+// plan, the line a close must not break. The levels' names come from the plan's trim_r (tradeMarks.js); nothing here hardcodes one.
 // The chart's gold label at the move's best point: with a plan, the advance from the entry at the trade's own best bar,
 // so the chart and the lesson say the same number; otherwise the culmination measured from the signal close.
 function peakOf(trade, culm, n, k) {
@@ -97,8 +97,8 @@ function Q({ idx, item, total, results, prefs, fetcher, onDone }) {
   // the replay within the day: each forward day grows through its real 30-minute closes; slow on the trade's key days
   const ticks = useMemo(() => alignTicks(fwd, intraday), [fwd, intraday])
   const keys = useMemo(() => (ticks ? keyDays(trade, culm) : null), [ticks, trade, culm])
-  // the replay stops and asks at the trims, 3R and 5R (N033; the server's own questions and answers, from the house rules
-  // and the plan's words: api/services/study_trade.replay_checks)
+  // the replay stops and asks at the marks, 3R and 5R (N033; the server's own questions and answers, from the owner's
+  // 2026-11-12 rulings and the plan's words: api/services/study_trade.replay_checks; the why says what the day changes)
   const [answered, setAnswered] = useState(() => new Set())
   const checks = useMemo(() => (state === 'ask' ? [] : replayChecks(trade)), [state, trade])
   const holdAt = useMemo(() => new Set(checks.filter((c) => !answered.has(c.at)).map((c) => c.session)), [checks, answered])
@@ -240,7 +240,7 @@ export default function HardChallenge({ profile = null, fetcher = studyFetch, on
           howTo={<HowItPlays mode="hard" testId="hard-howto" steps={[
             { icon: 'lock', title: 'Read the chart', body: 'A real chart from the UCT bank with the ticker hidden. The last candle is ringed.' },
             { icon: 'eye', title: 'Name what fired', body: 'Pick the setup that fired on that candle, or Nothing fired. One try each.' },
-            { icon: 'play', title: 'Watch the trade', body: 'The chart runs on with the trade drawn: entry, stop, the trims at 3R and 5R, and a key that says why each level sits there.' },
+            { icon: 'play', title: 'Watch the trade', body: 'The chart runs on with the trade drawn: entry, stop, the 3R and 5R marks, and a key that says why each level sits there.' },
           ]} />} />
       </div>
     )

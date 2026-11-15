@@ -137,8 +137,11 @@ export function withArticle(name) {
   return `${/^[AEIOU]/i.test(n) ? 'an' : 'a'} ${n}`
 }
 
-/** THE HOUSE TRIMS (docs/study/sizing_rule.md §9, B19 and E51; study_trade.TRIM_R): a third at 3R, a third at 5R. The
- *  plan carries them as `trim_r`; a plan from before the rulebook (an old fixture) lacks it and reads the same. */
+/** THE MARKS ON THE RULER, 3R and 5R (study_trade.TRIM_R). Until 2026-11-12 they were the house trims, a third at each
+ *  (B19 and E51, docs/study/sizing_rule.md §9); the owner's D-013 replaced that: "sometimes it is not R based. SOmetimes
+ *  it is day based", so they are marks, never fixed sells. 3R is where the stop may move up to breakeven (his "between 2R
+ *  and 5R, or at the first sell"); 5R is inside the 5 to 10R zone where a first sell into strength is often best. The
+ *  plan carries them as `trim_r` (the key keeps its name); a plan from before it (an old fixture) reads the same. */
 export const TRIM_R = Object.freeze([3, 5])
 export function trimR(plan) {
   const r = plan?.trim_r
@@ -152,14 +155,42 @@ export function timesWord(m) {
   return words[m] || `${m} times`
 }
 
+/** What a mark on the ruler means, in the chart key's words (D-013; fb.breakeven): at 5 to 10 times the risk, the zone where
+ *  a first sell into strength is often best; any other mark is only a mark, where the stop can move up to breakeven. */
+export function markWhy(m) {
+  const at = `${timesWord(m)} the risk`
+  if (m >= 5 && m <= 10) return `${at}: inside the 5 to 10R zone, where a first sell into strength is often best, by judgment, usually day 3 or later`
+  return `${at}: a mark on the ruler, not a sell; the stop can move up to breakeven between 2R and 5R`
+}
+
+/** THE FIRST SELL, BY THE DAY (the owner's D-013, 2026-11-12, in chat: "I very rarely sell on the day 1 of the buy day.
+ *  I usually wait until day 3 at the earliest. SO 3-5-7 day or 5-10 R is often best"). He counts the buy day as day 1,
+ *  the way the course does (F10.05: "By noon on the same day ... Rarely sell on day 1"), so the signal day, where every
+ *  plan buys, is day 1 and a session after it is day session + 1. Every replay that names a day names it this way. */
+export const FIRST_SELL_DAY = 3
+/** "at about 5 to 10R": a level this far out (one decimal of rounding under 5R allowed) is in the zone. */
+export const SELL_ZONE_R = 4.95
+/** The day of the trade a session falls on (0, the signal day, is day 1), or null. */
+export const tradeDay = (session) => (Number.isFinite(session) && session >= 0 ? session + 1 : null)
+/** Day 1 or day 2: too early to sell by D-013. */
+export const sellTooEarly = (session) => Number.isFinite(session) && session >= 0 && session + 1 < FIRST_SELL_DAY
+/** The day's name inside a sentence: "day 1, the buy day", "day 4". */
+export const dayName = (session) => (session === 0 ? 'day 1, the buy day' : `day ${session + 1}`)
+/** The day, in one sentence for a why: "This is day 4 of the trade." '' when the session is unknown. */
+export function dayLine(session) {
+  if (!Number.isFinite(session) || session < 0) return ''
+  return `This is ${dayName(session)} of the trade.`
+}
+
 /** THE TRADE, REVIEWED (round 23; the owner, 2026-11-08: the answers "are out there ... in the app"). The plan comes from
- *  the server with the reveal (api/services/study_trade.py: the setup's own detector's trigger and stop, the trims at 3R
+ *  the server with the reveal (api/services/study_trade.py: the setup's own detector's trigger and stop, the marks at 3R
  *  and 5R, the trail; the Kicker on his rulings), and this plays it against the bars after the signal: the best price
- *  while the trade was alive, when each trim level was reached, and when the plan's stop was. A Kicker or an Oops enters
+ *  while the trade was alive, when each mark was reached, and when the plan's stop was. A Kicker or an Oops enters
  *  during the signal day (that day's extreme counts once it has entered; its own low never stops it); every other setup
- *  enters on the signal's close. A bar that reaches the stop ends the trade before its extreme counts. Short setups
- *  mirror it. The stop here is the plan's original stop throughout: the breakeven stop after the first trim (B19) is
- *  Trade Story's (games/tradeStory.storyOf), read on top of this. */
+ *  enters on the signal's close (D-003 asks for the trigger; those detectors name no level yet, study_trade.py). A bar
+ *  that reaches the stop ends the trade before its extreme counts. Short setups mirror it. The stop here is the plan's
+ *  original stop throughout: the breakeven stop from 3R (inside the owner's 2R to 5R) is Trade Story's
+ *  (games/tradeStory.storyOf), read on top of this. */
 export function reviewTrade(plan, signal, forward) {
   if (!plan || !signal || !Number.isFinite(plan.entry) || !Number.isFinite(plan.stop)) return null
   const long = plan.direction !== 'bearish'

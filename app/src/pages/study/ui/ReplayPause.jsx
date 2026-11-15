@@ -1,10 +1,11 @@
 // THE REPLAY STOPS AND ASKS (N033, 2026-11-08; the owner: pause in the replay "and ask about trimming, trailing, sell
-// rules", and "no scrolling to reach the buttons"). When the run-on reaches the first trim (3R), and again at the second
-// (5R), it holds and this card sits right under the chart with the plan's question (api/services/study_trade.replay_checks:
-// the answers are the house rules and the plan's own words). Pick one: the tiles show right and wrong, the why reads
-// under them, and Keep playing runs the replay on (the mode brings the chart back into view first). Not scored. The
-// card, and then its why, bring themselves into view. `labels` names the two trims in the tag (the plan's trim_r,
-// hardMode.trimLabels); nothing here hardcodes a level.
+// rules", and "no scrolling to reach the buttons"). When the run-on reaches the 3R mark, and again at 5R, it holds and
+// this card sits right under the chart with the plan's question (api/services/study_trade.replay_checks: the answers are
+// the owner's 2026-11-12 rulings and the plan's own words; at 3R the plan holds, at 5R it sells some into strength from
+// day 3, and replayTicks.replayChecks adds what the day changes to the why). Pick one: the tiles show right and wrong, the
+// why reads under them, and Keep playing runs the replay on (the mode brings the chart back into view first). Not
+// scored. The card, and then its why, bring themselves into view. `labels` names the two marks in the tag (the plan's
+// trim_r, hardMode.trimLabels); nothing here hardcodes a level.
 import { useEffect, useRef, useState } from 'react'
 import Tile from './Tile'
 import StudyButton from './StudyButton'

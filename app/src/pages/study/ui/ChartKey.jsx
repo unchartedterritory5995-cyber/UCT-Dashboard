@@ -5,7 +5,7 @@
 // its name, its price, why it sits there (the setup's own rule, from api/services/study_trade.py) and what the bars after
 // it did. Every word is the plan's or measured from the bars; nothing is invented.
 import UIcon from '../../../components/ui/UIcon'
-import { timesWord, trimLabels, trimR } from '../challenges/hardMode'
+import { markWhy, trimLabels, trimR } from '../challenges/hardMode'
 import k from './chartKey.module.css'
 
 const px = (v) => (Number.isFinite(v) ? v.toFixed(2) : '—')
@@ -27,15 +27,18 @@ export default function ChartKey({ trade, testId = null }) {
   if (trade.kind === 'plan') {
     const stopped = trade.stoppedSession
     const t1 = reached(trade.t1At, stopped), t2 = reached(trade.t2At, stopped)
-    // the house trims (sizing_rule.md §9, B19 and E51): a third at 3R, a third at 5R, from the plan's own trim_r
+    // 3R and 5R, from the plan's own trim_r, are MARKS ON THE RULER, never fixed sells (the owner's D-013, 2026-11-12,
+    // superseding B19's "a third at 3R" and E51's "a third at 5R"): 3R is where the stop may move up to breakeven ("between
+    // 2R and 5R, or at the first sell"); 5R sits in the 5 to 10R zone where a first sell into strength is often best, by
+    // judgment, usually day 3 or later
     const [l1, l2] = trimLabels(trade)
     const [m1, m2] = trimR(trade)
     rows = [
       { tone: 'gold', name: trade.long === false ? 'Short entry' : 'Entry', price: px(trade.entry), why: trade.entry_note, status: { ok: true, text: trade.long === false ? 'shorted here' : 'bought here' } },
       { tone: 'red', name: 'Stop', price: px(trade.stop), why: trade.stop_note, risk: riskPct(trade),
         status: stopped ? { ok: false, text: `hit after ${sess(stopped)}` } : { ok: true, text: 'never hit on this chart' } },
-      { tone: 'green', name: l1, price: px(trade.t1), why: `the first trim, a third off at ${timesWord(m1)} the risk; the stop on the rest moves to breakeven`, status: t1 },
-      { tone: 'green', name: l2, price: px(trade.t2), why: `the second trim, a third off at ${timesWord(m2)} the risk; the last third trails`, status: t2 },
+      { tone: 'green', name: l1, price: px(trade.t1), why: markWhy(m1), status: t1 },
+      { tone: 'green', name: l2, price: px(trade.t2), why: markWhy(m2), status: t2 },
     ]
     if (trade.trail) rows.push({ tone: 'soft', name: 'Trail', price: '', why: trade.trail, status: null })
     if (trade.trim_note) rows.push({ tone: 'soft', name: 'Trim', price: '', why: trade.trim_note, status: null })

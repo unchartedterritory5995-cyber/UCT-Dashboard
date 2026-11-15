@@ -11,25 +11,29 @@
 // over the screen (rule 15) with the ticker and the plan in one line; a miss names the setup and keeps its lesson on the
 // screen for the whole trade.
 //
-// THE TRADE is the reveal's plan (api/services/study_trade.py; docs/study/TRADE_PLANS.md) on the account rulebook
-// (docs/study/sizing_rule.md §9): the entry, the stop, the house trims at 3R and 5R (a third at each, B19 and E51; the
-// plan's trim_r), drawn on the chart as Hard mode draws them, with the trail's line added once it trails. The replay
-// STOPS only where the plan defines a decision (games/tradeStory.js: 3R, 5R, the Gap Support's post-gap high, the High
-// Volume Edge's first return to the high-volume close, the stop trading, the trail breaking) and holds there (the run-on
-// is asked for no further than the next stop, so it waits under reduced motion too, and never shows a candle past a
-// decision before it is made). Hold, Sell a third, or Sell the rest. A call on the plan flashes and says why; a miss
-// takes over the screen with the plan's call, then "See the working" opens the working on the plan's own prices and the
-// rule it comes from. Between stops nothing is asked. The chart's marks and the plan key only ever show what has already
-// happened. At the 3R trim the stop on the rest moves up to breakeven (the entry line; the key grows a "Breakeven stop"
-// row and the position chip reads Breakeven); a bar back at the entry from then on is the breakeven stop trading, marked
+// THE TRADE is the reveal's plan (api/services/study_trade.py; docs/study/TRADE_PLANS.md) on the owner's rulings of
+// 2026-11-12 (docs/study/setups/RULINGS_2026-11-12.json: D-013, GAP-TRIM, fb.breakeven, D-021): the entry, the stop,
+// and 3R and 5R as MARKS ON THE RULER (the plan's trim_r), never fixed sells, drawn on the chart as Hard mode draws them,
+// with the trail's line added once it trails. The replay STOPS only where the plan defines a decision
+// (games/tradeStory.js: 3R, 5R, the Gap Support's post-gap high, the High Volume Edge's first return to the high-volume
+// close, the stop trading, the trail breaking) and holds there (the run-on is asked for no further than the next stop, so
+// it waits under reduced motion too, and never shows a candle past a decision before it is made). Hold, Sell some, or
+// Sell the rest. At a mark the plan's calls follow the day and the move (games/tradeStory.js, THE CALLS ON THE PLAN): on
+// day 1 or day 2 (the buy day is day 1) a sell is off the plan; from day 3, into a 3, 5 or 7 day push or at about 5R or
+// more, Sell some is the plan's best call and Hold is on the plan too, a judgment; Sell the rest is the plan only at the
+// stop or where the trail breaks. Every call on the plan lights green and says why; a miss takes over the screen with
+// the plan's calls, then "See the working" opens the working on the plan's own prices and the rule it comes from.
+// Between stops nothing is asked. The chart's marks and the plan key only ever show what has already happened. At 3R
+// the stop moves up to breakeven (inside the owner's 2R to 5R; the entry line; the key grows a "Breakeven stop" row and
+// the position chip reads Breakeven); a bar back at the entry from then on is the breakeven stop trading, marked
 // STOPPED by the game itself (hardMode.reviewTrade reads the plan's original stop and does not know it). The post-gap
-// high is a dotted green line from the start (a plan level, like the trims); the high-volume close IS the entry line, so
+// high is a dotted green line from the start (a plan level, like the marks); the high-volume close IS the entry line, so
 // the key names it there. The first return is a call the owner has not ruled on (HVE_RETURN_CALL): until he does, it
 // asks, says the plan's words and its stop, shows the working, and is neither right nor wrong (no flash, no takeover,
 // not in the calls, the log or the XP; the end screen says it was the member's call).
 //
-// THE END of each trade lists every stop with the plan's call and its R, the member's exits beside the plan's, each at its
-// own R: the rulebook's trims are a third each, so no single R is claimed for the whole trade (the thirds went at
+// THE END of each trade lists every stop with the plan's calls and its R, the member's exits beside the plan's, each at
+// its own R: each sell is part of the position, so no single R is claimed for the whole trade (the parts went at
 // different prices). The run's end screen (EndHard) counts the calls on the plan, logs each one, and says each trade in
 // a line. The calls are computed against the plan in the browser, so they report once through POST /api/study/game-runs
 // (kind 'story'); the entry answers already earned their XP through /attempts and are not reported again. The level bar
@@ -43,12 +47,12 @@ import { useIsPhone } from '../../../hooks/useBreakpoint'
 import ChallengeError, { isSignedOut } from './ChallengeError'
 import { beginRunXp, fetchForwardRest, runXp, scoreAttempt } from './challengeBank'
 import { yesNo } from './SpotSetupChallenge'
-import { RUN_ON_MS, hardAnswer, hardRight, idSeed, replayView, timesWord, trimLabels, trimR } from './hardMode'
+import { RUN_ON_MS, dayName, hardAnswer, hardRight, idSeed, markWhy, replayView, trimLabels, trimR } from './hardMode'
 import { alignTicks, developing, fetchIntraday, showChart } from './replayTicks'
 import { tradeAnnotations, tradeMarkers } from './tradeMarks'
 import {
   ACTIONS, EMPTY_LINE, ENTRY_DETAIL, ENTRY_Q, EXIT_NOTE, FAILED_LINE, GAP_SUPPORT, HVE, HVE_RETURN_CALL, NOTHING_TRADED, NOT_SCORED, NO_PLAN,
-  START_LEAD, STORY_KIND, STORY_SOURCE, STORY_TOTAL, STORY_VIEW, STORY_VIEW_PHONE, actionLabel, bankLine, breakevenAt, callsOf, entryChoices,
+  START_LEAD, STORY_KIND, STORY_SOURCE, STORY_TOTAL, STORY_VIEW, STORY_VIEW_PHONE, actionLabel, bankLine, breakevenAt, callsLabel, callsOf, entryChoices, onPlan,
   entryTitle, exitsOf, exitsText, freeCalls, isFree, legsOf, levelAfter, logRows, namedLine, planExits, planLine, planOk, poolItems,
   positionLine, positionWord, postGapHigh, px, questionOf, rAt, rText, riskPct, runIdOf, stopAt, stopTag, storyKeys, storyOf, storyVerdict,
   tally, tradeLine, tradeOk, tradeTitle, trailAt, trailMeasured, trimNote, whyOf, workingOf, yoursLines,
@@ -81,7 +85,7 @@ const POOL_URL = '/api/study/spot-setup'
 const GAME_RUNS_URL = '/api/study/game-runs'
 const GOLD_SOFT = '#f6e2a0'   // the line colour Draw it draws the member's own entry in
 const RED = '#ef5350'         // tradeMarks' STOPPED
-const GREEN = '#2faf68'       // tradeMarks' trims: the post-gap high is a place to take some off, like them
+const GREEN = '#2faf68'       // tradeMarks' marks: the post-gap high is a plan level, like them
 const GOLD = '#dcbb5e'        // tradeMarks' ENTRY: the high-volume close is the entry
 const NONE = []
 const into = (el) => { try { el?.scrollIntoView?.({ block: 'nearest' }) } catch { /* an old engine without options */ } }
@@ -89,7 +93,8 @@ const into = (el) => { try { el?.scrollIntoView?.({ block: 'nearest' }) } catch 
 const rTone = (r) => { const t = rText(r); return t.startsWith('+') ? g.up : t.startsWith('−') ? g.down : '' }
 const typing = (e) => !!e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)
 const capFirst = (t) => (t ? t.charAt(0).toUpperCase() + t.slice(1) : t)
-const dayOf = (p) => (p.session === 0 ? 'the entry day' : `day ${p.session}`)
+// the day a point traded on, counted the owner's way (the buy day is day 1: hardMode.dayName), so "day 3" here is his day 3
+const dayOf = (p) => dayName(p.session)
 
 /** Under the chart while the trade runs: where the member stands, where the price is in R, and the stop in force (the
  *  plan's, breakeven once 3R has traded, the trail once a higher low has lifted it). */
@@ -105,9 +110,9 @@ function PositionBar({ word, r, stop }) {
 }
 
 /** The plan's levels in the chart key's rows (ui/ChartKey's look): each line, its price, why it sits there in the plan's
- *  own words or the rulebook's, and a status only once the replay has reached it. Once 3R has traded the breakeven stop
- *  is a row of its own (the entry line is that stop, B19). The trim the plan names is a row of its own too: the post-gap
- *  high (the dotted green line) or the high-volume close (the entry line itself). */
+ *  own words or the owner's rulings, and a status only once the replay has reached it. Once 3R has traded the breakeven
+ *  stop is a row of its own (the entry line is that stop, fb.breakeven). The place the plan names is a row of its own
+ *  too: the post-gap high (the dotted green line) or the high-volume close (the entry line itself). */
 function PlanKey({ plan, story, k, name, gapHigh }) {
   const long = story ? story.long : plan.direction !== 'bearish'
   const pts = story?.points || NONE
@@ -123,12 +128,13 @@ function PlanKey({ plan, story, k, name, gapHigh }) {
     { tone: 'red', name: 'Stop', price: px(plan.stop), why: plan.stop_note, risk: riskPct(plan), status: stopHit ? { ok: false, text: `hit on ${day(stopHit)}` } : null },
   ]
   if (story && breakevenAt(story, k)) {
-    rows.push({ tone: 'gold', name: 'Breakeven stop', price: px(plan.entry), why: `the entry: the stop on what is left since the ${l1} trim`,
+    rows.push({ tone: 'gold', name: 'Breakeven stop', price: px(plan.entry), why: `the entry: the stop on what is left since ${l1} traded`,
       status: beHit ? { ok: false, text: `hit on ${day(beHit)}` } : { ok: true, text: `in force since ${day(t1)}` } })
   }
   rows.push(
-    { tone: 'green', name: l1, price: px(plan.t1), why: `the first trim, ${timesWord(m1)} the risk: a third off, the stop on the rest to breakeven`, status: t1 ? { ok: true, text: `reached on ${day(t1)}` } : null },
-    { tone: 'green', name: l2, price: px(plan.t2), why: `the second trim, ${timesWord(m2)} the risk: another third off, the last third trails`, status: t2 ? { ok: true, text: `reached on ${day(t2)}` } : null },
+    // marks on the ruler, never fixed sells (D-013): the chart key's own words (hardMode.markWhy)
+    { tone: 'green', name: l1, price: px(plan.t1), why: markWhy(m1), status: t1 ? { ok: true, text: `reached on ${day(t1)}` } : null },
+    { tone: 'green', name: l2, price: px(plan.t2), why: markWhy(m2), status: t2 ? { ok: true, text: `reached on ${day(t2)}` } : null },
   )
   const note = capFirst(trimNote(plan))
   if (plan.skill === GAP_SUPPORT) {
@@ -146,8 +152,8 @@ function PlanKey({ plan, story, k, name, gapHigh }) {
   if (plan.trail) {
     rows.push({ tone: 'soft', name: 'Trail', price: now.kind === 'trail' ? px(now.level) : '',
       // the plan's own words; a trail the bars cannot place (the Gap Support's) is said, and not applied
-      why: trailMeasured(plan) ? `${plan.trail}. This replay trails the last third under the higher lows from ${l2} on, starting at breakeven.` : `${plan.trail}. This replay keeps what is left on the stop: the plan's until ${l1}, breakeven after.`,
-      status: trailHit ? { ok: false, text: `hit on ${day(trailHit)}` } : now.kind === 'trail' ? { ok: true, text: `under day ${now.low}` } : null })
+      why: trailMeasured(plan) ? `${plan.trail}. This replay trails what is left under the higher lows from ${l2} on, starting at breakeven.` : `${plan.trail}. This replay keeps what is left on the stop: the plan's until ${l1}, breakeven after.`,
+      status: trailHit ? { ok: false, text: `hit on ${day(trailHit)}` } : now.kind === 'trail' ? { ok: true, text: `under ${dayName(now.low)}` } : null })
   }
   return (
     <div className={`${ck.key} ${g.planKey}`} role="list" aria-label="The plan's levels" data-testid="story-plan">
@@ -167,10 +173,10 @@ function PlanKey({ plan, story, k, name, gapHigh }) {
   )
 }
 
-/** THE REPLAY STOPS: the kit's replay card (Hard mode's), with the three calls. After a call the tiles show the plan's,
- *  the why reads under them, and a miss also shows the working; the card brings itself, then its why, into view. At a
- *  point the plan leaves to the member the pick is simply marked as theirs, and the plan's words and the working read
- *  under it, neither right nor wrong. */
+/** THE REPLAY STOPS: the kit's replay card (Hard mode's), with the three calls. After a call the tiles light every call
+ *  on the plan (two at a mark where holding is a judgment too), the why reads under them, and a miss also shows the
+ *  working; the card brings itself, then its why, into view. At a point the plan leaves to the member the pick is simply
+ *  marked as theirs, and the plan's words and the working read under it, neither right nor wrong. */
 function StopCard({ point, pick, plan, long, inPosition, position, missOpen, last, onPick, onGo }) {
   const box = useRef(null)
   const why = useRef(null)
@@ -179,7 +185,7 @@ function StopCard({ point, pick, plan, long, inPosition, position, missOpen, las
   useEffect(() => { into(box.current) }, [])
   useEffect(() => { if (done && !missOpen) into(why.current) }, [done, missOpen])
   const w = done ? whyOf(point, pick, plan) : null
-  const stateOf = (a) => (!done ? 'idle' : free ? (a === pick ? 'sel' : 'quiet') : a === point.answer ? 'right' : a === pick ? 'wrong' : 'quiet')
+  const stateOf = (a) => (!done ? 'idle' : free ? (a === pick ? 'sel' : 'quiet') : onPlan(point, a) ? 'right' : a === pick ? 'wrong' : 'quiet')
   const q = questionOf(point, long, inPosition)
   const tone = !done ? 'ask' : free ? 'yours' : w.ok ? 'ok' : 'bad'
   return (
@@ -216,7 +222,7 @@ function StopCard({ point, pick, plan, long, inPosition, position, missOpen, las
   )
 }
 
-/** The trade, start to finish: every stop with the plan's call and its R (what was said on a miss), then the member's
+/** The trade, start to finish: every stop with the plan's calls and its R (what was said on a miss), then the member's
  *  exits beside the plan's, each at its own R. */
 function TradeResult({ story, picks, name, ticker, boxRef }) {
   const calls = callsOf(story, picks)
@@ -235,13 +241,13 @@ function TradeResult({ story, picks, name, ticker, boxRef }) {
           {story.points.map((p, i) => {
             // a call the plan leaves to the member is marked as theirs: neither right nor wrong
             const free = isFree(p)
-            const ok = !free && picks[i] === p.answer
+            const ok = !free && onPlan(p, picks[i])
             const said = actionLabel(picks[i], story.long).toLowerCase()
             return (
               <li key={p.id} className={`${g.call} ${free ? g.free : ok ? g.ok : g.miss}`} data-ok={free ? 'free' : ok ? '1' : '0'}>
                 <span className={g.callMark} aria-hidden="true"><UIcon name={free ? 'flag' : ok ? 'check' : 'x'} size={14} gold={false} /></span>
                 <span className={g.callText}>
-                  <b>{p.label} · {free ? 'Your call' : actionLabel(p.answer, story.long)}</b>
+                  <b>{p.label} · {free ? 'Your call' : callsLabel(p, story.long)}</b>
                   <small>{dayOf(p)}{free ? ` · the plan leaves this one to you · you said ${said}` : ok ? '' : ` · you said ${said}`}</small>
                 </span>
                 <span className={`${g.callR} ${rTone(p.r)}`}>{legsOf(p).map((l) => rText(l.r)).join(' · ')}</span>
@@ -334,7 +340,7 @@ function Trade({ idx, total, item, results, prefs, fetcher, phone, signedOut, on
     // a broken trail or a breakeven stop is the game's own mark (the review reads the plan's original stop)
     const hit = (story.end.kind === 'trail' || story.end.breakeven) && k >= story.end.session ? whole[n - 1 + story.end.session] : null
     if (hit) out.push({ time: hit.t, size: 1.4, position: story.long ? 'belowBar' : 'aboveBar', shape: 'square', color: RED, text: story.end.kind === 'trail' ? 'TRAIL HIT' : 'STOPPED' })
-    // the trims the plan names, on the bar where they traded
+    // the places the plan names, on the bar where they traded
     for (const p of story.points) {
       const b = (p.id === 'pgh' || p.id === 'hvc') && p.session >= 1 && k >= p.session ? whole[n - 1 + p.session] : null
       if (!b) continue
@@ -378,7 +384,7 @@ function Trade({ idx, total, item, results, prefs, fetcher, phone, signedOut, on
     if (!story || i < 0 || i >= story.points.length || called.current.has(i)) return
     called.current.add(i)
     const free = isFree(story.points[i])
-    const ok = action === story.points[i].answer
+    const ok = onPlan(story.points[i], action)
     setPicks((arr) => { const b = arr.slice(); b[i] = action; return b })
     // a call the plan leaves to the member is neither right nor wrong: no takeover, no flash, the tap's own sound
     setOpen({ i, takeover: !free && !ok })
@@ -434,7 +440,7 @@ function Trade({ idx, total, item, results, prefs, fetcher, phone, signedOut, on
           xp={entry.xp} label={plan ? 'Take the trade' : 'Continue'} onContinue={beginTrade} testId="story-entry" />
       ) : null}
       {missOpen ? (
-        <VerdictTakeover ok={false} title="Not the plan." answer={actionLabel(point.answer, story.long)}
+        <VerdictTakeover ok={false} title="Not the plan." answer={callsLabel(point, story.long)}
           sub={<span data-testid="story-miss-why">{whyOf(point, picks[due], plan).text}</span>} label="See the working" onContinue={seeWorking} testId="story-miss" />
       ) : null}
       <HudCombo label="Trade Story" unit="trade" scoreWord="on plan" step={idx} total={total} results={results} live={stage === 'ask'} stepTestId="story-step" />
@@ -560,13 +566,13 @@ export default function TradeStoryGame({ profile = null, fetcher = studyFetch, o
         <StartArena plate="Story" title="Trade Story" caption="Manage the trade" testId="story-intro" startTestId="story-start" hotkey
           total={count} ready={ready} onStart={start}
           label={failed ? 'The trades did not load' : pool == null ? 'Loading the bank' : ready ? 'Take the first trade' : 'No trades yet'}
-          stakes={[{ v: count, l: count === 1 ? 'real trade' : 'real trades', icon: 'chart' }, { v: 'No', l: 'ticker', icon: 'lock' }, { v: '3R · 5R', l: 'trims', icon: 'flag' }]}
+          stakes={[{ v: count, l: count === 1 ? 'real trade' : 'real trades', icon: 'chart' }, { v: 'No', l: 'ticker', icon: 'lock' }, { v: '3R · 5R', l: 'marks', icon: 'flag' }]}
           lead={failed ? FAILED_LINE : empty ? EMPTY_LINE : START_LEAD}
           reward={failed || empty ? null : <><Medal size={40} testId={null} /><span>Every call on the plan lights the <b>Legendary</b> medal</span></>}
           howTo={<HowItPlays mode="story" testId="story-howto" steps={[
             { icon: 'eye', title: 'Name the setup', body: 'A real chart from the UCT bank, ticker hidden. Name the setup that fired on the last candle.' },
-            { icon: 'play', title: 'Take the trade', body: 'You enter on the setup\'s own plan: the entry, the stop, and the trims at 3R and 5R, drawn on the chart.' },
-            { icon: 'flag', title: 'Make the calls', body: 'The replay stops at each moment that matters. Hold, sell a third, or sell the rest. The plan and the account rules score every call.' },
+            { icon: 'play', title: 'Take the trade', body: 'You enter on the setup\'s own plan: the entry, the stop, and the 3R and 5R marks, drawn on the chart.' },
+            { icon: 'flag', title: 'Make the calls', body: 'The replay stops at each moment that matters. Hold, sell some, or sell the rest. The day and the move decide, and the plan and our rules score every call.' },
           ]} />}>
           {failed || empty ? (
             <span className={g.way} data-testid={failed ? 'story-load-failed' : 'story-empty'}>

@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { TRIM_R, reviewTrade, timesWord, tradeOf, trimLabels, trimR } from './hardMode'
+import { FIRST_SELL_DAY, TRIM_R, dayLine, dayName, reviewTrade, sellTooEarly, timesWord, tradeDay, tradeOf, trimLabels, trimR } from './hardMode'
 
 // Round 23: the trade plan comes from the server with the reveal (api/services/study_trade.py: the setup's own entry and
-// stop, the house trims t1 and t2, 3R and 5R since the account rulebook); the client plays it against the bars after the
+// stop, the marks t1 and t2 at 3R and 5R, never fixed sells since the owner's D-013); the client plays it against the bars after the
 // signal. The review reads the plan's ORIGINAL stop; the breakeven stop is Trade Story's (games/tradeStory.js). This
 // fixture keeps its old levels (t1 at 2R, t2 at 3R): reviewTrade reads whatever prices the plan carries.
 const K = { o: 10.2, h: 11.2, l: 10.5, c: 11.1 }
 const KICK = { skill: 'setup.family3.kicker', direction: 'bullish', entry: 10.71, stop: 10.5, t1: 11.13, t2: 11.34, enters_intraday: true }
 
-describe('the house trims on a plan', () => {
+describe('the marks on a plan', () => {
   it('reads trim_r from the plan, and 3R and 5R when an older plan has none', () => {
     expect(TRIM_R).toEqual([3, 5])
     expect(trimR({ trim_r: [3, 5] })).toEqual([3, 5])
@@ -21,6 +21,21 @@ describe('the house trims on a plan', () => {
     expect(trimLabels({ trim_r: [2.5, 4] })).toEqual(['2.5R', '4R'])
     expect(trimLabels(undefined)).toEqual(['3R', '5R'])
     expect([timesWord(2), timesWord(3), timesWord(5), timesWord(7)]).toEqual(['twice', 'three times', 'five times', '7 times'])
+  })
+})
+
+describe('the day of the trade (D-013: the buy day is day 1; we usually wait until day 3 at the earliest to sell)', () => {
+  it('counts the signal day, where every plan buys, as day 1', () => {
+    expect(FIRST_SELL_DAY).toBe(3)
+    expect([0, 1, 2, 3].map(tradeDay)).toEqual([1, 2, 3, 4])
+    expect(tradeDay(null)).toBe(null)
+    expect(tradeDay(-1)).toBe(null)
+    // day 1 and day 2 are too early; day 3 is the earliest a sell can be the call
+    expect([0, 1, 2, 3].map(sellTooEarly)).toEqual([true, true, false, false])
+    expect(sellTooEarly(undefined)).toBe(false)
+    expect([dayName(0), dayName(1), dayName(4)]).toEqual(['day 1, the buy day', 'day 2', 'day 5'])
+    expect(dayLine(2)).toBe('This is day 3 of the trade.')
+    expect(dayLine(null)).toBe('')
   })
 })
 

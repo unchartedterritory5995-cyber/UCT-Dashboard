@@ -16,6 +16,8 @@ vi.mock('../../components/StockChart', () => ({
       data-first={props.barsOverride?.[0]?.t}
       data-entry={props.entryDate}
       data-exit={props.exitDate}
+      data-markers={(props.markers || []).map((m) => m.text).join('|')}
+      data-annotations={(props.annotations || []).length}
     >
       <span>chart:{props.sym}</span>
       <span>bars:{(props.barsOverride || []).length}</span>
@@ -117,6 +119,47 @@ describe('DrillPlayer', () => {
     expect(again).toHaveTextContent('Replay what happened')
     fireEvent.click(again)
     await screen.findByTestId('drill-replay-skip')
+  })
+
+  // the visuals plan (2026-11-14): a course question bought on the chart's last day carries its trade from the research
+  // (courses_lib chart.trade -> reveal.trade); after the answer the entry and stop are drawn and the trade's marks land as
+  // the replay reaches their day: BOUGHT at once, STOPPED only when the stop's day has played
+  it('draws the trade of a course chart after the answer, its marks landing with the replay', async () => {
+    const set = tenSet()
+    set.items[0] = item('recall', 'si_c1', { question: 'Where is the stop?', kind: 'mcq', choices: ['The buy point', 'The stop', 'The target', 'The low'] }, true)
+    const base = makeFetcher(set)
+    const fetcher = vi.fn(async (url, opts = {}) => {
+      const r = await base(url, opts)
+      if (url === '/api/study/attempts' && opts.body?.item_id === 'si_c1') {
+        r.reveal = { ...r.reveal, trade: { entry: 119.5, stop: 110, t1: 148, t2: 167, direction: 'bullish', enters_intraday: true, trim_r: [3, 5] } }
+      }
+      return r
+    })
+    render(<DrillPlayer open onClose={() => {}} fetcher={fetcher} />)
+    await screen.findByTestId('stock-chart')
+    expect(screen.getByTestId('stock-chart').getAttribute('data-markers')).toBe('')
+    await answerChoice('The buy point')
+    fireEvent.click(screen.getByTestId('drill-takeover-go'))
+    await screen.findByTestId('drill-replay-skip')
+    expect(screen.getByTestId('drill-key')).toHaveTextContent('Entry')
+    expect(Number(screen.getByTestId('stock-chart').getAttribute('data-annotations'))).toBeGreaterThan(0)
+    const before = screen.getByTestId('stock-chart').getAttribute('data-markers')
+    expect(before).toContain('BOUGHT')
+    expect(before).not.toContain('STOPPED')
+    fireEvent.click(screen.getByTestId('drill-replay-skip'))
+    await waitFor(() => expect(screen.getByTestId('stock-chart').getAttribute('data-markers')).toContain('STOPPED'))
+  })
+
+  it('marks the decision day on a course chart with no trade once the bars after it play', async () => {
+    const set = tenSet()
+    set.items[0] = item('recall', 'si_c2', { question: 'What is a pivot?', kind: 'mcq', choices: ['The buy point', 'The stop', 'The target', 'The low'] }, true)
+    render(<DrillPlayer open onClose={() => {}} fetcher={makeFetcher(set)} />)
+    await screen.findByTestId('stock-chart')
+    await answerChoice('The buy point')
+    fireEvent.click(screen.getByTestId('drill-takeover-go'))
+    await screen.findByTestId('drill-replay-skip')
+    expect(screen.getByTestId('stock-chart').getAttribute('data-markers')).toBe('DECISION DAY')
+    expect(screen.queryByTestId('drill-key')).not.toBeInTheDocument()
   })
 
   it('shows the status line as "Question N of 10" and advances it', async () => {

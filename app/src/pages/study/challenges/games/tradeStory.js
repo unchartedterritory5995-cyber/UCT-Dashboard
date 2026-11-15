@@ -5,37 +5,57 @@
 // THE PLAY. A real setup fired on the last candle of a chart (POST /api/study/spot-setup with `need_plan`: a chart whose
 // last candle is its setup and nothing else, and whose setup has a trade plan). The member names it (scored on the server
 // through /attempts, Hard mode's answer), and the trade is entered on that setup's own plan: the reveal's `trade`
-// (api/services/study_trade.py: the detector's entry and stop, the house trims at 3R and 5R, the trail in the detector's
-// words; docs/study/TRADE_PLANS.md). Then the bars after the signal replay, and the replay STOPS at each moment the plan
+// (api/services/study_trade.py: the detector's entry and stop, the marks at 3R and 5R, the trail in the detector's words;
+// docs/study/TRADE_PLANS.md). Then the bars after the signal replay, and the replay STOPS at each moment the plan
 // defines, and only there:
-//   3R reached         the plan sells a third (the first trim); the stop on the rest moves up to breakeven
-//   5R reached         the plan sells another third (the second trim); the last third trails
-//   the post-gap high  the plan takes some off (Gap Support's trim, below)
+//   3R reached         a mark on the ruler: the stop moves up to breakeven; a sell only where the day and the move say so
+//   5R reached         in the 5 to 10R zone: a first sell into strength is often best from day 3 on; then the trail
+//   the post-gap high  the plan's own place to take some off (Gap Support, below)
 //   the first return   back at the high-volume close (High Volume Edge's decision point, below; not scored until the
 //                      owner rules what the plan does there)
 //   the stop trades    the plan is out of what is left (the plan's stop before 3R, breakeven after it)
 //   the trail breaks   the plan is out of what is left (only where the plan names a trail the bars can measure)
-// At each stop the member picks Hold, Sell a third, or Sell the rest (Cover a third, Cover the rest on a short). Between
-// them nothing is asked.
+// At each stop the member picks Hold, Sell some, or Sell the rest (Cover some, Cover the rest on a short). Between them
+// nothing is asked.
 //
-// THE ACCOUNT RULEBOOK (docs/study/sizing_rule.md §9, the owner, 2026-11-09) sets the trims and the stop on what is left:
-//   B19  the first trim is a third at 3R, the hard rule; at that trim the stop on the rest moves up to breakeven ("breakeven
-//        stop at 2-5R ideally": the first trim is the taught default inside that window)
-//   E51  a second third at 5R; then trail the last third
-//   E52  the default trail is a close under the 10-day or 21-day average; the setup plans also name their own trail ("under
-//        each higher low"), which is what this replay measures, from the 5R trim on, starting from the breakeven stop
-//   F63  a trim level the day opens past is taken at the open
-//   B20  a gap through the stop: the first 30-minute low of the gap day is the new stop, out if the first 30 minutes take
-//        the loss past 2R. A daily chart cannot see that bar, so the replay fills at the open ("A stop cannot catch an
-//        overnight gap", VOICE.md §3) and the why says the house rule in one sentence
-//   E57  entries are market orders
-// The server's plan carries the trims as trim_r [3, 5] (hardMode.trimR reads it; an older plan without it reads the same),
-// trim_fraction "a third" and breakeven_at "t1". THE FRACTION IS THE RULEBOOK'S: a third at each trim, so the result is
-// still never one R number for the whole trade: it is the R of each exit (3R, 5R, where the last third went), side by
-// side with the plan's. The two trims the plans name on their own (the post-gap high, the high-volume close) say "some
-// off", the plan's own words: the rulebook sizes the trims at 3R and 5R, not those.
+// THE OWNER'S RULINGS, 2026-11-12 (docs/study/setups/RULINGS_2026-11-12.json; the Flat Base card's `management` and its
+// fb.trim_1, fb.trim_2, fb.trim_gap_open, fb.breakeven and fb.trail carry the same words). They replaced the account
+// rulebook's trims (docs/study/sizing_rule.md §9: B19 "a third at 3R", E51 "a third at 5R", F63 "a trim level the day
+// opens past is taken at the open"), which this game used to score:
+//   D-013     "sometimes it is not R based. SOmetimes it is day based. Looking for 3-5-7 day push for our first sell", and
+//             in chat, "I very rarely sell on the day 1 of the buy day. I usually wait until day 3 at the earliest. SO
+//             3-5-7 day or 5-10 R is often best." The first sell is a judgment, later sells are a judgment too, and what is
+//             left trails. No call may key "sell a third at 3R", or any day-1 sell, as the right one.
+//   breakeven the stop may move to breakeven between 2R and 5R, or at the first sell (fb.breakeven; B19's window stands).
+//             This replay moves it at 3R, inside that window, whatever the member did, as it always has.
+//   GAP-TRIM  "Optional, my judgment": a gap up past a level at the open is not an automatic sell; selling part into a big
+//             gap is a judgment, never a rule.
+//   D-021     the trail reads the 9 EMA and the 20 EMA (the plans' words, study_trade.PLANS), never the 10-day or 21-day.
+//   B20       a gap through the stop: the first 30-minute low of the gap day is the new stop, out if the first 30 minutes
+//             take the loss past 2R. A daily chart cannot see that bar, so the replay fills at the open ("A stop cannot
+//             catch an overnight gap", VOICE.md §3) and the why says the house rule in one sentence (B20 stands: the Flat
+//             Base card's `gap_against`)
+//   E57       entries are market orders
+// THE DAY. He counts the buy day as day 1 (the course does too: "By noon on the same day ... Rarely sell on day 1"), so
+// the signal day, where every plan buys, is day 1 and session k after it is day k + 1 (hardMode.dayName). Every day this
+// game names is counted that way, so "day 3" on the screen is his day 3.
+// THE CALLS ON THE PLAN, at a mark (3R, 5R, the post-gap high, or two of them on one bar), read in this order:
+//   early  day 1 or day 2                                   Hold only: we very rarely sell that early
+//   zone   about 5R or more (5R itself, or a fill there)    Sell some is the best call; Hold is a judgment too
+//   push   day 3 on, a 3, 5 or 7 day push into it           Sell some is the best call; Hold is a judgment too
+//   named  the post-gap high, day 3 on                      Sell some is the best call (the plan's own words); Hold too
+//   gap    it opened past the level, day 3 on               Hold is the best call; selling part is optional (GAP-TRIM)
+//   mark   none of these: a mark on the ruler, nothing more Hold only: 3R alone is never a reason to sell
+// A PUSH is days in a row, ending on the day the mark traded, each trading over the high of the day before; the buy day
+// is the first day of a push that runs from it (pushDays). It is known when the replay stops: the mark's own day has
+// already traded over the day before (a mark is reached on a new high for the trade), and the days before it are whole.
+// Sell the rest is on the plan only at the stop and where the trail breaks. A point carries `answer` (the plan's best
+// call, which the plan's own exits follow) and `calls` (every call on the plan there, the best first).
+// THE SIZE. Sell some is part of the position; nothing here weighs the parts, so the result is never one R number for the
+// whole trade: it is the R of each exit, side by side with the plan's. The server's plan carries the marks as trim_r
+// [3, 5] (hardMode.trimR reads it; an older plan without it reads the same) and breakeven_at "t1".
 //
-// THE TRIMS THE PLANS NAME (the owner, 2026-11-09, on the two trim notes in study_trade.PLANS: "yes add those stops too").
+// THE PLACES THE PLANS NAME (the owner, 2026-11-09, on the two notes in study_trade.PLANS: "yes add those stops too").
 // THE POST-GAP HIGH (Gap Support: "the post-gap high is the first place to take some off"). The detector
 // (uct_gap_support.py) builds the setup on one up-gap: the most recent true gap of 4% or more, on twice the 50-day volume,
 // that held on its day, within 60 sessions, never closed back into, and tested by the signal day (its _first_passing).
@@ -46,63 +66,64 @@
 // itself traded to 108.18, over the run's 107.85, so 108.18 is the post-gap high on the screen. The replay stops the
 // first session after the entry whose high reaches it, while it sits at least a cent over the entry and the trade is
 // still open (a session that hits the stop ends the trade before its high counts, as hardMode.reviewTrade reads it).
-// The plan takes some off there: filled at the level, or at the open on a day that opened over it. On the same bar as
-// 3R or 5R the replay asks once and says both (it joins the trim nearest it in price); over 5R it is still asked.
+// From day 3 on the plan takes some off there (its own words; holding is a judgment too); on day 1 or 2 it holds (D-013).
+// A sell fills at the level, or at the open on a day that opened over it. On the same bar as 3R or 5R the replay asks
+// once and says both (it joins the mark nearest it in price); over 5R it is still asked.
 // THE FIRST RETURN TO THE HIGH-VOLUME CLOSE (High Volume Edge: "the first return to the high-volume close, often weeks
 // later, is the cleanest decision point"). The high-volume close is the entry. The first return: after at least one
 // close over the entry (under it, on a short), the first LATER session whose low trades at or under the entry (high at
 // or over, on a short), while that session does not hit the stop and the trade is still open. A day that dips to the
 // close and closes back over it before any close away from it has not left the level, so it is not a return. An exit
-// there fills at the entry, or at the open on a day that opened past it. On a session that also reaches a trim the
-// trim is asked first (a daily bar does not say which came first). What the plan does there is not ruled yet
+// there fills at the entry, or at the open on a day that opened past it. On a session that also reaches a mark the
+// mark is asked first (a daily bar does not say which came first). What the plan does there is not ruled yet
 // (HVE_RETURN_CALL): until it is, the replay asks, says the plan's words and its stop, and scores nothing, either way.
-// After the 3R trim the stop on what is left IS the entry, so a return to the high-volume close from then on is the
-// breakeven stop trading, not a decision point: the replay stops there as the stop.
+// From 3R the stop IS the entry, so a return to the high-volume close from then on is the breakeven stop trading, not a
+// decision point: the replay stops there as the stop.
 //
-// THE BREAKEVEN STOP, MEASURED (B19). hardMode.reviewTrade reads the bars on the plan's ORIGINAL stop (when each trim
-// traded, when the stop did). From the session after 3R traded, this replay reads the bars itself: the first bar whose
-// low trades at or under the entry (high at or over it, on a short) exits what is left at the entry, or at the open when
-// the day opened past it. A bar that hits the breakeven stop ends the trade before its range counts (the way reviewTrade
+// THE BREAKEVEN STOP, MEASURED. hardMode.reviewTrade reads the bars on the plan's ORIGINAL stop (when each mark traded,
+// when the stop did). From the session after 3R traded, this replay reads the bars itself: the first bar whose low
+// trades at or under the entry (high at or over it, on a short) exits what is left at the entry, or at the open when the
+// day opened past it. A bar that hits the breakeven stop ends the trade before its range counts (the way reviewTrade
 // reads a stop), so a 5R reached on or after that bar is not a point. reviewTrade's stop after 3R is never used: the
 // breakeven stop replaces it (it sits closer than the plan's stop, so nothing is missed).
 //
-// THE TRAIL, MEASURED (E51, E52, the plans' own words). Four plans name "under each higher low" (the Kicker, the Oops
-// Reversal, the Slingshot, the Launchpad; three of them offer an average as the other way, which would need an average
-// type the plan does not name). From the 5R trim on, the stop on the last third starts at breakeven and is lifted by the
-// higher lows, read off the bars: a day whose low sits under the lows of the days either side of it, and above the low
-// before it (the signal day's low for the first one). The stop moves up under each one once the day after it has
-// printed, never down, and the trail breaks when price trades under it; until a higher low has lifted it, the trail IS
-// the breakeven stop. A plan with no trail (the High Volume Edge) or one whose trail is not a level the bars can place
-// (the Gap Support's "if it drifts sideways at the gap") keeps the last third on the breakeven stop.
+// THE TRAIL, MEASURED (the plans' own words). Four plans name "under each higher low" (the Kicker, the Oops Reversal, the
+// Slingshot, the Launchpad; three of them offer the 9 or 20 EMA as the other way, which the bars here do not carry). From
+// 5R on, the stop on what is left starts at breakeven and is lifted by the higher lows, read off the bars: a day whose
+// low sits under the lows of the days either side of it, and above the low before it (the signal day's low for the
+// first one). The stop moves up under each one once the day after it has printed, never down, and the trail breaks when
+// price trades under it; until a higher low has lifted it, the trail IS the breakeven stop. A plan with no trail (the
+// High Volume Edge) or one whose trail is not a level the bars can place (the Gap Support's "if it drifts sideways at the
+// gap") keeps what is left on the breakeven stop.
 //
 // HOW THE BARS ARE READ. hardMode.reviewTrade, the review Hard mode, Draw it and Weekend Watchlist already draw: when each
-// trim traded, when the plan's stop did (a bar that reaches the stop ends the trade before its extreme counts), with the
+// mark traded, when the plan's stop did (a bar that reaches the stop ends the trade before its extreme counts), with the
 // Kicker's and the Oops's same-day entry. A stop or a trail that the day OPENED beyond fills at the open: "A stop cannot
 // catch an overnight gap" (the owner's own line, docs/study/VOICE.md §3; the house gap rule, B20, is said in the why). A
-// trim level the day opened past fills at the open too (F63; the level never printed that day, so the replay never says
-// it "traded" there). Every exit's R is measured the same way, on the fill and the plan's own prices to the cent, so each
-// R agrees with the prices on the screen.
+// mark the day opened past is where a sell would fill at the open (the level never printed that day, so the replay never
+// says it "traded" there). Every exit's R is measured the same way, on the fill and the plan's own prices to the cent,
+// so each R agrees with the prices on the screen.
 // Stable on a prefix: the points found on the first L sessions are the points of the whole strip up to session L.
-import { reviewTrade, timesWord, trimLabels, trimR, withArticle } from '../hardMode'
+import { SELL_ZONE_R, dayName, reviewTrade, sellTooEarly, timesWord, trimLabels, trimR, withArticle } from '../hardMode'
 import { SETUP_SKILLS } from '../challengeBank'
 
 export const STORY_KIND = 'story'
 export const STORY_TOTAL = 4
 export const STORY_VIEW = 90           // sessions the question frames before the answer (a phone frames fewer)
 export const STORY_VIEW_PHONE = 60
-export const STORY_SOURCE = 'Our trade plans and the account rulebook · course unit F10.05, Trims, trails and scaling out'
+export const STORY_SOURCE = 'Our trade plans and rules · course unit F10.05, Trims, trails and scaling out'
 export const EMPTY_LINE = 'No questions in this game yet. They arrive as the courses are approved.'
 export const FAILED_LINE = 'The trades did not load. Check your connection and try again.'
-/** Why the result is never one number for the whole trade: the rulebook's trims are thirds, each with its own R. */
-export const EXIT_NOTE = 'The plan sells a third at 3R and a third at 5R, then trails the last third, so each exit shows its own R.'
+/** Why the result is never one number for the whole trade: each sell is part of the position, each with its own R. */
+export const EXIT_NOTE = 'Each sell is part of the position, and what is left trails, so each exit shows its own R.'
 /** The trade question on the last candle. */
 export const ENTRY_Q = 'A setup fired on the last candle. Which one?'
-export const ENTRY_DETAIL = 'Name it, and you take the trade on its own plan: the entry, the stop, and trims at 3R and 5R.'
+export const ENTRY_DETAIL = 'Name it, and you take the trade on its own plan: the entry, the stop, and the 3R and 5R marks.'
 /** A chart whose answer could not be scored, and a reveal that came back without its plan. */
 export const NOT_SCORED = 'This chart could not be scored. Skip it and the next one loads.'
 export const NO_PLAN = 'No trade plan came back for this chart, so there is nothing to manage. On to the next one.'
 /** A trade where nothing on the plan traded in the sessions there are. */
-export const NOTHING_TRADED = 'Nothing on the plan traded in the sessions shown: no trim, no stop.'
+export const NOTHING_TRADED = 'Nothing on the plan traded in the sessions shown: no mark, no stop.'
 
 /** The setups that come with a trade plan (study_trade.PLANS). The Bear gap has none, so it never plays here. */
 export const PLAN_SKILLS = Object.freeze(['setup.family3.kicker', 'setup.family1.launchpad', 'setup.family4.slingshot', 'setup.family4.oops',
@@ -113,9 +134,39 @@ export const HVE = 'setup.family3.hve'
 
 // ── the three calls ───────────────────────────────────────────────────────────────────────────────────────────────────
 export const HOLD = 'hold'
-export const TRIM = 'trim'
+export const TRIM = 'trim'      // Sell some: part of the position (the id keeps its name; the tile never says a fraction)
 export const ALL = 'all'
 export const ACTIONS = Object.freeze([HOLD, TRIM, ALL])
+
+/** THE READS AT A MARK and the calls on the plan for each, the best first (the header: D-013, GAP-TRIM). */
+export const READS = Object.freeze({
+  early: Object.freeze([HOLD]),
+  zone: Object.freeze([TRIM, HOLD]),
+  push: Object.freeze([TRIM, HOLD]),
+  named: Object.freeze([TRIM, HOLD]),
+  gap: Object.freeze([HOLD, TRIM]),
+  mark: Object.freeze([HOLD]),
+})
+/** "Looking for 3-5-7 day push for our first sell" (D-013): a push of this many days or more. */
+export const PUSH_DAYS = 3
+
+/** THE PUSH into session `s` (the header): the days in a row, ending on `s`, each trading over the high of the day
+ *  before (under the low, on a short); when the run reaches back to the buy day (the signal, session 0), the buy day is
+ *  its first day. 0 for a session that did not trade past the day before. */
+export function pushDays(signal, forward, s, long = true) {
+  const fwd = Array.isArray(forward) ? forward : []
+  if (!signal || !Number.isInteger(s) || s < 0 || s > fwd.length) return 0
+  let n = 0
+  for (let k = s; k >= 1; k--) {
+    const prev = k === 1 ? signal : fwd[k - 2]
+    if (!(long ? fwd[k - 1].h > prev.h : fwd[k - 1].l < prev.l)) return n
+    n += 1
+  }
+  return n + 1
+}
+
+/** Is `pick` a call on the plan at this point? (Every call in `calls`; a point from before them reads its `answer`.) */
+export const onPlan = (point, pick) => pick != null && (Array.isArray(point?.calls) ? point.calls : [point?.answer]).includes(pick)
 
 /** THE CALL AT THE FIRST RETURN TO THE HIGH-VOLUME CLOSE, not yet confirmed by the owner (2026-11-09). null: the replay
  *  stops there and asks, says the plan's words and its stop, and counts the call neither right nor wrong. 'hold' |
@@ -123,30 +174,37 @@ export const ACTIONS = Object.freeze([HOLD, TRIM, ALL])
 export const HVE_RETURN_CALL = null
 /** The call a ruling names, as the game's own: null for none (or anything else). */
 export const hveAnswer = (call) => (call === 'hold' ? HOLD : call === 'trim' ? TRIM : call === 'sell' ? ALL : null)
-/** The two trim notes, in study_trade.PLANS' own words (the plan's `trim_note` wins when the reveal carries it). */
+/** The two plan notes, in study_trade.PLANS' own words (the plan's `trim_note` wins when the reveal carries it). */
 export const PGH_NOTE = 'the post-gap high is the first place to take some off'
 export const HVC_NOTE = 'the first return to the high-volume close, often weeks later, is the cleanest decision point'
 export const trimNote = (plan) => plan?.trim_note || (plan?.skill === GAP_SUPPORT ? PGH_NOTE : plan?.skill === HVE ? HVC_NOTE : null)
-/** The two plan-named decision points' names inside a sentence, and their short names in a tag. The trims (t1, t2) are
+/** The two plan-named decision points' names inside a sentence, and their short names in a tag. The marks (t1, t2) are
  *  named by their label, '3R' and '5R' (the plan's trim_r). */
 const NAMED = Object.freeze({ pgh: 'the post-gap high', hvc: 'the high-volume close' })
 const SHORT = Object.freeze({ pgh: 'post-gap high', hvc: 'high-volume close' })
 const isTarget = (id) => id === 't1' || id === 't2'
-/** A point's or a leg's name inside a sentence: a trim by its label, the others by their name. */
+/** A point's or a leg's name inside a sentence: a mark by its label, the others by their name. */
 const nameOf = (x) => (isTarget(x.id) ? x.label : NAMED[x.id])
 const shortOf = (x) => (isTarget(x.id) ? x.label : SHORT[x.id])
 
-/** The tile's words. The house trim is a third (B19, E51); a short is bought back, so its calls are "Cover". */
+/** The tile's words. A partial sell is "some" (D-013: the size and the moment are a judgment, never a fixed third); a
+ *  short is bought back, so its calls are "Cover". */
 export function actionLabel(action, long = true) {
   if (action === HOLD) return 'Hold'
-  if (action === TRIM) return long ? 'Sell a third' : 'Cover a third'
+  if (action === TRIM) return long ? 'Sell some' : 'Cover some'
   if (action === ALL) return long ? 'Sell the rest' : 'Cover the rest'
   return ''
 }
 
-/** What the plan does at a stop, said as the plan doing it ("sells a third"); `again` for the second trim. */
-function planVerb(action, long, again = false) {
-  if (action === TRIM) return `${long ? 'sells' : 'covers'} ${again ? 'another' : 'a'} third`
+/** Every call on the plan at a point, as a label: "Sell some or hold", "Hold", "Sell the rest". */
+export function callsLabel(point, long = true) {
+  const calls = Array.isArray(point?.calls) && point.calls.length ? point.calls : [point?.answer]
+  return calls.map((a, i) => (i ? actionLabel(a, long).toLowerCase() : actionLabel(a, long))).filter(Boolean).join(' or ')
+}
+
+/** What the plan does at a stop, said as the plan doing it ("sells some"). */
+function planVerb(action, long) {
+  if (action === TRIM) return long ? 'sells some' : 'covers some'
   if (action === ALL) return long ? 'sells the rest' : 'covers the rest'
   return 'holds'
 }
@@ -166,7 +224,7 @@ export const rText = (r) => {
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`
 const cap = (t) => (t ? t.charAt(0).toUpperCase() + t.slice(1) : t)
 
-/** A plan this game can play: an entry, a stop on the right side of it, and both trims. */
+/** A plan this game can play: an entry, a stop on the right side of it, and both marks. */
 export function planOk(plan) {
   if (!plan || typeof plan !== 'object') return false
   const { entry, stop, t1, t2 } = plan
@@ -194,7 +252,7 @@ export function rAt(plan, price) {
  *  exact and rounds up: 1.01 on 20.00 is 5.05%, read 5.1%). */
 export const riskPct = (plan) => (planOk(plan) ? Math.round((riskCents(plan) * 1000) / cents(plan.entry)) / 10 : null)
 
-/** The two trims as the game names them: { t1: { label, r }, t2: { label, r } }, from the plan's trim_r ([3, 5] when a
+/** The two marks as the game names them: { t1: { label, r }, t2: { label, r } }, from the plan's trim_r ([3, 5] when a
  *  plan lacks it). */
 export function trimsOf(plan) {
   const [m1, m2] = trimR(plan)
@@ -276,9 +334,10 @@ function fillAt(level, bar, long) {
   return { fill: gap ? bar.o : level, gap }
 }
 
-/** A trim level the day reached: filled at the level, or at the open when the day opened past it (F63: a gap up through
- *  a long's trim, down through a short's): the level itself never printed that day, so the open is where the order
- *  filled. The signal day of a same-day entry is never a gap (the trade was entered during it). */
+/** A mark the day reached: a sell there fills at the level, or at the open when the day opened past it (a gap up through
+ *  a long's mark, down through a short's): the level itself never printed that day, so the open is where a sell fills
+ *  (GAP-TRIM: whether to sell there is a judgment, never a rule). The signal day of a same-day entry is never a gap (the
+ *  trade was entered during it). */
 function targetFill(level, bar, long, session) {
   const gap = session > 0 && !!bar && (long ? bar.o > level : bar.o < level)
   return { fill: gap ? bar.o : level, gap }
@@ -286,29 +345,43 @@ function targetFill(level, bar, long, session) {
 
 const legOf = (p) => ({ id: p.id, label: p.label, level: p.level, fill: p.fill, gap: p.gap, r: p.r, ...(p.breakeven ? { breakeven: true } : {}) })
 /** A decision point's levels in the order price reaches them: the two of a post-gap high that traded on the same bar as a
- *  trim, else the point itself. */
+ *  mark, else the point itself. */
 export const legsOf = (p) => p?.legs || (p ? [legOf(p)] : [])
 /** A point the plan makes no call at (the first return to the high-volume close, until the owner rules): never scored. */
 export const isFree = (p) => !!p && p.answer == null
 
+/** THE READ AT A MARK (the header's table, in its order): day 1 or 2 is early whatever the move; then about 5R or more
+ *  (5R itself when the plan's second mark is 5R or over, or any level filled there) is the zone; then a push of
+ *  PUSH_DAYS or more; then the post-gap high, the plan's own place; then a gap past the level; else a mark and no more. */
+export function readOf(p, push, zoneMult = 5) {
+  if (sellTooEarly(p.session)) return 'early'
+  const legs = legsOf(p)
+  if (legs.some((l) => (l.id === 't2' && zoneMult >= 5) || (Number.isFinite(l.r) && l.r >= SELL_ZONE_R))) return 'zone'
+  if (push >= PUSH_DAYS) return 'push'
+  if (legs.some((l) => l.id === 'pgh')) return 'named'
+  if (legs.some((l) => l.gap)) return 'gap'
+  return 'mark'
+}
+
 /** THE STORY: the decision points the plan defines on these bars, in order, and where the trade ends.
  *  points: [{ id 't1' | 't2' | 'pgh' | 'hvc' | 'stop' | 'trail', label, session (0 = the signal day, for a same-day
  *    entry), level, r (the exit's R, measured like every other number on the screen: the fill on the plan's own prices
- *    to the cent, so 3.0 and 5.0 at the trims unless the day gapped past one or the plan rounded it a cent), fill, gap,
- *    low (the higher low's session, for the trail), answer (TRIM at the trims and the post-gap high, ALL at a stop, the
- *    ruling at the high-volume close: null while there is none), breakeven (true on the breakeven stop: id 'stop', label
- *    'Breakeven stop', level the entry) }]
- *    A post-gap high on the same bar as a trim is ONE point (id 'pgh') with `legs`, both levels in the order price
+ *    to the cent, so 3.0 and 5.0 at the marks unless the day gapped past one or the plan rounded it a cent), fill, gap,
+ *    low (the higher low's session, for the trail), answer (the plan's best call: at a mark its read's first call, ALL
+ *    at a stop, the ruling at the high-volume close, null while there is none), calls (every call on the plan there, the
+ *    best first; [] at a point the plan leaves to the member), at a mark also push (pushDays) and read (readOf),
+ *    breakeven (true on the breakeven stop: id 'stop', label 'Breakeven stop', level the entry) }]
+ *    A post-gap high on the same bar as a mark is ONE point (id 'pgh') with `legs`, both levels in the order price
  *    reaches them; its level, fill, gap and r are the first leg's (where Sell the rest fills). The first return to the
  *    high-volume close also carries `above`, the session that first closed away from it.
  *  end: { session, kind 'stop' | 'trail' | 'hvc' | 'open', r, breakeven? }   ('open': nothing ended it on the bars there
  *    are; r at the last close; 'hvc': a 'sell' ruling at the first return; breakeven: true when the stop was the
  *    breakeven stop)
- *  trail: the stop on the last third from 5R on, [{ known, level, low }] (each step from the end of session `known`; the
+ *  trail: the stop on what is left from 5R on, [{ known, level, low }] (each step from the end of session `known`; the
  *    first at breakeven, low null, unless a higher low already sits over it), or null
  *  shown: hardMode.reviewTrade on the bars of the story itself, for the chart's lines and marks (the plan's original stop).
  *  pgh: the post-gap high the replay watches (pghLevel), or null.
- *  t1At: the session 3R traded (the stop on the rest is breakeven from the next session), or null.
+ *  t1At: the session 3R traded (the stop is breakeven from the next session), or null.
  *  opts: { pgh: postGapHigh(chart).level, hveCall: the ruling at the first return (HVE_RETURN_CALL when left out) }.
  *  Stable on a prefix: the points found on the first L sessions are the points of the whole strip up to session L. */
 export function storyOf(plan, signal, forward, opts = {}) {
@@ -322,14 +395,14 @@ export function storyOf(plan, signal, forward, opts = {}) {
   let trail = null
   let t2At = t.t2At
   if (t.t1At == null) {
-    // before the first trim the stop is the plan's, read the way reviewTrade reads it
+    // before 3R the stop is the plan's, read the way reviewTrade reads it
     if (t.stoppedSession != null) {
       exit = { id: 'stop', session: t.stoppedSession, level: plan.stop, low: null, breakeven: false, ...fillAt(plan.stop, fwd[t.stoppedSession - 1], long) }
     }
   } else {
-    // THE BREAKEVEN STOP (B19): from the session after 3R traded, a bar at or through the entry exits what is left there, or
-    // at the open on a gap; it ends the trade before its range counts, so a 5R on or after it is not a point. Where the
-    // plan names a trail the bars can measure, the trail takes over after the 5R bar.
+    // THE BREAKEVEN STOP (fb.breakeven, inside his 2R to 5R): from the session after 3R traded, a bar at or through the
+    // entry exits what is left there, or at the open on a gap; it ends the trade before its range counts, so a 5R on or
+    // after it is not a point. Where the plan names a trail the bars can measure, the trail takes over after the 5R bar.
     const trails = t2At != null && trailMeasured(plan)
     const last = trails ? t2At : fwd.length
     for (let s = t.t1At + 1; s <= last; s++) {
@@ -341,8 +414,9 @@ export function storyOf(plan, signal, forward, opts = {}) {
     }
     if (exit && t2At != null && t2At >= exit.session) t2At = null
     if (!exit && trails) {
-      // THE TRAIL (E51, E52): from 5R on, the stop on the last third starts at breakeven (the higher of the plan's stop and the
-      // entry: the entry, on a long) and moves up under each higher low; until one lifts it, the trail IS the breakeven stop
+      // THE TRAIL (the plan's own words): from 5R on, the stop on what is left starts at breakeven (the higher of the
+      // plan's stop and the entry: the entry, on a long) and moves up under each higher low; until one lifts it, the trail
+      // IS the breakeven stop
       const lows = higherLows(signal, fwd)
       let level = Math.max(plan.stop, be)
       let low = null
@@ -368,10 +442,10 @@ export function storyOf(plan, signal, forward, opts = {}) {
     const tf = targetFill(plan[id], at > 0 ? fwd[at - 1] : signal, long, at)
     points.push({ id, label: labels[id].label, session: at, level: plan[id], r: rAt(plan, tf.fill), ...tf, low: null, answer: TRIM })
   }
-  if (exit) exit = { ...exit, label: exit.id === 'trail' ? 'Trail' : exit.breakeven ? 'Breakeven stop' : 'Stop', r: rAt(plan, exit.fill), answer: ALL }
+  if (exit) exit = { ...exit, label: exit.id === 'trail' ? 'Trail' : exit.breakeven ? 'Breakeven stop' : 'Stop', r: rAt(plan, exit.fill), answer: ALL, calls: [ALL] }
   // the sessions before the exit: a session that hits the stop (or breaks the trail) ends the trade before its range counts
   const open = Math.min(fwd.length, exit ? exit.session - 1 : fwd.length)
-  // THE POST-GAP HIGH (the header): the first session whose high reaches it; on a trim's bar, one point that says both
+  // THE POST-GAP HIGH (the header): the first session whose high reaches it; on a mark's bar, one point that says both
   const pgh = pghLevel(plan, opts.pgh)
   if (pgh != null) {
     let s = 0
@@ -381,7 +455,7 @@ export function storyOf(plan, signal, forward, opts = {}) {
       own.r = rAt(plan, own.fill)
       const same = points.filter((p) => p.session === s)
       if (same.length) {
-        // the trim nearest it, to the cent (a tie joins 3R, the first)
+        // the mark nearest it, to the cent (a tie joins 3R, the first)
         const off = (p) => Math.abs(cents(p.level) - cents(pgh))
         const near = same.reduce((a, p) => (off(p) < off(a) ? p : a))
         const legs = [legOf(near), legOf(own)].sort((a, b) => a.level - b.level)
@@ -390,8 +464,16 @@ export function storyOf(plan, signal, forward, opts = {}) {
       } else points.push({ ...own, low: null, answer: TRIM })
     }
   }
-  // THE FIRST RETURN TO THE HIGH-VOLUME CLOSE (the header): a close away from it, then a later session back at it. After the
-  // 3R trim the entry is the breakeven stop, so a return then is the stop (found above), never a decision point.
+  // THE CALLS ON THE PLAN at each mark (the header): the day, the push into it, the zone, the plan's own words, a gap. The
+  // plan's best call is the first; the plan's own exits follow it.
+  const zoneMult = trimR(plan)[1]
+  points = points.map((p) => {
+    const push = pushDays(signal, fwd, p.session, long)
+    const read = readOf(p, push, zoneMult)
+    return { ...p, push, read, calls: READS[read], answer: READS[read][0] }
+  })
+  // THE FIRST RETURN TO THE HIGH-VOLUME CLOSE (the header): a close away from it, then a later session back at it. From
+  // 3R the entry is the breakeven stop, so a return then is the stop (found above), never a decision point.
   if (plan.skill === HVE) {
     const e = plan.entry
     let above = 0
@@ -400,6 +482,7 @@ export function storyOf(plan, signal, forward, opts = {}) {
       if (!above) { if (long ? b.c > e : b.c < e) above = k; continue }
       if (long ? b.l > e : b.h < e) continue
       const hvc = { id: 'hvc', label: 'High-volume close', session: k, level: e, low: null, ...fillAt(e, b, long), answer: hveAnswer(opts.hveCall === undefined ? HVE_RETURN_CALL : opts.hveCall), above }
+      hvc.calls = hvc.answer == null ? [] : [hvc.answer]
       hvc.r = rAt(plan, hvc.fill)
       // a 'sell' ruling ends the trade there: nothing after it is the plan's
       if (hvc.answer === ALL) { exit = hvc; points = points.filter((p) => p.session <= k) } else points.push(hvc)
@@ -434,7 +517,7 @@ export function trailAt(story, k) {
   return cur
 }
 
-/** Has 3R traded by the end of `k` whole sessions? From then the stop on what is left is breakeven (B19). */
+/** Has 3R traded by the end of `k` whole sessions? From then the stop on what is left is breakeven (fb.breakeven). */
 export const breakevenAt = (story, k) => story?.t1At != null && k >= story.t1At
 
 /** The stop on what is left after `k` whole sessions: the trail once a higher low has lifted it, breakeven (the entry)
@@ -446,7 +529,7 @@ export function stopAt(story, plan, k) {
   return { kind: 'stop', level: plan.stop, low: null }
 }
 
-/** The member's exits from their calls: a Sell a third at a point exits some at that point's R (at each of its levels,
+/** The member's exits from their calls: a Sell some at a point exits some at that point's R (at each of its levels,
  *  where it says two), a Sell the rest exits the rest there (at the first level price reaches) and the member is out; a
  *  call after that moves nothing. Unanswered points are skipped. */
 export function exitsOf(points, picks) {
@@ -465,7 +548,7 @@ export function exitsOf(points, picks) {
 /** The plan's own exits: its answer at every point (none at a point it makes no call at). */
 export const planExits = (story) => exitsOf(story?.points, (story?.points || []).map((p) => p.answer))
 
-/** Where an exit was, in a sentence: a trim by its name, the post-gap high and the high-volume close by name and R, a
+/** Where an exit was, in a sentence: a mark by its name, the post-gap high and the high-volume close by name and R, a
  *  stop or a trail by its R. */
 const stopWord = (e) => (e.id === 'trail' ? 'trail' : e.breakeven ? 'breakeven stop' : 'stop')
 const where = (e) => (isTarget(e.id) ? `at ${e.label}` : NAMED[e.id] ? `at ${NAMED[e.id]}, ${rText(e.r)}` : `at ${rText(e.r)} on the ${stopWord(e)}`)
@@ -506,7 +589,7 @@ export function positionWord({ exits, out }) {
 export function eventLine(point, long = true) {
   const at = px(point.level)
   if (point.legs) {
-    // a post-gap high and a trim on one bar (a long: the lower one first)
+    // a post-gap high and a mark on one bar (a long: the lower one first)
     const [a, b] = point.legs
     if (b.gap) return `It opened over ${nameOf(a)} and ${nameOf(b)}, at ${px(b.fill)}.`
     if (a.gap) return `It opened over ${nameOf(a)}, at ${px(a.fill)}, and ${nameOf(b)} just traded, at ${px(b.level)}.`
@@ -526,7 +609,7 @@ export function eventLine(point, long = true) {
     }
     return point.gap ? `It opened ${long ? 'under' : 'over'} your stop, at ${px(point.fill)}.` : `Price just traded ${long ? 'down' : 'up'} through your stop, ${at}.`
   }
-  return point.gap ? `It opened under the trail, at ${px(point.fill)}.` : `Price just traded under ${at}, the higher low of day ${point.low}.`
+  return point.gap ? `It opened under the trail, at ${px(point.fill)}.` : `Price just traded under ${at}, the higher low of ${dayName(point.low)}.`
 }
 
 /** The question at a stop: what happened, then the call. A member who is already out is asked what the plan does (at a
@@ -539,8 +622,68 @@ export function questionOf(point, long = true, inPosition = true) {
 /** The tag over the question. */
 export const stopTag = (point) => `The replay stops · ${point.label}`
 
-/** What the plan does with the last third after 5R: the trail it names, where the bars can measure it; else the breakeven stop. */
-const rest = (plan) => (trailMeasured(plan) ? 'trails the last third under each higher low' : 'keeps the last third on the breakeven stop')
+/** What the plan does with what is left after 5R: the trail it names, where the bars can measure it; else the breakeven
+ *  stop. */
+const restLine = (plan) => (trailMeasured(plan) ? 'What is left trails under each higher low.' : 'What is left rides on the breakeven stop.')
+
+/** At 3R the replay moves the stop up to breakeven: inside the owner's window (fb.breakeven), said with it. */
+const beLine = (plan) => `The stop moves up to breakeven, ${px(plan.entry)}: we move it between 2R and 5R, or at the first sell.`
+
+/** A mark's name inside a sentence: "3R", "the post-gap high", "the post-gap high and 3R". */
+const markName = (p) => (p.legs ? `${nameOf(p.legs[0])} and ${nameOf(p.legs[1])}` : nameOf(p) || p.label)
+
+/** What follows a mark, whatever the call: the trail from 5R, the breakeven stop at 3R, the stop at the post-gap high. */
+function markTail(p, plan) {
+  const ids = legsOf(p).map((l) => l.id)
+  if (ids.includes('t2')) return restLine(plan)
+  if (ids.includes('t1')) return beLine(plan)
+  return 'What is left rides on the stop.'
+}
+
+/** The calls on the plan at a mark and its read (a point from before them is read again here). */
+function markCalls(p, plan) {
+  const read = p.read || readOf(p, p.push || 0, trimR(plan)[1])
+  return { read, calls: Array.isArray(p.calls) && p.calls.length ? p.calls : READS[read] }
+}
+
+/** The plan's call at a mark in one sentence: "The plan sells some; holding is a judgment too." */
+function markCall(p, plan, pick = null) {
+  const long = isLong(plan)
+  const { calls } = markCalls(p, plan)
+  const best = calls[0]
+  const doing = (a) => (a === HOLD ? 'holding' : long ? 'selling some' : 'covering some')
+  if (pick != null && pick !== best && calls.includes(pick)) return `The plan ${planVerb(best, long)}, and ${doing(pick)} is a judgment we make too.`
+  return calls.length > 1 ? `The plan ${planVerb(best, long)}; ${doing(calls[1])} is a judgment too.` : `The plan ${planVerb(best, long)}.`
+}
+
+/** WHY AT A MARK (the header's reads, D-013 and GAP-TRIM): the day, what it and the move say, the plan's call, what
+ *  follows. A Sell the rest is told first that the mark is not the exit. */
+function markWhyText(p, pick, plan) {
+  const long = isLong(plan)
+  const sell = long ? 'sell' : 'cover'
+  const selling = long ? 'selling' : 'covering'
+  const { read } = markCalls(p, plan)
+  const name = markName(p)
+  const legs = legsOf(p)
+  const zr = Math.max(...legs.map((l) => (Number.isFinite(l.r) ? l.r : -Infinity)))
+  const gapLeg = legs.find((l) => l.gap)
+  const pgh = legs.some((l) => l.id === 'pgh')
+  // the post-gap high is the plan's own place to take some off: said beside the day or the move that decides the read
+  const own = pgh && (read === 'zone' || read === 'push') ? ' The plan names the post-gap high as the first place to take some off.'
+    : pgh && read === 'early' ? ' The post-gap high is the plan\'s first place to take some off, from day 3 on.' : ''
+  const said = {
+    early: `We very rarely ${sell} on day 1 and usually wait until day 3 at the earliest.`,
+    zone: `${rText(zr)} is in the 5 to 10R zone, where a first ${sell} into strength is often best.`,
+    push: `It is ${p.push} days into a push, and ${selling} some into a 3, 5 or 7 day push is often best.`,
+    named: 'The plan names the post-gap high as the first place to take some off.',
+    gap: `It opened ${long ? 'over' : 'under'} ${gapLeg ? nameOf(gapLeg) : name}, and a gap past a level is not an automatic ${sell}: ${selling} part into a big gap at the open is a judgment, never a rule.`,
+    mark: `${cap(name)} is a mark on the ruler, not a ${sell} order, and there is no 3, 5 or 7 day push here.`,
+  }[read]
+  // where a sell fills on a day that opened past the level (the gap read has said it already)
+  const fills = gapLeg && (read === 'zone' || read === 'push' || read === 'named') ? ` It opened ${long ? 'over' : 'under'} ${nameOf(gapLeg)}, so a ${sell} fills at the open, ${rText(gapLeg.r)}.` : ''
+  const exit = pick !== ALL ? '' : p.legs ? 'Neither is the exit. ' : `${cap(name)} is not the exit. `
+  return `${exit}This is ${dayName(p.session)}. ${said}${own} ${markCall(p, plan, pick)} ${markTail(p, plan)}${fills}`
+}
 
 /** The stop on what is left at the first return to the high-volume close: the edge bar's low (its high on a short). */
 const edgeStop = (plan) => `${isLong(plan) ? 'under' : 'over'} it, at ${px(plan.stop)}, the edge bar's ${isLong(plan) ? 'low' : 'high'}`
@@ -549,56 +692,32 @@ const edgeStop = (plan) => `${isLong(plan) ? 'under' : 'over'} it, at ${px(plan.
  *  gap day is the new stop, out if the first 30 minutes take the loss past 2R; a daily chart cannot see that bar. */
 export const gapRule = (long = true) => `Our gap rule: the first 30-minute ${long ? 'low' : 'high'} of the gap day is the new stop, out if those 30 minutes take the loss past 2R. A daily chart cannot see that bar, so the open is the fill shown here.`
 
-/** Why the plan does what it does here, for the pick the member made: { ok, title, text }. Every line is the account
- *  rulebook's (docs/study/sizing_rule.md §9), the plan's own rule (docs/study/TRADE_PLANS.md,
- *  api/services/study_trade.replay_checks) or the owner's own words (VOICE.md §3). At a point the plan makes no call at,
- *  ok is null: the plan's words, its stop, and what the member did. */
+/** Why the plan does what it does here, for the pick the member made: { ok, title, text }. Every line is the owner's
+ *  2026-11-12 rulings (D-013, GAP-TRIM, fb.breakeven), the plan's own rule (docs/study/TRADE_PLANS.md,
+ *  api/services/study_trade.replay_checks), the house gap rule (B20) or the owner's own words (VOICE.md §3). A call is on
+ *  the plan when it is one of the point's `calls`. At a point the plan makes no call at, ok is null: the plan's words,
+ *  its stop, and what the member did. */
 export function whyOf(point, pick, plan) {
   const long = isLong(plan)
   const free = isFree(point)
-  const ok = free ? null : pick === point.answer
+  const ok = free ? null : onPlan(point, pick)
   const out = rText(point.r)
-  const { t1: T1, t2: T2 } = trimsOf(plan)
+  const { t1: T1 } = trimsOf(plan)
   const gap = point.gap ? ` It opened ${point.id === 'trail' || long ? 'under' : 'over'} the level: a stop cannot catch an overnight gap. ${gapRule(point.id === 'trail' || long)}` : ''
-  // a trim level the day opened past: the level never printed, the open is the fill (F63)
-  const past = point.gap ? ` It opened ${long ? 'over' : 'under'} ${nameOf(point) || point.label}, so the open is the fill, ${out} (rule F63).` : ''
-  const be = `The stop on the rest moves up to breakeven, ${px(plan.entry)}.`
-  const after2 = trailMeasured(plan) ? 'The last third trails under each higher low.' : 'The last third rides on the breakeven stop.'
   let text
-  if (point.legs) {
-    // the post-gap high and a trim on one bar: some off at the high (the plan's words), a third at the trim (the rulebook's)
-    const [a, b] = point.legs
-    const both = `${nameOf(a)} and ${nameOf(b)}`
-    const trimLeg = isTarget(a.id) ? a : b
-    const atTrim = trimLeg.id === 't1' ? `At ${T1.label} that is a third. ${be}` : `At ${T2.label} that is another third. ${after2}`
-    const then = trimLeg.id === 't1' ? 'moves the stop on the rest up to breakeven' : rest(plan)
-    const opened = a.gap ? ` It opened over ${b.gap ? both : nameOf(a)}, so the open is the fill, ${rText(a.r)} (rule F63).` : ''
-    text = ok ? `${cap(both)} both traded: the plan takes some off at each. ${atTrim}${opened}`
-      : pick === HOLD ? `At ${both} the plan takes some off. ${atTrim}${opened}`
-        : `Neither is the exit. The plan takes some off at ${both} and ${then}.${opened}`
-  } else if (point.id === 'pgh') {
-    text = ok ? `The plan names the post-gap high as the first place to take some off. What is left rides on the stop.${past}`
-      : pick === HOLD ? `At the post-gap high the plan takes some off: the first place to, in its own words.${past}`
-        : `The post-gap high is a place to take some off, not the exit. The plan takes some off here and keeps the rest on the stop.${past}`
+  if (point.legs || isTarget(point.id) || point.id === 'pgh') {
+    text = markWhyText(point, pick, plan)
   } else if (point.id === 'hvc') {
     const opened = point.gap ? ` It opened past it, so the open is the fill, ${out}.` : ''
     if (free) {
-      const did = pick === HOLD ? 'You held.' : `You ${long ? 'sold' : 'covered'} ${pick === TRIM ? 'a third' : 'the rest'} at ${out}.`
+      const did = pick === HOLD ? 'You held.' : `You ${long ? 'sold' : 'covered'} ${pick === TRIM ? 'some' : 'the rest'} at ${out}.`
       return { ok: null, title: 'Your call.', text: `The plan calls the first return to the high-volume close the cleanest decision point, and leaves the call to you. The stop is still ${edgeStop(plan)}. ${did}${opened} This one is not scored.` }
     }
     const tail = point.answer === HOLD ? `The stop stays ${edgeStop(plan)}.`
       : point.answer === TRIM ? 'What is left rides on the stop.' : `Out at ${out}.`
     text = `At the first return to the high-volume close, the cleanest decision point, the plan ${planVerb(point.answer, long)}. ${tail}${opened}`
-  } else if (point.id === 't1') {
-    text = ok ? `${T1.label} is the first trim: ${long ? 'sell' : 'cover'} a third. ${be}${past}`
-      : pick === HOLD ? `At ${T1.label} the plan ${planVerb(TRIM, long)}: ${T1.label} is the first trim. ${be}${past}`
-        : `${T1.label} is the first trim, not the exit. The plan ${planVerb(TRIM, long)} here and moves the stop on the rest up to breakeven.${past}`
-  } else if (point.id === 't2') {
-    text = ok ? `${T2.label} is the second trim: ${long ? 'sell' : 'cover'} another third. ${after2}${past}`
-      : pick === HOLD ? `At ${T2.label} the plan ${planVerb(TRIM, long, true)}: ${T2.label} is the second trim. ${after2}${past}`
-        : `${T2.label} is the second trim, not the exit. The plan ${planVerb(TRIM, long, true)} and ${rest(plan)}.${past}`
   } else if (point.id === 'stop' && point.breakeven) {
-    const sat = `The stop on what was left sat at breakeven, the entry, since the ${T1.label} trim.`
+    const sat = `The stop sat at breakeven, the entry, since ${T1.label} traded.`
     text = ok ? `${sat} Out at ${out}.${gap}`
       : pick === HOLD ? `${sat} At the stop the plan is out of all of it, at ${out}.${gap}`
         : `${sat} At the stop the plan ${planVerb(ALL, long)}, not part of it. Out at ${out}.${gap}`
@@ -607,22 +726,23 @@ export function whyOf(point, pick, plan) {
       : pick === HOLD ? `The stop is an appointment, not a debate. At the stop the plan is out of all of it, at ${out}.${gap}`
         : `At the stop the plan ${planVerb(ALL, long)}, not part of it. Out at ${out}.${gap}`
   } else {
-    const under = `Price traded under the higher low of day ${point.low}, ${px(point.level)}`
-    text = ok ? `The trail is the stop on the last third. ${under}: out at ${out}.${gap}`
-      : pick === HOLD ? `The trail is the stop on the last third. ${under}, so the plan sells the rest at ${out}.${gap}`
+    const under = `Price traded under the higher low of ${dayName(point.low)}, ${px(point.level)}`
+    text = ok ? `The trail is the stop on what is left. ${under}: out at ${out}.${gap}`
+      : pick === HOLD ? `The trail is the stop on what is left. ${under}, so the plan sells the rest at ${out}.${gap}`
         : `A broken trail ends the trade. The plan sells all that is left, not part of it, at ${out}.${gap}`
   }
   return { ok, title: ok ? 'That is the plan.' : 'Not the plan.', text }
 }
 
 /** The definition the trail uses, said once where it matters (the 5R stop and the trail's). */
-export const TRAIL_RULE = 'A higher low: a day whose low sits under the days either side of it, and above the last such low. From 5R the stop on the last third starts at breakeven and moves up under each one the day after, never down.'
+export const TRAIL_RULE = 'A higher low: a day whose low sits under the days either side of it, and above the last such low. From 5R the stop on what is left starts at breakeven and moves up under each one the day after, never down.'
 
 /** THE WORKING at a stop, in steps a member can check on the chart: the risk a share, the level, and the exit's R, each
- *  on the plan's own prices to the cent. A trim level the plan rounded a cent away from the entry plus its multiple of
- *  the rounded risk is said without the sum, so a printed sum never disagrees with the line on the chart. */
+ *  on the plan's own prices to the cent. A mark the plan rounded a cent away from the entry plus its multiple of the
+ *  rounded risk is said without the sum, so a printed sum never disagrees with the line on the chart. */
 export function workingOf(point, plan) {
   const long = isLong(plan)
+  const sell = long ? 'sell' : 'cover'
   const e = cents(plan.entry), st = cents(plan.stop), risk = riskCents(plan)
   const trims = trimsOf(plan)
   const c2 = (v) => (v / 100).toFixed(2)
@@ -637,29 +757,27 @@ export function workingOf(point, plan) {
     return sum === lv ? `${leg.label}: ${c2(e)} ${long ? '+' : '−'} ${m} × ${c2(risk)} = ${c2(lv)}.`
       : `${leg.label}: the entry ${long ? 'plus' : 'minus'} ${timesWord(m)} the risk, ${c2(lv)} on the plan.`
   }
-  const trimCall = (id) => (id === 't1' ? `At ${trims.t1.label} the plan ${planVerb(TRIM, long)}. The stop on the rest moves up to breakeven, ${c2(e)}.`
-    : `At ${trims.t2.label} the plan ${planVerb(TRIM, long, true)}. The last third ${trailMeasured(plan) ? 'trails under each higher low' : 'rides on the breakeven stop'}.`)
+  // the plan's call at a mark, its day, and what follows (markCall, markTail)
+  const callLine = () => `At ${markName(point)}, ${dayName(point.session)}: ${markCall(point, plan).replace(/^The plan/, 'the plan')} ${markTail(point, plan)}`
   if (point.id === 'pgh') {
-    // the post-gap high, and the trim that traded on the same bar when there is one, in the order price reached them
+    // the post-gap high, and the mark that traded on the same bar when there is one, in the order price reached them
     for (const leg of legsOf(point)) {
       const lv = cents(leg.level)
       if (isTarget(leg.id)) {
         steps.push({ key: `level-${leg.id}`, text: levelLine(leg) })
-        if (leg.gap) steps.push({ key: `fill-${leg.id}`, text: `It opened at ${c2(cents(leg.fill))}, past ${leg.label}, so that is the fill (rule F63): ${numOf(leg)} ÷ ${c2(risk)} = ${rText(leg.r)}.` })
+        if (leg.gap) steps.push({ key: `fill-${leg.id}`, text: `It opened at ${c2(cents(leg.fill))}, past ${leg.label}, so a ${sell} fills there: ${numOf(leg)} ÷ ${c2(risk)} = ${rText(leg.r)}.` })
       } else {
         steps.push({ key: 'level-pgh', text: `The post-gap high: ${c2(lv)}, the highest price from the gap day through the entry day.` })
-        steps.push({ key: 'fill-pgh', text: leg.gap ? `It opened at ${c2(cents(leg.fill))}, past it, so that is the fill (rule F63): ${numOf(leg)} ÷ ${c2(risk)} = ${rText(leg.r)}.`
+        steps.push({ key: 'fill-pgh', text: leg.gap ? `It opened at ${c2(cents(leg.fill))}, past it, so a ${sell} fills there: ${numOf(leg)} ÷ ${c2(risk)} = ${rText(leg.r)}.`
           : `At ${c2(lv)}: ${numOf(leg)} ÷ ${c2(risk)} = ${rText(leg.r)}.` })
       }
     }
-    const trimLeg = legsOf(point).find((l) => isTarget(l.id))
-    steps.push({ key: 'call', text: trimLeg ? `At the post-gap high the plan takes some off, in its own words. ${trimCall(trimLeg.id)}`
-      : `At the post-gap high the plan takes some off, in its own words. The house trims, a third each, are at ${trims.t1.label} and ${trims.t2.label}.` })
+    steps.push({ key: 'call', text: callLine() })
     return steps
   }
   if (point.id === 'hvc') {
     steps.push({ key: 'level', text: `The high-volume close: ${c2(e)}, the edge day's close and the entry.` })
-    steps.push({ key: 'return', text: `It closed ${long ? 'over' : 'under'} it on day ${point.above}, and day ${point.session} came back to it.` })
+    steps.push({ key: 'return', text: `It closed ${long ? 'over' : 'under'} it on ${dayName(point.above)}, and ${dayName(point.session)} came back to it.` })
     steps.push({ key: 'r', text: point.gap ? `It opened at ${c2(f)}, past it, so an exit fills there: ${num} ÷ ${c2(risk)} = ${rText(point.r)}.`
       : `An exit there: ${num} ÷ ${c2(risk)} = ${rText(point.r)}.` })
     steps.push({ key: 'stop', text: `The stop is still ${c2(st)}, the edge bar's ${long ? 'low' : 'high'}.` })
@@ -669,17 +787,17 @@ export function workingOf(point, plan) {
   }
   if (isTarget(point.id)) {
     steps.push({ key: 'level', text: levelLine(point) })
-    if (point.gap) steps.push({ key: 'fill', text: `It opened at ${c2(f)}, past ${point.label}, so that is the fill (rule F63): ${num} ÷ ${c2(risk)} = ${rText(point.r)}.` })
-    steps.push({ key: 'call', text: trimCall(point.id) })
+    if (point.gap) steps.push({ key: 'fill', text: `It opened at ${c2(f)}, past ${point.label}, so a ${sell} fills there: ${num} ÷ ${c2(risk)} = ${rText(point.r)}.` })
+    steps.push({ key: 'call', text: callLine() })
     if (point.id === 't2') {
       steps.push({ key: 'next', text: trailMeasured(plan) ? TRAIL_RULE
-        : plan?.trail ? `The last third rides on the breakeven stop here. This plan's trail is a judgment, not a level: ${plan.trail}.`
-          : 'This plan names no trail, so the last third rides on the breakeven stop.' })
+        : plan?.trail ? `What is left rides on the breakeven stop here. This plan's trail is a judgment, not a level: ${plan.trail}.`
+          : 'This plan names no trail, so what is left rides on the breakeven stop.' })
     }
     return steps
   }
-  if (point.id === 'trail') steps.push({ key: 'level', text: `The trail: the higher low of day ${point.low}, ${px(point.level)}. Price traded under it.` })
-  else if (point.breakeven) steps.push({ key: 'level', text: `The breakeven stop: ${px(point.level)}, the entry, the stop on what was left since the ${trims.t1.label} trim; ${point.gap ? 'the day opened past it' : 'price traded to it'}.` })
+  if (point.id === 'trail') steps.push({ key: 'level', text: `The trail: the higher low of ${dayName(point.low)}, ${px(point.level)}. Price traded under it.` })
+  else if (point.breakeven) steps.push({ key: 'level', text: `The breakeven stop: ${px(point.level)}, the entry, the stop since ${trims.t1.label} traded; ${point.gap ? 'the day opened past it' : 'price traded to it'}.` })
   else steps.push({ key: 'level', text: `The stop: ${px(point.level)}, ${point.gap ? 'and the day opened past it' : 'and price traded through it'}.` })
   steps.push({ key: 'r', text: `Out at ${c2(f)}: ${num} ÷ ${c2(risk)} = ${rText(point.r)}.` })
   if (point.gap) steps.push({ key: 'gap', text: gapRule(point.id === 'trail' || long) })
@@ -711,11 +829,12 @@ export function planLine(plan) {
   return `${isLong(plan) ? 'Bought' : 'Shorted'} at ${px(plan.entry)} · stop ${px(plan.stop)} · ${riskPct(plan).toFixed(1)}% risk`
 }
 
-/** The calls in one trade: right and how many. A call at a point the plan leaves to the member is neither. */
+/** The calls in one trade: right (a call among the point's calls on the plan) and how many. A call at a point the plan
+ *  leaves to the member is neither. */
 export function callsOf(story, picks) {
   const pts = story?.points || []
   let right = 0, total = 0
-  pts.forEach((p, i) => { if (picks?.[i] != null && !isFree(p)) { total += 1; if (picks[i] === p.answer) right += 1 } })
+  pts.forEach((p, i) => { if (picks?.[i] != null && !isFree(p)) { total += 1; if (onPlan(p, picks[i])) right += 1 } })
   return { right, total }
 }
 
@@ -741,7 +860,7 @@ export function poolItems(set, normalize = (b) => b) {
 
 /** A trade on the run: { id, name, ticker, long, named, xp, story, picks, skipped }. `skipped` is a chart whose answer
  *  could not be scored; a scored chart whose reveal came back with no playable plan is played with `story` null (its name
- *  counts, it has no calls). A trade was on the plan when the setup was named and every call matched the plan. */
+ *  counts, it has no calls). A trade was on the plan when the setup was named and every call was on the plan. */
 export function tradeOk(tr) {
   if (!tr || tr.skipped) return null
   const c = callsOf(tr.story, tr.picks)
@@ -760,7 +879,7 @@ export function tally(trades) {
       const a = tr.picks?.[i]
       if (a == null || isFree(p)) return
       total += 1
-      const ok = a === p.answer
+      const ok = onPlan(p, a)
       if (ok) right += 1
       results.push(ok)
     })
@@ -768,8 +887,9 @@ export function tally(trades) {
   return { right, total, named, played, results }
 }
 
-/** The end screen's run log: one card per scored call, the plan's call named, the trade's ticker and setup, what was said
- *  on a miss. A call the plan leaves to the member is not a card (it is neither right nor wrong): yoursLines says it. */
+/** The end screen's run log: one card per scored call, the plan's calls named ("5R · Sell some or hold"), the trade's
+ *  ticker and setup, what was said on a miss. A call the plan leaves to the member is not a card (it is neither right
+ *  nor wrong): yoursLines says it. */
 export function logRows(trades) {
   const rows = []
   for (const tr of trades || []) {
@@ -777,8 +897,8 @@ export function logRows(trades) {
     ;(tr.story?.points || []).forEach((p, i) => {
       const a = tr.picks?.[i]
       if (a == null || isFree(p)) return
-      const ok = a === p.answer
-      rows.push({ name: `${p.label} · ${actionLabel(p.answer, tr.long !== false)}`, ticker: tr.ticker ? `${tr.ticker} · ${tr.name}` : tr.name, ok,
+      const ok = onPlan(p, a)
+      rows.push({ name: `${p.label} · ${callsLabel(p, tr.long !== false)}`, ticker: tr.ticker ? `${tr.ticker} · ${tr.name}` : tr.name, ok,
         said: ok ? null : actionLabel(a, tr.long !== false).toLowerCase(), was: '' })
     })
   }
@@ -796,7 +916,7 @@ export function tradeLine(tr) {
 }
 
 /** The end screen's line for each call the plan left to the member: "AMD · High Volume Edge: the first return to the
- *  high-volume close, day 9, was a decision point the plan leaves to you. You held." */
+ *  high-volume close, day 10, was a decision point the plan leaves to you. You held." (the buy day is day 1) */
 export function yoursLines(trades) {
   const lines = []
   for (const tr of trades || []) {
@@ -806,8 +926,8 @@ export function yoursLines(trades) {
     tr.story.points.forEach((p, i) => {
       const a = tr.picks?.[i]
       if (!isFree(p) || a == null) return
-      const did = a === HOLD ? 'You held.' : a === TRIM ? `You ${long ? 'sold' : 'covered'} a third at ${rText(p.r)}.` : `You ${long ? 'sold' : 'covered'} the rest at ${rText(p.r)}.`
-      lines.push(`${head}: the first return to the high-volume close, day ${p.session}, was a decision point the plan leaves to you. ${did}`)
+      const did = a === HOLD ? 'You held.' : a === TRIM ? `You ${long ? 'sold' : 'covered'} some at ${rText(p.r)}.` : `You ${long ? 'sold' : 'covered'} the rest at ${rText(p.r)}.`
+      lines.push(`${head}: the first return to the high-volume close, ${dayName(p.session)}, was a decision point the plan leaves to you. ${did}`)
     })
   }
   return lines

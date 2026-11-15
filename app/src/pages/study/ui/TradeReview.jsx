@@ -8,7 +8,7 @@ import s from './study.module.css'
 // rather have Entry, Stop, Trim, Trail, Advance, Numbers stuff like that. Detail and review the trade and explain the
 // trade and the setup and the entry and the pattern and teach it all."). Round 23 (2026-11-08, "Those answers are out
 // there ... in the app"): every setup the detectors cover comes with its plan from the server (api/services/
-// study_trade.py: the detector's own entry and stop, the house trims at 3R and 5R, its trail; the Kicker on his rulings), reviewed
+// study_trade.py: the detector's own entry and stop, the marks at 3R and 5R, its trail; the Kicker on his rulings), reviewed
 // against the bars after the signal (hardMode.reviewTrade). A chart without a plan shows the move measured from the
 // candle that fired, and the line a close must not break (hardMode.culmination). The table: docs/study/TRADE_PLANS.md.
 const px = (v) => (Number.isFinite(v) ? `$${v.toFixed(2)}` : '—')
@@ -23,13 +23,16 @@ export function TradeBlock({ trade: t, name }) {
     const [l1, l2] = trimLabels(t)
     const r = Number.isFinite(t.r) ? ` · ${t.r.toFixed(1)}R` : ''
     const notes = [t.trail ? `Trail ${t.trail}.` : null, t.trim_note ? `${t.trim_note.charAt(0).toUpperCase()}${t.trim_note.slice(1)}.` : null].filter(Boolean)
+    // 3R and 5R are marks on the ruler, never fixed sells (the owner's D-013, 2026-11-12): at 3R the stop can move up to
+    // breakeven (his 2R to 5R), and 5R sits in the 5 to 10R zone where a first sell into strength is often best, by
+    // judgment, usually day 3 or later
     return (
       <div className={s.coachBlock}>
         <span className={s.coachLabel}>The trade · {own}</span>
         <div className={s.legs} role="list">
           <Leg k={t.long ? 'Entry' : 'Short'} v={px(t.entry)} note={t.entry_note} tone="gold" />
           <Leg k="Stop" v={px(t.stop)} note={`${t.stop_note} · risk ${pct(t.riskPct, false)}`} tone="down" />
-          <Leg k="Trim" v={`${px(t.t1)} · ${px(t.t2)}`} note={`a third at ${l1}, ${hit(t.t1At)}; a third at ${l2}, ${hit(t.t2At)}`} tone={t.t1At != null ? 'up' : ''} />
+          <Leg k={`${l1} · ${l2}`} v={`${px(t.t1)} · ${px(t.t2)}`} note={`${l1}, ${hit(t.t1At)}: a mark on the ruler; the stop can move up to breakeven between 2R and 5R. ${l2}, ${hit(t.t2At)}: inside the 5 to 10R zone where a first sell into strength is often best, by judgment, usually day 3 or later`} tone={t.t1At != null ? 'up' : ''} />
           <Leg k={t.long ? 'Advance' : 'Fall, in your favour'} v={t.long ? pct(t.advancePct) : `${Math.abs(t.advancePct).toFixed(1)}%`} note={t.bestSessions != null ? `to the best ${t.long ? 'high' : 'low'}, session ${t.bestSessions}${r}` : `no new ${t.long ? 'high' : 'low'} after entry`} tone="up" />
         </div>
         <p className={s.tradeLine}>
@@ -60,7 +63,8 @@ function takeaway(t) {
   if (t.kind === 'plan') {
     const verb = t.long ? 'Bought' : 'Shorted'
     const r = Number.isFinite(t.r) ? ` (${t.r.toFixed(1)}R)` : ''
-    const targets = t.t2At != null ? ' and reached both trims' : t.t1At != null ? ` and reached ${trimLabels(t)[0]}` : ''
+    const [l1, l2] = trimLabels(t)
+    const targets = t.t2At != null ? ` and reached ${l1} and ${l2}` : t.t1At != null ? ` and reached ${l1}` : ''
     const stop = t.stoppedSession ? `, then the stop was hit on session ${t.stoppedSession}` : ''
     const move = t.bestSessions != null ? `${t.long ? `it ran ${c(t.advancePct)}` : `it fell ${Math.abs(t.advancePct).toFixed(1)}% in your favour`}${r}${targets}${stop}` : `it never got going${stop}`
     return `${verb} at ${p(t.entry)}, risking ${t.riskPct.toFixed(1)}% to the stop at ${p(t.stop)}; ${move}.`

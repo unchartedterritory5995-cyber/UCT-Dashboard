@@ -267,10 +267,13 @@ export default function DrillPlayer({
     return reviewTrade(reveal.trade, chartBars[baseLen - 1], normalizeBars(reveal.forward_bars))
   }, [phase, reveal, chartBars, baseLen])
   const pointer = useMemo(() => {
-    if (!chartVisible || !chartBars?.length || item?.type !== 'spot' || baseLen < 2) return null
+    if (!chartVisible || !chartBars?.length || baseLen < 2) return null
     // a which-line-leads item asks about two RS lines, not a candle: no pointer
     if (isRsPairItem(item)) return null
     if (phase !== 'reveal' || !result) return null
+    // a course chart (2026-11-14, the visuals plan): a question bought on the chart's last day carries its trade from the
+    // research (courses_lib: chart.trade -> reveal.trade), drawn as the entry and stop lines and 3R / 5R; no ray otherwise
+    if (item?.type !== 'spot') return keyTrade ? tradeAnnotations(keyTrade, chartBars[baseLen - 1], chartBars) : null
     return (keyTrade && tradeAnnotations(keyTrade, chartBars[baseLen - 1], chartBars)) || rayAt(chartBars[baseLen - 1], 'l', { id: 'ptl', label: '' })
   }, [chartVisible, chartBars, item, baseLen, phase, result, keyTrade])
   const callouts = useMemo(() => {
@@ -291,12 +294,21 @@ export default function DrillPlayer({
   const openMarkers = useMemo(() => (chartVisible ? studyOpenMarkers(item, chartBars) : null), [chartVisible, item, chartBars])
   // An RS red-day item marks the session it asks about (prompt_json.chart.mark): a small muted dot under that bar; the
   // trade's action items join them on the reveal (challenges/tradeMarks.tradeMarkers), in the time order the chart wants
+  // The replay lands the days one at a time: a trade's marks (3R, 5R, STOPPED) appear when the replay reaches their day,
+  // never before (counted in whole days, so a mark does not move while a day grows through its 30-minute closes)
+  const landed = !chartBars?.length ? 0 : (!forwardCount || skipped || !replayOn) ? chartBars.length : Math.min(chartBars.length, baseLen + run.k)
   const chartMarkers = useMemo(() => {
     const rs = chartVisible ? rsMarkMarkers(item, chartBars) : null
-    const trade = phase === 'reveal' && result && item?.type === 'spot' ? (tradeMarkers(keyTrade, chartBars, baseLen) || []) : []
-    const all = [...(openMarkers || []), ...(rs || []), ...trade]
+    const upTo = chartBars ? chartBars.slice(0, landed) : null
+    const scored = phase === 'reveal' && !!result
+    const trade = scored && keyTrade ? (tradeMarkers(keyTrade, upTo, baseLen) || []) : []
+    // a course chart with no trade still says where the question stood once the bars after it play: the decision day
+    const decided = scored && !keyTrade && item?.type !== 'spot' && chartVisible && forwardCount > 0 && baseLen >= 1
+      ? [{ time: chartBars[baseLen - 1].t, position: 'belowBar', shape: 'arrowUp', color: '#dcbb5e', size: 1.2, text: 'DECISION DAY' }]
+      : []
+    const all = [...(openMarkers || []), ...(rs || []), ...trade, ...decided]
     return all.length ? all.sort((a, b) => String(a.time).localeCompare(String(b.time))) : null
-  }, [chartVisible, item, chartBars, openMarkers, phase, result, keyTrade, baseLen])
+  }, [chartVisible, item, chartBars, openMarkers, phase, result, keyTrade, baseLen, landed, forwardCount])
   const modAnnotations = useMemo(
     () => (chartVisible && mod.annotationsFor ? mod.annotationsFor(state, item, reveal, chartBars) : null),
     [chartVisible, mod, state, item, reveal, chartBars],

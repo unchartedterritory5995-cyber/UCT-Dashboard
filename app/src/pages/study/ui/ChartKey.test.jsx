@@ -19,16 +19,18 @@ describe('ChartKey', () => {
     expect(key).toHaveTextContent('reached in 3 sessions')
     expect(key).toHaveTextContent('not reached before the stop')
     expect(key).toHaveTextContent('Trailunder each higher low')
-    // the house trims (sizing_rule.md §9, B19 and E51): a third at 3R, the stop to breakeven; a third at 5R, the last third trails
-    expect(key).toHaveTextContent('3R11.83the first trim, a third off at three times the risk; the stop on the rest moves to breakeven')
-    expect(key).toHaveTextContent('5R12.22the second trim, a third off at five times the risk; the last third trails')
-    expect(key.textContent).not.toMatch(/2R|target/)
+    // 3R and 5R are marks on the ruler, never fixed sells (the owner's D-013, 2026-11-12, superseding B19 and E51): 3R is
+    // where the stop can move up to breakeven, 5R sits in the 5 to 10R zone where a first sell into strength is often best
+    expect(key).toHaveTextContent('3R11.83three times the risk: a mark on the ruler, not a sell; the stop can move up to breakeven between 2R and 5R')
+    expect(key).toHaveTextContent('5R12.22five times the risk: inside the 5 to 10R zone, where a first sell into strength is often best, by judgment, usually day 3 or later')
+    expect(key.textContent).not.toMatch(/target|third|trim/i)
   })
 
-  it('names the trims from the plan\'s own trim_r', () => {
+  it('names the marks from the plan\'s own trim_r, and only 5 to 10R is the zone to sell into', () => {
     render(<ChartKey trade={{ ...plan, trim_r: [2, 4] }} testId="key" />)
-    expect(screen.getByTestId('key')).toHaveTextContent('2R11.83the first trim, a third off at twice the risk')
-    expect(screen.getByTestId('key')).toHaveTextContent('4R12.22the second trim, a third off at four times the risk')
+    expect(screen.getByTestId('key')).toHaveTextContent('2R11.83twice the risk: a mark on the ruler, not a sell')
+    expect(screen.getByTestId('key')).toHaveTextContent('4R12.22four times the risk: a mark on the ruler, not a sell')
+    expect(screen.getByTestId('key').textContent).not.toMatch(/zone/)
   })
 
   it('a setup without a trade shows the line it must hold, and whether it held', () => {

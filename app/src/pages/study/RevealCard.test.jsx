@@ -173,14 +173,18 @@ describe('RevealCard trade review', () => {
   const item = { id: 'si_k', skill_id: 'setup.family3.kicker', bars: { bars: [bar(20240101, 10, 10.3, 9.9, 10.1), bar(20240102, 10.6, 10.7, 10.0, 10.05), bar(20240103, 10.2, 11.2, 10.5, 11.1)] } }
   const trade = { skill: 'setup.family3.kicker', direction: 'bullish', entry: 10.71, stop: 10.5, t1: 11.13, t2: 11.34, enters_intraday: true,
     entry_note: "over the red day's high, on the Kicker day", stop_note: "under the Kicker's low", trail: 'under each higher low' }
-  it('shows the entry, the stop, the trims and what happened', () => {
+  it('shows the entry, the stop, the marks and what happened', () => {
     render(<RevealCard correct reveal={{ answer: 'Yes', trade, forward_bars: [bar(20240104, 11.1, 11.5, 10.9, 11.4)] }} item={item} fire={false} />)
     const box = screen.getByTestId('trade-review')
     expect(box).toHaveTextContent('The trade · your Kicker rules')
     expect(box).toHaveTextContent('$10.71')
     expect(box).toHaveTextContent('$11.13 · $11.34')
-    // the house trims (sizing_rule.md §9): a third at 3R, a third at 5R, named from the plan's trim_r (3R and 5R when it has none)
-    expect(box).toHaveTextContent('a third at 3R, hit on the signal day; a third at 5R, hit on session 1')
+    // 3R and 5R are marks on the ruler, never fixed sells (the owner's D-013, 2026-11-12, superseding "a third at 3R" and
+    // "a third at 5R"), named from the plan's trim_r (3R and 5R when it has none)
+    expect(box).toHaveTextContent('3R, hit on the signal day: a mark on the ruler; the stop can move up to breakeven between 2R and 5R.')
+    expect(box).toHaveTextContent('5R, hit on session 1: inside the 5 to 10R zone where a first sell into strength is often best, by judgment, usually day 3 or later')
+    expect(box).toHaveTextContent('and reached 3R and 5R')
+    expect(box.textContent).not.toMatch(/third|\btrims?\b/i)
   })
   it('a reveal without a plan shows no trade', () => {
     render(<RevealCard correct reveal={{ answer: 'Yes' }} item={item} fire={false} />)
