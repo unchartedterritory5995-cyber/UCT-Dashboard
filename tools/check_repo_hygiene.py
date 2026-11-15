@@ -77,6 +77,13 @@ BIG_ALLOWLIST = {
     "tests/fixtures/vendor/harness/elliot-wave-detector-pro-spy-60-2026-11-14.json",
     "tests/fixtures/vendor/harness/renderingnature-smc-reversal-engine-v71-spy-60-2026-11-14.json",
     "tests/fixtures/vendor/harness/zigzag-ma-pattern-recognition-spy-60-2026-11-14.json",
+    # 2026-11-15: five S12 capture-ahead fixtures (Units DATA-BACKED and DATA-LTF, AMEX:SPY 1D from 1993, 8,507
+    # bars, 38-60 plots each) are 5.2-7.1 MB; same corpus and same reason as the S9 lines above.
+    "tests/fixtures/vendor/harness/advanced-custom-multi-ma-signals-emasmavwmavwap-spy-1d-2026-11-15.json",
+    "tests/fixtures/vendor/harness/cvd-cumulative-volume-delta-candles-spy-1d-2026-11-15.json",
+    "tests/fixtures/vendor/harness/delta-volume-candles-lucf-spy-1d-2026-11-15.json",
+    "tests/fixtures/vendor/harness/sub-spy-1d-2026-11-15.json",
+    "tests/fixtures/vendor/harness/volume-suite-by-leviathan-spy-1d-2026-11-15.json",
 }
 # A `.env*` may be tracked only when it carries no value — a template.
 ENV_ALLOWLIST = {".env.example"}
