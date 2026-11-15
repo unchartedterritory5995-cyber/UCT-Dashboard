@@ -529,12 +529,37 @@ def core_source() -> str:
     return S1_CORE.rstrip("\n") + "\n\n" + std_block(5) + "\n"
 
 
+# U14 (run s27-2026-11-15): the W9-R1i method (b) window on AMEX:SPY 15, [2026-08-24, 2026-09-22) ET as epoch
+# ms. It is inside the most recent 5,000 15-minute bars our side serves, so it ages out of that window in weeks;
+# the capture is committed and graded on its own bars.
+RISK_INTRADAY_X_MS = 1787544000000
+RISK_INTRADAY_Y_MS = 1790049600000
+
+# U14 G1 evidence (run s27-2026-11-15): the //@version=3 Properties read-back. Not a rule probe: no standard set.
+V3_PROPERTIES = '''//@version=3
+strategy("UCTPROBE_V3_PROPERTIES", overlay=false)
+// U14 G1 evidence (2026-11-15): which Strategy Properties inputs exist at //@version=3. Capture NYSE:RDDT 1D
+// from the listing with tools/vendor_harness/tv_capture.js; read provenance.strategySettings.properties.
+fast = sma(close, 5)
+slow = sma(close, 20)
+if (crossover(fast, slow))
+    strategy.entry("L", strategy.long)
+if (crossunder(fast, slow))
+    strategy.close("L")
+plot(strategy.position_size, title="N01_position_size")
+plot(strategy.closedtrades, title="N02_closedtrades")
+'''
+
+
 def all_files() -> dict:
     files = {f"w9-{sp['name']}.pine": build(sp) for sp in specs()}
     core = core_source()
     files["s1-broker-core.pine"] = core
     guarded, _ = range_guard.rewrite(core.replace("UCTPROBE_S1_BROKER", "UCTPROBE_S1_BROKER_RANGE", 1), RANGE_X_MS, RANGE_Y_MS)
     files["s1-broker-core-range.pine"] = guarded
+    intraday, _ = range_guard.rewrite(files["w9-r1-risk-intraday.pine"], RISK_INTRADAY_X_MS, RISK_INTRADAY_Y_MS)
+    files["w9-r1-risk-intraday-range.pine"] = intraday
+    files["w9-g1-v3-properties.pine"] = V3_PROPERTIES
     return files
 
 

@@ -1,0 +1,12 @@
+//@version=3
+strategy("UCTPROBE_V3_PROPERTIES", overlay=false)
+// U14 G1 evidence (2026-11-15): which Strategy Properties inputs exist at //@version=3. Capture NYSE:RDDT 1D
+// from the listing with tools/vendor_harness/tv_capture.js; read provenance.strategySettings.properties.
+fast = sma(close, 5)
+slow = sma(close, 20)
+if (crossover(fast, slow))
+    strategy.entry("L", strategy.long)
+if (crossunder(fast, slow))
+    strategy.close("L")
+plot(strategy.position_size, title="N01_position_size")
+plot(strategy.closedtrades, title="N02_closedtrades")

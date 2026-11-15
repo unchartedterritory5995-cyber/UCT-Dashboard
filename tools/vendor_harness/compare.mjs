@@ -1588,6 +1588,20 @@ export function renderSummary(results) {
 //      time and its `rule`. Equal counts: JOINED ON BAR TIME, NEVER BAR INDEX (on
 //      method (b) the indexes differ by a constant). Prices to the tick, quantities
 //      exactly, currency to REL_TOL. All equal: MATCH; else DIVERGE naming the rule.
+//   5. FILLS (U14), when the reference carries TradingView's fill list. Fill BY FILL,
+//      grouped by bar time: the same bars, and on each bar the same fills by side,
+//      role (the order COMMAND: entry, exit / close, or strategy.order) and price to the tick, quantities summed exactly (TradingView logs
+//      a bracket's exit once per trade it closes and a close-all once; a sum per key
+//      makes the two loggings one fact), and every entry / exit id ours names among
+//      TradingView's. Fills that cannot be placed in time are INCONCLUSIVE, never skipped.
+//   6. REPORT SLOTS (U14), when given: every slot BOTH sides state is compared (counts
+//      exactly, everything else to REL_TOL); a slot either side does not state is listed
+//      as ungraded with its reason, never compared against a default.
+//   ⭐ `graded` says what the MATCH covered. A MATCH with `graded.fills === false` is a
+//      trade-list match only, and `evidence_engine.resolve_pins` never pins from one.
+//   ⛔ Step 2 also blocks on the run's EFFECTIVE settings disagreeing with the read-back
+//      (`settings.effectiveDisagreements`) and on an unread Properties input the run
+//      depends on (`settings.unreadDependedOn`, strategy_reference.mjs).
 
 export const STRATEGY_FLOOR = 5
 export const STRATEGY_VERDICTS = Object.freeze(['MATCH', 'DIVERGE', 'INCONCLUSIVE', 'UNGRADABLE', 'EXPECTED-REFUSAL'])
@@ -1652,13 +1666,18 @@ function compareTrades(refTrades, ourTrades, tick) {
 /**
  * @param {{reference:{trades:object[]}, ours:object, method?:'a'|'b', span?:{from?:number,to?:number},
  *          graded?:{from?:number,to?:number}, tick?:number, settings?:object, refBars?:object[], ourBars?:object[],
- *          refSignals?:object, ourSignals?:object}} g
+ *          refSignals?:object, ourSignals?:object, slots?:object}} g
+ *   `reference.fills` (U14: strategy_reference.mjs, with `fillsTimed` / `fillsReason`) and
+ *   `ours.fills` (`{time, side, role, price, qty, id, labelled, rule}`) add step 5; `slots` step 6.
  */
 export function gradeStrategy(g) {
-  const { reference, ours, method = 'a', span, graded, tick = 0.01, settings, refBars, ourBars, refSignals, ourSignals } = g
+  const { reference, ours, method = 'a', span, graded, tick = 0.01, settings, refBars, ourBars, refSignals, ourSignals, slots } = g
   // 0. the reference floor: the TradingView capture alone.
-  const refTrades = (reference && reference.trades) || null
-  if (!Array.isArray(refTrades)) return { verdict: 'INCONCLUSIVE', step: 0, reason: 'the capture carries no trade list' }
+  const listed = (reference && reference.trades) || null
+  if (!Array.isArray(listed)) return { verdict: 'INCONCLUSIVE', step: 0, reason: 'the capture carries no trade list' }
+  // U14: a reference lists its open trades too (`open: true`, strategy_reference.mjs); the floor and the
+  // trade grade read CLOSED trades only (an open trade's entry is graded with the fills)
+  const refTrades = listed.filter((t) => t.open !== true)
   const inGraded = (t) => inSpan(t.exitTime !== undefined ? t.exitTime : t.entryTime, graded || span)
   const refCount = refTrades.filter(inGraded).length
   if (refCount < STRATEGY_FLOOR) {
@@ -1678,15 +1697,106 @@ export function gradeStrategy(g) {
     if (hasDisagreement || noDeclaration) {
       return { verdict: 'INCONCLUSIVE', step: 2, reason: hasDisagreement ? 'the data settings differ' : 'no strategy() declaration to read the settings from' }
     }
+    const eff = Array.isArray(settings.effectiveDisagreements) ? settings.effectiveDisagreements : []
+    if (eff.length) {
+      return { verdict: 'INCONCLUSIVE', step: 2, reason: `the run's settings differ from the read-back: ${eff.map((d) => d.key).join(', ')}` }
+    }
+    const unread = Array.isArray(settings.unreadDependedOn) ? settings.unreadDependedOn : []
+    if (unread.length) {
+      return { verdict: 'INCONCLUSIVE', step: 2, reason: `the read-back lacks input(s) the run depends on: ${unread.join(', ')}` }
+    }
   }
   const bd = barsDiffer(refBars, ourBars, span, tick)
   if (bd) return { verdict: 'INCONCLUSIVE', step: 2, reason: `bars differ: ${bd}` }
   // 3. signal identity, method (b) only.
   if (method === 'b') {
-    const sd = signalsDiffer(refSignals, ourSignals, graded, { rel: REL_TOL, abs: ABS_FLOOR_UNKNOWN_SCALE })
+    // `ourSignals` may be a function (U14), so a caller's run is read only here
+    const sd = signalsDiffer(refSignals, typeof ourSignals === 'function' ? ourSignals() : ourSignals, graded, { rel: REL_TOL, abs: ABS_FLOOR_UNKNOWN_SCALE })
     if (sd) return { verdict: 'INCONCLUSIVE', step: 3, reason: `the warm-up has not converged: ${sd}` }
   }
   // 4. trades and values (our trade list is read for the first time here).
   const r = compareTrades(refTrades.filter(inGraded), (ours.trades || []).filter(inGraded), tick)
-  return { ...r, step: 4 }
+  const covered = { trades: true, fills: false, slots: 0 }
+  if (r.verdict !== 'MATCH') return { ...r, step: 4, graded: covered }
+  // 5. fills, fill by fill (U14).
+  const refFills = reference.fills
+  if (Array.isArray(refFills)) {
+    if (reference.fillsTimed !== true) {
+      return { verdict: 'INCONCLUSIVE', step: 5, reason: `the reference fills cannot be placed in time: ${reference.fillsReason || 'untimed'}`, first: null, graded: covered }
+    }
+    const inFills = (f) => inSpan(f.time, graded || span)
+    const f = compareFills(refFills.filter(inFills), (Array.isArray(ours.fills) ? ours.fills : []).filter(inFills), tick)
+    if (f.verdict !== 'MATCH') return { ...f, step: 5, graded: covered }
+    covered.fills = true
+  }
+  // 6. the report slots (U14). `slots` may be a function, so a caller's run is read only here.
+  const slotsNow = typeof slots === 'function' ? slots() : slots
+  if (slotsNow) {
+    const s = compareSlots(slotsNow)
+    covered.slots = s.compared.length
+    if (s.verdict !== 'MATCH') return { verdict: s.verdict, reason: s.reason, first: null, step: 6, graded: covered, ungradedSlots: s.ungraded }
+    return { verdict: 'MATCH', step: 6, reason: 'every trade, fill and stated report slot equal', first: null, graded: covered, ungradedSlots: s.ungraded }
+  }
+  return { ...r, step: covered.fills ? 5 : 4, graded: covered }
+}
+
+// ── U14 step 5: fills ─────────────────────────────────────────────────────────
+const fillKey = (f, tick) => `${f.side}|${f.role}|${Math.round(f.price / tick)}`
+function fillGroups(fills, tick) {
+  const byTime = new Map()
+  for (const f of fills) {
+    if (!byTime.has(f.time)) byTime.set(f.time, new Map())
+    const g = byTime.get(f.time)
+    const k = fillKey(f, tick)
+    if (!g.has(k)) g.set(k, { qty: 0, ids: new Set(), fills: [] })
+    const e = g.get(k)
+    e.qty += f.qty
+    if (typeof f.id === 'string') e.ids.add(f.id)
+    e.fills.push(f)
+  }
+  return byTime
+}
+function compareFills(refFills, ourFills, tick) {
+  const a = fillGroups(refFills, tick)
+  const b = fillGroups(ourFills, tick)
+  const times = [...new Set([...a.keys(), ...b.keys()])].sort((x, y) => x - y)
+  for (const t of times) {
+    const ra = a.get(t)
+    const ob = b.get(t)
+    const ourRule = ob ? ruleOf([...ob.values()][0].fills[0]) : 'unattributed'
+    if (!ra) return { verdict: 'DIVERGE', reason: `a fill of ours at ${t} that TradingView does not have`, first: { time: t, rule: ourRule } }
+    if (!ob) return { verdict: 'DIVERGE', reason: `no fill of ours at ${t}`, first: { time: t, rule: 'unattributed' } }
+    for (const k of new Set([...ra.keys(), ...ob.keys()])) {
+      const x = ra.get(k)
+      const y = ob.get(k)
+      const rule = y ? ruleOf(y.fills[0]) : ourRule
+      if (!x || !y) return { verdict: 'DIVERGE', reason: `the fills at ${t} differ (${k} on ${x ? "TradingView's" : 'our'} side only)`, first: { time: t, rule } }
+      if (Math.abs(x.qty - y.qty) > 1e-9 * Math.max(1, Math.abs(x.qty))) {
+        return { verdict: 'DIVERGE', reason: `the ${k} quantity at ${t} differs (reference ${x.qty}, ours ${y.qty})`, first: { time: t, rule } }
+      }
+      for (const of of y.fills) {
+        if (of.labelled === true && typeof of.id === 'string' && !x.ids.has(of.id)) {
+          return { verdict: 'DIVERGE', reason: `the ${k} fill at ${t} is ${of.id} on our side and ${[...x.ids].join(' / ') || 'unnamed'} on TradingView's`, first: { time: t, rule: ruleOf(of) } }
+        }
+      }
+    }
+  }
+  return { verdict: 'MATCH', reason: 'every fill equal', first: null }
+}
+
+// ── U14 step 6: the report slots ──────────────────────────────────────────────
+/** `slots`: `{ slot: { kind: 'count'|'value', reference: {status, value?}, ours: {status, value?, guard?} } }`. */
+function compareSlots(slots) {
+  const compared = []
+  const ungraded = []
+  for (const [slot, s] of Object.entries(slots)) {
+    const ref = s && s.reference
+    const our = s && s.ours
+    if (!ref || ref.status !== 'ok') { ungraded.push({ slot, why: `reference ${ref ? ref.status : 'absent'}` }); continue }
+    if (!our || our.status !== 'served') { ungraded.push({ slot, why: `ours ${our ? (our.guard || our.status) : 'absent'}` }); continue }
+    compared.push(slot)
+    const same = s.kind === 'count' ? our.value === ref.value : sameCurrency(our.value, ref.value)
+    if (!same) return { verdict: 'DIVERGE', reason: `report slot ${slot} differs (reference ${ref.value}, ours ${our.value})`, compared, ungraded }
+  }
+  return { verdict: 'MATCH', compared, ungraded }
 }
