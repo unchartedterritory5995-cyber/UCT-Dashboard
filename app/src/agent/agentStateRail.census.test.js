@@ -199,7 +199,8 @@ describe('STATE RAIL census — by tool, from the registry', () => {
         // (kind-matched: the explicit clause names each effect's own class)
         const eff = stateEffects(plan)
         const nouns = [...new Set(eff.map(e => NOUN[e.state]))].join(' and the ')
-        const explicit = eff.every(e => e.type === 'overwrite') ? `add AAPL, and change the ${nouns}` : eff.every(e => e.type === 'replace') ? `add AAPL, and replace the ${nouns}` : `add AAPL, and remove the ${nouns}`
+        const explicit = eff.every(e => e.type === 'overwrite') ? `add AAPL, and change the ${nouns}` : eff.every(e => e.type === 'replace') ? `add AAPL, and replace the ${nouns}`
+          : eff.every(e => e.type === 'pause') ? `add AAPL, and pause the ${nouns}` : `add AAPL, and remove the ${nouns}`
         // …and the same permit for ANOTHER class licenses nothing here
         for (const [st, noun] of Object.entries(NOUN)) if (!eff.some(e => (e.classes || [e.state]).includes(st))) expect(stateRailRefusal(plan, { words: `add AAPL, and remove the ${noun}` }), `${r.name} cross-kind ${noun}`).toBeTruthy()
         expect(stateRailRefusal(plan, { words: explicit }), `${r.name} explicit "${explicit}"`).toBe(null)
@@ -232,6 +233,7 @@ const EXPECTED = {
   'drawing.style': ['drawing:overwrite'],
   'indicator.remove': ['indicator:remove'],
   'indicatorAlert.delete': ['alert:delete'],
+  'indicatorAlert.toggle': ['alert:pause'],
   'indicator.update': ['indicator:overwrite'],
   'indicatorStyle.set': ['indicator:overwrite'],
   'indicatorTemplate.delete': ['template:delete'],

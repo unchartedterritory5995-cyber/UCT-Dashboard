@@ -209,11 +209,18 @@ const READERS = {
   // (owner priority 4, #1263) the member's EXISTING indicator alerts: a delete is a HARD delete (UCT cannot restore it), licensed
   // only by its own words. Pausing / resuming keeps every setting and is undone exactly — an arrangement, as showing or hiding an
   // indicator is (indicatorOfRequest: setVisible), never an effect. Creating one (indicatorAlertLibrary) only adds.
+  // ⛔ AUDIT #1263: PAUSING an active alert silently stops a live notification the member never sees go — the quiet-harm class:
+  // its own effect, `pause`, licensed only by a pause word on that alert. RESUMING keeps every setting and only turns a
+  // notification back on: no effect.
   indicatorAlert(p) {
-    if (!(p.after?.deleted || p.patch?.delete)) return []
     const b = p.before || p.snap || {}
     const label = String(b.label || [b.sym, b.instanceLabel || b.indicator].filter(Boolean).join(' ') || 'an indicator alert')
-    return [{ state: 'alert', type: 'delete', name: `your indicator alert “${nm(label)}”`, label, id: `alert:${b.id || p.ref}`, instanceId: b.instanceId || null }]
+    const own = { label, id: `alert:${b.id || p.ref}`, instanceId: b.instanceId || null, inScope: Number(b.activeInScope) || 0,
+      ownWords: [b.sym, b.instanceLabel, b.indicator].filter(Boolean).flatMap(x => String(x).toLowerCase().split(/[^a-z0-9]+/)).filter(t => t.length >= 2) }
+    if (p.after?.deleted || p.patch?.delete) return [{ state: 'alert', type: 'delete', name: `your indicator alert “${nm(label)}”`, ...own }]
+    const pausing = (p.patch?.toggle && p.patch.to === false) || (p.after && p.before && p.before.active === true && p.after.active === false)
+    if (pausing) return [{ state: 'alert', type: 'pause', name: `your indicator alert “${nm(label)}” (it would stop notifying you)`, ...own }]
+    return []
   },
 }
 function templateDiff(prev, write, what) {
@@ -280,6 +287,13 @@ const labelOf = (e) => e.label || (/“([^”]+)”/.exec(e.name || '') || [])[1
 /** Does this clause name the effect's object — its class, or (when it names no OTHER class) its own name? */
 export function namesObject(e, clause0, why = null) {
   const mine = classesOf(e)
+  // ⛔ (#1263) "pause the alert" with SEVERAL active alerts names none of them: only its own words (its symbol / indicator) or a
+  // plural ("all my alerts", "the alerts") name it. Fails closed — the ask with the real alerts as choices is H14's (#1324).
+  if (e.state === 'alert' && e.type === 'pause' && e.inScope > 1 && CLASS.alert.test(clause0)) {
+    if (/\b(?:all|every|each|both)\b|\b(?:alerts|alarms)\b/i.test(clause0)) return true
+    const got = new Set(tokens(clause0))
+    return (e.ownWords || []).some(t => got.has(t))
+  }
   // ⛔ (#1263) "delete the RSI alert" names an ALERT, never the RSI: the words naming the alert (up to three before its noun)
   // are not read as naming anything else ("remove the RSI and its alert" still names the RSI)
   const clause = mine.includes('alert') ? clause0 : String(clause0 || '').replace(/\b(?:the|my|that|this|your|its|their|an?)\s+(?:(?!(?:and|or|then|but)\b)[\w.()-]+\s+){0,3}?(?:alerts?|alarms?)\b|\b[\w.()-]+\s+(?:alerts?|alarms?)\b/gi, ' ')
@@ -333,13 +347,16 @@ export function homograph(e, words) {
 const NEG = /\b(?:no|not|nothing|none|never|without|neither|nor|don['’]?t|dont|doesn['’]?t|didn['’]?t|won['’]?t|can['’]?t|cannot|shouldn['’]?t|mustn['’]?t)\b|n['’]t\b/i
 // destroy verbs the member uses for their own things (beyond DESTROY): "drop TSLA from Momentum", "take TSLA off the list",
 // "empty the watchlist", "unflag", "close the news tab" — each only with an EXISTING object of the right class after it
+// (#1263) pausing an alert: the ONLY verbs that license an `alert:pause` (multi-word forms first: "turn off", "switch off")
+const PAUSE_SRC = String.raw`turn(?:s|ed|ing)? off|switch(?:es|ed|ing)? off|shut(?:s|ting)? off|paus\w*|mut(?:e|es|ed|ing)|disabl\w*|stop|stops|stopped|stopping|silenc\w*|deactivat\w*|suspend\w*|disarm\w*|snooz\w*`
+const PAUSE_ANY = new RegExp(String.raw`^(?:${PAUSE_SRC})$`, 'i')
 // (#1263) "cancel the RSI alert": cancel is how a member deletes an alert
 const MORE_DESTROY = String.raw`cancel\w*|retire\w*|prune\w*|trim\w*|ditch\w*|scrap\w*|purge\w*|axe|axed|drop|drops|dropped|dropping|take (?:\S+ ){0,3}?(?:off|out|away|down)|empty|emptied|unflag\w*|close|closes|closing`
 // modify verbs (beyond MODIFY): hide / show a part, drag an anchor, flatten, call it something, thicken
 const MORE_MODIFY = String.raw`stretch\w*|extend\w*|shrink\w*|lengthen\w*|shorten\w*|hide|hides|hid|hidden|unhide|drag|drags|dragged|flatten\w*|call|thick\w*|thin\w*|widen\w*|narrow\w*|darken\w*|lighten\w*|bold|italic\w*|move|nudge\w*|bump\w*|raise|lower`
 // what picks a widget's CONTENT (its list / scan): show, switch, open, load, go / take back to the picker, pick, exit, leave
 const DISPLAY = /^(?:show\w*|switch\w*|open\w*|load\w*|view\w*|display\w*|use|using|apply|change\w*|go(?:es)? back|take (?:\S+ ){0,3}?back|pick\w*|exit\w*|leave\w*|replac\w*|swap\w*|instead)$/i
-const VERBS = new RegExp(String.raw`\b(?:${DESTROY_SRC().slice(3, -1)}|${MORE_DESTROY}|take (?:\S+ ){0,3}?back|${MODIFY_SRC().slice(3, -1)}|${MORE_MODIFY}|apply|applies|applied|applying|show|shows|showing|display\w*|load\w*|open|opens|use|using|view|save|saves|saved|saving|update|updates|updated|go(?:es)? back|pick\w*|exit\w*|leave\w*)\b`, 'gi')
+const VERBS = new RegExp(String.raw`\b(?:${PAUSE_SRC}|${DESTROY_SRC().slice(3, -1)}|${MORE_DESTROY}|take (?:\S+ ){0,3}?back|${MODIFY_SRC().slice(3, -1)}|${MORE_MODIFY}|apply|applies|applied|applying|show|shows|showing|display\w*|load\w*|open|opens|use|using|view|save|saves|saved|saving|update|updates|updated|go(?:es)? back|pick\w*|exit\w*|leave\w*)\b`, 'gi')
 const DESTROY_ANY = new RegExp(String.raw`^(?:${DESTROY_SRC().slice(3, -1)}|${MORE_DESTROY})$`, 'i')
 const MODIFY_ANY = new RegExp(String.raw`^(?:${MODIFY_SRC().slice(3, -1)}|${MORE_MODIFY})$`, 'i')
 const CUT = /\b(?:how|why|what|whether|because|since|so|if|when|while|once|until|unless|in order)\b/i
@@ -356,6 +373,8 @@ const INDEFINITE = /^(?:a|an|another|some|any|new|one more|more|extra)\b/i
 const STYLE_VALUE = String.raw`(?:red|green|blue|yellow|orange|purple|pink|white|black|gr[ae]y|teal|cyan|gold|brown|thicker|thinner|dashed|dotted|solid|bolder|bigger|smaller|hidden|visible|\d{1,4})`
 const VERBLESS = new RegExp(String.raw`(?:^|\s)(?:the\s+)?(?:\w+\s+){0,2}?(?:ones?|\d{1,3}|emas?|smas?|rsi|macd|lines?|fib|trendline|vwap)\s+(?:a\s+)?${STYLE_VALUE}\b`, 'i')
 const strengthOf = (verb, e) => {
+  // a pause is asked for by a PAUSE word only — never by a delete, a change or a show of something
+  if (e.type === 'pause') return PAUSE_ANY.test(verb)
   if (e.type === 'replace' && e.state === 'widget') return DISPLAY.test(verb) || MODIFY_ANY.test(verb)
   // a save-over is asked for by a SAVE (or "overwrite / replace my layout"), never by a delete of something else
   if (e.via === 'save') return SAVE.test(verb) || /^(?:overwrit\w*|replac\w*)$/i.test(verb)
@@ -525,7 +544,7 @@ export function permits(e, words, subjects = null, previous = null, previousSet 
 export const isStateAdditive = (words) => STATE_ADDITIVE.test(String(words || ''))
 
 const listOf = (xs) => (xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`)
-const VERB = { remove: 'remove', clear: 'clear', delete: 'delete', replace: 'replace', overwrite: 'change', unreadable: 'change' }
+const VERB = { remove: 'remove', clear: 'clear', delete: 'delete', replace: 'replace', overwrite: 'change', pause: 'pause', unreadable: 'change' }
 const said = (e) => `${VERB[e.type] || 'change'} ${e.name}`
 
 // ⛔ A REFUSED BUNDLE (AUDIT #1247): the parts of the plan that only ADD were not done either — said by name, so a member is

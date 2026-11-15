@@ -1,7 +1,7 @@
 // #1263 × the #1247 STATE RAIL — the member's EXISTING indicator alerts are state. Creating one only adds ("only on this chart"
 // included); DELETING one is a hard delete UCT cannot restore, licensed ONLY by its own words (kind-matched: a delete of
-// something else, or an additive request, never deletes an alert). Pausing / resuming keeps every setting and is undone exactly:
-// an arrangement, never an effect. "Delete the RSI alert" names the ALERT, never the RSI indicator (and the reverse).
+// something else, or an additive request, never deletes an alert). PAUSING one (AUDIT #1263) silently stops a live notification:
+// its own effect `alert:pause`, licensed only by a pause word on that alert. RESUMING is no effect. "Delete the RSI alert" names the ALERT, never the RSI indicator (and the reverse).
 // #1289 step identity: an alert addressed while its indicator is changed in the same request is the SAME alert (its id).
 // H14 (unique identification, #1324 — not merged here): "delete the alert" with several alerts in scope must be ASKED; pinned
 // below as a todo with the design note, so the merge has a red target.
@@ -39,15 +39,10 @@ const DELETE_RSI_ALERT = [op('indicatorAlert.delete', '901')]
 const REFUSED = /^I didn’t change anything/
 
 describe('an EXISTING indicator alert is state: a delete is a destroy, licensed only by its own words', () => {
-  it('the delete is read as one alert:delete effect on that alert (by id); pausing / resuming is no effect', async () => {
+  it('the delete is read as one alert:delete effect on that alert (by id)', async () => {
     const del = await planOf(DELETE_RSI_ALERT)
     expect(del.ok).toBe(true)
     expect(stateEffects(del).map(e => [e.state, e.type, e.id])).toEqual([['alert', 'delete', 'alert:901']])
-    for (const active of [false, true]) {
-      const t = await planOf([op('indicatorAlert.toggle', active ? '902' : '901', { active })])
-      expect(t.ok).toBe(true)
-      expect(stateEffects(t)).toEqual([])
-    }
   })
   const ADDITIVE = ['add an RSI alert above 70', 'ADD AN ALERT', 'alert me when the RSI crosses 70 too', 'another alert on this chart only',
     'put a new alert on the MACD', 'set an alert, don’t delete anything', 'also alert me on the 20 EMA', 'do it', 'ok']
@@ -112,4 +107,54 @@ describe('H14 unique identification (#1324) — design pin, not merged here', ()
   // stateRail.js READERS (this branch adds indicatorAlert), CLASS (adds alert), namesObject (this branch's alert-phrase strip
   // at its head; H14 adds the indicator / drawing / watchlist unique rules there) and stateEffects (H14's `scope` param).
   it.todo('"delete the alert" with two alerts in scope is asked, the two alerts as the choices (H14)')
+})
+
+
+// ── AUDIT #1263: PAUSE is its own effect (the quiet-harm class); RESUME is no effect ──────────────────────────────────────
+const PAUSE_RSI = [op('indicatorAlert.toggle', '901', { active: false })]
+const RESUME_MACD = [op('indicatorAlert.toggle', '902', { active: true })]
+const PAUSE_VERBS = ['pause', 'mute', 'disable', 'turn off', 'switch off', 'stop', 'silence', 'deactivate', 'suspend', 'snooze']
+const OBJECTS = ['the RSI alert', 'my rsi alert', 'the alert', 'my alerts', 'all my alerts', 'the SPY alert']
+const CASES = { lower: (t) => t.toLowerCase(), upper: (t) => t.toUpperCase(), sentence: (t) => t[0].toUpperCase() + t.slice(1) }
+describe('pause: its own effect, licensed only by a pause word on that alert', () => {
+  it('pausing an active alert is one alert:pause effect (by id); resuming is none', async () => {
+    const p = await planOf(PAUSE_RSI)
+    expect(p.ok).toBe(true)
+    expect(stateEffects(p).map(e => [e.state, e.type, e.id])).toEqual([['alert', 'pause', 'alert:901']])
+    const r = await planOf(RESUME_MACD)
+    expect(r.ok).toBe(true)
+    expect(stateEffects(r)).toEqual([])
+    expect(stateRailRefusal(r, { words: 'do it' })).toBe(null)            // resume needs no words of its own (no effect)
+  })
+  const ALLOWED = PAUSE_VERBS.flatMap(v => OBJECTS.flatMap(o => Object.entries(CASES).map(([cn, f]) => [f(`${v} ${o}`), cn])))
+  it.each(ALLOWED)('"%s" (%s) pauses it', async (w) => {
+    expect(stateRailRefusal(await planOf(PAUSE_RSI), { words: w })).toBe(null)
+  })
+  const NOT_PAUSE = ['change the RSI length to 21', 'clean up my chart', 'do it', 'ok', 'add an RSI alert above 70', 'delete the RSI alert',
+    'remove the alert', 'update my alerts', 'show my alerts', 'pause the chart', 'turn the RSI off', 'make the RSI 21 and keep my alerts',
+    'don’t pause the RSI alert', 'never mute my alerts']
+  it.each(NOT_PAUSE.flatMap(w => Object.values(CASES).map(f => f(w))))('no pause word on an alert never pauses it: "%s"', async (w) => {
+    expect(stateRailRefusal(await planOf(PAUSE_RSI), { words: w })).toMatch(REFUSED)
+  })
+  it('a pause inside a broader plan with no pause words is refused (the RSI edit and its alert pause, "change the RSI length to 21")', async () => {
+    const edit = await planOf([op('indicator.update', 'ixe:c1', { instance: 'inst:rsi:1', inputs: [{ key: 'period', value: 21 }] })])
+    expect(stateRailRefusal(edit, { words: 'change the RSI length to 21' })).toBe(null)
+    expect(stateRailRefusal(await planOf(PAUSE_RSI), { words: 'change the RSI length to 21' })).toMatch(REFUSED)
+  })
+})
+
+describe('"pause the alert" with SEVERAL active alerts names none of them (fails closed; the ask is H14)', () => {
+  const TWO_ACTIVE = [{ ...ROWS[0] }, { ...ROWS[1], active: true }]
+  beforeEach(async () => {
+    fx.host.indicatorAlerts = { ...book(), list: async () => TWO_ACTIVE.map(a => ({ ...a })) }
+    _resetIndicatorAlertCache()
+    await loadIndicatorAlerts(fx.host, { force: true })
+  })
+  it.each(['pause the alert', 'mute my alert', 'Turn off the alert', 'stop that alert'])('"%s" with two active alerts is refused', async (w) => {
+    expect(stateRailRefusal(await planOf(PAUSE_RSI), { words: w })).toMatch(REFUSED)
+  })
+  it.each(['pause the RSI alert', 'mute the rsi alert', 'pause all my alerts', 'pause the alerts', 'mute every alert'])('…its own words or a plural still pause it: "%s"', async (w) => {
+    expect(stateRailRefusal(await planOf(PAUSE_RSI), { words: w })).toBe(null)
+  })
+  it.todo('"pause the alert" with two active alerts ASKS with the real alerts as choices (needs H14 #1324 inScope choices)')
 })

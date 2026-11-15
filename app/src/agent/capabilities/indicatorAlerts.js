@@ -315,8 +315,9 @@ export const indicatorAlertKind = {
   empty: "You have no indicator alerts yet.",
   boardScoped: false,
   selfDescribing: true,
-  list: () => rows().map(a => ({ ...a, ref: a.id, label: phrase(a) })),
-  read: (host, ref) => { const a = rows().find(x => x.id === ref); return a ? { ...a, ref: a.id, label: phrase(a) } : null },
+  list: () => { const n = rows().filter(x => x.active).length; return rows().map(a => ({ ...a, ref: a.id, label: phrase(a), activeInScope: n })) },
+  // (activeInScope: how many ACTIVE alerts the book holds — the state rail's scope for "pause the alert", AUDIT #1263)
+  read: (host, ref) => { const a = rows().find(x => x.id === ref); return a ? { ...a, ref: a.id, label: phrase(a), activeInScope: rows().filter(x => x.active).length } : null },
   stateOf: (snap) => ({ ...snap, deleted: false }),
   patch(before, after) {
     if (after.deleted) return { delete: true, sig: rowSig(before) }
