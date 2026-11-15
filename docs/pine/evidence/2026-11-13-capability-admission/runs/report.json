@@ -1,35 +1,35 @@
 {
  "populations": {
   "capture": {
-   "scripts": 584,
-   "admitted": 239,
-   "runtimeLane": 22,
-   "hostLane": 144,
-   "refused": 73,
+   "scripts": 688,
+   "admitted": 270,
+   "runtimeLane": 29,
+   "hostLane": 160,
+   "refused": 81,
    "coreOnly": 35
   },
   "committed": {
    "scripts": 266,
-   "admitted": 46,
-   "runtimeLane": 11,
-   "hostLane": 29,
-   "refused": 6,
+   "admitted": 50,
+   "runtimeLane": 12,
+   "hostLane": 30,
+   "refused": 8,
    "coreOnly": 4
   },
   "reference": {
    "scripts": 271,
-   "admitted": 91,
-   "runtimeLane": 8,
-   "hostLane": 66,
+   "admitted": 92,
+   "runtimeLane": 7,
+   "hostLane": 68,
    "refused": 17,
    "coreOnly": 7
   },
   "builtin": {
    "scripts": 142,
    "admitted": 63,
-   "runtimeLane": 5,
+   "runtimeLane": 4,
    "hostLane": 53,
-   "refused": 5,
+   "refused": 6,
    "coreOnly": 30
   }
  },
@@ -122,6 +122,58 @@
    "caps": [
     "core",
     "ternary"
+   ]
+  },
+  {
+   "capture": "auto-trendline-dojiemoji-rddt-1d-2026-10-02",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "collections:array",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "generics",
+    "history-expr",
+    "if-block",
+    "method-call",
+    "obj:collection",
+    "obj:delete",
+    "obj:line",
+    "reassign",
+    "switch",
+    "ternary",
+    "typed-array",
+    "udt",
+    "var",
+    "while"
+   ]
+  },
+  {
+   "capture": "auto-trendline-dojiemoji-spy-1d-2026-10-03",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "collections:array",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "generics",
+    "history-expr",
+    "if-block",
+    "method-call",
+    "obj:collection",
+    "obj:delete",
+    "obj:line",
+    "reassign",
+    "switch",
+    "ternary",
+    "typed-array",
+    "udt",
+    "var",
+    "while"
    ]
   },
   {
@@ -276,7 +328,33 @@
    ]
   },
   {
+   "capture": "extrapolated-pivot-connector-rddt-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "max_bars_back",
+    "obj:delete",
+    "obj:label",
+    "obj:line"
+   ]
+  },
+  {
    "capture": "extrapolated-pivot-connector-spy-1d-2026-10-03",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "max_bars_back",
+    "obj:delete",
+    "obj:label",
+    "obj:line"
+   ]
+  },
+  {
+   "capture": "extrapolated-pivot-connector-spy-1d-2026-11-15",
    "lane": "host",
    "runtimeOn": "MATCH",
    "production": "MATCH",
@@ -329,7 +407,47 @@
    ]
   },
   {
+   "capture": "fib-retracement-rddt-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "max_bars_back",
+    "obj:delete",
+    "obj:label",
+    "obj:line",
+    "realtime-state",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
    "capture": "fib-retracement-spy-1d-2026-10-03",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "max_bars_back",
+    "obj:delete",
+    "obj:label",
+    "obj:line",
+    "realtime-state",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "capture": "fib-retracement-spy-1d-2026-11-15",
    "lane": "host",
    "runtimeOn": "MATCH",
    "production": "MATCH",
@@ -557,42 +675,6 @@
    ]
   },
   {
-   "capture": "liquidity-pools-rddt-1d-2026-09-28",
-   "lane": "host",
-   "runtimeOn": "MATCH",
-   "production": "MATCH",
-   "caps": [
-    "core",
-    "if-block",
-    "method-call",
-    "obj:label",
-    "obj:line",
-    "obj:linefill",
-    "realtime-state",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "liquidity-pools-spy-1d-2026-10-03",
-   "lane": "host",
-   "runtimeOn": "MATCH",
-   "production": "MATCH",
-   "caps": [
-    "core",
-    "if-block",
-    "method-call",
-    "obj:label",
-    "obj:line",
-    "obj:linefill",
-    "realtime-state",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
    "capture": "market-structure-by-leviathan-rddt-1d-2026-09-28",
    "lane": "host",
    "runtimeOn": "MATCH",
@@ -644,6 +726,25 @@
    ]
   },
   {
+   "capture": "nonlinear-regression-zero-lag-moving-average-loxx-rddt-1d-2026-11-14",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "collections:array",
+    "compound-assign",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "generics",
+    "if-block",
+    "reassign",
+    "ternary",
+    "typed-array"
+   ]
+  },
+  {
    "capture": "nubia-auto-midas-anchored-vwap-xdecow-rddt-1d-2026-11-14",
    "lane": null,
    "runtimeOn": "INCONCLUSIVE",
@@ -677,7 +778,37 @@
    ]
   },
   {
+   "capture": "opening-range-initial-balance-opening-price-rddt-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
    "capture": "opening-range-initial-balance-opening-price-spy-1d-2026-10-03",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "capture": "opening-range-initial-balance-opening-price-spy-1d-2026-11-15",
    "lane": "host",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
@@ -766,48 +897,6 @@
     "fn-single",
     "obj:delete",
     "obj:label",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "price-action-as-in-book-fibonacci-supportresistant-trendline-rddt-1d-2026-09-28",
-   "lane": "host",
-   "runtimeOn": "MATCH",
-   "production": "MATCH",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "method-call",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "obj:linefill",
-    "realtime-state",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "price-action-as-in-book-fibonacci-supportresistant-trendline-spy-1d-2026-10-03",
-   "lane": "host",
-   "runtimeOn": "MATCH",
-   "production": "MATCH",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "method-call",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "obj:linefill",
-    "realtime-state",
     "reassign",
     "ternary",
     "var"
@@ -1146,6 +1235,40 @@
    ]
   },
   {
+   "capture": "rsi-horizontal-resistance-levels-rddt-1d-2026-10-02",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "collections:array",
+    "core",
+    "generics",
+    "if-block",
+    "obj:collection",
+    "obj:delete",
+    "obj:line",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "capture": "rsi-horizontal-resistance-levels-spy-1d-2026-10-02",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "collections:array",
+    "core",
+    "generics",
+    "if-block",
+    "obj:collection",
+    "obj:delete",
+    "obj:line",
+    "ternary",
+    "var"
+   ]
+  },
+  {
    "capture": "rsi-swing-indicator-rddt-1d-2026-09-28",
    "lane": "host",
    "runtimeOn": "MATCH",
@@ -1330,6 +1453,33 @@
    ]
   },
   {
+   "capture": "support-and-resistance-logistic-regression-flux-charts-rddt-1d-2026-11-14",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "collections:array",
+    "compound-assign",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for-in",
+    "generics",
+    "if-block",
+    "method-call",
+    "obj:delete",
+    "obj:label",
+    "obj:line",
+    "realtime-state",
+    "reassign",
+    "ternary",
+    "tuple-destructure",
+    "udt",
+    "var",
+    "while"
+   ]
+  },
+  {
    "capture": "support-and-resistance-rddt-1d-2026-10-02",
    "lane": "host",
    "runtimeOn": "MATCH",
@@ -1422,6 +1572,31 @@
    ]
   },
   {
+   "capture": "trendline-pivots-quantvue-rddt-1d-2026-11-14",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "collections:array",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for-in",
+    "if-block",
+    "method-call",
+    "obj:collection",
+    "obj:delete",
+    "obj:getter",
+    "obj:label",
+    "obj:line",
+    "reassign",
+    "ternary",
+    "typed-array",
+    "udt",
+    "var"
+   ]
+  },
+  {
    "capture": "trendlines-rddt-1d-2026-09-27",
    "lane": "host",
    "runtimeOn": "MATCH",
@@ -1458,6 +1633,90 @@
    "production": "MATCH",
    "caps": [
     "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "volume-profile-rddt-1d-2026-09-28",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "collections:array",
+    "compound-assign",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "generics",
+    "if-block",
+    "max_bars_back",
+    "method-call",
+    "obj:collection",
+    "obj:line",
+    "realtime-state",
+    "reassign",
+    "ternary",
+    "tuple-destructure",
+    "var",
+    "while"
+   ]
+  },
+  {
+   "capture": "volume-profile-spy-1d-2026-10-03",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "collections:array",
+    "compound-assign",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "generics",
+    "if-block",
+    "max_bars_back",
+    "method-call",
+    "obj:collection",
+    "obj:line",
+    "realtime-state",
+    "reassign",
+    "ternary",
+    "tuple-destructure",
+    "var",
+    "while"
+   ]
+  },
+  {
+   "capture": "vw-array-na-rddt-1d-2026-11-15",
+   "lane": "runtime",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "collections:array",
+    "compound-assign",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "generics",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-array-na-spy-1d-2026-10-02",
+   "lane": "runtime",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "collections:array",
+    "compound-assign",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "generics",
     "ternary"
    ]
   },
@@ -1865,6 +2124,50 @@
    ]
   },
   {
+   "capture": "vw-cs2-bool-na-v1-cum-rddt-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-cs2-bool-na-v1-rddt-1d-2026-11-15",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-cs2-bool-na-v3-cum-rddt-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-cs2-bool-na-v3-rddt-1d-2026-11-15",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
    "capture": "vw-cs2-highestbars-computed-v6-rddt-1d-2026-11-15",
    "lane": "host",
    "runtimeOn": "DIVERGE",
@@ -1935,6 +2238,16 @@
    ]
   },
   {
+   "capture": "vw-cs2-holed-highestbars-rddt-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
    "capture": "vw-cs2-label-number-format-rddt-1d-2026-11-15",
    "lane": "host",
    "runtimeOn": "MATCH",
@@ -1945,6 +2258,28 @@
     "if-block",
     "obj:label",
     "realtime-state"
+   ]
+  },
+  {
+   "capture": "vw-cs2-rising-falling-na-v4-rddt-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-cs2-rising-falling-na-v5-rddt-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
    ]
   },
   {
@@ -1959,6 +2294,16 @@
   },
   {
    "capture": "vw-cs2-sma-exact-tie-spy-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-cs2-stoch-flat-rddt-1d-2026-11-15",
    "lane": "host",
    "runtimeOn": "DIVERGE",
    "production": "DIVERGE",
@@ -2116,6 +2461,84 @@
     "obj:label",
     "realtime-state",
     "ternary"
+   ]
+  },
+  {
+   "capture": "vw-int-array-avg-neg-rddt-1d-2026-11-15",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "collections:array",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "generics",
+    "if-block",
+    "method-call",
+    "obj:getter",
+    "obj:label",
+    "obj:line",
+    "realtime-state"
+   ]
+  },
+  {
+   "capture": "vw-int-array-avg-neg-spy-1d-2026-10-01",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "collections:array",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "generics",
+    "if-block",
+    "method-call",
+    "obj:getter",
+    "obj:label",
+    "obj:line",
+    "realtime-state"
+   ]
+  },
+  {
+   "capture": "vw-int-array-avg-rddt-1d-2026-11-15",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "collections:array",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "generics",
+    "if-block",
+    "method-call",
+    "obj:getter",
+    "obj:label",
+    "obj:line",
+    "realtime-state",
+    "var"
+   ]
+  },
+  {
+   "capture": "vw-int-array-avg-spy-1d-2026-09-30",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "collections:array",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "generics",
+    "if-block",
+    "method-call",
+    "obj:getter",
+    "obj:label",
+    "obj:line",
+    "realtime-state",
+    "var"
    ]
   },
   {
@@ -2307,6 +2730,66 @@
     "if-block",
     "method-call",
     "obj:label"
+   ]
+  },
+  {
+   "capture": "vw-ternary-arm-legacy-v1-cum-rddt-1d-2026-11-15",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-ternary-arm-legacy-v1-rddt-1d-2026-11-15",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-ternary-arm-legacy-v2-cum-rddt-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-ternary-arm-legacy-v2-rddt-1d-2026-11-15",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-ternary-arm-legacy-v3-cum-rddt-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-ternary-arm-legacy-v3-rddt-1d-2026-11-15",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "ternary"
    ]
   },
   {
@@ -3094,6 +3577,28 @@
    ]
   },
   {
+   "key": "reference:auto-trendlines-by-pivots-perfect-non-repainting-lines-spyqqq-daily-pr__8b82863b79",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "collections:array",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "generics",
+    "if-block",
+    "obj:collection",
+    "obj:delete",
+    "obj:label",
+    "obj:line",
+    "realtime-state",
+    "typed-array",
+    "var"
+   ]
+  },
+  {
    "key": "reference:average-true-range-trailing-stops-strategy-by-sylvain-vervoort__608",
    "lane": "host",
    "guard": null,
@@ -3112,30 +3617,6 @@
     "core",
     "if-block",
     "ternary"
-   ]
-  },
-  {
-   "key": "reference:best-sr-indicator-with-candlestick-patterns__4af8b3cc84",
-   "lane": "runtime",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "method-call",
-    "obj:collection",
-    "obj:label",
-    "obj:line",
-    "obj:linefill",
-    "reassign",
-    "typed-array",
-    "var",
-    "while"
    ]
   },
   {
@@ -3275,30 +3756,6 @@
    ]
   },
   {
-   "key": "reference:dynamic-linear-regression-channels__17ec799bc1",
-   "lane": "host",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "compound-assign",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
-    "if-block",
-    "max_bars_back",
-    "method-call",
-    "obj:line",
-    "obj:linefill",
-    "realtime-state",
-    "reassign",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
    "key": "reference:elliot-wave-oscillator-lazybear__14",
    "lane": "host",
    "guard": null,
@@ -3409,6 +3866,28 @@
     "core",
     "reassign",
     "ternary"
+   ]
+  },
+  {
+   "key": "reference:fourier-extrapolator-of-price-w-projection-forecast-loxx__5c7061572f",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "collections:array",
+    "compound-assign",
+    "core",
+    "for",
+    "generics",
+    "if-block",
+    "method-call",
+    "obj:collection",
+    "obj:line",
+    "realtime-state",
+    "reassign",
+    "ternary",
+    "var",
+    "while"
    ]
   },
   {
@@ -3552,6 +4031,28 @@
     "obj:line",
     "realtime-state",
     "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "key": "reference:market-trend-levels-detector-bigbeluga__317e91d708",
+   "lane": "host",
+   "guard": null,
+   "declined": null,
+   "caps": [
+    "collections:array",
+    "core",
+    "for",
+    "generics",
+    "if-block",
+    "method-call",
+    "obj:collection",
+    "obj:delete",
+    "obj:getter",
+    "obj:label",
+    "obj:line",
+    "realtime-state",
     "ternary",
     "var"
    ]
@@ -4473,35 +4974,6 @@
    ]
   },
   {
-   "key": "builtin:linear-regression-channel__Linear_Regre",
-   "lane": "runtime",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "compound-assign",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
-    "if-block",
-    "max_bars_back",
-    "method-call",
-    "obj:collection",
-    "obj:delete",
-    "obj:getter",
-    "obj:label",
-    "obj:line",
-    "obj:linefill",
-    "realtime-state",
-    "reassign",
-    "switch",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
    "key": "builtin:mass-index__Mass1Index",
    "lane": "host",
    "guard": null,
@@ -4759,6 +5231,21 @@
    ]
   },
   {
+   "key": "builtin:visible-average-price__Visible1Aver",
+   "lane": null,
+   "guard": "pine:collection",
+   "declined": "pine:builtin",
+   "caps": [
+    "collections:array",
+    "core",
+    "generics",
+    "if-block",
+    "realtime-state",
+    "typed-array",
+    "var"
+   ]
+  },
+  {
    "key": "builtin:volume-weighted-moving-average__VWMA",
    "lane": "host",
    "guard": null,
@@ -4839,6 +5326,58 @@
     "realtime-state",
     "reassign",
     "ternary"
+   ]
+  },
+  {
+   "capture": "auto-trendline-dojiemoji-rddt-1d-2026-10-02",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "collections:array",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "generics",
+    "history-expr",
+    "if-block",
+    "method-call",
+    "obj:collection",
+    "obj:delete",
+    "obj:line",
+    "reassign",
+    "switch",
+    "ternary",
+    "typed-array",
+    "udt",
+    "var",
+    "while"
+   ]
+  },
+  {
+   "capture": "auto-trendline-dojiemoji-spy-1d-2026-10-03",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "collections:array",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "generics",
+    "history-expr",
+    "if-block",
+    "method-call",
+    "obj:collection",
+    "obj:delete",
+    "obj:line",
+    "reassign",
+    "switch",
+    "ternary",
+    "typed-array",
+    "udt",
+    "var",
+    "while"
    ]
   },
   {
@@ -4962,6 +5501,28 @@
    ]
   },
   {
+   "capture": "vw-cs2-bool-na-v1-cum-rddt-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-cs2-bool-na-v3-cum-rddt-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
    "capture": "vw-cs2-highestbars-computed-v6-rddt-1d-2026-11-15",
    "lane": "host",
    "runtimeOn": "DIVERGE",
@@ -5032,7 +5593,49 @@
    ]
   },
   {
+   "capture": "vw-cs2-holed-highestbars-rddt-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-cs2-rising-falling-na-v4-rddt-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-cs2-rising-falling-na-v5-rddt-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "fn-single",
+    "ternary"
+   ]
+  },
+  {
    "capture": "vw-cs2-sma-exact-tie-spy-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-cs2-stoch-flat-rddt-1d-2026-11-15",
    "lane": "host",
    "runtimeOn": "DIVERGE",
    "production": "DIVERGE",
@@ -5088,6 +5691,16 @@
     "reassign",
     "ternary",
     "var"
+   ]
+  },
+  {
+   "capture": "vw-ternary-arm-legacy-v2-cum-rddt-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "core",
+    "ternary"
    ]
   },
   {

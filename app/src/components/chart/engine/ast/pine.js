@@ -12210,11 +12210,12 @@ export class Resolver {
   /** A ternary whose CONDITION is a constant → the branch that actually runs,
    *  else null. THE ONE PLACE THAT DECIDES, read by both timeframe readers.
    *
-   *  ⭐⭐ `res = useCurrentRes ? period : resCustom` IS THE MTF TOGGLE IDIOM and
-   *  two community scripts are nothing but it. `pine.security.test.js` recorded
+   *  ⭐⭐ THE MTF TOGGLE IDIOM: a boolean input picks either the chart's own
+   *  timeframe (`period`) or a second, timeframe-typed input, and the result
+   *  feeds `security`. Two community scripts are nothing but it. `pine.security.test.js` recorded
    *  the case as unwinnable in the words "a TERNARY. No literal exists to fold
    *  to." True — and beside the point, because nobody has to fold the ternary
-   *  itself. `useCurrentRes = input(true, …)` is a CONSTANT, so exactly one arm
+   *  itself. The boolean input's default is a CONSTANT, so exactly one arm
    *  is reachable and the other is dead code in the script as shipped.
    *
    *  ⛔ THE CONDITION IS READ, NEVER ASSUMED. Taking `yes` unconditionally passes
@@ -28212,10 +28213,10 @@ function translatePineResult(source, opts = {}) {
       const flat = !readsBars(ast)
       // ⭐⭐ THE OTHER SPELLING OF "SCAFFOLDING", AND IT IS THE AUTHOR'S OWN STATEMENT
       // TOO. `outputHidden` reads `display = display.none`; this reads the plot the
-      // author gave NO TITLE and then handed to `fill()` as a band edge —
-      //     mPlot = plot(ohlc4, title="", style=plot.style_circles, linewidth=0)
-      //     fill(mPlot, pPlot, …)
-      // which is `high_engagement__03-supertrend-kivancozbilgic` line 29, the script
+      // author gave NO TITLE and then handed to `fill()` as a band edge (an empty-
+      // titled, zero-width plot of `ohlc4` used only as one side of a `fill`), which is
+      // `high_engagement__03-supertrend-kivancozbilgic` line 29 (licence-held, so
+      // described and not quoted: docs/pine/LICENSING.md §2d), the script
       // that made this a ruling. Both facts are required: an untitled plot that nothing
       // fills is still a column, and a NAMED plot handed to `fill()` is a series the
       // author labelled and may well want screened.
