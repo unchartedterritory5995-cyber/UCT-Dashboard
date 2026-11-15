@@ -45,7 +45,10 @@ import { otherSymbolRequestsOf, storeTickerOf } from '../../otherSymbols'
 import { lowerTfCodesOf, LOWER_TF_SOURCE } from '../../lowerTf'
 import SYMBOL_SCOPE from '../../ast/symbolScope.json'
 import { createFakeChart } from '../fakeChart'
-import { normalizeColor, substitutionProblems } from '../../../../../../../tools/vendor_harness/compare.mjs'
+import { normalizeColor, substitutionProblems, vendorValueOf } from '../../../../../../../tools/vendor_harness/compare.mjs'
+// ⭐ RS RATING L3 — which classification fields a script reads, and the binding's substitution tags.
+import { substitutedFor } from '../../ast/symbolSubstitution'
+import { CLASSIFICATION_FIELD_NAMES } from '../../ast/bind'
 import { validateCapture } from '../../../../../../../tools/vendor_harness/schema.mjs'
 import { fullBarsFor } from '../../../../../utils/barsBackfill'
 import fs from 'node:fs'
@@ -516,7 +519,31 @@ function symbolOf(capture) {
   // supply uses; where no witness links it, the vendor's spelling is kept (what
   // the harness did before, so nothing unlinked changes).
   const exchange = storeExchangeOfCapture(capture, tv) || tv
-  return { ticker, exchange }
+  return { ticker, exchange, ...vendorClassificationOf(capture) }
+}
+
+/** ⭐⭐ RS RATING L3 — THE GRADE FEEDS OUR SIDE THE VENDOR'S OWN VALUE of each substituted input
+ *  (RS-RATING-TRANSFER.md: "the grade proves the engine, the substitute is disclosed"): the
+ *  capture's `symbol.industry` / `symbol.sector`, read with `compare.mjs::vendorValueOf` (the
+ *  comparator's own resolver), in the slot our store's string fills on a member's chart. The path
+ *  is the one `bind.js::classificationWith` writes into its tag (`capture.symbol.<field>`), so
+ *  what is fed and what is declared cannot name different fields. A capture without them leaves the
+ *  fields unsettled (a script reading one refuses by name): nothing is invented. ⛔ No
+ *  `securityType`: that is our store's class, and a capture carries TradingView's `type`. */
+function vendorClassificationOf(capture) {
+  const out = {}
+  for (const f of CLASSIFICATION_FIELD_NAMES) {
+    const got = vendorValueOf(capture, `capture.symbol.${f}`)
+    if (got.found && typeof got.value === 'string' && got.value.trim()) out[f] = got.value
+  }
+  return out
+}
+
+/** ⭐⭐ RS RATING L3 — THIS run's substituted inputs: each classification field the script reads
+ *  that the binding served from the substitution path (`symbolSubstitution.js::substitutedFor`),
+ *  with `value`, what our side was fed for it (the capture's own value, `vendorClassificationOf`). */
+function classificationSubstitutions(source, symbol) {
+  return substitutedFor(source, symbol).map((e) => ({ ...e, value: symbol[e.name.slice('syminfo.'.length)] }))
 }
 
 /** The reach of a plot's per-bar colour rule, or null when it has none. */
@@ -1290,7 +1317,8 @@ function runOurSideOnTheParityClock(capture) {
       runHalfDoor: built.runHalf ? 'minted' : (built.runHalfDeclined ? `declined:${built.runHalfDeclined.code}` : null),
       // ⭐ L7 — the inputs this run answered with the VENDOR's value in place of UCT data
       // (`substitutedInputsOf`); `[]` until a lane feeds one.
-      substituted: substitutedInputsOf(capture, []),
+      // ⭐ RS RATING L3 — `syminfo.industry` / `sector`, fed the capture's value (`symbolOf`).
+      substituted: substitutedInputsOf(capture, classificationSubstitutions(source, ctx.symbol)),
     }
   } finally {
     registry.uninstallUserDefinition(HARNESS_DEF_ID)
