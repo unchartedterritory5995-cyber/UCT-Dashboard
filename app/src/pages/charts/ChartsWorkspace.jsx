@@ -12,6 +12,7 @@ import useChartLayouts from '../../hooks/useChartLayouts'
 import { useAuth } from '../../context/AuthContext'
 import UIcon from '../../components/ui/UIcon'
 import { WorkspaceContext } from './WorkspaceContext'
+import { GROUP_SAVE_MS, GROUP_SCAN_GAP_MS, GROUP_SCAN_SAVE_MS } from './groupSymSavePace'
 // UCT Agent (admin-dark): lazy, so nothing of the Agent reaches the board's chunk
 // for anyone who never opens it. The host only READS the chart registry below.
 import useSWR, { useSWRConfig } from 'swr'
@@ -52,6 +53,7 @@ import GhostPreview from './placement/GhostPreview'
 import MultiChartGrid from './grid/MultiChartGrid'
 import MultiChartMenu from './grid/MultiChartMenu'
 import useMultiChartState from './grid/useMultiChartState'
+import useGridAgentControl from './grid/useGridAgentControl'
 import { deviceClassOf } from './presentation/devicePresentation'
 import PopoutWindow from './popout/PopoutWindow'
 import PopoutShell from './popout/PopoutShell'
@@ -60,12 +62,13 @@ import { readChartsLink, stripChartsLink } from '../../lib/chartDeepLink'
 import useDoorParam from '../../hooks/useDoorParam'
 import PoppedLayout from './popout/PoppedLayout'
 import { saveRecord, listOrphans, confirmRestored, holdOwnerLock, boardWindowName, widgetWindowName, planDeskRepop } from './popout/deskStore'
-import { hasDesktopFeature } from '../../lib/desktopBridge'
+import { hasDesktopFeature, reportDesktopEvent } from '../../lib/desktopBridge'
 import { announceDeskLaunchBlocked, finishDeskLaunch } from '../../lib/popoutRegistry'
 import PeriodSortPanel from './PeriodSortPanel'
 import FloatingWidgetPanel from './FloatingWidgetPanel'
 import CompareSymbolsPanel from './CompareSymbolsPanel'
-import { COMPARE_OPEN_EVENT } from './compareGroups'
+import { COMPARE_OPEN_EVENT, compareChartApi } from './compareGroups'
+import { compareAgentSource } from './compareAgent'
 import PeriodSortConfig from './PeriodSortConfig'
 import ReplayPanel from './ReplayPanel'
 import VersionHistoryPanel, { VersionHistoryMenuItem, useVersionHistoryAvailable, keyLabel } from './VersionHistory'
@@ -193,10 +196,10 @@ const STARTER_LAYOUT = {
 const UCT_DEFAULT_LAYOUT = {
   widgets: [
     { id: 'uctd-themes',       type: 'themes',       color: 'A', x: 0,  y: 0,  w: 3,  h: 20, opts: {} },
-    { id: 'uctd-chart',        type: 'chart',        color: 'A', x: 3,  y: 0,  w: 17, h: 17, opts: {} },
-    { id: 'uctd-fundamentals', type: 'fundamentals', color: 'A', x: 3,  y: 17, w: 17, h: 3,  opts: {} },
-    { id: 'uctd-watchlist',    type: 'watchlist',    color: 'A', x: 20, y: 0,  w: 4,  h: 11, opts: {} },
-    { id: 'uctd-aisearch',     type: 'aisearch',     color: 'A', x: 20, y: 11, w: 4,  h: 9,  opts: {} },
+    // Owner 2026-11-13: Fundamentals + AI Search are hidden widgets (registry HIDDEN_WIDGETS),
+    // so the default drops them — the chart takes the full height, the watchlist the full column.
+    { id: 'uctd-chart',        type: 'chart',        color: 'A', x: 3,  y: 0,  w: 17, h: 20, opts: {} },
+    { id: 'uctd-watchlist',    type: 'watchlist',    color: 'A', x: 20, y: 0,  w: 4,  h: 20, opts: {} },
   ],
   cols: GRID_COLS,
 }
@@ -1011,7 +1014,23 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     if (!pending || pending.op.stale()) return
     setPref('charts_workspace_groups', JSON.stringify(pending.next))
   }, [setPref])
+  // ⭐ (2026-11-14) A SCAN IS SAVED ONCE, WHERE IT STOPS (groupSymSavePace.js). A change that
+  // follows another within GROUP_SCAN_GAP_MS is a scan: its save waits GROUP_SCAN_SAVE_MS after
+  // the LAST change instead of 400 ms after each. A pick on its own is saved as before. The
+  // same symbol announced again for one move (a list and its chart both report it) is not a
+  // second change.
+  const groupsScanTimerRef = useRef(null)     // armed by each change; a change while armed is a scan
+  const groupsScanningRef = useRef(false)     // how the pending save was scheduled
+  const groupsLastSetRef = useRef({})         // color -> the symbol last announced for it
   const setGroupSym = useCallback((color, sym) => {
+    const repeat = groupsLastSetRef.current[color] === sym
+    groupsLastSetRef.current[color] = sym
+    if (!repeat) {
+      groupsScanningRef.current = groupsScanTimerRef.current != null
+      if (groupsScanTimerRef.current) clearTimeout(groupsScanTimerRef.current)
+      groupsScanTimerRef.current = setTimeout(() => { groupsScanTimerRef.current = null }, GROUP_SCAN_GAP_MS)
+    }
+    const wait = groupsScanningRef.current ? GROUP_SCAN_SAVE_MS : GROUP_SAVE_MS
     setGroupSymsState(prev => {
       const next = { ...prev, [color]: sym }
       if (groupsSaveTimerRef.current) clearTimeout(groupsSaveTimerRef.current)
@@ -1021,17 +1040,27 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
         groupsSaveTimerRef.current = null
         groupsPendingRef.current = null
         writeGroups(pending)
-      }, 400)
+      }, wait)
       return next
     })
   }, [writeGroups])
-  useEffect(() => () => {
-    if (!groupsSaveTimerRef.current) return
-    clearTimeout(groupsSaveTimerRef.current)
-    groupsSaveTimerRef.current = null
-    const pending = groupsPendingRef.current
-    groupsPendingRef.current = null
-    writeGroups(pending)
+  useEffect(() => {
+    // Leaving the board, or the page going away, saves a pending symbol now (a scan's save
+    // can be 1.5 s out; a refresh inside that must still open on the symbol left).
+    const flush = () => {
+      if (!groupsSaveTimerRef.current) return
+      clearTimeout(groupsSaveTimerRef.current)
+      groupsSaveTimerRef.current = null
+      const pending = groupsPendingRef.current
+      groupsPendingRef.current = null
+      writeGroups(pending)
+    }
+    window.addEventListener('pagehide', flush)
+    return () => {
+      window.removeEventListener('pagehide', flush)
+      if (groupsScanTimerRef.current) { clearTimeout(groupsScanTimerRef.current); groupsScanTimerRef.current = null }
+      flush()
+    }
   }, [writeGroups])
 
   // Which timeframe each color group's chart is showing right now. Broadcast by
@@ -1233,6 +1262,8 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   const [compareOpen, setCompareOpen] = useState(false)
   // The `uct:compare-open` detail that opened it ({tab: 'rotation', sym, group}, unit 3-09), or null.
   const [compareIntent, setCompareIntent] = useState(null)
+  // The tab the open panel shows ('overlay' | 'rotation'), as the panel reports it (onTabChange); null while it is closed.
+  const [compareTab, setCompareTab] = useState(null)
   // Replay mode: an ISO 'YYYY-MM-DD' cutoff — linked charts hide every bar after it.
   const [replayCutoff, setReplayCutoff] = useState(null)
   // Tools → Replay Mode: the dedicated replay dialog (separate from Custom-Period Sort;
@@ -2016,6 +2047,8 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     if (!layout.widgets.some(w => w.type === 'chart')) handleAddWidget('chart', undefined, { instant: true })
     setCompareOpen(true)
   }, [layout, handleAddWidget])
+  // The panel's own close (its ×, Escape) — UCT Agent's compare.openView Undo closes it the same way.
+  const closeCompare = useCallback(() => { setCompareOpen(false); setCompareIntent(null); setCompareTab(null) }, [])
 
   // UCT RS Phase 3, unit 3-12: a `uct:compare-open` window event (unit 3-09's "see the rotation"
   // link) opens the panel, on the tab it names. The panel listens too, for an open while it is up.
@@ -2050,10 +2083,29 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   // "Pick on chart": close the dialog + arm the drag so the chart is visible to click on.
   const armReplayPick = useCallback(() => { setReplayOpen(false); setReplayArmPick(true) }, [])
 
+  // Custom-Period Sort → Sort: the config popover's own write, ONE function shared with UCT Agent (periodSort.run). Opens
+  // the floating results panel for [start, end] (YYYYMMDD) and `group`; sets or CLEARS the shared Replay cutoff (End date)
+  // and the start marker exactly as the popover always has; switches every chart to `tf` only when one is given (the
+  // popover always gives one; the Agent never does).
+  const runPeriodSort = useCallback((start, end, replay, group, tf, markStart) => {
+    setPeriodSortPanel({ start, end, group: group || null })
+    // Replay: cut every linked chart off at the End date (ISO). Off = clear it.
+    const s = String(end)
+    setReplayCutoff(replay ? `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}` : null)
+    // Mark start date on every chart: gold vertical line ('line') or gold start
+    // candle ('candle'). 'off' → no marker.
+    const st = String(start)
+    setStartMarker(markStart && markStart !== 'off' ? `${st.slice(0, 4)}-${st.slice(4, 6)}-${st.slice(6, 8)}` : null)
+    if (markStart === 'line' || markStart === 'candle') setStartMarkerStyle(markStart)
+    // Timeframe: switch every chart to the chosen D/W/M (composes with replay).
+    applyTfToCharts(tf)
+  }, [applyTfToCharts])
   // Custom-Period Sort → dock the floating results as a real grid widget (carrying the
   // highlighted range), or fold it into an existing widget as a Period-Sort tab.
+  // Returns the new widget's id (UCT Agent's periodSort.dock reads it back and its Undo removes exactly it).
   const handleDockPeriodSort = useCallback((start, end, group = null) => {
     setPeriodSortPanel(null)
+    const id = `w-periodsort-${Date.now()}`
     setLayout(prev => {
       const defaults = WIDGET_DEFAULTS.periodsort
       const fit = findPlacement(prev.widgets, defaults, COLS.lg, FIXED_ROWS)
@@ -2074,7 +2126,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
       }
       const color = pickWidgetColor(widgets, groupSyms, extraGroupsOnRef.current)
       const newWidget = {
-        id: `w-periodsort-${Date.now()}`,
+        id,
         type: 'periodsort', color,
         x: place.x, y: place.y, w: place.w, h: place.h,
         opts: { start, end, group: group || null },
@@ -2083,6 +2135,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
       scheduleSave(next)
       return next
     })
+    return id
   }, [scheduleSave, groupSyms])
   const handlePeriodSortToTab = useCallback((widgetId, start, end, group = null) => {
     setPeriodSortPanel(null)
@@ -2746,6 +2799,8 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   // authority for which shell renders (a single MQL, deliberately), so the
   // device class is derived from it rather than from a second opinion.
   const mc = useMultiChartState(deviceClassOf(isMobile))
+  // ⭐ UCT Agent: the grid's own writers, for the Agent host below (useGridAgentControl — stable, read live)
+  const gridAgentControl = useGridAgentControl(mc)
   const [, setMcMenuOpen] = useState(false)  // nested under Layouts ▾
   // Consolidated top-level toolbar dropdowns: "Widgets" and "Layouts". Each shows a small
   // action list; `*Sub` picks a nested panel (e.g. the widget-type list or the save form).
@@ -3066,6 +3121,8 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
         plan.widgetIds.forEach(saveWidgetRecord)
         setPoppedWidgetIds(prev => plan.widgetIds.reduce(popoutAddWidgetId, prev))
       }
+      // Telemetry (plan 5.1): a saved desk came back at launch.
+      if (plan.boards.length || plan.widgetIds.length) reportDesktopEvent('desk_restored')
     } finally {
       setDeskRepopSettled(true)
     }
@@ -3369,6 +3426,9 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   // (and are flushed on switch); edits on UCT Default, a prebuilt or a blank board
   // are dropped by a switch — the manual product does the same, silently.
   const agentLayoutsRef = useRef(null)
+  // C3-037..039: the Layout Dock's own door to its RAIL (pin, move, take off the bar) — set by
+  // LayoutDock itself on every render (LayoutDock.jsx agentRef), read through host.layoutDock.
+  const agentDockRef = useRef(null)
   // This tab's layout trail (layoutTrail.js): every change of the open-layout pointer, from the
   // Dock or the Agent alike, so "switch back to the previous layout" has an answer.
   const layoutTrailRef = useRef({ last: null, trail: [] })
@@ -3431,6 +3491,36 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   // change / exitReplayMode) and the shared cutoff, read through a ref so the host memo stays dependency-free.
   const agentReplayRef = useRef(null)
   agentReplayRef.current = { cutoff: replayCutoff, start: startReplay, exit: exitReplayMode }
+  // Tools → Compare Symbols for UCT Agent (compare.openView, pages/charts/compareAgent.js): the panel's open state, the tab
+  // it reports, the last `uct:compare-open` detail, and the panel's own close — through a ref (the host memo stays
+  // dependency-free). `hasChart` is openCompare's own test; `percentOn` reads the chart the panel will resolve.
+  const agentCompareRef = useRef(null)
+  agentCompareRef.current = {
+    mobile: isMobile, grid: gridMode, open: compareOpen, tab: compareTab, intent: compareIntent,
+    hasChart: () => (layoutRef.current?.widgets || []).some(w => w.type === 'chart'),
+    percentOn: () => { try { return !!compareChartApi(chartApiByIdRef.current, activeChartRef.current)?.getPercentScale?.() } catch { return false } },
+    close: closeCompare,
+  }
+  // Custom-Period Sort for UCT Agent (periodSort.run / periodSort.dock): the popover's own runPeriodSort, the panel's own
+  // Dock (handleDockPeriodSort), and the state they write, read through a ref (the host memo stays dependency-free).
+  const agentPeriodSortRef = useRef(null)
+  agentPeriodSortRef.current = {
+    panel: periodSortPanel, cutoff: replayCutoff, marker: startMarker, markerStyle: startMarkerStyle,
+    run: runPeriodSort, dock: handleDockPeriodSort, widgets: () => layoutRef.current?.widgets || [],
+    // Undo of a run: the panel, cutoff and marker exactly as they were (the same setters the popover and Exit replay use)
+    restore: (was) => {
+      setPeriodSortPanel(was.panel ? { ...was.panel } : null)
+      setReplayCutoff(was.cutoff ?? null)
+      setStartMarker(was.marker ?? null)
+      if (was.markerStyle) setStartMarkerStyle(was.markerStyle)
+    },
+    // Undo of a Dock: the board writer the Agent's widget changes use (remove the docked widget, put back any widget the
+    // dock's split resized), then the floating panel it came from
+    undock: ({ remove, set, panel }) => {
+      agentWidgetOpsRef.current.applyBoard({ remove: [remove], set: set || {} })
+      setPeriodSortPanel(panel ? { ...panel } : null)
+    },
+  }
   const inRouter = useInRouterContext()
   const agentHost = useMemo(() => buildWorkspaceHost({
     chartApiById: chartApiByIdRef,
@@ -3461,6 +3551,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
       extraGroups: () => extraGroupsOnRef.current === true,
     },
     layouts: () => agentLayoutsRef.current,
+    layoutDock: () => agentDockRef.current,
     watchlists: {
       getLists: () => agentWatchlistsRef.current.lists,
       revalidate: () => agentWatchlistsRef.current.revalidate(),
@@ -3489,11 +3580,26 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
         : Promise.resolve(false)),
     },
     navigate: (to) => agentNavRef.current?.(to),
+    compare: compareAgentSource(() => agentCompareRef.current),
+    periodSort: {
+      read: () => {
+        const r = agentPeriodSortRef.current
+        if (!r) return null
+        return { panel: r.panel ? { ...r.panel } : null, cutoff: r.cutoff ?? null, marker: r.marker ?? null, markerStyle: r.markerStyle || 'line' }
+      },
+      run: (a) => { const r = agentPeriodSortRef.current; if (!r) return false; r.run(a.start, a.end, !!a.replay, a.group || null, null, a.markStart || 'off'); return true },
+      restore: (was) => { const r = agentPeriodSortRef.current; if (!r) return false; r.restore(was); return true },
+      // the panel's own Dock, on the panel that is open now; the new widget's id (null when no panel is open)
+      dock: () => { const r = agentPeriodSortRef.current; const p = r?.panel; return p ? r.dock(p.start, p.end, p.group) : null },
+      widgets: () => agentPeriodSortRef.current?.widgets?.() || [],
+      undock: (u) => { const r = agentPeriodSortRef.current; if (!r) return false; r.undock(u); return true },
+    },
     replay: {
       read: () => agentReplayRef.current?.cutoff ?? null,
       set: (iso) => { const r = agentReplayRef.current; if (!r) return; if (iso) r.start(iso, null); else r.exit() },
     },
-  }), [])
+    gridControl: gridAgentControl,
+  }), [])   // eslint-disable-line react-hooks/exhaustive-deps
   // ⭐ W2-C1: the app-level Agent host knows this page's host; /charts keeps its own dock + panel below (`owned`).
   useAgentPageHost(boardHidden ? null : 'charts', agentHost, { owned: true })
   // ⭐ INDICATORS ⇄ AGENT (2026-10-12) — while the Agent is available here, a chart's Create Indicator /
@@ -3732,6 +3838,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
               widget={w}
               headerAtBottom={false}
               merged={merged}
+              integratedChartHeader={!merged}
               // Only the main board passes `h.onPopOut`/`h.onFloat` from
               // `mainGridHandlers` — a popped-out board's `renderGrid` call omits
               // both, so `isMainBoard` never mis-caps a secondary monitor's board.
@@ -4107,6 +4214,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
           onDelete={handleDockDelete}
           onRename={handleDockRename}
           onRestored={handleDockRestored}
+          agentRef={agentDockRef}
         />
         </div>
         {agentAllowed && (
@@ -4179,17 +4287,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
             onCancel={() => setPeriodSortSel(null)}
             onSort={(start, end, replay, group, tf, markStart) => {
               setPeriodSortSel(null)
-              setPeriodSortPanel({ start, end, group: group || null })
-              // Replay: cut every linked chart off at the End date (ISO). Off = clear it.
-              const s = String(end)
-              setReplayCutoff(replay ? `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}` : null)
-              // Mark start date on every chart: gold vertical line ('line') or gold start
-              // candle ('candle'). 'off' → no marker.
-              const st = String(start)
-              setStartMarker(markStart && markStart !== 'off' ? `${st.slice(0, 4)}-${st.slice(4, 6)}-${st.slice(6, 8)}` : null)
-              if (markStart === 'line' || markStart === 'candle') setStartMarkerStyle(markStart)
-              // Timeframe: switch every chart to the chosen D/W/M (composes with replay).
-              applyTfToCharts(tf)
+              runPeriodSort(start, end, replay, group, tf, markStart)
             }}
           />
         )}
@@ -4243,7 +4341,8 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
             chartApiById={chartApiByIdRef}
             activeChartRef={activeChartRef}
             initialIntent={compareIntent}
-            onClose={() => { setCompareOpen(false); setCompareIntent(null) }}
+            onClose={closeCompare}
+            onTabChange={setCompareTab}
           />
         )}
         {replayOpen && (

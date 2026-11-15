@@ -215,9 +215,10 @@ describe('W2-C2 · /journal', () => {
     controls(['journal.newNote'])
     mount(host, 'journal')
     type('what is a new note?')
-    await screen.findAllByText(/\+ New note starts a blank note in your Notebook/)
+    // Final fix (C5): the list's button reads "+ New" (the "+ New note" words and the outline row are gone).
+    await screen.findAllByText(/\+ New starts a blank note in your Notebook/)
     type('where do I add a new note?')
-    await waitFor(() => expect(cardText()).toMatch(/Click \+ New note/))
+    await waitFor(() => expect(cardText()).toMatch(/Click \+ New to start/))
     type('do it for me')
     await screen.findAllByText(/Tell me what it should say/)
     expect(page.created).toEqual([])                                                 // nothing runs on a guess

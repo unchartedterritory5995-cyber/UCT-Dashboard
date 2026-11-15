@@ -90,3 +90,30 @@ describe('applyTick — late prior-minute print at the boundary', () => {
     expect(rc.getLastTickAt('syn')).toBeGreaterThan(0)
   })
 })
+
+describe('W-O I6: a minute is authoritative only when the registry tracked the previous one', () => {
+  it('first tick → partial; contiguous next minute → not partial; after a feed gap → partial again', () => {
+    rc._reset()
+    const m = 1794400200
+    rc.applyTick('GAPX', 10, 1, m + 30)
+    expect(rc.getCandle('GAPX', '1').partial).toBe(true)
+    rc.applyTick('GAPX', 10.1, 1, m + 61)
+    expect(rc.getCandle('GAPX', '1').partial).toBe(false)
+    // the feed dropped the symbol for minutes; _state survived — the rejoined minute is partial
+    rc.applyTick('GAPX', 10.4, 1, m + 60 * 7 + 20)
+    expect(rc.getCandle('GAPX', '1').partial).toBe(true)
+  })
+})
+
+describe('getLastTrade — the last APPLIED trade at its own trade time (BarStore tick arbitration)', () => {
+  beforeEach(() => rc._reset())
+  it('records price + trade time (s → ms) of applied ticks only; a rejected earlier-minute print never moves it', () => {
+    expect(rc.getLastTrade('SIM')).toBe(null)
+    rc.applyTick('sim', 10.5, 100, 1_700_000_130)
+    expect(rc.getLastTrade('SIM')).toMatchObject({ price: 10.5, tradeMs: 1_700_000_130_000 })
+    rc.applyTick('SIM', 10.4, 120, 1_700_000_050)   // an EARLIER minute: not applied
+    expect(rc.getLastTrade('SIM')).toMatchObject({ price: 10.5, tradeMs: 1_700_000_130_000 })
+    rc._reset()
+    expect(rc.getLastTrade('SIM')).toBe(null)
+  })
+})

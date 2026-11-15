@@ -481,7 +481,12 @@ export function makeProgram({
         throw new ProgramError(`objectOp ${i}: \`${o.fn}\` takes ${spec.params.length} parameters, `
           + `the call describes ${o.present.length}`)
       }
-      return Object.freeze({ fn: o.fn, present: Object.freeze(o.present.slice()), returns: o.returns })
+      // ⭐⭐ ENGINE 54 — the source call a drawing-making op was written at (`objectSiteKey`)
+      if (o.site !== undefined && !(typeof o.site === 'string' && /^\d+:\d+$/.test(o.site))) {
+        throw new ProgramError(`objectOp ${i}: \`${o.fn}\` names its source call as <line>:<column>`)
+      }
+      return Object.freeze({ fn: o.fn, present: Object.freeze(o.present.slice()), returns: o.returns,
+        ...(o.site !== undefined ? { site: o.site } : {}) })
     })),
     // ⭐ RT5 — the script's declared `max_*_count`s, read once by the front end
     // (comments and strings stripped, `pine.js::strippedForScan`).

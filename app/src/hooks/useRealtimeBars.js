@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { declareNeed, DELIVERY } from '../lib/panelContract'
+import { realtimeBarsEnabled } from '../lib/realtimeBarsGate'
 
 // TERM-024: this hook DECLARES its need and gets a handle onto the shared bars
 // pool — it never owns the transport. A developing bar is last-value-wins
@@ -26,7 +27,7 @@ const BARS = declareNeed({ kind: 'bars', delivery: DELIVERY.LAST_VALUE_WINS })
  * to it (RTH 9:30-aligned, ETH clock hours), so toggling it re-subscribes.
  */
 export default function useRealtimeBars({ symbol, tf, session = 'rth', onBar, onReconnect }) {
-  const enabled = import.meta.env.VITE_REALTIME_BARS === '1' && !!symbol && !!tf
+  const enabled = realtimeBarsEnabled() && !!symbol && !!tf
   const [status, setStatus] = useState({ connected: false, healthy: false, delivering: false })
   const onBarRef = useRef(onBar)
   const onReconnectRef = useRef(onReconnect)

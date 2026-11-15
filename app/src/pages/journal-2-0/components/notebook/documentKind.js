@@ -1,7 +1,7 @@
 // Wave 7 lane G (G4) — which viewer a document opens in, decided from its URL.
 //
 // ⛔ WHY THE URL, AND WHY THAT IS NOT A SECOND AUTHORITY. `DocumentPreviewSheet`'s
-// three mounts (NoteEditorPage, ResearchHome, TickerResearchWorkspace) hand it an
+// mounts (NoteEditorPage, TickerResearchWorkspace; Research Home until go-live wave 1) hand it an
 // attachment URL and a document id — never a kind — and the wave-7 ruling keeps
 // those mounts unchanged. The server makes the URL say what the row is:
 // `document_extraction.on_attachment_saved` creates an image row only for an

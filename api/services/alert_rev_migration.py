@@ -104,6 +104,8 @@ ADDRESS_REVS: dict[str, int] = {
     # carries the same `rev: 1`, so the rail (non-default entries only) is unmoved.
     "rsPhases": 1,
     "rsVsEma": 1,
+    # 2026-11-12: UCT RS Exit Warnings (`rs_exit.*`), rev 1 like its siblings.
+    "rsExit": 1,
 }
 
 # ⭐ AN ALERT BASE THAT IS NOT THE DEFINITION ID (found by unit 2b-05, fixed at
@@ -120,6 +122,7 @@ ADDRESS_BASE_DEFINITION: dict[str, str] = {
     "rs_line": "rsLine",
     "rs_phases": "rsPhases",
     "rs_vs_ema": "rsVsEma",
+    "rs_exit": "rsExit",
 }
 
 

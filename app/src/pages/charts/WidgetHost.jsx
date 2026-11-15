@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback } from 'react'
+import { lazy, Suspense, useCallback, cloneElement } from 'react'
 import { WidgetDoorContext } from './widgetDoors'
 import { PanelSlotContext } from './panelSlot'
 import ChartWidget from './widgets/ChartWidget'
@@ -25,6 +25,7 @@ import VolumeScanWidget from './widgets/VolumeScanWidget'
 import ScatterWidget from './widgets/ScatterWidget'
 import TradeExchangeNewsWidget from './widgets/TradeExchangeNewsWidget'
 import WidgetHeader from './WidgetHeader'
+import { WidgetChromeContext } from './widgetChromeContext'
 import { effectiveGroup } from './colorGroups'
 import useExtraGroupsEnabled from './useExtraGroupsEnabled'
 import ErrorBoundary from '../../components/ErrorBoundary'
@@ -37,7 +38,7 @@ import {
   patchActiveTabColor, patchActiveTabOpts,
 } from './widgetTabs'
 import { labelMap, THEME_FOLLOW_TYPES } from '../../widgets/registry'
-import { menuVarsForCanvas } from '../../utils/dividerColor'
+import { menuVarsForCanvas, luminance, parseColor } from '../../utils/dividerColor'
 import styles from './ChartsWorkspace.module.css'
 
 const TYPE_LABEL = labelMap('header')
@@ -153,6 +154,11 @@ export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChan
   // In-canvas float (pop the widget onto another widget). onFloat = grid mode;
   // floating + onDock/floatTabTargets/onFloatToTab/onHeaderDragStart = while floating.
   onFloat, floating = false, onDock, floatTabTargets = [], onFloatToTab, onHeaderDragStart,
+  // T3 integrated chart header — opt-in, passed only by the /charts board grid. A single
+  // chart (no widget-level tabs, not merged, not floating) then has NO header bar: its
+  // identity row becomes the title bar, hosting the link dot + window controls and acting
+  // as the drag handle (WidgetChromeContext). Every other host is unaffected.
+  integratedChartHeader = false,
   // S1 CP3 mount cap: defaults true so every caller that doesn't pass it (popped
   // boards, the single popout window, every existing test) is unaffected. Only
   // the main board's renderGrid call site passes false while this widget is
@@ -287,6 +293,26 @@ export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChan
       onHeaderDragStart={onHeaderDragStart}
     />
   )
+  const integrated = integratedChartHeader && !merged && !floating
+    && active.type === 'chart' && !(Array.isArray(tabList) && tabList.length > 1)
+  const integratedChrome = integrated
+    ? {
+        left: cloneElement(header, { part: 'dot' }),
+        right: cloneElement(header, { part: 'controls' }),
+        dragHandleClass: 'charts-widget-drag-handle',
+      }
+    : null
+  // Integrated chart header on a DARK canvas: chrome text in the site's own white /
+  // light grey instead of the canvas-derived warm greys. (No canvas known = the dark default.)
+  const canvasRgb = chrome?.canvas ? parseColor(chrome.canvas) : null
+  const darkCanvas = !canvasRgb || luminance(canvasRgb) <= 0.5
+  const widgetStyle = integrated && darkCanvas
+    ? {
+        ...(chromeStyle || {}),
+        '--widget-text': 'var(--text-muted, #cfcac0)',
+        '--widget-text-strong': 'var(--text-bright, #f8f7f3)',
+      }
+    : chromeStyle
   // Merged mode keeps NO header chrome, but a multi-tab slot still needs its tab
   // strip or the tabs become unreachable. This renders ONLY the strip (returns null
   // for a single-tab slot, so the seamless look is untouched there).
@@ -328,12 +354,12 @@ export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChan
   return (
     <PlacedThemeContext.Provider value={frozenTheme}>
       <div
-        className={`${styles.widget}${merged ? ' ' + styles.widgetMerged : ''}${
+        className={`${styles.widget}${merged ? ' ' + styles.widgetMerged : ''}${integrated ? ' ' + styles.widgetIntegrated : ''}${
           frozenLightOn
             ? ' ' + styles.widgetFrozenLight            /* UNCUSTOMIZED light placement → force light chrome regardless of app theme */
             : (themeFollow && !ctxTheme ? ' ' + styles.widgetThemeFollow : '')  /* loading/sunrise: live fallback */
         }`}
-        style={chromeStyle}
+        style={widgetStyle}
       >
         {/* TERM-027: WidgetBody's boundary covers only the body, and the header used
             to render outside it — a header-side throw escaped to the route boundary
@@ -343,7 +369,9 @@ export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChan
         <ErrorBoundary key={groupId} fallback={<WidgetErrorFallback type={active.type} onRemove={onRemove} withHeader />}>
           {merged
             ? <>{mergedTabs}{body}</>
-            : (headerAtBottom ? <>{body}{header}</> : <>{header}{body}</>)}
+            : integrated
+              ? <WidgetChromeContext.Provider value={integratedChrome}>{body}</WidgetChromeContext.Provider>
+              : (headerAtBottom ? <>{body}{header}</> : <>{header}{body}</>)}
         </ErrorBoundary>
       </div>
     </PlacedThemeContext.Provider>

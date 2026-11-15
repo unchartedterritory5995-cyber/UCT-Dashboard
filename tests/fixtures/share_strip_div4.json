@@ -1,0 +1,440 @@
+{
+  "_readme": "DIV-4 share strip, one fixture both suites read. `document`: the member door's DIV-4 document (runtime pane on); `laneOff`: the same script with the runtime pane off; `copy`: runtime_definitions.without_run_reads(document), what a share preview and an installed copy carry. pytest: tests/test_share_strips_run_reads.py (copy == the server's strip). vitest: memberPane/shareStripCopy.test.js (document == the door's; copy draws host colours with no stale disclosure).",
+  "source": "//@version=5\nindicator(\"div4 rail\", overlay = true)\nlen = input.int(3, \"Len\")\nhi = ta.highest(high, len)[1]\nlo = ta.lowest(low, len)[1]\nvar int trend = 1\ntrend := close > hi ? 1 : close < lo ? -1 : trend\nup = trend == 1 and trend[1] == -1\ndn = trend == -1 and trend[1] == 1\nb = ta.barssince(up)\ns = ta.barssince(dn)\nplot(ta.sma(close, len), \"c\")\nbarcolor(b < s ? color.green : b > s ? color.red : na, title = \"bc\")\n",
+  "document": {
+    "schemaVersion": 1,
+    "id": "u_00000000d4a1",
+    "version": 1,
+    "compute": {
+      "kind": "ast",
+      "fn": "sha256:4a10d47f046860803d33e9d10720b769e69167991e3e8f6842b4df91e1e0cfc4",
+      "rev": 1,
+      "ast": {
+        "type": "call",
+        "name": "sma",
+        "args": [
+          {
+            "type": "series",
+            "name": "close"
+          },
+          {
+            "type": "num",
+            "value": 3
+          }
+        ]
+      },
+      "source": "sma(close, 3)",
+      "paramManifest": {
+        "__uct_param_1001": {
+          "sourceName": "len",
+          "title": "Len",
+          "type": "int",
+          "default": 3,
+          "min": null,
+          "max": null,
+          "step": null,
+          "options": null,
+          "locators": [
+            {
+              "treeIndex": null,
+              "astPath": [
+                "args",
+                1
+              ]
+            }
+          ]
+        }
+      },
+      "runtimeColours": {
+        "source": "//@version=5\nindicator(\"div4 rail\", overlay = true)\nlen = input.int(3, \"Len\")\nhi = ta.highest(high, len)[1]\nlo = ta.lowest(low, len)[1]\nvar int trend = 1\ntrend := close > hi ? 1 : close < lo ? -1 : trend\nup = trend == 1 and trend[1] == -1\ndn = trend == -1 and trend[1] == 1\nb = ta.barssince(up)\ns = ta.barssince(dn)\nplot(ta.sma(close, len), \"c\")\nbarcolor(b < s ? color.green : b > s ? color.red : na, title = \"bc\")\n",
+        "at": [
+          {
+            "line": 13,
+            "column": 1,
+            "node": {
+              "type": "ternary",
+              "test": {
+                "type": "binary",
+                "op": "<",
+                "left": {
+                  "type": "name",
+                  "name": "b",
+                  "tok": {
+                    "kind": "ident",
+                    "value": "b",
+                    "line": 13,
+                    "column": 10
+                  }
+                },
+                "right": {
+                  "type": "name",
+                  "name": "s",
+                  "tok": {
+                    "kind": "ident",
+                    "value": "s",
+                    "line": 13,
+                    "column": 14
+                  }
+                },
+                "tok": {
+                  "kind": "punct",
+                  "value": "<",
+                  "line": 13,
+                  "column": 12
+                }
+              },
+              "yes": {
+                "type": "name",
+                "name": "color.green",
+                "tok": {
+                  "kind": "ident",
+                  "value": "color.green",
+                  "line": 13,
+                  "column": 18
+                }
+              },
+              "no": {
+                "type": "ternary",
+                "test": {
+                  "type": "binary",
+                  "op": ">",
+                  "left": {
+                    "type": "name",
+                    "name": "b",
+                    "tok": {
+                      "kind": "ident",
+                      "value": "b",
+                      "line": 13,
+                      "column": 32
+                    }
+                  },
+                  "right": {
+                    "type": "name",
+                    "name": "s",
+                    "tok": {
+                      "kind": "ident",
+                      "value": "s",
+                      "line": 13,
+                      "column": 36
+                    }
+                  },
+                  "tok": {
+                    "kind": "punct",
+                    "value": ">",
+                    "line": 13,
+                    "column": 34
+                  }
+                },
+                "yes": {
+                  "type": "name",
+                  "name": "color.red",
+                  "tok": {
+                    "kind": "ident",
+                    "value": "color.red",
+                    "line": 13,
+                    "column": 40
+                  }
+                },
+                "no": {
+                  "type": "name",
+                  "name": "na",
+                  "tok": {
+                    "kind": "ident",
+                    "value": "na",
+                    "line": 13,
+                    "column": 52
+                  }
+                },
+                "tok": {
+                  "kind": "punct",
+                  "value": "?",
+                  "line": 13,
+                  "column": 38
+                }
+              },
+              "tok": {
+                "kind": "punct",
+                "value": "?",
+                "line": 13,
+                "column": 16
+              }
+            },
+            "kind": "colour"
+          }
+        ],
+        "keys": [
+          "rtcolour1"
+        ]
+      }
+    },
+    "meta": {
+      "name": "div4",
+      "shortName": "div4",
+      "category": "Custom",
+      "description": "the 3-bar average of close",
+      "tags": [
+        "custom"
+      ],
+      "tier": "premium",
+      "repaint": "non-repainting",
+      "freshness": "live",
+      "disclosures": [
+        {
+          "name": "`barcolor` (line 13)",
+          "note": "`barcolor` (line 13) takes its colour from running the script bar by bar, the way TradingView does. It is drawn only where that run is exact: on bars that start at the symbol's listing, at the script's own settings; anywhere else it is not drawn."
+        }
+      ],
+      "requirementTags": [],
+      "recurrenceOrigin": "pine",
+      "pineVersion": 5,
+      "doorVersion": 1,
+      "naConditionFalse": true
+    },
+    "placement": {
+      "target": "price"
+    },
+    "inputs": [
+      {
+        "key": "color",
+        "type": "color",
+        "label": "Color",
+        "default": "#2962FF"
+      },
+      {
+        "key": "lineWidth",
+        "type": "int",
+        "label": "Line width",
+        "default": 1,
+        "min": 1,
+        "max": 10,
+        "step": 1
+      }
+    ],
+    "plots": [
+      {
+        "key": "value",
+        "label": "c",
+        "style": "line",
+        "color": "$color",
+        "width": "$lineWidth",
+        "role": "primary",
+        "legend": {
+          "decimals": 2
+        }
+      }
+    ],
+    "paints": [
+      {
+        "kind": "barcolor",
+        "line": 13,
+        "title": "bc",
+        "colorMode": "column:rtcolour1",
+        "colorPacked": {}
+      }
+    ]
+  },
+  "laneOff": {
+    "schemaVersion": 1,
+    "id": "u_00000000d4a1",
+    "version": 1,
+    "compute": {
+      "kind": "ast",
+      "fn": "sha256:4a10d47f046860803d33e9d10720b769e69167991e3e8f6842b4df91e1e0cfc4",
+      "rev": 1,
+      "ast": {
+        "type": "call",
+        "name": "sma",
+        "args": [
+          {
+            "type": "series",
+            "name": "close"
+          },
+          {
+            "type": "num",
+            "value": 3
+          }
+        ]
+      },
+      "source": "sma(close, 3)",
+      "paramManifest": {
+        "__uct_param_1001": {
+          "sourceName": "len",
+          "title": "Len",
+          "type": "int",
+          "default": 3,
+          "min": null,
+          "max": null,
+          "step": null,
+          "options": null,
+          "locators": [
+            {
+              "treeIndex": null,
+              "astPath": [
+                "args",
+                1
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "meta": {
+      "name": "div4",
+      "shortName": "div4",
+      "category": "Custom",
+      "description": "the 3-bar average of close",
+      "tags": [
+        "custom"
+      ],
+      "tier": "premium",
+      "repaint": "non-repainting",
+      "freshness": "live",
+      "disclosures": [
+        {
+          "name": "`barcolor` (line 13)",
+          "note": "`barcolor` (line 13) is not drawn: `barcolor`'s colour is an expression this door cannot carry yet."
+        }
+      ],
+      "requirementTags": [],
+      "recurrenceOrigin": "pine",
+      "pineVersion": 5,
+      "doorVersion": 1,
+      "naConditionFalse": true
+    },
+    "placement": {
+      "target": "price"
+    },
+    "inputs": [
+      {
+        "key": "color",
+        "type": "color",
+        "label": "Color",
+        "default": "#2962FF"
+      },
+      {
+        "key": "lineWidth",
+        "type": "int",
+        "label": "Line width",
+        "default": 1,
+        "min": 1,
+        "max": 10,
+        "step": 1
+      }
+    ],
+    "plots": [
+      {
+        "key": "value",
+        "label": "c",
+        "style": "line",
+        "color": "$color",
+        "width": "$lineWidth",
+        "role": "primary",
+        "legend": {
+          "decimals": 2
+        }
+      }
+    ]
+  },
+  "copy": {
+    "schemaVersion": 1,
+    "id": "u_00000000d4a1",
+    "version": 1,
+    "compute": {
+      "kind": "ast",
+      "fn": "sha256:4a10d47f046860803d33e9d10720b769e69167991e3e8f6842b4df91e1e0cfc4",
+      "rev": 1,
+      "ast": {
+        "type": "call",
+        "name": "sma",
+        "args": [
+          {
+            "type": "series",
+            "name": "close"
+          },
+          {
+            "type": "num",
+            "value": 3
+          }
+        ]
+      },
+      "source": "sma(close, 3)",
+      "paramManifest": {
+        "__uct_param_1001": {
+          "sourceName": "len",
+          "title": "Len",
+          "type": "int",
+          "default": 3,
+          "min": null,
+          "max": null,
+          "step": null,
+          "options": null,
+          "locators": [
+            {
+              "treeIndex": null,
+              "astPath": [
+                "args",
+                1
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "meta": {
+      "name": "div4",
+      "shortName": "div4",
+      "category": "Custom",
+      "description": "the 3-bar average of close",
+      "tags": [
+        "custom"
+      ],
+      "tier": "premium",
+      "repaint": "non-repainting",
+      "freshness": "live",
+      "disclosures": [
+        {
+          "name": "`barcolor` (line 13)",
+          "note": "`barcolor` (line 13) is not drawn: its colour is worked out by running the author's script bar by bar, and a shared copy does not carry the script."
+        }
+      ],
+      "requirementTags": [],
+      "recurrenceOrigin": "pine",
+      "pineVersion": 5,
+      "doorVersion": 1,
+      "naConditionFalse": true
+    },
+    "placement": {
+      "target": "price"
+    },
+    "inputs": [
+      {
+        "key": "color",
+        "type": "color",
+        "label": "Color",
+        "default": "#2962FF"
+      },
+      {
+        "key": "lineWidth",
+        "type": "int",
+        "label": "Line width",
+        "default": 1,
+        "min": 1,
+        "max": 10,
+        "step": 1
+      }
+    ],
+    "plots": [
+      {
+        "key": "value",
+        "label": "c",
+        "style": "line",
+        "color": "$color",
+        "width": "$lineWidth",
+        "role": "primary",
+        "legend": {
+          "decimals": 2
+        }
+      }
+    ]
+  }
+}

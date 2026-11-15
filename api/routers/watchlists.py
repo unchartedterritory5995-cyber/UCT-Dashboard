@@ -251,6 +251,44 @@ def bulk_meta(body: BulkMetaRequest, user: dict = Depends(get_current_user)):
     return {"results": results, "missing": [s for s in syms if s not in results]}
 
 
+# ── RS Exit Warnings column (2026-11-13) ──
+
+class RsExitBatchRequest(BaseModel):
+    tickers: list[str]
+
+
+@router.post("/api/watchlists/rs-exit-batch")
+def rs_exit_batch(body: RsExitBatchRequest, user: dict = Depends(get_current_user)):
+    """The newest RS Exit Warning per ticker for the Watchlist's optional RS Exit
+    column: ``{results: {SYM: {last, bars_ago, asof}}, missing: [...]}``.
+
+    Read from `screener_rows` (`rs_exit_last` / `rs_exit_bars_ago`, written by the
+    nightly build's `bars_rs` step from the chart's rsExit maths) in ONE projected
+    query, the `bulk-meta` pattern and cap, so the column costs no bars and no maths
+    on the request path. ``last`` is None when no warning has fired (or the build
+    has not filled the column yet); a symbol outside the snapshot universe is
+    absent from ``results`` and named in ``missing``. Fetched only while the column
+    is shown (`useWatchlistRsExit`)."""
+    syms = list(dict.fromkeys(
+        (t or "").upper().strip() for t in (body.tickers or []) if t and t.strip()
+    ))[:_BULK_META_MAX]
+    if not syms:
+        return {"results": {}, "missing": []}
+    try:
+        from api.services.screener import snapshot_db
+        rows = snapshot_db.get_projected(syms, ["rs_exit_last", "rs_exit_bars_ago", "bars_asof"])
+    except Exception:
+        return {"results": {}, "missing": syms}
+    results = {}
+    for sym, row in rows.items():
+        last = row.get("rs_exit_last") or None
+        ago = row.get("rs_exit_bars_ago")
+        results[sym] = {"last": last,
+                        "bars_ago": int(ago) if (last and isinstance(ago, (int, float))) else None,
+                        "asof": row.get("bars_asof")}
+    return {"results": results, "missing": [s for s in syms if s not in results]}
+
+
 # ── Performance data ──
 
 @router.post("/api/watchlist-performance")

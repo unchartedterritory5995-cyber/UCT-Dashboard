@@ -151,18 +151,22 @@ import { isValidTf } from '../timeframes'
 // validator live beside its reader, `paneTable.js`, which imports nothing of
 // this module — so there is no cycle.
 import { validatePaneTable } from './paneTable'
+import { isOptionsSource, OPTIONS_SOURCES, optionLabelFor, humanizeOptionValue } from './optionsSources'
 // ⭐ The line-end label (`plots[].endLabel`, UCT RS split U2): grammar beside its
 // reader, `endLabel.js`, which imports nothing of this module.
 import { validateEndLabel } from './endLabel'
 // ⭐ The client-derived column (`plots[].derive`, same round): grammar beside its
 // one reader, `derivedColumns.js`, which imports nothing of this module.
-import { DERIVE_FIELDS } from './derivedColumns'
+import { DERIVE_FIELDS, DERIVE_KIND_MA, DERIVE_MA_FIELDS, DERIVE_MA_TYPES } from './derivedColumns'
 // ⭐ The live forming-bar tail (`plots[].liveTail`, RS split U2b): its grammar is
 // a leaf of its own, `liveTailSchema.js`, NOT the reader `liveTail.js` — the
 // reader is also the benchmark tail store (the door's request, wall clocks), and
 // this module is in the runtime lane's compute closure, which may hold neither
 // (`tools/pine_runtime_closure.mjs`; fix lane F2, 2026-11-10).
 import { LIVE_TAIL_KINDS, LIVE_TAIL_FIELDS, LIVE_TAIL_MA_TYPES } from './liveTailSchema'
+// ⭐ The rating scale (`def.rescale`, 2026-11-12): its grammar is the leaf
+// `rescaleSchema.js`, never the reader `rescale.js`, for the closure reason above.
+import { RESCALE_FIELDS, RESCALE_TIMEFRAMES } from './rescaleSchema'
 
 /** Schema major. A definition MUST declare exactly this to register. */
 export const SCHEMA_VERSION = 1
@@ -2383,11 +2387,16 @@ function validateInput(input, index, seenKeys, errors, runtimeDoc = false) {
 //     rule only through `pattern`; the schema does not rewrite a stored value);
 //   - `placeholder`: the box's empty-state text, up to 64 characters;
 //   - `hint`: the muted line shown under the box when a typed value is refused,
-//     up to 120 characters (the control says "Not a valid value" without one).
+//     up to 120 characters (the control says "Not a valid value" without one);
+//   - `optionsSource` (2026-11-12): the name of a server-owned list of choices
+//     (`optionsSources.OPTIONS_SOURCES`, e.g. `rsThemes`). The box becomes a
+//     searchable chooser on every surface and STORES the chosen entry's value (a
+//     stable ID). A name the table does not list is refused: a definition never
+//     points a chart at an endpoint of its own choosing.
 // ⛔ Only a `string` input takes them: on a number or an enum they would be read
 // by nothing, which is a typo, so they are refused by name.
 export const TEXT_INPUT_MAX_LENGTH = 64
-const TEXT_MODIFIERS = ['pattern', 'maxLength', 'case', 'placeholder', 'hint']
+const TEXT_MODIFIERS = ['pattern', 'maxLength', 'case', 'placeholder', 'hint', 'optionsSource']
 const _patternCache = new Map()
 
 /** A declared `pattern` → its RegExp, or null for one that is not an anchored,
@@ -2426,6 +2435,9 @@ function validateTextModifiers(input, path, errors) {
   }
   if (input.case !== undefined && input.case !== 'upper') {
     errors.push(`${path}.case: the one case a text box applies is "upper", got ${fmt(input.case)}`)
+  }
+  if (input.optionsSource !== undefined && !isOptionsSource(input.optionsSource)) {
+    errors.push(`${path}.optionsSource: ${fmt(input.optionsSource)} is not a known list (known: ${list(Object.keys(OPTIONS_SOURCES))})`)
   }
   for (const [k, max] of [['placeholder', 64], ['hint', 120]]) {
     if (input[k] === undefined) continue
@@ -2655,17 +2667,29 @@ export function identityTextFor(def, key, raw, inputs) {
   if (typeof raw !== 'string' || !raw || !def || !Array.isArray(def.inputs)) return raw
   const inp = def.inputs.find((i) => i && i.key === key)
   if (!inp || inp.type !== 'enum') return raw
-  const companion = def.inputs.find((c) => c && c.identityFor === key && c.type === 'string'
+  const companion = def.inputs.find((c) => c && c.identityFor === key && IDENTITY_COMPANION_TYPES.has(c.type)
     && c.activeWhen && typeof c.activeWhen === 'object' && c.activeWhen.key === key && c.activeWhen.equals === raw)
   if (!companion) return raw
   const typed = (inputs && inputs[companion.key] !== undefined) ? inputs[companion.key] : companion.default
-  if (typeof typed === 'string' && typed.trim()) return typed.trim()
+  if (typeof typed === 'string' && typed.trim()) {
+    // 2026-11-12: a chooser's stored value is an ID; it prints as its label (the
+    // loaded list's, else the ID read as words), never as `semiconductor_equipment`.
+    if (companion.optionsSource) {
+      return optionLabelFor(companion.optionsSource, typed.trim()) || humanizeOptionValue(typed)
+    }
+    return typed.trim()
+  }
   for (const o of (Array.isArray(inp.options) ? inp.options : [])) {
     if (Array.isArray(o) && o[0] === raw) return typeof o[1] === 'string' && o[1] ? o[1] : raw
     if (o && typeof o === 'object' && !Array.isArray(o) && o.value === raw) return typeof o.label === 'string' && o.label ? o.label : raw
   }
   return raw
 }
+
+/** The input types that may stand in for an enum option (3-09b: a text box;
+ *  2026-11-12: also a second enum, e.g. the RS "Pick a sector" ETF list, whose
+ *  stored value is the name printed). */
+const IDENTITY_COMPANION_TYPES = new Set(['string', 'enum'])
 
 function validateIdentityFor(def, inputs, inputsByKey, errors) {
   const params = isPlainObject(def.meta) && Array.isArray(def.meta.legendParams) ? def.meta.legendParams : []
@@ -2678,8 +2702,8 @@ function validateIdentityFor(def, inputs, inputsByKey, errors) {
       errors.push(`${path}: expected the key of the enum input this box names an option of, got ${fmt(k)}`)
       return
     }
-    if (input.type !== 'string') {
-      errors.push(`${path}: only a "string" input stands in for an option, and this one is ${fmt(input.type)}`)
+    if (!IDENTITY_COMPANION_TYPES.has(input.type)) {
+      errors.push(`${path}: only a "string" or "enum" input stands in for an option, and this one is ${fmt(input.type)}`)
       return
     }
     if (input.legacy === true) {
@@ -3563,6 +3587,7 @@ function validateDerives(def, plots, errors, inputsByKey) {
     const path = `plots[${index}].derive`
     const d = plot.derive
     if (!isPlainObject(d)) { errors.push(`${path}: expected {from, where, activeWhen?}, got ${fmt(d)}`); return }
+    if (d.kind !== undefined) { validateDerivedAverage(def, plot, d, path, byKey, serverLane, errors, inputsByKey); return }
     for (const k of Object.keys(d)) {
       if (!DERIVE_FIELDS.includes(k)) errors.push(`${path}.${k}: unknown field — expected one of: ${list(DERIVE_FIELDS)}`)
     }
@@ -3587,6 +3612,159 @@ function validateDerives(def, plots, errors, inputsByKey) {
     }
     if (d.activeWhen !== undefined) validateInputCondition(d.activeWhen, `${path}.activeWhen`, inputsByKey, errors)
   })
+}
+
+/**
+ * ⭐ `plots[].derive: {kind: 'ma', of, length, type, activeWhen?, scalar?}`
+ * (2026-11-13, the UCT RS Line's second average) — a moving average the CLIENT
+ * builds from a column the compute already returned (`derivedColumns.derivedAverage`).
+ * Unlike the event form it draws a LINE, and that is safe for the reason the
+ * event form refuses one: it is a NEW column with its own key, never a copy of a
+ * column the compute owns (a server that later sends the key wins, `withDerivedColumns`).
+ *
+ * Fail closed: `kind` is `'ma'`; only on the SERVER lane; only a `line` plot;
+ * `of` names a declared data plot that is not this one, not a guide and not
+ * itself derived; `length` is a whole number ≥ 1 or `input:<key>` of a declared
+ * int input whose floor is ≥ 1; `type` is EMA or SMA or `input:<key>` of a
+ * declared enum input whose every option is one of them; `activeWhen` is an
+ * input condition; `scalar` (the readout key its reading is written under) is a
+ * plain name; the plot is NOT in `rescale.plots` (it is built from the scaled
+ * line, so listing it would scale it twice); unknown fields are refused.
+ */
+function validateDerivedAverage(def, plot, d, path, byKey, serverLane, errors, inputsByKey) {
+  for (const k of Object.keys(d)) {
+    if (!DERIVE_MA_FIELDS.includes(k)) errors.push(`${path}.${k}: unknown field — expected one of: ${list(DERIVE_MA_FIELDS)}`)
+  }
+  if (d.kind !== DERIVE_KIND_MA) {
+    errors.push(`${path}.kind: expected ${fmt(DERIVE_KIND_MA)} (or no kind, the event form), got ${fmt(d.kind)}`)
+    return
+  }
+  if (!serverLane) {
+    errors.push(`${path}: a derived column is built where server columns are aligned (\`serverColumnsFor\`), so only a compute.kind "server" definition may declare one`)
+  }
+  if (plot.style !== 'line') {
+    errors.push(`${path}: a derived average draws as a "line" plot (got style ${fmt(plot.style)})`)
+  }
+  const of = byKey.get(d.of)
+  if (!isNonEmptyString(d.of) || !of) errors.push(`${path}.of: ${fmt(d.of)} names no declared plot`)
+  else if (d.of === plot.key) errors.push(`${path}.of: a plot cannot average itself`)
+  else if (of.style === 'hlines') errors.push(`${path}.of: ${fmt(d.of)} is a guide and returns no column`)
+  else if (of.derive !== undefined) errors.push(`${path}.of: ${fmt(d.of)} is itself derived — average a column the compute returns`)
+  if (typeof d.length === 'string') {
+    const m = /^input:([A-Za-z_][A-Za-z0-9_]*)$/.exec(d.length)
+    const inp = m ? inputsByKey.get(m[1]) : null
+    if (!inp) errors.push(`${path}.length: ${fmt(d.length)} is not input:<key> of a declared input`)
+    else if (inp.type !== 'int' || !(Number(inp.min) >= 1)) errors.push(`${path}.length: ${fmt(m[1])} must be an int input with min >= 1`)
+  } else if (!(Number.isInteger(d.length) && d.length >= 1)) {
+    errors.push(`${path}.length: expected a whole number >= 1 or input:<key>, got ${fmt(d.length)}`)
+  }
+  if (typeof d.type === 'string' && d.type.startsWith('input:')) {
+    const inp = inputsByKey.get(d.type.slice('input:'.length))
+    const opts = inp && Array.isArray(inp.options) ? inp.options.map(enumOptionValue) : []
+    if (!inp || inp.type !== 'enum') errors.push(`${path}.type: ${fmt(d.type)} is not input:<key> of a declared enum input`)
+    else if (!opts.length || !opts.every((o) => DERIVE_MA_TYPES.includes(o))) {
+      errors.push(`${path}.type: every option of ${fmt(inp.key)} must be one of ${list(DERIVE_MA_TYPES)}`)
+    }
+  } else if (!DERIVE_MA_TYPES.includes(d.type)) {
+    errors.push(`${path}.type: expected one of ${list(DERIVE_MA_TYPES)} or input:<key>, got ${fmt(d.type)}`)
+  }
+  if (d.activeWhen !== undefined) validateInputCondition(d.activeWhen, `${path}.activeWhen`, inputsByKey, errors)
+  if (d.scalar !== undefined && !(typeof d.scalar === 'string' && /^[A-Za-z_][A-Za-z0-9_]*$/.test(d.scalar))) {
+    errors.push(`${path}.scalar: expected a plain name, got ${fmt(d.scalar)}`)
+  }
+  const scaled = isPlainObject(def && def.rescale) && Array.isArray(def.rescale.plots) ? def.rescale.plots : []
+  if (scaled.includes(plot.key)) {
+    errors.push(`${path}: a derived average is built from the scaled line, so ${fmt(plot.key)} may not be in rescale.plots (it would be scaled twice)`)
+  }
+}
+
+/**
+ * ⭐ `rescale: {input, off, to, anchor, at, plots, timeframes}` (2026-11-12) — the
+ * drawn columns multiplied by one factor per envelope so the line reads like a
+ * rating (`rescale.js`). Fail closed: only on the SERVER lane (the one lane whose
+ * columns arrive whole and are aligned in one place); `input` is a declared enum
+ * input that is NOT a server input (the scale is presentation and must never key
+ * the fetch) and defaults to `off`, so every saved chart draws as before; every
+ * other option maps, in `to`, to a payload `scalar:` path; `anchor` names a
+ * declared line plot among `plots`; `at` is a `scalar:` path (the rating's date);
+ * `plots` are declared plots with a column; `timeframes` is a non-empty subset of
+ * D/W/M; unknown fields are refused.
+ */
+function validateRescale(def, plots, errors, inputsByKey) {
+  if (!def || def.rescale === undefined) return
+  const path = 'rescale'
+  const r = def.rescale
+  if (!isPlainObject(r)) { errors.push(`${path}: expected {${RESCALE_FIELDS.join(', ')}}, got ${fmt(r)}`); return }
+  for (const k of Object.keys(r)) {
+    if (!RESCALE_FIELDS.includes(k)) errors.push(`${path}.${k}: unknown field — expected one of: ${list(RESCALE_FIELDS)}`)
+  }
+  if (!(isPlainObject(def.compute) && def.compute.kind === 'server')) {
+    errors.push(`${path}: a rating scale multiplies columns where server columns are aligned (\`serverColumnsFor\`), so only a compute.kind "server" definition may declare one`)
+  }
+  const input = isNonEmptyString(r.input) ? inputsByKey.get(r.input) : null
+  const options = input && Array.isArray(input.options) ? input.options.map(enumOptionValue) : []
+  if (!input || input.type !== 'enum') {
+    errors.push(`${path}.input: ${fmt(r.input)} names no declared enum input`)
+  } else {
+    const sent = isPlainObject(def.meta) && Array.isArray(def.meta.serverInputs) ? def.meta.serverInputs : []
+    if (sent.includes(r.input)) {
+      errors.push(`${path}.input: ${fmt(r.input)} is a server input — the scale is presentation and must never key the fetch`)
+    }
+    if (!options.includes(r.off)) errors.push(`${path}.off: ${fmt(r.off)} is not an option of ${fmt(r.input)}`)
+    else if (input.default !== r.off) {
+      errors.push(`${path}.off: ${fmt(r.input)} must default to ${fmt(r.off)}, so every saved chart draws exactly as before`)
+    }
+  }
+  if (!isPlainObject(r.to)) {
+    errors.push(`${path}.to: expected {<option>: 'scalar:<path>'}, got ${fmt(r.to)}`)
+  } else {
+    for (const [k, v] of Object.entries(r.to)) {
+      const parsed = parseReadoutSource(v)
+      if (!parsed || parsed.kind !== 'scalar') errors.push(`${path}.to.${k}: expected a payload \`scalar:<path>\`, got ${fmt(v)}`)
+      if (input && !options.includes(k)) errors.push(`${path}.to.${k}: ${fmt(k)} is not an option of ${fmt(r.input)}`)
+      if (k === r.off) errors.push(`${path}.to.${k}: the off option scales nothing`)
+    }
+    for (const o of options) {
+      if (o !== r.off && !Object.prototype.hasOwnProperty.call(r.to, o)) errors.push(`${path}.to: option ${fmt(o)} names no rating to scale to`)
+    }
+  }
+  const at = parseReadoutSource(r.at)
+  if (!at || at.kind !== 'scalar') errors.push(`${path}.at: expected a payload \`scalar:<path>\` naming the rating's date, got ${fmt(r.at)}`)
+  const byKey = new Map()
+  for (const p of plots) if (isPlainObject(p) && isNonEmptyString(p.key) && !byKey.has(p.key)) byKey.set(p.key, p)
+  const keys = Array.isArray(r.plots) ? r.plots : null
+  if (!keys || !keys.length) {
+    errors.push(`${path}.plots: expected a non-empty list of the plots drawn in the line's units, got ${fmt(r.plots)}`)
+  } else {
+    for (const k of keys) {
+      const p = byKey.get(k)
+      if (!p) errors.push(`${path}.plots: ${fmt(k)} names no declared plot`)
+      else if (p.style === 'hlines') errors.push(`${path}.plots: ${fmt(k)} is a guide and returns no column`)
+    }
+  }
+  const anchor = byKey.get(r.anchor)
+  if (!anchor || anchor.style !== 'line') errors.push(`${path}.anchor: ${fmt(r.anchor)} names no declared line plot`)
+  else if (keys && !keys.includes(r.anchor)) errors.push(`${path}.anchor: ${fmt(r.anchor)} must be among the plots it scales`)
+  const tfs = Array.isArray(r.timeframes) ? r.timeframes : null
+  if (!tfs || !tfs.length || tfs.some((t) => !RESCALE_TIMEFRAMES.includes(t))) {
+    errors.push(`${path}.timeframes: expected a non-empty list of ${list(RESCALE_TIMEFRAMES)}, got ${fmt(r.timeframes)}`)
+  }
+  if (r.precision !== undefined && !(Number.isInteger(r.precision) && r.precision >= 0 && r.precision <= 8)) {
+    errors.push(`${path}.precision: expected the axis decimals while scaled, a whole number 0 to 8, got ${fmt(r.precision)}`)
+  }
+}
+
+/**
+ * ⭐ `placement.axisWhen` (2026-11-12) — an input condition (the `activeWhen`
+ * grammar) under which the definition NEEDS its numbers read: while it holds, the
+ * automatic destination is the definition's own pane (`displayTarget.
+ * resolveDisplayTarget`) and a declared `axis: 'hidden'` is lifted there
+ * (`placement.axisHiddenOf`). A member's own explicit destination still wins.
+ */
+function validateAxisWhen(def, errors, inputsByKey) {
+  const p = def && isPlainObject(def.placement) ? def.placement : null
+  if (!p || p.axisWhen === undefined) return
+  validateInputCondition(p.axisWhen, 'placement.axisWhen', inputsByKey, errors)
 }
 
 /**
@@ -3773,6 +3951,96 @@ function validateRuntimeColours(compute, plotKeyIndex, errors) {
     keys.push(k)
   }
   return keys
+}
+
+/** ⭐⭐ ENGINE 53 — the fields `compute.runtimeObjects` may carry. CLOSED: anything else is
+ *  refused, so a hand-posted document cannot smuggle a field a later reader would trust. */
+export const RUNTIME_OBJECTS_FIELDS = Object.freeze(['source', 'outputs', 'runtimeLanguage', 'runtimeFrontend',
+  'runtimeIr', 'runtimeOutputSignature', 'sites', 'programSha256', 'programGraphSha256'])
+
+/** ⭐⭐ ENGINE 53 — `compute.runtimeObjects = { source, outputs, ...runtimeVersionStamp }`:
+ *  the RUN HALF of a host document whose object program lost drawings
+ *  (`memberPaneDefinition::hostPartialRunHalf`, drawn by `nativeRegistry.js::withRunHalf`).
+ *  The rules, mirrored rule for rule by the server (`presentation_schema._check_runtime_objects`,
+ *  one fixture both suites read: `tests/fixtures/runtime_objects_schema.json`):
+ *    · only on an `ast` definition;
+ *    · `source` a non-empty string; `outputs` an object mapping a DECLARED plot key to a
+ *      whole-number run output index, no index named twice (the column rail compares each);
+ *    · the version stamp, when present: `runtimeLanguage` a non-empty string,
+ *      `runtimeFrontend` / `runtimeIr` positive whole numbers, `runtimeOutputSignature` an
+ *      array of strings that names every mapped index;
+ *    · ⭐ ENGINE 54 — `sites`, when present: an object mapping a host create site id (`s<n>`) to
+ *      the source call both lanes name it by (`<line>:<column>`, `objectProgram.objectSiteKey`);
+ *      `programSha256` / `programGraphSha256`, when present: 64 lowercase hex
+ *      (`runHalfProgram.js`; the bind refuses a run half whose stamp is absent or wrong);
+ *    · no other field.
+ *  @param {object} compute  the definition's `compute`
+ *  @param {Set<string>|Map<string, any>} plotKeys the declared plot keys
+ *  @returns {string[]} errors (empty when absent or valid) */
+export function runtimeObjectsErrors(compute, plotKeys) {
+  const ro = compute && compute.runtimeObjects
+  if (ro === undefined) return []
+  const at = 'compute.runtimeObjects'
+  if (!compute || compute.kind !== 'ast') {
+    return [`${at}: only an "ast" definition draws its objects from the per-bar run, got kind ${fmt(compute && compute.kind)}`]
+  }
+  if (!isPlainObject(ro)) return [`${at}: expected {source, outputs, ...stamp}, got ${fmt(ro)}`]
+  const errors = []
+  const extra = Object.keys(ro).filter((k) => !RUNTIME_OBJECTS_FIELDS.includes(k))
+  if (extra.length) errors.push(`${at}: unknown field(s) ${list(extra.map(fmt))}`)
+  if (!isNonEmptyString(ro.source)) errors.push(`${at}.source: expected the script the run runs, a non-empty string, got ${fmt(ro.source)}`)
+  // ⛔ ONE DOCUMENT, ONE SCRIPT: beside run-read colours (`compute.runtimeColours`) the two
+  // runs read the same source, or the served stamp and the bind could each answer for a
+  // different script.
+  const rc = compute.runtimeColours
+  if (isPlainObject(rc) && rc.source !== undefined && rc.source !== ro.source) {
+    errors.push(`${at}.source: is not the script compute.runtimeColours.source reads; one document runs one script`)
+  }
+  if (!isPlainObject(ro.outputs)) {
+    errors.push(`${at}.outputs: expected an object mapping a plot key to a run output index, got ${fmt(ro.outputs)}`)
+  } else {
+    const seen = new Set()
+    for (const [k, idx] of Object.entries(ro.outputs)) {
+      if (!plotKeys.has(k)) errors.push(`${at}.outputs.${k}: names no declared plot`)
+      if (!(Number.isInteger(idx) && idx >= 0)) {
+        errors.push(`${at}.outputs.${k}: expected a whole-number run output index, got ${fmt(idx)}`)
+      } else if (seen.has(idx)) {
+        errors.push(`${at}.outputs.${k}: run output ${idx} is named by two plots`)
+      } else seen.add(idx)
+    }
+  }
+  if (ro.runtimeLanguage !== undefined && !isNonEmptyString(ro.runtimeLanguage)) {
+    errors.push(`${at}.runtimeLanguage: expected a non-empty string, got ${fmt(ro.runtimeLanguage)}`)
+  }
+  for (const f of ['runtimeFrontend', 'runtimeIr']) {
+    if (ro[f] !== undefined && !(Number.isInteger(ro[f]) && ro[f] >= 1)) errors.push(`${at}.${f}: expected a positive whole number, got ${fmt(ro[f])}`)
+  }
+  if (ro.sites !== undefined) {
+    if (!isPlainObject(ro.sites)) {
+      errors.push(`${at}.sites: expected an object mapping a create site to its source call, got ${fmt(ro.sites)}`)
+    } else {
+      for (const [k, v] of Object.entries(ro.sites)) {
+        if (!/^s\d+$/.test(k)) errors.push(`${at}.sites.${k}: a create site is named s<n>`)
+        if (typeof v !== 'string' || !/^\d+:\d+$/.test(v)) errors.push(`${at}.sites.${k}: expected a source call <line>:<column>, got ${fmt(v)}`)
+      }
+    }
+  }
+  for (const f of ['programSha256', 'programGraphSha256']) {
+    if (ro[f] !== undefined && !(typeof ro[f] === 'string' && /^[0-9a-f]{64}$/.test(ro[f]))) {
+      errors.push(`${at}.${f}: expected 64 lowercase hex, got ${fmt(ro[f])}`)
+    }
+  }
+  const sig = ro.runtimeOutputSignature
+  if (sig !== undefined) {
+    if (!Array.isArray(sig) || !sig.every((x) => typeof x === 'string')) {
+      errors.push(`${at}.runtimeOutputSignature: expected an array of strings, got ${fmt(sig)}`)
+    } else if (isPlainObject(ro.outputs)) {
+      for (const [k, idx] of Object.entries(ro.outputs)) {
+        if (Number.isInteger(idx) && idx >= sig.length) errors.push(`${at}.outputs.${k}: run output ${idx} is past the signature's ${sig.length} outputs`)
+      }
+    }
+  }
+  return errors
 }
 
 function validatePaints(paints, columnKeys, errors) {
@@ -4193,11 +4461,15 @@ export function validateDefinition(def) {
     validateFills(plots, errors, inputsByKey)
     validateDerives(out, plots, errors, inputsByKey)
     validateLiveTails(out, plots, errors, inputsByKey)
+    validateRescale(out, plots, errors, inputsByKey)
+    validateAxisWhen(out, errors, inputsByKey)
     validateTreesAgainstPlots(out.compute, plots, errors)
     validateObjectProgramField(out, errors)
     // ⭐ DIV-4 — a paint may also read a colour column the per-bar run computes
     // (`compute.runtimeColours`, `nativeRegistry.js::withRuntimeColours`).
     const rtColourKeys = validateRuntimeColours(out.compute, plotKeyIndex, errors)
+    // ⭐ ENGINE 53 — a host document's run half (`compute.runtimeObjects`).
+    errors.push(...runtimeObjectsErrors(out.compute, plotKeyIndex))
     validatePaints(out.paints, new Set([...plotKeyIndex.keys(), ...eventKeyIndex.keys(), ...rtColourKeys]), errors)
 
     // A definition with no plots and no events returns no columns: it computes

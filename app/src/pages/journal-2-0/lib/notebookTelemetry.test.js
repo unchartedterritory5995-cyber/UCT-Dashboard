@@ -29,10 +29,13 @@ describe('the event set', () => {
       'import_used', 'library_viewed', 'note_open_ms', 'publish_used', 'recap_written', 'save_failed', 'save_success',
       'search_used', 'share_used', 'style_adopted', 'style_applied', 'style_created', 'switcher_used', 'today_opened',
       'trust_incident', 'writing_help_used',
-    ])
+      // Follow-up A (usage counting).
+      'block_inserted', 'list_layout_used', 'menu_row_used', 'notebook_route_opened', 'panel_row_used',
+      'template_started', 'today_door_used', 'view_used',
+    ].sort())
     // Audit 2026-11-05 (S16, S20): + the first run's two, the first live widget, a recap written, a trust incident.
-    // S15: + the Today home opened.
-    expect(Object.values(NOTEBOOK_EVENTS)).toHaveLength(26)
+    // S15: + the Today home opened. Follow-up A: + the eight usage events.
+    expect(Object.values(NOTEBOOK_EVENTS)).toHaveLength(34)
     for (const name of Object.values(NOTEBOOK_EVENTS)) expect(EVENT_SCHEMAS[name]).toBeTruthy()
   })
 })

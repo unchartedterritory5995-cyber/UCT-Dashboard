@@ -65,7 +65,10 @@ on:
 # One queue for the whole repository. Runs execute strictly one at a time and an
 # older run is never cancelled by a newer one.
 env:
-  AGENT_SHARDS: '4'
+  # 4 -> 6 (2026-11-12): on gate run 43162895421 the shards took 646 / 1,057 / 728 / 1,410 s, so shard 4
+  # alone was the gate's critical path (23.5 of ~24 min of job time). Six keeps us well inside GitHub's
+  # 20-concurrent-job limit (an 8-way split would queue behind other workflows).
+  AGENT_SHARDS: '6'
   # the UCT Agent browser suite (agent-ci.yml AGENT_VITEST_PATHS, the same list): src/agent, the builder's agentMutations,
   # and (DUP-RECEIPT 11-05, owner) the 8 page tests that drive the Agent outside src/agent
   AGENT_VITEST_PATHS: src/agent src/components/chart/builder/agentMutations src/components/chart/builder/studio/agentRoute.test.jsx src/components/StockChart.timeRangeSync.test.jsx src/pages/breadth/breadthTabHookOrder.test.jsx src/pages/charts/ChartsWorkspace.layoutUndoAgent.test.jsx src/pages/charts/ChartsWorkspace.previousLayout.test.jsx src/pages/charts/ChartsWorkspace.thisChart.test.jsx src/pages/charts/widgets/ChartWidget.agent.test.jsx src/pages/charts/widgets/TradeExchangeNewsWidget.terminal.test.jsx
@@ -433,23 +436,23 @@ jobs:
           echo "  python -m pytest tests/test_discord_render_goldens.py tests/test_discord_render_ops.py -q"
           echo "  python -m venv /tmp/prodvenv && /tmp/prodvenv/bin/pip install -r requirements.txt && /tmp/prodvenv/bin/python -I tools/prod_dependency_smoke.py"
           echo "  python -m pytest tests/test_uct_agent*.py -q"
-          echo "  (cd app && npm ci && npx vitest run $AGENT_VITEST_PATHS)  # CI runs this as 4 shards + an equivalence rail"
+          echo "  (cd app && npm ci && npx vitest run $AGENT_VITEST_PATHS)  # CI runs this as 6 shards + an equivalence rail"
 
   # ── SPEEDUP (2026-11-04): the Agent browser suite was 22.3 of the gate's ~31 min, run
-  # serially AFTER the Python checks. It now runs as 4 parallel vitest shards beside the
+  # serially AFTER the Python checks. It now runs as parallel vitest shards (AGENT_SHARDS) beside the
   # `gate` job, exactly as agent-ci.yml already does, and `agent-browser-union` proves the
   # shards together executed EVERY file `vitest list` reports (the equivalence rail) with
   # zero failures and >= 30 files. Nothing is skipped, deselected or made optional.
   # ⛔ The workflow conclusion (what promote-production.yml / tools/promotion_gate.py read)
   # is failure if ANY job fails; `verdict` additionally names the result in one place.
   agent-browser:
-    name: UCT Agent browser tests (shard ${{ matrix.shard }}/4)
+    name: UCT Agent browser tests (shard ${{ matrix.shard }}/6)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: [1, 2, 3, 4, 5, 6]
     steps:
       - uses: actions/checkout@v4
 
@@ -664,4 +667,4 @@ jobs:
           echo "  python -m pytest tests/test_discord_render_goldens.py tests/test_discord_render_ops.py -q"
           echo "  python -m venv /tmp/prodvenv && /tmp/prodvenv/bin/pip install -r requirements.txt && /tmp/prodvenv/bin/python -I tools/prod_dependency_smoke.py"
           echo "  python -m pytest tests/test_uct_agent*.py -q"
-          echo "  (cd app && npm ci && npx vitest run $AGENT_VITEST_PATHS)  # CI runs this as 4 shards + an equivalence rail"
+          echo "  (cd app && npm ci && npx vitest run $AGENT_VITEST_PATHS)  # CI runs this as 6 shards + an equivalence rail"

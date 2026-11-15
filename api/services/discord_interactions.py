@@ -31,6 +31,11 @@ log = logging.getLogger(__name__)
 
 DISCORD_API = "https://discord.com/api/v10"
 EPHEMERAL = 64  # message flag: only the invoking user sees it
+#: `allowed_mentions` for every reply this module sends: nothing in the text may
+#: ping. ⛔ With the field ABSENT Discord parses every mention, and /lesson and
+#: /buzz (public since 2026-11-13) echo what the member typed, so a reply
+#: without this is the bot mentioning @everyone on one member's say-so.
+NO_MENTIONS = {"parse": []}
 _TICKER_RE = re.compile(r"^[A-Z0-9.^-]{1,12}$")
 
 # Why the most recent `edit_original` on THIS thread failed: {"status", "code", "detail"}.
@@ -1093,9 +1098,10 @@ def build_settings_command() -> dict:
 
 def build_lesson_command() -> dict:
     """`/lesson stop loss` - search the video-lesson library. One required text
-    field; the reply is private to the member and carries the two or three
-    lessons that answer, each opened at the moment the words are said. No
-    picker, no channel gate: a member asks a question, nobody else sees it."""
+    field; the reply carries the two or three lessons that answer, each opened
+    at the moment the words are said, and is posted in the channel for everyone
+    (owner ruling 2026-11-13; it was private to the member before that). No
+    picker, no channel gate."""
     return {
         "name": LESSON_COMMAND, "type": 1,
         "description": "Search the video lessons - a topic, a ticker or a phrase, e.g. stop loss",
@@ -1326,7 +1332,8 @@ def attachment_name(ticker: str, tf: str, last_t) -> str:
 
 def edit_original(app_id: str, token: str, *, content: str, png: bytes | None = None,
                   filename: str | None = None, components: list | None = None, client=None,
-                  pngs: list | None = None, keep_attachments: list | None = None):
+                  pngs: list | None = None, keep_attachments: list | None = None,
+                  embeds: list | None = None):
     """PATCH the deferred reply (or, for a button click, the message the button
     is on). With `png`, multipart (payload_json + files[0]); without, JSON.
     `pngs` = several images at once ([(bytes, filename), ...] - /charts):
@@ -1336,7 +1343,11 @@ def edit_original(app_id: str, token: str, *, content: str, png: bytes | None = 
     cannot drop the chart ("the message's files are exactly these").
 
     Returns the edited MESSAGE (dict, truthy) on 2xx - the caller needs its
-    attachment ids for the follow-up edit - or False. Never raises."""
+    attachment ids for the follow-up edit - or False. Never raises.
+
+    `embeds` = the reply's card(s) (api/services/discord_cards.py). A card may show the
+    PNG sent with it (attachment://<filename>); if Discord refuses the file, the text
+    fallback below keeps the card and drops only its picture."""
     url = f"{DISCORD_API}/webhooks/{app_id}/{token}/messages/@original"
     images = list(pngs) if pngs else ([(png, filename)] if png is not None else [])
     try:
@@ -1345,7 +1356,11 @@ def edit_original(app_id: str, token: str, *, content: str, png: bytes | None = 
         c = client or httpx.Client(timeout=15.0)
         try:
             def _send(comps):
-                payload: dict = {"content": content}
+                # ⛔ NO_MENTIONS on EVERY shape this function sends (this one, its
+                # multipart form, and the refused-image text fallback below).
+                payload: dict = {"content": content, "allowed_mentions": NO_MENTIONS}
+                if embeds is not None:
+                    payload["embeds"] = embeds
                 if comps is not None:
                     payload["components"] = comps
                 if images:
@@ -1365,7 +1380,12 @@ def edit_original(app_id: str, token: str, *, content: str, png: bytes | None = 
                 # bot did not know their ticker. Say what happened instead.
                 note = attachment_refused_note(r.text)
                 if note:
-                    alt = c.patch(url, json={"content": (content + chr(10) + note)[:1900]})
+                    body = {"content": (content + chr(10) + note).strip()[:1900],
+                            "allowed_mentions": NO_MENTIONS}
+                    if embeds is not None:
+                        from api.services import discord_cards
+                        body["embeds"] = [discord_cards.without_image(e) for e in embeds]
+                    alt = c.patch(url, json=body)
                     if alt.is_success:
                         log.warning("[discord-chart] attachment refused (%s); replied in text instead",
                                     r.status_code)

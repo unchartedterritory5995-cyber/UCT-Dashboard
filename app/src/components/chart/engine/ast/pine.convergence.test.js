@@ -425,7 +425,9 @@ plot(x)
     // 1e-9 since `self[k]` landed, and no member could ever get one, because the
     // only door onto it was the formula box. Pine is where these are PUBLISHED.
     // The coefficients are read off that fixture's own `_why` line.
-    const out = translatePine(`//@version=4
+    // ⭐ engine 49: v2. A declaration that reads its own history does not compile in v3+, and
+    // refuses `pine:cycle` there (`v3SelfDeclaration.test.js`); v1/v2 compile it, and fold it here.
+    const out = translatePine(`//@version=2
 study("t")
 c2 = 1.36612
 c3 = -0.64125
@@ -486,7 +488,9 @@ plot(x)
  */
 describe('⭐ `nz(x[1], seed)` states a first-bar value and the accumulator takes it', () => {
   const spec = TABLE.functions.accum
-  const pine = (body) => translatePine(`//@version=4
+  // ⭐ engine 49: v2, where `x = … nz(x[1]) …` compiles (in v3+ it refuses `pine:cycle`,
+  // `v3SelfDeclaration.test.js`)
+  const pine = (body) => translatePine(`//@version=2
 study("t")
 ${body}
 plot(x)

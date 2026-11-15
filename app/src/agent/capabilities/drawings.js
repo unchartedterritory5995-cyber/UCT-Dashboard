@@ -45,6 +45,7 @@ import { resolveDateWord, isoDayMs, dayWord } from '../dateWords'
 import { alertLibraryKind, loadAlerts } from './alert'
 import { parseBoundId } from '../../components/chart/drawingAlertAnchors'
 import { registerDrawingFamily, hasLineStyle, paneWhy, pointDay } from './drawingFamily'
+import { registerDrawingOps } from './drawingOps'
 
 const STYLES = Object.keys(LINE_DASH)            // solid, dashed, dotted
 const WIDTHS = [1, 2, 3, 4]
@@ -73,6 +74,9 @@ const anchorsOf = (d) => ((d.points || []).some(p => p?.time != null)
 
 export const drawingKind = {
   name: 'drawing',
+  source: 'drawings',             // fix-nothing-on-workspace: the host source this kind reads (capabilities.noTargetSentence)
+  unavailable: "Drawings aren't available on this page — open Charts to draw on a chart.",
+  empty: "There are no drawings on these charts yet.",
   // Drawings are keyed by SYMBOL (and Drawing Board), not by the open layout: a layout switch
   // does not change what a drawing id means, so it neither pins a proposal nor blocks an Undo.
   boardScoped: false,
@@ -468,6 +472,8 @@ export function registerDrawingCapabilities() {
     registerCapability, byId, notFound, boundIds, prepareBound, setOn, anchorFor, newDrawing, styleWhy, dupOf, addedBy, at, money, STYLE_ARGS, DATE_HINT,
     sameBound: (env, id, direction) => (env?.boundAlerts || []).some(a => a.active && a.drawingId === id && a.direction === direction),
   })
+  // the drawing menu's Duplicate and a position's Alerts row (capabilities/drawingOps.js)
+  registerDrawingOps(common, { registerCapability, byId, notFound, boundIds, prepareBound, money, addedBy })
 }
 
 // ── W1-B: TIME-ANCHORED tools — the toolbar's own drawings, placed from dates instead of clicks ─────

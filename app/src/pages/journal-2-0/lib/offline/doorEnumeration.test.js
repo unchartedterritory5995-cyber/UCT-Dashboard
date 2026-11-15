@@ -279,7 +279,7 @@ const SITE_EXCEPTIONS = {
   'app/src/pages/journal-2-0/components/notebook/onboarding/sampleNotebook.js:DELETE /api/j2/onboarding/sample-notebook':
     'removal TRASHES only the recorded sample ids through delete_note, which sets deleted_at and does NOT move '
     + 'updated_at. A note trashed under queued words would meet its next save as a 404 and be stranded as BLOCKED in '
-    + 'the Trash, so the one door, ResearchHome "Remove it", first runs the bulk trash pre-check (precheckNoteBatch, '
+    + 'the Trash, so the one door, the More menu of the notes list "Remove the sample notebook" (tabs/NotebookTab.jsx), first runs the bulk trash pre-check (precheckNoteBatch, '
     + 'op trash) over the sample notes still out of Trash and holds the whole removal back for any holding unsent '
     + 'words. delete_folder DOES advance updated_at, but it runs only on sample-made folders holding none of the '
     + 'member\'s notes, after the sample notes are trashed, so it moves only already-trashed sample notes. To close it '
@@ -446,7 +446,7 @@ const SERVER_LEDGER = {
     'import_confirm (the file importer\'s own function) seeds NEW notes no tab holds yet, and its second pass '
     + 'rewrites only those fresh ids inside the same call; delete_note (DELETE /api/j2/onboarding/sample-notebook) '
     + 'trashes only the recorded sample ids, and a later save to one reads 404 (update_note treats a trashed note as missing); '
-    + 'so its one client door (ResearchHome "Remove it") first runs the bulk trash\'s own pre-check '
+    + 'so its one client door (the More menu of the notes list "Remove the sample notebook", tabs/NotebookTab.jsx) first runs the bulk trash\'s own pre-check '
     + '(lib/noteBatch.js precheckNoteBatch, op trash: blocked, unsent, unchecked) over the sample ids still out of Trash, and '
     + 'sends the DELETE only when none holds unsent words -- one that does holds the whole removal back and is named, and a '
     + 'device that cannot be checked gets a confirmed "Remove anyway" whose re-run still refuses unsent words (wave-8 final review FE I-3)',

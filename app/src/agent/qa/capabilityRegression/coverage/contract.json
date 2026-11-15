@@ -325,7 +325,7 @@
    "surfaces": [
     "charts"
    ],
-   "fast": false
+   "fast": true
   },
   "chart.resetDefaults": {
    "domain": "chart",
@@ -457,6 +457,32 @@
    ],
    "fast": true
   },
+  "chartFeatures.companyPanel": {
+   "domain": "chartFeatures",
+   "group": "chartFeatures",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
+  "chartFeatures.earningsStrip": {
+   "domain": "chartFeatures",
+   "group": "chartFeatures",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
   "chartGrid.set": {
    "domain": "chartGrid",
    "group": "chartGrid",
@@ -470,9 +496,74 @@
    ],
    "fast": false
   },
+  "chartMenu.askAi": {
+   "domain": "chartMenu",
+   "group": "chartMenu",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
+  "chartMenu.resetWatermark": {
+   "domain": "chartMenu",
+   "group": "chartMenu",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
+  "chartReplay.playback": {
+   "domain": "chartReplay",
+   "group": "chartReplay",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true
+  },
+  "chartSetup.autoScale": {
+   "domain": "chartSetup",
+   "group": "boardEdit",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
   "chartSetup.compareDisplay": {
    "domain": "chartSetup",
    "group": "chartSetup",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
+  "chartSetup.compareGroup": {
+   "domain": "chartSetup",
+   "group": "compareGroups",
    "target": "chart",
    "risk": "local",
    "reversible": true,
@@ -521,6 +612,19 @@
     "charts"
    ],
    "fast": false
+  },
+  "chartSetup.openSettings": {
+   "domain": "chartSetup",
+   "group": "chartSetup",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true
   },
   "chartSetup.removeTimeframe": {
    "domain": "chartSetup",
@@ -600,6 +704,32 @@
    ],
    "fast": false
   },
+  "chartSetup.stepBars": {
+   "domain": "chartSetup",
+   "group": "boardEdit",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
+  "chartSetup.zoom": {
+   "domain": "chartSetup",
+   "group": "chartView",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
   "coach.consent": {
    "domain": "coach",
    "group": "coach",
@@ -625,6 +755,32 @@
     "charts"
    ],
    "fast": true
+  },
+  "compare.openView": {
+   "domain": "compare",
+   "group": "comparePanel",
+   "target": "comparePanel",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
+  "cot.positioning": {
+   "domain": "cot",
+   "group": "cot",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
   },
   "definition.delete": {
    "domain": "definition",
@@ -808,6 +964,58 @@
    ],
    "fast": false
   },
+  "drawing.createBoard": {
+   "domain": "drawing",
+   "group": "drawingBoards",
+   "target": "drawingBoards",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true
+  },
+  "drawing.deleteBoard": {
+   "domain": "drawing",
+   "group": "drawingBoards",
+   "target": "drawingBoards",
+   "risk": "confirm",
+   "reversible": false,
+   "undo": "none",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true
+  },
+  "drawing.duplicate": {
+   "domain": "drawing",
+   "group": "drawingOps",
+   "target": "drawing",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
+  "drawing.favoriteTool": {
+   "domain": "drawing",
+   "group": "drawingExtras",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
   "drawing.list": {
    "domain": "drawing",
    "group": "drawings",
@@ -834,6 +1042,19 @@
    ],
    "fast": false
   },
+  "drawing.positionCalculator": {
+   "domain": "drawing",
+   "group": "drawingExtras",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
   "drawing.remove": {
    "domain": "drawing",
    "group": "drawings",
@@ -846,6 +1067,45 @@
     "charts"
    ],
    "fast": false
+  },
+  "drawing.renameBoard": {
+   "domain": "drawing",
+   "group": "drawingBoards",
+   "target": "drawingBoards",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true
+  },
+  "drawing.saveDefaults": {
+   "domain": "drawing",
+   "group": "drawingExtras",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
+  "drawing.setActiveBoard": {
+   "domain": "drawing",
+   "group": "drawingBoards",
+   "target": "drawingBoards",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true
   },
   "drawing.setAlert": {
    "domain": "drawing",
@@ -904,6 +1164,19 @@
    "group": "drawings",
    "target": "drawing",
    "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
+  "drawing.setPositionAlerts": {
+   "domain": "drawing",
+   "group": "drawingOps",
+   "target": "drawing",
+   "risk": "confirm",
    "reversible": true,
    "undo": "exact",
    "query": false,
@@ -1250,6 +1523,19 @@
    ],
    "fast": true
   },
+  "indicatorStyle.setCalcTimeframe": {
+   "domain": "indicatorStyle",
+   "group": "indicatorCalc",
+   "target": "indicatorEdits",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true
+  },
   "indicatorTemplate.apply": {
    "domain": "indicatorTemplate",
    "group": "chartSetup",
@@ -1419,10 +1705,36 @@
    ],
    "fast": true
   },
+  "layout.moveOnBar": {
+   "domain": "layout",
+   "group": "layoutBar",
+   "target": "layoutDock",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true
+  },
   "layout.open": {
    "domain": "layout",
    "group": "layouts",
    "target": "layouts",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true
+  },
+  "layout.pinToBar": {
+   "domain": "layout",
+   "group": "layoutBar",
+   "target": "layoutDock",
    "risk": "local",
    "reversible": true,
    "undo": "exact",
@@ -1470,6 +1782,45 @@
     "charts"
    ],
    "fast": true
+  },
+  "layout.unpinFromBar": {
+   "domain": "layout",
+   "group": "layoutBar",
+   "target": "layoutDock",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true
+  },
+  "multiChart.cell": {
+   "domain": "multiChart",
+   "group": "multiChart",
+   "target": "gridCell",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
+  "multiChart.set": {
+   "domain": "multiChart",
+   "group": "multiChart",
+   "target": "multiChart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
   },
   "news.catalysts": {
    "domain": "news",
@@ -1522,6 +1873,32 @@
     "charts"
    ],
    "fast": true
+  },
+  "periodSort.dock": {
+   "domain": "periodSort",
+   "group": "periodSort",
+   "target": "periodSort",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
+  "periodSort.run": {
+   "domain": "periodSort",
+   "group": "periodSort",
+   "target": "periodSort",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
   },
   "playbook.explain": {
    "domain": "playbook",
@@ -1852,9 +2229,35 @@
    ],
    "fast": false
   },
+  "uctIntelligence.set": {
+   "domain": "uctIntelligence",
+   "group": "uctIntelligence",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true
+  },
   "volume.setState": {
    "domain": "volume",
    "group": "charts",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true
+  },
+  "volumeProfile.set": {
+   "domain": "volumeProfile",
+   "group": "volumeProfile",
    "target": "chart",
    "risk": "local",
    "reversible": true,
@@ -1877,6 +2280,19 @@
     "charts"
    ],
    "fast": true
+  },
+  "watchlist.arrangeColumns": {
+   "domain": "watchlist",
+   "group": "watchlistShow",
+   "target": "listView",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
   },
   "watchlist.clear": {
    "domain": "watchlist",
@@ -1910,6 +2326,19 @@
    "target": "watchlist",
    "risk": "confirm",
    "reversible": false,
+   "undo": "none",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
+  "watchlist.exportList": {
+   "domain": "watchlist",
+   "group": "watchlistShow",
+   "target": "board",
+   "risk": "local",
+   "reversible": true,
    "undo": "none",
    "query": false,
    "surfaces": [
@@ -2055,6 +2484,19 @@
    "reversible": true,
    "undo": "none",
    "query": true,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true
+  },
+  "watchlist.showList": {
+   "domain": "watchlist",
+   "group": "watchlistShow",
+   "target": "board",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
    "surfaces": [
     "charts"
    ],

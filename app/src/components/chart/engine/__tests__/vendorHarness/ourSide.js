@@ -33,9 +33,10 @@ import { addInstance } from '../../instanceControls'
 import { mergeChartSettings } from '../../../chartDefaults'
 import { objectReaderFor } from '../../objectColumns'
 import { evaluateObjects } from '../../objectRuntime'
+import { NOT_SHOWN, runtimeWithheldWhy, runtimeWithheldCause } from '../../ast/objectLoss'
 import { toRenderState } from '../../objectRenderState'
 // ⭐ RT5 — a runtime document's own drawings.
-import { runtimeObjectsOf, runtimeObjectsWithheldOf, drawsRuntimeObjects, runtimeWarmupOf, RUNTIME_WARMUP_KEY } from '../../runtime/runtimeObjects'
+import { runtimeObjectsOf, runtimeObjectsWithheldOf, drawsRuntimeObjects, runtimeWarmupOf, RUNTIME_WARMUP_KEY, runHalfOf, carriesRunHalf } from '../../runtime/runtimeObjects'
 import { runtimeDeclinedTag } from '../../../../../../../tools/pine_coverage/runtime_lane.mjs'
 import { maxLookback, CHART_CLOCK_WHOLE } from '../../ast/interpret'
 import { setRuntimeDoorClock } from '../../runtime/runtimeColumns'
@@ -683,7 +684,14 @@ function runtimeObjectsReport(def, bars, ctx, cols) {
   }
   const run = { live: payload.live, pineVersion: payload.pineVersion }
   const state = toRenderState(run.live, { bars, tf: ctx.tf, pineVersion: payload.pineVersion })
+  // ⭐ OZ — a family the run withheld whole is graded as a gap with a name, the
+  // way the host lane's are (the member reads the same sentence, `runtimeWithheldWhy`).
+  const rtWhy = runtimeWithheldWhy(payload.withheld)
+  const rtFams = rtWhy ? Object.keys(rtWhy).sort() : []
   return { ...heldReport(run.live, state, payload.pineVersion), lane: 'runtime',
+    ...(rtFams.length ? { withheldFamilies: rtFams,
+      withheldGuards: [...new Set(rtFams.map((f) => runtimeWithheldCause(payload.withheld[f], f)))].sort(),
+      withheldWhy: [...new Set(Object.values(rtWhy))].join(' ') } : {}),
     runStatus: payload.status, runReason: payload.reason || null, runWithheld: payload.withheld || {},
     undrawnProps: payload.undrawnProps || {}, chartClock: [] }
 }
@@ -746,8 +754,38 @@ function drawingWithheldBy(built) {
   }
 }
 
-/** The object lane's LIVE set at the last bar, as counts and texts. */
+/** ⭐ OZ — the families a run withheld by name with nothing of them drawn
+ *  (`NOT_SHOWN` guards), merged into the collector's `withheldFamilies`, with the
+ *  guards and the member's sentence(s) for the verdict's reason. */
+function notShownReport(withheldBy, withheldWhy, base = null) {
+  const by = withheldBy || {}
+  const guards = Object.values(NOT_SHOWN).filter((g) => Array.isArray(by[g]) && by[g].length)
+  if (!guards.length) return {}
+  const fams = new Set([...(by['objects:collector'] || []), ...(by['objects:collector-all'] || []), ...(base || [])])
+  for (const g of guards) for (const f of by[g]) fams.add(f)
+  const why = [...new Set(guards.flatMap((g) => by[g]).map((f) => (withheldWhy || {})[f]).filter(Boolean))]
+  return {
+    withheldFamilies: [...fams].sort(),
+    withheldGuards: [...(by['objects:collector'] ? ['objects:collector'] : []),
+      ...(by['objects:collector-all'] ? ['objects:collector-all'] : []), ...guards],
+    withheldWhy: why.join(' '),
+  }
+}
+
+/** ⭐⭐ ENGINE 53 — a host document's RUN HALF (`nativeRegistry.js::withRunHalf`): where the
+ *  bind served it, the run's drawings are graded (the binder draws them and not the host
+ *  program's); otherwise the host program's, as the chart draws them. The state rides on
+ *  the report (`runHalf`, `runHalfCode`) for the census and the regrade. */
 function objectsOf(def, bars, ctx, cols, built = null) {
+  const half = carriesRunHalf(def) ? runHalfOf(cols) : null
+  const tag = half ? { runHalf: half.state, runHalfCode: half.code || null } : {}
+  if (half && half.state === 'served') return { ...runtimeObjectsReport(def, bars, ctx, cols), ...tag }
+  const r = hostObjectsOf(def, bars, ctx, cols, built)
+  return r && half ? { ...r, ...tag } : r
+}
+
+/** The object lane's LIVE set at the last bar, as counts and texts. */
+function hostObjectsOf(def, bars, ctx, cols, built = null) {
   if (drawsRuntimeObjects(def)) return runtimeObjectsReport(def, bars, ctx, cols)
   if (!def.objects || !(def.objects.ops || []).length) {
     const w = drawingWithheldBy(built)
@@ -764,7 +802,7 @@ function objectsOf(def, bars, ctx, cols, built = null) {
     if (!reader) return { drawsObjects: true, ok: false, reason: 'objectReaderFor returned null' }
     const run = evaluateObjects(reader.program, {
       barCount: bars.length, readNode: reader.readNode, readTime: reader.readTime,
-      readUnknown: reader.readUnknown,
+      readUnknown: reader.readUnknown, readUnknownOther: reader.readUnknownOther,
       // ⭐ F1 — the binder's own statement (`binder.js`): off the listing a `var`
       // list of drawings is withheld whole (`objectRuntime.js`, `withheldBy`).
       offListing: reader.historyFromListing !== true,
@@ -828,6 +866,15 @@ function objectsOf(def, bars, ctx, cols, built = null) {
       pineVersion: reader.program.pineVersion,
       // ⭐ C36 — why drawings that read `time(<timeframe>)` are withheld here.
       chartClock: reader.chartClock || [],
+      // ⭐ W-C22-DEL — families the run withheld WHOLE, by name, because
+      // TradingView's collector may have removed objects this run holds
+      // (`objectRuntime.js`, `withheldBy['objects:collector']`): graded as a gap.
+      ...(run.withheldBy && (run.withheldBy['objects:collector'] || run.withheldBy['objects:collector-all'])
+        ? { withheldFamilies: [...new Set([...(run.withheldBy['objects:collector'] || []),
+          ...(run.withheldBy['objects:collector-all'] || [])])].sort() } : {}),
+      // ⭐ OZ — and a family the run drew NONE of for a cause of the engine's own
+      // (`objectRuntime.js`, `notShown`), by the same name the member reads.
+      ...notShownReport(run.withheldBy, run.withheldWhy),
     }
   } catch (err) {
     return { drawsObjects: true, ok: false, reason: `the object lane threw: ${String((err && err.message) || err)}` }
@@ -1203,6 +1250,9 @@ function runOurSideOnTheParityClock(capture) {
         speaksFor: replay ? 'the standalone daily chart (not a grid cell, which first-paints shallow; W / M stay cold)' : null },
       translationPaints: runtimeAwarePaints(built, def),
       drawnPaints,
+      // ⭐ ENGINE 53 — what the door did with the run half (minted / declined by code); the bind's
+      // answer (served / refused) rides on `objects.runHalf`.
+      runHalfDoor: built.runHalf ? 'minted' : (built.runHalfDeclined ? `declined:${built.runHalfDeclined.code}` : null),
     }
   } finally {
     registry.uninstallUserDefinition(HARNESS_DEF_ID)

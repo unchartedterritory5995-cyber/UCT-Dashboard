@@ -43,6 +43,7 @@ import time
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi.responses import JSONResponse
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
 from api.services.cache import cache
@@ -820,6 +821,91 @@ def _serve_gxw(s: str) -> dict:
 # data without the handler — so the data path is only reachable from a module
 # whose every route declares `Depends(require_paid)` individually.
 
+# ⚡ ONE READ PER (symbol, timeframe, depth) PER FEW SECONDS (2026-11-12).
+# A chart's RS pane asks for five server definitions at once (rsLine, rsRating,
+# rsPhases, rsVsEma, rsExit) and each reads the stock AND its benchmarks (SPY,
+# RSP, the sector ETF) from bars.db on its own: a 12-chart board is ~60 reads of
+# SPY in one burst. Measured on prod 13:59-14:05 UTC, one desk after a deploy:
+# 129 /api/signature/columns calls in 6 minutes, 17.5 s median, 112 s worst;
+# Server-Timing put it all in `rs-bars` (8.6-28.6 s) with compute in ms. Rows
+# are shared for `_BARS_SHARE_TTL_S` and concurrent misses wait for the first
+# read instead of repeating it. Rows are immutable tuples; each caller still
+# gets its own list of fresh dicts. Keyed on the db path and the reader too, so
+# a test that swaps either never sees another's rows.
+_BARS_SHARE_TTL_S = 10.0
+_BARS_SHARE_MAX = 256
+_bars_share: dict = {}          # key -> (monotonic at, rows)
+_bars_share_inflight: dict = {}  # key -> threading.Event
+_bars_share_lock = threading.Lock()
+
+
+def _lane_rows(reader, sym_u: str, store: str, count: int):
+    """One series' rows for the lane: in ONE sqlite step when that is exact, else row by row.
+
+    ⚡ 2026-11-13. `reader` (`bars_sqlite.get_bars`) takes one `sqlite3_step` per row and
+    CPython releases the GIL around each, so on this pod a ~5,000-bar read waited about one
+    thread switch interval PER ROW: `rs-bars` 0.9 to 3.4 s, and a median 37 s per request
+    with 44 in flight while a member scanned a list fast. `bars_sqlite.get_bars_packed`
+    returns the same tuples, bit for bit, from a single result row, or None when it cannot
+    be exact (then the rows are read as before). Benchmarked beside four busy threads:
+    863 ms row by row, 33 ms in one step.
+
+    ⛔ ONLY WHILE THE STORE'S READER IS ITS OWN. A reader somebody swapped in (a test's, a
+    host's) serves every row itself: the one-step read would go around it to the database.
+    `RS_PACKED_READS=0` turns the one-step read off (docs/feature_flags.json, knobs)."""
+    from api.services import bars_sqlite
+    if reader is not bars_sqlite.ROW_READER:
+        return reader(sym_u, store, count)
+    if os.environ.get("RS_PACKED_READS", "1").strip() != "0":
+        rows = bars_sqlite.get_bars_packed(sym_u, store, count)
+        if rows is not None:
+            return rows
+    # (the store's own reader may switch to chunks by itself since 2026-11-13: with this lane's
+    # knob off, "row by row" means the row reader)
+    return bars_sqlite._get_bars_rows(sym_u, store, count)
+
+
+def _bars_rows_shared(sym_u: str, store: str, count: int):
+    from api.services import bars_sqlite
+    reader = bars_sqlite.get_bars
+    key = (bars_sqlite._DB_PATH, id(reader), sym_u, store, count)
+    while True:
+        now = time.monotonic()
+        with _bars_share_lock:
+            hit = _bars_share.get(key)
+            if hit is not None and 0 <= now - hit[0] < _BARS_SHARE_TTL_S:
+                return hit[1]
+            ev = _bars_share_inflight.get(key)
+            if ev is None:
+                ev = threading.Event()
+                _bars_share_inflight[key] = ev
+                leader = True
+            else:
+                leader = False
+        if not leader:
+            # Someone is reading these rows right now: wait for theirs (bounded, so
+            # a stuck reader can never hold a chart), then look again.
+            ev.wait(30.0)
+            with _bars_share_lock:
+                hit = _bars_share.get(key)
+            if hit is not None:
+                return hit[1]
+            continue
+        try:
+            rows = _lane_rows(reader, sym_u, store, count)
+            with _bars_share_lock:
+                if len(_bars_share) >= _BARS_SHARE_MAX:
+                    cutoff = time.monotonic() - _BARS_SHARE_TTL_S
+                    for k in [k for k, (at, _r) in _bars_share.items() if at < cutoff] or list(_bars_share)[:_BARS_SHARE_MAX // 4]:
+                        _bars_share.pop(k, None)
+                _bars_share[key] = (time.monotonic(), rows)
+            return rows
+        finally:
+            with _bars_share_lock:
+                _bars_share_inflight.pop(key, None)
+            ev.set()
+
+
 def _fetch_bars_for_tf(sym: str, tf: str, count: int = 400) -> list[dict]:
     """Bars at an arbitrary timeframe, for the lane.
 
@@ -829,8 +915,7 @@ def _fetch_bars_for_tf(sym: str, tf: str, count: int = 400) -> list[dict]:
     job SILENTLY. `test_the_sweep_still_imports_the_two_router_symbols_it_needs`
     asserts that import, and this function is deliberately additive.
     """
-    from api.services import bars_sqlite
-    rows = bars_sqlite.get_bars(sym.upper(), registry_defs.store_tf(tf), int(count))
+    rows = _bars_rows_shared(sym.upper(), registry_defs.store_tf(tf), int(count))
     out = []
     for r in rows:
         try:
@@ -940,12 +1025,18 @@ def _rs_vs_ema_provider(sym: str, tf: str, inputs: dict) -> dict:
                                           warm=lambda ticker: _rs_warm_bars(ticker, tf))
 
 
-#: The RS split's three tenants by row id (unit U4). Tests install a row and
-#: plug the matching wrapper in by hand; production registers them below only
-#: when `RS_SPLIT_ENABLED` put the rows in `SERVER_DEFS` (`register_provider`
-#: refuses an id with no row, so the two cannot be armed apart).
+def _rs_exit_provider(sym: str, tf: str, inputs: dict) -> dict:
+    """UCT RS Exit Warnings (2026-11-12): `rsExit`."""
+    return rs_provider.rs_exit_envelope(sym, tf, inputs, fetch_bars=_fetch_bars_for_tf, cache_key=_ck,
+                                        warm=lambda ticker: _rs_warm_bars(ticker, tf))
+
+
+#: The RS split's four tenants by row id (unit U4, and `rsExit` 2026-11-12). Tests
+#: install a row and plug the matching wrapper in by hand; production registers
+#: them below only when `RS_SPLIT_ENABLED` put the rows in `SERVER_DEFS`
+#: (`register_provider` refuses an id with no row, so the two cannot be armed apart).
 RS_SPLIT_PROVIDERS: dict = {"rsRating": _rs_rating_provider, "rsPhases": _rs_phases_provider,
-                            "rsVsEma": _rs_vs_ema_provider}
+                            "rsVsEma": _rs_vs_ema_provider, "rsExit": _rs_exit_provider}
 
 
 registry_defs.register_provider("uct-darkpool-levels", _dpl_provider)
@@ -992,6 +1083,18 @@ def server_definitions(_user: dict = Depends(require_paid)):
             "definitions": registry_defs.list_definitions()}
 
 
+@router.get("/rs-themes")
+def rs_benchmark_themes(_user: dict = Depends(require_paid)):
+    """The UCT themes the RS indicators' "Pick a theme" benchmark offers
+    (2026-11-12), ``{"options": [{"value": <theme id>, "label": <name>}]}`` in the
+    taxonomy's display order. The chart stores the ID, never the name, so a
+    rename keeps every saved chart; the resolver validates the ID again
+    (`rs_benchmarks.resolve_benchmark`, an unknown one falls back with a note).
+    Names only, one small read (`theme_db.get_theme_names`)."""
+    from api.services import rs_benchmarks
+    return {"options": [{"value": t["id"], "label": t["name"]} for t in rs_benchmarks.theme_choices()]}
+
+
 @router.get("/columns")
 def server_columns(
     response: Response,
@@ -1014,15 +1117,71 @@ def server_columns(
     body is untouched, and the cached envelope never carries a timing.
     """
     s = _sym_or_422(sym)
-    try:
-        parsed = json.loads(inputs) if inputs else {}
-    except (TypeError, ValueError):
-        raise HTTPException(status_code=422, detail="inputs must be a JSON object")
-    if parsed is not None and not isinstance(parsed, dict):
-        raise HTTPException(status_code=422, detail="inputs must be a JSON object")
+    parsed = _columns_inputs_or_422(inputs)
     rs_provider.timing_reset()
     try:
-        return registry_defs.serve(defId, s, str(tf or "D"), parsed)
+        body = _serve_columns(defId, s, tf, parsed)
+    finally:
+        _rs_server_timing(response)
+    return _columns_response(body, response)
+
+
+def _columns_response(body: dict, sub: Response):
+    """``body`` as the response the framework would have built from it, without the walk.
+
+    ⚰️ MEASURED 2026-11-14. Returned as a dict, a column answer goes through FastAPI's
+    `jsonable_encoder` before it is serialised: a Python-level visit of every number in every
+    column. For one chart's five RS definitions (344 KB) that is 20 ms with nothing else
+    running, against 3 ms for the `json.dumps` that follows it and 4 ms for the lane itself.
+    On the web pod, where a dozen threads want the GIL, production's own captures showed the
+    browser waiting a median 300 ms beyond the server's own time for an answer that was
+    already in memory, and 370 ms around a 21 ms read from the envelope store.
+
+    A column answer is plain JSON already (dicts, lists, strings, numbers, booleans, null),
+    for which the walk changes nothing: the bytes are the same with it and without it
+    (`tests/test_signature_columns_response.py` holds every RS definition and the batch to
+    that). So the response is built here, and the framework sends a `Response` as it is.
+
+    ⛔ THE SAME ANSWER FOR EVERYTHING ELSE. If the body holds something `json.dumps` will
+    not take (a date, a set, a NaN the wire forbids), the dict is returned and the framework
+    does exactly what it did before. And what the framework merges into the response it
+    builds itself, it does not merge into one it is handed: the headers and the status the
+    dependencies and the route put on the temporal response (`Server-Timing` is one) are
+    copied here, in the framework's own way."""
+    try:
+        out = JSONResponse(content=body)
+    except (TypeError, ValueError):
+        return body
+    out.headers.raw.extend(sub.headers.raw)
+    if sub.status_code:
+        out.status_code = sub.status_code
+    return out
+
+
+def _columns_inputs_or_422(inputs) -> dict | None:
+    """An ask's `inputs` as the lane takes them: a JSON object (or nothing). The
+    single route hands the query string, the batch route an already-parsed value."""
+    if isinstance(inputs, str):
+        try:
+            inputs = json.loads(inputs) if inputs else {}
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=422, detail="inputs must be a JSON object")
+    if inputs is not None and not isinstance(inputs, dict):
+        raise HTTPException(status_code=422, detail="inputs must be a JSON object")
+    return inputs
+
+
+def _serve_columns(def_id: str, s: str, tf: str, parsed: dict | None) -> dict:
+    """ONE ask of the lane, answered: the body BOTH column routes return for it.
+
+    A refusal is an `HTTPException` (404 for a definition this server does not
+    offer, 422 for an input it rejects); a defect of ours is the error envelope
+    the client draws nothing from. Two routes that each spelled this out would
+    be two answers to one question, so `/columns` and `/columns-batch` both ask
+    here and neither can drift from the other.
+    """
+    try:
+        return registry_defs.serve(def_id, s, str(tf or "D"), parsed)
     except registry_defs.DefinitionNotOffered as exc:
         raise HTTPException(status_code=404, detail=str(exc))
     except registry_defs.InputRejected as exc:
@@ -1033,11 +1192,102 @@ def server_columns(
         # defect, not the user's, so they are logged with a traceback and the
         # response is an envelope the client draws nothing from — never a 500,
         # and never a payload that could be remembered as good.
-        logger.exception("signature: server lane failed for %s/%s", defId, s)
-        return {"defId": defId, "sym": s, "tf": tf, "columns": {}, "times": [],
+        logger.exception("signature: server lane failed for %s/%s", def_id, s)
+        return {"defId": def_id, "sym": s, "tf": tf, "columns": {}, "times": [],
                 "error": "server lane unavailable", "asOf": time.time()}
-    finally:
-        _rs_server_timing(response)
+
+
+#: How many asks one batch may carry. One chart's RS suite is five definitions;
+#: sixteen leaves room for a board whose charts differ in inputs, and bounds what
+#: a single request can make this pod compute.
+COLUMNS_BATCH_MAX_ASKS = 16
+
+
+@router.get("/columns-batch")
+def server_columns_batch(
+    response: Response,
+    sym: str = Query(...),
+    tf: str = Query("D"),
+    asks: str = Query("", description="JSON list of {defId, inputs}: the definitions wanted for this symbol"),
+    _user: dict = Depends(require_paid),
+):
+    """EVERY SERVER DEFINITION ONE CHART DRAWS FOR A SYMBOL, IN ONE REQUEST.
+
+    ⚡ WHY (measured on production 2026-11-12, a member arrowing down a
+    watchlist): the next symbol's candles were on screen 40 ms after the key
+    press and its five RS definitions 1.2 to 2.0 s after them, each on its own
+    request, each waiting on the same bars read. One request per symbol reads
+    the stock and its benchmarks once (`_rs_core`, `_bars_rows_shared`), costs
+    one worker thread instead of five, and is what lets the chart ask for the
+    NEXT symbols' columns ahead of the member (`serverCompute.warmSymbols`)
+    without multiplying this pod's load by the size of the RS suite.
+
+    ⛔ THE SAME ANSWER AS `/columns`, ASK FOR ASK. Each entry is served by
+    `_serve_columns`, the one function the single route calls, so an envelope
+    here is the envelope `/columns` returns for the same (definition, symbol,
+    timeframe, inputs). A refused ask does not fail its neighbours: its slot
+    carries the status and the sentence `/columns` would have raised
+    (`{"status": 404 | 422, "detail": ...}`); a served one carries
+    `{"status": 200, "envelope": ...}`. `results` is positional: one slot per
+    ask, in the order asked.
+
+    Bounded: at most `COLUMNS_BATCH_MAX_ASKS` asks for one symbol, served in turn
+    on this request's own worker (never fanned out), so a batch occupies exactly
+    the one thread a single ask would.
+    """
+    s = _sym_or_422(sym)
+    try:
+        wanted = json.loads(asks) if asks else []
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=422, detail="asks must be a JSON list of {defId, inputs}")
+    if not isinstance(wanted, list) or not wanted:
+        raise HTTPException(status_code=422, detail="asks must be a JSON list of {defId, inputs}")
+    if len(wanted) > COLUMNS_BATCH_MAX_ASKS:
+        raise HTTPException(status_code=422,
+                            detail=f"at most {COLUMNS_BATCH_MAX_ASKS} asks per request")
+    results: list[dict] = []
+    timings: list[dict] = []
+    for ask in wanted:
+        def_id = ask.get("defId") if isinstance(ask, dict) else None
+        if not isinstance(def_id, str) or not def_id:
+            results.append({"status": 422, "detail": "each ask needs a defId"})
+            continue
+        rs_provider.timing_reset()
+        try:
+            parsed = _columns_inputs_or_422(ask.get("inputs"))
+            results.append({"status": 200, "envelope": _serve_columns(def_id, s, tf, parsed)})
+        except HTTPException as exc:
+            results.append({"status": exc.status_code, "detail": exc.detail})
+        rec = rs_provider.last_timing()
+        if rec is not None:
+            timings.append(rec)
+    _rs_batch_server_timing(response, timings)
+    return _columns_response({"sym": s, "tf": tf, "results": results}, response)
+
+
+def _rs_batch_server_timing(response, timings: list) -> None:
+    """The batch's `Server-Timing`: the RS provider's stages summed over the asks
+    that ran it, `desc` "cold" when any of them computed, "disk" when none did and
+    one was read back from `rs_store`, "cache" when every one was a memory hit.
+    Behaviour-neutral, like `_rs_server_timing`."""
+    try:
+        if not timings or response is None:
+            return
+        from api.services.serve_stale import server_timing as _head
+        # "cold": at least one ask was computed. "disk": none was, and at least one
+        # was read back from the store that outlives the process (`rs_store`).
+        tiers = {t["tier"] for t in timings}
+        tier = "cold" if "cold" in tiers else "disk" if "disk" in tiers else "cache"
+        out = _head("rs", tier, sum(t["total_ms"] for t in timings))
+        stages: dict = {}
+        for t in timings:
+            for name, ms in t["stages"].items():
+                stages[name] = stages.get(name, 0.0) + ms
+        for name, ms in stages.items():
+            out += f", rs-{name};dur={ms:.1f}"
+        response.headers["Server-Timing"] = out + f", rs-asks;dur={len(timings)}"
+    except Exception:                                  # noqa: BLE001
+        pass
 
 
 def _rs_server_timing(response) -> None:

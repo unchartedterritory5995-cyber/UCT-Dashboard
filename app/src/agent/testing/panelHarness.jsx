@@ -100,8 +100,8 @@ export function setupPanel({ tickerEcho = false, tickers = [] } = {}) {
   const proposals = () => screen.queryAllByTestId('agent-proposal')
   const summaries = () => screen.queryAllByTestId('agent-receipt-summary').map(e => e.textContent)
 
-  function mount(widgets, groupSyms, { decorate = label, admin = true, layouts = null, watchlists = null, geometry = null } = {}) {
-    const board = makeBoard(widgets, groupSyms, layouts || watchlists || geometry ? { ...(layouts ? { layouts } : {}), ...(watchlists ? { watchlists } : {}), ...(geometry || {}) } : undefined)
+  function mount(widgets, groupSyms, { decorate = label, admin = true, layouts = null, watchlists = null, geometry = null, catalog = null } = {}) {
+    const board = makeBoard(widgets, groupSyms, layouts || watchlists || geometry ? { ...(layouts ? { layouts } : {}), ...(watchlists ? { watchlists } : {}), ...(catalog ? { catalog } : {}), ...(geometry || {}) } : undefined)
     // a ticker a mounted chart shows is one the backend knows
     for (const v of Object.values(groupSyms || {})) if (typeof v === 'string' && v.trim()) st.known.add(v.trim().toUpperCase())
     const base = board.host.charts

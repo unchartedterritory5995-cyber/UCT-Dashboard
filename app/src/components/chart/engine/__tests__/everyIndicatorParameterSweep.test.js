@@ -181,11 +181,12 @@ describe('the sweep has something to sweep — the control', () => {
     expect(BARS.length).toBeGreaterThan(biggest * 2)
   })
 
-  it('the server-lane exemption names the four RS definitions and nothing else', () => {
+  it('the server-lane exemption names the five RS definitions and nothing else', () => {
     // Without this the lane rule could exempt the whole registry — or nothing —
     // and the sweep would stay green either way.
     const skipped = DEFS.filter(d => cannotDrawHere(d) === SERVER_LANE).map(d => d.id).sort()
-    expect(skipped).toEqual(['rsLine', 'rsPhases', 'rsRating', 'rsVsEma'])
+    // 2026-11-12 (RS Exit Warnings): `rsExit` is the fifth server-lane RS definition.
+    expect(skipped).toEqual(['rsExit', 'rsLine', 'rsPhases', 'rsRating', 'rsVsEma'])
     expect(DEFS.filter(d => !cannotDrawHere(d)).length).toBeGreaterThan(10)
   })
 })

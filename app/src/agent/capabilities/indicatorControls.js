@@ -24,9 +24,10 @@ import * as nativeRegistry from '../../components/chart/engine/nativeRegistry'
 import { normalizeColor } from './chart'
 import {
   common, oneChange, targetOf, planFor, refusalSentence, extReceiptLine, VOLUME_OPTS, placeWord, indicatorEditsRef, defIdOfWords,
-  inputsOfDef, receiptLine, ownIndicatorName,
+  inputsOfDef, receiptLine, ownIndicatorName, calcWord,
 } from './indicatorEdits'
 import { isValidTf } from '../../components/chart/timeframes'
+import { activeAlertsOnInstance } from './indicatorAlerts'
 
 const APPEARANCE = ['lineWidth', 'lineStyle', 'overlap']
 // ⭐ PACKAGE 3: `showOn` — which chart timeframes it draws on (Indicators' `setVisibility`, the Inspector's "Show on")
@@ -155,6 +156,43 @@ export function styleRequest(st, { instance, property, value, output }) {
     return { why: tgt.ask.length ? `${t.name} has more than one colour — which one: ${tgt.ask.map(c => c.label).join(', ')}?` : `${t.name} has no colour setting I can change.` }
   }
   return { req: { op: 'setColor', instanceId: id, target: tgt.target, color }, name: t.name }
+}
+
+// ── calc-TF family: WHICH BARS compute one indicator (the Inspector's "Timeframe"), never the chart's timeframe ──
+// "weekly RSI on this daily chart" = this; "show RSI only on weekly charts" = showOn (setVisibility); "switch the chart to
+// weekly" = chart.setTimeframe. The member's word → a CALC_TIMEFRAMES code, or null for the chart's own; anything else is
+// NOT coerced (a 4-hour or quarterly calculation does not exist — it asks).
+const CALC_CODES = ['1', '5', '15', '30', '60', 'D', 'W', 'M']
+const CALC_SAID = { daily: 'D', day: 'D', '1d': 'D', d: 'D', weekly: 'W', week: 'W', '1w': 'W', w: 'W', monthly: 'M', month: 'M', '1mo': 'M',
+  hourly: '60', hour: '60', '1h': '60', '1 hour': '60', '60m': '60', '60 minute': '60', '1 minute': '1', '1m': '1', '1min': '1',
+  '5 minute': '5', '5m': '5', '5min': '5', '15 minute': '15', '15m': '15', '15min': '15', '30 minute': '30', '30m': '30', '30min': '30' }
+const CHART_SAID = /^(?:chart|chart'?s|chart'?s own|chart time ?frame|chart'?s (?:own )?time ?frame|same as (?:the )?chart|reset|default|none|auto|automatic|its own|own)$/
+/** @returns {code} (a CALC code, or null = the chart's own) | {unknown: true} */
+export function calcTimeframeOfWords(value) {
+  if (value === null) return { code: null }
+  const raw = String(value ?? '').trim()
+  if (CALC_CODES.includes(raw)) return { code: raw }
+  const w = lc(raw).replace(/’/g, '\'').replace(/-/g, ' ').replace(/\b(?:the|a|an|on|its|it|back|to)\b/g, ' ').replace(/[-\s]+(?:bars?|data|candles?|closes?|time ?frame|resolution|period)\b/g, '').replace(/\s+/g, ' ').trim()
+  if (!w || CHART_SAID.test(w)) return { code: null }
+  const minute = /^(\d+) ?(?:minutes?|mins?)$/.exec(w)
+  const said = CALC_SAID[w] ?? (minute ? CALC_SAID[`${minute[1]} minute`] : undefined)
+  return said ? { code: said } : { unknown: true }
+}
+const CALC_CHOICES = 'on 1-minute, 5-minute, 15-minute, 30-minute, 1-hour, daily, weekly or monthly bars, or on the chart\'s own timeframe'
+export function calcRequest(st, { instance, timeframe }) {
+  const t = targetOf(st, instance)
+  if (!t.ok) return { why: refusalSentence(t, { chart: st.chart }) }
+  const r = calcTimeframeOfWords(timeframe)
+  if (r.unknown) return { why: `I can calculate ${t.name} ${CALC_CHOICES} — “${timeframe}” isn't one of those, so nothing was changed. Which one?` }
+  return { req: { op: 'setCalculationTimeframe', instanceId: t.instanceId, timeframe: r.code, chartTf: st.chartTf ?? null }, name: t.name }
+}
+/** A line the receipt adds when an ACTIVE indicator alert armed from this instance runs on another frame than it now computes on. */
+function calcAlertNote(st, built, after) {
+  let alerts = []
+  try { alerts = activeAlertsOnInstance(built.req.instanceId, st.symbol) } catch { alerts = [] }
+  const frame = after ?? st.chartTf ?? null
+  const off = alerts.filter(a => frame && a.tf !== frame)
+  return off.length ? `Heads up: ${off.length === 1 ? 'your alert' : `your ${off.length} alerts`} on ${built.name} still run${off.length === 1 ? 's' : ''} on ${calcWord(off[0].tf)} bars, so ${off.length === 1 ? 'it' : 'they'} now watch${off.length === 1 ? 'es' : ''} a different line than the chart draws — the alert${off.length === 1 ? ' was' : 's were'} not changed.` : null
 }
 
 // ── panes ──
@@ -296,6 +334,32 @@ export function registerIndicatorControlCapabilities() {
     noop: (b, a, { place } = {}) => `it is already ${placeWord(place)}`,
   })
 
+  // ⭐ calc-TF family (owner-approved, Indicators' `setCalculationTimeframe`): the Inspector's "Timeframe" — the chart's own
+  // timeframe never moves. Marker: the action id 'indicatorStyle.setCalcTimeframe'.
+  registerCapability({
+    ...common,
+    name: 'indicatorStyle.setCalcTimeframe',
+    fanOut: true,
+    summary: 'Calculate ONE indicator on another timeframe\'s bars (a weekly RSI on a daily chart), or back on the chart\'s own — the chart\'s timeframe does not change. Undo puts it back.',
+    hints: 'target = the chart\'s indicatorEdits entry; instance = the indicator; timeframe = 1, 5, 15, 30, 60, D, W, M or "chart". Not showOn (which charts it shows on) and not chart.setTimeframe. "Put the RSI on weekly" is unclear: ask which.',
+    args: { type: 'object', properties: { instance: instanceArg, timeframe: { type: 'string' } }, required: ['instance', 'timeframe'], additionalProperties: false },
+    fast: ({ lower, typed }) => fastCalc(lower, typed),
+    fastWhole: true,
+    check: (st, args) => checkBuilt(st, calcRequest(st, args)),
+    apply(st, args) {
+      const built = calcRequest(st, args)
+      const next = applyBuilt(st, built)
+      if (!next.change) return next
+      const note = calcAlertNote(st, built, next.change.plan.preview?.change?.after ?? null)
+      return note ? { ...next, change: { ...next.change, note } } : next
+    },
+    describe: (b, a) => describeBuilt(a),
+    noop: (b, a, { timeframe } = {}) => {
+      const r = calcTimeframeOfWords(timeframe)
+      return r.code ? `it is already calculated on ${calcWord(r.code)} bars` : 'it is already calculated on the chart\'s own timeframe'
+    },
+  })
+
   registerCapability({
     ...common,
     name: 'pane.move',
@@ -393,6 +457,28 @@ function fastStyle(lower) {
   // ⭐ 2a-12b: "make the RS dots large" / "make sar's dots small" — the Dot size control (styleRequest validates the word)
   m = /^make (.+?)(?:'s)? dots (small|medium|large|default|big|tiny)$/.exec(lower)
   if (m && instanceWord(m[1])) return { instance: instanceWord(m[1]), property: 'dotSize', value: m[2], output: null }
+  return null
+}
+// calc-TF family: only the shapes that SAY calculate / use-bars / back-to-the-chart's-timeframe; "put the RSI on weekly"
+// (calc? show-on? the chart?) is answered with a question in fixed words, never guessed — and only when it is the whole message
+const CALC_TF = '(daily|weekly|monthly|hourly|\\d+ minute|\\d+ hour)'
+const CALC_TAIL = '(?: bars| data| candles| closes| timeframe)?(?: on the (?:\\w+ )?chart)?'
+const CHART_TF = 'back (?:to|on) (?:the )?chart\'?s? (?:own )?time ?frame|on (?:the )?chart\'?s? (?:own )?time ?frame'
+function fastCalc(lower, typed) {
+  let m = new RegExp(`^(?:calculate|compute|calc) (.+?) (?:on|using|with|from|off) (?:the )?${CALC_TF}${CALC_TAIL}$`).exec(lower)
+  if (m && instanceWord(m[1])) return { instance: instanceWord(m[1]), timeframe: m[2] }
+  m = new RegExp(`^(?:make|have|set) (.+?) (?:use|using|calculate on|compute on|run on) (?:the )?${CALC_TF}${CALC_TAIL}$`).exec(lower)
+  if (m && instanceWord(m[1])) return { instance: instanceWord(m[1]), timeframe: m[2] }
+  m = new RegExp(`^(?:put|set|move|switch|change|calculate|compute|reset) (.+?) (?:${CHART_TF})$`).exec(lower)
+  if (m && instanceWord(m[1])) return { instance: instanceWord(m[1]), timeframe: 'chart' }
+  m = /^reset (.+?)(?:'s)? (?:calculation )?time ?frame$/.exec(lower)
+  if (m && instanceWord(m[1])) return { instance: instanceWord(m[1]), timeframe: 'chart' }
+  m = /^(?:put|set|make|change|switch|turn|move) (.+?) (?:(?:on|to|onto|into) )?(?:the )?(daily|weekly|monthly|hourly)$/.exec(lower)
+  if (m && instanceWord(m[1]) && !/[,;&]|\b(?:and|then)\b/.test(lc(typed))) {
+    const n = m[1].replace(/^(?:the|my) /, '').toUpperCase()
+    const tf = m[2]
+    return { __say: `Do you want ${n} calculated on ${tf} bars on this chart (the chart stays as it is), shown only on ${tf} charts, or the chart itself switched to ${tf}? Say “calculate ${n} on ${tf}”, “only show ${n} on ${tf}” or “switch the chart to ${tf}”. Nothing was changed.` }
+  }
   return null
 }
 function fastPlace(lower) {

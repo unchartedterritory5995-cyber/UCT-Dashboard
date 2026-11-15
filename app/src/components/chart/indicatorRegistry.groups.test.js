@@ -60,11 +60,12 @@ describe('sectionize(def, fields) over the shipped UCT RS definition', () => {
 
   it('3-08: with the v4 row declared, Checks joins the sections, collapsed, and the Phase 3 controls render in their groups', () => {
     const def = rsDef()
-    const declared = { inputs: def.meta.serverInputs, options: { benchmark: ['SPY', 'RSP', 'SECTOR', 'QQQ', 'IWM', 'INDUSTRY', 'CUSTOM'] } }
+    const declared = { inputs: def.meta.serverInputs, options: { benchmark: ['SPY', 'RSP', 'QQQ', 'IWM', 'SECTOR', 'SECTOR_PICK',
+      'INDUSTRY', 'THEME', 'THEME_PICK', 'CUSTOM'] } }
     const sections = sectionize(def, fieldsForInstance(def, rsInst, { declared }).all)
     expect(sections.map((s) => s.group)).toEqual(['Simple', 'Line', 'New highs', 'Rating', 'Stress test', 'Method', 'Checks'])
     expect(sections.at(-1)).toMatchObject({ group: 'Checks', collapsed: true, keys: ['anchorDate'] })
-    expect(sections[0].keys.slice(0, 3)).toEqual(['benchmark', 'customBenchmark', 'view'])
+    expect(sections[0].keys.slice(0, 5)).toEqual(['benchmark', 'customBenchmark', 'sectorBenchmark', 'themeBenchmark', 'view'])
     expect(sections.find((s) => s.group === 'Method').keys).toEqual(['mansfieldLength', 'mansfieldColor', 'dotCrossColor',
       'rrgRatioLength', 'rrgMomentumLength', 'clenowWindow', 'clenowGapPct', 'atrLength', 'varsLookback'])
   })

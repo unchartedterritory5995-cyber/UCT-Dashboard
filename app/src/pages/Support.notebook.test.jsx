@@ -227,13 +227,14 @@ describe('the gated articles', () => {
     fireEvent.click(await quickAnswer(SAMPLE_Q))
     expect(screen.getByText(/five example notes in a folder called "Sample notebook"/)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Take the tour' })).toHaveAttribute('href', '/journal/notebook')
-    // final review M-8: the strip can be hidden for good, so the article names the other way out --
-    // and says plainly that deleting the folder is NOT it (its notes move to Unfiled)
+    // Go-live wave 1: the strip is gone; the article names the one door (the notes list's More menu row) -- and
+    // still says plainly that deleting the folder is NOT it (its notes move to Unfiled), as final review M-8 asked.
     const article = screen.getByRole('button', { name: SAMPLE_Q }).parentElement
     expect(article).toHaveTextContent(
-      'If you hid that strip, open the "Sample notebook" folder, select its notes and choose Move to Trash. '
-      + 'Deleting the folder alone keeps its notes: they move to Unfiled.',
+      'open More notebook actions (the three dots) on the notes list and choose Remove the sample notebook',
     )
+    expect(article).toHaveTextContent('Deleting the folder alone keeps its notes: they move to Unfiled.')
+    expect(article).not.toHaveTextContent(/strip/)
   })
 
   it('rendered: the share question is absent from the page with the gates off', async () => {
@@ -330,9 +331,23 @@ describe('the copy contract', () => {
     expect(kb).not.toMatch(/Ctrl|⌘|Cmd|Alt\+|Shift\+/)     // it never restates a chord
     const exp = await read('How do I export my notes, and what does each format keep?')
     for (const f of ['Markdown', 'Web page (HTML)', 'JSON', 'Word (.docx)']) expect(exp).toContain(f)
-    expect(exp).toContain('For a PDF, choose Print, then Save as PDF.')
+    // Final fix (C5): Print is inside the note's Export menu now. Pass 2 final fix M5: Export is in the note's More menu.
+    expect(exp).toContain("For one note, open the note's More menu, then Export. For a PDF, choose Print there, then Save as PDF.")
+    expect(exp).toContain("Open the notes list's More menu and choose Export to download every note as one zip")
+    expect(exp).not.toContain('toolbar')                     // neither Export is a toolbar button any more
+    // Final fix (C5): Trash and Archived sit under the folders panel's "More" fold.
+    expect(await read('How do I organize notes with folders, tags and archive?')).toContain('Trash and Archived are under More in the folders panel.')
+    expect(await read('What is the sample notebook, and how do I remove it?')).toContain('move to Trash (under More in the folders panel)')
     expect(await read('Does the Notebook work offline, and what is a conflicted copy?')).toContain('(conflicted copy)')
     expect(await read('What can Ask your notebook answer?')).toContain("Ask says it couldn't find it rather than guessing.")
+    // Simplify pass 2 (A5): a template is called a template, never "a layout".
+    const tpl = await read('How do templates and the daily note work?')
+    expect(tpl).toContain('to start a note from a template: a thesis, a daily note and more.')
+    expect(tpl).not.toMatch(/\blayout/i)
+    // Simplify pass 2 (B2): the teaching sentences the Daily brief's empty cards carried are in Help now.
+    const start = await read('How do I get started with the Notebook?')
+    expect(start).toContain("A checklist line you don't tick today, or a task due today, shows there tomorrow")
+    expect(start).toContain('what you write today comes back there next year.')
   })
 
 })

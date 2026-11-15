@@ -92,6 +92,7 @@ WORKDIR /src
 # stage is discarded by the multi-stage build, so nothing lands in the runtime
 # image. An unpassed one becomes `""`, which changes nothing: `'' === '1'` is
 # false exactly as `undefined === '1'` is.
+ARG VITE_BARSTORE
 ARG VITE_CATALYST_UI_ENABLED
 ARG VITE_CHART_RENDER_TOKEN
 ARG VITE_CHART_RENDER_TOKEN_PREVIOUS
@@ -121,7 +122,8 @@ ARG VITE_RS_TELEMETRY_ENABLED
 ARG VITE_TWITTER_UI_ENABLED
 ARG VITE_VOLUME_NUMERIC_PANE_ENABLED
 ARG VITE_WS_HOST
-ENV VITE_CATALYST_UI_ENABLED=$VITE_CATALYST_UI_ENABLED \
+ENV VITE_BARSTORE=$VITE_BARSTORE \
+    VITE_CATALYST_UI_ENABLED=$VITE_CATALYST_UI_ENABLED \
     VITE_CHART_RENDER_TOKEN=$VITE_CHART_RENDER_TOKEN \
     VITE_CHART_RENDER_TOKEN_PREVIOUS=$VITE_CHART_RENDER_TOKEN_PREVIOUS \
     VITE_COMING_SOON=$VITE_COMING_SOON \
@@ -227,12 +229,31 @@ COPY --from=frontend /src/app/dist /app/app/dist
 # lane's real import closure and fails if a new bare import is not copied here.
 COPY --from=frontend /src/app/node_modules/jsep /app/app/node_modules/jsep
 
+# ⚡ Precompile our own Python into the image (2026-11-12). pip already compiles
+# site-packages at install, but nothing compiled /app, so EVERY boot compiled the
+# ~1,060 api modules app import touches (523k lines: 4.2 s measured locally, more on
+# the pod's CPU) before the pod could answer, plus every module a job or a first
+# request imports lazily afterwards. Every deploy is an outage (one pod, one volume),
+# so those seconds were members' seconds. Same interpreter as runtime => matching
+# cache tag. `|| true`: a file that cannot compile fails at its own import as it
+# always did; it must not fail the image.
+RUN python -m compileall -q -j 0 /app/api > /dev/null 2>&1 || true
+
 # ⛔ OCR IS DARK. The engine is INSTALLED, not ENABLED: nothing here sets
 # `J2_OCR_ENABLED`, so `document_ocr_tesseract.install_if_enabled()` wires no
 # adapter and `document_ocr.ocr_available()` stays false. Presence of the binary
 # and activation of the feature are two different facts, and only one of them
 # is in this file.
 #
-# `railway.web.json`'s start command is what actually runs — this CMD is the
-# same web branch of it, so the image is still correct if run without Railway.
-CMD ["sh", "-c", "exec uvicorn api.main:app --host 0.0.0.0 --port ${PORT:-8080} --proxy-headers --forwarded-allow-ips='*' --timeout-graceful-shutdown 5"]
+# THIS CMD IS WHAT RUNS ON RAILWAY. `railway.web.json` sets no start command, and the
+# deployed service manifest reads `startCommand: ''` (checked 2026-11-13), so nothing
+# overrides it. (This comment used to say the config file's start command ran instead.)
+#
+# Two branches, and the default is the command line `web` has always run, byte for byte:
+#   WEB_PRIVATE_LISTEN_ENABLED unset or 0 -> uvicorn on 0.0.0.0, exactly as before.
+#   WEB_PRIVATE_LISTEN_ENABLED=1          -> `api/serve_dual.py`: the same server and
+#     settings on the same public IPv4 socket, PLUS an IPv6-only socket so other
+#     services can reach `web` on Railway's private network. Read that module's
+#     docstring before changing either branch. Way back: unset the variable, redeploy.
+# `tests/test_serve_dual.py` pins both branches and that their settings agree.
+CMD ["sh", "-c", "if [ \"${WEB_PRIVATE_LISTEN_ENABLED:-0}\" = \"1\" ]; then exec python -m api.serve_dual; else exec uvicorn api.main:app --host 0.0.0.0 --port ${PORT:-8080} --proxy-headers --forwarded-allow-ips='*' --timeout-graceful-shutdown 5; fi"]

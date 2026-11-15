@@ -1,5 +1,5 @@
 {
-  "measured_at": "2026-11-10",
+  "measured_at": "2026-11-12",
   "scripts": 266,
   "host_ok": 83,
   "screener_ok": 69,
@@ -797,10 +797,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:objects-only"
+        "pine:prop-unreadable"
       ],
       "screenerGuards": [
-        "pine:objects-only"
+        "pine:prop-unreadable"
       ]
     },
     {
@@ -1155,7 +1155,7 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:no-output"
+        "pine:enum-unreadable"
       ],
       "screenerGuards": [
         "pine:declaration-strategy"

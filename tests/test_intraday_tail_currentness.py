@@ -239,7 +239,7 @@ def avgo(monkeypatch):
     monkeypatch.setattr(bars_fetch, "_fmt_sqlite_bars", _fmt)
     monkeypatch.setattr(bars_fetch, "_maybe_kick_deepfill", lambda *a, **k: None)
     monkeypatch.setattr(bars_fetch, "_record_intraday_request", lambda *a, **k: None)
-    monkeypatch.setattr(bars_fetch, "_history_complete", lambda s, tf: True)
+    monkeypatch.setattr(bars_fetch, "_history_complete", lambda s, tf, *_a: True)
     monkeypatch.setattr(bars_fetch, "_is_intraday_stale", lambda raw: False)
     monkeypatch.setattr(bars_fetch, "_inflight", {})
     monkeypatch.setattr(bars_fetch, "_REQUEST_DEADLINE_SECONDS", 0.5)
@@ -248,7 +248,7 @@ def avgo(monkeypatch):
     # Freeze the router's view of "now" at the production clock.
     real_status = bars_fetch.intraday_tail_status
     monkeypatch.setattr(bars_fetch, "intraday_tail_status",
-                        lambda t, tf, tail, now=None: real_status(t, tf, tail, now=MON_1133))
+                        lambda t, tf, tail, now=None, **kw: real_status(t, tf, tail, now=MON_1133, **kw))
     # Keep the router's unrelated decorations out of the way.
     monkeypatch.setattr(bars_router, "_is_carried", lambda t: True)
     return {"store": store, "mem": mem}
@@ -388,7 +388,7 @@ class TestSdDoBounded:
         monkeypatch.setattr(bars_fetch, "_fmt_sqlite_bars", _fmt)
         monkeypatch.setattr(bars_fetch, "_maybe_kick_deepfill", lambda *a, **k: None)
         monkeypatch.setattr(bars_fetch, "_record_intraday_request", lambda *a, **k: None)
-        monkeypatch.setattr(bars_fetch, "_history_complete", lambda s, tf: True)
+        monkeypatch.setattr(bars_fetch, "_history_complete", lambda s, tf, *_a: True)
         monkeypatch.setattr(bars_fetch, "_needs_fresh", lambda ts, tf, ticker=None: True)
         monkeypatch.setattr(bars_fetch, "_is_cold_stale_intraday", lambda tf, ts, now=None: False)
         monkeypatch.setattr(bars_fetch, "_inflight", {})
@@ -484,7 +484,7 @@ class TestWeeklyCurrentWeek:
                             lambda r, tf, t=None: [{"t": f"{str(x[0])[:4]}-{str(x[0])[4:6]}-{str(x[0])[6:]}"} for x in r])
         monkeypatch.setattr(bars_fetch, "_maybe_kick_deepfill", lambda *a, **k: None)
         monkeypatch.setattr(bars_fetch, "_record_intraday_request", lambda *a, **k: None)
-        monkeypatch.setattr(bars_fetch, "_history_complete", lambda s, tf: True)
+        monkeypatch.setattr(bars_fetch, "_history_complete", lambda s, tf, *_a: True)
         monkeypatch.setattr(bars_fetch, "_inflight", {})
         monkeypatch.setattr(bars_fetch, "_expected_latest_session_yyyymmdd", lambda now=None: 20260928)
         monkeypatch.setattr(bars_fetch, "_delta_weekly",

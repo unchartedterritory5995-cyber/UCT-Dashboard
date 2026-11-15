@@ -97,7 +97,8 @@ RS_RATING_VIEW_CASES = ["rs_rating_view"]
 # UCT RS split, unit U6 (2026-11-09): the `rsPhases` / `rsVsEma` maths on one seeded
 # synthetic series, regenerated and compared by tests/test_rs_split_golden.py and read
 # by the JS lane's definition tests. NOT compute_case inputs (two series, like RS_LINE_CASES).
-RS_SPLIT_CASES = ["rs_phases_spy", "rs_vs_ema_spy"]
+# 2026-11-12 (RS Exit Warnings): + `rs_exit_spy`, the same series at the daily 21 / 50 pair.
+RS_SPLIT_CASES = ["rs_phases_spy", "rs_vs_ema_spy", "rs_exit_spy"]
 
 # ⛔ THE AST CASES ARE THEIR OWN LIST FOR TWO STRUCTURAL REASONS, AND BOTH ARE
 # STATEMENTS ABOUT THE CASES RATHER THAN ABOUT THIS FILE — the same shape as
@@ -277,7 +278,7 @@ def test_every_fixture_file_is_covered_by_a_test():
     listed = (set(CASES) | set(VWAP_CASES) | set(RS_LINE_CASES) | set(RS_EVENT_CASES)
               | set(RS_MANSFIELD_CASES) | set(AST_CASES) | set(RS_LEARN_FIXTURES)
               | set(RS_PHASE3_CASES) | set(RS_PARITY_CASES) | set(RS_RATING_VIEW_CASES)
-              | set(RS_SPLIT_CASES))   # U6 (2026-11-09): the two RS split fixtures
+              | set(RS_SPLIT_CASES))   # U6 (2026-11-09): the RS split fixtures (three since 2026-11-12)
     assert on_disk == listed, (
         f"fixture files and the CASES lists disagree: {on_disk ^ listed}"
     )

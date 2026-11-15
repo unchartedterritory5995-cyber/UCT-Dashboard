@@ -1,9 +1,65 @@
 # Session state — Pine on our charts
 
-## READ THIS FIRST — current state as of 2026-11-08 (origin/master `0ea4697b3f`)
+## READ THIS FIRST — current state as of 2026-11-11 (origin/master `22836e479c`)
 
-> This block is the current page. Everything below it is HISTORY: the 2026-10-01 block (lane C44,
-> wave 10) and the PR #145 record. When they disagree with this block, this block wins.
+> This block is the current page. Everything below it is HISTORY (the 2026-11-08 block, the
+> 2026-10-01 block from lane C44, and the PR #145 record). When they disagree, this block wins.
+> Every claim cites a file or a PR; re-check before acting on one.
+
+### Engine version
+
+- `SCRIPT_ENGINE_VERSION = 49` on master (`app/src/components/chart/engine/scriptEngineVersion.js`;
+  the `/** N = ... */` lines above the export are the authority for what each bump means).
+- Every merge that changes served output bumps it by exactly 1. Before starting an engine lane,
+  re-read the file on master and check no open PR already claims the next number.
+
+### Landed since the 2026-11-08 block (engines 37-49)
+
+| engine | PR | lane |
+|---|---|---|
+| 37 | #946 | STRAT-COLOR: a `strategy.*` read reaching colour or a drawing step is withheld (`pine:strategy-call`) |
+| 38 | (delete stack) | IDX-DELETE, CHAINED-REMOVAL, UDT-FIELD-CREATES, SILENT-CREATE-GAPS, STRAT-NOTE |
+| 39-41 | (W9 stack) | broker integration T4/T6/T7/T13a; T12 markers, T13b report panel, NO-GUARD-IDS; T5 costs, T8 risk, T4-F1, T11-F1, T7-F1 |
+| 42 | | CUM-OFF-LISTING (off-listing running totals withheld unless they cancel), DIV-1 warm-history grading |
+| 43 | #1009 | LIMITS: runtime limit refusals say their limit in plain words |
+| 44 | #1017 | VAR-OFF: unknowable off-listing `var` values withheld by name |
+| 45 | #1019 | DIV-4 paint/colour |
+| 46 | #1049 | LANE2: the B0 `na` seed lane with its version gate (`docs/pine/evidence/2026-11-10-lane2-b0`) |
+| 47 | #1075 | OZ stack: DIV-3 `table.cell` replace, W-C22-DEL withheld deletes, OZ silent-zero naming |
+| 48 | #1096 | `x = na(x[k]) ? na : U` refuses `pine:cycle` in every version, both lanes (`2026-11-11-engine48-na-self-ref`) |
+| 49 | #1122 | a v3+ declaration that reads its own history refuses `pine:cycle`, both lanes; v1/v2 unchanged (`2026-11-11-engine49-v3-self-ref`) |
+
+Saved-indicator lane (not engine bumps): F-15 #617 (Agent delete -> Undo keeps the script and engine
+stamp, or refuses), follow-ups #1087 and #1109; flag ledger #1086. The saved-script upgrade is ON
+(`VITE_SAVED_SCRIPT_UPGRADE` unset; its reader is `savedScriptUpgrade.js`), so engine bumps reach
+saved scripts, not only new ones.
+
+### Known open engine items (not over-refusals unless stated)
+
+- The four doors (screen, pane strict, `buildRuntimeIr`, `memberPaneDefinition`) still disagree on
+  some v3+ self-reference shapes the runtime refuses and the host draws (review ENG49-1122 findings
+  1-3, 6). Engine 50 (`fix/pine-engine50-doors-agree`) is the lane for this.
+- The v3+ honest recurrence spelling `x = 0.0` / `x := f(x[1])` refuses `pine:state` in the host lane;
+  only the runtime lane (dark until armed) draws it. This is the host lane's design, so coverage for
+  it arrives with arming, not with a host fix.
+
+### Decisions, honesty rule, where evidence lives
+
+Unchanged from the 2026-11-08 block below (D1-D10 in `docs/pine/W9-DECISIONS-2026-11-07.md`;
+honesty rule; `docs/pine/evidence/<date>-<lane>/`).
+
+### Open, owner-only
+
+- Captures that need a TradingView sign-in on the rig (capture-queue rows; also Q-C22-1, array-held
+  lines/labels, which would let the C22 withhold rule be checked against a witness).
+- Flag arming per W2 stage (D6). D4: the rig account's plan.
+
+---
+
+## HISTORY (superseded 2026-11-11) — state as of 2026-11-08 (origin/master `0ea4697b3f`)
+
+> Superseded by the 2026-11-11 block above. Kept because its decisions, honesty rule and
+> owner-only list still hold; its engine numbers and landing list do not.
 > Every claim here cites a file or a git log line; re-check before acting on one.
 
 ### Engine version

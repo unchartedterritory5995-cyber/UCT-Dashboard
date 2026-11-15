@@ -28,6 +28,10 @@
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
 }
 .panel[hidden] { display: none; }
+/* Simplify pass 2 (C3): the panel's first view and the slot its second view (Export's formats) is drawn into. Neither
+   is a box of its own, so every row is still laid out by the panel; the view not on screen is `hidden`. */
+.view { display: contents; }
+.view[hidden] { display: none; }
 
 /* Every action is a full-width row: the editor's chrome buttons and the organise group
    (NoteMenuActions) are laid out for a header line, so they are re-laid here. */

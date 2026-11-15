@@ -146,10 +146,12 @@ def test_the_escalation_is_rate_limited_per_tail(frozen_2022):
     assert bars_fetch._needs_fresh(TAIL_1653, "1", "AAPL") is False
 
 
-def test_ext_complete_tolerates_one_bucket():
-    assert bars_fetch.intraday_ext_session_complete("1", et(2026, 11, 10, 19, 58)) is True
-    assert bars_fetch.intraday_ext_session_complete("1", et(2026, 11, 10, 19, 57)) is False
-    assert bars_fetch.intraday_ext_session_complete("1", TAIL_1653) is False
+def test_ext_complete_requires_the_final_bucket():
+    """Review #1098 F5: after the close completeness is EXACT — a missing final bucket is
+    a hole to repair (the one-bucket tolerance belongs to currentness, not here)."""
+    assert bars_fetch.session_complete("1", et(2026, 11, 10, 19, 59), "eth") is True
+    assert bars_fetch.session_complete("1", et(2026, 11, 10, 19, 58), "eth") is False
+    assert bars_fetch.session_complete("1", TAIL_1653, "eth") is False
 
 
 # ── review #1051 F1: live-stream-covered 5m series ───────────────────────────

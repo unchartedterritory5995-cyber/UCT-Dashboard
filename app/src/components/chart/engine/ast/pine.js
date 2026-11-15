@@ -133,11 +133,12 @@ import {
   BAR_COORD_PROPS,
   GETTER_PROPS as OBJECT_GETTER_PROPS, MAX_BARS_BACK_CAP, AUTO_MAX_BARS_BACK,
   RUNTIME_AT_CALL, RUNTIME_PROGRAM_VERSION, MAX_RUNTIME_VALUES, runtimeAtIndex, rtLoopId,
-  withObjectTransparency, isPassCondition,
+  withObjectTransparency, isPassCondition, objectSiteKey,
 } from './objectProgram.js'
 import { wholeTransparency, unpackColor } from '../colorInt.js'
-import { hexToPacked, byteTransparency, gradientChannelTree, objectHexToPacked, GRADIENT_ZERO_COLOUR } from '../runtime/colours.js'
+import { hexToPacked, byteTransparency, gradientChannelTree, objectHexToPacked, GRADIENT_ZERO_COLOUR, fromGradient, packedToObjectHex } from '../runtime/colours.js'
 import { THEME_NAMES } from '../objectTheme.js'
+import { POINT_SIZE_ANCHORS } from '../objectPointSizes.js'
 import { VERSIONS_WITH_OBJECT_DEFAULTS } from '../objectDefaults.js'
 
 // ⭐⭐ KIND 4 — the symbol-scoped vocabulary, as DATA. Every value in
@@ -890,7 +891,8 @@ const OWN_SYMBOL_NAMES = new Set([
 // DESCRIPTORS and this file builds the `PineRefusal`.
 import * as VEC from './arrayVectors.js'
 import { seriesWindowOf, WINDOW_READ_MEMBERS, MAX_WINDOW_CAP, spanOf, windowWriterStatements } from './arrayWindows.js'
-import { ENUM_NA_SENTENCE, ENUM_NAMED_CALL_SENTENCE } from '../enumNaRule.js'
+import { ENUM_NA_SENTENCE, ENUM_NAMED_CALL_SENTENCE, ENUM_DROPS } from '../enumNaRule.js'
+import { OBJECT_ENUM_VALUES } from '../objectEnums.js'
 
 const TICKER_CALLS = new Set(['ticker.new', 'tickerid'])
 
@@ -3998,17 +4000,154 @@ export function seedAndUpdateOf(body, table) {
 }
 
 /** ⭐⭐ LANE B0 — the ternary spelling whose seed is Pine's `na` literal and whose
- *  test is a BARE history read (`na(x[k])`): `na` on every bar in Pine (see the
- *  call site). Only that test: `na(nz(x[1]))` is never true, and its bar 0 runs
- *  the update instead. */
+ *  test is a BARE history read (`na(x[k])`). ENGINE 48: it refuses `pine:cycle` by
+ *  name in every version (see the call site, and `selfReferenceSentence`).
+ *  Only that test: `na(nz(x[1]))` is never true, and its bar 0 runs the update
+ *  instead. */
 export function naSeededSelfReference(body, parts, table) {
   if (!parts || !isStaticNa(parts.seed) || !ternarySeedAndUpdate(body, table)) return false
-  const spec = table && table.functions && table.functions.accum
-  const bind = spec && spec.recurrence && spec.recurrence.binds
+  // ⛔ THE SHAPE ONLY, NOT THE NAME (engine-48 review N5). `ternarySeedAndUpdate` already
+  // requires the `na(…)` test to contain a free `self`, and `na` takes one argument, so a bare
+  // series read here (or an offset of one) can only be `self`. A name check beside it could
+  // never fire, and a guard that cannot fail is not counted as one.
   const read = body.args[0].args && body.args[0].args[0]
-  return !!read && ((read.type === 'series' && read.name === bind)
-    || (read.type === 'offset' && read.args && read.args[0]
-      && read.args[0].type === 'series' && read.args[0].name === bind))
+  return !!read && (read.type === 'series'
+    || (read.type === 'offset' && read.args && read.args[0] && read.args[0].type === 'series'))
+}
+
+/** ⭐⭐ ENGINE 49 — A DECLARATION THAT READS ITS OWN HISTORY: `x = … x[k] …` with the `=`
+ *  (not `:=`), where `x` was not declared before it in this scope or an enclosing one.
+ *  `declaredBefore` is the caller's answer to that last question (the host asks the env the
+ *  declaration was written in; the runtime lane its scope chain and env), so a local that
+ *  shadows a global, a function parameter, an earlier same-scope `x`, a `var` and a tuple
+ *  never reach here, and stay what they were.
+ *
+ *  Pine v3 removed self-reference in a declaration (a variable must be declared before it is
+ *  referenced): `s = nz(s[1]) + close` is written `s = 0.0` then `s := nz(s[1]) + close`, and
+ *  in v3+ the first spelling does not compile. v1/v2 (and no pragma) do compile it, so each
+ *  lane asks this ONLY where `!listingSeedIsUnpinned(version)`, and refuses `pine:cycle` with
+ *  `selfReferenceSentence`. Census (engine 49): no v3+ script in `corpus/`, the repo's `.pine`
+ *  fixtures and vendor captures, or the licence-held sample spells it.
+ *  ⛔ A HISTORY read only (`x[k]`, `k` any expression): a bare `x = x + 1` reads a name nothing
+ *  declared, and keeps its `pine:undefined` refusal (TradingView's own error for it). */
+export function selfReferencingDeclaration(node, name, declaredBefore) {
+  return !declaredBefore && typeof name === 'string' && !PINE_BUILTIN_VARIABLE_NAMES.has(name)
+    && readsOwnPrevious(node, name)
+}
+
+/** ⛔ A DECLARATION NAMED AFTER A BUILT-IN VARIABLE (`close = close[1] + 1`) IS NOT ASKED: its
+ *  `close[1]` may be Pine's own `close`, and whether TradingView reads it that way (or refuses the
+ *  name) is not settled here, so nothing is refused for it. The bar series, the clock names, and
+ *  the other built-in series a script can read bare. */
+export const PINE_BUILTIN_VARIABLE_NAMES = new Set(['open', 'high', 'low', 'close', 'volume', 'hl2', 'hlc3',
+  'ohlc4', 'hlcc4', 'time', 'time_close', 'time_tradingday', 'timenow', 'bar_index', 'last_bar_index',
+  'tr', 'vwap', 'obv', 'accdist', 'iii', 'nvi', 'pvi', 'pvt', 'wad', 'wvad', 'na',
+  ...Object.keys(TABLE.series || {}), ...Object.keys(TABLE.clock || {})])
+
+/** ⭐⭐ ENGINE 50 — DECLARED BEFORE AS A VARIABLE (the host's answer to `declaredBefore`). Pine
+ *  keeps variables and functions in separate namespaces (`atr = atr(14)` is legal in v4), so a user
+ *  function of the same name written earlier (`x(a) => a * 2`) does not declare the VARIABLE `x`:
+ *  in `x = nz(x[1]) + 1` the `x[1]` still reads a variable nothing declared (review ENG49-1122
+ *  note 3; the runtime lane's scope never held the function, and already refused).
+ *  ⛔ THE HOST ENV IS ONE MAP FOR BOTH NAMESPACES, so a function defined AFTER a variable of the same
+ *  name (`x = close` / `x(a) => a * 2`) overwrites the variable's binding. The kind of whatever the
+ *  map holds now therefore cannot answer this (review PR #1141 finding 1: a function-local `x` that
+ *  shadows the global VARIABLE `x` was refused). The answer is a variable-only record carried by the
+ *  function binding itself: `hidesVariable`, the variable binding the function's definition covered
+ *  (`variableBeneath`, set at every site that binds a function under a name). It travels with every
+ *  copy of the env (`new Map(env)` copies the reference), so a function body, a block and every later
+ *  statement see it. */
+export function declaredAsVariable(env, name) {
+  return !!variableBeneath(env, name)
+}
+
+/** A function binding (a folded `fn`, or an opaque one that did not fold). */
+const isFunctionBinding = (b) => !!b && (b.kind === 'fn' || (b.kind === 'opaque' && b.isFunction === true))
+
+/** ⭐ ENGINE 50 — the VARIABLE binding visible under `name` in `env`, or null: the binding itself when
+ *  it is not a function, else the variable the function binding covered (`hidesVariable`). Asked by
+ *  `declaredAsVariable`, and by every site that binds a function under a name, to record what it
+ *  covers. */
+export function variableBeneath(env, name) {
+  if (!env || typeof env.has !== 'function' || !env.has(name)) return null
+  const b = env.get(name)
+  if (!b) return null
+  return isFunctionBinding(b) ? (b.hidesVariable || null) : b
+}
+
+/** ⭐⭐ ENGINE 50 — A BLOCK-VALUED DECLARATION THAT READS ITS OWN HISTORY: `x = if …` /
+ *  `x = switch …` (statement `i` of `stmts`, with `=`, never `:=`) whose conditions or arms read
+ *  `x[k]` (review ENG49-1122 note 6). The rule of `selfReferencingDeclaration`, for a declaration
+ *  whose value is a block: `x` is not declared until the whole statement ends, so in v3+ the read
+ *  is of an undeclared variable. The caller answers "declared before" and gates on the version;
+ *  both lanes ask this one function.
+ *  ⛔ CONSERVATIVE: a block that declares `x` itself anywhere (an inner `x = …`, typed or `var`, a
+ *  tuple, a loop counter) is left alone, since its `x[k]` may read that inner `x`; a field read
+ *  `p.x[1]` is not a read of `x`; a built-in name is never asked (`PINE_BUILTIN_VARIABLE_NAMES`). */
+export function blockDeclarationReadsOwnHistory(stmts, i, name) {
+  const st = stmts && stmts[i]
+  const head = st && st.header
+  if (!head || typeof name !== 'string' || PINE_BUILTIN_VARIABLE_NAMES.has(name)) return false
+  const eq = findTop(head, (t) => isPunct(t, '='))
+  const kw = eq > 0 ? head[eq + 1] : null
+  if (!kw || kw.kind !== 'ident' || (kw.value !== 'if' && kw.value !== 'switch')) return false
+  const toks = head.slice(eq + 2)
+  const subs = [st.sub]
+  if (kw.value === 'if') {
+    const chain = ifBranches(stmts, i)
+    for (let j = i + 1; chain && j < chain.next; j += 1) {
+      toks.push(...(stmts[j].header || []))
+      subs.push(stmts[j].sub)
+    }
+  }
+  let declares = false
+  const visit = (list) => {
+    for (const s of list || []) {
+      const h = s && s.header
+      if (!h || !h.length) continue
+      toks.push(...h)
+      const e = findTop(h, (t) => isPunct(t, '='))
+      const bound = e > 0 ? boundName(h, e) : null
+      if (bound && bound.value === name) declares = true
+      if (isPunct(h[0], '[') || (h[0].kind === 'ident' && h[0].value === 'for')) {
+        const stop = e > 0 ? e : h.length
+        if (h.slice(0, stop).some((t) => t.kind === 'ident' && t.value === name)) declares = true
+      }
+      visit(s.sub)
+    }
+  }
+  subs.forEach(visit)
+  if (declares) return false
+  for (let k = 0; k < toks.length; k += 1) {
+    const t = toks[k]
+    if (!t || t.kind !== 'ident' || t.value !== name) continue
+    if (!isPunct(toks[k + 1], '[') || isPunct(toks[k + 2], ']')) continue
+    if (k > 0 && isPunct(toks[k - 1], '.')) continue
+    return true
+  }
+  return false
+}
+
+/** ⭐⭐ ENGINE 48/49 — the specifics of the `pine:cycle` refusal of a self-referencing
+ *  declaration (the lead sentence is `REFUSALS['pine:cycle']`). One wording per version
+ *  family, exported so both lanes' rails pin it:
+ *  - v3+: every declaration `selfReferencingDeclaration` catches (engine 49), engine 48's
+ *    `x = na(x[k]) ? na : U` among them. It names no spelling, so it is true of each.
+ *  - v1/v2 and no pragma: engine 48's `x = na(x[k]) ? na : U` only (`naSeededSelfReference`);
+ *    every other v1/v2 self-reference compiles in Pine and keeps its path.
+ *  `version` is the lexed pragma (`null` = no pragma, read as v1). */
+export function selfReferenceSentence(name, version) {
+  if (!listingSeedIsUnpinned(version)) {
+    return `\`${name}\` reads its own history inside its own declaration. This does not compile `
+      + 'in Pine v3+: a variable cannot refer to itself in its own declaration, so TradingView '
+      + 'draws nothing for this script and nothing is drawn here. In v3+ the variable is declared '
+      + 'once and updated with `:=`'
+  }
+  return `\`${name}\` is set to \`na\` whenever its own earlier value, as its \`na()\` test reads it, `
+    + `is \`na\`. Pine v1/v2 (and a script with no \`//@version\`) does not state what that earlier value `
+    + `is before the first bar: if it is \`na\`, \`${name}\` is \`na\` on every bar; if it is 0, the update `
+    + 'runs from the first bar. The two readings can disagree, and no TradingView capture has settled '
+    + 'which one TradingView draws, so neither is drawn'
 }
 
 /** `na(self…) ? SEED : UPDATE` — the spelling the docblock above describes. */
@@ -8354,6 +8493,24 @@ export class Resolver {
       }
       try { return this.resolveBinding(frame[bound.index], tok, name) } finally { this.frames.push(frame) }
     }
+    // ⭐⭐ ENGINE 49 — A v3+ DECLARATION THAT READS ITS OWN HISTORY (`x = … x[k] …`) DOES NOT
+    // COMPILE IN PINE, and refuses by name here, before its initialiser is resolved, so no
+    // other wall in it (and no recurrence fold below) speaks first. The declaration sites mark
+    // the binding (`selfDeclaration`, the declared name) when `selfReferencingDeclaration` holds
+    // in the env the declaration was written in: a shadowing local, a parameter, a `var`, a
+    // tuple and the `x = 0.0` + `x := …` form are never marked. v1/v2 and no pragma compile the
+    // spelling and keep their paths (engine 48's `na`-seeded refusal below included).
+    // ⭐ ENGINE 50 — this is no longer the only door: the walk also records every mark
+    // (`ctx.selfDeclarations`) and refuses the whole script by the first one after the walk, so a
+    // marked binding nothing reads, one read only through `color=`, a name an earlier user function
+    // holds (`declaredAsVariable`) and a block-valued `x = if/switch …` refuse too, as the runtime
+    // lane does (review ENG49-1122 notes 1-3, 6). This branch still speaks for a resolved binding,
+    // with the same sentence, so a plot's own refusal says the same thing.
+    if (bound.selfDeclaration && !listingSeedIsUnpinned(this.pineVersion)) {
+      throw new PineRefusal('pine:cycle',
+        `${REFUSALS['pine:cycle']} — ${selfReferenceSentence(bound.selfDeclaration, this.pineVersion)}`,
+        bound.at || locate(tok))
+    }
     if (this.stack.has(bound)) {
       throw new PineRefusal('pine:cycle', `${REFUSALS['pine:cycle']} — \`${name}\``, locate(tok))
     }
@@ -8460,16 +8617,36 @@ export class Resolver {
             + 'first-bar value the way `na(' + name + '[1]) ? … : …` does',
             bound.at || locate(tok))
         }
-        // ⭐⭐ LANE B0 — `x = na(x[k]) ? na : U`: Pine reads `x[k]` as `na` on bar 0,
-        // takes the `na` arm, and so `x[k]` is `na` again on every later bar — the
-        // value is `na` on EVERY bar, whatever `U` says. Written as that constant,
-        // which is exactly Pine's, and which keeps the one rule the listing pass
-        // reads (`interpret.js::historySeedReading`: an unmarked `na` seed is a
-        // history seed whose bar 0 runs the update) true of every `accum` this
-        // translator writes.
-        // ⛔ r1 — only where bar 0's history is pinned (v3+, `listingSeedIsUnpinned`): for v1/v2
-        // (and no pragma) Pine's `x[1]` on bar 0 may be `0`, which is unwitnessed (W34-I4b).
-        if (!listingSeedIsUnpinned(this.pineVersion) && naSeededSelfReference(body, parts, this.table)) return parts.seed
+        // ⭐⭐ ENGINE 48 — `x = na(x[k]) ? na : U` REFUSES BY NAME, in every version, in
+        // both lanes, and no column is drawn for it. The runtime lane reaches this branch for
+        // a binding it keeps in the `Resolver`; one it makes a SLOT (a function local, or one
+        // whose update reads a slot) is refused with the same sentence by
+        // `pineRuntimeFrontend.js::naSeededSelfDeclaration` (review N1). Where the runtime lane
+        // meets another wall first (a warm-up update: `runtime:conditional-history`), it refuses
+        // by that name instead; the member door shows this one. Neither answer it could draw is
+        // witnessed:
+        //   - v3+ (`!listingSeedIsUnpinned`): TradingView does not COMPILE it. Pine v3
+        //     removed self-reference in a declaration, so there is no TradingView value
+        //     at all. Engine 46 (LANE B0) drew the all-`na` column here, and before it
+        //     the counter spelling refused `pine:state` (LANE2-r1r3 N3).
+        //   - v1/v2 and no pragma: Pine compiles it, and its answer turns on the one fact
+        //     W34-I4b leaves unpinned, `x[k]` before the first bar. Read as `na`, every
+        //     bar takes the `na` arm, so `x` is `na` on EVERY bar. Read as 0, bar 0 runs
+        //     `U` from 0 and each later bar runs `U` from there. The listing pass's
+        //     candidates (seed, update(U, na), zero) do not include the first reading,
+        //     so for a `U` that forgets its seed they agreed from bar 1 on a value the
+        //     first reading contradicts, and the host served it (LANE2-r1r3 N1). No
+        //     capture pins it (capture row W34-I4-S1).
+        // ⛔ Only this spelling: a stated seed (`na(x[1]) ? 7.0 : U`) and a test that is
+        // not a bare history read (`na(nz(x[1]))`) keep their paths below, in v1/v2 and no
+        // pragma. Since engine 49 a v3+ declaration never reaches this branch: every v3+
+        // declaration that reads its own history refuses at the top of `resolveBindingInner`
+        // (`selfDeclaration`), with the same v3+ sentence.
+        if (naSeededSelfReference(body, parts, this.table)) {
+          throw new PineRefusal('pine:cycle',
+            `${REFUSALS['pine:cycle']} — ${selfReferenceSentence(name, this.pineVersion)}`,
+            bound.at || locate(tok))
+        }
         // 🔴🔴 THE SAME CONVERGENCE GATE AS THE MUTABLE FORM, asked of the UPDATE
         // ARM ALONE — the seed arm is what the accumulator re-seeds WITH, so
         // asking it to forget itself is asking the wrong question. Routing around
@@ -16110,6 +16287,22 @@ const varSeedOf = (seed, reads) => {
 }
 
 const exprBinding = (node, env, at) => ({ kind: 'expr', node, env, at })
+/** ⭐⭐ ENGINE 49 — mark a `name = rhs` declaration binding whose initialiser reads its own history
+ *  while `name` was not declared before it (`selfReferencingDeclaration`, asked of `declEnv`, the
+ *  env the declaration was written in). The `Resolver` refuses a marked binding `pine:cycle` in
+ *  v3+ only. Returns the binding.
+ *  ⭐⭐ ENGINE 50 — "declared before" counts a VARIABLE only (`declaredAsVariable`: an earlier
+ *  user function of the same name does not declare it), and every mark is also RECORDED in
+ *  `sink` (the walk's `ctx.selfDeclarations`), which refuses the whole script in v3+ after the
+ *  walk, read or not (`translatePineResult`). */
+const markSelfDeclaration = (binding, name, declEnv, sink) => {
+  if (binding && binding.kind === 'expr'
+      && selfReferencingDeclaration(binding.node, name, declaredAsVariable(declEnv, name))) {
+    binding.selfDeclaration = name
+    if (Array.isArray(sink)) sink.push({ name, at: binding.at })
+  }
+  return binding
+}
 
 /** ⭐ C22 — `Resolver.textEqTree`'s memo: per scope, per operand NODE (by
  *  identity — a guard re-read is the same parse node), per operator + literal.
@@ -18667,6 +18860,13 @@ function foldStatements(stmts, ctx, env, trace = null, { declarationIsValue = fa
       if (rhs.length === 0) {
         throw new PineRefusal('pine:statement', REFUSALS['pine:statement'], locate(first))
       }
+      // ⭐⭐ ENGINE 50 — a block-valued declaration whose block reads its own history is
+      // RECORDED here (review ENG49-1122 note 6); the walk refuses it in v3+ after the walk.
+      // Nothing about this statement's fold changes.
+      if (ctx && Array.isArray(ctx.selfDeclarations) && !declaredAsVariable(env, nameTok.value)
+          && blockDeclarationReadsOwnHistory(stmts, i, nameTok.value)) {
+        ctx.selfDeclarations.push({ name: nameTok.value, at: locate(nameTok) })
+      }
       if (rhs[0].kind === 'ident' && rhs[0].value === 'if') {
         const folded = foldIfChain(stmts, i, ctx, env)
         consumeMutators(ctx, st.body)
@@ -18744,9 +18944,9 @@ function foldStatements(stmts, ctx, env, trace = null, { declarationIsValue = fa
       // one run (`oneExecutionTokens`) — and the object lane reads it instead.
       const mark = condCallMark(ctx, rhs, nameTok.value)
       const declEnv = new Map(env)
-      env.set(nameTok.value, exprBinding(
+      env.set(nameTok.value, markSelfDeclaration(exprBinding(
         stampInputName(parseWholeExpression(rhs), nameTok.value),
-        declEnv, locate(nameTok)))
+        declEnv, locate(nameTok)), nameTok.value, declEnv, ctx && ctx.selfDeclarations))
       // ⛔ A MARK, NOT A REFUSAL: the plot lane reads this binding as it always
       // has (and mints the parameters it always did); the OBJECT lane's Resolver
       // (`refuseCondCalls`) refuses it by the sentence carried here, or reads
@@ -18856,31 +19056,8 @@ function foldStatements(stmts, ctx, env, trace = null, { declarationIsValue = fa
 // references. Inlining the trees here would work and would silently undo C2C's
 // ×48 compaction — a line whose y-coordinate is `close` must be an integer in
 // the saved document, not a second copy of a tree a plot already stores.
-const OBJECT_ENUM_VALUES = Object.freeze({
-  'xloc.bar_index': 'bar_index', 'xloc.bar_time': 'bar_time',
-  'yloc.price': 'price', 'yloc.abovebar': 'abovebar', 'yloc.belowbar': 'belowbar',
-  'extend.none': 'none', 'extend.right': 'right', 'extend.left': 'left', 'extend.both': 'both',
-  'line.style_solid': 'solid', 'line.style_dashed': 'dashed', 'line.style_dotted': 'dotted',
-  'line.style_arrow_left': 'arrow_left', 'line.style_arrow_right': 'arrow_right',
-  'line.style_arrow_both': 'arrow_both',
-  'size.tiny': 'tiny', 'size.small': 'small', 'size.normal': 'normal',
-  'size.large': 'large', 'size.huge': 'huge', 'size.auto': 'auto',
-  'text.align_left': 'left', 'text.align_center': 'center', 'text.align_right': 'right',
-  'text.align_top': 'top', 'text.align_bottom': 'bottom',
-  // ⭐ A CLOSED THREE-NAME VOCABULARY. All 13 real usages across the corpus and
-  // the acceptance dashboard are plain `text.format_bold`; `none` and `italic`
-  // are carried because a table that knew one of three would drop the other two
-  // with no trace, which is the failure this property was added to stop.
-  // ⛔ A COMBINED `text.format_bold + text.format_italic` is NOT a name and
-  // does not resolve here — it falls to `valueRef`, which returns null, and the
-  // converter records it via `dropProp`. Counted, never half-applied.
-  'text.format_none': 'none', 'text.format_bold': 'bold', 'text.format_italic': 'italic',
-  'position.top_left': 'top_left', 'position.top_center': 'top_center',
-  'position.top_right': 'top_right', 'position.middle_left': 'middle_left',
-  'position.middle_center': 'middle_center', 'position.middle_right': 'middle_right',
-  'position.bottom_left': 'bottom_left', 'position.bottom_center': 'bottom_center',
-  'position.bottom_right': 'bottom_right',
-})
+// ⭐ Engine 51 — the vocabulary is ONE table, `../objectEnums.js` (every member of
+// the reference's namespaces and the witnessed legacy spellings), imported here.
 
 /**
  * ⭐⭐ `text_format` — THE ONE PINE CONSTANT FAMILY THAT DOES ARITHMETIC.
@@ -18922,19 +19099,15 @@ export function canonicalTextFormat(flags) {
   return out.length ? out.join('_') : 'none'
 }
 
-/** Every `label.style_*` Pine names, kept as its own string. ⚠️ The RENDERER
- *  decides what a style draws; this door only has to carry what was written. */
-const LABEL_STYLE_RE = /^label\.style_[a-z_]+$/
-const BOX_STYLE_RE = /^box\.style_[a-z_]+$/
 
 // ⛔⛔ HONESTY-SWEEP item 1 — the enum-`na` refusal sentence (`../enumNaRule.js`), re-exported.
 export { ENUM_NA_SENTENCE, ENUM_NAMED_CALL_SENTENCE }
 
 export function objectEnumValue(name) {
-  if (Object.hasOwn(OBJECT_ENUM_VALUES, name)) return OBJECT_ENUM_VALUES[name]
-  if (LABEL_STYLE_RE.test(name)) return name.slice('label.style_'.length)
-  if (BOX_STYLE_RE.test(name)) return name.slice('box.style_'.length)
-  return undefined
+  // ⛔ Engine 51 — only a constant the table holds. `label.style_<anything>` used to
+  // pass by pattern, so `label.style_labeldown` (v4) reached the renderer as an
+  // unknown `labeldown` and drew centred with no pointer.
+  return Object.hasOwn(OBJECT_ENUM_VALUES, name) ? OBJECT_ENUM_VALUES[name] : undefined
 }
 
 /** `barstate.islast and X` → `{rest: X, isLast: true}`. Only top-level
@@ -19075,6 +19248,135 @@ function objectBlockRunsOf(trees, hits, makeResolverRaw) {
   })
   return out
 }
+
+/* ─── ⭐⭐ ENGINE 52 — THE STATIC READER'S VALUES, BEYOND WORDS ─────────────────
+ *
+ * `buildObjectProgram`'s static reader (`staticEnumValue`) answers a value fixed
+ * before bar 0 as `{s}` (string), `{b}` (bool), `{w}` (a constant's word) and, since
+ * engine 52, `{n}` (number), `{hex}` (an object colour, alpha included) and `{arr}`
+ * (a list of those, only what `str.split` makes). These are its pure operations. */
+/** The input kinds whose default is a drawing's value (C16), by the key it answers. */
+const STATIC_INPUT_KIND = Object.freeze({
+  'input.int': 'n', 'input.float': 'n', 'input.bool': 'b', 'input.color': 'hex',
+  // v4's `input(…, type = input.integer)` (the v4 name of the int input type)
+  'input.integer': 'n',
+})
+const STATIC_STR_FNS = new Set(['str.lower', 'str.upper', 'str.replace', 'str.replace_all', 'str.split',
+  'str.contains', 'str.startswith', 'str.endswith', 'str.tostring', 'str.length'])
+const STATIC_NUM_OPS = new Set(['+', '-', '*', '/', '<', '>', '<=', '>='])
+/** One key per static value, so `==` compares a value with its own kind only. */
+const staticKey = (v) => ('s' in v ? `s:${v.s}` : 'w' in v ? `w:${v.w}` : 'n' in v ? `n:${v.n}`
+  : 'hex' in v ? `hex:${String(v.hex).toUpperCase()}` : 'arr' in v ? 'arr' : 'obj' in v ? 'obj' : `b:${v.b}`)
+function staticBinary(op, l, r, truncate = null) {
+  if ('s' in l && 's' in r) return op === '+' ? { s: l.s + r.s } : null
+  if (!('n' in l) || !('n' in r)) return null
+  const a = l.n
+  const b = r.n
+  switch (op) {
+    case '+': return { n: a + b }
+    case '-': return { n: a - b }
+    case '*': return { n: a * b }
+    // ⭐ Division: whether Pine truncates is the caller's to say, by the engine's ONE rule
+    // (`constIntDivisionTruncates` + `pineConstIntValue`, F1, witnessed `vw-int-div-assign`):
+    // before v6 exactly when BOTH operands are `const int`, never from v6. `null` (not
+    // settled) folds only an exact quotient, where both readings agree.
+    case '/': {
+      if (b === 0) return null
+      if (truncate === true) return { n: Math.trunc(a / b) }
+      if (truncate === false) return { n: a / b }
+      return Number.isInteger(a / b) ? { n: a / b } : null
+    }
+    case '<': return { b: a < b }
+    case '>': return { b: a > b }
+    case '<=': return { b: a <= b }
+    case '>=': return { b: a >= b }
+    default: return null
+  }
+}
+/** A string one occurrence of which can overlap the next (a prefix that is also a suffix). */
+const selfOverlaps = (t) => { for (let k = 1; k < t.length; k += 1) if (t.slice(0, k) === t.slice(t.length - k)) return true; return false }
+function staticBuiltin(name, v) {
+  const S = (i) => (v[i] && 's' in v[i] ? v[i].s : null)
+  const N = (i) => (v[i] && 'n' in v[i] ? v[i].n : null)
+  const H = (i) => (v[i] && 'hex' in v[i] ? v[i].hex : null)
+  switch (name) {
+    case 'color.new': {
+      if (v.length !== 2 || H(0) === null || N(1) === null) return null
+      const hex = withObjectTransparency(H(0), N(1))
+      return hex ? { hex } : null
+    }
+    case 'color.rgb': {
+      if (v.length < 3 || v.length > 4) return null
+      const ch = [N(0), N(1), N(2)]
+      if (ch.some((c) => c === null || c < 0 || c > 255)) return null
+      const base = `#${ch.map((c) => Math.round(c).toString(16).padStart(2, '0').toUpperCase()).join('')}`
+      if (v.length === 3) return { hex: base }
+      if (N(3) === null) return null
+      const hex = withObjectTransparency(base, N(3))
+      return hex ? { hex } : null
+    }
+    case 'color.from_gradient': {
+      if (v.length !== 5 || [0, 1, 2].some((i) => N(i) === null) || H(3) === null || H(4) === null) return null
+      const a = objectHexToPacked(H(3))
+      const b = objectHexToPacked(H(4))
+      if (a === null || b === null) return null
+      const hex = packedToObjectHex(fromGradient(N(0), N(1), N(2), a, b))
+      return hex ? { hex } : null
+    }
+    case 'str.lower': return v.length === 1 && S(0) !== null ? { s: S(0).toLowerCase() } : null
+    case 'str.upper': return v.length === 1 && S(0) !== null ? { s: S(0).toUpperCase() } : null
+    case 'str.length': return v.length === 1 && S(0) !== null ? { n: S(0).length } : null
+    case 'str.contains': return v.length === 2 && S(0) !== null && S(1) !== null ? { b: S(0).includes(S(1)) } : null
+    case 'str.startswith': return v.length === 2 && S(0) !== null && S(1) !== null ? { b: S(0).startsWith(S(1)) } : null
+    case 'str.endswith': return v.length === 2 && S(0) !== null && S(1) !== null ? { b: S(0).endsWith(S(1)) } : null
+    case 'str.replace_all':
+      return v.length === 3 && [0, 1, 2].every((i) => S(i) !== null) && S(1) !== '' && !selfOverlaps(S(1)) ? { s: S(0).split(S(1)).join(S(2)) } : null
+    case 'str.replace': {
+      // Pine: the `occurrence`-th (0-based, default 0) occurrence of `target`
+      // ⛔ a target that can overlap itself (`aa` in `aaa`): which occurrences Pine counts is
+      // not stated, so it is not folded
+      if (v.length < 3 || v.length > 4 || ![0, 1, 2].every((i) => S(i) !== null) || S(1) === '' || selfOverlaps(S(1))) return null
+      const nth = v.length === 4 ? N(3) : 0
+      if (nth === null || !Number.isInteger(nth) || nth < 0) return null
+      let at = -1
+      for (let k = 0; k <= nth; k += 1) { at = S(0).indexOf(S(1), at + 1); if (at < 0) return { s: S(0) } }
+      return { s: S(0).slice(0, at) + S(2) + S(0).slice(at + S(1).length) }
+    }
+    case 'str.split': {
+      if (v.length !== 2 || S(0) === null || S(1) === null || S(1) === '') return null
+      const parts = S(0).split(S(1))
+      // ⛔ an empty piece (two separators together, one at an end) is not pinned: not folded
+      return parts.some((p) => p === '') ? null : { arr: parts.map((s) => ({ s })) }
+    }
+    case 'str.tostring':
+      // ⛔ only what needs no number format: a string, or a whole number
+      if (v.length !== 1) return null
+      if (S(0) !== null) return { s: S(0) }
+      return N(0) !== null && Number.isInteger(N(0)) ? { s: String(N(0)) } : null
+    case 'array.get': {
+      const arr = v[0] && v[0].arr
+      const i = N(1)
+      return arr && v.length === 2 && Number.isInteger(i) && i >= 0 && i < arr.length ? arr[i] : null
+    }
+    case 'array.size': return v.length === 1 && v[0] && v[0].arr ? { n: v[0].arr.length } : null
+    case 'math.max': return v.length >= 2 && v.every((x) => 'n' in x) ? { n: Math.max(...v.map((x) => x.n)) } : null
+    case 'math.min': return v.length >= 2 && v.every((x) => 'n' in x) ? { n: Math.min(...v.map((x) => x.n)) } : null
+    case 'math.abs': return v.length === 1 && N(0) !== null ? { n: Math.abs(N(0)) } : null
+    default: return null
+  }
+}
+/** The int sizes the reference equates with a `size.*` word, per family (0 is `size.auto`). */
+const POINT_SIZE_ANCHOR_SET = Object.freeze({
+  label: new Set([0, ...Object.values(POINT_SIZE_ANCHORS.label)]),
+  boxTable: new Set([0, ...Object.values(POINT_SIZE_ANCHORS.boxTable)]),
+})
+/** ⛔ A helper body run before bar 0 stops after this many loop passes in all. */
+const STATIC_HELPER_MAX_PASSES = 1000
+
+/** ⭐⭐ ENGINE 54 — where the object pass names each create site's source call
+ *  (`translation.objectDiagnostics[OBJECT_SITE_SOURCES]`: `{s1: '12:5', ...}`), read by the
+ *  member door to mint a run half's `sites` (`memberPaneDefinition::hostPartialRunHalf`). */
+export const OBJECT_SITE_SOURCES = 'siteSources'
 
 function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatement,
   objectOpts = {}) {
@@ -20698,7 +21000,14 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     // parameter and render a cell that is confidently wrong — the one outcome a
     // dashboard must never produce.
     if (node.type === 'call' && node.name) {
-      const bound = (scope && typeof scope.get === 'function' && scope.get(node.name)) || null
+      const declared = (scope && typeof scope.get === 'function' && scope.get(node.name)) || null
+      // ⭐ Engine 51 — a helper whose body is `name = switch …` (C47) is opaque to
+      // every lane but the drawing one, which reads it through `objectLane` (the
+      // Resolver's own door, `resolveCall`). The text reader takes the same door,
+      // so `text_size = get_size(input.string(…))` (ict-killzones-pivots-tfo) is the
+      // word the switch picks rather than an unreadable slot drawn at the default.
+      const bound = declared && declared.kind === 'opaque' && declared.isFunction && declared.objectLane
+        ? declared.objectLane : declared
       // ⛔⛔ A NESTED TEXT HELPER REFUSES BY NAME, AND THAT IS A DECISION.
       //
       // `f_outer(x) => '[' + f_inner(x) + ']'` is one user function reading
@@ -20865,6 +21174,15 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     }
     const known = colorNodeOfBase(node, scope, depth)
     if (known || !node || depth > 12) return known
+    // ⭐⭐ Engine 52 — a colour fixed before bar 0 that the readers above did not follow
+    // (a `var` transparency, a switch over a string input, a helper over inputs, a field
+    // of the script's own type): the static reader's colour (`staticPropValue`), C44's
+    // transparency by the one formula. Asked here, so an ARM of a per-bar choice
+    // (`stDir < 0 ? theme.bull : theme.bear`) is read the same way as a whole colour.
+    {
+      const st = staticPropValue(node, scope)
+      if (st && 'hex' in st) return { c: 'lit', hex: st.hex }
+    }
     // ⛔ R36 — THIS READ RESOLVES NOTHING AND MINTS NOTHING. The transparency is
     // read off the `input.int` / `input.float` call's own literal default
     // (`inputNumberDefault`, plain name bindings only) and handed to the static
@@ -20897,6 +21215,26 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
   }
   const colorNodeOfBase = (node, scope, depth = 0) => {
     if (!node || depth > 12) return null
+    // ⭐⭐ Engine 52 — a `bound` node (a default reassigned in an `if`, folded to a choice
+    // of bindings: `color c = color.white` / `if …` / `c := …`) is followed through its
+    // `expr` binding, exactly as the text reader follows one (`textNodeOf`), so a cell's
+    // colour is read where its text already is (uncharted-volume-v2's ATRx cell).
+    // ⛔ Only the `expr` kind, the text reader's own rule.
+    if (node.type === 'bound' && node.binding && node.binding.kind === 'expr' && node.binding.node) {
+      const env = node.binding.env || scope
+      const via = colorNodeOf(node.binding.node, env, depth + 1)
+      if (via) return via
+      // a choice inside the binding reads its TEST in the binding's own scope (a block
+      // local: `absMult <= 7 ? color.white : …`), as the text reader reads one (`envAt`)
+      const b = node.binding.node
+      if (b.type === 'ternary' && !b.noElse && env !== scopeEnv) {
+        let cond = null
+        try { cond = internTree(canonicalOf(b.test, null, env)) } catch { cond = null }
+        const then = cond ? colorNodeOf(b.yes, env, depth + 1) : null
+        const other = then ? colorNodeOf(b.no, env, depth + 1) : null
+        if (cond && then && other) return { c: 'if', cond, then, else: other }
+      }
+    }
     // ⭐⭐ C37 — `chart.fg_color` / `chart.bg_color` ARE THE CHART'S OWN COLOURS:
     // carried as a REFERENCE (the Pine name itself) and resolved where the
     // drawing is painted, against the chart it is painted on
@@ -21442,7 +21780,712 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
    *  Pine's own default and the drawing survives. Serving the value is better
    *  and is a real capability (`input.string` read as an enum word — 689 sites
    *  across 109 drawing scripts); crashing is very much worse than either. */
-  const enumNodeOf = (node, scope) => {
+  /** ⭐⭐ ENGINE 51 (review of #1149, blocker 1) — AN ENUM WORD THE SCRIPT FIXES
+   *  BEFORE BAR 0, READ STATICALLY.
+   *
+   *  Every value this walk follows is the same on every bar: a literal, an enum
+   *  constant, an `input.string` (or a bare `input` with a string default — this
+   *  product gives it no knob, its default is the only value: C16), names bound to
+   *  those, a `var` nothing reassigns (it holds its initializer: read once on bar 0,
+   *  exactly as without `var`), `?:` / `==` / `!=` / `and` / `or` / `not` over them,
+   *  a user function called with such arguments, and a `switch` over such a subject
+   *  — its arm keys literals or names of string constants (`pTR => …`), and the
+   *  three function-body shapes the fold reads as a switch: `pos = switch s …` with
+   *  a final `pos`, `result = switch x …`, and `pos = <default>` / `switch s` /
+   *  `"x" => pos := …` / `pos` (the default is the switch's fallback).
+   *  Returns `{w}` (an enum word), `{s}` (a string), `{b}` (a boolean) or null for
+   *  anything not fixed before bar 0 — the per-bar reader (`textNodeOf`) takes those.
+   *  ⛔ A switch that matches no arm and has no fallback is `na`: null here, so the
+   *  ordinary reader decides (and refuses it by name). */
+  /** ⭐ Engine 51 — a name the script never reassigns anywhere (`mutableNames`, read off
+   *  the raw tokens). Unknown (no ledger handed in) is NOT never-reassigned. */
+  const neverReassigned = (name) => !!(objectOpts.mutableNames && typeof objectOpts.mutableNames.has === 'function')
+    && !objectOpts.mutableNames.has(name)
+  /** ⛔ Engine 51 — a name the member can move: a DECLARED input (the member door's
+   *  knobs, `declareInputs` — an `input.string` with options is an enum knob there) or
+   *  one the caller hands a value for (`inputValues`). Its default is NOT its only value,
+   *  so the static enum reader leaves it to the per-bar reader, which reads the knob. */
+  const isKnob = (name) => {
+    const d = objectOpts.declareInputs
+    if (d && (d === 'all' || (Array.isArray(d) ? d.includes(name) : typeof d.has === 'function' && d.has(name)))) return true
+    const v = objectOpts.inputValues
+    return !!(v && Object.prototype.hasOwnProperty.call(v, name))
+  }
+  /** ⭐ Engine 51 — `var [type] x = <one-line expr>` declared inside a block, the ONLY
+   *  declaration of `x` in the script and never reassigned: its initializer, parsed.
+   *  The object pass's scope does not hold a block `var` (a mutable local is opaque,
+   *  `inlinedLocalBinding`), so the static enum reader asks this; it reads the seed
+   *  only where every name in it is fixed before bar 0, so when the block first runs
+   *  does not matter. */
+  const staticBlockVars = (() => {
+    const out = new Map()
+    const declCount = new Map()
+    const TYPE_WORDS = new Set(['int', 'float', 'bool', 'string', 'color'])
+    const visit = (list, inBlock) => {
+      for (const st of list || []) {
+        const h = st.header || []
+        const eq = findTop(h, (t) => isPunct(t, '='))
+        if (eq > 0) {
+          let at = h[0] && h[0].kind === 'ident' && h[0].value === 'var' ? 1 : 0
+          if (h[at] && h[at].kind === 'ident' && TYPE_WORDS.has(h[at].value) && h[at + 1] && h[at + 1].kind === 'ident') at += 1
+          const nameTok = at === eq - 1 ? h[at] : null
+          if (nameTok && nameTok.kind === 'ident') {
+            declCount.set(nameTok.value, (declCount.get(nameTok.value) || 0) + 1)
+            const rhs = h.slice(eq + 1)
+            if (inBlock && h[0].value === 'var' && !(st.sub || []).length) {
+              let node = null
+              try { node = parseWholeExpression(rhs) } catch { node = null }
+              if (node) out.set(nameTok.value, node)
+            } else if (inBlock && rhs[0] && rhs[0].kind === 'ident' && rhs[0].value === 'switch' && (st.sub || []).length) {
+              // `x = switch s` / arms, declared inside a block (seasonality's
+              // `tablePosition = switch tablePositionInput` under `if barstate.islast`):
+              // its arms, parsed, as the static reader's switch (`staticSwitch`)
+              let sw = null
+              try {
+                const arms = []
+                let fallback = null
+                for (const arm of st.sub) {
+                  const at = findTop(arm.header, (t) => isPunct(t, '=>'))
+                  const value = at < 0 || (arm.sub || []).length ? null : parseWholeExpression(arm.header.slice(at + 1))
+                  if (!value) { arms.length = 0; fallback = null; break }
+                  const binding = { kind: 'expr', node: value }
+                  if (at === 0) fallback = binding
+                  else arms.push({ match: arm.header.slice(0, at), binding })
+                }
+                const subject = rhs.length > 1 ? parseWholeExpression(rhs.slice(1)) : { type: 'number', value: 1, tok: { ...rhs[0], value: 'true' } }
+                if (arms.length || fallback) sw = { kind: 'switch', subject, arms, fallback, env: null }
+              } catch { sw = null }
+              if (sw) out.set(nameTok.value, sw)
+            }
+          }
+        }
+        if ((st.sub || []).length) visit(st.sub, true)
+      }
+    }
+    visit(stmts, false)
+    for (const name of [...out.keys()]) if (declCount.get(name) !== 1 || !neverReassigned(name)) out.delete(name)
+    return out
+  })()
+  /** ⭐ Engine 51 — the script's own `enum` declarations, by name and member
+   *  (`enum PanelPosition` / `bottom_right = "Bottom Right"`). The static enum reader
+   *  reads a member (`PanelPosition.bottom_right`) as a value of its own kind, equal
+   *  only to itself, so `input.enum(PanelPosition.bottom_right)` handed to a helper that
+   *  switches on the members is read like a string input. */
+  const scriptEnums = (() => {
+    const out = new Map()
+    for (const st of stmts || []) {
+      const h = st.header || []
+      if (h.length >= 2 && h[0].kind === 'ident' && h[0].value === 'enum' && h[1].kind === 'ident') {
+        // the members: the first word of each line after the name (the grouper folds an
+        // enum's member lines into its header), or of each statement under it
+        const members = new Set()
+        for (let i = 2; i < h.length; i += 1) {
+          if (h[i].kind === 'ident' && h[i].line !== h[i - 1].line) members.add(h[i].value)
+        }
+        for (const m of st.sub || []) {
+          const mh = m.header || []
+          if (mh[0] && mh[0].kind === 'ident') members.add(mh[0].value)
+        }
+        out.set(h[1].value, members)
+      }
+    }
+    return out
+  })()
+  /** ⭐⭐ Engine 52 — the script's own `type` declarations, by name: their fields in
+   *  declaration order (`type ThemePalette` / `color frame` …). The static reader reads
+   *  `T.new(…)` over values fixed before bar 0 as a value with those fields (`{obj}`),
+   *  and `x.field` as the field's value (multicator-table's `theme.frame`).
+   *  ⛔ A field declared with a default is read only when the call gives it. */
+  const scriptTypes = (() => {
+    const out = new Map()
+    for (const st of stmts || []) {
+      const h = st.header || []
+      if (h.length < 2 || h[0].kind !== 'ident' || h[0].value !== 'type' || h[1].kind !== 'ident') continue
+      // the field lines: statements under the name, or (as the grouper folds an enum's
+      // member lines) the header's own later lines, one field per line
+      const lines = []
+      for (let i = 2; i < h.length; i += 1) {
+        if (h[i].line !== h[i - 1].line || i === 2) lines.push([])
+        lines[lines.length - 1].push(h[i])
+      }
+      if (h.length > 2 && h[2].line === h[1].line) continue
+      const fields = []
+      for (const mh of [...lines, ...(st.sub || []).map((m) => m.header || [])]) {
+        const eq = mh.findIndex((t) => isPunct(t, '='))
+        const end = eq < 0 ? mh.length : eq
+        const nameTok = mh[end - 1]
+        if (!nameTok || nameTok.kind !== 'ident' || end < 2) { fields.length = 0; break }
+        fields.push(nameTok.value)
+      }
+      if (fields.length) out.set(h[1].value, fields)
+    }
+    return out
+  })()
+  const enumMemberOf = (name) => {
+    const dot = typeof name === 'string' ? name.indexOf('.') : -1
+    if (dot <= 0) return null
+    const members = scriptEnums.get(name.slice(0, dot))
+    return members && members.has(name.slice(dot + 1)) ? { s: `\u0000enum:${name}` } : null
+  }
+  /** ⭐⭐ Engine 52 — the script's own multi-line helpers (`f(a, b) =>` with a body of
+   *  statements), by name: their parameter names and body, for `staticHelperBody`.
+   *  ⛔ A parameter with a default is not read (the call may omit it). */
+  const staticFnDefs = (() => {
+    const out = new Map()
+    for (const st of stmts || []) {
+      const h = st.header || []
+      if (!(st.sub || []).length || h.length < 4 || h[0].kind !== 'ident' || !isPunct(h[1], '(')) continue
+      const arrow = h.findIndex((t) => isPunct(t, '=>'))
+      if (arrow !== h.length - 1 || !isPunct(h[arrow - 1], ')')) continue
+      const params = []
+      let piece = []
+      let ok = true
+      for (const t of [...h.slice(2, arrow - 1), { kind: 'punct', value: ',' }]) {
+        if (isPunct(t, ',')) {
+          if (!piece.length) { if (params.length || h.slice(2, arrow - 1).length) ok = false; break }
+          if (piece.some((p) => isPunct(p, '=')) || piece[piece.length - 1].kind !== 'ident') { ok = false; break }
+          params.push(piece[piece.length - 1].value)
+          piece = []
+        } else piece.push(t)
+      }
+      if (ok && !out.has(h[0].value)) out.set(h[0].value, { params, body: st.sub })
+      else out.set(h[0].value, null)
+    }
+    for (const [k, v] of [...out]) if (!v) out.delete(k)
+    return out
+  })()
+  /** ⭐⭐ Engine 52 — RUN a helper's body on values fixed before bar 0: `x = e` /
+   *  `T x = e` (a local), `x := e` / `x += e`, `for i = a to b [by s]` (bounded:
+   *  `STATIC_HELPER_MAX_PASSES` passes in all), `if c` / `else`, and a last bare
+   *  expression, its value. Every expression is the static reader's, with the
+   *  helper's locals and arguments as values (`frame.vals`); a name outside them
+   *  resolves in the script's scope like any other. Anything else — a statement
+   *  this list does not hold, a value it cannot read — answers null: not folded. */
+  const staticHelperBody = (def, argVals, depth) => {
+    if (depth > 24) return null
+    const vals = new Map(def.params.map((p, i) => [p, argVals[i]]))
+    const frame = { vals }
+    let passes = 0
+    let last = null
+    const ev = (toks) => {
+      if (!toks.length) return null
+      let n = null
+      try { n = parseWholeExpression(toks) } catch { n = null }
+      return n ? staticEnumValue(n, scopeEnv, frame, depth + 1) : null
+    }
+    const TYPE_WORDS = new Set(['int', 'float', 'bool', 'string', 'color', 'var', 'varip'])
+    const run = (list) => {
+      let prevIf = null // the last `if`'s outcome, for an `else` after it
+      for (const st of list) {
+        const h = st.header || []
+        if (!h.length || h[0].kind !== 'ident') return false
+        const sub = st.sub || []
+        if (h[0].value === 'for') {
+          const eq = h.findIndex((t) => isPunct(t, '='))
+          const to = h.findIndex((t) => t.kind === 'ident' && t.value === 'to')
+          const by = h.findIndex((t) => t.kind === 'ident' && t.value === 'by')
+          if (eq !== 2 || h[1].kind !== 'ident' || to < 0 || !sub.length) return false
+          const a = ev(h.slice(eq + 1, to))
+          const b = ev(h.slice(to + 1, by < 0 ? h.length : by))
+          const s = by < 0 ? { n: a && b && b.n < a.n ? -1 : 1 } : ev(h.slice(by + 1))
+          if (!a || !b || !s || !('n' in a) || !('n' in b) || !('n' in s) || !s.n) return false
+          if (!Number.isInteger(a.n) || !Number.isInteger(b.n) || !Number.isInteger(s.n)) return false
+          // ⭐ v6 re-evaluates the `to` bound before every pass (v6 migration guide, "Dynamic
+          // `for` loop boundaries"); earlier versions evaluate it once. A body that MOVES the
+          // bound would answer differently in the two, so it is not folded.
+          const toToks = h.slice(to + 1, by < 0 ? h.length : by)
+          for (let i = a.n; s.n > 0 ? i <= b.n : i >= b.n; i += s.n) {
+            passes += 1
+            if (passes > STATIC_HELPER_MAX_PASSES) return false
+            vals.set(h[1].value, { n: i })
+            if (!run(sub)) return false
+            const again = ev(toToks)
+            if (!again || !('n' in again) || again.n !== b.n) return false
+          }
+          prevIf = null
+          last = null
+          continue
+        }
+        if (h[0].value === 'if' || (h[0].value === 'else' && h[1] && h[1].value === 'if')) {
+          if (h[0].value === 'else' && prevIf === null) return false
+          const c = h[0].value === 'else' && prevIf ? { b: false } : ev(h.slice(h[0].value === 'if' ? 1 : 2))
+          if (!c || typeof c.b !== 'boolean') return false
+          if (h[0].value === 'else' && prevIf) { last = null; continue }
+          if (c.b && !run(sub)) return false
+          prevIf = c.b
+          last = null
+          continue
+        }
+        if (h[0].value === 'else' && h.length === 1) {
+          if (prevIf === null) return false
+          if (!prevIf && !run(sub)) return false
+          prevIf = null
+          last = null
+          continue
+        }
+        prevIf = null
+        if (sub.length) return false
+        const at = h.findIndex((t) => isPunct(t, '=') || isPunct(t, ':=') || isPunct(t, '+='))
+        if (at > 0) {
+          let k = 0
+          while (k < at - 1 && h[k].kind === 'ident' && TYPE_WORDS.has(h[k].value)) k += 1
+          if (k !== at - 1 || h[k].kind !== 'ident') return false
+          const name = h[k].value
+          const v = ev(h.slice(at + 1))
+          if (!v) return false
+          if (isPunct(h[at], '=')) vals.set(name, v)
+          else {
+            if (!vals.has(name)) return false
+            if (isPunct(h[at], ':=')) vals.set(name, v)
+            else { const sum = staticBinary('+', vals.get(name), v); if (!sum) return false; vals.set(name, sum) }
+          }
+          last = null
+          continue
+        }
+        last = ev(h)
+        if (!last) return false
+      }
+      return true
+    }
+    return run(def.body) ? last : null
+  }
+  /** ⛔⛔ Engine 52 (re-review of #1164, B1) — AN ALLOWLIST, NOT AN ENUMERATION OF ESCAPES.
+   *  The static reader answers an object (`{obj}`) or a list (`{arr}`) through a name only
+   *  when EVERY occurrence of that name in the script is one of:
+   *    (a) its single `=` declaration;
+   *    (b) a pure read `name.f1…fn` whose last field is declared PRIMITIVE (int, float, bool,
+   *        string, color) in the script's types and by no type as anything else, and that is
+   *        not followed by an assignment, `(` or `[` (a method form `name.m(` is a call);
+   *    (c) a list read by the builtin `array.get(name, …)` / `array.size(name)`, or the
+   *        method forms `name.get(…)` / `name.size()` ONLY when the script declares no
+   *        function or method of its own named `get` / `size`.
+   *  Anything else is an escape: a sub-chain that yields an object (`inner = outer.inner`,
+   *  `f(outer.inner)` — Pine objects are references), a pass, an alias, a reassignment, a
+   *  field assignment at any depth, any method call. ⚰️ The enumeration this replaces
+   *  missed a user method named `get`, an alias through a field read, and a field passed as
+   *  an argument (re-review N7-N10), and elliot-wave-detector-pro's `confirmedCtx` before
+   *  that. */
+  /** The script CALLS `table.merge_cells` (or the method form `t.merge_cells(`): read off the
+   *  token stream, where comments are already gone, never off the raw source text. */
+  const scriptMergesCells = (() => {
+    const seen = (list) => (list || []).some((st) => (st.header || []).some((t, i, h) => t && t.kind === 'ident'
+      && /(^|\.)merge_cells$/.test(String(t.value)) && h[i + 1] && isPunct(h[i + 1], '(')) || seen(st.sub))
+    return seen(stmts)
+  })()
+  const staticReadOnlyRoots = (() => {
+    const PRIM = new Set(['int', 'float', 'bool', 'string', 'color'])
+    const QUAL = new Set(['series', 'simple', 'const', 'varip', 'var'])
+    // field name → the kinds it is declared as across the script's types
+    const fieldKinds = new Map()
+    for (const st of stmts || []) {
+      const h = st.header || []
+      if (h.length < 2 || h[0].kind !== 'ident' || h[0].value !== 'type' || h[1].kind !== 'ident') continue
+      const lines = []
+      for (let i = 2; i < h.length; i += 1) {
+        if (h[i].line !== h[i - 1].line || i === 2) lines.push([])
+        lines[lines.length - 1].push(h[i])
+      }
+      for (const mh of [...lines, ...(st.sub || []).map((m) => m.header || [])]) {
+        const eq = mh.findIndex((t) => isPunct(t, '='))
+        const end = eq < 0 ? mh.length : eq
+        const nameTok = mh[end - 1]
+        if (!nameTok || nameTok.kind !== 'ident') continue
+        const typeToks = mh.slice(0, end - 1).filter((t) => !(t.kind === 'ident' && QUAL.has(t.value)))
+        const prim = typeToks.length === 1 && typeToks[0].kind === 'ident' && PRIM.has(typeToks[0].value)
+        const set = fieldKinds.get(nameTok.value) || new Set()
+        set.add(prim ? 'prim' : 'object')
+        fieldKinds.set(nameTok.value, set)
+      }
+    }
+    const primField = (f) => { const k = fieldKinds.get(f); return !!k && k.size === 1 && k.has('prim') }
+    // a function or method of the script's own named get / size (a bare `get(` / `size(`)
+    let userGetSize = false
+    const ASSIGN = new Set([':=', '+=', '-=', '*=', '/=', '%=', '='])
+    const READS = new Set(['array.get', 'array.size'])
+    const occ = []
+    const walk = (list) => {
+      for (const st of list || []) {
+        const h = st.header || []
+        for (let i = 0; i < h.length; i += 1) {
+          const t = h[i]
+          if (!t || t.kind !== 'ident') continue
+          if ((t.value === 'get' || t.value === 'size') && h[i + 1] && isPunct(h[i + 1], '(')) userGetSize = true
+          occ.push({ v: String(t.value), next: h[i + 1], prev: h[i - 1], prev2: h[i - 2] })
+        }
+        if ((st.sub || []).length) walk(st.sub)
+      }
+    }
+    walk(stmts)
+    const bad = new Set()
+    const decls = new Map()
+    for (const { v, next, prev, prev2 } of occ) {
+      const dot = v.indexOf('.')
+      const root = dot > 0 ? v.slice(0, dot) : v
+      const nextIs = (x) => next && next.kind === 'punct' && next.value === x
+      const assigned = next && next.kind === 'punct' && ASSIGN.has(next.value)
+      if (dot > 0) {
+        const chain = v.slice(dot + 1).split('.')
+        const last = chain[chain.length - 1]
+        if (nextIs('(')) {
+          if (!((last === 'get' || last === 'size') && chain.length === 1 && !userGetSize)) bad.add(root)
+          continue
+        }
+        if (assigned || nextIs('[') || !primField(last)) bad.add(root)
+        continue
+      }
+      if (assigned) {
+        decls.set(root, (decls.get(root) || 0) + 1)
+        if (decls.get(root) > 1 || next.value !== '=') bad.add(root)
+        continue
+      }
+      if (prev && isPunct(prev, '(') && prev2 && prev2.kind === 'ident' && READS.has(prev2.value)) continue
+      bad.add(root)
+    }
+    return { escapes: (name) => bad.has(name) }
+  })()
+  /** ⭐ Does Pine truncate this `/`? The engine's one rule (F1): before v6, exactly when BOTH
+   *  operands are `const int` (`pineConstIntValue`, which follows bindings and the script's
+   *  declaration words: a `var`, `simple`, `float`, `input.*` is not `const int`). A helper's
+   *  own local or parameter is not a binding that rule can follow, so a quotient over one is
+   *  left unsettled (`null`: only an exact quotient folds). */
+  const staticTruncates = (node, scope, frame) => {
+    let version = null
+    try { version = activePaletteVersion() } catch { version = null }
+    if (!constIntDivisionTruncates(version)) return false
+    const names = []
+    const walk = (n, d = 0) => {
+      if (!n || typeof n !== 'object' || d > 32) return
+      if (n.type === 'name') names.push(n.name)
+      for (const k of ['left', 'right', 'arg', 'test', 'yes', 'no']) walk(n[k], d + 1)
+      for (const a of n.args || []) walk(a && a.value !== undefined ? a.value : a, d + 1)
+    }
+    walk(node)
+    if (frame && (frame.vals || frame.params) && names.some((x) => (frame.vals && frame.vals.has(x)) || (frame.params && frame.params.includes(x)))) return null
+    const lookup = (name) => (scope && typeof scope.get === 'function' ? scope.get(name) : undefined)
+    const ctx = { version, declWords: DECL_WORDS_SINK }
+    return pineConstIntValue(node.left, lookup, ctx) !== null && pineConstIntValue(node.right, lookup, ctx) !== null
+  }
+  const staticEnumValue = (node, scope, frame = null, depth = 0) => {
+    const v = staticEnumValueRaw(node, scope, frame, depth)
+    // ⛔ an object or a list read through a NAME something else can change is not its seed
+    if (v && ('obj' in v || 'arr' in v) && node && node.type === 'name'
+      && !(frame && frame.vals && frame.vals.has(node.name)) && staticReadOnlyRoots.escapes(node.name)) return null
+    return v
+  }
+  const staticEnumValueRaw = (node, scope, frame = null, depth = 0) => {
+    if (!node || typeof node !== 'object' || depth > 24) return null
+    // ⭐ Engine 52 — a helper body's own locals and arguments (`staticHelperBody`)
+    if (frame && frame.vals && node.type === 'name' && frame.vals.has(node.name)) return frame.vals.get(node.name)
+    const look = (name) => {
+      if (frame && frame.locals && frame.locals.has(name)) return { b: frame.locals.get(name), local: true }
+      const b = scope && typeof scope.get === 'function' ? scope.get(name) : null
+      return b ? { b, local: false } : null
+    }
+    if (node.type === 'string') return { s: String(node.value) }
+    // the parser reads `true` / `false` as the numbers 1 / 0; the token keeps the word
+    if (node.type === 'number' && node.tok && (node.tok.value === 'true' || node.tok.value === 'false')) return { b: node.tok.value === 'true' }
+    // ⭐⭐ ENGINE 52 — the same reader, for a NUMBER and a COLOUR fixed before bar 0
+    // (`staticPropValue` below: a colour, a width, a point size, a row count).
+    if (node.type === 'number') return Number.isFinite(Number(node.value)) ? { n: Number(node.value) } : null
+    if (node.type === 'colour') return /^#[0-9a-f]{6}([0-9a-f]{2})?$/i.test(String(node.value)) ? { hex: String(node.value) } : null
+    if (node.type === 'name') {
+      if (node.name === 'true' || node.name === 'false') return { b: node.name === 'true' }
+      if (frame && Array.isArray(frame.params)) {
+        const k = frame.params.indexOf(node.name)
+        if (k >= 0) {
+          const a = frame.args[k]
+          return a ? staticEnumValue(a, frame.callerEnv, frame.callerFrame, depth + 1) : null
+        }
+      }
+      const member = enumMemberOf(node.name)
+      if (member) return member
+      const hit = look(node.name)
+      if (!(hit && hit.local) && isKnob(node.name)) return null
+      if (!hit) {
+        // a `var` declared once inside a block and never reassigned (`staticBlockVars`)
+        const bv = staticBlockVars.get(node.name)
+        if (bv && bv.kind === 'switch') return staticSwitch(bv, null, depth + 1)
+        if (bv) return staticEnumValue(bv, scope, null, depth + 1)
+        const w = objectEnumValue(node.name)
+        if (w !== undefined) return { w: String(w) }
+        // ⭐ Engine 52 — a Pine colour constant (`color.blue`, the palette's own hex)
+        if (isColourName(node)) { const h = colourHexOf(node); return h ? { hex: String(h) } : null }
+        // ⭐ Engine 52 — `x.field` of a value of the script's own type (`scriptTypes`)
+        const dot = node.name.lastIndexOf('.')
+        if (dot > 0) {
+          const head = staticEnumValue({ ...node, name: node.name.slice(0, dot) }, scope, frame, depth + 1)
+          const f = node.name.slice(dot + 1)
+          return head && head.obj && Object.hasOwn(head.obj, f) ? head.obj[f] || null : null
+        }
+        return null
+      }
+      const { b, local } = hit
+      const sub = local ? frame : null
+      // ⛔⛔ Engine 52 — A NAME THE SCRIPT REASSIGNS IS NOT ITS DECLARATION. The scope can
+      // hold the declaration's binding for a name a later `:=` (in a loop, a block, a
+      // helper) moves (C28: artemis's `knnVal = 0.0`, written in the kNN loop): reading the
+      // declaration drew `◈ NEUTRAL` where TradingView draws `▼ BEAR`. Measured once numbers
+      // became readable here; a local of a helper frame is the frame's own.
+      if (!local && objectOpts.mutableNames && typeof objectOpts.mutableNames.has === 'function'
+        && objectOpts.mutableNames.has(node.name)) return null
+      if (b.kind === 'expr' && b.node && !b.condCall && !b.oneExecution) {
+        return staticEnumValue(b.node, b.env || scope, sub, depth + 1)
+      }
+      if (b.kind === 'switch') return staticSwitch(b, sub, depth + 1)
+      // a top-level `var x = switch [s]` (its switch hung on the binding, `varSwitch`)
+      if (!local && b.varSwitch && neverReassigned(node.name)) return staticSwitch(b.varSwitch, null, depth + 1)
+      // a `var` NOTHING reassigns holds its initializer on every bar (enumWordOf's rule)
+      if (!local && b.kind === 'state' && b.seed && b.update && b.update.type === 'selfref') {
+        let last = null
+        try { last = makeResolver(scopeEnv).finalBindings.get(node.name) } catch { last = null }
+        return last === b && neverReassigned(node.name) ? staticEnumValue(b.seed, b.seedEnv || scope, null, depth + 1) : null
+      }
+      return null
+    }
+    if (node.type === 'call') {
+      const args = node.args || []
+      // `input.enum(E.m, …)`: its default member is the only value (C16 — no knob)
+      if (node.name === 'input.enum') {
+        const named = args.find((a) => a && a.name === 'defval')
+        const first = args.find((a) => a && !a.name)
+        const dv = named ? named.value : first ? first.value : null
+        return dv && dv.type === 'name' ? enumMemberOf(dv.name) : null
+      }
+      if (node.name === 'input.string' || node.name === 'input') {
+        const typed = args.find((a) => a && a.name === 'type')
+        const typedAs = typed && typed.value && typed.value.type === 'name' ? typed.value.name : null
+        if (typed && typedAs !== 'input.string' && !STATIC_INPUT_KIND[typedAs]) return null
+        const named = args.find((a) => a && a.name === 'defval')
+        const first = args.find((a) => a && !a.name)
+        const dv = named ? named.value : first ? first.value : null
+        if (!dv) return null
+        if (dv.type === 'string') return typedAs && typedAs !== 'input.string' ? null : { s: String(dv.value) }
+        // a default NAMED (`input.string(bcenter, …)` with `bcenter = position.bottom_center`)
+        if (dv.type === 'name' && (!typedAs || typedAs === 'input.string')) return staticEnumValue(dv, scope, frame, depth + 1)
+        // ⭐ Engine 52 — v4's generic `input(<number | bool | colour>)`: its default, of its own kind
+        const v = staticEnumValue(dv, scope, frame, depth + 1)
+        const want = typedAs ? STATIC_INPUT_KIND[typedAs] : null
+        return v && ('n' in v || 'b' in v || 'hex' in v) && (!want || want in v) ? v : null
+      }
+      // ⭐ Engine 52 — `input.int` / `input.float` / `input.bool` / `input.color`: no knob
+      // reads a drawing's input (C16), so its default is its value (the name rule `isKnob`
+      // above still leaves a member's knob to the per-bar reader).
+      if (STATIC_INPUT_KIND[node.name]) {
+        const named = args.find((a) => a && a.name === 'defval')
+        const first = args.find((a) => a && !a.name)
+        const dv = named ? named.value : first ? first.value : null
+        const v = dv ? staticEnumValue(dv, scope, frame, depth + 1) : null
+        return v && STATIC_INPUT_KIND[node.name] in v ? v : null
+      }
+      // ⭐⭐ Engine 52 — `T.new(…)` of the script's own type: its fields, by position or name
+      if (typeof node.name === 'string' && node.name.endsWith('.new') && scriptTypes.has(node.name.slice(0, -4))) {
+        const fields = scriptTypes.get(node.name.slice(0, -4))
+        const obj = {}
+        let pos = 0
+        for (const a of args) {
+          if (!a) return null
+          const f = a.name ? a.name : fields[pos++]
+          if (!f || !fields.includes(f) || Object.hasOwn(obj, f)) return null
+          obj[f] = staticEnumValue(a.value, scope, frame, depth + 1)
+        }
+        return { obj }
+      }
+      // ⭐⭐ Engine 52 — a colour built from values fixed before bar 0. C44: `color.new`'s and
+      // `color.rgb`'s `t` is 0 = opaque … 100 = invisible, float accepted, `color.rgb`'s
+      // defaulting to 0; the paint is the ONE formula the object runtime uses
+      // (`withObjectTransparency`). C46: `color.from_gradient` is the runtime's own
+      // measured blend (`fromGradient`), clamped; what it does not pin answers null.
+      if (node.name === 'color.new' || node.name === 'color.rgb' || node.name === 'color.from_gradient'
+        || STATIC_STR_FNS.has(node.name) || node.name === 'array.get' || node.name === 'array.size'
+        || node.name === 'math.max' || node.name === 'math.min' || node.name === 'math.abs') {
+        if (args.some((a) => !a || a.name)) return null
+        const vals = args.map((a) => staticEnumValue(a.value, scope, frame, depth + 1))
+        if (vals.some((v) => !v)) return null
+        return staticBuiltin(node.name, vals)
+      }
+      const hit = look(node.name)
+      const declared = hit ? hit.b : null
+      // ⭐⭐ Engine 52 — a helper whose BODY is statements (`locNsze(x) => y = str.split(…)`,
+      // a bounded `for` joining its pieces, then `out`): run on the values fixed before bar
+      // 0 (`staticHelperBody`), which reads only its own locals and its arguments.
+      const fn = declared && declared.kind === 'opaque' && declared.isFunction && declared.objectLane
+        ? declared.objectLane : declared
+      if (!fn || fn.kind !== 'fn' || !fn.value || !Array.isArray(fn.params) || (fn.value.kind !== 'switch' && !(fn.value.kind === 'expr' && fn.value.node))) {
+        // ⛔ only the script's OWN helper of that name (a local of the same name wins)
+        const def = !(hit && hit.local) ? staticFnDefs.get(node.name) : null
+        if (def && !args.some((a) => !a || a.name) && args.length === def.params.length) {
+          const vals = args.map((a) => staticEnumValue(a.value, scope, frame, depth + 1))
+          if (vals.every(Boolean)) return staticHelperBody(def, vals, depth + 1)
+        }
+        return null
+      }
+      // a parameter typed by one of the script's own enums (`parse_position(PanelPosition p)`)
+      // reaches this binding as two names, the type and the parameter: the type is dropped
+      const params = fn.params.filter((q, i) => !(scriptEnums.has(q) && i + 1 < fn.params.length && !scriptEnums.has(fn.params[i + 1])))
+      if (args.some((a) => !a || a.name) || args.length !== params.length) return null
+      const inner = { params, args: args.map((a) => a.value), callerEnv: scope, callerFrame: frame, locals: fn.locals || null }
+      if (fn.value.kind === 'switch') return staticSwitch(fn.value, inner, depth + 1)
+      if (fn.value.kind === 'expr' && fn.value.node) return staticEnumValue(fn.value.node, fn.value.env || scope, inner, depth + 1)
+      return null
+    }
+    if (node.type === 'ternary') {
+      if (node.noElse) return null
+      const c = staticEnumValue(node.test, scope, frame, depth + 1)
+      if (!c || typeof c.b !== 'boolean') return null
+      return staticEnumValue(c.b ? node.yes : node.no, scope, frame, depth + 1)
+    }
+    if (node.type === 'unary' && node.op === 'not') {
+      const v = staticEnumValue(node.arg, scope, frame, depth + 1)
+      return v && typeof v.b === 'boolean' ? { b: !v.b } : null
+    }
+    if (node.type === 'unary' && (node.op === '-' || node.op === '+')) {
+      const v = staticEnumValue(node.arg, scope, frame, depth + 1)
+      return v && 'n' in v ? { n: node.op === '-' ? -v.n : v.n } : null
+    }
+    if (node.type === 'binary') {
+      const l = staticEnumValue(node.left, scope, frame, depth + 1)
+      if (!l) return null
+      // ⭐ Engine 52 — arithmetic and order over numbers, `+` over strings
+      if (STATIC_NUM_OPS.has(node.op)) {
+        const r = staticEnumValue(node.right, scope, frame, depth + 1)
+        if (!r) return null
+        return staticBinary(node.op, l, r, node.op === '/' ? staticTruncates(node, scope, frame) : null)
+      }
+      if (node.op === 'and' || node.op === 'or') {
+        if (typeof l.b !== 'boolean') return null
+        if (node.op === 'and' && !l.b) return { b: false }
+        if (node.op === 'or' && l.b) return { b: true }
+        const r = staticEnumValue(node.right, scope, frame, depth + 1)
+        return r && typeof r.b === 'boolean' ? { b: r.b } : null
+      }
+      if (node.op === '==' || node.op === '!=') {
+        const r = staticEnumValue(node.right, scope, frame, depth + 1)
+        if (!r) return null
+        const eq = staticKey(l) === staticKey(r)
+        return { b: node.op === '==' ? eq : !eq }
+      }
+    }
+    return null
+  }
+  /** A `switch` binding read statically (see `staticEnumValue`). */
+  const staticSwitch = (sw, frame, depth) => {
+    if (!sw || !sw.subject || !Array.isArray(sw.arms) || depth > 24) return null
+    const env = sw.env || scopeEnv
+    const subj = staticEnumValue(sw.subject, env, frame, depth + 1)
+    // a string subject (a string input, an enum member) or `true` (a switch with no subject)
+    // ⭐ Engine 52 — or a number (`switch lineWidthInput` / `1 => …`)
+    const kindOf = (v) => (v && 's' in v ? 's' : v && typeof v.b === 'boolean' ? 'b' : v && 'n' in v ? 'n' : null)
+    const kind = kindOf(subj)
+    if (!kind) return null
+    for (const arm of sw.arms) {
+      let m = null
+      try { m = parseWholeExpression(arm.match) } catch { m = null }
+      const label = m ? staticEnumValue(m, env, frame, depth + 1) : null
+      if (kindOf(label) !== kind) return null
+      if (label[kind] !== subj[kind]) continue
+      const b = arm.binding
+      return b && b.kind === 'expr' && b.node ? staticEnumValue(b.node, b.env || env, frame, depth + 1) : null
+    }
+    const f = sw.fallback
+    return f && f.kind === 'expr' && f.node ? staticEnumValue(f.node, f.env || env, frame, depth + 1) : null
+  }
+
+  /** ⭐⭐ ENGINE 51 (review of #1149, blocker 2) — A PER-BAR CHOICE BETWEEN FIXED
+   *  STRINGS, HANDED TO A HELPER, IS LIFTED OUT OF THE CALL.
+   *
+   *  uncharted-volume-v2 positions its Volume table with
+   *  `f_getTablePos(hasRecentHV ? 'Top Center' : volTablePosition)`, on the last bar
+   *  (`if barstate.islast …`: the `var table` is made there and `table.set_position`
+   *  re-applies it every run). The helper compares its parameter with string
+   *  literals, which no tree can say about a per-bar string — but each ARM of the
+   *  choice is fixed before bar 0, so
+   *      f(c ? a : b)  ==  c ? f(a) : f(b)
+   *  and each side is read statically (`staticEnumValue`). The condition is the
+   *  ordinary per-bar condition (`textNodeOf`'s own reading of a test), evaluated
+   *  where the op runs. Only a NAMED argument chain to a `?:` whose two arms are
+   *  fixed strings is lifted; anything else returns null and the reader goes on. */
+  const hoistEnumChoice = (node, scope, depth = 0) => {
+    if (!node || depth > 8) return null
+    if (node.type === 'name') {
+      const b = scope && typeof scope.get === 'function' ? scope.get(node.name) : null
+      return b && b.kind === 'expr' && b.node && !b.condCall && !b.oneExecution
+        ? hoistEnumChoice(b.node, b.env || scope, depth + 1) : null
+    }
+    if (node.type !== 'call' || !Array.isArray(node.args) || node.args.some((a) => !a || a.name)) return null
+    const declared = scope && typeof scope.get === 'function' ? scope.get(node.name) : null
+    const fn = declared && declared.kind === 'opaque' && declared.isFunction && declared.objectLane ? declared.objectLane : declared
+    if (!fn || fn.kind !== 'fn') return null
+    // the `?:` an argument names, through plain name bindings
+    const choiceOf = (n, env, d = 0) => {
+      if (!n || d > 8) return null
+      if (n.type === 'ternary' && !n.noElse) return { t: n, env }
+      if (n.type !== 'name') return null
+      const b = env && typeof env.get === 'function' ? env.get(n.name) : null
+      return b && b.kind === 'expr' && b.node && !b.condCall && !b.oneExecution ? choiceOf(b.node, b.env || env, d + 1) : null
+    }
+    for (let i = 0; i < node.args.length; i += 1) {
+      const ch = choiceOf(node.args[i].value, scope)
+      if (!ch) continue
+      if (staticEnumValue(ch.t.test, ch.env)) continue // a fixed test is the static reader's
+      const yes = staticEnumValue(ch.t.yes, ch.env)
+      const no = staticEnumValue(ch.t.no, ch.env)
+      if (!yes || !no || !('s' in yes) || !('s' in no)) return null
+      const withArg = (s) => ({ ...node, args: node.args.map((a, k) => (k === i ? { ...a, value: { type: 'string', value: s, tok: a.value && a.value.tok } } : a)) })
+      const side = (s) => {
+        const st = staticEnumValue(withArg(s), scope)
+        return st && 'w' in st ? { t: 'lit', s: st.w } : hoistEnumChoice(withArg(s), scope, depth + 1)
+      }
+      const then = side(yes.s)
+      const other = side(no.s)
+      if (!then || !other) return null
+      let cond = null
+      try {
+        const liveCond = stateOk && readsState(ch.t.test)
+        cond = liveCond ? liftTextCond(ch.t.test, null, ch.env) : internTree(canonicalOf(ch.t.test, null, ch.env))
+      } catch { cond = null }
+      return cond ? { t: 'if', cond, then, else: other } : null
+    }
+    return null
+  }
+
+  /** ⭐ Engine 51 — is this a NUMBER (a point size): a numeric literal, an
+   *  `input.int` / `input.float` (or a bare `input` with a numeric default), or a name
+   *  bound to one, through plain bindings? */
+  const pointSizeNode = (node, scope, depth = 0) => {
+    if (!node || depth > 8) return false
+    if (node.type === 'number') return true
+    if (node.type === 'unary' && node.op === '-') return pointSizeNode(node.arg, scope, depth + 1)
+    if (node.type === 'call' && (node.name === 'input.int' || node.name === 'input.float' || node.name === 'input')) {
+      const args = node.args || []
+      const named = args.find((a) => a && a.name === 'defval')
+      const first = args.find((a) => a && !a.name)
+      const dv = named ? named.value : first ? first.value : null
+      return !!dv && dv.type === 'number'
+    }
+    if (node.type === 'name') {
+      const b = scope && typeof scope.get === 'function' ? scope.get(node.name) : null
+      return !!(b && b.kind === 'expr' && b.node) && pointSizeNode(b.node, b.env || scope, depth + 1)
+    }
+    return false
+  }
+
+  /** ⭐ Engine 52 — the static reader for a non-enum slot (a colour, a number, a text). */
+  const staticPropValue = (node, scope) => {
+    try { return staticEnumValue(node, scope) } catch { return null }
+  }
+  const enumNodeOf = (node, scope, slot = null) => {
+    // ⭐ Engine 51 — a word fixed before bar 0 is that word (`staticEnumValue`).
+    {
+      let st = null
+      try { st = staticEnumValue(node, scope) } catch { st = null }
+      if (st && 'w' in st) return { t: 'lit', s: st.w }
+      // ⛔ Engine 52 — a STRING folded before bar 0 (`str.lower` / `str.split` / a join loop
+      // over an input) that SPELLS a constant's word is NOT that word: no capture shows that
+      // spelling in an enum slot (C47, `vendorHarness.c47PositionSize`), so it is not served.
+      let ho = null
+      try { ho = hoistEnumChoice(node, scope) } catch { ho = null }
+      if (ho) return ho
+    }
     enumNaSeen = false
     enumLeaves = true
     textEqGate.off = true
@@ -21741,7 +22784,10 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       const t = fitTextNest(textNodeOf(node, scopeEnv), node.tok ? locate(node.tok) : null)
         || rtTextOf(node, null, null)
       if (t && holdsUnwitnessed(t)) return { v: 'text', node: t, unwitnessed: true }
-      return t ? { v: 'text', node: t } : null
+      if (t) return { v: 'text', node: t }
+      // ⭐ Engine 52 — a text fixed before bar 0 (`str.*` over inputs and literals)
+      const st = staticPropValue(node, scopeEnv)
+      return st && 's' in st ? { v: 'text', node: { t: 'lit', s: st.s } } : null
     }
     if (slot && isColourSlot(slot)) {
       const c = colorNodeOf(node, scopeEnv)
@@ -21784,7 +22830,36 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     // dropped prop and a table silently anchored to `top_right`, Pine's default,
     // in the opposite corner from the one the author asked for.
     if (slot && ENUM_SLOTS.has(slot) && !(node.type === 'name' && objectEnumValue(node.name) !== undefined)) {
-      const e = enumNodeOf(node, scopeEnv)
+      // ⛔ Engine 51 (review of #1149, minor 4) — Pine v6 takes an INTEGER `text_size` /
+      // `size` in typographic points (`text_size = 11`, `input.int(12)`). This chart's
+      // renderers size text by the six `size.*` words only, so a point size is withheld
+      // by name (`ENUM_DROPS.points`), never drawn at a word's size.
+      // ⭐⭐ Engine 52 — SERVED: a point size fixed before bar 0 is carried as that
+      // number (`{v:'const'}`), both renderers size it (`objectCanvas.js::textSizePx`),
+      // and the runtime lane carries the int too (`objectStore.js`). Only a number this
+      // door cannot read before bar 0 is still withheld by name.
+      if (slot === 'text_size' || slot === 'size') {
+        const pt = staticPropValue(node, scopeEnv)
+        if (pt && 'n' in pt) {
+          // ⛔ Engine 52 (review M5) — only a size the reference EQUATES with a word is served
+          // (`POINT_SIZE_ANCHORS`: labels 0/7/10/12/18/24, boxes and cells 0/8/10/14/20/36);
+          // any other int's pixels are unwitnessed, so it is withheld by name.
+          const anchors = POINT_SIZE_ANCHOR_SET[slot === 'size' ? 'label' : 'boxTable']
+          if (Number.isFinite(pt.n) && anchors.has(pt.n)) {
+            diagnostics.textSizePointsServed = (diagnostics.textSizePointsServed || 0) + 1
+            return { v: 'const', value: pt.n }
+          }
+          enumNaDrop = 'pointsUnwitnessed'
+          diagnostics.textSizePointsUnwitnessed = (diagnostics.textSizePointsUnwitnessed || 0) + 1
+          return null
+        }
+        if (pointSizeNode(node, scopeEnv)) {
+          diagnostics.textSizePoints = (diagnostics.textSizePoints || 0) + 1
+          enumNaDrop = 'points'
+          return null
+        }
+      }
+      const e = enumNodeOf(node, scopeEnv, slot)
       if (e) return { v: 'text', node: e }
       // ⛔⛔ HONESTY-SWEEP item 1 — an `na` this walk reached is not an unreadable
       // word: the drawing that holds it is WITHHELD by name (`enumNaDrop`, read by
@@ -21819,6 +22894,11 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       // `objectDiagnostics` counts the drop so it is visible rather than
       // silent.
       diagnostics.enumUnreadable = (diagnostics.enumUnreadable || 0) + 1
+      // ⛔⛔ Engine 51 — AND THE DRAWING IS WITHHELD BY NAME (`pine:enum-unreadable`),
+      // read by the create / setter / cell converters. Dropping the prop drew the
+      // renderer's default in its place: a table in the wrong corner, a cell at the
+      // wrong size (ict-killzones-pivots-tfo: TradingView `small`, ours the default).
+      enumNaDrop = 'unreadable'
       return null
     }
     // ⭐ C14 — a WHOLE coordinate read off a drawing (see `stateOperand`).
@@ -21856,7 +22936,11 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       const at = historyReadRef(node)
       if (at !== undefined) return at
     }
-    return resolveTree(node)
+    const tr = resolveTree(node)
+    if (tr || !slot) return tr
+    // ⭐ Engine 52 — a number fixed before bar 0 that the columnar reader refused
+    const st = staticPropValue(node, scopeEnv)
+    return st && 'n' in st ? { v: 'const', value: st.n } : null
   }
 
   /** ⭐⭐ C9 (2026-09-29) — `x[e]` WITH A PER-BAR `e`, AS A COORDINATE.
@@ -21926,6 +23010,14 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
    *  not a result. Named here so it reads as the approximation it is.
    *  ⏭ ROUTED: distributing a call over a ternary ARGUMENT (`f(c ? a : b)` →
    *  `c ? f(a) : f(b)`) is what would resolve it, and it is its own capability. */
+  /** ⭐ Engine 52 — a property whose unreadable value WITHHELD its drawing, by name
+   *  and line (`withheldPropNames`); `dropProp` (drawn at the default) has no caller. */
+  const withheldProp = (family, k, node) => {
+    const at = node && node.tok ? locate(node.tok) : null
+    const entry = `${family}.${k}@${at ? at.line : '?'}`
+    diagnostics.withheldPropNames = diagnostics.withheldPropNames || []
+    if (!diagnostics.withheldPropNames.includes(entry)) diagnostics.withheldPropNames.push(entry)
+  }
   const dropProp = (family, k, node) => {
     diagnostics.droppedProps = (diagnostics.droppedProps || 0) + 1
     const at = node && node.tok ? locate(node.tok) : null
@@ -22217,6 +23309,12 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
    *  "fine" for the second case. Ordering makes the distinction unnecessary
    *  anyway — the reader emits the create immediately before the call. */
   const emittedSites = new Set()
+  /** ⭐⭐ ENGINE 54 — each emitted create site's SOURCE CALL (`objectSiteKey` of its
+   *  `<family>.new` token): the id the per-bar run stamps on the objects the same call
+   *  makes. Rides NON-ENUMERABLY on `diagnostics` (`OBJECT_SITE_SOURCES`), so no stored
+   *  document and no census over the diagnostics changes by a byte. */
+  const siteSources = {}
+  Object.defineProperty(diagnostics, OBJECT_SITE_SOURCES, { value: siteSources, enumerable: false, configurable: true })
 
   const targetRef = (argNode) => {
     const v = argNode && argNode.value
@@ -22379,7 +23477,9 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     let regName = null
     let handleBack = 0
     if (OBJECT_NS.has(head)) {
-      if (args.length !== 1 || args[0].name) return null
+      // ⭐ Engine 51 — the handle may be NAMED (`line.get_y1(id=l)`, Pine's own
+      // parameter name); any other name is not this getter's and is not read.
+      if (args.length !== 1 || (args[0].name && args[0].name !== 'id')) return null
       const a = args[0].value
       // ⭐⭐ C48 — `line.get_y1(c[1])`: A GETTER ON THE HANDLE THE VARIABLE HELD n
       // BARS AGO (the register's own ring, `MAX_HANDLE_BACK`). Capture
@@ -22883,6 +23983,15 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     const list = diagnostics[key] || (diagnostics[key] = [])
     const s = String(line).slice(0, 260)
     if (list.length < 40 && !list.includes(s)) list.push(s)
+  }
+  /** ⭐ Engine 51 (review of #1149, minor 5) — a drawing WITHHELD by the enum rule
+   *  (`ENUM_DROPS`), structured: what it is, where, and why. The no-output verdict
+   *  reads the first one so its headline names the withheld drawing instead of
+   *  "no plot and no alert condition". */
+  const noteWithheld = (op, family, kind) => {
+    const list = diagnostics.withheldDrawings || (diagnostics.withheldDrawings = [])
+    const d = ENUM_DROPS[kind]
+    if (d && list.length < 20) list.push({ family: family || null, line: op && op.line !== undefined ? op.line : null, guard: d.guard, sentence: d.sentence })
   }
   const noteCreateDrop = (op, slot, r) => {
     noteWhy('createDropWhy', `create ${op.family}@${op.line === undefined ? '?' : op.line} ${slot}: `
@@ -23805,9 +24914,8 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
         if (!v) {
           if (enumNaDrop) {
             // ⛔ HONESTY-SWEEP item 1 (and r1 N1) — withheld by name, never a default style.
-            noteCreateDrop(op, k, enumNaDrop === 'named'
-              ? { guard: 'pine:enum-named-call', message: ENUM_NAMED_CALL_SENTENCE }
-              : { guard: 'pine:enum-na', message: ENUM_NA_SENTENCE })
+            noteCreateDrop(op, k, { guard: ENUM_DROPS[enumNaDrop].guard, message: ENUM_DROPS[enumNaDrop].sentence })
+            noteWithheld(op, op.family, enumNaDrop)
             enumNa = enumNaDrop
             bad = true
             break
@@ -23819,8 +24927,24 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
             bad = true
             break
           }
-          dropProp(op.family, k, node)
-          continue
+          // ⭐ Engine 52 (review B3) — a table's `columns` / `rows` paint nothing: the layout
+          // sizes by its cells (`objectCanvas.js::layoutTables`). The runtime reads them only to
+          // bound a merge (`objectRuntime.js`, TradingView's out-of-range error), so an
+          // unreadable count is IGNORED unless the script merges cells, where it withholds.
+          if (op.family === 'table' && (k === 'columns' || k === 'rows') && !scriptMergesCells) {
+            diagnostics.inertTableCounts = (diagnostics.inertTableCounts || 0) + 1
+            continue
+          }
+          // ⛔⛔ ENGINE 52 — A PROPERTY THIS DOOR CANNOT READ WITHHOLDS ITS DRAWING BY NAME
+          // (`ENUM_DROPS.value`, `pine:prop-unreadable`). It used to be dropped, so the
+          // renderer drew its default in its place: a label in the default colour, a line
+          // at the default width, a table with no frame colour. Never a default.
+          withheldProp(op.family, k, node)
+          noteCreateDrop(op, k, { guard: ENUM_DROPS.value.guard, message: ENUM_DROPS.value.sentence })
+          noteWithheld(op, op.family, 'value')
+          enumNa = 'value'
+          bad = true
+          break
         }
         props[k] = v
       }
@@ -23829,11 +24953,12 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       // `label.new(x, y)` with `y` absent is not a label at a default height —
       // Pine has no default there, so neither may this.
       if (!bad) for (const k of required) if (!(k in props)) { bad = true; break }
-      if (bad) { lostCreate(op.family); lostInto(op); if (enumNa === 'named') dropped('enum:named-call'); else if (enumNa) dropped('enum:na'); else dropped(`create:${op.family}`); continue }
+      if (bad) { lostCreate(op.family); lostInto(op); if (enumNa) dropped(ENUM_DROPS[enumNa].drop); else dropped(`create:${op.family}`); continue }
       if (rtHeldProp()) { lostCreate(op.family); lostInto(op); dropped('runtime:prop'); continue }
       // ⭐ RECORDED ONLY ONCE THE CREATE IS REALLY IN THE PROGRAM, which is what
       // makes the `{r:'site'}` reference below safe to hand out.
       emittedSites.add(op.site)
+      { const key = objectSiteKey(op.at); if (key) siteSources[op.site] = key }
       ops.push(withUnwitnessedMarked({
         k: 'create',
         family: op.family,
@@ -23867,8 +24992,10 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
         contentLostBy(op, target)
         stateLostBy(op, target)
         // ⛔ HONESTY-SWEEP item 1 — a setter whose style can be `na` is named as such.
-        if (enumNaDrop === 'named') dropped('enum:named-call')
-        else if (enumNaDrop) dropped('enum:na')
+        // ⛔⛔ Engine 51 (review of #1149, major 3) — a setter whose style / size / position
+        // this door cannot read WITHHOLDS THE OBJECT it would have restyled (`contentLost`,
+        // handle-wide), never leaves it drawn in the value it was made with.
+        if (enumNaDrop) { contentLost.push(target); noteWithheld(op, op.family, enumNaDrop); dropped(ENUM_DROPS[enumNaDrop].drop) }
         else dropped('update:props')
         // ⭐ C22 — a lost setter that would have MOVED its object marks it on the
         // bars its guard holds (`lostGeometryOp`)
@@ -23941,10 +25068,9 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
         if (!v && enumNaDrop) {
           // ⛔ HONESTY-SWEEP item 1 (and r1 N1) — a cell whose size or alignment can be `na`, or is
           // computed by a helper called with a named argument, is withheld by name.
-          noteWhy('cellTextWhy', enumNaDrop === 'named'
-            ? `cell@${op.line === undefined ? '?' : op.line}: pine:enum-named-call ${ENUM_NAMED_CALL_SENTENCE.slice(0, 200)}`
-            : `cell@${op.line === undefined ? '?' : op.line}: pine:enum-na ${ENUM_NA_SENTENCE.slice(0, 200)}`)
-          badCell = enumNaDrop === 'named' ? 'enum:named-call' : 'enum:na'
+          noteWhy('cellTextWhy', `cell@${op.line === undefined ? '?' : op.line}: ${ENUM_DROPS[enumNaDrop].guard} ${ENUM_DROPS[enumNaDrop].sentence.slice(0, 200)}`)
+          badCell = ENUM_DROPS[enumNaDrop].drop
+          noteWithheld(op, 'table', enumNaDrop)
           break
         }
         if (!v) {
@@ -23962,13 +25088,17 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
           // as "the value is empty", which is a different and worse claim than
           // "we could not import this row".
           if (k === 'text') { badCell = true; break }
-          dropProp('cell', k, node)
-          continue
+          // ⛔⛔ ENGINE 52 — a cell's colour, tooltip or width this door cannot read
+          // withholds the cell by name (`ENUM_DROPS.value`), never drawn at the default.
+          withheldProp('cell', k, node)
+          noteWhy('cellTextWhy', `cell@${op.line === undefined ? '?' : op.line}: ${ENUM_DROPS.value.guard} ${k}: ${ENUM_DROPS.value.sentence.slice(0, 200)}`)
+          noteWithheld(op, 'table', 'value')
+          badCell = ENUM_DROPS.value.drop
+          break
         }
         props[k] = v
       }
-      if (badCell === 'enum:named-call') { dropped('enum:named-call'); continue }
-      if (badCell === 'enum:na') { dropped('enum:na'); continue }
+      if (typeof badCell === 'string') { dropped(badCell); continue }
       if (badCell) { dropped('cell:text'); continue }
       if (rtHeldProp()) { dropped('runtime:prop'); continue }
       ops.push(withUnwitnessedMarked({ k: 'cell', target, col, row, when, ...lastBarOnly, props }))
@@ -23979,6 +25109,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       if (!target) { dropped('cellpatch:target'); continue }
       if (!col || !row) { dropped('cellpatch:address'); continue }
       const node = op.args[0] && op.args[0].value
+      enumNaDrop = false
       const v = node ? valueRef(node, op.prop) : null
       // ⛔⛔ AN UNREADABLE PATCH DROPS THE WHOLE OP, NOT THE PROPERTY. A `cell`
       // with an unreadable colour still draws, because the rest of that call is
@@ -23987,7 +25118,14 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       // operation that runs every bar and means nothing. It is named twice on
       // purpose — by property and line, so an engineer can find the expression,
       // and by drop reason, so the op count still adds up.
-      if (!v) { dropProp('cell', op.prop, node); dropped(`cellpatch:${op.prop}`); continue }
+      // ⛔⛔ Engine 51 (review of #1149, major 3) — a size / alignment patch this door cannot
+      // read withholds its TABLE by name (`contentLost`): the cell would otherwise stay at
+      // the size an earlier write gave it, which is not what TradingView shows.
+      if (!v && enumNaDrop) { contentLost.push(target); noteWithheld(op, 'table', enumNaDrop); dropped(ENUM_DROPS[enumNaDrop].drop); continue }
+      // ⛔⛔ ENGINE 52 — and a patch whose value is unreadable WITHHOLDS ITS TABLE
+      // (`contentLost`), the size patch's rule (M3): dropping the patch alone left the
+      // cell in the colour an earlier write gave it, which TradingView does not show.
+      if (!v) { withheldProp('cell', op.prop, node); contentLost.push(target); noteWithheld(op, 'table', 'value'); dropped(ENUM_DROPS.value.drop); continue }
       ops.push(withUnwitnessedMarked({ k: 'cellpatch', target, col, row, when, ...lastBarOnly, props: { [op.prop]: v } }))
     } else if (op.k === 'clear') {
       const target = targetRef(op.target)
@@ -24722,6 +25860,27 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
   // that reduces nothing is byte-identical to before.
   if (windowAmbiguity && windowAmbiguity.size) {
     let withheldSteps = 0
+    /** A sub-tree reads a registered reduction (or cannot be printed: assumed to). */
+    const astAmbiguous = (ast) => {
+      let f = null
+      try { f = printFormula(ast) } catch { f = null }
+      if (f === null) return true
+      for (const key of windowAmbiguity.keys()) if (f.includes(key)) return true
+      return false
+    }
+    /** The `&&` conjuncts of a guard that read no registered reduction, ANDed, or
+     *  null. Only a plain tree guard is split; anything else (a latch, an object
+     *  state read) answers null and the step keeps today's withholding. */
+    const measuredConjuncts = (when) => {
+      if (!when || when.v !== 'tree' || !Number.isInteger(when.tree)) return null
+      const parts = []
+      const split = (t) => { if (t && t.type === 'op' && t.name === '&&') { split(t.args[0]); split(t.args[1]) } else parts.push(t) }
+      split(trees[when.tree])
+      if (parts.length < 2) return null
+      const free = parts.filter((t) => !astAmbiguous(t))
+      if (!free.length || free.length === parts.length) return null
+      return free.reduce((acc, t) => (acc ? cOp('&&', [acc, t]) : t), null)
+    }
     const attach = (list) => list.map((o) => {
       let out = o
       if (o.k === 'loop' && Array.isArray(o.body)) {
@@ -24762,7 +25921,18 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
         }
       }
       withheldSteps += 1
-      return { ...out, withhold: internTree(orOf(amb)) }
+      // ⭐⭐ W-C22-DEL — THE PART OF THE GUARD THAT IS STILL MEASURED. A guard that
+      // reads an unmeasured reduction is usually `a && b && …` where only some
+      // conjuncts read it (vdubus: `not na(ph) and array.size(zzP) >= 5 and …`). On
+      // a bar one of the OTHER conjuncts is false, Pine did not run the step, and
+      // that is certain (C17's known-false rule): `withholdRuns` is the AND of the
+      // conjuncts that read no registered reduction (the SAME containment test
+      // `ambiguityOfTree` makes, so it can only under-claim), and the runtime skips
+      // the step there instead of withholding it. Without it every such bar counted
+      // as a create Pine MAY have made, which is what the collector rule below
+      // (`objectRuntime.js::noteUnknownCreate`) now counts.
+      const runs = measuredConjuncts(out.when)
+      return { ...out, withhold: internTree(orOf(amb)), ...(runs ? { withholdRuns: internTree(runs) } : {}) }
     })
     const attached = attach(keptOps)
     keptOps.splice(0, keptOps.length, ...attached)
@@ -25150,7 +26320,11 @@ function translatePineResult(source, opts = {}) {
     }
     return chartSeriesMemo
   }
-  const ctx = { consumed: new Set(), bindingByStatement, condAware: guardVaries, historyFns: historyFnsOf, chartSeries: chartSeriesOf }
+  // ⭐⭐ ENGINE 50 — `selfDeclarations`: every v3+-refusable self-referencing declaration THIS
+  // walk meets (`markSelfDeclaration`, and the block-valued form), read once after the walk. Only
+  // this ctx and the ones spread from it carry it: the harvest folds and the loop unroll build
+  // their own, so a re-fold over a partial env can never record a declaration.
+  const ctx = { consumed: new Set(), bindingByStatement, condAware: guardVaries, historyFns: historyFnsOf, chartSeries: chartSeriesOf, selfDeclarations: [] }
 
   /** ⭐⭐ R2 STEP 1 — RUN THE WALK'S OWN READER OVER A BLOCK IT REFUSED, SO ITS
    *  LOCALS ARE BOUND BY SOMEBODY.
@@ -25270,6 +26444,8 @@ function translatePineResult(source, opts = {}) {
       kind: 'opaque',
       guard,
       isFunction,
+      // ⭐ ENGINE 50 — a function that did not fold still covers the variable beneath it
+      ...(isFunction ? { hidesVariable: variableBeneath(env, name) } : {}),
       message: `${REFUSALS[guard]}${extra ? ` — ${extra}` : ''}`,
       at: at || null,
     })
@@ -25651,10 +26827,25 @@ function translatePineResult(source, opts = {}) {
         if (vec === false) continue
       }
       if (word === 'var' && nameTok && eq > 0) {
+        // ⭐ Engine 51 — `var x = switch [s]` / arms: whatever the value lane makes of it
+        // (a refusal, or a state over the bare word), the drawing lane's static enum
+        // reader takes the switch hung on the binding here (`varSwitch`;
+        // `buildObjectProgram`'s `staticEnumValue`). A switch with no subject takes its
+        // first arm whose condition holds: read as a switch on `true`.
+        const hangSwitch = () => {
+          const rhs = toks.slice(eq + 1)
+          if (!(rhs[0] && rhs[0].kind === 'ident' && rhs[0].value === 'switch' && (stmt.sub || []).length)) return
+          const subject = rhs.length > 1 ? rhs.slice(1) : [{ ...rhs[0], value: 'true' }]
+          let built = null
+          try { built = switchBinding(subject, stmt.sub, ctx, env, rhs[0]) } catch { built = null }
+          const marked = env.get(nameTok.value)
+          if (built && marked && typeof marked === 'object') Object.defineProperty(marked, 'varSwitch', { value: built, enumerable: false })
+        }
         try {
           env.set(nameTok.value, stateBinding(
             parseWholeExpression(toks.slice(eq + 1)),
             new Map(env), selfNode(nameTok), new Map(env), locate(nameTok)))
+          hangSwitch()
           continue
         } catch (err) {
           const r = fromError(err)
@@ -25662,6 +26853,7 @@ function translatePineResult(source, opts = {}) {
             { line: r.line, column: r.column, index: r.index, token: r.token },
             `\`${nameTok.value}\``)
           notes.push({ ...r, code: r.guard })
+          hangSwitch()
           continue
         }
       }
@@ -25863,6 +27055,8 @@ function translatePineResult(source, opts = {}) {
             kind: 'opaque',
             guard: 'pine:function-def',
             isFunction: true,
+            // ⭐ ENGINE 50 — the variable this name still holds beneath the function (`variableBeneath`)
+            hidesVariable: variableBeneath(env, nameTok.value),
             message: `${REFUSALS['pine:function-def']} — \`${nameTok.value}\` is defined more `
               + 'than once (an overload), and this engine would apply one body to every call',
             at: locate(nameTok),
@@ -25882,7 +27076,10 @@ function translatePineResult(source, opts = {}) {
         // looking straight at. Bound, it reaches `MAX_CALL_DEPTH` and refuses at
         // `pine:cycle`, which is the true sentence. The object is filled in after
         // the fold, and the `new Map` copies the REFERENCE, so the body sees it.
-        const self = { kind: 'fn', params, value: null, at: locate(toks[arrow]) }
+        // ⭐ ENGINE 50 — `hidesVariable`: a variable of the same name declared before this function
+        // stays declared (separate namespaces), in this body and after it (`variableBeneath`)
+        const self = { kind: 'fn', params, value: null, at: locate(toks[arrow]),
+          hidesVariable: variableBeneath(env, nameTok.value) }
         fnEnv.set(nameTok.value, self)
         // ⭐ WHAT THE BODY LEAVES BEHIND IS THE LAST WORD ON EACH LOCAL, exactly as
         // `finalBindings = new Map(env)` is at the top level. `foldStatements`
@@ -26095,6 +27292,12 @@ function translatePineResult(source, opts = {}) {
         continue
       }
       if (env.has(nameTok.value) && env.get(nameTok.value).kind === 'opaque') continue
+      // ⭐⭐ ENGINE 50 — a block-valued declaration whose block reads its own history is
+      // RECORDED (review ENG49-1122 note 6) and refused in v3+ after the walk; its fold below
+      // is unchanged.
+      if (!declaredAsVariable(env, nameTok.value) && blockDeclarationReadsOwnHistory(stmts, si - 1, nameTok.value)) {
+        ctx.selfDeclarations.push({ name: nameTok.value, at: locate(nameTok) })
+      }
       // ⭐ `x = if cond` / … / `else` — an if EXPRESSION. Pine's `if` yields the
       // last value of the branch it takes, which is a ternary spelled across
       // lines, and folding it needs the same machinery a reassignment does.
@@ -26184,9 +27387,12 @@ function translatePineResult(source, opts = {}) {
         continue
       }
       try {
-        env.set(nameTok.value, exprBinding(
-        stampInputName(parseWholeExpression(rhs), nameTok.value),
-        new Map(env), locate(nameTok)))
+        {
+          const declEnv = new Map(env)
+          env.set(nameTok.value, markSelfDeclaration(exprBinding(
+            stampInputName(parseWholeExpression(rhs), nameTok.value),
+            declEnv, locate(nameTok)), nameTok.value, declEnv, ctx.selfDeclarations))
+        }
         // ⭐⭐ R2 STEP 1 — and the TOP-LEVEL walk records too, which is the half
         // that actually mattered. `scopeFor` used to re-parse EVERY name the
         // object collector had walked past — including top-level ones — and a
@@ -26349,6 +27555,21 @@ function translatePineResult(source, opts = {}) {
   }
   logPos = null
   delete env.set
+
+  // ⭐⭐ ENGINE 50 — A v3+ SELF-REFERENCING DECLARATION REFUSES THE WHOLE SCRIPT, WHETHER OR NOT
+  // ANYTHING READS IT (review ENG49-1122 notes 1, 2, 3, 6). TradingView does not compile such a
+  // script at all, so whether a plot happens to resolve the binding is beside the point: engine 49
+  // refused only what the `Resolver` resolved, and an unread declaration, one read only through
+  // `color=`, a name an earlier user function holds and a block-valued `x = if/switch …` were
+  // still drawn here while the runtime lane, which asks at the statement, refused them. Now the
+  // walk records each one where it is written (`ctx.selfDeclarations`) and the first in source
+  // order is a HARD refusal, with the one v3+ sentence the `Resolver` and the runtime lane give.
+  // v1/v2 and no pragma compile these spellings: nothing is read for them here.
+  if (!listingSeedIsUnpinned(version) && ctx.selfDeclarations.length) {
+    const first = ctx.selfDeclarations.slice().sort((a, b) => byPosition(a.at || {}, b.at || {}))[0]
+    hardRefusals.push(refusalValue('pine:cycle',
+      `${REFUSALS['pine:cycle']} — ${selfReferenceSentence(first.name, version)}`, first.at || null))
+  }
 
   // ── ⭐⭐ THE CLOSING PASS: every mutation the walk did NOT account for ─────
   //
@@ -27426,6 +28647,10 @@ function translatePineResult(source, opts = {}) {
       walkStarts,
       topStatements: new Set(stmts),
       mutableNames: reassigned,
+      // ⭐ Engine 51 — the member's knobs: a declared input (or one the member set) is
+      // never read at its default by the static enum reader (`staticEnumValue`)
+      declareInputs: opts.declareInputs || null,
+      inputValues: opts.inputValues && typeof opts.inputValues === 'object' ? opts.inputValues : null,
       windowAmbiguity: objectWindowAmbiguity,
       runtimeCheck,
       runtimeExclude,
@@ -27593,7 +28818,16 @@ function translatePineResult(source, opts = {}) {
       // fall through — `objectOnlyCleanWin` / `paintOnlyWin` decide, below
     } else {
     const guard = draws ? 'pine:objects-only' : 'pine:no-output'
-    const r = refusalValue(guard, REFUSALS[guard], null)
+    // ⛔ Engine 51 (review of #1149, minor 5) — WHEN A WITHHELD DRAWING IS WHY NOTHING IS
+    // LEFT, THE HEADLINE SAYS SO. "No plot and no alert condition" is true of such a
+    // script and names nothing its author can act on; the drawing it lost, and the
+    // reason, is the fact that matters.
+    const withheld = !cleanObjectOnly && objectPass.diagnostics
+      && (objectPass.diagnostics.withheldDrawings || [])[0]
+    const r = withheld
+      ? refusalValue(withheld.guard, withheldHeadline(withheld),
+        withheld.line === null ? null : { line: withheld.line, column: null, index: null, token: null })
+      : refusalValue(guard, REFUSALS[guard], null)
     return {
       ok: false, version, declaration, title, outputs: [], selected: -1,
       presentation: { overlay, levels, ...(paintRecs ? { paints: paintRecs } : {}) },
@@ -31154,6 +32388,14 @@ function verifyRoundTrip(formula, ast) {
 // --------------------------------------------------------------------------- //
 // refusal values
 // --------------------------------------------------------------------------- //
+
+/** ⭐ Engine 51 (review of #1149, minor 5) — the headline of a script with no plot and
+ *  no alert condition whose drawing was withheld by the enum rule. */
+function withheldHeadline(w) {
+  const what = w.family ? `the ${w.family}` : 'the drawing'
+  const where = w.line === null || w.line === undefined ? '' : ` at line ${w.line}`
+  return `this script has no plot or alert condition, and ${what} it draws${where} is withheld: ${w.sentence}`
+}
 
 function refusalValue(guard, message, at, suggest, span) {
   return {

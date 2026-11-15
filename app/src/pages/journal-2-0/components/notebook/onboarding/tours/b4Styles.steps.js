@@ -45,8 +45,12 @@ export const JOURNAL_STYLES_COPY = Object.freeze({
   },
 })
 
+// Final fix (A1): on a phone the ▾ (`templates`) is not drawn, so the library tour opens there through ⋯ > "New from a
+// template" (the same phone door the template-gallery tour uses); steps 2 to 4 are the same at every width.
 export const STYLE_LIBRARY_STEPS = Object.freeze([
-  Object.freeze({ id: 'templates', anchor: 'templates', file: TAB, waitFor: 'template-gallery-door' }),
+  Object.freeze({ id: 'templates', anchor: 'templates', file: TAB, waitFor: 'template-gallery-door', tier: 'wide' }),
+  Object.freeze({ id: 'phone-open', anchor: 'styles-button', file: TAB, waitFor: 'new-from-template-phone', tier: 'phone' }),
+  Object.freeze({ id: 'phone-templates', anchor: 'new-from-template-phone', file: TAB, waitFor: 'template-gallery-door', tier: 'phone' }),
   Object.freeze({ id: 'door', anchor: 'template-gallery-door', file: PICKER, waitFor: 'library-types' }),
   step('types', 'library-types', GALLERY),
   step('adopt', 'library-adopt', CARD),
@@ -56,6 +60,14 @@ export const STYLE_LIBRARY_COPY = Object.freeze({
   templates: {
     title: 'Templates other traders share',
     body: 'The Template library is in the New note sheet. Open the ▾ beside New and select From a template to open it.',
+  },
+  'phone-open': {
+    title: 'Templates other traders share',
+    body: 'The Template library is in the New note sheet. Open More notebook actions (the three dots) to find New from a template.',
+  },
+  'phone-templates': {
+    title: 'Templates other traders share',
+    body: 'The Template library is in the New note sheet. Select New from a template to open it.',
   },
   door: {
     title: 'Open the Template library',

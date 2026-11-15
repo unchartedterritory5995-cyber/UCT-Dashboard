@@ -1,4 +1,5 @@
-// Notebook P1 (spec P1.3): "Update layout" and "Switch to a style" -- a PREVIEWED, explicit action. Editing a
+// Notebook P1 (spec P1.3): "Update template" (was "Update layout", simplify pass 2 A5) and "Switch to a style" -- a
+// PREVIEWED, explicit action. Editing a
 // style never rewrites existing notes; this adds the style's missing blocks to ONE note, after the first
 // heading, and never removes or moves the member's text. Lazy chunk (NoteEditorPage lazyChunk).
 //
@@ -21,7 +22,7 @@ import styles from './StyleUpdateSheet.module.css'
 // it is. This copy is only the fallback for a 409 with no body, pinned to the server's recorded answer
 // (`notes.apply-style-update.stale`) by NoteEditorPage.styleUpdate.test.jsx.
 export const STALE_SENTENCE = 'This note changed since you opened it. Nothing was added.'
-export const LOCKED_SENTENCE = 'This note is locked. Unlock it to change its layout.'
+export const LOCKED_SENTENCE = 'This note is locked. Unlock it to change its template.'
 export const STILL_SAVING_SENTENCE = 'Some words are still saving. Try again in a moment.'
 const GONE_SENTENCE = "That template isn't available any more. Nothing was added."
 const FAILED_SENTENCE = "Couldn't update this note. Nothing was added."
@@ -93,7 +94,7 @@ export default function StyleUpdateSheet({ open, onClose, noteId, styleId = null
   }
 
   const plan = state.phase === 'plan' ? state.plan : null
-  const title = plan?.switching ? `Switch to ${plan.styleName}` : 'Update layout'
+  const title = plan?.switching ? `Switch to ${plan.styleName}` : 'Update template'
   // Nothing to do: the sheet says so and offers Close only.
   const nothing = plan && (plan.locked || (!plan.switching && plan.upToDate))
 
@@ -116,7 +117,7 @@ export default function StyleUpdateSheet({ open, onClose, noteId, styleId = null
         {state.phase === 'error' && <p className={styles.p} role="alert">{state.message}</p>}
         {plan && plan.locked && <p className={styles.p} role="status">{LOCKED_SENTENCE}</p>}
         {plan && !plan.locked && !plan.switching && plan.upToDate && (
-          <p className={styles.p} role="status">This note already has the latest layout.</p>
+          <p className={styles.p} role="status">This note already has the latest template.</p>
         )}
         {plan && !nothing && (
           <>

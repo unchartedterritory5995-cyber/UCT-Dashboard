@@ -148,3 +148,22 @@ def test_a_preload_failure_never_raises_out_of_startup(monkeypatch):
         "the boot preload call site is not wrapped in try/except — a preload wiring bug "
         "would take down the whole app at startup")
     g._reset_for_tests()
+
+
+def test_an_archived_api_module_in_the_manifest_is_skipped_not_registered(monkeypatch):
+    """2026-11-13: the real manifest still names the OneNote converter archived 11/04; registering it
+    made the boot preload raise ModuleNotFoundError every boot. A live api module is still registered."""
+    g._reset_for_tests()
+    from api.services.discord_render import cold_path_manifest
+    gone = "api.services.journal_two.note_connectors.convert.onenote_html"
+    live = "api.services.discord_render.cold_path_manifest"
+    monkeypatch.setattr(cold_path_manifest, "load_manifest", lambda *a, **k: {"measured": [
+        {"module": gone, "cold_ms": 900.0, "error": None},
+        {"module": live, "cold_ms": 80.0, "error": None},
+    ]})
+    from api.main import _start_cold_path_boot_preload
+    _start_cold_path_boot_preload()
+    names = g.registered_names()
+    assert "import:%s" % live in names
+    assert "import:%s" % gone not in names
+    g._reset_for_tests()

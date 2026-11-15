@@ -351,8 +351,8 @@ def test_the_CATALOG_half_of_the_response_is_BYTE_UNMOVED(client):
     save(USER_A, defn(), repaint={"value": "repaints"})
     body = served(client)
     assert body["catalog"] == ev.alert_catalog()
-    assert len(ev.alert_catalog()) == 20  # 2026-11-10 (RS split, S2): 18 -> 20, +rs_phases +rs_vs_ema groups; 2026-11-07: +rs_line (UCT RS, 2b-05: 11 closed-only addresses, 5th partition RS_FUNCS)
-    assert len(ev.all_addresses()) == 48  # 2026-11-10 (RS split, S2): 44 -> 48, +rs_phases.flipBlue/flipRed +rs_vs_ema.crossUp/crossDown; 2026-11-07 (RS 2b-06): +rs_line.rating; 2026-11-07: +rs_line (UCT RS, 2b-05: 11 closed-only addresses, 5th partition RS_FUNCS)
+    assert len(ev.alert_catalog()) == 21  # 2026-11-12 (RS Exit Warnings): 20 -> 21, +rs_exit group; 2026-11-10 (RS split, S2): 18 -> 20, +rs_phases +rs_vs_ema groups; 2026-11-07: +rs_line (UCT RS, 2b-05: 11 closed-only addresses, 5th partition RS_FUNCS)
+    assert len(ev.all_addresses()) == 51  # 2026-11-12 (RS Exit Warnings): 48 -> 51, +rs_exit.quickBreak/quicksand/deadBreak; 2026-11-10 (RS split, S2): 44 -> 48, +rs_phases.flipBlue/flipRed +rs_vs_ema.crossUp/crossDown; 2026-11-07 (RS 2b-06): +rs_line.rating; 2026-11-07: +rs_line (UCT RS, 2b-05: 11 closed-only addresses, 5th partition RS_FUNCS)
     assert len(ev.ADDRESS_PARTITIONS) == 5  # 2026-11-07: +rs_line (UCT RS, 2b-05: 11 closed-only addresses, 5th partition RS_FUNCS)
 
 

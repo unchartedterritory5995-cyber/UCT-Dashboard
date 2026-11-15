@@ -229,7 +229,7 @@ def onon(monkeypatch):
     monkeypatch.setattr(bars_fetch, "_fmt_sqlite_bars", _fmt)
     monkeypatch.setattr(bars_fetch, "_maybe_kick_deepfill", lambda *a, **k: None)
     monkeypatch.setattr(bars_fetch, "_record_intraday_request", lambda *a, **k: None)
-    monkeypatch.setattr(bars_fetch, "_history_complete", lambda s, tf: False)
+    monkeypatch.setattr(bars_fetch, "_history_complete", lambda s, tf, *_a: False)
     monkeypatch.setattr(bars_fetch, "_needs_fresh", lambda ts, tf, ticker=None: True)
     monkeypatch.setattr(bars_fetch, "_is_cold_stale_intraday", lambda tf, ts, now=None: False)
     monkeypatch.setattr(bars_fetch, "_is_intraday_stale", lambda raw: False)
@@ -317,7 +317,7 @@ def _slow_store_rows(monkeypatch, tf="5"):
 
 def test_same_session_WAITER_is_bounded_not_8s(monkeypatch):
     _slow_store_rows(monkeypatch)
-    monkeypatch.setattr(bars_fetch, "_history_complete", lambda s, tf: True)
+    monkeypatch.setattr(bars_fetch, "_history_complete", lambda s, tf, *_a: True)
     monkeypatch.setattr(bars_fetch, "_REQUEST_DEADLINE_SECONDS", 0.3)
     bars_fetch._inflight["bars_AVGO_5_20"] = threading.Event()        # a peer that never lands
     bars_fetch.start_request_budget()
@@ -329,7 +329,7 @@ def test_same_session_WAITER_is_bounded_not_8s(monkeypatch):
 
 def test_deep_WAITER_is_bounded_not_12s(monkeypatch):
     _slow_store_rows(monkeypatch)
-    monkeypatch.setattr(bars_fetch, "_history_complete", lambda s, tf: False)
+    monkeypatch.setattr(bars_fetch, "_history_complete", lambda s, tf, *_a: False)
     monkeypatch.setattr(bars_fetch, "_DEEP_DEADLINE_SECONDS", 0.3)
     monkeypatch.setattr(bars_fetch, "_REQUEST_DEADLINE_SECONDS", 0.3)
     monkeypatch.setattr(bars_fetch, "_delta_intraday", lambda *a, **k: [])

@@ -78,7 +78,7 @@ import { applyHouseLook } from '../components/chart/houseLook'
 import { currentPaneManifest } from '../components/chart/engine/paneLayout'
 import { paneHeightAlerts } from '../components/chart/engine/binder'
 import { installUserDefinitions } from '../components/chart/engine/nativeRegistry'
-import uctLogo from '../components/intro/assets/compass-mark.png'
+import uctLogo from '../components/intro/assets/compass-mark.webp'
 
 
 import { renderTokenOk } from '../lib/renderToken'

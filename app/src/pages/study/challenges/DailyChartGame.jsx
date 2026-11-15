@@ -34,7 +34,7 @@ import { HARD_CHART, RUN_ON_MS, SHORT_SETUPS, culmination, replayView, tradeOf }
 import { alignTicks, developing, dueCheck, fetchIntraday, keyDays, replayChecks, showChart } from './replayTicks'
 import { tradeAnnotations, tradeMarkers } from './tradeMarks'
 import {
-  ANSWER_FAILED, ANSWER_SIGNED_OUT, DAILY_KIND, DAILY_TOTAL, DAILY_URL, DAILY_VIEW, QUESTION, STREAK_KEY, addRow, clockText, copyNote,
+  ANSWER_FAILED, ANSWER_SIGNED_OUT, DAILY_KIND, DAILY_TOTAL, DAY_PREFIX, DAILY_URL, DAILY_VIEW, QUESTION, STREAK_KEY, addRow, clockText, copyNote,
   dailyAnswer, dailyChoices, dayKey, dayLabel, emptyRecord, etDay, headline, howSteps, logRows, mergeDay, msToNextDay, nextStreak, peakOf,
   planRun, poolItems, readAnswer, readSaved, readStreak, ruleLabel, ruleParts, runOf, shareLine, shownStreak, staleKeys, startLabel, startLead,
   streakText, tally, whereText, withTotal,
@@ -78,7 +78,9 @@ function pruneDays(today) {
     if (!st) return
     const keys = []
     for (let i = 0; i < st.length; i++) keys.push(st.key(i))
-    for (const k of staleKeys(keys, today)) st.removeItem(k)
+    // removed by the day's own key (the same `study.daily.<day>` the day was saved under), so the settings census
+    // can read which key this clears (lib/persistence/persistenceManifest.test.js)
+    for (const k of staleKeys(keys, today)) st.removeItem(dayKey(String(k).slice(DAY_PREFIX.length)))
   } catch { /* no storage */ }
 }
 

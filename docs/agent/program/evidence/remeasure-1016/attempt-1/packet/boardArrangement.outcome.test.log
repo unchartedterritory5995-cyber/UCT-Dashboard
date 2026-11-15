@@ -1,0 +1,29 @@
+node_modules LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+date -u: 2026-11-10T23:50:53Z
+tree: /c/w/pl-auto-remeasure HEAD 0188c97815e1c9a5a96aa0c1d07d48d8640d846f (measured master 69ab78db82dec1ebeb242e3ecf7edfaf63b978a4)
+harness: 6f9abd8515 (6f9abd85155112a64a6bc7facf0e5fc2de31c911) - recount.mjs only; no harness file is in the run tree
+# cmd: vitest run src/agent/qa/chartsOutcome/boardArrangement.outcome.test.jsx --reporter=default --reporter=json
+[bn] free memory GB: 40.3
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/w/pl-auto-remeasure/app[39m
+
+ [32m✓[39m src/agent/qa/chartsOutcome/boardArrangement.outcome.test.jsx [2m([22m[2m13 tests[22m[2m)[22m[33m 14281[2mms[22m[39m
+     [33m[2m✓[22m[39m C3-002 "shove the news panel over to the right side": the news widget moves to the right edge, the chart keeps its cell; Undo puts it back [33m 1621[2mms[22m[39m
+     [33m[2m✓[22m[39m C3-003 "make the news widget twice as tall": the news widget's bottom edge moves down, the Terminal below gives up the rows; Undo puts both back [33m 1404[2mms[22m[39m
+     [33m[2m✓[22m[39m C3-006 "put the news on the green link group": the widget joins link group B (green); Undo unlinks it again [33m 1209[2mms[22m[39m
+     [33m[2m✓[22m[39m C3-016 / C3-017 / C3-019: add a Calendar as a tab on the news widget, switch to it, close it — each read off the widget's tabs [33m 1727[2mms[22m[39m
+     [33m[2m✓[22m[39m C3-063 "load my Swing list into the watchlist widget": the watchlist widget shows the saved Swing list; Undo shows the list it had [33m 1244[2mms[22m[39m
+     [33m[2m✓[22m[39m C3-030 "keep this arrangement in my current layout": the open layout is saved with the board as it is now (read back from the layouts server) [33m 1333[2mms[22m[39m
+     [33m[2m✓[22m[39m C1-019 "show the premarket and after hours on this 5 minute chart": a 5-minute chart shows the extended session; Undo turns it off [33m 1241[2mms[22m[39m
+     [33m[2m✓[22m[39m C1-022 "percentage scale on this chart please": the chart goes to the percent scale; Undo goes back [33m 1187[2mms[22m[39m
+     [33m[2m✓[22m[39m C3-107 "put the highest volume in a year scan on the scanner": the Scanner widget shows that preset (its picker's scanKey / scanName); Undo goes back [33m 1230[2mms[22m[39m
+     [33m[2m✓[22m[39m C3-150 "whens AMD next reporting" on /charts: the earnings read answers with the date, no change to the board [33m 1047[2mms[22m[39m
+     [33m[2m✓[22m[39m C3-150 "what date are NVDA earnings" on /charts: the earnings read answers with the date, no change to the board [33m 1029[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m13 passed[39m[22m[90m (13)[39m
+[2m   Start at [22m 18:50:55
+[2m   Duration [22m 32.79s[2m (transform 12.35s, setup 397ms, import 17.17s, tests 14.28s, environment 753ms)[22m
+
+JSON report written to C:/w/pl-auto-remeasure/docs/agent/program/evidence/remeasure-1016/attempt-1/packet/boardArrangement.outcome.test.json
+# exit=0 end 23:51:29Z

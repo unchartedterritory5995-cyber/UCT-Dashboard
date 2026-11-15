@@ -482,7 +482,8 @@ export function registerDrawingFamily(common, h) {
     const d = byId(st, drawing)
     if (!d) return { why: notFound(drawing) }
     const name = objectTypeName(d.type)
-    if (d.type === 'position') return { why: 'Set a position\'s alerts on the chart: its entry alert picks its side from the live price.' }
+    // a position's alerts are its menu's Alerts row: the side is the position's, never the member's (capabilities/drawingOps.js)
+    if (d.type === 'position') return { why: 'A position\'s alerts are its entry, stop and target, each on the side the position gives it — ask for those (entry, stop, target or all three).' }
     if (!alertKindFor(d.type)) return { why: `${A_(name)} can't carry an alert — only lines, rays and Fibonacci levels can.` }
     if (direction !== 'above' && direction !== 'below') return { why: 'Should it go off above or below the line?' }
     const pane = paneWhy(d)

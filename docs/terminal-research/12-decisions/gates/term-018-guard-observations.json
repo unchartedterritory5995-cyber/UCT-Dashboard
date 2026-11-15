@@ -1312,6 +1312,41 @@
       }
     },
     {
+      "guard": "api/main.py::_check_rs_history_current::<computed>::warning",
+      "in_population": true,
+      "audit_rows": [],
+      "what_the_guard_decides": "Whether the UCT RS rating history is still behind the session the 04:15 ET run should have written when the 09:05 ET watchdog fires (after the boot catch-up and the 05:15-08:15 retries had their chance), raising rs_history_stale:{session} and naming the last attempt (a killed run reads as started with no finish), while a current store raises nothing. Added 2026-11-12 after a deploy killed the nightly mid-run; dark behind RS_HISTORY_ENABLED, read per call.",
+      "predicate": {
+        "file": "api/main.py",
+        "scope": "_check_rs_history_current",
+        "pinned": "if behind is None:",
+        "mutation": "if behind is not None:"
+      },
+      "observed_by": [
+        "tests/test_rs_history_catchup.py::test_the_watchdog_alerts_a_store_still_behind_and_names_the_killed_attempt",
+        "tests/test_rs_history_catchup.py::test_the_watchdog_is_silent_when_current_or_disabled"
+      ],
+      "proof": {
+        "commit": "78c6de2716",
+        "quote": "mutating `if behind is None:` -> `if behind is not None:` in _check_rs_history_current turns 2 tests red"
+      },
+      "wire": {
+        "kind": "chain",
+        "hops": [
+          {
+            "file": "api/main.py",
+            "call": "add_job",
+            "job_id": "rs_history_stale_watchdog"
+          },
+          {
+            "file": "api/main.py",
+            "call": "register_screener_jobs"
+          }
+        ],
+        "note": "web, the 09:05 ET rs_history_stale_watchdog cron registered unconditionally in register_screener_jobs; the job function returns before any read unless RS_HISTORY_ENABLED is literally 1 (per call). No flag state is asserted here."
+      }
+    },
+    {
       "guard": "api/services/journal_two/tweet_capture_sync.py::_alert_owner::<computed>::critical",
       "in_population": true,
       "audit_rows": [],

@@ -71,7 +71,7 @@ describe('D-4 -- the search box filters the built-in catalog', () => {
     expect(allCardKeys().length).toBe(TEMPLATES.length)
   })
 
-  it('also filters "Your templates" by name, leaving the daily-template picker untouched', async () => {
+  it('also filters "Your templates" by name, leaving the daily line and Manage untouched', async () => {
     global.fetch = vi.fn(async () => ({
       ok: true,
       json: async () => ({ templates: [
@@ -79,13 +79,16 @@ describe('D-4 -- the search box filters the built-in catalog', () => {
         { id: 't2', name: 'Risk audit', title: '', createdAt: '1' },
       ] }),
     }))
-    renderPicker({ onPickMember: vi.fn() })
+    renderPicker({ onPickMember: vi.fn(), onManageTemplates: vi.fn() })
     await screen.findByRole('button', { name: 'Morning plan' })
     fireEvent.change(search(), { target: { value: 'risk' } })
     expect(screen.queryByRole('button', { name: 'Morning plan' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Risk audit' })).toBeInTheDocument()
-    // the preference control still lists every saved template, search or not
-    expect(within(screen.getByRole('combobox', { name: 'Daily notes start from' })).getByText('Morning plan')).toBeInTheDocument()
+    // the daily line (follow-up C: the control moved to Manage templates; the picker keeps its link) stays, search
+    // or not, and so does Manage
+    expect(screen.getByText(/^Daily notes start from: A blank page\./)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Change what daily notes start from' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Manage your plain templates' })).toBeInTheDocument()
   })
 })
 

@@ -524,7 +524,12 @@ def run(C, browser, admin, base, fs, data_dir, only) -> None:
         home(p_)
         out = {"kind": kind}
         try:
-            p_.locator(f'[data-tour="review-drafts-{kind}"]').first.click(timeout=20000)
+            # The list's "+ New" arrow > "Draft a review" > the review by name (simplify pass 2, C2: the monthly row has no
+            # walkthrough anchor since the Reviews walkthrough merged its weekly and monthly steps).
+            p_.get_by_role("button", name="More ways to start a note", exact=True).first.click(timeout=20000)
+            p_.get_by_role("menuitem", name="Draft a review", exact=True).first.click(timeout=10000)
+            p_.get_by_role("menuitem", name={"daily": "Today's recap", "weekly": "This week's review",
+                                             "monthly": "This month's review"}[kind], exact=True).first.click(timeout=20000)
             p_.wait_for_url(lambda u: "note=" in u, timeout=60000)
             out["note"] = p_.url.split("note=")[-1].split("&")[0]
             p_.locator(".ProseMirror").first.wait_for(state="visible", timeout=30000)

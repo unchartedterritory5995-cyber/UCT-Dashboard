@@ -35,6 +35,7 @@ from api.services import bars_split_repair as rep
 from api.services import bars_sqlite
 from api.services import indicator_alert_evaluator as ev
 from api.services import indicator_compute as ic
+from api.services import session_calendar
 
 
 # ── the fixture store ───────────────────────────────────────────────────────
@@ -53,7 +54,7 @@ def fresh_db(tmp_path, monkeypatch):
 def _sessions(start: datetime.date, n: int) -> list[datetime.date]:
     out, d = [], start
     while len(out) < n:
-        if d.weekday() < 5:
+        if session_calendar.is_trading_day(d):   # real NYSE sessions only (date_bar_keys)
             out.append(d)
         d += datetime.timedelta(days=1)
     return out
@@ -267,7 +268,7 @@ class TestTheWireIsNotCut:
     def test_serving_a_chart_repairs_the_store_behind_it(self, fresh_db, monkeypatch):
         from api.services.cache import cache
         bars, declared_iso, boundary = _plant_unadjusted_split()
-        cache.set(san._META_KEY.format("DD"),
+        san._META_CACHE.set(san._META_KEY.format("DD"),
                   {"ipo": None, "splits": _declared(declared_iso)}, ttl=3600)
 
         ran: list = []
@@ -298,7 +299,7 @@ class TestTheWireIsNotCut:
         wrong reason."""
         from api.services.cache import cache
         days = _sessions(datetime.date(2024, 1, 2), 300)
-        cache.set(san._META_KEY.format("CLEAN"),
+        san._META_CACHE.set(san._META_KEY.format("CLEAN"),
                   {"ipo": None, "splits": [(days[200].isoformat(), 2.0)]}, ttl=3600)
         ran: list = []
         monkeypatch.setattr(rep, "repair_ticker",

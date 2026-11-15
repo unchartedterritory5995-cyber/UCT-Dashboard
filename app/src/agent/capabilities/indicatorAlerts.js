@@ -85,6 +85,11 @@ async function loadCatalog(host = hostRef) {
   return cache.catalog
 }
 const rows = () => cache.rows || []
+/** calc-TF family: the ACTIVE indicator alerts already listed (no read here) that were armed from this instance on this symbol. */
+export function activeAlertsOnInstance(instanceId, sym) {
+  const s = String(sym || '').toUpperCase()
+  return rows().filter(a => a.active && a.instanceId === String(instanceId || '') && (!s || a.sym === s))
+}
 
 // ── the catalog, read the way the popover reads it ──
 const plotsOf = (entry) => (Array.isArray(entry?.plots) && entry.plots.length ? entry.plots : [{ value: entry.indicator, label: entry.label, conditions: entry.conditions || [], default_threshold: entry.default_threshold, inputs: {} }])
@@ -276,6 +281,7 @@ const sameAlert = (a, c) => a.sym === c.sym && a.indicator === c.indicator && a.
 
 export const indicatorAlertKind = {
   name: 'indicatorAlert',
+  empty: "You have no indicator alerts yet.",
   boardScoped: false,
   selfDescribing: true,
   list: () => rows().map(a => ({ ...a, ref: a.id, label: phrase(a) })),

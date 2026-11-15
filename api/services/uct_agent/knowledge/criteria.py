@@ -32,7 +32,7 @@ TEMPLATE_FIELDS = frozenset({"entry_triggers", "stop_methods", "invalidation", "
                              "ideal_regime", "description", "sector_conditions", "float_requirements", "hold_time_range"})
 SERVED_KEYS = ("id", "role", "measurable", "op", "value", "unit", "timeframe", "basis", "strength", "assumptions", "blocked")
 
-_cache: dict = {"path": None, "mtime": None, "data": None}
+_cache: dict = {"path": None, "key": None, "data": None}
 
 
 def path() -> Path:
@@ -42,10 +42,11 @@ def path() -> Path:
 def load() -> dict:
     p = path()
     try:
-        m = p.stat().st_mtime
+        st = p.stat()
     except OSError:
         return {"templates": []}
-    if _cache["path"] == str(p) and _cache["mtime"] == m:
+    from . import policy as _policy                                   # same (mtime_ns, size) + racy-window rule
+    if _policy.cache_hit(_cache, p, st):
         return _cache["data"]
     try:
         data = json.loads(p.read_text(encoding="utf-8"))
@@ -53,7 +54,7 @@ def load() -> dict:
             raise ValueError
     except (OSError, ValueError):
         data = {"templates": []}
-    _cache.update(path=str(p), mtime=m, data=data)
+    _cache.update(path=str(p), key=_policy.file_key(st), data=data)
     return data
 
 

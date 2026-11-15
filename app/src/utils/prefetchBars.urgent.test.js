@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 const preload = vi.fn(() => new Promise(() => {})) // never settles: occupies a slot
 vi.mock('swr', () => ({ preload: (...a) => preload(...a) }))
 vi.mock('./barsIDB', () => ({
-  idbGet: vi.fn(() => Promise.resolve(null)), idbPut: vi.fn(() => Promise.resolve()),
+  idbGet: vi.fn(() => Promise.resolve(null)), idbPut: vi.fn(() => Promise.resolve()), idbPutMonotonic: vi.fn(() => Promise.resolve(null)),
   mergeDelta: (a, b) => b,
 }))
 vi.mock('../hooks/useTickerMeta', () => ({ prefetchTickerMeta: vi.fn() }))

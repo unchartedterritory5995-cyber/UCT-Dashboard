@@ -333,10 +333,15 @@ describe('fast path (capability-contributed phrases)', () => {
   it('all-or-nothing: any unrecognised clause goes to the model', () => {
     expect(fastParse('bars and make it look like TradingView')).toBeNull()
     expect(fastParse('what is a dead cat bounce?')).toBeNull()
-    expect(fastParse('show volume profile')).toBeNull()
+    // #1173 (AUDIT ruling): "show volume profile" alone is now an obvious command (volumeProfile.set, below); a VP clause
+    // beside an unrecognised one still sends the WHOLE message to the model
+    expect(fastParse('show volume profile and make it look like TradingView')).toBeNull()
     expect(fastParse('make the left chart look like TradingView')).toBeNull()
     expect(fastParse('show me apple')).toBeNull()
     expect(fastParse('add macd 8 21 5')).toBeNull()   // three lengths, none called `period` ("add RSI 21" is mapped since Phase 2.5)
+  })
+  it('#1173: "show volume profile" is the Volume Profile switch on the fast path (enabled, nothing else)', () => {
+    expect(fastParse('show volume profile')).toMatchObject({ kind: 'ops', ops: [{ action: 'volumeProfile.set', args: { enabled: true, bins: null, color: null, pocColor: null } }] })
   })
 })
 

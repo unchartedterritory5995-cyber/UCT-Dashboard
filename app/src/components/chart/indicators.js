@@ -65,19 +65,24 @@ function blank(bars) {
   return bars.map(b => ({ time: b.t, value: NA }))
 }
 
+/** ⭐ THE Heikin-Ashi recurrence, one step (the ONE owner — toHeikinAshi, the BarStore adapter's
+ *  tail and StockChart's live developing candle all call it): the HA bar of raw `bar` after the HA
+ *  bar `prevHa` ({o, c}), or — with no previous HA bar — the series' first bar. */
+export function heikinAshiNext(prevHa, bar) {
+  const pO = prevHa ? prevHa.o : (bar.o + bar.c) / 2
+  const pC = prevHa ? prevHa.c : (bar.o + bar.h + bar.l + bar.c) / 4
+  const haClose = (bar.o + bar.h + bar.l + bar.c) / 4
+  const haOpen  = (pO + pC) / 2
+  return { ...bar, o: haOpen, h: Math.max(bar.h, haOpen, haClose), l: Math.min(bar.l, haOpen, haClose), c: haClose }
+}
+
 export function toHeikinAshi(bars) {
   if (!bars?.length) return bars
   const result = []
-  let prevHaOpen  = (bars[0].o + bars[0].c) / 2
-  let prevHaClose = (bars[0].o + bars[0].h + bars[0].l + bars[0].c) / 4
+  let prev = null
   for (const bar of bars) {
-    const haClose = (bar.o + bar.h + bar.l + bar.c) / 4
-    const haOpen  = (prevHaOpen + prevHaClose) / 2
-    const haHigh  = Math.max(bar.h, haOpen, haClose)
-    const haLow   = Math.min(bar.l, haOpen, haClose)
-    result.push({ ...bar, o: haOpen, h: haHigh, l: haLow, c: haClose })
-    prevHaOpen  = haOpen
-    prevHaClose = haClose
+    prev = heikinAshiNext(prev, bar)
+    result.push(prev)
   }
   return result
 }

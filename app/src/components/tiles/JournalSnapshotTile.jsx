@@ -49,7 +49,7 @@ import {
   computeDaysToExpiration,
   classifyDebitCredit,
 } from '../../pages/journal-2-0/lib/optionCalcs'
-import compassLogo from '../intro/assets/compass-mark.png'
+import compassLogo from '../intro/assets/compass-mark.webp'
 import UIcon from '../ui/UIcon'
 import Sparkline, { sparkPaths } from '../Sparkline'
 import styles from './JournalSnapshotTile.module.css'

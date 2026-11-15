@@ -98,6 +98,28 @@ describe('chart P0s, through the real panel', () => {
     await m.say('undo')
     await waitFor(() => expect(!!on(m, 'c1').opts.settings.percentScale).toBe(false))
   }, 40000)
+  // C1-022's other two scales (pl-zoom): log and arithmetic BY NAME, each read back from the stored keys the A / L / % toggle
+  // writes (logScale, percentScale), the other chart untouched, and Undo back to exactly what it was
+  it('C1-022 "put this chart on a log scale": the chart goes to log (percent stays off), the other chart is untouched; Undo goes back', async () => {
+    const m = open([chart('c1', 0, 0, 12, 20), chart('c2', 12, 0, 12, 20)], { 'N:c1': 'NVDA', 'N:c2': 'AMD' }, { selected: 'c1' })
+    const other = JSON.stringify(on(m, 'c2'))
+    await m.say('put this chart on a log scale', (c) => [{ action: 'chart.setScale', target: must(c.charts?.find(x => x.symbol === 'NVDA')?.ref, 'chart'), args: { scale: 'log' } }])
+    await waitFor(() => expect(on(m, 'c1').opts.settings.logScale).toBe(true))
+    expect(!!on(m, 'c1').opts.settings.percentScale).toBe(false)
+    expect(JSON.stringify(on(m, 'c2'))).toBe(other)
+    await m.say('undo')
+    await waitFor(() => expect(!!on(m, 'c1').opts.settings.logScale).toBe(false))
+  }, 40000)
+  it('C1-022 "switch this chart back to the arithmetic scale": a log chart goes to arithmetic (log and percent off); Undo puts log back', async () => {
+    const logged = chart('c1', 0, 0, 24, 20)
+    logged.opts.settings = { ...logged.opts.settings, logScale: true, percentScale: false }
+    const m = open([logged], { 'N:c1': 'NVDA' }, { selected: 'c1' })
+    await m.say('switch this chart back to the arithmetic scale', (c) => [{ action: 'chart.setScale', target: must(c.charts?.[0]?.ref, 'chart'), args: { scale: 'linear' } }])
+    await waitFor(() => expect(!!on(m, 'c1').opts.settings.logScale).toBe(false))
+    expect(!!on(m, 'c1').opts.settings.percentScale).toBe(false)
+    await m.say('undo')
+    await waitFor(() => expect(on(m, 'c1').opts.settings.logScale).toBe(true))
+  }, 40000)
 })
 
 // round 5 (pl-exec): two more P0s through the real panel. Held-out phrasings from agentExecHeldOut5.

@@ -1057,9 +1057,10 @@ describe('a migrated definition is drawn ONCE — never by the engine and legacy
     .filter(d => d.compute.kind === 'server').map(d => d.id)
   const NATIVE_OWNED = [...ENGINE_OWNED].filter(id => !SERVER_LANE.includes(id))
 
-  it('the server lane is excluded from these rails, and it is exactly the four RS definitions', () => {
+  it('the server lane is excluded from these rails, and it is exactly the five RS definitions', () => {
     // ⭐ U6 (2026-11-09): the RS split's three join rsLine on the server lane.
-    expect(SERVER_LANE).toEqual(['rsLine', 'rsRating', 'rsPhases', 'rsVsEma'])
+    // ⭐ 2026-11-12 (RS Exit Warnings): and the fifth, `rsExit`.
+    expect(SERVER_LANE).toEqual(['rsLine', 'rsRating', 'rsPhases', 'rsVsEma', 'rsExit'])
     expect(NATIVE_OWNED.length).toBe(ENGINE_OWNED.size - SERVER_LANE.length)
   })
 
@@ -1784,7 +1785,8 @@ describe('an engine-drawn indicator still appears in the crosshair legend', () =
         // ⭐ 2026-10-01 — every Technical library Tier 1 study bears a chip.
         ...TIER1_IDS,
         // ⭐ U6 (2026-11-09) — the RS split's three server definitions each bear one chip.
-        'rsRating', 'rsPhases', 'rsVsEma'].sort())
+        // ⭐ 2026-11-12 (RS Exit Warnings): and the fifth, `rsExit`, bears one too (the RS line).
+        'rsRating', 'rsPhases', 'rsVsEma', 'rsExit'].sort())
     // ⛔ …AND THAT SET IS NOW TOTAL, WHICH IS THE CLAIM TASK 2 ACTUALLY MAKES.
     // Derived, so a definition landing WITHOUT a chip fails by construction
     // rather than by somebody remembering to widen the literal above.
@@ -4354,7 +4356,8 @@ describe('the Flip-B machinery, live (Task 10)', () => {
       ['adx', 'atr', 'atrBands', 'avwap', 'bb', 'cci', 'dataSeries', 'dollarVolume',
         'donchian', 'ichimoku', 'macd', 'mfi', 'movingAverage', 'obv', 'rsLine',
         // ⭐ U6 (2026-11-09): the RS split's three, server definitions like `rsLine`.
-        'rsRating', 'rsPhases', 'rsVsEma',
+        // ⭐ 2026-11-12 (RS Exit Warnings): and the fifth.
+        'rsRating', 'rsPhases', 'rsVsEma', 'rsExit',
         'rsi', 'sar', 'stoch', 'vwap', 'williamsR',
         // ⭐ FIFTY-THREE AT 2026-10-01: the Technical library's Tier 1.
         ...TIER1_IDS].sort())
@@ -4410,7 +4413,7 @@ describe('the Flip-B machinery, live (Task 10)', () => {
     const serverLane = registry.listDefinitions()
       .filter(d => d.compute.kind === 'server').map(d => d.id)
     expect(serverLane, 'the server-lane exclusion selects nothing — it is inert')
-      .toEqual(['rsLine', 'rsRating', 'rsPhases', 'rsVsEma'])   // U6 (2026-11-09): rsLine plus the RS split's three
+      .toEqual(['rsLine', 'rsRating', 'rsPhases', 'rsVsEma', 'rsExit'])   // U6 (2026-11-09): rsLine plus the RS split's three; 2026-11-12: + rsExit
     let seen = 0
     for (const defId of [...ENGINE_OWNED].filter(id => !serverLane.includes(id))) {
       cleanup(); H.reset()

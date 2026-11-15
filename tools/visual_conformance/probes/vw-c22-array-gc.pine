@@ -1,0 +1,35 @@
+//@version=6
+indicator("UCTPROBE_VW_C22_ARRAY_GC", overlay = false, max_lines_count = 5, max_labels_count = 5)
+
+// ─── 2026-11-10 — W-C22-DEL r6, capture queue Q-C22-1: DOES THE COLLECTOR SPARE
+// LINES AND LABELS HELD ONLY IN A `var` ARRAY?
+//
+// objectPool.js C7: the collector deletes the OLDEST past `cap + 5` down to `cap`,
+// sparing objects made on the running bar and objects a drawing VARIABLE holds.
+// For BOXES held only in an array it is witnessed (sonarlab-order-blocks-spy-1d,
+// `var array<box>`, max_boxes_count = 20: TradingView holds 24 = not spared). For
+// LINES and LABELS no capture separates it, so both of our lanes withhold the
+// family where the collector reaches one. This probe separates it.
+//
+// One line and one label per bar, each pushed into a `var` array that nothing ever
+// removes from; cap 5 for both. Read the END STATE (line.all / label.all as captured):
+//   NOT SPARED (as boxes)  held 5..10 lines, the newest by id (and 5..10 labels)
+//   SPARED                 every line and label ever made is still held
+// Text carries the bar; x/y in the capture are vendor indices, NOT bar_index.
+//
+//   A00  bar_index                CONTROL
+//   A01  array.size(lines)        what the script's own array still holds (it never shrinks)
+//   A02  array.size(labels)
+//
+// ⛔ CAPTURE: AMEX:SPY 1D, inputs at defaults (none), AFTER THE CLOSE.
+// ours today (2026-11-10, fix/pine-c22-withheld-deletes r6): both lanes withhold the
+// line and label families by name (not drawn) — the refusal this capture settles.
+
+var lines = array.new_line()
+var labels = array.new_label()
+lines.push(line.new(bar_index, 1.0, bar_index + 1, 1.0))
+labels.push(label.new(bar_index, 1.0, "AL " + str.tostring(bar_index)))
+
+plot(bar_index, "A00_bar_index_CONTROL")
+plot(lines.size(), "A01_lines_size")
+plot(labels.size(), "A02_labels_size")

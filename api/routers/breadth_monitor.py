@@ -845,6 +845,21 @@ def get_breadth_history(days: int = Query(default=90, ge=1, le=8000),
         raise HTTPException(status_code=503, detail=str(e))
 
 
+@router.get("/api/breadth-monitor/service-history")
+def get_breadth_history_service(days: int = Query(default=90, ge=1, le=8000),
+                                _: None = Depends(require_push_secret)):
+    """The Monitor's history body, for the SERVICE credential (the `PUSH_SECRET` bearer).
+
+    2026-11-13: `uct-intelligence/scripts/naaim_backfill.py` (the NAAIM settle job) read
+    `GET /api/breadth-monitor` anonymously; that route became members-only, every run 401'd
+    after the job had already bought tweets, and no NAAIM value was written (303 crashes).
+    The writer already authenticates its PATCHes with this bearer; this is the matching read.
+    It calls the members' handler itself, so the two can never answer differently. ⛔ It does
+    not loosen the members' route: that one still answers only a paid session.
+    """
+    return get_breadth_history(days=days, end="", anchor="le", _user={})
+
+
 @router.post("/api/breadth-monitor/heal")
 def heal_breadth(request: Request, date: str = Query(default=""),
                  days: int = Query(default=10, ge=1, le=60),

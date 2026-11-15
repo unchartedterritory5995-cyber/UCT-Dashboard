@@ -18,9 +18,19 @@
 // isolation. All timestamps here are raw UTC unix seconds as returned by
 // /api/bars (the frontend's per-instant ET display shift, barTime.toChartTime, is applied elsewhere).
 
+import { rthCloseMinuteOf } from './barTime'
+
 // ET session windows, minutes-since-ET-midnight. Match useMarketOpen.js.
 const PRE_WINDOW = [4 * 60, 9 * 60 + 30]   // 4:00 – 9:30
-const POST_WINDOW = [16 * 60, 20 * 60]     // 16:00 – 20:00
+// POST is the DAY's: from the regular close (16:00, or 13:00 on an NYSE half-day — barTime
+// owns the calendar) for the 4h extended session after it (20:00 / 17:00). A fixed 16:00
+// start dropped a half-day's 13:00-16:00 post-market bars from the preview candle while the
+// legend lock (isRthBar) already froze at 13:00.
+const POST_LEN_MIN = 4 * 60
+function postWindowOf(tSec) {
+  const close = rthCloseMinuteOf(tSec)
+  return [close, close + POST_LEN_MIN]
+}
 
 /** "YYYY-MM-DD" ET calendar date for a UTC-seconds timestamp. */
 export function etDateStr(tSec) {
@@ -45,13 +55,13 @@ export function etMinutes(tSec) {
  */
 export function aggregateExtBars(bars, { session, todayEt }) {
   if (!Array.isArray(bars) || !bars.length) return null
-  const win = session === 'post' ? POST_WINDOW : PRE_WINDOW
   let open = null, high = -Infinity, low = Infinity, close = null, volume = 0, found = false
   for (const b of bars) {
     const t = typeof b.t === 'number' ? b.t : Number(b.t)
     if (!Number.isFinite(t)) continue
     if (etDateStr(t) !== todayEt) continue
     const mins = etMinutes(t)
+    const win = session === 'post' ? postWindowOf(t) : PRE_WINDOW
     if (mins < win[0] || mins >= win[1]) continue
     const O = +b.o, H = +b.h, L = +b.l, C = +b.c
     if (![O, H, L, C].every(v => Number.isFinite(v) && v > 0)) continue

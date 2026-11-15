@@ -330,6 +330,14 @@ const THEME_SLOTS = Object.freeze({
   table: Object.freeze(['bgcolor', 'frame_color', 'border_color']),
   linefill: Object.freeze(['color']),
 })
+/** A table cell's colour slots (painted below, in the cell rows). */
+const CELL_THEME_SLOTS = Object.freeze(['text_color', 'bgcolor'])
+
+/** ⭐ ENGINE 54 — THE COLOUR SLOTS OF THE RENDER STATE, per family plus `cell`: the row keys
+ *  that hold a colour (and only those). The run half's object rail compares these as colours
+ *  and every other string exactly (`runHalfObjectRail.js`). Derived from the slots this module
+ *  paints, never restated. */
+export const RENDER_COLOUR_SLOTS = Object.freeze({ ...THEME_SLOTS, cell: CELL_THEME_SLOTS })
 
 /**
  * @param {Array}  live   `evaluateObjects(...).live`

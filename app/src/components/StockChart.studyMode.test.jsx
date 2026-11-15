@@ -120,6 +120,20 @@ describe('StockChart studyMode (T1)', () => {
     expect(side).toEqual([])
   })
 
+  // A study chart shows none of the three feeds, so it must not have them asked for ahead for
+  // the rows around it either (lib/symbolResourceWarm.js warms only what a mounted chart shows).
+  it('holds none of the three feeds for the rows ahead, even with every feed toggled on', async () => {
+    const { warmSymbolResources, __resetSymbolResourceWarm } = await import('../lib/symbolResourceWarm')
+    __resetSymbolResourceWarm({ painted: true })
+    const view = render(<StockChart sym="item-feeds" tf="D" barsOverride={FIXTURE_BARS} studyMode settingsOverride={ALL_FEEDS_ON} />)
+    await waitFor(() => expect(hooks.meta.length).toBeGreaterThan(0))
+    expect(warmSymbolResources(['NEXTROW'], 'D', { priority: true })).toBe(0)
+    // CONTROL: the same settings on an ordinary chart hold all three
+    view.unmount()
+    render(<StockChart sym="FEEDSON" tf="D" barsOverride={FIXTURE_BARS} settingsOverride={ALL_FEEDS_ON} />)
+    await waitFor(() => expect(warmSymbolResources(['NEXTROW'], 'D', { priority: true })).toBe(3), { timeout: 3000 })
+  })
+
   it('CONTROL: the desk feed DOES fire for a non-study chart with the toggle on', async () => {
     render(<StockChart sym="FEEDON" tf="D" barsOverride={FIXTURE_BARS} settingsOverride={{ markers: { desk: true } }} />)
     await waitFor(() => expect(urls().some((u) => u.includes('/mentions'))).toBe(true), { timeout: 3000 })

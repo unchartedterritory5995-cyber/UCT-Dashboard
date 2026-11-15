@@ -8,7 +8,7 @@ import { FREE_PAGES } from '../constants/freePages'
 import { useTerminalNavPath } from '../pages/terminal/TerminalRoutes'
 import { TERMINAL_PATH } from '../pages/terminal/terminalGate'
 import styles from './NavBar.module.css'
-import uctLogo from './intro/assets/compass-mark.png'
+import uctLogo from './intro/assets/compass-mark.webp'
 
 const fetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : null))
@@ -28,11 +28,13 @@ export const NAV_ITEMS = [
   // (viewportLockedRoutes.test.js) is docs/notebook/proof/f5-r2-routes/routes-nav-terminal-*.json.
   // V19: a member who ticked "keep classic calendar" gets this entry pointed at `/calendar`
   // instead (`useTerminalNavPath`, applied in renderItem); `to` here stays the declared route.
-  { to: '/terminal',     label: 'UCT Terminal',  icon: 'calendar', alsoActive: ['/calendar'] },
+  // ⭐ CHARTS IS THE HOME (owner 2026-11-11): first in the rail and the default landing page.
   { to: '/charts',       label: 'Charts',        icon: 'equity' },
+  { to: '/terminal',     label: 'UCT Terminal',  icon: 'calendar', alsoActive: ['/calendar'] },
   { to: '/morning-wire', label: 'Morning Wire',  icon: 'wire' },
   // MARKETS
-  { to: '/dashboard',    label: 'Dashboard',     icon: 'dashboard' },
+  // ⚰️ Dashboard HIDDEN (owner 2026-11-11): no entry here, and /dashboard redirects to
+  // /charts (App.jsx). The page and its code are kept, to be brought back later.
   { to: '/ai-search',    label: 'AI Search',     icon: 'sparkle' },
   { to: '/uct-20',       label: 'UCT 20',        icon: 'star' },
   { to: '/breadth',      label: 'Breadth',       icon: 'breadth' },

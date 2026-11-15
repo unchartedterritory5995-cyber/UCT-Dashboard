@@ -37,7 +37,7 @@ import { CHART_TIMEFRAMES, CHART_TYPE_IDS } from './chart'
 import { isPronounToken, isReservedWord } from '../nl/tickers'
 import { boardRefusalSentence } from '../../pages/charts/boardBound'
 
-const LABEL = labelMap('menu')
+const LABEL = labelMap('agent')
 const label = (t) => LABEL[t] || t
 const plural = (t, n) => (n === 1 ? `a ${label(t)}` : `${n} ${label(t)}s`)
 // Widget types whose new instances can be configured in the same request.
@@ -147,6 +147,8 @@ const createdIds = (item) => {
 
 export const workspaceKind = {
   name: 'workspace',
+  source: 'widgets',             // fix-nothing-on-workspace: the host source this kind reads (capabilities.noTargetSentence)
+  unavailable: "Board widgets aren't available on this page — open the Charts board to change its widgets.",
   list: (host) => (host?.widgets ? [host.widgets.snapshot()] : []),
   read: (host, ref) => (host?.widgets && ref === 'workspace' ? host.widgets.snapshot() : null),
   stateOf: (snap) => ({ creates: [], ids: snap.widgets.map(w => w.id) }),

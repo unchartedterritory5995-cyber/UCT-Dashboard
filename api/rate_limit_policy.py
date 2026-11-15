@@ -393,6 +393,9 @@ EXEMPT: dict[str, str] = {
     "/api/health": "Platform healthchecks and uptime monitors; they must answer "
                    "while the pod is under exactly the load a limit would react to.",
     "/api/ready": "Readiness probe; same reason as /api/health.",
+    "/build.json": "The frontend's identity, polled by every open tab's update watcher "
+                   "(two short strings read from a cached manifest); a 429 here only "
+                   "delays a member learning that a new version is ready.",
     "/api/webhooks": "Stripe's webhook sender, from shared egress IPs with its own "
                      "retry schedule; a 429 costs a payment event.",
     "/api/desk/zoom-webhook": "Zoom's recording.completed sender; a 429 loses a "

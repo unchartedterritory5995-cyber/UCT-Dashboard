@@ -15,7 +15,7 @@ function Harness() {
     <main>
       <NotebookPlusFab ref={ref} open={open} onOpen={() => setOpen(true)} />
       <NotebookPlusSheet open={open} onClose={() => setOpen(false)} returnFocusTo={ref}
-        onQuickNote={vi.fn()} onVoiceNote={vi.fn()} onPhoto={vi.fn()} askAi />
+        onQuickNote={vi.fn()} onVoiceNote={vi.fn()} onPhoto={vi.fn()} onAskNotebook={vi.fn()} />
     </main>
   )
 }
@@ -31,5 +31,7 @@ describe('the floating "+" -- axe', () => {
     mount()
     fireEvent.click(screen.getByRole('button', { name: 'Add to your notebook' }))
     expect(screen.getByRole('dialog', { name: 'Add' })).toBeInTheDocument()
+    // every gate on: the Ask row is drawn, so axe reads it too (simplify pass 2 A8: onAskNotebook)
+    expect(screen.getByRole('button', { name: 'Ask your Notebook' })).toBeInTheDocument()
   })
 })

@@ -779,6 +779,17 @@ const AWAITING_A_DECISION = {
   // deleting is the owner's call.
   'app/src/pages/study/ui/MarkBubble.jsx':
     'DEAD candidate: the Study kit mark+bubble, unused since the round 18 fix. Delete or re-mount.',
+  // ── BARSTORE P2 — BUILT OFF TO THE SIDE, WIRED IN P3 (2026-11-11) ──────────
+  // Chart-data consolidation program (ARCH-PLAN, BARSTORE-SPEC). Step 1 is owner-approved
+  // as NEW FILES ONLY with no live behavior change; StockChart starts consuming these in P3
+  // (S1 source switch, S3 diffRenderer + framing). types/reducer/status/registry land with
+  // P2a (PR #1105) — this PR (#1108) must merge with or after it.
+  // P3-S1 wired the store (types … prefetch) into StockChart behind the BARSTORE switch, so those
+  // entries left this register; the renderer + framing below wait for P3-S3.
+  'app/src/data/barStore/diffRenderer.js':
+    'BarStore P2 — wired in P3 (ARCH-PLAN): the only future setData/update site.',
+  'app/src/data/barStore/framing.js':
+    'BarStore P2 — wired in P3 (ARCH-PLAN): framing contract.',
   }
 
 /**
@@ -832,6 +843,7 @@ const PARKING_EXPIRES = {
   // (W9-T13a STRATEGY REPORT METRICS' expiry, 2026-12-31, was deleted 2026-11-08 with its block:
   // W9-T13b mounted brokerReport.js, dark, behind the broker gate.)
   'S4 CP1 DIVERGENCE DETECTOR — RECORDED, NOT MOUNTED (2026-09-25, R-29)': '2026-11-30',   // landed on master 2026-09-24/25; expiry added when this line took master (renew or resolve, never lapse)
+  'BARSTORE P2 — BUILT OFF TO THE SIDE, WIRED IN P3 (2026-11-11)': '2026-12-31',
   'FILTER BAND — ORPHANED BY #178, RECORDED NOT DELETED (2026-09-25)': '2026-11-30',   // landed on master 2026-09-24/25; expiry added when this line took master (renew or resolve, never lapse)
   // ⭐⭐ ADDED BY THE 2026-09-23 MERGE, AND NEITHER PARENT WAS WRONG.
   // `origin/master` carries this parking block and has NO S4 rail; this branch

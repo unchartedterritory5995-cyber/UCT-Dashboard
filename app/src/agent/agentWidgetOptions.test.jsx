@@ -49,7 +49,7 @@ describe('widget.setOption — options the widget reads, off the Widgets menu to
     await refreshContext(1500, { groups: ['boardEdit'] })
     const said = buildContext(host, CTX).context.widgetControls[0].controls
     expect(said.tradeExchangeNews).toMatch(/^follow\(on\/off\), linked\(on\/off\)/)
-    expect(said.periodsort).toBe('group(theme|sector|industry)')
+    expect(said.periodsort).toBe('group(theme|sector|industry), refresh(run: its own button)')   // pl-widget: its footer's Refresh (an `action` row)
     for (const [widget, key, value, want] of [['tn', 'follow', 'off', false], ['rl', 'linked', 'on', true], ['ps', 'group', 'Sector', 'sector']]) {
       const before = JSON.stringify(state.widgets)
       const res = await apply(host, { widget, key, value })

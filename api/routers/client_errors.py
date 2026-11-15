@@ -20,9 +20,12 @@ the controller wires it. No path here collides with another router's.
 from __future__ import annotations
 
 import json
+import os
+import re
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import FileResponse
 from starlette.concurrency import run_in_threadpool
 
 from api.middleware.auth_middleware import get_current_user_optional, require_admin
@@ -99,6 +102,25 @@ def admin_client_errors(
     _admin: dict = Depends(require_admin),
 ) -> dict[str, Any]:
     return client_errors.summary(days=days, limit=limit)
+
+
+# ⭐ The production build's own source maps (2026-11-11, desktop speed plan 9.7). vite.config.js builds
+# them HIDDEN and app/scripts/stash-sourcemaps.mjs moves them out of the public /assets mount into
+# app/dist/.maps/. This admin-only door is the one way to read one: tools/resolve_client_error.mjs maps a
+# report's kept position (`/assets/<chunk>.js:<line>:<col>`) to a source file and line. The name is one
+# chunk file name, nothing else (no path, no traversal); a missing map is a 404.
+_MAPS_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "app", "dist", ".maps")
+_CHUNK_NAME = re.compile(r"[\w.-]{1,120}\.m?js", re.ASCII)
+
+
+@router.get("/api/admin/client-errors/sourcemap/{chunk}")
+def admin_sourcemap(chunk: str, _admin: dict = Depends(require_admin)):
+    if not _CHUNK_NAME.fullmatch(chunk) or ".." in chunk:
+        raise HTTPException(status_code=400, detail="Not a chunk name")
+    path = os.path.join(_MAPS_DIR, f"{chunk}.map")
+    if not os.path.isfile(path):
+        raise HTTPException(status_code=404, detail="No source map for that chunk in this build")
+    return FileResponse(path, media_type="application/json", headers={"Cache-Control": "private, no-store"})
 
 
 @router.get("/api/admin/notebook-telemetry")

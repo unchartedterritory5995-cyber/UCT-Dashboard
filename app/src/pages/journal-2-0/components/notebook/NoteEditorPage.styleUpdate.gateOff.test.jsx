@@ -47,7 +47,7 @@ describe('the switch is off (never latched)', () => {
     act(() => { document.querySelector('.ProseMirror').editor.view.dom.dispatchEvent(new CustomEvent(STYLE_EVENT, { bubbles: true })) })
     // every dynamic import the gate could have allowed has settled (a fixed sleep let a removed gate go unseen)
     await act(async () => { await vi.dynamicImportSettled() })
-    expect(screen.queryByText(/Update layout/)).toBeNull()
+    expect(screen.queryByText(/Update (layout|template)/)).toBeNull()
     expect(screen.queryByRole('button', { name: 'Review update' })).toBeNull()
     expect(screen.queryByRole('dialog', { name: 'Choose a template' })).toBeNull()
     expect(loaded).toEqual({ banner: 0, sheet: 0, surfaces: 0 })

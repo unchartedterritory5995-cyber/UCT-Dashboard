@@ -705,3 +705,21 @@ describe('D-W11-002/003: the header Folder select and the note title are finger 
     expect(lastDecl(old, '.titleInput', 'min-height', TOUCH)).toBeUndefined()
   })
 })
+
+// Go-live wave 2 (the c2 walk's layout pass over the Daily brief at 820 and 390): the 60-second first run's inline
+// "Skip" text button measured 25 x 44 -- its touch floor was a height only.
+describe("the first run's text buttons (Skip) are finger targets both ways on the touch tier", () => {
+  const rules = rulesWithMedia(read(join(NB, 'FirstRunSheet.module.css')))
+
+  it('.textBtn floors width and height to --tap-min inside the touch query', () => {
+    expect(lastDecl(rules, '.textBtn', 'min-height', TOUCH)).toBe('var(--tap-min)')
+    expect(lastDecl(rules, '.textBtn', 'min-width', TOUCH)).toBe('var(--tap-min)')
+  })
+
+  it('CONTROL: the measured rule (a height floor only) fails the width check', () => {
+    const old = rulesWithMedia(`@media ${TOUCH.replace(/^@media\s*/, '')} { .textBtn { min-height: var(--tap-min); } }`)
+    expect(lastDecl(old, '.textBtn', 'min-height', TOUCH)).toBe('var(--tap-min)')
+    expect(lastDecl(old, '.textBtn', 'min-width', TOUCH)).toBeUndefined()
+  })
+})
+

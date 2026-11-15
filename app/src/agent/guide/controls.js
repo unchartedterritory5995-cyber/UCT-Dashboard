@@ -26,7 +26,7 @@ import { labelMap, menuGroups } from '../../widgets/registry'
 import { CONTROLS as DRAW_CONTROLS, SCHEMA as DRAW_SCHEMA } from '../../components/chart/drawingSettingsSchema'
 
 let labels = {}
-try { labels = labelMap('menu') } catch { labels = {} }
+try { labels = labelMap('agent') } catch { labels = {} }
 const widgetLabel = (type) => String(labels[type] || type)
 let menu = []
 try { menu = menuGroups('workspace').flatMap(g => g.items) } catch { menu = [] }

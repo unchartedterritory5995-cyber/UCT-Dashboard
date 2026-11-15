@@ -7,7 +7,7 @@ const { idbImportPack, idbApplyDelta, idbCountKeys } = vi.hoisted(() => ({
 }))
 vi.mock('../utils/barsIDB', () => ({ idbImportPack, idbApplyDelta, idbCountKeys }))
 
-import { decodeShardPayload, _shardIdx, _ingestHotPack, _ingestFull, _packDataPresent, _oneWindowAtATime, _run, packLock, afterFirstChartPaint, markFirstChartPaint, __resetFirstChartPaint, FIRST_CHART_PAINT_EVENT } from './barsPackClient'
+import { decodeShardPayload, _shardIdx, _ingestHotPack, _ingestFull, _packDataPresent, _oneWindowAtATime, _run, packLock, afterFirstChartPaint, markFirstChartPaint, __resetFirstChartPaint, FIRST_CHART_PAINT_EVENT, DELTA_PROGRESS_KEY } from './barsPackClient'
 import fs from 'node:fs'
 import path from 'node:path'
 
@@ -211,6 +211,102 @@ describe('the pack fetches SEND the session cookie (the routes have been gated s
   })
 })
 
+describe('a delta left halfway resumes where it stopped (2026-11-14)', () => {
+  // The delta now writes in small yielding batches (~300 series/s); the version stamp lands only
+  // when it completes, so a short visit used to re-apply the whole delta on every load.
+  const D_CFG = { ...FULL_CFG, versionKey: 'barspack.dtest.version', seedKey: 'barspack.dtest.seed' }
+  const manifest = { version: '2026-11-14', shards: [{ idx: 0 }], delta: true }
+  const tick = (i) => `T${String(i).padStart(3, '0')}`
+  const deltaPayload = { format: 1, tickers: Object.fromEntries(Array.from({ length: 40 }, (_, i) =>
+    [tick(i), { D: columnar([{ t: '2026-11-14', o: 1, h: 2, l: 1, c: 1.5, v: 10 }]) }])) }
+  const firstSym = (call) => call[0][0].sym
+  let applyCalls
+
+  beforeEach(() => {
+    localStorage.setItem(D_CFG.versionKey, '2026-11-13')
+    localStorage.removeItem(D_CFG.seedKey)
+    localStorage.removeItem(DELTA_PROGRESS_KEY)
+    idbApplyDelta.mockReset()
+    idbImportPack.mockReset()
+    applyCalls = []
+    globalThis.fetch = vi.fn(async (url) => (String(url).endsWith('/manifest')
+      ? { ok: true, json: async () => manifest }
+      : String(url).endsWith('/delta') ? { ok: true, json: async () => deltaPayload } : { ok: false, json: async () => ({}) }))
+  })
+  afterEach(() => { localStorage.removeItem(DELTA_PROGRESS_KEY); localStorage.removeItem(D_CFG.versionKey) })
+
+  /** idbApplyDelta that commits `commit` entries in batches of 10, then aborts (or finishes). */
+  const applying = (commit) => idbApplyDelta.mockImplementation(async (entries, opts) => {
+    applyCalls.push([entries, opts])
+    for (let n = 10; n <= Math.min(commit, entries.length); n += 10) opts.onBatch(n)
+    return { updated: Math.min(commit, entries.length), skipped: 0, aborted: commit < entries.length }
+  })
+
+  it('a page left mid-delta keeps how far it got, and does not stamp the version', async () => {
+    applying(20)
+    await _run(D_CFG)
+    expect(idbImportPack).not.toHaveBeenCalled()                         // it was a delta, not a full ingest
+    expect(applyCalls).toHaveLength(1)
+    expect(localStorage.getItem(D_CFG.versionKey)).toBe('2026-11-13')
+    const all = JSON.parse(localStorage.getItem(DELTA_PROGRESS_KEY))
+    expect(all[D_CFG.versionKey]).toEqual({ v: '2026-11-14', len: applyCalls[0][0].length, n: 20 })
+  })
+
+  it('the next run of the same delta starts after the entries already done, then stamps and forgets', async () => {
+    applying(20)
+    await _run(D_CFG)
+    const full = applyCalls[0][0]
+    applying(1000)
+    await _run(D_CFG)
+    expect(applyCalls).toHaveLength(2)
+    expect(applyCalls[1][0]).toHaveLength(full.length - 20)
+    expect(firstSym(applyCalls[1])).toBe(full[20].sym)
+    expect(localStorage.getItem(D_CFG.versionKey)).toBe('2026-11-14')
+    expect(localStorage.getItem(DELTA_PROGRESS_KEY)).toBeNull()
+  })
+
+  it('progress kept across two interruptions adds up', async () => {
+    applying(20); await _run(D_CFG)
+    applying(10); await _run(D_CFG)
+    expect(JSON.parse(localStorage.getItem(DELTA_PROGRESS_KEY))[D_CFG.versionKey].n).toBe(30)
+    applying(1000); await _run(D_CFG)
+    expect(firstSym(applyCalls[2])).toBe(applyCalls[0][0][30].sym)
+  })
+
+  it.each([
+    ['another version', (p) => ({ ...p, v: '2026-11-13' })],
+    ['another length', (p) => ({ ...p, len: p.len + 1 })],
+    ['a count past the end', (p) => ({ ...p, n: p.len })],
+    ['a count that is not a whole number', (p) => ({ ...p, n: 12.5 })],
+  ])('progress for %s is ignored: the delta starts at the first entry', async (_label, bend) => {
+    applying(20)
+    await _run(D_CFG)
+    const all = JSON.parse(localStorage.getItem(DELTA_PROGRESS_KEY))
+    all[D_CFG.versionKey] = bend(all[D_CFG.versionKey])
+    localStorage.setItem(DELTA_PROGRESS_KEY, JSON.stringify(all))
+    applying(1000)
+    await _run(D_CFG)
+    expect(applyCalls[1][0]).toHaveLength(applyCalls[0][0].length)
+  })
+
+  it("unreadable progress is ignored, and another pack's progress is kept", async () => {
+    localStorage.setItem(DELTA_PROGRESS_KEY, '{not json')
+    applying(1000)
+    await _run(D_CFG)
+    expect(applyCalls[0][0]).toHaveLength(40)
+    localStorage.setItem(D_CFG.versionKey, '2026-11-13')
+    localStorage.setItem(DELTA_PROGRESS_KEY, JSON.stringify({ 'other.version': { v: 'x', len: 5, n: 2 } }))
+    applying(20)
+    await _run(D_CFG)
+    const all = JSON.parse(localStorage.getItem(DELTA_PROGRESS_KEY))
+    expect(all['other.version']).toEqual({ v: 'x', len: 5, n: 2 })
+    expect(all[D_CFG.versionKey].n).toBe(20)
+    applying(1000)
+    await _run(D_CFG)
+    expect(JSON.parse(localStorage.getItem(DELTA_PROGRESS_KEY))).toEqual({ 'other.version': { v: 'x', len: 5, n: 2 } })
+  })
+})
+
 describe('_packDataPresent — verify the pre-seed before trusting the stamp', () => {
   beforeEach(() => { idbCountKeys.mockReset() })
 
@@ -335,6 +431,14 @@ describe('the full pack ingests wait for the first chart (2026-11-10)', () => {
     expect(fn).not.toHaveBeenCalled()
     vi.advanceTimersByTime(1)
     expect(fn).toHaveBeenCalledTimes(1)
+  })
+
+  it('leaves one buffered performance mark for time-to-first-candles readers, once per page', () => {
+    const mark = vi.spyOn(performance, 'mark').mockImplementation(() => undefined)
+    markFirstChartPaint()
+    markFirstChartPaint()
+    expect(mark.mock.calls).toEqual([[FIRST_CHART_PAINT_EVENT]])
+    mark.mockRestore()
   })
 
   it('runs once even when both the paint and the time limit happen', () => {

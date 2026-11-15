@@ -635,7 +635,8 @@ describe('heights come from the DEFINITION, not from a table in this file', () =
   // LABEL. There is no legacy geometry for it to match.
   // ⭐ 2026-10-01 — the Technical library's thirty own-pane Tier 1 studies: new
   // panes, never a shipped band, and each declares its height like every pane.
-  const NEVER_A_SHIPPED_PANE = ['rsLine', 'rsRating', 'rsPhases', 'rsVsEma', 'dataSeries', 'dollarVolume',
+  // ⭐ 2026-11-12 (RS Exit Warnings): `rsExit`, a server pane definition like the others.
+  const NEVER_A_SHIPPED_PANE = ['rsLine', 'rsRating', 'rsPhases', 'rsVsEma', 'rsExit', 'dataSeries', 'dollarVolume',
     ...TIER1_IDS.filter((id) => !['superTrend', 'keltner', 'envelope'].includes(id))]
 
   it('every pane-target definition declares a height, and the shipped nine are exactly the nine', () => {

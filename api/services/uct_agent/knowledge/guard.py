@@ -28,12 +28,40 @@ _INJECTION = re.compile(
     r"|\bto\s+the\s+(ai|agent|assistant|model|llm)\s+reading\b"
     r"|\b(call|use|run|invoke|execute|trigger)\b[^.\n]{0,30}?\b[a-z][a-zA-Z]{2,}"
     r"\.(?!(?:com|net|org|io|co|ai|gov|edu|us|uk|ca|app|dev|me|tv|ly)\b)[a-z][a-zA-Z]{2,}\b(?![/.])"
-    r"|\b(watchlist|layout|alert|chart|chartSetup|chartGrid|screener|indicator|indicatorAlert|indicatorStyle|indicatorCopy"
-    r"|drawing|widget|board|settings|definition|pane|volume|app|guide|stock|news|breadth|playbook|research)"
+    # Compare panel view (Tools → Compare Symbols): the compare domain (compare.openView as a bare name; its verb "open" is
+    # already withheld); stricter only
+    r"|\b(watchlist|layout|alert|chart|compare|chartSetup|chartGrid|screener|indicator|indicatorAlert|indicatorStyle|indicatorCopy"
+    # #1082 Custom-Period Sort: the periodSort domain (periodSort.run / periodSort.dock as bare names); stricter only
+    # #1106 right-click parity: the chartMenu domain (chartMenu.askAi / chartMenu.resetWatermark as bare names); stricter only
+    # chartFeatures (Company Info panel + Earnings Strip): chartFeatures.companyPanel / earningsStrip as bare names; stricter only
+    r"|drawing|widget|board|settings|definition|pane|volume|app|guide|stock|news|breadth|playbook|research|multiChart|periodSort|chartMenu"
+    # chartReplay (the bar replay's playback): chartReplay.playback as a bare name; stricter only
+    # Phase 2 COT research: the cot domain (cot.positioning as a bare name; verb "position" is already withheld); stricter only
+    # Phase 2 history: the history domain (history.afterEvent as a bare name; verb "after"); stricter only
+    r"|chartFeatures|chartReplay|cot|history)"
     r"\.(add|remove|delete|create|clear|rename|open|set|run|save|apply|show|hide|update|move|resize|toggle|swap|duplicate"
-    r"|reorder|list|explain|setup|record|web|quote)[A-Za-z]*\b"
+    # #1030 ratchet: master actions added by #1077/#1073/#1027 (chartSetup.stepBars/autoScale/compareGroup,
+    # watchlist.arrangeColumns/exportList): their verbs join the withheld set (stricter only)
+    # #1074 Layout Dock: layout.pinToBar / layout.unpinFromBar as bare names (layout.moveOnBar is "move"); stricter only
+    # #1110 drawing extras: drawing.favoriteTool / drawing.positionCalculator as bare names (saveDefaults is "save"); stricter only
+    # #1104 chart zoom: chartSetup.zoom as a bare name; stricter only
+    # #1106 right-click parity: verbs ask (askAi) and reset (resetWatermark; also withholds the older chart.resetDefaults /
+    # chartSetup.resetView bare names — stricter, and GUARD_KNOWN_UNWITHHELD may only shrink)
+    # chartFeatures: verbs company (companyPanel) and earnings (earningsStrip; also withholds the older stock.earnings bare
+    # name, which leaves GUARD_KNOWN_UNWITHHELD — stricter, and that set may only shrink)
+    r"|reorder|list|explain|setup|record|web|quote|cell|step|auto|compare|arrange|export|pin|unpin|dock|favorite|position|zoom|ask|reset"
+    # chartReplay: verbs playback (chartReplay.playback) and replay (also withholds the older chart.replay bare name, which
+    # leaves GUARD_KNOWN_UNWITHHELD — stricter, and that set may only shrink)
+    # Phase 2 history: verbs after (history.afterEvent) and daily (stock.dailyBars); stricter only
+    r"|company|earnings|playback|replay|after|daily)[A-Za-z]*\b"
     r"|\bnew\s+instructions?\b|\bsystem\s*prompt\b|\bjailbreak\b"
     r"|<\s*/?\s*(system|assistant|user|tool|instructions?)\b|\[\s*(system|inst)\s*\]|<\|[a-z_]+\|>"
+    # Charts family (2026-11-12): the UCT Intelligence chart indicator (uctIntelligence.set as a bare name), on its own line; stricter only
+    # (never the site's own domain: "uctintelligence.com" is prose)
+    r"|\buctIntelligence\.(?!(?:com|net|org|io|co|ai|app|dev|us)\b)[a-z][A-Za-z]*\b"
+    # Charts family (2026-11-12): the volumeProfile domain (volumeProfile.set as a bare name — any volumeProfile.<verb>); its
+    # own branch, so the domain list above is untouched; stricter only. Prose "volume profile" has no dot and passes.
+    r"|\bvolumeProfile\.[a-z][A-Za-z]*\b"
     r"|\b(call|use|invoke)\s+the\s+\w+\s+tool\b|\btool_use\b|\bfunction_call\b",
     re.I)
 _CTRL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")

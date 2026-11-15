@@ -94,7 +94,7 @@ export default function NoteHistoryPanel({ open, onClose, noteId, currentNote, o
             hands the editor the server's copy, exactly as a version restore does. */}
         <AiChangeSetHistory noteId={noteId} open={open} onUndone={() => adoptAfterUndo(noteId, onRestored)} />
         {/* G-106 (Wave B lower-frequency sweep): same skeleton-line idiom as
-            NoteEditorPage/ResearchHome, instead of bare text. */}
+            NoteEditorPage's, instead of bare text. */}
         {isLoading && (
           <div className={styles.centered} role="status" aria-label="Loading history…">
             <SkeletonLine width="70%" height={13} />

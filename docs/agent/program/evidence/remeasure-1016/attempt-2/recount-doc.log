@@ -1,0 +1,10 @@
+node_modules LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+date -u: 2026-11-11T03:22:20Z
+tree: /c/w/pl-auto-remeasure HEAD 644b6d7188019c6a6d2d0ad4708152ead1c53ebb (measured master 75421184a33c10f42201c43f6bd2d6391594f4c1)
+harness: 6f9abd8515 (6f9abd85155112a64a6bc7facf0e5fc2de31c911) - recount.mjs only; no harness file is in the run tree
+rows 503 areas 76 mismatches 0
+TOTAL {'VERIFIED': 225, 'PARTIAL': 9, 'IMPL / UNVERIFIED': 69, 'MISSING': 126, 'BLOCKED': 43, 'UNMAPPED': 12, 'In scope': 484, 'Excluded': 19}
+C1 {'VERIFIED': 103, 'PARTIAL': 4, 'IMPL / UNVERIFIED': 17, 'MISSING': 28, 'BLOCKED': 11, 'UNMAPPED': 5, 'In scope': 168, 'Excluded': 11}
+C2 {'VERIFIED': 39, 'PARTIAL': 0, 'IMPL / UNVERIFIED': 32, 'MISSING': 20, 'BLOCKED': 5, 'UNMAPPED': 4, 'In scope': 100, 'Excluded': 1}
+C3 {'VERIFIED': 83, 'PARTIAL': 5, 'IMPL / UNVERIFIED': 20, 'MISSING': 78, 'BLOCKED': 27, 'UNMAPPED': 3, 'In scope': 216, 'Excluded': 7}
+# recount-doc exit 0

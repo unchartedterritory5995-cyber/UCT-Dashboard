@@ -52,7 +52,6 @@ def main() -> int:
     if args.db:
         os.environ["DATA_DIR"] = args.db
     from api.services import bars_sanitize, bars_split_repair
-    from api.services.cache import cache
 
     if args.tickers:
         tickers = [t.strip().upper() for t in args.tickers.split(",") if t.strip()]
@@ -83,16 +82,16 @@ def main() -> int:
         splits = None
         if args.warm:
             key = bars_sanitize._META_KEY.format(t)
-            meta = cache.get(key)
+            meta = bars_sanitize._META_CACHE.get(key)
             if meta is None:
                 try:
                     meta = bars_sanitize._fetch_meta(t)
-                    cache.set(key, meta, ttl=bars_sanitize._META_TTL)
+                    bars_sanitize._META_CACHE.set(key, meta, ttl=bars_sanitize._META_TTL)
                 except Exception:                              # noqa: BLE001
                     # ⛔ NEVER let a refused call fall through as "no splits" —
                     # that is a clean-looking sweep over a ticker nobody asked
                     # about. Count it, name it, and skip it.
-                    cache.set(key, {"ipo": None, "splits": []},
+                    bars_sanitize._META_CACHE.set(key, {"ipo": None, "splits": []},
                               ttl=bars_sanitize._META_FAIL_TTL)
                     meta_failed.append(t)
                     continue

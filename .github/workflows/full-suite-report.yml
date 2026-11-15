@@ -434,7 +434,10 @@ jobs:
     needs: plan
     runs-on: ubuntu-latest
     continue-on-error: true
-    timeout-minutes: 10
+    # ⚰️ 10 -> 15 (2026-11-12): `collect-profile — tests` (the whole tree's import) took 572 s on
+    # 42846929317 and was killed at 600 s on 43048737780, so the profile row went missing. It measures
+    # ONE import of the tree, so it cannot be split like a test shard; 15 is headroom, not a trend.
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       max-parallel: 6

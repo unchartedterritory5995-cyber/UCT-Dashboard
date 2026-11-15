@@ -12,13 +12,31 @@ import datetime
 import json
 import os
 import re
+import time
 from pathlib import Path
 from typing import Optional
 
 ENV_PATH = "UCT_AGENT_KNOWLEDGE_POLICY"
 DEFAULT_PATH = Path(__file__).resolve().parents[4] / "docs" / "agent" / "knowledge" / "policy.json"
 
-_cache: dict = {"path": None, "mtime": None, "data": None}
+_cache: dict = {"path": None, "key": None, "data": None}
+
+# A file whose mtime is this close to "now" may still be rewritten inside the same mtime tick, so a cache hit on it is
+# not trusted (git's "racily clean" rule). Only the first moments after an edit pay a re-read.
+RACY_WINDOW_NS = 2_000_000_000
+
+
+def file_key(st: os.stat_result) -> tuple:
+    """Cache key for a small config file: (mtime_ns, size). The float st_mtime alone served a STALE file when two
+    writes landed in one mtime tick; the size catches almost every such rewrite at zero extra I/O."""
+    return (st.st_mtime_ns, st.st_size)
+
+
+def cache_hit(entry: dict, p: Path, st: os.stat_result) -> bool:
+    """True when `entry` (path/key/data) still describes `p`. A same-size rewrite inside one mtime tick keeps the key,
+    so a file modified within RACY_WINDOW_NS of now is always re-read instead of trusted."""
+    return (entry["path"] == str(p) and entry["key"] == file_key(st)
+            and time.time_ns() - st.st_mtime_ns > RACY_WINDOW_NS)
 
 
 def path() -> Path:
@@ -29,10 +47,10 @@ def load() -> dict:
     """The policy, re-read when the file changes. A missing or broken file is an EMPTY policy (deny all)."""
     p = path()
     try:
-        m = p.stat().st_mtime
+        st = p.stat()
     except OSError:
         return _empty("policy file missing")
-    if _cache["path"] == str(p) and _cache["mtime"] == m:
+    if cache_hit(_cache, p, st):
         return _cache["data"]
     try:
         data = json.loads(p.read_text(encoding="utf-8"))
@@ -40,7 +58,7 @@ def load() -> dict:
             raise ValueError("bad shape")
     except (OSError, ValueError):
         return _empty("policy file unreadable")
-    _cache.update(path=str(p), mtime=m, data=data)
+    _cache.update(path=str(p), key=file_key(st), data=data)
     return data
 
 

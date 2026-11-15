@@ -8,7 +8,7 @@ import { createNoteViaApi } from './noteCreation'
 import { settleNoteWrite } from './offline/settleNoteWrite'
 import {
   CANVAS_FLAG, CANVAS_TAG, buildCanvasDoc, cleanSymbol, defaultCanvasTitle, starterBoard,
-} from './tradeCanvas'
+} from './tradeCanvasModel'
 
 /** The gate, latched per tab like every Notebook capability flag. */
 export function tradeCanvasEnabled() {

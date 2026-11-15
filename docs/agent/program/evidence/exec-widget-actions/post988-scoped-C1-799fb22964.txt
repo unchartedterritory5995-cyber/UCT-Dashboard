@@ -1,0 +1,1279 @@
+# 799fb22964 run C1: src/agent/agentClickLineFamilies.test.jsx src/agent/agentCountedRelation.test.jsx src/agent/agentCountedUnits.test.jsx src/agent/agentDiagonalChart.test.jsx src/agent/agentDiagonalChartHeldOut.test.js src/agent/agentEveryExceptSet.test.jsx src/agent/agentExceptCard.test.jsx src/agent/agentExcludedGate.test.js src/agent/agentFastPathEveryExcept.test.jsx src/agent/agentLineAbsolute.test.jsx src/agent/agentLineRelations.test.jsx src/agent/agentNegatedAnchor.test.jsx src/agent/agentNegatedClickAct.test.jsx src/agent/agentOrdinalRowCol.test.jsx 
+
+ RUN  v4.0.18 C:/w/pl-widget/app
+
+stderr | src/agent/agentClickLineFamilies.test.jsx > click-line families: the chart(s) meant run; the click (the anchor) never runs and is never offered > "could you put the chart on the other side of the top row from this one on weekly" (FOUR, clicked TL → ["TR"]): that plan runs, nothing asked
+[uct-agent] routing budget cut: charts not sent (chart.setType, chart.setTimeframe, chart.setSymbol, chart.setSession, chart.setScale, chart.applyTheme, chart.setBackground, chart.setCandleColors, volume.setState, chart.setSetting, chart.applyTemplate, chart.resetDefaults, chart.goToDate, chart.compare, chart.addCustomTimeframe, chart.applyThemeAll, chart.addTab, chart.selectTab, chart.closeTab, chart.renameTab, chart.linkTab)
+
+ ✓ src/agent/agentExceptCard.test.jsx (48 tests) 49886ms
+     ✓ "log on this row except the TSLA one" (clicked ML, ML excluded): the mock model plans the whole row, apply → card  1220ms
+     ✓ "put this row on log scale except the TSLA chart" (clicked ML, ML excluded): the mock model plans the whole row, apply → card  1024ms
+     ✓ "log on this row except the TSLA one" (clicked MM, ML excluded): the mock model plans the whole row, apply → card  1008ms
+     ✓ "put this row on log scale except the TSLA chart" (clicked MM, ML excluded): the mock model plans the whole row, apply → card  986ms
+     ✓ "log on this row except the TSLA one" (clicked BL, BM excluded): the mock model plans the whole row, apply → card  1007ms
+     ✓ "put this row on log scale except the TSLA chart" (clicked BL, BM excluded): the mock model plans the whole row, apply → card  1008ms
+     ✓ "log on this row except the TSLA one" (clicked ML, ML excluded): the mock model PROPOSES the whole row  994ms
+     ✓ "put this row on log scale except the TSLA chart" (clicked ML, ML excluded): the mock model PROPOSES the whole row  1009ms
+     ✓ "log on this row except the TSLA one" (clicked MM, ML excluded): the mock model PROPOSES the whole row  991ms
+     ✓ "put this row on log scale except the TSLA chart" (clicked MM, ML excluded): the mock model PROPOSES the whole row  1004ms
+     ✓ "log on this row except the TSLA one" (clicked BL, BM excluded): the mock model PROPOSES the whole row  1008ms
+     ✓ "put this row on log scale except the TSLA chart" (clicked BL, BM excluded): the mock model PROPOSES the whole row  994ms
+     ✓ "log on this row except the TSLA one" (clicked ML, ML excluded): the instant path (no plan)  991ms
+     ✓ "put this row on log scale except the TSLA chart" (clicked ML, ML excluded): the instant path (no plan)  997ms
+     ✓ "log on this row except the TSLA one" (clicked MM, ML excluded): the instant path (no plan)  994ms
+     ✓ "put this row on log scale except the TSLA chart" (clicked MM, ML excluded): the instant path (no plan)  985ms
+     ✓ "log on this row except the TSLA one" (clicked BL, BM excluded): the instant path (no plan)  993ms
+     ✓ "put this row on log scale except the TSLA chart" (clicked BL, BM excluded): the instant path (no plan)  994ms
+     ✓ "log on this row except the TSLA one" (clicked ML, ML excluded): a plan on the excluded chart alone → a question, and its choice  1226ms
+     ✓ "put this row on log scale except the TSLA chart" (clicked ML, ML excluded): a plan on the excluded chart alone → a question, and its choice  1109ms
+     ✓ "log on this row except the TSLA one" (clicked MM, ML excluded): a plan on the excluded chart alone → a question, and its choice  1156ms
+     ✓ "put this row on log scale except the TSLA chart" (clicked MM, ML excluded): a plan on the excluded chart alone → a question, and its choice  1137ms
+     ✓ "log on this row except the TSLA one" (clicked BL, BM excluded): a plan on the excluded chart alone → a question, and its choice  1144ms
+     ✓ "put this row on log scale except the TSLA chart" (clicked BL, BM excluded): a plan on the excluded chart alone → a question, and its choice  1152ms
+     ✓ "log on this row except the TSLA one" (clicked ML, ML excluded): the mock model plans the whole row, apply → card  1007ms
+     ✓ "put this row on log scale except the TSLA chart" (clicked ML, ML excluded): the mock model plans the whole row, apply → card  1011ms
+     ✓ "log on this row except the TSLA one" (clicked MM, ML excluded): the mock model plans the whole row, apply → card  987ms
+     ✓ "put this row on log scale except the TSLA chart" (clicked MM, ML excluded): the mock model plans the whole row, apply → card  1011ms
+     ✓ "log on this row except the TSLA one" (clicked BL, BM excluded): the mock model plans the whole row, apply → card  1011ms
+     ✓ "put this row on log scale except the TSLA chart" (clicked BL, BM excluded): the mock model plans the whole row, apply → card  1014ms
+     ✓ "log on this row except the TSLA one" (clicked ML, ML excluded): the mock model PROPOSES the whole row  1015ms
+     ✓ "put this row on log scale except the TSLA chart" (clicked ML, ML excluded): the mock model PROPOSES the whole row  1012ms
+     ✓ "log on this row except the TSLA one" (clicked MM, ML excluded): the mock model PROPOSES the whole row  991ms
+     ✓ "put this row on log scale except the TSLA chart" (clicked MM, ML excluded): the mock model PROPOSES the whole row  1008ms
+     ✓ "log on this row except the TSLA one" (clicked BL, BM excluded): the mock model PROPOSES the whole row  1005ms
+     ✓ "put this row on log scale except the TSLA chart" (clicked BL, BM excluded): the mock model PROPOSES the whole row  1003ms
+     ✓ "log on this row except the TSLA one" (clicked ML, ML excluded): the instant path (no plan)  994ms
+     ✓ "put this row on log scale except the TSLA chart" (clicked ML, ML excluded): the instant path (no plan)  1019ms
+     ✓ "log on this row except the TSLA one" (clicked MM, ML excluded): the instant path (no plan)  993ms
+     ✓ "put this row on log scale except the TSLA chart" (clicked MM, ML excluded): the instant path (no plan)  990ms
+     ✓ "log on this row except the TSLA one" (clicked BL, BM excluded): the instant path (no plan)  994ms
+     ✓ "put this row on log scale except the TSLA chart" (clicked BL, BM excluded): the instant path (no plan)  993ms
+     ✓ "log on this row except the TSLA one" (clicked ML, ML excluded): a plan on the excluded chart alone → a question, and its choice  1009ms
+     ✓ "put this row on log scale except the TSLA chart" (clicked ML, ML excluded): a plan on the excluded chart alone → a question, and its choice  1148ms
+     ✓ "log on this row except the TSLA one" (clicked MM, ML excluded): a plan on the excluded chart alone → a question, and its choice  1136ms
+     ✓ "put this row on log scale except the TSLA chart" (clicked MM, ML excluded): a plan on the excluded chart alone → a question, and its choice  1137ms
+     ✓ "log on this row except the TSLA one" (clicked BL, BM excluded): a plan on the excluded chart alone → a question, and its choice  1141ms
+     ✓ "put this row on log scale except the TSLA chart" (clicked BL, BM excluded): a plan on the excluded chart alone → a question, and its choice  1124ms
+ ✓ src/agent/agentLineRelations.test.jsx (53 tests) 54482ms
+     ✓ "make the first chart in this row weekly" (2x3, clicked BR)  1126ms
+     ✓ "make the last one in this row weekly" (3x3, clicked ML)  1006ms
+     ✓ "make the middle chart of this row weekly" (3x3, clicked BL)  1010ms
+     ✓ "make the top chart in this column weekly" (3x3, clicked BM)  1015ms
+     ✓ "make the bottom one of this column weekly" (2x2, clicked TR)  979ms
+     ✓ "make the leftmost chart on this row weekly" (1x3, clicked R)  976ms
+     ✓ "make the second chart in this column weekly" (3x3, clicked TR)  1011ms
+     ✓ "make the middle chart of this row weekly" (2x2, clicked TL)  992ms
+     ✓ "make the one in the same column but the other row weekly" (2x2, clicked TL)  1007ms
+     ✓ "make the chart in the same row but the other column weekly" (2x2, clicked BR)  1019ms
+     ✓ "make the chart in the same column but a different row weekly" (2x3, clicked TM)  1007ms
+     ✓ "make the one in the same row but the other column weekly" (2x3, clicked TM)  1011ms
+     ✓ "make the chart in the same column but the other row weekly" (3x3, clicked MM)  1005ms
+     ✓ "make the chart a row up weekly" (3x3, clicked BM)  1010ms
+     ✓ "make the one a row lower weekly" (2x3, clicked TR)  979ms
+     ✓ "make the chart across the row weekly" (1x3, clicked R)  984ms
+     ✓ "make the chart across the column weekly" (2x2, clicked TL)  994ms
+     ✓ "make the first chart in this row weekly" (2x3, clicked BR → "BL"): resolved when unique, asked with the real candidates when not  1040ms
+     ✓ "make the last one in this row weekly" (3x3, clicked ML → "MR"): resolved when unique, asked with the real candidates when not  1039ms
+     ✓ "make the middle chart of this row weekly" (3x3, clicked BL → "BM"): resolved when unique, asked with the real candidates when not  1024ms
+     ✓ "make the top chart in this column weekly" (3x3, clicked BM → "TM"): resolved when unique, asked with the real candidates when not  1039ms
+     ✓ "make the bottom one of this column weekly" (2x2, clicked TR → "BR"): resolved when unique, asked with the real candidates when not  1041ms
+     ✓ "make the leftmost chart on this row weekly" (1x3, clicked R → "L"): resolved when unique, asked with the real candidates when not  1041ms
+     ✓ "make the second chart in this column weekly" (3x3, clicked TR → "MR"): resolved when unique, asked with the real candidates when not  1040ms
+     ✓ "make the middle chart of this row weekly" (2x2, clicked TL → {"ask":[]}): resolved when unique, asked with the real candidates when not  991ms
+     ✓ "make the one in the same column but the other row weekly" (2x2, clicked TL → "BL"): resolved when unique, asked with the real candidates when not  1059ms
+     ✓ "make the chart in the same row but the other column weekly" (2x2, clicked BR → "BL"): resolved when unique, asked with the real candidates when not  1050ms
+     ✓ "make the chart in the same column but a different row weekly" (2x3, clicked TM → "BM"): resolved when unique, asked with the real candidates when not  1056ms
+     ✓ "make the one in the same row but the other column weekly" (2x3, clicked TM → {"ask":["TL","TR"]}): resolved when unique, asked with the real candidates when not  996ms
+     ✓ "make the chart in the same column but the other row weekly" (3x3, clicked MM → {"ask":["TM","BM"]}): resolved when unique, asked with the real candidates when not  1024ms
+     ✓ "make the chart a row up weekly" (3x3, clicked BM → "MM"): resolved when unique, asked with the real candidates when not  1016ms
+     ✓ "make the one a row lower weekly" (2x3, clicked TR → "BR"): resolved when unique, asked with the real candidates when not  1033ms
+     ✓ "make the chart across the row weekly" (1x3, clicked R → "L"): resolved when unique, asked with the real candidates when not  1024ms
+     ✓ "make the chart across the column weekly" (2x2, clicked TL → "BL"): resolved when unique, asked with the real candidates when not  1054ms
+     ✓ the ordinal lands ON the click: "the first chart in this row" with the first chart clicked → the click  1018ms
+     ✓ "make the middle chart on the bottom row weekly" (2x3, clicked TL → BM)  1036ms
+     ✓ "make the first chart in the top row weekly" (3x3, clicked BR → TL)  1027ms
+     ✓ "make the last one in the bottom row weekly" (2x3, clicked TM → BR)  1034ms
+     ✓ "make the top chart in the right column weekly" (3x3, clicked BL → TR)  1023ms
+     ✓ "make the bottom one of the left column weekly" (2x2, clicked TR → BL)  1021ms
+     ✓ "make the middle chart of the middle row weekly" (3x3, clicked TL → MM)  1029ms
+     ✓ "make the second chart in the top row weekly" (2x3, clicked BR → TM)  1020ms
+     ✓ "make the middle chart on the bottom row weekly" (2x3, clicked TL): a plan on the click (not that chart) never runs  1027ms
+     ✓ "make the first chart in the top row weekly" (3x3, clicked BR): a plan on the click (not that chart) never runs  1024ms
+     ✓ "make the last one in the bottom row weekly" (2x3, clicked TM): a plan on the click (not that chart) never runs  1014ms
+     ✓ "make the top chart in the right column weekly" (3x3, clicked BL): a plan on the click (not that chart) never runs  1020ms
+     ✓ "make the bottom one of the left column weekly" (2x2, clicked TR): a plan on the click (not that chart) never runs  1028ms
+     ✓ "make the middle chart of the middle row weekly" (3x3, clicked TL): a plan on the click (not that chart) never runs  1021ms
+     ✓ "make the second chart in the top row weekly" (2x3, clicked BR): a plan on the click (not that chart) never runs  998ms
+     ✓ "the row below is fine, just make this one weekly" (3x3, clicked MM): the plan on the click runs there  1200ms
+     ✓ "the column on the right is fine, just make this one weekly" (2x3, clicked TL): the plan on the click runs there  1119ms
+     ✓ "leave the top row alone and make this chart weekly" (2x3, clicked BM): the plan on the click runs there  1045ms
+     ✓ "make this one weekly, the other charts in this row can stay" (3x3, clicked ML): the plan on the click runs there  1076ms
+ ✓ src/agent/agentCountedUnits.test.jsx (99 tests) 67093ms
+     ✓ ROW3, clicked r0: "the chart two charts to the right of this one" — the plan on r2 runs there; nothing asked  1158ms
+     ✓ ROW3, clicked r0: "the one two charts to the right" — the plan on r2 runs there; nothing asked  1026ms
+     ✓ ROW3, clicked r0: "the chart 2 cells over to the right of this one" — the plan on r2 runs there; nothing asked  1024ms
+     ✓ ROW3, clicked r0: "the one 2 cells over to the right" — the plan on r2 runs there; nothing asked  1017ms
+     ✓ ROW3, clicked r2: "the chart two panes over to the left of this one" — the plan on r0 runs there; nothing asked  1038ms
+     ✓ ROW3, clicked r2: "the one two panes over to the left" — the plan on r0 runs there; nothing asked  1041ms
+     ✓ ROW3, clicked r2: "the chart 2 panels to the left of this one" — the plan on r0 runs there; nothing asked  1024ms
+     ✓ ROW3, clicked r2: "the one 2 panels to the left" — the plan on r0 runs there; nothing asked  1037ms
+     ✓ COL3, clicked k0: "the chart two charts below this one" — the plan on k2 runs there; nothing asked  1035ms
+     ✓ COL3, clicked k0: "the one two charts below" — the plan on k2 runs there; nothing asked  1039ms
+     ✓ COL3, clicked k0: "the chart 2 cells below this one" — the plan on k2 runs there; nothing asked  1038ms
+     ✓ COL3, clicked k0: "the one 2 cells below" — the plan on k2 runs there; nothing asked  1039ms
+     ✓ G23, clicked b2: "the chart two places to the left of this one" — the plan on b0 runs there; nothing asked  1041ms
+     ✓ G23, clicked b2: "the one two places to the left" — the plan on b0 runs there; nothing asked  1042ms
+     ✓ G23, clicked b2: "the chart 2 spots over to the left of this one" — the plan on b0 runs there; nothing asked  1062ms
+     ✓ G23, clicked b2: "the one 2 spots over to the left" — the plan on b0 runs there; nothing asked  1044ms
+     ✓ ROW3, clicked r0: "the chart two charts to the right of this one" — a plan on the CLICK never runs; the anchor is never offered  991ms
+     ✓ ROW3, clicked r0: "the one two charts to the right" — a plan on the CLICK never runs; the anchor is never offered  994ms
+     ✓ ROW3, clicked r0: "the chart 2 cells over to the right of this one" — a plan on the CLICK never runs; the anchor is never offered  991ms
+     ✓ ROW3, clicked r0: "the one 2 cells over to the right" — a plan on the CLICK never runs; the anchor is never offered  985ms
+     ✓ ROW3, clicked r2: "the chart two panes over to the left of this one" — a plan on the CLICK never runs; the anchor is never offered  970ms
+     ✓ ROW3, clicked r2: "the one two panes over to the left" — a plan on the CLICK never runs; the anchor is never offered  983ms
+     ✓ ROW3, clicked r2: "the chart 2 panels to the left of this one" — a plan on the CLICK never runs; the anchor is never offered  974ms
+     ✓ ROW3, clicked r2: "the one 2 panels to the left" — a plan on the CLICK never runs; the anchor is never offered  980ms
+     ✓ ROW3, clicked r2: "the chart three places to the left of this one" — a plan on the CLICK never runs; the anchor is never offered  991ms
+     ✓ ROW3, clicked r2: "the one three places to the left" — a plan on the CLICK never runs; the anchor is never offered  997ms
+     ✓ ROW3, clicked r2: "the chart 3 spots over to the left of this one" — a plan on the CLICK never runs; the anchor is never offered  987ms
+     ✓ ROW3, clicked r2: "the one 3 spots over to the left" — a plan on the CLICK never runs; the anchor is never offered  954ms
+     ✓ ROW3, clicked r1: "the chart two positions over to the left of this one" — a plan on the CLICK never runs; the anchor is never offered  974ms
+     ✓ ROW3, clicked r1: "the one two positions over to the left" — a plan on the CLICK never runs; the anchor is never offered  994ms
+     ✓ ROW3, clicked r1: "the chart 2 slots to the left of this one" — a plan on the CLICK never runs; the anchor is never offered  983ms
+     ✓ ROW3, clicked r1: "the one 2 slots to the left" — a plan on the CLICK never runs; the anchor is never offered  988ms
+     ✓ COL3, clicked k0: "the chart two charts below this one" — a plan on the CLICK never runs; the anchor is never offered  992ms
+     ✓ COL3, clicked k0: "the one two charts below" — a plan on the CLICK never runs; the anchor is never offered  993ms
+     ✓ COL3, clicked k0: "the chart 2 cells below this one" — a plan on the CLICK never runs; the anchor is never offered  991ms
+     ✓ COL3, clicked k0: "the one 2 cells below" — a plan on the CLICK never runs; the anchor is never offered  993ms
+     ✓ COL3, clicked k2: "the chart three panes above this one" — a plan on the CLICK never runs; the anchor is never offered  987ms
+     ✓ COL3, clicked k2: "the one three panes above" — a plan on the CLICK never runs; the anchor is never offered  978ms
+     ✓ COL3, clicked k2: "the chart 3 panels above this one" — a plan on the CLICK never runs; the anchor is never offered  986ms
+     ✓ COL3, clicked k2: "the one 3 panels above" — a plan on the CLICK never runs; the anchor is never offered  962ms
+     ✓ G23, clicked b2: "the chart two places to the left of this one" — a plan on the CLICK never runs; the anchor is never offered  991ms
+     ✓ G23, clicked b2: "the one two places to the left" — a plan on the CLICK never runs; the anchor is never offered  993ms
+     ✓ G23, clicked b2: "the chart 2 spots over to the left of this one" — a plan on the CLICK never runs; the anchor is never offered  977ms
+     ✓ G23, clicked b2: "the one 2 spots over to the left" — a plan on the CLICK never runs; the anchor is never offered  995ms
+     ✓ G23, clicked a1: "the chart two positions over to the right of this one" — a plan on the CLICK never runs; the anchor is never offered  1007ms
+     ✓ G23, clicked a1: "the one two positions over to the right" — a plan on the CLICK never runs; the anchor is never offered  1010ms
+     ✓ G23, clicked a1: "the chart 2 slots to the right of this one" — a plan on the CLICK never runs; the anchor is never offered  1005ms
+     ✓ G23, clicked a1: "the one 2 slots to the right" — a plan on the CLICK never runs; the anchor is never offered  965ms
+     ✓ ROW3, clicked r2: "the chart three places to the left of this one" overshoots — asked without the anchor; nothing changes  969ms
+     ✓ ROW3, clicked r2: "the one three places to the left" overshoots — asked without the anchor; nothing changes  997ms
+     ✓ ROW3, clicked r2: "the chart 3 spots over to the left of this one" overshoots — asked without the anchor; nothing changes  966ms
+     ✓ ROW3, clicked r2: "the one 3 spots over to the left" overshoots — asked without the anchor; nothing changes  994ms
+     ✓ ROW3, clicked r1: "the chart two positions over to the left of this one" overshoots — asked without the anchor; nothing changes  970ms
+     ✓ ROW3, clicked r1: "the one two positions over to the left" overshoots — asked without the anchor; nothing changes  996ms
+     ✓ ROW3, clicked r1: "the chart 2 slots to the left of this one" overshoots — asked without the anchor; nothing changes  995ms
+     ✓ ROW3, clicked r1: "the one 2 slots to the left" overshoots — asked without the anchor; nothing changes  992ms
+     ✓ COL3, clicked k2: "the chart three panes above this one" overshoots — asked without the anchor; nothing changes  991ms
+     ✓ COL3, clicked k2: "the one three panes above" overshoots — asked without the anchor; nothing changes  995ms
+     ✓ COL3, clicked k2: "the chart 3 panels above this one" overshoots — asked without the anchor; nothing changes  988ms
+     ✓ COL3, clicked k2: "the one 3 panels above" overshoots — asked without the anchor; nothing changes  996ms
+     ✓ G23, clicked a1: "the chart two positions over to the right of this one" overshoots — asked without the anchor; nothing changes  975ms
+     ✓ G23, clicked a1: "the one two positions over to the right" overshoots — asked without the anchor; nothing changes  1010ms
+     ✓ G23, clicked a1: "the chart 2 slots to the right of this one" overshoots — asked without the anchor; nothing changes  993ms
+     ✓ G23, clicked a1: "the one 2 slots to the right" overshoots — asked without the anchor; nothing changes  1008ms
+     ✓ "make the chart 2 spaces left of here weekly" (ROW3, r1 clicked): a plan on the click never runs; the anchor is never offered  995ms
+     ✓ "put the one a couple over to the right on weekly" (ROW3, r1 clicked): a plan on the click never runs; the anchor is never offered  997ms
+     ✓ "make it the chart 3 over weekly" (ROW3, r1 clicked): a plan on the click never runs; the anchor is never offered  975ms
+stderr | src/agent/agentFastPathEveryExcept.test.jsx > (a) "every chart except <relation to the click>" never applies or cards on the instant path > "add the 20 EMA to all charts other than the one diagonal from this one" (3)
+[uct-agent] routing budget cut: charts not sent (chart.setType, chart.setTimeframe, chart.setSymbol, chart.setSession, chart.setScale, chart.applyTheme, chart.setBackground, chart.setCandleColors, volume.setState, chart.setSetting, chart.applyTemplate, chart.resetDefaults, chart.goToDate, chart.compare, chart.addCustomTimeframe, chart.applyThemeAll, chart.addTab, chart.selectTab, chart.closeTab, chart.renameTab, chart.linkTab)
+
+ ✓ src/agent/agentEveryExceptSet.test.jsx (20 tests) 23084ms
+     ✓ "set every chart to weekly except the one diagonally across from this one" (0)  1404ms
+     ✓ "make all the charts weekly apart from the two on the left" (1)  1267ms
+     ✓ "make every chart weekly except the one above this one" (2)  1229ms
+     ✓ "put every chart on weekly except the one to the right of this" (3)  1177ms
+     ✓ "make every chart weekly except the top row" (4)  1229ms
+     ✓ "make every chart weekly except the left column" (5)  1271ms
+     ✓ "make all of them weekly except the one to the left of this one" (6)  1163ms
+     ✓ "everything weekly except TSLA" (7)  1123ms
+     ✓ "switch all the charts to weekly except the chart kitty-corner from this one" (8)  1408ms
+     ✓ "set every chart to weekly except the one diagonally across from this one" (9)  1208ms
+     ✓ "make all the charts weekly apart from the two on the left" (10)  1206ms
+     ✓ "make every chart weekly except this one" (11)  1131ms
+     ✓ "make the chart above this one weekly" (0)  1087ms
+     ✓ "make the chart above this one weekly" (1)  1021ms
+     ✓ "make the one next to the one I clicked weekly" (2)  1015ms
+     ✓ "make everything below this one weekly" (3)  1030ms
+     ✓ "make every chart below this one weekly" (4)  1003ms
+     ✓ "make every chart below this one weekly except the bottom row" (5)  1040ms
+     ✓ "make every chart to the right of this one weekly except the top row" (6)  1021ms
+     ✓ "make all the charts below this one weekly but not the bottom left" (7)  1050ms
+ ✓ src/agent/agentCountedRelation.test.jsx (120 tests) 80390ms
+     ✓ ROW3, clicked r0: "the chart two to the right of this one" — the plan on r2 runs there; the click is unchanged; nothing asked  1172ms
+     ✓ ROW3, clicked r0: "the one two to the right" — the plan on r2 runs there; the click is unchanged; nothing asked  1055ms
+     ✓ ROW3, clicked r0: "the second chart to the right of this" — the plan on r2 runs there; the click is unchanged; nothing asked  1025ms
+     ✓ ROW3, clicked r0: "the next-but-one chart to the right" — the plan on r2 runs there; the click is unchanged; nothing asked  1033ms
+     ✓ ROW3, clicked r2: "the chart two to the left of this one" — the plan on r0 runs there; the click is unchanged; nothing asked  1039ms
+     ✓ ROW3, clicked r2: "the one two to the left" — the plan on r0 runs there; the click is unchanged; nothing asked  1023ms
+     ✓ ROW3, clicked r2: "the second chart to the left of this" — the plan on r0 runs there; the click is unchanged; nothing asked  1025ms
+     ✓ ROW3, clicked r2: "the next-but-one chart to the left" — the plan on r0 runs there; the click is unchanged; nothing asked  1024ms
+     ✓ COL3, clicked k0: "the chart two below this one" — the plan on k2 runs there; the click is unchanged; nothing asked  1017ms
+     ✓ COL3, clicked k0: "the one two below" — the plan on k2 runs there; the click is unchanged; nothing asked  1038ms
+     ✓ COL3, clicked k0: "the second chart below this" — the plan on k2 runs there; the click is unchanged; nothing asked  1038ms
+     ✓ COL3, clicked k0: "the next-but-one chart below" — the plan on k2 runs there; the click is unchanged; nothing asked  1056ms
+     ✓ COL3, clicked k2: "the chart two above this one" — the plan on k0 runs there; the click is unchanged; nothing asked  1026ms
+     ✓ COL3, clicked k2: "the one two above" — the plan on k0 runs there; the click is unchanged; nothing asked  1041ms
+     ✓ COL3, clicked k2: "the second chart above this" — the plan on k0 runs there; the click is unchanged; nothing asked  1015ms
+     ✓ COL3, clicked k2: "the next-but-one chart above" — the plan on k0 runs there; the click is unchanged; nothing asked  1028ms
+     ✓ G23, clicked b2: "the chart two to the left of this one" — the plan on b0 runs there; the click is unchanged; nothing asked  1037ms
+     ✓ G23, clicked b2: "the one two to the left" — the plan on b0 runs there; the click is unchanged; nothing asked  1041ms
+     ✓ G23, clicked b2: "the second chart to the left of this" — the plan on b0 runs there; the click is unchanged; nothing asked  1039ms
+     ✓ G23, clicked b2: "the next-but-one chart to the left" — the plan on b0 runs there; the click is unchanged; nothing asked  1038ms
+     ✓ G23, clicked a0: "the chart two to the right of this one" — the plan on a2 runs there; the click is unchanged; nothing asked  1041ms
+     ✓ G23, clicked a0: "the one two to the right" — the plan on a2 runs there; the click is unchanged; nothing asked  1044ms
+     ✓ G23, clicked a0: "the second chart to the right of this" — the plan on a2 runs there; the click is unchanged; nothing asked  1037ms
+     ✓ G23, clicked a0: "the next-but-one chart to the right" — the plan on a2 runs there; the click is unchanged; nothing asked  1055ms
+     ✓ ROW3, clicked r0: "the chart two to the right of this one" — a plan on the CLICK never runs; any ask leaves the anchor out  994ms
+     ✓ ROW3, clicked r0: "the one two to the right" — a plan on the CLICK never runs; any ask leaves the anchor out  994ms
+     ✓ ROW3, clicked r0: "the second chart to the right of this" — a plan on the CLICK never runs; any ask leaves the anchor out  986ms
+     ✓ ROW3, clicked r0: "the next-but-one chart to the right" — a plan on the CLICK never runs; any ask leaves the anchor out  995ms
+     ✓ ROW3, clicked r2: "the chart two to the left of this one" — a plan on the CLICK never runs; any ask leaves the anchor out  997ms
+     ✓ ROW3, clicked r2: "the one two to the left" — a plan on the CLICK never runs; any ask leaves the anchor out  981ms
+     ✓ ROW3, clicked r2: "the second chart to the left of this" — a plan on the CLICK never runs; any ask leaves the anchor out  984ms
+     ✓ ROW3, clicked r2: "the next-but-one chart to the left" — a plan on the CLICK never runs; any ask leaves the anchor out  996ms
+     ✓ ROW3, clicked r2: "the chart three to the left of this one" — a plan on the CLICK never runs; any ask leaves the anchor out  957ms
+     ✓ ROW3, clicked r2: "the one three to the left" — a plan on the CLICK never runs; any ask leaves the anchor out  967ms
+     ✓ ROW3, clicked r1: "the chart two to the right of this one" — a plan on the CLICK never runs; any ask leaves the anchor out  990ms
+     ✓ ROW3, clicked r1: "the one two to the right" — a plan on the CLICK never runs; any ask leaves the anchor out  987ms
+     ✓ ROW3, clicked r1: "the second chart to the right of this" — a plan on the CLICK never runs; any ask leaves the anchor out  979ms
+     ✓ ROW3, clicked r1: "the next-but-one chart to the right" — a plan on the CLICK never runs; any ask leaves the anchor out  1004ms
+     ✓ COL3, clicked k0: "the chart two below this one" — a plan on the CLICK never runs; any ask leaves the anchor out  992ms
+     ✓ COL3, clicked k0: "the one two below" — a plan on the CLICK never runs; any ask leaves the anchor out  1004ms
+     ✓ COL3, clicked k0: "the second chart below this" — a plan on the CLICK never runs; any ask leaves the anchor out  967ms
+     ✓ COL3, clicked k0: "the next-but-one chart below" — a plan on the CLICK never runs; any ask leaves the anchor out  989ms
+     ✓ COL3, clicked k2: "the chart two above this one" — a plan on the CLICK never runs; any ask leaves the anchor out  995ms
+     ✓ COL3, clicked k2: "the one two above" — a plan on the CLICK never runs; any ask leaves the anchor out  994ms
+     ✓ COL3, clicked k2: "the second chart above this" — a plan on the CLICK never runs; any ask leaves the anchor out  975ms
+     ✓ COL3, clicked k2: "the next-but-one chart above" — a plan on the CLICK never runs; any ask leaves the anchor out  995ms
+     ✓ COL3, clicked k2: "the chart three above this one" — a plan on the CLICK never runs; any ask leaves the anchor out  969ms
+     ✓ COL3, clicked k2: "the one three above" — a plan on the CLICK never runs; any ask leaves the anchor out  987ms
+     ✓ G23, clicked b2: "the chart two to the left of this one" — a plan on the CLICK never runs; any ask leaves the anchor out  984ms
+     ✓ G23, clicked b2: "the one two to the left" — a plan on the CLICK never runs; any ask leaves the anchor out  983ms
+     ✓ G23, clicked b2: "the second chart to the left of this" — a plan on the CLICK never runs; any ask leaves the anchor out  995ms
+     ✓ G23, clicked b2: "the next-but-one chart to the left" — a plan on the CLICK never runs; any ask leaves the anchor out  1011ms
+     ✓ G23, clicked a0: "the chart two to the right of this one" — a plan on the CLICK never runs; any ask leaves the anchor out  985ms
+     ✓ G23, clicked a0: "the one two to the right" — a plan on the CLICK never runs; any ask leaves the anchor out  992ms
+     ✓ G23, clicked a0: "the second chart to the right of this" — a plan on the CLICK never runs; any ask leaves the anchor out  996ms
+     ✓ G23, clicked a0: "the next-but-one chart to the right" — a plan on the CLICK never runs; any ask leaves the anchor out  1005ms
+     ✓ G23, clicked b0: "the chart two above this one" — a plan on the CLICK never runs; any ask leaves the anchor out  993ms
+     ✓ G23, clicked b0: "the one two above" — a plan on the CLICK never runs; any ask leaves the anchor out  995ms
+     ✓ G23, clicked b0: "the second chart above this" — a plan on the CLICK never runs; any ask leaves the anchor out  989ms
+     ✓ G23, clicked b0: "the next-but-one chart above" — a plan on the CLICK never runs; any ask leaves the anchor out  977ms
+     ✓ G23, clicked a1: "the chart two below this one" — a plan on the CLICK never runs; any ask leaves the anchor out  992ms
+     ✓ G23, clicked a1: "the one two below" — a plan on the CLICK never runs; any ask leaves the anchor out  993ms
+     ✓ G23, clicked a1: "the second chart below this" — a plan on the CLICK never runs; any ask leaves the anchor out  995ms
+     ✓ G23, clicked a1: "the next-but-one chart below" — a plan on the CLICK never runs; any ask leaves the anchor out  1024ms
+     ✓ ROW3, clicked r2: "the chart three to the left of this one" overshoots — no chart: asked, nothing changes, never the anchor  980ms
+     ✓ ROW3, clicked r2: "the one three to the left" overshoots — no chart: asked, nothing changes, never the anchor  996ms
+     ✓ ROW3, clicked r1: "the chart two to the right of this one" overshoots — no chart: asked, nothing changes, never the anchor  972ms
+     ✓ ROW3, clicked r1: "the one two to the right" overshoots — no chart: asked, nothing changes, never the anchor  992ms
+     ✓ ROW3, clicked r1: "the second chart to the right of this" overshoots — no chart: asked, nothing changes, never the anchor  975ms
+     ✓ ROW3, clicked r1: "the next-but-one chart to the right" overshoots — no chart: asked, nothing changes, never the anchor  992ms
+     ✓ COL3, clicked k2: "the chart three above this one" overshoots — no chart: asked, nothing changes, never the anchor  976ms
+     ✓ COL3, clicked k2: "the one three above" overshoots — no chart: asked, nothing changes, never the anchor  990ms
+     ✓ G23, clicked b0: "the chart two above this one" overshoots — no chart: asked, nothing changes, never the anchor  992ms
+     ✓ G23, clicked b0: "the one two above" overshoots — no chart: asked, nothing changes, never the anchor  959ms
+     ✓ G23, clicked b0: "the second chart above this" overshoots — no chart: asked, nothing changes, never the anchor  995ms
+     ✓ G23, clicked b0: "the next-but-one chart above" overshoots — no chart: asked, nothing changes, never the anchor  1009ms
+     ✓ G23, clicked a1: "the chart two below this one" overshoots — no chart: asked, nothing changes, never the anchor  975ms
+     ✓ G23, clicked a1: "the one two below" overshoots — no chart: asked, nothing changes, never the anchor  995ms
+     ✓ G23, clicked a1: "the second chart below this" overshoots — no chart: asked, nothing changes, never the anchor  985ms
+     ✓ G23, clicked a1: "the next-but-one chart below" overshoots — no chart: asked, nothing changes, never the anchor  992ms
+stderr | src/agent/agentFastPathEveryExcept.test.jsx > (b) fastParse never returns ops for it > "set every chart to daily except the one under this one" (0)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentFastPathEveryExcept.test.jsx > (b) fastParse never returns ops for it > "put all the charts on the 5 minute apart from the one beside this one" (1)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentFastPathEveryExcept.test.jsx > (b) fastParse never returns ops for it > "hide volume on every chart but not the chart to the left of this one" (2)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentFastPathEveryExcept.test.jsx > (b) fastParse never returns ops for it > "add the 20 EMA to all charts other than the one diagonal from this one" (3)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentFastPathEveryExcept.test.jsx > (b) fastParse never returns ops for it > "make every chart weekly excluding the one right above the chart I clicked" (4)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentFastPathEveryExcept.test.jsx > (b) fastParse never returns ops for it > "switch all of them to monthly besides the one opposite this one" (5)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentFastPathEveryExcept.test.jsx > (b) fastParse never returns ops for it > "show volume on every chart aside from the one to the right of this" (6)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentFastPathEveryExcept.test.jsx > (b) fastParse never returns ops for it > "remove the 50 SMA from every chart except the one below the selected chart" (7)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentFastPathEveryExcept.test.jsx > (b) fastParse never returns ops for it > "turn every chart to the hourly except for the one next to the one I picked" (8)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentFastPathEveryExcept.test.jsx > (b) fastParse never returns ops for it > "change all charts to weekly save the one kitty corner from this one" (9)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentFastPathEveryExcept.test.jsx > (b) fastParse never returns ops for it > "every chart daily except the one over this one" (10)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentFastPathEveryExcept.test.jsx > (b) fastParse never returns ops for it > "all charts weekly except the ones beside this one" (11)
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/agent/agentExcludedGate.test.js (7 tests) 25ms
+ ✓ src/agent/agentOrdinalRowCol.test.jsx (14 tests) 1194ms
+     ✓ only the bottom-middle chart goes log; nothing is asked  1188ms
+ ✓ src/agent/agentDiagonalChartHeldOut.test.js (1 test) 2ms
+stderr | src/agent/agentFastPathEveryExcept.test.jsx > (c) control: the instant path does claim the plain one-chart change > fastParse claims "set every chart to weekly" for every chart
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/agentFastPathEveryExcept.test.jsx > (c) control: the instant path does claim the plain one-chart change > fastParse claims "hide volume on all charts" for every chart
+An update to AgentPanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/agent/agentFastPathEveryExcept.test.jsx (28 tests) 14361ms
+     ✓ "set every chart to daily except the one under this one" (0)  1070ms
+     ✓ "put all the charts on the 5 minute apart from the one beside this one" (1)  986ms
+     ✓ "hide volume on every chart but not the chart to the left of this one" (2)  997ms
+     ✓ "add the 20 EMA to all charts other than the one diagonal from this one" (3)  1021ms
+     ✓ "make every chart weekly excluding the one right above the chart I clicked" (4)  996ms
+     ✓ "switch all of them to monthly besides the one opposite this one" (5)  993ms
+     ✓ "show volume on every chart aside from the one to the right of this" (6)  1009ms
+     ✓ "remove the 50 SMA from every chart except the one below the selected chart" (7)  1007ms
+     ✓ "turn every chart to the hourly except for the one next to the one I picked" (8)  1006ms
+     ✓ "change all charts to weekly save the one kitty corner from this one" (9)  989ms
+     ✓ "every chart daily except the one over this one" (10)  1007ms
+     ✓ "all charts weekly except the ones beside this one" (11)  1010ms
+     ✓ "set this chart to weekly" (0)  1036ms
+     ✓ "hide volume on this chart" (1)  1039ms
+ ✓ src/agent/agentDiagonalChart.test.jsx (89 tests) 41786ms
+     ✓ changes the bottom-right, never the clicked top-left  1107ms
+     ✓ held-out "put the chart across the diagonal from this one on weekly"  1059ms
+     ✓ held-out "switch the kitty corner chart from this one to weekly"  1024ms
+     ✓ held-out "make the one catty-corner to this chart weekly"  1039ms
+     ✓ NEGATIVE no diagonal cell (one row of three): asked with the real chart names; nothing changes, never the click  995ms
+     ✓ make the chart in the opposite corner from this one weekly (clicked c1): the plan on c2 runs there; the clicked chart is unchanged  1038ms
+     ✓ the one directly across from it should be weekly (clicked c3): the plan on c0 runs there; the clicked chart is unchanged  1035ms
+     ✓ make the chart diagonally opposite weekly (clicked c0): the plan on c3 runs there; the clicked chart is unchanged  1043ms
+     ✓ weekly on the cell kitty corner to the selected chart (clicked c2): the plan on c1 runs there; the clicked chart is unchanged  1054ms
+     ✓ make the chart in the opposite corner from this one weekly (clicked c1): a plan on the CLICKED chart (the anchor) is asked about, nothing changes  993ms
+     ✓ the one directly across from it should be weekly (clicked c3): a plan on the CLICKED chart (the anchor) is asked about, nothing changes  992ms
+     ✓ make the chart diagonally opposite weekly (clicked c0): a plan on the CLICKED chart (the anchor) is asked about, nothing changes  993ms
+     ✓ weekly on the cell kitty corner to the selected chart (clicked c2): a plan on the CLICKED chart (the anchor) is asked about, nothing changes  994ms
+     ✓ a 3×3 grid: from a corner the diagonally opposite chart is the far corner; from the centre four fit, so it asks with their names  2065ms
+     ✓ NEGATIVE a relation word UCT cannot place ("facing", "on the far side of") never falls back to the anchor: asked, nothing changes  1981ms
+     ✓ a bare "this" with no relation still means the clicked chart (unchanged rule)  1040ms
+     ✓ "make the opposite-corner chart weekly" (c2 clicked): the plan on the diagonal runs there; the click is unchanged  1030ms
+     ✓ "switch the opposite corner one to weekly" (c2 clicked): the plan on the diagonal runs there; the click is unchanged  1052ms
+     ✓ "put the diagonal cell on the weekly" (c2 clicked): the plan on the diagonal runs there; the click is unchanged  1053ms
+     ✓ "make the diagonally-opposite panel weekly" (c2 clicked): the plan on the diagonal runs there; the click is unchanged  1026ms
+     ✓ "switch the diagonally opposite chart to weekly" (c2 clicked): the plan on the diagonal runs there; the click is unchanged  1037ms
+     ✓ "put the kitty-corner one on the weekly" (c2 clicked): the plan on the diagonal runs there; the click is unchanged  1039ms
+     ✓ "make the kitty corner cell weekly" (c2 clicked): the plan on the diagonal runs there; the click is unchanged  1039ms
+     ✓ "switch the catty-corner panel to weekly" (c2 clicked): the plan on the diagonal runs there; the click is unchanged  1042ms
+     ✓ "put the catty corner chart on the weekly" (c2 clicked): the plan on the diagonal runs there; the click is unchanged  1031ms
+     ✓ "make the far-corner one weekly" (c2 clicked): the plan on the diagonal runs there; the click is unchanged  1039ms
+     ✓ "switch the far corner cell to weekly" (c2 clicked): the plan on the diagonal runs there; the click is unchanged  1038ms
+     ✓ "make the opposite-corner chart weekly" (c2 clicked): a plan on the CLICKED chart is asked about, nothing changes  1002ms
+     ✓ "switch the opposite corner one to weekly" (c2 clicked): a plan on the CLICKED chart is asked about, nothing changes  989ms
+     ✓ "put the diagonal cell on the weekly" (c2 clicked): a plan on the CLICKED chart is asked about, nothing changes  962ms
+     ✓ "make the diagonally-opposite panel weekly" (c2 clicked): a plan on the CLICKED chart is asked about, nothing changes  980ms
+     ✓ "switch the diagonally opposite chart to weekly" (c2 clicked): a plan on the CLICKED chart is asked about, nothing changes  994ms
+     ✓ "put the kitty-corner one on the weekly" (c2 clicked): a plan on the CLICKED chart is asked about, nothing changes  996ms
+     ✓ "make the kitty corner cell weekly" (c2 clicked): a plan on the CLICKED chart is asked about, nothing changes  994ms
+     ✓ "switch the catty-corner panel to weekly" (c2 clicked): a plan on the CLICKED chart is asked about, nothing changes  995ms
+     ✓ "put the catty corner chart on the weekly" (c2 clicked): a plan on the CLICKED chart is asked about, nothing changes  992ms
+     ✓ "make the far-corner one weekly" (c2 clicked): a plan on the CLICKED chart is asked about, nothing changes  986ms
+     ✓ "switch the far corner cell to weekly" (c2 clicked): a plan on the CLICKED chart is asked about, nothing changes  995ms
+     ✓ resolves to none and asks; nothing changes, never the click  996ms
+ ✓ src/agent/agentNegatedAnchor.test.jsx (91 tests) 171320ms
+     ✓ "leave this alone and make the one under it weekly" (2x2, clicked TL): a plan or proposal on the click is never applied, carded or offered  2131ms
+     ✓ "make the one to the right of this weekly but keep this chart as it is" (2x2, clicked TL): a plan or proposal on the click is never applied, carded or offered  1976ms
+     ✓ "not the clicked one though and make the one to the left of it weekly" (2x2, clicked TR): a plan or proposal on the click is never applied, carded or offered  2004ms
+     ✓ "make the one to the right of this weekly but don't change this one" (2x2, clicked BL): a plan or proposal on the click is never applied, carded or offered  1971ms
+     ✓ "leave the clicked one alone and make the one above it weekly" (2x2, clicked BR): a plan or proposal on the click is never applied, carded or offered  1979ms
+     ✓ "make the one to the left of this weekly but keep this one as it is" (2x2, clicked BR): a plan or proposal on the click is never applied, carded or offered  1988ms
+     ✓ "keep this chart as it is and make the one to the right of it weekly" (2x3, clicked TL): a plan or proposal on the click is never applied, carded or offered  2017ms
+     ✓ "make the one under this weekly but keep this one as it is" (2x3, clicked TM): a plan or proposal on the click is never applied, carded or offered  1996ms
+     ✓ "not the clicked one though and make the one to the left of it weekly" (2x3, clicked TM): a plan or proposal on the click is never applied, carded or offered  2001ms
+     ✓ "make the one under this weekly but don't touch this chart" (2x3, clicked TR): a plan or proposal on the click is never applied, carded or offered  1986ms
+     ✓ "not this one though and make the one to the right of it weekly" (2x3, clicked BL): a plan or proposal on the click is never applied, carded or offered  1985ms
+     ✓ "make the one above this weekly but leave the clicked one alone" (2x3, clicked BL): a plan or proposal on the click is never applied, carded or offered  1987ms
+     ✓ "keep this as it is and make the one above it weekly" (2x3, clicked BM): a plan or proposal on the click is never applied, carded or offered  1988ms
+     ✓ "make the one to the left of this weekly but don't touch this chart" (2x3, clicked BM): a plan or proposal on the click is never applied, carded or offered  1981ms
+     ✓ "don't change the clicked one and make the one to the left of it weekly" (2x3, clicked BR): a plan or proposal on the click is never applied, carded or offered  1993ms
+     ✓ "make the one under this weekly but leave this one alone" (3x3, clicked TL): a plan or proposal on the click is never applied, carded or offered  2012ms
+     ✓ "keep this one as it is and make the one under it weekly" (3x3, clicked TM): a plan or proposal on the click is never applied, carded or offered  2005ms
+     ✓ "make the one to the right of this weekly but don't touch the clicked one" (3x3, clicked TM): a plan or proposal on the click is never applied, carded or offered  2016ms
+     ✓ "don't touch this chart and make the one under it weekly" (3x3, clicked TR): a plan or proposal on the click is never applied, carded or offered  2013ms
+     ✓ "make the one to the left of this weekly but leave this one alone" (3x3, clicked TR): a plan or proposal on the click is never applied, carded or offered  1971ms
+     ✓ "not this one though and make the one to the right of it weekly" (3x3, clicked ML): a plan or proposal on the click is never applied, carded or offered  2041ms
+     ✓ "make the one above this weekly but leave the clicked one alone" (3x3, clicked ML): a plan or proposal on the click is never applied, carded or offered  2017ms
+     ✓ "leave this chart alone and make the one to the right of it weekly" (3x3, clicked MM): a plan or proposal on the click is never applied, carded or offered  2023ms
+     ✓ "make the one above this weekly but keep this one as it is" (3x3, clicked MM): a plan or proposal on the click is never applied, carded or offered  1971ms
+     ✓ "leave this one alone and make the one under it weekly" (3x3, clicked MR): a plan or proposal on the click is never applied, carded or offered  2018ms
+     ✓ "make the one above this weekly but don't touch this one" (3x3, clicked MR): a plan or proposal on the click is never applied, carded or offered  2007ms
+     ✓ "don't touch this and make the one to the right of it weekly" (3x3, clicked BL): a plan or proposal on the click is never applied, carded or offered  1996ms
+     ✓ "make the one above this weekly but don't change this chart" (3x3, clicked BL): a plan or proposal on the click is never applied, carded or offered  2002ms
+     ✓ "not the clicked one though and make the one above it weekly" (3x3, clicked BM): a plan or proposal on the click is never applied, carded or offered  2000ms
+     ✓ "make the one to the left of this weekly but leave this one alone" (3x3, clicked BM): a plan or proposal on the click is never applied, carded or offered  2032ms
+     ✓ "keep this chart as it is and make the one to the left of it weekly" (3x3, clicked BR): a plan or proposal on the click is never applied, carded or offered  2001ms
+     ✓ "leave this alone and make the one under it weekly" (2x2, clicked TL): the relation's chart runs, nothing asked  1040ms
+     ✓ "make the one to the right of this weekly but keep this chart as it is" (2x2, clicked TL): the relation's chart runs, nothing asked  1038ms
+     ✓ "not the clicked one though and make the one to the left of it weekly" (2x2, clicked TR): the relation's chart runs, nothing asked  1041ms
+     ✓ "make the one to the right of this weekly but don't change this one" (2x2, clicked BL): the relation's chart runs, nothing asked  1029ms
+     ✓ "leave the clicked one alone and make the one above it weekly" (2x2, clicked BR): the relation's chart runs, nothing asked  1035ms
+     ✓ "make the one to the left of this weekly but keep this one as it is" (2x2, clicked BR): the relation's chart runs, nothing asked  1042ms
+     ✓ "keep this chart as it is and make the one to the right of it weekly" (2x3, clicked TL): the relation's chart runs, nothing asked  1033ms
+     ✓ "make the one under this weekly but keep this one as it is" (2x3, clicked TM): the relation's chart runs, nothing asked  1039ms
+     ✓ "not the clicked one though and make the one to the left of it weekly" (2x3, clicked TM): the relation's chart runs, nothing asked  1040ms
+     ✓ "make the one under this weekly but don't touch this chart" (2x3, clicked TR): the relation's chart runs, nothing asked  1036ms
+     ✓ "not this one though and make the one to the right of it weekly" (2x3, clicked BL): the relation's chart runs, nothing asked  1038ms
+     ✓ "make the one above this weekly but leave the clicked one alone" (2x3, clicked BL): the relation's chart runs, nothing asked  1040ms
+     ✓ "keep this as it is and make the one above it weekly" (2x3, clicked BM): the relation's chart runs, nothing asked  1024ms
+     ✓ "make the one to the left of this weekly but don't touch this chart" (2x3, clicked BM): the relation's chart runs, nothing asked  1037ms
+     ✓ "don't change the clicked one and make the one to the left of it weekly" (2x3, clicked BR): the relation's chart runs, nothing asked  1040ms
+     ✓ "make the one under this weekly but leave this one alone" (3x3, clicked TL): the relation's chart runs, nothing asked  1031ms
+     ✓ "keep this one as it is and make the one under it weekly" (3x3, clicked TM): the relation's chart runs, nothing asked  1059ms
+     ✓ "make the one to the right of this weekly but don't touch the clicked one" (3x3, clicked TM): the relation's chart runs, nothing asked  1054ms
+     ✓ "don't touch this chart and make the one under it weekly" (3x3, clicked TR): the relation's chart runs, nothing asked  1053ms
+     ✓ "make the one to the left of this weekly but leave this one alone" (3x3, clicked TR): the relation's chart runs, nothing asked  1046ms
+     ✓ "not this one though and make the one to the right of it weekly" (3x3, clicked ML): the relation's chart runs, nothing asked  1068ms
+     ✓ "make the one above this weekly but leave the clicked one alone" (3x3, clicked ML): the relation's chart runs, nothing asked  1059ms
+     ✓ "leave this chart alone and make the one to the right of it weekly" (3x3, clicked MM): the relation's chart runs, nothing asked  1052ms
+     ✓ "make the one above this weekly but keep this one as it is" (3x3, clicked MM): the relation's chart runs, nothing asked  1058ms
+     ✓ "leave this one alone and make the one under it weekly" (3x3, clicked MR): the relation's chart runs, nothing asked  1057ms
+     ✓ "make the one above this weekly but don't touch this one" (3x3, clicked MR): the relation's chart runs, nothing asked  1041ms
+     ✓ "don't touch this and make the one to the right of it weekly" (3x3, clicked BL): the relation's chart runs, nothing asked  1055ms
+     ✓ "make the one above this weekly but don't change this chart" (3x3, clicked BL): the relation's chart runs, nothing asked  1058ms
+     ✓ "not the clicked one though and make the one above it weekly" (3x3, clicked BM): the relation's chart runs, nothing asked  1033ms
+     ✓ "make the one to the left of this weekly but leave this one alone" (3x3, clicked BM): the relation's chart runs, nothing asked  1075ms
+     ✓ "keep this chart as it is and make the one to the left of it weekly" (3x3, clicked BR): the relation's chart runs, nothing asked  1053ms
+     ✓ "weekly on this one, leave the charts around it alone" (2x2, clicked TL): the click acts; the excluded charts never run, are never carded or offered  3036ms
+     ✓ "switch this chart to weekly, not the one under it" (2x2, clicked TR): the click acts; the excluded charts never run, are never carded or offered  3044ms
+     ✓ "weekly on this one, leave the charts around it alone" (2x3, clicked TL): the click acts; the excluded charts never run, are never carded or offered  3040ms
+     ✓ "switch this chart to weekly, not the one under it" (2x3, clicked TM): the click acts; the excluded charts never run, are never carded or offered  3052ms
+     ✓ "put this chart on weekly and keep the ones around it as they are" (2x3, clicked BL): the click acts; the excluded charts never run, are never carded or offered  3058ms
+     ✓ "weekly on this one, leave the charts around it alone" (3x3, clicked TL): the click acts; the excluded charts never run, are never carded or offered  3123ms
+     ✓ "switch this chart to weekly, not the one under it" (3x3, clicked TM): the click acts; the excluded charts never run, are never carded or offered  3122ms
+     ✓ "put this chart on weekly and keep the ones around it as they are" (3x3, clicked ML): the click acts; the excluded charts never run, are never carded or offered  3138ms
+     ✓ "make this one weekly but don't touch the one below it" (3x3, clicked MM): the click acts; the excluded charts never run, are never carded or offered  3152ms
+     ✓ "weekly on this one, leave the charts around it alone" (3x3, clicked BL): the click acts; the excluded charts never run, are never carded or offered  3080ms
+     ✓ "log on this row except the SPY one" (2x2, clicked TL)  2972ms
+     ✓ "log on this row except the NVDA one" (2x2, clicked BL)  2962ms
+     ✓ "log on this row except the SPY one" (2x3, clicked TL)  2977ms
+     ✓ "log on this row except the NVDA one" (2x3, clicked TR)  2971ms
+     ✓ "log on this row except the TSLA one" (2x3, clicked BM)  2967ms
+     ✓ "log on this row except the SPY one" (3x3, clicked TL)  2988ms
+     ✓ "log on this row except the NVDA one" (3x3, clicked TR)  2990ms
+     ✓ "log on this row except the TSLA one" (3x3, clicked MM)  2999ms
+     ✓ "log on this row except the AAPL one" (3x3, clicked BL)  3001ms
+     ✓ "log on this row except the AVGO one" (3x3, clicked BR)  2968ms
+     ✓ "leave this alone, weekly on the other one" (clicked L): the other chart runs; a plan on the click never runs and the click is never offered  2022ms
+     ✓ "switch the other chart to weekly and don't touch this one" (clicked L): the other chart runs; a plan on the click never runs and the click is never offered  2020ms
+     ✓ "keep this one as it is and put the other one on weekly" (clicked L): the other chart runs; a plan on the click never runs and the click is never offered  2033ms
+     ✓ "weekly on the other chart, not this one" (clicked L): the other chart runs; a plan on the click never runs and the click is never offered  2031ms
+     ✓ "leave this alone, weekly on the other one" (clicked R): the other chart runs; a plan on the click never runs and the click is never offered  2000ms
+     ✓ "switch the other chart to weekly and don't touch this one" (clicked R): the other chart runs; a plan on the click never runs and the click is never offered  2019ms
+     ✓ "keep this one as it is and put the other one on weekly" (clicked R): the other chart runs; a plan on the click never runs and the click is never offered  2018ms
+     ✓ "weekly on the other chart, not this one" (clicked R): the other chart runs; a plan on the click never runs and the click is never offered  2018ms
+ ✓ src/agent/agentLineAbsolute.test.jsx (340 tests) 193675ms
+     ✓ "set the middle one of the top row to weekly" (3x3), click INSIDE the line: a plan on the click never runs  1154ms
+     ✓ "could you set the middle one of the top row to the weekly view for me" (3x3), click INSIDE the line: a plan on the click never runs  1101ms
+     ✓ "could you set the middle one of the top row to the weekly view for me" (1x3), click INSIDE the line: a plan on the click never runs  994ms
+     ✓ "could you set the middle one of the top row to the weekly view for me" (2x3), click INSIDE the line: a plan on the click never runs  986ms
+     ✓ "make the first one of the top row weekly" (1x3), click INSIDE the line: a plan on the click never runs  1007ms
+     ✓ "could you put the first one of the top row on the weekly view for me, thanks" (1x3), click INSIDE the line: a plan on the click never runs  977ms
+     ✓ "make the last one in the first row weekly" (1x3), click INSIDE the line: a plan on the click never runs  1028ms
+     ✓ "could you put the last one in the first row on the weekly view for me, thanks" (1x3), click INSIDE the line: a plan on the click never runs  990ms
+     ✓ "make the second one on the bottom row weekly" (1x3), click INSIDE the line: a plan on the click never runs  1019ms
+     ✓ "could you put the second one on the bottom row on the weekly view for me, thanks" (1x3), click INSIDE the line: a plan on the click never runs  992ms
+     ✓ "make the third chart of the last row weekly" (1x3), click INSIDE the line: a plan on the click never runs  1022ms
+     ✓ "could you put the third chart of the last row on the weekly view for me, thanks" (1x3), click INSIDE the line: a plan on the click never runs  996ms
+     ✓ "make the top row's middle one weekly" (2x3), click INSIDE the line: a plan on the click never runs  1022ms
+     ✓ "could you put the top row's middle one on the weekly view for me, thanks" (2x3), click INSIDE the line: a plan on the click never runs  995ms
+     ✓ "make the leftmost one of the first row weekly" (2x3), click INSIDE the line: a plan on the click never runs  1027ms
+     ✓ "could you put the leftmost one of the first row on the weekly view for me, thanks" (2x3), click INSIDE the line: a plan on the click never runs  1000ms
+     ✓ "make the rightmost one in the bottom row weekly" (2x3), click INSIDE the line: a plan on the click never runs  1021ms
+     ✓ "could you put the rightmost one in the bottom row on the weekly view for me, thanks" (2x3), click INSIDE the line: a plan on the click never runs  1009ms
+     ✓ "make the first one on the left column weekly" (2x3), click INSIDE the line: a plan on the click never runs  1041ms
+     ✓ "could you put the first one on the left column on the weekly view for me, thanks" (2x3), click INSIDE the line: a plan on the click never runs  1000ms
+     ✓ "make the top chart of the first column weekly" (2x3), click INSIDE the line: a plan on the click never runs  1014ms
+     ✓ "could you put the top chart of the first column on the weekly view for me, thanks" (2x3), click INSIDE the line: a plan on the click never runs  994ms
+     ✓ "make the last chart in the second column weekly" (2x3), click INSIDE the line: a plan on the click never runs  1027ms
+     ✓ "could you put the last chart in the second column on the weekly view for me, thanks" (2x3), click INSIDE the line: a plan on the click never runs  993ms
+     ✓ "make the bottom chart on the right column weekly" (2x3), click INSIDE the line: a plan on the click never runs  1022ms
+     ✓ "could you put the bottom chart on the right column on the weekly view for me, thanks" (2x3), click INSIDE the line: a plan on the click never runs  998ms
+     ✓ "make the top row's second chart weekly" (3x3), click INSIDE the line: a plan on the click never runs  1034ms
+     ✓ "could you put the top row's second chart on the weekly view for me, thanks" (3x3), click INSIDE the line: a plan on the click never runs  1009ms
+     ✓ "make the first row's third one weekly" (3x3), click INSIDE the line: a plan on the click never runs  1026ms
+     ✓ "could you put the first row's third one on the weekly view for me, thanks" (3x3), click INSIDE the line: a plan on the click never runs  1010ms
+     ✓ "make the middle one of the middle row weekly" (3x3), click INSIDE the line: a plan on the click never runs  1016ms
+     ✓ "could you put the middle one of the middle row on the weekly view for me, thanks" (3x3), click INSIDE the line: a plan on the click never runs  960ms
+     ✓ "make the leftmost one in the second row weekly" (3x3), click INSIDE the line: a plan on the click never runs  1019ms
+     ✓ "could you put the leftmost one in the second row on the weekly view for me, thanks" (3x3), click INSIDE the line: a plan on the click never runs  1024ms
+     ✓ "make the rightmost one on the bottom row weekly" (3x3), click INSIDE the line: a plan on the click never runs  1020ms
+     ✓ "could you put the rightmost one on the bottom row on the weekly view for me, thanks" (3x3), click INSIDE the line: a plan on the click never runs  1017ms
+     ✓ "make the first chart of the left column weekly" (3x3), click INSIDE the line: a plan on the click never runs  1027ms
+     ✓ "could you put the first chart of the left column on the weekly view for me, thanks" (3x3), click INSIDE the line: a plan on the click never runs  1035ms
+     ✓ "make the last chart in the first column weekly" (3x3), click INSIDE the line: a plan on the click never runs  1039ms
+     ✓ "could you put the last chart in the first column on the weekly view for me, thanks" (3x3), click INSIDE the line: a plan on the click never runs  1011ms
+     ✓ "make the second chart on the middle column weekly" (3x3), click INSIDE the line: a plan on the click never runs  1023ms
+     ✓ "could you put the second chart on the middle column on the weekly view for me, thanks" (3x3), click INSIDE the line: a plan on the click never runs  1004ms
+     ✓ "make the second column's third chart weekly" (3x3), click INSIDE the line: a plan on the click never runs  1027ms
+     ✓ "could you put the second column's third chart on the weekly view for me, thanks" (3x3), click INSIDE the line: a plan on the click never runs  1009ms
+     ✓ "make the right column's middle one weekly" (3x3), click INSIDE the line: a plan on the click never runs  1021ms
+     ✓ "could you put the right column's middle one on the weekly view for me, thanks" (3x3), click INSIDE the line: a plan on the click never runs  1011ms
+     ✓ "make the top one of the last column weekly" (3x3), click INSIDE the line: a plan on the click never runs  1031ms
+     ✓ "could you put the top one of the last column on the weekly view for me, thanks" (3x3), click INSIDE the line: a plan on the click never runs  1002ms
+     ✓ "set the middle one of the top row to weekly" (3x3), click INSIDE the line: the named cell's plan runs, nothing asked  1031ms
+     ✓ "could you set the middle one of the top row to the weekly view for me" (3x3), click INSIDE the line: the named cell's plan runs, nothing asked  1060ms
+     ✓ "could you set the middle one of the top row to the weekly view for me" (1x3), click INSIDE the line: the named cell's plan runs, nothing asked  1012ms
+     ✓ "could you set the middle one of the top row to the weekly view for me" (2x3), click INSIDE the line: the named cell's plan runs, nothing asked  1029ms
+     ✓ "make the first one of the top row weekly" (1x3), click INSIDE the line: the named cell's plan runs, nothing asked  1012ms
+     ✓ "could you put the first one of the top row on the weekly view for me, thanks" (1x3), click INSIDE the line: the named cell's plan runs, nothing asked  1042ms
+     ✓ "make the last one in the first row weekly" (1x3), click INSIDE the line: the named cell's plan runs, nothing asked  1022ms
+     ✓ "could you put the last one in the first row on the weekly view for me, thanks" (1x3), click INSIDE the line: the named cell's plan runs, nothing asked  1009ms
+     ✓ "make the second one on the bottom row weekly" (1x3), click INSIDE the line: the named cell's plan runs, nothing asked  1023ms
+     ✓ "could you put the second one on the bottom row on the weekly view for me, thanks" (1x3), click INSIDE the line: the named cell's plan runs, nothing asked  1035ms
+     ✓ "make the third chart of the last row weekly" (1x3), click INSIDE the line: the named cell's plan runs, nothing asked  1028ms
+     ✓ "could you put the third chart of the last row on the weekly view for me, thanks" (1x3), click INSIDE the line: the named cell's plan runs, nothing asked  1054ms
+     ✓ "make the top row's middle one weekly" (2x3), click INSIDE the line: the named cell's plan runs, nothing asked  1026ms
+     ✓ "could you put the top row's middle one on the weekly view for me, thanks" (2x3), click INSIDE the line: the named cell's plan runs, nothing asked  1055ms
+     ✓ "make the leftmost one of the first row weekly" (2x3), click INSIDE the line: the named cell's plan runs, nothing asked  1023ms
+     ✓ "could you put the leftmost one of the first row on the weekly view for me, thanks" (2x3), click INSIDE the line: the named cell's plan runs, nothing asked  1042ms
+     ✓ "make the rightmost one in the bottom row weekly" (2x3), click INSIDE the line: the named cell's plan runs, nothing asked  1029ms
+     ✓ "could you put the rightmost one in the bottom row on the weekly view for me, thanks" (2x3), click INSIDE the line: the named cell's plan runs, nothing asked  1051ms
+     ✓ "make the first one on the left column weekly" (2x3), click INSIDE the line: the named cell's plan runs, nothing asked  1023ms
+     ✓ "could you put the first one on the left column on the weekly view for me, thanks" (2x3), click INSIDE the line: the named cell's plan runs, nothing asked  1022ms
+     ✓ "make the top chart of the first column weekly" (2x3), click INSIDE the line: the named cell's plan runs, nothing asked  1022ms
+     ✓ "could you put the top chart of the first column on the weekly view for me, thanks" (2x3), click INSIDE the line: the named cell's plan runs, nothing asked  1041ms
+     ✓ "make the last chart in the second column weekly" (2x3), click INSIDE the line: the named cell's plan runs, nothing asked  1019ms
+     ✓ "could you put the last chart in the second column on the weekly view for me, thanks" (2x3), click INSIDE the line: the named cell's plan runs, nothing asked  1040ms
+     ✓ "make the bottom chart on the right column weekly" (2x3), click INSIDE the line: the named cell's plan runs, nothing asked  1007ms
+     ✓ "could you put the bottom chart on the right column on the weekly view for me, thanks" (2x3), click INSIDE the line: the named cell's plan runs, nothing asked  1041ms
+     ✓ "make the top row's second chart weekly" (3x3), click INSIDE the line: the named cell's plan runs, nothing asked  1021ms
+     ✓ "could you put the top row's second chart on the weekly view for me, thanks" (3x3), click INSIDE the line: the named cell's plan runs, nothing asked  1055ms
+     ✓ "make the first row's third one weekly" (3x3), click INSIDE the line: the named cell's plan runs, nothing asked  1032ms
+     ✓ "could you put the first row's third one on the weekly view for me, thanks" (3x3), click INSIDE the line: the named cell's plan runs, nothing asked  1041ms
+     ✓ "make the middle one of the middle row weekly" (3x3), click INSIDE the line: the named cell's plan runs, nothing asked  1024ms
+     ✓ "could you put the middle one of the middle row on the weekly view for me, thanks" (3x3), click INSIDE the line: the named cell's plan runs, nothing asked  1053ms
+     ✓ "make the leftmost one in the second row weekly" (3x3), click INSIDE the line: the named cell's plan runs, nothing asked  1015ms
+     ✓ "could you put the leftmost one in the second row on the weekly view for me, thanks" (3x3), click INSIDE the line: the named cell's plan runs, nothing asked  1054ms
+     ✓ "make the rightmost one on the bottom row weekly" (3x3), click INSIDE the line: the named cell's plan runs, nothing asked  1027ms
+     ✓ "could you put the rightmost one on the bottom row on the weekly view for me, thanks" (3x3), click INSIDE the line: the named cell's plan runs, nothing asked  1039ms
+     ✓ "make the first chart of the left column weekly" (3x3), click INSIDE the line: the named cell's plan runs, nothing asked  1027ms
+     ✓ "could you put the first chart of the left column on the weekly view for me, thanks" (3x3), click INSIDE the line: the named cell's plan runs, nothing asked  1057ms
+     ✓ "make the last chart in the first column weekly" (3x3), click INSIDE the line: the named cell's plan runs, nothing asked  1026ms
+     ✓ "could you put the last chart in the first column on the weekly view for me, thanks" (3x3), click INSIDE the line: the named cell's plan runs, nothing asked  1054ms
+     ✓ "make the second chart on the middle column weekly" (3x3), click INSIDE the line: the named cell's plan runs, nothing asked  1027ms
+     ✓ "could you put the second chart on the middle column on the weekly view for me, thanks" (3x3), click INSIDE the line: the named cell's plan runs, nothing asked  1065ms
+     ✓ "make the second column's third chart weekly" (3x3), click INSIDE the line: the named cell's plan runs, nothing asked  1025ms
+     ✓ "could you put the second column's third chart on the weekly view for me, thanks" (3x3), click INSIDE the line: the named cell's plan runs, nothing asked  1036ms
+     ✓ "make the right column's middle one weekly" (3x3), click INSIDE the line: the named cell's plan runs, nothing asked  1019ms
+     ✓ "could you put the right column's middle one on the weekly view for me, thanks" (3x3), click INSIDE the line: the named cell's plan runs, nothing asked  1053ms
+     ✓ "make the top one of the last column weekly" (3x3), click INSIDE the line: the named cell's plan runs, nothing asked  1032ms
+     ✓ "could you put the top one of the last column on the weekly view for me, thanks" (3x3), click INSIDE the line: the named cell's plan runs, nothing asked  1057ms
+     ✓ "set the middle one of the top row to weekly" (3x3), click OUTSIDE the line: a plan on the click never runs; the cell's does  2050ms
+     ✓ "could you set the middle one of the top row to the weekly view for me" (3x3), click OUTSIDE the line: a plan on the click never runs; the cell's does  2022ms
+     ✓ "could you set the middle one of the top row to the weekly view for me" (2x3), click OUTSIDE the line: a plan on the click never runs; the cell's does  2022ms
+     ✓ "make the first chart in the first column weekly" (1x3), click OUTSIDE the line: a plan on the click never runs; the cell's does  2046ms
+     ✓ "could you put the first chart in the first column on the weekly view for me, thanks" (1x3), click OUTSIDE the line: a plan on the click never runs; the cell's does  2004ms
+     ✓ "make the first chart on the second column weekly" (1x3), click OUTSIDE the line: a plan on the click never runs; the cell's does  2048ms
+     ✓ "could you put the first chart on the second column on the weekly view for me, thanks" (1x3), click OUTSIDE the line: a plan on the click never runs; the cell's does  2037ms
+     ✓ "make the last column's first chart weekly" (1x3), click OUTSIDE the line: a plan on the click never runs; the cell's does  2046ms
+     ✓ "could you put the last column's first chart on the weekly view for me, thanks" (1x3), click OUTSIDE the line: a plan on the click never runs; the cell's does  2039ms
+     ✓ "make the top row's middle one weekly" (2x3), click OUTSIDE the line: a plan on the click never runs; the cell's does  2066ms
+     ✓ "could you put the top row's middle one on the weekly view for me, thanks" (2x3), click OUTSIDE the line: a plan on the click never runs; the cell's does  2048ms
+     ✓ "make the leftmost one of the first row weekly" (2x3), click OUTSIDE the line: a plan on the click never runs; the cell's does  2034ms
+     ✓ "could you put the leftmost one of the first row on the weekly view for me, thanks" (2x3), click OUTSIDE the line: a plan on the click never runs; the cell's does  2028ms
+     ✓ "make the rightmost one in the bottom row weekly" (2x3), click OUTSIDE the line: a plan on the click never runs; the cell's does  2034ms
+     ✓ "could you put the rightmost one in the bottom row on the weekly view for me, thanks" (2x3), click OUTSIDE the line: a plan on the click never runs; the cell's does  2025ms
+     ✓ "make the first one on the left column weekly" (2x3), click OUTSIDE the line: a plan on the click never runs; the cell's does  2043ms
+     ✓ "could you put the first one on the left column on the weekly view for me, thanks" (2x3), click OUTSIDE the line: a plan on the click never runs; the cell's does  2031ms
+     ✓ "make the top chart of the first column weekly" (2x3), click OUTSIDE the line: a plan on the click never runs; the cell's does  2032ms
+     ✓ "could you put the top chart of the first column on the weekly view for me, thanks" (2x3), click OUTSIDE the line: a plan on the click never runs; the cell's does  2025ms
+     ✓ "make the last chart in the second column weekly" (2x3), click OUTSIDE the line: a plan on the click never runs; the cell's does  2020ms
+     ✓ "could you put the last chart in the second column on the weekly view for me, thanks" (2x3), click OUTSIDE the line: a plan on the click never runs; the cell's does  2043ms
+     ✓ "make the bottom chart on the right column weekly" (2x3), click OUTSIDE the line: a plan on the click never runs; the cell's does  2031ms
+     ✓ "could you put the bottom chart on the right column on the weekly view for me, thanks" (2x3), click OUTSIDE the line: a plan on the click never runs; the cell's does  2010ms
+     ✓ "make the top row's second chart weekly" (3x3), click OUTSIDE the line: a plan on the click never runs; the cell's does  2036ms
+     ✓ "could you put the top row's second chart on the weekly view for me, thanks" (3x3), click OUTSIDE the line: a plan on the click never runs; the cell's does  2068ms
+     ✓ "make the first row's third one weekly" (3x3), click OUTSIDE the line: a plan on the click never runs; the cell's does  2040ms
+     ✓ "could you put the first row's third one on the weekly view for me, thanks" (3x3), click OUTSIDE the line: a plan on the click never runs; the cell's does  2078ms
+     ✓ "make the middle one of the middle row weekly" (3x3), click OUTSIDE the line: a plan on the click never runs; the cell's does  2053ms
+     ✓ "could you put the middle one of the middle row on the weekly view for me, thanks" (3x3), click OUTSIDE the line: a plan on the click never runs; the cell's does  2070ms
+     ✓ "make the leftmost one in the second row weekly" (3x3), click OUTSIDE the line: a plan on the click never runs; the cell's does  2050ms
+     ✓ "could you put the leftmost one in the second row on the weekly view for me, thanks" (3x3), click OUTSIDE the line: a plan on the click never runs; the cell's does  2049ms
+     ✓ "make the rightmost one on the bottom row weekly" (3x3), click OUTSIDE the line: a plan on the click never runs; the cell's does  2047ms
+     ✓ "could you put the rightmost one on the bottom row on the weekly view for me, thanks" (3x3), click OUTSIDE the line: a plan on the click never runs; the cell's does  2085ms
+     ✓ "make the first chart of the left column weekly" (3x3), click OUTSIDE the line: a plan on the click never runs; the cell's does  2057ms
+     ✓ "could you put the first chart of the left column on the weekly view for me, thanks" (3x3), click OUTSIDE the line: a plan on the click never runs; the cell's does  2066ms
+     ✓ "make the last chart in the first column weekly" (3x3), click OUTSIDE the line: a plan on the click never runs; the cell's does  2078ms
+     ✓ "could you put the last chart in the first column on the weekly view for me, thanks" (3x3), click OUTSIDE the line: a plan on the click never runs; the cell's does  2065ms
+     ✓ "make the second chart on the middle column weekly" (3x3), click OUTSIDE the line: a plan on the click never runs; the cell's does  2044ms
+     ✓ "could you put the second chart on the middle column on the weekly view for me, thanks" (3x3), click OUTSIDE the line: a plan on the click never runs; the cell's does  2058ms
+     ✓ "make the second column's third chart weekly" (3x3), click OUTSIDE the line: a plan on the click never runs; the cell's does  2056ms
+     ✓ "could you put the second column's third chart on the weekly view for me, thanks" (3x3), click OUTSIDE the line: a plan on the click never runs; the cell's does  2076ms
+     ✓ "make the right column's middle one weekly" (3x3), click OUTSIDE the line: a plan on the click never runs; the cell's does  2084ms
+     ✓ "could you put the right column's middle one on the weekly view for me, thanks" (3x3), click OUTSIDE the line: a plan on the click never runs; the cell's does  2065ms
+     ✓ "make the top one of the last column weekly" (3x3), click OUTSIDE the line: a plan on the click never runs; the cell's does  2076ms
+     ✓ "could you put the top one of the last column on the weekly view for me, thanks" (3x3), click OUTSIDE the line: a plan on the click never runs; the cell's does  2052ms
+     ✓ "set the middle one of the top row to weekly" (3x3), click ON the named cell: it runs there  1018ms
+     ✓ "could you set the middle one of the top row to the weekly view for me" (3x3), click ON the named cell: it runs there  1030ms
+     ✓ "could you set the middle one of the top row to the weekly view for me" (1x3), click ON the named cell: it runs there  1019ms
+ ✓ src/agent/agentClickLineFamilies.test.jsx (190 tests) 194438ms
+     ✓ "could you put the rest of this row on the weekly view" (FOUR, clicked TL → ["TR"]): that plan runs, nothing asked  1185ms
+     ✓ "everything else in this column to weekly, thanks" (FOUR, clicked TR → ["BR"]): that plan runs, nothing asked  1086ms
+     ✓ "everything else in this row to weekly, thanks" (FOUR, clicked BR → ["BL"]): that plan runs, nothing asked  1057ms
+     ✓ "switch the other charts in this column to weekly please" (SIX, clicked TL → ["BL"]): that plan runs, nothing asked  1033ms
+     ✓ "everything else in this row to weekly, thanks" (SIX, clicked TR → ["TL","TM"]): that plan runs, nothing asked  1101ms
+     ✓ "everything else in this column to weekly, thanks" (SIX, clicked BL → ["TL"]): that plan runs, nothing asked  1054ms
+     ✓ "could you put the rest of this row on the weekly view" (SIX, clicked BR → ["BL","BM"]): that plan runs, nothing asked  1071ms
+     ✓ "switch the other charts in this column to weekly please" (NINE, clicked TL → ["ML","BL"]): that plan runs, nothing asked  1101ms
+     ✓ "everything else in this row to weekly, thanks" (NINE, clicked TR → ["TL","TM"]): that plan runs, nothing asked  1127ms
+     ✓ "everything else in this column to weekly, thanks" (NINE, clicked ML → ["TL","BL"]): that plan runs, nothing asked  1131ms
+     ✓ "could you put the rest of this row on the weekly view" (NINE, clicked MR → ["ML","MM"]): that plan runs, nothing asked  1102ms
+     ✓ "could you put the rest of this column on the weekly view" (NINE, clicked BL → ["TL","ML"]): that plan runs, nothing asked  1099ms
+     ✓ "switch the other charts in this row to weekly please" (NINE, clicked BR → ["BL","BM"]): that plan runs, nothing asked  1089ms
+     ✓ "could you put the other chart in this row on weekly" (FOUR, clicked TL → ["TR"]): that plan runs, nothing asked  1041ms
+     ✓ "switch the other one in this column to weekly please" (FOUR, clicked TR → ["BR"]): that plan runs, nothing asked  1031ms
+     ✓ "could you put the other chart in this row on weekly" (FOUR, clicked BR → ["BL"]): that plan runs, nothing asked  1024ms
+     ✓ "could you put the other chart in this column on weekly" (SIX, clicked TL → ["BL"]): that plan runs, nothing asked  1024ms
+     ✓ "switch the other one in this column to weekly please" (SIX, clicked BL → ["TL"]): that plan runs, nothing asked  1025ms
+     ✓ "same column, other row: weekly please" (FOUR, clicked TL → ["BL"]): that plan runs, nothing asked  1031ms
+     ✓ "same row, far end from this one: weekly please" (FOUR, clicked TL → ["TR"]): that plan runs, nothing asked  1030ms
+     ✓ "could you do the same row but the other column on weekly" (FOUR, clicked TR → ["TL"]): that plan runs, nothing asked  1042ms
+     ✓ "could you do the same column but the other row on weekly" (FOUR, clicked BL → ["TL"]): that plan runs, nothing asked  1040ms
+     ✓ "same row, far end from this one: weekly please" (FOUR, clicked BL → ["BR"]): that plan runs, nothing asked  1040ms
+     ✓ "same row, other column: weekly please" (FOUR, clicked BR → ["BL"]): that plan runs, nothing asked  1039ms
+     ✓ "same column, other row: weekly please" (SIX, clicked TL → ["BL"]): that plan runs, nothing asked  1060ms
+     ✓ "same row, far end from this one: weekly please" (SIX, clicked TL → ["TR"]): that plan runs, nothing asked  1049ms
+     ✓ "could you do the same column but the other row on weekly" (SIX, clicked BL → ["TL"]): that plan runs, nothing asked  1056ms
+     ✓ "same row, far end from this one: weekly please" (SIX, clicked BL → ["BR"]): that plan runs, nothing asked  1058ms
+     ✓ "same row, far end from this one: weekly please" (NINE, clicked TL → ["TR"]): that plan runs, nothing asked  1077ms
+     ✓ "same row, far end from this one: weekly please" (NINE, clicked ML → ["MR"]): that plan runs, nothing asked  1076ms
+     ✓ "same row, far end from this one: weekly please" (NINE, clicked BL → ["BR"]): that plan runs, nothing asked  1076ms
+     ✓ "could you put the chart on the other side of the top row from this one on weekly" (FOUR, clicked TL → ["TR"]): that plan runs, nothing asked  1037ms
+     ✓ "step one row down from this chart and make it weekly" (FOUR, clicked TL → ["BL"]): that plan runs, nothing asked  1054ms
+     ✓ "step one column left from this chart and make it weekly" (FOUR, clicked TR → ["TL"]): that plan runs, nothing asked  1037ms
+     ✓ "could you put the top corner on the same side as this one on weekly" (FOUR, clicked BL → ["TL"]): that plan runs, nothing asked  1034ms
+     ✓ "could you put the chart on the other side of the bottom row from this one on weekly" (FOUR, clicked BR → ["BL"]): that plan runs, nothing asked  1011ms
+     ✓ "step one row up from this chart and make it weekly" (FOUR, clicked BR → ["TR"]): that plan runs, nothing asked  1050ms
+     ✓ "step one column right from this chart and make it weekly" (SIX, clicked TL → ["TM"]): that plan runs, nothing asked  1054ms
+     ✓ "step one column left from this chart and make it weekly" (SIX, clicked TM → ["TL"]): that plan runs, nothing asked  1054ms
+     ✓ "could you put the bottom corner on the same side as this one on weekly" (SIX, clicked TR → ["BR"]): that plan runs, nothing asked  1038ms
+     ✓ "could you put the chart on the other side of the bottom row from this one on weekly" (SIX, clicked BL → ["BR"]): that plan runs, nothing asked  1040ms
+     ✓ "step one row up from this chart and make it weekly" (SIX, clicked BL → ["TL"]): that plan runs, nothing asked  1056ms
+     ✓ "step one row up from this chart and make it weekly" (SIX, clicked BM → ["TM"]): that plan runs, nothing asked  1052ms
+     ✓ "step one column left from this chart and make it weekly" (SIX, clicked BR → ["BM"]): that plan runs, nothing asked  1060ms
+     ✓ "could you put the bottom corner on the same side as this one on weekly" (NINE, clicked TL → ["BL"]): that plan runs, nothing asked  1030ms
+     ✓ "step one column right from this chart and make it weekly" (NINE, clicked TM → ["TR"]): that plan runs, nothing asked  1049ms
+     ✓ "could you put the chart on the other side of the top row from this one on weekly" (NINE, clicked TR → ["TL"]): that plan runs, nothing asked  1046ms
+     ✓ "step one row down from this chart and make it weekly" (NINE, clicked TR → ["MR"]): that plan runs, nothing asked  1061ms
+     ✓ "step one column right from this chart and make it weekly" (NINE, clicked ML → ["MM"]): that plan runs, nothing asked  1072ms
+     ✓ "step one column right from this chart and make it weekly" (NINE, clicked MM → ["MR"]): that plan runs, nothing asked  1077ms
+     ✓ "step one row up from this chart and make it weekly" (NINE, clicked MM → ["TM"]): that plan runs, nothing asked  1073ms
+     ✓ "step one column left from this chart and make it weekly" (NINE, clicked MR → ["MM"]): that plan runs, nothing asked  1074ms
+     ✓ "could you put the chart on the other side of the bottom row from this one on weekly" (NINE, clicked BL → ["BR"]): that plan runs, nothing asked  1054ms
+     ✓ "step one row up from this chart and make it weekly" (NINE, clicked BL → ["ML"]): that plan runs, nothing asked  1068ms
+     ✓ "step one row up from this chart and make it weekly" (NINE, clicked BM → ["MM"]): that plan runs, nothing asked  1057ms
+     ✓ "step one column left from this chart and make it weekly" (NINE, clicked BR → ["BM"]): that plan runs, nothing asked  1068ms
+     ✓ "could you put the rest of this row on the weekly view" (FOUR, clicked TL): a plan on the click never runs; no picker lists it  995ms
+     ✓ "everything else in this column to weekly, thanks" (FOUR, clicked TR): a plan on the click never runs; no picker lists it  990ms
+     ✓ "everything else in this row to weekly, thanks" (FOUR, clicked BR): a plan on the click never runs; no picker lists it  979ms
+     ✓ "switch the other charts in this column to weekly please" (SIX, clicked TL): a plan on the click never runs; no picker lists it  994ms
+     ✓ "everything else in this row to weekly, thanks" (SIX, clicked TR): a plan on the click never runs; no picker lists it  1006ms
+     ✓ "everything else in this column to weekly, thanks" (SIX, clicked BL): a plan on the click never runs; no picker lists it  1012ms
+     ✓ "could you put the rest of this row on the weekly view" (SIX, clicked BR): a plan on the click never runs; no picker lists it  965ms
+     ✓ "switch the other charts in this column to weekly please" (NINE, clicked TL): a plan on the click never runs; no picker lists it  1006ms
+     ✓ "everything else in this row to weekly, thanks" (NINE, clicked TR): a plan on the click never runs; no picker lists it  1024ms
+     ✓ "everything else in this column to weekly, thanks" (NINE, clicked ML): a plan on the click never runs; no picker lists it  1003ms
+     ✓ "could you put the rest of this row on the weekly view" (NINE, clicked MR): a plan on the click never runs; no picker lists it  993ms
+     ✓ "could you put the rest of this column on the weekly view" (NINE, clicked BL): a plan on the click never runs; no picker lists it  1007ms
+     ✓ "switch the other charts in this row to weekly please" (NINE, clicked BR): a plan on the click never runs; no picker lists it  1006ms
+     ✓ "could you put the other chart in this row on weekly" (FOUR, clicked TL): a plan on the click never runs; no picker lists it  992ms
+     ✓ "switch the other one in this column to weekly please" (FOUR, clicked TR): a plan on the click never runs; no picker lists it  996ms
+     ✓ "could you put the other chart in this row on weekly" (FOUR, clicked BR): a plan on the click never runs; no picker lists it  990ms
+     ✓ "could you put the other chart in this column on weekly" (SIX, clicked TL): a plan on the click never runs; no picker lists it  992ms
+     ✓ "could you put the other chart in this row on weekly" (SIX, clicked TR): a plan on the click never runs; no picker lists it  975ms
+     ✓ "switch the other one in this column to weekly please" (SIX, clicked BL): a plan on the click never runs; no picker lists it  996ms
+     ✓ "switch the other one in this row to weekly please" (SIX, clicked BR): a plan on the click never runs; no picker lists it  985ms
+     ✓ "could you put the other chart in this column on weekly" (NINE, clicked TL): a plan on the click never runs; no picker lists it  1007ms
+     ✓ "could you put the other chart in this row on weekly" (NINE, clicked TR): a plan on the click never runs; no picker lists it  1008ms
+     ✓ "switch the other one in this column to weekly please" (NINE, clicked ML): a plan on the click never runs; no picker lists it  1019ms
+     ✓ "switch the other one in this row to weekly please" (NINE, clicked MR): a plan on the click never runs; no picker lists it  1022ms
+     ✓ "could you put the other chart in this column on weekly" (NINE, clicked BL): a plan on the click never runs; no picker lists it  1007ms
+     ✓ "could you put the other chart in this row on weekly" (NINE, clicked BR): a plan on the click never runs; no picker lists it  1009ms
+     ✓ "same column, other row: weekly please" (FOUR, clicked TL): a plan on the click never runs; no picker lists it  994ms
+     ✓ "same row, far end from this one: weekly please" (FOUR, clicked TL): a plan on the click never runs; no picker lists it  996ms
+     ✓ "could you do the same row but the other column on weekly" (FOUR, clicked TR): a plan on the click never runs; no picker lists it  995ms
+     ✓ "could you do the same column but the other row on weekly" (FOUR, clicked BL): a plan on the click never runs; no picker lists it  954ms
+     ✓ "same row, far end from this one: weekly please" (FOUR, clicked BL): a plan on the click never runs; no picker lists it  984ms
+     ✓ "same row, other column: weekly please" (FOUR, clicked BR): a plan on the click never runs; no picker lists it  995ms
+     ✓ "same column, other row: weekly please" (SIX, clicked TL): a plan on the click never runs; no picker lists it  1019ms
+     ✓ "same row, far end from this one: weekly please" (SIX, clicked TL): a plan on the click never runs; no picker lists it  1010ms
+     ✓ "could you do the same row but the other column on weekly" (SIX, clicked TM): a plan on the click never runs; no picker lists it  1018ms
+     ✓ "same row, other column: weekly please" (SIX, clicked TR): a plan on the click never runs; no picker lists it  1021ms
+     ✓ "could you do the same column but the other row on weekly" (SIX, clicked BL): a plan on the click never runs; no picker lists it  990ms
+     ✓ "same row, far end from this one: weekly please" (SIX, clicked BL): a plan on the click never runs; no picker lists it  1001ms
+     ✓ "same row, other column: weekly please" (SIX, clicked BM): a plan on the click never runs; no picker lists it  1026ms
+     ✓ "could you do the same row but the other column on weekly" (SIX, clicked BR): a plan on the click never runs; no picker lists it  1015ms
+     ✓ "same column, other row: weekly please" (NINE, clicked TL): a plan on the click never runs; no picker lists it  1033ms
+     ✓ "same row, far end from this one: weekly please" (NINE, clicked TL): a plan on the click never runs; no picker lists it  1023ms
+     ✓ "could you do the same row but the other column on weekly" (NINE, clicked TM): a plan on the click never runs; no picker lists it  999ms
+     ✓ "same row, other column: weekly please" (NINE, clicked TR): a plan on the click never runs; no picker lists it  1019ms
+     ✓ "could you do the same column but the other row on weekly" (NINE, clicked ML): a plan on the click never runs; no picker lists it  1020ms
+     ✓ "same row, far end from this one: weekly please" (NINE, clicked ML): a plan on the click never runs; no picker lists it  1023ms
+     ✓ "same row, other column: weekly please" (NINE, clicked MM): a plan on the click never runs; no picker lists it  1022ms
+     ✓ "could you do the same row but the other column on weekly" (NINE, clicked MR): a plan on the click never runs; no picker lists it  1023ms
+     ✓ "same column, other row: weekly please" (NINE, clicked BL): a plan on the click never runs; no picker lists it  1027ms
+     ✓ "same row, far end from this one: weekly please" (NINE, clicked BL): a plan on the click never runs; no picker lists it  1012ms
+     ✓ "could you do the same row but the other column on weekly" (NINE, clicked BM): a plan on the click never runs; no picker lists it  1022ms
+     ✓ "same row, other column: weekly please" (NINE, clicked BR): a plan on the click never runs; no picker lists it  1025ms
+     ✓ "could you put the chart on the other side of the top row from this one on weekly" (FOUR, clicked TL): a plan on the click never runs; no picker lists it  980ms
+     ✓ "step one row down from this chart and make it weekly" (FOUR, clicked TL): a plan on the click never runs; no picker lists it  990ms
+     ✓ "step one column left from this chart and make it weekly" (FOUR, clicked TR): a plan on the click never runs; no picker lists it  964ms
+     ✓ "could you put the top corner on the same side as this one on weekly" (FOUR, clicked BL): a plan on the click never runs; no picker lists it  981ms
+     ✓ "could you put the chart on the other side of the bottom row from this one on weekly" (FOUR, clicked BR): a plan on the click never runs; no picker lists it  996ms
+     ✓ "step one row up from this chart and make it weekly" (FOUR, clicked BR): a plan on the click never runs; no picker lists it  996ms
+     ✓ "step one column right from this chart and make it weekly" (SIX, clicked TL): a plan on the click never runs; no picker lists it  993ms
+     ✓ "step one column left from this chart and make it weekly" (SIX, clicked TM): a plan on the click never runs; no picker lists it  1009ms
+     ✓ "could you put the bottom corner on the same side as this one on weekly" (SIX, clicked TR): a plan on the click never runs; no picker lists it  993ms
+     ✓ "could you put the chart on the other side of the bottom row from this one on weekly" (SIX, clicked BL): a plan on the click never runs; no picker lists it  974ms
+     ✓ "step one row up from this chart and make it weekly" (SIX, clicked BL): a plan on the click never runs; no picker lists it  1000ms
+     ✓ "step one row up from this chart and make it weekly" (SIX, clicked BM): a plan on the click never runs; no picker lists it  1009ms
+     ✓ "step one column left from this chart and make it weekly" (SIX, clicked BR): a plan on the click never runs; no picker lists it  1013ms
+     ✓ "could you put the bottom corner on the same side as this one on weekly" (NINE, clicked TL): a plan on the click never runs; no picker lists it  1011ms
+     ✓ "step one column right from this chart and make it weekly" (NINE, clicked TM): a plan on the click never runs; no picker lists it  1013ms
+     ✓ "could you put the chart on the other side of the top row from this one on weekly" (NINE, clicked TR): a plan on the click never runs; no picker lists it  1012ms
+     ✓ "step one row down from this chart and make it weekly" (NINE, clicked TR): a plan on the click never runs; no picker lists it  1026ms
+     ✓ "step one column right from this chart and make it weekly" (NINE, clicked ML): a plan on the click never runs; no picker lists it  1008ms
+     ✓ "step one column right from this chart and make it weekly" (NINE, clicked MM): a plan on the click never runs; no picker lists it  1020ms
+     ✓ "step one row up from this chart and make it weekly" (NINE, clicked MM): a plan on the click never runs; no picker lists it  1026ms
+     ✓ "step one column left from this chart and make it weekly" (NINE, clicked MR): a plan on the click never runs; no picker lists it  1023ms
+     ✓ "could you put the chart on the other side of the bottom row from this one on weekly" (NINE, clicked BL): a plan on the click never runs; no picker lists it  994ms
+     ✓ "step one row up from this chart and make it weekly" (NINE, clicked BL): a plan on the click never runs; no picker lists it  1022ms
+     ✓ "step one row up from this chart and make it weekly" (NINE, clicked BM): a plan on the click never runs; no picker lists it  986ms
+     ✓ "step one column left from this chart and make it weekly" (NINE, clicked BR): a plan on the click never runs; no picker lists it  1025ms
+     ✓ "could you put the other chart in this row on weekly" (SIX, clicked TR): no single reading — asked, never the click  989ms
+     ✓ "switch the other one in this row to weekly please" (SIX, clicked BR): no single reading — asked, never the click  982ms
+     ✓ "could you put the other chart in this column on weekly" (NINE, clicked TL): no single reading — asked, never the click  1011ms
+     ✓ "could you put the other chart in this row on weekly" (NINE, clicked TR): no single reading — asked, never the click  1005ms
+     ✓ "switch the other one in this column to weekly please" (NINE, clicked ML): no single reading — asked, never the click  990ms
+     ✓ "switch the other one in this row to weekly please" (NINE, clicked MR): no single reading — asked, never the click  991ms
+     ✓ "could you put the other chart in this column on weekly" (NINE, clicked BL): no single reading — asked, never the click  993ms
+     ✓ "could you put the other chart in this row on weekly" (NINE, clicked BR): no single reading — asked, never the click  1003ms
+     ✓ "could you do the same row but the other column on weekly" (SIX, clicked TM): no single reading — asked, never the click  1024ms
+     ✓ "same row, other column: weekly please" (SIX, clicked TR): no single reading — asked, never the click  993ms
+     ✓ "same row, other column: weekly please" (SIX, clicked BM): no single reading — asked, never the click  993ms
+     ✓ "could you do the same row but the other column on weekly" (SIX, clicked BR): no single reading — asked, never the click  965ms
+     ✓ "same column, other row: weekly please" (NINE, clicked TL): no single reading — asked, never the click  1010ms
+     ✓ "could you do the same row but the other column on weekly" (NINE, clicked TM): no single reading — asked, never the click  1015ms
+     ✓ "same row, other column: weekly please" (NINE, clicked TR): no single reading — asked, never the click  1026ms
+     ✓ "could you do the same column but the other row on weekly" (NINE, clicked ML): no single reading — asked, never the click  1086ms
+     ✓ "same row, other column: weekly please" (NINE, clicked MM): no single reading — asked, never the click  1035ms
+     ✓ "could you do the same row but the other column on weekly" (NINE, clicked MR): no single reading — asked, never the click  1017ms
+     ✓ "same column, other row: weekly please" (NINE, clicked BL): no single reading — asked, never the click  1025ms
+     ✓ "could you do the same row but the other column on weekly" (NINE, clicked BM): no single reading — asked, never the click  1013ms
+     ✓ "same row, other column: weekly please" (NINE, clicked BR): no single reading — asked, never the click  1025ms
+     ✓ "weekly on this one, the first chart in its row" (FOUR, clicked TL): the plan on the click runs there, nothing asked  1040ms
+     ✓ "put this one on weekly, the last chart in its row" (FOUR, clicked TR): the plan on the click runs there, nothing asked  1040ms
+     ✓ "weekly on this one, the first chart in its row" (FOUR, clicked BL): the plan on the click runs there, nothing asked  1023ms
+     ✓ "weekly on this one, the first chart in its row" (SIX, clicked TL): the plan on the click runs there, nothing asked  1055ms
+     ✓ "weekly for this chart, the top one in its column" (SIX, clicked TM): the plan on the click runs there, nothing asked  1054ms
+     ✓ "weekly for this chart, the top one in its column" (SIX, clicked TR): the plan on the click runs there, nothing asked  1056ms
+     ✓ "put this one on weekly, the last chart in its row" (SIX, clicked BR): the plan on the click runs there, nothing asked  1045ms
+     ✓ "weekly for this chart, the top one in its column" (NINE, clicked TL): the plan on the click runs there, nothing asked  1085ms
+     ✓ "put this one on weekly, the last chart in its row" (NINE, clicked TR): the plan on the click runs there, nothing asked  1080ms
+     ✓ "weekly on this one, the first chart in its row" (NINE, clicked ML): the plan on the click runs there, nothing asked  1079ms
+     ✓ "weekly on this one, the first chart in its row" (NINE, clicked BL): the plan on the click runs there, nothing asked  1029ms
+     ✓ "step one column right from this chart and make that weekly" (FOUR, clicked TL → TR): that plan runs, nothing asked  1041ms
+     ✓ "step one column right from this chart and make that one weekly" (FOUR, clicked BL → BR): that plan runs, nothing asked  1028ms
+     ✓ "step one column right from this chart and make that weekly" (SIX, clicked TL → TM): that plan runs, nothing asked  1071ms
+     ✓ "step one row down from this chart and make that one weekly" (SIX, clicked TM → BM): that plan runs, nothing asked  1045ms
+     ✓ "step one row up from this chart and make it weekly" (SIX, clicked BL → TL): that plan runs, nothing asked  1058ms
+     ✓ "step one column left from this chart and make that one weekly" (SIX, clicked BR → BM): that plan runs, nothing asked  1055ms
+     ✓ "step one column right from this chart and make that one weekly" (NINE, clicked TM → TR): that plan runs, nothing asked  1066ms
+     ✓ "step one row down from this chart and make the one there weekly" (NINE, clicked TR → MR): that plan runs, nothing asked  1087ms
+     ✓ "step one column right from this chart and make the one there weekly" (NINE, clicked MM → MR): that plan runs, nothing asked  1087ms
+     ✓ "step one column left from this chart and make that one weekly" (NINE, clicked MR → MM): that plan runs, nothing asked  1078ms
+     ✓ "step one row up from this chart and make that weekly" (NINE, clicked BL → ML): that plan runs, nothing asked  1071ms
+     ✓ "step one column left from this chart and make the one there weekly" (NINE, clicked BR → BM): that plan runs, nothing asked  1083ms
+     ✓ "step one column right from this chart and make that weekly" (FOUR, clicked TL): a plan on the click never runs; no question names it  1010ms
+     ✓ "step one column right from this chart and make that one weekly" (FOUR, clicked BL): a plan on the click never runs; no question names it  996ms
+     ✓ "step one column right from this chart and make that weekly" (SIX, clicked TL): a plan on the click never runs; no question names it  1011ms
+     ✓ "step one row down from this chart and make that one weekly" (SIX, clicked TM): a plan on the click never runs; no question names it  1022ms
+     ✓ "step one row up from this chart and make it weekly" (SIX, clicked BL): a plan on the click never runs; no question names it  997ms
+     ✓ "step one column left from this chart and make that one weekly" (SIX, clicked BR): a plan on the click never runs; no question names it  1019ms
+     ✓ "step one column right from this chart and make that one weekly" (NINE, clicked TM): a plan on the click never runs; no question names it  1044ms
+     ✓ "step one row down from this chart and make the one there weekly" (NINE, clicked TR): a plan on the click never runs; no question names it  1041ms
+     ✓ "step one column right from this chart and make the one there weekly" (NINE, clicked MM): a plan on the click never runs; no question names it  1029ms
+     ✓ "step one column left from this chart and make that one weekly" (NINE, clicked MR): a plan on the click never runs; no question names it  998ms
+     ✓ "step one row up from this chart and make that weekly" (NINE, clicked BL): a plan on the click never runs; no question names it  1021ms
+     ✓ "step one column left from this chart and make the one there weekly" (NINE, clicked BR): a plan on the click never runs; no question names it  1024ms
+ ✓ src/agent/agentNegatedClickAct.test.jsx (335 tests) 336979ms
+     ✓ 2x2: "put the bottom-right one on log scale, not the one I clicked" — a model plan on the CLICK is never applied, carded or offered  1203ms
+     ✓ 2x2: "put the bottom-right one on log scale, not the one I clicked on" — a model plan on the CLICK is never applied, carded or offered  1024ms
+     ✓ 2x2: "put the bottom-right one on log scale, not the one I selected" — a model plan on the CLICK is never applied, carded or offered  1024ms
+     ✓ 2x2: "put the bottom-right one on log scale, not the one I picked" — a model plan on the CLICK is never applied, carded or offered  986ms
+     ✓ 2x2: "put the bottom-right one on log scale, not the one I have selected" — a model plan on the CLICK is never applied, carded or offered  1009ms
+     ✓ 2x2: "put the bottom-right one on log scale, not the one I've got selected" — a model plan on the CLICK is never applied, carded or offered  1021ms
+     ✓ 2x2: "put the bottom-right one on log scale, not the one I just clicked" — a model plan on the CLICK is never applied, carded or offered  995ms
+     ✓ 2x2: "put the bottom-right one on log scale, not the chart I clicked" — a model plan on the CLICK is never applied, carded or offered  977ms
+     ✓ 2x2: "put the bottom-right one on log scale, not the chart I'm on" — a model plan on the CLICK is never applied, carded or offered  991ms
+     ✓ 2x2: "put the bottom-right one on log scale, not the one I'm looking at" — a model plan on the CLICK is never applied, carded or offered  1004ms
+     ✓ 2x2: "put the bottom-right one on log scale, not the chart that I selected" — a model plan on the CLICK is never applied, carded or offered  1024ms
+     ✓ 2x2: "put the bottom-right one on log scale instead of the one I clicked" — a model plan on the CLICK is never applied, carded or offered  979ms
+     ✓ 2x2: "put the bottom-right one on log scale instead of the one I clicked on" — a model plan on the CLICK is never applied, carded or offered  990ms
+     ✓ 2x2: "put the bottom-right one on log scale instead of the one I selected" — a model plan on the CLICK is never applied, carded or offered  997ms
+     ✓ 2x2: "put the bottom-right one on log scale instead of the one I picked" — a model plan on the CLICK is never applied, carded or offered  993ms
+     ✓ 2x2: "put the bottom-right one on log scale instead of the one I have selected" — a model plan on the CLICK is never applied, carded or offered  1000ms
+     ✓ 2x2: "put the bottom-right one on log scale instead of the one I've got selected" — a model plan on the CLICK is never applied, carded or offered  993ms
+     ✓ 2x2: "put the bottom-right one on log scale instead of the one I just clicked" — a model plan on the CLICK is never applied, carded or offered  993ms
+     ✓ 2x2: "put the bottom-right one on log scale instead of the chart I clicked" — a model plan on the CLICK is never applied, carded or offered  976ms
+     ✓ 2x2: "put the bottom-right one on log scale instead of the chart I'm on" — a model plan on the CLICK is never applied, carded or offered  994ms
+     ✓ 2x2: "put the bottom-right one on log scale instead of the one I'm looking at" — a model plan on the CLICK is never applied, carded or offered  940ms
+     ✓ 2x2: "put the bottom-right one on log scale instead of the chart that I selected" — a model plan on the CLICK is never applied, carded or offered  1000ms
+     ✓ 2x2: "put the bottom-right one on log scale rather than the one I clicked" — a model plan on the CLICK is never applied, carded or offered  996ms
+     ✓ 2x2: "put the bottom-right one on log scale rather than the one I clicked on" — a model plan on the CLICK is never applied, carded or offered  976ms
+     ✓ 2x2: "put the bottom-right one on log scale rather than the one I selected" — a model plan on the CLICK is never applied, carded or offered  993ms
+     ✓ 2x2: "put the bottom-right one on log scale rather than the one I picked" — a model plan on the CLICK is never applied, carded or offered  993ms
+     ✓ 2x2: "put the bottom-right one on log scale rather than the one I have selected" — a model plan on the CLICK is never applied, carded or offered  997ms
+     ✓ 2x2: "put the bottom-right one on log scale rather than the one I've got selected" — a model plan on the CLICK is never applied, carded or offered  986ms
+     ✓ 2x2: "put the bottom-right one on log scale rather than the one I just clicked" — a model plan on the CLICK is never applied, carded or offered  996ms
+     ✓ 2x2: "put the bottom-right one on log scale rather than the chart I clicked" — a model plan on the CLICK is never applied, carded or offered  979ms
+     ✓ 2x2: "put the bottom-right one on log scale rather than the chart I'm on" — a model plan on the CLICK is never applied, carded or offered  983ms
+     ✓ 2x2: "put the bottom-right one on log scale rather than the one I'm looking at" — a model plan on the CLICK is never applied, carded or offered  984ms
+     ✓ 2x2: "put the bottom-right one on log scale rather than the chart that I selected" — a model plan on the CLICK is never applied, carded or offered  997ms
+     ✓ 2x2: "log scale on a chart other than the one I clicked, the bottom-right one" — a model plan on the CLICK is never applied, carded or offered  958ms
+     ✓ 2x2: "log scale on a chart other than the one I clicked on, the bottom-right one" — a model plan on the CLICK is never applied, carded or offered  1012ms
+     ✓ 2x2: "log scale on a chart other than the one I selected, the bottom-right one" — a model plan on the CLICK is never applied, carded or offered  1005ms
+     ✓ 2x2: "log scale on a chart other than the one I picked, the bottom-right one" — a model plan on the CLICK is never applied, carded or offered  988ms
+     ✓ 2x2: "log scale on a chart other than the one I have selected, the bottom-right one" — a model plan on the CLICK is never applied, carded or offered  1009ms
+     ✓ 2x2: "log scale on a chart other than the one I've got selected, the bottom-right one" — a model plan on the CLICK is never applied, carded or offered  1003ms
+     ✓ 2x2: "log scale on a chart other than the one I just clicked, the bottom-right one" — a model plan on the CLICK is never applied, carded or offered  994ms
+     ✓ 2x2: "log scale on a chart other than the chart I clicked, the bottom-right one" — a model plan on the CLICK is never applied, carded or offered  989ms
+     ✓ 2x2: "log scale on a chart other than the chart I'm on, the bottom-right one" — a model plan on the CLICK is never applied, carded or offered  982ms
+     ✓ 2x2: "log scale on a chart other than the one I'm looking at, the bottom-right one" — a model plan on the CLICK is never applied, carded or offered  990ms
+     ✓ 2x2: "log scale on a chart other than the chart that I selected, the bottom-right one" — a model plan on the CLICK is never applied, carded or offered  996ms
+     ✓ 2x3: "put the bottom-right one on log scale, not the one I clicked" — a model plan on the CLICK is never applied, carded or offered  1025ms
+     ✓ 2x3: "put the bottom-right one on log scale, not the one I clicked on" — a model plan on the CLICK is never applied, carded or offered  1013ms
+     ✓ 2x3: "put the bottom-right one on log scale, not the one I selected" — a model plan on the CLICK is never applied, carded or offered  1036ms
+     ✓ 2x3: "put the bottom-right one on log scale, not the one I picked" — a model plan on the CLICK is never applied, carded or offered  1012ms
+     ✓ 2x3: "put the bottom-right one on log scale, not the one I have selected" — a model plan on the CLICK is never applied, carded or offered  1021ms
+     ✓ 2x3: "put the bottom-right one on log scale, not the one I've got selected" — a model plan on the CLICK is never applied, carded or offered  1029ms
+     ✓ 2x3: "put the bottom-right one on log scale, not the one I just clicked" — a model plan on the CLICK is never applied, carded or offered  997ms
+     ✓ 2x3: "put the bottom-right one on log scale, not the chart I clicked" — a model plan on the CLICK is never applied, carded or offered  1011ms
+     ✓ 2x3: "put the bottom-right one on log scale, not the chart I'm on" — a model plan on the CLICK is never applied, carded or offered  984ms
+     ✓ 2x3: "put the bottom-right one on log scale, not the one I'm looking at" — a model plan on the CLICK is never applied, carded or offered  1012ms
+     ✓ 2x3: "put the bottom-right one on log scale, not the chart that I selected" — a model plan on the CLICK is never applied, carded or offered  1042ms
+     ✓ 2x3: "put the bottom-right one on log scale instead of the one I clicked" — a model plan on the CLICK is never applied, carded or offered  990ms
+     ✓ 2x3: "put the bottom-right one on log scale instead of the one I clicked on" — a model plan on the CLICK is never applied, carded or offered  993ms
+     ✓ 2x3: "put the bottom-right one on log scale instead of the one I selected" — a model plan on the CLICK is never applied, carded or offered  1007ms
+     ✓ 2x3: "put the bottom-right one on log scale instead of the one I picked" — a model plan on the CLICK is never applied, carded or offered  1005ms
+     ✓ 2x3: "put the bottom-right one on log scale instead of the one I have selected" — a model plan on the CLICK is never applied, carded or offered  1042ms
+     ✓ 2x3: "put the bottom-right one on log scale instead of the one I've got selected" — a model plan on the CLICK is never applied, carded or offered  1023ms
+     ✓ 2x3: "put the bottom-right one on log scale instead of the one I just clicked" — a model plan on the CLICK is never applied, carded or offered  993ms
+     ✓ 2x3: "put the bottom-right one on log scale instead of the chart I clicked" — a model plan on the CLICK is never applied, carded or offered  993ms
+     ✓ 2x3: "put the bottom-right one on log scale instead of the chart I'm on" — a model plan on the CLICK is never applied, carded or offered  993ms
+     ✓ 2x3: "put the bottom-right one on log scale instead of the one I'm looking at" — a model plan on the CLICK is never applied, carded or offered  994ms
+     ✓ 2x3: "put the bottom-right one on log scale instead of the chart that I selected" — a model plan on the CLICK is never applied, carded or offered  1012ms
+     ✓ 2x3: "put the bottom-right one on log scale rather than the one I clicked" — a model plan on the CLICK is never applied, carded or offered  1005ms
+     ✓ 2x3: "put the bottom-right one on log scale rather than the one I clicked on" — a model plan on the CLICK is never applied, carded or offered  996ms
+     ✓ 2x3: "put the bottom-right one on log scale rather than the one I selected" — a model plan on the CLICK is never applied, carded or offered  987ms
+     ✓ 2x3: "put the bottom-right one on log scale rather than the one I picked" — a model plan on the CLICK is never applied, carded or offered  993ms
+     ✓ 2x3: "put the bottom-right one on log scale rather than the one I have selected" — a model plan on the CLICK is never applied, carded or offered  991ms
+     ✓ 2x3: "put the bottom-right one on log scale rather than the one I've got selected" — a model plan on the CLICK is never applied, carded or offered  1039ms
+     ✓ 2x3: "put the bottom-right one on log scale rather than the one I just clicked" — a model plan on the CLICK is never applied, carded or offered  1004ms
+     ✓ 2x3: "put the bottom-right one on log scale rather than the chart I clicked" — a model plan on the CLICK is never applied, carded or offered  981ms
+     ✓ 2x3: "put the bottom-right one on log scale rather than the chart I'm on" — a model plan on the CLICK is never applied, carded or offered  973ms
+     ✓ 2x3: "put the bottom-right one on log scale rather than the one I'm looking at" — a model plan on the CLICK is never applied, carded or offered  990ms
+     ✓ 2x3: "put the bottom-right one on log scale rather than the chart that I selected" — a model plan on the CLICK is never applied, carded or offered  996ms
+     ✓ 2x3: "log scale on a chart other than the one I clicked, the bottom-right one" — a model plan on the CLICK is never applied, carded or offered  993ms
+     ✓ 2x3: "log scale on a chart other than the one I clicked on, the bottom-right one" — a model plan on the CLICK is never applied, carded or offered  1001ms
+     ✓ 2x3: "log scale on a chart other than the one I selected, the bottom-right one" — a model plan on the CLICK is never applied, carded or offered  1009ms
+     ✓ 2x3: "log scale on a chart other than the one I picked, the bottom-right one" — a model plan on the CLICK is never applied, carded or offered  1010ms
+     ✓ 2x3: "log scale on a chart other than the one I have selected, the bottom-right one" — a model plan on the CLICK is never applied, carded or offered  1016ms
+     ✓ 2x3: "log scale on a chart other than the one I've got selected, the bottom-right one" — a model plan on the CLICK is never applied, carded or offered  1025ms
+     ✓ 2x3: "log scale on a chart other than the one I just clicked, the bottom-right one" — a model plan on the CLICK is never applied, carded or offered  989ms
+     ✓ 2x3: "log scale on a chart other than the chart I clicked, the bottom-right one" — a model plan on the CLICK is never applied, carded or offered  996ms
+     ✓ 2x3: "log scale on a chart other than the chart I'm on, the bottom-right one" — a model plan on the CLICK is never applied, carded or offered  991ms
+     ✓ 2x3: "log scale on a chart other than the one I'm looking at, the bottom-right one" — a model plan on the CLICK is never applied, carded or offered  997ms
+     ✓ 2x3: "log scale on a chart other than the chart that I selected, the bottom-right one" — a model plan on the CLICK is never applied, carded or offered  1008ms
+     ✓ 3x3: "put the bottom-right one on log scale, not the one I clicked" — a model plan on the CLICK is never applied, carded or offered  1026ms
+     ✓ 3x3: "put the bottom-right one on log scale, not the one I clicked on" — a model plan on the CLICK is never applied, carded or offered  1022ms
+     ✓ 3x3: "put the bottom-right one on log scale, not the one I selected" — a model plan on the CLICK is never applied, carded or offered  1058ms
+     ✓ 3x3: "put the bottom-right one on log scale, not the one I picked" — a model plan on the CLICK is never applied, carded or offered  1035ms
+     ✓ 3x3: "put the bottom-right one on log scale, not the one I have selected" — a model plan on the CLICK is never applied, carded or offered  1059ms
+     ✓ 3x3: "put the bottom-right one on log scale, not the one I've got selected" — a model plan on the CLICK is never applied, carded or offered  1047ms
+     ✓ 3x3: "put the bottom-right one on log scale, not the one I just clicked" — a model plan on the CLICK is never applied, carded or offered  1019ms
+     ✓ 3x3: "put the bottom-right one on log scale, not the chart I clicked" — a model plan on the CLICK is never applied, carded or offered  1027ms
+     ✓ 3x3: "put the bottom-right one on log scale, not the chart I'm on" — a model plan on the CLICK is never applied, carded or offered  1028ms
+     ✓ 3x3: "put the bottom-right one on log scale, not the one I'm looking at" — a model plan on the CLICK is never applied, carded or offered  1026ms
+     ✓ 3x3: "put the bottom-right one on log scale, not the chart that I selected" — a model plan on the CLICK is never applied, carded or offered  1040ms
+     ✓ 3x3: "put the bottom-right one on log scale instead of the one I clicked" — a model plan on the CLICK is never applied, carded or offered  1008ms
+     ✓ 3x3: "put the bottom-right one on log scale instead of the one I clicked on" — a model plan on the CLICK is never applied, carded or offered  1005ms
+     ✓ 3x3: "put the bottom-right one on log scale instead of the one I selected" — a model plan on the CLICK is never applied, carded or offered  1001ms
+     ✓ 3x3: "put the bottom-right one on log scale instead of the one I picked" — a model plan on the CLICK is never applied, carded or offered  970ms
+     ✓ 3x3: "put the bottom-right one on log scale instead of the one I have selected" — a model plan on the CLICK is never applied, carded or offered  1020ms
+     ✓ 3x3: "put the bottom-right one on log scale instead of the one I've got selected" — a model plan on the CLICK is never applied, carded or offered  1008ms
+     ✓ 3x3: "put the bottom-right one on log scale instead of the one I just clicked" — a model plan on the CLICK is never applied, carded or offered  1008ms
+     ✓ 3x3: "put the bottom-right one on log scale instead of the chart I clicked" — a model plan on the CLICK is never applied, carded or offered  1007ms
+     ✓ 3x3: "put the bottom-right one on log scale instead of the chart I'm on" — a model plan on the CLICK is never applied, carded or offered  996ms
+     ✓ 3x3: "put the bottom-right one on log scale instead of the one I'm looking at" — a model plan on the CLICK is never applied, carded or offered  997ms
+     ✓ 3x3: "put the bottom-right one on log scale instead of the chart that I selected" — a model plan on the CLICK is never applied, carded or offered  1022ms
+     ✓ 3x3: "put the bottom-right one on log scale rather than the one I clicked" — a model plan on the CLICK is never applied, carded or offered  994ms
+     ✓ 3x3: "put the bottom-right one on log scale rather than the one I clicked on" — a model plan on the CLICK is never applied, carded or offered  1012ms
+     ✓ 3x3: "put the bottom-right one on log scale rather than the one I selected" — a model plan on the CLICK is never applied, carded or offered  1005ms
+     ✓ 3x3: "put the bottom-right one on log scale rather than the one I picked" — a model plan on the CLICK is never applied, carded or offered  1010ms
+     ✓ 3x3: "put the bottom-right one on log scale rather than the one I have selected" — a model plan on the CLICK is never applied, carded or offered  996ms
+     ✓ 3x3: "put the bottom-right one on log scale rather than the one I've got selected" — a model plan on the CLICK is never applied, carded or offered  1012ms
+     ✓ 3x3: "put the bottom-right one on log scale rather than the one I just clicked" — a model plan on the CLICK is never applied, carded or offered  1010ms
+     ✓ 3x3: "put the bottom-right one on log scale rather than the chart I clicked" — a model plan on the CLICK is never applied, carded or offered  1008ms
+     ✓ 3x3: "put the bottom-right one on log scale rather than the chart I'm on" — a model plan on the CLICK is never applied, carded or offered  1010ms
+     ✓ 3x3: "put the bottom-right one on log scale rather than the one I'm looking at" — a model plan on the CLICK is never applied, carded or offered  1009ms
+     ✓ 3x3: "put the bottom-right one on log scale rather than the chart that I selected" — a model plan on the CLICK is never applied, carded or offered  1003ms
+     ✓ 3x3: "log scale on a chart other than the one I clicked, the bottom-right one" — a model plan on the CLICK is never applied, carded or offered  1000ms
+     ✓ 3x3: "log scale on a chart other than the one I clicked on, the bottom-right one" — a model plan on the CLICK is never applied, carded or offered  1009ms
+     ✓ 3x3: "log scale on a chart other than the one I selected, the bottom-right one" — a model plan on the CLICK is never applied, carded or offered  1028ms
+     ✓ 3x3: "log scale on a chart other than the one I picked, the bottom-right one" — a model plan on the CLICK is never applied, carded or offered  1027ms
+     ✓ 3x3: "log scale on a chart other than the one I have selected, the bottom-right one" — a model plan on the CLICK is never applied, carded or offered  1028ms
+     ✓ 3x3: "log scale on a chart other than the one I've got selected, the bottom-right one" — a model plan on the CLICK is never applied, carded or offered  1045ms
+     ✓ 3x3: "log scale on a chart other than the one I just clicked, the bottom-right one" — a model plan on the CLICK is never applied, carded or offered  1010ms
+     ✓ 3x3: "log scale on a chart other than the chart I clicked, the bottom-right one" — a model plan on the CLICK is never applied, carded or offered  1009ms
+     ✓ 3x3: "log scale on a chart other than the chart I'm on, the bottom-right one" — a model plan on the CLICK is never applied, carded or offered  1002ms
+     ✓ 3x3: "log scale on a chart other than the one I'm looking at, the bottom-right one" — a model plan on the CLICK is never applied, carded or offered  1010ms
+     ✓ 3x3: "log scale on a chart other than the chart that I selected, the bottom-right one" — a model plan on the CLICK is never applied, carded or offered  1022ms
+     ✓ 2x2: "put the bottom-right one on log scale, not the one I clicked" — a plan on the named chart is applied  1042ms
+     ✓ 2x2: "put the bottom-right one on log scale instead of the one I clicked" — a plan on the named chart is applied  1037ms
+     ✓ 2x2: "put the bottom-right one on log scale rather than the one I clicked" — a plan on the named chart is applied  1036ms
+     ✓ 2x2: "log scale on a chart other than the one I clicked, the bottom-right one" — a plan on the named chart is applied  1036ms
+     ✓ 2x3: "put the bottom-right one on log scale, not the one I clicked" — a plan on the named chart is applied  1053ms
+     ✓ 2x3: "put the bottom-right one on log scale instead of the one I clicked" — a plan on the named chart is applied  1029ms
+     ✓ 2x3: "put the bottom-right one on log scale rather than the one I clicked" — a plan on the named chart is applied  1042ms
+     ✓ 2x3: "log scale on a chart other than the one I clicked, the bottom-right one" — a plan on the named chart is applied  1032ms
+     ✓ 3x3: "put the bottom-right one on log scale, not the one I clicked" — a plan on the named chart is applied  1060ms
+     ✓ 3x3: "put the bottom-right one on log scale instead of the one I clicked" — a plan on the named chart is applied  1048ms
+     ✓ 3x3: "put the bottom-right one on log scale rather than the one I clicked" — a plan on the named chart is applied  1039ms
+     ✓ 3x3: "log scale on a chart other than the one I clicked, the bottom-right one" — a plan on the named chart is applied  1050ms
+     ✓ "other than the one I clicked, put the rest on log scale" (c3 clicked) — a plan on the click is never applied  983ms
+     ✓ "put the rest on log scale, other than the one I clicked" (c3 clicked) — a plan on the click is never applied  990ms
+     ✓ "except the one I clicked, put the others on log scale" (c3 clicked) — a plan on the click is never applied  994ms
+     ✓ "log scale on all of them except the one I clicked" (c3 clicked) — a plan on the click is never applied  996ms
+     ✓ "other than the one I clicked on, put the rest on log scale" (c3 clicked) — a plan on the click is never applied  975ms
+     ✓ "put the rest on log scale, other than the one I clicked on" (c3 clicked) — a plan on the click is never applied  988ms
+     ✓ "except the one I clicked on, put the others on log scale" (c3 clicked) — a plan on the click is never applied  992ms
+     ✓ "log scale on all of them except the one I clicked on" (c3 clicked) — a plan on the click is never applied  993ms
+     ✓ "other than the one I selected, put the rest on log scale" (c3 clicked) — a plan on the click is never applied  983ms
+     ✓ "put the rest on log scale, other than the one I selected" (c3 clicked) — a plan on the click is never applied  993ms
+     ✓ "except the one I selected, put the others on log scale" (c3 clicked) — a plan on the click is never applied  983ms
+     ✓ "log scale on all of them except the one I selected" (c3 clicked) — a plan on the click is never applied  993ms
+     ✓ "other than the one I picked, put the rest on log scale" (c3 clicked) — a plan on the click is never applied  984ms
+     ✓ "put the rest on log scale, other than the one I picked" (c3 clicked) — a plan on the click is never applied  990ms
+     ✓ "except the one I picked, put the others on log scale" (c3 clicked) — a plan on the click is never applied  991ms
+     ✓ "log scale on all of them except the one I picked" (c3 clicked) — a plan on the click is never applied  996ms
+     ✓ "other than the one I have selected, put the rest on log scale" (c3 clicked) — a plan on the click is never applied  1023ms
+     ✓ "put the rest on log scale, other than the one I have selected" (c3 clicked) — a plan on the click is never applied  990ms
+     ✓ "except the one I have selected, put the others on log scale" (c3 clicked) — a plan on the click is never applied  996ms
+     ✓ "log scale on all of them except the one I have selected" (c3 clicked) — a plan on the click is never applied  967ms
+     ✓ "other than the one I've got selected, put the rest on log scale" (c3 clicked) — a plan on the click is never applied  1023ms
+     ✓ "put the rest on log scale, other than the one I've got selected" (c3 clicked) — a plan on the click is never applied  988ms
+     ✓ "except the one I've got selected, put the others on log scale" (c3 clicked) — a plan on the click is never applied  1000ms
+     ✓ "log scale on all of them except the one I've got selected" (c3 clicked) — a plan on the click is never applied  1002ms
+     ✓ "other than the one I just clicked, put the rest on log scale" (c3 clicked) — a plan on the click is never applied  992ms
+     ✓ "put the rest on log scale, other than the one I just clicked" (c3 clicked) — a plan on the click is never applied  994ms
+     ✓ "except the one I just clicked, put the others on log scale" (c3 clicked) — a plan on the click is never applied  993ms
+     ✓ "log scale on all of them except the one I just clicked" (c3 clicked) — a plan on the click is never applied  987ms
+     ✓ "other than the chart I clicked, put the rest on log scale" (c3 clicked) — a plan on the click is never applied  985ms
+     ✓ "put the rest on log scale, other than the chart I clicked" (c3 clicked) — a plan on the click is never applied  990ms
+     ✓ "except the chart I clicked, put the others on log scale" (c3 clicked) — a plan on the click is never applied  990ms
+     ✓ "log scale on all of them except the chart I clicked" (c3 clicked) — a plan on the click is never applied  989ms
+     ✓ "other than the chart I'm on, put the rest on log scale" (c3 clicked) — a plan on the click is never applied  996ms
+     ✓ "put the rest on log scale, other than the chart I'm on" (c3 clicked) — a plan on the click is never applied  992ms
+     ✓ "except the chart I'm on, put the others on log scale" (c3 clicked) — a plan on the click is never applied  998ms
+     ✓ "log scale on all of them except the chart I'm on" (c3 clicked) — a plan on the click is never applied  994ms
+     ✓ "other than the one I'm looking at, put the rest on log scale" (c3 clicked) — a plan on the click is never applied  991ms
+     ✓ "put the rest on log scale, other than the one I'm looking at" (c3 clicked) — a plan on the click is never applied  992ms
+     ✓ "except the one I'm looking at, put the others on log scale" (c3 clicked) — a plan on the click is never applied  996ms
+     ✓ "log scale on all of them except the one I'm looking at" (c3 clicked) — a plan on the click is never applied  997ms
+     ✓ "other than the chart that I selected, put the rest on log scale" (c3 clicked) — a plan on the click is never applied  1007ms
+     ✓ "put the rest on log scale, other than the chart that I selected" (c3 clicked) — a plan on the click is never applied  1013ms
+     ✓ "except the chart that I selected, put the others on log scale" (c3 clicked) — a plan on the click is never applied  1020ms
+     ✓ "log scale on all of them except the chart that I selected" (c3 clicked) — a plan on the click is never applied  1008ms
+     ✓ "other than the one I clicked, put the rest on log scale" (c3 clicked) — a plan on the rest is applied there  1120ms
+     ✓ "put the rest on log scale, other than the one I clicked" (c3 clicked) — a plan on the rest is applied there  1109ms
+     ✓ "except the one I clicked, put the others on log scale" (c3 clicked) — a plan on the rest is applied there  1122ms
+     ✓ "log scale on all of them except the one I clicked" (c3 clicked) — a plan on the rest is applied there  1128ms
+     ✓ "the one I selected stays as it is; put the top-left on log scale" (c3 clicked) — a plan on the click is never applied  986ms
+     ✓ "put the top-left on log scale; the one I selected stays as it is" (c3 clicked) — a plan on the click is never applied  998ms
+     ✓ "the one I selected stays as it is, put the top-left on log scale" (c3 clicked) — a plan on the click is never applied  992ms
+     ✓ "the one I selected stays on a normal scale; put the top-left on log scale" (c3 clicked) — a plan on the click is never applied  981ms
+     ✓ "put the top-left on log scale; the one I selected stays on a normal scale" (c3 clicked) — a plan on the click is never applied  1009ms
+     ✓ "the one I selected stays on a normal scale, put the top-left on log scale" (c3 clicked) — a plan on the click is never applied  966ms
+     ✓ "the one I selected stays the way it is; put the top-left on log scale" (c3 clicked) — a plan on the click is never applied  994ms
+     ✓ "put the top-left on log scale; the one I selected stays the way it is" (c3 clicked) — a plan on the click is never applied  1007ms
+     ✓ "the one I selected stays the way it is, put the top-left on log scale" (c3 clicked) — a plan on the click is never applied  981ms
+     ✓ "the one I selected can stay as it is; put the top-left on log scale" (c3 clicked) — a plan on the click is never applied  993ms
+     ✓ "put the top-left on log scale; the one I selected can stay as it is" (c3 clicked) — a plan on the click is never applied  1009ms
+     ✓ "the one I selected can stay as it is, put the top-left on log scale" (c3 clicked) — a plan on the click is never applied  994ms
+     ✓ "the one I selected should stay as it is; put the top-left on log scale" (c3 clicked) — a plan on the click is never applied  993ms
+     ✓ "put the top-left on log scale; the one I selected should stay as it is" (c3 clicked) — a plan on the click is never applied  1008ms
+     ✓ "the one I selected should stay as it is, put the top-left on log scale" (c3 clicked) — a plan on the click is never applied  992ms
+     ✓ "the one I selected is fine as it is; put the top-left on log scale" (c3 clicked) — a plan on the click is never applied  1024ms
+     ✓ "put the top-left on log scale; the one I selected is fine as it is" (c3 clicked) — a plan on the click is never applied  1056ms
+     ✓ "the one I selected is fine as it is, put the top-left on log scale" (c3 clicked) — a plan on the click is never applied  1027ms
+     ✓ "the one I selected remains as it is; put the top-left on log scale" (c3 clicked) — a plan on the click is never applied  982ms
+     ✓ "put the top-left on log scale; the one I selected remains as it is" (c3 clicked) — a plan on the click is never applied  987ms
+     ✓ "the one I selected remains as it is, put the top-left on log scale" (c3 clicked) — a plan on the click is never applied  994ms
+     ✓ "the one I clicked stays as it is; put the top-left on log scale" (c3 clicked) — a plan on the click is never applied  987ms
+     ✓ "put the top-left on log scale; the one I clicked stays as it is" (c3 clicked) — a plan on the click is never applied  978ms
+     ✓ "the one I clicked stays as it is, put the top-left on log scale" (c3 clicked) — a plan on the click is never applied  988ms
+     ✓ "the one I clicked stays on a normal scale; put the top-left on log scale" (c3 clicked) — a plan on the click is never applied  995ms
+     ✓ "put the top-left on log scale; the one I clicked stays on a normal scale" (c3 clicked) — a plan on the click is never applied  967ms
+     ✓ "the one I clicked stays on a normal scale, put the top-left on log scale" (c3 clicked) — a plan on the click is never applied  980ms
+     ✓ "the one I clicked stays the way it is; put the top-left on log scale" (c3 clicked) — a plan on the click is never applied  995ms
+     ✓ "put the top-left on log scale; the one I clicked stays the way it is" (c3 clicked) — a plan on the click is never applied  992ms
+     ✓ "the one I clicked stays the way it is, put the top-left on log scale" (c3 clicked) — a plan on the click is never applied  994ms
+     ✓ "the one I clicked can stay as it is; put the top-left on log scale" (c3 clicked) — a plan on the click is never applied  980ms
+     ✓ "put the top-left on log scale; the one I clicked can stay as it is" (c3 clicked) — a plan on the click is never applied  965ms
+     ✓ "the one I clicked can stay as it is, put the top-left on log scale" (c3 clicked) — a plan on the click is never applied  996ms
+     ✓ "the one I clicked should stay as it is; put the top-left on log scale" (c3 clicked) — a plan on the click is never applied  985ms
+     ✓ "put the top-left on log scale; the one I clicked should stay as it is" (c3 clicked) — a plan on the click is never applied  988ms
+     ✓ "the one I clicked should stay as it is, put the top-left on log scale" (c3 clicked) — a plan on the click is never applied  995ms
+     ✓ "the one I clicked is fine as it is; put the top-left on log scale" (c3 clicked) — a plan on the click is never applied  985ms
+     ✓ "put the top-left on log scale; the one I clicked is fine as it is" (c3 clicked) — a plan on the click is never applied  980ms
+     ✓ "the one I clicked is fine as it is, put the top-left on log scale" (c3 clicked) — a plan on the click is never applied  981ms
+     ✓ "the one I clicked remains as it is; put the top-left on log scale" (c3 clicked) — a plan on the click is never applied  995ms
+     ✓ "put the top-left on log scale; the one I clicked remains as it is" (c3 clicked) — a plan on the click is never applied  979ms
+     ✓ "the one I clicked remains as it is, put the top-left on log scale" (c3 clicked) — a plan on the click is never applied  983ms
+     ✓ "the chart I'm on stays as it is; put the top-left on log scale" (c3 clicked) — a plan on the click is never applied  980ms
+     ✓ "put the top-left on log scale; the chart I'm on stays as it is" (c3 clicked) — a plan on the click is never applied  991ms
+     ✓ "the chart I'm on stays as it is, put the top-left on log scale" (c3 clicked) — a plan on the click is never applied  998ms
+     ✓ "the chart I'm on stays on a normal scale; put the top-left on log scale" (c3 clicked) — a plan on the click is never applied  996ms
+     ✓ "put the top-left on log scale; the chart I'm on stays on a normal scale" (c3 clicked) — a plan on the click is never applied  953ms
+     ✓ "the chart I'm on stays on a normal scale, put the top-left on log scale" (c3 clicked) — a plan on the click is never applied  983ms
+     ✓ "the chart I'm on stays the way it is; put the top-left on log scale" (c3 clicked) — a plan on the click is never applied  993ms
+     ✓ "put the top-left on log scale; the chart I'm on stays the way it is" (c3 clicked) — a plan on the click is never applied  987ms
+     ✓ "the chart I'm on stays the way it is, put the top-left on log scale" (c3 clicked) — a plan on the click is never applied  979ms
+     ✓ "the chart I'm on can stay as it is; put the top-left on log scale" (c3 clicked) — a plan on the click is never applied  997ms
+     ✓ "put the top-left on log scale; the chart I'm on can stay as it is" (c3 clicked) — a plan on the click is never applied  994ms
+     ✓ "the chart I'm on can stay as it is, put the top-left on log scale" (c3 clicked) — a plan on the click is never applied  994ms
+     ✓ "the chart I'm on should stay as it is; put the top-left on log scale" (c3 clicked) — a plan on the click is never applied  966ms
+     ✓ "put the top-left on log scale; the chart I'm on should stay as it is" (c3 clicked) — a plan on the click is never applied  994ms
+     ✓ "the chart I'm on should stay as it is, put the top-left on log scale" (c3 clicked) — a plan on the click is never applied  995ms
+     ✓ "the chart I'm on is fine as it is; put the top-left on log scale" (c3 clicked) — a plan on the click is never applied  1005ms
+     ✓ "put the top-left on log scale; the chart I'm on is fine as it is" (c3 clicked) — a plan on the click is never applied  1026ms
+     ✓ "the chart I'm on is fine as it is, put the top-left on log scale" (c3 clicked) — a plan on the click is never applied  991ms
+     ✓ "the chart I'm on remains as it is; put the top-left on log scale" (c3 clicked) — a plan on the click is never applied  991ms
+     ✓ "put the top-left on log scale; the chart I'm on remains as it is" (c3 clicked) — a plan on the click is never applied  996ms
+     ✓ "the chart I'm on remains as it is, put the top-left on log scale" (c3 clicked) — a plan on the click is never applied  996ms
+     ✓ "the one I have selected stays as it is; put the top-left on log scale" (c3 clicked) — a plan on the click is never applied  980ms
+     ✓ "put the top-left on log scale; the one I have selected stays as it is" (c3 clicked) — a plan on the click is never applied  1009ms
+     ✓ "the one I have selected stays as it is, put the top-left on log scale" (c3 clicked) — a plan on the click is never applied  991ms
+     ✓ "the one I have selected stays on a normal scale; put the top-left on log scale" (c3 clicked) — a plan on the click is never applied  992ms
+     ✓ "put the top-left on log scale; the one I have selected stays on a normal scale" (c3 clicked) — a plan on the click is never applied  1010ms
+     ✓ "the one I have selected stays on a normal scale, put the top-left on log scale" (c3 clicked) — a plan on the click is never applied  996ms
+     ✓ "the one I have selected stays the way it is; put the top-left on log scale" (c3 clicked) — a plan on the click is never applied  979ms
+     ✓ "put the top-left on log scale; the one I have selected stays the way it is" (c3 clicked) — a plan on the click is never applied  991ms
+     ✓ "the one I have selected stays the way it is, put the top-left on log scale" (c3 clicked) — a plan on the click is never applied  982ms
+     ✓ "the one I have selected can stay as it is; put the top-left on log scale" (c3 clicked) — a plan on the click is never applied  1007ms
+     ✓ "put the top-left on log scale; the one I have selected can stay as it is" (c3 clicked) — a plan on the click is never applied  1008ms
+     ✓ "the one I have selected can stay as it is, put the top-left on log scale" (c3 clicked) — a plan on the click is never applied  985ms
+     ✓ "the one I have selected should stay as it is; put the top-left on log scale" (c3 clicked) — a plan on the click is never applied  997ms
+     ✓ "put the top-left on log scale; the one I have selected should stay as it is" (c3 clicked) — a plan on the click is never applied  1005ms
+     ✓ "the one I have selected should stay as it is, put the top-left on log scale" (c3 clicked) — a plan on the click is never applied  984ms
+     ✓ "the one I have selected is fine as it is; put the top-left on log scale" (c3 clicked) — a plan on the click is never applied  1023ms
+     ✓ "put the top-left on log scale; the one I have selected is fine as it is" (c3 clicked) — a plan on the click is never applied  1062ms
+     ✓ "the one I have selected is fine as it is, put the top-left on log scale" (c3 clicked) — a plan on the click is never applied  1027ms
+     ✓ "the one I have selected remains as it is; put the top-left on log scale" (c3 clicked) — a plan on the click is never applied  992ms
+     ✓ "put the top-left on log scale; the one I have selected remains as it is" (c3 clicked) — a plan on the click is never applied  996ms
+     ✓ "the one I have selected remains as it is, put the top-left on log scale" (c3 clicked) — a plan on the click is never applied  988ms
+     ✓ "the one I selected stays as it is; put the top-left on log scale" (c3 clicked) — a plan on the top-left is applied  1044ms
+     ✓ "put the top-left on log scale; the one I selected stays as it is" (c3 clicked) — a plan on the top-left is applied  1057ms
+     ✓ "the one I selected stays as it is, put the top-left on log scale" (c3 clicked) — a plan on the top-left is applied  1041ms
+     ✓ "the one I selected stays on a normal scale; put the top-left on log scale" (c3 clicked) — a plan on the top-left is applied  1042ms
+     ✓ "put the top-left on log scale; the one I selected stays on a normal scale" (c3 clicked) — a plan on the top-left is applied  1050ms
+     ✓ "the one I selected stays on a normal scale, put the top-left on log scale" (c3 clicked) — a plan on the top-left is applied  1041ms
+     ✓ control: "the one I selected should be on log scale" (c3 clicked) — a plan on the click is applied  1036ms
+     ✓ control: "the one I clicked needs log scale" (c3 clicked) — a plan on the click is applied  1016ms
+     ✓ control: "the chart I'm on should use log scale" (c3 clicked) — a plan on the click is applied  1039ms
+     ✓ "put the one I have selected on log scale, not the bottom-left" (c1 clicked) — a plan on c2 is never applied  1009ms
+     ✓ "not the bottom-left — put the one I have selected on log scale" (c1 clicked) — a plan on c2 is never applied  1009ms
+     ✓ "put the one I clicked on log scale and not the bottom-left" (c1 clicked) — a plan on c2 is never applied  993ms
+     ✓ "log scale on the one I selected, not the bottom-left" (c1 clicked) — a plan on c2 is never applied  990ms
+     ✓ "put the one I have selected on log scale, not the bottom left" (c1 clicked) — a plan on c2 is never applied  993ms
+     ✓ "not the bottom left — put the one I have selected on log scale" (c1 clicked) — a plan on c2 is never applied  990ms
+     ✓ "put the one I clicked on log scale and not the bottom left" (c1 clicked) — a plan on c2 is never applied  995ms
+     ✓ "log scale on the one I selected, not the bottom left" (c1 clicked) — a plan on c2 is never applied  992ms
+     ✓ "put the one I have selected on log scale, not bottom-left" (c1 clicked) — a plan on c2 is never applied  992ms
+     ✓ "not bottom-left — put the one I have selected on log scale" (c1 clicked) — a plan on c2 is never applied  995ms
+     ✓ "put the one I clicked on log scale and not bottom-left" (c1 clicked) — a plan on c2 is never applied  992ms
+     ✓ "log scale on the one I selected, not bottom-left" (c1 clicked) — a plan on c2 is never applied  991ms
+     ✓ "put the one I have selected on log scale, not the top-left" (c1 clicked) — a plan on c0 is never applied  992ms
+     ✓ "not the top-left — put the one I have selected on log scale" (c1 clicked) — a plan on c0 is never applied  986ms
+     ✓ "put the one I clicked on log scale and not the top-left" (c1 clicked) — a plan on c0 is never applied  994ms
+     ✓ "log scale on the one I selected, not the top-left" (c1 clicked) — a plan on c0 is never applied  995ms
+     ✓ "put the one I have selected on log scale, not the bottom-right" (c1 clicked) — a plan on c3 is never applied  1009ms
+     ✓ "not the bottom-right — put the one I have selected on log scale" (c1 clicked) — a plan on c3 is never applied  993ms
+     ✓ "put the one I clicked on log scale and not the bottom-right" (c1 clicked) — a plan on c3 is never applied  984ms
+     ✓ "log scale on the one I selected, not the bottom-right" (c1 clicked) — a plan on c3 is never applied  993ms
+     ✓ "put the one I have selected on log scale, not the bottom right" (c1 clicked) — a plan on c3 is never applied  994ms
+     ✓ "not the bottom right — put the one I have selected on log scale" (c1 clicked) — a plan on c3 is never applied  993ms
+     ✓ "put the one I clicked on log scale and not the bottom right" (c1 clicked) — a plan on c3 is never applied  995ms
+     ✓ "log scale on the one I selected, not the bottom right" (c1 clicked) — a plan on c3 is never applied  992ms
+     ✓ "put the one I have selected on log scale, not the bottom-left" (c1 clicked) — a plan on the click is applied  1028ms
+     ✓ "not the bottom-left — put the one I have selected on log scale" (c1 clicked) — a plan on the click is applied  1039ms
+     ✓ "put the one I clicked on log scale and not the bottom-left" (c1 clicked) — a plan on the click is applied  1027ms
+     ✓ "log scale on the one I selected, not the bottom-left" (c1 clicked) — a plan on the click is applied  1038ms
+     ✓ "put this one on log scale, not linear" (c1 clicked) — a plan on the click is applied, no ask  1041ms
+     ✓ "log scale on this one, not linear" (c1 clicked) — a plan on the click is applied, no ask  1035ms
+     ✓ "put it on log scale, not arithmetic" (c1 clicked) — a plan on the click is applied, no ask  1045ms
+     ✓ "log scale on this chart, not the 200" (c1 clicked) — a plan on the click is applied, no ask  1035ms
+     ✓ "put the one I selected on log scale, not linear" (c1 clicked) — a plan on the click is applied, no ask  1041ms
+     ✓ "make this one log, not linear" (c1 clicked) — a plan on the click is applied, no ask  1041ms
+     ✓ "log scale on this one, not daily" (c1 clicked) — a plan on the click is applied, no ask  1037ms
+     ✓ "put this one on log scale, not weekly" (c1 clicked) — a plan on the click is applied, no ask  1040ms
+     ✓ "put this one on log scale, not the top-left one" (c1 clicked) — a plan on c0 is never applied  995ms
+     ✓ "log scale on this one, not the bottom-left one" (c1 clicked) — a plan on c2 is never applied  994ms
+     ✓ "put this one on log scale, not the bottom-right" (c1 clicked) — a plan on c3 is never applied  996ms
+     ✓ "put this one on log scale, not the left one" (c1 clicked) — a plan on c0 is never applied  982ms
+     ✓ "log scale on this one, not the left one" (c1 clicked) — a plan on c2 is never applied  994ms
+     ✓ "put this one on log scale, not the bottom ones" (c1 clicked) — a plan on c3 is never applied  976ms
+     ✓ "make the one I selected stay on log scale" (c3 clicked) — a plan on the click is applied  1072ms
+     ✓ "make the one I clicked stay on log scale" (c3 clicked) — a plan on the click is applied  1012ms
+     ✓ "have the chart I'm on stay on log scale" (c3 clicked) — a plan on the click is applied  1013ms
+     ✓ "set the one I selected to stay on log scale" (c3 clicked) — a plan on the click is applied  1042ms
+     ✓ "put this one on log scale, not the left one" (c1 clicked) — applied there, no ask  1043ms
+     ✓ "log scale on this one, not the left ones" (c3 clicked) — applied there, no ask  1036ms
+     ✓ "put this one on log scale, not the bottom ones" (c1 clicked) — applied there, no ask  1069ms
+     ✓ "log scale on the one I selected, not the left one" (c3 clicked) — applied there, no ask  1054ms
+
+ Test Files  14 passed (14)
+      Tests  1435 passed (1435)
+   Start at  04:01:38
+   Duration  345.13s (transform 39.52s, setup 2.95s, import 60.05s, tests 1228.71s, environment 8.90s)
+
+DONE C1

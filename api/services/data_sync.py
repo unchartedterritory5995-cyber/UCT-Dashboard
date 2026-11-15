@@ -25,6 +25,7 @@ import shutil
 import sqlite3
 import tarfile
 import tempfile
+import threading
 import time
 import logging
 import datetime as _dt
@@ -181,6 +182,10 @@ _LAST_SYNC_MARKER = ".last_sync_ts"
 _LAST_BASE_DAY_MARKER = ".last_base_day"
 
 
+R2_READ_TIMEOUT_S = int(os.environ.get("DATA_SYNC_READ_TIMEOUT_S", "300"))
+SNAPSHOT_DOWNLOAD_ATTEMPTS = int(os.environ.get("DATA_SYNC_DOWNLOAD_ATTEMPTS", "3"))
+
+
 def _client():
     """Lazy-construct the boto3 S3 client. Returns None if credentials missing."""
     endpoint = os.environ.get("DATA_SYNC_ENDPOINT_URL")
@@ -189,12 +194,18 @@ def _client():
     if not (endpoint and access_key and secret_key):
         return None
     import boto3
+    from botocore.config import Config
+    # ⛔ 2026-11-13: botocore's default 60 s read timeout killed a 5 GB snapshot download on bars-api
+    # after one stall ("Read timeout on endpoint URL"), and that boot then served from an empty store.
+    # A long read timeout plus adaptive retries keeps multi-GB transfers alive through a slow patch.
     return boto3.client(
         "s3",
         endpoint_url=endpoint,
         aws_access_key_id=access_key,
         aws_secret_access_key=secret_key,
         region_name=os.environ.get("DATA_SYNC_REGION", "auto"),
+        config=Config(connect_timeout=30, read_timeout=R2_READ_TIMEOUT_S,
+                      retries={"max_attempts": 8, "mode": "adaptive"}),
     )
 
 
@@ -426,6 +437,500 @@ def _backup_sqlite_db(src_path: str, dst_path: str) -> None:
         src.close()
 
 
+#: Build the snapshot's bars.db in the clustered layout (bars_cluster). OFF by default
+#: for a concrete safety reason: it adds hours and ~0.8x the copy in disk to the worker's
+#: daily base, so it is an owner-approved rollout step (PR #1102 rollout order). Unset/`0`
+#: ships the rowid copy unchanged -- the pre-2026-11-11 behaviour and the rollback lever.
+SNAPSHOT_CLUSTER = os.environ.get("SNAPSHOT_CLUSTER", "0") == "1"
+#: Free space the conversion needs beside the copy (the clustered file is ~half the
+#: rowid file; 0.8x + 1 GB is the margin).
+_CLUSTER_DISK_FACTOR = 0.8
+
+
+def _cluster_snapshot_copy(path: str) -> bool:
+    """Replace the private snapshot copy at `path` with its clustered conversion.
+    Returns True when the shipped file is clustered. Never raises: on any failure the
+    copy ships exactly as it was built."""
+    from api.services import bars_cluster, bars_sqlite
+    try:
+        c = sqlite3.connect(path)
+        try:
+            layout = bars_sqlite.ohlcv_layout(c)
+        finally:
+            c.close()
+        if layout == "clustered":
+            return True
+        if not SNAPSHOT_CLUSTER or layout != "rowid":
+            return False
+        need = int(os.path.getsize(path) * _CLUSTER_DISK_FACTOR) + (1 << 30)
+        free = shutil.disk_usage(os.path.dirname(path)).free
+        if free < need:
+            logger.warning(f"[data_sync] snapshot NOT clustered: {free >> 20} MB free < "
+                           f"{need >> 20} MB needed")
+            return False
+        dst = path + ".clustered"
+        stats = bars_cluster.cluster_copy(path, dst)
+        os.replace(dst, path)
+        logger.info(f"[data_sync] snapshot clustered (WITHOUT ROWID): {stats}")
+        return True
+    except Exception as e:  # noqa: BLE001 -- fail safe: ship the unconverted copy
+        logger.warning(f"[data_sync] snapshot NOT clustered (shipping rowid copy): {e}")
+        return False
+
+
+#: S3 object metadata the snapshot carries so a pod can decide BEFORE downloading.
+_META_LAYOUT = "bars-layout"
+_META_DB_BYTES = "bars-db-bytes"
+#: Layout + size of the bars.db inside the tarball `_make_tarball` built last.
+_last_tarball_meta: dict = {}
+#: One-shot record of a completed adoption (ts of the adopted snapshot).
+_ADOPTED_MARKER = ".adopted_clustered"
+#: Set while an adoption builds/swaps the store: every sync path stands aside.
+_adoption_active = threading.Event()
+def adoption_active() -> bool:
+    """True while `adopt_clustered_store` owns bars.db (syncs and uploads stand aside)."""
+    return _adoption_active.is_set() or _ADOPT_RUN_LOCK.locked()
+
+
+_ADOPT_RUN_LOCK = threading.Lock()   # one adoption at a time: a second caller must never
+                                     # sweep the first one's working folder
+_ADOPT_VERIFIED = ".verified"        # written inside adopt_<ts>/ once the download passed
+                                     # every gate; a restart resumes from there
+
+
+_REINSTALL_MARKER = ".bars_reinstall_token"
+
+
+def _pending_reinstall_token(data_dir: str) -> str:
+    """The BARS_REINSTALL_TOKEN value if it has not been applied on this volume yet, else ""."""
+    tok = os.environ.get("BARS_REINSTALL_TOKEN", "").strip()
+    if not tok:
+        return ""
+    try:
+        with open(os.path.join(data_dir, _REINSTALL_MARKER)) as f:
+            if f.readline().strip() == tok:
+                return ""
+    except OSError:
+        pass
+    return tok
+
+
+_SWAP_AT_BOOT = ".swap_at_boot"         # inside adopt_<ts>/: finish this swap at boot
+_PENDING_PAIRS = ".pending_pairs.json"   # the series to re-carry first
+
+
+def _write_json_atomic(path: str, obj) -> None:
+    tmp = path + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(obj, f)
+    os.replace(tmp, path)
+
+
+def complete_deferred_swap(data_dir: Optional[str] = None) -> str:
+    """Finish an adoption swap deferred by `adopt_clustered_store(defer_swap=...)`.
+
+    Call at boot BEFORE anything in the process opens bars.db: with no other connection,
+    the old store's TRUNCATE checkpoint cannot be blocked by a reader. Re-carries the saved
+    series (newer-wins, idempotent), checkpoints, renames, writes the markers. Returns
+    "none" | "adopted" | "failed" (the marker is then removed so a boot never loops; the
+    verified copy stays and the ordinary adoption resumes from it)."""
+    data_dir = data_dir or _DATA_DIR
+    p = os.path.join(data_dir, "bars.db")
+    try:
+        names = sorted(os.listdir(data_dir))
+    except OSError:
+        return "none"
+    for name in names:
+        tmpdir = os.path.join(data_dir, name)
+        marker = os.path.join(tmpdir, _SWAP_AT_BOOT)
+        if not name.startswith("adopt_") or not os.path.exists(marker):
+            continue
+        new = os.path.join(tmpdir, "bars.db")
+        try:
+            with open(marker) as f:
+                ts = f.readline().strip()
+            if not (os.path.exists(new) and os.path.exists(p)):
+                raise RuntimeError("a store is missing")
+            pairs = []
+            try:
+                with open(os.path.join(tmpdir, _PENDING_PAIRS)) as f:
+                    pairs = [tuple(x) for x in json.load(f)]
+            except FileNotFoundError:
+                pass
+            carried = max(0, _merge_ohlcv_from(p, new, pairs=pairs)) if pairs else 0
+            if not _truncate_checkpoint(p, 60):
+                raise RuntimeError("old store busy at boot")
+            _truncate_checkpoint(new, 30)
+            n_new = _row_count(new)
+            os.replace(new, p)
+        except Exception as e:  # noqa: BLE001 -- the old store is untouched
+            logger.warning(f"[data_sync] adopt-clustered: boot swap failed; store kept: {e}")
+            try:
+                os.remove(marker)
+            except OSError:
+                pass
+            return "failed"
+        _write_marker_at(data_dir, _ADOPTED_MARKER, ts)
+        _write_marker_at(data_dir, _LAST_SYNC_MARKER, ts)
+        try:
+            os.remove(os.path.join(data_dir, _LAST_DELTA_MARKER))
+        except FileNotFoundError:
+            pass
+        shutil.rmtree(tmpdir, ignore_errors=True)
+        try:
+            from api.services import bars_sqlite
+            bars_sqlite.bump_db_epoch()
+            bars_sqlite.bump_store_floor("adopted clustered store (boot swap)")
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"[data_sync] adopt-clustered: floor bump after boot swap: {e}")
+        logger.info(f"[data_sync] adopt-clustered: installed clustered snapshot {ts} at boot "
+                    f"({n_new} rows; {carried} rows re-carried)")
+        return "adopted"
+    return "none"
+
+
+def _adopt_dir_for(ts: str) -> str:
+    return f"adopt_{ts}"
+
+
+def _sweep_stale_adopt_dirs(data_dir: str, keep: Optional[str] = None) -> int:
+    """Delete every `adopt_*` working folder in `data_dir` except `keep`.
+
+    An adoption killed by a restart (a deploy, an OOM) leaves its ~20 GB working folder
+    behind, and the next attempt then fails its disk check and never runs again
+    (web, 2026-11-13: twice). Only called under `_ADOPT_RUN_LOCK`, so nothing live owns
+    any of these. Returns the number removed."""
+    n = 0
+    try:
+        names = os.listdir(data_dir)
+    except OSError:
+        return 0
+    for name in names:
+        if not name.startswith("adopt_") or name == keep:
+            continue
+        path = os.path.join(data_dir, name)
+        if os.path.isdir(path) and not os.path.islink(path):
+            shutil.rmtree(path, ignore_errors=True)
+            n += 1
+            logger.info(f"[data_sync] adopt-clustered: removed stale working folder {name}")
+    return n
+#: An adopted store must hold at least this share of the local store's rows.
+ADOPT_MIN_ROW_RATIO = float(os.environ.get("BARS_ADOPT_MIN_ROW_RATIO", "0.9"))
+_adopt_logged: set = set()
+#: Hard budget for the adoption's LOCKED pass (writers paused). Over it -> abort, keep
+#: the old store, retry in a later window.
+ADOPT_LOCKED_BUDGET_S = float(os.environ.get("BARS_ADOPT_LOCKED_BUDGET_S", "10"))
+#: Unlocked catch-up rounds before the locked pass: each re-carries only the series written
+#: during the previous round, so on a pod that writes constantly (the worker: 11,464 series
+#: changed during one full carry on 2026-11-14 and the locked pass ran out of budget) the
+#: remainder shrinks round by round. The locked pass starts once it is under the target.
+#: How long the locked swap keeps retrying the TRUNCATE checkpoint of the old store. A
+#: TRUNCATE waits for every open read transaction; on the worker's 41 GB rowid store one
+#: outlasted a single 30 s wait (2026-11-14 10:15 UTC). Writers stay paused meanwhile,
+#: which the quiet window allows; readers keep reading.
+ADOPT_CHECKPOINT_BUDGET_S = float(os.environ.get("BARS_ADOPT_CHECKPOINT_BUDGET_S", "300"))
+ADOPT_CONVERGE_ROUNDS = int(os.environ.get("BARS_ADOPT_CONVERGE_ROUNDS", "8"))
+ADOPT_LOCKED_PAIRS_TARGET = int(os.environ.get("BARS_ADOPT_LOCKED_PAIRS_TARGET", "1500"))
+
+
+def in_quiet_window(now: Optional[_dt.datetime] = None) -> bool:
+    """True overnight ET (20:15 -> 03:45, Mon-Fri) and all weekend: no live store, no
+    session -- the only time a store adoption may run."""
+    et = (now or _dt.datetime.now(_dt.timezone.utc)).astimezone(_ET)
+    minute = et.hour * 60 + et.minute
+    if et.weekday() >= 5:
+        return True
+    return minute >= 20 * 60 + 15 or minute < 3 * 60 + 45
+
+
+def _log_once(key: str, msg: str) -> None:
+    if key not in _adopt_logged:
+        _adopt_logged.add(key)
+        logger.warning(msg)
+
+
+def _layout_of(path: str) -> str:
+    from api.services import bars_sqlite
+    c = sqlite3.connect(path, timeout=5)
+    try:
+        return bars_sqlite.ohlcv_layout(c)
+    finally:
+        c.close()
+
+
+def _row_count(path: str) -> int:
+    c = sqlite3.connect(path, timeout=30)
+    try:
+        return int(c.execute("SELECT COUNT(*) FROM ohlcv").fetchone()[0])
+    finally:
+        c.close()
+
+
+def _copy_stat1(old_path: str, new_path: str) -> None:
+    """Carry planner statistics for the tables/indexes the new store still has."""
+    c = sqlite3.connect(new_path, isolation_level=None)
+    try:
+        c.execute("ATTACH DATABASE ? AS old", (old_path,))
+        if not c.execute("SELECT 1 FROM old.sqlite_master WHERE name='sqlite_stat1'").fetchone():
+            return
+        if not c.execute("SELECT 1 FROM main.sqlite_master WHERE name='sqlite_stat1'").fetchone():
+            c.execute("ANALYZE sqlite_master")            # creates an empty sqlite_stat1
+        c.execute("INSERT INTO main.sqlite_stat1 SELECT tbl, idx, stat FROM old.sqlite_stat1 o "
+                  "WHERE EXISTS (SELECT 1 FROM main.sqlite_master m WHERE m.name = o.tbl) "
+                  "AND (o.idx IS NULL OR EXISTS (SELECT 1 FROM main.sqlite_master m "
+                  "WHERE m.name = o.idx)) AND NOT EXISTS (SELECT 1 FROM main.sqlite_stat1 n "
+                  "WHERE n.tbl = o.tbl AND n.idx IS o.idx)")
+    finally:
+        c.close()
+
+
+def _truncate_checkpoint(path: str, budget_s: float) -> bool:
+    """TRUNCATE-checkpoint `path`, retrying until it succeeds or `budget_s` runs out.
+    True once the WAL is empty and reset (safe to rename another main file over it)."""
+    deadline = time.monotonic() + max(0.0, budget_s)
+    attempts = 0
+    while True:
+        attempts += 1
+        left = max(1.0, min(30.0, deadline - time.monotonic()))
+        try:
+            c = sqlite3.connect(path, timeout=left)
+            try:
+                busy = c.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()[0]
+            finally:
+                c.close()
+        except sqlite3.OperationalError:
+            busy = 1
+        if not busy:
+            if attempts > 1:
+                logger.info(f"[data_sync] TRUNCATE checkpoint succeeded on attempt {attempts}")
+            return True
+        if time.monotonic() >= deadline:
+            logger.warning(f"[data_sync] TRUNCATE checkpoint still busy after {attempts} "
+                           f"attempts / {budget_s:.0f}s")
+            return False
+        time.sleep(0.5)
+
+
+def _write_marker_at(data_dir: str, filename: str, ts: str) -> None:
+    with open(os.path.join(data_dir, filename), "w") as f:
+        f.write(f"{ts}\n{int(time.time())}\n")
+
+
+def adopt_clustered_store(data_dir: Optional[str] = None, defer_swap=None) -> str:
+    """Public entry: see `_adopt_clustered_store_locked`. Returns "busy" while another
+    call in this process is adopting.
+
+    `defer_swap`: called (still holding the write lock) when the old store stays busy past
+    the checkpoint budget. It must END THE PROCESS (the worker passes `os._exit`): the
+    remaining series are saved and `complete_deferred_swap` finishes the swap at the next
+    boot, before anything opens bars.db. If it returns, the deferral is withdrawn."""
+    if not _ADOPT_RUN_LOCK.acquire(blocking=False):
+        return "busy"
+    try:
+        return _adopt_clustered_store_locked(data_dir, defer_swap)
+    finally:
+        _ADOPT_RUN_LOCK.release()
+
+
+def _adopt_clustered_store_locked(data_dir: Optional[str] = None, defer_swap=None) -> str:
+    """⭐ HOW A SERVING POD ADOPTS THE CLUSTERED LAYOUT (bars_cluster module doc).
+
+    Runs only with `BARS_ADOPT_CLUSTERED=1`, ONCE (marker), on a pod whose store is still
+    rowid. The live store is never touched until a complete, verified replacement exists:
+      1. R2's latest snapshot must SAY it is clustered (object metadata written by the
+         uploader) -- otherwise nothing is downloaded (a rowid base: conversion disabled,
+         short on disk, failed verification, or a base build killed by a deploy);
+      2. free disk must cover the new store (+10% + 2 GB) beside the old one;
+      3. stream-extract onto the SAME volume (no tarball on disk); the copy must be
+         clustered, pass integrity_check and hold >= ADOPT_MIN_ROW_RATIO of the live rows;
+      0. only inside the quiet window (`in_quiet_window`); otherwise it returns
+         "not-quiet" and is retried at the next boot / periodic pull;
+      4. carry what only this pod holds (live-store bars, heals, cold fetches, deep warms):
+         the standard newer-wins merge FROM the old store INTO the new copy (forward tails,
+         holes/corrections inside the heal window, and whole pairs the base lacks),
+         UNLOCKED; then, under the write lock, a second merge of ONLY the (ticker, tf)
+         pairs written since pass 1 began (`bars_sqlite` write tracking), within
+         ADOPT_LOCKED_BUDGET_S -- over budget aborts and keeps the old store;
+      5. under the write lock AND `DB_SWAP_LOCK` (the WAL checkpointer waits): TRUNCATE-
+         checkpoint the old store (its -wal/-shm are then empty and reset, so they are
+         safe beside the new file), atomic rename, `bump_db_epoch`;
+      6. markers: adopted (one-shot), last-sync = the snapshot, last-delta CLEARED so every
+         delta newer than the base re-applies.
+    Any failure leaves the old store exactly as it was and is logged once. Returns a
+    status word."""
+    data_dir = data_dir or _DATA_DIR
+    # ⭐ BARS_REINSTALL_TOKEN=<token>: the operator lever to re-install the latest clustered
+    # base over a store that is already clustered but PARTIAL (2026-11-14: a false boot
+    # resync left web with only delta-window rows). Runs ONCE per distinct token, through
+    # this same safe path -- carry the local rows, swap under the write + swap locks --
+    # never `force_resync`, which deletes the live file under open connections.
+    reinstall = _pending_reinstall_token(data_dir)
+    if os.environ.get("BARS_ADOPT_CLUSTERED") != "1" and not reinstall:
+        return "off"
+    p = os.path.join(data_dir, "bars.db")
+    if not reinstall and os.path.exists(os.path.join(data_dir, _ADOPTED_MARKER)):
+        return "done"
+    if not os.path.exists(p):
+        return "absent"                       # the cold-start install handles an empty pod
+    try:
+        if not reinstall and _layout_of(p) == "clustered":
+            _write_marker_at(data_dir, _ADOPTED_MARKER, "local")
+            return "done"
+    except Exception as e:  # noqa: BLE001
+        _log_once("probe", f"[data_sync] adopt-clustered: local probe failed: {e}")
+        return "failed"
+    if not in_quiet_window() and os.environ.get("BARS_ADOPT_IGNORE_WINDOW") != "1":
+        # ⭐ BARS_ADOPT_IGNORE_WINDOW=1 (owner-requested override, 2026-11-13): adopt outside the
+        # quiet window. Every other gate (clustered tag, disk, integrity, row ratio, the locked
+        # pass-2 budget) still applies. Unset it after the adoption.
+        return "not-quiet"                    # retried at the next boot / pull in a window
+    client, bucket = _client(), _bucket()
+    ts = get_latest_snapshot_ts() if (client and bucket) else None
+    if not ts:
+        return "no-snapshot"
+    key = f"{_SNAPSHOT_PREFIX}{ts}.tar.gz"
+    try:
+        meta = {k.lower(): v for k, v in (client.head_object(Bucket=bucket, Key=key)
+                                          .get("Metadata") or {}).items()}
+    except Exception as e:  # noqa: BLE001
+        _log_once(f"head-{ts}", f"[data_sync] adopt-clustered: cannot read {key} metadata: {e}")
+        return "failed"
+    if meta.get(_META_LAYOUT) != "clustered":
+        _log_once(f"rowid-{ts}", f"[data_sync] adopt-clustered: latest snapshot {ts} is not "
+                                 f"clustered ({meta.get(_META_LAYOUT)}); store kept")
+        return "snapshot-rowid"
+    try:
+        db_bytes = int(meta.get(_META_DB_BYTES) or 0)
+    except ValueError:
+        db_bytes = 0
+    # ⭐ Restart-safe (2026-11-13): the working folder is named for the snapshot, every
+    # other adopt_* folder is a dead run's leftover and is swept first, and a folder whose
+    # download already passed every gate (`.verified`) is RESUMED, not downloaded again.
+    work_name = _adopt_dir_for(ts)
+    tmpdir = os.path.join(data_dir, work_name)
+    _sweep_stale_adopt_dirs(data_dir, keep=work_name)
+    resume = (os.path.exists(os.path.join(tmpdir, _ADOPT_VERIFIED))
+              and os.path.exists(os.path.join(tmpdir, "bars.db")))
+    if not resume:
+        shutil.rmtree(tmpdir, ignore_errors=True)       # a partial download: start over
+    need = int((db_bytes or os.path.getsize(p)) * 1.1) + (2 << 30)
+    if resume:                                          # the copy is already on disk
+        need = max(0, need - os.path.getsize(os.path.join(tmpdir, "bars.db")))
+    free = shutil.disk_usage(data_dir).free
+    if free < need:
+        _log_once(f"disk-{ts}", f"[data_sync] adopt-clustered: {free >> 20} MB free < "
+                                f"{need >> 20} MB needed; store kept")
+        return "no-disk"
+    from api.services import bars_sqlite
+    _adoption_active.set()
+    keep_work = False
+    try:
+        new = os.path.join(tmpdir, "bars.db")         # same volume: atomic rename
+        if resume:
+            logger.info(f"[data_sync] adopt-clustered: resuming the verified download of {ts}")
+        else:
+            os.makedirs(tmpdir, exist_ok=True)
+            _extract_tar_stream(client.get_object(Bucket=bucket, Key=key)["Body"], tmpdir)
+            if not os.path.exists(new):
+                raise RuntimeError("snapshot has no bars.db")
+        if _layout_of(new) != "clustered":
+            raise RuntimeError("downloaded store is not clustered")
+        if not resume and not _verify_snapshot_db(new):
+            raise RuntimeError("downloaded store failed integrity_check")
+        n_old, n_new = _row_count(p), _row_count(new)
+        if n_new < ADOPT_MIN_ROW_RATIO * n_old:
+            raise RuntimeError(f"downloaded store holds {n_new} rows < "
+                               f"{ADOPT_MIN_ROW_RATIO:.0%} of the local {n_old}")
+        if not resume:
+            # Every gate passed: a restart from here on resumes at the carry (both merge
+            # passes are newer-wins and idempotent, so re-running pass 1 is safe).
+            _write_marker_at(tmpdir, _ADOPT_VERIFIED, ts)
+        # Pass 1, UNLOCKED: the full carry while the pod keeps serving and writing.
+        bars_sqlite.start_write_tracking()
+        try:
+            carried = max(0, _merge_ohlcv_from(p, new))
+            _copy_stat1(p, new)
+            # Catch-up rounds, UNLOCKED: re-carry what was written meanwhile until the
+            # remainder is small enough for the locked pass's budget.
+            pending = bars_sqlite.swap_write_tracking()
+            sizes = [len(pending)]
+            for _ in range(ADOPT_CONVERGE_ROUNDS):
+                if len(pending) <= ADOPT_LOCKED_PAIRS_TARGET:
+                    break
+                carried += max(0, _merge_ohlcv_from(p, new, pairs=sorted(pending)))
+                pending = bars_sqlite.swap_write_tracking()
+                sizes.append(len(pending))
+            logger.info(f"[data_sync] adopt-clustered: catch-up rounds, series pending "
+                        f"{' -> '.join(map(str, sizes))}")
+        except BaseException:
+            bars_sqlite.stop_write_tracking()
+            raise
+        # Drain the old store's WAL BEFORE the lock (PASSIVE: never waits on anyone), so the
+        # locked TRUNCATE below only has the last few frames to move.
+        try:
+            _c = sqlite3.connect(p, timeout=5)
+            try:
+                _c.execute("PRAGMA wal_checkpoint(PASSIVE)").fetchone()
+            finally:
+                _c.close()
+        except sqlite3.Error:
+            pass
+        with bars_sqlite._WRITE_LOCK, bars_sqlite.DB_SWAP_LOCK:
+            # Pass 2, LOCKED and BUDGETED: the last round's remainder plus whatever was
+            # written since.
+            changed = sorted(pending | bars_sqlite.stop_write_tracking())
+            t_lock = time.monotonic()
+            if changed:
+                carried += max(0, _merge_ohlcv_from(
+                    p, new, pairs=changed, deadline=t_lock + ADOPT_LOCKED_BUDGET_S))
+            if not _truncate_checkpoint(p, ADOPT_CHECKPOINT_BUDGET_S):
+                if defer_swap is None:
+                    raise RuntimeError("old store busy; could not checkpoint before the swap")
+                # Writers are paused (we hold the lock) and stay paused until the process
+                # ends: `changed` is everything not yet in the copy's newest state.
+                _write_json_atomic(os.path.join(tmpdir, _PENDING_PAIRS), changed)
+                _write_marker_at(tmpdir, _SWAP_AT_BOOT, ts)
+                keep_work = True
+                logger.warning(f"[data_sync] adopt-clustered: old store busy; the swap of {ts} "
+                               f"finishes at the next boot ({len(changed)} series pending)")
+                defer_swap()
+                # It returned: the process lives on and writers resume untracked, so a boot
+                # swap would lose their rows. Withdraw it; the verified copy still resumes.
+                os.remove(os.path.join(tmpdir, _SWAP_AT_BOOT))
+                raise RuntimeError("old store busy; deferred swap withdrawn")
+            _truncate_checkpoint(new, 30)          # the copy's own WAL, if any, into the file
+            bars_sqlite._drop_local_conn()
+            os.replace(new, p)
+            bars_sqlite.bump_db_epoch()
+            # ⭐ Bar contract: a swapped-in store is a NEW store. Its series_meta came from
+            # the snapshot producer (proofs about ITS rows, before the old store's tails
+            # were merged in), so every proof / seal is voided and every served rev moves
+            # past what clients hold — the provably safe choice over carrying meta across.
+            bars_sqlite.bump_store_floor("adopted clustered store")
+        _write_marker_at(data_dir, _ADOPTED_MARKER, ts)
+        if reinstall:
+            _write_marker_at(data_dir, _REINSTALL_MARKER, reinstall)
+        _write_marker_at(data_dir, _LAST_SYNC_MARKER, ts)
+        try:
+            os.remove(os.path.join(data_dir, _LAST_DELTA_MARKER))
+        except FileNotFoundError:
+            pass
+        logger.info(f"[data_sync] adopt-clustered: installed clustered snapshot {ts} "
+                    f"({n_new} rows; {carried} local rows carried)")
+        return "adopted"
+    except Exception as e:  # noqa: BLE001 -- the old store is untouched
+        _log_once(f"fail-{ts}", f"[data_sync] adopt-clustered FAILED for {ts}; store kept: {e}")
+        if os.path.exists(os.path.join(tmpdir, _ADOPT_VERIFIED)):
+            # The download passed every gate; a later failure (a merge over budget, a busy
+            # checkpoint) keeps it, and the next attempt resumes instead of re-downloading.
+            keep_work = True
+        return "failed"
+    finally:
+        _adoption_active.clear()
+        if not keep_work:
+            shutil.rmtree(tmpdir, ignore_errors=True)
+
+
 def _make_tarball() -> str:
     """Tar a consistent snapshot of /data/bars.db + /data/bars_cache/.
 
@@ -469,6 +974,12 @@ def _make_tarball() -> str:
         if has_db:
             snap_db_path = os.path.join(tmpdir, "bars.db")
             _backup_sqlite_db(db_path, snap_db_path)
+            # ⭐ Ship the CLUSTERED layout (bars_cluster module doc): rebuilt OFFLINE on
+            # this private copy, fully verified; any failure ships the copy unchanged.
+            _clustered = _cluster_snapshot_copy(snap_db_path)
+            _last_tarball_meta.clear()
+            _last_tarball_meta.update({_META_LAYOUT: "clustered" if _clustered else "rowid",
+                                       _META_DB_BYTES: str(os.path.getsize(snap_db_path))})
             # ⛔⛔ THE SNAPSHOT CARRIES EVERY INDEX THE WEB EXPECTS (incident
             # 2026-10-02). The backup copies the WORKER's bars.db, which never
             # had the web-only `idx_ohlcv_daily_bydate`; installed on web, the
@@ -599,7 +1110,9 @@ def upload_snapshot(force: bool = False) -> Optional[str]:
         # regardless of snapshot size (vs put_object(Body=bytes), which held
         # the full multi-GB tarball in RAM for the whole upload).
         client.upload_file(tar_path, bucket, key,
-                           ExtraArgs={"ContentType": "application/gzip"})
+                           ExtraArgs={"ContentType": "application/gzip",
+                                      # lets a pod decide on adoption without downloading
+                                      "Metadata": dict(_last_tarball_meta)})
         client.put_object(Bucket=bucket, Key=_LATEST_KEY, Body=ts.encode(),
                           ContentType="text/plain")
         logger.info(f"[data_sync] uploaded snapshot {ts} ({tar_bytes} bytes)")
@@ -638,6 +1151,69 @@ def get_latest_snapshot_ts() -> Optional[str]:
         return None
 
 
+SWAP_BUSY_TIMEOUT_S = 30
+
+
+def _swap_in_bars_db(src_db: str, dst: str, bs) -> bool:
+    """⛔ THE SAFE WHOLESALE SWAP (2026-11-13). Install `src_db` as `dst` without ever leaving a
+    write-ahead log beside a main file it does not belong to.
+
+    ⚰️ The old code `shutil.move`d the new main file over the old one and left the old
+    `bars.db-wal` / `-shm` in place. bars-api installs in a background thread AFTER it starts
+    serving, so a 19-minute download let live cold fetches build an interim store + WAL; the swap
+    then put the new 19.5 GB file beside that WAL and the next connection read it as
+    "database disk image is malformed" (bars-api 2026-11-13 20:52 UTC: `post-install init_db
+    failed: malformed` right after a verified install).
+
+    Same discipline as `adopt_clustered_store` step 5: under the write lock AND `DB_SWAP_LOCK`,
+    TRUNCATE-checkpoint the old store (its -wal/-shm are then empty and reset, safe beside the new
+    file); busy => refuse, keep the old store. No old main file => any -wal/-shm left behind are
+    orphans of a store that no longer exists, and are removed. Then replace and bump the epoch so
+    every thread reopens the new inode before its next query. Returns False (store untouched) on
+    any refusal."""
+    with bs._WRITE_LOCK, bs.DB_SWAP_LOCK:
+        if os.path.exists(dst):
+            c = sqlite3.connect(dst, timeout=SWAP_BUSY_TIMEOUT_S)
+            try:
+                busy = c.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()[0]
+            except sqlite3.DatabaseError as e:
+                busy = None
+                logger.warning(f"[data_sync] old store unreadable ({e}); replacing it whole")
+            finally:
+                c.close()
+            if busy:
+                logger.error("[data_sync] old store busy; could not checkpoint before the swap; "
+                             "snapshot NOT installed, old store kept")
+                return False
+            if busy is None:                 # damaged old store: its sidecars are meaningless too
+                for suf in ("-wal", "-shm"):
+                    if os.path.exists(dst + suf):
+                        os.remove(dst + suf)
+        else:
+            for suf in ("-wal", "-shm"):
+                if os.path.exists(dst + suf):
+                    os.remove(dst + suf)     # orphans of a removed store
+        try:
+            bs._drop_local_conn()
+        except Exception:  # noqa: BLE001
+            pass
+        shutil.move(src_db, dst)
+        bs.bump_db_epoch()
+    return True
+
+
+def _stream_object_to(client, bucket: str, key: str, path: str) -> None:
+    """Stream an R2 object to DISK in 8 MB chunks (never resp.read() into memory: a ~5 GB base read
+    whole into RAM spiked the web pod toward OOM on 2026-08-31). Raises on any failure."""
+    body = client.get_object(Bucket=bucket, Key=key)["Body"]
+    with open(path, "wb") as fh:
+        while True:
+            chunk = body.read(8 * 1024 * 1024)
+            if not chunk:
+                break
+            fh.write(chunk)
+
+
 def download_snapshot(ts: str) -> bool:
     """Download snapshot <ts> to _DATA_DIR, replacing existing bars.db + bars_cache/.
 
@@ -656,20 +1232,21 @@ def download_snapshot(ts: str) -> bool:
     key = f"{_SNAPSHOT_PREFIX}{ts}.tar.gz"
     tmpdir = tempfile.mkdtemp(prefix="data_sync_")
     _tar_path = os.path.join(tmpdir, "_snapshot.tar.gz")
+    last_err = None
+    for attempt in range(1, SNAPSHOT_DOWNLOAD_ATTEMPTS + 1):
+        try:
+            _stream_object_to(client, bucket, key, _tar_path)
+            last_err = None
+            break
+        except Exception as e:  # noqa: BLE001 -- retried below, then reported
+            last_err = e
+            logger.warning(f"[data_sync] download attempt {attempt}/{SNAPSHOT_DOWNLOAD_ATTEMPTS} "
+                           f"failed for {key}: {e}")
+            if attempt < SNAPSHOT_DOWNLOAD_ATTEMPTS and not os.environ.get("PYTEST_CURRENT_TEST"):
+                time.sleep(min(60, 10 * attempt))
     try:
-        resp = client.get_object(Bucket=bucket, Key=key)
-        # Stream the (multi-GB) tarball to DISK, not resp.read() into memory. A
-        # ~5 GB compressed base read whole into RAM spikes the single web pod toward
-        # OOM (it reached ~10 GB on 2026-08-31, and web-side bar warming has OOM'd
-        # the whole site before). 8 MB chunks keep the memory footprint flat, which
-        # is what makes a force_resync safe to run on the live/booting web pod.
-        body = resp["Body"]
-        with open(_tar_path, "wb") as _fh:
-            while True:
-                _chunk = body.read(8 * 1024 * 1024)
-                if not _chunk:
-                    break
-                _fh.write(_chunk)
+        if last_err is not None:
+            raise last_err
     except Exception as e:
         logger.warning(f"[data_sync] download failed for {key}: {e}")
         shutil.rmtree(tmpdir, ignore_errors=True)
@@ -695,17 +1272,13 @@ def download_snapshot(ts: str) -> bool:
                     f"refusing to install"
                 )
                 return False
-            # Note: we do NOT remove the OLD bars.db-wal / -shm sidecars here
-            # even though stale WAL+new-main can theoretically cause
-            # "disk image is malformed" on next open. An earlier version of
-            # this code DID remove them and caused a regression: writers
-            # mid-transaction had their WAL deleted from under them, which
-            # SQLite reported as "disk I/O error" on the next operation.
-            # The malformed-image risk is handled by integrity_ok() at boot
-            # plus the put_bars malformed handler that triggers force_resync.
-            # That fail-safe path is much cheaper than corrupting writes
-            # every 5 min during snapshot pulls.
-            shutil.move(src_db, os.path.join(_DATA_DIR, "bars.db"))
+            # ⛔ The swap goes through `_swap_in_bars_db`: the old store is TRUNCATE-checkpointed
+            # under the write + swap locks (its -wal/-shm become empty, safe beside the new file),
+            # orphaned sidecars are removed, busy => refuse. ⚰️ This said "we do NOT remove the OLD
+            # sidecars" and moved the new file beside a live WAL: bars-api 2026-11-13 malformed.
+            from api.services import bars_sqlite as _bs_swap
+            if not _swap_in_bars_db(src_db, os.path.join(_DATA_DIR, "bars.db"), _bs_swap):
+                return False
         # Replace bars_cache (replace the whole directory, not merge)
         src_cache = os.path.join(tmpdir, "bars_cache")
         if os.path.isdir(src_cache):
@@ -726,6 +1299,7 @@ def download_snapshot(ts: str) -> bool:
             # at call-time keeps each module independently importable.
             from api.services import bars_sqlite
             bars_sqlite.bump_db_epoch()
+            bars_sqlite.bump_store_floor("snapshot installed")   # wholesale: revs + proofs
             # A restored snapshot may predate the weekly Friday re-keying —
             # purge any Monday-keyed weekly rows it carried so the duplicate
             # candle bug can't be resurrected by a snapshot pull (the
@@ -853,6 +1427,8 @@ def sync_if_newer() -> Optional[str]:
 
     Returns the snapshot ts that was downloaded (string), or None if no
     download happened (already up to date, or remote unreachable, or error)."""
+    if _adoption_active.is_set():        # adopt_clustered_store owns bars.db right now
+        return None
     remote_ts = get_latest_snapshot_ts()
     if not remote_ts:
         return None
@@ -935,6 +1511,7 @@ def force_resync() -> bool:
         try:
             from api.services import bars_sqlite
             bars_sqlite.bump_db_epoch()
+            bars_sqlite.bump_store_floor("empty schema recreated")
             bars_sqlite.init_db()
         except Exception as e:
             logger.error(f"[data_sync] force_resync: init_db after failed pull errored: {e}")
@@ -1129,12 +1706,25 @@ def _merge_pair(conn, ticker: str, tf: str) -> tuple[int, int]:
     before = conn.total_changes
     if mx is None:
         conn.execute(_MERGE_ADD_SQL, (ticker, tf, -(1 << 62)))
-        return conn.total_changes - before, 0
+        added = conn.total_changes - before
+        if added:
+            _bump_merged_rev(conn, ticker, tf)
+        return added, 0
     window_floor = mx - _MERGE_HEAL_WINDOW_S
     interior = (tf in _MERGE_INTRADAY_TFS
                 and not _merge_split_near(ticker, window_floor)
                 and _merge_basis_agrees(conn, ticker, tf, mx, window_floor))
     floor = window_floor if interior else mx
+    # Bar contract `history_rev`: THE store rule (`bars_sqlite._history_keys`) judges the
+    # rows this merge is about to write below the local tail (hole fills + corrections) —
+    # older than the mutable window or sealed => history; inside the window => a delta.
+    # A forward add (or the tail itself) never is.
+    history = False
+    if interior:
+        from api.services.bars_sqlite import _history_keys
+        cand = conn.execute(_MERGE_HISTORY_SQL,
+                            (ticker, tf, floor, mx, ticker, tf, floor, mx)).fetchall()
+        history = bool(cand and _history_keys(conn, tf, cand))
     conn.execute(_MERGE_ADD_SQL, (ticker, tf, floor))
     added = conn.total_changes - before
     corrected = 0
@@ -1142,10 +1732,34 @@ def _merge_pair(conn, ticker: str, tf: str) -> tuple[int, int]:
         before = conn.total_changes
         conn.execute(_MERGE_CORRECT_SQL, (ticker, tf, floor))
         corrected = conn.total_changes - before
+    if added or corrected:
+        _bump_merged_rev(conn, ticker, tf, history=history)
     return added, corrected
 
 
-def _merge_ohlcv_from(src_db: str, local_db: Optional[str] = None) -> int:
+#: The rows this pair's merge writes strictly BELOW the local tail (holes + corrections),
+#: as (ticker, tf, ts, o, h, l, c, v) — bounded by the rows the merge itself writes.
+_MERGE_HISTORY_SQL = (
+    "SELECT s.ticker,s.tf,s.ts,s.o,s.h,s.l,s.c,s.v FROM snap.ohlcv s WHERE s.ticker=? "
+    "AND s.tf=? AND s.ts > ? AND s.ts < ? AND NOT EXISTS (SELECT 1 FROM main.ohlcv m "
+    "WHERE m.ticker=s.ticker AND m.tf=s.tf AND m.ts=s.ts) AND " + _MERGE_VALID_SQL
+    + _MERGE_GRID_SQL + " UNION ALL "
+    "SELECT s.ticker,s.tf,s.ts,s.o,s.h,s.l,s.c,s.v FROM snap.ohlcv s JOIN main.ohlcv m "
+    "ON m.ticker=s.ticker AND m.tf=s.tf AND m.ts=s.ts WHERE s.ticker=? AND s.tf=? "
+    "AND s.ts > ? AND s.ts < ? AND COALESCE(s.v,0) > COALESCE(m.v,0) AND "
+    + _MERGE_VALID_SQL + _MERGE_GRID_SQL
+)
+
+
+def _bump_merged_rev(conn, ticker: str, tf: str, history: bool = False) -> None:
+    """series_rev for a pair the merge changed, in the merge's own transaction."""
+    from api.services.bars_sqlite import bump_series_revs
+    bump_series_revs(conn, [(ticker, tf)], history=[(ticker, tf)] if history else ())
+
+
+def _merge_ohlcv_from(src_db: str, local_db: Optional[str] = None, *,
+                      pairs: Optional[list] = None,
+                      deadline: Optional[float] = None) -> int:
     """Merge snapshot ohlcv into the local bars.db (rules above), in short chunks.
 
     Returns rows adopted + corrected (best-effort), or -1 if there is no local DB
@@ -1162,7 +1776,11 @@ def _merge_ohlcv_from(src_db: str, local_db: Optional[str] = None) -> int:
         conn.execute("ATTACH DATABASE ? AS snap", (src_db,))
         _ensure_old_grid_fn(conn)
         try:
-            pairs = conn.execute("SELECT DISTINCT ticker, tf FROM snap.ohlcv").fetchall()
+            # `pairs` narrows the merge to known-changed series; `deadline` (monotonic)
+            # aborts between chunks -- both for a store adoption's locked pass.
+            if pairs is None:
+                pairs = conn.execute("SELECT DISTINCT ticker, tf FROM snap.ohlcv").fetchall()
+            pairs = [tuple(p) for p in pairs]
             t_start = time.monotonic()
             logger.info(f"[data_sync] merge start: {len(pairs)} pairs")
             added = corrected = chunks = 0
@@ -1170,6 +1788,8 @@ def _merge_ohlcv_from(src_db: str, local_db: Optional[str] = None) -> int:
             size = _MERGE_CHUNK_PAIRS
             i = 0
             while i < len(pairs):
+                if deadline is not None and time.monotonic() > deadline:
+                    raise TimeoutError(f"merge over budget after {i}/{len(pairs)} pairs")
                 chunk = pairs[i:i + size]
                 t0 = time.monotonic()
                 conn.execute("BEGIN IMMEDIATE")
@@ -1261,6 +1881,8 @@ def sync_if_newer_merge() -> Optional[str]:
     """Like sync_if_newer but MERGES (newer-wins) instead of replacing.
     Safe to run unconditionally on a fixed cadence — it can only add
     freshness, never regress a fresher local write."""
+    if _adoption_active.is_set():        # adopt_clustered_store owns bars.db right now
+        return None
     remote_ts = get_latest_snapshot_ts()
     if not remote_ts:
         return None
@@ -1285,11 +1907,8 @@ def _export_delta_db(out_path: str, now: Optional[int] = None) -> int:
     try:
         out = sqlite3.connect(out_path)
         try:
-            out.execute(
-                "CREATE TABLE IF NOT EXISTS ohlcv (ticker TEXT NOT NULL, tf TEXT NOT NULL, "
-                "ts INTEGER NOT NULL, o REAL, h REAL, l REAL, c REAL, v INTEGER, "
-                "PRIMARY KEY (ticker, tf, ts))"
-            )
+            from api.services.bars_sqlite import ohlcv_ddl
+            out.execute(ohlcv_ddl())
             # ⚰️ A `bars_provenance` table was created in the delta here (and
             # filled from a source table that was always empty) until
             # 2026-08-09. See the note in `_merge_snapshot_db` above.
@@ -1461,6 +2080,8 @@ def sync_with_deltas() -> Optional[str]:
     than both the base and the last-applied delta, in ascending ts order.
     Returns the newest ts applied, or None. Order-independent + idempotent by
     construction (the merge is newer-wins per (ticker,tf,ts))."""
+    if _adoption_active.is_set():        # adopt_clustered_store owns bars.db right now
+        return None
     newest = None
     base_ts = get_latest_snapshot_ts()
     have_local = os.path.exists(os.path.join(_DATA_DIR, "bars.db"))

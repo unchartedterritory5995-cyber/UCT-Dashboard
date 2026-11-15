@@ -17,15 +17,37 @@ this module's own term table :data:`IBD_TERMS` (the fast UCT rating in
 ``rs_ranking`` keeps its 3m/6m/1m/1w table; the two formulas are different on
 purpose and the chart shows both with their own ``asof``). The score is ranked
 across the population, ``pct = average_rank / N`` (ties share the mean of their
-positions), and the rating is ``max(1, ceil(pct * 99))``. The components ``m1``,
-``m3``, ``m6``, ``m12`` are the same percentile of the plain 21/63/126/252-bar
-returns, and ``m9`` (Deepvue round 2, 2026-11-08) of the plain 189-bar return: the
+positions), and the rating is ``max(1, ceil(pct * 99))``. The component ``m1`` is the
+same percentile of the plain 21-bar return. ``m3`` (restated 2026-11-12) is the
+percentile of the EQUALLY weighted average of the 1-, 2- and 3-month close ratios,
+``m3 = (R21 + R42 + R63) / 3`` with ``Rn = close / close[-n]``, and no value without
+the 63-bar window (``rs_weighted_return.EQUAL_WEIGHT_COMPONENT_TERMS``; against 61
+Deepvue readings the rank correlation went 0.856 -> 0.994 and the mean miss 10.2 ->
+6.9 points, and Deepvue's docs call its 3M "equal weighted"). ``m6``, ``m9``
+and ``m12`` (restated 2026-11-11) are the percentile of an IBD-style weighted
+close-ratio: the newest quarter counts double, so ``m6 = (2 R63 + R126) / 3``,
+``m9 = (2 R63 + R126 + R189) / 4`` and ``m12 = (2 R63 + R126 + R189 + R252) / 5``
+with ``Rn = close / close[-n]`` and no value unless the series reaches the
+component's whole window (a 150-bar stock has no 9M or 12M rank, as before)
+(``rs_weighted_return.IBD_STYLE_COMPONENT_TERMS``). Deepvue documents its 1M as unweighted, its 3M as equal
+weighted and its 6M and 12M as recency-weighted without publishing weights; against
+61 of its readings this method tracked it far better than plain returns at 6M, 9M and
+12M and left 1M as it was (3M followed a day later, above). ``m9`` (Deepvue round 2, 2026-11-08) is the
 chart's 9M column. ``m9`` is a nullable column added to an existing table by an
 idempotent ``ALTER`` (:func:`ensure_schema`); rows written before it stay null
-until the backfill's ``--fill-column m9`` mode fills them (below).
+until the backfill's ``--fill-column m9`` mode fills them (below). Sessions stored
+before the restatement hold the OLD plain-return ``m6``/``m9``/``m12``; the
+``--restate-ranks`` mode rewrites exactly those three columns, and
+``--restate-ranks --columns m3`` rewrites ``m3`` (below).
 
-POPULATION. Default (map §5 question 1): the cap universe minus ETFs. The ranked
-set never contains an ETF - an index fund sits on top of the very stocks it
+POPULATION. Since 2026-11-12 (owner: "everything until the indicator is 100% perfect")
+the ranked set is EVERY non-ETF ticker with a fresh daily bar and enough closes for the
+term, about 6,000 names (:func:`ranking_universe`), not the 3,418-name cap universe it
+was before: against 61 Deepvue readings the cap universe sat 5 to 8 points below Deepvue
+(it ranks all stocks) and the wide one sits within 0.1 point on average, 3.0 points off
+per reading, 93 % within 10. Warrants, rights, units and preferreds stay in (removing
+them moved the fit by 0.02 points), and so do penny and thin names (price and volume
+floors made it 2 to 7 points worse). The ranked set never contains an ETF - an index fund sits on top of the very stocks it
 summarises - but every ETF IS rated, by interpolating its score into the stock
 distribution, so SPY or XLK can carry a number on the same scale. ETFs are
 identified through ``industry_map`` (every ETF carries industry
@@ -87,6 +109,41 @@ other columns were ranked over), and it REFUSES, writing nothing, when today's
 bars or split guard would change any stored value of another column for any of
 those sessions (:func:`fill_column`).
 
+RESTATING THE LONG COMPONENTS (2026-11-11). ``m6``, ``m9`` and ``m12`` changed
+meaning (IBD-style, above), and every stored session still holds the plain-return
+ones. A mixed history is wrong, so one mode rewrites exactly those three columns
+for the sessions already stored, and nothing else::
+
+    python -m api.services.screener.rs_history --backfill-days 252 --restate-ranks --dry-run
+    python -m api.services.screener.rs_history --backfill-days 252 --restate-ranks
+
+It ranks each session over the tickers that session STORED, with today's bars,
+ETF list and declared splits, and CHECKS before it writes: ``ibd``, ``m1`` and
+``m3`` (the columns that did not change) are recomputed and compared with what is
+stored. A rank that differs by one point is drift (today's bars are not the bars of
+that night) and is allowed up to ``--max-drift-share`` (1 % of the rows checked); a
+difference of more than one point, a ticker with no bars window today or one
+today's split guard would skip is a hard mismatch, allowed up to the same share. Past
+either, NOTHING is written (``reason = would_change_other_values``). A ticker that
+cannot be restated inside an allowed run gets ``NULL`` for the three columns, never
+an old-meaning number. Each session commits with its row in ``rs_history_restated``;
+a session found there is skipped, so a run that dies is finished by running it
+again. ``ibd``, ``fast``, ``m1``, ``m3`` and ``score`` are never written by that
+restate. Sessions the nightly job stores after this change are already new-meaning;
+a restate run rewrites them with the same values.
+
+RESTATING 3M (2026-11-12). ``m3`` changed meaning a day later (equal-weighted 1-, 2-,
+3-month average, above). The same mode, one flag more, rewrites exactly that column::
+
+    python -m api.services.screener.rs_history --backfill-days 260 --restate-ranks --columns m3 --dry-run
+    python -m api.services.screener.rs_history --backfill-days 260 --restate-ranks --columns m3
+
+It has its own marker table (``rs_history_restated_m3``, method ``m3_eqwt_v1``), so it
+is independent of the long restate and either can run first. The check compares
+``ibd`` and ``m1`` always, and ``m6``/``m9``/``m12`` for the sessions that carry the
+long marker (a column that still holds an old meaning is never compared). Each
+session's commit is retried with backoff on ``database is locked``.
+
 Idempotent and resumable: a session that already holds rows (the nightly's, or an
 earlier backfill's) is skipped, and each session commits as it is written, so a
 run that dies is resumed by running it again. Bounded: ``--max-sessions`` writes
@@ -104,20 +161,28 @@ import json
 import logging
 import math
 import os
+import re
+import socket
 import sqlite3
 import time
+from array import array
 from bisect import bisect_right
 from contextlib import closing, contextmanager
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from api.services.rs_weighted_return import (
+    BLENDED_COMPONENT_TERMS,
+    EQUAL_WEIGHT_COMPONENT_TERMS,
     IBD_COMPONENTS,
     IBD_M9_COMPONENT,
+    IBD_STYLE_COMPONENT_TERMS,
+    ibd_style_component,
     IBD_REQUIRED_TERM,
     IBD_TERMS,
     period_return,
 )
+from api.services import listing_break
 from api.services.screener import snapshot_db
 
 log = logging.getLogger(__name__)
@@ -142,6 +207,67 @@ STORED_COMPONENTS = tuple(sorted(IBD_COMPONENTS + (IBD_M9_COMPONENT,), key=lambd
 #: The columns a later round ADDED to the table (nullable, by ``ALTER``), each with
 #: its SQL type. A read selects one only when the table already carries it.
 ADDED_COLUMNS = {"m9": "INTEGER"}
+#: The three columns whose MEANING changed on 2026-11-11 (IBD-style weighting) and
+#: that ``--restate-ranks`` rewrites for the sessions already stored.
+RESTATE_COLUMNS = tuple(label for label, _t in IBD_STYLE_COMPONENT_TERMS)
+#: The columns a restate ALWAYS compares (they have never changed meaning): it
+#: recomputes them and compares them with the stored values before it writes
+#: anything. The columns that changed later are added per session once that
+#: session carries their restate marker (:func:`_compared_for`).
+RESTATE_COMPARED = ("ibd", "m1")
+#: ``rs_history_restated.method`` for a session carrying the IBD-style long columns.
+RESTATE_METHOD = "ibd_style_v1"
+RESTATED_TABLE = "rs_history_restated"
+#: The second restate (2026-11-12): ``m3`` became the equal-weighted average of the
+#: 1-, 2- and 3-month close ratios. Its OWN marker table, because
+#: ``rs_history_restated`` holds one row per session (``session`` is its primary
+#: key) and a second method written there would overwrite the first one's marker.
+RESTATE_M3_COLUMNS = tuple(label for label, _t in EQUAL_WEIGHT_COMPONENT_TERMS)
+RESTATE_M3_METHOD = "m3_eqwt_v1"
+RESTATED_M3_TABLE = "rs_history_restated_m3"
+#: The restates the CLI offers: ``kind`` -> (columns rewritten, marker method, marker
+#: table). ``long`` is ``--restate-ranks``; ``m3`` is ``--restate-ranks --columns m3``.
+RESTATE_KINDS = {
+    "long": (RESTATE_COLUMNS, RESTATE_METHOD, RESTATED_TABLE),
+    "m3": (RESTATE_M3_COLUMNS, RESTATE_M3_METHOD, RESTATED_M3_TABLE),
+}
+#: Every column a restate may compare or rewrite, in stored order.
+RESTATE_ALL_COLUMNS = ("ibd", "m1", "m3", "m6", "m9", "m12")
+#: A per-session commit that meets ``database is locked`` is retried this many times
+#: (backoff ``LOCK_RETRY_BASE_S`` doubling, capped at 60 s) before the run gives up:
+#: the first real restate (2026-11-12) died at session 249 of 254 on one lock.
+LOCK_RETRY_ATTEMPTS = 6
+LOCK_RETRY_BASE_S = 5.0
+_lock_sleep = time.sleep
+#: Share of the rows checked that may drift by one rating point, and share that may
+#: be a hard mismatch, before a restate refuses to write.
+RESTATE_DRIFT_SHARE = 0.01
+#: The third restate (2026-11-12): the RATED UNIVERSE widened from the 3,418-name cap
+#: universe to every non-ETF ticker with a daily bar (``ranking_universe``, "U1" in the
+#: fit). ``--restate-universe`` re-ranks every stored session for ALL six rating columns,
+#: so it also writes the long and the m3 markers (nothing is left for those restates to
+#: do). Its OWN marker table for the same reason the m3 one has one.
+UNIVERSE_METHOD = "universe_u1_v1"
+UNIVERSE_TABLE = "rs_history_restated_universe"
+#: The fourth restate (2026-11-14): the rating window stops at a break in the listing
+#: (:data:`LISTING_GAP_DAYS`), so the sessions the old window wrote (a recycled symbol
+#: scored on its earlier security's closes) are re-ranked. ``--restate-listing-breaks``
+#: runs :func:`restate_universe`'s body under THIS marker: the universe marker says those
+#: sessions are finished, and they are not.
+LISTING_METHOD = "listing_break_v1"
+LISTING_TABLE = "rs_history_restated_listing"
+#: How many of the newest session's largest rating moves a restate's receipt names.
+CHANGED_EXAMPLES = 40
+#: A session's ranked set (non-ETF names with a bars window that night) may differ from
+#: the median session's by this share before the restate refuses to write ANYTHING: a
+#: stale bars store or a half-listed night would otherwise rank against a fragment.
+UNIVERSE_BAND = 0.15
+#: ... and a session ranking fewer names than this is never written, whatever the
+#: median says (the cap universe it replaces held 3,418).
+UNIVERSE_MIN_RANKED = 3000
+#: A rating that moves by more than this many points counts as a BIG shift in the
+#: distribution summary the restate prints (the owner sees what happened).
+UNIVERSE_BIG_SHIFT = 15
 #: The columns ``--fill-column`` may fill (each one a stored component).
 FILLABLE_COLUMNS = ("m9",)
 #: The rating scale's top; the bottom is 1.
@@ -156,6 +282,16 @@ SCORE_BARS = 253
 #: session is not rated for it (a stale name, or a hole in the store). Wide enough
 #: for a long weekend plus a night the prewarm missed.
 MAX_BAR_LAG_DAYS = 5
+#: A LISTING BREAK ends a symbol's earlier life: the closes before it belong to another
+#: security (a recycled or renamed ticker) and a rating never reads across it. Measured
+#: on production 2026-11-12: BNY's window ran from a fund at $9.67 across 104 days to
+#: the bank at $138.98, BSP's across 4,317 days, so both scored a manifold "gain" and
+#: rated 99 with 1M and 3M ranks far lower; 8 of the 14 liquid 99s that night were such
+#: names. The rule and its three numbers live in ``api.services.listing_break`` (the
+#: chart's own judgement, shared with the screener build); these are its names here.
+LISTING_GAP_DAYS = listing_break.GAP_DAYS
+LISTING_GAP_STANDALONE_DAYS = listing_break.GAP_STANDALONE_DAYS
+LISTING_PRICE_FACTOR = listing_break.PRICE_FACTOR
 #: ``read_fields`` notes ``stale:<n>d`` when the newest session is older than this.
 STALE_DAYS = 3
 #: The backfill's default depth: one trading year.
@@ -290,9 +426,29 @@ def ibd_score(closes) -> float | None:
 
 
 def plain_returns(closes) -> dict:
-    """``{m1, m3, m6, m9, m12}`` percentage returns over 21/63/126/189/252 bars,
-    ``None`` when short (``m9`` needs 190 closes)."""
+    """``{m1, m3, m6, m9, m12}`` plain percentage returns over 21/63/126/189/252
+    bars, ``None`` when short (``m9`` needs 190 closes). Only ``m1`` is ranked from
+    these now; ``m3``/``m6``/``m9``/``m12`` are ranked from
+    :func:`component_values`' blended ratios. Kept as the plain reference."""
     return {label: period_return(closes, n) for label, n in STORED_COMPONENTS}
+
+
+def component_values(closes) -> dict:
+    """``{m1, m3, m6, m9, m12}`` - the numbers each component rank is taken over.
+
+    ``m1`` is the plain 21-bar percentage return. ``m3`` is the equal-weighted
+    average of the 1-, 2- and 3-month close ratios
+    (:data:`EQUAL_WEIGHT_COMPONENT_TERMS`, restated 2026-11-12) and ``m6``, ``m9``
+    and ``m12`` are the IBD-style weighted close-ratios of
+    :data:`IBD_STYLE_COMPONENT_TERMS` (newest quarter double-weighted). A rank
+    only needs the ORDER, and the kinds are never ranked against each other, so
+    the units may differ. ``None`` when the series cannot supply the value.
+    """
+    plain = {label: period_return(closes, n) for label, n in STORED_COMPONENTS}
+    out = {"m1": plain["m1"]}
+    for label, terms in BLENDED_COMPONENT_TERMS:
+        out[label] = ibd_style_component(closes, terms)
+    return {label: out[label] for label, _n in STORED_COMPONENTS}
 
 
 def percentile_ranks(values: dict) -> dict:
@@ -381,7 +537,7 @@ def compute_ratings(closes_by_ticker: dict, etf_tickers, *, suspects=None) -> di
             continue
         bars[tu] = len(c)
         scores[tu] = ibd_score(c)
-        comps[tu] = plain_returns(c)
+        comps[tu] = component_values(c)
     stocks = set(scores) - etfs
     ibd = _rank_block(scores, stocks)
     by_component = {label: _rank_block({t: comps[t][label] for t in comps}, stocks)
@@ -456,18 +612,26 @@ def _lagging(newest_ymd: int, session_ymd_: int) -> bool:
 
 
 def window_at(ts_list: list, closes: list, to_ymd: int) -> list | None:
-    """The newest ``READ_BARS`` closes with ``ts <= to_ymd``, or ``None`` when there
-    are none or the newest is more than ``MAX_BAR_LAG_DAYS`` behind the session."""
-    b = _window_bounds(ts_list, to_ymd)
+    """The newest ``READ_BARS`` closes with ``ts <= to_ymd`` that belong to the symbol's
+    CURRENT listing, or ``None`` when there are none or the newest is more than
+    ``MAX_BAR_LAG_DAYS`` behind the session."""
+    b = _window_bounds(ts_list, to_ymd, closes)
     return None if b is None else closes[b[0]:b[1]]
 
 
-def _window_bounds(ts_list: list, to_ymd: int):
-    """``(lo, cut)`` of :func:`window_at`'s slice, or ``None`` (same rule)."""
+def _window_bounds(ts_list: list, to_ymd: int, closes):
+    """``(lo, cut)`` of :func:`window_at`'s slice, or ``None`` (same rule).
+
+    The slice never reaches back across a listing break
+    (``listing_break.start_index``): it starts at the first bar after the newest one, so
+    a symbol's earlier life is never scored as this stock's history. Every reader of a
+    rating window (nightly, backfill, fill, restates, dry runs) slices here, with the
+    closes that sit beside ``ts_list``.
+    """
     cut = bisect_right(ts_list, int(to_ymd))
     if cut == 0 or _lagging(ts_list[cut - 1], int(to_ymd)):
         return None
-    return max(0, cut - READ_BARS), cut
+    return listing_break.start_index(ts_list, closes, max(0, cut - READ_BARS), cut), cut
 
 
 # --------------------------------------------------------------------------- #
@@ -475,9 +639,70 @@ def _window_bounds(ts_list: list, to_ymd: int):
 # --------------------------------------------------------------------------- #
 
 def default_universe() -> set:
-    """``groups.cap_universe_set()`` - the same file ``rs_rank`` ranks over."""
+    """``groups.cap_universe_set()`` - the file the HOURLY ``rs_rank`` ranks over.
+
+    ⛔ NOT the nightly rating's population any more (2026-11-12): that is
+    :func:`ranking_universe`. This stays for the tools and tests that name the cap
+    universe on purpose."""
     from api.services.groups import cap_universe_set
     return set(cap_universe_set())
+
+
+#: What a rankable symbol looks like: letters and digits with ``.``/``-`` class
+#: separators, at most ten characters. Index, vol and crypto feeds held beside the
+#: equities in ``bars.db`` (``$SPX``, ``^VIX``, ``X:BTCUSD``) fail it.
+_RANKABLE_SYMBOL = re.compile(r"^[A-Z0-9][A-Z0-9.\-]{0,9}$")
+
+
+def rankable_symbol(ticker) -> bool:
+    """True for a symbol that can be a stock in the ranked set: the pattern above and
+    not one of the index symbols ``api.index_bars`` routes elsewhere."""
+    tu = str(ticker or "").strip().upper()
+    if not _RANKABLE_SYMBOL.match(tu):
+        return False
+    try:
+        from api.index_bars import is_index
+        return not is_index(tu)
+    except Exception:                                        # noqa: BLE001 - the pattern alone is enough
+        return True
+
+
+def ranking_universe(*, lister=None, last_daily_ts=None) -> set:
+    """The nightly rating's candidate population (2026-11-12, owner: rank against
+    EVERYTHING, as Deepvue and IBD do): every rankable ticker that holds a DAILY bar in
+    ``bars.db``, ETFs included (the caller takes them out of the ranked set through
+    its ETF list, exactly as before).
+
+    This is only the candidate list. Each session still keeps a name only when it has a
+    FRESH bar (newest within :data:`MAX_BAR_LAG_DAYS` calendar days of the session,
+    ``_window_bounds``) and enough closes for the term being ranked, so a stale,
+    delisted-long-ago or brand-new name drops out of that session and that term by the
+    rules it always used. NO type filter (warrants, rights, units and preferreds stay
+    in) and NO price or volume floor: against 61 Deepvue readings both filters changed
+    the fit by less than half a rating point or made it 2 to 7 points worse. The
+    listing walks the primary key (one seek per ticker, ``bars_sqlite.iter_tickers``).
+
+    ``lister`` / ``last_daily_ts`` are the test seams (default: the web pod's store)."""
+    if lister is None or last_daily_ts is None:
+        from api.services import bars_sqlite
+        if lister is None:
+            def lister():                                    # noqa: E306
+                return bars_sqlite.iter_tickers(bars_sqlite._conn())
+        if last_daily_ts is None:
+            def last_daily_ts(t):                            # noqa: E306
+                return bars_sqlite.get_last_ts(t, "D")
+    out: set = set()
+    for t in lister():
+        tu = str(t or "").strip().upper()
+        if not tu or tu in out or not rankable_symbol(tu):
+            continue
+        try:
+            if last_daily_ts(tu) is None:
+                continue
+        except Exception:                                    # noqa: BLE001 - one name, not the run
+            continue
+        out.add(tu)
+    return out
 
 
 def default_etf_tickers() -> set:
@@ -653,6 +878,126 @@ def last_run() -> dict | None:
     return d
 
 
+def latest_session() -> str | None:
+    """The newest stored session key, or ``None``. One ``MAX(session)`` seek;
+    read-only (no table answers ``None`` and creates nothing). Never raises."""
+    try:
+        with closing(snapshot_db.connect()) as conn:
+            if not _table_exists(conn, TABLE):
+                return None
+            return conn.execute(f"SELECT MAX(session) FROM {TABLE}").fetchone()[0]
+    except Exception as e:                                   # noqa: BLE001
+        log.warning("[rs_history] latest session read failed: %s", e)
+        return None
+
+
+# --------------------------------------------------------------------------- #
+# attempts: the 'started' receipt and the cross-process run marker
+# --------------------------------------------------------------------------- #
+#
+# ⚰️ 2026-11-12: the 04:15 ET nightly started, read its universe, and was killed ~10
+# minutes in when a deploy swapped the web container. `record_run` only writes at the
+# END, so the killed run left no trace anywhere and the store sat a session behind all
+# day. An ATTEMPT row is written BEFORE the work and closed AFTER it: a row with
+# `started_at` and no `finished_at` is a run that is still going or one that died.
+#
+# The same row is the cross-process guard: `begin_attempt` refuses while an unfinished
+# attempt younger than `RUNNING_STALE_S` exists (checked and inserted under ONE
+# `BEGIN IMMEDIATE`, so two pods sharing the file cannot both claim it). A killed run's
+# row stops counting once it is older than that, so it can never block forever.
+
+ATTEMPTS_TABLE = "rs_history_attempts"
+ATTEMPTS_KEEP = 60
+#: An unfinished attempt older than this is a run that died, not one still going.
+#: Measured runs before PR #1135 took a few minutes; the whole-market universe reads
+#: ~13,600 tickers, and the 2026-11-12 run had not finished after ~10 minutes. 45
+#: minutes is well past a slow run and still lets the hourly retry at the next :15
+#: take over from a run killed near 04:15.
+RUNNING_STALE_S = 45 * 60
+_ATTEMPTS_SQL = f"""
+CREATE TABLE IF NOT EXISTS {ATTEMPTS_TABLE} (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source TEXT, session TEXT, started_at REAL, finished_at REAL,
+    outcome TEXT, pid INTEGER, host TEXT
+)"""
+
+
+def begin_attempt(source: str, session=None, *, now: float | None = None,
+                  stale_after_s: float = RUNNING_STALE_S) -> dict:
+    """Claim a run: ``{"claimed": True, "id": n}``, or ``{"claimed": False,
+    "running": {row}}`` when an unfinished attempt younger than ``stale_after_s``
+    exists. The check and the insert are one ``BEGIN IMMEDIATE`` transaction.
+
+    Fails OPEN (``{"claimed": True, "id": None, "error": ...}``) when the marker
+    cannot be read or written: the run would fail on the same DB anyway, and the
+    caller's process lock still stops a same-process overlap."""
+    now = time.time() if now is None else float(now)
+    key = session_key(session) if session is not None else None
+    try:
+        with closing(snapshot_db.connect()) as conn:
+            conn.isolation_level = None                      # explicit transaction below
+            conn.execute(_ATTEMPTS_SQL)
+            conn.execute("BEGIN IMMEDIATE")
+            try:
+                r = conn.execute(
+                    f"SELECT * FROM {ATTEMPTS_TABLE} WHERE finished_at IS NULL AND started_at > ? "
+                    "ORDER BY id DESC LIMIT 1", (now - stale_after_s,)).fetchone()
+                if r is not None:
+                    conn.execute("ROLLBACK")
+                    return {"claimed": False, "running": dict(r)}
+                cur = conn.execute(
+                    f"INSERT INTO {ATTEMPTS_TABLE} (source, session, started_at, pid, host) "
+                    "VALUES (?, ?, ?, ?, ?)",
+                    (str(source), key, now, os.getpid(), socket.gethostname()[:64]))
+                attempt_id = cur.lastrowid
+                conn.execute(f"DELETE FROM {ATTEMPTS_TABLE} WHERE id NOT IN (SELECT id FROM "
+                             f"{ATTEMPTS_TABLE} ORDER BY id DESC LIMIT ?)", (ATTEMPTS_KEEP,))
+                conn.execute("COMMIT")
+            except Exception:
+                conn.execute("ROLLBACK")
+                raise
+        log.info("[rs_history] attempt %s started (source=%s session=%s)", attempt_id, source, key)
+        return {"claimed": True, "id": attempt_id}
+    except Exception as e:                                   # noqa: BLE001
+        log.warning("[rs_history] attempt marker unavailable (%s); running unguarded", e)
+        return {"claimed": True, "id": None, "error": f"{type(e).__name__}: {e}"[:200]}
+
+
+def finish_attempt(attempt_id, outcome: str, session=None) -> None:
+    """Close an attempt (``finished_at`` now, the outcome, and the session the run
+    resolved). Never raises; ``attempt_id`` ``None`` is a no-op."""
+    if attempt_id is None:
+        return
+    try:
+        key = session_key(session) if session else None
+        with closing(snapshot_db.connect()) as conn:
+            conn.execute(f"UPDATE {ATTEMPTS_TABLE} SET finished_at = ?, outcome = ?, "
+                         "session = COALESCE(?, session) WHERE id = ?",
+                         (time.time(), str(outcome)[:300], key, attempt_id))
+            conn.commit()
+    except Exception as e:                                   # noqa: BLE001
+        log.warning("[rs_history] attempt %s not closed: %s", attempt_id, e)
+
+
+def last_attempt() -> dict | None:
+    """The newest attempt row, or ``None``. ``finished_at`` null means the run is
+    still going or died (``stale`` says which, by :data:`RUNNING_STALE_S`).
+    Read-only and never raises."""
+    try:
+        with closing(snapshot_db.connect()) as conn:
+            if not _table_exists(conn, ATTEMPTS_TABLE):
+                return None
+            r = conn.execute(f"SELECT * FROM {ATTEMPTS_TABLE} ORDER BY id DESC LIMIT 1").fetchone()
+    except Exception:                                        # noqa: BLE001
+        return None
+    if r is None:
+        return None
+    d = dict(r)
+    d["stale"] = (d.get("finished_at") is None
+                  and (d.get("started_at") or 0) <= time.time() - RUNNING_STALE_S)
+    return d
+
+
 # --------------------------------------------------------------------------- #
 # the backfill marker (the repo's one-shot heal idiom)
 # --------------------------------------------------------------------------- #
@@ -691,7 +1036,7 @@ def _write_marker(path: str, text: str) -> bool:
 # --------------------------------------------------------------------------- #
 
 def _resolve_population(universe, etf_tickers) -> tuple[set, set]:
-    uni = {str(t).upper() for t in (universe if universe is not None else default_universe())}
+    uni = {str(t).upper() for t in (universe if universe is not None else ranking_universe())}
     etfs = {str(t).upper() for t in (etf_tickers if etf_tickers is not None
                                      else default_etf_tickers())}
     return uni, etfs
@@ -777,7 +1122,7 @@ def _nightly(session, *, universe, data_dir, bars_reader, fast_map, etf_tickers,
             if not ts_list:
                 receipt["no_bars"] += 1
                 continue
-            bounds = _window_bounds(ts_list, ymd)
+            bounds = _window_bounds(ts_list, ymd, closes)
             if bounds is None:
                 receipt["stale"] += 1
                 continue
@@ -1011,7 +1356,7 @@ def _backfill_sessions(receipt, conn, keys, todo, *, universe, etf_tickers, bars
         closes_by_ticker = {}
         suspects = set()
         for t, (ts_list, closes, declared) in series.items():
-            bounds = _window_bounds(ts_list, ymd)
+            bounds = _window_bounds(ts_list, ymd, closes)
             if bounds is None:
                 continue
             win = closes[bounds[0]:bounds[1]]
@@ -1078,7 +1423,7 @@ def _fill_session(key, stored: dict, series: dict, etfs: set):
     closes_by_ticker, suspects, bad = {}, set(), []
     for t in stored:
         s = series.get(t)
-        bounds = None if s is None else _window_bounds(s[0], ymd)
+        bounds = None if s is None else _window_bounds(s[0], ymd, s[1])
         if bounds is None:
             bad.append(("window", t, None))
             continue
@@ -1248,6 +1593,652 @@ def _fill_sessions(receipt, conn, keys, todo, column, *, etf_tickers, bars_reade
 
 
 # --------------------------------------------------------------------------- #
+# restating the long components (2026-11-11): m6 / m9 / m12 became IBD-style
+# --------------------------------------------------------------------------- #
+
+def _restated_sql(table: str) -> str:
+    return f"""
+CREATE TABLE IF NOT EXISTS {table} (
+    session TEXT PRIMARY KEY,
+    method TEXT NOT NULL,
+    restated_at REAL,
+    rows INTEGER
+)"""
+
+
+_RESTATED_SQL = _restated_sql(RESTATED_TABLE)
+
+
+def _restated_sessions(conn, keys, kind: str = "long") -> set:
+    """The keys already restated by ``kind`` (``long`` = m6/m9/m12 to
+    :data:`RESTATE_METHOD`, ``m3`` to :data:`RESTATE_M3_METHOD`); none when the
+    marker table is absent: nothing is created by asking."""
+    _cols, method, table = RESTATE_KINDS[kind]
+    if not _table_exists(conn, table):
+        return set()
+    return {k for k in keys if conn.execute(
+        f"SELECT 1 FROM {table} WHERE session = ? AND method = ?",
+        (k, method)).fetchone()}
+
+
+def _compared_for(columns, done_long: bool, done_m3: bool) -> tuple:
+    """The stored columns a restate of ``columns`` compares for ONE session: ``ibd``
+    and ``m1`` always, plus every column that is NOT being rewritten and whose
+    CURRENT meaning that session already holds (``m3`` once the session carries the
+    m3 marker, ``m6``/``m9``/``m12`` once it carries the long marker). A column still
+    holding an old meaning would only produce false mismatches, so it is not compared."""
+    out = list(RESTATE_COMPARED)
+    if "m3" not in columns and done_m3:
+        out.append("m3")
+    if not set(RESTATE_COLUMNS) & set(columns) and done_long:
+        out.extend(RESTATE_COLUMNS)
+    return tuple(out)
+
+
+def _is_lock_error(e: Exception) -> bool:
+    return isinstance(e, sqlite3.OperationalError) and "locked" in str(e).lower()
+
+
+def _write_with_lock_retry(conn, write, *, what: str = "restate") -> None:
+    """Run ``write()`` (the session's UPDATEs and marker insert) and commit; on
+    ``database is locked`` roll back, wait (backoff) and run it again, up to
+    :data:`LOCK_RETRY_ATTEMPTS` times, then raise. One session is one transaction, so
+    a retry never leaves half a session behind."""
+    for attempt in range(1, LOCK_RETRY_ATTEMPTS + 1):
+        try:
+            write()
+            conn.commit()
+            return
+        except sqlite3.OperationalError as e:
+            if not _is_lock_error(e) or attempt == LOCK_RETRY_ATTEMPTS:
+                raise
+            try:
+                conn.rollback()
+            except sqlite3.Error:
+                pass
+            delay = min(LOCK_RETRY_BASE_S * (2 ** (attempt - 1)), 60.0)
+            log.warning("[rs_history] %s: database is locked (attempt %d/%d), retrying in %.0f s",
+                        what, attempt, LOCK_RETRY_ATTEMPTS, delay)
+            _lock_sleep(delay)
+
+
+def _restate_session(key, stored: dict, series: dict, etfs: set, compared=RESTATE_COMPARED):
+    """Recompute one stored session over the tickers it STORED. ``compared`` is the
+    columns checked against what is stored (:func:`_compared_for`).
+
+    Returns ``(ratings, counts, examples)``. ``counts`` has ``checked`` (tickers
+    compared), ``drift`` (a compared rank off by exactly one point and none by
+    more), ``hard`` (a compared rank off by more than one, no bars window today, or
+    today's split guard skips it) and ``unrestatable`` (the tickers whose long
+    columns cannot be recomputed: these get ``NULL``)."""
+    ymd = session_ymd(key)
+    closes_by_ticker, suspects = {}, set()
+    counts = {"checked": 0, "drift": 0, "hard": 0, "unrestatable": 0,
+              "window": 0, "guard": 0, "values": 0}
+    examples = []
+    for t in stored:
+        s = series.get(t)
+        bounds = None if s is None else _window_bounds(s[0], ymd, s[1])
+        if bounds is None:
+            counts["window"] += 1
+            counts["hard"] += 1
+            counts["unrestatable"] += 1
+            if len(examples) < FILL_EXAMPLES:
+                examples.append({"session": key, "ticker": t, "kind": "window"})
+            continue
+        ts_list, closes, declared = s
+        win = closes[bounds[0]:bounds[1]]
+        if window_split_suspect(ts_list[bounds[0]:bounds[1]], win, declared):
+            suspects.add(t)
+        closes_by_ticker[t] = win
+    ratings = compute_ratings(closes_by_ticker, etfs, suspects=suspects)
+    for t in sorted(closes_by_ticker):
+        r = ratings.get(t) or {}
+        counts["checked"] += 1
+        if not r.get("bars"):
+            counts["guard"] += 1
+            counts["hard"] += 1
+            counts["unrestatable"] += 1
+            if len(examples) < FILL_EXAMPLES:
+                examples.append({"session": key, "ticker": t, "kind": "guard"})
+            continue
+        gaps = [abs(int(stored[t][c]) - int(r[c])) for c in compared
+                if stored[t].get(c) is not None and r.get(c) is not None]
+        missing = any((stored[t].get(c) is None) != (r.get(c) is None) for c in compared)
+        if missing or (gaps and max(gaps) > 1):
+            counts["values"] += 1
+            counts["hard"] += 1
+            if len(examples) < FILL_EXAMPLES:
+                examples.append({"session": key, "ticker": t, "kind": "values",
+                                 "stored_vs_now": {c: (stored[t].get(c), r.get(c))
+                                                   for c in compared
+                                                   if stored[t].get(c) != r.get(c)}})
+        elif gaps and max(gaps) == 1:
+            counts["drift"] += 1
+    return ratings, counts, examples
+
+
+def restate_ranks(days: int = BACKFILL_DAYS, *, etf_tickers=None, bars_reader=None, now=None,
+                  session_fn=None, sessions=None, splits_reader=None, dry_run: bool = False,
+                  max_sessions=None, split_fetch_budget=AUTO_BUDGET,
+                  max_drift_share: float = RESTATE_DRIFT_SHARE, log_every: int = 25,
+                  kind: str = "long") -> dict:
+    """Rewrite one group of component columns to their current meaning for the
+    sessions already stored in the last ``days``. Never raises.
+
+    ``kind="long"`` (the default, ``--restate-ranks``) rewrites ``m6``/``m9``/``m12``
+    (:data:`RESTATE_COLUMNS`) to the IBD-style meaning; ``kind="m3"``
+    (``--restate-ranks --columns m3``) rewrites ``m3`` (:data:`RESTATE_M3_COLUMNS`) to
+    the equal-weighted 1-, 2-, 3-month meaning. Each kind has its own marker table, so
+    the two restates are independent and can run in either order.
+
+    * WHICH SESSIONS: every stored session in the span not yet recorded in the kind's
+      marker table, newest first, at most ``max_sessions`` per call. Re-running is
+      resumable; a finished store is ``nothing_to_do``.
+    * WHICH POPULATION: each session is ranked over the tickers it STORED with
+      today's ETF list, bars and declared splits, like :func:`fill_column`.
+    * ⛔ IT CHECKS BEFORE IT WRITES. The columns that are not being rewritten and that
+      the session already holds in their current meaning (:func:`_compared_for`:
+      ``ibd`` and ``m1`` always) are recomputed and compared with the stored values.
+      Drift of one rating point and hard mismatches (more than one point, no bars
+      window today, a name today's split guard skips) are each allowed up to
+      ``max_drift_share`` of the rows checked; past either, NOTHING is written
+      (``reason = would_change_other_values``) and the receipt counts each kind with
+      a few examples. A name that cannot be restated inside an allowed run is written
+      ``NULL`` in the kind's columns, never left holding an old-meaning number.
+    * WHAT IT WRITES: ``UPDATE ... SET <the kind's columns>`` for the stored rows
+      only, and the session's marker row, in one commit per session (retried on
+      ``database is locked``, :func:`_write_with_lock_retry`). No row is inserted and
+      no other column is touched.
+    * ``dry_run`` opens ``screener.db`` read-only, checks exactly as a real run does
+      and writes nothing (no column, row, table, receipt or split-list memo).
+    """
+    t0 = time.time()
+    if kind not in RESTATE_KINDS:
+        kind = "long"
+    k_columns, k_method, k_table = RESTATE_KINDS[kind]
+    receipt = {"ok": False, "dry_run": bool(dry_run), "session": None, "started_at": t0,
+               "finished_at": None, "universe": None, "targets": None, "rated": 0, "rows": 0,
+               "excluded_etfs": None, "short_history": 0, "split_guard": 0, "duration_ms": 0.0,
+               "note": {"source": "restate_ranks", "columns": list(k_columns),
+                        "method": k_method, "days": None, "sessions": 0,
+                        "sessions_stored": 0, "sessions_restated_before": 0, "sessions_todo": 0,
+                        "sessions_done": 0, "rows_written": 0, "rows_nulled": 0,
+                        "checked": 0, "drift": 0, "hard": 0,
+                        "mismatches": {"window": 0, "guard": 0, "values": 0},
+                        "drift_share_allowed": max_drift_share, "examples": []}}
+    record = not dry_run
+    note = receipt["note"]
+    try:
+        try:
+            days = int(days)
+        except (TypeError, ValueError):
+            days = 0
+        note["days"] = days
+        if not 1 <= days <= BACKFILL_MAX_DAYS:
+            note["reason"] = f"days must be 1 to {BACKFILL_MAX_DAYS}"
+            return _finish(receipt, t0, record=False)
+        if not 0 <= float(max_drift_share) <= 0.05:
+            note["reason"] = "max_drift_share must be 0 to 0.05"
+            return _finish(receipt, t0, record=False)
+        if sessions is None:
+            end = (session_fn or settled_session)(now)
+            if end is None:
+                note["reason"] = "no_session"
+                return _finish(receipt, t0, record=record)
+            sessions = trading_sessions_ending(end, days)
+        keys = sorted({session_key(s) for s in sessions})
+        note["sessions"] = len(keys)
+        receipt["session"] = keys[-1] if keys else None
+        with _backfill_conn(dry_run) as conn:
+            if conn is None or not _table_exists(conn, TABLE):
+                receipt["ok"] = True
+                note["reason"] = "nothing_to_do"
+                return _finish(receipt, t0, record=record)
+            stored_keys = _stored_sessions(conn, keys)
+            note["sessions_stored"] = len(stored_keys)
+            done_keys = _restated_sessions(conn, stored_keys, kind)
+            note["sessions_restated_before"] = len(done_keys)
+            todo = sorted((k for k in stored_keys if k not in done_keys), reverse=True)
+            if max_sessions is not None and int(max_sessions) >= 0:
+                todo = todo[:int(max_sessions)]
+            note["sessions_todo"] = len(todo)
+            if not todo:
+                receipt["ok"] = True
+                note["reason"] = "nothing_to_do"
+                return _finish(receipt, t0, record=record)
+            _restate_sessions(receipt, conn, keys, todo, etf_tickers=etf_tickers,
+                              bars_reader=bars_reader, splits_reader=splits_reader, dry_run=dry_run,
+                              split_fetch_budget=split_fetch_budget, max_drift_share=max_drift_share,
+                              log_every=log_every, kind=kind)
+    except Exception as e:                                   # noqa: BLE001
+        log.warning("[rs_history] restate failed: %s: %s", type(e).__name__, e)
+        note["error"] = f"{type(e).__name__}: {e}"[:300]
+    return _finish(receipt, t0, record=record)
+
+
+def _restate_sessions(receipt, conn, keys, todo, *, etf_tickers, bars_reader, splits_reader, dry_run,
+                      split_fetch_budget, max_drift_share, log_every, kind: str = "long") -> None:
+    """The body of :func:`restate_ranks`: read every stored ticker once, CHECK every
+    session, then (a real run inside the allowance) write the kind's columns."""
+    note = receipt["note"]
+    k_columns, k_method, k_table = RESTATE_KINDS[kind]
+    etfs = {str(t).upper() for t in (etf_tickers if etf_tickers is not None else default_etf_tickers())}
+    have = {r[1] for r in conn.execute(f"PRAGMA table_info({TABLE})").fetchall()}
+    stored_cols = tuple(c for c in RESTATE_ALL_COLUMNS if c in have)
+    cols = ", ".join(stored_cols)
+    done_long = _restated_sessions(conn, todo, "long")
+    done_m3 = _restated_sessions(conn, todo, "m3")
+
+    def _cmp(key):
+        return _compared_for(k_columns, key in done_long, key in done_m3)
+
+    tickers: set = set()
+    for key in todo:
+        tickers |= {r[0] for r in conn.execute(f"SELECT ticker FROM {TABLE} WHERE session = ?",
+                                               (key,)).fetchall()}
+    receipt["targets"] = len(tickers)
+    receipt["universe"] = len(tickers - etfs)
+    receipt["excluded_etfs"] = len(tickers & etfs)
+    reader = bars_reader or default_bars_reader
+    if splits_reader is None:
+        budget = (0 if dry_run else None) if split_fetch_budget == AUTO_BUDGET else split_fetch_budget
+        splits_reader = default_splits_reader(conn, budget=budget, persist=not dry_run)
+    span = keys.index(todo[0]) - keys.index(todo[-1]) + 1
+    depth = READ_BARS + span + 10
+    end_ymd = session_ymd(todo[0])
+    series: dict = {}
+    for t in sorted(tickers):
+        try:
+            rows = reader(t, depth, end_ymd)
+        except Exception as e:                               # noqa: BLE001
+            log.debug("[rs_history] restate read failed for %s: %s", t, e)
+            rows = None
+        ts_list, closes = closes_from_rows(rows)
+        if ts_list:
+            series[t] = (ts_list, closes, _split_list(splits_reader, t))
+    note["tickers_with_bars"] = len(series)
+    lists = _split_stats(splits_reader)
+    if lists is not None:
+        note["split_lists"] = lists
+
+    def _stored(key):
+        return {r[0]: dict(zip(stored_cols, tuple(r)[1:])) for r in conn.execute(
+            f"SELECT ticker, {cols} FROM {TABLE} WHERE session = ?", (key,)).fetchall()}
+
+    # ── PASS 1: the check. Nothing is written unless the whole run is inside the allowance. ──
+    for key in todo:
+        _r, counts, examples = _restate_session(key, _stored(key), series, etfs, _cmp(key))
+        note["checked"] += counts["checked"] + counts["window"]
+        note["drift"] += counts["drift"]
+        note["hard"] += counts["hard"]
+        for kind_name in ("window", "guard", "values"):
+            note["mismatches"][kind_name] += counts[kind_name]
+        for ex in examples:
+            if len(note["examples"]) < FILL_EXAMPLES:
+                note["examples"].append(ex)
+    rows_checked = max(note["checked"], 1)
+    over = {"drift": note["drift"] > max_drift_share * rows_checked,
+            "hard": note["hard"] > max_drift_share * rows_checked}
+    note["over_allowance"] = over
+    if any(over.values()):
+        note["reason"] = "would_change_other_values"
+        log.warning("[rs_history] restate wrote nothing: drift=%s hard=%s of %s rows checked "
+                    "(allowed %.2f%%)", note["drift"], note["hard"], rows_checked, 100 * max_drift_share)
+        return
+    # ── PASS 2: the write (or, dry, the count of what would be written). ──
+    if not dry_run:
+        ensure_schema(conn)
+        conn.execute(_restated_sql(k_table))
+    sql = (f"UPDATE {TABLE} SET {', '.join(c + ' = ?' for c in k_columns)} "
+           "WHERE session = ? AND ticker = ?")
+    for n, key in enumerate(todo, 1):
+        stored = _stored(key)
+        ratings, _c, _e = _restate_session(key, stored, series, etfs, _cmp(key))
+        rows, nulled = [], 0
+        for t in stored:
+            r = ratings.get(t) or {}
+            vals = [r.get(c) if r.get("bars") else None for c in k_columns]
+            if not r.get("bars"):
+                nulled += 1
+            rows.append((*vals, key, t))
+        receipt["rated"] += sum(1 for row in rows if row[0] is not None)
+        if not dry_run:
+            def _write(rows=rows, key=key):
+                conn.executemany(sql, rows)
+                conn.execute(f"INSERT OR REPLACE INTO {k_table} (session, method, restated_at, rows) "
+                             "VALUES (?, ?, ?, ?)", (key, k_method, time.time(), len(rows)))
+            _write_with_lock_retry(conn, _write, what=f"restate {'/'.join(k_columns)} {key}")
+        note["rows_written"] += len(rows)
+        note["rows_nulled"] += nulled
+        receipt["rows"] += len(rows)
+        note["sessions_done"] += 1
+        if log_every and n % log_every == 0:
+            log.info("[rs_history] restate %d/%d sessions (newest first), at %s", n, len(todo), key)
+    receipt["ok"] = True
+
+
+# --------------------------------------------------------------------------- #
+# re-ranking every stored session against ALL stocks (2026-11-12): U1
+# --------------------------------------------------------------------------- #
+
+#: The 63-bar term needs 64 closes: fewer and a name has no rating, so it is not in the ranked set.
+_REQUIRED_BARS = dict((label, n) for label, n, _w in IBD_TERMS)[REQUIRED_TERM]
+
+_UPSERT_SQL = (
+    f"INSERT INTO {TABLE} (session, ticker, ibd, m1, m3, m6, m9, m12, score, bars) "
+    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
+    "ON CONFLICT(session, ticker) DO UPDATE SET ibd = excluded.ibd, m1 = excluded.m1, "
+    "m3 = excluded.m3, m6 = excluded.m6, m9 = excluded.m9, m12 = excluded.m12, "
+    "score = excluded.score, bars = excluded.bars")
+#: ``fast`` is the HOURLY fast rating the nightly stored that night; it cannot be
+#: recomputed, so the upsert never names it (a conflict keeps it, a new row has none).
+_NULL_RATINGS_SQL = (f"UPDATE {TABLE} SET ibd = NULL, m1 = NULL, m3 = NULL, m6 = NULL, "
+                     "m9 = NULL, m12 = NULL WHERE session = ? AND ticker = ?")
+_UNIVERSE_MARKERS = ((UNIVERSE_TABLE, UNIVERSE_METHOD), (RESTATED_TABLE, RESTATE_METHOD),
+                     (RESTATED_M3_TABLE, RESTATE_M3_METHOD))
+
+
+def _compact_series(rows):
+    """``(ts, closes)`` as typed arrays (4 + 8 bytes a bar, not ~70 for two lists of
+    Python numbers): the wide universe holds ~13,000 tickers x ~530 bars at once, and
+    the web pod runs with little headroom. ``None`` when there is no valid close."""
+    ts_list, closes = closes_from_rows(rows)
+    if not ts_list:
+        return None
+    return array("i", ts_list), array("d", closes)
+
+
+def _universe_windows(series: dict, etfs: set, key) -> tuple:
+    """``(closes_by_ticker, suspects, ranked_estimate)`` for ONE session: each ticker's
+    fresh window (:func:`_window_bounds`), the names today's split guard marks, and
+    how many non-ETF names have enough closes to be ranked at all (the 63-bar term
+    plus the base: 64)."""
+    ymd = session_ymd(key)
+    closes_by_ticker, suspects, ranked = {}, set(), 0
+    for t, (ts_list, closes, declared) in series.items():
+        bounds = _window_bounds(ts_list, ymd, closes)
+        if bounds is None:
+            continue
+        win = closes[bounds[0]:bounds[1]]
+        if window_split_suspect(ts_list[bounds[0]:bounds[1]], win, declared):
+            suspects.add(t)
+        closes_by_ticker[t] = win
+        if t not in etfs and len(win) > _REQUIRED_BARS:
+            ranked += 1
+    return closes_by_ticker, suspects, ranked
+
+
+def _ranked_estimate(series: dict, etfs: set, key) -> int:
+    """The cheap version of :func:`_universe_windows` for the band check: bounds only,
+    no slicing, no split judging."""
+    ymd = session_ymd(key)
+    n = 0
+    for t, (ts_list, closes, _declared) in series.items():
+        if t in etfs:
+            continue
+        b = _window_bounds(ts_list, ymd, closes)
+        if b is not None and b[1] - b[0] > _REQUIRED_BARS:
+            n += 1
+    return n
+
+
+def _median(values):
+    v = sorted(values)
+    if not v:
+        return 0
+    m = len(v) // 2
+    return v[m] if len(v) % 2 else (v[m - 1] + v[m]) / 2.0
+
+
+def restate_universe(days: int = BACKFILL_DAYS, *, universe=None, etf_tickers=None, bars_reader=None,
+                     now=None, session_fn=None, sessions=None, splits_reader=None,
+                     dry_run: bool = False, max_sessions=None, split_fetch_budget=AUTO_BUDGET,
+                     band: float = UNIVERSE_BAND, log_every: int = 25, marker=None) -> dict:
+    """Re-rank every stored session in the last ``days`` against ALL non-ETF stocks
+    (:func:`ranking_universe`), rewriting every rating column. Never raises.
+
+    ``marker`` is the ``(table, method)`` that decides which sessions are still to do
+    and that a written session receives; the default is the universe restate's own.
+    ``--restate-listing-breaks`` passes ``(LISTING_TABLE, LISTING_METHOD)``: the same
+    re-rank, for the sessions written before the window stopped at a listing break. Its
+    receipt also carries ``changed_newest``: the stocks of the newest session whose
+    rating moved by more than :data:`UNIVERSE_BIG_SHIFT`, largest first.
+
+    The same :func:`compute_ratings` the nightly job calls does the work, over the same
+    candidate list, so the stored history can never disagree with tonight's rows.
+
+    * WHICH SESSIONS: every stored session in the span with no row in
+      ``rs_history_restated_universe`` (method :data:`UNIVERSE_METHOD`), newest first, at
+      most ``max_sessions`` per call. A finished store is ``nothing_to_do``; a run that
+      dies is finished by running the command again.
+    * WHAT IT WRITES, one transaction per session (retried with backoff on
+      ``database is locked``): an UPSERT of ``ibd, m1, m3, m6, m9, m12, score, bars``
+      for every ticker rated that session (a stock the cap universe never held is a NEW
+      row; an ETF row is rewritten because its interpolation distribution changed),
+      ``NULL`` ratings for a stored ticker that no longer has a window or is split-guarded
+      (never an old-universe number), and the session's marker in this restate's table AND in
+      the long and m3 tables (every column is now in its current meaning, so those restates
+      have nothing left to do). ``fast`` is never touched.
+    * ⛔ IT REFUSES, WRITING NOTHING, when (a) a session would rank fewer than
+      :data:`UNIVERSE_MIN_RANKED` names or its ranked count is outside ``band`` of the
+      median session's (a stale bars store, a half-listed night); (b) on a real run, more
+      split lists are unknown than the backfill allows. The values change by design, so
+      the comparison guard of ``--restate-ranks`` does not apply; the receipt prints the
+      shift instead (mean rating change, share moved by more than
+      :data:`UNIVERSE_BIG_SHIFT`) so the owner sees what happened.
+    * ``dry_run`` opens ``screener.db`` read-only, reads and ranks exactly as a real run
+      does and writes nothing (no row, table, receipt or split-list memo; stored answers
+      and the cache only, no provider call).
+    """
+    t0 = time.time()
+    receipt = {"ok": False, "dry_run": bool(dry_run), "session": None, "started_at": t0,
+               "finished_at": None, "universe": None, "targets": None, "rated": 0, "rows": 0,
+               "excluded_etfs": None, "short_history": 0, "split_guard": 0, "duration_ms": 0.0,
+               "note": {"source": "restate_universe", "method": (marker or (None, UNIVERSE_METHOD))[1],
+                        "columns": list(RESTATE_ALL_COLUMNS), "days": None, "sessions": 0,
+                        "sessions_stored": 0, "sessions_restated_before": 0, "sessions_todo": 0,
+                        "sessions_done": 0, "rows_written": 0, "rows_inserted": 0,
+                        "rows_updated": 0, "rows_nulled": 0, "band": band,
+                        "ranked": {"min": None, "median": None, "max": None},
+                        "shift": {"compared": 0, "mean": None, "big_share": None, "up_share": None},
+                        "examples": []}}
+    record = not dry_run
+    note = receipt["note"]
+    mark_table, mark_method = marker or (UNIVERSE_TABLE, UNIVERSE_METHOD)
+    try:
+        try:
+            days = int(days)
+        except (TypeError, ValueError):
+            days = 0
+        note["days"] = days
+        if not 1 <= days <= BACKFILL_MAX_DAYS:
+            note["reason"] = f"days must be 1 to {BACKFILL_MAX_DAYS}"
+            return _finish(receipt, t0, record=False)
+        if not 0.02 <= float(band) <= 0.5:
+            note["reason"] = "band must be 0.02 to 0.5"
+            return _finish(receipt, t0, record=False)
+        if sqlite3.sqlite_version_info < (3, 24, 0):
+            note["reason"] = f"sqlite {sqlite3.sqlite_version} has no UPSERT (needs 3.24)"
+            return _finish(receipt, t0, record=False)
+        if sessions is None:
+            end = (session_fn or settled_session)(now)
+            if end is None:
+                note["reason"] = "no_session"
+                return _finish(receipt, t0, record=record)
+            sessions = trading_sessions_ending(end, days)
+        keys = sorted({session_key(s) for s in sessions})
+        note["sessions"] = len(keys)
+        receipt["session"] = keys[-1] if keys else None
+        with _backfill_conn(dry_run) as conn:
+            if conn is None or not _table_exists(conn, TABLE):
+                receipt["ok"] = True
+                note["reason"] = "nothing_to_do"
+                return _finish(receipt, t0, record=record)
+            stored_keys = _stored_sessions(conn, keys)
+            note["sessions_stored"] = len(stored_keys)
+            have_marks = _table_exists(conn, mark_table)
+            done_keys = {k for k in stored_keys if have_marks and conn.execute(
+                f"SELECT 1 FROM {mark_table} WHERE session = ? AND method = ?",
+                (k, mark_method)).fetchone()}
+            note["sessions_restated_before"] = len(done_keys)
+            todo = sorted((k for k in stored_keys if k not in done_keys), reverse=True)
+            if max_sessions is not None and int(max_sessions) >= 0:
+                todo = todo[:int(max_sessions)]
+            note["sessions_todo"] = len(todo)
+            if not todo:
+                receipt["ok"] = True
+                note["reason"] = "nothing_to_do"
+                return _finish(receipt, t0, record=record)
+            _restate_universe_sessions(receipt, conn, keys, todo, universe=universe,
+                                       etf_tickers=etf_tickers, bars_reader=bars_reader,
+                                       splits_reader=splits_reader, dry_run=dry_run,
+                                       split_fetch_budget=split_fetch_budget, band=float(band),
+                                       log_every=log_every, marker=(mark_table, mark_method))
+    except Exception as e:                                   # noqa: BLE001
+        log.warning("[rs_history] restate-universe failed: %s: %s", type(e).__name__, e)
+        note["error"] = f"{type(e).__name__}: {e}"[:300]
+    return _finish(receipt, t0, record=record)
+
+
+def _restate_universe_sessions(receipt, conn, keys, todo, *, universe, etf_tickers, bars_reader,
+                               splits_reader, dry_run, split_fetch_budget, band, log_every,
+                               marker=None) -> None:
+    """The body of :func:`restate_universe`: read every candidate once, check every
+    session's ranked count, then (a real run inside the guards) write each session."""
+    note = receipt["note"]
+    # Every restate this re-rank completes, plus the caller's own marker when it is another.
+    markers = _UNIVERSE_MARKERS
+    if marker is not None and tuple(marker) not in _UNIVERSE_MARKERS:
+        markers = _UNIVERSE_MARKERS + (tuple(marker),)
+    uni, etfs = _resolve_population(universe, etf_tickers)
+    have = {r[1] for r in conn.execute(f"PRAGMA table_info({TABLE})").fetchall()}
+    stored_cols = tuple(c for c in RESTATE_ALL_COLUMNS if c in have)
+    cols = ", ".join(stored_cols)
+    stored_tickers: set = set()
+    for key in todo:
+        stored_tickers |= {r[0] for r in conn.execute(f"SELECT ticker FROM {TABLE} WHERE session = ?",
+                                                      (key,)).fetchall()}
+    candidates = sorted(uni | etfs | stored_tickers)
+    receipt["targets"] = len(candidates)
+    receipt["universe"] = len(set(candidates) - etfs)
+    receipt["excluded_etfs"] = len(set(candidates) & etfs)
+    reader = bars_reader or default_bars_reader
+    if splits_reader is None:
+        budget = (0 if dry_run else None) if split_fetch_budget == AUTO_BUDGET else split_fetch_budget
+        splits_reader = default_splits_reader(conn, budget=budget, persist=not dry_run)
+    span = keys.index(todo[0]) - keys.index(todo[-1]) + 1
+    depth = READ_BARS + span + 10
+    end_ymd = session_ymd(todo[0])
+    series: dict = {}
+    for t in candidates:
+        try:
+            rows = reader(t, depth, end_ymd)
+        except Exception as e:                               # noqa: BLE001 - one name, not the run
+            log.debug("[rs_history] restate-universe read failed for %s: %s", t, e)
+            rows = None
+        packed = _compact_series(rows)
+        if packed is not None:
+            series[t] = (packed[0], packed[1], _split_list(splits_reader, t))
+    note["tickers_with_bars"] = len(series)
+    note["split_basis"] = {"declared": sum(1 for s in series.values() if s[2] is not None),
+                           "unknown": sum(1 for s in series.values() if s[2] is None)}
+    lists = _split_stats(splits_reader)
+    if lists is not None:
+        note["split_lists"] = lists
+    unknown = note["split_basis"]["unknown"]
+    allowed = max(BACKFILL_UNKNOWN_SPLITS_FLOOR, int(len(series) * BACKFILL_UNKNOWN_SPLITS_SHARE))
+    note["split_lists_allowed_unknown"] = allowed
+    if not dry_run and unknown > allowed:
+        # A session this writes is skipped by every later run, so a name ranked without
+        # its split list here would never be judged again: write nothing, run it again
+        # when the provider answers (the lists it did fetch are kept).
+        note["reason"] = "split_lists_unknown"
+        log.warning("[rs_history] restate-universe wrote nothing: %d split lists unknown (allowed %d)%s",
+                    unknown, allowed, " - FMP_API_KEY is not set" if (lists or {}).get("no_key") else "")
+        return
+    # ── PASS 1: the ranked count of every session. Nothing is written unless all are plausible. ──
+    ranked_by_session = {key: _ranked_estimate(series, etfs, key) for key in todo}
+    counts = list(ranked_by_session.values())
+    med = _median(counts)
+    note["ranked"] = {"min": min(counts), "median": med, "max": max(counts)}
+    bad = [(k, n) for k, n in ranked_by_session.items()
+           if n < UNIVERSE_MIN_RANKED or (med and abs(n - med) / med > band)]
+    if bad:
+        note["reason"] = "implausible_universe"
+        note["examples"] = [{"session": k, "ranked": n} for k, n in sorted(bad)[:FILL_EXAMPLES]]
+        note["implausible_sessions"] = len(bad)
+        log.warning("[rs_history] restate-universe wrote nothing: %d session(s) rank fewer than %d names "
+                    "or sit outside +/-%.0f%% of the median %s (e.g. %s)", len(bad), UNIVERSE_MIN_RANKED,
+                    100 * band, med, note["examples"][:3])
+        return
+    # ── PASS 2: rank, compare with what is stored, write (or, dry, count). ──
+    if not dry_run:
+        ensure_schema(conn)
+        for table, _method in markers:
+            conn.execute(_restated_sql(table))
+    shift = {"n": 0, "sum": 0, "big": 0, "up": 0}
+    moved: list = []                                         # the newest session's big moves
+    for n, key in enumerate(todo, 1):
+        closes_by_ticker, suspects, _ranked = _universe_windows(series, etfs, key)
+        ratings = compute_ratings(closes_by_ticker, etfs, suspects=suspects)
+        stored = {r[0]: dict(zip(stored_cols, tuple(r)[1:])) for r in conn.execute(
+            f"SELECT ticker, {cols} FROM {TABLE} WHERE session = ?", (key,)).fetchall()}
+        upserts, nulls, inserted = [], [], 0
+        for t, r in ratings.items():
+            if not r.get("bars"):
+                continue
+            upserts.append((key, t, r.get("ibd"), r.get("m1"), r.get("m3"), r.get("m6"),
+                            r.get("m9"), r.get("m12"), r.get("score"), int(r.get("bars") or 0)))
+            old = stored.get(t)
+            if old is None:
+                inserted += 1
+            elif t not in etfs and old.get("ibd") is not None and r.get("ibd") is not None:
+                # the summary describes STOCKS (an ETF's number follows the stocks')
+                d = int(r["ibd"]) - int(old["ibd"])
+                shift["n"] += 1
+                shift["sum"] += d
+                shift["big"] += 1 if abs(d) > UNIVERSE_BIG_SHIFT else 0
+                shift["up"] += 1 if d > 0 else 0
+                if n == 1 and abs(d) > UNIVERSE_BIG_SHIFT:
+                    moved.append((abs(d), t, int(old["ibd"]), int(r["ibd"])))
+        for t in stored:
+            if not (ratings.get(t) or {}).get("bars"):
+                nulls.append((key, t))
+        counts_n = _counts_for(ratings, etfs)
+        receipt["rated"] += counts_n["rated"]
+        receipt["short_history"] += counts_n["short_history"]
+        receipt["split_guard"] += counts_n["split_guard"]
+        if not dry_run:
+            def _write(upserts=upserts, nulls=nulls, key=key):
+                conn.executemany(_UPSERT_SQL, upserts)
+                if nulls:
+                    conn.executemany(_NULL_RATINGS_SQL, nulls)
+                now_ts = time.time()
+                for table, method in markers:
+                    conn.execute(f"INSERT OR REPLACE INTO {table} (session, method, restated_at, rows) "
+                                 "VALUES (?, ?, ?, ?)", (key, method, now_ts, len(upserts)))
+            _write_with_lock_retry(conn, _write, what=f"restate-universe {key}")
+        note["rows_written"] += len(upserts)
+        note["rows_inserted"] += inserted
+        note["rows_updated"] += len(upserts) - inserted
+        note["rows_nulled"] += len(nulls)
+        receipt["rows"] += len(upserts)
+        note["sessions_done"] += 1
+        if log_every and n % log_every == 0:
+            log.info("[rs_history] restate-universe %d/%d sessions (newest first), at %s", n, len(todo), key)
+    moved.sort(key=lambda m: (-m[0], m[1]))
+    note["changed_newest"] = {"session": todo[0], "over": len(moved),
+                              "examples": [{"ticker": t, "was": was, "now": now_}
+                                           for _d, t, was, now_ in moved[:CHANGED_EXAMPLES]]}
+    if shift["n"]:
+        note["shift"] = {"compared": shift["n"], "mean": round(shift["sum"] / shift["n"], 2),
+                         "big_share": round(shift["big"] / shift["n"], 4),
+                         "up_share": round(shift["up"] / shift["n"], 4)}
+    receipt["ok"] = True
+
+
+# --------------------------------------------------------------------------- #
 # reads
 # --------------------------------------------------------------------------- #
 
@@ -1286,6 +2277,129 @@ def _sessions_desc(conn, limit=None, upto=None) -> list:
 #: universe) reads each session whole, which is cheaper at that size.
 NARROW_READ_MAX = 200
 
+# ── A CHART'S ASK DOES NOT REDISCOVER THE STORE EVERY TIME ───────────────────
+#
+# ⚰️ MEASURED ON PRODUCTION 2026-11-13 (Server-Timing on /api/signature/columns-batch,
+# after the bars read was fixed): `rs-rating` 430 to 850 ms per symbol, for a read of
+# three rows. `read_fields` for ONE ticker ran ~28 statements: 22 to find the newest 21
+# stored sessions (one `MAX(session)` seek each), one `PRAGMA table_info`, the connection's
+# own two, and the three rows. Every statement is at least one `sqlite3_step`, and on the
+# web pod a thread waits to get the GIL back after each one.
+#
+# The session list changes once a day and the table's columns only at a migration. So the
+# narrow ask (a chart's) remembers both for `REMEMBER_S`:
+#   * the session list is CHECKED, not trusted: one `MAX(session)` seek per call (since
+#     2026-11-14 inside the ask's own statement, `narrow_read_sql`), and a newest session
+#     that differs from the remembered one rebuilds the list at once (a session stored by
+#     this process or installed by another shows up on the next ask);
+#   * the columns are remembered as read (they are only ever ADDED, so the worst a stale
+#     copy does is report a brand-new column as None for a minute).
+# Both are keyed by the database path. The screener build's bulk ask and an ask for a
+# named session are untouched: they read the store as before.
+REMEMBER_S = 60.0
+_remembered: dict = {}          # (db path, what) -> (monotonic at, value)
+
+
+def _remembered_get(key):
+    hit = _remembered.get(key)
+    if hit is not None and 0 <= time.monotonic() - hit[0] < REMEMBER_S:
+        return hit[1]
+    return None
+
+
+def _read_columns_remembered(conn, path: str | None = None) -> tuple:
+    """`_read_columns(conn)`, remembered for `REMEMBER_S`."""
+    key = (path or snapshot_db.get_db_path(), "columns")
+    held = _remembered_get(key)
+    if held is not None:
+        return held
+    cols = _read_columns(conn)
+    _remembered[key] = (time.monotonic(), cols)
+    return cols
+
+
+# ── A CHART'S ASK IS ONE STATEMENT (2026-11-14) ──────────────────────────────
+#
+# ⚰️ MEASURED ON PRODUCTION 2026-11-14, after the remembering above: the `rating` stage was
+# still a median 185 ms of a 408 ms RS answer. The narrow ask was four statements on a
+# connection opened for it (the open and its two PRAGMAs are three more round trips), and the
+# series read beside it another open and two statements. Measured with the web pod's switch
+# interval beside 30 busy threads: 17 ms for an open, 6 to 14 ms for each statement, however
+# little it reads, because the thread waits to get the GIL back after every one.
+#
+# So the narrow ask runs on this thread's kept reader (`snapshot_db.read_on_reader`) and is
+# ONE statement: the newest stored session (the check on the remembered list), each asked
+# ticker's row in it, and its `ibd` 5 and 20 stored sessions earlier. What it answers is what
+# the four statements answered, row for row (tests/test_rs_read_fields_remembered.py holds
+# the two against each other).
+#: How many newest sessions the narrow ask needs: the newest, and the one 20 before it.
+_NARROW_SESSIONS = 21
+
+
+def narrow_read_sql(cols: tuple, n_tickers: int) -> str:
+    """The narrow ask's one statement. Parameters, in order: the session 5 stored sessions
+    before the newest, the one 20 before (None when the store is that short: no row matches),
+    the newest remembered session, then the tickers.
+
+    ALWAYS at least one row: `newest_` is the store's newest session NOW (None when it is
+    empty), on every row; a ticker with no row in the asked session has no row here, and when
+    none has one the single row's `ticker` is None. Every read is a primary-key seek (the plan
+    is pinned in tests/test_rs_read_fields_remembered.py)."""
+    earlier = (f"(SELECT p.ibd FROM {TABLE} p WHERE p.session = ? AND p.ticker = a.ticker)")
+    return (f"SELECT m.newest AS newest_, a.ticker AS ticker, {', '.join(f'a.{c} AS {c}' for c in cols)}, "
+            f"{earlier} AS ibd5_, {earlier} AS ibd20_ "
+            f"FROM (SELECT MAX(session) AS newest FROM {TABLE}) m "
+            f"LEFT JOIN {TABLE} a ON a.session = ? AND a.ticker IN ({', '.join('?' * n_tickers)})")
+
+
+def _narrow_read(conn, path: str, want: list):
+    """``(newest session, {ticker: row}, {5: {ticker: ibd}, 20: {...}})`` for the narrow ask,
+    or None when the store holds no session.
+
+    The remembered session list is CHECKED by the statement itself: it answers the store's
+    newest session beside the rows, and a list whose first entry is not that session is found
+    again at once and the statement run again (a session stored by this process or installed
+    by another shows on the very next ask). An empty list is never remembered as an answer."""
+    key = (path, "sessions", _NARROW_SESSIONS)
+    cols = _read_columns_remembered(conn, path)
+    sql = narrow_read_sql(cols, len(want))
+    sess = _remembered_get(key)
+    found_now = False
+    while True:
+        if not sess:
+            sess = _sessions_desc(conn, _NARROW_SESSIONS)
+            _remembered[key] = (time.monotonic(), sess)
+            found_now = True
+            if not sess:
+                return None
+        got = conn.execute(sql, (sess[5] if len(sess) > 5 else None,
+                                 sess[20] if len(sess) > 20 else None,
+                                 sess[0]) + tuple(want)).fetchall()
+        if found_now or got[0]["newest_"] == sess[0]:
+            break
+        sess = None                                  # the store moved on: find its sessions again
+    rows, earlier = {}, {5: {}, 20: {}}
+    for r in got:
+        t = r["ticker"]
+        if t is None:                                # the one row of an ask no ticker of which has a row
+            continue
+        rows[t] = {c: r[c] for c in cols}
+        earlier[5][t] = r["ibd5_"]
+        earlier[20][t] = r["ibd20_"]
+    return sess[0], rows, earlier
+
+
+def _table_known(conn, path: str) -> bool:
+    """`_table_exists(conn, TABLE)`, remembered for `REMEMBER_S` once it is True (a table is
+    never dropped; an absent one is looked for again on every ask, so it is seen at once)."""
+    key = (path, "table")
+    if _remembered_get(key):
+        return True
+    if not _table_exists(conn, TABLE):
+        return False
+    _remembered[key] = (time.monotonic(), True)
+    return True
+
 
 def read_fields(tickers, session=None, failures=None, now=None) -> dict:
     """``{TICKER: {ibd, fast, m1, m3, m6, m9, m12, score, bars, d5, d20, asof}}`` for the
@@ -1308,36 +2422,44 @@ def read_fields(tickers, session=None, failures=None, now=None) -> dict:
     if not want:
         return {}
     try:
-        with closing(snapshot_db.connect()) as conn:
-            if session is not None:
-                key = session_key(session)
-                sess = _sessions_desc(conn, 21, upto=key)
-                if not sess or sess[0] != key:
-                    sess = []
-            else:
-                sess = _sessions_desc(conn, 21)
-            if not sess:
+        if session is None and len(want) <= NARROW_READ_MAX:
+            # A chart asks for one symbol: its rows by primary key, in one statement, on this
+            # thread's kept reader (`_narrow_read`). The build's bulk ask and an ask for a
+            # named session read the store as before, on a connection of their own.
+            hit = snapshot_db.read_on_reader(lambda conn, path: _narrow_read(conn, path, want))
+            if hit is None:
                 _note(failures, "missing")
                 return {}
-            latest = sess[0]
-            cols = ", ".join(_read_columns(conn))
-            # A chart asks for one symbol: read its rows by primary key rather than
-            # three whole sessions (review finding #30, 2026-11-07). The build's
-            # bulk ask keeps the whole-session read.
-            if len(want) <= NARROW_READ_MAX:
-                only = f" AND ticker IN ({', '.join('?' * len(want))})"
-                args = tuple(want)
-            else:
-                only, args = "", ()
-            rows = {r["ticker"]: dict(r) for r in conn.execute(
-                f"SELECT ticker, {cols} FROM {TABLE} WHERE session = ?{only}",
-                (latest,) + args).fetchall()}
-            earlier = {}
-            for n in (5, 20):
-                if len(sess) > n:
-                    earlier[n] = {r[0]: r[1] for r in conn.execute(
-                        f"SELECT ticker, ibd FROM {TABLE} WHERE session = ?{only}",
-                        (sess[n],) + args).fetchall()}
+            latest, rows, earlier = hit
+        else:
+            with closing(snapshot_db.connect()) as conn:
+                if session is not None:
+                    key = session_key(session)
+                    sess = _sessions_desc(conn, 21, upto=key)
+                    if not sess or sess[0] != key:
+                        sess = []
+                else:
+                    sess = _sessions_desc(conn, 21)
+                if not sess:
+                    _note(failures, "missing")
+                    return {}
+                latest = sess[0]
+                narrow = len(want) <= NARROW_READ_MAX
+                cols = ", ".join(_read_columns_remembered(conn) if narrow else _read_columns(conn))
+                if narrow:
+                    only = f" AND ticker IN ({', '.join('?' * len(want))})"
+                    args = tuple(want)
+                else:
+                    only, args = "", ()
+                rows = {r["ticker"]: dict(r) for r in conn.execute(
+                    f"SELECT ticker, {cols} FROM {TABLE} WHERE session = ?{only}",
+                    (latest,) + args).fetchall()}
+                earlier = {}
+                for n in (5, 20):
+                    if len(sess) > n:
+                        earlier[n] = {r[0]: r[1] for r in conn.execute(
+                            f"SELECT ticker, ibd FROM {TABLE} WHERE session = ?{only}",
+                            (sess[n],) + args).fetchall()}
     except Exception as e:                                   # noqa: BLE001 - a read never raises
         log.warning("[rs_history] read failed: %s", e)
         _note(failures, "missing")
@@ -1437,20 +2559,60 @@ def rating_series(ticker: str, upto=None, limit: int = 300) -> list:
     tu = str(ticker or "").strip().upper()
     if not n or not tu:
         return []
+    args = (tu, n) if upto is None else (tu, session_key(upto), n)
+
+    def read(conn, path):
+        if not _table_known(conn, path):
+            return []
+        pairs = _rating_series_one_step(conn, upto is not None, args)
+        if pairs is None:
+            pairs = [(r[0], r[1]) for r in conn.execute(rating_series_sql(upto is not None), args).fetchall()]
+        return pairs
     try:
-        with closing(snapshot_db.connect()) as conn:
-            if not _table_exists(conn, TABLE):
-                return []
-            if upto is None:
-                rows = conn.execute(f"SELECT session, ibd FROM {TABLE} WHERE ticker = ? "
-                                    "ORDER BY session DESC LIMIT ?", (tu, n)).fetchall()
-            else:
-                rows = conn.execute(f"SELECT session, ibd FROM {TABLE} WHERE ticker = ? AND session <= ? "
-                                    "ORDER BY session DESC LIMIT ?", (tu, session_key(upto), n)).fetchall()
+        pairs = snapshot_db.read_on_reader(read)             # this thread's kept reader: one statement
     except Exception as e:                                   # noqa: BLE001 - a read never raises
         log.warning("[rs_history] rating series read failed for %s: %s", tu, e)
         return []
-    return [(r[0], None if r[1] is None else int(r[1])) for r in reversed(rows)]
+    pairs.sort(key=_series_session)                          # oldest first, whichever read answered
+    return [(s, None if v is None else int(v)) for s, v in pairs]
+
+
+def rating_series_sql(bounded: bool) -> str:
+    """The series walk itself (newest first, at most ``limit`` rows): ``bounded`` adds the
+    ``session <= ?`` end. The ONE spelling: the row read runs it, the one-step read wraps
+    it, and ``tests/test_rs_rating_view.py`` pins its plan."""
+    return (f"SELECT session, ibd FROM {TABLE} WHERE ticker = ? "
+            + ("AND session <= ? " if bounded else "") + "ORDER BY session DESC LIMIT ?")
+
+
+def rating_series_one_step_sql(bounded: bool) -> str:
+    """`rating_series_sql`, aggregated inside sqlite into ONE result row: the JSON pairs, and
+    a flag that every rating is a stored INTEGER or null (the flag is null over no rows)."""
+    return ("SELECT json_group_array(json_array(session, ibd)), min(typeof(ibd) IN ('integer', 'null')) "
+            f"FROM ({rating_series_sql(bounded)})")
+
+
+def _series_session(pair) -> str:
+    return pair[0]
+
+
+def _rating_series_one_step(conn, bounded: bool, args: tuple):
+    """The walk's rows from ONE sqlite step, as ``[(session, ibd), ...]`` in no promised
+    order, or None when this read cannot be made that way (then the caller reads the rows).
+
+    ⚡ 2026-11-13: a chart's RS Rating line reads up to its bar count of sessions here (2,520
+    at most), one `sqlite3_step` per row, and CPython's sqlite3 re-takes the GIL after every
+    step: Server-Timing `rs-rating` 0.5 to 1.8 s on the web pod for rows sqlite finds in a
+    millisecond. Integers and text pass through JSON exactly; a rating stored as anything
+    else (never written, but then never trusted to a text rendering either), a ticker with
+    no rows, or a sqlite without the JSON functions answers None."""
+    try:
+        text, plain = conn.execute(rating_series_one_step_sql(bounded), args).fetchone()
+    except sqlite3.OperationalError:
+        return None
+    if plain != 1:                       # a rating that is not an integer, or no rows at all
+        return None
+    return [(s, v) for s, v in json.loads(text)]
 
 
 def status(data_dir=None) -> dict:
@@ -1474,7 +2636,8 @@ def status(data_dir=None) -> dict:
     except Exception as e:                                   # noqa: BLE001
         log.warning("[rs_history] status read failed: %s", e)
     return {"table": TABLE, "rows": rows, "sessions": sessions, "latest_session": latest,
-            "last_run": last_run(), "backfill": marker_state(data_dir)}
+            "last_run": last_run(), "last_attempt": last_attempt(),
+            "backfill": marker_state(data_dir)}
 
 
 # --------------------------------------------------------------------------- #
@@ -1503,6 +2666,31 @@ def _parser():
                     help="fill ONE column added after the backfill (m9) for the sessions already stored "
                          "in the last N, rewriting nothing else; refuses, writing nothing, when today's "
                          "bars or split guard would change any other stored value")
+    ap.add_argument("--restate-ranks", action="store_true",
+                    help="rewrite m6, m9 and m12 to the IBD-style meaning (or, with --columns m3, m3 to "
+                         "the equal-weighted 1/2/3-month meaning) for the sessions already stored in "
+                         "the last N, nothing else; refuses, writing nothing, when the columns it does "
+                         "not rewrite no longer agree with today's bars beyond --max-drift-share")
+    ap.add_argument("--columns", default="m6,m9,m12", choices=["m6,m9,m12", "m3"], metavar="COLUMNS",
+                    help="with --restate-ranks: which columns to restate, m6,m9,m12 (default; the "
+                         "IBD-style blend) or m3 (the equal-weighted 1/2/3-month average)")
+    ap.add_argument("--restate-universe", action="store_true",
+                    help="re-rank EVERY stored session in the last N against all non-ETF stocks (the "
+                         "wide universe) and rewrite every rating column; writes new rows for stocks "
+                         "the cap universe never held; refuses, writing nothing, when a session's "
+                         "ranked count is implausible")
+    ap.add_argument("--restate-listing-breaks", action="store_true",
+                    help="re-rank EVERY stored session in the last N with the rating window stopped at a "
+                         "break in the listing (a recycled or renamed symbol is no longer scored on its "
+                         "earlier security's closes); the same guards and the same resumable, "
+                         "one-transaction-a-session writes as --restate-universe, under its own marker")
+    ap.add_argument("--universe-band", type=float, default=UNIVERSE_BAND, metavar="X",
+                    help=f"with --restate-universe: how far a session's ranked count may sit from the "
+                         f"median session's before the run refuses (default {UNIVERSE_BAND}, 0.02 to 0.5)")
+    ap.add_argument("--max-drift-share", type=float, default=RESTATE_DRIFT_SHARE, metavar="X",
+                    help=f"with --restate-ranks: share of rows checked that may drift one rating point, "
+                         f"and share that may mismatch harder, before it refuses (default "
+                         f"{RESTATE_DRIFT_SHARE}, at most 0.05)")
     return ap
 
 
@@ -1510,6 +2698,11 @@ def main(argv=None) -> int:
     """The CLI. Exit 0 when the run finished (or had nothing to do), 1 when it did
     not, 2 on a usage error. The receipt prints as one ``receipt {json}`` line."""
     import sys
+    # ⛔ This CLI runs over ssh in a process that never imported the web app, so nothing
+    # else installed the credential redaction (2026-11-11: the FMP key reached the pod's
+    # logs from here). Idempotent: factory + filter on whatever root handlers exist now.
+    from api.services.log_redaction import install as _install_log_redaction
+    _install_log_redaction()
     try:
         args = _parser().parse_args(list(argv) if argv is not None else None)
     except SystemExit as e:                                  # argparse: 2 on error, 0 on --help
@@ -1524,6 +2717,66 @@ def main(argv=None) -> int:
         print("rs_history: --split-fetch-budget must be 0 or more", file=sys.stderr)
         return 2
     budget = AUTO_BUDGET if args.split_fetch_budget is None else args.split_fetch_budget
+    if sum(bool(x) for x in (args.restate_ranks, args.fill_column, args.restate_universe,
+                             args.restate_listing_breaks)) > 1:
+        print("rs_history: pick one of --restate-ranks, --restate-universe, --restate-listing-breaks "
+              "and --fill-column", file=sys.stderr)
+        return 2
+    if args.restate_universe or args.restate_listing_breaks:
+        if not 0.02 <= args.universe_band <= 0.5:
+            print("rs_history: --universe-band must be 0.02 to 0.5", file=sys.stderr)
+            return 2
+        # The listing restate is the universe re-rank under its own marker; the universe
+        # command's call is unchanged (its marker is the function's default).
+        extra = {"marker": (LISTING_TABLE, LISTING_METHOD)} if args.restate_listing_breaks else {}
+        receipt = restate_universe(args.backfill_days, dry_run=args.dry_run, max_sessions=args.max_sessions,
+                                   split_fetch_budget=budget, band=args.universe_band, **extra)
+        note = receipt.get("note") or {}
+        dry = bool(receipt.get("dry_run"))
+        ranked = note.get("ranked") or {}
+        shift = note.get("shift") or {}
+        if args.restate_listing_breaks:
+            changed = note.get("changed_newest") or {}
+            names = ", ".join(f"{e.get('ticker')} {e.get('was')}->{e.get('now')}"
+                              for e in (changed.get("examples") or []))
+            print(f"rs_history restate-listing-breaks{' (dry run)' if dry else ''}: "
+                  f"newest={changed.get('session')} changed_over{UNIVERSE_BIG_SHIFT}={changed.get('over')} "
+                  f"[{names}]", flush=True)
+        print(f"rs_history restate-{'listing-breaks' if args.restate_listing_breaks else 'universe'}"
+              f"{' (dry run)' if dry else ''}: sessions={note.get('sessions')} "
+              f"stored={note.get('sessions_stored')} already_done={note.get('sessions_restated_before')} "
+              f"todo={note.get('sessions_todo')} {'would_write' if dry else 'written'}={note.get('sessions_done')} "
+              f"rows={note.get('rows_written')} new_rows={note.get('rows_inserted')} "
+              f"updated={note.get('rows_updated')} nulled={note.get('rows_nulled')} "
+              f"ranked_min={ranked.get('min')} ranked_median={ranked.get('median')} ranked_max={ranked.get('max')} "
+              f"shift_mean={shift.get('mean')} shift_over{UNIVERSE_BIG_SHIFT}={shift.get('big_share')} "
+              f"shift_up={shift.get('up_share')} split_unknown={(note.get('split_basis') or {}).get('unknown')} "
+              f"reason={note.get('reason')} ms={receipt.get('duration_ms')} ok={receipt.get('ok')}", flush=True)
+        print("receipt " + json.dumps(receipt, sort_keys=True, default=str), flush=True)
+        return 0 if receipt.get("ok") else 1
+    if args.columns != "m6,m9,m12" and not args.restate_ranks:
+        print("rs_history: --columns only goes with --restate-ranks", file=sys.stderr)
+        return 2
+    if args.restate_ranks:
+        if not 0 <= args.max_drift_share <= 0.05:
+            print("rs_history: --max-drift-share must be 0 to 0.05", file=sys.stderr)
+            return 2
+        kind = "m3" if args.columns == "m3" else "long"
+        receipt = restate_ranks(args.backfill_days, dry_run=args.dry_run, max_sessions=args.max_sessions,
+                                split_fetch_budget=budget, max_drift_share=args.max_drift_share,
+                                kind=kind)
+        note = receipt.get("note") or {}
+        dry = bool(receipt.get("dry_run"))
+        print(f"rs_history restate {'/'.join(RESTATE_KINDS[kind][0])}{' (dry run)' if dry else ''}: "
+              f"sessions={note.get('sessions')} stored={note.get('sessions_stored')} "
+              f"already_done={note.get('sessions_restated_before')} todo={note.get('sessions_todo')} "
+              f"{'would_write' if dry else 'written'}={note.get('sessions_done')} "
+              f"rows={note.get('rows_written')} nulled={note.get('rows_nulled')} "
+              f"checked={note.get('checked')} drift={note.get('drift')} hard={note.get('hard')} "
+              f"mismatches={json.dumps(note.get('mismatches'), sort_keys=True)} "
+              f"reason={note.get('reason')} ms={receipt.get('duration_ms')} ok={receipt.get('ok')}", flush=True)
+        print("receipt " + json.dumps(receipt, sort_keys=True, default=str), flush=True)
+        return 0 if receipt.get("ok") else 1
     if args.fill_column:
         receipt = fill_column(args.fill_column, args.backfill_days, dry_run=args.dry_run,
                               max_sessions=args.max_sessions, split_fetch_budget=budget)
@@ -1552,4 +2805,7 @@ def main(argv=None) -> int:
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
+    # ⛔ credentials never reach a log line: filter on the handlers basicConfig just made
+    from api.services.log_redaction import install as _install_log_redaction
+    _install_log_redaction()
     raise SystemExit(main())

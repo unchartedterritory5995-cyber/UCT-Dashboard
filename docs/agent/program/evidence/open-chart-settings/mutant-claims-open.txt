@@ -1,0 +1,557 @@
+mutant claims-open
+Wed Nov 11 05:54:02 UTC 2026
+232a3b19dd
+
+ RUN  v4.0.18 C:/w/pl-ocs/app
+
+ ❯ src/pages/charts/widgets/ChartWidget.openSettings.test.jsx (4 tests | 4 failed) 2294ms
+   × the adapter reaches the pane's own openSettings: the dialog opens and is read back from the pane 102ms
+   × the host snapshot carries the read-back, and host.charts.openSettings reaches the right chart 24ms
+   × end to end: chartSetup.openSettings plans, opens the dialog, is read back, and offers no Undo 2153ms
+   × already open: a no-op that opens nothing twice 14ms
+ ✓ src/agent/agentOpenChartSettings.test.jsx (26 tests | 1 skipped) 21636ms
+     ✓ one chart: "open chart settings" opens its dialog, with no model call  1102ms
+     ✓ "open the chart settings" is the same door  1037ms
+     ✓ "show me the chart settings" is the same door  1025ms
+     ✓ "bring up chart settings" is the same door  1026ms
+     ✓ "open the settings dialog" is the same door  1017ms
+     ✓ "show me the settings panel" is the same door  999ms
+     ✓ "open this chart's settings" is the same door  1040ms
+     ✓ "pull up the settings for this chart" is the same door  1022ms
+     ✓ names the AAPL chart: only that chart opens  1054ms
+     ✓ names a position: "show me the settings panel for the top-left chart"  1051ms
+     ✓ ⛔ two charts, none named or clicked: it asks which, and opens nothing  994ms
+     ✓ two charts, one clicked: "this chart" is the clicked one  1024ms
+     ✓ ⛔ excluded: "the chart that is not NVDA" — the model aiming at NVDA anyway opens nothing, and asks  1027ms
+     ✓ ⛔ excluded: "the other chart" (NVDA clicked) — the model aiming at the clicked chart opens nothing there  1009ms
+     ✓ excluded control: "the other chart" (NVDA clicked), the model on AMD: AMD opens  1040ms
+     ✓ a chart with no settings door here (Multi Chart cell, a read-only surface) refuses and calls nothing  980ms
+     ✓ ⛔ a dialog that did not open gets no success  3123ms
+     ✓ already open: says so and calls nothing  970ms
+     ✓ says there is no Undo (nothing changed), and declares none  1042ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/pages/charts/widgets/ChartWidget.openSettings.test.jsx > the adapter reaches the pane's own openSettings: the dialog opens and is read back from the pane
+TestingLibraryElementError: Unable to find an element by: [data-testid="chart-settings-modal"]
+
+Ignored nodes: comments, script, style
+<body>
+  <div>
+    <div
+      class="_dockRoot_81895b"
+    >
+      <div
+        class="_dockUpper_81895b"
+      >
+        <div
+          class="_dockChartCol_81895b"
+        >
+          <div
+            class="_dockChartPane_81895b"
+          >
+            <div
+              class="_chartWidget_10fa11"
+            >
+              <div
+                class="_chartHeaderTop_10fa11"
+              >
+                <div
+                  class="_symbolSlot_10fa11"
+                  data-guide="chart.symbol"
+                >
+                  <span>
+                    search
+                  </span>
+                </div>
+                <span>
+                  gain
+                </span>
+                <div
+                  class="_headerTopRight_10fa11"
+                >
+                  <div
+                    aria-label="Chart session view"
+                    class="_sessionToggle_10fa11"
+                    data-guide="chart.session"
+                    role="group"
+                  >
+                    <button
+                      class="_sessionBtn_10fa11 _sessionBtnActive_10fa11"
+                      title="Regular trading hours only"
+                      type="button"
+                    >
+                      Regular Hours
+                    </button>
+                    <button
+                      class="_sessionBtn_10fa11 "
+                      title="Include post-market"
+                      type="button"
+                    >
+                      Include post-market
+                    </button>
+                  </div>
+                  <span>
+                    clock
+                  </span>
+                </div>
+              </div>
+              <div
+                class="_tfBar_10fa11"
+              >
+                <div
+                  data-guide="chart.timeframe"
+                  style="display: flex; align-items: center; gap: inherit; flex: 0 0 auto;"
+                >
+                  <button
+                    class="_tfBtn_10fa11 "
+                    type="button"
+                  >
+                    1m
+                  </button>
+                  <button
+                    class="_tfBtn_10fa11 "
+                    type="button"
+                  >
+                    5m
+                  </button>
+                  <button
+                    class="_tfBtn_10fa11 "
+                    type="button"
+                  >
+                    15m
+                  </button>
+                  <button
+                    class="_tfBtn_10fa11 "
+                    type="button"
+                  >
+                    30m
+                  </button>
+                  <button
+                    class="_tfBtn_10fa11 "
+                    type="button"
+                  >
+                    1h
+                  </button>
+                  <button
+                    class="_tfBtn_10fa11 _tfBtnActive_10fa11"
+                    type="button"
+                  >
+                    1D
+                  </button>
+                  <button
+                    class="_tfBtn_10fa11 "
+                    type="button"
+                  >
+                    1W
+                  </button>
+                  <button
+                    class="_tfBtn_10fa11 "
+                    type="button"
+                  >
+                    1M
+                  </button>
+                  <button
+                    aria-label="More timeframes"
+                    class="_tfBtn_10fa11"
+                    data-guide="chart.timeframeMore"
+                    style="display: inline-flex; align-items: center; justify-content: center;"
+                    title="More timeframes"
+                    type="button"
+                  >
+                    <svg
+                      aria-hidden="true"
+                      height="6"
+                      viewBox="0 0 10 6"
+                      width="9"
+                    >
+                      <path
+                        d="M1 1l4 4 4-4"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="1.6"
+                      />
+                    </svg>
+                  </button>
+                </div>
+                <div
+                  class="_nav_1c0fd7"
+                >
+                  <button
+                    aria-label="Step back one bar"
+                    class="_step_1c0fd7"
+                    title="Step back one bar"
+                    type="button"
+                  >
+                    ◀
+                  </button>
+                  <input
+                    class="_field_1c0fd7"
+                    data-guide="chart.goToDate"
+                    placeholder="M/D/YYYY"
+                    spellcheck="false"
+                    title="Go to a date — type and press Enter"
+                    value=""
+                  />
+                  <button
+                    aria-label="Step forward one bar"
+                    class="_step_1c0fd7"
+                    title="Step forward one bar"
+                    type="button"
+                  >
+                    ▶
+                  </button>
+                  <button
+                    aria-expanded="false"
+                    aria-label="Pick a date or year"
+                    class="_caret_1c0fd7"
+                    title="Pick a date or year"
+                    type="button"
+                  >
+                    <svg
+                      aria-hidden="true"
+                      height="6"
+                      viewBox="0 0 10 6"
+                      width="9"
+                    >
+                      <path
+                        d="M1 1l4 4 4-4"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="1.6"
+                      />
+                    </svg>
+                  </button>
+                </div>
+                <div
+                  class="_chartMeta_10fa11 _chartMetaTight_10fa11"
+                >
+                  <span
+                    class="_chartMetaItem_10fa11"
+                  >
+                    <span
+                      class="_chartMetaLabel_10fa11"
+                      title="Market Cap"
+                    >
+                      Market Cap
+                    </span>
+                    <span
+                      class="_chartMetaVal_10fa11"
+                      data-meta-key="mcap"
+                      style="color: rgb(107, 163, 190);"
+                    >
+                      —
+                    </span>
+                  </span>
+                  <span
+                    class="_chartMetaItem_10fa11"
+                  >
+                    <span
+                      class="_chartMetaLabel_10fa11"
+                      title="Next Earnings"
+                    >
+                      Next Earnings
+                    </span>
+                    <span
+                      class="_chartMetaVal_10fa11"
+                      data-meta-key="earn"
+                      style="color: rgb(107, 163, 190);"
+                    >
+                      —
+                    </span>
+                  </span>
+                  <span
+                    class="_chartMetaItem_10fa11"
+                  >
+                    <span
+                      class="_chartMetaLabel_10fa11"
+                      title="UCT Rating"
+                    >
+                      UCT Rating
+                    </span>
+                    <span
+                      class="_chartMetaVal_10fa11"
+                      data-meta-key="rating"
+                      style="color: rgb(220, 187, 94);"
+                    >
+                      —
+                    </span>
+                  </span>
+                </div>
+                <div
+                  class="_tfBarRight_10fa11"
+                >
+                  <button
+                    aria-label="New chart tab"
+                    class="_chartSettingsBtn_10fa11"
+                    data-guide="chart.addTab"
+                    title="New chart tab (independent settings, loads as UCT Default)"
+                    type="button"
+                  >
+                    <svg
+                      aria-hidden="true"
+                      fill="none"
+                      focusable="false"
+                      height="15"
+                      stroke="url(#uig1)"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="1.85"
+                      style="color: rgb(230, 205, 138); filter: drop-shadow(0 0 1.6px rgba(201,168,76,0.32));"
+                      viewBox="0 0 24 24"
+                      width="15"
+                    >
+                      <defs>
+                        <lineargradient
+                          id="uig1"
+                          x1="0"
+                          x2="1"
+                          y1="0"
+                          y2="1"
+                        >
+                          <stop
+                            offset="0%"
+                            stop-color="#a8823a"
+                          />
+                          <stop
+                            offset="40%"
+                            stop-color="#d4b25a"
+                          />
+                          <stop
+                            offset="50%"
+                            stop-color="#e8d18c"
+                          />
+                          <stop
+                            offset="60%"
+                            stop-color="#cba954"
+                          />
+                          <stop
+                            offset="100%"
+                            stop-color="#8f6f2c"
+                          />
+                        </lineargradient>
+                      </defs>
+                      <path
+                        d="M12 5v14M5 12h14"
+                      />
+                    </svg>
+                  </button>
+                  <button
+                    aria-label="Chart settings"
+                    class="_chartSettingsBtn_10fa11"
+                    data-guide="chart.settings"
+                    title="Chart settings"
+                    type="button"
+                  >
+                    <svg
+                      aria-hidden="true"
+                      fill="none"
+                      focusable="false"
+                      height="15"
+                      stroke="url(#uig2)"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="1.85"
+                      style="color: rgb(230, 205, 138); filter: drop-shadow(0 0 1.6px rgba(201,168,76,0.32));"
+                      viewBox="0 0 24 24"
+                      width="15"
+                    >
+                      <defs>
+                        <lineargradient
+                          id="uig2"
+                          x1="0"
+                          x2="1"
+                          y1="0"
+                          y2="1"
+                        >
+                          <stop
+                            offset="0%"
+                            stop-color="#a8823a"
+                          />
+                          <stop
+                            offset="40%"
+                            stop-color="#d4b25a"
+                          />
+                          <stop
+                            offset="50%"
+                            stop-color="#e8d18c"
+                          />
+                          <stop
+                            offset="60%"
+                            stop-color="#cba954"
+                          />
+                          <stop
+                            offset="100%"
+                            stop-color="#8f6f2c"
+                          />
+                        </lineargradient>
+                      </defs>
+                      <circle
+                        cx="12"
+                        cy="12"
+                        r="3.1"
+                      />
+                      <path
+                        d="M12 2.5v2.6M12 18.9v2.6M21.5 12h-2.6M5.1 12H2.5M18.7 5.3l-1.8 1.8M7.1 16.9l-1.8 1.8M18.7 18.7l-1.8-1.8M7.1 7.1L5.3 5.3"
+                      />
+                    </svg>
+                  </button>
+                  <button
+                    aria-label="Add to Chart"
+                    class="_chartSettingsBtn_10fa11"
+                    data-testid="add-to-chart"
+                    title="Add to Chart"
+                    type="button"
+                  >
+                    <svg
+                      aria-hidden="true"
+                      fill="none"
+                      focusable="false"
+                      height="15"
+                      stroke="url(#uig3)"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="1.85"
+                      style="color: rgb(230, 205, 138); filter: drop-shadow(0 0 1.6px rgba(201,168,76,0.32));"
+                      viewBox="0 0 24 24"
+                      width="15"
+                    >
+                      <defs>
+                        <lineargradient
+                          id="uig3"
+                          x1="0"
+                          x2="1"
+                          y1="0"
+                          y2="1"
+                        >
+                          <stop
+                            offset="0%"
+                            stop-color="#a8823a"
+                          />
+                          <stop
+                            offset="40%"
+                            stop-color="#d4b25a"
+                          />
+                          <stop
+                            offset="50%"
+                            stop-color="#e8d18c"
+                          />
+                          <stop
+                            offset="60%"
+                            stop-color="#cba954"
+                          />
+                          <stop
+                            offset="100%"
+                            stop-color="#8f6f2c"
+                          />
+                        </lineargradient>
+                      </defs>
+                      <path
+                        d="M3 16l4.5-4 3.5 2.5L15 8l6-3"
+                      />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              <div
+                aria-label="NVDA daily price chart"
+                class="_chartFill_10fa11"
+                role="region"
+                tabindex="0"
+              >
+                <div
+                  data-testid="chart"
+                />
+              </div>
+              <div
+                class="_studioDock_10fa11"
+                data-studio-dock="closed"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+ ❯ Object.getElementError ../../pl-mc-fw/app/node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ ../../pl-mc-fw/app/node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+ ❯ ../../pl-mc-fw/app/node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+ ❯ ../../pl-mc-fw/app/node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ src/pages/charts/widgets/ChartWidget.openSettings.test.jsx:86:17
+     84|   act(() => { ok = adapter().openSettings() })
+     85|   expect(ok).toBe(true)
+     86|   expect(screen.getByTestId('chart-settings-modal')).toBeTruthy()
+       |                 ^
+     87|   expect(adapter().settingsOpen()).toBe(true)
+     88|   expect(optsLog).toEqual([])                          // opening the …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  src/pages/charts/widgets/ChartWidget.openSettings.test.jsx > the host snapshot carries the read-back, and host.charts.openSettings reaches the right chart
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/pages/charts/widgets/ChartWidget.openSettings.test.jsx:102:47
+    100|   act(() => { ok = host.charts.openSettings('w1') })
+    101|   expect(ok).toBe(true)
+    102|   expect(host.charts.read('w1').settingsOpen).toBe(true)
+       |                                               ^
+    103|   // a chart that is not on the board opens nothing
+    104|   expect(host.charts.openSettings('nope')).toBe(false)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  src/pages/charts/widgets/ChartWidget.openSettings.test.jsx > end to end: chartSetup.openSettings plans, opens the dialog, is read back, and offers no Undo
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/pages/charts/widgets/ChartWidget.openSettings.test.jsx:113:18
+    111|   expect(plan.ok).toBe(true)
+    112|   const res = await offAct(() => commitPlan(host, plan))
+    113|   expect(res.ok).toBe(true)
+       |                  ^
+    114|   expect(res.lines.join(' ')).toMatch(/Opened Chart Settings/)
+    115|   expect(screen.getByTestId('chart-settings-modal')).toBeTruthy()
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ FAIL  src/pages/charts/widgets/ChartWidget.openSettings.test.jsx > already open: a no-op that opens nothing twice
+AssertionError: expected '' to match /already open/
+
+- Expected: 
+/already open/
+
++ Received: 
+""
+
+ ❯ src/pages/charts/widgets/ChartWidget.openSettings.test.jsx:127:32
+    125|   const plan = planOps(collectTargets(host, ['chart']), [{ action: 'ch…
+    126|   const spy = vi.spyOn(adapter(), 'openSettings')
+    127|   expect(plan.noops.join(' ')).toMatch(/already open/)
+       |                                ^
+    128|   const res = await offAct(() => commitPlan(host, plan))
+    129|   expect(res.lines).toEqual([])
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+
+
+ Test Files  1 failed | 1 passed (2)
+      Tests  4 failed | 25 passed | 1 todo (30)
+   Start at  00:54:03
+   Duration  30.32s (transform 10.29s, setup 564ms, import 14.62s, tests 23.93s, environment 1.38s)
+

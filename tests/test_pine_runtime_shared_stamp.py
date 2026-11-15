@@ -85,8 +85,9 @@ def test_S4_a_graded_live_script_previews_UNSTAMPED_and_whole(store, monkeypatch
     assert "runtimeKilled" not in meta and "runtimeNotGraded" not in meta
     assert body["definition"] == svc.get(AUTHOR, ADX["id"])["definition"]
     assert body["origin_def_id"] == ADX["id"]
-    assert set(body) >= {"definition", "author_id", "origin_def_id", "origin_version",
-                         "origin_ast_hash", "table_version"}
+    assert set(body) >= {"definition", "origin_def_id", "origin_version",
+                         "origin_ast_hash", "table_version", "includesSource"}
+    assert "author_id" not in body                       # share privacy (2026-11-13)
 
 
 def test_S4_a_script_KILLED_by_source_hash_previews_stamped(store, monkeypatch):

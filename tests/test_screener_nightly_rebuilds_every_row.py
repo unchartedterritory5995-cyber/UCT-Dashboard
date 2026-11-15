@@ -187,7 +187,7 @@ def test_the_watchdog_names_a_nightly_that_never_finished(started, why):
     assert main._nightly_missing(last, now) == why
 
 
-def _run_watchdog(monkeypatch, last, in_flight=False):
+def _run_watchdog(monkeypatch, last, in_flight=False, behind=0):
     import api.main as main
     from api.services import chart_health_alerts
     from api.services.screener import snapshot_builder, snapshot_db
@@ -197,6 +197,7 @@ def _run_watchdog(monkeypatch, last, in_flight=False):
     monkeypatch.setattr(chart_health_alerts, "emit", lambda key, sev, msg, meta=None: seen.append((key, sev, msg)) or True)
     monkeypatch.setattr(snapshot_db, "last_build_run", lambda: last)
     monkeypatch.setattr(snapshot_builder, "build_in_flight", lambda: in_flight)
+    monkeypatch.setattr(snapshot_db, "count_rows_built_before", lambda cutoff: behind)
     jobs = {}
 
     class _FakeScheduler:

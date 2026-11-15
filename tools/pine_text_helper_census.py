@@ -236,10 +236,12 @@ POSITIONAL = {
     'table.new': ['position', 'columns', 'rows', 'bgcolor', 'frame_color',
                   'frame_width', 'border_color', 'border_width'],
     'linefill.new': ['line1', 'line2', 'color'],
-    # pineObjects.js:48 CELL_POSITIONAL, with the address restored in front
+    # pineObjects.js CELL_POSITIONAL, with the address restored in front.
+    # Engine 51: Pine's order is text_size, bgcolor, tooltip (this copy had the
+    # host lane's old misorder until then).
     'table.cell': ['table_id', 'column', 'row', 'text', 'width', 'height',
-                   'text_color', 'text_halign', 'text_valign', 'bgcolor', 'tooltip',
-                   'text_size'],
+                   'text_color', 'text_halign', 'text_valign', 'text_size', 'bgcolor',
+                   'tooltip'],
     'label.set_text': ['id', 'text'],
     'label.set_tooltip': ['id', 'tooltip'],
     'box.set_text': ['id', 'text'],
@@ -250,7 +252,7 @@ POSITIONAL = {
 #: The METHOD spelling drops the receiver, so the positional list loses its head.
 METHOD_POSITIONAL = {
     'cell': ['column', 'row', 'text', 'width', 'height', 'text_color', 'text_halign',
-             'text_valign', 'bgcolor', 'tooltip', 'text_size'],
+             'text_valign', 'text_size', 'bgcolor', 'tooltip'],
     'set_text': ['text'], 'set_tooltip': ['tooltip'],
 }
 #: Every method name `SETTER_PROPS` (pineObjects.js:60) declares, plus `cell`.

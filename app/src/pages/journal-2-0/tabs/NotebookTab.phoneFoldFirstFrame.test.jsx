@@ -61,9 +61,6 @@ vi.mock('../components/notebook/NoteEditorPage', async () => {
 })
 vi.mock('../components/notebook/import/ImportWizard', () => ({ default: () => null }))
 vi.mock('../components/connectors/NoteConnectorsTrustStrip', () => ({ default: () => null }))
-vi.mock('../components/notebook/ResearchHome', () => ({
-  default: () => <div data-testid="research-home">Research Home</div>,
-}))
 // D-7's own tests below switch view mode -- NotesTableView (an icon-row mode) and
 // NoteTasksView (reached by its own `?view=tasks` URL too) stand in for the six
 // content-first modes so switching doesn't try to lazy-load and render the real
@@ -152,7 +149,9 @@ describe('"Journal tools" is a row of the list ⋯ menu (Tier 2 fix round 1)', (
     expect(journalToolsDoorMounted()).toBe(true)
     fireEvent.click(screen.getByRole('button', { name: 'More notebook actions' }))
     const menu = screen.getByRole('menu', { name: 'More notebook actions' })
-    fireEvent.click(within(menu).getByRole('menuitem', { name: 'Journal tools' }))
+    // Simplify pass 2 (A9): "Trade journal tools", so it is not read as a sibling of "My tools".
+    expect(within(menu).queryByRole('menuitem', { name: 'Journal tools' })).toBeNull()
+    fireEvent.click(within(menu).getByRole('menuitem', { name: 'Trade journal tools' }))
     expect(seen).toHaveBeenCalledTimes(1)
     unmount()
     expect(journalToolsDoorMounted()).toBe(false)

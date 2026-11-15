@@ -164,7 +164,7 @@ def test_a_shed_deep_fetch_still_persists_and_marks_history_complete(monkeypatch
     monkeypatch.setattr(bars_fetch._sqlite, "put_bars",
                         lambda t, tf, rows, **k: persisted.append(t))
     monkeypatch.setattr(bars_fetch, "_mark_history_complete",
-                        lambda t, tf: marked.append(t))
+                        lambda t, tf, *_a: marked.append(t))
     assert bars_fetch._bounded_fetch_intraday("AAPL", "5", 5000) is False
     time.sleep(0.9)
     assert persisted == ["AAPL"] and marked == ["AAPL"]
@@ -182,7 +182,7 @@ def _force_layer4(monkeypatch, tf, last_ts):
     monkeypatch.setattr(bars_fetch._sqlite, "put_bars", lambda *a, **k: None)
     monkeypatch.setattr(bars_fetch, "_fmt_sqlite_bars", lambda r, t, tk=None: [{"t": 1}])
     monkeypatch.setattr(bars_fetch, "_needs_fresh", lambda ts, t, tk=None: True)
-    monkeypatch.setattr(bars_fetch, "_history_complete", lambda s, t: True)
+    monkeypatch.setattr(bars_fetch, "_history_complete", lambda s, t, *_a: True)
     monkeypatch.setattr(bars_fetch, "_maybe_kick_deepfill", lambda *a, **k: None)
     monkeypatch.setattr(bars_fetch, "_record_intraday_request", lambda *a, **k: None)
     # cold-stale + not deblockable -> falls past the stale-serve block into Layer 4

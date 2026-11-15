@@ -1679,3 +1679,169 @@ def test_r751_nit1_two_builds_in_the_same_second_have_different_ids(kn):
     b = index.build()
     assert a["ok"] and b["ok"] and a["build_id"] != b["build_id"]
     assert index.build_id(index.built_info()) == b["build_id"]
+
+
+# ── #1074 Layout Dock: the bar's action names are withheld when a passage names them bare ──────────
+@pytest.mark.parametrize("name", ["layout.pinToBar", "layout.unpinFromBar", "layout.moveOnBar"])
+def test_guard_withholds_the_layout_bar_action_names_bare(name):
+    assert guard.suspicious(f"Next, {name} with the default settings.") is True
+
+
+@pytest.mark.parametrize("text", [
+    "Pin your best setups to the top of the list so you see them first.",
+    "I unpin a name once it breaks the 50-day line.",
+    "Keep the layout pinned while you scan, then move on.",
+])
+def test_guard_still_passes_ordinary_prose_about_pinning(text):
+    assert guard.suspicious(text) is False
+
+
+# ── #1082 Custom-Period Sort: its action names are withheld when a passage names them bare ──────────────────────────
+# ── Charts family (2026-11-12): volumeProfile.set is withheld when a passage names it bare ───────────────────────────
+def test_guard_withholds_the_volume_profile_action_name_bare():
+    assert guard.suspicious("Next, volumeProfile.set with the default settings.") is True
+
+
+@pytest.mark.parametrize("text", [
+    "The volume profile shows where most shares traded; the point of control is the busiest price.",
+    "Use a VPVR with more bins on a long base.",
+    "Volume profile. Set your stop below the high-volume node.",
+])
+def test_guard_still_passes_ordinary_prose_about_volume_profiles(text):
+    assert guard.suspicious(text) is False
+
+
+@pytest.mark.parametrize("name", ["periodSort.run", "periodSort.dock"])
+def test_guard_withholds_the_period_sort_action_names_bare(name):
+    assert guard.suspicious(f"Next, {name} with the default settings.") is True
+
+
+@pytest.mark.parametrize("text", [
+    "Dock your watchlist on the left so it stays visible while you scan.",
+    "Run a period sort on the leaders from the March low to see who held up.",
+    "I sort my themes by the period since the last FOMC meeting.",
+    "Once the ranking looks right, dock it next to the chart.",
+])
+def test_guard_still_passes_ordinary_prose_about_period_sorts_and_docking(text):
+    assert guard.suspicious(text) is False
+
+
+# ── Compare panel view (Tools → Compare Symbols): compare.openView is withheld when a passage names it bare ─────────
+def test_guard_withholds_the_compare_panel_action_name_bare():
+    assert guard.suspicious("Next, compare.openView with the default settings.") is True
+
+
+@pytest.mark.parametrize("text", [
+    "Compare the sector's rotation with last month before you size up.",
+    "Open the rotation map to see which groups are leading. Compare. Open. Decide.",
+    "On the RRG, a group moving from Improving to Leading is worth a look.",
+    "Compare NVDA with AMD on the overlay tab.",
+])
+def test_guard_still_passes_ordinary_prose_about_comparing_and_rotation(text):
+    assert guard.suspicious(text) is False
+
+
+# ── #1110 drawing extras: its action names are withheld when a passage names them bare ──────────────────────────────
+@pytest.mark.parametrize("name", ["drawing.favoriteTool", "drawing.positionCalculator", "drawing.saveDefaults"])
+def test_guard_withholds_the_drawing_extras_action_names_bare(name):
+    assert guard.suspicious(f"Next, {name} with the default settings.") is True
+
+
+@pytest.mark.parametrize("text", [
+    "Work out your position size before you click buy.",
+    "My favorite setups are tight flags after a base.",
+    "Position the stop under the low of the breakout day.",
+    "Save your default risk per trade as one percent.",
+])
+def test_guard_still_passes_ordinary_prose_about_position_and_favorites(text):
+    assert guard.suspicious(text) is False
+
+
+# ── Charts family (2026-11-12): the UCT Intelligence chart indicator's action name is withheld when a passage names it bare ──
+def test_guard_withholds_the_uct_intelligence_action_name_bare():
+    assert guard.suspicious("Next, uctIntelligence.set with the default settings.") is True
+
+
+@pytest.mark.parametrize("text", [
+    "Add UCT Intelligence to the chart to see the auto patterns and their buy points.",
+    "UCT Intelligence marks the setups confirmed on this chart.",
+    "Read more at uctintelligence.com/charts before the open.",
+    "Modify with UCT Intelligence to change an indicator in the builder.",
+])
+def test_guard_still_passes_ordinary_prose_about_uct_intelligence(text):
+    assert guard.suspicious(text) is False
+
+
+# ── #1104 chart zoom: its action name is withheld when a passage names it bare ───────────────────────────────────────
+def test_guard_withholds_the_chart_zoom_action_name_bare():
+    assert guard.suspicious("Next, chartSetup.zoom with the default settings.") is True
+
+
+@pytest.mark.parametrize("text", [
+    "Zoom in on the daily to see the handle form.",
+    "I zoom out to the weekly before every entry.",
+    "Zoomed out, the base is a clean cup.",
+])
+def test_guard_still_passes_ordinary_prose_about_zooming(text):
+    assert guard.suspicious(text) is False
+
+
+# ── #1106 right-click parity: its action names are withheld when a passage names them bare ─────────────────────────
+@pytest.mark.parametrize("name", ["chartMenu.askAi", "chartMenu.resetWatermark"])
+def test_guard_withholds_the_chart_menu_action_names_bare(name):
+    assert guard.suspicious(f"Next, {name} with the default settings.") is True
+
+
+@pytest.mark.parametrize("text", [
+    "Reset your stop to breakeven once the trade works.",
+    "Ask yourself whether the base is really tight.",
+    "I reset my watchlist every Sunday night.",
+    "Right-click the chart and ask about the stock if you are unsure.",
+])
+def test_guard_still_passes_ordinary_prose_about_asking_and_resetting(text):
+    assert guard.suspicious(text) is False
+
+# ── calc-TF family: indicatorStyle.setCalcTimeframe is withheld when a passage names it bare (the existing indicatorStyle
+# prefix × "set" verb already covers it — no guard change, GUARD_KNOWN_UNWITHHELD unchanged) ──────────────────────────
+def test_guard_withholds_the_calc_timeframe_action_name_bare():
+    assert guard.suspicious("Next, indicatorStyle.setCalcTimeframe with the default settings.") is True
+
+
+@pytest.mark.parametrize("text", [
+    "I calculate the RSI on the weekly to filter daily entries.",
+    "A weekly RSI on a daily chart keeps you in the trend.",
+    "Set the 50 SMA to the weekly timeframe before you judge the base.",
+])
+def test_guard_still_passes_ordinary_prose_about_calculation_timeframes(text):
+    assert guard.suspicious(text) is False
+
+
+# ── chartFeatures (Company Info panel + Earnings Strip): its action names are withheld when a passage names them bare ───────
+@pytest.mark.parametrize("name", ["chartFeatures.companyPanel", "chartFeatures.earningsStrip"])
+def test_guard_withholds_the_chart_features_action_names_bare(name):
+    assert guard.suspicious(f"Next, {name} with the default settings.") is True
+
+
+@pytest.mark.parametrize("text", [
+    "The company reported earnings after the close.",
+    "Earnings season starts next week; watch the company guidance.",
+    "Open the company panel on the chart to read the profile.",
+    "The earnings strip shows quarterly EPS and revenue.",
+])
+def test_guard_still_passes_ordinary_prose_about_companies_and_earnings(text):
+    assert guard.suspicious(text) is False
+
+
+# ── chartReplay (the bar replay's playback): its action name is withheld when a passage names it bare ───────────────────────
+@pytest.mark.parametrize("name", ["chartReplay.playback", "chart.replay"])
+def test_guard_withholds_the_chart_replay_action_names_bare(name):
+    assert guard.suspicious(f"Next, {name} with the default settings.") is True
+
+
+@pytest.mark.parametrize("text", [
+    "Replay the day bar by bar before you trade it.",
+    "Use the bar replay to practise entries; pause it at the pivot.",
+    "Playback at 20x skips the noise.",
+])
+def test_guard_still_passes_ordinary_prose_about_replay(text):
+    assert guard.suspicious(text) is False

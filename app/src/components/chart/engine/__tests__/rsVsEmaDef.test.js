@@ -42,7 +42,7 @@ const last = (col) => [...col].reverse().find((v) => v !== null)
 /** The envelope `rs_vs_ema_envelope` sends: the RS line's own legend (`_rs_legend`)
  *  plus `fast` / `slow` at the newest ratio bar. */
 const PAYLOAD = Object.freeze({
-  benchmark: { requested: 'SPY', resolved: 'SPY', label: 'S&P 500 (SPY)', fallback: null, note: null, bars: CASE.benchmarkBars.length },
+  benchmark: { requested: 'SPY', resolved: 'SPY', name: 'SPY', label: 'S&P 500 (SPY)', fallback: null, note: null, bars: CASE.benchmarkBars.length },
   legend: { pctFromMa: 6.8123, above: true, maSlope: 1, index: BARS.length - 1, lastValue: 0.2477, asOf: BARS.at(-1).t, stale: false,
     summary: 'above its 21 EMA by 6.8%', fast: 5.91, slow: 3.2 },
   history: { bars: BARS.length, requested: 852, short: true },
@@ -50,7 +50,7 @@ const PAYLOAD = Object.freeze({
   intraday: false, state: 'ok',
 })
 const NO_BENCH = Object.freeze({
-  benchmark: { requested: 'CUSTOM', resolved: 'ZZZQ', label: 'ZZZQ', fallback: null, note: 'No ZZZQ bars yet; loading', bars: 0 },
+  benchmark: { requested: 'CUSTOM', resolved: 'ZZZQ', name: 'ZZZQ', label: 'ZZZQ', fallback: null, note: 'No ZZZQ bars yet; loading', bars: 0 },
   legend: { pctFromMa: null, above: null, maSlope: null, index: null, lastValue: null, asOf: null, stale: null,
     summary: 'no benchmark bars', fast: null, slow: null },
   history: { bars: BARS.length, requested: 852, short: false },
@@ -86,11 +86,12 @@ describe('1 · the identity', () => {
 describe('2 · the server inputs', () => {
   it('names the row\'s benchmark pair and nothing else: the 21 is fixed, no length input', () => {
     expect(DEF.meta.serverInputs).toEqual(CONTRACT.inputs)
-    expect(DEF.meta.serverInputs).toEqual(['benchmark', 'customBenchmark'])
-    expect(DEF.inputs.map((i) => i.key)).toEqual(['benchmark', 'customBenchmark'])
+    const BENCH_KEYS = ['benchmark', 'customBenchmark', 'sectorBenchmark', 'themeBenchmark']
+    expect(DEF.meta.serverInputs).toEqual(BENCH_KEYS)
+    expect(DEF.inputs.map((i) => i.key)).toEqual(BENCH_KEYS)
     // (the box upper-cases what is typed, `case: 'upper'`; a stored value is sent as stored)
     expect(pickServerInputs(DEF, resolveInputs(DEF, { benchmark: 'CUSTOM', customBenchmark: 'SMH', maLength: 50 })))
-      .toEqual({ benchmark: 'CUSTOM', customBenchmark: 'SMH' })
+      .toEqual({ benchmark: 'CUSTOM', customBenchmark: 'SMH', sectorBenchmark: 'XLK', themeBenchmark: '' })
     const rs = Object.fromEntries(RS.inputs.map((i) => [i.key, i]))
     const byKey = Object.fromEntries(DEF.inputs.map((i) => [i.key, i]))
     expect(byKey.benchmark.options).toEqual(rs.benchmark.options)

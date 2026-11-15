@@ -157,7 +157,7 @@ def test_every_rs_column_def_carries_a_desc_that_names_daily_bars():
     chart reader on an intraday timeframe would otherwise assume wrong."""
     from api.services.screener import rs_columns, snapshot_builder
     cols = [*rs_columns.COLUMNS, *snapshot_builder._RS_HISTORY_COLUMNS]
-    assert len(cols) == 17, cols
+    assert len(cols) == 18, cols   # 18 since rs_rating_9m (2026-11-10)
     bodies = _column_def_bodies()
     for col in cols:
         assert col in bodies, f"{col} has no column def"

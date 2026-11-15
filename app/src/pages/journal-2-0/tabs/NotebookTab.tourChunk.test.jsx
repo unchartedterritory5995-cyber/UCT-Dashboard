@@ -21,7 +21,7 @@ const realLocation = window.location
 let errorSpy
 
 beforeEach(() => {
-  // a member with no notes at all: the first-run screen, the one the tour is for
+  // a member with no notes at all: the empty Notebook, the one the tour is for
   installFetch([[/^\/api\/j2\/notes$/, { notes: [], total: 0 }]])
   latchWave8Flags(true)
   try { sessionStorage.removeItem(RELOAD_FLAG) } catch { /* private mode */ }
@@ -38,14 +38,17 @@ afterEach(() => {
 })
 
 describe('the Notebook survives a tour chunk that cannot load', () => {
-  it('the first-run screen stays, and the page is never reloaded', async () => {
+  // Notebook simplify, Task 5: the bare Notebook is the notes list (it was Research Home's first-run screen), so what
+  // must stay is the list's own empty state and its doors.
+  it('the empty Notebook stays, and the page is never reloaded', async () => {
     render(<Providers route="/journal/notebook"><NotebookTab /></Providers>)
-    expect(await screen.findByRole('heading', { name: 'Welcome to your Notebook' })).toBeInTheDocument()
+    expect(await screen.findByText('Your notebook is empty.')).toBeInTheDocument()
     // the gate asked for the chunk (the tour is for this member) and its boundary caught the failure
     await waitFor(() => expect(errorSpy.mock.calls.some(([m]) => String(m).includes('[NotebookTourGate]'))).toBe(true))
     // ...and the Notebook is still there, doors and all
-    expect(screen.getByRole('heading', { name: 'Welcome to your Notebook' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Start a note/ })).toBeInTheDocument()
+    expect(screen.getByText('Your notebook is empty.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Import notes/ })).toBeInTheDocument()
+    expect(screen.getByRole('toolbar', { name: 'Notes list tools' })).toBeInTheDocument()
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(window.location.reload).not.toHaveBeenCalled()
   })

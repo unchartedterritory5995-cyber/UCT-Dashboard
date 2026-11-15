@@ -23,7 +23,7 @@
 // lab itself: GreeksLabGame.module.css, on the kit's own tokens.
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import UIcon from '../../../components/ui/UIcon'
-import brandMark from '../../../components/intro/assets/compass-mark.png'
+import brandMark from '../../../components/intro/assets/compass-mark.webp'
 import { useIsPhone } from '../../../hooks/useBreakpoint'
 import { HudCombo } from '../ui/HudLooks'
 import { StartArena } from '../ui/StartLooks'

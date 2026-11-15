@@ -693,7 +693,12 @@ const PANEL_MANIFESTS = {
     liveCapable: false,
   },
   calendar: {
-    labels: { header: 'UCT Terminal', menu: 'UCT Terminal', tab: 'Terminal' },
+    // Owner 2026-11-13: the widget is called "Calendar" (the /terminal PAGE keeps "UCT Terminal").
+    labels: { header: 'Calendar', menu: 'Calendar', tab: 'Calendar' },
+    // agentLabels: UCT Agent's routing reads widget NAMES to decide which widget a request
+    // means, so it keeps the old names until its routing corpus is re-tuned for "Calendar"
+    // (a reviewed Agent change, like PICKER_ONLY_WIDGETS). Members never see these.
+    agentLabels: { header: 'UCT Terminal', menu: 'UCT Terminal', tab: 'Terminal' },
     defaults: { w: 6, h: 10, minW: 2, minH: 4 },
     placement: { family: 'panel', fill: 'narrow' },
     menus: { workspace: true, tab: true, mobile: false, journal: false },
@@ -1222,12 +1227,21 @@ export const JOURNAL_MENU_TYPES_ALL = WIDGET_IDS.filter(id => WIDGET_REGISTRY[id
 // broke the golden manifest. Releasing a widget to members is not releasing it to
 // the Agent -- that is a separate, reviewed Agent change.
 export const PICKER_ONLY_WIDGETS = Object.freeze(['tradeExchangeNews', 'researchLibrary'])
+// ⚰️ HIDDEN WIDGETS (owner 2026-11-13). Taken out of every MEMBER add menu on /charts
+// (workspace, add-tab, phone sheet, menuGroups). UCT Agent's widget.add/addTab lists are
+// NOT filtered: the Agent is admin-only, and its lists are a separate reviewed contract
+// (see PICKER_ONLY_WIDGETS above). They stay REGISTERED and bound: a board that already holds one still
+// renders it, a stored notebook embed still renders, and bringing one back = deleting its
+// id here. Market Map, Volume Surge, H/L Pulse, Fundamentals, Stock Profile,
+// News & Catalysts, AI Search.
+export const HIDDEN_WIDGETS = Object.freeze(['scatter', 'volumescan', 'nhnlPulse', 'fundamentals', 'profile', 'news', 'aisearch'])
+const shown = (ids) => ids.filter(id => !HIDDEN_WIDGETS.includes(id))
 const agentList = (picker) => (captureEnabled() ? picker : picker.filter(id => !PICKER_ONLY_WIDGETS.includes(id)))
-export const WORKSPACE_PICKER_TYPES = releasedTypes(WORKSPACE_MENU_TYPES_ALL)
-export const TAB_PICKER_TYPES = releasedTypes(TAB_MENU_TYPES_ALL)
-export const WORKSPACE_MENU_TYPES = agentList(WORKSPACE_PICKER_TYPES)
-export const TAB_MENU_TYPES = agentList(TAB_PICKER_TYPES)
-export const MOBILE_MENU_TYPES = releasedTypes(MOBILE_MENU_TYPES_ALL)
+export const WORKSPACE_PICKER_TYPES = shown(releasedTypes(WORKSPACE_MENU_TYPES_ALL))
+export const TAB_PICKER_TYPES = shown(releasedTypes(TAB_MENU_TYPES_ALL))
+export const WORKSPACE_MENU_TYPES = agentList(releasedTypes(WORKSPACE_MENU_TYPES_ALL))
+export const TAB_MENU_TYPES = agentList(releasedTypes(TAB_MENU_TYPES_ALL))
+export const MOBILE_MENU_TYPES = shown(releasedTypes(MOBILE_MENU_TYPES_ALL))
 export const JOURNAL_MENU_TYPES = releasedTypes(JOURNAL_MENU_TYPES_ALL)
 export const THEME_FOLLOW_TYPES = WIDGET_IDS.filter(id => WIDGET_REGISTRY[id].themeFollow)
 
@@ -1302,9 +1316,18 @@ export function menuGroups(menu = 'workspace') {
 /** Full id→label map for one label kind ('header' | 'menu' | 'tab').
  *  Falls back to the header label so a kind never returns undefined. */
 export function labelMap(kind) {
+  // 'agent' = UCT Agent's menu name for a widget (agentLabelsOf).
+  if (kind === 'agent') return Object.fromEntries(WIDGET_IDS.map(id => [id, agentLabelsOf(id).menu]))
   return Object.fromEntries(
     WIDGET_IDS.map(id => [id, WIDGET_REGISTRY[id].labels[kind] ?? WIDGET_REGISTRY[id].labels.header]),
   )
+}
+
+/** The names UCT Agent reads for a widget: its agentLabels override where one is set
+ *  (a member-facing rename the Agent's routing has not been re-tuned for), else labels. */
+export function agentLabelsOf(id) {
+  const w = WIDGET_REGISTRY[id]
+  return w?.agentLabels || w?.labels || {}
 }
 
 /** Metadata for one widget id, or null for an unknown/removed type. */

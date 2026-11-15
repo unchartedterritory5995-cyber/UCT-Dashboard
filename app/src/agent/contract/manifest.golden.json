@@ -1197,6 +1197,94 @@
    "shape": null
   },
   {
+   "name": "layout.pinToBar",
+   "domain": "layout",
+   "target": "layoutDock",
+   "summary": "Pin one of the member's layouts to the layout bar along the bottom of Charts (the library's \"add to bar\"). The slot goes on the end. Does NOT open the layout and does not change the board.",
+   "hints": "target = the ref of the layoutDock entry; layout = the layout's id from the layouts list, or the member's own words for it (UCT matches them; several matches are asked about). To also switch to it, that is layout.open, a separate step.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "layout": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "layout"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "layout.unpinFromBar",
+   "domain": "layout",
+   "target": "layoutDock",
+   "summary": "Take one layout off the layout bar along the bottom of Charts (the slot menu's \"Close\"). The layout stays in the library: this NEVER deletes a layout (that is layout.delete).",
+   "hints": "target = the ref of the layoutDock entry; layout = the layout's id, or the member's words for it. If they did not name one, or it sits on the bar twice, clarify with the real names.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "layout": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "layout"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "layout.moveOnBar",
+   "domain": "layout",
+   "target": "layoutDock",
+   "summary": "Reorder the layout bar along the bottom of Charts: move one layout left or right one spot (the slot menu's Move left / Move right), to the first or last spot, or to a numbered spot.",
+   "hints": "target = the ref of the layoutDock entry; layout = the layout's id, or the member's words for it; to = \"left\" or \"right\" (one spot), \"first\" or \"last\", or a spot number counted from 1 on the left (the `spot` in the bar list).",
+   "args": {
+    "type": "object",
+    "properties": {
+     "layout": {
+      "type": "string"
+     },
+     "to": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "layout",
+     "to"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
    "name": "watchlist.list",
    "domain": "watchlist",
    "target": "watchlistLibrary",
@@ -1552,7 +1640,7 @@
    "domain": "watchlist",
    "target": "listView",
    "summary": "Sort what a Watchlist or Scanner widget shows by one of its columns (price, % change, RVOL, market cap…), the header click. It changes the view, not the saved order. column null = back to the saved order. Undo puts the old sort back.",
-   "hints": "target = the ref of the listViews entry: the one marked active for \"this list\", the one named as the list they name (\"my Momentum list\"; for \"the one I just made\", the watchlists entry marked recent), the only entry for \"my watchlist\"; several could be meant → clarify by name or position. No entry means no such widget is on this board: say so, offer watchlist.open. column = the column as they said it; direction = asc | desc | null (null = the header's own first click: Symbol A to Z, others high to low; \"biggest / top / highest\" = desc, \"lowest / smallest\" = asc). A column not showing is added. Columns: Price, Volume, % Change, Company Name, RVOL, IPO Date, Market Cap, Next Earnings, UCT Rating, $ Change, % from Open, % from High, % from Low, DCR, Dollar Volume, Sector, Industry, Theme, 5-Day, 30-Day, 60-Day, 90-Day, Attention, ATR %, ATR from 50SMA. For a permanent A to Z of the saved list use watchlist.reorder.",
+   "hints": "target = the ref of the listViews entry: the one marked active for \"this list\", the one named as the list they name (\"my Momentum list\"; for \"the one I just made\", the watchlists entry marked recent), the only entry for \"my watchlist\"; several could be meant → clarify by name or position. No entry means no such widget is on this board: say so, offer watchlist.open. column = the column as they said it; direction = asc | desc | null (null = the header's own first click: Symbol A to Z, others high to low; \"biggest / top / highest\" = desc, \"lowest / smallest\" = asc). A column not showing is added. Columns: Price, Volume, % Change, Company Name, RVOL, IPO Date, Market Cap, Next Earnings, UCT Rating, $ Change, % from Open, % from High, % from Low, DCR, Dollar Volume, Sector, Industry, Theme, 5-Day, 30-Day, 60-Day, 90-Day, Attention, ATR %, ATR from 50SMA, RS Exit Warning. For a permanent A to Z of the saved list use watchlist.reorder.",
    "args": {
     "type": "object",
     "properties": {
@@ -1606,7 +1694,7 @@
    "domain": "watchlist",
    "target": "listView",
    "summary": "Add or hide columns on a Watchlist or Scanner widget, or reset them to the defaults (the right-click column menu). Undo puts the old columns back.",
-   "hints": "target = the ref of the listViews entry: the one marked active for \"this list\", the one named as the list they name (\"my Momentum list\"; for \"the one I just made\", the watchlists entry marked recent), the only entry for \"my watchlist\"; several could be meant → clarify by name or position. No entry means no such widget is on this board: say so, offer watchlist.open. add / hide = columns as they said them ([] for none); reset = true only for \"reset my columns\" (the defaults, then add / hide). Symbol and the flag star can't be hidden. Columns: Price, Volume, % Change, Company Name, RVOL, IPO Date, Market Cap, Next Earnings, UCT Rating, $ Change, % from Open, % from High, % from Low, DCR, Dollar Volume, Sector, Industry, Theme, 5-Day, 30-Day, 60-Day, 90-Day, Attention, ATR %, ATR from 50SMA. Nothing else exists: a column not listed is refused, never swapped for a near one.",
+   "hints": "target = the ref of the listViews entry: the one marked active for \"this list\", the one named as the list they name (\"my Momentum list\"; for \"the one I just made\", the watchlists entry marked recent), the only entry for \"my watchlist\"; several could be meant → clarify by name or position. No entry means no such widget is on this board: say so, offer watchlist.open. add / hide = columns as they said them ([] for none); reset = true only for \"reset my columns\" (the defaults, then add / hide). Symbol and the flag star can't be hidden. Columns: Price, Volume, % Change, Company Name, RVOL, IPO Date, Market Cap, Next Earnings, UCT Rating, $ Change, % from Open, % from High, % from Low, DCR, Dollar Volume, Sector, Industry, Theme, 5-Day, 30-Day, 60-Day, 90-Day, Attention, ATR %, ATR from 50SMA, RS Exit Warning. Nothing else exists: a column not listed is refused, never swapped for a near one.",
    "args": {
     "type": "object",
     "properties": {
@@ -1642,6 +1730,55 @@
    "defaults": null,
    "defaultsWhen": null,
    "shape": "{\"add\":[\"RVOL\"],\"hide\":[\"Volume\"],\"reset\":false}"
+  },
+  {
+   "name": "watchlist.arrangeColumns",
+   "domain": "watchlist",
+   "target": "listView",
+   "summary": "Move a column on a Watchlist or Scanner widget (as dragging its header does) or set its width in pixels (as dragging its gridline does). Undo puts the old columns back.",
+   "hints": "target = the ref of the listViews entry: the one marked active for \"this list\", the one named as the list they name (\"my Momentum list\"; for \"the one I just made\", the watchlists entry marked recent), the only entry for \"my watchlist\"; several could be meant → clarify by name or position. No entry means no such widget is on this board: say so, offer watchlist.open. column = a column that shows; before / after = another showing column (one of them, or neither); width = pixels (a column's minimum to 600), or null.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "column": {
+      "type": "string"
+     },
+     "before": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "after": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "width": {
+      "type": [
+       "number",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "column",
+     "before",
+     "after",
+     "width"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
   },
   {
    "name": "watchlist.step",
@@ -2878,18 +3015,17 @@
    "name": "app.open",
    "domain": "app",
    "target": "app",
-   "summary": "Open another UCT page for the member, exactly like clicking it in the sidebar: the Screener, Dashboard, Breadth, Settings, a stock's Research page, etc. This closes this panel (the conversation is kept).",
-   "hints": "target = the ref of the app entry. page: one of terminal (UCT Terminal), charts (Charts), morning-wire (Morning Wire), dashboard (Dashboard), ai-search (AI Search), uct-20 (UCT 20), breadth (Breadth), screener (Screener), options-flow (Options Flow), flow-scoreboard (Flow Record), live-massive (Live Flow), catalysts-history (Catalysts History), model-book (Model Book), formulas-reference (Formula Reference), desk (The Desk), journal (Journal), portfolio-heat (Portfolio Risk), community (Community), support (Support), settings (Settings), research (Research). section: only for page settings — account | billing | preferences | charts | compass | connections | legal — else null. symbol: only for page research (the ticker) — else null. Use this only when they ask to GO somewhere (\"open / take me to / go to\"); a question about data is answered here instead. Watchlists and Theme Tracker live on Charts (this page).",
+   "summary": "Open another UCT page for the member, exactly like clicking it in the sidebar: the Screener, Breadth, Settings, a stock's Research page, etc. This closes this panel (the conversation is kept).",
+   "hints": "target = the ref of the app entry. page: one of charts (Charts), terminal (UCT Terminal), morning-wire (Morning Wire), ai-search (AI Search), uct-20 (UCT 20), breadth (Breadth), screener (Screener), options-flow (Options Flow), flow-scoreboard (Flow Record), live-massive (Live Flow), catalysts-history (Catalysts History), model-book (Model Book), formulas-reference (Formula Reference), desk (The Desk), journal (Journal), portfolio-heat (Portfolio Risk), community (Community), support (Support), settings (Settings), research (Research). section: only for page settings — account | billing | preferences | charts | compass | connections | legal — else null. symbol: only for page research (the ticker) — else null. Use this only when they ask to GO somewhere (\"open / take me to / go to\"); a question about data is answered here instead. Watchlists and Theme Tracker live on Charts (this page).",
    "args": {
     "type": "object",
     "properties": {
      "page": {
       "type": "string",
       "enum": [
-       "terminal",
        "charts",
+       "terminal",
        "morning-wire",
-       "dashboard",
        "ai-search",
        "uct-20",
        "breadth",
@@ -3613,6 +3749,96 @@
    "risk": "local",
    "reversible": true,
    "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "watchlist.showList",
+   "domain": "watchlist",
+   "target": "board",
+   "summary": "Make ONE Watchlist widget show a list exactly as its picker does: one of the member's lists, a UCT prebuilt or community list, Flagged — or go back to its list picker. Undo puts back what it showed.",
+   "hints": "target = the board entry; widget = the Watchlist widget's id, or null when only one; source = mine | prebuilt | community | flagged | picker (tag = a colour tag: refused); name = the list's name as said, null for flagged / picker.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "widget": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "source": {
+      "type": "string",
+      "enum": [
+       "mine",
+       "prebuilt",
+       "community",
+       "flagged",
+       "picker",
+       "tag"
+      ]
+     },
+     "name": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "widget",
+     "source",
+     "name"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "watchlist.exportList",
+   "domain": "watchlist",
+   "target": "board",
+   "summary": "Copy the list ONE Watchlist widget shows to the clipboard, or download it as CSV or Excel — the list menu's own Copy / Export. Excel uses an export from the member's quota.",
+   "hints": "target = the board entry; widget = the Watchlist widget's id, or null when only one; format = clipboard | csv | xlsx.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "widget": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "format": {
+      "type": "string",
+      "enum": [
+       "clipboard",
+       "csv",
+       "xlsx"
+      ]
+     }
+    },
+    "required": [
+     "widget",
+     "format"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
    "query": false,
    "argAliases": null,
    "coerce": null,
@@ -5291,6 +5517,193 @@
    "shape": null
   },
   {
+   "name": "drawing.duplicate",
+   "domain": "drawing",
+   "target": "drawing",
+   "summary": "Duplicate ONE drawing (its menu's Duplicate): an unlocked duplicate drawing just below the original on the same symbol — every chart on that symbol shows it. The duplicate is the drawing \"it\" means next. Undo removes the duplicate only.",
+   "hints": "target = the drawings entry; drawing = its id (the one marked recent for \"duplicate it\"). Not offered for a hidden drawing (show it first) or a retired tool. To copy a drawing to a DIFFERENT symbol there is no capability — say so.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "drawing": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "drawing"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "drawing.setPositionAlerts",
+   "domain": "drawing",
+   "target": "drawing",
+   "summary": "Set a POSITION drawing's alerts (its menu's Alerts row): entry, stop, target, or all three. Each is an alert bound to that level, going off on the side the menu gives it (stop = the losing side, target = the winning side, entry = toward the entry from the current price). Always shown first; Undo removes them unless one already went off.",
+   "hints": "target = the drawings entry; drawing = the position's id; levels = any of \"entry\", \"stop\", \"target\" (\"all three\" / \"all its alerts\" = all three). The side is the position's own — never ask the member. A line, ray or Fibonacci is drawing.setAlert.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "drawing": {
+      "type": "string"
+     },
+     "levels": {
+      "type": "array",
+      "items": {
+       "type": "string",
+       "enum": [
+        "entry",
+        "stop",
+        "target"
+       ]
+      }
+     }
+    },
+    "required": [
+     "drawing",
+     "levels"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "drawing.setActiveBoard",
+   "domain": "drawing",
+   "target": "drawingBoards",
+   "summary": "Switch the Drawing Board the member draws on (Drawing Boards in the chart toolbar). Boards are named sheets of drawings shared by EVERY chart and symbol: switching changes what every chart shows and draws on. Not a layout and not the workspace.",
+   "hints": "target = the ref of the drawingBoards entry; board = the board's name as the member said it (a name from its boards list, e.g. \"Swing\" or \"Board 2\"). UCT matches it itself; when the member gives no name, or it could be more than one board, clarify with the real names. Never pick one. Boards cannot be switched for one chart only.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "board": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "board"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "drawing.createBoard",
+   "domain": "drawing",
+   "target": "drawingBoards",
+   "summary": "Make a new Drawing Board and switch to it, exactly like \"New board\" in Drawing Boards: new drawings go on it, and the other boards keep theirs. Not a new layout or a blank workspace.",
+   "hints": "target = the ref of the drawingBoards entry; name = the name the member gave, or null for none (UCT shows it as \"Board N\", as the panel does).",
+   "args": {
+    "type": "object",
+    "properties": {
+     "name": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "name"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "drawing.renameBoard",
+   "domain": "drawing",
+   "target": "drawingBoards",
+   "summary": "Rename one Drawing Board (the pencil on its row in Drawing Boards).",
+   "hints": "target = the ref of the drawingBoards entry; board = the board's current name as the member said it (\"Board 2\" for an unnamed one); to = the new name. When they do not say which board and there is more than one, clarify with the real names.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "board": {
+      "type": "string"
+     },
+     "to": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "board",
+     "to"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "drawing.deleteBoard",
+   "domain": "drawing",
+   "target": "drawingBoards",
+   "summary": "Delete one Drawing Board and every drawing on it, on every symbol (the bin on its row in Drawing Boards). Permanent: it cannot be undone. Never the last board.",
+   "hints": "target = the ref of the drawingBoards entry; board = the board's name exactly as the member said it. If they did not name a board (\"delete my board\", \"delete this board\"), or it could be more than one, clarify with the real names. Never pick one, and never the active board unless they named it. UCT always shows a confirmation card first, so do not ask \"are you sure?\".",
+   "args": {
+    "type": "object",
+    "properties": {
+     "board": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "board"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "confirm",
+   "reversible": false,
+   "undo": "none",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
    "name": "indicator.list",
    "domain": "indicator",
    "target": "indicators",
@@ -5369,7 +5782,7 @@
    "domain": "indicator",
    "target": "indicatorEdits",
    "summary": "Add ONE indicator to ONE chart — exactly what the Indicator Library's Add to Chart does. Built-in indicators or the member's own saved ones; Undo removes it again.",
-   "hints": "target = the ref of that chart's indicatorEdits entry. defId = an id from indicatorCatalog (never invented, never a name). The SAME indicator on several charts = one indicator.add per chart named, same defId; if it isn't clear which charts, ask. Classic overlay averages (the legacy EMA/SMA rows) and Volume Profile are NOT added this way — say they live in Chart Settings. inputs = null for the indicator's defaults, else [{key, value}] with ONLY keys from that row's `settings` (\"a 20 EMA\" → movingAverage, [{key:\"period\",value:20},{key:\"maType\",value:\"ema\"}]; \"RSI 7\" → rsi, [{key:\"period\",value:7}]). Every number or type the member named goes in inputs — never drop one or add a default instead. A setting the row does not list: say it isn't available; never guess a key. A moving average named by its LENGTH only (\"the 9 and 20\", \"a 50 ma\"): EMA for 8, 9, 10, 20 and 21, SMA for 50 and above (the member's default — say which you used); any other length: ask EMA or SMA.",
+   "hints": "target = the ref of that chart's indicatorEdits entry. defId = an id from indicatorCatalog (never invented, never a name). The SAME indicator on several charts = one indicator.add per chart named, same defId; if it isn't clear which charts, ask. Classic overlay averages (the legacy EMA/SMA rows) are NOT added this way — say they live in Chart Settings. Volume Profile: volumeProfile.set. inputs = null for the indicator's defaults, else [{key, value}] with ONLY keys from that row's `settings` (\"a 20 EMA\" → movingAverage, [{key:\"period\",value:20},{key:\"maType\",value:\"ema\"}]; \"RSI 7\" → rsi, [{key:\"period\",value:7}]). Every number or type the member named goes in inputs — never drop one or add a default instead. A setting the row does not list: say it isn't available; never guess a key. A moving average named by its LENGTH only (\"the 9 and 20\", \"a 50 ma\"): EMA for 8, 9, 10, 20 and 21, SMA for 50 and above (the member's default — say which you used); any other length: ask EMA or SMA.",
    "args": {
     "type": "object",
     "properties": {
@@ -5903,6 +6316,122 @@
    "shape": null
   },
   {
+   "name": "chartSetup.openSettings",
+   "domain": "chartSetup",
+   "target": "chart",
+   "summary": "Open ONE chart's own Chart Settings dialog for the member (the gear on the chart's header, right-click → Chart settings, Alt+,), so they can look or edit there themselves. Changes no setting; no Undo needed.",
+   "hints": "target = the chart. Only when they ask to OPEN / SHOW / BRING UP the chart's settings; to CHANGE a setting use chart.setSetting. \"Open settings\" alone (no chart) is the Settings page (app.open).",
+   "args": {
+    "type": "object",
+    "properties": {},
+    "required": [],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "chartSetup.stepBars",
+   "domain": "chartSetup",
+   "target": "chart",
+   "summary": "Step ONE chart's view back (older bars) or forward (newer bars) by whole bars: the Time Navigator's ◀ / ▶ buttons, one bar per click, up to 100 bars at once. A view change: nothing is drawn, removed or saved. Undo puts the previous view back.",
+   "hints": "direction = back | forward; bars = how many bars, 1 to 100 (\"a bar\" = 1). For a date use chart.goToDate; for a span, chartSetup.setRange. Not Replay Mode's cutoff (chart.replay).",
+   "args": {
+    "type": "object",
+    "properties": {
+     "direction": {
+      "type": "string",
+      "enum": [
+       "back",
+       "forward"
+      ]
+     },
+     "bars": {
+      "type": "integer"
+     }
+    },
+    "required": [
+     "direction",
+     "bars"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "chartSetup.zoom",
+   "domain": "chartSetup",
+   "target": "chart",
+   "summary": "Zoom ONE chart's time axis in (fewer, wider bars) or out (more, narrower bars), like pressing + or - on the chart, 1 to 10 presses at once. A view change: nothing is drawn, removed or saved. Undo puts the previous view back.",
+   "hints": "direction = in | out; steps = key presses, 1 to 10 (1 when they don't say; \"a lot\" = 3). For a named span (3M, 1Y…) use chartSetup.setRange; \"zoom out to weekly / monthly bars\" is a timeframe (chart.setTimeframe); the price axis is chartSetup.autoScale.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "direction": {
+      "type": "string",
+      "enum": [
+       "in",
+       "out"
+      ]
+     },
+     "steps": {
+      "type": "integer"
+     }
+    },
+    "required": [
+     "direction",
+     "steps"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "chartSetup.autoScale",
+   "domain": "chartSetup",
+   "target": "chart",
+   "summary": "Put ONE chart's price scale back on auto-scale so it fits the bars again (the price axis menu → Auto-scale; double-clicking the price numbers does the same), after the scale was dragged or squeezed by hand. Only the price scale: the time window, settings, drawings and indicators are untouched. No Undo.",
+   "hints": "target = the chart. Log / percent / arithmetic is chart.setScale; to also reset the time window use chartSetup.resetView.",
+   "args": {
+    "type": "object",
+    "properties": {},
+    "required": [],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
    "name": "chartSetup.setIndicatorsHidden",
    "domain": "chartSetup",
    "target": "chart",
@@ -6019,6 +6548,400 @@
    "shape": null
   },
   {
+   "name": "chartSetup.compareGroup",
+   "domain": "chartSetup",
+   "target": "chart",
+   "summary": "Compare ONE chart against a whole GROUP (Tools → Compare Symbols → Themes / Sectors / Industries): add every member of a theme, sector or industry as overlay lines, remove a compared group, or put a compared group on the main price scale (\"same\") or its own % scale (\"new\"). For single tickers use chart.compare.",
+   "hints": "action = add | remove | scale. group = the group's name as the member said it (\"semis\", \"AI Chips\", \"Technology\"); UCT matches it itself and asks when it could be more than one, so pass the words, never a guess. groupType = theme | sector | industry when the member said which, else any. scale = same | new for action scale, else null. \"Compare NVDA against the semis group\" = target the NVDA chart, action add, group \"semis\".",
+   "args": {
+    "type": "object",
+    "properties": {
+     "action": {
+      "type": "string",
+      "enum": [
+       "add",
+       "remove",
+       "scale"
+      ]
+     },
+     "group": {
+      "type": "string"
+     },
+     "groupType": {
+      "type": "string",
+      "enum": [
+       "any",
+       "theme",
+       "sector",
+       "industry"
+      ]
+     },
+     "scale": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "same",
+       "new",
+       null
+      ]
+     }
+    },
+    "required": [
+     "action",
+     "group",
+     "groupType",
+     "scale"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "chartMenu.askAi",
+   "domain": "chartMenu",
+   "target": "chart",
+   "summary": "Open Ask AI about ONE chart's stock, as its right-click \"Ask AI about {symbol}\" does (Research, AI section). Leaves Charts; changes nothing; no Undo.",
+   "hints": "target = the chart. Only when they ask to OPEN Ask AI about it; answer data questions here.",
+   "args": {
+    "type": "object",
+    "properties": {},
+    "required": [],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "chartMenu.resetWatermark",
+   "domain": "chartMenu",
+   "target": "chart",
+   "summary": "Put ONE chart's dragged watermark back in the centre (Chart Settings → Watermark → \"Reset to center\"). Undo puts it back.",
+   "hints": "target = the chart. A set position, size or hiding is chart.setSetting.",
+   "args": {
+    "type": "object",
+    "properties": {},
+    "required": [],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "chartFeatures.companyPanel",
+   "domain": "chartFeatures",
+   "target": "chart",
+   "summary": "ONE chart's Company Info panel (side panel: Overview, Financials, Earnings, Ownership, News): add/expand it, collapse it to its edge rail (it stays), remove it, or show a tab — as Add to Chart, its chevron and its tabs do. Undo restores it exactly.",
+   "hints": "target = the chart. op: open (add, or expand a collapsed one) | collapse (hide / minimise / bare \"close\" — it stays on the chart) | remove (only for remove / take off / get rid of). tab = overview | financials | earnings | ownership | news: pass it HERE, also with op open (\"add the company panel on News\" = one call); a tab alone opens the panel. Company/profile/info panel = this. The strip under the chart (earnings or \"fundamentals\" strip) = chartFeatures.earningsStrip.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "op": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "open",
+       "collapse",
+       "remove",
+       null
+      ]
+     },
+     "tab": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "overview",
+       "financials",
+       "earnings",
+       "ownership",
+       "news",
+       "valuation",
+       null
+      ]
+     }
+    },
+    "required": [
+     "op",
+     "tab"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "chartFeatures.earningsStrip",
+   "domain": "chartFeatures",
+   "target": "chart",
+   "summary": "Add or remove ONE chart's Earnings Strip (quarterly EPS and revenue in a strip under the chart; also called the fundamentals strip), as Add to Chart does. Undo restores it exactly (its height too).",
+   "hints": "target = the chart. op: open (add / show) | remove (only for remove / take off / get rid of) | collapse (hide / minimise / bare \"close\": it has no collapsed state, so this asks). The side panel is chartFeatures.companyPanel.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "op": {
+      "type": "string",
+      "enum": [
+       "open",
+       "collapse",
+       "remove"
+      ]
+     }
+    },
+    "required": [
+     "op"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "chartReplay.playback",
+   "domain": "chartReplay",
+   "target": "chart",
+   "summary": "ONE chart's bar replay (its toolbar's Replay / Time Machine button and replay bar): start it, play, pause, step forward or back by bars, jump to its first or last bar or to a date, speed 1× / 5× / 20×, exit. A view only; nothing is saved. Undo for start, exit, steps, jumps and speed; none for play / pause.",
+   "hints": "op: enter (start / open the bar replay) | play (resume) | pause | forward | back (bars = how many, 1 when unsaid; \"next bar\" = forward 1) | first | last | date (date = YYYY-MM-DD or a day word: scrub there) | speed (speed = 1, 5 or 20) | exit. bars / date / speed null unless their op. \"Replay as of <date>\" / \"go back to <date>\" / Replay Mode = chart.replay (the cutoff). \"Next bar\" / step with NO bar replay on = chartSetup.stepBars. Replaying a tutorial, video or alert is not this.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "op": {
+      "type": "string",
+      "enum": [
+       "enter",
+       "exit",
+       "play",
+       "pause",
+       "forward",
+       "back",
+       "first",
+       "last",
+       "date",
+       "speed"
+      ]
+     },
+     "bars": {
+      "type": [
+       "integer",
+       "null"
+      ]
+     },
+     "date": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "speed": {
+      "type": [
+       "integer",
+       "null"
+      ],
+      "enum": [
+       1,
+       5,
+       20,
+       null
+      ]
+     }
+    },
+    "required": [
+     "op",
+     "bars",
+     "date",
+     "speed"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "drawing.positionCalculator",
+   "domain": "drawing",
+   "target": "chart",
+   "summary": "Open the Position Calculator on ONE chart (the drawing toolbar's Position tool) with an entry, a stop and a target price: its panel sizes the trade from the account size and risk % saved there, and the chart shows the three price lines. Long or short comes from the stop being below or above the entry. A view: nothing is saved. Undo puts the calculator back as it was.",
+   "hints": "target = the chart. entry, stop, target = the member's prices; a price they did not give is null (then ask — never guess one, never use the current price). side = \"long\" / \"short\" only when they said it, else null (it is read from entry vs stop). The old 3-point position DRAWING is retired: this is the only way to place a position.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "entry": {
+      "type": [
+       "number",
+       "null"
+      ]
+     },
+     "stop": {
+      "type": [
+       "number",
+       "null"
+      ]
+     },
+     "target": {
+      "type": [
+       "number",
+       "null"
+      ]
+     },
+     "side": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "long",
+       "short",
+       null
+      ]
+     }
+    },
+    "required": [
+     "entry",
+     "stop",
+     "target",
+     "side"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "drawing.saveDefaults",
+   "domain": "drawing",
+   "target": "chart",
+   "summary": "Make ONE drawing's style the default for new drawings on ONE chart (the drawing menu's \"Save as default\"): its colour, width, line style, text size and that tool's own settings become the chart's drawing defaults. Drawings already on the chart do not change. Undo puts the previous defaults back.",
+   "hints": "target = the chart the member means (the one showing the drawing); drawing = the id from that symbol's drawings entry (the recent one for \"this line\"). To restyle a drawing itself use drawing.style; to change the defaults by name use chart.setSetting.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "drawing": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "drawing"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "drawing.favoriteTool",
+   "domain": "drawing",
+   "target": "chart",
+   "summary": "Star or unstar a DRAWING TOOL as a favourite (the ★ in the drawing toolbar's tools menu): starred tools sit on the floating favourites bar on every chart in this browser. Undo puts the favourites back.",
+   "hints": "target = the chart whose toolbar they mean (the selected one; the list is the same on every chart); tool = the toolbar tool's id; favorite = true to star, false to unstar. Only for a drawing TOOL — flagging or starring a ticker is the watchlist's flag (watchlist.setFlag), never this.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "tool": {
+      "type": "string",
+      "enum": [
+       "trendline",
+       "extended",
+       "horizontal",
+       "hray",
+       "vertical",
+       "rect",
+       "circle",
+       "arrow",
+       "fib",
+       "fibext",
+       "pitchfork",
+       "channel",
+       "cup",
+       "avwap",
+       "text",
+       "measure",
+       "dateRange",
+       "advance",
+       "position"
+      ]
+     },
+     "favorite": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "tool",
+     "favorite"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
    "name": "indicatorStyle.set",
    "domain": "indicatorStyle",
    "target": "indicatorEdits",
@@ -6095,6 +7018,38 @@
     "required": [
      "instance",
      "place"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "indicatorStyle.setCalcTimeframe",
+   "domain": "indicatorStyle",
+   "target": "indicatorEdits",
+   "summary": "Calculate ONE indicator on another timeframe's bars (a weekly RSI on a daily chart), or back on the chart's own — the chart's timeframe does not change. Undo puts it back.",
+   "hints": "target = the chart's indicatorEdits entry; instance = the indicator; timeframe = 1, 5, 15, 30, 60, D, W, M or \"chart\". Not showOn (which charts it shows on) and not chart.setTimeframe. \"Put the RSI on weekly\" is unclear: ask which.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "instance": {
+      "type": "string"
+     },
+     "timeframe": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "instance",
+     "timeframe"
     ],
     "additionalProperties": false
    },
@@ -6364,6 +7319,58 @@
    "shape": null
   },
   {
+   "name": "volumeProfile.set",
+   "domain": "volumeProfile",
+   "target": "chart",
+   "summary": "Turn ONE chart's Volume Profile overlay (volume-by-price bins, point of control) on or off, or set its bins / colours, as Chart Settings → Indicators does. Undo restores it exactly.",
+   "hints": "target = the chart. Pass only what was asked; null for the rest. enabled true/false; bins 8-50 whole; color / pocColor = hex. Volume Profile / VPVR = this (never indicator.add). Volume pane = volume.setState; VWAP = indicator.add.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "enabled": {
+      "type": [
+       "boolean",
+       "null"
+      ]
+     },
+     "bins": {
+      "type": [
+       "integer",
+       "null"
+      ]
+     },
+     "color": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "pocColor": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "enabled",
+     "bins",
+     "color",
+     "pocColor"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
    "name": "definition.search",
    "domain": "definition",
    "target": "definitionLibrary",
@@ -6478,6 +7485,56 @@
     "additionalProperties": false
    },
    "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "uctIntelligence.set",
+   "domain": "uctIntelligence",
+   "target": "chart",
+   "summary": "ONE chart's UCT Intelligence INDICATOR (its Indicators library row and panel): add or remove it, or turn one of its layers on or off, as the member's own switches do. Layers not released to the member are refused. Undo restores it exactly.",
+   "hints": "target = the chart. op add | remove (the indicator), or on | off with layer = autoPatterns (the Patterns button / auto chart patterns) | labels (pattern labels & numbers) | supportResistance | candles (candlestick patterns) | setups | caution. Creating or modifying an indicator WITH UCT Intelligence is indicator authoring, not this. Chart IQ is chart.setSetting.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "op": {
+      "type": "string",
+      "enum": [
+       "add",
+       "remove",
+       "on",
+       "off"
+      ]
+     },
+     "layer": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "autoPatterns",
+       "labels",
+       "supportResistance",
+       "candles",
+       "setups",
+       "caution",
+       null
+      ]
+     }
+    },
+    "required": [
+     "op",
+     "layer"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
    "reversible": true,
    "undo": "exact",
    "query": false,
@@ -6770,6 +7827,338 @@
    "defaults": null,
    "defaultsWhen": null,
    "shape": null
+  },
+  {
+   "name": "periodSort.run",
+   "domain": "periodSort",
+   "target": "periodSort",
+   "summary": "Tools → Period Sort: rank US common stocks (or themes, sectors, industries) by their % change between a start and an end date, in a floating results panel — the popover's own Sort. Replay mode hides bars after the end date on every chart; Mark start draws the start date. A view: not saved; Undo closes it.",
+   "hints": "start / end = YYYY-MM-DD or the member's words (\"oct 1\"); end null = today. group = stocks | theme | sector | industry (\"rank sectors since …\" = sector). replay = true only when asked to hide bars after the end (\"as of the end date\"); false otherwise — exactly as the popover, Sort without Replay mode also turns an active replay off. markStart = off | line (gold line at the start) | candle (gold start candle). Never changes the charts' timeframe.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "start": {
+      "type": "string"
+     },
+     "end": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "group": {
+      "type": "string",
+      "enum": [
+       "stocks",
+       "theme",
+       "sector",
+       "industry"
+      ]
+     },
+     "replay": {
+      "type": "boolean"
+     },
+     "markStart": {
+      "type": "string",
+      "enum": [
+       "off",
+       "line",
+       "candle"
+      ]
+     }
+    },
+    "required": [
+     "start",
+     "end",
+     "group",
+     "replay",
+     "markStart"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": {
+    "start": [
+     "from",
+     "since",
+     "startDate",
+     "start_date"
+    ],
+    "end": [
+     "to",
+     "until",
+     "through",
+     "endDate",
+     "end_date"
+    ],
+    "group": [
+     "groupBy",
+     "by",
+     "sort"
+    ],
+    "markStart": [
+     "mark",
+     "marker",
+     "mark_start"
+    ]
+   },
+   "coerce": {
+    "group": {
+     "stock": "stocks",
+     "themes": "theme",
+     "sectors": "sector",
+     "industries": "industry",
+     "us common stocks": "stocks"
+    },
+    "markStart": {
+     "none": "off",
+     "false": "off",
+     "vertical line": "line",
+     "gold line": "line",
+     "start candle": "candle"
+    }
+   },
+   "defaults": {
+    "group": "stocks",
+    "replay": false,
+    "markStart": "off"
+   },
+   "defaultsWhen": null,
+   "shape": "{\"start\":\"2026-10-01\",\"end\":null,\"group\":\"stocks\",\"replay\":false,\"markStart\":\"off\"}"
+  },
+  {
+   "name": "periodSort.dock",
+   "domain": "periodSort",
+   "target": "periodSort",
+   "summary": "Dock the open Period Sort results panel onto the board as a Period Sort widget (the panel's own Dock button), so it is kept with the layout. Undo takes it off the board and brings the panel back.",
+   "hints": "Only when a Period Sort panel is open (the context says which range). \"Keep / pin / dock that ranking\" = this. Adding it as a tab of another widget is not offered.",
+   "args": {
+    "type": "object",
+    "properties": {},
+    "required": [],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "compare.openView",
+   "domain": "compare",
+   "target": "comparePanel",
+   "summary": "Open the Compare panel (Tools → Compare Symbols) on its Rotation tab — the RRG-style relative-rotation map — or its Overlay tab, or switch between them; optionally show one stock's theme / sector / industry, or a named group, on the Rotation map. A view: nothing saved. Undo closes it or returns to Overlay; leaving Rotation or re-picking on it has NO Undo.",
+   "hints": "tab = rotation | overlay. For rotation: symbol = a ticker to show its group (\"rotation map for NVDA\"), groupType = theme | sector | industry (default theme); or group = a group NAME as said (\"semis\") with groupType when said. Else null. The RS INDICATOR's Rotation view is indicator.update, not this.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "tab": {
+      "type": "string",
+      "enum": [
+       "rotation",
+       "overlay"
+      ]
+     },
+     "symbol": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "groupType": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "theme",
+       "sector",
+       "industry",
+       null
+      ]
+     },
+     "group": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "tab",
+     "symbol",
+     "groupType",
+     "group"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": {
+    "tab": [
+     "view"
+    ],
+    "symbol": [
+     "sym",
+     "ticker"
+    ]
+   },
+   "coerce": {
+    "tab": {
+     "rrg": "rotation",
+     "rotation map": "rotation",
+     "relative rotation": "rotation",
+     "overlays": "overlay"
+    },
+    "groupType": {
+     "themes": "theme",
+     "sectors": "sector",
+     "industries": "industry",
+     "any": null
+    }
+   },
+   "defaults": {
+    "tab": "rotation"
+   },
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "multiChart.set",
+   "domain": "multiChart",
+   "target": "multiChart",
+   "summary": "Change the Multi Chart GRID as a whole, as its Multi Charts menu does: open it at a shape (layout rows × columns) or exit to the Charts board, crosshair / time-range sync, Groups mode, load / step / refresh a group, open / save / delete a saved grid, open Shared Chart Settings, restore a maximized grid. Undo restores the grid exactly.",
+   "hints": "target = the multiChart ref. rows/cols only with op layout (both null = open Multi Chart as it was); on only with the sync / groupsMode ops; name = the group (pickGroup) or saved grid (applySaved / saveGrid / deleteSaved) as the member said it; direction only with stepGroup. ONE chart’s ticker / timeframe / style is a chart.* action on that cell, not this. Maximizing one cell or resetting one cell to the member’s own chart is multiChart.cell.",
+   "args": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+     "op": {
+      "type": "string",
+      "enum": [
+       "layout",
+       "exit",
+       "syncCrosshair",
+       "syncTimeRange",
+       "groupsMode",
+       "pickGroup",
+       "stepGroup",
+       "refreshGroup",
+       "applySaved",
+       "saveGrid",
+       "deleteSaved",
+       "openSettings",
+       "restoreGrid"
+      ]
+     },
+     "rows": {
+      "type": [
+       "integer",
+       "null"
+      ]
+     },
+     "cols": {
+      "type": [
+       "integer",
+       "null"
+      ]
+     },
+     "on": {
+      "type": [
+       "boolean",
+       "null"
+      ]
+     },
+     "name": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "direction": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "next",
+       "previous",
+       null
+      ]
+     }
+    },
+    "required": [
+     "op",
+     "rows",
+     "cols",
+     "on",
+     "name",
+     "direction"
+    ]
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": {
+    "direction": {
+     "prev": "previous",
+     "back": "previous",
+     "forward": "next"
+    }
+   },
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": "{\"op\":\"layout\",\"rows\":2,\"cols\":3,\"on\":null,\"name\":null,\"direction\":null}"
+  },
+  {
+   "name": "multiChart.cell",
+   "domain": "multiChart",
+   "target": "gridCell",
+   "summary": "ONE Multi Chart cell’s own buttons: maximize it so it covers the whole grid, or “Reset to my chart” (the cell drops its own chart settings and draws the member’s chart settings again; its ticker, timeframe and Style stay). Undo puts it back.",
+   "hints": "target = that cell’s ref from charts (the chart the member named or clicked). To un-maximize use multiChart.set op restoreGrid.",
+   "args": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+     "op": {
+      "type": "string",
+      "enum": [
+       "maximize",
+       "resetToMine"
+      ]
+     }
+    },
+    "required": [
+     "op"
+    ]
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": {
+    "op": {
+     "maximise": "maximize",
+     "expand": "maximize",
+     "reset": "resetToMine"
+    }
+   },
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": "{\"op\":\"maximize\"}"
   }
  ]
 }

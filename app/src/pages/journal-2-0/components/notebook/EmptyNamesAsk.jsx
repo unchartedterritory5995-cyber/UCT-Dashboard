@@ -68,16 +68,20 @@ export default function EmptyNamesAsk({
           placeholder="Add a ticker" autoComplete="off" spellCheck={false} disabled={busy} />
         <button type="submit" className="btn btn-secondary btn-sm" disabled={busy || !value.trim()}>Add</button>
       </form>
-      <div className={styles.suggestions} role="group" aria-label="Suggestions">
-        {left.map((s) => (
-          <button key={s} type="button" className={styles.chip} aria-label={`Add ${s}`} disabled={busy}
-            onClick={() => add([s])}>{`+ ${s}`}</button>
-        ))}
-        {importable.length > 0 && (
-          <button type="button" className={styles.chip} disabled={busy}
-            onClick={() => add(importable, { importing: true })}>{IMPORT_LABEL}</button>
-        )}
-      </div>
+      {/* Simplify pass 2 (B3): a host may ask for the line and the field only (the Daily brief's compact ask); then
+          there is no empty group to announce. */}
+      {(left.length > 0 || importable.length > 0) && (
+        <div className={styles.suggestions} role="group" aria-label="Suggestions">
+          {left.map((s) => (
+            <button key={s} type="button" className={styles.chip} aria-label={`Add ${s}`} disabled={busy}
+              onClick={() => add([s])}>{`+ ${s}`}</button>
+          ))}
+          {importable.length > 0 && (
+            <button type="button" className={styles.chip} disabled={busy}
+              onClick={() => add(importable, { importing: true })}>{IMPORT_LABEL}</button>
+          )}
+        </div>
+      )}
       <p className={styles.status} role="status" aria-live="polite">{status}</p>
     </div>
   )

@@ -145,6 +145,10 @@ export function probeRuntimeProgram(source, { objectsInRun = false } = {}) {
     requests: (built.ir.requests || []).length,
     // ⭐ RT5 — how many drawing operations the build lowered (0 unless asked).
     objectOps: (program.objectOps || []).length,
+    // ⭐⭐ ENGINE 54 — each drawing-making op's source call and family (`objectSiteKey`), so the
+    // member door can prove every host create site has the same call in the run.
+    objectSites: (program.objectOps || []).filter((o) => typeof o.site === 'string')
+      .map((o) => ({ site: o.site, fn: o.fn })),
     // ⭐⭐ W9-T11 — the program holds a strategy broker (only when the broker gate is on:
     // `buildRuntimeIr` retries into broker mode only then), so the member door stamps the
     // document `STRATEGY_WINDOW_HISTORY`.
@@ -553,9 +557,28 @@ export function computeRuntimeColumns(def, rows, ctx, opts = {}) {
     try { out = computeRuntimeColumnsOnce(plain, rows, ctx, opts) } catch (plainErr) {
       throw plainErr && plainErr.guard === RUNTIME_TIME_BUDGET_GUARD ? plainErr : err
     }
-    return withRuntimeObjects(out, { status: 'WITHHELD', live: [], guard: (err && err.guard) || 'runtime:objects',
-      reason: String((err && err.message) || err) })
+    return withRuntimeObjects(out, runtimeObjectsWithheld(err))
   }
+}
+
+/** ⭐ OZ N-2 (engine 50) — the sentence a member reads for a run whose drawings stopped on an
+ *  error this lane did not NAME (no `guard`): an `ObjectRunError` ("`label.new`: `x` takes a
+ *  number") or any other exception. Its text is the engine's, not the member's, and was published
+ *  verbatim (`binder.js` → `stoppedRunSentence(reason, 'withheld')`). It is true of every such stop:
+ *  the drawings were not worked out, and the plain run (which just succeeded) drew the plots. */
+export const RUNTIME_OBJECTS_STOPPED_REASON = 'working them out stopped at a step this engine could '
+  + 'not complete, so none are drawn rather than some of them. Its plots are drawn'
+
+/** The WITHHELD payload for `err` (the object run's error). A refusal this lane names (a `guard`)
+ *  keeps its own sentence; an unnamed error reads `RUNTIME_OBJECTS_STOPPED_REASON`, and its raw
+ *  text goes to `detail`, which no member surface reads (`runtimeObjectsWithheldOf` hands on
+ *  `guard` and `reason` only). */
+export function runtimeObjectsWithheld(err) {
+  if (err && typeof err.guard === 'string' && err.guard) {
+    return { status: 'WITHHELD', live: [], guard: err.guard, reason: String(err.message || err) }
+  }
+  return { status: 'WITHHELD', live: [], guard: 'runtime:objects', reason: RUNTIME_OBJECTS_STOPPED_REASON,
+    detail: String((err && err.message) || err) }
 }
 
 /** ⭐ UIE PHASE 2 — two outputs agree: both `na`, or equal to 1e-9 of their size. */

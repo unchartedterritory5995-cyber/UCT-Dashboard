@@ -1394,6 +1394,9 @@ describe('⭐ TASK 2 — every definition that draws a line can name itself', ()
         // …and the ten that already shipped, untouched by it.
         'atr::atr', 'ichimoku::kijun', 'ichimoku::tenkan', 'macd::macd', 'macd::signal',
         'rsLine::rsLine', 'rsPhases::divergence', 'rsRating::ratingLine', 'rsVsEma::dist', 'rsi::rsi', 'sar::sar', 'stoch::d', 'stoch::k',
+        // 2026-11-12 (RS Exit Warnings): ONE chip, the RS line (its value is withheld from the label
+        // by `legend.showValue: false`, the slim RS line's rule; the chip row carries the warning).
+        'rsExit::rsLine',
         // ⭐ 2026-10-01 — the Technical library's Tier 1: forty-two chips, decided
         // and written down (`tier1Library.fixture.js`), not grown by accident.
         ...TIER1_CHIPS,

@@ -114,6 +114,10 @@ def test_tsdr_tick_skips_its_model_stages_when_the_budget_is_spent(env, monkeypa
     monkeypatch.setattr(t, "source_channels", lambda: [])
     monkeypatch.setattr(t, "run_link_redo", lambda **k: {"requeued": 0, "errors": 0})
     monkeypatch.setattr(t, "reopen_skipped_clips", lambda: 0)
+    # the tick also reopens failed videos and counts the library; both open the lessons
+    # database, which this fixture does not point anywhere
+    monkeypatch.setattr(t, "reopen_failed", lambda: 0)
+    monkeypatch.setattr(t, "status_counts", lambda: {})
     monkeypatch.setattr(t, "run_lessons", lambda **k: called.append(k) or {"posted": 1})
     monkeypatch.setattr(t, "threads_enabled", lambda: False)
     monkeypatch.setattr(t, "forum_enabled", lambda: False)

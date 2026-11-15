@@ -215,7 +215,8 @@ describe('a blob written before the engine existed', () => {
     // volume pane's LABEL. No block, no toggle, no stored blob that named it.
     // ⭐ 2026-10-01 — and the Technical library's thirty own-pane Tier 1 studies.
     // ⭐ U6 (2026-11-09): the RS split's three, server pane definitions like `rsLine`.
-    const NEVER_A_SHIPPED_PANE = ['rsLine', 'rsRating', 'rsPhases', 'rsVsEma', 'dataSeries', 'dollarVolume',
+    // ⭐ 2026-11-12 (RS Exit Warnings): `rsExit`, a server pane definition like the others.
+    const NEVER_A_SHIPPED_PANE = ['rsLine', 'rsRating', 'rsPhases', 'rsVsEma', 'rsExit', 'dataSeries', 'dollarVolume',
       ...TIER1_IDS.filter((id) => !['superTrend', 'keltner', 'envelope'].includes(id))]
     const shippedPaneIds = paneIds.filter(id => !NEVER_A_SHIPPED_PANE.includes(id))
     for (const id of NEVER_A_SHIPPED_PANE) {
@@ -255,7 +256,8 @@ describe('a blob written before the engine existed', () => {
         // ⭐ 2026-10-01 — the Technical library's Tier 1, natives registered after
         // `dollarVolume`, so appended in registration order before the server lane.
         // ⭐ U6 (2026-11-09): the RS split's three follow rsLine, in registration order.
-        ...TIER1_IDS, 'rsLine', 'rsRating', 'rsPhases', 'rsVsEma'])
+        // 2026-11-12 (RS Exit Warnings): and the fifth, `rsExit`, last.
+        ...TIER1_IDS, 'rsLine', 'rsRating', 'rsPhases', 'rsVsEma', 'rsExit'])
   })
 
   it('runs ONCE — a v2 blob is passed through untouched, by identity', () => {
@@ -487,7 +489,8 @@ describe('a blob written before the engine existed', () => {
       // ⭐ 2026-10-01 — the Technical library's Tier 1 is appended the same way, in
       // registration order, ahead of the server lane's `rsLine`.
       // ⭐ U6 (2026-11-09): the RS split's three are appended after rsLine the same way.
-      .toEqual(['avwap', 'atrBands', 'dataSeries', 'dollarVolume', ...TIER1_IDS, 'rsLine', 'rsRating', 'rsPhases', 'rsVsEma'])
+      // 2026-11-12 (RS Exit Warnings): `rsExit` is appended last the same way.
+      .toEqual(['avwap', 'atrBands', 'dataSeries', 'dollarVolume', ...TIER1_IDS, 'rsLine', 'rsRating', 'rsPhases', 'rsVsEma', 'rsExit'])
     // ✅ AND IT IS APPLIED AT B5 TASK 13 — in the FOLD, which is what makes
     // `orderedPaneKeys` (which walks the instance list) produce it without a sort
     // of its own. Task 12 measured that Flip C shipped without it and left the

@@ -61,6 +61,17 @@ def _enum(key, label, category, column, presets, options_column=None,
     return key, spec
 
 
+def _agent_omit(entry):
+    """Mark a ``(key, spec)`` registry entry as a member-only field: still a
+    screener filter, column and saved-screen key, but `field_catalog` flags it
+    ``agent_omit`` and UCT Agent's field list (`agent/capabilities/screener.js`
+    `loadMeta`) leaves it out. The Agent sends that list with every screen
+    request under a fixed context budget (`CONTEXT_BUDGET_BYTES`), so a field
+    it does not need costs every request."""
+    key, spec = entry
+    return key, {**spec, "agent_omit": True}
+
+
 def _rs_names_enum(key, label, column, names_attr):
     """An enum over one of the Phase 3 RS text columns (unit 3-11), its options
     the WRITER's own names in the writer's code order: ``RRG_QUADRANT_NAMES``
@@ -790,6 +801,33 @@ FILTERS = dict([
                 "clenow_score"),
     _rs_names_enum("vars_state", "Volatility-Adjusted RS State", "vars_state",
                    "VARS_STATE_NAMES"),
+    # ── relative strength: RS Exit Warnings (2026-11-13; the chart's rsExit) ──
+    # Written by the same RS_V2 `bars_rs` step as the ten (`rs_columns.EXIT_COLUMNS`),
+    # so `rs_dark_keys` darkens them with that family. `rs_exit_last` is an enum
+    # whose options are the writer's own names (`rs_columns.EXIT_NAMES`); the four
+    # ages ship BARE like every other RS age (0 = the newest session), and the
+    # "in the last N sessions" windows live in the starter screens.
+    # ⛔ SHORT LABELS ON PURPOSE: these two ride in UCT Agent's field list, which is sent
+    # with every screen request under `CONTEXT_BUDGET_BYTES` (20,000). Measured
+    # 2026-11-13 on the SAT-1 capture: 11 of its 30 screener requests sat at 19,923
+    # bytes on master, 77 under the line, and the longer labels pushed all 11 over,
+    # so the Agent's field definitions were dropped. The member reads the plain label
+    # (`plainWords.js`) and the column's own description.
+    _rs_names_enum("rs_exit_last", "RS Exit Warning", "rs_exit_last",
+                   "EXIT_NAMES"),
+    _open_range("rs_exit_bars_ago", "RS Exit Age",
+                "relative_strength", "rs_exit_bars_ago"),
+    # The three per-warning ages are member columns only: `agent_omit` keeps them out
+    # of UCT Agent's field list (`field_catalog` marks them; the Agent's catalog
+    # skips them), because the Agent sends that list with every screen request
+    # under a fixed context budget. The Agent screens exit warnings through
+    # `rs_exit_last` + `rs_exit_bars_ago`.
+    _agent_omit(_open_range("rs_quicksand_bars_ago", "Quicksand Age (sessions)",
+                            "relative_strength", "rs_quicksand_bars_ago")),
+    _agent_omit(_open_range("rs_quick_break_bars_ago", "Quick Break Age (sessions)",
+                            "relative_strength", "rs_quick_break_bars_ago")),
+    _agent_omit(_open_range("rs_dead_break_bars_ago", "Grateful Dead Break Age (sessions)",
+                            "relative_strength", "rs_dead_break_bars_ago")),
     # ── technical: expose the dark columns (registry/UI only) ──
     # ⚠️ NOT bare "ATR %" — that label word-reduces to exactly the FUNCTION
     # name `atr` (the manifest's own indicator call), and the plain-language
@@ -1046,6 +1084,27 @@ OP_OPERANDS = {
     "lte_col": ("other",),
 }
 
+#: `op` -> the words a member reads for it, in the refusal `query.build_where`
+#: raises when a filter arrives without the operand declared just above
+#: (`RS Rank: "at least" needs a number.`). Beside `OP_OPERANDS` for the same
+#: reason that table is beside `_VALID_OPS`: one definition per op, and
+#: `tests/test_screener_operand_refusal.py` asserts the two name the same ops.
+OP_WORDS = {
+    "gte": "at least",
+    "gt": "above",
+    "lte": "at most",
+    "lt": "below",
+    "between": "between",
+    "eq": "equals",
+    "contains": "contains",
+    "in": "is one of",
+    "not_in": "is none of",
+    "gt_col": "above",
+    "gte_col": "at least",
+    "lt_col": "below",
+    "lte_col": "at most",
+}
+
 #: ⛔ FILTERS THAT ONCE EXISTED AND NO LONGER DO — the safe-deletion mechanism.
 #:
 #: A saved screen serializes filter KEYS as JSON (`screener_saved_screens.
@@ -1206,7 +1265,11 @@ VIEWS = {
         # S1: kept computed and valid for every saved screen, hidden from the
         # picker by `picker_hidden_keys()` (see its docstring).
         "rs_rating_ibd", "rs_rating_chg_5", "rs_benchmark_agree",
-        "rrg_quadrant", "clenow_score", "vars_state"]},
+        "rrg_quadrant", "clenow_score", "vars_state",
+        # RS Exit Warnings (2026-11-13): the newest warning, its age, and each
+        # warning's own age.
+        "rs_exit_last", "rs_exit_bars_ago", "rs_quicksand_bars_ago",
+        "rs_quick_break_bars_ago", "rs_dead_break_bars_ago"]},
 }
 
 # ── The Type filter (instrument class) ──────────────────────────────────────
@@ -1268,7 +1331,8 @@ def field_catalog() -> list[dict]:
     return [
         {"key": key, "label": f.get("label") or key, "type": f.get("type"),
          "unit": f.get("unit"), "category": f.get("category"),
-         **({"description": f["description"]} if f.get("description") else {})}
+         **({"description": f["description"]} if f.get("description") else {}),
+         **({"agent_omit": True} if f.get("agent_omit") else {})}
         for key, f in FILTERS.items() if key not in RETIRED
     ]
 
@@ -1733,7 +1797,8 @@ def _shared_filters(dist):
 # ── UCT Relative Strength: shown only while the data behind it fills ─────────
 # Review findings #12 and #14 (2026-11-07). The two RS column families each have
 # one writer, and each writer sits behind its own flag:
-#   * the ten bar-derived columns (`rs_columns.COLUMNS`) are written by the
+#   * the ten bar-derived columns (`rs_columns.COLUMNS`), and the five RS Exit
+#     Warning columns (`rs_columns.EXIT_COLUMNS`), are written by the
 #     builder's `bars_rs` step, which follows `registry_defs.RS_V2_ENABLED`;
 #   * the seven rating columns (`snapshot_builder._RS_HISTORY_COLUMNS`) read the
 #     side table the 04:15 ET job writes, which follows
@@ -1824,7 +1889,8 @@ def rs_dark_keys(v2_on=None, history_on=None, v3_on=None) -> frozenset:
     v3_on = _rs_v3_on() if v3_on is None else v3_on
     from . import rs_columns  # noqa: PLC0415 - lazy: the registry stays import-light
     family = {k for k, f in FILTERS.items() if f.get("category") == "relative_strength"}
-    bars = family & set(rs_columns.COLUMNS)
+    # The five RS Exit Warning columns share the ten's writer and gate.
+    bars = family & (set(rs_columns.COLUMNS) | set(rs_columns.EXIT_COLUMNS))
     phase3 = family & set(rs_columns.PHASE3_COLUMNS)
     ratings = family - bars - phase3
     dark = set()

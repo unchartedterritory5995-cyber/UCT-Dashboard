@@ -6,8 +6,12 @@ import { MemoryRouter } from 'react-router-dom'
 /**
  * Wave 6 (lane E, item 3) — "Your templates" in the template picker: listed,
  * picked, renamed, deleted (after asking). ⛔ Feedback by RENDERED TEXT.
+ * Follow-up C (one room for templates): Rename and Delete are the template manager's now (its Plain templates group,
+ * the SAME rows and handlers, MemberTemplates.jsx); the picker lists and picks. The rename and delete cases render
+ * that group (`PlainTemplatesManage`), unchanged otherwise.
  */
 import TemplatePicker from './TemplatePicker'
+import { PlainTemplatesManage } from './MemberTemplates'
 import { loadTemplates } from '../../lib/templatesLoader'
 
 // Wave 7 Task 7.4: the picker reads the catalog through the loader (no static import). Loaded once up front, the
@@ -51,6 +55,11 @@ const renderPicker = (props = {}) => render(
   </MemoryRouter>,
 )
 const section = () => screen.getByRole('region', { name: 'Your templates' })
+const renderManaged = () => render(
+  <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+    <PlainTemplatesManage />
+  </SWRConfig>,
+)
 
 describe('Your templates', () => {
   it('is offered only when the picker can make a note from one', () => {
@@ -68,7 +77,6 @@ describe('Your templates', () => {
     expect(onPickMember).toHaveBeenCalledWith(expect.objectContaining({ id: 't1', name: 'Weekly review' }))
     // The title shows under the name only when it says something the name does not.
     expect(within(section()).getByText('Week of …')).toBeInTheDocument()
-    // (Cards only: the daily-template <select> names each template too.)
     expect(within(section()).getAllByText('Earnings prep', { selector: 'span' })).toHaveLength(1)
   })
 
@@ -78,8 +86,8 @@ describe('Your templates', () => {
     expect(await screen.findByText('Save any note as a template from its menu, and it appears here.')).toBeInTheDocument()
   })
 
-  it('renames in place and says so', async () => {
-    renderPicker({ onPickMember: vi.fn() })
+  it('renames in place and says so (in Manage templates)', async () => {
+    renderManaged()
     fireEvent.click(await screen.findByRole('button', { name: 'Rename Weekly review' }))
     const input = screen.getByRole('textbox', { name: 'New name for Weekly review' })
     fireEvent.change(input, { target: { value: '  Friday review ' } })
@@ -89,8 +97,8 @@ describe('Your templates', () => {
       url: '/api/j2/note-templates/t1', method: 'PATCH', body: { name: '  Friday review ' } })
   })
 
-  it('asks before deleting, and deletes only on the second press', async () => {
-    renderPicker({ onPickMember: vi.fn() })
+  it('asks before deleting, and deletes only on the second press (in Manage templates)', async () => {
+    renderManaged()
     fireEvent.click(await screen.findByRole('button', { name: 'Delete Earnings prep' }))
     expect(calls.some((c) => c.method === 'DELETE')).toBe(false)
     const ask = screen.getByRole('group', { name: 'Delete Earnings prep?' })
@@ -100,8 +108,8 @@ describe('Your templates', () => {
     expect(calls.filter((c) => c.method === 'DELETE').map((c) => c.url)).toEqual(['/api/j2/note-templates/t2'])
   })
 
-  it('"Keep it" deletes nothing, and a refused delete says the template is still there', async () => {
-    renderPicker({ onPickMember: vi.fn() })
+  it('"Keep it" deletes nothing, and a refused delete says the template is still there (in Manage templates)', async () => {
+    renderManaged()
     fireEvent.click(await screen.findByRole('button', { name: 'Delete Earnings prep' }))
     fireEvent.click(screen.getByRole('button', { name: 'Keep it' }))
     expect(calls.some((c) => c.method === 'DELETE')).toBe(false)

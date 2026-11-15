@@ -1,0 +1,23 @@
+{
+  "_what": "A RECORD of one production measurement, not a computation: our component ranks against 61 Deepvue ranks, ranked over every non-ETF ticker with a fresh daily bar (U1, 6,651 names at the 1M horizon), view 'dv' (bars to the 2026-11-09 close, the day before the read). From u5d_fit_pod.py run on the web pod 2026-11-12.",
+  "deepvue_read": "owner's Deepvue account, 2026-11-10 ~03:00 ET, ranks strip 1M 3M 6M 9M 12M for 61 names (deepvue_reads_2026-11-10.txt in the RS hand-off folder)",
+  "universe": "U1: every rankable non-ETF ticker with a daily bar within 5 calendar days of the session and enough closes for the horizon; no type, price or volume filter",
+  "methods": {"1M": "plain 21-bar return", "3M": "equal-weighted average of the 21/42/63-bar close ratios", "6M": "IBD-style blend (2 R63 + R126) / 3", "9M": "IBD-style blend (2 R63 + R126 + R189) / 4", "12M": "IBD-style blend (2 R63 + R126 + R189 + R252) / 5"},
+  "names": 61,
+  "horizons": {
+    "1M":  {"spearman": 0.999, "mae": 1.2, "bias": 0.4,  "within10": 61, "universe_names": 6651},
+    "3M":  {"spearman": 0.994, "mae": 2.2, "bias": 0.9,  "within10": 59, "universe_names": 6487},
+    "6M":  {"spearman": 0.938, "mae": 5.5, "bias": 0.4,  "within10": 51, "universe_names": 6196},
+    "9M":  {"spearman": 0.949, "mae": 5.0, "bias": -0.5, "within10": 54, "universe_names": 5960},
+    "12M": {"spearman": 0.992, "mae": 1.1, "bias": -0.5, "within10": 60, "universe_names": 5797}
+  },
+  "cap_universe_baseline": {
+    "_note": "the same names and methods ranked over the 3,418-name cap universe (what the rating used until 2026-11-12)",
+    "1M":  {"mae": 8.0, "bias": -8.0},
+    "3M":  {"mae": 6.9, "bias": -6.4},
+    "6M":  {"mae": 9.1, "bias": -5.6},
+    "9M":  {"mae": 9.4, "bias": -7.1},
+    "12M": {"mae": 8.6, "bias": -8.4}
+  },
+  "reported": {"mean_mae": 3.0, "mean_bias": 0.1, "within10": 285, "comparisons": 305, "within10_share_pct": 93}
+}

@@ -15,6 +15,14 @@ import pytest
 import api.main as m
 
 
+@pytest.fixture(autouse=True)
+def _own_screener_db(tmp_path, monkeypatch):
+    """Since 2026-11-12 an ARMED rating run writes an attempt row to screener.db
+    before the (stubbed) job runs (`rs_history.begin_attempt`), so every test here
+    gets its own file instead of the repo's ./data/screener.db."""
+    monkeypatch.setenv("SCREENER_DB_PATH", str(tmp_path / "screener.db"))
+
+
 class _FakeSched:
     def __init__(self):
         self.ids = []

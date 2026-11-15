@@ -228,7 +228,8 @@ const ENGINE_REL = 'app/src/components/chart/engine'
 // ─── the registry itself ─────────────────────────────────────────────────────
 
 describe('native registry — membership', () => {
-  it('lists 52 natives and 4 server definitions — FIFTY-SIX, across two lanes', () => {
+  it('lists 52 natives and 5 server definitions — FIFTY-SEVEN, across two lanes', () => {
+    // ⭐ 2026-11-12 (RS Exit Warnings): `rsExit` is the fifth server definition (56 -> 57).
     // ⭐ UCT RS split, unit U6 (2026-11-09): `rsRating`, `rsPhases` and `rsVsEma`
     // join `rsLine` on the server lane (`registrySizes.SHIPPED_DEF_IDS.server`).
     // ⭐ `movingAverage` IS THE EIGHTEENTH, and the first whose input is a SERIES
@@ -260,7 +261,7 @@ describe('native registry — membership', () => {
       'cmo', 'dataSeries', 'dollarVolume', 'donchian', 'envelope', 'fiftyTwoWeek',
       'forceIndex', 'historicalVolatility', 'ichimoku', 'keltner', 'macd', 'mfi',
       'momentum', 'movingAverage', 'obv', 'percentFromMa', 'ppo', 'pvt',
-      'relativeVolume', 'roc', 'rsLine', 'rsPhases', 'rsRating', 'rsVsEma',
+      'relativeVolume', 'roc', 'rsExit', 'rsLine', 'rsPhases', 'rsRating', 'rsVsEma',
       'rsi', 'sar', 'squeeze', 'standardDeviation', 'stoch', 'stochRsi', 'superTrend', 'trix', 'tsi',
       'ultimate', 'upDownVolume', 'vortex', 'vwap', 'williamsR',
     ])
@@ -279,7 +280,8 @@ describe('native registry — membership', () => {
     expect(getDefinition('rsLine').id).toBe('rsLine')
     // …and it is still its own LANE, not folded into the natives. U6 (2026-11-09):
     // the three RS split definitions follow it, in registration order.
-    expect(SERVER_DEFS.map(d => d.id)).toEqual(['rsLine', 'rsRating', 'rsPhases', 'rsVsEma'])
+    // 2026-11-12 (RS Exit Warnings): and the fifth, `rsExit`, last.
+    expect(SERVER_DEFS.map(d => d.id)).toEqual(['rsLine', 'rsRating', 'rsPhases', 'rsVsEma', 'rsExit'])
     expect(SERVER_DEFS[0].compute.kind).toBe('server')
     expect(validateDefinition(SERVER_DEFS[0]).ok).toBe(true)
     expect(NATIVE_DEFS.some(d => d.id === 'rsLine')).toBe(false)
@@ -391,7 +393,7 @@ const JULY_LEGACY_DEFAULTS = {
 // any of them to be a no-op against.
 // ⭐ THE RS SPLIT'S THREE (U6, 2026-11-09) JOIN THEM for rsLine's reason: server
 // definitions that were never a `cs.indicators` section.
-const NOT_A_MIGRATION = ['atrBands', 'avwap', 'rsLine', 'rsRating', 'rsPhases', 'rsVsEma', 'dataSeries', 'movingAverage', 'dollarVolume',
+const NOT_A_MIGRATION = ['atrBands', 'avwap', 'rsLine', 'rsRating', 'rsPhases', 'rsVsEma', 'rsExit', 'dataSeries', 'movingAverage', 'dollarVolume',
   'superTrend', 'aroon', 'vortex', 'choppiness', 'stochRsi', 'ppo', 'roc', 'momentum', 'tsi', 'cmo', 'trix', 'awesome', 'ultimate', 'balanceOfPower', 'bullBearPower', 'keltner', 'envelope', 'bbPercentB', 'bbWidth', 'atrPercent', 'adrPercent', 'historicalVolatility', 'squeeze', 'relativeVolume', 'accumDist', 'chaikinMoneyFlow', 'chaikinOscillator', 'forceIndex', 'pvt', 'upDownVolume', 'percentFromMa', 'fiftyTwoWeek', 'standardDeviation']
 
 describe('the July defaults table', () => {

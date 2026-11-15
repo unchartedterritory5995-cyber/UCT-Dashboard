@@ -82,7 +82,8 @@ export function bindWords(bind) {
 }
 
 /** The ten "pick yours" types of a shared item (ruling W11-R5), in the server's words
- *  (`widget_engine/share.TYPE_LABELS`, railed by templateSlots.test.js). */
+ *  (`widget_engine/share.TYPE_LABELS`, railed by templateSlots.test.js), but one: the server's "Kind of note" reads
+ *  "Note type" here (simplify pass 2, A4; the rail pins both words). */
 export const TYPE_LABELS = Object.freeze({
   setup: 'Setup',
   tag: 'Tag',
@@ -90,7 +91,7 @@ export const TYPE_LABELS = Object.freeze({
   account: 'Account',
   property: 'Property',
   folder: 'Folder',
-  note_kind: 'Kind of note',
+  note_kind: 'Note type',
   routine: 'Routine',
   tracker: 'Tracker',
   number: 'Number',

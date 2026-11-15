@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import TileCard from '../../components/TileCard'
 import { SetupGlyph } from '../../pages/modelbook/SetupsView'
 import { SETUP_CATALOG } from '../../pages/modelbook/setupCatalog'
-import coach from '../../components/intro/assets/compass-mark.png'
+import coach from '../../components/intro/assets/compass-mark.webp'
 import d5 from '../duo.module.css'
 import { XP, CROWNS, DAILY_GOAL, RANKS } from '../rewards'
 

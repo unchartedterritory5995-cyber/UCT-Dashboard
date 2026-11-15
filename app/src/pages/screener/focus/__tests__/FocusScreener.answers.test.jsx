@@ -377,7 +377,12 @@ test('Minor 2: after a scan error the old screen coverage note is gone with its 
   expect(screen.queryByText(/not in this list/)).toBeNull()
 })
 
-test('an RS screen says why smaller stocks are missing, calmly (member walk 2026-10-17)', async () => {
+// 2026-11-14: the sentence was "7 smaller stocks are not in this list: RS Rank covers stocks over
+// about $300M in market cap." That is true only of the hourly rank. With the one RS Rating on
+// (RS_RANK_IBD_ENABLED) the column is the nightly rating, which covers every stock with enough
+// price history, and nothing the page receives says which of the two it is showing. So the
+// sentence states what is true of both and names no cause it cannot know.
+test('an RS screen says calmly that the missing stocks have no RS Rating, and blames no market cap (member walk 2026-10-17)', async () => {
   extra = (url, opts) => {
     if (url !== '/api/screener/scan') return null
     const rs = keysOf(JSON.parse(opts.body)).includes('rs_rank')
@@ -387,7 +392,10 @@ test('an RS screen says why smaller stocks are missing, calmly (member walk 2026
   mount()
   await waitFor(() => screen.getByTestId('focus-row-MU'))
   goTo({ rs_rank: RS90 })
-  await waitFor(() => expect(screen.getByText('7 smaller stocks are not in this list: RS Rank covers stocks over about $300M in market cap.')).toBeInTheDocument())
+  await waitFor(() => expect(screen.getByText('7 stocks have no RS Rating, so they are not in this list.')).toBeInTheDocument())
   expect(screen.queryByText(/could not be checked/)).toBeNull()
+  expect(screen.queryByText(/smaller stocks|\$300M|market cap/)).toBeNull()
+  // a screen without the RS filter keeps the general sentence
+  expect(screen.queryByText(/have no value for one of these filters/)).toBeNull()
 })
 

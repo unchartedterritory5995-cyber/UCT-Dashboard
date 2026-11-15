@@ -73,19 +73,20 @@ import { semanticsOf, SEMANTICS_UNKNOWN_PROPAGATES } from './definitionSemantics
 // ⭐⭐ C3B — the object lifecycle, on the chart. Same injection discipline as the
 // marker layer above it: the capability is handed in, and a host that does not
 // provide one simply draws no objects.
-import { evaluateObjects } from './objectRuntime'
+// ⭐⭐ ENGINE 54 — the host object program's one evaluation path, and (on import) the run
+// half's object rail registered for the bind (`runHalfRailSeam.js`)
+import { hostObjectRun, hostObjectReaderOpts } from './runHalfObjectRail.js'
 // ⭐⭐ RT5 — a runtime document's drawings, made by its own run (imports nothing).
-import { runtimeObjectsOf, drawsRuntimeObjects } from './runtime/runtimeObjects.js'
+import { runtimeObjectsOf, runtimeObjectsWithheldOf, drawsRuntimeObjects, runHalfOf, carriesRunHalf } from './runtime/runtimeObjects.js'
 // ⭐⭐ W9-T12 — a strategy's trade markers, from the run's record (refused by name until W9-MK1)
 import { drawsTradeMarkers, memberTradeMarkers, tradeMarkerObjects, publishTradeMarkers, markersWithheldWith,
   joinMarkersToState } from './runtime/tradeMarkers.js'
-import { objectReaderFor } from './objectColumns'
 import { toRenderState } from './objectRenderState'
 // ⭐ C43 — a script whose own `runtime.error` is reached draws nothing; the
 // binder is where that is known per INSTANCE, so it publishes the sentence for
 // the disclosure strip (`runtimeErrorNotice.js`), exactly as the object layer
 // publishes a scaled table (`paneFitNotice.js`).
-import { runtimeErrorStopOf, runtimeObjectsWithheld, runtimeRunStopOf, runtimeColourStopOf, columnErrors } from './nativeRegistry'
+import { runtimeErrorStopOf, runtimeObjectsWithheld, runtimeRunStopOf, runtimeColourStopOf, columnErrors, resolveInputs } from './nativeRegistry'
 import { setRuntimeErrorNotice } from './runtimeErrorNotice'
 // W9-T13b: a strategy run's record, published for the (dark) report panel
 import { setStrategyRecord } from './strategyReportNotice'
@@ -111,31 +112,25 @@ import { SOURCE_STATUS } from './secondaryBars'
 import { otherSymbolsSignature } from './otherSymbols'
 import { lowerTfSignature } from './lowerTf'
 import { setChartClockNotes } from './chartClockNotice'
-import { serverDeclares } from './serverCompute'
+import { serverDeclares, scalarsFor } from './serverCompute'
+import { rescaleOf, rescalePriceFormat } from './rescale'
 // ⭐ P2b — what a render state dropped, for the member's drawing note.
 import { setObjectRenderDrops, renderDroppedCount, renderHeldCount } from './objectRenderNotice'
+import { runtimeWithheldWhy, stoppedRunSentence, STOPPED_KEY, runHalfRefusedSentence, RUN_HALF_WHY_KEY } from './ast/objectLoss'
 import { ThinVolumeSeries } from '../thinVolumeSeries'
+import { isRthBar } from '../barTime'
+import { windowedPoints } from './plotWindow'
 
 /** RTH filter for an intraday FRAME on a chart that hides extended hours — the same
- *  09:30–16:00 ET window `StockChart.sessionBars` applies to the chart's own bars, so
+ *  regular-session window (09:30 to the day's close, half-days included: barTime.isRthBar)
+ *  `StockChart.sessionBars` applies to the chart's own bars, so
  *  a 1h RSI on an RTH 5m chart is computed from the same session a 1h RTH chart
  *  would show. Memoised per frame array. */
 const _rthMemo = new WeakMap()
-const _rthFmt = (() => {
-  try {
-    return new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour12: false, hour: '2-digit', minute: '2-digit' })
-  } catch { return null }
-})()
 function rthFrameBars(fbars) {
   let hit = _rthMemo.get(fbars)
   if (hit) return hit
-  hit = fbars.filter((b) => {
-    if (!b || typeof b.t !== 'number') return true
-    if (!_rthFmt) return true
-    const [h, m] = _rthFmt.format(new Date(b.t * 1000)).split(':').map(Number)
-    const mins = (h % 24) * 60 + m
-    return mins >= 570 && mins < 960
-  })
+  hit = fbars.filter((b) => !b || typeof b.t !== 'number' || isRthBar(b.t))
   _rthMemo.set(fbars, hit)
   return hit
 }
@@ -1121,11 +1116,23 @@ export function createBinder({ chart, LWC, scope = '' }) {
    *  state could not place is counted into the member's drawing note, never only
    *  into a DOM attribute. A state of `null` (nothing drawn) clears. */
   const dropsPublished = new Set()
-  const publishDrops = (instanceId, state) => {
+  // ⭐ W-C22-DEL — `families`: the drawing families the run withheld WHOLE because
+  // TradingView's collector may have removed objects this chart still holds
+  // (`objectRuntime.js`, `withheldBy['objects:collector']`), said by name in the
+  // same note.
+  // `familiesAll`: those withheld WHOLE (`withheldBy['objects:collector-all']`).
+  // ⭐ DIV-3 r2 — `why`: family → the member's sentence, for a family the HOST run
+  // withheld whole by a named guard of its own (`objectRuntime.js`, `withheldWhy`:
+  // a `table.cell` on a merged head cell). Said in the same note, never a silent drop.
+  const publishDrops = (instanceId, state, { families = null, familiesAll = null, why = null } = {}) => {
     const n = state ? renderDroppedCount(state) : 0
-    if (!n && !dropsPublished.has(instanceId)) return
-    attempt(() => setObjectRenderDrops(instanceId, n, state ? renderHeldCount(state) : 0, noticeScope))
-    if (n) dropsPublished.add(instanceId)
+    const fams = Array.isArray(families) ? families : []
+    const all = Array.isArray(familiesAll) ? familiesAll : []
+    const whyN = why && typeof why === 'object' ? Object.keys(why).length : 0
+    if (!n && !fams.length && !all.length && !whyN && !dropsPublished.has(instanceId)) return
+    attempt(() => setObjectRenderDrops(instanceId, n, state ? renderHeldCount(state) : 0, noticeScope,
+      { families: fams, familiesAll: all, why }))
+    if (n || fams.length || all.length || whyN) dropsPublished.add(instanceId)
     else dropsPublished.delete(instanceId)
   }
   // ⭐⭐ W9-T12 — the marker outcome per instance (served, or the refusal's sentence), for the
@@ -1185,8 +1192,18 @@ export function createBinder({ chart, LWC, scope = '' }) {
       const markersCleared = () => { if (markersHere) markOutcomes.set(inst.instanceId, markersWithheldWith(marks)) }
       const markLive = marks ? attempt(() => tradeMarkerObjects(marks)).value || [] : []
       const markSig = markersHere ? `:mk:${markLive.map((o) => `${o.id}=${o.props.text}`).join(',')}` : ''
+      // ⭐⭐ ENGINE 53 — A HOST DOCUMENT'S RUN HALF (`nativeRegistry.js::withRunHalf`), read off
+      // the column record step 1 computed. `served`: the run's drawings, through the run's
+      // branch below, and the host program's are NOT drawn (never both pictures). `pending`:
+      // the run's branch with nothing to draw yet, so the layer is EMPTY until the run lands
+      // (never the host picture first and a swap after). `refused`: the host program's branch,
+      // with the reason the complete picture is not shown said in the drawing note.
+      const runHalf = carriesRunHalf(def) ? runHalfOf((runCols ? runCols.get(inst.instanceId) : null)
+        || (computeMemo.get(inst.instanceId) || {}).cols) : null
+      const runHalfDraws = !!(runHalf && (runHalf.state === 'served' || runHalf.state === 'pending'))
+      const runHalfWhy = runHalf && runHalf.state === 'refused' ? runHalfRefusedSentence(runHalf.code) : null
       // the run's branch: a document whose run draws its objects, or a strategy with no host program
-      if (drawsRuntimeObjects(def) || (markersHere && !(def && def.objects))) {
+      if (drawsRuntimeObjects(def) || runHalfDraws || (markersHere && !(def && def.objects))) {
         alive.add(inst.instanceId)
         const memo = computeMemo.get(inst.instanceId)
         // (r3) no object layer on this surface, or one that could not be made: nothing is drawn
@@ -1203,11 +1220,25 @@ export function createBinder({ chart, LWC, scope = '' }) {
           : objPayload ? { ...objPayload, live: objPayload.live.concat(markLive) }
             : markLive.length ? { live: markLive, withheld: {}, reason: null, stats: { nextId: `mk${markLive.length}` }, pineVersion: null }
               : null
-        if (!payload) { publishDrops(inst.instanceId, null); attempt(() => rlayer.set(null, '')); continue }
+        if (!payload) {
+          // ⭐ OZ r1 — a run that withheld its drawings whole (`WITHHELD`) says why
+          const wr = runtimeObjectsWithheldOf(memo && memo.cols)
+          const ws = wr ? stoppedRunSentence(wr.reason, 'withheld', { fromListing: ctx.historyFromListing === true }) : null
+          publishDrops(inst.instanceId, null, { why: ws ? { [STOPPED_KEY]: ws } : null })
+          attempt(() => rlayer.set(null, '')); continue
+        }
         const rstate = attempt(() => toRenderState(payload.live,
           { bars, tf: ctx.tf, theme, pineVersion: payload.pineVersion })).value
         if (!rstate) { markersCleared(); publishDrops(inst.instanceId, null); attempt(() => rlayer.set(null, '')); continue }
-        publishDrops(inst.instanceId, rstate)
+        // ⭐ OZ — a family the RUN withheld whole draws none; its name reaches the
+        // member's drawing note on this lane too (`runtimeWithheldWhy`).
+        // ⭐ OZ r1 — and a run STOPPED on a step no capture settles (`OBJECT_UNWITNESSED`,
+        // C40) draws nothing; its reason reached only the layer's meta until now.
+        const rStop = payload.status && payload.status !== 'ok' && objPayload
+          ? stoppedRunSentence(payload.reason, 'unmeasured', { fromListing: ctx.historyFromListing === true }) : null
+        const rWhy = runtimeWithheldWhy(payload.withheld)
+        publishDrops(inst.instanceId, rstate,
+          { why: rStop || rWhy ? { ...(rStop ? { [STOPPED_KEY]: rStop } : {}), ...(rWhy || {}) } : null })
         const rsig = `rt:${bars.length}:${bars.length ? bars[bars.length - 1].t : 0}:${(payload.stats || {}).nextId}:${theme.fg || ''}/${theme.bg || ''}`
           + markSig
         const rset = attempt(() => rlayer.set(rstate, rsig, {
@@ -1221,7 +1252,18 @@ export function createBinder({ chart, LWC, scope = '' }) {
         continue
       }
       const program = def && def.objects
-      if (!program) continue
+      if (!program) {
+        // ⭐ ENGINE 53 — a refused run half over a host picture with NO drawings (the host
+        // program lost all of them, or a lost removal withheld it) still says why the complete
+        // picture is not shown; a layer the run drew before is emptied, never left standing.
+        if (runHalfWhy) {
+          alive.add(inst.instanceId)
+          const was = objectLayers.get(inst.instanceId)
+          if (was) attempt(() => was.set(null, ''))
+          publishDrops(inst.instanceId, null, { why: { [RUN_HALF_WHY_KEY]: runHalfWhy } })
+        }
+        continue
+      }
       alive.add(inst.instanceId)
       if (typeof make !== 'function') { markersCleared(); continue }
       let layer = objectLayers.get(inst.instanceId)
@@ -1257,32 +1299,15 @@ export function createBinder({ chart, LWC, scope = '' }) {
         // ⭐ AND WHETHER THE NEWEST BAR IS STILL FORMING — the same tri-state
         // step 1 hands `computeFor`, for the same reason: `barstate.isconfirmed`
         // in an object guard reads `na` without it (`objectReaderFor`).
-        const reader = objectReaderFor(def, bars, {
-          inputs: inst.inputs, tf: ctx.tf, symbol: ctx.symbol,
-          newestBarIsForming: ctx.newestBarIsForming ?? null,
-          // ⭐ C26 — the same other-symbol supply the plot beside it is handed.
-          secondary: ctx.secondary && typeof ctx.secondary.get === 'function' ? ctx.secondary : null,
-          exchangeOf: ctx.exchangeOf,
-          // ⭐ C41 — the same intraday supply the plot beside it is handed.
-          lowerTf: ctx.lowerTf && typeof ctx.lowerTf.get === 'function' ? ctx.lowerTf : null,
-          // ⭐ C12w — the caller's statement that bar 0 is the listing bar. The
-          // document's own declaration is asked inside `objectReaderFor`.
-          ...(ctx.historyFromListing === true ? { historyFromListing: true } : {}),
-          // ⭐ C45 — and the one about `bar_index` (`barIndexAbsoluteFor`); no member
-          // surface states it.
-          ...(ctx.barIndexFromFirstBar === true ? { barIndexFromFirstBar: true } : {}),
-        })
-        if (!reader) return null
-        const run = evaluateObjects(reader.program, {
-          barCount: bars.length,
-          readNode: reader.readNode,
-          readTime: reader.readTime,
-          // ⭐ C12: an op reading a `var` before its warm-up is withheld, not
-          // drawn off a `NaN` that reads as Pine's `na` (`objectRuntime.js`).
-          readUnknown: reader.readUnknown,
-          // ⭐ F1 — off the listing a `var` list of drawings is withheld whole.
-          offListing: reader.historyFromListing !== true,
-        })
+        // ⭐⭐ ENGINE 54 — ONE EVALUATION PATH (`runHalfObjectRail.js::hostObjectRun`), which the
+        // run half's object rail compares the run against: the reader's options are the
+        // instance's inputs and the chart's tf / symbol / forming state, the other-symbol
+        // (C26) and intraday (C41) supplies, the listing (C12w) and `bar_index` (C45)
+        // statements; the evaluator withholds a `var` read before its warm-up (C12), keeps the
+        // chart clock's channel apart (OZ r1) and withholds a `var` list off the listing (F1).
+        const host = hostObjectRun(def, bars, hostObjectReaderOpts(ctx, inst.inputs))
+        if (!host) return null
+        const { reader, run } = host
         return {
           run,
           // ⭐ `tf` so a date-keyed daily series can place an `xloc.bar_time`
@@ -1373,7 +1398,14 @@ export function createBinder({ chart, LWC, scope = '' }) {
           meta.stats.dropped = hstate.dropped
         } else markersCleared()
       }
-      publishDrops(inst.instanceId, hstate)
+      // ⭐ ENGINE 53 — a refused run half says why the complete picture is not shown here
+      // (`RUN_HALF_KEY` in the note's `why`, never a guard token).
+      const hostWhy = built.value.run.withheldWhy || null
+      publishDrops(inst.instanceId, hstate, {
+        families: (built.value.run.withheldBy || {})['objects:collector'] || null,
+        familiesAll: (built.value.run.withheldBy || {})['objects:collector-all'] || null,
+        why: runHalfWhy ? { ...(hostWhy || {}), [RUN_HALF_WHY_KEY]: runHalfWhy } : hostWhy,
+      })
       if (!attempt(() => layer.set(hstate, sig + markSig, meta)).ok) markersCleared()
     }
     for (const [id, layer] of objectLayers) {
@@ -1950,7 +1982,18 @@ export function createBinder({ chart, LWC, scope = '' }) {
       // miss and not another paint of the stale forming bar. `''` for every native.
       const liveSig = typeof registry.computeSignature === 'function'
         ? (registry.computeSignature(def, inst.inputs, { sym: ctx.sym, tf: frame || ctx.tf }) || '') : ''
-      const sig = inputsSignature(inst.inputs) + sourceSig + (otherSig ? `|os:${otherSig}` : '')
+      // ⭐ A SERVER-LANE COMPUTE IS KEYED ON (symbol, timeframe) TOO (2026-11-11). The lane
+      // fetches `/api/signature/columns?...&sym=&tf=` and aligns the answer onto the bars it
+      // is handed, so the same inputs over the SAME bars array mean a different request
+      // after a timeframe or symbol switch. The chart changes `tf`/`sym` a render BEFORE the
+      // new bars land (it keeps the old series on screen meanwhile), and a memo keyed only on
+      // (bars, inputs) answered that render from the old timeframe's columns: no request for
+      // the new one until the new bars arrived. `rsLine` was spared only because its
+      // live-tail signature happens to move with the timeframe; `rsRating`, `rsPhases` and
+      // `rsVsEma` carry none. Natives never read either key, so their signature is unchanged.
+      const serverSig = def && def.compute && def.compute.kind === 'server'
+        ? `|srv:${ctx.sym || ''}:${frame || ctx.tf || ''}` : ''
+      const sig = inputsSignature(inst.inputs) + sourceSig + serverSig + (otherSig ? `|os:${otherSig}` : '')
         + (lowerSig ? `|ltf:${lowerSig}` : '')
         + (liveSig ? `|live:${liveSig}` : '')
         + (strategyWindow !== null ? `|hw${strategyWindow}` : '')
@@ -2024,7 +2067,11 @@ export function createBinder({ chart, LWC, scope = '' }) {
         // array changed for some unrelated reason.
         // ⭐ RT5 — a drawing-only runtime document's record carries no column
         // and IS an answer (its drawings ride non-enumerably beside them).
-        if (Object.keys(cols).length || runtimeObjectsOf(cols)) {
+        // ⛔ ENGINE 53 — and a host result whose run half is still in flight is NOT memoised:
+        // remembering it would pin the empty object layer until the bars changed, and the run's
+        // landing (`notifyColumnsLanded`) would repaint the same pending answer.
+        const halfPending = (runHalfOf(cols) || {}).state === 'pending'
+        if ((Object.keys(cols).length || runtimeObjectsOf(cols)) && !halfPending) {
           computeMemo.set(inst.instanceId, { registry, def, bars: calcBars, sig, cols })
         } else {
           computeMemo.delete(inst.instanceId)
@@ -2353,6 +2400,12 @@ export function createBinder({ chart, LWC, scope = '' }) {
         // ⭐ A `fund:` source's unit, from the catalogue -- null for everything else.
         // An MA of a fundamental inherits its unit (`domainBehavior: 'inherit'`).
         priceFormat: fundamentalPriceFormat(fundamentalFormatOfInstance(b.inst, (id) => registry.getDefinition(id), instances))
+          // ⭐ 2026-11-12 — a line scaled to a rating reads in the rating's
+          // decimals (`rescale.rescalePriceFormat`) while the scale is APPLIED, read
+          // off the instance's landed scalars; null with the scale Off or unscaled.
+          || rescalePriceFormat(b.def, b.inst, b.plot && b.plot.key, rescaleOf(b.def)
+            ? attempt(() => scalarsFor(b.def, resolveInputs(b.def, (b.inst && b.inst.inputs) || {}), { sym: ctx.sym, tf: ctx.tf })).value
+            : null)
           || (_onCandleAxis && ctx.mainPriceFormat) || null,
         // ⭐ ONLY A CANDLE READS THESE, and resolving them HERE is what keeps the
         // chart's own palette the default: `cs.candles` is the member's candle
@@ -2724,7 +2777,14 @@ export function createBinder({ chart, LWC, scope = '' }) {
       const gapBreak = isConnectedPool(b.poolKey)
         && (hasPitLineage(b.inst, instances) || (b.plot && b.plot.sparse === true))
       const split = gapBreak ? splitFor(points) : null
-      const drawn = split ? split.primary : points
+      // ⭐ 2026-11-13 — ONLY THE ROWS FROM THE WINDOW START ARE HANDED TO THE RENDERER
+      // (`plotWindow.js`; `ctx.plotWindowFrom`, a bar time, absent = every row). The
+      // column, the legend's `lastValue` / `valueAt` below and every other reader keep
+      // the whole series: this is what is DRAWN, never what is known. The primary series
+      // only; a gap-run series is one valid run and stays whole.
+      // ⛔ THE SAME ARRAY when there is no window (`windowedPoints` returns its argument),
+      // so every chart without one makes exactly the calls it always made.
+      const drawn = windowedPoints(split ? split.primary : points, ctx.plotWindowFrom)
       if (firstBindNeedsSetData(b, planMode)) {
         attempt(() => series.setData(drawn))
       } else if (typeof ctx.applyData === 'function') {

@@ -8,7 +8,7 @@
 //   B · Scoreboard  eight candle slots that light gold or red, a big gold score (a game HUD, Chess.com Puzzle Rush)
 //   C · Route       a chart-maker's route, eight waypoints, our compass travelling it (the Uncharted Territory intro's map)
 import UIcon from '../../../components/ui/UIcon'
-import brandMark from '../../../components/intro/assets/compass-mark.png'
+import brandMark from '../../../components/intro/assets/compass-mark.webp'
 import h from './hudLooks.module.css'
 
 function tally(step, total, results) {

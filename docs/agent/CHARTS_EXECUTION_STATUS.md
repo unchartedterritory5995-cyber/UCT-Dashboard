@@ -8,12 +8,67 @@ Built on `agent/pl/bar-time-coverage` from `agent/pl/integration-1` `b07a97d526`
 
 ## The number
 
-**226 of 484 actions, 46.7%, are VERIFIED at panel level with a scripted model** (158 in the 2026-11-05 run, plus 68 on 2026-11-10: 29 from the chart-settings outcome test, 3 from the Multi Chart outcome test, 35 from the cited-test re-run, 1 from the Options Flow chips). A further 9 are PARTIAL (SIMULATED): part of the action passes, part is not covered. See "Update 2026-11-10: combined execution packets (PR #1016)" below. That proves the Agent is given what it needs and that a correct plan reaches the right state. It does not prove the real model picks that plan, and it does not prove the real chart redraws.
+> **Re-measurement 2026-11-11 (owner decision of 2026-11-10).** The 225/484 below was first measured on a stale test installation (the 2026-11-06 `node_modules`; the master ledger run on that install, `b2300e547d`, was voided by AUDIT and is kept at `docs/agent/program/evidence/remeasure-1016/old-stale-b2300e547d/`). By the owner's decision of 2026-11-10 that **original 225/484 result is INVALID** as evidence. **Re-measured with the same method on a verified install: 225 of 484 VERIFIED (46.5%): 188 re-proved by a passed cited test, 37 file-level only (citation not matched, all named test files passed), 0 not re-proved.** The number did not change and no row changed state. See "Re-measurement 2026-11-11" below.
+
+> **Since the re-measure:** it confirmed **225/484** on master `75421184a3`. #1029 (merged as `4dacc81529`) then verified C3-166, giving the **226** below; that one row rests on #1029's own evidence, not on the re-measure run.
+
+**259 of 484 actions, 53.5%, are VERIFIED at panel level with a scripted model** (158 in the 2026-11-05 run, plus 101 on 2026-11-10: 29 from the chart-settings outcome test, 3 from the Multi Chart outcome test, 35 from the cited-test re-run, 1 from the Options Flow chips, 17 from the data-widget actions and watchlist groups A–D, 16 from the Multi Chart grid execution, see "Update 2026-11-10: Multi Chart grid execution (pl-grid)"). A further 11 are PARTIAL (SIMULATED): part of the action passes, part is not covered. See "Update 2026-11-10: combined execution packets (PR #1016)" below. That proves the Agent is given what it needs and that a correct plan reaches the right state. It does not prove the real model picks that plan, and it does not prove the real chart redraws.
 
 - Production evidence with the real planner covers 13 of those 158 rows, from the 2026-11-03 live run on the older build `463a4bcba5`, read by receipt and some server reads.
 - Real component in a browser, Agent executing: 0 rows. The browser runs in teach-status.md prove walkthroughs, where a person clicks. They never ran an Agent plan.
-- A further 29 rows have a passing runtime test (capability and writer, no panel). They are IMPLEMENTED / UNVERIFIED and are not in the 226. (It was 43 on 2026-11-05; 14 of them were raised on 2026-11-10.)
+- A further 28 rows have a passing runtime test (capability and writer, no panel). They are IMPLEMENTED / UNVERIFIED and are not in the 259. (It was 43 on 2026-11-05; 14 of them were raised on 2026-11-10.)
 - P0 actions: 58 of 74 VERIFIED (as of 2026-11-05; this doc carries no per-row P0 tag, so the 2026-11-10 update did not recount it).
+
+## Re-measurement 2026-11-11 (owner decision 4, 2026-11-10)
+
+Owner decision of 2026-11-10: "Re-measure #1016's execution coverage using a correct, reproducible test installation. Mark the previous 225/484 result as invalid until verified." The previous 225/484 is INVALID (stale install, see "The number"). This is the re-measurement.
+
+- Evidence: `docs/agent/program/evidence/remeasure-1016/attempt-2/` (raw outputs committed before interpretation). Script: `docs/agent/program/evidence/remeasure-1016/remeasure.sh attempt-2`, one run, 2026-11-11 02:50-03:22Z. Attempt-1 (`attempt-1/`) was interrupted by a PC crash after 8 of 12 packet files; it is kept and not used.
+- Tree: `644b6d7188` = master `75421184a3` plus docs only (app/ diff against master empty, nothing uncommitted under app/). Install: `app/node_modules` is a junction to `C:\w\pl-mc-fw\app\node_modules`; every `package-lock.json` pin is installed at its version (539 match, 0 mismatched). Harness: `recount.mjs` from `6f9abd8515`. Scripted model, jsdom; not a real browser and not the real model.
+- #1016's 12 packet files, each run alone: 12 of 12 passed (238 tests passed, 0 failed, 24 todo).
+- `src/agent` (the ledger command): 314 files, 9845 passed, 0 failed, 14 skipped.
+- Recount of the "All actions" table: VERIFIED 225, PARTIAL 9, IMPLEMENTED / UNVERIFIED 69, MISSING 126, BLOCKED 43, UNMAPPED 12; 484 in scope, 19 excluded. Unchanged.
+
+| Part | In scope | OLD doc V | OLD re-proved | OLD file-level | NEW doc V | NEW re-proved | NEW file-level | NEW not re-proved |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| C1 | 168 | 103 | 101 | 2 | 103 | 101 | 2 | 0 |
+| C2 | 100 | 39 | 38 | 1 | 39 | 38 | 1 | 0 |
+| C3 | 216 | 83 | 49 | 34 | 83 | 49 | 34 | 0 |
+| **Total** | 484 | 225 | 188 | 37 | 225 | 188 | 37 | 0 |
+
+OLD = the voided run on the stale install; NEW = this run. Per-area table and per-row ledger: `attempt-2/compare.md`, `attempt-2/ledger.md`. 0 rows differ between OLD and NEW. A weakness the method keeps: 37 VERIFIED rows (34 in C3) are proved only at file level, because their citation names no test the recount can match.
+
+## Update 2026-11-11: chart zoom (C1-028) and C1-022 log / arithmetic (agent/pl/chart-zoom)
+
+New capability `chartSetup.zoom` {direction in | out, steps 1-10}: the + / - keys' own writer (`StockChart.zoomTimeAxis`, which the key handler now calls), reached through `ChartPane.viewDo('zoom')`, read back from `getDateMeta().frame` (the window width moved the asked way, to the width asked), refused at the time scale's bar-spacing limit (`getDateMeta().zoomLimits`), exact Undo through `restoreView`. C1-022's log and arithmetic were not driven by an outcome test; two cases now are. Evidence: vitest, scripted model, jsdom; the zoom row is † (the chart's view is a stand-in inside the test; StockChart's half is a source check). PR doc: `docs/agent/program/PR-chart-zoom.md`.
+
+- VERIFIED (2): C1-022, C1-028; was PARTIAL (SIMULATED) (1): C1-022; was BLOCKED (1): C1-028.
+- Still BLOCKED: C1-026 (drag the price axis to compress): no read-back the Agent can verify; not built here.
+- Counts updated by hand from the two rows (C1 Scale, C1 View, C1 all, Total, Combined counts); "The number" headline is left for the merge recount.
+## Update 2026-11-11: Drawing Boards execution (agent/pl/drawing-boards-exec)
+
+The Agent switches, creates, renames and deletes Drawing Boards through the Boards panel's own store writers (drawingsStore setActiveTracing / createTracing / renameTracing / deleteTracing, via host.drawingBoards), reads the result back and waits for the server's tracings_doc. Delete is always a confirmation card that names the board and its drawing count, with no Undo. An unnamed or ambiguous board is asked about. A board request aimed at one chart is answered and not run. Test: `app/src/agent/qa/chartsOutcome/drawingBoards.outcome.test.jsx` (real panel, scripted model, jsdom, SIMULATED), plus `app/src/agent/agentDrawingBoards.test.jsx` (runtime). PR doc: `docs/agent/program/PR-exec-drawing-boards.md`.
+
+- VERIFIED (4): C1-167, C1-168, C1-169, C1-170; was MISSING (4): C1-167, C1-168, C1-169, C1-170.
+- Counts are not changed here: the summary numbers and tables are recounted at merge (rows C1-167..170 above are the only change).
+## Update 2026-11-10: Multi Chart grid execution (pl-grid)
+
+Branch `agent/pl/exec-multichart-grid`. PRODUCT change: the grid's own writers reach the Agent through `multiChart.set` (the grid) and `multiChart.cell` (one cell, chart-backed so the deixis / P2-B / hidden-behind-maximized rules apply), over `pages/charts/grid/useGridAgentControl.js`. The menu, the Groups picker and the cells call the same functions (`gridGroupActions.js`, lifted `maxId`, `gridTemplateLayout`). Evidence: vitest, jsdom, scripted model, fixture server; not a real browser and not the real model. PR doc: `docs/agent/program/PR-exec-multichart-grid.md`.
+
+- VERIFIED (16), each through the real AgentPanel, end state read back from the grid (`useMultiChartState` / the saved `multichart_state` / `gridBoard` / the layouts book), other cells byte-identical, Undo restoring the persisted board byte for byte: C3-042, C3-043, C3-044, C3-045, C3-046, C3-047, C3-048, C3-049, C3-050, C3-051, C3-052, C3-053, C3-055, C3-059, C3-060, C3-061. Was MISSING (2): C3-042, C3-043; was BLOCKED (14): the rest.
+- Unchanged: C3-054 (save a grid as global, admin) stays BLOCKED, an owner decision. The Agent saves only the member's own grids and refuses to delete a prebuilt one (a boundary case in the outcome test).
+- Held-out family (`multiChartGrid.family.test.jsx`, 2×2 / 2×3 / 3×3, written before the fix: pre-fix `Tests 60 failed | 8 passed | 1 todo (69)` with the outcome file): maximize by position and number, the click as ANCHOR never the target, an excluded click, ambiguity asked, hidden cell refused, grow and shrink (a shrink that drops charts is proposed), sync toggles.
+- KNOWN GAP, pinned (it.fails + a test asserting today's outcome): "…not the one I clicked" is not a negation in deixis `NEG_POINTER`, so a plan on the clicked cell runs. Shared deixis machinery, routed to #988.
+- Recount: by script from the "All actions" table into "Counts by area", "The number", "Combined counts" and the runtime-only bullet; the method reproduced the previous 225 / 484 exactly before the change. Re-merged onto master `64421f770d` (2026-11-11): the same 16 rows applied to master's table (master's Multi Chart rows were unchanged since the branch point) and recounted by script from the "All actions" table: 243 → 259 VERIFIED, MISSING 107 → 105, BLOCKED 43 → 29.
+
+## Update 2026-11-10 (3): data-widget actions and watchlist groups A–D (agent/pl/exec-widget-actions)
+
+One widget-action layer: every row is data in `widgets/widgetControls.js` / `agent/widgetNames.js`, run by `widget.setOption` through the widget's own door (`pages/charts/widgetDoors.js`). New row types: `action` (a widget's own button, `act(key)`; done only once it resolves, nothing to undo) and `color` (#rrggbb). New capability: `watchlist.arrangeColumns` (the header drag's and the gridline's own results, now shared with the drag). Tests: real Agent panel beside the REAL widgets (Alerts, News, Market Context, AI Search, Fundamentals, Scanner, Period Sort, Watchlist), scripted model, jsdom, SIMULATED. Held-out phrasings were committed before each change and failed before it (48 of 48). PR doc: `docs/agent/program/PR-exec-widget-actions.md`.
+
+- VERIFIED (17): C3-132, C3-137, C3-186, C3-200, C3-112, C3-208, C3-108, C3-104, C3-074, C3-085, C3-086, C3-063, C3-064, C3-065, C3-067, C3-094, C3-095; was IMPLEMENTED / UNVERIFIED (1): C3-063; was MISSING (16): C3-064, C3-065, C3-067, C3-074, C3-085, C3-086, C3-094, C3-095, C3-104, C3-108, C3-112, C3-132, C3-137, C3-186, C3-200, C3-208.
+- PARTIAL (SIMULATED) (2): C3-180, C3-103; was MISSING (2): C3-103, C3-180. C3-103: no gradient, fonts, grid or tint colours. C3-180: the Journal half only.
+- Known gap, pinned both ways: "narrow the price column to 50" (C3-086) is answered by the quote fast path before the model. Not this PR: C3-166 (the Options Flow chips, F-16 widened) is #1029's row, VERIFIED there. Deferred: C3-071, C3-072, C3-097 (see the PR doc).
+- Recounted from the "All actions" table by `recount-widget-actions.mjs` (it first reproduces the previous "Counts by area" exactly from the previous rows).
 
 ## Update 2026-11-10 (4): the Options Flow widget's chips, F-16 widened (agent/pl/exec-flow-filters)
 
@@ -61,6 +116,9 @@ The 10 non-held-out test files named by 40 NOT VERIFIED rows (ledger `docs/agent
 | 2026-11-05 | 158 | 0 | 112 | 154 | 47 | 13 | 484 | 19 |
 | after chart settings + multichart + cited re-run | 225 | 9 | 69 | 126 | 43 | 12 | 484 | 19 |
 | after the Options Flow chips (agent/pl/exec-flow-filters) | 226 | 9 | 69 | 125 | 43 | 12 | 484 | 19 |
+| after the data-widget actions + watchlist A–D (agent/pl/exec-widget-actions) | 243 | 11 | 68 | 107 | 43 | 12 | 484 | 19 |
+| after chart zoom + C1-022 log / arithmetic (agent/pl/chart-zoom) | 245 | 10 | 68 | 107 | 42 | 12 | 484 | 19 |
+| after Multi Chart grid execution (pl-grid, #1030, re-merged onto 64421f770d) | 259 | 11 | 68 | 105 | 29 | 12 | 484 | 19 |
 
 - VERIFIED 225 of 484, 46.5%. PARTIAL is in scope but never VERIFIED (the PARTIAL column PR #1016 introduced).
 - Re-run on the combined branch (after both merges): all 12 test files of the three packets were run once each, single-file, under the suite lock, and all passed (chartSettings.outcome 40 passed + 5 known-gap (pinned) + 7 todo; multiChart.outcome 8 passed + 17 todo; the 10 cited files as in EXEC-CITED-RERUN.md). Totals lines: `docs/agent/program/PR-exec-chart-settings.md`.
@@ -145,8 +203,8 @@ Every file:line citation in the control column was checked against this tree: 33
 | C1 | Timeframe | 3 | 0 | 3 | 0 | 0 | 0 | 6 | 1 |
 | C1 | Chart type | 5 | 0 | 0 | 0 | 0 | 0 | 5 | 1 |
 | C1 | Session | 2 | 0 | 0 | 0 | 0 | 0 | 2 | 1 |
-| C1 | Scale | 2 | 1 | 0 | 1 | 1 | 0 | 5 | 0 |
-| C1 | View | 2 | 0 | 0 | 0 | 1 | 0 | 3 | 0 |
+| C1 | Scale | 3 | 0 | 0 | 1 | 1 | 0 | 5 | 0 |
+| C1 | View | 3 | 0 | 0 | 0 | 0 | 0 | 3 | 0 |
 | C1 | Go to date | 2 | 0 | 1 | 1 | 0 | 0 | 4 | 0 |
 | C1 | Compare | 1 | 0 | 4 | 3 | 0 | 0 | 8 | 0 |
 | C1 | Replay | 2 | 0 | 0 | 1 | 1 | 1 | 5 | 0 |
@@ -192,35 +250,37 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3 | Widget tabs | 3 | 0 | 1 | 0 | 0 | 0 | 4 | 0 |
 | C3 | Chart tabs | 4 | 0 | 1 | 0 | 0 | 0 | 5 | 0 |
 | C3 | Layout Dock | 8 | 0 | 2 | 5 | 2 | 0 | 17 | 0 |
-| C3 | Multi Chart | 3 | 1 | 0 | 2 | 15 | 0 | 21 | 0 |
-| C3 | Watchlist | 15 | 0 | 4 | 15 | 5 | 1 | 40 | 4 |
-| C3 | Scanner | 8 | 0 | 0 | 4 | 2 | 0 | 14 | 0 |
+| C3 | Multi Chart | 19 | 1 | 0 | 0 | 1 | 0 | 21 | 0 |
+| C3 | Watchlist | 25 | 1 | 3 | 5 | 5 | 1 | 40 | 4 |
+| C3 | Scanner | 10 | 0 | 0 | 2 | 2 | 0 | 14 | 0 |
 | C3 | Volume Surge | 1 | 0 | 2 | 3 | 0 | 0 | 6 | 0 |
-| C3 | Alerts | 4 | 0 | 0 | 2 | 0 | 0 | 6 | 0 |
-| C3 | News | 1 | 0 | 1 | 3 | 0 | 0 | 5 | 0 |
+| C3 | Alerts | 5 | 0 | 0 | 1 | 0 | 0 | 6 | 0 |
+| C3 | News | 2 | 0 | 1 | 2 | 0 | 0 | 5 | 0 |
 | C3 | TE News | 1 | 1 | 2 | 6 | 0 | 0 | 10 | 0 |
 | C3 | Calendar | 5 | 0 | 1 | 3 | 0 | 0 | 9 | 0 |
 | C3 | Breadth | 3 | 0 | 0 | 4 | 0 | 0 | 7 | 0 |
 | C3 | Options Flow | 2 | 0 | 2 | 1 | 0 | 0 | 5 | 0 |
 | C3 | Themes | 5 | 1 | 0 | 3 | 0 | 0 | 9 | 0 |
-| C3 | Fundamentals | 2 | 0 | 0 | 1 | 0 | 0 | 3 | 0 |
+| C3 | Fundamentals | 2 | 1 | 0 | 0 | 0 | 0 | 3 | 0 |
 | C3 | Profile | 2 | 0 | 0 | 0 | 0 | 0 | 2 | 0 |
 | C3 | Indexes | 2 | 0 | 0 | 0 | 0 | 0 | 2 | 0 |
-| C3 | Market Context | 0 | 0 | 0 | 1 | 0 | 1 | 2 | 0 |
+| C3 | Market Context | 1 | 0 | 0 | 0 | 0 | 1 | 2 | 0 |
 | C3 | NH/NL | 3 | 0 | 0 | 1 | 0 | 0 | 4 | 0 |
 | C3 | H/L Pulse | 0 | 0 | 0 | 1 | 0 | 0 | 1 | 0 |
 | C3 | Market Map | 1 | 1 | 0 | 2 | 0 | 0 | 4 | 0 |
-| C3 | AI Search | 0 | 0 | 1 | 4 | 0 | 0 | 5 | 0 |
+| C3 | AI Search | 1 | 0 | 1 | 3 | 0 | 0 | 5 | 0 |
 | C3 | Notebook | 1 | 1 | 0 | 1 | 1 | 0 | 4 | 0 |
-| C3 | Period Sort | 0 | 0 | 0 | 4 | 0 | 0 | 4 | 0 |
+| C3 | Period Sort | 1 | 0 | 0 | 3 | 0 | 0 | 4 | 0 |
 | C3 | Replay | 2 | 0 | 1 | 1 | 0 | 0 | 4 | 0 |
 | C3 | Review | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 3 |
 | C3 | Company dock | 3 | 0 | 2 | 0 | 0 | 0 | 5 | 0 |
 | C3 | Workspace | 0 | 0 | 0 | 1 | 1 | 1 | 3 | 0 |
-| C1 | **all** | 103 | 4 | 17 | 28 | 11 | 5 | 168 | 11 |
+| C1 | **all** | 105 | 3 | 17 | 28 | 10 | 5 | 168 | 11 |
 | C2 | **all** | 39 | 0 | 32 | 20 | 5 | 4 | 100 | 1 |
-| C3 | **all** | 84 | 5 | 20 | 77 | 27 | 3 | 216 | 7 |
-| | **Total** | 226 | 9 | 69 | 125 | 43 | 12 | 484 | 19 |
+| C3 | **all** | 101 | 7 | 19 | 59 | 27 | 3 | 216 | 7 |
+| | **Total** | 245 | 10 | 68 | 107 | 42 | 12 | 484 | 19 |
+| C3 | **all** | 117 | 7 | 19 | 57 | 13 | 3 | 216 | 7 |
+| | **Total** | 259 | 11 | 68 | 105 | 29 | 12 | 484 | 19 |
 
 ## Raised to VERIFIED (47)
 
@@ -371,13 +431,13 @@ Every file:line citation in the control column was checked against this tree: 33
 | C1-019 | Session | Regular/extended on intraday | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | boardArrangement.outcome.test.jsx: C1-019 (held-out phrasing) "a 5-minute chart shows the extended session; Undo turns it off"; see docs/agent/program/EXEC-CITED-RERUN.md | pass 13/13 | panel, scripted model |
 | C1-020 | Session | Regular/extended on D/W/M | VERIFIED | c:session.extended | pass 5/5 | panel, scripted model |
 | C1-021 | Session | Extended hours from price-axis menu | NOT ON /CHARTS | c:session.extended | pass 5/5 | n/a |
-| C1-022 | Scale | Arithmetic/log/percent from menu | PARTIAL (SIMULATED) — covered: percent scale (chart.setScale, settings.percentScale read back, Undo back to arithmetic); not covered: log scale, and asking for arithmetic by name, are not driven by this test | boardArrangement.outcome.test.jsx: C1-022 (held-out phrasing) "the chart goes to the percent scale; Undo goes back"; see docs/agent/program/EXEC-CITED-RERUN.md | pass 13/13 | panel, scripted model |
+| C1-022 | Scale | Arithmetic/log/percent from menu | VERIFIED (SIMULATED outcome test, scripted model, jsdom) — percent, log and arithmetic each by name (chart.setScale; settings.percentScale / logScale read back; the other chart untouched; Undo) | boardArrangement.outcome.test.jsx: C1-022 (held-out phrasing) "the chart goes to the percent scale; Undo goes back"; C1-022 "put this chart on a log scale" (two charts, the other untouched); C1-022 "switch this chart back to the arithmetic scale" (from log; Undo puts log back) | pass 3/3 (-t C1-022) | panel, scripted model |
 | C1-023 | Scale | Toggle log (Shift+L) | VERIFIED | c:scale.log; g:GW-01 | pass 7/7 | production (E-01) and panel |
 | C1-024 | Scale | Invert scale (Alt+I) | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-024 "flip the price scale upside down" | pass 33/33 (7 todo) | panel, scripted model |
 | C1-025 | Scale | Auto-scale | MISSING | none | n/a | none |
 | C1-026 | Scale | Drag price axis to compress | BLOCKED | none | n/a | none |
 | C1-027 | View | Reset view | VERIFIED † | c:chartSetup.resetView; agentChartViewControls: reaches the chart's reset and is read back | pass 5/5 | panel, scripted model |
-| C1-028 | View | Zoom in/out (+/-) | BLOCKED | none | n/a | none |
+| C1-028 | View | Zoom in/out (+/-) | VERIFIED † | agentChartZoom.test.jsx: chartSetup.zoom in / out / n steps through the + / - keys' writer (zoomTimeAxis), read back as the window width; refused at the limit; exact Undo (window + view lock), stale after a pan or zoom; two-chart wrong-target control; c:chartSetup.zoom | pass 13/13 | panel, scripted model |
 | C1-029 | View | Range buttons (3M/6M/YTD/1Y/5Y) | VERIFIED † | c:chartSetup.setRange; agentChartViewControls: offers exactly the buttons the bar has | pass 6/6 | panel, scripted model |
 | C1-030 | Go to date | Type a date in Time Navigator | VERIFIED † | c:chart.goToDate | pass 4/4 | panel, scripted model |
 | C1-031 | Go to date | Pick date or year in calendar | IMPLEMENTED / UNVERIFIED | none named | n/a | source only |
@@ -410,7 +470,7 @@ Every file:line citation in the control column was checked against this tree: 33
 | C1-058 | Settings | Watermark alignment | MISSING | none; gap: docs/agent/program/EXEC-CHART-SETTINGS.md (gap list) | n/a | none |
 | C1-059 | Settings | Watermark size/weight/colour/opacity | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-059 "make the watermark bigger, bold, blue and 30% opacity" | pass 33/33 (7 todo) | panel, scripted model |
 | C1-060 | Settings | Move watermark | VERIFIED | agentChartSettingsTruth: writes opts.watermarkPos | pass 1/1 | panel, scripted model |
-| C1-061 | Settings | Reset watermark to centre | PARTIAL (SIMULATED) — covered: the watermark ends centred (watermark.x/y = 0.5 in opts.watermarkPos, Undo); not covered: the product's own Reset write (watermarkPos: null, ChartWidget.jsx:499), which no capability makes | chartSettings.outcome.test.jsx: C1-061 "put the watermark back in the middle" | pass 33/33 (7 todo) | panel, scripted model |
+| C1-061 | Settings | Reset watermark to centre | VERIFIED (SIMULATED) — chartMenu.resetWatermark writes the product's own Reset (opts.watermarkPos = null: Chart Settings → Watermark → "Reset to center", ChartWidget resetWatermark), read back from the widget, exact Undo; the x/y = 0.5 path (chart.setSetting) is still covered | ChartWidget.rclickParity.test.jsx: C1-061 (the same opts as the real Reset; exact Undo); agentChartMenu.test.jsx (one chart, #988 anchor, wrong-target control); c:chartMenu.resetWatermark; chartSettings.outcome.test.jsx: C1-061 | pass 4/4, 24/24, 3/3 + undo | widget + panel, scripted model |
 | C1-062 | Settings | Title shows ticker/company/both | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-062 "show the ticker and the company name in the title" | pass 33/33 (7 todo) | panel, scripted model |
 | C1-063 | Settings | Day change beside title | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-063 "hide the day change next to the title" | pass 33/33 (7 todo) | panel, scripted model |
 | C1-064 | Settings | Legend mode | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | chartSettings.outcome.test.jsx: C1-064 "only show the legend when I hold the crosshair" | pass 33/33 (7 todo) | panel, scripted model |
@@ -449,7 +509,7 @@ Every file:line citation in the control column was checked against this tree: 33
 | C1-097 | Legend | Hide/show an indicator from chip | VERIFIED | c:indicator.hide; c:indicator.show | pass 9/9 | panel, scripted model |
 | C1-098 | Legend | Display in another pane from chip | VERIFIED | c:indicatorStyle.place-own-pane | pass 4/4 | panel, scripted model |
 | C1-099 | Legend | Duplicate on chart | IMPLEMENTED / UNVERIFIED | none named | n/a | source only |
-| C1-100 | Legend | Show latest value in header | MISSING | none | n/a | none |
+| C1-100 | Legend | Show latest value in header | MISSING — STOP (ownership): the writer is the Indicators chip menu (handleChipInfoValue → engine/infoValues addInfoValue), and the Indicators agent contract (agentMutations) has no info-value op; it needs an Indicators-owned op, not a second writer | none | n/a | none |
 | C1-101 | Legend | Add alert from chip | VERIFIED | c:indicatorAlert.threshold | pass 5/5 | panel, scripted model |
 | C1-102 | Legend | Delete indicator from chip | VERIFIED | c:indicator.remove-sma200 | pass 5/5 | panel, scripted model |
 | C1-103 | Legend | Hide all indicators (Alt+Shift+I) | VERIFIED † | c:chartSetup.setIndicatorsHidden; agentChartViewControls: hides, reads back | pass 6/6 | panel, scripted model |
@@ -493,7 +553,7 @@ Every file:line citation in the control column was checked against this tree: 33
 | C1-141 | Drawing | Cup curve | VERIFIED | drawingFamily: cup: the right symbol | pass 1/1 | panel, scripted model |
 | C1-142 | Drawing | Anchored VWAP | VERIFIED | c:drawing.avwap | pass 5/5 | panel, scripted model |
 | C1-143 | Drawing | Text note | VERIFIED | c:drawing.text | pass 5/5 | panel, scripted model |
-| C1-144 | Drawing | Position calculator | PARTIAL (SIMULATED) — covered: the calculator inputs (positionCalc.accountSize / riskPct, read back, Undo); not covered: placing the position-calculator drawing (drawing family) | chartSettings.outcome.test.jsx: C1-144 "set my position calculator to a 25k account risking half a percent" | pass 33/33 (7 todo) | panel, scripted model |
+| C1-144 | Drawing | Position calculator | VERIFIED (drawing extras) — calculator inputs: chartSettings.outcome.test.jsx C1-144; placing it: drawing.positionCalculator opens the toolbar's Position tool with entry / stop / target on ONE chart (the 3-point position DRAWING is retired), side from entry vs stop, missing / unreadable price refused, exact Undo, wrong-target control | chartSettings.outcome.test.jsx: C1-144; drawingExtras.outcome.test.jsx: C1-144 (4 cases); capreg corpus drawing.positionCalculator | pass 4/4 + 33/33 | panel, scripted model |
 | C1-145 | Drawing | Eraser | VERIFIED | c:drawing.remove | pass 5/5 | panel, scripted model |
 | C1-146 | Drawing | Delete selected (Del, button) | VERIFIED | c:drawing.remove; drawings.outcome: one visible drawing goes at once | pass 6/6 | panel, scripted model |
 | C1-147 | Drawing | Recolour | VERIFIED | c:drawing.style | pass 4/4 | panel, scripted model |
@@ -509,17 +569,17 @@ Every file:line citation in the control column was checked against this tree: 33
 | C1-157 | Drawing | Duplicate | MISSING | none | n/a | none |
 | C1-158 | Drawing | Lock/unlock | IMPLEMENTED / UNVERIFIED | agentChartsOperatorP1.test.jsx | pass 48/48 | runtime, no panel |
 | C1-159 | Drawing | Hide/show one | IMPLEMENTED / UNVERIFIED | agentChartsOperatorP1.test.jsx | pass 48/48 | runtime, no panel |
-| C1-160 | Drawing | Save as default | MISSING | none | n/a | none |
+| C1-160 | Drawing | Save as default | VERIFIED (drawing extras) — drawing.saveDefaults: the menu row's own payload (drawingSaveDefaults.js, shared with the row) merged into ONE chart's drawingDefaults; exact Undo; wrong-target and retired-type refusals | drawingExtras.outcome.test.jsx: C1-160 (3 cases); capreg corpus drawing.saveDefaults | pass 3/3 | panel, scripted model |
 | C1-161 | Drawing | Reorder (front/back) | UNMAPPED | none | n/a | none |
 | C1-162 | Drawing | Undo/redo a drawing | BLOCKED | none | n/a | none |
 | C1-163 | Drawing | Magnet for drawing | UNMAPPED | none | n/a | none |
 | C1-164 | Drawing | Repeat drawing mode | BLOCKED | none | n/a | none |
-| C1-165 | Drawing | Customise tool favourites | MISSING | none | n/a | none |
+| C1-165 | Drawing | Customise tool favourites | VERIFIED (drawing extras) — favourites only (drawing.favoriteTool: the menu's star through drawToolFavorites, read back from storage, exact Undo); hiding a tool from the toolbar not built | drawingExtras.outcome.test.jsx: C1-165 (3 cases); capreg corpus drawing.favoriteTool | pass 3/3 | panel, scripted model |
 | C1-166 | Drawing | Nudge selected with arrows | BLOCKED | none | n/a | none |
-| C1-167 | Boards | Switch drawing board | MISSING | agentDrawings.test.jsx | pass 13/13 | none |
-| C1-168 | Boards | Create a board | MISSING | none | n/a | none |
-| C1-169 | Boards | Rename a board | MISSING | none | n/a | none |
-| C1-170 | Boards | Delete a board | MISSING | none | n/a | none |
+| C1-167 | Boards | Switch drawing board | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | drawingBoards.outcome.test.jsx: "switch to my Earnings board" | pass 6/6 | panel, scripted model |
+| C1-168 | Boards | Create a board | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | drawingBoards.outcome.test.jsx: a planned new board called Breakouts | pass 6/6 | panel, scripted model |
+| C1-169 | Boards | Rename a board | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | drawingBoards.outcome.test.jsx: "rename my Earnings board to Gaps" | pass 6/6 | panel, scripted model |
+| C1-170 | Boards | Delete a board | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | drawingBoards.outcome.test.jsx: the card, Dismiss, Apply; "delete my board" asks | pass 6/6 | panel, scripted model |
 | C1-171 | Keyboard | Add ticker to watchlist (Alt+Q) | VERIFIED | c:watchlist.add | pass 5/5 | panel, scripted model |
 | C1-172 | Keyboard | Add indicator dialog (Alt+Shift+A) | VERIFIED | c:indicator.rsi | pass 5/5 | panel, scripted model |
 | C1-173 | Keyboard | Cycle grid layout (Alt+\\) | UNMAPPED | none | n/a | none |
@@ -565,7 +625,7 @@ Every file:line citation in the control column was checked against this tree: 33
 | C2-038 | Panes | Reorder pane | VERIFIED | agentIndicatorsP2: E4 | pass 1/1 | panel, scripted model |
 | C2-039 | Panes | Resize pane by divider | IMPLEMENTED / UNVERIFIED | agentIndicatorsP2.test.jsx:106 | pass 1/1 | runtime, no panel |
 | C2-040 | Panes | Reorder series within a pane | UNMAPPED | none | n/a | none |
-| C2-041 | Legend | Show latest value in header | MISSING | none | n/a | none |
+| C2-041 | Legend | Show latest value in header | MISSING — STOP (ownership): as C1-100 (the Indicators chip-menu writer; no agentMutations op) | none | n/a | none |
 | C2-042 | Legend | Duplicate on chart | IMPLEMENTED / UNVERIFIED | c:indicatorCopy.duplicate | pass 4/4 | panel, partial |
 | C2-043 | Legend | Create custom copy | IMPLEMENTED / UNVERIFIED | agentDefinitions.test.js:96; agentDefinitions.test.js:110 | pass 2/2 | runtime, no panel |
 | C2-044 | Legend | Open Modify with UCT Intelligence | IMPLEMENTED / UNVERIFIED | agentIndicatorsM1.test.jsx:162 | pass 1/1 | runtime, no panel |
@@ -667,39 +727,39 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3-039 | Layout Dock | Remove a layout from the bar | MISSING | none | n/a | none |
 | C3-040 | Layout Dock | View a layout's version history | MISSING | none | n/a | none |
 | C3-041 | Layout Dock | Restore a layout version | MISSING | none | n/a | none |
-| C3-042 | Multi Chart | Enter a preset grid | MISSING | none; gap: docs/agent/program/EXEC-MULTICHART.md (gap list) | n/a | none |
-| C3-043 | Multi Chart | Apply a custom rows × columns grid | MISSING | none; gap: docs/agent/program/EXEC-MULTICHART.md (gap list) | n/a | none |
-| C3-044 | Multi Chart | Exit Multi Chart | BLOCKED | none; gap: docs/agent/program/EXEC-MULTICHART.md (gap list) | n/a | none |
-| C3-045 | Multi Chart | Toggle crosshair sync | BLOCKED | none; gap: docs/agent/program/EXEC-MULTICHART.md (gap list) | n/a | none |
-| C3-046 | Multi Chart | Toggle time-range sync | BLOCKED | none; gap: docs/agent/program/EXEC-MULTICHART.md (gap list) | n/a | none |
-| C3-047 | Multi Chart | Turn on Groups mode | BLOCKED | none; gap: docs/agent/program/EXEC-MULTICHART.md (gap list) | n/a | none |
-| C3-048 | Multi Chart | Pick a group for the grid | BLOCKED | none; gap: docs/agent/program/EXEC-MULTICHART.md (gap list) | n/a | none |
-| C3-049 | Multi Chart | Step or switch group | BLOCKED | none; gap: docs/agent/program/EXEC-MULTICHART.md (gap list) | n/a | none |
-| C3-050 | Multi Chart | Refresh the group | BLOCKED | none; gap: docs/agent/program/EXEC-MULTICHART.md (gap list) | n/a | none |
-| C3-051 | Multi Chart | Exit Groups | BLOCKED | none; gap: docs/agent/program/EXEC-MULTICHART.md (gap list) | n/a | none |
-| C3-052 | Multi Chart | Apply a saved grid | BLOCKED | none; gap: docs/agent/program/EXEC-MULTICHART.md (gap list) | n/a | none |
-| C3-053 | Multi Chart | Save a grid | BLOCKED | none; gap: docs/agent/program/EXEC-MULTICHART.md (gap list) | n/a | none |
+| C3-042 | Multi Chart | Enter a preset grid | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | multiChart.outcome.test.jsx: C3-042 "can you split my screen into a two by three grid of charts" (from the board); multiChartGrid.family.test.jsx (held-out) | pass 29/29 (1 todo); family pass 45/45 (incl. 3 KNOWN-GAP it.fails pins) | panel, scripted model |
+| C3-043 | Multi Chart | Apply a custom rows × columns grid | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | multiChart.outcome.test.jsx: C3-043 "I want three rows and four columns"; C3-043 past the cap, refused; multiChartGrid.family.test.jsx (held-out) | pass 29/29 (1 todo); family pass 45/45 (incl. 3 KNOWN-GAP it.fails pins) | panel, scripted model |
+| C3-044 | Multi Chart | Exit Multi Chart | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | multiChart.outcome.test.jsx: C3-044 "close the multi chart view and take me back to my normal board"; multiChartGrid.family.test.jsx (held-out) | pass 29/29 (1 todo); family pass 45/45 (incl. 3 KNOWN-GAP it.fails pins) | panel, scripted model |
+| C3-045 | Multi Chart | Toggle crosshair sync | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | multiChart.outcome.test.jsx: C3-045 "link the crosshairs across all four charts"; family: "sync the crosshair on all of these" (2×2/2×3/3×3); multiChartGrid.family.test.jsx (held-out) | pass 29/29 (1 todo); family pass 45/45 (incl. 3 KNOWN-GAP it.fails pins) | panel, scripted model |
+| C3-046 | Multi Chart | Toggle time-range sync | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | multiChart.outcome.test.jsx: C3-046 "keep every chart scrolled to the same dates"; multiChartGrid.family.test.jsx (held-out) | pass 29/29 (1 todo); family pass 45/45 (incl. 3 KNOWN-GAP it.fails pins) | panel, scripted model |
+| C3-047 | Multi Chart | Turn on Groups mode | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | multiChart.outcome.test.jsx: C3-047 "switch groups mode on"; multiChartGrid.family.test.jsx (held-out) | pass 29/29 (1 todo); family pass 45/45 (incl. 3 KNOWN-GAP it.fails pins) | panel, scripted model |
+| C3-048 | Multi Chart | Pick a group for the grid | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | multiChart.outcome.test.jsx: C3-048 "fill the grid with the space stocks"; C3-048 ambiguous name asked; C3-048 nothing chartable, rolled back; multiChartGrid.family.test.jsx (held-out) | pass 29/29 (1 todo); family pass 45/45 (incl. 3 KNOWN-GAP it.fails pins) | panel, scripted model |
+| C3-049 | Multi Chart | Step or switch group | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | multiChart.outcome.test.jsx: C3-049 "go to the next group"; C3-049 "switch over to the memory & HBM group" (also-in chip); multiChartGrid.family.test.jsx (held-out) | pass 29/29 (1 todo); family pass 45/45 (incl. 3 KNOWN-GAP it.fails pins) | panel, scripted model |
+| C3-050 | Multi Chart | Refresh the group | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | multiChart.outcome.test.jsx: C3-050 "refresh the group"; multiChartGrid.family.test.jsx (held-out) | pass 29/29 (1 todo); family pass 45/45 (incl. 3 KNOWN-GAP it.fails pins) | panel, scripted model |
+| C3-051 | Multi Chart | Exit Groups | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | multiChart.outcome.test.jsx: C3-051 "get out of groups mode"; multiChartGrid.family.test.jsx (held-out) | pass 29/29 (1 todo); family pass 45/45 (incl. 3 KNOWN-GAP it.fails pins) | panel, scripted model |
+| C3-052 | Multi Chart | Apply a saved grid | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | multiChart.outcome.test.jsx: C3-052 "open my Momentum Nine grid"; multiChartGrid.family.test.jsx (held-out) | pass 29/29 (1 todo); family pass 45/45 (incl. 3 KNOWN-GAP it.fails pins) | panel, scripted model |
+| C3-053 | Multi Chart | Save a grid | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | multiChart.outcome.test.jsx: C3-053 "save this grid as Chip Watch"; multiChartGrid.family.test.jsx (held-out) | pass 29/29 (1 todo); family pass 45/45 (incl. 3 KNOWN-GAP it.fails pins) | panel, scripted model |
 | C3-054 | Multi Chart | Save a grid as global (admin) | BLOCKED | none; owner decision (admin/global scope): docs/agent/program/EXEC-MULTICHART.md (gap list) | n/a | none |
-| C3-055 | Multi Chart | Delete a saved grid | BLOCKED | none; gap: docs/agent/program/EXEC-MULTICHART.md (gap list) | n/a | none |
-| C3-056 | Multi Chart | Set a cell's timeframe | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | multiChart.outcome.test.jsx: C3-056 "could you flip the top-right one over to a weekly view"; C3-056 (pre-model path) "make the top-right chart weekly" | pass 8/8 (17 todo) | panel, scripted model |
-| C3-057 | Multi Chart | Set a cell's chart style | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | multiChart.outcome.test.jsx: C3-057 "turn the bottom-left chart into plain bars" | pass 8/8 (17 todo) | panel, scripted model |
-| C3-058 | Multi Chart | Toggle a cell's session | PARTIAL (SIMULATED) — covered: intraday, the cell's own extendedHoursShading fork read back from the saved multichart_state, Undo drops it; not covered as persisted state: D/W/M, whose session view is cell-local by design (GridChartCell.jsx:107, never saved) and is read back only as the prop the real cell hands its stubbed canvas | multiChart.outcome.test.jsx: C3-058 (intraday) "regular hours only on the top-left chart"; C3-058 (D/W/M) "include extended hours on the top-left chart" | pass 8/8 (17 todo) | panel, scripted model |
-| C3-059 | Multi Chart | Reset a cell to my chart | BLOCKED | none; gap: docs/agent/program/EXEC-MULTICHART.md (gap list) | n/a | none |
-| C3-060 | Multi Chart | Maximize or restore a cell | BLOCKED | none; gap: docs/agent/program/EXEC-MULTICHART.md (gap list) | n/a | none |
-| C3-061 | Multi Chart | Open shared grid settings | BLOCKED | none; gap: docs/agent/program/EXEC-MULTICHART.md (gap list) | n/a | none |
-| C3-062 | Multi Chart | Set an alert from a cell | VERIFIED (SIMULATED outcome test, scripted model, jsdom) — note: the alert is on the NAMED cell's symbol, at the asked level (250) and direction (above), exactly one added and none on another cell's symbol, and Undo leaves the book byte-identical; a CONTROL case (the member clicked a cell holding a different symbol) and a negative control (a plan alerting the active cell is rejected by the same check): the controls prove the request context and the outcome check; the cell-to-symbol choice is made by the scripted model. The cell's right-click "Set alert @ price" entry point (GridChartCell.jsx:353-360) is NOT exercised: this is the Agent's route to the same outcome. The alert book is a stateful /api/watchlist-alerts stub with the real routes (GET/POST/DELETE) | multiChart.outcome.test.jsx: C3-062 "alert me when the top-right chart goes above 250"; C3-062 CONTROL (clicked top-left NVDA, named top-right AMD); C3-062 CONTROL (the check has teeth: an active-cell plan fails it) | pass 8/8 (17 todo) | panel, scripted model |
-| C3-063 | Watchlist | Open a list in a widget (own) | IMPLEMENTED / UNVERIFIED | agentBoard.test.jsx:158 | pass 1/1 | runtime, no panel |
-| C3-064 | Watchlist | Open a prebuilt or community list | MISSING | none | n/a | none |
-| C3-065 | Watchlist | Open the Flagged list | MISSING | none | n/a | none |
+| C3-055 | Multi Chart | Delete a saved grid | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | multiChart.outcome.test.jsx: C3-055 "delete my Old Grid layout" (proposed, then Apply); multiChartGrid.family.test.jsx (held-out) | pass 29/29 (1 todo); family pass 45/45 (incl. 3 KNOWN-GAP it.fails pins) | panel, scripted model |
+| C3-056 | Multi Chart | Set a cell's timeframe | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | multiChart.outcome.test.jsx: C3-056 "could you flip the top-right one over to a weekly view"; C3-056 (pre-model path) "make the top-right chart weekly" | pass 29/29 (1 todo) | panel, scripted model |
+| C3-057 | Multi Chart | Set a cell's chart style | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | multiChart.outcome.test.jsx: C3-057 "turn the bottom-left chart into plain bars" | pass 29/29 (1 todo) | panel, scripted model |
+| C3-058 | Multi Chart | Toggle a cell's session | PARTIAL (SIMULATED) — covered: intraday, the cell's own extendedHoursShading fork read back from the saved multichart_state, Undo drops it; not covered as persisted state: D/W/M, whose session view is cell-local by design (GridChartCell.jsx:107, never saved) and is read back only as the prop the real cell hands its stubbed canvas | multiChart.outcome.test.jsx: C3-058 (intraday) "regular hours only on the top-left chart"; C3-058 (D/W/M) "include extended hours on the top-left chart" | pass 29/29 (1 todo) | panel, scripted model |
+| C3-059 | Multi Chart | Reset a cell to my chart | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | multiChart.outcome.test.jsx: C3-059 "put the top-right chart back to my own chart settings"; family: reset by position, excluded click (2×2/2×3/3×3); multiChartGrid.family.test.jsx (held-out) | pass 29/29 (1 todo); family pass 45/45 (incl. 3 KNOWN-GAP it.fails pins) | panel, scripted model |
+| C3-060 | Multi Chart | Maximize or restore a cell | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | multiChart.outcome.test.jsx: C3-060 "blow up the bottom-left chart to full size" + "restore the grid"; family: maximize by position / number / anchor, ambiguous asked, hidden refused (2×2/2×3/3×3); multiChartGrid.family.test.jsx (held-out) | pass 29/29 (1 todo); family pass 45/45 (incl. 3 KNOWN-GAP it.fails pins) | panel, scripted model |
+| C3-061 | Multi Chart | Open shared grid settings | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | multiChart.outcome.test.jsx: C3-061 "open the shared chart settings for the grid"; multiChartGrid.family.test.jsx (held-out) | pass 29/29 (1 todo); family pass 45/45 (incl. 3 KNOWN-GAP it.fails pins) | panel, scripted model |
+| C3-062 | Multi Chart | Set an alert from a cell | VERIFIED (SIMULATED outcome test, scripted model, jsdom) — note: the alert is on the NAMED cell's symbol, at the asked level (250) and direction (above), exactly one added and none on another cell's symbol, and Undo leaves the book byte-identical; a CONTROL case (the member clicked a cell holding a different symbol) and a negative control (a plan alerting the active cell is rejected by the same check): the controls prove the request context and the outcome check; the cell-to-symbol choice is made by the scripted model. The cell's right-click "Set alert @ price" entry point (GridChartCell.jsx:353-360) is NOT exercised: this is the Agent's route to the same outcome. The alert book is a stateful /api/watchlist-alerts stub with the real routes (GET/POST/DELETE) | multiChart.outcome.test.jsx: C3-062 "alert me when the top-right chart goes above 250"; C3-062 CONTROL (clicked top-left NVDA, named top-right AMD); C3-062 CONTROL (the check has teeth: an active-cell plan fails it) | pass 29/29 (1 todo) | panel, scripted model |
+| C3-063 | Watchlist | Open a list in a widget (own) | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | agentWatchlistShow.test.jsx: C3-063 held-out x6 (own lists, as the picker writes them; Undo restores the previous watchKey exactly) | pass 35/35 | panel, scripted model |
+| C3-064 | Watchlist | Open a prebuilt or community list | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | agentWatchlistShow.test.jsx: C3-064 held-out x12 (prebuilt and community); NEGATIVE near names | pass 35/35 | panel, scripted model |
+| C3-065 | Watchlist | Open the Flagged list | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | agentWatchlistShow.test.jsx: C3-065 held-out x3 (Flagged) | pass 35/35 | panel, scripted model |
 | C3-066 | Watchlist | Open a colour-tag list | MISSING | none | n/a | none |
-| C3-067 | Watchlist | Go back to the list picker | MISSING | none | n/a | none |
+| C3-067 | Watchlist | Go back to the list picker | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | agentWatchlistShow.test.jsx: C3-067 held-out x3 (back to the picker) | pass 35/35 | panel, scripted model |
 | C3-068 | Watchlist | Click a row to load the symbol | VERIFIED | c:symbol.switch | pass 7/7 | panel, scripted model |
 | C3-069 | Watchlist | Walk the list with arrow keys or space | VERIFIED | c:watchlist.step; listControl: previous, and both ends wrap | pass 5/5 | panel, scripted model |
 | C3-070 | Watchlist | Create a list | VERIFIED | c:watchlist.create; watchlists.outcome: nothing exists until Apply | pass 5/5 | production (C-05b) and panel |
 | C3-071 | Watchlist | Create a list from a template | MISSING | none | n/a | none |
 | C3-072 | Watchlist | Save a community list to My Lists | MISSING | none | n/a | none |
 | C3-073 | Watchlist | Rename a list | NOT ON /CHARTS | agentWatchlists.test.jsx:222 | pass 1/1 | n/a |
-| C3-074 | Watchlist | Rename the Flagged list | MISSING | none | n/a | none |
+| C3-074 | Watchlist | Rename the Flagged list | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | watchlistLook.outcome.test.jsx: C3-074 "rename my flagged list to Hot Hands", "call the flagged watchlist A-List" (the title menu's renameFlagged; Undo renames back); NEGATIVE not showing Flagged | pass 18/18 | panel, scripted model |
 | C3-075 | Watchlist | Delete a list | VERIFIED | c:watchlist.delete; watchlists.outcome: the proposal names the list and its size | pass 5/5 | production (I-01) and panel |
 | C3-076 | Watchlist | Add a symbol | VERIFIED | c:watchlist.add | pass 5/5 | production (C-05b) and panel |
 | C3-077 | Watchlist | Add to Flagged | VERIFIED | c:watchlist.setFlag; listControl: "flag NVDA" | pass 5/5 | panel, scripted model |
@@ -710,8 +770,8 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3-082 | Watchlist | Sort by a column | VERIFIED | c:watchlist.sortColumn; listControl: "sort my watchlist by RVOL" | pass 6/6 | panel, scripted model |
 | C3-083 | Watchlist | Show or hide a column | VERIFIED | c:watchlist.setColumns; listControl: "add the market cap column"; listControl: hide a default column and an added one | pass 6/6 | panel, scripted model |
 | C3-084 | Watchlist | Apply a column preset | NOT ON /CHARTS | none | n/a | n/a |
-| C3-085 | Watchlist | Reorder columns by drag | MISSING | none | n/a | none |
-| C3-086 | Watchlist | Resize a column | MISSING | none | n/a | none |
+| C3-085 | Watchlist | Reorder columns by drag | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | listControl.outcome.test.jsx: C3-085 x4 held-out (move a column before / after another, as the header drop does: the stored order and the header follow; Undo exact); NEGATIVE a hidden or unknown column | pass 114/114 (1 known gap pinned both ways) | panel, scripted model |
+| C3-086 | Watchlist | Resize a column | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | listControl.outcome.test.jsx: C3-086 2 of 3 held-out (a width as the gridline sets it; Undo exact); NEGATIVE under the minimum, over 600; KNOWN GAP "narrow the price column to 50" answered by the quote fast path before the model (pinned it.fails + today's output) | pass 114/114 (1 known gap pinned both ways) | panel, scripted model |
 | C3-087 | Watchlist | Reset columns | VERIFIED | listControl: reset goes to the defaults | pass 1/1 | panel, scripted model |
 | C3-088 | Watchlist | Write or edit a ticker note | VERIFIED | c:watchlist.setNote | pass 4/4 | panel, scripted model |
 | C3-089 | Watchlist | Expand or collapse a list | MISSING | none | n/a | none |
@@ -719,8 +779,8 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3-091 | Watchlist | Share a tag colour or Flagged | BLOCKED | none | n/a | none |
 | C3-092 | Watchlist | Make a list public | BLOCKED | none | n/a | none |
 | C3-093 | Watchlist | Mark a list prebuilt (admin) | BLOCKED | none | n/a | none |
-| C3-094 | Watchlist | Copy a list to the clipboard | MISSING | none | n/a | none |
-| C3-095 | Watchlist | Export a list as CSV or Excel | MISSING | none | n/a | none |
+| C3-094 | Watchlist | Copy a list to the clipboard | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | agentWatchlistOut.test.jsx + Watchlists.listout.test.jsx: C3-094 copied only once the clipboard write resolved (a refused write says so); the door reaches exactly the list menu's Copy (real Watchlists) | pass 29/29 + 7/7 | panel, scripted model |
+| C3-095 | Watchlist | Export a list as CSV or Excel | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | agentWatchlistOut.test.jsx + Watchlists.listout.test.jsx: C3-095 CSV at once, Excel always proposed first (a quota); own lists only; the door reaches exactly the menu's Export CSV / Excel (real Watchlists) | pass 29/29 + 7/7 | panel, scripted model |
 | C3-096 | Watchlist | Import tickers | IMPLEMENTED / UNVERIFIED | none | n/a | source only |
 | C3-097 | Watchlist | View or restore list version history | MISSING | none | n/a | none |
 | C3-098 | Watchlist | Set a price alert from a row | VERIFIED | c:alert.price-above | pass 6/6 | panel, scripted model |
@@ -728,16 +788,16 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3-100 | Watchlist | Open Full Research or AI from a row | IMPLEMENTED / UNVERIFIED | agentBatch1.test.jsx; agentBatch4.test.jsx | pass 39/39 | runtime, no panel |
 | C3-101 | Watchlist | Compare from a row | VERIFIED | c:compare.amd | pass 5/5 | panel, scripted model |
 | C3-102 | Watchlist | Open a row's attention facts | UNMAPPED | none | n/a | none |
-| C3-103 | Watchlist | Change list appearance (canvas, text, tint) | MISSING | none | n/a | none |
-| C3-104 | Watchlist | Save or load a watchlist look | MISSING | none | n/a | none |
+| C3-103 | Watchlist | Change list appearance (canvas, text, tint) | PARTIAL (SIMULATED) — covered: logos, tick-flash tint, solid canvas, text, gain and loss colours through the ⚙ panel's own writer (this widget's opts.settings), the other widget untouched, Undo exact; not covered: gradient canvas, fonts, grid colour, tint colours | watchlistLook.outcome.test.jsx: C3-103 x6 held-out; NEGATIVE "sort of bluish" (#rrggbb) | pass 18/18 | panel, scripted model |
+| C3-104 | Watchlist | Save or load a watchlist look | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | watchlistLook.outcome.test.jsx: C3-104 x5 held-out: save the look under a name (shown first; the look the widget had), apply a saved look (Undo exact), delete one (shown first); NEGATIVE unknown look, no name | pass 18/18 | panel, scripted model |
 | C3-105 | Watchlist | Track or freeze a linked scan or theme | BLOCKED | none | n/a | none |
 | C3-106 | Watchlist | Use a saved screen as a list | BLOCKED | none | n/a | none |
 | C3-107 | Scanner | Pick a preset scan | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | boardArrangement.outcome.test.jsx: C3-107 (held-out phrasing) "the Scanner widget shows that preset; Undo goes back"; see docs/agent/program/EXEC-CITED-RERUN.md | pass 13/13 | panel, scripted model |
-| C3-108 | Scanner | Leave a scan, back to the picker | MISSING | none | n/a | none |
+| C3-108 | Scanner | Leave a scan, back to the picker | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | widgetActions.outcome.test.jsx: C3-108 x4 held-out ("leave this scan in the scanner", "take the scanner back to its picker", …): scanKey / scanName cleared as its own "change scan" does, Undo exact; NEGATIVE already on the picker | pass 24/24 | panel, scripted model |
 | C3-109 | Scanner | Search the preset list | MISSING | none | n/a | none |
 | C3-110 | Scanner | Read a scan's conditions | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | widgetDoorRows.outcome.test.jsx: C3-110 "what are the conditions on my scanner"; see docs/agent/program/EXEC-CITED-RERUN.md | pass 19/19 | panel, scripted model |
 | C3-111 | Scanner | Read a scan's results | VERIFIED | listControl: a Scanner: sorts and reads the same way | pass 1/1 | panel, scripted model |
-| C3-112 | Scanner | Refresh a scan | MISSING | none | n/a | none |
+| C3-112 | Scanner | Refresh a scan | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | widgetActions.outcome.test.jsx: C3-112 x8 held-out ("refresh the scanner", "rerun the scanner now", …): the widget's own SWR mutate runs once, the receipt only after it resolves, a failed re-read claims nothing, two scanners told apart by position | pass 24/24 | panel, scripted model |
 | C3-113 | Scanner | Sort a scan | VERIFIED | listControl: a Scanner: sorts and reads the same way | pass 1/1 | panel, scripted model |
 | C3-114 | Scanner | Change scan columns | VERIFIED | listControl: a Scanner: sorts and reads the same way | pass 1/1 | panel, scripted model |
 | C3-115 | Scanner | Create a scanner in the workspace | BLOCKED | none | n/a | none |
@@ -757,12 +817,12 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3-129 | Alerts | Delete an alert | VERIFIED | c:alert.delete; alerts.outcome: the proposal says what goes and that it is permanent | pass 5/5 | panel, scripted model |
 | C3-130 | Alerts | Click an alert to load the symbol | VERIFIED | c:symbol.switch | pass 7/7 | panel, scripted model |
 | C3-131 | Alerts | Change Alerts widget appearance | MISSING | none | n/a | none |
-| C3-132 | Alerts | Send alerts to Journal | MISSING | none | n/a | none |
+| C3-132 | Alerts | Send alerts to Journal | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | widgetJournal.outcome.test.jsx: C3-132 "drop my alerts into the journal" (the real Alerts widget's capture door; shown first; the other widget untouched) | pass 7/7 | panel, scripted model |
 | C3-133 | News | Filter catalysts up, down or all | IMPLEMENTED / UNVERIFIED | agentWidgetOptions.test.jsx:49; held-out phrasings only, no execution test: docs/agent/program/EXEC-CITED-RERUN.md (for pl-exec) | pass 1/1 | runtime, no panel |
 | C3-134 | News | Read stored headlines for a symbol | VERIFIED | c:news.latest; c:news.catalysts | pass 9/9 | panel, scripted model |
 | C3-135 | News | Place a headline on the chart | MISSING | none | n/a | none |
 | C3-136 | News | Change News widget appearance | MISSING | none | n/a | none |
-| C3-137 | News | Send the feed to Journal | MISSING | none | n/a | none |
+| C3-137 | News | Send the feed to Journal | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | widgetJournal.outcome.test.jsx: C3-137 "put the news and catalysts feed in a fresh journal note" | pass 7/7 | panel, scripted model |
 | C3-138 | TE News | Search headlines | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | teNewsWatchlist.outcome.test.jsx: "C3-138: search the News widget through its own search box" (held-out phrasings, clear, NEGATIVE); agentExecReach.test.jsx: search held-out7 (routing reach only); see docs/agent/program/EXEC-CITED-RERUN.md | pass 9/9 | panel, scripted model |
 | C3-139 | TE News | Filter by category, linked symbol or watchlist | PARTIAL (SIMULATED) — covered: the watchlist filter (watchlistId and the shown headlines read back, Undo, NEGATIVE); not covered: the category filter and the linked-symbol filter | teNewsWatchlist.outcome.test.jsx: "C3-139: the News widget filtered to one of the member's watchlists, through its own select"; see docs/agent/program/EXEC-CITED-RERUN.md | pass 9/9 | panel, scripted model |
 | C3-140 | TE News | Apply, rename or delete a filter preset | MISSING | none | n/a | none |
@@ -805,13 +865,13 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3-177 | Themes | Send the ranking to Journal | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | widgetDoorRows.outcome.test.jsx: "Send to Journal over the real widgets' own capture doors", case C3-177; see docs/agent/program/EXEC-CITED-RERUN.md | pass 19/19 | panel, scripted model |
 | C3-178 | Fundamentals | Switch view | VERIFIED | agentWidgetOptions: "show annual on the fundamentals" | pass 1/1 | panel, scripted model |
 | C3-179 | Fundamentals | Read the numbers | VERIFIED | c:stock.profile; c:earnings.date | pass 10/10 | panel, scripted model |
-| C3-180 | Fundamentals | Change appearance or send to Journal | MISSING | none | n/a | none |
+| C3-180 | Fundamentals | Change appearance or send to Journal | PARTIAL (SIMULATED) — covered: send the fundamentals to the Journal (the real widget's capture door); not covered: its appearance (a global pref, no door row) | widgetJournal.outcome.test.jsx: C3-180 "send the fundamentals table to a new journal note" | pass 7/7 | panel, scripted model |
 | C3-181 | Profile | Read profile and earnings table | VERIFIED | c:stock.profile; c:earnings.date | pass 10/10 | panel, scripted model |
 | C3-182 | Profile | Click a peer ticker | VERIFIED | c:symbol.switch | pass 7/7 | panel, scripted model |
 | C3-183 | Indexes | Hide or restore an index | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | widgetControls.outcome.test.jsx: "Indexes (C3-183): hide or restore an index" (hide + Undo, restore by name, NEGATIVE); see docs/agent/program/EXEC-CITED-RERUN.md | pass 7/7 | panel, scripted model |
 | C3-184 | Indexes | Send levels to Journal | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | widgetDoorRows.outcome.test.jsx: "Send to Journal over the real widgets' own capture doors", case C3-184 (+ NEGATIVE Dismiss); see docs/agent/program/EXEC-CITED-RERUN.md | pass 19/19 | panel, scripted model |
 | C3-185 | Market Context | Read market context | UNMAPPED | none | n/a | none |
-| C3-186 | Market Context | Send to Journal | MISSING | none | n/a | none |
+| C3-186 | Market Context | Send to Journal | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | widgetJournal.outcome.test.jsx: C3-186 "save the market context panel to my notebook inbox"; NEGATIVE Dismiss | pass 7/7 | panel, scripted model |
 | C3-187 | NH/NL | Add or remove a universe | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | widgetControls.outcome.test.jsx: "New Highs / Lows (C3-187, C3-188)": add, switch, remove; see docs/agent/program/EXEC-CITED-RERUN.md | pass 7/7 | panel, scripted model |
 | C3-188 | NH/NL | Switch universe tab | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | widgetControls.outcome.test.jsx: "New Highs / Lows (C3-187, C3-188)": add, switch, remove; see docs/agent/program/EXEC-CITED-RERUN.md | pass 7/7 | panel, scripted model |
 | C3-189 | NH/NL | Expand a row or pick a symbol | VERIFIED | c:symbol.switch | pass 7/7 | panel, scripted model |
@@ -825,7 +885,7 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3-197 | AI Search | Change ask mode, stop or retry | MISSING | none | n/a | none |
 | C3-198 | AI Search | Save, reopen or remove an answer | MISSING | none | n/a | none |
 | C3-199 | AI Search | Copy or speak an answer | MISSING | none | n/a | none |
-| C3-200 | AI Search | Send the conversation to Journal | MISSING | none | n/a | none |
+| C3-200 | AI Search | Send the conversation to Journal | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | widgetJournal.outcome.test.jsx: C3-200 "journal this ai search conversation" (the conversation is seeded through the widget's own initialThread prop: fixture data, no paid stream); NEGATIVE no conversation → refused | pass 7/7 | panel, scripted model |
 | C3-201 | Notebook | Open or search a note | PARTIAL (SIMULATED) — covered: opening a note by its name (noteId read back, Undo; an ambiguous or unknown name is refused); not covered: the widget's own note search | widgetDoorRows.outcome.test.jsx: "the Notebook widget (C3-201 open a note by its name)" + NEGATIVE; see docs/agent/program/EXEC-CITED-RERUN.md | pass 19/19 | panel, scripted model |
 | C3-202 | Notebook | Create a note | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | widgetDoorRows.outcome.test.jsx: "the Notebook widget: create a note through its own New control (C3-202)" (held-out phrasings); see docs/agent/program/EXEC-CITED-RERUN.md | pass 19/19 | panel, scripted model |
 | C3-203 | Notebook | Edit a note's title or body | BLOCKED | none | n/a | none |
@@ -833,7 +893,7 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3-205 | Period Sort | Start a custom-period sort | MISSING | none | n/a | none |
 | C3-206 | Period Sort | Choose grouping, replay and start mark | MISSING | none; held-out phrasings only, no execution test: docs/agent/program/EXEC-CITED-RERUN.md (for pl-exec) | n/a | none |
 | C3-207 | Period Sort | Dock the panel or add it as a tab | MISSING | none | n/a | none |
-| C3-208 | Period Sort | Refresh results | MISSING | none | n/a | none |
+| C3-208 | Period Sort | Refresh results | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | widgetActions.outcome.test.jsx: C3-208 x6 held-out ("refresh the period sort", "reload the period sort ranking", …) | pass 24/24 | panel, scripted model |
 | C3-209 | Replay | Start replay at a date | VERIFIED | c:chart.replay; agentChartReplay: replay from Oct 15 | pass 5/5 | panel, scripted model |
 | C3-210 | Replay | Exit replay | VERIFIED | c:chart.replay.exit | pass 4/4 | panel, scripted model |
 | C3-211 | Replay | Pick the cutoff by clicking the chart | MISSING | none | n/a | none |
@@ -849,7 +909,7 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3-221 | Workspace | Open the Agent | BLOCKED | none | n/a | none |
 | C3-222 | Workspace | Change a widget's UCT theme section | MISSING | none | n/a | none |
 | C3-223 | Workspace | Toggle the journal shortcut (Ctrl+Alt+J) | UNMAPPED | none | n/a | none |
-| C1-176 | Right-click | Send chart to Journal | MISSING | none | n/a | none |
-| C1-177 | Right-click | Send chart to Journal, choose where | MISSING | none | n/a | none |
-| C1-178 | Right-click | Ask AI about the symbol on a bar | MISSING | none | n/a | none |
+| C1-176 | Right-click | Send chart to Journal | VERIFIED (SIMULATED) — widget.sendToJournal over ChartWidget's own capture door sends the same capture, to the same default place (note), as the right-click "Send to Journal"; nothing is sent before Apply; no Undo (as at the door) | ChartWidget.rclickParity.test.jsx: C1-176 | pass 1/1 | widget (real ChartWidget), sendCaptureToJournal stubbed |
+| C1-177 | Right-click | Send chart to Journal, choose where | PARTIAL (SIMULATED) — covered: the destination (where = note / newNote / inbox, CaptureMenu's three Notebook targets) through widget.sendToJournal; not covered: the picker's comment and Copy chart link | agentWidgetControls.test.jsx: widget.sendToJournal "a named place goes through" (a chart, inbox); ChartWidget.rclickParity.test.jsx: C1-176 | pass | panel, stubbed send |
+| C1-178 | Right-click | Ask AI about the symbol on a bar | VERIFIED (SIMULATED) — chartMenu.askAi → host.charts.askAi → ChartWidget openAskAi, the opener the menu item calls (/research/:sym?section=ai); it opens after the receipt (as app.open); no Undo (Back), said on the receipt | ChartWidget.rclickParity.test.jsx: C1-178 (the same location as the menu click); agentChartMenu.test.jsx (the clicked chart only, #988 anchor, no-door refusal); c:chartMenu.askAi | pass 1/1, 24/24, 3/3 | widget + panel, scripted model |
 | C1-179 | Right-click | Add widget, floating at the click | MISSING | none | n/a | none |

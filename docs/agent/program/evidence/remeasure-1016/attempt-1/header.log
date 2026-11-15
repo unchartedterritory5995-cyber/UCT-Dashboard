@@ -1,0 +1,11 @@
+node_modules LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+date -u: 2026-11-10T23:25:40Z
+tree: /c/w/pl-auto-remeasure HEAD 0188c97815e1c9a5a96aa0c1d07d48d8640d846f (measured master 69ab78db82dec1ebeb242e3ecf7edfaf63b978a4)
+harness: 6f9abd8515 (6f9abd85155112a64a6bc7facf0e5fc2de31c911) - recount.mjs only; no harness file is in the run tree
+node: v24.20.0
+nmcheck: lockfileVersion=3 match=539 optionalAbsent=59 mismatched=0
+nmcheck exit 0
+app/ diff vs measured master (must be empty):
+(end diff)
+uncommitted under app/ (must be empty):
+(end status)

@@ -41,6 +41,7 @@
 import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback, useId, useSyncExternalStore } from 'react'
 import Sheet from '../mobile/Sheet'
 import ColorPicker, { PORTAL_POPUP_ATTR } from './ColorPicker'
+import OptionsSourcePicker from './OptionsSourcePicker'
 import { effectiveColourFor } from './engine/pool'
 import { fieldsForInstance, evalActiveWhen, timeInputText, timeInputMs,
          sectionize, initialCollapsed, INLINE_MAX,
@@ -649,6 +650,21 @@ export default function IndicatorSettingsDialog({ open, instanceId, settings, on
               }}
               onBlur={() => commitText(field)}
               onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); commitText(field) } }}
+            />
+          )}
+          {field.type === 'pick' && (
+            // ⭐ 2026-11-12 — a server-owned list (`optionsSource`): the shared
+            // searchable chooser, written once on the pick like a select.
+            <OptionsSourcePicker
+              field={field} value={value ?? ''} idBase={id} disabled={!active}
+              inputClassName={styles.text}
+              aria={{ 'aria-labelledby': labelId, ...(tipId ? { 'aria-describedby': tipId } : null),
+                'aria-disabled': String(!active) }}
+              onPick={(val) => {
+                setDraft((d) => ({ ...d, [field.key]: val }))
+                pendingRef.current.set(field.key, val)
+                flushNow()
+              }}
             />
           )}
           {field.type === 'toggle' && (

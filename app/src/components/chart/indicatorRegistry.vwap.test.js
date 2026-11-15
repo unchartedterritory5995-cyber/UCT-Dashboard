@@ -78,8 +78,9 @@ describe('the rail — the hand-written registry lists nothing the engine owns',
     }
     // …and the gate really withheld something, so "offered" is not "all" by accident.
     const withheld = engineRegistry.listDefinitions().filter((d) => !isDefinitionOffered(d)).map((d) => d.id).sort()
-    expect(withheld, 'the three server-gated RS definitions get no row until the server lists them')
-      .toEqual(['rsPhases', 'rsRating', 'rsVsEma'])
+    // 2026-11-12 (RS Exit Warnings): the fourth gated definition, `rsExit`.
+    expect(withheld, 'the four server-gated RS definitions get no row until the server lists them')
+      .toEqual(['rsExit', 'rsPhases', 'rsRating', 'rsVsEma'])
     for (const id of withheld) expect(ids).not.toContain(id)
   })
 

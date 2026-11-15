@@ -12,7 +12,7 @@
 // Every number is counted from the run itself: right, total, xp and the log rows. Nothing about a stock is written here.
 import { Medal } from './Medal'
 import UIcon from '../../../components/ui/UIcon'
-import brandMark from '../../../components/intro/assets/compass-mark.png'
+import brandMark from '../../../components/intro/assets/compass-mark.webp'
 import { useCountUp } from '../../../lab/fx'
 import StudyButton from './StudyButton'
 import LevelBar from './LevelBar'

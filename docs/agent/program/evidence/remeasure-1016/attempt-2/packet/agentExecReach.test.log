@@ -1,0 +1,98 @@
+node_modules LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+date -u: 2026-11-11T02:53:15Z
+tree: /c/w/pl-auto-remeasure HEAD 644b6d7188019c6a6d2d0ad4708152ead1c53ebb (measured master 75421184a33c10f42201c43f6bd2d6391594f4c1)
+harness: 6f9abd8515 (6f9abd85155112a64a6bc7facf0e5fc2de31c911) - recount.mjs only; no harness file is in the run tree
+# cmd: vitest run src/agent/agentExecReach.test.jsx --reporter=default --reporter=json
+[bn] free memory GB: 45.1
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/w/pl-auto-remeasure/app[39m
+
+[90mstdout[2m | src/agent/agentExecReach.test.jsx[2m > [22m[2mreach of the first model call[2m > [22m[2mwidget held-out, routing v1
+[22m[39m[reach] widget held-out v1 {"model":"23/24","action":"20/24","list":"20/24"} misses: ["C3-170 flip the themes list so the worst ones are on top action+list","C3-166 only show sweeps in the options flow model+action+list","C3-151 show only 3 star economic events action+list","C3-152 expand the tbd earnings section action+list"]
+
+[90mstdout[2m | src/agent/agentExecReach.test.jsx[2m > [22m[2mreach of the first model call[2m > [22m[2mwidget held-out, routing v2
+[22m[39m[reach] widget held-out v2 {"model":"23/24","action":"20/24","list":"20/24"} misses: ["C3-170 flip the themes list so the worst ones are on top action+list","C3-166 only show sweeps in the options flow model+action+list","C3-151 show only 3 star economic events action+list","C3-152 expand the tbd earnings section action+list"]
+
+[90mstdout[2m | src/agent/agentExecReach.test.jsx[2m > [22m[2mreach of the first model call[2m > [22m[2mwidget tune, routing v1
+[22m[39m[reach] widget tune v1 {"model":"24/24","action":"20/24","list":"21/24"} misses: ["C3-169 rank the themes year to date action+list","C3-170 sort the themes ascending action+list","C3-171 theme performance from the open instead of the close action","C3-139 filter the headlines to earnings action+list"]
+
+[90mstdout[2m | src/agent/agentExecReach.test.jsx[2m > [22m[2mreach of the first model call[2m > [22m[2mwidget tune, routing v2
+[22m[39m[reach] widget tune v2 {"model":"24/24","action":"21/24","list":"21/24"} misses: ["C3-169 rank the themes year to date action+list","C3-170 sort the themes ascending action+list","C3-139 filter the headlines to earnings action+list"]
+
+[90mstdout[2m | src/agent/agentExecReach.test.jsx[2m > [22m[2mreach of the first model call[2m > [22m[2mlist held-out, routing v1
+[22m[39m[reach] list held-out v1 {"model":"8/8","action":"7/8"} misses: ["C1-066 add RVOL to the stat strip above the chart action"]
+
+[90mstdout[2m | src/agent/agentExecReach.test.jsx[2m > [22m[2mreach of the first model call[2m > [22m[2mlist held-out, routing v2
+[22m[39m[reach] list held-out v2 {"model":"8/8","action":"8/8"} misses: []
+
+[90mstdout[2m | src/agent/agentExecReach.test.jsx[2m > [22m[2mreach of the first model call[2m > [22m[2mlist tune, routing v1
+[22m[39m[reach] list tune v1 {"model":"5/5","action":"5/5"} misses: []
+
+[90mstdout[2m | src/agent/agentExecReach.test.jsx[2m > [22m[2mreach of the first model call[2m > [22m[2mlist tune, routing v2
+[22m[39m[reach] list tune v2 {"model":"5/5","action":"5/5"} misses: []
+
+[90mstdout[2m | src/agent/agentExecReach.test.jsx[2m > [22m[2mreach of the first model call[2m > [22m[2mname held-out2, routing v1
+[22m[39m[reach] name held-out2 v1 {"model":"6/6","action":"5/6","list":"5/6"} misses: ["C3-187 on the new-highs/new-lows widget add the S&P 500 action+list"]
+
+[90mstdout[2m | src/agent/agentExecReach.test.jsx[2m > [22m[2mreach of the first model call[2m > [22m[2mname held-out2, routing v2
+[22m[39m[reach] name held-out2 v2 {"model":"6/6","action":"5/6","list":"5/6"} misses: ["C3-187 on the new-highs/new-lows widget add the S&P 500 action+list"]
+
+[90mstdout[2m | src/agent/agentExecReach.test.jsx[2m > [22m[2mreach of the first model call[2m > [22m[2mdoor held-out2, routing v1
+[22m[39m[reach] door held-out2 v1 {"model":"4/4","action":"4/4","list":"4/4"} misses: []
+
+[90mstdout[2m | src/agent/agentExecReach.test.jsx[2m > [22m[2mreach of the first model call[2m > [22m[2mdoor held-out2, routing v2
+[22m[39m[reach] door held-out2 v2 {"model":"4/4","action":"4/4","list":"4/4"} misses: []
+
+[90mstdout[2m | src/agent/agentExecReach.test.jsx[2m > [22m[2mreach of the first model call[2m > [22m[2mjournal held-out2, routing v1
+[22m[39m[reach] journal held-out2 v1 {"model":"4/4","action":"4/4"} misses: []
+
+[90mstdout[2m | src/agent/agentExecReach.test.jsx[2m > [22m[2mreach of the first model call[2m > [22m[2mjournal held-out2, routing v2
+[22m[39m[reach] journal held-out2 v2 {"model":"4/4","action":"4/4"} misses: []
+
+[90mstdout[2m | src/agent/agentExecReach.test.jsx[2m > [22m[2mreach of the first model call[2m > [22m[2mwidget tune2, routing v1
+[22m[39m[reach] widget tune2 v1 {"model":"5/5","action":"5/5","list":"5/5"} misses: []
+
+[90mstdout[2m | src/agent/agentExecReach.test.jsx[2m > [22m[2mreach of the first model call[2m > [22m[2mwidget tune2, routing v2
+[22m[39m[reach] widget tune2 v2 {"model":"5/5","action":"5/5","list":"5/5"} misses: []
+
+[90mstdout[2m | src/agent/agentExecReach.test.jsx[2m > [22m[2mreach of the first model call[2m > [22m[2mjournal tune2, routing v1
+[22m[39m[reach] journal tune2 v1 {"model":"4/4","action":"4/4"} misses: []
+
+[90mstdout[2m | src/agent/agentExecReach.test.jsx[2m > [22m[2mreach of the first model call[2m > [22m[2mjournal tune2, routing v2
+[22m[39m[reach] journal tune2 v2 {"model":"4/4","action":"4/4"} misses: []
+
+[90mstdout[2m | src/agent/agentExecReach.test.jsx[2m > [22m[2mreach of the first model call[2m > [22m[2msearch held-out7, routing v1
+[22m[39m[reach] search held-out7 v1 {"model":"3/3","action":"3/3","list":"3/3"} misses: []
+
+[90mstdout[2m | src/agent/agentExecReach.test.jsx[2m > [22m[2mreach of the first model call[2m > [22m[2msearch held-out7, routing v2
+[22m[39m[reach] search held-out7 v2 {"model":"3/3","action":"3/3","list":"3/3"} misses: []
+
+ [32m✓[39m src/agent/agentExecReach.test.jsx [2m([22m[2m23 tests[22m[2m)[22m[33m 176811[2mms[22m[39m
+     [33m[2m✓[22m[39m widget held-out, routing v1 [33m 24519[2mms[22m[39m
+     [33m[2m✓[22m[39m widget held-out, routing v2 [33m 24689[2mms[22m[39m
+     [33m[2m✓[22m[39m widget tune, routing v1 [33m 23985[2mms[22m[39m
+     [33m[2m✓[22m[39m widget tune, routing v2 [33m 24192[2mms[22m[39m
+     [33m[2m✓[22m[39m list held-out, routing v1 [33m 8309[2mms[22m[39m
+     [33m[2m✓[22m[39m list held-out, routing v2 [33m 8293[2mms[22m[39m
+     [33m[2m✓[22m[39m list tune, routing v1 [33m 5114[2mms[22m[39m
+     [33m[2m✓[22m[39m list tune, routing v2 [33m 5000[2mms[22m[39m
+     [33m[2m✓[22m[39m name held-out2, routing v1 [33m 6068[2mms[22m[39m
+     [33m[2m✓[22m[39m name held-out2, routing v2 [33m 6153[2mms[22m[39m
+     [33m[2m✓[22m[39m door held-out2, routing v1 [33m 4088[2mms[22m[39m
+     [33m[2m✓[22m[39m door held-out2, routing v2 [33m 4379[2mms[22m[39m
+     [33m[2m✓[22m[39m journal held-out2, routing v1 [33m 4000[2mms[22m[39m
+     [33m[2m✓[22m[39m journal held-out2, routing v2 [33m 4062[2mms[22m[39m
+     [33m[2m✓[22m[39m widget tune2, routing v1 [33m 4964[2mms[22m[39m
+     [33m[2m✓[22m[39m widget tune2, routing v2 [33m 4974[2mms[22m[39m
+     [33m[2m✓[22m[39m journal tune2, routing v1 [33m 3954[2mms[22m[39m
+     [33m[2m✓[22m[39m journal tune2, routing v2 [33m 4093[2mms[22m[39m
+     [33m[2m✓[22m[39m search held-out7, routing v1 [33m 2961[2mms[22m[39m
+     [33m[2m✓[22m[39m search held-out7, routing v2 [33m 3012[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m23 passed[39m[22m[90m (23)[39m
+[2m   Start at [22m 21:53:17
+[2m   Duration [22m 184.66s[2m (transform 5.44s, setup 299ms, import 6.89s, tests 176.81s, environment 533ms)[22m
+
+JSON report written to C:/w/pl-auto-remeasure/docs/agent/program/evidence/remeasure-1016/attempt-2/packet/agentExecReach.test.json
+# exit=0 end 02:56:22Z

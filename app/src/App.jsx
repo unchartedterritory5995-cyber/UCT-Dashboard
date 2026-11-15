@@ -4,7 +4,7 @@ import { Suspense, lazy as plainLazy } from 'react'
 // storm, dropped connection) otherwise strands "Loading page" forever, and
 // React.lazy's cached promise means only a document reload can retry it.
 import StalledLoadFallback from './components/StalledLoadFallback'
-import { SWRConfig } from 'swr'
+import { SWRConfig, mutate as swrMutateAll } from 'swr'
 // Auto-reload on stale-chunk 404 after Railway redeploys (new asset hashes
 // land while user has old HTML loaded). Wraps React.lazy with a one-shot
 // retry that hard-reloads the page instead of hanging on a missing chunk.
@@ -48,6 +48,8 @@ import { CalendarRoute, TerminalRoute } from './pages/terminal/TerminalRoutes'
 // Layout.jsx's feedback-FAB gate so the two can never drift (spec v1.5 exception (h)).
 import useHubActive from './hub/useHubActive'
 import { shouldRetryOnErrorAppWide } from './lib/swrRetry'
+import { appServerGap } from './lib/serverGap'
+import ServerUpdatingBanner from './components/ServerUpdatingBanner'
 import { isAppVisible } from './lib/deskVisibility'
 // /charts is mounted by ChartsDeskHost (inside Layout) so it can outlive a route change while a
 // board is popped out; the route itself renders nothing. Eager and tiny; the page chunk stays lazy.
@@ -300,7 +302,7 @@ function GlobalVoiceGateForUser() {
 function PublicOnly({ children }) {
   const { user, isPaid, loading } = useAuth()
   if (loading) return null
-  if (user) return <Navigate to={isPaid ? '/dashboard' : UPGRADE_PATH} replace />
+  if (user) return <Navigate to={isPaid ? '/charts' : UPGRADE_PATH} replace />
   return children
 }
 
@@ -316,7 +318,7 @@ function PreLaunchGate({ children }) {
   // ruling 2026-10-02), so their home IS the upgrade screen. Render it here
   // rather than redirect: redirecting /subscribe to /subscribe never settles.
   if (user && !isPaid && location.pathname === UPGRADE_PATH) return children
-  if (user) return <Navigate to={isPaid ? '/dashboard' : UPGRADE_PATH} replace />
+  if (user) return <Navigate to={isPaid ? '/charts' : UPGRADE_PATH} replace />
   return <Navigate to="/" replace />
 }
 
@@ -339,7 +341,11 @@ const SWR_CONFIG = {
   // Polls pause while nobody can see the app: a hidden browser tab, or a desktop desk whose every
   // window is hidden or minimized (lib/deskVisibility.js). Live streams and alerts are not SWR polls.
   isVisible: isAppVisible,
+  // The deploy gap (lib/serverGap.js): gateway errors from any SWR read are reported once; when the new
+  // web pod answers, every key on the page revalidates (below), so the screen refills by itself.
+  onError: (err) => appServerGap().report(err?.status),
 }
+appServerGap(() => { swrMutateAll(() => true) })
 
 /** Journal 2.0 P4 shell selector — the Task A1 seam (runtime kill-switch).
  *  Reads `uct.j2.shell` via useJ2Shell(): 'v8' → the legacy 8-tab JournalTwoRoot,
@@ -411,6 +417,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <SWRConfig value={SWR_CONFIG}>
+        <ServerUpdatingBanner />
       <AuthProvider>
         <VoiceProvider>
         {/* Cinematic intro overlay — plays on page load for the APP, but never
@@ -638,7 +645,9 @@ export default function App() {
                   a console whose every request 403s. */}
               <Route path="/alert-tester" element={<AlertTester />} />
               <Route element={<Layout />}>
-                <Route path="/dashboard" element={<Dashboard />} />
+                {/* ⚰️ Dashboard HIDDEN (owner 2026-11-11): Charts is the home now. The page is
+                    kept (the `Dashboard` lazy import above) — restore by rendering it here again. */}
+                <Route path="/dashboard" element={<Navigate to="/charts" replace />} />
                 <Route path="/morning-wire" element={<MorningWire />} />
                 <Route path="/uct-20" element={<UCT20 />} />
                 <Route path="/breadth" element={<Breadth />} />

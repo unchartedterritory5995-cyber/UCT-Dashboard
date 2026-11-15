@@ -111,13 +111,21 @@ adding one.
 
 ```
 LINTER-MEASUREMENT-V1
-definitions 56
-plots 158
+definitions 57
+plots 164
 decided 1
-undecidable-hand-written 157
+undecidable-hand-written 163
 verdict ichimoku.chikou preview-repaints forward=26
 disagreement ichimoku.chikou shipped=non-repainting measured=preview-repaints
 ```
+
+⭐ **2026-11-12 — the counts moved by one definition and six plots, and the FINDING did not
+move at all.** UCT RS Exit Warnings (`rsExit`) is the fifth RS definition: `rsLine`, `fast`, `slow`
+and the three dots `dotQuick`, `dotQuicksand`, `dotDead`. A `server` compute like its siblings, so
+all six plots land in `undecidable-hand-written` (158 to 164 plots, 157 to 163 undecidable):
+`decided` stays 1, the one verdict and the one disagreement are unchanged. Measured by
+`ast/lint.test.js`, never edited into agreement; its `meta.repaint` is `non-repainting`, the
+shared default every definition carries (judged in `indicatorCatalog.test.js`).
 
 ⭐ **2026-11-10 — the counts moved by three definitions and ten plots, and the FINDING
 did not move at all.** The UCT RS split (`feat/uct-rs-split`, fix lane F1) registered the three

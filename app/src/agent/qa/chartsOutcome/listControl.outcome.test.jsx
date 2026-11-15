@@ -19,6 +19,7 @@ import { writeFlagged } from '../../../hooks/flaggedStore'
 import { getCapability } from '../../capabilities'
 import { mountedListViews } from '../../../pages/watchlist/watchlistViews'
 import { ChartsSymContext } from '../../../pages/charts/ChartsSymContext'
+import { MOVE_HELD_OUT, WIDTH_HELD_OUT, COLUMNS_REFUSE_HELD_OUT } from '../../agentWatchlistColumnsHeldOut.test.js'
 
 vi.mock('../../../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
 vi.mock('../../../components/StockChart', () => ({ default: () => null }))
@@ -267,7 +268,7 @@ describe('2. add and hide columns: the header changes', () => {
     await waitFor(() => expect(cols().order).toEqual(expect.arrayContaining(['rvol', 'sector'])))
     expect(m.lastReceipt().textContent).toMatch(/Added RVOL and Sector to “Momentum” · Hid Volume on “Momentum”/)
     await m.say('undo')
-    await waitFor(() => expect(cols()).toEqual({}))
+    await waitFor(() => expect(cols()).toBe(null))            // F6: nothing was saved before, so the Undo leaves nothing saved (was `{}`)
   })
   it.each([
     ['sort by price', 'watchlist.sortColumn', { column: 'price', direction: null }],
@@ -537,6 +538,7 @@ describe('5. several at once, including everything except these', () => {
     await m.say('undo')
     await waitFor(() => expect(server(m, 'Momentum')).toEqual(SAVED))
   })
+  // ⛔ AUDIT #1247 (D19): "all five" names the whole list when it holds exactly five — acted on (its clear card, as before)
   it('listing EVERY ticker is a clear by another name, so it is proposed', async () => {
     const m = board()
     await m.say('remove all five', (c) => [op('watchlist.remove', listRef(c, 'Momentum'), { symbols: SAVED })])
@@ -547,11 +549,13 @@ describe('5. several at once, including everything except these', () => {
     await m.say('undo')
     await waitFor(() => expect(server(m, 'Momentum')).toEqual(SAVED))
   })
-  it('more than ten at once is proposed', async () => {
+  // ⛔ AUDIT #1247 (D19): "twelve" of fourteen — which twelve the words do not fix: ASKS, nothing written, no card
+  it('"remove twelve" (12 of 14: which twelve is not fixed by the words): asks, nothing written, no card', async () => {
     const big = Array.from({ length: 14 }, (_, i) => `T${i}`)
     const m = board(ON_MOMENTUM(), { lists: [{ id: 'w1', name: 'Momentum', symbols: big }] })
-    await m.say('remove twelve', (c) => [op('watchlist.remove', listRef(c, 'Momentum'), { symbols: big.slice(0, 12) })])
-    expect(proposalsNow()).toHaveLength(1)
+    const out = await m.say('remove twelve', (c) => [op('watchlist.remove', listRef(c, 'Momentum'), { symbols: big.slice(0, 12) })])
+    expect(out).toMatch(/didn’t change anything/)
+    expect(proposalsNow()).toHaveLength(0)
     expect(server(m, 'Momentum')).toEqual(big)
   })
   it('a list too big to take apart at once is refused and says where', async () => {
@@ -576,6 +580,7 @@ describe('7. what a list shows, so a follow-up can act on "the top three"', () =
     expect(out).toContain(`“Momentum” (5, sorted by RVOL, high to low): ${RVOL_ORDER.join(', ')}`)
     expect(out).not.toMatch(/\$\d/)
   })
+  // ⛔ AUDIT #1247 (D19): "the top three" = the rows the earlier view showed, the list unchanged since — acted on
   it('"remove the top three": the three on SCREEN, not the first three saved', async () => {
     const m = board()
     await sortRvol(m)
@@ -735,5 +740,51 @@ describe('the widget unmounting takes its target with it', () => {
     const out = await m.say('undo')
     expect(out).not.toMatch(/Undid/)
     expect(JSON.stringify(cols())).toBe(before)
+  })
+})
+
+// pl-widget, watchlist group C (C3-085 / C3-086): a column moved as the header drag drops it, a width as the gridline sets it —
+// through watchlist.arrangeColumns, over the widget's own results (movedColCfg / resizedColCfg). Held-out: agentWatchlistColumnsHeldOut.
+describe('3. move a column, set its width (the header drag and the gridline)', () => {
+  it.each(MOVE_HELD_OUT.map(c => [c.text, c]))('held-out "%s": the stored order and the header follow; Undo restores the columns exactly', async (text, c) => {
+    const m = board()
+    const before = headers()
+    await m.say(text, (ctx) => [op('watchlist.arrangeColumns', only(ctx), c.args)])
+    await waitFor(() => expect((cols()?.order || []).filter(k => k !== 'flag')).toEqual(c.order))
+    expect(headers()).not.toEqual(before)
+    expect(headers().length).toBe(before.length)
+    expect(m.lastReceipt().textContent).toMatch(/On “Momentum”: moved/)
+    await m.say('undo')
+    await waitFor(() => expect(cols() ?? {}).toEqual({}))
+    expect(headers()).toEqual(before)
+  })
+  // ⛔ KNOWN GAP (found by this held-out set, not tuned away): "narrow the price column to 50" is answered BEFORE the model by the
+  // quote fast path, which reads "narrow" as a ticker ("I'm not sure which instrument …"). Pinned both ways: the outcome fails today,
+  // and today's exact answer is asserted, so a fix flips the first and breaks the second on purpose. Owner of the fix: the Lead (useAgent).
+  const GAP = (c) => /^narrow the price column/.test(c.text)
+  it.fails.each(WIDTH_HELD_OUT.filter(GAP).map(c => [c.text, c]))('GAP held-out "%s": the stored width is that (fails today: the quote fast path answers first)', async (text, c) => {
+    const m = board()
+    await m.say(text, (ctx) => [op('watchlist.arrangeColumns', only(ctx), c.args)])
+    await waitFor(() => expect(cols()?.widths?.[c.key]).toBe(c.px), { timeout: 1500 })
+  })
+  it.each(WIDTH_HELD_OUT.filter(GAP).map(c => [c.text, c]))('GAP held-out "%s": today the quote fast path answers, and nothing is written', async (text, c) => {
+    const m = board()
+    const out = await m.say(text, (ctx) => [op('watchlist.arrangeColumns', only(ctx), c.args)])
+    expect(out).toMatch(/not sure which instrument “?"?narrow/i)
+    expect(cols()).toBe(null)
+  })
+  it.each(WIDTH_HELD_OUT.filter(c => !GAP(c)).map(c => [c.text, c]))('held-out "%s": the stored width is that; Undo restores the columns exactly', async (text, c) => {
+    const m = board()
+    const out = await m.say(text, (ctx) => [op('watchlist.arrangeColumns', only(ctx), c.args)])
+    await waitFor(() => expect(cols()?.widths?.[c.key], out).toBe(c.px))
+    expect(m.lastReceipt().textContent).toMatch(new RegExp(`to ${c.px} px wide`))
+    await m.say('undo')
+    await waitFor(() => expect(cols() ?? {}).toEqual({}))
+  })
+  it.each(COLUMNS_REFUSE_HELD_OUT.map(c => [c.text, c]))('NEGATIVE held-out "%s": refused in words; the columns are untouched', async (text, c) => {
+    const m = board()
+    const out = await m.say(text, (ctx) => [op('watchlist.arrangeColumns', only(ctx), c.args)])
+    expect(out).toMatch(c.refuse)
+    expect(cols()).toBe(null)
   })
 })

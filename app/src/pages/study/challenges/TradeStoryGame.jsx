@@ -41,7 +41,7 @@
 // says the calls' XP did not save.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import UIcon from '../../../components/ui/UIcon'
-import brandMark from '../../../components/intro/assets/compass-mark.png'
+import brandMark from '../../../components/intro/assets/compass-mark.webp'
 import { useRunOnTicks } from '../../../lab/fx'   // pure motion (bars running on, tick by tick); no styling rides in
 import { useIsPhone } from '../../../hooks/useBreakpoint'
 import ChallengeError, { isSignedOut } from './ChallengeError'

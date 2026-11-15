@@ -60,11 +60,6 @@ describe('⛔ item 1 — a drawing whose enum slot can be `na` is WITHHELD by na
     'a ternary with an `na` arm on a per-bar test': `${head()}${LINE('(close > open ? line.style_dashed : na)')}`,
     'a v5 value `if` with no `else`': `${head(5)}s = if close > open\n    line.style_dashed\n${LINE('s')}`,
     'a helper `if` with no `else`': `${head()}st(m) =>\n    if m == "A"\n        line.style_dashed\n${MODE('Z')}${LINE('st(mode)')}`,
-    // the review note's shape (W34-I6b N2): a helper tail `switch` of `line.style_*`, no default,
-    // over an input whose options the arms do NOT cover ("Z"): on master the style was dropped
-    // and the line drawn SOLID even with "A" (TradingView: dashed).
-    'a helper `switch` with no default, uncovered options, the member picks "A"': `${head()}${ST_SWITCH}${MODE('A')}${LINE('st(mode)')}`,
-    'the same, v5': `${head(5)}${ST_SWITCH}${MODE('A')}${LINE('st(mode)')}`,
     'a label `style` that can be `na`': `${head()}if barstate.islast\n    label.new(bar_index, close, "x", style = close > open ? label.style_label_up : na)\nplot(close)\n`,
   }
   for (const [name, src] of Object.entries(WITHHELD)) {
@@ -96,33 +91,44 @@ describe('⛔ item 1 — a drawing whose enum slot can be `na` is WITHHELD by na
     expect(s.node.else).toEqual({ t: 'lit', s: 'dotted' })
     expect(diag(t).enumNa).toBeUndefined()
   })
-  it('CONTROL: a helper `switch` WITH a default arm is the if chain', () => {
+  // ⭐⭐ ENGINE 51 (review of #1149, blocker 1) — AN INPUT ONLY A DRAWING READS IS FOLDED AT
+  // ITS DEFAULT IN THE DOOR (no knob is declared for it: `memberInputTranslation`), so the
+  // drawing lane reads the helper's word before bar 0 (`staticEnumValue`) instead of carrying
+  // a per-bar choice over a constant. The `na` an uncovered option could reach is not reached
+  // at the default, so nothing is withheld for it. (A DECLARED input is a knob and is never
+  // folded: `engine51ReviewFixes.test.js`.)
+  it('a helper `switch` with no default, uncovered options, the member picks "A": dashed (the I6b-N2 shape; master drew SOLID)', () => {
+    for (const v of [6, 5]) {
+      const t = door(`${head(v)}${ST_SWITCH}${MODE('A')}${LINE('st(mode)')}`)
+      expect(creates(t), `v${v}`).toHaveLength(1)
+      expect(creates(t)[0].props.style, `v${v}`).toEqual({ v: 'text', node: { t: 'lit', s: 'dashed' } })
+      expect(diag(t).enumNa, `v${v}`).toBeUndefined()
+    }
+  })
+  it('CONTROL: a helper `switch` WITH a default arm, picked "Z", is the default arm\'s word', () => {
     const t = door(`${head()}st(m) =>\n    switch m\n        "A" => line.style_dashed\n        => line.style_dotted\n${MODE('Z')}${LINE('st(mode)')}`)
     expect(creates(t)).toHaveLength(1)
-    expect(creates(t)[0].props.style.node.t).toBe('if')
+    expect(creates(t)[0].props.style.node).toEqual({ t: 'lit', s: 'dotted' })
   })
   // `input.string(defval, title, options, …)` (https://www.tradingview.com/pine-script-reference/v6/#fun_input.string):
   // an input can only hold one of its `options`, so a default-less switch whose arms cover them all cannot miss.
   it('a helper `switch` with no default whose arms COVER the options (positional) is served, through the call', () => {
-    for (const def of ['A', 'B']) {
+    for (const [def, word] of [['A', 'dashed'], ['B', 'dotted']]) {
       const t = door(`${head()}${ST_SWITCH}mode = input.string("${def}", "m", ["A", "B"])\n${LINE('st(mode)')}`)
       expect(creates(t), def).toHaveLength(1)
-      const s = creates(t)[0].props.style
-      expect(s.node.t, def).toBe('if')
-      expect(s.node.then).toEqual({ t: 'lit', s: 'dashed' })
-      expect(s.node.else).toEqual({ t: 'lit', s: 'dotted' })
+      expect(creates(t)[0].props.style.node, def).toEqual({ t: 'lit', s: word })
       expect(diag(t).enumNa).toBeUndefined()
     }
   })
   it('the same with `options =` named', () => {
-    const t = door(`${head()}${ST_SWITCH}${MODE('A', '["A", "B"]')}${LINE('st(mode)')}`)
-    expect(creates(t)[0].props.style.node.else).toEqual({ t: 'lit', s: 'dotted' })
+    const t = door(`${head()}${ST_SWITCH}${MODE('B', '["A", "B"]')}${LINE('st(mode)')}`)
+    expect(creates(t)[0].props.style.node).toEqual({ t: 'lit', s: 'dotted' })
   })
   it('a ternary chain over a covered input whose `na` tail cannot be reached is read without it', () => {
-    const t = door(`${head()}${MODE('A', '["A", "B"]')}s = mode == "A" ? line.style_dashed : mode == "B" ? line.style_dotted : na\n${LINE('s')}`)
-    const s = creates(t)[0].props.style
-    expect(s.node.then).toEqual({ t: 'lit', s: 'dashed' })
-    expect(s.node.else).toEqual({ t: 'lit', s: 'dotted' })
+    for (const [def, word] of [['A', 'dashed'], ['B', 'dotted']]) {
+      const t = door(`${head()}${MODE(def, '["A", "B"]')}s = mode == "A" ? line.style_dashed : mode == "B" ? line.style_dotted : na\n${LINE('s')}`)
+      expect(creates(t)[0].props.style.node, def).toEqual({ t: 'lit', s: word })
+    }
   })
   // (an input only a drawing reads is folded at the member's value; at "Z" the `na` arm is the answer)
   it('…but NOT when an option is uncovered and the member picks it (the `na` is reached)', () => {

@@ -37,17 +37,21 @@ const V3_SERVER_INPUTS = ['benchmark', 'maLength', 'maType', 'lookback', 'priceT
   'showNewHigh', 'showNewHighBeforePrice', 'shortHistoryDots', 'mansfieldLength', 'showMansfield',
   'showRedDay', 'showNewLow']
 const V3_MENU = ['SPY', 'RSP', 'SECTOR', 'QQQ', 'IWM', 'INDUSTRY']
+/** 2026-11-12: the menu as the DEFINITION orders it (the dropdown's order), and
+ *  the v4 row's full menu (sector and theme benchmarks added). */
+const V3_SHOWN = ['SPY', 'RSP', 'QQQ', 'IWM', 'SECTOR', 'INDUSTRY']
+const V4_MENU = ['SPY', 'RSP', 'QQQ', 'IWM', 'SECTOR', 'SECTOR_PICK', 'INDUSTRY', 'THEME', 'THEME_PICK', 'CUSTOM']
 /** What `serverCompute.serverDeclares('rsLine')` reads from the live row. */
 const V3_DECLARED = Object.freeze({ inputs: V3_SERVER_INPUTS, options: { benchmark: V3_MENU, maType: ['EMA', 'SMA'] } })
 const V4_DECLARED = Object.freeze({
   inputs: RS.meta.serverInputs,
   // rev 5 (Deepvue round 2): the live row's `view` enum names the RS Rating Reading too
-  options: { benchmark: [...V3_MENU, 'CUSTOM'], maType: ['EMA', 'SMA'], view: ['ratio', 'mansfield', 'rotation', 'quality', 'vars', 'rating'] },
+  options: { benchmark: V4_MENU, maType: ['EMA', 'SMA'], view: ['ratio', 'mansfield', 'rotation', 'quality', 'vars', 'rating'] },
 })
 const SHIPPED = ['classic', 'classicWeekly', 'phase', 'trend', 'trendWeekly', 'stress']
 const PHASE3 = ['rotation', 'rotationWeekly', 'quality', 'volAdjusted']
-const PHASE3_INPUTS = ['view', 'customBenchmark', 'rrgRatioLength', 'rrgMomentumLength', 'clenowWindow',
-  'clenowGapPct', 'atrLength', 'varsLookback', 'anchorDate']
+const PHASE3_INPUTS = ['view', 'customBenchmark', 'sectorBenchmark', 'themeBenchmark', 'rrgRatioLength',
+  'rrgMomentumLength', 'clenowWindow', 'clenowGapPct', 'atrLength', 'varsLookback', 'anchorDate']
 
 describe('1 · the server gate', () => {
   const fieldKeys = (declared) => fieldsForInstance(RS, null, { declared }).all.map((f) => f.key)
@@ -79,12 +83,12 @@ describe('1 · the server gate', () => {
       const keys = fieldKeys(declared)
       for (const k of PHASE3_INPUTS) expect(keys, k).not.toContain(k)
       expect(keys).toContain('showMansfield')
-      expect(benchOptions(declared)).toEqual(V3_MENU)
+      expect(benchOptions(declared)).toEqual(V3_SHOWN)
     }
     const keys = fieldKeys(V4_DECLARED)
     for (const k of PHASE3_INPUTS) expect(keys, k).toContain(k)
     expect(keys).not.toContain('showMansfield')
-    expect(benchOptions(V4_DECLARED)).toEqual([...V3_MENU, 'CUSTOM'])
+    expect(benchOptions(V4_DECLARED)).toEqual(V4_MENU)
     expect(RS.inputs.find((i) => i.key === 'benchmark').options.at(-1)).toEqual(['CUSTOM', 'Your symbol', { requiresServer: true }])
   })
 
@@ -98,7 +102,7 @@ describe('1 · the server gate', () => {
     expect(input('anchorDate')).toMatchObject({ type: 'string', group: 'Checks', default: '', requiresServer: true,
       pattern: '^\\d{4}-\\d{2}-\\d{2}$', tooltip: 'Blank uses the benchmark\'s lowest close of the last 20 sessions' })
     expect(RS.meta.groupsCollapsed).toEqual(expect.arrayContaining(['Method', 'Checks']))
-    expect(RS.meta.serverInputs.slice(-9)).toEqual(PHASE3_INPUTS)
+    expect(RS.meta.serverInputs.slice(-PHASE3_INPUTS.length)).toEqual(PHASE3_INPUTS)
     // rev 5 since Deepvue round 2 (the RS Rating Reading); `rsRatingView.test.js` owns the rest of it
     expect(RS).toMatchObject({ version: 5, compute: { kind: 'server', fn: 'rsLine', rev: 5 } })
     expect(RS.placement).toMatchObject({ target: 'pane', ownScale: true })
@@ -238,7 +242,7 @@ describe('3 · a saved v3 Trend layout', () => {
 describe('4 · the chip under "Your symbol"', () => {
   const b = { instanceId: 'inst:rsLine:1', defId: 'rsLine', plotKey: 'rsLine', series: { __id: 'rs' }, lastValue: 0.2477 }
   const inst = { instanceId: 'inst:rsLine:1', defId: 'rsLine', inputs: { benchmark: 'CUSTOM', customBenchmark: 'SMH' }, hidden: false }
-  const payload = { benchmark: { requested: 'CUSTOM', resolved: 'SMH', label: 'SMH', fallback: null, bars: 852 },
+  const payload = { benchmark: { requested: 'CUSTOM', resolved: 'SMH', name: 'SMH', label: 'SMH', fallback: null, bars: 852 },
     rating: { ibd: 94, fast: 91, asof: '2026-11-05', summary: '94 · fast 91' } }
 
   it('reads `UCT RS · SMH · 94`, and the pane `UCT Relative Strength · SMH · 94`', () => {
@@ -257,7 +261,7 @@ describe('4 · the chip under "Your symbol"', () => {
 
 /** One payload carrying every v4 block, as the provider builds them (3-06). */
 const PAYLOAD = Object.freeze({
-  benchmark: { requested: 'SPY', resolved: 'SPY', label: 'S&P 500 (SPY)', fallback: null, bars: 852 },
+  benchmark: { requested: 'SPY', resolved: 'SPY', name: 'SPY', label: 'S&P 500 (SPY)', fallback: null, bars: 852 },
   legend: { summary: 'above its 21 EMA by 6.8%', asOf: 20261105, lastValue: 0.4187 },
   mansfield: { value: 18.71, summary: '+18.7%, above zero, falling' },
   rotation: { quadrant: 'Leading', ratio: 101.23, momentum: 100.42, inQuadrantBars: 6, asOf: '20261106', stale: false,
@@ -396,13 +400,13 @@ describe('8 · the member copy on the three new cards (D8, plan §3)', () => {
 // ⭐ UCT RS 3-14 — a pane that drew nothing prints the server's note, not a dash.
 describe('3-14 · the empty-pane label prints the benchmark note', () => {
   const NOTE = 'No XYZQ bars yet; they usually load within a minute'
-  const noBars = { benchmark: { requested: 'CUSTOM', resolved: 'XYZQ', label: 'XYZQ', note: NOTE } }
+  const noBars = { benchmark: { requested: 'CUSTOM', resolved: 'XYZQ', name: 'XYZQ', label: 'XYZQ', note: NOTE } }
   it('no value at all and a note: the note, muted, marked', () => {
     expect(readoutFallbackValue(RS, noBars, 4, { benchmark: 'CUSTOM', customBenchmark: 'XYZQ' }))
       .toEqual({ text: NOTE, muted: true, note: true })
   })
   it('no value and no note: the muted dash, as before', () => {
-    expect(readoutFallbackValue(RS, { benchmark: { resolved: 'SPY', label: 'SPY' } }, 4, {})).toEqual({ text: '—', muted: true })
+    expect(readoutFallbackValue(RS, { benchmark: { resolved: 'SPY', name: 'SPY', label: 'SPY' } }, 4, {})).toEqual({ text: '—', muted: true })
     expect(readoutFallbackValue(RS, null, 4, {})).toEqual({ text: '—', muted: true })
   })
   it('a last value wins over the note (a benchmark gap prints the dated value)', () => {

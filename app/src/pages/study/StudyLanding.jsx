@@ -23,7 +23,7 @@ import { METHOD_ID, FOUNDATIONS_ID } from './studyLandingChart'
 import { XP_PER_LEVEL, levelOf, tierOf } from './studyLevels'
 import { TROPHIES } from './studyBadges'
 import { weekDots, WEEKDAY_LETTERS } from './studyMap'
-import brandMarkUrl from '../../components/intro/assets/compass-mark.png'
+import brandMarkUrl from '../../components/intro/assets/compass-mark.webp'
 import s from './StudyLanding.module.css'
 
 

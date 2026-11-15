@@ -250,7 +250,10 @@ const KNOWN = [
 const I = (id, why) => ({ id, agent: 'internal', why })
 const INTERNAL = [
   I('settingsVersion', 'schema version'), I('preset', 'set to "custom" by every manual write'),
-  I('header.legendLayout', 'dead data — nothing reads it'), I('showPatterns', 'control disabled in the product'),
+  I('header.legendLayout', 'dead data — nothing reads it'),
+  // the Auto patterns layer of the UCT Intelligence indicator (uctIntelligence.js) and the toolbar's Patterns button: gated per
+  // viewer, so never a generic setting — the Agent writes it only through uctIntelligence.set, which checks those gates
+  I('showPatterns', 'UCT Intelligence → Auto patterns (and the toolbar Patterns button); the Agent uses uctIntelligence.set'),
   I('hideDrawings', 'right-click → Hide all drawings; the Agent hides drawings per drawing, through drawing.setAllVisible'),
   I('signature.*', 'not a member control on /charts')
 ]

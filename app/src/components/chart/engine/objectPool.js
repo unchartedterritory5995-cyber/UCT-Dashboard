@@ -90,6 +90,15 @@ export const OBJECT_KINDS = Object.freeze(Object.keys(POOL_LIMITS))
  *   · one a drawing variable currently holds (a `var box b = box.new(…)` is
  *     never collected — it still COUNTS toward the total)
  *
+ * ⭐ W-C22-DEL r6 — an object held only in an ARRAY: for BOXES it is WITNESSED —
+ * it is collected like any other box (not spared). `sonarlab-order-blocks-spy-1d`
+ * keeps every box in a `var array<box>` (`max_boxes_count = 20`): TradingView holds
+ * 24, this collector (array members not spared) gives 24/24, and sparing them would
+ * give 36. ⛔ NOT witnessed: lines, labels and polylines in an array, and any
+ * family in a map, a matrix or a UDT field — where the collector reaches one, both
+ * lanes withhold the family (`objectRuntime.js`, `runtime/objectStore.js`), queued
+ * as Q-C22-1 (`docs/pine/capture-queue-2026-11-10-c22-array-gc.md`).
+ *
  * The live count therefore saw-tooths between `capacity` and
  * `capacity + GC_BATCH` (`label.all` read per bar: 5,6,…,10 then 5 at cap 5).
  * Measured on eight TradingView captures of `vw-object-gc-{a,b,c,d}.pine`

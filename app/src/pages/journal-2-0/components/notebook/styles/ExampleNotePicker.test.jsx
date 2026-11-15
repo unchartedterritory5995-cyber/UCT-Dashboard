@@ -186,7 +186,7 @@ describe('2. the picker', () => {
     expect(within(picker).queryByText('Monday plan')).toBeNull()
     expect(within(picker).getByText('Last week plan')).toBeInTheDocument()
     fireEvent.change(within(picker).getByRole('searchbox', { name: 'Search your notes' }), { target: { value: 'zzz' } })
-    expect(await within(picker).findByText('None of your notes of this kind match.')).toBeInTheDocument()
+    expect(await within(picker).findByText('None of your notes of this type match.')).toBeInTheDocument()
   })
 
   it('picking a note opens the preview of that note; Submit says it was sent, beside the door', async () => {

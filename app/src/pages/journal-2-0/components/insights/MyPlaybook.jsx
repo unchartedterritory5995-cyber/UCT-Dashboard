@@ -15,6 +15,7 @@
  */
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { useRouteOpened } from '../../lib/notebookUsage'
 import useSWR from 'swr'
 import { PLAYBOOK_IN_NOTEBOOK_PATH, playbookEnabled } from '../../lib/myPlaybookLink'
 import { NOTEBOOK_PATH } from '../../lib/journalRoutes'
@@ -225,6 +226,8 @@ export default function MyPlaybook({ onSaveSnapshot = defaultSaveSnapshot }) {
   const { accountId } = useJ2SelectedAccount(on)
   const navigate = useNavigate()
   const inNotebook = useLocation().pathname.startsWith(PLAYBOOK_IN_NOTEBOOK_PATH)
+  // Follow-up A: counted only as the Notebook's side route (Insights' own playbook address is not the Notebook's).
+  useRouteOpened('playbook', inNotebook && on)
   const key = on ? (accountId ? `${BASE}?accountId=${encodeURIComponent(accountId)}` : BASE) : null
   const { data, error, isLoading, mutate } = useSWR(key, getJson, { revalidateOnFocus: false, shouldRetryOnError: false })
   const [open, setOpen] = useState(null) // {setup, key}

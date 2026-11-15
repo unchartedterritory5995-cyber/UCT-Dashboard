@@ -52,7 +52,7 @@ import { rayAt } from '../../lab/pointers'
 import { calloutLook, hardCallouts } from './ui/callout'
 import ChartKey from './ui/ChartKey'
 import { SymbolBadge } from './ui/StudyChart'
-import brandMark from '../../components/intro/assets/compass-mark.png'
+import brandMark from '../../components/intro/assets/compass-mark.webp'
 import { RUN_ON_MS, reviewTrade } from './challenges/hardMode'
 import { alignTicks, developing, fetchIntraday } from './challenges/replayTicks'
 import { useRunOnTicks } from '../../lab/fx'   // pure motion (bars running on, tick by tick); no styling rides in
@@ -516,6 +516,9 @@ export default function DrillPlayer({
           {chartMounted && (
             <StockChart
               {...lookProps}
+              // A drill chart keeps no saved pan/zoom on the device. Said outright (after the
+              // spread) so the settings census can read it: persistenceManifest.test.js.
+              viewLockKey={null}
               sym={chartItemId}
               tf={chartTf}
               height={chartHeight}

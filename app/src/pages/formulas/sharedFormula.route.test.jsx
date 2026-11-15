@@ -60,7 +60,6 @@ const SHARED = Object.freeze({
       source: 'close > ema(close, 20) and rsi(close, 14) < 45',
     },
   },
-  author_id: 7,
   origin_def_id: 'u_abc123def456',
   origin_version: 3,
   origin_ast_hash: 'sha256:deadbeef',

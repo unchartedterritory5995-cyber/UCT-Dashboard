@@ -92,6 +92,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from typing import Callable, Optional
 
 from fastapi import Depends, HTTPException
@@ -527,4 +528,121 @@ def pine_runtime_admission(script, registry) -> list[str]:
                and c.get("runtimePane") == PINE_CAPTURE_PANE_ON]
     if not matched:
         reasons.append("has no TradingView capture graded MATCH with the runtime pane on (R1)")
+    return reasons
+
+
+# --------------------------------------------------------------------------- #
+# ⭐⭐ WS-I PART 2 (2026-11-13) — ADMISSION BY CAPABILITY: WHEN A CAPABILITY IS
+# ADMITTED. A member's own copy of a script never hashes to a graded copy, so
+# `PINE_RUNTIME_CAPABILITY_ADMISSION=on` admits a script whose EVERY capability
+# (`api/services/pine_capabilities.py::capabilities_of`) is admitted here. A
+# registry row (`pine_runtime_allowlist.json` `capabilities{}`) admits its
+# capability only when ALL hold:
+#
+#   * `admitted: true` AND `status: conformant` (both: `admitted` is the
+#     stricter word, and R1's per-script gate keeps reading `status`);
+#   * at least TWO evidence entries `{capture, script, community, verdict: MATCH,
+#     runtimePane: on}`, naming TWO distinct captures of TWO DISTINCT scripts, where
+#     `script` is the script's FAMILY (`pine_evidence_script`: a probe and its own
+#     variant, `..._AVG` and `..._AVG_NEG`, are one script), and AT LEAST ONE of the
+#     counted scripts is a COMMUNITY script (`community: true`), not one of our
+#     UCTPROBE_ / vw- probes (coordinator ruling 2026-11-13). Probes still count as
+#     captures;
+#   * for an object family (`obj:*`), each counted entry ALSO carries
+#     `objectsV2: MATCH` and `objectsLane: runtime` (a v2 objects grade with the
+#     RUN drawing them). No capture carries that today, so no `obj:*` row admits.
+#
+# Pure: no env, no I/O, never raises; a malformed row admits nothing. Whether an
+# evidence id is a real capture graded MATCH is held by the rail
+# (`tests/test_pine_capability_admission.py`, A8), not read here.
+# --------------------------------------------------------------------------- #
+
+PINE_CAPABILITY_MIN_CAPTURES = 2
+PINE_CAPABILITY_MIN_SCRIPTS = 2
+PINE_CAPABILITY_MIN_COMMUNITY_SCRIPTS = 1
+#: A probe's title or capture id starts with one of these (compared lowercased); every other
+#: capture is a community script. Re-verify of #1204 (2026-11-13): `probe-` (probe-default-colour-v3/
+#: v4/v6, probe-sparse-rows) and `uct-` (the legacy uct-dmi / rsi-atr / sma-ema / hma-macd / rma-wma /
+#: stoch-parity-v1 captures) are ours too, and `uctprobe` also matches `UCTPROBE <name>` (a space).
+PINE_PROBE_PREFIXES = ("uctprobe", "vw-", "probe-", "uct-")
+#: A probe's own variants: a `v<n>` version and a NEG / POS / ALT suffix, after `_`, `-` or a space.
+_PINE_PROBE_VARIANT_RX = re.compile(r"[_\- ](?:v\d+|neg|pos|alt)$", re.I)
+
+
+def pine_evidence_script(title, capture_id):
+    """``(script, community)`` for one evidence capture: the script FAMILY it counts as, and
+    whether it is a community script. A probe (`PINE_PROBE_PREFIXES` on its title or capture id,
+    lowercased) is one family with its variants: trailing `v<n>` / NEG / POS / ALT suffixes are
+    stripped, so UCTPROBE_VW_INT_ARRAY_AVG_NEG is UCTPROBE_VW_INT_ARRAY_AVG and uct-dmi-parity-v1
+    is uct-dmi-parity. A community script is its title, unchanged."""
+    t = title if isinstance(title, str) and title else (capture_id if isinstance(capture_id, str) else "")
+    cid = capture_id if isinstance(capture_id, str) else ""
+    probe = t.lower().startswith(PINE_PROBE_PREFIXES) or cid.lower().startswith(PINE_PROBE_PREFIXES)
+    if not probe:
+        return t, True
+    fam = t
+    while True:
+        base = _PINE_PROBE_VARIANT_RX.sub("", fam)
+        if base == fam or not base:
+            return fam, False
+        fam = base
+PINE_CAPABILITY_OBJECT_PREFIX = "obj:"
+PINE_OBJECTS_LANE_RUNTIME = "runtime"
+
+
+def _pine_ledger_entry_fresh(entry) -> bool:
+    """A ledger evidence entry was graded at today's SCRIPT_ENGINE_VERSION (the server's one reader)."""
+    from api.services import user_definitions  # noqa: PLC0415 -- the engine number's one authority
+    cur, at = user_definitions.SCRIPT_ENGINE_VERSION, entry.get("scriptEngineVersion")
+    return (isinstance(cur, int) and isinstance(at, int) and not isinstance(at, bool) and at == cur)
+
+
+def _pine_capability_evidence_counts(name: str, entry) -> bool:
+    """Does this evidence entry count toward admitting capability `name`?"""
+    if not isinstance(entry, dict):
+        return False
+    for key in ("capture", "script"):
+        if not isinstance(entry.get(key), str) or not entry.get(key):
+            return False
+    if entry.get("verdict") != PINE_CAPTURE_MATCH or entry.get("runtimePane") != PINE_CAPTURE_PANE_ON:
+        return False
+    # ⭐ LEDGER_ONLY evidence (a licence-held capture graded out of git, `evidence_ledger`) counts only
+    # while FRESH: graded at the engine this build ships. A bump retires it until a regrade refreshes it.
+    if "ledger" in entry and not (entry.get("ledger") is True and _pine_ledger_entry_fresh(entry)):
+        return False
+    if name.startswith(PINE_CAPABILITY_OBJECT_PREFIX):
+        return (entry.get("objectsV2") == PINE_CAPTURE_MATCH
+                and entry.get("objectsLane") == PINE_OBJECTS_LANE_RUNTIME)
+    return True
+
+
+def pine_capability_admission(name, row) -> list[str]:
+    """Why registry row `row` does NOT admit capability `name` (WS-I Part 2), or ``[]``.
+
+    ⛔ FAIL CLOSED: a row that cannot answer a question is not admitted, with the reason."""
+    if not isinstance(name, str) or not name:
+        return ["not a capability name"]
+    if not isinstance(row, dict):
+        return [f"capability `{name}` is not in the registry"]
+    reasons: list[str] = []
+    if row.get("admitted") is not True:
+        reasons.append(f"capability `{name}` is not marked admitted")
+    if row.get("status") != PINE_CAPABILITY_CONFORMANT:
+        reasons.append(f"capability `{name}` is {row.get('status') or 'ungraded'}, not conformant")
+    evidence = row.get("evidence")
+    counted = [e for e in (evidence if isinstance(evidence, list) else [])
+               if _pine_capability_evidence_counts(name, e)]
+    captures = {e["capture"] for e in counted}
+    scripts = {e["script"] for e in counted}
+    community = {e["script"] for e in counted if e.get("community") is True}
+    if len(community) < PINE_CAPABILITY_MIN_COMMUNITY_SCRIPTS:
+        reasons.append(f"capability `{name}` has no community script among its evidence (only our "
+                       "probes); admission needs at least one")
+    if len(captures) < PINE_CAPABILITY_MIN_CAPTURES or len(scripts) < PINE_CAPABILITY_MIN_SCRIPTS:
+        what = ("objects v2 MATCH captures with the run drawing them"
+                if name.startswith(PINE_CAPABILITY_OBJECT_PREFIX)
+                else "MATCH captures with the runtime pane on")
+        reasons.append(f"capability `{name}` has {len(captures)} {what} from {len(scripts)} "
+                       f"script(s); admission needs {PINE_CAPABILITY_MIN_CAPTURES} from "
+                       f"{PINE_CAPABILITY_MIN_SCRIPTS}")
     return reasons

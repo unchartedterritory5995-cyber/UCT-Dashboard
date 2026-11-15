@@ -22,16 +22,11 @@
 // **Implement them as two distinct operations. Never implement `cell()` as a
 // merge.**"
 //
-// ⚠️⚠️ AND THIS REPO'S `cell` IS CURRENTLY A MERGE — `objectRuntime.js` does
-// `map.set(key, resolveProps(op.props, map.get(key) || {}))`. That is a FOURTH
-// fidelity gap, it is PRE-EXISTING, and it is deliberately not fixed here:
-// changing `cell` to a true replace changes what every already-imported script
-// renders and needs its own evidence. The consequence for this file is worth
-// stating plainly rather than leaving for a reviewer to notice: today a patch
-// and a put behave identically, so NONE of the cases below can tell them apart.
-// The op kinds are kept separate anyway, because the day `cell` becomes a real
-// replace is the day a `cell_set_text` modelled as a `cell` would wipe the
-// colours off the row it was only supposed to relabel.
+// ⭐ DIV-3 (2026-11-09): `cell` IS NOW A REPLACE in `objectRuntime.js` (it was a
+// merge — the "fourth fidelity gap" this header used to record). The cases
+// below now DO tell a patch from a put: a patch that replaced would wipe the six
+// other properties pinned here. The replace itself is railed in
+// `tableCellReplace.test.js`. The op kinds were kept separate for exactly this day.
 //
 // ⭐ 11 setters exist; 10 are implemented. `cell_set_text_font_family` is the
 // one refusal and it is NAMED, for the reason `CELL_PROPS` gives: a substituted
@@ -190,12 +185,15 @@ plot(close)
     const { t, cells } = wire(script(
       '    table.cell_set_text_formatting(t, 0, 0, close)',
     ))
-    // ⭐ LINE 8 IS THE SETTER'S OWN LINE in the template above, not the cell's —
-    // the point of a named drop is that it addresses the expression an engineer
-    // has to go and look at.
-    expect(t.objectDiagnostics.droppedPropNames).toContain('cell.text_formatting@8')
-    expect(cells['0,0'].text_formatting).toBe(BASE.cells['0,0'].text_formatting)
-    expect(cells['0,0'].text).toBe('A0')
+    // ⛔⛔ ENGINE 51 (review of #1149, major 3) — `text_formatting` is an enum slot, and a
+    // patch whose enum this door cannot read WITHHOLDS ITS TABLE by name (`enum:unreadable`,
+    // `contentLost`): left alone, the cell would keep the formatting an earlier write gave
+    // it, which is not what TradingView shows after the patch. It used to leave the
+    // property ALONE (`cell.text_formatting@8`); a property left alone is a default kept.
+    expect(t.objectDiagnostics.dropReasons['enum:unreadable']).toBe(1)
+    expect(t.objectDiagnostics.dropReasons['content:lost'] || 0).toBeGreaterThan(0)
+    expect(cells['0,0']).toBeUndefined()
+    expect(BASE.cells['0,0'].text).toBe('A0') // CONTROL — without the patch the table draws
   })
 
   it('⭐⭐ a CONDITIONAL setter value is carried, and patches BOTH ways', () => {

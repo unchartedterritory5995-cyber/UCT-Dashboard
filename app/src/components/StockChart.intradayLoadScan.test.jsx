@@ -181,7 +181,7 @@ describe('one request per poll', () => {
     render(<StockChart sym="KEYSTABLE" tf="5" backgroundWarm={false} />)
     await wait(1200)
     // Only the primary tail key (the dwell deep-backfill is a separate one-shot bars=3000 pull).
-    const n = reqs.filter(r => r.url.includes('/api/bars/KEYSTABLE') && !r.url.includes('bars=3000')).length
+    const n = reqs.filter(r => r.url.includes('/api/bars/KEYSTABLE') && !r.url.includes('bars=3000') && !r.url.includes('&to=')).length
     // The first answer advances the tail 12:00 → 13:10. Before: the key changed to the
     // new since= and SWR fired again immediately.
     expect(n).toBe(1)
@@ -207,7 +207,7 @@ describe('per-load identity', () => {
     serve()
     render(<><StockChart sym="TWIN" tf="5" backgroundWarm={false} /><StockChart sym="TWIN" tf="5" backgroundWarm={false} /></>)
     await wait(400)
-    const tails = reqs.filter(r => r.url.includes('/api/bars/TWIN') && !r.url.includes('bars=3000'))
+    const tails = reqs.filter(r => r.url.includes('/api/bars/TWIN') && !r.url.includes('bars=3000') && !r.url.includes('&to='))
     expect(tails.length).toBe(2)
   })
 

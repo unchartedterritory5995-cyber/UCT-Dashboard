@@ -117,10 +117,10 @@ class TestPutBarsRefuses:
         assert bars_sqlite.get_bars("GME", "D", 10) == []
 
     def test_the_good_bars_in_a_mixed_batch_still_land(self, fresh_db):
-        batch = [_bar(t=20260801), MEASURED["MSC 2026-07-10"], _bar(t=20260804)]
+        batch = [_bar(t=20260731), MEASURED["MSC 2026-07-10"], _bar(t=20260804)]
         written = bars_sqlite.put_bars("MIX", "D", batch, date_tf=False)
         assert written == 2
-        assert [r[0] for r in bars_sqlite.get_bars("MIX", "D", 10)] == [20260801, 20260804]
+        assert [r[0] for r in bars_sqlite.get_bars("MIX", "D", 10)] == [20260731, 20260804]
 
     def test_the_return_value_is_the_accepted_count(self, fresh_db):
         """⚠️ `alert_bars_freshness` reads this as `if not rows: status = 'empty'`.

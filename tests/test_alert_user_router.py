@@ -420,11 +420,11 @@ def test_the_GLOBAL_catalog_is_BYTE_UNMOVED_by_the_scoped_one(client):
     save(USER_A, defn())
     served = _catalog(client)
     global_entries = ev.alert_catalog()
-    assert len(global_entries) == 20  # 2026-11-10 (RS split, S2): 18 -> 20, +rs_phases +rs_vs_ema; 2026-11-07: +rs_line (UCT RS, 2b-05: 11 closed-only addresses, 5th partition RS_FUNCS)
+    assert len(global_entries) == 21  # 2026-11-12 (RS Exit Warnings): 20 -> 21, +rs_exit; 2026-11-10 (RS split, S2): 18 -> 20, +rs_phases +rs_vs_ema; 2026-11-07: +rs_line (UCT RS, 2b-05: 11 closed-only addresses, 5th partition RS_FUNCS)
     assert served[:len(global_entries)] == global_entries
     assert [e["indicator"] for e in served[len(global_entries):]] == [DEF_ID]
 
-    assert len(ev.all_addresses()) == 48  # 2026-11-10 (RS split, S2): 44 -> 48, +rs_phases.flipBlue/flipRed +rs_vs_ema.crossUp/crossDown; 2026-11-07 (RS 2b-06): +rs_line.rating; 2026-11-07: +rs_line (UCT RS, 2b-05: 11 closed-only addresses, 5th partition RS_FUNCS)
+    assert len(ev.all_addresses()) == 51 # 2026-11-12 (RS Exit Warnings): +3 rs_exit;  # 2026-11-10 (RS split, S2): 44 -> 48, +rs_phases.flipBlue/flipRed +rs_vs_ema.crossUp/crossDown; 2026-11-07 (RS 2b-06): +rs_line.rating; 2026-11-07: +rs_line (UCT RS, 2b-05: 11 closed-only addresses, 5th partition RS_FUNCS)
     assert not [a for a in ev.all_addresses() if aus.is_user_address(a)]
     assert len(ev.ADDRESS_PARTITIONS) == 5  # 2026-11-07: +rs_line (UCT RS, 2b-05: 11 closed-only addresses, 5th partition RS_FUNCS)
     assert all(p is not aus.USER_FUNCS for p in ev.ADDRESS_PARTITIONS)

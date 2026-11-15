@@ -1,0 +1,69 @@
+# promotion-gate: no
+#
+# The web image's start command, checked on LINUX.
+#
+# `Dockerfile.web`'s CMD has two branches: the uvicorn command line `web` has always
+# run, and an opt-in one (`WEB_PRIVATE_LISTEN_ENABLED=1` -> `api/serve_dual.py`) that
+# adds an IPv6-only socket so other services can reach `web` on the private network.
+# `tests/test_serve_dual.py` pins both. It was written and first run on Windows, and the
+# two things it exists to prove behave differently there:
+#
+#   * a Windows socket is IPv6-only by default, Linux (production) is dual stack by
+#     default, so "the IPv6 socket does not also claim the IPv4 port" is only a real
+#     question on Linux;
+#   * the CMD's condition runs in the image's `sh`, which is dash on Debian, and the
+#     test runs that condition in a real shell against `serve_dual.enabled()`.
+#
+# So this runs the same file where it matters. A red here means: do not set
+# `WEB_PRIVATE_LISTEN_ENABLED` on `web`, and do not merge a change to the CMD.
+#
+# Narrow on purpose: it fires only when one of the four files below changes, and it
+# installs two packages (the module under test imports nothing else from the repo; the
+# repo's conftest is skipped so the run does not need the application's dependencies).
+name: Web start command
+
+on:
+  push:
+    paths:
+      - 'api/serve_dual.py'
+      - 'tests/test_serve_dual.py'
+      - 'Dockerfile.web'
+      - '.github/workflows/web-start.yml'
+  pull_request:
+    paths:
+      - 'api/serve_dual.py'
+      - 'tests/test_serve_dual.py'
+      - 'Dockerfile.web'
+      - '.github/workflows/web-start.yml'
+
+# CI COST (2026-11-06, owner): a newer push to the same PR cancels that PR's older run of this
+# workflow. Every other event (master push, dispatch, schedule) is grouped by its own commit SHA and
+# is never cancelled: promotion reads the master runs for a SHA. tests/test_ci_cost_rails.py pins this.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install the two packages the module needs
+        run: python -m pip install --quiet 'uvicorn==0.41.0' 'pytest==8.3.4'
+      - name: This runner can prove it
+        # The proof is vacuous if the IPv6 cases are skipped, so a runner with no IPv6
+        # loopback FAILS here instead of skipping them.
+        run: |
+          readlink -f "$(command -v sh)"
+          python -c "import socket; s = socket.socket(socket.AF_INET6); print('IPV6_V6ONLY default here:', s.getsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY))"
+          python -c "import socket; s = socket.socket(socket.AF_INET6); s.bind(('::1', 0)); print('IPv6 loopback: ok')"
+      - name: tests/test_serve_dual.py
+        # An empty ini file, not the repo's pytest.ini: the repo's conftest and plugins
+        # need the whole application installed, and this module does not.
+        run: |
+          echo "[pytest]" > "$RUNNER_TEMP/empty.ini"
+          python -m pytest tests/test_serve_dual.py -q --noconftest -c "$RUNNER_TEMP/empty.ini" --rootdir . -p no:cacheprovider -rs

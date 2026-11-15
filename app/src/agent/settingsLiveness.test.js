@@ -112,21 +112,23 @@ describe('widget.setOption: exactly what the widget reads', () => {
   it('a `controls` row kept in opts is read back from opts by its mounted widget, at the head of its path', () => {
     const silent = mounted.flatMap(([t, file]) => {
       const reads = optsReadsOf(file)
-      return ownControls(t).filter(c => !c.door && !reads.has(String(c.path || c.key).split('.')[0])).map(c => `${t}.${c.key}`)
+      return ownControls(t).filter(c => !c.door && c.type !== 'action' && !reads.has(String(c.path || c.key).split('.')[0])).map(c => `${t}.${c.key}`)
     })
     expect(silent).toEqual([])
   })
   it('a `controls` row that needs the door has one: the mounted widget publishes its value, its writer and its choices', () => {
-    const SOURCE = { themes: 'pages/ThemeTrackerPage.jsx' }
+    const SOURCE = { themes: 'pages/ThemeTrackerPage.jsx', scanner: 'pages/charts/widgets/ScannerResults.jsx', watchlist: 'pages/Watchlists.jsx' }
     const missing = []
     for (const [t, file] of mounted) {
-      const rows = ownControls(t).filter(c => c.door || c.from === 'door')
+      const rows = ownControls(t).filter(c => c.door || c.from === 'door' || c.type === 'action')
       if (!rows.length) continue
       const src = code(read(SOURCE[t] || file))
       const at = src.indexOf('useWidgetDoor(')
       const door = at < 0 ? '' : src.slice(at, src.indexOf('\n\n', at))
       for (const c of rows) {
         const named = new RegExp(`\\b${c.key}\\b`).test(door)
+        // an `action` row (a button) is run by the door's act(key), and nothing else
+        if (c.type === 'action') { if (!named || !/\bact:/.test(door)) missing.push(`${t}.${c.key} act`); continue }
         if (!named) missing.push(`${t}.${c.key}`)
         if (c.door && !/\bread:/.test(door)) missing.push(`${t}.${c.key} read`)
         if (c.door && !/\bwrite:/.test(door)) missing.push(`${t}.${c.key} write`)
@@ -145,7 +147,7 @@ describe('widget.setOption: exactly what the widget reads', () => {
     expect(missing).toEqual([])
   })
   it('every row is well formed: a known type, a key once per widget, its choices or where they come from, a number\'s range', () => {
-    const TYPES = ['enum', 'boolean', 'number', 'day', 'set']
+    const TYPES = ['enum', 'boolean', 'number', 'day', 'set', 'color', 'action']
     for (const t of Object.keys(WIDGET_REGISTRY)) {
       const rows = ownControls(t)
       expect(new Set(rows.map(c => c.key)).size, t).toBe(rows.length)

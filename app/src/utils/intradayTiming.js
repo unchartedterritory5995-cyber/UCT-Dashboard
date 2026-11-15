@@ -117,6 +117,9 @@ export function timingReport() {
   const rows = _order.map((id) => _loads.get(id)).filter(Boolean).map((L) => ({
     sym: L.sym,
     tf: L.tf,
+    // performance.now() at T0, so a harness can time from its OWN start event (Enter)
+    // through any hold before the chart saw the symbol.
+    t0: Math.round(L.t0),
     session: L.session,
     cache: L.cache,
     // ⭐ THE HEADLINE NUMBER: select → candles on the canvas. Everything else is

@@ -25,6 +25,7 @@ import {
 import { snapshotWidgetItems, SLASH_GROUPS } from './SlashMenu'
 import { CAPTURE_KINDS } from '../../lib/notebookWidgets'
 import { COT_SYMBOLS_URL, cotMarkets } from '../../lib/cotMarkets'
+import { withInsertDoor } from '../../lib/notebookUsage'
 import styles from './WidgetPalette.module.css'
 
 // S13.6 remainder: a capture kind that asks for something other than a ticker says so (COT asks for a CFTC
@@ -89,12 +90,19 @@ function selectLastInsertedEmbed(editor) {
   } catch { /* a stub editor (or one mid-teardown) keeps its caret */ }
 }
 
-export default function WidgetPalette({ editor, onClose, returnFocusTo }) {
+// Follow-up A: `via` names the door for `block_inserted` ('palette', or 'phone_plus' when the phone "+" opened it).
+export default function WidgetPalette({ editor, onClose, returnFocusTo, via = 'palette' }) {
   const [kind, setKind] = useState(null)   // null = the type list
   const [sym, setSym] = useState('')
   const [tfTok, setTfTok] = useState('D')
   const [day, setDay] = useState('')
   const [inserted, setInserted] = useState(null)
+  // Simplify pass 2 (C4): the "More" group (the market snapshots) waits behind "Show all" at the foot of the list;
+  // once shown it stays shown while this palette is open. The slash menu is unchanged.
+  const [showAll, setShowAll] = useState(false)
+  const moreRef = useRef(null)
+  // "Show all" leaves the screen when pressed: focus goes to the first row it revealed.
+  useEffect(() => { if (showAll) moreRef.current?.querySelector('button')?.focus() }, [showAll])
   const symRef = useRef(null)
   const panelRef = useRef(null)
   const firstTypeRef = useRef(null)
@@ -191,7 +199,7 @@ export default function WidgetPalette({ editor, onClose, returnFocusTo }) {
   const runSnapshot = async (item) => {
     if (!item || !editor) return
     setInserted(`Adding ${item.title}…`)
-    const res = await item.command({ editor, range: null })
+    const res = await withInsertDoor(via, () => item.command({ editor, range: null }))
     setInserted(res?.ok ? `${item.title} inserted` : res?.message || null)
     if (res?.ok && snapCmd) { setSym(''); symRef.current?.focus() }
   }
@@ -206,11 +214,11 @@ export default function WidgetPalette({ editor, onClose, returnFocusTo }) {
     // The slash path can't reach this state — typing collapses the selection
     // — but a palette click doesn't, so the entry side needs the same guard
     // as the exit side.
-    editor.chain().focus()
+    withInsertDoor(via, () => editor.chain().focus()
       .caretAfterWidgetEmbed()
       .insertContent(nodes)
       .caretAfterWidgetEmbed()
-      .run()
+      .run())
     // ⛔ Audit 2026-11-05, spec S3 (detail #36): the picker used to STAY OPEN over the chart it had
     // just made. It closes, and the last chart inserted takes focus -- selected, so its header and
     // its type-to-search (a key opens its ticker search, never replaces it) answer at once.
@@ -272,8 +280,9 @@ export default function WidgetPalette({ editor, onClose, returnFocusTo }) {
           ))}
           {SLASH_GROUPS.map((g) => {
             const inGroup = snapshots.filter((it) => it.group === g.id)
-            return inGroup.length ? (
-              <div key={g.id} role="group" aria-label={g.label}>
+            const folded = g.id === 'more' && !showAll
+            return inGroup.length && !folded ? (
+              <div key={g.id} role="group" aria-label={g.label} ref={g.id === 'more' ? moreRef : undefined}>
                 <div className={styles.fieldLabel}>{g.label}</div>
                 {inGroup.map((it) => (
                   <button key={it.title} type="button" className={styles.typeBtn}
@@ -285,6 +294,12 @@ export default function WidgetPalette({ editor, onClose, returnFocusTo }) {
               </div>
             ) : null
           })}
+          {!showAll && snapshots.some((it) => it.group === 'more') && (
+            <button type="button" className={`${styles.headBtn} ${styles.showAll}`} aria-label="Show all widgets"
+              onClick={() => setShowAll(true)}>
+              Show all
+            </button>
+          )}
           {inserted && <span className={styles.insertedMsg} role="status">{inserted}</span>}
           {/* R58 (UX I-12): with wave 4 on (its kinds are the "More" rows) news, breadth and the calendar are listed
               above, so the footnote names only what still comes in from its own page. */}

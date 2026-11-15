@@ -114,6 +114,10 @@ describe('the shipped definitions', () => {
     expect(plotOf(RS_LINE_V5_RAW, 'rsLine').legend.showValue).toBeUndefined()
     for (const def of SERVER_DEFS) {
       if (def.id === 'rsLine') continue
+      // 2026-11-12 (RS Exit Warnings): `rsExit` withholds its RS ratio like the slim RS line does (a ratio
+      // means nothing to a member) and prints the last warning on the pane label instead; its own
+      // case below pins that. Every other server pane still prints its number.
+      if (def.id === 'rsExit') continue
       for (const p of def.plots) expect(p.legend && p.legend.showValue, `${def.id}.${p.key}`).toBeUndefined()
     }
   })
@@ -136,5 +140,10 @@ describe('the shipped definitions', () => {
       const d = getDefinition(id)
       expect(d.readout.filter((r) => r.chip).map((r) => r.key), id).toEqual(['benchmark'])
     }
+    // 2026-11-12 (RS Exit Warnings): the fifth withholds its ratio like the slim RS line (the ratio means
+    // nothing to a member) and prints the LAST WARNING instead: `<name> · <benchmark> · <warning>`.
+    const exit = getDefinition('rsExit')
+    expect(exit.plots.find((p) => p.key === 'rsLine').legend.showValue).toBe(false)
+    expect(exit.readout.filter((r) => r.chip).map((r) => r.key)).toEqual(['benchmark', 'lastWarningChip'])
   })
 })

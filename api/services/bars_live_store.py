@@ -494,6 +494,7 @@ def _backfill_one(sym: str, epoch: int, ffb_s: int) -> bool:
     """Repair `sym` for the current epoch (ownership rules in the module doc)."""
     from api.services import bars_sqlite
     b0 = ffb_s - BUCKET_S
+    _t0 = time.time()                     # this backfill's provider check instant
     gap = _gap_from.get(sym)
     if gap is None:
         now = datetime.now(_ET)
@@ -508,7 +509,8 @@ def _backfill_one(sym: str, epoch: int, ffb_s: int) -> bool:
     mins = _fetch(sym, 1, b0 * 1000, (b0 + BUCKET_S) * 1000 - 1)
     closed = [b for b in bars if int(b["t"]) < b0]
     if closed:
-        bars_sqlite.put_bars(sym, "5", closed)
+        with getattr(bars_sqlite, "provider_check", lambda _t: __import__("contextlib").nullcontext())(_t0):
+            bars_sqlite.put_bars(sym, "5", closed)
     provider = {int(m["t"]): (float(m["o"]), float(m["h"]), float(m["l"]), float(m["c"]),
                               int(m["v"] or 0))
                 for m in mins if b0 <= int(m["t"]) < b0 + BUCKET_S}

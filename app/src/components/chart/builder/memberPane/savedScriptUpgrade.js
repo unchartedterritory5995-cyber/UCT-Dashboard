@@ -273,6 +273,21 @@ function idle(fn) {
   if (ric) ric(fn, { timeout: 1000 }); else setTimeout(fn, 0)
 }
 
+/** ⭐⭐ COLD-LOAD STORM, MEASURED 2026-11-13 — LANDINGS ARE ANNOUNCED IN BATCHES.
+ *  Each `notify` makes every chart re-run its install, bump the registry generation
+ *  and re-run `updateChart` (StockChart keys it on the generation). One per row made
+ *  the first load after an engine bump pay N full chart updates for N stale scripts
+ *  (sandbox, 25 scripts: ~2 s of React work after the write-back fix, vs 0.1 s warm).
+ *  Rows that land within `UPGRADE_NOTIFY_COALESCE_MS` of each other now share ONE
+ *  notify; a held row waits at most that long longer to draw. The last row of a
+ *  queue still announces itself (the timer fires), so nothing is left held. */
+export const UPGRADE_NOTIFY_COALESCE_MS = 250
+let _notifyTimer = null
+function notifyCoalesced() {
+  if (_notifyTimer !== null) return
+  _notifyTimer = setTimeout(() => { _notifyTimer = null; notify() }, UPGRADE_NOTIFY_COALESCE_MS)
+}
+
 function translateEach(entries, mod) {
   if (!entries.length) return
   const [[k, row], ...rest] = entries
@@ -280,7 +295,7 @@ function translateEach(entries, mod) {
     if (!_memo.has(k)) {
       _memo.set(k, retranslateRow(row, mod.memberPaneDefinition))
       _pending.delete(k)
-      notify()
+      notifyCoalesced()
     }
     translateEach(rest, mod)
   })
@@ -471,4 +486,5 @@ export function __resetSavedScriptUpgrade() {
   _memo.clear(); _writeBacks.clear(); _legacy.clear(); _pending.clear(); _queue.clear()
   _released.clear(); _retryLocal.clear(); _recorded.clear()
   _scheduled = false; _translator = null; _listeners.clear()
+  if (_notifyTimer !== null) { clearTimeout(_notifyTimer); _notifyTimer = null }
 }

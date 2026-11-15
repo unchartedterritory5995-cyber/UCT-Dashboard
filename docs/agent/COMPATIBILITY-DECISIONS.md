@@ -38,5 +38,19 @@ against the lock in this tree AND against the lock on master (merge base), so ed
 
 ## Decisions
 
-_None yet. The initial baseline (2026-11-04) is the corpus, the golden workflows and the contract as committed with
+_The initial baseline (2026-11-04) is the corpus, the golden workflows and the contract as committed with
 PR "agent/qa/capability-regression"._
+
+### BASELINE:grid.add-count.reuses-one — the four "add …" phrasings re-worded without "add"
+- Date: 2026-11-13
+- Decided by: owner — direct answer to the Program Lead in the Lead session, 2026-11-13 ~21:10Z ("Approve"), and an explicit instruction in that session for the Lead to record it (~22:30Z); recorded with owner directive D14 ("adding charts must never silently replace existing charts")
+- Binds: 28ebf087087f88af->68e6f6f49cda2b5e
+- Why: owner 11-13 (H14 safety hotfix), in the owner's words: "additive requests must never silently replace or remove existing charts. Explicitly requested replacements remain permitted, subject to the existing chart-targeting safety rules." This decision does not weaken any existing safeguard. An "add" with a count or grid shape on a board that already has charts now asks (add N more beside them / replace my N — replace shown first as a card) instead of re-symbolling the existing charts. Supersedes the 11-04 GRID-REUSE reading for "add" phrasings only.
+- Replacement protection: the same plan and final state are kept with non-add phrasings ("make a 2x2 of …", "set up a 2x2 grid of …", "show … on four charts", "four charts for …"); the add phrasings are covered by agentAddNeverReplaces.test.jsx, agentMultiResymbol.rail.test.jsx and the updated agentGridReuse #1 (asks first; Replace + apply gives the same 4 reused charts with exact Undo).
+
+### BASELINE:grid.add-count.reuses-two — the same change, second family
+- Date: 2026-11-13
+- Decided by: owner — direct answer to the Program Lead in the Lead session, 2026-11-13 ~21:10Z ("Approve"), and an explicit instruction in that session for the Lead to record it (~22:30Z); recorded with owner directive D14
+- Binds: ecaa36372f92d625->f120df6120320124
+- Why: as BASELINE:grid.add-count.reuses-one.
+- Replacement protection: as BASELINE:grid.add-count.reuses-one.

@@ -9,7 +9,7 @@
 
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import uctLogo from '../components/intro/assets/compass-mark.png'
+import uctLogo from '../components/intro/assets/compass-mark.webp'
 
 
 import { renderTokenOk } from '../lib/renderToken'

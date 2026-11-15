@@ -23,47 +23,68 @@
 // here would pass whatever the phase, which is exactly how the original
 // ordering survived a 23,000-test suite.
 
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeAll } from 'vitest'
+import { BARSTORE_MODES, loadWithBarStore } from '../../../testing/barStoreModes'
 import { readFileSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const SRC = resolve(dirname(fileURLToPath(import.meta.url)), '../../StockChart.jsx')
 const src = readFileSync(SRC, 'utf8')
+let __barStore
 
-describe('symbol-switch paint ordering', () => {
-  it('NON-VACUITY: the file is real and holds the effect under test', () => {
-    // Every assertion below is satisfied by an empty read.
-    expect(src.length).toBeGreaterThan(100_000)
-    expect(src).toContain('const updateChart = useCallback(')
+// P3-S1: every case runs under BOTH bar sources (chart/barStoreSwitch.js, read once at module
+// load → the graph is re-imported per mode; testing/barStoreModes.js).
+describe.each(BARSTORE_MODES)('BARSTORE=%s', (barStoreOn) => {
+  beforeAll(async () => {
+    __barStore = (await loadWithBarStore(barStoreOn, () => import('../barStoreSwitch'))).BARSTORE
+  })
+  it('the module graph under test holds this switch value (non-vacuity)', () => {
+    expect(__barStore).toBe(barStoreOn)
+  })
+  // The property is structural (which effect phase applies the data), so it holds for either
+  // source exactly when the source is chosen ONCE, outside the component, and the one call
+  // site feeds the same `bars` into the same guarded pre-paint apply.
+  it('⭐ the bar source is a MODULE constant with ONE call site (hook order cannot depend on it)', () => {
+    expect(src).toMatch(/^const useChartBars = BARSTORE \? useBarSnapshotBars : useLegacyChartBars\s*$/m)
+    expect(src).toContain('} = useChartBars({')
+    expect(src).not.toMatch(/\b(?:useLegacyChartBars|useBarSnapshotBars)\(/)
   })
 
-  it('⛔ a SWITCH applies through useLayoutEffect, before the browser paints', () => {
-    // The guarded pre-paint apply: keyed on sym+tf, skipped when already applied.
-    // `updateChart()` is no longer the effect's LAST statement: the legend
-    // refresh follows it in the same commit (railed in legendHandoff.test.js).
-    const m = src.match(/useLayoutEffect\(\(\) => \{\s*const key = `\$\{sym\}_\$\{resolvedTf\}`[\s\S]{0,320}?updateChart\(\)[\s\S]{0,1200}?\}, \[sym, resolvedTf, updateChart\]\)/)
-    expect(m, 'the pre-paint switch apply is gone or was reshaped').toBeTruthy()
-  })
+  describe('symbol-switch paint ordering', () => {
+    it('NON-VACUITY: the file is real and holds the effect under test', () => {
+      // Every assertion below is satisfied by an empty read.
+      expect(src.length).toBeGreaterThan(100_000)
+      expect(src).toContain('const updateChart = useCallback(')
+    })
 
-  it('⭐ …and it is GUARDED, so it fires on a switch and not on every render', () => {
-    const block = src.slice(src.indexOf('const _appliedSymTfRef'))
-    expect(block).toContain('if (_appliedSymTfRef.current === key) return')
-  })
+    it('⛔ a SWITCH applies through useLayoutEffect, before the browser paints', () => {
+      // The guarded pre-paint apply: keyed on sym+tf, skipped when already applied.
+      // `updateChart()` is no longer the effect's LAST statement: the legend
+      // refresh follows it in the same commit (railed in legendHandoff.test.js).
+      const m = src.match(/useLayoutEffect\(\(\) => \{\s*const key = `\$\{sym\}_\$\{resolvedTf\}`[\s\S]{0,320}?updateChart\(\)[\s\S]{0,1200}?\}, \[sym, resolvedTf, updateChart\]\)/)
+      expect(m, 'the pre-paint switch apply is gone or was reshaped').toBeTruthy()
+    })
 
-  it('⚠️ the ORDINARY update path stays PASSIVE — live data must not enter the frame budget', () => {
-    // updateChart is the heaviest function in this file (candles + volume +
-    // every overlay and indicator) and its deps include live data. Making the
-    // ordinary path synchronous would put that work inside every 30s poll's
-    // frame. If this ever becomes a layout effect, scanning gets atomic and
-    // everything else gets janky.
-    expect(src).toMatch(/\/\/ Effect: update chart when data or settings change[\s\S]{0,80}?useEffect\(\(\) => \{\s*updateChart\(\)\s*\}, \[updateChart\]\)/)
-  })
+    it('⭐ …and it is GUARDED, so it fires on a switch and not on every render', () => {
+      const block = src.slice(src.indexOf('const _appliedSymTfRef'))
+      expect(block).toContain('if (_appliedSymTfRef.current === key) return')
+    })
 
-  it('the pre-paint apply is declared AFTER updateChart, not hoisted above it', () => {
-    // A temporal dead zone here would throw on every mount — this project has
-    // already produced three of those.
-    expect(src.indexOf('const updateChart = useCallback('))
-      .toBeLessThan(src.indexOf('const _appliedSymTfRef'))
+    it('⚠️ the ORDINARY update path stays PASSIVE — live data must not enter the frame budget', () => {
+      // updateChart is the heaviest function in this file (candles + volume +
+      // every overlay and indicator) and its deps include live data. Making the
+      // ordinary path synchronous would put that work inside every 30s poll's
+      // frame. If this ever becomes a layout effect, scanning gets atomic and
+      // everything else gets janky.
+      expect(src).toMatch(/\/\/ Effect: update chart when data or settings change[\s\S]{0,80}?useEffect\(\(\) => \{\s*updateChart\(\)\s*\}, \[updateChart\]\)/)
+    })
+
+    it('the pre-paint apply is declared AFTER updateChart, not hoisted above it', () => {
+      // A temporal dead zone here would throw on every mount — this project has
+      // already produced three of those.
+      expect(src.indexOf('const updateChart = useCallback('))
+        .toBeLessThan(src.indexOf('const _appliedSymTfRef'))
+    })
   })
 })

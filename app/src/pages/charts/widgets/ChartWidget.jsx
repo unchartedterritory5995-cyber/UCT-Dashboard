@@ -12,6 +12,11 @@ import UIcon from '../../../components/ui/UIcon'
 import LeverageInverseControl from './LeverageInverseControl'
 import ViewHoldingsControl from './ViewHoldingsControl'
 import ChartDateNav from './ChartDateNav'
+import { WidgetChromeContext } from '../widgetChromeContext'
+import { useChartSingleStockEtfs as useSingleStockEtfs } from '../../../components/chart/restedReaders'
+import { singleStockEtfsKey, singleStockEtfsFetcher } from '../../../hooks/singleStockEtfsKey'
+import { useSymbolResource } from '../../../lib/symbolResourceWarm'
+import useEtfSymbols from '../../../hooks/useEtfSymbols'
 import AdjustmentLabel from '../../../components/chart/AdjustmentLabel'
 import ChartDetailDock from './ChartDetailDock'
 import { normalizeDock } from './chartDock'
@@ -19,7 +24,7 @@ import { chartFeaturesOf, addFeature, removeFeature, setFeatureOpen } from './ch
 import styles from '../ChartsWorkspace.module.css'
 import ChartTabStrip from './ChartTabStrip'
 import { prefetchReplayTimeframes } from '../../../utils/prefetchBars'
-import { viewCacheTf } from '../../../utils/viewSession'
+import { viewCacheTf, resolveShowExtended } from '../../../utils/viewSession'
 import { fetchTf } from '../../../components/chart/timeframes'
 import useSymbolHandoff from '../../../hooks/useSymbolHandoff'
 import useSymbolSettle from '../../../hooks/useSymbolSettle'
@@ -56,6 +61,8 @@ const ADD_WIDGET_LABELS = labelMap('menu')
 export default function ChartWidget({ color, opts, onOptsChange, chartId = null }) {
   const { groupSyms, setGroupSym, setGroupTf, crosshairBus, chartsTheme, activeChartRef, chartApiById, periodSortMode, onPeriodSelected: wsOnPeriodSelected, onPeriodCancel: wsOnPeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: wsOnReplayCutoffPicked, onReplayPickCancel: wsOnReplayPickCancel, floatNewWidget, applyThemeToAllCharts, applyThemeToAllWidgets, canOpenCompare } = useWorkspace()
   const navigate = useNavigate()
+  // T3 integrated header: non-null only for a single chart on the /charts board grid.
+  const widgetChrome = useContext(WidgetChromeContext)
   const { createAlert } = useWatchlistAlerts()
   // Imperative handle on the pane: the right-click menu opens its settings
   // modal, and the leverage picker routes its symbol change through it so the
@@ -138,7 +145,11 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   // that was supposed to catch it matched NOTHING, because POSIX awk has no
   // word-boundary escape at all -- the pattern silently matches nothing and
   // reads like a clean result. Verify a TDZ window with grep.
-  const sym = useSymbolHandoff(requestedSym, tf)
+  // The pane's extended-hours setting (its 60m key is `_60` or `_60e`): resolved below with the
+  // surface settings (`chartCs`), read by the handoff when a switch starts — so it prepares the
+  // key THIS pane reads, never the process-global view session.
+  const paneExtRef = useRef(true)
+  const sym = useSymbolHandoff(requestedSym, tf, { showExtended: paneExtRef })
   // A host outside /charts may add price lines for the symbol on show (chartHostOverlay.js).
   const hostPriceLines = hostOverlay?.priceLinesFor?.(sym) || null
 
@@ -146,6 +157,14 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   // pane owns): a synthetic index has no leveraged/inverse family, so that
   // control is hidden for one.
   const isThemeIndex = typeof sym === 'string' && sym.startsWith('$IDX:')
+  // Which context actions this symbol has — the chart widget's symbol menu (▾) rows.
+  // SWR / the module cache dedupe these with the controls' own lookups.
+  const { hasFamily: symHasLeverage } = useSingleStockEtfs(widgetChrome && !isThemeIndex ? sym : null)
+  // ...and the rows a member is about to reach have theirs asked for ahead (the control
+  // appeared 0.85 s after the candles at the median on production, 2026-11-13).
+  useSymbolResource(widgetChrome && !isThemeIndex ? singleStockEtfsKey : null, singleStockEtfsFetcher)
+  const { isEtf } = useEtfSymbols()
+  const symIsFund = !!sym && (isEtf(sym) || String(sym).startsWith('$IDX:'))
 
   // Replay Mode: the moment a cutoff is set, warm every intraday timeframe for THIS chart's
   // symbol at that date in the background, so switching to 5m/1m is instant (the backend
@@ -269,6 +288,8 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
     onStore: persistActiveSettings,
     chartsTheme,
   })
+  // StockChart's own rule (utils/viewSession.resolveShowExtended — the one derivation) on the same settings.
+  paneExtRef.current = resolveShowExtended(chartCs)
 
   // Expose an imperative chart API for the Compare Symbols tool (read/write the
   // active chart's comparison overlays + the % price scale). Reads live settings
@@ -282,6 +303,8 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   // (`onOptsChange` for settings + tf in ONE call, `setGroupSym` for the ticker,
   // exactly what a search pick does). The Agent writes no indicator state.
   const agentRef = useRef(null)
+  // the right-click "Ask AI about {sym}" opener (openAskAi, below), for the Agent adapter
+  const askAiRef = useRef(null)
   agentRef.current = {
     chartId, tabId: isMainTab ? null : (activeExtra?.id || null),
     opts, isMainTab, activeExtra, onOptsChange, setGroupSym, activeColor,
@@ -315,8 +338,14 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
             chartId: r.chartId, tabId: r.tabId, groupKey: r.activeColor,
             symbol: r.symbol, tf: r.tf, cs: r.cs, stored: r.stored ?? null,
             watermarkPos: r.opts?.watermarkPos ?? null, canvasTheme: r.chartsTheme ?? null,
+            // chartFeatures.companyPanel / earningsStrip: the widget's RAW opts.dock (null = never written). The dock is per
+            // WIDGET, shared by every chart tab, so `dockTabs` says how many tabs show it.
+            dock: r.opts?.dock ?? null, dockTabs: chartTabList(r.opts).length,
           }
         },
+        // chartFeatures.companyPanel / earningsStrip: this widget renders ChartDetailDock and persists opts.dock
+        // (Indicators → Add to Chart's own host features, chartFeatures.js)
+        canDock: () => typeof agentRef.current?.onOptsChange === 'function',
         // The Time Navigator's own read-out and jump (ChartPane → StockChart date-nav API):
         // a VIEW, not a setting — nothing is persisted beyond the view lock the jump itself sets.
         view: () => paneRef.current?.getDateMeta?.() || null,
@@ -324,6 +353,16 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
         drawSym: () => symRef.current,
         goToDate: (ms) => paneRef.current?.goToDate?.(ms),
         viewDo: (op, arg) => !!paneRef.current?.viewDo?.(op, arg),
+        // ⭐ C1-127: the chart's OWN Chart Settings dialog — the very openSettings the gear, the right-click
+        // "Chart settings" item and Alt+, call (ChartPane). Opening it writes nothing; `settingsOpen` is the read-back.
+        canOpenSettings: () => !!paneRef.current?.canOpenSettings?.(),
+        settingsOpen: () => !!paneRef.current?.isSettingsOpen?.(),
+        openSettings: () => {
+          const pane = paneRef.current
+          if (!pane?.canOpenSettings?.() || typeof pane.openSettings !== 'function') return false
+          pane.openSettings()
+          return true
+        },
         // INDICATORS M1 (AGENT-INTEGRATION-HANDOFF §11): the chart's own Create Indicator door.
         openCreateIndicator: (o) => paneRef.current?.openCreateIndicatorFor?.(o) ?? { ok: false, reason: 'unavailable', prefilled: false, draft: false, editing: false },
         canCreateIndicator: () => !!paneRef.current?.canCreateIndicator?.(),
@@ -331,9 +370,15 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
         openIndicatorDoor: (door) => !!paneRef.current?.openIndicatorDoor?.(door),
         // INDICATORS M2 (AGENT-INTEGRATION-HANDOFF §15.6): the Indicators button's own predicate.
         canManageIndicators: () => !!paneRef.current?.canManageIndicators?.(),
+        // UCT Agent (uctIntelligence.set): the UCT Intelligence library row / panel gates of THIS chart, as StockChart
+        // computes them (ChartPane → StockChart); its settings are this chart's own blob, written by `commit` below
+        uctIntelligence: () => paneRef.current?.uctIntelligence?.() ?? null,
         // INDICATORS M3 (AGENT-M3-CONTRACT §3.3): the tab's one authoring preview on THIS chart.
         showAuthoringPreview: (def, o) => paneRef.current?.showAuthoringPreview?.(def, o) ?? { ok: false, reason: 'readonly' },
         clearAuthoringPreview: () => !!paneRef.current?.clearAuthoringPreview?.(),
+        // C1-178: right-click → "Ask AI about {sym}": the menu's own opener (openAskAi below), never a second route
+        canAskAi: () => !!askAiRef.current?.can?.(),
+        askAi: () => !!askAiRef.current?.open?.(),
         // ONE onOptsChange for settings + tf; the ticker through the colour group.
         // `settings` present (even null) means "store exactly this blob".
         // `watermarkPos` is the widget's own (every tab shows it), in the shape endWatermarkAdjust / resetWatermark write.
@@ -343,11 +388,19 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
           if ('settings' in patch) tabPatch.settings = patch.settings
           if ('tf' in patch) tabPatch.tf = patch.tf
           const widgetPatch = 'watermarkPos' in patch ? { watermarkPos: patch.watermarkPos } : {}
-          if (Object.keys(tabPatch).length || 'watermarkPos' in patch) {
+          // chartFeatures.*: the dock the product's own transforms produced (addFeature / removeFeature / setFeatureOpen /
+          // normalizeDock), written the way setDock writes it; null = the Undo of a dock never written (the key is dropped)
+          const hasDock = 'dock' in patch
+          if (hasDock && patch.dock != null) widgetPatch.dock = patch.dock
+          const widgetOnly = !Object.keys(tabPatch).length
+          if (!widgetOnly || 'watermarkPos' in patch || hasDock) {
             const o = r.opts || {}
-            if (r.isMainTab || !Object.keys(tabPatch).length) r.onOptsChange?.({ ...o, ...(r.isMainTab ? tabPatch : {}), ...widgetPatch })
-            else if (r.activeExtra) r.onOptsChange?.({ ...patchChartTab(o, r.activeExtra.id, tabPatch), ...widgetPatch })
+            let next
+            if (r.isMainTab || widgetOnly) next = { ...o, ...(r.isMainTab ? tabPatch : {}), ...widgetPatch }
+            else if (r.activeExtra) next = { ...patchChartTab(o, r.activeExtra.id, tabPatch), ...widgetPatch }
             else return false
+            if (hasDock && patch.dock == null) delete next.dock
+            r.onOptsChange?.(next)             // ONE write for everything asked of this widget
           }
           if (patch.symbol) r.setGroupSym?.(r.activeColor, patch.symbol)
           return true
@@ -618,10 +671,41 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   // in the app, exactly like the earlier TickerActions.jsx fix. No context
   // beyond the symbol is threaded through: canonical Ask AI has no query
   // pre-fill mechanism today, and inventing one is out of scope here.
+  // C1-178: ONE opener: the menu item below and the Agent adapter's askAi both call it
+  const openAskAi = useCallback(() => {
+    if (!sym) return false
+    navigate(`/research/${sym}?section=ai`)
+    return true
+  }, [sym, navigate])
+  askAiRef.current = { can: () => !!sym, open: openAskAi }
   const handleAiSearch = useCallback(() => {
     closeCtx()
-    navigate(`/research/${sym}?section=ai`)
-  }, [sym, navigate, closeCtx])
+    openAskAi()
+  }, [openAskAi, closeCtx])
+
+  // Leverage (Stock / 2x up / 2x down) + ETF holdings, at the right of the timeframe row.
+  // The /charts integrated header shows only the holdings button (see tfBarRight).
+  const symbolActionsEl = (
+    <>
+    {!isThemeIndex && (
+      <LeverageInverseControl
+        sym={sym}
+        onSelect={(s) => paneRef.current?.changeSymbol(s)}
+        themeVars={menuVars}
+        /* From master fec7c5e4: the LONG/SHORT headers + factor badges
+           follow the chart's candle up/down colors. Carried across the
+           ChartPane extraction by hand — the merge could not do it, since
+           master added this prop to the pre-extraction inline render. */
+        candleColors={{ up: chartCs.candles?.upColor, down: chartCs.candles?.downColor }}
+      />
+    )}
+    {/* ETF or UCT thematic index ($IDX:): opens a floating live watchlist of
+        the fund/index constituents (a thematic index lists the theme's merged
+        basket, which tracks the Theme Tracker). ViewHoldingsControl decides
+        whether to render based on the symbol. */}
+    <ViewHoldingsControl sym={sym} doorRef={holdingsRef} candleColors={{ up: chartCs.candles?.upColor, down: chartCs.candles?.downColor }} />
+    </>
+  )
 
   return (
     <>
@@ -701,6 +785,33 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
           highlightBodyOnly: startMarker && startMarkerStyle === 'candle' ? true : undefined,
         }}
         slots={{
+          // T3 integrated header (/charts board only): the identity row becomes this
+          // widget's title bar — link dot left, window controls right, drag handle.
+          headerLeft: widgetChrome?.left ?? null,
+          headerRight: widgetChrome?.right ?? null,
+          symbolActions: widgetChrome && (symHasLeverage || symIsFund) ? (
+            <>
+              {symHasLeverage && !isThemeIndex && (
+                <div className={styles.symActRow}>
+                  <span className={styles.symActLabel}>Leveraged ETFs</span>
+                  <LeverageInverseControl
+                    variant="tabs"
+                    sym={sym}
+                    onSelect={(s) => paneRef.current?.changeSymbol(s)}
+                    themeVars={menuVars}
+                    candleColors={{ up: chartCs.candles?.upColor, down: chartCs.candles?.downColor }}
+                  />
+                </div>
+              )}
+              {symIsFund && (
+                <div className={styles.symActRow}>
+                  <span className={styles.symActLabel}>Top holdings</span>
+                  <ViewHoldingsControl sym={sym} doorRef={holdingsRef} candleColors={{ up: chartCs.candles?.upColor, down: chartCs.candles?.downColor }} />
+                </div>
+              )}
+            </>
+          ) : null,
+          identityDragClass: widgetChrome?.dragHandleClass ?? null,
           /* Chart tab strip — renders only once ≥1 extra tab exists, so a
              single-chart widget is visually unchanged. Each tab is an
              independent chart profile. */
@@ -724,26 +835,14 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
               {/* TERM-055: says when prices are split-adjusted (splits only; renders nothing
                   unless the adjustment-basis endpoint knows a split was applied). */}
               {!isThemeIndex && <AdjustmentLabel sym={sym} tf={tf} className={styles.adjustmentLabel} />}
-              {!isThemeIndex && (
-                <LeverageInverseControl
-                  sym={sym}
-                  onSelect={(s) => paneRef.current?.changeSymbol(s)}
-                  themeVars={menuVars}
-                  /* From master fec7c5e4: the LONG/SHORT headers + factor badges
-                     follow the chart's candle up/down colors. Carried across the
-                     ChartPane extraction by hand — the merge could not do it, since
-                     master added this prop to the pre-extraction inline render. */
-                  candleColors={{ up: chartCs.candles?.upColor, down: chartCs.candles?.downColor }}
-                />
-              )}
-              {/* ETF or UCT thematic index ($IDX:): opens a floating live watchlist of
-                  the fund/index constituents (a thematic index lists the theme's merged
-                  basket, which tracks the Theme Tracker). ViewHoldingsControl decides
-                  whether to render based on the symbol. */}
-              <ViewHoldingsControl sym={sym} doorRef={holdingsRef} candleColors={{ up: chartCs.candles?.upColor, down: chartCs.candles?.downColor }} />
+              {/* /charts integrated header (owner 11-11): no leveraged-ETF switcher; the
+                  ETF holdings button keeps its seat. Elsewhere: both, unchanged. */}
+              {/* /charts chart widget: leverage + holdings live in the symbol menu (▾). */}
+              {!widgetChrome && symbolActionsEl}
               {/* Add-tab entry point — only when the strip isn't showing yet (0
                   extra tabs). Once a tab exists, the strip's own + button takes over. */}
-              {extraTabs.length === 0 && (
+              {/* Integrated /charts header (owner 11-11): no New-chart-tab button here. */}
+              {extraTabs.length === 0 && !widgetChrome && (
                 <button
                   type="button"
                   className={styles.chartSettingsBtn}
@@ -759,7 +858,9 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
           ),
           /* The slot after the gear (Share-to-Floor's, then the Company and
              Earnings toggles'). It holds the one Add to Chart door now. */
-          tfBarEnd: (
+          // Integrated /charts header (owner 11-11): no Add-to-chart button — the same
+          // surface stays one click away through the settings gear.
+          tfBarEnd: widgetChrome ? null : (
             <>
               {/* ⭐ ADD TO CHART — the ONE door to everything a chart can carry
                   (indicators, symbols, breadth, fundamentals, Research). Opens
@@ -966,6 +1067,14 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
                 <button type="button" className={styles.chartCtxItem} data-menu-id="add-widget" onClick={() => setCtxSub('add')}>
                   <UIcon name="plus" size={14} className={styles.chartCtxIcon} />Add widget ▸
                 </button>
+                {/* /charts integrated header has no New-chart-tab button (owner 11-11) — the
+                    door lives here instead, so chart tabs stay creatable. Once a tab exists
+                    the tab strip's own + takes over, exactly as before. */}
+                {widgetChrome && extraTabs.length === 0 && (
+                  <button type="button" className={styles.chartCtxItem} data-menu-id="new-chart-tab" onClick={() => { handleAddTab(); closeCtx() }}>
+                    <UIcon name="plus" size={14} className={styles.chartCtxIcon} />New chart tab
+                  </button>
+                )}
                 {/* ── Drawings ── */}
                 {ctxMenu.hasDrawings && (
                   <>

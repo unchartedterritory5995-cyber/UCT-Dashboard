@@ -206,15 +206,17 @@ def _rs_rank_method() -> dict:
             "scale": f"1-{p['max']}, higher is stronger",
             "how": (f"Since the two were unified, this column IS the RS Rating: over the "
                     f"stock's daily closes, {_ibd_formula_prose(p)}, ranked as a percentile "
-                    f"across the cap universe excluding ETFs. It is written once a night by "
+                    f"across {_RATED_POPULATION}. It is written once a night by "
                     f"the 04:15 ET rating job and does not move during the session. Where a "
                     f"name has no stored rating for the newest session, the hourly weighted "
                     f"return rank (" + _rs_terms_prose() + ") stands in and the row's "
                     f"source says so."),
-            "caveat": ("The universe is our own coverage list minus ETFs, not the whole "
-                       "market, so the rank is relative to what we screen. RS Ret is still "
-                       "the hourly weighted return, so this column is no longer its "
-                       "percentile; read RS Rating and RS Rank as one number."),
+            "caveat": ("Ranked against every stock we hold a recent daily price for, about "
+                       "6,000 names including warrants, rights, units and thin stocks, as "
+                       "Deepvue's rank does; ETFs are not ranked. IBD-style and our own "
+                       "calculation, not MarketSurge's number. RS Ret is still the hourly "
+                       "weighted return, so this column is no longer its percentile; read RS "
+                       "Rating and RS Rank as one number."),
         }
     return {
         "column": "rs_rank", "label": "RS Rank",
@@ -302,8 +304,30 @@ def _rs_params() -> dict:
         "agree": _rsc.AGREE_WINDOW, "dp": _rsc.MANSFIELD_DP,
         "tol": _rs.DEFAULT_PRICE_TOLERANCE_PCT, "red": abs(_rs.DEFAULT_RED_DAY_PCT),
         "terms": _rsw.IBD_TERMS, "components": _rsw.IBD_COMPONENTS,
+        "long_terms": dict(_rsw.IBD_STYLE_COMPONENT_TERMS),
+        "equal_terms": dict(_rsw.EQUAL_WEIGHT_COMPONENT_TERMS),
         "required": _rsw.IBD_REQUIRED_TERM, "max": _rsh.RATING_MAX,
     }
+
+
+def _long_blend_prose(terms) -> str:
+    """The recency weighting of a long component rank in words, READ FROM
+    `rs_weighted_return.IBD_STYLE_COMPONENT_TERMS` (one row of it): "the close
+    over the close 63 sessions earlier (weight 2) and 126 sessions earlier (weight 1)"."""
+    parts = [f"{n} sessions earlier (weight {w})" for n, w in terms]
+    if len(parts) == 1:
+        return "the close over the close " + parts[0]
+    return "the close over the close " + ", ".join(parts[:-1]) + " and " + parts[-1]
+
+
+def _equal_blend_prose(terms) -> str:
+    """The equal weighting of the 3M component rank in words, READ FROM
+    `rs_weighted_return.EQUAL_WEIGHT_COMPONENT_TERMS` (its row): "the close over the
+    close 21, 42 and 63 sessions earlier"."""
+    bars = sorted(n for n, _w in terms)
+    parts = [str(n) for n in bars]
+    joined = parts[0] if len(parts) == 1 else ", ".join(parts[:-1]) + " and " + parts[-1]
+    return f"the close over the close {joined} sessions earlier"
 
 
 def _ibd_formula_prose(p: dict) -> str:
@@ -319,6 +343,13 @@ _RS_BAR_NOTE = ("Daily bars only, measured at the last completed session, from t
                 "`relative_strength` functions the chart's UCT RS line draws, so a scan and a "
                 "chart dot never disagree. Blank, never 0, when the window is short, SPY has no "
                 "bar at the row's date, or a hole sits inside the lookback.")
+#: Who the nightly rating is ranked against (2026-11-12, owner: "everything"): every stock
+#: holding a recent daily price, ETFs excluded (about 6,000 names), NOT the 3,418-name cap
+#: universe the hourly RS Rank still ranks. Warrants, rights, units and thin names stay in,
+#: as they do in Deepvue's rank: against 61 of its readings this population sits 0.1
+#: points from it on average, the cap universe sat 5 to 8 points below.
+_RATED_POPULATION = "every stock with a recent daily price, ETFs excluded"
+
 _RS_RATING_NOTE = ("Written by the 04:15 ET rating job AFTER the 03:00 ET screener build and "
                    "read by the NEXT build, so the row carries the rating as of the session "
                    "before its bars date. Blank when the job has not rated the name: a dark "
@@ -411,6 +442,88 @@ def _rs_phase3_methods() -> list:
                     f"tool's VARS can differ. Strong and weak describe the past against SPY, not "
                     f"a forecast.")},
     ]
+
+
+#: RS Exit Warnings (2026-11-13): what every entry says about where the warning comes from.
+_RS_EXIT_NOTE = ("Mike Webster's method, our reading of it: the same rules and the same "
+                 "`relative_strength` functions the chart's UCT RS Exit Warnings draw, on daily "
+                 "bars against SPY, closed bars only. A warning is a prompt to review the "
+                 "position, not an order to sell. " + _RS_BAR_NOTE)
+
+
+def _rs_exit_params() -> dict:
+    from api.services import relative_strength as _rs           # noqa: PLC0415
+    from api.services.screener import rs_columns as _rsc        # noqa: PLC0415
+    return {"fast": _rsc.EXIT_FAST, "slow": _rsc.EXIT_SLOW, "min": _rsc.EXIT_MIN_BARS,
+            "names": tuple(_rsc.EXIT_NAMES),
+            "worst_first": tuple(_rs.RS_EXIT_LABELS[k] for k in _rs.RS_EXIT_SEVERITY)}
+
+
+def _rs_exit_methods() -> list:
+    """The five RS Exit Warning columns (`rs_columns.EXIT_COLUMNS`), every number and
+    name read from the writer so the page cannot drift from it."""
+    e = _rs_exit_params()
+    quick, sand, dead = e["names"]
+    f, sl = e["fast"], e["slow"]
+    age = "sessions, 0 = the last session"
+    rules = (f"{quick}: the RS line closes below its {f}-session simple average after "
+             f"closing at or above it. {sand}: later in the same dip (before the RS line closes "
+             f"back at or above its {f}-session average), the RS line closes below its value on "
+             f"the {quick} session; once per dip. {dead}: the RS line closes below its "
+             f"{sl}-session simple average after closing at or above it; it needs no {quick} "
+             f"first. The averages are simple averages of the RS line itself, not of price.")
+    return [
+        {"column": "rs_exit_last", "label": "RS Exit Warning (latest)",
+         "one_line": "The newest of Mike Webster's three RS-line exit warnings the stock has flashed.",
+         "scale": " | ".join(e["names"]),
+         "how": (f"{rules} This column names the newest warning in the window; when two fire on "
+                 f"the same session the worse one is named (worst first: "
+                 f"{', '.join(e['worst_first'])}). Blank when none has fired, or until {e['min']} "
+                 f"sessions exist. " + _RS_EXIT_NOTE),
+         "caveat": ("The newest warning hides an older one: a Grateful Dead Break yesterday is "
+                    "named even if a Quicksand came three sessions ago. Screen a single warning "
+                    "with its own age column.")},
+        {"column": "rs_exit_bars_ago", "label": "RS Exit Warning Age (sessions)",
+         "one_line": "Sessions since the newest RS-line exit warning, whichever it was.",
+         "scale": age,
+         "how": (f"0 on the session the newest Quick Break, Quicksand or Grateful Dead Break "
+                 f"fired, one more on every session after; blank when none has fired or until "
+                 f"{e['min']} sessions exist. \"Any exit warning in the last 10 sessions\" is "
+                 f"this column from 0 to 9. " + _RS_EXIT_NOTE),
+         "caveat": ("The count keeps running after the RS line recovers above its averages, so "
+                    "an old warning the line has since repaired still carries an age.")},
+        {"column": "rs_quick_break_bars_ago", "label": "Quick Break Age (sessions)",
+         "one_line": f"Sessions since the RS line last broke below its {f}-day average.",
+         "scale": age,
+         "how": (f"0 on the session of the last {quick}, one more on every session after; "
+                 f"blank when none has fired or until {e['min']} sessions exist. {rules} "
+                 + _RS_EXIT_NOTE),
+         "caveat": "The first and mildest warning; many are repaired within days."},
+        {"column": "rs_quicksand_bars_ago", "label": "Quicksand Age (sessions)",
+         "one_line": "Sessions since the RS line last undercut its own Quick Break level.",
+         "scale": age,
+         "how": (f"0 on the session of the last {sand}, one more on every session after; blank "
+                 f"when none has fired or until {e['min']} sessions exist. \"{sand} in the last "
+                 f"5 sessions\" is this column from 0 to 4. {rules} " + _RS_EXIT_NOTE),
+         "caveat": (f"A {sand} needs a {quick} before it in the same dip; a dip that began "
+                    f"before the window or across a missing benchmark bar has none to measure "
+                    f"from, so a warning can be missed, never invented.")},
+        {"column": "rs_dead_break_bars_ago", "label": "Grateful Dead Break Age (sessions)",
+         "one_line": f"Sessions since the RS line last broke below its {sl}-day average.",
+         "scale": age,
+         "how": (f"0 on the session of the last {dead}, one more on every session after; blank "
+                 f"when none has fired or until {e['min']} sessions exist. {rules} "
+                 + _RS_EXIT_NOTE),
+         "caveat": "The most serious of the three, and still a warning about the past, not a forecast."},
+    ]
+
+
+def _rs_exit_note() -> str:
+    e = _rs_exit_params()
+    return (f"The RS Exit Warnings ({', '.join(e['names'])}) are Mike Webster's method, our "
+            f"reading of it, on daily bars against SPY with {e['fast']}- and {e['slow']}-session "
+            f"simple averages of the RS line, the same maths the chart's UCT RS Exit Warnings "
+            f"draw. A warning is a prompt to review the position, not an order to sell.")
 
 
 def _rs_phase3_note() -> str:
@@ -539,17 +652,17 @@ def _rs_column_methods() -> list:
                      "same number, so this column leaves the picker (saved screens keep it).",
          "scale": rating_scale,
          "how": (f"Over the stock's daily closes: {_ibd_formula_prose(p)}. The score is "
-                 f"ranked across the cap universe excluding ETFs, as a percentile with ties "
+                 f"ranked across {_RATED_POPULATION}, as a percentile with ties "
                  f"sharing the mean position, and the rating is max(1, ceil(percentile x "
                  f"{top})). ETFs receive a rating by interpolating their score into the stock "
                  f"distribution, so SPY or a sector fund can carry a number on the same "
                  f"scale. " + _RS_RATING_NOTE),
          "caveat": (f"IBD-style, our own calculation, not MarketSurge's number: the weighting "
                     f"is the published one, the universe and the data are ours. The "
-                    f"denominator is the cap universe RS Rank already ranks over, minus ETFs, "
-                    f"which is neither the whole market nor every name the screener builds, "
-                    f"so the two ratings agree in population and a name outside it carries "
-                    f"neither. Measured difference to MarketSurge: "
+                    f"population is every stock we hold a recent daily price for, minus ETFs "
+                    f"(about 6,000 names, warrants, rights, units and thin stocks included, "
+                    f"as in Deepvue's rank), not only the liquid names the hourly RS Rank "
+                    f"still ranks. Measured difference to MarketSurge: "
                     f"{RS_RATING_VS_MARKETSURGE or 'not yet measured'}; no figure is claimed "
                     f"until it is.")},
         {"column": "rs_rating_chg_5", "label": "RS Rating Change (5 sessions)",
@@ -577,17 +690,56 @@ def _rs_column_methods() -> list:
              "m12": ("rs_rating_12m", "12M Return Rank", "twelve-month")}
     for key, bars in p["components"]:
         column, label, words = names[key]
+        blend = p["long_terms"].get(key)
+        equal = p["equal_terms"].get(key)
+        if equal is not None:
+            out.append({
+                "column": column, "label": label,
+                "one_line": f"Percentile rank of the equal-weighted average of the one-, two- and "
+                            f"three-month returns, 1-{top}.",
+                "scale": rating_scale,
+                "how": (f"An equally weighted average of three close ratios, each counting once: "
+                        f"{_equal_blend_prose(equal)}, ranked across the same stocks as the "
+                        f"IBD-style rating ({_RATED_POPULATION}) and scored the same way, max(1, ceil(percentile "
+                        f"x {top})). A window the history cannot reach leaves no value: without the "
+                        f"{max(n for n, _w in equal)}-session term there is no rank. " + _RS_RATING_NOTE),
+                "caveat": ("Not the plain three-month return: until 2026-11-12 this rank was taken over "
+                           "the plain 63-session return, so a chart or saved screen from before then "
+                           "reads on a different basis. A stock that rose early in the quarter and has "
+                           "been flat since ranks below one that rose late, which a plain three-month "
+                           "return cannot tell apart. It reacts faster and flips more often than the "
+                           "weighted rating; a high short-window rank beside a low long-window one is "
+                           "a young move, not a leader yet."),
+            })
+            continue
+        if blend is None:
+            out.append({
+                "column": column, "label": label,
+                "one_line": f"Percentile rank of the plain {words} return, 1-{top}.",
+                "scale": rating_scale,
+                "how": (f"The close over the close {bars} sessions earlier, ranked across the "
+                        f"same stocks as the IBD-style rating ({_RATED_POPULATION}) and scored the same "
+                        f"way, max(1, ceil(percentile x {top})). One window alone, where the "
+                        f"rating above weights four of them. " + _RS_RATING_NOTE),
+                "caveat": ("A single-window rank reacts faster and flips more often than the "
+                           "weighted rating; a high short-window rank beside a low long-window one "
+                           "is a young move, not a leader yet."),
+            })
+            continue
         out.append({
             "column": column, "label": label,
-            "one_line": f"Percentile rank of the plain {words} return, 1-{top}.",
+            "one_line": f"Percentile rank of the recency-weighted {words} return, 1-{top}.",
             "scale": rating_scale,
-            "how": (f"The close over the close {bars} sessions earlier, ranked across the "
-                    f"same cap universe minus ETFs as the IBD-style rating and scored the same "
-                    f"way, max(1, ceil(percentile x {top})). One window alone, where the "
-                    f"rating above weights four of them. " + _RS_RATING_NOTE),
-            "caveat": ("A single-window rank reacts faster and flips more often than the "
-                       "weighted rating; a high short-window rank beside a low long-window one "
-                       "is a young move, not a leader yet."),
+            "how": (f"A weighted average of {_long_blend_prose(blend)}, so the newest quarter "
+                    f"counts double, ranked across the same stocks as the IBD-style rating "
+                    f"({_RATED_POPULATION}) and scored the same way, max(1, ceil(percentile x "
+                    f"{top})). A window the history cannot reach is dropped and the weights "
+                    f"renormalised; without the first term there is no value. " + _RS_RATING_NOTE),
+            "caveat": ("Not the plain {words} return: until 2026-11-11 this rank was taken over "
+                       "the plain return, so a chart or saved screen from before then reads on "
+                       "a different basis. It reacts faster than the weighted rating; a high "
+                       "short-window rank beside a low long-window one is a young move, not a "
+                       "leader yet.").replace("{words}", words),
         })
     # S1 (2026-11-10): the ninth-month window. NOT one of the four the rating
     # weights (`IBD_COMPONENTS`), so it gets its own entry and its own sentence.
@@ -595,20 +747,21 @@ def _rs_column_methods() -> list:
     _label9, bars9 = _rsw9.IBD_M9_COMPONENT
     out.append({
         "column": "rs_rating_9m", "label": "9M Return Rank",
-        "one_line": f"Percentile rank of the plain nine-month return, 1-{top}.",
+        "one_line": f"Percentile rank of the recency-weighted nine-month return, 1-{top}.",
         "scale": rating_scale,
-        "how": (f"The close over the close {bars9} sessions earlier, ranked across the "
-                f"same cap universe minus ETFs as the IBD-style rating and scored the same "
-                f"way, max(1, ceil(percentile x {top})). Unlike the other four windows it is "
-                f"NOT one of the terms the rating weights; it sits between the six- and "
-                f"twelve-month ranks so a long move can be read in five steps. "
+        "how": (f"A weighted average of {_long_blend_prose(p['long_terms']['m9'])}, so the "
+                f"newest quarter counts double, ranked across the same stocks as the "
+                f"IBD-style rating ({_RATED_POPULATION}) and scored the same way, max(1, ceil(percentile "
+                f"x {top})). It is not one of the rating's own four terms; it sits between the "
+                f"six- and twelve-month ranks so a long move can be read in five steps. "
                 + _RS_RATING_NOTE),
-        "caveat": ("A single-window rank reacts faster and flips more often than the "
-                   "weighted rating. Blank until the rating history carries the nine-month "
-                   "figure for the session, which older stored sessions fill by a one-off "
-                   "backfill."),
+        "caveat": ("It reacts faster and flips more often than the weighted rating. Blank "
+                   "until the rating history carries the nine-month figure for the session, "
+                   "which older stored sessions fill by a one-off backfill. Until 2026-11-11 "
+                   "this rank was taken over the plain nine-month return."),
     })
     out.extend(_rs_phase3_methods())
+    out.extend(_rs_exit_methods())
     for m in out:
         m["family"] = RS_FAMILY
     return out
@@ -761,7 +914,9 @@ def rs_columns_section() -> dict:
             "design, and no number here is intraday. The three Phase 3 columns (the rotation "
             "quadrant, the Clenow trend score and the VARS state) are computed in the same "
             "03:00 ET step from the same bars, only while that step's Phase 3 part is switched "
-            "on, and are empty until then."),
+            "on, and are empty until then. The five RS Exit Warning columns (the newest warning, "
+            "its age and each warning's own age) are computed in the same 03:00 ET step from "
+            "the same bars."),
         "notes": [
             # U9 (RS split): these two notes no longer name a chart Reading. The slim UCT RS
             # Line draws no Mansfield line and no sensitivity row (map §(a) U7); the screener
@@ -772,13 +927,15 @@ def rs_columns_section() -> dict:
             f"{p['agree']}-session RS slope against SPY and against equal-weight RSP; the "
             f"nightly build does not read the sector ETF.",
             f"The rating is IBD-style, our own calculation, not MarketSurge's: "
-            f"{_ibd_formula_prose(p)}; percentile across the cap universe minus ETFs; "
+            f"{_ibd_formula_prose(p)}; percentile across {_RATED_POPULATION}; "
             f"max(1, ceil(percentile x {p['max']})). Measured difference to MarketSurge: "
             f"{RS_RATING_VS_MARKETSURGE or 'not yet measured'}.",
-            "Denominator: the rating ranks the cap universe RS Rank already ranks over, minus "
-            "ETFs, so the two ratings describe one population; it is not the whole market and "
-            "not every name the screener builds, and a name outside it carries no rating.",
+            "Denominator: the rating ranks every stock we hold a recent daily price for, "
+            "minus ETFs (about 6,000 names), which is wider than the liquid cap universe the "
+            "hourly RS Rank ranks and close to Deepvue's own population; a name with no recent "
+            "price or under a year of history carries no rating or no long-window rank.",
             _rs_phase3_note(),
+            _rs_exit_note(),
         ],
         "honesty": (
             "Every column here describes the past. Relative strength says which stocks to "

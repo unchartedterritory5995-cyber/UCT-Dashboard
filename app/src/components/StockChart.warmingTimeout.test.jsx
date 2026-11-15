@@ -1,4 +1,5 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach, beforeAll } from 'vitest'
+import { BARSTORE_MODES, loadWithBarStore } from '../testing/barStoreModes'
 import { render, cleanup, screen, act } from '@testing-library/react'
 
 // A made-up ticker answers 503 {"error":"warming"} on every ask (audit
@@ -63,20 +64,31 @@ beforeEach(() => {
 })
 afterEach(() => { vi.useRealTimers() })
 
-const mod = await import('./StockChart')
-const StockChart = mod.default
+let mod, StockChart, __barStore
 
-describe('StockChart — a warming answer that never resolves', () => {
-  it('gives up after WARMING_GIVE_UP_MS and shows an honest message', async () => {
-    expect(mod.WARMING_GIVE_UP_MS).toBeGreaterThan(10000)
-    vi.useFakeTimers({ shouldAdvanceTime: true })
-    render(<StockChart sym="ZZQXV" tf="D" />)
-    // Still loading well before the limit: no give-up note yet.
-    await act(async () => { await vi.advanceTimersByTimeAsync(5000) })
-    expect(screen.queryByTestId('chart-warming-timed-out')).toBeNull()
-    await act(async () => { await vi.advanceTimersByTimeAsync(mod.WARMING_GIVE_UP_MS + 1000) })
-    const note = await screen.findByTestId('chart-warming-timed-out')
-    expect(note.textContent).toMatch(/No price history found for ZZQXV/)
-    expect(note.textContent).toMatch(/Retry/)
-  }, 30000)
+// P3-S1: every case runs under BOTH bar sources (chart/barStoreSwitch.js, read once at module
+// load → the graph is re-imported per mode; testing/barStoreModes.js).
+describe.each(BARSTORE_MODES)('BARSTORE=%s', (barStoreOn) => {
+  beforeAll(async () => {
+    mod = await loadWithBarStore(barStoreOn, () => import('./StockChart'))
+    StockChart = mod.default; __barStore = mod.__barStore
+  })
+  it('the module graph under test holds this switch value (non-vacuity)', () => {
+    expect(__barStore).toBe(barStoreOn)
+  })
+
+  describe('StockChart — a warming answer that never resolves', () => {
+    it('gives up after WARMING_GIVE_UP_MS and shows an honest message', async () => {
+      expect(mod.WARMING_GIVE_UP_MS).toBeGreaterThan(10000)
+      vi.useFakeTimers({ shouldAdvanceTime: true })
+      render(<StockChart sym="ZZQXV" tf="D" />)
+      // Still loading well before the limit: no give-up note yet.
+      await act(async () => { await vi.advanceTimersByTimeAsync(5000) })
+      expect(screen.queryByTestId('chart-warming-timed-out')).toBeNull()
+      await act(async () => { await vi.advanceTimersByTimeAsync(mod.WARMING_GIVE_UP_MS + 1000) })
+      const note = await screen.findByTestId('chart-warming-timed-out')
+      expect(note.textContent).toMatch(/No price history found for ZZQXV/)
+      expect(note.textContent).toMatch(/Retry/)
+    }, 30000)
+  })
 })

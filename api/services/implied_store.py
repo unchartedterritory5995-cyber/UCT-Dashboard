@@ -66,6 +66,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+from api.services.log_redaction import safe_exc as _safe_exc
 import logging
 import os
 import re
@@ -511,7 +512,7 @@ def _fmp_reporters_for_day(day: dt.date, key: str) -> list[dict] | None:
             return None
         data = resp.json()
     except Exception as e:  # noqa: BLE001 — one day-chunk's failure must never kill the batch
-        _log.warning("upcoming_reporters: FMP fetch failed for %s: %s", day.isoformat(), e)
+        _log.warning("upcoming_reporters: FMP fetch failed for %s: %s", day.isoformat(), _safe_exc(e))
         return None
     if not isinstance(data, list):
         return None
@@ -860,7 +861,7 @@ def _fmp_fiscal_repair(sym: str) -> list[dict] | None:
             return None
         data = resp.json()
     except Exception as e:  # noqa: BLE001 — one symbol's failure must never crash the batch
-        _log.warning("fiscal repair: FMP transcript-dates fetch failed for %s: %s", sym, e)
+        _log.warning("fiscal repair: FMP transcript-dates fetch failed for %s: %s", sym, _safe_exc(e))
         return None
     return data if isinstance(data, list) else None
 

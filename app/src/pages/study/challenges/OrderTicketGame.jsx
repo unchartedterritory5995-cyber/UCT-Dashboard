@@ -14,7 +14,7 @@
 // lives on this device.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import UIcon from '../../../components/ui/UIcon'
-import brandMark from '../../../components/intro/assets/compass-mark.png'
+import brandMark from '../../../components/intro/assets/compass-mark.webp'
 import { useIsPhone } from '../../../hooks/useBreakpoint'
 import { HudCombo } from '../ui/HudLooks'
 import { StartArena } from '../ui/StartLooks'

@@ -11,6 +11,7 @@
 // Only charts on the visible grid are targets; popped-out / floating ones are not.
 // While Multi Chart is on screen the targets are its cells instead (gridEntries; a cell's ref is its persisted cell id).
 
+import { loadCatalog, setCatalogReader } from './watchlistCatalog'
 import { planPlacement, planGroupPlacement } from '../pages/charts/placement/place'
 import { FIXED_ROWS } from '../pages/charts/rowHeight'
 import { boardWidgetCount, boardCanGrow, MAX_BOARD_WIDGETS } from '../pages/charts/boardBound'
@@ -146,8 +147,20 @@ export function buildChartSource({ chartApiById, getWidgets, selectedChart = nul
           cell: { x: e.w.x, y: e.w.y, w: e.w.w, h: e.w.h },
           ...(sel != null && e.r.chartId === sel ? { selected: true } : {}),
           view: e.api.agent.view?.() || null,
+          // uctIntelligence.set: the UCT Intelligence row / panel gates ({ available, known, availability }; null = not
+          // published yet). Absent when the adapter has none (a Multi Chart cell has no pattern layer): refused there.
+          ...(typeof e.api.agent.uctIntelligence === 'function' ? { uctIntel: e.api.agent.uctIntelligence() ?? null } : {}),
           // the exact symbol string StockChart keys its drawings by (useChartDrawings(sym))
           drawSym: e.api.agent.drawSym?.() || e.r.symbol,
+          // ⭐ C1-127: the chart's own Chart Settings door (ChartWidget adapter → ChartPane): may it open here, and is it
+          // open now (the read-back). Absent when the adapter has no door (a Multi Chart cell): chartSetup.openSettings refuses.
+          ...(typeof e.api.agent.openSettings === 'function'
+            ? { canOpenSettings: !!e.api.agent.canOpenSettings?.(), settingsOpen: !!e.api.agent.settingsOpen?.() } : {}),
+          // C1-178: the right-click "Ask AI about {sym}" door (absent = none: chartMenu.askAi refuses)
+          ...(typeof e.api.agent.askAi === 'function' ? { canAskAi: !!e.api.agent.canAskAi?.() } : {}),
+          // chartFeatures.companyPanel / earningsStrip: the widget's Company Info panel + Earnings Strip (opts.dock, RAW; per
+          // WIDGET, shared by its `dockTabs` chart tabs). Absent when the chart has no dock (a Multi Chart cell): refused.
+          ...(e.api.agent.canDock?.() === true ? { canDock: true, dock: e.r.dock ?? null, dockTabs: e.r.dockTabs || 1 } : {}),
           // ⭐ W1-B B-06: the workspace's Replay Mode cutoff ('YYYY-MM-DD' | null) — ONE shared value every linked chart
           // reads (StockChart `replayCutoff`); absent (undefined) when this host has no replay source
           ...(replay ? { replay: replay.read() ?? null } : {}),
@@ -212,6 +225,16 @@ export function buildChartSource({ chartApiById, getWidgets, selectedChart = nul
     openIndicatorDoor: (ref, door) => {
       const e = entries().find(x => x.ref === ref)
       try { return !!e?.api.agent.openIndicatorDoor?.(door) } catch { return false }
+    },
+    // ⭐ C1-127: open THIS chart's own Chart Settings dialog (the gear's openSettings). Writes nothing; chart.js reads it back.
+    openSettings: (ref) => {
+      const e = entries().find(x => x.ref === ref)
+      try { return !!e?.api.agent.openSettings?.() } catch { return false }
+    },
+    // C1-178: THIS chart's right-click "Ask AI about {sym}" (ChartWidget's openAskAi: /research/:sym?section=ai)
+    askAi: (ref) => {
+      const e = entries().find(x => x.ref === ref)
+      try { return !!e?.api.agent.askAi?.() } catch { return false }
     },
     // The Time Navigator's jump on this chart (a view; see ChartWidget's adapter).
     goTo: (ref, ms) => {
@@ -343,6 +366,38 @@ export function buildWidgetSource({ widgetOps, getWidgets }) {
 }
 
 /**
+ * ⭐ THE LAYOUT BAR (C3-037..039): the Layout Dock's rail — the positional slots along the bottom of
+ * /charts that point into the layout library. Read and written ONLY through the dock's own door
+ * (pages/charts/LayoutDock.jsx `agentRef`): pin = the library's add-to-bar (without opening it),
+ * unpin = the slot menu's Close (never a delete), shift = Move left / right repeated. Each write
+ * resolves true only once the server accepted the `charts_layout_dock` preference.
+ * No dock mounted (not /charts, or the phone) → snapshot() is null and every write is refused.
+ */
+export function buildLayoutDockSource(getDock) {
+  const door = () => getDock?.() || null
+  const refused = () => Promise.resolve(false)
+  return {
+    snapshot() {
+      const d = door()
+      if (!d) return null
+      const s = d.snapshot()
+      return {
+        ready: s.ready !== false,
+        hidden: !!s.hidden,
+        // positional: the same layout may sit in two slots. A slot whose layout is gone is not shown by the dock either.
+        slots: (s.pins || []).map((id, index) => ({ index, id, name: s.names?.[String(id)] ?? null })).filter(x => x.name != null),
+        pins: (s.pins || []).slice(),
+        library: (s.library || []).map(e => ({ id: e.id, name: e.name, scope: e.scope })),
+      }
+    },
+    pin: (id) => door()?.pin(id) ?? refused(),
+    unpin: (index) => door()?.unpin(index) ?? refused(),
+    shift: (from, to) => door()?.shift(from, to) ?? refused(),
+    restore: (id, index) => door()?.restore(id, index) ?? refused(),
+  }
+}
+
+/**
  * Named layouts, read through the Layout Dock's own catalog and active pointer and
  * changed only through its handlers (see ChartsWorkspace's agentLayoutsRef). The
  * Agent never writes a layout record itself.
@@ -421,7 +476,11 @@ export function buildListViewSource({ getWidgets }) {
       return {
         ref, type: v.type, key: v.key, listId: v.type === 'watchlist' && String(v.key).startsWith('user:') ? String(v.key).slice(5) : null,
         label: name, name, rows: live.rows(), cfg: live.cfg, sort: live.sort, columns: live.columns, fixedColumns: live.fixedColumns, persisted: live.persisted,
-        selected: live.selected || null, active: live.active, position: positionWord(w, siblings) || null,
+        selected: live.selected || null, active: live.active, position: positionWord(w, siblings) || null, widgetId: w.id,
+        // the saved layout (null: none saved), for the column Undo; absent when the widget keeps none
+        ...(typeof live.savedCfg === 'function' && live.savedCfg() !== undefined ? { savedCfg: live.savedCfg() } : {}),
+        // the header drag's and the gridline's own results (Watchlists.jsx), for watchlist.arrangeColumns: pure over a cfg
+        ...(live.movedCfg ? { cols: { moved: live.movedCfg, resized: live.resizedCfg, min: live.minWidthOf, width: live.widthOf } } : {}),
       }
     }),
     /** Is a widget showing this saved list sorted by a column? (No rows are read: this runs per list, per turn.) */
@@ -471,9 +530,13 @@ export function buildWatchlistSource({ getLists, getWidgets, revalidate, request
     return r.json()
   }
   const enc = encodeURIComponent
+  // watchlist group A (C3-064): the picker's prebuilt / community catalogue is read through this source's own request
+  setCatalogReader(request)
   const send = (method, body) => ({ method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
   return {
     loaded: () => Array.isArray(getLists()),
+    /** The picker's other lists (UCT's prebuilt directory, community lists): names and ids, or null (watchlistCatalog.js). */
+    catalog: () => loadCatalog(request),
     snapshot() {
       const widgets = getWidgets() || []
       return rows().map(row => ({
@@ -650,6 +713,55 @@ export function buildDrawingSource(charts, store = drawingsStore) {
   }
 }
 
+/**
+ * ⭐ DRAWING BOARDS (C1-167..170): the member's named drawing sheets. Every chart shares them, so this
+ * covers the whole app, not one chart. It reads the store and writes only through the writers the
+ * Drawing Boards panel uses (components/chart/TracingsPanel.jsx via useTracings): setActiveTracing,
+ * createTracing (then setActiveTracing, as "New board" does), renameTracing, deleteTracing.
+ * `confirm()` polls the server's copy (useTracingsSync pushes exportTracings() into the tracings_doc
+ * preference, debounced 1.5 s) until it holds these boards by id and name and the same active board.
+ * It returns { ok } or { ok: false, reason: 'not-synced' }.
+ */
+export function buildDrawingBoardSource(store = drawingsStore, { fetchFn = (u, o) => fetch(u, o), timeoutMs = 8000, everyMs = 500 } = {}) {
+  const snapshot = () => {
+    const snap = store.getTracingsSnapshot()
+    return {
+      activeId: snap.activeId,
+      boards: snap.tracings.map((t) => {
+        const s = store.tracingStats(t.id)
+        return { id: t.id, name: t.name || '', label: store.tracingLabel(t), active: t.id === snap.activeId, drawings: s.drawings, symbols: s.syms }
+      }),
+    }
+  }
+  const sigOf = (boards, activeId) => JSON.stringify([activeId, (boards || []).map(t => [t.id, t.name || ''])])
+  return {
+    snapshot,
+    setActive: (id) => store.setActiveTracing(id),
+    create: (name) => { const id = store.createTracing({ name }); store.setActiveTracing(id); return id },
+    rename: (id, name) => store.renameTracing(id, name),
+    remove: (id) => store.deleteTracing(id),
+    async confirm() {
+      const t0 = Date.now()
+      for (;;) {
+        const s = store.getTracingsSnapshot()
+        const want = sigOf(s.tracings, s.activeId)
+        try {
+          const r = await fetchFn('/api/auth/preferences', { credentials: 'include', cache: 'no-store' })
+          if (r.ok) {
+            const prefs = await r.json()
+            const raw = prefs?.tracings_doc
+            const env = typeof raw === 'string' ? JSON.parse(raw) : raw
+            const doc = env?.doc ?? null
+            if (doc && sigOf(doc.tracings, doc.activeId) === want) return { ok: true }
+          }
+        } catch { /* keep polling until the deadline */ }
+        if (Date.now() - t0 > timeoutMs) return { ok: false, reason: 'not-synced' }
+        await new Promise(res => setTimeout(res, everyMs))
+      }
+    },
+  }
+}
+
 const drawingSig = (list) => JSON.stringify((Array.isArray(list) ? list : []).map(d => [
   d.id, d.type, d.points, d.color ?? null, d.lineStyle ?? null, d.lineWidth ?? null, !!d.locked, !!d.hidden,
 ]))
@@ -746,7 +858,7 @@ export function scopeHostToGrid(host, { readCells = readServerCells } = {}) {
   }
 }
 
-export function buildWorkspaceHost({ chartApiById, getWidgets, selectedChart, boardVisit, widgetLabel, widgetOps, layouts, watchlists, prefs, navigate, replay = null, readServer = readServerBoard, readLayout = readServerLayout }) {
+export function buildWorkspaceHost({ chartApiById, getWidgets, selectedChart, boardVisit, widgetLabel, widgetOps, layouts, layoutDock = null, watchlists, prefs, navigate, replay = null, periodSort = null, compare = null, gridControl = null, readServer = readServerBoard, readLayout = readServerLayout }) {
   const layoutSource = layouts ? buildLayoutSource(layouts) : null
   const epoch = layoutSource ? () => {
     const a = layoutSource.snapshot().active
@@ -756,8 +868,10 @@ export function buildWorkspaceHost({ chartApiById, getWidgets, selectedChart, bo
     ...(watchlists ? { watchlists: buildWatchlistSource({ ...watchlists, getWidgets }), flagged: buildFlaggedSource(), listViews: buildListViewSource({ getWidgets }) } : {}),
     charts: buildChartSource({ chartApiById, getWidgets, selectedChart, replay }),
     drawings: buildDrawingSource(buildChartSource({ chartApiById, getWidgets, selectedChart })),
+    drawingBoards: buildDrawingBoardSource(),
     indicatorAlerts: buildIndicatorAlertSource(),
     ...(widgetOps ? { widgets: buildWidgetSource({ widgetOps, getWidgets }) } : {}),
+    ...(typeof layoutDock === 'function' ? { layoutDock: buildLayoutDockSource(layoutDock) } : {}),
     ...(layoutSource ? {
       layouts: layoutSource,
       // WHICH board this is: the open layout's identity. A plan proposed on one board
@@ -778,5 +892,14 @@ export function buildWorkspaceHost({ chartApiById, getWidgets, selectedChart, bo
     ...(prefs ? { prefs } : {}),
     // The router's navigate() (an allow-listed path from capabilities/app.js only).
     ...(navigate ? { navigate } : {}),
+    // Tools → Custom-Period Sort (capabilities/periodSort.js): the popover's own run, the panel's own Dock, and the
+    // panel / Replay cutoff / start marker they write. Absent → periodSort.* refuse (Multi Chart, other pages).
+    ...(periodSort ? { periodSort } : {}),
+    // Tools → Compare Symbols (capabilities/comparePanel.js): the panel's open state and tab as it reports them, opened and
+    // switched through the product's own `uct:compare-open` event (pages/charts/compareAgent.js). Absent → compare.* refuse.
+    ...(compare ? { compare } : {}),
+    // ⭐ MULTI CHART: the grid's own writers (pages/charts/grid/useGridAgentControl.js), on the board as in the grid — the
+    // member enters a grid from the board. Read by capabilities/multiChart.js only.
+    ...(gridControl ? { gridControl } : {}),
   }
 }

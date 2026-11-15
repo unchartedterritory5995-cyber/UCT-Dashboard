@@ -31,7 +31,7 @@ const CASES = [
   ['how do I sort my watchlist', 'watchlistAction', 'sort'],
   ['how do I rename a layout', 'layoutAction', 'rename'],
   ['how do I close a chart tab', 'tabAction', 'closeChart'],
-  ['how do I filter catalysts', 'widgetAction', 'newsFilter'],
+  // ⚰️ 'how do I filter catalysts' → newsFilter: withheld while News & Catalysts is a hidden widget (owner 2026-11-13).
   ['how do I lock a drawing', 'drawingEdit', 'lock'],
   ['how do I delete a drawing', 'drawingEdit', 'delete'],
   ['how do I create my own indicator', 'indicatorManage', 'create'],

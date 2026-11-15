@@ -828,6 +828,10 @@ def run(C, browser, admin, base, fs, data_dir, only) -> None:
         C.goto(pg, base, "/journal/notebook")
         made_note, text, label, err = None, None, None, None
         try:
+            # Research home's review box is gone; the door is the list's "+ New" arrow > "Draft a review" (simplify pass
+            # 2, C2: the three reviews are that row's second view).
+            pg.get_by_role("button", name="More ways to start a note", exact=True).first.click(timeout=20000)
+            pg.get_by_role("menuitem", name="Draft a review", exact=True).first.click(timeout=10000)
             pg.locator('[data-tour="review-drafts-weekly"]').first.click(timeout=20000)
             pg.wait_for_url(lambda u: "note=" in u, timeout=60000)
             made_note = pg.url.split("note=")[-1].split("&")[0]

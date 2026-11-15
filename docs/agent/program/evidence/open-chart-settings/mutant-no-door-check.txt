@@ -1,0 +1,62 @@
+mutant no-door-check
+Wed Nov 11 05:55:08 UTC 2026
+232a3b19dd
+
+ RUN  v4.0.18 C:/w/pl-ocs/app
+
+ ✓ src/pages/charts/widgets/ChartWidget.openSettings.test.jsx (4 tests) 256ms
+ ❯ src/agent/agentOpenChartSettings.test.jsx (26 tests | 1 failed | 1 skipped) 22030ms
+     ✓ one chart: "open chart settings" opens its dialog, with no model call  1145ms
+     ✓ "open the chart settings" is the same door  1168ms
+     ✓ "show me the chart settings" is the same door  1142ms
+     ✓ "bring up chart settings" is the same door  1036ms
+     ✓ "open the settings dialog" is the same door  1032ms
+     ✓ "show me the settings panel" is the same door  1041ms
+     ✓ "open this chart's settings" is the same door  1050ms
+     ✓ "pull up the settings for this chart" is the same door  1043ms
+     ✓ names the AAPL chart: only that chart opens  1019ms
+     ✓ names a position: "show me the settings panel for the top-left chart"  1026ms
+     ✓ ⛔ two charts, none named or clicked: it asks which, and opens nothing  987ms
+     ✓ two charts, one clicked: "this chart" is the clicked one  1020ms
+     ✓ ⛔ excluded: "the chart that is not NVDA" — the model aiming at NVDA anyway opens nothing, and asks  1041ms
+     ↓ ⛔ excluded: "open chart settings, not the NVDA chart" never opens NVDA — GAP: shared qualifier negation (see PR-open-chart-settings.md)
+     ✓ ⛔ excluded: "the other chart" (NVDA clicked) — the model aiming at the clicked chart opens nothing there  990ms
+     ✓ excluded control: "the other chart" (NVDA clicked), the model on AMD: AMD opens  1032ms
+     × a chart with no settings door here (Multi Chart cell, a read-only surface) refuses and calls nothing 1083ms
+     ✓ ⛔ a dialog that did not open gets no success  3113ms
+     ✓ already open: says so and calls nothing  970ms
+     ✓ says there is no Undo (nothing changed), and declares none  1036ms
+     ✓ bare "open settings" stays the Settings PAGE (app.open), as before 1ms
+     ✓ a question about HOW is the walkthrough (guide.show → the settings row), never the door 30ms
+     ✓ a setting change is not the door 2ms
+     ✓ matches the existing "Finding chart settings" guide row, whose first step points at the gear 16ms
+     ✓ the gear the walkthrough points at calls the very openSettings the Agent's door calls 2ms
+     ✓ the row's "do it" line names the Agent's door 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/agent/agentOpenChartSettings.test.jsx > chartSetup.openSettings: the chart's own Chart Settings door > a chart with no settings door here (Multi Chart cell, a read-only surface) refuses and calls nothing
+AssertionError: expected 'UCT Agent12:55 AMSome of that didn\'t…' to match /can't open Chart Settings for that ch…/
+
+- Expected: 
+/can't open Chart Settings for that chart from here/
+
++ Received: 
+"UCT Agent12:55 AMSome of that didn't take effect: Chart (NVDA) did not take effect — nothing was left changed."
+
+ ❯ src/agent/agentOpenChartSettings.test.jsx:130:17
+    128|     const s = withSettings(h, { can: () => false })
+    129|     const out = await say('open chart settings')
+    130|     expect(out).toMatch(/can't open Chart Settings for that chart from…
+       |                 ^
+    131|     expect(s.calls).toEqual([])
+    132|   }, 40000)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 1 passed (2)
+      Tests  1 failed | 28 passed | 1 todo (30)
+   Start at  00:55:09
+   Duration  31.83s (transform 11.83s, setup 728ms, import 16.35s, tests 22.29s, environment 1.68s)
+

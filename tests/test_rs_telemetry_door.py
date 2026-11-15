@@ -59,7 +59,9 @@ def _js_card_keys() -> set:
 
 
 def _js_benchmarks() -> set:
-    m = re.search(r"key: 'benchmark', type: 'enum'.*?options: \[(.*?)\]\],", _rs_body(), re.S)
+    # 2026-11-12: the menu is the shared benchmark declaration every RS definition spreads.
+    src = _JS_DEF.read_text(encoding="utf-8").split("const rsSplitBenchmarkInputs = () => ([", 1)[1]
+    m = re.search(r"key: 'benchmark', type: 'enum'.*?options: \[(.*?)\]\],", src, re.S)
     return set(re.findall(r"\['(\w+)', '", m.group(1)))
 
 

@@ -1,7 +1,8 @@
 // Shared SSE connection pool for /api/stream/bars — the bars analog of
 // priceStreamManager, kept in a SEPARATE module so the always-on price path
 // (priceStreamManager.js) is byte-untouched (a bug here must never break live
-// prices). DARK until VITE_REALTIME_BARS='1' (the consumer gates on it).
+// prices). DARK until VITE_REALTIME_BARS='1' (every consumer gates on it through
+// lib/realtimeBarsGate.realtimeBarsEnabled — useRealtimeBars, data/barStore/liveFeed).
 //
 // Every useRealtimeBars() used to open its OWN EventSource per chart — the exact
 // connection-multiplication class the price stream was pooled to kill. This owns

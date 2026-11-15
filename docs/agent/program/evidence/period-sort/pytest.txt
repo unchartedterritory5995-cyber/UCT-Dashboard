@@ -1,0 +1,3 @@
+FAILED tests/test_gate_shards.py::test_the_read_set_covers_every_root_relative_path_the_suite_reads
+1 failed, 1024 passed, 2 skipped, 1 warning in 90.95s (0:01:30)
+418 passed, 2 skipped, 5 warnings in 51.61s

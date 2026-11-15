@@ -1,0 +1,10 @@
+rail src/lib/swallowedFetch.census.test.js
+## TERM-033: `.catch(() => null)` is a shrink-only census > no file gains a site, and no new file adopts the idiom
++   "agent/capabilities/calendar.js: 0 -> 1",
++   "agent/capabilities/scanRefine.js: 0 -> 2",
++   "agent/capabilities/stock.js: 0 -> 1",
++   "components/StockChart.jsx: 0 -> 1",
++   "pages/breadth/drill/longHistory.js: 0 -> 1",
++   "pages/journal-2-0/tabs/NotebookTab.jsx: 0 -> 1",
++   "testing/agent/acceptance/lib.mjs: 0 -> 2",
++ Received

@@ -321,8 +321,10 @@ describe('PANE_MODE bands — the geometry the flip reverses TO', () => {
     // a band, so the loop is a self-consistency check for them.
     // ⭐ FORTY-FIVE AT 2026-11-10 (UCT RS split U6): rsRating, rsPhases and rsVsEma are
     // three new pane definitions with a DERIVED `before`, like `rsLine`: 42 -> 45.
-    expect(checked).toBe(45)
-    expect(ids).toHaveLength(45)
+    // ⭐ FORTY-SIX AT 2026-11-12 (UCT RS Exit Warnings): `rsExit` is one more pane definition with
+    // a DERIVED `before` (an own pane, a hidden axis, the same 0.20 band): 45 -> 46.
+    expect(checked).toBe(46)
+    expect(ids).toHaveLength(46)
   })
 
   it('and the chart really has ONE pane, with three oscillators on it', async () => {

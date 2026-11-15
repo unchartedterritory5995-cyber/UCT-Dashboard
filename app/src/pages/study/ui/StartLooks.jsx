@@ -14,7 +14,7 @@ import { Fragment, useEffect } from 'react'
 import { Medal } from './Medal'
 import UIcon from '../../../components/ui/UIcon'
 import StudyButton from './StudyButton'
-import brandMark from '../../../components/intro/assets/compass-mark.png'
+import brandMark from '../../../components/intro/assets/compass-mark.webp'
 import st from './startLooks.module.css'
 
 // a fixed, made-up run of candles for the drawing in A: [open, close, high, low] on a 0..100 scale

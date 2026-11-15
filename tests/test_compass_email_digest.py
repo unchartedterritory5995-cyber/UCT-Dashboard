@@ -81,6 +81,26 @@ def test_compose_digest_html_includes_stats_and_focus():
     assert "Open Compass" in html   # CTA
 
 
+def test_follow_up_b_5b_open_compass_opens_the_compass_tab_not_journal_today():
+    """Follow-up B, item 5b: "Open Compass" pointed at bare `/journal`, which lands on the Journal's Today tab. It points
+    at the Compass tab's own route, read from the Journal's nav item (not restated)."""
+    import re
+    from pathlib import Path
+    from api.services.journal_two import coach_email_digest as ed
+    layout = (Path(__file__).resolve().parent.parent / "app" / "src" / "pages" / "journal-2-0"
+              / "JournalLayout.jsx").read_text(encoding="utf-8")
+    nav = re.search(r"\{\s*to:\s*'([^']+)',\s*label:\s*'Compass'", layout)
+    assert nav, "non-vacuity: the Journal nav has a Compass item"
+    assert ed.COMPASS_PATH == nav.group(1) == "/journal/compass"
+    html = ed.compose_digest_html(display_name="Pat", account_name="Default", week_start="2026-05-04",
+                                  review_body="x", this_weeks_focus=None,
+                                  stats={"trade_count": 0, "win_rate": 0, "avg_r": 0, "post_mortems": 0,
+                                         "interventions": 0}, base_url="https://example.test")
+    hrefs = re.findall(r'href="([^"]+)"', html)
+    assert "https://example.test/journal/compass" in hrefs
+    assert "https://example.test/journal" not in hrefs
+
+
 def test_md_to_html_escapes_html_and_renders_bullets():
     from api.services.journal_two.coach_email_digest import _md_to_html
     out = _md_to_html("**Watch out** for `<script>` injection\n\n- a\n- b")

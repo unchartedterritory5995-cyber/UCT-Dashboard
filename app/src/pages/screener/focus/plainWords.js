@@ -64,14 +64,20 @@ export const PLAIN_COLUMN_LABELS = {
   rs_rating_chg_5: 'RS rating change, 1 week',
   rs_rating_chg_20: 'RS rating change, 1 month',
   rs_rating_1m: '1-month return rank',
-  rs_rating_3m: '3-month return rank',
-  rs_rating_6m: '6-month return rank',
-  rs_rating_9m: '9-month return rank',
-  rs_rating_12m: '12-month return rank',
+  rs_rating_3m: '3-month average return rank',
+  rs_rating_6m: '6-month weighted return rank',
+  rs_rating_9m: '9-month weighted return rank',
+  rs_rating_12m: '12-month weighted return rank',
   // UCT RS Phase 3 (unit 3-11). The quadrant is read on WEEKLY bars, the other two on daily.
   rrg_quadrant: 'Rotation vs SPY (weekly)',
   clenow_score: 'Clenow trend score (90 days)',
   vars_state: 'Volatility-adjusted RS vs SPY',
+  // UCT RS Exit Warnings (Mike Webster's method): the RS line against SPY, daily.
+  rs_exit_last: 'Latest RS exit warning',
+  rs_exit_bars_ago: 'Sessions since an RS exit warning',
+  rs_quicksand_bars_ago: 'Sessions since a Quicksand',
+  rs_quick_break_bars_ago: 'Sessions since a Quick Break',
+  rs_dead_break_bars_ago: 'Sessions since a Grateful Dead Break',
 }
 
 export const plainColumnLabel = key => PLAIN_COLUMN_LABELS[key] || null
@@ -127,12 +133,17 @@ const FACTS = {
   rs_rating_chg_5: v => `RS rating ${ratingDelta(v, 'week')}`,
   rs_rating_chg_20: v => `RS rating ${ratingDelta(v, 'month')}`,
   rs_rating_1m: v => `1-month return rank ${Math.round(v)} of 99`,
-  rs_rating_3m: v => `3-month return rank ${Math.round(v)} of 99`,
-  rs_rating_6m: v => `6-month return rank ${Math.round(v)} of 99`,
-  rs_rating_9m: v => `9-month return rank ${Math.round(v)} of 99`,
-  rs_rating_12m: v => `12-month return rank ${Math.round(v)} of 99`,
+  rs_rating_3m: v => `3-month average return rank ${Math.round(v)} of 99`,
+  rs_rating_6m: v => `6-month weighted return rank ${Math.round(v)} of 99`,
+  rs_rating_9m: v => `9-month weighted return rank ${Math.round(v)} of 99`,
+  rs_rating_12m: v => `12-month weighted return rank ${Math.round(v)} of 99`,
   // UCT RS Phase 3 (unit 3-11): the Clenow score is a fraction, so it prints as the number, never a %.
   clenow_score: v => `Clenow trend score ${v.toFixed(2)} over 90 sessions`,
+  // RS Exit Warnings: an age of 0 is "today"; a warning is a prompt to review, never "sell".
+  rs_exit_bars_ago: v => v === 0 ? 'RS exit warning today' : `RS exit warning ${sessions(v)} ago`,
+  rs_quicksand_bars_ago: v => v === 0 ? 'RS Quicksand today' : `RS Quicksand ${sessions(v)} ago`,
+  rs_quick_break_bars_ago: v => v === 0 ? 'RS Quick Break today' : `RS Quick Break ${sessions(v)} ago`,
+  rs_dead_break_bars_ago: v => v === 0 ? 'RS Grateful Dead Break today' : `RS Grateful Dead Break ${sessions(v)} ago`,
 }
 
 export function plainFact(key, v) {

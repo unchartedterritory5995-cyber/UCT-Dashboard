@@ -161,7 +161,7 @@ let widgetCache = null
 export function widgetRows() {
   if (widgetCache) return widgetCache
   let ids = []; let labels = {}
-  try { ids = menuGroups('workspace').flatMap(g => g.items); labels = labelMap('menu') } catch { ids = [] }
+  try { ids = menuGroups('workspace').flatMap(g => g.items); labels = labelMap('agent') } catch { ids = [] }
   widgetCache = ids.map(id => {
     const label = String(labels[id] || id)
     const words = [label, ...(ALSO[id] || [])].map(w => escapeRe(w.toLowerCase()))

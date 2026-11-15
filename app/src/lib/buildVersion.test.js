@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { getClientBuildId, createBuildWatcher } from './buildVersion'
+import { getClientBuildId, createBuildWatcher, fetchBuildSafe } from './buildVersion'
 
 // Same literal tests/test_health_build_id.py pins for /api/health `build_id`.
 const ENTRY = 'assets/index-abc123.js'
@@ -166,5 +166,65 @@ describe('createBuildWatcher', () => {
     await vi.advanceTimersByTimeAsync(1)
     expect(fetchHealth).toHaveBeenCalledTimes(1)
     w.stop()
+  })
+})
+
+// The frontend's identity comes from /build.json. /api/health is the fallback, for a server
+// that has no such route yet: there the SPA catch-all answers /build.json with index.html and a 200.
+describe('fetchBuildSafe', () => {
+  const json = (body, ok = true) => ({ ok, json: async () => body })
+  const htmlShell = () => ({ ok: true, json: async () => { throw new SyntaxError('Unexpected token <') } })
+  const routes = (map) => vi.fn(async (url) => {
+    const r = map[url]
+    if (r instanceof Error) throw r
+    if (r === undefined) throw new Error('unexpected url ' + url)
+    return r
+  })
+
+  it('uses /build.json when it carries an assets/ id and never asks health', async () => {
+    const fetchImpl = routes({ '/build.json': json({ build_id: 'assets/index-new.js', commit: 'abc' }) })
+    const body = await fetchBuildSafe({ fetchImpl })
+    expect(body).toEqual({ build_id: 'assets/index-new.js', commit: 'abc' })
+    expect(fetchImpl).toHaveBeenCalledTimes(1)
+    expect(fetchImpl.mock.calls[0][0]).toBe('/build.json')
+    expect(fetchImpl.mock.calls[0][1].cache).toBe('no-store')
+  })
+
+  it('falls back to health when /build.json is the app shell (200, HTML)', async () => {
+    const fetchImpl = routes({ '/build.json': htmlShell(), '/api/health': json({ build_id: 'assets/index-h.js' }) })
+    expect(await fetchBuildSafe({ fetchImpl })).toEqual({ build_id: 'assets/index-h.js' })
+    expect(fetchImpl.mock.calls.map((c) => c[0])).toEqual(['/build.json', '/api/health'])
+  })
+
+  it('falls back to health when /build.json is 404', async () => {
+    const fetchImpl = routes({ '/build.json': json({ detail: 'Not Found' }, false), '/api/health': json({ build_id: 'assets/index-h.js' }) })
+    expect(await fetchBuildSafe({ fetchImpl })).toEqual({ build_id: 'assets/index-h.js' })
+  })
+
+  it('falls back to health when /build.json has an empty build_id', async () => {
+    const fetchImpl = routes({ '/build.json': json({ build_id: '', commit: 'abc' }), '/api/health': json({ build_id: 'assets/index-h.js' }) })
+    expect(await fetchBuildSafe({ fetchImpl })).toEqual({ build_id: 'assets/index-h.js' })
+  })
+
+  it('falls back to health when the id is not an assets/ path', async () => {
+    const fetchImpl = routes({ '/build.json': json({ build_id: '<!doctype html>' }), '/api/health': json({ build_id: 'assets/index-h.js' }) })
+    expect(await fetchBuildSafe({ fetchImpl })).toEqual({ build_id: 'assets/index-h.js' })
+  })
+
+  it('falls back to health when /build.json cannot be reached', async () => {
+    const fetchImpl = routes({ '/build.json': new Error('offline'), '/api/health': json({ build_id: 'assets/index-h.js' }) })
+    expect(await fetchBuildSafe({ fetchImpl })).toEqual({ build_id: 'assets/index-h.js' })
+  })
+
+  it('resolves null when both fail, and never throws', async () => {
+    const fetchImpl = routes({ '/build.json': new Error('offline'), '/api/health': new Error('offline') })
+    await expect(fetchBuildSafe({ fetchImpl })).resolves.toBeNull()
+  })
+
+  it('follows /build.json when it disagrees with health', async () => {
+    // After the frontend is served apart from the API, health names the API's own bundled copy.
+    const fetchImpl = routes({ '/build.json': json({ build_id: 'assets/index-B.js' }), '/api/health': json({ build_id: 'assets/index-A.js' }) })
+    expect((await fetchBuildSafe({ fetchImpl })).build_id).toBe('assets/index-B.js')
+    expect(fetchImpl).toHaveBeenCalledTimes(1)
   })
 })

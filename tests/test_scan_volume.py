@@ -47,17 +47,20 @@ def test_build_reference_scans_whole_universe_minus_etfs(monkeypatch):
     assert ref == {"AAA": 1000, "BBB": 2000}
 
 
-def test_build_reference_all_time_queries_from_zero(monkeypatch):
-    # days=None (all-time) queries from_ymd=0 (since inception), not a trailing window.
-    seen = {}
+def test_build_reference_all_time_queries_from_zero(monkeypatch, tmp_path):
+    # days=None (all-time) reads from_ymd=0 (since inception), not a trailing window. Since
+    # 2026-11-12 the all-time map is remembered (scan_volume._ever_reference); with nothing
+    # remembered yet the first read still starts at inception.
+    seen = []
 
-    def _fake(from_ymd, to_ymd, min_sessions):
-        seen["from_ymd"] = from_ymd
-        return {"AAA": 42}
+    def _fake(from_ymd, to_ymd):
+        seen.append(from_ymd)
+        return {"AAA": (42, 3)}
 
-    monkeypatch.setattr(sv._sqlite, "max_daily_volume_in_range", _fake)
-    sv._build_reference(None, set())
-    assert seen["from_ymd"] == 0
+    monkeypatch.setattr(sv, "_EVER_PATH", str(tmp_path / "ever.json"))
+    monkeypatch.setattr(sv._sqlite, "daily_volume_stats_in_range", _fake)
+    assert sv._build_reference(None, set()) == {"AAA": 42}
+    assert seen[0] == 0
 
 
 def test_scan_returns_only_qualifiers_sorted_by_ratio(monkeypatch):

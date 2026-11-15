@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import useSWR, { preload, mutate } from 'swr'
+import { tickerMetaKey } from './tickerMetaKey'
 
 // Frozen so the shared fallback can never be mutated by a consumer.
 const NULLS = Object.freeze({
@@ -193,13 +194,15 @@ export function _resetTickerMetaQueue() {
 
 // Per-symbol company metadata for the chart watermark. Never throws to the
 // component; returns NULLS until real data resolves.
-export default function useTickerMeta(sym) {
+export default function useTickerMeta(sym, isPaused) {
   // Synchronous localStorage seed, recomputed only when the symbol changes
   // (avoids a storage read on every chart tick re-render).
   const fallbackData = useMemo(() => (sym ? lsGet(sym) : undefined), [sym])
 
+  // `isPaused` (optional): a chart passes its rest gate, so a symbol the member is racing past is not
+  // asked for (components/chart/restedReaders.js). Without it this is an ordinary read.
   const { data } = useSWR(
-    sym ? `/api/ticker-meta/${encodeURIComponent(sym)}` : null,
+    tickerMetaKey(sym),
     fetcher,
     {
       fallbackData,               // instant first paint from localStorage
@@ -211,6 +214,7 @@ export default function useTickerMeta(sym) {
       errorRetryCount: 4,
       errorRetryInterval: 4000,   // ~4s backoff — recovers within seconds, not an hour
       onSuccess: (d) => lsPut(sym, d), // persist real hits for instant future paints
+      ...(isPaused && { isPaused }),
     },
   )
   return data || NULLS

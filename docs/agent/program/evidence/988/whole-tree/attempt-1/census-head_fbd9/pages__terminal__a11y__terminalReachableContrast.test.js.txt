@@ -1,0 +1,70 @@
+rail src/pages/terminal/a11y/terminalReachableContrast.test.js
+## terminal-reachable stylesheets ΓÇö text contrast in every theme > no var(--loss)/var(--gain) as text colour in any reachable stylesheet
++   "pages/breadth/drill/scan/GroupHeader.module.css:22 .up [color]",
++   "pages/breadth/drill/scan/GroupHeader.module.css:23 .dn [color]",
++   "pages/breadth/drill/scan/ScanDeck.module.css:184 .up [color]",
++   "pages/breadth/drill/scan/ScanDeck.module.css:185 .dn [color]",
++   "pages/breadth/drill/scan/ScanDeck.module.css:58 .live [color]",
++   "pages/breadth/drill/scan/ScanDeck.module.css:98 .up [color]",
++   "pages/breadth/drill/scan/ScanDeck.module.css:99 .dn [color]",
++   "pages/charts/mobile/MobileBoardsSheet.module.css:91 .danger [color]",
++   "pages/charts/mobile/MobileCharts.module.css:1095 .removeRow .rowLabel [color]",
++   "pages/charts/mobile/MobileCharts.module.css:1249 .layoutDel:active [color]",
++   "pages/charts/mobile/MobileCharts.module.css:1287 .layoutConfirmYes [color]",
++   "pages/charts/mobile/MobileCharts.module.css:1342 .layoutErr [color]",
++   "pages/charts/mobile/MobileCharts.module.css:167 .chgUp [color]",
++   "pages/charts/mobile/MobileCharts.module.css:168 .chgDown [color]",
++   "pages/charts/mobile/MobileCharts.module.css:676 .alertBtnUp [color]",
++   "pages/charts/mobile/MobileCharts.module.css:682 .alertBtnDown [color]",
++   "pages/charts/mobile/MobileCharts.module.css:689 .alertOk [color]",
++   "pages/charts/mobile/MobileCharts.module.css:690 .alertErr [color]",
++   "pages/charts/mobile/MobileCharts.module.css:820 0%, 40% [color]",
++   "pages/charts/mobile/MobileCharts.module.css:821 0%, 40% [color]",
++ Received
+
+## terminal-reachable stylesheets ΓÇö text contrast in every theme > no inline color/fill var(--loss)/var(--gain) in reachable JS beyond the declared non-text uses
++   "components/Sparkline.jsx": 1,
++ Received
+
+## terminal-reachable stylesheets ΓÇö text contrast in every theme > every other failing text rule is in the shrink-only baseline, file by file
++   "components/UpdateReadyToast.module.css: 1 > 0
++   "pages/breadth/drill/JoinedDateNav.module.css: 1 > 0
++   "pages/breadth/drill/scan/GroupHeader.module.css: 2 > 0
++   "pages/breadth/drill/scan/ScanDeck.module.css: 5 > 0
++   "pages/breadth/drill/scan/ScanFilters.module.css: 3 > 0
++   "pages/charts/CompareSymbolsPanel.module.css: 3 > 0
++   "pages/charts/mobile/MobileBoardsSheet.module.css: 1 > 0
++   "pages/charts/mobile/MobileCharts.module.css: 17 > 0
++   "pages/charts/review/ReviewNavControl.module.css: 1 > 0
++   .alertBtnDown [color] uct:nord on own 4.04 < 4.5
++   .alertBtnUp [color] uct:sand on own 4.37 < 4.5
++   .alertErr [color] uct:nord on --bg-hover 3.18 < 4.5
++   .alertOk [color] uct:sand on --bg-hover 4.19 < 4.5
++   .badge [color] light on own 2.98 < 4.5
++   .btn [color] light on own 3.16 < 4.5",
++   .btn:disabled [color] uct:sand on --bg-hover 1.86 < 4.5",
++   .chgDown [color] uct:nord on --bg-hover 3.18 < 4.5
++   .chgUp [color] uct:sand on --bg-hover 4.19 < 4.5
++   .danger [color] uct:nord on --bg-hover 3.18 < 4.5",
++   .dn [color] uct:nord on --bg-hover 3.18 < 4.5
++   .dn [color] uct:nord on --bg-hover 3.18 < 4.5",
++   .hideBaseBox [color] dark on --bg 1.00 < 4.5
++   .jStep:disabled [color] uct:sand on --bg-hover 1.86 < 4.5",
++   .layoutConfirmYes [color] uct:nord on --bg-hover 3.18 < 4.5
++   .layoutDel:active [color] uct:nord on --bg-hover 3.18 < 4.5
++   .layoutErr [color] uct:nord on --bg-hover 3.18 < 4.5
++   .live [color] uct:sand on --bg-hover 4.19 < 4.5
++   .pWeakening [color] uct:sand on --bg-hover 3.54 < 4.5",
++   .panel [color] light on own 1.22 < 4.5
++   .removeRow .rowLabel [color] uct:nord on --bg-hover 3.18 < 4.5
++   .rm:hover [color] uct:coolgray on own 4.28 < 4.5
++   .sectionHint [color] uct:sand on --bg-hover 3.07 < 4.5",
++   .symBadge_breadth [color] uct:sand on own 4.49 < 4.5
++   .symBadge_delisted [color] uct:sand on own 1.77 < 4.5",
++   .symBadge_etf [color] uct:sand on own 1.70 < 4.5
++   .symBadge_index [color] uct:sand on own 1.82 < 4.5
++   .tbBadge [color] light on own 2.90 < 4.5
++   .up [color] uct:sand on --bg-hover 4.19 < 4.5
++   0%, 40% [color] uct:nord on --bg-hover 3.18 < 4.5
++   0%, 40% [color] uct:sand on --bg-hover 4.19 < 4.5
++ Received

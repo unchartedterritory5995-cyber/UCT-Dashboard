@@ -1,4 +1,5 @@
-import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterAll, beforeAll } from 'vitest'
+import { BARSTORE_MODES, loadWithBarStore } from '../testing/barStoreModes'
 import { render, cleanup, act } from '@testing-library/react'
 import { pinWallClock } from '../testing/pinnedWallClock'
 
@@ -78,8 +79,7 @@ vi.mock('../context/AuthContext', () => ({
 const clock = pinWallClock('2026-09-22T17:17:00Z')
 afterAll(() => clock.restore())
 
-const { default: StockChart } = await import('./StockChart')
-const { memClear } = await import('../utils/barsMemCache')
+let StockChart, memClear, __barStore
 
 const et = (h, m, s = 0) => Math.floor(Date.UTC(2026, 8, 22, h + 4, m, s) / 1000)
 const rth5 = () => {
@@ -96,23 +96,35 @@ beforeEach(() => {
   try { localStorage.setItem('barspack.version', '2026-09-21') } catch { /* */ }
 })
 
-describe('off-grid intraday bar', () => {
-  it('a trade-time stamped row beside its bucket row draws NO extra candle', async () => {
-    const clean = rth5()
-    const withStray = [...clean]
-    const i = withStray.findIndex(b => b.t === et(12, 0))
-    withStray.splice(i + 1, 0, { t: et(12, 0, 50), o: 10, h: 12, l: 9, c: 10.8, v: 7 })
-    vi.stubGlobal('fetch', vi.fn((url) => {
-      const u = String(url)
-      if (!u.includes('/api/bars/')) return Promise.resolve({ ok: true, status: 200, json: async () => ({}) })
-      const body = { ticker: 'OFFGRID', tf: '5', bars: withStray }
-      return new Promise((res) => setTimeout(() => res({ ok: true, status: 200, json: async () => body }), 20))
-    }))
-    render(<StockChart sym="OFFGRID" tf="5" backgroundWarm={false} />)
-    await wait(600)
-    const nonEmpty = draws.list.filter(d => d.n > 0)
-    expect(nonEmpty.length).toBeGreaterThan(0)
-    for (const d of nonEmpty) expect(d.n).toBeLessThanOrEqual(clean.length)
-    expect(nonEmpty[nonEmpty.length - 1].n).toBe(clean.length)
+// P3-S1: every case runs under BOTH bar sources (chart/barStoreSwitch.js, read once at module
+// load → the graph is re-imported per mode; testing/barStoreModes.js).
+describe.each(BARSTORE_MODES)('BARSTORE=%s', (barStoreOn) => {
+  beforeAll(async () => {
+    const m = await loadWithBarStore(barStoreOn, async () => ({ ...(await import('./StockChart')), memClear: (await import('../utils/barsMemCache')).memClear }))
+    StockChart = m.default; memClear = m.memClear; __barStore = m.__barStore
+  })
+  it('the module graph under test holds this switch value (non-vacuity)', () => {
+    expect(__barStore).toBe(barStoreOn)
+  })
+
+  describe('off-grid intraday bar', () => {
+    it('a trade-time stamped row beside its bucket row draws NO extra candle', async () => {
+      const clean = rth5()
+      const withStray = [...clean]
+      const i = withStray.findIndex(b => b.t === et(12, 0))
+      withStray.splice(i + 1, 0, { t: et(12, 0, 50), o: 10, h: 12, l: 9, c: 10.8, v: 7 })
+      vi.stubGlobal('fetch', vi.fn((url) => {
+        const u = String(url)
+        if (!u.includes('/api/bars/')) return Promise.resolve({ ok: true, status: 200, json: async () => ({}) })
+        const body = { ticker: 'OFFGRID', tf: '5', bars: withStray }
+        return new Promise((res) => setTimeout(() => res({ ok: true, status: 200, json: async () => body }), 20))
+      }))
+      render(<StockChart sym="OFFGRID" tf="5" backgroundWarm={false} />)
+      await wait(600)
+      const nonEmpty = draws.list.filter(d => d.n > 0)
+      expect(nonEmpty.length).toBeGreaterThan(0)
+      for (const d of nonEmpty) expect(d.n).toBeLessThanOrEqual(clean.length)
+      expect(nonEmpty[nonEmpty.length - 1].n).toBe(clean.length)
+    })
   })
 })

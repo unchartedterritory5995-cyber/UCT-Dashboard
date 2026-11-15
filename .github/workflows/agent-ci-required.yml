@@ -1,0 +1,80 @@
+# promotion-gate: no — a PR merge check, never a deploy gate (tools/promotion_gate.py ignores it).
+#
+# agent-ci-required — ONE commit status the owner can mark as the required check for PRs into agent/int and master.
+#
+# WHY (2026-11-12, release safety): agent ci runs its jobs on `pull_request` only for fork PRs; a same-repo agent/**
+# branch is covered only by its path-filtered `push` run. A merge-only push touching no Agent path gets NO Agent run,
+# the PR's Agent checks read "skipping", and skipping counts as passing — a green PR with zero Agent CI on its head.
+#
+# The status (context `agent-ci-required`) is success ONLY when the PR's diff vs its base touches no Agent path (the
+# list is read from agent-ci.yml's push trigger at run time), OR the agent ci PUSH run for the exact head SHA completed
+# with every Agent job (names read from agent-ci.yml) = success. Anything else is pending or failure (fail closed).
+#   pull_request (opened/synchronize/reopened): evaluates the new head SHA -> success / pending (a new push resets it)
+#   workflow_run (agent ci completed):           re-evaluates that run's head SHA -> success / failure
+# Logic + tests: tools/agent_ci_required.py, tests/test_agent_ci_required.py.
+#
+# CI COST: unfiltered PR trigger on purpose (pinned in tests/test_ci_cost_rails.py) — a path filter would mean no
+# status at all on a PR that touches no Agent path, and a required status that never arrives blocks the merge. The job
+# is a few API calls: sparse checkout of two files, PyYAML, no node, no tests; well under a minute.
+#
+# The code that runs is the DEFAULT BRANCH's copy (sparse checkout below), so a PR cannot edit its own verdict.
+#
+# LIMITS (stated on purpose, AUDIT T1 review of #1153):
+#  - FORK PRs ARE NOT SUPPORTED: a fork PR's pull_request token is read-only (the status POST fails) and only agent ci PUSH
+#    runs count, so a fork PR can never pass this check; it needs an explicit owner override. This repo takes no fork PRs.
+#  - A FAILED status POST makes the job exit non-zero (the exception propagates) and the run shows red; the SHA keeps its
+#    PREVIOUS status until a later run posts again. This case relies on that visible job failure, never on the status alone.
+#  - workflow_run fires for agent ci runs on ANY branch, so the status is also posted on non-PR SHAs (harmless; a status
+#    on a commit no PR points at blocks nothing).
+name: agent ci required
+
+on:
+  pull_request:
+    branches: [agent/int, master]
+    types: [opened, synchronize, reopened]
+  workflow_run:
+    workflows: ["agent ci"]
+    types: [completed]
+
+permissions:
+  statuses: write
+  actions: read
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: agent-ci-required-${{ github.event.pull_request.head.sha || github.event.workflow_run.head_sha }}
+  cancel-in-progress: true
+
+jobs:
+  status:
+    name: agent-ci-required status
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          sparse-checkout: |
+            tools/agent_ci_required.py
+            .github/workflows/agent-ci.yml
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Evaluate and post the status
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT: ${{ github.event_name }}
+          PR_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          RUN_SHA: ${{ github.event.workflow_run.head_sha }}
+          TARGET_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          python -m pip install --quiet pyyaml==6.0.2   # pinned: this job holds statuses:write on every PR
+          if [ "$EVENT" = "pull_request" ]; then
+            python tools/agent_ci_required.py --event pull_request --sha "$PR_SHA" --pr "$PR_NUMBER"
+          else
+            python tools/agent_ci_required.py --event workflow_run --sha "$RUN_SHA"
+          fi

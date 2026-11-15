@@ -23,6 +23,10 @@ vi.mock('./sampleNotebook', async (importOriginal) => ({
   addSampleNotebook: (...a) => sampleMock(...a),
 }))
 
+// Go-live wave 1, fix round 1: the real NEEDS_NOTES is empty (the voice tour left it: its steps are drawn with zero
+// notes). The "make a note first" card is railed with a probe id listed for this file only.
+vi.mock('./tourRegistry', async (importOriginal) => ({ ...(await importOriginal()), NEEDS_NOTES: Object.freeze(['needs-a-note-probe']) }))
+
 let server
 function installFetch() {
   global.fetch = vi.fn(async (url, init = {}) => {
@@ -406,7 +410,7 @@ describe('the unreachable card: a chart tour with no chart in any note', () => {
   // anchor and fail with "start it again"; now it shows ONE card and a way to the Notebook.
   describe('a tour that needs a note, started by a member with none', () => {
     const VOICE = {
-      id: 'voice-notes',
+      id: 'needs-a-note-probe',
       title: 'Voice notes',
       start: '/journal/notebook',
       load: async () => ({

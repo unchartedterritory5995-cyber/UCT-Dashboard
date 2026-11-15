@@ -46,7 +46,7 @@ import contextvars
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date
 
-from api.services.cache import cache
+from api.services.cache import TTLCache
 
 _log = logging.getLogger(__name__)
 
@@ -54,6 +54,13 @@ _ENABLED = os.environ.get("BARS_SANITIZE_ENABLED", "1") == "1"
 
 # ── Metadata cache (listing date + splits) ──────────────────────────────────
 _META_KEY = "barsan_meta_{}"
+# ⚡ ITS OWN CACHE, sized for the universe (2026-11-12). The metadata lived in the SHARED app
+# cache, an LRU of 1,000 entries that also holds news, snapshots and per-user bars keys, so a
+# 7-day entry was evicted within minutes and re-fetched from FMP (two calls per ticker) all day,
+# not once a week; the boot probe showed `barsan-warm` busy through the whole warm-up window.
+# Entries are tiny (an IPO date and a few splits).
+_META_CACHE_MAX = 20000
+_META_CACHE = TTLCache(max_size=_META_CACHE_MAX)
 _META_TTL = 7 * 24 * 3600      # success: 7 days (corporate actions rarely change)
 _META_FAIL_TTL = 3600         # transient failure: retry in ~1h, don't hammer
 
@@ -344,12 +351,12 @@ def _warm_meta(ticker: str) -> None:
     def _run():
         try:
             meta = _fetch_meta(ticker)
-            cache.set(_META_KEY.format(ticker), meta, ttl=_META_TTL)
+            _META_CACHE.set(_META_KEY.format(ticker), meta, ttl=_META_TTL)
             _warm_note_success()
         except Exception:
             _warm_note_failure()
             # Cache an empty sentinel briefly so we retry later without hammering.
-            cache.set(_META_KEY.format(ticker), {"ipo": None, "splits": []},
+            _META_CACHE.set(_META_KEY.format(ticker), {"ipo": None, "splits": []},
                       ttl=_META_FAIL_TTL)
         finally:
             with _warm_lock:
@@ -368,7 +375,7 @@ def _warm_meta(ticker: str) -> None:
 
 def _meta_cached(ticker: str) -> dict | None:
     """Return cached metadata dict, or None (and schedule a warm) on a cold miss."""
-    m = cache.get(_META_KEY.format(ticker))
+    m = _META_CACHE.get(_META_KEY.format(ticker))
     if m is not None:
         return m
     _warm_meta(ticker)

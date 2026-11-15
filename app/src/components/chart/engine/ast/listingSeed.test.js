@@ -47,7 +47,7 @@ const pine = (lines) => ['//@version=5', 'indicator("c12w")', ...lines].join('\n
 // folds to an `na` history seed (`varSeedOf`), and an unmarked `na` seed is a history
 // seed whose bar 0 runs the update (`interpret.js::historySeedReading`): bar 0 is
 // Pine's 3, served, where it was withheld. The self-reference spelling whose bar 0
-// IS an `na` seed is translated as the constant `na` (`pine.js::naSeededSelfReference`).
+// IS an `na` seed refuses `pine:cycle` by name (`pine.js::naSeededSelfReference`, engine 48).
 const WITHHELD_AT_START = {}
 
 const REFERENCE = {
@@ -101,7 +101,10 @@ const SCRIPTS = {
     '    lvl := na',
     'plot(lvl)',
   ]),
-  selfRefEma: pine(['x = na(x[1]) ? close : 0.5 * x[1] + 0.5 * close', 'plot(x)']),
+  // ⭐ engine 49: a v2 pragma. In v3+ a declaration that reads its own history does not
+  // compile, and refuses `pine:cycle` (`v3SelfDeclaration.test.js`); v1/v2 still translate it
+  // to this recurrence, which is what this row grades.
+  selfRefEma: ['//@version=2', 'study("c12w")', 'x = na(x[1]) ? close : 0.5 * x[1] + 0.5 * close', 'plot(x)'].join('\n'),
 }
 
 const MIXED_MARKED = pine(['var float f = close', 'f := 0.6 * f - 0.08 * f[2] + 0.48 * close', 'plot(f)'])

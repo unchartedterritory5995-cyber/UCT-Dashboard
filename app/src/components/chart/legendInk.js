@@ -5,8 +5,9 @@
 // theme over the default dark canvas, a dark theme over a white one) those tokens read at
 // 1.07-2.28:1 (WebKit, 2026-10-28). So, per ROLE and per canvas sample:
 //
-//   1. a member's explicit `header.colors.legend` wins everywhere (base legend, volume strip and
-//      pane legends alike — one choice, one colour);
+//   1. a member's explicit `header.colors.legend` wins everywhere it reads at >= 4.5:1 (base
+//      legend, volume strip, pane legends and the RS ranks strip alike — one choice, one colour);
+//      where it does not (a colour stored for a dark canvas, over a light one), the canvas ink;
 //   2. otherwise the app token KEEPS ITS LOOK when it already reads at >= 4.5:1 against the
 //      canvas it sits on, at the role's own opacity step — a dark theme over a dark canvas is
 //      exactly what it was (values --text-bright, labels --text, keys --text-muted);
@@ -42,13 +43,18 @@ export function legendInkVars({ tokens = {}, top, low, under = null, legendColor
     const canvas = legendCanvasRgb(sample, under)
     const ink = legendInkForCanvas(sample, under)
     for (const [role, { opacity }] of Object.entries(LEGEND_ROLES)) {
-      let v
-      if (legendColor) v = legendColor
-      else {
-        const t = tokens[role]
+      // ⭐ 2026-11-13 — the member's explicit legend colour wins WHERE IT READS. A colour
+      // stored for a dark canvas (a dark theme applied once, then the background set to
+      // white by hand) kept #d6d8dd over a white RS pane: the ranks strip's "1M 3M 6M"
+      // read ~1.4:1. Below 4.5:1 on this sample, the canvas ink stands in; an unreadable
+      // colour or canvas keeps the member's colour, exactly as before.
+      const pick = (t) => {
         const c = t ? legendTextContrast(t, canvas, opacity) : null
-        v = c != null && c >= LEGEND_MIN_CONTRAST ? t : ink
+        return c != null && c >= LEGEND_MIN_CONTRAST ? t : null
       }
+      let v
+      if (legendColor) v = (canvas && legendTextContrast(legendColor, canvas, opacity) != null) ? (pick(legendColor) || ink) : legendColor
+      else v = pick(tokens[role]) || ink
       out[`--legend-ink-${role}${suffix}`] = v
     }
   }
@@ -84,4 +90,17 @@ export function readLegendContext(el) {
     if (p && p.a >= 1) { under = bg; break }
   }
   return { tokens, under }
+}
+
+/** ⭐ 2026-11-13 — a PLOT's own colour as legend text (the RS Line's "RS 96" end tag), kept
+ *  only where it reads at >= 4.5:1 on the canvas sample it sits on; else null, and the caller
+ *  draws the text in the legend's neutral ink and keeps the plot colour as a swatch. Measured:
+ *  the RS line's #6ba3be on a white canvas is 2.7:1. An unreadable colour or canvas keeps the
+ *  colour (nothing to judge it against), exactly as before. */
+export function legibleInk(color, canvas, under = null) {
+  if (!color) return null
+  const rgb = legendCanvasRgb(canvas, under)
+  if (!rgb) return color
+  const c = legendTextContrast(color, rgb, 1)
+  return c == null || c >= LEGEND_MIN_CONTRAST ? color : null
 }

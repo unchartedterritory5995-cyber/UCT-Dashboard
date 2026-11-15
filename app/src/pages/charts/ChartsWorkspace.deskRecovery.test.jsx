@@ -582,6 +582,22 @@ describe('launch restore in the desktop app', () => {
     expect(layoutWrites()).toEqual([])
   })
 
+  test('a desk that comes back tells the shell once (desk_restored telemetry); no desk, no report', async () => {
+    const reportEvent = vi.fn()
+    window.uctDesktop = { ...window.uctDesktop, capabilities: [...window.uctDesktop.capabilities, 'site-events'], reportEvent }
+    seedOrphan('A', 'pl-1', [widget('r1')])
+    seedOrphan('A', 'pl-2', [widget('r2')])
+    await renderWS()
+    expect(reportEvent.mock.calls).toEqual([['desk_restored']])
+  })
+
+  test('nothing to bring back sends no desk_restored', async () => {
+    const reportEvent = vi.fn()
+    window.uctDesktop = { ...window.uctDesktop, capabilities: [...window.uctDesktop.capabilities, 'site-events'], reportEvent }
+    await renderWS()
+    expect(reportEvent).not.toHaveBeenCalled()
+  })
+
   test('a re-popped board is re-owned by this page, so a later tab does not see an orphan', async () => {
     seedOrphan('A', 'pl-1', [widget('r1')])
     await renderWS()

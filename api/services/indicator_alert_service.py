@@ -1664,8 +1664,8 @@ def _rs_not_offered_sentence(address: str) -> str:
                 f"on Mansfield RS keeps running. Use the RS line, RS Phases or RS vs "
                 f"21 EMA alerts instead.")
     if address in alert_rs_series.RS_SPLIT_ADDRESSES:
-        return (f"UCT RS Phases and RS vs 21 EMA alerts {REFUSAL_RS_NOT_OFFERED}: they "
-                f"open with those indicators on the chart.")
+        return (f"UCT RS Phases, RS vs 21 EMA and RS Exit Warnings alerts {REFUSAL_RS_NOT_OFFERED}: "
+                f"they open with those indicators on the chart.")
     return (f"UCT Relative Strength alerts {REFUSAL_RS_NOT_OFFERED}: they open with "
             f"the next version of the RS line on the chart.")
 

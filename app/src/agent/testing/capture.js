@@ -71,7 +71,7 @@ export function subsetsUpTo(ids, k) {
  *              panel's reroute would send (null = they do not fit; the panel then says so and stops)
  *   catalog    the id of this request's full available manifest (stored once, in `catalogs`)
  */
-function selectionRecord(req, catalogs) {
+function selectionRecord(req, catalogs, needsOf = null, expect = null) {
   const s = req.selection
   const json = JSON.stringify(req.full)
   const id = catalogId(json)
@@ -84,7 +84,8 @@ function selectionRecord(req, catalogs) {
   }
   // the reroute table only for an eval export (a `catalogs` collector): it is ~100 selections per request
   const reroutes = {}
-  for (const need of catalogs ? subsetsUpTo(s.unselected, NL1_MAX_NEED) : []) {
+  // `needsOf(selection, expect)` (optional) narrows WHICH needs are tabled; the default is every set of up to NL1_MAX_NEED
+  for (const need of catalogs ? (needsOf ? needsOf(s, expect) : subsetsUpTo(s.unselected, NL1_MAX_NEED)) : []) {
     const r = req.reselect(need)
     reroutes[need.join('+')] = r.needMet ? { selected: r.selected, wordsNotSent: r.wordsNotSent } : null
   }
@@ -100,7 +101,7 @@ function selectionRecord(req, catalogs) {
  * `spec` = corpus.json's { fixtures, library }; `mode` = 'nl1' | 'legacy'. `catalogs` (a Map) collects each
  * distinct NL-1 catalog once.
  */
-export function captureCase(spec, c, mode, { isProtectedLayout = null, catalogs = null, budget = undefined } = {}) {
+export function captureCase(spec, c, mode, { isProtectedLayout = null, catalogs = null, budget = undefined, rerouteNeeds = null } = {}) {
   const out = []
   const memory = createMemory()
   for (const t of turnsOf(c)) {
@@ -128,7 +129,7 @@ export function captureCase(spec, c, mode, { isProtectedLayout = null, catalogs 
     const x = exactLane(t.say)
     const exact = x && (x.kind === 'undo' || t.pending) ? x.kind : null
     out.push({ key: t.key, caseId: c.id, turn: t.index, mode, body: req.body, history, refMap: req.refMap, ...(exact ? { exact } : {}),
-      ...(mode === 'nl1' ? selectionRecord(req, catalogs) : {}) })
+      ...(mode === 'nl1' ? selectionRecord(req, catalogs, rerouteNeeds, t.expect) : {}) })
     // teacher forcing: this turn's EXPECTED change is what the next turn remembers
     const ops = (t.expect?.ops || []).map(o => ({ action: o.a, args: o.args || {}, target: refOfHint(host, o.t, o.a, selectedRef) }))
     if (ops.length && ['act', 'propose'].includes(t.expect.kind)) memory.noteChange({ ops })

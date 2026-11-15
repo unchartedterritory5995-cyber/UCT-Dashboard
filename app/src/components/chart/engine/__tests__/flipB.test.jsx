@@ -274,7 +274,8 @@ describe('Flip B — the set itself', () => {
         'rsi', 'sar', 'stoch', 'vwap', 'williamsR',
         // RS split U6 (2026-11-10): the three split RS definitions are registry-native
         // server definitions (no block, no section, no toggle); the set grew with no flip.
-        'rsPhases', 'rsRating', 'rsVsEma',
+        // 2026-11-12 (RS Exit Warnings): and the fourth, `rsExit`, the same way.
+        'rsExit', 'rsPhases', 'rsRating', 'rsVsEma',
         // ⭐ FIFTY-THREE AT 2026-10-01: the Technical library's Tier 1 — registry-
         // native, no block, no section, no toggle; the set grew with no flip.
         ...TIER1_IDS].sort())

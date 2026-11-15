@@ -124,13 +124,18 @@ describe('C45 — atr-bands (door-attached): its `input.color(title = …, defva
     expect(norm(a)).toBe(norm(b))
   }, 120000)
 
-  it('⭐ and the table\'s colours are the author\'s — not a default', () => {
+  it('⭐ and the table is drawn at the input\'s corner, `bottom_right` — never the default (engine 51)', () => {
+    // ⚰️ Before engine 51 the table was drawn at the renderer's default `top_right`:
+    // its `position` is `getTablePosition(tablePosition)`, whose body reassigns
+    // `posOut` in each `switch` arm (`posOut := position.top_right`), and the input's
+    // default is "Bottom Right". The first engine-51 head withheld it by name; the
+    // review's reading (d) — a default reassigned in the arms, then the name — now
+    // reads it before bar 0, so it is drawn where TradingView draws it.
     const d = programOf(source)
-    const text = JSON.stringify(d.definition.objects).toLowerCase()
-    // `tableColor = color.rgb(0, 175, 200, 20)`
-    expect(text).toContain('#00afc8')
-    // `tableLongBGColor = color.rgb(0, 255, 0, 90)`, `tableShortBGColor = color.rgb(255, 0, 0, 80)`
-    expect(text).toContain('#00ff00')
-    expect(text).toContain('#ff0000')
+    const ops = (d.definition.objects && d.definition.objects.ops) || []
+    const tables = ops.filter((o) => o.k === 'create' && o.family === 'table')
+    expect(tables).toHaveLength(1)
+    expect(tables[0].props.position).toEqual({ v: 'text', node: { t: 'lit', s: 'bottom_right' } })
+    expect(d.translation.objectDiagnostics.dropReasons['enum:unreadable'] || 0).toBe(0)
   }, 120000)
 })

@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
 import useSWR from 'swr'
 
-vi.mock('./barsIDB', () => ({ idbGet: vi.fn(async () => null), idbPut: vi.fn(async () => {}), mergeDelta: (a) => a }))
+vi.mock('./barsIDB', () => ({ idbGet: vi.fn(async () => null), idbPut: vi.fn(async () => {}), idbPutMonotonic: vi.fn(async () => null), mergeDelta: (a) => a }))
 vi.mock('../hooks/useTickerMeta', () => ({ prefetchTickerMeta: vi.fn() }))
 
 import { prepareDailyForDisplay, _chartLaneFetch, _noteWarmResult, _holdBackgroundWarm } from './prefetchBars'

@@ -661,8 +661,8 @@ def test_on_the_CLOSED_lane_exactly_one_offered_address_produces_nothing():
         "closed lane cannot answer — one of them is refusing the wrong thing")
     # the non-vacuity floor: the loop really did drive the whole catalog (minus
     # the eleven RS addresses it skips by declaration, counted here).
-    assert len(evaluator.all_addresses()) == 48  # 2026-11-10 (RS split, S2): 44 -> 48, +rs_phases.flipBlue/flipRed +rs_vs_ema.crossUp/crossDown; 2026-11-07 (RS 2b-06): +1 rs_line.rating; 2026-11-04: +1 `ma_cross`; 2026-11-06 (RS 2b-05): +11 `rs_line.*`
-    assert len(evaluator.RS_ADDRESSES) == 16  # 2026-11-07 (RS 2b-06): +rs_line.rating; 2026-11-10 (RS split, S2): +4 split
+    assert len(evaluator.all_addresses()) == 51  # 2026-11-12 (RS Exit Warnings): 48 -> 51, +3 rs_exit; 2026-11-10 (RS split, S2): 44 -> 48, +rs_phases.flipBlue/flipRed +rs_vs_ema.crossUp/crossDown; 2026-11-07 (RS 2b-06): +1 rs_line.rating; 2026-11-04: +1 `ma_cross`; 2026-11-06 (RS 2b-05): +11 `rs_line.*`
+    assert len(evaluator.RS_ADDRESSES) == 19  # 2026-11-12 (RS Exit Warnings): 16 -> 19, +3 rs_exit; 2026-11-07 (RS 2b-06): +rs_line.rating; 2026-11-10 (RS split, S2): +4 split
 
 
 def test_every_plot_address_resolves_to_the_column_it_names():
@@ -1157,7 +1157,8 @@ def test_catalog_order_is_the_dropdown_order_and_it_did_not_change():
     # 2026-11-04: `ma_cross` is a SEVENTEENTH group, appended after `close`.
     # 2026-11-06 (RS 2b-05): `rs_line` is an EIGHTEENTH group, appended after `ma_cross`.
     # 2026-11-10 (RS split, S2): `rs_phases` and `rs_vs_ema` are the NINETEENTH and TWENTIETH groups.
-    assert served[15:] == ["close", "ma_cross", "rs_line", "rs_phases", "rs_vs_ema"]
+    # 2026-11-12 (RS Exit Warnings): `rs_exit` is the TWENTY-FIRST group.
+    assert served[15:] == ["close", "ma_cross", "rs_line", "rs_phases", "rs_vs_ema", "rs_exit"]
     # …and the three legacy multi-plot bases still open on their legacy address,
     # so the pre-selected plot is the one the bare spelling has always meant.
     by_base = {e["indicator"]: e for e in evaluator.alert_catalog()}
@@ -1963,8 +1964,8 @@ def test_the_rs_partition_is_the_fifth_disjoint_from_the_other_four_and_exactly_
     assert ev.ADDRESS_PARTITIONS[-1] is ev.RS_FUNCS
     assert len(ev.ADDRESS_PARTITIONS) == 5
     assert list(ev.RS_FUNCS) == list(ev.RS_ADDRESSES) == list(_ars.RS_ADDRESSES)
-    assert len(ev.RS_ADDRESSES) == 16  # 2026-11-07 (RS 2b-06): +rs_line.rating; 2026-11-10 (RS split, S2): +4 split
-    assert {ev.plot_base(a) for a in ev.RS_ADDRESSES} == {"rs_line", "rs_phases", "rs_vs_ema"}
+    assert len(ev.RS_ADDRESSES) == 19  # 2026-11-12 (RS Exit Warnings): 16 -> 19, +3 rs_exit; 2026-11-07 (RS 2b-06): +rs_line.rating; 2026-11-10 (RS split, S2): +4 split
+    assert {ev.plot_base(a) for a in ev.RS_ADDRESSES} == {"rs_line", "rs_phases", "rs_vs_ema", "rs_exit"}
     others = set().union(*(set(p) for p in ev.ADDRESS_PARTITIONS[:-1]))
     assert not (others & set(ev.RS_ADDRESSES)), "an RS address is in two partitions"
     # the base-set rail on `EVENT_ADDRESSES` still reads {sar}: RS is not an event member
@@ -2001,7 +2002,7 @@ def test_every_rs_address_is_closed_only_by_its_columns_own_declaration():
         # the rollback lever does not reach it
         assert ev._lane_for(a, "forming") == "closed"
     assert ev.CLOSED_ONLY_ADDRESSES == frozenset(ev.CROSS_ADDRESSES) | frozenset(ev.RS_ADDRESSES)
-    assert len(ev.CLOSED_ONLY_ADDRESSES) == 17  # 2026-11-07 (RS 2b-06): +rs_line.rating; 2026-11-10 (RS split, S2): +4 split
+    assert len(ev.CLOSED_ONLY_ADDRESSES) == 20  # 2026-11-12 (RS Exit Warnings): 17 -> 20, +3 rs_exit; 2026-11-07 (RS 2b-06): +rs_line.rating; 2026-11-10 (RS split, S2): +4 split
 
 
 def test_resolve_address_folds_an_rs_address_to_its_camelcase_spelling():

@@ -57,7 +57,6 @@ vi.mock('../../components/notebook/NoteEditorPage', () => ({ default: ({ noteId 
 vi.mock('../../components/notebook/import/ImportWizard', () => ({ default: () => null }))
 vi.mock('../../components/notebook/export/ExportDialog', () => ({ default: () => null }))
 vi.mock('../../components/connectors/NoteConnectorsTrustStrip', () => ({ default: () => null }))
-vi.mock('../../components/notebook/ResearchHome', () => ({ default: () => <div data-testid="home" /> }))
 
 const entryFor = (noteId, text, base) => ({
   mutationId: `note:${noteId}`,
@@ -97,10 +96,9 @@ afterEach(() => {
   __resetNotebookConnections()
 })
 
-/** ⛔ `?view=all` is not decoration — without it `isHome` is true and the tab
- *  renders ResearchHome, so every assertion below would be reading a screen
- *  that has no note list on it at all. That is how a list rail passes or fails
- *  for a reason that has nothing to do with the list. */
+/** `?view=all` was not decoration while a bare address rendered Research Home (a screen with no note list on it).
+ *  Since the Notebook opens on the list it is the explicit form of the same address, kept so the rail names the
+ *  screen it reads. */
 async function renderTab() {
   const NotebookTab = (await import('../../tabs/NotebookTab')).default
   render(

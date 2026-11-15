@@ -437,6 +437,11 @@ GUARDED = {
     "api/services/journal_two/gallery_suggest.py": "a template's suggested values (Task 11.9): the member's "
                                                     "most-used folder, kind of note and property; an example "
                                                     "note is never a note the member wrote",
+    "api/services/journal_two/notebook_today.py": "the Daily brief's On this day: an example note is never one "
+                                                   "the member wrote on this date in an earlier year "
+                                                   "(sample_marker.not_sample_sql); its other reads are the "
+                                                   "member's own daily notes, by daily_date, which the sample "
+                                                   "never sets (pinned below)",
     "api/routers/notebook_widget_definitions.py": "the builder's note tag and ticker pickers (Task 10.9): the "
                                                   "values the notes widget can count (its own predicate, "
                                                   "compile.note_membership_sql), so an example note's tag "
@@ -460,6 +465,10 @@ EXEMPT = {
     "api/services/journal_two/evidence_candidates.py": _NOTE_ITSELF,
     "api/services/journal_two/enrichment.py": "the import arrival screen's ticker offer, for notes the member names",
     "api/services/journal_two/stage_a_validation.py": "an offline validation tool, not a member surface",
+    "api/services/journal_two/note_daily.py": "the daily note door: which folder the member's newest daily note "
+                                              "sits in, and whether today's daily note exists; a folder and a "
+                                              "yes/no about daily notes (daily_date), which the sample never "
+                                              "writes (pinned below), never a count or a fact shown",
     "api/services/journal_two/notebook_soak.py": "the soak monitor's population counts, not a member surface",
     "api/services/journal_two/db.py": "schema and migrations",
     "api/services/user_playbook/service.py": "titles of notes the member linked to a playbook entry by hand",
@@ -558,6 +567,19 @@ def test_no_ledger_entry_is_stale():
     readers = _readers()
     gone = sorted((set(GUARDED) | set(EXEMPT)) - set(readers))
     assert not gone, "listed but no longer reading a note table: " + ", ".join(gone)
+
+
+def test_the_sample_never_writes_a_daily_date():
+    """Follow-up B, item 4d: two ledger reasons (note_daily.py, notebook_today.py) rest on this. A note's `daily_date`
+    is set only through `create_note(..., daily_date=...)` (never from a payload); the two sample writers never pass
+    it, so no example note is ever a daily note. A writer that starts passing it reds here, and the reasons above must
+    then be revisited."""
+    for m in ("api/services/journal_two/sample_notebook.py", "api/services/journal_two/sample_examples.py"):
+        code = "\n".join(_code_strings(ast.parse((REPO / m).read_text(encoding="utf-8"))))
+        src = (REPO / m).read_text(encoding="utf-8")
+        assert "daily_date" not in code and not re.search(r"\bdaily_date\s*=", src), m
+    # control: the predicate sees a writer that passes it
+    assert re.search(r"\bdaily_date\s*=", "notes.create_note(uid, payload, daily_date=day)")
 
 
 def test_every_guarded_reader_uses_the_one_predicate():

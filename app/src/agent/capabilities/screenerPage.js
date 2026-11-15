@@ -31,6 +31,8 @@ const nameOf = (s) => (s.current ? `${s.current.name}${s.edited ? ' (edited)' : 
 
 export const screenerPageKind = {
   name: 'screenerPage',
+  source: 'screenerPage',             // fix-nothing-on-workspace: the host source this kind reads (capabilities.noTargetSentence)
+  unavailable: "The screener page isn't available here — open the Screener to use it.",
   boardScoped: false,
   selfDescribing: true,
   persistsInCommit: true,

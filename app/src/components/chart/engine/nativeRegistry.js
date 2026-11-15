@@ -165,12 +165,16 @@ import { serverColumnsFor, notifyColumnsLanded, scalarsFor } from './serverCompu
 // ⭐ U2b — the live forming-bar tail of a server definition (`plots[].liveTail`):
 // `computeSignature` carries the benchmark tail's version into the binder's memo.
 import { definitionHasLiveTail, liveTailSignature } from './liveTail'
-import { runtimeKillOf, runtimeNotGradedOf } from './runtimeKill'
+import { runtimeKillOf, runtimeNotGradedOf, runtimeSourceHash } from './runtimeKill'
+// ⭐⭐ ENGINE 54 — the run half's program binding, object rail (registered) and refusal telemetry
+import { runHalfProgramBound, runHalfProgramStamped } from './runHalfProgram.js'
+import { registeredRunHalfObjectRail } from './runHalfRailSeam.js'
+import { noteRunHalfAnswer } from './runHalfTelemetry.js'
 import { runtimePaneEnabled, runtimePaneBuilt, runtimePanePermitted } from './runtimePaneGate'
 // ⭐ W5-T2 — the lower-timeframe gate is registered at this door (`lowerTfServing.js`),
 // never imported by the compute closure.
 import './lowerTfGate.js'
-import { runtimeWarmupOf } from './runtime/runtimeObjects'
+import { runtimeWarmupOf, RUNTIME_OBJECTS_KEY, withRunHalfState, carriesRunHalf } from './runtime/runtimeObjects'
 import { LIMIT_NAMES } from './runtime/limits'
 import { registeredObjectRuntimeValues, inputsAtDefaults } from './objectRuntimeSeam.js'
 import { manifestAtDefaults } from './paramLiteral.js'
@@ -3132,6 +3136,8 @@ function runtimeColumnsOrReasons(def, bars, inputs, ctx) {
  * unchanged byte for byte.
  */
 export function computeSignature(def, inputs, ctx) {
+  // ⭐ ENGINE 53 — a run half's gates (`runHalfGateSignature`).
+  if (carriesRunHalf(def)) return runHalfGateSignature(def)
   if (def?.compute?.kind !== 'server' || !definitionHasLiveTail(def)) return ''
   const resolved = resolveInputs(def, inputs)
   return liveTailSignature(def, scalarsFor(def, resolved, ctx), resolved, ctx && ctx.sym, ctx && ctx.tf)
@@ -3258,13 +3264,17 @@ function withRuntimeColours(def, out, bars, inputs, ctx) {
   // (A runtime DOCUMENT is reached only after the door asked both; this one is an
   // ordinary `ast` document and is not.)
   const notGraded = runtimeNotGradedOf({ source: rc && rc.source })
+  // ⭐ ENGINE 53 — and the server's stamps on the row it served (`runtime_definitions.stamp_served`,
+  // extended to an `ast` row carrying a run-read value): a kill or an ungraded script reaches a
+  // saved document before this tab's own read of the lists does.
+  const stamp = servedRunStamp(def)
   if (!runtimePaneBuilt()) {
     refuse('pane:not-built')
   } else if (!runtimePanePermitted()) {
     refuse('pane:not-permitted')
-  } else if (killed) {
+  } else if (killed || stamp === 'killed') {
     refuse('pane:killed')
-  } else if (notGraded) {
+  } else if (notGraded || stamp === 'not-graded') {
     refuse('pane:not-graded')
   } else if (stop && stop.reached) {
     // ⛔ the script's own `runtime.error` was reached: TradingView holds nothing, and no colour is drawn either
@@ -3300,6 +3310,230 @@ function withRuntimeColours(def, out, bars, inputs, ctx) {
   return withColumnErrors(res, errors)
 }
 
+/** ⭐ ENGINE 53 — the server's stamp on a served `ast` row carrying a run-read value
+ *  (`runtime_definitions.stamp_served`): `'killed'`, `'not-graded'`, or null. */
+function servedRunStamp(def) {
+  const meta = (def && def.meta) || {}
+  if (typeof meta.runtimeKilled === 'string' && meta.runtimeKilled) return 'killed'
+  if (typeof meta.runtimeNotGraded === 'string' && meta.runtimeNotGraded) return 'not-graded'
+  return null
+}
+
+/** ⭐⭐ ENGINE 53 — THE CODE a run half is refused with when the run's columns do not equal
+ *  the host's on this chart: the run is not proved to be the same computation, so its
+ *  drawings are not drawn and the host picture stays. */
+export const RUN_HALF_COLUMN_RAIL = 'run-half:column-rail'
+
+/** ⭐⭐ ENGINE 54 — the document's trees and object program are not the ones its door stamped
+ *  (`runHalfProgram.js`): the run half is not drawn beside a program it was not minted for. */
+export const RUN_HALF_PROGRAM_UNBOUND = 'run-half:program-unbound'
+/** ⭐⭐ ENGINE 54 (review) — the run half carries no program stamp at all: it was minted by an
+ *  older engine, before the program binding (not "changed"; its own sentence). */
+export const RUN_HALF_PROGRAM_UNSTAMPED = 'run-half:program-unstamped'
+/** ⭐⭐ ENGINE 54 — the object rail (`runHalfObjectRail.js`) is not registered in this bundle:
+ *  a rail that cannot run is a refusal, never a pass. */
+export const RUN_HALF_RAIL_NOT_LOADED = 'run-half:rail-not-loaded'
+/** ⭐⭐ ENGINE 54 — the object rail's own default code (its others ride its answer). */
+export const RUN_HALF_OBJECT_RAIL = 'run-half:object-rail'
+
+/** Two column values agree: both `na`, or equal to 1e-9 of their size (the runtime lane's
+ *  own rule, `runtimeColumns.js::sameValue`, restated as a value comparison: this module
+ *  must not import the lane). */
+function sameColumnValue(x, y) {
+  if (x === y) return true
+  const xn = typeof x !== 'number' || Number.isNaN(x)
+  const yn = typeof y !== 'number' || Number.isNaN(y)
+  if (xn || yn) return xn && yn
+  return Math.abs(x - y) <= 1e-9 * Math.max(Math.abs(x), Math.abs(y), 1e-300)
+}
+
+/** The drawing families a host object program creates (loop bodies included). */
+function hostObjectFamilies(program) {
+  const out = new Set()
+  const walk = (ops) => {
+    for (const op of ops || []) {
+      if (!op) continue
+      if (op.k === 'create' && typeof op.family === 'string') out.add(op.family)
+      if (Array.isArray(op.body)) walk(op.body)
+    }
+  }
+  walk(program && program.ops)
+  return out
+}
+
+/** ⭐ ENGINE 53 — the meta key a run-half document names its own script by (the value
+ *  `memberPaneDefinition::RUN_HALF_SOURCE_STAMP` writes; restated here only as a key to read:
+ *  this module must not import the builder). */
+const RUN_HALF_SOURCE_STAMP_KEY = 'pineSourceSha256'
+const _runHalfHashes = new WeakMap()
+/** sha256 of the run half's source, once per `compute.runtimeObjects` object. */
+function runHalfSourceHashOf(ro) {
+  let h = _runHalfHashes.get(ro)
+  if (h === undefined) { h = runtimeSourceHash(ro.source); _runHalfHashes.set(ro, h) }
+  return h
+}
+
+/** ⭐ ENGINE 53 — ONE frozen runtime document per `compute.runtimeObjects` object, so the
+ *  run's own memo (`runtimeColumnsFor`, keyed by the document's identity and content per
+ *  bars array) hits on the next paint. It is the runtime lane's own shape (`kind: 'runtime'`,
+ *  `objects: true`), built from the run half and nothing else: the host's trees never reach it. */
+const _runHalfDefs = new WeakMap()
+function runHalfDefOf(def, ro) {
+  let rt = _runHalfDefs.get(ro)
+  if (!rt) {
+    const meta = { runtimeHistory: 'listing' }
+    for (const k of ['runtimeLanguage', 'runtimeFrontend', 'runtimeIr', 'runtimeOutputSignature']) {
+      if (ro[k] !== undefined) meta[k] = ro[k]
+    }
+    rt = Object.freeze({
+      id: `${def.id}~run`,
+      ...(Number.isInteger(def.version) ? { version: def.version } : {}),
+      compute: Object.freeze({
+        kind: 'runtime', fn: `runtime:${def.id}~run`, rev: 1,
+        source: ro.source, outputs: Object.freeze({ ...(ro.outputs || {}) }), objects: true,
+      }),
+      meta: Object.freeze(meta),
+    })
+    _runHalfDefs.set(ro, rt)
+  }
+  return rt
+}
+
+/** A column record copied with every property it carries, enumerable or not (the error
+ *  record, a reached stop, the chart-clock / lower-timeframe / other-symbol reports), so a
+ *  run half's records are attached without touching a map another caller may hold. */
+function copyColumns(out) {
+  const res = {}
+  for (const k of Reflect.ownKeys(out || {})) {
+    Object.defineProperty(res, k, Object.getOwnPropertyDescriptor(out, k))
+  }
+  return res
+}
+
+/** ⭐⭐ ENGINE 53 — A HOST DOCUMENT'S DRAWINGS FROM THE PER-BAR RUN (`compute.runtimeObjects`).
+ *
+ *  `compute.runtimeObjects = { source, outputs, ...runtimeVersionStamp }` (minted by the
+ *  member door, `memberPaneDefinition::hostPartialRunHalf`, for a script whose host object
+ *  program lost drawings): `outputs` maps each visible host plot key to the run output that
+ *  computes the same plot. The run is asked for its DRAWINGS only; the plots stay the host's.
+ *
+ *  ⛔ EVERY GATE, ON EVERY RUN (a stored or hand-posted document answers to all of them):
+ *  the build flag, the per-member permission (the latch), the kill list and the starter
+ *  allowlist (this tab's lists AND the server's stamp on the row it served), the script's
+ *  own `runtime.error`, the member's settings at the script's defaults (the run computes
+ *  the script as written), and the run itself: built, completed, its drawings neither
+ *  withheld nor stopped, no family withheld that the host program draws.
+ *  ⛔⛔ THE COLUMN RAIL: every mapped run column equals the host's column on every bar the
+ *  run serves (`na` with `na`, a number to 1e-9 of its size). That is what proves the run's
+ *  drawings belong to the plots beside them on THIS chart; one bar off and the host picture
+ *  stays.
+ *  ⛔⛔ ENGINE 54 — and before the run is asked, the document must still digest to the program
+ *  stamp its door wrote (`runHalfProgram.js`, `run-half:program-unbound`); after the column rail,
+ *  THE OBJECT RAIL (`runHalfObjectRail.js`, registered through `runHalfRailSeam.js`): at every
+ *  create site the host draws, the run's objects made at the same source call must be the host's
+ *  (`run-half:object-rail`, `run-half:host-object-withheld`), and a run half with nothing
+ *  comparable is refused (`run-half:no-comparable-objects`) unless recorded evidence admits its
+ *  script. A drawing-only script (no plot mapped) is therefore never served on its gates alone.
+ *  Every answer is noted for the refusal telemetry (`runHalfTelemetry.js`).
+ *  The answer rides non-enumerable (`runtimeObjects.js::RUN_HALF_KEY`): `served` with the
+ *  run's drawings beside it (`RUNTIME_OBJECTS_KEY`, the RT5 shape the binder already draws),
+ *  `pending` while the run is in flight, `refused` with its code. `ctx` absent (a probe that
+ *  is not a chart, `validateEventColumns`) asks nothing of the run. */
+function withRunHalf(def, out, bars, inputs, ctx) {
+  if (!ctx) return out
+  const ro = def.compute.runtimeObjects
+  const res = copyColumns(out)
+  // ⭐⭐ ENGINE 54 — every answer is noted for the refusal telemetry (`runHalfTelemetry.js`:
+  // a code per document session, a hash-prefixed beacon; never the source)
+  const src = ro && typeof ro.source === 'string' ? ro.source : null
+  const refused = (code) => { noteRunHalfAnswer(def, src, code); return withRunHalfState(res, { state: 'refused', code }) }
+  const answered = (state, code) => { noteRunHalfAnswer(def, src, null); return withRunHalfState(res, { state, code }) }
+  if (!ro || typeof ro.source !== 'string' || !ro.source || !ro.outputs || typeof ro.outputs !== 'object') {
+    return refused('run-half:malformed')
+  }
+  // ⛔⛔ THE RUN HALF RUNS THE DOCUMENT'S OWN SCRIPT, OR NOTHING. The member door stamps the
+  // script it translated (`meta.pineSourceSha256`, `memberPaneDefinition::RUN_HALF_SOURCE_STAMP`)
+  // and the store saves a run half only when that stamp, `runtimeObjects.source` and the row's
+  // own script are one script (`runtime_definitions.run_half_source_refusal`). A document whose
+  // run half names another script would have that script's (empty or foreign) drawings replace
+  // this one's host picture.
+  const own = def.meta && typeof def.meta[RUN_HALF_SOURCE_STAMP_KEY] === 'string'
+    ? def.meta[RUN_HALF_SOURCE_STAMP_KEY].toLowerCase() : null
+  if (!own || runHalfSourceHashOf(ro) !== own) return refused('run-half:source-unbound')
+  // ⛔⛔ ENGINE 54 — AND BESIDE THE PROGRAM IT WAS MINTED FOR: the door's digest of the trees, the
+  // object program, the output map and the site map, re-derived from this document
+  // (`runHalfProgram.js`). An edited tree or object program, kept under the old stamp, is refused.
+  if (!runHalfProgramStamped(def)) return refused(RUN_HALF_PROGRAM_UNSTAMPED)
+  if (!runHalfProgramBound(def)) return refused(RUN_HALF_PROGRAM_UNBOUND)
+  const stamp = servedRunStamp(def)
+  if (!runtimePaneBuilt()) return refused('pane:not-built')
+  if (!runtimePanePermitted()) return refused('pane:not-permitted')
+  if (stamp === 'killed' || runtimeKillOf({ defId: def.id, source: ro.source })) return refused('pane:killed')
+  if (stamp === 'not-graded' || runtimeNotGradedOf({ source: ro.source })) return refused('pane:not-graded')
+  const stop = runtimeErrorStopOf(out)
+  if (stop && stop.reached) return refused('runtime:runtime.error')
+  if (!runtimeColoursAtDefaults(def, inputs)) return refused('runtime:member-inputs')
+  if (!_runtimeLane) {
+    if (_runtimeLoadFailed !== null) return refused(RUNTIME_LOAD_FAILED_GUARD)
+    if (loadRuntimeLane()) return answered('pending', 'runtime:not-loaded')
+    return refused('runtime:not-loaded')
+  }
+  let cols
+  try {
+    cols = _runtimeLane(runHalfDefOf(def, ro), bars, {}, ctx)
+  } catch (err) {
+    return refused(err && err.name === 'runtime.error' ? 'runtime:runtime.error' : ((err && err.guard) || 'runtime:error'))
+  }
+  const payload = cols && typeof cols === 'object' ? cols[RUNTIME_OBJECTS_KEY] : null
+  // ⛔ A run that owns its drawings always attaches them when it finishes
+  // (`runtimeColumns.js`): nothing attached is a run still in flight.
+  if (!payload || typeof payload !== 'object') return answered('pending', 'runtime:in-flight')
+  if (payload.status === 'WITHHELD') return refused(payload.guard || 'runtime:objects')
+  if (payload.status !== 'ok' || !Array.isArray(payload.live)) return refused('runtime:objects-stopped')
+  const hostFams = hostObjectFamilies(def.objects)
+  if (Object.keys(payload.withheld || {}).some((f) => hostFams.has(f))) return refused('run-half:family-withheld')
+  // ⛔⛔ THE COLUMN RAIL.
+  const n = bars.length
+  const warm = runtimeWarmupOf(cols)
+  const from = warm && Number.isInteger(warm.withheldBars) && warm.withheldBars > 0 ? warm.withheldBars : 0
+  for (const key of Object.keys(ro.outputs)) {
+    const host = out[key]
+    const run = cols[key]
+    if (!host || !run || typeof host.length !== 'number' || host.length !== n || run.length !== n) {
+      return refused(RUN_HALF_COLUMN_RAIL)
+    }
+    for (let i = from; i < n; i += 1) {
+      if (!sameColumnValue(host[i], run[i])) return refused(RUN_HALF_COLUMN_RAIL)
+    }
+  }
+  // ⛔⛔ ENGINE 54 — THE OBJECT RAIL (`runHalfObjectRail.js`): the run's drawings at every
+  // create site the host draws must BE the host's, object for object, on these bars. With no
+  // plot mapped the column rail above compared nothing; this one never compares nothing (no
+  // comparable object is its own refusal, `run-half:no-comparable-objects`).
+  const rail = registeredRunHalfObjectRail()
+  if (!rail) return refused(RUN_HALF_RAIL_NOT_LOADED)
+  let verdict
+  try {
+    verdict = rail({ def, bars, inputs, ctx, payload, from })
+  } catch {
+    verdict = null
+  }
+  if (!verdict || verdict.ok !== true) return refused((verdict && verdict.code) || RUN_HALF_OBJECT_RAIL)
+  Object.defineProperty(res, RUNTIME_OBJECTS_KEY, { value: payload, enumerable: false, configurable: true })
+  return answered('served', null)
+}
+
+/** ⭐ ENGINE 53 — what a run half's gates read that can change under an unchanged
+ *  (def, bars, inputs) key: the per-member permission and this tab's lists. Joined to the
+ *  binder's memo key (`computeSignature`), so a revoked latch or a kill reaches an open
+ *  chart on its next paint instead of keeping the run's drawings. */
+function runHalfGateSignature(def) {
+  const ro = def.compute.runtimeObjects
+  const source = ro && ro.source
+  return `rh:${runtimePaneBuilt() ? 1 : 0}${runtimePanePermitted() ? 1 : 0}`
+    + `${runtimeKillOf({ defId: def.id, source }) ? 'k' : ''}${runtimeNotGradedOf({ source }) ? 'g' : ''}`
+}
+
 export function computeFor(def, bars, inputs, ctx) {
   if (def?.compute?.kind === 'runtime') {
     return runtimeColumnsOrReasons(def, Array.isArray(bars) ? bars : [], inputs, ctx)
@@ -3319,7 +3553,9 @@ export function computeFor(def, bars, inputs, ctx) {
   if (def?.compute?.kind === 'ast') {
     const rows = Array.isArray(bars) ? bars : []
     const out = astColumnsFor(def, rows, treeScalars(def, resolveInputs(def, inputs)), ctx)
-    return def.compute.runtimeColours ? withRuntimeColours(def, out, rows, inputs, ctx) : out
+    const coloured = def.compute.runtimeColours ? withRuntimeColours(def, out, rows, inputs, ctx) : out
+    // ⭐⭐ ENGINE 53 — and its drawings, when it carries a run half (`withRunHalf`).
+    return def.compute.runtimeObjects ? withRunHalf(def, coloured, rows, inputs, ctx) : coloured
   }
   const fn = NATIVE_COMPUTE[def?.compute?.fn]
   if (!fn) {
@@ -3918,8 +4154,15 @@ export function validateUserDefinitions(rawDefs) {
       const killed = (typeof meta.runtimeKilled === 'string' && meta.runtimeKilled)
         || (typeof meta.runtimeNotGraded === 'string' && meta.runtimeNotGraded)
         || runtimeKillOf({ defId: def.id, source: def.compute && def.compute.source })
+      // ⭐ WS-I Part 2 (final verify of #1204) — a row the server is STILL CHECKING (capability
+      // admission on, its set not computed yet: `meta.runtimePending`) is refused like any other
+      // ungraded row, but it is not "on a list": it will draw once the check completes.
+      const pending = !meta.runtimeKilled && meta.runtimePending === true
+        && typeof meta.runtimeNotGraded === 'string' && killed === meta.runtimeNotGraded
       if (killed) {
-        errors.push(`${def.id}: ${killed} — the saved definition is kept; it comes back when it is taken off the list.`)
+        errors.push(pending
+          ? `${def.id}: ${killed} — the saved definition is kept; it is being checked, and it will draw once the check completes.`
+          : `${def.id}: ${killed} — the saved definition is kept; it comes back when it is taken off the list.`)
         killedIds.push(def.id)
         continue
       }
@@ -4108,6 +4351,12 @@ const RS_GOLD = '#c9a84c'
 // (design round, 2026-11-08: green while the line is above, red while below).
 const RS_BULL = '#3cb868'
 const RS_BEAR = '#e74c3c'
+// ⭐ 2026-11-13 — THE SECOND AVERAGE'S VIOLET: a hue no other RS mark wears (not
+// the line's blue, the neutral, the gold, the bull or the bear), measured at WCAG
+// >= 3:1 against EVERY chart theme's canvas, dark and light (3.31:1 on Warm sand,
+// the worst; the first average's neutral is 3.29:1 there). Pinned by
+// `rsSecondAverage.test.js` over `CHART_THEMES`.
+const RS_MA2 = '#9b6fd6'
 /** The band's opacity: a tint under the line, never a second line. */
 const RS_SHADE_OPACITY = 0.12
 /** The toggles every preset states explicitly, so `detectPreset` (first match
@@ -4149,6 +4398,62 @@ const RS_VARS_VIEW = Object.freeze({ key: 'view', equals: 'vars' })
 const RS_RATING_VIEW = Object.freeze({ key: 'view', equals: 'rating' })
 /** 3-08 — the member's own ticker box wakes only under "Your symbol". */
 const RS_CUSTOM_BENCHMARK = Object.freeze({ key: 'benchmark', equals: 'CUSTOM' })
+/** 2026-11-12 — the sector list wakes only under "Pick a sector", the theme
+ *  chooser only under "Pick a theme". */
+const RS_SECTOR_PICK_BENCHMARK = Object.freeze({ key: 'benchmark', equals: 'SECTOR_PICK' })
+const RS_THEME_PICK_BENCHMARK = Object.freeze({ key: 'benchmark', equals: 'THEME_PICK' })
+
+/**
+ * ⭐⭐ THE RS BENCHMARK INPUTS — ONE DECLARATION FOR EVERY RS INDICATOR THAT
+ * TAKES A BENCHMARK (2026-11-12, owner: "benchmark to sector, theme etc").
+ *
+ * The UCT RS Line (both shapes), RS Phases, RS vs 21 EMA and RS Exit Warnings
+ * all spread this, so one saved benchmark choice means the same thing on every
+ * one of them and a menu change lands everywhere at once. The server twin is
+ * `registry_defs.RS_LINE_BENCHMARKS_V4` + `rs_benchmark_choice_inputs()`;
+ * `test_the_rs_line_benchmarks_are_ONE_list_across_BOTH_LANES` diffs the menu
+ * and the row rails diff every field. Fresh objects per call: a definition's
+ * inputs are its own.
+ *
+ * The menu: the four indexes, then the groups from widest to narrowest, then
+ * the member's own ticker. Option KEYS never change (saved charts and bound
+ * alerts carry them); `Sector ETF (auto)` reads `Sector (auto)` now. Every
+ * option added after Phase 2 is `requiresServer`, listed only once the live row
+ * names it. Each "pick" option has a companion that wakes under it and stands
+ * in for it wherever the benchmark is printed as identity (`identityFor`): the
+ * typed ticker, the picked sector ETF, the picked theme's name.
+ *
+ * ⚠️ The name says "split" for history (the split rows used it first); the
+ * python rails parse it by this name.
+ */
+const rsSplitBenchmarkInputs = () => ([
+  {
+    key: 'benchmark', type: 'enum', label: 'Benchmark', default: 'SPY', group: 'Simple',
+    tooltip: 'What the RS line compares the stock against: an index, its sector, its industry group, a UCT theme or a symbol you choose.',
+    options: [['SPY', 'S&P 500 (SPY)'], ['RSP', 'Equal-weight S&P 500 (RSP)'], ['QQQ', 'Nasdaq 100 (QQQ)'],
+      ['IWM', 'Russell 2000 (IWM)'], ['SECTOR', 'Sector (auto)'],
+      ['SECTOR_PICK', 'Pick a sector', { requiresServer: true }], ['INDUSTRY', 'Industry group (auto)'],
+      ['THEME', 'Theme (auto)', { requiresServer: true }], ['THEME_PICK', 'Pick a theme', { requiresServer: true }],
+      ['CUSTOM', 'Your symbol', { requiresServer: true }]],
+  },
+  { key: 'customBenchmark', type: 'string', label: 'Your symbol', default: '', group: 'Simple',
+    requiresServer: true, activeWhen: RS_CUSTOM_BENCHMARK, identityFor: 'benchmark',
+    pattern: '^[A-Z][A-Z.\\-]{0,9}$', maxLength: 10, case: 'upper',
+    placeholder: 'SMH', hint: 'Letters, dots and dashes, up to 10',
+    tooltip: 'Any listed ticker to compare against, such as SMH for semiconductors or a single stock. Index symbols such as $SPX are not accepted. A symbol we hold no bars for yet usually loads within a minute.' },
+  { key: 'sectorBenchmark', type: 'enum', label: 'Sector', default: 'XLK', group: 'Simple',
+    requiresServer: true, activeWhen: RS_SECTOR_PICK_BENCHMARK, identityFor: 'benchmark',
+    options: [['XLK', 'Technology (XLK)'], ['XLV', 'Health Care (XLV)'], ['XLF', 'Financials (XLF)'],
+      ['XLY', 'Consumer Discretionary (XLY)'], ['XLP', 'Consumer Staples (XLP)'], ['XLE', 'Energy (XLE)'],
+      ['XLI', 'Industrials (XLI)'], ['XLB', 'Materials (XLB)'], ['XLU', 'Utilities (XLU)'],
+      ['XLRE', 'Real Estate (XLRE)'], ['XLC', 'Communication Services (XLC)']],
+    tooltip: 'The sector to compare against, as its SPDR sector fund.' },
+  { key: 'themeBenchmark', type: 'string', label: 'Theme', default: '', group: 'Simple',
+    requiresServer: true, activeWhen: RS_THEME_PICK_BENCHMARK, identityFor: 'benchmark',
+    optionsSource: 'rsThemes', pattern: '^[a-z0-9][a-z0-9_\\-]{0,63}$', maxLength: 64,
+    placeholder: 'Search themes', hint: 'Pick a theme from the list',
+    tooltip: 'A UCT theme to compare against: an equal-weight average of the theme\'s stocks, leaving this stock out.' },
+])
 /** VA2 — the Rating group's controls dim while the rating is switched off. */
 const RS_RATING_ON = Object.freeze({ key: 'showRating', equals: true })
 /** VA2 — the band gate every rating row shares: the member's Rating colours switch. */
@@ -4157,6 +4462,15 @@ const RS_BAND_WHEN = 'input:ratingBands'
  *  shade (`showAverage`), in the inputs' condition grammar: the `rsMa` plot, its
  *  band and the Average group's colour read it. */
 const RS_AVERAGE_ON = Object.freeze({ key: 'showAverage', equals: true })
+/** 2026-11-13 — the slim line's switch for its SECOND average (`showAverage2`). */
+const RS_AVERAGE2_ON = Object.freeze({ key: 'showAverage2', equals: true })
+/** 2026-11-13 — the second average's type choices, shared with the v5 legacy
+ *  declaration so a stored value survives a rollback (the first's vocabulary). */
+const RS_MA_TYPE_OPTIONS = [['EMA', 'Exponential'], ['SMA', 'Simple']]
+/** 2026-11-12 — the slim line's "Scale to rating" choices (`rescale`), shared with
+ *  the v5 definition's legacy declaration so a stored value survives a rollback. */
+const RS_SCALE_OPTIONS = [['off', 'Off'], ['ibd', 'RS Rating'], ['m1', '1M rank'], ['m3', '3M rank'],
+  ['m6', '6M rank'], ['m9', '9M rank'], ['m12', '12M rank']]
 /**
  * ⭐ THE CLASSIC LOOK AS INPUT VALUES (UCT RS split, U7 / U8). The v5 Classic
  * preset's inputs, and what the Study drill overlay (`pages/study/studyRsOverlay.js`)
@@ -4237,7 +4551,7 @@ const RS_LINE_V5_RAW = {
     serverInputs: ['benchmark', 'maLength', 'maType', 'lookback', 'priceTolerance',
       'redDayThreshold', 'showNewHigh', 'showNewHighBeforePrice', 'shortHistoryDots',
       'mansfieldLength', 'showMansfield', 'showRedDay', 'showNewLow',
-      'view', 'customBenchmark', 'rrgRatioLength', 'rrgMomentumLength', 'clenowWindow',
+      'view', 'customBenchmark', 'sectorBenchmark', 'themeBenchmark', 'rrgRatioLength', 'rrgMomentumLength', 'clenowWindow',
       'clenowGapPct', 'atrLength', 'varsLookback', 'anchorDate'],
     // Read by the settings dialog, the Chart Settings inspector and the phone
     // sheet (plan §6.3): these groups open collapsed so the Simple group is what
@@ -4392,30 +4706,11 @@ const RS_LINE_V5_RAW = {
   placement: { target: 'pane', pane: { height: 0.20, minPx: 64 }, axis: 'hidden', ownScale: true },
   inputs: [
     // ⭐ STILL AN `enum`, NOT A `symbol` (decision A3 and platform C-A3 stand).
-    // SECTOR and INDUSTRY are enum values the SERVER resolves from the universe
-    // sector/industry map; RSP is the equal-weight S&P. A free-text benchmark is
-    // a Phase 3 `string` input validated server-side, so `symbol` stays reserved.
-    {
-      key: 'benchmark', type: 'enum', label: 'Benchmark', default: 'SPY', group: 'Simple',
-      tooltip: 'What we compare against. Change the benchmark and the question changes. Equal-weight or the sector isolates the stock\'s own strength when a few giants carry the index.',
-      // ⭐ v4 (unit 3-08, decision D4): "Your symbol" is `requiresServer`, listed
-      // only once the live row's benchmark options name CUSTOM.
-      options: [['SPY', 'S&P 500 (SPY)'], ['RSP', 'Equal-weight S&P 500 (RSP)'], ['SECTOR', 'Sector ETF (auto)'],
-        ['QQQ', 'Nasdaq 100 (QQQ)'], ['IWM', 'Russell 2000 (IWM)'], ['INDUSTRY', 'Industry group (auto)'],
-        ['CUSTOM', 'Your symbol', { requiresServer: true }]],
-    },
-    // ⭐ THE MEMBER'S OWN BENCHMARK (D4): any listed ticker, ETFs included, no
-    // index symbols. The pattern and the length are the server row's own
-    // (`rs_benchmarks.CUSTOM_SYMBOL_RE`, railed by `test_rs_columns_provider.py`);
-    // the box upper-cases what is typed. Wakes only under "Your symbol".
-    // ⭐ 3-09b: `identityFor` — what is typed here IS the benchmark wherever it
-    // is printed as identity (`UCT RS · SMH`, and `UCT RS · Your symbol` while
-    // the box is empty), never the raw `CUSTOM` (`defSchema.validateIdentityFor`).
-    { key: 'customBenchmark', type: 'string', label: 'Your symbol', default: '', group: 'Simple',
-      requiresServer: true, activeWhen: RS_CUSTOM_BENCHMARK, identityFor: 'benchmark',
-      pattern: '^[A-Z][A-Z.\\-]{0,9}$', maxLength: 10, case: 'upper',
-      placeholder: 'SMH', hint: 'Letters, dots and dashes, up to 10',
-      tooltip: 'Any listed ticker to compare against, such as SMH for semiconductors or a single stock. Index symbols such as $SPX are not accepted. A symbol we hold no bars for yet usually loads within a minute.' },
+    // SECTOR, INDUSTRY and THEME are enum values the SERVER resolves; the pick
+    // options carry their second value in a companion input. ⭐ 2026-11-12: the
+    // whole benchmark family (menu, custom ticker, picked sector, picked theme)
+    // is ONE declaration shared by every RS indicator (`rsSplitBenchmarkInputs`).
+    ...rsSplitBenchmarkInputs(),
     // ⭐ THE READING (decision D2): one choice, one pane. The server keeps the
     // chosen view's columns and blanks the rest, so two readings never share a
     // scale. Every option is a v4 server value (`registry_defs.RS_VIEWS`).
@@ -4470,6 +4765,17 @@ const RS_LINE_V5_RAW = {
     // still validates if the build flag is rolled back (F20 drops an undeclared
     // key). Never rendered, never sent, nothing reads it on this definition.
     { key: 'showAverage', type: 'bool', label: 'Show average', default: false, group: 'Line', legacy: true },
+    // The same rule for the slim line's `scaleToRating` (2026-11-12): declared here
+    // legacy with the slim options exactly, so a stored choice survives a rollback.
+    { key: 'scaleToRating', type: 'enum', label: 'Scale to rating', default: 'off', group: 'Line', legacy: true,
+      options: RS_SCALE_OPTIONS },
+    // And for the slim line's second average (2026-11-13): its switch, length, type
+    // and colour, legacy here with the slim types, ranges and options exactly.
+    { key: 'showAverage2', type: 'bool', label: 'Second average', default: false, group: 'Line', legacy: true },
+    { key: 'maLength2', type: 'int', label: 'Second average (bars)', default: 50, min: 2, max: 200, step: 1, group: 'Line', legacy: true },
+    { key: 'maType2', type: 'enum', label: 'Second average type', default: 'SMA', group: 'Line', legacy: true,
+      options: RS_MA_TYPE_OPTIONS },
+    { ...colorInput('ma2Color', 'Second average colour', RS_MA2), group: 'Line', legacy: true },
     { key: 'lineWidth', type: 'int', label: 'Line width', default: 1, min: 1, max: 4, step: 1, group: 'Line' },
     { key: 'lookback', type: 'int', label: 'Lookback (bars)', default: 252, min: 20, max: 500, step: 1, group: 'New highs',
       tooltip: 'New-high lookback: bars for a new high. 252 bars is one trading year on a daily chart; on a weekly chart use 52. Shorter reacts faster and fires more often.' },
@@ -4801,14 +5107,14 @@ const RS_LINE_V5_RAW = {
     // or a benchmark gap (`No SPY bar for Nov 5 yet`).
     { key: 'benchmarkName', label: 'Benchmark', source: 'scalar:benchmark.label', format: 'text',
       note: 'scalar:benchmark.note',
-      card: { what: 'What the RS line is measured against: this symbol\'s close divided by the benchmark\'s close, bar by bar. The resolved ticker is printed; SECTOR and INDUSTRY are resolved on the server.',
+      card: { what: 'What the RS line is measured against: this symbol\'s close divided by the benchmark\'s close, bar by bar. The benchmark actually used is printed: a ticker, an industry group or a UCT theme, worked out on the server for the auto choices.',
         origin: 'IBD and MarketSurge draw RS against the S&P 500. The equal-weight index or the sector ETF isolates the stock from the few giants that carry a cap-weighted index.',
         evidence: 'A rising RS line means the stock is beating this benchmark over the window, nothing more: it can rise while the stock is falling if the benchmark falls faster (IBD). Which benchmark you compare against changes the answer; the Agreement row reads the same line against SPY, the equal-weight index and the sector.',
         learn: 'rsLine' } },
     // What the member picked, as the option reads (`Sector ETF (auto)`), then what
     // the server resolved it to.
     { key: 'benchmarkRequested', label: 'Requested', source: 'input:benchmark', format: 'text', detailOf: 'benchmarkName' },
-    { key: 'benchmark', label: 'Resolved', source: 'scalar:benchmark.resolved', format: 'text', chip: true,
+    { key: 'benchmark', label: 'Resolved', source: 'scalar:benchmark.name', format: 'text', chip: true,
       detailOf: 'benchmarkName' },
     // The card repeats the menu's second line as a sentence (the raw fallback code,
     // `no sector`, is the server's vocabulary, not the member's).
@@ -4914,7 +5220,7 @@ const RS_LINE_V5_RAW = {
       when: 'input:view=rating', muted: 'scalar:ratingHistory.reason',
       band: { source: 'scalar:ratingHistory.value', when: RS_BAND_WHEN },
       card: { what: 'The RS Rating itself over time: the nightly IBD-style rating, 1 to 99, at each session on the chart, with its 21-session average dashed and guides at 80 and 90. A rising line means the stock has been climbing past the other names rated; a flat line near the top means it has held its place there. The row prints the latest rating and how many points it moved over the last 20 stored sessions. Daily charts only: the rating is stored once a session, and a session with no stored rating is left blank.',
-        origin: 'Deepvue and MarketSurge draw the RS Rating as a line under the chart. This one plots the rating UCT\'s nightly job stored for each session: IBD\'s published term weights, ranked across our universe on our own bars.',
+        origin: 'Deepvue and MarketSurge draw the RS Rating as a line under the chart. This one plots the rating UCT\'s nightly job stored for each session: IBD\'s published term weights, ranked across every stock we hold a recent price for, on our own bars.',
         evidence: RS_HONESTY_SENTENCE } },
     { key: 'ratingViewValue', label: 'Rating', source: 'scalar:ratingHistory.value', format: 'int', detailOf: 'ratingView' },
     { key: 'ratingViewAverage', label: '21-session avg', source: 'scalar:ratingHistory.average', format: 'ratio',
@@ -5043,8 +5349,9 @@ const RS_LINE_V5_RAW = {
 // ⭐ `rsMa` DRAWS ONLY WHILE `showAverage` HOLDS (`plots[].activeWhen` on a data
 // plot: `defSchema.validatePlotActiveWhen` admits it on a server definition for a
 // presentation key the server never hears of — the `fill.activeWhen` rule), and
-// the shade is gated on the same switch, so the two can never disagree. Off by
-// default: on the price pane the line alone is the look.
+// the shade is gated on the same switch, so the two can never disagree. The
+// declared default is OFF (what a saved instance without the key means); a NEW
+// instance is born ON through `meta.createInputs` (see the note there).
 const RS_LINE_SLIM_RAW = {
   schemaVersion: SCHEMA_VERSION,
   id: 'rsLine',
@@ -5058,13 +5365,24 @@ const RS_LINE_SLIM_RAW = {
       'leader', 'leadership', 'price relative', 'benchmark', 'rs rating', 'red day', 'custom benchmark'],
     tier: 'premium', repaint: 'non-repainting',
     legendParams: ['benchmark'],
+    // ⭐ A NEW UCT RS LINE ARRIVES WITH THE AVERAGE AND ITS SHADE ON (Deepvue ships its
+    // 21 EMA with the green/red shade on, and our own plan said so).
+    // ⛔ The DECLARED default stays false on purpose: it is also what a SAVED instance
+    // without the key means (`resolveInputs` fills an absent key from it), and every
+    // instance saved before this change (v1 shape, migrated, v5 era) lacks
+    // `showAverage`, so flipping the default would turn the average on across every
+    // saved chart. `createInputs` is the door for exactly this split
+    // (`instanceControls.createInputsOf`): written onto a NEW instance by `addInstance`
+    // and `ensureLegacyInstance` only. Pinned by `rsSplitSlim.test.js`.
+    createInputs: { showAverage: true },
     // No `legendFallback`: with the live value missing the pane label prints the
     // server's dated last RS value, muted (`readout.readoutFallbackValue`, A8).
     // ⭐ THE INPUTS THE SERVER DECLARES, trimmed (the header above says why each
     // key stays or goes). `test_rs_columns_provider.py` diffs the v5 list, not
     // this one, until U10 trims the row to match (map §(a) U10).
     serverInputs: ['benchmark', 'maLength', 'maType', 'lookback', 'redDayThreshold',
-      'showNewHigh', 'showNewHighBeforePrice', 'mansfieldLength', 'showRedDay', 'customBenchmark'],
+      'showNewHigh', 'showNewHighBeforePrice', 'mansfieldLength', 'showRedDay', 'customBenchmark',
+      'sectorBenchmark', 'themeBenchmark'],
     // Simple opens; the four folded groups hold the average, the line's look, the
     // dots' look and the rating's presentation.
     groupsCollapsed: ['Average', 'Line', 'New highs', 'Rating'],
@@ -5110,23 +5428,37 @@ const RS_LINE_SLIM_RAW = {
   // axis, no last-value tag. "Display in" moves it to its own pane, 0.20 of the
   // candle frame and never under 64 px (U3). A member who already moved it keeps
   // the stored target (`displayTarget.resolveDisplayTarget`).
-  placement: { target: 'price', ownScale: true, pane: { height: 0.20, minPx: 64 }, axis: 'hidden' },
+  // ⭐ 2026-11-12 — WITH "Scale to rating" ON, ITS OWN PANE AND A VISIBLE AXIS
+  // (`axisWhen`): the point of the scale is to read the numbers, and the price
+  // pane's own scale is an invisible overlay that can show no axis. Automatic, so
+  // a member who moves it with "Display in" keeps the choice; off, back under the bars.
+  placement: { target: 'price', ownScale: true, pane: { height: 0.20, minPx: 64 }, axis: 'hidden',
+    axisWhen: { key: 'scaleToRating', notEquals: 'off' } },
+  // ⭐ 2026-11-12 — THE RATING SCALE (`engine/rescale.js`): every column drawn in
+  // RS units multiplied by k = rating / (the RS line on the LAST COMPLETED bar),
+  // so the closed line ends exactly on the rating, as Deepvue draws it (2026-11-13:
+  // anchoring on `rating.asof` left AMD's line at 101.99 beside "RS 96" after a
+  // +5.9% day). While a bar is forming, k is read off the bar before it and the
+  // live last point moves with price on that k. Intraday, no rating, or no line
+  // value on a closed bar: the raw line, and the Scale row says why. `at` names
+  // the rating's date for the readout. `rsAbove` is a 0/1 condition column and is
+  // not in the list.
+  rescale: {
+    input: 'scaleToRating', off: 'off',
+    to: { ibd: 'scalar:rating.ibd', m1: 'scalar:rating.m1', m3: 'scalar:rating.m3', m6: 'scalar:rating.m6',
+      m9: 'scalar:rating.m9', m12: 'scalar:rating.m12' },
+    anchor: 'rsLine', at: 'scalar:rating.asof',
+    plots: ['rsLine', 'rsMa', 'dotNH', 'dotNHred', 'dotNHbeforePx'],
+    timeframes: ['D', 'W'],
+    // the axis while a rating is chosen: 79.25, not the ratio's four decimals
+    precision: 2,
+  },
   inputs: [
     // ── rendered: Simple ──
-    {
-      key: 'benchmark', type: 'enum', label: 'Benchmark', default: 'SPY', group: 'Simple',
-      tooltip: 'What we compare against. Change the benchmark and the question changes. Equal-weight or the sector isolates the stock\'s own strength when a few giants carry the index.',
-      options: [['SPY', 'S&P 500 (SPY)'], ['RSP', 'Equal-weight S&P 500 (RSP)'], ['SECTOR', 'Sector ETF (auto)'],
-        ['QQQ', 'Nasdaq 100 (QQQ)'], ['IWM', 'Russell 2000 (IWM)'], ['INDUSTRY', 'Industry group (auto)'],
-        ['CUSTOM', 'Your symbol', { requiresServer: true }]],
-    },
-    { key: 'customBenchmark', type: 'string', label: 'Your symbol', default: '', group: 'Simple',
-      requiresServer: true, activeWhen: RS_CUSTOM_BENCHMARK, identityFor: 'benchmark',
-      pattern: '^[A-Z][A-Z.\\-]{0,9}$', maxLength: 10, case: 'upper',
-      placeholder: 'SMH', hint: 'Letters, dots and dashes, up to 10',
-      tooltip: 'Any listed ticker to compare against, such as SMH for semiconductors or a single stock. Index symbols such as $SPX are not accepted. A symbol we hold no bars for yet usually loads within a minute.' },
+    // The benchmark family, shared by every RS indicator (2026-11-12).
+    ...rsSplitBenchmarkInputs(),
     { key: 'showAverage', type: 'bool', label: 'Show average', default: false, group: 'Simple',
-      tooltip: 'Draw the RS line\'s moving average, dashed, with a green tint while the line is above it and a red tint while it is below. Off by default: on the price chart the line alone is the classic look.' },
+      tooltip: 'Draw the RS line\'s moving average, dashed, with a green tint while the line is above it and a red tint while it is below. On when you add the indicator (like Deepvue\'s 21 EMA); turn it off for the line alone.' },
     { key: 'showNewHigh', type: 'bool', label: 'RS new highs', default: true, group: 'Simple',
       tooltip: 'A blue dot where the RS line is at its highest level of the lookback. Daily and weekly charts only.' },
     { key: 'showNewHighBeforePrice', type: 'bool', label: 'High before price', default: true, group: 'Simple',
@@ -5135,6 +5467,14 @@ const RS_LINE_SLIM_RAW = {
       tooltip: 'Red-day highs: large dot when the RS line makes a new high on a day the benchmark closed down at least 0.5%. Strength on a weak day. Daily and weekly charts only.' },
     { key: 'showRating', type: 'bool', label: 'RS Rating', default: true, group: 'Simple',
       tooltip: 'The 1 to 99 RS Rating at the end of the line, in the pane label and the readout. 90 means the stock beat 90% of the names rated.' },
+    // ⭐ 2026-11-12 — Deepvue's "Rating Period": the line rescaled so it reads like
+    // a rating (`rescale` below, `engine/rescale.js`). Presentation only: never a
+    // server input, so it keys no fetch and no alert reads it. Declared 'off' so
+    // every saved chart draws exactly as before; choosing a rating moves the line
+    // to its own pane with an axis (`placement.axisWhen`).
+    { key: 'scaleToRating', type: 'enum', label: 'Scale to rating', default: 'off', group: 'Simple',
+      options: RS_SCALE_OPTIONS,
+      tooltip: 'Rescale the line so it ends on the chosen rating at the last close, in its own pane with a 1 to 99 style axis and the same shape (daily and weekly charts); while the market is open the live end moves a little with price.' },
     // ── rendered: Average (folded) ──
     { key: 'maLength', type: 'int', label: 'Average (bars)', default: 21, min: 2, max: 200, step: 1, group: 'Average',
       tooltip: 'Average length in bars: the moving average on the RS line, drawn while Show average is on and read by the RS line row either way. 21 is the curriculum default; 50 is a slower read.' },
@@ -5142,6 +5482,20 @@ const RS_LINE_SLIM_RAW = {
       options: [['EMA', 'Exponential'], ['SMA', 'Simple']],
       tooltip: 'Exponential reacts faster; simple is what StockCharts uses.' },
     { ...colorInput('maColor', 'Average colour', RS_NEUTRAL), group: 'Average', activeWhen: RS_AVERAGE_ON },
+    // ⭐ 2026-11-13 — THE SECOND AVERAGE (Deepvue's MA2, a 50 SMA off by default;
+    // Webster reads the 21 and the 50 on the RS line). Presentation only: none of
+    // the four is a server input, so it keys no fetch, moves no `compute.rev` and
+    // no alert reads it; the column is derived on the client (`rsMa2` below).
+    // Declared OFF, so every saved chart draws exactly as before.
+    { key: 'showAverage2', type: 'bool', label: 'Second average', default: false, group: 'Average',
+      tooltip: 'Draw a second moving average on the RS line, dotted, with no shading (a 50-day simple average by default, the slower read beside the 21). Off by default.' },
+    { key: 'maLength2', type: 'int', label: 'Second average (bars)', default: 50, min: 2, max: 200, step: 1, group: 'Average',
+      activeWhen: RS_AVERAGE2_ON,
+      tooltip: 'Second average length in bars. 50 is the slower read many traders pair with the 21.' },
+    { key: 'maType2', type: 'enum', label: 'Second average type', default: 'SMA', group: 'Average',
+      options: RS_MA_TYPE_OPTIONS, activeWhen: RS_AVERAGE2_ON,
+      tooltip: 'Simple by default (Deepvue draws its second RS average as a 50 SMA); exponential reacts faster.' },
+    { ...colorInput('ma2Color', 'Second average colour', RS_MA2), group: 'Average', activeWhen: RS_AVERAGE2_ON },
     // ── rendered: Line (folded) ──
     { ...colorInput('color', 'Line colour', RS_INFO), group: 'Line', tooltip: 'Colour of the RS line' },
     { key: 'lineWidth', type: 'int', label: 'Line width', default: 1, min: 1, max: 4, step: 1, group: 'Line' },
@@ -5212,6 +5566,17 @@ const RS_LINE_SLIM_RAW = {
     { key: 'rsMa', label: 'Average', style: 'line', color: '$maColor', width: 1, lineStyle: 'largeDashed', precision: 4, role: 'context', legend: { hide: true },
       activeWhen: RS_AVERAGE_ON,
       liveTail: { kind: 'ma', of: 'rsLine', length: 'input:maLength', type: 'input:maType' } },
+    // ⭐ 2026-11-13 — THE SECOND AVERAGE, derived on the CLIENT from the line as
+    // drawn (`derivedColumns.derivedAverage`, the server's own arithmetic): it runs
+    // after the live tail and the rating scale, so the forming bar is in it and,
+    // scaled, it is k times the raw average, exactly like `rsMa`. Not in
+    // `rescale.plots` (it would be scaled twice). Dotted and violet against the
+    // first's large dashes; no band (the 21's shade stays the one shade). Hidden
+    // from the pane label like the first; its reading is the readout's `phase2` row.
+    { key: 'rsMa2', label: 'Second average', style: 'line', color: '$ma2Color', width: 1, lineStyle: 'dotted', precision: 4,
+      role: 'context', legend: { hide: true }, activeWhen: RS_AVERAGE2_ON,
+      derive: { kind: 'ma', of: 'rsLine', length: 'input:maLength2', type: 'input:maType2', activeWhen: RS_AVERAGE2_ON,
+        scalar: 'average2' } },
     // ⭐ THE DOTS ARE GLYPHS, ALL THREE (map §(a) U7: MarketSurge's blue circle, not
     // a 4 px point). lightweight-charts clamps a glyph's height to 12..30 px of bar
     // spacing BEFORE the multiplier (`__tests__/markerPixels.test.js` mirrors the
@@ -5241,12 +5606,12 @@ const RS_LINE_SLIM_RAW = {
   readout: [
     { key: 'benchmarkName', label: 'Benchmark', source: 'scalar:benchmark.label', format: 'text',
       note: 'scalar:benchmark.note',
-      card: { what: 'What the RS line is measured against: this symbol\'s close divided by the benchmark\'s close, bar by bar. The resolved ticker is printed; SECTOR and INDUSTRY are resolved on the server.',
+      card: { what: 'What the RS line is measured against: this symbol\'s close divided by the benchmark\'s close, bar by bar. The benchmark actually used is printed: a ticker, an industry group or a UCT theme, worked out on the server for the auto choices.',
         origin: 'IBD and MarketSurge draw RS against the S&P 500. The equal-weight index or the sector ETF isolates the stock from the few giants that carry a cap-weighted index.',
         evidence: 'A rising RS line means the stock is beating this benchmark over the window, nothing more: it can rise while the stock is falling if the benchmark falls faster (IBD). Which benchmark you compare against changes the answer.',
         learn: 'rsLine' } },
     { key: 'benchmarkRequested', label: 'Requested', source: 'input:benchmark', format: 'text', detailOf: 'benchmarkName' },
-    { key: 'benchmark', label: 'Resolved', source: 'scalar:benchmark.resolved', format: 'text', chip: true,
+    { key: 'benchmark', label: 'Resolved', source: 'scalar:benchmark.name', format: 'text', chip: true,
       detailOf: 'benchmarkName' },
     { key: 'benchmarkNote', label: 'Note', source: 'scalar:benchmark.note', format: 'text',
       when: 'scalar:benchmark.note', detailOf: 'benchmarkName' },
@@ -5255,7 +5620,7 @@ const RS_LINE_SLIM_RAW = {
     // from, each coloured by the site's bands while Rating colours is on.
     { key: 'ratingSummary', label: 'Rating', source: 'scalar:rating.summary', format: 'text', fallback: 'not yet rated',
       when: 'input:showRating', band: { source: 'scalar:rating.ibd', when: RS_BAND_WHEN },
-      card: { what: 'IBD-style RS Rating, 1 to 99: where this symbol\'s weighted 3, 6, 9 and 12-month return ranks across the universe, computed nightly from our own bars. 90 means it beat 90% of the names rated. The 1M to 12M rows are the ranks of each return on its own.',
+      card: { what: 'IBD-style RS Rating, 1 to 99: where this symbol\'s weighted 3, 6, 9 and 12-month return ranks across the universe, computed nightly from our own bars. 90 means it beat 90% of the names rated. In the 1M to 12M rows, 1M ranks the plain return, 3M an equal-weighted average of the 1-, 2- and 3-month returns, and 6M, 9M and 12M a blend that counts the newest quarter double.',
         origin: 'IBD\'s Relative Strength Rating, with IBD\'s published term weights (40% on the latest quarter). Labelled IBD-style because the universe and the bars are ours; ETFs are rated against the stock distribution, not inside it.',
         evidence: 'The rating is a rank of past return, not a forecast. The nearest evidence is the academic momentum literature (a 12-month return with the last month skipped): past 6 to 12-month winners kept outperforming for the next 3 to 12 months across many markets and decades, about 8% a year long-short and positive in roughly four years of five (Jegadeesh and Titman 1993; Asness, Frazzini, Israel and Moskowitz 2014). It loses roughly one year in five and reverses hardest at bear-market bottoms (Daniel and Moskowitz 2016).' } },
     { key: 'rating', label: 'IBD-style', source: 'scalar:rating.ibd', format: 'int', chip: true, detailOf: 'ratingSummary',
@@ -5272,6 +5637,13 @@ const RS_LINE_SLIM_RAW = {
       when: 'input:showRating', band: { source: 'scalar:rating.m9', when: RS_BAND_WHEN } },
     { key: 'rank12m', label: '12M rank', source: 'scalar:rating.m12', format: 'int', detailOf: 'ratingSummary',
       when: 'input:showRating', band: { source: 'scalar:rating.m12', when: RS_BAND_WHEN } },
+    // ⭐ 2026-11-12 — the rating scale's state, only while Scale to rating is on:
+    // what the line is scaled to and on which day, or why it is drawn unscaled
+    // (`rescale.rescaleScalars`; the client adds `rescale` beside the payload).
+    // No card: the sentence is the whole statement, and the cards are exported to
+    // `api/data/rs_teaching.json` for the agent, which has no scale to explain.
+    { key: 'scale', label: 'Scale', source: 'scalar:rescale.summary', format: 'text', when: 'scalar:rescale.summary',
+      muted: 'scalar:rescale.unscaled' },
     { key: 'phase', label: 'RS line', source: 'scalar:legend.summary', format: 'text',
       card: { what: 'Whether the RS line closed above or below its moving average on the last bar, and by how much. Above is the bullish phase; the cross is the event the screener and alerts read. The average is drawn while Show average is on and read here either way.',
         origin: 'Manrav video 59 (the 21 EMA on the RS line); TraderLion RS Phase; Deepvue Webby RS. A trend read that lags turns by design.',
@@ -5279,6 +5651,12 @@ const RS_LINE_SLIM_RAW = {
         evidenceSource: 'scalar:evidence.sentence.phase',
         learn: 'phase' } },
     { key: 'fromMa', label: 'From average', source: 'scalar:legend.pctFromMa', format: 'pct', detailOf: 'phase' },
+    // ⭐ 2026-11-13 — the second average's reading, the RS line row's words
+    // ("above its 50 SMA by 2.1%"), only while it is drawn. The CLIENT writes
+    // `average2` beside the payload (`derivedColumns.withDerivedScalars`); no card,
+    // like Scale: the sentence is the statement, and the cards export to the agent,
+    // which has no second average.
+    { key: 'phase2', label: '2nd average', source: 'scalar:average2.summary', format: 'text', when: 'input:showAverage2' },
     { key: 'rsHigh', label: 'Last RS high', source: 'scalar:lastRsHigh.summary', format: 'text',
       card: { what: 'How many bars since the RS line last closed at its highest level of the lookback (252 bars on a daily chart, ties count).',
         origin: 'IBD\'s RS line new high; the blue dot MarketSurge draws.',
@@ -5352,24 +5730,8 @@ export { RS_LINE_V5_RAW, RS_LINE_SLIM_RAW }
 // ⭐ COLOURS ARE THE RS TOKENS ABOVE: info blue for the RS hue, the neutral for
 // averages and guides, red only for a loss-shaped reading, no gold.
 
-/** The benchmark pair, declared exactly as `rsLine` declares it (the server row
- *  shares `_rs_split_benchmark_inputs`, so one saved benchmark choice is legal
- *  on every ratio indicator). Fresh objects per call: a definition's inputs are
- *  its own. */
-const rsSplitBenchmarkInputs = () => ([
-  {
-    key: 'benchmark', type: 'enum', label: 'Benchmark', default: 'SPY', group: 'Simple',
-    tooltip: 'What we compare against. Change the benchmark and the question changes. Equal-weight or the sector isolates the stock\'s own strength when a few giants carry the index.',
-    options: [['SPY', 'S&P 500 (SPY)'], ['RSP', 'Equal-weight S&P 500 (RSP)'], ['SECTOR', 'Sector ETF (auto)'],
-      ['QQQ', 'Nasdaq 100 (QQQ)'], ['IWM', 'Russell 2000 (IWM)'], ['INDUSTRY', 'Industry group (auto)'],
-      ['CUSTOM', 'Your symbol', { requiresServer: true }]],
-  },
-  { key: 'customBenchmark', type: 'string', label: 'Your symbol', default: '', group: 'Simple',
-    requiresServer: true, activeWhen: RS_CUSTOM_BENCHMARK, identityFor: 'benchmark',
-    pattern: '^[A-Z][A-Z.\\-]{0,9}$', maxLength: 10, case: 'upper',
-    placeholder: 'SMH', hint: 'Letters, dots and dashes, up to 10',
-    tooltip: 'Any listed ticker to compare against, such as SMH for semiconductors or a single stock. Index symbols such as $SPX are not accepted. A symbol we hold no bars for yet usually loads within a minute.' },
-])
+// The benchmark family (`rsSplitBenchmarkInputs`) is declared once, above the
+// RS line, and shared by every RS indicator that takes a benchmark.
 
 /** The Benchmark card and its chip row, the RS line's own copy (`rsLine`'s
  *  `benchmarkName` family): the resolved ticker rides the pane label
@@ -5378,12 +5740,12 @@ const rsSplitBenchmarkInputs = () => ([
 const rsSplitBenchmarkRows = () => ([
   { key: 'benchmarkName', label: 'Benchmark', source: 'scalar:benchmark.label', format: 'text',
     note: 'scalar:benchmark.note',
-    card: { what: 'What the RS line is measured against: this symbol\'s close divided by the benchmark\'s close, bar by bar. The resolved ticker is printed; SECTOR and INDUSTRY are resolved on the server.',
+    card: { what: 'What the RS line is measured against: this symbol\'s close divided by the benchmark\'s close, bar by bar. The benchmark actually used is printed: a ticker, an industry group or a UCT theme, worked out on the server for the auto choices.',
       origin: 'IBD and MarketSurge draw RS against the S&P 500. The equal-weight index or the sector ETF isolates the stock from the few giants that carry a cap-weighted index.',
       evidence: 'A rising RS line means the stock is beating this benchmark over the window, nothing more: it can rise while the stock is falling if the benchmark falls faster (IBD). Which benchmark you compare against changes the answer.',
       learn: 'rsLine' } },
   { key: 'benchmarkRequested', label: 'Requested', source: 'input:benchmark', format: 'text', detailOf: 'benchmarkName' },
-  { key: 'benchmark', label: 'Resolved', source: 'scalar:benchmark.resolved', format: 'text', chip: true,
+  { key: 'benchmark', label: 'Resolved', source: 'scalar:benchmark.name', format: 'text', chip: true,
     detailOf: 'benchmarkName' },
   { key: 'benchmarkNote', label: 'Note', source: 'scalar:benchmark.note', format: 'text',
     when: 'scalar:benchmark.note', detailOf: 'benchmarkName' },
@@ -5492,7 +5854,7 @@ const RS_RATING_RAW = {
       muted: 'scalar:ratingHistory.reason',
       band: { source: 'scalar:ratingHistory.value' },
       card: { what: 'The RS Rating over time: the nightly IBD-style rating, 1 to 99, at each session on the chart, with its 21-session average dashed and guides at 80 and 90. A rising line means the stock has been climbing past the other names rated; a flat line near the top means it has held its place there. The row prints the latest rating and how many points it moved over the last 20 stored sessions. Daily charts only: the rating is stored once a session, and a session with no stored rating is left blank.',
-        origin: 'IBD\'s Relative Strength Rating, with IBD\'s published term weights, ranked across our universe on our own bars. Deepvue and MarketSurge draw the rating as a line under the chart.',
+        origin: 'IBD\'s Relative Strength Rating, with IBD\'s published term weights, ranked across every stock we hold a recent price for, on our own bars. Deepvue and MarketSurge draw the rating as a line under the chart.',
         evidence: 'The rating is a rank of past return, not a forecast. ' + RS_HONESTY_SENTENCE } },
     { key: 'rating', label: 'Rating', source: 'scalar:ratingHistory.value', format: 'int', chip: false,
       detailOf: 'ratingView', band: { source: 'scalar:ratingHistory.value' } },
@@ -5546,7 +5908,7 @@ const RS_PHASES_RAW = {
     legendFallback: [{ source: 'scalar:legend.summary', format: 'text' }],
     // ⭐ THE ROW'S FOUR KEYS (`registry_defs._rs_phases_row`), diffed by
     // `tests/test_rs_split_js_rows.py`.
-    serverInputs: ['benchmark', 'customBenchmark', 'shortEma', 'longEma'],
+    serverInputs: ['benchmark', 'customBenchmark', 'sectorBenchmark', 'themeBenchmark', 'shortEma', 'longEma'],
     learn: [{ key: 'rsLine', label: 'Manrav on the RS line: Relative Strength Workshop' }],
     glossaryHref: '/methodology/relative-strength',
   },
@@ -5625,7 +5987,7 @@ const RS_VS_EMA_RAW = {
     legendFallback: [{ source: 'scalar:legend.summary', format: 'text' }],
     // ⭐ THE ROW'S TWO KEYS (`registry_defs._rs_vs_ema_row`), diffed by
     // `tests/test_rs_split_js_rows.py`.
-    serverInputs: ['benchmark', 'customBenchmark'],
+    serverInputs: ['benchmark', 'customBenchmark', 'sectorBenchmark', 'themeBenchmark'],
     learn: [
       { key: 'phase', label: 'Manrav on the RS line and its 21 EMA' },
       { key: 'rsLine', label: 'Manrav on the RS line: Relative Strength Workshop' },
@@ -5661,9 +6023,131 @@ const RS_VS_EMA_RAW = {
   ],
 }
 
+// ⭐⭐ UCT RS EXIT WARNINGS (`rsExit`, 2026-11-12): Mike Webster's three warnings on
+// the RS line. A QUICK BREAK is the RS line dropping below its fast average;
+// QUICKSAND is the line then falling lower than it was at that break; a GRATEFUL
+// DEAD BREAK is the line dropping below its slow average. The averages are SIMPLE
+// averages OF THE RS LINE (not of price): daily 21 and 50, weekly 8 and 21, both
+// inputs (0 is auto). The server computes it (`relative_strength.rs_exit_events`
+// states the rules, and says plainly that they are OUR reading of a published
+// idea: the names and one-line meanings are public, the mechanics are not).
+// ⭐ THE DOTS RIDE THE LINE: the server sends the RS value on the bar a warning
+// fired and nothing elsewhere, so each glyph sits exactly on the line. Declared
+// quick, quicksand, dead, so on a bar where two fire the worse paints on top.
+// ⭐ THE TOGGLES ARE PRESENTATION KEYS: `plots[].activeWhen` (the `rsMa` rule) draws a
+// dot only while its switch holds, and the server never hears of them.
+// ⭐ DAILY AND WEEKLY ONLY (`meta.timeframes`, the VWAP and rsRating precedent): on any
+// other timeframe the instance is hidden, not dropped, and comes back on D or W.
+// ⭐ COLOURS: the line is the RS info blue, the two averages the neutral (the fast one
+// solid, the slow one dashed), and the three dots climb the caution ramp the brand
+// already draws: gold (`--warn`) for the first warning, an orange between gold and
+// red for the second, the bear red for the third. The ramp is one warm family, so
+// the pane stays at one blue and one warm hue plus the neutral. No emoji, no text on
+// the canvas (platform §7).
+const RS_CAUTION_ORANGE = '#dd8a3a'
+const RS_QUICK_ON = Object.freeze({ key: 'showQuick', equals: true })
+const RS_QUICKSAND_ON = Object.freeze({ key: 'showQuicksand', equals: true })
+const RS_DEAD_ON = Object.freeze({ key: 'showDead', equals: true })
+const RS_EXIT_RAW = {
+  schemaVersion: SCHEMA_VERSION,
+  id: 'rsExit',
+  version: 1,
+  compute: { kind: 'server', fn: 'rsExit', rev: 1 },
+  meta: {
+    name: 'UCT RS Exit Warnings', shortName: 'UCT RS Exit', category: CAT.RELATIVE_STRENGTH,
+    description: 'Three warnings on the RS line, from Mike Webster\'s method: a Quick Break below its fast average, Quicksand when it falls lower than at that break, and a Grateful Dead Break below its slow average. Daily and weekly charts.',
+    tags: ['rs', 'relative strength', 'rs line', 'exit', 'exit warnings', 'warning', 'sell', 'trim', 'webster',
+      'mike webster', 'quick break', 'quick', 'quicksand', 'grateful dead', 'dead break', 'moving average',
+      'benchmark', 'leader', 'leadership', 'custom benchmark'],
+    tier: 'premium', repaint: 'non-repainting',
+    requiresServer: true,
+    // Browsed and added in the library (once offered), never a right-click quick toggle:
+    // the Technical library's own `quickMenu: false` rule.
+    quickMenu: false,
+    timeframes: ['D', 'W'],
+    legendParams: ['benchmark'],
+    // The pane label's value ONLY while there is nothing to draw: the server's reason
+    // (`daily and weekly charts only`, `benchmark is the symbol`, `not enough bars yet`) is
+    // `legend.blankReason`, null on a live answer, so the last warning is printed once (the chip
+    // row), never twice.
+    legendFallback: [{ source: 'scalar:legend.blankReason', format: 'text' }],
+    // ⭐ THE ROW'S FOUR KEYS (`registry_defs._rs_exit_row`), diffed by
+    // `tests/test_rs_split_js_rows.py`.
+    serverInputs: ['benchmark', 'customBenchmark', 'sectorBenchmark', 'themeBenchmark', 'fastLength', 'slowLength'],
+    groupsCollapsed: ['Averages', 'Style'],
+    glossaryHref: '/methodology/relative-strength',
+  },
+  placement: { target: 'pane', pane: rsSplitPane(), axis: 'hidden' },
+  inputs: [
+    ...rsSplitBenchmarkInputs(),
+    { key: 'showQuick', type: 'bool', label: 'Quick Break', default: true, group: 'Simple',
+      tooltip: 'A dot where the RS line drops below its fast average: the first warning. It fires once, until the line is back above the average.' },
+    { key: 'showQuicksand', type: 'bool', label: 'Quicksand', default: true, group: 'Simple',
+      tooltip: 'A dot where, after a Quick Break, the RS line falls lower than it was at that break: the second warning. It fires once per Quick Break.' },
+    { key: 'showDead', type: 'bool', label: 'Dead Break', default: true, group: 'Simple',
+      tooltip: 'Grateful Dead Break: a dot where the RS line drops below its slow average. The third warning, and the largest dot.' },
+    // The two lengths are the row's (`relative_strength.EXIT_LENGTH_RANGE`): 0 is auto.
+    { key: 'fastLength', type: 'int', label: 'Fast avg (bars)', default: 0, min: 0, max: 400, step: 1, group: 'Averages',
+      tooltip: 'Fast average of the RS line, in bars. 0 is automatic: 21 on a daily chart, 8 on a weekly one. A Quick Break is the RS line dropping below it. These lengths come from a community summary of Mike Webster\'s teaching, not a published rule: test what suits you.' },
+    { key: 'slowLength', type: 'int', label: 'Slow avg (bars)', default: 0, min: 0, max: 400, step: 1, group: 'Averages',
+      tooltip: 'Slow average of the RS line, in bars. 0 is automatic: 50 on a daily chart, 21 on a weekly one. A Grateful Dead Break is the RS line dropping below it. It is kept longer than the fast average.' },
+    { ...colorInput('color', 'Line colour', RS_INFO), group: 'Style', tooltip: 'Colour of the RS line; the two averages stay in the neutral' },
+    { ...colorInput('quickColor', 'Quick Break dot', RS_GOLD), group: 'Style', activeWhen: RS_QUICK_ON,
+      tooltip: 'Colour of the Quick Break dot; gold, the caution colour' },
+    { ...colorInput('quicksandColor', 'Quicksand dot', RS_CAUTION_ORANGE), group: 'Style', activeWhen: RS_QUICKSAND_ON,
+      tooltip: 'Colour of the Quicksand dot; between the caution gold and the loss red' },
+    { ...colorInput('deadColor', 'Dead Break dot', RS_BEAR), group: 'Style', activeWhen: RS_DEAD_ON,
+      tooltip: 'Colour of the Grateful Dead Break dot; the loss red' },
+  ],
+  plots: [
+    // ⭐ `legend.showValue: false`: the RS ratio means nothing to a member (the slim RS
+    // line's F3 ruling), so the pane label reads the name, the benchmark and the last
+    // warning (the two chip rows below), not 0.4378.
+    { key: 'rsLine', label: 'RS line', style: 'line', color: '$color', width: 1,
+      precision: 4, role: 'primary', legend: { decimals: 4, showValue: false } },
+    { key: 'fast', label: 'Fast average', style: 'line', color: RS_NEUTRAL, width: 1,
+      precision: 4, role: 'context', legend: { hide: true } },
+    { key: 'slow', label: 'Slow average', style: 'line', color: RS_NEUTRAL, width: 1, lineStyle: 'largeDashed',
+      precision: 4, role: 'context', legend: { hide: true } },
+    // Glyph sizes: small, middle, largest, so the severity reads at a glance. The member's
+    // Dot size scales all three (`restyle: false`: a sparse dot column restyled as a line
+    // draws nothing).
+    { key: 'dotQuick', label: 'Quick Break', style: 'markers', color: '$quickColor', width: 1, role: 'context',
+      marker: { shape: 'circle', position: 'inBar', size: 0.8 }, restyle: false, legend: { hide: true },
+      activeWhen: RS_QUICK_ON },
+    { key: 'dotQuicksand', label: 'Quicksand', style: 'markers', color: '$quicksandColor', width: 1, role: 'context',
+      marker: { shape: 'circle', position: 'inBar', size: 1.1 }, restyle: false, legend: { hide: true },
+      activeWhen: RS_QUICKSAND_ON },
+    { key: 'dotDead', label: 'Dead Break', style: 'markers', color: '$deadColor', width: 1, role: 'context',
+      marker: { shape: 'circle', position: 'inBar', size: 1.5 }, restyle: false, legend: { hide: true },
+      activeWhen: RS_DEAD_ON },
+  ],
+  readout: [
+    ...rsSplitBenchmarkRows(),
+    // The glance row is the server's sentence; its numbers follow. The short form rides the
+    // pane label (`UCT RS Exit · SPY · Quicksand · 6 bars ago`).
+    { key: 'lastWarning', label: 'Last warning', source: 'scalar:legend.summary', format: 'text',
+      card: { what: 'The newest of three warnings on the RS line, and how many bars ago it fired. Quick Break: the RS line drops below its fast average. Quicksand: after a Quick Break, the RS line falls lower than it was at that break. Grateful Dead Break: the RS line drops below its slow average. They are judged on closed bars. The averages are simple averages of the RS line: 21 and 50 bars on a daily chart, 8 and 21 on a weekly one.',
+        origin: 'Mike Webster\'s method for holding a leader and noticing when it weakens, as summarised by a community write-up of his teaching and the open-source TradingView script Webby\'s Quick & Grateful Dead RS. The names and one-line meanings are public; the exact rules here are UCT\'s reading of them.',
+        evidence: 'A warning to review the position, not an instruction to act on it. ' + RS_HONESTY_SENTENCE } },
+    { key: 'lastWarningChip', label: 'Last warning', source: 'scalar:legend.chipText', format: 'text', chip: true,
+      detailOf: 'lastWarning' },
+    { key: 'status', label: 'RS vs averages', source: 'scalar:legend.statusLabel', format: 'text',
+      card: { what: 'Where the RS line sits against its two averages on the newest bar it can be judged on: above both, below its fast average, below its slow average, or below both. The numbers are the two averages and the lengths in use.',
+        origin: 'The same two simple averages the Quick Break and the Grateful Dead Break are measured against.',
+        evidence: 'A reading of where the line sits now, not a forecast. ' + RS_HONESTY_SENTENCE } },
+    { key: 'barsAgo', label: 'Bars ago', source: 'scalar:legend.barsAgo', format: 'int', detailOf: 'lastWarning' },
+    { key: 'fastAvg', label: 'Fast average', source: 'scalar:legend.fast', format: 'ratio', detailOf: 'status' },
+    { key: 'slowAvg', label: 'Slow average', source: 'scalar:legend.slow', format: 'ratio', detailOf: 'status' },
+    { key: 'fastLen', label: 'Fast length (bars)', source: 'scalar:legend.fastLength', format: 'int', detailOf: 'status' },
+    { key: 'slowLen', label: 'Slow length (bars)', source: 'scalar:legend.slowLength', format: 'int', detailOf: 'status' },
+    rsSplitHistoryRow(),
+  ],
+}
+
 // Registered in this order; `registrySizes.SHIPPED_DEF_IDS.server` lists the
-// same four ids in the same order.
-const _serverRegistered = registerDefinitions([RS_LINE_RAW, RS_RATING_RAW, RS_PHASES_RAW, RS_VS_EMA_RAW])
+// same five ids in the same order (RS Exit Warnings, 2026-11-12, is the fifth).
+const _serverRegistered = registerDefinitions([RS_LINE_RAW, RS_RATING_RAW, RS_PHASES_RAW, RS_VS_EMA_RAW, RS_EXIT_RAW])
 if (_serverRegistered.errors.length) {
   throw new Error(`nativeRegistry: invalid server definitions:\n  ${_serverRegistered.errors.join('\n  ')}`)
 }

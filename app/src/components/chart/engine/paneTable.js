@@ -124,6 +124,46 @@ export function paneTableShownOn(table, tf) {
 }
 
 /**
+ * Definitions whose table YIELDS to another instance's table of the same label on
+ * the same chart. `rsRating` and `rsLine` resolve the same `RS ranks` strip from
+ * the same server row; Deepvue draws it once, on the RS line's pane, and the
+ * rating pane keeps its own label and history.
+ */
+export const PANE_TABLE_YIELDING_DEFS = Object.freeze(['rsRating'])
+
+/**
+ * ⭐ ONE STRIP PER CHART (2026-11-12). Of the visible chips that carry a table
+ * shown on this timeframe, the ones that draw it: one per table label, chosen
+ * (1) a non-yielding instance drawn with the candles (`hostOf` answers `null`),
+ * (2) a non-yielding instance in a pane, (3) a yielding one, first in chip order
+ * at each step. Decided per render from the chips, so a saved chart's inputs never
+ * change: hide the RS line, or turn its strip off (its chip then carries no
+ * table), and the rating pane's strip comes back by itself.
+ *
+ * @param {object[]} chips `crosshairData.chips`
+ * @param {string} tf the chart timeframe
+ * @param {Function} [hostOf] chip → pane key, `null` on the price pane
+ * @param {string[]} [yielding] definition ids that yield
+ * @returns {Set<object>} the chips that draw their table
+ */
+export function paneTableOwners(chips, tf, hostOf, yielding = PANE_TABLE_YIELDING_DEFS) {
+  const owners = new Set()
+  if (!Array.isArray(chips) || !chips.length) return owners
+  const byLabel = new Map()
+  for (const c of chips) {
+    if (!c || c.hidden === true || !c.paneTable || !paneTableShownOn(c.paneTable, tf)) continue
+    let host = null
+    try { host = hostOf ? hostOf(c) : null } catch { host = null }
+    const rank = yielding.includes(c.defId) ? 2 : (host === null ? 0 : 1)
+    const label = typeof c.paneTable.label === 'string' ? c.paneTable.label : ''
+    const best = byLabel.get(label)
+    if (!best || rank < best.rank) byLabel.set(label, { chip: c, rank })
+  }
+  for (const { chip } of byLabel.values()) owners.add(chip)
+  return owners
+}
+
+/**
  * ⭐ THE COLLISION RULE the surface applies every frame: the table sits at the
  * plot area's right edge (left of the price scale) and is shown only while it
  * clears the pane label by `gap` px. Measured, never assumed: on a 390 px phone

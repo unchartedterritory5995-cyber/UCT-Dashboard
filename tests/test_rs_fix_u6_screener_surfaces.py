@@ -28,7 +28,8 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 SCREEN_GROUPS_JS = ROOT / "app" / "src" / "pages" / "screener" / "focus" / "screenGroups.js"
 COLUMN_DEFS_JS = ROOT / "app" / "src" / "pages" / "screener" / "columnDefs.js"
 
-BARS = frozenset(rs_columns.COLUMNS)
+# the RS_V2 bar family: the ten plus the five RS Exit Warning columns (2026-11-13), one writer, one gate
+BARS = frozenset(rs_columns.COLUMNS) | frozenset(rs_columns.EXIT_COLUMNS)
 RATINGS = frozenset(snapshot_builder._RS_HISTORY_COLUMNS)
 #: Unit 3-11 (2026-11-07): the third family, written by the same step only while
 #: RS_V3 is armed too (`filters.rs_dark_keys`).
@@ -109,7 +110,7 @@ def test_every_starter_group_resolves_to_its_own_GROUPS_key(tmp_path, monkeypatc
     unresolved = sorted(lab for lab in labels if _client_group_of(lab, groups) is None)
     assert not unresolved, f"starter groups with no GROUPS row (fall back to momentum): {unresolved}"
     rs = [s for s in starters if s.get("group") == ss.RS_STARTER_GROUP]
-    assert len(rs) == 7
+    assert len(rs) == 9      # 7 -> 9 on 2026-11-13: the two RS Exit Warning starters
     assert {_client_group_of(s["group"], groups) for s in rs} == {"relative_strength"}
     # and only Momentum-labelled starters land in momentum
     for s in starters:
@@ -134,7 +135,7 @@ def test_rs_starters_ship_when_RS_V2_is_on(tmp_path, monkeypatch):
     ss = _svc(tmp_path, monkeypatch)
     monkeypatch.setattr(registry_defs, "RS_V2_ENABLED", True)
     rs = [s for s in ss.starters() if s["id"].startswith("starter_rs_")]
-    assert len(rs) == 7
+    assert len(rs) == 9      # 7 -> 9 on 2026-11-13: the two RS Exit Warning starters
     assert {s["group"] for s in rs} == {ss.RS_STARTER_GROUP}
 
 
@@ -154,7 +155,7 @@ def _served(m):
 
 
 def test_the_two_families_are_the_writers_and_the_category_split_matches():
-    assert len(BARS) == 10 and len(RATINGS) == 8 and len(PHASE3) == 3
+    assert len(BARS) == 15 and len(RATINGS) == 8 and len(PHASE3) == 3
     assert not (BARS & RATINGS) and not (PHASE3 & (BARS | RATINGS))
     family = {k for k, f in filters.FILTERS.items() if f["category"] == "relative_strength"}
     assert family == BARS | RATINGS | PHASE3
@@ -273,8 +274,17 @@ def test_rank_1m_does_not_claim_the_rating_weights_21_sessions():
     d = _desc("rs_rating_1m")
     assert "one of the four windows" not in d
     assert "does not weight" in d
-    # the 6M and 12M windows ARE weighted, and keep saying so
-    assert "one of the four windows" in _desc("rs_rating_6m")
+    # 6M, 9M and 12M ARE recency-weighted blends (2026-11-11), and say so in the rating's own words
+    for col in ("rs_rating_6m", "rs_rating_9m", "rs_rating_12m"):
+        assert "recency-weighted" in _desc(col), col
+        assert "63-session close ratio counts double" in _desc(col), col
+    assert "recency-weighted" not in d and "counts double" not in d, "1M stays a plain return"
+    # 3M is the equal-weighted average of the 1-, 2- and 3-month returns (2026-11-12): said in words, and not
+    # dressed as the recency-weighted blend or as the plain 63-session return it used to be
+    d3 = _desc("rs_rating_3m")
+    assert "equal-weighted average of the 1-, 2- and 3-month returns" in d3
+    assert "21-, 42- and 63-session" in d3
+    assert "recency-weighted" not in d3 and "counts double" not in d3 and "plain 63-session" not in d3
 
 
 def test_no_unmeasured_frequency_claims_on_the_rs_highs():

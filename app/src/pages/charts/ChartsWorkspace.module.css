@@ -2027,3 +2027,404 @@
    flex sibling at the far right, and the column shrinks to make room. */
 .workspaceRow { flex: 1; min-height: 0; min-width: 0; display: flex; }
 .workspaceMainCol { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+
+/* ═══ INTEGRATED CHART HEADER — "One surface" (.widgetIntegrated: WidgetHost, /charts board) ═══
+   The chart's identity row IS the widget's title bar (link dot · ticker + name · day change …
+   session · clock · window controls) and its drag handle; the timeframe row sits directly
+   under it on the SAME surface, with ONE hairline under both. Compact: title 36px, controls
+   32px. Information is plain text; only real controls look like controls. On a dark canvas
+   WidgetHost points --widget-text / --widget-text-strong at the site's own grey / white. */
+.widgetIntegrated .chartHeaderTop {
+  height: 36px;
+  min-height: 36px;
+  padding: 0 6px 0 8px;
+  gap: 10px;
+  background: var(--widget-canvas, var(--bg-elevated, #0d1218));
+  border-bottom: none;
+  cursor: grab;
+}
+.widgetIntegrated .chartHeaderTop:active { cursor: grabbing; }
+.widgetIntegrated .symbolSlot { cursor: auto; }
+.widgetIntegrated [data-sym-ticker] {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+.widgetIntegrated [data-sym-name] {
+  font-size: 13px;
+  font-weight: 500;
+  margin-left: 4px;
+}
+.widgetIntegrated [data-sym-ticker]:not([data-sym-custom]) { color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); }
+.widgetIntegrated [data-sym-name]:not([data-sym-custom]) { color: var(--widget-text, var(--text-muted, #cfcac0)); }
+.widgetIntegrated .chartHeaderTop .chartDayGain { font-size: 13px; font-weight: 600; }
+.widgetIntegrated .headerTopRight { gap: 12px; cursor: auto; }
+.widgetIntegrated .headerTopRight .ctrlGroup {
+  padding-left: 10px;
+  margin-left: 2px;
+  border-left: 1px solid var(--widget-divider, var(--border, #2a2c31));
+}
+.widgetIntegrated .tfBar {
+  min-height: 32px;
+  padding: 0 8px 2px;
+  gap: 8px;
+  border-bottom: 1px solid var(--widget-divider, var(--border, #2a2c31));
+}
+/* Info, not controls: plain label · value text, no boxes. */
+.widgetIntegrated .chartMeta { gap: 16px; margin-left: 10px; }
+.widgetIntegrated .chartMetaItem { padding: 0; border: none; background: none; }
+.widgetIntegrated .chartMetaLabel {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.7px;
+  color: var(--widget-text, var(--text-muted, #cfcac0));
+}
+/* Timeframes + RTH/PM: plain text on the header surface (no track, no bubbles). The
+   active choice is white with a short gold bar under it — owner's pick 11-11. */
+.widgetIntegrated .tfBar > div[data-guide='chart.timeframe'],
+.widgetIntegrated .sessionToggle {
+  padding: 0;
+  gap: 2px !important;
+  border: none;
+  border-radius: 0;
+  background: none;
+}
+.widgetIntegrated .tfBtn,
+.widgetIntegrated .sessionBtn {
+  position: relative;
+  border: none;
+  border-radius: 0;
+  padding: 7px 7px;
+  color: var(--widget-text, var(--text-muted, #cfcac0));
+  background: transparent;
+}
+.widgetIntegrated .tfBtn:hover,
+.widgetIntegrated .sessionBtn:hover:not(:disabled) { color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); }
+.widgetIntegrated .tfBtnActive,
+.widgetIntegrated .tfBtnActive:hover,
+.widgetIntegrated .sessionBtnActive,
+.widgetIntegrated .sessionBtnActive:hover {
+  color: var(--widget-text-strong, var(--text-bright, #f8f7f3));
+  font-weight: 700;
+  background: none;
+  box-shadow: none;
+}
+.widgetIntegrated .tfBtnActive::after,
+.widgetIntegrated .sessionBtnActive::after {
+  content: '';
+  position: absolute;
+  left: 7px;
+  right: 7px;
+  bottom: 0;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--widget-accent, var(--accent, #dcbb5e));
+}
+
+/* ── E2: one header row when wide (ChartPane puts the tf bar INSIDE the title row) ── */
+.widgetIntegrated .chartHeaderTop > .tfBar {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  padding: 0 0 0 6px;
+  margin-left: 6px;
+  border-bottom: none;
+  border-left: 1px solid var(--widget-divider, var(--border, #2a2c31));
+  background: transparent;
+}
+/* One row → the hairline moves under the title row itself. */
+.widgetIntegrated .chartHeaderTop:has(> .tfBar) {
+  height: 40px;
+  min-height: 40px;
+  border-bottom: 1px solid var(--widget-divider, var(--border, #2a2c31));
+}
+/* Regroup by purpose: chart buttons (new tab · settings · add to chart) in ONE colour —
+   the header white, not gold — and the window controls (float · pop out · close) quiet. */
+.widgetIntegrated .tfBarRight .chartSettingsBtn { color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); }
+.widgetIntegrated .tfBarRight .chartSettingsBtn svg {
+  stroke: currentColor !important;
+  color: inherit !important;
+  filter: none !important;
+}
+.widgetIntegrated .headerTopRight .ctrlGroup .closeBtn,
+.widgetIntegrated .headerTopRight .ctrlGroup .popOutBtn,
+.widgetIntegrated .headerTopRight .ctrlGroup .wtabAdd { color: var(--widget-text, var(--text-muted, #cfcac0)); opacity: 0.85; }
+/* Settings gear: one of the right-hand buttons (gear · + · float · pop out · close). */
+.widgetIntegrated .headerTopRight > .chartSettingsBtn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 22px; padding: 0 0 0 10px; box-sizing: content-box;
+  margin-right: -10px;   /* the cluster gap is 12px; buttons in the group sit 2px apart */
+  border: none; border-left: 1px solid var(--widget-divider, var(--border, #2a2c31));
+  border-radius: 0; background: transparent;
+  color: var(--widget-text, var(--text-muted, #cfcac0)); opacity: 0.85;
+}
+.widgetIntegrated .headerTopRight > .chartSettingsBtn:hover { opacity: 1; color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); }
+.widgetIntegrated .headerTopRight > .chartSettingsBtn + .ctrlGroup { border-left: none; padding-left: 0; margin-left: 0; }
+.widgetIntegrated .sessionToggle { flex-shrink: 0; }
+
+/* Day change sits right after the company name; the after-hours badge is hidden in this
+   header for now (owner 11-11) — it widened the row and pushed the timeframes around. */
+.widgetIntegrated .chartHeaderTop .chartDayGainExt { display: none; }
+
+/* Title alignment (integrated header): logo, ticker, company name and day change all sit
+   on ONE centre line (mixed 17px / 13px text was baseline-aligned, so the name sat low
+   against the ticker). The logo is 20px here (SymbolSearch splitLabel) to match the ticker. */
+.widgetIntegrated .symbolSlot > div > button:first-child { display: inline-flex; align-items: center; height: 28px; }
+.widgetIntegrated .symbolSlot span:has(> [data-testid=sym-label]) { display: inline-flex; align-items: center; gap: 8px; }
+.widgetIntegrated [data-testid=sym-label]:has([data-sym-ticker]) { display: inline-flex; align-items: center; gap: 8px; line-height: 1; }
+.widgetIntegrated [data-sym-ticker],
+.widgetIntegrated [data-sym-name] { display: inline-block; line-height: 1; margin-left: 0; }
+.widgetIntegrated .chartHeaderTop > .chartDayGainWrap,
+.widgetIntegrated .chartHeaderTop > .chartDayGain { margin: 0 4px 0 2px; line-height: 1; }
+
+/* OPTICAL CENTRING (owner 11-11: midpoints did not line up). Each text box is trimmed to
+   exactly its CAP HEIGHT (text-box, Chrome 133+), so align-items:center lines up the
+   middles of the capitals across the 17px ticker, 13px name / day change and 11.5px
+   timeframes — instead of their line boxes, which carry different empty ascender /
+   descender space per font size. Browsers without text-box fall back to line-height:1. */
+.widgetIntegrated [data-sym-ticker],
+.widgetIntegrated [data-sym-name],
+.widgetIntegrated .chartHeaderTop .chartDayGain,
+.widgetIntegrated .tfBtn,
+.widgetIntegrated .sessionBtn,
+.widgetIntegrated .chartMetaLabel,
+.widgetIntegrated .chartMetaVal {
+  line-height: 1;
+  text-box: trim-both cap alphabetic;
+}
+.widgetIntegrated .chartMetaItem { align-items: center; }
+
+/* ── Title group (owner 11-11): logo+badge · TICKER · quieter name │ $ change  % change ── */
+/* Company name: smaller and dimmer, so the ticker leads. */
+.widgetIntegrated [data-sym-name]:not([data-sym-custom]) {
+  font-size: 12px;
+  font-weight: 500;
+  color: color-mix(in srgb, var(--widget-text, #cfcac0) 80%, transparent);
+}
+/* A thin divider sets the price change apart as its own block. */
+.widgetIntegrated .chartHeaderTop > .chartDayGainWrap,
+.widgetIntegrated .chartHeaderTop > .chartDayGain:not([data-delisted]) {
+  margin: 0 2px 0 0;
+  padding-left: 12px;
+  border-left: 1px solid var(--widget-divider, var(--border, #2a2c31));
+}
+/* $ change then (% change) in brackets, both full colour (owner 11-11). The space before
+   the bracket collapses inside the flex readout, so the gap is a margin. */
+.widgetIntegrated .chartHeaderTop [data-dg-pct] { margin-left: 5px; }
+
+/* Link dot → a small badge on the logo's bottom-right corner (one element instead of
+   two). The button stays fully clickable; it simply takes no row space and is moved
+   onto the 20px logo (the row's 10px gap is absorbed by the negative margin). */
+.widgetIntegrated .chartHeaderTop > button[data-guide='widget.link'] {
+  position: relative;
+  z-index: 2;
+  width: 14px;
+  height: 14px;
+  margin-right: -24px;
+  transform: translate(11px, 7px);
+}
+.widgetIntegrated .chartHeaderTop > button[data-guide='widget.link']::after {
+  inset: 3px;
+  box-shadow: 0 0 0 2px var(--widget-canvas, var(--bg-elevated, #0d1218));
+}
+/* Not-linked (grey) badge would read as clutter on every logo — keep it, but quieter. */
+.widgetIntegrated .chartHeaderTop > button[data-guide='widget.link'][class*='colorDotN']::after { opacity: 0.6; }
+
+/* Info fields (IPO date · Market cap · Next earnings · UCT rating): styled like the rest of
+   the row — normal-case labels in the same grey / size as the timeframes, values in the same
+   weight, even spacing. Value COLOURS stay as set in Chart Settings → Header. */
+.widgetIntegrated .chartMeta { gap: 18px; margin-left: 4px; }
+.widgetIntegrated .chartMetaItem { gap: 6px; }
+.widgetIntegrated .chartMetaLabel {
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--widget-text, var(--text-muted, #cfcac0));
+}
+.widgetIntegrated .chartMetaVal {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Chart widget integrated header: the pieces WidgetHeader lends it (part='dot' /
+      part='controls'). Scoped to the chart; every other widget keeps the stock header. ── */
+.ctrlGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  cursor: default;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.ctrlGroup:empty { display: none; }
+.widgetIntegrated .ctrlGroup .closeBtn,
+.widgetIntegrated .ctrlGroup .popOutBtn,
+.widgetIntegrated .ctrlGroup .wtabAdd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 22px;
+  flex-shrink: 0;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 12px;
+  line-height: 1;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+.widgetIntegrated .ctrlGroup .closeBtn:hover,
+.widgetIntegrated .ctrlGroup .popOutBtn:hover,
+.widgetIntegrated .ctrlGroup .wtabAdd:hover {
+  opacity: 1;
+  color: var(--widget-text-strong, var(--text-bright, #f8f7f3));
+  background: var(--widget-row-hover, rgba(255, 255, 255, 0.07));
+}
+.widgetIntegrated .ctrlGroup .closeBtn:hover {
+  color: var(--danger-ink, #f87171);
+  background: color-mix(in srgb, var(--loss, #ef4444) 16%, transparent);
+}
+
+/* Link dot = a small badge on the logo's corner. The stock dot paints with a radial
+   background; here it is an ::after jewel in the group colour (--dot). */
+.widgetIntegrated .chartHeaderTop > .colorDot { background: none !important; border: none; padding: 0; cursor: pointer; }
+.widgetIntegrated .chartHeaderTop > .colorDot::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  background: var(--dot, #6b7280);
+  pointer-events: none;
+}
+.widgetIntegrated .colorDotA { --dot: #dcbb5e; }
+.widgetIntegrated .colorDotB { --dot: #60a5fa; }
+.widgetIntegrated .colorDotC { --dot: #4ade80; }
+.widgetIntegrated .colorDotD { --dot: #c084fc; }
+.widgetIntegrated .colorDotE { --dot: #f87171; }
+.widgetIntegrated .colorDotF { --dot: #2dd4bf; }
+.widgetIntegrated .colorDotG { --dot: #fb923c; }
+.widgetIntegrated .colorDotH { --dot: #f472b6; }
+.widgetIntegrated .colorDotN { --dot: #6b7280; }
+
+/* Kept but hidden for now (owner 11-11): the ETF View Holdings and breadth Line buttons.
+   Both stay MOUNTED — the holdings control still serves the UCT Agent's holdings door —
+   they are simply not shown in the chart's header. */
+.widgetIntegrated .tfBarRight .viewHoldingsBtn,
+.widgetIntegrated .tfBarRight .breadthLineBtn { display: none; }
+
+/* Chart widget frame (owner 11-11, chart only): rounded corners + a soft hairline/shadow,
+   and NO gold corner marks at rest — a mark shows only while the pointer is ON that
+   corner's resize handle. Every other widget keeps the stock frame and marks. */
+.widgetIntegrated {
+  border-radius: 10px;
+  border-color: color-mix(in srgb, var(--border, #1f2937) 70%, transparent);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 10px 26px rgba(0, 0, 0, 0.28);
+}
+:global([data-theme='light']) .widgetIntegrated { box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), 0 8px 24px rgba(0, 0, 0, 0.08); }
+:global(.react-grid-item[data-widget-type='chart']) .rzCorner::after,
+:global(.react-grid-item[data-widget-type='chart']:hover) .rzCorner::after { border-color: transparent; }
+:global(.react-grid-item[data-widget-type='chart']) .rzCorner:hover::after { border-color: color-mix(in srgb, var(--accent) 70%, transparent); }
+/* The drag / resize tint follows the rounded corners on a chart. */
+:global(.react-grid-item.react-draggable-dragging[data-widget-type='chart'])::after { border-radius: 10px; }
+:global(.react-grid-item[data-widget-type='chart']) .rzPlaceholder { border-radius: 10px; }
+
+/* ── Chart widget symbol menu (▾ after the company name → leveraged ETFs / top holdings) ── */
+.symbolActionsCaret {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-left: -4px;
+  padding: 0;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--widget-text, var(--text-muted, #cfcac0));
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color 0.12s ease, background-color 0.12s ease;
+}
+.symbolActionsCaret:hover,
+.symbolActionsCaret[aria-expanded='true'] {
+  color: var(--widget-text-strong, var(--text-bright, #f8f7f3));
+  background: var(--widget-row-hover, rgba(255, 255, 255, 0.07));
+}
+.symbolActionsCaret svg { transition: transform 0.15s ease; }
+.symbolActionsCaret[aria-expanded='true'] svg { transform: rotate(180deg); }
+.symbolActionsMenu {
+  position: fixed;
+  z-index: 6000;
+  min-width: 240px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-radius: 10px;
+  background: var(--menu-bg, var(--bg-elevated, #1b1c20));
+  border: 1px solid var(--menu-border, var(--border-accent, #383b41));
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5);
+}
+.symbolActionsMenu[hidden] { display: none; }
+.symActRow { display: flex; flex-direction: column; gap: 4px; }
+.symActLabel {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+  color: var(--menu-text-muted, var(--text-muted, #8b8a85));
+}
+.symbolActionsMenu .viewHoldingsBtn {
+  margin: 0;
+  align-self: flex-start;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* Price-scale switch (A · L · %) at the chart's bottom-right, chart widget only: compact
+   plain text like the header's timeframes — grey, the active one white with a short gold
+   underline — instead of boxed chips. */
+.widgetIntegrated [data-guide='chart.scale'] {
+  gap: 0;
+  padding: 0;
+  background: none;
+  border: none;
+  box-shadow: none;
+}
+.widgetIntegrated [data-guide='chart.scale'] button {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  padding: 3px 5px 5px;
+  border: none;
+  border-radius: 0;
+  background: none;
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--widget-text, var(--text-muted, #cfcac0));
+}
+.widgetIntegrated [data-guide='chart.scale'] button:hover { background: none; color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); }
+.widgetIntegrated [data-guide='chart.scale'] button[aria-pressed='true'] {
+  background: none;
+  color: var(--widget-text-strong, var(--text-bright, #f8f7f3));
+  font-weight: 700;
+}
+.widgetIntegrated [data-guide='chart.scale'] button[aria-pressed='true']::after {
+  content: '';
+  position: absolute;
+  left: 5px;
+  right: 5px;
+  bottom: 1px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--widget-accent, var(--accent, #dcbb5e));
+}

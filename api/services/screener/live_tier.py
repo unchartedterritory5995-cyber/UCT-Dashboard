@@ -318,9 +318,28 @@ def _env_int(name: str, default: int) -> int:
 
 def interval_s() -> int:
     """Sweep cadence. Below 30 buys nothing — the shared snapshot's TTL is 30 s,
-    so a 60 s sweep reads an entry ≤30 s old and the worst-case age of a live
-    column is 90 s, which is the number the Seal states."""
-    return max(5, _env_int("SCREENER_LIVE_INTERVAL_S", 60))
+    so a 30 s sweep reads an entry ≤30 s old and the worst-case age of a live
+    column is 60 s (90 s on a cycle that rests, see `_rest_owed_s`).
+
+    ⭐ 30, NOT 60, SINCE 2026-11-11. The 60 s default dated from sweeps whose
+    overlay write took ~17 s (p50) under GIL contention; the chunked multi-row
+    write (2026-11-10) took that to about a second on a contended local bench.
+    A slow sweep cannot turn 30 s into back-to-back work: `sweep_job` rests a
+    cycle whenever the last one has not been followed by as much idle time as
+    it took, so the realised cadence degrades to ~60 s on its own."""
+    return max(5, _env_int("SCREENER_LIVE_INTERVAL_S", 30))
+
+
+#: A sweep shorter than this never earns a rest: at that size it cannot crowd
+#: member scans, and the guard stays out of every millisecond-scale unit test.
+REST_FLOOR_S = 1.0
+
+
+def min_rest_fraction() -> float:
+    """Idle time owed after a sweep, as a fraction of how long it took. 1.0 caps
+    the sweeper at half of wall time. 0 disables the guard (no deploy needed:
+    `SCREENER_LIVE_MIN_REST_FRACTION=0`, then a restart)."""
+    return max(0.0, _env_float("SCREENER_LIVE_MIN_REST_FRACTION", 1.0))
 
 
 def max_age_s() -> float:
@@ -1436,6 +1455,28 @@ def last_receipt() -> dict | None:
     return dict(_LAST_RECEIPT) if _LAST_RECEIPT else None
 
 
+#: [(monotonic end, seconds of work)] of the last cycle that did work.
+_LAST_WORK: list = []
+
+
+def _rest_owed_s(now_mono: float | None = None) -> float | None:
+    """Seconds of idle still owed before the next cycle may run, or None.
+
+    ⛔ WHY A REST AND NOT JUST `max_instances=1`. APScheduler's guard only stops
+    two cycles OVERLAPPING; a 28 s sweep on a 30 s trigger still runs again two
+    seconds after it ends, holding the build lock and the screener.db write lock
+    nearly all session while member scans read the same file. Owing idle time in
+    proportion to the work keeps the sweeper at or under half of wall time."""
+    if not _LAST_WORK:
+        return None
+    end, work = _LAST_WORK[0]
+    if work < REST_FLOOR_S:
+        return None
+    now_mono = time.monotonic() if now_mono is None else now_mono
+    owed = work * min_rest_fraction() - (now_mono - end)
+    return round(owed, 2) if owed > 0 else None
+
+
 def sweep_job() -> dict:
     """The scheduled entry point: run one cycle, remember it, LOG IT.
 
@@ -1461,6 +1502,14 @@ def sweep_job() -> dict:
     reading the same measurement.
     """
     global _LAST_RECEIPT
+    owed = _rest_owed_s()
+    if owed is not None:
+        # ⛔ A REST IS NOT A RECEIPT. It never touches `_LAST_RECEIPT`, so the
+        # status endpoint keeps showing the last cycle that actually ran rather
+        # than flickering to "skipped" every other tick.
+        log.info("[screener-live] cycle rested: last sweep took %.1fs, %.1fs of "
+                 "idle still owed", _LAST_WORK[0][1], owed)
+        return _blank_receipt(skipped_reason="resting")
     try:
         receipt = run_sweep()
     except Exception as exc:
@@ -1475,6 +1524,9 @@ def sweep_job() -> dict:
                     "out and the status endpoint now says so", type(exc).__name__, exc)
         raise
     _LAST_RECEIPT = receipt
+    # Only a cycle that did work owes rest; an out-of-session no-op never does.
+    if receipt["skipped_reason"] is None:
+        _LAST_WORK[:] = [(time.monotonic(), receipt["duration_ms"] / 1000.0)]
     if receipt["skipped_reason"]:
         log.info("[screener-live] cycle skipped: %s (session=%s)",
                  receipt["skipped_reason"], receipt["session"])

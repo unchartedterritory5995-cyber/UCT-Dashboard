@@ -99,7 +99,7 @@ export const SHIPPED_DEF_IDS = Object.freeze({
   // the live server lists it (`serverCompute.isDefinitionOffered`); the rails that
   // compare an OFFER surface against `listDefinitions()` filter by that gate.
   // ⭐ U6 (2026-11-09): the three landed, in `nativeRegistry.js`'s registration order.
-  server: Object.freeze(['rsLine', 'rsRating', 'rsPhases', 'rsVsEma']),
+  server: Object.freeze(['rsLine', 'rsRating', 'rsPhases', 'rsVsEma', 'rsExit']),
   ast: Object.freeze([]),
 })
 

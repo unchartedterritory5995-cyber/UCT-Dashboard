@@ -1,6 +1,10 @@
 import os
 import sys
 
+# Bars series meta (bar contract): no background flusher in tests — a test that needs
+# persistence calls `bars_sqlite.flush_meta()` itself (see `_isolate_bars_series_meta`).
+os.environ.setdefault("BARS_META_FLUSH_SECONDS", "0")
+
 import pytest
 
 # ─── AUTH_DB_PATH isolation ────────────────────────────────────────────────
@@ -129,6 +133,14 @@ def _isolate_fundamentals_snapshot_store(tmp_path, monkeypatch):
     dir and stale-while-revalidate would serve one test's persisted payload to
     another (or to a later full run)."""
     monkeypatch.setenv("FUNDAMENTALS_TABLES_DB_PATH", str(tmp_path / "fund_snapshots.db"))
+
+
+@pytest.fixture(autouse=True)
+def _isolate_fmp_response_cache(tmp_path, monkeypatch):
+    """The on-disk FMP response cache is OFF in the suite (a stored body would answer the next test's
+    mocked GET) and, if a test turns it on, points at a per-test file, never /data."""
+    monkeypatch.setenv("FMP_RESPONSE_CACHE", "0")
+    monkeypatch.setenv("FMP_RESPONSE_CACHE_PATH", str(tmp_path / "fmp_response_cache.db"))
 
 
 @pytest.fixture(autouse=True)
@@ -515,3 +527,46 @@ def _no_test_leaks_a_dependency_override():
 def routed_schema(monkeypatch):
     """The kill switch (UCT_AGENT_CONSTANT_SCHEMA=0): for tests of the routed schema, which it must keep restoring exactly."""
     monkeypatch.setenv("UCT_AGENT_CONSTANT_SCHEMA", "0")
+
+@pytest.fixture(autouse=True)
+def _reset_screener_live_rest():
+    """Clear `live_tier._LAST_WORK`, the screener sweeper's rest ledger.
+
+    A real sweep that happens to take over a second on a slow box would make
+    the NEXT test's `sweep_job()` rest instead of run. Looked up via
+    sys.modules so the fixture never imports the screener into an unrelated test."""
+    def _clear():
+        # A test may park a stand-in module there (the surface tests do), so
+        # read the attribute defensively rather than assume the real module.
+        mod = sys.modules.get("api.services.screener.live_tier")
+        try:
+            ledger = mod.__dict__.get("_LAST_WORK") if mod is not None else None
+        except Exception:  # noqa: BLE001 -- a deliberately exploding stand-in
+            ledger = None
+        if isinstance(ledger, list):
+            ledger.clear()
+
+    _clear()
+    yield
+    _clear()
+
+
+@pytest.fixture(autouse=True)
+def _isolate_bars_series_meta():
+    """Per-test: the bars store's in-process meta state (queued proofs, store floors)
+    starts empty, so one test's `_mark_tail_verified` cannot verify another's tail."""
+    def _clear():
+        try:
+            from api.services import bars_sqlite as _bs
+        except Exception:
+            return
+        _bs.reset_meta_state_for_tests()
+        try:
+            from api.services import bar_contract as _bc
+            _bc._stream_rev_cache.clear()
+        except Exception:
+            pass
+
+    _clear()
+    yield
+    _clear()

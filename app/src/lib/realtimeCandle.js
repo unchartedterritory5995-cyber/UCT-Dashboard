@@ -7,6 +7,10 @@ const _state = new Map(); // sym -> { tf -> {o,h,l,c,v,t} }
 const _subscribers = new Map(); // sym -> Set<callback>
 const _correctionSubscribers = new Map(); // sym -> Set<callback>
 const _lastTickAt = new Map(); // sym -> Date.now() of the last applyTick (fallback-writer arbitration)
+// sym -> { price, tradeMs, at } of the last APPLIED tick: its price, its own TRADE time (the
+// feed's `ts`) and when it arrived. The BarStore buckets a trade by its trade time and judges the
+// feed's freshness by the bucket that time reaches — never by a candle start or by arrival alone.
+const _lastTrade = new Map();
 
 function _notify(sym) {
   const subs = _subscribers.get(sym);
@@ -74,8 +78,14 @@ export function applyTick(sym, price, vol, ts) {
   // minute's truth arrives via bar_close / the poll.
   if (prev && Number.isFinite(prev.t) && t < prev.t) return;
   _lastTickAt.set(sym, Date.now());
+  _lastTrade.set(sym, { price, tradeMs: ts > 1e11 ? ts : ts * 1000, at: Date.now() });
   if (!prev || prev.t !== t) {
-    symState["1"] = { t, o: price, h: price, l: price, c: price, v: vol || 0 };
+    // `partial`: unless the registry was tracking the symbol through the IMMEDIATELY
+    // preceding minute, it may have joined this one mid-way (first subscribe, or a
+    // resubscribe after the feed dropped the symbol — _state survives that), so its
+    // o/h/l are only "since we saw it": the chart treats the minute as PROVISIONAL
+    // (lib/liveBarMerge I6). Continuity, not mere existence, proves the open.
+    symState["1"] = { t, o: price, h: price, l: price, c: price, v: vol || 0, partial: !(prev && prev.t === t - 60) };
   } else {
     symState["1"] = {
       ...prev,
@@ -114,6 +124,8 @@ export function applyBarClose(sym, tf, bar) {
   const l = fin(bar.l) ? bar.l : Math.min(fin(same?.l) ? same.l : c, c);
   const v = Number.isFinite(bar.v) ? bar.v : (Number.isFinite(same?.v) ? same.v : 0);
   symState[tf] = { ...(same || {}), ...bar, t: bar.t, o, h: Math.max(h, o, c), l: Math.min(l, o, c), c, v };
+  // A server bar carrying its own o/h/l is the minute's truth, never partial.
+  if (fin(bar.o) && fin(bar.h) && fin(bar.l)) symState[tf].partial = false;
   _state.set(sym, symState);
   _notify(sym);
 }
@@ -122,6 +134,11 @@ export function applyBarClose(sym, tf, bar) {
  *  fallback writers decide which one owns the developing candle. */
 export function getLastTickAt(sym) {
   return _lastTickAt.get(String(sym).toUpperCase()) || 0;
+}
+
+/** The last applied trade of sym: { price, tradeMs (the trade's own time), at (arrival) } | null. */
+export function getLastTrade(sym) {
+  return _lastTrade.get(String(sym).toUpperCase()) || null;
 }
 
 export function applyCorrection(sym, tf, corrected) {
@@ -149,6 +166,7 @@ export function _reset() {
   _subscribers.clear();
   _correctionSubscribers.clear();
   _lastTickAt.clear();
+  _lastTrade.clear();
   for (const t of _tickThrottleTimers.values()) clearTimeout(t);
   _tickThrottleTimers.clear();
   _tickPending.clear();

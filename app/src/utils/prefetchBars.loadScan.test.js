@@ -9,6 +9,13 @@ vi.mock('./barsIDB', async (orig) => {
     ...real,
     idbGet: vi.fn(async (sym, tf) => idb.entries.get(`${sym}_${tf}`) ?? null),
     idbPut: vi.fn(async (sym, tf, bars) => { idb.puts.push(`${sym}_${tf}`); idb.entries.set(`${sym}_${tf}`, { bars, lastT: bars[bars.length - 1].t, savedAt: Date.now() }) }),
+    idbPutMonotonic: vi.fn(async (sym, tf, bars, opts) => {
+      const key = `${sym}_${tf}`
+      const next = real.mergeMonotonic(idb.entries.get(key)?.bars ?? null, bars, opts)
+      if (!next?.length) return null
+      idb.puts.push(key); idb.entries.set(key, { bars: next, lastT: next[next.length - 1].t, savedAt: Date.now() })
+      return next
+    }),
   }
 })
 vi.mock('../hooks/useTickerMeta', () => ({ prefetchTickerMeta: vi.fn() }))

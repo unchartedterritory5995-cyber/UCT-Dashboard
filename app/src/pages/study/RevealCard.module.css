@@ -105,9 +105,9 @@
 }
 .verdictIcon { display: inline-flex; width: 20px; height: 20px; }
 /* the verdict wears the card colours of the workbench: green right, red wrong */
-.verdictCorrect .verdictWord { color: var(--color-success); }
-.verdictWrong .verdictWord { color: var(--color-danger); }
-.verdictWrong .verdictIcon { color: var(--color-danger); }
+.verdictCorrect .verdictWord { color: var(--gain); }
+.verdictWrong .verdictWord { color: var(--loss); }
+.verdictWrong .verdictIcon { color: var(--loss); }
 .verdictKey {
   flex-basis: 100%;
   color: var(--text);

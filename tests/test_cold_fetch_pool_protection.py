@@ -96,7 +96,7 @@ def test_a_WARM_ticker_serves_normally_and_never_kicks_a_cold_fetch(monkeypatch)
     monkeypatch.setattr(bars_fetch, "_needs_fresh", lambda ts, tf, ticker=None: True)
     monkeypatch.setattr(bars_fetch, "_is_cold_stale_daily", lambda tf, ts: True)   # force Layer 4
     monkeypatch.setattr(bars_fetch, "_daily_deblockable", lambda tf, ts: False)
-    monkeypatch.setattr(bars_fetch, "_history_complete", lambda s, tf: True)
+    monkeypatch.setattr(bars_fetch, "_history_complete", lambda s, tf, *_a: True)
     monkeypatch.setattr(bars_fetch, "_maybe_kick_deepfill", lambda *a, **k: None)
     monkeypatch.setattr(bars_fetch, "_record_intraday_request", lambda *a, **k: None)
     monkeypatch.setattr(bars_fetch, "_inflight", {})

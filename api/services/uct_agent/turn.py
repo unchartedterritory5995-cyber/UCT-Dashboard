@@ -129,6 +129,9 @@ MAX_CAPABILITIES_NL1 = MAX_CAPABILITIES
 NL1_ENV = "UCT_AGENT_NL1"
 MAX_CAP_BYTES = 6000
 MAX_HINTS = 1000
+#: a capability's summary is cut to this on every request (validate_manifest). Named so the browser's rail
+#: (app/src/agent/capabilityTextLimits.test.js) reads the limit from HERE, never a retyped copy.
+MAX_SUMMARY = 400
 MAX_SHAPE = 600          # W1.1: a capability's exact-shape example (manifest `shape`), printed under its catalog line
 _CAP_NAME = re.compile(r"^[a-z][a-zA-Z0-9]*(\.[a-z][a-zA-Z0-9]*)+$")
 _SCHEMA_KEYS = {"type", "properties", "required", "additionalProperties", "enum", "const",
@@ -140,7 +143,16 @@ _SCHEMA_KEYS = {"type", "properties", "required", "additionalProperties", "enum"
 # The model is told which groups exist but were not given; if it needs one it sets
 # `need_groups` and plans nothing, and the browser asks once more with those groups.
 _GROUP_ID = re.compile(r"^[a-z][a-zA-Z]{1,23}$")
-MAX_GROUPS = 24
+# MAX_GROUPS bounds an untrusted browser payload: validate_routing's {id, title} list (each title cut to 160 chars
+# below), i.e. the "OTHER ACTION GROUPS" lines of the request's LAST system block (the per-request part, after the
+# cached core) and the `need_groups` enum. It never bounds actions: the browser's action budget (NL-1: 55) and
+# MAX_CAPABILITIES do. Groups past it are still cut, but never silently: the first cut in a process is logged
+# (a WARNING naming the dropped ids). Master reached exactly 24 on 2026-11-11 (a 25th group dropped `guide`); master
+# declares 26, queued PRs bring it to 31 and family builds in flight to 33, so 48 gives every family headroom and stays
+# bounded (48 × 160 chars). Rail: app/src/agent/routingMaxGroups.test.js fails when routing.js GROUPS outgrows this.
+MAX_GROUPS = 48
+#: set once the first over-limit routing.groups has been logged (validate_routing runs on every turn)
+_GROUPS_DROP_LOGGED = False
 
 
 def validate_routing(routing: Any) -> dict | None:
@@ -151,6 +163,14 @@ def validate_routing(routing: Any) -> dict | None:
     selected = routing.get("selected")
     if not isinstance(groups, list) or not isinstance(selected, list):
         return None
+    global _GROUPS_DROP_LOGGED
+    if len(groups) > MAX_GROUPS and not _GROUPS_DROP_LOGGED:
+        # ⛔ NEVER A SILENT DROP (like the args-schema drop): the cut groups can't be offered to the model or asked for
+        # in need_groups. Behaviour is unchanged (still cut); say which, ONCE per process.
+        _GROUPS_DROP_LOGGED = True
+        dropped = [str(g.get("id") or "?") if isinstance(g, dict) else "?" for g in groups[MAX_GROUPS:]]
+        log.warning("[uct-agent] routing sent %d groups; the server keeps only MAX_GROUPS=%d, dropped: %s",
+                    len(groups), MAX_GROUPS, ", ".join(dropped[:20]))
     seen, out = set(), []
     for g in groups[:MAX_GROUPS]:
         if not isinstance(g, dict):
@@ -177,22 +197,41 @@ def nl1_stable_names(routing: Any, capabilities: Any) -> set[str]:
         return set()
     return {str(c.get("name")) for c in capabilities[:n] if isinstance(c, dict) and c.get("name")}
 
-def _closed_schema(node: Any, depth: int = 0) -> bool:
-    """Only the structured-output-safe subset, every object closed and fully required."""
-    if depth > 6 or not isinstance(node, dict) or set(node) - _SCHEMA_KEYS:
-        return False
+#: (capability name, reason) pairs already logged by validate_manifest's schema drop — one ERROR each per process
+_SCHEMA_DROP_LOGGED: set[tuple[str, str]] = set()
+
+
+def schema_problems(node: Any, path: str = "args", depth: int = 0) -> list[str]:
+    """Why a capability's args schema is outside the structured-output-safe subset (every object closed and fully
+    required; only the _SCHEMA_KEYS keywords). Empty = accepted. Each problem names the path and the keyword, so a
+    capability the server leaves out is never a silent mystery (2026-11-11: #1076's `minItems`/`maxItems` would
+    have dropped its action with no log). Bounds the subset can't express (minItems, maxItems, minimum, pattern…)
+    are enforced in the capability's own code, never in the schema."""
+    if depth > 6:
+        return [f"{path}: nested deeper than 6"]
+    if not isinstance(node, dict):
+        return [f"{path}: not an object"]
+    extra = sorted(set(node) - _SCHEMA_KEYS)
+    if extra:
+        return [f"{path}: unsupported keyword(s) {', '.join(extra)}"]
+    out: list[str] = []
     if node.get("type") == "object" or "properties" in node:
         props = node.get("properties")
-        if not isinstance(props, dict) or node.get("additionalProperties") is not False:
-            return False
+        if not isinstance(props, dict):
+            return [f"{path}: object without properties"]
+        if node.get("additionalProperties") is not False:
+            out.append(f"{path}: additionalProperties is not false")
         if sorted(node.get("required") or []) != sorted(props):
-            return False
-        return all(_closed_schema(v, depth + 1) for v in props.values())
-    if "items" in node and not _closed_schema(node["items"], depth + 1):
-        return False
-    if "anyOf" in node and not all(_closed_schema(v, depth + 1) for v in node["anyOf"]):
-        return False
-    return True
+            out.append(f"{path}: required is not every property")
+        for k, v in props.items():
+            out += schema_problems(v, f"{path}.{k}", depth + 1)
+        return out
+    if "items" in node:
+        out += schema_problems(node["items"], f"{path}[]", depth + 1)
+    if "anyOf" in node:
+        for i, v in enumerate(node["anyOf"] if isinstance(node["anyOf"], list) else [None]):
+            out += schema_problems(v, f"{path}.anyOf[{i}]", depth + 1)
+    return out
 
 
 def nl1_enabled() -> bool:
@@ -223,17 +262,26 @@ def validate_manifest(caps: Any, limit: int = MAX_CAPABILITIES) -> list[dict]:
         if not _CAP_NAME.match(name) or name in seen:
             continue
         args = c.get("args")
-        if not (isinstance(args, dict) and args.get("type") == "object" and _closed_schema(args)):
+        problems = (["args: not an object schema"] if not (isinstance(args, dict) and args.get("type") == "object")
+                    else schema_problems(args))
+        if problems:
+            # ⛔ NEVER A SILENT DROP: the action is left out (the model can't call it), so say which and why — ONCE
+            # per capability and reason per process (this runs on every turn). The contract rail
+            # (tests/test_uct_agent_contract.py) fails CI before a shipped manifest can get here.
+            reason = "; ".join(problems[:5])
+            if (name, reason) not in _SCHEMA_DROP_LOGGED:
+                _SCHEMA_DROP_LOGGED.add((name, reason))
+                log.error("[uct-agent] capability %s left out: args schema outside the server's subset: %s", name, reason)
             continue
         if len(json.dumps(c)) > MAX_CAP_BYTES:
             log.warning("[uct-agent] capability %s is over %d bytes and was left out", name, MAX_CAP_BYTES)
             continue
-        if len(str(c.get("hints") or "")) > MAX_HINTS or len(str(c.get("summary") or "")) > 400:
+        if len(str(c.get("hints") or "")) > MAX_HINTS or len(str(c.get("summary") or "")) > MAX_SUMMARY:
             log.warning("[uct-agent] capability %s has its summary/hints cut", name)
         seen.add(name)
         out.append({
             "name": name,
-            "summary": str(c.get("summary") or "")[:400],
+            "summary": str(c.get("summary") or "")[:MAX_SUMMARY],
             # 1000, not 400: a capability's hints carry its usage rules (widget.add's alias
             # rule, screener.run's field/refine rules); a cut there silently changes behaviour.
             "hints": str(c.get("hints"))[:MAX_HINTS] if c.get("hints") else None,
@@ -1060,6 +1108,8 @@ DATA_READ_ACTIONS = frozenset({
     "news.latest", "news.catalysts", "screener.run", "screener.runSaved",
     # train2 (W2-B3 #746, live for admins): the setup description is a deterministic read of bars.daily
     "chart.describeSetup",
+    # Phase 2 COT research: the positioning card is UCT's deterministic read of stored CFTC rows (cot.positioning)
+    "cot.positioning",
 })
 #: Brain response handling (owner, 2026-11-03, before activation). Planner v1 writes `reply` BEFORE any knowledge is
 #: read, so a plan holding ANY knowledge read (playbook.*, decided by action name: knowledge.frame) never serves it,

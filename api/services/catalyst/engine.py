@@ -898,6 +898,10 @@ def _enrich_with_twitter_search(candidates: list[dict]) -> None:
                     # sourced catalyst silently fell back to thesis_at (which made
                     # batches of unrelated tickers all share the same "When" time).
                     "created_at": t.get("created_at"),
+                    # Marks a broad-search tweet: the skip-if-stable hash counts these by
+                    # band, not by id, because "Latest" refills with new retail posts on
+                    # every call (synthesize._tweets_identity).
+                    "via": "search",
                 })
                 seen_ids.add(tid)
         c["tweets"] = merged

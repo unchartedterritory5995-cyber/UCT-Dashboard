@@ -566,12 +566,13 @@ export const GUIDE_FEATURES = [
     id: 'settings', terms: ['chart settings'], control: 'the chart’s settings gear', title: 'Finding chart settings', topic: 'chartSettings',
     words: [/\b(chart )?settings?\b/, /\b(theme|colou?rs?|background|candles?|grid ?lines?|crosshair|legend)\b/],
     caps: ['chart.setSetting'],
-    explain: 'Each chart’s settings open from the gear on its header: price style, canvas (background, grid), indicators, header and markers — and UCT Chart Themes for a one-click look.',
+    // C1-127: the gear, right-click → Chart settings and Alt+, are ONE door (ChartPane.openSettings) — the one chartSetup.openSettings opens
+    explain: 'Each chart’s settings open from the gear on its header (or right-click the chart → Chart settings, or Alt+,): price style, canvas (background, grid), indicators, header and markers — and UCT Chart Themes for a one-click look.',
     steps: [
       { target: 'chart.settings', text: 'Click the gear to open this chart’s settings.', waitFor: 'chartSettings' },
       { target: 'chartSettings.tab.price', text: 'Price Style, Canvas, Indicators, Header and Markers are the tabs along the top.' },
     ],
-    doIt: { say: 'Tell me the change — for example “dark theme on this chart”, “hide the grid” or “candles to hollow”.' },
+    doIt: { say: 'Say “open chart settings” and I’ll open them on this chart for you — or tell me the change, for example “dark theme on this chart”, “hide the grid” or “candles to hollow”.' },
   },
 
   // ── ⭐ W2-C2: the other pages (/screener, /breadth, /calendar, /journal) ──
@@ -646,13 +647,13 @@ export const GUIDE_FEATURES = [
     doIt: { say: 'Tell me the ticker — for example “when does NVDA report?” — and I’ll look it up.' },
   },
   {
-    id: 'journalNewNote', surface: 'journal', terms: ['new note', 'notes', 'notebook note'], control: 'the + New note button', title: 'Writing a new note', topic: 'journal',
+    id: 'journalNewNote', surface: 'journal', terms: ['new note', 'notes', 'notebook note'], control: 'the + New button', title: 'Writing a new note', topic: 'journal',
     words: [/\b(new|add|create|write|make|start)\b.*\bnotes?\b/, /\bnotes?\b/],
     caps: ['journal.createNote'],
-    // pages/journal-2-0/tabs/NotebookTab.jsx (+ New note) · components/notebook/NewNoteMenu.jsx (Home's New note)
-    explain: '+ New note starts a blank note in your Notebook; the arrow beside it starts one from an outline or a template. Notes save as you type.',
+    // pages/journal-2-0/tabs/NotebookTab.jsx (the notes list's + New, data-guide="journal.newNote")
+    explain: '+ New starts a blank note in your Notebook; the arrow beside it has the other ways to start one: from a template, a voice note or an import. Notes save as you type.',
     steps: [
-      { target: 'journal.newNote', text: 'Click + New note to start a blank note — it saves as you type.' },
+      { target: 'journal.newNote', text: 'Click + New to start a blank note. It saves as you type.' },
     ],
     doIt: { say: 'Tell me what it should say — for example “add a note: NVDA held its 21-day on earnings” — and I’ll add it (Undo moves it to Trash).' },
   },

@@ -174,7 +174,10 @@ describe('the closed table declares scalars, and both lanes read the same one', 
     //                                not member columns, excluded with their own reason.
     // 110 -> 111 on 2026-11-10 (RS split S1): rs_rating_9m, excluded like the other rating-history columns.
     // => 116: master's four live_base_* columns + the RS split's rs_rating_9m (both 2026-11-10).
-    expect(Object.keys(excluded).length).toBe(116)
+    //   excluded 116 + 5 = 121       the five RS Exit Warning columns (2026-11-13): `rs_exit_last`
+    //                                (TEXT, a verdict, stays excluded) and four ages, NULL until the
+    //                                first build after deploy (R8). Python pin: (149, 116) -> (149, 121).
+    expect(Object.keys(excluded).length).toBe(121)
     for (const [column, why] of Object.entries(excluded)) {
       expect(names, `${column} is in BOTH halves of the partition`).not.toContain(column)
       expect(String(why).length).toBeGreaterThan(20)

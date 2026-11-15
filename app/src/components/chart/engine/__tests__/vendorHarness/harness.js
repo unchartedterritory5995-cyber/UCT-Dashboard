@@ -11,10 +11,11 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { validateCapture } from '../../../../../../../tools/vendor_harness/schema.mjs'
-import { compareCapture, renderSummary } from '../../../../../../../tools/vendor_harness/compare.mjs'
+import { compareCapture, renderSummary, compareObjectsV2 } from '../../../../../../../tools/vendor_harness/compare.mjs'
 import { detectFormat, fromObservation, fromProbeRows } from '../../../../../../../tools/vendor_harness/adapters.mjs'
 import { runOurSide } from './ourSide'
 import { pairObjects } from './objectColours'
+import { pairRecords } from './objectRecords'
 import { gradePaints } from './paintColours'
 
 export const REPO = path.resolve(process.cwd(), '..')
@@ -96,7 +97,20 @@ export function gradeCapture(capture, opts = {}) {
     : null
   const paints = paintsGraded(opts) && ours && ours.ok ? gradePaints(capture, ours) : null
   const verdict = compareCapture(capture, ours, { integrity, objectColours, paints })
-  return { verdict, ours, integrity }
+  return { verdict, ours, integrity, objectsV2: objectsV2Of(capture, ours, verdict) }
+}
+
+/** ⭐ OBJECTS v2 — every paired record graded field by field
+ *  (`compare.mjs::compareObjectsV2`). A SEPARATE report beside the verdict: the
+ *  verdict, and every ratchet that reads it, stays v1. `null` where v1 graded no
+ *  objects. */
+export function objectsV2Of(capture, ours, verdict) {
+  if (!verdict || !verdict.objects) return null
+  const pairing = capture.objects && capture.objects.records
+    && ours && ours.ok && ours.objects && ours.objects.ok && Array.isArray(ours.objects.held)
+    ? pairRecords(capture, ours.objects)
+    : null
+  return compareObjectsV2(verdict.objects, pairing, (ours && ours.objects && ours.objects.withheldFamilies) || [])
 }
 
 /**
@@ -113,8 +127,9 @@ export function runHarness(dirs = [VENDOR_DIR], opts = {}) {
       inventory.push({ file: loaded.file, format: loaded.format, reason: loaded.reason })
       continue
     }
-    const { verdict, ours } = gradeCapture(loaded.capture, opts)
-    results.push({ file: loaded.file, format: loaded.format, ...verdict, ourNotes: ours ? ours.notes : [] })
+    const { verdict, ours, objectsV2 } = gradeCapture(loaded.capture, opts)
+    results.push({ file: loaded.file, format: loaded.format, ...verdict, ourNotes: ours ? ours.notes : [],
+      ...(objectsV2 ? { objectsV2 } : {}) })
   }
   return { results, inventory, table: renderSummary(results), files: files.length }
 }

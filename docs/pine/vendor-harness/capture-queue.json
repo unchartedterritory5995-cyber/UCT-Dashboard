@@ -54,12 +54,14 @@
    "docs/pine/capture-queue-2026-11-06-w6-t6.md",
    "docs/pine/capture-queue-2026-11-06-w6.md",
    "docs/pine/capture-queue-2026-11-07-honesty-sweep.md",
-   "docs/pine/capture-queue-2026-11-07-i6a-n4.md"
+   "docs/pine/capture-queue-2026-11-07-i6a-n4.md",
+   "docs/pine/capture-queue-2026-11-09-div3-merged-head.md",
+   "docs/pine/capture-queue-2026-11-10-c22-array-gc.md"
   ],
   "coverageMeasuredOn": "2026-11-05",
   "coverageMasterSha": "3ca4b0d358",
-  "fixtures": 353,
-  "ledgerRows": 0
+  "fixtures": 416,
+  "ledgerRows": 103
  },
  "definitions": {
   "priority": "|firm ∪ named ∪ direct| — firm: non-transferring sample scripts whose every host wall is a guard the target's rows name; named: non-transferring scripts the rows name; direct: the target IS a transferring, never-MATCHed sample script (its capture verifies it)",
@@ -79,19 +81,19 @@
   }
  },
  "counts": {
-  "targets": 298,
+  "targets": 301,
   "byStatus": {
-   "CAPTURED": 78,
+   "CAPTURED": 83,
    "NEEDS_CHART": 39,
    "NEEDS_LIVE": 2,
-   "QUEUED": 179
+   "QUEUED": 177
   },
   "byPlanWave": {
    "E": {
-    "CAPTURED": 65,
+    "CAPTURED": 70,
     "NEEDS_CHART": 37,
     "NEEDS_LIVE": 2,
-    "QUEUED": 146
+    "QUEUED": 144
    },
    "W1": {
     "QUEUED": 6
@@ -114,12 +116,12 @@
     "CAPTURED": 61,
     "NEEDS_CHART": 38,
     "NEEDS_LIVE": 2,
-    "QUEUED": 164
+    "QUEUED": 167
    },
    "1-2": {
-    "CAPTURED": 17,
+    "CAPTURED": 22,
     "NEEDS_CHART": 1,
-    "QUEUED": 15
+    "QUEUED": 10
    }
   },
   "byDocWave": {
@@ -132,11 +134,13 @@
     "NEEDS_CHART": 2
    },
    "E-census": {
-    "CAPTURED": 6,
-    "QUEUED": 5
+    "CAPTURED": 11
    },
    "b1-paints": {
     "CAPTURED": 2
+   },
+   "c22-array-gc": {
+    "QUEUED": 1
    },
    "c45": {
     "CAPTURED": 8
@@ -153,6 +157,9 @@
    },
    "call-site-history": {
     "CAPTURED": 2
+   },
+   "div3-merged-head": {
+    "QUEUED": 2
    },
    "fn-series-history": {
     "CAPTURED": 1
@@ -1697,8 +1704,10 @@
   },
   {
    "id": "pivot-high-low-points__hoTsDQRY3L@NYSE:RDDT@D",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/pivot-high-low-points-rddt-1d-2026-11-14.json"
+   ],
    "source": "corpus/committed/pivot-high-low-points__hoTsDQRY3L.pine",
    "sourceKind": "corpus",
    "sha256": "157699de27f04cd391d0def8bec9d1854fa3414c0477af4d8049d5133e70a223",
@@ -1711,7 +1720,9 @@
    "chartDefaulted": false,
    "chartSource": "census",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "NYSE:RDDT D"
+   ],
    "licence": "corpus",
    "needsLive": false,
    "priority": 1,
@@ -1786,8 +1797,10 @@
   },
   {
    "id": "relative-volume__LnFmPEoFXQ@NYSE:RDDT@D",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/relative-volume-rddt-1d-2026-11-14.json"
+   ],
    "source": "corpus/committed/relative-volume__LnFmPEoFXQ.pine",
    "sourceKind": "corpus",
    "sha256": "7e60ca18d4b065fa9ca5df9cb36c0899f95b37dd09cce3c8068a24008338f52c",
@@ -1800,7 +1813,9 @@
    "chartDefaulted": false,
    "chartSource": "census",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "NYSE:RDDT D"
+   ],
    "licence": "corpus",
    "needsLive": false,
    "priority": 1,
@@ -1828,8 +1843,10 @@
   },
   {
    "id": "smart-money-interest-index-algoalpha__effdd7852c@NYSE:RDDT@D",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/smart-money-interest-index-algoalpha-rddt-1d-2026-11-14.json"
+   ],
    "source": "corpus/committed/smart-money-interest-index-algoalpha__effdd7852c.pine",
    "sourceKind": "corpus",
    "sha256": "571a7211764f620cb410daf75749a532fe84fdec5925bcf6994beec3905df250",
@@ -1842,7 +1859,9 @@
    "chartDefaulted": false,
    "chartSource": "census",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "NYSE:RDDT D"
+   ],
    "licence": "corpus",
    "needsLive": false,
    "priority": 1,
@@ -1870,8 +1889,10 @@
   },
   {
    "id": "smart-money-volume-index-algoalpha__6663950b80@NYSE:RDDT@D",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/smart-money-volume-index-algoalpha-rddt-1d-2026-11-14.json"
+   ],
    "source": "corpus/committed/smart-money-volume-index-algoalpha__6663950b80.pine",
    "sourceKind": "corpus",
    "sha256": "585e61e2d8c81156a4b716edba4415a5ae6d6b51d41aaf2a75aaff03673bcd83",
@@ -1884,7 +1905,9 @@
    "chartDefaulted": false,
    "chartSource": "census",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "NYSE:RDDT D"
+   ],
    "licence": "corpus",
    "needsLive": false,
    "priority": 1,
@@ -2006,8 +2029,10 @@
   },
   {
    "id": "support-and-resistance__1505@NYSE:RDDT@D",
-   "status": "QUEUED",
-   "evidence": [],
+   "status": "CAPTURED",
+   "evidence": [
+    "tests/fixtures/vendor/harness/support-and-resistance-5f95e90f-rddt-1d-2026-11-13.json"
+   ],
    "source": "corpus/committed/support-and-resistance__1505.pine",
    "sourceKind": "corpus",
    "sha256": "5f95e90f1714bc164b2982b9ce1eb447218c8b830dbcb5e0374ec3f4d0416a84",
@@ -2020,7 +2045,9 @@
    "chartDefaulted": false,
    "chartSource": "census",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "NYSE:RDDT D"
+   ],
    "licence": "corpus",
    "needsLive": false,
    "priority": 1,
@@ -9632,7 +9659,9 @@
    "chartDefaulted": false,
    "chartSource": "row",
    "unparsedCharts": [],
-   "capturedOn": [],
+   "capturedOn": [
+    "NYSE:RDDT D"
+   ],
    "licence": "probe",
    "needsLive": false,
    "priority": 0,
@@ -14283,6 +14312,132 @@
    "origins": [
     "queue-doc"
    ]
+  },
+  {
+   "id": "vw-div3-merged-head-every-bar@AMEX:SPY@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-div3-merged-head-every-bar.pine",
+   "sourceKind": "probe",
+   "sha256": "a08bafc70f647fbf4996f39fe1a4e08ce94b4e91a10d64b5c3954df2c5842852",
+   "bytes": 1154,
+   "stem": "vw-div3-merged-head-every-bar",
+   "captureStem": "vw-div3-merged-head-every-bar",
+   "symbol": "AMEX:SPY",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "div3-merged-head"
+   ],
+   "oldestDoc": "2026-11-09",
+   "rows": [
+    "capture-queue-2026-11-09-div3-merged-head#Q-DIV3-2"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-div3-merged-head-rewrite@AMEX:SPY@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-div3-merged-head-rewrite.pine",
+   "sourceKind": "probe",
+   "sha256": "a15444ebabe450d0bee0fb2c16b689733250b2cc5bee99208963fd4b763e8592",
+   "bytes": 2504,
+   "stem": "vw-div3-merged-head-rewrite",
+   "captureStem": "vw-div3-merged-head-rewrite",
+   "symbol": "AMEX:SPY",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "div3-merged-head"
+   ],
+   "oldestDoc": "2026-11-09",
+   "rows": [
+    "capture-queue-2026-11-09-div3-merged-head#Q-DIV3-1"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
+  },
+  {
+   "id": "vw-c22-array-gc@AMEX:SPY@D",
+   "status": "QUEUED",
+   "evidence": [],
+   "source": "tools/visual_conformance/probes/vw-c22-array-gc.pine",
+   "sourceKind": "probe",
+   "sha256": "f1642cc037e606a2dba3d9bd8e3ec18056a270bb847f98669d5a1d25e19135f7",
+   "bytes": 1863,
+   "stem": "vw-c22-array-gc",
+   "captureStem": "vw-c22-array-gc",
+   "symbol": "AMEX:SPY",
+   "tf": "1D",
+   "fromListing": false,
+   "chartDefaulted": false,
+   "chartSource": "row",
+   "unparsedCharts": [],
+   "capturedOn": [],
+   "licence": "probe",
+   "needsLive": false,
+   "priority": 0,
+   "unblocks": {
+    "priority": 0,
+    "firm": [],
+    "named": [],
+    "direct": [],
+    "upper": 0,
+    "upperSample": []
+   },
+   "statedUnblocks": null,
+   "guards": [],
+   "planWave": "E",
+   "docWaves": [
+    "c22-array-gc"
+   ],
+   "oldestDoc": "2026-11-10",
+   "rows": [
+    "capture-queue-2026-11-10-c22-array-gc#Q-C22-1"
+   ],
+   "origins": [
+    "queue-doc"
+   ]
   }
  ],
  "rowsNeedingProbe": [
@@ -16314,6 +16469,18 @@
    "doc": "docs/pine/capture-queue-2026-11-07-i6a-n4.md",
    "wave": "i6a-n4",
    "rows": 6,
+   "contextTables": 0
+  },
+  {
+   "doc": "docs/pine/capture-queue-2026-11-09-div3-merged-head.md",
+   "wave": "div3-merged-head",
+   "rows": 2,
+   "contextTables": 0
+  },
+  {
+   "doc": "docs/pine/capture-queue-2026-11-10-c22-array-gc.md",
+   "wave": "c22-array-gc",
+   "rows": 1,
    "contextTables": 0
   }
  ]

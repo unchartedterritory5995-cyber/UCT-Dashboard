@@ -43,16 +43,33 @@
   }
 }
 .section { display: flex; flex-direction: column; gap: 2px; }
-.sectionLabel {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 1.2px;
+/* Notebook simplify, Task 2: the "More" and "Tags" folds. The button is the fold's label (the old Tags
+   heading's type) with a chevron; closed, the fold draws no rows at all. A fold held open (its row is the
+   list on screen) says so with aria-disabled and does nothing when pressed. */
+.foldBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 4px 8px 4px 4px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
   color: var(--text-muted);
-  padding: 0 8px 6px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  letter-spacing: 1.2px;
+  text-align: left;
+  text-transform: uppercase;
+  transition: color var(--duration-fast) var(--ease-out);
 }
-/* Wave B: Favorites/Recents section header — same weight as .sectionLabel,
-   inline with its leading UIcon, sitting beside a .disclosureBtn instead of
-   standing alone (unlike Tags, these sections collapse). */
+.foldBtn:hover { color: var(--text-bright); }
+.foldBtn[aria-disabled='true'] { cursor: default; }
+.foldBtn[aria-disabled='true']:hover { color: var(--text-muted); }
+.foldBody { display: flex; flex-direction: column; gap: 2px; }
+/* Wave B: Favorites/Recents section header — same type as the folds' labels,
+   inline with its leading UIcon, sitting beside a .disclosureBtn. */
 .sectionHeaderLabel {
   display: inline-flex;
   align-items: center;
@@ -419,24 +436,6 @@
   text-align: left;
 }
 .noteRow:hover { background: var(--bg-hover); color: var(--text-bright); }
-/* Wave G checkpoint §48 — one-click starter thesis views, shown only while
-   the member has zero saved views of their own. */
-.starterViewsBtn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  width: 100%;
-  padding: 5px 10px;
-  border: none;
-  background: transparent;
-  color: var(--text-muted);
-  cursor: pointer;
-  border-radius: var(--radius-md);
-  font-size: 12px;
-  text-align: left;
-}
-.starterViewsBtn:hover { background: var(--bg-hover); color: var(--accent); }
-.starterViewsBtn:disabled { opacity: 0.6; cursor: default; }
 /* Wave B: search-results loading skeleton, replacing the plain "Searching…"
    text on the one high-frequency structural load in this panel. */
 .searchResultsSkeleton { display: flex; flex-direction: column; gap: 12px; padding: 8px 10px; }
@@ -445,14 +444,8 @@
 .noteTitle { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .actions { display: flex; gap: 4px; opacity: 0; transition: opacity var(--duration-fast) var(--ease-out); margin-left: auto; }
 .row:hover .actions { opacity: 1; }
-/* UX #1, 2026-09-22: Saved Views' rename/delete affordance reuses
-   `.actions`/`.iconBtn` (the same hover-reveal pattern folder rows use).
-   Wave 7 lane J, J5: those two controls are now real buttons BESIDE the
-   select button, not inside it, so they are revealed by the ROW
-   (`.viewRow`) -- on hover, and on keyboard focus of any of its three
-   buttons, so a Tab stop is never an invisible control. */
-.viewRow:hover .actions,
-.viewRow:focus-within .actions { opacity: 1; }
+/* ⚰️ `.viewRow` (the saved-view rows' hover/focus reveal) left with the rows: Notebook simplify Task 2 moved
+   the saved views into the View menu (SavedViewsMenuGroup.module.css). */
 /* Wave 8 (8A, A2): a FOLDER row's Rename / Add subfolder / Delete are real
    buttons beside the row button now (they were spans nested inside it), so
    the row wrapper reveals them -- on hover and on keyboard focus. */
@@ -516,6 +509,13 @@
   flex: 0 0 auto;
 }
 .renameTagBtn:hover { color: var(--accent); }
+/* Notebook simplify, Task 2: the pencil was on every tag row all the time. It shows on the row's hover and
+   whenever the row holds keyboard focus (the tag list's Right arrow lands on it, so it is never an invisible
+   Tab stop); on touch, which has no hover, it is always shown (the touch tier and `hover: none` below). */
+.renameTagBtn { opacity: 0; transition: opacity var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out); }
+.rowWrap:hover > .renameTagBtn,
+.rowWrap:focus-within > .renameTagBtn,
+.renameTagBtn:focus-visible { opacity: 1; }
 .tagRenamePanel {
   display: flex;
   flex-direction: column;
@@ -557,6 +557,7 @@
  * give every control a 44px tap target. Desktop (≥1025px) is untouched. */
 @media (hover: none) {
   .actions { opacity: 1; }
+  .renameTagBtn { opacity: 1; }
 }
 @media (max-width: 640px) {
   /* Wave 10 lane DR-F (design finding D-7): this used to be hidden here because
@@ -619,7 +620,7 @@
 
      ⚰️ This block used to claim it "already raised every other interactive
      element in the sidebar to --tap-min". It had not: .starterViewsBtn
-     measured 236x24 at a real 820px viewport on 2026-09-20. A comment
+     measured 236x24 at a real 820px viewport on 2026-09-20 (it has since moved to the View menu). A comment
      asserting completeness over a list nobody derived is how the next miss
      stays invisible -- so the sentence is gone rather than extended, and the
      standing check is a measurement (an owned-browser probe at 390/820),
@@ -650,8 +651,9 @@
   .addBtn {
     min-height: var(--tap-min, 44px);
   }
-  /* Measured 236x24 at 820px — the shortest target in the panel. */
-  .starterViewsBtn {
+  /* Task 2: the fold buttons are finger targets too. (`.starterViewsBtn`, measured 236x24 at 820px, left
+     with the saved views for the View menu.) */
+  .foldBtn {
     min-height: var(--tap-min, 44px);
   }
   .editInput {
@@ -683,6 +685,8 @@
   .renameTagBtn {
     min-width: var(--tap-min, 44px);
     min-height: var(--tap-min, 44px);
+    /* Task 2: always shown on the touch tier, where nothing hovers. */
+    opacity: 1;
   }
   .tagRenameActionBtn {
     min-height: var(--tap-min, 44px);

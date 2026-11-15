@@ -338,7 +338,7 @@ export default function ThesisReviewSection({
             Completing records your decision and this note in your review history.
             It does not change the thesis itself — edit the thesis above if you
             want it to change.
-            {nextReviewAt && ' It also sets this thesis’s Review Date, so it appears in Research Home when it comes due.'}
+            {nextReviewAt && ' It also sets this thesis’s Review Date, so it appears on your Daily brief when it comes due.'}
           </p>
 
           {error && <div className={styles.error} role="alert">{error}</div>}

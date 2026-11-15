@@ -14,6 +14,7 @@
  * properties included), so no existing revision moves.
  */
 import { todayET } from './calendar'
+import { NOTEBOOK_EVENTS, trackNotebookEvent } from './notebookTelemetry'
 
 /** The preference that names the member's daily template (a template id, or ''). */
 export const DAILY_TEMPLATE_PREF = 'notebook_daily_template'
@@ -23,9 +24,11 @@ export const DAILY_TEMPLATE_PREF = 'notebook_daily_template'
 export const DAILY_TEMPLATE_MISSING = "Your daily template no longer exists, so today's note started blank."
 
 /** Audit 2026-11-05, spec S2 (B12): what a door says when it MADE the day's note. The server files a
- *  new daily note in a root `Daily` folder (creating the folder the first time); a member who never
- *  made that folder deserves to know where the note went. One sentence, one place. */
-export const DAILY_FOLDER_NOTICE = 'Saved in your Daily folder.'
+ *  new daily note in the member's root daily folder (creating it the first time); a member who never
+ *  made that folder deserves to know where the note went. One sentence, one place.
+ *  Simplify pass 2 (A3): that folder is "Daily notes" for a new member and stays "Daily" for one who
+ *  already has it, so the sentence names neither (it said "Saved in your Daily folder."). */
+export const DAILY_FOLDER_NOTICE = 'Saved with your daily notes.'
 
 /** Fix round 1 (review finding 7): a door OUTSIDE the Notebook (Today, the Compass recap card,
  *  Insights) that made the day's note navigates away at once, so it cannot say where the note went.
@@ -55,8 +58,10 @@ export function takeQueuedNotebookNotice({ noteId = null, now = Date.now() } = {
 }
 
 /** Open (or make) today's note. Resolves `{note, created, templateMissing}`. `seedToday` (Tier 3b fix round 1, I3/I9):
- *  a note this call MAKES starts with the Today home's plan -- the first run's Build and Today's "Start a fresh one". */
-export async function openDailyNote({ templateId, today = todayET, seedToday = false } = {}) {
+ *  a note this call MAKES starts with the Today home's plan -- the first run's Build and Today's "Start a fresh one".
+ *  Follow-up A: `door` (a `today_door_used` door id) counts one use of that door once the note is there, with whether
+ *  this call made it. A caller with no door (the first run) counts nothing. */
+export async function openDailyNote({ templateId, today = todayET, seedToday = false, door = null } = {}) {
   const res = await fetch('/api/j2/notes/daily', {
     method: 'POST',
     credentials: 'include',
@@ -68,7 +73,9 @@ export async function openDailyNote({ templateId, today = todayET, seedToday = f
     err.status = res.status
     throw err
   }
-  return res.json()
+  const out = await res.json()
+  if (door) trackNotebookEvent(NOTEBOOK_EVENTS.TODAY_DOOR_USED, { door, created: out?.created === true })
+  return out
 }
 
 /**

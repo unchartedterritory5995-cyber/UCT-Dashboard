@@ -183,7 +183,8 @@ def test_the_rs_addresses_are_appended_last_and_declare_the_benchmark_shape():
     assert keys[31] == "ma_cross", "the 32 pre-RS entries are unmoved"
     assert keys[32:] == list(ars.RS_ADDRESSES) == list(ars.RS_SERIES)
     # 2026-11-10 (RS split, S2): 16 = the 12 `rs_line.*` + the 4 split addresses, appended after the rating
-    assert len(ars.RS_ADDRESSES) == 16 and all(a.startswith("rs_line.") for a in ars.RS_ADDRESSES[:12])
+    # 2026-11-12 (RS Exit Warnings): 19 = those + the 3 `rs_exit.*` warnings, appended after the split four
+    assert len(ars.RS_ADDRESSES) == 19 and all(a.startswith("rs_line.") for a in ars.RS_ADDRESSES[:12])
     assert ars.RS_ADDRESSES[11] == "rs_line.rating" == ars.RS_RATING_ADDRESS, "2b-06: the rating closes the rs_line block"
     assert ars.RS_ADDRESSES[12:] == ars.RS_SPLIT_ADDRESSES
     assert len(ars.RS_ADDRESS_SPECS) == 11 and "rs_line.rating" not in ars.RS_ADDRESS_SPECS, \
@@ -200,7 +201,7 @@ def test_the_rs_addresses_are_appended_last_and_declare_the_benchmark_shape():
         assert alert_series.address_inputs(address) == fn.inputs
         assert "benchmark" in fn.inputs and fn.inputs["benchmark"] == rb.DEFAULT_BENCHMARK == "SPY"
         # the chart's menu minus INDUSTRY, derived from the chart's one list
-        assert fn.input_options["benchmark"] == [b for b in rd.RS_LINE_BENCHMARKS if b != "INDUSTRY"]
+        assert fn.input_options["benchmark"] == [b for b in rd.RS_LINE_BENCHMARKS if b != "INDUSTRY"] + ["THEME"]
         assert "INDUSTRY" not in fn.input_options["benchmark"]
         if "maType" in spec.inputs:
             assert fn.input_options["maType"] == ["EMA", "SMA"]

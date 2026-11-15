@@ -155,14 +155,17 @@ def test_the_library_names_NO_AUTHOR(store):
     """⚠️ A DECISION, NOT AN OMISSION. Members published a formula, not their
     name. Attribution is additive later and cannot be taken back once shipped, so
     the default is the reversible one — while `author_id` still rides on an
-    INSTALL, where the recipient was handed the link deliberately.
+    INSTALL, where the recipient was handed the link deliberately -- server-side only since
+    2026-11-13 (`tests/test_share_privacy.py`).
     """
     out = _publish(store)
     entry = store.public_library()["entries"][0]
     assert "author_id" not in entry
     assert USER not in repr(entry)
-    # …and the install path is unchanged: it still carries provenance.
-    assert store.resolve_share(out["token"])["author_id"] == USER
+    # …and the install path still records provenance, SERVER-side only (share privacy,
+    # 2026-11-13: no share answer carries the author's member id)
+    assert "author_id" not in store.resolve_share(out["token"])
+    assert store.resolve_share(out["token"], _with_author=True)["author_id"] == USER
 
 
 def test_an_entry_carries_what_a_member_needs_to_choose_it(store):

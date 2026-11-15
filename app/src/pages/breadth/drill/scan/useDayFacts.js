@@ -1,7 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import { memPeek } from '../../../../utils/barsMemCache'
-import { prepareForDisplay } from '../../../../utils/prefetchBars'
+import { prepareForDisplay as legacyPrepare } from '../../../../utils/prefetchBars'
+import { prepareForDisplay as storePrepare, peekBars } from '../../../../data/barStore/prefetch'
+import { BARSTORE } from '../../../../components/chart/barStoreSwitch'
 import { dayFacts } from './scanDeckModel'
+
+// P3-S1: read and prepare through the chart's own bar source (chart/barStoreSwitch.js). Under
+// BARSTORE the store's held set comes first (`peekBars`), the mem cache second.
+const prepareForDisplay = BARSTORE ? storePrepare : legacyPrepare
+const dailyBars = (sym) => (BARSTORE ? (peekBars(sym, 'D') || memPeek(sym, 'D')) : memPeek(sym, 'D'))
 
 /**
  * DCR, gap, ADR(20) and $ volume for ONE stock on the drill's day, from the same
@@ -15,16 +22,18 @@ import { dayFacts } from './scanDeckModel'
 export default function useDayFacts(sym, date) {
   const key = sym ? `${sym}|${date || 'live'}` : null
   // A pure read of the memory cache; `memPeek` does not reorder the LRU.
-  const cached = useMemo(() => (sym ? dayFacts(memPeek(sym, 'D'), date || null) : null), [sym, date])
+  const cached = useMemo(() => (sym ? dayFacts(dailyBars(sym), date || null) : null), [sym, date])
   const [loaded, setLoaded] = useState({ key: null, facts: null })
 
   useEffect(() => {
     if (!sym || cached) return undefined
     let cancelled = false
-    prepareForDisplay(sym, 'D')
-      .then(() => { if (!cancelled) setLoaded({ key, facts: dayFacts(memPeek(sym, 'D'), date || null) }) })
+    // Aborted when the row is left: the store's prepare then cancels its request.
+    const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null
+    prepareForDisplay(sym, 'D', { signal: ctl?.signal ?? null })
+      .then(() => { if (!cancelled) setLoaded({ key, facts: dayFacts(dailyBars(sym), date || null) }) })
       .catch(() => {})
-    return () => { cancelled = true }
+    return () => { cancelled = true; try { ctl?.abort() } catch { /* ignore */ } }
   }, [sym, date, key, cached])
 
   return cached || (loaded.key === key ? loaded.facts : null)

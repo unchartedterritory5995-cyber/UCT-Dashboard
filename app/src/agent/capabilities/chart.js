@@ -46,6 +46,12 @@ import { MAX_COMPARISONS } from '../../components/chart/chartCeilings'
 import { isPronounToken, isReservedWord, groundSymbols, groundingOf, resolvedTicker, candidatesText, suggestionText } from '../nl/tickers'
 import { plainSymbolWord } from '../nl/lexicon'
 import { matchName } from '../nl/match'
+import { whenVisible } from '../frames'
+// C1-178: as app.js NAV_DELAY_MS — the receipt is on screen before Ask AI leaves Charts
+const ASK_AI_DELAY_MS = 900
+import { readFavoriteTools, writeFavoriteTools } from '../../components/chart/drawToolFavorites'
+import { normalizeDock } from '../../pages/charts/widgets/chartDock'
+import { replayDone, replaySig, replayContext, bareExitFast, exitGuard, isCutoffExit, replayStopped } from './chartReplay'
 
 // The chart types and the timeframes UCT charts natively are the PRODUCT's lists
 // (chartDefaults.CHART_TYPE_OPTIONS, timeframes.NATIVE_TFS) — imported, never copied, so a new
@@ -252,15 +258,44 @@ function fastSetting(text) {
 // ── the date view (chart.goToDate) ──
 const DAY_MS = 86400000
 // Did the chart's own view control land? Read from getDateMeta, which asks the time scale.
-export function viewDone(meta, { op, arg }) {
+export function viewDone(meta, { op, arg, want }) {
   if (!meta) return false
   if (op === 'applyRange') return meta.activeRange === arg
   if (op === 'resetView') return meta.atDefaultView === true
   if (op === 'restoreView') return sameFrame(meta.frame, arg)
+  // the ◀ / ▶ step: the window moved by exactly the bars asked (right-relative, within a bar), never just "it moved"
+  if (op === 'stepBar') return !!meta.frame && !!want && Math.abs(meta.frame.fromRight - want.fromRight) < 0.6 && Math.abs(meta.frame.toRight - want.toRight) < 0.6
+  // the + / - zoom: the window narrowed (in) or widened (out) by at least half a bar, and its width is the one asked within a bar
+  if (op === 'zoom') return !!meta.frame && !!want && zoomedTo(meta.frame, want)
+  // Auto-scale: the price scale itself says it fits the bars (unreadable is never "done")
+  if (op === 'autoScale') return meta.priceAuto === true
+  // the Position Calculator (drawing extras): open or closed, and its entry / stop / target, as the panel shows them
+  if (op === 'positionCalc') return samePositionCalc(meta.positionCalc, arg)
+  // chartReplay.playback: the Replay / Time Machine bar's own state (on, playing, speed, scrubber index) as asked
+  if (op === 'replay') return replayDone(meta.replay, want)
   return meta.indicatorsHidden === arg
 }
 // The window (right-relative, within a bar: the tolerance of the range read-back) and the view lock, as a range button found them.
-const sameFrame = (a, b) => !!a && !!b && Math.abs(a.fromRight - b.fromRight) < 0.6 && Math.abs(a.toRight - b.toRight) < 0.6 && !!a.locked === !!b.locked
+// What a view change's Undo is pinned to: the range shown, the window a step left (to a tenth of a bar), or hide-all.
+const viewFp = (snap, op, vd) => {
+  if (op === 'applyRange') return snap.view?.activeRange ?? null
+  // a replay Undo is stale once the member moved the replay themselves (its bar's buttons, the scrubber, the speed)
+  if (op === 'replay') return replaySig(snap.view?.replay, vd?.arg?.op)
+  // a Position Calculator's Undo is stale once the member typed in its panel or closed it themselves
+  if (op === 'positionCalc') return positionCalcSig(snap.view?.positionCalc)
+  if (op === 'stepBar' || op === 'zoom') { const f = snap.view?.frame; return f ? `${f.fromRight.toFixed(1)}|${f.toRight.toFixed(1)}` : null }
+  return !!snap.view?.indicatorsHidden
+}
+/** The Position Calculator's read-back: open, and its three prices (as numbers; '' = empty). */
+export const positionCalcSig = (p) => (p ? JSON.stringify([!!p.open, ...['entry', 'stop', 'target'].map(k => (p[k] === '' || p[k] == null ? null : Number(p[k])))]) : null)
+const samePositionCalc = (a, b) => !!a && !!b && positionCalcSig(a) === positionCalcSig(b)
+// the window's width in bars (logical to − from), and whether a zoom landed: the right direction, by the width asked
+const frameWidth = (f) => f.fromRight - f.toRight
+const zoomedTo = (f, want) => {
+  const w = frameWidth(f)
+  return (want.out ? w > want.from + 0.5 : w < want.from - 0.5) && Math.abs(w - want.width) < 1
+}
+const sameFrame = (a, b) =>!!a && !!b && Math.abs(a.fromRight - b.fromRight) < 0.6 && Math.abs(a.toRight - b.toRight) < 0.6 && !!a.locked === !!b.locked
 // Did the view arrive? The Time Navigator puts the LAST BAR ON OR BEFORE the date at the right
 // edge (clamped to the first bar before inception, and to the last bar for a future date).
 export function viewAt(meta, target) {
@@ -298,7 +333,9 @@ function withMemberState(host, snap) {
   if (!snap) return null
   const prefs = host?.prefs?.read?.() || null
   const raw = prefs?.[VOL_PANE_PREF]
-  return { ...snap, volPanePref: raw == null || raw === '' ? null : String(raw), volPanePct: paneVolumePct(prefs), prefsWritable: typeof host?.prefs?.write === 'function' }
+  return { ...snap, volPanePref: raw == null || raw === '' ? null : String(raw), volPanePct: paneVolumePct(prefs), prefsWritable: typeof host?.prefs?.write === 'function',
+    // C1-165: the member's favourite drawing tools (the toolbar's ★, per browser — drawToolFavorites), as volPanePref is a member pref
+    favoriteTools: readFavoriteTools() }
 }
 
 // ── target kind ─────────────────────────────────────────────────────────────
@@ -323,12 +360,22 @@ function scopedFp(snap, item) {
 }
 export const chartKind = {
   name: 'chart',
+  source: 'charts',             // fix-nothing-on-workspace: the host source this kind reads (capabilities.noTargetSentence)
+  unavailable: "Charts aren't available on this page — open Charts to change a chart.",
+  empty: "There are no charts on this board yet.",
   list: (host) => (host?.charts?.list() || []).map(s => withMemberState(host, s)),
   read: (host, ref) => withMemberState(host, host?.charts?.read(ref) || null),
   // `replay`: the workspace's Replay Mode cutoff (W1-B B-06) — undefined when the host has none (then chart.replay refuses)
-  stateOf: (snap) => ({ cs: snap.cs, tf: snap.tf, symbol: snap.symbol, goto: null, replay: snap.replay,
+  stateOf: (snap) => ({ cs: snap.cs, tf: snap.tf, symbol: snap.symbol, drawSym: snap.drawSym || snap.symbol, goto: null, replay: snap.replay,
     watermarkPos: snap.watermarkPos ?? null, volPanePref: snap.volPanePref ?? null, volPanePct: snap.volPanePct, prefsWritable: !!snap.prefsWritable,
-    canvasTheme: snap.canvasTheme ?? null, view: snap.view ?? null, viewDo: null }),
+    canvasTheme: snap.canvasTheme ?? null, view: snap.view ?? null, viewDo: null, favoriteTools: snap.favoriteTools || [],
+    // C1-127: the chart's own Chart Settings door — may it open here (absent = no door: false), and is it open now
+    canOpenSettings: snap.canOpenSettings === true, settingsOpen: !!snap.settingsOpen, openSettings: null,
+    // C1-178: the right-click "Ask AI about {sym}" door (absent = none)
+    canAskAi: snap.canAskAi === true, askAi: null,
+    // chartFeatures.*: the widget's Company Info panel / Earnings Strip as ChartWidget's normalizeDock reads them (null = this
+    // chart has no dock here: a Multi Chart cell, a pop-out); `dockTabs` = the chart tabs that share it (it is per WIDGET)
+    canDock: snap.canDock === true, dock: snap.canDock === true ? normalizeDock(snap.dock) : null, dockTabs: snap.dockTabs || 1 }),
   patch(before, after) {
     const p = {}
     if (after.cs !== before.cs) p.settings = after.cs
@@ -338,14 +385,19 @@ export const chartKind = {
     if (after.replay !== before.replay) p.replay = after.replay ?? null
     if (after.watermarkPos !== before.watermarkPos) p.watermarkPos = after.watermarkPos
     if (after.volPanePref !== before.volPanePref) p.volPanePref = after.volPanePref
+    if (after.favoriteTools !== before.favoriteTools) p.favoriteTools = after.favoriteTools
     if (after.viewDo != null) p.viewDo = after.viewDo
+    if (after.openSettings === true) p.openSettings = true
+    if (after.askAi === true) p.askAi = true
+    // chartFeatures.*: a dock the product's transforms changed (they hand back the SAME object when nothing changes)
+    if (after.dock !== before.dock) p.dock = after.dock
     return Object.keys(p).length ? p : null
   },
   // Settings / timeframe / ticker in ONE write through the widget; a date jump (a VIEW) through
   // the Time Navigator's own goToDate, then wait for the view to arrive (a jump past the loaded
   // history loads it first) — the receipt only claims what the chart then shows.
   async commit(host, ref, patch) {
-    const { goto, replay, volPanePref, viewDo, ...rest } = patch
+    const { goto, replay, volPanePref, viewDo, openSettings, askAi, favoriteTools, ...rest } = patch
     let ok = true
     if (Object.keys(rest).length) ok = host.charts.commit(ref, rest)
     // The drag's own pref (setPref → true only once the server accepted it); '' clears it, as Reset does (ChartsWorkspace)
@@ -354,13 +406,25 @@ export const chartKind = {
       const t0 = Date.now()
       while (Date.now() - t0 < 2000 && (chartKind.read(host, ref)?.volPanePref ?? null) !== (volPanePref ?? null)) await new Promise(r => setTimeout(r, 50))
     }
+    // C1-165: the toolbar's ★ writer (drawToolFavorites.writeFavoriteTools — it tells every mounted toolbar); true once storage holds it
+    if ('favoriteTools' in patch && ok && !writeFavoriteTools(favoriteTools)) throw new Error('this browser did not keep the change (its storage is blocked), so nothing is saved')
     // Replay Mode: ChartsWorkspace's own startReplay / exitReplayMode (a VIEW on every linked chart; nothing is saved)
     if ('replay' in patch && ok) ok = !!host.charts.setReplay?.(replay)
     // The chart's own view control; a long range may load history first (its "Loading chart history…", capped at 6s)
     if (viewDo && ok) {
-      if (!host.charts.viewDo?.(ref, viewDo.op, viewDo.arg)) return false
-      const t0 = Date.now()
-      while (Date.now() - t0 < 10000 && !viewDone(host.charts.read(ref)?.view, viewDo)) await new Promise(r => setTimeout(r, 100))
+      // chartReplay.playback: several replay ops of ONE plan ride as ordered `steps` — each pressed only once the one before it
+      // is READ BACK (the chart's door acts on its last render), and the sequence stops at the first that did not land
+      const steps = viewDo.steps || [viewDo]
+      // a step that fails AFTER earlier ones landed stops there and says exactly what the chart now shows (they stay: a
+      // receipt never claims "nothing was left changed" over a replay that is on)
+      const stop = (done) => { if (done) throw replayStopped(done, steps.length, host.charts.read(ref)?.view?.replay, steps.slice(0, done).map(s => s.arg)) }
+      for (const [done, s] of steps.entries()) {
+        const one = { op: viewDo.op, arg: s.arg, want: s.want }
+        if (!host.charts.viewDo?.(ref, one.op, one.arg)) { stop(done); return false }
+        const t0 = Date.now()
+        while (Date.now() - t0 < 10000 && !viewDone(host.charts.read(ref)?.view, one)) await new Promise(r => setTimeout(r, 100))
+        if (steps.length > 1 && !viewDone(host.charts.read(ref)?.view, one)) { stop(done); return false }
+      }
     }
     if (goto != null && ok) {
       if (!host.charts.goTo?.(ref, goto)) return false
@@ -369,6 +433,20 @@ export const chartKind = {
         if (viewAt(host.charts.read(ref)?.view, goto)) break
         await new Promise(r => setTimeout(r, 150))
       }
+    }
+    // C1-127: the chart's OWN Chart Settings dialog (the gear's openSettings), opened last — after anything else asked of
+    // this chart — then read back from the pane: the receipt says "opened" only once it is open. It writes nothing.
+    if (openSettings && ok) {
+      if (!host.charts.openSettings?.(ref)) return false
+      const t0 = Date.now()
+      while (Date.now() - t0 < 2000 && !host.charts.read(ref)?.settingsOpen) await new Promise(r => setTimeout(r, 50))
+    }
+    // C1-178: the chart's own right-click "Ask AI about {sym}" (ChartWidget openAskAi → /research/:sym?section=ai). It leaves
+    // Charts, so — as app.open — it runs AFTER the receipt is on screen (and from a hidden tab only once the member is back).
+    // The door must be there now; what it opens is the chart's symbol at that moment, exactly as the menu item would.
+    if (askAi && ok) {
+      if (typeof host.charts.askAi !== 'function' || !host.charts.read(ref)?.canAskAi) return false
+      setTimeout(() => whenVisible(() => host.charts.askAi(ref)), ASK_AI_DELAY_MS)
     }
     return ok
   },
@@ -381,10 +459,20 @@ export const chartKind = {
     if ('replay' in patch && (snap.replay ?? null) !== patch.replay) return false
     if ('watermarkPos' in patch && !sameJson(watermarkSpot(snap.watermarkPos), watermarkSpot(patch.watermarkPos))) return false
     if ('volPanePref' in patch && (snap.volPanePref ?? null) !== (patch.volPanePref ?? null)) return false
+    if ('favoriteTools' in patch && !sameJson(snap.favoriteTools, patch.favoriteTools)) return false
     if ('viewDo' in patch && !viewDone(snap.view, patch.viewDo)) return false
+    if ('openSettings' in patch && !snap.settingsOpen) return false
+    // chartFeatures.*: the widget's opts.dock read back exactly as written (an Undo's null = the key gone)
+    if ('dock' in patch && !sameJson(snap.dock ?? null, patch.dock ?? null)) return false
+    // C1-178: leaving the page happens after the receipt (app.open's rule): there is nothing on the chart to read back
     return true
   },
   undoPatch(item) {
+    // C1-127: opening Chart Settings changed nothing, so on its own there is nothing to undo (chartSetup.openSettings,
+    // undo 'none'); asked together with a real change, that change keeps its own Undo — the dialog is not part of it
+    if ('openSettings' in item.patch && Object.keys(item.patch).length === 1) return null
+    // C1-178: Ask AI opens a page; nothing on the chart changed, and leaving the page has no Undo (as app.open)
+    if ('askAi' in item.patch && Object.keys(item.patch).length === 1) return null
     const p = {}
     if ('settings' in item.patch) p.settings = item.before.stored ?? null
     if ('tf' in item.patch) p.tf = item.before.tf
@@ -396,12 +484,20 @@ export const chartKind = {
     if ('replay' in item.patch) p.replay = item.before.replay ?? null
     if ('watermarkPos' in item.patch) p.watermarkPos = item.before.watermarkPos ?? null
     if ('volPanePref' in item.patch) p.volPanePref = item.before.volPanePref ?? null
+    if ('favoriteTools' in item.patch) p.favoriteTools = item.before.favoriteTools || []
+    // chartFeatures.*: the RAW opts.dock snapshot before (a removed panel's own width, the strip's height, its tab) — never a
+    // transform's inverse: addFeature lands at the default width, so only the snapshot is exact
+    if ('dock' in item.patch) p.dock = item.before.dock ?? null
     // A range goes back to the window and the view lock it replaced (never read = no Undo, and `undoNote` says so).
     // A reset has no way back: it also drops a dragged price scale, which nothing reads back (undo: 'none').
     if ('viewDo' in item.patch) {
       const { op } = item.patch.viewDo
       if (op === 'setIndicatorsHidden') p.viewDo = { op, arg: !!item.before.view?.indicatorsHidden }
-      else if (op === 'applyRange' && item.before.view?.frame) p.viewDo = { op: 'restoreView', arg: item.before.view.frame }
+      else if ((op === 'applyRange' || op === 'stepBar' || op === 'zoom') && item.before.view?.frame) p.viewDo = { op: 'restoreView', arg: item.before.view.frame }
+      // the Position Calculator back to exactly what it showed before (closed stays closed, its old prices kept)
+      else if (op === 'positionCalc' && item.before.view?.positionCalc) p.viewDo = { op, arg: { ...item.before.view.positionCalc } }
+      // chartReplay.playback: the way back its plan worked out (none for play / pause, or for a replay that was playing)
+      else if (op === 'replay' && item.patch.viewDo.back) p.viewDo = { op, ...item.patch.viewDo.back }
       else return null
     }
     return p
@@ -431,8 +527,13 @@ export const chartKind = {
     // x/y, never the anchor the chart derives from them a moment later (derivedOpts.js)
     ...('watermarkPos' in (item?.patch || {}) ? [watermarkSpot(snap.watermarkPos)] : []),
     ...('volPanePref' in (item?.patch || {}) ? [snap.volPanePref ?? null] : []),
+    // a ★ Undo is stale once the member starred or unstarred a tool themselves
+    ...('favoriteTools' in (item?.patch || {}) ? [snap.favoriteTools || []] : []),
+    // a panel / strip Undo is stale once the member changed the dock themselves (Add to Chart, the chevron, a tab, a drag)
+    ...('dock' in (item?.patch || {}) ? [snap.dock ?? null] : []),
     // a range's Undo is stale once the member panned or zoomed off it
-    ...('viewDo' in (item?.patch || {}) ? [item.patch.viewDo.op === 'applyRange' ? (snap.view?.activeRange ?? null) : !!snap.view?.indicatorsHidden] : [])]),
+    // a step's Undo is stale once the member moved the window themselves (pan, zoom, another step)
+    ...('viewDo' in (item?.patch || {}) ? [viewFp(snap, item.patch.viewDo.op, item.patch.viewDo)] : [])]),
   // ⛔ APPROVAL BINDING: before an approved chart change re-plans, the server's copy of this chart must
   // equal this tab's (another tab may have changed its settings — boardInSync does not see settings).
   // Unreadable, or no way to check → the approval fails closed.
@@ -491,6 +592,8 @@ export function describeChart(snap, shortRef) {
     extendedHours: sessionOf(cs, snap.tf) === 'extended',
     scale: scaleOf(cs),
     linkedWidgets: snap.linkedCount || 0,
+    // chartReplay.playback: only while this chart's bar replay (the Replay / Time Machine button) is on
+    ...replayContext(snap.view?.replay),
     // the chart the member last clicked ("this chart" / "this stock"); omitted on every other chart
     ...(snap.selected ? { selected: true } : {}),
   }
@@ -930,6 +1033,11 @@ const CAPABILITIES = [
     argAliases: { date: ['cutoff', 'to', 'until', 'day', 'at', 'as_of', 'asOf', 'replay_date', 'replayDate'] },
     // (W1.1 review NB-1: "none"/"nothing" are no longer null words for a string arg — replay declares them itself)
     coerce: { date: { exit: null, off: null, stop: null, end: null, false: null, clear: null, 'exit replay': null, none: null, nothing: null, nil: null } },
+    // AUDIT #1174 ruling 1: an EXIT here writes every chart, so "exit / stop the replay" is decided from state with the bar
+    // replay's (chartReplay.exitVerdict): only Replay Mode on → this; the bar replay on, or both → never this without its name
+    fastWhole: true,
+    fast: bareExitFast('cutoff'),
+    resolveArgs: exitGuard(isCutoffExit, 'cutoff'),
     shape: '{"date":"YYYY-MM-DD"} to replay from a date; {"date":null} to EXIT replay ("exit replay", "leave replay", "replay off", '
       + '"show every bar again") — the JSON null, never the word "null" and never an "exit" or "enabled" key.',
     check(st, { date }) {

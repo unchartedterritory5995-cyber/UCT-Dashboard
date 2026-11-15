@@ -1,0 +1,14 @@
+      Tests  6 failed | 56 passed (62)
+     × "any articles on RIVN lately": the v2 first call carries no words-only group 3ms
+     × "both": the v2 first call carries no words-only group 1ms
+     × "flip to AMD": the v2 first call carries no words-only group 4ms
+     × "lose the gridlines": the v2 first call carries no words-only group 3ms
+     × "show me the leaders": the v2 first call carries no words-only group 1ms
+     × "whats the RS on this": the v2 first call carries no words-only group 2ms
+ FAIL  src/agent/nlm1/nlm1Routing.test.js > routing v2: a words-only group never rides the fill, and is still sent on its own words > "any articles on RIVN lately": the v2 first call carries no words-only group
+ FAIL  src/agent/nlm1/nlm1Routing.test.js > routing v2: a words-only group never rides the fill, and is still sent on its own words > "both": the v2 first call carries no words-only group
+ FAIL  src/agent/nlm1/nlm1Routing.test.js > routing v2: a words-only group never rides the fill, and is still sent on its own words > "flip to AMD": the v2 first call carries no words-only group
+ FAIL  src/agent/nlm1/nlm1Routing.test.js > routing v2: a words-only group never rides the fill, and is still sent on its own words > "lose the gridlines": the v2 first call carries no words-only group
+ FAIL  src/agent/nlm1/nlm1Routing.test.js > routing v2: a words-only group never rides the fill, and is still sent on its own words > "show me the leaders": the v2 first call carries no words-only group
+ FAIL  src/agent/nlm1/nlm1Routing.test.js > routing v2: a words-only group never rides the fill, and is still sent on its own words > "whats the RS on this": the v2 first call carries no words-only group
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 6 ⎯⎯⎯⎯⎯⎯⎯
