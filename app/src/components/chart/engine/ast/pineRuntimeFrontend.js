@@ -6298,16 +6298,111 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  refusal: a `%`, a call, a slot that is not a counter, a counter the body
    *  assigns. A counter whose bound did not fold THROWS that bound's refusal,
    *  which names the frame parameter a call site may fix (`simpleSpecialisation`).
-   *  @returns {{lo:number, hi:number}|null} */
-  const offsetRange = (e, at, scope, depth = 0) => {
+   *
+   *  ⭐⭐ L4b (RS Rating, `n63 = bar_index < 63 ? bar_index : 63`) — MORE SHAPES,
+   *  each sound on its own, and nothing else:
+   *    · the chart's `bar_index` is `[0, +inf)` (it is never `na` and never
+   *      negative), narrowed by the facts its enclosing `?:` tests prove (`refine`);
+   *    · `c ? a : b` is the UNION of its arms' ranges, whatever `c` is (Pine takes
+   *      one arm; an `na` test takes the second). A test `bar_index < k` /
+   *      `<= k` / `> k` / `>= k` (either side), `k` ranged, narrows `bar_index` in
+   *      the arm it guards: `hi <= k.hi` where it holds and `lo >= k.lo` where it
+   *      fails (non-strict on purpose: a wider range is still a true one, and it
+   *      needs no integer argument). Only `bar_index` is narrowed: its negation is
+   *      exact because it is never `na`;
+   *    · `math.min` / `math.max` (v1-v4 `min` / `max`) of ranged arguments;
+   *    · a main-body name bound once to an expression (`n63 = …`, an `env` macro:
+   *      never reassigned), or a main-body slot declared once and never reassigned,
+   *      is its expression's range;
+   *    · `ta.barssince(c)` is `[0, +inf)` and may be `na` (`na: true`, carried
+   *      through every combination): an `na` offset reads the current bar (C29), so
+   *      it stays inside any ring, but an `na` bound proves no `bar_index` fact.
+   *  A `for` counter whose bounds do not fold is the union of their ranges
+   *  (`forCounterRange`). `hi` may be `+inf`: a ring is then sized only by a
+   *  declared buffer (`declaredBufferOf`), never by this function.
+   *  ⛔ Anything else stays `null`. The range only SIZES the ring: the offset is
+   *  still computed bar by bar, and the VM still stops past the ring.
+   *  @returns {{lo:number, hi:number, na?:true}|null} */
+  const mayNa = (r, ...from) => (from.some((x) => x && x.na) ? { ...r, na: true } : r)
+  const isChartBarIndex = (e, scope) => !!(e && e.type === 'name' && e.name === 'bar_index'
+    && (!scope || scope.lookup('bar_index') === null) && !env.has('bar_index'))
+  const RANGE_CMP = new Set(['<', '<=', '>', '>='])
+  /** The `bar_index` facts a `?:` test proves: `{yes, no}` ranges to intersect, or null. */
+  const barIndexFacts = (test, at, scope, depth, refine) => {
+    if (!test || test.type !== 'binary' || !RANGE_CMP.has(test.op)) return null
+    let op = test.op
+    let other = null
+    if (isChartBarIndex(test.left, scope)) other = test.right
+    else if (isChartBarIndex(test.right, scope)) {
+      other = test.left
+      op = op === '<' ? '>' : op === '<=' ? '>=' : op === '>' ? '<' : '<='
+    } else return null
+    const k = offsetRange(other, at, scope, depth + 1, refine)
+    // ⛔ a `k` that may be `na` makes the test FALSE without `bar_index >= k`: no fact
+    if (!k || k.na || !Number.isFinite(k.lo) || !Number.isFinite(k.hi)) return null
+    // `bar_index < k` holds: bar_index <= k.hi; fails: bar_index >= k.lo (and mirrored)
+    return op === '<' || op === '<='
+      ? { yes: { lo: 0, hi: k.hi }, no: { lo: k.lo, hi: Infinity } }
+      : { yes: { lo: k.lo, hi: Infinity }, no: { lo: 0, hi: k.hi } }
+  }
+  const offsetRange = (e, at, scope, depth = 0, refine = null) => {
     if (!e || typeof e !== 'object' || depth > 32) return null
     if (e.type === 'number') return Number.isFinite(e.value) ? { lo: e.value, hi: e.value } : null
+    if (isChartBarIndex(e, scope)) {
+      const lo = refine ? Math.max(0, refine.lo) : 0
+      const hi = refine ? refine.hi : Infinity
+      return lo <= hi ? { lo, hi } : null
+    }
+    if (e.type === 'ternary') {
+      const facts = barIndexFacts(e.test, at, scope, depth, refine)
+      const meet = (f) => (!f ? refine : !refine ? f
+        : { lo: Math.max(f.lo, refine.lo), hi: Math.min(f.hi, refine.hi) })
+      const y = offsetRange(e.yes, at, scope, depth + 1, facts ? meet(facts.yes) : refine)
+      if (!y) return null
+      const n = offsetRange(e.no, at, scope, depth + 1, facts ? meet(facts.no) : refine)
+      if (!n) return null
+      return mayNa({ lo: Math.min(y.lo, n.lo), hi: Math.max(y.hi, n.hi) }, y, n)
+    }
+    if (e.type === 'call' && !fnByName.has(e.name)
+      && (e.name === 'math.min' || e.name === 'math.max'
+        || (pineVersion !== null && pineVersion < 5 && (e.name === 'min' || e.name === 'max')))) {
+      const args = (e.args || []).map((a) => (a && a.value !== undefined ? a : { value: a }))
+      if (args.length < 2 || args.some((a) => a.name)) return null
+      const rs = args.map((a) => offsetRange(a.value, at, scope, depth + 1, refine))
+      if (rs.some((r) => !r)) return null
+      const pick = /min$/.test(e.name) ? Math.min : Math.max
+      return mayNa({ lo: pick(...rs.map((r) => r.lo)), hi: pick(...rs.map((r) => r.hi)) }, ...rs)
+    }
+    // `ta.barssince(c)` counts bars, so it is never negative; before `c` first holds it is
+    // `na`, and an `na` offset reads the current bar (C29, `vw-offset-na-spy-1d`): offset 0
+    if (e.type === 'call' && !fnByName.has(e.name)
+      && (e.name === 'ta.barssince' || (pineVersion !== null && pineVersion < 5 && e.name === 'barssince'))) {
+      return { lo: 0, hi: Infinity, na: true }
+    }
     if (e.type === 'name' && scope) {
       const s = scope.lookup(e.name)
       if (s !== null && loopRanges.has(s)) {
         const r = loopRanges.get(s)
         if (r && r.blocked) throw r.blocked
         return r && Number.isFinite(r.lo) ? r : null
+      }
+      // a main-body slot declared once and never reassigned (`delta = ta.barssince(…)`,
+      // a slot under `objectsInRun` because it keeps history): its initialiser's range,
+      // the value it is given on every bar it is read
+      if (s !== null && owner === null && slots[s] && slots[s].owner === null && !(slotDepth[s] > 0)
+        && slots[s].kind === SLOT.LOCAL) {
+        const def = frameLocalDefs.get(s)
+        if (def && def.scope === root) return offsetRange(def.expr, at, root, depth + 1, refine)
+      }
+      // a main-body expression binding, read in the main body: its expression's range
+      if (s === null && owner === null) {
+        const b = env.get(e.name)
+        if (b && b.kind === 'expr' && b.node && !b.frame && (b.owner === null || b.owner === undefined)
+          && !(b.r4 > 0) && !(b.depth > 0) && constValueOf(e, scope) === null) {
+          // its names are the main body's: read in the ROOT scope, so a loop counter
+          // of the same name where the offset is read cannot answer for them
+          return offsetRange(b.node, at, root, depth + 1, refine)
+        }
       }
     }
     if (e.type === 'name' || e.type === 'binary' || e.type === 'unary') {
@@ -6321,18 +6416,18 @@ function buildRuntimeIrLinked(source, opts, holder) {
       }
     }
     if (e.type === 'unary' && e.op === '-') {
-      const r = offsetRange(e.arg, at, scope, depth + 1)
-      return r ? { lo: -r.hi, hi: -r.lo } : null
+      const r = offsetRange(e.arg, at, scope, depth + 1, refine)
+      return r ? mayNa({ lo: -r.hi, hi: -r.lo }, r) : null
     }
     if (e.type === 'binary' && (e.op === '+' || e.op === '-' || e.op === '*')) {
-      const a = offsetRange(e.left, at, scope, depth + 1)
+      const a = offsetRange(e.left, at, scope, depth + 1, refine)
       if (!a) return null
-      const b = offsetRange(e.right, at, scope, depth + 1)
+      const b = offsetRange(e.right, at, scope, depth + 1, refine)
       if (!b) return null
-      if (e.op === '+') return { lo: a.lo + b.lo, hi: a.hi + b.hi }
-      if (e.op === '-') return { lo: a.lo - b.hi, hi: a.hi - b.lo }
+      if (e.op === '+') return mayNa({ lo: a.lo + b.lo, hi: a.hi + b.hi }, a, b)
+      if (e.op === '-') return mayNa({ lo: a.lo - b.hi, hi: a.hi - b.lo }, a, b)
       const ps = [a.lo * b.lo, a.lo * b.hi, a.hi * b.lo, a.hi * b.hi]
-      return { lo: Math.min(...ps), hi: Math.max(...ps) }
+      return mayNa({ lo: Math.min(...ps), hi: Math.max(...ps) }, a, b)
     }
     return null
   }
@@ -6655,7 +6750,19 @@ function buildRuntimeIrLinked(source, opts, holder) {
       return { lo: Math.min(a.value, b.value), hi: Math.max(a.value, b.value) }
     }
     const fname = [a, b].map((c) => c && c.frameName).find((x) => typeof x === 'string')
-    return { blocked: fname ? frameBoundRefusal(fname, at) : null }
+    if (fname) return { blocked: frameBoundRefusal(fname, at) }
+    // ⭐ L4b — bounds that do not fold may still be RANGED (`for i = delta to 34 + delta`,
+    // `delta = ta.barssince(…)`): the counter stays between them, so its range is their
+    // union (`hi` may be `+inf`; only a declared buffer can then size a ring on it).
+    const ranged = (toks) => {
+      let e
+      try { e = parseWholeExpression(toks) } catch { return null }
+      try { return offsetRange(e, at, scope) } catch { return null }
+    }
+    const ra = ranged(fromToks)
+    const rb = ra ? ranged(toToks) : null
+    if (ra && rb) return mayNa({ lo: Math.min(ra.lo, rb.lo), hi: Math.max(ra.hi, rb.hi) }, ra, rb)
+    return { blocked: null }
   }
 
   /** ⭐⭐ RT3 — `x[n]` over a variable's ring with `n` only known while the bar
@@ -6673,9 +6780,19 @@ function buildRuntimeIrLinked(source, opts, holder) {
       if (err instanceof RuntimeRefusal && typeof err.frameName === 'string') throw frameBoundRefusal(err.frameName, at)
       throw err
     }
-    if (!r || !Number.isFinite(r.lo) || !Number.isFinite(r.hi) || r.lo < 0) throw refusal
-    const depth = Math.ceil(r.hi)
-    if (depth > MAX_DYNAMIC_HISTORY_DEPTH) throw refusal
+    // ⛔ the BOTTOM must always be proved: a negative offset has no answer this lane owes
+    if (!r || !Number.isFinite(r.lo) || r.lo < 0) throw refusal
+    let depth = Number.isFinite(r.hi) ? Math.ceil(r.hi) : Infinity
+    // ⭐⭐ L4b — NO PROVED TOP (or one past Pine's ceiling): a DECLARED buffer sizes the
+    // ring (`declaredBufferOf`), and a read past it stops the run in the VM (`mbbDyn`'s
+    // limit, or the 5,000 ceiling), never `na`. No declaration: the refusal stands.
+    if (depth > MAX_DYNAMIC_HISTORY_DEPTH) {
+      const declared = declaredBufferOf(varSlot)
+      if (declared === null) throw refusal
+      depth = declared
+    }
+    // a read past a declared `max_bars_back` stops before it reaches the ring's end
+    if (MBB_DECLARED) depth = Math.min(depth, MBB_DECLARED)
     if (depth === 0) return read(varSlot)
     const h = owner !== null
       ? fnHistorySlotFor(owner, varSlot, depth, at)
@@ -8051,7 +8168,14 @@ function buildRuntimeIrLinked(source, opts, holder) {
           }
           return mbbDyn(histDyn(column(columnOf(node.arg, offAt)), lowerExpr(offExpr, scope)))
         }
-        const back = Number(node.n)
+        let back = Number(node.n)
+        // ⭐ L4b — a NAMED constant (`n63 = 63`, `spx[n63]`) is the constant it folds to
+        // (`constValueOf`, no side effect): it read "counts backwards" while the dynamic
+        // spelling of the same offset built. Anything that does not fold keeps that refusal.
+        if (offExpr) {
+          const c = constValueOf(offExpr, scope)
+          if (c && Number.isInteger(c.value) && c.value >= 0) back = c.value
+        }
         if (!Number.isInteger(back) || back < 0) {
           throw new RuntimeRefusal('runtime:statement', 'a bar offset counts backwards in whole bars', locate(node.tok))
         }
@@ -9502,6 +9626,37 @@ function buildRuntimeIrLinked(source, opts, holder) {
     return Number.isInteger(n) && n >= 1 && n < MAX_BARS_BACK_CEILING ? n : null
   })()
   const MBB_LIMIT = MBB_DECLARED || MAX_BARS_BACK_CEILING
+  // ⭐ L4b — `max_bars_back(x, 5000)` written at the ROOT (the one shape `DIRECTIVE_CALLS`
+  // admits, `maxBarsBackIsCeiling`) declares `x`'s buffer: Pine's ceiling, 5,000 bars.
+  const MBB_SERIES = (() => {
+    const out = new Set()
+    let text = ''
+    try { text = strippedForScan(source) } catch { return out }
+    const re = /^max_bars_back[ \t]*\([ \t]*([A-Za-z_][A-Za-z0-9_]*)[ \t]*,[ \t]*5000[ \t]*\)[ \t]*\r?$/gm
+    for (const m of text.matchAll(re)) out.add(m[1])
+    return out
+  })()
+  // the declaration naming Pine's ceiling itself (`max_bars_back = 5000`) declares it too;
+  // `MBB_DECLARED` leaves it out because the VM's own ceiling already is 5,000
+  const MBB_DECLARES_CEILING = (() => {
+    let m = null
+    try { m = /\bmax_bars_back\s*=\s*(\d+)/.exec(strippedForScan(source)) } catch { m = null }
+    return !!m && Number(m[1]) === MAX_BARS_BACK_CEILING
+  })()
+  /** ⭐⭐ L4b — THE HISTORY BUFFER A SCRIPT DECLARES FOR THIS SLOT, or `null`: the
+   *  declaration's `max_bars_back = N` (every series), else a root `max_bars_back(x,
+   *  5000)` naming this main-body slot. With both, the declaration's (smaller) buffer
+   *  stands: a run stopped by name where Pine might still draw is visible, a line drawn
+   *  where Pine stops would be a wrong picture. Only this sizes a ring whose offset has
+   *  no proved top. */
+  const declaredBufferOf = (varSlot) => {
+    if (MBB_DECLARED) return MBB_DECLARED
+    if (MBB_DECLARES_CEILING) return MAX_BARS_BACK_CEILING
+    const s = slots[varSlot]
+    if (s && owner === null && s.owner === null && MBB_SERIES.has(s.name)
+      && root.lookup(s.name) === varSlot) return MAX_BARS_BACK_CEILING
+    return null
+  }
   const mbbRefusal = (back, at, what) => {
     note('runtime:directive')
     return new RuntimeRefusal('runtime:directive',
