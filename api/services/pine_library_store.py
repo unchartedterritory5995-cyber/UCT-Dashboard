@@ -41,7 +41,13 @@ _IMPORT_PATH = re.compile(r"^([A-Za-z0-9_]{1,80})/([A-Za-z0-9_]{1,80})/([1-9][0-
 
 #: The fields an entry must carry to be served. `licence` and `attribution` are not
 #: optional: a library the member cannot be told the licence of is not served.
+#: ⭐⭐ U15 -- nor is an entry without the sha256 of its own source (ONE check, in
+#: `validate_entry`: a version is pinned by that sha, so an entry without it could not be told
+#: from a later fetch of different code under the same path).
 REQUIRED_FIELDS = ("path", "author", "name", "version", "source", "licence", "attribution")
+_SHA256 = re.compile(r"^[0-9a-f]{64}$")
+#: The reason a held entry is not served for want of a verified sha256 (the client's 409).
+NO_SHA = "library:no-sha"
 
 
 def store_root() -> str:
@@ -81,10 +87,64 @@ def validate_entry(entry: Any) -> list[str]:
         return ["path %r disagrees with author/name/version" % entry["path"]]
     if not isinstance(entry["source"], str) or not re.search(r"^\s*library\s*\(", entry["source"], re.M):
         return ["source does not declare library()"]
-    sha = entry.get("sha256")
-    if sha and hashlib.sha256(entry["source"].encode("utf-8")).hexdigest() != sha:
-        return ["source does not match its sha256"]
+    # ⭐⭐ U15 -- THE ONE sha CHECK: served only with the sha256 of its own source. (A value equal
+    # to the source's hexdigest is 64 lowercase hex by construction, so no second format check.)
+    if entry.get("sha256") != hashlib.sha256(entry["source"].encode("utf-8")).hexdigest():
+        return ["sha256 is missing or is not the sha256 of its source"]
     return []
+
+
+def entry_status(path: str, root: Optional[str] = None) -> tuple:
+    """``("ok", entry)``, ``("missing", None)`` or ``("unservable", reasons)`` for an import path.
+
+    ⭐ U15 -- a version the store HOLDS but will not serve (no verified sha256, or any other
+    reason `validate_entry` gives) is told apart from one it does not hold, so the member's
+    import line can say which: the router answers the first 409 and the second 404."""
+    parsed = parse_import_path(path)
+    if not parsed:
+        return "missing", None
+    fp = entry_file(*parsed, root=root)
+    if not os.path.isfile(fp):
+        return "missing", None
+    try:
+        with open(fp, encoding="utf-8") as f:
+            entry = json.load(f)
+    except (OSError, ValueError):
+        return "unservable", ["the stored entry is not readable JSON"]
+    problems = validate_entry(entry)
+    if problems:
+        return "unservable", problems
+    return "ok", entry
+
+
+def pinned_entries(pins, root: Optional[str] = None) -> tuple:
+    """⭐⭐ U15 -- the store entries a document's pins name, for a server run (the runtime
+    service has no store of its own). ``pins`` is ``meta.libraries``: ``[{path, sha256}]``.
+
+    Returns ``(entries, None)`` or ``(None, (guard, sentence))``: a pin the store does not hold,
+    holds unservable, or holds under ANOTHER sha256 refuses the run by name, and nothing is
+    sent. Never raises."""
+    out = []
+    try:
+        items = list(pins or [])
+    except TypeError:
+        return None, ("pine:library-changed", "the document's library pins are not a list")
+    for pin in items:
+        path = pin.get("path") if isinstance(pin, dict) else None
+        sha = pin.get("sha256") if isinstance(pin, dict) else None
+        if not (isinstance(path, str) and parse_import_path(path) and isinstance(sha, str) and _SHA256.match(sha)):
+            return None, ("pine:library-changed", "a library pin on the document is not {path, sha256}")
+        status, got = entry_status(path, root=root)
+        if status == "missing":
+            return None, ("runtime:library", "the library %s is not in the library store" % path)
+        if status == "unservable":
+            return None, ("pine:library-no-sha", "the library %s is not served: %s" % (path, "; ".join(got)))
+        if got["sha256"] != sha:
+            return None, ("pine:library-changed",
+                          "the library %s has changed since this script was saved (saved against sha256 %s..., "
+                          "the store holds %s...)" % (path, sha[:12], got["sha256"][:12]))
+        out.append({k: got[k] for k in ("path", "source", "sha256", "licence", "attribution")})
+    return out, None
 
 
 def read_entry(path: str, root: Optional[str] = None) -> Optional[dict]:

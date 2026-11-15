@@ -212,21 +212,65 @@ export function encodeResult(rt, job, cols) {
     ...(strategy !== undefined ? { strategy } : {}) }
 }
 
+/** ⭐⭐ U15: the guards a document's library pins are refused under (`pineLibraries.js`). */
+export const LIBRARY_CHANGED_GUARD = 'pine:library-changed'
+export const LIBRARY_ABSENT_GUARD = 'runtime:library'
+
+/** ⭐⭐ U15: hold the run to the document's library pins (`doc.meta.libraries`, `[{path, sha256}]`)
+ *  and register the request's entries for it, or answer the run-wide refusal.
+ *
+ *  The entries arrive verified (protocol.mjs recomputed each sha256); here every PIN must be met by
+ *  an entry of that path and that sha, and the registry the linker reads holds exactly those
+ *  entries, nothing a previous job left (cleared first and again after the run, runJob). An entry
+ *  no pin names is not registered. A document with no pins registers nothing. */
+export function libraryRefusalOf(rt, doc, libraries) {
+  if (typeof rt.clearPineLibraries === 'function') rt.clearPineLibraries()
+  const pins = doc && doc.meta && Array.isArray(doc.meta.libraries) ? doc.meta.libraries : []
+  if (!pins.length) return null
+  // fail closed: a bundle that cannot hold a library cannot run a document that links one
+  if (typeof rt.registerPineLibrary !== 'function' || typeof rt.clearPineLibraries !== 'function') {
+    return { guard: LIBRARY_ABSENT_GUARD, sentence: 'this service\'s bundle cannot link a library, so a document that imports one is not run here' }
+  }
+  const byPath = new Map((Array.isArray(libraries) ? libraries : []).map((e) => [e.path, e]))
+  for (const pin of pins) {
+    const path = pin && typeof pin.path === 'string' ? pin.path : null
+    const sha = pin && typeof pin.sha256 === 'string' ? pin.sha256.toLowerCase() : null
+    if (!path || !sha) return { guard: LIBRARY_CHANGED_GUARD, sentence: 'a library pin on the document is not {path, sha256}' }
+    const e = byPath.get(path)
+    if (!e) return { guard: LIBRARY_ABSENT_GUARD, sentence: `the library ${path} was not sent with the request` }
+    if (e.sha256 !== sha) {
+      return { guard: LIBRARY_CHANGED_GUARD,
+        sentence: `the library ${path} sent is not the code the document was saved against (sha256 ${sha.slice(0, 12)}…, sent ${e.sha256.slice(0, 12)}…)` }
+    }
+    if (!rt.registerPineLibrary(e)) {
+      return { guard: LIBRARY_CHANGED_GUARD, sentence: `the library ${path} sent could not be registered (its source and sha256 disagree)` }
+    }
+  }
+  return null
+}
+
 /**
  * Run one job ONCE on the bundle `rt`, cold, and reset the bundle's session state afterwards.
  * Never throws: every stop is a named, run-wide refusal.
  */
-export function runJob(rt, doc, job, clock = () => performance.now()) {
+export function runJob(rt, doc, job, clock = () => performance.now(), libraries = null) {
   const started = clock()
   let out
   try {
-    const { def, rows, ctx } = runArgs(doc, job)
-    const cols = rt.computeRuntimeColumns(def, rows, ctx, { budgetMs: rt.RUNTIME_PANE_TIME_BUDGET_MS, incremental: false })
-    out = encodeResult(rt, job, cols)
+    const held = libraryRefusalOf(rt, doc, libraries)
+    if (held) {
+      out = runWide(job.job, held.guard, held.sentence)
+    } else {
+      const { def, rows, ctx } = runArgs(doc, job)
+      const cols = rt.computeRuntimeColumns(def, rows, ctx, { budgetMs: rt.RUNTIME_PANE_TIME_BUDGET_MS, incremental: false })
+      out = encodeResult(rt, job, cols)
+    }
   } catch (err) {
     const r = refusalOf(rt, err)
     out = runWide(job.job, r.guard, r.sentence, r.bar, r.limit)
   } finally {
+    // ⭐⭐ U15: a job's libraries are registered for THAT run only (libraryRefusalOf), never kept
+    if (typeof rt.clearPineLibraries === 'function') rt.clearPineLibraries()
     rt.resetRuntimeSessions()
     rt.resetRuntimeLedgers()
   }

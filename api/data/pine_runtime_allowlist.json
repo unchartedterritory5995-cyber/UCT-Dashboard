@@ -46,7 +46,17 @@
     "#2962ff (v5+ color.blue) where TradingView draws #2196f3 (v4 color.blue). Evidence: capture",
     "inside-bar-boxes-rddt-1d-2026-11-14, runtime-drawn, objects v2 DIVERGE on box border_color. The family",
     "waits for runtime object defaults made version-aware (engine 58's palette table). Absent = withheld:",
-    "tests/test_pine_capability_admission.py rails that it stays out until that fix lands."
+    "tests/test_pine_capability_admission.py rails that it stays out until that fix lands.",
+    "",
+    "U15 LIBRARIES (coordinator ruling 2026-11-15): ONE ROW PER LIBRARY VERSION, named `library:Author/Library/N`",
+    "(each version is different code; pine_capabilities.capabilities_of names one per import line). A row pins",
+    "the version by `sha256` (the sha256 of the library source its evidence graded) and admits on the family",
+    "rule: >= 2 distinct IMPORTING scripts graded MATCH with the runtime pane on, >= 1 of them community, each",
+    "evidence entry naming `library: {path, sha256}` equal to the row's. An entry graded against other code under",
+    "the version, or against a fixture library (`libraryFixture: true`), never counts. A TradingView-authored",
+    "library is fine: the importing scripts are what must be community. The generic `import` capability is never",
+    "a row of its own: it is met only when EVERY library version the script imports is admitted",
+    "(runtime_definitions.capability_admitted). No library row is admitted yet."
   ],
   "scripts": [
     {

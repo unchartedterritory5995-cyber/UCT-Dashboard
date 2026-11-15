@@ -34,8 +34,13 @@ def get_library(author: str, name: str, version: str,
     path = "%s/%s/%s" % (author, name, version)
     if not store.parse_import_path(path):
         raise HTTPException(status_code=400, detail="not an Author/Library/Version import path")
-    entry = store.read_entry(path)
-    if not entry:
+    status, entry = store.entry_status(path)
+    if status == "unservable":
+        # ⭐ U15 -- held, not served (no verified sha256): the import line names the reason
+        raise HTTPException(status_code=409, detail={
+            "code": store.NO_SHA, "reason": "the library store holds %s but does not serve it (%s)" % (
+                path, "; ".join(entry))})
+    if status != "ok":
         raise HTTPException(status_code=404, detail="the library %s is not in the library store" % path)
     out = store.public_metadata(entry)
     out["source"] = entry["source"]

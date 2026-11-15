@@ -263,6 +263,11 @@ export const REFUSALS = Object.freeze({
     'a Pine library exports functions instead of producing a plot to filter on',
   'pine:module':
     'importing another script pulls in code this engine never sees',
+  // ⭐⭐ U15 — the two named library refusals (`pineLibraries.js` LIBRARY_CHANGED / LIBRARY_NO_SHA)
+  'pine:library-changed':
+    'the imported library is not the code this script was saved against',
+  'pine:library-no-sha':
+    'the imported library is not served without the sha256 of its own source',
   'pine:strategy-call':
     'a strategy order or `strategy.*` value comes from the simulated broker TradingView runs for a strategy (orders, fills, positions), which this engine does not simulate',
   // ⚰️ IT SAID "another symbol or another timeframe is outside what one screened
@@ -26157,7 +26162,7 @@ export function translatePine(source, opts = {}) {
   // line and names the library and its line; spliced names read `alias.name`.
   if (libraryLink && libraryLink.libraries.length) {
     t.libraries = libraryLink.libraries.map((l) => ({
-      path: l.path, alias: l.alias, licence: l.licence, attribution: l.attribution, url: l.url,
+      path: l.path, alias: l.alias, sha256: l.sha256, licence: l.licence, attribution: l.attribution, url: l.url,
     }))
     const fix = (r) => remapLibraryLocation(r, libraryLink)
     if (t.refusal) t.refusal = fix(t.refusal)
@@ -26889,7 +26894,10 @@ function translatePineResult(source, opts = {}) {
     if (word === 'import' || word === 'export') {
       // ⭐ L1 — an import the linker could not serve says WHICH library and why.
       const why = word === 'import' && first.libraryRefusal ? ` — ${first.libraryRefusal}` : ''
-      hardRefusals.push(refusalValue('pine:module', `${REFUSALS['pine:module']}${why}`, locate(first)))
+      // ⭐ U15 — a named library refusal keeps its own name
+      const code = word === 'import' && first.libraryRefusalCode && REFUSALS[first.libraryRefusalCode]
+        ? first.libraryRefusalCode : 'pine:module'
+      hardRefusals.push(refusalValue(code, `${REFUSALS[code]}${why}`, locate(first)))
       continue
     }
 

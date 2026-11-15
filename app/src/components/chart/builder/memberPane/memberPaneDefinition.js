@@ -34,7 +34,7 @@ import { registerStrategyBrokerGate } from '../../engine/strategyBrokerGateRegis
 registerStrategyBrokerGate(strategyBrokerEnabled)
 import { PINE_RECURRENCE_ORIGIN } from '../../engine/nativeRegistry'
 import { naConditionIsFalse } from '../../engine/ast/interpret'
-import { probeRuntimeProgram, probeObjectRuntime, runtimeVersionStamp, colourInputsTheRunReads } from '../../engine/runtime/runtimeColumns'
+import { probeRuntimeProgram, probeObjectRuntime, runtimeVersionStamp, colourInputsTheRunReads, libraryPinsOf } from '../../engine/runtime/runtimeColumns'
 import { STRATEGY_WINDOW_HISTORY } from '../../engine/runtime/strategyRecord'
 import { runtimeRepaintOf } from '../../engine/runtime/runtimeRepaint'
 import { OHLC_DEF_STYLES } from '../../engine/defSchema'
@@ -936,6 +936,12 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
     // guessed. Outside the trees: no tree hash, `def_hash` or `compute.fn` moves.
     pineVersion: Number.isInteger(t.version) ? t.version : null,
     doorVersion: DOOR_VERSION,
+    // ⭐⭐ U15 — THE LIBRARY VERSIONS THIS DOCUMENT WAS TRANSLATED AGAINST, each pinned by the
+    // sha256 of the code that was compiled (`[{path, sha256}]`). The trees already hold that
+    // code; every lane that links the source AGAIN (the run half, a runtime colour, the server
+    // job) is held to these pins and refuses a changed library by name. Absent unless the
+    // script imports one, so no other document changes.
+    ...(libraryPinsOf(t.libraries).length ? { libraries: libraryPinsOf(t.libraries) } : {}),
     // ⭐⭐ F1 — THIS SCRIPT'S VERSION READS AN `na` `?:` TEST AS FALSE (v4+,
     // `interpret.js::naConditionIsFalse`, witnessed by CAP's `rt1-na-test` for v4,
     // v5 and v6). Applied only from the listing, beside `recurrenceOrigin`
@@ -2072,6 +2078,9 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   definition.meta = {
     ...(definition.meta || {}),
     lane: 'runtime',
+    // ⭐⭐ U15 — the library pins (see the host document's `meta.libraries`): a runtime document
+    // links its source on every run, in the browser and on the server, and is held to them.
+    ...(libraryPinsOf(probe.libraries || t.libraries).length ? { libraries: libraryPinsOf(probe.libraries || t.libraries) } : {}),
     // ⭐ RT1 — the script's identity for the kill switch and the server's save
     // door: the sha256 of the Pine source, recomputed by the server, never trusted.
     runtimeSourceHash: runtimeSourceHash(source),

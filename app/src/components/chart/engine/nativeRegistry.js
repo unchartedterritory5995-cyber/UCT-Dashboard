@@ -3286,9 +3286,14 @@ const RUNTIME_LIMIT_CODES = new Set([RUNTIME_LIMIT_GUARD_CODE, ...LIMIT_NAMES.ma
  *  own memo (`runtimeObjectValues`, keyed by the spec's identity per bars array) hits
  *  on the next paint instead of growing by one entry a call. */
 const _runSpecs = new WeakMap()
-function runSpecOf(rc) {
+function runSpecOf(rc, def) {
   let rt = _runSpecs.get(rc)
-  if (!rt) { rt = Object.freeze({ source: rc.source, at: rc.at, lane: 'pane' }); _runSpecs.set(rc, rt) }
+  if (!rt) {
+    // ⭐⭐ U15 — the document's library pins ride with the run (`pine:library-changed`)
+    const pins = def && def.meta && Array.isArray(def.meta.libraries) && def.meta.libraries.length ? def.meta.libraries : null
+    rt = Object.freeze({ source: rc.source, at: rc.at, lane: 'pane', ...(pins ? { libraryPins: pins } : {}) })
+    _runSpecs.set(rc, rt)
+  }
   return rt
 }
 
@@ -3376,7 +3381,7 @@ function withRuntimeColours(def, out, bars, inputs, ctx) {
   } else if (!fn) {
     refuse('runtime:not-loaded')
   } else {
-    const v = fn(runSpecOf(rc), bars, {
+    const v = fn(runSpecOf(rc, def), bars, {
       tf: ctx && ctx.tf,
       symbol: ctx && ctx.symbol,
       newestBarIsForming: ctx && ctx.newestBarIsForming,
@@ -3477,6 +3482,8 @@ function runHalfDefOf(def, ro) {
     for (const k of ['runtimeLanguage', 'runtimeFrontend', 'runtimeIr', 'runtimeOutputSignature']) {
       if (ro[k] !== undefined) meta[k] = ro[k]
     }
+    // ⭐⭐ U15 — the run half re-links its source's libraries: the document's pins go with it
+    if (def.meta && Array.isArray(def.meta.libraries) && def.meta.libraries.length) meta.libraries = def.meta.libraries
     rt = Object.freeze({
       id: `${def.id}~run`,
       ...(Number.isInteger(def.version) ? { version: def.version } : {}),
