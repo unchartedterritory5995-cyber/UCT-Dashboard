@@ -1201,6 +1201,17 @@
       "yields": "num",
       "sentence": "{0}, withheld wherever {1}"
     },
+    "tieNewest": {
+      "args": [
+        "series"
+      ],
+      "argRoles": [
+        "source"
+      ],
+      "lookback": 0,
+      "yields": "num",
+      "sentence": "{0}, where a tie in a highest or lowest bars window names its newest bar"
+    },
     "obvN": {
       "args": [
         "int"
@@ -3551,7 +3562,8 @@
       "alma",
       "percentileNearestRank",
       "rci",
-      "boolNaWithheld"
+      "boolNaWithheld",
+      "tieNewest"
     ]
   },
   "_functions_excluded": {

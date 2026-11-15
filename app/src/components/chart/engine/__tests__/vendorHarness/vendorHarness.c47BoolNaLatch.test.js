@@ -191,12 +191,14 @@ describe('⭐ C47 — trend-duration-forecast: the v6 `bool(na)` latch draws Tra
     const v5 = cap.source.text.replace('//@version=6', '//@version=5')
     expect(v5).not.toBe(cap.source.text)
     const { labels, d } = run(v5, true)
-    const flip = d.definition.objects.trees.find((t) => t.type === 'op' && t.name === '!='
-      && t.args[1] && t.args[1].type === 'offset')
-    // ⭐ ENGINE 56 (A3, review #1265 finding 1) — a v5 `bool` that can be `na` is never compared
-    // with `!=` on a guess: the latch side is `boolNaWithheld(…)`, the latch inside it the legacy fold
-    expect(flip.args[0].type === 'call' && flip.args[0].name).toBe('boolNaWithheld')
-    expect(accums(flip.args[0])[0].args[0]).toEqual(LEGACY_CAST)
+    const isFlip = (t) => !!t && t.type === 'op' && t.name === '!=' && t.args[1] && t.args[1].type === 'offset'
+    const top = d.definition.objects.trees.find((t) => isFlip(t)
+      || (t.type === 'op' && t.name === '?:' && isFlip(t.args[2])))
+    const flip = isFlip(top) ? top : top.args[2]
+    // ⭐ ENGINE 56 (A3, S1 witnessed) — a v5 `bool` that can be `na` meeting `!=` is `na` there
+    // (the comparison sits inside `(flag) ? na : …`), and the latch keeps the legacy fold
+    expect(flip.args[0].type === 'call' && flip.args[0].name).toBe('accum')
+    expect(flip.args[0].args[0]).toEqual(LEGACY_CAST)
     expect(labels.find((l) => l.createdBar === 58)).toBeUndefined()
     // ⚰️ F1 — this pinned `toHaveLength(27)`. No capture shows this script as v5; the
     // 27 rested on v5 `not` / `or` carrying an `na` operand through, which CAP2's

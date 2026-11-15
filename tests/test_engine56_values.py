@@ -94,6 +94,25 @@ def test_arg_extreme_tie_over_a_computed_source_is_withheld():
     assert ast_interpret.arg_extreme_tie_mask(call("highestbars", op("*", s("close"), num(2)), num(4)), rising) is None
 
 
+def test_s1_a_tie_newest_source_takes_the_newest_tied_bar_and_is_never_withheld():
+    """S1 (v4 = v5 witnessed): over a source the translator marked ``tieNewest`` -- a two-valued
+    computed one here -- highestbars names the NEWEST of a tie, first value on bar length - 1."""
+    bars = [{"t": 1700000000 + i * 86400, "o": 100.0 + (i % 2), "h": 102.0, "l": 99.0, "c": 100.5, "v": 1000}
+            for i in range(30)]
+    vt = op("?:", op(">", s("close"), s("open")), num(10), num(20))
+    assert ast_interpret.is_bar_price_tree(call("tieNewest", vt))
+    tree = call("highestbars", call("tieNewest", vt), num(4))
+    col = ast_interpret.interpret(tree, bars)
+    vals = [10 if b["c"] > b["o"] else 20 for b in bars]
+    assert col[:3] == [None, None, None]
+    for i in range(3, 30):
+        window = vals[i - 3:i + 1]
+        newest = max(j for j in range(4) if window[j] == max(window))
+        assert col[i] == float(3 - newest), i
+    assert ast_interpret.arg_extreme_tie_mask(tree, bars) is None
+    assert ast_interpret.interpret(call("tieNewest", s("close")), RDDT)[:5] == [b["c"] for b in RDDT[:5]]
+
+
 def test_bool_na_marker_is_its_operand_and_withholds_where_flagged():
     assert "boolNaWithheld" in ast_interpret.FN
     sma = call("sma", s("close"), num(5))

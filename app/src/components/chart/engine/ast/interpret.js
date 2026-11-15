@@ -2395,6 +2395,9 @@ const POINTWISE = Object.freeze({
   // ⭐ ENGINE 56 (A3) — the marker is its value on every bar; WHICH bars a member is not
   // shown is `boolNaMask`'s, over the whole tree (see `boolNaWithheld` in the table).
   boolNaWithheld: (x, _flag) => x,
+  // ⭐ ENGINE 56 (S1) — its operand on every bar; a `highestbars` / `lowestbars` over it names
+  // the newest of a tie (`isBarPriceTree`)
+  tieNewest: (x) => x,
 
   // ── pure math ────────────────────────────────────────────────────────────
   // ⭐⭐ EVERY DOMAIN REFUSAL ANSWERS NaN, AND THAT IS THE WHOLE DESIGN. JS hands
@@ -2602,6 +2605,10 @@ const BAR_PRICE_MEANS = [['high', 'low'], ['high', 'low', 'close'], ['open', 'hi
   ['high', 'low', 'close', 'close']]
 export function isBarPriceTree(t) {
   if (!t || typeof t !== 'object') return false
+  // ⭐ ENGINE 56 (S1) — a source the translator marked `tieNewest` (Pine v4 / v5: TradingView
+  // names the newest of a tie over ANY source, a two-valued computed one included) takes the
+  // bar-price rule: the newest tied bar, never withheld
+  if (t.type === 'call' && t.name === 'tieNewest') return true
   if (t.type === 'series') return BAR_PRICE_FIELDS.includes(t.name)
   if (t.type !== 'op' || t.name !== '/' || !Array.isArray(t.args) || t.args.length !== 2) return false
   const [sum, k] = t.args
@@ -3201,6 +3208,7 @@ export const FN = Object.freeze({
   },
   nz: (a, b) => elementwise2(a, b, POINTWISE.nz),
   boolNaWithheld: (a, b) => elementwise2(a, b, POINTWISE.boolNaWithheld),
+  tieNewest: (series) => series,
   crossOver: (a, b) => crossing(a, b, CROSS_OVER_FIRED),
   crossUnder: (a, b) => crossing(a, b, CROSS_UNDER_FIRED),
 
@@ -5422,19 +5430,20 @@ export const CHART_CLOCK_WITHHELD = Object.freeze({
   // ⭐⭐ ENGINE 56 (A3) — a Pine v1-v5 `bool` that is `na` meeting an operator no capture
   // has witnessed for it (`boolNaWithheld`, `boolNaMask`).
   [BOOL_NA_UNWITNESSED]: () => 'In Pine v1 to v5 a comparison with `na` is itself `na` — a `bool` that is '
-    + 'neither true nor false — and TradingView reads `na == true` and `na == false` as false (measured on a '
-    + 'v1 script and stated for v5 by the v6 migration guide), which is drawn. What `!=` answers for '
-    + 'it, what `==` answers when both sides can be `na`, and, before v4, what `and`, `or` and `not` answer for '
-    + 'it are not measured, so on the bars where this indicator meets one of those with an `na` operand what it '
-    + 'draws from it is withheld rather than guessed; every other bar is drawn. What would settle it: the A3 '
-    + '`bool`-`na` probe captured on TradingView.',
+    + 'neither true nor false. TradingView answers `na` for `==` and `!=` over one, reads it as false in a '
+    + 'condition, in `and` and in `or`, and answers true for `not` of it (measured on v2, v4 and v5); this '
+    + 'indicator draws exactly that wherever it can tell where the `bool` is `na`. Here it meets `==` or `!=` '
+    + 'with a `bool` whose `na` bars this engine cannot follow (a value carried from another series this way, '
+    + 'or a recurrence it does not track), so what it draws from that comparison is withheld rather than '
+    + 'guessed. What would settle it: a capture of this indicator on TradingView.',
   // ⭐⭐ ENGINE 56 (S4-2) — a tie in a `highestbars` / `lowestbars` window over a computed source.
   [TIE_UNWITNESSED]: () => 'When two bars of a `highestbars` / `lowestbars` window hold the same extreme, '
     + 'TradingView names the NEWEST of them over a price the bar itself holds (`high`, `low`, `close`, `open`, '
-    + '`hl2`, … — measured on the builtin Aroon and on a v4 pivot script), which is drawn. Over a computed '
-    + 'source the one measurement names the OLDEST, and the two readings are not reconciled, so on the bars '
-    + 'whose window holds such a tie what this indicator draws from it is withheld rather than guessed; '
-    + 'every other bar is drawn. What would settle it: the tie probe captured on TradingView.',
+    + '`hl2`, …) at every version, and over ANY source in Pine v4 and v5 (all measured), which is drawn. '
+    + 'Over a computed source in Pine v6 the one measurement names the OLDEST, and v1 to v3 are not measured, '
+    + 'so on the bars whose window holds such a tie what this indicator draws from it is withheld rather than '
+    + 'guessed; every other bar is drawn. What would settle it: the tie probe captured on TradingView at this '
+    + 'version.',
 })
 export const CHART_CLOCK_WHOLE = Object.freeze(['time-anchor:other-bars', 'time-clock:unreadable',
   'time-anchor:not-daily', 'time-anchor:weekend-bars', 'time-own:chart-unwitnessed', 'time-close:not-daily',

@@ -218,59 +218,84 @@ function doorColumn(src) {
 }
 const WARM = [0, 1, 2, 3] // `sma(close, 5)` is `na` on bars 0..3
 
-describe('A3 — the forms, version by version', () => {
-  it.each([null, 1, 2, 3, 4, 5])('v%s: `c == false` is SERVED as false on the warm-up bars (witnessed)', (v) => {
-    const src = form(v === 1 ? null : v, 'c == false').replace('//@version=1\n', '')
+describe('A3 — the forms, version by version (S1 witnessed: v2 = v4 = v5; v1 / v3 take the same rules)', () => {
+  // on the warm-up bars `c` is `na`: `==` / `!=` over it are `na` (false as a condition), `not c`
+  // is true, `and` / `or` read it as false — the S1 probe's own forms (vw-cs1-*)
+  const FORMS = [
+    ['c == false', 2], ['c != false', 2], ['c == true', 2], ['c != true', 2], ['c == c[1]', 2],
+    ['not c', 1], ['(c and true)', 2], ['(c and close > 0)', 2], ['(c or close > 0)', 1], ['(c or false)', 2],
+    ['(c or close < 0)', 2],
+    ['(c and close > 0) == false', 1],
+  ]
+  const VERSIONS = [null, 1, 2, 3, 4, 5]
+  const CASES = VERSIONS.flatMap((v) => FORMS.map(([expr, warm]) => [v, expr, warm]))
+  it.each(CASES)('v%s: `%s ? 1 : 2` is %s on the warm-up bars, served, nothing withheld', (v, expr, warm) => {
+    const src = form(v === 1 ? null : v, expr).replace('//@version=1\n', '')
     const { col, held } = doorColumn(src)
-    for (const i of WARM) expect(col[i], `bar ${i}`).toBe(2)
+    for (const i of WARM) expect(col[i], `bar ${i}`).toBe(warm)
+    for (let i = 0; i < N; i++) expect(Number.isFinite(col[i]), `bar ${i}`).toBe(true)
     expect(held).toEqual([])
-    expect(doors(src)).toEqual(['OK', 'OK', 'OK', 'OK'])
+    expect(translatePine(src).outputs[0].formula).not.toMatch(/boolNaWithheld/)
+    const [screen, pane, runtime, door] = doors(src)
+    expect([screen, pane, door]).toEqual(['OK', 'OK', 'OK'])
+    // the runtime lane serves it equal to the door, or (an `==` / `!=` whose `na` its VM would
+    // read as false) declines by name — never a different number
+    if (runtime === 'OK') expect(runtimeRun(src, BARS).col).toEqual(col)
+    else expect(runtime).toBe(BOOL_NA_UNWITNESSED)
+  })
+  it('the `and` / `or` / `not` forms are served on the runtime lane too, equal to the door', () => {
+    for (const v of VERSIONS) {
+      for (const expr of ['not c', '(c and close > 0)', '(c or close > 0)', '(c or close < 0)']) {
+        const src = form(v === 1 ? null : v, expr).replace('//@version=1\n', '')
+        const rt = runtimeRun(src, BARS)
+        expect(rt.err, `v${v} ${expr}`).toBeUndefined()
+        expect(rt.col).toEqual(doorColumn(src).col)
+      }
+    }
+  })
+  it('a `bool` VALUE is `na` where it is `na`: `plot(c == false)` (v2) and `plot(c)` (v1), `na(c)` (v5)', () => {
+    const v2 = [...head(2), 'c = close > sma(close, 5)', 'plot(c == false)'].join('\n')
+    const a = doorColumn(v2)
+    for (const i of WARM) expect(Number.isNaN(a.col[i]), `bar ${i}`).toBe(true)
+    for (let i = 4; i < N; i++) expect(Number.isFinite(a.col[i]), `bar ${i}`).toBe(true)
+    expect(a.held).toEqual([])
+    const v1 = [...head(null), 'c = close > sma(close, 5)', 'plot(c)'].join('\n')
+    const b = doorColumn(v1)
+    for (const i of WARM) expect(Number.isNaN(b.col[i]), `bar ${i}`).toBe(true)
+    expect(b.col.slice(4).every((x) => x === 0 || x === 1)).toBe(true)
+    const v5 = [...head(5), 'c = close > ta.sma(close, 5)', 'plot(na(c) ? 1 : 2)'].join('\n')
+    const d = doorColumn(v5)
+    for (const i of WARM) expect(d.col[i], `bar ${i}`).toBe(1)
+    expect(d.col.slice(4).every((x) => x === 2)).toBe(true)
   })
   it('v6: `c == false` reads the cast `false` (1 on the warm-up bars) — unchanged', () => {
     const { col, held } = doorColumn(form(6, 'c == false'))
     for (const i of WARM) expect(col[i]).toBe(1)
     expect(held).toEqual([])
   })
-  const WITHHELD = [
-    [5, 'c != false'], [4, 'c != true'], [2, 'c != false'],
-    [5, 'c == c[1]'],
-    [2, 'not c'], [null, 'not c'], [3, '(c or close > 0)'],
-    [1, '(c and close > 0) == false'],
-  ]
-  it.each(WITHHELD)('v%s: `%s` is WITHHELD by name on the warm-up bars, drawn after', (v, expr) => {
-    const src = form(v === 1 ? null : v, expr)
-    const { col, held, clock, mask } = doorColumn(src)
-    for (const i of WARM) expect(Number.isNaN(col[i]), `bar ${i}`).toBe(true)
-    for (let i = 6; i < N; i++) expect(Number.isFinite(col[i]), `bar ${i}`).toBe(true)
-    expect(held).toEqual([BOOL_NA_UNWITNESSED])
-    expect(clock).toContain(BOOL_NA_UNWITNESSED)
-    expect(mask.slice(0, 4)).toEqual([1, 1, 1, 1])
-    // the four doors agree: the host doors translate (withholding is per bar), and the runtime
-    // lane, which has no per-bar withholding, declines the run by the SAME code
-    const [screen, pane, runtime, door] = doors(src)
-    expect([screen, pane, door]).toEqual(['OK', 'OK', 'OK'])
-    expect(runtime).toBe(BOOL_NA_UNWITNESSED)
-    expect(translatePine(src).outputs[0].formula).toMatch(/boolNaWithheld/)
-  })
-  const SERVED = [
-    [4, 'not c'], [5, '(c or close > 0)'], [5, 'not c'],
-    [1, '(c and close > 0)'], [6, 'c != false'], [6, 'not c'],
-  ]
-  it.each(SERVED)('v%s: `%s` is served on every bar (witnessed, or a condition reads both readings alike)', (v, expr) => {
-    const src = form(v === 1 ? null : v, expr)
-    const { col, held } = doorColumn(src)
-    for (let i = 0; i < N; i++) expect(Number.isFinite(col[i]), `bar ${i}`).toBe(true)
-    expect(held).toEqual([])
-    expect(doors(src)).toEqual(['OK', 'OK', 'OK', 'OK'])
-    // both lanes draw the same column
-    const rt = runtimeRun(src, BARS)
-    expect(rt.err).toBeUndefined()
-    expect(rt.col).toEqual(col)
-  })
-  it('the sentence the member reads names the forms and what would settle them', () => {
+  it('the sentence the member reads states the witnessed rule and what is still withheld', () => {
     const s = CHART_CLOCK_WITHHELD[BOOL_NA_UNWITNESSED]('D')
-    expect(s).toMatch(/`!=`/)
+    expect(s).toMatch(/`not` of it/)
     expect(s).toMatch(/withheld rather than guessed/)
+  })
+})
+
+describe('A3 — the fallback marker, for a `bool` whose `na` this engine does not follow', () => {
+  it('`boolNaWithheld(c, na(sma))` is its operand and withholds by name exactly where the flag is 1', () => {
+    const smaT = { type: 'call', name: 'sma', args: [{ type: 'series', name: 'close' }, { type: 'num', value: 5 }] }
+    const c = { type: 'op', name: '>', args: [{ type: 'series', name: 'close' }, smaT] }
+    const tree = { type: 'op', name: '!=', args: [
+      { type: 'call', name: 'boolNaWithheld', args: [c, { type: 'call', name: 'na', args: [smaT] }] },
+      { type: 'num', value: 0 }] }
+    const held = new Map()
+    const clock = new Map()
+    const col = interpret(tree, BARS, undefined, undefined, undefined,
+      { ...LISTING, tf: 'D', chartClockSink: clock, withheldBarsSink: held })
+    expect([...held.keys()]).toEqual([BOOL_NA_UNWITNESSED])
+    expect(Array.from(held.get(BOOL_NA_UNWITNESSED)).slice(0, 6)).toEqual([1, 1, 1, 1, 0, 0])
+    expect([...clock.keys()]).toContain(BOOL_NA_UNWITNESSED)
+    for (let i = 0; i < 4; i++) expect(Number.isNaN(col[i]), `bar ${i}`).toBe(true)
+    expect(Array.from(col).slice(4).every((x) => Number.isFinite(x))).toBe(true)
   })
 })
 
@@ -325,7 +350,14 @@ describe('S4-1 — pivots ignore an `na` on the LEFT side', () => {
   })
 })
 
-describe('S4-2 — the arg-extreme tie: newest over a bar price, withheld over a computed source', () => {
+/** Pine's newest-of-a-tie offset of `ta.highestbars(src, len)` on bar i (non-positive) */
+const newestOffset = (src, len, i) => {
+  let best = -Infinity
+  let at = -1
+  for (let j = i - len + 1; j <= i; j++) if (src[j] >= best) { best = src[j]; at = j }
+  return -(i - at)
+}
+describe('S4-2 — the arg-extreme tie: newest over a bar price at every version, over ANY source at v4 / v5 (S1); a v6 computed source withheld', () => {
   it('builtin aroon (v6): Aroon Up reads 100 on bar 116, the tie of bars 112 and 116 (TradingView; was 71.43)', () => {
     const src = '//@version=6\nindicator("e56 aroon")\nplot(100 * (ta.highestbars(high, 15) + 14) / 14)'
     const { col, held } = hostColumn(src)
@@ -340,16 +372,28 @@ describe('S4-2 — the arg-extreme tie: newest over a bar price, withheld over a
     const lo = hostColumn('//@version=4\nstudy("e56 lb")\nplot(lowestbars(low, 3))').col
     expect(lo.every((x, i) => i < 2 || Number.isFinite(x))).toBe(true)
   })
-  it('a computed source\'s tied window is withheld by name, every other bar drawn (v6 and v4)', () => {
-    for (const [v, call] of [[6, 'ta.highestbars(vt, 4)'], [4, 'highestbars(vt, 4)']]) {
+  it('v4 / v5: a two-valued COMPUTED source names the NEWEST of a tie (S1), first value on bar length - 1, both lanes', () => {
+    const vt = BARS.map((b) => (b.c > b.o ? 10 : 20))
+    for (const [v, call] of [[5, 'ta.highestbars(vt, 4)'], [4, 'highestbars(vt, 4)']]) {
       const src = `//@version=${v}\n${v >= 5 ? 'indicator' : 'study'}("e56 tie")\nvt = close > open ? 10 : 20\nplot(${call})`
-      const { col, held, clock } = hostColumn(src, 0, BARS)
-      expect([...held.keys()]).toEqual([TIE_UNWITNESSED])
-      expect([...clock.keys()]).toContain(TIE_UNWITNESSED)
-      // every bar has a constant two-valued source: a 4-bar window of it always ties
-      expect(col.slice(3).every((x) => Number.isNaN(x))).toBe(true)
-      expect(buildRuntimeIr(src, { bars: BARS, inputs: {}, pane: true, historyFromListing: true }).refusal.guard).toBe(TIE_UNWITNESSED)
+      const { col, held, formula } = hostColumn(src, 0, BARS)
+      expect(held.size).toBe(0)
+      expect(formula).toMatch(/tieNewest\(/)
+      for (let i = 0; i < 3; i++) expect(Number.isNaN(col[i]), `bar ${i}`).toBe(true)
+      for (let i = 3; i < BARS.length; i++) expect(col[i], `bar ${i}`).toBe(newestOffset(vt, 4, i))
+      const rt = runtimeRun(src, BARS)
+      expect(rt.err).toBeUndefined()
+      expect(rt.col).toEqual(col)
     }
+  })
+  it('v6: a computed source\'s tied window is withheld by name (unresolved), every other bar drawn', () => {
+    const src = '//@version=6\nindicator("e56 tie")\nvt = close > open ? 10 : 20\nplot(ta.highestbars(vt, 4))'
+    const { col, held, clock, formula } = hostColumn(src, 0, BARS)
+    expect(formula).not.toMatch(/tieNewest/)
+    expect([...held.keys()]).toEqual([TIE_UNWITNESSED])
+    expect([...clock.keys()]).toContain(TIE_UNWITNESSED)
+    expect(col.slice(3).every((x) => Number.isNaN(x))).toBe(true)
+    expect(buildRuntimeIr(src, { bars: BARS, inputs: {}, pane: true, historyFromListing: true }).refusal.guard).toBe(TIE_UNWITNESSED)
   })
   it('a computed source with no tie is drawn', () => {
     const src = '//@version=6\nindicator("e56 notie")\nplot(ta.highestbars(close * 2, 4))'
@@ -370,6 +414,8 @@ describe('S4-2 — the arg-extreme tie: newest over a bar price, withheld over a
     expect(isBarPriceTree(op('/', [op('+', [s('high'), s('low')]), { type: 'num', value: 2 }]))).toBe(true)
     expect(isBarPriceTree(s('volume'))).toBe(false)
     expect(isBarPriceTree(op('/', [op('+', [s('high'), s('close')]), { type: 'num', value: 2 }]))).toBe(false)
+    // a source the v4 / v5 translator marked `tieNewest` takes the newest rule too
+    expect(isBarPriceTree({ type: 'call', name: 'tieNewest', args: [op('*', [s('close'), { type: 'num', value: 2 }])] })).toBe(true)
   })
 })
 
@@ -383,9 +429,14 @@ describe('the runtime lane on its own path (a mutable value: no column to read)'
     expect(rt(['//@version=6', 'indicator("e56 vm")', ...body].join('\n'), BARS).ok).toBe(true)
   })
   it('S4-2: a window over a mutable (computed) source stops by name on its first tied window, and is served with none', () => {
-    const vm = (body) => ['//@version=5', 'indicator("e56 vm tie")', 'float vt = 0.0', body, 'plot(ta.highestbars(vt, 4))'].join('\n')
+    const vm = (body, v = 6) => [`//@version=${v}`, 'indicator("e56 vm tie")', 'float vt = 0.0', body, 'plot(ta.highestbars(vt, 4))'].join('\n')
     const tie = runtimeRun(vm('vt := close > open ? 10 : 20'), BARS)
     expect(tie.err && tie.err.guard).toBe(TIE_UNWITNESSED)
+    // v5 (S1): the newest of the tie, served
+    const v5 = runtimeRun(vm('vt := close > open ? 10 : 20', 5), BARS)
+    expect(v5.err).toBeUndefined()
+    const vt = BARS.map((b) => (b.c > b.o ? 10 : 20))
+    for (let i = 3; i < BARS.length; i++) expect(v5.col[i], `bar ${i}`).toBe(newestOffset(vt, 4, i))
     const none = runtimeRun(vm('vt := close * 2'), BARS)
     expect(none.err).toBeUndefined()
     // with no tie on these bars, the columnar lane draws every bar, and both lanes agree
@@ -440,13 +491,25 @@ describe('finding 1 - no untracked bool reaches `== true/false` with the compari
     expect(codes).toEqual([])
     expect(col.filter((x) => Number.isFinite(x)).length).toBe(RDDT.length)
   })
-  it('a `bool` this cannot track (a v1 `and` over its own history) is withheld by name on every bar, never served', () => {
+  it('S1: a v1 `and` over its own history is never `na` (`and` reads `na` as false): tracked and served', () => {
     const src = 'study("r1")\nx = close > open ? (nz(x[1], false) and close > sma(close, 5)) : false\nplot(x == true ? 1 : 0)'
-    const t = translatePine(src, { strict: true })
-    if (!t.ok) return expect(t.refusal || t.outputs[0].refusal).toBeTruthy() // refused by name is also honest
     const { col, codes } = doorOn(src)
-    expect(codes).toEqual([BOOL_NA_UNWITNESSED])
-    expect(col.every((x) => Number.isNaN(x))).toBe(true)
+    expect(codes).toEqual([])
+    expect(col.every((x) => Number.isFinite(x))).toBe(true)
+  })
+  it('an `==` over a bool latch\'s own past (`nz(x[1], false) == true`) is tracked (never `na`) and served', () => {
+    const src = 'study("r1")\nx = close > open ? (nz(x[1], false) == true) : false\nplot(x ? 1 : 0)'
+    const { col, codes, formula } = doorOn(src)
+    expect(formula).not.toMatch(/boolNaWithheld/)
+    expect(codes).toEqual([])
+    expect(col.every((x) => Number.isFinite(x))).toBe(true)
+  })
+  it('S1: a NUMBER meeting a `bool` literal (v1 `x == true` is `x == 1`) is `na` where the number is, never withheld', () => {
+    const src = 'study("r1")\nx = close - sma(close, 5)\nplot(x == true ? 1 : 2)'
+    const { col, codes } = doorOn(src)
+    expect(codes).toEqual([])
+    for (let i = 0; i < 4; i++) expect(col[i], `bar ${i}`).toBe(2)
+    expect(col.every((v) => v === 1 || v === 2)).toBe(true)
   })
   it('finding 5b: `x = close > open ? 1 : na; x != 1` is a NUMBER compare, served as `sma != close` is', () => {
     const { col, codes, formula } = doorOn('//@version=5\nindicator("r1")\nx = close > open ? 1 : na\nplot(x != 1 ? 1 : 0)')
@@ -457,12 +520,12 @@ describe('finding 1 - no untracked bool reaches `== true/false` with the compari
 })
 
 describe('finding 2 - the runtime lane declines a mutable `bool` that can be `na` (it served 0 where the host withholds)', () => {
-  it('`bool up = false; up := close > ta.sma(close, 20); up != up[1]`: host withholds bars 0..19, the runtime declines', () => {
+  it('`bool up = false; up := close > ta.sma(close, 20); up != up[1]`: the door draws 0 on bars 0..20 (S1: `na`, false as a condition), the runtime declines', () => {
     const src = '//@version=5\nindicator("r2")\nbool up = false\nup := close > ta.sma(close, 20)\nplot(up != up[1] ? 1 : 0)'
     const { col, codes } = doorOn(src)
-    expect(codes).toEqual([BOOL_NA_UNWITNESSED])
-    for (let i = 0; i < 20; i++) expect(Number.isNaN(col[i]), `bar ${i}`).toBe(true)
-    expect(col.slice(20).every((x) => Number.isFinite(x))).toBe(true)
+    expect(codes).toEqual([])
+    for (let i = 0; i <= 19; i++) expect(col[i], `bar ${i}`).toBe(0)
+    expect(col.every((x) => Number.isFinite(x))).toBe(true)
     const b = buildRuntimeIr(src, { bars: RDDT, inputs: {}, pane: true, historyFromListing: true })
     expect(b.ok).toBe(false)
     expect(b.refusal.guard).toBe(BOOL_NA_UNWITNESSED)
@@ -477,11 +540,24 @@ describe('finding 2 - the runtime lane declines a mutable `bool` that can be `na
       expect(ne.ok, `${plot}: ${ne.refusal && ne.refusal.guard}`).toBe(true)
     }
   })
-  it('finding 1 (this lane): a `valuewhen` of a comparison meeting `!= false` written inline declines by name', () => {
+  it('finding 1 (this lane): a `valuewhen` of a comparison meeting `!= false` is never a different number than the door', () => {
     const src = '//@version=4\nstudy("r1")\nplot(valuewhen(close > open, close > sma(close, 20), 0) != false ? 1 : 0)'
     const b = buildRuntimeIr(src, { bars: RDDT, inputs: {}, pane: true, historyFromListing: true })
-    expect(b.ok).toBe(false)
-    expect(b.refusal.guard).toBe(BOOL_NA_UNWITNESSED)
+    if (b.ok) expect(runtimeRun(src).col).toEqual(doorOn(src).col)
+    else expect(b.refusal.guard).toBe(BOOL_NA_UNWITNESSED)
+    for (let i = 0; i < 19; i++) expect(doorOn(src).col[i], `bar ${i}`).toBe(0)
+  })
+  it('S1 (this lane): an `==` over a `bool` that is `na`, DRAWN as a value (v2 `plot(b == true)`), is `na` there or declined', () => {
+    const src = '//@version=2\nstudy("r2e")\nb = close > 60 ? close > open : na\nplot(b == true)'
+    const want = RDDT.map((r) => (r.c > 60 ? (r.c > r.o ? 1 : 0) : NaN))
+    const b = buildRuntimeIr(src, { bars: RDDT, inputs: {}, pane: true, historyFromListing: true })
+    if (b.ok) expect(runtimeRun(src).col).toEqual(want)
+    else expect(b.refusal.guard).toBe(BOOL_NA_UNWITNESSED)
+    // and the VM path proper (a mutable `bool`, no column): declined, never drawn as 0
+    const vm = '//@version=2\nstudy("r2f")\nb = false\nb := close > 60 ? close > open : na\nplot(b == true)'
+    const r = buildRuntimeIr(vm, { bars: RDDT, inputs: {}, pane: true, historyFromListing: true })
+    if (r.ok) expect(runtimeRun(vm).col).toEqual(want)
+    else expect(r.refusal.guard).toBe(BOOL_NA_UNWITNESSED)
   })
   it('round 2: a comparison over a SLOT that can be `na` (`s := ta.sma(…)`, `up := close > s`) declines at `== false`', () => {
     const src = '//@version=5\nindicator("r2d")\nfloat s = na\ns := ta.sma(close, 20)\nbool up = false\nup := close > s\nplot(up == false ? 1 : 0)'
@@ -520,43 +596,36 @@ describe('finding 2 - the runtime lane declines a mutable `bool` that can be `na
 })
 
 describe('finding 3 -a witness site under a read on other bars is withheld (TF_MERGE / LTF / tf / sym)', () => {
-  it('a `!=` site under `request.security(…, "W", …)` withholds the plot, never draws the weekly guess', () => {
-    const { col, codes, maskLengths } = doorOn('//@version=5\nindicator("r3")\nw = request.security(syminfo.tickerid, "W", (close > ta.sma(close, 20)) != false)\nplot(w ? 1 : 0)')
-    expect(codes).toEqual([BOOL_NA_UNWITNESSED])
+  it('a v6 tie site under `request.security(…, "W", …)` withholds the plot, never draws the weekly guess', () => {
+    const { col, codes, maskLengths } = doorOn('//@version=6\nindicator("r3")\nvt = close > open ? 10 : 20\nplot(request.security(syminfo.tickerid, "W", ta.highestbars(vt, 4)))')
+    expect(codes).toEqual([TIE_UNWITNESSED])
     expect(col.every((x) => Number.isNaN(x))).toBe(true)
     // finding 7: the mask the harness trusts is the chart's length, never the weekly child's
     expect(maskLengths).toEqual([RDDT.length])
   })
-  it('a tie site under `request.security(…, "W", …)` too', () => {
+  it('the same source at v5 (newest, S1) is drawn', () => {
     const { col, codes } = doorOn('//@version=5\nindicator("r3")\nvt = close > open ? 10 : 20\nplot(request.security(syminfo.tickerid, "W", ta.highestbars(vt, 4)))')
-    expect(codes).toEqual([TIE_UNWITNESSED])
-    expect(col.every((x) => Number.isNaN(x))).toBe(true)
+    expect(codes).toEqual([])
+    expect(col.slice(40).every((x) => Number.isFinite(x))).toBe(true)
+  })
+  it('a tracked `!=` under `request.security(…, "W", …)` is Pine\'s answer: false as a condition while the weekly side is `na`', () => {
+    const { col, codes } = doorOn('//@version=5\nindicator("r3")\nw = request.security(syminfo.tickerid, "W", (close > ta.sma(close, 20)) != false)\nplot(w ? 1 : 0)')
+    expect(codes).toEqual([])
+    for (let i = 0; i < 80; i++) expect(col[i], `bar ${i}`).toBe(0)
   })
 })
 
-describe('finding 5 - the withholding ENDS once the answer no longer depends on the unknown bars', () => {
-  it('`ta.barssince(up != up[1])` withholds only its warm-up (it withheld 666 of 666 bars)', () => {
-    const { col, held } = doorOn('//@version=5\nindicator("r5")\nup = close > ta.sma(close, 20)\nplot(ta.barssince(up != up[1]))')
-    expect(held).toBeLessThan(40)
-    expect(col.slice(40).every((x) => Number.isFinite(x))).toBe(true)
-  })
-  it('the BOUNDED form (`ta.barssince(…) < 30`, which is `barssince(c, 30)`) withholds only its warm-up too', () => {
-    // a bare `ta.barssince(c)` is `bar_index - valuewhen(c, bar_index, 0)`; the bounded one is the table's own
-    const src = '//@version=5\nindicator("r5")\nup = close > ta.sma(close, 20)\nplot(ta.barssince(up != up[1]) < 30 ? 1 : 0)'
-    const { col, held, formula } = doorOn(src)
-    expect(formula).toMatch(/barssince\(/)
-    expect(held).toBeGreaterThan(0)
-    expect(held).toBeLessThan(40)
-    expect(col.slice(40).every((x) => Number.isFinite(x))).toBe(true)
-  })
-  it('`ta.valuewhen(up != up[1], close, 0)` withholds only until the first known occurrence', () => {
-    const { col, held } = doorOn('//@version=5\nindicator("r5")\nup = close > ta.sma(close, 20)\nplot(ta.valuewhen(up != up[1], close, 0))')
-    expect(held).toBeLessThan(40)
-    expect(col.slice(40).every((x) => Number.isFinite(x))).toBe(true)
-  })
-  it('a recurrence over the unknown bars still withholds every later bar (it cannot forget them)', () => {
-    const { col, codes } = doorOn('//@version=5\nindicator("r5")\nup = close > ta.sma(close, 20)\nplot(ta.cum(up != up[1] ? 1 : 0))')
-    expect(codes).toEqual([BOOL_NA_UNWITNESSED])
-    expect(col.every((x) => Number.isNaN(x))).toBe(true)
+describe('finding 5 - the withholding ENDS once the answer no longer depends on the unknown bars (v6 tie sites)', () => {
+  const v6 = (expr) => `//@version=6\nindicator("r5")\nvt = close > open ? 10 : 20\nhb = ta.highestbars(vt, 4)\nplot(${expr})`
+  it('a recurrence over the unknown bars withholds every later bar; `barssince` / `valuewhen` / the bounded form stop withholding', () => {
+    const cum = doorOn(v6('ta.cum(hb == 0 ? 1 : 0)'))
+    expect(cum.codes).toEqual([TIE_UNWITNESSED])
+    expect(cum.col.slice(10).every((x) => Number.isNaN(x))).toBe(true)
+    for (const expr of ['ta.barssince(hb == 0)', 'ta.valuewhen(hb == 0, close, 0)', 'ta.barssince(hb == 0) < 30 ? 1 : 0']) {
+      const r = doorOn(v6(expr))
+      expect(r.codes, expr).toEqual([TIE_UNWITNESSED])
+      expect(r.held, expr).toBeLessThan(cum.held)
+      expect(r.col.slice(40).some((x) => Number.isFinite(x)), expr).toBe(true)
+    }
   })
 })

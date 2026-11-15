@@ -253,6 +253,9 @@ plot(${n}(volume))
       // a `bool` `na` no capture has witnessed. No Pine script writes `boolNaWithheld(...)`; the literal
       // probe correctly finds no door, and `engine56Values.test.js` proves the operator lands on it.
       'boolNaWithheld',
+      // ⭐ `tieNewest` (2026-11-14, engine 56 S1) — written ONLY by the Pine door around a v4 / v5
+      // `ta.highestbars` / `ta.lowestbars` source (TradingView names the newest of a tie there).
+      'tieNewest',
     ]
     // A SUPERSET check, so closing any one is green while a NEW name falling out
     // of every door is a named regression.

@@ -35,32 +35,36 @@ Witnesses: `uptrick-volatility-weighted-cloud` (v6; bands from bar 100, 0.49 / 0
 68.6058732213702 on bar 100 over `ta.percentrank(ta.roc(close, 1), 100)`, whose window holds the `na` of
 bar 0). The runtime lane computes `ta.percentrank` through the columnar lane, so it moved with it.
 
-### A3: a Pine v1-v5 `bool` can be `na`
-Pine v1-v5: a comparison with `na` is an `na` bool, and `na == true` / `na == false` are false (the v6
-migration guide, for v5; measured for v1 on `accumulation-distribution-with-markers`, bar 14:
-`adSmaller == true and adSmaller[1] == false` with `adSmaller[1]` the comparison of bar 13 against a
-warming-up `sma`; TradingView draws `na`, this engine drew -11152358.65). v6 bools are never `na`.
+### A3: a Pine v1-v5 `bool` can be `na` (rules revised to the S1 witnesses)
+The S1 evidence session (2026-11-14, PR #1286, probes `tools/visual_conformance/probes/vw-cs1-*.pine`,
+NYSE:RDDT 1D from the listing; `runs/objects-lane/S1-RULES-2026-11-14.md`) WITNESSED, at v2 = v4 = v5, on the
+warm-up bars where `na_s` is `na`: `c > na_s` is `na` (not false); `c == false`, `c != false`, `c == true`
+are `na`; `not c` is TRUE; `and` / `or` read `na` as false (`c and true` false, `c or true` true, `c or
+false` false); a `?:` on an `na` test takes the else branch; `bool nb = na` behaves the same. v1's `==`
+agrees (`accumulation-distribution-with-markers`, bar 14: TradingView draws `na`, this engine drew
+-11152358.65). **v1 and v3 are not probed directly; they take the same rules (coordinator ruling), and no
+evidence contradicts it.** v6 bools are never `na` and are unchanged.
 
-The engine keeps a comparison's value (`cmp` answers 0 for a `na` operand, which every condition reads as
-Pine's cast reads `na`: false), and the Pine door now tracks WHERE a `bool` is `na`
-(`pine.js::naInfo`: `{na, maybe}` per resolved tree; comparisons, offsets of them, `?:` of bool arms,
-`and` / `or` / `not`, the bool-returning calls). Operators that tell `na` from false are rewritten in v1-v5
-and with no `//@version` (`pine.js::boolNaOperator`):
+The engine keeps a comparison's VALUE (`cmp` answers 0 for an `na` operand), which IS Pine's answer
+wherever the `bool` is read as a condition (`?:`, `if`, `and`, `or`, `not`: `na` reads false and `not na`
+is true), and tracks WHERE a `bool` is `na` beside it (`pine.js::naInfo`, per resolved tree: comparisons,
+offsets of them, `?:` of bool arms, reads on other bars lifted through the same node, `valuewhen` at its
+occurrence, `nz`, a `var bool`'s own flag recurrence; `and` / `or` / `not` are never `na`). Where Pine's
+`na` and false differ, the value is rewritten (`pine.js::boolNaOperator`, v1-v5 and no `//@version`):
 
-| form | v1-v3 / no pragma | v4 / v5 | v6 |
-|---|---|---|---|
-| `b == true`, `b == false` (a written literal) | SERVED: false where `b` is `na` | SERVED | unchanged |
-| `b != L`, `b1 == b2` (both `na`-able, or a non-literal side) | WITHHELD on the bars an operand is `na` | WITHHELD | unchanged |
-| `not b`, `b or c` | WITHHELD on those bars | unchanged (read as false: `rt3-na-logic` v4/v5, witnessed) | unchanged |
-| `b and c` | served (false or `na`; every condition reads both as false), tracked as `maybe` | unchanged | unchanged |
-| `?:` / `if` / `iff` test | unchanged (false) | unchanged | unchanged |
+| form | v1-v5 / no pragma (S1) | v6 |
+|---|---|---|
+| `b == L`, `b != L`, `b1 == b2`, `b1 != b2` (any side can be `na`) | the VALUE is `na` there: `(flag) ? na : (b == L)`; read as a condition its `na` arm reads false (`Resolver.condition` -> `naArmsReadFalse`) | unchanged |
+| `not b`, `b and c`, `b or c` | served as built (`cmp`'s 0 is Pine's false; `not na` is true) | unchanged |
+| `?:` / `if` / `iff` test | false where `na` | unchanged |
+| `na(b)` | true where `b` is `na` | unchanged |
+| `plot(b)` (a `bool` drawn as a value, v1-v3) | `na` where `b` is `na` | n/a |
+| a number meeting a `bool` literal (v1-v3 `x == true`) | `na` where the number is | n/a |
 
-A withheld bar is the canonical marker `boolNaWithheld(operand, flag)` (a new table function: its operand
-on every bar, both lanes) and the mask `interpret.js::boolNaMask` / `ast_interpret.bool_na_mask` (every
-root bar within reach of a flagged bar, `historyReadMask`'s rule), named
-`pine:bool-na-unwitnessed` in the chart-clock channel with a sentence that says what is drawn, what is not,
-and what would settle it (the A3 probe). Residual, stated: a tree whose `na` cannot be tracked (a
-recurrence's own value read as a bool, a numeric operand used as a bool) keeps the value it had.
+Nothing is withheld for these forms any more. The marker `boolNaWithheld(side, 1)` (withheld on every bar,
+`pine:bool-na-unwitnessed`) remains only for a `bool` side whose `na` this engine cannot follow (an `==`
+written over a recurrence's own past, `x = c ? (nz(x[1], false) == true) : false`); the sentence now states
+the witnessed rule and that only those are withheld.
 
 ### S4-1: pivots ignore a left-side `na`
 `pivotCol`, the runtime kernel `pivotPineStep` and `ast_interpret._pivot_col`: for `j < i` a `na` is
@@ -73,27 +77,33 @@ all-`na` left window passes; the only withheld left condition is a window that r
 (`i - left < 0`, the loop's start). Railed on the capture's numbers (bar 19: 45.19746465138957, bar 23:
 41.366625940024655) with a mutant that withholds an all-`na` left window.
 
-### S4-2: the arg-extreme tie depends on the source
-Two witnesses say the NEWEST tied bar wins over a bar price: the builtin `aroon` (v6, S5; Aroon Up 100 on
-bar 116, where `ta.highestbars(high, 15)` ties the current bar with bar 112; this engine read 71.43) and
-`pivot-high-low-points` (v4; no marker on bar 117, where `highestbars(11)` ties bars 112 and 116).
-`divergences.json::argextreme-ties-resolve-to-the-newest-bar` measured OLDEST (380 ok / 0 bad) on a
-two-valued COMPUTED source at v6. The two are not reconciled, so (coordinator decision):
-- over a price the bar holds (`open`/`high`/`low`/`close`, `hl2`/`hlc3`/`ohlc4`/`hlcc4` as the door builds
-  them: `interpret.js::isBarPriceTree`, `ast_interpret.is_bar_price_tree`) the newest tied bar wins, at
-  every version (`FN_BAR_PRICE_NEWEST`, `FINITE_WINDOW.*.reduceNewest`, the runtime window's `newest`
-  plan flag); `aroonUp` / `aroonDown` read `high` / `low` and take the same rule;
-- over any other source the oldest-wins answer stays underneath and every bar whose window holds a tied
-  extreme is WITHHELD by name (`argExtremeTieMask`, `pine:tie-unwitnessed`) until the tie probe settles it.
-The divergences.json entry is kept as the computed-source measurement; `_functions_arg_extreme` records
-the conflict.
+### S4-2: the arg-extreme tie (rules revised to the S1 witnesses)
+Witnessed: over a bar price the NEWEST tied bar wins (the builtin `aroon`, v6, S5: Aroon Up 100 on bar 116,
+this engine read 71.43; `pivot-high-low-points`, v4: no marker on bar 117). S1 (v4 = v5): `highestbars` /
+`lowestbars` name the NEWEST of equal extremes over ANY source, a two-valued COMPUTED one included, and in
+the one-argument form over `high`; the first value is on bar `length - 1`.
+`divergences.json::argextreme-ties-resolve-to-the-newest-bar` measured OLDEST on a two-valued computed
+source at v6. So:
+- v4 / v5: newest for every source, nothing withheld. The Pine door marks a non-bar-price source of
+  `ta.highestbars` / `ta.lowestbars` `tieNewest(source)` (a new pointwise table function, its operand on
+  every bar, both lanes), and `isBarPriceTree` / `is_bar_price_tree` read the mark as a bar price; the
+  runtime window takes the newest reducer for every source there and never stops on a tie.
+- v6: newest over a bar price; a computed source's tied windows stay withheld by name
+  (`argExtremeTieMask`, `pine:tie-unwitnessed`): unresolved against divergences.json.
+- v1-v3: newest over a bar price; computed sources withheld (no evidence). In practice the bare v1-v3
+  `highestbars` / `lowestbars` already refuses by name (its sign is unstated), so no v1-v3 tie is drawn.
 
 ### The runtime lane
 It has no per-bar withholding, so it declines by the same codes: a column the columnar lane withholds by
-either code declines the run (`columnOf`, the `runtime:chart-clock` pattern); a VM `==` / `!=` (and v1-v3
-`or` / `not`) over a comparison that can be `na` declines `pine:bool-na-unwitnessed`; a VM window of
-`highestbars` / `lowestbars` over a computed source declines `pine:tie-unwitnessed`, and over a bar price it
-runs the newest reducer.
+either code declines the run (`columnOf`, the `runtime:chart-clock` pattern). A VM `==` / `!=` over a
+`bool` that can be `na` is served only where the VM still holds that `na` as `na` (then `na == x` and
+`na != x` are 0, which a condition reads as Pine's false) AND the result is read as a condition, never
+drawn as a value; both are decided over the whole lowered program (`boolNaFaithfulness`: every write of
+every slot, greatest fixpoint; the drawn set walks each output's value through slots, never through a
+condition). Otherwise it declines `pine:bool-na-unwitnessed`. `and` / `or` / `not` are served at every
+version. A VM window of `highestbars` / `lowestbars` takes the newest reducer over a bar price at every
+version and over every source at v4 / v5; over a computed source at v6 it stops by name
+(`pine:tie-unwitnessed`) on its first tied window.
 
 ### S4-4: the harness
 - `compare.mjs`: a plot a running total feeds (`cum`, `cumFrom`, `sum` in its tree) is graded with an
@@ -255,6 +265,60 @@ The S5 aroon capture is that reading, so the xfail is removed. `test_ast_bounded
   `origin/master`'s `ast_interpret.py` and `closedTable.json` swapped in, so they are not engine 56's:
   `tests/test_indicator_golden.py` (1: `rs_parity_deepvue_universe` fixture vs CASES) and
   `tests/test_c45_withheld_doors.py` (2: `time-clock:unreadable`).
+
+## Review round (#1265 at `f4601e45a1`): findings 1-7
+Each finding fixed in this PR, railed, and mutation-proved (R-series below).
+
+1. **Untracked `bool`s no longer served at `== false`.** `pine.js::naInfo` now tracks a `bool` read on other
+   bars (`tf` / `tf_live` / `tf_merge` / `sym` / `ltf`: the child's flag lifted through the SAME node, a bar
+   the read cannot fill counts as `na`), a `valuewhen` / `valuewhenOccurrence` of a `bool` (the source's
+   flag at the selected occurrence, `na` before one), `nz(b, S)`, and a `var bool` (its flag is a recurrence
+   of its own, stepped with the value). A `bool` side it still cannot track meets `==` / `!=` against a
+   literal as `boolNaWithheld(side, 1)`: withheld by name on every bar, never served with the
+   comparison's 0. Rails: v4 `security(…, "W", close > sma(close, 20)) == false` reads 0 for the first ~100
+   daily bars (it read 1); the `valuewhen` form reads 0 while the chosen comparison is `na`; a v1 latch
+   (`close > open ? true : nz(x[1], false)`) is tracked and served on all 666 bars; a v1 `and` over its own
+   history is withheld on every bar. Residuals audited: a recurrence's own value read as a bool and a
+   `var bool` are now tracked or withheld; `numeric == bool` keeps the number rule (5b below); the VM
+   lane is item 2.
+2. **The runtime lane declines a `bool` slot that can be `na`.** At `!=` (and a `==` of two non-literal
+   sides) any read of a `bool` slot, or its history, that is not provably never-`na` declines
+   `pine:bool-na-unwitnessed` (rail: `bool up = false; up := close > ta.sma(close, 20); up != up[1]`:
+   the door withholds bars 0..19, the runtime declines). `== true / false` is decided over the WHOLE lowered
+   program (`pineRuntimeFrontend.js::boolNaFaithfulness`): served where every write of what it reads keeps
+   `na` as `na` in the VM (a literal, an unmatched block's `na`, a history read before bar 0, a comparison
+   of never-`na` values, a v4+ `and` / `or` / `not`), declined where any write is a comparison over a
+   value that can be `na` (the VM answers 0 there). Rails: `up := close > ta.sma(…)` then `up == false`
+   declines; `s := ta.sma(…)`, `up := close > s` then `up == false` declines; a v5 unmatched block read
+   through a function's `x[1] == true` is served and equals Pine's answer bar for bar. ⚠️ The first cut of
+   this item declined EVERY `bool` slot at `==`, which the full suite caught: five v5 runtime controls
+   (`w4V6Bool`, `w34I6V6BoolResidue` x3, `p3WsaReviewFixes`) and one corpus script that builds
+   (`volume-divergence-by-mm`, `barssince(cond == true)` over `plFound[1]`) went from served to refused.
+   All six are served again, by the analysis above.
+3. **Every nested read on other bars masks a witness site under it, both lanes**:
+   `WITNESS_NESTED` = `sym`, `tf`, `tf_live`, `tf_merge`, `ltf` (`_WITNESS_NESTED` in Python). Rails: a `!=`
+   site and a tie site under `request.security(…, "W", …)` withhold the plot by name. (`tf_merge` is
+   matched by name; #1264 adds the node, and the rail is re-run when it lands.)
+4. **The float floor is for a LINEAR combination of totals only** (`ourSide.js::linearTotalsOf`: sums and
+   differences, a total times or over a constant, an offset, a linear smoother); a ratio or product of
+   totals (VWAP's `cum(hlc3·v) / cum(v)`), `abs`, a comparison get no floor and are graded by REL 1e-9 on
+   their own magnitude. The MATCH reason now states how many bars the floor admitted. Rails: a VWAP-shaped
+   plot with a 1e-7 relative error DIVERGES; `accdist-macd`'s shape keeps its floor.
+5. **The withholding ends where the answer stops depending on the unknown bars** (`interpret.js::witnessMask`,
+   `ast_interpret.py::_witness_mask`): `barssince` after its next known-true bar, `valuewhen` after
+   `n + 1` known-true occurrences after the last unknown one, pivots and finite windows by their reach,
+   `offset` shifted; a recurrence (`cum`, `accum`) keeps withholding every later bar. Rails:
+   `ta.barssince(up != up[1])` withholds 25 bars (it withheld 666 of 666), the bounded
+   `ta.barssince(…) < 30` its warm-up only, `ta.valuewhen(up != up[1], close, 0)` until the first known
+   occurrence, `ta.cum(…)` still every bar. **5b**: `x = close > open ? 1 : na; x != 1` is a number
+   comparison (only a real `bool`-typed side is a `bool`), served as `sma != close` is.
+6. `mayBeNaBool` respects the version (v4/v5 `and` / `or` / `not` are never `na`); a variable whose every
+   write is a bar price (`float h = na; h := high`) takes the newest tie rule on the runtime lane, equal to
+   the columnar lane.
+7. Nested `sym` / `tf` / `tf_merge` / `ltf` child interpret calls drop `withheldBarsSink` (the chart's mask
+   is the chart's length; railed by the mask length in item 3's rail).
+
+{QUANT}
 
 ## Open notes
 - **Engine 55 merges first.** This branch says 56 and was measured on `origin/master` (54) plus this

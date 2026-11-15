@@ -325,6 +325,11 @@ describe('🔴 the two that CANNOT be expressed, and say so by name', () => {
     percentileNearestRank: 'no Pine name collides — the real Pine spelling is'
       + ' snake_case (ta.percentile_nearest_rank) and reaches this entry by the same'
       + ' identity route as its linear sibling',
+    // ⭐ ENGINE 56 (S1) — OURS ALONE: the Pine door's mark on a v4 / v5 `highestbars` /
+    //   `lowestbars` source, its operand on every bar. Pine has no `ta.tieNewest`, so
+    //   nothing can be mistranslated onto it, and a pasted `ta.tieNewest(x)` reads x.
+    tieNewest: 'no Pine name collides — the door\'s own identity mark on a v4 / v5'
+      + ' highestbars / lowestbars source (newest of a tie, S1 witnessed)',
   })
 
   it('⛔⛔ EVERY declared name, offered under `ta.` — a door that OPENS lands RED', () => {

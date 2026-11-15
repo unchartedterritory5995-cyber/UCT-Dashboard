@@ -442,6 +442,7 @@ const FORMS = [
   { kind: 'call', name: 'nz', parts: [0, ' where it is known, and ', 1, ' where it is not'] },
   // ⭐ ENGINE 56 (A3) — hand-typed from closedTable.json's words, as every row above
   { kind: 'call', name: 'boolNaWithheld', parts: [0, ', withheld wherever ', 1] },
+  { kind: 'call', name: 'tieNewest', parts: [0, ', where a tie in a highest or lowest bars window names its newest bar'] },
 
   { kind: 'op', name: '+', parts: [0, ' plus ', 1] },
   { kind: 'op', name: '-', parts: [0, ' minus ', 1] },
@@ -1249,6 +1250,8 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:stoch',
       'function:sum',
       'function:tan',
+      // ⭐ ENGINE 56 (S1): the Pine door's mark on a v4 / v5 `highestbars` / `lowestbars` source
+      'function:tieNewest',
       'function:valuewhen',
       'function:valuewhenOccurrence',
       'function:vwap',
@@ -1277,7 +1280,8 @@ describe('totality over the closed table — derived from the manifest, never ha
     // ⭐ 131 -> 138 (2026-10-30): Pine coverage Phase 1's `acos`, `alma`,
     // `percentileNearestRank`, `rci`, plus `accum2`, `accum3`, `accum4` (`_functions_multi_state`).
     // ⭐ 138 -> 139 (2026-11-14, engine 56 A3): `boolNaWithheld`, the Pine door's bool-na marker.
-    expect(entries.length).toBe(139)
+    // ⭐ 139 -> 140 (2026-11-14, engine 56 S1): `tieNewest`.
+    expect(entries.length).toBe(140)
     // ⭐ +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     // +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
   })
@@ -1301,7 +1305,8 @@ describe('totality over the closed table — derived from the manifest, never ha
     // ⭐ 130 -> 131 (2026-10-02, H3): `vwapOf`.
     // ⭐ 131 -> 138 (2026-10-30): Phase 1's four plus `accum2`, `accum3`, `accum4`.
     // ⭐ 138 -> 139 (2026-11-14, engine 56 A3): `boolNaWithheld`.
-    expect(subjects.length).toBe(139)
+    // ⭐ 139 -> 140 (2026-11-14, engine 56 S1): `tieNewest`.
+    expect(subjects.length).toBe(140)
     // ⭐ +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     // +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     for (const { entry, ast: tree } of subjects) {
@@ -2658,6 +2663,8 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       'pine_acos_of_the_body_share_of_the_range',
       'pine_alma_9_085_6',
       'pine_percentile_nearest_rank_of_the_range',
+      // (2026-11-14, engine 56 S1) the v4 / v5 tie mark is its operand
+      'pine_tie_newest_is_its_operand',
       // (2026-11-14, engine 56 A3) the bool-na marker is its operand
       'pine_bool_na_withheld_is_its_operand',
       'pine_rci_close_10',
@@ -2754,7 +2761,8 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
     // ⭐ 130 -> 131 (2026-10-02, H3): `vwapOf`.
     // ⭐ 131 -> 138 (2026-10-30): Phase 1's four plus `accum2`, `accum3`, `accum4`.
     // ⭐ + 138 -> + 139 (2026-11-14, engine 56 A3): `boolNaWithheld`.
-    expect(sentences.length).toBe(CORPUS.cases.length + 139)
+    // ⭐ + 139 -> + 140 (2026-11-14, engine 56 S1): `tieNewest`.
+    expect(sentences.length).toBe(CORPUS.cases.length + 140)
     // ⭐ +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     // +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     for (const s of sentences) {

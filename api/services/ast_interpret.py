@@ -1850,6 +1850,8 @@ _POINTWISE: Mapping[str, Callable[..., float]] = {
     # ENGINE 56 (A3) -- the marker is its operand on every bar; which bars are not shown is
     # ``bool_na_mask``'s (the twin of ``interpret.js::POINTWISE.boolNaWithheld``).
     "boolNaWithheld": lambda x, _flag: x,
+    # ENGINE 56 (S1) -- its operand; a highestbars / lowestbars over it names the newest of a tie
+    "tieNewest": lambda x: x,
     "sqrt": _guarded_sqrt,
     "ln": _guarded_ln,
     "log10": _guarded_log10,
@@ -2484,6 +2486,9 @@ def is_bar_price_tree(t: Any) -> bool:
     ``pine.js::derivedSeriesTree`` builds them. The twin of ``interpret.js::isBarPriceTree``."""
     if not isinstance(t, dict):
         return False
+    # ENGINE 56 (S1) -- a source marked ``tieNewest`` (Pine v4 / v5) takes the bar-price rule
+    if t.get("type") == "call" and t.get("name") == "tieNewest":
+        return True
     if t.get("type") == "series":
         return t.get("name") in _BAR_PRICE_FIELDS
     args = t.get("args")
@@ -2603,6 +2608,7 @@ FN: Dict[str, Callable[..., List[float]]] = {
     "na": lambda series: [_guarded_na(v) for v in series],
     "nz": lambda a, b: _elementwise2(a, b, _guarded_nz),
     "boolNaWithheld": lambda a, b: _elementwise2(a, b, lambda x, _flag: x),
+    "tieNewest": lambda series: list(series),
     "crossOver": lambda a, b: _crossing(a, b, lambda an, bn, ap, bp: an > bn and ap <= bp),
     "crossUnder": lambda a, b: _crossing(a, b, lambda an, bn, ap, bp: an < bn and ap >= bp),
     # ── the indicators, bound to the server's own maths ────────────────────
