@@ -8,6 +8,7 @@
     "breadth.history",
     "breadth.show",
     "history.afterEvent",
-    "journal.reviewTrades"
+    "journal.reviewTrades",
+    "stock.earningsCalendar"
   ]
 }

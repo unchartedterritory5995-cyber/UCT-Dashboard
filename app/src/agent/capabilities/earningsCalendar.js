@@ -136,7 +136,7 @@ export async function answerEarningsCalendar(args = {}, host = null) {
   symbols = [...new Set(symbols)].slice(0, MAX_SYMBOLS)
   const params = { ...windowFor(args), session: ['bmo', 'amc'].includes(args.session) ? args.session : 'any', limit: 50,
     ...(symbols.length ? { symbols } : {}) }
-  const envl = await readData(KIND, params, { purpose: 'answer', turnId })
+  const envl = await readData('earnings.calendar', params, { purpose: 'answer', turnId })   // a LITERAL: the isolation rail reads it
   return answerFromCalendar(envl, { listName, listMore })
 }
 
