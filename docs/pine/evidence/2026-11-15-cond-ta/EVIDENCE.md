@@ -176,15 +176,73 @@ the runtime lane declines too (`runtime:conditional-history`). By name, never wr
 "bar-constant parameter guards" (substitute the call-site arguments into the guard, v4 and v5
 together), which rails this capture back to MATCH.
 
-## Measurements
+## Measurements and RESUME (2026-11-15, before the owner's PC restart)
 
-PENDING — the coordinator's lock moratorium (2026-11-15: no new heavy runs until engine 55 and #1326
-merge) stopped the queued phases. To run, in order, each one heavy-lock hold:
-1. lenient + strict lanes over every `.pine` (repo + sample), base worktree then this one;
-2. census both lanes, harness both lanes over the fixtures + the held store (base, then this branch);
-   gates: 0 MATCH->DIVERGE, 0 new DIVERGE;
-3. capability admission measure (admission mode) + `capability_admission.py report` -> this folder's
-   `runs/report.json` (REACH and `capabilityEvidenceLane.test.js` then read it);
-4. `tools/pine_runtime_host_parity.mjs --write` (engine identity moved);
-5. engine / builder suites in shards, focused pytest files one at a time; M11 re-run;
-6. regrade of the held store (ledger restored before commit, coordinator rule).
+**Status: NOT MERGEABLE YET (coordinator ruling (b)).** Pushed as it stands on
+`fix/pine-engine-cond-ta`, head based on `5443154808` (engine 56); master has since moved to engine
+57 (`d067c1c1b8`, #1342 RS Rating). The engine number is still the placeholder (`55 = COND-TA`,
+`PINE_IMPORT_FIX_ENGINE = 55`, `SCRIPT_ENGINE_VERSION` = master's).
+
+### What passed (this head, before the final rebase)
+- Focused JS rails: condTaLanes 35, pineImportHold 8, barConstant 24, c45ArmRuns 74,
+  c48CallSite 33, lenientBlockLocalHistory 9, objectFnInline.test 57, runtime conditionalCallSite 23,
+  BuilderSheet.pine 18 (all green). Python: test_pine_import_hold + test_bar_constant 37.
+- Section 8 (`tests/test_pine_runtime_*.py`, one file at a time): all green except
+  service_smoke's engine rail (fixture not yet re-recorded; expected).
+- Mutants (each restored from a copy, hash == HEAD blob, control green): JS M1-M13, M11b,
+  J1-J8, B1-B5, L0 / L2 / L4 all KILLED; Python P1-P10 all KILLED.
+- **Harness before/after** (base `5443154808` vs this branch; 1,091 distinct captures, the
+  committed fixtures + 16 held-store dirs):
+  - prod lane: MATCH 251 -> 250, DIVERGE 171 -> 170, INCONCLUSIVE 669 -> 671;
+  - runtime-on lane: MATCH 299 -> 298, DIVERGE 178 -> 177, INCONCLUSIVE 614 -> 616;
+  - **0 MATCH -> DIVERGE, 0 new DIVERGE** (capture and plot level, both lanes). The two moves on
+    both lanes: `vw-cs2-v4-ternary-lazy` DIVERGE -> INCONCLUSIVE (the witnessed v4-lazy wrong-value
+    fix) and `fib-pivot-points-alerts` MATCH -> INCONCLUSIVE (over-refusal, below).
+- **Blast radius** (lenient + strict lanes over 1,278 `.pine`: 865 repo + 413 sample):
+  - screener lane: 188 outputs ok -> `pine:block` in 51 scripts (v6 103, v4 58, v5 18, v3 9),
+    24 scripts now fully refused, 1 top-level move to `pine:function-def`;
+  - host lane: 10 outputs ok -> `pine:block` in 3 scripts: `reference/fib-pivot-points-alerts`
+    (v4, 8), `committed/macd-with-filter-visual-backtest-module-sample` (v4, 1, `maVal`: one of the
+    10 COND-TA targets) and `tests/fixtures/pine/19-strategy-supertrend-atr.pine` (v3, 1); 6
+    scripts gain blockRuns gates (drawn where the guard does not vary).
+  - Per-output reasons: NOT YET CAPTURED (the full-reason probe was queued on the heavy lock when
+    the owner's restart deadline came). The measured diff (reasons cut to 90 characters) is
+    `blast-radius-diff.json` in this folder; the full-reason run is step 2 of the plan below
+    (`zzDetail.test.js`, `DT_LIST=detail-files.txt`, the 51 + 3 scripts).
+
+### The over-refusal class (why this is not shippable yet)
+A helper whose `if` guard reads a **parameter** that every call site fixes to a bar-constant value
+(the v4 MA-type selector, `get_MA(typ, len)` / `if (typ == "EMA")` / `maVal := ema(src, len)`;
+`fib-pivot-points-alerts`'s `is_newbar(res)`). G-b now reads the v4 bare call as a history call; the
+host's guard check knows top-level invariant names, not a call site's arguments, so it refuses where
+master drew the exact every-bar value.
+
+### Not run yet
+The admission (REACH) report regeneration, the five full vitest shards, the number step, host-parity
+`--write`, the service_smoke re-record and the regrade (ledger restored).
+
+### PLAN AFTER THE RESTART (coordinator ruling (b))
+1. **Bar-constant PARAMETER guards**: a guard on a function parameter is bar-constant when every call
+   site passes a bar-constant argument (substitute the call-site arguments into the guard, then ask
+   `barConstantTree` / `guardIsBarInvariant`); v4 and v5 together; write a probe first if the v5
+   `ta.*` answer in that shape is not already witnessed. Rail `fib-pivot-points-alerts` and
+   `macd-with-filter` back to MATCH / drawn.
+2. Re-run the blast radius.
+3. Classify EVERY remaining refusal (per output) as a witnessed-lazy wrong-value removal or an
+   over-refusal; fix or explain each over-refusal.
+4. Ship only when every remaining refusal is a witnessed wrong-value removal. Then: rebase onto
+   master, number = master + 1 (three places: `SCRIPT_ENGINE_VERSION`, `PINE_IMPORT_FIX_ENGINE`, the
+   `NN = COND-TA` history line), `node tools/pine_runtime_host_parity.mjs --write`, the service_smoke
+   re-record (procedure of commit `3ce7585ee3`; launcher copy `record56.py` with `REC_REPO`),
+   section 8, focused rails, the admission report into this folder's `runs/report.json` (repoint
+   `REPORT` in `tests/test_pine_capability_admission.py` and `capabilityEvidenceLane.test.js`),
+   the vitest shards (`--maxWorkers = clamp(floor((freeGB - 6) / 1.5), 1, 4)`), the regrade with
+   `docs/pine/vendor-harness/evidence-ledger.jsonl` restored before commit; push, PR.
+
+### Exact commands (scratch: `C:/Users/Patrick/uct-worktrees/_resume-2026-11-01/runs/eng-condta-scratch/`)
+- census + harness both lanes: `bash measure.sh <worktree> <tag>` (one heavy_lock hold per phase);
+  diff: `python -X utf8 verdict_diff.py`.
+- blast radius: `zzLenientCorpus.test.js` (scratch copy) with `LC_LIST=pine-files.txt
+  LC_OUT=lc-<tag>.json`, base and branch; diff: `python -X utf8 lc_diff.py`; full reasons:
+  `zzDetail.test.js` with `DT_LIST=detail-files.txt DT_OUT=detail.json`.
+- mutants: `python -X utf8 mutants.py <names>` and `python -X utf8 mutants_py.py` (under heavy_lock).
