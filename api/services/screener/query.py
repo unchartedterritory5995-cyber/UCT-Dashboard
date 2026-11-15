@@ -11,6 +11,8 @@ above `live_tier_state` for why the surface reads the tier's own facts rather
 than recomputing any of its gates.
 """
 import datetime as _dt
+import threading
+import time
 from zoneinfo import ZoneInfo
 
 from . import contention_trace_temp, filters, pattern_join, ranking, scan_store, snapshot_db
@@ -604,12 +606,80 @@ def stale_gate(conn):
 _DEAL_TICKER_SQL = f"UPPER(REPLACE(REPLACE({_ROWS}.ticker, '.', '-'), '/', '-'))"
 
 
+#: How old the scan gate's exclude set may get before a background refresh is started.
+DEAL_GATE_MAX_AGE_S = 300.0
+_DEAL_MEMO = {"syms": None, "at": 0.0, "refreshing": False}
+_DEAL_MEMO_LOCK = threading.Lock()
+
+
+def _deal_log():
+    import logging
+    return logging.getLogger(__name__)
+
+
+def _spawn(fn) -> None:
+    """Run `fn` off the request thread (tests replace this to run it inline)."""
+    threading.Thread(target=fn, daemon=True, name="screener-deal-gate-refresh").start()
+
+
+def _refresh_deal_memo() -> None:
+    """Build the full exclude set (news + price, the slow part) and keep it."""
+    got = None
+    try:
+        from api.services import deal_status
+        got = frozenset(deal_status._norm(s) for s in deal_status.screener_excludes() if s)
+    except Exception as exc:  # noqa: BLE001 -- a failed refresh keeps the last good set
+        _deal_log().warning("[screener] deal gate refresh failed, keeping the last set: %s", exc)
+    with _DEAL_MEMO_LOCK:
+        if got is not None:
+            _DEAL_MEMO.update(syms=got, at=time.monotonic())
+        _DEAL_MEMO["refreshing"] = False
+
+
+def _reset_deal_memo() -> None:
+    with _DEAL_MEMO_LOCK:
+        _DEAL_MEMO.update(syms=None, at=0.0, refreshing=False)
+
+
+def _deal_excludes() -> frozenset:
+    """The exclude set a scan uses, WITHOUT EVER WAITING ON ITS BUILD.
+
+    ⛔ WHY. `deal_status.screener_excludes()` is cached per ET day, but a cold build (after a
+    boot, at each DEAL_STATUS_REFRESH_S expiry, after a PC push resets it) reads every stored
+    deal headline and scans the daily bars for price pins. Measured 2026-11-14 on a freshly
+    booted pod: one read of that set did not answer in 120 s. Asked on the request thread,
+    every scan waited for it. So the scan reads the last set it was handed, a background thread
+    refreshes it once it is DEAL_GATE_MAX_AGE_S old (one at a time), and until the first full
+    set exists the scan uses the cheap file-backed lists (the owner's hand list and the PC's
+    buyout names), which hold every hand-confirmed deal."""
+    from api.services import deal_status
+    start = False
+    with _DEAL_MEMO_LOCK:
+        syms, at, busy = _DEAL_MEMO["syms"], _DEAL_MEMO["at"], _DEAL_MEMO["refreshing"]
+        if (syms is None or time.monotonic() - at > DEAL_GATE_MAX_AGE_S) and not busy:
+            _DEAL_MEMO["refreshing"] = start = True
+    if start:
+        try:
+            _spawn(_refresh_deal_memo)
+        except Exception as exc:  # noqa: BLE001 -- no thread: try again on the next scan
+            _deal_log().warning("[screener] deal gate refresh not started: %s", exc)
+            with _DEAL_MEMO_LOCK:
+                _DEAL_MEMO["refreshing"] = False
+        with _DEAL_MEMO_LOCK:
+            syms = _DEAL_MEMO["syms"]          # an inline refresh (tests) has landed by now
+    if syms is not None:
+        return syms
+    return frozenset(deal_status._norm(s) for s in deal_status.hand_list() | deal_status.mirror_list()
+                     if s)
+
+
 def deal_gate():
     """The pending-acquisition exclusion every scan carries, or ``None``.
 
     ``{"sql", "params", "symbols"}``: ``sql`` keeps a row whose ticker is NOT in the
     screener's buyout exclude set (`deal_status.screener_excludes`: the owner's hand
-    list plus every pending deal, the one answer the rest of the app already uses).
+    list plus every pending deal, the one answer the rest of the app already uses), read
+    through `_deal_excludes` so a scan never waits on that set's build.
 
     ⛔ WHY AT SCAN TIME. Before this the set was applied in ONE place, when
     `screener_universe.build_and_save` wrote the universe file, and nothing runs that
@@ -624,11 +694,9 @@ def deal_gate():
         from api.services import deal_status
         if not deal_status.enabled():
             return None
-        syms = sorted({deal_status._norm(s) for s in deal_status.screener_excludes() if s})
+        syms = sorted(_deal_excludes())
     except Exception as exc:  # noqa: BLE001 -- a fault must never cost the member a scan
-        import logging
-        logging.getLogger(__name__).warning(
-            "[screener] deal gate unavailable, excluding nothing: %s", exc)
+        _deal_log().warning("[screener] deal gate unavailable, excluding nothing: %s", exc)
         return None
     if not syms:
         return None
