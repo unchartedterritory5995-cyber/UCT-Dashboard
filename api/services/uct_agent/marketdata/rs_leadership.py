@@ -71,6 +71,9 @@ NOTE_NOT_RATED = "no RS Rating is stored for: {syms}"
 NOTE_NO_BARS = "no completed daily bars are held for: {syms}"
 NOTE_INDUSTRY_NOT_COVERED = "no industry in UCT's group map matches: {word}"
 NOTE_INDUSTRY_AMBIGUOUS = "several industries match {word}: {names}"
+#: (AUDIT #1236 51c1) a SECTOR word asked as an industry: asked back, never answered with one narrow industry
+NOTE_SECTOR_WORD = ("{word} names the {sector} sector, not one industry — the sectors ranking compares the sector ETFs "
+                    "(ask for sectors), or name an industry within it")
 NOTE_NO_GROUP = "not in UCT's group map: {syms}"
 #: the map itself could not answer (industry_map.MapUnavailable) — never reported as "no industry matches"
 NOTE_MAP_ABSENT = "UCT's group map is not present on this server, so no industry or group figure is stated"
@@ -198,8 +201,41 @@ def _norm(word: str) -> str:
     return w
 
 
+def _squash(w: str) -> str:
+    """A word compared as one token: lower-case, letters only, a trailing plural 's' dropped ("Health Care" = "healthcare")."""
+    t = re.sub(r"[^a-z]", "", str(w or "").lower())
+    return t[:-1] if t.endswith("s") and len(t) > 4 else t
+
+
+def sector_named(word: str) -> Optional[str]:
+    """The SECTOR a word names, or None (AUDIT #1236 51c1: a sector word is never answered with one narrow industry).
+
+    The vocabulary is DERIVED from the sectors this kind already serves — sector_strength.SECTOR_ETFS's labels (the 11 SPDR
+    sectors) — never a hand list: the word (after the industry fillers: "stocks", "sector", …) is a sector's whole name, or
+    every one of its words is a word of that sector's name ("consumer", "communications", "real estate", "tech" is not)."""
+    w = _norm(word)
+    if not w:
+        return None
+    for name in _sector_etfs():
+        if _squash(w) == _squash(name):
+            return name
+    toks = [_squash(t) for t in re.split(r"[\s\-&/]+", w) if t]
+    if not toks:
+        return None
+    for name in _sector_etfs():
+        vocab = {_squash(t) for t in re.split(r"[\s\-&/]+", name) if t}
+        if all(t in vocab for t in toks):
+            return name
+    return None
+
+
 def resolve_industry(word: str, names: list[str]) -> tuple[Optional[str], list[str]]:
-    """(industry, []) on one match; (None, candidates) when several match; (None, []) when none. Never a guess."""
+    """(industry, []) on one match; (None, candidates) when several match; (None, []) when none. Never a guess.
+
+    ⛔ AUDIT #1236 51c1, structural: (a) a word that names a SECTOR (sector_named) never resolves to one industry, whatever
+    the map holds ("technology" is not Information Technology Services); (b) the contains shortcut answers ONE industry only
+    when the word is the HEAD of that industry's name — a word found only inside a name ("Consumer Electronics" for
+    "electronics" is a head match; "Information Technology Services" for "technology" is not) is offered as a candidate."""
     w = _norm(word)
     if not w:
         return None, []
@@ -212,7 +248,10 @@ def resolve_industry(word: str, names: list[str]) -> tuple[Optional[str], list[s
             return by_lower[target.lower()], []
     stem = w[:-1] if w.endswith("s") and len(w) > 4 else w
     hits = [n for low, n in sorted(by_lower.items()) if re.search(rf"(?:^|[\s\-&/]){re.escape(stem)}", low)]
-    if len(hits) == 1:
+    if sector_named(w):
+        return None, hits[:8]                                  # a sector word: never ONE industry (the read asks)
+    heads = [n for n in hits if n.lower().startswith(stem)]
+    if len(hits) == 1 and len(heads) == 1:
         return hits[0], []
     return None, hits[:8]
 
@@ -328,6 +367,13 @@ def read_rs_leadership(params: dict, ctx: dict) -> dict:  # noqa: ARG001 — no 
                                      data=data, notes=notes + [map_note()], provider_calls=0,
                                      coverage={"requested": 1, "answered": 0})
         industry, candidates = resolve_industry(word, [i for i in names if i != etf_ind])
+        sector = sector_named(word) if industry is None else None
+        if sector:
+            data.update({"industry": None, "asked": word, "candidates": candidates, "ambiguous": True, "sector_word": sector,
+                         "group_map": "ok"})
+            return env.make_envelope(KIND, params, status="partial", freshness="periodic", as_of=None, source=SOURCE,
+                                     data=data, notes=notes + [NOTE_SECTOR_WORD.format(word=word, sector=sector)],
+                                     provider_calls=0, coverage={"requested": 1, "answered": 0})
         if industry is None:
             note = (NOTE_INDUSTRY_AMBIGUOUS.format(word=word, names="; ".join(candidates)) if candidates
                     else NOTE_INDUSTRY_NOT_COVERED.format(word=word))
@@ -352,6 +398,9 @@ def read_rs_leadership(params: dict, ctx: dict) -> dict:  # noqa: ARG001 — no 
     failures: list = []
     want = list(dict.fromkeys(syms + [BENCHMARK] + [t for m in cohorts.values() for t in m]))
     ratings = _ratings(want, failures) or {}
+    # ⚠ LOAD-BEARING (AUDIT #1236 51a): rs_history.read_fields serves ONE session for every ticker of a read (its docstring:
+    # "for the newest session (or session)"), so the first row's `asof` IS the read's session. If read_fields ever mixed
+    # sessions per ticker, this line would date every row by whichever ticker came first.
     session = next((r.get("asof") for r in ratings.values() if r and r.get("asof")), None)
     stale = any(isinstance(f, str) and f.startswith("stale:") for f in failures)
     if session is None:

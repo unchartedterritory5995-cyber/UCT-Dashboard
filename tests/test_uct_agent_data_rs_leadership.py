@@ -11,6 +11,8 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
+import re
+
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -462,3 +464,57 @@ def test_a_corrupt_map_file_is_UNREADABLE_not_absent(tmp_path, monkeypatch):
     with pytest.raises(im.MapUnavailable) as e:
         im.peek_groups(["NVDA"], strict=True)
     assert e.value.state == im.UNREADABLE
+
+
+# ── AUDIT #1236 51c1: a SECTOR word is never answered with one narrow industry (generated over the derived vocabulary) ──
+#: a realistic Yahoo / Finviz-style industry list: sector words appear INSIDE several names, and once as a lone inner word
+YAHOO_LIKE = ["Information Technology Services", "Consumer Electronics", "Communication Equipment", "Semiconductors",
+              "Semiconductor Equipment & Materials", "Railroads", "Gold", "Banks - Regional", "Banks - Diversified",
+              "Utilities - Regulated Electric", "Real Estate Services", "Healthcare Plans", "Medical Devices",
+              "Oil & Gas E&P", "Oil & Gas Integrated", "Specialty Industrial Machinery", "Financial Data & Stock Exchanges",
+              "Building Materials", "Packaged Foods", "Auto Manufacturers", "Telecom Services", "Electronic Components"]
+SECTOR_NAMES = sorted(rl._sector_etfs())                       # DERIVED: the sectors the kind already serves
+SECTOR_WORDS = sorted({t.lower() for n in SECTOR_NAMES for t in re.split(r"[\s\-&/]+", n) if t})
+
+
+def _forms(w):
+    return [w, w.upper(), w.title(), f"{w} stocks", f"{w} sector", f"the {w} sector", f"{w} industry"]
+
+
+@pytest.mark.parametrize("word", [f for n in SECTOR_NAMES for f in _forms(n.lower())])
+def test_a_SECTOR_name_never_resolves_to_one_industry(word):
+    ind, _ = rl.resolve_industry(word, YAHOO_LIKE)
+    assert ind is None, (word, ind)
+    assert rl.sector_named(word) in SECTOR_NAMES
+
+
+@pytest.mark.parametrize("word", [f for t in SECTOR_WORDS for f in _forms(t)])
+def test_a_word_of_a_sector_name_never_resolves_to_one_industry(word):
+    ind, _ = rl.resolve_industry(word, YAHOO_LIKE)
+    assert ind is None, (word, ind)
+
+
+@pytest.mark.parametrize("word,want", [("semis", "Semiconductors"), ("railroads", "Railroads"), ("railroad stocks", "Railroads"),
+                                       ("gold miners", "Gold"), ("gold", "Gold"), ("regional banks", "Banks - Regional"),
+                                       ("medical devices", "Medical Devices"), ("electronic components", "Electronic Components"),
+                                       ("auto manufacturers", "Auto Manufacturers"), ("packaged foods", "Packaged Foods"),
+                                       ("Building Materials", "Building Materials"), ("consumer electronics", "Consumer Electronics")])
+def test_real_industry_words_still_resolve(word, want):
+    assert rl.resolve_industry(word, YAHOO_LIKE) == (want, [])
+    assert rl.sector_named(word) is None
+
+
+@pytest.mark.parametrize("word,inside", [("machinery", "Specialty Industrial Machinery"), ("exchanges", "Financial Data & Stock Exchanges"),
+                                         ("equipment", "Communication Equipment")])
+def test_a_word_found_only_INSIDE_one_name_is_offered_never_answered(word, inside):
+    ind, cands = rl.resolve_industry(word, YAHOO_LIKE)
+    assert ind is None and inside in cands
+
+
+@pytest.mark.parametrize("word", ["technology", "consumer stocks", "communications", "the real estate sector"])
+def test_a_sector_word_asked_as_an_industry_is_asked_back_naming_the_sector(store, monkeypatch, word):
+    monkeypatch.setattr(rl, "_industries", lambda: list(YAHOO_LIKE))
+    out = _read({"scope": "industry", "industry": word})
+    assert out["status"] == "partial" and out["data"]["industry"] is None and out["data"]["ambiguous"] is True
+    assert out["data"]["sector_word"] in SECTOR_NAMES
+    assert any("sector, not one industry" in n for n in out["notes"])
