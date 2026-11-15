@@ -74,6 +74,7 @@ _DOMAIN_OF = {
     "chartFeatures": "chart",                             # a chart widget's Company Info panel + Earnings Strip (opts.dock)
     "chartReplay": "chart",                               # ONE chart's bar replay playback (the toolbar's Replay / Time Machine bar)
     "board": "board", "widget": "board", "app": "board", "settings": "board", "guide": "board", "agent": "board",
+    "boardDetach": "board",                               # the in-canvas float / Dock / Move into tabs, the merged board view
     "periodSort": "board",                                # C3-205..207: Tools → Custom-Period Sort (a workspace tool)
     "compare": "board",                                   # Tools → Compare Symbols: the panel's Rotation / Overlay view (a workspace tool)
     "watchlist": "watchlist", "layout": "layout",

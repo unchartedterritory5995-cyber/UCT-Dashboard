@@ -8,7 +8,7 @@ import { buildWidgetSource, buildLayoutSource, buildWatchlistSource, buildWidget
 import { mergeChartSettings } from '../../components/chart/chartDefaults'
 import { chartTabList } from '../../pages/charts/chartTabs'
 
-export function makeBoard(widgets, groupSyms = { A: 'AAPL' }, { failAddAt = null, layouts = null, watchlists = null, minOf = null, repack = null, resize = null, catalog = null } = {}) {
+export function makeBoard(widgets, groupSyms = { A: 'AAPL' }, { failAddAt = null, layouts = null, watchlists = null, minOf = null, repack = null, resize = null, catalog = null, detach = null } = {}) {
   const state = { widgets: widgets.map(w => ({ color: 'A', opts: {}, ...w })), groupSyms: { ...groupSyms } }
   let n = 0
   let adds = 0
@@ -47,7 +47,11 @@ export function makeBoard(widgets, groupSyms = { A: 'AAPL' }, { failAddAt = null
     cancelPending: () => {},
     groupSyms: () => state.groupSyms,
   }
-  const visible = () => state.widgets
+  // boardDetach.* (`detach`: { floating, popped, merged, mobile, gridMode }): ChartsWorkspace's in-canvas float state — a floating
+  // or popped widget stays in layout.widgets but leaves the visible board; float / dock are handleFloatWidget / handleDockFloatWidget
+  if (detach) state.detach = { floating: [], popped: [], merged: false, mobile: false, gridMode: false, ...detach }
+  const off = (w) => !!state.detach && (state.detach.floating.includes(w.id) || state.detach.popped.includes(w.id))
+  const visible = () => state.widgets.filter(w => !off(w))
   const readChart = (id) => {
     const w = state.widgets.find(x => x.id === id && x.type === 'chart')
     if (!w) return null
@@ -261,6 +265,24 @@ export function makeBoard(widgets, groupSyms = { A: 'AAPL' }, { failAddAt = null
     })
     // "The member edits the list by hand" (another tab, the Watchlists page).
     state.manual = (id, fn) => { const wl = server.lists.find(l => l.id === id); fn(wl); cache = JSON.parse(JSON.stringify(server.lists)) }
+  }
+  if (state.detach) {
+    const d = state.detach
+    host.detach = {
+      read: () => ({ floating: [...d.floating], popped: [...d.popped], merged: d.merged === true, mobile: d.mobile === true, gridMode: d.gridMode === true }),
+      float: (id) => { if (d.mobile || d.gridMode) return false; if (!d.floating.includes(id)) d.floating = [...d.floating, id]; d.calls = [...(d.calls || []), ['float', id]]; return true },
+      dock: (id) => { if (d.mobile || d.gridMode) return false; d.floating = d.floating.filter(x => x !== id); d.calls = [...(d.calls || []), ['dock', id]]; return true },
+    }
+    // the member prefs the host writes (ChartsWorkspace prefs.write): only the Merge widgets toggle's key here
+    host.prefs = {
+      read: () => ({ ...(d.mergedRaw !== undefined ? { charts_merged: d.mergedRaw } : {}) }),
+      write: async (k, v) => {
+        if (k !== 'charts_merged' || d.failPref) return false
+        d.prefWrites = [...(d.prefWrites || []), [k, v]]
+        d.mergedRaw = v; d.merged = JSON.parse(v) === true
+        return true
+      },
+    }
   }
   return { host, state, widgetOps }
 }

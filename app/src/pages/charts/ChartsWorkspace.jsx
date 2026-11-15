@@ -75,7 +75,7 @@ import VersionHistoryPanel, { VersionHistoryMenuItem, useVersionHistoryAvailable
 import vhStyles from './VersionHistory.module.css'
 import { recordBoardWrites, replayBoardWrites, applyColumnsSteps, boardDocumentPatch, commitBoardDocument, planColumnsFold } from './boardDocument'
 import { isWorkspaceDocArmed } from '../../lib/workspaceDoc'
-import { addWidgetTab, resolveActiveTab } from './widgetTabs'
+import { addWidgetTab, resolveActiveTab, moveIntoTabs } from './widgetTabs'
 import { createEmptyNamedLayout } from './dockCreate'
 import { computeRowHeight as rowHeightFor, FIXED_ROWS as _FIXED_ROWS, MARGIN_Y as _MARGIN_Y, BODY_PAD as _BODY_PAD } from './rowHeight'
 import { WIDGET_REGISTRY, WORKSPACE_PICKER_TYPES, labelMap, menuGroups, catalogMeta } from '../../widgets/registry'
@@ -2687,15 +2687,11 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     if (floatId === targetId) return
     setFloatingWidgetIds(prev => prev.filter(x => x !== floatId))
     setLayout(prev => {
-      const src = prev.widgets.find(w => w.id === floatId)
-      const target = prev.widgets.find(w => w.id === targetId)
-      if (!src || !target) return prev
       // Move the source widget's base definition in as a new tab of the target,
       // then delete the source (it now lives inside the target's tab group).
-      const nextTarget = addWidgetTab(target, { type: src.type, color: src.color, opts: src.opts })
-      const widgets = prev.widgets
-        .filter(w => w.id !== floatId)
-        .map(w => (w.id === targetId ? { ...nextTarget, x: w.x, y: w.y, w: w.w, h: w.h } : w))
+      // ONE transform (widgetTabs.moveIntoTabs), shared with UCT Agent's boardDetach.intoTabs.
+      const widgets = moveIntoTabs(prev.widgets, floatId, targetId)
+      if (widgets === prev.widgets) return prev
       const next = { ...prev, widgets: clampWidgetsToRows(widgets) }
       scheduleSave(next)
       return next
@@ -3522,6 +3518,9 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     },
   }
   const inRouter = useInRouterContext()
+  // boardDetach.* (the host's `detach` source below): this render's float / pop-out / merged state and the float's own handlers
+  const agentDetachRef = useRef(null)
+  agentDetachRef.current = { floating: floatingWidgetIds, popped: poppedWidgetIds, merged, mobile: isMobile, gridMode, float: handleFloatWidget, dock: handleDockFloatWidget }
   const agentHost = useMemo(() => buildWorkspaceHost({
     chartApiById: chartApiByIdRef,
     getWidgets: () => agentWidgetsRef.current,
@@ -3571,6 +3570,8 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
           chart_templates: (x) => sp('chart_templates', x),
           // the Volume pane's height on every chart — the key dragging its separator writes (ChartPane.handleVolPaneResize)
           charts_vol_pane_pct: (x) => sp('charts_vol_pane_pct', x),
+          // the merged board view (no gaps, touching borders) — the key the Merge widgets toggle writes (toggleMerged)
+          charts_merged: (x) => sp('charts_merged', x),
         }[k]
         return w ? w(v) : Promise.resolve(false)
       },
@@ -3599,6 +3600,17 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
       set: (iso) => { const r = agentReplayRef.current; if (!r) return; if (iso) r.start(iso, null); else r.exit() },
     },
     gridControl: gridAgentControl,
+    // ⭐ boardDetach.* (Charts family, 2026-11-15): the in-canvas float's OWN handlers (handleFloatWidget /
+    // handleDockFloatWidget) and what they leave — which widgets float or are popped out, the merged view, and whether
+    // this is the phone view or Multi Chart (where nothing floats). Floating is this tab's state, never saved.
+    detach: {
+      read: () => {
+        const r = agentDetachRef.current
+        return r ? { floating: [...r.floating], popped: [...r.popped], merged: r.merged === true, mobile: r.mobile === true, gridMode: r.gridMode === true } : null
+      },
+      float: (id) => { const r = agentDetachRef.current; if (!r || r.mobile || r.gridMode) return false; r.float(id); return true },
+      dock: (id) => { const r = agentDetachRef.current; if (!r || r.mobile || r.gridMode) return false; r.dock(id); return true },
+    },
   }), [])   // eslint-disable-line react-hooks/exhaustive-deps
   // ⭐ W2-C1: the app-level Agent host knows this page's host; /charts keeps its own dock + panel below (`owned`).
   useAgentPageHost(boardHidden ? null : 'charts', agentHost, { owned: true })

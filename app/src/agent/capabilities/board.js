@@ -106,6 +106,12 @@ const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
 const clone = (o) => JSON.parse(JSON.stringify(o))
 const intOk = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi
 
+// boardDetach.*: what the workspace's own float / pop-out / merged state reads now (null when this host has no such door)
+function viewOf(host) {
+  let v = null
+  try { v = host?.detach?.read?.() || null } catch { v = null }
+  return v ? { floating: (v.floating || []).map(String), popped: (v.popped || []).map(String), merged: v.merged === true, mobile: v.mobile === true, gridMode: v.gridMode === true } : null
+}
 function snapOf(host) {
   const s = host?.widgets?.snapshot?.()
   if (!s?.raw || !s.grid) return null
@@ -119,7 +125,9 @@ function snapOf(host) {
   const detached = s.raw.filter(w => !onGrid.has(String(w.id))).map(w => String(w.id))
   const doorOf = (id) => { try { return host?.widgets?.door?.(id) || null } catch { return null } }
   return { ref: 'board', label: 'Board', doorOf, doors: doorsOf(s.raw, doorOf), raw: s.raw, groupSyms: s.groupSyms, layoutTheme: s.layoutTheme, grid: s.grid, minOf: s.minOf, repack: s.repack, resize: s.resize, themeAll: s.themeAll, extraGroups: s.extraGroups === true, lists, detached, fitsWatchlist: s.fits?.watchlist === true,
-    charts: chartsOf(host), maxWidgets: s.max }
+    charts: chartsOf(host), maxWidgets: s.max,
+    // boardDetach.*: the in-canvas float / pop-out / merged state and where this board is shown (ChartsWorkspace `detach`); null = no door
+    view: viewOf(host) }
 }
 // widget id → what its door reports for its `door` controls: the widget's own state, not stored anywhere
 function doorsOf(raw, doorOf) {
@@ -240,7 +248,9 @@ export const boardKind = {
   unavailable: "The chart board isn't available on this page — open the Charts board to arrange it.",
   list: (host) => { const s = snapOf(host); return s ? [s] : [] },
   read: (host, ref) => (ref === 'board' ? snapOf(host) : null),
-  stateOf: (s) => ({ board: clone(s.raw), layoutTheme: s.layoutTheme ?? null, did: [], adds: [], grid: null, doors: clone(s.doors || {}), sends: [], outs: [], acts: [], itemOps: [] }),
+  stateOf: (s) => ({ board: clone(s.raw), layoutTheme: s.layoutTheme ?? null, did: [], adds: [], grid: null, doors: clone(s.doors || {}), sends: [], outs: [], acts: [], itemOps: [],
+    // boardDetach.*: the float / merged state read now, and the view writes a plan makes ({ floats, docks, merged })
+    view: s.view ? clone(s.view) : null, viewDo: null }),
   patch(before, after) {
     // chartGrid.set: its own write (charts added, cells, links and tickers together), alone
     if (after.grid) return after.grid.noop ? null : { grid: clone(after.grid) }
@@ -276,6 +286,8 @@ export const boardKind = {
     if ((after.itemOps || []).length) p.itemOps = clone(after.itemOps)
     // A NEW widget (watchlist.open with none on the board): added through handleAddWidget, alone.
     if ((after.adds || []).length) return { add: clone(after.adds) }
+    // boardDetach.*: the float / dock / merged writes (alone, or with intoTabs' board change)
+    if (after.viewDo) p.viewDo = clone(after.viewDo)
     return Object.keys(p).length ? p : null
   },
   async commit(host, ref, patch) {
@@ -303,10 +315,14 @@ export const boardKind = {
     if (patch.sends) return sendToJournal(host, patch.sends)
     if (patch.outs) return listOut(host, patch.outs)
     if (patch.acts) return runActs(host, patch.acts)
-    const { doors, itemOps, ...rest } = patch
+    const { doors, itemOps, viewDo, ...rest } = patch
+    // boardDetach.*: a dock lands before the board changes (intoTabs of a floating widget), a float after it (its Undo)
+    if (viewDo?.docks?.length) await viewWrite(host, 'dock', viewDo.docks)
     if (itemOps) await writeItemOps(host, itemOps)
     if (doors) await writeDoors(host, doors)
     if (Object.keys(rest).length) host.widgets.applyBoard(rest)
+    if (viewDo?.floats?.length) { if (Object.keys(rest).length) await afterRender(); await viewWrite(host, 'float', viewDo.floats) }
+    if (viewDo && 'merged' in viewDo) await mergedWrite(host, viewDo.merged)
     return true
   },
   landed(snap, patch) {
@@ -328,6 +344,7 @@ export const boardKind = {
     if ('layoutTheme' in patch && !same(snap.layoutTheme ?? null, patch.layoutTheme ?? null)) return false
     for (const [id, vals] of Object.entries(patch.doors || {})) for (const [k, v] of Object.entries(vals)) if (!sameDoorValue(snap.doors?.[id]?.[k] ?? null, v ?? null)) return false
     for (const o of patch.itemOps || []) if (!itemOpLanded(Array.isArray(snap.doors?.[o.widget]?.[o.key]) ? snap.doors[o.widget][o.key] : [], o)) return false
+    if (patch.viewDo && !viewLanded(snap.view, patch.viewDo)) return false
     return true
   },
   // Undo: the touched widgets exactly as they were — a removed one re-inserted whole.
@@ -368,6 +385,14 @@ export const boardKind = {
     if (Object.keys(set).length) out.set = set
     if ((p.restore || []).length) out.remove = p.restore.map(w => w.id)
     if ('layoutTheme' in p) out.layoutTheme = item.before?.layoutTheme ?? null
+    // boardDetach.*: a float goes back by a dock and a dock by a float; the merged view to exactly what it was
+    if (p.viewDo) {
+      const v = {}
+      if (p.viewDo.docks?.length) v.floats = [...p.viewDo.docks]
+      if (p.viewDo.floats?.length) v.docks = [...p.viewDo.floats]
+      if ('merged' in p.viewDo) v.merged = item.before?.view?.merged === true
+      if (Object.keys(v).length) out.viewDo = v
+    }
     return Object.keys(out).length ? out : null
   },
   // AUDIT S1-A: the member's own item lists (ITEM_LISTS, read through the widgets' doors) are part of the board a plan was made
@@ -390,11 +415,13 @@ export const boardKind = {
       }))
     }
     const ids = [...new Set([...(p.remove || []), ...Object.keys(p.set || {}), ...Object.keys(p.doors || {}), ...(p.itemOps || []).map(o => o.widget), ...(p.restore || []).map(w => w.id), ...(p.add ? item.undoData?.added || [] : [])])]
-    return JSON.stringify(ids.map(id => {
+    // boardDetach.*: a float / dock / merged Undo is stale once the member floated, docked or merged since
+    const vfp = p.viewDo ? [[...(s.view?.floating || [])].sort(), s.view?.merged ?? null] : null
+    return JSON.stringify([...ids.map(id => {
       const w = s.raw.find(x => x.id === id)
       const own = [...Object.keys(p.doors?.[id] || {}), ...(p.itemOps || []).filter(o => o.widget === id).map(o => o.key)].map(k => s.doors?.[id]?.[k] ?? null)
       return w ? [id, ...FIELDS.map(f => fieldFp(w, f)), ...own] : [id, 'gone']
-    }))
+    }), ...(vfp ? [vfp] : [])])
   },
 }
 
@@ -412,6 +439,27 @@ async function settle(pred, ms = 5000) {
   return pred()
 }
 const rawNow = (host) => host.widgets.snapshot().raw || []
+// boardDetach.*: the float's own handlers, one widget at a time, each read back from the workspace before the next
+async function viewWrite(host, how, ids) {
+  for (const id of ids) {
+    if (!host?.detach?.[how]?.(id)) throw new Error(how === 'float' ? 'that widget could not be floated here' : 'that widget could not be docked here')
+    const want = how === 'float'
+    if (!await settle(() => (viewOf(host)?.floating || []).includes(String(id)) === want, 2000)) throw new Error(want ? 'the widget did not float' : 'the widget did not dock')
+  }
+}
+// the Merge widgets toggle's own key (toggleMerged: charts_merged = JSON boolean), confirmed by the server, then read back
+async function mergedWrite(host, merged) {
+  if (typeof host?.prefs?.write !== 'function' || !await host.prefs.write('charts_merged', JSON.stringify(merged === true))) throw new Error('the server did not confirm the change, so it is not saved')
+  if (!await settle(() => viewOf(host)?.merged === (merged === true), 2000)) throw new Error('the board did not change')
+}
+export function viewLanded(view, d) {
+  if (!view) return false
+  const fl = new Set(view.floating || [])
+  if ((d.floats || []).some(id => !fl.has(String(id)))) return false
+  if ((d.docks || []).some(id => fl.has(String(id)))) return false
+  if ('merged' in d && view.merged !== (d.merged === true)) return false
+  return true
+}
 // The widget's own writer, one control at a time, each read back through its door before the next.
 // a door's list of the member's items ([{ id, name }]) is read back by its names: an item the change CREATED gets its id from the
 // server, so `{ id: null, name }` is landed once an item of that name is there
@@ -829,9 +877,14 @@ export function registerBoardCapabilities() {
         label: 'Board (arrange, remove, link and configure the widgets on it)',
         grid: s.grid,
         ...(s.extraGroups ? { extraLinkColors: true } : {}),
+        // boardDetach.*: the merged board view, when on
+        ...(s.view?.merged ? { merged: true } : {}),
         widgets: s.raw.map(w => ({
           id: w.id, type: w.type, label: label(w.type), position: positionWord(w, s.raw) || null,
           x: w.x, y: w.y, w: w.w, h: w.h, link: w.color || null,
+          // boardDetach.*: floating over the board / popped out into its own window (this tab's state, never saved)
+          ...((s.view?.floating || []).includes(String(w.id)) ? { floating: true } : {}),
+          ...((s.view?.popped || []).includes(String(w.id)) ? { poppedOut: true } : {}),
           ...(w.type === 'watchlist' ? { shows: w.opts?.watchName || (w.opts?.source ? 'a list chosen by UCT' : null) } : {}),
           ...(w.type === 'scanner' ? { shows: w.opts?.scanName || null } : {}),
           // a widget's own tabs (the WidgetHost tab strip, any widget type): main + extras

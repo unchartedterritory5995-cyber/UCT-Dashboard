@@ -58,6 +58,8 @@ import { registerCoachCapabilities } from './capabilities/coach'
 import { registerPeriodSortCapabilities } from './capabilities/periodSort'
 // Tools → Compare Symbols: open the panel on its Rotation (RRG-style) or Overlay tab, switch between them
 import { registerComparePanelCapabilities } from './capabilities/comparePanel'
+// Charts family (2026-11-15): float / dock a widget, move one into another's tabs, the merged board view
+import { registerBoardDetachCapabilities } from './capabilities/boardDetach'
 
 let done = false
 export function registerBuiltins() {
@@ -106,6 +108,7 @@ export function registerBuiltins() {
   registerJournalCapabilities()
   registerPeriodSortCapabilities()
   registerComparePanelCapabilities()        // compare.openView: the Compare panel's Rotation / Overlay view (a view, not saved)
+  registerBoardDetachCapabilities()         // boardDetach.*: the in-canvas float's own handlers + the Merge widgets toggle
   registerMultiChartCapabilities()   // pl-grid: the Multi Chart grid itself (C3-042..061)
 }
 

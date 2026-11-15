@@ -858,7 +858,7 @@ export function scopeHostToGrid(host, { readCells = readServerCells } = {}) {
   }
 }
 
-export function buildWorkspaceHost({ chartApiById, getWidgets, selectedChart, boardVisit, widgetLabel, widgetOps, layouts, layoutDock = null, watchlists, prefs, navigate, replay = null, periodSort = null, compare = null, gridControl = null, readServer = readServerBoard, readLayout = readServerLayout }) {
+export function buildWorkspaceHost({ chartApiById, getWidgets, selectedChart, boardVisit, widgetLabel, widgetOps, layouts, layoutDock = null, watchlists, prefs, navigate, replay = null, periodSort = null, compare = null, gridControl = null, detach = null, readServer = readServerBoard, readLayout = readServerLayout }) {
   const layoutSource = layouts ? buildLayoutSource(layouts) : null
   const epoch = layoutSource ? () => {
     const a = layoutSource.snapshot().active
@@ -901,5 +901,8 @@ export function buildWorkspaceHost({ chartApiById, getWidgets, selectedChart, bo
     // ⭐ MULTI CHART: the grid's own writers (pages/charts/grid/useGridAgentControl.js), on the board as in the grid — the
     // member enters a grid from the board. Read by capabilities/multiChart.js only.
     ...(gridControl ? { gridControl } : {}),
+    // boardDetach.* (capabilities/boardDetach.js): the in-canvas float's own handlers + the floating / popped / merged state and
+    // whether this is the phone view or Multi Chart (ChartsWorkspace `detach`). Absent → boardDetach.* refuse.
+    ...(detach ? { detach } : {}),
   }
 }

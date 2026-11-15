@@ -60,9 +60,9 @@ export const TOPICS = [
   {
     id: 'arrange', title: 'Moving, resizing and arranging widgets',
     words: [/\b(resiz|rearrang|arrang|repositi|reorgani)\w*/, /\bmove (my |the |a |this )?(\w+ )?(widget|chart|panel|watchlist|scanner)s?\b/, /\b(bigger|smaller|wider|taller|narrower|shorter)\b.*\b(widget|chart|panel)s?\b/, /\b(2x2|grid of|side by side|split (the )?screen)\b/, /\blink\w*\b/],
-    caps: ['widget.remove', 'widget.move', 'board.swap', 'widget.resize', 'widget.arrange', 'widget.setLink', 'widget.addTab', 'widget.selectTab', 'widget.renameTab', 'widget.closeTab'], productHas: true,
-    canDo: 'remove a widget (Undo puts it back exactly), move one (the others re-tile around it, as when you drag), resize one by an edge (the neighbour gives up the space, as when you drag the edge), swap two widgets’ places (“move my watchlist to the right”, “swap the top left and bottom right charts” — each keeps its size), make widgets fill the empty space or tile them as a grid, columns or rows, set link colours (gold, blue, green, purple, or not linked — and red, teal, orange, pink when the extra colours are switched on for your account), and add, switch, rename or close a widget’s tabs',
-    known: () => ['floating, popping out or merging widgets (moving one widget into another’s tabs)'],
+    caps: ['widget.remove', 'widget.move', 'board.swap', 'widget.resize', 'widget.arrange', 'widget.setLink', 'widget.addTab', 'widget.selectTab', 'widget.renameTab', 'widget.closeTab', 'boardDetach.float', 'boardDetach.dock', 'boardDetach.intoTabs', 'boardDetach.setMerged'], productHas: true,
+    canDo: 'remove a widget (Undo puts it back exactly), move one (the others re-tile around it, as when you drag), resize one by an edge (the neighbour gives up the space, as when you drag the edge), swap two widgets’ places (“move my watchlist to the right”, “swap the top left and bottom right charts” — each keeps its size), make widgets fill the empty space or tile them as a grid, columns or rows, set link colours (gold, blue, green, purple, or not linked — and red, teal, orange, pink when the extra colours are switched on for your account), and add, switch, rename or close a widget’s tabs; float a widget over the board and dock it back (floating until reload), move one widget into another’s tabs (shown first), and merge or unmerge the board’s widgets (on every layout) — each with Undo',
+    known: () => ['popping a widget or the layout out into its own window'],
     planned: null,
   },
   {
