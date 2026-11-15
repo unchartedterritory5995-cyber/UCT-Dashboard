@@ -372,9 +372,12 @@ const INDEFINITE = /^(?:a|an|another|some|any|new|one more|more|extra)\b/i
 // a VERBLESS style command on a named / pointed-at object: "the 9 green, the 20 yellow", "fast one green and the slow one yellow"
 const STYLE_VALUE = String.raw`(?:red|green|blue|yellow|orange|purple|pink|white|black|gr[ae]y|teal|cyan|gold|brown|thicker|thinner|dashed|dotted|solid|bolder|bigger|smaller|hidden|visible|\d{1,4})`
 const VERBLESS = new RegExp(String.raw`(?:^|\s)(?:the\s+)?(?:\w+\s+){0,2}?(?:ones?|\d{1,3}|emas?|smas?|rsi|macd|lines?|fib|trendline|vwap)\s+(?:a\s+)?${STYLE_VALUE}\b`, 'i')
-const strengthOf = (verb, e) => {
+const strengthOf = (verb0, e) => {
   // a pause is asked for by a PAUSE word only — never by a delete, a change or a show of something
-  if (e.type === 'pause') return PAUSE_ANY.test(verb)
+  if (e.type === 'pause') return PAUSE_ANY.test(verb0)
+  // ("turn off the 78.6 fib level": the pause verbs' multi-word forms are read first; for anything else they are the change
+  // verb they always were — "turn" / "switch" / "shut")
+  const verb = String(verb0).replace(/\s+off$/i, '')
   if (e.type === 'replace' && e.state === 'widget') return DISPLAY.test(verb) || MODIFY_ANY.test(verb)
   // a save-over is asked for by a SAVE (or "overwrite / replace my layout"), never by a delete of something else
   if (e.via === 'save') return SAVE.test(verb) || /^(?:overwrit\w*|replac\w*)$/i.test(verb)
