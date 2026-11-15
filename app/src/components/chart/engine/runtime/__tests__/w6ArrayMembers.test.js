@@ -160,7 +160,16 @@ describe('⭐ array.median — "the median of an array\'s elements"; na for an e
   it('⛔ (review B1) an EVEN count stops by name: the entry gives no even-count rule (W6-A1)', () => {
     expect(() => runPine(`${OHLC}plot(a.median())`)).toThrow(/array\.median over an even count \(4\).*W6-A1/)
   })
-  it.each(['median', 'stdev', 'variance'])('⛔ (review B1) %s over an array of whole numbers stops by name: `array<int>` returns `series int`, rounding unstated (W6-A1)', (name) => {
+  it('⭐ B7 (s20) — median over an ODD count of whole numbers is the middle element: no fraction exists to round', () => {
+    // signal-follow-through-ledger on AMEX:SPY 1D: `array.median` over 161 whole bar counts prints "15"
+    const [m] = runPine('a = array.from(1, 2, 4)\nplot(array.median(a))')
+    expect(m.every((v) => v === 2)).toBe(true)
+    const [mi] = runPine('a = array.new_int()\narray.push(a, 7)\narray.push(a, 1)\narray.push(a, 4)\nplot(array.median(a))')
+    expect(mi.every((v) => v === 4)).toBe(true)
+    // ⛔ an EVEN count of whole numbers still stops (the even-count rule is unstated)
+    expect(() => runPine('a = array.from(1, 2, 4, 8)\nplot(array.median(a))')).toThrow(/even count/)
+  })
+  it.each(['stdev', 'variance'])('⛔ (review B1) %s over an array of whole numbers stops by name: `array<int>` returns `series int`, rounding unstated (W6-A1)', (name) => {
     const re = new RegExp(`array\\.${name} over an array of whole numbers.*W6-A1`)
     expect(() => runPine(`a = array.from(1, 2, 4)\nplot(array.${name}(a))`)).toThrow(re)
     expect(() => runPine(`a = array.new_int()\narray.push(a, 1)\narray.push(a, 2)\narray.push(a, 4)\nplot(array.${name}(a))`)).toThrow(re)

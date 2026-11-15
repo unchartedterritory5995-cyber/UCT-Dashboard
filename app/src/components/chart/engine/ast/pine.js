@@ -250,6 +250,9 @@ const STRATEGY_ORDER_NOTE = (word) => `\`${word}\` places an order in TradingVie
   + 'nothing of its own on the chart, and the trade it would make is not simulated here'
 
 export const REFUSALS = Object.freeze({
+  // ⭐⭐ B3 — `pine.js::chartOffsetFunctions` / `callsInBlocks`
+  'pine:fn-history-in-block':
+    'a script function reads a chart series at a bar offset and is called inside a block that does not run on every bar; in Pine v2 and v3 that read is a copy the function keeps of the series, repeating its last value on bars the call does not run (captures `vw-fn-history-in-if-v2` / `-v3`; v1 does not compile an `if`, s24), which this lane does not compute',
   'pine:empty':
     'there is no Pine here to translate',
   'pine:character':
@@ -3111,6 +3114,207 @@ function stripTypeArguments(tokens) {
  *  sit between tokens or before a comment (the measured case). */
 const PINE_EXTRA_BLANKS = Object.freeze(new Set(['\u3000']))
 
+/** ⭐⭐ LEGACY SEMANTICS (B1, 2026-11-15) — `n` IS THE BAR INDEX IN //@version=1, 2 AND 3 (and a
+ *  source with no pragma, which is v1). The v1-v3 reference names it so (v3: "n — Bar index",
+ *  https://www.tradingview.com/pine-script-reference/v3/#var_n; v4 renamed it `bar_index` and has no
+ *  `n`). Witnessed: S17 / S18 captured the same probes with `n` and with `cum(1) - 1` (the bar index
+ *  there) and TradingView's columns are identical (`vw-ternary-arm-legacy-v1..v3`,
+ *  `vw-cs2-bool-na-v1/v3`, and their `-cum` re-takes).
+ *  Done ONCE, on the tokens both lanes lex (`translatePine` and `buildRuntimeIr` call `lexPine`), so
+ *  no lane can spell it differently: every bare `n` becomes the `bar_index` token.
+ *  ⛔ ONLY WHERE THE SCRIPT NEVER DECLARES ITS OWN `n`: a name the script binds (`n = …`, `n := …`, a
+ *  function parameter, a `for n = …` counter, a `[…, n] = …` part) shadows the built-in, and then
+ *  nothing is rewritten (the script's own `n` keeps today's path). A dotted name (`x.n`) is one
+ *  token and is never touched. */
+/** ⭐⭐ LEGACY SEMANTICS (B1 / B2) — IS THIS PRAGMA-LESS SOURCE PINE v1? A source with no `//@version`
+ *  is read two ways in this file: as the formula box (our own vocabulary) and, for Pine's own rules, as
+ *  v1 (`selfReferenceSentence`, `listingSeedIsUnpinned`). The one fact that tells them apart is the
+ *  declaration: a Pine script calls `study(` (or `strategy(`), the formula box never does. ONE answer,
+ *  read from the tokens both lanes lex, carried on the lex as `v1Declared` and handed to the Resolver as
+ *  `pineV1` (`Resolver.legacyV1To`). */
+export function pineV1Declared(tokens, version) {
+  if (version !== null && version !== undefined) return false
+  for (let k = 0; k + 1 < (tokens || []).length; k += 1) {
+    const t = tokens[k]
+    if (t && t.kind === 'ident' && (t.value === 'study' || t.value === 'strategy') && isPunct(tokens[k + 1], '(')) return true
+  }
+  return false
+}
+
+/** ⭐⭐ LEGACY SEMANTICS (B3, 2026-11-15) — A FUNCTION'S READ OF A CHART SERIES AT AN OFFSET, WHEN THE
+ *  FUNCTION IS CALLED INSIDE A BLOCK, IN v1-v3.
+ *
+ *  WITNESSED (NYSE:RDDT 1D from the listing, our probes `vw-fn-history-in-if-v2/-v3/-v4/-v5`: a helper
+ *  reading `high[2]` called in an `if` every third bar; s22 v3/v5, s23 v2/v4):
+ *    - //@version=2 and 3: CARRY — the function's own copy of `high` advances every bar and repeats its
+ *      last value on bars the call does not run (221 of 221 call bars, both), which is also what explains
+ *      ytc-swing-highs-lows bar 46 (G7);
+ *    - //@version=4 and 5: the chart's own history (222 of 222, both), what this engine always read.
+ *  v1 (no pragma) cannot express an `if` (s24: TradingView does not compile one), and a call in a TERNARY
+ *  arm reads the chart every bar at v1 and v3 alike (s24 `vw-fn-history-in-tern-v1/-v3`). The CARRY reading lives in the runtime lane
+ *  (`legacyCarryStatements`, the VM's per-call-site held history); the host lane reads every bar, so it
+ *  refuses such a script by name at v1-v3, and the runtime lane refuses v1. v4+ is unchanged.
+ *
+ *  `chartOffsetFunctions(stmts)`: the top-level functions whose body reads a chart series at an offset
+ *  (a name in `CARRY_CHART_SERIES` the function does not bind as a parameter or a local, followed by `[`).
+ *  `callsInBlocks(stmts, names)`: the first call to one of `names` inside an `if` / `else` / `for` /
+ *  `while` / `switch` block (or inside another function's body called so), or null. */
+export const CARRY_CHART_SERIES = Object.freeze(new Set(['open', 'high', 'low', 'close', 'volume', 'time',
+  'hl2', 'hlc3', 'ohlc4']))
+export const FN_HISTORY_IN_BLOCK = 'pine:fn-history-in-block'
+/** The versions whose in-block function history is CARRY (s22 v3, s23 v2). */
+export const CARRY_VERSIONS = Object.freeze(new Set([2, 3]))
+/** Is `version` (null: the lex says v1 or the formula box) one whose in-block function history is not the
+ *  chart's own: v2/v3 (CARRY) or v1 (unwitnessed)? v4+ and the formula box read every bar. */
+export const carryShapeVersion = (version, v1Declared) => (version !== null ? CARRY_VERSIONS.has(version) : v1Declared === true)
+const isFnDefHeader = (h) => !!h && h[0] && h[0].kind === 'ident' && isPunct(h[1], '(')
+  && findTop(h, (t) => isPunct(t, '=>')) > 1
+function fnDefParts(st) {
+  const h = st.header || []
+  const arrow = findTop(h, (t) => isPunct(t, '=>'))
+  const params = new Set()
+  for (const t of h.slice(2, arrow)) if (t.kind === 'ident') params.add(String(t.value))
+  return { name: String(h[0].value), arrow, params, inline: h.slice(arrow + 1) }
+}
+function stmtTokens(list, out = []) {
+  for (const st of list || []) { out.push(...(st.header || [])); stmtTokens(st.sub, out) }
+  return out
+}
+function declaredIn(list, out = new Set()) {
+  for (const st of list || []) {
+    const h = st.header || []
+    if (h[0] && h[0].kind === 'ident' && (isPunct(h[1], '=') || isPunct(h[1], ':='))) out.add(String(h[0].value))
+    declaredIn(st.sub, out)
+  }
+  return out
+}
+export function chartOffsetFunctions(stmts) {
+  const out = new Map()
+  for (const st of stmts || []) {
+    if (!isFnDefHeader(st.header)) continue
+    const p = fnDefParts(st)
+    const toks = [...p.inline, ...stmtTokens(st.sub)]
+    const own = new Set([...p.params, ...declaredIn(st.sub)])
+    const names = new Set()
+    toks.forEach((t, i) => {
+      if (t.kind === 'ident' && CARRY_CHART_SERIES.has(String(t.value)) && !own.has(String(t.value))
+          && isPunct(toks[i + 1], '[')) names.add(String(t.value))
+    })
+    if (names.size) out.set(p.name, names)
+  }
+  return out
+}
+const BLOCK_WORDS_FOR_CARRY = new Set(['if', 'else', 'for', 'while', 'switch'])
+export function callsInBlocks(stmts, names) {
+  if (!names || !names.size) return null
+  const callIn = (toks) => {
+    for (let i = 0; i + 1 < toks.length; i += 1) {
+      if (toks[i].kind === 'ident' && names.has(String(toks[i].value)) && isPunct(toks[i + 1], '(')) return toks[i]
+    }
+    return null
+  }
+  const opens = (h) => h.some((t) => t.kind === 'ident' && BLOCK_WORDS_FOR_CARRY.has(String(t.value)))
+  const walk = (list, inBlock) => {
+    for (const st of list || []) {
+      const h = st.header || []
+      if (inBlock) { const c = callIn(h); if (c) return c }
+      const found = walk(st.sub, inBlock || (!isFnDefHeader(h) && opens(h)))
+      if (found) return found
+    }
+    return null
+  }
+  return walk(stmts, false)
+}
+
+/** ⭐ B3 (s24) — a call to one of `names` in a conditional ARM (after a `?` in its statement, or inside
+ *  an `iff(`), or null. A ternary arm is NOT a block: TradingView reads the chart every bar there, at v1
+ *  and at v3 alike (s24 `vw-fn-history-in-tern-v1/-v3`, 222 of 222 each). */
+export function callsInConditionalArms(stmts, names) {
+  if (!names || !names.size) return null
+  const walk = (list) => {
+    for (const st of list || []) {
+      const h = st.header || []
+      let arm = false
+      for (let i = 0; i + 1 < h.length; i += 1) {
+        if (isPunct(h[i], '?') || (h[i].kind === 'ident' && String(h[i].value) === 'iff' && isPunct(h[i + 1], '('))) arm = true
+        else if (arm && h[i].kind === 'ident' && names.has(String(h[i].value)) && isPunct(h[i + 1], '(')) return h[i]
+      }
+      const found = walk(st.sub)
+      if (found) return found
+    }
+    return null
+  }
+  return walk(stmts)
+}
+
+/** ⭐⭐ B3 — the runtime lane's v3 CARRY, as statements: inside each function whose body reads a chart
+ *  series at an offset, the series becomes a body LOCAL (`__uct_carry_high = high`, declared first) and
+ *  each offset read reads that local. A body local's history belongs to its CALL SITE and HOLDS on the
+ *  bars the site does not run (the VM's held cell, `vm.js` P7.2) — exactly CARRY — and a site called on
+ *  every bar sees the chart's own series. Only at //@version=2 and 3; any other version returns `stmts`. */
+export function legacyCarryStatements(stmts, version) {
+  if (!CARRY_VERSIONS.has(version)) return stmts
+  const fns = chartOffsetFunctions(stmts)
+  if (!fns.size) return stmts
+  return stmts.map((st) => {
+    if (!isFnDefHeader(st.header)) return st
+    const p = fnDefParts(st)
+    const names = fns.get(p.name)
+    if (!names) return st
+    const at = st.header[0]
+    const local = (n) => `__uct_carry_${p.name}_${n}`
+    const rename = (toks) => toks.map((t, i) => (t.kind === 'ident' && names.has(String(t.value))
+      && isPunct(toks[i + 1], '[') ? { ...t, value: local(String(t.value)) } : t))
+    const renameList = (list) => (list || []).map((s) => ({ ...s, header: rename(s.header || []), sub: renameList(s.sub) }))
+    // ⛔ DECLARED, THEN REASSIGNED: a name bound once to a pure expression is an `env` macro, expanded
+    // where it is read (its `[k]` would be the chart's again); a reassigned name is a SLOT, whose history
+    // the VM keeps per call site.
+    const tok = (kind, value) => ({ ...at, kind, value })
+    const decls = [...names].flatMap((n) => [
+      { header: [tok('ident', local(n)), tok('punct', '='), tok('ident', n)], body: [], sub: [] },
+      { header: [tok('ident', local(n)), tok('punct', ':='), tok('ident', n)], body: [], sub: [] },
+    ])
+    const sub = p.inline.length
+      ? [...decls, { header: rename(p.inline), body: [], sub: [] }]
+      : [...decls, ...renameList(st.sub)]
+    const header = st.header.slice(0, p.arrow + 1)
+    return { ...st, header, body: stmtTokens(sub), sub }
+  })
+}
+
+export function legacyBarIndexTokens(tokens, version, v1Declared = false) {
+  // ⛔ A SOURCE WITH NO PRAGMA is v1 Pine only when it declares itself (`study(`): otherwise it is the
+  // formula box, whose vocabulary has no `n` (`pineV1Declared`)
+  if (version !== null && version !== undefined ? version > 3 : !v1Declared) return tokens
+  const isN = (t) => !!t && t.kind === 'ident' && t.value === 'n'
+  const isP = (t, v) => !!t && t.kind === 'punct' && t.value === v
+  const closesThen = (k, open, close, then) => {
+    let depth = 0
+    for (let j = k + 1; j < tokens.length; j += 1) {
+      const t = tokens[j]
+      if (isP(t, open)) depth += 1
+      else if (isP(t, close)) {
+        if (depth === 0) return then.some((v) => isP(tokens[j + 1], v))
+        depth -= 1
+      }
+    }
+    return false
+  }
+  let any = false
+  for (let k = 0; k < tokens.length; k += 1) {
+    if (!isN(tokens[k])) continue
+    any = true
+    const next = tokens[k + 1]
+    const prev = tokens[k - 1]
+    if (isP(next, '=') || isP(next, ':=') || /^[+\-*/%]=$/.test(next && next.kind === 'punct' ? next.value : '')) return tokens
+    if (prev && prev.kind === 'ident' && prev.value === 'for') return tokens
+    if ((isP(next, ',') || isP(next, ')')) && closesThen(k, '(', ')', ['=>'])) return tokens
+    if ((isP(next, ',') || isP(next, ']')) && closesThen(k, '[', ']', ['=', ':='])) return tokens
+  }
+  if (!any) return tokens
+  return tokens.map((t) => (isN(t) ? { ...t, value: 'bar_index', legacyName: 'n' } : t))
+}
+
 export function lexPine(src) {
   const raw = String(src == null ? '' : src)
   // ⭐⭐ RISK-004 FIX (2026-09-06) — THE CANONICAL RAW↔NORMALIZED OFFSET
@@ -3361,7 +3565,9 @@ export function lexPine(src) {
   // ⭐ ONE NORMALISATION, BEFORE ANY PARSER SEES THE TOKENS — see
   // `stripTypeArguments` for why a type argument belongs to the lexer and not to
   // either lane's parser.
-  return { tokens: stripTypeArguments(tokens), indents, version, lines, rawOffsetMap }
+  const typed = stripTypeArguments(tokens)
+  const v1Declared = pineV1Declared(typed, version)
+  return { tokens: legacyBarIndexTokens(typed, version, v1Declared), indents, version, v1Declared, lines, rawOffsetMap }
 }
 
 // --------------------------------------------------------------------------- //
@@ -7454,6 +7660,10 @@ export class Resolver {
      *  bar. That is not an offset — it is LOOK-AHEAD, and `PINE_NAMESPACED_TREE`
      *  says so itself: the `[R]` shift is what cancels it. */
     this.pineVersion = Number.isFinite(opts.pineVersion) ? opts.pineVersion : null
+    /** ⭐⭐ LEGACY SEMANTICS (B2) — a pragma-less source that declares itself Pine (`study(`), i.e. v1
+     *  (`pineV1Declared`, carried on the lex). `pineVersion` stays `null` for it, so every rule that
+     *  reads `null` as the formula box is unchanged; a rule that is Pine v1's asks this too. */
+    this.pineV1 = this.pineVersion === null && opts.pineV1 === true
     /** ⭐ F1 — `declarationWordsOf` this script's tokens, for a Resolver built
      *  outside `translatePine` (the runtime lane's pure subtrees); inside it the
      *  translation's own `DECL_WORDS_SINK` answers. */
@@ -13927,7 +14137,11 @@ export class Resolver {
     // the exact unbounded count on a pane, that entry's refusal on a screen.
     // ⛔ Bounded by the version (as `LEGACY_BARE_NAMESPACE` routing is): from v5 the
     // bare spelling is not Pine, and a versionless source is the formula box.
-    if (bare === 'barssince' && pineName === base && this.pineVersion !== null && this.pineVersion <= 4
+    // ⭐⭐ LEGACY SEMANTICS (B2, 2026-11-15) — AND v1 TOO: the v1 reference's signature is
+    // `barssince(condition)`, one parameter (https://www.tradingview.com/pine-script-reference/v1/#fun_barssince),
+    // and S18's `vw-ternary-arm-legacy-v1-cum` (no pragma, `study(`) draws it. A pragma-less source is v1
+    // only when it declares itself (`this.pineV1`); the formula box keeps the table's two-argument form.
+    if (bare === 'barssince' && pineName === base && ((this.pineVersion !== null && this.pineVersion <= 4) || this.pineV1)
         && Array.isArray(args) && args.length === 1 && args[0] && !args[0].name) {
       return this.resolveTableCall('ta.barssince', base, args, tok)
     }
@@ -26220,6 +26434,7 @@ function translatePineResult(source, opts = {}) {
   LIBRARY_LINK_SINK = lexed.libraryLink || null
 
   const { tokens, indents, version, lines, rawOffsetMap } = lexed
+  const pineV1 = lexed.v1Declared === true
   beginPaletteScope(version)
   // ⭐ F1 — what each declared name was declared AS, for `pineConstIntValue`.
   DECL_WORDS_SINK = declarationWordsOf(tokens)
@@ -26489,6 +26704,16 @@ function translatePineResult(source, opts = {}) {
   } catch (err) {
     const r = fromError(err)
     return { ...blank, version, refusal: r, refusals: [r] }
+  }
+  // ⭐⭐ B3 (s22, s23) — in v2/v3 a script function's read of a chart series at an offset, called inside
+  // a block, is the function's own copy (CARRY); this lane reads the chart, so it refuses by name (the
+  // runtime lane computes it; v1 is not yet captured). v4+ reads the chart (s23 -v4, s22 -v5: 222/222).
+  if (carryShapeVersion(version, lexed.v1Declared)) {
+    const at = callsInBlocks(stmts, new Set(chartOffsetFunctions(stmts).keys()))
+    if (at) {
+      const r = refusalValue(FN_HISTORY_IN_BLOCK, `${REFUSALS[FN_HISTORY_IN_BLOCK]} — \`${at.value}\``, locate(at))
+      return { ...blank, version, refusal: r, refusals: [r] }
+    }
   }
   // ⭐⭐ C11c — a block's constant-seeded `var` is one program variable, bound
   // before the walk starts; its declaration is passed over where it stands
@@ -27789,7 +28014,7 @@ function translatePineResult(source, opts = {}) {
         partialReadCache,
         // ⭐⭐ C45 — the arm reader asks which script functions read their own history
         historyFns: historyFnsOf,
-        strict: opts.strict === true, screen: !isHostLane(opts), pineVersion: version,
+        strict: opts.strict === true, screen: !isHostLane(opts), pineVersion: version, pineV1,
         noteSink: (code, message, tok) => notes.push(noteOf(code, message, tok)),
         // ⭐ THE BUDGET REACHES EVERY RESOLVER OR IT PROTECTS NONE. The object
         // pass below builds its own, and a hang there is just as fatal.
@@ -28438,7 +28663,7 @@ function translatePineResult(source, opts = {}) {
       const probe = new Resolver(env, table, declaredTypes,
         { finalBindings, finalLocals, mutated: reassigned, source, rawOffsetMap,
           paramMint: null,
-          strict: opts.strict === true, screen: !isHostLane(opts), pineVersion: version,
+          strict: opts.strict === true, screen: !isHostLane(opts), pineVersion: version, pineV1,
           basePeriod: opts.basePeriod, newestBarIsForming: opts.newestBarIsForming,
           budgetMs: opts.budgetMs, maxSteps: opts.maxSteps, maxDepth: opts.maxDepth,
           sourcePath: opts.sourcePath })
@@ -28617,7 +28842,7 @@ function translatePineResult(source, opts = {}) {
           objectPass: true,
           methodDefs: objectMethodDefs,
           windowAmbiguity: objectWindowAmbiguity,
-          strict: opts.strict === true, screen: !isHostLane(opts), pineVersion: version,
+          strict: opts.strict === true, screen: !isHostLane(opts), pineVersion: version, pineV1,
           basePeriod: opts.basePeriod, newestBarIsForming: opts.newestBarIsForming,
           budgetMs: opts.budgetMs, maxSteps: opts.maxSteps, maxDepth: opts.maxDepth, sourcePath: opts.sourcePath,
         onCondition: opts.onCondition })
