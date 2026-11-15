@@ -264,9 +264,9 @@
   },
   {
    "id": "h13",
-   "source": "h1",
-   "quote": "Too stretched to buy: skip a long that is more than 10% above its 10-day average.",
-   "claim": "C29: skip a long more than 10% above its 10-day average."
+   "source": "hw",
+   "quote": "Too stretched to buy: skip a long that is more than 10% above its 9 EMA.",
+   "claim": "We skip a long that is more than 10% above its 9 EMA: too stretched to buy."
   },
   {
    "id": "h14",
@@ -397,8 +397,8 @@
   {
    "id": "c10",
    "source": "c1",
-   "quote": "Not more than 10% above the 10-day average on the trigger day.",
-   "claim": "Card: not more than 10% above the 10-day average on the trigger day."
+   "quote": "Not more than 10% above the 9 EMA on the trigger day.",
+   "claim": "Card: not more than 10% above the 9 EMA on the trigger day."
   },
   {
    "id": "c11",
@@ -1242,7 +1242,7 @@
    "rung": 2,
    "format": "mcq",
    "criterion": "tl.not_stretched",
-   "q": "How far over its 10-day average is too far to buy a break?",
+   "q": "How far over its 9 EMA is too far to buy a break?",
    "choices": [
     "More than 10%",
     "More than 25%",
@@ -1250,19 +1250,19 @@
     "More than 2%"
    ],
    "answer": "More than 10%",
-   "why": "More than 10%. Our rule: skip a long that is more than 10% above its 10-day average, measured on the trigger day. Under that line, the break can be bought if every other rule passes.",
-   "lesson_line": "Stretched is a pass. More than 10% over the 10-day, skip it.",
+   "why": "More than 10%. Our rule: skip a long that is more than 10% above its 9 EMA, measured on the trigger day. Under that line, the break can be bought if every other rule passes.",
+   "lesson_line": "Stretched is a pass. More than 10% over the 9 EMA, skip it.",
    "facts": [
     "c10",
     "h13"
    ],
    "wrong": {
-    "More than 25%": "That bar is too high. Our rule skips anything more than 10% over the 10-day, well before 25%.",
+    "More than 25%": "That bar is too high. Our rule skips anything more than 10% over the 9 EMA, well before 25%.",
     "More than 5%": "The line is 10%, not 5%.",
     "More than 2%": "The line is 10%, not 2%."
    },
    "house": true,
-   "simple": "Skip the buy when the stock is more than 10% over its 10-day average, because it is too stretched.",
+   "simple": "Skip the buy when the stock is more than 10% over its 9 EMA, because it is too stretched.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -3417,7 +3417,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Kept: 10% stretch is measured on the 10-day simple average (D-017 held), not a drawn EMA line; no near-neighbour trap (2, 5, 25)."
+   "notes": "Kept: 10% stretch is measured on the 10-day simple average (D-017 held), not a drawn EMA line; no near-neighbour trap (2, 5, 25). | 2026-11-14: stretch line read through D-021 as the 9 EMA, as in the other 44 live questions."
   },
   "q14": {
    "status": "cut",

@@ -274,9 +274,9 @@
   {
    "id": "orb.not_stretched",
    "field": "trigger",
-   "statement": "At the trigger, no more than 10% above the 10-day average.",
+   "statement": "At the trigger, no more than 10% above the 9 EMA.",
    "measure": {
-    "what": "fill / 10-day SMA - 1",
+    "what": "fill / 9 EMA - 1",
     "op": "<=",
     "value": 10,
     "unit": "%",
@@ -293,7 +293,14 @@
    "gate": true,
    "grade_cue": false,
    "dossier_ref": "8.1.8 Location",
-   "evidence": "Many earnings and EP gap days open more than 10% above the 10-day (the owner's GRRR: 'Gapping up 15% in after hours'). Question 9 asks whether gap-day ORBs get an exemption like parabolics get from B26. The scan kept the rule: only 3 of 284 strict hits were earnings-reaction days."
+   "evidence": "Many earnings and EP gap days open more than 10% above the 10-day (the owner's GRRR: 'Gapping up 15% in after hours'). Question 9 asks whether gap-day ORBs get an exemption like parabolics get from B26. The scan kept the rule: only 3 of 284 strict hits were earnings-reaction days.",
+   "superseded": [
+    {
+     "statement": "At the trigger, no more than 10% above the 10-day average.",
+     "on": "2026-11-14",
+     "by": "D-021 (C29 read as the 9 EMA; the owner to confirm, D-017)"
+    }
+   ]
   },
   {
    "id": "orb.liquidity",
@@ -1119,7 +1126,7 @@
    "orb.leader: RS under 80",
    "orb.stop_width: the honest stop does not fit; never pull it in",
    "orb.no_chase: more than 4% past the ORH",
-   "orb.not_stretched: more than 10% over the 10-day, unless the owner exempts gap days",
+   "orb.not_stretched: more than 10% over the 9 EMA, unless the owner exempts gap days",
    "orb.earnings_window: a report within 3 sessions",
    "orb.liquidity: under $10 or under $20 million a day",
    "orb.inv_range_low_first: the 30-minute low traded first",

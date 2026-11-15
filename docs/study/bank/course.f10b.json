@@ -3947,6 +3947,7 @@
   "module": "F10b",
   "prompt_json": {
    "chart": {
+    "forward_bars": 15,
     "tf": "D",
     "window_bars": 120
    },

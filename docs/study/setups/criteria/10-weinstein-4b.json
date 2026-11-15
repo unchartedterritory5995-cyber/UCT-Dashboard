@@ -655,9 +655,9 @@
   {
    "id": "w4b.not_stretched",
    "field": "trigger",
-   "statement": "Skip if more than 10% above the 10-day average.",
+   "statement": "Skip if more than 10% above the 9 EMA.",
    "measure": {
-    "what": "entry / 10-day SMA - 1",
+    "what": "entry / 9 EMA - 1",
     "op": "<=",
     "value": 10,
     "unit": "%",
@@ -670,7 +670,14 @@
    "status": "settled",
    "gate": true,
    "grade_cue": false,
-   "dossier_ref": "8.2 Not too late"
+   "dossier_ref": "8.2 Not too late",
+   "superseded": [
+    {
+     "statement": "Skip if more than 10% above the 10-day average.",
+     "on": "2026-11-14",
+     "by": "D-021 (C29 read as the 9 EMA; the owner to confirm, D-017)"
+    }
+   ]
   },
   {
    "id": "w4b.earnings_window",
@@ -1233,7 +1240,7 @@
    "w4b.version_h_200: under the 200-day (Version W; B26)",
    "w4b.inv_close_under_50_before: back under the 50-day before the trigger, until a new pause",
    "w4b.no_chase: more than 4% past the pause high",
-   "w4b.not_stretched: more than 10% over the 10-day",
+   "w4b.not_stretched: more than 10% over the 9 EMA",
    "w4b.stop_width: the honest stop past the owner's maximum; never pull it in",
    "w4b.earnings_window: a report within 3 sessions",
    "w4b.liquidity: under $10 or under $20 million a day",

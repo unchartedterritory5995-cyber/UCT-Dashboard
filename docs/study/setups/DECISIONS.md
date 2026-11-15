@@ -2794,3 +2794,4 @@ the ruling it restates; where a line and a ruling above differ, the ruling wins.
 - A heavy-volume down day in a pullback does not void the setup; it is a distribution day to be mindful of, a warning and a lower grade. (heavy-volume down day)
 - Shorting is recommended only for traders who have already made $1 million trading. (D-001)
 - A strong move may be bought at the trigger right at the open; waiting for the first 30 minutes is the default, not a must. (D-031)
+- Too stretched to buy: skip a long that is more than 10% above its 9 EMA. (C29, read through D-021; the owner to confirm, D-017)

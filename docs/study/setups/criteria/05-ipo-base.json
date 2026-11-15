@@ -795,9 +795,9 @@
   {
    "id": "ipo.not_stretched",
    "field": "trigger",
-   "statement": "At entry, no more than 10% above the 10-day average. A gap-and-go breakout (FIGR closed up over 21%) can break it.",
+   "statement": "At entry, no more than 10% above the 9 EMA. A gap-and-go breakout (FIGR closed up over 21%) can break it.",
    "measure": {
-    "what": "entry / 10-day SMA - 1",
+    "what": "entry / 9 EMA - 1",
     "op": "<=",
     "value": 10,
     "unit": "%",
@@ -825,7 +825,14 @@
    "gate": true,
    "grade_cue": false,
    "dossier_ref": "8.2 No chasing; 10 question 9",
-   "evidence": "Bracco on FIGR: a strong gap-and-go move right out of a clean IPO base, closing up over 21% (S32). The scan skipped fills more than 10% above the 10-day average."
+   "evidence": "Bracco on FIGR: a strong gap-and-go move right out of a clean IPO base, closing up over 21% (S32). The scan skipped fills more than 10% above the 10-day average.",
+   "superseded": [
+    {
+     "statement": "At entry, no more than 10% above the 10-day average. A gap-and-go breakout (FIGR closed up over 21%) can break it.",
+     "on": "2026-11-14",
+     "by": "D-021 (C29 read as the 9 EMA; the owner to confirm, D-017)"
+    }
+   ]
   },
   {
    "id": "ipo.never_listing_week",
@@ -1414,7 +1421,7 @@
    "ipo.inv_depth: deeper than 35%",
    "ipo.inv_window: more than 252 sessions since listing (a regular base)",
    "ipo.no_chase: more than 4% past the IPO high",
-   "ipo.not_stretched: more than 10% over the 10-day",
+   "ipo.not_stretched: more than 10% over the 9 EMA",
    "ipo.stop_width: the honest stop more than 8% away; never pull it in",
    "ipo.earnings_window: a report within 3 sessions",
    "ipo.liquidity: under $10 or under $20 million a day",
@@ -1458,7 +1465,7 @@
   "Buying a stock that already made a massive run with no base.",
   "Using the first two or three days' volume as the volume yardstick.",
   "Buying a deep V straight into the pivot.",
-  "Chasing a gap breakout past 4% or 10% over the 10-day.",
+  "Chasing a gap breakout past 4% or 10% over the 9 EMA.",
   "Widening the stop to sit through the base's depth.",
   "Trading thin, low-priced new issues.",
   "Treating a later base as the first, or forcing the label on an old stock (the detector's backfill trap).",
@@ -1642,7 +1649,7 @@
   {
    "kind": "scenario",
    "criterion": "ipo.not_stretched",
-   "seed": "The stock gaps through the IPO high and closes up 21%, 18% over its 10-day. Was the breakout buyable under C29, and what would you have done?"
+   "seed": "The stock gaps through the IPO high and closes up 21%, 18% over its 9 EMA. Was the breakout buyable under C29, and what would you have done?"
   },
   {
    "kind": "scenario",

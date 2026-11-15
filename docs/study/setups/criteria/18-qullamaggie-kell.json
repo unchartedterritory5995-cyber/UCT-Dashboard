@@ -488,9 +488,9 @@
   {
    "id": "qk.breakout_not_stretched",
    "field": "trigger",
-   "statement": "At entry, no more than 10% above the 10-day average.",
+   "statement": "At entry, no more than 10% above the 9 EMA.",
    "measure": {
-    "what": "entry / 10-day SMA - 1",
+    "what": "entry / 9 EMA - 1",
     "op": "<=",
     "value": 10,
     "unit": "%",
@@ -507,7 +507,14 @@
    "gate": true,
    "grade_cue": false,
    "dossier_ref": "8.2; 7",
-   "evidence": "Fits Kell's warning about air between price and the 10-day EMA; 31% of the app's scanner's buys broke C29."
+   "evidence": "Fits Kell's warning about air between price and the 10-day EMA; 31% of the app's scanner's buys broke C29.",
+   "superseded": [
+    {
+     "statement": "At entry, no more than 10% above the 10-day average.",
+     "on": "2026-11-14",
+     "by": "D-021 (C29 read as the 9 EMA; the owner to confirm, D-017)"
+    }
+   ]
   },
   {
    "id": "qk.breakout_no_anticipation",
@@ -1752,7 +1759,7 @@
    "qk.breakout_prior_move: no prior big move (the app's scanner did this 56% of the time)",
    "qk.breakout_stop_adr: a stop wider than the ADR",
    "qk.breakout_no_chase: more than 4% past the trigger",
-   "qk.breakout_not_stretched: more than 10% over the 10-day",
+   "qk.breakout_not_stretched: more than 10% over the 9 EMA",
    "qk.breakout_above_200: under the 200-day or the 50-day",
    "qk.breakout_earnings_window: a report within 3 sessions",
    "qk.breakout_liquidity: under $10 or under $20 million a day",
@@ -1994,7 +2001,7 @@
   {
    "kind": "scenario",
    "criterion": "qk.kell_ee_action",
-   "seed": "Your long closes 12% above its 10-day EMA with its low above the line. New buy, hold, or sell part?"
+   "seed": "Your long closes 12% above its 9 EMA EMA with its low above the line. New buy, hold, or sell part?"
   },
   {
    "kind": "scenario",

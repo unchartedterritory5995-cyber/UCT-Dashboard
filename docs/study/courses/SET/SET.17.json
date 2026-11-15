@@ -484,9 +484,9 @@
   },
   {
    "id": "h12",
-   "source": "h1",
-   "quote": "Too stretched to buy: skip a long that is more than 10% above its 10-day average.",
-   "claim": "C29: skip a trade more than 10% from its 10-day average."
+   "source": "hw",
+   "quote": "Too stretched to buy: skip a long that is more than 10% above its 9 EMA.",
+   "claim": "We skip a long that is more than 10% above its 9 EMA: too stretched to buy."
   },
   {
    "id": "h13",
@@ -869,8 +869,8 @@
   {
    "id": "c50",
    "source": "c1",
-   "quote": "Skip a short more than 10% under its 10-day average. Check it at the open on a gap down.",
-   "claim": "Skip a short more than 10% under its 10-day average; check it at the open on a gap down."
+   "quote": "Skip a short more than 10% under its 9 EMA. Check it at the open on a gap down.",
+   "claim": "Skip a short more than 10% under its 9 EMA; check it at the open on a gap down."
   },
   {
    "id": "c51",

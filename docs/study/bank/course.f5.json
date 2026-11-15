@@ -13503,11 +13503,11 @@
    "depth": {
     "sources": [
      {
-      "accessed": "2026-11-12",
-      "name": "UCT house rule: The account rulebook, section 9 (the owner, 2026-11-09)",
-      "quote": "Too stretched to buy: skip a long that is more than 10% above its 10-day average.",
+      "accessed": "2026-11-14",
+      "name": "UCT house rule: Our rules, in our words (2026-11-14)",
+      "quote": "Too stretched to buy: skip a long that is more than 10% above its 9 EMA.",
       "tier": 3,
-      "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09"
+      "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14"
      },
      {
       "accessed": "2026-11-12",
@@ -13531,7 +13531,7 @@
       "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12"
      }
     ],
-    "summary": "We skip a long that is more than 10% above its 10-day average. We buy the full size at one price with one stop, and never add to it. Our stop goes first, a few cents under the day's low or the prior day's low, and the size comes from it. Our rule: the course teaches the 9 and 20 EMA, with the 50 and 200 SMA."
+    "summary": "We skip a long that is more than 10% above its 9 EMA: too stretched to buy. We buy the full size at one price with one stop, and never add to it. Our stop goes first, a few cents under the day's low or the prior day's low, and the size comes from it. Our rule: the course teaches the 9 and 20 EMA, with the 50 and 200 SMA."
    },
    "facts": {
     "given": "What do you do? A stock gaps up on strong earnings and closes near its high on huge volume. At your planned entry it sits 14% above its 9 EMA. Skip it: it's too stretched to buy Buy it: the close and volume are strong Buy half now, add on a pullback Buy it, but set a tighter stop"

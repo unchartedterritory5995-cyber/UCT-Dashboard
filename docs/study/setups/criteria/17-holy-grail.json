@@ -599,9 +599,9 @@
   {
    "id": "hg.not_stretched",
    "field": "trigger",
-   "statement": "At entry, no more than 10% above the 10-day average.",
+   "statement": "At entry, no more than 10% above the 9 EMA.",
    "measure": {
-    "what": "entry / 10-day SMA - 1",
+    "what": "entry / 9 EMA - 1",
     "op": "<=",
     "value": 10,
     "unit": "%",
@@ -615,7 +615,14 @@
    "gate": true,
    "grade_cue": false,
    "dossier_ref": "8.1 Location",
-   "evidence": "Rare: a stock at its 20 EMA is seldom 10% over its 10-day. All ten fills were within 2.5% of the 10-day."
+   "evidence": "Rare: a stock at its 20 EMA is seldom 10% over its 10-day. All ten fills were within 2.5% of the 10-day.",
+   "superseded": [
+    {
+     "statement": "At entry, no more than 10% above the 10-day average.",
+     "on": "2026-11-14",
+     "by": "D-021 (C29 read as the 9 EMA; the owner to confirm, D-017)"
+    }
+   ]
   },
   {
    "id": "hg.earnings_window",
@@ -1110,7 +1117,7 @@
    "hg.setup_void: a close under the 50-day, or 5 sessions with no trigger",
    "hg.earnings_window: a report within 3 sessions",
    "hg.no_chase: more than 4% past the trigger",
-   "hg.not_stretched: more than 10% over the 10-day",
+   "hg.not_stretched: more than 10% over the 9 EMA",
    "hg.liquidity: under $10 or under $20 million a day",
    "hg.market_reading: Red; Orange takes only A+ setups"
   ]

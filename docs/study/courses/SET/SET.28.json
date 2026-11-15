@@ -273,9 +273,9 @@
   },
   {
    "id": "h13",
-   "source": "h1",
-   "quote": "Too stretched to buy: skip a long that is more than 10% above its 10-day average.",
-   "claim": "C29: skip a long more than 10% above its 10-day average."
+   "source": "hw",
+   "quote": "Too stretched to buy: skip a long that is more than 10% above its 9 EMA.",
+   "claim": "We skip a long that is more than 10% above its 9 EMA: too stretched to buy."
   },
   {
    "id": "h15",
@@ -364,8 +364,8 @@
   {
    "id": "k04",
    "source": "c1",
-   "quote": "Skip a stock more than 10% over its 10-day average.",
-   "claim": "Card 32: skip a stock more than 10% over its 10-day average."
+   "quote": "Skip a stock more than 10% over its 9 EMA.",
+   "claim": "Card 32: skip a stock more than 10% over its 9 EMA."
   },
   {
    "id": "k05",
@@ -778,8 +778,8 @@
   {
    "id": "kfa1",
    "source": "c1",
-   "quote": "Stop to breakeven between 2R and 5R, at the first trim by default.",
-   "claim": "Card 32: the stop goes to breakeven between 2R and 5R, at the first trim by default."
+   "quote": "Stop to breakeven between 2R and 5R, or at the first sell.",
+   "claim": "Stop to breakeven between 2R and 5R, or at the first sell."
   },
   {
    "id": "hfa1",
@@ -2597,8 +2597,8 @@
     "Buy, and plan to sell into a push"
    ],
    "answer": "Pass; it is too stretched to buy",
-   "why": "Pass. Skip a stock that is more than 10% over its 10-day average. A stock that far above its short average is too stretched to buy. The trigger firing over the high does not lift that rule.",
-   "lesson_line": "More than ten percent over the 10-day: skip.",
+   "why": "Pass. Skip a stock that is more than 10% over its 9 EMA. A stock that far above its short average is too stretched to buy. The trigger firing over the high does not lift that rule.",
+   "lesson_line": "More than ten percent over the 9 EMA: skip.",
    "facts": [
     "h13",
     "k04"
@@ -2609,10 +2609,10 @@
     "Buy, and plan to sell into a push": "A sell plan does not fix a stretched entry. The stretch check comes before the order."
    },
    "house": true,
-   "story": "The quiet day holds above the line. The next morning the stock trades over its high and sits 12% over its 10-day average.",
-   "simple": "Pass, because the stock is 12% over its 10-day average and we skip a long more than 10% over it.",
+   "story": "The quiet day holds above the line. The next morning the stock trades over its high and sits 12% over its 9 EMA.",
+   "simple": "Pass, because the stock is 12% over its 9 EMA and we skip a long more than 10% over it.",
    "deeper": {
-    "trap": "All the other rules can line up and this one still says skip. The Remount line, the quiet day and the trigger can be perfect. The stretch check looks at the distance from the 10-day average. Run it before you place the order, not after the fill."
+    "trap": "All the other rules can line up and this one still says skip. The Remount line, the quiet day and the trigger can be perfect. The stretch check looks at the distance from the 9 EMA. Run it before you place the order, not after the fill."
    },
    "tier": "extended",
    "risk": {
@@ -3888,10 +3888,10 @@
    "rung": 3,
    "format": "tf",
    "criterion": "rm.not_stretched",
-   "q": "We buy a long that sits 15% over its 10-day average when the setup is clean.",
+   "q": "We buy a long that sits 15% over its 9 EMA when the setup is clean.",
    "answer": "False",
-   "simple": "False. We skip any long more than 10% over its 10-day average, however clean the setup looks.",
-   "why": "False. We skip a long more than 10% over its 10-day average. That far above its short average, the stock is too stretched to buy, however clean the setup looks.",
+   "simple": "False. We skip any long more than 10% over its 9 EMA, however clean the setup looks.",
+   "why": "False. We skip a long more than 10% over its 9 EMA. That far above its short average, the stock is too stretched to buy, however clean the setup looks.",
    "lesson_line": "A clean setup does not excuse a stretched stock.",
    "facts": [
     "h13",
@@ -3963,7 +3963,7 @@
    "answer": "A plus cue, since none sit overhead",
    "wrong": {
     "No cue, since only the 50-day counts": "This cue counts every average still above price after the remount day: the 20 EMA, the 50-day and the 200-day.",
-    "B minus cue, since it is stretched": "Clearing every average is not being stretched. Our stretch rule is more than 10% over the 10-day, and the story gives no such gap.",
+    "B minus cue, since it is stretched": "Clearing every average is not being stretched. Our stretch rule is more than 10% over the 9 EMA, and the story gives no such gap.",
     "Pass, until the 20 EMA is retested": "Our card asks for no retest of the 20 EMA. Clearing it on the remount close is part of the cue."
    },
    "why": "A plus cue. Our card proposes that a remount clearing all the averages at once, above a rising 200-day, is an A plus cue. It counts the 20 EMA, the 50-day and the 200-day. After this close, none of the three sits above price. A cue is a hint, not a score, and grading stays a judgment.",
@@ -3973,7 +3973,8 @@
     "k08",
     "k35",
     "k04",
-    "h50"
+    "h50",
+    "h13"
    ],
    "house": true,
    "tier": "extended",
@@ -4381,7 +4382,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "D-021: stretch rule threshold (10%) and the story's hypothetical 12% are not a measurement on a real date; rename the 10-day to the 9 EMA so the line matches the chart. Cited r21. | 2026-11-14: stretch rule kept as the rulebook's C29 (10-day average) until the owner rules D-017 (9 EMA or 10-day)."
+   "notes": "D-021: stretch rule threshold (10%) and the story's hypothetical 12% are not a measurement on a real date; rename the 10-day to the 9 EMA so the line matches the chart. Cited r21. | 2026-11-14: stretch rule kept as the rulebook's C29 (10-day average) until the owner rules D-017 (9 EMA or 10-day). | 2026-11-14: stretch line read through D-021 as the 9 EMA, as in the other 44 live questions."
   },
   "q48": {
    "status": "pass",
@@ -4583,7 +4584,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "D-021: rename the 10-day average in the stretch rule to the 9 EMA (hypothetical 15%, not a measurement). Cited r21. | 2026-11-14: stretch rule kept as the rulebook's C29 (10-day average) until the owner rules D-017 (9 EMA or 10-day)."
+   "notes": "D-021: rename the 10-day average in the stretch rule to the 9 EMA (hypothetical 15%, not a measurement). Cited r21. | 2026-11-14: stretch rule kept as the rulebook's C29 (10-day average) until the owner rules D-017 (9 EMA or 10-day). | 2026-11-14: stretch line read through D-021 as the 9 EMA, as in the other 44 live questions."
   },
   "q85": {
    "status": "pass",
@@ -4596,7 +4597,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "D-021: the wrong text names the 10-day in the stretch rule; renamed to the 9 EMA so no line is named that the chart does not draw. Cited r21. | 2026-11-14: stretch rule kept as the rulebook's C29 (10-day average) until the owner rules D-017 (9 EMA or 10-day)."
+   "notes": "D-021: the wrong text names the 10-day in the stretch rule; renamed to the 9 EMA so no line is named that the chart does not draw. Cited r21. | 2026-11-14: stretch rule kept as the rulebook's C29 (10-day average) until the owner rules D-017 (9 EMA or 10-day). | 2026-11-14: stretch line read through D-021 as the 9 EMA, as in the other 44 live questions."
   },
   "q87": {
    "status": "cut",

@@ -231,9 +231,9 @@
   {
    "id": "vcp.not_stretched",
    "field": "context",
-   "statement": "The close is no more than 10% above the 10-day average.",
+   "statement": "The close is no more than 10% above the 9 EMA.",
    "measure": {
-    "what": "close / 10-day SMA - 1",
+    "what": "close / 9 EMA - 1",
     "op": "<=",
     "value": 10,
     "unit": "%",
@@ -247,7 +247,14 @@
    "gate": true,
    "grade_cue": false,
    "dossier_ref": "8.1 line 14",
-   "evidence": "A stock at its pivot after a tight range is rarely 10% above its 10-day; it matters only on a gap through the pivot."
+   "evidence": "A stock at its pivot after a tight range is rarely 10% above its 10-day; it matters only on a gap through the pivot.",
+   "superseded": [
+    {
+     "statement": "The close is no more than 10% above the 10-day average.",
+     "on": "2026-11-14",
+     "by": "D-021 (C29 read as the 9 EMA; the owner to confirm, D-017)"
+    }
+   ]
   },
   {
    "id": "vcp.market_reading",
@@ -1390,7 +1397,7 @@
    "vcp.inv_trend: a Trend Template line fails, or under the 200-day",
    "vcp.inv_heavy_down_day: a 1.5x down day in the right half",
    "vcp.inv_chase: more than 4% past the pivot",
-   "vcp.not_stretched: more than 10% over the 10-day",
+   "vcp.not_stretched: more than 10% over the 9 EMA",
    "vcp.stop_structure_check: the entry day's low under the final contraction's low",
    "vcp.earnings_window: a report within 3 sessions",
    "vcp.liquidity: under $10 or under $20 million a day",

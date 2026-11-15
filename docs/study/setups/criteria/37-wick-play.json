@@ -7,7 +7,7 @@
  "dossier": "docs/study/setups/research/37-wick-play.md",
  "as_of": "2026-11-09",
  "card": {
-  "context": "A leader (RS 80 or more) above its 50 and 200-day with the 50 over the 200, best within a few weeks of an explosion (a gap or a big-volume breakout), not more than 10% over its 10-day. Green market.",
+  "context": "A leader (RS 80 or more) above its 50 and 200-day with the 50 over the 200, best within a few weeks of an explosion (a gap or a big-volume breakout), not more than 10% over its 9 EMA. Green market.",
   "pattern": "Day 1 closes off its high, leaving an upper wick of a quarter of its range or more. Day 2 opens inside that wick and holds above day 1's body top: strict, its whole range inside the wick; same-day, it opens in the wick and pushes through the top of it.",
   "trigger": "PREV DAY HIGH BREAK: on day 2, buy at market as price trades over day 1's high while day 2 has held above the body (the push); or, if day 2 closed still inside the wick, on day 3 a cent over day 2's high. No more than 4% over the trigger.",
   "stop": "A few cents under day 2's low (the prior day's low) for the day-3 buy; under the day's low at the moment of the buy for the same-day push, never lower than day 1's body top.",
@@ -250,9 +250,9 @@
   {
    "id": "wk.not_stretched",
    "field": "context",
-   "statement": "Within 10% of the 10-day average at day 1's close.",
+   "statement": "Within 10% of the 9 EMA at day 1's close.",
    "measure": {
-    "what": "day 1 close / 10-day SMA - 1",
+    "what": "day 1 close / 9 EMA - 1",
     "op": "<=",
     "value": 10,
     "unit": "%",
@@ -271,7 +271,14 @@
    "gate": true,
    "grade_cue": true,
    "dossier_ref": "8.1 Location; 7 C29 row; 10 question 8",
-   "evidence": "Conflict: wick plays often come right after an explosion; his MXL wick play and blast sat about 41% over its 10-day, FIG's 10-08 day 12.5%, Kell's GOOG 7.8%. D-017's default keeps C29 for base and pullback entries and measures catalyst days against the 10-day as of the prior close. Scan failures DDOG 2020-10-06 (9.6% over, almost at the line) and ANET 2025-08-13 (8% over) show a stretched name's first push failing inside the day; AIR (example 10) was 8.9% over."
+   "evidence": "Conflict: wick plays often come right after an explosion; his MXL wick play and blast sat about 41% over its 10-day, FIG's 10-08 day 12.5%, Kell's GOOG 7.8%. D-017's default keeps C29 for base and pullback entries and measures catalyst days against the 10-day as of the prior close. Scan failures DDOG 2020-10-06 (9.6% over, almost at the line) and ANET 2025-08-13 (8% over) show a stretched name's first push failing inside the day; AIR (example 10) was 8.9% over.",
+   "superseded": [
+    {
+     "statement": "Within 10% of the 10-day average at day 1's close.",
+     "on": "2026-11-14",
+     "by": "D-021 (C29 read as the 9 EMA; the owner to confirm, D-017)"
+    }
+   ]
   },
   {
    "id": "wk.liquidity",
@@ -991,7 +998,7 @@
    "wk.inv_body: day 2 traded well into day 1's body",
    "wk.not_lower_wick: a lower wick, a hammer or a Go Signal day called a wick play",
    "wk.no_chase: the trigger day opens more than 4% over the trigger",
-   "wk.not_stretched: more than 10% over the 10-day (MXL at 41%, until D-017 rules)",
+   "wk.not_stretched: more than 10% over the 9 EMA (MXL at 41%, until D-017 rules)",
    "wk.trend: under the 200-day",
    "wk.earnings_window: a report within 3 days",
    "wk.liquidity: under $10 or $20 million a day (OPEN, UMC)",
@@ -1023,7 +1030,7 @@
  "invalidations": [
   "Before the buy: day 2 trades into day 1's body (strict), or past the tolerance if the owner adopts Kell's looser reading (wk.inv_body).",
   "Before the buy: price trades under the planned stop before the trigger (wk.inv_stop_first).",
-  "Before the buy: the trigger day opens more than 4% past the trigger (wk.no_chase); earnings within 3 days (wk.earnings_window); under the 200-day (wk.trend); more than 10% over the 10-day (wk.not_stretched).",
+  "Before the buy: the trigger day opens more than 4% past the trigger (wk.no_chase); earnings within 3 days (wk.earnings_window); under the 200-day (wk.trend); more than 10% over the 9 EMA (wk.not_stretched).",
   "Before the buy: the strict trigger does not come on day 3; it rolls forward only if day 3 is itself inside the same wick (wk.inv_no_trigger).",
   "After the buy: the stop is the exit; it only moves up (wk.stop_broker)."
  ],
@@ -1270,7 +1277,7 @@
   {
    "kind": "grade",
    "criterion": "wk.not_stretched",
-   "seed": "A textbook hold in the wick on a stock 41% over its 10-day after an EP (MXL). Grade it under today's rules."
+   "seed": "A textbook hold in the wick on a stock 41% over its 9 EMA after an EP (MXL). Grade it under today's rules."
   },
   {
    "kind": "grade",

@@ -420,8 +420,8 @@
   {
    "id": "c19",
    "source": "c1",
-   "quote": "Stop to breakeven once the trade has made 2R to 5R, at the first trim by default.",
-   "claim": "Card: stop to breakeven once the trade has made 2R to 5R, at the first trim by default."
+   "quote": "Stop to breakeven once the trade has made 2R to 5R, or at the first sell.",
+   "claim": "Stop to breakeven once the trade has made 2R to 5R, or at the first sell."
   },
   {
    "id": "c20",

@@ -413,9 +413,9 @@
   },
   {
    "id": "h13",
-   "source": "h1",
-   "quote": "Too stretched to buy: skip a long that is more than 10% above its 10-day average.",
-   "claim": "C29: skip a long more than 10% above its 10-day average."
+   "source": "hw",
+   "quote": "Too stretched to buy: skip a long that is more than 10% above its 9 EMA.",
+   "claim": "We skip a long that is more than 10% above its 9 EMA: too stretched to buy."
   },
   {
    "id": "h14",
@@ -1035,7 +1035,7 @@
    "key": "q01",
    "skill": "setup.ema20_pullback",
    "rung": 1,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "e20.touch",
    "q": "In one line, what is a 20 EMA pullback?",
    "choices": [
@@ -1074,13 +1074,20 @@
      "several facts agree"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-1",
+   "story": "Hidden ticker, the day a session holds the line.",
+   "chart": {
+    "sym": "EL",
+    "asof": "2009-11-30",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q02",
    "skill": "setup.ema20_pullback",
    "rung": 1,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "e20.above_200",
    "q": "Which line must the hold session close above, by our hard rule?",
    "choices": [
@@ -1111,7 +1118,14 @@
      "rests on the owner's rulebook B26"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-1",
+   "story": "Hidden ticker, the hold session.",
+   "chart": {
+    "sym": "VRTX",
+    "asof": "2017-05-08",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q03",
@@ -1179,7 +1193,7 @@
    "key": "q05",
    "skill": "setup.ema20_pullback",
    "rung": 1,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "e20.trigger_fallback",
    "q": "A session held the 20 EMA and closed above it. Where is the buy we draw on the chart?",
    "choices": [
@@ -1215,7 +1229,14 @@
      "the cent-over-the-high buy is the proposed fallback trigger, held under D-003"
     ]
    },
-   "batch": "rulings"
+   "batch": "visuals-1",
+   "story": "Hidden ticker, the hold session.",
+   "chart": {
+    "sym": "TEAM",
+    "asof": "2021-07-01",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q06",
@@ -1549,7 +1570,7 @@
    "key": "q16",
    "skill": "setup.ema20_pullback",
    "rung": 3,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "e20.ma_order",
    "q": "On the hold session, where does the card want the 20 EMA against the 50-day SMA?",
    "choices": [
@@ -1580,7 +1601,14 @@
      "the 20-over-50 order is a proposed card line, not the owner's B26"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "visuals-1",
+   "story": "Hidden ticker, the hold session.",
+   "chart": {
+    "sym": "REGN",
+    "asof": "2011-03-15",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q17",
@@ -1849,7 +1877,17 @@
      "fixed before by the checker"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-1",
+   "chart": {
+    "sym": "GILD",
+    "asof": "2013-08-08",
+    "window": 120,
+    "forward": 40,
+    "trade": {
+     "entry": 60.5,
+     "stop": 59.17
+    }
+   }
   },
   {
    "key": "q24",
@@ -1987,7 +2025,7 @@
    "key": "q27",
    "skill": "setup.ema20_pullback",
    "rung": 4,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "e20.stop",
    "q": "Account 40,000. Risk 0.5%. Fill 95.90, stop 93.85. Shares from the risk math, rounded down?",
    "answer": "97 shares",
@@ -2020,7 +2058,7 @@
      "fixed before by the checker"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-1",
    "choices": [
     "200 shares",
     "975 shares",
@@ -2031,6 +2069,17 @@
     "975 shares": "That risks ten times the plan. A decimal slip.",
     "2 shares": "That divides the dollar risk by the price, not by the stop distance.",
     "200 shares": "That is the risk dollars read as shares. Divide by the risk per share."
+   },
+   "story": "Hidden ticker, bought at the trigger.",
+   "chart": {
+    "sym": "ILMN",
+    "asof": "2013-12-05",
+    "window": 120,
+    "forward": 30,
+    "trade": {
+     "entry": 95.9,
+     "stop": 93.85
+    }
    }
   },
   {
@@ -2081,14 +2130,14 @@
    "rung": 4,
    "format": "scenario",
    "criterion": "e20.trigger_fallback",
-   "q": "What do you do at 10:40?",
+   "q": "What do you do the moment it trades a cent over the high?",
    "choices": [
-    "Buy now; stop under Wednesday's low",
-    "Wait for Thursday's close to confirm",
+    "Buy now; stop under the hold low",
+    "Wait for the day's close to confirm",
     "Place a limit order on the 20 EMA",
     "Go in now; stop one ATR under the line"
    ],
-   "answer": "Buy now; stop under Wednesday's low",
+   "answer": "Buy now; stop under the hold low",
    "why": "Buy at market as it trades a cent over the hold candle's high. The stop sits a few cents under the hold candle's low, or under today's low if that is lower. The trigger is the trade through the high, not the close.",
    "lesson_line": "Alert at the hold candle's high. When it trades, you buy; you do not wait for the bell.",
    "facts": [
@@ -2099,12 +2148,12 @@
     "c13"
    ],
    "wrong": {
-    "Wait for Thursday's close to confirm": "The trigger is the trade through the hold candle's high, not the close. It fired at 10:40.",
     "Place a limit order on the 20 EMA": "Our entries are market orders. A limit on the line sits below the market and may never fill.",
-    "Go in now; stop one ATR under the line": "The stop is a few cents under the candle's low. A stop one ATR under the line is wider than one ATR whenever the entry is above the line."
+    "Go in now; stop one ATR under the line": "The stop is a few cents under the candle's low. A stop one ATR under the line is wider than one ATR whenever the entry is above the line.",
+    "Wait for the day's close to confirm": "The trigger is the trade through the hold candle's high, not the close. It has already fired."
    },
    "house": true,
-   "story": "Wednesday's low tagged the rising 20 EMA and the session closed above the line. Thursday opens flat, holds above Wednesday's low, and at 10:40 trades 61.26, a cent over Wednesday's high.",
+   "story": "Hidden ticker, the hold session. The next morning it opens flat, stays above that session's low, then trades a cent over that session's high.",
    "simple": "Buy at market now, because the trade through the hold candle's high is the trigger, and the stop goes under its low.",
    "tier": "core",
    "risk": {
@@ -2114,7 +2163,13 @@
      "fixed before by the checker"
     ]
    },
-   "batch": "rulings"
+   "batch": "visuals-1",
+   "chart": {
+    "sym": "SCCO",
+    "asof": "2025-12-18",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q30",
@@ -2237,7 +2292,7 @@
     "Remove it; the trade is free": "Every position keeps a real stop order with the broker. Selling some does not remove it."
    },
    "house": true,
-   "story": "Your 20 EMA pullback buy reaches 3R on day three.",
+   "story": "Hidden ticker, bought at 183.72 with the stop at 179.97. Within two sessions it reaches 3R.",
    "simple": "The stop may move up to the entry price, because breakeven comes at 2R to 5R and the stop never moves down.",
    "tier": "extended",
    "risk": {
@@ -2247,7 +2302,17 @@
      "rests on the owner's rulebook B19, where breakeven is 'ideally' 2R to 5R"
     ]
    },
-   "batch": "rulings2"
+   "batch": "visuals-1",
+   "chart": {
+    "sym": "CRM",
+    "asof": "2020-06-30",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 183.72,
+     "stop": 179.97
+    }
+   }
   },
   {
    "key": "q34",
@@ -2431,7 +2496,13 @@
      "fixed before by the checker"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-1",
+   "chart": {
+    "sym": "AAPL",
+    "asof": "2022-01-11",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q39",
@@ -2507,16 +2578,16 @@
    "rung": 6,
    "format": "tf",
    "criterion": "e20.not_stretched",
-   "q": "By our rule, a long 8% above its 10-day average is too stretched to buy.",
+   "q": "By our rule, a long 8% above its 9 EMA is too stretched to buy.",
    "answer": "False",
-   "why": "False. The rulebook skips a long that is more than 10% above its 10-day average. At 8% it passes this test. Other rules, such as the 4% no-chase line, still apply.",
-   "lesson_line": "The stretch line is 10% above the 10-day average. At 8% this test passes.",
+   "why": "False. The rulebook skips a long that is more than 10% above its 9 EMA. At 8% it passes this test. Other rules, such as the 4% no-chase line, still apply.",
+   "lesson_line": "The stretch line is 10% above the 9 EMA. At 8% this test passes.",
    "facts": [
     "h13",
     "h11"
    ],
    "house": true,
-   "simple": "False, because we skip a long that is more than 10% above its 10-day average, and 8% is not.",
+   "simple": "False, because we skip a long that is more than 10% above its 9 EMA, and 8% is not.",
    "tier": "extended",
    "risk": {
     "score": 6,
@@ -2532,7 +2603,7 @@
    "key": "q42",
    "skill": "setup.ema20_pullback",
    "rung": 6,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "e20.trim_2",
    "q": "Bought at 28.79, stop 28.02. The stock trades to 32.64. How many R is that?",
    "answer": "5.0R",
@@ -2564,7 +2635,7 @@
      "rests on the owner's rulebook E51, which is adjustable"
     ]
    },
-   "batch": "sweep-2026-11-14",
+   "batch": "visuals-1",
    "choices": [
     "5.0R",
     "6.0R",
@@ -2575,6 +2646,17 @@
     "6.0R": "That counts the gain from the stop, so it reads one R too high.",
     "13.4R": "That is the percent gain read as R. Divide by the risk instead.",
     "50.0R": "That is ten times too big. A decimal slip."
+   },
+   "story": "Hidden ticker, bought at the trigger.",
+   "chart": {
+    "sym": "NVDA",
+    "asof": "2023-05-15",
+    "window": 120,
+    "forward": 30,
+    "trade": {
+     "entry": 28.79,
+     "stop": 28.02
+    }
    }
   },
   {
@@ -3010,7 +3092,7 @@
     "Yes; the volume lowers its grade",
     "No; heavy selling voids the setup",
     "Yes; heavy red-day volume is good",
-    "No; five days is too long a pullback"
+    "No; the pullback is too long"
    ],
    "answer": "Yes; the volume lowers its grade",
    "why": "Yes, at a lower grade. A down day on more than 1.5 times the 50-day volume is a distribution day: a warning, not an invalidation. This one ran on 2.3 times, but the hold closed above the line, so the setup stands. INTC had one in November 2017.",
@@ -3027,10 +3109,10 @@
    "wrong": {
     "No; heavy selling voids the setup": "It lowers the grade. It does not void the setup.",
     "Yes; heavy red-day volume is good": "Heavy volume on a down day is selling. Shannon wants volume contracting on pullbacks, so it lowers the grade.",
-    "No; five days is too long a pullback": "A pullback may last 2 to 15 sessions, so five days is fine. The heavy down day only lowers the grade."
+    "No; the pullback is too long": "A pullback may last a couple of weeks, so length is not the issue. The heavy down day only lowers the grade."
    },
    "house": true,
-   "story": "A five-day pullback to the 20 EMA holds and closes above the line. One of its down days ran on 2.3x the 50-day volume.",
+   "story": "Hidden ticker, the hold session. A pullback to the 20 EMA holds and closes above the line. One of its down days ran on 2.3x the 50-day volume.",
    "simple": "Yes, but at a lower grade, because a down day on 2.3x the 50-day volume is a warning and not a veto.",
    "deeper": {
     "trap": "The loud red day is easy to read as a veto. Our rule: a heavy down day is a warning and a lower grade, never an invalidation. Do not wave it through either. Grade it down. INTC in 2017 had one on 2.3 times."
@@ -3043,7 +3125,13 @@
      "the 1.5x line is a card number"
     ]
    },
-   "batch": "heavy"
+   "batch": "visuals-1",
+   "chart": {
+    "sym": "INTC",
+    "asof": "2017-11-20",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q55",
@@ -3123,7 +3211,17 @@
      "one worked example"
     ]
    },
-   "batch": "rulings"
+   "batch": "visuals-1",
+   "chart": {
+    "sym": "CAT",
+    "asof": "2025-11-17",
+    "window": 120,
+    "forward": 30,
+    "trade": {
+     "entry": 558.32,
+     "stop": 540.97
+    }
+   }
   },
   {
    "key": "q57",
@@ -3139,7 +3237,7 @@
     "Yes; a breakeven stop protects it"
    ],
    "answer": "No; hold through only if up 5R",
-   "why": "No. We hold through an earnings report only if the trade is up 5R, and 3.9R is not 5R. The rule also bars new buys in the 3 days before a report. NVDA in May 2023 stood at 3.9R the day before its report, so the rule had us out before the gap.",
+   "why": "No. We hold through an earnings report only if the trade is up 5R, and 3.9R at the peak is not 5R. The rule also bars new buys in the 3 days before a report. NVDA in May 2023 peaked at 3.9R before its report, so the rule had us out before the gap.",
    "lesson_line": "Earnings is a gap you cannot stop. Five R buys the ticket; almost does not.",
    "facts": [
     "h08",
@@ -3152,10 +3250,10 @@
     "Yes; a breakeven stop protects it": "A stop is an order, not a guarantee against a gap. The rule is to hold through a report only if the trade is up 5R."
    },
    "house": true,
-   "story": "Your 20 EMA pullback buy is up 3.9R the day before the company reports.",
+   "story": "Hidden ticker. Your 20 EMA pullback buy has never passed 3.9R, and the company reports tomorrow.",
    "simple": "No, because we hold through earnings only when the trade is up 5R, and this one is short of that.",
    "deeper": {
-    "counter": "This rule costs upside. NVDA's best run in our data was 25.1R, and the rule had us out at 3.9R before the report. We accept that cost to avoid a gap past the stop."
+    "counter": "This rule costs upside. NVDA's best run in our data was 25.1R, and the rule had us out under 5R before the report. We accept that cost to avoid a gap past the stop."
    },
    "tier": "expert",
    "risk": {
@@ -3164,7 +3262,13 @@
      "rests on the owner's rulebook B22"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-1",
+   "chart": {
+    "sym": "NVDA",
+    "asof": "2023-05-23",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q58",
@@ -3361,7 +3465,7 @@
     "Market at the close; stop 50-day; day 1": "The trigger is the trade over the hold candle's high, not the close, and the 50-day is not a stop. He very rarely sells on day 1."
    },
    "house": true,
-   "story": "GE, January 2024. A session holds the rising 20 EMA and closes above it. Its low is 99.10 and its high is 100.38.",
+   "story": "Hidden ticker, the hold session. It holds the rising 20 EMA and closes above it. Its low is 99.10 and its high is 100.38.",
    "simple": "Buy at market a cent over the hold high, stop a few cents under its low, and sell no earlier than day 3.",
    "deeper": {
     "example": "GE, January 2024: the low kissed the line to the cent, a 1.3% stop, and the stock reached 3R in 5 sessions. The stop may move up to breakeven as the trade works. The first sell is a judgment."
@@ -3375,7 +3479,13 @@
      "one worked example"
     ]
    },
-   "batch": "rulings2"
+   "batch": "visuals-1",
+   "chart": {
+    "sym": "GE",
+    "asof": "2024-01-04",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q63",
@@ -3446,7 +3556,7 @@
     "No; it needs a second hold first": "There is nothing to wait for. The session held and the next one triggered."
    },
    "house": true,
-   "story": "The hold session's low dips 0.28 ATR under the 20 EMA and it closes back above the line the same day. Next session it trades over that candle's high.",
+   "story": "Hidden ticker. The hold session's low dips 0.28 ATR under the 20 EMA and it closes back above the line the same day. Next session it trades over that candle's high.",
    "simple": "Yes, because the low dipped under the line but the session closed back above it, so the hold still counts.",
    "deeper": {
     "trap": "Treating the depth of the dip as a fixed number. A shallow dip that closes back over the line is the easy case. A deeper dip, or closes that stay under the line, is harder, and we judge each one."
@@ -3459,7 +3569,13 @@
      "one worked example"
     ]
    },
-   "batch": "rulings"
+   "batch": "visuals-1",
+   "chart": {
+    "sym": "CRM",
+    "asof": "2020-06-29",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q65",
@@ -3868,14 +3984,14 @@
   "q01": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key is the only choice that names the 20 EMA (repeats the stem) and is the longest of the three near-equal ones; guessable without the idea. Make a distractor 20 EMA-based and longer than the key."
+   "fixed": false,
+   "notes": "EL hold session 2009-11-30 (winners_list 12-01; bars: close 23.41 over a rising 20 EMA 23.22, 50 and 200 SMA stacked below; 3-month gain +31%). No numbers in text. Answer true for this real chart. Definition question, charted as the hold-day picture; ticker not in text."
   },
   "q02": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "About the 200-day close (D-009); agrees, stocks below it are a hard no."
+   "notes": "VRTX hold 2017-05-08 (winners_list 05-09; bars: close 115.06 over 200 SMA 91.37, 50 SMA 104.44). No numbers; 200-day answer true."
   },
   "q03": {
    "status": "pass",
@@ -3893,7 +4009,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "keep agrees with ruling"
+   "notes": "TEAM hold 2021-07-01 (winners_list 07-02; bars: low 255.35 over 20 EMA 253.72, close 258.43). Trigger is a cent over the hold high, 259.85 + 0.01 = 259.86 per dossier row 4; no numbers in text."
   },
   "q06": {
    "status": "pass",
@@ -3960,7 +4076,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "D-021 wording: Keller's 21-day replaced by 'the fast EMA'; key unchanged, our line is the 20 EMA."
+   "notes": "REGN hold 2011-03-15 (winners_list 03-16; bars: 20 EMA 37.57 over a rising 50 SMA 35.52 over 200 SMA 28.64; dossier row 2 says stacked). Answer true."
   },
   "q17": {
    "status": "pass",
@@ -4003,7 +4119,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Numbers in story only; key follows A4 and B21 (h02, h28); GILD facts d14 match. No gap involved."
+   "notes": "GILD 2013-08-08 is the buy day (dossier s14 failure 3: hold 08-07, buy 60.50, stop 59.17, next-day low 58.57, close 59.21). Bars agree: 08-09 low 58.57 close 59.21; stop = 59.20 - 0.03 -> 59.17; 3R 64.49 first hit 09-18. Trade 60.50/59.17 is in the story. Story already matches the real numbers."
   },
   "q24": {
    "status": "pass",
@@ -4026,8 +4142,8 @@
   "q27": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "98 was within rounding of 97.6 and made an adjacent pair; replaced with risk dollars read as shares. Why shows the 200. Calc recomputed; the other wrong choices checked by hand."
+   "fixed": false,
+   "notes": "ILMN 2013-12-05 is the buy day (dossier row 1: buy 95.90 = hold high 95.89 + 0.01, stop 93.85 = 93.88 - 0.03). Trade entry/stop equal the question's words; 200 / 2.05 = 97.56 -> 97 shares, key right. Story has no number."
   },
   "q28": {
    "status": "pass",
@@ -4039,7 +4155,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "keep agrees with ruling"
+   "notes": "SCCO hold 2025-12-18 (winners_list 12-19; dossier row 8, buy 137.20). Bars check the new story: 12-19 opens 136.35 (flat-ish, under the hold high 137.19), low 136.35 stays above the hold low 134.21, then trades 140.68 so it trades a cent over the high. Old made-up 61.26 / 10:40 / weekday text is gone and the wrong-key text matches the new choice exactly. No numbers in the new text."
   },
   "q30": {
    "status": "cut",
@@ -4062,8 +4178,8 @@
   "q33": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "edit ok; softened \"taking a third off\" in a wrong note"
+   "fixed": false,
+   "notes": "CRM 2020-06-30 is the buy day (dossier row 5: buy 183.72 = hold high 183.71 + 0.01, stop 179.97 = 180.00 - 0.03, 3R in 2 sessions). Bars: 3R = 194.97, first hit 07-02 high 195.39, which is two sessions after the buy day. Entry and stop are in the story. Breakeven answer right."
   },
   "q34": {
    "status": "pass",
@@ -4093,7 +4209,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "d17 verbatim (3 closes under in a five-session pullback, deepest 0.73 ATR); c14 (over 0.5 ATR) and c21 (at most one close) both broken. Remount note true (needs five or more closes under a 50- or 200-day)."
+   "notes": "AAPL hold 2022-01-11 (near_misses AAPL 2022-01-12). Bars: closes under the 20 EMA on 01-06, 01-07, 01-10 (three), deepest 01-06 at 172.00 vs 174.56 = 0.73 ATR, then 01-11 closes back over 175.08. Story and key already verbatim; lost-line answer true."
   },
   "q39": {
    "status": "pass",
@@ -4111,13 +4227,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "D-021 rename agrees; 8% passes the 10% line, key False unchanged. | 2026-11-14: stretch rule kept as the rulebook's C29 (10-day average) until the owner rules D-017."
+   "notes": "D-021 rename agrees; 8% passes the 10% line, key False unchanged. | 2026-11-14: stretch rule kept as the rulebook's C29 (10-day average) until the owner rules D-017. | 2026-11-14: stretch line read through D-021 as the 9 EMA, as in the other 44 live questions."
   },
   "q42": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "D-013 edit agrees: 5R is a mark on the ruler, later sells a judgment. 3.85 / 0.77 = 5.0R checks."
+   "notes": "NVDA 2023-05-15 is the buy day (dossier row 7: buy 28.79 = 28.78 + 0.01, stop 28.02 = 28.05 - 0.03). 32.64 is exactly 5R (0.77 x 5 + 28.79); the replay gaps through it on 05-25. Numbers already in the question; story has none."
   },
   "q43": {
    "status": "pass",
@@ -4191,7 +4307,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "HEAVY-DOWN agrees: lower grade, setup stands; 2.3x is in the story."
+   "notes": "INTC hold 2017-11-20 (near_misses INTC 2017-11-21, e20.orderly: a down day on 2.3x the 50-day volume). Bars: 11-17 down day on 63.8M shares vs a ~25M typical day; hold close 44.62 over the 20 EMA 44.58. The card's own e20.orderly criterion (settled, HEAVY-DOWN) says a heavy down day lowers the grade and does not end the setup, so Yes-lower-grade is right. The unverified five-day length and its distractor are removed (the real pullback is about eleven sessions); the new wrong-text key matches the new choice."
   },
   "q55": {
    "status": "cut",
@@ -4203,13 +4319,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "keep agrees with ruling"
+   "notes": "CAT 2025-11-17 is the buy day (dossier s13 failure 2: buy 558.32 = hold high 558.31 + 0.01, stop 540.97 = 541.00 - 0.03, 3.1% wide; bars: 11-18 opens 543.35, low 538.05, close 546.88; 3R level 610.37 passed 12-10). Story already verbatim and agrees with the trade."
   },
   "q57": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key h08 (B22), 3.9R under 5R. Deeper counter d03/d04 fine."
+   "fixed": true,
+   "notes": "NVDA 2023-05-23 is the day before the 05-24 report (bars: report gap 05-25). BUT the bars show the trade was NOT at 3.9R that day: close 30.69 = 2.5R, high 31.29 = 3.3R; 3.9R was the peak earlier (05-18 high 31.83 = 3.95R). 'Is up 3.9R the day before' would contradict the chart the member sees. Fix: say it peaked at 3.9R (true, dossier number kept) and the company reports tomorrow; why and deeper reworded to match. Key unchanged: hold through only if up 5R."
   },
   "q58": {
    "status": "pass",
@@ -4239,7 +4355,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "edit ok, agrees with D-013"
+   "notes": "GE hold 2024-01-04 (winners_list 01-05; bars: low 99.10, high 100.38, close 99.49 over the rising 20 EMA 99.14; dossier row 3 buy 100.39 stop 99.07). Text numbers match the bars; ticker removed from the story; second use of GE with q65."
   },
   "q63": {
    "status": "pass",
@@ -4252,7 +4368,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "keep"
+   "notes": "CRM hold 2020-06-29 (winners_list 06-30). Bars: low 180.00 vs 20 EMA 181.65 = -0.28 ATR (5.81), close 183.33 back above; next session 06-30 trades over 183.71 (high 187.89). Story agrees; second use of CRM with q33."
   },
   "q65": {
    "status": "pass",

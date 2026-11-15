@@ -315,9 +315,9 @@
   },
   {
    "id": "h13",
-   "source": "h1",
-   "quote": "Too stretched to buy: skip a long that is more than 10% above its 10-day average.",
-   "claim": "C29: skip a long more than 10% above its 10-day average."
+   "source": "hw",
+   "quote": "Too stretched to buy: skip a long that is more than 10% above its 9 EMA.",
+   "claim": "We skip a long that is more than 10% above its 9 EMA: too stretched to buy."
   },
   {
    "id": "h14",
@@ -460,8 +460,8 @@
   {
    "id": "c14",
    "source": "c1",
-   "quote": "At entry, no more than 10% above the 10-day average.",
-   "claim": "At entry, no more than 10% above the 10-day average."
+   "quote": "At entry, no more than 10% above the 9 EMA.",
+   "claim": "At entry, no more than 10% above the 9 EMA."
   },
   {
    "id": "c15",
@@ -484,8 +484,8 @@
   {
    "id": "c18",
    "source": "c1",
-   "quote": "Breakeven between 2R and 5R, at the first trim by default.",
-   "claim": "Breakeven between 2R and 5R, at the first trim by default."
+   "quote": "Breakeven between 2R and 5R, or at the first sell.",
+   "claim": "Breakeven between 2R and 5R, or at the first sell."
   },
   {
    "id": "c19",

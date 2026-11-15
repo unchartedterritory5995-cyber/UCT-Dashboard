@@ -698,9 +698,9 @@
   {
    "id": "htf.not_stretched",
    "field": "trigger",
-   "statement": "At entry, no more than 10% above the 10-day average; about 5% over it is the A+ zone, 8% to 10% is B-.",
+   "statement": "At entry, no more than 10% above the 9 EMA; about 5% over it is the A+ zone, 8% to 10% is B-.",
    "measure": {
-    "what": "entry / 10-day SMA - 1",
+    "what": "entry / 9 EMA - 1",
     "op": "<=",
     "value": 10,
     "unit": "%",
@@ -716,7 +716,14 @@
    "gate": true,
    "grade_cue": true,
    "dossier_ref": "8 rule 13; 7; 9",
-   "evidence": "A short or deep flag after a fast pole can leave the pivot far above the 10-day (a 10-day flag 20% deep puts it about 11% over). In effect C29 demands a flag long or tight enough for the 10-day to catch up, which matches the owner's LXU note."
+   "evidence": "A short or deep flag after a fast pole can leave the pivot far above the 10-day (a 10-day flag 20% deep puts it about 11% over). In effect C29 demands a flag long or tight enough for the 10-day to catch up, which matches the owner's LXU note.",
+   "superseded": [
+    {
+     "statement": "At entry, no more than 10% above the 10-day average; about 5% over it is the A+ zone, 8% to 10% is B-.",
+     "on": "2026-11-14",
+     "by": "D-021 (C29 read as the 9 EMA; the owner to confirm, D-017)"
+    }
+   ]
   },
   {
    "id": "htf.earnings_window",
@@ -1285,7 +1292,7 @@
    "htf.not_late: the first or second base of the move",
    "htf.flag_depth_a: 10% to 20% deep, 2 to 5 weeks, closes tight week to week, a down-sloping or flat top",
    "htf.flag_volume_a: flag volume 60% of the pole's or less",
-   "htf.holds_fast_averages: riding a rising 10-day and 21-day; not more than about 5% over the 10-day at the pivot",
+   "htf.holds_fast_averages: riding a rising 10-day and 21-day; not more than about 5% over the 9 EMA at the pivot",
    "htf.leadership: RS 90 or more, the group rising, a Green market",
    "htf.breakout_volume: 40% or more above average, closing strong",
    "htf.stop_width: a day's-low stop within about 3%"
@@ -1296,7 +1303,7 @@
    "htf.flag_depth: 20% to 25% deep, loose and jagged",
    "htf.flag_length_ideal: only 3 to 5 sessions, or past 5 weeks",
    "htf.flag_volume: volume not drying up",
-   "htf.not_stretched: the pivot 8% to 10% over the 10-day",
+   "htf.not_stretched: the pivot 8% to 10% over the 9 EMA",
    "htf.market_reading: a Yellow market, a weak group, a news-only story with no earnings",
    "htf.breakout_volume: a breakout on light volume, or a day's-low stop wider than 3%"
   ],
@@ -1309,7 +1316,7 @@
    "htf.above_200: under the 200-day",
    "htf.liquidity: under $10 or under $20 million a day",
    "htf.no_chase: more than 4% past the pattern high",
-   "htf.not_stretched: more than 10% over the 10-day",
+   "htf.not_stretched: more than 10% over the 9 EMA",
    "htf.earnings_window: a report within 3 sessions",
    "htf.stop_width: the honest stop wider than one ADR",
    "htf.market_reading: Red, or Orange unless A+"
@@ -1354,7 +1361,7 @@
  ],
  "mistakes": [
   "Buying the break of a trendline drawn inside the flag (Bulkowski: too many of these fail even after a trendline break).",
-  "Chasing an extended breakout: more than 4% past the high or more than 10% over the 10-day.",
+  "Chasing an extended breakout: more than 4% past the high or more than 10% over the 9 EMA.",
   "Calling any tight pause an HTF. Bonde: if you are finding too many high tight flags, there is something wrong with your interpretation.",
   "Trading a V-shaped pole off a crash, or a flag in a falling market.",
   "Trading a late flag after a long run (Bonde, Minervini).",

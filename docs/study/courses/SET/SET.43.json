@@ -200,9 +200,9 @@
   },
   {
    "id": "hC29",
-   "source": "h1",
-   "quote": "Too stretched to buy: skip a long that is more than 10% above its 10-day average.",
-   "claim": "C29: skip a long more than 10% above its 10-day average."
+   "source": "hw",
+   "quote": "Too stretched to buy: skip a long that is more than 10% above its 9 EMA.",
+   "claim": "We skip a long that is more than 10% above its 9 EMA: too stretched to buy."
   },
   {
    "id": "hA1",
@@ -423,8 +423,8 @@
   {
    "id": "c18",
    "source": "c1",
-   "quote": "At entry, no more than 10% above the 10-day average.",
-   "claim": "Card: at entry, no more than 10% above the 10-day average."
+   "quote": "At entry, no more than 10% above the 9 EMA.",
+   "claim": "Card: at entry, no more than 10% above the 9 EMA."
   },
   {
    "id": "c19",
@@ -447,8 +447,8 @@
   {
    "id": "c23",
    "source": "c1",
-   "quote": "Stop to breakeven between 2R and 5R, at the first trim by default.",
-   "claim": "Card: stop to breakeven between 2R and 5R, at the first trim by default."
+   "quote": "Stop to breakeven between 2R and 5R, or at the first sell.",
+   "claim": "Stop to breakeven between 2R and 5R, or at the first sell."
   },
   {
    "id": "c24",
@@ -471,8 +471,8 @@
   {
    "id": "c28",
    "source": "c1",
-   "quote": "Before entry: the touch day closes under the line on more than 1.5 times the 50-day volume. That is distribution, not a pullback.",
-   "claim": "Card: a close under the line on more than 1.5 times the 50-day volume is distribution."
+   "quote": "A touch day that closes under the line is not the hold yet. Heavy volume on it, more than 1.5 times the 50-day, is a distribution day to be mindful of, not an invalidation by itself.",
+   "claim": "A touch day that closes under the line is not the hold yet. Heavy volume on it, more than 1.5 times the 50-day, is a distribution day to be mindful of, not an invalidation by itself."
   },
   {
    "id": "c29",
@@ -2222,7 +2222,7 @@
    "rung": 4,
    "format": "mcq",
    "criterion": "map.not_stretched",
-   "q": "Price is 53.00 and the 10-day average is 48.00. How far above the average is price, in percent, to one decimal?",
+   "q": "Price is 53.00 and the 9 EMA is 48.00. How far above the average is price, in percent, to one decimal?",
    "answer": "10.4%",
    "calc": {
     "fn": "arith",
@@ -2233,15 +2233,15 @@
     },
     "round": 1
    },
-   "why": "The gap is 53.00 minus 48.00. Divide it by the 10-day average of 48.00 to get 10.4%. That is more than 10% above the 10-day average, so we skip the long as too stretched.",
-   "lesson_line": "Over 10% above the 10-day is too stretched to buy.",
+   "why": "The gap is 53.00 minus 48.00. Divide it by the 9 EMA of 48.00 to get 10.4%. That is more than 10% above the 9 EMA, so we skip the long as too stretched.",
+   "lesson_line": "Over 10% above the 9 EMA is too stretched to buy.",
    "facts": [
     "hC29",
     "c18"
    ],
    "house": true,
    "suffix": "%",
-   "simple": "Price is 10.4 percent above the 10-day average, which is more than 10 percent, so we skip the long.",
+   "simple": "Price is 10.4 percent above the 9 EMA, which is more than 10 percent, so we skip the long.",
    "tier": "core",
    "risk": {
     "score": 4,
@@ -4499,7 +4499,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Kept: pure percent math against the 10-day simple average (D-017 held); 5/48 = 10.4% verified."
+   "notes": "Kept: pure percent math against the 10-day simple average (D-017 held); 5/48 = 10.4% verified. | 2026-11-14: stretch line read through D-021 as the 9 EMA, as in the other 44 live questions."
   },
   "q33": {
    "status": "pass",

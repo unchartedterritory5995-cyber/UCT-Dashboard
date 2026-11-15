@@ -200,9 +200,9 @@
   },
   {
    "id": "h13",
-   "source": "h1",
-   "quote": "Too stretched to buy: skip a long that is more than 10% above its 10-day average.",
-   "claim": "C29: skip a long more than 10% above its 10-day average."
+   "source": "hw",
+   "quote": "Too stretched to buy: skip a long that is more than 10% above its 9 EMA.",
+   "claim": "We skip a long that is more than 10% above its 9 EMA: too stretched to buy."
   },
   {
    "id": "h15",
@@ -387,8 +387,8 @@
   {
    "id": "c22",
    "source": "c1",
-   "quote": "Skip if more than 10% above the 10-day average.",
-   "claim": "Card: skip if more than 10% above the 10-day average."
+   "quote": "Skip if more than 10% above the 9 EMA.",
+   "claim": "Card: skip if more than 10% above the 9 EMA."
   },
   {
    "id": "c23",
@@ -417,8 +417,8 @@
   {
    "id": "c27",
    "source": "c1",
-   "quote": "Stop to breakeven between 2R and 5R, at the first trim by default.",
-   "claim": "Card: stop to breakeven between 2R and 5R, at the first trim by default."
+   "quote": "Stop to breakeven between 2R and 5R, or at the first sell.",
+   "claim": "Stop to breakeven between 2R and 5R, or at the first sell."
   },
   {
    "id": "c28",
@@ -441,8 +441,8 @@
   {
    "id": "c31",
    "source": "c1",
-   "quote": "Trail the rest under the 10-day (fast movers) or the 21-day (steadier) on a close below it.",
-   "claim": "Card: trail the rest under the 10-day (fast) or 21-day (steadier) on a close below it."
+   "quote": "Trail the rest under the 9 EMA (fast movers) or the 20 EMA (steadier) on a close below it.",
+   "claim": "Trail the rest under the 9 EMA (fast movers) or the 20 EMA (steadier) on a close below it."
   },
   {
    "id": "c32",
@@ -2095,27 +2095,27 @@
    "format": "scenario",
    "criterion": "w4b.not_stretched",
    "q": "Buy the break?",
-   "story": "A pause breaks out, and the stock sits 12% over its 10-day average.",
+   "story": "A pause breaks out, and the stock sits 12% over its 9 EMA.",
    "choices": [
     "No; it is too stretched to buy",
     "Yes; the break itself is clean",
     "Yes, but only on half size",
-    "No; the 10-day is not rising yet"
+    "No; the 9 EMA is not rising yet"
    ],
    "answer": "No; it is too stretched to buy",
-   "why": "No. Skip a long that is more than 10% above its 10-day average. This one is 12% over, so it is too stretched to buy, however clean the break looks.",
+   "why": "No. Skip a long that is more than 10% above its 9 EMA. This one is 12% over, so it is too stretched to buy, however clean the break looks.",
    "lesson_line": "A clean break, too far above its average, is a pass.",
    "facts": [
     "c22",
     "h13"
    ],
    "wrong": {
-    "Yes; the break itself is clean": "A clean break can still be too stretched. Skip a long more than 10% above its 10-day average.",
+    "Yes; the break itself is clean": "A clean break can still be too stretched. Skip a long more than 10% above its 9 EMA.",
     "Yes, but only on half size": "Half size does not cure a stretch.",
-    "No; the 10-day is not rising yet": "The rule is about distance, not slope: skip a long that is more than 10% above its 10-day average."
+    "No; the 9 EMA is not rising yet": "The rule is about distance, not slope: skip a long that is more than 10% above its 9 EMA."
    },
    "house": true,
-   "simple": "No. At 12% over its 10-day average, the stock is stretched past the 10% limit, so we skip it.",
+   "simple": "No. At 12% over its 9 EMA, the stock is stretched past the 10% limit, so we skip it.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -3924,7 +3924,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Kept: 10% stretch on the 10-day simple average (D-017 held); distance not a drawn line."
+   "notes": "Kept: 10% stretch on the 10-day simple average (D-017 held); distance not a drawn line. | 2026-11-14: stretch line read through D-021 as the 9 EMA, as in the other 44 live questions."
   },
   "q36": {
    "status": "pass",

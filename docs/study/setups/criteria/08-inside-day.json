@@ -231,9 +231,9 @@
   {
    "id": "id.not_stretched",
    "field": "trigger",
-   "statement": "Close no more than 10% over the 10-day average. The member drawing's 6%-over-the-50-day gate is not used.",
+   "statement": "Close no more than 10% over the 9 EMA. The member drawing's 6%-over-the-50-day gate is not used.",
    "measure": {
-    "what": "close / 10-day SMA - 1",
+    "what": "close / 9 EMA - 1",
     "op": "<=",
     "value": 10,
     "unit": "%",
@@ -252,7 +252,14 @@
    "gate": true,
    "grade_cue": true,
    "dossier_ref": "8.1 item 6; 10 question 8",
-   "evidence": "HOOD 2026-09-04 was 11.0% over its 10-day SMA and was stopped the day it triggered. CRCL is on the line: 9.7% over the 10-day SMA (passes) but 10.2% over a 10-day EMA (fails). QCOM 2020-08-04 goes the other way: 13.0% over its 10-day SMA (fails) but about 9.7% over its 10-day EMA (passes), so its answer also flips on D-017 (corrected 2026-11-10 against the bars). The drawing's 6% gate hides COIN (+14% over the 50), POET (+17%) and TraderLion's NVDA (+13%). D-017's default: the 10-day SMA, the entry day not in it, the 6% gate dropped. Scan failure TSLA 2021-01-13 passed by a hair (9.1%) and was 17% over the 21 EMA."
+   "evidence": "HOOD 2026-09-04 was 11.0% over its 10-day SMA and was stopped the day it triggered. CRCL is on the line: 9.7% over the 10-day SMA (passes) but 10.2% over a 10-day EMA (fails). QCOM 2020-08-04 goes the other way: 13.0% over its 10-day SMA (fails) but about 9.7% over its 10-day EMA (passes), so its answer also flips on D-017 (corrected 2026-11-10 against the bars). The drawing's 6% gate hides COIN (+14% over the 50), POET (+17%) and TraderLion's NVDA (+13%). D-017's default: the 10-day SMA, the entry day not in it, the 6% gate dropped. Scan failure TSLA 2021-01-13 passed by a hair (9.1%) and was 17% over the 21 EMA.",
+   "superseded": [
+    {
+     "statement": "Close no more than 10% over the 10-day average. The member drawing's 6%-over-the-50-day gate is not used.",
+     "on": "2026-11-14",
+     "by": "D-021 (C29 read as the 9 EMA; the owner to confirm, D-017)"
+    }
+   ]
   },
   {
    "id": "id.stop_size",
@@ -1047,7 +1054,7 @@
    "id.location: 1 to 5 days after a breakout or earnings gap on big volume, or the first tag of the rising 10/20-day",
    "id.close_upper_half: upper half, near the high",
    "id.stop_size: a normal-sized pause for the stock (about 0.5 to 1 ATR), stop within 1% to 3%",
-   "id.not_stretched: 0 to 5% over the 10-day",
+   "id.not_stretched: 0 to 5% over the 9 EMA",
    "id.volume_lighter: lighter than the mother bar after a heavy-volume expansion",
    "id.room: clear air to the next level",
    "id.earnings_window: no earnings for 3 or more days"
@@ -1058,14 +1065,14 @@
    "id.location: the middle of a choppy range, under a falling 50-day",
    "id.close_upper_half: lower half, near the low",
    "id.stop_size: the stop over 1 ATR or over 4%; or a sliver under 0.4 ATR whose low sits inside the noise (id.not_tighter_better)",
-   "id.not_stretched: over 10% over the 10-day; id.run_length: up 5 to 6 days in a row",
+   "id.not_stretched: over 10% over the 9 EMA; id.run_length: up 5 to 6 days in a row",
    "id.volume_lighter: a heavy, wide, red mother bar with a long upper wick",
    "id.room: a bearish gap or old high just overhead (his HTZ note)",
    "id.earnings_window: earnings within 3 days"
   ],
   "no_trade": [
    "id.trend_200: under the 200-day, or the 50-day under the 200 (B26)",
-   "id.not_stretched: more than 10% over the 10-day (HOOD)",
+   "id.not_stretched: more than 10% over the 9 EMA (HOOD)",
    "id.gap_over: a gap more than 4% over the inside day's high",
    "id.inv_low_first: the low traded first (then only scenario B, if it reclaims)",
    "id.earnings_window: a report within 3 sessions",
@@ -1107,7 +1114,7 @@
  ],
  "mistakes": [
   "Buying every inside day. The bar alone is near random (Bulkowski 53%; the dossier's test; the scan's 26.7% to 3R with 88% stopped).",
-  "Buying a stretched one: more than 10% over the 10-day (HOOD, Sep 2026) or after up 6 days in a row.",
+  "Buying a stretched one: more than 10% over the 9 EMA (HOOD, Sep 2026) or after up 6 days in a row.",
   "Reading a weak-close inside day (lower half of its range, under resistance) as bullish (the QQQ and XLF notes).",
   "Chasing a gap over the trigger by more than 4%.",
   "Using the mother low as the stop because the inside low feels too tight, then sizing as if it were tight.",
@@ -1334,7 +1341,7 @@
   {
    "kind": "grade",
    "criterion": "id.not_stretched",
-   "seed": "Two inside days after a breakout: one 3% over its 10-day, one 11% over. Grade each."
+   "seed": "Two inside days after a breakout: one 3% over its 9 EMA, one 11% over. Grade each."
   },
   {
    "kind": "grade",

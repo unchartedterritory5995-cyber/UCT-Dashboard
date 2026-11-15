@@ -625,9 +625,9 @@
   {
    "id": "bg.not_stretched",
    "field": "trigger",
-   "statement": "Skip a short more than 10% under its 10-day average. 43% of the app's gap-day closes were past that line: the case for waiting for the bounce.",
+   "statement": "Skip a short more than 10% under its 9 EMA. 43% of the app's gap-day closes were past that line: the case for waiting for the bounce.",
    "measure": {
-    "what": "10-day SMA / entry - 1",
+    "what": "9 EMA / entry - 1",
     "op": "<=",
     "value": 10,
     "unit": "%",
@@ -640,7 +640,14 @@
    "gate": true,
    "grade_cue": false,
    "dossier_ref": "8.3 Not too late; 7 C29 row",
-   "evidence": "C29 mirrored through D47. Median distance of the gap-day close under the 10-day: 9.2%."
+   "evidence": "C29 mirrored through D47. Median distance of the gap-day close under the 10-day: 9.2%.",
+   "superseded": [
+    {
+     "statement": "Skip a short more than 10% under its 10-day average. 43% of the app's gap-day closes were past that line: the case for waiting for the bounce.",
+     "on": "2026-11-14",
+     "by": "D-021 (C29 read as the 9 EMA; the owner to confirm, D-017)"
+    }
+   ]
   },
   {
    "id": "bg.weak_rs",
@@ -1322,7 +1329,7 @@
    "bg.below_200: above the 200-day, except Version P if he rules the exception covers it (bg.p_above_200)",
    "bg.earnings_breakdown: an earnings collapse one to three sessions off a fresh high, the shape he cut",
    "bg.fill: the gap has filled",
-   "bg.no_chase: more than 4% under the trigger; bg.not_stretched: more than 10% under the 10-day",
+   "bg.no_chase: more than 4% under the trigger; bg.not_stretched: more than 10% under the 9 EMA",
    "bg.earnings: a report within 3 sessions; bg.borrow: hard to borrow",
    "bg.market: a Green or Yellow reading, or a market that just turned Green with breadth thrusting (bg.inv_market_turn)"
   ]

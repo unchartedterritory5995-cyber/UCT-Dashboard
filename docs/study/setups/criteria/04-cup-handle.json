@@ -843,9 +843,9 @@
   {
    "id": "ch.not_stretched",
    "field": "trigger",
-   "statement": "At entry, no more than 10% above the 10-day average.",
+   "statement": "At entry, no more than 10% above the 9 EMA.",
    "measure": {
-    "what": "entry / 10-day SMA - 1",
+    "what": "entry / 9 EMA - 1",
     "op": "<=",
     "value": 10,
     "unit": "%",
@@ -859,7 +859,14 @@
    "gate": true,
    "grade_cue": false,
    "dossier_ref": "8.2 A Chase limit",
-   "evidence": "A fresh breakout from a handle is usually near its 10-day; it catches late chases."
+   "evidence": "A fresh breakout from a handle is usually near its 10-day; it catches late chases.",
+   "superseded": [
+    {
+     "statement": "At entry, no more than 10% above the 10-day average.",
+     "on": "2026-11-14",
+     "by": "D-021 (C29 read as the 9 EMA; the owner to confirm, D-017)"
+    }
+   ]
   },
   {
    "id": "ch.earnings_window",
@@ -1530,7 +1537,7 @@
    "ch.above_200: under the 200-day",
    "ch.cup_length_min: under 7 weeks (a flag or a tight range, not this setup)",
    "ch.no_chase: more than 4% past the pivot",
-   "ch.not_stretched: more than 10% over the 10-day",
+   "ch.not_stretched: more than 10% over the 9 EMA",
    "ch.stop_outer_limit: the honest stop below the handle low; never pull it in",
    "ch.earnings_window: a report within 3 sessions",
    "ch.liquidity: under $10 or under $20 million a day",
@@ -1576,7 +1583,7 @@
   "Buying a handle in the lower half of the base.",
   "Buying a handle that wedges up (the owner on ANET: inside day to avoid wedging up behavior).",
   "Calling a 2 or 3-day dip a handle; under 5 days it is not one.",
-  "Chasing more than 4% past the pivot or more than 10% over the 10-day.",
+  "Chasing more than 4% past the pivot or more than 10% over the 9 EMA.",
   "Buying a breakout on weak volume and ignoring it.",
   "Trading a third or fourth-stage base like a first.",
   "Using the handle low as the stop at full size, then taking an 8% to 12% loss.",

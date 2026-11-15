@@ -663,9 +663,9 @@
   {
    "id": "gs.not_stretched",
    "field": "trigger",
-   "statement": "At entry, no more than 10% above the 10-day average. Rarely binds at a test (median 0.7% over), but 7% of owner-version tests were over it.",
+   "statement": "At entry, no more than 10% above the 9 EMA. Rarely binds at a test (median 0.7% over), but 7% of owner-version tests were over it.",
    "measure": {
-    "what": "entry / 10-day SMA - 1",
+    "what": "entry / 9 EMA - 1",
     "op": "<=",
     "value": 10,
     "unit": "%",
@@ -678,7 +678,14 @@
    "status": "settled",
    "gate": true,
    "grade_cue": false,
-   "dossier_ref": "7 C29 row"
+   "dossier_ref": "7 C29 row",
+   "superseded": [
+    {
+     "statement": "At entry, no more than 10% above the 10-day average. Rarely binds at a test (median 0.7% over), but 7% of owner-version tests were over it.",
+     "on": "2026-11-14",
+     "by": "D-021 (C29 read as the 9 EMA; the owner to confirm, D-017)"
+    }
+   ]
   },
   {
    "id": "gs.earnings_window",

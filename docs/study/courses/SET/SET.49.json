@@ -493,7 +493,7 @@
   {
    "id": "c01",
    "source": "c1",
-   "quote": "The day's low at least 2 ATR(14) under the prior close, or a range of at least 2 ATR.",
+   "quote": "the day's low at least 2 ATR(14) under the prior close, or a range of at least 2 ATR.",
    "claim": "The flush day: the low at least 2 ATR under the prior close, or a range of at least 2 ATR."
   },
   {

@@ -179,9 +179,9 @@
   },
   {
    "id": "h13",
-   "source": "h1",
-   "quote": "Too stretched to buy: skip a long that is more than 10% above its 10-day average.",
-   "claim": "C29: skip a long more than 10% above its 10-day average."
+   "source": "hw",
+   "quote": "Too stretched to buy: skip a long that is more than 10% above its 9 EMA.",
+   "claim": "We skip a long that is more than 10% above its 9 EMA: too stretched to buy."
   },
   {
    "id": "h14",
@@ -948,9 +948,9 @@
    "key": "q04",
    "skill": "setup.vcp",
    "rung": 1,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "vcp.pivot",
-   "q": "What is the pivot of a VCP?",
+   "q": "Where is this VCP's pivot, the level it must trade through?",
    "choices": [
     "The low of the first pullback",
     "The close before the breakout",
@@ -958,7 +958,7 @@
     "The highest price in the base"
    ],
    "answer": "The high of the final contraction",
-   "why": "The high of the final contraction. ChartMill: the pivot is the top of the final contraction, not the highest price of the entire base, but the level the final tight consolidation keeps running into. Our rule agrees: it may sit below the base's left-side high.",
+   "why": "The high of the final contraction. ChartMill: the pivot is the top of the final contraction, not the highest price of the entire base, but the level the final tight consolidation keeps running into. Our rule agrees: it may sit below the base's left-side high. On this chart the last swing's high sits under the base's highest price, and that lower level is the pivot.",
    "lesson_line": "The pivot is the top of the last, tightest swing.",
    "facts": [
     "c01",
@@ -978,7 +978,14 @@
      "the pivot is a proposed card criterion, not an owner ruling"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-1",
+   "story": "Hidden ticker, the day before a breakout.",
+   "chart": {
+    "sym": "JOYY",
+    "asof": "2013-12-31",
+    "window": 150,
+    "forward": 20
+   }
   },
   {
    "key": "q05",
@@ -1039,9 +1046,9 @@
    "key": "q07",
    "skill": "setup.vcp",
    "rung": 1,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "vcp.stop",
-   "q": "On a VCP breakout, which is our primary stop?",
+   "q": "On this VCP breakout, which is our primary stop?",
    "choices": [
     "Exactly on the day's low",
     "At the 50-day average",
@@ -1071,7 +1078,14 @@
      "+2 rests on the owner's rulebook (A3, F62) and the held decision D-008 on which low"
     ]
    },
-   "batch": "rulings"
+   "batch": "visuals-1",
+   "story": "Hidden ticker, bought on the breakout today. Look at today's bar and the bars before it.",
+   "chart": {
+    "sym": "ALGN",
+    "asof": "2007-10-17",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q08",
@@ -1381,9 +1395,9 @@
    "key": "q17",
    "skill": "setup.vcp",
    "rung": 3,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "vcp.stop_width",
-   "q": "Fill 170.00, stop 165.39. How far under the fill is the stop, in percent?",
+   "q": "How far under the fill is the stop, in percent?",
    "answer": "2.7%",
    "calc": {
     "fn": "arith",
@@ -1411,7 +1425,7 @@
      "+2 sits beside the held decision D-005 on stop width"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-1",
    "choices": [
     "4.6%",
     "27.1%",
@@ -1422,15 +1436,26 @@
     "4.6%": "That is the dollar amount read as a percent. Divide it first.",
     "27.1%": "That slips a decimal place.",
     "97.3%": "That is the stop as a share of the fill, not the gap."
+   },
+   "story": "Hidden ticker, bought on the breakout at 170.00 with the stop at 165.39.",
+   "chart": {
+    "sym": "RNG",
+    "asof": "2020-01-02",
+    "window": 120,
+    "forward": 30,
+    "trade": {
+     "entry": 170.0,
+     "stop": 165.39
+    }
    }
   },
   {
    "key": "q18",
    "skill": "setup.vcp",
    "rung": 3,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "vcp.trim_1",
-   "q": "Bought at 17.38 with the stop at 16.59. One R is the gap between them. Where is 3R?",
+   "q": "One R is the gap between them. Where is 3R?",
    "answer": "$19.75",
    "calc": {
     "fn": "arith",
@@ -1458,7 +1483,7 @@
      "+2 rests on the owner's rulebook (B19, the hard rule of a third at 3R)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-1",
    "choices": [
     "$20.54",
     "$18.17",
@@ -1469,13 +1494,24 @@
     "$18.17": "That adds one R, not three.",
     "$18.96": "That counts 3R up from the stop, not from the fill.",
     "$20.54": "That adds four R. Three R is three gaps, not four."
+   },
+   "story": "Hidden ticker, bought on the breakout at 17.38 with the stop at 16.59.",
+   "chart": {
+    "sym": "PHM",
+    "asof": "2003-10-01",
+    "window": 120,
+    "forward": 30,
+    "trade": {
+     "entry": 17.38,
+     "stop": 16.59
+    }
    }
   },
   {
    "key": "q19",
    "skill": "setup.vcp",
    "rung": 3,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "vcp.no_chase",
    "q": "The pivot is 16.47. The chase limit is 4% above it. What price is that, to the nearest cent?",
    "answer": "$17.13",
@@ -1500,7 +1536,7 @@
    "prefix": "$",
    "simple": "Add 4 percent to the pivot. 16.47 times 1.04 is about 17.13, the chase limit.",
    "deeper": {
-    "trap": "Do not mix up two limits. The chase limit is 4% above the buy point. The stretch limit is separate: skip a long more than 10% above its 10-day average. A buy has to pass both."
+    "trap": "Do not mix up two limits. The chase limit is 4% above the buy point. The stretch limit is separate: skip a long more than 10% above its 9 EMA. A buy has to pass both."
    },
    "tier": "core",
    "risk": {
@@ -1510,7 +1546,7 @@
      "+2 rests on the owner's rulebook (C28)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-1",
    "choices": [
     "$20.47",
     "$16.54",
@@ -1521,6 +1557,13 @@
     "$20.47": "That adds 4 dollars, not 4 percent.",
     "$16.54": "That adds a fraction of a percent, not 4 percent. A decimal slip.",
     "$15.81": "That takes 4% off. The chase limit sits above the pivot."
+   },
+   "story": "Hidden ticker, the day before a breakout.",
+   "chart": {
+    "sym": "ON",
+    "asof": "2017-08-29",
+    "window": 120,
+    "forward": 20
    }
   },
   {
@@ -1593,7 +1636,7 @@
    "key": "q22",
    "skill": "setup.vcp",
    "rung": 3,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "vcp.volume_dry",
    "q": "How should volume look in the final contraction?",
    "choices": [
@@ -1603,7 +1646,7 @@
     "About the same as in the first swing"
    ],
    "answer": "Drying up, below the 50-day average",
-   "why": "Drying up, below the 50-day average. The 50-day average volume is the shares traded per day, averaged over the last 50 sessions. In the final, tightest swing the sellers run out, so volume shrinks. Our rule wants that swing's average volume below the first swing's and below the 50-day average, with one day at or under half of it. RNG's final swing traded at 0.46 times the average. This tests the last swing, not the breakout day.",
+   "why": "Drying up, below the 50-day average. The 50-day average volume is the shares traded per day, averaged over the last 50 sessions. In the final, tightest swing the sellers run out, so volume shrinks. Our rule wants that swing's average volume below the first swing's and below the 50-day average, with one day at or under half of it. In this PHM base the volume dried up into the pivot. This tests the last swing, not the breakout day.",
    "lesson_line": "Quiet price, quiet volume. Volume dries up into the tight final swing.",
    "facts": [
     "c05",
@@ -1625,7 +1668,14 @@
      "volume_dry is a proposed criterion"
     ]
    },
-   "batch": "review4"
+   "batch": "visuals-1",
+   "story": "Hidden ticker, the day before a breakout. Look at the volume bars in the last swing.",
+   "chart": {
+    "sym": "PHM",
+    "asof": "2003-09-30",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q23",
@@ -1633,29 +1683,29 @@
    "rung": 4,
    "format": "scenario",
    "criterion": "vcp.inv_wide_loose",
-   "q": "Is this base contracting?",
+   "q": "Our rule wants each pullback at most 0.75 times the last. Is this a VCP?",
    "choices": [
-    "No; the swings do not shrink",
-    "Yes; three pullbacks make a VCP",
-    "Yes; the dips are shallow",
-    "No; the first dip is too small"
+    "No; 0.79 is over the 0.75 limit",
+    "Yes; the second pullback is smaller",
+    "Yes; two pullbacks are enough",
+    "No; the first pullback is too shallow"
    ],
-   "answer": "No; the swings do not shrink",
-   "why": "No. A contraction as deep as, or deeper than, the one before ends the VCP idea. These three pullbacks are all about 14%, so none is smaller than the last. Calling any sideways wiggle a VCP is a named mistake.",
-   "lesson_line": "Equal swings are a box, not a VCP. Wait for the contractions.",
+   "answer": "No; 0.79 is over the 0.75 limit",
+   "why": "No. Our rule wants each pullback at most 0.75 times the one before. Here the second is 0.79 times the first, 9.0% against 11.5%. Two pullbacks of almost the same size make a wide, loose base, not a contraction.",
+   "lesson_line": "Pullbacks of nearly the same size make a loose base. Each must be at most 0.75 times the last.",
    "facts": [
     "c11",
     "c27",
     "c02"
    ],
    "wrong": {
-    "Yes; three pullbacks make a VCP": "Three pullbacks only count if they shrink.",
-    "Yes; the dips are shallow": "Depth is not the test here. The pullbacks have to shrink, and these do not.",
-    "No; the first dip is too small": "A 14% first dip is inside the 10% to 40% range. The problem is that nothing shrinks."
+    "Yes; the second pullback is smaller": "It is smaller, but not enough. Each step has to be at most 0.75 times the last.",
+    "Yes; two pullbacks are enough": "Two pullbacks can count, but only when the second is at most 0.75 times the first.",
+    "No; the first pullback is too shallow": "An 11.5% first pullback clears the card's minimum. The ratio is the problem."
    },
    "house": true,
-   "story": "A leader pulls back 14%, rallies, then pulls back another 14%. A third pullback is also about 14%.",
-   "simple": "No, because each pullback is as deep as the one before, so nothing is shrinking.",
+   "story": "Hidden ticker, the day before it trades through its pivot. Two pullbacks, 11.5% then 9.0%, the second 0.79 times the first.",
+   "simple": "No. The second pullback is 0.79 times the first, and our rule needs it to be 0.75 times or less.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -1667,7 +1717,13 @@
    "depends_on": [
     "D-059"
    ],
-   "batch": "wave2"
+   "batch": "visuals-1",
+   "chart": {
+    "sym": "CAT",
+    "asof": "2010-01-08",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q24",
@@ -1811,7 +1867,7 @@
     "Widen the stop to give it room"
    ],
    "answer": "Hold; the stop is the exit",
-   "why": "Hold. A breakout day that closes back inside the base is the squat. It is a warning, not an exit by itself. The stop is the exit, and it only moves up, never wider. Do not add either, since the plan is one full buy.",
+   "why": "Hold. A breakout day that closes back inside the base is the squat. It is a warning, not an exit by itself. The stop is the exit, and it only moves up, never wider. Do not add either, since the plan is one full buy. In the real ALGN case the next day's low took the stop, a planned loss.",
    "lesson_line": "A squat is a warning. The stop decides the exit.",
    "facts": [
     "c16",
@@ -1825,7 +1881,7 @@
     "Widen the stop to give it room": "The stop only moves up, never wider. Widening it to give the stock room is a named mistake."
    },
    "house": true,
-   "story": "You bought the breakout at 41.10. It closes at 40.52, back inside the base, still above your stop.",
+   "story": "Hidden ticker, bought the breakout at 28.65 with the stop at 27.70. It closes at 28.14, back inside the base, still above your stop.",
    "simple": "Hold. A close back inside the base is a warning, not a sell signal, so the stop stays the exit.",
    "deeper": {
     "counter": "A warning is not a shrug. In our scan, a close above the pivot on the buy day reached 3R 36.9% of the time. A close back inside the base reached it 18.9% of the time. So the squat is a real warning, but the stop still decides the exit."
@@ -1837,7 +1893,17 @@
      "+2 rests on the owner's rulebook (A4, the stop is the exit) and a proposed card warning"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-1",
+   "chart": {
+    "sym": "ALGN",
+    "asof": "2007-10-17",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 28.65,
+     "stop": 27.7
+    }
+   }
   },
   {
    "key": "q28",
@@ -1908,7 +1974,7 @@
    "key": "q30",
    "skill": "setup.vcp",
    "rung": 4,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "vcp.higher_lows",
    "q": "By our rule, what do higher lows mean in a VCP?",
    "choices": [
@@ -1940,7 +2006,14 @@
      "higher_lows is a proposed criterion"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-1",
+   "story": "Hidden ticker, the day before a breakout. Look at the low of each swing.",
+   "chart": {
+    "sym": "GXO",
+    "asof": "2023-05-09",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q31",
@@ -1996,11 +2069,11 @@
     "The first pullback is too deep",
     "The first pullback is too shallow",
     "The last pullback is too wide",
-    "Nothing; 12% is half of 24%"
+    "Nothing; 11.5% is about half of 24%"
    ],
    "answer": "The last pullback is too wide",
-   "why": "The last pullback is too wide. Our rule allows at most 10% for the final contraction, and 12% is more. The 24% first pullback is inside the 10% to 40% range, so that test passes. Our BIIB read had a 24% first leg and a 12% second leg and was called a loose cup.",
-   "lesson_line": "The last swing has to be the tightest. 12% is still loose.",
+   "why": "The last pullback is too wide. Our rule allows at most 10% for the final contraction, and 11.5% is more. The 24% first pullback is inside the 10% to 40% range, so that test passes. Our BIIB read had a 24% first leg and an 11.5% final leg and was called a loose cup.",
+   "lesson_line": "The last swing has to be the tightest. 11.5% is still loose.",
    "facts": [
     "d22",
     "d23",
@@ -2011,13 +2084,13 @@
    "wrong": {
     "The first pullback is too deep": "A 24% first leg is inside the 10% to 40% range. The last swing is the problem.",
     "The first pullback is too shallow": "24% clears the 10% floor for a first pullback. The last swing is the problem.",
-    "Nothing; 12% is half of 24%": "Half is the rule of thumb for each step, but the final swing must also be at most 10%, and 12% is not."
+    "Nothing; 11.5% is about half of 24%": "Half is the rule of thumb for each step, but the final swing must also be at most 10%, and 11.5% is not."
    },
    "house": true,
-   "story": "A base ends with a 24% pullback and then a 12% pullback. It is about to break out.",
-   "simple": "The final contraction fails, because the rule allows at most 10% and the last pullback here is 12%.",
+   "story": "Hidden ticker, the day before a breakout. The base has two pullbacks: about 24%, then 11.5%.",
+   "simple": "The final contraction fails, because the rule allows at most 10% and the last pullback here is 11.5%.",
    "deeper": {
-    "counter": "Halving is not enough on its own. Minervini likes each contraction to be about half of the one before, and 24% then 12% is exactly that. The base still fails, because the final contraction has its own ceiling of 10% or less."
+    "counter": "Halving is not enough on its own. Minervini likes each contraction to be about half of the one before, and 24% then 11.5% is about that. The base still fails, because the final contraction has its own ceiling of 10% or less."
    },
    "tier": "extended",
    "risk": {
@@ -2027,7 +2100,13 @@
      "the BIIB example comes from our own scan, not reviewed by the owner"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-1",
+   "chart": {
+    "sym": "BIIB",
+    "asof": "2014-05-27",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q33",
@@ -2129,9 +2208,9 @@
    "rung": 5,
    "format": "tf",
    "criterion": "vcp.breakout_volume",
-   "q": "A VCP breakout on light volume should be sold the same day.",
+   "q": "This VCP broke out today on light volume, 0.7 times the average. It should be sold the same day.",
    "answer": "False",
-   "why": "False. Minervini says lack of volume does raise a red flag, and volume would need to come in soon after. He adds: maintain your stop regardless. Light volume is a warning to watch, not a sell signal. The stop is the exit.",
+   "why": "False. Minervini says lack of volume does raise a red flag, and volume would need to come in soon after. He adds: maintain your stop regardless. Light volume is a warning to watch, not a sell signal. The stop is the exit. NKE broke out on 0.7 times the average volume and it still worked.",
    "lesson_line": "Light volume is a red flag. The stop is still the exit.",
    "facts": [
     "v11",
@@ -2147,7 +2226,13 @@
      "+1 fixed before"
     ]
    },
-   "batch": "rulings"
+   "batch": "visuals-1",
+   "chart": {
+    "sym": "NKE",
+    "asof": "2018-05-15",
+    "window": 120,
+    "forward": 30
+   }
   },
   {
    "key": "q37",
@@ -2258,7 +2343,7 @@
     "Raised after the breakout": "Our rule moves the stop at 2R to 5R, not just because the stock broke out."
    },
    "house": true,
-   "story": "META broke out. It reached 1.18R, then faded for five sessions and hit the stop.",
+   "story": "Hidden ticker, bought on the breakout at 522.89 with the stop at 505.97. It reached 1.18R, then faded for five sessions and hit the stop.",
    "simple": "The stop should still have been at the original stop, because the breakeven move waits for 2R and META only reached 1.18R.",
    "tier": "extended",
    "risk": {
@@ -2268,7 +2353,17 @@
      "the META numbers come from our own scan, not reviewed by the owner"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-1",
+   "chart": {
+    "sym": "META",
+    "asof": "2024-07-05",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 522.89,
+     "stop": 505.97
+    }
+   }
   },
   {
    "key": "q40",
@@ -2299,7 +2394,7 @@
     "The contractions were too shallow": "14.2% and 4.6% sit inside the card's ranges."
    },
    "house": true,
-   "story": "CMG: two shrinking contractions, 2.0x volume, a close above the pivot. It reached 0.87R, then fell back to the stop.",
+   "story": "Hidden ticker, bought on the breakout at 27.60 with the stop at 26.32. Two shrinking pullbacks, 14.2% then 4.6%, on 2.0x volume, and a close above the pivot. It reached 0.87R, then fell to the stop.",
    "simple": "Nothing was wrong with the setup. A clean setup can still fail, and the stop, not an opinion, is the exit.",
    "tier": "extended",
    "risk": {
@@ -2309,34 +2404,44 @@
      "+1 fixed before"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-1",
+   "chart": {
+    "sym": "CMG",
+    "asof": "2020-12-16",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 27.6,
+     "stop": 26.32
+    }
+   }
   },
   {
    "key": "q41",
    "skill": "setup.vcp",
    "rung": 6,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "vcp.stop_width",
-   "q": "Account 100,000, risk 0.5%, buy 24.60, stop 23.55. Before any cap, how many shares?",
-   "answer": "476 shares",
+   "q": "Account 100,000, risk 0.5%. Before any cap, how many shares?",
+   "answer": "201 shares",
    "calc": {
     "fn": "shares_from_risk",
     "args": {
      "account": 100000,
      "risk_pct": 0.5,
-     "entry": 24.6,
-     "stop": 23.55
+     "entry": 125.23,
+     "stop": 122.75
     },
     "round": 0
    },
-   "why": "Risk dollars are 0.5% of 100,000, which is 500. Risk per share is the gap between 24.60 and 23.55. Divide 500 by that, then round down to 476. The size comes from the stop, then it is capped.",
+   "why": "Risk dollars are 0.5% of 100,000, which is 500. Risk per share is the gap between 125.23 and 122.75. Divide 500 by that, then round down to 201. The size comes from the stop, then it is capped.",
    "lesson_line": "Shares come from the stop: risk in dollars divided by risk per share, rounded down.",
    "facts": [
     "h03",
     "h01"
    ],
    "house": true,
-   "simple": "Divide the dollars you risk by the risk per share, then round down. Here that gives 476 shares.",
+   "simple": "Divide the dollars you risk by the risk per share, then round down. Here that gives 201 shares.",
    "tier": "extended",
    "risk": {
     "score": 4,
@@ -2345,17 +2450,28 @@
      "+2 rests on the owner's rulebook (A5, shares rounded down then capped)"
     ]
    },
-   "batch": "rank",
+   "batch": "visuals-1",
    "choices": [
-    "476 shares",
-    "238 shares",
-    "952 shares",
+    "201 shares",
+    "100 shares",
+    "403 shares",
     "500 shares"
    ],
    "wrong": {
-    "952 shares": "Used twice the stated risk percent.",
     "500 shares": "That is the risk dollars read as shares. Divide by the risk per share.",
-    "238 shares": "Used half the stated risk percent."
+    "403 shares": "Used twice the stated risk percent.",
+    "100 shares": "Used half the stated risk percent."
+   },
+   "story": "Hidden ticker, bought on the breakout at 125.23 with the stop at 122.75.",
+   "chart": {
+    "sym": "SHOP",
+    "asof": "2021-06-14",
+    "window": 150,
+    "forward": 20,
+    "trade": {
+     "entry": 125.23,
+     "stop": 122.75
+    }
    }
   },
   {
@@ -2486,7 +2602,7 @@
     "Widen the stop to give the stock room": "A stop only moves up. The gap rule is the one exception, and it sets the first 30-minute low, not a wider stop."
    },
    "house": true,
-   "story": "AXON: the fill was 694.02 and the day's low 691.86, so the stop sat 0.3% under. The next day gapped down and traded as low as 592.76, far through it.",
+   "story": "Hidden ticker: the fill was 694.02 and the day's low 691.86, so the stop sat 0.3% under. The next day opened lower, then fell hard and traded as low as 592.76, far through it.",
    "simple": "Use the gap rule: the first 30-minute low becomes the new stop, and you get out if the loss passes 2R.",
    "tier": "extended",
    "risk": {
@@ -2496,7 +2612,17 @@
      "the AXON numbers come from our own scan"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-1",
+   "chart": {
+    "sym": "AXON",
+    "asof": "2025-02-18",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 694.02,
+     "stop": 691.86
+    }
+   }
   },
   {
    "key": "q46",
@@ -3999,8 +4125,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Right answer re-derived from the cited quotes and matches the key; no second defensible answer, tell or ungrounded number found.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "JOYY winners_list 2014-01-02; asof 2013-12-31 is the last session before (01-01 holiday). Bars: final-T high 51.22 (12-27) is the pivot, base high 56.75 sits above it, so the keyed answer is true on this chart. No numbers in text; ticker only in the chart."
   },
   "q05": {
    "status": "cut",
@@ -4018,7 +4143,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "edit right: asks for the primary stop; alternatives explained | mechanical: depends_on left empty, restored to the ruling id(s)"
+   "notes": "REGN's dossier stop 133.96 is 5 cents under the PRIOR day's low (134.01), not the buy day's low (137.88), so the real example shows the alternative, not the keyed primary stop. Swapped to ALGN 2007-10-17 (winner-free failure row, second use in this lesson): buy-day low 27.75, dossier stop 27.70 = 5 cents under that day's low, so the example matches the key. No trade drawn, no numbers in the text."
   },
   "q08": {
    "status": "pass",
@@ -4078,19 +4203,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc recomputed and shown by the answer; every wrong choice recomputed as the stated mistake and none is near the answer; no length, unit or slot tell; why walks the steps."
+   "notes": "RNG row 3: pivot 169.99, fill 170.00 (also the open), stop 165.39 (5c under prior low 165.44), 2.7% = (170-165.39)/170. Trade matches text and dossier; asof is the buy day. Distractors check (4.6, 27.1, 97.3)."
   },
   "q18": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Replaced $2.37 with a 4R overshoot so the answer is not the largest. Calc recomputed; the other wrong choices checked by hand."
+   "fixed": false,
+   "notes": "PHM row 2: pivot 17.37, fill 17.38, stop 16.59 (5c under prior low 16.64), 3R = 17.38+3*0.79 = 19.75, 3R reached in 16 days per dossier; distractors check; asof = buy day."
   },
   "q19": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "The note for $16.54 said \"a tenth of the limit\"; 16.47 x 1.004 = 16.54 is 0.4%. Calc recomputed; the other wrong choices checked by hand."
+   "fixed": false,
+   "notes": "ON row 1: pivot 16.47 matches the question; asof 2017-08-29 is the day before the 08-30 buy; arithmetic 16.47*1.04 = 17.13 unchanged and true. | 2026-11-14: stretch line read through D-021 as the 9 EMA, as in the other 44 live questions."
   },
   "q20": {
    "status": "pass",
@@ -4108,13 +4233,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Keep ok: heavy down day called a warning to note."
+   "notes": "PHM row 2 'volume dries into the pivot'; scan record final-T volume 0.83x the 50-day average, so the keyed answer is true (a milder dry-up than ON/JOYY/REGN at 0.6x, noted not blocking). asof 2003-09-30 is the day before the buy; the RNG 0.46 figure was dropped from the why, no new numbers."
   },
   "q23": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Right answer re-derived from the cited quotes and matches the key; no second defensible answer, tell or ungrounded number found."
+   "fixed": true,
+   "notes": "CAT near_misses 2010-01-11 vcp.ratio; asof 2010-01-08 is the Friday before; 11.5% / 9.0% / 0.79 / 0.75 all match card and dossier (9.0/11.5 rounds to 0.78 but the scan's unrounded ratio is 0.79, so kept). Fix: lesson_line still said 'equal swings are a box' from the old three-14% story; re-keyed to the ratio test."
   },
   "q24": {
    "status": "pass",
@@ -4137,8 +4262,8 @@
   "q27": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (c16, A4). But the story reuses the ALGN prices of q47 (28.14 close), and q47's choice 'A squat; the stop decides' gives this key away. Changed the numbers so it is not the same case."
+   "fixed": false,
+   "notes": "ALGN failure 1: fill 28.65, stop 27.70 (5c under the buy-day low 27.75), close 28.14 (bars confirm), stopped next day at low 27.64; asof = buy day; Hold stays right, why names the real stop-out."
   },
   "q28": {
    "status": "pass",
@@ -4156,8 +4281,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Right answer re-derived from the cited quotes and matches the key; no second defensible answer, tell or ungrounded number found.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "GXO row 7; asof 2023-05-09 is the day before the 05-10 buy. The scan gate requires the final low above the base low and GXO passed it. Words use no numbers. Definition question, the chart illustrates it."
   },
   "q31": {
    "status": "pass",
@@ -4168,8 +4292,8 @@
   "q32": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Keep ok: final-contraction ceiling is not one of the guide numbers."
+   "fixed": true,
+   "notes": "BIIB near_misses 2014-05-28 (depths 24.2 and 11.5 in the scan record); asof 2014-05-27 is the day before. Story and choices are right. Fix: the why still said 'a 12% second leg', a number no longer in the story; changed to 11.5%."
   },
   "q33": {
    "status": "cut",
@@ -4192,8 +4316,8 @@
   "q36": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "keep right: light volume is a red flag, stop is the exit | mechanical: depends_on left empty, restored to the ruling id(s)"
+   "fixed": false,
+   "notes": "NKE row 8: breakout volume 0.7x (scan 0.68), B grade, 3R in 13 days; asof = buy day (bar trades through the 69.42 pivot); tf with no story and no trade; False stays right and the why says it still worked."
   },
   "q37": {
    "status": "pass",
@@ -4212,19 +4336,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key right (d15, d16, B19): 1.18R is under the 2R window. 3.2% checks (16.92/522.89). No second answer."
+   "notes": "META failure 4: fill 522.89 (pivot 522.88), stop 505.97 (5c under prior low 506.02), 3.2% under, close 539.91, best 1.18R, stopped 2024-07-12 low 494.23. asof = buy day, trade matches text and dossier."
   },
   "q40": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Contradicts q44 and C33: a trade under 1R after 10 trading days is sold, and CMG drifted 11 sessions at best 0.87R, so 'what went wrong?' has an answer (the time stop). Ask about the setup only and drop the 11 sessions; h15 dropped from facts."
+   "fixed": false,
+   "notes": "CMG failure 2: fill 27.60 (the open), stop 26.32 (5c under prior low 26.37), 14.2% then 4.6%, 2.0x, 0.87R, stopped 2021-01-04. asof = buy day; text matches card and dossier."
   },
   "q41": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Rank ok. Notes now name the mistake (half or double the stated risk percent) instead of the result."
+   "fixed": false,
+   "notes": "SHOP row 10: pivot 125.22, fill 125.23, stop 122.75 (5c under prior low 122.80). 500/2.48 = 201.6, floor 201; distractors 403 (double) and 100 (half) and 500 check. asof = buy day."
   },
   "q42": {
    "status": "pass",
@@ -4247,8 +4371,8 @@
   "q45": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Pass. q83 (rung 4) teaches the gap rule before this rung 6 application."
+   "fixed": true,
+   "notes": "AXON failure: fill 694.02 (the open) and stop 691.86 (the day low) match the dossier and the text. But the real next-day bar OPENED at 700.00, above the stop (prior close 710.01), then fell to 592.76: it did not gap through the stop. 'Gapped down' contradicts the chart replay. Fix: story now says it opened lower then fell hard through the stop (no new numbers). The key (B20 first 30-minute low) is the house rule for a gap-down day and is kept, but the example is really a crash through a 0.3% stop; flag for the owner."
   },
   "q46": {
    "status": "pass",

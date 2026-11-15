@@ -708,9 +708,9 @@
   {
    "id": "hve.not_stretched",
    "field": "trigger",
-   "statement": "C29 (no long more than 10% over its 10-day average) is measured against the 10-day as of the prior close on the day-2 entry, so the HVE day's own gap does not disqualify it; from day 3 it applies as written.",
+   "statement": "C29 (no long more than 10% over its 9 EMA) is measured against the 9 EMA as of the prior close on the day-2 entry, so the HVE day's own gap does not disqualify it; from day 3 it applies as written.",
    "measure": {
-    "what": "entry / 10-day SMA as of the close before the HVE day - 1",
+    "what": "entry / 9 EMA as of the close before the HVE day - 1",
     "op": "<=",
     "value": 10,
     "unit": "%",
@@ -742,7 +742,14 @@
    "gate": true,
    "grade_cue": false,
    "dossier_ref": "8.2; 7 C29 row; 10 question 3",
-   "evidence": "97% of owner-definition days up 20%+ close more than 10% over the 10-day; 16 of 19 kept charts did. Day-2 reclaims more than 25% over the 10-day EMA made +0.35R after an HVE (115 trades) but -0.30R after an ordinary strong day (125). D-017's default: measured against the 10-day as of the prior close on a catalyst day."
+   "evidence": "97% of owner-definition days up 20%+ close more than 10% over the 10-day; 16 of 19 kept charts did. Day-2 reclaims more than 25% over the 10-day EMA made +0.35R after an HVE (115 trades) but -0.30R after an ordinary strong day (125). D-017's default: measured against the 10-day as of the prior close on a catalyst day.",
+   "superseded": [
+    {
+     "statement": "C29 (no long more than 10% over its 10-day average) is measured against the 10-day as of the prior close on the day-2 entry, so the HVE day's own gap does not disqualify it; from day 3 it applies as written.",
+     "on": "2026-11-14",
+     "by": "D-021 (C29 read as the 9 EMA; the owner to confirm, D-017)"
+    }
+   ]
   },
   {
    "id": "hve.earnings_window",

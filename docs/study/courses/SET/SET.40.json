@@ -819,9 +819,9 @@
   },
   {
    "id": "h13",
-   "source": "h1",
-   "quote": "Too stretched to buy: skip a long that is more than 10% above its 10-day average.",
-   "claim": "C29: skip a long more than 10% above its 10-day average."
+   "source": "hw",
+   "quote": "Too stretched to buy: skip a long that is more than 10% above its 9 EMA.",
+   "claim": "We skip a long that is more than 10% above its 9 EMA: too stretched to buy."
   },
   {
    "id": "h23",
@@ -2806,7 +2806,7 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "id.not_stretched",
-   "story": "A clean inside day sits three sessions after an earnings gap. It closes 14% over its 10-day average.",
+   "story": "A clean inside day sits three sessions after an earnings gap. It closes 14% over its 9 EMA.",
    "q": "Take the break?",
    "choices": [
     "No; the stock is too stretched",
@@ -2815,7 +2815,7 @@
     "No; earnings were too recent"
    ],
    "answer": "No; the stock is too stretched",
-   "why": "No. We skip a long that is more than 10% above its 10-day average. This one closes 14% over it, so the pause came too high. A clean bar does not fix a stretched stock.",
+   "why": "No. We skip a long that is more than 10% above its 9 EMA. This one closes 14% over it, so the pause came too high. A clean bar does not fix a stretched stock.",
    "lesson_line": "A clean bar, too far above its average, is still a pass.",
    "facts": [
     "h13",
@@ -2827,9 +2827,9 @@
     "No; earnings were too recent": "The earnings rule covers the 3 days before a report. This report is already past. The stretch is the problem."
    },
    "house": true,
-   "simple": "No, because a close 14% over the 10-day average is past our 10% limit.",
+   "simple": "No, because a close 14% over the 9 EMA is past our 10% limit.",
    "deeper": {
-    "trap": "A clean pause three sessions after an earnings gap looks safe, because the news is known. The stretch rule ignores how clean the bar is. It asks only how far the stock sits over its 10-day average, and 14% is past the 10% line."
+    "trap": "A clean pause three sessions after an earnings gap looks safe, because the news is known. The stretch rule ignores how clean the bar is. It asks only how far the stock sits over its 9 EMA, and 14% is past the 10% line."
    },
    "tier": "extended",
    "risk": {
@@ -3869,7 +3869,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Kept: a measured distance against the 10-day simple average (D-017 held), not a drawn EMA line; teaches no superseded ruling."
+   "notes": "Kept: a measured distance against the 10-day simple average (D-017 held), not a drawn EMA line; teaches no superseded ruling. | 2026-11-14: stretch line read through D-021 as the 9 EMA, as in the other 44 live questions."
   },
   "q51": {
    "status": "pass",

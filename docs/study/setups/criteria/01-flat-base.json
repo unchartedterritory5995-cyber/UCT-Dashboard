@@ -415,9 +415,9 @@
   {
    "id": "fb.not_stretched",
    "field": "trigger",
-   "statement": "At entry, no more than 10% above the 10-day average.",
+   "statement": "At entry, no more than 10% above the 9 EMA.",
    "measure": {
-    "what": "entry / 10-day SMA - 1",
+    "what": "entry / 9 EMA - 1",
     "op": "<=",
     "value": 10,
     "unit": "%",
@@ -430,7 +430,14 @@
    "gate": true,
    "grade_cue": false,
    "dossier_ref": "8.1 Location",
-   "evidence": "Rarely binds on a flat base; a wide-range gap breakout can break it."
+   "evidence": "Rarely binds on a flat base; a wide-range gap breakout can break it.",
+   "superseded": [
+    {
+     "statement": "At entry, no more than 10% above the 10-day average.",
+     "on": "2026-11-14",
+     "by": "D-021 (C29 read as the 9 EMA; the owner to confirm, D-017)"
+    }
+   ]
   },
   {
    "id": "fb.liquidity",
@@ -1156,7 +1163,7 @@
    "fb.inv_200: under the 200-day",
    "fb.length_min: under 25 sessions (teach it as a flag)",
    "fb.no_chase: more than 4% past the pivot",
-   "fb.not_stretched: more than 10% over the 10-day",
+   "fb.not_stretched: more than 10% over the 9 EMA",
    "fb.stop_width: the honest stop does not fit; never pull it in",
    "fb.earnings_window: a report within 3 sessions",
    "fb.liquidity: under $10 or under $20 million a day",
@@ -1199,7 +1206,7 @@
   "Buying a base too early: under 5 weeks or not yet tight. IBD: one, two or three weeks do not get the job done.",
   "Buying a wide, loose base (the owner on DAVE and SNOW).",
   "Buying a third or fourth-stage base.",
-  "Chasing more than 4% past the pivot or more than 10% over the 10-day.",
+  "Chasing more than 4% past the pivot or more than 10% over the 9 EMA.",
   "Putting the stop at the base low (too wide), or pulling it tighter to fit the size.",
   "Buying a flat base under the 200-day. That is Bulkowski's bottoming base, not ours.",
   "Ignoring the market.",

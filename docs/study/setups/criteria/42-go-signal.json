@@ -632,9 +632,9 @@
   {
    "id": "go.not_stretched",
    "field": "trigger",
-   "statement": "Not more than 10% above the 10-day average at the buy.",
+   "statement": "Not more than 10% above the 9 EMA at the buy.",
    "measure": {
-    "what": "fill / 10-day SMA - 1",
+    "what": "fill / 9 EMA - 1",
     "op": "<=",
     "value": 10,
     "unit": "%",
@@ -651,7 +651,14 @@
    "gate": true,
    "grade_cue": false,
    "dossier_ref": "8.2; 7 C29 row",
-   "evidence": "11.3% of signals in context were over it; most are pullbacks, so few."
+   "evidence": "11.3% of signals in context were over it; most are pullbacks, so few.",
+   "superseded": [
+    {
+     "statement": "Not more than 10% above the 10-day average at the buy.",
+     "on": "2026-11-14",
+     "by": "D-021 (C29 read as the 9 EMA; the owner to confirm, D-017)"
+    }
+   ]
   },
   {
    "id": "go.full_size",
@@ -1111,7 +1118,7 @@
    "go.inv_no_reclaim: a turn after the second hourly candle (a pivot)",
    "go.above_200 and go.above_50: a stock in a downtrend, under the 50-day or the 200-day",
    "go.first_hour_under_pc: a gap up that never trades under the prior close",
-   "go.no_chase: more than 4% over the prior close; go.not_stretched: more than 10% over the 10-day",
+   "go.no_chase: more than 4% over the prior close; go.not_stretched: more than 10% over the 9 EMA",
    "go.earnings_window: a report within 3 sessions",
    "go.liquidity: under $10 or under $20 million a day (GIC, VGZ)",
    "go.market_reading: Red; Orange below A+"
@@ -1142,7 +1149,7 @@
  "invalidations": [
   "Before the entry: no hourly close back above the prior close by the end of the second hourly candle; a later turn is a pivot (go.inv_no_reclaim).",
   "Before the entry: the first hourly candle never trades under the prior close, a gap up (go.first_hour_under_pc).",
-  "Before the entry: the stock is under the 50-day or 200-day (go.above_50, go.above_200), the fill is more than 4% over the prior close (go.no_chase) or 10% over the 10-day (go.not_stretched), a report is within 3 sessions (go.earnings_window).",
+  "Before the entry: the stock is under the 50-day or 200-day (go.above_50, go.above_200), the fill is more than 4% over the prior close (go.no_chase) or 10% over the 9 EMA (go.not_stretched), a report is within 3 sessions (go.earnings_window).",
   "After the entry: a trade below the session low, the stop (go.after_entry_stop); a gap through it follows B20 (go.stop_gap).",
   "After the entry: a close back under the prior close is a warning, not an exit (go.close_under_pc_warning); a close under the 50-day ends the pullback thesis (go.context_break)."
  ],

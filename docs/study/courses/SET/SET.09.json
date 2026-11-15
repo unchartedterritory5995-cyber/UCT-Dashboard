@@ -493,9 +493,9 @@
   },
   {
    "id": "h13",
-   "source": "h1",
-   "quote": "Too stretched to buy: skip a long that is more than 10% above its 10-day average.",
-   "claim": "C29: skip a long more than 10% above its 10-day average."
+   "source": "hw",
+   "quote": "Too stretched to buy: skip a long that is more than 10% above its 9 EMA.",
+   "claim": "We skip a long that is more than 10% above its 9 EMA: too stretched to buy."
   },
   {
    "id": "h20",
@@ -1236,7 +1236,7 @@
    "key": "q01",
    "skill": "setup.cup_handle",
    "rung": 1,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "ch.shape_u",
    "q": "In one line, what is a cup with handle?",
    "choices": [
@@ -1268,13 +1268,20 @@
      "+1 fixed before (variety rewrite)"
     ]
    },
-   "batch": "wave1"
+   "batch": "visuals-1",
+   "story": "Hidden ticker, the day before the trigger.",
+   "chart": {
+    "sym": "GWW",
+    "asof": "2004-09-28",
+    "window": 150,
+    "forward": 20
+   }
   },
   {
    "key": "q02",
    "skill": "setup.cup_handle",
    "rung": 1,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "ch.pivot",
    "q": "On our card, which level does price have to trade through to trigger the buy?",
    "choices": [
@@ -1308,7 +1315,14 @@
      "+1 fixed before (variety rewrite)"
     ]
    },
-   "batch": "rulings"
+   "batch": "visuals-1",
+   "story": "Hidden ticker, the day before the trigger.",
+   "chart": {
+    "sym": "EFX",
+    "asof": "2007-05-03",
+    "window": 150,
+    "forward": 20
+   }
   },
   {
    "key": "q03",
@@ -1405,7 +1419,7 @@
    "key": "q06",
    "skill": "setup.cup_handle",
    "rung": 1,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "ch.handle_position",
    "q": "Where in the base should the handle form?",
    "choices": [
@@ -1438,7 +1452,14 @@
      "IBD, Bulkowski and AAII agree"
     ]
    },
-   "batch": "wave1"
+   "batch": "visuals-1",
+   "story": "Hidden ticker, the day before the trigger.",
+   "chart": {
+    "sym": "RRC",
+    "asof": "2013-02-04",
+    "window": 150,
+    "forward": 20
+   }
   },
   {
    "key": "q07",
@@ -1471,22 +1492,22 @@
    "key": "q08",
    "skill": "setup.cup_handle",
    "rung": 2,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "ch.trigger",
-   "q": "The handle high is 48.20. On our breakout rule, when do you buy?",
+   "q": "On our breakout rule, when do you buy?",
    "choices": [
-    "On a daily close above the right rim",
-    "In premarket, if it gaps over 48.20",
-    "On a regular-hours trade over 48.20",
-    "At the handle low, before the move"
+    "On the first daily close above the rim",
+    "In premarket, if it gaps over the pivot",
+    "On a regular-hours trade over the pivot",
+    "At the handle low, before the breakout"
    ],
    "wrong": {
-    "On a daily close above the right rim": "That is Bulkowski's later entry. We buy the trade through the handle high.",
-    "In premarket, if it gaps over 48.20": "No new buys outside regular trading hours.",
-    "At the handle low, before the move": "That is before the breakout. Our breakout rule waits for price to trade through the handle high."
+    "On the first daily close above the rim": "That is Bulkowski's later entry. We buy the trade through the handle high.",
+    "In premarket, if it gaps over the pivot": "No new buys outside regular trading hours.",
+    "At the handle low, before the breakout": "That is before the breakout. Our breakout rule waits for price to trade through the handle high."
    },
-   "answer": "On a regular-hours trade over 48.20",
-   "why": "On a regular-hours trade through 48.20, at market. Our trigger is the trade through the pivot, the handle's highest price. Bulkowski waits for a close above the right cup rim, a later entry that we do not use. No new buys outside regular hours, so a premarket gap does not count. Buying at the handle low comes before the breakout.",
+   "answer": "On a regular-hours trade over the pivot",
+   "why": "On a regular-hours trade through the pivot, at market. Our trigger is the trade through the pivot, the handle's highest price. Bulkowski waits for a close above the right cup rim, a later entry that we do not use. No new buys outside regular hours, so a premarket gap does not count. Buying at the handle low comes before the breakout.",
    "lesson_line": "The trigger is the trade through the handle high. Market order, regular hours.",
    "facts": [
     "c03",
@@ -1497,7 +1518,7 @@
     "z06"
    ],
    "house": true,
-   "simple": "We buy as price trades through 48.20 in regular hours, with a market order, not on a close or in premarket.",
+   "simple": "We buy as price trades through the pivot in regular hours, with a market order, not on a close or in premarket.",
    "deeper": {
     "counter": "Two published entries differ. Bulkowski buys when price closes above the right cup rim. Zanger buys as it emerges into new highs at the top of the handle, not at the old high point. We use the second kind of entry: the trade through the handle high, at market, in regular hours."
    },
@@ -1509,7 +1530,14 @@
      "+1 fixed before (variety rewrite)"
     ]
    },
-   "batch": "wave1"
+   "batch": "visuals-1",
+   "story": "Hidden ticker, the day before the trigger. The pivot is the top of the handle.",
+   "chart": {
+    "sym": "WPM",
+    "asof": "2025-12-09",
+    "window": 150,
+    "forward": 20
+   }
   },
   {
    "key": "q09",
@@ -1816,11 +1844,11 @@
    "key": "q18",
    "skill": "setup.cup_handle",
    "rung": 3,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "ch.trim_1",
-   "q": "One R is the fill minus the stop. Fill 38.60, stop 37.90. At what price is the 3R level?",
-   "answer": "$40.70",
-   "why": "40.70, the 3R level. One R is the fill minus the stop: 38.60 minus 37.90. Add three of those to the fill, 38.60, and you get 40.70. The first sell is a judgment, not a fixed third at 3R. Often it comes into a 3, 5 or 7 day push, or at about 5 to 10R.",
+   "q": "One R is the fill minus the stop. Where is 3R?",
+   "answer": "$43.17",
+   "why": "43.17, the 3R level. One R is the fill minus the stop: 40.98 minus 40.25. Add three of those to the fill, 40.98, and you get 43.17. The first sell is a judgment, not a fixed third at 3R. Often it comes into a 3, 5 or 7 day push, or at about 5 to 10R.",
    "lesson_line": "Know your 3R before the open. It is a mark on the ruler, not an automatic sell.",
    "facts": [
     "r02",
@@ -1830,14 +1858,14 @@
     "fn": "arith",
     "args": {
      "expr": "a + 3 * (a - b)",
-     "a": 38.6,
-     "b": 37.9
+     "a": 40.98,
+     "b": 40.25
     },
     "round": 2
    },
    "house": true,
    "prefix": "$",
-   "simple": "The 3R level is the fill plus three times the gap down to the stop, which is 40.70.",
+   "simple": "The 3R level is the fill plus three times the gap down to the stop, which is 43.17.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -1847,17 +1875,28 @@
      "the stem says hard rule because the owner's practice is to wait longer"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-1",
    "choices": [
-    "$36.50",
-    "$40.00",
-    "$39.30",
-    "$40.70"
+    "$38.79",
+    "$42.44",
+    "$41.71",
+    "$43.17"
    ],
    "wrong": {
-    "$40.00": "Added the three R to the stop instead of the fill.",
-    "$39.30": "Added one R, not three.",
-    "$36.50": "Subtracted the three R instead of adding them."
+    "$38.79": "Subtracted the three R instead of adding them.",
+    "$42.44": "Added the three R to the stop instead of the fill.",
+    "$41.71": "Added one R, not three."
+   },
+   "story": "Hidden ticker, bought on the breakout at 40.98 with the stop at 40.25.",
+   "chart": {
+    "sym": "EFX",
+    "asof": "2007-05-04",
+    "window": 150,
+    "forward": 30,
+    "trade": {
+     "entry": 40.98,
+     "stop": 40.25
+    }
    }
   },
   {
@@ -2201,7 +2240,7 @@
    "key": "q28",
    "skill": "setup.cup_handle",
    "rung": 4,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "ch.stop",
    "q": "Fill 56.61, stop 55.27. How far below the fill is the stop, in percent, to two decimals?",
    "answer": "2.37%",
@@ -2234,7 +2273,7 @@
    "depends_on": [
     "D-007"
    ],
-   "batch": "tomcq",
+   "batch": "visuals-1",
    "choices": [
     "97.63%",
     "1.34%",
@@ -2245,6 +2284,17 @@
     "1.34%": "Read the dollar gap as a percent.",
     "97.63%": "Took the stop as a percent of the fill and skipped the gap.",
     "23.70%": "Decimal slip: moved the decimal one place."
+   },
+   "story": "Hidden ticker, bought on the breakout.",
+   "chart": {
+    "sym": "GWW",
+    "asof": "2004-09-29",
+    "window": 150,
+    "forward": 30,
+    "trade": {
+     "entry": 56.61,
+     "stop": 55.27
+    }
    }
   },
   {
@@ -2487,7 +2537,7 @@
    "key": "q34",
    "skill": "setup.cup_handle",
    "rung": 6,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "ch.stop",
    "q": "Account 40,000. Risk 0.75%. Fill 40.76, stop 39.73. How many shares, before any cap?",
    "answer": "291 shares",
@@ -2519,7 +2569,7 @@
      "rests on the owner's rulebook (A5)"
     ]
    },
-   "batch": "rank",
+   "batch": "visuals-1",
    "choices": [
     "291 shares",
     "582 shares",
@@ -2530,6 +2580,17 @@
     "582 shares": "Used twice the stated risk percent.",
     "2,912 shares": "Decimal slip: the risk dollars came out ten times too big.",
     "981 shares": "Divided the account by the fill price and skipped the risk."
+   },
+   "story": "Hidden ticker, bought on the breakout.",
+   "chart": {
+    "sym": "MCO",
+    "asof": "2012-09-06",
+    "window": 150,
+    "forward": 30,
+    "trade": {
+     "entry": 40.76,
+     "stop": 39.73
+    }
    }
   },
   {
@@ -2567,7 +2628,7 @@
    "format": "scenario",
    "criterion": "ch.cup_length_min",
    "q": "Is it a cup with handle?",
-   "story": "After a 64% run the stock dips and recovers over four weeks. Then it rests seven days just under the high.",
+   "story": "Hidden ticker, the day before the trigger. After a 64% run the stock dips and recovers over four weeks. Then it rests seven days just under the high.",
    "choices": [
     "Yes; the handle is long enough",
     "No; too few weeks to be a cup",
@@ -2602,7 +2663,13 @@
    "depends_on": [
     "D-007"
    ],
-   "batch": "wave1"
+   "batch": "visuals-1",
+   "chart": {
+    "sym": "MPWR",
+    "asof": "2023-06-27",
+    "window": 150,
+    "forward": 20
+   }
   },
   {
    "key": "q37",
@@ -2611,7 +2678,7 @@
    "format": "scenario",
    "criterion": "ch.cup_depth",
    "q": "What is it?",
-   "story": "An 8.4-week rest that dips only 6.6% from the high. Then a 9-day handle, and a breakout on heavy volume.",
+   "story": "Hidden ticker, the day before the trigger. An 8.4-week rest that dips only 6.6% from the high. Then a 9-day handle.",
    "choices": [
     "A flat base with a late dip",
     "A shallow cup and handle",
@@ -2644,7 +2711,13 @@
     "D-007",
     "D-052"
    ],
-   "batch": "wave1"
+   "batch": "visuals-1",
+   "chart": {
+    "sym": "PEP",
+    "asof": "2009-10-01",
+    "window": 150,
+    "forward": 20
+   }
   },
   {
    "key": "q38",
@@ -2653,7 +2726,7 @@
    "format": "scenario",
    "criterion": "ch.shape_u",
    "q": "Take it as a cup with handle?",
-   "story": "An 11-week cup falls 22% in a straight line and climbs straight back to the high. Then a 5-day handle.",
+   "story": "Hidden ticker, the day before the trigger. An 11-week cup falls 22% in a straight line and climbs straight back to the high. Then a 5-day handle.",
    "choices": [
     "Take it; 22% is a normal depth",
     "Take it; the handle is 5 days",
@@ -2692,7 +2765,13 @@
    "depends_on": [
     "D-007"
    ],
-   "batch": "wave1"
+   "batch": "visuals-1",
+   "chart": {
+    "sym": "META",
+    "asof": "2024-06-25",
+    "window": 150,
+    "forward": 20
+   }
   },
   {
    "key": "q39",
@@ -3172,7 +3251,17 @@
    "depends_on": [
     "D-007"
    ],
-   "batch": "wave1"
+   "batch": "visuals-1",
+   "chart": {
+    "sym": "ULTA",
+    "asof": "2016-12-16",
+    "window": 150,
+    "forward": 20,
+    "trade": {
+     "entry": 260.96,
+     "stop": 257.75
+    }
+   }
   },
   {
    "key": "q51",
@@ -3220,7 +3309,17 @@
    "depends_on": [
     "D-007"
    ],
-   "batch": "sweep-2026-11-14"
+   "batch": "visuals-1",
+   "chart": {
+    "sym": "BX",
+    "asof": "2019-11-26",
+    "window": 150,
+    "forward": 20,
+    "trade": {
+     "entry": 53.11,
+     "stop": 52.49
+    }
+   }
   },
   {
    "key": "q52",
@@ -3298,7 +3397,17 @@
    "depends_on": [
     "D-007"
    ],
-   "batch": "sweep-2026-11-14"
+   "batch": "visuals-1",
+   "chart": {
+    "sym": "SCHW",
+    "asof": "2024-11-06",
+    "window": 150,
+    "forward": 20,
+    "trade": {
+     "entry": 74.57,
+     "stop": 73.36
+    }
+   }
   },
   {
    "key": "q54",
@@ -3376,7 +3485,17 @@
    "depends_on": [
     "D-007"
    ],
-   "batch": "sweep-2026-11-14"
+   "batch": "visuals-1",
+   "chart": {
+    "sym": "AX",
+    "asof": "2026-01-05",
+    "window": 150,
+    "forward": 60,
+    "trade": {
+     "entry": 89.22,
+     "stop": 86.95
+    }
+   }
   },
   {
    "key": "q56",
@@ -3662,7 +3781,7 @@
    "key": "q62",
    "skill": "setup.cup_handle",
    "rung": 8,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "ch.trim_2",
    "q": "How do we take profits on a cup winner?",
    "choices": [
@@ -3699,7 +3818,14 @@
      "the 20% to 25% and 61% figures are web numbers that can change"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "visuals-1",
+   "story": "Hidden ticker, the day before the trigger. You are planning the exits.",
+   "chart": {
+    "sym": "WB",
+    "asof": "2017-05-05",
+    "window": 150,
+    "forward": 40
+   }
   },
   {
    "key": "q63",
@@ -4501,7 +4627,17 @@
      "rests on the owner's rulebook D41"
     ]
    },
-   "batch": "wave1"
+   "batch": "visuals-1",
+   "chart": {
+    "sym": "CNC",
+    "asof": "2018-04-16",
+    "window": 150,
+    "forward": 40,
+    "trade": {
+     "entry": 54.57,
+     "stop": 52.94
+    }
+   }
   },
   {
    "key": "q84",
@@ -4956,13 +5092,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key unambiguous; distractors are flat base, VCP, high tight flag. Answer not longest. Facts support."
+   "notes": "GWW card winner 2004-09-29; asof day before; no numbers; chart shows cup+handle for the definition."
   },
   "q02": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "keep right: buy as price trades through handle high in the day | mechanical: depends_on left empty, restored to the ruling id(s)"
+   "fixed": false,
+   "notes": "EFX winners_list 2007-05-04; asof 05-03 is prior trading day; no numbers."
   },
   "q03": {
    "status": "pass",
@@ -4985,8 +5121,8 @@
   "q06": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right. But lesson_line and simple say 'near the old high', which no cited fact in this question supports (upper half is not the same as near the old high; z05/c36 not cited). Drop it."
+   "fixed": false,
+   "notes": "RRC winners_list 2013-02-05; dossier row 4 handle under the rim in upper third; asof prior day."
   },
   "q07": {
    "status": "pass",
@@ -4998,7 +5134,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c03, h22, h23 support the key; stem scoped to our breakout rule; Bulkowski close and premarket refuted; no ungrounded number (48.20 is in the stem). In-handle buy remains an owner flag."
+   "notes": "WPM 2025-12-10 row 9; invented 48.20 removed; choices/answer/wrong re-keyed consistently, lengths ok."
   },
   "q09": {
    "status": "cut",
@@ -5059,7 +5195,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with the rulings it touches"
+   "notes": "EFX row 2: buy 40.98 stop 40.25; R 0.73; 3R 43.17; wrong 38.79/42.44/41.71 verified; asof = signal date."
   },
   "q19": {
    "status": "pass",
@@ -5118,8 +5254,8 @@
   "q28": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Math right (1.34/56.61=2.37; 97.63; 1.34). 23.7% was one decimal where the stem asks for two; made 23.70%. Why lacked the 1.34 step."
+   "fixed": false,
+   "notes": "GWW row 1: 56.61/55.27 in question; 2.37% correct; asof = signal date."
   },
   "q29": {
    "status": "pass",
@@ -5156,7 +5292,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Right answer unchanged, sorts to the target rank, wrong choices real and similar in form."
+   "notes": "MCO row 3: 40.76/39.73 in question; 291 shares verified; asof = signal date."
   },
   "q35": {
    "status": "cut",
@@ -5168,20 +5304,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "keyed on weeks; 64% is far from the 30% guide"
+   "notes": "MPWR near-miss 2023-06-28: 4.0 wk cup, 64% run, 7-day handle all on card/dossier; asof day before."
   },
   "q37": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "6.6% is under the cup floor of 12% (c28) and inside a flat base's 15% (c28, d28, d28b). No cited floor on flat-base depth, so 'Not a base' has no support. Lone hedge gone; choices 23-27 chars.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "PEP near-miss 2009-10-02: 8.4 wk, 6.6%, 9-day handle on dossier; asof day before; heavy-volume clause rightly dropped."
   },
   "q38": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Story now gives the straight-line V (d31); key follows c06, d32, sc01; 22% sits in 12-33% (i11) so the depth distractor is wrong. Two Take, two Pass, lengths 28-30."
+   "notes": "META near-miss 2024-06-26: 11-wk, 22%, 5-day handle, V shape on dossier; asof day before."
   },
   "q39": {
    "status": "pass",
@@ -5254,15 +5389,14 @@
   "q50": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "c18 is about a close back INTO the handle after the buy; the story is a mid-range close on breakout day. The 'weak close is a warning, not an exit' claim is misattributed. Use d33 (weak close is the first sign) plus h02 (the stop is the exit). Story numbers (16-week, 19%, 76% run, 8-day handle) are in dossier row ULTA but not in the cited d21 quote; they are in the question, so allowed.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": false,
+   "notes": "ULTA failure: 16-wk 19% cup, 76% run, 8-day handle, 260.96/257.75, stopped 4 sessions later; asof = signal date."
   },
   "q51": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "wrong text now D-013 clean; cited h05 still says 'the hard rule is a third at 3R' (superseded); c39 and the story ground the 2R to 5R breakeven, so drop h05"
+   "fixed": false,
+   "notes": "BX failure: 10-wk 18% cup, 5-day handle, 4.9x, 53.11/52.49, 2.37R day two; asof = signal date."
   },
   "q52": {
    "status": "cut",
@@ -5274,7 +5408,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with the rulings it touches"
+   "notes": "SCHW failure: pivot 72.58, fill 74.57, stop 73.36, next-day stop-out; 2.7% over pivot verified; asof = signal date."
   },
   "q54": {
    "status": "pass",
@@ -5285,8 +5419,8 @@
   "q55": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "D-013 and rename good, but the story says it 'closes under the 20 EMA' for what is a real AX trade whose card evidence only says it rolled over below the pivot; no 20 EMA measurement exists, so do not state one. Name the trail line in the story generically"
+   "fixed": false,
+   "notes": "AX row 10: 89.22/86.95; 5R in ~7 weeks then rolled over; forward 60 covers it; asof = signal date."
   },
   "q56": {
    "status": "pass",
@@ -5329,7 +5463,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with the rulings it touches"
+   "notes": "WB winners_list 2017-05-08; asof Friday before; plain wording; WB gapped higher, consistent with push-then-trail."
   },
   "q63": {
    "status": "pass",
@@ -5455,9 +5589,9 @@
   },
   "q83": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave1; awaiting cold re-read"
+   "notes": "CNC row 7: 54.57/52.94 match text; asof = signal date 2018-04-16."
   },
   "q84": {
    "status": "pass",

@@ -627,9 +627,9 @@
   {
    "id": "rm.not_stretched",
    "field": "trigger",
-   "statement": "Skip a stock more than 10% over its 10-day average. Rare on a remount: 9.4% of remount.py days, with a median stop of 7.24%.",
+   "statement": "Skip a stock more than 10% over its 9 EMA. Rare on a remount: 9.4% of remount.py days, with a median stop of 7.24%.",
    "measure": {
-    "what": "entry / 10-day SMA - 1",
+    "what": "entry / 9 EMA - 1",
     "op": "<=",
     "value": 10,
     "unit": "%",
@@ -644,7 +644,14 @@
    "status": "settled",
    "gate": true,
    "grade_cue": false,
-   "dossier_ref": "8.2 No chasing; 7 C29 row"
+   "dossier_ref": "8.2 No chasing; 7 C29 row",
+   "superseded": [
+    {
+     "statement": "Skip a stock more than 10% over its 10-day average. Rare on a remount: 9.4% of remount.py days, with a median stop of 7.24%.",
+     "on": "2026-11-14",
+     "by": "D-021 (C29 read as the 9 EMA; the owner to confirm, D-017)"
+    }
+   ]
   },
   {
    "id": "rm.one_price",
@@ -1152,7 +1159,7 @@
    "rm.level_held and rm.not_chop_line: a level that never held, or a chop line",
    "rm.volume: a light-volume drift back over a line lost on heavy volume",
    "rm.inv_close_back_before_trigger: a close back under the line before the trigger",
-   "rm.no_chase: a fill more than 4% over the buy point; rm.not_stretched: more than 10% over the 10-day",
+   "rm.no_chase: a fill more than 4% over the buy point; rm.not_stretched: more than 10% over the 9 EMA",
    "rm.earnings_window: a report within 3 sessions",
    "rm.liquidity: under $10 or under $20 million a day",
    "rm.market_reading: Red"

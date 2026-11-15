@@ -536,13 +536,13 @@
   {
    "id": "peg.entry_day1",
    "field": "trigger",
-   "statement": "The day-one buy, for an A+ only: a market order over the 5-minute or 30-minute opening-range high on the PEG day, only when the day's low gives a stop within about 3% and the price is not more than 10% over the 10-day.",
+   "statement": "The day-one buy, for an A+ only: a market order over the 5-minute or 30-minute opening-range high on the PEG day, only when the day's low gives a stop within about 3% and the price is not more than 10% over the 9 EMA.",
    "measure": {
     "what": "price against the opening-range high (5-minute or 30-minute)",
     "op": ">",
     "value": "opening-range high",
     "timeframe": "5-minute or 30-minute",
-    "and": "(entry - low of day so far) / entry <= 3%; entry / 10-day SMA - 1 <= 10%"
+    "and": "(entry - low of day so far) / entry <= 3%; entry / 9 EMA - 1 <= 10%"
    },
    "glossary": "opening_range",
    "basis": "UCT",
@@ -558,14 +558,21 @@
    "gate": false,
    "grade_cue": true,
    "dossier_ref": "8.2 B; 10 question 6",
-   "evidence": "Daily bars cannot see it; the scan proxied it with the PEG-day close when the stop under the PEG-day low was within 3% and the close within 10% of the 10-day (430 hits) 31.2% / 18.1%. None of the ten examples uses it."
+   "evidence": "Daily bars cannot see it; the scan proxied it with the PEG-day close when the stop under the PEG-day low was within 3% and the close within 10% of the 10-day (430 hits) 31.2% / 18.1%. None of the ten examples uses it.",
+   "superseded": [
+    {
+     "statement": "The day-one buy, for an A+ only: a market order over the 5-minute or 30-minute opening-range high on the PEG day, only when the day's low gives a stop within about 3% and the price is not more than 10% over the 10-day.",
+     "on": "2026-11-14",
+     "by": "D-021 (C29 read as the 9 EMA; the owner to confirm, D-017)"
+    }
+   ]
   },
   {
    "id": "peg.not_stretched",
    "field": "trigger",
-   "statement": "At the buy, no more than 10% over the 10-day average. On the PEG day most big gaps break this, so there is no day-one buy then; the pause buy is usually allowed.",
+   "statement": "At the buy, no more than 10% over the 9 EMA. On the PEG day most big gaps break this, so there is no day-one buy then; the pause buy is usually allowed.",
    "measure": {
-    "what": "entry / 10-day SMA - 1",
+    "what": "entry / 9 EMA - 1",
     "op": "<=",
     "value": 10,
     "unit": "%",
@@ -595,7 +602,14 @@
    "gate": true,
    "grade_cue": false,
    "dossier_ref": "7 C29 row; 10 question 7",
-   "evidence": "At the gap-day close 33% of earnings gaps, 55% of strong-close ones and 68% to 69% of 8%+ gaps are over the line; every owner example from TWLO to OKTA was. The register's default measures a catalyst day against the 10-day as of the prior close (D-017)."
+   "evidence": "At the gap-day close 33% of earnings gaps, 55% of strong-close ones and 68% to 69% of 8%+ gaps are over the line; every owner example from TWLO to OKTA was. The register's default measures a catalyst day against the 10-day as of the prior close (D-017).",
+   "superseded": [
+    {
+     "statement": "At the buy, no more than 10% over the 10-day average. On the PEG day most big gaps break this, so there is no day-one buy then; the pause buy is usually allowed.",
+     "on": "2026-11-14",
+     "by": "D-021 (C29 read as the 9 EMA; the owner to confirm, D-017)"
+    }
+   ]
   },
   {
    "id": "peg.no_chase",
@@ -1108,7 +1122,7 @@
    "peg.inv_gap_fill: the gap filled",
    "peg.inv_close_under_low: a close under the PEG-day low before the buy",
    "peg.above_200: under the 200-day",
-   "peg.not_stretched: more than 10% over the 10-day at the buy",
+   "peg.not_stretched: more than 10% over the 9 EMA at the buy",
    "peg.no_chase: more than 4% over the trigger",
    "peg.regular_hours: a pre-market buy",
    "peg.liquidity: under $10 or under $20 million a day",
@@ -1354,7 +1368,7 @@
   {
    "kind": "scenario",
    "criterion": "peg.not_stretched",
-   "seed": "The PEG day closes 18% over its 10-day on 4x volume at the high. Buy the close, buy day one tomorrow, or wait for the pause?"
+   "seed": "The PEG day closes 18% over its 9 EMA on 4x volume at the high. Buy the close, buy day one tomorrow, or wait for the pause?"
   },
   {
    "kind": "scenario",

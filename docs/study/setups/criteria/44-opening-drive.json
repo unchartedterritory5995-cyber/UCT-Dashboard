@@ -109,9 +109,9 @@
   {
    "id": "od.not_stretched",
    "field": "trigger",
-   "statement": "Not more than 10% above the 10-day average at the buy. A gap on top of a run can be stretched before it opens.",
+   "statement": "Not more than 10% above the 9 EMA at the buy. A gap on top of a run can be stretched before it opens.",
    "measure": {
-    "what": "fill / 10-day SMA - 1",
+    "what": "fill / 9 EMA - 1",
     "op": "<=",
     "value": 10,
     "unit": "%",
@@ -127,7 +127,14 @@
    "gate": true,
    "grade_cue": false,
    "dossier_ref": "8.1 Prior trend and location; 7 C29",
-   "evidence": "27% of the app's fires were more than 10% above the 10-day. MXL 2026-10-02 at +9.8% is the closest example to the edge."
+   "evidence": "27% of the app's fires were more than 10% above the 10-day. MXL 2026-10-02 at +9.8% is the closest example to the edge.",
+   "superseded": [
+    {
+     "statement": "Not more than 10% above the 10-day average at the buy. A gap on top of a run can be stretched before it opens.",
+     "on": "2026-11-14",
+     "by": "D-021 (C29 read as the 9 EMA; the owner to confirm, D-017)"
+    }
+   ]
   },
   {
    "id": "od.not_parabolic",
@@ -1029,7 +1036,7 @@
    "od.gap_floor: a gap of 1% to 2% inside the prior day's range on average volume",
    "od.inv_back_to_open: the first minutes chop back to the open",
    "od.not_parabolic: day 3 to 5 of a parabolic burst; growing candles outside the upper Bollinger Band",
-   "od.not_stretched: stretched more than 10% over the 10-day",
+   "od.not_stretched: stretched more than 10% over the 9 EMA",
    "od.stop_width: a stop that must be wider than 5%",
    "od.market_reading: Yellow (smaller and fewer)"
   ],
@@ -1069,7 +1076,7 @@
  "invalidations": [
   "Before the entry: price trades back below the open or the first 5-minute low; no trade (od.inv_back_to_open).",
   "Before the entry: first 5-minute volume under its average; not a drive (od.inv_volume_under_average).",
-  "Before the entry: below the 200-day, RS under 80, more than 10% over the 10-day, or earnings within 3 sessions (od.above_200, od.leader, od.not_stretched, od.earnings_window).",
+  "Before the entry: below the 200-day, RS under 80, more than 10% over the 9 EMA, or earnings within 3 sessions (od.above_200, od.leader, od.not_stretched, od.earnings_window).",
   "Before the entry: a Red market, or Orange unless A+ (od.market_reading).",
   "After the entry: the low of the day breaks; out at the stop (od.stop, od.stop_only_up).",
   "After the entry: loses VWAP and holds under it, or closes below its open or in the bottom third of its range: the drive has failed, a warning; the stop is the only exit (od.inv_vwap, od.day1_close_check)."

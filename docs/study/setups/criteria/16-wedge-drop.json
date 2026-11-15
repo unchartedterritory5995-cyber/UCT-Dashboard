@@ -622,9 +622,9 @@
   {
    "id": "wd.not_stretched",
    "field": "trigger",
-   "statement": "Skip a short more than 10% under its 10-day average. Check it at the open on a gap down.",
+   "statement": "Skip a short more than 10% under its 9 EMA. Check it at the open on a gap down.",
    "measure": {
-    "what": "10-day SMA / entry - 1",
+    "what": "9 EMA / entry - 1",
     "op": "<=",
     "value": 10,
     "unit": "%",
@@ -637,7 +637,14 @@
    "gate": true,
    "grade_cue": false,
    "dossier_ref": "8.2 item 9; 7 C29 row",
-   "evidence": "C29 is written for longs; the dossier mirrors it through D47. A big gap down can open far under the 10-day."
+   "evidence": "C29 is written for longs; the dossier mirrors it through D47. A big gap down can open far under the 10-day.",
+   "superseded": [
+    {
+     "statement": "Skip a short more than 10% under its 10-day average. Check it at the open on a gap down.",
+     "on": "2026-11-14",
+     "by": "D-021 (C29 read as the 9 EMA; the owner to confirm, D-017)"
+    }
+   ]
   },
   {
    "id": "wd.stop",
@@ -1170,7 +1177,7 @@
    "wd.parabolic_exception: a blow-off top shorted above the 200-day is the Parabolic Short's trade, not this one",
    "wd.stall_on_averages: the stall sits under the averages (a downside EMA Crossback, the next stage)",
    "wd.no_chase: more than 4% under the trigger level",
-   "wd.not_stretched: more than 10% under the 10-day average",
+   "wd.not_stretched: more than 10% under the 9 EMA",
    "wd.stop_width: the honest stop does not fit 3%; never pull it in",
    "wd.earnings: a report within 3 sessions",
    "wd.liquidity: under $10 or under $20 million a day; wd.borrow: hard to borrow",
@@ -1432,7 +1439,7 @@
   {
    "kind": "scenario",
    "criterion": "wd.not_stretched",
-   "seed": "The trigger day gaps down and opens 12% under its 10-day average. Short at the open, or pass?"
+   "seed": "The trigger day gaps down and opens 12% under its 9 EMA. Short at the open, or pass?"
   },
   {
    "kind": "scenario",

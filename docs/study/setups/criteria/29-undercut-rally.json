@@ -514,9 +514,9 @@
   {
    "id": "ur.not_stretched",
    "field": "trigger",
-   "statement": "At the buy, price is no more than 10% over its 10-day average.",
+   "statement": "At the buy, price is no more than 10% over its 9 EMA.",
    "measure": {
-    "what": "fill / 10-day SMA - 1",
+    "what": "fill / 9 EMA - 1",
     "op": "<=",
     "value": 10,
     "unit": "%",
@@ -548,7 +548,14 @@
    "gate": true,
    "grade_cue": false,
    "dossier_ref": "8.1 item 10; 10 question 9",
-   "evidence": "Rarely binds: 20 of 25,310 E1 events. The conflict is the post-earnings U&R: the owner's MXL (day three undercut of earnings day low at $50) was 40.9% over its 10-day. The dossier states no lean; the register's default measures a catalyst-day entry against the 10-day as of the prior close for days 1 and 2 and applies C29 from day 3."
+   "evidence": "Rarely binds: 20 of 25,310 E1 events. The conflict is the post-earnings U&R: the owner's MXL (day three undercut of earnings day low at $50) was 40.9% over its 10-day. The dossier states no lean; the register's default measures a catalyst-day entry against the 10-day as of the prior close for days 1 and 2 and applies C29 from day 3.",
+   "superseded": [
+    {
+     "statement": "At the buy, price is no more than 10% over its 10-day average.",
+     "on": "2026-11-14",
+     "by": "D-021 (C29 read as the 9 EMA; the owner to confirm, D-017)"
+    }
+   ]
   },
   {
    "id": "ur.plan_before_open",
@@ -944,7 +951,7 @@
    "ur.never_buy_undercut: the undercut itself, before the level is back",
    "ur.depth: deeper than 6%",
    "ur.no_chase: more than 4% over L",
-   "ur.not_stretched: more than 10% over the 10-day average",
+   "ur.not_stretched: more than 10% over the 9 EMA",
    "ur.earnings_window: a report within 3 sessions, or buyout news",
    "ur.liquidity: under $10 or under $20 million a day",
    "ur.retry: a fourth try in a week on the same stock"
@@ -992,7 +999,7 @@
   "Before the trigger: the undercut is deeper than 6% (ur.depth).",
   "Before the trigger: the 50-day is falling or price is under its averages (ur.trend_not_falling); under the 200-day (ur.above_200).",
   "Before the trigger: earnings within 3 sessions or buyout news (ur.earnings_window).",
-  "Before the trigger: more than 4% over L or 10% over the 10-day (ur.no_chase, ur.not_stretched).",
+  "Before the trigger: more than 4% over L or 10% over the 9 EMA (ur.no_chase, ur.not_stretched).",
   "After the buy: a trade under the undercut low is the exit (ur.after_entry_stop).",
   "After the buy: a close back under L is the warning; hold to the stop, do not add (ur.close_back_under).",
   "A new try only on a new trigger, at most 3 a week and 6 a month (ur.retry)."

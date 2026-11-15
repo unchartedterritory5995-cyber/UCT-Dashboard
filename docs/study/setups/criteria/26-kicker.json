@@ -668,9 +668,9 @@
   {
    "id": "kk.not_stretched",
    "field": "trigger",
-   "statement": "Skip if the fill would be more than 10% above the 10-day average. The red-high entry is usually close to the 10-day; check it on the opening-range entry after a big gap.",
+   "statement": "Skip if the fill would be more than 10% above the 9 EMA. The red-high entry is usually close to the 10-day; check it on the opening-range entry after a big gap.",
    "measure": {
-    "what": "fill / 10-day SMA - 1",
+    "what": "fill / 9 EMA - 1",
     "op": "<=",
     "value": 10,
     "unit": "%",
@@ -683,7 +683,14 @@
    "status": "settled",
    "gate": true,
    "grade_cue": false,
-   "dossier_ref": "8.2 Stretch; 7 C29 row"
+   "dossier_ref": "8.2 Stretch; 7 C29 row",
+   "superseded": [
+    {
+     "statement": "Skip if the fill would be more than 10% above the 10-day average. The red-high entry is usually close to the 10-day; check it on the opening-range entry after a big gap.",
+     "on": "2026-11-14",
+     "by": "D-021 (C29 read as the 9 EMA; the owner to confirm, D-017)"
+    }
+   ]
   },
   {
    "id": "kk.plan_before_open",

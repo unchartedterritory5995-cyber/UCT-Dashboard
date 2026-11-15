@@ -820,8 +820,8 @@
   {
    "id": "c34",
    "source": "c1",
-   "quote": "Stop to breakeven between 2R and 5R, at the first trim by default.",
-   "claim": "Breakeven comes between 2R and 5R, at the first trim by default."
+   "quote": "Stop to breakeven between 2R and 5R, or at the first sell.",
+   "claim": "Stop to breakeven between 2R and 5R, or at the first sell."
   },
   {
    "id": "h10b",

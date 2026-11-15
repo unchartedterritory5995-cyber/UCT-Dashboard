@@ -378,9 +378,9 @@
   },
   {
    "id": "h13",
-   "source": "h1",
-   "quote": "Too stretched to buy: skip a long that is more than 10% above its 10-day average.",
-   "claim": "C29: skip a long more than 10% above its 10-day average."
+   "source": "hw",
+   "quote": "Too stretched to buy: skip a long that is more than 10% above its 9 EMA.",
+   "claim": "We skip a long that is more than 10% above its 9 EMA: too stretched to buy."
   },
   {
    "id": "h14",
@@ -595,8 +595,8 @@
   {
    "id": "c19b",
    "source": "c1",
-   "quote": "The 10-day, not the 21-day: a stock that has just pushed its ADX",
-   "claim": "The 10-day rather than the 21-day, because a stock that just pushed its ADX is usually moving fast."
+   "quote": "Trail what is left: sell on a close below the 9 EMA. The 9 EMA, not the 20 EMA: a stock that has just pushed its ADX over 30 is usually moving fast.",
+   "claim": "Trail what is left: sell on a close below the 9 EMA. The 9 EMA, not the 20 EMA: a stock that has just pushed its ADX over 30 is usually moving fast."
   },
   {
    "id": "c20",

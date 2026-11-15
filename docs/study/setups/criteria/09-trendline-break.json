@@ -437,9 +437,9 @@
   {
    "id": "tl.not_stretched",
    "field": "trigger",
-   "statement": "Not more than 10% above the 10-day average on the trigger day.",
+   "statement": "Not more than 10% above the 9 EMA on the trigger day.",
    "measure": {
-    "what": "entry / 10-day SMA - 1",
+    "what": "entry / 9 EMA - 1",
     "op": "<=",
     "value": 10,
     "unit": "%",
@@ -456,7 +456,14 @@
    "gate": true,
    "grade_cue": false,
    "dossier_ref": "8.1 item 13",
-   "evidence": "Rarely binding: 2 of 23 judged charts. The scan applied it."
+   "evidence": "Rarely binding: 2 of 23 judged charts. The scan applied it.",
+   "superseded": [
+    {
+     "statement": "Not more than 10% above the 10-day average on the trigger day.",
+     "on": "2026-11-14",
+     "by": "D-021 (C29 read as the 9 EMA; the owner to confirm, D-017)"
+    }
+   ]
   },
   {
    "id": "tl.earnings_window",
@@ -1176,7 +1183,7 @@
   "Before the entry: the line is too steep or too short (tl.slope, tl.line_age).",
   "Before the entry: the stock is below the 200-day (tl.above_200, tl.bottom_fishing) or under falling averages acting as resistance (tl.inv_falling_mas).",
   "Before the entry: price is wedging up into the line on fading volume (tl.not_wedging_up).",
-  "Before the entry: a gap of more than 4% over the line, or a stock more than 10% over its 10-day (tl.no_chase, tl.not_stretched).",
+  "Before the entry: a gap of more than 4% over the line, or a stock more than 10% over its 9 EMA (tl.no_chase, tl.not_stretched).",
   "Before the entry: earnings within 3 sessions (tl.earnings_window); a Red market (tl.market_reading).",
   "After the entry: the stop trades (tl.stop_broker); the time stop (tl.time_stop).",
   "After the entry: a close back under the line is a warning, not an exit (tl.close_back_under_line)."

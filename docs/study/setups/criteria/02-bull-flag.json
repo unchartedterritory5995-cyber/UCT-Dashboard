@@ -167,9 +167,9 @@
   {
    "id": "bf.not_after_burst",
    "field": "context",
-   "statement": "A flag that forms right after a parabolic burst is treated as extended until the 10-day average catches up: no entry while the flag's closes sit more than 10% above the 10-day SMA.",
+   "statement": "A flag that forms right after a parabolic burst is treated as extended until the 9 EMA catches up: no entry while the flag's closes sit more than 10% above the 9 EMA.",
    "measure": {
-    "what": "close / 10-day SMA - 1, on a flag whose pole ended in a parabolic burst",
+    "what": "close / 9 EMA - 1, on a flag whose pole ended in a parabolic burst",
     "op": "<=",
     "value": 10,
     "unit": "%",
@@ -186,7 +186,14 @@
    "gate": true,
    "grade_cue": false,
    "dossier_ref": "7, last paragraph; 13 QCOM failure",
-   "evidence": "QCOM 2019-05-10: a textbook five-day flag whose pole was a one-day gap rather than a trend; the trigger day was the high and the stock fell about 25% in four weeks. A parabolic pole is not a leader's pole."
+   "evidence": "QCOM 2019-05-10: a textbook five-day flag whose pole was a one-day gap rather than a trend; the trigger day was the high and the stock fell about 25% in four weeks. A parabolic pole is not a leader's pole.",
+   "superseded": [
+    {
+     "statement": "A flag that forms right after a parabolic burst is treated as extended until the 10-day average catches up: no entry while the flag's closes sit more than 10% above the 10-day SMA.",
+     "on": "2026-11-14",
+     "by": "D-021 (C29 read as the 9 EMA; the owner to confirm, D-017)"
+    }
+   ]
   },
   {
    "id": "bf.pole",
@@ -795,9 +802,9 @@
   {
    "id": "bf.not_stretched",
    "field": "trigger",
-   "statement": "At entry, no more than 10% above the 10-day average.",
+   "statement": "At entry, no more than 10% above the 9 EMA.",
    "measure": {
-    "what": "entry / 10-day SMA - 1",
+    "what": "entry / 9 EMA - 1",
     "op": "<=",
     "value": 10,
     "unit": "%",
@@ -814,7 +821,14 @@
    "gate": true,
    "grade_cue": false,
    "dossier_ref": "8.1 rule 11",
-   "evidence": "The owner on LXU: a nice tight flag that lets the MAs catch up; extended for now. 89.4% of the app's fires passed this line (4.6)."
+   "evidence": "The owner on LXU: a nice tight flag that lets the MAs catch up; extended for now. 89.4% of the app's fires passed this line (4.6).",
+   "superseded": [
+    {
+     "statement": "At entry, no more than 10% above the 10-day average.",
+     "on": "2026-11-14",
+     "by": "D-021 (C29 read as the 9 EMA; the owner to confirm, D-017)"
+    }
+   ]
   },
   {
    "id": "bf.earnings_window",
@@ -1496,7 +1510,7 @@
    "bf.inv_wedge_up: wedging up",
    "bf.stop_width: wider than the ADR or 5%",
    "bf.no_chase: more than 4% past the trigger",
-   "bf.not_stretched: more than 10% over the 10-day",
+   "bf.not_stretched: more than 10% over the 9 EMA",
    "bf.earnings_window: a report within 3 sessions",
    "bf.above_200: under the 200-day",
    "bf.liquidity: under $10 or under $20 million a day",

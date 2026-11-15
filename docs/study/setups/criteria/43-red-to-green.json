@@ -220,9 +220,9 @@
   {
    "id": "rg.not_stretched",
    "field": "context",
-   "statement": "Within 10% of the 10-day average at the prior close.",
+   "statement": "Within 10% of the 9 EMA at the prior close.",
    "measure": {
-    "what": "prior close / 10-day SMA - 1",
+    "what": "prior close / 9 EMA - 1",
     "op": "<=",
     "value": 10,
     "unit": "%",
@@ -235,8 +235,15 @@
    "status": "settled",
    "gate": true,
    "grade_cue": false,
-   "dossier_ref": "8 Within 10% of the 10-day",
-   "evidence": "Table 3: the extended group was the worst cut, -0.27R (262 trades) against -0.02R within 10%."
+   "dossier_ref": "8 Within 10% of the 9 EMA",
+   "evidence": "Table 3: the extended group was the worst cut, -0.27R (262 trades) against -0.02R within 10%.",
+   "superseded": [
+    {
+     "statement": "Within 10% of the 10-day average at the prior close.",
+     "on": "2026-11-14",
+     "by": "D-021 (C29 read as the 9 EMA; the owner to confirm, D-017)"
+    }
+   ]
   },
   {
    "id": "rg.support_tag",
@@ -954,7 +961,7 @@
    "rg.gap_floor: a tiny gap under 0.7% crossed in the first minutes, or many crosses back and forth",
    "rg.timing: a slow, grinding cross long after the open",
    "rg.leader: RS under 80",
-   "rg.not_stretched: more than 10% over the 10-day",
+   "rg.not_stretched: more than 10% over the 9 EMA",
    "rg.earnings_window: earnings within 3 sessions",
    "rg.stop_width: a stop over 3%",
    "rg.gap_ceiling: a big news gap down",
@@ -993,7 +1000,7 @@
   }
  ],
  "invalidations": [
-  "Before the buy: the stock is below the 200-day (rg.above_200), more than 10% over its 10-day (rg.not_stretched), has earnings within 3 sessions (rg.earnings_window), or the gap is over about 4% on news (rg.gap_ceiling).",
+  "Before the buy: the stock is below the 200-day (rg.above_200), more than 10% over its 9 EMA (rg.not_stretched), has earnings within 3 sessions (rg.earnings_window), or the gap is over about 4% on news (rg.gap_ceiling).",
   "Before the buy: the market reading is Red (rg.market_reading).",
   "Before the buy: the fill would be more than 4% over the prior close (rg.no_chase).",
   "Before the buy: the third failed attempt in a week on the same stock (rg.tries).",

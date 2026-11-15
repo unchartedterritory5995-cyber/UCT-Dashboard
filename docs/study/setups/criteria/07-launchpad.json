@@ -680,9 +680,9 @@
   {
    "id": "lp.not_stretched",
    "field": "trigger",
-   "statement": "A launch that closes more than 10% over its 10-day average is skipped.",
+   "statement": "A launch that closes more than 10% over its 9 EMA is skipped.",
    "measure": {
-    "what": "launch close / 10-day SMA - 1",
+    "what": "launch close / 9 EMA - 1",
     "op": "<=",
     "value": 10,
     "unit": "%",
@@ -700,7 +700,14 @@
    "gate": true,
    "grade_cue": false,
    "dossier_ref": "8.2 No chase; 10 question 8",
-   "evidence": "Conflict on the model chart: MSTR closed 10.2% over its 10-day EMA, 11.8% over the 10-day SMA counting the launch day, 13.1% over the prior 10 days' SMA. NOW, DDOG, CELH and ODFL were over 10% on at least one reading. D-017's default: the 10-day SMA, the entry day not in it. The scan skipped closes more than 10% over the 10-day SMA; ILMN (example 7) was 8.6% over."
+   "evidence": "Conflict on the model chart: MSTR closed 10.2% over its 10-day EMA, 11.8% over the 10-day SMA counting the launch day, 13.1% over the prior 10 days' SMA. NOW, DDOG, CELH and ODFL were over 10% on at least one reading. D-017's default: the 10-day SMA, the entry day not in it. The scan skipped closes more than 10% over the 10-day SMA; ILMN (example 7) was 8.6% over.",
+   "superseded": [
+    {
+     "statement": "A launch that closes more than 10% over its 10-day average is skipped.",
+     "on": "2026-11-14",
+     "by": "D-021 (C29 read as the 9 EMA; the owner to confirm, D-017)"
+    }
+   ]
   },
   {
    "id": "lp.stop",
@@ -1275,7 +1282,7 @@
    "lp.bundle_tight: the averages are not tight (Manrav: I won't call that a launch pad, the EMA's are not tight)",
    "lp.not_gap: a news bar or a gap over 6% as the trigger (INTC, ARKK)",
    "lp.earnings_window: a report within 3 days",
-   "lp.no_chase: more than 4% past the launch close; lp.not_stretched: more than 10% over the 10-day",
+   "lp.no_chase: more than 4% past the launch close; lp.not_stretched: more than 10% over the 9 EMA",
    "lp.stop_cap: the honest stop over 6%, or any stop under the bundle or the base low",
    "lp.liquidity: under $10 or under $20 million a day",
    "lp.market_reading: Red; Orange below A+"
@@ -1325,7 +1332,7 @@
   "Averages that are not actually tight. Manrav: I won't call that a launch pad, the EMA's are not tight. The Model Book: forcing the trade before the moving averages have actually converged.",
   "A wide, sloppy base or a news bar as the trigger (INTC, ARKK).",
   "Buying into earnings.",
-  "Chasing: more than 4% past the launch close, or a launch more than 10% over the 10-day.",
+  "Chasing: more than 4% past the launch close, or a launch more than 10% over the 9 EMA.",
   "Putting the stop under the whole base or under the averages, then sizing as if it were tight.",
   "Adding on the way up (the team row's add on the 50 SMA reclaim).",
   "Believing the bundle alone is the edge. On daily bars it adds one or two points over any strong day above the averages. The stock, the base and the market are the edge."

@@ -8238,6 +8238,7 @@
   "module": "F7",
   "prompt_json": {
    "chart": {
+    "forward_bars": 40,
     "tf": "D",
     "window_bars": 120
    },
@@ -16767,6 +16768,7 @@
   "module": "F7",
   "prompt_json": {
    "chart": {
+    "forward_bars": 120,
     "tf": "D",
     "window_bars": 250
    },
@@ -17115,6 +17117,7 @@
   "module": "F7",
   "prompt_json": {
    "chart": {
+    "forward_bars": 120,
     "tf": "D",
     "window_bars": 120
    },
@@ -17197,6 +17200,7 @@
   "module": "F7",
   "prompt_json": {
    "chart": {
+    "forward_bars": 120,
     "tf": "D",
     "window_bars": 120
    },
@@ -17389,6 +17393,7 @@
   "module": "F7",
   "prompt_json": {
    "chart": {
+    "forward_bars": 60,
     "tf": "D",
     "window_bars": 200
    },
@@ -17513,6 +17518,7 @@
   "module": "F7",
   "prompt_json": {
    "chart": {
+    "forward_bars": 60,
     "tf": "D",
     "window_bars": 250
    },
@@ -17630,6 +17636,7 @@
   "module": "F7",
   "prompt_json": {
    "chart": {
+    "forward_bars": 40,
     "tf": "D",
     "window_bars": 120
    },
@@ -17737,6 +17744,7 @@
   "module": "F7",
   "prompt_json": {
    "chart": {
+    "forward_bars": 60,
     "tf": "D",
     "window_bars": 160
    },
@@ -18111,6 +18119,7 @@
   "module": "F7",
   "prompt_json": {
    "chart": {
+    "forward_bars": 120,
     "tf": "D",
     "window_bars": 250
    },

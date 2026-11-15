@@ -689,9 +689,9 @@
   {
    "id": "mar.not_stretched",
    "field": "trigger",
-   "statement": "At entry, no more than 10% above the 10-day average.",
+   "statement": "At entry, no more than 10% above the 9 EMA.",
    "measure": {
-    "what": "entry / 10-day SMA - 1",
+    "what": "entry / 9 EMA - 1",
     "op": "<=",
     "value": 10,
     "unit": "%",
@@ -705,7 +705,14 @@
    "gate": true,
    "grade_cue": false,
    "dossier_ref": "7 C29 row",
-   "evidence": "Rarely an issue on a reclaim. Not coded in the scan."
+   "evidence": "Rarely an issue on a reclaim. Not coded in the scan.",
+   "superseded": [
+    {
+     "statement": "At entry, no more than 10% above the 10-day average.",
+     "on": "2026-11-14",
+     "by": "D-021 (C29 read as the 9 EMA; the owner to confirm, D-017)"
+    }
+   ]
   },
   {
    "id": "mar.earnings_window",

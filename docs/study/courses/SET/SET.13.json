@@ -461,9 +461,9 @@
   },
   {
    "id": "h13",
-   "source": "h1",
-   "quote": "Too stretched to buy: skip a long that is more than 10% above its 10-day average.",
-   "claim": "C29: skip a long more than 10% above its 10-day average."
+   "source": "hw",
+   "quote": "Too stretched to buy: skip a long that is more than 10% above its 9 EMA.",
+   "claim": "We skip a long that is more than 10% above its 9 EMA: too stretched to buy."
   },
   {
    "id": "h14",
@@ -666,8 +666,8 @@
   {
    "id": "c21",
    "source": "c1",
-   "quote": "Stop to breakeven between 2R and 5R, at the first trim by default.",
-   "claim": "Breakeven between 2R and 5R, at the first trim by default."
+   "quote": "Stop to breakeven between 2R and 5R, or at the first sell.",
+   "claim": "Stop to breakeven between 2R and 5R, or at the first sell."
   },
   {
    "id": "c22",
@@ -720,8 +720,8 @@
   {
    "id": "c30",
    "source": "c1",
-   "quote": "At entry, no more than 10% above the 10-day average; about 5% over it is the A+ zone, 8% to 10% is B-.",
-   "claim": "No more than 10% over the 10-day at entry."
+   "quote": "At entry, no more than 10% above the 9 EMA; about 5% over it is the A+ zone, 8% to 10% is B-.",
+   "claim": "No more than 10% over the 9 EMA at entry."
   },
   {
    "id": "c31",
@@ -1152,7 +1152,7 @@
    "key": "q01",
    "skill": "setup.high_tight_flag",
    "rung": 1,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "htf.pole_size",
    "q": "In one line, what is a high tight flag?",
    "choices": [
@@ -1186,7 +1186,14 @@
      "the exact pole size differs by source (IBD 100% to 120%, Bulkowski 90%) and is a held decision, so the key avoids it"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-1",
+   "story": "Hidden ticker, a real high tight flag, the day before its breakout.",
+   "chart": {
+    "sym": "IOVA",
+    "asof": "2019-06-27",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q02",
@@ -1417,9 +1424,9 @@
    "key": "q09",
    "skill": "setup.high_tight_flag",
    "rung": 2,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "htf.flag_depth",
-   "q": "How do we measure the flag's depth?",
+   "q": "How do we measure this flag's depth?",
    "choices": [
     "Pattern high to flag low, on price",
     "As a share of the pole's whole height",
@@ -1453,7 +1460,14 @@
    "depends_on": [
     "D-050"
    ],
-   "batch": "wave2"
+   "batch": "visuals-1",
+   "story": "Hidden ticker, the day before a breakout.",
+   "chart": {
+    "sym": "SOFI",
+    "asof": "2024-11-19",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q10",
@@ -1462,7 +1476,7 @@
    "format": "scenario",
    "criterion": "htf.tightness",
    "q": "Do the closes pass our tightness test?",
-   "story": "A stock doubled in five weeks after an earnings beat. It now pauses nine sessions under the high. The last five closes sit 8% apart.",
+   "story": "Hidden ticker, the day before a breakout. Look at the last five closes of the flag.",
    "choices": [
     "Yes, within 10% of each other",
     "No, they must sit within 5%",
@@ -1470,19 +1484,19 @@
     "Yes, but only with light volume"
    ],
    "answer": "Yes, within 10% of each other",
-   "why": "Yes. In the last 5 sessions before the trigger, the highest close must be no more than 10% above the lowest. These sit 8% apart, so they pass. Volume has its own separate line.",
+   "why": "Yes. In the last 5 sessions before the trigger, the highest close must be no more than 10% above the lowest. This flag passes. Volume has its own separate line.",
    "lesson_line": "Five closes within 10% of each other pass. Volume has its own line.",
    "facts": [
     "c09",
     "c07"
    ],
    "wrong": {
-    "No, they must sit within 1%": "Our line is 10%, not 1%. Closes 8% apart pass.",
-    "No, they must sit within 5%": "Our line is 10%. Closes 8% apart are inside it.",
+    "No, they must sit within 1%": "Our line is 10%, not 1%. Closes inside 10% pass.",
+    "No, they must sit within 5%": "Our line is 10%. Closes inside it pass.",
     "Yes, but only with light volume": "Volume is graded on its own line. The tightness test looks at closes only."
    },
    "house": true,
-   "simple": "Yes, because the last five closes sit 8% apart, inside our 10% line.",
+   "simple": "Yes, because the last five closes sit inside our 10% line.",
    "deeper": {
     "trap": "The trap is the stricter line. A limit of 1% or 5% sounds more careful, but ours is wider. The highest close in the last 5 sessions is no more than 10% above the lowest."
    },
@@ -1494,7 +1508,13 @@
      "rests on one card line (c09)"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-1",
+   "chart": {
+    "sym": "AMD",
+    "asof": "2026-05-21",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q11",
@@ -1628,7 +1648,7 @@
    "key": "q15",
    "skill": "setup.high_tight_flag",
    "rung": 3,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "htf.flag_volume_a",
    "q": "What flag volume makes the A grade on our card?",
    "choices": [
@@ -1638,7 +1658,7 @@
     "Any volume below the pole's"
    ],
    "answer": "60% of the pole's volume or less",
-   "why": "60% of the pole's volume or less is the A grade on our card. Any flag volume below the pole's average passes the gate, and the lighter the better. IBD: volume generally dries up. Bulkowski: it recedes for best performance.",
+   "why": "60% of the pole's volume or less is the A grade on our card. Any flag volume below the pole's average passes the gate, and the lighter the better. MRNA's flag ran at about a third of the pole's, well inside the A zone. IBD: volume generally dries up. Bulkowski: it recedes for best performance.",
    "lesson_line": "Quieter flag, better grade. Under the pole's volume is the floor.",
    "facts": [
     "c08",
@@ -1667,7 +1687,14 @@
      "rests on one card line (c08)"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-1",
+   "story": "Hidden ticker, the day before a breakout. Look at the volume bars in the flag.",
+   "chart": {
+    "sym": "MRNA",
+    "asof": "2020-04-14",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q16",
@@ -1809,7 +1836,7 @@
    "key": "q20",
    "skill": "setup.high_tight_flag",
    "rung": 3,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "htf.trim_1",
    "q": "Bought at 27.50 with the stop at 26.59. Where is 3R?",
    "answer": "$30.23",
@@ -1843,7 +1870,7 @@
      "rests on the owner's rulebook (B19)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-1",
    "choices": [
     "$28.41",
     "$31.14",
@@ -1854,15 +1881,26 @@
     "$28.41": "That adds one R, not three.",
     "$29.32": "That counts 3R up from the stop, not from the fill.",
     "$31.14": "That adds four R. Three R is three gaps, not four."
+   },
+   "story": "Hidden ticker, bought on the breakout.",
+   "chart": {
+    "sym": "SRPT",
+    "asof": "2015-06-10",
+    "window": 120,
+    "forward": 30,
+    "trade": {
+     "entry": 27.5,
+     "stop": 26.59
+    }
    }
   },
   {
    "key": "q21",
    "skill": "setup.high_tight_flag",
    "rung": 3,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "htf.catalyst",
-   "q": "What usually sits behind the pole?",
+   "q": "What usually sits behind a pole like this?",
    "choices": [
     "A real change in the business",
     "A rally in the whole market",
@@ -1895,7 +1933,14 @@
    "depends_on": [
     "D-007"
    ],
-   "batch": "wave2"
+   "batch": "visuals-1",
+   "story": "Hidden ticker, the day before a breakout.",
+   "chart": {
+    "sym": "CVNA",
+    "asof": "2019-03-29",
+    "window": 120,
+    "forward": 40
+   }
   },
   {
    "key": "q22",
@@ -2024,7 +2069,7 @@
    "key": "q25",
    "skill": "setup.high_tight_flag",
    "rung": 4,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "htf.stop",
    "q": "Fill 14.65, stop 14.24. How far below the fill is the stop, in percent?",
    "answer": "2.8%",
@@ -2055,7 +2100,7 @@
      "rests on the owner's rulebook (A13)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-1",
    "choices": [
     "28.0%",
     "0.4%",
@@ -2066,13 +2111,24 @@
     "0.4%": "That is the dollar amount read as a percent. Divide it first.",
     "28.0%": "That slips a decimal place.",
     "97.2%": "That is the stop as a share of the fill, not the gap."
+   },
+   "story": "Hidden ticker, bought on the breakout.",
+   "chart": {
+    "sym": "SOFI",
+    "asof": "2024-11-20",
+    "window": 120,
+    "forward": 30,
+    "trade": {
+     "entry": 14.65,
+     "stop": 14.24
+    }
    }
   },
   {
    "key": "q26",
    "skill": "setup.high_tight_flag",
    "rung": 4,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "htf.trim_2",
    "q": "Bought at 264.95, stop 255.06. The stock trades to 314.40. How many R is that?",
    "answer": "5.0R",
@@ -2102,7 +2158,7 @@
      "rests on the owner's rulebook (E51)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-1",
    "choices": [
     "6.0R",
     "49.5R",
@@ -2113,13 +2169,24 @@
     "6.0R": "That counts the gain from the stop, so it reads one R too high.",
     "49.5R": "That is the dollar gain read as R. Divide it by the risk per share.",
     "0.2R": "That divides the gain by the price, not by R."
+   },
+   "story": "Hidden ticker, bought on the breakout.",
+   "chart": {
+    "sym": "BIDU",
+    "asof": "2021-02-05",
+    "window": 120,
+    "forward": 40,
+    "trade": {
+     "entry": 264.95,
+     "stop": 255.06
+    }
    }
   },
   {
    "key": "q27",
    "skill": "setup.high_tight_flag",
    "rung": 5,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "htf.no_adds",
    "q": "Account 100,000. Risk 0.5%. Fill 132.97, stop 128.10. How many shares?",
    "answer": "102 shares",
@@ -2155,7 +2222,7 @@
      "rests on the owner's rulebook (A5)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-1",
    "choices": [
     "500 shares",
     "1,026 shares",
@@ -2166,6 +2233,17 @@
     "1,026 shares": "That risks ten times the budget. A decimal slip.",
     "300 shares": "That is the 40% position cap size. The stop gives a smaller size.",
     "500 shares": "That is the risk dollars read as shares. Divide by the risk per share."
+   },
+   "story": "Hidden ticker, bought on the breakout.",
+   "chart": {
+    "sym": "TMDX",
+    "asof": "2024-05-14",
+    "window": 120,
+    "forward": 30,
+    "trade": {
+     "entry": 132.97,
+     "stop": 128.1
+    }
    }
   },
   {
@@ -2898,16 +2976,16 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "htf.flag_length",
-   "q": "Which card do you grade it on?",
-   "story": "The stock doubled in seven weeks. Then it rested 38 sessions in a 9% box near the high.",
+   "q": "Which test does it fail as a high tight flag?",
+   "story": "Hidden ticker, the day before it trades through the top of its rest. It rose fast first. The rest has lasted 32 sessions, 23.1% deep, with tight closes.",
    "choices": [
-    "Flat base; the pause is too long",
-    "High tight flag; the price doubled",
-    "Bull flag; the box is tight",
-    "VCP; the base is quiet and tight"
+    "The flag length: not 5 to 30 sessions",
+    "The flag depth: deeper than 25%",
+    "The closes test: wider than 10%",
+    "The volume test: above the pole's"
    ],
-   "answer": "Flat base; the pause is too long",
-   "why": "The flat base. Count the rest. Our card allows a pause of 5 to 30 sessions, and past 30 the flag becomes that base. IBD gives three to five weeks, and Kuhn three to six. The double fits, but 38 sessions is too long.",
+   "answer": "The flag length: not 5 to 30 sessions",
+   "why": "The flag length. Our card allows a rest of 5 to 30 sessions, and this one ran 32. Past 30 sessions it is a different base, graded as that base. It passes the other tests. A near-miss that ran well is still not this setup.",
    "lesson_line": "A flag rests a few weeks. A much longer rest is a different base, graded as that base.",
    "facts": [
     "c02",
@@ -2917,14 +2995,14 @@
     "c53"
    ],
    "wrong": {
-    "High tight flag; the price doubled": "The double fits, but the rest runs past 30 sessions. Past that, the flag has become a base.",
-    "Bull flag; the box is tight": "A bull flag follows a smaller run, 20% to 30%. This stock doubled, and then it sat far longer than a flag does.",
-    "VCP; the base is quiet and tight": "A VCP strings two to six contractions after a 30% advance. This is one 9% box with no string of dips."
+    "The flag depth: deeper than 25%": "The rest is 23.1% deep, inside our 25% limit. Only one test fails.",
+    "The closes test: wider than 10%": "The closes were tight, so the 10% test passes. Only one test fails.",
+    "The volume test: above the pole's": "The volume test passes. Only one test fails, and it is the length."
    },
    "house": true,
-   "simple": "It is a flat base, because past 30 sessions the flag has become a base.",
+   "simple": "It fails the flag length, because past 30 sessions the rest has become a different base.",
    "deeper": {
-    "trap": "Count the rest in sessions. Our card allows 5 to 30. IBD gives three to five weeks and Kuhn three to six, so 38 sessions is past even Kuhn's longest flag."
+    "trap": "Count the rest in sessions. Our card allows 5 to 30. IBD gives three to five weeks and Kuhn three to six, so 32 sessions is past even Kuhn's longest flag."
    },
    "tier": "extended",
    "risk": {
@@ -2937,7 +3015,13 @@
    "depends_on": [
     "D-049"
    ],
-   "batch": "wave2"
+   "batch": "visuals-1",
+   "chart": {
+    "sym": "TVTX",
+    "asof": "2025-10-23",
+    "window": 120,
+    "forward": 40
+   }
   },
   {
    "key": "q47",
@@ -3076,7 +3160,7 @@
    "format": "scenario",
    "criterion": "htf.after_entry_stop",
    "q": "What do you do?",
-   "story": "You bought a stock that rose 291% in 34 sessions, then flagged six days. The breakout day traded a tenth of its average volume. Next morning it falls to your stop.",
+   "story": "Hidden ticker, bought on the breakout at 52.01 with the stop at 49.95. It rose 291% in 34 sessions, then flagged six days. The breakout day traded a tenth of its average volume. Next morning it falls to your stop.",
    "choices": [
     "Sell at the stop, as planned",
     "Hold; the pole was huge",
@@ -3111,7 +3195,17 @@
      "+2 held decision D-006 (breakout volume as a gate)"
     ]
    },
-   "batch": "rulings"
+   "batch": "visuals-1",
+   "chart": {
+    "sym": "SRRK",
+    "asof": "2020-12-22",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 52.01,
+     "stop": 49.95
+    }
+   }
   },
   {
    "key": "q51",
@@ -3120,7 +3214,7 @@
    "format": "scenario",
    "criterion": "htf.no_chase",
    "q": "The next morning it takes your stop. Was buying the gap a mistake?",
-   "story": "A high tight flag passes every gate. The stock gaps open at 125.50 over the 121.91 buy point on 1.47x volume. You are filled. It closes at 121.75, the low of its day.",
+   "story": "Hidden ticker, a high tight flag that passes every gate. It gaps open at 125.50 over the 121.91 buy point on 1.47x volume. You are filled, with the stop at 120.92. It closes at 121.75, the low of its day.",
    "choices": [
     "No; a planned loss at the stop",
     "Yes; skip gaps next time",
@@ -3158,7 +3252,17 @@
      "+2 rests on the owner's rulebook (C28, 4% line; A4, the stop is the exit)"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-1",
+   "chart": {
+    "sym": "FSLR",
+    "asof": "2022-08-26",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 125.5,
+     "stop": 120.92
+    }
+   }
   },
   {
    "key": "q52",
@@ -3167,7 +3271,7 @@
    "format": "scenario",
    "criterion": "htf.trim_1",
    "q": "Was the loss a mistake?",
-   "story": "Bought at 175.81, stop 168.86. It reaches 2.35R, then falls back. On day 3 it trades through your stop.",
+   "story": "Hidden ticker, bought on the breakout at 175.81 with the stop at 168.86. It reaches 2.35R, then falls back. On day 3 it trades through your stop.",
    "choices": [
     "No; the stop was the planned exit",
     "No; but skip this stock next time",
@@ -3204,7 +3308,17 @@
      "+2 held owner question: should breakeven at 2R be the default?"
     ]
    },
-   "batch": "rulings2"
+   "batch": "visuals-1",
+   "chart": {
+    "sym": "MRVL",
+    "asof": "2026-05-13",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 175.81,
+     "stop": 168.86
+    }
+   }
   },
   {
    "key": "q53",
@@ -3213,7 +3327,7 @@
    "format": "scenario",
    "criterion": "htf.stop",
    "q": "Why did this trade end in a loss?",
-   "story": "A 101% pole, then a 15-day flag 8.5% deep. It breaks out on 1.48x volume, reaches 1.66R, then stalls. On day 7 it trades through your stop.",
+   "story": "Hidden ticker, a 101% pole, then a 15-day flag 8.5% deep. You buy the breakout at 398.90 on 1.48x volume, with the stop at 386.96. It reaches 1.66R, then stalls. On day 7 it trades through your stop.",
    "choices": [
     "A valid flag simply failed",
     "The stop was set too tight",
@@ -3250,7 +3364,17 @@
      "+2 rests on the owner's rulebook (A4; the stop sets the size)"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "visuals-1",
+   "chart": {
+    "sym": "MDB",
+    "asof": "2023-06-28",
+    "window": 120,
+    "forward": 25,
+    "trade": {
+     "entry": 398.9,
+     "stop": 386.96
+    }
+   }
   },
   {
    "key": "q54",
@@ -3259,7 +3383,7 @@
    "format": "scenario",
    "criterion": "htf.inv_volume_rising",
    "q": "Take the breakout or pass?",
-   "story": "A 123% pole, then a 16-day flag 17.2% deep. Volume in the flag runs 1.27x the pole's average.",
+   "story": "Hidden ticker, the day before the breakout. A 123% pole, then a 16-day flag 17.2% deep. Volume in the flag runs 1.27x the pole's average.",
    "choices": [
     "Pass; supply is coming in",
     "Take it; the pole is big",
@@ -3294,7 +3418,13 @@
      "the flag depth band is a held decision (D-050), but 17.2% is inside every band"
     ]
    },
-   "batch": "wave2"
+   "batch": "visuals-1",
+   "chart": {
+    "sym": "PDD",
+    "asof": "2020-12-07",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q55",
@@ -3509,7 +3639,7 @@
    "format": "scenario",
    "criterion": "htf.trail",
    "q": "What gets you out of the rest of the position?",
-   "story": "Bought at 264.95, stop 255.06. You sold part into the push and the rest still rides. It ran to about 354 and now turns down hard.",
+   "story": "Hidden ticker, bought at 264.95 with the stop at 255.06. You sold part into the push and the rest still rides. Later it ran to about 354 and turned down hard.",
    "choices": [
     "A close below the trail average",
     "A close under the flag low itself",
@@ -3544,7 +3674,17 @@
      "+2 held decision D-024 (which average is the trail)"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "visuals-1",
+   "chart": {
+    "sym": "BIDU",
+    "asof": "2021-02-05",
+    "window": 120,
+    "forward": 60,
+    "trade": {
+     "entry": 264.95,
+     "stop": 255.06
+    }
+   }
   },
   {
    "key": "q61",
@@ -4136,13 +4276,13 @@
    "key": "q77",
    "skill": "setup.high_tight_flag",
    "rung": 2,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "htf.stop",
-   "q": "Bought at 60.00, stop at 57.50. What is 1R, in dollars a share?",
-   "answer": "$2.50",
-   "why": "One R is the risk you take on the trade, the fill minus the stop. Here that is 60.00 minus 57.50, which is 2.50 a share. A 3R winner is three times that.",
+   "q": "Bought at 94.93, stop at 91.15. What is 1R, in dollars a share?",
+   "answer": "$3.78",
+   "why": "One R is the risk you take on the trade, the fill minus the stop. Here that is 94.93 minus 91.15, which is 3.78 a share. A 3R winner is three times that.",
    "lesson_line": "1R is what you risk on each share: fill minus stop.",
-   "simple": "1R is what you risk on each share, the fill minus the stop, so 60.00 minus 57.50.",
+   "simple": "1R is what you risk on each share, the fill minus the stop, so 94.93 minus 91.15.",
    "facts": [
     "r01",
     "h05",
@@ -4152,8 +4292,8 @@
     "fn": "arith",
     "args": {
      "expr": "a - b",
-     "a": 60.0,
-     "b": 57.5
+     "a": 94.93,
+     "b": 91.15
     },
     "round": 2
    },
@@ -4165,17 +4305,28 @@
      "rests on a published definition (Van Tharp R-multiple)"
     ]
    },
-   "batch": "rank",
+   "batch": "visuals-1",
    "choices": [
-    "$2.50",
-    "$0.25",
-    "$1.25",
+    "$3.78",
+    "$0.38",
+    "$98.71",
     "$0.04"
    ],
    "wrong": {
-    "$0.25": "That slips a decimal place.",
-    "$1.25": "That is half the risk. One R is the full gap to the stop.",
-    "$0.04": "That divides the gap by the fill, a fraction, not dollars."
+    "$0.04": "That divides the gap by the fill, a fraction, not dollars.",
+    "$0.38": "That slips a decimal place.",
+    "$98.71": "That adds one R to the fill. One R is the gap itself."
+   },
+   "story": "Hidden ticker, bought on the breakout.",
+   "chart": {
+    "sym": "CRNC",
+    "asof": "2020-12-16",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 94.93,
+     "stop": 91.15
+    }
    }
   },
   {
@@ -4227,7 +4378,7 @@
    "format": "scenario",
    "criterion": "htf.breakeven",
    "q": "By our rule, may you move the stop to breakeven now?",
-   "story": "You bought a high tight flag breakout. It is now up 2R. You have not sold any shares yet.",
+   "story": "Hidden ticker, bought on the breakout at 175.81 with the stop at 168.86. Later it is up 2R, and you have not sold any shares yet.",
    "choices": [
     "Yes, that is inside our window",
     "No, only after the first trim",
@@ -4256,7 +4407,17 @@
      "+1 the key says the move is allowed at 2R, not that 2R is the default; the MRVL conflict asks whether 2R should become the default"
     ]
    },
-   "batch": "rulings2"
+   "batch": "visuals-1",
+   "chart": {
+    "sym": "MRVL",
+    "asof": "2026-05-13",
+    "window": 120,
+    "forward": 20,
+    "trade": {
+     "entry": 175.81,
+     "stop": 168.86
+    }
+   }
   },
   {
    "key": "q80",
@@ -4265,21 +4426,21 @@
    "format": "scenario",
    "criterion": "htf.market_order",
    "q": "What do you do?",
-   "story": "Your alert fires in regular hours. The stock trades at 48.22, over the 48.20 pattern high. The flag passed every test and the market reading is Green.",
+   "story": "Hidden ticker, the day before a breakout. Next morning your alert fires in regular hours: it trades through the pattern high. The flag passed every test.",
    "choices": [
     "Buy at market now; stop goes in at once",
-    "Wait for a close over 48.20, then buy",
-    "Bid 48.00 and wait for a dip back",
+    "Wait for a close over the high, then buy",
+    "Bid under the high, wait for a dip",
     "Buy now; add the stop after the close"
    ],
    "answer": "Buy at market now; stop goes in at once",
-   "why": "Buy at market now, with the real stop in at once. Every setup buys as price trades through its trigger, during the day, never at the close. Our entry is a market order at least a cent over the high, regular hours only. At 48.22 the stock is already through 48.20. Bulkowski's close above the top confirms the pattern is valid, but our buy does not wait for it.",
+   "why": "Buy at market now, with the real stop in at once. Every setup buys as price trades through its trigger, during the day, never at the close. Our entry is a market order at least a cent over the high, regular hours only. Bulkowski's close above the top confirms the pattern is valid, but our buy does not wait for it.",
    "lesson_line": "Buy as it trades through the top. The stop goes in with the buy.",
    "simple": "Buy at market as it trades through the high, with the stop in at once. We never wait for the close.",
    "wrong": {
-    "Wait for a close over 48.20, then buy": "We very rarely buy at the close. It is always the trigger, never the close. Bulkowski's close only confirms the pattern is valid.",
-    "Bid 48.00 and wait for a dip back": "A bid under the trigger may never fill, and the stock has already traded through. We buy at market as it trades through, not on a hoped-for dip.",
-    "Buy now; add the stop after the close": "A real stop goes in at once. Until it is in, the position has no exit while it trades."
+    "Buy now; add the stop after the close": "A real stop goes in at once. Until it is in, the position has no exit while it trades.",
+    "Wait for a close over the high, then buy": "We very rarely buy at the close. It is always the trigger, never the close. Bulkowski's close only confirms the pattern is valid.",
+    "Bid under the high, wait for a dip": "A bid under the trigger may never fill, and the stock is already trading through. We buy at market as it trades through, not on a hoped-for dip."
    },
    "facts": [
     "c05",
@@ -4290,7 +4451,13 @@
    ],
    "house": true,
    "tier": "core",
-   "batch": "cover"
+   "batch": "visuals-1",
+   "chart": {
+    "sym": "CRNC",
+    "asof": "2020-12-15",
+    "window": 120,
+    "forward": 20
+   }
   }
  ],
  "conflicts": [
@@ -4338,8 +4505,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key follows c01/i01/i02/c02. Notes cite c33, b10, c02. Lengths 31 to 32. Note on q41 overlap is minor (q41 is outside this check).",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "IOVA winners_list 2019-06-28; asof 06-27 is the day before the trigger; plain wording, no numbers; answer true (+129% in 27 d, 6 d flag)."
   },
   "q02": {
    "status": "cut",
@@ -4388,13 +4554,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Right answer decided from the cited quotes first and it matches the key; no second defensible answer, no tell, numbers grounded, rulebook respected."
+   "notes": "SOFI winners_list 2024-11-20; asof 11-19 day before; plain wording; depth is on price (row 9: 9.9%), answer true."
   },
   "q10": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "c09 gives the 10% closes line; 8% is from the story; the volume caveat choice is wrong because the tightness test reads closes only (c07 is a separate line). Could not break it."
+   "fixed": true,
+   "notes": "AMD 2026-05-22; asof 05-21 correct; htf.tightness is a gate so every scan hit passes the 10% closes test, answer true. Fix: the upgrade dropped the wrong-answer note for 'Yes, but only with light volume'; restored it (volume is graded on its own line)."
   },
   "q11": {
    "status": "pass",
@@ -4423,8 +4589,8 @@
   "q15": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right per c08. 'Exactly equal to the pole's volume' is a lone absolute and a near-silly choice; replaced with the gate line as a real distractor. The why cites Bulkowski ('recedes for best performance') but b03 was not in the facts list; added."
+   "fixed": false,
+   "notes": "MRNA winners_list 2020-04-15; asof 04-14; row 5 flag vol 0.33x the pole's matches 'about a third'; A grade at 60% or less true."
   },
   "q16": {
    "status": "pass",
@@ -4453,14 +4619,14 @@
   "q20": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "$82.50 (3 x the fill) is not a real trader mistake and the answer was the largest; replaced with a 4R overshoot. Calc recomputed; the other wrong choices checked by hand."
+   "fixed": false,
+   "notes": "SRPT 2015-06-10 buy day; trade 27.50/26.59 matches row 2 and text; 3R = 27.50+3*0.91 = 30.23; wrongs 28.41/29.32/31.14 recomputed; '3R on day 5' matches row 2."
   },
   "q21": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Right answer decided from the cited quotes first and it matches the key; no second defensible answer, no tell, numbers grounded, rulebook respected. Mild overlap with q05 (real news); different facet, accepted."
+   "notes": "CVNA winners_list 2019-04-01 (a Monday); asof 03-29 Friday is the prior session; row 4 pole began on the 2019-02-28 report so 'real change in the business' is true."
   },
   "q22": {
    "status": "pass",
@@ -4484,19 +4650,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc recomputed and shown by the answer; every wrong choice recomputed as the stated mistake and none is near the answer; no length, unit or slot tell; why walks the steps."
+   "notes": "SOFI 2024-11-20 buy day; trade 14.65/14.24 matches row 9 and text; (14.65-14.24)/14.65 = 2.8% matches the row."
   },
   "q26": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc recomputed and shown by the answer; every wrong choice recomputed as the stated mistake and none is near the answer; no length, unit or slot tell; why walks the steps."
+   "notes": "BIDU 2021-02-05 buy day; trade 264.95/255.06 matches row 7; 314.40 = entry + 5R exactly, and BIDU ran to about 354 so the chart replay passes through it."
   },
   "q27": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "103 was the nearest-rounded 102.7, an adjacent pair; replaced with risk dollars read as shares. Why shows the 500. Calc recomputed; the other wrong choices checked by hand."
+   "fixed": false,
+   "notes": "TMDX 2024-05-14 buy day; trade 132.97/128.10 matches row 8 and text; 500/4.87 = 102.7, rounds down to 102."
   },
   "q28": {
    "status": "pass",
@@ -4612,7 +4778,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Keyed on the 38-session rest versus the card's 30; 30% only a guide in a wrong note; no ruling violated."
+   "notes": "TVTX near_miss 2025-10-24 (htf.flag_length, fails exactly one gate); asof 10-23; 32-session, 23.1% deep, tight rest all on the card/section 14; depth 23.1% is inside the 25% limit; re-key to the length test is true for the real example. Not a trade chart, no trade field."
   },
   "q47": {
    "status": "pass",
@@ -4636,33 +4802,32 @@
   "q50": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "keep right: light volume grades, stop is the exit | mechanical: depends_on left empty, restored to the ruling id(s)"
+   "fixed": false,
+   "notes": "SRRK failures 2020-12-22 buy day; trade 52.01/49.95 matches section 14 table; 291% in 34 sessions, 6-day flag, 0.10x breakout volume all on card; stopped next session as the story says."
   },
   "q51": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (gap 2.9% over the buy point, inside C28's 4%; A4 the stop is the exit). But the story's '101% pole, nine-day flag 8.8% deep' are not in any cited quote (d11/d12 omit them; they sit only in the dossier row text outside the quotes). The deeper trap's 'wicky bar grades B-' needs c31, which was not cited. The volume-choice explanation ('A weak close is not why the buy was wrong') reads as if the buy was wrong."
+   "fixed": false,
+   "notes": "FSLR failures 2022-08-26 buy day; entry 125.50, stop 120.92, buy point 121.91, 1.47x, close 121.75 all match the section 14 row; 125.50 is 2.9% over 121.91, inside the 4% line."
   },
   "q52": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "edit ok, agrees with D-013"
+   "notes": "MRVL failures 2026-05-13 buy day; 175.81/168.86, 2.35R, stopped day 3 all match the row."
   },
   "q53": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "D-013 edit agrees. Style fix: the why had a 25-word sentence; split it."
+   "fixed": false,
+   "notes": "MDB failures 2023-06-28 buy day; 398.90/386.96, 101% pole, 15-day 8.5% flag, 1.48x, 1.66R, stopped day 7 all match the row."
   },
   "q54": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c17 and PDD d19/d20 support the key; the depth note rests on i02. Choices 25 to 26 characters, no tell.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "PDD near_miss 2020-12-08 (htf.flag_volume); asof 12-07; 123% pole, 16-day 17.2% flag, 1.27x all match; pass is right (best 0.0R, stopped)."
   },
   "q55": {
    "status": "cut",
@@ -4698,7 +4863,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "D-021 rename agrees: trail is the 9 EMA for fast movers, the 20 EMA for steadier ones."
+   "notes": "BIDU 2021-02-05 buy day; 264.95/255.06 and 'about 354' match row 7; forward 60 covers the late-March collapse; lines named are the 9/20 EMA."
   },
   "q61": {
    "status": "pass",
@@ -4803,7 +4968,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Right answer unchanged, sorts to the target rank, wrong choices real and similar in form."
+   "notes": "CRNC 2020-12-16 buy day; 94.93/91.15 matches row 6; 94.93-91.15 = 3.78; wrongs 0.38 (decimal), 98.71 (fill + R), 0.04 (3.78/94.93) recomputed; re-key consistent."
   },
   "q78": {
    "status": "cut",
@@ -4814,14 +4979,14 @@
   "q79": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Breakeven window 2R to 5R is the kept rule. Fix: cited facts h05 and c20 quote the superseded 'third at 3R' as the hard first trim; cite c21 (breakeven) and h02 instead; drop the ungrounded 'ideally'."
+   "fixed": false,
+   "notes": "MRVL 2026-05-13 buy day; 175.81/168.86 match row; the real trade reached 2.35R so 'up 2R' is true; answer (breakeven window 2R to 5R) unchanged."
   },
   "q80": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Agrees with D-003 (buy as it trades through the trigger, never at the close). Only fix: a wrong-answer note says 'He very rarely buys'; member text says 'we'."
+   "notes": "CRNC 2020-12-16; asof 12-15 correct; flag passes every gate (scan hit). Fix: 'trades just over the pattern high' is a claim no record supports (the scan fills a cent over or the open if it gapped, and CRNC's gap is not recorded), so wording changed to 'through the pattern high'."
   }
  }
 }

@@ -794,7 +794,9 @@ def build_items(doc: dict, *, only_passed: bool = True) -> list[dict]:
         if chart:
             # a real chart under the question (History Detective, a dated example): the importer resolves the bars from
             # bars.db by this spec (get_bars_before, split-adjusted); the ticker never reaches a member before scoring
-            prompt["chart"] = {"window_bars": int(chart.get("window", 120)), "tf": "D"}
+            # forward_bars: how many days the replay after the answer plays (the reveal carries the first 20; the drill
+            # fetches the rest, up to what the server holds): a count, nothing about the answer
+            prompt["chart"] = {"window_bars": int(chart.get("window", 120)), "tf": "D", "forward_bars": int(chart.get("forward", 20))}
             tr = chart.get("trade")
             if tr:
                 # after the answer only (the reveal): the drill player draws it as Hard mode does (entry, stop, 3R and 5R

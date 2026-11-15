@@ -663,6 +663,14 @@
    "title": "The account rulebook, section 9: A3 stop first, A5 no adding (owner, 2026-11-09)",
    "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
   }
  ],
  "facts": [
@@ -2036,9 +2044,9 @@
   },
   {
    "id": "h_c29",
-   "source": "s_rb9",
-   "quote": "Too stretched to buy: skip a long that is more than 10% above its 10-day average.",
-   "claim": "Our rule: skip a long that is more than 10% above its 10-day average."
+   "source": "hw",
+   "quote": "Too stretched to buy: skip a long that is more than 10% above its 9 EMA.",
+   "claim": "We skip a long that is more than 10% above its 9 EMA: too stretched to buy."
   },
   {
    "id": "h_lb_a3",
@@ -3039,7 +3047,7 @@
    ],
    "simple": "It's 10% above, because the gap between the close and the average is one tenth of the $60 average.",
    "deeper": {
-    "counter": "Always say which average you measured from. Our skip line uses the 10-day: we skip a long that is more than 10% above its 10-day average. This question measures from the 50-day, so its 10% is not the same test."
+    "counter": "Always say which average you measured from. Our skip line uses the 9 EMA: we skip a long that is more than 10% above its 9 EMA. This question measures from the 50-day, so its 10% is not the same test."
    },
    "tier": "extended",
    "risk": {
@@ -4685,7 +4693,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed from the calc; answer shown, wrongs are real mistakes, no tell."
+   "notes": "Recomputed from the calc; answer shown, wrongs are real mistakes, no tell. | 2026-11-14: stretch line read through D-021 as the 9 EMA, as in the other 44 live questions."
   },
   "q27": {
    "status": "pass",

@@ -438,9 +438,9 @@
   },
   {
    "id": "h13",
-   "source": "h1",
-   "quote": "Too stretched to buy: skip a long that is more than 10% above its 10-day average.",
-   "claim": "C29: skip a long more than 10% above its 10-day average."
+   "source": "hw",
+   "quote": "Too stretched to buy: skip a long that is more than 10% above its 9 EMA.",
+   "claim": "We skip a long that is more than 10% above its 9 EMA: too stretched to buy."
   },
   {
    "id": "h14",
@@ -559,7 +559,7 @@
   {
    "id": "c04",
    "source": "c1",
-   "quote": "A flag that forms right after a parabolic burst is treated as extended until the 10-day average catches up: no entry while the flag's closes sit more than 10% above the 10-day SMA.",
+   "quote": "A flag that forms right after a parabolic burst is treated as extended until the 9 EMA catches up: no entry while the flag's closes sit more than 10% above the 9 EMA.",
    "claim": "A flag right after a parabolic burst is extended until the 10-day catches up."
   },
   {
@@ -1027,8 +1027,8 @@
   {
    "id": "c47",
    "source": "c1",
-   "quote": "Stop to breakeven between 2R and 5R, at the first trim by default.",
-   "claim": "Stop to breakeven between 2R and 5R, at the first trim by default."
+   "quote": "Stop to breakeven between 2R and 5R, or at the first sell.",
+   "claim": "Stop to breakeven between 2R and 5R, or at the first sell."
   },
   {
    "id": "h30",
@@ -1624,7 +1624,7 @@
    "key": "q14",
    "skill": "setup.bull_flag",
    "rung": 2,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "bf.trim_1",
    "q": "On a flag trade, when does our first sell come?",
    "choices": [
@@ -1661,7 +1661,18 @@
      "+2 rests on the owner's rulebook (B19, E51)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "visuals-1",
+   "story": "Hidden ticker, bought on the flag break at 66.62 with the stop at 64.78.",
+   "chart": {
+    "sym": "TSEM",
+    "asof": "2025-09-17",
+    "window": 120,
+    "forward": 40,
+    "trade": {
+     "entry": 66.62,
+     "stop": 64.78
+    }
+   }
   },
   {
    "key": "q15",
@@ -1716,7 +1727,7 @@
     "Yes; a 36% pole makes any rest tight"
    ],
    "answer": "Yes; the rest's bars are smaller",
-   "why": "Yes. The flag's average daily range is smaller than the pole's, 1.5% against 4.5%. Bulkowski: a tight flag performs better than a loose one; a loose one meanders and looks jagged.",
+   "why": "Yes. The test compares the flag's average daily range with the pole's, and this rest's bars are smaller. Four sessions in a 2.9% range after a 36% pole is the tightest of our ten examples. Bulkowski: a tight flag performs better than a loose one; a loose one meanders and looks jagged.",
    "lesson_line": "Tight means smaller bars than the run. Jagged means pass.",
    "facts": [
     "c08",
@@ -1734,8 +1745,8 @@
     "Yes; a 36% pole makes any rest tight": "Pole size is not the test. Tightness compares the flag's average daily range with the pole's."
    },
    "house": true,
-   "story": "After a 36% pole the stock pauses four sessions in a 2.9% range. The flag's bars average 1.5% a day. The pole's bars averaged 4.5% a day.",
-   "simple": "Yes, because the rest's bars average 1.5% a day against the pole's 4.5%, and that is what tight means.",
+   "story": "Hidden ticker, the day before a prior-day-high break. After a 36% pole the stock pauses four sessions in a 2.9% range.",
+   "simple": "Yes, because the rest's bars are smaller than the pole's bars, and that is what tight means.",
    "deeper": {
     "example": "PANW, trigger 2020-12-03. A 36% pole, then four sessions only 2.9% deep on 0.53x the pole's volume. Buy 48.98, stop 48.29, a 1.4% stop. It reached 26.4R."
    },
@@ -1747,7 +1758,13 @@
      "+1 fixed before (a wrong count of four-day rests was corrected)"
     ]
    },
-   "batch": "wave1"
+   "batch": "visuals-1",
+   "chart": {
+    "sym": "PANW",
+    "asof": "2020-12-02",
+    "window": 150,
+    "forward": 20
+   }
   },
   {
    "key": "q17",
@@ -1811,9 +1828,9 @@
    "key": "q19",
    "skill": "setup.bull_flag",
    "rung": 3,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "bf.trim_1",
-   "q": "Bought at 62.80 with the stop at 61.65. R is the fill minus the stop. Where is 3R?",
+   "q": "R is the fill minus the stop. Where is 3R?",
    "answer": "$66.25",
    "calc": {
     "fn": "arith",
@@ -1841,7 +1858,7 @@
      "rests on the owner's rulebook (a third off at 3R, B19)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-1",
    "choices": [
     "$65.10",
     "$63.95",
@@ -1852,15 +1869,26 @@
     "$65.10": "Added the three R to the stop instead of the fill.",
     "$63.95": "Added one R, not three.",
     "$59.35": "Subtracted the three R instead of adding them."
+   },
+   "story": "Hidden ticker, bought on the flag break at 62.80 with the stop at 61.65.",
+   "chart": {
+    "sym": "SHOP",
+    "asof": "2020-05-04",
+    "window": 120,
+    "forward": 30,
+    "trade": {
+     "entry": 62.8,
+     "stop": 61.65
+    }
    }
   },
   {
    "key": "q20",
    "skill": "setup.bull_flag",
    "rung": 3,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "bf.earnings_window",
-   "q": "A flag's pole was an earnings gap. It is five sessions old and the next report is months away. Does the earnings rule allow a buy?",
+   "q": "Does the earnings rule allow a buy?",
    "choices": [
     "Yes; a post-earnings flag is fine",
     "No; any flag after earnings is banned",
@@ -1891,7 +1919,14 @@
      "+2 rests on the owner's rulebook (B22) and the held earnings-flag decision (D-025)"
     ]
    },
-   "batch": "wave1"
+   "batch": "visuals-1",
+   "story": "Hidden ticker, the day before a prior-day-high break. The pole was an earnings gap and the flag is four sessions old. The next report is months away.",
+   "chart": {
+    "sym": "ISRG",
+    "asof": "2005-11-09",
+    "window": 150,
+    "forward": 20
+   }
   },
   {
    "key": "q21",
@@ -2102,9 +2137,9 @@
    "key": "q26",
    "skill": "setup.bull_flag",
    "rung": 4,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "bf.stop_width",
-   "q": "Fill 83.26. The day's low is 81.23 and the stop sits five cents under it. How far below the fill is the stop, as a percent of the fill?",
+   "q": "How far below the fill is the stop, as a percent of the fill?",
    "answer": "2.50%",
    "calc": {
     "fn": "arith",
@@ -2133,7 +2168,7 @@
      "rests on the owner's rulebook (the stop under the day's low, A3 and F62)"
     ]
    },
-   "batch": "rank",
+   "batch": "visuals-1",
    "choices": [
     "102.56%",
     "25.00%",
@@ -2144,6 +2179,17 @@
     "25.00%": "Decimal slip: moved the decimal one place.",
     "97.50%": "Gave the stop as a share of the fill, not the gap.",
     "102.56%": "Took the fill as a percent of the stop, skipping the subtraction."
+   },
+   "story": "Hidden ticker, bought on the flag break at 83.26. The day's low is 81.23 and the stop sits five cents under it.",
+   "chart": {
+    "sym": "RARE",
+    "asof": "2015-05-27",
+    "window": 120,
+    "forward": 30,
+    "trade": {
+     "entry": 83.26,
+     "stop": 81.18
+    }
    }
   },
   {
@@ -2238,7 +2284,7 @@
    "rung": 4,
    "format": "scenario",
    "criterion": "bf.inv_third_flag",
-   "q": "Buy the break, or wait?",
+   "q": "Buy the break tomorrow, or wait?",
    "choices": [
     "Wait for a proper base to form",
     "Buy; the trend is already proven",
@@ -2260,8 +2306,8 @@
     "Wait for a fourth flag to confirm": "A fourth flag in the same run is later still. Our card says to wait for the base."
    },
    "house": true,
-   "story": "The stock is on its third daily flag in four weeks. No base has formed between them. Today it ticks over yesterday's high.",
-   "simple": "Wait for a base. A third flag in a short run with no base is late, so our card says to wait for the base.",
+   "story": "Hidden ticker, the day before a prior-day-high break. A five-day flag sits at all-time highs after a 30% pole. It is a later flag in a long run.",
+   "simple": "Wait for a base. A later flag in a long run, with no new base, is graded B- or passed.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -2270,7 +2316,13 @@
      "+1 fixed before (an unsupported quote was removed)"
     ]
    },
-   "batch": "wave1"
+   "batch": "visuals-1",
+   "chart": {
+    "sym": "LLY",
+    "asof": "2024-08-29",
+    "window": 150,
+    "forward": 20
+   }
   },
   {
    "key": "q30",
@@ -2545,9 +2597,9 @@
    "key": "q37",
    "skill": "setup.bull_flag",
    "rung": 5,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "bf.stop",
-   "q": "Account 60,000. Risk 0.5%. Fill 20.09, stop 19.81. How many shares?",
+   "q": "Account 60,000, risk 0.5%. How many shares?",
    "answer": "1,071 shares",
    "calc": {
     "fn": "shares_from_risk",
@@ -2582,7 +2634,7 @@
      "fixed before by the checker"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-1",
    "choices": [
     "1,194 shares",
     "1,071 shares",
@@ -2593,6 +2645,17 @@
     "1,194 shares": "Took the position cap as the size, but the size is the smaller of the two.",
     "2,142 shares": "Used twice the stated risk percent.",
     "14 shares": "Divided the risk dollars by the fill price, not the gap to the stop."
+   },
+   "story": "Hidden ticker, bought on the flag break at 20.09 with the stop at 19.81.",
+   "chart": {
+    "sym": "AMD",
+    "asof": "2018-08-21",
+    "window": 120,
+    "forward": 30,
+    "trade": {
+     "entry": 20.09,
+     "stop": 19.81
+    }
    }
   },
   {
@@ -2746,7 +2809,7 @@
    "key": "q42",
    "skill": "setup.bull_flag",
    "rung": 6,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "bf.trail",
    "q": "After the earlier sells, what takes out what is left of a fast flag trade?",
    "choices": [
@@ -2778,7 +2841,18 @@
      "rests on the owner's rulebook trail default (E52), which is adjustable"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "visuals-1",
+   "story": "Hidden ticker, bought on the flag break at 83.26 with the stop at 81.18.",
+   "chart": {
+    "sym": "RARE",
+    "asof": "2015-05-27",
+    "window": 120,
+    "forward": 60,
+    "trade": {
+     "entry": 83.26,
+     "stop": 81.18
+    }
+   }
   },
   {
    "key": "q43",
@@ -2812,7 +2886,7 @@
     "Too tight; a wider stop is the fix": "The stop sits a few cents under the day's low, and it only moves up, never down or wider. A stop-out is the cost of the plan."
    },
    "house": true,
-   "story": "A four-day flag 3.1% deep on a quarter of the pole's volume. You buy the break at 44.34, stop 43.55. It reaches 0.85R, then day two's low of 43.07 takes you out. The stock later runs to 50.",
+   "story": "Hidden ticker, bought on the flag break at 44.34 with the stop at 43.55. The four-day flag was 3.1% deep on a quarter of the pole's volume. It reaches 0.85R, then day two's low of 43.07 takes you out. The stock later runs to 50.",
    "simple": "The stop did its job. A small planned loss is the plan working, even when the stock runs on later.",
    "deeper": {
     "trap": "The later run to 50 tempts you to call the stop wrong. That is hindsight. A stop is judged by the plan, not by what came after. The same small stop on the next trigger is still the rule."
@@ -2825,15 +2899,25 @@
      "the seven-in-ten count is our own scan"
     ]
    },
-   "batch": "wave1"
+   "batch": "visuals-1",
+   "chart": {
+    "sym": "STZ",
+    "asof": "2013-03-04",
+    "window": 120,
+    "forward": 60,
+    "trade": {
+     "entry": 44.34,
+     "stop": 43.55
+    }
+   }
   },
   {
    "key": "q44",
    "skill": "setup.bull_flag",
    "rung": 6,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "bf.trim_2",
-   "q": "Bought at 48.98, stop 48.29. R is the fill minus the stop. The stock trades to 52.43. How many R is that?",
+   "q": "R is the fill minus the stop. How many R is that?",
    "answer": "5R",
    "calc": {
     "fn": "r_multiple",
@@ -2861,7 +2945,7 @@
      "rests on the owner's rulebook (a third at 5R, E51)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "visuals-1",
    "choices": [
     "6R",
     "3.45R",
@@ -2872,6 +2956,17 @@
     "6R": "Measured the gain from the stop instead of the fill.",
     "3.45R": "Read the dollar gain as R.",
     "7R": "Read the percent gain as R."
+   },
+   "story": "Hidden ticker, bought on the flag break at 48.98 with the stop at 48.29. Later it trades to 52.43.",
+   "chart": {
+    "sym": "PANW",
+    "asof": "2020-12-03",
+    "window": 120,
+    "forward": 40,
+    "trade": {
+     "entry": 48.98,
+     "stop": 48.29
+    }
    }
   },
   {
@@ -3071,8 +3166,8 @@
     "A high tight flag on the 20-day"
    ],
    "answer": "A moving-average pullback",
-   "why": "A moving-average pullback. Find the pole: a pullback to the 10, 20 or 50-day with no pole is its own setup, not a flag. Bulkowski says no straight-line run, no flag. An 8% grind over six weeks is not a straight-line run.",
-   "lesson_line": "No run, no flag. A drift to the 20-day after a grind is a pullback lesson.",
+   "why": "A moving-average pullback. The rise before the pause was 18.2% in 20 sessions, short of the pole our card wants. Bulkowski says no straight-line run, no flag. A tidy pause in an uptrend with no pole is judged as a pullback.",
+   "lesson_line": "No run, no flag. A tidy pause with no pole is a pullback lesson.",
    "facts": [
     "c22",
     "b2",
@@ -3080,15 +3175,15 @@
     "c20b"
    ],
    "wrong": {
-    "A bull flag on a steep run": "An 8% grind over six weeks is not a steep run. No pole, no flag.",
-    "A high tight flag on the 20-day": "A high tight flag follows a near-double. An 8% grind over six weeks is nowhere near one.",
-    "A flat base resting for weeks": "A flat base rests at least 25 sessions in a box with a flat ceiling tapped twice. This one climbed, then dipped three days to a line."
+    "A bull flag on a steep run": "An 18.2% rise in 20 sessions is not a steep run. No pole, no flag.",
+    "A high tight flag on the 20-day": "A high tight flag follows a near-double. An 18.2% rise is nowhere near one.",
+    "A flat base resting for weeks": "A flat base rests many weeks in a box with a flat ceiling tapped twice. This pause lasted five sessions."
    },
    "house": true,
-   "story": "A leader climbs in a slow, steady channel, up 8% over six weeks, then drifts three days down to its 20-day EMA on light volume.",
-   "simple": "With no steep run before it, the dip to the 20-day is a pullback, not a flag.",
+   "story": "Hidden ticker, the day before a prior-day-high break. A leader rose 18.2% in 20 sessions, then paused five sessions, 4.7% deep, on 0.75x the rise's volume.",
+   "simple": "With only an 18.2% rise before it, there is no pole, so the pause is a pullback, not a flag.",
    "deeper": {
-    "trap": "The pole is what makes a flag a flag. A stock that grinds up slowly and then dips to its moving average has no run to rest from. Judge it as a moving-average pullback, which has its own rules."
+    "trap": "The pole is what makes a flag a flag. A leader that rises 18.2% and then pauses neatly has no real run to rest from. Judge it as a moving-average pullback, which has its own rules."
    },
    "tier": "extended",
    "risk": {
@@ -3098,7 +3193,13 @@
      "fixed before: a flagged question"
     ]
    },
-   "batch": "wave1"
+   "batch": "visuals-1",
+   "chart": {
+    "sym": "META",
+    "asof": "2025-07-08",
+    "window": 150,
+    "forward": 20
+   }
   },
   {
    "key": "q50",
@@ -3127,7 +3228,7 @@
     "A flag, but only graded B-": "Our B- band stops at 20 sessions. At 21 it is a base, not a flag."
    },
    "house": true,
-   "story": "A 30% pole, then a pause only 6.6% deep on 0.81x the pole's volume. The pause is now 21 sessions old.",
+   "story": "Hidden ticker, the day before a prior-day-high break. A 30% pole, then a pause only 6.6% deep on 0.81x the pole's volume. The pause is now 21 sessions old.",
    "simple": "A pause of 21 sessions is too long for a flag, so it is now a base.",
    "deeper": {
     "trap": "A pause that has run past the flag length is judged as a base, not a flag. It can still be a good setup, only under different rules. Count the sessions from the pole top, and do not let a clean, quiet look keep the word flag alive."
@@ -3143,7 +3244,13 @@
    "depends_on": [
     "D-045"
    ],
-   "batch": "wave1"
+   "batch": "visuals-1",
+   "chart": {
+    "sym": "AXON",
+    "asof": "2024-04-03",
+    "window": 150,
+    "forward": 20
+   }
   },
   {
    "key": "q51",
@@ -3221,7 +3328,7 @@
    "rung": 8,
    "format": "scenario",
    "criterion": "bf.trim_1",
-   "q": "By our rules, how is the first sell chosen on the way to 6R?",
+   "q": "By our rules, how is the first sell chosen as it pushes up?",
    "choices": [
     "By judgment, into a 3 to 7 day push",
     "Nothing; hold it all to the trail",
@@ -3229,7 +3336,7 @@
     "A fixed third, always at 3R"
    ],
    "answer": "By judgment, into a 3 to 7 day push",
-   "why": "By judgment, into a push. The first sell is not a fixed third at 3R. We usually wait until day 3 at the earliest. Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. Here the trade reached 6R in two weeks.",
+   "why": "By judgment, into a push. The first sell is not a fixed third at 3R. We usually wait until day 3 at the earliest. Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
    "lesson_line": "Sell into strength. The first sell is a judgment, not a fixed level.",
    "facts": [
     "r04",
@@ -3242,10 +3349,10 @@
     "A fixed third, always at 3R": "There is no fixed third at 3R. The first sell is a judgment, usually day 3 at the earliest."
    },
    "house": true,
-   "story": "A four-day flag after a near-vertical pole. You bought at 80.41, stop 78.66. It reached 6R in two weeks, then rolled over.",
+   "story": "Hidden ticker, a four-day flag after a near-vertical pole. You bought at 80.41 with the stop at 78.66. The stock keeps pushing up.",
    "simple": "The first sell is a judgment. We usually sell into a push of a few days, not at a fixed level.",
    "deeper": {
-    "example": "Take the story's trade. It ran 6R in two weeks, which is a push of several days. Selling part into that push banked gain before the move rolled over. Only the rest was left to give back."
+    "example": "Take the story's trade. It kept pushing up for days, and that is where the first sell goes. Selling part into the push banks gain, and only the rest is left to the trail."
    },
    "tier": "expert",
    "risk": {
@@ -3255,7 +3362,17 @@
      "the 5R level is adjustable"
     ]
    },
-   "batch": "rulings2"
+   "batch": "visuals-1",
+   "chart": {
+    "sym": "BB",
+    "asof": "2007-08-29",
+    "window": 120,
+    "forward": 40,
+    "trade": {
+     "entry": 80.41,
+     "stop": 78.66
+    }
+   }
   },
   {
    "key": "q55",
@@ -3401,7 +3518,7 @@
     "A flag too deep to be bought": "The flag was only 3.8% deep after a 30% pole. Depth was not the problem."
    },
    "house": true,
-   "story": "A five-day flag, 3.8% deep, at all-time highs after a 30% pole, late in a long run. You buy at 957.53, stop 935.95. It makes 0.56R and is stopped on day three.",
+   "story": "Hidden ticker. A five-day flag, 3.8% deep, at all-time highs after a 30% pole, late in a long run. You buy at 957.53, stop 935.95. It makes 0.56R and is stopped on day three.",
    "simple": "A flag late in a long run is weaker than a first flag. The stop only took the planned loss.",
    "deeper": {
     "trap": "How late a flag comes is a judgment, not a measured edge. The stop sat 2.25% under the entry. A late flag in an extended stock was weaker before the entry. The stop did what it was there to do."
@@ -3414,7 +3531,17 @@
      "the count is UCT's own read, not a measurement"
     ]
    },
-   "batch": "wave1"
+   "batch": "visuals-1",
+   "chart": {
+    "sym": "LLY",
+    "asof": "2024-08-30",
+    "window": 120,
+    "forward": 30,
+    "trade": {
+     "entry": 957.53,
+     "stop": 935.95
+    }
+   }
   },
   {
    "key": "q59",
@@ -3525,7 +3652,7 @@
     "Buy the close; day-low stop; no sell"
    ],
    "answer": "Market buy; day-low stop; sell a push",
-   "why": "Buy at market as it trades through 66.26, with a stop a few cents under the entry day's low. Plan the first sell as a judgment into a push, day 3 at the earliest. Write it before the open, with entry, stop and size down on paper. Every position also gets a real stop order with the broker.",
+   "why": "Buy at market as it trades through the prior day's high, with a stop a few cents under the entry day's low. Plan the first sell as a judgment into a push, day 3 at the earliest. Write it before the open, with entry, stop and size down on paper. Every position also gets a real stop order with the broker.",
    "lesson_line": "Entry, stop, first sell, trail. Write it before the open.",
    "facts": [
     "c13",
@@ -3544,10 +3671,10 @@
     "Buy the close; day-low stop; no sell": "The trigger is the trade through the level, not the close, and the plan includes a first sell."
    },
    "house": true,
-   "story": "Eight quiet days after a doubled pole, every close holding the 20 EMA. Tonight you plan tomorrow's buy at your trigger level, 66.26.",
+   "story": "Hidden ticker, the night before the buy. A tight four-day flag after a 39% pole. Tonight you plan tomorrow's buy at the prior day's high.",
    "simple": "Buy at market when the level trades, with a stop a few cents under the day's low. Plan to sell into a push.",
    "deeper": {
-    "example": "The plan written tonight: set the alert at 66.26. Tomorrow, buy at market if it trades through. Put a real stop a few cents under that day's low. Plan the first sell into a 3, 5 or 7 day push, then trail the last part."
+    "example": "The plan written tonight: set the alert at the prior day's high. Tomorrow, buy at market if it trades through. Put a real stop a few cents under that day's low. Plan the first sell into a 3, 5 or 7 day push, then trail the last part."
    },
    "tier": "expert",
    "risk": {
@@ -3557,7 +3684,13 @@
      "fixed before: the stop wording was clarified"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "visuals-1",
+   "chart": {
+    "sym": "NUS",
+    "asof": "2013-07-17",
+    "window": 150,
+    "forward": 30
+   }
   },
   {
    "key": "q62",
@@ -3661,7 +3794,7 @@
     "A promise; it almost never fails": "QCOM, STZ and LLY all closed the trigger day at the high and were stopped within days."
    },
    "house": true,
-   "story": "Your flag buy closes its first day at the high on below-average volume.",
+   "story": "Hidden ticker, bought on the flag break. The day closes at its high on below-average volume.",
    "simple": "A strong close is not a promise. Three of our four failures closed the trigger day at the high and still failed.",
    "deeper": {
     "example": "Two of the failures show it. QCOM closed the trigger day at the high on 0.76x volume and was the top. STZ closed at the high on 0.32x volume and was stopped on day 2. A strong close graded the day, but the stop decided the trade."
@@ -3674,7 +3807,13 @@
      "the count of failures is our own scan"
     ]
    },
-   "batch": "rulings"
+   "batch": "visuals-1",
+   "chart": {
+    "sym": "QCOM",
+    "asof": "2019-05-10",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q65",
@@ -3723,9 +3862,9 @@
    "key": "q66",
    "skill": "setup.bull_flag",
    "rung": 9,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "bf.holds_21ema",
-   "q": "Hidden ticker, the day before a prior-day-high break. Read the flag against its rising 20 EMA. Take it or pass?",
+   "q": "Read the flag against its rising 20 EMA. Take it or pass?",
    "choices": [
     "Take it; every close held the line",
     "Pass; two closes sat under it",
@@ -3765,15 +3904,16 @@
      "the 41.7R run is from our own scan"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "visuals-1",
+   "story": "Hidden ticker, the day before a prior-day-high break."
   },
   {
    "key": "q67",
    "skill": "setup.bull_flag",
    "rung": 9,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "bf.inv_wedge_up",
-   "q": "Hidden ticker, the day before it trades over the prior day's high. Look at the slope of the highs through the pause. Take it or pass?",
+   "q": "Look at the slope of the highs through the pause. Take it or pass?",
    "choices": [
     "Pass; the highs rose; a wedge up",
     "Take it; the pole was 58%",
@@ -3813,7 +3953,8 @@
      "a chart question read off our own bars"
     ]
    },
-   "batch": "wave1"
+   "batch": "visuals-1",
+   "story": "Hidden ticker, the day before it trades over the prior day's high."
   },
   {
    "key": "q68",
@@ -4076,7 +4217,7 @@
    "format": "scenario",
    "criterion": "bf.breakeven",
    "q": "Where does the stop go now?",
-   "story": "You bought a flag break at 20.09 with the stop at 19.81. The stock reaches 3R and you sell the first piece.",
+   "story": "Hidden ticker, bought on the flag break at 20.09 with the stop at 19.81. The stock reaches 3R and you sell the first piece.",
    "choices": [
     "Up to your entry price",
     "Down to give it more room",
@@ -4107,7 +4248,17 @@
      "the 2R to 5R window is a range"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "visuals-1",
+   "chart": {
+    "sym": "AMD",
+    "asof": "2018-08-21",
+    "window": 120,
+    "forward": 40,
+    "trade": {
+     "entry": 20.09,
+     "stop": 19.81
+    }
+   }
   },
   {
    "key": "q75",
@@ -4445,8 +4596,8 @@
   "q14": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "answer is D-013 right; two wrong explanations still say the first sell is 'set by R' and that the plan 'trims in stages'; reword as judgment"
+   "fixed": false,
+   "notes": "TSEM row 10: buy 66.62, stop 64.78; buy-day asof 2025-09-17 ok."
   },
   "q15": {
    "status": "pass",
@@ -4458,7 +4609,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c08: 1.5% a day against 4.5% passes. All numbers are in the story, d09/d10 or the example list. Two Yes, two No; longest choice is a wrong one."
+   "notes": "PANW row 9: 36% pole, 4 d, 2.9%, tightest of ten; asof 12-02 is day before 12-03 trigger; invented avg ranges removed."
   },
   "q17": {
    "status": "pass",
@@ -4476,13 +4627,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Math right (1.15; 3.45; 66.25; 65.10; 63.95; 59.35). Why walks the steps."
+   "notes": "SHOP row 8: 62.80/61.65 ok; 3R 66.25 arithmetic ok; buy-day asof ok."
   },
   "q20": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c39 and h08: a flag after a report is fine, blackout is the 3 sessions before. The size note leans on h29. The rule is taught here and applied in q28, which is acceptable."
+   "notes": "ISRG row 3: earnings-gap pole, 4 d flag; asof 2005-11-09 day before 11-10; answer true."
   },
   "q21": {
    "status": "cut",
@@ -4517,8 +4668,8 @@
   "q26": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "2.08% sat below the answer so rank was 1. Replaced with the fill-over-stop slip, which lands above. The old why cited a number that is no longer a choice, so the why was trimmed to match; the answer is unchanged."
+   "fixed": false,
+   "notes": "RARE row 6: 83.26/81.18 (2.5%); 81.23 low = stop+0.05 consistent; buy-day asof ok."
   },
   "q27": {
    "status": "pass",
@@ -4535,8 +4686,8 @@
   "q29": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Answer holds (c17 wait for the base). But lesson_line says 'not a fourth buy' when this is the third flag, and simple says 'we do not buy it' while c03 grades a third flag B- or pass, so it overreaches the why."
+   "fixed": false,
+   "notes": "LLY failure 2024-08-30, later flag in long run; asof 08-29; answer wait is right for it."
   },
   "q30": {
    "status": "pass",
@@ -4584,7 +4735,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Math right (300/0.28=1071.4; cap 1194; 2142; 14). Why walks the steps and names the cap."
+   "notes": "AMD row 7: 20.09/19.81; buy-day asof; calc unchanged."
   },
   "q38": {
    "status": "pass",
@@ -4613,20 +4764,20 @@
   "q42": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "q reads as a broken sentence ('...after the earlier sells. What takes it out?'); rest is D-013/D-021 clean"
+   "fixed": false,
+   "notes": "RARE trade 83.26/81.18, buy-day, generic trail answer holds; RARE used twice (q26,q42) only."
   },
   "q43": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Keep; 3R only as a base-rate measuring stick."
+   "notes": "STZ failure: 44.34/43.55, 0.85R, day-2 low 43.07, later 50 all in dossier line 1176."
   },
   "q44": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Math right (0.69; 3.45; 5R; 6R from stop; 3.45R; 7R pct). Why walks the steps."
+   "notes": "PANW row 9: 48.98/48.29 ok. 52.43 is the 5R mark (not a dossier number) but PANW best was 26.4R so it passed through it; minor."
   },
   "q45": {
    "status": "pass",
@@ -4656,14 +4807,14 @@
   "q49": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Answer right, but the story (8% over six weeks, about 30 sessions) could also read as a quiet sideways box, so 'flat base' is arguable. Say the leader was climbing, not boxed, and tie the flat-base wrong note to c20b (flat ceiling tapped twice)."
+   "fixed": false,
+   "notes": "META near-miss 2025-07-09: 18.2%/20 d, 5 d, 4.7%, 0.75x all on card; asof 07-08; wrong keys match choices. Choice text says 20-day (pre-existing, not a named 10/21-day)."
   },
   "q50": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "21 sessions is past the card's 20-session line (c06, d29). Mild odd-one-out (only choice saying base) but the concept is the point; left as is."
+   "notes": "AXON near-miss 2024-04-04: 30% pole, 6.6%, 0.81x, 21 sessions on card; asof 04-03."
   },
   "q51": {
    "status": "cut",
@@ -4687,7 +4838,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with the rulings it touches"
+   "notes": "BB row 4: 80.41/78.66; invented 6R-in-two-weeks removed; best 32.3R so pushing up is true."
   },
   "q55": {
    "status": "pass",
@@ -4710,9 +4861,8 @@
   "q58": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Answer right. 'The stop-out cost 2.25%' / 'took a planned loss of 2.25%' says more than d23 gives: 2.25% is the stop distance (day-3 low 906.17 is well under the 935.95 stop, fill not recorded). Reword to the stop distance.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": false,
+   "notes": "LLY failure line 1177: 957.53/935.95 (2.25%), 3.8% deep, 0.56R, stopped day 3; buy-day asof 08-30."
   },
   "q59": {
    "status": "pass",
@@ -4730,7 +4880,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with the rulings it touches"
+   "notes": "NUS row 5: 39% pole, 4 d, 4.5%; asof 07-17 day before 07-18; wrong-source 66.26 removed."
   },
   "q62": {
    "status": "pass",
@@ -4747,8 +4897,8 @@
   "q64": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "keep right: low volume is a mark against, not an exit | mechanical: depends_on left empty, restored to the ruling id(s)"
+   "fixed": false,
+   "notes": "QCOM failure 2019-05-10: trigger day closed at high on 0.76x; buy-day chart, no trade (correct)."
   },
   "q65": {
    "status": "cut",
@@ -4760,13 +4910,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "20 EMA rename; writer re-checked the SHOP closes against the 20 EMA (not independently re-measurable here: no bars.db)"
+   "notes": "SHOP winners 05-04; asof 05-01 day before; 8 d flag held 20 EMA per dossier."
   },
   "q67": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "d31: BA highs rose 5.6% across a 7-day pause, a wedge up (c16). asof 2020-11-30 is the day before 2020-12-01. Chart not viewed; a human must confirm the slope is visible."
+   "notes": "BA near-miss 2020-12-01; asof 11-30; 58% pole, 10.7%, highs +5.6% on card."
   },
   "q68": {
    "status": "pass",
@@ -4807,8 +4957,8 @@
   "q74": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "cited h05 still says 'the hard rule is a third at 3R' (superseded by D-013); the breakeven teaching is fully grounded by c47, so drop h05"
+   "fixed": false,
+   "notes": "AMD row 7: 20.09/19.81; AMD reached 50R so 3R true; buy-day asof."
   },
   "q75": {
    "status": "pass",

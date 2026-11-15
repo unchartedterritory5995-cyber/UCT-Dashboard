@@ -466,9 +466,9 @@
   },
   {
    "id": "h13",
-   "source": "h1",
-   "quote": "Too stretched to buy: skip a long that is more than 10% above its 10-day average.",
-   "claim": "C29: skip a long that is more than 10% above its 10-day average."
+   "source": "hw",
+   "quote": "Too stretched to buy: skip a long that is more than 10% above its 9 EMA.",
+   "claim": "We skip a long that is more than 10% above its 9 EMA: too stretched to buy."
   },
   {
    "id": "h14",
@@ -701,8 +701,8 @@
   {
    "id": "c26",
    "source": "c1",
-   "quote": "Not more than 10% above the 10-day average at the buy. A gap on top of a run can be stretched before it opens.",
-   "claim": "Not more than 10% above the 10-day at the buy; a gap on top of a run can be stretched before it opens."
+   "quote": "Not more than 10% above the 9 EMA at the buy. A gap on top of a run can be stretched before it opens.",
+   "claim": "Not more than 10% above the 9 EMA at the buy; a gap on top of a run can be stretched before it opens."
   },
   {
    "id": "c27",
@@ -971,8 +971,8 @@
   {
    "id": "c41",
    "source": "c1",
-   "quote": "Stop to breakeven between 2R and 5R, at the first trim by default.",
-   "claim": "The card: the stop goes to breakeven between 2R and 5R, at the first trim by default."
+   "quote": "Stop to breakeven between 2R and 5R, or at the first sell.",
+   "claim": "Stop to breakeven between 2R and 5R, or at the first sell."
   },
   {
    "id": "c42",

@@ -320,9 +320,9 @@
   },
   {
    "id": "h13",
-   "source": "h1",
-   "quote": "Too stretched to buy: skip a long that is more than 10% above its 10-day average.",
-   "claim": "C29: skip a long more than 10% above its 10-day average."
+   "source": "hw",
+   "quote": "Too stretched to buy: skip a long that is more than 10% above its 9 EMA.",
+   "claim": "We skip a long that is more than 10% above its 9 EMA: too stretched to buy."
   },
   {
    "id": "h14",
@@ -639,8 +639,8 @@
   {
    "id": "c36",
    "source": "c1",
-   "quote": "Skip if more than 10% over the 10-day average.",
-   "claim": "Skip if more than 10% over the 10-day average."
+   "quote": "Skip if more than 10% over the 9 EMA.",
+   "claim": "Skip if more than 10% over the 9 EMA."
   },
   {
    "id": "c37",
@@ -717,8 +717,8 @@
   {
    "id": "c49",
    "source": "c1",
-   "quote": "ss.no_chase: more than 4% past the buy point; ss.not_stretched: more than 10% over the 10-day",
-   "claim": "No trade: more than 4% past the buy point, or more than 10% over the 10-day."
+   "quote": "ss.no_chase: more than 4% past the buy point; ss.not_stretched: more than 10% over the 9 EMA",
+   "claim": "No trade: more than 4% past the buy point, or more than 10% over the 9 EMA."
   },
   {
    "id": "d00",
@@ -2111,16 +2111,16 @@
    "rung": 4,
    "format": "tf",
    "criterion": "ss.not_stretched",
-   "q": "A Slingshot trigger more than 10% above its 10-day average is skipped as too stretched.",
+   "q": "A Slingshot trigger more than 10% above its 9 EMA is skipped as too stretched.",
    "answer": "True",
-   "why": "True. Our rule: skip a long that is more than 10% above its 10-day average, because it is too stretched to buy. It is a separate test from the limit on chasing past the buy point. A stock above its 10-day is not skipped for that alone. Only one more than 10% above is.",
-   "lesson_line": "More than 10% over the 10-day average is too stretched. We skip it.",
+   "why": "True. Our rule: skip a long that is more than 10% above its 9 EMA, because it is too stretched to buy. It is a separate test from the limit on chasing past the buy point. A stock above its 9 EMA is not skipped for that alone. Only one more than 10% above is.",
+   "lesson_line": "More than 10% over the 9 EMA is too stretched. We skip it.",
    "facts": [
     "h13",
     "c36"
    ],
    "house": true,
-   "simple": "True, because a long more than 10% above its 10-day average is too stretched to buy, so we skip it.",
+   "simple": "True, because a long more than 10% above its 9 EMA is too stretched to buy, so we skip it.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -3916,7 +3916,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "D-021: the 10% stretch rule is a rule threshold, not a number measured on a real date, so the line name must be the 9 EMA; a member would otherwise look for a 10-day line that is not on the chart. Renamed in q, why, lesson_line, simple; cited r21. | 2026-11-14: stretch rule kept as the rulebook's C29 (10-day average) until the owner rules D-017 (9 EMA or 10-day)."
+   "notes": "D-021: the 10% stretch rule is a rule threshold, not a number measured on a real date, so the line name must be the 9 EMA; a member would otherwise look for a 10-day line that is not on the chart. Renamed in q, why, lesson_line, simple; cited r21. | 2026-11-14: stretch rule kept as the rulebook's C29 (10-day average) until the owner rules D-017 (9 EMA or 10-day). | 2026-11-14: stretch line read through D-021 as the 9 EMA, as in the other 44 live questions."
   },
   "q32": {
    "status": "pass",

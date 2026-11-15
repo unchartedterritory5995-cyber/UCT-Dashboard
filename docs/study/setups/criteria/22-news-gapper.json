@@ -544,9 +544,9 @@
   {
    "id": "ng.not_stretched",
    "field": "trigger",
-   "statement": "At the buy, no more than 10% above the 10-day average. On day one the gap itself breaks this on most of the owner's own favourite trades; the owner decides where it applies.",
+   "statement": "At the buy, no more than 10% above the 9 EMA. On day one the gap itself breaks this on most of the owner's own favourite trades; the owner decides where it applies.",
    "measure": {
-    "what": "entry / 10-day SMA - 1",
+    "what": "entry / 9 EMA - 1",
     "op": "<=",
     "value": 10,
     "unit": "%",
@@ -576,7 +576,14 @@
    "gate": true,
    "grade_cue": false,
    "dossier_ref": "7 C29 row; 10 question 3",
-   "evidence": "32.5% of earnings gaps (66.3% of gaps of 10% or more) and 16 of the owner's 18 named gaps closed more than 10% above the 10-day. Applied on day one, C29 does not remove worse trades (section 4.3, point 5). The scan applied it to every entry."
+   "evidence": "32.5% of earnings gaps (66.3% of gaps of 10% or more) and 16 of the owner's 18 named gaps closed more than 10% above the 10-day. Applied on day one, C29 does not remove worse trades (section 4.3, point 5). The scan applied it to every entry.",
+   "superseded": [
+    {
+     "statement": "At the buy, no more than 10% above the 10-day average. On day one the gap itself breaks this on most of the owner's own favourite trades; the owner decides where it applies.",
+     "on": "2026-11-14",
+     "by": "D-021 (C29 read as the 9 EMA; the owner to confirm, D-017)"
+    }
+   ]
   },
   {
    "id": "ng.earnings_window",
