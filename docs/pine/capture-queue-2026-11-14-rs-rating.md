@@ -19,3 +19,17 @@ Q-RS5 captured 2026-11-15 (s10, `rs-arm-label-last-bar-{rddt,spy}-1d-2026-11-15`
 graded by lane L4d through the run's x map: A01, R01, E01 and X01 MATCH on both symbols (RDDT: 96
 E01 labels, 67 boxes; SPY: the newest 502 E01 labels and 503 boxes). E01 and X01 are now served;
 digests in `docs/pine/evidence/2026-11-15-w3n-d1/evidence.json`.
+
+**L8 (2026-11-15).** Q-RS1 is committed: `tests/fixtures/vendor/harness/rs-rating-fred6724-{rddt,spy,nvda}-1d-2026-11-15.json`,
+MPL-2.0, the original source. Q-RS4's RDDT and NVDA probes are committed beside them
+(`rs-syminfo-industry-{rddt,nvda}-1d-2026-11-15.json`, UCT probes): the grade reads TradingView's
+industry string from them, because no Q-RS1 capture's `symbol` block carries `industry`. The other
+Q-RS2..5 captures stay local. Graded runtime-on on the server's own supply
+(`tests/fixtures/vendor-supply/`): RDDT DIVERGE, NVDA DIVERGE, SPY INCONCLUSIVE. The cause is SPX data
+(yfinance vs TradingView, about a cent), not the engine; see the L8 status in the program doc. Still
+owed, and none of it is a TradingView capture:
+
+| row | what | settles |
+|---|---|---|
+| Q-RS6 | Record the bars `/api/bars/SPX?tf=D` serves from FMP (on the pod, or on a machine with the FMP key) into the three `tests/fixtures/vendor-supply/rs-rating-fred6724-*.json` records, replacing the yfinance record and SPY's `notRecorded`, then regrade runtime-on | Whether the primary SPX source equals TradingView's. If it does, RDDT (and NVDA within the served depth) grade MATCH_SUBSTITUTED, and SPY can be graded. |
+| Q-RS7 (optional) | RS Rating on a WEEKLY chart (RDDT 1W) | What TradingView draws for `request.security(syminfo.tickerid, 'D', close)` below the chart's timeframe. Today it is refused by name (L8 4b). |

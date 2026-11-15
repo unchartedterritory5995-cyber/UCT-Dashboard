@@ -43,7 +43,16 @@
     "MATCH_SUBSTITUTED with the runtime pane on whose own `substituted` names are exactly the record's",
     "(rollout_gate.pine_runtime_admission). A MATCH_SUBSTITUTED capture never admits a record without",
     "`admission`. The served row carries the names, and /api/user-definitions/runtime-kill serves them as",
-    "`substituted` {sha256: [names]} for the member door to disclose. No such record exists yet."
+    "`substituted` {sha256: [names]} for the member door to disclose. No such record exists yet.",
+    "",
+    "RS RATING L8 (2026-11-15): RUN-HALF OBJECT EVIDENCE, FROM THESE SAME RECORDS. A host document whose",
+    "run half draws what the host draws none of (run-half:no-comparable-objects) is drawn only on recorded",
+    "evidence: a capture entry may carry `objectsV2: \"MATCH\"` (or the grade it got), the objects-v2 grade",
+    "of the RUN's drawings in docs/pine/vendor-harness/runtime-on/verdicts.json (tests/",
+    "test_pine_run_half_evidence.py holds every such claim to that file). For each SERVED record those",
+    "entries are served by /api/user-definitions/runtime-kill as `run_half_evidence` (absent when none)",
+    "and the browser admits the run half on at least 2 distinct captures each MATCH, objectsV2 MATCH, pane",
+    "on (engine/runHalfRailSeam.js). No record carries one yet."
   ],
   "scripts": [
     {

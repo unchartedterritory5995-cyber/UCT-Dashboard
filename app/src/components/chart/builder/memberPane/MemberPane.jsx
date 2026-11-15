@@ -49,7 +49,7 @@ import { mergeChartSettings } from '../../chartDefaults'
 import { memberPaneEnabled } from '../../engine/memberPaneGate'
 import { runtimePaneEnabled } from '../../engine/runtimePaneGate'
 import {
-  setRuntimeKillList, setRuntimeAllowList, setRuntimeCapabilityAdmission, runtimeCapabilityAdmissionOn,
+  latchRuntimeLists, runtimeCapabilityAdmissionOn,
   runtimeAdmissionOf, watchRuntimeAdmission, RUNTIME_KILL_PATH,
 } from '../../engine/runtimeKill'
 import { requirementNote } from '../../engine/ast/parse'
@@ -130,11 +130,11 @@ export default function MemberPane({
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (!alive || !d) return
-        setRuntimeKillList(d.kill)
         // ⭐ GT (D6) — the starter allowlist rides the same read. Until it lands
         // the lane declines every script (nothing graded), never the reverse.
-        setRuntimeAllowList(d.allow)
-        setRuntimeCapabilityAdmission(d.capability_admission)
+        // ⭐ RS RATING L8 — so does the run half's object evidence: ONE latch for every
+        // key of this read (`runtimeKill.js::latchRuntimeLists`, also the recheck's).
+        latchRuntimeLists(d)
         setAdmissionOn(runtimeCapabilityAdmissionOn())
         setKillVersion((n) => n + 1)
       })

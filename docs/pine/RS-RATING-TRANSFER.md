@@ -212,6 +212,79 @@ disclosure.
 **L8 proof**: capture RS Rating (original source, defaults) on the rig for one stock and one ETF,
 daily. Grade with the substituted inputs fed from the capture. Visual side by side. Deploy.
 
+**L8 status (2026-11-15, engine 68 placeholder, branch `pine/rs-l5-runtime-requests`):**
+graded on the real supply; NOT admitted. What is and is not proven:
+
+- **Proven: the translation.** Every wall W1-W7 is built, and the member door attaches the
+  original source with its run half minted. A local diagnostic, NOT a grade, fed the run
+  TradingView's own `SP:SPX` values (Q-RS3) and the seed as captured (Q-RS2). On all three Q-RS1
+  charts the RS line then agrees EXACTLY on every bar (maximum relative difference 0: RDDT
+  665 of 666 bars, because the diagnostic's SPX begins at the listing and bar 0 reads none; SPY
+  8506; NVDA 6997), and the two labels agree in text and in `y`: RDDT 16, SPY 64,
+  NVDA 27. It is not recorded as a grade because a grade on TradingView's own SPX would be
+  circular.
+- **Graded on the real supply** (runtime-on, objects v2). The five L8 rows (three Q-RS1 captures,
+  two Q-RS4 probes) are spliced into `docs/pine/vendor-harness/runtime-on/verdicts.json`, under its
+  `spliced` key; every other row is left as that snapshot's own run. Regenerating the whole
+  snapshot moves 18 captures that other lanes committed on 2026-11-14 into the capability-admission
+  reach set. `docs/pine/evidence/2026-11-13-capability-admission/runs/report.json` would then need
+  its own reach run first (`test_REACH_the_committed_reach_run_is_the_committed_registrys` goes red
+  otherwise). In the full corpus run, the run-half grant (below) changed exactly four verdicts, none
+  for the worse:
+  - `atr-support-and-resistance` RDDT and SPY: INCONCLUSIVE to MATCH;
+  - `atr-trailing-stop-by-ceyhun` RDDT and SPY: DIVERGE to MATCH. These are drawings the host
+    withholds by name and the run draws correctly. The supply is recorded beside each capture in `tests/fixtures/vendor-supply/
+  <id>.json` (`uct.harness-supply/v1`, read by `ourSide.js::recordedSupplyOf`):
+  - SPX is the bars `api/index_bars.py` serves on its yfinance FALLBACK (`_fetch_yf('^GSPC',
+    '1d', '5y')`, 1255 sessions from 2021-11-15). FMP, the primary, is not recorded: there is no
+    FMP key on this machine.
+  - the seed is `pine_seed_store`'s replay of rs-log (812 uploads, newest 64440c2a0187 of
+    2026-11-11), read back through `build_bars`.
+  - `syminfo.industry` is fed TradingView's string from the committed Q-RS4 probe
+    (`rs-syminfo-industry-{rddt,nvda}`), checked against the probe's own label.
+
+  | capture | verdict | why |
+  |---|---|---|
+  | `rs-rating-fred6724-rddt-1d-2026-11-15` | DIVERGE | Rating label text `16` MATCH (v1). RS line off by at most 2.02e-6 relative on 662 of 666 bars, and the label's `y` (the RS value) by 1.3e-8 (objects v2). The three MA plots are MATCH_SUBSTITUTED. |
+  | `rs-rating-fred6724-nvda-1d-2026-11-15` | DIVERGE | Label `27` MATCH (v1), `y` off by 1.3e-8 (v2). The RS line is ALSO `na` before 2021-11-15, because the served SPX is 5 years deep and the chart reaches back to 1999. |
+  | `rs-rating-fred6724-spy-1d-2026-11-15` | INCONCLUSIVE | Not graded. The served SPX source (FMP) is not recorded. The L5 builder's probe on the yfinance fallback read 63 where TradingView draws 64. |
+
+  The divergence is the SPX data, not the engine. yfinance's `^GSPC` close differs from
+  TradingView's `SP:SPX` by about one cent on 1139 of 1254 sessions (maximum relative difference
+  2.02e-6), measured against Q-RS3. The harness tolerance is 1e-9 relative.
+- **`syminfo.industry`.** The L3 table has no `by_ours` row and no Stock class row. So on a member's
+  chart RDDT and NVDA serve OUR string, tagged substituted. The local `ticker_meta` cache holds
+  `Internet Content & Information` for RDDT (TradingView: `Internet Software/Services`) and
+  `Semiconductors` for NVDA (the same string as TradingView). Neither is
+  `'Investment Trusts/Mutual Funds'`, so line 94's branch is not taken, as on TradingView. The best
+  a stock capture can grade is therefore MATCH_SUBSTITUTED. SPY (ETF) serves the witnessed class
+  row. The harness does not thread `securityType`, so it cannot grade that row yet.
+- **Admission: no allowlist record was added.** No capture grades MATCH or MATCH_SUBSTITUTED.
+  Three things stand between this and a member's chart:
+  1. the SPX data: record what FMP serves (on the pod, or on a machine with the key) beside the
+     three captures, and regrade. If FMP's closes are TradingView's, RDDT grades
+     MATCH_SUBSTITUTED.
+  2. SPX depth: on a chart with more than 5 years of bars, the RS line is blank before the served
+     SPX begins (`INDEX_FMP_LOOKBACK_DAYS`, yfinance `period=5y`).
+  3. ⛔ **The run-half evidence rule cannot count a substituted capture.**
+     `runHalfRailSeam.js::runHalfEvidenceAdmits` counts only `verdict: MATCH`. A stock capture of
+     RS Rating is at best MATCH_SUBSTITUTED, so its run half (the rating labels) cannot be
+     admitted from stock captures until that rule gets the L7 substituted path, or until two ETF
+     captures (witnessed industry) grade MATCH.
+- **Run-half evidence, production wiring (built, empty).** An allowlist record's capture may
+  carry `objectsV2: "MATCH"`. For SERVED records, `runtime_definitions.run_half_evidence` passes
+  those captures on, and `/api/user-definitions/runtime-kill` serves them as `run_half_evidence`
+  (absent when empty, so the read is unchanged today). `runtimeKill.js::latchRuntimeLists`, the one
+  latch both `MemberPane` and the recheck use, feeds them to `setRunHalfObjectEvidence`.
+  `tests/test_pine_run_half_evidence.py` holds every claim to the runtime-on verdicts. The
+  harness's runtime-on lane grades every run half as admitted (`__admitEveryRunHalfForTests`, an
+  upper bound like the allowlist grant), because that lane's grade IS the evidence.
+- **4b (peer report).** `request.security(syminfo.tickerid, 'D', close)` on a weekly or an intraday
+  chart refused `interpret:bind-time-text` on the symbol. It now refuses `runtime:request` by the
+  timeframe. RS Rating on a weekly chart is refused by name and draws nothing:
+  - every host plot is refused `other-symbol:witness-timeframe` (SP:SPX is witnessed on D only);
+  - the run half is refused `pine:request`.
+
 ## Owner rulings
 
 - **2026-11-14, SPX source for members:** "We have the highest plan for FMP, I am fine using
@@ -221,6 +294,13 @@ daily. Grade with the substituted inputs fed from the capture. Visual side by si
     (`provider_licensing_class.py`, `("yahoo","indices")`, today `X`) is updated to record this
     ruling, rather than worked around.
   - No Massive Indices upgrade unless FMP and Yahoo both fail a measured need.
+- **2026-11-15, the SPY Q-RS1 capture:** "Leave spy blank imo".
+  - `rs-rating-fred6724-spy-1d-2026-11-15` is not graded. It is recorded INCONCLUSIVE, with the
+    reason: our served SPX (FMP) was not recorded locally, and on the yfinance fallback the rating
+    moves by 1 (63 against TradingView's 64).
+  - No committed verdict implies a pass or a fail for it. Its supply record says `notRecorded`, so
+    the harness refuses to grade it (`ourSide.js::recordedSupplyOf`).
+  - Admission evidence comes from RDDT and NVDA only.
   - Before this ruling the repo recorded Massive Indices as `U` (403 for this key) and yfinance as
     `X` ("never a member path"), while `/api/bars/SPX` already served yfinance
     (`api/routers/bars.py`).

@@ -666,6 +666,13 @@ def runtime_kill(user: dict = Depends(require_paid)):
     substituted = runtime_definitions.substituted_inputs()
     if substituted:
         out["substituted"] = substituted
+    # ⭐ RS RATING L8 -- the run half's object evidence (`runtime_definitions.run_half_evidence`, from the
+    # same committed allowlist records), latched by the member door into `runHalfRailSeam.js`. ABSENT
+    # while no served record carries an objects-v2 capture (today), so this read is byte for byte what
+    # it was before L8.
+    evidence = runtime_definitions.run_half_evidence()
+    if evidence:
+        out["run_half_evidence"] = evidence
     return out
 
 

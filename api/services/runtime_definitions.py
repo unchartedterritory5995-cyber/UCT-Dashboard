@@ -485,6 +485,43 @@ def substituted_inputs() -> dict:
             if r.get("sha256") and r.get("substituted")}
 
 
+def run_half_evidence() -> list:
+    """⭐⭐ RS RATING L8 — THE RUN HALF'S OBJECT EVIDENCE, from the SAME committed allowlist records.
+
+    A host document's run half whose host draws none of its drawings (``run-half:no-comparable-
+    objects``) is drawn only on recorded evidence (`engine/runHalfRailSeam.js::runHalfEvidenceAdmits`:
+    at least 2 distinct captures, each graded MATCH, objects-v2 MATCH, with the runtime pane on). That
+    evidence is NOT a second list: it is the ``captures`` of a SERVED record (``allow_report``'s
+    `pine_runtime_admission` answer, the one the allowlist itself serves by) that carry an
+    ``objectsV2`` grade, each passed on as the fact it records::
+
+        [{"sha256": <64 hex>, "captures": [{"capture", "verdict", "objectsV2": bool, "runtimeOn": bool}]}]
+
+    The client decides admission (one rule, in the browser); this only reports. A withheld record, a
+    record whose sha256 is a prefix, or one with no ``objectsV2`` capture contributes nothing. ``[]``
+    while no record carries one (today), and on an unreadable file (fail closed). Read per call."""
+    from api.services import rollout_gate
+    doc = _allowlist_doc()
+    scripts = doc.get("scripts") if doc else None
+    registry = doc.get("capabilities") if doc else None
+    out: list = []
+    for s in scripts if isinstance(scripts, list) else []:
+        if not isinstance(s, dict):
+            continue
+        sha = _allow_entries_from([s.get("sha256")])
+        if not sha or len(sha[0]) != 64 or rollout_gate.pine_runtime_admission(s, registry):
+            continue
+        caps = [c for c in (s.get("captures") if isinstance(s.get("captures"), list) else [])
+                if isinstance(c, dict) and "objectsV2" in c and isinstance(c.get("id"), str) and c.get("id")]
+        if not caps:
+            continue
+        out.append({"sha256": sha[0], "captures": [
+            {"capture": c["id"], "verdict": c.get("verdict"),
+             "objectsV2": c.get("objectsV2") == "MATCH", "runtimeOn": c.get("runtimePane") == "on"}
+            for c in caps]})
+    return out
+
+
 def allow_list() -> list[str]:
     """The starter allowlist: the committed JSON ∪ `PINE_RUNTIME_ALLOWLIST`.
 
