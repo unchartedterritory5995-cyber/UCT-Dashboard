@@ -110,7 +110,8 @@ function board(widgets = ON_MOMENTUM(), { sym = 'NVDA', lists = LISTS, syncFails
 }
 
 const rowsOf = (id = 'wl') => [...document.querySelector(`[data-testid="w-${id}"]`).querySelectorAll('[data-watch-sym]')].map(e => e.getAttribute('data-watch-sym'))
-const headers = (id = 'wl') => [...document.querySelector(`[data-testid="w-${id}"]`).querySelectorAll('[aria-label^="Sort by"]')].map(e => e.textContent)
+// the sorted column's ▲/▼ (owner 11-14) is drawn, not part of its name
+const headers = (id = 'wl') => [...document.querySelector(`[data-testid="w-${id}"]`).querySelectorAll('[aria-label^="Sort by"]')].map(e => e.textContent.replace(/[▲▼]/g, ''))
 const cols = () => JSON.parse(localStorage.getItem(COLS) || 'null')
 const flags = () => JSON.parse(localStorage.getItem(FLAGGED) || '[]')
 const server = (m, name) => m.srv.lists.find(l => l.name === name)?.items.map(i => i.sym) ?? null
@@ -676,14 +677,15 @@ describe('the other lists a widget can show', () => {
     const m = board([CHART, wl('wl', 'flagged', 'Flagged')])
     writeFlagged(['NVDA', 'AMD'])
     await waitFor(() => expect(rowsOf()).toEqual(['NVDA', 'AMD']))
-    await m.say('flag TSLA', (c) => [op('watchlist.setFlag', flagRef(c), { symbols: ['TSLA'], flagged: true })])
-    await waitFor(() => expect(rowsOf()).toEqual(['NVDA', 'AMD', 'TSLA']))
+    // MSFT has the smallest % change, so under the default sort (owner 11-13) it lands last
+    await m.say('flag MSFT', (c) => [op('watchlist.setFlag', flagRef(c), { symbols: ['MSFT'], flagged: true })])
+    await waitFor(() => expect(rowsOf()).toEqual(['NVDA', 'AMD', 'MSFT']))
     await m.say('sort this list by price', (c) => {
-      expect(views(c)[0].rows).toEqual(['NVDA', 'AMD', 'TSLA'])
+      expect(views(c)[0].rows).toEqual(['NVDA', 'AMD', 'MSFT'])
       return [op('watchlist.sortColumn', only(c), { column: 'price', direction: 'desc' })]
     })
-    await waitFor(() => expect(rowsOf()).toEqual(['TSLA', 'AMD', 'NVDA']))
-    await m.say('what does it show', (c) => { expect(views(c)[0].rows).toEqual(['TSLA', 'AMD', 'NVDA']); return [op('watchlist.readView', only(c), { as: null })] })
+    await waitFor(() => expect(rowsOf()).toEqual(['MSFT', 'AMD', 'NVDA']))
+    await m.say('what does it show', (c) => { expect(views(c)[0].rows).toEqual(['MSFT', 'AMD', 'NVDA']); return [op('watchlist.readView', only(c), { as: null })] })
   })
   it('the same list twice on one board: two targets, each its own', async () => {
     const m = board([CHART, wl('wl', 'user:w1', 'Momentum'), wl('wl2', 'user:w1', 'Momentum', 12, 'A')])

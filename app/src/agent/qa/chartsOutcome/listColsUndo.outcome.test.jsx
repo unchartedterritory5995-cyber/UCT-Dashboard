@@ -111,7 +111,8 @@ function board(widgets = ON_MOMENTUM(), { sym = 'NVDA', lists = LISTS, syncFails
 }
 
 const rowsOf = (id = 'wl') => [...document.querySelector(`[data-testid="w-${id}"]`).querySelectorAll('[data-watch-sym]')].map(e => e.getAttribute('data-watch-sym'))
-const headers = (id = 'wl') => [...document.querySelector(`[data-testid="w-${id}"]`).querySelectorAll('[aria-label^="Sort by"]')].map(e => e.textContent)
+// the sorted column's ▲/▼ (owner 11-14) is drawn, not part of its name
+const headers = (id = 'wl') => [...document.querySelector(`[data-testid="w-${id}"]`).querySelectorAll('[aria-label^="Sort by"]')].map(e => e.textContent.replace(/[▲▼]/g, ''))
 const cols = () => JSON.parse(localStorage.getItem(COLS) || 'null')
 const flags = () => JSON.parse(localStorage.getItem(FLAGGED) || '[]')
 const server = (m, name) => m.srv.lists.find(l => l.name === name)?.items.map(i => i.sym) ?? null
