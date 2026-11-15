@@ -114,7 +114,14 @@ describe('chart settings descriptors — UI-equivalent writes', () => {
     expect(settingUnavailable(settingDescriptor('volume.paneHeightPct'), withSetting(mergeChartSettings({}), settingDescriptor('volume.visible'), false))).toMatch(/Show Volume first/)
     expect(settingUnavailable(settingDescriptor('markers.ipoColor'), mergeChartSettings({}))).toBe(null)   // ipo marker is on by default
     // the header Info-row flags stay known (header.fields is the stored truth) — KNOWING ≠ DOING
-    for (const id of ['header.showMarketCap', 'header.showNextEarnings', 'header.showUctRating', 'volume.plotStyle', 'theme']) expect(settingDescriptor(id).agent, id).toBe('known')
+    for (const id of ['header.showMarketCap', 'header.showNextEarnings', 'header.showUctRating', 'volume.plotStyle']) expect(settingDescriptor(id).agent, id).toBe('known')
+    // pl-grid (C1-078): the Shift+T palette is eligible now, an enum over exactly what the chord writes ('dark' | 'light')
+    expect(settingDescriptor('theme')).toMatchObject({ agent: 'eligible', type: 'enum', options: ['dark', 'light'] })
+    expect(coerceSettingValue(settingDescriptor('theme'), 'LIGHT')).toEqual({ ok: true, value: 'light' })
+    expect(coerceSettingValue(settingDescriptor('theme'), 'sepia').ok).toBe(false)
+    // (C1-067) a header.colors key the catalog does not name stays KNOWN (refused), the named ones are eligible
+    expect(classifySettingPath('header.colors.notAField').agent).toBe('known')
+    expect(classifySettingPath('header.colors.title').agent).toBe('eligible')
   })
 
   it('the UI prerequisite holds: thin bars only on Bars/HLC charts', () => {

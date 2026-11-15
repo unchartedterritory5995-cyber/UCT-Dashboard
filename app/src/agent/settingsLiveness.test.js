@@ -32,7 +32,8 @@ const readsLeaf = (src, leaf) => new RegExp(`(?:\\.|\\?\\.)${leaf}\\b|\\[['"]${l
 
 describe('chart.setSetting: nothing the chart does not read', () => {
   it('every eligible row is read by the /charts render path, or declares where it really lives, or refuses', () => {
-    const silent = ELIGIBLE_SETTINGS.filter(d => !d.inert && !d.store && !readsLeaf(CHART_RENDER_PATH, leafOf(d.id))).map(d => d.id)
+    // a row that names its precise reader (a RegExp: header colours read by catalog key, hdrColors[f.colorKey]) is held to THAT
+    const silent = ELIGIBLE_SETTINGS.filter(d => !d.inert && !d.store && !(d.reader ? d.reader.test(CHART_RENDER_PATH) : readsLeaf(CHART_RENDER_PATH, leafOf(d.id)))).map(d => d.id)
     expect(silent).toEqual([])
   })
   it('a row declared inert for having no reader stays honest: once something reads it, the refusal must go', () => {
