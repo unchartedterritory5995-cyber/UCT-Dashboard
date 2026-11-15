@@ -90,6 +90,7 @@ import hashlib
 import json
 import logging
 import os
+import pathlib
 import re
 import threading
 import time
@@ -191,10 +192,33 @@ def save_enabled() -> bool:
     return os.environ.get(SAVE_ENV, "").strip() == "1"
 
 
+#: RT1 (2026-11-15): the COMMITTED kill list, served in union with `PINE_RUNTIME_KILL_LIST`.
+KILLLIST_PATH = str(pathlib.Path(__file__).resolve().parents[1] / "data" / "pine_runtime_killlist.json")
+
+
+def committed_kills() -> dict[str, str]:
+    """The committed kill list: ``{sha256: reason}``. ⛔ An unreadable or malformed file kills
+    NOTHING extra (the variable still does): a kill is a refusal, and a broken file must not
+    silently refuse every script. Its rail (`tests/test_pine_capability_admission.py`) reds on it."""
+    try:
+        doc = json.loads(pathlib.Path(KILLLIST_PATH).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    out: dict[str, str] = {}
+    for s in (doc.get("scripts") if isinstance(doc, dict) else None) or []:
+        if not isinstance(s, dict):
+            continue
+        sha = s.get("sha256")
+        if isinstance(sha, str) and re.fullmatch(r"[0-9a-f]{64}", sha):
+            out[sha] = s.get("reason") if isinstance(s.get("reason"), str) and s.get("reason") else ""
+    return out
+
+
 def kill_list() -> list[str]:
-    """The kill list, normalised: lowercase, well-formed entries only, deduped."""
+    """The kill list, normalised: lowercase, well-formed entries only, deduped. The committed
+    entries (`committed_kills`) first, then `PINE_RUNTIME_KILL_LIST`."""
+    out: list[str] = list(committed_kills())
     raw = os.environ.get(KILL_ENV, "")
-    out: list[str] = []
     for part in re.split(r"[\s,]+", raw):
         v = part.strip().lower()
         if (_ID_RE.match(v) or _HASH_RE.match(v)) and v not in out:
@@ -1054,8 +1078,10 @@ def killed(def_id: Optional[str], source: Optional[str]) -> Optional[str]:
     if isinstance(source, str):
         h = source_hash(source)
         if any(not _ID_RE.match(e) and h.startswith(e) for e in entries):
-            return (f"this script (sha256 {h[:12]}…) is on the server's runtime kill list, "
-                    "so it is not drawn bar by bar")
+            # ⭐ a committed entry names WHY (its graded evidence), in the member's words
+            why = committed_kills().get(h)
+            return (f"this script (sha256 {h[:12]}…) is on the server's runtime kill list"
+                    + (f": {why}" if why else "") + ", so it is not drawn bar by bar")
     return None
 
 

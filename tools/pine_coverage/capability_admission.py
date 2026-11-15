@@ -128,6 +128,17 @@ def cmd_census(a):
     print("census snapshot:", dict(pops), "distinct sources", len(snap))
 
 
+def admission_row(src, admitted):
+    """One script's admission as the member door answers it: its capabilities, what is missing, and
+    whether it is admitted. RT1: a script on the kill list is refused at every door, whatever its
+    capabilities say (`runtime_definitions.runtime_admission` answers admitted False for it)."""
+    caps = pc.capabilities_of(src)
+    missing = sorted(c for c in caps if c not in admitted)
+    killed = bool(rt.killed(None, src))
+    return dict(hash=rt.source_hash(src), caps=sorted(caps), admitted=not missing and not killed,
+                missing=missing, killed=killed)
+
+
 def cmd_input(a):
     # the detector and the registry directly: the serving path's process-wide gate and cool-down
     # (final verify of #1204) answer "pending" between runs, which is right for a server, not a census
@@ -138,9 +149,7 @@ def cmd_input(a):
         if not isinstance(src, str) or not src.strip():
             s.update(hash=None, caps=[], admitted=False, missing=["<no source>"])
         else:
-            caps = pc.capabilities_of(src)
-            missing = sorted(c for c in caps if c not in admitted)
-            s.update(hash=rt.source_hash(src), caps=sorted(caps), admitted=not missing, missing=missing)
+            s.update(admission_row(src, admitted))
         rows.append(s)
     reg = rt.admitted_capabilities()
     json.dump({"admittedCapabilities": reg["admitted"], "scripts": rows},

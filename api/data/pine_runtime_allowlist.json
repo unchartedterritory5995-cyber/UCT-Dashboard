@@ -54,7 +54,12 @@
     "INCONCLUSIVE). calc-bars is HELD (not a row): its 2 / 2 evidence passes the count, but only",
     "wyckoff-accumulation-distribution-spy-1d-2026-10-02 runs on more bars than its calc_bars_count; Sweep",
     "Reversal Map declares calc_bars_count = 10000 on charts of 666 and 8507 bars, so ignoring the argument",
-    "draws the same picture and the capture witnesses nothing about it."
+    "draws the same picture and the capture witnesses nothing about it.",
+    "",
+    "S28 (2026-11-15): every obj:* row is re-derived with the S28 x re-captures. A script with ANY capture whose x",
+    "DIVERGES, or on the committed kill list (pine_runtime_killlist.json), is evidence for no object family:",
+    "trend-targets-algoalpha (x DIVERGES on RDDT, killed) and parabolic-sar (a label one decimal short on SPY, killed).",
+    "obj:linefill stays withdrawn (FVG Finder alone once AlgoAlpha is vetoed: one script)."
   ],
   "scripts": [
     {
@@ -424,61 +429,6 @@
       ],
       "note": "barstate.* / timenow and the other reads past the run's own bar (U3, 2026-11-15; coordinator ruling (b), under G6): admitted for CLOSED-BAR HISTORY ONLY (scope closed-bar-history). No capture grades a forming bar, so a script admitted by capability that uses it is refused BY NAME while the chart's newest bar is forming or not known to be closed (runtime_definitions.runtime_admission historyOnly; runtimeKill.js runtimeFormingRefusalOf, guard pane:forming-ungraded). Evidence: the runtime-on harness over tests/fixtures/vendor at master 5819d9363e (2026-11-15, VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json is that run), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes); docs/pine/evidence/2026-11-15-u1-u3-admission."
     },
-    "obj:line": {
-      "status": "conformant",
-      "admitted": true,
-      "evidence": [
-        {"capture": "fibonacci-dolphintradebot-rddt-1d-2026-11-15", "script": "Fibonacci Retracement", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 7, "objectsX": "MATCH"},
-        {"capture": "high_engagement__23-sweep-reversal-map-plus-herman-rddt-1d-2026-11-15", "script": "Sweep Reversal Map [Herman]", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 11, "objectsX": "MATCH"},
-        {"capture": "high_engagement__23-sweep-reversal-map-plus-herman-spy-1d-2026-11-15", "script": "Sweep Reversal Map [Herman]", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 80, "objectsX": "MATCH"},
-        {"capture": "vw-int-array-avg-rddt-1d-2026-11-15", "script": "UCTPROBE_VW_INT_ARRAY_AVG", "community": false, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 6, "objectsX": "MATCH"}
-      ],
-      "note": "line.* drawings (U1; re-derived U3b 2026-11-15): objectsPaired is the capture's paired LINE records. Each entry: objects v2 MATCH (x graded, U13) with the run drawing (objectsLane runtime), objectsPaired records paired (never pairedNothing) and objectsX, the capture's own x verdict; any x DIVERGE vetoes the family. Re-derived in U3b: the U1 evidence taken before the x table now grades INCONCLUSIVE, so the S13/S14/S20 x re-captures carry it. Evidence: the runtime-on harness over tests/fixtures/vendor at master 7a74a90f45 (2026-11-15, x graded since U13 #1335; VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json is that run), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes); docs/pine/evidence/2026-11-15-u3b-admission."
-    },
-    "obj:label": {
-      "status": "conformant",
-      "admitted": true,
-      "evidence": [
-        {"capture": "fair-value-gap-rddt-1d-2026-11-15", "script": "Fair Value Gap SpaceManBTC", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 21, "objectsX": "MATCH"},
-        {"capture": "fibonacci-dolphintradebot-rddt-1d-2026-11-15", "script": "Fibonacci Retracement", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 7, "objectsX": "MATCH"},
-        {"capture": "high_engagement__23-sweep-reversal-map-plus-herman-rddt-1d-2026-11-15", "script": "Sweep Reversal Map [Herman]", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 11, "objectsX": "MATCH"},
-        {"capture": "high_engagement__23-sweep-reversal-map-plus-herman-spy-1d-2026-11-15", "script": "Sweep Reversal Map [Herman]", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 80, "objectsX": "MATCH"},
-        {"capture": "vw-int-array-avg-rddt-1d-2026-11-15", "script": "UCTPROBE_VW_INT_ARRAY_AVG", "community": false, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 25, "objectsX": "MATCH"}
-      ],
-      "note": "label.* drawings (U1; re-derived U3b 2026-11-15): objectsPaired is the capture's paired LABEL records. Each entry: objects v2 MATCH (x graded, U13) with the run drawing (objectsLane runtime), objectsPaired records paired (never pairedNothing) and objectsX, the capture's own x verdict; any x DIVERGE vetoes the family. Re-derived in U3b: the U1 evidence taken before the x table now grades INCONCLUSIVE, so the S13/S14/S20 x re-captures carry it. Evidence: the runtime-on harness over tests/fixtures/vendor at master 7a74a90f45 (2026-11-15, x graded since U13 #1335; VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json is that run), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes); docs/pine/evidence/2026-11-15-u3b-admission."
-    },
-    "obj:delete": {
-      "status": "conformant",
-      "admitted": true,
-      "evidence": [
-        {"capture": "fair-value-gap-rddt-1d-2026-11-15", "script": "Fair Value Gap SpaceManBTC", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 42, "objectsX": "MATCH"},
-        {"capture": "fibonacci-dolphintradebot-rddt-1d-2026-11-15", "script": "Fibonacci Retracement", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 14, "objectsX": "MATCH"},
-        {"capture": "high_engagement__23-sweep-reversal-map-plus-herman-rddt-1d-2026-11-15", "script": "Sweep Reversal Map [Herman]", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 33, "objectsX": "MATCH"},
-        {"capture": "high_engagement__23-sweep-reversal-map-plus-herman-spy-1d-2026-11-15", "script": "Sweep Reversal Map [Herman]", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 240, "objectsX": "MATCH"},
-        {"capture": "long_tail__09-signal-follow-through-ledger-rddt-1d-2026-11-15", "script": "MQLSoftware - Signal Follow-Through Ledger", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 25, "objectsX": "MATCH"}
-      ],
-      "note": "x.delete() on a drawing (U1; re-derived U3b 2026-11-15): objectsPaired is every paired record of the capture. Each entry: objects v2 MATCH (x graded, U13) with the run drawing (objectsLane runtime), objectsPaired records paired (never pairedNothing) and objectsX, the capture's own x verdict; any x DIVERGE vetoes the family. Re-derived in U3b: the U1 evidence taken before the x table now grades INCONCLUSIVE, so the S13/S14/S20 x re-captures carry it. Evidence: the runtime-on harness over tests/fixtures/vendor at master 7a74a90f45 (2026-11-15, x graded since U13 #1335; VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json is that run), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes); docs/pine/evidence/2026-11-15-u3b-admission."
-    },
-    "obj:collection": {
-      "status": "conformant",
-      "admitted": true,
-      "evidence": [
-        {"capture": "fair-value-gap-rddt-1d-2026-11-15", "script": "Fair Value Gap SpaceManBTC", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 42, "objectsX": "MATCH"},
-        {"capture": "high_engagement__23-sweep-reversal-map-plus-herman-rddt-1d-2026-11-15", "script": "Sweep Reversal Map [Herman]", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 33, "objectsX": "MATCH"},
-        {"capture": "high_engagement__23-sweep-reversal-map-plus-herman-spy-1d-2026-11-15", "script": "Sweep Reversal Map [Herman]", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 240, "objectsX": "MATCH"},
-        {"capture": "long_tail__09-signal-follow-through-ledger-rddt-1d-2026-11-15", "script": "MQLSoftware - Signal Follow-Through Ledger", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 25, "objectsX": "MATCH"}
-      ],
-      "note": "drawings held in arrays or read through *.all (U1; re-derived U3b 2026-11-15): objectsPaired is every paired record. Each entry: objects v2 MATCH (x graded, U13) with the run drawing (objectsLane runtime), objectsPaired records paired (never pairedNothing) and objectsX, the capture's own x verdict; any x DIVERGE vetoes the family. Re-derived in U3b: the U1 evidence taken before the x table now grades INCONCLUSIVE, so the S13/S14/S20 x re-captures carry it. Evidence: the runtime-on harness over tests/fixtures/vendor at master 7a74a90f45 (2026-11-15, x graded since U13 #1335; VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json is that run), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes); docs/pine/evidence/2026-11-15-u3b-admission."
-    },
-    "obj:getter": {
-      "status": "conformant",
-      "admitted": true,
-      "evidence": [
-        {"capture": "fair-value-gap-rddt-1d-2026-11-15", "script": "Fair Value Gap SpaceManBTC", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 42, "objectsX": "MATCH"},
-        {"capture": "vw-int-array-avg-rddt-1d-2026-11-15", "script": "UCTPROBE_VW_INT_ARRAY_AVG", "community": false, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 31, "objectsX": "MATCH"}
-      ],
-      "note": "x.get_*() reads on a drawing (U3; re-derived U3b 2026-11-15): objectsPaired is every paired record of the capture. Each entry: objects v2 MATCH (x graded, U13) with the run drawing (objectsLane runtime), objectsPaired records paired (never pairedNothing) and objectsX, the capture's own x verdict; any x DIVERGE vetoes the family. Re-derived in U3b: the U1 evidence taken before the x table now grades INCONCLUSIVE, so the S13/S14/S20 x re-captures carry it. Evidence: the runtime-on harness over tests/fixtures/vendor at master 7a74a90f45 (2026-11-15, x graded since U13 #1335; VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json is that run), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes); docs/pine/evidence/2026-11-15-u3b-admission."
-    },
     "udt": {
       "status": "conformant",
       "admitted": true,
@@ -501,6 +451,75 @@
         {"capture": "vw-int-array-avg-spy-1d-2026-09-30", "script": "UCTPROBE_VW_INT_ARRAY_AVG", "community": false, "verdict": "MATCH", "runtimePane": "on"}
       ],
       "note": "generic type arguments (array<T>, map<K, V>, ...) (U3b, 2026-11-15; S20 supplied the community scripts). Evidence: the runtime-on harness over tests/fixtures/vendor at master 7a74a90f45 (2026-11-15, x graded since U13 #1335; VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json is that run), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes); docs/pine/evidence/2026-11-15-u3b-admission."
+    },
+    "obj:line": {
+      "status": "conformant",
+      "admitted": true,
+      "evidence": [
+        {"capture": "fibonacci-dolphintradebot-rddt-1d-2026-11-15", "script": "Fibonacci Retracement", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 7, "objectsX": "MATCH"},
+        {"capture": "fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated-rddt-1d-2026-11-15", "script": "FVG Finder", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 44, "objectsX": "MATCH"},
+        {"capture": "high_engagement__23-sweep-reversal-map-plus-herman-rddt-1d-2026-11-15", "script": "Sweep Reversal Map [Herman]", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 11, "objectsX": "MATCH"},
+        {"capture": "high_engagement__23-sweep-reversal-map-plus-herman-spy-1d-2026-11-15", "script": "Sweep Reversal Map [Herman]", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 80, "objectsX": "MATCH"},
+        {"capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-11-15", "script": "IBRBVC", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 2, "objectsX": "MATCH"},
+        {"capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-11-15", "script": "IBRBVC", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 2, "objectsX": "MATCH"},
+        {"capture": "vw-int-array-avg-rddt-1d-2026-11-15", "script": "UCTPROBE_VW_INT_ARRAY_AVG", "community": false, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 6, "objectsX": "MATCH"},
+        {"capture": "zigzag-multi-time-frame-with-fibonacci-retracement-rddt-1d-2026-11-15", "script": "ZZMTF", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 8, "objectsX": "MATCH"},
+        {"capture": "zigzag-multi-time-frame-with-fibonacci-retracement-spy-1d-2026-11-15", "script": "ZZMTF", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 8, "objectsX": "MATCH"}
+      ],
+      "note": "line.* drawings (U1; re-derived S28 2026-11-15): objectsPaired is the capture's paired LINE records. Each entry: objects v2 MATCH (x graded) with the run drawing, objectsPaired records paired and objectsX the capture's own x verdict. A script with ANY capture whose x DIVERGES, or on the kill list, is evidence for no object family (trend-targets-algoalpha since S28). Evidence: the runtime-on harness over tests/fixtures/vendor at master bbc9b92351 plus the S28 x re-captures (2026-11-15, VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json is that run), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes); docs/pine/evidence/2026-11-15-s28-x-recaptures."
+    },
+    "obj:label": {
+      "status": "conformant",
+      "admitted": true,
+      "evidence": [
+        {"capture": "fair-value-gap-rddt-1d-2026-11-15", "script": "Fair Value Gap SpaceManBTC", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 21, "objectsX": "MATCH"},
+        {"capture": "fibonacci-dolphintradebot-rddt-1d-2026-11-15", "script": "Fibonacci Retracement", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 7, "objectsX": "MATCH"},
+        {"capture": "fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated-rddt-1d-2026-11-15", "script": "FVG Finder", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 22, "objectsX": "MATCH"},
+        {"capture": "high_engagement__23-sweep-reversal-map-plus-herman-rddt-1d-2026-11-15", "script": "Sweep Reversal Map [Herman]", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 11, "objectsX": "MATCH"},
+        {"capture": "high_engagement__23-sweep-reversal-map-plus-herman-spy-1d-2026-11-15", "script": "Sweep Reversal Map [Herman]", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 80, "objectsX": "MATCH"},
+        {"capture": "vw-int-array-avg-rddt-1d-2026-11-15", "script": "UCTPROBE_VW_INT_ARRAY_AVG", "community": false, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 25, "objectsX": "MATCH"},
+        {"capture": "zigzag-multi-time-frame-with-fibonacci-retracement-rddt-1d-2026-11-15", "script": "ZZMTF", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 7, "objectsX": "MATCH"},
+        {"capture": "zigzag-multi-time-frame-with-fibonacci-retracement-spy-1d-2026-11-15", "script": "ZZMTF", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 7, "objectsX": "MATCH"}
+      ],
+      "note": "label.* drawings (U1; re-derived S28 2026-11-15): objectsPaired is the capture's paired LABEL records. Each entry: objects v2 MATCH (x graded) with the run drawing, objectsPaired records paired and objectsX the capture's own x verdict. A script with ANY capture whose x DIVERGES, or on the kill list, is evidence for no object family (trend-targets-algoalpha since S28). Evidence: the runtime-on harness over tests/fixtures/vendor at master bbc9b92351 plus the S28 x re-captures (2026-11-15, VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json is that run), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes); docs/pine/evidence/2026-11-15-s28-x-recaptures."
+    },
+    "obj:delete": {
+      "status": "conformant",
+      "admitted": true,
+      "evidence": [
+        {"capture": "fair-value-gap-rddt-1d-2026-11-15", "script": "Fair Value Gap SpaceManBTC", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 42, "objectsX": "MATCH"},
+        {"capture": "fibonacci-dolphintradebot-rddt-1d-2026-11-15", "script": "Fibonacci Retracement", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 14, "objectsX": "MATCH"},
+        {"capture": "high_engagement__23-sweep-reversal-map-plus-herman-rddt-1d-2026-11-15", "script": "Sweep Reversal Map [Herman]", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 33, "objectsX": "MATCH"},
+        {"capture": "high_engagement__23-sweep-reversal-map-plus-herman-spy-1d-2026-11-15", "script": "Sweep Reversal Map [Herman]", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 240, "objectsX": "MATCH"},
+        {"capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-11-15", "script": "IBRBVC", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 2, "objectsX": "MATCH"},
+        {"capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-11-15", "script": "IBRBVC", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 2, "objectsX": "MATCH"},
+        {"capture": "long_tail__09-signal-follow-through-ledger-rddt-1d-2026-11-15", "script": "MQLSoftware - Signal Follow-Through Ledger", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 25, "objectsX": "MATCH"},
+        {"capture": "zigzag-multi-time-frame-with-fibonacci-retracement-rddt-1d-2026-11-15", "script": "ZZMTF", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 15, "objectsX": "MATCH"},
+        {"capture": "zigzag-multi-time-frame-with-fibonacci-retracement-spy-1d-2026-11-15", "script": "ZZMTF", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 15, "objectsX": "MATCH"}
+      ],
+      "note": "x.delete() on a drawing (U1; re-derived S28 2026-11-15): objectsPaired is every paired record of the capture. Each entry: objects v2 MATCH (x graded) with the run drawing, objectsPaired records paired and objectsX the capture's own x verdict. A script with ANY capture whose x DIVERGES, or on the kill list, is evidence for no object family (trend-targets-algoalpha since S28). Evidence: the runtime-on harness over tests/fixtures/vendor at master bbc9b92351 plus the S28 x re-captures (2026-11-15, VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json is that run), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes); docs/pine/evidence/2026-11-15-s28-x-recaptures."
+    },
+    "obj:collection": {
+      "status": "conformant",
+      "admitted": true,
+      "evidence": [
+        {"capture": "fair-value-gap-rddt-1d-2026-11-15", "script": "Fair Value Gap SpaceManBTC", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 42, "objectsX": "MATCH"},
+        {"capture": "high_engagement__23-sweep-reversal-map-plus-herman-rddt-1d-2026-11-15", "script": "Sweep Reversal Map [Herman]", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 33, "objectsX": "MATCH"},
+        {"capture": "high_engagement__23-sweep-reversal-map-plus-herman-spy-1d-2026-11-15", "script": "Sweep Reversal Map [Herman]", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 240, "objectsX": "MATCH"},
+        {"capture": "long_tail__09-signal-follow-through-ledger-rddt-1d-2026-11-15", "script": "MQLSoftware - Signal Follow-Through Ledger", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 25, "objectsX": "MATCH"},
+        {"capture": "zigzag-multi-time-frame-with-fibonacci-retracement-rddt-1d-2026-11-15", "script": "ZZMTF", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 15, "objectsX": "MATCH"},
+        {"capture": "zigzag-multi-time-frame-with-fibonacci-retracement-spy-1d-2026-11-15", "script": "ZZMTF", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 15, "objectsX": "MATCH"}
+      ],
+      "note": "drawings held in arrays or read through *.all (U1; re-derived S28 2026-11-15): objectsPaired is every paired record. Each entry: objects v2 MATCH (x graded) with the run drawing, objectsPaired records paired and objectsX the capture's own x verdict. A script with ANY capture whose x DIVERGES, or on the kill list, is evidence for no object family (trend-targets-algoalpha since S28). Evidence: the runtime-on harness over tests/fixtures/vendor at master bbc9b92351 plus the S28 x re-captures (2026-11-15, VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json is that run), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes); docs/pine/evidence/2026-11-15-s28-x-recaptures."
+    },
+    "obj:getter": {
+      "status": "conformant",
+      "admitted": true,
+      "evidence": [
+        {"capture": "fair-value-gap-rddt-1d-2026-11-15", "script": "Fair Value Gap SpaceManBTC", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 42, "objectsX": "MATCH"},
+        {"capture": "vw-int-array-avg-rddt-1d-2026-11-15", "script": "UCTPROBE_VW_INT_ARRAY_AVG", "community": false, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 31, "objectsX": "MATCH"}
+      ],
+      "note": "x.get_*() reads on a drawing (U3; re-derived S28 2026-11-15): objectsPaired is every paired record of the capture. Each entry: objects v2 MATCH (x graded) with the run drawing, objectsPaired records paired and objectsX the capture's own x verdict. A script with ANY capture whose x DIVERGES, or on the kill list, is evidence for no object family (trend-targets-algoalpha since S28). Evidence: the runtime-on harness over tests/fixtures/vendor at master bbc9b92351 plus the S28 x re-captures (2026-11-15, VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json is that run), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes); docs/pine/evidence/2026-11-15-s28-x-recaptures."
     },
     "conditional-ta": {
       "status": "divergent",
