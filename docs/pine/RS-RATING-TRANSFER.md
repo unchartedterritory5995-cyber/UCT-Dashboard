@@ -48,6 +48,21 @@ After W1-W3 alone the door draws only the RS line. The rating number and the new
 
 ## Lanes
 
+**L3: where the data enters** (surveyed 2026-11-14):
+- **Today's path.** The chart's symbol object is `{ticker, exchange}`, built at
+  `StockChart.jsx:4624` from `tickerMeta`. `runtimeColumns.js:89` and `runtimeAsync.js:268` copy
+  ONLY those two fields into the runtime lane. Our industry and sector come from
+  `api/services/ticker_meta.py`: yfinance `info`, Finnhub `finnhubIndustry`, or FMP, so the
+  taxonomy is mixed and not TradingView's FactSet.
+- **Plan:**
+  - thread `industry`, `sector` and the instrument type through the same object, in both lanes and
+    in the screener's `ast_bind.py`;
+  - serve TradingView's string where `symbolScope.json` gains a witnessed row from Q-RS4: by
+    instrument class (ETF -> the captured string, expected `'Investment Trusts/Mutual Funds'`) and
+    by our-string -> their-string for the captured names;
+  - otherwise serve OUR string, tagged SUBSTITUTED and disclosed (`MATCH_SUBSTITUTED`, L7);
+  - with no data at all, refuse by name.
+
 **L3 `syminfo.industry` (and its siblings `sector`)**: a bind-time text fold from our ticker meta,
 tagged SUBSTITUTED (our classification is not TradingView's FactSet taxonomy). Accept: the micro
 script `plot(syminfo.industry == 'X' ? 1 : 0)` attaches on both lanes. The read-back names the
