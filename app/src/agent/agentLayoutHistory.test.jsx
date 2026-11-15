@@ -429,7 +429,7 @@ describe('wording: nothing promises a version stays restorable forever', () => {
   it('the source strings of layoutHistory.js (comments stripped), its manifest entries and the discovery line', () => {
     const src = readFileSync(resolve(__dirname, 'capabilities/layoutHistory.js'), 'utf8')
       .replace(/\/\*[\s\S]*?\*\//g, '').split('\n').map(l => l.replace(/^\s*\/\/.*$/, '').replace(/\s\/\/ .*$/, '')).join('\n')
-    const literals = [...src.matchAll(/'(?:[^'\\n]|\.)*'|`(?:[^`\]|\.)*`/g)].map(m => m[0])
+    const literals = [...src.matchAll(/'(?:[^'\\\n]|\\.)*'|`(?:[^`\\]|\\.)*`/g)].map(m => m[0])
     expect(literals.length).toBeGreaterThan(20)
     for (const s of literals) expect(s, s).not.toMatch(PROMISE)
     for (const n of ['layoutHistory.list', 'layoutHistory.restore']) {
