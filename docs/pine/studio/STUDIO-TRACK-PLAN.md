@@ -1,6 +1,6 @@
 # Studio track: the plan, beside the Pine full-parity programme
 
-FINAL v5, 2026-11-14. v1 was reviewed the same day by four independent reviewers (engine
+FINAL v6, 2026-11-14. v1 was reviewed the same day by four independent reviewers (engine
 fit, security and cost, product and member experience, adversarial delivery); v2 carried
 their findings. v3 corrects a miss that neither v1, v2 nor any reviewer caught: plain-English
 indicator authoring ALREADY EXISTS in this repo (section 1a). Section 11 lists every change
@@ -9,6 +9,7 @@ the published-formula library, share links and indicator templates already live,
 from here on is CENSUS BEFORE DESIGN (decision D13). The owner delegated every open decision;
 the rulings are in section 8. v5 adds section 9a, a ledger of what was MEASURED on
 production (how well the existing pieces work, what is wrong, who fixes it) and lane S-L.
+v6 adds section 12, the resume point.
 
 This repo is public. Only this plan and generated engine references are committed. The
 competitor review that informed it, and the competitor's own documents, stay local.
@@ -300,8 +301,8 @@ measured or read in code; each says which. Rows for other owners are requests, n
 |---|---|---|---|---|
 | U1 | Create Indicator works and is dark | dock opened, preview drawn in about 14 s, Undo / Discard / Add to Chart (measured) | the rollout decision (lane S-R) | owner |
 | U2 | Its door is three levels down: the chart's gear -> Indicators -> Create Indicator | measured | a direct entry beside the chart toolbar and in the command palette | authoring (R8) |
-| U3 | The door was not found at phone size | one scripted attempt; unverified | find the phone path or add one | authoring |
-| U4 | `/formulas/reference` shows template placeholders to members: "the absolute value of {0}" | read in code (`FormulaReference.jsx` renders `item.sentence` as is) and seen on the page | fill the placeholders with the signature's argument names | reference owner (R10) |
+| U3 | The dock has no phone layout | read in code: `CreateIndicatorPanel` is a fixed 360 px panel with no breakpoint rule and no sheet; a scripted attempt at 390 px did not reach it | a full-screen sheet on the touch tier (<= 1024 px), as the status panel's spec already does | authoring (R8) |
+| U4 | `/formulas/reference` shows template placeholders to members: "the absolute value of {0}" (85 of 86 functions, every operator) | read in code and seen on the page | FIX WRITTEN: branch `fix/formula-reference-placeholders`, each placeholder takes the argument name from the signature above it; its tests are queued, not yet run | this track, for the page owner's review |
 | U5 | `/formulas/reference` has no Pine names | read in code | the S1 reference, as a Pine section | this track + R10 |
 | U6 | `/formulas/library` is empty | seen: "Nothing has been published yet" | lane S-L below | this track + owner |
 | U7 | A first-run coach card overlays the reference and library pages for a new account | seen | dismiss on route change, or anchor it | its owner |
@@ -357,3 +358,39 @@ the owner's approval of each one.
 | **v5:** the plan said what exists but not how well it works | Section 9a: 30 impossible and 7 ordinary requests run through the existing authoring door on production, a tour of the reference and library pages, and the defects and fixes that came out of it; lane S-L (a starter library authored through the existing door) |
 | **v4:** a second look found a live formula reference page, a live published-formula library, live share links and live indicator templates. v3 still planned a new reference tab and listed a community feed as deferred work | Section 9 census; decision D13; the reference lane became a request to add Pine names to the existing page; the feed is no longer planned |
 | **v3:** v1 and v2 planned a new authoring dock and a Pine-writing model. A conversational Create Indicator dock already exists, dark, built on validated patches over the engine. The Studio session found it while preparing the dock lane; the plan and all four reviews had missed it because they were pointed at the Pine documents, not `docs/indicators/` | The dock lane and the generation lane are withdrawn; section 1a; lanes S-P and S-R; requests R7 to R9 |
+
+## 12. Resume here (state at the end of 2026-11-14)
+
+This plan is FINAL as a plan. What follows is where the work stands, so a later session can
+pick it up without the conversation.
+
+**Decided, nothing pending from the owner to start:** sections 2, 3, 8 and 9.
+
+**Owner decisions still open (none blocks the lanes below):**
+1. Roll out Create Indicator: the cohort flag and the member daily cap (ledger U1, N3).
+2. May an indicator read columns the app already has, as a current value (ledger I6)?
+3. Approve, one by one, any starter-library indicator before it is published (lane S-L).
+
+**Branches (all in the sparse worktree `uct-worktrees/studio-s1`):**
+
+| branch | holds | state |
+|---|---|---|
+| `docs/studio-track-plan` | this plan, `requests.md` entries | pushed; open as a docs-only PR |
+| `fix/formula-reference-placeholders` | the reference page fix (ledger U4) | committed locally; tests queued behind the heavy lock; NOT pushed |
+| `feat/studio-s1-reference` | lane S1: `app/src/components/studio/` (`verdict/`, `reference/`) | files written, UNCOMMITTED (untracked); first vitest run queued behind the heavy lock, never executed |
+
+**Next actions, in order:**
+1. When the lock frees: read the two queued runs. Fix what S1's run shows; then build the
+   reference (`STUDIO_MEASURE=1 STUDIO_WRITE_REFERENCE=1`), read the diff, commit S1, open
+   its PR. Push the reference fix once its tests pass.
+2. Finish the 30 member-style prompts through the authoring door (23 remain; the door allows
+   40 turns an hour per account) and append the result to `requests.md`.
+3. Run the 20 starter-library descriptions through Create Indicator (lane S-L), then the
+   hidden 40. The hidden set must be run by a session that does not edit this plan's
+   reference or any assistant prompt.
+4. S1b: the status panel for admins, once request R2 is answered.
+5. Then S9', S2', S3, S6 as in section 4.
+
+**Kept outside this repo (local only):** the competitor review, the rollout packet for
+Create Indicator, the prompt sets and their results, and screenshots.
+
