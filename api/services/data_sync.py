@@ -1572,6 +1572,68 @@ _MERGE_INTRADAY_TFS = ("1", "5", "15", "30", "60")
 _MERGE_CHUNK_PAIRS = max(1, int(os.environ.get("DATA_SYNC_MERGE_CHUNK_PAIRS", "200")))
 #: Lock-hold budget per chunk; a chunk that runs over halves the next chunk's size.
 _MERGE_CHUNK_BUDGET_S = float(os.environ.get("DATA_SYNC_MERGE_CHUNK_BUDGET_S", "0.5"))
+
+# ⛔ A REAL GAP BETWEEN CHUNKS, NOT `sleep(0)` (2026-11-15, measured on the web pod).
+# After each chunk the merge rests for as long as that chunk held the write lock, up to
+# this cap. With `sleep(0)` it took the lock straight back: a web writer (busy_timeout
+# 2 s) sleeping in SQLite's busy handler never saw it free, and the pod logged
+# `bg_delta DELL tf=D partial=True: OperationalError: database is locked` mid-merge; the
+# daily base merge held it 421 s of a 432 s run. The rest also halves the merge's share of
+# the disk, so a member's cold chart read is not queued behind it the whole time.
+_MERGE_YIELD_MAX_S = float(os.environ.get("DATA_SYNC_MERGE_YIELD_MAX_S", "0.1"))
+
+# ⛔ A DELTA'S UNCHANGED PAIRS ARE NOT MERGED AGAIN (2026-11-15, measured on the web pod).
+# Every delta carries a 7-45 day WINDOW of every pair the worker holds, so consecutive
+# deltas are nearly identical: each one merged 77,612 pairs for 49-83 new rows, 24-34 s
+# of per-pair reads in a ~20 GB store every 20-40 minutes, all day, and member chart reads
+# that missed the page cache waited 1-5 s behind it. The apply now fingerprints each pair
+# of the delta (row count, newest ts, and the sums of o/h/l/c/v, all computed inside
+# sqlite in one pass over the delta) and merges only the pairs whose fingerprint differs
+# from the one recorded when that pair was last merged from a delta.
+#
+# ⛔ THE FINGERPRINTS LIVE IN bars.db ITSELF (`delta_merge_fp`) so they can never outlive
+# the rows they vouch for: a store installed or swapped wholesale has no such table (the
+# worker never applies deltas), and its first delta merges every pair, as before. They
+# are recorded only after a merge returns, never after one that raised. The daily base
+# merge never skips, so it stays the backstop for anything a skipped pair could miss
+# (a local delete under an unchanged window is restored by the next base, or by the next
+# delta that changes that pair -- every pair's window slides daily).
+_DELTA_FP_TABLE = "delta_merge_fp"
+_DELTA_FP_DDL = (
+    f"CREATE TABLE IF NOT EXISTS main.{_DELTA_FP_TABLE} ("
+    " ticker TEXT NOT NULL, tf TEXT NOT NULL, n INTEGER NOT NULL, mx INTEGER,"
+    " so REAL, sh REAL, sl REAL, sc REAL, sv REAL,"
+    " PRIMARY KEY (ticker, tf)) WITHOUT ROWID"
+)
+#: The delta's own fingerprints, one row per pair, built in sqlite (no row ever crosses
+#: into Python, so a pass over the delta costs one step, not one GIL handoff per pair).
+#: Keyed like the stored table, so every join below is a primary-key seek on both sides.
+_DELTA_FP_TEMP_DDL = (
+    "CREATE TEMP TABLE _delta_fp ("
+    " ticker TEXT NOT NULL, tf TEXT NOT NULL, n INTEGER NOT NULL, mx INTEGER,"
+    " so REAL, sh REAL, sl REAL, sc REAL, sv REAL,"
+    " PRIMARY KEY (ticker, tf)) WITHOUT ROWID"
+)
+_DELTA_FP_BUILD_SQL = (
+    "INSERT INTO temp._delta_fp SELECT ticker, tf, count(*), max(ts),"
+    " total(o), total(h), total(l), total(c), total(v)"
+    " FROM snap.ohlcv GROUP BY ticker, tf"
+)
+#: After a merge returns: store the fingerprint of every pair whose stored one differs
+#: (exactly the pairs this merge was given), and nothing else.
+_DELTA_FP_RECORD_SQL = (
+    f"INSERT OR REPLACE INTO main.{_DELTA_FP_TABLE} SELECT d.* FROM temp._delta_fp d"
+    f" WHERE NOT EXISTS (SELECT 1 FROM main.{_DELTA_FP_TABLE} p"
+    " WHERE p.ticker = d.ticker AND p.tf = d.tf AND p.n IS d.n AND p.mx IS d.mx"
+    " AND p.so IS d.so AND p.sh IS d.sh AND p.sl IS d.sl AND p.sc IS d.sc AND p.sv IS d.sv)"
+)
+#: Pairs to merge: new to the fingerprint table, or any fingerprint field different.
+_DELTA_FP_CHANGED_SQL = (
+    f"SELECT d.ticker, d.tf FROM temp._delta_fp d LEFT JOIN main.{_DELTA_FP_TABLE} p"
+    " ON p.ticker = d.ticker AND p.tf = d.tf"
+    " WHERE p.ticker IS NULL OR p.n IS NOT d.n OR p.mx IS NOT d.mx OR p.so IS NOT d.so"
+    " OR p.sh IS NOT d.sh OR p.sl IS NOT d.sl OR p.sc IS NOT d.sc OR p.sv IS NOT d.sv"
+)
 #: Interior heal reach below local MAX (holes + corrections), intraday only.
 _MERGE_HEAL_WINDOW_S = int(float(os.environ.get("DATA_SYNC_MERGE_HEAL_DAYS", "5")) * 86400)
 #: Closes at common rows must agree to this relative tolerance to share a basis.
@@ -1759,8 +1821,13 @@ def _bump_merged_rev(conn, ticker: str, tf: str, history: bool = False) -> None:
 
 def _merge_ohlcv_from(src_db: str, local_db: Optional[str] = None, *,
                       pairs: Optional[list] = None,
-                      deadline: Optional[float] = None) -> int:
+                      deadline: Optional[float] = None,
+                      skip_unchanged: bool = False) -> int:
     """Merge snapshot ohlcv into the local bars.db (rules above), in short chunks.
+
+    `skip_unchanged` (deltas only, `apply_delta`): merge only the pairs whose fingerprint
+    differs from the one recorded when the pair was last merged from a delta, and record
+    the new fingerprints once the merge returns (see `_DELTA_FP_TABLE`).
 
     Returns rows adopted + corrected (best-effort), or -1 if there is no local DB
     to merge into (caller should fall back to a plain install)."""
@@ -1778,11 +1845,26 @@ def _merge_ohlcv_from(src_db: str, local_db: Optional[str] = None, *,
         try:
             # `pairs` narrows the merge to known-changed series; `deadline` (monotonic)
             # aborts between chunks -- both for a store adoption's locked pass.
-            if pairs is None:
+            record_fp = False
+            skipped = 0
+            if pairs is None and skip_unchanged:
+                conn.execute("DROP TABLE IF EXISTS temp._delta_fp")
+                conn.execute(_DELTA_FP_TEMP_DDL)
+                conn.execute(_DELTA_FP_BUILD_SQL)
+                in_delta = conn.execute("SELECT count(*) FROM temp._delta_fp").fetchone()[0]
+                known = conn.execute(
+                    "SELECT 1 FROM main.sqlite_master WHERE type = 'table' AND name = ?",
+                    (_DELTA_FP_TABLE,)).fetchone() is not None
+                pairs = (conn.execute(_DELTA_FP_CHANGED_SQL).fetchall() if known
+                         else conn.execute("SELECT ticker, tf FROM temp._delta_fp").fetchall())
+                skipped = in_delta - len(pairs)
+                record_fp = True
+            elif pairs is None:
                 pairs = conn.execute("SELECT DISTINCT ticker, tf FROM snap.ohlcv").fetchall()
             pairs = [tuple(p) for p in pairs]
             t_start = time.monotonic()
-            logger.info(f"[data_sync] merge start: {len(pairs)} pairs")
+            logger.info(f"[data_sync] merge start: {len(pairs)} pairs"
+                        + (f" ({skipped} unchanged since the last delta, skipped)" if record_fp else ""))
             added = corrected = chunks = 0
             max_lock = total_lock = 0.0
             size = _MERGE_CHUNK_PAIRS
@@ -1809,7 +1891,23 @@ def _merge_ohlcv_from(src_db: str, local_db: Optional[str] = None, *,
                 i += len(chunk)
                 if held > _MERGE_CHUNK_BUDGET_S and size > 1:
                     size = max(1, size // 2)     # adapt: shorter holds next time
-                time.sleep(0)                    # let a queued writer in between chunks
+                # Rest as long as the chunk held the lock (capped): a writer waiting in
+                # SQLite's busy handler gets it (see _MERGE_YIELD_MAX_S). Not in a store
+                # adoption's locked pass (`deadline`): its caller holds the write lock, so
+                # nobody could use the gap and the pass would only burn its budget.
+                if i < len(pairs):
+                    time.sleep(0 if deadline is not None else min(held, _MERGE_YIELD_MAX_S))
+            if record_fp:
+                # Only after every chunk committed: a merge that raised records nothing,
+                # so its pairs are merged again next time.
+                conn.execute("BEGIN IMMEDIATE")
+                try:
+                    conn.execute(_DELTA_FP_DDL)
+                    conn.execute(_DELTA_FP_RECORD_SQL)
+                    conn.execute("COMMIT")
+                except BaseException:
+                    conn.execute("ROLLBACK")
+                    raise
             logger.info(
                 f"[data_sync] merge end: {len(pairs)} pairs, {added} added, "
                 f"{corrected} corrected, {chunks} chunks, lock max "
@@ -2061,7 +2159,8 @@ def apply_delta(ts: str) -> bool:
         if not os.path.exists(src) or not _verify_snapshot_db(src):
             logger.warning(f"[data_sync] delta {ts} missing/invalid; skipping")
             return False
-        adopted = _merge_ohlcv_from(src)   # SAME newer-wins merge as full path
+        # SAME newer-wins merge as the full path, over the pairs this delta changed.
+        adopted = _merge_ohlcv_from(src, skip_unchanged=True)
         if adopted < 0:
             return False                   # no local DB yet — base must land first
         _write_marker(_LAST_DELTA_MARKER, ts)
