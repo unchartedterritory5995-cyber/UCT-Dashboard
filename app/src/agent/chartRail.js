@@ -27,6 +27,7 @@
 import { tickersIn } from './multiChart'
 import { matchPosition } from './fastPath'
 import { ordinalChart } from './deixis'
+import { excludedCharts, UNPLACED } from './spatialCheck'
 import { widgetTabList } from '../pages/charts/widgetTabs'
 import { sanitizeChartTabs } from '../pages/charts/chartTabs'
 
@@ -259,6 +260,15 @@ export function identifiesChart(w, e, host, { selected = null, subject = null, p
   if (sole && ONE_CHART_NOUN.test(w)) return 'class'
   // the member's CLICK identifies the chart ("open the third one" with the left chart clicked: that chart)
   if (e.ref === selected) return 'selection'
+  // (the words leave exactly this chart: every other one is excluded — "switch to AAPL, but not NVDA")
+  try {
+    const all = liveCharts(host)
+    if (all.length > 1) {
+      const ex = excludedCharts(w, all, selected)
+      const left = all.filter(c => !ex.has(c.ref))
+      if (!ex.has(UNPLACED) && left.length === 1 && left[0].ref === e.ref) return 'elimination'
+    }
+  } catch { /* no exclusion read */ }
   if (sole) return 'sole'                                          // ⛔ D23: the only chart in scope is identified by being it
   return null
 }
@@ -309,10 +319,18 @@ export function chartRailRefusal(plan, { words = '', host = null, mode = 'apply'
     // ⛔ D23 (AUDIT T2 4): every NEW ticker the words name ends up on the board — "open AAPL and MSFT" never ends showing MSFT alone
     {
       const before = new Set(liveCharts(host).map(c => up(c.symbol)).filter(Boolean))
-      const asked = [...new Set(tickersIn(w))].filter(t => !before.has(t))
-      if (asked.length >= 2 && effects.some(e => e.type === 'symbol' && e.to)) {
+      // (a ticker the words set aside — "but not NVDA", "leave TSLA", "except AMD" — is never one they ask to see)
+      const setAside = (t) => {
+        const at = w.search(new RegExp(`\\b\\$?${t}\\b`, 'i'))
+        const lead = at < 0 ? '' : w.slice(0, at).split(/[.;!?]|,\s*(?:and|then)\b/).pop()
+        return /\b(?:not|except|but not|other than|excluding|without|leave|leaving|keep|keeping|don['’]?t|never)\b/i.test(lead)
+      }
+      const asked = [...new Set(tickersIn(w))].filter(t => !before.has(t) && !setAside(t))
+      // (a stated grid is checked by its own COUNT rule)
+      const gridded = (plan.plans || []).some(p => p.kind === 'board' || p.kind === 'multiChart') || gridStated(w, known) || requestedPanels(w) != null
+      if (!gridded && asked.length >= 2 && effects.some(e => e.type === 'symbol' && e.to)) {
         const final = new Map(liveCharts(host).map(c => [c.ref, up(c.symbol)]))
-        for (const p of plan.plans || []) if (p.kind === 'chart' && !p.virtual && p.after?.symbol) final.set(p.ref, up(p.after.symbol))
+        for (const e of effects) if (e.type === 'symbol' && e.to) final.set(e.ref, up(e.to))
         const shown = new Set([...final.values(), ...(plan.plans || []).filter(p => p.virtual && p.after?.symbol).map(p => up(p.after.symbol)),
           ...(plan.plans || []).flatMap(p => (p.after?.grid?.add || []).map(a => up(a.symbol)))].filter(Boolean))
         const missing = asked.filter(t => !shown.has(t))
