@@ -47,9 +47,12 @@ describe('A9 · readoutChipName — `UCT RS · SPY`, never `RS(SPY)`', () => {
 
   it('the resolved benchmark and the rating follow the chip suffix grammar once the envelope lands', () => {
     const chip = rsChip({ benchmark: 'SECTOR' }, {
-      scalarsOf: () => ({ benchmark: { resolved: 'XLK' }, rating: { ibd: 94 } }),
+      // the v4 envelope's `benchmark.name` (rs_benchmarks.benchmark_name: 'XLK' for SECTOR -> XLK) is
+      // what the chip row reads (`scalar:benchmark.name`, 6026aa82a9); `resolved` alone predates it
+      scalarsOf: () => ({ benchmark: { resolved: 'XLK', name: 'XLK' }, rating: { ibd: 94 } }),
     })
     expect(readoutChipName(chip, RS)).toBe('UCT RS · XLK · 94')
+    expect(RS.readout.find((r) => r.key === 'benchmark').source).toBe('scalar:benchmark.name')
   })
 
   it('works whether legendParams names the benchmark or is empty (the engineering map\'s design)', () => {
