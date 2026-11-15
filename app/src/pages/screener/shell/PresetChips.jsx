@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import UIcon from '../../../components/ui/UIcon'
 import usePreferences, { parsePref } from '../../../hooks/usePreferences'
 import useSavedScreens from '../hooks/useSavedScreens'
+import { offeredStarters } from '../focus/screenGroups'
 import styles from './ScannerShell.module.css'
 import Checkbox from '../../../components/ui/Checkbox'
 
@@ -45,13 +46,17 @@ export default function PresetChips({ currentSpec, onApply }) {
 
   const saved = parsePref(prefs[CHIPS_KEY], null)
   const selectedIds = Array.isArray(saved) ? new Set(saved.filter((x) => typeof x === 'string')) : null
-  const shown = selectedIds ? starters.filter((s) => selectedIds.has(s.id)) : starters
+  // A starter the server marked `hidden` (RS screens contract, 2026-11-14) is not offered as a
+  // chip or in the Edit list. One a member's stored selection names stays, so it still works
+  // and can be unticked. Without a hidden starter `offered` IS `starters`, as before.
+  const offered = offeredStarters(starters, selectedIds)
+  const shown = selectedIds ? offered.filter((s) => selectedIds.has(s.id)) : offered
   const isShown = (id) => (selectedIds ? selectedIds.has(id) : true)
 
   // The selection materialises from "all" on the first edit, so unchecking one
   // hides only that chip (not every chip that had never been explicitly chosen).
   const toggleChip = (id) => setPrefMerged(CHIPS_KEY, (cur) => {
-    const base = Array.isArray(cur) ? cur.filter((x) => typeof x === 'string') : starters.map((s) => s.id)
+    const base = Array.isArray(cur) ? cur.filter((x) => typeof x === 'string') : offered.map((s) => s.id)
     return base.includes(id) ? base.filter((x) => x !== id) : [...base, id]
   })
 
@@ -77,7 +82,7 @@ export default function PresetChips({ currentSpec, onApply }) {
         {manageOpen && (
           <div className={styles.presetManageMenu} role="menu">
             <div className={styles.uMenuHd}>Show these preset scans</div>
-            {starters.map((s) => (
+            {offered.map((s) => (
               <label key={s.id} className={styles.presetManageItem}>
                 <Checkbox checked={isShown(s.id)} onChange={() => toggleChip(s.id)} />
                 <span>{s.name}</span>

@@ -1,5 +1,22 @@
 import { optionText } from './shell/optionText'
 
+// Enums whose stored values are CODES, not words: the RS screens' Setup label and its flag
+// (2026-11-14: `at_pivot`, `below_50`, `buyout_pending`). The registry sends each code's
+// member-facing word as that option's label, so a list over one of them is said in those words.
+// ⚰️ Unit U6: the screens' own clauses (`rs_setup` not in extended, below_50; `rs_flag` not in
+// buyout_pending) read "Setup: not extendeds, below_50s" on the chip and "at_pivot" in the why
+// strip, because a list was printed value by value with an "s" (right for Stock, ETF).
+// Named, not generic, on purpose: every other filter's chip reads exactly as it did, and these
+// two keys reach a member only while RS_SCREENS_ENABLED is on.
+export const CODE_ENUM_KEYS = new Set(['rs_setup', 'rs_flag'])
+// The word for one stored code of such an enum, or null (not such an enum, or a code the
+// registry does not offer: then the caller prints what it holds).
+export function codeWord(def, value) {
+  if (!def || !CODE_ENUM_KEYS.has(def.key)) return null
+  const hit = (def.presets || []).find(o => o && o.op === 'eq' && o.value === value && typeof o.label === 'string' && o.label && o.label !== 'Any')
+  return hit ? hit.label : null
+}
+
 // Human-readable label for an active filter spec, for the removable chips row.
 export function chipLabel(def, spec) {
   if (!def || !spec) return ''
@@ -7,6 +24,10 @@ export function chipLabel(def, spec) {
     o.op === spec.op && o.value === spec.value && o.min === spec.min && o.max === spec.max)
   if (preset && preset.label && preset.label !== 'Any') {
     return `${def.label}: ${optionText(def.key, preset.label)}`
+  }
+  if (CODE_ENUM_KEYS.has(def.key) && Array.isArray(spec.values) && spec.values.length) {
+    const words = spec.values.map(v => codeWord(def, v) ?? String(v)).join(', ')
+    return spec.op === 'not_in' ? `${def.label}: not ${words}` : `${def.label}: ${words}`
   }
   // The Type filter (Include/Exclude a set): {op:'in'|'not_in', values:[…]}.
   if (Array.isArray(spec.values) && spec.values.length) {

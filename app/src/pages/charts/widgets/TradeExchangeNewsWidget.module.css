@@ -963,3 +963,198 @@
   border-radius: 3px;
   padding: 0 1px;
 }
+
+/* ── UCT frame (owner 11-13, /charts board only — :global(.uct-frame) set by WidgetHost):
+      the chart widget's style. The source attribution stays (UCT News · Powered by Trade
+      Exchange); the status reads in normal case; controls are soft rounded fields and
+      quiet icon buttons. ── */
+:global(.uct-frame) { --txn-ctl-h: 30px; }
+:global(.uct-frame) .bar { min-height: 38px; }
+:global(.uct-frame) .brandTitle { font-size: 12.5px; }
+:global(.uct-frame) .brandSub { font-size: 10px; color: var(--widget-text, var(--txn-text, #cfcac0)); }
+:global(.uct-frame) .status { font-size: 11.5px; letter-spacing: 0; text-transform: none; }
+:global(.uct-frame) .iconBtn { width: 24px; height: 22px; padding: 0; border: none; border-radius: 6px; opacity: 0.85; }
+:global(.uct-frame) .iconBtn:hover,
+:global(.uct-frame) .iconBtnOn { opacity: 1; color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); background: var(--widget-row-hover, rgba(255, 255, 255, 0.07)); }
+:global(.uct-frame) .searchBar { padding: 6px 8px; }
+:global(.uct-frame) .searchInput,
+:global(.uct-frame) .filterBtn,
+:global(.uct-frame) .listSelect {
+  border-radius: 8px;
+  border-color: transparent;
+  background: color-mix(in srgb, var(--widget-text, #cfcac0) 8%, transparent);
+}
+:global(.uct-frame) .searchInput { font-size: 12.5px; padding-left: 11px; }
+:global(.uct-frame) .searchInput::placeholder { color: var(--widget-text, var(--txn-text, #cfcac0)); }
+:global(.uct-frame) .searchInput:focus { border-color: color-mix(in srgb, var(--widget-accent, var(--accent, #dcbb5e)) 32%, transparent); }
+
+/* ── UCT frame, one title row (owner 11-13): "UCT News · powered by TradeExchange", Live and
+      Saved in the frame's title row; the search row matches the Theme Tracker / Watchlist
+      (36px, 26px controls, a magnifier); menus in the board's check-mark look. ── */
+.uctTitle { display: flex; align-items: center; gap: 4px; min-width: 0; width: 100%; height: 100%; }
+.uctBrand { display: inline-flex; align-items: baseline; gap: 5px; flex: 0 1 auto; min-width: 0; overflow: hidden; white-space: nowrap; }
+.uctBrandName { font-size: 12.5px; font-weight: 700; color: var(--widget-text-strong, var(--text-bright)); }
+.uctBrandSub { font-size: 10px; font-weight: 500; color: var(--widget-text, var(--text-muted)); overflow: hidden; text-overflow: ellipsis; }
+.uctTitle .status { flex: 0 0 auto; height: 24px; padding: 0 4px; gap: 5px; border-radius: 6px; }
+.uMenu > .uMenuSearch { flex: 0 0 auto; }
+.uctTitle .status:hover { background: var(--widget-row-hover, var(--bg-hover)); }
+:global(.uct-frame) .searchBar { height: 36px; padding: 0 12px; gap: 8px; }
+:global(.uct-frame) .searchInput,
+:global(.uct-frame) .filterBtn { height: 26px; border-radius: 7px; }
+:global(.uct-frame) .filterBtn { width: 28px; }
+:global(.uct-frame) .searchInput { padding-left: 30px; font-size: 12px; }
+.searchGlyph { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); display: inline-flex; pointer-events: none; z-index: 1;
+  color: var(--widget-text, var(--text-muted)); opacity: 0.8; }
+.searchGlyph svg { color: inherit !important; filter: none !important; }
+.searchGlyph svg * { stroke: currentColor !important; }
+.listBtn {
+  flex: 0 1 auto; min-width: 0; max-width: 150px; height: 26px;
+  display: inline-flex; align-items: center; gap: 6px; padding: 0 9px 0 11px;
+  border: none; border-radius: 7px; cursor: pointer;
+  background: color-mix(in srgb, var(--widget-text, var(--text-muted)) 8%, transparent);
+  color: var(--widget-text-strong, var(--text-bright));
+  font: 600 12px var(--font-sans);
+}
+.listBtn:hover, .listBtnOpen { background: color-mix(in srgb, var(--widget-text, var(--text-muted)) 14%, transparent); }
+.listBtnText { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.listBtn svg { flex: 0 0 auto; color: var(--widget-text, var(--text-muted)) !important; filter: none !important; transition: transform 0.15s ease; }
+.listBtn svg * { stroke: currentColor !important; }
+.listBtnOpen svg { transform: rotate(180deg); }
+.listBtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.uMenuBackdrop { position: fixed; inset: 0; z-index: 5999; }
+.uMenu {
+  position: fixed; z-index: 6000; padding: 6px;
+  display: flex; flex-direction: column;
+  border-radius: 10px;
+  background: var(--menu-bg, var(--bg-elevated));
+  border: 1px solid var(--menu-border, var(--border-accent, var(--border)));
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5);
+  color: var(--menu-text, var(--text));
+  font-family: var(--font-sans);
+  max-height: 70vh;
+}
+.uMenuInHost { position: absolute; z-index: 6; max-height: calc(100% - 44px); overflow-y: auto; }
+.uMenuLabel { padding: 6px 10px 4px; font-size: 11px; font-weight: 600; color: var(--text-muted); }
+.uMenuItem {
+  display: flex; align-items: center; gap: 6px; width: 100%; min-width: 0;
+  padding: 7px 10px 7px 6px; border: none; border-radius: 6px; background: none; cursor: pointer;
+  font: 13px var(--font-sans); text-align: left; color: var(--menu-text, var(--text));
+}
+.uMenuItem:hover, .uMenuItem:focus-visible { background: var(--bg-hover); color: var(--text-bright); outline: none; }
+.uMenuCheck { flex: 0 0 16px; display: inline-flex; justify-content: center; }
+.uMenuCheck svg { color: var(--text-bright) !important; filter: none !important; }
+.uMenuCheck svg * { stroke: currentColor !important; }
+.uMenuText { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.uMenuDim { color: var(--text-muted); }
+.uMenuSep { height: 1px; margin: 5px 6px; background: var(--border); flex: 0 0 auto; }
+.uMenuGrid { display: grid; grid-template-columns: 1fr 1fr; }
+.uMenuScroll { overflow-y: auto; min-height: 0; max-height: 300px; scrollbar-width: thin; }
+.uMenuEmpty { padding: 10px; font-size: 12px; color: var(--text-muted); text-align: center; }
+.uMenuSearch {
+  flex: 1; min-width: 0; height: 30px; margin: 2px 0 6px; padding: 0 10px; box-sizing: border-box;
+  border: 1px solid transparent; border-radius: 7px; outline: none;
+  background: color-mix(in srgb, var(--text-bright) 6%, transparent);
+  color: var(--text-bright); font: 12.5px var(--font-sans);
+}
+.uMenuSearch:focus { border-color: color-mix(in srgb, var(--text-bright) 22%, transparent); }
+.uMenuRow { display: flex; align-items: center; gap: 2px; }
+.uMenuRow .uMenuItem { flex: 1 1 auto; }
+.uMenuIcon {
+  flex: 0 0 auto; width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center;
+  border: none; border-radius: 6px; background: none; cursor: pointer; color: var(--text-muted); opacity: 0;
+}
+.uMenuRow:hover .uMenuIcon, .uMenuIcon:focus-visible { opacity: 1; }
+.uMenuIcon:hover { color: var(--text-bright); background: var(--bg-hover); }
+.uMenuIconDanger:hover { color: var(--danger-ink); background: color-mix(in srgb, var(--loss) 12%, transparent); }
+.uMenuIcon svg { color: inherit !important; filter: none !important; }
+.uMenuIcon svg * { stroke: currentColor !important; }
+.uMenuForm { display: flex; align-items: center; gap: 6px; padding: 2px 4px 2px; }
+.uMenuForm .uMenuSearch { margin: 0; }
+.uMenuGo {
+  flex: 0 0 auto; height: 30px; padding: 0 12px; border: none; border-radius: 7px; cursor: pointer;
+  background: var(--accent); color: var(--bg); font: 700 12px var(--font-sans);
+}
+.uMenuGo:disabled { opacity: 0.4; cursor: default; }
+/* owner 11-13: the attribution sits UNDER "UCT News" (two short lines inside the 40px title row). */
+.uctBrand { flex-direction: column; align-items: flex-start; justify-content: center; gap: 1px; line-height: 1.15; }
+.uctBrandName { font-size: 12.5px; }
+.uctBrandSub { font-size: 10px; max-width: 100%; }
+.uctTitle { height: 32px; align-self: center; margin-block: -5.5px; }
+
+/* ── UCT frame footer (owner 11-13): the same 30px row as the Watchlist / Theme Tracker footers —
+      the day's headline count on the left (like "47 stocks"), ‹ Today › and the clock on the
+      right as soft buttons; the calendar and Jump-to-time menus in the board's menu look. ── */
+:global(.uct-frame) .footer { height: 30px; box-sizing: border-box; padding: 0 8px 0 12px; }
+:global(.uct-frame) .dayBar { justify-content: flex-end; gap: 4px; }
+.dayCount { margin-right: auto; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+  font-size: 11.5px; font-weight: 600; color: var(--widget-text-strong, var(--text-bright)); }
+:global(.uct-frame) .pageBtn,
+:global(.uct-frame) .dayBtn,
+:global(.uct-frame) .timeBtn {
+  height: 22px; border: none; border-radius: 6px; background: transparent;
+  color: var(--widget-text, var(--text-muted));
+}
+:global(.uct-frame) .pageBtn { width: 22px; }
+:global(.uct-frame) .timeBtn { width: 24px; }
+:global(.uct-frame) .dayBtn {
+  gap: 6px; padding: 0 9px; font: 600 11.5px var(--font-sans);
+  color: var(--widget-text-strong, var(--text-bright));
+  background: color-mix(in srgb, var(--widget-text, var(--text-muted)) 8%, transparent);
+}
+:global(.uct-frame) .pageBtn:hover:not(:disabled),
+:global(.uct-frame) .timeBtn:hover,
+:global(.uct-frame) .dayBtn:hover,
+:global(.uct-frame) .dayBtnOn,
+:global(.uct-frame) .dayBtnOn:hover {
+  color: var(--widget-text-strong, var(--text-bright));
+  background: color-mix(in srgb, var(--widget-text, var(--text-muted)) 14%, transparent);
+  border-color: transparent;
+}
+:global(.uct-frame) .pageBtn svg, :global(.uct-frame) .dayBtn svg, :global(.uct-frame) .timeBtn svg { color: inherit !important; filter: none !important; }
+:global(.uct-frame) .pageBtn svg *, :global(.uct-frame) .dayBtn svg *, :global(.uct-frame) .timeBtn svg * { stroke: currentColor !important; }
+
+/* the popovers (calendar, Jump to time, feed health) */
+:global(.uct-frame) .menuPop {
+  padding: 6px; border-radius: 10px;
+  border: 1px solid var(--menu-border, var(--border-accent, var(--border)));
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5);
+  font-size: 12px;
+}
+:global(.uct-frame) .menuHead { padding: 6px 10px 4px; font-size: 11px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--menu-muted, var(--text-muted)); }
+:global(.uct-frame) .menuItem { padding: 7px 10px; border-radius: 6px; font-size: 13px; }
+:global(.uct-frame) .menuItemOn { color: var(--menu-text, var(--text-bright)); font-weight: 600; background: var(--menu-hover, var(--bg-hover)); }
+:global(.uct-frame) .menuNote { padding: 6px 10px 4px; font-size: 11px; line-height: 1.4; }
+:global(.uct-frame) .calHead { padding: 2px 2px 6px; gap: 2px; }
+:global(.uct-frame) .calTitle { font-size: 13px; font-weight: 600; }
+:global(.uct-frame) .calNav { width: 26px; height: 26px; border-radius: 6px; font-size: 14px; }
+:global(.uct-frame) .calGrid { gap: 2px; padding: 0 2px 4px; }
+:global(.uct-frame) .calDow { font-size: 10.5px; font-weight: 600; padding: 4px 0; }
+:global(.uct-frame) .calDay { height: 30px; border-radius: 7px; font-size: 12px; }
+:global(.uct-frame) .calToday { border-color: color-mix(in srgb, var(--menu-text, var(--text-bright)) 30%, transparent); }
+:global(.uct-frame) .calNews::after { bottom: 3px; background: var(--menu-muted, var(--text-muted)); }
+:global(.uct-frame) .calSel { background: var(--menu-text, var(--text-bright)); color: var(--menu-bg, var(--bg)); }
+:global(.uct-frame) .calSel.calNews::after { background: var(--menu-bg, var(--bg)); }
+:global(.uct-frame) .timePresets { gap: 6px; padding: 2px 6px 6px; }
+:global(.uct-frame) .timePresets .menuSym {
+  height: 26px; padding: 0 9px; border: none; border-radius: 6px; font-size: 12px;
+  background: color-mix(in srgb, var(--menu-text, var(--text-bright)) 6%, transparent); color: var(--menu-text, var(--text));
+}
+:global(.uct-frame) .timePresets .menuSym:hover { background: var(--menu-hover, var(--bg-hover)); }
+:global(.uct-frame) .timePresets .menuSymOn { background: color-mix(in srgb, var(--menu-text, var(--text-bright)) 16%, transparent); color: var(--menu-text, var(--text-bright)); }
+:global(.uct-frame) .menuPop .presetForm { gap: 6px; padding: 2px 4px 4px; }
+:global(.uct-frame) .menuPop .alertsInput {
+  height: 30px; border-radius: 7px; border: 1px solid transparent; font-size: 12.5px;
+  background: color-mix(in srgb, var(--menu-text, var(--text-bright)) 6%, transparent);
+}
+:global(.uct-frame) .menuPop .alertsAdd { height: 30px; padding: 0 12px; border: none; border-radius: 7px; background: var(--accent); color: var(--bg); font-weight: 700; font-size: 12px; }
+/* owner 11-13: row actions as quiet icons on the board — no filled box when "on", a soft
+   highlight only on hover; a saved bookmark / a note just reads brighter. */
+:global(.uct-frame) .rowActions { gap: 2px; }
+:global(.uct-frame) .rowBtn { width: 22px; height: 20px; border-radius: 6px; }
+:global(.uct-frame) .rowBtnOn { background: none; color: var(--widget-text-strong, var(--text-bright)); }
+:global(.uct-frame) .rowBtn:hover { background: var(--widget-row-hover, var(--bg-hover)); color: var(--widget-text-strong, var(--text-bright)); }
+:global(.uct-frame) .rowBtnSaved, :global(.uct-frame) .row:hover .rowBtnSaved { color: var(--widget-text-strong, var(--text-bright)); }
+
+/* Live beside the search bar in a tabbed slot (owner 11-14) — never squeezed. */
+.statusInBar { flex: 0 0 auto; white-space: nowrap; margin-left: 2px; }

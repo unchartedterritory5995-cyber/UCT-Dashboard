@@ -590,6 +590,30 @@
       ]
     },
     {
+      "key": "screener_rs_controls",
+      "store": "server-preference",
+      "scope": "cross-device",
+      "surface": "Screener",
+      "kind": "setting",
+      "label": "RS screen quick controls",
+      "serverAllowlisted": true,
+      "files": [
+        "app/src/pages/screener/focus/FocusScreener.jsx"
+      ]
+    },
+    {
+      "key": "screener_rs_note_seen",
+      "store": "server-preference",
+      "scope": "cross-device",
+      "surface": "Screener",
+      "kind": "state",
+      "label": "RS screens first-visit note dismissed",
+      "serverAllowlisted": true,
+      "files": [
+        "app/src/pages/screener/focus/FocusScreener.jsx"
+      ]
+    },
+    {
       "key": "shared_tag_colors",
       "store": "server-preference",
       "scope": "cross-device",
@@ -3324,6 +3348,17 @@
       "label": "Which named screen the current filters came from",
       "files": [
         "app/src/pages/screener/focus/FocusScreener.jsx"
+      ]
+    },
+    {
+      "key": "uct.screener.rsMarketHidden",
+      "store": "sessionStorage",
+      "scope": "device-local",
+      "surface": "Screener",
+      "kind": "state",
+      "label": "RS screens market note hidden for today",
+      "files": [
+        "app/src/pages/screener/focus/rsMarket.js"
       ]
     },
     {
